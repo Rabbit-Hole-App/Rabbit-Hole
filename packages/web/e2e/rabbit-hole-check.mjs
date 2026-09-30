@@ -834,30 +834,16 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  await check('J17: Start Sources → From a connection lists Planned tiles and cannot submit', async () => {
+  // MVP surface cleanup: every connection source is planned, so Sources offers PDF upload only and
+  // advertises nothing it cannot do (StartDialog.jsx connectionSources). This replaces J17/J18/J19's planned tiles.
+  await check('J17: Start Sources offers PDF upload only, with no planned connection sources', async () => {
     const page = await open();
     await openStart(page, 'sources');
     const dialog = startDialog(page);
-    await dialog.getByRole('radio', { name: 'From a connection' }).click();
-    for (const name of ['Google Slides', 'Google Drive / Docs', 'Notion']) {
-      const tile = dialog.locator('[aria-disabled="true"]', { hasText: name });
-      must(await tile.count() === 1 && (await tile.innerText()).includes('Planned'), `${name} tile is not Planned`);
-    }
-    must(await dialog.getByRole('button', { name: 'Create canvas' }).isDisabled(), 'Create canvas is enabled for a planned method');
-    await page.context().close();
-  });
-
-  await check('J18: choosing a planned deck does nothing and claims nothing', async () => {
-    const page = await open();
-    await openStart(page, 'sources');
-    const dialog = startDialog(page);
-    await dialog.getByRole('radio', { name: 'From a connection' }).click();
-    const writes = [];
-    page.on('request', (r) => { if (r.method() !== 'GET') writes.push(r.url()); });
-    const before = page.url();
-    await dialog.locator('[aria-disabled="true"]', { hasText: 'Google Slides' }).click({ force: true }); // force: aria-disabled blocks the actionability wait
-    must(page.url() === before && writes.length === 0, 'a planned tile navigated or wrote');
-    must(!/connected|imported|syncing/i.test(await dialog.innerText()), 'the dialog claims a connection or import');
+    must(await dialog.getByRole('radio', { name: 'From a connection' }).count() === 0, 'Sources still offers From a connection');
+    must(!/Planned|Google Slides|Google Drive|Notion/.test(await dialog.innerText()), 'Sources still advertises a planned provider');
+    must((await dialog.innerText()).includes('Sources → PDF'), 'Sources lost its PDF upload guidance');
+    must(await dialog.getByRole('button', { name: 'Create canvas' }).isEnabled(), 'Create canvas is disabled for PDF upload');
     await page.context().close();
   });
 
@@ -1010,15 +996,14 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     }
   });
 
-  await check('J16: theme survives reload and revisit; no-op preferences are Planned and disabled; copy names the product', async () => {
+  await check('J16: theme survives reload and revisit; unfinished preferences and tabs are absent; copy names the product', async () => {
     const page = await settingsAt({ tab: 'preferences' });
     const dialog = settings(page);
     must((await dialog.innerText()).includes('Choose how you want Rabbit Hole to look and behave'), 'Preferences copy does not use PRODUCT');
     for (const name of ['High contrast', 'Use Enter to add a new line', 'Language', 'Number format', 'Always show text direction controls', 'Mail & Calendar', 'Import', 'Small MCP', 'Public pages', 'Emoji']) {
-      must(await dialog.getByText(new RegExp(`^${name} ?Planned$`)).count() === 1, `${name} has no Planned badge`);
+      must(await dialog.getByText(name, { exact: true }).count() === 0, `${name} is still shown`);
     }
-    for (const name of ['Use system setting', 'English (US)', 'Default']) must(await dialog.getByRole('button', { name, exact: true }).isDisabled(), `${name} select is enabled`);
-    must(await dialog.getByRole('switch').evaluateAll((all) => all.length === 2 && all.every((s) => s.disabled)), 'the Enter-newline or text-direction toggle is enabled');
+    must(!(await dialog.innerText()).includes('Planned'), 'Settings still says Planned');
     await dialog.getByRole('button', { name: 'System', exact: true }).click();
     await page.getByRole('button', { name: 'Dark', exact: true }).click();
     await page.keyboard.press('Escape');
@@ -1026,38 +1011,16 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     must(await page.evaluate(() => document.documentElement.classList.contains('dark')), 'dark theme did not survive reload');
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('small:settings', { detail: { tab: 'preferences' } })));
     await dialog.getByRole('button', { name: 'Dark', exact: true }).waitFor({ timeout: 5000 }); // the revisit shows the saved choice
-    await dialog.getByText('Mail & Calendar').click();
-    await dialog.getByText('Planned — not available yet.').waitFor({ timeout: 3000 });
     await page.context().close(); // the theme lives in this throwaway context only
   });
 
-  await check('J17: a planned provider opens highlighted in Settings, says Planned, and offers no action', async () => {
+  await check('J17: Connections lists only working providers; planned ones and live-only Slack are absent', async () => {
     const page = await settingsAt({ tab: 'connections', focus: 'google-slides' });
-    must(await row(page, 'google-slides').getAttribute('aria-current') === 'true', 'the Google Slides row is not highlighted');
-    for (const id of ['google-slides', 'google-drive', 'notion']) {
-      must((await row(page, id).innerText()).includes('Planned'), `${id} is not Planned`);
-      must(await row(page, id).getByRole('button').count() === 0, `${id} offers an action`);
-    }
-    await page.context().close();
-  });
-
-  await check('J19: Manage connections from Start on a project returns to the same draft and route, with nothing created', async () => {
-    must(repo, 'no repository project in the catalog');
-    const page = await open();
-    await openStart(page, 'sources', `/apps/${repo.name}`);
-    const writes = [];
-    page.on('request', (r) => { const p = new URL(r.url()).pathname; if (r.method() !== 'GET' && /^[/]api[/](canvases|repositories|apps)/.test(p)) writes.push(`${r.method()} ${p}`); });
-    const dialog = startDialog(page);
-    await dialog.getByPlaceholder('Untitled canvas').fill('e2e J19 draft');
-    await dialog.getByRole('radio', { name: 'From a connection' }).click();
-    await dialog.getByRole('button', { name: 'Manage connections' }).click();
-    await settings(page).waitFor({ timeout: 5000 });
-    await page.keyboard.press('Escape');
-    await settings(page).waitFor({ state: 'detached', timeout: 5000 });
-    must(await dialog.isVisible(), 'Start closed together with Settings');
-    must(await dialog.getByPlaceholder('Untitled canvas').inputValue() === 'e2e J19 draft', 'the draft title was lost');
-    must(new URL(page.url()).pathname === `/apps/${repo.name}`, `route changed to ${page.url()}`);
-    must(!writes.length, `a cancelled source choice wrote: ${writes}`);
+    for (const id of ['slack', 'google-slides', 'google-drive', 'notion']) must(await row(page, id).count() === 0, `${id} is still listed`);
+    must(!(await settings(page).innerText()).includes('Planned'), 'Connections still says Planned');
+    must(await row(page, 'github').count() === 1, 'GitHub is missing');
+    // An unconfigured AWS preview is an absent capability, never an error (app-data.js awsUnavailable).
+    must(!/not configured|Could not load AWS/.test(await page.locator('body').innerText()), 'an unconfigured AWS preview shows as an error');
     await page.context().close();
   });
 
@@ -1083,7 +1046,6 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     const page = await settingsAt({ tab: 'connections' });
     const github = await row(page, 'github').innerText();
     must(github.includes('Available') && github.includes('No account needed for public repositories'), 'GitHub mixes or drops availability and account status');
-    for (const id of ['slack', 'google-slides', 'google-drive', 'notion']) must(!/account|connected|synced|imported/i.test(await row(page, id).innerText()), `${id} implies an account or sync state`);
     await page.context().close();
   });
 
@@ -2403,10 +2365,10 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     const dialog = settings(page);
     await dialog.waitFor({ timeout: 5000 });
     for (const name of ['People', 'Teamspaces', 'Admin']) must(await dialog.getByText(name, { exact: true }).count() === 0, `Settings shows ${name}`);
-    for (const tab of ['Preferences', 'Notifications', 'General', 'Small AI', 'Connections', 'Developer', 'Security', 'Identity']) {
+    for (const tab of ['Preferences', 'Notifications', 'General', 'Rabbit Hole AI', 'Connections', 'Developer', 'Security', 'Identity']) {
       await dialog.getByText(tab, { exact: true }).first().click();
       await dialog.getByText(tab, { exact: true }).nth(1).waitFor({ timeout: 5000 }); // the pane title under the nav item
-      await page.waitForTimeout(300); // General and Small AI load their data
+      await page.waitForTimeout(300); // General and Rabbit Hole AI load their data
       const words = (await dialog.innerText()).match(TEAM_WORDS);
       must(!words, `Settings → ${tab} says "${words?.[0]}"`);
     }

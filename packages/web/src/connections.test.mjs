@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { AVAILABILITY, CONNECTIONS, connectionsFor, findConnection, openedNotice } from './connections.js';
+import { AVAILABILITY, CONNECTIONS, connectionsFor, findConnection, openedNotice, previewConnections } from './connections.js';
 
 test('the catalog lists the six T02 §11 providers in order', () => {
   assert.deepEqual(CONNECTIONS.map((c) => c.id), ['github', 'slack', 'aws', 'google-slides', 'google-drive', 'notion']);
@@ -43,4 +43,10 @@ test('the notice says where Settings opened, and that a planned provider was not
   assert.equal(openedNotice('connections'), 'Opened Settings → Connections.');
   assert.equal(openedNotice('preferences'), 'Opened Settings → Preferences.');
   assert.equal(openedNotice(), 'Opened Settings.');
+});
+
+test('Rabbit Hole Settings lists only working providers: no planned rows, no live-only Slack', () => {
+  assert.deepEqual(previewConnections({ aws: false }).map((c) => c.id), ['github']);
+  assert.deepEqual(previewConnections({ aws: true }).map((c) => c.id), ['github', 'aws']);
+  assert.equal(CONNECTIONS.some((c) => /Planned/.test(c.account || '')), false);
 });

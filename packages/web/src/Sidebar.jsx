@@ -4,7 +4,7 @@ import { AlertTriangle, BadgeCheck, Bell, Braces, Check, ChevronDown, ChevronRig
 import { ago, api, getTheme, navigate, sectionOf, setTheme, setWs, wsName, workspaceLabel } from './api.js';
 import AwsConnection from './AwsConnection.jsx';
 import ByocDevBadge from './ByocDevBadge.jsx';
-import { AVAILABILITY, connectionsFor } from './connections.js';
+import { AVAILABILITY, previewConnections } from './connections.js';
 import { isPrivateByoc } from './private-auth.js';
 import { titleOf } from './agent/catalog.js';
 import { learnPreview, PRODUCT } from './flags.js';
@@ -18,15 +18,13 @@ import { MODEL_CHOICES, MODEL_SCOPE } from './model-choices.js';
 // Settings (workspace dropdown → Settings): Notion-style two-pane modal -
 // left nav (Account / Workspace sections), right content per tab.
 const THEMES = { System: 'system', Light: 'light', Dark: 'dark' };
-// T02 §11, dev build only (D2): no-op controls and placeholder panes say Planned. Each helper
-// returns its input unchanged when learnPreview is off, so the live markup stays exactly as today.
-const planned = (className = 'ml-2') => learnPreview && <Pill className={className}>Planned</Pill>;
-const soonTitle = (text) => (learnPreview ? <span>{text}{planned()}</span> : text);
-const dim = (control) => (learnPreview ? <span className="opacity-50">{control}</span> : control);
+const AI_NAME = learnPreview ? 'Rabbit Hole AI' : 'Small AI';
+// Dev build only (D2): Rabbit Hole shows a setting when it works and hides it otherwise; no Planned
+// rows or panes. The live markup stays exactly as today.
 const AVAILABILITY_COLOR = { available: 'green', preview: 'yellow', planned: 'grey' };
 // ponytail: nav copied verbatim from the Notion reference (user: "copy the same we
 // will remove later") - most items render an empty pane until we prune/wire them.
-function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initialTab, focus: initialFocus, pendingGrant, onAccessChanged }) {
+function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initialTab, focus: initialFocus, pendingGrant, onAccessChanged, awsAvailable }) {
   const [tab, setTab] = useState(initialTab || 'preferences');
   const [focus, setFocus] = useState(initialFocus || null); // the row open_settings asked for, e.g. google-slides
   const box = useRef(null);
@@ -93,17 +91,19 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
           </div>
           <NavBtn id="preferences" icon={SlidersHorizontal}>Preferences</NavBtn>
           <NavBtn id="notifications" icon={Bell}>Notifications</NavBtn>
-          <NavBtn id="mail" icon={Mail}>Mail & Calendar{planned('ml-auto')}</NavBtn>
+          {!learnPreview && <NavBtn id="mail" icon={Mail}>Mail & Calendar</NavBtn>}
           <NavLabel>Workspace</NavLabel>
           <NavBtn id="general" icon={Settings}>General</NavBtn>
           {!learnPreview && <NavBtn id="people" icon={Users}>People</NavBtn>}
-          <NavBtn id="import" icon={Download}>Import{planned('ml-auto')}</NavBtn>
+          {!learnPreview && <NavBtn id="import" icon={Download}>Import</NavBtn>}
           <NavLabel>Features</NavLabel>
-          <NavBtn id="ai" icon={Mark}>Small AI</NavBtn>
+          <NavBtn id="ai" icon={Mark}>{AI_NAME}</NavBtn>
           <NavBtn id="connections" icon={LayoutGrid}>Connections{pendingGrant && <span role="status" aria-label="AWS access needs attention" className="ml-auto h-2 w-2 shrink-0 rounded-full bg-warn" />}</NavBtn>
-          <NavBtn id="mcp" icon={Share2}>Small MCP{planned('ml-auto')}</NavBtn>
-          <NavBtn id="pages" icon={Globe}>Public pages{planned('ml-auto')}</NavBtn>
-          <NavBtn id="emoji" icon={Smile}>Emoji{planned('ml-auto')}</NavBtn>
+          {!learnPreview && <>
+            <NavBtn id="mcp" icon={Share2}>Small MCP</NavBtn>
+            <NavBtn id="pages" icon={Globe}>Public pages</NavBtn>
+            <NavBtn id="emoji" icon={Smile}>Emoji</NavBtn>
+          </>}
           <NavBtn id="developer" icon={Braces}>Developer</NavBtn>
           <NavLabel>{learnPreview ? 'Sign-in' : 'Admin'}</NavLabel>
           {!learnPreview && <NavBtn id="teamspaces" icon={LayoutPanelLeft}>Teamspaces</NavBtn>}
@@ -125,26 +125,29 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
                   onChange={(k) => { setThemeState(THEMES[k]); setTheme(THEMES[k]); }}
                 />
               </SettingsRow>
-              <SettingsRow
-                title={learnPreview ? soonTitle('High contrast') : <span>High contrast <span className="ml-1 rounded-sm bg-hover px-1.5 py-0.5 text-[11px] text-ink-2">Beta</span></span>}
-                desc="Increase contrast for improved visibility"
-              >
-                {dim(<Select disabled={learnPreview} value="Use system setting" options={['Use system setting', 'On', 'Off']} onChange={() => {}} />)}
-              </SettingsRow>
-              <Heading>Input options</Heading>
-              <SettingsRow title={soonTitle('Use Enter to add a new line')} desc="Applies to chat, comments, and other input fields. Press Cmd/Ctrl + Enter to send.">
-                {dim(<Toggle disabled={learnPreview} on={enterNewline} onChange={setEnterNewline} />)}
-              </SettingsRow>
-              <Heading>Language & time</Heading>
-              <SettingsRow title={soonTitle('Language')} desc={`Choose the language you want to use ${PRODUCT} in`}>
-                {dim(<Select disabled={learnPreview} value="English (US)" options={['English (US)']} onChange={() => {}} />)}
-              </SettingsRow>
-              <SettingsRow title={soonTitle('Number format')} desc="Choose how numbers and currencies are formatted. Default uses your language setting.">
-                {dim(<Select disabled={learnPreview} value="Default" options={['Default']} onChange={() => {}} />)}
-              </SettingsRow>
-              <SettingsRow title={soonTitle('Always show text direction controls')} desc="Show the option to change text direction (left to right or right to left) in the editor, regardless of what language you're using">
-                {dim(<Toggle disabled={learnPreview} on={textDir} onChange={setTextDir} />)}
-              </SettingsRow>
+              {/* ponytail: these rows are visual only (no-op controls); the preview hides them until they work. */}
+              {!learnPreview && <>
+                <SettingsRow
+                  title={<span>High contrast <span className="ml-1 rounded-sm bg-hover px-1.5 py-0.5 text-[11px] text-ink-2">Beta</span></span>}
+                  desc="Increase contrast for improved visibility"
+                >
+                  <Select value="Use system setting" options={['Use system setting', 'On', 'Off']} onChange={() => {}} />
+                </SettingsRow>
+                <Heading>Input options</Heading>
+                <SettingsRow title="Use Enter to add a new line" desc="Applies to chat, comments, and other input fields. Press Cmd/Ctrl + Enter to send.">
+                  <Toggle on={enterNewline} onChange={setEnterNewline} />
+                </SettingsRow>
+                <Heading>Language & time</Heading>
+                <SettingsRow title="Language" desc={`Choose the language you want to use ${PRODUCT} in`}>
+                  <Select value="English (US)" options={['English (US)']} onChange={() => {}} />
+                </SettingsRow>
+                <SettingsRow title="Number format" desc="Choose how numbers and currencies are formatted. Default uses your language setting.">
+                  <Select value="Default" options={['Default']} onChange={() => {}} />
+                </SettingsRow>
+                <SettingsRow title="Always show text direction controls" desc="Show the option to change text direction (left to right or right to left) in the editor, regardless of what language you're using">
+                  <Toggle on={textDir} onChange={setTextDir} />
+                </SettingsRow>
+              </>}
             </>
           )}
           {tab === 'notifications' && (
@@ -162,7 +165,7 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
             <>
               <div className="text-2xl font-semibold">Connections</div>
               <div className="pt-2 text-base text-ink-2">Bring small into the tools your team already uses</div>
-              {(isPrivateByoc || import.meta.env.VITE_BYOC_DEV === 'true') && <>
+              {(isPrivateByoc || awsAvailable) && <>
                 <Heading>AWS</Heading>
                 <AwsConnection workspace={org} apps={apps} onChanged={onReload} onAccessChanged={onAccessChanged} />
               </>}
@@ -177,16 +180,15 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
           {tab === 'connections' && learnPreview && (
             <>
               <div className="text-2xl font-semibold">Connections</div>
-              <div className="pt-2 text-base text-ink-2">{`What each connection adds to learning in ${PRODUCT}, and whether it is available yet`}</div>
+              <div className="pt-2 text-base text-ink-2">{`What each connection adds to learning in ${PRODUCT}`}</div>
               <Heading>Providers</Heading>
-              {connectionsFor({ aws: isPrivateByoc || import.meta.env.VITE_BYOC_DEV === 'true' }).map((c) => (
+              {previewConnections({ aws: isPrivateByoc || awsAvailable }).map((c) => (
                 <div key={c.id} data-settings-focus={c.id} aria-current={focus === c.id || undefined} className={cn('-mx-2 rounded-md px-2', focus === c.id && 'bg-hover ring-2 ring-accent/35')}>
                   <SettingsRow
                     title={<span className="flex items-center gap-2">{c.name}<Pill color={AVAILABILITY_COLOR[c.availability]}>{AVAILABILITY[c.availability]}</Pill></span>}
                     desc={[c.adds, c.account].filter(Boolean).join(' ')}
                   >
                     {c.id === 'github' && <Button variant="soft" size="sm" onClick={() => { onClose(); window.dispatchEvent(new CustomEvent('small:start', { detail: { path: 'repository' } })); }}>Start from a repository</Button>}
-                    {c.id === 'slack' && <Button variant="soft" size="sm" onClick={() => window.open('/slack/install', '_blank', 'noopener')}>Connect Slack</Button>}
                   </SettingsRow>
                   {c.id === 'aws' && <AwsConnection workspace={org} apps={apps} onChanged={onReload} onAccessChanged={onAccessChanged} />}
                 </div>
@@ -278,7 +280,7 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
           )}
           {tab === 'ai' && (
             <>
-              <div className="text-2xl font-semibold">Small AI</div>
+              <div className="text-2xl font-semibold">{AI_NAME}</div>
               <div className="pt-2 text-base text-ink-2">The agent behind chat, search, diagnosis and Watch</div>
               <Heading>Model provider</Heading>
               <AiModelSettings />
@@ -366,7 +368,7 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
           {TITLES[tab] && (
             <>
               <div className="text-2xl font-semibold">{TITLES[tab]}</div>
-              <div className="pt-2 text-base text-ink-2">{learnPreview ? 'Planned — not available yet.' : 'Nothing here yet'}</div>
+              <div className="pt-2 text-base text-ink-2">Nothing here yet</div>
             </>
           )}
           </div>
@@ -488,7 +490,7 @@ const ProductMark = () => <span className="grid h-5 w-5 shrink-0 place-items-cen
 // Notion-style sidebar: workspace row, search, folders (drag apps in), recent, members.
 // Resizable by dragging the right edge (200–400px). Rabbit Hole dev: `rail` is the collapsed
 // icon rail (Shell.jsx), and the Apps tree, Shared, Private and New chat are gone.
-export default function Sidebar({ org, orgName, email, apps, folders, awsError, width = 260, rail = false, onResize, onReload, onCollapse, onExpand }) {
+export default function Sidebar({ org, orgName, email, apps, folders, awsError, awsAvailable, width = 260, rail = false, onResize, onReload, onCollapse, onExpand }) {
   const [dragging, setDragging] = useState(null);
   const [closed, setClosed] = useState({}); // folder id -> collapsed
   const [newFolder, setNewFolder] = useState(null);
@@ -548,7 +550,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
   const pendingGrant = grantNotice?.org === org ? grantNotice.pending : null;
   const onAccessChanged = (pending) => setGrantNotice({ org, pending });
   useEffect(() => {
-    if (!isPrivateByoc && import.meta.env.VITE_BYOC_DEV !== 'true') return;
+    if (!isPrivateByoc && !awsAvailable) return;
     let cancelled = false, loading = false;
     const load = async () => {
       if (loading || document.hidden) return;
@@ -566,7 +568,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
     const timer = setInterval(load, 10000);
     window.addEventListener('focus', load);
     return () => { cancelled = true; clearInterval(timer); window.removeEventListener('focus', load); };
-  }, [org]);
+  }, [org, awsAvailable]);
   const [watchObs, setWatchObs] = useState([]);
   const [watchRuns, setWatchRuns] = useState([]); // my settled runs, last 3 days
   const [watchOpen, setWatchOpen] = useState(false);
@@ -970,7 +972,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
           <MenuItem icon={LogOut} onClick={() => { window.location.href = '/logout'; }}>Log out</MenuItem>
         </Menu>
       </div>
-      {showSettings && <SettingsDialog email={email} org={org} apps={apps} onReload={onReload} onMarkRead={markRead} onClose={() => setShowSettings(false)} initialTab={typeof showSettings === 'string' ? showSettings : showSettings?.tab} focus={showSettings?.focus} pendingGrant={pendingGrant} onAccessChanged={onAccessChanged} />}
+      {showSettings && <SettingsDialog email={email} org={org} apps={apps} onReload={onReload} onMarkRead={markRead} onClose={() => setShowSettings(false)} initialTab={typeof showSettings === 'string' ? showSettings : showSettings?.tab} focus={showSettings?.focus} pendingGrant={pendingGrant} onAccessChanged={onAccessChanged} awsAvailable={awsAvailable} />}
       {newApp && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/20 animate-[fade-in_100ms_ease-out]" onMouseDown={() => setNewApp(false)}>
           <div className="mt-[22vh] w-[420px] max-w-[90vw] rounded-2xl bg-white p-4 text-ink shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
