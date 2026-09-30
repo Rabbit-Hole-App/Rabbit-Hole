@@ -284,3 +284,19 @@ test('repository asks read the outline, video window, Wikipedia section and uplo
   const missing=await f.send('ask',{message:'q',paper_context:{id:'upload:0123456789ab',page:1}});
   assert.equal(missing.status,502);assert.deepEqual(await missing.json(),{error:'Could not read the referenced paper. Try again.'});
 });
+// duplication-2, context-7, lifecycle-14: the composer's + attachment (up to 4 MB) works on a repository
+// ask; every JSON request, and the JSON part of the ask, keep the 64 KB cap.
+test('a repository ask takes a + attachment up to 4 MB while JSON requests keep the 64 KB cap',async t=>{
+  const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});const prompts=[];
+  globalThis.fetch=async(_,options)=>{prompts.push(JSON.parse(options.body));return Response.json({content:[{type:'text',text:'A square.'}],stop_reason:'end_turn'});};
+  const upload=(bytes,body={message:'what is in this picture?'})=>{const form=new FormData();form.set('body',JSON.stringify(body));form.set('file',new Blob([bytes],{type:'image/png'}),'shot.png');
+    return repositoriesFetch(new Request('https://dev.test/api/repositories/repo-example/ask',{method:'POST',body:form}),f.env,{});};
+  const res=await upload(new Uint8Array(100000));
+  assert.equal(res.status,200);await res.text();
+  assert.equal(prompts[0].messages.at(-1).content[0].type,'image');
+  const big=await upload(new Uint8Array(4*1024*1024+1));
+  assert.equal(big.status,400);assert.deepEqual(await big.json(),{error:'attachment too large - 4 MB max'});
+  assert.equal((await upload(new Uint8Array(10),{message:'q',lesson_snapshot:'x'.repeat(70000)})).status,413,'the JSON part stays under 64 KB');
+  assert.equal((await f.send('ask',{message:'q',outline:[{id:'h',label:'x'.repeat(70000),level:1,done:false}]})).status,413);
+  assert.equal((await f.send('file',{path:'x'.repeat(70000)})).status,413);
+});

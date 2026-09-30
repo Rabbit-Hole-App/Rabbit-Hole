@@ -2,7 +2,7 @@ import { workerRequest } from './learn-scene.js';
 import { canvasSeed, threadTurns } from './canvas-conversation.js';
 import { validateLearnContext, validateCanvasTarget, appendCanvasTarget, appendOutline, readLearnSource } from './learn-ask-context.js';
 import { handleLearnCourse, generateCourseContent } from './learn-course.js';
-import { askStream, attachmentBlocks, readAskRequest } from './ask.js';
+import { askStream, attachmentBlocks, readAskRequest, ATTACHMENT_LIMIT } from './ask.js';
 import { askModel, MESSAGE_LIMIT, MENTION_LIMIT } from './learn-models.js';
 import { LEARN_SYSTEM, LEARN_SNAPSHOT_SYSTEM, validateLessonSnapshot } from './learn-context.js';
 import { REPOSITORY_TOOLS, REPOSITORY_SYSTEM, repositoryTool } from './repository-context.js';
@@ -115,7 +115,9 @@ export async function repositoriesFetch(req,env,ctx){
   const db=env.LEARN_DB;
   try{
     if(!['GET','POST','PATCH','DELETE'].includes(req.method))return json({error:'Method not allowed'},405);
-    if(req.method!=='GET'&&(Number(req.headers.get('content-length'))>64000||(await req.clone().text()).length>64000))return json({error:'Request exceeds 64 KB'},413);
+    // A Learn ask may carry the composer's + file (attachmentBlocks bounds it at 4 MB); its JSON part keeps 64 KB.
+    const upload=req.method==='POST'&&/^\/api\/repositories\/[^/]+\/ask$/.test(path)&&req.headers.get('content-type')?.includes('multipart/form-data');
+    if(upload?Number(req.headers.get('content-length'))>ATTACHMENT_LIMIT+64000||(await req.clone().arrayBuffer()).byteLength>ATTACHMENT_LIMIT+64000:req.method!=='GET'&&(Number(req.headers.get('content-length'))>64000||(await req.clone().text()).length>64000))return json({error:upload?'Request exceeds 4 MB':'Request exceeds 64 KB'},413);
     if(path==='/api/repositories/branches'){
       const repo=parseRepository(url.searchParams.get('url'));
       return json(await repositoryMetadata(env,repo,{page:Math.max(1,Math.min(100,Number(url.searchParams.get('page'))||1))}));
@@ -178,6 +180,7 @@ export async function repositoryThreads(req,db,user,app,id){
 }
 async function repositoryAsk(req,env,user,app){
   const {body,file}=await readAskRequest(req);
+  if(file&&JSON.stringify(body).length>64000)return json({error:'Request exceeds 64 KB'},413);
   const seed=canvasSeed(body);
   if(typeof body.message!=='string'||!body.message.trim()||body.message.length>MESSAGE_LIMIT)throw Error('Question must be 1–4000 characters');
   if(body.lesson_snapshot)validateLessonSnapshot(body.lesson_snapshot);
