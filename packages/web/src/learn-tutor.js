@@ -218,6 +218,22 @@ export function enforce(response, routed, turn) {
     actions.push(next);
     if (actions.length === 3) break;
   }
+  // The words before a Rabbit Hole suggestion are at most two sentences (locked §4, gap row): the
+  // planner is asked for it, and this keeps it when the planner writes more. A sentence ends at . ! or ?
+  // followed by a space, so decimals (0.904) and code (F.softmax) stay whole.
+  if (actions.some(action => action.type === 'suggest_dive')) {
+    let budget = 2;
+    const capped = [];
+    for (const action of actions) {
+      if (action.type !== 'respond_text') { capped.push(action); continue; }
+      const sentences = action.text.trim().split(/(?<=[.!?])\s+/);
+      if (!budget) { log.push('dropped respond_text: over two sentences before a dive suggestion'); continue; }
+      if (sentences.length > budget) log.push(`shortened respond_text to ${budget} sentence(s) before a dive suggestion`);
+      capped.push({ ...action, text: sentences.slice(0, budget).join(' ') });
+      budget -= Math.min(budget, sentences.length);
+    }
+    return { actions: capped, log };
+  }
   if (!actions.length) actions.push({ type: 'no_action' });
   return { actions, log };
 }

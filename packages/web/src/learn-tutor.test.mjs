@@ -202,6 +202,25 @@ test('GT-06 softmax prerequisite gap -> a dive suggestion anchored to the Guided
   assert.equal(result.store.suggested.claim, 'attention/weights-from-scores');
 });
 
+test('the words before a dive suggestion are cut to two sentences; replies without one are untouched', async () => {
+  // The live planner's gap reply (2026-09-30): six sentences, with decimals and code that are not ends.
+  const long = 'Because the output is a weighted average of the value vectors, not a sum of scores. Raw scores are unbounded and can be negative, your row is (-1, 1, 4, 1) after scaling. If you used them directly, the output would scale with how big the scores happen to be. "att = F.softmax(att, dim=-1)" fixes both: exp makes everything positive. Here e^4/(e^4 + 2e + e^-1) = 0.904. So the output stays inside the span of the values!';
+  const { result } = await gt06();
+  const dive = { type: 'suggest_dive', concept: 'softmax', title: 'Softmax' };
+  const cut = enforce({ strategy: 'none', move: 'prerequisite', reason: '', actions: [say(long), dive] }, result.routed, result.turn);
+  assert.deepEqual(cut.actions.map(action => action.type), ['respond_text', 'suggest_dive'], 'the suggestion stays');
+  assert.equal(cut.actions[0].text, 'Because the output is a weighted average of the value vectors, not a sum of scores. Raw scores are unbounded and can be negative, your row is (-1, 1, 4, 1) after scaling.');
+  // Two replies share the two sentences; a third sentence's reply is dropped.
+  const split = enforce({ strategy: 'none', move: 'prerequisite', reason: '', actions: [say('One. Two.'), say('Three.'), dive] }, result.routed, result.turn);
+  assert.deepEqual(split.actions.map(action => action.type === 'respond_text' ? action.text : action.type), ['One. Two.', 'suggest_dive']);
+  // Decimals and code are not sentence ends.
+  const kept = enforce({ strategy: 'none', move: 'prerequisite', reason: '', actions: [say('The weight is 0.904 via F.softmax here. That is softmax.'), dive] }, result.routed, result.turn);
+  assert.equal(kept.actions[0].text, 'The weight is 0.904 via F.softmax here. That is softmax.');
+  // Without a dive suggestion the reply is left whole.
+  const whole = enforce({ strategy: 'none', move: 'prerequisite', reason: '', actions: [say(long)] }, result.routed, result.turn);
+  assert.equal(whole.actions[0].text, long);
+});
+
 test('GT-07 strong transfer after GT-03 -> understood; no more practice on the claim', async () => {
   const { c11, result } = await gt03();
   const later = applyCheck(setActivityAnswer(applyNewAttempt(c11), 'self')); // the optional third attempt, after the card's reveal
