@@ -96,7 +96,7 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
           <NavBtn id="mail" icon={Mail}>Mail & Calendar{planned('ml-auto')}</NavBtn>
           <NavLabel>Workspace</NavLabel>
           <NavBtn id="general" icon={Settings}>General</NavBtn>
-          <NavBtn id="people" icon={Users}>People</NavBtn>
+          {!learnPreview && <NavBtn id="people" icon={Users}>People</NavBtn>}
           <NavBtn id="import" icon={Download}>Import{planned('ml-auto')}</NavBtn>
           <NavLabel>Features</NavLabel>
           <NavBtn id="ai" icon={Mark}>Small AI</NavBtn>
@@ -105,8 +105,8 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
           <NavBtn id="pages" icon={Globe}>Public pages{planned('ml-auto')}</NavBtn>
           <NavBtn id="emoji" icon={Smile}>Emoji{planned('ml-auto')}</NavBtn>
           <NavBtn id="developer" icon={Braces}>Developer</NavBtn>
-          <NavLabel>Admin</NavLabel>
-          <NavBtn id="teamspaces" icon={LayoutPanelLeft}>Teamspaces</NavBtn>
+          <NavLabel>{learnPreview ? 'Sign-in' : 'Admin'}</NavLabel>
+          {!learnPreview && <NavBtn id="teamspaces" icon={LayoutPanelLeft}>Teamspaces</NavBtn>}
           <NavBtn id="security" icon={Shield}>Security</NavBtn>
           <NavBtn id="identity" icon={BadgeCheck}>Identity</NavBtn>
         </div>
@@ -200,13 +200,13 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
               <Heading>Workspace</Heading>
               <SettingsRow
                 title="Name"
-                desc={activeWs?.kind === 'custom' && activeWs?.role === 'owner'
+                desc={learnPreview ? 'Shown in the sidebar' : activeWs?.kind === 'custom' && activeWs?.role === 'owner'
                   ? 'Shown in the sidebar and breadcrumbs. Edit and save.'
                   : activeWs?.kind === 'custom'
                     ? 'Shown in the sidebar and breadcrumbs. Only the owner can rename it.'
                     : 'Named after your email domain'}
               >
-                {activeWs?.kind === 'custom' && activeWs?.role === 'owner' ? (
+                {!learnPreview && activeWs?.kind === 'custom' && activeWs?.role === 'owner' ? (
                   <form
                     className="flex items-center gap-2"
                     onSubmit={async (e) => {
@@ -234,10 +234,10 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
               <SettingsRow title="Slug" desc="Its id in app URLs">
                 <code className="rounded-sm bg-code px-1.5 py-0.5 text-xs">{wsInfo?.active || '…'}</code>
               </SettingsRow>
-              <SettingsRow title="Type" desc="Domain workspaces include everyone with your email domain; custom ones are invite only">
+              {!learnPreview && <SettingsRow title="Type" desc="Domain workspaces include everyone with your email domain; custom ones are invite only">
                 <span className="text-sm text-ink-2">{activeWs?.kind === 'custom' ? 'custom' : 'email domain'}</span>
-              </SettingsRow>
-              {activeWs?.kind === 'custom' && activeWs?.role === 'owner' && (
+              </SettingsRow>}
+              {!learnPreview && activeWs?.kind === 'custom' && activeWs?.role === 'owner' && (
                 <>
                   <Heading>People</Heading>
                   <SettingsRow title="Add someone" desc="They see this workspace next time they open the workspace menu">
@@ -313,7 +313,7 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
               <SettingsRow title="Start a job" desc="Prompts for its inputs"><CodeCopy text="small run <app>" /></SettingsRow>
               <SettingsRow title="Recent runs" desc="Status, duration, who started them"><CodeCopy text="small runs <app>" /></SettingsRow>
               <SettingsRow title="Logs" desc="Tail what an app printed"><CodeCopy text="small logs <app>" /></SettingsRow>
-              <SettingsRow title="Share" desc="Give a teammate access"><CodeCopy text="small share <email>" /></SettingsRow>
+              {!learnPreview && <SettingsRow title="Share" desc="Give a teammate access"><CodeCopy text="small share <email>" /></SettingsRow>}
               <SettingsRow title="Schedule" desc="Pause or resume a cron"><CodeCopy text="small schedule pause <app>" /></SettingsRow>
               <SettingsRow title="Everything you own" desc="Apps and their URLs"><CodeCopy text="small list" /></SettingsRow>
               <SettingsRow title="Watch" desc="What the nightly pass found"><CodeCopy text="small watch" /></SettingsRow>
@@ -358,9 +358,9 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
               <div className="pt-2 text-base text-ink-2">Who you are here</div>
               <Heading>Account</Heading>
               <SettingsRow title="Email" desc="Your sign-in identity"><span className="text-sm text-ink-2">{email}</span></SettingsRow>
-              <SettingsRow title="Home workspace" desc={isPrivateByoc ? 'Access is granted by your workspace administrator.' : 'Everyone with this email domain shares it'}>
+              {!learnPreview && <SettingsRow title="Home workspace" desc={isPrivateByoc ? 'Access is granted by your workspace administrator.' : 'Everyone with this email domain shares it'}>
                 <code className="rounded-sm bg-code px-1.5 py-0.5 text-xs">{isPrivateByoc ? org : email ? email.split('@')[1] : ''}</code>
-              </SettingsRow>
+              </SettingsRow>}
             </>
           )}
           {TITLES[tab] && (
@@ -708,7 +708,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         <KindIcon kind={a.kind} schedule={a.schedule} />
         <span className="min-w-0 flex-1 truncate">{titleOf(a)}</span>
         {a.hosting === 'aws' && <span className="text-[10px] text-ink-3">AWS</span>}
-        {((a.members?.length || 0) > 0 || (a.team_count || 0) > 0) && (
+        {!learnPreview && ((a.members?.length || 0) > 0 || (a.team_count || 0) > 0) && (
           <Users size={11} className="shrink-0 text-ink-3" title="shared" />
         )}
         {menu ? (
@@ -733,7 +733,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
               {pins.includes(a.name) ? 'Unpin' : 'Pin'}
             </MenuItem>
           )}
-          <MenuItem disabled={isLearnResource(a)} title={a.kind === 'repository' ? 'Available to everyone in this workspace' : a.kind === 'canvas' ? "Sharing projects and canvases isn't available yet." : undefined} icon={Share2} onClick={() => { setMenuFor(null); navigate(`/apps/${a.name}?share=1`); }}>Share</MenuItem>
+          {!learnPreview && <MenuItem disabled={isLearnResource(a)} title={a.kind === 'repository' ? 'Available to everyone in this workspace' : a.kind === 'canvas' ? "Sharing projects and canvases isn't available yet." : undefined} icon={Share2} onClick={() => { setMenuFor(null); navigate(`/apps/${a.name}?share=1`); }}>Share</MenuItem>}
           <MenuItem
             icon={Link}
             onClick={() => { setMenuFor(null); navigator.clipboard.writeText(`${window.location.origin}/apps/${a.name}`); toast('Link copied'); }}
@@ -962,9 +962,9 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
           })}
           <div className="my-1 border-t border-line" />
           <MenuItem icon={Settings} onClick={() => { setWsMenu(false); setShowSettings(true); }}>Settings</MenuItem>
-          <MenuItem className="text-accent hover:text-accent" onClick={() => { setWsMenu(false); setNewWs(''); }}>
+          {!learnPreview && <MenuItem className="text-accent hover:text-accent" onClick={() => { setWsMenu(false); setNewWs(''); }}>
             <span className="flex items-center gap-2 text-accent"><Plus size={16} strokeWidth={1.5} /> New workspace</span>
-          </MenuItem>
+          </MenuItem>}
           <div className="my-1 border-t border-line" />
           <MenuItem icon={LogOut} onClick={() => { window.location.href = '/logout'; }}>Log out</MenuItem>
         </Menu>
@@ -1102,9 +1102,6 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
             ))}
           </nav>
           <div className="sticky bottom-0 z-30 mt-auto flex shrink-0 flex-col items-center gap-1 border-t border-line bg-side pt-2">
-            <button title="Members" aria-label="Members" aria-current={path === '/members' ? 'page' : undefined} onClick={() => navigate('/members')} className={cn(RAIL_BTN, path === '/members' && 'bg-active text-ink')}>
-              <Users size={16} strokeWidth={1.5} />
-            </button>
             <button title="Trash" aria-label="Trash" onClick={openTrash} className={cn(RAIL_BTN, trashOpen && 'bg-active text-ink')}>
               <Trash2 size={16} strokeWidth={1.5} />
             </button>
@@ -1300,7 +1297,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
       )}
 
       <div className={cn('mt-auto shrink-0 pt-3', learnPreview && 'sticky bottom-0 z-30 border-t border-line bg-side')}>
-        <button
+        {!learnPreview && <button
           onClick={() => navigate('/members')}
           className={cn(
             'flex h-7 w-full items-center gap-2 rounded-sm px-2 text-left text-sm hover:bg-hover',
@@ -1309,7 +1306,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         >
           <Users size={16} strokeWidth={1.5} className="shrink-0 text-ink-2" />
           Members
-        </button>
+        </button>}
         <button
           onClick={openTrash}
           className={cn('flex h-7 w-full items-center gap-2 rounded-sm px-2 text-left text-sm hover:bg-hover', trashOpen && 'bg-active font-medium')}

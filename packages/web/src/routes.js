@@ -5,9 +5,10 @@ const KNOWN = /^\/(apps(\/[a-z0-9-]+(\/runs\/[\w-]+)?)?|dash|members|chat)$/;
 const PREVIEW_ONLY = /^\/(library|explore)$/;
 
 // The path an unknown URL is replaced with, or null when the URL is served.
-// The preview has no /chat page: that page writes live chat history (D7).
+// The preview has no /chat page: that page writes live chat history (D7). Nor /members: Rabbit Hole v1 is
+// solo, so the members page is not a destination (the /api/members routes stay for the live build).
 export const canonicalPath = (pathname, preview) =>
-  (preview && pathname === '/chat' ? '/apps' : KNOWN.test(pathname) || (preview && PREVIEW_ONLY.test(pathname)) ? null : '/apps');
+  (preview && (pathname === '/chat' || pathname === '/members') ? '/apps' : KNOWN.test(pathname) || (preview && PREVIEW_ONLY.test(pathname)) ? null : '/apps');
 
 // D7 (WP7): on the preview api() sends only the writes the dev worker serves itself - repositories, canvases and
 // their chats, Learn and BYOC (dev-worker.js; the canvas half is control-plane/src/canvases.js canvasRoute). Any
@@ -26,7 +27,7 @@ export function previewWriteAllowed(url) {
 export function pageFor(pathname, search, preview) {
   const app = pathname.match(/^\/apps\/([a-z0-9-]+)(?:\/runs\/([\w-]+))?$/);
   if (app) return { page: 'app', slug: app[1], runId: app[2] };
-  if (pathname === '/members' || pathname === '/chat') return { page: pathname.slice(1) };
+  if ((pathname === '/members' && !preview) || pathname === '/chat') return { page: pathname.slice(1) }; // solo v1: the preview's /members is Home
   if (!preview) return { page: 'library' };
   if (PREVIEW_ONLY.test(pathname)) return { page: pathname.slice(1) };
   // Bare /apps (and /dash) is Home; the sidebar's ?s= and ?f= links keep the Library.

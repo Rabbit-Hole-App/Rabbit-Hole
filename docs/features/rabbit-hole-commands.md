@@ -34,7 +34,7 @@ one-line description; modes read differently per place.
 | /teach | mode | home, project, learn | Home: the Learn handoff (resolve or create a canvas, open Learn, prefill, never send). Learn: continue teaching |
 | /research | mode | home, project, learn | Home, Library, Project: find papers, docs, repositories and resources and return them in the Mothership with Open, Add to project, Add to canvas. Learn: the same, with the current concept and canvas as context; bring evidence onto the canvas without cluttering it with every result |
 | /do | mode | home, project, learn | Imperative actions under the confirmation policy |
-| /find /open /new /connect /run /share | shortcut | home, project (/new: home) | The same request as the sentence (`router.js` rule 1b) |
+| /find /open /new /connect /run | shortcut | home, project (/new: home) | The same request as the sentence (`router.js` rule 1b). No /share: v1 is solo (see rabbit-hole-checklist.md, Solo v1) |
 | /deeper /simplify /example /practice /quiz /compare | learn | learn | A prompt through the existing Learn ask, about the selection or the current concept |
 | /source | learn | learn | `action: 'open_sources'` (open the Source inspector or attach evidence; never dump citations into a card) |
 | /explain /flashcards /code /graph /diagram /walkthrough /animate /image /video /3d | create | learn | A tool override: the tutor returns a validated block from the command's family, or asks a clarifying question |

@@ -62,7 +62,7 @@ conversation. The bottom sheet is not the permanent answer UI for Map.
 - Placement: Home, Library, Explore, Project (project scope), Map (project and
   node scope), App (after WP6); hidden on Learn (its composer owns the space).
 - Modes: Auto (default), /ask, /teach, /research, /do; `/` opens the picker.
-- Home / Library shortcuts: /find, /open, /new, /connect, /run, /share. Natural
+- Home / Library shortcuts: /find, /open, /new, /connect, /run (no /share: Solo v1 below). Natural
   language works too: "Find my nanoGPT project", "Show canvases about attention",
   "Open the project I worked on recently", "Start a rabbit hole from
   karpathy/minGPT" (owner/repo is a narrow shorthand through WP1's resolver).
@@ -88,16 +88,16 @@ Harness checks sh-sidebar, sh-rail, sh-drawer and sh-legacy pass on the clone.
   the email domain. The workspace is context: a separate switcher under the brand, named by
   its real name, else `Personal` (api.js `workspaceLabel`); gmail.com never becomes `Gmail`.
   Home, Library and Explore have no workspace breadcrumb. The result sheet header is the
-  scope (`nanoGPT · CausalSelfAttention`), or `Rabbit Hole` on Home/Library/Explore. Copy
-  about visibility says who sees it (`anyone who signs in with an @gmail.com email`), not
-  the label. One location state: a resource page marks its Pinned row, not Library.
+  scope (`nanoGPT · CausalSelfAttention`), or `Rabbit Hole` on Home/Library/Explore. A
+  connected project says `Only you can see it.` (owner-only since Privacy P0; Solo v1 below),
+  never a domain audience. One location state: a resource page marks its Pinned row, not Library.
   Check: sh-naming.
 - Expanded: the brand; the workspace switcher; the Search and Notifications icons; Home, Library,
-  Explore; Pinned (flat); a divider; Members; Trash. Projects, Canvases and Apps
+  Explore; Pinned (flat); a divider; Trash (no Members: Solo v1). Projects, Canvases and Apps
   are not repeated in the sidebar: the Library owns browsing.
 - Desktop collapsed (Ctrl/⌘+\ or Learn): a 52px icon rail (the product-mark tile with the
   workspace menu, Open sidebar, Search, Notifications with the unread count, Home,
-  Library, Explore, Members, Trash) with tooltips; the current destination has
+  Library, Explore, Trash) with tooltips; the current destination has
   aria-current and the active surface; a resource page marks no global destination (its
   Pinned row carries the state). No Pinned, no resize handle. The Agent Bar sits beside
   it. Never fully hidden on desktop.
@@ -107,8 +107,8 @@ Harness checks sh-sidebar, sh-rail, sh-drawer and sh-legacy pass on the clone.
 | Legacy item | Replacement | Regression check |
 |---|---|---|
 | Apps tree and folders | Library Filters → Apps | sh-legacy |
-| Shared | Filters → Shared with me | sh-routes |
-| Private | Filters → Mine; the app Share popover | sh-legacy, sh-library |
+| Shared | none: Solo v1 (an old ?s=shared link shows the whole Library) | sh-routes |
+| Private | Filters → Mine | sh-legacy, sh-library |
 | Recent | Home Recent | sh-home |
 | New chat, Ctrl/⌘+O | the Mothership (Agent Bar); Ctrl/⌘+O focuses it | sh-legacy |
 | + New → Chat / App | the Mothership / Settings → Developer | sh-sidebar |
@@ -116,6 +116,29 @@ Harness checks sh-sidebar, sh-rail, sh-drawer and sh-legacy pass on the clone.
 | AWS catalog error under Apps | the Library body, same text | none (no AWS error on the test user) |
 | Back (reopens the sidebar) | the rail's Open sidebar | sh-rail |
 | Folder create, rename, delete | none yet: the Library's ⋯ actions later (ponytail); API and data kept | none |
+
+## Solo v1 (user, 2026-09-29)
+
+Rabbit Hole v1 is solo-user only. The preview build (`learnPreview`) hides every team, member,
+invitation, role and shared-workspace affordance; the live small dashboard build is unchanged.
+Backend routes and schemas (`/api/members`, `/api/teams`, `/api/share`, `/api/workspaces`, folders
+sharing) stay, so collaboration can come back without a migration. Project access stays owner-only
+(Privacy P0); nothing here widens it.
+
+- Hidden: sidebar and rail Members; `/members` (goes to Home, `routes.js`); Settings People,
+  Teamspaces, the Admin label (now Sign-in), General's Type row, Add someone and the owner-only
+  rename, Developer's `small share`, Identity's Home workspace; the workspace menu's New workspace;
+  the app page Share popover and the pinned row Share item and shared icon; the Library People
+  column and the Shared with me / Workspace ownership scopes; the denied page's "Ask <owner>";
+  the Agent Bar's /share, `share <name> with <email>` and "shared with me / in the workspace" words.
+- Copy: a connected project says `Only you can see it.`; Home's project cards drop Workspace;
+  Explore says nothing is published yet.
+- Kept: the workspace switcher (the signed-in person's own workspaces, `Personal` for the email
+  domain one, no counts); the Learn board's view link (`/b/<token>`, link sharing, not people);
+  app access facts (`anyone @domain`, `only shared`) in the Library Access column and Home cards.
+- Checks: routes, router, slash, bar, library-filter and continue unit tests; rabbit-hole-check
+  sh-routes, sh-library, sh-sidebar, sh-rail, start, bar-cmd, bar-slash, wp6-app-denied,
+  wp7-d7-chrome and solo-v1.
 
 ## WP6 destinations
 

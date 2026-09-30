@@ -5,14 +5,17 @@ export const TYPES = {
   canvases: { label: 'Canvases', kinds: ['canvas'] },
   apps: { label: 'Apps', kinds: ['job', 'server'] },
 };
-// Scope chips are the sidebar sections under their T02 §4 names (sectionOf, api.js:9-14).
-export const SCOPES = { private: 'Mine', shared: 'Shared with me', apps: 'Workspace' };
+// Scope chips are the sidebar sections under their T02 §4 names (sectionOf, api.js:9-14). Rabbit Hole v1 is
+// solo, so Mine is the only one: Shared with me and Workspace stay live-build sidebar sections.
+export const SCOPES = { private: 'Mine' };
 
-// The live build never reads ?type, so its Library is exactly today's.
+// The live build never reads ?type, so its Library is exactly today's; its ?s= is any sidebar section.
+// The preview ignores a ?s= that is not a scope (an old ?s=shared link shows the whole Library).
 export function libraryQuery(search, preview) {
   const q = new URLSearchParams(search);
   const type = preview && Object.hasOwn(TYPES, q.get('type')) ? q.get('type') : null;
-  return { type, archived: type === 'canvases' && q.get('archived') === '1' };
+  const section = !preview || Object.hasOwn(SCOPES, q.get('s')) ? q.get('s') : null;
+  return { type, archived: type === 'canvases' && q.get('archived') === '1', section };
 }
 
 export const ofType = (apps, type) => (type ? apps.filter((a) => TYPES[type].kinds.includes(a.kind)) : apps);

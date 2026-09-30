@@ -31,7 +31,8 @@ const plain = apps.find((a) => a.kind === 'job' || a.kind === 'server');
 const wsName = (org) => ((org || '').split('-')[0] || org || '').replace(/^./, (c) => c.toUpperCase());
 // The preview never names the email-domain workspace after its domain (api.js workspaceLabel).
 const wsLabel = data.orgName || 'Personal';
-const audience = data.orgName ? `everyone in ${data.orgName}` : `anyone who signs in with an @${email.split('@')[1]} email`;
+// A connected project is owner-only (Privacy P0) and Rabbit Hole v1 is solo: the copy never names a domain audience.
+const ONLY_YOU = 'Only you can see it.';
 const railTile = `Rabbit Hole · ${wsLabel}`;
 console.log(`${base} · ${wsLabel} · ${apps.length} resources · project ${repo?.name || 'none'} · app ${plain?.name || 'none'}`);
 
@@ -120,7 +121,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.getByRole('button', { name: label, exact: true }).click();
   };
 
-  await check('sh-routes: /apps and /dash are Home, /library and ?s= are the Library, the title is Rabbit Hole', async () => {
+  await check('sh-routes: /apps and /dash are Home, /library and ?s= are the Library (solo v1: ?s=shared filters nothing), the title is Rabbit Hole', async () => {
     const page = await open();
     for (const path of ['/apps', '/dash']) {
       await page.goto(`${base}${path}`);
@@ -131,7 +132,9 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       await page.goto(`${base}${path}`);
       await shH1(page, 'Library').waitFor({ timeout: 20000 });
     }
-    await page.getByRole('button', { name: 'Remove filter Shared with me' }).waitFor({ timeout: 10000 });
+    await page.waitForTimeout(1000);
+    must(await page.getByRole('button', { name: /^Remove filter/ }).count() === 0, 'an old ?s=shared link still sets a Library filter');
+    must(await page.getByText('Shared with me', { exact: true }).count() === 0, 'the Library names Shared with me');
     await page.context().close();
   });
 
@@ -189,7 +192,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  await check('sh-library: the Filters control filters type and ownership; Canvases are cards without ops columns; a canvas on another device is flagged; an empty view offers Start', async () => {
+  await check('sh-library: the Filters control filters type and ownership (Mine only, solo v1); Canvases are cards without ops columns; a canvas on another device is flagged; an empty view offers Start', async () => {
     const page = await open();
     await page.goto(`${base}/library`);
     await shH1(page, 'Library').waitFor({ timeout: 20000 });
@@ -205,10 +208,16 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       for (const ops of ['Watch', 'Deployed', 'Last run']) must(!(await row.innerText()).includes(ops), `${ops} shown on a canvas card`);
       must((await row.innerText()).includes('On another device'), 'canvas card lacks On another device');
       must(await row.locator('svg.lucide-pen-line').count() === 1, 'canvas card lacks the canvas icon');
-      await filterBy(page, 'Mine');
+      await page.getByRole('button', { name: /^Filters/ }).click();
+      for (const name of ['Shared with me', 'Workspace']) must(await page.getByRole('button', { name, exact: true }).count() === 0, `Filters offers ${name}`);
+      await page.getByRole('button', { name: 'Mine', exact: true }).click();
       await page.waitForURL(/[?&]s=private/);
       await row.waitFor();
-      await page.goto(`${base}/library?type=canvases&s=shared`); // canvases are owner-only, so this view is always empty
+      await page.goto(`${base}/library?type=canvases&s=shared`); // solo v1: an old ?s=shared link filters nothing
+      await row.waitFor({ timeout: 20000 });
+      must(await page.getByRole('button', { name: 'Remove filter Shared with me' }).count() === 0, '?s=shared still reads Shared with me');
+      await page.route(/[/]api[/]apps$/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ...data, apps: [] }) }));
+      await page.goto(`${base}/library?type=canvases`); // an empty catalog, so an empty view
       await page.getByText('Nothing here yet', { exact: true }).waitFor({ timeout: 20000 });
       await shStart(page).click();
       await page.getByRole('dialog', { name: 'Start a rabbit hole' }).waitFor({ timeout: 10000 });
@@ -220,15 +229,15 @@ await check('build: the browser runs the dist-dev entry script', async () => {
 
   // WP5 sidebar shell (user 2026-09-28): the Library owns browsing, so the Apps tree, Shared, Private,
   // Recent, New chat and + New are gone; pinning moved to the Library card menu.
-  await check('sh-sidebar: workspace, Home, Library, Explore, Pinned, Members and Trash only; a canvas pinned from its Library card keeps a learn-safe menu', async () => {
+  await check('sh-sidebar: workspace, Home, Library, Explore, Pinned and Trash only (solo v1: no Members); a canvas pinned from its Library card keeps a learn-safe menu with no Share', async () => {
     const page = await open();
     await page.goto(`${base}/apps`);
     const nav = page.getByRole('navigation', { name: 'Main' });
     await nav.waitFor({ timeout: 20000 });
     must(await nav.getByRole('button', { name: 'Home', exact: true }).getAttribute('aria-current') === 'page', 'Home is not current on /apps');
     const aside = page.locator('aside');
-    for (const name of ['Search', 'Notifications', 'Members', 'Trash']) must(await aside.getByRole('button', { name, exact: true }).count() === 1, `the sidebar lacks ${name}`);
-    for (const name of ['Apps', 'Shared', 'Private', 'New', 'New folder', 'Expand Apps', 'Expand Shared', 'Expand Private']) must(await aside.getByRole('button', { name, exact: true }).count() === 0, `the sidebar still offers ${name}`);
+    for (const name of ['Search', 'Notifications', 'Trash']) must(await aside.getByRole('button', { name, exact: true }).count() === 1, `the sidebar lacks ${name}`);
+    for (const name of ['Members', 'Apps', 'Shared', 'Private', 'New', 'New folder', 'Expand Apps', 'Expand Shared', 'Expand Private']) must(await aside.getByRole('button', { name, exact: true }).count() === 0, `the sidebar still offers ${name}`);
     must(await aside.getByRole('button', { name: /^New chat/ }).count() === 0, 'the sidebar still offers New chat');
     must(await aside.getByText('Recent', { exact: true }).count() === 0, 'the sidebar still shows Recent');
     const c = await shCanvas(page, 'rabbit-hole-check pin');
@@ -249,8 +258,8 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       const row = pinned.locator('.group\\/r').filter({ hasText: 'rabbit-hole-check pin' });
       await row.hover();
       await row.getByTitle('More').click();
-      must(await row.getByRole('button', { name: 'Share' }).isDisabled(), 'Share is enabled on a pinned canvas');
-      for (const name of ['Rename', 'Duplicate', 'Move to Trash']) must(await row.getByRole('button', { name }).count() === 0, `${name} is offered on a pinned canvas`);
+      await row.getByRole('button', { name: 'Unpin', exact: true }).waitFor({ timeout: 5000 });
+      for (const name of ['Share', 'Rename', 'Duplicate', 'Move to Trash']) must(await row.getByRole('button', { name }).count() === 0, `${name} is offered on a pinned canvas`);
       await row.getByRole('button', { name: 'Unpin', exact: true }).click();
       await pinned.waitFor({ state: 'detached', timeout: 10000 });
     } finally {
@@ -259,7 +268,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     }
   });
 
-  await check('sh-rail: Ctrl+\\ collapses to a 48-56px icon rail with labelled workspace, Search, Notifications, Home, Library, Explore, Members and Trash; the current page is marked; the tile opens the workspace menu; Notifications opens beside the rail; Ctrl+\\ restores', async () => {
+  await check('sh-rail: Ctrl+\\ collapses to a 48-56px icon rail with labelled workspace, Search, Notifications, Home, Library, Explore and Trash, and no Members (solo v1); the current page is marked; the tile opens the workspace menu; Notifications opens beside the rail; Ctrl+\\ restores', async () => {
     const page = await open();
     await loaded(page, '/apps');
     const sidebar = page.locator('[data-shell-sidebar]');
@@ -268,10 +277,11 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.waitForTimeout(400);
     const w = (await sidebar.boundingBox()).width;
     must(w >= 48 && w <= 56, `the rail is ${w}px wide`);
-    for (const name of [railTile, 'Home', 'Library', 'Explore', 'Members', 'Trash', 'Open sidebar']) {
+    for (const name of [railTile, 'Home', 'Library', 'Explore', 'Trash', 'Open sidebar']) {
       const b = aside.getByRole('button', { name, exact: true });
       must(await b.count() === 1 && await b.getAttribute('title') === name, `the rail's ${name} button lacks its label or tooltip`);
     }
+    must(await aside.getByRole('button', { name: 'Members', exact: true }).count() === 0, 'the rail offers Members');
     must(await aside.getByRole('button', { name: 'Search', exact: true }).count() === 1, 'the rail has no Search');
     await aside.getByRole('button', { name: 'Notifications', exact: true }).click();
     const inbox = page.getByText('Notifications', { exact: true });
@@ -784,7 +794,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     must(lookups === 1, `${lookups} lookups for one submit`);
     must(await url.inputValue() === typed, 'the error cleared the URL');
     const text = await dialog.innerText();
-    for (const fact of [`Visible to ${audience}`, "can't be deleted yet", "private repositories aren't supported yet"]) must(text.includes(fact), `missing: ${fact}`);
+    for (const fact of [ONLY_YOU, "can't be deleted yet", "private repositories aren't supported yet"]) must(text.includes(fact), `missing: ${fact}`);
     await dialog.getByRole('tab', { name: 'Blank canvas', exact: true }).click();
     await dialog.getByPlaceholder('Untitled canvas').fill('kept');
     await dialog.getByRole('tab', { name: 'Repository', exact: true }).click();
@@ -949,14 +959,15 @@ await check('build: the browser runs the dist-dev entry script', async () => {
   await check('start-host: small:start opens one Start dialog on the asked tab, naming the workspace after a navigation', async () => {
     const page = await open();
     await loaded(page, '/apps');
-    await spa(page, '/members'); // a new page and a new Root baseline: the identity must survive both
+    await spa(page, '/library'); // a new page and a new Root baseline: the identity must survive both
     await page.evaluate(() => dispatchEvent(new CustomEvent('small:start', { detail: { path: 'question' } })));
     const dialog = startDialog(page);
     await dialog.waitFor({ timeout: 10000 });
     must(await page.getByRole('dialog', { name: 'Start a rabbit hole' }).count() === 1, 'more than one Start dialog');
     must(await dialog.getByRole('tab', { name: 'Question', exact: true }).getAttribute('aria-selected') === 'true', 'the Question tab is not selected');
     await dialog.getByRole('tab', { name: 'Repository', exact: true }).click();
-    await dialog.getByText(`Visible to ${audience}.`).waitFor({ timeout: 10000 });
+    await dialog.getByText(ONLY_YOU, { exact: false }).waitFor({ timeout: 10000 });
+    must(!/anyone who signs in|everyone in /.test(await dialog.innerText()), 'Start names a domain or workspace audience');
     await page.context().close();
   });
 }
@@ -1215,7 +1226,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     }
   });
 
-  await check('bar: hidden on Learn, a canvas and a run subpage (T02 §6.1; the preview has no /chat, wp7-d7-chrome); back on /members', async () => {
+  await check('bar: hidden on Learn, a canvas and a run subpage (T02 §6.1; the preview has no /chat, wp7-d7-chrome); back on the Library', async () => {
     const page = await barOpen();
     const hides = [['a canvas', '/apps/canvas-00000000'], ...(repo ? [['project Learn', `/apps/${repo.name}?tab=learn`]] : []), ...(plain ? [['a run subpage', `/apps/${plain.name}/runs/r-check`]] : [])];
     for (const [label, to] of hides) {
@@ -1223,7 +1234,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       await barOf(page).waitFor({ state: 'detached', timeout: 10000 });
       must(await barH(page) === '0px', `--agent-bar-h is ${await barH(page)} on ${label}`);
     }
-    await spa(page, '/members');
+    await spa(page, '/library');
     await barOf(page).waitFor({ timeout: 10000 });
     await page.context().close();
   });
@@ -1324,9 +1335,8 @@ await check('build: the browser runs the dist-dev entry script', async () => {
   // Every send is a command or a refused workspace ask; none reaches /api/ask. ──
   const { askLiveOnPreview } = await import('../src/flags.js');
   const { openedNotice } = await import('../src/connections.js');
-  const editable = apps.find((a) => ['server', 'job'].includes(a.kind) && a.canEdit);
   const FIXTURE = 'rabbit-hole-e2e/demo'; // never connected here: the Connect card, not open_resource
-  console.log(`agent-ui bar-cmd: share ${editable?.name || 'none, share check skipped'} · connect fixture ${FIXTURE}`);
+  console.log(`agent-ui bar-cmd: connect fixture ${FIXTURE}`);
   // After the workspace load: commands resolve names against the catalog Shell publishes.
   const barOpen = async (path = '/library') => {
     const page = await open();
@@ -1361,22 +1371,16 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  if (editable) await check('bar-cmd: share is a Blocked card on this preview (D7) that names the workspace, and Cancel stays local', async () => {
+  // Solo v1: sharing with a person is no command, so it is never a card; on /library it is a workspace ask, which is off.
+  if (!askLiveOnPreview) await check('bar-cmd: share <app> with <email> is no command in solo v1 - no card, no /api/ask call, only the workspace-ask reason', async () => {
     const page = await barOpen();
     let calls = 0;
-    page.on('request', (r) => { if (/\/api\/ask\/(approve|reject)/.test(r.url())) calls++; });
-    await barInput(page).fill(`share ${editable.name} with bar-check@example.com as view`);
+    page.on('request', (r) => { if (r.method() !== 'GET' && /^[/]api[/]ask([/]|$)/.test(new URL(r.url()).pathname)) calls++; });
+    await barInput(page).fill(`share ${plain?.name || 'counter'} with bar-check@example.com as view`);
     await barInput(page).press('Enter');
-    const card = page.locator('[data-confirm-card="blocked"]');
-    await card.waitFor({ timeout: 10000 });
-    await card.getByText('Blocked on this preview: it would change live apps.').waitFor();
-    await card.getByText(wsLabel, { exact: true }).waitFor();
-    for (const row of ['Target', 'Operation', 'Effect']) await card.getByText(row, { exact: true }).waitFor();
-    must(await card.getByRole('button', { name: 'Confirm' }).isDisabled(), 'Confirm is enabled');
-    await page.screenshot({ path: 'e2e/shots/agent-bar-blocked-card.png' });
-    await card.getByRole('button', { name: 'Cancel' }).click();
-    await page.locator('[data-confirm-card="cancelled"]').waitFor({ timeout: 3000 });
-    must(calls === 0, `${calls} approve or reject calls from a Blocked card`);
+    await page.locator('[data-result-sheet]').getByText('Asking about the workspace or apps is off on this preview', { exact: false }).first().waitFor({ timeout: 10000 });
+    must(await page.locator('[data-confirm-card]').count() === 0, 'share still becomes a card');
+    must(calls === 0, `${calls} /api/ask calls`);
     await page.context().close();
   });
 
@@ -1435,7 +1439,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     const options = bar.getByRole('option');
     await options.first().waitFor({ timeout: 5000 });
     // The four modes, then the shortcuts this place can use (WP5): /run only with a job in the catalog.
-    const expected = ['/ask', '/teach', '/research', '/do', '/find', '/open', '/new', '/connect', ...(apps.some((a) => a.kind === 'job') ? ['/run'] : []), '/share'];
+    const expected = ['/ask', '/teach', '/research', '/do', '/find', '/open', '/new', '/connect', ...(apps.some((a) => a.kind === 'job') ? ['/run'] : [])]; // solo v1: no /share
     must(JSON.stringify(await options.locator('span:first-child').allTextContents()) === JSON.stringify(expected), `picker: ${await options.locator('span:first-child').allTextContents()}`);
     must(await bar.getByRole('listbox').getByRole('separator').count() === 1, 'no divider between modes and shortcuts');
     const research = bar.getByRole('option', { name: /research/ });
@@ -1469,10 +1473,10 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  await check('bar-slash: /new question opens Start; /find nanoGPT finds it; /run alone opens the Apps filter; /share on Home says how', async () => {
+  await check('bar-slash: /new question opens Start; /find nanoGPT finds it; /run alone opens the Apps filter; /share is an unknown command (solo v1)', async () => {
     const page = await barOpen();
     const say = async (text) => { await barInput(page).fill(text); await barInput(page).press('Enter'); };
-    // A bare shortcut opens the picker: the first Enter picks it into the draft ('/share '), the second sends.
+    // A bare shortcut opens the picker: the first Enter picks it into the draft ('/run '), the second sends.
     const sayBare = async (text) => { await say(text); await barInput(page).press('Enter'); };
     await say('/new question');
     await startDialog(page).waitFor({ timeout: 10000 });
@@ -1484,8 +1488,8 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       await page.locator('[data-result-sheet]').getByRole('button', { name: `${repo.repo} · Project` }).waitFor({ timeout: 10000 });
       await page.keyboard.press('Escape');
     }
-    await sayBare('/share');
-    await page.locator('[data-result-sheet]').getByText('Open a project, canvas or app to share it, or type /share <name> with <email>.').waitFor({ timeout: 10000 });
+    await say('/share'); // no picker entry matches, so the first Enter sends
+    await page.locator('[data-result-sheet]').getByText('Unknown command /share.', { exact: false }).first().waitFor({ timeout: 10000 });
     await page.keyboard.press('Escape');
     if (apps.some((a) => a.kind === 'job')) {
       await sayBare('/run');
@@ -1519,13 +1523,13 @@ await check('build: the browser runs the dist-dev entry script', async () => {
   const chip = (page) => barOf(page).locator('[data-scope-chip="resource"]');
   console.log(`agent-ui bar-page: project ${ready?.repo || 'none, project checks skipped'}`);
 
-  if (ready) await check('bar-page: a project names itself in the chip and the placeholder, and the chip does not stick on /members', async () => {
+  if (ready) await check('bar-page: a project names itself in the chip and the placeholder, and the chip does not stick on the Library', async () => {
     const page = await barOpen(`/apps/${ready.name}`);
     await chip(page).getByText(ready.repo, { exact: true }).waitFor({ timeout: 15000 });
     must(await barInput(page).getAttribute('placeholder') === `Ask about ${ready.repo}…`, 'the placeholder does not name the ready project');
-    await spa(page, '/members');
+    await spa(page, '/library');
     await barOf(page).waitFor({ timeout: 10000 });
-    must(await barOf(page).locator('[data-scope-chip]').count() === 0, 'a stale chip on /members');
+    must(await barOf(page).locator('[data-scope-chip]').count() === 0, 'a stale chip on the Library');
     await page.context().close();
   });
 
@@ -1722,11 +1726,12 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  await check('wp6-app-denied: a 403 app names its owner but offers no live Request access on the preview', async () => {
+  await check('wp6-app-denied: a 403 app says no access, and in solo v1 names no owner to ask and offers no Request access', async () => {
     const page = await open(), writes = writes6(page);
     await page.route('**/api/apps/rabbit-hole-check-denied', (r) => r.fulfill({ status: 403, contentType: 'application/json', body: JSON.stringify({ error: 'no access', owner: 'owner@example.com' }) }));
     await loaded(page, '/apps/rabbit-hole-check-denied');
-    await page.getByText(/have access\. Ask owner@example\.com/).waitFor({ timeout: 20000 });
+    await page.getByText(/have access\.$/).waitFor({ timeout: 20000 });
+    must(await page.getByText('owner@example.com', { exact: false }).count() === 0, 'the denied page names an owner to ask');
     must(await page.getByRole('button', { name: 'Request access' }).count() === 0, 'Request access is offered');
     must(!writes.length, `writes: ${writes.join(', ')}`);
     await page.context().close();
@@ -2346,17 +2351,15 @@ await check('build: the browser runs the dist-dev entry script', async () => {
 
   // WP7 D7 (final review): the preview's own chrome never writes live small-cp. api() refuses every write the dev worker
   // does not serve itself (routes.js previewWriteAllowed), and the preview has no /chat page.
-  await check('wp7-d7-chrome: on the preview, adding a member sends nothing and says it is blocked; /chat goes to /apps', async () => {
+  await check('wp7-d7-chrome: on the preview (solo v1) /members is Home with no Members page and nothing written; /chat goes to /apps', async () => {
     const page = await open();
     const writes = [];
     // Every write is aborted here, so even a run against an unguarded build never reaches live small-cp.
     await page.route('**/api/**', (r) => { if (r.request().method() === 'GET') return r.continue(); writes.push(`${r.request().method()} ${new URL(r.request().url()).pathname}`); return r.abort(); });
     await loaded(page, '/members');
-    await page.getByRole('button', { name: 'Add person' }).click();
-    const input = page.getByPlaceholder('colleague@company.com');
-    await input.fill('wp7-d7-check@example.com');
-    await input.press('Enter');
-    await page.getByText('Blocked on this preview: it would change live apps.', { exact: false }).first().waitFor({ timeout: 10000 });
+    must(new URL(page.url()).pathname === '/apps', `/members stayed at ${new URL(page.url()).pathname}`);
+    await page.getByRole('button', { name: 'Start a rabbit hole', exact: true }).first().waitFor({ timeout: 20000 });
+    for (const name of ['Add person', 'New team']) must(await page.getByRole('button', { name }).count() === 0, `the preview offers ${name}`);
     await page.waitForTimeout(800);
     must(!writes.length, `writes reached the network: ${writes.join(', ')}`);
     await loaded(page, '/chat');
@@ -2387,6 +2390,52 @@ await check('build: the browser runs the dist-dev entry script', async () => {
   });
 
   // Checks from Tasks 1-11 go here, in task order.
+}
+
+{
+  // ── Solo v1 (user, 2026-09-29): Rabbit Hole v1 is solo-user only. A normal user meets no team, member, invitation,
+  // role or shared-workspace administration. The backend routes stay (the live build uses them); this checks the UI. ──
+  const TEAM_WORDS = /\b(members?|teammates?|teamspaces?|invite|invitations?|add someone|add person|manage team)\b/i;
+  await check('solo-v1: Settings shows only solo sections - no People, Teamspaces or Admin; no pane mentions members, teams or invites; the workspace menu has no New workspace', async () => {
+    const page = await open();
+    await loaded(page, '/apps');
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('small:settings', { detail: { tab: 'preferences' } })));
+    const dialog = settings(page);
+    await dialog.waitFor({ timeout: 5000 });
+    for (const name of ['People', 'Teamspaces', 'Admin']) must(await dialog.getByText(name, { exact: true }).count() === 0, `Settings shows ${name}`);
+    for (const tab of ['Preferences', 'Notifications', 'General', 'Small AI', 'Connections', 'Developer', 'Security', 'Identity']) {
+      await dialog.getByText(tab, { exact: true }).first().click();
+      await dialog.getByText(tab, { exact: true }).nth(1).waitFor({ timeout: 5000 }); // the pane title under the nav item
+      await page.waitForTimeout(300); // General and Small AI load their data
+      const words = (await dialog.innerText()).match(TEAM_WORDS);
+      must(!words, `Settings → ${tab} says "${words?.[0]}"`);
+    }
+    await page.keyboard.press('Escape');
+    await settings(page).waitFor({ state: 'detached', timeout: 5000 });
+    await page.locator('aside').getByTitle('Switch workspace').click();
+    await page.getByRole('button', { name: 'Settings', exact: true }).waitFor({ timeout: 5000 });
+    must(await page.getByRole('button', { name: /New workspace/ }).count() === 0, 'the workspace menu offers New workspace');
+    await page.context().close();
+  });
+
+  await check('solo-v1: Home, Library and Explore show no member, team or invite copy, and an app page has no Share popover', async () => {
+    const page = await open();
+    for (const path of ['/apps', '/library', '/library?type=apps', '/explore']) {
+      await loaded(page, path);
+      await page.waitForTimeout(1000);
+      const words = (await page.locator('main').innerText()).match(TEAM_WORDS);
+      must(!words, `${path} says "${words?.[0]}"`);
+    }
+    if (plain) {
+      await loaded(page, `/apps/${plain.name}`);
+      await page.getByRole('heading', { level: 1, name: plain.name, exact: true }).waitFor({ timeout: 20000 });
+      must(await page.locator('main').getByRole('button', { name: 'Share', exact: true }).count() === 0, 'an app page offers Share');
+      await loaded(page, `/apps/${plain.name}?share=1`); // the old sidebar link opens nothing
+      await page.waitForTimeout(1000);
+      must(await page.getByPlaceholder(/Add people by email/).count() === 0, '?share=1 opens a share-with-people popover');
+    } else console.log('note: solo-v1 app page not exercised; the catalog has no job or server');
+    await page.context().close();
+  });
 }
 
 // ── journey checks: each area inserts its block above this line, wrapped in { } ──

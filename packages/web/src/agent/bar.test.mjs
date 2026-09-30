@@ -220,9 +220,9 @@ test('a question about a connected repository asks in that project scope, keepin
 test('the picker lists the shortcuts a place can use: /new stays off a project, /run needs a job', () => {
   const names = (list) => list.map(([name]) => name);
   const job = [{ name: 's3-log', kind: 'job' }];
-  assert.deepEqual(names(shortcutsFor(home, job)), ['find', 'open', 'new', 'connect', 'run', 'share']);
-  assert.deepEqual(names(shortcutsFor(home, [])), ['find', 'open', 'new', 'connect', 'share']);
-  assert.deepEqual(names(shortcutsFor(nano, job)), ['find', 'open', 'connect', 'run', 'share']);
+  assert.deepEqual(names(shortcutsFor(home, job)), ['find', 'open', 'new', 'connect', 'run']); // solo v1: no /share
+  assert.deepEqual(names(shortcutsFor(home, [])), ['find', 'open', 'new', 'connect']);
+  assert.deepEqual(names(shortcutsFor(nano, job)), ['find', 'open', 'connect', 'run']);
 });
 
 test('a page that hosts its results (Map, §6.5) keeps them out of the sheet and the collapsed line', () => {

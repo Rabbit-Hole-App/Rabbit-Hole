@@ -26,7 +26,7 @@ export const SLASH = [
   { name: 'new', group: 'shortcut', places: ['home'], desc: 'Start a rabbit hole' },
   { name: 'connect', group: 'shortcut', places: WORKSPACE, desc: 'Connect a repository' },
   { name: 'run', group: 'shortcut', places: WORKSPACE, desc: 'Run a job', needs: 'job' },
-  { name: 'share', group: 'shortcut', places: WORKSPACE, desc: 'Share this' },
+  // No /share: Rabbit Hole v1 is solo. The share and unshare Ask tools stay in commands.js for later.
   // Learn intents: learning actions on the selection, or on the current concept. A `family` narrows the
   // primitives the tutor may return; without one the tutor chooses (Auto).
   { name: 'deeper', group: 'learn', places: ['learn'], desc: 'Go deeper', prompt: 'Go one level deeper on {target}.' },

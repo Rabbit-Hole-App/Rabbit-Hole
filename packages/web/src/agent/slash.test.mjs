@@ -6,8 +6,8 @@ const names = (list) => list.map((c) => c.name);
 const JOB = [{ name: 's3-log', kind: 'job' }];
 
 test('one command list: the four modes everywhere, Home shortcuts on Home and projects, learning shortcuts only in Learn', () => {
-  assert.deepEqual(names(commandsFor('home', { catalog: JOB })), ['ask', 'teach', 'research', 'do', 'find', 'open', 'new', 'connect', 'run', 'share']);
-  assert.deepEqual(names(commandsFor('project', { catalog: JOB })), ['ask', 'teach', 'research', 'do', 'find', 'open', 'connect', 'run', 'share']);
+  assert.deepEqual(names(commandsFor('home', { catalog: JOB })), ['ask', 'teach', 'research', 'do', 'find', 'open', 'new', 'connect', 'run']); // solo v1: no /share
+  assert.deepEqual(names(commandsFor('project', { catalog: JOB })), ['ask', 'teach', 'research', 'do', 'find', 'open', 'connect', 'run']);
   assert.deepEqual(names(commandsFor('learn', { catalog: JOB })), ['ask', 'teach', 'research', 'do', 'deeper', 'simplify', 'example', 'practice', 'quiz', 'compare', 'source',
     'explain', 'flashcards', 'code', 'graph', 'diagram', 'walkthrough', 'animate', 'whiteboard', 'paper', 'image', 'video', '3d', 'notebook', 'more']);
   assert.deepEqual(names(commandsFor('home', { catalog: [] })).includes('run'), false); // /run needs a runnable job

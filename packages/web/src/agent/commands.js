@@ -1,4 +1,4 @@
-import { api, audienceOf, getTheme, navigate, setTheme, workspaceLabel } from '../api.js';
+import { api, getTheme, navigate, setTheme, workspaceLabel } from '../api.js';
 import { openedNotice } from '../connections.js';
 import { aiReadsOnPreview, learnPreview } from '../flags.js';
 import { canvasKeys, deviceId, hasLocalContent } from '../home/canvas-local.js';
@@ -251,7 +251,7 @@ export const COMMANDS = {
       target: `${args.repo} · public GitHub · ${args.url}`,
       operation: 'connect_repository',
       params: { branch: args.branch },
-      effect: `${args.newBranch && repositoriesOf(ctx.catalog, args.repo).length ? `${args.repo} is already connected on ${repositoriesOf(ctx.catalog, args.repo).map((row) => row.branch).filter(Boolean).join(', ')}; this connects ${args.branch} as a separate project. ` : ''}Visible to ${audienceOf(ctx.orgName, ctx.email)}. Connected repositories can't be deleted yet.`,
+      effect: `${args.newBranch && repositoriesOf(ctx.catalog, args.repo).length ? `${args.repo} is already connected on ${repositoriesOf(ctx.catalog, args.repo).map((row) => row.branch).filter(Boolean).join(', ')}; this connects ${args.branch} as a separate project. ` : ''}Only you can see it. Connected repositories can't be deleted yet.`, // owner-only (Privacy P0); v1 is solo
     }),
     run: async ({ url, repo, branch, newBranch, existing, defaulted }) => {
       // Checked again against a fresh catalog right before creating: the page's copy can be stale.

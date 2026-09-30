@@ -393,7 +393,7 @@ function Denied({ slug, error }) {
   };
   return (
     <div className="mx-auto max-w-md pt-[20vh] text-center">
-      <div className="pb-3">You don’t have access.{owner ? ` Ask ${owner}` : ''}</div>
+      <div className="pb-3">You don’t have access.{owner && !learnPreview ? ` Ask ${owner}` : ''}</div>
       {owner && !asked && !learnPreview && <Button variant="accent" className="mx-auto" onClick={ask}>Request access</Button>}
       {asked && (
         <div className="text-sm text-ink-2">
@@ -569,10 +569,11 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
   const graphFull = !runId && shown === 'graph';
   const isAws = app?.hosting === 'aws';
   const runChat = !learnPreview && (!isAws || app?.run_chat); // D7: run chat writes live /api/ask history
-  // Share + ⋯ menu, shown in the run breadcrumb and in the app title row
+  // Share + ⋯ menu, shown in the run breadcrumb and in the app title row. Rabbit Hole v1 is solo: the preview has no
+  // share-with-people popover (the /api/share routes stay for the live build).
   const appActions = app && (
     <>
-      <SharePopover app={app} onChanged={load} />
+      {!learnPreview && <SharePopover app={app} onChanged={load} />}
       <div className="relative">
         <IconBtn title="More" className={cn(menuOpen && 'bg-active text-ink')} onMouseDown={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}><MoreHorizontal size={16} strokeWidth={1.5} /></IconBtn>
         <Menu open={menuOpen} onClose={() => setMenuOpen(false)} className="top-8 right-0">

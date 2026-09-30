@@ -87,7 +87,7 @@ test('prepare resolves the default branch before the card, so the card shows the
     args: { url: 'https://github.com/karpathy/minGPT', repo: 'karpathy/minGPT', branch: 'master', defaulted: true },
     card: {
       workspace: 'Personal', title: 'Connect karpathy/minGPT', target: 'karpathy/minGPT · public GitHub · https://github.com/karpathy/minGPT',
-      operation: 'connect_repository', params: { branch: 'master' }, effect: "Visible to anyone who signs in with an @gmail.com email. Connected repositories can't be deleted yet.",
+      operation: 'connect_repository', params: { branch: 'master' }, effect: "Only you can see it. Connected repositories can't be deleted yet.", // owner-only (Privacy P0), never a domain audience
     },
     policy: { risk: 'confirm', blocked: false },
   });
@@ -292,7 +292,7 @@ test('an explicit different branch of a connected repository is never a silent d
     : path === '/api/apps' ? { body: { apps: ctx.catalog } } : { status: 202, body: { name: 'repo-2b3c4d5e-nanogpt' } });
   const prepared = await prepareCommand('connect_repository', { ...nano, branch: 'dev', newBranch: true }, ctx);
   assert.deepEqual(prepared.args, { ...nano, branch: 'dev', newBranch: true });
-  assert.equal(prepared.card.effect, "karpathy/nanoGPT is already connected on master; this connects dev as a separate project. Visible to anyone who signs in with an @gmail.com email. Connected repositories can't be deleted yet.");
+  assert.equal(prepared.card.effect, "karpathy/nanoGPT is already connected on master; this connects dev as a separate project. Only you can see it. Connected repositories can't be deleted yet.");
   await executeCommand('connect_repository', prepared.args, ctx);
   assert.deepEqual(calls.at(-1), { path: '/api/repositories', method: 'POST', body: { url: 'https://github.com/karpathy/nanoGPT', branch: 'dev' } });
 });
@@ -333,7 +333,7 @@ test('the separate-branch card names every connected branch, and never undefined
   const two = { ...CTX, catalog: [{ name: 'repo-1a2b3c4d-nanogpt', kind: 'repository', repo: 'karpathy/nanoGPT', branch: 'master' }, { name: 'repo-2b3c4d5e-nanogpt', kind: 'repository', repo: 'karpathy/nanoGPT', branch: 'dev' }] };
   const nano = { url: 'https://github.com/karpathy/nanoGPT', repo: 'karpathy/nanoGPT', branch: 'x', newBranch: true };
   assert.match((await prepareCommand('connect_repository', nano, two)).card.effect, /^karpathy\/nanoGPT is already connected on master, dev; this connects x as a separate project\. /);
-  assert.match((await prepareCommand('connect_repository', nano, { ...CTX, catalog: [] })).card.effect, /^Visible to anyone who signs in with an @gmail\.com email\./);
+  assert.match((await prepareCommand('connect_repository', nano, { ...CTX, catalog: [] })).card.effect, /^Only you can see it\./); // owner-only (Privacy P0)
 });
 
 test('search_resources can narrow to kinds; open_recent opens the newest of a kind opened in this browser', async () => {

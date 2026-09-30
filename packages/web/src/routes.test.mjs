@@ -16,6 +16,9 @@ test('the live build routes exactly as today (main.jsx:57-70)', () => {
 
 test('the preview serves Home at bare /apps and keeps filtered links on the Library (T02 §1)', () => {
   for (const p of ['/library', '/explore']) assert.equal(canonicalPath(p, true), null);
+  // Solo v1: the preview has no members page; /members (like /chat) goes to /apps, and an in-app visit is Home.
+  for (const p of ['/members', '/chat']) assert.equal(canonicalPath(p, true), '/apps');
+  assert.deepEqual(pageFor('/members', '', true), { page: 'home' });
   assert.equal(canonicalPath('/home', true), '/apps');
   for (const p of ['/apps', '/dash']) assert.deepEqual(pageFor(p, '', true), { page: 'home' });
   for (const s of ['?s=shared', '?f=Team']) assert.deepEqual(pageFor('/apps', s, true), { page: 'library' });
@@ -54,7 +57,7 @@ test('the baseline surface names the place and hides the bar where another input
   assert.deepEqual(at('/apps/canvas-1a2b3c4d'), ['canvas', true]);
   assert.deepEqual(at('/apps/counter/runs/r-1'), ['run', true]);
   assert.deepEqual(at('/chat?app=counter'), ['chat', true]);
-  assert.deepEqual(at('/members'), ['members', false]);
+  assert.deepEqual(at('/members'), ['home', false]); // solo v1: no members page in the preview
 });
 
 test('Learn and canvas routes are immersive, with no persistent sidebar or icon rail; every other page keeps it (WP6 closeout)', () => {

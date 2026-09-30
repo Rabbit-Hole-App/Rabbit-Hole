@@ -19,7 +19,8 @@ const td = 'h-8 border-b border-line px-2 text-sm whitespace-nowrap';
 const th = 'h-8 border-b border-line px-2 text-left text-xs font-normal text-ink-2';
 
 // Notion-lite database controls: column order/visibility, one sort, one filter.
-const COLS = { name: 'Name', kind: 'Type', access: 'Access', people: 'People', watch: 'Watch', deployed: 'Deployed', lastrun: 'Last run' };
+// Rabbit Hole v1 is solo: the preview has no People (owner and members) column.
+const COLS = { name: 'Name', kind: 'Type', access: 'Access', ...(!learnPreview && { people: 'People' }), watch: 'Watch', deployed: 'Deployed', lastrun: 'Last run' };
 const DEFAULT_ORDER = Object.keys(COLS);
 const COL_ICON = { name: Type, kind: Circle, access: Lock, people: Users, watch: Eye, deployed: Calendar, lastrun: Clock };
 const COL_INFO = {
@@ -112,7 +113,7 @@ function AppContent({ data, load }) {
   );
   const colMatch = (k) => COLS[k].toLowerCase().includes(menuQ.toLowerCase());
   const order = [...cols.order.filter((k) => DEFAULT_ORDER.includes(k)), ...DEFAULT_ORDER.filter((k) => !cols.order.includes(k))];
-  const { type, archived } = libraryQuery(window.location.search, learnPreview);
+  const { type, archived, section } = libraryQuery(window.location.search, learnPreview);
   const hidden = cols.hidden;
   const setHidden = (k, v) => saveCols({ ...cols, hidden: { ...cols.hidden, [k]: v } });
   const visibleCols = order.filter((k) => !hidden[k]);
@@ -130,7 +131,6 @@ function AppContent({ data, load }) {
   // ?s=shared / ?s=private - the sidebar section labels filter this overview;
   // ?f=<folder> - the breadcrumb's folder crumb shows just that folder's apps
   const params = new URLSearchParams(window.location.search);
-  const section = params.get('s');
   const folder = params.get('f') ? (data?.folders || []).find((x) => x.name === params.get('f')) : null;
   // The preview heading uses the scope chip's own name, so one filter never has two names (T02 §4).
   const title = folder ? folder.name : learnPreview ? 'Library' : section === 'shared' ? 'Shared' : section === 'private' ? 'Private' : learnPreview ? 'Library' : 'Apps';

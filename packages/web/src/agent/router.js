@@ -26,15 +26,15 @@ const conceptOf = (word) => {
   return w === 'agent bar' ? 'mothership' : w;
 };
 // Slash shortcuts (user, 2026-09-28): each is its own sentence, so the rules decide '/find x'
-// exactly as they decide 'find x'. /new opens Start on a path and creates nothing.
-const SHORTCUT = /^\/(find|open|new|connect|run|share)(?:\s+(.*))?$/i;
+// exactly as they decide 'find x'. /new opens Start on a path and creates nothing. No /share: v1 is solo.
+const SHORTCUT = /^\/(find|open|new|connect|run)(?:\s+(.*))?$/i;
 const NEW_PATH = { repository: 'repository', repo: 'repository', project: 'repository', canvas: 'blank', 'blank canvas': 'blank', blank: 'blank', question: 'question', sources: 'sources', source: 'sources' };
-const SHARE_THIS = /^this(?:\s+(?:project|canvas|app))?$/i;
 // Library words (user, 2026-09-28): the Library's own filters and a kind-narrowed catalog search.
 const KIND = { project: 'projects', canvas: 'canvases', app: 'apps', job: 'apps', server: 'apps' };
 const KINDS = { projects: ['repository'], canvases: ['canvas'], apps: ['job', 'server'] };
 const kindOf = (word) => KIND[word.toLowerCase().replace(/(es|s)$/, '').replace(/^canvas$/, 'canvas')] || KIND[word.toLowerCase().replace(/s$/, '')];
-const LIBRARY = /^(?:show|list|find|search)\s+(?:me\s+)?(?:(my|all|the)\s+)?(?:runnable\s+)?(projects?|canvas(?:es)?|apps?|jobs?|servers?)(?:\s+(shared with me|in (?:the |this )?workspace))?(?:\s+(?:about|on|named|called|matching|with|for)\s+(.+))?$/i;
+// Solo v1: no 'shared with me' or 'in the workspace' scope words; 'my' is the one ownership filter.
+const LIBRARY = /^(?:show|list|find|search)\s+(?:me\s+)?(?:(my|all|the)\s+)?(?:runnable\s+)?(projects?|canvas(?:es)?|apps?|jobs?|servers?)(?:\s+(?:about|on|named|called|matching|with|for)\s+(.+))?$/i;
 const NAMED_KIND = /^(?:find|search|show)\s+(?:for\s+)?(?:my\s+|the\s+)?(.+?)\s+(project|canvas|app|job|server)(?:e?s)?$/i;
 const RECENT = /^(?:open|go to|show)\s+(?:the\s+|my\s+)?(?:(?:last|latest|most recent|recent)\s+(project|canvas|app)|(project|canvas|app)\s+i\s+(?:worked on|was working on|opened|used|looked at|edited)(?:\s+(?:recently|last|lately|yesterday|most recently|last time))?)$/i;
 
@@ -76,14 +76,11 @@ export function route(text, { mode = null, catalog = [], scope = null } = {}) {
   if (HELP.test(message)) return command('explain', { concept: 'help' });
   const concept = message.match(CONCEPT);
   if (concept) return command('explain', { concept: conceptOf(concept[1]) });
-  // 1b. /find /open /new /connect /run /share.
+  // 1b. /find /open /new /connect /run.
   const shortcut = !pill && message.match(SHORTCUT);
   if (shortcut) {
     const verb = shortcut[1].toLowerCase(), rest = (shortcut[2] || '').trim();
     if (verb === 'new') return command('open_start', { path: NEW_PATH[rest.toLowerCase()] || 'repository' });
-    if (verb === 'share' && (!rest || SHARE_THIS.test(rest))) {
-      return scope?.slug ? command('share', { app: scope.slug }) : { type: 'note', text: 'Open a project, canvas or app to share it, or type /share <name> with <email>.' };
-    }
     if (!rest) {
       if (verb === 'run') return command('filter_library', { type: 'apps' });
       if (verb === 'connect') return command('open_start', { path: 'repository' });
@@ -139,10 +136,10 @@ export function route(text, { mode = null, catalog = [], scope = null } = {}) {
     return command('open_recent', { kind: word === 'project' ? 'repository' : word });
   }
   if ((m = message.match(LIBRARY))) {
-    const [, owner, kindWord, where, topic] = m;
+    const [, owner, kindWord, topic] = m;
     const type = kindOf(kindWord);
     if (topic) return command('search_resources', { text: topic.trim(), kinds: KINDS[type] });
-    const section = where ? (/shared/i.test(where) ? 'shared' : 'apps') : owner?.toLowerCase() === 'my' ? 'private' : null;
+    const section = owner?.toLowerCase() === 'my' ? 'private' : null;
     return command('filter_library', { type, ...(section ? { section } : {}) });
   }
   if ((m = message.match(NAMED_KIND))) return command('search_resources', { text: m[1].trim(), kinds: KINDS[kindOf(m[2])] });
@@ -172,13 +169,7 @@ export function route(text, { mode = null, catalog = [], scope = null } = {}) {
   if ((m = message.match(/^(?:new|blank) canvas(?:\s+called\s+(.+))?$/i))) {
     return command('create_canvas', { title: m[1]?.trim() || 'Untitled canvas', ...(scope?.kind === 'project' ? { project: scope.slug } : {}), open: false });
   }
-  // 9. share <name> with <email> [as view|edit]. Projects and canvases route here too; the
-  // share command answers that they can't be shared yet (T02 §11).
-  if ((m = message.match(/^share\s+(.+?)\s+with\s+(\S+@\S+?)(?:\s+as\s+(view|viewer|edit|editor))?$/i))) {
-    const [, name, email, as = 'view'] = m;
-    const role = as.toLowerCase().startsWith('edit') ? 'edit' : 'view';
-    return byName(catalog, name, (hit) => ({ name: 'share', args: { app: hit.slug, email, role } }));
-  }
+  // 9. No 'share <name> with <email>': Rabbit Hole v1 is solo, so it is a question like any other.
   // 10. run <job>
   if ((m = message.match(/^run\s+(.+)$/i))) {
     return byName(catalog.filter((row) => row.kind === 'job'), m[1].trim(), (hit) => ({ name: 'run', args: { app: hit.slug } }));

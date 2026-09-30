@@ -156,7 +156,7 @@ function Explore() {
               );
             })}
           </ul>
-          <p className="pt-3 text-xs text-ink-3">These are examples. Nothing is shared beyond a workspace yet.</p>
+          <p className="pt-3 text-xs text-ink-3">These are examples. Nothing is published yet.</p>
         </section>
       </div>
     </main>

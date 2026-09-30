@@ -28,7 +28,7 @@ test('a mode pill wins over the rules; Auto is no pill; /do still runs the rules
   assert.deepEqual(at('open counter', { mode: 'teach' }), { type: 'ask', mode: 'teach', text: 'open counter' });
   assert.deepEqual(at('open counter', { mode: 'research' }), { type: 'ask', mode: 'research', text: 'open counter' });
   assert.deepEqual(at('https://github.com/karpathy/nanoGPT', { mode: 'auto' }), OPEN_NANOGPT);
-  assert.equal(at('share counter with y@example.com', { mode: 'do' }).name, 'share');
+  assert.deepEqual(at('share counter with y@example.com', { mode: 'do' }), { type: 'ask', mode: 'ask', text: 'share counter with y@example.com' }); // solo v1: no share rule
   assert.deepEqual(at('explain the training loop', { mode: 'do' }), { type: 'ask', mode: 'ask', text: 'explain the training loop' });
 });
 
@@ -134,12 +134,11 @@ test('rule 8: a new canvas takes its title, and its project when asked from one;
   assert.deepEqual(at('new canvas called Causal masks', { scope: NANOGPT }), { type: 'command', name: 'create_canvas', args: { title: 'Causal masks', project: 'repo-1a2b3c4d-nanogpt', open: false } });
 });
 
-// Projects and canvases route to share as well: the command answers that they can't be shared yet (T02 §11).
-test('rules 9-10: share names anything in the catalog, run names jobs', () => {
-  assert.deepEqual(at('share counter with y@example.com as editor'), { type: 'command', name: 'share', args: { app: 'counter', email: 'y@example.com', role: 'edit' } });
-  assert.deepEqual(at('share counter with y@example.com'), { type: 'command', name: 'share', args: { app: 'counter', email: 'y@example.com', role: 'view' } });
-  assert.deepEqual(at('share nanoGPT with y@example.com'), { type: 'command', name: 'share', args: { app: 'repo-1a2b3c4d-nanogpt', email: 'y@example.com', role: 'view' } });
-  assert.deepEqual(at('share deep dive with y@example.com'), { type: 'command', name: 'share', args: { app: 'canvas-0f9e8d7c', email: 'y@example.com', role: 'view' } });
+// Rabbit Hole v1 is solo: 'share <name> with <email>' is no command, just a question in the frozen scope.
+test('rules 9-10: share with a person is no command in solo v1; run names jobs', () => {
+  for (const text of ['share counter with y@example.com as editor', 'share counter with y@example.com', 'share nanoGPT with y@example.com', 'share deep dive with y@example.com']) {
+    assert.deepEqual(at(text), { type: 'ask', mode: 'ask', text });
+  }
   assert.deepEqual(at('run s3-log'), { type: 'command', name: 'run', args: { app: 's3-log' } });
   assert.deepEqual(at('run counter'), { type: 'command', name: 'search_resources', args: { text: 'counter' } });
 });
@@ -193,9 +192,10 @@ test('rule 2: a link in backticks counts; a malformed or punctuated branch link 
 test('Library words set the Library filter state through filter_library, the same state as the Filters control', () => {
   const filter = (args) => ({ type: 'command', name: 'filter_library', args });
   assert.deepEqual(at('Show my canvases'), filter({ type: 'canvases', section: 'private' }));
-  assert.deepEqual(at('show projects shared with me'), filter({ type: 'projects', section: 'shared' }));
   assert.deepEqual(at('Show runnable apps'), filter({ type: 'apps' }));
-  assert.deepEqual(at('list canvases in the workspace'), filter({ type: 'canvases', section: 'apps' }));
+  // Solo v1: no Shared with me or Workspace scope, so these never set a Library section.
+  assert.deepEqual(at('show projects shared with me'), { type: 'command', name: 'search_resources', args: { text: 'projects shared with me' } });
+  assert.deepEqual(at('list canvases in the workspace'), { type: 'ask', mode: 'ask', text: 'list canvases in the workspace' });
 });
 
 test('a kind word narrows a catalog search: find my nanoGPT project, show canvases about attention', () => {
@@ -241,11 +241,10 @@ test('a bare shortcut goes somewhere useful; /new opens Start on its path withou
   assert.deepEqual(at('/connect'), start('repository'));
 });
 
-test('/share acts on what is in scope; with nothing in scope it says how', () => {
-  assert.deepEqual(at('/share this project', { scope: NANOGPT }), { type: 'command', name: 'share', args: { app: 'repo-1a2b3c4d-nanogpt' } });
-  assert.deepEqual(at('/share', { scope: NANOGPT }), { type: 'command', name: 'share', args: { app: 'repo-1a2b3c4d-nanogpt' } });
-  assert.deepEqual(at('/share'), { type: 'note', text: 'Open a project, canvas or app to share it, or type /share <name> with <email>.' });
-  assert.deepEqual(at('/share counter with a@b.co'), at('share counter with a@b.co'));
+test('/share is no shortcut in solo v1: it is an unknown command wherever it is typed', () => {
+  for (const [text, scope] of [['/share this project', NANOGPT], ['/share', NANOGPT], ['/share', HOME], ['/share counter with a@b.co', HOME]]) {
+    assert.deepEqual(at(text, { scope }), { type: 'unknown_command', name: 'share' });
+  }
 });
 
 test('questions about Rabbit Hole itself get a built-in answer; help lists what the bar can do', () => {

@@ -9,10 +9,6 @@ export const wsName = (org) => ((org || '').split('-')[0] || org || '').replace(
 // reads Personal - never "Gmail" from gmail.com (user, 2026-09-28). The live build keeps wsName.
 export const workspaceLabel = (name, org, preview = learnPreview) => name || (preview ? 'Personal' : wsName(org));
 
-// Who a workspace-visible resource reaches. The email-domain workspace reaches everyone who signs in
-// with that domain, whatever it is called, so the copy says that instead of the label.
-export const audienceOf = (name, email) => (name ? `everyone in ${name}` : `anyone who signs in with an @${(email || '').split('@')[1]} email`);
-
 // Which sidebar section an app belongs to: workspace Apps, Shared, or Private.
 // Private is strictly personal - a private app that has ANY shares lives in Shared
 // (for the owner too, like Notion), and only unshared-private apps offer no Share button.

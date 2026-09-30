@@ -6,11 +6,17 @@ const apps = [{ name: 'repo-1', kind: 'repository' }, { name: 'canvas-1', kind: 
 const names = (list) => list.map((a) => a.name);
 
 test('the live build never reads ?type; the preview accepts only the three types', () => {
-  assert.deepEqual(libraryQuery('?type=projects', false), { type: null, archived: false });
-  assert.deepEqual(libraryQuery('?type=projects', true), { type: 'projects', archived: false });
-  for (const bad of ['?type=bogus', '?type=constructor', '']) assert.deepEqual(libraryQuery(bad, true), { type: null, archived: false });
-  assert.deepEqual(libraryQuery('?type=canvases&archived=1', true), { type: 'canvases', archived: true });
-  assert.deepEqual(libraryQuery('?type=projects&archived=1', true), { type: 'projects', archived: false });
+  assert.deepEqual(libraryQuery('?type=projects', false), { type: null, archived: false, section: null });
+  assert.deepEqual(libraryQuery('?type=projects', true), { type: 'projects', archived: false, section: null });
+  for (const bad of ['?type=bogus', '?type=constructor', '']) assert.deepEqual(libraryQuery(bad, true), { type: null, archived: false, section: null });
+  assert.deepEqual(libraryQuery('?type=canvases&archived=1', true), { type: 'canvases', archived: true, section: null });
+  assert.deepEqual(libraryQuery('?type=projects&archived=1', true), { type: 'projects', archived: false, section: null });
+});
+
+test('solo v1: the preview keeps only the Mine scope and ignores ?s=shared and ?s=apps; the live build keeps every section', () => {
+  assert.equal(libraryQuery('?s=private', true).section, 'private');
+  for (const s of ['shared', 'apps', 'constructor']) assert.equal(libraryQuery(`?s=${s}`, true).section, null, s);
+  for (const s of ['shared', 'private']) assert.equal(libraryQuery(`?s=${s}`, false).section, s);
 });
 
 test('type chips filter on kind (T02 §4); no type returns the same array', () => {
@@ -18,7 +24,7 @@ test('type chips filter on kind (T02 §4); no type returns the same array', () =
   assert.deepEqual(names(ofType(apps, 'projects')), ['repo-1']);
   assert.deepEqual(names(ofType(apps, 'canvases')), ['canvas-1']);
   assert.deepEqual(names(ofType(apps, 'apps')), ['s3-log', 'counter']);
-  assert.deepEqual(SCOPES, { private: 'Mine', shared: 'Shared with me', apps: 'Workspace' });
+  assert.deepEqual(SCOPES, { private: 'Mine' }); // solo v1: no Shared with me or Workspace scope
 });
 
 test('All groups the Library as Projects, Canvases, then Apps, most recent first, six each with the rest behind View all', () => {
