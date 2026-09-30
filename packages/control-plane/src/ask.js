@@ -222,7 +222,7 @@ export function toOpenAI(body, modelId) {
     const rest = blocks.filter((b) => b.type !== 'tool_result');
     if (rest.length) {
       msgs.push(rest.some((b) => b.type === 'image')
-        ? { role: 'user', content: rest.map((b) => (b.type === 'image' ? { type: 'image_url', image_url: { url: `data:${b.source?.media_type};base64,${b.source?.data}` } } : { type: 'text', text: b.text || '' })) }
+        ? { role: 'user', content: rest.map((b) => (b.type === 'image' ? { type: 'image_url', image_url: { url: b.source?.type === 'url' ? b.source.url : `data:${b.source?.media_type};base64,${b.source?.data}` } } : { type: 'text', text: b.text || '' })) }
         : { role: 'user', content: rest.map((b) => b.text || '').join('') });
     }
   }
