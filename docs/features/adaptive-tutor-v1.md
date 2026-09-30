@@ -499,6 +499,170 @@ duplicate it in the Tutor branch. The Tutor sees one evaluator interface, concep
 This is learner evaluation inside the tutor. It does not change card acceptance: JEV stays out of
 the NanoGPT card review pipeline (docs/features/learn-card-pipeline.md).
 
+## Future shared input layer: Learner Intent Resolver
+
+Status: future architecture only. None of the following is implemented by
+this documentation:
+- the Learner Intent Resolver
+- a learner model
+- a mastery model
+- Tutor routing
+- permanent learner profiles
+
+**Principle.** Raw chat text is never sent as the whole prompt to specialist
+Tutor agents or artifact directors. The learner's message is only one input.
+Before the Tutor, the Motion Director or any other pedagogical specialist
+acts, Rabbit Hole builds a structured learner-turn context:
+
+```
+raw learner message
+       +
+current learning location
+       +
+prior evidence
+       +
+current card/canvas/topic
+       +
+source context
+       +
+recent interaction history
+       ↓
+LEARNER INTENT RESOLVER
+       ↓
+structured LearnerTurn
+       ↓
+Tutor / Motion Director / Practice planner / other specialist
+```
+
+This is not a "prompt enhancer". It resolves:
+- what the learner is asking
+- where they currently are
+- what they have already seen
+- what evidence we have about their understanding
+- which prerequisite gap may be relevant
+- what level or depth they want
+- which modality they are asking for, explicitly or implicitly
+- what should NOT be repeated
+
+**Example.** The raw message is "I still don't get attention." Sending that
+sentence straight to a tutor model is the bad architecture. The better one
+builds:
+
+```
+LearnerTurn
+{
+  user_message: "I still don't get attention."
+  current_location:
+    concept: attention
+    depth: guided
+    current_card: attention-mask-step
+  prior_exposure: [query/key/value, q·k scores, scaling, causal mask]
+  evidence:
+    - failed causal-mask check twice
+    - correctly explained Q/K/V
+  current_hypothesis:
+    likely_gap: "why future tokens must be hidden"
+    confidence: medium
+  requested_mode: explanation
+  avoid:
+    - restart entire attention lesson
+    - formula-first explanation
+}
+```
+
+Then the Tutor decides the next move.
+
+### Separation of responsibilities
+
+| Role | Responsibility |
+|---|---|
+| Learner Intent Resolver | describes the learner's current situation and request |
+| Tutor Orchestrator | chooses the next pedagogical move |
+| Specialist agent | executes that move |
+| Artifact Director | plans the artifact if one is needed |
+
+Example: the learner asks "show me visually why softmax is needed".
+1. The Learner Intent Resolver records that the learner knows logits but not
+   normalization, and asks for a visual explanation.
+2. The Tutor chooses an intuition-first motion explainer.
+3. The Motion Director creates the storyboard and MotionBrief.
+4. The Motion Author builds the animation.
+
+### The raw text is kept
+
+Never replace the learner's original message. Store and pass both
+`raw_user_message` and `structured_interpretation`. Specialists can see the
+learner's exact wording when it helps. The structured interpretation is
+extra context; it is never presented as user-authored text.
+
+### No permanent learner labels
+
+Avoid labels such as "visual learner", "beginner forever", "weak at math" or
+"advanced user". Prefer temporary evidence tied to a specific concept:
+`understood`, `uncertain`, `misconception`, `prerequisite_gap`,
+`not_observed`. Route per turn and per piece of evidence, never by a
+permanent "learning style".
+
+### Bounded context
+
+Never send the whole conversation, canvas, repository, course or learner
+history to every agent. Build a bounded package with only what the current
+decision needs:
+- the current concept
+- nearby prerequisites
+- recent evidence
+- the current card or object
+- active sources
+- the last few learner turns
+
+### Explicit intent comes first
+
+What the learner says outright strongly constrains the Tutor. For example,
+"don't give me another analogy, show me the math". The same holds for "make
+this simpler", "give me a visual", "quiz me", "let me try" and "show me the
+code". Explicit intent is stronger than any inferred preference.
+
+### Future conceptual contract (names provisional, no schema yet)
+
+```
+LearnerTurn {
+  raw_user_message
+  target { project? canvas? card? concept? source? }
+  current_depth
+  intent { explain | clarify | practice | challenge | visualize | compare | derive | implement | navigate }
+  requested_depth?
+  requested_modality?
+  evidence_context[]
+  prerequisite_context[]
+  recent_teaching_moves[]
+  constraints[]
+  source_context[]
+}
+```
+
+### Relationship to `/motion` and other specialists
+
+`/motion` consumes this same learner-turn context: learner message → Learner
+Intent Resolver → Tutor or the direct `/motion` route → Motion Director. It
+has no separate context or prompt system of its own (see
+docs/features/learn-artifact-generation.md, "Deferred: `/motion`"). The same
+layer serves:
+- `/diagram`
+- `/graph`
+- practice
+- explain-back
+- `/dive`
+- Tutor routing
+- prerequisite recovery
+- code explanations
+
+**Key principle.** The learner should only need to say what they mean
+naturally. Rabbit Hole is responsible for reconstructing the relevant
+learning context before deciding what to do.
+
+Do not make learners repeatedly restate what they already learned, where they
+are, or what they are struggling with.
+
 ## Not part of Tutor v1
 
 Perfect long-term mastery scoring; fully autonomous curriculum generation; emotional/personality
