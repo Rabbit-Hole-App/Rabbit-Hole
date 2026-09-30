@@ -6,7 +6,7 @@
 //
 // ponytail: no lifecycle sweep, same as learn-papers. Add one when storage is
 // measured.
-import { sha256, randomHex } from './token.js';
+import { sha256, randomHex, base64 } from './token.js';
 import { learnMedia } from './learn-storage.js';
 
 // Same ceiling as PDFs, for the same reason: the bytes are base64'd into every
@@ -71,7 +71,5 @@ export async function readUploadedMedia(env, identity, id) {
 // names it by.
 export async function uploadedMediaAsImage(env, identity, id) {
   const { bytes, contentType, title } = await readUploadedMedia(env, identity, id);
-  let binary = '';
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return { id, title, image: { type: 'image', source: { type: 'base64', media_type: contentType, data: btoa(binary) } } };
+  return { id, title, image: { type: 'image', source: { type: 'base64', media_type: contentType, data: base64(bytes) } } };
 }

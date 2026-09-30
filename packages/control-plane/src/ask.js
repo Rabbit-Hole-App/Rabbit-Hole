@@ -1,6 +1,7 @@
 import { subscriptionTransport } from './subscription-transport.js';
 import { researchAnswer } from './learn-research.js';
 import { learnMomentsDb } from './learn-storage.js';
+import { base64 } from './token.js';
 import { MODEL, planUsesOpenAI, loggedModel } from './learn-models.js';
 // Ask (phase 1 - read only): one agent function, scoped per question. This module
 // holds the model call + prompt; index.js owns auth, scope resolution, and context
@@ -474,13 +475,8 @@ ${research.system}` : system;
 
 // A chat attachment as model input, the same for every chat: an image or PDF
 // rides as a vision/document block, anything else (CSV, text) inline and
-// truncated. Base64 is chunked: String.fromCharCode(...big) overflows.
+// truncated.
 export const ATTACHMENT_LIMIT = 4 * 1024 * 1024;
-function base64(bytes) {
-  let s = '';
-  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(s);
-}
 export async function attachmentBlocks(file) {
   if (file.size > ATTACHMENT_LIMIT) throw Error('attachment too large - 4 MB max');
   const type = file.type || '';

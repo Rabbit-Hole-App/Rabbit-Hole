@@ -4,7 +4,7 @@
 //
 // ponytail: no lifecycle sweep. An object outlives the block that points at it,
 // exactly like the chat uploads at index.js. Add one when storage is measured.
-import { sha256, randomHex } from './token.js';
+import { sha256, randomHex, base64 } from './token.js';
 import { learnMedia } from './learn-storage.js';
 
 // Small on purpose. The whole file is base64'd into every turn that asks about
@@ -65,13 +65,11 @@ export async function readUploadedPaper(env, identity, id) {
 // which is serialised back to the browser.
 export async function uploadedPaperAsDocument(env, identity, id) {
   const { bytes, title } = await readUploadedPaper(env, identity, id);
-  let binary = '';
-  for (const byte of bytes) binary += String.fromCharCode(byte);
   return {
     id,
     title,
     pdfUrl: null,
-    document: { type: 'document', title, source: { type: 'base64', media_type: 'application/pdf', data: btoa(binary) } },
+    document: { type: 'document', title, source: { type: 'base64', media_type: 'application/pdf', data: base64(bytes) } },
   };
 }
 

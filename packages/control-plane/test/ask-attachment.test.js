@@ -21,3 +21,10 @@ test('a chat request is JSON, or multipart with the JSON in body and one file', 
   assert.deepEqual(multipart.body, { message: 'see file', mentions: ['repo-a'] });
   assert.equal(multipart.file.name, 'n.txt');
 });
+
+// duplication-13: the one encoder attachments, uploaded papers and dropped images share.
+test('base64 matches Buffer for a buffer larger than one chunk', async () => {
+  const { base64 } = await import('../src/token.js');
+  const bytes = new Uint8Array(100000).map((_, i) => (i * 31) % 256);
+  assert.equal(base64(bytes), Buffer.from(bytes).toString('base64'));
+});
