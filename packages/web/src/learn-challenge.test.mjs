@@ -81,3 +81,21 @@ test('a grade in flight reads as reading; a saved grading state with no request 
   wait.release();
   await running;
 });
+
+test('an undo during a grade releases the card: the next answer is committed and graded', async () => {
+  const first = held();
+  const c = card(challenge, async (committed, answer, onDelta) => {
+    if (answer === 'first') { await first.promise; return; }
+    onDelta('VERDICT: good\nYes.');
+  });
+  c.type('first');
+  const running = c.render().commit();
+  // Ctrl+Z restores the pre-commit block without going through onChange.
+  c.state.block = challenge;
+  c.render();
+  first.release();
+  await running;
+  c.type('second');
+  await c.render().commit();
+  assert.deepEqual([c.state.block.answer, c.state.block.verdict, c.state.block.grading], ['second', 'VERDICT: good\nYes.', false]);
+});

@@ -886,7 +886,9 @@ function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
       }
     } finally {
       gradingAttempts.delete(committed.attemptId);
-      if (current()) inFlight.current = false;
+      // Release unless a newer attempt of this card is still grading: an undo
+      // that cleared the attempt must leave the card answerable.
+      if (current() || !gradingAttempts.has(latest.current.attemptId)) inFlight.current = false;
     }
   };
   const retry = () => { inFlight.current = false; setDraft(block.answer || ''); onChange({ ...block, answer: null, attemptId: null, verdict: '', grading: false }); };
