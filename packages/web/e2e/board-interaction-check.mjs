@@ -47,6 +47,9 @@ if (await cardEls.count() !== cards.length) throw new Error(`expected ${cards.le
 const failures = [];
 const fail = message => { failures.push(message); console.log(`  ✗ ${message}`); };
 const results = { base, board, bundle, seed: BOARD_SEED_VERSIONS[board], toc: [], cards: [] };
+// The right panel starts closed (Learn, 2026-09-28): open it to read the table of contents.
+const showPanel = page.getByRole('button', { name: 'Show the right panel' }).first();
+if (await showPanel.count()) { await showPanel.click(); await page.waitForTimeout(500); }
 
 // The table of contents lists every heading, in order, at its level.
 // The board's own outline is the first list; the app's "Course lessons" list follows it.

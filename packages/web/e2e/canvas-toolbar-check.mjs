@@ -199,6 +199,9 @@ async function probeEdge(page, card, title, label) {
   await reveal(page, canvas, cardLocator(canvas, cards[0]));
   await page.screenshot({ path: `${OUT}/phone-canvas-strip-overview.png` });
   const heightWithOverview = Math.round(g.surface.h);
+  // The right panel starts closed (Learn, 2026-09-28); opened, it stacks under the canvas on a phone.
+  const showPanel = page.getByRole('button', { name: 'Show the right panel' }).first();
+  if (await showPanel.count()) { await showPanel.click(); await page.waitForTimeout(500); }
   const toc = page.getByText('Table of contents', { exact: false }).first();
   await toc.scrollIntoViewIfNeeded();
   const tocVisible = await toc.isVisible();
