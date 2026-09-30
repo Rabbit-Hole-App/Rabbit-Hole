@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowRight, ArrowUpRight } from 'lucide-react';
 import { navigate } from './api.js';
 import { learnPreview } from './flags.js';
 import { openHref, readContinue, readRecent, recentCard, recentItems } from './home/continue.js';
@@ -76,7 +76,7 @@ function Continue({ item }) {
   return (
     <section aria-label="Continue">
       <h2 className={HEADING}>Continue — on this device</h2>
-      <div className="rounded-md bg-code p-4">
+      <div className={`${CARD} lift-card inline-flex max-w-full flex-col p-4 sm:min-w-[320px]`}>
         <div className="flex items-center gap-2">
           <KindIcon kind={item.kind} />
           <span className="min-w-0 truncate text-sm font-medium">{item.title}</span>
@@ -85,7 +85,7 @@ function Continue({ item }) {
         {item.lastExplored && <p className="truncate pt-2 text-sm text-ink-2">Last explored: <span className="text-ink">{item.lastExplored}</span></p>}
         {item.next && <p className="truncate pt-1 text-sm text-ink-2">Next: <span className="text-ink">{item.next}</span></p>}
         <div className="flex gap-2 pt-3">
-          <Button variant="secondary" onClick={() => navigate(openHref(item))}>{item.canvas ? 'Continue learning' : 'Open'}</Button>
+          <Button variant="secondary" onClick={() => navigate(openHref(item))}>{item.canvas ? 'Continue learning' : 'Open'} <ArrowRight size={13} className="nudge-arrow" /></Button>
           {item.canvas && item.kind === 'repository' && <Button onClick={() => navigate(`/apps/${item.slug}`)}>Open project</Button>}
         </div>
       </div>
@@ -105,7 +105,7 @@ function RecentCard({ app, card }) {
   const go = (fn) => () => (app.fixture ? toast('Review fixture: there is nothing behind this card.') : fn());
   const link = 'inline-flex items-center gap-1 self-start text-xs font-medium text-accent hover:underline opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100';
   return (
-    <li data-recent-card className={`${CARD} group flex min-w-0 flex-col gap-1 p-3`}>
+    <li data-recent-card onClick={action?.to ? go(() => navigate(action.to)) : undefined} className={`${CARD} group flex min-w-0 flex-col gap-1 p-3 ${action?.to ? 'lift-card cursor-pointer' : ''}`}>
       <div className="flex min-w-0 items-start gap-2">
         <span className="pt-0.5"><KindIcon kind={app.kind} schedule={app.schedule} /></span>
         <span className="line-clamp-2 min-w-0 flex-1 break-words text-sm font-medium leading-snug">{m.title}</span>
@@ -116,7 +116,7 @@ function RecentCard({ app, card }) {
       <ForkedFrom m={m} onOpen={(id) => go(() => navigate(`/apps/${id}`))()} />
       {lineB && <span className="line-clamp-2 text-xs text-ink-3">{lineB}</span>}
       <div className="mt-auto flex items-center gap-2 pt-1">
-        {action?.to && <button type="button" className={link} onClick={go(() => navigate(action.to))}>{action.label}</button>}
+        {action?.to && <button type="button" className={link} onClick={(e) => { e.stopPropagation(); go(() => navigate(action.to))(); }}>{action.label} <ArrowRight size={12} className="nudge-arrow" /></button>}
         {action?.href && <a href={action.href} target="_blank" rel="noreferrer" className={link}>{action.label} <ArrowUpRight size={12} /></a>}
         <span className="flex-1" />
         <Forks m={m} />

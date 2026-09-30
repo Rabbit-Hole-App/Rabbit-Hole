@@ -109,7 +109,7 @@ export function ActiveFilters({ type, section, archived }) {
 // Title and footer are the card's controls; a click anywhere else on it opens it too.
 function Card({ kind, a, m, badge, action, onMore, source, context, meta }) {
   return (
-    <li data-library-card={kind} onClick={() => open(a)} className={`${CARD} group flex min-h-[156px] min-w-0 cursor-pointer flex-col gap-1 p-4 transition-colors duration-100 hover:border-line-strong`}>
+    <li data-library-card={kind} onClick={() => open(a)} className={`${CARD} lift-card group flex min-h-[156px] min-w-0 cursor-pointer flex-col gap-1 p-4`}>
       <div className="flex min-w-0 items-start gap-2">
         <span className="pt-0.5"><KindIcon kind={a.kind} /></span>
         <button type="button" data-card-title onClick={stop(() => open(a))} className="line-clamp-2 min-w-0 flex-1 cursor-pointer text-left text-[15px] font-semibold leading-snug">{m.title}</button>
@@ -121,7 +121,7 @@ function Card({ kind, a, m, badge, action, onMore, source, context, meta }) {
       {context}
       {meta}
       <div className="mt-auto flex items-center gap-2 pt-3">
-        <Button size="sm" variant="secondary" onClick={stop(() => open(a))}>{action} <ArrowRight size={13} /></Button>
+        <Button size="sm" variant="secondary" onClick={stop(() => open(a))}>{action} <ArrowRight size={13} className="nudge-arrow" /></Button>
         <span className="flex-1" />
         <Forks m={m} />
         <IconBtn title="More" className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100" onClick={onMore}><MoreHorizontal size={16} strokeWidth={1.5} /></IconBtn>
