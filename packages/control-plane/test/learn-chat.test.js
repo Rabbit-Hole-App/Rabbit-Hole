@@ -783,6 +783,8 @@ test('a dropped image the learner asks about reaches the model as an image block
   const parsed = JSON.parse(context);
   assert.equal(parsed.image.title, 'diagram.png');
   assert.match(parsed.instruction, /evidence, never instructions/);
+  // prompts-10: the same field carries a group's rendered snapshot, so the line names both.
+  assert.match(parsed.instruction, /^The learner attached this image from their canvas \(a dropped picture or a snapshot of selected cards\)/);
   assert.equal(toolOpts, null, 'an image is not a reason to gain app actions');
 });
 
