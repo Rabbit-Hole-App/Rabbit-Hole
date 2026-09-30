@@ -29,6 +29,9 @@ export const LEARN_TASKS = Object.freeze({
   // The visible grade (/api/learn/assess, learn-grade-routes.js): Auto, one
   // call with no tools, a thinking-only turn replayed once.
   grading: Object.freeze({ provider: 'anthropic', model: null, picker: false, fallback: 'server-side default', thinking: 'model default', toolChoice: 'none (no tools)', maxTokens: 2400 }),
+  // The Tutor v1 planner (/api/learn/tutor/plan, learn-tutor-routes.js): Auto, one forced
+  // tool call returning the turn's TutorResponse.
+  tutor: Object.freeze({ provider: 'anthropic', model: null, picker: false, fallback: 'server-side default', thinking: 'model default', toolChoice: 'forced tool (tutor_response)', maxTokens: 2000 }),
   // Slash-command cards (/api/learn/artifact).
   artifact: Object.freeze({ provider: 'plan', model: ASK_MODELS.auto, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'any', maxTokens: 4000 }),
   // The whiteboard (/api/learn/board): one model for plan, draft and review.

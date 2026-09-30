@@ -324,7 +324,7 @@ const rememberSheetThread = (app, id) => {
   catch { /* storage off: History stays empty */ }
 };
 
-export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, dock = false, sheet = false, onAddToCanvas = null }) {
+export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, tutor = null, dock = false, sheet = false, onAddToCanvas = null }) {
   const repository = appName?.startsWith('repo-');
   const [repositoryCommit, setRepositoryCommit] = useState(repositoryContext?.commit || null);
   const [codeSelection, setCodeSelection] = useState(null);
@@ -456,7 +456,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   const slashRef = useRef(null);
   // Stop (the docked shell): aborts the answer being streamed.
   const answerFlight = useRef(null);
-  const send = async (raw, scopeOverride) => {
+  const send = async (raw, scopeOverride, { opening = false } = {}) => {
     // A chosen command pill sends exactly "/command text" (LearnSlash runs it); the pill goes back to Auto.
     // A typed /command replaces the pill rather than nesting inside it.
     if (slash && command && !raw.trim().startsWith('/')) { const line = `/${command} ${raw.trim()}`.trim(); setCommand(null); setInput(''); slashRef.current?.intercept(line); return; }
@@ -518,6 +518,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         await demo.run(text => setMsgs(m => m.map(item => item.id === replyId ? { ...item, content: text } : item)));
         return;
       }
+      // Tutor v1 (LearnTutor.jsx): on the NanoGPT Attention slice the Tutor answers instead of the
+      // Learn chat - the learner's own words, and the card they armed or selected.
+      if (tutor) { mirror(await tutor.ask({ raw: raw.trim(), targetId: target?.id || null, opening })); return; }
       const payload = {
         // The lesson's table of contents. Separate from lesson_snapshot, which
         // is tldraw-shaped and would reject it.
@@ -621,6 +624,14 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       setBusy(false);
     }
   };
+
+  // Tutor v1: a hole's opening turn goes through send once, as the learner's carried-down question.
+  const openedHole = useRef(null);
+  useEffect(() => {
+    if (!tutor?.opening || openedHole.current === tutor.opening.key || busy) return;
+    openedHole.current = tutor.opening.key;
+    send(tutor.opening.question, undefined, { opening: true });
+  }, [tutor?.opening?.key, busy]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const modelControl = (
           <div className="relative shrink-0">
@@ -867,6 +878,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
             </div>
           </div>
         )}
+        {/* Tutor v1: its suggestion chips and the dive suggestion sit under its reply, never over it. */}
+        {tutor?.extras && <div data-tutor-extras className="flex flex-col items-start gap-2 py-2">{tutor.extras}</div>}
       </div>
       {/* non-compact: the box sticks to the viewport bottom - the page can scroll, the input never leaves */}
       <div className={cn('relative mt-2 shrink-0', !compact && 'sticky bottom-0 bg-white pt-1 pb-2')}>
