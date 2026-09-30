@@ -97,7 +97,7 @@ test('recent cards carry per-kind metadata and a next action (T02 §3.2)', () =>
   assert.deepEqual(jobCard.action, { label: 'View last run', to: '/apps/s3-log/runs/r-1' });
   const serverCard = recentCard(server, ctx);
   assert.match(serverCard.meta[0], /^Deployed /);
-  assert.equal(serverCard.meta[1], 'only shared');
+  assert.equal(serverCard.meta[1], 'Private'); // solo v1: no sharing wording
   assert.deepEqual(serverCard.action, { label: 'Open app', href: server.url });
 });
 

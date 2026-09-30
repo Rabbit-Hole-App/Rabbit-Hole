@@ -8,6 +8,9 @@ export const TYPES = {
 // Scope chips are the sidebar sections under their T02 §4 names (sectionOf, api.js:9-14). Rabbit Hole v1 is
 // solo, so Mine is the only one: Shared with me and Workspace stay live-build sidebar sections.
 export const SCOPES = { private: 'Mine' };
+// Mine (?s=private) on the preview is what the person owns. sectionOf cannot say: projects always come back
+// with visibility 'domain' (control-plane repositories.js repositoryApp), so it files them under Workspace.
+export const isMine = (a, email) => !!email && a.owner_email === email;
 
 // The live build never reads ?type, so its Library is exactly today's; its ?s= is any sidebar section.
 // The preview ignores a ?s= that is not a scope (an old ?s=shared link shows the whole Library).

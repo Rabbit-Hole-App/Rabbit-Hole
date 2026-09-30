@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { chipHref, isLearnResource, libraryHref, libraryQuery, librarySections, ofType, SCOPES, SECTION_LIMIT } from './library-filter.js';
+import { chipHref, isLearnResource, isMine, libraryHref, libraryQuery, librarySections, ofType, SCOPES, SECTION_LIMIT } from './library-filter.js';
 
 const apps = [{ name: 'repo-1', kind: 'repository' }, { name: 'canvas-1', kind: 'canvas' }, { name: 's3-log', kind: 'job' }, { name: 'counter', kind: 'server' }];
 const names = (list) => list.map((a) => a.name);
@@ -17,6 +17,13 @@ test('solo v1: the preview keeps only the Mine scope and ignores ?s=shared and ?
   assert.equal(libraryQuery('?s=private', true).section, 'private');
   for (const s of ['shared', 'apps', 'constructor']) assert.equal(libraryQuery(`?s=${s}`, true).section, null, s);
   for (const s of ['shared', 'private']) assert.equal(libraryQuery(`?s=${s}`, false).section, s);
+});
+
+test('solo v1: Mine is what the person owns, even a project that comes back with visibility domain', () => {
+  const project = { kind: 'repository', visibility: 'domain', owner_email: 'me@x.com' };
+  assert.equal(isMine(project, 'me@x.com'), true);
+  assert.equal(isMine({ ...project, owner_email: 'other@x.com' }, 'me@x.com'), false);
+  assert.equal(isMine({ kind: 'job' }, undefined), false);
 });
 
 test('type chips filter on kind (T02 §4); no type returns the same array', () => {

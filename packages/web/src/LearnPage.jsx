@@ -553,7 +553,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         try { localStorage.setItem(versionKey, String(data.version)); } catch { /* the next open re-checks */ }
         syncAssets();
       } catch (error) {
-        if (error.status === 409) toast('Someone with the edit link changed this board. Reload to see their changes; your newer edits here are not shared yet.', { tone: 'error' });
+        if (error.status === 409) toast('This board changed in another tab or on another device. Reload to see those changes; your newer edits here are not saved to the link yet.', { tone: 'error' });
       }
     }, 1500);
   }, [boardPath]);

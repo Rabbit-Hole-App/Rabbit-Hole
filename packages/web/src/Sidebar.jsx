@@ -937,8 +937,9 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
             <span className="text-xs whitespace-nowrap text-ink-2">{email}</span>
           </div>
           <div className="my-1 border-t border-line" />
-          {/* every workspace the user belongs to; the active one gets the check */}
-          {(wsList || []).map((w) => {
+          {/* every workspace the user belongs to; the active one gets the check. Solo v1 (preview): only Personal,
+              the person's own workspaces and the active one - not one someone else added them to */}
+          {(wsList || []).filter((w) => !learnPreview || w.kind === 'domain' || w.role === 'owner' || w.slug === wsList.activeSlug).map((w) => {
             const label = workspaceLabel(w.name, w.slug);
             const active = w.slug === (wsList?.activeSlug ?? org);
             return (

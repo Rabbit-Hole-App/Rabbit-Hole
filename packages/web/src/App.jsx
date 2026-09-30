@@ -8,7 +8,7 @@ import { isPrivateByoc } from './private-auth.js';
 import { titleOf } from './agent/catalog.js';
 import { learnPreview } from './flags.js';
 import { onAnotherDevice } from './home/continue.js';
-import { chipHref, libraryQuery, ofType } from './library-filter.js';
+import { chipHref, isMine, libraryQuery, ofType } from './library-filter.js';
 import LibraryViews, { ActiveFilters, LibraryFilters } from './LibraryViews.jsx';
 import { fixturesOn, useFixtures } from './home/review-fixtures.js';
 import { Avatar, Button, Chk, cn, ConfirmDialog, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, PillButton, SkeletonRows, SubMenu, Tip, toast, useHeaderDrag, ValuePicker } from './ui.jsx';
@@ -20,6 +20,8 @@ const th = 'h-8 border-b border-line px-2 text-left text-xs font-normal text-ink
 
 // Notion-lite database controls: column order/visibility, one sort, one filter.
 // Rabbit Hole v1 is solo: the preview has no People (owner and members) column.
+// Solo v1: a private app reads private on the preview; only shared hints at sharing with people.
+const PRIVATE_ACCESS = learnPreview ? 'private' : 'only shared';
 const COLS = { name: 'Name', kind: 'Type', access: 'Access', ...(!learnPreview && { people: 'People' }), watch: 'Watch', deployed: 'Deployed', lastrun: 'Last run' };
 const DEFAULT_ORDER = Object.keys(COLS);
 const COL_ICON = { name: Type, kind: Circle, access: Lock, people: Users, watch: Eye, deployed: Calendar, lastrun: Clock };
@@ -44,7 +46,7 @@ const sortVal = (a, key) =>
 // enumerable columns get an equals-filter; free-text ones don't
 const FILTERS = {
   kind: (a) => a.kind,
-  access: (a) => (a.visibility === 'private' ? 'only shared' : 'anyone in org'),
+  access: (a) => (a.visibility === 'private' ? PRIVATE_ACCESS : 'anyone in org'),
   watch: (a) => (a.watch_count > 0 ? 'has findings' : 'none'),
 };
 
@@ -136,7 +138,7 @@ function AppContent({ data, load }) {
   const title = folder ? folder.name : learnPreview ? 'Library' : section === 'shared' ? 'Shared' : section === 'private' ? 'Private' : learnPreview ? 'Library' : 'Apps';
   const sectionApps = ofType(folder
     ? apps.filter((a) => a.folder_id === folder.id)
-    : section ? apps.filter((a) => sectionOf(a, org, data?.email) === section) : apps, type);
+    : section ? apps.filter((a) => (learnPreview ? isMine(a, data?.email) : sectionOf(a, org, data?.email) === section)) : apps, type);
   // Review fixtures (preview only, ?fixtures=1): made-up cards mixed into the unfiltered card views.
   const fixtures = learnPreview && fixturesOn(localStorage, window.location.search, learnPreview);
   const fx = useFixtures(fixtures);
@@ -469,7 +471,7 @@ function AppContent({ data, load }) {
                       ),
                       access: (
                         <td key="access" className={`${td} text-ink-2`}>
-                          {a.visibility === 'private' ? 'only shared' : `anyone @${a.org.replace(/-/g, '.')}`}
+                          {a.visibility === 'private' ? PRIVATE_ACCESS : `anyone @${a.org.replace(/-/g, '.')}`}
                         </td>
                       ),
                       people: (

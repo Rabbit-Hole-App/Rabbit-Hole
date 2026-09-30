@@ -159,7 +159,7 @@ export function cardView({ blocked, createdAt, phase, error }, now) {
     if (status === 'rejected') return CANCELLED;
     if (status === 'invalidated') return { state: 'cancelled', note: 'This thread was deleted.' };
     if (status === 'expired') return EXPIRED;
-    if (error?.status === 403 || error?.data?.error === 'no edit access') return { state: 'no-longer-allowed', note: 'No longer allowed: your permission in this workspace changed.' };
+    if (error?.status === 403 || error?.data?.error === 'no edit access') return { state: 'no-longer-allowed', note: 'No longer allowed: your access changed.' };
     return { state: 'failed' };
   }
   if (phase) return { state: phase }; // executing | done

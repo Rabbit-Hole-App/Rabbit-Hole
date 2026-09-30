@@ -55,7 +55,8 @@ export function readContinue({ org, email, recent, catalog, storage }) {
 export const openHref = (item) => (item.canvas && item.kind !== 'canvas' ? `/apps/${item.slug}?tab=learn` : `/apps/${item.slug}`);
 
 // App.jsx:409's access wording; for a job it is also who can run it (index.js:2008 canView).
-const access = (a) => (a.visibility === 'private' ? 'only shared' : `anyone @${a.org.replace(/-/g, '.')}`);
+// Solo v1: a private app reads Private, not only shared (Home is preview-only).
+const access = (a) => (a.visibility === 'private' ? 'Private' : `anyone @${a.org.replace(/-/g, '.')}`);
 
 // T02 §3.2: kinds differ by metadata and next action, not only the chip.
 export function recentCard(a, { catalog = [], email, storage }) {
