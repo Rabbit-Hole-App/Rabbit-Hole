@@ -109,3 +109,17 @@ export function conceptStateOf(claimStates) {
   return WORST.find(state => claimStates.some(entry => entry.state === state)) || 'not_yet_observed';
 }
 export const conceptState = (states, concept) => conceptStateOf(claimsOfConcept(concept).map(id => states[id]));
+
+// Stage D, the evidence reconciler (docs/features/tutor-architecture-v2.md): evaluators return
+// observations; this is the only place they become store events, and the locked states come from
+// all events (deriveClaimStates: one fail is never a misconception, a later settled transfer pass
+// supersedes, conflicting evidence is uncertain). A failed evaluation (error, timeout) adds nothing.
+// Returns the claims whose state changed, for the turn trace.
+export function reconcile(store, evaluation, ref) {
+  const before = deriveClaimStates(store.events);
+  const observations = !evaluation || evaluation.status === 'error' ? [] : evaluation.events || [];
+  const { store: next } = appendEvents(store, observations.map(event => ({ ...event, ref })));
+  const states = deriveClaimStates(next.events);
+  const transitions = Object.keys(states).filter(id => states[id].state !== before[id].state).map(id => ({ claim: id, from: before[id].state, to: states[id].state }));
+  return { store: next, states, transitions, added: observations.length };
+}

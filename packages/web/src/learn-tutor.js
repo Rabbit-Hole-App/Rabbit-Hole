@@ -12,7 +12,7 @@ import { checkStatus, enterPractice, isPracticing } from './scene-activity.js';
 import { applyInputToBlock } from './scene-evaluate.js';
 import { coerceInputs, validateInputDeclarations } from './scene-inputs.js';
 import { CLAIMS, CONCEPTS, SLICE_CARDS, catalogue, cardModule, claimsOfConcept, conceptOf, ladderStep, partLabels, targetClaims } from './learn-tutor-claims.js';
-import { appendEvents, conceptState, deriveClaimStates, practiceEvents } from './learn-tutor-evidence.js';
+import { appendEvents, conceptState, deriveClaimStates, practiceEvents, reconcile } from './learn-tutor-evidence.js';
 import { selectClaims } from './learn-tutor-select.js';
 
 const SLASHES = ['deeper', 'simplify', 'dive'];
@@ -277,15 +277,14 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   // (a slash, a hole's opening) keeps the turn's claims.
   const claims = selection ? selection.selected : built.claims;
   // 2. JEV, then the larger evaluator on uncertain - free text on slice claims only.
-  let evaluation = null, evidence = null;
+  let evaluation = null, evidence = null, transitions = [];
   if (raw.trim() && !turn.slash && !opening && claims.length) {
     const sent = now();
     try { evaluation = await post('/api/learn/tutor/evaluate', { ...access, message: raw, spec: evaluationSpec(turn, claims, current) }); }
     catch (error) { evaluation = { status: 'error', evaluator: 'jev', events: [], error: error.message }; }
     evidence = [sent, now()];
     const ref = { card: target?.card ?? null, scene_id: target?.scene_id ?? null, part_id: target?.part_id ?? null, turn_id: turn.turn_id, canvas: here };
-    current = appendEvents(current, (evaluation.events || []).map(event => ({ ...event, ref }))).store;
-    states = deriveClaimStates(current.events);
+    ({ store: current, states, transitions } = reconcile(current, evaluation, ref));
     turn.evidence = buildTurn({ raw, slash, opening, canvas, block, store: current, states }).turn.evidence;
   }
   // 3. Router, planner, enforcement.
@@ -317,6 +316,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
     turn_id: turn.turn_id, route: routed.row, strategy: response.strategy ?? null, claims, evaluated: !!evidence,
     selection: selection && { available: selection.available, selected: selection.selected.length, fallback: selection.fallback, ms: selection.ms },
     evaluation: evaluation && { status: evaluation.status, evaluator: evaluation.evaluator, events: (evaluation.events || []).length, telemetry: evaluation.telemetry ?? null },
+    transitions: transitions.map(({ claim, from, to }) => `${claim}: ${from} -> ${to}`),
     planner: { telemetry: response.telemetry ?? null },
     requested_actions: (Array.isArray(response.actions) ? response.actions : []).map(action => action?.type),
     accepted_actions: actions.map(action => action.type),
@@ -326,7 +326,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
       to_evidence_ready: evidence && ms(t[0], evidence[1]), to_planner_ready: ms(t[0], ready),
     },
   };
-  return { store: current, turn, selection, evaluation, routed, response, actions, log, text, states: deriveClaimStates(current.events), bench };
+  return { store: current, turn, selection, evaluation, transitions, routed, response, actions, log, text, states: deriveClaimStates(current.events), bench };
 }
 const now = () => (globalThis.performance ?? Date).now();
 
