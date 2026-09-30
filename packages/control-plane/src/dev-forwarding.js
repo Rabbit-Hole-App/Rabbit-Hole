@@ -56,6 +56,24 @@ export async function devIdentity(req, env) {
   return { email: me.email, org: me.org, orgName: me.orgName || null };
 }
 
+// Every CONTROL_PLANE call on the dev worker, not only the fall-through: dev-worker.js wraps the
+// binding once at the top of fetch() and queue(), so a module that later adds a production call
+// (learn-board.js authorizedBoardApp, byoc.js hostedApp, devIdentity today) is refused by default too.
+export function guardControlPlane(env) {
+  const live = env?.CONTROL_PLANE;
+  if (!live || live.guarded) return env;
+  const guarded = {
+    guarded: true,
+    fetch(input, init) {
+      const req = input instanceof Request && !init ? input : new Request(input, init);
+      const path = new URL(req.url).pathname;
+      if (productionAllows(req.method, path) || (req.method === 'GET' && path === '/api/me')) return live.fetch(req);
+      return Promise.resolve(Response.json({ error: 'Blocked on this preview: it would change live state.' }, { status: 403, headers: { 'Cache-Control': 'no-store' } }));
+    },
+  };
+  return { ...env, CONTROL_PLANE: guarded };
+}
+
 export function forwardToProduction(req, env) {
   if (productionAllows(req.method, new URL(req.url).pathname)) return env.CONTROL_PLANE.fetch(req);
   return Response.json({ error: 'Blocked on this preview: it would change live state.' }, { status: 403, headers: { 'Cache-Control': 'no-store' } });

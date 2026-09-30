@@ -8,7 +8,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { devWorker, productionWorker } from './worker-import.js';
 import { sign } from '../src/token.js';
 import { liveDb, liveRuns, memoryBucket } from './live-storage-spy.js';
-import { productionAllows, devIdentity } from '../src/dev-forwarding.js';
+import { productionAllows, devIdentity, guardControlPlane } from '../src/dev-forwarding.js';
 
 const worker = (await devWorker()).default;
 
@@ -162,4 +162,22 @@ test('the dev catalog lists dev apps only and asks production nothing but who is
   const catalog = await (await f.send('GET', '/api/apps')).json();
   assert.deepEqual([catalog.org, catalog.email, catalog.folders, catalog.apps.map(app => app.name)], ['team', 'owner@test', [], ['canvas-0a1b2c3d']]);
   assert.deepEqual(f.sent, ['GET /api/me']);
+});
+
+// Review follow-up: the barrier wraps the CONTROL_PLANE binding itself, so a module call site (not only
+// the fetch() fall-through) that sends a write or an unlisted read is refused and never reaches production.
+test('every CONTROL_PLANE call on the dev worker passes the allowlist, whichever module makes it', async () => {
+  const sent = [], live = { fetch: async req => { sent.push(`${req.method} ${new URL(req.url).pathname}`); return Response.json({ ok: true }); } };
+  const env = guardControlPlane({ CONTROL_PLANE: live, LEARN_MEDIA: {} });
+  assert.equal(guardControlPlane(env), env, 'wrapping twice is a no-op');
+  for (const [method, path] of [['POST', '/api/apps'], ['POST', '/api/share'], ['DELETE', '/api/apps/x'], ['GET', '/api/logs'], ['GET', '/api/apps'], ['GET', '/api/future-thing'], ['PUT', '/api/runbook']]) {
+    const res = await env.CONTROL_PLANE.fetch(new Request(`https://dev.test${path}`, { method }));
+    assert.equal(res.status, 403, `${method} ${path}`);
+  }
+  assert.equal((await env.CONTROL_PLANE.fetch('https://dev.test/api/me')).status, 200);
+  assert.equal((await env.CONTROL_PLANE.fetch(new Request('https://dev.test/api/apps/counter'))).status, 200);
+  assert.deepEqual(sent, ['GET /api/me', 'GET /api/apps/counter']);
+  const source = readFileSync(new URL('../../web/dev-worker.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  assert.match(source, /async queue\(batch, env\) \{\n {4}env = guardControlPlane\(env\);/);
+  assert.match(source, /async fetch\(req, env, ctx\) \{\n(?: {4}\/\/[^\n]*\n)? {4}env = guardControlPlane\(env\);/);
 });

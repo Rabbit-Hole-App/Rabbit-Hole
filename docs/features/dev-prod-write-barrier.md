@@ -219,3 +219,9 @@ guards. They bind `RUNS`, and have no `LEARN_MEDIA` or `REPOSITORY_SNAPSHOTS` (p
 
 Keep these: `small-learn-dev` (D1), `small-byoc-dev` (D1), `small-learn-media-dev` (R2),
 `small-repositories-dev` (R2), `small-learn-moments` (Vectorize) and `small-learn-index` (Queue).
+
+## Binding-level guard (review follow-up)
+
+`dev-worker.js` wraps the `CONTROL_PLANE` binding once, at the top of `fetch()` and `queue()`, with `guardControlPlane` (`dev-forwarding.js`). Every production call from any module goes through the same allowlist, not only the fetch() fall-through. That covers `learn-board.js` `authorizedBoardApp`, `byoc.js` `hostedApp` and `devIdentity` today, plus any call a module adds later. The only addition to the allowlist is `GET /api/me`, which is internal. Anything else gets the same JSON 403 and never reaches production. `dev-barrier.test.js` pins both wrap sites by source text.
+
+Known limit: a few allowlist patterns match a whole route shape, not a single route: `/api/apps/<name>`, `/api/runs/<id>` and `/api/runs/<id>/outputs/...`. A future production GET registered under one of those shapes would be admitted. Keep new production routes off these shapes, or narrow the pattern when one is added.

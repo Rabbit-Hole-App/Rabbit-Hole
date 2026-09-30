@@ -17,7 +17,7 @@ import { artifactFetch } from '../control-plane/src/learn-artifact.js';
 import { paidRefusal } from '../control-plane/src/learn-paid.js';
 import { feedbackFetch } from '../control-plane/src/learn-feedback.js';
 import { videoFetch } from '../control-plane/src/learn-video.js';
-import { forwardToProduction } from '../control-plane/src/dev-forwarding.js';
+import { forwardToProduction, guardControlPlane } from '../control-plane/src/dev-forwarding.js';
 import { searchPexels } from '../control-plane/src/pexels.js';
 import { subscriptionOwnerRefusal, subscriptionCourseRefusal } from '../control-plane/src/subscription-transport.js';
 export { LearnVideos } from '../control-plane/src/learn-video.js';
@@ -28,11 +28,14 @@ export default {
   // The moment-index Queue consumer (flywheel phase 3), same as the live
   // worker's: bound only on clones whose config declares the consumer.
   async queue(batch, env) {
+    env = guardControlPlane(env);
     if (!env.LEARN_MEDIA) throw new Error('LEARN_MEDIA is not bound on this dev worker');
     const { consumeIndexQueue } = await import('../control-plane/src/learn-moment-index.js');
     await consumeIndexQueue(batch, env);
   },
   async fetch(req, env, ctx) {
+    // Every production call from any module passes the fail-closed allowlist, not only the fall-through.
+    env = guardControlPlane(env);
     const path = new URL(req.url).pathname;
     // Learn media must land in the dev bucket, never small-runs: without the
     // binding this worker serves nothing rather than fall back to live storage.
