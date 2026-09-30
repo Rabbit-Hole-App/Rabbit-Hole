@@ -14,6 +14,8 @@ import { Md } from './ask.jsx';
 const CHAT_EXAMPLES = {
   deeper: { about: 'An id is an index, not a meaning', ask: '/deeper into the maths',
     answer: 'The lookup is a matrix product with a one-hot vector: if $x$ is the one-hot vector for id 42, then $x^\\top W_{te}$ is row 42 of $W_{te}$ ($65 \\times 384$). Training only updates rows whose ids appeared in the batch, which is why rare tokens learn slowly.' },
+  dive: { about: 'Softmax over the vocabulary', ask: '/dive softmax',
+    answer: 'Opens an empty Rabbit Hole named **softmax** under the selected card. It is kept once you put something on it, and the card gets a red outline you can enter it from. With no card selected, select one and the dive completes.' },
   simplify: { about: 'Softmax over the vocabulary', ask: '/simplify',
     answer: 'Softmax turns a list of scores into chances that add up to 1. A bigger score gets a bigger share, and every option keeps at least a little.' },
   example: { about: 'Softmax over the vocabulary', ask: '/example with real numbers',

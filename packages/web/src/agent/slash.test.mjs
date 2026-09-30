@@ -8,7 +8,7 @@ const JOB = [{ name: 's3-log', kind: 'job' }];
 test('one command list: the four modes everywhere, Home shortcuts on Home and projects, learning shortcuts only in Learn', () => {
   assert.deepEqual(names(commandsFor('home', { catalog: JOB })), ['ask', 'teach', 'research', 'do', 'find', 'open', 'new', 'connect', 'run']); // solo v1: no /share
   assert.deepEqual(names(commandsFor('project', { catalog: JOB })), ['ask', 'teach', 'research', 'do', 'find', 'open', 'connect', 'run']);
-  assert.deepEqual(names(commandsFor('learn', { catalog: JOB })), ['ask', 'teach', 'research', 'do', 'deeper', 'simplify', 'example', 'practice', 'quiz', 'compare', 'source',
+  assert.deepEqual(names(commandsFor('learn', { catalog: JOB })), ['ask', 'teach', 'research', 'do', 'deeper', 'dive', 'simplify', 'example', 'practice', 'quiz', 'compare', 'source',
     'explain', 'flashcards', 'code', 'graph', 'diagram', 'walkthrough', 'animate', 'whiteboard', 'paper', 'image', 'video', '3d', 'notebook', 'more']);
   assert.deepEqual(names(commandsFor('home', { catalog: [] })).includes('run'), false); // /run needs a runnable job
   assert.equal(new Set(names(SLASH)).size, SLASH.length);
@@ -107,10 +107,10 @@ test('/practice subtype words narrow the family; plain /practice leaves the whol
 });
 
 test('the Learn picker stays short: LEARN then CREATE; the rest only through /more or by name', () => {
-  assert.deepEqual(LEARN_MENU.learn, ['deeper', 'simplify', 'example', 'practice', 'quiz', 'compare', 'research']);
+  assert.deepEqual(LEARN_MENU.learn, ['deeper', 'dive', 'simplify', 'example', 'practice', 'quiz', 'compare', 'research']);
   assert.deepEqual(LEARN_MENU.create, ['explain', 'code', 'graph', 'diagram', 'animate', 'flashcards', 'notebook', 'more']);
   const desc = (name) => descFor(SLASH.find((c) => c.name === name), 'learn');
-  assert.deepEqual(LEARN_MENU.learn.map(desc), ['Go deeper', 'Explain more simply', 'Show a concrete example', 'Let me try it', 'Test me', 'Compare ideas', 'Find supporting sources']);
+  assert.deepEqual(LEARN_MENU.learn.map(desc), ['Go deeper', 'Go down a Rabbit Hole', 'Explain more simply', 'Show a concrete example', 'Let me try it', 'Test me', 'Compare ideas', 'Find supporting sources']);
   assert.deepEqual(LEARN_MENU.create.map(desc), ['Add an explanation', 'Add code', 'Add a graph or plot', 'Add a diagram', 'Add an animation', 'Add flashcards', 'Add a notebook', 'More learning tools']);
   for (const hidden of ['walkthrough', 'whiteboard', 'paper', 'image', 'video', '3d', 'source']) assert.ok(![...LEARN_MENU.learn, ...LEARN_MENU.create].includes(hidden), hidden);
 });

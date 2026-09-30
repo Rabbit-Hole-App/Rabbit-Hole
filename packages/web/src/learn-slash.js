@@ -40,7 +40,7 @@ export function pickerSections(text, { catalog = false } = {}) {
 // One use per command for the View > Slash commands sheet. Each one asks for
 // exactly the card or answer the sheet previews beside it, and works as typed.
 export const EXAMPLES = {
-  deeper: '/deeper into the maths', simplify: '/simplify', example: '/example with real numbers',
+  deeper: '/deeper into the maths', dive: '/dive softmax', simplify: '/simplify', example: '/example with real numbers',
   practice: '/practice explain it back', quiz: '/quiz the derivative of the sigmoid', compare: '/compare sigmoid vs tanh', research: '/research attention mechanisms',
   explain: '/explain why a token id is only an index', code: '/code build a character vocabulary', graph: '/graph sigmoid',
   diagram: '/diagram where a token goes in nanoGPT', animate: '/animate why the sigmoid saturates', flashcards: "/flashcards nanoGPT's embeddings and parameters",
@@ -101,6 +101,8 @@ export async function runLearnCommand(text, { app, target = null, canvas, openSe
     openSearch({ source: 'arxiv', query: args });
     return { notice: args ? { tone: 'info', text: `Searching arXiv for "${args}"; pick the paper to open.` } : null };
   }
+  // /dive: the page opens the hole from the selected card, or keeps the intent until one is selected.
+  if (request.action === 'dive') return canvas.dive ? canvas.dive(args) : { notice: { tone: 'info', text: 'Rabbit Holes are not available here yet.' } };
   if (request.action === 'open_sources') { canvas.openSources?.(); return { notice: canvas.openSources ? null : { tone: 'info', text: 'The Source inspector is not available here yet.' } }; }
   // /image finds a real picture: the card searches and the learner chooses.
   if (name === 'image') {

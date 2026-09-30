@@ -36,6 +36,7 @@ one-line description; modes read differently per place.
 | /do | mode | home, project, learn | Imperative actions under the confirmation policy |
 | /find /open /new /connect /run | shortcut | home, project (/new: home) | The same request as the sentence (`router.js` rule 1b). No /share: v1 is solo (see rabbit-hole-checklist.md, Solo v1) |
 | /deeper /simplify /example /practice /quiz /compare | learn | learn | A prompt through the existing Learn ask, about the selection or the current concept |
+| /dive | learn | learn | `action: 'dive'`: open a nested Rabbit Hole from the selected card; with no card it keeps the intent until one is selected (docs/features/dive-v1.md). No model call |
 | /source | learn | learn | `action: 'open_sources'` (open the Source inspector or attach evidence; never dump citations into a card) |
 | /explain /flashcards /code /graph /diagram /walkthrough /animate /image /video /3d | create | learn | A tool override: the tutor returns a validated block from the command's family, or asks a clarifying question |
 | /notebook /whiteboard /paper | create | learn | Deterministic inserts, no model: `insert_notebook`, `insert_whiteboard`, `insert_paper` (a known paper id) |
@@ -80,7 +81,7 @@ no family: `allowedPrimitives` is `null` (Auto).
 - /practice subtype words narrow the family deterministically: "explain it back" gives
   explain_back, "coding" gives code_exercise, "multiple choice" gives quiz. Plain
   /practice leaves the whole family to the tutor.
-- Picker (`LEARN_MENU`), in order. LEARN: /deeper Go deeper, /simplify Explain more
+- Picker (`LEARN_MENU`), in order. LEARN: /deeper Go deeper, /dive Go down a Rabbit Hole, /simplify Explain more
   simply, /example Show a concrete example, /practice Let me try it, /quiz Test me,
   /compare Compare ideas, /research Find supporting sources. CREATE: /explain Add an
   explanation, /code Add code, /graph Add a graph or plot, /diagram Add a diagram,

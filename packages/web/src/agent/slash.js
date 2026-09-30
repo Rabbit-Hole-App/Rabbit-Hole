@@ -30,6 +30,8 @@ export const SLASH = [
   // Learn intents: learning actions on the selection, or on the current concept. A `family` narrows the
   // primitives the tutor may return; without one the tutor chooses (Auto).
   { name: 'deeper', group: 'learn', places: ['learn'], desc: 'Go deeper', prompt: 'Go one level deeper on {target}.' },
+  // /dive opens a nested Rabbit Hole from the selected card (docs/features/dive-v1.md). Learn runs it itself: no model.
+  { name: 'dive', group: 'learn', places: ['learn'], desc: 'Go down a Rabbit Hole', action: 'dive', deterministic: true },
   { name: 'simplify', group: 'learn', places: ['learn'], desc: 'Explain more simply', prompt: 'Explain {target} more simply. Keep the original.' },
   { name: 'example', group: 'learn', places: ['learn'], desc: 'Show a concrete example', prompt: 'Give a concrete worked example of {target}.' },
   { name: 'practice', group: 'learn', places: ['learn'], desc: 'Let me try it', prompt: 'Give me one practice task on {target} and wait for my answer.',
@@ -60,7 +62,7 @@ export const SLASH = [
 // The Learn picker's primary menu, in order. Every other Learn command is reached through /more or by
 // name; /ask, /teach and /do stay available but uncrowded.
 export const LEARN_MENU = {
-  learn: ['deeper', 'simplify', 'example', 'practice', 'quiz', 'compare', 'research'],
+  learn: ['deeper', 'dive', 'simplify', 'example', 'practice', 'quiz', 'compare', 'research'],
   create: ['explain', 'code', 'graph', 'diagram', 'animate', 'flashcards', 'notebook', 'more'],
 };
 

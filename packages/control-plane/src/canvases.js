@@ -1,4 +1,5 @@
 import { repositoryIdentity, repositoryThreads } from './repositories.js';
+import { divesFetch } from './dives.js';
 
 // Dev-only canvas records (T02 section 8). A row is identity and title only; the
 // canvas content stays in the learner's browser under small.adaptive-canvas:*.
@@ -36,7 +37,7 @@ const isCanvas = name => typeof name === 'string' && /^canvas-[a-f0-9]{8}$/.test
 // History lists only for Learn's scope (spec 8.2), so the legacy Agent panels never resume a canvas chat.
 export function canvasRoute(url) {
   const path = url.pathname;
-  return path === '/api/canvases' || /^\/api\/apps\/canvas-[a-f0-9]{8}(?:\/|$)/.test(path) || /^\/api\/ask\/threads\/canvaschat-/.test(path)
+  return path === '/api/canvases' || /^\/api\/canvases\/dives(?:\/canvas-[a-f0-9]{8})?$/.test(path) || /^\/api\/apps\/canvas-[a-f0-9]{8}(?:\/|$)/.test(path) || /^\/api\/ask\/threads\/canvaschat-/.test(path)
     || (path === '/api/ask/threads' && url.searchParams.get('scope') === 'learn' && isCanvas(url.searchParams.get('ref')));
 }
 // Canvas asks the dev Learn router does not answer. A multipart Learn ask carries a + attachment,
@@ -65,6 +66,7 @@ export async function canvasesFetch(req, env) {
   const url = new URL(req.url), path = url.pathname, db = env.LEARN_DB;
   const user = await repositoryIdentity(req, env); if (user instanceof Response) return user;
   try {
+    if (path.startsWith('/api/canvases/dives')) return await divesFetch(req, env, user);
     if (path === '/api/canvases') {
       if (req.method === 'GET') return json({ canvases: await ownerCanvases(env, user, url.searchParams.get('archived') === '1') });
       if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
