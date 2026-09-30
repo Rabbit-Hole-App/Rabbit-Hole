@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
-import { canvasesFetch, canvasRoute, refuseCanvasAsk } from '../src/canvases.js';
+import * as canvases from '../src/canvases.js';
+const { canvasesFetch, canvasRoute, refuseCanvasAsk } = canvases;
 import { authorizedBoardApp } from '../src/learn-board.js';
 
 const schema = readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8');
@@ -123,6 +124,29 @@ test('the dev worker routes canvas traffic early, merges owner canvases, refuses
   assert.match(source.slice(at("if (path === '/api/apps' && req.method === 'GET')"), at('const repositoryRoute =')), /\.\.\.\(await ownerCanvases\(env, catalog\)\)/);
   assert.ok(at('const refused = await refuseCanvasAsk(req);') < at("if (['/api/learn/selection', '/api/learn/ask'].includes(path)"));
   at("'learn', access.kind === 'canvas' ? canvasAskSeam(env, access) : undefined);");
+});
+
+// C1 decision 1 (docs/features/learn-cleanup.md): the dev worker answers Learn asks only on dev
+// storage - a canvas through the LEARN_DB seam, a repo-* app through repositoriesFetch. A job or
+// server app's ask would reach apiAsk and write threads and messages to the live D1, so it is
+// refused with a JSON 403; a body that is neither JSON nor multipart ends on the dev worker (415)
+// instead of falling through to live small-cp.
+test('the dev worker refuses Learn asks for live apps and ends every Learn ask on itself', () => {
+  const { refuseLiveLearnAsk } = canvases;
+  assert.equal(typeof refuseLiveLearnAsk, 'function', 'canvases.js exports refuseLiveLearnAsk');
+  for (const kind of ['server', 'job', undefined]) {
+    const refused = refuseLiveLearnAsk({ name: 'counter', kind });
+    assert.equal(refused.status, 403, String(kind));
+    assert.equal(refused.headers.get('content-type'), 'application/json');
+  }
+  assert.equal(refuseLiveLearnAsk({ name: 'canvas-0a1b2c3d', kind: 'canvas' }), null);
+  assert.equal(refuseLiveLearnAsk({ name: 'repo-example', kind: 'repository' }), null);
+  const source = readFileSync(new URL('../../web/dev-worker.js', import.meta.url), 'utf8');
+  const block = source.slice(source.indexOf("if (['/api/learn/selection', '/api/learn/ask'].includes(path)"), source.indexOf("if (path === '/api/learn/tts'"));
+  const at = text => { const i = block.indexOf(text); assert.ok(i >= 0, `the Learn ask block is missing: ${text}`); return i; };
+  assert.ok(at('if (access instanceof Response) return access;') < at('const liveRefused = refuseLiveLearnAsk(access);'));
+  assert.ok(at('if (liveRefused) return liveRefused;') < at('return apiAsk('));
+  assert.ok(at("status: 415") < at('let body;'), 'a Learn ask that is neither JSON nor multipart ends here');
 });
 
 // ---- WP2 review fixes (workflow wf_aa7de563-580) ----

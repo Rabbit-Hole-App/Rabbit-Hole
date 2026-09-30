@@ -53,6 +53,14 @@ export async function refuseCanvasAsk(req) {
   return json({ error: multipart ? 'Attachments are not available on canvases yet. Upload a PDF from the canvas menu.' : 'Canvas chat runs in Learn. Open the canvas to ask there.' }, 400);
 }
 
+// The dev Learn router serves an ask only on dev storage: a canvas through canvasAskSeam, a repo-*
+// app through repositoriesFetch. A job or server app's ask would reach apiAsk on the live D1
+// (threads, messages), and the preview never sends one (D7), so it is refused here.
+export function refuseLiveLearnAsk(access) {
+  if (access.kind === 'canvas' || access.kind === 'repository') return null;
+  return json({ error: 'Learn on a live app is off on this preview: it would write live chat history.' }, 403);
+}
+
 export async function canvasesFetch(req, env) {
   const url = new URL(req.url), path = url.pathname, db = env.LEARN_DB;
   const user = await repositoryIdentity(req, env); if (user instanceof Response) return user;

@@ -1,6 +1,6 @@
 import { sceneFetch } from '../control-plane/src/learn-scene.js';
 import { repositoriesFetch, repositoryIdentity, repositoryApp } from '../control-plane/src/repositories.js';
-import { canvasesFetch, canvasRoute, ownerCanvases, refuseCanvasAsk, canvasAskSeam } from '../control-plane/src/canvases.js';
+import { canvasesFetch, canvasRoute, ownerCanvases, refuseCanvasAsk, refuseLiveLearnAsk, canvasAskSeam } from '../control-plane/src/canvases.js';
 export { RepositoryImports } from '../control-plane/src/repositories.js';
 export { LearnScenes } from '../control-plane/src/learn-scene.js';
 import SHELL from './dist-dev/index.html';
@@ -93,8 +93,10 @@ export default {
     if (env.SUBSCRIPTION_ONLY === 'true' && req.method === 'POST' && ['/api/learn/ask', '/api/learn/selection'].includes(path) && !req.headers.get('content-type')?.includes('application/json')) return Response.json({ error: 'Attachments are not connected to the subscription yet. No API fallback.' }, { status: 503 });
     // JSON, or multipart when the composer's + attached a file: both stay on
     // this dev worker (a multipart ask used to fall through to the live one).
+    // Any other body type ends here too: proxied, live small-cp would answer it on the live D1.
     const learnAskType = req.headers.get('content-type') || '';
-    if (['/api/learn/selection', '/api/learn/ask'].includes(path) && req.method === 'POST' && (learnAskType.includes('application/json') || learnAskType.includes('multipart/form-data'))) {
+    if (['/api/learn/selection', '/api/learn/ask'].includes(path) && req.method === 'POST') {
+      if (!learnAskType.includes('application/json') && !learnAskType.includes('multipart/form-data')) return Response.json({ error: 'Send a Learn question as JSON or multipart form data.' }, { status: 415 });
       let body;
       try { body = learnAskType.includes('multipart/form-data') ? JSON.parse((await req.clone().formData()).get('body') || '{}') : await req.clone().json(); } catch { return Response.json({ error: 'Invalid request body' }, { status: 400 }); }
       if (body.scope?.app?.startsWith('repo-')) {
@@ -104,6 +106,8 @@ export default {
       {
         const access = await authorizedBoardApp(req, env, body.scope?.app);
         if (access instanceof Response) return access;
+        const liveRefused = refuseLiveLearnAsk(access);
+        if (liveRefused) return liveRefused;
         if (env.SUBSCRIPTION_ONLY === 'true' && access.email !== env.SUBSCRIPTION_OWNER_EMAIL) return Response.json({ error: 'This personal dev subscription is available only to its owner.' }, { status: 403 });
         return apiAsk(req, env, ctx, { email: access.email, org: access.org, orgName: access.orgName }, 'learn', access.kind === 'canvas' ? canvasAskSeam(env, access) : undefined);
       }
