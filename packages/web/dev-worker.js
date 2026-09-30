@@ -17,6 +17,7 @@ import { artifactFetch } from '../control-plane/src/learn-artifact.js';
 import { paidRefusal } from '../control-plane/src/learn-paid.js';
 import { feedbackFetch } from '../control-plane/src/learn-feedback.js';
 import { videoFetch } from '../control-plane/src/learn-video.js';
+import { forwardToProduction } from '../control-plane/src/dev-forwarding.js';
 import { searchPexels } from '../control-plane/src/pexels.js';
 import { subscriptionOwnerRefusal, subscriptionCourseRefusal } from '../control-plane/src/subscription-transport.js';
 export { LearnVideos } from '../control-plane/src/learn-video.js';
@@ -183,7 +184,8 @@ export default {
     if (path.startsWith('/static/') || path.startsWith('/audio/') || path.startsWith('/lesson-assets/') || path === '/favicon.svg' || path.startsWith('/icon-') || path === '/apple-touch-icon.png') {
       return env.ASSETS.fetch(req);
     }
-    // Keep the dev request URL so sign-in links and cookies stay on the dev host.
-    return env.CONTROL_PLANE.fetch(req);
+    // Production small-cp gets only allowlisted reads and sign-in; everything else is a 403 here
+    // (dev-forwarding.js). The dev request URL is kept so sign-in links and cookies stay on the dev host.
+    return forwardToProduction(req, env);
   },
 };

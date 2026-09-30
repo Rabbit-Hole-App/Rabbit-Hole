@@ -1,0 +1,39 @@
+// The dev/review worker's only way through to production small-cp (dev-worker.js, last line of fetch).
+// Fail closed: a request crosses only when it matches an entry below; everything else gets a JSON 403
+// and never reaches production. Why each entry is safe: docs/features/dev-prod-write-barrier.md.
+
+// Production GETs whose handlers (control-plane/src/index.js) only SELECT from D1 or read R2,
+// and make no Fly, AWS, Slack, email or model call. Not here, on purpose: GET /api/logs (mints a Fly
+// deploy token and writes apps.deploy_token), GET /api/runs (sweepStaleRuns UPDATE), GET /api/apps
+// (same sweep; the dev worker answers it itself), the s3-list, s3-object and role reads (assume the
+// customer's AWS role with production keys), /slack/* and /a/* (customer apps).
+const READS = [
+  /^\/$/,
+  /^\/api\/workspaces$/,
+  /^\/api\/watch$/,
+  /^\/api\/ask\/threads(?:\/\d+)?$/,
+  /^\/api\/runs\/[\w-]+$/,
+  /^\/api\/runs\/[\w-]+\/outputs(?:\/.+)?$/,
+  /^\/api\/apps\/[a-z0-9-]+(?:\/(?:deploys|runbook|learn-course))?$/,
+  /^\/api\/trash$/,
+  /^\/api\/org\/ai$/,
+  /^\/api\/teams$/,
+  /^\/api\/members$/,
+  /^\/api\/request-logs$/,
+  /^\/api\/review$/,
+];
+
+// Sign-in while dev identity is still production (until the dev control plane, deployment step 5).
+// They write no D1, R2 or Fly state: sessions and magic links are HMAC-signed tokens, not rows.
+// ponytail: POST /login sends a real email once production has RESEND_API_KEY (step 2); drop it
+// here if dev sign-in should stop emailing before the dev control plane exists.
+const SESSION = new Set(['GET /login', 'POST /login', 'GET /auth', 'GET /logout', 'POST /test/session']);
+
+export function productionAllows(method, path) {
+  return SESSION.has(`${method} ${path}`) || (method === 'GET' && READS.some(pattern => pattern.test(path)));
+}
+
+export function forwardToProduction(req, env) {
+  if (productionAllows(req.method, new URL(req.url).pathname)) return env.CONTROL_PLANE.fetch(req);
+  return Response.json({ error: 'Blocked on this preview: it would change live state.' }, { status: 403, headers: { 'Cache-Control': 'no-store' } });
+}
