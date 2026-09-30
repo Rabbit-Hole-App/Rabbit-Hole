@@ -11,7 +11,7 @@ import { WIKI_SHOWN_NOTE } from './agents/learn-chat.js';
 import { handleLearnCourse } from './learn-course.js';
 // small control plane: CLI API + browser auth wall + router. One Worker + D1.
 // URLs are path-based (no custom domain): /a/<org>/<app>/... proxies to the app's Fly origin.
-import { sign, verify, sha256, randomHex } from './token.js';
+import { sign, verify, hmacHex, randomHex } from './token.js';
 import { ensureFlyApp, ensureVolume, deployTokenFor, startMachine, destroyMachine, destroyFlyApp } from './fly.js';
 import { aiCacheDrop, ASK_TOOLS, askOnce, askStream, capJoin, CAP_CHARS, DIAGNOSIS_PROMPT, diffBundles, getBundle, parseBundle } from './ask.js';
 import { assumeRole, iamRolePolicies, s3Buckets, s3Get, s3List } from './aws.js';
@@ -189,7 +189,7 @@ async function apiLogin(req, env) {
   const { email } = await req.json();
   if (!email || !email.includes('@')) return json({ error: 'valid email required' }, 400);
   const code = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1000000).padStart(6, '0');
-  const challenge = await sign({ t: 'challenge', email, codeHash: await sha256(code), exp: now() + 600 }, env.MASTER_KEY);
+  const challenge = await sign({ t: 'challenge', email, codeHash: await hmacHex(env.MASTER_KEY, `${email}\n${code}`), exp: now() + 600 }, env.MASTER_KEY);
   const sent = await sendEmail(env, email, `small deploy login code: ${code}`, `Your small deploy login code is ${code}\nIt expires in 10 minutes.`);
   if (sent) return json({ challenge });
   // Echoing the code is an auth bypass - only on test/dev instances (SMALL_ENV test|dev plus TEST_BYPASS_SECRET).
@@ -200,7 +200,7 @@ async function apiLogin(req, env) {
 async function apiVerify(req, env) {
   const { challenge, code } = await req.json();
   const p = await verify(challenge, env.MASTER_KEY);
-  if (!p || p.t !== 'challenge' || p.codeHash !== (await sha256(String(code)))) return json({ error: 'bad or expired code' }, 401);
+  if (!p || p.t !== 'challenge' || p.codeHash !== (await hmacHex(env.MASTER_KEY, `${p.email}\n${String(code)}`))) return json({ error: 'bad or expired code' }, 401);
   // ponytail: CLI tokens never expire; revoke by rotating MASTER_KEY. Add exp + refresh when it matters.
   const token = await sign({ t: 'cli', email: p.email, org: orgOf(p.email) }, env.MASTER_KEY);
   return json({ token, email: p.email, org: orgOf(p.email) });

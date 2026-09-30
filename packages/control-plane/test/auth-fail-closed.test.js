@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { register } from 'node:module';
-import { verify } from '../src/token.js';
+import { createHash } from 'node:crypto';
+import { sign, verify } from '../src/token.js';
 
 // Load the real worker router. The SPA shell import (web/dist/index.html) is a
 // wrangler Text rule, so stub any .html import as an empty string.
@@ -158,3 +159,36 @@ for (const mode of ['test', 'dev']) {
     assert.equal((await call(post('/test/session', { email: EMAIL, secret: undefined }), bare)).res.status, 404);
   });
 }
+
+// The challenge is readable base64url JSON. It must hold nothing that lets an
+// offline search over the 10^6 codes find the one that was emailed.
+test('production CLI challenge carries a keyed MAC bound to the email, not a brute-forceable hash of the code', async (t) => {
+  const env = { ...BASE, SMALL_ENV: 'production', RESEND_API_KEY: 're_fake' };
+  provider(t, 'ok');
+  const challengeFor = async (email) => JSON.parse((await call(post('/api/cli/login', { email }), env)).text).challenge;
+  const payloadOf = (c) => JSON.parse(Buffer.from(c.split('.')[0], 'base64url'));
+  const verifyCli = async (challenge, code) => call(post('/api/cli/verify', { challenge, code }), env);
+
+  const a = await challengeFor(EMAIL);
+  const payload = JSON.stringify(payloadOf(a));
+  const plain = createHash('sha256').update(CODE).digest();
+  for (const needle of [CODE, plain.toString('hex'), plain.toString('base64url'), plain.toString('base64')]) {
+    assert.ok(!payload.includes(needle), `challenge payload holds ${needle}: ${payload}`);
+  }
+
+  const ok = await verifyCli(a, CODE);
+  assert.equal(ok.res.status, 200);
+  const { token, email } = JSON.parse(ok.text);
+  assert.equal(email, EMAIL);
+  assert.equal((await verify(token, BASE.MASTER_KEY)).email, EMAIL);
+
+  const wrong = await verifyCli(a, '654321');
+  assert.equal(wrong.res.status, 401);
+  assert.deepEqual(JSON.parse(wrong.text), { error: 'bad or expired code' });
+
+  // Same code, different email: the MAC differs, so b's code proof cannot stand in for a's.
+  const b = payloadOf(await challengeFor('b@example.test'));
+  assert.notEqual(b.codeHash, payloadOf(a).codeHash);
+  const forged = await sign({ ...payloadOf(a), codeHash: b.codeHash }, BASE.MASTER_KEY);
+  assert.equal((await verifyCli(forged, CODE)).res.status, 401);
+});
