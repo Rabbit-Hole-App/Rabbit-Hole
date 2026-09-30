@@ -93,6 +93,7 @@ const links = await page.evaluate(key => JSON.parse(localStorage.getItem(key) ||
 check('Ask in chat on a card still answers as a linked card', links.some(link => link.from === 'seed-1') && await chatCards() === 2);
 check('that card question stays out of the sheet', !(await sheet.getByText('explain this card').count()) && !(await sheet.getByText('Answer 3.').count()));
 check('the card question is its own thread', !asks[2].thread_id, `thread ${asks[2].thread_id || 'none'}`);
+check('Ask in chat sends the typed question as message and the card as canvas_target', asks[2].message === 'explain this card' && asks[2].canvas_target?.id === 'seed-1' && !!asks[2].canvas_target?.text, `message ${JSON.stringify(asks[2].message)}, target ${asks[2].canvas_target?.id || 'none'}`);
 
 // 5. the sheet's thread survives the card question
 await say('back to chat');
@@ -109,7 +110,8 @@ check('New chat starts a new thread', !asks[4].thread_id, `thread ${asks[4].thre
 await sheet.getByRole('button', { name: 'History' }).click();
 await page.waitForTimeout(1500);
 check('History opens in the sheet', await sheet.getByRole('button', { name: 'Back to chat' }).isVisible());
-check('History leaves out card questions and grading chats', await sheet.getByText(/^(Question about this|You are )/).count() === 0);
+// Card questions now keep the learner's words (canvas_target carries the card), and grading no longer makes threads.
+check('History leaves out card questions and grading chats', await sheet.getByText(/^(explain this card|Question about this|You are )/).count() === 0);
 await shot(page, 'sheet-history');
 
 console.log('board', BOARD);
