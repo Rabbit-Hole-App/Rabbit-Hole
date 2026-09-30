@@ -48,7 +48,7 @@ const TURNS = [
     stub: { evaluation: { status: 'uncertain', evaluator: 'jev', events: [{ concept: 'causal-mask', claim: 'causal-mask/reads-self-and-earlier', settled: false, evaluator: 'jev', source: 'free_text', result: 'misconception', misconception_id: 'reads-next-target', kind: null }] },
       plan: { strategy: 'feynman', move: 'clarify', reason: '', actions: [{ type: 'ask_question', text: 'What would row 99 be trained to predict?', claim: 'causal-mask/reads-self-and-earlier', purpose: 'diagnose' }] } } },
   { id: 'GT-03b', card: 'c11-causal-mask', text: 'Position 99 has to see character 100, otherwise how can it predict it?',
-    expect: { route: ['misconception', 'uncertain_unsettled'], strategy: ['socrates', 'feynman'] },
+    expect: { route: ['misconception', 'uncertain_unsettled', 'uncertain'], strategy: ['socrates', 'feynman'] }, // GT-03: uncertain at minimum
     stub: { evaluation: { status: 'settled', evaluator: 'jev', events: [{ concept: 'causal-mask', claim: 'causal-mask/reads-self-and-earlier', settled: true, evaluator: 'jev', source: 'free_text', result: 'misconception', misconception_id: 'reads-next-target', kind: null }] },
       plan: { strategy: 'socrates', move: 'diagnose', reason: '', actions: [{ type: 'ask_question', text: 'If it could see 100, what is left to learn?', claim: 'causal-mask/reads-self-and-earlier', purpose: 'diagnose' }] } } },
   { id: 'GT-07', card: 'c11-causal-mask', text: "If block_size were 8, row 3 keeps columns 0 to 3, four of the eight. Column 4 is its own next character, so it's blocked with everything after it.",

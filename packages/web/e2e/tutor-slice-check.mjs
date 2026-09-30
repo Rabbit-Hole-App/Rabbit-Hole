@@ -95,7 +95,7 @@ if (LIVE) {
     await page.getByText('Thinking...').first().waitFor({ state: 'detached', timeout: 30000 }).catch(() => {});
     const reply = (await page.locator('[data-learn-dock]').innerText()).split('\n').filter(Boolean).slice(-3).join(' | ');
     const row = request.postDataJSON().context?.route?.row;
-    const turn = { label, ms: Date.now() - start, row, status: response.status(), strategy: plan?.strategy, actions: plan?.actions?.map(action => action.type), evaluation: evaluation && await evaluation.json().then(body => `${body.evaluator}:${body.status}${body.error ? ` (${body.error})` : ''}`).catch(() => 'unreadable'), reply };
+    const turn = { label, ms: Date.now() - start, row, status: response.status(), strategy: plan?.strategy, actions: plan?.actions?.map(action => action.type), planner: plan?.telemetry && { served_model: plan.telemetry.served_model, ms: plan.telemetry.ms, input_tokens: plan.telemetry.input_tokens, output_tokens: plan.telemetry.output_tokens }, evaluation: evaluation && await evaluation.json().then(body => `${body.evaluator}:${body.status}${body.error ? ` (${body.error})` : ''}`).catch(() => 'unreadable'), reply };
     console.log('live', JSON.stringify(turn));
     turns.push(turn);
     assert.equal(response.status(), 200, `${label}: the planner answered (${JSON.stringify(plan).slice(0, 200)})`);
