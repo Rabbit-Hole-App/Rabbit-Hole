@@ -243,22 +243,27 @@ export function enforce(response, routed, turn) {
 // Runs the turn up to the enforced actions and the updated store. `post(path, body)` resolves the
 // route's JSON or throws; the canvas is not touched here (see executeActions).
 export async function runTurn({ raw, slash = null, opening = false, canvas, access, block, store, post }) {
+  const t = [now()];
   let current = store;
   const here = { app: canvas.app, board: canvas.board || 'main' };
   const target = targetOf(block);
+  t.push(now());
   // 1. Deterministic rung: new attemptLog entries on the target card.
   if (block && target?.card) {
     const practiced = practiceEvents(current, block, { card_id: target.card, scene_id: target.scene_id, part_id: target.part_id }, here);
     current = appendEvents(practiced.store, practiced.events.map(event => ({ ...event, ref: { ...event.ref, block_id: block.id } }))).store;
   }
+  t.push(now());
   let states = deriveClaimStates(current.events);
   const built = buildTurn({ raw, slash, opening, canvas, block, store: current, states });
   const { turn, claims } = built;
   // 2. JEV, then the larger evaluator on uncertain - free text on slice claims only.
-  let evaluation = null;
+  let evaluation = null, evidence = null;
   if (raw.trim() && !turn.slash && !opening && claims.length) {
+    const sent = now();
     try { evaluation = await post('/api/learn/tutor/evaluate', { ...access, message: raw, spec: evaluationSpec(turn, claims, current) }); }
     catch (error) { evaluation = { status: 'error', evaluator: 'jev', events: [], error: error.message }; }
+    evidence = [sent, now()];
     const ref = { card: target?.card ?? null, scene_id: target?.scene_id ?? null, part_id: target?.part_id ?? null, turn_id: turn.turn_id, canvas: here };
     current = appendEvents(current, (evaluation.events || []).map(event => ({ ...event, ref }))).store;
     states = deriveClaimStates(current.events);
@@ -266,8 +271,12 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   }
   // 3. Router, planner, enforcement.
   const routed = route({ turn, claims, states, evaluation, store: current });
-  const response = await post('/api/learn/tutor/plan', { ...access, context: plannerContext({ turn, routed, block, states }) });
+  const context = plannerContext({ turn, routed, block, states });
+  const planned = now();
+  const response = await post('/api/learn/tutor/plan', { ...access, context });
+  const ready = now();
   const { actions, log } = enforce(response, routed, turn);
+  const enforced = now();
   // 4. The session record.
   const constraints = [...new Set([...current.constraints, ...(response.constraints_add || [])])].filter(item => !(response.constraints_remove || []).includes(item));
   const asked = actions.find(action => action.type === 'ask_question');
@@ -283,8 +292,23 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
     turns: [...current.turns, { learner: raw, tutor: text }].slice(-8),
     actions: [...current.actions, ...actions.map(action => ({ type: action.type, strategy: response.strategy, claim: action.claim ?? routed.claim }))].slice(-6),
   };
-  return { store: current, turn, evaluation, routed, response, actions, log, text, states: deriveClaimStates(current.events) };
+  // The benchmark record: ids, types and timings only - never the learner's words or card content.
+  const ms = (from, to) => Math.round((to - from) * 10) / 10;
+  const bench = {
+    turn_id: turn.turn_id, route: routed.row, strategy: response.strategy ?? null, claims, evaluated: !!evidence,
+    evaluation: evaluation && { status: evaluation.status, evaluator: evaluation.evaluator, events: (evaluation.events || []).length, telemetry: evaluation.telemetry ?? null },
+    planner: { telemetry: response.telemetry ?? null },
+    requested_actions: (Array.isArray(response.actions) ? response.actions : []).map(action => action?.type),
+    accepted_actions: actions.map(action => action.type),
+    rejected: log,
+    ms: {
+      target: ms(t[0], t[1]), practice: ms(t[1], t[2]), evidence: evidence && ms(...evidence), planner: ms(planned, ready), enforce: ms(ready, enforced),
+      to_evidence_ready: evidence && ms(t[0], evidence[1]), to_planner_ready: ms(t[0], ready),
+    },
+  };
+  return { store: current, turn, evaluation, routed, response, actions, log, text, states: deriveClaimStates(current.events), bench };
 }
+const now = () => (globalThis.performance ?? Date).now();
 
 // ---------- /dive session record (§6.3, §6.4) ----------
 

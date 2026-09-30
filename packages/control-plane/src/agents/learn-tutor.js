@@ -95,8 +95,8 @@ export function evaluationFrom(spec, answers, thresholds, evaluator) {
   return { status, events };
 }
 
-// The larger evaluator (§3.3): the same checks on the grading model task behind /api/learn/assess,
-// whose own reply is prose, so this instruction asks for a structured answer instead.
+// The larger evaluator (§3.3): the same checks on its own no-tools task (LEARN_TASKS.tutor_evaluator),
+// whose reply is prose by default, so this instruction asks for a structured answer instead.
 export function largerInstruction(spec, message) {
   const questions = tutorQuestions(spec);
   return [
