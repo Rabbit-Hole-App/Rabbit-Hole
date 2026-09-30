@@ -378,7 +378,8 @@ ${research.system}` : system;
         const result = await researchAnswer(env, turns, researchSystem, model, { callModel: loggedModel('chat', anthropic), initialPapers: research.papers || [], tools: research.tools || [], runTool: research.runTool, onProgress: stage => send('progress', { stage }) });
         full = result.answer;
         if (result.papers.length) {
-          const references = result.papers.map(p => `[${p.title} (arXiv:${p.id})](${p.pdfUrl})`).join(' | ');
+          // An uploaded PDF has no arXiv id or public link: its title alone.
+          const references = result.papers.map(p => (p.pdfUrl ? `[${p.title} (arXiv:${p.id})](${p.pdfUrl})` : p.title)).join(' | ');
           full += `\n\nPapers read: ${references}`;
           await send('papers', { papers: result.papers });
         }

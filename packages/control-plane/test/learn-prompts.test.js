@@ -10,6 +10,7 @@ import { createHash } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { canvasApp, canvasAskSeam } from '../src/canvases.js';
 import { repositoriesFetch } from '../src/repositories.js';
+import { askStream } from '../src/ask.js';
 import { generateArtifact, ARTIFACT_SYSTEM } from '../src/learn-artifact.js';
 import { generateBoardPlan } from '../src/learn-board.js';
 import { TEACHING_POLICY } from '../src/learn-teaching.js';
@@ -316,4 +317,13 @@ test('the whiteboard prompts describe video and 3D scenes as proposals that are 
 
 test('the shared teaching policy is pinned', () => {
   assert.equal(fingerprint(TEACHING_POLICY), PINS.teachingPolicy);
+});
+
+// duplication-17: an uploaded PDF has no arXiv id or link; the footer names it plainly.
+test('the Papers read footer names an uploaded PDF by its title and keeps arXiv links', async t => {
+  modelBoundary(t);
+  const papers = [{ id: 'upload:0123456789ab', title: 'My notes.pdf', pdfUrl: null }, { id: '1706.03762v7', title: 'Attention', pdfUrl: 'https://arxiv.org/pdf/1706.03762v7' }];
+  let stored = '';
+  await askStream({ ANTHROPIC_API_KEY: 'test-only' }, 'context', [], 'What does page 2 say?', async full => { stored = full; }, {}, [], null, null, null, 'system', { papers }).text();
+  assert.ok(stored.endsWith('\n\nPapers read: My notes.pdf | [Attention (arXiv:1706.03762v7)](https://arxiv.org/pdf/1706.03762v7)'), stored);
 });
