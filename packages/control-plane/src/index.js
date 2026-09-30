@@ -936,27 +936,21 @@ function b64(bytes) {
 export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam = null) {
   if (!env.ANTHROPIC_API_KEY && env.SUBSCRIPTION_ONLY !== 'true') return json({ error: 'ask is not configured on this control plane' }, 503);
   // JSON, or multipart when a file rides along (images/PDFs as model blocks, CSVs as text)
-  let body, extraBlocks = [], attachedName = null, uploadNote = null;
-  if ((req.headers.get('Content-Type') || '').includes('multipart/form-data')) {
-    const request = await readAskRequest(req);
-    body = request.body;
-    const file = request.file;
-    if (file) {
-      if (file.size > ATTACHMENT_LIMIT) return json({ error: 'attachment too large - 4 MB max' }, 400);
-      attachedName = file.name;
-      const { bytes, blocks } = await attachmentBlocks(file);
-      extraBlocks = blocks;
-      // stash the raw bytes so "run it with this image" can feed a file input;
-      // Learn never gets the run tool (toolOpts below), so its attachment is not stashed.
-      // ponytail: unapproved uploads linger in R2 - no lifecycle sweep yet
-      if (conversation !== 'learn' && learnMedia(env)) {
-        const uploadId = 'u-' + randomHex(6);
-        await learnMedia(env).put(`ask-uploads/${uploadId}/${file.name}`, bytes);
-        uploadNote = `pending chat attachment: ${file.name} (upload id ${uploadId}) - the run tool can use it for a file-type input via attachment_id + attachment_input`;
-      }
+  let extraBlocks = [], attachedName = null, uploadNote = null;
+  const { body, file } = await readAskRequest(req);
+  if (file) {
+    if (file.size > ATTACHMENT_LIMIT) return json({ error: 'attachment too large - 4 MB max' }, 400);
+    attachedName = file.name;
+    const { bytes, blocks } = await attachmentBlocks(file);
+    extraBlocks = blocks;
+    // stash the raw bytes so "run it with this image" can feed a file input;
+    // Learn never gets the run tool (toolOpts below), so its attachment is not stashed.
+    // ponytail: unapproved uploads linger in R2 - no lifecycle sweep yet
+    if (conversation !== 'learn' && learnMedia(env)) {
+      const uploadId = 'u-' + randomHex(6);
+      await learnMedia(env).put(`ask-uploads/${uploadId}/${file.name}`, bytes);
+      uploadNote = `pending chat attachment: ${file.name} (upload id ${uploadId}) - the run tool can use it for a file-type input via attachment_id + attachment_input`;
     }
-  } else {
-    body = await req.json();
   }
   const { scope = {}, message, thread_id, sources, model } = body;
   let seed;

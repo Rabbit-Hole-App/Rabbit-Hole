@@ -824,3 +824,14 @@ test('a long card wrapped into the message is refused by the 4000-character limi
   assert.equal(res.status, 400);
   assert.deepEqual(await res.json(), { error: 'message required (max 4000 chars)' });
 });
+
+// duplication-14: apiAsk reads JSON and multipart through readAskRequest; a file over 4 MB is refused.
+test('a multipart ask with a file over 4 MB is refused before the model', async t => {
+  const env = fixture(t), body = new FormData();
+  body.set('body', JSON.stringify({ scope: { app: 'counter' }, message: 'what is this' }));
+  body.set('file', new Blob([new Uint8Array(ATTACHMENT_LIMIT + 1)], { type: 'image/png' }), 'big.png');
+  const res = await handlers.apiAsk(new Request('https://small.example/api/learn/ask', { method: 'POST', body }), env, {}, owner, 'learn');
+  assert.equal(res.status, 400);
+  assert.deepEqual(await res.json(), { error: 'attachment too large - 4 MB max' });
+  assert.equal(env.answers.length, 0);
+});
