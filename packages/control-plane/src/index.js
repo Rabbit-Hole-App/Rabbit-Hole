@@ -29,6 +29,13 @@ const SESSION_COOKIE = 'small_session';
 const SESSION_TTL = 7 * 24 * 3600;
 
 const orgOf = (email) => email.split('@')[1].toLowerCase().replace(/\./g, '-');
+// Login email: trimmed, lowercased, one @, plain local part, dotted domain labels with no edge hyphens.
+// Quoted or display-name forms are refused - orgOf reads after the first @, so they could pick another org.
+const EMAIL_RE = /^[a-z0-9._%+-]+@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
+const loginEmail = (raw) => {
+  const email = String(raw ?? '').trim().toLowerCase();
+  return email.length <= 254 && EMAIL_RE.test(email) ? email : null;
+};
 // apps.schedule may hold several crons separated by ';' (dashboard "+" adds them)
 const cronParts = (s) => String(s || '').split(';').map((x) => x.trim()).filter(Boolean);
 const now = () => Math.floor(Date.now() / 1000);
@@ -186,8 +193,8 @@ async function canEdit(env, app, email) {
 // ---------- CLI API ----------
 
 async function apiLogin(req, env) {
-  const { email } = await req.json();
-  if (!email || !email.includes('@')) return json({ error: 'valid email required' }, 400);
+  const email = loginEmail((await req.json())?.email);
+  if (!email) return json({ error: 'valid email required' }, 400);
   const code = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1000000).padStart(6, '0');
   const challenge = await sign({ t: 'challenge', email, codeHash: await hmacHex(env.MASTER_KEY, `${email}\n${code}`), exp: now() + 600 }, env.MASTER_KEY);
   const sent = await sendEmail(env, email, `small deploy login code: ${code}`, `Your small deploy login code is ${code}\nIt expires in 10 minutes.`);
@@ -2244,8 +2251,8 @@ async function loginPage(req, env, baseUrl) {
   const next = url.searchParams.get('next') || '/';
   if (req.method === 'POST') {
     const form = await req.formData();
-    const email = String(form.get('email') || '').toLowerCase().trim();
-    if (!email.includes('@')) return html('<p>Enter a valid work email.</p><a href="javascript:history.back()">back</a>', 400);
+    const email = loginEmail(form.get('email'));
+    if (!email) return html('<p>Enter a valid work email.</p><a href="javascript:history.back()">back</a>', 400);
     const magic = await sign({ t: 'magic', email, next, exp: now() + 900 }, env.MASTER_KEY);
     const link = `${baseUrl}/auth?token=${encodeURIComponent(magic)}`;
     const sent = await sendEmail(env, email, 'Your small deploy sign-in link', `Sign in: ${link}\nExpires in 15 minutes.`);

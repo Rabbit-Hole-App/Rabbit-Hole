@@ -192,3 +192,33 @@ test('production CLI challenge carries a keyed MAC bound to the email, not a bru
   const forged = await sign({ ...payloadOf(a), codeHash: b.codeHash }, BASE.MASTER_KEY);
   assert.equal((await verifyCli(forged, CODE)).res.status, 401);
 });
+
+// orgOf() takes the text after the first @, so anything looser than a plain
+// address could land a session in someone else's org.
+const BAD_EMAILS = [
+  '"x@corp.com@"@attacker.test', 'Victim <v@corp.com>', '"Victim" <v@corp.com>', 'v@corp.com, a@attacker.test',
+  'a b@corp.com', 'a@b', '@corp.com', 'a@', 'a@@corp.com', 'a@corp..com', 'a@.corp.com', 'a@corp.com.',
+  'a@-corp.com', 'a@corp-.com', "a'@corp.com", `${'a'.repeat(250)}@corp.com`, '',
+];
+
+test('strict email: CLI and web login reject quoted, display-name, list and malformed addresses', async (t) => {
+  const sent = provider(t, 'ok');
+  const env = { ...BASE, SMALL_ENV: 'production', RESEND_API_KEY: 're_fake' };
+  for (const email of BAD_EMAILS) {
+    const cli = await call(post('/api/cli/login', { email }), env);
+    assert.equal(cli.res.status, 400, `CLI accepted ${email}`);
+    assert.deepEqual(JSON.parse(cli.text), { error: 'valid email required' });
+    const web = await call(post('/login', { email }, 'form'), env);
+    assert.equal(web.res.status, 400, `web accepted ${email}`);
+    assert.ok(web.text.includes('Enter a valid work email.'));
+  }
+  assert.equal(sent.length, 0);
+});
+
+test('strict email: a plain address is trimmed and lowercased before it reaches the email and the login', async (t) => {
+  const sent = provider(t, 'ok');
+  const env = { ...BASE, SMALL_ENV: 'test', TEST_BYPASS_SECRET: SECRET, RESEND_API_KEY: 're_fake' };
+  const web = await call(post('/login', { email: '  A.B+tag@Corp.Example.test ' }, 'form'), env);
+  assert.equal(web.res.status, 200);
+  assert.deepEqual(sent[0].to, ['a.b+tag@corp.example.test']);
+});
