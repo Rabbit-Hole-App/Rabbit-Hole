@@ -4,9 +4,13 @@
 // the real one) - with JEV, the larger evaluator and the planner answered by the corpus stubs. No
 // network, no model call, no cost. Scores the deterministic pipeline (selection, evaluation ladder,
 // evidence, routing, validation) against each turn's expectations and counts calls and planner
-// context size. Latency here is not model latency; the paid run (tutor-bench.mjs) measures that.
-// Usage: node e2e/tutor-corpus-run.mjs [--stage A] [--out tutor-bench-out]
-import { mkdirSync, writeFileSync } from 'node:fs';
+// context size. Latency here is not model latency.
+// --live: PAID. The same corpus on the real JEV, larger evaluator and planner (keys from
+// packages/web/.dev.vars, gitignored), with per-rung latency and tokens; the stub answers are unused
+// and the expectations then score the real models. Refused unless TUTOR_BENCH_PAID=GO is set, which
+// only the owner's GO BENCHMARK authorises; never from make.
+// Usage: node e2e/tutor-corpus-run.mjs [--stage A] [--out dir] [--live [--price-in USD --price-out USD]]
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { cardBlock } from '../src/nanogpt/board.js';
 import { applyCheck, applyNewAttempt, enterPractice, setActivityAnswer } from '../src/scene-activity.js';
 import { applyInputToBlock } from '../src/scene-evaluate.js';
@@ -15,13 +19,18 @@ import { cardModule } from '../src/learn-tutor-claims.js';
 import { partIndex } from '../src/nanogpt/depth/board.js';
 import { emptyStore } from '../src/learn-tutor-evidence.js';
 import { arriveAt, enterHole, keepHere, markOpened, openingQuestion, runTurn } from '../src/learn-tutor.js';
-import { evaluateFreeText, validateEvaluateBody } from '../../control-plane/src/learn-tutor-routes.js';
+import { evaluateFreeText, planTurn, validateEvaluateBody } from '../../control-plane/src/learn-tutor-routes.js';
 import { PLANNER_SYSTEM, TUTOR_TOOL, tutorQuestions } from '../../control-plane/src/agents/learn-tutor.js';
 import { CORPUS } from './tutor-corpus.mjs';
 
 const args = process.argv.slice(2);
 const flag = (name, fallback) => { const at = args.indexOf(`--${name}`); return at >= 0 ? args[at + 1] : fallback; };
-const STAGE = flag('stage', 'A'), OUT = flag('out', 'tutor-bench-out');
+const STAGE = flag('stage', 'A'), OUT = flag('out', 'tutor-bench-out'), LIVE = args.includes('--live');
+const PRICE = { in: Number(flag('price-in', NaN)), out: Number(flag('price-out', NaN)) };
+if (LIVE && process.env.TUTOR_BENCH_PAID !== 'GO') throw Error('--live makes paid model calls: set TUTOR_BENCH_PAID=GO only after the owner typed GO BENCHMARK');
+const ENV = LIVE ? Object.fromEntries(readFileSync(new URL('../.dev.vars', import.meta.url), 'utf8').split(/\r?\n/)
+  .filter(line => /^[A-Z_]+=/.test(line)).map(line => [line.slice(0, line.indexOf('=')), line.slice(line.indexOf('=') + 1).trim()])) : null;
+const MODE = LIVE ? 'live' : 'stub';
 const PARENT = { app: 'canvas-aaaa1111', board: 'nanogpt-attention-tutor' };
 const AUTHORED = ['show_authored_card', 'focus_part', 'suggest_depth', 'suggest_practice'];
 
@@ -99,7 +108,7 @@ async function runTrace(trace) {
     }
     if (step.opening) { raw = openingQuestion(store, inHole); store = markOpened(store, inHole); }
     if (step.climb) { store = arriveAt(store, PARENT); canvas = PARENT; inHole = null; }
-    const calls = { jev: 0, larger: 0, planner: 0, plannerChars: 0, jevQuestions: 0, selected: [], escalation: null, invalid: 0 };
+    const calls = { jev: 0, larger: 0, planner: 0, plannerChars: 0, jevQuestions: 0, selected: [], escalation: null, invalid: 0, jevMs: null, jevOutcome: null, largerMs: null, largerOutcome: null, largerTokens: null, plannerMs: null, plannerTokens: null, plannerOutcome: null };
     const post = async (path, body) => {
       if (path === '/api/learn/tutor/evaluate') {
         const input = validateEvaluateBody(body);
@@ -116,16 +125,38 @@ async function runTrace(trace) {
           const words = Object.fromEntries(Object.entries(answersFor(input.value.spec, step.stub.larger || step.stub.jev)).map(([key, p]) => [key, p >= 0.7 ? 'yes' : p <= 0.3 ? 'no' : 'unclear']));
           return Response.json({ content: [{ type: 'text', text: JSON.stringify(words) }] });
         };
-        const result = await evaluateFreeText({ TYPESAFE_API_KEY: 'stub' }, input.value.spec, input.value.message, { ask, callModel });
-        calls.escalation = result.escalation?.reason ?? null;
+        const result = LIVE ? await evaluateFreeText(ENV, input.value.spec, input.value.message)
+          : await evaluateFreeText({ TYPESAFE_API_KEY: 'stub' }, input.value.spec, input.value.message, { ask, callModel });
+        const { jev, larger } = result.telemetry || {};
+        Object.assign(calls, { jev: jev?.called ? 1 : 0, jevQuestions: jev?.questions ?? 0, jevMs: jev?.ms ?? null, jevOutcome: jev?.outcome ?? null,
+          larger: larger?.called ? 1 : 0, largerMs: larger?.ms ?? null, largerOutcome: larger?.outcome ?? null,
+          largerTokens: larger?.called ? { in: larger.input_tokens, out: larger.output_tokens } : null, escalation: result.escalation?.reason ?? larger?.reason ?? null });
         return result;
       }
       calls.planner++;
       calls.plannerChars = JSON.stringify(body.context).length;
-      return step.stub.plan;
+      if (!LIVE) return step.stub.plan;
+      try {
+        const planned = await planTurn(ENV, body.context);
+        Object.assign(calls, { plannerMs: planned.telemetry.ms, plannerOutcome: 'ok', plannerTokens: { in: planned.telemetry.input_tokens, out: planned.telemetry.output_tokens } });
+        return planned;
+      } catch (error) {
+        Object.assign(calls, { plannerMs: error.telemetry?.ms ?? null, plannerOutcome: error.telemetry?.outcome ?? 'error' });
+        throw error;
+      }
     };
     const before = store.events.length;
-    const result = await runTurn({ raw, slash: step.slash || null, opening: !!step.opening, canvas, access: { app: canvas.app }, block: inHole ? null : block, store, post });
+    const started = performance.now();
+    let result;
+    try { result = await runTurn({ raw, slash: step.slash || null, opening: !!step.opening, canvas, access: { app: canvas.app }, block: inHole ? null : block, store, post }); }
+    catch (error) {
+      // A failed turn (the planner errored or returned no turn) ends its trace: later turns depend on it.
+      rows.push({ stage: STAGE, mode: MODE, trace: trace.id, turn: index, category: step.category || trace.category, golden: !!trace.golden, error: String(error.message).slice(0, 200),
+        jev_calls: calls.jev, jev_questions: calls.jevQuestions, larger_calls: calls.larger, planner_calls: calls.planner, jev_ms: calls.jevMs, larger_ms: calls.largerMs, planner_ms: calls.plannerMs, planner_outcome: calls.plannerOutcome,
+        turn_ms: Math.round(performance.now() - started), selected: calls.selected, checks: { turn: false }, pass: false, proposed: 0, accepted: 0, rejected: 0, authored_actions: 0, text_actions: 0 });
+      break;
+    }
+    const turnMs = Math.round(performance.now() - started);
     store = result.store;
     const got = {
       selected: calls.selected, jev: calls.jev > 0, larger: calls.larger > 0,
@@ -133,9 +164,9 @@ async function runTrace(trace) {
       row: result.routed.row, actions: result.actions.filter(action => action.type !== 'no_action'),
     };
     const checks = score(step.expect, got);
-    const proposed = (step.stub.plan.actions || []).length, accepted = got.actions.length;
+    const proposed = (Array.isArray(result.response.actions) ? result.response.actions : []).length, accepted = got.actions.length;
     rows.push({
-      stage: STAGE, trace: trace.id, turn: index, category: step.category || trace.category, golden: !!trace.golden,
+      stage: STAGE, mode: MODE, trace: trace.id, turn: index, category: step.category || trace.category, golden: !!trace.golden,
       selected: got.selected, claims_available: result.selection?.available ?? null, selection_ms: result.selection?.ms ?? null, selection_fallback: result.selection?.fallback ?? null,
       jev_calls: calls.jev, jev_questions: calls.jevQuestions, larger_calls: calls.larger, escalation: calls.escalation,
       evaluation: result.evaluation ? result.evaluation.status : null, events: got.events, row: got.row,
@@ -143,6 +174,9 @@ async function runTrace(trace) {
       proposed, accepted, rejected: Math.max(0, proposed - accepted), log: result.log,
       rejections: (result.decisions || []).filter(decision => !decision.accepted).map(decision => `${decision.type}@${decision.stage}: ${decision.reason}`),
       transitions: result.transitions || [],
+      turn_trace: result.bench?.trace ? { trace_id: result.bench.trace.trace_id, stages: result.bench.trace.stages.map(stage => `${stage.stage}:${stage.status}:${stage.result}`) } : null,
+      turn_ms: turnMs, jev_ms: calls.jevMs, jev_outcome: calls.jevOutcome, larger_ms: calls.largerMs, larger_outcome: calls.largerOutcome, larger_tokens: calls.largerTokens,
+      planner_ms: calls.plannerMs, planner_outcome: calls.plannerOutcome, planner_tokens: calls.plannerTokens,
       planner_calls: calls.planner, planner_context_chars: calls.plannerChars,
       planner_input_tokens_est: calls.planner ? Math.round((calls.plannerChars + PLANNER_SYSTEM.length + JSON.stringify(TUTOR_TOOL).length) / 4) : 0,
       authored_actions: got.actions.filter(action => AUTHORED.includes(action.type)).length, text_actions: got.actions.filter(action => action.type === 'respond_text').length,
@@ -159,8 +193,25 @@ const rate = (list, test) => list.length ? +(list.filter(test).length / list.len
 const turnsWithActions = rows.filter(row => row.accepted);
 const jevTurns = rows.filter(row => row.jev_calls);
 const golden = [...new Set(rows.filter(row => row.golden).map(row => row.trace))];
+const tokens = rows.flatMap(row => [row.planner_tokens, row.larger_tokens]).filter(Boolean);
+const cost = tokens.length && PRICE.in >= 0 && PRICE.out >= 0 ? tokens.reduce((usd, t) => usd + ((t.in || 0) * PRICE.in + (t.out || 0) * PRICE.out) / 1e6, 0) : null;
+const values = key => rows.map(row => key(row)).filter(value => value != null);
 const summary = {
-  stage: STAGE, mode: 'stub', traces: CORPUS.length, turns: rows.length,
+  stage: STAGE, mode: MODE, traces: CORPUS.length, turns: rows.length, errored_turns: rows.filter(row => row.error).length,
+  ...(LIVE ? {
+    speed: {
+      jev_ms: stats(values(row => row.jev_ms)), jev_timeout_rate: rate(jevTurns, row => row.jev_outcome === 'timeout'), jev_error_rate: rate(jevTurns, row => row.jev_outcome === 'error'),
+      larger_ms: stats(values(row => row.larger_ms)), larger_errors: rows.filter(row => row.larger_outcome === 'error' || row.larger_outcome === 'timeout').length,
+      planner_ms: stats(values(row => row.planner_ms)), planner_errors: rows.filter(row => row.planner_outcome && row.planner_outcome !== 'ok').length,
+      turn_ms: stats(values(row => row.turn_ms)),
+    },
+    tokens: {
+      planner_in: stats(values(row => row.planner_tokens?.in)), planner_out: stats(values(row => row.planner_tokens?.out)),
+      larger_in: stats(values(row => row.larger_tokens?.in)), larger_out: stats(values(row => row.larger_tokens?.out)),
+    },
+    cost_usd: cost == null ? { note: 'pass --price-in and --price-out (USD per MTok) for the Anthropic calls; JEV is not priced here' }
+      : { anthropic_total: +cost.toFixed(4), per_turn: +(cost / rows.length).toFixed(5), per_100_turns: +(cost / rows.length * 100).toFixed(3), note: 'Anthropic calls only; JEV (TypeSafe) is not priced here' },
+  } : {}),
   pass_rate: rate(rows, row => row.pass),
   golden_traces: { total: golden.length, passed: golden.filter(id => rows.filter(row => row.trace === id).every(row => row.pass)).length },
   by_dimension: Object.fromEntries(dims.map(dim => { const scored = rows.filter(row => dim in row.checks); return [dim, { scored: scored.length, pass_rate: rate(scored, row => row.checks[dim]) }]; })),
@@ -179,6 +230,6 @@ const summary = {
   failed: rows.filter(row => !row.pass).map(row => `${row.trace}#${row.turn}: ${Object.entries(row.checks).filter(([, ok]) => !ok).map(([dim]) => dim).join(',')}`),
 };
 mkdirSync(OUT, { recursive: true });
-writeFileSync(`${OUT}/corpus-stub-${STAGE}.jsonl`, rows.map(row => JSON.stringify(row)).join('\n') + '\n');
-writeFileSync(`${OUT}/corpus-stub-${STAGE}.summary.json`, JSON.stringify(summary, null, 2) + '\n');
+writeFileSync(`${OUT}/corpus-${MODE}-${STAGE}.jsonl`, rows.map(row => JSON.stringify(row)).join('\n') + '\n');
+writeFileSync(`${OUT}/corpus-${MODE}-${STAGE}.summary.json`, JSON.stringify(summary, null, 2) + '\n');
 console.log(JSON.stringify(summary, null, 2));

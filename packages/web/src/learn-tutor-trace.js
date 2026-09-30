@@ -3,8 +3,8 @@
 // and a short result category. No secrets, no learner text: stages record categories and counts.
 // Stages: target_resolution, practice_evaluation, claim_selection, evaluate (with the worker's own
 // jev / larger timings), evidence_reconciliation, router, planner, action_validation; the UI adds
-// first_visible_response and canvas_action_complete marks.
-const statusOf = error => /timed? ?out|timeout|abort/i.test(error?.message || '') ? 'timeout' : 'error';
+// reply_ready and canvas_action_complete marks.
+const statusOf = error => /timed? ?out|timeout|abort/i.test(`${error?.name || ''} ${error?.message || ''}`) ? 'timeout' : 'error';
 
 export function turnTrace(now = () => performance.now()) {
   const t0 = now();
@@ -13,13 +13,18 @@ export function turnTrace(now = () => performance.now()) {
   const record = (stage, start, status, result) => trace.stages.push({ stage, start_ms: start, ms: +(offset() - start).toFixed(1), status, result });
   return {
     trace,
-    // Runs one stage; `category` turns its value into the recorded result. Errors are recorded and rethrown.
-    async step(stage, run, category = () => null) {
+    // Runs one stage, sync or async; `category` turns its value into the recorded result. Errors
+    // are recorded and rethrown.
+    step(stage, run, category = () => null) {
       const start = offset();
-      try { const value = await run(); record(stage, start, 'ok', category(value)); return value; }
-      catch (error) { record(stage, start, statusOf(error), String(error?.message || error).slice(0, 160)); throw error; }
+      const fail = error => { record(stage, start, statusOf(error), String(error?.message || error).slice(0, 160)); throw error; };
+      let value;
+      try { value = run(); } catch (error) { fail(error); }
+      if (typeof value?.then === 'function') return value.then(done => { record(stage, start, 'ok', category(done)); return done; }, fail);
+      record(stage, start, 'ok', category(value));
+      return value;
     },
-    // A stage timed elsewhere (the worker's JEV and larger evaluator), placed inside its parent.
+    // A stage timed elsewhere (the worker's JEV and larger evaluator).
     add: (stage, ms, status, result = null) => trace.stages.push({ stage, start_ms: null, ms, status, result }),
     mark: name => { trace.marks[name] = offset(); },
   };

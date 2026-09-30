@@ -15,6 +15,7 @@ import { ATTENTION_LADDER, CLAIMS, CONCEPTS, SLICE_CARDS, catalogue, cardModule,
 import { appendEvents, conceptState, deriveClaimStates, practiceEvents, reconcile } from './learn-tutor-evidence.js';
 import { selectClaims } from './learn-tutor-select.js';
 import { validateActions } from './learn-tutor-validate.js';
+import { turnTrace } from './learn-tutor-trace.js';
 
 const SLASHES = ['deeper', 'simplify', 'dive'];
 const canvasKey = canvas => `${canvas.app}|${canvas.board || 'main'}`;
@@ -241,18 +242,20 @@ export const enforce = validateActions;
 // route's JSON or throws; the canvas is not touched here (see executeActions).
 export async function runTurn({ raw, slash = null, opening = false, canvas, access, block, store, post }) {
   const t = [now()];
+  const tracer = turnTrace(now); // v2: the turn trace (learn-tutor-trace.js), returned in bench.trace
   let current = store;
   const here = { app: canvas.app, board: canvas.board || 'main' };
-  const target = targetOf(block);
+  const target = tracer.step('target_resolution', () => targetOf(block), found => found?.card ?? 'none');
   t.push(now());
   // 1. Deterministic rung: new attemptLog entries on the target card.
   if (block && target?.card) {
-    const practiced = practiceEvents(current, block, { card_id: target.card, scene_id: target.scene_id, part_id: target.part_id }, here);
+    const practiced = tracer.step('practice_evaluation', () => practiceEvents(current, block, { card_id: target.card, scene_id: target.scene_id, part_id: target.part_id }, here), out => `${out.events.length} events`);
     current = appendEvents(practiced.store, practiced.events.map(event => ({ ...event, ref: { ...event.ref, block_id: block.id } }))).store;
   }
   t.push(now());
   let states = deriveClaimStates(current.events);
-  const built = buildTurn({ raw, slash, opening, canvas, block, store: current, states });
+  const built = tracer.step('claim_selection', () => buildTurn({ raw, slash, opening, canvas, block, store: current, states }),
+    out => out.selection ? `${out.selection.selected.length}/${out.selection.available}${out.selection.fallback ? ' fallback' : ''}` : 'none');
   const { turn, selection } = built;
   // Evaluation and routing work on the claims the learner touched (Stage B); a turn without words
   // (a slash, a hole's opening) keeps the turn's claims.
@@ -261,20 +264,27 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   let evaluation = null, evidence = null, transitions = [];
   if (raw.trim() && !turn.slash && !opening && claims.length) {
     const sent = now();
-    try { evaluation = await post('/api/learn/tutor/evaluate', { ...access, message: raw, spec: evaluationSpec(turn, claims, current) }); }
+    try { evaluation = await tracer.step('evaluate', () => post('/api/learn/tutor/evaluate', { ...access, message: raw, spec: evaluationSpec(turn, claims, current) }), out => out.status); }
     catch (error) { evaluation = { status: 'error', evaluator: 'jev', events: [], error: error.message }; }
     evidence = [sent, now()];
+    for (const rung of ['jev', 'larger']) {
+      const telemetry = evaluation.telemetry?.[rung];
+      if (telemetry?.called) tracer.add(rung, telemetry.ms, telemetry.outcome === 'timeout' || telemetry.outcome === 'error' ? telemetry.outcome : 'ok', telemetry.reason ? `${telemetry.outcome} (${telemetry.reason})` : telemetry.outcome);
+    }
     const ref = { card: target?.card ?? null, scene_id: target?.scene_id ?? null, part_id: target?.part_id ?? null, turn_id: turn.turn_id, canvas: here };
-    ({ store: current, states, transitions } = reconcile(current, evaluation, ref));
+    ({ store: current, states, transitions } = tracer.step('evidence_reconciliation', () => reconcile(current, evaluation, ref), out => `${out.added} observations, ${out.transitions.length} state changes`));
     turn.evidence = buildTurn({ raw, slash, opening, canvas, block, store: current, states }).turn.evidence;
   }
   // 3. Router, planner, enforcement.
-  const routed = route({ turn, claims, states, evaluation, store: current });
+  const routed = tracer.step('router', () => route({ turn, claims, states, evaluation, store: current }), out => out.row);
   const context = plannerContext({ turn, routed, block, states, claims, store: current });
   const planned = now();
-  const response = await post('/api/learn/tutor/plan', { ...access, context });
+  let response;
+  try { response = await tracer.step('planner', () => post('/api/learn/tutor/plan', { ...access, context }), out => out.telemetry?.outcome ?? 'ok'); }
+  catch (error) { throw Object.assign(error, { trace: tracer.trace }); } // the failed turn's trace travels with its error
   const ready = now();
-  const { actions, log, decisions } = enforce(response, routed, turn);
+  const { actions, log, decisions } = tracer.step('action_validation', () => enforce(response, routed, turn),
+    out => `${out.decisions.filter(decision => decision.accepted).length} accepted, ${out.decisions.filter(decision => !decision.accepted).length} rejected`);
   const enforced = now();
   // 4. The session record.
   const constraints = [...new Set([...current.constraints, ...(response.constraints_add || [])])].filter(item => !(response.constraints_remove || []).includes(item));
@@ -294,7 +304,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   // The benchmark record: ids, types and timings only - never the learner's words or card content.
   const ms = (from, to) => Math.round((to - from) * 10) / 10;
   const bench = {
-    turn_id: turn.turn_id, route: routed.row, strategy: response.strategy ?? null, claims, evaluated: !!evidence,
+    trace: tracer.trace, turn_id: turn.turn_id, route: routed.row, strategy: response.strategy ?? null, claims, evaluated: !!evidence,
     selection: selection && { available: selection.available, selected: selection.selected.length, fallback: selection.fallback, ms: selection.ms },
     evaluation: evaluation && { status: evaluation.status, evaluator: evaluation.evaluator, events: (evaluation.events || []).length, telemetry: evaluation.telemetry ?? null },
     transitions: transitions.map(({ claim, from, to }) => `${claim}: ${from} -> ${to}`),
@@ -308,7 +318,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
       to_evidence_ready: evidence && ms(t[0], evidence[1]), to_planner_ready: ms(t[0], ready),
     },
   };
-  return { store: current, turn, selection, evaluation, transitions, routed, response, actions, decisions, log, text, states: deriveClaimStates(current.events), bench };
+  return { store: current, turn, selection, evaluation, transitions, routed, response, actions, decisions, log, text, states: deriveClaimStates(current.events), bench, mark: tracer.mark };
 }
 const now = () => (globalThis.performance ?? Date).now();
 
