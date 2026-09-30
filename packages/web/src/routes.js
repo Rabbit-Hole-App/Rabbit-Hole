@@ -12,6 +12,9 @@ export const canonicalPath = (pathname, preview) =>
 // D7 (WP7): on the preview api() sends only the writes the dev worker serves itself - repositories, canvases and
 // their chats, Learn and BYOC (dev-worker.js; the canvas half is control-plane/src/canvases.js canvasRoute). Any
 // other write would reach live small-cp, so api() refuses it with this reason (agent/slash.js D7_REASON).
+// A browser consistency check only, not a storage proof: fetch() callers and GETs skip it, and a route the dev
+// worker serves is not by that alone kept off live storage. The dev handlers enforce that (C1 in
+// docs/features/learn-cleanup.md: learnMomentsDb, refuseLiveLearnAsk), proven by control-plane tests.
 export const PREVIEW_WRITE_REFUSED = 'Blocked on this preview: it would change live apps.';
 export function previewWriteAllowed(url) {
   const u = new URL(url, 'https://preview.invalid'), p = u.pathname;

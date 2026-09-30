@@ -53,9 +53,10 @@ onto **the same board**, and reads it aloud. No copy of the board is made: tutor
 `author: 'assistant'`, so they can be removed without touching the learner's ink, which is the same
 guarantee a duplicate would give without a second board drifting out of date.
 
-The planner (`plan_explanation`, `explain_on_canvas`, `review_explanation`) runs on a cheap OpenAI
-model - `PLAN_MODEL` in `packages/control-plane/src/ask.js`, overridable with `LEARN_PLAN_MODEL` -
-and falls back to the platform model when no OpenAI key is configured. Every plan is still checked by
+The planner (`plan_explanation`, `explain_on_canvas`, `review_explanation`) runs on the platform
+model, `claude-opus-5` (`LEARN_TASKS.board` in `packages/control-plane/src/learn-models.js`). It runs
+on OpenAI only when both `OPENAI_API_KEY` and `LEARN_PLAN_MODEL` are set (the model id is that var;
+no config sets it), and never in `SUBSCRIPTION_ONLY` mode (`planModel` in `ask.js`). Every plan is still checked by
 `validateTeachingPlan` / `validateBoardPlan` and the review pass before anything is drawn.
 
 ## Answering blocks

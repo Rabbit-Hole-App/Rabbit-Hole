@@ -13,6 +13,7 @@ import { isLearnResource } from './library-filter.js';
 import { pageFor, sectionActive, sectionHref } from './routes.js';
 import FeedbackButton from './FeedbackButton.jsx';
 import { AppIcon, Avatar, Button, cn, ConfirmDialog, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, Select, SettingsRow, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
+import { MODEL_CHOICES, MODEL_SCOPE } from './model-choices.js';
 
 // Settings (workspace dropdown → Settings): Notion-style two-pane modal -
 // left nav (Account / Workspace sections), right content per tab.
@@ -73,7 +74,7 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
     if (tab === 'people' && people === null) api('/api/members').then((d) => setPeople(d.members || [])).catch(() => setPeople([]));
   }, [tab]);
   const activeWs = wsInfo?.workspaces?.find((w) => w.slug === wsInfo.active);
-  const MODEL_LABELS = { auto: 'Auto', 'opus-5': 'Opus 5', 'sonnet-5': 'Sonnet 5', 'haiku-4.5': 'Haiku 4.5' };
+  const MODEL_LABELS = Object.fromEntries(MODEL_CHOICES.map(({ key, label }) => [key, label]));
   const copy = (t) => { navigator.clipboard.writeText(t); toast('Copied'); };
   const CodeCopy = ({ text }) => (
     <span className="flex items-center gap-1">
@@ -282,7 +283,7 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
               <Heading>Model provider</Heading>
               <AiModelSettings />
               <Heading>Chat</Heading>
-              <SettingsRow title="Default model" desc="New chats start on this model; you can still switch per message">
+              <SettingsRow title="Default model" desc={`New chats start on this model; you can still switch per message. ${MODEL_SCOPE}`}>
                 <Select
                   value={MODEL_LABELS[askModel]}
                   options={Object.values(MODEL_LABELS)}

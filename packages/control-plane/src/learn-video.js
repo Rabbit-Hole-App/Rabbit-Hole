@@ -2,7 +2,9 @@ import { authorizedBoardApp } from './learn-board.js';
 import { validateVideo, videoCacheKey } from './learn-video-schema.js';
 import { videoProvider } from './video-provider.js';
 import { ManimProvider, cacheKey as mathCacheKey } from './math-provider.js';
+import { paidRefusal } from './learn-paid.js';
 import { validateMathAnimation } from './learn-math-schema.js';
+import { learnMedia } from './learn-storage.js';
 
 const json = (value, status = 200) => Response.json(value, { status, headers: { 'Cache-Control': 'no-store' } });
 const POLL_MS = 10000; // Clips take minutes; background polling does not depend on an open browser.
@@ -35,7 +37,7 @@ export class LearnVideos {
         if (!/^[a-f0-9]{64}$/.test(key)) return json({ error: 'Invalid asset' }, 400);
         const job = await this.state.storage.get(`job:${key}`);
         if (job?.status !== 'ready') return json({ error: 'Video not ready' }, 404);
-        const object = await this.env.RUNS.get(job.storageKey, { range: req.headers });
+        const object = await learnMedia(this.env).get(job.storageKey, { range: req.headers });
         if (!object) return json({ error: 'Video unavailable' }, 404);
         const headers = new Headers({ 'Content-Type': 'video/mp4', 'Cache-Control': 'private, max-age=3600', 'Accept-Ranges': 'bytes', 'X-Content-Type-Options': 'nosniff' });
         headers.set('Content-Length', String(object.range?.length ?? object.size));
@@ -57,6 +59,8 @@ export class LearnVideos {
           await this.state.storage.put(`placement:${body.id}`, { ...p, position: body.position, hidden: body.hidden === true });
           return json({ saved: true });
         }
+        // A paid job starts only from the learner's explicit confirmation.
+        const refused = paidRefusal(body); if (refused) return refused;
         const maths = body.operation?.op === 'generate_math_animation';
         const provider = maths ? new ManimProvider(this.env) : videoProvider(this.env);
         const input = maths ? { spec: validateMathAnimation(body.operation), id: body.operation.id, caption: body.operation.caption } : validateVideo(body.operation);
@@ -109,7 +113,7 @@ export class LearnVideos {
             : await videoProvider({ ...this.env, LEARN_VIDEO_PROVIDER: job.provider }).poll(job.ticket);
           if (result?.bytes) {
             job.storageKey = `learn-video-dev/${this.state.id}/${job.key}.mp4`;
-            await this.env.RUNS.put(job.storageKey, result.bytes, { httpMetadata: { contentType: 'video/mp4' } });
+            await learnMedia(this.env).put(job.storageKey, result.bytes, { httpMetadata: { contentType: 'video/mp4' } });
             // Never persist the clip itself in the job record.
             job.result = { provider: result.provider, generationId: result.generationId };
             job.status = 'ready';
@@ -127,14 +131,14 @@ export class LearnVideos {
             const bytes = new Uint8Array(length); let offset = 0;
             for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
             job.storageKey = `learn-video-dev/${this.state.id}/${job.key}.mp4`;
-            await this.env.RUNS.put(job.storageKey, bytes, { httpMetadata: { contentType: 'video/mp4' } });
+            await learnMedia(this.env).put(job.storageKey, bytes, { httpMetadata: { contentType: 'video/mp4' } });
             job.result = { ...result, videoUrl: undefined, duration: job.input.duration };
             job.status = 'ready';
           }
           if (Date.now() - job.startedAt > MAX_WAIT_MS && job.status !== 'ready') { job.uncertain = true; throw new Error('Generation has not completed within 30 minutes. Check provider history before generating again.'); }
         } catch (error) {
           // Transient polling/storage errors keep the existing ticket: no paid resubmission.
-          if (Date.now() - job.startedAt > MAX_WAIT_MS || /could not generate|returned no video|Invalid generated/.test(error.message)) { job.status = 'failed'; job.error = error.message; }
+          if (error.final || Date.now() - job.startedAt > MAX_WAIT_MS || /could not generate|returned no video|Invalid generated/.test(error.message)) { job.status = 'failed'; job.error = error.message; }
         }
       }
       await this.state.storage.put(key, job);

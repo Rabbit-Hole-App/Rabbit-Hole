@@ -1,55 +1,50 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { gapsFrom, nearestGap } from './learn-gap-rail.js';
+import { gapsFrom, nearestGap, nudgeBy, MIN_GAP } from './learn-gap-rail.js';
 
-const box = (y, h = 100) => ({ x: 0, y, w: 560, h });
+const box = (y, h = 100, x = 0) => ({ x, y, w: 560, h });
 
-test('one gap per adjacent pair, placed midway between the cards', () => {
-  const blocks = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
-  const bounds = { a: box(0), b: box(120), c: box(240) };
-  assert.deepEqual(gapsFrom(blocks, bounds), [
-    { index: 0, beforeId: 'b', y: 110 },
-    { index: 1, beforeId: 'c', y: 230 },
+test('one gap between each pair of stacked things, placed midway', () => {
+  assert.deepEqual(gapsFrom([box(0), box(120), box(240)]), [
+    { index: 0, top: 100, bottom: 120, y: 110 },
+    { index: 1, top: 220, bottom: 240, y: 230 },
   ]);
 });
 
-test('the gap carries the id of the card below it - that is the one holding the space', () => {
-  const [gap] = gapsFrom([{ id: 'a' }, { id: 'b' }], { a: box(0), b: box(120) });
-  assert.equal(gap.beforeId, 'b');
+test('everything counts, in any order: a chat card, a shape and a card make two gaps', () => {
+  const chat = box(0, 80), shape = { x: 700, y: 200, w: 120, h: 60 }, card = box(400, 100);
+  assert.deepEqual(gapsFrom([card, shape, chat]).map(gap => gap.y), [140, 330]);
 });
 
-test('a pair with no measurement yet produces no gap', () => {
-  const blocks = [{ id: 'a' }, { id: 'unmeasured' }, { id: 'c' }];
-  const bounds = { a: box(0), c: box(240) };
-  assert.deepEqual(gapsFrom(blocks, bounds), []);
+test('side-by-side things share a band - no gap between them', () => {
+  const left = box(0, 100), right = { x: 800, y: 50, w: 100, h: 100 }, below = box(300);
+  assert.deepEqual(gapsFrom([left, right, below]), [{ index: 0, top: 150, bottom: 300, y: 225 }]);
 });
 
-test('fewer than two cards has nothing to separate', () => {
-  assert.deepEqual(gapsFrom([{ id: 'a' }], { a: box(0) }), []);
-  assert.deepEqual(gapsFrom([], {}), []);
+test('overlapping or touching things make no gap', () => {
+  assert.deepEqual(gapsFrom([box(0), box(60)]), []);
+  assert.deepEqual(gapsFrom([box(0), box(100)]), []);
+  assert.deepEqual(gapsFrom([box(0)]), []);
+  assert.deepEqual(gapsFrom([]), []);
 });
 
-// Negative space overlaps the cards, which inverts their y order. Gap identity
-// has to stay pinned to array order or the rail jumps to a different gap
-// halfway through a press-and-hold on [-].
-test('overlapping cards keep gap identity in array order', () => {
-  const blocks = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
-  const bounds = { a: box(0), b: box(-60), c: box(180) };
-  const gaps = gapsFrom(blocks, bounds);
-  assert.deepEqual(gaps.map(gap => gap.index), [0, 1]);
-  assert.deepEqual(gaps.map(gap => gap.beforeId), ['b', 'c']);
-  assert.equal(gaps[0].y, 20); // (0 + 100 + -60) / 2, inverted and still between
+test('[+] pushes the full step; [-] pulls but stops short of touching', () => {
+  const gap = { top: 100, bottom: 300 };
+  assert.equal(nudgeBy(gap, 120), 120);
+  assert.equal(nudgeBy(gap, -120), -120);
+  assert.equal(nudgeBy({ top: 100, bottom: 160 }, -120), -(60 - MIN_GAP));
+  assert.equal(nudgeBy({ top: 100, bottom: 100 + MIN_GAP }, -120) === 0, true);
 });
 
 test('nearestGap picks the closest rail', () => {
-  const gaps = [{ index: 0, beforeId: 'b', y: 110 }, { index: 1, beforeId: 'c', y: 230 }];
+  const gaps = [{ index: 0, y: 110 }, { index: 1, y: 230 }];
   assert.equal(nearestGap(gaps, 120).index, 0);
   assert.equal(nearestGap(gaps, 200).index, 1);
   assert.equal(nearestGap(gaps, 170).index, 0); // ties break to the earlier gap
 });
 
 test('nearestGap gives up when the pointer is nowhere near a gap', () => {
-  const gaps = [{ index: 0, beforeId: 'b', y: 110 }];
+  const gaps = [{ index: 0, y: 110 }];
   assert.equal(nearestGap(gaps, 1000), null);
   assert.equal(nearestGap(gaps, 110 + 160), null); // the threshold itself is out
   assert.notEqual(nearestGap(gaps, 110 + 159), null);

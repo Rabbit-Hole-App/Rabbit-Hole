@@ -1,0 +1,10 @@
+{
+  // The small-parallel session's canvas notebook origin: the content-free
+  // JupyterLite site each canvas notebook card opens as its own workspace
+  // (docs/features/canvas-notebook.md). Separate from the Lesson view's
+  // small-learn-notebook-dev, which it never replaces.
+  "name": "small-learn-canvas-notebook-dev-small-parallel",
+  "compatibility_date": "2026-09-16",
+  "workers_dev": true,
+  "assets": { "directory": "../../.small/canvas-notebook-site" }
+}

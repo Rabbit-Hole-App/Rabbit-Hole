@@ -1,11 +1,17 @@
 import { workerRequest } from './learn-scene.js';
-import { canvasSeed } from './canvas-conversation.js';
+import { canvasSeed, threadTurns } from './canvas-conversation.js';
+import { validateLearnContext, validateCanvasTarget, appendCanvasTarget, appendOutline, readLearnSource } from './learn-ask-context.js';
 import { handleLearnCourse, generateCourseContent } from './learn-course.js';
-import { askStream, ASK_MODELS } from './ask.js';
-import { LEARN_SYSTEM, validateLessonSnapshot } from './learn-context.js';
+import { askStream, attachmentBlocks, readAskRequest, ATTACHMENT_LIMIT } from './ask.js';
+import { askModel, MESSAGE_LIMIT, MENTION_LIMIT } from './learn-models.js';
+import { LEARN_SYSTEM, LEARN_SNAPSHOT_SYSTEM, validateLessonSnapshot } from './learn-context.js';
 import { REPOSITORY_TOOLS, REPOSITORY_SYSTEM, repositoryTool } from './repository-context.js';
-import { readArxivPaper, paperDocument } from './arxiv.js';
-import { paperSelectionImage } from './learn-preview-review.js';
+import { readArxivPaper } from './arxiv.js';
+import { uploadedMediaAsImage } from './learn-media.js';
+import { uploadedPaperAsDocument } from './learn-paper.js';
+import { readWikipedia } from './learn-wiki.js';
+import { subscriptionOwnerRefusal, subscriptionCourseRefusal } from './subscription-transport.js';
+import { videoMomentTools } from './learn-youtube.js';
 
 const json=(body,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store'}});
 export function parseRepository(value) {
@@ -109,7 +115,9 @@ export async function repositoriesFetch(req,env,ctx){
   const db=env.LEARN_DB;
   try{
     if(!['GET','POST','PATCH','DELETE'].includes(req.method))return json({error:'Method not allowed'},405);
-    if(req.method!=='GET'&&(Number(req.headers.get('content-length'))>64000||(await req.clone().text()).length>64000))return json({error:'Request exceeds 64 KB'},413);
+    // A Learn ask may carry the composer's + file (attachmentBlocks bounds it at 4 MB); its JSON part keeps 64 KB.
+    const upload=req.method==='POST'&&/^\/api\/repositories\/[^/]+\/ask$/.test(path)&&req.headers.get('content-type')?.includes('multipart/form-data');
+    if(upload?Number(req.headers.get('content-length'))>ATTACHMENT_LIMIT+64000||(await req.clone().arrayBuffer()).byteLength>ATTACHMENT_LIMIT+64000:req.method!=='GET'&&(Number(req.headers.get('content-length'))>64000||(await req.clone().text()).length>64000))return json({error:upload?'Request exceeds 4 MB':'Request exceeds 64 KB'},413);
     if(path==='/api/repositories/branches'){
       const repo=parseRepository(url.searchParams.get('url'));
       return json(await repositoryMetadata(env,repo,{page:Math.max(1,Math.min(100,Number(url.searchParams.get('page'))||1))}));
@@ -129,6 +137,11 @@ export async function repositoriesFetch(req,env,ctx){
     if(!match)return json({error:'Not found'},404);
     const row=await db.prepare('SELECT * FROM repository_apps WHERE org=? AND name=?').bind(user.org,match[1]).first();if(!row)return json({error:'Repository not found in this workspace'},404);
     const app=repositoryApp(row,user),action=match[2];
+    // Dev subscription mode: the dev worker routes these here before its own owner gate.
+    if(env.SUBSCRIPTION_ONLY==='true'&&req.method==='POST'&&(action==='ask'||action==='learn-course')){
+      const refused=subscriptionOwnerRefusal(env,user)||(action==='learn-course'&&subscriptionCourseRefusal(env,(await req.clone().json().catch(()=>null))?.action));
+      if(refused)return refused;
+    }
     if(!action)return req.method==='GET'?json(app):json({error:'Repository updates use the refresh action'},405);
     if(['snapshot'].includes(action)&&req.method!=='GET'||['file','ask'].includes(action)&&req.method!=='POST')return json({error:'Method not allowed'},405);
     if(action==='refresh'){
@@ -166,10 +179,12 @@ export async function repositoryThreads(req,db,user,app,id){
   const {results}=await db.prepare('SELECT m.role,m.content,g.graph_json FROM messages m LEFT JOIN repository_message_graphs g ON g.message_id=m.id WHERE m.thread_id=? ORDER BY m.id').bind(id).all();return json({id,messages:results.map(({graph_json,...m})=>({...m,...(graph_json?{graph:JSON.parse(graph_json)}:{})})),commit:thread.commit_sha});
 }
 async function repositoryAsk(req,env,user,app){
-  const body=await req.json();
+  const {body,file}=await readAskRequest(req);
+  if(file&&JSON.stringify(body).length>64000)return json({error:'Request exceeds 64 KB'},413);
   const seed=canvasSeed(body);
-  if(typeof body.message!=='string'||!body.message.trim()||body.message.length>4000)throw Error('Question must be 1–4000 characters');
+  if(typeof body.message!=='string'||!body.message.trim()||body.message.length>MESSAGE_LIMIT)throw Error('Question must be 1–4000 characters');
   if(body.lesson_snapshot)validateLessonSnapshot(body.lesson_snapshot);
+  const videoContext=validateLearnContext(body,'learn'),canvasTarget=validateCanvasTarget(body.canvas_target,'learn');
   const db=env.LEARN_DB;
   let thread=body.thread_id?await db.prepare('SELECT * FROM threads WHERE id=? AND org=? AND user=? AND scope_ref=?').bind(body.thread_id,user.org,user.email,app.name).first():null;
   if(body.thread_id&&!thread)return json({error:'Chat not found'},404);
@@ -179,7 +194,12 @@ async function repositoryAsk(req,env,user,app){
   const selected=body.repository_context?.nodeId?repositoryTool(snapshot,'get_relationships',{nodeId:body.repository_context.nodeId}):null;
   const selectedCode=body.repository_context?.range?repositoryTool(snapshot,'read_source',body.repository_context.range):null;
   let graphView=null;
+  // The video-moment tools ride here too: a repository canvas is the main
+  // Learn surface, and the show_video bargain is the same on it - a window
+  // only from passages read this answer (or a trusted hot candidate).
+  const videos=videoMomentTools(env,user.org);
   const runTool=async(name,input)=>{
+    const video=await videos.run(name,input);if(video!==undefined)return video;
     const result=repositoryTool(snapshot,name,input);
     if(['explain_symbol','get_relationships','find_connection_path','query_graph'].includes(name)&&result.edges&&(!result.status||result.status==='found')){
       const nodes=result.nodes||(result.node?[result.node,...result.neighbors]:[]);
@@ -189,20 +209,27 @@ async function repositoryAsk(req,env,user,app){
   };
   const question=selectedCode?`${body.message}\n\nSelected code: ${selectedCode.path}:${selectedCode.start}-${selectedCode.end} (commit ${commit})`:body.message;
   const extraBlocks=[],papers=[];
-  if(body.paper_context){
-    const page=body.paper_context.page;
-    if(!Number.isInteger(page)||page<1||page>100)throw Error('Invalid paper page');
-    const paper=await readArxivPaper(body.paper_context.id);papers.push(paper);extraBlocks.push(paperDocument(paper));
-    if(body.paper_context.selection)extraBlocks.push(paperSelectionImage(body.paper_context.selection));
+  // A file from the composer's +: an image or PDF as a block, anything else as text.
+  if(file)extraBlocks.push(...(await attachmentBlocks(file)).blocks);
+  // @-mentioned repositories in this workspace ride as their overview (files and
+  // most connected symbols); at most three. A mention not read says so, as on chat asks.
+  const mentioned=[],notRead=[];
+  for(const [index,name] of (Array.isArray(body.mentions)?body.mentions:[]).filter(n=>typeof n==='string'&&n!==app.name).entries()){
+    const row=index<MENTION_LIMIT?await db.prepare('SELECT * FROM repository_apps WHERE org=? AND name=?').bind(user.org,name).first():null;
+    if(!row?.commit_sha){notRead.push(`Mentioned app ${name}: not available to this chat${index<MENTION_LIMIT?'':` (a question reads at most ${MENTION_LIMIT} mentioned apps)`}.`);continue;}
+    mentioned.push({name,...repositoryTool(await repositorySnapshot(env,repositoryApp(row,user)),'get_repo_overview')});
   }
+  // The one attached source (paper, image, article or watched video) as chat asks read it; the
+  // outline and article are context text only here, with no outline or Wikipedia tools.
+  let source;
+  try{source=await readLearnSource(env,body,app,{extraBlocks,papers,foundVideos:videos.found,videoContext,wikiTool:false},{readArxivPaper,uploadedPaperAsDocument,uploadedMediaAsImage,readWikipedia});}
+  catch(error){return json({error:error.message},502);}
   const id=thread?.id||`repochat-${crypto.randomUUID()}`;
   if(!thread)await db.prepare('INSERT INTO threads(id,org,user,scope_ref,commit_sha,title) VALUES(?,?,?,?,?,?)').bind(id,user.org,user.email,app.name,commit,body.message.slice(0,120)).run();
-  if(seed.length)await db.batch(seed.map(turn=>db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?)').bind(id,turn.role,turn.content)));
-  const {results}=await db.prepare('SELECT role,content FROM messages WHERE thread_id=? ORDER BY id DESC LIMIT 10').bind(id).all();
-  await db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?)').bind(id,'user',question).run();
-  return askStream(env,JSON.stringify({repo:app.repo,commit,selected,selectedCode,lesson:body.lesson_snapshot||null,paper:body.paper_context?{id:body.paper_context.id,page:body.paper_context.page}:null}),results.reverse(),question,
-    async answer=>{const message=await db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?) RETURNING id').bind(id,'assistant',answer).first();if(graphView)await db.prepare('INSERT INTO repository_message_graphs(message_id,graph_json) VALUES(?,?)').bind(message.id,JSON.stringify(graphView)).run();},{threadId:id,commit},extraBlocks,null,ASK_MODELS[body.model]||null,null,
-    `${LEARN_SYSTEM}\n${REPOSITORY_SYSTEM}`,{papers,tools:REPOSITORY_TOOLS,runTool,getGraphView:()=>graphView});
+  const history=await threadTurns(db,id,seed,question);
+  return askStream(env,appendCanvasTarget(appendOutline(JSON.stringify({repo:app.repo,commit,selected,selectedCode,lesson:body.lesson_snapshot||null,paper:null,...source,...(mentioned.length?{mentionedRepositories:mentioned}:{})})+notRead.map(line=>`\n\n${line}`).join(''),body.outline),canvasTarget),history,question,
+    async answer=>{const message=await db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?) RETURNING id').bind(id,'assistant',answer).first();if(graphView)await db.prepare('INSERT INTO repository_message_graphs(message_id,graph_json) VALUES(?,?)').bind(message.id,JSON.stringify(graphView)).run();},{threadId:id,commit},extraBlocks,null,askModel(body.model),null,
+    body.lesson_snapshot?LEARN_SNAPSHOT_SYSTEM:LEARN_SYSTEM,{papers,system:[REPOSITORY_SYSTEM,videos.system].filter(Boolean).join('\n'),tools:[...REPOSITORY_TOOLS,...videos.tools],runTool,getGraphView:()=>graphView,shownVideo:videos.shown,org:user.org});
 }
 
 export async function repositoryEvidence(env,app,input){

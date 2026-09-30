@@ -92,6 +92,9 @@ Deployed to regular Small dev as `3ca0d796-6510-425c-85ec-5169a30ad84c`.
 This increment extends the original dev canvas explanation. Live and BYOC
 remain unchanged. Model calls use Anthropic API billing, not a chat subscription.
 
+- **Removed 2026-09-29:** the **Explain on canvas** button under Learn chat
+  answers, which drew on the earlier lesson board. What follows describes it as
+  it was.
 - Completed Learn chat answers offer **Explain on canvas**, including general
   questions before a lesson starts and answers reopened from History. A blank
   canvas gets a freeform explanation context; no demo prerequisite. New explanations
@@ -261,6 +264,11 @@ dialog and restores the bundled original plus a fresh kernel. Edits last until
 reset or leaving/reloading Learn; downloading retains a copy. No server execution,
 new model calls, notebook ingestion, or cross-device persistence was added.
 See [notebook build/deployment](../../packages/web/notebook/README.md).
+
+The canvas also takes real notebooks: **Insert → Notebook** adds a card that is
+its own JupyterLite workspace (notebooks, text and code files, folders, a Files
+drawer), on a separate canvas notebook site. See
+[canvas notebook](canvas-notebook.md).
 
 Practice contains three authored quiz questions with explanations and links
 back to lesson pages. Five flashcards flip on click (keyboard accessible;
@@ -645,6 +653,10 @@ for drawing, undo, separate chat history, demo animation, and replay; screenshot
 review confirmed the formula, curve, labels, and chat fit the existing layout.
 Published to regular dev as `6ed0a1d7-db74-4dcf-9163-786b149b23ad`.
 Review at `/apps/yolo-s3-job?tab=learn`; live and AWS BYOC remain unchanged.
+Since learn-cleanup U2 (2026-09-29) no Learn chat shows this demo: it needs the
+parked tldraw player, so the pill was always disabled and typing its prompt sent
+nothing. The pinned-selection Asking about chip and Clear selected context are
+gone for the same reason. The My notes button now toggles back to the canvas.
 
 - The header reads **Learn Agent** on the same row as **History** and **+ New chat**.
 - `POST /api/learn/ask` uses existing app context and model handling, but creates
@@ -1450,3 +1462,97 @@ Verified on dev version `58d8147d-c64f-496b-8d42-0a13ea8d8dbf`: playback,
 finish-before-next, scrubbing, auto-advance, replay preserving learner text,
 incorrect/correct retry, reload, source highlight and valid selection snapshots.
 The selection reply was mocked to avoid a paid model call. No generated assets.
+
+## Learn: Jev side-by-side grading (dev)
+
+Spec: [jev-grading.md](jev-grading.md). Shadow-only: Opus stays the learner-visible
+grader and Jev can never delay, replace or mask it.
+
+- Third parties: TypeSafe (Jev, `typesafe-ai/jev`) reached through the Vercel AI
+  Gateway, under the option-B data boundary in jev-grading.md.
+- Clone: `small-cp-dev-small-parallel`, version
+  `89b3dc3d-dc3a-48cc-8ac3-b11e8edc9338` (commit 1655e85).
+- `learn_grades` was created on `small-learn-dev`. `VERCEL_TYPESAFE_API_KEY` and
+  `LEARN_BENCH_SECRET` are set on the clone; no other secrets were added.
+- Neither live `small-cp` nor BYOC was deployed.
+
+**benchmark-v1, 2026-09-28** (`tests/evals/learn-grade/results/benchmark-v1/`):
+- Run `-a` is void: all 72 Jev calls returned `Jev 403: Free tier users do not
+  have access to this model` until the Vercel team had paid credits. Opus 72/72.
+- Run `-b`, 72 cases (36 challenge, 36 explain_back):
+  - Verdict accuracy: Jev 69/72 (95.8%, Wilson 88.5-98.6), Opus 72/72 (100%).
+    Challenge 35/36 vs 36/36 (-2.8 points, 3-point rule met); explain_back
+    34/36 vs 36/36 (-5.6 points, missed).
+  - All 3 Jev misses are `Jev timed out after 3000 ms`; every Jev grade that
+    returned matched the gold verdict.
+  - Per-idea F1 1.000 at 0.5 and 0.7 (230 items). Brier 0.0022. Injection graded
+    good 0/6.
+  - Latency: Jev p50 251 ms, p95 424 ms (above the 400 ms holdout condition);
+    Opus p50 4487 ms, p95 7362 ms.
+  - Jev cost per grade $0.0000260, computed as input tokens × the published
+    $0.000000042/token; the gateway reported the same mean. Opus cost is not
+    measured.
+- Spot-check: the 3 disagreements (all Jev timeouts) plus the 12 lowest-margin
+  Jev grades, reviewed by the owner. 12 approved as labeled; the answers of
+  gd-plain_words, lm-rambling_correct and lm-paraphrased were reworded so their
+  gold is true by construction (causal attention; gradient magnitude as well as
+  direction; vocabulary tokens, not words). Run `-b`'s results file is kept
+  unchanged as the record of what ran.
+- Opus scoring 100% means v1 does not separate the graders on verdicts; the
+  timeouts and p95 are the open items. No switch.
+
+On benchmark-v1-2026-09-28-b, every Jev verdict that returned matched the gold
+verdict; the observed accuracy gap came from three timeouts. D1 shows
+`jev_ms = 3000` for all three: each first request timed out, with no 429/529
+retry before it.
+The approved contract is unchanged: 3 s per attempt, no timeout retry, p95 under
+400 ms, and a Jev error counts as wrong in the 3-point rule. A 5 s /
+retry-on-timeout transport may be tried later as a separate experiment; it was
+briefly committed (51630a6) and reverted before any deploy or run. The bench and
+report now count timeouts, 429/529 retries and grades where Jev was
+unavailable and Opus stood alone, as observations. `benchmark-v1.1-draft.json` (v1 plus 24 harder cases, each with
+`hard_because`) waits for owner review and is not run.
+
+**benchmark-v1-2026-09-28-c** (post-spot-check run, with the three reworded
+answers; not a byte-for-byte replay of `-b`). Clone version
+`53b0bb7e-3974-46a4-aad9-d178d4aa9572`, 3 s per attempt, no retry after a timeout:
+- Jev 68/72: challenge 32/36, explain_back 36/36. Opus 71/72: it graded
+  `nt-right_plus_false` good and missed the planted false claim.
+- Jev unavailable (Opus stood alone) 4/72: `nt-one_idea`, `nt-injection`,
+  `sm-one_idea`, `sm-right_plus_false`, each a first-request 3 s timeout.
+  0 429/529 retries. The three cases that timed out in `-b` all returned.
+- 3-point rule: challenge missed (-8.3 points, all from the timeouts),
+  explain_back met (0.0).
+- Jev latency over 68 returned: p50 323 ms, p90 852 ms, p95 1,120 ms, max 1,854 ms.
+- Per-idea F1 1.000 at 0.7 (226 items); injection graded good 0/6; cost
+  $0.0000261 per grade.
+
+Across the two successful development runs, every Jev verdict that returned
+matched the gold verdict. Failures were variable first-request timeouts on
+different cases, indicating a transport/provider tail-latency problem rather
+than case-specific grading errors. No more gateway reruns; the next experiment
+is a transport-only A/B against direct TypeSafe, pending approval. Gate F stays
+closed.
+
+**transport-ab-2026-09-28-a** (clone `f8e231c3-56b0-499a-9bf9-5796c869b25e`,
+144 Jev calls, no Opus; `tests/evals/learn-grade/results/transport-ab/`).
+On transport-ab-2026-09-28-a, direct TypeSafe (jev-1.13.0) and Vercel Gateway
+produced identical verdict accuracy (72/72) and per-idea F1 (1.0). Direct
+TypeSafe was substantially faster: p50 88 ms vs 251 ms and p95 193 ms vs 420 ms.
+Neither transport timed out in this run, so the earlier intermittent gateway
+timeout behavior remains unproven for direct TypeSafe.
+
+- No grading or switch criteria changed: 3 s per attempt, no timeout retry,
+  p95 under 400 ms, 0.7/0.3 thresholds, verdict-v1, errors count as wrong.
+- Direct privacy boundary checked from TypeSafe's documents and its subprocessor
+  list: compatible with option B, one third party fewer (see jev-grading.md,
+  Data boundary).
+
+**Direct TypeSafe (jev-1.13.0) is the default dev shadow-grading transport as of
+this change (2026-09-28). Vercel Gateway remains diagnostic-only. Jev is still
+shadow-only; no learner-facing switch has occurred.** Chosen for the same
+grading behavior, a pinned model and much better latency; the intermittent
+timeout question is not resolved for direct. `TYPESAFE_API_KEY` is set on this
+clone only. Not run: the 432-call A/B, benchmark-v1.1-draft, further gateway
+benchmarks, the holdout (sealed), a switch evaluation. Nothing reached live
+`small-cp`, the live database or BYOC.

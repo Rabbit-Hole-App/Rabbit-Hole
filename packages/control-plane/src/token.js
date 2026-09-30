@@ -38,6 +38,13 @@ export async function sha256(text) {
   return b64u(await crypto.subtle.digest('SHA-256', enc.encode(text)));
 }
 
+// Base64 of a byte array for model content blocks, chunked: String.fromCharCode(...big) overflows.
+export function base64(bytes) {
+  let s = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+
 export function randomHex(bytes) {
   const a = crypto.getRandomValues(new Uint8Array(bytes));
   return [...a].map((b) => b.toString(16).padStart(2, '0')).join('');

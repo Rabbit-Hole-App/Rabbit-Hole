@@ -1,4 +1,4 @@
-import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
+import { getDocument, GlobalWorkerOptions, TextLayer } from 'pdfjs-dist';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { wsHeaders } from './api.js';
 GlobalWorkerOptions.workerSrc = workerUrl;
@@ -34,4 +34,4 @@ export async function preparePaperFigures(plan, app) {
   } finally { await Promise.all(tasks.map(task => task.destroy())); }
 }
 
-export { getDocument };
+export { getDocument, TextLayer };

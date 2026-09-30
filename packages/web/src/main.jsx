@@ -84,8 +84,17 @@ if (switched) {
   setWs(switched.ws);
   window.history.replaceState(null, '', window.location.pathname + switched.search);
 }
+// /b/<token>: a shared Learn board, open to anyone the link allows.
+const SharedBoardPage = lazy(() => import('./SharedBoardPage.jsx'));
+const SHARED_BOARD = /^\/b\/([A-Za-z0-9_-]{20,64})$/;
 
 function Root() {
+  const sharedBoard = window.location.pathname.match(SHARED_BOARD);
+  if (sharedBoard) return <Suspense fallback={null}><SharedBoardPage token={sharedBoard[1]} /><Toasts /></Suspense>;
+  return <AppRoot />;
+}
+
+function AppRoot() {
   // PrivateAuthGate consumes Cognito callbacks before normalizing app routes.
   // /dash aliases /apps (see the control-plane cache note). No router dep: routes.js.
   const fixed = canonicalPath(window.location.pathname, learnPreview);

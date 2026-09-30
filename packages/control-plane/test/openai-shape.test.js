@@ -36,6 +36,12 @@ test('toOpenAI: image blocks become image_url data uris', () => {
   assert.equal(parts[1].text, 'what is this');
 });
 
+// models-18: a Pexels photo (inspectImage) is a url image; it must not become data:undefined.
+test('toOpenAI: url image blocks keep their url', () => {
+  const o = toOpenAI({ messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'url', url: 'https://images.pexels.com/photos/1/photo.jpeg' } }, { type: 'text', text: 'check' }] }] }, 'm');
+  assert.equal(o.messages[0].content[0].image_url.url, 'https://images.pexels.com/photos/1/photo.jpeg');
+});
+
 test('fromOpenAI: text answer', () => {
   const m = fromOpenAI({ choices: [{ finish_reason: 'stop', message: { content: 'hello' } }], usage: { total_tokens: 3 } });
   assert.deepEqual(m.content, [{ type: 'text', text: 'hello' }]);

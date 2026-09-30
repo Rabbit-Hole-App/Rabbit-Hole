@@ -617,7 +617,8 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
   if (learnPreview && (tab === 'learn' || /^canvas-[a-f0-9]{8}$/.test(slug)) && !app && !error) return <LearnLoading />;
   if (learnPreview && app?.kind === 'repository' && !error) return <Suspense fallback={null}><RepositoryPage key={app.name} app={app} catalog={catalog?.apps} /></Suspense>;
   // D7: only a canvas asks through LEARN_DB (dev-worker.js canvasAskSeam). A job or server's Learn asks
-  // would reach apiAsk on the live D1, so the preview never mounts Learn for them.
+  // would reach apiAsk on the live D1, so the preview never mounts Learn for them, and the dev worker
+  // refuses them (canvases.js refuseLiveLearnAsk).
   // A canvas opens Learn directly, behind its not-in-this-browser gate (WP6).
   if (learnPreview && app?.kind === 'canvas' && !error && !runId) return <Suspense fallback={<LearnLoading />}><CanvasPage key={JSON.stringify([app.email, app.org, app.name])} app={app} project={catalog?.apps?.find((p) => p.name === app.project)} /></Suspense>;
   return (

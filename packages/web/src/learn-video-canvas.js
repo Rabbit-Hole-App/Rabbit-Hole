@@ -87,7 +87,8 @@ export function videoCanvas(editor, app, getLesson, restoreLesson, { kind = 'vid
     starting.set(shapeId, { operation, snapshot });
     editor.updateShape({ id: shapeId, type: shape.type, props: { status: isScene ? 'queued' : 'generating', error: '' } });
     try {
-      const result = await post({ operation, lessonId: snapshot.lessonId, page: pageKey(editor.getPage(shape.parentId)), retry });
+      // Only reached from the shape's Generate button: the learner confirmed.
+      const result = await post({ operation, lessonId: snapshot.lessonId, page: pageKey(editor.getPage(shape.parentId)), retry, confirmed: true });
       const video = result[collection].find(v => v.id === result.placementId);
       video.position = position(editor.getShape(shapeId) || shape);
       await post({ action: 'place', id: video.id, position: video.position });
@@ -98,20 +99,21 @@ export function videoCanvas(editor, app, getLesson, restoreLesson, { kind = 'vid
       if (!disposed && editor.getShape(shapeId)) editor.updateShape({ id: shapeId, type: 'learn-video-pending', props: { status: 'failed', error: error.message } });
     } finally { starting.delete(shapeId); }
   };
-  const retry = event => {
+  // Generate on a proposed shape; a retry is a failed job proposed again.
+  const generate = event => {
     const shape = editor.getShape(event.detail);
     if (!shape || !!shape.meta.sceneOperation !== isScene) return;
     const video = [...known.values()].find(v => v.shapeId === shape.id);
-    start(shape.id, video?.operation || (isScene ? shape.meta.sceneOperation : shape.meta.videoOperation), { lessonId: video?.lessonId || shape.meta.lessonId }, true);
+    start(shape.id, video?.operation || (isScene ? shape.meta.sceneOperation : shape.meta.videoOperation), { lessonId: video?.lessonId || shape.meta.lessonId }, shape.meta.retry === true);
   };
   const unlisten = editor.store.listen(() => {
     if (applying) return;
     for (const video of known.values()) if (!editor.getShape(video.shapeId)) video.hidden = true;
     clearTimeout(saveTimer); saveTimer = setTimeout(savePositions, 500);
   }, { source: 'user', scope: 'document' });
-  editor.getContainer().addEventListener('learn-video-retry', retry);
+  editor.getContainer().addEventListener('learn-video-generate', generate);
   refresh();
   return { start, sync() {
     for (const video of known.values()) if (!video.hidden) render(video);
-  }, dispose() { disposed = true; clearTimeout(timer); clearTimeout(saveTimer); unlisten(); editor.getContainer().removeEventListener('learn-video-retry', retry); savePositions(); } };
+  }, dispose() { disposed = true; clearTimeout(timer); clearTimeout(saveTimer); unlisten(); editor.getContainer().removeEventListener('learn-video-generate', generate); savePositions(); } };
 }

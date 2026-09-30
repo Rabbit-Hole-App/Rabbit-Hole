@@ -62,12 +62,14 @@ export function scoreWindows(question, windows) {
 // The passages one model call will choose from: top windows across all
 // videos, capped per video so one long lecture cannot crowd out the field,
 // each widened with a little surrounding context for the window-tightening.
-export function topPassages(question, videos, { top = 14, perVideo = 3, contextLines = 2 } = {}) {
+export async function topPassages(question, videos, { top = 14, perVideo = 3, contextLines = 2, score = scoreWindows } = {}) {
   const candidates = [];
   for (const video of videos) {
     if (!video.lines?.length) continue;
     const windows = cutWindows(video.lines);
-    const scores = scoreWindows(question, windows);
+    // The one function phase 3 swaps: lexical by default, bge-m3 when the
+    // binding exists. Nothing around it moves.
+    const scores = await score(question, windows);
     windows.forEach((entry, index) => candidates.push({ video, window: entry, score: scores[index] }));
   }
   candidates.sort((a, b) => b.score - a.score);

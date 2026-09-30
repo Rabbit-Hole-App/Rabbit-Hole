@@ -462,18 +462,27 @@ export function ConfirmDialog({ title, body, confirmLabel = 'Delete', confirmVar
 
 // ─── Menu - white popover, shadow-pop, 28px items. Closes on outside click. ───
 export function Menu({ open, onClose, className, style, portal = false, children }) {
+  const box = useRef(null);
   useEffect(() => {
     if (!open) return;
-    const close = () => onClose();
+    // pointerdown in the capture phase, not mousedown: the canvas surface
+    // preventDefaults its pointer presses (drawing, panning), which suppresses
+    // the compatibility mousedown - a click on the canvas would never close
+    // the menu. Capture also beats any stopPropagation between here and the
+    // press; presses inside the menu are told apart by containment instead.
+    const close = event => { if (event?.target && box.current?.contains(event.target)) return; onClose(); };
     // defer so the opening click doesn't immediately close it
-    const t = setTimeout(() => document.addEventListener('mousedown', close), 0);
+    const t = setTimeout(() => document.addEventListener('pointerdown', close, true), 0);
     // a portaled menu is pinned to viewport coords - scrolling under it must close it
     if (portal) window.addEventListener('scroll', close, true);
-    return () => { clearTimeout(t); document.removeEventListener('mousedown', close); if (portal) window.removeEventListener('scroll', close, true); };
+    const escape = event => { if (event.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', escape);
+    return () => { clearTimeout(t); document.removeEventListener('pointerdown', close, true); window.removeEventListener('keydown', escape); if (portal) window.removeEventListener('scroll', close, true); };
   }, [open]);
   if (!open) return null;
   const node = (
     <div
+      ref={box}
       onMouseDown={(e) => e.stopPropagation()}
       style={style}
       className={cn(portal ? 'fixed z-50' : 'absolute z-20', 'w-60 rounded-md bg-white p-1 shadow-pop animate-[fade-in_100ms_ease-out]', className)}

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ExternalLink, X } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Highlighter, Lock, LockOpen, X } from 'lucide-react';
 import { wsHeaders } from './api.js';
 import { sanitizeArticle, sectionInView } from './learn-wiki-html.js';
+import { quoteFromRange, locateQuote, rangeFromOffsets, containsOffset, paintHighlights } from './learn-wiki-highlights.js';
 
 // One article, scrolled. Used twice: as the right-hand reader and as a canvas
 // card, the way LearnPaper is.
@@ -11,7 +12,11 @@ import { sanitizeArticle, sectionInView } from './learn-wiki-html.js';
 // and it is the only way to know which section the learner is reading - an
 // iframe never says.
 
-export default function LearnWiki({ app, article, openAt = 0, onNavigate, onSection, onSelect, onClose = null, compact = false }) {
+// Card-only extras, all optional: `locked` stops the article scrolling (the
+// wheel pans the canvas instead); `highlights` + `onHighlights` are the
+// learner's yellow marks, and `highlighting` is highlighter mode.
+export default function LearnWiki({ app, article, openAt = 0, onNavigate, onSection, onSelect, onClose = null, compact = false,
+  locked = null, onLock = null, highlights = null, onHighlights = null, highlighting = false, onHighlighting = null, paintKey = null }) {
   const [page, setPage] = useState(null);
   const [error, setError] = useState('');
   const [current, setCurrent] = useState(article);
@@ -104,6 +109,45 @@ export default function LearnWiki({ app, article, openAt = 0, onNavigate, onSect
     body.current.scrollTop = 0;
   }, [page, openAt]);
 
+  const articleRoot = () => body.current?.firstElementChild || null;
+  const mine = (highlights || []).filter(entry => entry.title === current.title);
+  const minesKey = JSON.stringify(mine);
+  useEffect(() => {
+    if (!paintKey) return;
+    const root = articleRoot();
+    const paint = () => {
+      const text = root?.textContent || '';
+      paintHighlights(paintKey, mine.map(quote => { const span = locateQuote(text, quote); return span && rangeFromOffsets(root, span.start, span.end); }).filter(Boolean));
+    };
+    paint();
+    // React may replace the article's nodes; the ranges would then point at
+    // nothing, so repaint from the quotes when the subtree changes.
+    const observer = root ? new MutationObserver(paint) : null;
+    observer?.observe(root, { childList: true, subtree: true, characterData: true });
+    return () => { observer?.disconnect(); paintHighlights(paintKey, []); };
+  }, [page, minesKey, paintKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Highlighter mode: a selection becomes a highlight; a click on one removes it.
+  const highlightSelection = () => {
+    const root = articleRoot();
+    const selection = window.getSelection?.();
+    if (!root || !selection?.rangeCount) return;
+    const range = selection.getRangeAt(0);
+    if (range.collapsed) {
+      if (!root.contains(range.startContainer)) return;
+      const before = document.createRange();
+      before.setStart(root, 0); before.setEnd(range.startContainer, range.startOffset);
+      const offset = before.toString().length, text = root.textContent;
+      const hit = mine.find(quote => containsOffset(locateQuote(text, quote), offset));
+      if (hit) onHighlights?.((highlights || []).filter(entry => entry !== hit));
+      return;
+    }
+    const quote = quoteFromRange(root, range);
+    if (!quote) return;
+    selection.removeAllRanges();
+    onHighlights?.([...(highlights || []), { title: current.title, ...quote }]);
+  };
+
   const go = useCallback((next, anchor = null) => {
     // Read the offset now, not inside the updater: by the time React runs that,
     // the article has been replaced and this element is gone, so every back
@@ -145,6 +189,7 @@ export default function LearnWiki({ app, article, openAt = 0, onNavigate, onSect
   // host, which replaced this subtree between mouseup and click - so the click
   // event never fired and no link was followable.
   const selected = () => {
+    if (highlighting) { highlightSelection(); return; }
     const text = window.getSelection?.().toString().trim().slice(0, 2000) || null;
     if (text === reported.current) return;
     reported.current = text;
@@ -159,17 +204,32 @@ export default function LearnWiki({ app, article, openAt = 0, onNavigate, onSect
         <h3 className="truncate text-sm font-medium">{page?.displayTitle || current.title.replace(/_/g, ' ')}</h3>
         <p className="truncate text-xs text-ink-2">Wikipedia{back.length ? ` · ${back.length} back` : ''}</p>
       </div>
+      {onHighlighting && <button type="button" aria-label="Highlighter" aria-pressed={highlighting}
+        title={highlighting ? 'Highlighter on - select text to highlight it, click a highlight to remove it' : 'Highlight text'}
+        onClick={() => onHighlighting(!highlighting)}
+        className={`relative rounded border p-1 ${highlighting ? 'border-yellow-400 bg-yellow-200 text-ink' : 'border-line hover:bg-hover'}`}>
+        <Highlighter size={14} />
+        {mine.length > 0 && <span className="absolute -top-1.5 -right-1.5 min-w-3.5 rounded-full bg-yellow-400 px-1 text-[9px] leading-3.5 font-semibold text-ink">{mine.length}</span>}
+      </button>}
+      {onLock && <button type="button" aria-label={locked ? 'Unlock scrolling' : 'Lock scrolling'} aria-pressed={!!locked}
+        title={locked ? 'Scrolling locked - the wheel moves the canvas. Click to unlock.' : 'Lock scrolling so the wheel moves the canvas'}
+        onClick={() => onLock(!locked)}
+        className={`rounded border p-1 ${locked ? 'border-ink bg-ink text-white' : 'border-line hover:bg-hover'}`}>
+        {locked ? <Lock size={14} /> : <LockOpen size={14} />}
+      </button>}
       <a href={page?.url || `https://en.wikipedia.org/wiki/${encodeURIComponent(current.title)}`} target="_blank" rel="noreferrer"
         title="Open on Wikipedia" aria-label="Open on Wikipedia" className="rounded border border-line p-1 hover:bg-hover"><ExternalLink size={14} /></a>
       {onClose && <button type="button" onClick={onClose} title="Close article" aria-label="Close article" className="rounded border border-line p-1 hover:bg-hover"><X size={14} /></button>}
     </header>
     {error && <p role="alert" className="p-3 text-sm">{error}</p>}
-    {!page && !error && <p role="status" className="p-3 text-sm">Opening article...</p>}
+    {!page && !error && <p role="status" className="p-3 text-sm">Opening article</p>}
     {/* data-scroll: without it the canvas wheel handler pans the board instead
         of scrolling the article inside a card. */}
-    {page && <div ref={body} data-scroll onScroll={scrolled} onClick={click} onMouseUp={selected} onKeyUp={selected}
+    {/* Locked: no data-scroll and no overflow scroll, so the wheel pans the
+        canvas and the article holds still where the learner left it. */}
+    {page && <div ref={body} data-scroll={locked ? undefined : ''} onScroll={scrolled} onClick={click} onMouseUp={selected} onKeyUp={selected}
       onKeyDown={event => { if (event.key === 'Enter') click(event); }}
-      className={`wiki-article relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-white px-4 py-3 ${compact ? 'text-[13px]' : 'text-sm'}`}>
+      className={`wiki-article relative min-h-0 flex-1 overflow-x-hidden bg-white px-4 py-3 ${locked ? 'overflow-y-hidden' : 'overflow-y-auto'} ${highlighting ? 'cursor-text' : ''} ${compact ? 'text-[13px]' : 'text-sm'}`}>
       {/* The sanitizer is the boundary: an allowlist over tags, attributes and
           href schemes, so no style attribute, no handler and no scheme but
           https reaches this. See learn-wiki-html.js. */}

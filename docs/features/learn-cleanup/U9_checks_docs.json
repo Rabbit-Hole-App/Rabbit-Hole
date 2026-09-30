@@ -1,0 +1,588 @@
+{
+ "findings": [
+  {
+   "id": "inert-11",
+   "title": "e2e/canvas-conversations-check.mjs asserts pre-sheet behavior and card chrome that no longer exists",
+   "status": "still_present",
+   "evidence": [
+    ":26-27 `await dock.fill('Alpha topic'); await dock.press('Enter'); const a = canvas.locator('[data-chat-block]').nth(0);`. A plain ask now answers in the sheet: ask.jsx:444 `const panelAsk = sheetMode && !canvasTarget;` and :446 `const exchange = panelAsk ? null : onExchange;`.",
+    ":32 `expect(requests[1].thread_id).toBeNull();` no longer holds: the sheet reuses its thread (ask.jsx:445, set at :576).",
+    ":33, 40, 44, 77 click 'Reply in this block', which no longer exists. The card offers 'Continue convo' (AdaptiveCanvas.jsx:238-243, title 'Continue this conversation'), shown only when the card is selected and done (AdaptiveCanvas.jsx:228).",
+    ":63, 83 use 'Connect right'/'Connect left'. Ports are now top/bottom: AdaptiveCanvas.jsx:185 `['top', 'bottom'].map(side => ... aria-label={`Connect ${side}`}`.",
+    "Still valid: per-card canvas_seed and thread reuse, 'Close block composer' (AdaptiveCanvas.jsx:260), 'Resize chat block' (:189), 'Color #7c3aed' (:911), 'Zoom out' (:2804), [data-connection]; the dock placeholder still starts 'Ask about' (LearnPage.jsx:987).",
+    "Line 7 defaults SMALL_BASE to the shared small-cp-dev. docs/features/coaching.md:32-36 cites this file as the real dev browser check."
+   ],
+   "files_and_callers": [
+    "packages/web/e2e/canvas-conversations-check.mjs:7, 26-33, 40, 44, 63, 77, 83",
+    "packages/web/src/ask.jsx:444-446, 576; packages/web/src/AdaptiveCanvas.jsx:185, 228-243, 1317-1323",
+    "docs/features/coaching.md:32-36"
+   ],
+   "smallest_change": "Tests only. Make the two plain asks assert the sheet ([data-chat-sheet]) and requests[1].thread_id === 'test-thread-1'. Create cards A and B with [data-add-to-canvas] (insertChat, AdaptiveCanvas.jsx:1317-1323, keeps question and answer, so canvas_seed is unchanged and request indexes do not change). Select the card, then click Continue convo instead of 'Reply in this block'; use Connect bottom/top instead of right/left. Keep every other assertion; default the base to the session clone.",
+   "change_type": "docs_or_tests_only",
+   "needs_user_decision": false,
+   "tests_to_add": "Run `node e2e/canvas-conversations-check.mjs` with SMALL_BASE set to the session clone (model stubbed, no spend). It fails on the baseline at the first [data-chat-block] wait and should pass after the update.",
+   "snapshot_vs_baseline": "File identical on both. Stale since 490c171 (the sheet) and the earlier card-chrome changes."
+  },
+  {
+   "id": "inert-12",
+   "title": "e2e/learn-preview.spec.js fails on the baseline before its first click, and all 11 of its tests drive UI with no entry point",
+   "status": "still_present",
+   "evidence": [
+    ":20 `await page.goto('/apps/shared-counter?tab=learn');` opens a sample app with kind 'server' (src/coaching/sample-data.js:88). SharePage.jsx:568 `const shown = tab && tab !== 'learn' ? tab : learnPreview ? 'runbook' : 'graph';`; Learn mounts only for repository (618) and canvas (622) kinds; tabs are Graph, Runbook, Run, Logs (740-743). At 3bc489e, SharePage.jsx:609-610 still mounted LearnPage.",
+    "Even with Learn mounted, the tests drive UI that no longer exists or cannot be reached: 'Lesson views' navigation / 'Curriculum' button (:38-44 etc.) match nothing in packages/web/src; the sigmoid demo pill (:46, :325, ...) is only in the notes-view panel and always disabled (inert-5); .tl-shape lesson canvas; 'Ask about selection'; 'Selected canvas preview'/'Clear selected context'; 'Lesson playback' (parked); notes created by the lesson player; Notebook and Practice views reachable only via unreachable openFromOutline.",
+    ":3 imports validateLessonSnapshot and never uses it.",
+    "Only test :323 'Learn answers typeset math and copy as one block' has a current equivalent. It clicks the demo pill (:325) and types into the right-panel 'Learn agent chat' (:346-347), which has no composer in the lesson view. Its mfrac count, zero .katex-error and literal `formula = \"$x$\"` assertions are not in learn-chat-sheet.mjs or learn-chat-one-block.mjs; slash-sheet-check.mjs:67 and chat-block-check.mjs:180/247 only check that some .katex renders.",
+    "Runs via playwright.learn-preview.config.js (spreads playwright.coaching.config.js: dist-dev preview on 127.0.0.1:5186, testMatch learn-preview.spec.js). The default playwright.config.js (`npm test`) also matches *.spec.js."
+   ],
+   "files_and_callers": [
+    "packages/web/e2e/learn-preview.spec.js",
+    "packages/web/playwright.learn-preview.config.js, playwright.coaching.config.js",
+    "packages/web/src/SharePage.jsx:568, 617-622, 740-743; packages/web/src/coaching/sample-data.js:88"
+   ],
+   "smallest_change": "Re-point test :323 now: beforeEach opens a canvas-kind sample app (canvas-<8hex>, kind 'canvas', GET learn-course returning {course:null, canAuthor:false}), ask in the dock, assert the typesetting and a single 'Copy answer' button inside [data-chat-sheet]. Drop the unused import. The other ten tests wait for the decision; none is deleted.",
+   "change_type": "docs_or_tests_only",
+   "needs_user_decision": true,
+   "decision_question": "Ten tests in learn-preview.spec.js, plus the Learn tests in coaching.preview.js (inert-13), exercise course authoring, notes, notebook, practice and the tldraw lesson player, none of which has an entry point in LearnPage on the baseline. Mark them test.fixme with a ponytail note naming the missing entry point, rewrite them against directly mounted components, or retire them with the lesson player (inert-1)?",
+   "tests_to_add": "After a dist-dev build, run `npx playwright test -c playwright.learn-preview.config.js` (APIs stubbed, no spend).",
+   "snapshot_vs_baseline": "At 3bc489e Learn still mounted for shared-counter, so first failures were at 'Lesson views' (:38) or the demo pill (:325). On the baseline every test fails at mount (smart-home D7)."
+  },
+  {
+   "id": "inert-13",
+   "title": "e2e/coaching.preview.js has eight Learn tests that assert the tldraw lesson and /api/learn/selection snapshot payloads",
+   "status": "still_present",
+   "evidence": [
+    "Learn tests at :48, 102, 160, 244, 327, 364, 445 and 498 rely on .tl-shape lesson shapes, the sigmoid demo, 'Ask about selection' and 'Selected canvas preview', and mock **/api/learn/selection to validate lesson_snapshot payloads (:213, 467, 522).",
+    "beforeEach :31-32 `await page.goto('/apps/shared-counter?tab=agent'); await expect(page.getByRole('tab', { name: 'Chat', exact: true }))...`. The baseline SharePage has no Chat tab (740-743), so the whole suite fails in setup; that belongs to the coaching owner.",
+    "Server side of the snapshot contract remains covered by control-plane learn-chat.test.js:205-280."
+   ],
+   "files_and_callers": [
+    "packages/web/e2e/coaching.preview.js:31-32, 48-543",
+    "packages/web/playwright.coaching.config.js",
+    "docs/features/coaching.md (see inert-17)"
+   ],
+   "smallest_change": "No change beyond the inert-12 decision. Record their status in coaching.md (inert-17).",
+   "change_type": "docs_or_tests_only",
+   "needs_user_decision": true,
+   "decision_question": "Same decision as inert-12: mark these Learn tests fixme with a ponytail note, rewrite them, or retire them with the lesson player?",
+   "tests_to_add": "After a dist-dev build, run `npx playwright test -c playwright.coaching.config.js` (APIs stubbed).",
+   "snapshot_vs_baseline": "File identical on both. At 3bc489e shared-counter still mounted Learn, but LearnPage already had no tldraw editor, so these Learn tests were already failing."
+  },
+  {
+   "id": "inert-14",
+   "title": "e2e/chat-block-check.mjs expects a plain dock ask to create the movable chat card that its later checks depend on",
+   "status": "still_present",
+   "evidence": [
+    "Header :1-3 'asking from the dock creates a movable chat card'. :32-36 ask from the dock and wait for `canvas.locator('[data-chat-block]').getByText('Explain me sigmoid', { exact: true })`. Later drag/resize/persist/delete/undo checks use that card.",
+    "No page.route (0 matches), so it makes real model calls; line 8 defaults to the shared small-cp-dev.",
+    "Still matching current behavior: Ask in chat linked card, paper, grading, whiteboard."
+   ],
+   "files_and_callers": [
+    "packages/web/e2e/chat-block-check.mjs:1-3, 8, 30-70, 129-147"
+   ],
+   "smallest_change": "Tests only. After the dock ask, assert the answer in [data-chat-sheet], click [data-add-to-canvas], and run the existing card checks on that card. Update the header comment. Running it spends model calls, so it keeps its approval gate.",
+   "change_type": "docs_or_tests_only",
+   "needs_user_decision": false,
+   "tests_to_add": "Run `node e2e/chat-block-check.mjs` against the session clone once real model calls are approved.",
+   "snapshot_vs_baseline": "Identical on both."
+  },
+  {
+   "id": "inert-15",
+   "title": "e2e/nanogpt-canvas-shots.mjs drives the parked lesson timeline and the removed tldraw lesson canvas",
+   "status": "still_present",
+   "evidence": [
+    ":32 opens /apps/nanogpt?tab=learn; :37 `page.locator('input[aria-label=\"Lesson timeline\"]')`, a slider that exists only inside the parked `{false && ...}` block (LearnPage.jsx:1208-1210).",
+    ":51-52 measure `.tl-shape[data-shape-type=\"text\"]` and geo shapes; the lesson canvas has had no tldraw since 99ab375. Last changed in 4338f3b (2026-09-17)."
+   ],
+   "files_and_callers": [
+    "packages/web/e2e/nanogpt-canvas-shots.mjs:32, 37, 51-52",
+    "packages/web/src/LearnPage.jsx:1208-1216"
+   ],
+   "smallest_change": "No change until inert-1 is decided. Retire it with the lesson player, or keep it with a ponytail note that it needs the parked timeline.",
+   "change_type": "record_only",
+   "needs_user_decision": true,
+   "decision_question": "Is this checker retired along with the tldraw lesson player (inert-1)? If kept, it cannot run until a lesson timeline exists again.",
+   "snapshot_vs_baseline": "Identical on both."
+  },
+  {
+   "id": "inert-16",
+   "title": "docs/features/canvas-sharing.md says board files are stored in small-runs, but they go to LEARN_MEDIA (small-learn-media-dev)",
+   "status": "still_present",
+   "evidence": [
+    "canvas-sharing.md:53 'Files are R2 objects in `small-runs` at `learn-boards/<row id>/<sha256 of the asset key>`'.",
+    "learn-boards.js:26 builds `learn-boards/${row.id}/...` and :35 `await learnMedia(env).put(...)`. learn-storage.js:9 `export const learnMedia = env => env?.LEARN_MEDIA || env?.RUNS;`.",
+    "dev-worker.js:37 refuses every request when LEARN_MEDIA is missing. wrangler.dev.jsonc:78-79 and wrangler.parallel.jsonc:99-100 bind LEARN_MEDIA to small-learn-media-dev. Board routes are served only by dev-worker.js:157 (learnBoardsRoute); production index.js has no learn/boards route."
+   ],
+   "files_and_callers": [
+    "docs/features/canvas-sharing.md:53",
+    "packages/control-plane/src/learn-boards.js:26-64; packages/control-plane/src/learn-storage.js:9",
+    "packages/web/dev-worker.js:37, 157; packages/web/wrangler.dev.jsonc:78-79; packages/web/wrangler.parallel.jsonc:99-100"
+   ],
+   "smallest_change": "Docs only. Change line 53 to say board files are R2 objects in the dev worker's LEARN_MEDIA bucket (small-learn-media-dev) under learn-boards/<row id>/<sha256>; learnMedia() falls back to RUNS only on a worker without LEARN_MEDIA, and the dev worker refuses to serve without it.",
+   "change_type": "docs_or_tests_only",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "Doc and code the same at 3bc489e."
+  },
+  {
+   "id": "inert-17",
+   "title": "docs/features/coaching.md describes the tldraw selection flow and a stale check as if they were current",
+   "status": "still_present",
+   "evidence": [
+    ":30-36 'The real dev browser check (`packages/web/e2e/canvas-conversations-check.mjs`) uses stubbed model responses to verify branch context, independent thread IDs, close/reopen, hover ports...'. That check now fails (inert-11).",
+    ":539-540 'General questions use `/api/learn/ask` with a validated lesson snapshot whose target is null; selected-object questions retain `/api/learn/selection`.' (inside '#### Five-step lesson playback' at :517). '#### Selection questions: deployed to regular dev' (:557-574, including **Ask about selection** at :564 and `POST /api/learn/selection` at :570) and '#### Circle targeting' (:598-620, citing `/api/learn/selection` at :613) both need the tldraw lesson canvas removed in 99ab375.",
+    "Pattern to follow at :95-97: '**Removed 2026-09-29:** the **Explain on canvas** button ... What follows describes it as it was.'"
+   ],
+   "files_and_callers": [
+    "docs/features/coaching.md:30-36, 95-97, 517-620"
+   ],
+   "smallest_change": "Docs only. Add the same kind of one-line note before the playback, selection and circle-targeting sections: 'Removed 2026-09-17 with the tldraw lesson canvas (99ab375); what follows describes it as it was. The server still accepts lesson_snapshot and /api/learn/selection.' Mark the check cited at :32 as stale until inert-11 lands.",
+   "change_type": "docs_or_tests_only",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "The baseline only added 7 lines (the D7 preview paragraph) at the :1117 hunk. The selection text is unchanged."
+  },
+  {
+   "id": "inert-18",
+   "title": "Section 15 and rows 4.1 #6/#8 of the architecture doc misstate the inert plumbing and understate the stale checks",
+   "status": "still_present",
+   "evidence": [
+    "learn-agent-canvas-architecture.md:776 '`LearnPage`'s `editor` is never set, so `boardContext.snapshot`, `label` and `preview` do nothing'. Corrections: preview's paper half is live (inert-4); snapshot returns null only because lesson.current is null and would throw if it were set (inert-2, inert-7); the doc omits the notes-view Learn Agent chat, its dead demo pill and the notes view having no way back (inert-5, inert-6, inert-19).",
+    ":193 (row 4.1 #6) 'The canvas preview image is display-only and never sent'. No canvas preview is produced, and the paper-region preview is sent.",
+    ":782-785 list three stale items; they understate learn-preview.spec.js (fails at mount, inert-12) and omit chat-block-check.mjs, the coaching.preview.js Learn tests and nanogpt-canvas-shots.mjs (inert-13 to inert-15).",
+    "Line 195 (row #8) and 364 (`lesson_snapshot` never on the canvas) are correct."
+   ],
+   "files_and_callers": [
+    "docs/learn-agent-canvas-architecture.md:193, 195, 364, 776, 782-785, section 16"
+   ],
+   "smallest_change": "Docs only. Rewrite the section 15 bullets with the corrected facts and the full stale-check list, fix row 4.1 #6, and record which lesson-player pieces are parked (inert-1).",
+   "change_type": "docs_or_tests_only",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "Doc written against 3bc489e. Its LearnPage and ask.jsx references still hold (files unchanged). index.js and dev-worker.js references drifted."
+  },
+  {
+   "id": "delta-1",
+   "title": "Baseline map: every UI entry into a Learn model call, with endpoint, handler, authorization and storage (and corrections to the three canvas kinds)",
+   "status": "branch_specific",
+   "evidence": [
+    "Learn dock and per-card composer (ask.jsx AskPanel, conversation 'learn') are mounted only by CanvasPage.jsx:14 `if (here) return <LearnPage app={app} />;` and RepositoryPage.jsx:83 (`picked?<CanvasLearn key={picked.name} app={picked} project={app}/>:<LearnPage app={app} .../>`). send() posts with fetch: ask.jsx:366 `const askPath = learnChat ? '/api/learn/ask' : '/api/ask';`; ask.jsx:494 switches to /api/learn/selection only when boardContext.snapshot() has a target. That snapshot stays null on the canvas: LearnPage.jsx:758 `snapshot: () => teachingSnapshot(selectionSnapshot(editor, lesson.current, pinned.current))`; setEditor is never called (LearnPage.jsx:169 is its only occurrence), every lesson.current assignment (LearnPage.jsx:660, :671, :782, :802) sits behind an editor guard, and sigmoid-context.js:35 `if (!lesson) return null;`. `git diff --stat 3bc489e..HEAD` is empty for LearnPage.jsx, ask.jsx and AdaptiveCanvas.jsx.",
+    "Slash cards: learn-slash.js:111 `post('/api/learn/artifact', ...)` through LearnPage.jsx:420 `post: (path, body) => api(path, { method: 'POST', body: JSON.stringify(body) })` -> dev-worker.js:163-171 artifactFetch -> learn-artifact.js:95 authorizedBoardApp. Whiteboard explainer: learn-board-request.js:23 `fetch('/api/learn/board', ...)` -> dev-worker.js:172-180 -> learn-board.js:320 authorizedBoardApp.",
+    "Grading: learn-grade.js:15-18 `fetch('/api/learn/ask', ...)` with `message: prompt` (a normal Learn ask, no thread_id). Jev shadow: learn-grade-shadow.js:9 `fetchImpl('/api/learn/grade', ...)` -> learn-grade-routes.js:81/150/164 authorizedBoardApp -> LEARN_DB learn_grades (learn-grade-store.js:2, :18).",
+    "Mothership Agent Bar (new on the baseline): AgentBar.jsx:308 `path: endpointFor(scope).path,` with scope.js:21 `return { path: scope.kind === 'app' ? '/api/ask' : '/api/learn/ask', scope: { app: scope.slug } };`. Project (repo-*) asks reach repositoryAsk; workspace and app asks are refused in the browser (AgentBar.jsx:284-285 modeAvailability -> slash.js:82 ASK_OFF); canvas asks never happen because routes.js:71 `barHidden: ['learn', 'canvas', 'chat', 'run'].includes(place)`.",
+    "Repository page chat: the snapshot's Graph Agent AskPanel (3bc489e:packages/web/src/RepositoryPage.jsx:46-48, aria-label 'Repository Graph Agent', conversation=\"learn\") is gone; project questions go through the Agent Bar and land in the Map Context panel (RepositoryPage.jsx:107, :118 'Answers from the bar below land here.').",
+    "StartDialog makes no model call: StartDialog.jsx:91-97 creates a canvas (commands.js:199-202 `api('/api/canvases', { method: 'POST', ... })` -> LEARN_DB canvases), copies start.js:25 teachPrompt (question plus a Depth line) to the clipboard, and calls learnAction('teach'), which with flags.js:11 `export const learnHandoff = false;` only navigates (learn-hook.js:49-52).",
+    "Dev worker routing: dev-worker.js:39 `if (canvasRoute(new URL(req.url))) return canvasesFetch(req, env);`; :40-44 GET /api/apps merges repository apps and ownerCanvases into the production catalog; :87-88 refuseCanvasAsk; :100-103 repo-* rewritten to /api/repositories/<app>/ask; :105-108 authorizedBoardApp then `apiAsk(req, env, ctx, {...}, 'learn', access.kind === 'canvas' ? canvasAskSeam(env, access) : undefined)`; :193 `return env.CONTROL_PLANE.fetch(req);` for everything else, including POST /api/ask.",
+    "Authorization: learn-board.js:364-367 repo-* -> repositoryAccess (repositories.js:26-34 repositoryIdentity = GET /api/apps on production small-cp with the request headers, then LEARN_DB repository_apps by org; any workspace member); learn-board.js:368-371 canvas-<8 hex> -> canvasAccess (repositoryIdentity + LEARN_DB canvases; canvases.js:20 `if (row.owner_email !== user.email) return json({ error: 'This canvas is private to its owner' }, 403);`); learn-board.js:372-380 any other name -> GET /api/apps/<name> on production small-cp, AWS-hosted refused.",
+    "Storage per kind: canvas -> LEARN_DB threads/messages through the seam (canvases.js:116-121, index.js:1189 `const db = seam ? seam.db : env.DB;`); repo-* -> LEARN_DB threads/messages/repository_message_graphs (repositories.js:178, :233-237) but the moment log uses the worker env (repositories.js:237 `return askStream(env,...`, ask.js:404 INSERT INTO learn_moments, see delta-4); job/server app (no preview UI) -> production DB threads/messages (index.js:1200).",
+    "Corrections to the task's canvas kinds: (a) standalone canvas is correct and also covers 'project-owned' canvases, i.e. LEARN_DB canvases rows whose project names a repository app (canvases.js:66 validates project against repository_apps; RepositoryPage.jsx:57 `canvases=catalog.filter(c=>c.kind==='canvas'&&c.project===app.name)`), and canvases created by forking a shared board (learn-boards.js:155-157, project null). They use the same seam; the project link adds no repository context. (b) The Learn tab of a normal job/server app is not mounted on the baseline preview (SharePage.jsx:619-620; SharePage.jsx:568 lands ?tab=learn on Runbook); it survives only as a server path (delta-5). In the baseline UI 'project' means a repository app. (c) repo-* is correct (dev-worker.js:100-103)."
+   ],
+   "files_and_callers": [
+    "packages/web/dev-worker.js (fetch: :39, :40-44, :87-88, :97-108, :150, :163-180, :193)",
+    "packages/control-plane/src/learn-board.js authorizedBoardApp (:361-381)",
+    "packages/control-plane/src/canvases.js (canvasAccess, canvasRoute, refuseCanvasAsk, canvasAskSeam)",
+    "packages/control-plane/src/index.js apiAsk; packages/control-plane/src/repositories.js repositoryAsk",
+    "packages/web/src/CanvasPage.jsx, RepositoryPage.jsx, SharePage.jsx (mount points of LearnPage)",
+    "packages/web/src/ask.jsx, learn-grade.js, learn-slash.js, learn-board-request.js, learn-grade-shadow.js",
+    "packages/web/src/agent/AgentBar.jsx, ask-stream.js, scope.js, bar.js, slash.js, learn-hook.js; StartDialog.jsx; start.js",
+    "docs/learn-agent-canvas-architecture.md sections 1, 2, 3, 4.4, 10"
+   ],
+   "smallest_change": "Docs only: add this entry-point map to docs/learn-agent-canvas-architecture.md (sections 1, 2, 3, 4.4 and 10): new entries (Agent Bar project asks, standalone and project-owned canvases), removed entries (repository Graph Agent panel, job/server Learn tab on the preview).",
+   "change_type": "record_only",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "3bc489e: LearnPage mounted for any app on the preview (3bc489e SharePage.jsx:609), repository Graph Agent AskPanel, canvas-* names failed authorization, no Agent Bar. Baseline: LearnPage only for canvas-* and repo-*; Agent Bar adds project asks; canvas-* authorized from LEARN_DB and answered through a LEARN_DB seam.",
+   "tests_to_add": "None for the map; the per-path tests are listed in delta-3, delta-4, delta-5 and delta-9."
+  },
+  {
+   "id": "delta-2",
+   "title": "Doc sections 1, 2, 4.2, 4.4, 7 and 14 describe two Learn chat paths; the baseline has a third (standalone canvas through apiAsk with the LEARN_DB seam)",
+   "status": "branch_specific",
+   "evidence": [
+    "Doc claims (docs/learn-agent-canvas-architecture.md:49-54): 'Every other app goes to apiAsk ... Context is the app's full appContext ... Threads live in the DB D1.'; :205 authorizedBoardApp 'checks the app through GET /api/apps/<name> on small-cp'; :393 appContext; section 14 lists no canvases table.",
+    "Baseline: dev-worker.js:108 passes `canvasAskSeam(env, access)` when access.kind === 'canvas'; index.js:1083 `const app = seam ? seam.app : await appForUser(env, user, scope.app);`; index.js:1088 `context = lessonSnapshot ? JSON.stringify(lessonSnapshot) : seam ? seam.context : await appContext(env, app, useSet);`.",
+    "canvases.js:115 context is exactly 'SCOPE: canvas \"<title>\" - a standalone learning canvas whose content lives in the learner's browser. Teach as a general tutor.' built from app.title only, so a project-owned canvas gets the same line with no project context.",
+    "Threads: canvases.js:118-119 `const id = `canvaschat-${crypto.randomUUID()}`;` then `INSERT INTO threads(id,org,user,scope_ref,commit_sha,title) VALUES(?,?,?,?,'',?)` on LEARN_DB with title = message.slice(0, 120); History through canvasRoute (canvases.js:37-41) and canvasesFetch -> repositoryThreads (canvases.js:73-81).",
+    "Schema: repository-schema.sql:27 `CREATE TABLE IF NOT EXISTS canvases (`, additive and re-runnable (canvases.test.js:12-19).",
+    "Tools and system prompt are unchanged for canvases (index.js:976-1017 research object; LEARN_SYSTEM + WIKI_SYSTEM + VIDEO_SYSTEM (+ OUTLINE_SYSTEM) + LEARN_RESEARCH_SYSTEM). The seam adds instruction text ('Teach as a general tutor.') that lives in canvases.js, outside the Learn prompt files.",
+    "Existing proof passes (re-run by the verifier): `node --test test/canvases.test.js test/learn-chat.test.js test/repositories.test.js` -> 70/70."
+   ],
+   "files_and_callers": [
+    "packages/web/dev-worker.js:39, :87-88, :105-108",
+    "packages/control-plane/src/canvases.js (canvasApp, ownedCanvas, canvasAccess, canvasRoute, canvasesFetch, canvasAskSeam)",
+    "packages/control-plane/src/index.js apiAsk (:931-933, :1083, :1088, :1189-1229)",
+    "packages/control-plane/src/learn-board.js:368-371",
+    "packages/control-plane/repository-schema.sql:27-36",
+    "docs/learn-agent-canvas-architecture.md sections 1, 2, 3, 4.2, 4.4, 5, 6.1, 7, 14"
+   ],
+   "smallest_change": "Docs only: add the canvas branch (owner-only authorization from LEARN_DB, one-line context, canvaschat-* threads in LEARN_DB, attachment refusal) to sections 1, 2, 4.2, 4.4, 5, 6.1, 7 and 14, and list canvases.js:115's context line in the C3 prompt inventory. No code change.",
+   "change_type": "docs_or_tests_only",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "At 3bc489e a canvas-* name went to CONTROL_PLANE /api/apps/<name> (3bc489e learn-board.js had only the repo- branch at :364) and failed, although LearnPage already special-cased isCanvas (LearnPage.jsx:51, unchanged) and learn-boards.js:156 already inserted canvases rows on fork. The baseline authorizes canvas asks from LEARN_DB and stores their threads there.",
+   "tests_to_add": "None new; covered by learn-chat.test.js and canvases.test.js. Doc review only."
+  },
+  {
+   "id": "delta-10",
+   "title": "The repository page Graph Agent panel was removed, so e2e/learn-chat-one-block.mjs and doc section 16 point at a surface that no longer exists",
+   "status": "branch_specific",
+   "evidence": [
+    "packages/web/e2e/learn-chat-one-block.mjs:25 `const chat = page.getByRole('complementary', { name: 'Repository Graph Agent' });` after opening /apps/<repo> (Overview by default, routes.js:76 projectTab).",
+    "3bc489e:packages/web/src/RepositoryPage.jsx:46-48 rendered `<ResizableSidePanel aria-label=\"Repository Graph Agent\" ...>` with the Graph Agent AskPanel; the baseline panel is Map-only `data-map-panel aria-label=\"Context\"` (RepositoryPage.jsx:107) showing bar results, and rabbit-hole-check.mjs:1536 asserts the Graph Agent heading is gone.",
+    "Doc :797 lists learn-chat-one-block.mjs as covering 'one block per answer (repository chat)'; section 16 also omits the new checks rabbit-hole-check.mjs and live-bundle-check.mjs."
+   ],
+   "files_and_callers": [
+    "packages/web/e2e/learn-chat-one-block.mjs",
+    "packages/web/src/RepositoryPage.jsx",
+    "docs/learn-agent-canvas-architecture.md section 16 and 17.5"
+   ],
+   "smallest_change": "Retarget the check to the surviving repository chat surface (the project Learn canvas dock at /apps/<repo>?tab=learn, whose sheet renders answers with the same ask.jsx block) and keep its assertion (one block, one copy icon, no ask-about icon); update doc sections 16 and 17.5.",
+   "change_type": "docs_or_tests_only",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "Valid at 3bc489e; broken by smart-home's WP6 project page (one composer, the Agent Bar).",
+   "tests_to_add": "The retargeted check itself, run on the session clone after an approved deploy."
+  },
+  {
+   "id": "delta-12",
+   "title": "Repository snapshots moved out of the production R2 bucket; doc section 14 omits the new binding, the canvases table and the new browser keys",
+   "status": "already_fixed",
+   "evidence": [
+    "3bc489e wrote and read snapshots in small-runs (3bc489e repositories.js:51 `env.RUNS.get(row.storage_key)`, :94 `this.env.RUNS.put(key,...)`); the baseline uses REPOSITORY_SNAPSHOTS: repositories.js:94 `await this.env.REPOSITORY_SNAPSHOTS.put(key,...)`, repositories.js:51 `const object=await env.REPOSITORY_SNAPSHOTS.get(row.storage_key);` (commit 1f21d70, not in 3bc489e), pinned by repositories.test.js:163-172.",
+    "wrangler.dev.jsonc:69-74 binds REPOSITORY_SNAPSHOTS to small-repositories-dev; production packages/control-plane/wrangler.jsonc binds ASSETS, DB and RUNS only.",
+    "Doc section 14 (docs/learn-agent-canvas-architecture.md:736-766) lists LEARN_DB tables without canvases, R2 without repository snapshots, small-cp-dev bindings without REPOSITORY_SNAPSHOTS (:755-759), and serving without /library and /explore (dev-worker.js:184).",
+    "Other section 14 additions on the baseline: LEARN_DB canvases (repository-schema.sql:27) and canvas chats in LEARN_DB threads/messages; localStorage small.device (home/canvas-local.js:34-37) and the canvas gate reading <canvasKey>:ink and :chat (canvas-local.js:9-10, CanvasPage.jsx:13); sessionStorage small.learn.request and small.learn.result:<id> (learn-hook.js:22, :39)."
+   ],
+   "files_and_callers": [
+    "packages/control-plane/src/repositories.js (:51, :94)",
+    "packages/web/wrangler.dev.jsonc (:69-74)",
+    "packages/control-plane/test/repositories.test.js (:160-172)",
+    "docs/learn-agent-canvas-architecture.md section 14"
+   ],
+   "smallest_change": "Docs only: update section 14 (D1 tables, R2 buckets, bindings by worker, serving routes, browser keys).",
+   "change_type": "docs_or_tests_only",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "3bc489e put dev repository snapshots in the production bucket under learn-repositories-dev/; the baseline uses the dev-only small-repositories-dev bucket.",
+   "tests_to_add": "None beyond the existing pin (see delta-13 for extending it to every dev-worker config)."
+  },
+  {
+   "id": "delta-15",
+   "title": "live-bundle-check.mjs keeps Rabbit Hole shell code out of the live build but does not cover Learn canvas code, which an unconditional lazy import still emits",
+   "status": "needs_reproduction",
+   "evidence": [
+    "What it enforces (live-bundle-check.mjs:6-18): no file in dist/static whose name starts with AgentBar-, ConfirmCard-, StartHost-, Home-, RepositoryPage-, CanvasPage-, review-fixtures-data- or map-memory-data-, and no .js containing the listed preview markers; `DIST=dist-dev` must fail.",
+    "The baseline improves the boundary: SharePage.jsx:65 and :67 load RepositoryPage and CanvasPage lazily behind the literal VITE_COACHING_DEV guard.",
+    "Gap: main.jsx:88 `const SharedBoardPage = lazy(() => import('./SharedBoardPage.jsx'));` is unconditional (it was at 3bc489e main.jsx:55 too) and SharedBoardPage.jsx:5 lazily imports AdaptiveCanvas, so a live build still emits Learn canvas chunks. Production serves SHELL only for /apps, /dash, /chat, /members and /apps/* (index.js:2582) and never /b/<token>. The check lists no Learn chunk or Learn marker.",
+    "The local packages/web/dist (index.html dated 2026-09-21, before the baseline) contains AdaptiveCanvas-u-t8cp4Y.js; not rebuilt here because building writes files."
+   ],
+   "files_and_callers": [
+    "packages/web/e2e/live-bundle-check.mjs",
+    "packages/web/src/main.jsx (:10-16, :88-94)",
+    "packages/web/src/SharedBoardPage.jsx (:5)",
+    "packages/web/src/SharePage.jsx (:65, :67)",
+    "packages/control-plane/src/index.js (:2582-2584)"
+   ],
+   "smallest_change": "Guard main.jsx:88 with the existing literal previewBuild (as Home and Explore are at main.jsx:14-16) and add SharedBoardPage, AdaptiveCanvas and LearnPage to PREVIEW_CHUNKS plus one Learn marker. No runtime change: production never serves /b/<token>, and dist-dev keeps the page.",
+   "change_type": "pure_refactor",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "The check is new on the baseline; the SharedBoardPage lazy import already existed at 3bc489e.",
+   "tests_to_add": "Reproduce: in packages/web run the live build, list dist/static for AdaptiveCanvas|SharedBoardPage|LearningBlocks, then `node e2e/live-bundle-check.mjs`. After the change the live build passes and `DIST=dist-dev node e2e/live-bundle-check.mjs` still fails."
+  },
+  {
+   "id": "delta-16",
+   "title": "The Learn handoff is merged but switched off: /teach, Start -> Question and the Map's 'Learn this' fall back without a model call",
+   "status": "branch_specific",
+   "evidence": [
+    "flags.js:8-11 'false until the Learn handoff (feature/parallel-work cc0cbf8) reaches main' / `export const learnHandoff = false;`. cc0cbf8 is an ancestor of both 3bc489e and the baseline, and its receiver is in LearnPage.jsx:891-973 (take(), small.learn.request, small:learn-request).",
+    "learn-hook.js:49-52 `if (!handoff) { if (kind === 'teach') open(); return { status: 'fallback', ... }; }`; StartDialog.jsx:94 copies the prompt to the clipboard first; RepositoryPage.jsx:117 'Learn this' calls learnAction('teach', ...).",
+    "With the flag on, teach only prefills the dock (LearnPage.jsx:926-937 returns status 'prefilled', no send) and research adds a card through /api/learn/search (LearnPage.jsx:944): still no model call.",
+    "The doc does not describe the receiver or the hook."
+   ],
+   "files_and_callers": [
+    "packages/web/src/flags.js; agent/learn-hook.js; LearnPage.jsx (:891-973)",
+    "callers: AgentBar.jsx teach(), StartDialog.jsx onQuestion, RepositoryPage.jsx 'Learn this'"
+   ],
+   "smallest_change": "None in code (the flag flip belongs to the merge-to-main PR, per its comment); document the dormant hook in doc sections 4.4 and 10.",
+   "change_type": "record_only",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "Receiver present at 3bc489e but undocumented; the baseline adds the callers and the off switch.",
+   "tests_to_add": "None; agent/learn-hook.test.mjs and e2e/learn-handoff-check.mjs cover both states."
+  },
+  {
+   "id": "delta-17",
+   "title": "Doc section 15 'hi carries the whole appContext' no longer happens through the preview UI; only @mentions and the unmounted job/server server path remain",
+   "status": "already_fixed",
+   "evidence": [
+    "Doc :393 and :771. Baseline: standalone canvases send the one-line seam context (canvases.js:115, index.js:1088); repository apps send a small JSON context (repositories.js:237); job/server apps have no Learn UI on the preview (SharePage.jsx:619-620).",
+    "Residual: @mentions still append a mentioned app's full appContext (index.js:1100-1103, delta-8), and the dev worker still builds it for direct job/server Learn requests (delta-5). The greeting still runs the full research loop on every surface (delta-18)."
+   ],
+   "files_and_callers": [
+    "packages/control-plane/src/index.js apiAsk, appContext",
+    "packages/control-plane/src/canvases.js canvasAskSeam",
+    "docs/learn-agent-canvas-architecture.md sections 7 and 15"
+   ],
+   "smallest_change": "Docs only: rewrite the section 7 and 15 statements to the residual cases; code work is in delta-5 and delta-8.",
+   "change_type": "docs_or_tests_only",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "At 3bc489e the Learn canvas of a job/server app sent full appContext with every question, including 'hi'. The baseline removed that UI path and gives canvases a minimal context.",
+   "tests_to_add": "None; delta-5 and delta-8 carry the tests."
+  },
+  {
+   "id": "delta-18",
+   "title": "'No router' still holds for Learn, but the baseline adds a deterministic command router in front of the Agent Bar",
+   "status": "still_present",
+   "evidence": [
+    "Doc :42 'There is **no router**' and :770. Learn is unchanged (ask.jsx and LearnPage.jsx identical to 3bc489e), so 'hi' in the Learn dock still runs the full researchAnswer pipeline.",
+    "agent/router.js RulesRouter: deterministic slash modes, help and concept answers (router.js:72-78) with no model call; a greeting on Home or an app is refused before any request (AgentBar.jsx:284-285, slash.js:82 ASK_OFF); a greeting on a project goes to repositoryAsk with the full tutor prompt and tools.",
+    "The router dispatches commands and navigation deterministically; it is not the pedagogical router the spec rules out, and it does not give greetings a brief reply."
+   ],
+   "files_and_callers": [
+    "packages/web/src/agent/router.js, bar.js, AgentBar.jsx, slash.js",
+    "docs/learn-agent-canvas-architecture.md sections 1 and 15"
+   ],
+   "smallest_change": "Docs only: say that the Agent Bar has a deterministic RulesRouter for commands and navigation, and that Learn and project questions still have no greeting handling (the C3 prompt change covers that).",
+   "change_type": "docs_or_tests_only",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "No router of any kind at 3bc489e; the baseline adds one for the Mothership only.",
+   "tests_to_add": "None; agent/router.test.mjs covers the router."
+  },
+  {
+   "id": "prompts-17",
+   "title": "Client prompt modules versus the production browser bundle: grading prompt now gated, but the boundary is not checked for prompt text and one Learn canvas path is unguarded",
+   "status": "needs_reproduction",
+   "evidence": [
+    "learn-grade-prompts.js is reached only via learn-grade.js:4 <- LearnPage.jsx:39 <- CanvasPage.jsx:7 / RepositoryPage.jsx <- SharePage.jsx:65-67 \"import.meta.env.VITE_COACHING_DEV === 'true' && learnPreview ? lazy(() => import(...)) : null\" (preview-only chunk); at 3bc489e SharePage statically imported LearnPage and RepositoryPage (3bc489e:packages/web/src/SharePage.jsx:15-16), so this part is already fixed on the baseline",
+    "agent/slash.js (Learn prompt templates :32-40) is statically imported by AppOps.jsx:6 for D7_REASON, and SharePage.jsx:15 imports AppOps into the live index; exclusion of the SLASH table relies on tree-shaking",
+    "SharedBoardPage is lazy but unguarded (main.jsx:88) and lazily imports AdaptiveCanvas (SharedBoardPage.jsx:5) -> LearningBlocks.jsx (describeBlock tutor-prompt serializations), so these can be emitted as live-build chunks; production serves /static/* from ASSETS (index.js:2584) although it serves no /b/ shell path (index.js:2582)",
+    "live-bundle-check.mjs:7 PREVIEW_CHUNKS and :11 MARKERS contain no Learn prompt text and no AdaptiveCanvas/SharedBoardPage chunk; the only live dist on disk (packages/web/dist, 2026-09-21) predates the baseline but already contains AdaptiveCanvas-*.js",
+    "No web module imports server prompt modules"
+   ],
+   "files_and_callers": [
+    "packages/web/src/SharePage.jsx:15,65-67; packages/web/src/main.jsx:88; packages/web/src/SharedBoardPage.jsx:5; packages/web/src/AppOps.jsx:6",
+    "packages/web/e2e/live-bundle-check.mjs"
+   ],
+   "smallest_change": "No move is needed for the grading prompt. Add Learn client prompt markers to live-bundle-check.mjs MARKERS (e.g. \"You are grading a learner's first-guess answer\" from learn-grade-prompts.js:8 and 'Go one level deeper on' from agent/slash.js:32) and keep the new agents/ prompt modules server-only. The unguarded SharedBoardPage->AdaptiveCanvas lazy chunk is a C11 boundary item: guarding main.jsx:88 with the existing previewBuild literal (main.jsx:14) changes no live page because production serves no /b/ path, but Root's sharedBoard branch must then handle a null component.",
+   "change_type": "docs_or_tests_only",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "3bc489e shipped LearnPage (and the grading prompt) in the live index graph via static imports; the baseline gates it. live-bundle-check.mjs is new on the baseline. SharedBoardPage was unguarded in both (3bc489e:packages/web/src/main.jsx:55).",
+   "tests_to_add": "Reproduce: cd packages/web && npm run build (no VITE_COACHING_DEV) && node e2e/live-bundle-check.mjs; grep -l \"You are grading a learner\\|Go one level deeper on\\|Learner's committed answer\" dist/static/*.js; ls dist/static | grep -E '^(AdaptiveCanvas|SharedBoardPage|LearningBlocks)-'. DIST=dist-dev node e2e/live-bundle-check.mjs must fail on the new markers."
+  },
+  {
+   "id": "prompts-18",
+   "title": "Architecture doc prompt sections have drifted from the baseline",
+   "status": "still_present",
+   "evidence": [
+    "Appendix A REPOSITORY_SYSTEM is stale: repository-context.js:11 gained the no-recorded-decision rule (git diff 3bc489e..HEAD; pinned by repositories.test.js:177 \"I don't have a recorded project decision explaining why the team chose this.\")",
+    "Section 8 instruction-line references moved: outline ~1088 -> index.js:1093, paper ~1133 -> :1136, image ~1146 -> :1149, wiki ~1164 -> :1167, video ~1181 -> :1184",
+    "Sections 1, 4.2 and 8 omit the canvas seam route: dev-worker.js:108 \"apiAsk(..., 'learn', access.kind === 'canvas' ? canvasAskSeam(env, access) : undefined)\" with context canvases.js:115",
+    "Sections 4.2 and 7 treat the app Learn tab as the non-repository path; the preview no longer mounts it (SharePage.jsx:619-620 'A job or server's Learn asks would reach apiAsk on the live D1, so the preview never mounts Learn for them'), unlike 3bc489e:packages/web/src/SharePage.jsx:608-610",
+    "Section 7 'What the model never sees' (docs/learn-agent-canvas-architecture.md:401-406) is wrong in three lines: 'the learner's grades' (the Ask-in-chat target's answer, verdict, quiz choice and self-ratings are sent, LearningBlocks.jsx:1626-1629); 'the canvas as an image' (a group Ask uploads a rendered snapshot of the group area incl. strokes as image_context, LearnPage.jsx:390-399, AdaptiveCanvas.jsx:2600-2607); 'other cards, unless one is the Ask in chat target' (a group target carries every member card's text and member chat Q/A, AdaptiveCanvas.jsx:2588-2598) - all already wrong at 3bc489e",
+    "Section 17.2 omits ask.jsx:513, describeBlock (LearningBlocks.jsx:1607-1631), AdaptiveCanvas.jsx:1793-1834 askRegion texts and :2588-2598 group text, WhiteboardBlock.jsx:117-125, canvases.js:115, index.js:951 upload note, learn-research.js:36 nudge, repair/revision texts (learn-artifact.js:76; learn-board.js:190, :290) and course authoring (learn-course.js:38, :85)"
+   ],
+   "files_and_callers": [
+    "docs/learn-agent-canvas-architecture.md sections 1, 4.2, 7, 8, 15, 17.2, Appendix A",
+    "packages/control-plane/src/agents/README.md"
+   ],
+   "smallest_change": "After the prompt commits, regenerate section 8, 17.2 and Appendix A from the agents/ modules (verbatim), add the canvas seam route, correct section 7's grades, canvas-image and other-cards lines, and mark the section 15 prompt items fixed.",
+   "change_type": "docs_or_tests_only",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "The doc describes 3bc489e; drift comes from baseline additions (canvases.js, REPOSITORY_SYSTEM sentence, SharePage gating) plus claims already inaccurate at 3bc489e (section 7 never-sees list, section 17.2 omissions).",
+   "tests_to_add": "None (documentation)."
+  },
+  {
+   "id": "models-17",
+   "title": "Architecture doc model statements need corrections (sections 9, 10.3, 15 and 17.4)",
+   "status": "still_present",
+   "evidence": [
+    ":439 does not say that Auto's fallback is a category-routed refusal fallback, or that the serving model is not recorded.",
+    ":441 'Never applied to Learn chat': org_ai is also not applied to grading, cards or the whiteboard, and it is applied to course authoring.",
+    ":442: on Anthropic the id is explicit claude-opus-5 with no fallback. The OpenAI branch drops PDFs, URL images and strict schemas (models-2, models-18).",
+    ":457 leaves out the default thinking within tight budgets.",
+    ":463-464 cover only the clone.",
+    ":541 'the whiteboard never sends a model choice': the server accepts one (learn-board.js:141).",
+    ":786: the key alone flips cards and the whiteboard to gpt-4.1-mini and bypasses SUBSCRIPTION_ONLY.",
+    ":944-951 (17.4) leave out whiteboard, Jev, subscription and image limits, and say nothing about grading and the Agent Bar never using the Default pick."
+   ],
+   "files_and_callers": [
+    "docs/learn-agent-canvas-architecture.md"
+   ],
+   "smallest_change": "Edit those rows to match models-1, 2, 9, 10, 14 and 18, citing baseline path:line. Docs only.",
+   "change_type": "docs_or_tests_only",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "The doc was merged unchanged from 3bc489e. The Agent Bar and canvases exist only on the baseline.",
+   "tests_to_add": "None (docs)."
+  },
+  {
+   "id": "context-21",
+   "title": "The architecture doc's context sections (4.4, 5, 6.1, 7, 15) are inaccurate or incomplete on the baseline",
+   "status": "still_present",
+   "evidence": [
+    "docs/learn-agent-canvas-architecture.md:300 gives the over-limit error as 'Question must be 1–4000 characters'; that is only repositoryAsk (repositories.js:174); apiAsk returns 'message required (max 4000 chars)' (index.js:1065)",
+    "doc:280 K5 '(4000 chars max)': the cap applies before wrapping, so a capped group always exceeds the limit; the screenshot rides only if its upload finished, then sticks (context-2, context-3)",
+    "doc:282 K7 answers in a 'linked chat card': true for a paper card region; a region selected in the reader panel has no canvas target and answers in the sheet (ask.jsx:444)",
+    "doc:286 says repo ignores wiki and video; it also ignores the outline (doc:774 already says so), cannot read uploaded PDFs, omits the region instruction, and is capped at 64 KB (context-5, -6, -7)",
+    "doc:787 says the long-card failure 'has not been reproduced'; it is reproduced at unit level (context-1)",
+    "doc:362 sources row omits that all-off means everything and that toggles do nothing on canvases (context-14)",
+    "doc:390 'The context is never stored, only the raw message': card asks store the wrapped card text, the repository path stores the 'Selected code' line (repositories.js:208, :236), multipart asks store '[attached: name]' (index.js:1210), and the moment log stores q including the upload note",
+    "doc:393 says appContext is used 'whenever there is no lesson snapshot': standalone canvases use the one-line seam context (canvases.js:115), and the source section is dropped whole past 600k (context-13)",
+    "doc:401-406 'What the model never sees': the group Ask sends a rendered canvas snapshot image; challenge/explain-back/flashcards/quiz asks send the verdict, self-ratings, choice and the correct answer (LearningBlocks.jsx:1626-1629)",
+    "Not covered: the standalone-canvas seam and the Agent Bar path (agent/ask-stream.js:10-14 askBody sends message plus repository_context {commit,nodeId,label} for projects; agent/scope.js:21 routes canvases and projects to /api/learn/ask, apps to /api/ask), with no outline, sources or card context"
+   ],
+   "files_and_callers": [
+    "docs/learn-agent-canvas-architecture.md"
+   ],
+   "smallest_change": "Update sections 4.2, 4.4 (K5/K7/K11 rows and the refused-inputs table), 6.1, 7 and 15 with the facts above; record the standalone-canvas seam and the Agent Bar as two more Learn chat callers; replace 'not reproduced' with the reproduction.",
+   "change_type": "docs_or_tests_only",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "Inaccuracies already present at 3bc489e; missing seam and Agent Bar paths come from feature/smart-home.",
+   "tests_to_add": "None for the doc update; the checks in the other findings back each corrected statement."
+  },
+  {
+   "id": "grading-13",
+   "title": "The architecture doc and the Jev doc are stale or inaccurate about grading on the baseline",
+   "status": "still_present",
+   "snapshot_vs_baseline": "The architecture doc was written at 3bc489e. The baseline added the canvas seam, removed normal-app Learn from the UI, and added the Agent Bar.",
+   "evidence": [
+    "docs/learn-agent-canvas-architecture.md:285 (K10 'same Learn chat') and :97-98, :740-741 (DB holds non-repository Learn chats). On the baseline, canvas-* grades and chats go to LEARN_DB (dev-worker.js:108), and normal apps have no Learn UI (SharePage.jsx:619-620).",
+    "docs/learn-agent-canvas-architecture.md:550 'The reply must start with VERDICT: good or VERDICT: partial'. The parse is unanchored (LearningBlocks.jsx:884, learn-grade-shadow.js:52).",
+    "docs/learn-agent-canvas-architecture.md:406 'What the model never sees: ... the learner's grades'. Ask in chat on a challenge card sends the answer and raw verdict (LearningBlocks.jsx:1629 'block.verdict ? Tutor verdict: ... : ''').",
+    "Section 15 is missing: long answers fail grading (grading-4); grade threads crowd the 20-row History (grading-3); the first grade makes a canvas undeletable; the Papers-read footer lands in the verdict; grades can get stuck or end silently (grading-8); grade threads appear in the Agent Bar History on project pages (grading-15).",
+    "docs/features/jev-grading.md:34-51 has stale line references: learn-grade.js:8 is now :14, LearningBlocks.jsx:844 is now :884, and dev-worker.js:81-84 is now :100-103. repositories.js:176 is still the LEARN_DB line; repositoryAsk begins at :171."
+   ],
+   "files_and_callers": [
+    "docs/learn-agent-canvas-architecture.md sections 2, 4.4, 5, 7, 10.4, 14, 15",
+    "docs/features/jev-grading.md:34-51"
+   ],
+   "smallest_change": "Docs only: correct K10 and sections 2, 5, 7, 10.4, 14 and 15, and the jev-grading.md line references, to match the baseline. Update them again after any approved grading change.",
+   "change_type": "docs_or_tests_only",
+   "needs_user_decision": false,
+   "tests_to_add": "None; this is a doc review."
+  },
+  {
+   "id": "registries-12",
+   "title": "The architecture and feature docs misstate parts of the registries",
+   "status": "still_present",
+   "evidence": [
+    "docs/learn-agent-canvas-architecture.md:503 says 'The call uses tool_choice: any, one tool and 4000 max tokens.' It actually offers one make_<id> per ready primitive plus ask_clarifying_question and forces exactly one call (learn-artifact.js:44-51)",
+    ":592 says 'image: Image (Pexels search / upload)'. ImageBody has Find (Pexels) and a paid Generate, and no upload (LearningBlocks.jsx:1301-1310)",
+    ":594 says 'Dev builds only (VITE_COACHING_DEV=true, so the dev clone shows them)'. The + button itself is dev-only (AdaptiveCanvas.jsx:2696), so this tier is always shown wherever the palette exists",
+    ":688 says 'video without videoId (generate, maths animation) | VideoBody (paid)'. VideoBody also plays existing clips (mode 'existing', LearningBlocks.jsx:653-666), which are not paid",
+    ":958 'Card types | LearningBlocks.jsx BLOCK_TYPES' and learn-insert-palette.js:5 'Ids are canvas block types, except the ACTIONS' both treat palette ids as block types; 7 palette ids produce a different block.type (registries-5)",
+    "docs/features/learn-artifact-generation.md:231 says 3d_model is 'direct only: an existing model is inserted'. PRIMITIVES['3d_model'] (learn-primitives.js:182) has no direct flag, and /3d can only propose blender_scene"
+   ],
+   "files_and_callers": [
+    "docs/learn-agent-canvas-architecture.md sections 10.2, 11.2, 12, 17.4",
+    "docs/features/learn-artifact-generation.md gap table",
+    "packages/web/src/learn-insert-palette.js:5 (comment)"
+   ],
+   "smallest_change": "Correct those lines, and add the explicit mapping table (registries-3) with a provider column to the architecture doc (sections 10.2, 11.2, 12, 13, 17.4). The only code change is the one-line comment in learn-insert-palette.js.",
+   "change_type": "docs_or_tests_only",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "The doc describes 3bc489e, and the code it describes in these sections is unchanged on the baseline, so the same inaccuracies still apply.",
+   "tests_to_add": "none"
+  },
+  {
+   "id": "lifecycle-15",
+   "title": "SSE audit, every Learn event by producer and surface (rendered, metadata or unsupported); the dock's graph is stored-only by design and doc §6.2 needs a per-surface column",
+   "status": "still_present",
+   "snapshot_vs_baseline": "Producers and the Learn consumers are unchanged since 3bc489e. The baseline adds the Mothership consumer (agent/ask-stream.js, bar.js) and the side effects of the canvas seam. Doc §6.2 describes only the dock.",
+   "evidence": [
+    "Producers. askStream sends progress (ask.js:372), papers (:377), chunk (:379, once, with the 'Papers read:' footer from :374-376), graph (:380-381; repositoryAsk only via getGraphView, repositories.js:239), outline (:383-384; apiAsk only, when an outline is sent), paper (:387), wiki (:390-391; apiAsk only, suppressed after a paper), video (:394-409), done (:455; meta {threadId, note?} from index.js:1229, {threadId, commit} from repositories.js:238) and error (:457). proposal (:428) and JSON {choose} (index.js:1112) never occur on Learn (index.js:1214 `canAct && conversation !== 'learn'`; :1064). The board stream sends progress, plan, preview and error (learn-board.js:346-350).",
+    "progress: sheet renders it as the spinner label (ask.jsx:566,808). The linked card renders it with an extra '…' (AdaptiveCanvas.jsx:253). A Continue convo reply stores it but shows only 'Thinking…' (LearnPage.jsx:440; AdaptiveCanvas.jsx:256). Grading ignores it and shows a fixed 'Reading your answer…' (learn-grade.js:38-39; LearningBlocks.jsx:908). The Mothership renders it (bar.js:43; ResultSheet.jsx:65). The whiteboard shows it on the Explain in canvas button (learn-board-request.js:44; AdaptiveCanvas.jsx:235).",
+    "papers: metadata on every Learn surface. ask.jsx:572 stores it and nothing renders it, but the same references stay visible because the chunk carries them as links (ask.js:374-376; Md strips only the prefix, ask.jsx:74). In grading the footer lands inside the verdict text. The Mothership renders source pills (bar.js:45).",
+    "chunk: rendered on every surface.",
+    "graph: stored-only in the dock sheet and linked card (ask.jsx:567). The pill needs onGraph (ask.jsx:798), and the dock gets none (LearnPage.jsx:1197), so no dead button appears, which is consistent with the rule. The graph is also persisted (repositories.js:238) and reloaded with the thread (repositories.js:169), still without a pill. Side-panel chat: pill plus auto-navigation (lifecycle-10). Continue convo and grading: stored-only or ignored. Mothership: 'Show on graph' with a real handler wherever project results show (RepositoryPage.jsx:69 sets handlers; AgentBar.jsx:331-336 auto-shows only on the Map tab).",
+    "outline: the dock handles it but the result is hidden (lifecycle-9). Continue convo, grading and the Mothership never send an outline, so it is not produced there.",
+    "paper, wiki, video: the dock sheet and linked card insert canvas cards (LearnPage.jsx:213-250). Continue convo and grading drop them (lifecycle-8). The Mothership ignores paper (bar.js:50) and shows video and papers as pills (bar.js:45,47); project asks never produce wiki.",
+    "done: the sheet keeps and remembers the thread (ask.jsx:574-580). The linked card's thread id is dropped on the next ask (ask.jsx:445), by design (K4). Continue convo holds it in component memory only (ask.jsx:374). Grading ignores it. The Mothership keeps it per scope (AgentBar.jsx:312).",
+    "error: sheet shows a ✗ alert (ask.jsx:581,784) but appends it to an existing answer (lifecycle-11). Card and reply show it as text. Grading throws (lifecycle-7). The Mothership shows the error with Retry (AgentBar.jsx:327-330). Non-JSON error pages are silent except in the Mothership (lifecycle-2).",
+    "Doc corrections. §6.2 (doc lines 369-384) omits the stage 'Opening <title>...' (learn-research.js:59). '§6.2: A JSON (non-SSE) reply means a validation error' (doc line 384) ignores non-JSON pages. §4.2 row 11 (doc line 215) says the thinking-only nudge happens once, but learn-research.js:35-38 nudges on every thinking-only step within the budget (§4.4 makes no nudge claim). §4.4 'second / command silently dropped' (doc line 299; see lifecycle-6). §4.4 doc line 300 quotes the repository error text for both paths (lifecycle-14). §11.1 Stop leaves the reply spinning (lifecycle-1). §2 omits the side-panel 'Learn Agent' AskPanel (LearnPage.jsx:1291). K16 and §15 'Show on graph is not wired in the dock' (doc line 781) are accurate."
+   ],
+   "files_and_callers": [
+    "packages/control-plane/src/ask.js askStream; packages/control-plane/src/learn-board.js boardFetch",
+    "packages/web/src/ask.jsx; packages/web/src/learn-grade.js; packages/web/src/learn-board-request.js; packages/web/src/agent/ask-stream.js + bar.js + AgentBar.jsx",
+    "docs/learn-agent-canvas-architecture.md §2, §4.2, §4.4, §6.2, §11.1, §15"
+   ],
+   "smallest_change": "Docs only for this item. Replace §6.2 with the event-by-surface table above (rendered, metadata or unsupported) and apply the listed corrections. Keep the dock graph stored-only; wiring an explicit pill there is a separate product choice. The actionable mismatches are fixed in lifecycle-1, 2, 8, 9, 10 and 11.",
+   "change_type": "docs_or_tests_only",
+   "needs_user_decision": false,
+   "tests_to_add": "Add a source-level unit test next to agent/ask-stream.test.mjs, in the style of learn-research.test.js. It asserts that every event name askStream can send appears in ask-stream.js EVENTS and has a branch in ask.jsx send, so a new producer event cannot ship without a decision about its consumers."
+  },
+  {
+   "id": "paid-persist-12",
+   "title": "Inventory of Learn and canvas browser keys, and which are scoped by org and email; architecture section 14 is incomplete",
+   "status": "still_present",
+   "evidence": [
+    "Scoped by org, email and app (email is `app.email || app.owner_email`): LearnPage.jsx:174 canvasKey; :448 `<canvasKey>:ink` or `<canvasKey>:<board>:s<n>`; :460 `<boardStorageKey>:v`; :189 `<canvasKey>[:<board>]:chat`; :200/:203 `<canvasKey>:sources`; :976 `<canvasKey>[:<board>]:title`; :62 `small.lesson-plan:<org>:<email>:<app>`. The same keys are read by home/canvas-local.js:8-10, continue.js:20, CanvasPage.jsx:13 and RepositoryPage.jsx:32.",
+    "Scoped with no owner fallback: lesson-progress.js:2-4 `// Never fall back to the owner's email ... if (!app.email) return null;` giving `small.lesson-progress:[org,email,app,version,lesson]`. IndexedDB small-learn-notes keyed by notesScope [email, org, app] (learn-notes.js:1-4), which throws without email. IndexedDB small-learn-graphs keyed by [email, org, app] (learn-graph-storage.js:21), inert because editor is never set. small.pinned:<org>:<email> (home/pinned.js:3).",
+    "Not scoped: `small.learn-sheet-threads:<app>` (ask.jsx:315, see paid-persist-9). IndexedDB small-learn-assets (learn-asset-cache.js:7) with keys `image:<prompt>` (LearningBlocks.jsx:1272), `pdf:<id>` (LearnPage.jsx:333), `drop:<uuid>` (:357) and board asset keys cached from the server (learn-board-assets.js:17). Two users on one browser share entries only for equal keys, in practice `image:<same prompt>`. Preferences small.askModel (ask.jsx:370, Sidebar.jsx:69/292), small.learn-muted and small.learn-speed (learn-audio.js:2,14) and small.learn.search-source (SearchBar.jsx:19). Per-browser by design: small.device (canvas-local.js:34). App-wide: small.recent (continue.js:11), small.preview:explore-saved (home/explore.js:4) and small.preview:review-fixtures (home/review-fixtures.js:10).",
+    "sessionStorage, per tab: small.learn.request, one-shot and removed on read (LearnPage.jsx:970), and small.learn.result:<id> (learn-hook.js:22,39; LearnPage.jsx:910,958). A request is rejected unless its app matches the open Learn (LearnPage.jsx:916).",
+    "Notebook files live in the notebook origin's storage under the random notebook_id (learn-notebook.js:1-8). Fork and shared views re-id them (learn-boards.js:160-165, SharedBoardPage.jsx:37).",
+    "The owner_email fallback is latent: every app object that reaches LearnPage carries the viewer's email (canvases.js:10, repositories.js:37, index.js:592).",
+    "Architecture doc :715-727 lists only :ink, the board key, :chat, :sources, the sheet key and small-learn-assets. It says keys use `<email>` without mentioning the owner fallback, and it omits :v, :title, lesson-plan, lesson-progress, notes/graphs IDB, preferences and the sessionStorage handoff."
+   ],
+   "files_and_callers": [
+    "packages/web/src/LearnPage.jsx",
+    "packages/web/src/ask.jsx",
+    "packages/web/src/home/canvas-local.js, continue.js, pinned.js",
+    "packages/web/src/lesson-progress.js, learn-notes.js, learn-graph-storage.js, learn-asset-cache.js, learn-board-assets.js",
+    "packages/web/src/agent/learn-hook.js",
+    "docs/learn-agent-canvas-architecture.md section 14"
+   ],
+   "smallest_change": "Docs only: replace the section 14 key table with this inventory and a scope column. No key changes other than paid-persist-9. Leave small-learn-assets unscoped: it is a content cache, and its only cross-user overlap is identical-prompt images. Leave the owner fallback alone, since no current caller lacks an email.",
+   "change_type": "docs_or_tests_only",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "The Learn keys are unchanged since 3bc489e. The baseline adds small.device, small.pinned:<org>:<email>, small.preview:* and the home and canvas readers of the canvas keys.",
+   "tests_to_add": "None beyond paid-persist-9."
+  },
+  {
+   "id": "duplication-19",
+   "title": "The one-repair loops in the artifact maker and the whiteboard look alike but are different contracts; do not merge",
+   "status": "not_a_problem",
+   "evidence": [
+    "learn-artifact.js:59-77: same-family tool may answer the repair; out-of-family rejected without repair (line 67); failures return result types.",
+    "learn-board.js:177-203 validateOrRepair: same tool forced; formatRepairUsed shared across stages (:160, :184); budget raised to at most 6000 on truncation (:192); plan salvage (:163-176, :185, :199); failures throw.",
+    "Repair prompts differ (learn-artifact.js:76 vs learn-board.js:190); only the tool_result turn construction repeats."
+   ],
+   "files_and_callers": [
+    "packages/control-plane/src/learn-artifact.js generateArtifact",
+    "packages/control-plane/src/learn-board.js generateBoardPlan"
+   ],
+   "smallest_change": "None.",
+   "change_type": "none",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "Unchanged since 3bc489e.",
+   "tests_to_add": "None new; learn-artifact.test.js:76 and the board repair tests are the guards."
+  },
+  {
+   "id": "duplication-20",
+   "title": "agents/loop.js is not used by Learn and should not be",
+   "status": "not_a_problem",
+   "evidence": [
+    "Only importer: packages/control-plane/src/agents/runbook.js:4 `import { toolLoop } from './loop.js';` (agents/ holds README.md, loop.js, runbook.js, tools.js).",
+    "loop.js:9 `anthropic(env, { max_tokens: maxTokens, system, tools, messages }, null, org)`: no tool_choice, model always null, anthropic() not planModel; Learn needs auto+disable_parallel then none (learn-research.js:20), forced tools (learn-board.js:159,241), 'any' (learn-artifact.js:51).",
+    "loop.js:29-33 executes every tool_use and returns strings only (`String(await exec(...)).slice(0, 30000)`); Learn allows exactly one call (learn-research.js:44) and returns document/image blocks and is_error.",
+    "No progress callback, no max_tokens or thinking-only handling (learn-research.js:30, :35-38)."
+   ],
+   "files_and_callers": [
+    "packages/control-plane/src/agents/loop.js (runbook only)",
+    "packages/control-plane/src/learn-research.js, learn-board.js, learn-artifact.js"
+   ],
+   "smallest_change": "None. Dispatch is already deterministic by path in dev-worker.js (ask :97, artifact :163, board :172, grade :154).",
+   "change_type": "none",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "Unchanged since 3bc489e.",
+   "tests_to_add": "None."
+  },
+  {
+   "id": "duplication-21",
+   "title": "The no-store JSON response helper is redefined in six Learn modules",
+   "status": "not_a_problem",
+   "evidence": [
+    "repositories.js:13, canvases.js:5, learn-grade-routes.js:9, learn-artifact.js:84, learn-board.js:303 and :362 (the :362 copy has no status default).",
+    "index.js:33 variant has no Cache-Control but is the shared production router."
+   ],
+   "files_and_callers": [
+    "packages/control-plane/src/repositories.js, canvases.js, learn-grade-routes.js, learn-artifact.js, learn-board.js"
+   ],
+   "smallest_change": "None.",
+   "change_type": "none",
+   "needs_user_decision": false,
+   "snapshot_vs_baseline": "Five copies at 3bc489e; canvases.js adds the sixth.",
+   "tests_to_add": "None."
+  }
+ ]
+}

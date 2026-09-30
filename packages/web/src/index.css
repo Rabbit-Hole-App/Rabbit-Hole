@@ -159,7 +159,14 @@ html {
 /* Dark appearance (Settings → Appearance). Tailwind v4 utilities read CSS vars,
    so one override block re-skins every token - including bg-white surfaces via
    --color-white. Elements on accent/danger re-pin white so their text stays white. */
+:root {
+  /* What the canvas's default pen and text render as. Light mode keeps the
+     stored Notion near-black; dark mode goes full white - the ink token's
+     #d4d4d4 reads as gray handwriting on a dark board. */
+  --learn-canvas-ink: #37352f;
+}
 .dark {
+  --learn-canvas-ink: #ffffff;
   --tok-c: #82817d;
   --tok-s: #6fbf8e;
   --tok-k: #b79ae3;
@@ -345,6 +352,10 @@ a {
   box-shadow: var(--shadow-pop);
 }
 
+/* A canvas drag keeps the pointer even when it crosses an embedded page
+   (notebook, PDF, video); see startDrag in AdaptiveCanvas.jsx. */
+.canvas-dragging iframe { pointer-events: none; }
+
 /* Excalidraw's own rule for its overlay layer doesn't survive our Tailwind cascade -
    without it the layer swallows pointer events and nothing can be drawn. */
 .excalidraw .SVGLayer,
@@ -492,8 +503,61 @@ tr.cursor-pointer:active > td {
    overlay owned by React, never a mark written into the article's own nodes:
    innerHTML children can be re-created at any render, and nothing an editor
    writes can forge an element outside the sanitized subtree. */
+/* Learner highlights on a Wikipedia card (learn-wiki-highlights.js). The
+   Custom Highlight API paints ranges without touching the article's DOM. Dark
+   text on the yellow in both themes, or dark mode's light text would vanish. */
+::highlight(wiki-highlight) {
+  background-color: #fde047;
+  color: #1f1f1f;
+}
+
+/* A paper page's selectable text: pdf.js's text layer (the minimum of
+   pdfjs-dist/web/pdf_viewer.css), invisible spans laid exactly over the
+   rendered glyphs. --total-scale-factor is CSS px per PDF unit, set by
+   LearnPaper from the page's displayed width. */
+.textLayer {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  line-height: 1;
+  text-align: initial;
+  letter-spacing: normal;
+  word-spacing: normal;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  z-index: 0;
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+}
+.textLayer :is(span, br) {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  user-select: text;
+}
+.textLayer > :not(.markedContent),
+.textLayer .markedContent span:not(.markedContent) {
+  z-index: 1;
+  --font-height: 0;
+  --scale-x: 1;
+  --rotate: 0deg;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+.textLayer .markedContent { display: contents; }
+/* While a drag selects, this sheet under the words catches the gaps between
+   them, so the selection does not jump to the top of the page. */
+.textLayer .endOfContent { display: block; position: absolute; inset: 100% 0 0; z-index: 0; cursor: default; user-select: none; }
+.textLayer.selecting .endOfContent { top: 0; }
+.textLayer ::selection { background: rgb(0 0 255 / 0.25); color: transparent; }
+/* The page image already shows the words - a highlight only tints them. */
+.textLayer ::highlight(wiki-highlight) { background-color: rgb(250 204 21 / 0.45); color: transparent; }
 @keyframes wiki-arrive {
-  from { background: rgba(35, 131, 226, 0.14); }
+  from { background: rgba(125, 195, 255, 0.3); }
   to { background: transparent; }
 }
 .wiki-article [data-arrived] { animation: wiki-arrive 2s ease-out 1 forwards; border-radius: 4px; background: transparent; }

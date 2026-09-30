@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { parseRepository, repositoriesFetch, repositoryAccess, RepositoryImports } from '../src/repositories.js';
 import { repositoryTool, REPOSITORY_SYSTEM, REPOSITORY_TOOLS } from '../src/repository-context.js';
 import { researchAnswer } from '../src/learn-research.js';
+import { liveDb, memoryBucket } from './live-storage-spy.js';
+import { putUploadedPaper } from '../src/learn-paper.js';
 
 const sha='a'.repeat(40), newer='b'.repeat(40);
 const snapshot={repo:'example/project',commit:sha,version:'graphifyy-0.9.63-small-1',files:{'model.py':'class Model:\n    def forward(self, x):\n        return x + 1','README.md':'A model'},skipped:[],graph:{nodes:[{id:'model',label:'Model',path:'model.py',line:1},{id:'forward',label:'forward()',path:'model.py',line:2}],edges:[{source:'model',target:'forward',relation:'contains',confidence:'EXTRACTED'}]}};
@@ -79,6 +81,28 @@ test('selected code uses stored source, survives chat history and rejects mismat
   for(const range of [{path:'../secret',start:1,end:2},{path:'model.py',start:0,end:3},{path:'model.py',start:1,end:122}])assert.equal((await f.send('ask',{message:'Explain',repository_context:{commit:sha,range}})).status,400);
 });
 
+// C4 models-1, repository row: same resolution as apiAsk; Auto keeps the server-side fallback.
+test('repository chat runs Auto as claude-opus-5 with fallback, and a picked key as that id alone',async t=>{
+  const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});const sent=[];
+  f.env.ANTHROPIC_API_KEY='a';f.env.OPENAI_API_KEY='o';
+  globalThis.fetch=async(url,options)=>{const body=JSON.parse(options.body);sent.push({host:new URL(url).host,model:body.model,fallbacks:body.fallbacks});return Response.json({content:[{type:'text',text:'ok'}],stop_reason:'end_turn'});};
+  for(const model of [undefined,'sonnet-5','gpt-5'])await(await f.send('ask',{message:'Hi',...(model?{model}:{})})).text();
+  assert.deepEqual(sent,[{host:'api.anthropic.com',model:'claude-opus-5',fallbacks:'default'},{host:'api.anthropic.com',model:'claude-sonnet-5',fallbacks:undefined},{host:'api.anthropic.com',model:'claude-opus-5',fallbacks:'default'}]);
+});
+// models-4: repository asks and course authoring reach the dev worker through
+// /api/repositories before its owner gate, so repositoriesFetch applies it itself.
+test('subscription mode: only the owner may ask or author courses on a repository, and course model actions get 503',async t=>{
+  const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});const hosts=[];
+  Object.assign(f.env,{SUBSCRIPTION_ONLY:'true',SUBSCRIPTION_OWNER_EMAIL:'owner@test',SUBSCRIPTION_BRIDGE_URL:'https://bridge.test',SUBSCRIPTION_BRIDGE_TOKEN:'t',ANTHROPIC_API_KEY:'paid'});
+  globalThis.fetch=async url=>{hosts.push(new URL(url).host);return Response.json({billing:'claude-subscription',content:[{type:'text',text:'ok'}],stop_reason:'end_turn'});};
+  const member={'x-email':'viewer@test'};
+  assert.equal((await f.send('ask',{message:'Hi'},member)).status,403);
+  for(const action of ['brief','draft'])assert.equal((await f.send('learn-course',{action,revision:0},member)).status,403,action);
+  for(const action of ['draft','generate','revise_section'])assert.equal((await f.send('learn-course',{action,revision:0})).status,503,action);
+  assert.deepEqual(hosts,[]);
+  await(await f.send('ask',{message:'Hi'})).text();
+  assert.deepEqual(hosts,['bridge.test']);
+});
 test('graph answers stream an exact view and retain it with the saved answer',async t=>{
   const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});let calls=0;
   globalThis.fetch=async()=>Response.json(++calls===1?{content:[{type:'tool_use',id:'path',name:'find_connection_path',input:{from:'Model',to:'forward'}}]}:{content:[{type:'text',text:'Model contains forward (EXTRACTED).'}],stop_reason:'end_turn'});
@@ -87,6 +111,27 @@ test('graph answers stream an exact view and retain it with the saved answer',as
   const id=f.sqlite.prepare('SELECT id FROM threads').get().id;
   const saved=await(await f.send(`threads/${id}`)).json(),answer=saved.messages.find(m=>m.role==='assistant');
   assert.equal(answer.graph.commit,sha);assert.deepEqual(answer.graph.nodes.map(n=>n.id),['model','forward']);assert.equal(answer.graph.edges[0].relation,'contains');
+});
+
+// C1 (docs/features/learn-cleanup.md): a repository answer that shows a video logs the moment
+// through learnMomentsDb, which is LEARN_DB on dev. The live DB is a recording spy, because the
+// moment log swallows its errors (ask.js), and small-learn-dev has no learn_moments table yet,
+// so the dev log goes quiet: the video still streams, with no momentId.
+test('a repository video answer writes no learn_moments row to the live DB',async t=>{
+  const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});
+  const live=liveDb();Object.assign(f.env,{DB:live,LEARN_MEDIA:memoryBucket(),EXA_API_KEY:'test'});
+  const replies=[{content:[{type:'tool_use',id:'find',name:'find_video_moments',input:{query:'backprop'}}]},{content:[{type:'tool_use',id:'show',name:'show_video',input:{videoId:'Ilg3gGewQ5U'}}]},{content:[{type:'text',text:'Watch the chain rule.'}],stop_reason:'end_turn'}];
+  globalThis.fetch=async url=>{
+    const host=new URL(String(url)).hostname;
+    if(host==='api.exa.ai')return Response.json({results:[{url:'https://www.youtube.com/watch?v=Ilg3gGewQ5U',title:'Backprop - YouTube'}]});
+    if(host==='api.anthropic.com')return Response.json(replies.shift());
+    return new Response('',{status:404});
+  };
+  const events=await(await f.send('ask',{message:'show me a video about backprop'})).text();
+  assert.match(events,/event: video/);assert.match(events,/event: done/);
+  assert.doesNotMatch(events,/momentId/);
+  assert.deepEqual(live.calls,[]);
+  assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM messages').get().n,2);
 });
 
 test('canvas block branches have isolated saved histories and remain permission scoped', async t => {
@@ -162,12 +207,19 @@ test('T02 section 16 pin: connect_repository writes only LEARN_DB rows and learn
 // Dev storage hygiene (user, 2026-09-28): dev repository snapshots live in their own bucket, never in the
 // live small-runs bucket under a prefix. The dev config binds that bucket; production has no such binding.
 const jsonc=(path)=>JSON.parse(readFileSync(new URL(path,import.meta.url),'utf8').replace(/("(?:\\.|[^"\\])*")|\/\/[^\n]*|\/\*[\s\S]*?\*\//g,(m,str)=>str||'').replace(/,(\s*[}\]])/g,'$1'));
+// Every packages/web config that deploys dev-worker.js (the shared dev worker and the clone recipe) needs it:
+// without the binding every repository ask fails at repositorySnapshot.
 test('dev repository snapshots cannot reach the production bucket',()=>{
-  const dev=jsonc('../../web/wrangler.dev.jsonc'),live=jsonc('../wrangler.jsonc');
+  const web=new URL('../../web/',import.meta.url),live=jsonc('../wrangler.jsonc');
+  const devs=readdirSync(web).filter(name=>/^wrangler\..*\.jsonc$/.test(name)).filter(name=>jsonc(`../../web/${name}`).main==='dev-worker.js');
+  assert.deepEqual(devs.sort(),['wrangler.dev.jsonc','wrangler.parallel.jsonc']);
   const liveBuckets=(live.r2_buckets||[]).map(b=>b.bucket_name);
-  const snapshots=(dev.r2_buckets||[]).find(b=>b.binding==='REPOSITORY_SNAPSHOTS');
-  assert.ok(snapshots,'the dev config binds REPOSITORY_SNAPSHOTS');
-  assert.ok(!liveBuckets.includes(snapshots.bucket_name),`${snapshots.bucket_name} is a production bucket`);
+  for(const name of devs){
+    const snapshots=(jsonc(`../../web/${name}`).r2_buckets||[]).find(b=>b.binding==='REPOSITORY_SNAPSHOTS');
+    assert.ok(snapshots,`${name} binds REPOSITORY_SNAPSHOTS`);
+    assert.equal(snapshots.bucket_name,'small-repositories-dev',name);
+    assert.ok(!liveBuckets.includes(snapshots.bucket_name),`${snapshots.bucket_name} is a production bucket`);
+  }
   assert.ok(!(live.r2_buckets||[]).some(b=>b.binding==='REPOSITORY_SNAPSHOTS'),'production binds REPOSITORY_SNAPSHOTS');
   const source=readFileSync(new URL('../src/repositories.js',import.meta.url),'utf8');
   assert.doesNotMatch(source,/env\.RUNS\b/,'repositories.js still reads or writes the live RUNS bucket');
@@ -177,4 +229,84 @@ test('a why-question gets the code explained, inference labelled, and no invente
   assert.ok(REPOSITORY_SYSTEM.includes("I don't have a recorded project decision explaining why the team chose this."));
   assert.match(REPOSITORY_SYSTEM, /No decision, question or session records are captured for this project/);
   assert.match(REPOSITORY_SYSTEM, /label them as inferred from the source/);
+});
+
+// C5 context-1: the same schema-max explanation card as learn-chat.test.js, wrapped as ask.jsx did.
+const LONG_CARD=[`Explanation: ${'T'.repeat(120)}`,'b'.repeat(2000),...[1,2,3].map(n=>`[${'L'.repeat(40)}] ${String(n).repeat(800)}`)].join('\n');
+const wrappedCardQuestion=question=>`Question about this Explanation block on the lesson canvas:\n${LONG_CARD}\n\nLearner question: ${question}`;
+test('a long card wrapped into the message is refused by the 4000-character limit (context-1)',async t=>{
+  const f=fixture(t),res=await f.send('ask',{message:wrappedCardQuestion('why?')});
+  assert.equal(res.status,400);assert.deepEqual(await res.json(),{error:'Question must be 1–4000 characters'});
+  assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM threads').get().n,0);
+});
+test('a canvas_target card rides as its own bounded context section on a repository ask (context-1)',async t=>{
+  const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});const prompts=[];
+  globalThis.fetch=async(_,options)=>{prompts.push(JSON.parse(options.body));return Response.json({content:[{type:'text',text:'Because.'}],stop_reason:'end_turn'});};
+  const res=await f.send('ask',{message:'why?',canvas_target:{id:'block-1',kind:'Explanation',title:'Softmax',text:LONG_CARD}});
+  assert.equal(res.status,200);await res.text();
+  const turn=JSON.stringify(prompts[0].messages.at(-1));
+  assert.ok(turn.includes(JSON.stringify(JSON.stringify(LONG_CARD)).slice(1,-1)),'the whole card reaches the model');
+  assert.match(turn,/untrusted/);
+  assert.equal(f.sqlite.prepare("SELECT content FROM messages WHERE role='user'").get().content,'why?');
+  assert.equal(f.sqlite.prepare('SELECT title FROM threads').get().title,'why?');
+  await (await f.send('ask',{message:'and this?',canvas_target:{id:'b2',kind:'Table',title:'Big',text:'x'.repeat(9000)}})).text();
+  assert.match(JSON.stringify(prompts[1].messages.at(-1)),/\[card text truncated: showing 8000 of 9000 characters\]/);
+  assert.equal((await f.send('ask',{message:'q',canvas_target:{id:'b',kind:'Explanation',text:''}})).status,400);
+});
+
+// C5 context-5, context-6, prompts-10: a repository ask reads the same attached sources a chat ask
+// does, through learn-ask-context.js: context text only, no outline or Wikipedia tools.
+test('repository asks read the outline, video window, Wikipedia section and uploaded PDF the way chat asks do',async t=>{
+  const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});const prompts=[];
+  f.env.LEARN_MEDIA=memoryBucket();
+  globalThis.fetch=async(url,options)=>{const u=String(url);
+    if(u.includes('wikipedia.org')&&u.includes('prop=tocdata'))return Response.json({parse:{title:'Machine learning',tocdata:{sections:[{index:'1',tocLevel:1,line:'History',anchor:'History'}]}}});
+    if(u.includes('wikipedia.org'))return Response.json({parse:{text:'<div><p>Arthur Samuel coined the term.</p></div>'}});
+    prompts.push(JSON.parse(options.body));return Response.json({content:[{type:'text',text:'Ok.'}],stop_reason:'end_turn'});};
+  const turn=()=>JSON.stringify(prompts.at(-1).messages.at(-1)),tools=()=>(prompts.at(-1).tools||[]).map(tool=>tool.name);
+  const {id}=await putUploadedPaper(f.env,{org:'team',name:'repo-example',email:'owner@test'},new File([new TextEncoder().encode('%PDF-1.4 test')],'notes.pdf',{type:'application/pdf'}));
+  const selection={region:{x:0.2,y:0.3,w:0.4,h:0.2},preview:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII='};
+  let res=await f.send('ask',{message:'what does this say?',paper_context:{id,page:2,selection}});
+  assert.equal(res.status,200);await res.text();
+  const blocks=prompts.at(-1).messages.at(-1).content;
+  assert.equal(blocks[0].type,'document');assert.equal(blocks[0].source.data,Buffer.from('%PDF-1.4 test').toString('base64'));
+  assert.equal(blocks[1].type,'image');
+  assert.match(turn(),/Answer from the attached paper/);assert.match(turn(),/selectedRegion/);
+  await (await f.send('ask',{message:'structure?',outline:[{id:'h1',label:'Attention heads',level:1,done:false}]})).text();
+  assert.match(turn(),/This lesson's table of contents/);assert.match(turn(),/Attention heads/);
+  assert.equal(tools().includes('propose_lesson_outline'),false);
+  await (await f.send('ask',{message:'what is shown?',video_context:{videoId:'Ilg3gGewQ5U',start:240,end:300,title:'Backprop'}})).text();
+  assert.match(turn(),/You have not read its transcript/);assert.match(turn(),/4:00 to 5:00/);
+  await (await f.send('ask',{message:'who coined it?',wiki_context:{title:'Machine_learning',section:1}})).text();
+  assert.match(turn(),/Arthur Samuel coined the term/);assert.match(turn(),/cannot be read here/);
+  assert.equal(tools().includes('read_wikipedia'),false);
+  for(const body of [{outline:'x'},{video_context:{videoId:'nope'}},{wiki_context:{title:'',section:0}},{paper_context:{id,page:101}},{image_context:{id:'../x'}}])assert.equal((await f.send('ask',{message:'q',...body})).status,400,JSON.stringify(body));
+  const missing=await f.send('ask',{message:'q',paper_context:{id:'upload:0123456789ab',page:1}});
+  assert.equal(missing.status,502);assert.deepEqual(await missing.json(),{error:'Could not read the referenced paper. Try again.'});
+});
+// duplication-2, context-7, lifecycle-14: the composer's + attachment (up to 4 MB) works on a repository
+// ask; every JSON request, and the JSON part of the ask, keep the 64 KB cap.
+test('a repository ask takes a + attachment up to 4 MB while JSON requests keep the 64 KB cap',async t=>{
+  const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});const prompts=[];
+  globalThis.fetch=async(_,options)=>{prompts.push(JSON.parse(options.body));return Response.json({content:[{type:'text',text:'A square.'}],stop_reason:'end_turn'});};
+  const upload=(bytes,body={message:'what is in this picture?'})=>{const form=new FormData();form.set('body',JSON.stringify(body));form.set('file',new Blob([bytes],{type:'image/png'}),'shot.png');
+    return repositoriesFetch(new Request('https://dev.test/api/repositories/repo-example/ask',{method:'POST',body:form}),f.env,{});};
+  const res=await upload(new Uint8Array(100000));
+  assert.equal(res.status,200);await res.text();
+  assert.equal(prompts[0].messages.at(-1).content[0].type,'image');
+  const big=await upload(new Uint8Array(4*1024*1024+1));
+  assert.equal(big.status,400);assert.deepEqual(await big.json(),{error:'attachment too large - 4 MB max'});
+  assert.equal((await upload(new Uint8Array(10),{message:'q',lesson_snapshot:'x'.repeat(70000)})).status,413,'the JSON part stays under 64 KB');
+  assert.equal((await f.send('ask',{message:'q',outline:[{id:'h',label:'x'.repeat(70000),level:1,done:false}]})).status,413);
+  assert.equal((await f.send('file',{path:'x'.repeat(70000)})).status,413);
+});
+// context-11: a mention the repository chat cannot read says so instead of vanishing.
+test('an unknown or fourth repository mention is named as not available',async t=>{
+  const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});const prompts=[];
+  globalThis.fetch=async(_,options)=>{prompts.push(JSON.parse(options.body));return Response.json({content:[{type:'text',text:'Ok.'}],stop_reason:'end_turn'});};
+  await (await f.send('ask',{message:'compare',mentions:['repo-missing','counter','repo-a','repo-b']})).text();
+  const turn=JSON.stringify(prompts[0].messages.at(-1));
+  assert.match(turn,/Mentioned app repo-missing: not available to this chat\./);
+  assert.match(turn,/Mentioned app counter: not available to this chat\./);
+  assert.match(turn,/Mentioned app repo-b: not available to this chat \(a question reads at most 3 mentioned apps\)\./);
 });

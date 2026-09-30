@@ -1,13 +1,23 @@
 import { paperSelectionImage } from '../src/learn-preview-review.js';
-import { canvasSeed } from '../src/canvas-conversation.js';
+import { canvasSeed, threadTurns } from '../src/canvas-conversation.js';
 import { arxivId, paperDocument } from '../src/arxiv.js';
 import { OUTLINE_TOOL, OUTLINE_SYSTEM, validateOutlineOps } from '../src/learn-outline-tool.js';
 import { SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, WIKI_SYSTEM, wikiTitle, validateShowWikipedia } from '../src/learn-wiki.js';
-import { validateVideoContext, FIND_VIDEO_MOMENTS_TOOL, SHOW_VIDEO_TOOL, VIDEO_SYSTEM, validateShowVideo } from '../src/learn-youtube.js';
+import { validateVideoContext, FIND_VIDEO_MOMENTS_TOOL, SHOW_VIDEO_TOOL, VIDEO_SYSTEM, validateShowVideo, videoSearchAvailable } from '../src/learn-youtube.js';
 import { isUploadedPaperId, uploadedPaperAsDocument, paperIdentity, PAPER_PAGE_LIMIT } from '../src/learn-paper.js';
-import { LEARN_SYSTEM, validateLessonSnapshot, validateOutline, renderOutline } from '../src/learn-context.js';
+import { isUploadedMediaId } from '../src/learn-media.js';
+import { LEARN_SYSTEM, LEARN_SNAPSHOT_SYSTEM, validateLessonSnapshot, validateOutline, renderOutline } from '../src/learn-context.js';
 import { canvasApp, canvasAskSeam } from '../src/canvases.js';
+import { validateLearnContext, validateCanvasTarget, appendCanvasTarget, appendOutline, readLearnSource } from '../src/learn-ask-context.js';
+import { VIDEO_SHOWN_NOTE, WIKI_SHOWN_NOTE } from '../src/agents/learn-chat.js';
+import { ATTACHMENT_LIMIT, attachmentBlocks, readAskRequest, askStream, CAP_CHARS } from '../src/ask.js';
+import { askModel, MESSAGE_LIMIT, MENTION_LIMIT, HISTORY_TURNS } from '../src/learn-models.js';
+import { findVideoMoments, videoMomentTools } from '../src/learn-youtube.js';
+import { liveDb, memoryBucket } from './live-storage-spy.js';
+import { learnMedia } from '../src/learn-storage.js';
+import { randomHex } from '../src/token.js';
 import { captureSelection, selectionSnapshot, sigmoidObjects } from '../../web/src/sigmoid-context.js';
+import { canvasTargetField } from '../../web/src/learn-ask-target.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -27,13 +37,23 @@ const deps = {
   appForUser: async (env, user, name) => env.apps[name],
   appContext: async (env, app) => ({ name: app.name }),
   askStream: async (env, context, history, question, onFull, metadata, blocks, toolOpts, model, org, system, research) => {
-    env.answers.push({ history: [...history], question, context, toolOpts, system, org, blocks, research, db: env.DB });
+    env.answers.push({ history: [...history], question, context, toolOpts, model, system, org, blocks, research, db: env.DB });
     await onFull('Answer: ' + question);
     return json(metadata);
   },
-  ASK_MODELS: {},
+  askModel,
+  MESSAGE_LIMIT,
+  MENTION_LIMIT,
+  HISTORY_TURNS,
+  ATTACHMENT_LIMIT,
+  CAP_CHARS,
+  attachmentBlocks,
+  readAskRequest,
+  learnMedia,
+  randomHex,
   ASK_TOOLS: [],
   LEARN_SYSTEM,
+  LEARN_SNAPSHOT_SYSTEM,
   validateLessonSnapshot,
   validateOutline,
   renderOutline,
@@ -45,14 +65,30 @@ const deps = {
   uploadedPaperAsDocument,
   paperIdentity,
   PAPER_PAGE_LIMIT,
+  isUploadedMediaId,
+  // Shaped like the real one: bytes come back as an Anthropic image block.
+  uploadedMediaAsImage: async (env, identity, id) => ({
+    id, title: 'diagram.png',
+    image: { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'aWFtYXBuZw==' } },
+  }),
   OUTLINE_TOOL,
   OUTLINE_SYSTEM,
   validateOutlineOps,
   canvasSeed,
+  threadTurns,
+  videoMomentTools,
+  validateLearnContext,
+  validateCanvasTarget,
+  appendCanvasTarget,
+  appendOutline,
+  readLearnSource,
   validateVideoContext,
   FIND_VIDEO_MOMENTS_TOOL,
   SHOW_VIDEO_TOOL,
   VIDEO_SYSTEM,
+  videoSearchAvailable,
+  VIDEO_SHOWN_NOTE,
+  WIKI_SHOWN_NOTE,
   validateShowVideo,
   // Shaped like the real one: one video with passages, one without.
   findVideoMoments: async query => ({
@@ -96,7 +132,7 @@ function fixture(t) {
   const schema = readFileSync(new URL('../schema.sql', import.meta.url), 'utf8');
   for (const table of ['threads', 'messages', 'proposals']) db.exec(schema.match(new RegExp(`CREATE TABLE IF NOT EXISTS ${table} \\([^]*?\\n\\);`))[0]);
   return {
-    ANTHROPIC_API_KEY: 'test-only', answers: [],
+    ANTHROPIC_API_KEY: 'test-only', EXA_API_KEY: 'test-only', answers: [],
     apps: { counter: { name: 'counter', canView: true, canEdit: false }, other: { name: 'other', canView: true, canEdit: false } },
     DB: { batch: async statements => Promise.all(statements.map(statement => statement.run())), prepare: sql => ({ bind: (...params) => ({
       first: async () => db.prepare(sql).get(...params) || null,
@@ -119,6 +155,16 @@ test('canvas follow-ups seed separate Learn threads for normal deployed apps', a
   assert.doesNotMatch(JSON.stringify(env.answers[2].history), /Beta/);
   env.apps.counter.canView = false;
   assert.equal((await start('Blocked')).status, 403);
+});
+
+// C4 models-1: the picker key resolves through the allowlist; no key (Auto)
+// or an unknown one reaches askStream as null, the server-side-fallback path.
+test('a chat ask resolves its model key through the allowlist, and Auto or an unknown key is null', async t => {
+  const env = fixture(t);
+  for (const [model, expected] of [[undefined, null], ['sonnet-5', 'claude-sonnet-5'], ['gpt-5', null], ['constructor', null], ['__proto__', null]]) {
+    await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'Hi', ...(model ? { model } : {}) }), env, {}, owner, 'learn');
+    assert.equal(env.answers.at(-1).model, expected, String(model));
+  }
 });
 
 test('Learn and Agent have separate histories and model context for the same app', async t => {
@@ -218,7 +264,7 @@ test('selection questions authorize app access, disable tools, and use the tutor
   const req=()=>request({scope:{app:'counter'},message:'Why is this 0.5?',lesson_snapshot:snapshot});
   assert.equal((await handlers.apiAsk(req(),env,{},owner,'learn')).status,200);
   const answer=env.answers[0];
-  assert.equal(answer.toolOpts,null); assert.equal(answer.system,LEARN_SYSTEM);
+  assert.equal(answer.toolOpts,null); assert.equal(answer.system,LEARN_SNAPSHOT_SYSTEM);
   assert.equal(JSON.parse(answer.context).target.objectId,'midpoint');
   env.apps.counter.canView=false;
   assert.equal((await handlers.apiAsk(req(),env,{},owner,'learn')).status,403);
@@ -242,7 +288,7 @@ test('general lesson questions include only visible objects and use the protecte
   const req = () => request({ scope: { app: 'counter' }, message: 'Explain this step again', lesson_snapshot: snapshot });
   assert.equal((await handlers.apiAsk(req(), env, {}, owner, 'learn')).status, 200);
   assert.equal(env.answers[0].toolOpts, null);
-  assert.equal(env.answers[0].system, LEARN_SYSTEM);
+  assert.equal(env.answers[0].system, LEARN_SNAPSHOT_SYSTEM);
   assert.equal(JSON.parse(env.answers[0].context).lessonContext.currentStage, 'equation');
   env.apps.counter.canView = false;
   assert.equal((await handlers.apiAsk(req(), env, {}, owner, 'learn')).status, 403);
@@ -669,4 +715,213 @@ test('canvas Learn asks keep their threads in LEARN_DB and never touch the live 
   assert.equal((await ask('canvas-0a1b2c3d', { message: 'Not mine', thread_id: first.threadId }, { ...owner, email: 'colleague@example.test' })).status, 404);
   assert.equal(sqlite.prepare("SELECT count(*) AS n FROM threads WHERE scope_ref='canvas-0a1b2c3d'").get().n, 2);
   assert.equal(env.answers.length, 3);
+});
+
+// C1: the same canvas turn with the real askStream and findVideoMoments, the video tools called
+// and the hot path bound (AI, MOMENTS). The runTool closes over apiAsk's own env, so the proof
+// is that the live DB spy records nothing: no moment log, no hot-path read.
+test('a canvas video answer with the real moment code never reads or writes the live DB', async t => {
+  const env = fixture(t), live = liveDb(), original = globalThis.fetch;
+  t.after(() => { globalThis.fetch = original; });
+  const sqlite = new DatabaseSync(':memory:');
+  t.after(() => sqlite.close());
+  sqlite.exec(readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8'));
+  sqlite.exec("INSERT INTO canvases(org,name,owner_email,title) VALUES('workspace-a','canvas-0a1b2c3d','owner@example.test','Backprop')");
+  Object.assign(env, {
+    DB: live, LEARN_MEDIA: memoryBucket(), EXA_API_KEY: 'test',
+    LEARN_DB: { batch: async statements => Promise.all(statements.map(statement => statement.run())), prepare: sql => { const statement = sqlite.prepare(sql); return { bind: (...params) => ({
+      first: async () => statement.get(...params) || null,
+      all: async () => ({ results: statement.all(...params) }),
+      run: async () => ({ meta: statement.run(...params) }),
+    }) }; } },
+    AI: { run: async (model, { text }) => ({ data: text.map(() => [0.1, 0.2]) }) },
+    MOMENTS: { query: async (vector, options) => (options.namespace?.startsWith('questions:') ? { matches: [{ id: 'q:7', score: 0.99, metadata: { momentId: 7 } }] } : { matches: [] }) },
+  });
+  const replies = [{ content: [{ type: 'tool_use', id: 'find', name: 'find_video_moments', input: { query: 'backprop' } }] }, { content: [{ type: 'tool_use', id: 'show', name: 'show_video', input: { videoId: 'Ilg3gGewQ5U' } }] }, { content: [{ type: 'text', text: 'Watch the chain rule.' }], stop_reason: 'end_turn' }];
+  globalThis.fetch = async url => {
+    const host = new URL(String(url)).hostname;
+    if (host === 'api.exa.ai') return Response.json({ results: [{ url: 'https://www.youtube.com/watch?v=Ilg3gGewQ5U', title: 'Backprop' }] });
+    if (host === 'api.anthropic.com') return Response.json(replies.shift());
+    return new Response('', { status: 404 });
+  };
+  const real = new Function(...Object.keys(deps), `${functions}; return { ${names.join(',')} };`)(...Object.values({ ...deps, askStream, findVideoMoments }));
+  const seam = canvasAskSeam(env, canvasApp(sqlite.prepare("SELECT * FROM canvases WHERE name='canvas-0a1b2c3d'").get(), owner));
+  const events = await (await real.apiAsk(request({ scope: { app: 'canvas-0a1b2c3d' }, message: 'show me backprop' }), env, {}, owner, 'learn', seam)).text();
+  assert.match(events, /event: video/);
+  assert.match(events, /event: done/);
+  assert.deepEqual(live.calls, []);
+  assert.equal(sqlite.prepare('SELECT count(*) AS n FROM messages').get().n, 2);
+});
+
+// Only the Agent's run tool reads ask-uploads/, and Learn is never offered it, so a Learn
+// attachment rides as a model block alone: no stashed copy, no note about a run tool.
+test('a Learn attachment reaches the model as a block, with no ask-uploads copy and no run-tool note', async t => {
+  const env = fixture(t), stored = [];
+  env.LEARN_MEDIA = { put: async key => { stored.push(key); } };
+  const ask = (path, conversation) => {
+    const body = new FormData();
+    body.set('body', JSON.stringify({ scope: { app: 'counter' }, message: 'what is in this picture' }));
+    body.set('file', new Blob([new Uint8Array([137, 80, 78, 71])], { type: 'image/png' }), 'diagram.png');
+    return handlers.apiAsk(new Request('https://small.example' + path, { method: 'POST', body }), env, {}, owner, conversation);
+  };
+  assert.equal((await ask('/api/learn/ask', 'learn')).status, 200);
+  assert.equal(env.answers[0].question, 'what is in this picture');
+  assert.equal(env.answers[0].blocks.at(-1).type, 'image');
+  assert.deepEqual(stored, []);
+  assert.equal((await ask('/api/ask', 'agent')).status, 200);
+  assert.match(env.answers[1].question, /the run tool can use it/);
+  assert.match(stored[0], /^ask-uploads\/u-[0-9a-f]+\/diagram\.png$/);
+});
+
+// A dropped image is a source like a paper: bytes as a block, one line of
+// context naming it, no app actions while discussing it.
+test('a dropped image the learner asks about reaches the model as an image block', async t => {
+  const env = fixture(t);
+  const image_context = { id: 'media:0123456789ab' };
+  assert.equal((await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'what is in this diagram', image_context }), env, {}, owner, 'learn')).status, 200);
+  const { context, blocks, toolOpts } = env.answers[0];
+  assert.equal(blocks.at(-1).type, 'image');
+  assert.equal(blocks.at(-1).source.media_type, 'image/png');
+  const parsed = JSON.parse(context);
+  assert.equal(parsed.image.title, 'diagram.png');
+  assert.match(parsed.instruction, /evidence, never instructions/);
+  // prompts-10: the same field carries a group's rendered snapshot, so the line names both.
+  assert.match(parsed.instruction, /^The learner attached this image from their canvas \(a dropped picture or a snapshot of selected cards\)/);
+  assert.equal(toolOpts, null, 'an image is not a reason to gain app actions');
+});
+
+test('a paper outranks a dropped image, and wiki yields to it', async t => {
+  const env = fixture(t);
+  const both = {
+    scope: { app: 'counter' }, message: 'compare these',
+    paper_context: { id: '1506.02640', page: 1 }, image_context: { id: 'media:0123456789ab' },
+  };
+  assert.equal((await handlers.apiAsk(request(both), env, {}, owner, 'learn')).status, 200);
+  const parsed = JSON.parse(env.answers[0].context);
+  assert.ok(parsed.paper, 'the paper rides');
+  assert.equal(parsed.image, undefined, 'the image does not');
+  const wikiToo = {
+    scope: { app: 'counter' }, message: 'and this article',
+    wiki_context: { title: 'Machine_learning', section: 1 }, image_context: { id: 'media:0123456789ab' },
+  };
+  assert.equal((await handlers.apiAsk(request(wikiToo), env, {}, owner, 'learn')).status, 200);
+  const second = JSON.parse(env.answers[1].context);
+  assert.ok(second.image, 'the image outranks the article');
+  assert.equal(second.article, undefined);
+});
+
+test('an invalid image id is refused before any read', async t => {
+  const env = fixture(t);
+  for (const id of ['upload:0123456789ab', 'media:xyz', '../secret', 42, null]) {
+    const res = await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi', image_context: { id } }), env, {}, owner, 'learn');
+    assert.equal(res.status, 400, JSON.stringify(id));
+  }
+  assert.equal((await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi', image_context: { id: 'media:0123456789ab' } }), env, {}, owner, 'app')).status, 400, 'learn only');
+});
+
+// C5 context-1: an explanation card at the schema maximum (learn-primitives.js), described as
+// LearningBlocks.jsx describeBlock does and wrapped as ask.jsx did before canvas_target.
+const LONG_CARD = [`Explanation: ${'T'.repeat(120)}`, 'b'.repeat(2000), ...[1, 2, 3].map(n => `[${'L'.repeat(40)}] ${String(n).repeat(800)}`)].join('\n');
+const wrappedCardQuestion = question => `Question about this Explanation block on the lesson canvas:\n${LONG_CARD}\n\nLearner question: ${question}`;
+test('a long card wrapped into the message is refused by the 4000-character limit (context-1)', async t => {
+  const env = fixture(t);
+  assert.ok(wrappedCardQuestion('why?').length > 4000);
+  const res = await send(env, 'learn', wrappedCardQuestion('why?'));
+  assert.equal(res.status, 400);
+  assert.deepEqual(await res.json(), { error: 'message required (max 4000 chars)' });
+});
+
+// duplication-14: apiAsk reads JSON and multipart through readAskRequest; a file over 4 MB is refused.
+test('a multipart ask with a file over 4 MB is refused before the model', async t => {
+  const env = fixture(t), body = new FormData();
+  body.set('body', JSON.stringify({ scope: { app: 'counter' }, message: 'what is this' }));
+  body.set('file', new Blob([new Uint8Array(ATTACHMENT_LIMIT + 1)], { type: 'image/png' }), 'big.png');
+  const res = await handlers.apiAsk(new Request('https://small.example/api/learn/ask', { method: 'POST', body }), env, {}, owner, 'learn');
+  assert.equal(res.status, 400);
+  assert.deepEqual(await res.json(), { error: 'attachment too large - 4 MB max' });
+  assert.equal(env.answers.length, 0);
+});
+
+// Owner decision 2 (context-1): the card rides as canvas_target, bounded apart from the question.
+test('a canvas_target card rides as its own bounded context section; the message stays the question', async t => {
+  const env = fixture(t);
+  const ask = body => handlers.apiAsk(request({ scope: { app: 'counter' }, ...body }), env, {}, owner, 'learn');
+  const res = await ask({ message: 'why?', canvas_target: { id: 'block-1', kind: 'Explanation', title: 'T'.repeat(120), text: LONG_CARD } });
+  assert.equal(res.status, 200);
+  const { question, context } = env.answers[0];
+  assert.equal(question, 'why?');
+  assert.ok(context.includes(JSON.stringify(LONG_CARD)), 'the whole card, under the bound, reaches the model');
+  assert.match(context, /"id":"block-1"/);
+  assert.match(context, /untrusted/);
+  assert.doesNotMatch(context, /truncated/);
+  const { threadId } = await res.json();
+  assert.deepEqual((await (await handlers.apiAskThread(env, owner, threadId)).json()).messages[0].content, 'why?');
+  await ask({ message: 'and this?', canvas_target: { id: 'block-2', kind: 'Table', title: 'Big', text: 'x'.repeat(9000) } });
+  assert.ok(env.answers[1].context.includes(`"text":"${'x'.repeat(8000)}"`));
+  assert.doesNotMatch(env.answers[1].context, /x{8001}/);
+  assert.match(env.answers[1].context, /\[card text truncated: showing 8000 of 9000 characters\]/);
+  const legacy = `Question about this Explanation block on the lesson canvas:\n${'b'.repeat(3000)}\n\nLearner question: why?`;
+  assert.equal((await ask({ message: legacy })).status, 200, 'old wrapped messages under the limit still work');
+  for (const canvas_target of [null, 'card', { id: '', kind: 'Explanation', text: 'x' }, { id: 'b', kind: 'Explanation', text: '' }, { id: 'b', kind: 'Explanation', text: 'x'.repeat(32001) }, { id: 'b', kind: 'Explanation', title: 7, text: 'x' }]) {
+    assert.equal((await ask({ message: 'q', canvas_target })).status, 400, JSON.stringify(canvas_target)?.slice(0, 60));
+  }
+  assert.equal((await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'q', canvas_target: { id: 'b', kind: 'Explanation', text: 'x' } }), env, {}, owner, 'agent')).status, 400, 'learn only');
+});
+
+// Review of C5: a quiz question or challenge prompt may be 600 characters (learn-primitives.js) and
+// describeBlock uses it as the title; a group kind carries its unbounded label. Neither may refuse the ask.
+test('a schema-max quiz title and a long group label are bounded, not refused, on a canvas_target', async t => {
+  const env = fixture(t);
+  const ask = canvas_target => handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'why?', canvas_target }), env, {}, owner, 'learn');
+  const quiz = canvasTargetField({ id: 'b1', kind: 'Quiz', title: 'Q'.repeat(600), text: `Quiz question: ${'Q'.repeat(600)}` });
+  assert.equal((await ask(quiz)).status, 200);
+  assert.ok(env.answers[0].context.includes(`"title":"${'Q'.repeat(299)}…"`));
+  assert.equal((await ask(canvasTargetField({ id: 'g1', kind: `group "${'L'.repeat(400)}"`, title: 'L'.repeat(400), text: 'Explanation: A' }))).status, 200);
+  assert.ok(env.answers[1].context.includes(`"kind":"group \\"${'L'.repeat(192)}…"`));
+});
+
+test('a canvas seam thread is titled by the learner question, not the card', async t => {
+  const env = fixture(t);
+  const sqlite = new DatabaseSync(':memory:');
+  t.after(() => sqlite.close());
+  sqlite.exec(readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8'));
+  env.LEARN_DB = { batch: async statements => Promise.all(statements.map(statement => statement.run())), prepare: sql => ({ bind: (...params) => ({
+    first: async () => sqlite.prepare(sql).get(...params) || null,
+    all: async () => ({ results: sqlite.prepare(sql).all(...params) }),
+    run: async () => ({ meta: sqlite.prepare(sql).run(...params) }),
+  }) }) };
+  sqlite.exec("INSERT INTO canvases(org,name,owner_email,title) VALUES('workspace-a','canvas-0a1b2c3d','owner@example.test','Attention')");
+  const seam = canvasAskSeam(env, canvasApp(sqlite.prepare("SELECT * FROM canvases WHERE name='canvas-0a1b2c3d'").get(), owner));
+  const res = await handlers.apiAsk(request({ scope: { app: 'canvas-0a1b2c3d' }, message: 'why?', canvas_target: { id: 'block-1', kind: 'Explanation', title: 'Softmax', text: LONG_CARD } }), env, {}, owner, 'learn', seam);
+  assert.equal(res.status, 200);
+  assert.equal(sqlite.prepare('SELECT title FROM threads').get().title, 'why?');
+  assert.match(env.answers[0].context, /canvas "Attention"/);
+  assert.match(env.answers[0].context, /"title":"Softmax"/);
+});
+
+// context-14: switching every Sources toggle off sends [], which is a choice, not "everything".
+test('an empty sources list reads no toggleable section; no sources field still reads them all', async t => {
+  const env = fixture(t), uses = [];
+  const recorded = new Function(...Object.keys(deps), `${functions}; return { ${names.join(',')} };`)(...Object.values({ ...deps, appContext: async (env, app, use) => { uses.push(use); return `APP ${app.name}`; } }));
+  await recorded.apiAsk(request({ scope: { app: 'counter' }, message: 'hi', sources: [] }), env, {}, owner, 'agent');
+  await recorded.apiAsk(request({ scope: { app: 'counter' }, message: 'hi' }), env, {}, owner, 'agent');
+  await recorded.apiAsk(request({ scope: { app: 'counter' }, message: 'hi', sources: ['runs'] }), env, {}, owner, 'agent');
+  assert.deepEqual(uses.map(use => use && [...use]), [[], null, ['runs']]);
+});
+
+// context-11: a mention the chat cannot read says so, and all mentioned context shares one budget.
+test('unreadable, unknown and fourth mentions are named as not available, and mentioned context is bounded together', async t => {
+  const env = fixture(t);
+  env.apps.hidden = { name: 'hidden', canView: false };
+  for (const name of ['a1', 'a2']) env.apps[name] = { name, canView: true };
+  const big = new Function(...Object.keys(deps), `${functions}; return { ${names.join(',')} };`)(...Object.values({ ...deps, appContext: async (env, app) => (app.name === 'counter' ? 'APP counter' : `${app.name}:${'m'.repeat(400000)}`) }));
+  assert.equal((await big.apiAsk(request({ scope: { app: 'counter' }, message: 'compare', mentions: ['hidden', 'a1', 'a2', 'other'] }), env, {}, owner, 'learn')).status, 200);
+  const { context } = env.answers[0];
+  assert.match(context, /Mentioned app hidden: not available to this chat\./);
+  assert.match(context, /Mentioned app other: not available to this chat \(a question reads at most 3 mentioned apps\)\./);
+  assert.match(context, /Mentioned app a1:\na1:m/);
+  assert.match(context, /\[mentioned app context truncated: showing \d+ of 400003 characters\]/);
+  assert.ok(context.length < 600000 + 2000, `combined context ${context.length}`);
+  await big.apiAsk(request({ scope: { app: 'counter' }, message: 'and this canvas', mentions: ['canvas-99999999'] }), env, {}, owner, 'learn');
+  assert.match(env.answers[1].context, /Mentioned app canvas-99999999: not available to this chat\.$/);
 });

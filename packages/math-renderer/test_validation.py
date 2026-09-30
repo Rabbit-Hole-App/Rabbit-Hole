@@ -29,6 +29,7 @@ def test_a_derivation_a_plot_shapes_and_a_matrix_all_pass():
     r'\usepackage{tikz}',
     r'x $ 1 $',
     r'50% of x',
+    'sigma(x) = \x0crac{1}{2}',
 ])
 def test_latex_that_reaches_outside_maths_is_refused(fragment):
     with pytest.raises(ValueError):
