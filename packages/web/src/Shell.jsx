@@ -42,8 +42,8 @@ export default function Shell({ children }) {
     setCollapsed(c);
     localStorage.setItem('small.sidebar', c ? 'closed' : 'open');
   };
-  // Rabbit Hole dev: Learn is immersive (routes.js immersiveAt), with no sidebar or icon rail; the top-left button
-  // opens the sidebar as a drawer. It replaces Learn's collapse-on-entry, so visiting Learn no longer collapses it elsewhere.
+  // Rabbit Hole dev: Learn is immersive (routes.js immersiveAt), with no sidebar, icon rail or sidebar button; its top-left
+  // corner is the canvas home (LearnPage, owner 2026-09-30). Visiting Learn no longer collapses the sidebar elsewhere.
   const immersive = learnPreview && immersiveAt(window.location.pathname, window.location.search);
   // The drawer always shows the full sidebar; a collapsed preview sidebar is the icon rail (Sidebar rail).
   const shut = collapsed && !drawer;
@@ -98,11 +98,6 @@ export default function Shell({ children }) {
             <PanelLeft size={16} strokeWidth={1.5} />
           </button>
         </div>
-      )}
-      {immersive && !drawer && (
-        <button aria-label="Open sidebar" title="Open sidebar" onClick={() => setDrawer(true)} className="fixed top-3 left-3 z-20 flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl border border-line bg-white text-ink-2 shadow-md hover:text-ink max-md:hidden">
-          <PanelLeft size={15} strokeWidth={1.7} />
-        </button>
       )}
       {drawer && <div data-shell-backdrop onClick={() => setDrawer(false)} className={`fixed inset-0 z-30 bg-black/20 ${immersive ? '' : 'md:hidden'}`} />}
       {/* Notion slide: the wrapper animates width to 0 while the fixed-width inner

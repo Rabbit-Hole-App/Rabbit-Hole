@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Play, Redo2, RotateCcw, Search, Share2, Trash2, Trophy, NotebookPen, Undo2, ZoomIn, ZoomOut } from 'lucide-react';
+import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, House, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Play, Redo2, RotateCcw, Search, Share2, Trash2, Trophy, NotebookPen, Undo2, ZoomIn, ZoomOut } from 'lucide-react';
 import { SPEEDS, getSpeed, setSpeed } from './learn-audio.js';
-import { api, wsHeaders } from './api.js';
+import { api, navigate, wsHeaders } from './api.js';
 import { AskPanel } from './ask.jsx';
 import { Button, IconBtn, ConfirmDialog, toast } from './ui.jsx';
 import SharePanel from './SharePanel.jsx';
@@ -1111,6 +1111,11 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
         {/* On a phone the row wraps (menubar compact) instead of clipping its
             start; not a scroller, which would clip the menus' dropdowns. */}
         {!canvasState.presenting && <div className="relative flex shrink-0 items-center justify-center gap-1 px-3 pt-3 pb-1 max-md:flex-wrap max-md:gap-y-0.5 max-md:px-2 max-md:pt-2">
+          {/* The page's top-left corner leaves Learn like a back button (owner 2026-09-30): back where the learner came
+              from, or Home when Learn opened the tab. Learn has no sidebar button; recentring is Shift 0 and the minimap. */}
+          <button type="button" data-learn-back aria-label="Back" title="Back"
+            onClick={() => (window.history.length > 1 ? window.history.back() : navigate('/apps'))}
+            className="absolute top-3 left-3 flex h-8 w-8 items-center justify-center rounded-xl border border-line bg-white text-ink-2 shadow-md hover:text-ink max-md:hidden"><House size={15} strokeWidth={1.7} /></button>
           <input aria-label="Canvas title" title="Rename this canvas"
             // The name on screen is always the value - editing edits IT, via a
             // focus-scoped draft so the fallback never fights the keystrokes.
