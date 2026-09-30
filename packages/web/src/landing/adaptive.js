@@ -1,6 +1,7 @@
 import './adaptive.css';
 import './adaptive-softmax.css';
-import { createSoftmaxPreview } from './adaptive-softmax.js';
+import { createSoftmaxPreview, createGuidedPreview } from './adaptive-softmax.js';
+import { softmaxValues } from './adaptive-softmax-math.js';
 
 const root = document.getElementById('adaptive-learning');
 if (root) {
@@ -26,6 +27,7 @@ if (root) {
     }
     panel.setAttribute('aria-labelledby', tab.id);
     preview.select(root.dataset.mode === 'overview', instant);
+    guided.select(root.dataset.mode === 'guided', instant);
     if (root.dataset.mode === 'deep' && !codeLoading) {
       codeLoading = true;
       // Keep the plain source visible if the optional shared highlighter cannot load.
@@ -44,22 +46,31 @@ if (root) {
     });
   }
 
-  const score = root.querySelector('#softmax-score');
-  score.addEventListener('input', () => {
-    const scores = [Number(score.value), 1, 0, -1];
-    const weights = scores.map(value => Math.exp(value));
-    const sum = weights.reduce((a, b) => a + b, 0);
-    const probabilities = weights.map(value => value / sum);
-    root.querySelector('[data-score="0"]').textContent = scores[0];
-    root.querySelector('[data-score-output]').textContent = scores[0].toFixed(2);
+  const sliders = [...root.querySelectorAll('[data-score-input]')];
+  function updateScores() {
+    const scores = sliders.map(slider => Number(slider.value));
+    const { weights, sum, probabilities } = softmaxValues(scores);
     root.querySelector('[data-weight-sum]').textContent = sum.toFixed(2);
     root.querySelector('[data-score-vector]').textContent = `[${scores.join(', ')}]`;
     root.querySelector('[data-prob-vector]').textContent = `[${probabilities.map(value => value.toFixed(3)).join(', ')}]`;
     for (const [i, probability] of probabilities.entries()) {
+      root.querySelector(`[data-score="${i}"]`).textContent = scores[i];
+      root.querySelector(`[data-score-output="${i}"]`).textContent = scores[i].toFixed(2);
       root.querySelector(`[data-weight="${i}"]`).textContent = weights[i].toFixed(2);
       root.querySelector(`[data-prob="${i}"]`).textContent = `${(probability * 100).toFixed(1)}%`;
       root.querySelectorAll('.softmax-shares span')[i].style.width = `${probability * 100}%`;
     }
     root.querySelector('.softmax-shares').setAttribute('aria-label', `Probability shares: ${probabilities.map((value, i) => `${'ABCD'[i]} ${(value * 100).toFixed(1)}%`).join(', ')}.`);
+  }
+  const guided = createGuidedPreview(root.querySelector('.softmax-guided'), updateScores);
+  for (const slider of sliders) slider.addEventListener('input', updateScores);
+  updateScores();
+  const quiz = root.querySelector('[data-guided-quiz]');
+  quiz.addEventListener('change', event => {
+    const correct = event.target.value === '25';
+    quiz.dataset.result = correct ? 'correct' : 'retry';
+    quiz.querySelector('.softmax-quiz-feedback').textContent = correct
+      ? 'Correct. Equal scores have equal exponential weights. Each gets one quarter of the total: 25%.'
+      : 'Not quite. Four equal shares must add up to 100%. Divide 100% by 4, or set all four sliders to the same score and try again.';
   });
 }

@@ -5,6 +5,124 @@ const REVEAL_AT = GENERATE_AT + 1000;
 const PLAY_AT = REVEAL_AT + 1600;
 const SEQUENCE_END = PLAY_AT + 700;
 
+// ponytail: illustrative generation and pointer gestures; no model/API request.
+export function createGuidedPreview(scene, updateScores) {
+  const canvas = scene.querySelector('.softmax-canvas');
+  const camera = canvas.querySelector('.softmax-guided-camera');
+  const prompt = canvas.querySelector('.softmax-prompt');
+  const card = canvas.querySelector('[data-guided-card]');
+  const quiz = scene.querySelector('[data-guided-quiz]');
+  const cursor = canvas.querySelector('.softmax-slider-cursor');
+  const sliders = [...canvas.querySelectorAll('[data-score-input]')];
+  const status = scene.querySelector('[data-guided-status]');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+  const initial = [2, 1, 0, -1], targets = [3, 3, 1.5, 1];
+  const DRAG_AT = REVEAL_AT + 1000, GESTURE = 2200, END = DRAG_AT + GESTURE * 4;
+  let selected = false, visible = false, composerVisible = false, instant = false, manual = false;
+  let elapsed = 0, last = null, frame = null;
+  const active = () => selected && visible && (elapsed >= REVEAL_AT || composerVisible) && !document.hidden && !reduce.matches && !instant && !manual && elapsed < END;
+
+  function pose() {
+    const still = reduce.matches || instant || manual;
+    const ready = still || elapsed >= REVEAL_AT;
+    const phase = still || elapsed >= END ? 'ready'
+      : elapsed >= DRAG_AT ? 'dragging'
+      : ready ? 'card'
+      : elapsed >= GENERATE_AT ? 'generating'
+      : elapsed >= 3600 ? 'submitted'
+      : elapsed >= 3000 ? 'send-cursor'
+      : elapsed >= 450 ? 'typing' : 'rest';
+    canvas.dataset.phase = phase;
+    canvas.toggleAttribute('data-guided-revealed', ready);
+    card.inert = !ready;
+    quiz.inert = !ready;
+    quiz.toggleAttribute('data-ready', ready);
+    quiz.setAttribute('aria-hidden', String(!ready));
+    card.setAttribute('aria-hidden', String(!ready));
+    const pill = still || elapsed >= 1200;
+    canvas.toggleAttribute('data-tool-selected', pill);
+    prompt.textContent = still || elapsed >= 3000 ? MESSAGE
+      : pill ? MESSAGE.slice(0, Math.max(0, Math.floor((elapsed - 1450) / 50)))
+      : '/explain'.slice(0, Math.max(0, Math.floor((elapsed - 700) / 50)));
+    status.textContent = phase === 'generating' ? 'Generating explanation'
+      : ready ? 'Try the sliders yourself. Displayed values are rounded.' : 'Build on the explanation already on your canvas.';
+    if (phase !== 'dragging') { cursor.style.opacity = '0'; return; }
+
+    const index = Math.min(3, Math.floor((elapsed - DRAG_AT) / GESTURE));
+    const time = (elapsed - DRAG_AT) % GESTURE;
+    const progress = Math.max(0, Math.min(1, (time - 650) / 1150));
+    let changed = false;
+    for (const [i, slider] of sliders.entries()) {
+      const value = i < index ? targets[i] : i === index
+        ? Math.round((initial[i] + (targets[i] - initial[i]) * progress) * 4) / 4 : initial[i];
+      if (Number(slider.value) !== value) { slider.value = String(value); changed = true; }
+    }
+    if (changed) updateScores();
+    const bounds = camera.getBoundingClientRect();
+    const position = slider => {
+      const rect = slider.getBoundingClientRect();
+      const ratio = (Number(slider.value) - Number(slider.min)) / (Number(slider.max) - Number(slider.min));
+      return { x: rect.left - bounds.left + 8 + (rect.width - 16) * ratio, y: rect.top - bounds.top + rect.height / 2 };
+    };
+    const to = position(sliders[index]);
+    const from = index > 0 ? position(sliders[index - 1]) : { x: to.x + 45, y: to.y + 45 };
+    const approach = Math.min(1, time / 650);
+    cursor.style.transform = `translate(${from.x + (to.x - from.x) * approach - 3}px, ${from.y + (to.y - from.y) * approach - 3}px) scale(${time >= 650 && progress < 1 ? .9 : 1})`;
+    cursor.style.opacity = '1';
+  }
+  function tick(now) {
+    frame = null;
+    if (!active()) return;
+    if (last !== null) elapsed = Math.min(END, elapsed + now - last);
+    last = now;
+    pose();
+    if (elapsed < END) frame = requestAnimationFrame(tick);
+    else { last = null; canvas.dataset.running = 'false'; }
+  }
+  function sync() {
+    if (frame !== null) cancelAnimationFrame(frame);
+    frame = null; last = null;
+    // Read current geometry: queued observer entries can describe a viewport
+    // from before a resize or a rapid scroll/tab change.
+    const inView = (element, ratio) => {
+      const rect = element.getBoundingClientRect();
+      const width = Math.max(0, Math.min(innerWidth, rect.right) - Math.max(0, rect.left));
+      const height = Math.max(0, Math.min(innerHeight, rect.bottom) - Math.max(0, rect.top));
+      return rect.width > 0 && rect.height > 0 && width * height >= rect.width * rect.height * ratio;
+    };
+    visible = inView(canvas, .2);
+    composerVisible = inView(canvas.querySelector('.softmax-composer'), .5);
+    canvas.toggleAttribute('data-still', reduce.matches || instant || manual);
+    canvas.dataset.running = String(active());
+    pose();
+    if (active()) frame = requestAnimationFrame(tick);
+  }
+  function takeOver() { manual = true; sync(); }
+  for (const event of ['pointerdown', 'focusin', 'input']) card.addEventListener(event, takeOver);
+  quiz.addEventListener('pointerdown', takeOver);
+  quiz.addEventListener('focusin', takeOver);
+  document.addEventListener('visibilitychange', sync);
+  reduce.addEventListener('change', sync);
+  new IntersectionObserver(sync, {threshold:[0,.2]}).observe(canvas);
+  new IntersectionObserver(sync, {threshold:[0,.5]}).observe(canvas.querySelector('.softmax-composer'));
+  window.addEventListener('resize', sync);
+  pose();
+  return {
+    select(next, immediate) {
+      selected = next;
+      if (next) {
+        instant = immediate;
+        if (!manual) {
+          elapsed = 0;
+          sliders.forEach((slider, i) => { slider.value = String(initial[i]); });
+          updateScores();
+        }
+      }
+      sync();
+    },
+  };
+}
+
 // ponytail: staged marketing interaction using the supplied clip; no generation request.
 export function createSoftmaxPreview(canvas, status) {
   const video = canvas.querySelector('video');

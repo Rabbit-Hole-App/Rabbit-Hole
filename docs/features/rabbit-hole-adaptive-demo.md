@@ -1,5 +1,48 @@
 # Landing clarity, adaptive example and footer action
 
+## Reopened Guided walkthrough (2026-09-30)
+
+The user explicitly reopened `feature/smart-landing-page` after the approved
+`f6a3216a` freeze for this focused follow-up, then requested another commit,
+push and freeze. No auth or integration merge is authorized.
+
+Guided now stages `/explain explain me softmax function`: typing and composer
+zoom, illustrated send click, one-second explanation spinner, then the Guided
+card and its connection from the retained Overview video still. A visible
+cursor moves and drags each of four native score controls. Overview is not
+played in Guided. Real pointer/keyboard input stops the staged gestures and
+preserves the visitor's values across tabs. Offscreen/hidden pages pause;
+reduced motion and keyboard tab selection show the completed interactive state.
+Typing waits until the composer is actually visible.
+
+All four scores are adjustable, with raw exponential weights, their sum,
+probabilities and Deep Dive vectors derived from the same inputs. Values are
+bounded to [-2, 4]; rounding is disclosed. Formula reference:
+https://docs.pytorch.org/docs/2.14/generated/torch.nn.Softmax.html
+
+A local multiple-choice activity beneath the canvas asks what happens when
+all four scores are equal. Correct answer: 25% each. Incorrect answers explain
+normalization and allow retry. No generation request, auth or persistence.
+
+Verification uses `packages/web/src/landing/adaptive-softmax-math.test.mjs`
+and the read-only browser scenario `packages/web/e2e/landing-guided-check.mjs`.
+The browser test blocks API/auth/write traffic. Evidence is stored outside the
+worktree in `C:\Users\cyudhist\AppData\Local\Temp\rabbit-hole-guided-review`.
+
+Local delivery checks passed: full dev build, `make test-unit`, four mathematical
+regression tests, and browser scenarios at 1440/390/320/768px. Verified typing,
+zoom, spinner, retained video still, card/link reveal, cursor gestures on all
+four sliders, actual pointer dragging, probabilities/weights/vectors, quiz
+retry/success, keyboard use, reduced motion, offscreen pause/resume, takeover,
+rapid switching and compact Overview. Browser errors and blocked API/write
+attempts: zero. Screenshots were visually inspected. The visibility check reads
+current geometry rather than trusting stale queued intersection measurements.
+
+Deployment was attempted but rejected by automatic approval review under the
+earlier shared-resource security restriction. Explicit approval for this
+specific review-clone deployment has been requested. This record establishes
+local verification only; no hosted completion is claimed pending that approval.
+
 ## Compact Overview follow-up (2026-09-30, local only)
 
 Inactive depth scenes no longer reserve the tallest scene's height. Overview

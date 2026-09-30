@@ -112,37 +112,53 @@
               <span class="adaptive-art-note" data-softmax-status></span>
             </div>
             <div class="softmax-scene softmax-guided" data-adaptive-scene="guided" hidden inert>
-              <div class="softmax-canvas softmax-workspace" data-tool-selected>
+              <div class="softmax-canvas softmax-workspace" data-phase="ready" data-running="false" data-tool-selected>
                 <div class="softmax-canvas-bar"><span><i aria-hidden="true"></i> Rabbit Hole Canvas</span><span>Softmax / Guided</span></div>
+                <div class="softmax-camera softmax-guided-camera">
                 <div class="softmax-context-card" aria-label="Overview animation, retained as a still reference">
                   <img src="/landing/softmax-overview-poster-v1.webp" width="1280" height="720" alt="The Overview Softmax animation, shown as a still." loading="lazy" decoding="async">
                   <div><span>01 / Overview · Animation</span><p>Softmax, explained visually</p></div>
                 </div>
                 <div class="softmax-level-link" aria-hidden="true"><span>02 / Guided · Explore the mechanism</span></div>
-                <div class="softmax-learning-card">
+                <div class="softmax-generating" aria-hidden="true"><span class="softmax-spinner"></span><span>Generating explanation</span></div>
+                <div class="softmax-learning-card" data-guided-card>
               <div class="softmax-step-heading"><span>01 / Start with scores</span><span>02 / Exponentiate</span></div>
               <div class="softmax-score-grid">
                 <div class="softmax-score"><span>A</span><strong data-score="0">2</strong><small>↓ exp</small><b data-weight="0">7.39</b></div>
-                <div class="softmax-score"><span>B</span><strong>1</strong><small>↓ exp</small><b data-weight="1">2.72</b></div>
-                <div class="softmax-score"><span>C</span><strong>0</strong><small>↓ exp</small><b data-weight="2">1.00</b></div>
-                <div class="softmax-score"><span>D</span><strong>−1</strong><small>↓ exp</small><b data-weight="3">0.37</b></div>
+                <div class="softmax-score"><span>B</span><strong data-score="1">1</strong><small>↓ exp</small><b data-weight="1">2.72</b></div>
+                <div class="softmax-score"><span>C</span><strong data-score="2">0</strong><small>↓ exp</small><b data-weight="2">1.00</b></div>
+                <div class="softmax-score"><span>D</span><strong data-score="3">−1</strong><small>↓ exp</small><b data-weight="3">0.37</b></div>
               </div>
               <div class="softmax-divide"><span>03 / Divide each by the total</span><strong data-weight-sum>11.48</strong></div>
               <div class="softmax-shares" role="img" aria-label="Probability shares: A 64.4%, B 23.7%, C 8.7%, D 3.2%.">
                 <span style="width:64.4%"></span><span style="width:23.7%"></span><span style="width:8.7%"></span><span style="width:3.2%"></span>
               </div>
               <div class="softmax-probabilities"><span>A <b data-prob="0">64.4%</b></span><span>B <b data-prob="1">23.7%</b></span><span>C <b data-prob="2">8.7%</b></span><span>D <b data-prob="3">3.2%</b></span></div>
-              <div class="softmax-slider">
-                <label for="softmax-score">Change score A <output for="softmax-score" data-score-output>2.00</output></label>
-                <input id="softmax-score" type="range" min="-2" max="4" step="0.25" value="2" aria-describedby="softmax-slider-hint">
-                <span id="softmax-slider-hint">Watch all four shares change. The total stays 100%.</span>
+              <div class="softmax-sliders">
+                <div class="softmax-slider"><label for="softmax-score">Score A <output for="softmax-score" data-score-output="0">2.00</output></label><input id="softmax-score" data-score-input="0" type="range" min="-2" max="4" step="0.25" value="2" aria-describedby="softmax-slider-hint"></div>
+                <div class="softmax-slider"><label for="softmax-score-b">Score B <output for="softmax-score-b" data-score-output="1">1.00</output></label><input id="softmax-score-b" data-score-input="1" type="range" min="-2" max="4" step="0.25" value="1" aria-describedby="softmax-slider-hint"></div>
+                <div class="softmax-slider"><label for="softmax-score-c">Score C <output for="softmax-score-c" data-score-output="2">0.00</output></label><input id="softmax-score-c" data-score-input="2" type="range" min="-2" max="4" step="0.25" value="0" aria-describedby="softmax-slider-hint"></div>
+                <div class="softmax-slider"><label for="softmax-score-d">Score D <output for="softmax-score-d" data-score-output="3">−1.00</output></label><input id="softmax-score-d" data-score-input="3" type="range" min="-2" max="4" step="0.25" value="-1" aria-describedby="softmax-slider-hint"></div>
               </div>
+              <p class="softmax-slider-hint" id="softmax-slider-hint">Change any score. All four shares update; together they total 100% before rounding.</p>
                 </div>
                 <div class="softmax-composer" role="img" aria-label="Prompt: /explain explain me softmax function">
-                  <span class="softmax-prompt-line" aria-hidden="true"><span class="softmax-tool-pill">explain<span class="softmax-tool-remove">×</span></span><span class="softmax-prompt">explain me softmax function</span></span><span class="softmax-send" aria-hidden="true">↑</span>
+                  <span class="softmax-prompt-line" aria-hidden="true"><span class="softmax-tool-pill">explain<span class="softmax-tool-remove">×</span></span><span class="softmax-prompt">explain me softmax function</span></span><span class="softmax-send" aria-hidden="true">↑<svg class="softmax-send-cursor" viewBox="0 0 32 40"><path d="M3 2v29l8-7 6 13 6-3-6-12h12Z" fill="white" stroke="#20211f" stroke-width="2.5" stroke-linejoin="round"/></svg></span>
+                </div>
+                <svg class="softmax-slider-cursor" viewBox="0 0 32 40" aria-hidden="true"><path d="M3 2v29l8-7 6 13 6-3-6-12h12Z" fill="white" stroke="#20211f" stroke-width="2.5" stroke-linejoin="round"/></svg>
                 </div>
               </div>
-              <span class="adaptive-art-note">Displayed values are rounded.</span>
+              <fieldset class="softmax-quiz" data-guided-quiz>
+                <legend>Try it yourself</legend>
+                <p>If all four scores are equal, what probability does each get?</p>
+                <div class="softmax-quiz-options">
+                  <label><input type="radio" name="softmax-quiz" value="25"><span>25%</span></label>
+                  <label><input type="radio" name="softmax-quiz" value="50"><span>50%</span></label>
+                  <label><input type="radio" name="softmax-quiz" value="100"><span>100%</span></label>
+                </div>
+                <p class="softmax-quiz-feedback" role="status" aria-live="polite">Choose an answer, then test it with the sliders.</p>
+              </fieldset>
+              <span class="adaptive-art-note" data-guided-status>Displayed values are rounded.</span>
             </div>
             <div class="softmax-scene softmax-deep" data-adaptive-scene="deep" hidden inert>
               <div class="softmax-canvas softmax-workspace" data-tool-selected>
@@ -168,7 +184,7 @@ torch.softmax(scores, dim=-1)</pre></div>
           </div>
           <div class="adaptive-explanations">
             <article data-adaptive-copy="overview"><span class="adaptive-step">01 / Overview</span><h3>Build intuition.<br>See the big picture.</h3><p>Overview gives you a visual foundation for a new idea. Animation makes relationships and changes easier to see, so you can build understanding before exploring the mechanics.</p><span class="adaptive-takeaway">Start with a mental picture. Add detail when you’re ready.</span></article>
-            <article data-adaptive-copy="guided" hidden><span class="adaptive-step">02 / Guided</span><h3>Change a score.<br>See the balance shift.</h3><p>Exponentiate each score to make it positive, then divide by their total. Move the slider to see why changing one score changes every probability.</p><span class="adaptive-takeaway">Try score A = 1. Equal scores get equal shares.</span></article>
+            <article data-adaptive-copy="guided" hidden><span class="adaptive-step">02 / Guided</span><h3>Change a score.<br>See the balance shift.</h3><p>Exponentiate each score to make it positive, then divide by their total. Move any slider to see why changing one score changes every probability.</p><span class="adaptive-takeaway">Set all four scores equal. Each gets a 25% share.</span></article>
             <article data-adaptive-copy="deep" hidden><span class="adaptive-step">03 / Deep Dive</span><h3>Same idea.<br>Every detail.</h3><p>Subtract the largest score before exponentiating to avoid overflow. The result is unchanged; the calculation is more stable.</p><span class="adaptive-takeaway">Very small probabilities can still underflow. For log-probabilities, use log_softmax directly.</span><a class="adaptive-source" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.functional.softmax.html" target="_blank" rel="noreferrer">PyTorch implementation <span aria-hidden="true">↗</span></a></article>
           </div>
         </div>

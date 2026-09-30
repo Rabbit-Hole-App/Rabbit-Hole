@@ -1,5 +1,15 @@
 # Coaching: product, ideas, tasks, and results
 
+### Landing Guided walkthrough follow-up (2026-09-30)
+
+The user reopened the approved landing branch specifically for the Guided
+walkthrough, factual four-score controls and a selectable quiz, then requested
+another push and freeze. The scope and checks are recorded in
+[the adaptive demo spec](rabbit-hole-adaptive-demo.md#reopened-guided-walkthrough-2026-09-30).
+Only the named landing review clone is in scope. Verification uses public pages
+with API/auth/write requests blocked; no app data, auth wiring or integration
+merge is included.
+
 ### Landing review clone publication (2026-09-30)
 
 Explicit user authorization lifted the deployment hold for the current
