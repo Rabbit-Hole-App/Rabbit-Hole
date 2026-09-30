@@ -15,14 +15,15 @@ import { readFileSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { BOARDS, BOARD_SEED_VERSIONS } from '../src/demo-scenes.js';
 import { groupSources, repositoryUrl, sourceLabel, sourceTarget, validSources } from '../src/card-sources.js';
 import { reveal } from './canvas-reveal.mjs';
+import { DEV_CP } from './dev-cp.mjs';
 
 const [, , base, board, OUT, pinned] = process.argv;
 if (!base || !board || !OUT) throw new Error('usage: node e2e/card-sources-check.mjs <deployed-base> <board> <outDir> [pinnedDir]');
 mkdirSync(OUT, { recursive: true });
 const APP = 'repo-06745f10-nanogpt';
-const secret = readFileSync(new URL('../../../.env', import.meta.url), 'utf8').match(/^SMALL_TEST_BYPASS=(.*)$/m)?.[1]?.trim();
+const secret = readFileSync(new URL('../../../.env', import.meta.url), 'utf8').match(/^RABBIT_HOLE_DEV_TEST_BYPASS=(.*)$/m)?.[1]?.trim();
 const UA = { 'User-Agent': 'small-sources-check' };
-const { session } = await (await fetch(`${base}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...UA }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) })).json();
+const { session } = await (await fetch(`${DEV_CP}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...UA }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) })).json();
 if (!session) throw new Error('no session from deployed worker');
 
 const browser = await chromium.launch();

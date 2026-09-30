@@ -11,6 +11,7 @@ import { THRESHOLDS, VERDICT_LOGIC_VERSION, GRADER_PROTOCOL_VERSION, GRADER_PROT
 import { assessBody, parseVerdict } from '../../../packages/web/src/learn-grade-prompts.js';
 import { rate, wilson, percentile, prf, bestThreshold, calibration, brier, goldVerdict, verdictAccuracy, confusion } from './metrics.mjs';
 import { validateSet } from './set-rules.mjs';
+import { DEV_CP } from '../../../packages/web/e2e/dev-cp.mjs';
 
 const HERE = new URL('.', import.meta.url);
 const path = relative => new URL(relative, HERE).pathname.replace(/^\/([A-Za-z]:)/, '$1');
@@ -19,13 +20,13 @@ const fail = (code, message) => { console.log(message); process.exit(code); };
 
 const base = (args.base || '').replace(/\/$/, '');
 const allowLocal = process.env.LEARN_BENCH_ALLOW_LOCAL === '1' && /^http:\/\/127\.0\.0\.1:\d+$/.test(base);
-if (!/^https:\/\/small-cp-dev-[a-z0-9-]+\.zeroshothq\.workers\.dev$/.test(base) && !allowLocal) fail(1, `refusing ${base || '(no --base)'}: not a small-cp-dev-<name> clone`);
+if (!/^https:\/\/small-cp-dev-[a-z0-9-]+\.tryrabbithole\.workers\.dev$/.test(base) && !allowLocal) fail(1, `refusing ${base || '(no --base)'}: not a small-cp-dev-<name> clone`);
 if (!args.app) fail(1, 'usage: bench.mjs --base <clone url> --app <app name> [--set benchmark-v1 | --holdout <path>]');
 // The clone's DB is the live D1: only a repository or a canvas keeps a grade on dev storage.
 if (!/^(repo-[a-z0-9-]+|canvas-[a-f0-9]{8})$/.test(args.app)) fail(1, `refusing --app ${args.app}: grade on a repo-* project or a canvas-<8 hex> canvas, whose Learn data stays in the dev LEARN_DB`);
 const envFile = args['env-file'] || path('../../../../small-deploy/.env');
 const secrets = Object.fromEntries(readFileSync(envFile, 'utf8').split(/\r?\n/).map(line => line.match(/^([A-Z_]+)=(.*)$/)).filter(Boolean).map(([, key, value]) => [key, value.replace(/^"|"$/g, '').trim()]));
-if (!secrets.SMALL_TEST_BYPASS || !secrets.LEARN_BENCH_SECRET) fail(1, `missing SMALL_TEST_BYPASS or LEARN_BENCH_SECRET in ${envFile}`);
+if (!secrets.RABBIT_HOLE_DEV_TEST_BYPASS || !secrets.LEARN_BENCH_SECRET) fail(1, `missing RABBIT_HOLE_DEV_TEST_BYPASS or LEARN_BENCH_SECRET in ${envFile}`);
 const resultsDir = args['results-dir'] || path('./results');
 // The self-test may shrink these; a real run against a clone never can.
 const minPerMode = allowLocal ? Number(args['min-per-mode'] || 30) : 30;
@@ -79,7 +80,7 @@ for (const item of set.cases) if (!/^[A-Za-z0-9:_-]{8,120}$/.test(`${runName}:${
 console.log(`✓ target: ${base} · app ${args.app} · set ${setName} · run ${runName} · ${set.cases.length} cases (${perMode('challenge')} challenge / ${perMode('explain_back')} explain_back) · ~${set.cases.length} Opus calls`);
 
 // --- session ---
-const session = await (await fetch(`${base}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'jev-bench' }, body: JSON.stringify({ email: args.email || 'yudhisteer.chin@gmail.com', secret: secrets.SMALL_TEST_BYPASS }) })).json().catch(() => ({}));
+const session = await (await fetch(`${allowLocal ? base : DEV_CP}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'jev-bench' }, body: JSON.stringify({ email: args.email || 'yudhisteer.chin@gmail.com', secret: secrets.RABBIT_HOLE_DEV_TEST_BYPASS }) })).json().catch(() => ({}));
 if (!session.session) fail(1, 'no test session from /test/session');
 const headers = { 'Content-Type': 'application/json', 'User-Agent': 'jev-bench', Cookie: `small_session=${session.session}` };
 

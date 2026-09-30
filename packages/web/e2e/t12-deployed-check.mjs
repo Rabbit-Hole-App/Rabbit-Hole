@@ -1,14 +1,15 @@
 // T12: verify the DEPLOYED review board in a clean browser context - loaded
 // client build, seed version, four cards, real interactions, composer
 // request path, stale-storage safety - and capture the handoff screenshots.
-// Usage: node e2e/t12-deployed-check.mjs https://small-cp-dev-small-deploy.zeroshothq.workers.dev
+// Usage: node e2e/t12-deployed-check.mjs https://small-cp-dev-small-deploy.tryrabbithole.workers.dev
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync, existsSync } from 'node:fs';
+import { DEV_CP } from './dev-cp.mjs';
 
 const base = process.argv[2];
 if (!base) throw new Error('pass the deployed base URL');
-const secret = readFileSync(new URL('../../../.env', import.meta.url), 'utf8').match(/^SMALL_TEST_BYPASS=(.*)$/m)?.[1]?.trim();
-const { session } = await (await fetch(`${base}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'small-t12-check' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) })).json();
+const secret = readFileSync(new URL('../../../.env', import.meta.url), 'utf8').match(/^RABBIT_HOLE_DEV_TEST_BYPASS=(.*)$/m)?.[1]?.trim();
+const { session } = await (await fetch(`${DEV_CP}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'small-t12-check' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) })).json();
 if (!session) throw new Error('no session from deployed worker');
 
 // Loaded-build identity: the shipped index.html names its hashed bundle; the

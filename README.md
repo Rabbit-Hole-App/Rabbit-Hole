@@ -33,7 +33,7 @@ plain `small` commands you can also run by hand, below.
 
 ```
 npm i -g small-deploy
-small login                     # emails you a 6-digit code
+small login                     # emails you an 8-digit code
 cd my-tool/
 small init                      # writes small.toml from what it detects
 small deploy --env .env         # preflight, build, deploy — prints the URL

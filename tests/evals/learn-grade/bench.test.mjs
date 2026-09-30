@@ -56,7 +56,7 @@ const done = (ideas = [0.9, 0.9, 0.9]) => ({ status: 200, body: { status: 'done'
 function workspace(set, extra = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'bench-'));
   writeFileSync(join(dir, 'set.json'), JSON.stringify(set));
-  writeFileSync(join(dir, '.env'), 'SMALL_TEST_BYPASS=bypass\nLEARN_BENCH_SECRET=secret-123\n');
+  writeFileSync(join(dir, '.env'), 'RABBIT_HOLE_DEV_TEST_BYPASS=bypass\nLEARN_BENCH_SECRET=secret-123\n');
   mkdirSync(join(dir, 'results'));
   Object.entries(extra).forEach(([name, text]) => writeFileSync(join(dir, name), text));
   return dir;
@@ -182,7 +182,7 @@ test('a pending that never resolves is scored as a pending error', async () => {
 test('--holdout-hash-file is refused outside local mode', async () => {
   const dir = workspace(tinySet('benchmark-v1-holdout'), { 'HOLDOUT.sha256': 'f'.repeat(64) });
   const result = await new Promise(resolve => {
-    const child = spawn(process.execPath, [BENCH, '--base', 'https://small-cp-dev-x.zeroshothq.workers.dev', '--app', 'repo-demo', '--env-file', join(dir, '.env'), '--holdout', join(dir, 'set.json'), '--holdout-hash-file', join(dir, 'HOLDOUT.sha256')], { env: { ...process.env, LEARN_BENCH_ALLOW_LOCAL: '' } });
+    const child = spawn(process.execPath, [BENCH, '--base', 'https://small-cp-dev-x.tryrabbithole.workers.dev', '--app', 'repo-demo', '--env-file', join(dir, '.env'), '--holdout', join(dir, 'set.json'), '--holdout-hash-file', join(dir, 'HOLDOUT.sha256')], { env: { ...process.env, LEARN_BENCH_ALLOW_LOCAL: '' } });
     let out = '';
     child.stdout.on('data', chunk => { out += chunk; });
     child.stderr.on('data', chunk => { out += chunk; });

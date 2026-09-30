@@ -52,7 +52,7 @@ test('canvas records live in LEARN_DB, open for their owner only, and never touc
   assert.equal(other.status, 403); assert.equal((await other.json()).error, 'This canvas is private to its owner');
   assert.equal((await f.send('GET', `/api/apps/${canvas.name}`, null, { 'x-small-workspace': 'other' })).status, 404);
   assert.equal((await f.send('GET', `/api/apps/${canvas.name}`, null, { cookie: 'denied' })).status, 401);
-  assert.ok(f.seen.every(call => call === 'GET /api/apps'), f.seen.join());
+  assert.ok(f.seen.every(call => call === 'GET /api/me'), f.seen.join());
 });
 
 test('rename keeps the slug, archive hides, the archived list is owner-only, restore returns, and DELETE removes only an untouched canvas', async t => {
@@ -112,7 +112,7 @@ test('canvas traffic routes to LEARN_DB, canvas attachments are refused, and Lea
   const app = await board();
   assert.deepEqual([app.kind, app.org, app.name, app.email], ['canvas', 'team', name, 'owner@test']);
   assert.equal((await board(colleague)).status, 403);
-  assert.ok(f.seen.every(call => call === 'GET /api/apps'), f.seen.join());
+  assert.ok(f.seen.every(call => call === 'GET /api/me'), f.seen.join());
 });
 
 // ---- dev worker wiring (Task 6.4) ----

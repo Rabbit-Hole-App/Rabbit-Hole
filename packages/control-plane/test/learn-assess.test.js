@@ -128,6 +128,6 @@ test('the diagnostic line names the grading task and never carries the answer', 
 test('only the dev worker routes /api/learn/assess, ahead of the live proxy; production small-cp has no such route', async () => {
   const worker = readFileSync(new URL('../../web/dev-worker.js', import.meta.url), 'utf8');
   const route = worker.indexOf("if (path === '/api/learn/assess') return assessAnswer(req, env);");
-  assert.ok(route > 0 && route < worker.indexOf('return env.CONTROL_PLANE.fetch(req);'));
+  assert.ok(route > 0 && route < worker.indexOf('return forwardToProduction(req, env);'));
   assert.equal(readFileSync(new URL('../src/index.js', import.meta.url), 'utf8').includes('/api/learn/assess'), false);
 });

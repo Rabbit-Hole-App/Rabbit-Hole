@@ -17,6 +17,7 @@ import { artifactFetch } from '../control-plane/src/learn-artifact.js';
 import { paidRefusal } from '../control-plane/src/learn-paid.js';
 import { feedbackFetch } from '../control-plane/src/learn-feedback.js';
 import { videoFetch } from '../control-plane/src/learn-video.js';
+import { forwardToProduction, guardControlPlane } from '../control-plane/src/dev-forwarding.js';
 import { searchPexels } from '../control-plane/src/pexels.js';
 import { subscriptionOwnerRefusal, subscriptionCourseRefusal } from '../control-plane/src/subscription-transport.js';
 export { LearnVideos } from '../control-plane/src/learn-video.js';
@@ -27,11 +28,14 @@ export default {
   // The moment-index Queue consumer (flywheel phase 3), same as the live
   // worker's: bound only on clones whose config declares the consumer.
   async queue(batch, env) {
+    env = guardControlPlane(env);
     if (!env.LEARN_MEDIA) throw new Error('LEARN_MEDIA is not bound on this dev worker');
     const { consumeIndexQueue } = await import('../control-plane/src/learn-moment-index.js');
     await consumeIndexQueue(batch, env);
   },
   async fetch(req, env, ctx) {
+    // Every production call from any module passes the fail-closed allowlist, not only the fall-through.
+    env = guardControlPlane(env);
     const path = new URL(req.url).pathname;
     // Learn media must land in the dev bucket, never small-runs: without the
     // binding this worker serves nothing rather than fall back to live storage.
@@ -41,7 +45,9 @@ export default {
     if (path === '/api/apps' && req.method === 'GET') {
       const catalog = await repositoryIdentity(req, env);
       if (catalog instanceof Response) return catalog;
-      return Response.json({ ...catalog, apps: [...catalog.apps, ...(await ownerRepositories(env, catalog)), ...(await ownerCanvases(env, catalog))] }, { headers: { 'Cache-Control': 'no-store' } });
+      // Dev apps only: listing live apps is production GET /api/apps, whose sweepStaleRuns writes
+      // (docs/features/dev-prod-write-barrier.md). A live app still opens by name (GET /api/apps/<name>).
+      return Response.json({ ...catalog, folders: [], apps: [...(await ownerRepositories(env, catalog)), ...(await ownerCanvases(env, catalog))] }, { headers: { 'Cache-Control': 'no-store' } });
     }
     const repositoryRoute = path.match(/^\/api\/apps\/(repo-[a-z0-9-]+)(\/learn-course)?$/);
     if (repositoryRoute) {
@@ -183,7 +189,8 @@ export default {
     if (path.startsWith('/static/') || path.startsWith('/audio/') || path.startsWith('/lesson-assets/') || path === '/favicon.svg' || path.startsWith('/icon-') || path === '/apple-touch-icon.png') {
       return env.ASSETS.fetch(req);
     }
-    // Keep the dev request URL so sign-in links and cookies stay on the dev host.
-    return env.CONTROL_PLANE.fetch(req);
+    // Production small-cp gets only allowlisted reads and sign-in; everything else is a 403 here
+    // (dev-forwarding.js). The dev request URL is kept so sign-in links and cookies stay on the dev host.
+    return forwardToProduction(req, env);
   },
 };

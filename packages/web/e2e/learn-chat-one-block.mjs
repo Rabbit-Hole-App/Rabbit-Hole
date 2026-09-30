@@ -1,15 +1,16 @@
 import { chromium } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { DEV_CP } from './dev-cp.mjs';
 
 // Every Learn chat shows an answer as one block with one copy icon - no
 // per-paragraph blocks and no ask-about-this-block icon. Checked on the
 // repository page's Learn chat with a two-paragraph stubbed answer (no model
 // calls). Parallel clone only. Prints no secrets.
 // usage: node e2e/learn-chat-one-block.mjs [screenshot dir]
-const BASE = process.env.BASE || 'https://small-cp-dev-small-parallel.zeroshothq.workers.dev';
+const BASE = process.env.BASE || 'https://small-cp-dev-small-parallel.tryrabbithole.workers.dev';
 const SHOTS = process.argv[2] || null;
 const env = Object.fromEntries(readFileSync('C:/Users/cyudhist/Desktop/workspace/small-deploy/.env', 'utf8').split(/\r?\n/).map(l => l.match(/^([A-Z_]+)=(.*)$/)).filter(Boolean).map(([, k, v]) => [k, v.replace(/^"|"$/g, '').trim()]));
-const session = (await (await fetch(`${BASE}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'one-block-check' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret: env.SMALL_TEST_BYPASS }) })).json()).session;
+const session = (await (await fetch(`${DEV_CP}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'one-block-check' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret: env.RABBIT_HOLE_DEV_TEST_BYPASS }) })).json()).session;
 const apps = await (await fetch(`${BASE}/api/apps`, { headers: { Cookie: `small_session=${session}`, 'User-Agent': 'one-block-check' } })).json();
 const repository = (apps.apps || []).find(app => app.kind === 'repository');
 if (!repository) { console.log('✗ no repository app for this login on the dev database'); process.exit(1); }

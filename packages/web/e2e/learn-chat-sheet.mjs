@@ -1,5 +1,6 @@
 import { chromium } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { DEV_CP } from './dev-cp.mjs';
 
 // The Learn dock's chat sheet: a plain question ("hi") answers in a panel
 // above the composer and makes no card; follow-ups stay in one thread; Add to
@@ -7,12 +8,12 @@ import { readFileSync } from 'node:fs';
 // answers as a linked card and stays out of the sheet; New chat and Collapse
 // work. Asks are answered by a stub (no model calls). Parallel clone only.
 // usage: node e2e/learn-chat-sheet.mjs [screenshot dir]
-const BASE = process.env.BASE || 'https://small-cp-dev-small-parallel.zeroshothq.workers.dev';
+const BASE = process.env.BASE || 'https://small-cp-dev-small-parallel.tryrabbithole.workers.dev';
 const APP = 'repo-06745f10-nanogpt';
 const BOARD = `chat-sheet-${Date.now()}`;
 const SHOTS = process.argv[2] || null;
 const env = Object.fromEntries(readFileSync('C:/Users/cyudhist/Desktop/workspace/small-deploy/.env', 'utf8').split(/\r?\n/).map(l => l.match(/^([A-Z_]+)=(.*)$/)).filter(Boolean).map(([, k, v]) => [k, v.replace(/^"|"$/g, '').trim()]));
-const session = (await (await fetch(`${BASE}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'chat-sheet-check' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret: env.SMALL_TEST_BYPASS }) })).json()).session;
+const session = (await (await fetch(`${DEV_CP}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'chat-sheet-check' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret: env.RABBIT_HOLE_DEV_TEST_BYPASS }) })).json()).session;
 const apps = await (await fetch(`${BASE}/api/apps`, { headers: { Cookie: `small_session=${session}`, 'User-Agent': 'chat-sheet-check' } })).json();
 const KEY = `small.adaptive-canvas:${apps.org}:${apps.email}:${APP}:${BOARD}:s0`;
 const SEED = ['Softmax', 'Attention'].map((title, i) => ({ id: `seed-${i}`, type: 'explanation', dx: 0, dy: 0, title, body: 'A card already on the board. '.repeat(5), more: [] }));

@@ -1,14 +1,15 @@
 import { chromium } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { DEV_CP } from './dev-cp.mjs';
 
 // One live shadow grade on the parallel clone (docs/features/jev-grading.md):
 // the learner sees Opus, and the shadow grade goes direct to TypeSafe.
 // Makes one real Opus call and one real Jev call. Prints no secrets.
-const BASE = 'https://small-cp-dev-small-parallel.zeroshothq.workers.dev';
+const BASE = 'https://small-cp-dev-small-parallel.tryrabbithole.workers.dev';
 const APP = 'repo-06745f10-nanogpt';
 const BOARD = `jev-direct-verify-${Date.now()}`;
 const env = Object.fromEntries(readFileSync('C:/Users/cyudhist/Desktop/workspace/small-deploy/.env', 'utf8').split(/\r?\n/).map(l => l.match(/^([A-Z_]+)=(.*)$/)).filter(Boolean).map(([, k, v]) => [k, v.replace(/^"|"$/g, '').trim()]));
-const session = (await (await fetch(`${BASE}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'jev-verify' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret: env.SMALL_TEST_BYPASS }) })).json()).session;
+const session = (await (await fetch(`${DEV_CP}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'jev-verify' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret: env.RABBIT_HOLE_DEV_TEST_BYPASS }) })).json()).session;
 const apps = await (await fetch(`${BASE}/api/apps`, { headers: { Cookie: `small_session=${session}`, 'User-Agent': 'jev-verify' } })).json();
 const KEY = `small.adaptive-canvas:${apps.org}:${apps.email}:${APP}:${BOARD}:s0`;
 const CHALLENGE = { id: 'c1', type: 'challenge', dx: 0, dy: 0, prompt: 'Why does softmax exponentiate the scores before normalising them?', hint: '', expects: ['exponentiating makes every score positive', 'dividing by the sum makes the outputs add up to one', 'larger scores get disproportionately more probability'], reveal: '', answer: null };

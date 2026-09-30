@@ -17,16 +17,19 @@ import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { BOARDS } from '../src/demo-scenes.js';
 import { reveal } from './canvas-reveal.mjs';
+import { DEV_CP } from './dev-cp.mjs';
 
 const [, , base, board, OUT] = process.argv;
 if (!base || !board || !OUT) throw new Error('usage: node e2e/canvas-toolbar-check.mjs <base> <board> <outDir>');
 const local = /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(base);
 mkdirSync(OUT, { recursive: true });
+// Sessions: the local stack's own control plane with its .dev.vars secret, or - for a deployed review
+// worker - only the rabbit-hole dev control plane (DEV_CP, RABBIT_HOLE_DEV_TEST_BYPASS); never production.
 const secret = local
   ? readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)?.[1]?.trim()
-  : readFileSync(new URL('../../../.env', import.meta.url), 'utf8').match(/^SMALL_TEST_BYPASS=(.*)$/m)?.[1]?.trim();
-const { session } = await (await fetch(`${base}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'small-toolbar-check' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) })).json();
-if (!session) throw new Error('no session from the worker');
+  : readFileSync(new URL('../../../.env', import.meta.url), 'utf8').match(/^RABBIT_HOLE_DEV_TEST_BYPASS=(.*)$/m)?.[1]?.trim();
+const { session } = await (await fetch(`${local ? base : DEV_CP}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'small-toolbar-check' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) })).json();
+if (!session) throw new Error('no session from the control plane');
 const learnPath = local
   ? `/apps/${(await (await fetch(`${base}/api/canvases`, { method: 'POST', headers: { cookie: `small_session=${session}`, 'content-type': 'application/json' }, body: JSON.stringify({ title: 'Toolbar check' }) })).json()).name}?board=${board}`
   : `/apps/repo-06745f10-nanogpt?tab=learn&board=${board}`;

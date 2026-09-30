@@ -1,5 +1,6 @@
 import { chromium } from '@playwright/test';
 import { readFileSync, writeFileSync } from 'node:fs';
+import { DEV_CP } from './dev-cp.mjs';
 
 // How long each canvas + item takes to render on the parallel clone.
 // Tool Performance v1: time to visible / content / interactive come from the
@@ -10,11 +11,11 @@ import { readFileSync, writeFileSync } from 'node:fs';
 // Also counts bytes fetched and main-thread long tasks while it renders.
 // Paid items are timed to their confirm-ready card only: nothing is generated.
 // usage: node e2e/plus-render-timing.mjs [out.json]
-const BASE = 'https://small-cp-dev-small-parallel.zeroshothq.workers.dev';
+const BASE = 'https://small-cp-dev-small-parallel.tryrabbithole.workers.dev';
 const APP = 'repo-06745f10-nanogpt';
 const OUT = process.argv[2] || 'e2e/shots/plus-render-timing.json';
 const env = Object.fromEntries(readFileSync('C:/Users/cyudhist/Desktop/workspace/small-deploy/.env', 'utf8').split(/\r?\n/).map(l => l.match(/^([A-Z_]+)=(.*)$/)).filter(Boolean).map(([, k, v]) => [k, v.replace(/^"|"$/g, '').trim()]));
-const session = (await (await fetch(`${BASE}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'plus-timing' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret: env.SMALL_TEST_BYPASS }) })).json()).session;
+const session = (await (await fetch(`${DEV_CP}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'plus-timing' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret: env.RABBIT_HOLE_DEV_TEST_BYPASS }) })).json()).session;
 
 // What "rendered" means beyond the card existing: the library's own output.
 const READY = {

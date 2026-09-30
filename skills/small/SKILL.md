@@ -163,7 +163,7 @@ regardless of trigger. The script never knows who started it.
 
 If `small` is not installed: `npm i -g small-deploy`. If not logged in the
 deploy fails with "run small login" — have the user run `small login`
-interactively (it emails them a 6-digit code).
+interactively (it emails them an 8-digit code).
 
 Builds run on Fly.io remote builders through the `flyctl` binary — no Docker.
 `small deploy` checks for it before touching anything remote and, if missing,

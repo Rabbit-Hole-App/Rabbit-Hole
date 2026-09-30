@@ -1,18 +1,19 @@
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync } from 'node:fs';
+import { DEV_CP } from './dev-cp.mjs';
 
 // Every option in the canvas + menu (dev only) on the parallel clone: each one
 // inserts a card that renders without a page error, the canvas survives, and
 // Video plays its clip. The extra animations and Pipeline builder are gone.
 // No model calls (nothing is generated). Prints no secrets.
 // usage: node e2e/canvas-block-menu.mjs [screenshot dir]
-const BASE = 'https://small-cp-dev-small-parallel.zeroshothq.workers.dev';
+const BASE = 'https://small-cp-dev-small-parallel.tryrabbithole.workers.dev';
 const APP = 'repo-06745f10-nanogpt';
 const BOARD = `block-menu-${Date.now()}`.slice(0, 32);
 const SHOTS = process.argv[2] || null;
 if (SHOTS) mkdirSync(SHOTS, { recursive: true });
 const env = Object.fromEntries(readFileSync('C:/Users/cyudhist/Desktop/workspace/small-deploy/.env', 'utf8').split(/\r?\n/).map(l => l.match(/^([A-Z_]+)=(.*)$/)).filter(Boolean).map(([, k, v]) => [k, v.replace(/^"|"$/g, '').trim()]));
-const session = (await (await fetch(`${BASE}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'block-menu-check' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret: env.SMALL_TEST_BYPASS }) })).json()).session;
+const session = (await (await fetch(`${DEV_CP}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'block-menu-check' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret: env.RABBIT_HOLE_DEV_TEST_BYPASS }) })).json()).session;
 
 const results = [];
 const check = (name, ok, detail = '') => { results.push({ name, ok }); console.log(`${ok ? '✓' : '✗'} ${name}${detail ? ` - ${detail}` : ''}`); };

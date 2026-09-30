@@ -1,17 +1,18 @@
 import { chromium } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { DEV_CP } from './dev-cp.mjs';
 
 // Board sharing on the parallel clone (docs/features/canvas-sharing.md): the
 // owner shares a view-only link (no edit link any more); a signed-in friend
 // opens it read-only, with Fork on the top right; a signed-out visitor needs
 // sign-in until the link is public; turning sharing off kills it. No model calls. Prints no secrets.
 // usage: node e2e/canvas-sharing.mjs [screenshot dir]
-const BASE = 'https://small-cp-dev-small-parallel.zeroshothq.workers.dev';
+const BASE = 'https://small-cp-dev-small-parallel.tryrabbithole.workers.dev';
 const APP = 'repo-06745f10-nanogpt';
 const BOARD = `share-${Date.now()}`;
 const SHOTS = process.argv[2] || null;
 const env = Object.fromEntries(readFileSync('C:/Users/cyudhist/Desktop/workspace/small-deploy/.env', 'utf8').split(/\r?\n/).map(l => l.match(/^([A-Z_]+)=(.*)$/)).filter(Boolean).map(([, k, v]) => [k, v.replace(/^"|"$/g, '').trim()]));
-const sessionFor = async email => (await (await fetch(`${BASE}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'canvas-sharing-check' }, body: JSON.stringify({ email, secret: env.SMALL_TEST_BYPASS }) })).json()).session;
+const sessionFor = async email => (await (await fetch(`${DEV_CP}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'canvas-sharing-check' }, body: JSON.stringify({ email, secret: env.RABBIT_HOLE_DEV_TEST_BYPASS }) })).json()).session;
 const ownerSession = await sessionFor('yudhisteer.chin@gmail.com');
 const friendSession = await sessionFor('share-friend@example.org');
 const apps = await (await fetch(`${BASE}/api/apps`, { headers: { Cookie: `small_session=${ownerSession}`, 'User-Agent': 'canvas-sharing-check' } })).json();

@@ -4,7 +4,7 @@
 // wrapped in { } so helper names never collide. Blocks declare nothing at top level and never
 // call browser.close(): the harness closes once, below the marker. D7: nothing here shares,
 // renames, trashes or runs an app; a check that creates a canvas deletes it again. From packages/web:
-//   SMALL_BASE=https://small-cp-dev-smart-home.zeroshothq.workers.dev SMALL_ENV_FILE=C:/Users/cyudhist/Desktop/workspace/small-deploy/.env node e2e/rabbit-hole-check.mjs
+//   SMALL_BASE=https://small-cp-dev-smart-home.tryrabbithole.workers.dev SMALL_ENV_FILE=C:/Users/cyudhist/Desktop/workspace/small-deploy/.env node e2e/rabbit-hole-check.mjs
 // ONLY=build,J15 runs only labels that start with those prefixes. SHOTS=1 also saves screenshots.
 // STATUS (2026-09-30): signed-in execution is pending P0-B Phase 2B. /test/session is gone from live
 // small-cp (P0-A containment) and the isolated Rabbit Hole dev environment is not ready yet; never
@@ -12,15 +12,16 @@
 import { chromium } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { parseEnv } from 'node:util';
+import { DEV_CP } from './dev-cp.mjs';
 
 const base = process.env.SMALL_BASE || '';
 // A per-session clone only, never the shared small-cp-dev (docs/features/parallel-dev-deploys.md).
-if (!/^https:[/][/]small-cp-dev-[a-z0-9-]+[.]zeroshothq[.]workers[.]dev$/.test(base)) throw new Error('SMALL_BASE must be your clone, e.g. https://small-cp-dev-smart-home.zeroshothq.workers.dev');
+if (!/^https:[/][/]small-cp-dev-[a-z0-9-]+[.]tryrabbithole[.]workers[.]dev$/.test(base)) throw new Error('SMALL_BASE must be your clone, e.g. https://small-cp-dev-smart-home.tryrabbithole.workers.dev');
 const env = parseEnv(readFileSync(process.env.SMALL_ENV_FILE || new URL('../../../.env', import.meta.url), 'utf8'));
-if (!env.SMALL_TEST_BYPASS) throw new Error('SMALL_TEST_BYPASS missing from the env file');
+if (!env.RABBIT_HOLE_DEV_TEST_BYPASS) throw new Error('RABBIT_HOLE_DEV_TEST_BYPASS missing from the env file');
 const UA = { 'User-Agent': 'small-rabbit-hole-check' }; // Cloudflare 1010 refuses default script agents
 const email = 'yudhisteer.chin@gmail.com';
-const login = await fetch(`${base}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...UA }, body: JSON.stringify({ email, secret: env.SMALL_TEST_BYPASS }) });
+const login = await fetch(`${DEV_CP}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...UA }, body: JSON.stringify({ email, secret: env.RABBIT_HOLE_DEV_TEST_BYPASS }) });
 if (!login.ok) throw new Error(`test session: HTTP ${login.status}`);
 const { session } = await login.json();
 const catalogResponse = await fetch(`${base}/api/apps`, { headers: { ...UA, Cookie: `small_session=${session}` } });

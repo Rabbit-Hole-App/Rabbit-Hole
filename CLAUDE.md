@@ -120,7 +120,14 @@ npm run build -- --outDir dist-dev
 npx wrangler deploy --config wrangler.dev.jsonc --name small-cp-dev-<worktree-name>
 ```
 
-Your app is then at `https://small-cp-dev-<worktree-name>.zeroshothq.workers.dev`
+Dev and review Workers live on the separate **rabbit-hole** Cloudflare account
+(`account_id` is pinned in the dev configs). Load its `CLOUDFLARE_API_TOKEN` and
+`CLOUDFLARE_ACCOUNT_ID` from `small-deploy/.env` into the command environment - never
+print them. Test sessions come from `rabbit-hole-cp-dev` `/test/session`
+(`packages/web/e2e/dev-cp.mjs`, key `RABBIT_HOLE_DEV_TEST_BYPASS`), never from
+production; see [docs/features/rabbit-hole-dev.md](docs/features/rabbit-hole-dev.md).
+
+Your app is then at `https://small-cp-dev-<worktree-name>.tryrabbithole.workers.dev`
 - test sessions, boards and screenshots all work there (verified). Constraints:
 the dev D1 is shared across all clones, so announce any schema migration before
 running it; true wrangler secrets do not clone, so a feature needing one shows

@@ -486,6 +486,14 @@ call may send this job's content through the hosted control plane.
   Setup lives inside Settings → Connections → AWS. There is no separate feature
   page; the old `/aws` route redirects to `/apps`. Existing Fly apps and production
   routes keep their behavior. Dev connection records have their own D1 database.
+- The dev worker learns who is signed in from production `GET /api/me`, which only
+  reads, instead of `GET /api/apps`, whose run sweep writes production D1
+  (`byoc.js` `identity`, `dev-forwarding.js` `devIdentity`). An access request whose
+  app name is a hosted app the caller can see is still refused with 409; the check
+  is now production `GET /api/apps/<name>`, which only reads. Until `/api/me` is
+  deployed to production, identity comes from `GET /api/workspaces` and
+  `GET /api/trash`, which also only read. See
+  [dev-prod-write-barrier.md](dev-prod-write-barrier.md).
 - The AWS connection heading has a neutral `!` icon. Hovering or focusing it
   shows the source/input/log/output privacy explanation in the shared tooltip.
   AWS and Slack use the same `SettingsRow` component with actions aligned right.

@@ -2,6 +2,7 @@ import { assumeRole } from './aws.js';
 import { awsCall, platformCredentials, templateUrl } from './byoc-aws.js';
 import { makeTemplate } from '../../byoc/template.mjs';
 import { s3Read, accessMap } from '../../cli/lib/byoc-s3.js';
+import { devIdentity } from './dev-forwarding.js';
 
 const json = (data, status = 200) => Response.json(data, { status, headers: { 'Cache-Control': 'no-store' } });
 const random = (n) => [...crypto.getRandomValues(new Uint8Array(n))].map((v) => v.toString(16).padStart(2, '0')).join('');
@@ -19,14 +20,17 @@ async function bodyOf(req, keys) {
   return body;
 }
 
+// The side-effect-free identity read (dev-forwarding.js); GET /api/apps would sweep production runs.
 async function identity(req, env) {
-  const headers = new Headers();
-  for (const k of ['cookie', 'authorization', 'x-small-workspace']) if (req.headers.has(k)) headers.set(k, req.headers.get(k));
-  const result = await env.CONTROL_PLANE.fetch(new Request(new URL('/api/apps', req.url), { headers }));
-  if (!result.ok) fail('Sign in to small first', result.status === 401 ? 401 : 403);
-  const user = await result.json();
-  if (!user.org || !user.email) fail('Workspace identity unavailable', 401);
+  const user = await devIdentity(req, env);
+  if (user instanceof Response) fail(user.status === 401 ? 'Sign in to small first' : 'Workspace identity unavailable', user.status);
   return user;
+}
+
+// A hosted app of this name the caller can see: production GET /api/apps/<name>, a read-only lookup.
+async function hostedApp(req, env, name) {
+  const url = new URL(req.url); url.pathname = `/api/apps/${encodeURIComponent(name)}`; url.search = '';
+  return (await env.CONTROL_PLANE.fetch(new Request(url, { headers: req.headers, redirect: 'manual' }))).status !== 404;
 }
 
 async function invoke(env, c, operation, email) {
@@ -146,7 +150,7 @@ export async function byocFetch(req, env, { apiCode, signerCode, permissionsCode
         if (!/^[a-z0-9-]{1,40}$/.test(b.app_name || '') || typeof b.app_name !== 'string') fail('Invalid app name');
         if (!Object.hasOwn(b, 's3_read')) fail('Declare the requested S3 folder, or null for no S3 access');
         try { b.s3_read = s3Read(b.s3_read); } catch (error) { fail(error.message); }
-        if (user.apps?.some((app) => app.name === b.app_name)) fail('This name belongs to a hosted app', 409);
+        if (await hostedApp(req, env, b.app_name)) fail('This name belongs to a hosted app', 409);
       }
       const state = await accessState(env, c);
       if (path === '/api/byoc/access' && req.method === 'GET') return json(accessView(state));

@@ -82,3 +82,22 @@ test('a Blender scene never queues without the learner confirming it', async () 
     assert.equal(f.data.size, 0);
   } finally { globalThis.fetch = original; }
 });
+// dev-prod-write-barrier.md: an alarm on a worker without LEARN_MEDIA stores nothing, even with small-runs bound.
+test('without LEARN_MEDIA the alarm refuses before the renderer, and the GLB never falls back to small-runs', async () => {
+  const original = globalThis.fetch; let calls = 0;
+  const bytes = new Uint8Array(24); new DataView(bytes.buffer).setUint32(0, 0x46546c67, true);
+  globalThis.fetch = async (url, init) => {
+    if (String(url).endsWith('/health')) return Response.json({ version: 'blender-test' });
+    calls++;
+    if (init.method === 'POST') return Response.json({ status: 'rendering' }, { status: 202 });
+    return String(url).endsWith('/asset') ? new Response(bytes) : Response.json({ status: 'ready' });
+  };
+  try {
+    const f = fixture(); delete f.env.LEARN_MEDIA;
+    await f.actor.fetch(request());
+    await assert.rejects(f.actor.alarm(), /LEARN_MEDIA is not bound/);
+    await assert.rejects(f.actor.alarm(), /LEARN_MEDIA is not bound/);
+    assert.deepEqual([f.env.RUNS.calls, calls], [[], 0]);
+    assert.equal((await f.actor.list()).scenes[0].status, 'queued');
+  } finally { globalThis.fetch = original; }
+});

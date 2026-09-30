@@ -37,7 +37,7 @@ test('a report from outside an app (Home, Library) needs only a signed-in member
   const signedOut = { CONTROL_PLANE: { fetch: async () => new Response('login', { status: 302 }) }, LEARN_MEDIA: media, RUNS: live };
   assert.equal((await feedbackFetch(post({ kind: 'idea', text: 'A dark theme' }), signedOut)).status, 401);
   assert.equal(stored.size, 0);
-  const member = { CONTROL_PLANE: { fetch: async request => (new URL(request.url).pathname === '/api/apps' ? Response.json({ org: 'o', email: 'a@b.c', apps: [] }) : Response.json({ error: 'no' }, { status: 404 })) }, LEARN_MEDIA: media, RUNS: live };
+  const member = { CONTROL_PLANE: { fetch: async request => (new URL(request.url).pathname === '/api/me' ? Response.json({ org: 'o', email: 'a@b.c' }) : Response.json({ error: 'no' }, { status: 404 })) }, LEARN_MEDIA: media, RUNS: live };
   const response = await feedbackFetch(post({ app: null, kind: 'idea', text: 'A dark theme', context: { path: '/apps' } }), member);
   assert.equal(response.status, 201);
   const [[key, saved]] = [...stored];

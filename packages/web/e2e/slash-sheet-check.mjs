@@ -1,16 +1,17 @@
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync } from 'node:fs';
+import { DEV_CP } from './dev-cp.mjs';
 
 // View > Slash commands on the parallel clone: choosing a command shows the
 // real card it makes (the canvas's own card component) at its canvas size and
 // working; paid Generate is off; chat-only commands show an example exchange.
 // No model calls, nothing generated.
 // usage: node e2e/slash-sheet-check.mjs [screenshot dir]
-const BASE = 'https://small-cp-dev-small-parallel.zeroshothq.workers.dev';
+const BASE = 'https://small-cp-dev-small-parallel.tryrabbithole.workers.dev';
 const SHOTS = process.argv[2] || 'e2e/shots';
 mkdirSync(SHOTS, { recursive: true });
 const env = Object.fromEntries(readFileSync('C:/Users/cyudhist/Desktop/workspace/small-deploy/.env', 'utf8').split(/\r?\n/).map(l => l.match(/^([A-Z_]+)=(.*)$/)).filter(Boolean).map(([, k, v]) => [k, v.replace(/^"|"$/g, '').trim()]));
-const session = (await (await fetch(`${BASE}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'slash-sheet' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret: env.SMALL_TEST_BYPASS }) })).json()).session;
+const session = (await (await fetch(`${DEV_CP}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'slash-sheet' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret: env.RABBIT_HOLE_DEV_TEST_BYPASS }) })).json()).session;
 let failed = 0;
 const ok = (name, condition, extra = '') => { if (!condition) failed += 1; console.log(`${condition ? 'PASS' : 'FAIL'}  ${name}${extra ? `  (${extra})` : ''}`); };
 const browser = await chromium.launch();

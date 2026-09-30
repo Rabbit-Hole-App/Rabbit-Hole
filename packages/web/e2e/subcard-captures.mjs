@@ -18,6 +18,7 @@ import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { BOARDS } from '../src/demo-scenes.js';
 import { reveal } from './canvas-reveal.mjs';
+import { DEV_CP } from './dev-cp.mjs';
 
 const [, , base, board, OUT, selectionPath] = process.argv;
 const selection = selectionPath ? JSON.parse(readFileSync(selectionPath, 'utf8')) : null;
@@ -26,8 +27,8 @@ rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
 const all = BOARDS[board]();
 const cards = all.filter(block => block.scene);
-const secret = readFileSync(new URL('../../../.env', import.meta.url), 'utf8').match(/^SMALL_TEST_BYPASS=(.*)$/m)?.[1]?.trim();
-const { session } = await (await fetch(`${base}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'small-subcard-captures' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) })).json();
+const secret = readFileSync(new URL('../../../.env', import.meta.url), 'utf8').match(/^RABBIT_HOLE_DEV_TEST_BYPASS=(.*)$/m)?.[1]?.trim();
+const { session } = await (await fetch(`${DEV_CP}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'small-subcard-captures' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) })).json();
 if (!session) throw new Error('no session from deployed worker');
 const browser = await chromium.launch();
 // Wide enough that the widest card sits clear of the tool gutter beside the canvas.

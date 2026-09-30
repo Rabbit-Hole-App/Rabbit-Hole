@@ -160,7 +160,7 @@ const commands = {
     const res = await call('POST', '/api/cli/login', { email }, { auth: false });
     if (res.devCode) console.log(`(dev) code: ${res.devCode}`);
     else console.log(`✓ code sent to ${email}`);
-    const code = flags.code || (await ask('6-digit code: '));
+    const code = flags.code || (await ask('code from the email: '));
     const v = await call('POST', '/api/cli/verify', { challenge: res.challenge, code }, { auth: false });
     config.save({ ...config.load(), token: v.token, email: v.email, org: v.org, apiBase: apiBase(), authType: 'hosted', cognito: null });
     console.log(`✓ logged in as ${v.email} (org: ${v.org})`);

@@ -9,13 +9,14 @@ import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { BOARDS } from '../src/demo-scenes.js';
 import { reveal } from './canvas-reveal.mjs';
+import { DEV_CP } from './dev-cp.mjs';
 
 const [, , base, board, prefix, per = '6', version = '1'] = process.argv;
 if (!base || !board || !prefix) throw new Error('usage: node e2e/card-batches.mjs <deployed-base> <board> <outPrefix> [perBatch] [version]');
 const cards = BOARDS[board]().filter(block => block.scene);
 const size = Number(per);
-const secret = readFileSync(new URL('../../../.env', import.meta.url), 'utf8').match(/^SMALL_TEST_BYPASS=(.*)$/m)?.[1]?.trim();
-const { session } = await (await fetch(`${base}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'small-card-batches' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) })).json();
+const secret = readFileSync(new URL('../../../.env', import.meta.url), 'utf8').match(/^RABBIT_HOLE_DEV_TEST_BYPASS=(.*)$/m)?.[1]?.trim();
+const { session } = await (await fetch(`${DEV_CP}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'small-card-batches' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) })).json();
 if (!session) throw new Error('no session from deployed worker');
 const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1720, height: 2400 } });

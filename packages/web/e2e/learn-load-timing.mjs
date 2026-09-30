@@ -1,13 +1,14 @@
 import { chromium } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { DEV_CP } from './dev-cp.mjs';
 
 // Initial Learn load on the parallel clone, fresh browser each time: time to
 // the canvas menubar and what was fetched by then (Tool Performance v1 check
 // that the idle warm-up does not tax the first load). usage: node e2e/learn-load-timing.mjs [runs]
-const BASE = 'https://small-cp-dev-small-parallel.zeroshothq.workers.dev';
+const BASE = 'https://small-cp-dev-small-parallel.tryrabbithole.workers.dev';
 const RUNS = Number(process.argv[2] || 5);
 const env = Object.fromEntries(readFileSync('C:/Users/cyudhist/Desktop/workspace/small-deploy/.env', 'utf8').split(/\r?\n/).map(l => l.match(/^([A-Z_]+)=(.*)$/)).filter(Boolean).map(([, k, v]) => [k, v.replace(/^"|"$/g, '').trim()]));
-const session = (await (await fetch(`${BASE}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'load-timing' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret: env.SMALL_TEST_BYPASS }) })).json()).session;
+const session = (await (await fetch(`${DEV_CP}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'load-timing' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret: env.RABBIT_HOLE_DEV_TEST_BYPASS }) })).json()).session;
 const browser = await chromium.launch();
 const rows = [];
 for (let run = 0; run < RUNS; run++) {

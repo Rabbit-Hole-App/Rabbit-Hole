@@ -2,7 +2,7 @@
 point it at an object in the demo bucket, and check the job's STS session let it
 read the object and write the report — to S3 and to the run outputs.
 
-Needs: small login done once, repo-root .env with SMALL_API + SMALL_TEST_BYPASS +
+Needs: small login done once, repo-root .env with RABBIT_HOLE_DEV_TEST_BYPASS +
 AWS admin keys + S3_BUCKET, and the small-s3-demo IAM role (scratchpad script).
 """
 
@@ -38,7 +38,7 @@ def _dotenv():
 
 
 ENV = _dotenv()
-API = ENV["SMALL_API"]
+API = ENV.get("RABBIT_HOLE_DEV_CP", "https://rabbit-hole-cp-dev.tryrabbithole.workers.dev")
 BUCKET = ENV["S3_BUCKET"]
 CLI_CONFIG = Path.home() / ".small" / "config.json"
 

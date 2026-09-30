@@ -101,6 +101,8 @@ export class LearnVideos {
     }) };
   }
   async alarm() {
+    // A finished job stores its asset: only ever in the dev bucket, never small-runs.
+    if (!this.env.LEARN_MEDIA) throw new Error('LEARN_MEDIA is not bound on this worker');
     const jobs = await this.state.storage.list({ prefix: 'job:' });
     for (const [key, job] of jobs) {
       if (job.status !== 'generating') continue;

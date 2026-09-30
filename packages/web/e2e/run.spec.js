@@ -1,4 +1,4 @@
-// E2E for the run surface (flow.md §3b/3c/§4) against the live control plane:
+// E2E for the run surface (flow.md §3b/3c/§4) against the Rabbit Hole dev control plane:
 // yolo-job's [inputs] form, a real run through the side peek, outputs rendering,
 // Run-again prefill, and the runs database with per-input columns + resize.
 // Needs repo-root .env, `small login` done once, and yolo-job deployed with a
@@ -8,6 +8,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
+import { DEV_CP } from './dev-cp.mjs';
 
 function dotenv() {
   try {
@@ -21,7 +22,7 @@ function dotenv() {
 }
 
 const ENV = dotenv();
-test.skip(!ENV.SMALL_API || !ENV.SMALL_TEST_BYPASS, 'repo .env with SMALL_API + SMALL_TEST_BYPASS required');
+test.skip(!ENV.RABBIT_HOLE_DEV_TEST_BYPASS, 'repo .env with RABBIT_HOLE_DEV_TEST_BYPASS required');
 
 const FIXTURE = fileURLToPath(new URL('../../../tests/fixtures/people.jpg', import.meta.url));
 
@@ -29,8 +30,8 @@ test('yolo-job: form from [inputs], run in the side peek, outputs, run-again, ru
   test.setTimeout(480_000); // a real Fly machine boots and runs torch inference
 
   const { email } = JSON.parse(readFileSync(join(homedir(), '.small', 'config.json'), 'utf8'));
-  const r = await request.post(`${ENV.SMALL_API}/test/session`, {
-    data: { email, secret: ENV.SMALL_TEST_BYPASS },
+  const r = await request.post(`${DEV_CP}/test/session`, {
+    data: { email, secret: ENV.RABBIT_HOLE_DEV_TEST_BYPASS },
   });
   expect(r.ok(), await r.text()).toBeTruthy();
   const { session } = await r.json();

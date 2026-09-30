@@ -1,19 +1,12 @@
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 
-// Dev proxies /api (and the login pages) to the real control plane so the
-// session cookie lands on localhost. Target comes from repo-root .env SMALL_API.
+// Dev proxies /api (and the login pages) to the Rabbit Hole dev control plane so the
+// session cookie lands on localhost (docs/features/rabbit-hole-dev.md). Never production small-cp:
+// the repo-root SMALL_API is the CLI's production target and is deliberately not read here.
 function smallApi() {
-  if (process.env.SMALL_API) return process.env.SMALL_API;
-  try {
-    const env = readFileSync(fileURLToPath(new URL('../../.env', import.meta.url)), 'utf8');
-    const m = env.match(/^SMALL_API=(.+)$/m);
-    if (m) return m[1].trim();
-  } catch {}
-  return 'http://127.0.0.1:8787';
+  return process.env.RABBIT_HOLE_DEV_CP || 'https://rabbit-hole-cp-dev.tryrabbithole.workers.dev';
 }
 
 // '^/a/' is a regex key — a plain '/a' prefix would swallow /apps itself.

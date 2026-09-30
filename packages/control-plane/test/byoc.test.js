@@ -14,9 +14,13 @@ function setup(email = 'owner@example.com', org = 'example-com', fields = {}) {
   const env = { AWS_ACCESS_KEY_ID: 'test', AWS_SECRET_ACCESS_KEY: 'fixture-secret', BYOC_REGION: 'us-east-1',
     BYOC_PRINCIPAL_ARN: 'arn:aws:iam::637423432890:user/small-byoc-dev', BYOC_TEMPLATE_BUCKET: 'installer-fixture',
     CONTROL_PLANE: { fetch: async (request) => {
-    assert.equal(new URL(request.url).pathname, '/api/apps');
     assert.equal(request.method, 'GET');
-    return email ? Response.json({ email, org }) : Response.json({ error: 'Sign in' }, { status: 401 });
+    const path = new URL(request.url).pathname;
+    if (!email) return Response.json({ error: 'Sign in' }, { status: 401 });
+    // A hosted app the caller can see (production GET /api/apps/<name>): only hosted-app exists.
+    if (path.startsWith('/api/apps/')) return path === '/api/apps/hosted-app' ? Response.json({ name: 'hosted-app' }) : Response.json({ error: 'no app' }, { status: 404 });
+    assert.equal(path, '/api/me');
+    return Response.json({ email, org });
   } }, BYOC_DB: { prepare: (sql) => ({ bind: (...args) => ({
     first: async () => sql.includes('FROM access_requests') ? pending && { ...pending } : row && args[0] === (sql.includes('WHERE org') ? row.org : row.id) ? { ...row } : null,
     run: async () => {
@@ -299,6 +303,7 @@ function accessFixture(t, email, upgraded = false) {
 test('S3 request prepares one immutable template and only installed AWS metadata approves it', async (t) => {
   const { request, aws } = accessFixture(t);
   const b = { app_name: 'report', s3_read: 's3://company-data/reports' };
+  assert.equal((await request('access', { ...b, app_name: 'hosted-app' })).status, 409);
   assert.equal((await request('access', b)).data.status, 'pending');
   const state = (await request('access', undefined, 'GET')).data;
   assert.deepEqual(state.approved, aws.scopes);

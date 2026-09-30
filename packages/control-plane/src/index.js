@@ -11,7 +11,7 @@ import { WIKI_SHOWN_NOTE } from './agents/learn-chat.js';
 import { handleLearnCourse } from './learn-course.js';
 // small control plane: CLI API + browser auth wall + router. One Worker + D1.
 // URLs are path-based (no custom domain): /a/<org>/<app>/... proxies to the app's Fly origin.
-import { sign, verify, sha256, randomHex } from './token.js';
+import { sign, verify, hmacHex, randomHex } from './token.js';
 import { ensureFlyApp, ensureVolume, deployTokenFor, startMachine, destroyMachine, destroyFlyApp } from './fly.js';
 import { aiCacheDrop, ASK_TOOLS, askOnce, askStream, capJoin, CAP_CHARS, DIAGNOSIS_PROMPT, diffBundles, getBundle, parseBundle } from './ask.js';
 import { assumeRole, iamRolePolicies, s3Buckets, s3Get, s3List } from './aws.js';
@@ -29,6 +29,13 @@ const SESSION_COOKIE = 'small_session';
 const SESSION_TTL = 7 * 24 * 3600;
 
 const orgOf = (email) => email.split('@')[1].toLowerCase().replace(/\./g, '-');
+// Login email: trimmed, lowercased, one @, plain local part, dotted domain labels with no edge hyphens.
+// Quoted or display-name forms are refused - orgOf reads after the first @, so they could pick another org.
+const EMAIL_RE = /^[a-z0-9._%+-]+@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
+const loginEmail = (raw) => {
+  const email = String(raw ?? '').trim().toLowerCase();
+  return email.length <= 254 && EMAIL_RE.test(email) ? email : null;
+};
 // apps.schedule may hold several crons separated by ';' (dashboard "+" adds them)
 const cronParts = (s) => String(s || '').split(';').map((x) => x.trim()).filter(Boolean);
 const now = () => Math.floor(Date.now() / 1000);
@@ -39,14 +46,28 @@ const html = (body, status = 200, headers = {}) =>
     headers: { 'Content-Type': 'text/html;charset=utf-8', ...headers },
   });
 
+// Test/dev bypasses (/test/*) need SMALL_ENV test or dev AND their secret. Any other SMALL_ENV,
+// including none, is production: fail closed.
+const testMode = (env) => env.SMALL_ENV === 'test' || env.SMALL_ENV === 'dev';
+// Echoing a login code or sign-in link hands a session for any email to whoever asks, so it is
+// SMALL_ENV=test only. A public dev control plane (rabbit-hole-cp-dev) mints through /test/session.
+const echoesLogin = (env) => env.SMALL_ENV === 'test' && !!env.TEST_BYPASS_SECRET;
+
+// false when there is no provider or the send fails/throws. Never logs the body - it holds codes and links.
 async function sendEmail(env, to, subject, text) {
-  if (!env.RESEND_API_KEY) return false; // dev mode: caller falls back to echoing the code/link
-  const resp = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: env.EMAIL_FROM || 'small <onboarding@resend.dev>', to: [to], subject, text }),
-  });
-  return resp.ok;
+  if (!env.RESEND_API_KEY) return false;
+  try {
+    const resp = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: env.EMAIL_FROM || 'small <onboarding@resend.dev>', to: [to], subject, text }),
+    });
+    if (!resp.ok) console.error(`email send failed: status ${resp.status}`);
+    return resp.ok;
+  } catch {
+    console.error('email send failed: network error');
+    return false;
+  }
 }
 
 async function cliAuth(req, env) {
@@ -174,25 +195,67 @@ async function canEdit(env, app, email) {
 
 // ---------- CLI API ----------
 
+// CLI login codes live in D1 (cli_login_challenges, migration 0025): the CLI's challenge is a
+// signed random id only, so it carries nothing to brute-force offline. Each row allows 5 guesses,
+// one success, 10 minutes. Any D1 error fails closed with a generic 503.
+// ponytail: rows are never purged; add a DELETE to the daily cron if the table ever matters.
+const CLI_LOGIN_UNAVAILABLE = 'Could not send the login email right now. Try again in a few minutes.';
+const cliCodeMac = (env, email, code) => hmacHex(env.MASTER_KEY, `cli-code\n${email}\n${code}`);
+
 async function apiLogin(req, env) {
-  const { email } = await req.json();
-  if (!email || !email.includes('@')) return json({ error: 'valid email required' }, 400);
-  const code = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1000000).padStart(6, '0');
-  const challenge = await sign({ t: 'challenge', email, codeHash: await sha256(code), exp: now() + 600 }, env.MASTER_KEY);
+  const email = loginEmail((await req.json())?.email);
+  if (!email) return json({ error: 'valid email required' }, 400);
+  const code = String(crypto.getRandomValues(new Uint32Array(1))[0] % 100000000).padStart(8, '0');
+  const id = randomHex(16);
+  const t = now();
+  try {
+    // Insert only under the caps - one statement, so it is atomic. Per address: 3 per 15 minutes, 10 per day.
+    // Per domain: 30 per hour, 100 per day, because a token for ANY address at a company domain opens that
+    // org's domain-visible apps, so guesses spread over many addresses there must still add up. For public
+    // mail domains (gmail.com etc.) brute force gains nothing beyond a normal self-signup; the domain cap is
+    // for company domains. No global cap - it would let one attacker lock everyone out.
+    const ins = await env.DB.prepare(
+      `INSERT INTO cli_login_challenges (id, email, domain, code_mac, created_at, expires_at)
+       SELECT ?1, ?2, ?6, ?3, ?4, ?5
+       WHERE (SELECT COUNT(*) FROM cli_login_challenges WHERE email = ?2 AND created_at > ?4 - 900) < 3
+         AND (SELECT COUNT(*) FROM cli_login_challenges WHERE email = ?2 AND created_at > ?4 - 86400) < 10
+         AND (SELECT COUNT(*) FROM cli_login_challenges WHERE domain = ?6 AND created_at > ?4 - 3600) < 30
+         AND (SELECT COUNT(*) FROM cli_login_challenges WHERE domain = ?6 AND created_at > ?4 - 86400) < 100`
+    ).bind(id, email, await cliCodeMac(env, email, code), t, t + 600, email.split('@')[1]).run();
+    if (ins.meta.changes !== 1) return json({ error: 'Too many login codes requested. Try again later.' }, 429);
+  } catch {
+    return json({ error: CLI_LOGIN_UNAVAILABLE }, 503);
+  }
+  const challenge = await sign({ t: 'challenge', id, exp: t + 600 }, env.MASTER_KEY);
   const sent = await sendEmail(env, email, `small deploy login code: ${code}`, `Your small deploy login code is ${code}\nIt expires in 10 minutes.`);
   if (sent) return json({ challenge });
-  // Echoing the code is an auth bypass - only allowed on test/dev instances (marked by TEST_BYPASS_SECRET).
-  if (!env.TEST_BYPASS_SECRET) return json({ error: 'email not configured on this control plane' }, 503);
-  return json({ challenge, devCode: code, warning: 'test instance - code echoed' });
+  // Echoing the code is an auth bypass - only on test instances (SMALL_ENV test plus TEST_BYPASS_SECRET).
+  if (echoesLogin(env)) return json({ challenge, devCode: code, warning: 'test instance - code echoed' });
+  // Undelivered: drop the row. Best effort - its id was never handed out, so a leftover row is unusable anyway.
+  try { await env.DB.prepare('DELETE FROM cli_login_challenges WHERE id = ?').bind(id).run(); } catch {}
+  return json({ error: CLI_LOGIN_UNAVAILABLE }, 503);
 }
 
 async function apiVerify(req, env) {
   const { challenge, code } = await req.json();
   const p = await verify(challenge, env.MASTER_KEY);
-  if (!p || p.t !== 'challenge' || p.codeHash !== (await sha256(String(code)))) return json({ error: 'bad or expired code' }, 401);
-  // ponytail: CLI tokens never expire; revoke by rotating MASTER_KEY. Add exp + refresh when it matters.
-  const token = await sign({ t: 'cli', email: p.email, org: orgOf(p.email) }, env.MASTER_KEY);
-  return json({ token, email: p.email, org: orgOf(p.email) });
+  const bad = () => json({ error: 'bad or expired code' }, 401);
+  if (!p || p.t !== 'challenge' || typeof p.id !== 'string') return bad();
+  const t = now();
+  try {
+    // Spend one of the 5 attempts before comparing; no row back = unknown, used, expired or out of attempts.
+    const row = await env.DB.prepare(
+      'UPDATE cli_login_challenges SET attempts = attempts + 1 WHERE id = ? AND used_at IS NULL AND expires_at > ? AND attempts < 5 RETURNING email, code_mac'
+    ).bind(p.id, t).first();
+    if (!row || row.code_mac !== (await cliCodeMac(env, row.email, String(code)))) return bad();
+    const used = await env.DB.prepare('UPDATE cli_login_challenges SET used_at = ? WHERE id = ? AND used_at IS NULL').bind(t, p.id).run();
+    if (used.meta.changes !== 1) return bad(); // a concurrent verify won
+    // ponytail: CLI tokens never expire; revoke by rotating MASTER_KEY. Add exp + refresh when it matters.
+    const token = await sign({ t: 'cli', email: row.email, org: orgOf(row.email) }, env.MASTER_KEY);
+    return json({ token, email: row.email, org: orgOf(row.email) });
+  } catch {
+    return json({ error: 'Could not complete the login right now. Try again in a few minutes.' }, 503);
+  }
 }
 
 // 200 = public, 404 = private or nonexistent, anything else (rate limit, outage) = unknown.
@@ -1049,11 +1112,14 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
     // @-mentioned apps (the composer's chips) join this chat's context, each
     // one the learner can see; at most three, so one answer stays focused.
     // A mention not read says so, and all mentioned context shares what is left of one CAP_CHARS budget.
+    // A seam turn runs on a dev worker, where apps live in production D1: never read into dev chat
+    // (docs/features/dev-prod-write-barrier.md). Without DB there is nothing to read either.
+    const liveApps = !seam && env.DB;
     const mentionNames = (Array.isArray(body.mentions) ? body.mentions : []).filter(name => typeof name === 'string' && name !== scope.app);
     for (const [index, name] of mentionNames.entries()) {
-      const mentioned = index < MENTION_LIMIT ? await appForUser(env, user, name) : null;
+      const mentioned = index < MENTION_LIMIT && liveApps ? await appForUser(env, user, name) : null;
       if (!mentioned?.canView) {
-        context = `${context}\n\nMentioned app ${name}: not available to this chat${index < MENTION_LIMIT ? '' : ` (a question reads at most ${MENTION_LIMIT} mentioned apps)`}.`;
+        context = `${context}\n\nMentioned app ${name}: not available to this chat${index >= MENTION_LIMIT ? ` (a question reads at most ${MENTION_LIMIT} mentioned apps)` : liveApps ? '' : ' (live apps are not read on this preview)'}.`;
         continue;
       }
       const text = await appContext(env, mentioned, useSet), room = Math.max(0, CAP_CHARS - context.length);
@@ -2230,14 +2296,14 @@ async function loginPage(req, env, baseUrl) {
   const next = url.searchParams.get('next') || '/';
   if (req.method === 'POST') {
     const form = await req.formData();
-    const email = String(form.get('email') || '').toLowerCase().trim();
-    if (!email.includes('@')) return html('<p>Enter a valid work email.</p><a href="javascript:history.back()">back</a>', 400);
+    const email = loginEmail(form.get('email'));
+    if (!email) return html('<p>Enter a valid work email.</p><a href="javascript:history.back()">back</a>', 400);
     const magic = await sign({ t: 'magic', email, next, exp: now() + 900 }, env.MASTER_KEY);
     const link = `${baseUrl}/auth?token=${encodeURIComponent(magic)}`;
     const sent = await sendEmail(env, email, 'Your small deploy sign-in link', `Sign in: ${link}\nExpires in 15 minutes.`);
     if (sent) return html(`<h2>Check your inbox</h2><p>We sent a sign-in link to <b>${email}</b>.</p>`);
-    if (!env.TEST_BYPASS_SECRET) return html('<p>Email is not configured on this control plane.</p>', 503);
-    return html(`<h2>Test instance</h2><p>Dev sign-in link:</p><p><a href="${link}">${link}</a></p>`);
+    if (echoesLogin(env)) return html(`<h2>Test instance</h2><p>Dev sign-in link:</p><p><a href="${link}">${link}</a></p>`);
+    return html("<p>We couldn't send a sign-in email right now. Try again in a few minutes.</p>", 503);
   }
   return html(
     `<div style="display:flex;align-items:center;gap:8px;font-weight:600;color:#37352F"><svg width="22" height="22" viewBox="0 0 32 32"><rect x="2" y="2" width="28" height="28" rx="7" fill="none" stroke="#37352F" stroke-width="2.5"/><path transform="translate(6.2 7) scale(0.83)" fill="#37352F" d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>small deploy</div><h2>Sign in</h2><form method=post><input name=email type=email placeholder=you@company.com required autofocus><button>Email me a link</button></form><p style="font-size:14px">We’ll send a link. No password.</p>`
@@ -2252,9 +2318,9 @@ async function authRedirect(req, env) {
   return new Response(null, { status: 302, headers: { Location: p.next || '/', 'Set-Cookie': sessionCookie(sess) } });
 }
 
-// Test bypass: mint a session without email. Enabled only when TEST_BYPASS_SECRET is set.
+// Test bypass: mint a session without email. Enabled only in testMode with TEST_BYPASS_SECRET set.
 async function testSession(req, env) {
-  if (!env.TEST_BYPASS_SECRET) return json({ error: 'not enabled' }, 404);
+  if (!testMode(env) || !env.TEST_BYPASS_SECRET) return json({ error: 'not enabled' }, 404);
   const { email, secret } = await req.json();
   if (secret !== env.TEST_BYPASS_SECRET) return json({ error: 'bad secret' }, 401);
   const sess = await sign({ t: 'sess', email: email.toLowerCase(), exp: now() + SESSION_TTL }, env.MASTER_KEY);
@@ -2263,7 +2329,7 @@ async function testSession(req, env) {
 
 // Tests trigger the nightly Watch pass on demand - same bypass guard as /test/session.
 async function testWatch(req, env) {
-  if (!env.TEST_BYPASS_SECRET) return json({ error: 'not enabled' }, 404);
+  if (!testMode(env) || !env.TEST_BYPASS_SECRET) return json({ error: 'not enabled' }, 404);
   const { secret } = await req.json();
   if (secret !== env.TEST_BYPASS_SECRET) return json({ error: 'bad secret' }, 401);
   await runWatchPass(env, Date.now());
@@ -2342,6 +2408,9 @@ export default {
           if (s) user = { email: s.email, ...(await workspaceFor(req, env, s.email)) };
         }
         if (!user) return json({ error: 'run small login first' }, 401);
+        // Who is signed in, for the dev and review workers (dev-forwarding.js devIdentity). Reads only:
+        // GET /api/apps also answers it, but its sweepStaleRuns writes (docs/features/dev-prod-write-barrier.md).
+        if (path === '/api/me' && req.method === 'GET') return json({ email: user.email, org: user.org, orgName: user.orgName || null });
         const learnCourse = path.match(/^\/api\/apps\/([a-z0-9-]+)\/learn-course$/);
         if (learnCourse) return await handleLearnCourse(req, env, user, learnCourse[1], { appForUser, sourceSection });
         if (path === '/api/workspaces' && req.method === 'GET') return await apiWorkspaces(env, user);
@@ -2448,9 +2517,9 @@ export default {
       if (path === '/auth') return await authRedirect(req, env);
       if (path === '/test/session' && req.method === 'POST') return await testSession(req, env);
       if (path === '/test/openai/chat/completions' && req.method === 'POST') {
-        // OpenAI-compatible mock (only where a bypass secret exists): lets the
+        // OpenAI-compatible mock (testMode + a bypass secret only): lets the
         // "openai" provider path be exercised end to end without a real LLM
-        if (!env.SMALL_TEST_BYPASS) return json({ error: 'not found' }, 404);
+        if (!testMode(env) || !env.SMALL_TEST_BYPASS) return json({ error: 'not found' }, 404);
         const b = await req.json();
         const last = [...(b.messages || [])].reverse().find((m) => m.role === 'user');
         const lastText = typeof last?.content === 'string' ? last.content : (last?.content || []).map((c) => c.text || '').join('');

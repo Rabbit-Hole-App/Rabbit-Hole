@@ -111,3 +111,22 @@ test('a paid clip never starts without the learner confirming it', async () => {
     assert.equal(f.data.size, 0);
   } finally { globalThis.fetch = original; }
 });
+// dev-prod-write-barrier.md: an alarm on a worker without LEARN_MEDIA stores nothing, even with
+// small-runs bound; the job stays generating (ticket kept, no paid resubmission) until the binding is back.
+test('without LEARN_MEDIA the alarm refuses before polling, and the clip never falls back to small-runs', async () => {
+  const original = globalThis.fetch; let polls = 0;
+  globalThis.fetch = async (url, init = {}) => {
+    if (init.method === 'POST') return Response.json({ request_id: 'generation-1', status_url: 'https://queue.fal.run/status', response_url: 'https://queue.fal.run/result' });
+    polls++;
+    if (url.endsWith('/status')) return Response.json({ status: 'COMPLETED' });
+    if (url.endsWith('/result')) return Response.json({ video: { url: 'https://v3.fal.media/clip.mp4' } });
+    return new Response(new Uint8Array([0, 0, 0, 24]), { headers: { 'Content-Type': 'video/mp4' } });
+  };
+  try {
+    const f = fixture(); delete f.env.LEARN_MEDIA;
+    await f.actor.fetch(request());
+    await assert.rejects(f.actor.alarm(), /LEARN_MEDIA is not bound/);
+    assert.deepEqual([f.env.RUNS.calls, polls], [[], 0]);
+    assert.equal((await f.actor.list()).videos[0].status, 'generating');
+  } finally { globalThis.fetch = original; }
+});

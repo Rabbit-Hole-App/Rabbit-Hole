@@ -1,5 +1,7 @@
 {
   "name": "small-learn-notebook-dev",
+  // rabbit-hole Cloudflare account (P0-B Phase 2B, docs/features/rabbit-hole-dev.md).
+  "account_id": "c08d3dbdc53a3afd3cb09a536ac42318",
   "compatibility_date": "2026-09-16",
   "workers_dev": true,
   "assets": { "directory": "../../.small/notebook-site" }
