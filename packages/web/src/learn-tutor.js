@@ -13,6 +13,7 @@ import { applyInputToBlock } from './scene-evaluate.js';
 import { coerceInputs, validateInputDeclarations } from './scene-inputs.js';
 import { CLAIMS, CONCEPTS, SLICE_CARDS, catalogue, cardModule, claimsOfConcept, conceptOf, ladderStep, partLabels, targetClaims } from './learn-tutor-claims.js';
 import { appendEvents, conceptState, deriveClaimStates, practiceEvents } from './learn-tutor-evidence.js';
+import { selectClaims } from './learn-tutor-select.js';
 
 const SLASHES = ['deeper', 'simplify', 'dive'];
 const canvasKey = canvas => `${canvas.app}|${canvas.board || 'main'}`;
@@ -71,12 +72,14 @@ export function turnClaims(turn, store) {
   return out.slice(0, 4);
 }
 
-// The ClaimStates the turn carries: its claims and their prerequisites' claims (at most 10).
-function turnEvidence(claims, states) {
+// The turn's claims and their prerequisites' claims (at most 10): the ClaimStates the turn carries,
+// and the selector's candidates.
+function withPrerequisites(claims) {
   const ids = [...claims];
   for (const id of claims) for (const concept of CLAIMS[id].prerequisites) for (const other of claimsOfConcept(concept)) if (!ids.includes(other)) ids.push(other);
-  return ids.slice(0, 10).map(id => states[id]);
+  return ids.slice(0, 10);
 }
+const turnEvidence = (claims, states) => withPrerequisites(claims).map(id => states[id]);
 
 export function buildTurn({ raw, slash = null, opening = false, canvas, block, store, states }) {
   const here = { app: canvas.app, board: canvas.board || 'main' };
@@ -101,7 +104,12 @@ export function buildTurn({ raw, slash = null, opening = false, canvas, block, s
   };
   const claims = turnClaims(turn, store);
   turn.evidence = turnEvidence(claims, states);
-  return { turn, claims };
+  // Stage B: the claims the learner's words touch, out of the turn's claims and their prerequisites'.
+  const selection = raw.trim() && !turn.slash && !opening ? selectClaims(raw, {
+    candidates: withPrerequisites(claims), fallback: claims,
+    forced: [turn.answering ? store.open?.claim : null, turn.returned_from?.claim].filter(Boolean),
+  }) : null;
+  return { turn, claims, selection };
 }
 
 // What /api/learn/tutor/evaluate checks: the turn's claims, and gap checks for their prerequisites.
@@ -256,7 +264,10 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   t.push(now());
   let states = deriveClaimStates(current.events);
   const built = buildTurn({ raw, slash, opening, canvas, block, store: current, states });
-  const { turn, claims } = built;
+  const { turn, selection } = built;
+  // Evaluation and routing work on the claims the learner touched (Stage B); a turn without words
+  // (a slash, a hole's opening) keeps the turn's claims.
+  const claims = selection ? selection.selected : built.claims;
   // 2. JEV, then the larger evaluator on uncertain - free text on slice claims only.
   let evaluation = null, evidence = null;
   if (raw.trim() && !turn.slash && !opening && claims.length) {
@@ -296,6 +307,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   const ms = (from, to) => Math.round((to - from) * 10) / 10;
   const bench = {
     turn_id: turn.turn_id, route: routed.row, strategy: response.strategy ?? null, claims, evaluated: !!evidence,
+    selection: selection && { available: selection.available, selected: selection.selected.length, fallback: selection.fallback, ms: selection.ms },
     evaluation: evaluation && { status: evaluation.status, evaluator: evaluation.evaluator, events: (evaluation.events || []).length, telemetry: evaluation.telemetry ?? null },
     planner: { telemetry: response.telemetry ?? null },
     requested_actions: (Array.isArray(response.actions) ? response.actions : []).map(action => action?.type),
@@ -306,7 +318,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
       to_evidence_ready: evidence && ms(t[0], evidence[1]), to_planner_ready: ms(t[0], ready),
     },
   };
-  return { store: current, turn, evaluation, routed, response, actions, log, text, states: deriveClaimStates(current.events), bench };
+  return { store: current, turn, selection, evaluation, routed, response, actions, log, text, states: deriveClaimStates(current.events), bench };
 }
 const now = () => (globalThis.performance ?? Date).now();
 
