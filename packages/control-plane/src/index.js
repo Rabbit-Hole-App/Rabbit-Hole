@@ -6,8 +6,8 @@ import { uploadedPaperAsDocument } from './learn-paper.js';
 import { uploadedMediaAsImage } from './learn-media.js';
 import { OUTLINE_TOOL, OUTLINE_SYSTEM, validateOutlineOps } from './learn-outline-tool.js';
 import { SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, WIKI_SYSTEM, searchWikipedia, readWikipedia, validateShowWikipedia, wikiTitle } from './learn-wiki.js';
-import { FIND_VIDEO_MOMENTS_TOOL, SHOW_VIDEO_TOOL, VIDEO_SYSTEM, findVideoMoments, validateShowVideo, videoSearchAvailable } from './learn-youtube.js';
-import { VIDEO_SHOWN_NOTE, WIKI_SHOWN_NOTE } from './agents/learn-chat.js';
+import { findVideoMoments, videoMomentTools } from './learn-youtube.js';
+import { WIKI_SHOWN_NOTE } from './agents/learn-chat.js';
 import { handleLearnCourse } from './learn-course.js';
 // small control plane: CLI API + browser auth wall + router. One Worker + D1.
 // URLs are path-based (no custom domain): /a/<org>/<app>/... proxies to the app's Fly origin.
@@ -975,16 +975,15 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
   // Videos this answer has searched: videoId -> {title, hasCaptions, duration}.
   // show_video may only point at one of these, and only with a window when its
   // passages were actually readable - the show_paper bargain, for video.
-  const foundVideos = new Map();
-  let shownVideo = null;
+  const videos = videoMomentTools(env, user.org, findVideoMoments);
   const research = conversation === 'learn' ? {
     papers: [],
     // Shared with the context assembly below: an article already on the
     // learner's screen counts as read, so the tutor can point at another of
     // its sections without fetching it twice.
     articles,
-    tools: [SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, ...(videoSearchAvailable(env) ? [FIND_VIDEO_MOMENTS_TOOL, SHOW_VIDEO_TOOL] : []), ...(body.outline?.length ? [OUTLINE_TOOL] : [])],
-    system: [WIKI_SYSTEM, videoSearchAvailable(env) ? VIDEO_SYSTEM : null, body.outline?.length ? OUTLINE_SYSTEM : null].filter(Boolean).join('\n'),
+    tools: [SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, ...videos.tools, ...(body.outline?.length ? [OUTLINE_TOOL] : [])],
+    system: [WIKI_SYSTEM, videos.system, body.outline?.length ? OUTLINE_SYSTEM : null].filter(Boolean).join('\n'),
     runTool: async (name, input) => {
       if (name === SEARCH_WIKIPEDIA_TOOL.name) return searchWikipedia(input?.query);
       if (name === READ_WIKIPEDIA_TOOL.name) {
@@ -993,16 +992,8 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
         articles.set(article.title, article);
         return article;
       }
-      if (name === FIND_VIDEO_MOMENTS_TOOL.name) {
-        const found = await findVideoMoments(String(input?.query || ''), env, { org: user.org });
-        for (const video of found.videos) foundVideos.set(video.videoId, video);
-        return found;
-      }
-      if (name === SHOW_VIDEO_TOOL.name) {
-        if (shownVideo) throw new Error('One video per answer; name the alternatives in your reply');
-        shownVideo = validateShowVideo(input, foundVideos);
-        return { opened: true, window: shownVideo.end != null ? `${shownVideo.start}s to ${shownVideo.end}s` : 'from the start', note: VIDEO_SHOWN_NOTE };
-      }
+      const video = await videos.run(name, input);
+      if (video !== undefined) return video;
       if (name === SHOW_WIKIPEDIA_TOOL.name) {
         if (shownWiki) throw new Error('One article per answer; point at the rest in your reply');
         shownWiki = validateShowWikipedia(input, [...articles.values()]);
@@ -1015,7 +1006,7 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
     },
     proposed: () => proposedOps,
     shownWiki: () => shownWiki,
-    shownVideo: () => shownVideo,
+    shownVideo: videos.shown,
     // For the moment log: the askStream org parameter is nulled for learn.
     org: user.org,
   } : null;
@@ -1088,7 +1079,7 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
   }
 
   let source;
-  try { source = await readLearnSource(env, body, scopedApp, { extraBlocks, papers: research?.papers, articles: research?.articles, foundVideos, videoContext }, { readArxivPaper, uploadedPaperAsDocument, uploadedMediaAsImage, readWikipedia }); }
+  try { source = await readLearnSource(env, body, scopedApp, { extraBlocks, papers: research?.papers, articles: research?.articles, foundVideos: videos.found, videoContext }, { readArxivPaper, uploadedPaperAsDocument, uploadedMediaAsImage, readWikipedia }); }
   catch (error) { return json({ error: error.message }, 502); }
   if (source) {
     context = JSON.stringify({ lesson: context, ...source });

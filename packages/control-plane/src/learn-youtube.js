@@ -10,6 +10,7 @@ import { fetchCaptions } from './learn-captions.js';
 import { guardedCaptions, enqueueForIndex, warmMoments, semanticWindowScorer, hotMoment, upsertAcceptedQuestion, withdrawAcceptedQuestion } from './learn-moment-index.js';
 import { topPassages } from './learn-moment-retrieve.js';
 import { learnMomentsDb } from './learn-storage.js';
+import { VIDEO_SYSTEM as VIDEO_TOOLS_SYSTEM, VIDEO_SHOWN_NOTE } from './agents/learn-chat.js';
 
 const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
 // A video is at most this long for our purposes; the prototype drops >3h too.
@@ -225,4 +226,32 @@ export async function findVideoMoments(query, env, { search = searchYouTube, cap
   // are quick, the embedding work happens in the consumer.
   await enqueueForIndex(env, videos);
   return withHot({ videos, passages });
+}
+
+// find_video_moments and show_video for one answer, shared by apiAsk and repositoryAsk. Offered only
+// with a provider; show_video may only point at a video this answer found (found is the Map, so a
+// caller can count the card on screen as found). run returns undefined for any other tool name.
+// `find` is a parameter so the apiAsk test harness can stand in for the network.
+export function videoMomentTools(env, org, find = findVideoMoments) {
+  const available = videoSearchAvailable(env), found = new Map();
+  let shown = null;
+  return {
+    tools: available ? [FIND_VIDEO_MOMENTS_TOOL, SHOW_VIDEO_TOOL] : [],
+    system: available ? VIDEO_TOOLS_SYSTEM : null,
+    found,
+    shown: () => shown,
+    run: async (name, input) => {
+      if (name === FIND_VIDEO_MOMENTS_TOOL.name) {
+        const result = await find(String(input?.query || ''), env, { org });
+        for (const video of result.videos) found.set(video.videoId, video);
+        return result;
+      }
+      if (name === SHOW_VIDEO_TOOL.name) {
+        if (shown) throw new Error('One video per answer; name the alternatives in your reply');
+        shown = validateShowVideo(input, found);
+        return { opened: true, window: shown.end != null ? `${shown.start}s to ${shown.end}s` : 'from the start', note: VIDEO_SHOWN_NOTE };
+      }
+      return undefined;
+    },
+  };
 }

@@ -10,8 +10,7 @@ import { paperSelectionImage } from './learn-preview-review.js';
 import { isUploadedMediaId, uploadedMediaAsImage } from './learn-media.js';
 import { paperIdentity, PAPER_PAGE_LIMIT } from './learn-paper.js';
 import { subscriptionOwnerRefusal, subscriptionCourseRefusal } from './subscription-transport.js';
-import { FIND_VIDEO_MOMENTS_TOOL, SHOW_VIDEO_TOOL, VIDEO_SYSTEM, validateShowVideo, findVideoMoments, videoSearchAvailable } from './learn-youtube.js';
-import { VIDEO_SHOWN_NOTE } from './agents/learn-chat.js';
+import { videoMomentTools } from './learn-youtube.js';
 
 const json=(body,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store'}});
 export function parseRepository(value) {
@@ -193,18 +192,9 @@ async function repositoryAsk(req,env,user,app){
   // The video-moment tools ride here too: a repository canvas is the main
   // Learn surface, and the show_video bargain is the same on it - a window
   // only from passages read this answer (or a trusted hot candidate).
-  const foundVideos=new Map();let shownVideo=null;
+  const videos=videoMomentTools(env,user.org);
   const runTool=async(name,input)=>{
-    if(name===FIND_VIDEO_MOMENTS_TOOL.name){
-      const found=await findVideoMoments(String(input?.query||''),env,{org:user.org});
-      for(const video of found.videos)foundVideos.set(video.videoId,video);
-      return found;
-    }
-    if(name===SHOW_VIDEO_TOOL.name){
-      if(shownVideo)throw Error('One video per answer; name the alternatives in your reply');
-      shownVideo=validateShowVideo(input,foundVideos);
-      return {opened:true,window:shownVideo.end!=null?`${shownVideo.start}s to ${shownVideo.end}s`:'from the start',note:VIDEO_SHOWN_NOTE};
-    }
+    const video=await videos.run(name,input);if(video!==undefined)return video;
     const result=repositoryTool(snapshot,name,input);
     if(['explain_symbol','get_relationships','find_connection_path','query_graph'].includes(name)&&result.edges&&(!result.status||result.status==='found')){
       const nodes=result.nodes||(result.node?[result.node,...result.neighbors]:[]);
@@ -244,7 +234,7 @@ async function repositoryAsk(req,env,user,app){
   await db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?)').bind(id,'user',question).run();
   return askStream(env,JSON.stringify({repo:app.repo,commit,selected,selectedCode,lesson:body.lesson_snapshot||null,paper:body.paper_context?{id:body.paper_context.id,page:body.paper_context.page}:null,...(mentioned.length?{mentionedRepositories:mentioned}:{})}),results.reverse(),question,
     async answer=>{const message=await db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?) RETURNING id').bind(id,'assistant',answer).first();if(graphView)await db.prepare('INSERT INTO repository_message_graphs(message_id,graph_json) VALUES(?,?)').bind(message.id,JSON.stringify(graphView)).run();},{threadId:id,commit},extraBlocks,null,askModel(body.model),null,
-    body.lesson_snapshot?LEARN_SNAPSHOT_SYSTEM:LEARN_SYSTEM,{papers,system:[REPOSITORY_SYSTEM,videoSearchAvailable(env)?VIDEO_SYSTEM:null].filter(Boolean).join('\n'),tools:[...REPOSITORY_TOOLS,...(videoSearchAvailable(env)?[FIND_VIDEO_MOMENTS_TOOL,SHOW_VIDEO_TOOL]:[])],runTool,getGraphView:()=>graphView,shownVideo:()=>shownVideo,org:user.org});
+    body.lesson_snapshot?LEARN_SNAPSHOT_SYSTEM:LEARN_SYSTEM,{papers,system:[REPOSITORY_SYSTEM,videos.system].filter(Boolean).join('\n'),tools:[...REPOSITORY_TOOLS,...videos.tools],runTool,getGraphView:()=>graphView,shownVideo:videos.shown,org:user.org});
 }
 
 export async function repositoryEvidence(env,app,input){

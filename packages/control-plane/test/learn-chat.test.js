@@ -12,7 +12,7 @@ import { validateLearnContext, appendOutline, readLearnSource } from '../src/lea
 import { VIDEO_SHOWN_NOTE, WIKI_SHOWN_NOTE } from '../src/agents/learn-chat.js';
 import { ATTACHMENT_LIMIT, attachmentBlocks, readAskRequest, askStream } from '../src/ask.js';
 import { askModel, MESSAGE_LIMIT, MENTION_LIMIT, HISTORY_TURNS } from '../src/learn-models.js';
-import { findVideoMoments } from '../src/learn-youtube.js';
+import { findVideoMoments, videoMomentTools } from '../src/learn-youtube.js';
 import { liveDb, memoryBucket } from './live-storage-spy.js';
 import { learnMedia } from '../src/learn-storage.js';
 import { randomHex } from '../src/token.js';
@@ -73,6 +73,7 @@ const deps = {
   OUTLINE_SYSTEM,
   validateOutlineOps,
   canvasSeed,
+  videoMomentTools,
   validateLearnContext,
   appendOutline,
   readLearnSource,
