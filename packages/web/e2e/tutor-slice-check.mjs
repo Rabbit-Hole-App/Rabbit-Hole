@@ -79,17 +79,85 @@ await shot('01-slice-board');
 for (const id of ['depth-attention-overview', 'depth-attention-guided', 'depth-attention-deep', 'c11-causal-mask', 'c12-score-scaling', 'c10-weighted-values']) assert.ok(await cardEl(id).count(), `${id} on the slice board`);
 
 if (LIVE) {
-  // The real ladder and planner on two traces; the output is printed, not asserted.
+  // Real JEV, larger evaluator and planner behind the real routes. Every turn must come back: a
+  // 200 plan with actions, and a reply that is neither the spinner nor an error. Which moves a real
+  // planner picks is printed per turn; the flows it must support are asserted.
+  const turns = [];
+  const liveTurn = async (label, text) => {
+    const sent = page.waitForRequest(request => request.url().endsWith('/api/learn/tutor/plan'), { timeout: 120000 });
+    const planned = page.waitForResponse(response => response.url().endsWith('/api/learn/tutor/plan'), { timeout: 120000 });
+    const evaluated = page.waitForResponse(response => response.url().endsWith('/api/learn/tutor/evaluate'), { timeout: 120000 }).catch(() => null);
+    const start = Date.now();
+    await ask(text);
+    const [request, response] = await Promise.all([sent, planned]);
+    const evaluation = await Promise.race([evaluated, page.waitForTimeout(100).then(() => null)]);
+    const plan = await response.json().catch(() => null);
+    await page.getByText('Thinking...').first().waitFor({ state: 'detached', timeout: 30000 }).catch(() => {});
+    const reply = (await page.locator('[data-learn-dock]').innerText()).split('\n').filter(Boolean).slice(-3).join(' | ');
+    const row = request.postDataJSON().context?.route?.row;
+    const turn = { label, ms: Date.now() - start, row, status: response.status(), strategy: plan?.strategy, actions: plan?.actions?.map(action => action.type), evaluation: evaluation && await evaluation.json().then(body => `${body.evaluator}:${body.status}${body.error ? ` (${body.error})` : ''}`).catch(() => 'unreadable'), reply };
+    console.log('live', JSON.stringify(turn));
+    turns.push(turn);
+    assert.equal(response.status(), 200, `${label}: the planner answered (${JSON.stringify(plan).slice(0, 200)})`);
+    assert.ok(Array.isArray(plan.actions), `${label}: the planner returned actions`);
+    assert.equal(await page.getByText('Thinking...').count(), 0, `${label}: the reply is not left spinning`);
+    assert.doesNotMatch(reply, /✗/, `${label}: the reply is not an error`);
+    return plan;
+  };
+
+  // An unprompted explanation: JEV judges only the ideas it touches (the approved v1 rule).
+  await select('c10-weighted-values');
+  await liveTurn('L1 explanation', 'So the output is a weighted average of the values: softmax turns the scores into weights that add up to one.');
+  await shot('live-01-explanation');
+  // A misconception, twice: the router can only reach socrates/feynman through the evaluator's events.
+  await select('c11-causal-mask');
+  await liveTurn('L2 misconception 1', 'The mask is applied after softmax, it just zeroes the weights of the later characters.');
+  const second = await liveTurn('L2 misconception 2', 'I still think the mask comes after softmax and sets the later weights to zero.');
+  await shot('live-02-misconception');
+  assert.ok(turns.slice(-2).some(turn => ['socrates', 'feynman'].includes(turn.strategy)), `a misconception or uncertainty routes to Feynman or Socrates (${turns.slice(-2).map(turn => `${turn.row}/${turn.strategy}`).join(', ')})`);
+  // An explicit request: the authored Deep card.
   await select('depth-attention-overview');
-  await ask("Don't simplify this. Show me the implementation.");
-  await page.waitForTimeout(20000);
-  await shot('live-gt04');
+  const deep = await liveTurn('L3 explicit request', "Don't simplify this. Show me the implementation.");
+  await shot('live-03-implementation');
+  assert.ok(deep.actions.some(action => ['show_authored_card', 'focus_part', 'suggest_depth', 'suggest_practice'].includes(action.type)), 'the planner produced an authored-card, practice or depth action');
+  // /deeper and /simplify go through the Tutor as the turn's slash.
   await select('depth-attention-guided');
-  await ask("I get that q·k gives a score, but why do the weights add up to one? Why isn't the score just the weight?");
-  await page.waitForTimeout(20000);
-  await shot('live-gt06');
+  await liveTurn('L4 /deeper', '/deeper');
+  await shot('live-04-deeper');
+  await select('depth-attention-guided');
+  await liveTurn('L5 /simplify', '/simplify');
+  await shot('live-05-simplify');
+  // A prerequisite gap: the dive suggestion, the hole, its opening turn, and back to the parent.
+  await select('depth-attention-guided');
+  await liveTurn('L6 gap', "I get that q·k gives a score, but why do the weights add up to one? Why isn't the score just the weight?");
+  const suggested = await page.locator('[data-dive-suggestion]').first().waitFor({ timeout: 5000 }).then(() => true, () => false);
+  await shot('live-06-gap');
+  if (suggested) {
+    const opening = page.waitForResponse(response => response.url().endsWith('/api/learn/tutor/plan'), { timeout: 120000 });
+    await page.getByRole('button', { name: 'Go down a Rabbit Hole' }).click();
+    await page.waitForFunction(() => location.search.includes('hole='), null, { timeout: 15000 });
+    const hole = new URL(page.url()).searchParams.get('hole');
+    assert.equal((await opening).status(), 200, 'the hole opening turn answered');
+    await page.getByText('Thinking...').first().waitFor({ state: 'detached', timeout: 30000 }).catch(() => {});
+    await shot('live-07-hole-opening');
+    await liveTurn('L7 in the hole', 'With scores 2, 1, 0: e² ≈ 7.4, e ≈ 2.7 and 1; divided by their sum 11.1 they are 0.67, 0.24 and 0.09, and they add up to one.');
+    await shot('live-08-in-hole');
+    const back = chips().getByText('Back up the Rabbit Hole');
+    if (await back.count()) await back.click();
+    else await page.locator('[data-dive-navigator]').getByRole('button', { name: 'Up to the parent hole' }).click();
+    await page.waitForFunction(name => location.pathname === `/apps/${name}` && !location.search.includes('hole='), root.name, { timeout: 15000 }).catch(() => {});
+    await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1500);
+    assert.ok(await page.locator(`[data-dive-portal]`).count(), 'back on the parent, the origin card is a portal');
+    await select('depth-attention-guided');
+    const returnedSent = page.waitForRequest(request => request.url().endsWith('/api/learn/tutor/plan'), { timeout: 120000 });
+    await liveTurn('L8 back on the parent', 'I am back.');
+    const returned = (await returnedSent).postDataJSON().context;
+    console.log('live returned_from', JSON.stringify(returned.turn?.returned_from || null), 'row', returned.route?.row, 'hole', hole);
+    await shot('live-09-back-on-parent');
+  } else console.log('live L6: the real planner did not suggest a dive on this run');
   await browser.close();
-  console.log(errors.length ? `page errors: ${errors.join(' | ')}` : 'no page errors');
+  assert.deepEqual(errors, [], `page errors: ${errors.join(' | ')}`);
+  console.log(`tutor-slice-check --live ok: ${turns.length} turns${suggested ? ', dive round trip' : ', NO dive suggestion'}`);
   process.exit(0);
 }
 
