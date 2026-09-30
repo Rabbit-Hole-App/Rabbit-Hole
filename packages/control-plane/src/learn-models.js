@@ -11,7 +11,9 @@ export const ASK_MODELS = { auto: MODEL, 'opus-5': 'claude-opus-5', 'sonnet-5': 
 export const PLAN_MODEL = 'gpt-4.1-mini';
 
 // A picker key to its model id; anything else gets the caller's fallback.
-export const askModel = (key, fallback = null) => ASK_MODELS[key] || fallback;
+// Own keys only: 'constructor' or '__proto__' would otherwise send a function
+// or an object as the model.
+export const askModel = (key, fallback = null) => (typeof key === 'string' && Object.hasOwn(ASK_MODELS, key) ? ASK_MODELS[key] : fallback);
 
 // What each Learn task sends. provider: 'anthropic' is ask.js anthropic() (the
 // platform key, or the subscription bridge in SUBSCRIPTION_ONLY); 'plan' is

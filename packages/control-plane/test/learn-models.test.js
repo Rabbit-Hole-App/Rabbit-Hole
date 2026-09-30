@@ -144,4 +144,9 @@ test('askModel maps a picker key to its id and anything else to the fallback', (
   assert.equal(askModel(undefined), null);
   assert.equal(askModel('gpt-5'), null);
   assert.equal(askModel('gpt-5', 'claude-opus-5'), 'claude-opus-5');
+  // models-8: Object.prototype keys are not picker keys.
+  for (const key of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) {
+    assert.equal(askModel(key), null, key);
+    assert.equal(askModel(key, 'claude-opus-5'), 'claude-opus-5', key);
+  }
 });

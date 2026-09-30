@@ -146,7 +146,7 @@ test('canvas follow-ups seed separate Learn threads for normal deployed apps', a
 // or an unknown one reaches askStream as null, the server-side-fallback path.
 test('a chat ask resolves its model key through the allowlist, and Auto or an unknown key is null', async t => {
   const env = fixture(t);
-  for (const [model, expected] of [[undefined, null], ['sonnet-5', 'claude-sonnet-5'], ['gpt-5', null]]) {
+  for (const [model, expected] of [[undefined, null], ['sonnet-5', 'claude-sonnet-5'], ['gpt-5', null], ['constructor', null], ['__proto__', null]]) {
     await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'Hi', ...(model ? { model } : {}) }), env, {}, owner, 'learn');
     assert.equal(env.answers.at(-1).model, expected, String(model));
   }
