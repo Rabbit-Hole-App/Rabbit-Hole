@@ -80,6 +80,14 @@ test('selected code uses stored source, survives chat history and rejects mismat
   for(const range of [{path:'../secret',start:1,end:2},{path:'model.py',start:0,end:3},{path:'model.py',start:1,end:122}])assert.equal((await f.send('ask',{message:'Explain',repository_context:{commit:sha,range}})).status,400);
 });
 
+// C4 models-1, repository row: same resolution as apiAsk; Auto keeps the server-side fallback.
+test('repository chat runs Auto as claude-opus-5 with fallback, and a picked key as that id alone',async t=>{
+  const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});const sent=[];
+  f.env.ANTHROPIC_API_KEY='a';f.env.OPENAI_API_KEY='o';
+  globalThis.fetch=async(url,options)=>{const body=JSON.parse(options.body);sent.push({host:new URL(url).host,model:body.model,fallbacks:body.fallbacks});return Response.json({content:[{type:'text',text:'ok'}],stop_reason:'end_turn'});};
+  for(const model of [undefined,'sonnet-5','gpt-5'])await(await f.send('ask',{message:'Hi',...(model?{model}:{})})).text();
+  assert.deepEqual(sent,[{host:'api.anthropic.com',model:'claude-opus-5',fallbacks:'default'},{host:'api.anthropic.com',model:'claude-sonnet-5',fallbacks:undefined},{host:'api.anthropic.com',model:'claude-opus-5',fallbacks:'default'}]);
+});
 test('graph answers stream an exact view and retain it with the saved answer',async t=>{
   const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});let calls=0;
   globalThis.fetch=async()=>Response.json(++calls===1?{content:[{type:'tool_use',id:'path',name:'find_connection_path',input:{from:'Model',to:'forward'}}]}:{content:[{type:'text',text:'Model contains forward (EXTRACTED).'}],stop_reason:'end_turn'});

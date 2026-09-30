@@ -8,7 +8,7 @@ import { isUploadedPaperId, uploadedPaperAsDocument, paperIdentity, PAPER_PAGE_L
 import { isUploadedMediaId } from '../src/learn-media.js';
 import { LEARN_SYSTEM, validateLessonSnapshot, validateOutline, renderOutline } from '../src/learn-context.js';
 import { canvasApp, canvasAskSeam } from '../src/canvases.js';
-import { ATTACHMENT_LIMIT, attachmentBlocks, readAskRequest, askStream } from '../src/ask.js';
+import { ATTACHMENT_LIMIT, ASK_MODELS, attachmentBlocks, readAskRequest, askStream } from '../src/ask.js';
 import { findVideoMoments } from '../src/learn-youtube.js';
 import { liveDb, memoryBucket } from './live-storage-spy.js';
 import { learnMedia } from '../src/learn-storage.js';
@@ -33,11 +33,11 @@ const deps = {
   appForUser: async (env, user, name) => env.apps[name],
   appContext: async (env, app) => ({ name: app.name }),
   askStream: async (env, context, history, question, onFull, metadata, blocks, toolOpts, model, org, system, research) => {
-    env.answers.push({ history: [...history], question, context, toolOpts, system, org, blocks, research, db: env.DB });
+    env.answers.push({ history: [...history], question, context, toolOpts, model, system, org, blocks, research, db: env.DB });
     await onFull('Answer: ' + question);
     return json(metadata);
   },
-  ASK_MODELS: {},
+  ASK_MODELS,
   ATTACHMENT_LIMIT,
   attachmentBlocks,
   readAskRequest,
@@ -136,6 +136,16 @@ test('canvas follow-ups seed separate Learn threads for normal deployed apps', a
   assert.doesNotMatch(JSON.stringify(env.answers[2].history), /Beta/);
   env.apps.counter.canView = false;
   assert.equal((await start('Blocked')).status, 403);
+});
+
+// C4 models-1: the picker key resolves through the allowlist; no key (Auto)
+// or an unknown one reaches askStream as null, the server-side-fallback path.
+test('a chat ask resolves its model key through the allowlist, and Auto or an unknown key is null', async t => {
+  const env = fixture(t);
+  for (const [model, expected] of [[undefined, null], ['sonnet-5', 'claude-sonnet-5'], ['gpt-5', null]]) {
+    await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'Hi', ...(model ? { model } : {}) }), env, {}, owner, 'learn');
+    assert.equal(env.answers.at(-1).model, expected, String(model));
+  }
 });
 
 test('Learn and Agent have separate histories and model context for the same app', async t => {
