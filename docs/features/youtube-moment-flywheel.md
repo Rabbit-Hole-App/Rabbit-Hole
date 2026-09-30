@@ -168,6 +168,9 @@ lecture.
   here is a learner having accepted exactly this moment, which is stronger
   than a retrieved passage. Hot is fast, not instant: one embedding, one
   vector query, one short confirmation.
+- The prompt frames acceptance as usefulness, not correctness: the model may
+  use the accepted window without passages but presents it as a previously
+  accepted moment, not as verified (prompts-7, learn-cleanup.md).
 
 ## Plan — order of work
 

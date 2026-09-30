@@ -18,10 +18,10 @@ import { challengePrompt } from '../../web/src/learn-grade-prompts.js';
 const fingerprint = text => createHash('sha256').update(text).digest('hex').slice(0, 16);
 const PINS = {
   teachingPolicy: '874f9413c8f3bfb0',
-  chat: '40eca676a9ed0be4', // canvas seam and app asks, and grading through them
-  chatSnapshot: '0fde85b5fcc5f38b', // an app ask carrying a lesson_snapshot (legacy selection contract)
-  chatOutline: 'cba2b3c9baaed661',
-  repository: '7dd46129c01c7661',
+  chat: '3fbfcc7d406520ca', // canvas seam and app asks, and grading through them
+  chatSnapshot: 'f6aa3857034da019', // an app ask carrying a lesson_snapshot (legacy selection contract)
+  chatOutline: '3a67a1904eebf6ff',
+  repository: 'e40e33c184046ff4',
   artifact: '870e84a3aa127657',
   board: 'a219807ee7666961',
   boardReview: '5a2e1cab79b26025',
@@ -259,6 +259,15 @@ test('a chat or repository ask without section headings never mentions propose_l
   for (const body of [await chat(t, { message: 'Add a section' }), await repositoryChat(t, { message: 'Add a section' })]) {
     assert.equal(names(body).includes('propose_lesson_outline'), false);
     assert.equal(body.system.includes('propose_lesson_outline'), false);
+  }
+});
+
+// prompts-7: a hot moment is one a learner accepted, not verified correct; the
+// relevance check stays.
+test('the video instructions present a hot moment as previously accepted, not verified', async t => {
+  for (const body of [await chat(t, { message: 'Show me a video' }), await repositoryChat(t, { message: 'Show me a video' })]) {
+    assert.equal(body.system.includes('it is trusted without passages'), false);
+    includesAll(body.system, ['if it answers this phrasing too', 'present it as a previously accepted moment, not as verified', 'If it does not fit, ignore it.']);
   }
 });
 
