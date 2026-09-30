@@ -3,6 +3,7 @@ import { Loader2, Paperclip, Plus, X } from 'lucide-react';
 import ChatComposer, { COMPOSER_ADD, COMPOSER_PILL, DOCK_PAD, DOCK_WIDTH } from '../ChatComposer.jsx';
 import { api, navigate } from '../api.js';
 import { PATHS, slugOf, titleFromQuestion } from '../start.js';
+import { PATH_ICONS } from '../start-icons.js';
 import { Button, cn, Menu, MenuItem, toast } from '../ui.jsx';
 import { askBody, streamAsk } from './ask-stream.js';
 import {
@@ -424,7 +425,7 @@ export default function AgentBar({ page }) {
                 className={COMPOSER_ADD}><Plus size={16} /></button>
               <Menu open={adding} onClose={() => setAdding(false)} className="bottom-full left-0 mb-2 w-64">
                 <div className="px-2 pb-1 pt-1 text-xs text-ink-3">Start from</div>
-                {PATHS.map(([path, label]) => <MenuItem key={path} onClick={() => { setAdding(false); runCommand('open_start', { path }, '', target, true); }}>{label}</MenuItem>)}
+                {PATHS.map(([path, label]) => <MenuItem key={path} icon={PATH_ICONS[path]} onClick={() => { setAdding(false); runCommand('open_start', { path }, '', target, true); }}>{label}</MenuItem>)}
                 <div className="my-1 border-t border-line" />
                 <MenuItem icon={Paperclip} disabled className="cursor-default opacity-50 hover:bg-transparent">Attach a file</MenuItem>
                 <p className="px-2 pb-1 text-xs text-ink-3">Attachments aren't available on this preview.</p>

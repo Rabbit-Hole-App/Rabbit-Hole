@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FileText, FolderGit2, Loader2, MessageCircleQuestion, SquareDashed, X } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
 import { executeCommand, prepareCommand } from './agent/commands.js';
 import ConfirmCard from './agent/ConfirmCard.jsx';
 import { learnAction } from './agent/learn-hook.js';
 import { learnHandoff } from './flags.js';
 import { connectionsFor } from './connections.js';
+import { PATH_ICONS } from './start-icons.js';
 import { canSubmit, PATHS, pathOr, repositoryDecision, slugOf, teachPrompt, titleFromQuestion, UNTITLED } from './start.js';
 import { Button, cn, IconBtn, Input, Pill, Tabs, TabsContent, TabsList, TabsTrigger, toast } from './ui.jsx';
 
@@ -13,7 +14,6 @@ const PLANNED = connectionsFor().filter((c) => c.availability === 'planned');
 // ponytail: every connection source is planned (connections.js), so Sources offers PDF upload only.
 // Flip when a provider can supply sources and canSubmit (start.js) accepts it.
 const connectionSources = false;
-const PATH_ICONS = { repository: FolderGit2, sources: FileText, question: MessageCircleQuestion, blank: SquareDashed };
 const LOCAL = 'Only you can see this canvas. Its content stays in this browser.';
 
 // T02 §5: one portaled dialog with four paths, hosted once by StartHost (main.jsx) on
