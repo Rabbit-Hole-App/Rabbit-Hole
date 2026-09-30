@@ -29,9 +29,20 @@ canvas_dives(org, owner_email, child, parent_app, parent_board, origin_block_id,
 - The child keeps its own `canvases` row, for title and owner, so rename is the existing canvas PATCH
   and the child opens like any canvas. The link row adds only where the hole came from.
 - The UNIQUE key is R-3: one child per originating card.
-- `dive_json` is the Dive record: `dive_id`, `concept`, `title`, `created_by`, the `origin` (parent,
-  card, scene_id, block_id, part_id, depth) and the `return_point` (block_id, part_id, inputs,
-  input_revision, practice_open, pending_question, viewport).
+- `dive_json` is the Dive record: `dive_id`, `concept`, `title`, `created_by`, the `origin` and the
+  `return_point`.
+- The origin keeps five identities apart (resolved by `packages/web/src/learn-target.js`
+  `resolveTarget`, from the existing card modules; no Tutor code):
+  - `origin_block_id`: the canvas block's own id.
+  - `origin_scene_id`: the runtime `scene.id`, e.g. `nanogpt-c11-causal-mask`.
+  - `origin_card_id`: the authored `evidence.card`, e.g. `c11-causal-mask`.
+  - `origin_part_id`: `partIds[pager value]` on a paged card, never the selected object.
+  - `origin_concept_ids`: the selected object's `conceptId`, else the shown part's, else the
+    card's objects'.
+  - Also `selected_object`, `card_depth`, the tree `level`, and `anchor_request` for an anchor
+    card, whose scene, card and part are null.
+- The return point holds block_id, part_id, selected_object, inputs, input_revision, practice_open,
+  pending_question and viewport.
 
 ## API (control-plane `src/dives.js`, routed through `canvasesFetch`; owner-only)
 

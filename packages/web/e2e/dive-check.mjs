@@ -95,6 +95,12 @@ await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1000
 await addObject('Softmax sketch');
 const softmax = url().pathname.split('/').pop();
 await shot('05-persistent-child');
+// The stored origin contract: the block, the runtime scene and the authored card stay distinct.
+const softmaxOrigin = (await tree(softmax)).dive.origin;
+assert.equal(softmaxOrigin.origin_block_id, card1);
+assert.match(softmaxOrigin.origin_scene_id, /^nanogpt-c[0-9]{2}-/);
+assert.ok(softmaxOrigin.origin_card_id && softmaxOrigin.origin_card_id !== card1 && softmaxOrigin.origin_card_id !== softmaxOrigin.origin_scene_id, JSON.stringify(softmaxOrigin));
+assert.ok(softmaxOrigin.origin_concept_ids.length > 0, 'concepts resolved, not defaulted to []');
 let rootTree = await tree(root.name, BOARD);
 assert.deepEqual(rootTree.children.map(child => [child.name, child.title, child.origin_block_id]), [[softmax, 'Softmax', card1]]);
 await up();
@@ -134,6 +140,9 @@ await addObject('Stability sketch');
 await up();
 assert.equal(await page.locator(`[data-block-id="${anchor}"] [data-dive-portal]`).count(), 1, 'a persisted child outlines its anchor');
 await shot('07c-anchor-red-outline');
+const anchorChild = (await tree(root.name, BOARD)).children.find(child => child.origin_block_id === anchor);
+const anchorOrigin = (await tree(anchorChild.name)).dive.origin;
+assert.deepEqual([anchorOrigin.origin_block_id, anchorOrigin.origin_scene_id, anchorOrigin.origin_card_id, anchorOrigin.anchor_request], [anchor, null, null, 'explain numerical stability']);
 // Bare /dive, no card, no conversation: ask, never an empty "Dive" card.
 await deselect();
 const before = (await blocks()).length;

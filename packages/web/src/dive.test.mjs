@@ -65,11 +65,29 @@ test('the return point is taken once, only by the level it belongs to', () => {
   assert.equal(takeReturn(session, parent), null);
 });
 
-test('the Dive record carries origin and the full return point without touching the card', () => {
-  const block = Object.freeze({ id: card.id, card: 'c11-causal-mask', inputs: { T: 4 }, inputRevision: 3, practiceActive: true, selectedObject: 'mask' });
-  const dive = diveRecord({ name: 'canvas-44444444', title: 'softmax', via: 'learner_slash', parent, card, block, view: { x: 10, y: 20, z: 0.8 }, question: 'why -inf?', depth: 2 });
-  assert.deepEqual(dive.origin, { parent, card: 'c11-causal-mask', scene_id: card.id, block_id: card.id, part_id: 'mask', concepts: [], depth: 2 });
-  assert.deepEqual(dive.return_point, { block_id: card.id, part_id: 'mask', inputs: { T: 4 }, input_revision: 3, practice_open: true, pending_question: 'why -inf?', viewport: { x: 10, y: 20, zoom: 0.8 } });
+// The origin contract: block, runtime scene, authored card, part and concepts are five identities.
+test('an existing-card dive records the resolved origin contract and the full return point, without touching the card', async () => {
+  const { resolveTarget } = await import('./learn-target.js');
+  const { cardBlock } = await import('./nanogpt/board.js');
+  const causalMask = await import('./nanogpt/cards/c11-causal-mask.js');
+  const block = Object.freeze({ ...cardBlock(causalMask), inputs: { T: 4 }, inputRevision: 3, practiceActive: true, selectedObject: 'equal-scores' });
+  const dive = diveRecord({ name: 'canvas-44444444', title: 'Softmax', via: 'learner_slash', parent, target: resolveTarget(block), block, view: { x: 10, y: 20, z: 0.8 }, question: 'why -inf?', level: 2 });
+  assert.deepEqual(dive.origin, {
+    parent, origin_block_id: block.id, origin_scene_id: 'nanogpt-c11-causal-mask', origin_card_id: 'c11-causal-mask',
+    origin_part_id: null, origin_concept_ids: ['causal-mask'], selected_object: 'equal-scores', card_depth: null, level: 2,
+  });
+  assert.notEqual(dive.origin.origin_block_id, dive.origin.origin_scene_id);
+  assert.deepEqual(dive.return_point, { block_id: block.id, part_id: null, selected_object: 'equal-scores', inputs: { T: 4 }, input_revision: 3, practice_open: true, pending_question: 'why -inf?', viewport: { x: 10, y: 20, zoom: 0.8 } });
+});
+
+test('an anchor-created dive has a valid origin contract: its own block, no scene or card, the request kept', async () => {
+  const { resolveTarget } = await import('./learn-target.js');
+  const block = { ...anchorBlock('explain softmax'), id: 'b0a1' };
+  const dive = diveRecord({ name: 'canvas-55555555', title: 'Softmax', via: 'learner_slash', parent, target: resolveTarget(block), block, level: 1 });
+  assert.deepEqual(dive.origin, {
+    parent, origin_block_id: 'b0a1', origin_scene_id: null, origin_card_id: null, origin_part_id: null,
+    origin_concept_ids: [], selected_object: null, card_depth: null, level: 1, anchor_request: 'explain softmax',
+  });
 });
 
 test('the navigator shows the path and immediate children; deep paths fold the middle, with no cap', () => {

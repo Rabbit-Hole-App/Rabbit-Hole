@@ -92,13 +92,19 @@ export function planDive({ card, args = '', children = [], pending = {}, parent,
   return { create: { title: diveTopic(args, card) } };
 }
 
-// The Dive record (docs/features/tutor-v1-locked-decisions.md §6) for a new hole.
-export function diveRecord({ name, title, via, parent, card, block = null, view = null, question = '', depth = 1 }) {
+// The Dive record (docs/features/tutor-v1-locked-decisions.md §6) for a new hole. `target` is
+// learn-target.js resolveTarget(originating block): the block, runtime scene, authored card, part
+// and concepts stay five separate identities. An anchor card has no scene or card, so those are null.
+export function diveRecord({ name, title, via, parent, target, block = null, view = null, question = '', level = 1 }) {
   return {
     dive_id: name, concept: title, title, created_by: via,
-    origin: { parent, card: block?.card || card.id, scene_id: card.id, block_id: card.id, part_id: block?.selectedObject ?? null, concepts: [], depth },
+    origin: {
+      parent, origin_block_id: target.block_id, origin_scene_id: target.scene_id, origin_card_id: target.card_id,
+      origin_part_id: target.part_id, origin_concept_ids: target.concept_ids, selected_object: target.selected_object,
+      card_depth: target.depth, level, ...(target.anchor_request ? { anchor_request: target.anchor_request } : {}),
+    },
     return_point: {
-      block_id: card.id, part_id: block?.selectedObject ?? null, inputs: block?.inputs ?? null, input_revision: block?.inputRevision ?? null,
+      block_id: target.block_id, part_id: target.part_id, selected_object: target.selected_object, inputs: block?.inputs ?? null, input_revision: block?.inputRevision ?? null,
       practice_open: !!block?.practiceActive, pending_question: question || null, viewport: view ? { x: view.x, y: view.y, zoom: view.z } : null,
     },
   };

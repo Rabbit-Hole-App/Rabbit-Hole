@@ -8,6 +8,7 @@ import { Trash2 } from 'lucide-react';
 import { api, navigate } from './api.js';
 import { Button, ConfirmDialog } from './ui.jsx';
 import { deviceId } from './home/canvas-local.js';
+import { resolveTarget } from './learn-target.js';
 import { anchorBlock, diveRecord, discardHole, dropPending, holeHref, keepPending, levelHref, meaningful, navigatorRows, newHoleName, pendingHole, pendingHoles, planDive, setReturn, takeReturn } from './dive.js';
 
 // The red portal outline on an originating card, read by the canvas's card chrome.
@@ -69,11 +70,13 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
 
   // Down into a hole. Every hole has one originating card: the selected one (diveFromCard), or a
   // topic anchor card made on this canvas from the learner's request (diveFromTopic).
-  const openHole = (card, title, via, anchored = false) => {
+  // `block` is the originating block when the canvas has not rendered it yet (a new anchor card).
+  const openHole = (card, title, via, anchored = false, fresh = null) => {
+    const block = fresh || canvasApi.current?.block?.(card.id) || { id: card.id };
     const current = treeRef.current, name = newHoleName(), draft = composer()?.value || '';
     keepPending(sessionStorage, {
       name, title, parent: here, origin_block_id: card.id,
-      dive: diveRecord({ name, title, via, parent: here, card, block: canvasApi.current?.block?.(card.id), view: canvasApi.current?.getView?.(), question: draft.startsWith('/') ? '' : draft, depth: current.path.length }),
+      dive: diveRecord({ name, title, via, parent: here, target: resolveTarget(block), block, view: canvasApi.current?.getView?.(), question: draft.startsWith('/') ? '' : draft, level: current.path.length }),
     });
     // ponytail: the canvas saves 400ms after a change and an unmount drops the timer, so a new
     // anchor card waits for that save before the page leaves. Flush on unmount if this ever races.
@@ -83,7 +86,7 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
     const block = anchorBlock(request);
     const id = canvasApi.current?.insertBlock?.(block);
     if (!id) return { notice: { tone: 'error', text: 'The anchor card could not be added here.' } };
-    openHole({ id, title: block.title }, block.title, via, true);
+    openHole({ id, title: block.title }, block.title, via, true, { ...block, id });
     return { notice: null };
   };
   const dive = (args = '', via = 'learner_slash', cardOverride = null) => {
