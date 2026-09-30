@@ -18,10 +18,10 @@ import { challengePrompt } from '../../web/src/learn-grade-prompts.js';
 const fingerprint = text => createHash('sha256').update(text).digest('hex').slice(0, 16);
 const PINS = {
   teachingPolicy: '874f9413c8f3bfb0',
-  chat: '4335d7d1597b721e', // canvas seam and app asks, and grading through them
-  chatSnapshot: '3b6219eeda2b3382', // an app ask carrying a lesson_snapshot (legacy selection contract)
-  chatOutline: 'ed6f90628e608da0',
-  repository: '73e56d0415be048e',
+  chat: '40eca676a9ed0be4', // canvas seam and app asks, and grading through them
+  chatSnapshot: '0fde85b5fcc5f38b', // an app ask carrying a lesson_snapshot (legacy selection contract)
+  chatOutline: 'cba2b3c9baaed661',
+  repository: '7dd46129c01c7661',
   artifact: '870e84a3aa127657',
   board: 'a219807ee7666961',
   boardReview: '5a2e1cab79b26025',
@@ -252,6 +252,14 @@ test('every chat prompt has the greeting rule; the card, whiteboard and policy t
   for (const body of [await chat(t, { message: 'hi' }), await chat(t, { message: 'hi', lesson_snapshot: lesson }, { canvas: false }), await repositoryChat(t, { message: 'hi' })]) assert.ok(body.system.includes(GREETING));
   const [plan] = await board();
   for (const text of [TEACHING_POLICY, plan.system, ARTIFACT_SYSTEM]) assert.equal(text.includes('small talk'), false);
+});
+
+// prompts-8: outline editing is described only where its tool rides.
+test('a chat or repository ask without section headings never mentions propose_lesson_outline', async t => {
+  for (const body of [await chat(t, { message: 'Add a section' }), await repositoryChat(t, { message: 'Add a section' })]) {
+    assert.equal(names(body).includes('propose_lesson_outline'), false);
+    assert.equal(body.system.includes('propose_lesson_outline'), false);
+  }
 });
 
 test('the shared teaching policy is pinned', () => {
