@@ -19,14 +19,14 @@ import { challengePrompt } from '../../web/src/learn-grade-prompts.js';
 
 const fingerprint = text => createHash('sha256').update(text).digest('hex').slice(0, 16);
 const PINS = {
-  teachingPolicy: '874f9413c8f3bfb0',
-  chat: '8f57533ae34615b6', // canvas seam and app asks, and grading through them
-  chatSnapshot: '72698e1ca4e7f257', // an app ask carrying a lesson_snapshot (legacy selection contract)
-  chatOutline: '437571eed5ec641c',
-  repository: '4bef6f138a2eb2fa',
+  teachingPolicy: 'af83a270b721abfc',
+  chat: '38a3b1695c285869', // canvas seam and app asks, and grading through them
+  chatSnapshot: 'e04aa9aa112cfc51', // an app ask carrying a lesson_snapshot (legacy selection contract)
+  chatOutline: '0d44412372412af6',
+  repository: 'e349b3e764910409',
   artifact: '870e84a3aa127657',
-  board: '87175a9f6227ad83', // env without DESMOS_API_KEY, so BOARD_NO_DESMOS is appended
-  boardReview: '164240707ce3dc05',
+  board: '4436c297d574838d', // env without DESMOS_API_KEY, so BOARD_NO_DESMOS is appended
+  boardReview: 'bce6f95a93d18528',
   gradingMessage: '1b9c8ceb43a290f2', // the challengePrompt fixture below
 };
 const CHAT_TOOLS = ['search_wikipedia', 'read_wikipedia', 'show_wikipedia', 'find_video_moments', 'show_video', 'search_arxiv', 'read_arxiv_paper'];
@@ -317,6 +317,10 @@ test('the whiteboard prompts describe video and 3D scenes as proposals that are 
 
 test('the shared teaching policy is pinned', () => {
   assert.equal(fingerprint(TEACHING_POLICY), PINS.teachingPolicy);
+  // prompts-6: no blanket ban on explaining notation; an unfamiliar symbol gets defined.
+  assert.doesNotMatch(TEACHING_POLICY, /Assume the learner reads standard notation|Never explain what/);
+  assert.ok(TEACHING_POLICY.includes('Avoid explaining punctuation or standard notation ("=", arrows, subscripts) unless asked, but define an unfamiliar domain symbol or convention when the learner needs it to follow.'));
+  assert.ok(TEACHING_POLICY.includes('"What does this symbol mean?" usually needs a quick definition'));
 });
 
 // duplication-17: an uploaded PDF has no arXiv id or link; the footer names it plainly.
