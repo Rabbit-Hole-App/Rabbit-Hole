@@ -31,7 +31,7 @@ export const LEARN_TASKS = Object.freeze({
   grading: Object.freeze({ provider: 'anthropic', model: null, picker: false, fallback: 'server-side default', thinking: 'model default', toolChoice: 'none (no tools)', maxTokens: 2400 }),
   // The Tutor v1 planner (/api/learn/tutor/plan, learn-tutor-routes.js): pinned to Opus 5.5,
   // no fallback, one forced tool call returning the turn's TutorResponse.
-  tutor: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'forced tool (tutor_response)', maxTokens: 2000 }),
+  tutor: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (the tutor_response tool; no tool call is an invalid turn)', maxTokens: 2000 }),
   // The Tutor's larger evaluator (/api/learn/tutor/evaluate after an uncertain JEV): pinned to Opus 5.5, no fallback.
   tutor_evaluator: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'none (no tools)', maxTokens: 2400 }),
   // Slash-command cards (/api/learn/artifact).

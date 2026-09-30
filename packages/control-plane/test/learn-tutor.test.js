@@ -142,7 +142,7 @@ test('plan: one forced tutor_response call on Opus 5.5 (no fallback); its input 
   assert.deepEqual({ ...telemetry, ms: typeof telemetry.ms }, { ms: 'number', requested_model: 'claude-opus-5-5', served_model: 'claude-opus-5-5', input_tokens: 3100, output_tokens: 120, stop_reason: 'tool_use', outcome: 'ok' });
   assert.equal(calls[0].body.model, 'claude-opus-5-5');
   assert.equal('fallbacks' in calls[0].body, false, 'no silent fallback');
-  assert.deepEqual(calls[0].body.tool_choice, { type: 'tool', name: 'tutor_response' });
+  assert.deepEqual(calls[0].body.tool_choice, { type: 'auto' });
   assert.match(calls[0].body.system, /authored/i);
 });
 

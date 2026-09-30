@@ -181,6 +181,8 @@ export const plannerRequest = (context, maxTokens) => ({
   max_tokens: maxTokens,
   system: PLANNER_SYSTEM,
   tools: [TUTOR_TOOL],
-  tool_choice: { type: 'tool', name: TUTOR_TOOL.name },
+  // auto, not forced: claude-opus-5-5 refuses tool_choice tool/any (HTTP 400). A reply without the
+  // tutor_response call stays invalid (planTurn), so free text is never a plan.
+  tool_choice: { type: 'auto' },
   messages: [{ role: 'user', content: `Compose this turn.\n\ncontext = ${JSON.stringify(context)}` }],
 });

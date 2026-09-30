@@ -28,6 +28,7 @@ const TITLE = id => cardModule(id).scene.title;
 const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
 await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
+await context.addInitScript(() => { window.__tutorBench = []; window.addEventListener('small:tutor-bench', event => window.__tutorBench.push(event.detail)); });
 const page = await context.newPage();
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
@@ -95,7 +96,9 @@ if (LIVE) {
     await page.getByText('Thinking...').first().waitFor({ state: 'detached', timeout: 30000 }).catch(() => {});
     const reply = (await page.locator('[data-learn-dock]').innerText()).split('\n').filter(Boolean).slice(-3).join(' | ');
     const row = request.postDataJSON().context?.route?.row;
-    const turn = { label, ms: Date.now() - start, row, status: response.status(), strategy: plan?.strategy, actions: plan?.actions?.map(action => action.type), planner: plan?.telemetry && { served_model: plan.telemetry.served_model, ms: plan.telemetry.ms, input_tokens: plan.telemetry.input_tokens, output_tokens: plan.telemetry.output_tokens }, evaluation: evaluation && await evaluation.json().then(body => `${body.evaluator}:${body.status}${body.error ? ` (${body.error})` : ''}`).catch(() => 'unreadable'), reply };
+    await page.waitForTimeout(300);
+    const bench = await page.evaluate(() => window.__tutorBench?.at(-1) || null); // the passive small:tutor-bench record
+    const turn = { label, ms: Date.now() - start, row, status: response.status(), strategy: plan?.strategy, actions: plan?.actions?.map(action => action.type), accepted: bench?.accepted_actions, rejected: bench?.rejected, planner: plan?.telemetry && { requested_model: plan.telemetry.requested_model, served_model: plan.telemetry.served_model, outcome: plan.telemetry.outcome, ms: plan.telemetry.ms, input_tokens: plan.telemetry.input_tokens, output_tokens: plan.telemetry.output_tokens }, evaluation: evaluation && await evaluation.json().then(body => `${body.evaluator}:${body.status}${body.error ? ` (${body.error})` : ''}`).catch(() => 'unreadable'), reply };
     console.log('live', JSON.stringify(turn));
     turns.push(turn);
     assert.equal(response.status(), 200, `${label}: the planner answered (${JSON.stringify(plan).slice(0, 200)})`);
