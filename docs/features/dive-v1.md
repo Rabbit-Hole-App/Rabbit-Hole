@@ -39,7 +39,7 @@ canvas_dives(org, owner_email, child, parent_app, parent_board, origin_block_id,
   - `origin_part_id`: `partIds[pager value]` on a paged card, never the selected object.
   - `origin_concept_ids`: the selected object's `conceptId`, else the shown part's, else the
     card's objects'.
-  - Also `selected_object`, `card_depth`, the tree `level`, and `anchor_request` for an anchor
+  - Also `selected_object`, `depth` (the card's `evidence.depth`), the tree `level`, and `anchor_request` for an anchor
     card, whose scene, card and part are null.
 - The return point holds block_id, part_id, selected_object, inputs, input_revision, practice_open,
   pending_question and viewport.

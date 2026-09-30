@@ -77,7 +77,7 @@ test('an existing-card dive records the resolved origin contract and the full re
   const dive = diveRecord({ name: 'canvas-44444444', title: 'Softmax', via: 'learner_slash', parent, target: resolveTarget(block), block, view: { x: 10, y: 20, z: 0.8 }, question: 'why -inf?', level: 2 });
   assert.deepEqual(dive.origin, {
     parent, origin_block_id: block.id, origin_scene_id: 'nanogpt-c11-causal-mask', origin_card_id: 'c11-causal-mask',
-    origin_part_id: null, origin_concept_ids: ['causal-mask'], selected_object: 'equal-scores', card_depth: null, level: 2,
+    origin_part_id: null, origin_concept_ids: ['causal-mask'], selected_object: 'equal-scores', depth: null, level: 2,
   });
   assert.notEqual(dive.origin.origin_block_id, dive.origin.origin_scene_id);
   assert.deepEqual(dive.return_point, { block_id: block.id, part_id: null, selected_object: 'equal-scores', inputs: { T: 4 }, input_revision: 3, practice_open: true, pending_question: 'why -inf?', viewport: { x: 10, y: 20, zoom: 0.8 } });
@@ -89,7 +89,7 @@ test('an anchor-created dive has a valid origin contract: its own block, no scen
   const dive = diveRecord({ name: 'canvas-55555555', title: 'Softmax', via: 'learner_slash', parent, target: resolveTarget(block), block, level: 1 });
   assert.deepEqual(dive.origin, {
     parent, origin_block_id: 'b0a1', origin_scene_id: null, origin_card_id: null, origin_part_id: null,
-    origin_concept_ids: [], selected_object: null, card_depth: null, level: 1, anchor_request: 'explain softmax',
+    origin_concept_ids: [], selected_object: null, depth: null, level: 1, anchor_request: 'explain softmax',
   });
 });
 

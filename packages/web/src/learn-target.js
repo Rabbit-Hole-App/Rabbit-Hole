@@ -8,12 +8,12 @@
 //   part_id      partIds[pager value] on a paged card, else null
 //   concept_ids  the selected object's conceptId, else the shown part's, else the card's objects'
 import { NANOGPT_FIRST_BATCH, NANOGPT_LATER_BATCHES } from './nanogpt/board.js';
-import { DEPTH_LADDER, DEPTHS } from './nanogpt/depth/board.js';
+import { DEPTH_LADDER } from './nanogpt/depth/board.js';
 
 // The card registry keyed by scene.id, built from the existing module lists.
 const REGISTRY = new Map([
-  ...[...NANOGPT_FIRST_BATCH, ...NANOGPT_LATER_BATCHES.flat()].map(card => [card.scene.id, { card: card.evidence?.card ?? null, partIds: card.partIds ?? null, depth: null }]),
-  ...DEPTH_LADDER.flatMap(concept => concept.cards.map((card, i) => [card.scene.id, { card: card.evidence?.card ?? null, partIds: card.partIds ?? null, depth: DEPTHS[i] }])),
+  ...[...NANOGPT_FIRST_BATCH, ...NANOGPT_LATER_BATCHES.flat(), ...DEPTH_LADDER.flatMap(concept => concept.cards)]
+    .map(card => [card.scene.id, { card: card.evidence?.card ?? null, partIds: card.partIds ?? null, depth: card.evidence?.depth ?? null }]),
 ]);
 
 const distinct = values => [...new Set(values.filter(Boolean))];
