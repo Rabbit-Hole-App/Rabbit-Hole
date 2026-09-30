@@ -270,3 +270,97 @@ against the baseline.
 | T6-boards-media | mothership or other | yes | DB on production small-cp, reached through CONTROL_PLANE GET /api/apps.runs |
 | T6-boards-media | mothership or other | yes | DB on production small-cp, reached through CONTROL_PLANE GET /api/apps.runs |
 | T6-boards-media | mothership or other | yes | DB on production small-cp, reached through CONTROL_PLANE GET /api/apps.runs, RUNS (on the production worker, reached through the CONTROL_PLANE proxy) ask-uploads/<u-id>/ (multipart /api/ask); runs/<id>/inputs/ (approve -> startRun) |
+
+### C1 storage result
+
+Kinds: standalone canvas (`canvas-<8 hex>`, `project` null), project-owned
+canvas (`canvas-<8 hex>` with `project = repo-*`, same seam), repository app
+(`repo-*`, also the Agent Bar's project asks), live job/server app (no UI
+since D7; crafted request only). "Live" means the production D1 `small`,
+bucket `small-runs` or worker `small-cp`. Every proof test binds a live DB
+and bucket that record each call (`control-plane/test/live-storage-spy.js`)
+and asserts the record is empty. A fake that only throws proves nothing,
+because the moment log and the hot path swallow errors.
+
+| Operation | Kind | Before (baseline) | After (C1) | Proof test |
+|---|---|---|---|---|
+| Ask, selection, Continue convo, tutor grade (`apiAsk`) | standalone and project-owned canvas | threads and messages in `LEARN_DB`; moment log to `LEARN_DB` by the seam; hot path read live `learn_moments` on clones with AI and MOMENTS | threads unchanged; moment log and hot path through `learnMomentsDb` = `LEARN_DB`; no live read or write | `learn-chat.test.js` "canvas Learn asks keep their threads in LEARN_DB..." and "a canvas video answer with the real moment code never reads or writes the live DB" (RED with the old hot path) |
+| Same asks (`repositoryAsk`) | repository app | threads in `LEARN_DB`; `INSERT INTO learn_moments` on the live DB; hot path read live | all in `LEARN_DB`; the dev moment log is quiet (no table) and the video still streams, without `momentId` | `repositories.test.js` "a repository video answer writes no learn_moments row to the live DB" (RED: the insert was recorded) |
+| `/api/learn/ask`, `/api/learn/selection` | live job/server app | `apiAsk` without a seam: live threads, messages, `learn_moments` | JSON 403 right after `authorizedBoardApp`: "Learn on a live app is off on this preview: it would write live chat history." | `canvases.test.js` "the dev worker refuses Learn asks for live apps and ends every Learn ask on itself" (helper plus call-site pin) |
+| Learn ask POST that is neither JSON nor multipart | any | proxied to live `small-cp` `apiAsk` | 415 on the dev worker | same test (source pin: the 415 comes before body parsing) |
+| Multipart Learn ask (+ attachment) through `apiAsk` | live app (now refused on dev), production `small-cp` | `ask-uploads/<id>/<name>` put into `learnMedia` (dev bucket on dev, `small-runs` on production), never read | no put for Learn; Agent `/api/ask` keeps it; canvases still refuse multipart (400) | `learn-chat.test.js` "a Learn attachment reaches the model as a block, with no ask-uploads copy and no run-tool note" (RED: note present) |
+| Keep/Dismiss (`/api/learn/moment-feedback`) | every kind | `UPDATE` and `SELECT learn_moments` on the live DB | `LEARN_DB`; answers 400 until `small-learn-dev` has the table (the card ignores it) | `learn-moment-feedback.test.js` "dev Keep/Dismiss never touches the live DB, whatever the app kind" (RED: live UPDATE) |
+| Hot path read | every kind, clone with AI and MOMENTS | live `learn_moments` | `LEARN_DB` | `learn-moment-index.test.js` "the hot path reads learn_moments from LEARN_DB when it is bound" (RED) |
+| Jev grade, baseline, bench, report | live app, repository, canvas | `LEARN_DB learn_grades` | unchanged | `learn-grade-routes.test.js` "Jev grade, baseline, bench and report never touch production storage..." |
+| Board save, share, files, fork | live app, repository, canvas | `LEARN_DB learn_boards`, `LEARN_MEDIA` | unchanged | `learn-boards.test.js` (every test runs with live spies; the bucket is bound as `LEARN_MEDIA`) |
+| Media uploads | live app, repository, canvas | `LEARN_MEDIA` | unchanged | `learn-media.test.js` "media uploads and reads ... stay off production storage" |
+| Generated clips and scenes | any | `LEARN_MEDIA` under `learn-video-dev/`, `learn-scene-dev/` | unchanged | `learn-video.test.js`, `learn-scene.test.js` (bucket bound as `LEARN_MEDIA`, live RUNS recorded empty) |
+| Repository snapshots on a clone from `wrangler.parallel.jsonc` | repository | binding missing: every repository ask 400 | `REPOSITORY_SNAPSHOTS` = `small-repositories-dev` | `repositories.test.js` "dev repository snapshots cannot reach the production bucket" (every `dev-worker.js` config; RED on parallel) |
+| Production `small-cp` | job/server app | moment log, Keep/Dismiss, hot path on `DB` | unchanged: no `LEARN_DB` binding, so `learnMomentsDb` falls back to `DB` | `learn-storage.test.js` "the moment log uses LEARN_DB where bound; production binds no LEARN_DB and keeps DB" |
+
+Still live, by design or pending a decision (see Recorded, not changed):
+identity reads through live `GET /api/apps` (and its `sweepStaleRuns`
+UPDATE), `@mention` reads of live apps in `apiAsk`, and the Agent Bar's app
+and workspace `/api/ask`, which the browser guard keeps off on the preview.
+
+## Prompt changes
+
+| File | Old text | New text | Reason |
+|---|---|---|---|
+| `packages/control-plane/src/index.js` `apiAsk`, Learn conversation with a + attachment | The question began with `(pending chat attachment: <name> (upload id u-<hex>) - the run tool can use it for a file-type input via attachment_id + attachment_input) ` | Nothing: the question is the learner's message. Agent asks (`/api/ask`) keep the note unchanged. | Learn is never offered the run tool, so the note claimed a capability the model does not have (prompts-9, context-15, duplication-23). |
+
+## Recorded, not changed
+
+- **T6 F7/F8, sweep side effect.** Every identity read through live
+  `GET /api/apps` (canvases, repositories, boards, feedback, the dev app
+  list) runs `sweepStaleRuns`, an UPDATE on live `runs`. It is production
+  housekeeping, not Learn data; changing it is a production-side decision.
+- **delta-13, legacy snapshots.** `repository_versions` rows written before
+  `1f21d70` may point at objects in `small-runs`, and a Refresh at the same
+  commit reuses the row. Not verifiable without remote reads; nothing was
+  copied or deleted.
+- **delta-13, clone recipe.** CLAUDE.md and `parallel-dev-deploys.md` deploy
+  clones with `wrangler.dev.jsonc --name` (no AI, MOMENTS or queue); the
+  flywheel and architecture docs use `wrangler.parallel.jsonc`. Both now bind
+  `REPOSITORY_SNAPSHOTS`. Which one is the recipe is an owner decision.
+- **delta-3, mentions.** `apiAsk` still reads live apps for `@mentions`
+  (`appForUser`, `appContext`: reads the viewer may already make). A canvas
+  chat offers other canvas names, which `appForUser` drops silently while the
+  chip stays in the text. That is a context/UI fix for the context unit.
+- **delta-6, browser guard.** Unchanged; its comments now say it is a browser
+  check. History rename/delete of old live-app Learn threads
+  (`/api/ask/threads/<n>`) is still proxied to live `small-cp` and blocked
+  only by that guard (T1 F6): a broader D7 contract decision.
+- **duplication-22.** The double authorization (service binding, then
+  `appForUser` on DB) happened only on the live-app path, which the dev worker
+  now refuses before `apiAsk`.
+- **Moment history (T5).** Existing live `learn_moments` rows, Vectorize
+  `q:<id>` keys that name live ids (future `LEARN_DB` ids can collide with
+  them), and cards that carry live `momentId`s stay as they are.
+  `export-gold.mjs` reads the live D1 `small` while its comment calls it the
+  dev D1; dev moments will not reach it once `small-learn-dev` has the table.
+  Each is a separate decision; no migration or delete.
+- **`learn_moments` in `small-learn-dev`.** Not added (owner decision 1, a
+  separate go). Until then dev answers carry no `momentId` and Keep/Dismiss
+  answers 400.
+- **Stale comment in a frozen area.** `packages/web/src/agent/ask-stream.js`
+  says attachments go to `/api/ask` because the dev worker handles
+  `/api/learn/ask` as JSON only; it has handled multipart since `2828bc4`.
+  Left for the Agent Bar owner.
+- **Defense in depth (T6 a).** The `LearnVideos` and `LearnScenes` alarms use
+  `learnMedia(this.env)` outside the dev worker's `LEARN_MEDIA` guard. That is
+  safe while both dev configs bind `LEARN_MEDIA` (`learn-storage.test.js`).
+
+## Progress
+
+- **U1 storage (C1), 2026-09-29.** Commits: `7f5d654` learnMomentsDb at every
+  `learn_moments` statement; `67872d9` dev worker 403 for live-app Learn asks
+  and 415 for other body types; `117e985` no ask-uploads copy or run-tool
+  note for Learn attachments; `dae0d88` `REPOSITORY_SNAPSHOTS` in
+  `wrangler.parallel.jsonc`; `ff1fddd` comment corrections (routes.js,
+  flags.js, SharePage.jsx, index.js, canvases.js, dev-worker.js); `90b6b61`
+  and `b5c6dd3` permanent storage tests; this doc. Done: delta-3 (moment
+  paths and comments), delta-4, delta-5, delta-13 (binding), duplication-23,
+  prompts-9, context-15, grading-2 (storage half), context-18 and delta-6
+  (comments). Recorded: duplication-22, the sweep, legacy snapshots,
+  mentions, moment history. Needs a decision: the clone recipe (delta-13).

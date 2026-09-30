@@ -210,6 +210,14 @@ phase-4 check — an accepted moment answers a re-asked paraphrase.
 
 ## Status
 
+Learn cleanup C1 (2026-09-29): the "shared D1" below is the production
+database `small`. Dev and review workers now log, accept and look up moments
+in `LEARN_DB` (`small-learn-dev`) through `learnMomentsDb`
+(`control-plane/src/learn-storage.js`); production `small-cp` is unchanged.
+`small-learn-dev` has no `learn_moments` table yet, so on dev the log,
+Keep/Dismiss and the hot path are quiet until that table is added (a
+separate go). See `docs/features/learn-cleanup.md`.
+
 Verified live on `small-cp-dev-small-parallel`, 2026-09-23, with all gates
 opened by explicit user go: `learn_moments` created on the shared D1,
 Vectorize `small-learn-moments` + Queue `small-learn-index` created, and the
