@@ -222,8 +222,8 @@ export function plannerContext({ turn, routed, block, states, claims = [], store
       ...(turn.answering && store?.open?.text ? { open_question: store.open.text } : {}),
     },
     dive_context: record || turn.returned_from ? {
-      ...(record ? { title: record.title, concept: holeConcept(record), created_by: record.created_by, origin_card: record.origin?.origin_card_id ?? null, origin_part: record.origin?.origin_part_id ?? null, pending_question: record.return_point?.pending_question ?? null } : {}),
-      ...(turn.returned_from ? { returned_from: { concept: turn.returned_from.concept, claim: turn.returned_from.claim } } : {}),
+      ...(record ? { dive_id: record.dive_id, title: record.title, concept: holeConcept(record), created_by: record.created_by, origin_card: record.origin?.origin_card_id ?? null, origin_part: record.origin?.origin_part_id ?? null, pending_question: record.return_point?.pending_question ?? null } : {}),
+      ...(turn.returned_from ? { returned_from: { dive_id: turn.returned_from.dive_id, concept: turn.returned_from.concept, claim: turn.returned_from.claim } } : {}),
     } : null,
   };
 }
