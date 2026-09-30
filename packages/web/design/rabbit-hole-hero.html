@@ -49,46 +49,117 @@
       <figcaption>Socrates · Richard Feynman<span>An imagined conversation about learning.</span></figcaption>
     </figure>
   </div>
-  <section id="adaptive-learning" data-mode="simple" aria-labelledby="adaptive-title">
+  <section id="adaptive-learning" data-mode="overview" aria-labelledby="adaptive-title">
     <div class="adaptive-inner">
       <div class="section-art section-art-depth" data-section-art="depth" aria-hidden="true"><img src="/landing/square-depth-v1.png" width="1254" height="1254" alt="" loading="lazy" decoding="async" draggable="false"></div>
       <div class="adaptive-heading">
         <div><p class="adaptive-eyebrow">Learning, at your pace</p><h2 id="adaptive-title">One question.<br>Your way in.</h2></div>
-        <p class="adaptive-intro">An analogy, a picture, or the mechanics.<br>Find the explanation that clicks for you.</p>
+        <p class="adaptive-intro">Get the intuition. Try it yourself.<br>Then see what makes it work.</p>
       </div>
       <div class="adaptive-demo">
         <div class="adaptive-toolbar">
-          <p class="adaptive-question">How does attention use context?</p>
-          <div class="adaptive-tabs" role="tablist" aria-label="Choose an explanation">
-            <button id="adaptive-simple" type="button" role="tab" aria-selected="true" aria-controls="adaptive-example" data-adaptive-mode="simple"><span aria-hidden="true">01</span>Start simple</button>
-            <button id="adaptive-visual" type="button" role="tab" aria-selected="false" aria-controls="adaptive-example" tabindex="-1" data-adaptive-mode="visual"><span aria-hidden="true">02</span>Show visually</button>
-            <button id="adaptive-deep" type="button" role="tab" aria-selected="false" aria-controls="adaptive-example" tabindex="-1" data-adaptive-mode="deep"><span aria-hidden="true">03</span>Go deeper</button>
+          <p class="adaptive-question">How does Softmax turn scores into probabilities?</p>
+          <div class="adaptive-tabs" role="tablist" aria-label="Choose learning depth">
+            <button id="adaptive-overview" type="button" role="tab" aria-selected="true" aria-controls="adaptive-example" data-adaptive-mode="overview"><span aria-hidden="true">01</span>Overview</button>
+            <button id="adaptive-guided" type="button" role="tab" aria-selected="false" aria-controls="adaptive-example" tabindex="-1" data-adaptive-mode="guided"><span aria-hidden="true">02</span>Guided</button>
+            <button id="adaptive-deep" type="button" role="tab" aria-selected="false" aria-controls="adaptive-example" tabindex="-1" data-adaptive-mode="deep"><span aria-hidden="true">03</span>Deep Dive</button>
           </div>
         </div>
-        <div id="adaptive-example" class="adaptive-example" role="tabpanel" aria-labelledby="adaptive-simple" tabindex="0">
-          <div class="adaptive-art" aria-hidden="true">
-            <p class="adaptive-sentence">“The <b>cat</b> sat on the mat because <b>it</b> was tired.”</p>
-            <div class="adaptive-field">
-              <svg class="adaptive-paths" viewBox="0 0 100 280" preserveAspectRatio="none" fill="none">
-                <g class="adaptive-path-simple"><path d="M50 68V192"/><path class="adaptive-arrow" d="m48 146 2 8 2-8"/></g>
-                <g class="adaptive-path-visual"><path d="M27 128C48 128 46 60 73 60"/><path class="adaptive-faint" d="M27 128C48 128 46 196 73 196"/><path class="adaptive-arrow" d="m55 62 3-2-2-8"/></g>
-                <g class="adaptive-path-deep"><path d="M20.5 68H79.5"/><path class="adaptive-faint" d="M50 125V146"/></g>
-              </svg>
-              <div class="adaptive-word adaptive-word-it"><span>it</span><small>query</small></div>
-              <div class="adaptive-word adaptive-word-cat"><span>the cat</span><small>key + value</small></div>
-              <div class="adaptive-word adaptive-word-mat"><span>the mat</span><small>key + value</small></div>
-              <span class="adaptive-connection-label">Context changes the meaning.</span>
-              <div class="adaptive-equation"><span>compare → weight → combine</span><p>softmax<span class="adaptive-fraction"><span>QKᵀ</span><span>√d<sub>k</sub></span></span>V</p></div>
+        <div id="adaptive-example" class="adaptive-example" role="tabpanel" aria-labelledby="adaptive-overview" tabindex="0">
+          <div class="adaptive-art">
+            <div class="softmax-scene softmax-overview" data-adaptive-scene="overview">
+              <div class="softmax-canvas" data-phase="ready" data-running="false">
+                <div class="softmax-canvas-bar"><span><i aria-hidden="true"></i> Rabbit Hole Canvas</span><span>Softmax / Overview</span></div>
+                <div class="softmax-camera">
+                  <div class="softmax-generating" aria-hidden="true"><span class="softmax-spinner"></span><span>Generating animation</span></div>
+                  <div class="softmax-video-card">
+                    <div class="softmax-video-title">Softmax, explained visually</div>
+                    <div class="softmax-video-frame">
+                      <img src="/landing/softmax-overview-poster-v1.webp" width="1280" height="720" alt="Four cartoon scores become shares of one whole: 64%, 24%, 9% and 3%." loading="lazy" decoding="async">
+                      <video muted playsinline preload="none" width="1920" height="1080" aria-label="Softmax cartoon: four scores become probabilities that sum to one."></video>
+                      <span class="softmax-play" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7Z"/></svg></span>
+                      <span class="softmax-click-ring" aria-hidden="true"></span>
+                      <svg class="softmax-demo-cursor" viewBox="0 0 32 40" aria-hidden="true"><path d="M3 2v29l8-7 6 13 6-3-6-12h12Z" fill="white" stroke="#20211f" stroke-width="2.5" stroke-linejoin="round"/></svg>
+                    </div>
+                    <div class="softmax-playback" role="group" aria-label="Animation playback">
+                      <button class="softmax-watch" type="button" aria-label="Play explanation" disabled>
+                        <svg class="softmax-icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7Z" fill="currentColor"/></svg>
+                        <svg class="softmax-icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zm6 0h4v14h-4z" fill="currentColor"/></svg>
+                      </button>
+                      <input class="softmax-timeline" type="range" min="0" max="25" step="0.1" value="0" aria-label="Seek animation" disabled>
+                      <span class="softmax-time" aria-hidden="true">0:00 / 0:25</span>
+                    </div>
+                  </div>
+                  <div class="softmax-composer" role="img" aria-label="Prompt: /motion explain me softmax function">
+                    <span class="softmax-prompt-line" aria-hidden="true"><span class="softmax-tool-pill">motion<span class="softmax-tool-remove">×</span></span><span class="softmax-prompt">/motion explain me softmax function</span></span>
+                    <span class="softmax-send" aria-hidden="true">↑<svg class="softmax-send-cursor" viewBox="0 0 32 40"><path d="M3 2v29l8-7 6 13 6-3-6-12h12Z" fill="white" stroke="#20211f" stroke-width="2.5" stroke-linejoin="round"/></svg></span>
+                  </div>
+                </div>
+              </div>
+              <span class="adaptive-art-note" data-softmax-status></span>
             </div>
-            <span class="adaptive-art-note">One idea. Different levels of detail.</span>
+            <div class="softmax-scene softmax-guided" data-adaptive-scene="guided" hidden inert>
+              <div class="softmax-canvas softmax-workspace" data-tool-selected>
+                <div class="softmax-canvas-bar"><span><i aria-hidden="true"></i> Rabbit Hole Canvas</span><span>Softmax / Guided</span></div>
+                <div class="softmax-context-card" aria-label="Overview animation, retained as a still reference">
+                  <img src="/landing/softmax-overview-poster-v1.webp" width="1280" height="720" alt="The Overview Softmax animation, shown as a still." loading="lazy" decoding="async">
+                  <div><span>01 / Overview · Animation</span><p>Softmax, explained visually</p></div>
+                </div>
+                <div class="softmax-level-link" aria-hidden="true"><span>02 / Guided · Explore the mechanism</span></div>
+                <div class="softmax-learning-card">
+              <div class="softmax-step-heading"><span>01 / Start with scores</span><span>02 / Exponentiate</span></div>
+              <div class="softmax-score-grid">
+                <div class="softmax-score"><span>A</span><strong data-score="0">2</strong><small>↓ exp</small><b data-weight="0">7.39</b></div>
+                <div class="softmax-score"><span>B</span><strong>1</strong><small>↓ exp</small><b data-weight="1">2.72</b></div>
+                <div class="softmax-score"><span>C</span><strong>0</strong><small>↓ exp</small><b data-weight="2">1.00</b></div>
+                <div class="softmax-score"><span>D</span><strong>−1</strong><small>↓ exp</small><b data-weight="3">0.37</b></div>
+              </div>
+              <div class="softmax-divide"><span>03 / Divide each by the total</span><strong data-weight-sum>11.48</strong></div>
+              <div class="softmax-shares" role="img" aria-label="Probability shares: A 64.4%, B 23.7%, C 8.7%, D 3.2%.">
+                <span style="width:64.4%"></span><span style="width:23.7%"></span><span style="width:8.7%"></span><span style="width:3.2%"></span>
+              </div>
+              <div class="softmax-probabilities"><span>A <b data-prob="0">64.4%</b></span><span>B <b data-prob="1">23.7%</b></span><span>C <b data-prob="2">8.7%</b></span><span>D <b data-prob="3">3.2%</b></span></div>
+              <div class="softmax-slider">
+                <label for="softmax-score">Change score A <output for="softmax-score" data-score-output>2.00</output></label>
+                <input id="softmax-score" type="range" min="-2" max="4" step="0.25" value="2" aria-describedby="softmax-slider-hint">
+                <span id="softmax-slider-hint">Watch all four shares change. The total stays 100%.</span>
+              </div>
+                </div>
+                <div class="softmax-composer" role="img" aria-label="Prompt: /explain explain me softmax function">
+                  <span class="softmax-prompt-line" aria-hidden="true"><span class="softmax-tool-pill">explain<span class="softmax-tool-remove">×</span></span><span class="softmax-prompt">explain me softmax function</span></span><span class="softmax-send" aria-hidden="true">↑</span>
+                </div>
+              </div>
+              <span class="adaptive-art-note">Displayed values are rounded.</span>
+            </div>
+            <div class="softmax-scene softmax-deep" data-adaptive-scene="deep" hidden inert>
+              <div class="softmax-canvas softmax-workspace" data-tool-selected>
+                <div class="softmax-canvas-bar"><span><i aria-hidden="true"></i> Rabbit Hole Canvas</span><span>Softmax / Deep Dive</span></div>
+                <div class="softmax-learning-card">
+              <div class="softmax-step-heading"><span>Under the hood</span><span>Tensor [4] → [4]</span></div>
+              <div class="softmax-equation" role="math" aria-label="p i equals exponential of z i minus m, divided by the sum of exponentials of z j minus m, where m is the maximum score."><span>p<sub>i</sub> =</span><span class="softmax-fraction"><span>exp(z<sub>i</sub> − m)</span><span>Σ<sub>j</sub> exp(z<sub>j</sub> − m)</span></span><small>m = max(z)</small></div>
+              <p class="softmax-vector">scores = <code data-score-vector>[2, 1, 0, −1]</code></p>
+              <div class="softmax-code"><pre>shifted = scores - scores.max()
+weights = shifted.exp()
+probs = weights / weights.sum()
+
+# PyTorch shortcut
+torch.softmax(scores, dim=-1)</pre></div>
+              <p class="softmax-result"><span>probabilities</span><code data-prob-vector>[0.644, 0.237, 0.087, 0.032]</code></p>
+                </div>
+                <div class="softmax-composer" role="img" aria-label="Prompt: /deeper explain me softmax function">
+                  <span class="softmax-prompt-line" aria-hidden="true"><span class="softmax-tool-pill">deeper<span class="softmax-tool-remove">×</span></span><span class="softmax-prompt">explain me softmax function</span></span><span class="softmax-send" aria-hidden="true">↑</span>
+                </div>
+              </div>
+              <span class="adaptive-art-note">For a batch [B, 4], normalize along dim = −1.</span>
+            </div>
           </div>
           <div class="adaptive-explanations">
-            <article data-adaptive-copy="simple"><span class="adaptive-step">01 / The intuition</span><h3>Think of it <br>as a spotlight.</h3><p>“It” means little on its own. In this sentence, context points back to the cat. Attention lets a model draw information from other words.</p><span class="adaptive-takeaway">Start with what makes sense.</span></article>
-            <article data-adaptive-copy="visual" hidden><span class="adaptive-step">02 / The connection</span><h3>Follow <br>the connection.</h3><p>Start with “it” and trace the paths to the surrounding words. The highlighted link shows one possible contextual relationship.</p><span class="adaptive-takeaway">Illustrative connections, not measured model weights.</span></article>
-            <article data-adaptive-copy="deep" hidden><span class="adaptive-step">03 / The mechanism</span><h3>Compare, weight, <br>combine.</h3><p>A query is compared with keys. The scores are scaled and normalized with softmax, then used to blend the value vectors.</p><a class="adaptive-source" href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noreferrer">Attention Is All You Need <span aria-hidden="true">↗</span></a></article>
+            <article data-adaptive-copy="overview"><span class="adaptive-step">01 / Overview</span><h3>Build intuition.<br>See the big picture.</h3><p>Overview gives you a visual foundation for a new idea. Animation makes relationships and changes easier to see, so you can build understanding before exploring the mechanics.</p><span class="adaptive-takeaway">Start with a mental picture. Add detail when you’re ready.</span></article>
+            <article data-adaptive-copy="guided" hidden><span class="adaptive-step">02 / Guided</span><h3>Change a score.<br>See the balance shift.</h3><p>Exponentiate each score to make it positive, then divide by their total. Move the slider to see why changing one score changes every probability.</p><span class="adaptive-takeaway">Try score A = 1. Equal scores get equal shares.</span></article>
+            <article data-adaptive-copy="deep" hidden><span class="adaptive-step">03 / Deep Dive</span><h3>Same idea.<br>Every detail.</h3><p>Subtract the largest score before exponentiating to avoid overflow. The result is unchanged; the calculation is more stable.</p><span class="adaptive-takeaway">Very small probabilities can still underflow. For log-probabilities, use log_softmax directly.</span><a class="adaptive-source" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.functional.softmax.html" target="_blank" rel="noreferrer">PyTorch implementation <span aria-hidden="true">↗</span></a></article>
           </div>
         </div>
-        <div class="adaptive-bottom"><span>Illustrative example</span><span>Same question. A different perspective. <span aria-hidden="true">↗</span></span></div>
+        <div class="adaptive-bottom"><span>Illustrative canvas preview</span><span>Same question. Your depth. <span aria-hidden="true">↗</span></span></div>
       </div>
     </div>
   </section>

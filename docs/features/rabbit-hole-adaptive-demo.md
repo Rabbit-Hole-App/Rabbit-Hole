@@ -1,5 +1,169 @@
 # Landing clarity, adaptive example and footer action
 
+## Current milestone — Softmax at three depths (2026-09-29)
+
+Latest revision (local only): all composers use “explain me softmax function”.
+Overview uses `/motion`, Guided `/explain`, and Deep Dive `/deeper`, displayed
+as matching tool pills with corner ×. The illustrated Overview sequence now
+plays the entire 25-second video automatically; the 8.4-second cutoff and
+click-to-watch-full invitation are removed. Optional pause/resume/replay and
+explicit reduced-motion playback remain available. A visible play/pause button,
+seekable timeline and elapsed/total time sit beneath the video. Offscreen/hidden/
+inactive playback pauses. This supersedes the short-preview behavior documented
+below.
+
+Follow-up for the commit: all three title bars read “Rabbit Hole Canvas”. The
+ready-state “Animation preview · sound off” caption is removed. Guided retains
+a compact still card of the Overview video, connected by a visible directional
+line to the interactive Guided card. No second video player or autoplay is
+created in Guided; the prior intuition remains visible alongside the next depth.
+
+Local validation passed: build plus 80 focused browser checks at 1440/390/320px.
+Verified uninterrupted automatic playback to 25 seconds without a visitor
+click, actual play/pause/replay, keyboard and pointer seeking, elapsed-time
+updates, offscreen pause/resume, depth switching, reduced-motion opt-in playback,
+matching prompts/tool pills and control containment. Local screenshots were
+inspected; no page errors. Evidence:
+`tmp/softmax-motion/autoplay-controls-local/results.json` and screenshots;
+build log `tmp/softmax-motion/autoplay-controls-build.log`. No deployment,
+merge, login or remote app write was performed for this revision.
+
+### Security hold and branch handoff — 2026-09-30
+
+The user reported that `small-cp-dev-smart-landing-page` shares production
+resources. Until P0-B is fixed, remaining verification is limited to local
+builds/tests, static visual review and read-only page inspection. Do not run
+login, test-session, project/canvas creation, uploads, Learn writes, deploy/run
+actions or sharing against the clone. Do not merge or deploy another clone
+version without explicit approval. This overrides earlier automatic deployment
+instructions for this worktree.
+
+Initial handoff branch: `feature/smart-landing-page`, HEAD `983ebe8b`. The landing
+changes were uncommitted at that handoff; the index was empty. Preserve the other
+ongoing worktree changes. Version `3d63133b-a3ba-4ae2-949a-792532f593cb` and the
+hosted public-page checks below occurred before this security hold. No login or
+app-data writes were used for those checks. Subsequent handoff verification is
+local only; no further deployment or merge was performed.
+
+Approved follow-up (2026-09-30): retain the short automatic preview. A real
+visitor can click the video card or its “Watch the full explanation · 25 sec”
+caption to restart the complete clip inline. The same card supports pause,
+resume and replay without extra playback chrome. Offscreen/hidden/depth changes
+pause playback. Reduced motion skips the staged animation, but explicit visitor
+playback remains available. The illustrated cursor does not trigger full mode.
+
+The depth tabs should visibly resemble pressable buttons. Their selected color
+progresses from light rose (Overview) through red (Guided) to deep red (Deep
+Dive), with separate borders, hover/press feedback and retained keyboard focus.
+
+Guided and Deep Dive reuse Overview's dotted learning-canvas frame, title bar
+and bottom chat composer. Their existing interactive calculation and code live
+in cards on that canvas, with a depth-appropriate illustrative prompt. Preserve
+the slider, shared values, source display, tab semantics and stable layout.
+
+Delivered to the worktree clone as `3d63133b-a3ba-4ae2-949a-792532f593cb`.
+The real video-card button restarts the complete 25-second clip, then supports
+pause/resume/replay inline. The short automatic preview remains unchanged.
+All three depths use matching canvas and composer styling; Guided and Deep Dive
+keep their existing content and interaction. Buttons have 44px minimum targets,
+separate borders, hover/pressed/focus feedback, and progressively darker red
+selected states. Selected-label contrast ranges from 5.1:1 to 9.6:1.
+
+Passed 103 focused checks plus 67 original-sequence checks on the actual
+deployment. Verified 1440/768/390/320px layouts, shared canvas/composer
+containment, stable heights, interactive math, cross-depth values, real complete
+25-second desktop/mobile playback, offscreen pause/resume, restart/replay and
+explicit keyboard playback under reduced motion. Fixed a narrow-screen height
+change by reserving the total's numeric width. Screenshots inspected; no browser
+page errors. Build and whitespace checks passed. Evidence:
+`tmp/softmax-motion/depth-deployed/depth-results.json`, `results.json` and
+screenshots in the same directory.
+
+Refinement requested 2026-09-30: the canvas starts empty. Magnify the composer
+more during typing; `/motion` becomes a `motion` tool pill with a small × at its
+upper-right. Finish the prompt, show the large cursor clicking Send, then zoom
+back for exactly one second of `Generating animation` with a spinner. Continue
+the existing card reveal → cursor clicks Play → actual video sequence. Overview
+side copy explains the teaching approach: animation as a visual foundation for
+intuition and the big picture. It does not explain Softmax itself. Keep Guided
+and Deep Dive content, media, accessibility and visibility behavior intact.
+
+Refinement delivered to the worktree clone as
+`9023fa7a-45eb-483c-9ea1-130370424a4e`. The composer magnifies to 1.65× on desktop
+and 1.4× on phones, with framing that keeps the prompt, pill/corner × and large
+Send cursor inside the canvas. The initial sample scores and caption are gone.
+The Send press precedes a 1000 ms generation phase; the existing video-card
+click and real playback follow. Overview now reads “Build intuition. See the
+big picture.” with teaching-focused supporting copy.
+
+Passed 67 scenario checks plus 34 interruption/layout/fallback checks against
+the actual deployment. Measured the spinner duration, verified both illustrated
+clicks before playback, inspected desktop/mobile screenshots, and confirmed no
+page errors. A separate 320px local run passed 35 checks. Build and whitespace
+checks passed. Evidence: `tmp/softmax-motion/refinement-deployed/results.json`,
+`edge-results.json` and screenshots in that directory.
+
+The user approved replacing the attention example in the existing Learning, at
+your pace section with one Softmax example. The canonical depth labels are
+**Overview**, **Guided**, and **Deep Dive**. Depth describes prerequisite/detail
+level; animation is one explanation format and `/motion` is an agent tool.
+
+- Overview: an illustrative canvas zooms toward the composer, types
+  `/motion explain me softmax function`, zooms back, shows generation progress,
+  then reveals the user's actual cartoon as a video card. A large illustrative
+  cursor moves onto its play control and clicks; the first 8.4 seconds play.
+  Source: `C:\Users\cyudhist\Downloads\softmax.mp4`. Preserve the original.
+- Guided: use the same initial scores `[2, 1, 0, -1]`; show exponentiation,
+  normalization and resulting shares. A score slider updates the calculation.
+- Deep Dive: the same scores, a stable formula, tensor shapes, implementation,
+  numerical limits and a neutral source link. Reuse shared code presentation.
+- Retain the current section layout, background artwork and page order. The
+  later product overview and Features page stay as they are.
+- This is a marketing preview: no model request, backend, storage or auth work.
+  Label the staged generation sequence as illustrative. Lazy-load the video;
+  pause media/timing when offscreen, hidden or on another depth. Reduced motion
+  and keyboard depth changes show the completed static result. Media failure
+  must retain a useful poster. No new playback controls.
+
+Validate the full prompt-to-video sequence on the actual deployed clone,
+desktop and mobile, arithmetic/slider interaction, cross-depth consistency,
+keyboard navigation, reduced motion, interruption and a stable layout. Check
+that the original overview, audience and cloud interactions remain intact.
+
+### Delivered and verified
+
+Deployed only to `small-cp-dev-smart-landing-page`, version
+`a69f287d-53a6-4b36-8cfb-9a774c68205d`. The original 2.9 MB video is retained as
+`packages/web/public/landing/softmax-overview-v1.mp4`; a 45 KB WebP poster was
+extracted from 8.4 seconds. No new image or video generation was used.
+
+Overview runs a finite sequence while visible: composer focus/type, zoom back,
+generation indicator, card reveal, large cursor approach/click, then real muted
+playback through roughly 8.4 seconds. Selecting Overview again replays it.
+The source starts loading only after sustained visible animation frames, to
+avoid a transient initial mobile intersection fetching an offscreen video.
+Offscreen/hidden/depth changes pause activity. Keyboard selection and reduced
+motion show the completed still. Failed media keeps the extracted poster.
+
+Guided recalculates all four probabilities from a native range control. Deep
+Dive shares that input/output and lazy-loads the existing `CodeBlock` and
+`colorLine` helpers; plain source remains available if the helper fails to load.
+The bounded score range supports safe exponentiation in Guided; Deep Dive
+explains subtracting the maximum for general numerical stability.
+
+The actual deployed page passed 45 desktop/mobile scenario checks and 34
+additional interruption/layout/fallback checks. Covered 1440px and 390px full
+sequences, 320/768/1024px and short landscape layouts, real video decoding and
+playback after the illustrated click, lazy loading, correct probability totals,
+equal-score shares, input extremes, cross-depth state, stable card height,
+keyboard controls, reduced motion, rapid switching, offscreen pause/resume,
+failed-media poster, original overview tabs and no API/model calls. Browser
+page errors: zero. Desktop/mobile screenshots were visually inspected.
+Evidence: `tmp/softmax-motion/deployed/results.json`, `edge-results.json` and
+screenshots in the same directory. Build and whitespace checks passed.
+
+## Previous milestone
+
 Current direction (2026-09-29): the user requested removing the opening product
 description. Keep the original headline/animation, adaptive example and footer
 action. The user then reordered the content after the manifesto: Learning, at

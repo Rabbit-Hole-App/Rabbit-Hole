@@ -1155,6 +1155,74 @@ live build merely to prepare a dev deployment.
 
 ## Release and verification
 
+### Local-only landing video controls and matching prompts — 2026-09-30
+
+All three depth composers now read “explain me softmax function”, using motion,
+explain and deeper tool pills respectively. Overview plays all 25 seconds
+automatically after the illustrated click. A play/pause button, seekable timeline
+and elapsed/total time appear beneath the video. Optional manual playback still
+works with reduced motion; inactive/offscreen playback pauses.
+
+Local build and 80 focused browser checks passed, including real complete
+autoplay on desktop/mobile, seeking, replay, keyboard use and 320px layout.
+Screenshots inspected; no page errors. Evidence:
+`tmp/softmax-motion/autoplay-controls-local/`. This revision is prepared on
+`feature/smart-landing-page` and remains undeployed. The user's P0-B security hold prohibits further clone deployments,
+merges and remote app writes without the required approval; all checks for this
+revision ran locally. The hosted version below remains the earlier revision.
+
+### Matching depth workspaces and full video playback — 2026-09-30
+
+The landing depth controls now look pressable and progress from light rose
+through red to deep red when selected. Guided and Deep Dive reuse the Overview
+canvas/header/chat styling around their existing interactive content. The video
+card keeps its short automatic preview; a real click restarts the full 25-second
+clip and allows inline pause/resume/replay. Explicit keyboard playback works
+with reduced motion; offscreen and inactive-depth playback pauses.
+
+Built with both dev flags and the existing license, deployed only to the
+worktree clone as `3d63133b-a3ba-4ae2-949a-792532f593cb`. The actual deployment
+passed 103 focused checks plus 67 original demo checks across desktop/mobile,
+including real full-length playback, 320–1440px layouts, keyboard access,
+contrast and interaction preservation. Screenshots inspected; no browser page
+errors. Evidence: `tmp/softmax-motion/depth-deployed/`. See the
+[adaptive example specification](rabbit-hole-adaptive-demo.md).
+
+### Overview composer and teaching copy refinement — 2026-09-30
+
+The landing Overview demo now starts with an empty canvas. A stronger chat-bar
+close-up shows `/motion` becoming a tool pill with a corner ×, the remainder of
+the prompt, then the large cursor clicking Send. `Generating animation` and its
+spinner run for one second before the existing video-card reveal/play sequence.
+Adjacent copy now explains Overview's visual foundation for intuition instead
+of teaching Softmax. Guided and Deep Dive remain intact.
+
+Built with both dev flags and the existing license; deployed only the worktree
+clone as `9023fa7a-45eb-483c-9ea1-130370424a4e`. Passed 101 focused checks on the
+actual deployment, including desktop/mobile sequence, measured spinner timing,
+cursor containment, real video playback, keyboard/reduced motion, interruption,
+narrow layouts and fallback. Screenshots inspected; no browser page errors.
+Evidence: `tmp/softmax-motion/refinement-deployed/`. See the
+[adaptive example specification](rabbit-hole-adaptive-demo.md).
+
+### Landing Softmax at three learning depths — 2026-09-29
+
+Replaced the attention example in Learning, at your pace with the approved
+Overview / Guided / Deep Dive Softmax example. Overview stages `/motion explain
+me softmax function`, reveals a video card on the canvas, then a large cursor
+clicks its play control and the supplied cartoon plays. Guided has a working
+score slider; Deep Dive shares the values and shows stable math, tensor shapes
+and the shared code renderer. This is labeled as an illustrative preview; no
+model, backend, persistence or authentication calls were added.
+
+Built with both dev flags and the existing license. Deployed only the worktree
+clone as `a69f287d-53a6-4b36-8cfb-9a774c68205d`. The actual deployment passed 79
+focused browser checks, including desktop/mobile real media playback, cursor
+timing, arithmetic, keyboard navigation, reduced motion, interruption/resume,
+320–1440px layouts, and poster fallback. Screenshots were visually inspected;
+no browser page errors. See [the adaptive example specification](rabbit-hole-adaptive-demo.md)
+and evidence in `tmp/softmax-motion/deployed/`.
+
 ### Landing artwork behind the cards — 2026-09-29
 
 Moved both square compositions inward and down behind the card area, with
