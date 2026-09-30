@@ -1211,7 +1211,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
             ))}
           </ol>
         ) : null}
-        <button type="button" disabled={!course.loaded || course.dirty} aria-current={learningView === 'notes' ? 'page' : undefined} onClick={() => requestLearningView('notes')}
+        <button type="button" disabled={!course.loaded || course.dirty} aria-current={learningView === 'notes' ? 'page' : undefined} onClick={() => requestLearningView(learningView === 'notes' ? 'lesson' : 'notes')}
           className={`shrink-0 text-left text-sm text-ink-2 hover:text-accent aria-[current=page]:font-medium aria-[current=page]:text-accent disabled:text-ink-3 ${canvasOutline.length ? 'mt-3 border-t border-line pt-3' : ''}`}>My notes</button>
       </div>
       {setupChat && <CourseInterview state={course} app={app} sectionEditor={suppliedCourse ? sectionEditor : null} />}

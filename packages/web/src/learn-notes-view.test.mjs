@@ -39,3 +39,15 @@ test('Return to lesson with no lesson player shows the canvas and calls no edito
     assert.deepEqual(calls, [['setNoteEditing', null], ['setLearningView', 'lesson'], ['setCourseView', false]], lessonId);
   }
 });
+
+test('My notes toggles back to the canvas', () => {
+  const end = source.indexOf('>My notes</button>');
+  const button = source.slice(source.lastIndexOf('<button', end), end);
+  assert.match(button, /aria-current=\{learningView === 'notes' \? 'page' : undefined\}/);
+  const handler = button.match(/onClick=\{(\(\) => [^}]*)\}/)[1];
+  for (const [view, next] of [['lesson', 'notes'], ['notes', 'lesson']]) {
+    const asked = [];
+    new Function('learningView', 'requestLearningView', `return ${handler};`)(view, value => asked.push(value))();
+    assert.deepEqual(asked, [next], view);
+  }
+});
