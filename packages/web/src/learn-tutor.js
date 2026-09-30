@@ -14,6 +14,7 @@ import { coerceInputs, validateInputDeclarations } from './scene-inputs.js';
 import { ATTENTION_LADDER, CLAIMS, CONCEPTS, SLICE_CARDS, catalogue, cardModule, claimsOfConcept, conceptOf, ladderStep, partLabels, targetClaims } from './learn-tutor-claims.js';
 import { appendEvents, conceptState, deriveClaimStates, practiceEvents, reconcile } from './learn-tutor-evidence.js';
 import { selectClaims } from './learn-tutor-select.js';
+import { validateActions } from './learn-tutor-validate.js';
 
 const SLASHES = ['deeper', 'simplify', 'dive'];
 const canvasKey = canvas => `${canvas.app}|${canvas.board || 'main'}`;
@@ -230,60 +231,9 @@ export function plannerContext({ turn, routed, block, states, claims = [], store
 
 // ---------- Enforcement (§5) ----------
 
-// The router's allowed types are binding; navigate needs an explicit request (quoted from the
-// learner's own words), a slash, or the learner's "Keep it on this canvas". Anything else is
-// dropped or downgraded to a suggestion chip, and logged.
-export function enforce(response, routed, turn) {
-  const log = [];
-  const quoted = typeof response.explicit_request === 'string' ? response.explicit_request.trim() : '';
-  const explicit = !!quoted && turn.raw_user_message.toLowerCase().includes(quoted.toLowerCase());
-  if (quoted && !explicit) log.push(`explicit_request not in the learner's words: "${quoted}"`);
-  const navigate = explicit || routed.row === 'slash' || routed.row === 'gap_inline';
-  const allowed = new Set([...routed.allowed, ...(explicit ? ['respond_text', 'show_authored_card', 'focus_part'] : [])]);
-  const noQuiz = turn.constraints.includes('no_quiz') || turn.constraints.includes('just_answer');
-  const actions = [];
-  for (const action of Array.isArray(response.actions) ? response.actions : []) {
-    if (!action || !allowed.has(action.type)) { log.push(`dropped ${action?.type}: not allowed in row ${routed.row}`); continue; }
-    if (action.type === 'ask_question' && noQuiz) { log.push('dropped ask_question: no_quiz'); continue; }
-    if (action.type === 'ask_question' && actions.some(other => other.type === 'ask_question')) { log.push('dropped a second ask_question'); continue; }
-    if ((action.type === 'respond_text' || action.type === 'ask_question') && !String(action.text || '').trim()) { log.push(`dropped empty ${action.type}`); continue; }
-    if (['show_authored_card', 'focus_part', 'suggest_depth', 'suggest_practice'].includes(action.type) && !SLICE_CARDS.includes(action.card)) { log.push(`dropped ${action.type}: unknown card ${action.card}`); continue; }
-    if (action.type === 'focus_part' && partIndex(cardModule(action.card), action.part_id) == null) { log.push(`dropped focus_part: ${action.card} has no part ${action.part_id}`); continue; }
-    if (action.type === 'return_from_dive' && !turn.canvas.dive) { log.push('dropped return_from_dive outside a hole'); continue; }
-    if (action.type === 'open_dive') { log.push('dropped open_dive: only the learner opens a hole (/dive, Ctrl+K, Go down)'); continue; }
-    let next = { ...action };
-    if ((next.type === 'show_authored_card' || next.type === 'focus_part') && next.mode === 'navigate' && !navigate) { next.mode = 'suggest'; log.push(`downgraded ${next.type} to a chip: no explicit request`); }
-    if ((next.type === 'show_authored_card' || next.type === 'focus_part') && !next.mode) next.mode = 'suggest';
-    if (next.type === 'ask_question') next = { ...next, action_id: crypto.randomUUID(), claim: CLAIMS[next.claim] ? next.claim : routed.claim };
-    if (next.type === 'suggest_dive') {
-      // Exactly one originating card (R-10): the target card, else a topic anchor made on Go down.
-      const concept = CONCEPTS[next.concept] ? next.concept : conceptOf(next.title) || conceptOf(next.concept) || null;
-      const title = String(next.title || CONCEPTS[concept]?.label || next.concept || '').slice(0, 80);
-      if (!title) { log.push('dropped suggest_dive: no topic'); continue; }
-      next = { type: 'suggest_dive', concept, title, from: turn.target?.block_id ? { block_id: turn.target.block_id } : { anchor: { topic: title } } };
-    }
-    actions.push(next);
-    if (actions.length === 3) break;
-  }
-  // The words before a Rabbit Hole suggestion are at most two sentences (locked §4, gap row): the
-  // planner is asked for it, and this keeps it when the planner writes more. A sentence ends at . ! or ?
-  // followed by a space, so decimals (0.904) and code (F.softmax) stay whole.
-  if (actions.some(action => action.type === 'suggest_dive')) {
-    let budget = 2;
-    const capped = [];
-    for (const action of actions) {
-      if (action.type !== 'respond_text') { capped.push(action); continue; }
-      const sentences = action.text.trim().split(/(?<=[.!?])\s+/);
-      if (!budget) { log.push('dropped respond_text: over two sentences before a dive suggestion'); continue; }
-      if (sentences.length > budget) log.push(`shortened respond_text to ${budget} sentence(s) before a dive suggestion`);
-      capped.push({ ...action, text: sentences.slice(0, budget).join(' ') });
-      budget -= Math.min(budget, sentences.length);
-    }
-    return { actions: capped, log };
-  }
-  if (!actions.length) actions.push({ type: 'no_action' });
-  return { actions, log };
-}
+// The action validator / policy gate (v2 Stage F, learn-tutor-validate.js): schema -> route ->
+// resource -> consent, one decision per proposed action.
+export const enforce = validateActions;
 
 // ---------- One turn ----------
 
@@ -324,7 +274,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   const planned = now();
   const response = await post('/api/learn/tutor/plan', { ...access, context });
   const ready = now();
-  const { actions, log } = enforce(response, routed, turn);
+  const { actions, log, decisions } = enforce(response, routed, turn);
   const enforced = now();
   // 4. The session record.
   const constraints = [...new Set([...current.constraints, ...(response.constraints_add || [])])].filter(item => !(response.constraints_remove || []).includes(item));
@@ -352,12 +302,13 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
     requested_actions: (Array.isArray(response.actions) ? response.actions : []).map(action => action?.type),
     accepted_actions: actions.map(action => action.type),
     rejected: log,
+    rejections: decisions.filter(decision => !decision.accepted).map(({ type, stage, reason }) => ({ type, stage, reason })),
     ms: {
       target: ms(t[0], t[1]), practice: ms(t[1], t[2]), evidence: evidence && ms(...evidence), planner: ms(planned, ready), enforce: ms(ready, enforced),
       to_evidence_ready: evidence && ms(t[0], evidence[1]), to_planner_ready: ms(t[0], ready),
     },
   };
-  return { store: current, turn, selection, evaluation, transitions, routed, response, actions, log, text, states: deriveClaimStates(current.events), bench };
+  return { store: current, turn, selection, evaluation, transitions, routed, response, actions, decisions, log, text, states: deriveClaimStates(current.events), bench };
 }
 const now = () => (globalThis.performance ?? Date).now();
 

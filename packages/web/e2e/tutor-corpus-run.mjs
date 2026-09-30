@@ -136,10 +136,13 @@ async function runTrace(trace) {
     const proposed = (step.stub.plan.actions || []).length, accepted = got.actions.length;
     rows.push({
       stage: STAGE, trace: trace.id, turn: index, category: step.category || trace.category, golden: !!trace.golden,
-      selected: got.selected, jev_calls: calls.jev, jev_questions: calls.jevQuestions, larger_calls: calls.larger, escalation: calls.escalation,
+      selected: got.selected, claims_available: result.selection?.available ?? null, selection_ms: result.selection?.ms ?? null, selection_fallback: result.selection?.fallback ?? null,
+      jev_calls: calls.jev, jev_questions: calls.jevQuestions, larger_calls: calls.larger, escalation: calls.escalation,
       evaluation: result.evaluation ? result.evaluation.status : null, events: got.events, row: got.row,
       actions: got.actions.map(action => ({ type: action.type, ...(action.mode ? { mode: action.mode } : {}), ...(action.card ? { card: action.card } : {}), ...(action.part_id ? { part_id: action.part_id } : {}) })),
       proposed, accepted, rejected: Math.max(0, proposed - accepted), log: result.log,
+      rejections: (result.decisions || []).filter(decision => !decision.accepted).map(decision => `${decision.type}@${decision.stage}: ${decision.reason}`),
+      transitions: result.transitions || [],
       planner_calls: calls.planner, planner_context_chars: calls.plannerChars,
       planner_input_tokens_est: calls.planner ? Math.round((calls.plannerChars + PLANNER_SYSTEM.length + JSON.stringify(TUTOR_TOOL).length) / 4) : 0,
       authored_actions: got.actions.filter(action => AUTHORED.includes(action.type)).length, text_actions: got.actions.filter(action => action.type === 'respond_text').length,
@@ -168,6 +171,8 @@ const summary = {
   larger_evaluator_escalation_rate: rate(jevTurns, row => row.larger_calls > 0),
   planner_calls_per_turn: +(rows.reduce((n, row) => n + row.planner_calls, 0) / rows.length).toFixed(3),
   planner_input_tokens_est: stats(rows.filter(row => row.planner_calls).map(row => row.planner_input_tokens_est)),
+  claims_available_per_jev_turn: jevTurns.some(row => row.claims_available != null) ? +(jevTurns.reduce((n, row) => n + (row.claims_available || 0), 0) / jevTurns.length).toFixed(2) : null,
+  rejections_by_stage: rows.flatMap(row => row.rejections || []).reduce((acc, entry) => { const stage = entry.split('@')[1].split(':')[0]; acc[stage] = (acc[stage] || 0) + 1; return acc; }, {}),
   actions: { proposed: rows.reduce((n, row) => n + row.proposed, 0), accepted: rows.reduce((n, row) => n + row.accepted, 0), rejected: rows.reduce((n, row) => n + row.rejected, 0) },
   authored_content_reuse_rate: rate(turnsWithActions, row => row.authored_actions > 0),
   generated_text_rate: rate(turnsWithActions, row => row.text_actions > 0 && !row.authored_actions),
