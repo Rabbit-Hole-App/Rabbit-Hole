@@ -291,3 +291,29 @@ test('over-long lists are trimmed, not failed: a plan that runs long still reach
     reason: 'Conceptual fits.', outline: Array.from({ length: 6 }, (unused, index) => `Step ${index + 1}`), assets: [] });
   assert.equal(plan.outline.length, 5);
 });
+
+// duplication-15: the subscription owner gate runs once, inside each handler,
+// after its single app authorization; the dev worker's ask branch uses the same helper.
+test('subscription mode: the owner reaches the model, anyone else gets 403, and the app is authorized once', async () => {
+  const { artifactFetch } = await import('../src/learn-artifact.js');
+  const { readFileSync } = await import('node:fs');
+  const post = (path, body) => new Request(`https://small-dev.example${path}`, { method: 'POST', headers: { cookie: 's' }, body: JSON.stringify(body) });
+  for (const [path, handler, body] of [
+    ['/api/learn/board', boardFetch, { app: 'demo', question: 'Why 0.5?', answer: 'exp(0) = 1', snapshot }],
+    ['/api/learn/artifact', artifactFetch, { app: 'demo', command: 'graph', args: 'sigmoid' }],
+  ]) {
+    for (const [email, status, generated] of [['owner@test', 200, 1], ['member@test', 403, 0]]) {
+      let authorized = 0, calls = 0;
+      const env = { SUBSCRIPTION_ONLY: 'true', SUBSCRIPTION_OWNER_EMAIL: 'owner@test', CONTROL_PLANE: { fetch: async () => { authorized++; return Response.json({ name: 'demo', email }); } } };
+      const response = await handler(post(path, body), env, async () => { calls++; return plan; });
+      assert.equal(response.status, status, `${path} ${email}`);
+      assert.equal(authorized, 1, path); assert.equal(calls, generated, path);
+      if (status === 403) assert.deepEqual(await response.json(), { error: 'This personal dev subscription is available only to its owner.' });
+    }
+  }
+  const worker = readFileSync(new URL('../../web/dev-worker.js', import.meta.url), 'utf8');
+  assert.match(worker, /if \(path === '\/api\/learn\/artifact'\) return artifactFetch\(req, env\);/);
+  assert.match(worker, /if \(path === '\/api\/learn\/board'\) return boardFetch\(req, env\);/);
+  const ask = worker.slice(worker.indexOf("const liveRefused = refuseLiveLearnAsk(access);"));
+  assert.ok(ask.indexOf('subscriptionOwnerRefusal(env, access)') < ask.indexOf('return apiAsk('));
+});

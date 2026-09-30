@@ -18,6 +18,7 @@ import { paidRefusal } from '../control-plane/src/learn-paid.js';
 import { feedbackFetch } from '../control-plane/src/learn-feedback.js';
 import { videoFetch } from '../control-plane/src/learn-video.js';
 import { searchPexels } from '../control-plane/src/pexels.js';
+import { subscriptionOwnerRefusal } from '../control-plane/src/subscription-transport.js';
 export { LearnVideos } from '../control-plane/src/learn-video.js';
 
 // Authentication/app actions use the live backend. Dev Learn reuses the Ask handler
@@ -108,7 +109,8 @@ export default {
         if (access instanceof Response) return access;
         const liveRefused = refuseLiveLearnAsk(access);
         if (liveRefused) return liveRefused;
-        if (env.SUBSCRIPTION_ONLY === 'true' && access.email !== env.SUBSCRIPTION_OWNER_EMAIL) return Response.json({ error: 'This personal dev subscription is available only to its owner.' }, { status: 403 });
+        const ownerRefused = subscriptionOwnerRefusal(env, access);
+        if (ownerRefused) return ownerRefused;
         return apiAsk(req, env, ctx, { email: access.email, org: access.org, orgName: access.orgName }, 'learn', access.kind === 'canvas' ? canvasAskSeam(env, access) : undefined);
       }
     }
@@ -164,24 +166,9 @@ export default {
     if (path === '/api/learn/feedback') return feedbackFetch(req, env);
     // Learn Artifact Generation v1: a / command's validated canvas block
     // (docs/features/learn-artifact-generation.md).
-    if (path === '/api/learn/artifact') {
-      if (env.SUBSCRIPTION_ONLY === 'true') {
-        let body; try { body = await req.clone().json(); } catch { return Response.json({ error: 'Invalid JSON' }, { status: 400 }); }
-        const access = await authorizedBoardApp(req, env, body.app);
-        if (access instanceof Response) return access;
-        if (access.email !== env.SUBSCRIPTION_OWNER_EMAIL) return Response.json({ error: 'This personal dev subscription is available only to its owner.' }, { status: 403 });
-      }
-      return artifactFetch(req, env);
-    }
-    if (path === '/api/learn/board') {
-      if (env.SUBSCRIPTION_ONLY === 'true') {
-        let body; try { body = await req.clone().json(); } catch { return Response.json({ error: 'Invalid JSON' }, { status: 400 }); }
-        const access = await authorizedBoardApp(req, env, body.app);
-        if (access instanceof Response) return access;
-        if (access.email !== env.SUBSCRIPTION_OWNER_EMAIL) return Response.json({ error: 'This personal dev subscription is available only to its owner.' }, { status: 403 });
-      }
-      return boardFetch(req, env);
-    }
+    // Both refuse a non-owner in subscription mode after their own authorization.
+    if (path === '/api/learn/artifact') return artifactFetch(req, env);
+    if (path === '/api/learn/board') return boardFetch(req, env);
     if (path === '/aws') return Response.redirect(new URL('/apps', req.url), 302);
     if (path.startsWith('/api/byoc/')) return byocFetch(req, env, { apiCode, signerCode, permissionsCode, grantsCode });
     // /b/<token> is a shared board: served to anyone, the page decides what they may see.

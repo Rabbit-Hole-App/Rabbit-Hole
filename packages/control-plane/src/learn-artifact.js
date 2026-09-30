@@ -14,6 +14,7 @@ import { PRIMITIVES, isReady, artifactBlock } from './learn-primitives.js';
 import { planModel } from './ask.js';
 import { LEARN_TASKS, ARTIFACT_REPAIRS } from './learn-models.js';
 import { authorizedBoardApp } from './learn-board.js';
+import { subscriptionOwnerRefusal } from './subscription-transport.js';
 
 const CLARIFY = { name: 'ask_clarifying_question', description: 'Ask the learner one short question when the request is too underspecified to make a correct artifact.', input_schema: { type: 'object', additionalProperties: false, required: ['question'], properties: { question: { type: 'string', minLength: 1, maxLength: 300 } } } };
 const toolName = id => `make_${id}`;
@@ -95,6 +96,8 @@ export async function artifactFetch(req, env, generate = generateArtifact) {
   } catch (error) { return json({ error: error.message }, 400); }
   const access = await authorizedBoardApp(req, env, body.app);
   if (access instanceof Response) return access;
+  const ownerRefused = subscriptionOwnerRefusal(env, access);
+  if (ownerRefused) return ownerRefused;
   try { return json(await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null })); }
   catch (error) { return json({ error: error.message }, 502); }
 }

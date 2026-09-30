@@ -14,6 +14,7 @@ import { GRAPH_SCHEMA, validateGraph } from './learn-graph-schema.js';
 import { sealPreview, openPreview, previewImages } from './learn-preview-review.js';
 import { anthropic, planModel } from './ask.js';
 import { modelFailure } from './learn-research.js';
+import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { askModel, LEARN_TASKS, MESSAGE_LIMIT, PAPERS_PER_ANSWER, BOARD_DRAFT_TURNS, BOARD_REVIEW_PASSES } from './learn-models.js';
 import { PLAN_TOOL, validateTeachingPlan, BOARD_REVIEW_SYSTEM, REVIEW_TOOL, validateBoardReview, strictTool } from './learn-board-review.js';
 import { validateLessonSnapshot } from './learn-context.js';
@@ -318,6 +319,8 @@ export async function boardFetch(req, env, generate = generateBoardPlan) {
   } catch (error) { return json({ error: error.message }, 400); }
   const access = await authorizedBoardApp(req, env, body.app);
   if (access instanceof Response) return access;
+  const ownerRefused = subscriptionOwnerRefusal(env, access);
+  if (ownerRefused) return ownerRefused;
   delete body.repositoryEvidence;
   if(access.kind==='repository'&&!body.continuation){
     try{const {repositoryEvidence}=await import('./repositories.js');body.repositoryEvidence=await repositoryEvidence(env,access,body);}
