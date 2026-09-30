@@ -13,27 +13,23 @@ NC3  Card shell / Sources / Practice     ✅
 NC4  NanoGPT cards 1–10                  ✅ frozen
 NC5  18-card depth ladder                ✅ CLOSED (v3 page 11:2, v3.1 fixes 16:3)
 NC6  Card-composition rules              ✅
-NC7  NanoGPT cards 11–26                 ✅ COMPLETE (25-card inventory, card 8 folded into 9)
+NC7  NanoGPT cards 11–26 (authored)      ✅ COMPLETE (25-card inventory, card 8 folded into 9)
   NC7A Batch 2                           ✅
   NC7B Batch 3                           ✅ CLOSED (page 18:3, v1.1 fixes 22:3)
   NC7C Remaining through 26              ✅ — batch 4 ✅ CLOSED (page 26:3, v1.1 fixes 28:3);
                                             batch 5 ✅ CLOSED (page 34:3, v1.1 closeout 38:3)
-NC8  Cross-depth content transitions     ✅ CLOSED (page 43:3; docs/nanogpt-depth-ladder.md
+NC8  Cross-depth coherence               ✅ CLOSED (page 43:3; docs/nanogpt-depth-ladder.md
                                             "Cross-depth transitions")
-NC9  Curriculum coherence review         ✅ CLOSED (page 47:3): notation and example drift fixed, c18
-                                            leak fixed, c25/c26 checkpoints named, c21/c22 rounding aligned;
-                                            q·k PASS and no softmax card (audits, no change)
-NC10 Final card QA                       🟡 at the final visual gate (page 55:3) (incl. accessibility audit: classify the seven dimmed focus/mask
-                                            states - A semantic text to 4.5:1, B unavailable/decorative
-                                            with a documented exemption; docs/features/learn-canvas-blocks.md;
-                                            Architecture Deep's INTERACT label generate() on "hear me spea" ends
-                                            mid-word with no truncation mark - owner to decide;
-                                            course-wide space notation: • as the visible glyph with a
-                                            "• = space" key, sp only in implementation/source contexts;
-                                            audit Architecture Overview, Generation Overview, Generation
-                                            Deep 1/4 and 4/4, c22, c23)
-──── after NC10 ────
-Phone-width card layout                  ⬜ post-NC10 (narrow-canvas card layout; owner 2026-09-29)
+NC9  Curriculum coherence                ✅ CLOSED (page 47:3)
+NC10 Card visual / QA closeout           ✅ CLOSED (page 55:3, build index-rCtvaiaD.js)
+
+Current NanoGPT card set                 🧊 FROZEN (2026-09-29)
+──── deferred, separate work ────
+Phone-width card layout                  ⬜ readable content, reachable controls and practice,
+                                            expanded-card or reflow (not shrunk desktop text)
+Edge-case styling                        ⬜ neutral instructional styling; error only for a real
+                                            failed condition
+Visual Summary / Concept Map             ⬜ docs/features/learn-visual-summary.md
 Adaptive Tutor v1                        ⬜ handoff milestone, not implemented here
                                             (docs/features/adaptive-tutor-v1.md)
 ```
@@ -43,6 +39,46 @@ deployed checks → Figma captures → stop at the visual review gate with the e
 bar: one question per card; practice on an unseen case; no decorative interaction; no text
 shrinking; sequence relationships explicit when cards form a path; existing renderer primitives
 (a new capability only if a batch proves it genuinely reusable).
+
+## 2026-09-29 — NC10 closed; the NanoGPT card set is frozen
+
+Owner approved the final visual gate (Figma page 55:3, 37 captures from the deployed build
+index-rCtvaiaD.js on small-cp-dev-small-deploy) and closed NC10. Kept as approved: • with its key
+on the card near the teaching content ("• marks a space" on Overviews); the four A cases readable
+(c10's later names, Tokenization Guided's list, Tokenization Deep 3/3's rows, Attention Deep 3/4's
+fused-path notes); the documented state-specific B exemptions, including Attention Overview's
+faded future tiles - not a blanket exemption for secondary text; highlighted labels in their
+fill's ink in both themes; Tokenization Deep 3/3 red only for the selected failing input
+(Training batch neutral, Sonnet 18 red and labelled current-input failure, meta.pkl off neutral);
+Architecture Deep's `generate() completes "hear me spea"` (the example keeps its partial prompt).
+
+**Checks at closeout (index-rCtvaiaD.js):** interaction deep dive 25/25, depth ladder 18/18,
+interactive review 3/3, holdouts 2/2; sources 278/278 and 176/176; practices and persistence
+pass; canvas-toolbar-check desktop and phone (composer tappable); unit web 1038, control-plane
+326, pytest 31, render freshness green.
+
+**Mobile, recorded separately.** Phone controls / composer non-overlap: verified (the zoom
+controls sit above the composer at 390px). Responsive phone-width card reading: deferred, NOT
+approved as complete - the teaching card extends past the phone width. The post-NC10 phone-width
+card layout item must eventually cover readable card content, reachable controls and practice
+answers, and a usable expanded-card or reflow experience, not shrunken desktop text. This card
+branch's phone capture does not replace the approved WP7 shared composer and immersive Learn
+shell; preserve those during integration.
+
+**Deferred follow-ups (not NC10 work):**
+- Edge-case/initialisation explanations use neutral instructional styling; error styling only for
+  an actual failed condition, or an explicitly marked caution (e.g. Training Deep 1/3's red
+  "Edge case, it = 0" paragraph). Mathematical content unchanged.
+- Phone-width card layout (above).
+- Visual Summary / Concept Map (docs/features/learn-visual-summary.md), Adaptive Tutor v1
+  (docs/features/adaptive-tutor-v1.md), nested rabbit holes, new primitive generators: deferred,
+  not authorised by this closeout.
+
+No automatic merge into main and no production deployment. The shared renderer changes (secondary
+ink token, cellInk/inkOn per step, box-label ink, practice panel, zoom controls) still go through
+the existing integration checks when they join the final product candidate. The card format is
+handed to parallel as a frozen format (canonical scene/spec, validators, stable part ids,
+examples, known limitations) - not a tool per NanoGPT card.
 
 ## 2026-09-29 — NC10 final QA: two shared fixes approved, phone layout logged
 
