@@ -3,9 +3,10 @@
 // Dev and review workers bind LEARN_MEDIA to their own bucket
 // (small-learn-media-dev), so a review clone never creates Learn artifacts in
 // production storage. Production has no LEARN_MEDIA and keeps using RUNS
-// (small-runs), unchanged. RUNS itself stays bound everywhere for the live
-// App/Job output reads (bundles, run outputs) - the "live outputs" binding.
-// dev-worker.js refuses to serve when LEARN_MEDIA is missing.
+// (small-runs), unchanged. Dev and review workers bind no RUNS at all, so with
+// LEARN_MEDIA missing this is undefined there: nothing to fall back to. Every dev
+// entry point also refuses without LEARN_MEDIA: dev-worker.js fetch and queue, and
+// the LearnVideos / LearnScenes alarms (docs/features/dev-prod-write-barrier.md).
 export const learnMedia = env => env?.LEARN_MEDIA || env?.RUNS;
 
 // Where the video-moment log (learn_moments) lives. Every learn_moments statement

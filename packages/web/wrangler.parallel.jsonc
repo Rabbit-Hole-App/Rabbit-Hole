@@ -88,11 +88,8 @@
     }
   ],
   "r2_buckets": [
-    // Live outputs: read-only here, for App/Job bundles and run outputs.
-    {
-      "binding": "RUNS",
-      "bucket_name": "small-runs"
-    },
+    // No RUNS: production small-runs is never bound on a dev or review worker
+    // (docs/features/dev-prod-write-barrier.md). Run outputs are read through production small-cp.
     // Dev repository snapshots (Map import/refresh) get their own bucket, never a prefix inside the live
     // small-runs bucket. Production has no such binding (control-plane/test/repositories.test.js).
     {

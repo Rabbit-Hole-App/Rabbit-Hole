@@ -4,6 +4,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { learnMedia, learnMomentsDb } from '../src/learn-storage.js';
 import { putUploadedMedia, readUploadedMedia } from '../src/learn-media.js';
 import { writeNegative, readMomentRecord } from '../src/learn-moment-index.js';
+import { liveRuns } from './live-storage-spy.js';
 
 const here = new URL('.', import.meta.url);
 const read = path => readFileSync(new URL(path, here), 'utf8');
@@ -14,16 +15,30 @@ const buckets = path => Object.fromEntries((config(path).r2_buckets || []).map(e
 const DEV = ['../../web/wrangler.dev.jsonc', '../../web/wrangler.parallel.jsonc'];
 const PRODUCTION = '../wrangler.jsonc';
 
-test('dev and review workers put Learn media in their own bucket; production config is unchanged', () => {
+test('dev and review workers put Learn media in their own bucket and bind no production bucket; production config is unchanged', () => {
   const production = buckets(PRODUCTION);
   assert.deepEqual(production, { RUNS: 'small-runs' }, 'production binds only the live bucket');
   for (const path of DEV) {
     const dev = buckets(path);
     assert.equal(dev.LEARN_MEDIA, 'small-learn-media-dev', path);
-    assert.ok(!Object.values(production).includes(dev.LEARN_MEDIA), `${path}: LEARN_MEDIA must not be a production bucket`);
-    // The live outputs binding stays, read-only, for App/Job bundles and run outputs.
-    assert.equal(dev.RUNS, 'small-runs', path);
+    // docs/features/dev-prod-write-barrier.md: no RUNS, so learnMedia has nothing live to fall back to.
+    assert.equal(dev.RUNS, undefined, `${path} binds RUNS`);
   }
+  // Every packages/web config, dev worker or not: no production bucket under any binding name.
+  const web = new URL('../../web/', here);
+  for (const name of readdirSync(web).filter(file => /^wrangler\..*\.jsonc$/.test(file)))
+    for (const bucket of Object.values(buckets(`../../web/${name}`))) assert.ok(!Object.values(production).includes(bucket), `${name} binds ${bucket}`);
+});
+
+test('with RUNS unbound, a dev worker missing LEARN_MEDIA has no media store and refuses every Learn request', async () => {
+  const { devWorker } = await import('./worker-import.js');
+  const worker = (await devWorker()).default;
+  assert.equal(learnMedia({ LEARN_DB: {}, DB: {} }), undefined);
+  const env = { RUNS: liveRuns(), CONTROL_PLANE: { fetch: async () => { throw new Error('reached production'); } } };
+  for (const path of ['/api/learn/media', '/api/learn/paper', '/api/learn/video?app=canvas-0a1b2c3d', '/api/learn/scene?app=canvas-0a1b2c3d', '/api/learn/boards/x/assets/a', '/api/learn/ask'])
+    assert.equal((await worker.fetch(new Request(`https://dev.test${path}`, { method: 'POST', body: '{}' }), env, {})).status, 503, path);
+  await assert.rejects(worker.queue({ messages: [] }, env), /LEARN_MEDIA is not bound/);
+  assert.deepEqual(env.RUNS.calls, []);
 });
 
 test('no Learn module touches RUNS directly; chat attachments go through learnMedia too', () => {
