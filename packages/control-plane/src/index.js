@@ -6,7 +6,7 @@ import { isUploadedPaperId, uploadedPaperAsDocument, paperIdentity, PAPER_PAGE_L
 import { isUploadedMediaId, uploadedMediaAsImage } from './learn-media.js';
 import { OUTLINE_TOOL, OUTLINE_SYSTEM, validateOutlineOps } from './learn-outline-tool.js';
 import { SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, WIKI_SYSTEM, searchWikipedia, readWikipedia, validateShowWikipedia, wikiTitle } from './learn-wiki.js';
-import { validateVideoContext, FIND_VIDEO_MOMENTS_TOOL, SHOW_VIDEO_TOOL, VIDEO_SYSTEM, findVideoMoments, validateShowVideo } from './learn-youtube.js';
+import { validateVideoContext, FIND_VIDEO_MOMENTS_TOOL, SHOW_VIDEO_TOOL, VIDEO_SYSTEM, findVideoMoments, validateShowVideo, videoSearchAvailable } from './learn-youtube.js';
 import { VIDEO_SHOWN_NOTE, WIKI_SHOWN_NOTE } from './agents/learn-chat.js';
 import { handleLearnCourse } from './learn-course.js';
 // small control plane: CLI API + browser auth wall + router. One Worker + D1.
@@ -983,8 +983,8 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
     // learner's screen counts as read, so the tutor can point at another of
     // its sections without fetching it twice.
     articles,
-    tools: [SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, FIND_VIDEO_MOMENTS_TOOL, SHOW_VIDEO_TOOL, ...(body.outline?.length ? [OUTLINE_TOOL] : [])],
-    system: [WIKI_SYSTEM, VIDEO_SYSTEM, body.outline?.length ? OUTLINE_SYSTEM : null].filter(Boolean).join('\n'),
+    tools: [SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, ...(videoSearchAvailable(env) ? [FIND_VIDEO_MOMENTS_TOOL, SHOW_VIDEO_TOOL] : []), ...(body.outline?.length ? [OUTLINE_TOOL] : [])],
+    system: [WIKI_SYSTEM, videoSearchAvailable(env) ? VIDEO_SYSTEM : null, body.outline?.length ? OUTLINE_SYSTEM : null].filter(Boolean).join('\n'),
     runTool: async (name, input) => {
       if (name === SEARCH_WIKIPEDIA_TOOL.name) return searchWikipedia(input?.query);
       if (name === READ_WIKIPEDIA_TOOL.name) {

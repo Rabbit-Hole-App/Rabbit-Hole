@@ -19,10 +19,10 @@ import { challengePrompt } from '../../web/src/learn-grade-prompts.js';
 const fingerprint = text => createHash('sha256').update(text).digest('hex').slice(0, 16);
 const PINS = {
   teachingPolicy: '874f9413c8f3bfb0',
-  chat: '93d77c2abf2310c3', // canvas seam and app asks, and grading through them
-  chatSnapshot: 'dba2f2764f6774c1', // an app ask carrying a lesson_snapshot (legacy selection contract)
-  chatOutline: '1cf5ff9fbf45d47e',
-  repository: 'afbef7d795092fdb',
+  chat: '8f57533ae34615b6', // canvas seam and app asks, and grading through them
+  chatSnapshot: '72698e1ca4e7f257', // an app ask carrying a lesson_snapshot (legacy selection contract)
+  chatOutline: '437571eed5ec641c',
+  repository: '4bef6f138a2eb2fa',
   artifact: '870e84a3aa127657',
   board: 'a219807ee7666961',
   boardReview: '5a2e1cab79b26025',
@@ -284,6 +284,25 @@ test('show_* instructions, the show_video tool and the tool notes say the source
   includesAll((await chat(t, { message: 'Show me' })).system, ['call show_wikipedia so it is offered alongside your answer', 'call show_paper with its page so it is offered alongside your answer', 'it is offered with your answer, cued to that window']);
   for (const note of [VIDEO_SHOWN_NOTE, WIKI_SHOWN_NOTE, PAPER_SHOWN_NOTE]) assert.match(note, /^Offered to the learner with your answer/);
   assert.match(VIDEO_SHOWN_NOTE, /cued/);
+});
+
+// prompts-15: the video tools and their instructions ride only when a provider
+// can answer (Exa search, or the moment index's AI and MOMENTS bindings); the
+// research text names no deployed app a repository route does not have.
+test('video tools and instructions ride only when Exa or the moment index can answer', async t => {
+  const none = { EXA_API_KEY: undefined };
+  for (const body of [await chat(t, { message: 'Show me a video' }, { env: none }), await repositoryChat(t, { message: 'Show me a video' }, none)]) {
+    assert.equal(names(body).includes('find_video_moments') || names(body).includes('show_video'), false);
+    assert.equal(body.system.includes('find_video_moments'), false);
+  }
+  const indexed = { EXA_API_KEY: undefined, AI: {}, MOMENTS: {} };
+  for (const body of [await chat(t, { message: 'Show me a video' }, { env: indexed }), await repositoryChat(t, { message: 'Show me a video' }, indexed)]) {
+    assert.ok(names(body).includes('find_video_moments') && names(body).includes('show_video'));
+    assert.ok(body.system.includes('find_video_moments searches YouTube'));
+  }
+  const body = await repositoryChat(t, { message: 'Explain the paper' });
+  assert.equal(body.system.includes("the deployed app's implementation"), false);
+  assert.ok(body.system.includes('Distinguish what the paper says from your own explanation and from any app or repository implementation in context.'));
 });
 
 test('the shared teaching policy is pinned', () => {

@@ -77,6 +77,11 @@ export function validateVideoContext(context) {
   return { videoId, ...moment, title };
 }
 
+// A video answer needs a provider: Exa search (the cold path) or the moment
+// index (the warm path, AI and MOMENTS). Without either, both video tools
+// could only fail, so they and VIDEO_SYSTEM are not offered.
+export const videoSearchAvailable = env => !!(env?.EXA_API_KEY || (env?.AI && env?.MOMENTS));
+
 // One Exa call, key server-side only. Exa's youtube.com results include
 // channel and playlist pages; parseExaResults drops them.
 export async function searchYouTube(query, env, fetcher = fetch) {

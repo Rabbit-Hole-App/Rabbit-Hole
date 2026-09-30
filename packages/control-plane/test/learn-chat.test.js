@@ -3,7 +3,7 @@ import { canvasSeed } from '../src/canvas-conversation.js';
 import { arxivId, paperDocument } from '../src/arxiv.js';
 import { OUTLINE_TOOL, OUTLINE_SYSTEM, validateOutlineOps } from '../src/learn-outline-tool.js';
 import { SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, WIKI_SYSTEM, wikiTitle, validateShowWikipedia } from '../src/learn-wiki.js';
-import { validateVideoContext, FIND_VIDEO_MOMENTS_TOOL, SHOW_VIDEO_TOOL, VIDEO_SYSTEM, validateShowVideo } from '../src/learn-youtube.js';
+import { validateVideoContext, FIND_VIDEO_MOMENTS_TOOL, SHOW_VIDEO_TOOL, VIDEO_SYSTEM, validateShowVideo, videoSearchAvailable } from '../src/learn-youtube.js';
 import { isUploadedPaperId, uploadedPaperAsDocument, paperIdentity, PAPER_PAGE_LIMIT } from '../src/learn-paper.js';
 import { isUploadedMediaId } from '../src/learn-media.js';
 import { LEARN_SYSTEM, LEARN_SNAPSHOT_SYSTEM, validateLessonSnapshot, validateOutline, renderOutline } from '../src/learn-context.js';
@@ -76,6 +76,7 @@ const deps = {
   FIND_VIDEO_MOMENTS_TOOL,
   SHOW_VIDEO_TOOL,
   VIDEO_SYSTEM,
+  videoSearchAvailable,
   VIDEO_SHOWN_NOTE,
   WIKI_SHOWN_NOTE,
   validateShowVideo,
@@ -121,7 +122,7 @@ function fixture(t) {
   const schema = readFileSync(new URL('../schema.sql', import.meta.url), 'utf8');
   for (const table of ['threads', 'messages', 'proposals']) db.exec(schema.match(new RegExp(`CREATE TABLE IF NOT EXISTS ${table} \\([^]*?\\n\\);`))[0]);
   return {
-    ANTHROPIC_API_KEY: 'test-only', answers: [],
+    ANTHROPIC_API_KEY: 'test-only', EXA_API_KEY: 'test-only', answers: [],
     apps: { counter: { name: 'counter', canView: true, canEdit: false }, other: { name: 'other', canView: true, canEdit: false } },
     DB: { batch: async statements => Promise.all(statements.map(statement => statement.run())), prepare: sql => ({ bind: (...params) => ({
       first: async () => db.prepare(sql).get(...params) || null,
