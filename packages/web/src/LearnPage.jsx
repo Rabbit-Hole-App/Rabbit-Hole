@@ -584,7 +584,6 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   const [progress, setProgress] = useState(null);
   const [completed, setCompleted] = useState({});
   const recordProgress = value => {
-    if (explanation.current && (value.playing || explanation.current.runId !== lesson.current?.runId)) dismissBoard();
     setProgress(value);
     const id = lesson.current?.lessonId;
     if (suppliedCourse && id === nanoLesson.id) nanoProgress.record(value);
@@ -610,16 +609,6 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     if (regionMarker.current && editor?.getShape(regionMarker.current)) editor.deleteShapes([regionMarker.current]);
     regionMarker.current = null;
   };
-  const explanation = useRef(null);
-  const boardRequest = useRef(0);
-  const [boardVisible, setBoardVisible] = useState(false);
-  const dismissBoard = () => {
-    boardRequest.current++;
-    const old = explanation.current; explanation.current = null;
-    old?.dispose(); setBoardVisible(false);
-    clearRegionMarker();
-  };
-  useEffect(() => () => { boardRequest.current++; explanation.current?.dispose(); }, []);
 
   const pauseLesson = () => playback.current?.pause?.();
   const lesson = useRef(null);
@@ -741,7 +730,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     prompt: 'Explain the sigmoid function',
     disabled: !editor || progress?.playing || course.dirty || !!noteEditing,
     run: async (replace) => {
-      dismissBoard();
+      clearRegionMarker();
       setCourseView(false); setLearningView('lesson'); setSetupChat(false); setNarration('');
       setProgress(null);
       playback.current?.dispose();
@@ -760,7 +749,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
   };
   const previewLesson = async (generated, resume = false) => {
     if (!editor) return;
-    dismissBoard(); setLessonSource(null); setPaperOpen(false); setSourceOpen(false);
+    clearRegionMarker(); setLessonSource(null); setPaperOpen(false); setSourceOpen(false);
     playback.current?.dispose(); pinned.current = null; removeImage();
     let cancelled = false;
     playback.current = { dispose: () => { cancelled = true; } };
@@ -788,14 +777,6 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     timeline: value.timeline, frame: value.frame, pageId: editor.getCurrentPageId(),
     createdAt: Date.now(), snapshot: captureNotePage(editor, true),
   });
-  const addNote = () => {
-    pauseLesson();
-    const value = playback.current?.state() || (boardVisible && lesson.current ? { label: 'Canvas explanation', page: 0, timeline: 0, frame: 0 } : null);
-    if (!value) return;
-    setNoteChanged(false);
-    setNoteEditing(noteSnapshot(value, 'note', crypto.randomUUID()));
-    setLearningView('notes');
-  };
   const returnToNoteLesson = async (record, resume = true) => {
     if (record.lessonId === 'learn-freeform' && lesson.current?.lessonId === record.lessonId && editor?.getPage(record.pageId)) {
       setNoteEditing(null); setLearningView('lesson'); setCourseView(false);
@@ -816,13 +797,12 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     if (resume) playback.current?.play();
   };
   const navigateLesson = (action, value, position) => {
-    dismissBoard();
     pinned.current = null; removeImage(); clearRegionMarker();
     playback.current?.[action](value, position);
     refreshSelection(v => v + 1);
   };
   const changeLearningView = value => {
-    dismissBoard(); pauseLesson(); setSourceOpen(false); setLessonSource(null); setPaperOpen(false);
+    clearRegionMarker(); pauseLesson(); setSourceOpen(false); setLessonSource(null); setPaperOpen(false);
     setLearningView(value); if (value !== 'curriculum') setSectionTarget(null); setCourseView(value === 'curriculum' && course.canAuthor);
     setLearnerOpen(value === 'curriculum' && !course.canAuthor);
     setSetupChat(value === 'curriculum' && course.canAuthor);
@@ -1161,13 +1141,12 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         <div className={`${courseView || learningView !== 'lesson' ? 'hidden' : 'flex'} min-h-0 flex-1 flex-col pr-1`}>
         {!canvasState.presenting && ((!isRepository && !isCanvas) || progress) && <div aria-label="Current lesson and section" className="mb-4"><h2 className="text-lg font-semibold">Lesson {sampleIndex >= 0 ? sampleIndex + 1 : 1}: {currentLesson?.title}</h2><p className="mt-1 text-sm text-ink-2">Section {(progress?.page || 0) + 1} of {pages.length}: {progress?.label || pages[0].label}</p></div>}
         {graphError && <p role="alert" className="text-sm text-red-700">{graphError}</p>}
-        {boardVisible && <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-ink-2"><span>Agent explanation · lesson paused — keep asking, or resume when ready</span><div className="flex gap-2"><button type="button" disabled={!notesLoaded || answering} onClick={addNote} className="rounded border border-line-strong bg-white px-2.5 py-1 font-medium text-ink hover:bg-hover disabled:opacity-40">Save to notes</button><button type="button" onClick={() => { dismissBoard(); playback.current?.play(); }} className="rounded bg-ink px-2.5 py-1 font-medium text-white hover:opacity-90">Resume lesson</button></div></div>}
         {/* The adaptive canvas: a plain React whiteboard where chat exchanges
             land as movable blocks. Lesson playback stays parked. */}
         {board && !BOARDS[board] && <div className="border-b border-line bg-hover px-4 py-2 text-sm text-ink-2">No review board is registered as <span className="font-medium text-ink">{board}</span> - this is an empty scratch board. Registered boards live in BOARDS in demo-scenes.js.</div>}
         <div aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="min-h-0 flex-1"><Suspense fallback={null}><AdaptiveCanvas key={canvasEpoch} onSave={pushBoard} bottomLeft={<FeedbackButton app={app.name} board={board} />} onSearch={source => { setSearchSeed({ source }); setSearchOpen(true); }} exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onState={onCanvasState} edgeInset={!panelOpen && canvasOutline.length ? 52 : 0} storageKey={boardStorageKey} seedBlocks={board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer }} onExchange={onExchange} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} composer={(app.hosting !== 'aws' || app.app_chat) ? <div data-learn-dock className="contents"><AskPanel compact composerOnly dock sheet onAddToCanvas={chat => canvas()?.insertChat(chat)} boardContext={boardContext} onExchange={placeExchange} slash={learnSlash} canvasTarget={askTarget} onClearCanvasTarget={clearAskTarget} key={`dock:${app.name}`} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={askPlaceholder} autoFocus /></div> : null} /></Suspense></div>
         {/* ponytail: playback bar and timeline parked while the lesson-2 canvas is redesigned */}
-        {false && <div aria-label="Lesson playback" className={`${courseView || boardVisible || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
+        {false && <div aria-label="Lesson playback" className={`${courseView || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
           <div className="flex items-center gap-1">
             <button type="button" disabled={!progress || progress.page === 0 || answering} onClick={() => navigateLesson('back')} className="flex items-center gap-1 rounded px-2 py-1.5 text-xs text-ink-2 hover:bg-hover disabled:opacity-40"><ChevronLeft size={14} />Previous lesson</button>
             <button type="button" disabled={!editor || (progress?.page === pages.length - 1 && progress.pageComplete) || answering} onClick={() => { if (!progress) startDemo.current?.(); else progress.playing ? pauseLesson() : playback.current?.play(); }} className="flex min-w-20 items-center justify-center gap-1.5 rounded border border-line px-3 py-1.5 text-xs hover:bg-hover disabled:opacity-40">{progress?.playing ? <Pause size={14} /> : <Play size={14} />}{progress?.playing ? 'Pause' : 'Play'}</button>
@@ -1176,7 +1155,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
           </div>
           <span aria-live="polite" className="text-xs text-ink-2">{progress ? `Page ${progress.page + 1} of ${pages.length} · ${progress.label}` : 'Logistic regression · 3 pages'}</span>
         </div>}
-        {false && <div className={`${courseView || boardVisible || (isRepository && !progress) ? 'hidden' : ''} shrink-0 pt-2 pb-1`}>
+        {false && <div className={`${courseView || (isRepository && !progress) ? 'hidden' : ''} shrink-0 pt-2 pb-1`}>
           <div className="relative flex items-center">
             <input type="range" aria-label="Lesson timeline" aria-valuetext={progress ? `Page ${progress.page + 1} of ${pages.length}, ${Math.round((progress.timeline / 1000 - progress.page) * 100)} percent` : 'Start the lesson to scrub'} min="0" max={pages.length * 1000} step="1" value={progress?.timeline || 0} disabled={!progress || answering} onPointerDown={pauseLesson} onChange={e => navigateLesson('scrub', Number(e.target.value))} className="h-4 w-full cursor-pointer accent-accent disabled:opacity-40" />
             {pages.slice(1).map((_, i) => <span key={i} style={{ left: `${(i + 1) * 100 / pages.length}%` }} className="pointer-events-none absolute h-2 w-px bg-white" />)}
