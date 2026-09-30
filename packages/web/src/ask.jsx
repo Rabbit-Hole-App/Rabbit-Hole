@@ -9,7 +9,7 @@ import { ArrowUp, AtSign, BookOpen, Check, Copy, Crown, Feather, FileText, Globe
 import { ago, api, navigate, wsHeaders } from './api.js';
 import { colorLine } from './code.jsx';
 import { MathText, tokenizeMath } from './MathText.jsx';
-import { MODEL_CHOICES, MODEL_SCOPE } from './model-choices.js';
+import { MODEL_CHOICES } from './model-choices.js';
 import { canvasTargetField } from './learn-ask-target.js';
 import { cn, CodeBlock, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
 
@@ -374,7 +374,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   const srcOpts = repository || canvasChat ? [] : (privateChat ? PRIVATE_SOURCE_OPTIONS : SOURCE_OPTIONS)[scopeKind] || [];
   const [srcOn, setSrcOn] = useState(() => new Set(srcOpts.map(([k]) => k)));
   const [srcOpen, setSrcOpen] = useState(false);
-  const [model, setModel] = useState(() => privateChat ? 'auto' : localStorage.getItem('small.askModel') || 'auto'); // Settings > Small AI sets the default
+  // Learn never shows a model: users choose intent, Rabbit Hole chooses the model (the server's auto routing).
+  const [model, setModel] = useState(() => privateChat || learnChat ? 'auto' : localStorage.getItem('small.askModel') || 'auto'); // Settings > Small AI sets the default
   const modelOptions = privateChat ? [['auto', 'Bedrock']] : MODELS;
   const [modelOpen, setModelOpen] = useState(false);
   const [appNames, setAppNames] = useState(null); // lazy, for @-mentions
@@ -610,7 +611,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           <div className="relative shrink-0">
             <button
               type="button"
-              title={privateChat ? chatConfig.model : learnChat ? MODEL_SCOPE : undefined}
+              title={privateChat ? chatConfig.model : undefined}
               onMouseDown={(e) => { e.stopPropagation(); setModelOpen(!modelOpen); }}
               className={cn(dock ? COMPOSER_PILL : 'h-6 cursor-pointer rounded-full px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink', modelOpen && 'bg-active text-ink')}
             >
@@ -628,6 +629,13 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
             </Menu>
           </div>
   );
+  // Learn's command button: it types the / the picker opens on, so the button and the keyboard share one palette (LearnSlash).
+  const slashControl = slash && (
+    <button type="button" aria-label="Commands" title={input && !input.startsWith('/') ? 'Clear the message to pick a command' : 'Commands (/)'} aria-expanded={input.startsWith('/')}
+      onMouseDown={event => event.preventDefault()} onClick={() => { if (!input) setInput('/'); else if (input.startsWith('/')) setInput(''); inputRef.current?.focus(); }}
+      className={cn(dock ? COMPOSER_ADD : 'inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-line text-ink-2 hover:bg-hover hover:text-ink', 'font-mono text-[15px]', input.startsWith('/') && 'bg-active text-ink')}>/</button>
+  );
+  const chatControl = learnChat ? slashControl : modelControl;
   if (repository && filePeek) contentPanel = <RepositorySource appName={fileApp} {...filePeek} commit={repositoryCommit || repositoryContext?.commit} onClose={() => setFilePeek(null)} />;
   return (
     <div className={cn('flex min-h-0 flex-col', compact ? 'max-h-[320px]' : 'flex-1', sheetMode && 'relative')}>
@@ -957,9 +965,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
               </Menu>
             </div>
           )}
-          {dock && modelControl}
+          {dock && chatControl}
           </>}
-          trailing={dock ? null : modelControl}
+          trailing={dock ? null : chatControl}
         />
       </div>
       </>)}
