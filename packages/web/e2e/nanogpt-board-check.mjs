@@ -7,7 +7,7 @@
 // right numbers after a real click" is asserted, not eyeballed. Also: the
 // practice task end to end, the chat context each card sends, the review
 // boards still intact. Screenshots + a results JSON land in e2e/shots/nanogpt.
-// Usage: node e2e/nanogpt-board-check.mjs https://small-cp-dev-<name>.zeroshothq.workers.dev
+// Usage: node e2e/nanogpt-board-check.mjs https://small-cp-dev-<name>.tryrabbithole.workers.dev
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { evaluateScene } from '../src/scene-evaluate.js';

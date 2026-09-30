@@ -13,7 +13,7 @@ import { DEV_CP } from './dev-cp.mjs';
 
 const base = process.env.SMALL_BASE || '';
 // A per-session clone only, never the shared small-cp-dev (docs/features/parallel-dev-deploys.md).
-if (!/^https:[/][/]small-cp-dev-[a-z0-9-]+[.]zeroshothq[.]workers[.]dev$/.test(base)) throw new Error('SMALL_BASE must be your clone, e.g. https://small-cp-dev-smart-home.tryrabbithole.workers.dev');
+if (!/^https:[/][/]small-cp-dev-[a-z0-9-]+[.]tryrabbithole[.]workers[.]dev$/.test(base)) throw new Error('SMALL_BASE must be your clone, e.g. https://small-cp-dev-smart-home.tryrabbithole.workers.dev');
 const env = parseEnv(readFileSync(process.env.SMALL_ENV_FILE || new URL('../../../.env', import.meta.url), 'utf8'));
 if (!env.RABBIT_HOLE_DEV_TEST_BYPASS) throw new Error('RABBIT_HOLE_DEV_TEST_BYPASS missing from the env file');
 const UA = { 'User-Agent': 'small-rabbit-hole-check' }; // Cloudflare 1010 refuses default script agents
