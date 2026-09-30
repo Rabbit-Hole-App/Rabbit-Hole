@@ -1018,8 +1018,9 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
   catch (error) { return json({ error: error.message }, 400); }
   if (conversation === 'learn' && (!scope?.app || scope.run)) return json({ error: 'Learn requires an app scope' }, 400);
   if (!message || typeof message !== 'string' || message.length > MESSAGE_LIMIT) return json({ error: 'message required (max 4000 chars)' }, 400);
-  // sources picker (Notion "My sources"): only the toggled context rides; model from the allowlist
-  const useSet = Array.isArray(sources) && sources.length ? new Set(sources.map(String)) : null;
+  // sources picker (Notion "My sources"): only the toggled context rides, and an empty list is
+  // every toggle off, not everything; no list reads them all. Model from the allowlist.
+  const useSet = Array.isArray(sources) ? new Set(sources.map(String)) : null;
   const modelId = askModel(model);
 
   let context, scopeKind, scopeRef = null, note = null, canAct = false;

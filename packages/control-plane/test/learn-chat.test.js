@@ -884,3 +884,13 @@ test('a canvas seam thread is titled by the learner question, not the card', asy
   assert.match(env.answers[0].context, /canvas "Attention"/);
   assert.match(env.answers[0].context, /"title":"Softmax"/);
 });
+
+// context-14: switching every Sources toggle off sends [], which is a choice, not "everything".
+test('an empty sources list reads no toggleable section; no sources field still reads them all', async t => {
+  const env = fixture(t), uses = [];
+  const recorded = new Function(...Object.keys(deps), `${functions}; return { ${names.join(',')} };`)(...Object.values({ ...deps, appContext: async (env, app, use) => { uses.push(use); return `APP ${app.name}`; } }));
+  await recorded.apiAsk(request({ scope: { app: 'counter' }, message: 'hi', sources: [] }), env, {}, owner, 'agent');
+  await recorded.apiAsk(request({ scope: { app: 'counter' }, message: 'hi' }), env, {}, owner, 'agent');
+  await recorded.apiAsk(request({ scope: { app: 'counter' }, message: 'hi', sources: ['runs'] }), env, {}, owner, 'agent');
+  assert.deepEqual(uses.map(use => use && [...use]), [[], null, ['runs']]);
+});
