@@ -244,7 +244,7 @@ async function repositoryAsk(req,env,user,app){
   await db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?)').bind(id,'user',question).run();
   return askStream(env,JSON.stringify({repo:app.repo,commit,selected,selectedCode,lesson:body.lesson_snapshot||null,paper:body.paper_context?{id:body.paper_context.id,page:body.paper_context.page}:null,...(mentioned.length?{mentionedRepositories:mentioned}:{})}),results.reverse(),question,
     async answer=>{const message=await db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?) RETURNING id').bind(id,'assistant',answer).first();if(graphView)await db.prepare('INSERT INTO repository_message_graphs(message_id,graph_json) VALUES(?,?)').bind(message.id,JSON.stringify(graphView)).run();},{threadId:id,commit},extraBlocks,null,askModel(body.model),null,
-    `${LEARN_SYSTEM}\n${REPOSITORY_SYSTEM}\n${VIDEO_SYSTEM}`,{papers,tools:[...REPOSITORY_TOOLS,FIND_VIDEO_MOMENTS_TOOL,SHOW_VIDEO_TOOL],runTool,getGraphView:()=>graphView,shownVideo:()=>shownVideo,org:user.org});
+    LEARN_SYSTEM,{papers,system:`${REPOSITORY_SYSTEM}\n${VIDEO_SYSTEM}`,tools:[...REPOSITORY_TOOLS,FIND_VIDEO_MOMENTS_TOOL,SHOW_VIDEO_TOOL],runTool,getGraphView:()=>graphView,shownVideo:()=>shownVideo,org:user.org});
 }
 
 export async function repositoryEvidence(env,app,input){
