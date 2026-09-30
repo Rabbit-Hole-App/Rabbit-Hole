@@ -214,6 +214,14 @@ Order per turn:
 
 That is two requests, because routing needs the updated states.
 
+Models and telemetry (benchmarking): the planner (`LEARN_TASKS.tutor`) and the larger evaluator (its own
+`LEARN_TASKS.tutor_evaluator`, 2400 tokens; `grading` is unchanged) are pinned to Claude Opus 5.5
+(`claude-opus-5-5`), fallback `none`: an explicit model sends no `fallbacks`. JEV is unchanged (800 ms).
+`/evaluate` adds `telemetry.jev` (`called`, `ms`, `outcome`, `claims`, `ideas`, `questions`, `error`) and
+`telemetry.larger` (`called`, `ms`, `outcome`, `reason`, `requested_model`, `served_model`, token counts,
+`error`); `/plan` adds `telemetry` (`ms`, requested/served model, tokens, `stop_reason`, `outcome`
+ok / error / invalid), on its 502 too. `outcome: 'timeout'` is kept apart from `error`.
+
 ## 7. Acceptance slice checklist
 
 Legend:

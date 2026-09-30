@@ -202,6 +202,28 @@ test('GT-06 softmax prerequisite gap -> a dive suggestion anchored to the Guided
   assert.equal(result.store.suggested.claim, 'attention/weights-from-scores');
 });
 
+test('bench: route, action types, enforce drops and timings per turn; never the learner text', async () => {
+  const { result } = await gt06();
+  const { bench } = result;
+  assert.equal(bench.route, 'gap');
+  assert.equal(bench.turn_id, result.turn.turn_id);
+  assert.equal(bench.evaluated, true);
+  assert.equal(bench.evaluation.evaluator, 'jev');
+  assert.deepEqual(bench.requested_actions, ['respond_text', 'suggest_dive', 'open_dive']);
+  assert.deepEqual(bench.accepted_actions, ['respond_text', 'suggest_dive']);
+  assert.ok(bench.rejected.some(line => line.startsWith('dropped open_dive')));
+  for (const key of ['target', 'practice', 'evidence', 'planner', 'enforce', 'to_evidence_ready', 'to_planner_ready']) assert.equal(typeof bench.ms[key], 'number', key);
+  assert.ok(!JSON.stringify(bench).includes('why do the weights add up to one'), 'no learner text');
+  // An opening turn is never evaluated.
+  const raw = 'Why is the score not the weight?';
+  const opening = await turnOn(block('depth-attention-guided'), raw, emptyStore(), { strategy: 'feynman', move: 'explain', reason: '', actions: [say('Softmax.')] }, jev(), { opening: true });
+  assert.equal(opening.bench.evaluated, false);
+  assert.equal(opening.bench.evaluation, null);
+  assert.equal(opening.bench.ms.evidence, null);
+  assert.equal(typeof opening.bench.ms.to_planner_ready, 'number');
+  assert.ok(!JSON.stringify(opening.bench).includes(raw));
+});
+
 test('the words before a dive suggestion are cut to two sentences; replies without one are untouched', async () => {
   // The live planner's gap reply (2026-09-30): six sentences, with decimals and code that are not ends.
   const long = 'Because the output is a weighted average of the value vectors, not a sum of scores. Raw scores are unbounded and can be negative, your row is (-1, 1, 4, 1) after scaling. If you used them directly, the output would scale with how big the scores happen to be. "att = F.softmax(att, dim=-1)" fixes both: exp makes everything positive. Here e^4/(e^4 + 2e + e^-1) = 0.904. So the output stays inside the span of the values!';

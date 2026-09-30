@@ -95,8 +95,8 @@ export function evaluationFrom(spec, answers, thresholds, evaluator) {
   return { status, events };
 }
 
-// The larger evaluator (§3.3): the same checks on the grading model task behind /api/learn/assess,
-// whose own reply is prose, so this instruction asks for a structured answer instead.
+// The larger evaluator (§3.3): the same checks on its own no-tools task (LEARN_TASKS.tutor_evaluator),
+// whose reply is prose by default, so this instruction asks for a structured answer instead.
 export function largerInstruction(spec, message) {
   const questions = tutorQuestions(spec);
   return [
@@ -181,6 +181,8 @@ export const plannerRequest = (context, maxTokens) => ({
   max_tokens: maxTokens,
   system: PLANNER_SYSTEM,
   tools: [TUTOR_TOOL],
-  tool_choice: { type: 'tool', name: TUTOR_TOOL.name },
+  // auto, not forced: claude-opus-5-5 refuses tool_choice tool/any (HTTP 400). A reply without the
+  // tutor_response call stays invalid (planTurn), so free text is never a plan.
+  tool_choice: { type: 'auto' },
   messages: [{ role: 'user', content: `Compose this turn.\n\ncontext = ${JSON.stringify(context)}` }],
 });

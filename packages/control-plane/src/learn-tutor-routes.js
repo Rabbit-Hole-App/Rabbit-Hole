@@ -2,6 +2,7 @@
 //   POST /api/learn/tutor/evaluate  free text -> evidence events: JEV (800 ms, one batched request),
 //                                   then the larger evaluator only when JEV is uncertain (8 s)
 //   POST /api/learn/tutor/plan      one forced-tool planner call -> TutorResponse
+// Both responses carry `telemetry` (per-rung ms, outcome, requested/served model, usage) for the bench.
 // Nothing is stored here: evidence is session-scoped in the browser (§2).
 import { authorizedBoardApp } from './learn-board.js';
 import { JEV_TRANSPORTS, THRESHOLDS, askJev } from './learn-grade-jev.js';
@@ -34,50 +35,80 @@ export function validateEvaluateBody(body) {
 
 // The JEV rung. A timeout, a missing key or a bad answer is `error`: the caller stores nothing
 // settled and no state changes. No retry: a 429/529 wait would outlast the 800 ms budget.
+// `telemetry` is for the route response only; a timeout is askJev's JevError code 'timeout'.
 export async function jevRung(env, spec, message, { ask = askJev } = {}) {
   const transport = env.TYPESAFE_API_KEY ? 'direct' : env.VERCEL_TYPESAFE_API_KEY ? 'gateway' : null;
-  if (!transport || env.SUBSCRIPTION_ONLY === 'true') return { status: 'error', evaluator: 'jev', events: [], error: 'Jev is not configured on this worker.' };
+  const telemetry = { called: false, ms: null, outcome: null, claims: spec.claims.length, ideas: spec.claims.reduce((n, claim) => n + claim.ideas.length, 0), questions: 0, error: null };
+  if (!transport || env.SUBSCRIPTION_ONLY === 'true') {
+    const error = 'Jev is not configured on this worker.';
+    return { status: 'error', evaluator: 'jev', events: [], error, telemetry: { ...telemetry, error } };
+  }
+  const started = Date.now();
   try {
     const request = tutorJevRequest(spec, message, JEV_TRANSPORTS[transport].model);
+    Object.assign(telemetry, { called: true, questions: Object.keys(request.questions).length });
     const { body } = await ask(env, request, { transport, timeoutMs: JEV_TIMEOUT_MS, sleep: () => Promise.reject(new Error('Jev busy')) });
-    return { ...evaluationFrom(spec, readTutorAnswers(body, spec), THRESHOLDS, 'jev'), evaluator: 'jev' };
-  } catch (error) { return { status: 'error', evaluator: 'jev', events: [], error: error.message }; }
+    const result = { ...evaluationFrom(spec, readTutorAnswers(body, spec), THRESHOLDS, 'jev'), evaluator: 'jev' };
+    return { ...result, telemetry: { ...telemetry, ms: Date.now() - started, outcome: result.status } };
+  } catch (error) {
+    return { status: 'error', evaluator: 'jev', events: [], error: error.message, telemetry: { ...telemetry, ms: Date.now() - started, outcome: error.code === 'timeout' ? 'timeout' : 'error', error: error.message } };
+  }
 }
 
-// The larger rung: the grading model task (the one behind /api/learn/assess) with a structured
-// instruction. On error or timeout: `error`, nothing settled.
-export async function largerRung(env, spec, message, { callModel = loggedModel('grading', anthropic), timeoutMs = LARGER_TIMEOUT_MS } = {}) {
+// The larger rung: its own frozen task (LEARN_TASKS.tutor_evaluator, pinned model, no fallback)
+// with a structured instruction. On error or timeout: `error`, nothing settled. The served model
+// and usage come back in `telemetry`, so a model other than the requested one is visible.
+export async function largerRung(env, spec, message, { callModel = loggedModel('tutor_evaluator', anthropic), timeoutMs = LARGER_TIMEOUT_MS } = {}) {
+  const task = LEARN_TASKS.tutor_evaluator;
+  const telemetry = { called: true, ms: null, outcome: null, requested_model: task.model, served_model: null, input_tokens: null, output_tokens: null, error: null };
+  const started = Date.now();
   let timer;
   try {
     const call = (async () => {
-      const response = await callModel(env, { max_tokens: LEARN_TASKS.grading.maxTokens, messages: [{ role: 'user', content: largerInstruction(spec, message) }] }, LEARN_TASKS.grading.model, null);
+      const response = await callModel(env, { max_tokens: task.maxTokens, messages: [{ role: 'user', content: largerInstruction(spec, message) }] }, task.model, null);
       if (!response.ok) throw await modelFailure(response, 'Evaluator unavailable');
       const result = await response.json();
+      Object.assign(telemetry, { served_model: result.model ?? null, input_tokens: result.usage?.input_tokens ?? null, output_tokens: result.usage?.output_tokens ?? null });
       return result.content?.filter(block => block.type === 'text').map(block => block.text).join('\n') || '';
     })();
-    const reply = await Promise.race([call, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('The evaluator timed out')), timeoutMs); })]);
-    return { ...evaluationFrom(spec, parseLarger(reply, spec), THRESHOLDS, 'larger'), evaluator: 'larger' };
-  } catch (error) { return { status: 'error', evaluator: 'larger', events: [], error: error.message }; }
+    const reply = await Promise.race([call, new Promise((_, reject) => { timer = setTimeout(() => reject(Object.assign(new Error('The evaluator timed out'), { code: 'timeout' })), timeoutMs); })]);
+    const result = { ...evaluationFrom(spec, parseLarger(reply, spec), THRESHOLDS, 'larger'), evaluator: 'larger' };
+    return { ...result, telemetry: { ...telemetry, ms: Date.now() - started, outcome: result.status } };
+  } catch (error) {
+    return { status: 'error', evaluator: 'larger', events: [], error: error.message, telemetry: { ...telemetry, ms: Date.now() - started, outcome: error.code === 'timeout' ? 'timeout' : 'error', error: error.message } };
+  }
   finally { clearTimeout(timer); }
 }
+
+const NOT_CALLED = { called: false, ms: null, outcome: null, reason: null, requested_model: null, served_model: null, input_tokens: null, output_tokens: null, error: null };
 
 // Deterministic -> JEV -> larger (§3). The deterministic rung runs in the browser (the grade is
 // already in the card's attemptLog), so this route starts at JEV.
 export async function evaluateFreeText(env, spec, message, deps = {}) {
-  const jev = await jevRung(env, spec, message, deps);
-  if (jev.status !== 'uncertain') return jev;
-  const larger = await largerRung(env, spec, message, deps);
+  const { telemetry: jevTelemetry, ...jev } = await jevRung(env, spec, message, deps);
+  if (jev.status !== 'uncertain') return { ...jev, telemetry: { jev: jevTelemetry, larger: NOT_CALLED } };
+  const { telemetry: largerTelemetry, ...larger } = await largerRung(env, spec, message, deps);
+  const telemetry = { jev: jevTelemetry, larger: { ...largerTelemetry, reason: 'jev_uncertain' } };
   // An errored larger rung keeps JEV's unsettled events (§3.3: stored unsettled, no state change).
-  return larger.status === 'error' ? { ...jev, larger_error: larger.error } : larger;
+  return larger.status === 'error' ? { ...jev, larger_error: larger.error, telemetry } : { ...larger, telemetry };
 }
 
+// The TutorResponse at top level (the client reads it) plus `telemetry`. A failure throws with
+// `error.telemetry`: outcome 'invalid' when the reply has no usable tutor_response, else 'error'.
 export async function planTurn(env, context, { callModel = loggedModel('tutor', anthropic) } = {}) {
-  const response = await callModel(env, plannerRequest(context, LEARN_TASKS.tutor.maxTokens), LEARN_TASKS.tutor.model, null);
-  if (!response.ok) throw await modelFailure(response, 'The tutor is unavailable');
-  const result = await response.json();
+  const started = Date.now();
+  const telemetry = { ms: null, requested_model: LEARN_TASKS.tutor.model, served_model: null, input_tokens: null, output_tokens: null, stop_reason: null, outcome: null };
+  const done = outcome => ({ ...telemetry, ms: Date.now() - started, outcome });
+  let result;
+  try {
+    const response = await callModel(env, plannerRequest(context, LEARN_TASKS.tutor.maxTokens), LEARN_TASKS.tutor.model, null);
+    if (!response.ok) throw await modelFailure(response, 'The tutor is unavailable');
+    result = await response.json();
+  } catch (error) { throw Object.assign(error, { telemetry: done('error') }); }
+  Object.assign(telemetry, { served_model: result.model ?? null, input_tokens: result.usage?.input_tokens ?? null, output_tokens: result.usage?.output_tokens ?? null, stop_reason: result.stop_reason ?? null });
   const call = result.content?.find(block => block.type === 'tool_use' && block.name === TUTOR_TOOL.name);
-  if (!call?.input || !Array.isArray(call.input.actions)) throw new Error('The tutor returned no turn');
-  return call.input;
+  if (!call?.input || !Array.isArray(call.input.actions)) throw Object.assign(new Error('The tutor returned no turn'), { telemetry: done('invalid') });
+  return { ...call.input, telemetry: done('ok') };
 }
 
 export async function tutorRoute(path, req, env, deps = {}) {
@@ -97,5 +128,5 @@ export async function tutorRoute(path, req, env, deps = {}) {
   }
   const serialized = JSON.stringify(body?.context ?? null);
   if (!body?.context || typeof body.context !== 'object' || serialized.length > CONTEXT_LIMIT) return json({ error: `context must be an object of at most ${CONTEXT_LIMIT} characters` }, 400);
-  try { return json(await planTurn(env, body.context, deps)); } catch (error) { return json({ error: error.message }, 502); }
+  try { return json(await planTurn(env, body.context, deps)); } catch (error) { return json({ error: error.message, telemetry: error.telemetry }, 502); }
 }
