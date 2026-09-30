@@ -42,6 +42,8 @@
 #site-footer .footer-signature{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;pointer-events:none}
 #site-footer .footer-wordmark{font:500 clamp(72px,12vw,180px)/.98 var(--display);letter-spacing:-.065em;white-space:nowrap;color:#fff;text-shadow:0 2px 18px var(--outro-bg)}
 #site-footer .footer-tagline{font:400 clamp(14px,1.3vw,18px)/1.5 var(--ui);letter-spacing:-.02em;color:#d1d2cf}
+#site-footer .footer-start{display:inline-flex;align-items:center;justify-content:center;gap:32px;min-height:48px;margin-top:8px;padding:13px 24px;border:1px solid #fff;border-radius:999px;background:#fff;color:#181919;font:500 14px/1.4 var(--ui);text-decoration:none;pointer-events:auto}
+#site-footer .footer-start span{transition:transform 180ms var(--outro-ease)}
 #site-footer .footer-scene-label{position:absolute;left:28px;bottom:43px;font:400 10px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;text-transform:uppercase;letter-spacing:.09em;color:var(--outro-muted)}
 #site-footer .footer-bottom{display:flex;align-items:center;justify-content:space-between;gap:28px;padding:30px 10px 40px;font:400 12px/1.5 var(--ui);color:var(--outro-muted)}
 #site-footer .footer-bottom nav{display:flex;align-items:center;gap:28px}
@@ -50,6 +52,7 @@
 @media(hover:hover) and (pointer:fine){
   #faq summary:hover .faq-arrow{background:#e8ebdf}
   #site-footer .footer-bottom a:hover{color:#fff}
+  #site-footer .footer-start:hover span{transform:translate(2px,-2px)}
 }
 @media(max-width:900px){
   #faq{padding:76px 32px 84px}
@@ -80,5 +83,5 @@
   #site-footer .footer-bottom nav{gap:10px}
 }
 @media(prefers-reduced-motion:reduce){
-  #faq .faq-arrow::after,#faq .faq-arrow,#faq details,#site-footer .footer-bottom a{transition:none}
+  #faq .faq-arrow::after,#faq .faq-arrow,#faq details,#site-footer .footer-bottom a,#site-footer .footer-start span{transition:none}
 }

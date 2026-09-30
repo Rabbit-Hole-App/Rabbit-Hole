@@ -1155,6 +1155,46 @@ live build merely to prepare a dev deployment.
 
 ## Release and verification
 
+### Landing section order and opening-copy removal — 2026-09-29
+
+Removed the product description beneath Knowledge is infinite, including its
+styles and scroll hook. Reordered the existing content after the manifesto to:
+Learning, at your pace → pink cloud → What is Rabbit Hole? → Who is it for? →
+FAQ. Existing visuals and interactions are retained. The final audience action
+now continues forward to the FAQ and focuses its heading.
+
+Built with both dev flags and the existing license; deployed only to the
+worktree clone, version `4243f8f8-e027-4881-ad0d-db810ab6b799`. All 27 focused
+deployed Chrome checks passed at desktop 1440px and touch-mobile 390px: exact
+document/visual order, adjoining section boundaries, removed description,
+adaptive controls, cloud-to-overview navigation, overview/audience scroll
+forward and reverse, final audience-to-FAQ navigation, and preserved footer CTA.
+No browser errors or horizontal overflow. Desktop/mobile screenshots were
+visually inspected. Evidence: `tmp/landing-adaptive/reorder-results.json` and
+`reorder-*.png`. The preceding removal-only deployment also passed 17 focused
+checks, recorded in `tmp/landing-adaptive/remove-description-results.json`.
+
+### Landing clarity, adaptive example and footer action — 2026-09-29
+
+Added a short product description beneath the opening headline. The reserved
+white space after the clouds now presents one attention/context example with
+Start simple, Show visually and Go deeper controls. Persistent word cards move
+between arrangements; keyboard and reduced-motion changes are immediate. The
+canvas stays the same height and labels the content as illustrative. The
+existing animated footer now has a Start exploring action linking to the
+existing `/sign-up` UI. No generated images, model calls or backend integration.
+
+Built with both dev flags and the existing license. Deployed only to the
+worktree clone as `e486879f-e6bf-4d4b-8f59-ba82672d1d6b`. All 113 local and 114
+deployed browser checks passed at six desktop/mobile/landscape viewport sizes.
+Verified hero readability/reversal, all three modes, rapid switching, diagram
+and copy containment, stable height, keyboard navigation/focus, reduced motion,
+native scroll and actual footer-to-signup navigation. Earlier artwork, audience
+chapters, overview controls, footer animation and the flush FAQ boundary are
+preserved. No browser errors or API calls. Inspected deployed desktop/mobile
+screenshots. Evidence: `tmp/landing-adaptive/deployed/results.json` and images.
+Scope: `docs/features/rabbit-hole-adaptive-demo.md`.
+
 ### Landing overview window and cloud interlude — 2026-09-29
 
 The existing Japanese observatory now backs a Mac-style product overview.

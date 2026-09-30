@@ -19,7 +19,6 @@
 #pink-cloud .cloud-link span{transition:transform 200ms var(--ease-out)}
 #pink-cloud .cloud-link:focus-visible{outline:2px solid #392138;outline-offset:5px}
 #pink-cloud .cloud-margins{position:absolute;z-index:1;inset:auto 40px 30px;display:flex;justify-content:space-between;gap:20px;font:400 10px/1.5 var(--ui);letter-spacing:.03em;color:#594153;border-top:1px solid #63475440;padding-top:14px}
-#landing-future-details{min-height:clamp(260px,40svh,480px);margin:0 -40px;background:#fff}
 .manifesto-read{display:inline-flex;align-items:center;justify-content:center;gap:28px;min-height:48px;padding:13px 22px;border:1px solid #fff;border-radius:999px;background:#fff;color:#161016;font:500 14px/1.4 var(--ui);text-decoration:none}
 .manifesto-read span{transition:transform 200ms var(--ease-out)}
 .manifesto-read:focus-visible{outline:2px solid #fff;outline-offset:5px}
@@ -38,7 +37,6 @@
   #pink-cloud .cloud-intro{font-size:14px}
   #pink-cloud .cloud-margins{left:20px;right:20px;font-size:9px;bottom:22px}
   #pink-cloud .cloud-margins span:last-child{max-width:140px;text-align:right}
-  #landing-future-details{min-height:280px;margin:0 -20px}
 }
 @media(prefers-reduced-motion:reduce){
   .manifesto-read span,#pink-cloud .cloud-link span{transition:none;transform:none!important}

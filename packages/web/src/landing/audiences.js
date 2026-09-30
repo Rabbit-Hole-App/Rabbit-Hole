@@ -90,10 +90,10 @@ function schedule() {
 function choose(index, source = 'button') {
   if (index < 0) return;
   if (index > 5) {
-    const cloud = document.getElementById('pink-cloud');
-    const heading = document.getElementById('cloud-title');
+    const faq = document.getElementById('faq');
+    const heading = document.getElementById('faq-title');
     heading.tabIndex = -1;
-    cloud.scrollIntoView({ behavior: 'instant', block: 'start' });
+    faq.scrollIntoView({ behavior: 'instant', block: 'start' });
     heading.focus({ preventScroll: true });
     return;
   }

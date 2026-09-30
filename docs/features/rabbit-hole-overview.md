@@ -1,5 +1,10 @@
 # Landing overview and cloud interlude
 
+Current placement (2026-09-29): Learning, at your pace → pink cloud → What is
+Rabbit Hole? → Who is it for? → FAQ. The audience section now follows the
+overview, replacing the direct overview-to-FAQ join described in the initial
+milestone below. Preserve each section's existing visuals and interactions.
+
 Approved scope: add an overview of Rabbit Hole to the existing Japanese
 observatory scene on the landing page. The Features page keeps the detailed
 walkthrough. Use five animated HTML placeholders inside one Mac-style window;
@@ -41,3 +46,7 @@ FAQ-join screenshots were inspected. No browser errors or API calls. Evidence:
 `tmp/landing-overview/deployed/`, `tmp/landing-overview/final/` and the release
 entry in Coaching. The user approved this visual direction on 2026-09-29;
 the product scenes remain illustrative placeholders for future real captures.
+
+Follow-up on 2026-09-29: the reserved white block is now the approved interactive
+[adaptive example](rabbit-hole-adaptive-demo.md). The overview window, original
+cloud loop and flush FAQ boundary remain unchanged.

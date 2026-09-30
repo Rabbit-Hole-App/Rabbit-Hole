@@ -2,7 +2,8 @@
 
 The user rejected the generated six-column illustration and approved a single
 large workflow preview with six audiences shown sequentially. Implement this
-inside the existing landing page, between the black manifesto and pink clouds.
+inside the existing landing page. The current approved order places it after
+What is Rabbit Hole? and immediately before the FAQ.
 No generated art or real canvas capture is required yet. Preserve all other
 landing sections and the Pro Contact CTA.
 
@@ -15,7 +16,7 @@ The placeholder label is explicit; no product interactions or backend calls are
 implied. Real workflow captures will replace the placeholder interior later.
 
 The shared frame has a chapter counter, progress line, native audience selector,
-and previous/next controls. The final next action moves to the cloud section.
+and previous/next controls. The final next action moves to the FAQ section.
 Existing Space Grotesk, Inter and the Rabbit Hole mark are reused.
 
 ## Motion and navigation
@@ -35,7 +36,7 @@ Existing Space Grotesk, Inter and the Rabbit Hole mark are reused.
 
 Exercise all six scroll states down/up, native dropdown jumps, arrows, mobile
 swipes and vertical scrolling, reduced motion, short viewports and deep linking
-to `/#who-is-it-for`. Confirm the stage releases before the clouds, no horizontal
+to `/#who-is-it-for`. Confirm the stage releases before the FAQ, no horizontal
 overflow, one active story, no generated-image references and no API calls.
 Build with both dev flags and deploy only the worktree clone; record deployed
 evidence in Coaching's release history.

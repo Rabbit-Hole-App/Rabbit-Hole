@@ -29,7 +29,9 @@
   <a href="/pricing">Pricing</a>
 </nav>
 
-<div id="shaft-track"><canvas id="shaft"></canvas></div>
+<div id="shaft-track">
+  <canvas id="shaft" role="img" aria-label="Knowledge is infinite. An animated opening into Rabbit Hole."></canvas>
+</div>
 
 <div id="spacer"></div>
 
@@ -47,20 +49,49 @@
       <figcaption>Socrates · Richard Feynman<span>An imagined conversation about learning.</span></figcaption>
     </figure>
   </div>
-  <section id="who-is-it-for" aria-labelledby="audience-heading">
-    <div class="audience-stage">
-      <div class="audience-topline"><h2 id="audience-heading" class="audience-eyebrow">Who is it for?</h2><span class="audience-count" aria-hidden="true">01 <span>/ 06</span></span></div>
-      <div class="audience-slides" id="audience-stories" role="region" aria-roledescription="carousel" aria-label="Who Rabbit Hole is for"></div>
-      <div class="audience-progress" aria-hidden="true"><span></span></div>
-      <div class="audience-controls">
-        <label class="audience-picker"><span>Choose your audience</span><select aria-label="Choose your audience" aria-controls="audience-stories"></select></label>
-        <p class="audience-scroll-hint">Scroll to follow the next question <span aria-hidden="true">↓</span></p>
-        <div class="audience-navigation"><button type="button" data-audience-prev aria-label="Previous audience" aria-controls="audience-stories"><span aria-hidden="true">←</span></button><button type="button" data-audience-next aria-label="Next audience" aria-controls="audience-stories"><span class="audience-next-label">AI / ML engineers</span><span aria-hidden="true">→</span></button></div>
+  <section id="adaptive-learning" data-mode="simple" aria-labelledby="adaptive-title">
+    <div class="adaptive-inner">
+      <div class="adaptive-heading">
+        <div><p class="adaptive-eyebrow">Learning, at your pace</p><h2 id="adaptive-title">One question.<br>Your way in.</h2></div>
+        <p class="adaptive-intro">An analogy, a picture, or the mechanics.<br>Find the explanation that clicks for you.</p>
       </div>
-      <p class="audience-announcement" role="status" aria-live="polite" aria-atomic="true"></p>
-      <noscript><p>For creators and writers, AI/ML engineers, educators, university students, new engineers and interview preparation. Explore the <a href="/features">features</a> to find your starting point.</p></noscript>
+      <div class="adaptive-demo">
+        <div class="adaptive-toolbar">
+          <p class="adaptive-question">How does attention use context?</p>
+          <div class="adaptive-tabs" role="tablist" aria-label="Choose an explanation">
+            <button id="adaptive-simple" type="button" role="tab" aria-selected="true" aria-controls="adaptive-example" data-adaptive-mode="simple"><span aria-hidden="true">01</span>Start simple</button>
+            <button id="adaptive-visual" type="button" role="tab" aria-selected="false" aria-controls="adaptive-example" tabindex="-1" data-adaptive-mode="visual"><span aria-hidden="true">02</span>Show visually</button>
+            <button id="adaptive-deep" type="button" role="tab" aria-selected="false" aria-controls="adaptive-example" tabindex="-1" data-adaptive-mode="deep"><span aria-hidden="true">03</span>Go deeper</button>
+          </div>
+        </div>
+        <div id="adaptive-example" class="adaptive-example" role="tabpanel" aria-labelledby="adaptive-simple" tabindex="0">
+          <div class="adaptive-art" aria-hidden="true">
+            <p class="adaptive-sentence">“The <b>cat</b> sat on the mat because <b>it</b> was tired.”</p>
+            <div class="adaptive-field">
+              <svg class="adaptive-paths" viewBox="0 0 100 280" preserveAspectRatio="none" fill="none">
+                <g class="adaptive-path-simple"><path d="M50 68V192"/><path class="adaptive-arrow" d="m48 146 2 8 2-8"/></g>
+                <g class="adaptive-path-visual"><path d="M27 128C48 128 46 60 73 60"/><path class="adaptive-faint" d="M27 128C48 128 46 196 73 196"/><path class="adaptive-arrow" d="m55 62 3-2-2-8"/></g>
+                <g class="adaptive-path-deep"><path d="M20.5 68H79.5"/><path class="adaptive-faint" d="M50 125V146"/></g>
+              </svg>
+              <div class="adaptive-word adaptive-word-it"><span>it</span><small>query</small></div>
+              <div class="adaptive-word adaptive-word-cat"><span>the cat</span><small>key + value</small></div>
+              <div class="adaptive-word adaptive-word-mat"><span>the mat</span><small>key + value</small></div>
+              <span class="adaptive-connection-label">Context changes the meaning.</span>
+              <div class="adaptive-equation"><span>compare → weight → combine</span><p>softmax<span class="adaptive-fraction"><span>QKᵀ</span><span>√d<sub>k</sub></span></span>V</p></div>
+            </div>
+            <span class="adaptive-art-note">One idea. Different levels of detail.</span>
+          </div>
+          <div class="adaptive-explanations">
+            <article data-adaptive-copy="simple"><span class="adaptive-step">01 / The intuition</span><h3>Think of it <br>as a spotlight.</h3><p>“It” means little on its own. In this sentence, context points back to the cat. Attention lets a model draw information from other words.</p><span class="adaptive-takeaway">Start with what makes sense.</span></article>
+            <article data-adaptive-copy="visual" hidden><span class="adaptive-step">02 / The connection</span><h3>Follow <br>the connection.</h3><p>Start with “it” and trace the paths to the surrounding words. The highlighted link shows one possible contextual relationship.</p><span class="adaptive-takeaway">Illustrative connections, not measured model weights.</span></article>
+            <article data-adaptive-copy="deep" hidden><span class="adaptive-step">03 / The mechanism</span><h3>Compare, weight, <br>combine.</h3><p>A query is compared with keys. The scores are scaled and normalized with softmax, then used to blend the value vectors.</p><a class="adaptive-source" href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noreferrer">Attention Is All You Need <span aria-hidden="true">↗</span></a></article>
+          </div>
+        </div>
+        <div class="adaptive-bottom"><span>Illustrative example</span><span>Same question. A different perspective. <span aria-hidden="true">↗</span></span></div>
+      </div>
     </div>
   </section>
+
   <div id="pink-cloud" role="region" aria-labelledby="cloud-title">
     <img id="cloud-motion" src="/landing/typesafe-pink-cloud-loop.gif" width="1440" height="540" alt="" aria-hidden="true" loading="lazy" decoding="async">
     <img id="cloud-still" src="/landing/typesafe-pink-cloud-still.png" width="1440" height="540" alt="" aria-hidden="true" loading="lazy" decoding="async" hidden>
@@ -72,9 +103,6 @@
     </div>
     <div class="cloud-margins" aria-hidden="true"><span>01 — Stay curious</span><span>There is always another way in. ↗</span></div>
   </div>
-
-  <!-- Reserved white space for the next content milestone. -->
-  <div id="landing-future-details" aria-hidden="true"></div>
 
   <section id="observatory" data-playing="false" aria-labelledby="overview-title">
     <div class="overview-stage">
@@ -94,6 +122,21 @@
       </div>
       <a class="overview-details" href="/features">Explore all features <span aria-hidden="true">↗</span></a>
       <noscript><p class="overview-no-script">Learn from your sources, ask follow-up questions, explore a visual canvas, practice and return to saved learning. <a href="/features">Explore the features.</a></p></noscript>
+    </div>
+  </section>
+
+  <section id="who-is-it-for" aria-labelledby="audience-heading">
+    <div class="audience-stage">
+      <div class="audience-topline"><h2 id="audience-heading" class="audience-eyebrow">Who is it for?</h2><span class="audience-count" aria-hidden="true">01 <span>/ 06</span></span></div>
+      <div class="audience-slides" id="audience-stories" role="region" aria-roledescription="carousel" aria-label="Who Rabbit Hole is for"></div>
+      <div class="audience-progress" aria-hidden="true"><span></span></div>
+      <div class="audience-controls">
+        <label class="audience-picker"><span>Choose your audience</span><select aria-label="Choose your audience" aria-controls="audience-stories"></select></label>
+        <p class="audience-scroll-hint">Scroll to follow the next question <span aria-hidden="true">↓</span></p>
+        <div class="audience-navigation"><button type="button" data-audience-prev aria-label="Previous audience" aria-controls="audience-stories"><span aria-hidden="true">←</span></button><button type="button" data-audience-next aria-label="Next audience" aria-controls="audience-stories"><span class="audience-next-label">AI / ML engineers</span><span aria-hidden="true">→</span></button></div>
+      </div>
+      <p class="audience-announcement" role="status" aria-live="polite" aria-atomic="true"></p>
+      <noscript><p>For creators and writers, AI/ML engineers, educators, university students, new engineers and interview preparation. Explore the <a href="/features">features</a> to find your starting point.</p></noscript>
     </div>
   </section>
 
@@ -158,6 +201,7 @@
       <div class="footer-signature">
         <p class="footer-wordmark">Rabbit Hole</p>
         <p class="footer-tagline">Knowledge is infinite.</p>
+        <a class="footer-start" href="/sign-up">Start exploring <span aria-hidden="true">↗</span></a>
       </div>
       <span class="footer-scene-label" aria-hidden="true">Keep going deeper</span>
     </div>
@@ -457,6 +501,7 @@
 
 <script type="module" src="../src/landing/pink-cloud.js"></script>
 <script type="module" src="../src/landing/audiences.js"></script>
+<script type="module" src="../src/landing/adaptive.js"></script>
 <script type="module" src="../src/landing/observatory.js"></script>
 <script type="module" src="../src/landing/footer.js"></script>
 </body>
