@@ -8,7 +8,9 @@ import { isUploadedPaperId, uploadedPaperAsDocument, paperIdentity, PAPER_PAGE_L
 import { isUploadedMediaId } from '../src/learn-media.js';
 import { LEARN_SYSTEM, validateLessonSnapshot, validateOutline, renderOutline } from '../src/learn-context.js';
 import { canvasApp, canvasAskSeam } from '../src/canvases.js';
-import { ATTACHMENT_LIMIT, attachmentBlocks, readAskRequest } from '../src/ask.js';
+import { ATTACHMENT_LIMIT, attachmentBlocks, readAskRequest, askStream } from '../src/ask.js';
+import { findVideoMoments } from '../src/learn-youtube.js';
+import { liveDb, memoryBucket } from './live-storage-spy.js';
 import { learnMedia } from '../src/learn-storage.js';
 import { randomHex } from '../src/token.js';
 import { captureSelection, selectionSnapshot, sigmoidObjects } from '../../web/src/sigmoid-context.js';
@@ -684,6 +686,42 @@ test('canvas Learn asks keep their threads in LEARN_DB and never touch the live 
   assert.equal((await ask('canvas-0a1b2c3d', { message: 'Not mine', thread_id: first.threadId }, { ...owner, email: 'colleague@example.test' })).status, 404);
   assert.equal(sqlite.prepare("SELECT count(*) AS n FROM threads WHERE scope_ref='canvas-0a1b2c3d'").get().n, 2);
   assert.equal(env.answers.length, 3);
+});
+
+// C1: the same canvas turn with the real askStream and findVideoMoments, the video tools called
+// and the hot path bound (AI, MOMENTS). The runTool closes over apiAsk's own env, so the proof
+// is that the live DB spy records nothing: no moment log, no hot-path read.
+test('a canvas video answer with the real moment code never reads or writes the live DB', async t => {
+  const env = fixture(t), live = liveDb(), original = globalThis.fetch;
+  t.after(() => { globalThis.fetch = original; });
+  const sqlite = new DatabaseSync(':memory:');
+  t.after(() => sqlite.close());
+  sqlite.exec(readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8'));
+  sqlite.exec("INSERT INTO canvases(org,name,owner_email,title) VALUES('workspace-a','canvas-0a1b2c3d','owner@example.test','Backprop')");
+  Object.assign(env, {
+    DB: live, LEARN_MEDIA: memoryBucket(), EXA_API_KEY: 'test',
+    LEARN_DB: { batch: async statements => Promise.all(statements.map(statement => statement.run())), prepare: sql => { const statement = sqlite.prepare(sql); return { bind: (...params) => ({
+      first: async () => statement.get(...params) || null,
+      all: async () => ({ results: statement.all(...params) }),
+      run: async () => ({ meta: statement.run(...params) }),
+    }) }; } },
+    AI: { run: async (model, { text }) => ({ data: text.map(() => [0.1, 0.2]) }) },
+    MOMENTS: { query: async (vector, options) => (options.namespace?.startsWith('questions:') ? { matches: [{ id: 'q:7', score: 0.99, metadata: { momentId: 7 } }] } : { matches: [] }) },
+  });
+  const replies = [{ content: [{ type: 'tool_use', id: 'find', name: 'find_video_moments', input: { query: 'backprop' } }] }, { content: [{ type: 'tool_use', id: 'show', name: 'show_video', input: { videoId: 'Ilg3gGewQ5U' } }] }, { content: [{ type: 'text', text: 'Watch the chain rule.' }], stop_reason: 'end_turn' }];
+  globalThis.fetch = async url => {
+    const host = new URL(String(url)).hostname;
+    if (host === 'api.exa.ai') return Response.json({ results: [{ url: 'https://www.youtube.com/watch?v=Ilg3gGewQ5U', title: 'Backprop' }] });
+    if (host === 'api.anthropic.com') return Response.json(replies.shift());
+    return new Response('', { status: 404 });
+  };
+  const real = new Function(...Object.keys(deps), `${functions}; return { ${names.join(',')} };`)(...Object.values({ ...deps, askStream, findVideoMoments }));
+  const seam = canvasAskSeam(env, canvasApp(sqlite.prepare("SELECT * FROM canvases WHERE name='canvas-0a1b2c3d'").get(), owner));
+  const events = await (await real.apiAsk(request({ scope: { app: 'canvas-0a1b2c3d' }, message: 'show me backprop' }), env, {}, owner, 'learn', seam)).text();
+  assert.match(events, /event: video/);
+  assert.match(events, /event: done/);
+  assert.deepEqual(live.calls, []);
+  assert.equal(sqlite.prepare('SELECT count(*) AS n FROM messages').get().n, 2);
 });
 
 // Only the Agent's run tool reads ask-uploads/, and Learn is never offered it, so a Learn
