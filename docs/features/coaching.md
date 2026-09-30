@@ -1155,6 +1155,33 @@ live build merely to prepare a dev deployment.
 
 ## Release and verification
 
+### Landing artwork behind the cards — 2026-09-29
+
+Moved both square compositions inward and down behind the card area, with
+softer contrast and less mobile cropping. Original images, opaque cards and
+scroll behavior are retained. Deployed only the worktree clone as
+`3990ac9a-1466-4a4f-abe3-08e3ca325698`; 50 focused checks passed on the deployed
+page at 1440px and 390px. Both sections' screenshots were visually inspected.
+Evidence: `tmp/landing-square-art/inward/deployed-results.json` and screenshots.
+
+### Square artwork in the white landing sections — 2026-09-29
+
+Added two original pale graphite/halftone compositions: nested square depth
+behind Learning, at your pace, and connected square paths behind Who is it for.
+Tiny muted pink accents and CSS edge masks blend into white. Images are lazy
+loaded, decorative and noninteractive. Small scroll-linked translations stop
+at rest and are disabled for reduced motion. The audience stage retains its
+existing sticky positioning. Section order, copy and interactions are retained.
+
+Built with both dev flags and the existing license; deployed to only the
+smart-landing-page clone as `e59172f3-97e9-4f5e-b587-f4c7798d98ca`. All 50
+focused checks passed on the actual deployed page at desktop 1440px and touch
+mobile 390px. Inspected both sections' screenshots at both sizes. No browser
+runtime errors or horizontal overflow. See [the artwork specification](rabbit-hole-square-art.md)
+and `tmp/landing-square-art/deployed-results.json`. Original files and exact
+built-in imagegen prompts are recorded in
+`packages/web/design/square-background-art-direction.md`.
+
 ### Landing section order and opening-copy removal — 2026-09-29
 
 Removed the product description beneath Knowledge is infinite, including its

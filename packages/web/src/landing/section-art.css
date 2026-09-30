@@ -1,0 +1,19 @@
+#adaptive-learning .adaptive-inner{position:relative;isolation:isolate}
+#who-is-it-for .audience-stage{isolation:isolate}
+#adaptive-learning .adaptive-demo{background:#fff}
+.section-art{position:absolute;z-index:-1;inset:-120px calc(50% - 50vw) -128px;overflow:clip;pointer-events:none;user-select:none}
+.section-art img{position:absolute;display:block;width:clamp(560px,68vw,980px);height:auto;max-width:none;opacity:.42;mask-image:radial-gradient(ellipse at center,#000 32%,#0009 60%,transparent 75%)}
+.section-art-depth img{right:clamp(24px,4vw,80px);top:40px}
+.section-art-paths{top:-72px;bottom:-80px}
+.section-art-paths img{width:clamp(560px,64vw,940px);left:clamp(24px,4vw,80px);top:24px;opacity:.32}
+@media(max-width:900px){
+  .section-art-depth img{right:16px;top:48px;opacity:.35}
+  .section-art-paths img{left:16px;top:24px;opacity:.27}
+}
+@media(max-width:700px){
+  .section-art{top:-76px;bottom:-80px}
+  .section-art-depth img{width:440px;right:-24px;top:64px;opacity:.3}
+  .section-art-paths{top:-48px;bottom:-64px}
+  .section-art-paths img{width:440px;left:-24px;top:48px;opacity:.23}
+}
+@media(prefers-reduced-motion:reduce){.section-art img{transform:none!important}}
