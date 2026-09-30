@@ -18,10 +18,10 @@ import { challengePrompt } from '../../web/src/learn-grade-prompts.js';
 const fingerprint = text => createHash('sha256').update(text).digest('hex').slice(0, 16);
 const PINS = {
   teachingPolicy: '874f9413c8f3bfb0',
-  chat: '8d62639c40d72726', // canvas seam and app asks, and grading through them
-  chatSnapshot: 'a7388e187fdeb522', // an app ask carrying a lesson_snapshot (legacy selection contract)
-  chatOutline: '9437972a8114e94e',
-  repository: 'bc79880546a95fe5',
+  chat: 'f0089c6be8c4beaa', // canvas seam and app asks, and grading through them
+  chatSnapshot: '325de9028c3281f7', // an app ask carrying a lesson_snapshot (legacy selection contract)
+  chatOutline: '3ea5a1e6c1c18a2e',
+  repository: 'e8f9699d5474c6f5',
   artifact: '870e84a3aa127657',
   board: 'a219807ee7666961',
   boardReview: '5a2e1cab79b26025',
@@ -234,6 +234,15 @@ test('a canvas, app or repository ask is told what it sees; only a lesson snapsh
   for (const body of [snapshotAsk, await repositoryChat(t, { message: 'Why 0.5?', lesson_snapshot: lesson })]) {
     includesAll(body.system, SNAPSHOT_SENTENCES);
     assert.equal(body.system.includes(SEES), false);
+  }
+});
+
+// prompts-4: the tutor is the product's assistant; the model is named by the
+// picker and the learn_model diagnostic, not by the prompt.
+test("every chat prompt names the tutor as Rabbit Hole's learning assistant, not Claude", async t => {
+  for (const body of [await chat(t, { message: 'Who are you?' }), await chat(t, { message: 'Who are you?', lesson_snapshot: lesson }, { canvas: false }), await repositoryChat(t, { message: 'Who are you?' })]) {
+    assert.doesNotMatch(body.system, /You are Claude/);
+    assert.ok(body.system.includes("You are Rabbit Hole's learning assistant, a tutor answering a learner's question"));
   }
 });
 
