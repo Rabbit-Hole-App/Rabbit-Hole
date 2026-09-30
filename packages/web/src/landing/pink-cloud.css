@@ -7,7 +7,6 @@
 #manifesto-preview .manifesto-thinkers img{display:block;width:100%;height:auto}
 #manifesto-preview .manifesto-thinkers figcaption{margin-top:18px;color:#c8c4c9;font:400 12px/1.6 var(--ui)}
 #manifesto-preview .manifesto-thinkers figcaption span{display:block;color:#8f8991;margin-top:4px}
-#landing-content-space{min-height:clamp(320px,55svh,640px);margin:0 -40px;background:#fff}
 #pink-cloud{position:relative;display:grid;place-items:center;min-height:clamp(420px,40vw,640px);margin:0 -40px 96px;scroll-margin-top:100px;background:#fff}
 #pink-cloud img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;pointer-events:none}
 #pink-cloud [hidden]{display:none}
@@ -18,7 +17,7 @@
 .manifesto-read:focus-visible{outline:2px solid #fff;outline-offset:5px}
 @media(hover:hover) and (pointer:fine){.manifesto-read:hover span{transform:translate(2px,-2px)}}
 @media(max-width:700px){
-  #manifesto-preview,#landing-content-space{margin:0 -20px}
+  #manifesto-preview{margin:0 -20px}
   #manifesto-preview .manifesto-preview-copy{padding:84px 24px 44px}
   #manifesto-preview .manifesto-thinkers{padding:0 12px 64px}
   #manifesto-preview .manifesto-thinkers figcaption{font-size:11px}

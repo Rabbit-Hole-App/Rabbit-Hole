@@ -292,3 +292,6 @@
   .content-page.pricing-page #pricing .pricing-title-row h2{font-size:clamp(68px,16vw,96px)}
   .content-page.pricing-page #pricing .pricing-intro .lede{max-width:none;margin-top:24px;padding:0}
 }
+
+/* The landing FAQ aperture is the shared Rabbit Hole mark. */
+.rh-mark{display:inline-block;flex:none;width:30px;height:30px;background:currentColor;mask:url("/landing/rabbit-hole-mark.svg") center/contain no-repeat;-webkit-mask:url("/landing/rabbit-hole-mark.svg") center/contain no-repeat}

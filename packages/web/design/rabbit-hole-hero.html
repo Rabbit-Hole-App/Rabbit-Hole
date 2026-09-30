@@ -47,8 +47,20 @@
       <figcaption>Socrates · Richard Feynman<span>An imagined conversation about learning.</span></figcaption>
     </figure>
   </div>
-  <!-- Reserved for the next landing-page content section. -->
-  <div id="landing-content-space" aria-hidden="true"></div>
+  <section id="who-is-it-for" aria-labelledby="audience-heading">
+    <div class="audience-stage">
+      <div class="audience-topline"><h2 id="audience-heading" class="audience-eyebrow">Who is it for?</h2><span class="audience-count" aria-hidden="true">01 <span>/ 06</span></span></div>
+      <div class="audience-slides" id="audience-stories" role="region" aria-roledescription="carousel" aria-label="Who Rabbit Hole is for"></div>
+      <div class="audience-progress" aria-hidden="true"><span></span></div>
+      <div class="audience-controls">
+        <label class="audience-picker"><span>Choose your audience</span><select aria-label="Choose your audience" aria-controls="audience-stories"></select></label>
+        <p class="audience-scroll-hint">Scroll to follow the next question <span aria-hidden="true">↓</span></p>
+        <div class="audience-navigation"><button type="button" data-audience-prev aria-label="Previous audience" aria-controls="audience-stories"><span aria-hidden="true">←</span></button><button type="button" data-audience-next aria-label="Next audience" aria-controls="audience-stories"><span class="audience-next-label">AI / ML engineers</span><span aria-hidden="true">→</span></button></div>
+      </div>
+      <p class="audience-announcement" role="status" aria-live="polite" aria-atomic="true"></p>
+      <noscript><p>For creators and writers, AI/ML engineers, educators, university students, new engineers and interview preparation. Explore the <a href="/features">features</a> to find your starting point.</p></noscript>
+    </div>
+  </section>
   <div id="pink-cloud" role="region" aria-labelledby="cloud-title">
     <img id="cloud-motion" src="/landing/typesafe-pink-cloud-loop.gif" width="1440" height="540" alt="" aria-hidden="true" loading="lazy" decoding="async">
     <img id="cloud-still" src="/landing/typesafe-pink-cloud-still.png" width="1440" height="540" alt="" aria-hidden="true" loading="lazy" decoding="async" hidden>
@@ -424,6 +436,7 @@
 </script>
 
 <script type="module" src="../src/landing/pink-cloud.js"></script>
+<script type="module" src="../src/landing/audiences.js"></script>
 <script type="module" src="../src/landing/observatory.js"></script>
 <script type="module" src="../src/landing/footer.js"></script>
 </body>

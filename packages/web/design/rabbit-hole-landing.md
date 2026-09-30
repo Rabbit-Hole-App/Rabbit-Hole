@@ -27,9 +27,12 @@ Plato was removed from both discussion images at the user's request. Both scenes
 were then regenerated to center the pair and make their eye contact clear;
 the original v1 and intermediate v2 images remain in the repository.
 
-Black now ends in a sharp cut to an empty white section reserved for future
-content. The white space is 55svh tall, bounded to 320–640px, and the cloud
-follows it. The previous gradient mask, pink haze and scroll-opacity reveal have
+Black now ends in a sharp cut to the white Who is it for section. Six audiences
+share one large workflow placeholder, shown one at a time: desktop scroll
+chapters, direct selection, and mobile swipes/arrows. Real canvas captures will
+replace the neutral HTML placeholders later. Details are in
+[the audience spec](../../../docs/features/rabbit-hole-audiences.md). The cloud
+follows the section. The previous gradient mask, pink haze and scroll-opacity reveal have
 been removed. The original animated GIF stays fully visible, using a responsive
 crop behind the cloud title; reduced motion shows the existing still.
 The manifesto page reuses public navigation and the

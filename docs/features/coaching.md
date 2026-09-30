@@ -1155,6 +1155,30 @@ live build merely to prepare a dev deployment.
 
 ## Release and verification
 
+### Landing audience chapters — 2026-09-29
+
+The white section between the black manifesto and pink clouds now presents six
+audiences one at a time. Desktop scrolling advances/reverses the sticky chapter;
+compact screens use direct selection, arrows and horizontal touch swipes. Each
+chapter has draft positioning and a neutral HTML canvas placeholder for a future
+real workflow capture. No new generated artwork, model calls or backend behavior.
+The existing thinkers, cloud animation, observatory, footer and Pro Contact CTA
+are preserved. The earlier generated audience concept was rejected and is kept
+only as history.
+
+Built with both dev flags and the tldraw license. Deployed only to
+`small-cp-dev-smart-landing-page`, version
+`e188d01c-8487-42b7-9089-6513c8737baf`.
+
+All 162 browser checks passed locally and on the deployed page at seven viewport
+sizes from 320 to 1440px. Verified all six chapters, forward/reverse scroll,
+actual wheel and touch input, native selection, keyboard controls, reduced
+motion, short screens, deep links, one active accessible story, no overflow and
+release into the clouds. No browser errors or interaction API calls. Inspected
+deployed desktop/mobile screenshots. Evidence:
+`tmp/audience-section/deployed-live/results.json` and screenshots. Specification:
+`docs/features/rabbit-hole-audiences.md`. Canvas contents remain illustrative.
+
 ### Distinct portraits, editorial rules and contained stairs — 2026-09-29
 
 Manifesto now uses fresh, independently composed portraits: Socrates thinking
