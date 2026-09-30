@@ -21,6 +21,8 @@ const base = (args.base || '').replace(/\/$/, '');
 const allowLocal = process.env.LEARN_BENCH_ALLOW_LOCAL === '1' && /^http:\/\/127\.0\.0\.1:\d+$/.test(base);
 if (!/^https:\/\/small-cp-dev-[a-z0-9-]+\.zeroshothq\.workers\.dev$/.test(base) && !allowLocal) fail(1, `refusing ${base || '(no --base)'}: not a small-cp-dev-<name> clone`);
 if (!args.app) fail(1, 'usage: bench.mjs --base <clone url> --app <app name> [--set benchmark-v1 | --holdout <path>]');
+// The clone's DB is the live D1: only a repository or a canvas keeps a grade on dev storage.
+if (!/^(repo-[a-z0-9-]+|canvas-[a-f0-9]{8})$/.test(args.app)) fail(1, `refusing --app ${args.app}: grade on a repo-* project or a canvas-<8 hex> canvas, whose Learn data stays in the dev LEARN_DB`);
 const envFile = args['env-file'] || path('../../../../small-deploy/.env');
 const secrets = Object.fromEntries(readFileSync(envFile, 'utf8').split(/\r?\n/).map(line => line.match(/^([A-Z_]+)=(.*)$/)).filter(Boolean).map(([, key, value]) => [key, value.replace(/^"|"$/g, '').trim()]));
 if (!secrets.SMALL_TEST_BYPASS || !secrets.LEARN_BENCH_SECRET) fail(1, `missing SMALL_TEST_BYPASS or LEARN_BENCH_SECRET in ${envFile}`);

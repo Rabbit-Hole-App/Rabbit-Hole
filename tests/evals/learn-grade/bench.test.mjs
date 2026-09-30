@@ -68,12 +68,28 @@ const run = (args, env = {}) => new Promise(resolve => {
   child.stderr.on('data', chunk => { out += chunk; });
   child.on('close', code => resolve({ code, out }));
 });
-const common = (base, dir) => ['--base', base, '--app', 'demo-app', '--env-file', join(dir, '.env'), '--results-dir', join(dir, 'results'), '--min-per-mode', '1', '--pending-wait-ms', '1'];
+const common = (base, dir) => ['--base', base, '--app', 'repo-demo', '--env-file', join(dir, '.env'), '--results-dir', join(dir, 'results'), '--min-per-mode', '1', '--pending-wait-ms', '1'];
 
 test('refuses a host that is not a dev clone', () => {
-  const result = spawnSync(process.execPath, [BENCH, '--base', 'https://small-cp.example.com', '--app', 'demo-app'], { encoding: 'utf8', env: { ...process.env, LEARN_BENCH_ALLOW_LOCAL: '' } });
+  const result = spawnSync(process.execPath, [BENCH, '--base', 'https://small-cp.example.com', '--app', 'repo-demo'], { encoding: 'utf8', env: { ...process.env, LEARN_BENCH_ALLOW_LOCAL: '' } });
   assert.equal(result.status, 1);
   assert.match(result.stdout + result.stderr, /refusing .* not a small-cp-dev-<name> clone/);
+});
+
+// grading-10: the clone's DB is the live D1, so the bench grades only on apps the
+// dev worker keeps on dev storage: a repository (repo-*) or a canvas (canvas-<8 hex>).
+test('refuses an app that is neither repo-* nor canvas-<8 hex>, before any request', async () => {
+  const { server, base, calls } = await stubServer(() => done());
+  const dir = workspace(tinySet('benchmark-v1'));
+  try {
+    for (const app of ['my-server-app', 'canvas-xyz', 'canvas-0a1b2c3d4']) {
+      const result = await run([...common(base, dir).map(arg => (arg === 'repo-demo' ? app : arg)), '--set-file', join(dir, 'set.json')]);
+      assert.equal(result.code, 1, app);
+      assert.ok(result.out.includes(`refusing --app ${app}: grade on a repo-* project or a canvas-<8 hex> canvas`), result.out);
+    }
+    assert.deepEqual([calls.grade, calls.assess], [[], []]);
+    for (const app of ['repo-x', 'canvas-0a1b2c3d']) assert.equal((await run([...common(base, dir).map(arg => (arg === 'repo-demo' ? app : arg)), '--set-file', join(dir, 'set.json')])).code, 0, app);
+  } finally { server.close(); }
 });
 
 test('pending is re-sent, then scored as an error; 409 is an incomplete error; never a grade', async () => {
@@ -85,7 +101,7 @@ test('pending is re-sent, then scored as an error; 409 is an incomplete error; n
   try {
     const result = await run([...common(base, dir), '--set-file', join(dir, 'set.json')]);
     assert.equal(result.code, 0, result.out);
-    assert.match(result.out, /✓ target: http:\/\/127\.0\.0\.1:\d+ · app demo-app · set benchmark-v1 · run benchmark-v1-\d{4}-\d{2}-\d{2}-a · 2 cases \(1 challenge \/ 1 explain_back\) · ~2 Opus calls/);
+    assert.match(result.out, /✓ target: http:\/\/127\.0\.0\.1:\d+ · app repo-demo · set benchmark-v1 · run benchmark-v1-\d{4}-\d{2}-\d{2}-a · 2 cases \(1 challenge \/ 1 explain_back\) · ~2 Opus calls/);
     assert.match(result.out, /jev errors: pending 0 · incomplete 1 · failed 0/);
     const [file] = readdirSync(join(dir, 'results', 'benchmark-v1'));
     const saved = JSON.parse(readFileSync(join(dir, 'results', 'benchmark-v1', file), 'utf8'));
@@ -102,8 +118,8 @@ test('the Opus arm sends the block fields and the answer to /api/learn/assess, l
     const result = await run([...common(base, dir), '--set-file', join(dir, 'set.json')]);
     assert.equal(result.code, 0, result.out);
     const byMode = mode => calls.assess.find(body => body.mode === mode);
-    assert.deepEqual(byMode('challenge'), { app: 'demo-app', mode: 'challenge', prompt: 'Why exp?', expects: ['positive', 'sums to one', 'bigger wins'], answer: 'all three' });
-    assert.deepEqual(byMode('explain_back'), { app: 'demo-app', mode: 'explain_back', prompt: 'Explain descent.', expects: ['gradient', 'opposite step', 'learning rate'], answer: 'no idea' });
+    assert.deepEqual(byMode('challenge'), { app: 'repo-demo', mode: 'challenge', prompt: 'Why exp?', expects: ['positive', 'sums to one', 'bigger wins'], answer: 'all three' });
+    assert.deepEqual(byMode('explain_back'), { app: 'repo-demo', mode: 'explain_back', prompt: 'Explain descent.', expects: ['gradient', 'opposite step', 'learning rate'], answer: 'no idea' });
     const [file] = readdirSync(join(dir, 'results', 'benchmark-v1'));
     assert.equal(JSON.parse(readFileSync(join(dir, 'results', 'benchmark-v1', file), 'utf8')).cases.find(item => item.id === 'ch1-all').opus.verdict, 'good');
   } finally { server.close(); }
@@ -166,7 +182,7 @@ test('a pending that never resolves is scored as a pending error', async () => {
 test('--holdout-hash-file is refused outside local mode', async () => {
   const dir = workspace(tinySet('benchmark-v1-holdout'), { 'HOLDOUT.sha256': 'f'.repeat(64) });
   const result = await new Promise(resolve => {
-    const child = spawn(process.execPath, [BENCH, '--base', 'https://small-cp-dev-x.zeroshothq.workers.dev', '--app', 'demo-app', '--env-file', join(dir, '.env'), '--holdout', join(dir, 'set.json'), '--holdout-hash-file', join(dir, 'HOLDOUT.sha256')], { env: { ...process.env, LEARN_BENCH_ALLOW_LOCAL: '' } });
+    const child = spawn(process.execPath, [BENCH, '--base', 'https://small-cp-dev-x.zeroshothq.workers.dev', '--app', 'repo-demo', '--env-file', join(dir, '.env'), '--holdout', join(dir, 'set.json'), '--holdout-hash-file', join(dir, 'HOLDOUT.sha256')], { env: { ...process.env, LEARN_BENCH_ALLOW_LOCAL: '' } });
     let out = '';
     child.stdout.on('data', chunk => { out += chunk; });
     child.stderr.on('data', chunk => { out += chunk; });
