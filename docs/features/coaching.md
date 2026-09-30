@@ -653,6 +653,10 @@ for drawing, undo, separate chat history, demo animation, and replay; screenshot
 review confirmed the formula, curve, labels, and chat fit the existing layout.
 Published to regular dev as `6ed0a1d7-db74-4dcf-9163-786b149b23ad`.
 Review at `/apps/yolo-s3-job?tab=learn`; live and AWS BYOC remain unchanged.
+Since learn-cleanup U2 (2026-09-29) no Learn chat shows this demo: it needs the
+parked tldraw player, so the pill was always disabled and typing its prompt sent
+nothing. The pinned-selection Asking about chip and Clear selected context are
+gone for the same reason. The My notes button now toggles back to the canvas.
 
 - The header reads **Learn Agent** on the same row as **History** and **+ New chat**.
 - `POST /api/learn/ask` uses existing app context and model handling, but creates

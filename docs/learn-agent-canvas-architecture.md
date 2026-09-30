@@ -192,7 +192,7 @@ docs/features/                  learn-*.md and canvas-*.md feature specs
 | 5 | `boardContext.pause()`, `setAnswering(true)`, busy on, an `AbortController` for Stop. | ~448-458 |
 | 6 | Attached context is read from `boardContext`: paper, wiki, video, image, outline. The canvas preview image is display-only and never sent. | ~464-470 |
 | 7 | A user message and an empty assistant message are added. The sheet shows "Thinking...". | ~473-475 |
-| 8 | `boardContext.snapshot()` returns null on the canvas (the tldraw editor is never set), so the path is `/api/learn/ask`, not `/api/learn/selection`. | ~493-494; `LearnPage.jsx` `editor` state |
+| 8 | The path is always `/api/learn/ask`. Since the learn-cleanup U2 commits the composer builds no `lesson_snapshot` and never posts to `/api/learn/selection`; the server route and contract stay. | `ask.jsx` `send` |
 | 9 | The body is built (see [6.1](#61-request-body)) and posted as JSON, or as multipart when a file is attached. `X-Small-Workspace` rides along when set. | ~495-540; `api.js` `wsHeaders` |
 | 10 | SSE events are handled (see [6.2](#62-server-sent-events)): `progress` updates the spinner text, `chunk` fills the answer, `paper` / `wiki` / `video` / `outline` act on the canvas, `done` stores the thread id. | ~551-583 |
 | 11 | On `done` the sheet thread id is remembered in `localStorage small.learn-sheet-threads:<app>` so History can list it. | ~574-580 |
@@ -321,6 +321,7 @@ This installation is outside the canvas path described here.
 | **Continue convo** inside a chat card | That card's own thread, seeded with its Q and A via `canvas_seed` | A reply inside the card | `renderBlockComposer` in `LearnPage.jsx`; `canvas-conversation.js` |
 | A `/` command | none | A new card at the view centre, not linked to the selection | `learn-slash.js` `runLearnCommand` |
 | Challenge / explain-back **Commit** | A new thread per grade | The verdict in the card | `learn-grade.js` |
+| Type in the right-panel **Learn Agent** chat (**My notes** view) | Resumes the app's latest Learn thread of any origin (`/api/ask/threads?scope=learn&ref=<app>`), which can be a card or grading thread; its History is unfiltered | That panel; not the sheet, no card. It gets the same `boardContext` as the dock | `LearnPage.jsx` right-panel `AskPanel headerTitle="Learn Agent"`; `ask.jsx` thread load |
 
 **What an Ask in chat question sends.** The message becomes:
 
@@ -773,7 +774,8 @@ The dev `DB` is the same database id as production.
 - **No token streaming on Learn.** The answer arrives as one `chunk` after the whole tool loop, and only progress stages stream.
 - **The repository path ignores `outline`, `wiki_context` and `video_context`,** so an attached Wikipedia or YouTube card is not sent to the model on nanoGPT-style apps.
 - **Grading creates a new chat thread per grade** through `/api/learn/ask`. Grading threads and card threads share the `threads` table with sheet threads, which is why sheet History filters by localStorage and is per browser.
-- **tldraw-era plumbing is inert on the canvas.** `LearnPage`'s `editor` is never set, so `boardContext.snapshot`, `label` and `preview` do nothing, and `/api/learn/selection` is never used from the canvas.
+- **tldraw-era plumbing is inert on the canvas.** `LearnPage`'s `editor` is never set, so the lesson player is parked. The learn-cleanup U2 commits removed the client's `boardContext.snapshot`, `isCurrent`, `label` and `clear`, the snapshot and `/api/learn/selection` branch in `ask.jsx`, and the Explain on canvas leftovers. `boardContext.preview` is half live: a paper region picked in the right-panel reader is shown and sent; only the canvas half is dead.
+- **My notes is a second Learn chat.** Outside the lesson view the right panel is a full Learn AskPanel titled Learn Agent that resumes the app's latest Learn thread (see [section 5](#5-where-an-answer-goes-sheet-card-or-reply)). On canvases no note can be created, so the view is empty; its button now toggles back to the canvas.
 - **A whiteboard selection's image is display-only.** The model gets text.
 - **Minor gaps:**
   - `/source` is a no-op.

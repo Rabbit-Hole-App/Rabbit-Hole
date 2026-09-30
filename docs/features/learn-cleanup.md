@@ -350,6 +350,29 @@ and workspace `/api/ask`, which the browser guard keeps off on the preview.
 - **Defense in depth (T6 a).** The `LearnVideos` and `LearnScenes` alarms use
   `learnMedia(this.env)` outside the dev worker's `LEARN_MEDIA` guard. That is
   safe while both dev configs bind `LEARN_MEDIA` (`learn-storage.test.js`).
+- **inert-1, the tldraw lesson player.** Stays parked (owner default). The
+  `editor`-gated code in `LearnPage`, `LearnCanvas.jsx`, `canvas-preview.js`,
+  `learn-graph-storage.js`, `learn-video-canvas.js`, `sigmoid-demo.js`,
+  `RegionPicker.jsx`, `region-targets.js`, `noteSnapshot`, `pinned`,
+  `refreshSelection`, the `demo` object and `boardContext.pause` and
+  `setAnswering` are untouched. Retiring it is an owner decision.
+- **inert-4, `boardContext.preview`.** Kept with `previewKind` and
+  `removeImage`: the paper-region half is live (right-panel reader to
+  `paper_context.selection`). The canvas half goes only with inert-1.
+- **inert-6, the My notes Learn Agent chat.** Documented in the architecture
+  doc (sections 5 and 15): a non-sheet Learn chat that resumes the app's
+  latest Learn thread of any origin. Whether it should stay is outside this
+  spec; no change.
+- **inert-10, server selection contract.** `/api/learn/selection` (index.js,
+  dev-worker.js, `refuseCanvasAsk`), the `lesson_snapshot` contract in
+  `apiAsk` and `repositoryAsk`, `validateLessonSnapshot` (live through the
+  whiteboard explainer) and `sigmoid-context.js` stay.
+- **U2 stale browser checks.** `e2e/learn-preview.spec.js` and
+  `e2e/coaching.preview.js` still click the sigmoid demo pill and Clear
+  selected context and route `/api/learn/selection`; they already could not
+  pass (no editor, no Lesson views navigation). Left for U9 (inert-12/13),
+  not deleted. Commit `5b705c3` says the tldraw selection listener was
+  removed; it is parked, not removed.
 
 ## Progress
 
@@ -364,3 +387,16 @@ and workspace `/api/ask`, which the browser guard keeps off on the preview.
   prompts-9, context-15, grading-2 (storage half), context-18 and delta-6
   (comments). Recorded: duplication-22, the sweep, legacy snapshots,
   mentions, moment history. Needs a decision: the clone recipe (delta-13).
+- **U2 inert canvas wiring (C10 early refactors), 2026-09-29.** Refactors:
+  `304be1a` zero-reference identifiers and imports (inert-9); `8207552`
+  Explain on canvas leftovers (inert-8); `3853c31` the client snapshot and
+  `/api/learn/selection` branch, `isCurrent`, `teachingSnapshot` (inert-2);
+  `5b705c3` the pinned label chip and `boardContext.clear` (inert-3). Fixes,
+  each with a test in `packages/web/src/learn-notes-view.test.mjs` shown
+  failing first: `0175d45` no demo pill in the Learn Agent chat (inert-5);
+  `8d51a6e` Return to lesson and Save and resume without an editor
+  (inert-7); `ab71b38` My notes toggles back to the canvas (inert-19, the
+  toggle option of its UX choice). Docs: inert-6, the architecture doc and
+  coaching.md. Recorded: inert-1 (parked), inert-4, inert-10. UI changes
+  (inert-5, inert-19) still need a deployed visual review on the session
+  clone.
