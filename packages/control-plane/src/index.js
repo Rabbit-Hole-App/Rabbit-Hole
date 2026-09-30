@@ -2345,6 +2345,9 @@ export default {
           if (s) user = { email: s.email, ...(await workspaceFor(req, env, s.email)) };
         }
         if (!user) return json({ error: 'run small login first' }, 401);
+        // Who is signed in, for the dev and review workers (dev-forwarding.js devIdentity). Reads only:
+        // GET /api/apps also answers it, but its sweepStaleRuns writes (docs/features/dev-prod-write-barrier.md).
+        if (path === '/api/me' && req.method === 'GET') return json({ email: user.email, org: user.org, orgName: user.orgName || null });
         const learnCourse = path.match(/^\/api\/apps\/([a-z0-9-]+)\/learn-course$/);
         if (learnCourse) return await handleLearnCourse(req, env, user, learnCourse[1], { appForUser, sourceSection });
         if (path === '/api/workspaces' && req.method === 'GET') return await apiWorkspaces(env, user);

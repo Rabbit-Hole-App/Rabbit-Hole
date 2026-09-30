@@ -201,7 +201,7 @@ test('T02 section 16 pin: connect_repository writes only LEARN_DB rows and learn
   const key=`learn-repositories-dev/${row.id}/${newer}/graphify-0.9.63.json`;
   assert.deepEqual([...f.assets.keys()].filter(k=>k!=='snapshot'),[key]); // 16.2, 16.3: prefix plus LEARN_DB id plus commit
   assert.equal(f.sqlite.prepare('SELECT storage_key FROM repository_versions WHERE app_id=?').get(row.id).storage_key,key); // 16.5: R2 found through repository_versions
-  assert.deepEqual([...new Set(seen)],['GET /api/apps']); // 16.4: identity read only
+  assert.deepEqual([...new Set(seen)],['GET /api/me']); // 16.4: identity read only (side-effect free, dev-prod-write-barrier.md)
   assert.deepEqual([...hosts],['worker.test']);
   assert.equal(f.sqlite.prepare('SELECT status FROM repository_apps WHERE id=?').get(row.id).status,'ready');
 });

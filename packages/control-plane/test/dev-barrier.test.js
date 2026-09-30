@@ -5,9 +5,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
-import { devWorker } from './worker-import.js';
+import { devWorker, productionWorker } from './worker-import.js';
+import { sign } from '../src/token.js';
 import { liveDb, liveRuns, memoryBucket } from './live-storage-spy.js';
-import { productionAllows } from '../src/dev-forwarding.js';
+import { productionAllows, devIdentity } from '../src/dev-forwarding.js';
 
 const worker = (await devWorker()).default;
 
@@ -20,7 +21,7 @@ function production() {
     fetch: async req => {
       const path = new URL(req.url).pathname;
       sent.push(`${req.method} ${path}`);
-      if (path === '/api/apps' || path === '/api/me') return Response.json({ org: 'team', email: 'owner@test', orgName: 'Team', apps: [] });
+      if (path === '/api/me') return Response.json({ org: 'team', email: 'owner@test', orgName: 'Team' });
       return Response.json({ forwarded: path });
     },
   };
@@ -42,7 +43,7 @@ function fixture(t) {
     assert.deepEqual(env.RUNS.calls, [], 'the dev worker touched production small-runs');
     for (const call of env.CONTROL_PLANE.sent) {
       const [method, path] = call.split(' ');
-      assert.ok(productionAllows(method, path) || call === 'GET /api/apps' || call === 'GET /api/me', `crossed to production: ${call}`);
+      assert.ok(productionAllows(method, path) || call === 'GET /api/me', `crossed to production: ${call}`);
     }
   });
   return { env, send, sent: env.CONTROL_PLANE.sent };
@@ -96,7 +97,7 @@ test('writes the dev worker answers itself stay on dev storage', async t => {
   assert.equal((await f.send('POST', '/api/canvases', { title: 'New' })).status, 201);
   assert.equal((await f.send('PATCH', '/api/apps/canvas-0a1b2c3d', { title: 'Renamed' })).status, 200);
   assert.equal((await f.send('DELETE', '/api/apps/canvas-0a1b2c3d')).status, 200);
-  assert.ok(f.sent.every(call => call === 'GET /api/apps' || call === 'GET /api/me'), f.sent.join());
+  assert.ok(f.sent.every(call => call === 'GET /api/me'), f.sent.join());
 });
 
 test('dev-worker.js sends every fall-through through the barrier', () => {
@@ -117,4 +118,48 @@ test('a canvas Learn ask with an @-mention runs on dev storage and reads nothing
   const response = await f.send('POST', '/api/learn/ask', { scope: { app: 'canvas-0a1b2c3d' }, message: 'compare', mentions: ['counter'] });
   assert.match(await response.text(), /event: done/);
   assert.match(prompts.join(), /Mentioned app counter: not available to this chat \(live apps are not read on this preview\)/);
+});
+
+// Identity without side effects. Production GET /api/me verifies the session and reads at most one
+// workspace_members row; GET /api/apps, which the dev worker used before, runs an UPDATE first.
+test('production GET /api/me answers who is signed in with reads only; GET /api/apps writes', async () => {
+  const production = (await productionWorker()).default;
+  const sql = [];
+  const DB = { prepare: text => ({ bind: () => ({
+    first: async () => { sql.push(text); return /workspace_members/.test(text) ? { slug: 'w-lab', name: 'Lab' } : null; },
+    all: async () => { sql.push(text); return { results: [] }; },
+    run: async () => { sql.push(text); return { meta: { changes: 0 } }; },
+  }), run: async () => { sql.push(text); return { meta: { changes: 0 } }; } }) };
+  const env = { MASTER_KEY: 'test-master-key', DB };
+  const session = await sign({ t: 'sess', email: 'owner@team.test', exp: Math.floor(Date.now() / 1000) + 60 }, env.MASTER_KEY);
+  const me = headers => production.fetch(new Request('https://small-cp.test/api/me', { headers }), env, {});
+  assert.deepEqual(await (await me({ 'X-Small-Session': session })).json(), { email: 'owner@team.test', org: 'team-test', orgName: null });
+  assert.deepEqual(await (await me({ 'X-Small-Session': session, 'X-Small-Workspace': 'w-lab' })).json(), { email: 'owner@team.test', org: 'w-lab', orgName: 'Lab' });
+  assert.equal((await me({})).status, 401);
+  assert.ok(sql.length && sql.every(text => /^\s*SELECT/i.test(text)), sql.join(' | '));
+  sql.length = 0;
+  await production.fetch(new Request('https://small-cp.test/api/apps', { headers: { 'X-Small-Session': session } }), env, {});
+  assert.match(sql[0], /^UPDATE runs/, 'GET /api/apps sweeps first: why the dev worker no longer asks it');
+});
+
+test('dev identity asks GET /api/me, and falls back to two reads while production does not have it yet', async () => {
+  const ask = routes => {
+    const sent = [];
+    const env = { CONTROL_PLANE: { fetch: async req => { const path = new URL(req.url).pathname; sent.push(`${req.method} ${path}`); return routes[path] ? Response.json(routes[path]) : Response.json({ error: 'no such endpoint' }, { status: 404 }); } } };
+    return devIdentity(new Request('https://dev.test/api/canvases', { headers: { cookie: 'small_session=s' } }), env).then(user => ({ user, sent }));
+  };
+  const deployed = await ask({ '/api/me': { email: 'a@b.c', org: 'b-c', orgName: null } });
+  assert.deepEqual(deployed, { user: { email: 'a@b.c', org: 'b-c', orgName: null }, sent: ['GET /api/me'] });
+  const bridge = await ask({ '/api/workspaces': { active: 'w-lab', workspaces: [{ slug: 'b-c', name: null }, { slug: 'w-lab', name: 'Lab' }] }, '/api/trash': { trash: [], email: 'a@b.c' } });
+  assert.deepEqual(bridge, { user: { email: 'a@b.c', org: 'w-lab', orgName: 'Lab' }, sent: ['GET /api/me', 'GET /api/workspaces', 'GET /api/trash'] });
+  for (const call of bridge.sent.slice(1)) assert.ok(productionAllows(...call.split(' ')), call);
+  const signedOut = await devIdentity(new Request('https://dev.test/'), { CONTROL_PLANE: { fetch: async () => Response.json({ error: 'run small login first' }, { status: 401 }) } });
+  assert.equal(signedOut.status, 401);
+});
+
+test('the dev catalog lists dev apps only and asks production nothing but who is signed in', async t => {
+  const f = fixture(t);
+  const catalog = await (await f.send('GET', '/api/apps')).json();
+  assert.deepEqual([catalog.org, catalog.email, catalog.folders, catalog.apps.map(app => app.name)], ['team', 'owner@test', [], ['canvas-0a1b2c3d']]);
+  assert.deepEqual(f.sent, ['GET /api/me']);
 });

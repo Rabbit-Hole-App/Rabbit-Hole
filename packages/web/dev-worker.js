@@ -42,7 +42,9 @@ export default {
     if (path === '/api/apps' && req.method === 'GET') {
       const catalog = await repositoryIdentity(req, env);
       if (catalog instanceof Response) return catalog;
-      return Response.json({ ...catalog, apps: [...catalog.apps, ...(await ownerRepositories(env, catalog)), ...(await ownerCanvases(env, catalog))] }, { headers: { 'Cache-Control': 'no-store' } });
+      // Dev apps only: listing live apps is production GET /api/apps, whose sweepStaleRuns writes
+      // (docs/features/dev-prod-write-barrier.md). A live app still opens by name (GET /api/apps/<name>).
+      return Response.json({ ...catalog, folders: [], apps: [...(await ownerRepositories(env, catalog)), ...(await ownerCanvases(env, catalog))] }, { headers: { 'Cache-Control': 'no-store' } });
     }
     const repositoryRoute = path.match(/^\/api\/apps\/(repo-[a-z0-9-]+)(\/learn-course)?$/);
     if (repositoryRoute) {

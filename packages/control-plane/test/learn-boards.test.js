@@ -21,7 +21,7 @@ function setup(t) {
       const who = PEOPLE[(request.headers.get('cookie') || '').replace('small_session=', '')];
       if (!who) return new Response('sign in', { status: 401 });
       const path = new URL(request.url).pathname;
-      if (path === '/api/apps') return Response.json({ ...who, apps: [] });
+      if (path === '/api/me') return Response.json(who);
       if (path === '/api/apps/demo-app' && who === PEOPLE.owner) return Response.json({ name: 'demo-app', ...who });
       return new Response('no', { status: 404 });
     },

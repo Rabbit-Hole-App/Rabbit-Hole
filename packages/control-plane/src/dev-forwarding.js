@@ -33,6 +33,29 @@ export function productionAllows(method, path) {
   return SESSION.has(`${method} ${path}`) || (method === 'GET' && READS.some(pattern => pattern.test(path)));
 }
 
+// Who is signed in, asked of production without side effects: GET /api/me (index.js). The dev worker
+// used GET /api/apps, whose sweepStaleRuns UPDATEs production runs. Returns {email, org, orgName}
+// or a JSON 401/403 Response.
+// ponytail: /api/me reaches production only with its next approved deploy; until then small-cp
+// answers it 404 and the identity comes from two reads that write nothing, GET /api/workspaces
+// (the active workspace and its name) and GET /api/trash (the email). Delete the fallback after that deploy.
+export async function devIdentity(req, env) {
+  const get = async path => {
+    const url = new URL(req.url); url.pathname = path; url.search = '';
+    const response = await env.CONTROL_PLANE.fetch(new Request(url, { headers: req.headers, redirect: 'manual' }));
+    return response.ok && response.headers.get('content-type')?.includes('json') ? response.json() : response;
+  };
+  let me = await get('/api/me');
+  if (me instanceof Response && me.status === 404) {
+    const workspaces = await get('/api/workspaces'), trash = workspaces instanceof Response ? workspaces : await get('/api/trash');
+    me = trash instanceof Response ? trash : { email: trash.email, org: workspaces.active, orgName: workspaces.workspaces?.find(w => w.slug === workspaces.active)?.name || null };
+  }
+  const refuse = (error, status) => Response.json({ error }, { status, headers: { 'Cache-Control': 'no-store' } });
+  if (me instanceof Response) return refuse('Sign in to this workspace first', me.status === 403 ? 403 : 401);
+  if (!me.org || !me.email) return refuse('Workspace membership required', 403);
+  return { email: me.email, org: me.org, orgName: me.orgName || null };
+}
+
 export function forwardToProduction(req, env) {
   if (productionAllows(req.method, new URL(req.url).pathname)) return env.CONTROL_PLANE.fetch(req);
   return Response.json({ error: 'Blocked on this preview: it would change live state.' }, { status: 403, headers: { 'Cache-Control': 'no-store' } });

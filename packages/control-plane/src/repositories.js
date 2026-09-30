@@ -12,6 +12,7 @@ import { uploadedPaperAsDocument } from './learn-paper.js';
 import { readWikipedia } from './learn-wiki.js';
 import { subscriptionOwnerRefusal, subscriptionCourseRefusal } from './subscription-transport.js';
 import { videoMomentTools } from './learn-youtube.js';
+import { devIdentity } from './dev-forwarding.js';
 
 const json=(body,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store'}});
 export function parseRepository(value) {
@@ -26,15 +27,12 @@ async function repositoryMetadata(env, repo, options={}) {
   const data=await response.json();if(!response.ok)throw Error(data.error||'Public repository metadata unavailable');
   return data;
 }
+// {email, org, orgName} from production without side effects (dev-forwarding.js devIdentity).
 export async function repositoryIdentity(req,env) {
-  const url=new URL(req.url); url.pathname='/api/apps'; url.search='';
-  const response=await env.CONTROL_PLANE.fetch(new Request(url,{headers:req.headers,redirect:'manual'}));
-  if(!response.ok||!response.headers.get('content-type')?.includes('json')) return json({error:'Sign in to this workspace first'},response.status===403?403:401);
-  const catalog=await response.json();
-  if(!catalog.org||!catalog.email) return json({error:'Workspace membership required'},403);
+  const user=await devIdentity(req,env); if(user instanceof Response) return user;
   const requested=req.headers.get('x-small-workspace');
-  if(requested&&requested!==catalog.org)return json({error:'You are not a member of the requested workspace'},403);
-  return catalog;
+  if(requested&&requested!==user.org)return json({error:'You are not a member of the requested workspace'},403);
+  return user;
 }
 export function repositoryApp(row,user) {
   return {...row,kind:'repository',hosting:'repository',email:user.email,orgName:user.orgName,visibility:'domain',members:[],canView:true,canEdit:row.owner_email===user.email,

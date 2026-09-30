@@ -15,10 +15,9 @@ export function liveRuns() {
   return { calls, get: async key => refuse('get', key), head: async key => refuse('head', key), put: async key => refuse('put', key), delete: async key => refuse('delete', key), list: async options => refuse('list', options?.prefix) };
 }
 
-// Answers the identity reads only: GET /api/apps and GET /api/apps/<name> (from `apps`).
-// Any other method or path is recorded in `refused` and throws, since the dev worker
-// proxies it to live small-cp. ponytail: this fake replaces live GET /api/apps, so it
-// cannot see that handler's own sweepStaleRuns UPDATE (index.js apiApps); recorded in learn-cleanup.md.
+// Answers the identity reads only: GET /api/me and GET /api/apps/<name> (from `apps`), both
+// side-effect free in index.js. Any other method or path is recorded in `refused`: a non-GET
+// throws, and so would GET /api/apps, whose sweepStaleRuns writes (dev-prod-write-barrier.md).
 export function readOnlyControlPlane({ org = 'team', email = 'owner@test', apps = {} } = {}) {
   const seen = [], refused = [];
   return {
@@ -27,7 +26,7 @@ export function readOnlyControlPlane({ org = 'team', email = 'owner@test', apps 
       const path = new URL(req.url).pathname;
       if (req.method !== 'GET') { refused.push(`${req.method} ${path}`); throw new Error(`live small-cp write: ${req.method} ${path}`); }
       seen.push(`GET ${path}`);
-      if (path === '/api/apps') return Response.json({ org, email, orgName: 'Team', apps: [] });
+      if (path === '/api/me') return Response.json({ org, email, orgName: 'Team' });
       const name = decodeURIComponent(path.replace(/^\/api\/apps\//, ''));
       if (apps[name]) return Response.json({ name, org, email, ...apps[name] });
       refused.push(`GET ${path}`);
