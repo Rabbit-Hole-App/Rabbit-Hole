@@ -266,3 +266,14 @@ test('findVideoMoments carries the hot candidate and the gate trusts it', async 
   assert.equal(shown.start, 120);
   assert.throws(() => validateShowVideo({ videoId: 'FaHHWdsIYQg', start: 10, end: 60 }, found), /without a window/, 'an untrusted passage-less video still refuses');
 });
+
+// C1: with LEARN_DB bound (the dev worker) the hot path reads the dev moment log, never the live DB.
+test('the hot path reads learn_moments from LEARN_DB when it is bound', async () => {
+  const { hotMoment } = await import('../src/learn-moment-index.js');
+  const { liveDb } = await import('./live-storage-spy.js');
+  const env = hotEnv(ROW);
+  env.LEARN_DB = env.DB;
+  env.DB = liveDb();
+  assert.equal((await hotMoment('how does backpropagation work?', env, 'workspace-a'))?.videoId, VID);
+  assert.deepEqual(env.DB.calls, []);
+});

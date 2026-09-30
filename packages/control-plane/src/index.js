@@ -1222,8 +1222,8 @@ ${renderOutline(body.outline)}`;
         },
       }
     : null;
-  // A canvas turn hands askStream LEARN_DB as DB, so its learn_moments insert (ask.js:403) cannot reach live D1.
-  // ponytail: LEARN_DB has no learn_moments table, so canvas answers skip the moment log (ask.js:399-405 swallows it); add the table to repository-schema.sql when the log needs canvases.
+  // A canvas turn hands askStream its LEARN_DB thread store as DB. The moment log does not depend on that:
+  // it goes through learnMomentsDb (learn-storage.js), LEARN_DB on dev for every app kind.
   return askStream(seam ? { ...env, DB: db } : env, context, history, q, async (full) => {
     await db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)').bind(threadId, 'assistant', full).run();
   }, { threadId, ...(note ? { note } : {}) }, extraBlocks, toolOpts, modelId, conversation === 'learn' ? null : user.org, conversation === 'learn' ? LEARN_SYSTEM : undefined, research);

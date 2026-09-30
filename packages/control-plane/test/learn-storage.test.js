@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
-import { learnMedia } from '../src/learn-storage.js';
+import { learnMedia, learnMomentsDb } from '../src/learn-storage.js';
 import { putUploadedMedia, readUploadedMedia } from '../src/learn-media.js';
 import { writeNegative, readMomentRecord } from '../src/learn-moment-index.js';
 
@@ -50,4 +50,19 @@ test('with LEARN_MEDIA bound, Learn writes never reach the live bucket; without 
   assert.equal((await readMomentRecord(env, 'dQw4w9WgXcQ')).reason, 'blocked');
   assert.equal(store.size, 2);
   assert.equal(learnMedia({ RUNS: live }), live);
+});
+
+// C1 decision 1: every learn_moments statement goes through learnMomentsDb, LEARN_DB where
+// bound (dev and review workers). Production small-cp binds no LEARN_DB, so it keeps DB.
+test('the moment log uses LEARN_DB where bound; production binds no LEARN_DB and keeps DB', () => {
+  const DB = {}, LEARN_DB = {};
+  assert.equal(learnMomentsDb({ DB, LEARN_DB }), LEARN_DB);
+  assert.equal(learnMomentsDb({ DB }), DB);
+  assert.ok(!(config(PRODUCTION).d1_databases || []).some(entry => entry.binding === 'LEARN_DB'), 'production must not bind LEARN_DB');
+  for (const path of DEV) assert.equal(config(path).d1_databases.find(entry => entry.binding === 'LEARN_DB')?.database_name, 'small-learn-dev', path);
+  const src = new URL('../src/', here);
+  for (const name of readdirSync(src).filter(file => file.endsWith('.js'))) {
+    for (const line of readFileSync(new URL(name, src), 'utf8').split('\n').filter(line => /prepare\([^)]*learn_moments/.test(line)))
+      assert.match(line, /learnMomentsDb\(env\)\.prepare/, `${name}: ${line.trim()}`);
+  }
 });

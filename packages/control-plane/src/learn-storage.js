@@ -7,3 +7,11 @@
 // App/Job output reads (bundles, run outputs) - the "live outputs" binding.
 // dev-worker.js refuses to serve when LEARN_MEDIA is missing.
 export const learnMedia = env => env?.LEARN_MEDIA || env?.RUNS;
+
+// Where the video-moment log (learn_moments) lives. Every learn_moments statement
+// goes through this, and nothing else: a dev or review worker binds LEARN_DB
+// (small-learn-dev), so its moment log, Keep/Dismiss and hot path never reach the
+// production D1 its DB binding names. Production small-cp binds no LEARN_DB and
+// keeps using DB, unchanged. ponytail: small-learn-dev has no learn_moments table
+// yet (owner decision 1, 2026-09-29), so dev moments go quiet until it is added.
+export const learnMomentsDb = env => env?.LEARN_DB || env?.DB;

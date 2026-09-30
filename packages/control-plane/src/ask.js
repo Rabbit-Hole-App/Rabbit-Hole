@@ -1,5 +1,6 @@
 import { subscriptionTransport } from './subscription-transport.js';
 import { researchAnswer } from './learn-research.js';
+import { learnMomentsDb } from './learn-storage.js';
 // Ask (phase 1 - read only): one agent function, scoped per question. This module
 // holds the model call + prompt; index.js owns auth, scope resolution, and context
 // assembly so permissions are enforced by queries, never by the prompt.
@@ -401,7 +402,7 @@ ${research.system}` : system;
             // `org` the parameter is null for learn conversations by design, so
             // the workspace rides on the research object instead - the log is
             // keyed per workspace or it is useless to the hot path.
-            const written = await env.DB.prepare('INSERT INTO learn_moments (org, question, video_id, start, end, confidence, reason) VALUES (?, ?, ?, ?, ?, ?, ?)')
+            const written = await learnMomentsDb(env).prepare('INSERT INTO learn_moments (org, question, video_id, start, end, confidence, reason) VALUES (?, ?, ?, ?, ?, ?, ?)')
               .bind(research.org || org || 'unknown', message.slice(0, 500), moment.videoId, moment.start, moment.end, moment.confidence, moment.reason).run();
             momentId = written.meta?.last_row_id ?? null;
           } catch { /* logging is never worth an error mid-answer */ }

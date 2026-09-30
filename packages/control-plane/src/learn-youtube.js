@@ -9,6 +9,7 @@
 import { fetchCaptions } from './learn-captions.js';
 import { guardedCaptions, enqueueForIndex, warmMoments, semanticWindowScorer, hotMoment, upsertAcceptedQuestion, withdrawAcceptedQuestion } from './learn-moment-index.js';
 import { topPassages } from './learn-moment-retrieve.js';
+import { learnMomentsDb } from './learn-storage.js';
 
 const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
 // A video is at most this long for our purposes; the prototype drops >3h too.
@@ -154,14 +155,14 @@ export async function setMomentFeedback(env, org, momentId, accepted) {
   const id = Number(momentId);
   if (!Number.isInteger(id) || id < 1) throw new Error('Invalid moment id');
   if (typeof accepted !== 'boolean') throw new Error('accepted must be true or false');
-  const result = await env.DB.prepare('UPDATE learn_moments SET accepted = ? WHERE id = ? AND org = ?')
+  const result = await learnMomentsDb(env).prepare('UPDATE learn_moments SET accepted = ? WHERE id = ? AND org = ?')
     .bind(accepted ? 1 : 0, id, String(org || '')).run();
   const updated = (result.meta?.changes ?? result.meta?.rows_written ?? 0) > 0;
   // Phase 4's bridge, best effort: a kept question becomes a hot-path key, a
   // dismissed one is withdrawn. Absent bindings this is silently nothing.
   if (updated && accepted) {
     try {
-      const row = await env.DB.prepare('SELECT question FROM learn_moments WHERE id = ?').bind(id).first();
+      const row = await learnMomentsDb(env).prepare('SELECT question FROM learn_moments WHERE id = ?').bind(id).first();
       await upsertAcceptedQuestion(env, org, id, row?.question);
     } catch { /* the D1 verdict stands; the vector catches up on a re-press */ }
   } else if (updated && !accepted) {

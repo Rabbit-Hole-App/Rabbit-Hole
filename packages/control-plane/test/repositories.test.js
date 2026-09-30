@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { parseRepository, repositoriesFetch, repositoryAccess, RepositoryImports } from '../src/repositories.js';
 import { repositoryTool, REPOSITORY_SYSTEM, REPOSITORY_TOOLS } from '../src/repository-context.js';
 import { researchAnswer } from '../src/learn-research.js';
+import { liveDb, memoryBucket } from './live-storage-spy.js';
 
 const sha='a'.repeat(40), newer='b'.repeat(40);
 const snapshot={repo:'example/project',commit:sha,version:'graphifyy-0.9.63-small-1',files:{'model.py':'class Model:\n    def forward(self, x):\n        return x + 1','README.md':'A model'},skipped:[],graph:{nodes:[{id:'model',label:'Model',path:'model.py',line:1},{id:'forward',label:'forward()',path:'model.py',line:2}],edges:[{source:'model',target:'forward',relation:'contains',confidence:'EXTRACTED'}]}};
@@ -87,6 +88,27 @@ test('graph answers stream an exact view and retain it with the saved answer',as
   const id=f.sqlite.prepare('SELECT id FROM threads').get().id;
   const saved=await(await f.send(`threads/${id}`)).json(),answer=saved.messages.find(m=>m.role==='assistant');
   assert.equal(answer.graph.commit,sha);assert.deepEqual(answer.graph.nodes.map(n=>n.id),['model','forward']);assert.equal(answer.graph.edges[0].relation,'contains');
+});
+
+// C1 (docs/features/learn-cleanup.md): a repository answer that shows a video logs the moment
+// through learnMomentsDb, which is LEARN_DB on dev. The live DB is a recording spy, because the
+// moment log swallows its errors (ask.js), and small-learn-dev has no learn_moments table yet,
+// so the dev log goes quiet: the video still streams, with no momentId.
+test('a repository video answer writes no learn_moments row to the live DB',async t=>{
+  const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});
+  const live=liveDb();Object.assign(f.env,{DB:live,LEARN_MEDIA:memoryBucket(),EXA_API_KEY:'test'});
+  const replies=[{content:[{type:'tool_use',id:'find',name:'find_video_moments',input:{query:'backprop'}}]},{content:[{type:'tool_use',id:'show',name:'show_video',input:{videoId:'Ilg3gGewQ5U'}}]},{content:[{type:'text',text:'Watch the chain rule.'}],stop_reason:'end_turn'}];
+  globalThis.fetch=async url=>{
+    const host=new URL(String(url)).hostname;
+    if(host==='api.exa.ai')return Response.json({results:[{url:'https://www.youtube.com/watch?v=Ilg3gGewQ5U',title:'Backprop - YouTube'}]});
+    if(host==='api.anthropic.com')return Response.json(replies.shift());
+    return new Response('',{status:404});
+  };
+  const events=await(await f.send('ask',{message:'show me a video about backprop'})).text();
+  assert.match(events,/event: video/);assert.match(events,/event: done/);
+  assert.doesNotMatch(events,/momentId/);
+  assert.deepEqual(live.calls,[]);
+  assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM messages').get().n,2);
 });
 
 test('canvas block branches have isolated saved histories and remain permission scoped', async t => {

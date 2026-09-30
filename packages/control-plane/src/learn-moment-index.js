@@ -10,7 +10,7 @@
 
 import { fetchCaptions } from './learn-captions.js';
 import { cutWindows, clock } from './learn-moment-retrieve.js';
-import { learnMedia } from './learn-storage.js';
+import { learnMedia, learnMomentsDb } from './learn-storage.js';
 
 const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
 const HOUR = 60 * 60 * 1000, DAY = 24 * HOUR;
@@ -240,13 +240,13 @@ export async function warmMoments(query, env, { captions = fetchCaptions } = {})
 // D1 log, accepted rows only. Fast, not instant - and a candidate, never an
 // auto-show: the model still confirms it fits this question.
 export async function hotMoment(query, env, org) {
-  if (!env?.AI || !env?.MOMENTS || !env?.DB || !org) return null;
+  if (!env?.AI || !env?.MOMENTS || !learnMomentsDb(env) || !org) return null;
   try {
     const [vector] = await embedTexts(env, [query]);
     const result = await env.MOMENTS.query(vector, { topK: 3, namespace: `questions:${org}`, returnMetadata: 'all' });
     const best = (result?.matches || [])[0];
     if (!best || (best.score ?? 0) < HOT_MIN || !best.metadata?.momentId) return null;
-    const row = await env.DB.prepare('SELECT question, video_id, start, end, reason FROM learn_moments WHERE id = ? AND org = ? AND accepted = 1')
+    const row = await learnMomentsDb(env).prepare('SELECT question, video_id, start, end, reason FROM learn_moments WHERE id = ? AND org = ? AND accepted = 1')
       .bind(Number(best.metadata.momentId), String(org)).first();
     if (!row) return null;
     return { momentId: Number(best.metadata.momentId), videoId: row.video_id, start: row.start, end: row.end, reason: row.reason || null, pastQuestion: row.question, score: best.score ?? null };
