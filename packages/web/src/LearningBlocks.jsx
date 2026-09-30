@@ -845,6 +845,10 @@ function Kicker({ author = 'course', action = null, children }) {
   );
 }
 
+// Attempts whose grade request is running in this page. A block saved while
+// grading (a reload, an undo) has no request here and reads as interrupted.
+const gradingAttempts = new Set();
+
 function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
   const [draft, setDraft] = useState('');
   const latest = useRef(block);
@@ -861,23 +865,28 @@ function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
     // Keep `latest` in step with every write: a stream that lands in one tick
     // must not let the closing write replace the verdict with a stale block.
     const change = next => { latest.current = next; onChange(next); };
+    const committed = { ...block, answer, attemptId: crypto.randomUUID(), verdict: '', grading: !!onGrade };
+    // Only the attempt still on the block writes to it: after Answer again, a
+    // late reply from the old attempt is dropped.
+    const current = () => latest.current.attemptId === committed.attemptId;
+    gradingAttempts.add(committed.attemptId);
     try {
-      const committed = { ...block, answer, attemptId: crypto.randomUUID(), verdict: '', grading: !!onGrade };
       change(committed);
       if (!onGrade) return;
       // The tutor reads the challenge, the expected ideas and this answer, then
       // streams a short verdict back into the block.
       try {
         await onGrade(committed, answer, delta => {
-          const current = latest.current;
-          change({ ...current, verdict: (current.verdict || '') + delta, grading: true });
+          if (current()) change({ ...latest.current, verdict: (latest.current.verdict || '') + delta, grading: true });
         });
-        change({ ...latest.current, grading: false });
+        if (current()) change({ ...latest.current, grading: false });
       } catch (error) {
-        change({ ...latest.current, grading: false, verdict: `Could not reach the tutor: ${error.message}` });
+        // A verdict that already arrived stays; the error fills only an empty one.
+        if (current()) change({ ...latest.current, grading: false, verdict: latest.current.verdict || `Could not reach the tutor: ${error.message}` });
       }
     } finally {
-      inFlight.current = false;
+      gradingAttempts.delete(committed.attemptId);
+      if (current()) inFlight.current = false;
     }
   };
   const retry = () => { inFlight.current = false; setDraft(block.answer || ''); onChange({ ...block, answer: null, attemptId: null, verdict: '', grading: false }); };
@@ -885,6 +894,7 @@ function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
   // stripped from what the learner reads.
   const grade = parseVerdict(block.verdict);
   const verdictText = stripVerdict(block.verdict);
+  const waiting = block.grading && !verdictText ? (gradingAttempts.has(block.attemptId) ? 'Reading your answer…' : 'Grading was interrupted. Answer again to retry.') : null;
   return (
     <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
       <Kicker>{block.mode === 'explain_back' ? 'Explain back' : 'Challenge'}</Kicker>
@@ -906,7 +916,7 @@ function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
           {(verdictText || block.grading) && (
             <div data-verdict className="mt-3 border-t border-line pt-3 text-sm">
               <p className="mb-1 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">{block.mode === 'explain_back' ? 'Understanding evidence' : 'Tutor'}</p>
-              {verdictText ? <Md text={verdictText} onFile={onFile} /> : <p className="text-ink-2 italic">Reading your answer…</p>}
+              {verdictText ? <Md text={verdictText} onFile={onFile} /> : <p className="text-ink-2 italic">{waiting}</p>}
             </div>
           )}
           {block.reveal && <div className="mt-3 border-t border-line pt-3 text-sm"><Md text={block.reveal} onFile={onFile} /></div>}
