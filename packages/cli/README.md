@@ -66,7 +66,7 @@ app directory to refresh its agent instructions. The hosted AWS dashboard
 remains a dev preview. For a customer-hosted Small installation, use the
 private AWS instructions below and that installation's own URL.
 
-In the [dev dashboard](https://small-cp-dev.zeroshothq.workers.dev/apps), open
+In the [dev dashboard](https://small-cp-dev.tryrabbithole.workers.dev/apps), open
 the desired workspace's **Settings → Connections → AWS**. Enter the customer's
 account ID and first app name, approve the installation in their AWS console,
 and return to **Finish connecting**. Additional apps reuse that connection.
@@ -75,7 +75,7 @@ In the app's `small.toml`, set `type = "job"` and `[deploy] target = "aws"`
 before running `small init`. Then, in PowerShell:
 
 ```powershell
-$env:SMALL_API = 'https://small-cp-dev.zeroshothq.workers.dev'
+$env:SMALL_API = 'https://small-cp-dev.tryrabbithole.workers.dev'
 small workspaces
 # Replace <slug> with an accessible slug returned above.
 small deploy --workspace <slug>

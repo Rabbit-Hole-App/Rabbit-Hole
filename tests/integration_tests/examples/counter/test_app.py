@@ -2,7 +2,7 @@
 then exercise the deployed URL — auth wall, guard, shared state across two users.
 
 Needs: `npm i -g small-deploy`, `small login` done once (~/.small/config.json),
-and repo-root .env with SMALL_API + SMALL_TEST_BYPASS.
+and repo-root .env with RABBIT_HOLE_DEV_TEST_BYPASS.
 """
 
 import json
@@ -31,8 +31,8 @@ def _dotenv():
     return vals
 
 ENV = _dotenv()
-API = ENV["SMALL_API"]
-BYPASS = ENV["SMALL_TEST_BYPASS"]
+API = ENV.get("RABBIT_HOLE_DEV_CP", "https://rabbit-hole-cp-dev.tryrabbithole.workers.dev")
+BYPASS = ENV.get("RABBIT_HOLE_DEV_TEST_BYPASS", "")
 CLI_CONFIG = Path.home() / ".small" / "config.json"
 
 

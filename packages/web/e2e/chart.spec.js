@@ -1,4 +1,4 @@
-// E2E for the /chart runbook block (flow.md §3a) against the live control plane:
+// E2E for the /chart runbook block (flow.md §3a) against the Rabbit Hole dev control plane:
 // insert via the slash menu, configure x/y from real run data, expect an SVG.
 // Mutates yolo-job's runbook during the test and restores the original at the end.
 import { readFileSync } from 'node:fs';
@@ -6,6 +6,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
+import { DEV_CP } from './dev-cp.mjs';
 
 function dotenv() {
   try {
@@ -19,12 +20,12 @@ function dotenv() {
 }
 
 const ENV = dotenv();
-test.skip(!ENV.SMALL_API || !ENV.SMALL_TEST_BYPASS, 'repo .env with SMALL_API + SMALL_TEST_BYPASS required');
+test.skip(!ENV.RABBIT_HOLE_DEV_TEST_BYPASS, 'repo .env with RABBIT_HOLE_DEV_TEST_BYPASS required');
 
 test('runbook /chart: insert, configure from run data, render, restore', async ({ page, context, request }) => {
   const { email } = JSON.parse(readFileSync(join(homedir(), '.small', 'config.json'), 'utf8'));
-  const r = await request.post(`${ENV.SMALL_API}/test/session`, {
-    data: { email, secret: ENV.SMALL_TEST_BYPASS },
+  const r = await request.post(`${DEV_CP}/test/session`, {
+    data: { email, secret: ENV.RABBIT_HOLE_DEV_TEST_BYPASS },
   });
   expect(r.ok(), await r.text()).toBeTruthy();
   const { session } = await r.json();

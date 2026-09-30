@@ -3,10 +3,11 @@
 import { chromium, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { parseEnv } from 'node:util';
+import { DEV_CP } from './dev-cp.mjs';
 
-const base = process.env.SMALL_BASE || 'https://small-cp-dev.zeroshothq.workers.dev';
-const { SMALL_TEST_BYPASS: secret } = parseEnv(readFileSync(new URL('../../../.env', import.meta.url), 'utf8'));
-const login = await fetch(`${base}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) });
+const base = process.env.SMALL_BASE || 'https://small-cp-dev.tryrabbithole.workers.dev';
+const { RABBIT_HOLE_DEV_TEST_BYPASS: secret } = parseEnv(readFileSync(new URL('../../../.env', import.meta.url), 'utf8'));
+const login = await fetch(`${DEV_CP}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) });
 if (!login.ok) throw new Error(`Session failed: ${login.status}`);
 const { session } = await login.json();
 const browser = await chromium.launch();

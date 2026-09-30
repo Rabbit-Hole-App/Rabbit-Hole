@@ -17,12 +17,13 @@ import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { BOARDS } from '../src/demo-scenes.js';
 import { reveal } from './canvas-reveal.mjs';
+import { DEV_CP } from './dev-cp.mjs';
 
 const [, , base, board, OUT] = process.argv;
 if (!base || !board || !OUT) throw new Error('usage: node e2e/canvas-toolbar-check.mjs <deployed-base> <board> <outDir>');
 mkdirSync(OUT, { recursive: true });
-const secret = readFileSync(new URL('../../../.env', import.meta.url), 'utf8').match(/^SMALL_TEST_BYPASS=(.*)$/m)?.[1]?.trim();
-const { session } = await (await fetch(`${base}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'small-toolbar-check' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) })).json();
+const secret = readFileSync(new URL('../../../.env', import.meta.url), 'utf8').match(/^RABBIT_HOLE_DEV_TEST_BYPASS=(.*)$/m)?.[1]?.trim();
+const { session } = await (await fetch(`${DEV_CP}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'small-toolbar-check' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) })).json();
 if (!session) throw new Error('no session from deployed worker');
 const cards = BOARDS[board]().filter(block => block.scene);
 const failures = [];

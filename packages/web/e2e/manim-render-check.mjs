@@ -1,5 +1,6 @@
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync } from 'node:fs';
+import { DEV_CP } from './dev-cp.mjs';
 
 // One real manim render on the parallel clone, end to end: insert the Maths
 // animation card, Render asks first, Generate starts the paid job, and the
@@ -11,13 +12,13 @@ const OP = process.env.OP || 'generate_math_animation';
 // ITEM='Blender scene (paid)' OP=generate_3d_animation: the Blender scene card, whose result is a 3D viewer.
 const SCENE = OP === 'generate_3d_animation';
 const BUTTON = SCENE ? '[data-generate-scene]' : '[data-generate-video]';
-const BASE = 'https://small-cp-dev-small-parallel.zeroshothq.workers.dev';
+const BASE = 'https://small-cp-dev-small-parallel.tryrabbithole.workers.dev';
 const APP = 'repo-06745f10-nanogpt';
 const BOARD = `manim-${Date.now().toString(36)}`;
 const SHOTS = process.argv[2] || 'e2e/shots';
 mkdirSync(SHOTS, { recursive: true });
 const env = Object.fromEntries(readFileSync('C:/Users/cyudhist/Desktop/workspace/small-deploy/.env', 'utf8').split(/\r?\n/).map(l => l.match(/^([A-Z_]+)=(.*)$/)).filter(Boolean).map(([, k, v]) => [k, v.replace(/^"|"$/g, '').trim()]));
-const session = (await (await fetch(`${BASE}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'manim-check' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret: env.SMALL_TEST_BYPASS }) })).json()).session;
+const session = (await (await fetch(`${DEV_CP}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'manim-check' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret: env.RABBIT_HOLE_DEV_TEST_BYPASS }) })).json()).session;
 
 let failed = 0;
 const ok = (name, condition, extra = '') => { if (!condition) failed += 1; console.log(`${condition ? 'PASS' : 'FAIL'}  ${name}${extra ? `  (${extra})` : ''}`); };

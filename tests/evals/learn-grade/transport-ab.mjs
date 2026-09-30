@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { THRESHOLDS, GRADER_PROTOCOL_VERSION, JEV_TRANSPORTS, verdictFrom } from '../../../packages/control-plane/src/learn-grade-jev.js';
 import { rate, percentile, prf, goldVerdict, verdictAccuracy } from './metrics.mjs';
 import { validateSet } from './set-rules.mjs';
+import { DEV_CP } from '../../../packages/web/e2e/dev-cp.mjs';
 
 // TypeSafe's published Jev price per input token (docs.typesafe.ai/models,
 // read 2026-09-28); output tokens are free. The direct API reports no cost.
@@ -22,12 +23,12 @@ const fail = (code, message) => { console.log(message); process.exit(code); };
 
 const base = (args.base || '').replace(/\/$/, '');
 const allowLocal = process.env.LEARN_BENCH_ALLOW_LOCAL === '1' && /^http:\/\/127\.0\.0\.1:\d+$/.test(base);
-if (!/^https:\/\/small-cp-dev-[a-z0-9-]+\.zeroshothq\.workers\.dev$/.test(base) && !allowLocal) fail(1, `refusing ${base || '(no --base)'}: not a small-cp-dev-<name> clone`);
+if (!/^https:\/\/small-cp-dev-[a-z0-9-]+\.tryrabbithole\.workers\.dev$/.test(base) && !allowLocal) fail(1, `refusing ${base || '(no --base)'}: not a small-cp-dev-<name> clone`);
 if (!args.app) fail(1, 'usage: transport-ab.mjs --base <clone url> --app <app name>');
 if (args.holdout || (args['set-file'] && !allowLocal)) fail(1, 'refusing: the transport A/B runs on benchmark-v1 only');
 const envFile = args['env-file'] || path('../../../../small-deploy/.env');
 const secrets = Object.fromEntries(readFileSync(envFile, 'utf8').split(/\r?\n/).map(line => line.match(/^([A-Z_]+)=(.*)$/)).filter(Boolean).map(([, key, value]) => [key, value.replace(/^"|"$/g, '').trim()]));
-if (!secrets.SMALL_TEST_BYPASS || !secrets.LEARN_BENCH_SECRET) fail(1, `missing SMALL_TEST_BYPASS or LEARN_BENCH_SECRET in ${envFile}`);
+if (!secrets.RABBIT_HOLE_DEV_TEST_BYPASS || !secrets.LEARN_BENCH_SECRET) fail(1, `missing RABBIT_HOLE_DEV_TEST_BYPASS or LEARN_BENCH_SECRET in ${envFile}`);
 const resultsDir = join(args['results-dir'] || path('./results'), 'transport-ab');
 const minPerMode = allowLocal ? Number(args['min-per-mode'] || 30) : 30;
 
@@ -43,7 +44,7 @@ if (!runName) fail(1, 'no free run name today');
 console.log(`✓ target: ${base} · app ${args.app} · set benchmark-v1 · run ${runName} · ${set.cases.length} cases × ${ARMS.length} transports = ${set.cases.length * ARMS.length} Jev calls · no Opus`);
 console.log(`✓ arms: ${ARMS.map(arm => `${arm} ${JEV_TRANSPORTS[arm].url} model ${JEV_TRANSPORTS[arm].model}`).join(' · ')}`);
 
-const session = await (await fetch(`${base}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'jev-bench' }, body: JSON.stringify({ email: args.email || 'yudhisteer.chin@gmail.com', secret: secrets.SMALL_TEST_BYPASS }) })).json().catch(() => ({}));
+const session = await (await fetch(`${allowLocal ? base : DEV_CP}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'jev-bench' }, body: JSON.stringify({ email: args.email || 'yudhisteer.chin@gmail.com', secret: secrets.RABBIT_HOLE_DEV_TEST_BYPASS }) })).json().catch(() => ({}));
 if (!session.session) fail(1, 'no test session from /test/session');
 const headers = { 'Content-Type': 'application/json', 'User-Agent': 'jev-bench', Cookie: `small_session=${session.session}`, 'X-Learn-Bench-Secret': secrets.LEARN_BENCH_SECRET };
 

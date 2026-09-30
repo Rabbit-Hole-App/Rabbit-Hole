@@ -2,7 +2,7 @@
 name, run it with a real image, and check inputs land on the run row and outputs
 come back. Also: an out-of-range input must fail before anything is uploaded.
 
-Needs: small login done once, repo-root .env with SMALL_API + SMALL_TEST_BYPASS.
+Needs: small login done once, repo-root .env with RABBIT_HOLE_DEV_TEST_BYPASS.
 First deploy builds a torch image remotely — slow (~10 min); later runs reuse layers.
 """
 
@@ -35,7 +35,7 @@ def _dotenv():
 
 
 ENV = _dotenv()
-API = ENV["SMALL_API"]
+API = ENV.get("RABBIT_HOLE_DEV_CP", "https://rabbit-hole-cp-dev.tryrabbithole.workers.dev")
 CLI_CONFIG = Path.home() / ".small" / "config.json"
 
 

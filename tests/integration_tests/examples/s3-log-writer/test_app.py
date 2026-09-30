@@ -2,7 +2,7 @@
 watch logs stream live, and verify the result JSON lands in S3 with the caller's email.
 
 Needs: `npm i -g small-deploy`, `small login` done once, and repo-root .env with
-SMALL_API + SMALL_TEST_BYPASS + AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY + S3_BUCKET.
+RABBIT_HOLE_DEV_TEST_BYPASS + AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY + S3_BUCKET.
 """
 
 import json
@@ -33,6 +33,7 @@ def _dotenv():
     return vals
 
 ENV = _dotenv()
+API = ENV.get("RABBIT_HOLE_DEV_CP", "https://rabbit-hole-cp-dev.tryrabbithole.workers.dev")
 if any(k not in ENV for k in AWS_KEYS):
     pytest.skip("AWS creds not in repo .env — job integration test needs them", allow_module_level=True)
 
@@ -69,7 +70,7 @@ def runbook(deployed):
     """The review (runbook included) is stored async with the deploy; poll until it lands."""
     token = json.loads(CLI_CONFIG.read_text())["token"]
     for _ in range(24):
-        status, body = _http_get(f"{ENV['SMALL_API']}/api/review?app={APP_NAME}", token)
+        status, body = _http_get(f"{API}/api/review?app={APP_NAME}", token)
         if status == 200:
             review = json.loads(body).get("review") or {}
             if review.get("runbook"):

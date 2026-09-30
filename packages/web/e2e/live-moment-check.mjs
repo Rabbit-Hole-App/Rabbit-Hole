@@ -4,14 +4,15 @@
 // Everything is real; expect minutes, not seconds. Not committed to CI.
 import { chromium } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { DEV_CP } from './dev-cp.mjs';
 
-const base = 'https://small-cp-dev-small-parallel.zeroshothq.workers.dev';
+const base = 'https://small-cp-dev-small-parallel.tryrabbithole.workers.dev';
 const app = 'repo-06745f10-nanogpt';
 // Fresh boards each run, so a card left from an earlier run cannot pass the check.
 const run = Date.now().toString(36);
 const board = `live-moment-${run}-a`;
-const secret = readFileSync('C:/Users/cyudhist/Desktop/workspace/small-deploy/.env', 'utf8').match(/^SMALL_TEST_BYPASS=(.*)$/m)?.[1]?.trim();
-const { session } = await (await fetch(`${base}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'live-moment-check' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) })).json();
+const secret = readFileSync('C:/Users/cyudhist/Desktop/workspace/small-deploy/.env', 'utf8').match(/^RABBIT_HOLE_DEV_TEST_BYPASS=(.*)$/m)?.[1]?.trim();
+const { session } = await (await fetch(`${DEV_CP}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'live-moment-check' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) })).json();
 if (!session) { console.log('FAIL: no test session'); process.exit(1); }
 
 let failed = 0;

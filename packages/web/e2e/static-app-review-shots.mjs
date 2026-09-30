@@ -3,9 +3,10 @@
 // themes, for human review. Same recipe as board-check.mjs.
 import { chromium } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-const base = 'https://small-cp-dev.zeroshothq.workers.dev';
-const secret = readFileSync(new URL('../../../.env', import.meta.url), 'utf8').match(/^SMALL_TEST_BYPASS=(.*)$/m)?.[1]?.trim();
-const { session } = await (await fetch(`${base}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'small-gallery-shots' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) })).json();
+import { DEV_CP } from './dev-cp.mjs';
+const base = 'https://small-cp-dev.tryrabbithole.workers.dev';
+const secret = readFileSync(new URL('../../../.env', import.meta.url), 'utf8').match(/^RABBIT_HOLE_DEV_TEST_BYPASS=(.*)$/m)?.[1]?.trim();
+const { session } = await (await fetch(`${DEV_CP}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'small-gallery-shots' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) })).json();
 const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1760, height: 1100 } });
 await context.addCookies([{ name: 'small_session', value: session, domain: new URL(base).hostname, path: '/' }]);

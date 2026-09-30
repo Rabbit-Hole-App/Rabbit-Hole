@@ -1,11 +1,12 @@
-// E2E against the live control plane through the Vite dev proxy: bypass login,
+// E2E against the Rabbit Hole dev control plane through the Vite dev proxy: bypass login,
 // see the org's apps, run the s3-log-writer job, watch the log panel finish.
-// Needs repo-root .env with SMALL_API + SMALL_TEST_BYPASS and `small login` done once.
+// Needs repo-root .env with RABBIT_HOLE_DEV_TEST_BYPASS and `small login` done once.
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
+import { DEV_CP } from './dev-cp.mjs';
 
 function dotenv() {
   try {
@@ -19,12 +20,12 @@ function dotenv() {
 }
 
 const ENV = dotenv();
-test.skip(!ENV.SMALL_API || !ENV.SMALL_TEST_BYPASS, 'repo .env with SMALL_API + SMALL_TEST_BYPASS required');
+test.skip(!ENV.RABBIT_HOLE_DEV_TEST_BYPASS, 'repo .env with RABBIT_HOLE_DEV_TEST_BYPASS required');
 
 test('apps list shows the org, Run drives a job to finished', async ({ page, context, request }) => {
   const { email } = JSON.parse(readFileSync(join(homedir(), '.small', 'config.json'), 'utf8'));
-  const r = await request.post(`${ENV.SMALL_API}/test/session`, {
-    data: { email, secret: ENV.SMALL_TEST_BYPASS },
+  const r = await request.post(`${DEV_CP}/test/session`, {
+    data: { email, secret: ENV.RABBIT_HOLE_DEV_TEST_BYPASS },
   });
   expect(r.ok(), await r.text()).toBeTruthy();
   const { session } = await r.json();

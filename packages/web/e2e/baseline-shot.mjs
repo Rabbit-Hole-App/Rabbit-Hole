@@ -2,12 +2,13 @@
 // Tasks 6-12 are each checked against. Same auth path as chat-block-check.mjs.
 import { chromium } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { DEV_CP } from './dev-cp.mjs';
 
-const base = process.env.SMALL_BASE || 'https://small-cp-dev.zeroshothq.workers.dev';
+const base = process.env.SMALL_BASE || 'https://small-cp-dev.tryrabbithole.workers.dev';
 const domain = new URL(base).hostname;
-const secret = readFileSync(new URL('../../../.env', import.meta.url), 'utf8').match(/^SMALL_TEST_BYPASS=(.*)$/m)?.[1]?.trim();
-if (!secret) throw new Error('SMALL_TEST_BYPASS missing from .env');
-const login = await fetch(`${base}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'small-baseline-shot' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) });
+const secret = readFileSync(new URL('../../../.env', import.meta.url), 'utf8').match(/^RABBIT_HOLE_DEV_TEST_BYPASS=(.*)$/m)?.[1]?.trim();
+if (!secret) throw new Error('RABBIT_HOLE_DEV_TEST_BYPASS missing from .env');
+const login = await fetch(`${DEV_CP}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'small-baseline-shot' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) });
 if (!login.ok) throw new Error(`test session: HTTP ${login.status}`);
 const { session } = await login.json();
 

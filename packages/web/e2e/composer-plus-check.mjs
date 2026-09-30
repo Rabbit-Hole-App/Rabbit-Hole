@@ -1,18 +1,19 @@
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
+import { DEV_CP } from './dev-cp.mjs';
 
 // The Learn composer on the parallel clone (project Learn, karpathy/nanoGPT):
 // the / picker's "More learning tools" section, View > Slash commands, and the
 // composer's + menu - an attached image and an @-mentioned repository both
 // reach the tutor. Two real model calls; no paid generation.
 // usage: node e2e/composer-plus-check.mjs [screenshot dir]
-const BASE = 'https://small-cp-dev-small-parallel.zeroshothq.workers.dev';
+const BASE = 'https://small-cp-dev-small-parallel.tryrabbithole.workers.dev';
 const APP = 'repo-06745f10-nanogpt';
 const SHOTS = process.argv[2] || 'e2e/shots';
 mkdirSync(SHOTS, { recursive: true });
 const env = Object.fromEntries(readFileSync('C:/Users/cyudhist/Desktop/workspace/small-deploy/.env', 'utf8').split(/\r?\n/).map(l => l.match(/^([A-Z_]+)=(.*)$/)).filter(Boolean).map(([, k, v]) => [k, v.replace(/^"|"$/g, '').trim()]));
-const session = (await (await fetch(`${BASE}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'composer-plus' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret: env.SMALL_TEST_BYPASS }) })).json()).session;
+const session = (await (await fetch(`${DEV_CP}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'composer-plus' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret: env.RABBIT_HOLE_DEV_TEST_BYPASS }) })).json()).session;
 
 // A 64x64 solid red PNG, written by hand so the check needs no image library.
 const png = () => {

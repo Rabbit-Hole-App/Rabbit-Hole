@@ -48,7 +48,7 @@ function stub(script) {
 function workspace() {
   const dir = mkdtempSync(join(tmpdir(), 'ab-'));
   writeFileSync(join(dir, 'set.json'), JSON.stringify(set));
-  writeFileSync(join(dir, '.env'), 'SMALL_TEST_BYPASS=bypass\nLEARN_BENCH_SECRET=secret-123\n');
+  writeFileSync(join(dir, '.env'), 'RABBIT_HOLE_DEV_TEST_BYPASS=bypass\nLEARN_BENCH_SECRET=secret-123\n');
   mkdirSync(join(dir, 'results'));
   return dir;
 }
@@ -63,7 +63,7 @@ const common = (base, dir) => ['--base', base, '--app', 'demo-app', '--env-file'
 
 test('refuses a host that is not a dev clone, and the holdout', async () => {
   assert.match((await run(['--base', 'https://small-cp.zeroshothq.workers.dev', '--app', 'x'])).out, /refusing https:\/\/small-cp\.zeroshothq\.workers\.dev: not a small-cp-dev-<name> clone/);
-  assert.match((await run(['--base', 'https://small-cp-dev-x.zeroshothq.workers.dev', '--app', 'x', '--holdout', 'h.json'])).out, /refusing: the transport A\/B runs on benchmark-v1 only/);
+  assert.match((await run(['--base', 'https://small-cp-dev-x.tryrabbithole.workers.dev', '--app', 'x', '--holdout', 'h.json'])).out, /refusing: the transport A\/B runs on benchmark-v1 only/);
 });
 
 test('each case goes through both transports in alternating order, with its own attempt id, and never calls Opus', async () => {

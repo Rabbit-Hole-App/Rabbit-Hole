@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 STATE = ROOT / ".small" / "byoc"
 ACCOUNT = "637423432890"
 REGION = "us-east-1"
-BASE = "https://small-cp-dev.zeroshothq.workers.dev"
+BASE = "https://small-cp-dev.tryrabbithole.workers.dev"
 
 
 def session():

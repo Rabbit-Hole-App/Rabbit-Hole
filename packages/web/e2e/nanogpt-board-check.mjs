@@ -13,15 +13,16 @@ import { readFileSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { evaluateScene } from '../src/scene-evaluate.js';
 import { NANOGPT_FIRST_BATCH, NANOGPT_LATER_BATCHES } from '../src/nanogpt/board.js';
 import { BOARD_SEED_VERSIONS } from '../src/demo-scenes.js';
+import { DEV_CP } from './dev-cp.mjs';
 
 const base = process.argv[2];
 if (!base) throw new Error('pass the deployed base URL');
 const OUT = 'e2e/shots/nanogpt';
 mkdirSync(OUT, { recursive: true });
 const seed = BOARD_SEED_VERSIONS['nanogpt-deep-dive'];
-const secret = readFileSync(new URL('../../../.env', import.meta.url), 'utf8').match(/^SMALL_TEST_BYPASS=(.*)$/m)?.[1]?.trim();
+const secret = readFileSync(new URL('../../../.env', import.meta.url), 'utf8').match(/^RABBIT_HOLE_DEV_TEST_BYPASS=(.*)$/m)?.[1]?.trim();
 const UA = { 'User-Agent': 'small-nanogpt-check' };
-const { session } = await (await fetch(`${base}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...UA }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) })).json();
+const { session } = await (await fetch(`${DEV_CP}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...UA }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) })).json();
 if (!session) throw new Error('no session from deployed worker');
 
 // The state each card is driven to - the counterfactual its spec teaches.
