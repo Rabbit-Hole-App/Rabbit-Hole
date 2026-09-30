@@ -1276,9 +1276,9 @@ await check('build: the browser runs the dist-dev entry script', async () => {
   await check('bar: Stay at the workspace-switch warning keeps this workspace; Leave switches', async () => {
     const page = await barOpen();
     const before = await page.evaluate(() => localStorage.getItem('small.ws'));
-    // A second workspace, so the menu offers a switch; the answer is canned, nothing is created.
+    // A second workspace the person owns (solo v1 lists only their own), so the menu offers a switch; the answer is canned, nothing is created.
     await page.route('**/api/workspaces', (route) => (route.request().method() === 'GET'
-      ? route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ active: data.org, workspaces: [{ slug: data.org, kind: 'domain', name: wsLabel }, { slug: 'rabbit-hole-e2e-other', kind: 'team', name: 'Other check workspace' }] }) })
+      ? route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ active: data.org, workspaces: [{ slug: data.org, kind: 'domain', name: wsLabel }, { slug: 'rabbit-hole-e2e-other', kind: 'team', role: 'owner', name: 'Other check workspace' }] }) })
       : route.abort()));
     await barInput(page).fill('unsent question');
     const pick = async () => {
