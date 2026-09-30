@@ -10,6 +10,7 @@ import { readFileSync } from 'node:fs';
 import { askStream, planModel } from '../src/ask.js';
 import { generateArtifact } from '../src/learn-artifact.js';
 import { generateBoardPlan } from '../src/learn-board.js';
+import { LEARN_TASKS, askModel, MESSAGE_LIMIT, MENTION_LIMIT, HISTORY_TURNS, PAPERS_PER_ANSWER, RESEARCH_STEPS, ARTIFACT_REPAIRS, BOARD_DRAFT_TURNS, BOARD_REVIEW_PASSES } from '../src/learn-models.js';
 
 const object = { objectId: 'equation', lessonId: 'sigmoid-demo', runId: 'test-run', author: 'script', kind: 'equation', originalText: 'σ(x) = 1 / (1 + exp(-x))', relatedObjectIds: [], shapeIds: ['shape:eq'], renderStatus: 'complete', shapes: [{ shapeId: 'shape:eq', pageBounds: { x: 0, y: 0, w: 300, h: 30 } }] };
 const snapshot = { lessonId: 'sigmoid-demo', runId: 'test-run', method: 'lesson', target: null, relatedObjects: [object], lessonContext: { topic: 'Sigmoid', currentStage: 'sigmoid', recentExplanations: ['The midpoint is 0.5.'] } };
@@ -123,4 +124,24 @@ test('no Learn task sets thinking, effort or temperature: the model defaults app
   await artifact({ ANTHROPIC_API_KEY: 'a' });
   await board({ ANTHROPIC_API_KEY: 'a' });
   for (const { body } of calls) for (const key of ['thinking', 'output_config', 'temperature']) assert.equal(key in body, false, key);
+});
+
+test('the task configuration states what the requests above carry, and the limits keep their values', () => {
+  const pick = ({ provider, model, maxTokens }) => ({ provider, model, maxTokens });
+  assert.deepEqual(pick(LEARN_TASKS.chat), { provider: 'anthropic', model: null, maxTokens: 2400 });
+  assert.deepEqual(pick(LEARN_TASKS.grading), { provider: 'anthropic', model: null, maxTokens: 2400 });
+  assert.deepEqual(pick(LEARN_TASKS.artifact), { provider: 'plan', model: 'claude-opus-5', maxTokens: 4000 });
+  assert.deepEqual(pick(LEARN_TASKS.board), { provider: 'plan', model: 'claude-opus-5', maxTokens: { plan: 1200, draft: 3000, review: 1800 } });
+  assert.equal(LEARN_TASKS.chat.picker, true);
+  for (const task of ['grading', 'artifact', 'board']) assert.equal(LEARN_TASKS[task].picker, false, task);
+  assert.deepEqual([MESSAGE_LIMIT, MENTION_LIMIT, HISTORY_TURNS, PAPERS_PER_ANSWER], [4000, 3, 10, 2]);
+  assert.deepEqual([RESEARCH_STEPS, ARTIFACT_REPAIRS, BOARD_DRAFT_TURNS, BOARD_REVIEW_PASSES], [8, 1, 7, 2]);
+});
+
+test('askModel maps a picker key to its id and anything else to the fallback', () => {
+  assert.equal(askModel('opus-5'), 'claude-opus-5');
+  assert.equal(askModel('haiku-4.5'), 'claude-haiku-4-5-20251001');
+  assert.equal(askModel(undefined), null);
+  assert.equal(askModel('gpt-5'), null);
+  assert.equal(askModel('gpt-5', 'claude-opus-5'), 'claude-opus-5');
 });

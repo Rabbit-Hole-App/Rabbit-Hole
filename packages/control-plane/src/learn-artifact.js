@@ -11,7 +11,8 @@
 // starts a job.
 import { learnRequest, primitive as contract } from '../../web/src/agent/slash.js';
 import { PRIMITIVES, isReady, artifactBlock } from './learn-primitives.js';
-import { planModel, ASK_MODELS } from './ask.js';
+import { planModel } from './ask.js';
+import { LEARN_TASKS, ARTIFACT_REPAIRS } from './learn-models.js';
 import { authorizedBoardApp } from './learn-board.js';
 
 const CLARIFY = { name: 'ask_clarifying_question', description: 'Ask the learner one short question when the request is too underspecified to make a correct artifact.', input_schema: { type: 'object', additionalProperties: false, required: ['question'], properties: { question: { type: 'string', minLength: 1, maxLength: 300 } } } };
@@ -48,7 +49,7 @@ export async function generateArtifact(env, input, { callModel = planModel } = {
   })), CLARIFY];
   const messages = [{ role: 'user', content: JSON.stringify({ command: `/${request.command}`, request: request.prompt, learnerText: input.args || '', selection: request.selection, context: input.context || null }) }];
   const ask = async history => {
-    const response = await callModel(env, { max_tokens: 4000, system: ARTIFACT_SYSTEM, tools, tool_choice: { type: 'any', disable_parallel_tool_use: true }, messages: history }, ASK_MODELS.auto, null);
+    const response = await callModel(env, { max_tokens: LEARN_TASKS.artifact.maxTokens, system: ARTIFACT_SYSTEM, tools, tool_choice: { type: 'any', disable_parallel_tool_use: true }, messages: history }, LEARN_TASKS.artifact.model, null);
     if (!response.ok) throw new Error(`Artifact generation unavailable (model HTTP ${response.status}). Try again.`);
     const result = await response.json();
     const calls = result.content?.filter(part => part.type === 'tool_use') || [];
@@ -72,7 +73,7 @@ export async function generateArtifact(env, input, { callModel = planModel } = {
       if (contract(id).paid) return { result: 'paid_proposal', primitive: id, block, message: 'This uses paid generation.', estimatedCost: contract(id).estimatedCost ?? null, repaired: attempt > 0 };
       return { result: 'artifact', primitive: id, block, repaired: attempt > 0 };
     } catch (error) {
-      if (attempt > 0) return { result: 'validation_error', primitive: id || null, error: error.message };
+      if (attempt >= ARTIFACT_REPAIRS) return { result: 'validation_error', primitive: id || null, error: error.message };
       ({ result, call } = await ask([...messages, { role: 'assistant', content: result.content }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: call.id, is_error: true, content: `Validation failed: ${error.message}. Return the complete corrected input with one of the same tools. This is the only correction attempt.` }] }]));
     }
   }

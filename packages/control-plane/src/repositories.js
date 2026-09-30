@@ -1,13 +1,14 @@
 import { workerRequest } from './learn-scene.js';
 import { canvasSeed } from './canvas-conversation.js';
 import { handleLearnCourse, generateCourseContent } from './learn-course.js';
-import { askStream, ASK_MODELS, attachmentBlocks, readAskRequest } from './ask.js';
+import { askStream, attachmentBlocks, readAskRequest } from './ask.js';
+import { askModel, MESSAGE_LIMIT, MENTION_LIMIT, HISTORY_TURNS } from './learn-models.js';
 import { LEARN_SYSTEM, validateLessonSnapshot } from './learn-context.js';
 import { REPOSITORY_TOOLS, REPOSITORY_SYSTEM, repositoryTool } from './repository-context.js';
 import { readArxivPaper, paperDocument } from './arxiv.js';
 import { paperSelectionImage } from './learn-preview-review.js';
 import { isUploadedMediaId, uploadedMediaAsImage } from './learn-media.js';
-import { paperIdentity } from './learn-paper.js';
+import { paperIdentity, PAPER_PAGE_LIMIT } from './learn-paper.js';
 import { FIND_VIDEO_MOMENTS_TOOL, SHOW_VIDEO_TOOL, VIDEO_SYSTEM, validateShowVideo, findVideoMoments } from './learn-youtube.js';
 
 const json=(body,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store'}});
@@ -171,7 +172,7 @@ export async function repositoryThreads(req,db,user,app,id){
 async function repositoryAsk(req,env,user,app){
   const {body,file}=await readAskRequest(req);
   const seed=canvasSeed(body);
-  if(typeof body.message!=='string'||!body.message.trim()||body.message.length>4000)throw Error('Question must be 1–4000 characters');
+  if(typeof body.message!=='string'||!body.message.trim()||body.message.length>MESSAGE_LIMIT)throw Error('Question must be 1–4000 characters');
   if(body.lesson_snapshot)validateLessonSnapshot(body.lesson_snapshot);
   const db=env.LEARN_DB;
   let thread=body.thread_id?await db.prepare('SELECT * FROM threads WHERE id=? AND org=? AND user=? AND scope_ref=?').bind(body.thread_id,user.org,user.email,app.name).first():null;
@@ -211,14 +212,14 @@ async function repositoryAsk(req,env,user,app){
   // @-mentioned repositories in this workspace ride as their overview (files and
   // most connected symbols); at most three.
   const mentioned=[];
-  for(const name of (Array.isArray(body.mentions)?body.mentions:[]).filter(n=>typeof n==='string'&&n!==app.name).slice(0,3)){
+  for(const name of (Array.isArray(body.mentions)?body.mentions:[]).filter(n=>typeof n==='string'&&n!==app.name).slice(0,MENTION_LIMIT)){
     const row=await db.prepare('SELECT * FROM repository_apps WHERE org=? AND name=?').bind(user.org,name).first();
     if(!row?.commit_sha)continue;
     mentioned.push({name,...repositoryTool(await repositorySnapshot(env,repositoryApp(row,user)),'get_repo_overview')});
   }
   if(body.paper_context){
     const page=body.paper_context.page;
-    if(!Number.isInteger(page)||page<1||page>100)throw Error('Invalid paper page');
+    if(!Number.isInteger(page)||page<1||page>PAPER_PAGE_LIMIT)throw Error('Invalid paper page');
     const paper=await readArxivPaper(body.paper_context.id);papers.push(paper);extraBlocks.push(paperDocument(paper));
     if(body.paper_context.selection)extraBlocks.push(paperSelectionImage(body.paper_context.selection));
   }
@@ -232,10 +233,10 @@ async function repositoryAsk(req,env,user,app){
   const id=thread?.id||`repochat-${crypto.randomUUID()}`;
   if(!thread)await db.prepare('INSERT INTO threads(id,org,user,scope_ref,commit_sha,title) VALUES(?,?,?,?,?,?)').bind(id,user.org,user.email,app.name,commit,body.message.slice(0,120)).run();
   if(seed.length)await db.batch(seed.map(turn=>db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?)').bind(id,turn.role,turn.content)));
-  const {results}=await db.prepare('SELECT role,content FROM messages WHERE thread_id=? ORDER BY id DESC LIMIT 10').bind(id).all();
+  const {results}=await db.prepare(`SELECT role,content FROM messages WHERE thread_id=? ORDER BY id DESC LIMIT ${HISTORY_TURNS}`).bind(id).all();
   await db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?)').bind(id,'user',question).run();
   return askStream(env,JSON.stringify({repo:app.repo,commit,selected,selectedCode,lesson:body.lesson_snapshot||null,paper:body.paper_context?{id:body.paper_context.id,page:body.paper_context.page}:null,...(mentioned.length?{mentionedRepositories:mentioned}:{})}),results.reverse(),question,
-    async answer=>{const message=await db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?) RETURNING id').bind(id,'assistant',answer).first();if(graphView)await db.prepare('INSERT INTO repository_message_graphs(message_id,graph_json) VALUES(?,?)').bind(message.id,JSON.stringify(graphView)).run();},{threadId:id,commit},extraBlocks,null,ASK_MODELS[body.model]||null,null,
+    async answer=>{const message=await db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?) RETURNING id').bind(id,'assistant',answer).first();if(graphView)await db.prepare('INSERT INTO repository_message_graphs(message_id,graph_json) VALUES(?,?)').bind(message.id,JSON.stringify(graphView)).run();},{threadId:id,commit},extraBlocks,null,askModel(body.model),null,
     `${LEARN_SYSTEM}\n${REPOSITORY_SYSTEM}\n${VIDEO_SYSTEM}`,{papers,tools:[...REPOSITORY_TOOLS,FIND_VIDEO_MOMENTS_TOOL,SHOW_VIDEO_TOOL],runTool,getGraphView:()=>graphView,shownVideo:()=>shownVideo,org:user.org});
 }
 

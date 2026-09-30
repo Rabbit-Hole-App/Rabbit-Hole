@@ -8,7 +8,8 @@ import { isUploadedPaperId, uploadedPaperAsDocument, paperIdentity, PAPER_PAGE_L
 import { isUploadedMediaId } from '../src/learn-media.js';
 import { LEARN_SYSTEM, validateLessonSnapshot, validateOutline, renderOutline } from '../src/learn-context.js';
 import { canvasApp, canvasAskSeam } from '../src/canvases.js';
-import { ATTACHMENT_LIMIT, ASK_MODELS, attachmentBlocks, readAskRequest, askStream } from '../src/ask.js';
+import { ATTACHMENT_LIMIT, attachmentBlocks, readAskRequest, askStream } from '../src/ask.js';
+import { askModel, MESSAGE_LIMIT, MENTION_LIMIT, HISTORY_TURNS } from '../src/learn-models.js';
 import { findVideoMoments } from '../src/learn-youtube.js';
 import { liveDb, memoryBucket } from './live-storage-spy.js';
 import { learnMedia } from '../src/learn-storage.js';
@@ -37,7 +38,10 @@ const deps = {
     await onFull('Answer: ' + question);
     return json(metadata);
   },
-  ASK_MODELS,
+  askModel,
+  MESSAGE_LIMIT,
+  MENTION_LIMIT,
+  HISTORY_TURNS,
   ATTACHMENT_LIMIT,
   attachmentBlocks,
   readAskRequest,

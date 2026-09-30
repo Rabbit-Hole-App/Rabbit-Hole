@@ -1,12 +1,12 @@
 import { subscriptionTransport } from './subscription-transport.js';
 import { researchAnswer } from './learn-research.js';
 import { learnMomentsDb } from './learn-storage.js';
+import { MODEL, PLAN_MODEL } from './learn-models.js';
 // Ask (phase 1 - read only): one agent function, scoped per question. This module
 // holds the model call + prompt; index.js owns auth, scope resolution, and context
 // assembly so permissions are enforced by queries, never by the prompt.
-const MODEL = 'claude-opus-5';
-// Model picker allowlist - "Auto" resolves to the default.
-export const ASK_MODELS = { auto: MODEL, 'opus-5': 'claude-opus-5', 'sonnet-5': 'claude-sonnet-5', 'haiku-4.5': 'claude-haiku-4-5-20251001' };
+// Model ids and per-task settings live in learn-models.js; re-exported for existing importers.
+export { ASK_MODELS, PLAN_MODEL, askModel } from './learn-models.js';
 
 export const ASK_SYSTEM = [
   'You are the built-in assistant of "small", a platform where teams deploy Python apps',
@@ -257,7 +257,6 @@ export function fromOpenAI(j) {
   };
 }
 
-export const PLAN_MODEL = 'gpt-4.1-mini';
 export async function planModel(env, body, model, org) {
   if (!env.OPENAI_API_KEY) return anthropic(env, body, model, org);
   const { stream, ...rest } = body;

@@ -12,7 +12,7 @@ import { handleLearnCourse } from './learn-course.js';
 // URLs are path-based (no custom domain): /a/<org>/<app>/... proxies to the app's Fly origin.
 import { sign, verify, sha256, randomHex } from './token.js';
 import { ensureFlyApp, ensureVolume, deployTokenFor, startMachine, destroyMachine, destroyFlyApp } from './fly.js';
-import { aiCacheDrop, ASK_MODELS, ASK_TOOLS, askOnce, askStream, capJoin, DIAGNOSIS_PROMPT, diffBundles, getBundle, parseBundle } from './ask.js';
+import { aiCacheDrop, ASK_TOOLS, askOnce, askStream, capJoin, DIAGNOSIS_PROMPT, diffBundles, getBundle, parseBundle } from './ask.js';
 import { assumeRole, iamRolePolicies, s3Buckets, s3Get, s3List } from './aws.js';
 import { handleSlackCommand, handleSlackEvent, handleSlackInteract, notifySlackRun, slackApi, verifySlackSignature } from './slack.js';
 import { runWatchPass, weeklyWatchEmail } from './watch.js';
@@ -22,6 +22,7 @@ import { parseCron, matches, nextRun } from './cron.js';
 import SHELL from '../../web/dist/index.html';
 import { learnMedia } from './learn-storage.js';
 import { ATTACHMENT_LIMIT, attachmentBlocks, readAskRequest } from './ask.js';
+import { askModel, MESSAGE_LIMIT, MENTION_LIMIT, HISTORY_TURNS } from './learn-models.js';
 
 const SESSION_COOKIE = 'small_session';
 const SESSION_TTL = 7 * 24 * 3600;
@@ -1064,10 +1065,10 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
     } catch { return json({ error: 'Invalid Learn video context' }, 400); }
   }
   if (conversation === 'learn' && (!scope?.app || scope.run)) return json({ error: 'Learn requires an app scope' }, 400);
-  if (!message || typeof message !== 'string' || message.length > 4000) return json({ error: 'message required (max 4000 chars)' }, 400);
+  if (!message || typeof message !== 'string' || message.length > MESSAGE_LIMIT) return json({ error: 'message required (max 4000 chars)' }, 400);
   // sources picker (Notion "My sources"): only the toggled context rides; model from the allowlist
   const useSet = Array.isArray(sources) && sources.length ? new Set(sources.map(String)) : null;
-  const modelId = ASK_MODELS[model] || null;
+  const modelId = askModel(model);
 
   let context, scopeKind, scopeRef = null, note = null, canAct = false;
   if (scope.run) {
@@ -1099,7 +1100,7 @@ ${renderOutline(body.outline)}`;
     scopeRef = scope.app;
     // @-mentioned apps (the composer's chips) join this chat's context, each
     // one the learner can see; at most three, so one answer stays focused.
-    for (const name of (Array.isArray(body.mentions) ? body.mentions : []).filter(name => typeof name === 'string' && name !== scope.app).slice(0, 3)) {
+    for (const name of (Array.isArray(body.mentions) ? body.mentions : []).filter(name => typeof name === 'string' && name !== scope.app).slice(0, MENTION_LIMIT)) {
       const mentioned = await appForUser(env, user, name);
       if (mentioned?.canView) context = `${context}\n\nMentioned app ${name}:\n${await appContext(env, mentioned, useSet)}`;
     }
@@ -1205,7 +1206,7 @@ ${renderOutline(body.outline)}`;
   }
   if (seed.length) await db.batch(seed.map(turn => db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)').bind(threadId, turn.role, turn.content)));
   const { results: history } = await db.prepare(
-    'SELECT role, content FROM messages WHERE thread_id = ? ORDER BY id DESC LIMIT 10'
+    `SELECT role, content FROM messages WHERE thread_id = ? ORDER BY id DESC LIMIT ${HISTORY_TURNS}`
   ).bind(threadId).all();
   history.reverse();
   await db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)')

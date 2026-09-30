@@ -1,7 +1,7 @@
 import { SCENE_SCHEMA, validateScene } from './learn-scene-schema.js';
 import { TEACHING_POLICY, validateTeachingHistory } from './learn-teaching.js';
 import { SEARCH_ARXIV_TOOL, READ_ARXIV_TOOL, arxivId, searchArxiv, readArxivPaper, paperDocument, fetchArxivPdf } from './arxiv.js';
-import { isUploadedPaperId, putUploadedPaper, readUploadedPaper, paperIdentity } from './learn-paper.js';
+import { isUploadedPaperId, putUploadedPaper, readUploadedPaper, paperIdentity, PAPER_PAGE_LIMIT } from './learn-paper.js';
 import { isUploadedMediaId, putUploadedMedia, readUploadedMedia } from './learn-media.js';
 import { fetchWikipediaArticle } from './learn-wiki.js';
 import { searchCanvasSource } from './learn-search.js';
@@ -12,7 +12,8 @@ import { VIDEO_SCHEMA, validateVideo } from './learn-video-schema.js';
 import { THREE_D_SCHEMA, validateThreeD } from './learn-three-d-schema.js';
 import { GRAPH_SCHEMA, validateGraph } from './learn-graph-schema.js';
 import { sealPreview, openPreview, previewImages } from './learn-preview-review.js';
-import { anthropic, planModel, ASK_MODELS } from './ask.js';
+import { anthropic, planModel } from './ask.js';
+import { askModel, LEARN_TASKS, MESSAGE_LIMIT, PAPERS_PER_ANSWER, BOARD_DRAFT_TURNS, BOARD_REVIEW_PASSES } from './learn-models.js';
 import { PLAN_TOOL, validateTeachingPlan, BOARD_REVIEW_SYSTEM, REVIEW_TOOL, validateBoardReview, strictTool } from './learn-board-review.js';
 import { validateLessonSnapshot } from './learn-context.js';
 import { PEXELS_TOOL, INSPECT_IMAGE_TOOL, inspectImage, searchPexels } from './pexels.js';
@@ -43,7 +44,7 @@ export const BOARD_TOOL = { name: 'explain_on_canvas', description: 'Propose a b
     blocks: { type: 'array', maxItems: 8, items: { type: 'object', additionalProperties: false, required: ['kind', 'text', 'fromObjectId'], properties: {
       kind: { type: 'string', enum: ['text', 'equation', 'diagram', 'code', 'image', 'paper_figure', 'video', 'graph', 'three_d', 'scene'] }, text: { type: 'string', minLength: 1, maxLength: 800 }, fromObjectId: { type: ['string', 'null'] },
       operation: { anyOf: [VIDEO_SCHEMA, GRAPH_SCHEMA, THREE_D_SCHEMA, SCENE_SCHEMA] },
-      citation: { type: 'object', additionalProperties: false, required: ['paperId', 'page', 'label'], properties: { paperId: { type: 'string', maxLength: 80 }, page: { type: 'integer', minimum: 1, maximum: 100 }, label: { type: 'string', maxLength: 100 } } },
+      citation: { type: 'object', additionalProperties: false, required: ['paperId', 'page', 'label'], properties: { paperId: { type: 'string', maxLength: 80 }, page: { type: 'integer', minimum: 1, maximum: PAPER_PAGE_LIMIT }, label: { type: 'string', maxLength: 100 } } },
       crop: { type: 'object', additionalProperties: false, required: ['x', 'y', 'w', 'h'], properties: Object.fromEntries(['x', 'y', 'w', 'h'].map(key => [key, { type: 'number', minimum: 0, maximum: 1 }])) },
       photoId: { type: 'integer' },
       annotations: { type: 'array', maxItems: 4, items: { type: 'object', additionalProperties: false, required: ['kind', 'x', 'y'], properties: {
@@ -89,7 +90,7 @@ export function validateBoardPlan(plan, snapshot) {
     if (b.kind === 'image' ? !Number.isSafeInteger(b.photoId) : b.photoId !== undefined) throw new Error('Invalid photo reference');
     if (b.citation !== undefined) {
       const c = b.citation;
-      if (!c || arxivId(c.paperId) !== c.paperId || !Number.isInteger(c.page) || c.page < 1 || c.page > 100 || typeof c.label !== 'string' || c.label.length > 100 || Object.keys(c).some(k => !['paperId', 'page', 'label'].includes(k))) throw new Error('Invalid paper citation');
+      if (!c || arxivId(c.paperId) !== c.paperId || !Number.isInteger(c.page) || c.page < 1 || c.page > PAPER_PAGE_LIMIT || typeof c.label !== 'string' || c.label.length > 100 || Object.keys(c).some(k => !['paperId', 'page', 'label'].includes(k))) throw new Error('Invalid paper citation');
     }
     if (b.kind === 'paper_figure') {
       const c = b.crop;
@@ -138,8 +139,8 @@ export async function generateBoardPlan(env, input, { onProgress = () => {}, cal
   const { snapshot, question, answer, model, repositoryEvidence } = input;
   const history = validateTeachingHistory(input.history);
   const messages = [{ role: 'user', content: JSON.stringify({ snapshot, question, answer, history, repositoryEvidence }) }], photos = new Map(), inspected = new Set(), papers = new Map();
-  const selectedModel = ASK_MODELS[model] || ASK_MODELS.auto;
-  const invoke = async (system, tools, toolChoice, history, max_tokens = 3000) => {
+  const selectedModel = askModel(model, LEARN_TASKS.board.model);
+  const invoke = async (system, tools, toolChoice, history, max_tokens = LEARN_TASKS.board.maxTokens.draft) => {
     const strictNames = [PLAN_TOOL.name, REVIEW_TOOL.name];
     const send = strict => callModel(env, { max_tokens, system, tools: tools.map(tool => strict && strictNames.includes(tool.name) ? strictTool(tool) : tool), tool_choice: toolChoice, messages: history }, selectedModel, null);
     let response = await send(true);
@@ -174,7 +175,7 @@ export async function generateBoardPlan(env, input, { onProgress = () => {}, cal
     }
     return validate(plan);
   };
-  const validateOrRepair = async (response, tool, validate, history, maxTokens = 3000) => {
+  const validateOrRepair = async (response, tool, validate, history, maxTokens = LEARN_TASKS.board.maxTokens.draft) => {
     try {
       if (response.result.stop_reason === 'max_tokens') throw new Error(`${tool.name}: output reached its ${maxTokens}-token limit before completing`);
       return { ...response, plan: validate(response.call.input) };
@@ -228,15 +229,15 @@ export async function generateBoardPlan(env, input, { onProgress = () => {}, cal
     messages[0].content.push({ type: 'text', text: `Paper already retrieved for this chat: ${JSON.stringify(paper)}` }, paperDocument(paper));
   }
   onProgress('Planning explanation...');
-  let planning = await invoke(BOARD_SYSTEM, [PLAN_TOOL], forced(PLAN_TOOL), messages, 1200);
+  let planning = await invoke(BOARD_SYSTEM, [PLAN_TOOL], forced(PLAN_TOOL), messages, LEARN_TASKS.board.maxTokens.plan);
   if (planning.call.name !== PLAN_TOOL.name) throw new Error('No teaching plan returned');
-  planning = await validateOrRepair(planning, PLAN_TOOL, validateTeachingPlan, messages, 1200);
+  planning = await validateOrRepair(planning, PLAN_TOOL, validateTeachingPlan, messages, LEARN_TASKS.board.maxTokens.plan);
   teachingPlan = planning.plan;
   onProgress(`Preparing ${teachingPlan.depth.replace('_', ' ')} explanation...`);
   reply(planning.result, planning.call, 'Teaching plan recorded. Gather required assets, inspect them, and draft the explanation.');
   // Optional tools only: allow discovery/reading when useful, then force a final draft.
-  for (let attempt = 0; attempt < 7; attempt++) {
-    const search = attempt < 6;
+  for (let attempt = 0; attempt < BOARD_DRAFT_TURNS; attempt++) {
+    const search = attempt < BOARD_DRAFT_TURNS - 1;
     onProgress('Preparing explanation and assets...');
     const { result, call } = await invoke(BOARD_SYSTEM, [BOARD_TOOL, ...(search ? [SEARCH_ARXIV_TOOL, READ_ARXIV_TOOL, ...(env.PEXELS_API_KEY ? [PEXELS_TOOL, INSPECT_IMAGE_TOOL] : [])] : [])], search ? { type: 'any', disable_parallel_tool_use: true } : forced(BOARD_TOOL), messages);
     if (call.name === BOARD_TOOL.name) { draft = await validateOrRepair({ result, call }, BOARD_TOOL, value => validateBoardPlan(value, snapshot), messages); break; }
@@ -248,7 +249,7 @@ export async function generateBoardPlan(env, input, { onProgress = () => {}, cal
         content = [{ type: 'text', text: JSON.stringify(await findPapers(call.input.query)) }];
       } else if (call.name === READ_ARXIV_TOOL.name) {
         onProgress('Reading paper...');
-        if (papers.size >= 2 && !papers.has(call.input.id)) throw new Error('Use the two papers already read');
+        if (papers.size >= PAPERS_PER_ANSWER && !papers.has(call.input.id)) throw new Error('Use the two papers already read');
         const paper = await readPaper(call.input.id);
         papers.set(paper.id, paper);
         content = [{ type: 'text', text: JSON.stringify(paper) }, paperDocument(paper)];
@@ -268,23 +269,23 @@ export async function generateBoardPlan(env, input, { onProgress = () => {}, cal
   if (!draft) throw new Error('No canvas explanation returned');
   }
   // Two reviews maximum: initial candidate, then at most one revision.
-  for (let pass = continuation?.pass || 1; pass <= 2; pass++) {
+  for (let pass = continuation?.pass || 1; pass <= BOARD_REVIEW_PASSES; pass++) {
     const plan = resolve(draft.plan);
     if (plan.needsClarification) return { ...plan, teachingPlan };
     if (renderPreviews && plan.blocks.some(b => b.kind === 'paper_figure') && !previews) {
       return { previewPlan: plan, state: { input, teachingPlan, plan: draft.plan, previousReview, pass, formatRepairUsed, photos: [...photos.values()], inspected: [...inspected], papers: [...papers.values()] } };
     }
-    onProgress(`Reviewing explanation (${pass}/2)...`);
+    onProgress(`Reviewing explanation (${pass}/${BOARD_REVIEW_PASSES})...`);
     const content = [{ type: 'text', text: JSON.stringify({ question, answer, snapshot, history, repositoryEvidence, teachingPlan, plan, previousReview }) }];
     for (const photoId of new Set(plan.blocks.filter(b => b.kind === 'image').map(b => b.photoId))) content.push(...inspectImage(photos, photoId));
     for (const paper of papers.values()) content.push(paperDocument(paper));
     const renderedCrops = previews ? previewImages(previews, plan) : [];
     content.push(...renderedCrops);
-    const reviewResponse = await invoke(BOARD_REVIEW_SYSTEM, [REVIEW_TOOL], forced(REVIEW_TOOL), [{ role: 'user', content }], 1800);
+    const reviewResponse = await invoke(BOARD_REVIEW_SYSTEM, [REVIEW_TOOL], forced(REVIEW_TOOL), [{ role: 'user', content }], LEARN_TASKS.board.maxTokens.review);
     if (reviewResponse.call.name !== REVIEW_TOOL.name) throw new Error('No explanation review returned');
     const review = validateBoardReview(reviewResponse.call.input, plan.blocks.length);
     if (review.verdict === 'ready') return { ...plan, teachingPlan, review: { passes: pass, checks: review.checks } };
-    if (pass === 2) throw new Error(`The explanation did not pass review after one revision: ${review.findings[0].problem}`);
+    if (pass === BOARD_REVIEW_PASSES) throw new Error(`The explanation did not pass review after one revision: ${review.findings[0].problem}`);
     previousReview = review;
     onProgress('Revising explanation...');
     const revisionContent = [{ type: 'text', text: JSON.stringify({ question, snapshot, history, repositoryEvidence, teachingPlan, rejectedPlan: draft.plan, review, availablePhotos: [...photos.values()], availablePapers: [...papers.values()], instruction: 'Return a complete corrected explanation. Check every requiredChange against the supplied original assets and change every affected block, including captions and diagram labels. The rejected draft is not evidence. If source wording differs between a figure, caption, and body, explicitly distinguish them rather than equating their claims. Remove unsupported claims; if the teaching objective cannot be supported, request clarification. Do not repeat the earlier chat answer as authority.' }) }];
@@ -311,8 +312,8 @@ export async function boardFetch(req, env, generate = generateBoardPlan) {
       if (typeof body.app !== 'string' || raw.length > 12000000) throw new Error('Invalid figure review request');
     } else {
     if (raw.length > 40000) return json({ error: 'Canvas request too large' }, 413);
-    if (!body || typeof body.app !== 'string' || !/^[a-z0-9-]{1,100}$/.test(body.app) || typeof body.question !== 'string' || !body.question.trim() || body.question.length > 4000 || typeof body.answer !== 'string' || !body.answer.trim() || body.answer.length > 10000) throw new Error('Invalid canvas request');
-    if (body.paperIds !== undefined && (!Array.isArray(body.paperIds) || body.paperIds.length > 2 || body.paperIds.some(id => arxivId(id) !== id))) throw new Error('Invalid paper references');
+    if (!body || typeof body.app !== 'string' || !/^[a-z0-9-]{1,100}$/.test(body.app) || typeof body.question !== 'string' || !body.question.trim() || body.question.length > MESSAGE_LIMIT || typeof body.answer !== 'string' || !body.answer.trim() || body.answer.length > 10000) throw new Error('Invalid canvas request');
+    if (body.paperIds !== undefined && (!Array.isArray(body.paperIds) || body.paperIds.length > PAPERS_PER_ANSWER || body.paperIds.some(id => arxivId(id) !== id))) throw new Error('Invalid paper references');
     validateLessonSnapshot(body.snapshot);
     validateTeachingHistory(body.history);
     }
