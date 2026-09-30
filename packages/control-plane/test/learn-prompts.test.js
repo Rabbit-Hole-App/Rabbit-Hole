@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { canvasApp, canvasAskSeam } from '../src/canvases.js';
 import { repositoriesFetch } from '../src/repositories.js';
-import { generateArtifact } from '../src/learn-artifact.js';
+import { generateArtifact, ARTIFACT_SYSTEM } from '../src/learn-artifact.js';
 import { generateBoardPlan } from '../src/learn-board.js';
 import { TEACHING_POLICY } from '../src/learn-teaching.js';
 import { challengePrompt } from '../../web/src/learn-grade-prompts.js';
@@ -18,10 +18,10 @@ import { challengePrompt } from '../../web/src/learn-grade-prompts.js';
 const fingerprint = text => createHash('sha256').update(text).digest('hex').slice(0, 16);
 const PINS = {
   teachingPolicy: '874f9413c8f3bfb0',
-  chat: 'f0089c6be8c4beaa', // canvas seam and app asks, and grading through them
-  chatSnapshot: '325de9028c3281f7', // an app ask carrying a lesson_snapshot (legacy selection contract)
-  chatOutline: '3ea5a1e6c1c18a2e',
-  repository: 'e8f9699d5474c6f5',
+  chat: '4335d7d1597b721e', // canvas seam and app asks, and grading through them
+  chatSnapshot: '3b6219eeda2b3382', // an app ask carrying a lesson_snapshot (legacy selection contract)
+  chatOutline: 'ed6f90628e608da0',
+  repository: '73e56d0415be048e',
   artifact: '870e84a3aa127657',
   board: 'a219807ee7666961',
   boardReview: '5a2e1cab79b26025',
@@ -244,6 +244,14 @@ test("every chat prompt names the tutor as Rabbit Hole's learning assistant, not
     assert.doesNotMatch(body.system, /You are Claude/);
     assert.ok(body.system.includes("You are Rabbit Hole's learning assistant, a tutor answering a learner's question"));
   }
+});
+
+// prompts-5: small talk gets a short line, not a lesson (the dashboard ASK_SYSTEM rule).
+const GREETING = 'A greeting or small talk ("hi", "thanks") gets one short, direct line back: no tools, no lesson summary.';
+test('every chat prompt has the greeting rule; the card, whiteboard and policy text do not', async t => {
+  for (const body of [await chat(t, { message: 'hi' }), await chat(t, { message: 'hi', lesson_snapshot: lesson }, { canvas: false }), await repositoryChat(t, { message: 'hi' })]) assert.ok(body.system.includes(GREETING));
+  const [plan] = await board();
+  for (const text of [TEACHING_POLICY, plan.system, ARTIFACT_SYSTEM]) assert.equal(text.includes('small talk'), false);
 });
 
 test('the shared teaching policy is pinned', () => {
