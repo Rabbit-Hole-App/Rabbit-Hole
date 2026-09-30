@@ -10,6 +10,7 @@ import { anthropic } from './ask.js';
 import { modelFailure } from './learn-research.js';
 import { LEARN_TASKS, loggedModel } from './learn-models.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
+import { escalation } from './agents/learn-tutor-escalation.js';
 import { evaluationFrom, largerInstruction, parseLarger, plannerRequest, readTutorAnswers, tutorJevRequest, TUTOR_TOOL } from './agents/learn-tutor.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -26,7 +27,8 @@ export function validateEvaluateBody(body) {
   for (const claim of spec.claims) {
     if (!text(claim?.id, 120) || !text(claim.concept, 60) || !text(claim.statement, 600) || !text(claim.drawn, 300)
       || !Array.isArray(claim.ideas) || claim.ideas.length > 4 || claim.ideas.some(idea => !text(idea, 300) || !idea)
-      || !Array.isArray(claim.misconceptions) || claim.misconceptions.length > 5 || claim.misconceptions.some(wrong => !text(wrong?.id, 80) || !text(wrong?.check, 300))) return { error: 'invalid claim' };
+      || !Array.isArray(claim.misconceptions) || claim.misconceptions.length > 5 || claim.misconceptions.some(wrong => !text(wrong?.id, 80) || !text(wrong?.check, 300))
+      || (claim.prior_misconceptions != null && (!Array.isArray(claim.prior_misconceptions) || claim.prior_misconceptions.length > 5 || claim.prior_misconceptions.some(id => !text(id, 80))))) return { error: 'invalid claim' };
   }
   for (const gap of spec.gaps) if (!text(gap?.concept, 60) || !text(gap.statement, 600) || !Array.isArray(gap.claims)) return { error: 'invalid gap' };
   if (spec.question != null && !text(spec.question, 1200)) return { error: 'invalid question' };
@@ -48,7 +50,8 @@ export async function jevRung(env, spec, message, { ask = askJev } = {}) {
     const request = tutorJevRequest(spec, message, JEV_TRANSPORTS[transport].model);
     Object.assign(telemetry, { called: true, questions: Object.keys(request.questions).length });
     const { body } = await ask(env, request, { transport, timeoutMs: JEV_TIMEOUT_MS, sleep: () => Promise.reject(new Error('Jev busy')) });
-    const result = { ...evaluationFrom(spec, readTutorAnswers(body, spec), THRESHOLDS, 'jev'), evaluator: 'jev' };
+    const answers = readTutorAnswers(body, spec);
+    const result = { ...evaluationFrom(spec, answers, THRESHOLDS, 'jev'), evaluator: 'jev', escalation: escalation(spec, answers, THRESHOLDS) };
     return { ...result, telemetry: { ...telemetry, ms: Date.now() - started, outcome: result.status } };
   } catch (error) {
     return { status: 'error', evaluator: 'jev', events: [], error: error.message, telemetry: { ...telemetry, ms: Date.now() - started, outcome: error.code === 'timeout' ? 'timeout' : 'error', error: error.message } };
@@ -83,14 +86,17 @@ export async function largerRung(env, spec, message, { callModel = loggedModel('
 const NOT_CALLED = { called: false, ms: null, outcome: null, reason: null, requested_model: null, served_model: null, input_tokens: null, output_tokens: null, error: null };
 
 // Deterministic -> JEV -> larger (§3). The deterministic rung runs in the browser (the grade is
-// already in the card's attemptLog), so this route starts at JEV.
+// already in the card's attemptLog), so this route starts at JEV. The larger evaluator runs only
+// when the explicit escalation policy says so (v2 Stage C, agents/learn-tutor-escalation.js); an
+// uncertain JEV answer it does not escalate is returned as is, its events unsettled.
 export async function evaluateFreeText(env, spec, message, deps = {}) {
   const { telemetry: jevTelemetry, ...jev } = await jevRung(env, spec, message, deps);
   if (jev.status !== 'uncertain') return { ...jev, telemetry: { jev: jevTelemetry, larger: NOT_CALLED } };
+  if (!jev.escalation.escalate) return { ...jev, telemetry: { jev: jevTelemetry, larger: { ...NOT_CALLED, reason: jev.escalation.reason } } };
   const { telemetry: largerTelemetry, ...larger } = await largerRung(env, spec, message, deps);
-  const telemetry = { jev: jevTelemetry, larger: { ...largerTelemetry, reason: 'jev_uncertain' } };
+  const telemetry = { jev: jevTelemetry, larger: { ...largerTelemetry, reason: jev.escalation.reason } };
   // An errored larger rung keeps JEV's unsettled events (§3.3: stored unsettled, no state change).
-  return larger.status === 'error' ? { ...jev, larger_error: larger.error, telemetry } : { ...larger, telemetry };
+  return larger.status === 'error' ? { ...jev, larger_error: larger.error, telemetry } : { ...larger, escalation: jev.escalation, telemetry };
 }
 
 // The TutorResponse at top level (the client reads it) plus `telemetry`. A failure throws with

@@ -123,7 +123,12 @@ export function evaluationSpec(turn, claims, store) {
   return {
     answering: !!turn.answering,
     ...(turn.answering && store.open?.text ? { question: store.open.text } : {}),
-    claims: claims.map(id => ({ id, concept: CLAIMS[id].concept, statement: CLAIMS[id].statement, ideas: CLAIMS[id].ideas, misconceptions: CLAIMS[id].misconceptions, drawn: CLAIMS[id].drawn })),
+    claims: claims.map(id => {
+      // The named misconceptions this claim already has a settled event for: one more settled one
+      // makes the claim `misconception`, so the escalation policy treats that check as important.
+      const prior = [...new Set(store.events.filter(event => event.claim === id && event.settled && event.misconception_id).map(event => event.misconception_id))];
+      return { id, concept: CLAIMS[id].concept, statement: CLAIMS[id].statement, ideas: CLAIMS[id].ideas, misconceptions: CLAIMS[id].misconceptions, drawn: CLAIMS[id].drawn, ...(prior.length ? { prior_misconceptions: prior } : {}) };
+    }),
     gaps,
   };
 }
@@ -156,7 +161,10 @@ export function route({ turn, claims, states, evaluation, store }) {
     return finish('misconception_explain', 'feynman', ['respond_text', 'ask_question', 'focus_part'], wrong);
   }
   const unsure = pick(state => state.state === 'uncertain');
-  if (unsure && evaluation?.status === 'uncertain') return finish('uncertain_unsettled', 'feynman', ['ask_question'], unsure);
+  // An explanation whose content JEV could not settle and the policy did not escalate (Stage C):
+  // one clarifying question, never a fail.
+  const unclear = evaluation?.status === 'uncertain' && (evaluation.escalation?.uncertain || []).some(key => /^c\d+_(idea|mis)/.test(key));
+  if ((unsure || unclear) && evaluation?.status === 'uncertain') return finish('uncertain_unsettled', 'feynman', ['ask_question'], unsure || claims[0]);
   if (unsure) return finish('uncertain', 'feynman', ['respond_text', 'focus_part', 'show_authored_card', 'suggest_depth', 'suggest_practice', 'ask_question'], unsure);
   const unseen = pick(state => state.state === 'not_yet_observed');
   if (unseen) return finish('not_yet_observed', 'feynman', ['respond_text', 'ask_question', 'show_authored_card', 'suggest_depth'], unseen);

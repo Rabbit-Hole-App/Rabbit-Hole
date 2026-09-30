@@ -72,10 +72,22 @@ test('evaluate: a settled JEV answer ends the ladder - one batched 800 ms reques
   assert.deepEqual(larger, { called: false, ms: null, outcome: null, reason: null, requested_model: null, served_model: null, input_tokens: null, output_tokens: null, error: null });
 });
 
-test('evaluate: JEV uncertain -> the larger evaluator on Opus 5.5 (no fallback), structured, settles it', async t => {
-  const calls = recordFetch(t, { model: 'claude-opus-5-5', usage: { input_tokens: 812, output_tokens: 64 }, content: [{ type: 'text', text: '{"attempt":"yes","c0_idea0":"yes","c0_idea1":"yes","c0_mis0":"no","c0_transfer":"no"}' }], stop_reason: 'end_turn' });
+test('evaluate: JEV uncertain on a low-consequence check -> no larger evaluator; its events stay unsettled (v2 Stage C)', async t => {
+  const calls = recordFetch(t, {});
   const w = world(t);
   const ask = async () => ({ body: answersOf({ ...settledAnswers, c0_idea1: 0.55 }) });
+  const result = await (await w.post('/api/learn/tutor/evaluate', { app: 'canvas-0a1b2c3d', message: 'kind of in the middle', spec: SPEC }, { ask })).json();
+  assert.equal(result.evaluator, 'jev');
+  assert.equal(result.status, 'uncertain');
+  assert.deepEqual(result.escalation, { escalate: false, reason: 'low_consequence', uncertain: ['c0_idea1'] });
+  assert.ok(result.events.every(event => event.settled === false));
+  assert.equal(calls.length, 0);
+});
+
+test('evaluate: JEV uncertain on a contradiction -> the larger evaluator on Opus 5.5 (no fallback), structured, settles it', async t => {
+  const calls = recordFetch(t, { model: 'claude-opus-5-5', usage: { input_tokens: 812, output_tokens: 64 }, content: [{ type: 'text', text: '{"attempt":"yes","c0_idea0":"yes","c0_idea1":"yes","c0_mis0":"no","c0_transfer":"no"}' }], stop_reason: 'end_turn' });
+  const w = world(t);
+  const ask = async () => ({ body: answersOf({ ...settledAnswers, c0_mis0: 0.55 }) });
   const result = await (await w.post('/api/learn/tutor/evaluate', { app: 'canvas-0a1b2c3d', message: 'kind of in the middle', spec: SPEC }, { ask })).json();
   assert.equal(result.evaluator, 'larger');
   assert.equal(result.status, 'settled');
@@ -88,7 +100,7 @@ test('evaluate: JEV uncertain -> the larger evaluator on Opus 5.5 (no fallback),
   assert.equal(calls[0].body.max_tokens, 2400);
   const { jev, larger } = result.telemetry;
   assert.equal(jev.outcome, 'uncertain');
-  assert.deepEqual({ ...larger, ms: typeof larger.ms }, { called: true, ms: 'number', outcome: 'settled', reason: 'jev_uncertain', requested_model: 'claude-opus-5-5', served_model: 'claude-opus-5-5', input_tokens: 812, output_tokens: 64, error: null });
+  assert.deepEqual({ ...larger, ms: typeof larger.ms }, { called: true, ms: 'number', outcome: 'settled', reason: 'contradiction', requested_model: 'claude-opus-5-5', served_model: 'claude-opus-5-5', input_tokens: 812, output_tokens: 64, error: null });
 });
 
 test('evaluate: no JEV key, or a JEV failure, is an error - nothing settled, no model call', async t => {
@@ -113,18 +125,18 @@ test('evaluate: the larger evaluator timing out is telemetry outcome timeout; JE
   t.after(() => { globalThis.fetch = original; });
   globalThis.fetch = async (url, options) => { bodies.push(JSON.parse(options.body)); return new Promise(() => {}); };
   const w = world(t);
-  const ask = async () => ({ body: answersOf({ ...settledAnswers, c0_idea1: 0.55 }) });
+  const ask = async () => ({ body: answersOf({ ...settledAnswers, c0_mis0: 0.55 }) });
   const result = await (await w.post('/api/learn/tutor/evaluate', { app: 'canvas-0a1b2c3d', message: 'x', spec: SPEC }, { ask, timeoutMs: 5 })).json();
   assert.equal(result.evaluator, 'jev');
   assert.equal(result.larger_error, 'The evaluator timed out');
-  assert.deepEqual([result.telemetry.larger.outcome, result.telemetry.larger.reason, result.telemetry.larger.served_model], ['timeout', 'jev_uncertain', null]);
+  assert.deepEqual([result.telemetry.larger.outcome, result.telemetry.larger.reason, result.telemetry.larger.served_model], ['timeout', 'contradiction', null]);
   assert.equal(bodies.length, 1);
 });
 
 test('evaluate: the larger evaluator failing keeps JEV\'s unsettled events', async t => {
   recordFetch(t, { content: [{ type: 'text', text: 'no json here' }], stop_reason: 'end_turn' });
   const w = world(t);
-  const ask = async () => ({ body: answersOf({ ...settledAnswers, c0_idea1: 0.55 }) });
+  const ask = async () => ({ body: answersOf({ ...settledAnswers, c0_mis0: 0.55 }) });
   const result = await (await w.post('/api/learn/tutor/evaluate', { app: 'canvas-0a1b2c3d', message: 'x', spec: SPEC }, { ask })).json();
   assert.equal(result.evaluator, 'jev');
   assert.equal(result.status, 'uncertain');
