@@ -24,8 +24,8 @@ const PINS = {
   chatOutline: '437571eed5ec641c',
   repository: '4bef6f138a2eb2fa',
   artifact: '870e84a3aa127657',
-  board: 'a219807ee7666961',
-  boardReview: '5a2e1cab79b26025',
+  board: 'f55da1a62a26840f',
+  boardReview: '164240707ce3dc05',
   gradingMessage: '1b9c8ceb43a290f2', // the challengePrompt fixture below
 };
 const CHAT_TOOLS = ['search_wikipedia', 'read_wikipedia', 'show_wikipedia', 'find_video_moments', 'show_video', 'search_arxiv', 'read_arxiv_paper'];
@@ -303,6 +303,15 @@ test('video tools and instructions ride only when Exa or the moment index can an
   const body = await repositoryChat(t, { message: 'Explain the paper' });
   assert.equal(body.system.includes("the deployed app's implementation"), false);
   assert.ok(body.system.includes('Distinguish what the paper says from your own explanation and from any app or repository implementation in context.'));
+});
+
+// prompts-2, registries-9: the whiteboard has no paid runner, so a video or 3D
+// scene block is drawn as a "not generated" placeholder; the prompts say so.
+test('the whiteboard prompts describe video and 3D scenes as proposals that are not generated there', async () => {
+  const [plan, , review] = await board();
+  assert.doesNotMatch(plan.system, /generates asynchronously after review|replaces a placeholder with an interactive GLB|press Play animation|full visual palette is available/);
+  includesAll(plan.system, ['a video block is drawn as a Video not generated placeholder', 'the scene is drawn as a 3D scene not generated placeholder', 'and photos when search_pexels is supplied']);
+  assert.ok(review.system.includes('Planned video/3D blocks, which are not generated on a whiteboard, are unseen'));
 });
 
 test('the shared teaching policy is pinned', () => {
