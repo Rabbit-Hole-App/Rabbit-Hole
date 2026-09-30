@@ -83,7 +83,7 @@ export default {
     }
     if (path === '/api/learn/scene') return sceneFetch(req, env);
     if (path === '/api/learn/video') return videoFetch(req, env);
-    // A canvas ask that would fall through to live small-cp: multipart (live R2 ask-uploads/, index.js:954) or the legacy Agent panels' /api/ask.
+    // Canvas asks the Learn router below does not take: multipart (no canvas attachments yet) or the legacy Agent panels' /api/ask (live small-cp).
     const refused = await refuseCanvasAsk(req);
     if (refused) return refused;
     if (env.SUBSCRIPTION_ONLY === 'true' && req.method === 'POST' && (path === '/api/ask' || /\/learn-course$/.test(path))) {

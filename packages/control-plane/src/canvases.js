@@ -39,10 +39,10 @@ export function canvasRoute(url) {
   return path === '/api/canvases' || /^\/api\/apps\/canvas-[a-f0-9]{8}(?:\/|$)/.test(path) || /^\/api\/ask\/threads\/canvaschat-/.test(path)
     || (path === '/api/ask/threads' && url.searchParams.get('scope') === 'learn' && isCanvas(url.searchParams.get('ref')));
 }
-// Canvas asks that would fall through to live small-cp. A multipart one skips the dev Learn router
-// (dev-worker.js:72) and live small-cp stores the attachment in live R2 (index.js:954) first; a JSON
-// /api/ask comes from the legacy Agent panels and would carry canvas chat to live small-cp. Learn's
-// JSON asks never get here: the dev Learn router answers them with the LEARN_DB seam.
+// Canvas asks the dev Learn router does not answer. A multipart Learn ask carries a + attachment,
+// which canvases do not take yet (the dev worker calls this before its Learn router); a JSON /api/ask
+// comes from the legacy Agent panels and would carry canvas chat to live small-cp. Learn's JSON asks
+// never get here: the dev Learn router answers them with the LEARN_DB seam.
 export async function refuseCanvasAsk(req) {
   const path = new URL(req.url).pathname;
   const multipart = req.headers.get('content-type')?.includes('multipart/form-data');
@@ -115,7 +115,8 @@ export async function canvasesFetch(req, env) {
 }
 
 // apiAsk's seam (index.js): the app, its context and the thread store all come from LEARN_DB,
-// so a canvas turn never reads or writes live D1. Threads reuse repository-schema.sql threads/messages.
+// so a canvas turn writes nothing to live D1. It still reads live D1 for @-mentioned apps
+// (apiAsk appForUser, appContext). Threads reuse repository-schema.sql threads/messages.
 export function canvasAskSeam(env, app) {
   const db = env.LEARN_DB;
   return {

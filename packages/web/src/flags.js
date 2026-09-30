@@ -11,8 +11,10 @@ export const PRODUCT = learnPreview ? 'Rabbit Hole' : 'small';
 export const learnHandoff = false;
 
 // Gate C G1 (2026-09-24), decided OFF: the dev clone binds the live D1 'small'
-// (wrangler.dev.jsonc:69-72), and /api/ask writes live chat history, so the preview's
-// workspace and app asks stay unavailable. Project and canvas asks use LEARN_DB and stay on.
+// (wrangler.dev.jsonc d1_databases DB), and /api/ask writes live chat history, so the preview's
+// workspace and app asks stay unavailable. Project and canvas asks keep their threads and moment
+// log in LEARN_DB and stay on; that is enforced by the dev worker's handlers (C1 in
+// docs/features/learn-cleanup.md), not by this flag or the browser's api() check.
 export const askLiveOnPreview = false;
 
 // G5 (Gate C, 2026-09-24): /api/apps/find and /api/runs/find each run a model on the live control
