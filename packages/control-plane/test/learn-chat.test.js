@@ -8,6 +8,7 @@ import { isUploadedPaperId, uploadedPaperAsDocument, paperIdentity, PAPER_PAGE_L
 import { isUploadedMediaId } from '../src/learn-media.js';
 import { LEARN_SYSTEM, validateLessonSnapshot, validateOutline, renderOutline } from '../src/learn-context.js';
 import { canvasApp, canvasAskSeam } from '../src/canvases.js';
+import { VIDEO_SHOWN_NOTE, WIKI_SHOWN_NOTE } from '../src/agents/learn-chat.js';
 import { ATTACHMENT_LIMIT, attachmentBlocks, readAskRequest, askStream } from '../src/ask.js';
 import { askModel, MESSAGE_LIMIT, MENTION_LIMIT, HISTORY_TURNS } from '../src/learn-models.js';
 import { findVideoMoments } from '../src/learn-youtube.js';
@@ -74,6 +75,8 @@ const deps = {
   FIND_VIDEO_MOMENTS_TOOL,
   SHOW_VIDEO_TOOL,
   VIDEO_SYSTEM,
+  VIDEO_SHOWN_NOTE,
+  WIKI_SHOWN_NOTE,
   validateShowVideo,
   // Shaped like the real one: one video with passages, one without.
   findVideoMoments: async query => ({

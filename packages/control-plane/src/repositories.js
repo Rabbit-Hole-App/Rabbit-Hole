@@ -11,6 +11,7 @@ import { isUploadedMediaId, uploadedMediaAsImage } from './learn-media.js';
 import { paperIdentity, PAPER_PAGE_LIMIT } from './learn-paper.js';
 import { subscriptionOwnerRefusal, subscriptionCourseRefusal } from './subscription-transport.js';
 import { FIND_VIDEO_MOMENTS_TOOL, SHOW_VIDEO_TOOL, VIDEO_SYSTEM, validateShowVideo, findVideoMoments } from './learn-youtube.js';
+import { VIDEO_SHOWN_NOTE } from './agents/learn-chat.js';
 
 const json=(body,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store'}});
 export function parseRepository(value) {
@@ -202,7 +203,7 @@ async function repositoryAsk(req,env,user,app){
     if(name===SHOW_VIDEO_TOOL.name){
       if(shownVideo)throw Error('One video per answer; name the alternatives in your reply');
       shownVideo=validateShowVideo(input,foundVideos);
-      return {opened:true,window:shownVideo.end!=null?`${shownVideo.start}s to ${shownVideo.end}s`:'from the start',note:'The learner now sees it playing. Say what to watch for.'};
+      return {opened:true,window:shownVideo.end!=null?`${shownVideo.start}s to ${shownVideo.end}s`:'from the start',note:VIDEO_SHOWN_NOTE};
     }
     const result=repositoryTool(snapshot,name,input);
     if(['explain_symbol','get_relationships','find_connection_path','query_graph'].includes(name)&&result.edges&&(!result.status||result.status==='found')){

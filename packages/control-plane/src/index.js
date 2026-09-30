@@ -7,6 +7,7 @@ import { isUploadedMediaId, uploadedMediaAsImage } from './learn-media.js';
 import { OUTLINE_TOOL, OUTLINE_SYSTEM, validateOutlineOps } from './learn-outline-tool.js';
 import { SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, WIKI_SYSTEM, searchWikipedia, readWikipedia, validateShowWikipedia, wikiTitle } from './learn-wiki.js';
 import { validateVideoContext, FIND_VIDEO_MOMENTS_TOOL, SHOW_VIDEO_TOOL, VIDEO_SYSTEM, findVideoMoments, validateShowVideo } from './learn-youtube.js';
+import { VIDEO_SHOWN_NOTE, WIKI_SHOWN_NOTE } from './agents/learn-chat.js';
 import { handleLearnCourse } from './learn-course.js';
 // small control plane: CLI API + browser auth wall + router. One Worker + D1.
 // URLs are path-based (no custom domain): /a/<org>/<app>/... proxies to the app's Fly origin.
@@ -1000,12 +1001,12 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
       if (name === SHOW_VIDEO_TOOL.name) {
         if (shownVideo) throw new Error('One video per answer; name the alternatives in your reply');
         shownVideo = validateShowVideo(input, foundVideos);
-        return { opened: true, window: shownVideo.end != null ? `${shownVideo.start}s to ${shownVideo.end}s` : 'from the start', note: 'The learner now sees it playing. Say what to watch for.' };
+        return { opened: true, window: shownVideo.end != null ? `${shownVideo.start}s to ${shownVideo.end}s` : 'from the start', note: VIDEO_SHOWN_NOTE };
       }
       if (name === SHOW_WIKIPEDIA_TOOL.name) {
         if (shownWiki) throw new Error('One article per answer; point at the rest in your reply');
         shownWiki = validateShowWikipedia(input, [...articles.values()]);
-        return { opened: true, section: shownWiki.sectionTitle || 'the top', note: 'The learner now sees this. Say what to look at.' };
+        return { opened: true, section: shownWiki.sectionTitle || 'the top', note: WIKI_SHOWN_NOTE };
       }
       if (name !== OUTLINE_TOOL.name) throw new Error('Unknown Learn tool');
       if (proposedOps) throw new Error('One outline proposal per answer; describe the rest in your reply');
