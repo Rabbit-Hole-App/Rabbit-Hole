@@ -8,6 +8,7 @@ import { isUploadedPaperId, uploadedPaperAsDocument, paperIdentity, PAPER_PAGE_L
 import { isUploadedMediaId } from '../src/learn-media.js';
 import { LEARN_SYSTEM, LEARN_SNAPSHOT_SYSTEM, validateLessonSnapshot, validateOutline, renderOutline } from '../src/learn-context.js';
 import { canvasApp, canvasAskSeam } from '../src/canvases.js';
+import { validateLearnContext, appendOutline, readLearnSource } from '../src/learn-ask-context.js';
 import { VIDEO_SHOWN_NOTE, WIKI_SHOWN_NOTE } from '../src/agents/learn-chat.js';
 import { ATTACHMENT_LIMIT, attachmentBlocks, readAskRequest, askStream } from '../src/ask.js';
 import { askModel, MESSAGE_LIMIT, MENTION_LIMIT, HISTORY_TURNS } from '../src/learn-models.js';
@@ -72,6 +73,9 @@ const deps = {
   OUTLINE_SYSTEM,
   validateOutlineOps,
   canvasSeed,
+  validateLearnContext,
+  appendOutline,
+  readLearnSource,
   validateVideoContext,
   FIND_VIDEO_MOMENTS_TOOL,
   SHOW_VIDEO_TOOL,
