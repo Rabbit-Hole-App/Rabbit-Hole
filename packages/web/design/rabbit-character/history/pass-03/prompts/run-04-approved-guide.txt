@@ -1,0 +1,33 @@
+Use case: sketch-to-render / character identity preservation.
+Create ONE coherent 8-frame right-facing rabbit run cycle, 4 columns x 2 rows of equally sized square cells, ordered 01 02 03 04 / 05 06 07 08. Target 2048x1024. True transparent background. No text, guides, lines, ground, cell borders, colored marks, cast shadow or extra objects in the output.
+
+INPUT ROLES
+1. Approved eight-pose joint underlay: HARD motion geometry and composition constraint. Build the rabbit directly around these exact joint chains, in these exact positions. Remove the colored skeleton in the final render. Do not replace its gait with your own running poses.
+2. Current refined eight-view grayscale rabbit sheet: immutable character anatomy, face, slim fitted coat, waistcoat, bow tie, striped knee breeches, long bare feet and pocket watch reference. NOT a pose reference. No further slimming or body redesign.
+3. Current processed monochrome turnaround: final black-and-white dither/halftone art direction. Keep this identity and ink balance. It is the same character as image 2.
+
+DRAWING CONSTRAINTS
+Use a right-facing orthographic side profile for every frame. One constant physical scale, one local pelvis x and one ground plane, no baked horizontal movement. At a 512px cell: local pelvis x256, floor y480; pelvis, shoulder, elbow, wrist, knee, ankle and foot locations follow the underlay. Figure fits within its cell with full ear and limb clearance. Head locator is only a locator: draw the actual rabbit skull/muzzle from the identity references, not a round stick-figure head.
+
+ANATOMICAL LABELS ARE PERMANENT
+BLUE limbs in underlay = anatomical LEFT / far side.
+ORANGE limbs in underlay = anatomical RIGHT / near side.
+The pocket watch is ALWAYS pinched by its bow/ring in the RIGHT paw. The near right arm swings fully; the watch is not fixed near the torso. No chain to a belt, no wrist watch, no changing hands. Colors must disappear in final monochrome art.
+
+EXACT KEYS
+01 CONTACT A: far LEFT leg reaches forward and plants flat; near RIGHT leg bends back in recovery. Near RIGHT/watch arm FORWARD, far LEFT/empty arm BACK. This is a far-leg contact, not another near-leg contact.
+02 COMPRESSION A: same LEFT foot supports; knee bends, pelvis lowers. RIGHT leg folds/recovering behind. Connected shoulders/elbows/wrists counter-swing.
+03 PASSING / PUSH A: LEFT heel lifts; LEFT toes push behind pelvis. RIGHT knee passes under pelvis with bent recovery shin, foot CLEAR of ground. Arms pass midpoint.
+04 FLIGHT A: both feet CLEAR of ground. LEFT leg trails, RIGHT knee travels forward and prepares next contact. RIGHT/watch arm BACK, LEFT/empty arm FORWARD.
+05 CONTACT B: near RIGHT leg reaches forward and plants flat; far LEFT leg bends back in recovery. Near RIGHT/watch arm BACK, far LEFT/empty arm FORWARD. This must be the opposite anatomical leg configuration from 01; keep the correct near-leg overlap so the swap is visible.
+06 COMPRESSION B: same RIGHT foot supports; LEFT recovers. Pelvis lowers and arm phase reverses from 02.
+07 PASSING / PUSH B: RIGHT heel lifts/toes push behind pelvis. LEFT knee passes beneath pelvis, recovery foot CLEAR. Arms near midpoint.
+08 FLIGHT B: RIGHT leg trails, LEFT knee leads toward contact 01. RIGHT/watch arm returning FORWARD, LEFT arm BACK. Both feet CLEAR. Close naturally to 01.
+
+RENDER QUALITY
+Readable hip-thigh-knee-shin-ankle-foot chains beneath the breeches, consistent segment lengths. Draw far leg behind near leg, never substitute the same leading leg at both contacts. The guide's foot pitches are intentional: flat contact, raised heel/toe-off, folded recovery and landing preparation.
+Sleeves follow shoulder-elbow-wrist-hand chains without floating hands. Use restrained shoulder/hip opposition, support compression, forward lean and body bob from the skeleton. Preserve the leaner current tailoring, not bulky padded clothing.
+Watch diameter and ring attachment remain consistent, with slight lag of the case beneath the moving right grip. Ears retain their root positions and long anatomy: drag behind head acceleration, delayed bend after impact, rebound/settle through flight, small timing difference between ears. Do not draw identical ear poses or random flapping.
+Preserve the rabbit's monochrome, stippled/halftone ink texture and white negative space, irregular edges and existing proportions. Avoid a vector cartoon, different costume, shoes, extra accessories, 3D redesign, anime or enlarged head.
+
+Before completing, internally trace each colored leg chain in the underlay through all eight corresponding rendered cells, especially 01 versus 05, and verify the same RIGHT paw holds the watch. The purpose is anatomically correct alternating running, not eight attractive but unrelated leap drawings.

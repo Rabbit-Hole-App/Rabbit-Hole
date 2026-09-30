@@ -1,0 +1,12 @@
+{
+  "source": "isolated Chrome screenshots of live WebGL mesh evaluations",
+  "runtime_uses_recordings": false,
+  "runtime_full_character_pngs": false,
+  "normal_cycle_seconds": 0.6153846153846154,
+  "capture_samples_per_cycle": 64,
+  "gif_normal_samples_per_cycle": 32,
+  "slowdown": 4,
+  "world_repeat": "Two-cycle travel resets at file repeat; local gait seam occurs inside travel.",
+  "capture_directory": "tmp\\rabbit-mascot\\articulated-captures",
+  "review_does_not_imply_user_approval": true
+}

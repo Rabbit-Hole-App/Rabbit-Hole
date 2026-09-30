@@ -1,0 +1,299 @@
+
+  :root{
+    --fg:#0A0A0A;                        /* crisp near-black, not the old muddy grey */
+    --muted:rgba(10,10,10,.56);
+    --hair:rgba(10,10,10,.08);
+    --paper:#FFFFFF;
+    --ease-out:cubic-bezier(0.23,1,0.32,1);
+    --ui:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+    /* working choice — the six candidates are in headline-font-candidates.html */
+    --display:"Space Grotesk","Inter",sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{overflow-y:scroll;scrollbar-width:none}
+  html::-webkit-scrollbar{display:none}
+  /* no overflow-x here: it would make <body> a scroll container and kill the
+     sticky shaft below */
+  /* No fixed body height: the hero reserves its scroll with a spacer in normal flow and
+     the page below it flows, so adding a section cannot desync the two. */
+  body{background:var(--paper);font-family:var(--ui);color:var(--fg);
+       -webkit-font-smoothing:antialiased;width:100%;position:relative}
+  /* The headline finishes fading after 350px of descent. Release the hero then,
+     so the clouds enter immediately instead of holding an empty black screen. */
+  #spacer,#shaft-track{height:calc(100vh + 350px);height:calc(100svh + 350px)}
+
+  /* ---- hero shaft: you are falling down it. The title is drawn into the canvas, so
+     there is no overlay element and nothing that can lag behind the scroll. ---- */
+  #shaft-track{position:absolute;left:0;top:0;width:100%}
+  /* full viewport height so the mouth sits dead centre of the page. svh, not vh: on
+     phones vh is the *largest* viewport, so with the URL bar showing the canvas would
+     hang below the fold and the hole would sit off-centre. */
+  #shaft{position:sticky;top:0;width:100%;height:100vh;height:100svh;display:block;
+         image-rendering:pixelated}
+  @media (prefers-reduced-motion:reduce){
+    #shaft{position:absolute}
+    #spacer,#shaft-track{height:100vh;height:100svh}
+  }
+
+  /* ---- floating glass bar: arrives once the shaft lets go, leaves on the way up ---- */
+  #bar{position:fixed;left:50%;top:18px;z-index:20;
+       display:flex;align-items:center;gap:6px;
+       padding:7px 7px 7px 20px;border-radius:999px;
+       /* Solid white, not translucent. A glass pill takes its tone from whatever is
+          behind it, and over the black hero that turned it grey. */
+       background:#FFFFFF;
+       border:1px solid var(--hair);
+       box-shadow:0 1px 2px rgba(10,10,10,.05), 0 14px 36px rgba(10,10,10,.14);
+       transform:translate(-50%,calc(-100% - 18px));opacity:0;pointer-events:none;
+       transition:transform .42s cubic-bezier(.22,.61,.36,1),opacity .3s ease}
+  #bar.on{transform:translate(-50%,0);opacity:1;pointer-events:auto}
+  #bar .brand{font:600 16px/1 var(--display);letter-spacing:-.015em;
+              color:var(--fg);margin-right:22px;white-space:nowrap}
+  #bar a{font:500 14.5px/1 var(--ui);letter-spacing:-.005em;color:var(--muted);
+         text-decoration:none;padding:9px 14px;border-radius:999px;
+         transition:color .18s ease,background .18s ease}
+  #bar a:hover{color:var(--fg);background:rgba(10,10,10,.05)}
+  #bar .cta{margin-left:14px;background:var(--fg);color:#fff;padding:9px 18px}
+  #bar .cta:hover{background:#000;color:#fff}
+
+  /* hamburger + sheet: phones only, hidden outright on desktop */
+  #menu{display:none;margin-left:10px;width:40px;height:40px;flex:none;
+        align-items:center;justify-content:center;gap:5px;flex-direction:column;
+        background:none;border:1px solid var(--hair);border-radius:12px;cursor:pointer;
+        -webkit-tap-highlight-color:transparent}
+  #menu i{display:block;width:16px;height:1.5px;background:var(--fg);border-radius:2px;
+          transition:transform .26s cubic-bezier(.22,.61,.36,1),opacity .18s ease}
+  #menu[aria-expanded="true"] i:nth-child(1){transform:translateY(3.25px) rotate(45deg)}
+  #menu[aria-expanded="true"] i:nth-child(2){transform:translateY(-3.25px) rotate(-45deg)}
+  #sheet{display:none}
+  @media (prefers-reduced-motion:reduce){ #bar,#bar a{transition:none} }
+
+  /* ---- what you scroll into once you are through the hole ---- */
+  #below{position:relative;width:100%;padding:150px 40px 0}
+  #spacer + #below{padding-top:0}
+  #below section{max-width:1080px;margin:0 auto 150px}
+  #below h2{font:600 68px/.95 var(--display);letter-spacing:-.035em;margin-bottom:18px}
+  #below .lede{font:400 18px/1.55 var(--ui);color:var(--muted);max-width:620px}
+
+  /* blog: a list that responds to the pointer */
+  .rows{margin-top:48px;border-top:1px solid var(--hair)}
+  .row{display:flex;align-items:baseline;gap:28px;padding:24px 4px;
+       border-bottom:1px solid var(--hair);font:400 16.5px/1.45 var(--ui);
+       transition:background .18s ease,padding-left .18s ease}
+  a.row{color:inherit;text-decoration:none}
+  .row:hover{background:rgba(10,10,10,.025);padding-left:12px}
+  .row .meta{width:96px;color:var(--muted);flex:none;font-variant-numeric:tabular-nums}
+  .row .arrow{margin-left:auto;color:var(--muted);opacity:0;transition:opacity .18s ease}
+  .row:hover .arrow{opacity:1}
+
+  /* features: cards */
+  .cards{margin-top:52px;display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  .card{border:1px solid var(--hair);border-radius:18px;padding:28px 26px 30px;
+        background:#fff;transition:box-shadow .2s ease,transform .2s ease}
+  .card:hover{box-shadow:0 10px 34px rgba(10,10,10,.08);transform:translateY(-2px)}
+  .card .n{font:500 13px/1 var(--ui);color:var(--muted);letter-spacing:.04em}
+  .card h3{font:600 21px/1.25 var(--ui);letter-spacing:-.015em;margin:16px 0 8px}
+  .card p{font:400 15.5px/1.5 var(--ui);color:var(--muted)}
+
+  /* pricing: three tiers, the middle one carries the weight */
+  .tiers{margin-top:52px;display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  .tier{border:1px solid var(--hair);border-radius:20px;padding:30px 28px 32px;
+        display:flex;flex-direction:column}
+  .tier.hero-tier{background:var(--fg);border-color:var(--fg);color:#fff}
+  .tier .name{font:500 14px/1 var(--ui);letter-spacing:.04em;text-transform:uppercase;
+              color:var(--muted)}
+  .tier.hero-tier .name{color:rgba(255,255,255,.62)}
+  .tier .price{font:600 46px/1 var(--display);letter-spacing:-.03em;margin:18px 0 6px}
+  .tier .per{font:400 14.5px/1 var(--ui);color:var(--muted);margin-bottom:24px}
+  .tier.hero-tier .per{color:rgba(255,255,255,.62)}
+  .tier ul{list-style:none;margin-bottom:28px}
+  .tier li{font:400 15.5px/1.6 var(--ui);color:var(--muted);
+           padding-left:20px;position:relative}
+  .tier li::before{content:"";position:absolute;left:4px;top:.62em;
+                   width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.5}
+  .tier.hero-tier li{color:rgba(255,255,255,.76)}
+  .tier .pick{margin-top:auto;text-align:center;text-decoration:none;
+              font:500 15px/1 var(--ui);padding:13px 18px;border-radius:999px;
+              border:1px solid var(--hair);color:var(--fg);
+              transition:background .18s ease}
+  .tier .pick:hover{background:rgba(10,10,10,.05)}
+  .tier.hero-tier .pick{background:#fff;border-color:#fff;color:var(--fg)}
+
+
+  footer{border-top:1px solid var(--hair);padding:36px 40px 44px;
+         display:flex;align-items:center;gap:20px;
+         font:400 14.5px/1 var(--ui);color:var(--muted)}
+  footer .brand{font:600 15px/1 var(--display);color:var(--fg);margin-right:auto}
+
+  @media (max-width:900px){
+    .cards,.tiers{grid-template-columns:1fr}
+    #below h2{font-size:44px}
+  }
+
+  /* ---- phones ---- */
+  @media (max-width:700px){
+    /* The pill spans the width and drops the links. A full nav will not fit legibly at
+       this size; a menu button is the next step and is deliberately not built yet. */
+    #bar{left:12px;right:12px;top:12px;transform:translateY(calc(-100% - 12px));
+         padding:8px 8px 8px 16px;border-radius:18px;gap:0}
+    #bar.on{transform:translateY(0)}
+    #bar .brand{font-size:15px;margin-right:auto}
+    #bar a:not(.cta):not(.brand){display:none}
+    #bar .cta{margin-left:0;padding:10px 16px;font-size:14px}
+    #menu{display:flex}
+
+    /* The links live in a sheet under the bar. It rides with the bar, so it is pinned
+       the same way and closes whenever the bar leaves. */
+    #sheet{display:flex;position:fixed;left:12px;right:12px;top:74px;z-index:19;
+           flex-direction:column;padding:8px;
+           background:#FFFFFF;border:1px solid var(--hair);border-radius:18px;
+           box-shadow:0 1px 2px rgba(10,10,10,.05), 0 18px 44px rgba(10,10,10,.18);
+           transform:translateY(-10px);opacity:0;pointer-events:none;
+           transition:transform .26s cubic-bezier(.22,.61,.36,1),opacity .2s ease}
+    #sheet.open{transform:none;opacity:1;pointer-events:auto}
+    #sheet a{padding:14px 16px;border-radius:12px;text-decoration:none;
+             font:500 16.5px/1 var(--ui);color:var(--fg)}
+    #sheet a:active{background:rgba(10,10,10,.06)}
+
+    #below{padding:96px 20px 0}
+    #below section{margin-bottom:96px}
+    #below h2{font-size:38px;letter-spacing:-.03em}
+    #below .lede{font-size:16.5px}
+    .rows{margin-top:32px}
+    .row{gap:14px;padding:18px 2px;font-size:15.5px;flex-wrap:wrap}
+    .row .meta{width:100%;font-size:13px}
+    .row .arrow{display:none}
+    .cards,.tiers{margin-top:32px;gap:14px}
+    .card{padding:22px 20px 24px;border-radius:16px}
+    .tier{padding:24px 22px 26px;border-radius:18px}
+    .tier .price{font-size:38px}
+    footer{flex-wrap:wrap;gap:8px;padding:28px 20px 36px;font-size:13.5px}
+    footer .brand{width:100%;margin-right:0;margin-bottom:4px}
+  }
+
+
+
+
+/* Shared content pages retain the landing typography and navigation. */
+.content-page #below{min-height:calc(100svh - 120px);padding-top:170px}
+.content-page #below section{margin-bottom:100px}
+.content-page #below h1{font:600 68px/.95 var(--display);letter-spacing:-.035em;margin-bottom:18px}
+#bar a[aria-current=page]{color:var(--fg);background:rgba(10,10,10,.05)}
+#bar .brand{text-decoration:none;padding:0}
+#sheet[inert]{visibility:hidden}
+@media(max-width:700px){.content-page #below{padding-top:140px}.content-page #below h1{font-size:38px}}
+
+/* Shared card actions keep Blog and Pricing hover feedback consistent. */
+.card-action{display:inline-flex;align-items:center;gap:9px;flex-shrink:0}
+.card-action-label{font:500 11px/1.4 var(--ui);white-space:nowrap;opacity:1;transition:opacity 200ms var(--ease-out)}
+.card-action-icon{position:relative;isolation:isolate;display:inline-grid;place-items:center;flex:none;width:30px;height:30px;border:1px solid var(--card-action-line,var(--hair));border-radius:50%;overflow:hidden;color:var(--card-action-ink,var(--fg))}
+.card-action-icon::before{content:"";position:absolute;inset:-1px;z-index:-1;border-radius:inherit;background:var(--card-action-ink,var(--fg));opacity:0;transition:opacity 200ms var(--ease-out)}
+.card-action-arrow{position:relative;display:block;font:400 18px/1 var(--ui);transform:translate(0,0);transition:transform 200ms var(--ease-out)}
+.card-action-arrow::after{content:"↗";position:absolute;inset:0;color:#fff;opacity:0;transition:opacity 200ms var(--ease-out)}
+@media(hover:hover) and (pointer:fine){
+  .card-hover:hover .card-action-icon::before,.card-hover:hover .card-action-arrow::after{opacity:1}
+  .card-hover:hover .card-action-arrow{transform:translate(2px,-2px)}
+}
+@media(hover:hover) and (pointer:fine) and (min-width:601px){
+  .card-hover .card-action-label{opacity:0}
+  .card-hover:hover .card-action-label{opacity:1}
+}
+.card-hover:focus-within .card-action-icon::before,.card-hover:focus-within .card-action-arrow::after,.card-hover:focus-within .card-action-label{opacity:1;transition:none}
+.card-hover:focus-within .card-action-arrow{transform:none;transition:none}
+@media(prefers-reduced-motion:reduce){
+  .card-action-icon::before,.card-action-arrow,.card-action-arrow::after,.card-action-label{transition:none}
+  .card-hover:hover .card-action-arrow{transform:none}
+}
+/* Pricing packages extend the shared cards; other content pages are unchanged. */
+.content-page #pricing .name{font:500 14px/1 var(--ui);letter-spacing:.04em;margin:0}
+.content-page #pricing .tier-summary{font:400 14px/1.5 var(--ui);margin-top:12px;min-height:42px}
+.content-page #pricing .tier-label{font:500 11px/1.4 var(--ui);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
+.content-page #pricing .tier ul{margin-bottom:24px}
+.content-page #pricing .tier li+li{margin-top:4px}
+.content-page #pricing .pick:focus-visible{outline:2px solid currentColor;outline-offset:4px}
+.content-page #pricing .hero-tier .pick:focus-visible{outline-color:#fff}
+.content-page #pricing .pick.card-action{position:relative;display:flex;justify-content:center;min-height:44px;padding:13px 48px}
+.content-page #pricing .pick .card-action-icon{position:absolute;right:7px;top:calc(50% - 15px)}
+.content-page #pricing .pricing-note{font:400 13px/1.6 var(--ui);color:var(--muted);margin-top:20px;max-width:760px}
+.content-page #pricing .pricing-details{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr);gap:56px;align-items:start;border-top:1px solid var(--hair);margin-top:88px;padding-top:56px}
+.content-page #pricing .pricing-details h2{font:500 38px/1.12 var(--display);letter-spacing:-.035em;margin-bottom:14px}
+.content-page #pricing .pricing-details p,.content-page #pricing .pricing-details li{font:400 15px/1.65 var(--ui);color:#626262}
+.content-page #pricing .credit-rules{list-style:none;margin:32px 0 0;padding:0}
+.content-page #pricing .credit-rules li{display:grid;grid-template-columns:30px minmax(0,1fr) auto;align-items:start;gap:16px;padding:24px 0;border-top:1px solid var(--hair)}
+.content-page #pricing .credit-icon{width:30px;height:30px;color:var(--fg);margin-top:1px}
+.content-page #pricing .credit-rules h3{font:500 15px/1.4 var(--ui);color:var(--fg);margin-bottom:7px}
+.content-page #pricing .credit-rules p{font-size:14px;line-height:1.6}
+.content-page #pricing .credit-label{font:500 11px/1.35 var(--ui);padding:5px 8px;border:1px solid #e6e4e8;border-radius:6px;color:#62566c;background:#f7f5f9;white-space:nowrap}
+.content-page #pricing .credit-included{color:#3e6449;background:#f0f6f1;border-color:#dce8df}
+.content-page #pricing .credit-reset{display:flex;align-items:center;gap:10px;font-size:13px;margin-top:8px}
+.content-page #pricing .credit-reset svg{width:19px;height:19px;flex:none}
+.content-page #pricing .pricing-team{padding:30px 32px 32px;background:#f7f5f9;border:1px solid #e6e4e8;border-radius:20px}
+.content-page #pricing .pricing-team .team-status{display:inline-flex;align-items:center;gap:7px;font:500 12px/1.4 var(--ui);color:#62566c;margin-bottom:26px}
+.content-page #pricing .team-status span{width:6px;height:6px;border:1px solid currentColor;border-radius:50%}
+.content-page #pricing .pricing-team h2{font-size:32px;margin-bottom:10px}
+.content-page #pricing .team-rate{display:flex;align-items:center;gap:14px;margin-top:28px}
+.content-page #pricing .pricing-team .team-price{font:500 52px/1 var(--display);letter-spacing:-.04em;color:var(--fg)}
+.content-page #pricing .team-rate p+p{font-size:12px;line-height:1.5}
+.content-page #pricing .pricing-team .team-minimum{font-size:12px;margin-top:12px}
+.content-page #pricing .pricing-team .team-workspace{font-size:14px;padding-top:24px;margin-top:26px;border-top:1px solid #ded9e3;color:var(--fg)}
+.content-page #pricing .pricing-team ul{list-style:none;margin:18px 0 0;padding:0}
+.content-page #pricing .pricing-team li{position:relative;font-size:14px;padding-left:22px;margin-top:12px}
+.content-page #pricing .pricing-team li::before{content:"";position:absolute;left:1px;top:7px;width:9px;height:5px;border-left:1px solid #71617e;border-bottom:1px solid #71617e;transform:rotate(-45deg)}
+@media(max-width:900px){
+  .content-page #pricing .tier-summary{min-height:0}
+  .content-page #pricing .pricing-details{grid-template-columns:minmax(0,1fr);gap:40px;margin-top:56px;padding-top:40px}
+}
+@media(max-width:600px){
+  .content-page #pricing .pricing-details h2{font-size:30px}
+  .content-page #pricing .credit-rules li{grid-template-columns:26px minmax(0,1fr);gap:12px;padding:22px 0}
+  .content-page #pricing .credit-icon{width:26px;height:26px}
+  .content-page #pricing .credit-label{grid-column:2;justify-self:start}
+  .content-page #pricing .pricing-team{padding:26px 24px 28px}
+}
+
+/* The print collage belongs to the introduction; plans start below the artwork. */
+.pricing-page #below{isolation:isolate;overflow-x:clip}
+.pricing-page .pricing-intro{position:relative;isolation:isolate;padding-bottom:48px}
+.pricing-page .pricing-art{position:absolute;top:-170px;bottom:0;left:calc(50% - 50vw);width:100vw;z-index:-1;overflow:hidden;pointer-events:none;background:#acbaba}
+.pricing-page .pricing-art img{display:block;width:100%;height:100%;object-fit:cover;object-position:center}
+.content-page.pricing-page #pricing{position:relative;z-index:1}
+.pricing-title-row{display:flex;align-items:flex-end;justify-content:space-between;gap:40px}
+.content-page.pricing-page #pricing .pricing-title-row h2{font:500 clamp(76px,9.8vw,146px)/.91 var(--display);letter-spacing:-.07em;margin:0}
+.content-page.pricing-page #pricing .pricing-intro .lede{font:400 clamp(17px,1.5vw,22px)/1.45 var(--ui);letter-spacing:-.025em;color:var(--fg);max-width:220px;padding-bottom:8px}
+.content-page.pricing-page #pricing .tier{background:#fff;box-shadow:0 16px 40px -24px rgba(10,10,10,.16)}
+.content-page.pricing-page #pricing .hero-tier{background:var(--fg)}
+.content-page.pricing-page #pricing .tier{position:relative;isolation:isolate;transition:transform 200ms var(--ease-out)}
+.content-page.pricing-page #pricing .tier::after{content:"";position:absolute;inset:-1px;border-radius:inherit;z-index:-1;pointer-events:none;
+  background:linear-gradient(130deg,rgba(235,215,255,.18),rgba(220,244,235,.1) 65%,transparent);
+  box-shadow:0 0 0 1px rgba(166,134,191,.7),0 16px 40px -16px rgba(177,129,191,.35);opacity:0;transition:opacity 160ms ease}
+.content-page.pricing-page #pricing .tier:focus-within::after{opacity:1;transition:none}
+@media(hover:hover) and (pointer:fine){
+  .content-page.pricing-page #pricing .tier:hover::after{opacity:1}
+  .content-page.pricing-page #pricing .tier:hover{transform:translateY(-3px)}
+}
+.content-page.pricing-page #pricing .tier:focus-within{transform:none;transition:none}
+@media(prefers-reduced-motion:reduce){
+  .content-page.pricing-page #pricing .tier::after{transition:none}
+  .content-page.pricing-page #pricing .tier{transition:none;transform:none}
+  .content-page.pricing-page #pricing .tier:hover{transform:none}
+}
+@media(max-width:900px){
+  .pricing-page .pricing-art img{object-position:48% center}
+  .content-page.pricing-page #pricing .pricing-title-row h2{font-size:96px}
+  .pricing-title-row{gap:24px}
+  .content-page.pricing-page #pricing .pricing-intro .lede{font-size:16px}
+}
+@media(max-width:700px){
+  .pricing-page .pricing-art{top:-140px}
+}
+@media(max-width:600px){
+  .pricing-page .pricing-intro{padding-bottom:32px}
+  .pricing-title-row{display:block}
+  .content-page.pricing-page #pricing .pricing-title-row h2{font-size:clamp(68px,16vw,96px)}
+  .content-page.pricing-page #pricing .pricing-intro .lede{max-width:none;margin-top:24px;padding:0}
+}
+
+/* The landing FAQ aperture is the shared Rabbit Hole mark. */
+.rh-mark{display:inline-block;flex:none;width:30px;height:30px;background:currentColor;mask:url("/landing/rabbit-hole-mark.svg") center/contain no-repeat;-webkit-mask:url("/landing/rabbit-hole-mark.svg") center/contain no-repeat}
+#bar .brand{display:inline-flex;align-items:center;gap:8px}
+@media(max-width:380px){#bar{padding-left:8px;gap:2px}#bar .brand{font-size:14px;gap:4px;margin-right:2px;padding-left:6px;padding-right:6px}#bar .brand .rh-mark{width:24px;height:24px}#bar .cta{font-size:12px;padding:12px}#menu{margin-left:2px;width:34px}}

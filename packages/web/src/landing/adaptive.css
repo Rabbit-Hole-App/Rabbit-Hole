@@ -1,0 +1,64 @@
+#below #adaptive-learning{max-width:none;margin:0 -40px;padding:120px 48px 128px;background:#fff;scroll-margin-top:100px;color:#181919}
+#adaptive-learning .adaptive-inner{max-width:1168px;margin:auto}
+#adaptive-learning .adaptive-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:40px;margin-bottom:48px}
+#adaptive-learning .adaptive-eyebrow{font:500 11px/1.4 var(--ui);letter-spacing:.025em;margin-bottom:26px;color:#636560}
+#below #adaptive-learning h2{font:500 clamp(48px,5.6vw,78px)/1.02 var(--display);letter-spacing:-.06em;margin:0}
+#adaptive-learning .adaptive-intro{font:400 16px/1.7 var(--ui);color:#64665f;max-width:350px;padding-bottom:6px;text-wrap:balance}
+#adaptive-learning .adaptive-demo{border:1px solid #dedfd9;border-radius:14px;overflow:hidden}
+#adaptive-learning .adaptive-toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:24px;padding:26px 30px;border-bottom:1px solid #dedfd9}
+#adaptive-learning .adaptive-question{font:500 17px/1.4 var(--ui);letter-spacing:-.035em}
+#adaptive-learning .adaptive-tabs{display:flex;gap:8px}
+#adaptive-learning .adaptive-tabs button{display:flex;align-items:center;justify-content:center;gap:12px;min-height:44px;padding:10px 14px;border:1px solid #e3cbd0;border-radius:7px;background:#fffafb;box-shadow:0 2px 0 #eedfe2;font:500 12px/1.4 var(--ui);white-space:nowrap;color:#80414e;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background-color 160ms ease,border-color 160ms ease,box-shadow 160ms ease}
+#adaptive-learning [data-adaptive-mode="overview"]{--depth-bg:#f6d9dd;--depth-ink:#872b3d;--depth-border:#d495a0}
+#adaptive-learning [data-adaptive-mode="guided"]{--depth-bg:#b94759;--depth-ink:#fff;--depth-border:#a13c4c}
+#adaptive-learning [data-adaptive-mode="deep"]{--depth-bg:#821f35;--depth-ink:#fff;--depth-border:#69182b}
+#adaptive-learning .adaptive-tabs button span{font:400 10px/1 ui-monospace,SFMono-Regular,Consolas,monospace;opacity:.6}
+#adaptive-learning .adaptive-tabs button[aria-selected="true"]{background:var(--depth-bg);border-color:var(--depth-border);color:var(--depth-ink);box-shadow:inset 0 1px 2px #66142612}
+#adaptive-learning .adaptive-tabs button:active{box-shadow:inset 0 1px 3px #66142625}
+#adaptive-learning :is(.adaptive-tabs button,.adaptive-example,.adaptive-source,input,button):focus-visible{outline:2px solid #494d42;outline-offset:3px}
+#adaptive-learning .adaptive-tabs button:focus-visible{outline-color:#a43c50}
+#adaptive-learning .adaptive-example:focus-visible{outline-offset:-4px}
+#adaptive-learning .adaptive-example{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(0,1fr)}
+#adaptive-learning .adaptive-art{display:grid;padding:20px;background:#f8f8f4;border-right:1px solid #dedfd9;min-width:0}
+#adaptive-learning .adaptive-art-note{font:400 10px/1.4 var(--ui);color:#696d63;text-align:center}
+#adaptive-learning .adaptive-explanations{padding:34px 38px;display:grid;align-items:center;min-width:0}
+#adaptive-learning .adaptive-explanations article{grid-area:1 / 1;animation:adaptive-copy-in 220ms var(--ease-out) both}
+#adaptive-learning .adaptive-explanations [hidden]{display:block;visibility:hidden;pointer-events:none;animation:none}
+#adaptive-learning .adaptive-step{font:400 10px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.025em;color:#787b72}
+#adaptive-learning .adaptive-explanations h3{font:500 clamp(26px,2.5vw,36px)/1.12 var(--display);letter-spacing:-.05em;margin:20px 0 18px}
+#adaptive-learning .adaptive-explanations p{font:400 14px/1.7 var(--ui);color:#62665c;max-width:350px;text-wrap:pretty}
+#adaptive-learning .adaptive-takeaway{display:block;font:400 11px/1.6 var(--ui);color:#686c62;margin-top:22px;max-width:300px}
+#adaptive-learning .adaptive-source{display:inline-flex;align-items:center;gap:12px;min-height:36px;margin-top:18px;padding:7px 10px;border:1px solid #dedfd9;border-radius:5px;color:#555b4c;text-decoration:none;font:400 10px/1.5 var(--ui)}
+#adaptive-learning .adaptive-bottom{display:flex;justify-content:space-between;gap:16px;padding:17px 30px;border-top:1px solid #dedfd9;font:400 10px/1.5 var(--ui);color:#72756d}
+#adaptive-learning .adaptive-bottom>span:last-child{display:flex;gap:24px}
+#adaptive-learning[data-instant] .adaptive-explanations article{animation:none}
+#adaptive-learning[data-instant] .adaptive-tabs button{transition:none}
+@keyframes adaptive-copy-in{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+@media(hover:hover) and (pointer:fine){#adaptive-learning .adaptive-tabs button:not([aria-selected="true"]):hover{background:#f7e6e9;border-color:#c17d8b;box-shadow:0 2px 0 #d9b4bd}#adaptive-learning .adaptive-source:hover{background:#f2f3ed}}
+@media(max-width:1000px){
+  #adaptive-learning .adaptive-toolbar{flex-direction:column;align-items:flex-start;gap:20px}
+  #adaptive-learning .adaptive-tabs{width:100%}
+  #adaptive-learning .adaptive-tabs button{flex:1}
+  #adaptive-learning .adaptive-explanations{padding:28px}
+}
+@media(max-width:700px){
+  #below #adaptive-learning{margin:0 -20px;padding:76px 20px 80px;scroll-margin-top:92px}
+  #adaptive-learning .adaptive-heading{display:block;margin-bottom:32px}
+  #adaptive-learning .adaptive-eyebrow{margin-bottom:20px}
+  #below #adaptive-learning h2{font-size:clamp(44px,11vw,64px)}
+  #adaptive-learning .adaptive-intro{margin-top:24px;font-size:14px;max-width:none}
+  #adaptive-learning .adaptive-toolbar{padding:22px 16px;gap:18px}
+  #adaptive-learning .adaptive-question{font-size:16px}
+  #adaptive-learning .adaptive-tabs{gap:6px}
+  #adaptive-learning .adaptive-tabs button{padding:10px 6px;font-size:11px}
+  #adaptive-learning .adaptive-tabs button span{display:none}
+  #adaptive-learning .adaptive-example{grid-template-columns:minmax(0,1fr)}
+  #adaptive-learning .adaptive-art{border-right:0;border-bottom:1px solid #dedfd9;padding:14px}
+  #adaptive-learning .adaptive-explanations{min-height:338px;padding:26px 24px;align-items:flex-start}
+  #adaptive-learning .adaptive-explanations h3{font-size:29px;margin:16px 0}
+  #adaptive-learning .adaptive-explanations p{font-size:14px}
+  #adaptive-learning .adaptive-takeaway{margin-top:18px}
+  #adaptive-learning .adaptive-bottom{padding:15px 20px;font-size:9px}
+  #adaptive-learning .adaptive-bottom>span:last-child{display:none}
+}
+@media(prefers-reduced-motion:reduce){#adaptive-learning .adaptive-explanations article{animation:none}#adaptive-learning .adaptive-tabs button{transition:none}}

@@ -1,0 +1,306 @@
+{
+  "fps": 13,
+  "display_scale": 0.375,
+  "fitted_speed_source_px_s": 1235.0,
+  "fitted_speed_display_px_s": 463.125,
+  "previous_best_fit_source_px_s": 1384.5,
+  "current_at_fitted_speed": [
+    {
+      "frames": [
+        1,
+        2,
+        3
+      ],
+      "world_patch_x_source_px": [
+        393.0,
+        392.0,
+        391.0
+      ],
+      "pose_to_pose_range_source_px": 2.0,
+      "pose_to_pose_range_display_px": 0.75
+    },
+    {
+      "frames": [
+        5,
+        6,
+        7
+      ],
+      "world_patch_x_source_px": [
+        387.0,
+        378.0,
+        389.0
+      ],
+      "pose_to_pose_range_source_px": 11.0,
+      "pose_to_pose_range_display_px": 4.125
+    }
+  ],
+  "previous_at_same_speed": [
+    {
+      "frames": [
+        1,
+        2,
+        3
+      ],
+      "world_patch_x_source_px": [
+        377.0,
+        392.0,
+        367.0
+      ],
+      "pose_to_pose_range_source_px": 25.0,
+      "pose_to_pose_range_display_px": 9.375
+    },
+    {
+      "frames": [
+        5,
+        6,
+        7
+      ],
+      "world_patch_x_source_px": [
+        383.0,
+        388.0,
+        347.0
+      ],
+      "pose_to_pose_range_source_px": 41.0,
+      "pose_to_pose_range_display_px": 15.375
+    }
+  ],
+  "previous_at_own_best_fit": [
+    {
+      "frames": [
+        1,
+        2,
+        3
+      ],
+      "world_patch_x_source_px": [
+        377.0,
+        403.5,
+        390.0
+      ],
+      "pose_to_pose_range_source_px": 26.5,
+      "pose_to_pose_range_display_px": 9.938
+    },
+    {
+      "frames": [
+        5,
+        6,
+        7
+      ],
+      "world_patch_x_source_px": [
+        383.0,
+        399.5,
+        370.0
+      ],
+      "pose_to_pose_range_source_px": 29.5,
+      "pose_to_pose_range_display_px": 11.062
+    }
+  ],
+  "speed_sweep": [
+    {
+      "ratio": 0.8,
+      "current": [
+        {
+          "frames": [
+            1,
+            2,
+            3
+          ],
+          "world_patch_x_source_px": [
+            393.0,
+            373.0,
+            353.0
+          ],
+          "pose_to_pose_range_source_px": 40.0,
+          "pose_to_pose_range_display_px": 15.0
+        },
+        {
+          "frames": [
+            5,
+            6,
+            7
+          ],
+          "world_patch_x_source_px": [
+            387.0,
+            359.0,
+            351.0
+          ],
+          "pose_to_pose_range_source_px": 36.0,
+          "pose_to_pose_range_display_px": 13.5
+        }
+      ]
+    },
+    {
+      "ratio": 1,
+      "current": [
+        {
+          "frames": [
+            1,
+            2,
+            3
+          ],
+          "world_patch_x_source_px": [
+            393.0,
+            392.0,
+            391.0
+          ],
+          "pose_to_pose_range_source_px": 2.0,
+          "pose_to_pose_range_display_px": 0.75
+        },
+        {
+          "frames": [
+            5,
+            6,
+            7
+          ],
+          "world_patch_x_source_px": [
+            387.0,
+            378.0,
+            389.0
+          ],
+          "pose_to_pose_range_source_px": 11.0,
+          "pose_to_pose_range_display_px": 4.125
+        }
+      ]
+    },
+    {
+      "ratio": 1.2,
+      "current": [
+        {
+          "frames": [
+            1,
+            2,
+            3
+          ],
+          "world_patch_x_source_px": [
+            393.0,
+            411.0,
+            429.0
+          ],
+          "pose_to_pose_range_source_px": 36.0,
+          "pose_to_pose_range_display_px": 13.5
+        },
+        {
+          "frames": [
+            5,
+            6,
+            7
+          ],
+          "world_patch_x_source_px": [
+            387.0,
+            397.0,
+            427.0
+          ],
+          "pose_to_pose_range_source_px": 40.0,
+          "pose_to_pose_range_display_px": 15.0
+        }
+      ]
+    }
+  ],
+  "playback_sweep": [
+    {
+      "fps": 11,
+      "current": [
+        {
+          "frames": [
+            1,
+            2,
+            3
+          ],
+          "world_patch_x_source_px": [
+            393.0,
+            409.27272727272725,
+            425.5454545454545
+          ],
+          "pose_to_pose_range_source_px": 32.545,
+          "pose_to_pose_range_display_px": 12.205
+        },
+        {
+          "frames": [
+            5,
+            6,
+            7
+          ],
+          "world_patch_x_source_px": [
+            387.0,
+            395.27272727272725,
+            423.5454545454545
+          ],
+          "pose_to_pose_range_source_px": 36.545,
+          "pose_to_pose_range_display_px": 13.705
+        }
+      ]
+    },
+    {
+      "fps": 13,
+      "current": [
+        {
+          "frames": [
+            1,
+            2,
+            3
+          ],
+          "world_patch_x_source_px": [
+            393.0,
+            392.0,
+            391.0
+          ],
+          "pose_to_pose_range_source_px": 2.0,
+          "pose_to_pose_range_display_px": 0.75
+        },
+        {
+          "frames": [
+            5,
+            6,
+            7
+          ],
+          "world_patch_x_source_px": [
+            387.0,
+            378.0,
+            389.0
+          ],
+          "pose_to_pose_range_source_px": 11.0,
+          "pose_to_pose_range_display_px": 4.125
+        }
+      ]
+    },
+    {
+      "fps": 15,
+      "current": [
+        {
+          "frames": [
+            1,
+            2,
+            3
+          ],
+          "world_patch_x_source_px": [
+            393.0,
+            379.3333333333333,
+            365.66666666666663
+          ],
+          "pose_to_pose_range_source_px": 27.333,
+          "pose_to_pose_range_display_px": 10.25
+        },
+        {
+          "frames": [
+            5,
+            6,
+            7
+          ],
+          "world_patch_x_source_px": [
+            387.0,
+            365.3333333333333,
+            363.66666666666663
+          ],
+          "pose_to_pose_range_source_px": 23.333,
+          "pose_to_pose_range_display_px": 8.75
+        }
+      ]
+    }
+  ],
+  "within_held_frame_travel_display_px": 35.625,
+  "limits": [
+    "Support patch edge can move as the foot rolls; this is not exact toe material tracking.",
+    "Continuous world motion moves held raster feet between pose changes; zero slip is not established.",
+    "No per-frame root correction, interpolation, camera tracking or dynamic rescaling is used."
+  ],
+  "visual_approval": false
+}

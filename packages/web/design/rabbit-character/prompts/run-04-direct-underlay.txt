@@ -1,0 +1,20 @@
+Edit image 1, the eight-panel stick figure pose sheet, into one coherent rabbit animation sheet. This is a pose-preserving sketch-to-render task. Image 2 is the SAME rabbit's RIGHT-facing neutral identity reference only. Image 3 is its final monochrome dither treatment. Use the image 1 poses and cell placement exactly, and use image 2's costume, face, proportions and watch without redesign.
+
+ALL EIGHT RABBITS FACE RIGHT, their noses point toward the RIGHT edge. This is one right-facing run cycle, not a turnaround. Do not turn or mirror any whole rabbit, especially in the bottom row. 4 columns, 2 rows, order 01-04 above 05-08. Equal square cells, constant scale, transparent background, no labels or guide marks in the final output.
+
+Trace the stick figure JOINT POSITIONS. Each circle/square locates the actual shoulder, elbow, wrist, hip, knee or ankle under its corresponding sleeve/breeches/fur. Do not invent different poses. BLUE is the FAR anatomical LEFT limb, ORANGE is the NEAR anatomical RIGHT limb. Final colors are black/white only. The near right arm is the watch arm: render the watch at the guide's orange W circle, gripped at its ring by the orange chain's hand. It must never be carried by the far blue hand.
+
+Top row:
+01 Far LEFT foot forward/flat on floor, near RIGHT thigh/foot folded BACK. Near RIGHT WATCH arm forward, far empty arm back.
+02 Far LEFT foot supports/compresses; near RIGHT leg begins recovery. Follow the exact bent knee and ankle locations.
+03 Far LEFT toes push BACK, heel rises; near RIGHT knee passes beneath pelvis with foot raised. Hands swing through midpoint.
+04 Airborne; far LEFT leg trails back, near RIGHT knee and foot forward. Near WATCH arm back, far empty arm forward.
+Bottom row, still facing RIGHT:
+05 Near RIGHT foot forward/flat on floor, far LEFT leg folded BACK. Near RIGHT WATCH arm back; far empty arm forward. Same silhouette phase as 01 BUT OPPOSITE NEAR/FAR LIMB OVERLAP.
+06 Near RIGHT supports/compresses, far LEFT recovers.
+07 Near RIGHT toes push BACK, far LEFT knee passes beneath pelvis. Keep the raised recovery foot off the floor.
+08 Airborne; near RIGHT trails back, far LEFT knee advances. Near WATCH arm forward, far empty arm back. Leads naturally into 01.
+
+Use the approved single pelvis and shoulder roots, lean, vertical bob, foot pitch and exact leg/arm joint bends. In 01 the near thigh travels backward over the far supporting thigh; in 05 the near thigh visibly travels forward over the far trailing thigh. Make this overlap unmistakable. Both arms stay attached through shoulder-elbow-wrist-hand, and the watch follows only the near arm with small pendulum lag.
+
+Preserve the refined slender rabbit's long ears, muzzle, fitted ornate coat/waistcoat/bow, striped knee breeches and long bare rabbit paws. The skeleton head circle is only a locator, not a replacement head design. Add coherent ear drag and rebound following the guide's body compression/rise. Maintain monochrome stippled/halftone ink identity, no costume changes, no extra objects, no text, no colored skeleton remains. All limbs and ears stay inside each cell. Floor/cell geometry stays as in image 1; feet must not be aligned to a new floor in flight.

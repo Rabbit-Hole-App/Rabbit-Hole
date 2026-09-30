@@ -1,0 +1,13 @@
+Edit this complete eight-pose right-running rabbit sheet. Preserve the exact eight poses, leaner body, face, costume, leg articulation, proportions, layout and transparent background. Make the following connected-arm and ear-motion corrections across the entire cycle, not independent new drawings:
+Number the images1,2,3,4 across the top;5,6,7,8 across the bottom.
+The ANATOMICAL RIGHT arm, closest to the camera, must hold the SAME watch by its ring in ALL eight frames. This is a real arm with one shoulder, one elbow, forearm and grip. Do NOT move the watch to the other paw.
+1: keep the near watch arm behind, but open the elbow slightly. Empty far hand forward, relaxed curled fingers.
+2: keep the near watch hand passing LOW beside hip with visibly bent elbow. Move far empty hand down/back with its elbow beginning rear swing. No frozen chest-height fist.
+3,4,5: REDRAW the near right coat sleeve and full arm FORWARD across the visible side of the chest, from the near shoulder through a forward bent elbow to the watch grip. The watch is held by this near forward arm. The EMPTY far left arm swings BACK and is substantially hidden by the torso. Erase the currently prominent empty near arm stretching behind; replace its visible rear hand with the SMALLER partly hidden far-left hand. This visible shoulder/arm overlap reversal is essential. The upper torso/lapel twists to bring the RIGHT shoulder forward with the watch arm.
+6: near watch hand passes LOW at waist with elbow changing bend as it retreats. Far empty arm comes forward/up.
+7: near RIGHT watch arm swings BACK behind waist, with elbow opening, watch held behind hip. Empty LEFT arm forward/up. Remove the watch from the front hand; there must be only ONE watch in the rear right hand.
+8: ADD the missing watch to the rear near RIGHT hand behind the hip; empty far left hand forward. Match its trajectory seamlessly into1.
+Preserve watch case diameter and a short ring grip with small angular inertial lag. Hands should look connected and distinct: right pinches a ring, left is a relaxed running paw.
+
+Ears: current ears are too similar throughout. Keep their length/root anatomy but add flexible secondary motion. In2 and6, as head compresses, ear tips lag and bend softly backward/down. In3 and7, as head rises, tips lag LOWER still, with a flowing curved edge; far ear is delayed relative to near. In4 and8 ears rebound partway upward. In1 and5 ears overshoot modestly then settle into contact. No hinges, shortening, clipping or random flapping. Maintain enough padding.
+Do not change any other identity/style details. Keep fine grayscale texture for later conversion by the existing dither pipeline. Exactly eight poses in one four-by-two sheet.

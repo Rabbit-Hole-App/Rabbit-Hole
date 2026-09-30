@@ -1,0 +1,75 @@
+.manifesto-page{background:#f9f7f2;color:#27241f;isolation:isolate}
+.content-page.manifesto-page #below{padding:0}
+.manifesto-article{grid-area:1 / 1;position:relative;z-index:1;width:100%;min-width:0;max-width:1312px;margin:0 auto;padding:160px 36px 100px}
+.manifesto-heading{max-width:1100px;margin:0 auto 96px;text-align:center}
+.manifesto-eyebrow,.manifesto-number{font:500 12px/1.5 var(--ui);letter-spacing:.02em}
+.manifesto-heading .manifesto-eyebrow{margin-bottom:30px}
+.manifesto-page #below .manifesto-heading h1{font:500 clamp(76px,9.4vw,138px)/1.1 var(--display);letter-spacing:-.065em;margin-bottom:36px}
+.manifesto-deck{max-width:680px;margin:0 auto;font:500 22px/1.5 var(--ui);letter-spacing:-.025em}
+.manifesto-body{max-width:1080px;margin:0 auto;font:500 20px/1.7 var(--ui);letter-spacing:-.02em}
+.manifesto-opening{max-width:720px;margin:0 auto 64px;padding-left:24px;border-left:2px solid #74695d;font:500 22px/1.65 var(--ui);letter-spacing:-.025em}
+.manifesto-prose{border-left:2px solid #74695d;padding-left:24px}
+.manifesto-highlight{background:#b4423b;color:#fff8f1;padding:0 .11em .035em;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.manifesto-opening p+p,.manifesto-prose p+p{margin-top:24px}
+.manifesto-page #below .manifesto-chapter{display:grid;grid-template-columns:180px minmax(0,720px);justify-content:space-between;gap:48px;margin:0 0 132px;scroll-margin-top:100px}
+.manifesto-number{align-self:start;display:flex;align-items:center;gap:16px;padding:4px 0;letter-spacing:0}
+.manifesto-number span{font-variant-numeric:tabular-nums}
+.manifesto-page #below .manifesto-prose h2{font:500 clamp(32px,3.2vw,46px)/1.24 var(--display);letter-spacing:-.045em;margin-bottom:32px}
+.manifesto-page #below .manifesto-portrait-chapter{grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);align-items:center;gap:70px}
+.manifesto-page #below .manifesto-teaching{grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr)}
+.manifesto-prose .manifesto-number{margin-bottom:28px}
+.manifesto-portrait{margin:0;mix-blend-mode:multiply}
+.manifesto-portrait img{display:block;width:100%;height:auto;filter:grayscale(1);mask-image:linear-gradient(to bottom,#000 65%,transparent 100%)}
+.manifesto-portrait figcaption{position:relative;display:flex;justify-content:center;gap:12px;margin-top:-32px;font:500 12px/1.5 var(--ui);letter-spacing:0;color:#5a5148}
+.manifesto-ending{margin:20px 0 0;text-align:center}
+.manifesto-ending .manifesto-final{font:500 clamp(64px,8.1vw,116px)/1.13 var(--display);letter-spacing:-.065em}
+.manifesto-ending .manifesto-last-question{margin:40px auto 0;font:500 clamp(22px,2.5vw,34px)/1.6 var(--display);letter-spacing:-.025em}
+.manifesto-statement{font:500 clamp(38px,5.2vw,72px)/1.35 var(--display);letter-spacing:-.05em;text-align:center;margin:0 auto 144px}
+.manifesto-prose .manifesto-statement-inline{font-size:clamp(34px,4vw,54px);text-align:left;margin:40px 0 24px}
+.manifesto-prose .manifesto-strong{margin-top:36px;font:500 26px/1.5 var(--display);letter-spacing:-.025em}
+.manifesto-next-step{margin-top:48px;scroll-margin-top:110px}
+.manifesto-page #below .manifesto-next-step h3{margin:0 0 16px;font:500 clamp(26px,2.5vw,34px)/1.25 var(--display);letter-spacing:-.035em}
+.manifesto-path{margin:36px 0;border-top:1px solid #74695d55}
+.manifesto-path>div{display:grid;grid-template-columns:1fr 1.2fr;gap:24px;padding:22px 0;border-bottom:1px solid #74695d55}
+.manifesto-path dt{font:500 17px/1.6 var(--ui);color:#645b51}
+.manifesto-path dd{margin:0;font:500 23px/1.45 var(--display);letter-spacing:-.025em}
+.manifesto-ending a{display:inline-flex;align-items:center;gap:14px;min-height:44px;margin-top:40px;color:inherit;font:500 14px/1.4 var(--ui);text-decoration:none}
+.manifesto-ending a:focus-visible{outline:2px solid currentColor;outline-offset:5px}
+.manifesto-page footer{border-color:#6b625730;color:#27241f}
+.manifesto-page footer .brand{color:inherit}
+@media(hover:hover) and (pointer:fine){.manifesto-ending a:hover{text-decoration:underline;text-underline-offset:5px}}
+@media(max-width:900px){
+  .manifesto-article{padding:145px 28px 88px}
+  .manifesto-heading{margin-bottom:112px}
+  .manifesto-body{font-size:20px}
+  .manifesto-page #below .manifesto-chapter{grid-template-columns:120px minmax(0,1fr);gap:28px;margin-bottom:112px}
+  .manifesto-opening{max-width:660px;font-size:21px;margin-bottom:64px}
+  .manifesto-page #below .manifesto-portrait-chapter{grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:36px}
+  .manifesto-page #below .manifesto-teaching{grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr)}
+  .manifesto-page #below .manifesto-prose h2{font-size:34px}
+}
+@media(max-width:700px){
+  .manifesto-article{padding:130px 20px 68px}
+  .manifesto-heading{margin-bottom:88px}
+  .manifesto-heading .manifesto-eyebrow{margin-bottom:24px}
+  .manifesto-page #below .manifesto-heading h1{font-size:clamp(44px,13vw,90px);margin-bottom:28px}
+  .manifesto-deck{max-width:460px;font-size:18px;line-height:1.5}
+  .manifesto-body{font-size:18px;line-height:1.6}
+  .manifesto-opening{max-width:none;margin-bottom:48px;padding-left:18px;font-size:19px}
+  .manifesto-prose{padding-left:18px}
+  .manifesto-page #below .manifesto-chapter{grid-template-columns:minmax(0,1fr);gap:24px;margin-bottom:80px}
+  .manifesto-number{font-size:11px}
+  .manifesto-page #below .manifesto-prose h2{font-size:32px;margin-bottom:24px}
+  .manifesto-page #below .manifesto-portrait-chapter{grid-template-columns:minmax(0,1fr);gap:36px}
+  .manifesto-portrait{width:85%;max-width:340px;justify-self:start}
+  .manifesto-feynman{justify-self:end}
+  .manifesto-portrait figcaption{font-size:12px}
+  .manifesto-prose .manifesto-number{margin-bottom:24px}
+  .manifesto-ending .manifesto-final{font-size:clamp(42px,10.2vw,70px)}
+  .manifesto-ending .manifesto-last-question{font-size:23px;margin-top:28px}
+  .manifesto-statement{font-size:clamp(34px,9vw,58px);margin-bottom:88px}
+  .manifesto-prose .manifesto-strong{font-size:23px}
+  .manifesto-path>div{grid-template-columns:.95fr 1.05fr;gap:16px;padding:20px 0}
+  .manifesto-path dt{font-size:15px}
+  .manifesto-path dd{font-size:20px}
+}

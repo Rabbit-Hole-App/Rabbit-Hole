@@ -1,0 +1,20 @@
+Refine this fully clothed rabbit mascot's run animation for a children's storybook-style web character. Preserve the exact rabbit face, long ears, patterned jacket, waistcoat, bow tie, striped knee trousers, rabbit paws, and pocket watch from the references. First reference is the old action sheet, second the original monochrome art, third the original illustration. Redraw the motion while keeping the same character.
+
+Draw ONE complete 8-frame running action, facing RIGHT throughout, arranged in 4 columns and 2 rows, top row first. Equal square cells, landscape 2:1 image, true transparent background. Keep each full figure inside its cell with safe space around ears, paws and watch. Constant scale, fixed pelvis x position, common ground baseline in each cell. Detailed grayscale source illustration, light face and jacket panels, dark waistcoat, suitable for the existing monochrome halftone conversion. No captions, floor, shadows or motion trails.
+
+Make it a clearly articulated run with alternating grounded strides, not eight variations of the same leap. The right hand carries the pocket watch by its bow/ring through the WHOLE cycle. That watch hand swings visibly behind the hip and then forward ahead of the torso, never swapping hands. The other arm swings in opposition. Both elbows and knees visibly bend. Each arm swings opposite its same-side leg. Keep the watch diameter and short grip-to-bow connection constant; give it slight inertial lag.
+
+Frame 1: RIGHT foot contacts the ground ahead, left leg folded behind. Right watch arm BACK, left empty arm FORWARD.
+Frame 2: Right knee compresses over a flat planted right foot under pelvis; left knee passes forward. Pelvis lowest. Arms start reversing.
+Frame 3: Right leg pushes BACK with toes on the ground, left thigh moves FORWARD with bent knee and tucked lower leg. Right watch arm swings clearly forward, empty left arm backward.
+Frame 4: Short low flight; LEFT leg reaches forward, right leg folds behind. Right watch hand ahead of chest, left hand behind hip.
+Frame 5: LEFT foot contacts ground ahead, right leg recovers behind. Right watch arm FORWARD, empty left arm BACK. The opposite arrangement from frame 1.
+Frame 6: Left knee compresses over a flat planted left foot under pelvis, right knee passes forward. Pelvis lowest. Arms reverse again.
+Frame 7: Left leg pushes BACK with toes on ground, right knee FORWARD and bent. Right watch arm travels backward, left empty arm forward.
+Frame 8: Short low flight; RIGHT foot approaches its contact in frame 1, left leg folds behind. Right watch hand behind hip, empty left hand forward. This pose flows smoothly into frame 1.
+
+The whole torso leans forward a little and bobs down on compression, up after push-off; shoulders and hips subtly counter-rotate. Keep leg lengths and joint locations consistent. Show two unmistakable ground contacts in frames 1 and 5 and weighted support in 2 and 6. Only frames 4 and 8 are flight.
+
+Long ears behave as flexible secondary motion: roots follow the head, tips lag its acceleration. Tips bend down/back during rising push-off, rebound upward during flight, and settle through contact/compression. The two ears have a small phase delay. Their length stays constant and their silhouette must meaningfully change through the cycle. No random flapping. The eighth pose's posture, ear curves and watch position lead naturally into the first, without a loop reset.
+
+The old sheet's problem is almost stationary arms and the same leading leg in too many frames. The revised sheet must visibly reverse both arm and leg arrangement in the second half. Exactly eight complete poses of one consistent fully clothed rabbit.

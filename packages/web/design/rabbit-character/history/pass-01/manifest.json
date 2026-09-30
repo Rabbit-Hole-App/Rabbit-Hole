@@ -1,0 +1,328 @@
+{
+  "schema_version": 1,
+  "character": "rabbit-hole-mascot",
+  "status": "candidate pending user visual approval",
+  "frame_count": 8,
+  "frame_size": [
+    512,
+    512
+  ],
+  "facing": "right",
+  "loop": true,
+  "target_fps": 13,
+  "gif_durations_ms": [
+    80,
+    70,
+    80,
+    80,
+    70,
+    80,
+    80,
+    80
+  ],
+  "webp_frame_duration_ms": 77,
+  "baseline_y": 408,
+  "anchor_px": [
+    256,
+    408
+  ],
+  "shared_source_scale": 0.75,
+  "source_row_offset_y": [
+    94,
+    96
+  ],
+  "allowed_directions": [
+    "front",
+    "back",
+    "left",
+    "right"
+  ],
+  "optional_directions": [
+    "front_left",
+    "front_right",
+    "back_left",
+    "back_right"
+  ],
+  "mirror_allowed": false,
+  "clips": {
+    "run_right": {
+      "action": "run",
+      "facing": "right",
+      "fps": 13,
+      "sheet": "run-strip.png",
+      "frames": "animations/run_right/frames",
+      "frame_count": 8,
+      "loop": true,
+      "approved": false
+    }
+  },
+  "canonical_reference": "../rabbit-sprite.png, first 240 x 168 frame",
+  "underlying_reference": "../rabbit_1.jpg",
+  "seed_redrawn": false,
+  "source_generated_together": true,
+  "source_layout": "4 columns x 2 rows",
+  "runtime_layout": "8 columns x 1 row",
+  "generator": "built-in image_gen through ChatGPT",
+  "upstream_sprite_pipeline_commit": "1dc195897af4161d039b80d8471ec0a10c9bbc89",
+  "source_sha256": "54c797a4498cb92a1336303c1198e1d599ea54fda25538de1736429ea9cf0a2e",
+  "registration": [
+    {
+      "frame": 1,
+      "source_cell": [
+        0,
+        0,
+        444,
+        444
+      ],
+      "source_pupil_x": 321,
+      "offset": [
+        95.25,
+        94.0
+      ],
+      "ink_bounds": [
+        140,
+        128,
+        392,
+        408
+      ]
+    },
+    {
+      "frame": 2,
+      "source_cell": [
+        444,
+        0,
+        887,
+        444
+      ],
+      "source_pupil_x": 336,
+      "offset": [
+        84.0,
+        94.0
+      ],
+      "ink_bounds": [
+        158,
+        152,
+        368,
+        408
+      ]
+    },
+    {
+      "frame": 3,
+      "source_cell": [
+        887,
+        0,
+        1330,
+        444
+      ],
+      "source_pupil_x": 311,
+      "offset": [
+        102.75,
+        94.0
+      ],
+      "ink_bounds": [
+        140,
+        124,
+        374,
+        400
+      ]
+    },
+    {
+      "frame": 4,
+      "source_cell": [
+        1330,
+        0,
+        1774,
+        444
+      ],
+      "source_pupil_x": 312,
+      "offset": [
+        102.0,
+        94.0
+      ],
+      "ink_bounds": [
+        142,
+        116,
+        400,
+        388
+      ]
+    },
+    {
+      "frame": 5,
+      "source_cell": [
+        0,
+        444,
+        444,
+        887
+      ],
+      "source_pupil_x": 309,
+      "offset": [
+        104.25,
+        96.0
+      ],
+      "ink_bounds": [
+        146,
+        120,
+        406,
+        408
+      ]
+    },
+    {
+      "frame": 6,
+      "source_cell": [
+        444,
+        444,
+        887,
+        887
+      ],
+      "source_pupil_x": 328,
+      "offset": [
+        90.0,
+        96.0
+      ],
+      "ink_bounds": [
+        164,
+        146,
+        370,
+        408
+      ]
+    },
+    {
+      "frame": 7,
+      "source_cell": [
+        887,
+        444,
+        1330,
+        887
+      ],
+      "source_pupil_x": 316,
+      "offset": [
+        99.0,
+        96.0
+      ],
+      "ink_bounds": [
+        136,
+        122,
+        368,
+        382
+      ]
+    },
+    {
+      "frame": 8,
+      "source_cell": [
+        1330,
+        444,
+        1774,
+        887
+      ],
+      "source_pupil_x": 327,
+      "offset": [
+        90.75,
+        96.0
+      ],
+      "ink_bounds": [
+        136,
+        142,
+        392,
+        398
+      ]
+    }
+  ],
+  "turnaround": {
+    "approved": false,
+    "source_generated_together": true,
+    "sheet": "turnaround-sheet.png",
+    "views": {
+      "front": "turnaround/front.png",
+      "back": "turnaround/back.png",
+      "left": "turnaround/left.png",
+      "right": "turnaround/right.png"
+    },
+    "source_sha256": "ecd0d769c3bb34b60063d25971408727c17d344a148fd62923dda8cd55ab1719",
+    "shared_source_scale": 0.45,
+    "source_floor_y": 832,
+    "watch_hand": "anatomical right (proposed, requires approval)",
+    "mirrored": false,
+    "registration": [
+      {
+        "direction": "front",
+        "source_cell": [
+          0,
+          0,
+          444,
+          887
+        ],
+        "source_stance_x": 235,
+        "offset": [
+          150.25,
+          33.599999999999966
+        ],
+        "ink_bounds": [
+          172,
+          52,
+          332,
+          408
+        ]
+      },
+      {
+        "direction": "back",
+        "source_cell": [
+          444,
+          0,
+          887,
+          887
+        ],
+        "source_stance_x": 229,
+        "offset": [
+          152.95,
+          33.599999999999966
+        ],
+        "ink_bounds": [
+          176,
+          58,
+          342,
+          404
+        ]
+      },
+      {
+        "direction": "left",
+        "source_cell": [
+          887,
+          0,
+          1330,
+          887
+        ],
+        "source_stance_x": 215,
+        "offset": [
+          159.25,
+          33.599999999999966
+        ],
+        "ink_bounds": [
+          192,
+          56,
+          324,
+          408
+        ]
+      },
+      {
+        "direction": "right",
+        "source_cell": [
+          1330,
+          0,
+          1774,
+          887
+        ],
+        "source_stance_x": 248,
+        "offset": [
+          144.39999999999998,
+          33.599999999999966
+        ],
+        "ink_bounds": [
+          152,
+          56,
+          306,
+          408
+        ]
+      }
+    ]
+  }
+}

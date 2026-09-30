@@ -1,0 +1,40 @@
+{
+  "tool": "built-in image_gen through ChatGPT subscription",
+  "authentication_verified": "codex login status: Logged in using ChatGPT",
+  "api_fallback_used": false,
+  "all_requests_whole_eight_pose_sheet": true,
+  "independent_frame_generation": false,
+  "guide_approval": "motion/run_right/guide-04/approval.json",
+  "attempts": [
+    {
+      "prompt": "prompts/run-04-approved-guide.txt",
+      "output": "generated/run-04-rejected-direction-swap.png",
+      "generator_file": "exec-4e8df297-c5b4-4132-8d26-0836329d2204.png",
+      "selection": "rejected: bottom row turns left instead of keeping right-facing and exchanging limbs"
+    },
+    {
+      "prompt": "prompts/run-04-direct-underlay.txt",
+      "output": "generated/run-04-rejected-repeated-near-leg.png",
+      "generator_file": "exec-4ec99acb-6415-4c58-8fc1-8395694fbcc2.png",
+      "selection": "rejected: repeated near-leg lead and incorrect watch-arm overlap"
+    },
+    {
+      "prompt": "prompts/run-04-depth-trace.txt",
+      "output": "generated/run-04-depth-candidate.png",
+      "generator_file": "exec-833caad6-0d3e-4a59-b2cd-247cae79db71.png",
+      "selection": "intermediate: clearer near/far side exchange; foot and ear edit requested"
+    },
+    {
+      "prompt": "prompts/run-04-foot-ear-correction.txt",
+      "output": "generated/run-source-sheet.png",
+      "generator_file": "exec-927e5c9c-dedf-48e4-b52c-2d2513862345.png",
+      "selection": "current candidate for review; exact guide geometry still not achieved"
+    }
+  ],
+  "service_rejections_without_image": [
+    { "request_id": "669856fc-a252-4626-9f98-2fb41552920b", "stage": "output", "retry": "same benign request" },
+    { "request_id": "768271d7-ba7c-4bd8-bdce-a5ad331c7893", "stage": "output", "retry": "same benign request" }
+  ],
+  "run_approved": false,
+  "character_bible_v1_frozen": false
+}

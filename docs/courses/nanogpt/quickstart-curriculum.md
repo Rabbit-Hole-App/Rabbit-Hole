@@ -27,19 +27,19 @@ This outline is supplied by the owner for the first iteration. Later, Curriculum
 
 The official quickstart uses Tiny Shakespeare, converts it into `train.bin` and `val.bin`, then trains a small character-level GPT with `config/train_shakespeare_char.py`.
 
-### Mini quiz — 2 questions
+### Mini quiz: 2 questions
 
 1. What is the model predicting at each position?
 2. What are `train.bin` and `val.bin` used for?
 
-### Flashcards — 4
+### Flashcards: 4
 
 - token
 - vocabulary
 - context window
 - next-token prediction
 
-### Homework notebook — optional ~5 min
+### Homework notebook: optional ~5 min
 
 - Load Tiny Shakespeare
 - Inspect characters/tokens
@@ -64,13 +64,13 @@ The official quickstart uses Tiny Shakespeare, converts it into `train.bin` and 
 
 nanoGPT intentionally concentrates the GPT model definition in `model.py`, while `train.py` contains the training loop.
 
-### Mini quiz — 3 questions
+### Mini quiz: 3 questions
 
 1. Why do tokens need embeddings?
 2. Why does position information matter?
 3. What does the language-model head output?
 
-### Flashcards — 5
+### Flashcards: 5
 
 - embedding
 - positional embedding
@@ -78,7 +78,7 @@ nanoGPT intentionally concentrates the GPT model definition in `model.py`, while
 - hidden dimension
 - logits
 
-### Homework notebook — optional ~7 min
+### Homework notebook: optional ~7 min
 
 - Instantiate a tiny `GPTConfig`
 - Print the model
@@ -109,13 +109,13 @@ nanoGPT intentionally concentrates the GPT model definition in `model.py`, while
 - Slider for attention weights
 - Step through causal masking
 
-### Mini quiz — 3 questions
+### Mini quiz: 3 questions
 
 1. Why is the attention mask causal?
 2. What do Q and K determine?
 3. What information comes from V?
 
-### Flashcards — 6
+### Flashcards: 6
 
 - query
 - key
@@ -124,7 +124,7 @@ nanoGPT intentionally concentrates the GPT model definition in `model.py`, while
 - causal mask
 - attention head
 
-### Homework notebook — optional ~10 min
+### Homework notebook: optional ~10 min
 
 - Create a tiny attention matrix
 - Apply a causal mask
@@ -146,12 +146,12 @@ nanoGPT intentionally concentrates the GPT model definition in `model.py`, while
 - `Block`
 - `Block.forward()`
 
-### Mini quiz — 2 questions
+### Mini quiz: 2 questions
 
 1. What does the MLP contribute that attention does not?
 2. Why are residual connections useful?
 
-### Flashcards — 5
+### Flashcards: 5
 
 - MLP
 - GELU
@@ -159,7 +159,7 @@ nanoGPT intentionally concentrates the GPT model definition in `model.py`, while
 - LayerNorm
 - transformer block
 
-### Homework notebook — optional ~7 min
+### Homework notebook: optional ~7 min
 
 - Feed a random tensor through one `Block`
 - Print input/output shapes
@@ -181,13 +181,13 @@ nanoGPT intentionally concentrates the GPT model definition in `model.py`, while
 - Language-model head
 - Loss computation
 
-### Mini quiz — 3 questions
+### Mini quiz: 3 questions
 
 1. What does one logit vector represent?
 2. Why are targets shifted relative to inputs?
 3. What does lower cross-entropy mean?
 
-### Flashcards — 5
+### Flashcards: 5
 
 - logits
 - target
@@ -195,7 +195,7 @@ nanoGPT intentionally concentrates the GPT model definition in `model.py`, while
 - vocabulary dimension
 - forward pass
 
-### Homework notebook — optional ~8 min
+### Homework notebook: optional ~8 min
 
 - Create a tiny input batch
 - Run a forward pass
@@ -224,13 +224,13 @@ nanoGPT intentionally concentrates the GPT model definition in `model.py`, while
 
 `train.py` exposes model size, batch size, context length, learning rate, warmup, decay, gradient accumulation, clipping, and DDP settings directly, which makes it especially good for teaching the training loop.
 
-### Mini quiz — 3 questions
+### Mini quiz: 3 questions
 
 1. What does `loss.backward()` conceptually do?
 2. Why use gradient accumulation?
 3. Why evaluate on validation data?
 
-### Flashcards — 6
+### Flashcards: 6
 
 - gradient
 - optimizer
@@ -239,7 +239,7 @@ nanoGPT intentionally concentrates the GPT model definition in `model.py`, while
 - checkpoint
 - validation loss
 
-### Homework notebook — optional ~10 min
+### Homework notebook: optional ~10 min
 
 - Run a tiny training loop for ~50–100 steps
 - Log train loss
@@ -266,12 +266,12 @@ nanoGPT intentionally concentrates the GPT model definition in `model.py`, while
 
 The repo's `sample.py` is specifically the small entry point for sampling from a trained model.
 
-### Mini quiz — 2 questions
+### Mini quiz: 2 questions
 
 1. What happens when temperature increases?
 2. Why is generation autoregressive?
 
-### Flashcards — 5
+### Flashcards: 5
 
 - sampling
 - autoregressive
@@ -279,7 +279,7 @@ The repo's `sample.py` is specifically the small entry point for sampling from a
 - top-k
 - context
 
-### Homework notebook — optional ~7 min
+### Homework notebook: optional ~7 min
 
 - Generate with several temperatures
 - Compare outputs
@@ -303,7 +303,7 @@ The repo's `sample.py` is specifically the small entry point for sampling from a
 - `train.py`
 - `sample.py`
 
-### Final quiz — 5 questions
+### Final quiz: 5 questions
 
 1. Put the training stages in order.
 2. Identify where attention happens.
@@ -311,7 +311,7 @@ The repo's `sample.py` is specifically the small entry point for sampling from a
 4. Explain where generation differs from training.
 5. Predict what changing `block_size` affects.
 
-### Flashcards — 6 recap cards
+### Flashcards: 6 recap cards
 
 - tokenization
 - attention
@@ -320,7 +320,7 @@ The repo's `sample.py` is specifically the small entry point for sampling from a
 - optimization
 - sampling
 
-### Final homework notebook — optional ~15 min
+### Final homework notebook: optional ~15 min
 
 - Train a tiny Shakespeare model
 - Generate text

@@ -1,0 +1,67 @@
+{
+  "tested_at": "2026-09-23T23:32:53.679Z",
+  "url": "https://small-cp-dev-smart-landing-page.zeroshothq.workers.dev/#warren",
+  "results": [
+    {
+      "name": "public landing retains hero, sections and original mascot position",
+      "pass": true
+    },
+    {
+      "name": "breathing changes the actual rendered artwork",
+      "pass": true
+    },
+    {
+      "name": "Look left",
+      "pass": true
+    },
+    {
+      "name": "Look right",
+      "pass": true
+    },
+    {
+      "name": "Check watch",
+      "pass": true
+    },
+    {
+      "name": "Crouch",
+      "pass": true
+    },
+    {
+      "name": "pointer and keyboard move the same reusable portal",
+      "pass": true
+    },
+    {
+      "name": "portal A reversible flow and visible occlusion",
+      "pass": true
+    },
+    {
+      "name": "portal B reversible flow and visible occlusion",
+      "pass": true
+    },
+    {
+      "name": "pause and reset recover the visible rabbit",
+      "pass": true
+    },
+    {
+      "name": "exact pink cloud artwork animates below the mascot and can pause",
+      "pass": true
+    },
+    {
+      "name": "small viewport and reduced-motion trips remain usable",
+      "pass": true
+    },
+    {
+      "name": "mascot removed from regular app including old direct links",
+      "pass": true
+    },
+    {
+      "name": "mascot removed from repository app including old direct links",
+      "pass": true
+    }
+  ],
+  "console_errors": [],
+  "real_deployed_landing": true,
+  "public_landing_api_requests": 0,
+  "model_calls": 0,
+  "visual_approval": false
+}

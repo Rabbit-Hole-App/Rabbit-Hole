@@ -1,0 +1,150 @@
+{
+  "tested_at": "2026-09-23T21:55:45.303748+00:00",
+  "technical_evidence_checks_pass": true,
+  "visual_gate": "failed: pinched recovery ankles; no visual approval",
+  "independent_pixel_ranges_display_px": {
+    "0": {
+      "left": 32,
+      "right": 38
+    },
+    "1": {
+      "left": 9,
+      "right": 10
+    },
+    "2": {
+      "left": 1,
+      "right": 2
+    }
+  },
+  "samples_per_support": 21,
+  "unchanged_inputs": 16,
+  "recordings": {
+    "normal-run.gif": {
+      "frames": 32,
+      "size": [
+        512,
+        512
+      ],
+      "duration_ms": 620,
+      "sha256": "365686ee9687b75281be53d230ca35d476c3303444f58e5bcb93bea775ac4d75"
+    },
+    "normal-run.webp": {
+      "frames": 32,
+      "size": [
+        512,
+        512
+      ],
+      "duration_ms": 615,
+      "sha256": "8732f0e81fe75173c7e276b144a1f4ff85862498ace11dc7b953e77d5cdfd451"
+    },
+    "slow-run.gif": {
+      "frames": 64,
+      "size": [
+        512,
+        512
+      ],
+      "duration_ms": 2460,
+      "sha256": "dbce11bed4ad60a181f891dcc746893e89ff2d13f60c2f7fe76444e0a53a18df"
+    },
+    "slow-run.webp": {
+      "frames": 64,
+      "size": [
+        512,
+        512
+      ],
+      "duration_ms": 2462,
+      "sha256": "0d2a426c766d822425c90f9c0beb04605832fe6a8fde86e7aa15e4c0c214f7f1"
+    },
+    "comparison-slow.gif": {
+      "frames": 64,
+      "size": [
+        1536,
+        560
+      ],
+      "duration_ms": 2460,
+      "sha256": "cf07e4512977a0b8f2af580b723297317fd42f4045398711280dac4a5effa361"
+    },
+    "comparison-slow.webp": {
+      "frames": 64,
+      "size": [
+        1536,
+        560
+      ],
+      "duration_ms": 2462,
+      "sha256": "8ab17b5627765eb0e19f4c5bc502729b9c59f8b3ef3e6491c81e60ad3285227a"
+    },
+    "skeleton-overlay.gif": {
+      "frames": 64,
+      "size": [
+        512,
+        512
+      ],
+      "duration_ms": 2460,
+      "sha256": "2f9f445522734950539cbbbf8322aedc0d6ab136e6ee016d8f40d8203382d51b"
+    },
+    "skeleton-overlay.webp": {
+      "frames": 64,
+      "size": [
+        512,
+        512
+      ],
+      "duration_ms": 2462,
+      "sha256": "2884b82d44b76b9181ac1ed87b0bf06a5bdc42b09058f2690f0c5575c5148a3d"
+    },
+    "world-motion.gif": {
+      "frames": 64,
+      "size": [
+        1040,
+        910
+      ],
+      "duration_ms": 1230,
+      "sha256": "c8ad6b39c4b5a0c86b17a0bf875e63f17d0d480cbd454ab7e8b12a6f17f1043a"
+    },
+    "world-motion.webp": {
+      "frames": 64,
+      "size": [
+        1040,
+        910
+      ],
+      "duration_ms": 1231,
+      "sha256": "8f5c5b4f2dbef25c5bcbae5a2857d537b1075bdb21bb4ef5b955cf8dddb1a122"
+    },
+    "foot-lock.gif": {
+      "frames": 64,
+      "size": [
+        1040,
+        910
+      ],
+      "duration_ms": 1230,
+      "sha256": "df6ce244ba50d25a1aec7bea9483adeb64d1348f4508b8999e36386bd147b7f2"
+    },
+    "foot-lock.webp": {
+      "frames": 64,
+      "size": [
+        1040,
+        910
+      ],
+      "duration_ms": 1231,
+      "sha256": "1821f7127a0cf3808365de2f2bec7e5024f678d0595c8254fb61641bf83ba031"
+    },
+    "cycle-seam.gif": {
+      "frames": 64,
+      "size": [
+        512,
+        512
+      ],
+      "duration_ms": 2460,
+      "sha256": "862f322bd204d818bba8326da54c5fbab433a83555ba17e28750ce3b5976b9c3"
+    },
+    "cycle-seam.webp": {
+      "frames": 64,
+      "size": [
+        512,
+        512
+      ],
+      "duration_ms": 2462,
+      "sha256": "8c7947579fb7ce8c0417f9fa45772dac542366622907052b8edb790e482d7a19"
+    }
+  },
+  "lossless_archives_match_all_browser_pixels": true
+}

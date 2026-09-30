@@ -119,7 +119,7 @@ This is an invented teaching example, not a prediction from a trained nanoGPT ch
 
 ### Spoken or written explanation
 
-“Hi, and welcome to lesson one! Let's start with a tiny puzzle. Suppose you see H, e, l, l. What might come next? You might suggest o — turning hell into hello, which is much friendlier. You used patterns you have seen before. We want a computer to learn patterns from examples too. Its task is to estimate the next token — one character in this example. It assigns probabilities to possible continuations; it does not know a guaranteed answer. We can build longer text by choosing one character and repeating. Nice — but computers don't read letters, they crunch numbers. So, next question: how do we give the computer this text as numbers?”
+“Hi, and welcome to lesson one! Let's start with a tiny puzzle. Suppose you see H, e, l, l. What might come next? You might suggest o: turning hell into hello, which is much friendlier. You used patterns you have seen before. We want a computer to learn patterns from examples too. Its task is to estimate the next token: one character in this example. It assigns probabilities to possible continuations; it does not know a guaranteed answer. We can build longer text by choosing one character and repeating. Nice: but computers don't read letters, they crunch numbers. So, next question: how do we give the computer this text as numbers?”
 
 ### Further explanations
 
@@ -133,7 +133,7 @@ Look at `Hell`. You may expect `o` because you recognize the beginning of `Hello
 
 Suppose the selection step chooses `o`. The text becomes `Hello`. Now ask the same question again, this time using `Hello` as the available text. Perhaps a space is selected next. We have performed two small prediction-and-selection steps, not predicted an entire sentence in a single step.
 
-**Supporting visual — reuse the canvas tiles here:** `Hell → Hello → Hello[space]`. Highlight only the newly appended character at each step. These are invented choices to explain the process, not outputs from a trained checkpoint.
+**Supporting visual: reuse the canvas tiles here:** `Hell → Hello → Hello[space]`. Highlight only the newly appended character at each step. These are invented choices to explain the process, not outputs from a trained checkpoint.
 
 #### Make the intuition precise, without formulas yet
 
@@ -155,9 +155,9 @@ This page introduces a general language-modeling concept. The `Hell` prefix is a
 
 Optional source link below the explanation: [nanoGPT README quickstart](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/README.md#quick-start), for the character-level training context. In the app, show this as a source pill.
 
-**Online explanation — start here:** [Hugging Face: Transformers are language models](https://huggingface.co/learn/llm-course/en/chapter1/4#transformers-are-language-models). Read the causal language-modeling example to connect a prefix with a next-token prediction. It also contrasts this with predicting a masked token. The rest of the architecture chapter can wait until later lessons.
+**Online explanation: start here:** [Hugging Face: Transformers are language models](https://huggingface.co/learn/llm-course/en/chapter1/4#transformers-are-language-models). Read the causal language-modeling example to connect a prefix with a next-token prediction. It also contrasts this with predicting a masked token. The rest of the architecture chapter can wait until later lessons.
 
-**Research paper — optional deeper reading:** [A Neural Probabilistic Language Model — Bengio, Ducharme, Vincent and Jauvin, 2003](https://www.jmlr.org/papers/v3/bengio03a.html). Start with the abstract and introduction for the motivation behind learning probabilities of language sequences and generalizing beyond seen examples. This is historical background using word representations, not a description of nanoGPT's transformer architecture.
+**Research paper (optional deeper reading:** [A Neural Probabilistic Language Model) Bengio, Ducharme, Vincent and Jauvin, 2003](https://www.jmlr.org/papers/v3/bengio03a.html). Start with the abstract and introduction for the motivation behind learning probabilities of language sequences and generalizing beyond seen examples. This is historical background using word representations, not a description of nanoGPT's transformer architecture.
 
 ## Page 2 — How do we represent text as numbers? (~60 seconds)
 
@@ -203,7 +203,7 @@ per account/workspace/app/pinned source/plan revision in this browser only.
 
 ### Spoken or written explanation
 
-“On the last page we predicted the next character. Now for the cliffhanger: how does Hello become numbers? Simple: we assign each character its own ID. H becomes zero, e becomes one, and both l characters become two — identical twins, same ID. This lookup is called encoding. Reverse it and we recover Hello: that is decoding. And don't read too much into the numbers — a larger ID does not mean a more important character. We have changed the representation; the model has not learned anything yet. So, what prediction task can we build from this sequence of IDs? Your turn: try the encoding exercise below the canvas.”
+“On the last page we predicted the next character. Now for the cliffhanger: how does Hello become numbers? Simple: we assign each character its own ID. H becomes zero, e becomes one, and both l characters become two: identical twins, same ID. This lookup is called encoding. Reverse it and we recover Hello: that is decoding. And don't read too much into the numbers: a larger ID does not mean a more important character. We have changed the representation; the model has not learned anything yet. So, what prediction task can we build from this sequence of IDs? Your turn: try the encoding exercise below the canvas.”
 
 ### Further explanations
 
@@ -263,9 +263,9 @@ vocab_size = len(chars)
 
 Source: `prepare.py:22–23`. Accompanying text: “The script gathers the distinct characters and counts them. The following lines build the character-to-ID and ID-to-character lookups.”
 
-**Online explanation — start here:** [Hugging Face: Tokenizers](https://huggingface.co/learn/llm-course/en/chapter2/4). Read Character-based, Encoding, and Decoding. These sections connect text units, vocabulary IDs and reconstruction, and compare character tokens with word and subword tokens. The library examples illustrate a broader approach; this lesson's nanoGPT example uses its own simple character lookup.
+**Online explanation: start here:** [Hugging Face: Tokenizers](https://huggingface.co/learn/llm-course/en/chapter2/4). Read Character-based, Encoding, and Decoding. These sections connect text units, vocabulary IDs and reconstruction, and compare character tokens with word and subword tokens. The library examples illustrate a broader approach; this lesson's nanoGPT example uses its own simple character lookup.
 
-**Research paper — optional extension:** [Neural Machine Translation of Rare Words with Subword Units — Sennrich, Haddow and Birch, 2016](https://aclanthology.org/P16-1162/). Read the abstract for why splitting words into smaller units helps handle rare words. This extends the vocabulary discussion beyond character tokens; it is not required for the notebook and does not describe the Shakespeare character tokenizer used here.
+**Research paper (optional extension:** [Neural Machine Translation of Rare Words with Subword Units) Sennrich, Haddow and Birch, 2016](https://aclanthology.org/P16-1162/). Read the abstract for why splitting words into smaller units helps handle rare words. This extends the vocabulary discussion beyond character tokens; it is not required for the notebook and does not describe the Shakespeare character tokenizer used here.
 
 ## Page 3 — How does text give us training examples? (~65 seconds)
 
@@ -286,7 +286,7 @@ Source: `prepare.py:22–23`. Accompanying text: “The script gathers the disti
 
 ### Assets
 
-**Canvas interaction — `prefix-target`:** reuse the character tiles as position
+**Canvas interaction: `prefix-target`:** reuse the character tiles as position
 controls. The learner selects one of positions 1–4. Highlight the selected
 position and prefix; dim future tile outlines and mask their characters until
 submission, including in accessible labels. Dimming readable letters would give
@@ -385,7 +385,7 @@ At the `Hel` position, could we let the predictor read the final `o` because it 
 
 ### References and further reading
 
-**Repository — shifted targets:** [train.py:110–125, get_batch](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/train.py#L110-L125). Compare the input slice with the slice starting one position later. The lesson's string example isolates that relationship without introducing tensor batching.
+**Repository: shifted targets:** [train.py:110–125, get_batch](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/train.py#L110-L125). Compare the input slice with the slice starting one position later. The lesson's string example isolates that relationship without introducing tensor batching.
 
 Source pill: [config/train_shakespeare_char.py, lines 15–22](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/config/train_shakespeare_char.py#L15-L22). Explain only the dataset and context setting here; defer architecture dimensions.
 
@@ -467,9 +467,9 @@ The generation method repeatedly obtains next-token scores, selects a token and 
 
 ### References and further reading
 
-**Repository — generation:** [model.py, GPT.generate](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/model.py#L306-L330). Follow the loop and append operation; save sampling controls for Lesson 7.
+**Repository: generation:** [model.py, GPT.generate](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/model.py#L306-L330). Follow the loop and append operation; save sampling controls for Lesson 7.
 
-**Repository — validation:** [train.py:215–228, estimate_loss](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/train.py#L215-L228). This evaluates losses separately from parameter updates.
+**Repository: validation:** [train.py:215–228, estimate_loss](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/train.py#L215-L228). This evaluates losses separately from parameter updates.
 
 **Online extension:** [PyTorch: Optimizing Model Parameters](https://docs.pytorch.org/tutorials/beginner/basics/optimization_tutorial.html). Compare the training and test loops. Focus on which loop performs updates; the tutorial's dataset and task differ from this character language model.
 
@@ -561,7 +561,7 @@ As a check, imagine someone sends only `train.bin`. You have examples, but not n
 
 Sources: [README quickstart](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/README.md#quick-start), [prepare.py, lines 34–48](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/data/shakespeare_char/prepare.py#L34-L48).
 
-**Repository — vocabulary metadata:** [prepare.py:50–56](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/data/shakespeare_char/prepare.py#L50-L56). See which lookup information is saved alongside the token arrays.
+**Repository: vocabulary metadata:** [prepare.py:50–56](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/data/shakespeare_char/prepare.py#L50-L56). See which lookup information is saved alongside the token arrays.
 
 **Online companion:** [PyTorch: Optimizing Model Parameters](https://docs.pytorch.org/tutorials/beginner/basics/optimization_tutorial.html). The training and evaluation loops provide a second example of separating parameter updates from measurement. Its classification example is not nanoGPT; detailed optimizer mechanics belong to Lesson 6.
 
@@ -657,7 +657,7 @@ Use existing tldraw text/diagram primitives. Group meaningfully related shapes w
 
 No photos, generative video, 3D assets, extracted paper figures or quantitative plots are proposed: none improves this lesson's explanation enough to justify the extra work. Verified papers and online explanations are linked as optional further reading, without importing or generating assets. No mathematical derivation is needed. This is a decision for this lesson, not a restriction on future lessons.
 
-## Quiz — exact content
+## Quiz: exact content
 
 ### Question 1
 
@@ -697,7 +697,7 @@ Correct: **C**.
 **Transfer check:** does measuring validation loss by itself train the model? No. Comparing against targets is not sufficient; a parameter-update step is what changes learned weights. See Page 4's two lanes.
 Objective: distinguish dataset artifacts from the model and explain evaluation.
 
-## Flashcards — exact fronts and backs
+## Flashcards: exact fronts and backs
 
 | Front | Back |
 |---|---|
@@ -710,7 +710,7 @@ Use the existing flip interaction and Got it / Not yet controls. Ask learners to
 answer the concrete question before flipping; the back supplies the concept and
 its reasoning. The cards practice retrieval rather than copying definitions.
 
-## Optional notebook — Text and token IDs (~5 minutes)
+## Optional notebook: Text and token IDs (~5 minutes)
 
 Clean draft export: [lesson-01-notebook.ipynb](lesson-01-notebook.ipynb).
 It preserves raw code, splitting the five review sections into seven Jupyter
@@ -722,13 +722,13 @@ checks do not establish browser execution; that release requirement stays open.
 
 Editable learner copy with Reset to this approved baseline. No training, GPU, model download or checkpoint required. Browser notebook dependency: Pyodide's existing `pyodide.http.pyfetch`; remaining operations use Python built-ins.
 
-### Cell 1 — Markdown
+### Cell 1: Markdown
 
 “Can we turn text into numbers without losing it? We will begin with Hello, then use the same idea on Tiny Shakespeare. Before running each cell, predict what will happen. Run it, change one thing, and explain the result. This notebook explores representation; it does not train a neural network.”
 
 Predict: `Hello` contains five positions. How many distinct characters does it contain? Four, because `l` repeats. We will check that distinction in code.
 
-### Cell 2 — Code: predict and test the toy mapping
+### Cell 2: Code: predict and test the toy mapping
 
 Before running: predict the encoded list and whether decoding will return exactly `Hello`. Use the lookup card from Page 2.
 
@@ -746,9 +746,9 @@ assert restored == example
 
 Expected: `[0, 1, 2, 2, 3]` and the restored string `Hello`. Both `l` positions use `2`. Change `example` to `Hello Hello`, predict where `4` appears, and run again. It appears at the space; the same character IDs are reused.
 
-### Cell 3 — Code: build the real dataset vocabulary
+### Cell 3: Code: build the real dataset vocabulary
 
-The toy mapping was chosen for readability. Now let the dataset determine the characters. Predict: must its ID for `l` equal `2`? No—the mapping can differ. This cell downloads the text, so it needs a network connection.
+The toy mapping was chosen for readability. Now let the dataset determine the characters. Predict: must its ID for `l` equal `2`? No: the mapping can differ. This cell downloads the text, so it needs a network connection.
 
 ```python
 from pyodide.http import pyfetch
@@ -769,7 +769,7 @@ print([(repr(c), character_to_id[c]) for c in characters[:12]])
 
 Expected: nonempty text, a vocabulary size, and distinct IDs including whitespace. `set` collects distinct characters; sorting gives a consistent order; the dictionaries map in both directions. Exact dataset values are not claimed as executed results. Before publication, pin/cache the dataset and record its hash; this URL currently follows the upstream preparation script's mutable dataset URL.
 
-### Cell 4 — Code: inspect several sequences
+### Cell 4: Code: inspect several sequences
 
 Predict: when a character occurs in two different snippets, should its ID change? No. The dictionary stays fixed; only the sequence being encoded changes. Run this cell and use the printed character/ID pairs to check your prediction.
 
@@ -796,7 +796,7 @@ Expected: three text/ID comparisons and successful round trips. These slices are
 
 Then change the start positions or preview length. Explain why different snippets give different lists, yet the same character keeps the same ID. This is the difference between changing the input and changing the representation scheme.
 
-### Cell 5 — Markdown: try it
+### Cell 5: Markdown: try it
 
 1. Return to the toy example. Predict what happens with `Hello!`, then try it: the toy dictionary has no `!`, so its direct lookup raises `KeyError`. An ID cannot be silently invented while keeping the trained vocabulary unchanged. Restore the valid example afterward.
 2. Choose a character actually present in the downloaded text. Find its ID in two snippets. Explain why it stays the same even when the surrounding text differs.

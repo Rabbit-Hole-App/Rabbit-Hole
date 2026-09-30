@@ -1,0 +1,75 @@
+{
+  "status": "candidate; not an exact geometric trace of the approved guide",
+  "guide_approved": true,
+  "run_approved": false,
+  "exact_pose_conformance": false,
+  "anatomical_role_visual_review": "01 far-left support / near-right thigh back; 05 near-right support / far-left thigh back; watch remains on the near-right sleeve chain.",
+  "not_automatic_joint_detection": true,
+  "remaining_art_issues": [
+    "Recovery-foot orientation differs from the guide in the contact poses.",
+    "Passing/toe-off shins and far-foot separation remain more compressed/occluded than the guide.",
+    "Flight poses 04 and 08 have unequal clearances and trailing-foot silhouettes.",
+    "Shoulder/hand and inferred hip locations are not exact guide coordinates."
+  ],
+  "support_edge_vs_guide": [
+    {
+      "frame": 1,
+      "support": "left",
+      "target_toe_x": 356.0,
+      "rendered_support_edge_x": 377,
+      "difference_source_px": 21.0
+    },
+    {
+      "frame": 2,
+      "support": "left",
+      "target_toe_x": 296.0,
+      "rendered_support_edge_x": 305,
+      "difference_source_px": 9.0
+    },
+    {
+      "frame": 3,
+      "support": "left",
+      "target_toe_x": 236.0,
+      "rendered_support_edge_x": 225,
+      "difference_source_px": -11.0
+    },
+    {
+      "frame": 5,
+      "support": "right",
+      "target_toe_x": 356.0,
+      "rendered_support_edge_x": 379,
+      "difference_source_px": 23.0
+    },
+    {
+      "frame": 6,
+      "support": "right",
+      "target_toe_x": 296.0,
+      "rendered_support_edge_x": 311,
+      "difference_source_px": 15.0
+    },
+    {
+      "frame": 7,
+      "support": "right",
+      "target_toe_x": 236.0,
+      "rendered_support_edge_x": 211,
+      "difference_source_px": -25.0
+    }
+  ],
+  "flight": [
+    {
+      "frame": 4,
+      "guide_clearance_px": 37.001,
+      "rendered_ink_clearance_px": 40
+    },
+    {
+      "frame": 8,
+      "guide_clearance_px": 37.001,
+      "rendered_ink_clearance_px": 24
+    }
+  ],
+  "uncertainty": "Support edge is an ink-patch proxy, not the exact physical toe; allow about 4 source px. Hidden joints are not measured as ground truth.",
+  "guide_speed_source_px_s": 780.0,
+  "rendered_fitted_speed_source_px_s": 1040.0,
+  "source_sha256": "911d73d672b0a285078eeb31eabb81316d92680d1e2d76c73c9cfd002523ac28",
+  "guide_joint_data_sha256": "6908369926d2bc3ac7cf73b0bdfbcc00ad2cd01d7a212409c633a5a154670d48"
+}

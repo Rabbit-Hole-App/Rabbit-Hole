@@ -11,7 +11,7 @@ export class InteractiveGraphShapeUtil extends BaseBoxShapeUtil {
   component(shape) { return <InteractiveGraph shape={shape} editor={this.editor} />; }
   getIndicatorPath(shape) { const path = new Path2D(); path.rect(0, 0, shape.props.w, shape.props.h); return path; }
   getGraphContext(shapeId) { return getGraphContext(this.editor, shapeId); }
-  toSvg(shape) { return <g><rect width={shape.props.w} height={shape.props.h} fill="white" stroke="#a3a3a3" /><text x={20} y={35} fontSize={18}>{shape.props.spec.title || shape.props.spec.concept}</text><text x={20} y={65} fontSize={14}>Interactive graph — open this note to explore</text></g>; }
+  toSvg(shape) { return <g><rect width={shape.props.w} height={shape.props.h} fill="white" stroke="#a3a3a3" /><text x={20} y={35} fontSize={18}>{shape.props.spec.title || shape.props.spec.concept}</text><text x={20} y={65} fontSize={14}>Interactive graph: open this note to explore</text></g>; }
 }
 
 function InteractiveGraph({ shape, editor }) {

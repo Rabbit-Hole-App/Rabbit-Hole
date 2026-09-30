@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Blog | Rabbit Hole</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/landing/favicon-32-v1.png">
+<link rel="icon" type="image/svg+xml" href="/landing/favicon-v1.svg">
+<link rel="apple-touch-icon" href="/landing/apple-touch-icon-v1.png">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./rabbit-hole.css">
+</head>
+<body class="content-page blog-page">
+<header id="bar" class="on">
+  <a class="brand" href="/" aria-label="Rabbit Hole home"><span class="rh-mark" aria-hidden="true"></span>Rabbit Hole</a>
+  <a href="/blog" aria-current="page">Blog</a>
+  <a href="/features">Features</a>
+  <a href="/pricing">Pricing</a><a href="/docs">Docs</a>
+  <a class="cta" href="/sign-up">Get started</a>
+  <button id="menu" type="button" aria-label="Menu" aria-expanded="false" aria-controls="sheet">
+    <i></i><i></i>
+  </button>
+</header>
+
+<nav id="sheet" aria-label="Sections">
+  <a href="/blog" aria-current="page">Blog</a>
+  <a href="/features">Features</a>
+  <a href="/pricing">Pricing</a><a href="/docs">Docs</a>
+</nav>
+<main id="below">
+  <section id="blog">
+    <div class="blog-intro">
+    <div class="blog-art" id="blog-art" aria-hidden="true">
+      <img src="/landing/blog-atlas-v4.png" alt="" width="2172" height="724" fetchpriority="high" decoding="async">
+    </div>
+    <h1>Blog</h1>
+    <div class="blog-title-row">
+    <h2>Ideas,<br>unfolded.</h2>
+    </div>
+    </div>
+    <div class="blog-articles" id="stories" aria-labelledby="stories-heading">
+      <div class="blog-stories-heading">
+        <h2 id="stories-heading">From the notebook.</h2>
+        <span>06 sample stories</span>
+      </div>
+      <ul class="cards blog-grid" id="blog-grid"></ul>
+    </div>
+  </section>
+  <article class="blog-post" id="article" hidden></article>
+</main>
+<footer data-content-footer>
+  <span class="brand">Rabbit Hole</span>
+  <span>Knowledge is infinite.</span>
+  <span>© 2026</span>
+</footer>
+<script type="module" src="../src/landing/navigation.js"></script>
+<script type="module" src="../src/landing/content-footer.js"></script>
+<script type="module" src="../src/landing/blog-stories.js"></script>
+</body>
+</html>

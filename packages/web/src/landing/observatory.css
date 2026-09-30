@@ -1,0 +1,16 @@
+#below #observatory{position:relative;max-width:none;margin:0 -40px;scroll-margin-top:0;background:#153865;isolation:isolate}
+#observatory .observatory-scene{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;object-position:center;pointer-events:none}
+#observatory .observatory-mist{position:absolute;left:-8%;bottom:-12%;width:116%;height:auto;pointer-events:none;opacity:.72;animation:observatory-drift 24s cubic-bezier(.77,0,.175,1) -8s infinite alternate;animation-play-state:paused}
+#observatory .observatory-stars{position:absolute;inset:0;pointer-events:none}
+#observatory .observatory-stars i{position:absolute;width:2px;height:2px;border-radius:50%;background:#ffe1f3;box-shadow:0 0 5px 1px #ffd4ed70;animation:observatory-shimmer 7s cubic-bezier(.77,0,.175,1) infinite alternate;animation-play-state:paused}
+#observatory .observatory-stars i:nth-child(1){left:35.8%;top:7.6%;animation-delay:-3s}
+#observatory .observatory-stars i:nth-child(2){left:48.8%;top:15.6%;animation-duration:9s;animation-delay:-9s}
+#observatory .observatory-stars i:nth-child(3){left:64.8%;top:8.6%;animation-duration:6s;animation-delay:-4s}
+#observatory .observatory-stars i:nth-child(4){left:86.2%;top:25.7%;animation-duration:8s;animation-delay:-11s}
+#observatory .observatory-stars i:nth-child(5){left:92.4%;top:7.3%;animation-duration:10s;animation-delay:-5s}
+#observatory[data-playing="true"] .observatory-mist,#observatory[data-playing="true"] .observatory-stars i{animation-play-state:running}
+@keyframes observatory-drift{from{transform:translateX(-4%)}to{transform:translateX(4%)}}
+@keyframes observatory-shimmer{from{opacity:.2}to{opacity:.95}}
+@media(max-width:700px){
+  #below #observatory{margin:0 -20px}
+}

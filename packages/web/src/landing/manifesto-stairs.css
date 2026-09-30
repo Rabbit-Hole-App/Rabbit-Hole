@@ -1,0 +1,10 @@
+.manifesto-atmosphere{position:fixed;inset:0;z-index:-1;background:#f9f7f2;pointer-events:none}
+#manifesto-depth-color{position:absolute;inset:0;background:#e5dfd6;opacity:0}
+/* A shared grid layer overlaps the essay without a negative sticky margin.
+   Clip the drawing at the article boundary, including short phone viewports. */
+.manifesto-journey{position:relative;display:grid;grid-template-columns:minmax(0,1fr);isolation:isolate;overflow:clip}
+.manifesto-stair-art{grid-area:1 / 1;align-self:start;position:sticky;top:0;width:100%;height:100svh;z-index:-1;pointer-events:none;opacity:.34}
+#manifesto-stairs{display:block;width:100%;height:100%;image-rendering:pixelated}
+@media(max-width:700px){
+  .manifesto-stair-art{opacity:.25}
+}

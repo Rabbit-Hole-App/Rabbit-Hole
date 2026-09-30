@@ -1,0 +1,482 @@
+{
+  "schema_version": 2,
+  "revision": 2,
+  "character": "rabbit-hole-mascot",
+  "status": "candidate pending user visual approval",
+  "frame_count": 8,
+  "frame_size": [
+    512,
+    512
+  ],
+  "facing": "right",
+  "loop": true,
+  "target_fps": 13,
+  "gif_durations_ms": [
+    80,
+    70,
+    80,
+    80,
+    70,
+    80,
+    80,
+    80
+  ],
+  "webp_frame_duration_ms": 77,
+  "baseline_y": 480,
+  "anchor_px": [
+    256,
+    480
+  ],
+  "shared_source_scale": 0.75,
+  "proportions": "proportions.json",
+  "previous_candidate": "history/pass-01/manifest.json",
+  "allowed_directions": [
+    "front",
+    "back",
+    "left",
+    "right"
+  ],
+  "additional_view_directions": [
+    "front_left",
+    "front_right",
+    "back_left",
+    "back_right"
+  ],
+  "mirror_allowed": false,
+  "clips": {
+    "run_right": {
+      "action": "run",
+      "facing": "right",
+      "fps": 13,
+      "sheet": "run-strip.png",
+      "frames": "animations/run_right/frames",
+      "frame_count": 8,
+      "loop": true,
+      "approved": false
+    }
+  },
+  "canonical_reference": "../rabbit-sprite.png, first 240 x 168 frame",
+  "underlying_reference": "../rabbit_1.jpg",
+  "seed_redrawn": false,
+  "source_generated_together": true,
+  "source_layout": "4 columns x 2 rows",
+  "runtime_layout": "8 columns x 1 row",
+  "generator": "built-in image_gen through ChatGPT",
+  "upstream_sprite_pipeline_commit": "1dc195897af4161d039b80d8471ec0a10c9bbc89",
+  "source_sha256": "0988db84441215c5b2bde642a899c8f01013f42bff1050d672b52164ae6cb2f9",
+  "registration": [
+    {
+      "frame": 1,
+      "source_cell": [
+        0,
+        0,
+        444,
+        444
+      ],
+      "source_pupil_x": 350,
+      "source_floor_y": 438,
+      "offset": [
+        73.5,
+        151.5
+      ],
+      "ink_bounds": [
+        106,
+        174,
+        396,
+        480
+      ]
+    },
+    {
+      "frame": 2,
+      "source_cell": [
+        444,
+        0,
+        887,
+        444
+      ],
+      "source_pupil_x": 355,
+      "source_floor_y": 438,
+      "offset": [
+        69.75,
+        151.5
+      ],
+      "ink_bounds": [
+        150,
+        212,
+        378,
+        480
+      ]
+    },
+    {
+      "frame": 3,
+      "source_cell": [
+        887,
+        0,
+        1330,
+        444
+      ],
+      "source_pupil_x": 321,
+      "source_floor_y": 436,
+      "offset": [
+        95.25,
+        153.0
+      ],
+      "ink_bounds": [
+        140,
+        202,
+        406,
+        480
+      ]
+    },
+    {
+      "frame": 4,
+      "source_cell": [
+        1330,
+        0,
+        1774,
+        444
+      ],
+      "source_pupil_x": 328,
+      "source_floor_y": 438,
+      "offset": [
+        90.0,
+        151.5
+      ],
+      "ink_bounds": [
+        120,
+        168,
+        412,
+        458
+      ]
+    },
+    {
+      "frame": 5,
+      "source_cell": [
+        0,
+        444,
+        444,
+        887
+      ],
+      "source_pupil_x": 332,
+      "source_floor_y": 418,
+      "offset": [
+        87.0,
+        166.5
+      ],
+      "ink_bounds": [
+        118,
+        182,
+        416,
+        480
+      ]
+    },
+    {
+      "frame": 6,
+      "source_cell": [
+        444,
+        444,
+        887,
+        887
+      ],
+      "source_pupil_x": 351,
+      "source_floor_y": 418,
+      "offset": [
+        72.75,
+        166.5
+      ],
+      "ink_bounds": [
+        154,
+        210,
+        378,
+        480
+      ]
+    },
+    {
+      "frame": 7,
+      "source_cell": [
+        887,
+        444,
+        1330,
+        887
+      ],
+      "source_pupil_x": 344,
+      "source_floor_y": 414,
+      "offset": [
+        78.0,
+        169.5
+      ],
+      "ink_bounds": [
+        122,
+        200,
+        380,
+        480
+      ]
+    },
+    {
+      "frame": 8,
+      "source_cell": [
+        1330,
+        444,
+        1774,
+        887
+      ],
+      "source_pupil_x": 325,
+      "source_floor_y": 420,
+      "offset": [
+        92.25,
+        165.0
+      ],
+      "ink_bounds": [
+        124,
+        176,
+        414,
+        476
+      ]
+    }
+  ],
+  "turnaround": {
+    "approved": false,
+    "cardinal_sheet": "turnaround-sheet.png",
+    "sheet": "turnaround-8-view-sheet.png",
+    "views": {
+      "front": "turnaround/front.png",
+      "front_left": "turnaround/front_left.png",
+      "left": "turnaround/left.png",
+      "back_left": "turnaround/back_left.png",
+      "back": "turnaround/back.png",
+      "back_right": "turnaround/back_right.png",
+      "right": "turnaround/right.png",
+      "front_right": "turnaround/front_right.png"
+    },
+    "source_groups": [
+      {
+        "file": "generated/turnaround-source-sheet.png",
+        "sha256": "3ac158bcca3e78b1baff8161707be60016d1ea0e7605834d5b6b0be3838c355d",
+        "shared_scale": 0.5192307692307693,
+        "views": [
+          "front",
+          "back",
+          "left",
+          "right"
+        ]
+      },
+      {
+        "file": "generated/diagonals-initial.png",
+        "sha256": "01d18905f6e625d7d7804cb87e6b31b85029db0c55cdc096890718be938faadd",
+        "shared_scale": 0.5192307692307693,
+        "views": [
+          "front_right",
+          "back_right"
+        ]
+      },
+      {
+        "file": "generated/diagonals-left-corrected.png",
+        "sha256": "456b5bdc3e6a058d337bac9548626a970ecfcc63d9fee2e50d5a243756dc9ce9",
+        "shared_scale": 0.36727088700772914,
+        "views": [
+          "back_left",
+          "front_left"
+        ]
+      }
+    ],
+    "canonical_height_px": 432,
+    "watch_hand": "anatomical right; far hand in left-facing views",
+    "mirrored": false,
+    "registration": [
+      {
+        "direction": "front",
+        "source": "generated/turnaround-source-sheet.png",
+        "source_cell": [
+          0,
+          0,
+          444,
+          887
+        ],
+        "source_stance_x": 263,
+        "source_floor_y": 864,
+        "offset": [
+          119.44230769230768,
+          31.38461538461536
+        ],
+        "ink_bounds": [
+          162,
+          48,
+          334,
+          480
+        ]
+      },
+      {
+        "direction": "back",
+        "source": "generated/turnaround-source-sheet.png",
+        "source_cell": [
+          444,
+          0,
+          887,
+          887
+        ],
+        "source_stance_x": 246,
+        "source_floor_y": 864,
+        "offset": [
+          128.26923076923077,
+          31.38461538461536
+        ],
+        "ink_bounds": [
+          174,
+          48,
+          346,
+          480
+        ]
+      },
+      {
+        "direction": "left",
+        "source": "generated/turnaround-source-sheet.png",
+        "source_cell": [
+          887,
+          0,
+          1330,
+          887
+        ],
+        "source_stance_x": 221,
+        "source_floor_y": 866,
+        "offset": [
+          141.25,
+          30.34615384615381
+        ],
+        "ink_bounds": [
+          196,
+          50,
+          342,
+          480
+        ]
+      },
+      {
+        "direction": "right",
+        "source": "generated/turnaround-source-sheet.png",
+        "source_cell": [
+          1330,
+          0,
+          1774,
+          887
+        ],
+        "source_stance_x": 210,
+        "source_floor_y": 866,
+        "offset": [
+          146.96153846153845,
+          30.34615384615381
+        ],
+        "ink_bounds": [
+          164,
+          48,
+          312,
+          480
+        ]
+      },
+      {
+        "direction": "front_right",
+        "source": "generated/diagonals-initial.png",
+        "source_cell": [
+          0,
+          0,
+          444,
+          887
+        ],
+        "source_stance_x": 288,
+        "source_floor_y": 861,
+        "offset": [
+          106.46153846153845,
+          32.94230769230768
+        ],
+        "ink_bounds": [
+          174,
+          52,
+          320,
+          480
+        ]
+      },
+      {
+        "direction": "back_right",
+        "source": "generated/diagonals-initial.png",
+        "source_cell": [
+          444,
+          0,
+          887,
+          887
+        ],
+        "source_stance_x": 246,
+        "source_floor_y": 856,
+        "offset": [
+          128.26923076923077,
+          35.53846153846149
+        ],
+        "ink_bounds": [
+          182,
+          56,
+          340,
+          480
+        ]
+      },
+      {
+        "direction": "back_left",
+        "source": "generated/diagonals-left-corrected.png",
+        "source_cell": [
+          0,
+          0,
+          627,
+          1254
+        ],
+        "source_stance_x": 320,
+        "source_floor_y": 1212,
+        "offset": [
+          138.47331615752668,
+          34.86768494663227
+        ],
+        "ink_bounds": [
+          168,
+          54,
+          326,
+          480
+        ]
+      },
+      {
+        "direction": "front_left",
+        "source": "generated/diagonals-left-corrected.png",
+        "source_cell": [
+          627,
+          0,
+          1254,
+          1254
+        ],
+        "source_stance_x": 226,
+        "source_floor_y": 1220,
+        "offset": [
+          172.9967795362532,
+          31.92951785057045
+        ],
+        "ink_bounds": [
+          180,
+          50,
+          328,
+          480
+        ]
+      }
+    ],
+    "generation": "Cardinals together; diagonals conditioned on cardinals; two left views corrected together."
+  },
+  "review": {
+    "proportion_sheet": "canonical-proportion-sheet.png",
+    "comparison": "run-comparison.gif",
+    "seam_preview": "run-seam-preview.gif",
+    "seam_sheet": "run-seam-sheet.png",
+    "approved": false
+  },
+  "character_bible": {
+    "approved": false,
+    "proportions": "proportions.json",
+    "references": [
+      "character-seed.png",
+      "canonical-proportion-sheet.png",
+      "turnaround-8-view-sheet.png"
+    ],
+    "rule": "After approval, condition all future actions on the approved turnaround plus proportions."
+  }
+}

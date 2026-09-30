@@ -1,0 +1,33 @@
+/* The page scroll is the playhead. The sticky surface keeps both openings in
+   view while the rabbit travels from the upper page position to the lower one. */
+#warren{max-width:1080px;margin:0 auto 96px;height:calc(100svh + 1500px);scroll-margin-top:100px}
+#warren .rabbit-sticky{position:sticky;top:96px}
+#warren .rabbit-intro{display:flex;align-items:baseline;justify-content:space-between;gap:20px;padding-bottom:12px;border-bottom:1px solid var(--hair)}
+#warren .rabbit-intro h2{font:500 22px/1.2 var(--display);letter-spacing:-.02em;margin:0}
+#warren .rabbit-intro p{font:400 12px/1.5 var(--ui);color:var(--muted)}
+#warren .rabbit-surface{position:relative;isolation:isolate;height:clamp(300px,calc(100svh - 340px),600px)}
+#rabbit{display:block;width:100%;height:100%}
+#warren button{font:500 12px/1 var(--ui);color:var(--fg);border:1px solid var(--hair);background:transparent;border-radius:999px;padding:10px 13px;min-height:40px;cursor:pointer;white-space:nowrap}
+#warren button:hover{background:rgba(10,10,10,.04)}
+#warren button:focus-visible{outline:2px solid var(--fg);outline-offset:3px}
+#warren button:disabled{opacity:.4;cursor:default}
+#warren [aria-pressed=true]{background:var(--fg);color:var(--paper)}
+#warren .rabbit-portal{position:absolute;transform:translate(-50%,-50%);margin-left:-90px;width:44px;min-height:44px;padding:0;background:var(--paper);cursor:grab;touch-action:none;user-select:none;visibility:hidden}
+#warren[data-ready=true] .rabbit-portal{visibility:visible}
+#warren .rabbit-portal:active{cursor:grabbing}
+#warren .rabbit-tools{border-top:1px solid var(--hair);padding-top:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;position:relative}
+#warren .rabbit-tools::before{content:"";position:absolute;top:-1px;left:0;width:100%;height:1px;background:var(--fg);transform:scaleX(var(--journey,0));transform-origin:left}
+#warren .rabbit-actions,#warren .rabbit-journeys{display:flex;gap:5px}
+#warren .rabbit-notes{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:10px;font:400 12px/1.5 var(--ui);color:var(--muted)}
+#warren [data-motion-note]{font:400 12px/1.5 var(--ui);color:var(--muted);margin-top:8px}
+@media(max-width:700px){
+  #warren .rabbit-sticky{top:86px}
+  #warren .rabbit-intro{align-items:start;gap:8px;flex-direction:column}
+  #warren .rabbit-intro h2{font-size:20px}
+  #warren .rabbit-surface{height:clamp(300px,calc(100svh - 360px),480px)}
+  #warren .rabbit-tools{gap:8px;padding-top:10px}
+  #warren .rabbit-actions{width:100%;overflow-x:auto;padding-bottom:4px}
+  #warren button{padding:10px;min-height:44px}
+  #warren .rabbit-portal{margin-left:-63px}
+  #warren .rabbit-notes{font-size:11px;gap:3px;flex-direction:column}
+}

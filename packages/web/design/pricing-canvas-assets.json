@@ -1,0 +1,47 @@
+{
+  "created": "2026-09-28",
+  "generation_mode": "built-in image generation",
+  "prompts": ["pricing-canvas-prompt.md", "pricing-whiteboard-prompt.md", "pricing-desk-prompt.md", "pricing-manga-prompt.md", "pricing-manga-clean-prompt.md", "pricing-motion-prompts.md", "pricing-pixel-prompts.md"],
+  "status": "Pixel treatment rejected. Original painterly manga landscape, moving sky and mountain foreground restored. Motion and bottom-only fade are preserved. Blog is unchanged. The file below is the complete static fallback.",
+  "file": "packages/web/public/landing/pricing-manga-v2.png",
+  "width": 1774,
+  "height": 887,
+  "bytes": 2838102,
+  "sha256": "a6a3f749c5c4f8c4e85783bf39a699ef1c04fdd55c21069d52fd1e5e36963b09",
+  "reference_role": "blue-mountains-v1.png supplies style and palette; this is a new valley/lake scene with its own composition.",
+  "previous": [{
+    "file": "packages/web/public/landing/pricing-canvas-v1.png",
+    "sha256": "7b25c2357c9ccd2c1a08eadc4270ca22ca670371a7fccb5c02fe38d1f3cb1379"
+  }, {
+    "file": "packages/web/public/landing/pricing-canvas-v2.png",
+    "sha256": "af5e910e9a8c75c3cb1998a87b36b0a49944bdb77abce8272b2d7ba8ec8b6d0a"
+  }, {
+    "file": "packages/web/public/landing/pricing-canvas-v3.png",
+    "sha256": "95c198d5474d3e83acba3c6e332dc210924ea9a6a463b6f182856b96a46a0a23",
+    "status": "Rejected desk drawing; retained for history, not referenced by the page."
+  }, {
+    "file": "packages/web/public/landing/pricing-manga-v1.png",
+    "sha256": "71ca445e3e3feedbdc69792bed79a6623c77f5129e3ea5fa9cde1f2b389b5971",
+    "status": "Initial manga scene; white brushed/mist margins rejected."
+  }, {
+    "file": "packages/web/public/landing/pricing-manga-pixel-v1.png",
+    "sha256": "88f7e6626bf39df242b477adcde2526d6a9c43786c34f3ea4f524ce124f58a2f",
+    "status": "Rejected pixel-art trial, retained only as history."
+  }],
+  "animation_layers": [{
+    "file": "packages/web/public/landing/pricing-mountains-v1.png",
+    "role": "Stationary painterly landscape with genuine alpha transparency above the mountain skyline.",
+    "width": 1774,
+    "height": 887,
+    "bytes": 2541266,
+    "sha256": "19e15bcd46e99e2f5b7b6b9320aeae46a94aae2f26ffbaf04166ba099140cb5a"
+  }, {
+    "file": "packages/web/public/landing/pricing-sky-v1.png",
+    "role": "Painted sky and pink clouds; horizontal drift behind the mountain foreground.",
+    "width": 1774,
+    "height": 887,
+    "bytes": 1417417,
+    "sha256": "2c186c5389d7c1a822938941268d635aa049137606eb56051cda5fc4a2e2fcbd"
+  }],
+  "integration": "Original smooth manga landscape from the page top behind navigation, introduction and cards. No pixelated assets or pixelated resampling are active. Only the bottom fades. Sky and SVG birds move; the mountain foreground remains fixed. No top/side white wash, blurred intro backdrop or mobile dimming. Reduced motion and offscreen/hidden-tab pausing are supported."
+}

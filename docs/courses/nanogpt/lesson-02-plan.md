@@ -34,7 +34,7 @@ Required participation is reaching playback's end plus submitting the three
 core checks. Quiz, flashcards and notebook remain optional activities that
 never block completion or navigation to Lesson 3.
 
-Audience assumption for review: learners who completed Lesson 1 — they can
+Audience assumption for review: learners who completed Lesson 1: they can
 encode/decode with a toy character vocabulary and can state the next-token
 prediction task. No linear-algebra background is assumed beyond adding lists of
 numbers elementwise; call the rows vectors and demonstrate addition concretely.
@@ -44,7 +44,7 @@ on checks or reading is additional. These are design estimates, not measured
 completion times. Do not advertise the lesson as a seven-minute task.
 
 Teaching direction: continue the owner's requested Andrew Ng-inspired
-progression — motivate a concrete problem, build intuition, work through a
+progression: motivate a concrete problem, build intuition, work through a
 small example, introduce notation only when it helps, check understanding,
 connect onward. Original wording, no impersonation. The running example remains
 `Hello` with the Lesson 1 toy IDs `[0, 1, 2, 2, 3]`; the repository's actual
@@ -94,16 +94,16 @@ arrow into a five-row table, and per-tile lookup arrows. Table values are
 clearly invented (e.g. `0.40, 0.40, 0.00`) and labeled illustrative; no claim
 that any trained model contains these numbers.
 
-**Canvas interaction — `embedding-row`:** clicking a character tile highlights
+**Canvas interaction: `embedding-row`:** clicking a character tile highlights
 its ID and the selected table row together. Clicking either `l` highlights the
 same row 2, visibly. After exploration, the check asks which row ID `2`
-selects, with row choices 0–4 and Check answer. Correct feedback: "Row 2 — and
+selects, with row choices 0–4 and Check answer. Correct feedback: "Row 2: and
 both l tiles select it. One entry per token type, not per position." Incorrect
 feedback names the actual lookup. Keyboard-operable per the Lesson 1
 interaction rules; selection state announced without relying on color.
 
-**Further explanations:** a static two-column contrast card — "ID: which entry"
-versus "Embedding row: values the model computes with" — reusing the table
+**Further explanations:** a static two-column contrast card: "ID: which entry"
+versus "Embedding row: values the model computes with": reusing the table
 asset. Alt text: "ID 2 names a table entry; row 2 holds three adjustable
 numbers used in computation."
 
@@ -122,20 +122,20 @@ structured tiles and a drawn table communicate it precisely.
 
 ### Spoken or written explanation
 
-"Welcome back! Last time, Hello became the IDs zero, one, two, two, three. Now here is the problem: two is just a name. If we ask the computer to do math with names — is l plus l equal to o? — we get nonsense. So instead, every vocabulary entry gets its own row of adjustable numbers, called an embedding. Seeing ID two means: fetch row two. Both l characters fetch the very same row — identical twins, remember? The values start out random, and training tunes them. Our toy table has five rows of three numbers; the Shakespeare model has sixty-five rows of three hundred eighty-four. Try it below: click a tile and watch its row light up. Then a puzzle: if both l tiles fetch the same row, how does the model tell them apart?"
+"Welcome back! Last time, Hello became the IDs zero, one, two, two, three. Now here is the problem: two is just a name. If we ask the computer to do math with names (is l plus l equal to o?) we get nonsense. So instead, every vocabulary entry gets its own row of adjustable numbers, called an embedding. Seeing ID two means: fetch row two. Both l characters fetch the very same row: identical twins, remember? The values start out random, and training tunes them. Our toy table has five rows of three numbers; the Shakespeare model has sixty-five rows of three hundred eighty-four. Try it below: click a tile and watch its row light up. Then a puzzle: if both l tiles fetch the same row, how does the model tell them apart?"
 
 ### Further explanations
 
 #### Why a lookup label is not enough
 
 Lesson 1 ended with text as integer IDs. IDs solve identification: same
-character, same ID, reversible. But a neural network computes — it multiplies
+character, same ID, reversible. But a neural network computes: it multiplies
 and adds its inputs. Feeding the raw ID `2` into arithmetic would make `l`
 "twice" `e` and half of `[space]`, relationships we never intended. The fix is
 indirection: use the ID only to select, and give every vocabulary entry its own
 list of numbers to be the actual input.
 
-Those lists are vectors — here, just fixed-length lists of numbers. The table
+Those lists are vectors: here, just fixed-length lists of numbers. The table
 of all of them is the token-embedding table. Its shape is decided by two
 numbers: how many entries the vocabulary has (rows) and how many numbers
 represent each token (columns). The column count is this lesson's recurring
@@ -167,7 +167,7 @@ ID. That is exactly the unresolved problem this page ends on.
 
 #### What "learned" means here
 
-The table's values are parameters — the adjustable numbers from Lesson 1's
+The table's values are parameters: the adjustable numbers from Lesson 1's
 Page 4. Training nudges them so that tokens end up with vectors useful for
 predicting continuations. Nothing about row 2's values is hand-designed to
 mean "the letter l"; usefulness emerges from the updates. We make no claim
@@ -175,42 +175,42 @@ about what any individual number means, and this lesson never inspects a
 trained table's values.
 
 In `model.py` the table is one line: `nn.Embedding(config.vocab_size,
-config.n_embd)`, named `wte` — weights, token embedding. PyTorch's
+config.n_embd)`, named `wte`: weights, token embedding. PyTorch's
 `nn.Embedding` is precisely a lookup table with adjustable rows.
 
 #### Check the boundary
 
 If we renamed ID 2 to ID 4 everywhere, and swapped rows 2 and 4 to match,
-would the model behave differently? No — the pairing of token type to row is
+would the model behave differently? No: the pairing of token type to row is
 what matters, not the integer's size. This confirms Lesson 1's "IDs are
 labels" with the table in view. What the lookup cannot fix on its own: two
 occurrences of the same token still look identical. That needs the next page.
 
 ### References and further reading
 
-**Repository — the table:** [model.py, line 127](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/model.py#L127) inside the transformer module dict. One `nn.Embedding` with `vocab_size` rows and `n_embd` columns.
+**Repository: the table:** [model.py, line 127](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/model.py#L127) inside the transformer module dict. One `nn.Embedding` with `vocab_size` rows and `n_embd` columns.
 
-**Online explanation — start here:** [PyTorch: nn.Embedding](https://docs.pytorch.org/docs/stable/generated/torch.nn.Embedding.html). Read the first description line: "A simple lookup table that stores embeddings of a fixed dictionary and size." The parameters `num_embeddings` and `embedding_dim` are this page's rows and columns.
+**Online explanation: start here:** [PyTorch: nn.Embedding](https://docs.pytorch.org/docs/stable/generated/torch.nn.Embedding.html). Read the first description line: "A simple lookup table that stores embeddings of a fixed dictionary and size." The parameters `num_embeddings` and `embedding_dim` are this page's rows and columns.
 
 ## Page 2 — How does the model know where a token sits? (~65 seconds)
 
 ### Canvas text
 
 - Heading: **Add where you are to what you are**.
-- Reminder: **Both l tiles selected row 2. Same vector — a problem.**
+- Reminder: **Both l tiles selected row 2. Same vector: a problem.**
 - Second table: **Position-embedding table: one learned row per position, 0 up to the context window.**
 - The sum, per position: **input vector = token row + position row**.
 - Worked pair: position 2: `row 2 + position row 2`; position 3: `row 2 + position row 3`.
-- Result caption: **Same token row, different position rows — the sums differ.**
-- Definition card: **The model's input is one vector per position: token embedding + position embedding. From here on, no letters — only vectors.**
-- Check: **Do the two l positions enter the first block with identical vectors?** Yes / No. Answer: **No — the added position rows differ.**
+- Result caption: **Same token row, different position rows: the sums differ.**
+- Definition card: **The model's input is one vector per position: token embedding + position embedding. From here on, no letters: only vectors.**
+- Check: **Do the two l positions enter the first block with identical vectors?** Yes / No. Answer: **No: the added position rows differ.**
 - Footnote: **nanoGPT learns this position table (wpe). It is not computed from a fixed formula.**
 - Transition: **What does the model do with these vectors?**
 
 ### Assets
 
-**Canvas diagram:** two stacked tables — the Page 1 token table and a new
-position table — feeding a `+` node per position, producing an input-vector
+**Canvas diagram:** two stacked tables (the Page 1 token table and a new
+position table) feeding a `+` node per position, producing an input-vector
 row. The two `l` positions get side-by-side worked sums with the shared token
 row visually identical and the position rows visibly different. Toy values
 remain labeled invented.
@@ -221,8 +221,8 @@ sums differ." Incorrect: "The token lookup is identical for both l tiles, but
 each position adds its own position row, so the resulting vectors differ."
 Record before feedback; Retry/Skip per the standard rules.
 
-**Further explanations:** a static three-row alignment — token row, position
-row, sum — for all five `Hello` positions, reusing the toy tables. Alt text:
+**Further explanations:** a static three-row alignment (token row, position
+row, sum) for all five `Hello` positions, reusing the toy tables. Alt text:
 "Each of the five positions adds its own position row to its token row,
 producing five distinct input vectors."
 
@@ -241,7 +241,7 @@ is clearer as aligned tiles than as any generated image.
 
 ### Spoken or written explanation
 
-"So, how do we tell the twins apart? By where they sit! The model keeps a second table with one learned row per position: position zero, position one, and so on, up to the context window. Each position's input is its token row plus its position row — we literally add the two vectors, number by number. Now the first l is row two plus position-row two, while the second l is row two plus position-row three. Same character, different sums. And that is everything the rest of the model receives — no letters anymore, just one vector per position. Quick check: do the two l's now enter the model identical? One more note: nanoGPT learns this position table during training, just like the token table. Next: what does the model actually do with these vectors?"
+"So, how do we tell the twins apart? By where they sit! The model keeps a second table with one learned row per position: position zero, position one, and so on, up to the context window. Each position's input is its token row plus its position row: we literally add the two vectors, number by number. Now the first l is row two plus position-row two, while the second l is row two plus position-row three. Same character, different sums. And that is everything the rest of the model receives: no letters anymore, just one vector per position. Quick check: do the two l's now enter the model identical? One more note: nanoGPT learns this position table during training, just like the token table. Next: what does the model actually do with these vectors?"
 
 ### Further explanations
 
@@ -250,7 +250,7 @@ is clearer as aligned tiles than as any generated image.
 Nothing in the token lookup records position. If the rest of the model
 received only token vectors, `Hello` and `olleH` would present the same
 multiset of vectors, and the two `l` occurrences would be indistinguishable.
-Lesson 1 established that context — which tokens came before — is the whole
+Lesson 1 established that context (which tokens came before) is the whole
 basis of the prediction task, so position must enter the input somewhere.
 
 nanoGPT's answer is the simplest one: a second embedding table indexed by
@@ -285,15 +285,15 @@ positions carry different vectors. All values remain invented.
 
 #### The same statement in the code
 
-`GPT.forward` builds `pos = torch.arange(0, t)` — the integers 0 through the
-sequence length minus one — then computes `tok_emb`, `pos_emb`, and their sum.
+`GPT.forward` builds `pos = torch.arange(0, t)`: the integers 0 through the
+sequence length minus one: then computes `tok_emb`, `pos_emb`, and their sum.
 The comment shapes in the source are worth reading literally: token embeddings
 `(b, t, n_embd)`, position embeddings `(t, n_embd)`; the addition gives every
 position in every batch row its position vector. A dropout layer wraps the
 sum; it only acts during training and is discussed with the training loop in
 Lesson 6.
 
-The position table has `block_size` rows — 256 in the Shakespeare
+The position table has `block_size` rows: 256 in the Shakespeare
 configuration. That is another way to see why the context window is a hard
 limit: position 256 has no row to look up, and the forward pass asserts the
 sequence fits.
@@ -311,12 +311,12 @@ answers: where does order enter the input?
 Would appending ` Hello` to the input change the first five input vectors? The
 token rows stay the same, and positions 0–4 keep their position rows, so those
 five sums are unchanged; the new characters occupy positions 5–10 with their
-own rows. What changes downstream is what the blocks can mix together — which
+own rows. What changes downstream is what the blocks can mix together: which
 is exactly the next page.
 
 ### References and further reading
 
-**Repository — the sum:** [model.py, lines 174–179](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/model.py#L174-L179). `pos`, `tok_emb`, `pos_emb`, and `drop(tok_emb + pos_emb)` in four lines. The position table itself is [line 128](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/model.py#L128).
+**Repository: the sum:** [model.py, lines 174–179](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/model.py#L174-L179). `pos`, `tok_emb`, `pos_emb`, and `drop(tok_emb + pos_emb)` in four lines. The position table itself is [line 128](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/model.py#L128).
 
 Source pill: [config/train_shakespeare_char.py, lines 16–25](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/config/train_shakespeare_char.py#L16-L25) for `block_size = 256` sizing the position table.
 
@@ -330,10 +330,10 @@ Source pill: [config/train_shakespeare_char.py, lines 16–25](https://github.co
 - Input row: **one vector per position** (from Page 2).
 - Tower: six stacked boxes labeled **Block 1 … Block 6**, annotated **× n_layer (6 in the Shakespeare model)**.
 - Inside one expanded block, two sub-steps:
-  - **Share: positions read earlier positions (attention — Lesson 3).**
-  - **Rework: each position transforms its own vector (MLP — Lesson 4).**
+  - **Share: positions read earlier positions (attention: Lesson 3).**
+  - **Rework: each position transforms its own vector (MLP: Lesson 4).**
 - Residual caption: **Each step adds its result onto its input: x = x + step(x). Refine, not replace.**
-- Shape caption: **Vectors in, same-shaped vectors out — that is why blocks can stack.**
+- Shape caption: **Vectors in, same-shaped vectors out: that is why blocks can stack.**
 - Note: **Every block has the same structure with its own separate parameters.**
 - Transition: **After the last block: how do vectors become predictions?**
 
@@ -347,7 +347,7 @@ The expanded view is a preview silhouette, deliberately without attention or
 MLP internals.
 
 **Further explanations visual:** a static "same shape in, same shape out"
-card — three towers of different heights (1, 6, 12 blocks) over the caption
+card: three towers of different heights (1, 6, 12 blocks) over the caption
 that stacking depth is a configuration choice, `n_layer`. Alt text: "Towers of
 one, six and twelve identical blocks; each block preserves the vector shape."
 
@@ -367,7 +367,7 @@ exact and best drawn; animating it would add nothing at this level of detail.
 
 ### Spoken or written explanation
 
-"Here comes my favorite part: the tower! The vectors flow through a stack of identical transformer blocks — the Shakespeare model uses six. What happens inside one block? Two moves. First, positions look at earlier positions and share information — that is attention, and it gets its whole own lesson. Second, each position reworks its own vector with a small neural network. And notice the neat trick: each step adds its result onto its input — refine, not replace. Same-shaped vectors go in and come out, which is exactly why we can stack block after block, each with its own parameters. After six floors of this, every position's vector has been enriched by its context. So — what turns the final vectors into actual predictions?"
+"Here comes my favorite part: the tower! The vectors flow through a stack of identical transformer blocks: the Shakespeare model uses six. What happens inside one block? Two moves. First, positions look at earlier positions and share information: that is attention, and it gets its whole own lesson. Second, each position reworks its own vector with a small neural network. And notice the neat trick: each step adds its result onto its input: refine, not replace. Same-shaped vectors go in and come out, which is exactly why we can stack block after block, each with its own parameters. After six floors of this, every position's vector has been enriched by its context. So: what turns the final vectors into actual predictions?"
 
 ### Further explanations
 
@@ -386,7 +386,7 @@ class Block(nn.Module):
 ```
 
 Two sub-steps, each wrapped in `x = x + ...`. The `attn` step is where
-positions interact — the only place in the block where information moves
+positions interact: the only place in the block where information moves
 between positions. The `mlp` step transforms each position independently. The
 `ln_1`/`ln_2` calls normalize a vector's scale before each sub-step; their
 mechanics belong to Lesson 4. Quoted code is from the pinned `model.py`;
@@ -396,8 +396,8 @@ Lessons 3 and 4 open `attn` and `mlp`.
 
 The pattern `x = x + step(x)` is a residual connection. Its consequence at
 this level: a block starts from its input and contributes an adjustment, so
-the running vector accumulates refinements floor by floor. This framing —
-which Lesson 4 justifies mechanically — explains why depth is a dial rather
+the running vector accumulates refinements floor by floor. This framing:
+which Lesson 4 justifies mechanically: explains why depth is a dial rather
 than a redesign: `n_layer` selects how many refinement floors the tower has.
 
 #### Identical structure, separate parameters
@@ -424,18 +424,18 @@ you have everything Lesson 5's forward-pass walkthrough needs.
 #### Check the boundary
 
 If block 3's output had a different vector width than its input, could the
-tower still stack? No — block 4 expects the same shape block 3 received. The
+tower still stack? No: block 4 expects the same shape block 3 received. The
 shape-preserving contract is what makes depth configurable. Ahead: the one
 place the shape finally changes, from `n_embd` numbers to one score per
 vocabulary entry.
 
 ### References and further reading
 
-**Repository — the block:** [model.py, lines 94–106](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/model.py#L94-L106). The four members (`ln_1`, `attn`, `ln_2`, `mlp`) and the two residual lines.
+**Repository: the block:** [model.py, lines 94–106](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/model.py#L94-L106). The four members (`ln_1`, `attn`, `ln_2`, `mlp`) and the two residual lines.
 
-**Repository — the stack:** [model.py, line 130](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/model.py#L130). `h` is a list of `n_layer` blocks; the forward pass loops over it.
+**Repository: the stack:** [model.py, line 130](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/model.py#L130). `h` is a list of `n_layer` blocks; the forward pass loops over it.
 
-**Online explanation — optional visual companion:** [Jay Alammar: The Illustrated GPT-2](https://jalammar.github.io/illustrated-gpt2/). Read only "Part 1: GPT2 and Language Modeling" for the stacked-decoder pictures; its attention sections preview Lesson 3. Its diagrams show GPT-2 sizes, which differ from our 6-layer model.
+**Online explanation: optional visual companion:** [Jay Alammar: The Illustrated GPT-2](https://jalammar.github.io/illustrated-gpt2/). Read only "Part 1: GPT2 and Language Modeling" for the stacked-decoder pictures; its attention sections preview Lesson 3. Its diagrams show GPT-2 sizes, which differ from our 6-layer model.
 
 ## Page 4 — How do vectors become scores? (~60 seconds)
 
@@ -445,7 +445,7 @@ vocabulary entry.
 - Step 1: **Final normalization (ln_f): put each vector on a stable scale.**
 - Step 2: **Language-model head: one linear layer from n_embd numbers to vocab_size scores.**
 - Funnel figure: a 384-wide vector narrowing into a 65-bar score column labeled **logits**.
-- Definition card: **Logits = raw prediction scores, one per vocabulary entry. Softmax converts logits to the probability distribution from Lesson 1 — applied where it is needed, not inside the head.**
+- Definition card: **Logits = raw prediction scores, one per vocabulary entry. Softmax converts logits to the probability distribution from Lesson 1: applied where it is needed, not inside the head.**
 - Weight-tying note: **nanoGPT reuses the token-embedding table as the head's weights. One table, two jobs.**
 - Check: **With a 65-entry vocabulary, how many logits does the head produce per position?** Expected: **65**.
 - Transition: **Now watch the whole pipeline run in model.py.**
@@ -454,17 +454,17 @@ vocabulary entry.
 
 **Canvas diagram:** a compact two-step exit path drawn after the tower: a
 normalize step, then the funnel from one position's vector into a 65-bar
-column. Bar heights are decorative-uniform or clearly arbitrary — no invented
+column. Bar heights are decorative-uniform or clearly arbitrary: no invented
 score values presented as model output; label the column "65 scores, values
 come from the trained model."
 
 **Check `logits-count`:** numeric entry with Check answer. Accept `65` with
-surrounding whitespace. Correct: "65 — one raw score per vocabulary entry, at
+surrounding whitespace. Correct: "65: one raw score per vocabulary entry, at
 every position." Incorrect: "The head maps each position's n_embd-wide vector
 to one score per vocabulary entry; this vocabulary has 65 entries." Record
 before feedback; standard Retry/Skip.
 
-**Further explanations visual:** a static tying diagram — the token table from
+**Further explanations visual:** a static tying diagram: the token table from
 Page 1 shown twice, once at the entrance (lookup) and once at the exit (head
 weights), connected by an equals badge. Alt text: "The same 65 × 384 table is
 read as embedding rows at the input and used as scoring weights at the
@@ -485,7 +485,7 @@ drawn funnel and bar column state them precisely.
 
 ### Spoken or written explanation
 
-"Time to cash in! After the last block, one final normalization puts each vector on a stable scale. Then comes the language-model head: a single linear layer that turns each position's three hundred eighty-four numbers into sixty-five scores — one score for every character in the Shakespeare vocabulary. These raw scores are called logits. They are not probabilities yet; softmax converts them into the distribution we met in lesson one, and that happens where it is needed — in the loss during training, or at sampling time. And here is a lovely bit of thrift: nanoGPT reuses the token-embedding table as the head's weights. One table, two jobs, fewer parameters. Quick count check below the canvas. Then let's watch the whole machine run in model.py."
+"Time to cash in! After the last block, one final normalization puts each vector on a stable scale. Then comes the language-model head: a single linear layer that turns each position's three hundred eighty-four numbers into sixty-five scores: one score for every character in the Shakespeare vocabulary. These raw scores are called logits. They are not probabilities yet; softmax converts them into the distribution we met in lesson one, and that happens where it is needed: in the loss during training, or at sampling time. And here is a lovely bit of thrift: nanoGPT reuses the token-embedding table as the head's weights. One table, two jobs, fewer parameters. Quick count check below the canvas. Then let's watch the whole machine run in model.py."
 
 ### Further explanations
 
@@ -500,7 +500,7 @@ each position.
 "Raw score" means: larger is more favored, and the values can be negative or
 exceed one. Softmax exponentiates and normalizes a score vector into
 probabilities that sum to one. In this repository you can see that division of
-labor directly — the training path hands logits to the cross-entropy loss,
+labor directly: the training path hands logits to the cross-entropy loss,
 and the sampling loop applies `F.softmax` just before drawing a token. The
 head itself never normalizes.
 
@@ -518,7 +518,7 @@ self.transformer.wte.weight = self.lm_head.weight
 **Reuse the tying diagram here.** Consequences worth stating exactly: the
 model stores one 65 × 384 table, not two; training updates it from both roles;
 and parameter counts treat it once. This is a design choice, not a
-requirement — untied models exist.
+requirement: untied models exist.
 
 #### Logits at every position
 
@@ -526,21 +526,21 @@ During training, the head runs at every position, because Lesson 1's shifted
 targets provide an answer at every position. The source also contains an
 honest inference shortcut: when no targets are passed, it computes logits only
 for the last position, since generation only needs the next token. Same
-architecture, two amounts of work — the comment in the source calls it a
+architecture, two amounts of work: the comment in the source calls it a
 mini-optimization.
 
 #### Check the boundary
 
 If the vocabulary had 66 entries, what changes? The embedding table and the
-head gain one row — and nothing inside the tower changes, because blocks never
+head gain one row: and nothing inside the tower changes, because blocks never
 see vocabulary size, only `n_embd`-wide vectors. Vocabulary size lives at the
 entrance and the exit; that observation is most of the next page.
 
 ### References and further reading
 
-**Repository — head and tying:** [model.py, lines 133–138](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/model.py#L133-L138): the `lm_head` declaration and the tying assignment with its comment. Final normalization and scoring in the forward pass: [lines 182–191](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/model.py#L182-L191).
+**Repository: head and tying:** [model.py, lines 133–138](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/model.py#L133-L138): the `lm_head` declaration and the tying assignment with its comment. Final normalization and scoring in the forward pass: [lines 182–191](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/model.py#L182-L191).
 
-**Research paper — optional deeper reading:** [Using the Output Embedding to Improve Language Models — Press and Wolf, 2017](https://aclanthology.org/E17-2025/). Read the abstract for the argument that tying input and output embeddings helps; the source line above links the same technique.
+**Research paper (optional deeper reading:** [Using the Output Embedding to Improve Language Models) Press and Wolf, 2017](https://aclanthology.org/E17-2025/). Read the abstract for the argument that tying input and output embeddings helps; the source line above links the same technique.
 
 ## Page 5 — The whole assembly in model.py (~80 seconds)
 
@@ -549,8 +549,8 @@ entrance and the exit; that observation is most of the next page.
 - Heading: **model.py, end to end**.
 - Pipeline map, left to right:
   - **token IDs** → **wte lookup + wpe lookup, added** → **Block × 6** → **ln_f** → **lm_head** → **logits: one row of 65 scores per position**.
-- Configuration card, exact values: **Shakespeare model — n_layer 6 · n_head 6 · n_embd 384 · block_size 256 · vocab_size 65** (each on its own line).
-- Parameter caption: **About 10.65M reported parameters — most of them inside the six blocks.**
+- Configuration card, exact values: **Shakespeare model: n_layer 6 · n_head 6 · n_embd 384 · block_size 256 · vocab_size 65** (each on its own line).
+- Parameter caption: **About 10.65M reported parameters: most of them inside the six blocks.**
 - Connection note: **meta.pkl's vocab_size (65) from Lesson 1 sizes both the embedding table and the head.**
 - Footnote: **dropout 0.2 in this config: a training-only regularization, covered with the training loop.**
 - Check reminder: **Where does vocabulary size appear: entrance, exit, or inside the blocks?** Answer: **Entrance and exit only.**
@@ -563,7 +563,7 @@ the six-block tower compressed to a single labeled group. Each stage carries
 its source anchor as a small label (`wte`, `wpe`, `h`, `ln_f`, `lm_head`).
 The configuration card lists the five verified values as bullets, never
 crammed onto one line. The parameter caption uses the repository's own
-reported figure (see references) — no invented precision beyond it.
+reported figure (see references): no invented precision beyond it.
 
 **Further explanations visual:** a static shape-trace table for a 5-character
 input to the Shakespeare model: `5 IDs → 5 × 384 → (unchanged through 6
@@ -586,7 +586,7 @@ map of verified code; exact drawn structure beats any generated art.
 
 ### Spoken or written explanation
 
-"Let's open model.py and watch the whole flow — you have now met every stage. Token IDs go in. Look up token rows, look up position rows, add them. Then the loop: pass the vectors through each of the six blocks. Then the final normalization, then the head — and out come sixty-five logits per position. The entire architecture is a handful of dials in one config: six layers, six heads, three hundred eighty-four channels, context two hundred fifty-six. That is about ten point six five million parameters, and most of them live inside the blocks. One thread back to lesson one: remember meta dot pickle? Its vocab size, sixty-five, is exactly what sizes the embedding table and the head. Notice where vocabulary size appears — the entrance and the exit, never inside the tower. Ready to rebuild the map yourself?"
+"Let's open model.py and watch the whole flow: you have now met every stage. Token IDs go in. Look up token rows, look up position rows, add them. Then the loop: pass the vectors through each of the six blocks. Then the final normalization, then the head: and out come sixty-five logits per position. The entire architecture is a handful of dials in one config: six layers, six heads, three hundred eighty-four channels, context two hundred fifty-six. That is about ten point six five million parameters, and most of them live inside the blocks. One thread back to lesson one: remember meta dot pickle? Its vocab size, sixty-five, is exactly what sizes the embedding table and the head. Notice where vocabulary size appears: the entrance and the exit, never inside the tower. Ready to rebuild the map yourself?"
 
 ### Further explanations
 
@@ -606,11 +606,11 @@ x = self.transformer.ln_f(x)          # Page 4: final normalization
 followed by the `lm_head` scoring with its training/inference split from
 Page 4. The quoted lines are from the pinned source; the page-mapping comments
 are ours. Before the lookups, the method asserts the sequence fits in
-`block_size` — the position table simply has no rows past it.
+`block_size`: the position table simply has no rows past it.
 
 **Insert the shape-trace table here.** Being able to produce that table from
-memory — IDs, to `t × n_embd`, unchanged through the blocks, to `t ×
-vocab_size` — is this lesson's core skill.
+memory: IDs, to `t × n_embd`, unchanged through the blocks, to `t ×
+vocab_size`: is this lesson's core skill.
 
 #### Where the numbers come from
 
@@ -619,7 +619,7 @@ vocab_size` — is this lesson's core skill.
 five of them (256, 65 via meta, 6, 6, 384) plus `dropout = 0.2`; `bias`
 stays at the training script's default, `False`, meaning this model's linear
 layers and normalizations carry no bias terms. The config file calls the
-result a baby GPT; the file's own defaults describe GPT-2 size — 12 layers,
+result a baby GPT; the file's own defaults describe GPT-2 size: 12 layers,
 12 heads, width 768, context 1024.
 
 `n_head` is the one dial this lesson defers: heads partition attention inside
@@ -634,7 +634,7 @@ The training script looks for the dataset's `meta.pkl`, reads its
 65 characters counted during data preparation become the 65 rows of `wte` and
 the 65 outputs of the tied head. One number, decided by the dataset, shapes
 both ends of the model. (The default 50304 in `GPTConfig` is GPT-2's 50257
-padded up to a multiple of 64 for efficiency — a reminder that vocabulary
+padded up to a multiple of 64 for efficiency: a reminder that vocabulary
 entries are storage rows, and row counts can be padded.)
 
 #### Where the 10.65M parameters sit
@@ -643,28 +643,28 @@ When constructed, the model prints its own parameter report; for this
 configuration the reported count is 10.65M. The report subtracts the position
 table (it is the one part tied to context length rather than the model
 proper), and counts the shared token/head table once. The notebook rebuilds
-this number from the architecture with plain arithmetic — table sizes plus
-six blocks — and it lands exactly on the printed figure. No memorization
+this number from the architecture with plain arithmetic: table sizes plus
+six blocks: and it lands exactly on the printed figure. No memorization
 needed: every term traces to a stage you have now seen.
 
 #### Check the boundary
 
 Could you train this same architecture on a dataset with a 200-character
-vocabulary? Yes — meta's vocab_size would size the tables to 200 rows and
+vocabulary? Yes: meta's vocab_size would size the tables to 200 rows and
 200 logits; nothing inside the blocks changes. Could you prompt it with 300
-characters of context? No — position 256 has no row, and the forward pass
+characters of context? No: position 256 has no row, and the forward pass
 asserts the limit. Knowing which dial constrains what is exactly what the
 recap asks you to demonstrate.
 
 ### References and further reading
 
-**Repository — configuration:** [model.py, lines 108–116, GPTConfig](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/model.py#L108-L116) and [config/train_shakespeare_char.py, lines 16–25](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/config/train_shakespeare_char.py#L16-L25). The `bias = False` default: [train.py, line 56](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/train.py#L56).
+**Repository: configuration:** [model.py, lines 108–116, GPTConfig](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/model.py#L108-L116) and [config/train_shakespeare_char.py, lines 16–25](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/config/train_shakespeare_char.py#L16-L25). The `bias = False` default: [train.py, line 56](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/train.py#L56).
 
-**Repository — construction:** [model.py, lines 126–133](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/model.py#L126-L133), the five-member transformer dict plus head. Forward pass: [lines 170–193](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/model.py#L170-L193). Parameter report: [lines 147–160](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/model.py#L147-L160).
+**Repository: construction:** [model.py, lines 126–133](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/model.py#L126-L133), the five-member transformer dict plus head. Forward pass: [lines 170–193](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/model.py#L170-L193). Parameter report: [lines 147–160](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/model.py#L147-L160).
 
-**Repository — vocab_size flow:** [train.py, lines 139–157](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/train.py#L139-L157) reads `meta.pkl` and builds `GPTConfig`; [prepare.py, lines 25–27](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/data/shakespeare_char/prepare.py#L25-L27) computes it, with the recorded example output `vocab size: 65` at [line 66](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/data/shakespeare_char/prepare.py#L66).
+**Repository: vocab_size flow:** [train.py, lines 139–157](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/train.py#L139-L157) reads `meta.pkl` and builds `GPTConfig`; [prepare.py, lines 25–27](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/data/shakespeare_char/prepare.py#L25-L27) computes it, with the recorded example output `vocab size: 65` at [line 66](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/data/shakespeare_char/prepare.py#L66).
 
-**README description:** [quickstart](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/README.md#quick-start) — "a context size of up to 256 characters, 384 feature channels, and it is a 6-layer Transformer with 6 heads in each layer."
+**README description:** [quickstart](https://github.com/karpathy/nanoGPT/blob/3adf61e154c3fe3fca428ad6bc3818b27a3b8291/README.md#quick-start): "a context size of up to 256 characters, 384 feature channels, and it is a 6-layer Transformer with 6 heads in each layer."
 
 ## Page 6 — Check your mental model (~75 seconds)
 
@@ -675,7 +675,7 @@ recap asks you to demonstrate.
 - **Check 1: Which two tables combine to make one position's input vector?**
 - Answer, revealed after a pause: **The token-embedding table (by ID) and the position-embedding table (by position), added elementwise.**
 - **Check 2: Does the head output probabilities?**
-- Answer, revealed after a pause: **No — logits, raw scores. Softmax converts them to a distribution where it is needed.**
+- Answer, revealed after a pause: **No: logits, raw scores. Softmax converts them to a distribution where it is needed.**
 - Closing: **Try the quiz, review the cards, or count the parameters yourself in the notebook.**
 
 ### Assets
@@ -698,7 +698,7 @@ toy tables into the tower, and one misconception table. No new media.
 
 ### Spoken or written explanation
 
-"You made it — the tower is complete! Trace it with me one last time: IDs select token rows, positions add their rows, six blocks refine the vectors floor by floor, one final normalization, and the head scores all sixty-five characters at every position. First check: which two tables combine to make one input vector? Say it out loud. The token table and the position table, added together. Second check: does the head hand us probabilities? Not quite — logits, raw scores; softmax turns them into lesson one's distribution when the loss or the sampler needs it. That is the entire architecture! Try the quiz, flip the cards, or open the notebook and count all ten point six five million parameters yourself — spoiler: extra heads are free. Next lesson, we step inside a block and meet attention. See you there!"
+"You made it: the tower is complete! Trace it with me one last time: IDs select token rows, positions add their rows, six blocks refine the vectors floor by floor, one final normalization, and the head scores all sixty-five characters at every position. First check: which two tables combine to make one input vector? Say it out loud. The token table and the position table, added together. Second check: does the head hand us probabilities? Not quite: logits, raw scores; softmax turns them into lesson one's distribution when the loss or the sampler needs it. That is the entire architecture! Try the quiz, flip the cards, or open the notebook and count all ten point six five million parameters yourself: spoiler: extra heads are free. Next lesson, we step inside a block and meet attention. See you there!"
 
 ### Further explanations
 
@@ -710,7 +710,7 @@ trace, which reuses the toy tables from Pages 1–2:
 
 `[0, 1, 2, 2, 3]` selects five token rows; positions 0–4 add their position
 rows; the two `l` positions now differ. Six blocks transform the five vectors
-while keeping their shape — sharing across positions, reworking each position,
+while keeping their shape: sharing across positions, reworking each position,
 adding refinements on. The final normalization stabilizes each vector's scale,
 and the head produces five score rows. In the toy world each row would have
 five scores (our vocabulary has five entries); in the Shakespeare model, 65.
@@ -723,7 +723,7 @@ token (generation).
 | If you hear… | Replace it with… |
 |---|---|
 | "The embedding is the ID." | An ID selects a row; the embedding is the learned vector in that row. |
-| "Repeated tokens get different embedding rows." | Same ID, same row — position embeddings, not the token table, distinguish occurrences. |
+| "Repeated tokens get different embedding rows." | Same ID, same row: position embeddings, not the token table, distinguish occurrences. |
 | "Each block outputs something smaller until one answer remains." | Blocks preserve shape; only the head changes width, to one score per vocabulary entry. |
 | "The head outputs probabilities." | The head outputs logits; softmax produces the distribution where needed. |
 | "More heads means a bigger model." | `n_head` splits vectors inside attention; the parameter count does not change. |
@@ -734,7 +734,7 @@ page if it will not come.
 
 #### What to do before Lesson 3
 
-Take the three-question quiz — it mirrors this lesson's three checks. Use the
+Take the three-question quiz: it mirrors this lesson's three checks. Use the
 five flashcards: embedding, positional embedding, transformer block, hidden
 dimension, logits. If the parameter caption on Page 5 felt like magic, the
 notebook removes it: you rebuild 10.65M from table sizes and block arithmetic
@@ -744,7 +744,7 @@ in plain Python, then move the dials.
 
 Every vector that leaves the tower was shaped by "positions share
 information." We treated that step as a sealed box with one promise attached:
-a position only reads earlier positions. Lesson 3 opens the box — queries,
+a position only reads earlier positions. Lesson 3 opens the box: queries,
 keys, values, and the causal mask that keeps the future out. Nothing in
 Lesson 3 changes this lesson's map; it fills in the tower's first sub-step.
 
@@ -783,26 +783,26 @@ verified repository value or a labeled toy value; exact drawn structure
 communicates each of them better than generated media. This is a decision for
 this lesson, not a restriction on future lessons.
 
-## Quiz — exact content
+## Quiz: exact content
 
 ### Question 1
 
-A colleague says: "Token IDs are already numbers — feed ID 2 straight into the network." What is the correct objection?
+A colleague says: "Token IDs are already numbers: feed ID 2 straight into the network." What is the correct objection?
 
-- A. Nothing — models can compute with raw IDs directly.
+- A. Nothing: models can compute with raw IDs directly.
 - B. An ID is a label; the model instead looks up a learned vector for each ID, whose values training can adjust.
 - C. IDs must first be converted to probabilities before the model can use them.
 
 Correct: **B**.
-**Before answering:** recall Page 1's failed arithmetic — is l + l = o?
+**Before answering:** recall Page 1's failed arithmetic: is l + l = o?
 
 **Why B is right:** arithmetic on labels encodes relationships nobody chose (ID 4 is not "twice" ID 2). The embedding table gives every vocabulary entry adjustable numbers to compute with, while the ID only selects the row.
 
-**If you chose A:** the integer's size is arbitrary — Lesson 1 showed IDs could be consistently renamed. Computation on the raw integer would change behavior under renaming; lookup does not.
+**If you chose A:** the integer's size is arbitrary: Lesson 1 showed IDs could be consistently renamed. Computation on the raw integer would change behavior under renaming; lookup does not.
 
 **If you chose C:** probabilities are the model's *output* story (Lesson 1). Inputs become vectors via lookup; no probability is involved at the entrance.
 
-**Transfer check:** both `l` tiles in `Hello` — same row or different rows? Same row: one entry per token type.
+**Transfer check:** both `l` tiles in `Hello`: same row or different rows? Same row: one entry per token type.
 Objective: `embed-tokens`.
 
 ### Question 2
@@ -816,11 +816,11 @@ In `Hello`, both `l` characters select the same row of the token-embedding table
 Correct: **C**.
 **Why C is right:** the input at each position is token row + position row. Positions 2 and 3 share the token row but add different position rows, so their sums differ before the first block runs.
 
-**If you chose A:** encoding is a fixed lookup — same character, same ID, every occurrence. That was Lesson 1's core rule.
+**If you chose A:** encoding is a fixed lookup: same character, same ID, every occurrence. That was Lesson 1's core rule.
 
 **If you chose B:** the forward pass processes all positions of the sequence together; order is not implicit in the computation, which is exactly why a position signal must be added to the input.
 
-**Transfer check:** would `olleH` and `Hello` produce the same set of input vectors? No — same token rows, but paired with different position rows.
+**Transfer check:** would `olleH` and `Hello` produce the same set of input vectors? No: same token rows, but paired with different position rows.
 Objective: `order-matters`.
 
 ### Question 3
@@ -828,7 +828,7 @@ Objective: `order-matters`.
 For one input position, what does the Shakespeare model's language-model head produce (vocabulary size 65)?
 
 - A. The single most likely next character.
-- B. 65 logits — one raw score per vocabulary entry.
+- B. 65 logits: one raw score per vocabulary entry.
 - C. A probability distribution that already sums to one.
 
 Correct: **B**.
@@ -838,24 +838,24 @@ Correct: **B**.
 
 **If you chose C:** logits can be negative and do not sum to one; softmax produces the distribution. The distinction matters when you read the code: the loss consumes logits directly.
 
-**Transfer check:** during training, at how many positions does the head produce logits? Every position — each has a shifted target to compare against.
+**Transfer check:** during training, at how many positions does the head produce logits? Every position: each has a shifted target to compare against.
 Objective: `read-the-head`.
 
-## Flashcards — exact fronts and backs
+## Flashcards: exact fronts and backs
 
 | Front | Back |
 |---|---|
-| Embedding: what does ID 2 select in the token-embedding table? | Row 2 — a learned vector of n_embd numbers. Same ID, same row, at every occurrence. Training adjusts the row's values; the ID itself never changes. |
-| Positional embedding: two identical tokens at positions 2 and 3 — what differs in their inputs? | The added position rows. Input = token row + position row, so the sums differ even though the token rows match. nanoGPT learns its position table (wpe); it is not computed from a fixed formula. |
-| Transformer block: what shape comes out compared with what goes in? | The same shape — one n_embd-wide vector per position. Each sub-step adds its result onto its input (x = x + …), which is why blocks stack; the Shakespeare model stacks six. |
+| Embedding: what does ID 2 select in the token-embedding table? | Row 2: a learned vector of n_embd numbers. Same ID, same row, at every occurrence. Training adjusts the row's values; the ID itself never changes. |
+| Positional embedding: two identical tokens at positions 2 and 3: what differs in their inputs? | The added position rows. Input = token row + position row, so the sums differ even though the token rows match. nanoGPT learns its position table (wpe); it is not computed from a fixed formula. |
+| Transformer block: what shape comes out compared with what goes in? | The same shape: one n_embd-wide vector per position. Each sub-step adds its result onto its input (x = x + …), which is why blocks stack; the Shakespeare model stacks six. |
 | Hidden dimension: what does n_embd = 384 mean for the Shakespeare model? | Every position is represented by 384 numbers from the embedding sum through every block. The README calls these feature channels. The width only changes at the head. |
-| Logits: how many per position, and are they probabilities? | One per vocabulary entry — 65 here. They are raw scores; softmax converts them into a distribution where needed (the loss during training, sampling during generation). |
+| Logits: how many per position, and are they probabilities? | One per vocabulary entry: 65 here. They are raw scores; softmax converts them into a distribution where needed (the loss during training, sampling during generation). |
 
 Use the existing flip interaction and Got it / Not yet controls. Ask learners
 to answer the concrete question before flipping; the back supplies the concept
 and its reasoning.
 
-## Optional notebook — Count the parameters (~7 minutes)
+## Optional notebook: Count the parameters (~7 minutes)
 
 Browser notebook constraint: the Pyodide runtime does not provide PyTorch, so
 the curriculum's "instantiate a GPTConfig and print the model" sketch is
@@ -867,18 +867,18 @@ owner sign-off with this plan.
 No training, downloads, GPU or network access required; Python built-ins only.
 Editable learner copy with Reset to the approved baseline.
 
-### Cell 1 — Markdown
+### Cell 1: Markdown
 
 "Where do 10.65 million parameters hide in a model this small? In this
 notebook you rebuild nanoGPT's parameter count from the architecture you just
-learned — two tables, six blocks, one head — using nothing but arithmetic.
+learned (two tables, six blocks, one head) using nothing but arithmetic.
 Before running each cell, predict the result; run it; change one dial; explain
 the difference. Nothing here trains or predicts."
 
 Predict: which single component of the Shakespeare model holds the most
-parameters — the token table, the position table, or one block?
+parameters: the token table, the position table, or one block?
 
-### Cell 2 — Code: the toy lookup, twins included
+### Cell 2: Code: the toy lookup, twins included
 
 Before running: predict which two of the five input vectors would collide if
 the position rows were removed.
@@ -913,7 +913,7 @@ different inputs (second assertion). All values are invented teaching numbers.
 Remove the `position_table` term and rerun to watch the second assertion fail;
 restore it afterward.
 
-### Cell 3 — Code: rebuild the reported parameter count
+### Cell 3: Code: rebuild the reported parameter count
 
 Predict: will the total be closer to 1M, 10M or 100M? The model prints
 `number of parameters: 10.65M` when constructed; we now derive that figure.
@@ -940,14 +940,14 @@ print(f"reported {reported:,} = {reported / 1e6:.2f}M")
 assert reported == 10_646_784
 ```
 
-Expected: total `10,745,088`, reported `10,646,784` — printed as 10.65M,
+Expected: total `10,745,088`, reported `10,646,784`: printed as 10.65M,
 matching the model's own report for this configuration. Two subtleties the
 formula encodes: the tied head contributes no separate table, and the report
 deliberately subtracts the position table (see `get_num_params` in the
 source). `bias=False` follows the training script's default, which the
 Shakespeare config does not override.
 
-### Cell 4 — Code: move the dials
+### Cell 4: Code: move the dials
 
 Predict each line before running: which changes double the count, which
 quadruple it, and which change nothing?
@@ -962,22 +962,22 @@ for change in ({}, {"n_layer": 12}, {"n_embd": 768}, {"n_head": 12}, {"vocab_siz
 
 Expected findings to explain in your own words:
 
-1. Doubling `n_layer` roughly doubles the count — blocks dominate, and each block is a fixed cost.
-2. Doubling `n_embd` roughly quadruples it — every linear layer inside a block scales with width squared.
-3. Doubling `n_head` changes nothing — heads split the existing vectors inside attention (Lesson 3); they add no parameters.
-4. Doubling `vocab_size` adds only one table's worth — vocabulary lives at the entrance/exit, not in the blocks.
+1. Doubling `n_layer` roughly doubles the count: blocks dominate, and each block is a fixed cost.
+2. Doubling `n_embd` roughly quadruples it: every linear layer inside a block scales with width squared.
+3. Doubling `n_head` changes nothing: heads split the existing vectors inside attention (Lesson 3); they add no parameters.
+4. Doubling `vocab_size` adds only one table's worth: vocabulary lives at the entrance/exit, not in the blocks.
 
-Then try the GPT-2 default dials from `GPTConfig` — `n_layer=12, n_head=12,
-n_embd=768, block_size=1024, vocab_size=50304, bias=True` — and compare the
+Then try the GPT-2 default dials from `GPTConfig`: `n_layer=12, n_head=12,
+n_embd=768, block_size=1024, vocab_size=50304, bias=True`: and compare the
 result with the ~124M figure the source's `from_pretrained` table quotes for
 GPT-2. Expect the same order of magnitude, not equality: the checkpoint table
 describes the unpadded 50257-entry vocabulary and its own bias settings.
 
-### Cell 5 — Markdown: try it, and the local variant
+### Cell 5: Markdown: try it, and the local variant
 
 1. Which component would grow if you trained on a 200-character alphabet? Rerun Cell 4 with `vocab_size=200` and point at the term that moved.
 2. Find the smallest configuration you can build that still respects `n_embd % n_head == 0` and exceeds one million reported parameters. State which term did the most work.
-3. Has any cell measured a trained model's behavior? No — we counted the architecture's adjustable values. Counting parameters tells you a model's capacity and cost, not its quality.
+3. Has any cell measured a trained model's behavior? No: we counted the architecture's adjustable values. Counting parameters tells you a model's capacity and cost, not its quality.
 
 With a local Python environment and PyTorch installed (not in this browser
 notebook), the repository does this in two lines and prints the same figure:
@@ -993,7 +993,7 @@ notebook), the repository does this in two lines and prints the same figure:
 **Finish by explaining:** "The parameter count is the architecture, added up:
 two tables plus n_layer identical blocks plus a final norm, with the head tied
 to the token table." If your assertion in Cell 3 fails after edits, compare
-your formula against the module list in `model.py` — every term must
+your formula against the module list in `model.py`: every term must
 correspond to a declared component.
 
 ## Review and build checks
@@ -1012,7 +1012,7 @@ correspond to a declared component.
 - [ ] Rendering matches the approved plan; source pills and line highlights work.
 - [ ] Notebook exported and executed in the actual browser runtime.
 
-Open review points: Page 5 is the densest page at 80 seconds — measure in
+Open review points: Page 5 is the densest page at 80 seconds: measure in
 preview whether the pipeline map plus configuration card fit the pace without
 crowding, and split the meta.pkl connection into Further explanations if not.
 Page 3 deliberately teaches a sealed-box block; confirm the owner accepts
