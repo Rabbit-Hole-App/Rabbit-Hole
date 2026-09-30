@@ -40,5 +40,8 @@
   }
   // secrets (wrangler secret put): MASTER_KEY, FLY_ORG_TOKEN (machine/app ops), FLY_API_TOKEN (minting only),
   // RESEND_API_KEY (optional), TEST_BYPASS_SECRET (ignored unless SMALL_ENV is test or dev), EMAIL_FROM (optional),
-  // ANTHROPIC_API_KEY (optional — enables deploy review; if identity-linked, also set ANTHROPIC_WORKSPACE_ID)
+  // ANTHROPIC_API_KEY (optional — enables deploy review; if identity-linked, also set ANTHROPIC_WORKSPACE_ID),
+  // GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET and GITHUB_CLIENT_ID + GITHUB_CLIENT_SECRET (optional — each pair enables
+  // Continue with Google/GitHub; without it that button hides), OAUTH_MOCK=true (ignored unless SMALL_ENV is test or dev
+  // with TEST_BYPASS_SECRET — local mock provider). See docs/features/rabbit-hole-auth-backend.md.
 }

@@ -259,3 +259,30 @@ CREATE TABLE IF NOT EXISTS cli_login_challenges (
 );
 CREATE INDEX IF NOT EXISTS idx_cli_login_challenges_email ON cli_login_challenges(email, created_at);
 CREATE INDEX IF NOT EXISTS idx_cli_login_challenges_domain ON cli_login_challenges(domain, created_at);
+
+-- 0026: users, provider identities (immutable provider ids, no email merge), single-use web sign-in links.
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY,
+  email TEXT NOT NULL UNIQUE,
+  session_epoch INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS user_identities (
+  provider TEXT NOT NULL,
+  provider_user_id TEXT NOT NULL,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  provider_email TEXT,
+  created_at INTEGER NOT NULL,
+  last_login_at INTEGER NOT NULL,
+  PRIMARY KEY (provider, provider_user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_user_identities_user ON user_identities(user_id);
+CREATE TABLE IF NOT EXISTS login_links (
+  id TEXT PRIMARY KEY,
+  email TEXT NOT NULL,
+  next TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  used_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_login_links_email ON login_links(email, created_at);

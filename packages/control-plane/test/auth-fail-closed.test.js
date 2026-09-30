@@ -27,9 +27,10 @@ const MSG_CLI = 'Could not send the login email right now. Try again in a few mi
 const MSG_VERIFY_DOWN = 'Could not complete the login right now. Try again in a few minutes.';
 const MSG_429 = 'Too many login codes requested. Try again later.';
 const realRandom = crypto.getRandomValues.bind(crypto);
-const MIGRATION = readFileSync(new URL('../migrations/0025-cli-login-challenges.sql', import.meta.url), 'utf8');
+const MIGRATION = ['0025-cli-login-challenges.sql', '0026-users.sql']
+  .map((f) => readFileSync(new URL(`../migrations/${f}`, import.meta.url), 'utf8')).join('\n');
 
-// env.DB as D1 over in-memory SQLite with the 0025 migration applied (same adapter
+// env.DB as D1 over in-memory SQLite with the 0025 and 0026 migrations applied (same adapter
 // shape as learn-chat.test.js). migrate: false = the table is missing, as before the migration.
 function withDb(t, env, { migrate = true } = {}) {
   const db = new DatabaseSync(':memory:');
@@ -41,8 +42,9 @@ function withDb(t, env, { migrate = true } = {}) {
     run: async () => { const r = db.prepare(sql).run(...params); return { meta: { changes: Number(r.changes) } }; },
   }) }) };
   const rows = () => (migrate ? db.prepare('SELECT * FROM cli_login_challenges ORDER BY rowid').all() : []);
+  const links = () => (migrate ? db.prepare('SELECT * FROM login_links ORDER BY rowid').all() : []);
   const sql = (q, ...a) => db.prepare(q).run(...a);
-  return { ...env, DB, rows, sql };
+  return { ...env, DB, rows, links, sql };
 }
 
 // Fake Resend: records every email body; never touches the network.
@@ -98,10 +100,12 @@ for (const [prodName, prodEnv] of Object.entries(PROD)) {
   for (const [failName, failure] of Object.entries(FAILURES)) {
     test(`production (${prodName}), ${failName}: web login is a generic 503 with no link`, async (t) => {
       const sent = provider(t, failure.mode);
-      const r = await webLogin({ ...prodEnv, ...failure.env });
+      const env = withDb(t, { ...prodEnv, ...failure.env });
+      const r = await webLogin(env);
       assert.equal(r.res.status, 503);
       assert.ok(r.text.includes(MSG_WEB), r.text);
       assertNoAuthMaterial(r, sent);
+      assert.deepEqual(env.links(), []); // the undelivered link leaves no row behind
     });
 
     test(`production (${prodName}), ${failName}: CLI login is a 503 with no code, devCode or challenge`, async (t) => {
@@ -129,12 +133,12 @@ for (const [prodName, prodEnv] of Object.entries(PROD)) {
   });
 }
 
-test('production with a working provider: web says Check your inbox, CLI returns only a challenge, the email carries the code and link', async (t) => {
+test('production with a working provider: web says Check your email, CLI returns only a challenge, the email carries the code and link', async (t) => {
   const env = withDb(t, { ...BASE, SMALL_ENV: 'production', TEST_BYPASS_SECRET: SECRET, RESEND_API_KEY: 're_fake' });
   const sent = provider(t, 'ok');
   const web = await webLogin(env);
   assert.equal(web.res.status, 200);
-  assert.ok(web.text.includes('Check your inbox'));
+  assert.ok(web.text.includes('Check your email'));
   assert.equal(sent.length, 1);
   assert.match(sent[0].text, /\/auth\?token=/);
   assertNoAuthMaterial(web, sent);
@@ -165,16 +169,18 @@ for (const mode of ['test', 'dev']) {
       assert.ok(!cli.text.includes(CODE) && !cli.text.includes('devCode') && !cli.text.includes('challenge'), cli.text);
     }
 
-    const web = await webLogin(env);
+    const db = withDb(t, env);
+    const web = await webLogin(db);
     if (echoes) {
       assert.equal(web.res.status, 200);
       assert.ok(web.text.includes('/auth?token='), web.text);
     } else {
       assert.equal(web.res.status, 503);
       assertNoAuthMaterial(web, sent);
+      assert.deepEqual(db.links(), []);
     }
 
-    const s = await call(post('/test/session', { email: EMAIL, secret: SECRET }), env);
+    const s = await call(post('/test/session', { email: EMAIL, secret: SECRET }), db);
     assert.equal(s.res.status, 200);
     assert.equal((await verify(JSON.parse(s.text).session, BASE.MASTER_KEY)).email, EMAIL);
     assert.equal((await call(post('/test/session', { email: EMAIL, secret: 'wrong' }), env)).res.status, 401);
@@ -350,14 +356,14 @@ test('strict email: CLI and web login reject quoted, display-name, list and malf
     assert.deepEqual(JSON.parse(cli.text), { error: 'valid email required' });
     const web = await call(post('/login', { email }, 'form'), env);
     assert.equal(web.res.status, 400, `web accepted ${email}`);
-    assert.ok(web.text.includes('Enter a valid work email.'));
+    assert.ok(web.text.includes('Enter a valid email address.'));
   }
   assert.equal(sent.length, 0);
 });
 
 test('strict email: a plain address is trimmed and lowercased before it reaches the email and the login', async (t) => {
   const sent = provider(t, 'ok');
-  const env = { ...BASE, SMALL_ENV: 'test', TEST_BYPASS_SECRET: SECRET, RESEND_API_KEY: 're_fake' };
+  const env = withDb(t, { ...BASE, SMALL_ENV: 'test', TEST_BYPASS_SECRET: SECRET, RESEND_API_KEY: 're_fake' });
   const web = await call(post('/login', { email: '  A.B+tag@Corp.Example.test ' }, 'form'), env);
   assert.equal(web.res.status, 200);
   assert.deepEqual(sent[0].to, ['a.b+tag@corp.example.test']);

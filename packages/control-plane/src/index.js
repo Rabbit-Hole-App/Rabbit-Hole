@@ -12,6 +12,7 @@ import { handleLearnCourse } from './learn-course.js';
 // small control plane: CLI API + browser auth wall + router. One Worker + D1.
 // URLs are path-based (no custom domain): /a/<org>/<app>/... proxies to the app's Fly origin.
 import { sign, verify, hmacHex, randomHex } from './token.js';
+import { echoesLogin, handleWebAuth, loginEmail, sessionOf, testMode } from './auth.js';
 import { ensureFlyApp, ensureVolume, deployTokenFor, startMachine, destroyMachine, destroyFlyApp } from './fly.js';
 import { aiCacheDrop, ASK_TOOLS, askOnce, askStream, capJoin, CAP_CHARS, DIAGNOSIS_PROMPT, diffBundles, getBundle, parseBundle } from './ask.js';
 import { assumeRole, iamRolePolicies, s3Buckets, s3Get, s3List } from './aws.js';
@@ -25,17 +26,7 @@ import { learnMedia } from './learn-storage.js';
 import { ATTACHMENT_LIMIT, attachmentBlocks, readAskRequest } from './ask.js';
 import { askModel, MESSAGE_LIMIT, MENTION_LIMIT } from './learn-models.js';
 
-const SESSION_COOKIE = 'small_session';
-const SESSION_TTL = 7 * 24 * 3600;
-
 const orgOf = (email) => email.split('@')[1].toLowerCase().replace(/\./g, '-');
-// Login email: trimmed, lowercased, one @, plain local part, dotted domain labels with no edge hyphens.
-// Quoted or display-name forms are refused - orgOf reads after the first @, so they could pick another org.
-const EMAIL_RE = /^[a-z0-9._%+-]+@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
-const loginEmail = (raw) => {
-  const email = String(raw ?? '').trim().toLowerCase();
-  return email.length <= 254 && EMAIL_RE.test(email) ? email : null;
-};
 // apps.schedule may hold several crons separated by ';' (dashboard "+" adds them)
 const cronParts = (s) => String(s || '').split(';').map((x) => x.trim()).filter(Boolean);
 const now = () => Math.floor(Date.now() / 1000);
@@ -45,13 +36,6 @@ const html = (body, status = 200, headers = {}) =>
     status,
     headers: { 'Content-Type': 'text/html;charset=utf-8', ...headers },
   });
-
-// Test/dev bypasses (/test/*) need SMALL_ENV test or dev AND their secret. Any other SMALL_ENV,
-// including none, is production: fail closed.
-const testMode = (env) => env.SMALL_ENV === 'test' || env.SMALL_ENV === 'dev';
-// Echoing a login code or sign-in link hands a session for any email to whoever asks, so it is
-// SMALL_ENV=test only. A public dev control plane (rabbit-hole-cp-dev) mints through /test/session.
-const echoesLogin = (env) => env.SMALL_ENV === 'test' && !!env.TEST_BYPASS_SECRET;
 
 // false when there is no provider or the send fails/throws. Never logs the body - it holds codes and links.
 async function sendEmail(env, to, subject, text) {
@@ -76,13 +60,6 @@ async function cliAuth(req, env) {
   const p = await verify(m[1], env.MASTER_KEY);
   if (!p || p.t !== 'cli') return null;
   return { ...p, ...(await workspaceFor(req, env, p.email)) };
-}
-
-async function sessionOf(req, env) {
-  const header = req.headers.get('X-Small-Session'); // tests use the header; browsers use the cookie
-  const cookie = (req.headers.get('Cookie') || '').match(new RegExp(`${SESSION_COOKIE}=([^;]+)`));
-  const p = await verify(header || (cookie && cookie[1]), env.MASTER_KEY);
-  return p && p.t === 'sess' ? p : null;
 }
 
 async function appRow(env, org, name) {
@@ -2286,46 +2263,7 @@ async function apiRunLog(req, env, ctx, runId) {
 }
 
 // ---------- Browser wall ----------
-
-function sessionCookie(token) {
-  return `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${SESSION_TTL}`;
-}
-
-async function loginPage(req, env, baseUrl) {
-  const url = new URL(req.url);
-  const next = url.searchParams.get('next') || '/';
-  if (req.method === 'POST') {
-    const form = await req.formData();
-    const email = loginEmail(form.get('email'));
-    if (!email) return html('<p>Enter a valid work email.</p><a href="javascript:history.back()">back</a>', 400);
-    const magic = await sign({ t: 'magic', email, next, exp: now() + 900 }, env.MASTER_KEY);
-    const link = `${baseUrl}/auth?token=${encodeURIComponent(magic)}`;
-    const sent = await sendEmail(env, email, 'Your small deploy sign-in link', `Sign in: ${link}\nExpires in 15 minutes.`);
-    if (sent) return html(`<h2>Check your inbox</h2><p>We sent a sign-in link to <b>${email}</b>.</p>`);
-    if (echoesLogin(env)) return html(`<h2>Test instance</h2><p>Dev sign-in link:</p><p><a href="${link}">${link}</a></p>`);
-    return html("<p>We couldn't send a sign-in email right now. Try again in a few minutes.</p>", 503);
-  }
-  return html(
-    `<div style="display:flex;align-items:center;gap:8px;font-weight:600;color:#37352F"><svg width="22" height="22" viewBox="0 0 32 32"><rect x="2" y="2" width="28" height="28" rx="7" fill="none" stroke="#37352F" stroke-width="2.5"/><path transform="translate(6.2 7) scale(0.83)" fill="#37352F" d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>small deploy</div><h2>Sign in</h2><form method=post><input name=email type=email placeholder=you@company.com required autofocus><button>Email me a link</button></form><p style="font-size:14px">We’ll send a link. No password.</p>`
-  );
-}
-
-async function authRedirect(req, env) {
-  const token = new URL(req.url).searchParams.get('token');
-  const p = await verify(token, env.MASTER_KEY);
-  if (!p || p.t !== 'magic') return html('<p>Link expired or invalid. <a href="/login">Try again</a>.</p>', 401);
-  const sess = await sign({ t: 'sess', email: p.email, exp: now() + SESSION_TTL }, env.MASTER_KEY);
-  return new Response(null, { status: 302, headers: { Location: p.next || '/', 'Set-Cookie': sessionCookie(sess) } });
-}
-
-// Test bypass: mint a session without email. Enabled only in testMode with TEST_BYPASS_SECRET set.
-async function testSession(req, env) {
-  if (!testMode(env) || !env.TEST_BYPASS_SECRET) return json({ error: 'not enabled' }, 404);
-  const { email, secret } = await req.json();
-  if (secret !== env.TEST_BYPASS_SECRET) return json({ error: 'bad secret' }, 401);
-  const sess = await sign({ t: 'sess', email: email.toLowerCase(), exp: now() + SESSION_TTL }, env.MASTER_KEY);
-  return json({ session: sess }, 200);
-}
+// Sign-in, sign-out and sessions live in auth.js.
 
 // Tests trigger the nightly Watch pass on demand - same bypass guard as /test/session.
 async function testWatch(req, env) {
@@ -2508,14 +2446,8 @@ export default {
         if (path === '/api/review/run' && req.method === 'POST') return await apiReviewRun(req, env, ctx, user);
         return json({ error: 'no such endpoint' }, 404);
       }
-      if (path === '/logout')
-        return new Response(null, {
-          status: 302,
-          headers: { Location: '/login', 'Set-Cookie': `${SESSION_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0` },
-        });
-      if (path === '/login') return await loginPage(req, env, baseUrl);
-      if (path === '/auth') return await authRedirect(req, env);
-      if (path === '/test/session' && req.method === 'POST') return await testSession(req, env);
+      const webAuth = await handleWebAuth(req, env, path, { baseUrl, html, sendEmail });
+      if (webAuth) return webAuth;
       if (path === '/test/openai/chat/completions' && req.method === 'POST') {
         // OpenAI-compatible mock (testMode + a bypass secret only): lets the
         // "openai" provider path be exercised end to end without a real LLM
