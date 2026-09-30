@@ -447,6 +447,15 @@ Motion Author implementation
 video renderer pipeline
 ```
 
+## Deferred items ledger
+
+Minor Privacy P0 review findings, deferred when P0 was ported into `feature/final-integration` (2026-09-30). They are not part of the P0 merge, because neither leaks data in the integrated build. Reopen one only if that changes.
+
+| Item | Where | Why deferred |
+|---|---|---|
+| A project still reports itself as visible to the whole domain: `repositoryApp()` returns `visibility: 'domain'`. | `packages/control-plane/src/repositories.js` `repositoryApp` | Access is owner-only now, and no UI shows this field. Correct it when explicit sharing is designed. |
+| The owner-only check on repository refresh can no longer trigger: only the owner can reach the project at all, so the check is dead code. | `packages/control-plane/src/repositories.js` refresh action | Harmless. Clean it up with the sharing model rather than inside P0. |
+
 ---
 
 # What happens after the baseline is frozen
