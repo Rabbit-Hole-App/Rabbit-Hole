@@ -1,15 +1,15 @@
 import { workerRequest } from './learn-scene.js';
 import { canvasSeed, threadTurns } from './canvas-conversation.js';
-import { validateCanvasTarget, appendCanvasTarget } from './learn-ask-context.js';
+import { validateLearnContext, validateCanvasTarget, appendCanvasTarget, appendOutline, readLearnSource } from './learn-ask-context.js';
 import { handleLearnCourse, generateCourseContent } from './learn-course.js';
 import { askStream, attachmentBlocks, readAskRequest } from './ask.js';
 import { askModel, MESSAGE_LIMIT, MENTION_LIMIT } from './learn-models.js';
 import { LEARN_SYSTEM, LEARN_SNAPSHOT_SYSTEM, validateLessonSnapshot } from './learn-context.js';
 import { REPOSITORY_TOOLS, REPOSITORY_SYSTEM, repositoryTool } from './repository-context.js';
-import { readArxivPaper, paperDocument } from './arxiv.js';
-import { paperSelectionImage } from './learn-preview-review.js';
-import { isUploadedMediaId, uploadedMediaAsImage } from './learn-media.js';
-import { paperIdentity, PAPER_PAGE_LIMIT } from './learn-paper.js';
+import { readArxivPaper } from './arxiv.js';
+import { uploadedMediaAsImage } from './learn-media.js';
+import { uploadedPaperAsDocument } from './learn-paper.js';
+import { readWikipedia } from './learn-wiki.js';
 import { subscriptionOwnerRefusal, subscriptionCourseRefusal } from './subscription-transport.js';
 import { videoMomentTools } from './learn-youtube.js';
 
@@ -181,7 +181,7 @@ async function repositoryAsk(req,env,user,app){
   const seed=canvasSeed(body);
   if(typeof body.message!=='string'||!body.message.trim()||body.message.length>MESSAGE_LIMIT)throw Error('Question must be 1–4000 characters');
   if(body.lesson_snapshot)validateLessonSnapshot(body.lesson_snapshot);
-  const canvasTarget=validateCanvasTarget(body.canvas_target,'learn');
+  const videoContext=validateLearnContext(body,'learn'),canvasTarget=validateCanvasTarget(body.canvas_target,'learn');
   const db=env.LEARN_DB;
   let thread=body.thread_id?await db.prepare('SELECT * FROM threads WHERE id=? AND org=? AND user=? AND scope_ref=?').bind(body.thread_id,user.org,user.email,app.name).first():null;
   if(body.thread_id&&!thread)return json({error:'Chat not found'},404);
@@ -216,23 +216,15 @@ async function repositoryAsk(req,env,user,app){
     if(!row?.commit_sha)continue;
     mentioned.push({name,...repositoryTool(await repositorySnapshot(env,repositoryApp(row,user)),'get_repo_overview')});
   }
-  if(body.paper_context){
-    const page=body.paper_context.page;
-    if(!Number.isInteger(page)||page<1||page>PAPER_PAGE_LIMIT)throw Error('Invalid paper page');
-    const paper=await readArxivPaper(body.paper_context.id);papers.push(paper);extraBlocks.push(paperDocument(paper));
-    if(body.paper_context.selection)extraBlocks.push(paperSelectionImage(body.paper_context.selection));
-  }
-  // A canvas image the learner attached - a dropped picture, or a group's
-  // rendered snapshot - rides as a vision block, same as on regular apps.
-  if(body.image_context){
-    if(!isUploadedMediaId(body.image_context.id))throw Error('Invalid image context');
-    const media=await uploadedMediaAsImage(env,paperIdentity(app),body.image_context.id);
-    extraBlocks.push(media.image);
-  }
+  // The one attached source (paper, image, article or watched video) as chat asks read it; the
+  // outline and article are context text only here, with no outline or Wikipedia tools.
+  let source;
+  try{source=await readLearnSource(env,body,app,{extraBlocks,papers,foundVideos:videos.found,videoContext,wikiTool:false},{readArxivPaper,uploadedPaperAsDocument,uploadedMediaAsImage,readWikipedia});}
+  catch(error){return json({error:error.message},502);}
   const id=thread?.id||`repochat-${crypto.randomUUID()}`;
   if(!thread)await db.prepare('INSERT INTO threads(id,org,user,scope_ref,commit_sha,title) VALUES(?,?,?,?,?,?)').bind(id,user.org,user.email,app.name,commit,body.message.slice(0,120)).run();
   const history=await threadTurns(db,id,seed,question);
-  return askStream(env,appendCanvasTarget(JSON.stringify({repo:app.repo,commit,selected,selectedCode,lesson:body.lesson_snapshot||null,paper:body.paper_context?{id:body.paper_context.id,page:body.paper_context.page}:null,...(mentioned.length?{mentionedRepositories:mentioned}:{})}),canvasTarget),history,question,
+  return askStream(env,appendCanvasTarget(appendOutline(JSON.stringify({repo:app.repo,commit,selected,selectedCode,lesson:body.lesson_snapshot||null,paper:null,...source,...(mentioned.length?{mentionedRepositories:mentioned}:{})}),body.outline),canvasTarget),history,question,
     async answer=>{const message=await db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?) RETURNING id').bind(id,'assistant',answer).first();if(graphView)await db.prepare('INSERT INTO repository_message_graphs(message_id,graph_json) VALUES(?,?)').bind(message.id,JSON.stringify(graphView)).run();},{threadId:id,commit},extraBlocks,null,askModel(body.model),null,
     body.lesson_snapshot?LEARN_SNAPSHOT_SYSTEM:LEARN_SYSTEM,{papers,system:[REPOSITORY_SYSTEM,videos.system].filter(Boolean).join('\n'),tools:[...REPOSITORY_TOOLS,...videos.tools],runTool,getGraphView:()=>graphView,shownVideo:videos.shown,org:user.org});
 }

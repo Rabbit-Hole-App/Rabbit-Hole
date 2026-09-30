@@ -1,7 +1,7 @@
 // What a Learn ask attaches besides the learner's words: the optional outline, paper,
 // image, Wikipedia and video fields. Validated before anything is read, then at most one
-// source is read for the model (one reader holds one thing). Used by apiAsk (index.js); canvas_target
-// by repositoryAsk (repositories.js) too.
+// source is read for the model (one reader holds one thing). Used by apiAsk (index.js) and
+// repositoryAsk (repositories.js).
 import { arxivId, paperDocument } from './arxiv.js';
 import { paperSelectionImage } from './learn-preview-review.js';
 import { isUploadedPaperId, paperIdentity, PAPER_PAGE_LIMIT } from './learn-paper.js';
@@ -9,7 +9,7 @@ import { isUploadedMediaId } from './learn-media.js';
 import { validateOutline, renderOutline } from './learn-context.js';
 import { wikiTitle } from './learn-wiki.js';
 import { validateVideoContext } from './learn-youtube.js';
-import { PAPER_CONTEXT_INSTRUCTION, IMAGE_CONTEXT_INSTRUCTION, WIKI_CONTEXT_INSTRUCTION, VIDEO_CONTEXT_INSTRUCTION, OUTLINE_CONTEXT_HEADER, CANVAS_TARGET_HEADER } from './agents/learn-chat.js';
+import { PAPER_CONTEXT_INSTRUCTION, IMAGE_CONTEXT_INSTRUCTION, WIKI_CONTEXT_INSTRUCTION, WIKI_CONTEXT_READ_ONLY_INSTRUCTION, VIDEO_CONTEXT_INSTRUCTION, OUTLINE_CONTEXT_HEADER, CANVAS_TARGET_HEADER } from './agents/learn-chat.js';
 
 // Throws the 400 message for the first malformed field; returns the validated video context.
 export function validateLearnContext(body, conversation) {
@@ -87,8 +87,9 @@ ${renderOutline(outline)}` : context;
 // The one source that rides, as { <kind>: ..., instruction } for the caller to merge beside its
 // own context, or null. Blocks go to extraBlocks; a paper read joins papers, an article articles,
 // the watched video foundVideos. Throws the 502 message when the source cannot be read.
+// wikiTool false: the caller offers no read_wikipedia, so the article's instruction does not name it.
 // `read` carries the four readers so tests can stand in for the network.
-export async function readLearnSource(env, body, app, { extraBlocks, papers, articles, foundVideos, videoContext }, read) {
+export async function readLearnSource(env, body, app, { extraBlocks, papers, articles, foundVideos, videoContext, wikiTool = true }, read) {
   // One context at a time, and a reader outranks a card: paper, then image, then article,
   // then the video card the learner is watching.
   let source = null;
@@ -125,7 +126,7 @@ export async function readLearnSource(env, body, app, { extraBlocks, papers, art
       articles?.set(article.title, article);
       source = {
         article: { title: article.displayTitle, section: article.sectionTitle, url: article.url, text: article.text, sections: article.toc.map(entry => entry.title), ...(body.wiki_context.selection ? { selected: body.wiki_context.selection } : {}) },
-        instruction: WIKI_CONTEXT_INSTRUCTION,
+        instruction: wikiTool ? WIKI_CONTEXT_INSTRUCTION : WIKI_CONTEXT_READ_ONLY_INSTRUCTION,
       };
     } catch (error) { throw new Error('Could not read that Wikipedia article. Try again.'); }
   }

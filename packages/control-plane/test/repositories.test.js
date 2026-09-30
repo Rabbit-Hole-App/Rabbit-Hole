@@ -6,6 +6,7 @@ import { parseRepository, repositoriesFetch, repositoryAccess, RepositoryImports
 import { repositoryTool, REPOSITORY_SYSTEM, REPOSITORY_TOOLS } from '../src/repository-context.js';
 import { researchAnswer } from '../src/learn-research.js';
 import { liveDb, memoryBucket } from './live-storage-spy.js';
+import { putUploadedPaper } from '../src/learn-paper.js';
 
 const sha='a'.repeat(40), newer='b'.repeat(40);
 const snapshot={repo:'example/project',commit:sha,version:'graphifyy-0.9.63-small-1',files:{'model.py':'class Model:\n    def forward(self, x):\n        return x + 1','README.md':'A model'},skipped:[],graph:{nodes:[{id:'model',label:'Model',path:'model.py',line:1},{id:'forward',label:'forward()',path:'model.py',line:2}],edges:[{source:'model',target:'forward',relation:'contains',confidence:'EXTRACTED'}]}};
@@ -251,4 +252,35 @@ test('a canvas_target card rides as its own bounded context section on a reposit
   await (await f.send('ask',{message:'and this?',canvas_target:{id:'b2',kind:'Table',title:'Big',text:'x'.repeat(9000)}})).text();
   assert.match(JSON.stringify(prompts[1].messages.at(-1)),/\[card text truncated: showing 8000 of 9000 characters\]/);
   assert.equal((await f.send('ask',{message:'q',canvas_target:{id:'b',kind:'Explanation',text:''}})).status,400);
+});
+
+// C5 context-5, context-6, prompts-10: a repository ask reads the same attached sources a chat ask
+// does, through learn-ask-context.js: context text only, no outline or Wikipedia tools.
+test('repository asks read the outline, video window, Wikipedia section and uploaded PDF the way chat asks do',async t=>{
+  const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});const prompts=[];
+  f.env.LEARN_MEDIA=memoryBucket();
+  globalThis.fetch=async(url,options)=>{const u=String(url);
+    if(u.includes('wikipedia.org')&&u.includes('prop=tocdata'))return Response.json({parse:{title:'Machine learning',tocdata:{sections:[{index:'1',tocLevel:1,line:'History',anchor:'History'}]}}});
+    if(u.includes('wikipedia.org'))return Response.json({parse:{text:'<div><p>Arthur Samuel coined the term.</p></div>'}});
+    prompts.push(JSON.parse(options.body));return Response.json({content:[{type:'text',text:'Ok.'}],stop_reason:'end_turn'});};
+  const turn=()=>JSON.stringify(prompts.at(-1).messages.at(-1)),tools=()=>(prompts.at(-1).tools||[]).map(tool=>tool.name);
+  const {id}=await putUploadedPaper(f.env,{org:'team',name:'repo-example',email:'owner@test'},new File([new TextEncoder().encode('%PDF-1.4 test')],'notes.pdf',{type:'application/pdf'}));
+  const selection={region:{x:0.2,y:0.3,w:0.4,h:0.2},preview:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII='};
+  let res=await f.send('ask',{message:'what does this say?',paper_context:{id,page:2,selection}});
+  assert.equal(res.status,200);await res.text();
+  const blocks=prompts.at(-1).messages.at(-1).content;
+  assert.equal(blocks[0].type,'document');assert.equal(blocks[0].source.data,Buffer.from('%PDF-1.4 test').toString('base64'));
+  assert.equal(blocks[1].type,'image');
+  assert.match(turn(),/Answer from the attached paper/);assert.match(turn(),/selectedRegion/);
+  await (await f.send('ask',{message:'structure?',outline:[{id:'h1',label:'Attention heads',level:1,done:false}]})).text();
+  assert.match(turn(),/This lesson's table of contents/);assert.match(turn(),/Attention heads/);
+  assert.equal(tools().includes('propose_lesson_outline'),false);
+  await (await f.send('ask',{message:'what is shown?',video_context:{videoId:'Ilg3gGewQ5U',start:240,end:300,title:'Backprop'}})).text();
+  assert.match(turn(),/You have not read its transcript/);assert.match(turn(),/4:00 to 5:00/);
+  await (await f.send('ask',{message:'who coined it?',wiki_context:{title:'Machine_learning',section:1}})).text();
+  assert.match(turn(),/Arthur Samuel coined the term/);assert.match(turn(),/cannot be read here/);
+  assert.equal(tools().includes('read_wikipedia'),false);
+  for(const body of [{outline:'x'},{video_context:{videoId:'nope'}},{wiki_context:{title:'',section:0}},{paper_context:{id,page:101}},{image_context:{id:'../x'}}])assert.equal((await f.send('ask',{message:'q',...body})).status,400,JSON.stringify(body));
+  const missing=await f.send('ask',{message:'q',paper_context:{id:'upload:0123456789ab',page:1}});
+  assert.equal(missing.status,502);assert.deepEqual(await missing.json(),{error:'Could not read the referenced paper. Try again.'});
 });
