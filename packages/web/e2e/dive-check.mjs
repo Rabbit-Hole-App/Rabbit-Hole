@@ -65,7 +65,7 @@ await page.getByText('Go down a Rabbit Hole').first().click();
 await dock.locator('[data-command-pill]').waitFor();
 assert.equal(await composer().inputValue(), 'softmax', 'choosing a command keeps the typed text as its argument');
 await shot('01c-command-pill');
-await dock.getByRole('button', { name: 'Remove /dive' }).click();
+await dock.getByRole('button', { name: 'Remove dive' }).click();
 assert.equal(await dock.locator('[data-command-pill]').count(), 0);
 assert.equal(await composer().inputValue(), 'softmax', 'the pill\'s × keeps the text');
 await dock.getByRole('button', { name: 'Auto' }).waitFor();
@@ -99,10 +99,10 @@ assert.equal((await get(`/api/canvases/dives?app=${root.name}&board=${BOARD}`)).
 await up();
 // Back on the parent: the empty hole is still this tab's, its card shows the temporary (dashed) portal.
 assert.ok(await page.evaluate(name => !!JSON.parse(sessionStorage.getItem('small.dive.pending') || '{}')[name], pendingName), 'the pending hole survives going up');
-assert.equal(await page.locator(`[data-block-id="${card1}"]`).first().evaluate(node => node.className.includes('outline-dashed') && node.className.includes('outline-[#b42318]')), true, 'temporary red portal on the card');
+assert.equal(await page.locator(`[data-block-id="${card1}"]`).first().evaluate(node => node.className.includes('outline-[#e5484d]')), true, 'temporary red highlighter portal on the card');
 assert.equal(await nav().locator('[data-dive-down]').count(), 1, 'the pending child is below the root');
 await select(card1);
-assert.equal(await page.locator(`[data-block-id="${card1}"]`).first().evaluate(node => node.className.includes('ring-2') && node.className.includes('outline-[#b42318]')), true, 'selection and portal show together');
+assert.equal(await page.locator(`[data-block-id="${card1}"]`).first().evaluate(node => node.className.includes('ring-2') && node.className.includes('outline-[#e5484d]')), true, 'selection and portal show together');
 await shot('04-pending-portal');
 // Double-click the card goes down its hole.
 await page.locator(`[data-block-id="${card1}"]`).first().dblclick({ position: { x: 40, y: 40 } });
@@ -170,7 +170,7 @@ await shot('07-anchor-pending-hole');
 await up(); // still empty: the anchor stays on the parent with the temporary portal
 const anchor = await anchorCard();
 assert.ok(anchor, 'the anchor card stays on the parent');
-assert.equal(await page.locator(`[data-block-id="${anchor}"]`).first().evaluate(node => node.className.includes('outline-dashed')), true, 'the anchor shows the temporary portal while its hole is pending');
+assert.equal(await page.locator(`[data-block-id="${anchor}"]`).first().evaluate(node => node.className.includes('outline-[#e5484d]')), true, 'the anchor shows the temporary portal while its hole is pending');
 await page.locator(`[data-block-id="${anchor}"]`).scrollIntoViewIfNeeded();
 await shot('07b-anchor-card-no-outline');
 await select(anchor);
@@ -192,7 +192,7 @@ await page.getByText('What do you want to go deeper into?').first().waitFor();
 assert.equal((await blocks()).length, before, 'no card made without a topic');
 assert.equal(url().searchParams.get('hole'), null);
 await shot('07d-bare-dive-asks');
-await page.locator('[data-learn-dock]').getByRole('button', { name: 'Remove /dive' }).click(); await composer().fill(''); await page.keyboard.press('Escape');
+await page.locator('[data-learn-dock]').getByRole('button', { name: 'Remove dive' }).click(); await composer().fill(''); await page.keyboard.press('Escape');
 // /dive <topic> with no card: the anchor shows the topic once, with no Explanation kicker; leaving
 // the empty hole takes its temporary portal with it.
 await deselect();

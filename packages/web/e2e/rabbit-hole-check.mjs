@@ -2136,7 +2136,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await phone.context().close();
   }
 
-  await check('wp6-learn-immersive: a standalone canvas, a project canvas and project Learn show no sidebar or icon rail, Learn starts at the window edge, a top-left Back button clear of the page and no Open sidebar button, and Library keeps its sidebar', async () => {
+  await check('wp6-learn-immersive: a standalone canvas, a project canvas and project Learn show no sidebar or icon rail, Learn starts at the window edge, a top-left Home button clear of the page and no Open sidebar button, and Library keeps its sidebar', async () => {
     const page = await open();
     await noAsks(page);
     await loaded(page, '/library');
@@ -2154,13 +2154,13 @@ await check('build: the browser runs the dist-dev entry script', async () => {
         must(at.rail === 0, `${url}: a sidebar or icon rail still takes ${at.rail}px`);
         must(at.left === 0, `${url}: Learn starts at x=${at.left}, not the window edge`);
         must(await page.getByRole('button', { name: 'Open sidebar' }).count() === 0, `${url}: Learn still shows an Open sidebar button`);
-        const opener = page.locator('[data-learn-back]');
+        const opener = page.locator('[data-learn-home]');
         const ob = await opener.boundingBox();
-        must(ob && ob.x < 24 && ob.y < 24, `${url}: no Back button at the top left`);
+        must(ob && ob.x < 24 && ob.y < 24, `${url}: no Home button at the top left`);
         const under = await page.evaluate((b) => [...document.querySelector('[data-shell-sidebar]').nextElementSibling.querySelectorAll('button, a, input, select, span, h1, h2, p')]
           .filter((n) => { if (n.offsetParent === null) return false; const r = n.getBoundingClientRect(); return r.width && r.height && r.left < b.x + b.width && b.x < r.right && r.top < b.y + b.height && b.y < r.bottom; })
           .map((n) => n.getAttribute('aria-label') || n.textContent.trim().slice(0, 30) || n.tagName), ob);
-        must(!under.filter((name) => name !== 'Back').length, `${url}: the Back button covers ${under.join(', ')}`);
+        must(!under.filter((name) => name !== 'Home').length, `${url}: the Home button covers ${under.join(', ')}`);
       }
     } finally { for (const c of made) await drop6(page, c.name); await page.context().close(); }
   });
