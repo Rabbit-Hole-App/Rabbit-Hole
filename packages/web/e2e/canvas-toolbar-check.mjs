@@ -101,7 +101,11 @@ async function probeEdge(page, card, title, label) {
   let box = await card.boundingBox();
   if (!(box.x + box.width > g.surface.right + 60 && box.y < g.toolbar.bottom && box.y + box.height > g.toolbar.y)) fail(`desktop: the card was not panned under the toolbar's side (${JSON.stringify(round(box))})`);
   if (!disjoint(g.toolbar, g.surface)) fail(`desktop: toolbar ${JSON.stringify(round(g.toolbar))} overlaps the canvas ${JSON.stringify(round(g.surface))}`);
-  if (g.overview) fail('desktop: the overview is open by default at this canvas width');
+  // The rule, not the viewport: the overview opens by default when the canvas (surface + gutter)
+  // is at least 1400px wide. The immersive WP7 Learn shell gives the canvas the full 1720px width.
+  const canvasWidth = g.surface.w + g.gutter.w, openByRule = canvasWidth >= 1400;
+  if (!!g.overview !== openByRule) fail(`desktop: the overview is ${g.overview ? 'open' : 'collapsed'} by default on a ${Math.round(canvasWidth)}px canvas; the 1400px rule says ${openByRule ? 'open' : 'collapsed'}`);
+  if (g.overview) { await page.getByRole('button', { name: 'Hide overview', exact: true }).click(); await page.waitForTimeout(400); await pushRight(page, card, 120); g = await geometry(page); }
   if (!disjoint(g.overview, g.surface)) fail('desktop: the overview overlaps the canvas');
   if (g.zoom !== '100%') fail(`desktop: zoom is ${g.zoom}, not 100%`);
   const collapsed = { surface: round(g.surface), toolbar: round(g.toolbar), ...(await probeEdge(page, card, widest.block.title, 'desktop, overview collapsed')) };
