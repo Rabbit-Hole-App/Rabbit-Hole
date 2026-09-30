@@ -119,6 +119,7 @@ export default function Shell({ children }) {
             email={data?.email}
             apps={data?.apps || []}
             awsError={data?.awsError}
+            awsAvailable={!!data?.awsAvailable}
             folders={data?.folders || []}
             width={width}
             rail={learnPreview && shut}

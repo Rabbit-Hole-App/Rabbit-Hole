@@ -10,6 +10,9 @@ import { canSubmit, PATHS, pathOr, repositoryDecision, slugOf, teachPrompt, titl
 import { Button, cn, IconBtn, Input, Pill, Tabs, TabsContent, TabsList, TabsTrigger, toast } from './ui.jsx';
 
 const PLANNED = connectionsFor().filter((c) => c.availability === 'planned');
+// ponytail: every connection source is planned (connections.js), so Sources offers PDF upload only.
+// Flip when a provider can supply sources and canSubmit (start.js) accepts it.
+const connectionSources = false;
 const LOCAL = 'Only you can see this canvas. Its content stays in this browser.';
 
 // T02 §5: one portaled dialog with four paths, hosted once by StartHost (main.jsx) on
@@ -157,10 +160,10 @@ export default function StartDialog({ ctx, initial, onClose }) {
               <label className="block text-sm">Canvas title
                 <Input autoFocus placeholder={UNTITLED} className="mt-1" {...field('sources')} />
               </label>
-              <div role="radiogroup" aria-label="Add sources by" className="flex flex-wrap gap-2 pt-3">
+              {connectionSources && <div role="radiogroup" aria-label="Add sources by" className="flex flex-wrap gap-2 pt-3">
                 {choice('method', 'upload', 'Upload (PDF)')}
                 {choice('method', 'connection', 'From a connection')}
-              </div>
+              </div>}
               {f.method === 'upload'
                 ? <p className="mt-3 text-xs text-ink-2">After the canvas opens, add the PDF from the canvas menu: Sources → PDF… {LOCAL}</p>
                 : (
