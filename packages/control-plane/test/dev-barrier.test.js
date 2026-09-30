@@ -84,7 +84,8 @@ test('side-effectful and customer-facing GETs are refused too', async t => {
 
 test('each allowlisted production read still reaches production, unchanged', async t => {
   const f = fixture(t);
-  const reads = ['/', '/api/workspaces', '/api/watch', '/api/ask/threads', '/api/ask/threads/42', '/api/runs/r-1', '/api/runs/r-1/outputs', '/api/runs/r-1/outputs/chart.png',
+  // '/' is Landing's page on the dev worker now (smart-landing-page); every other allowlisted read still forwards.
+  const reads = ['/api/workspaces', '/api/watch', '/api/ask/threads', '/api/ask/threads/42', '/api/runs/r-1', '/api/runs/r-1/outputs', '/api/runs/r-1/outputs/chart.png',
     '/api/apps/counter', '/api/apps/counter/deploys', '/api/apps/counter/runbook', '/api/apps/counter/learn-course', '/api/trash', '/api/org/ai', '/api/teams', '/api/members',
     '/api/request-logs', '/api/review'];
   for (const path of reads) assert.deepEqual(await (await f.send('GET', path)).json(), { forwarded: path }, path);

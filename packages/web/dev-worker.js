@@ -224,16 +224,16 @@ export default {
     if (path.startsWith('/static/') || path.startsWith('/audio/') || path.startsWith('/lesson-assets/') || path.startsWith('/mascot/') || path.startsWith('/landing/') || path === '/favicon.svg' || path.startsWith('/icon-') || path === '/apple-touch-icon.png') {
       return env.ASSETS.fetch(req);
     }
-    // Production small-cp gets only allowlisted reads and sign-in; everything else is a 403 here
-    // (dev-forwarding.js, P0-B). The dev request URL is kept so sign-in links and cookies stay on the dev host.
-    // A public page the barrier or production does not serve gets Landing's 404 page, never a live call.
-    const response = await forwardToProduction(req, env);
-    if ((response.status === 404 || response.status === 403) && isPublicPageRequest(req)) {
+    // A page Landing does not have is its 404 page. The barrier allows no page besides /, which Landing
+    // serves, so such a request never needs production.
+    if (isPublicPageRequest(req)) {
       return new Response(req.method === 'HEAD' ? null : SUPPORT, {
         status: 404,
         headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' },
       });
     }
-    return response;
+    // Production small-cp gets only allowlisted reads and sign-in; everything else is a 403 here
+    // (dev-forwarding.js, P0-B). The dev request URL is kept so sign-in links and cookies stay on the dev host.
+    return forwardToProduction(req, env);
   },
 };
