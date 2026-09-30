@@ -43,3 +43,14 @@ test('a group Ask has a title, bounded text through groupTargetText, and its own
   assert.doesNotMatch(shot, /setImageContext/);
   assert.match(ask, /const imageId = !target\?\.paper && !questionPaper \? target\?\.image \|\| questionImage\?\.id : null;/);
 });
+
+test('a YouTube moment card is described by its video id and window, never Source: undefined (context-17)', () => {
+  const text = describeYouTube({ type: 'video', videoId: 'Ilg3gGewQ5U', title: 'Backprop', channel: '3Blue1Brown', start: 240, end: 300, unverified: true });
+  assert.equal(text, 'YouTube moment: Backprop (video Ilg3gGewQ5U, 3Blue1Brown), window 240s-300s (window unverified)');
+  assert.equal(describeYouTube({ videoId: 'Ilg3gGewQ5U', title: 'B', start: 0 }), 'YouTube moment: B (video Ilg3gGewQ5U), window 0s-end');
+  assert.match(blocks, /if \(block\.type === 'video' && block\.videoId\) return \{ kind: 'YouTube moment', title: block\.title, text: describeYouTube\(block\) \};/);
+});
+
+test('a whiteboard region chip says only its text reaches the tutor (context-9)', () => {
+  assert.match(ask, /\{canvasTarget\.preview && !canvasTarget\.paper && <span data-text-only title="The tutor gets the shapes' text, not this picture" className="shrink-0 text-ink-3">text only<\/span>\}/);
+});

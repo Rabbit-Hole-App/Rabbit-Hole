@@ -25,6 +25,7 @@ import MermaidDiagram, { MermaidSource } from './MermaidDiagram.jsx';
 import { sceneAssetUrl, sceneList, startScene, startVideo, videoAssetUrl, videoList } from './learn-scene-client.js';
 import PaidConfirm from './PaidConfirm.jsx';
 import { describeNotebook } from './learn-notebook.js';
+import { describeYouTube } from './learn-ask-target.js';
 import { afterPaint, usePerf } from './learn-perf.js';
 
 // Lesson component library for the adaptive canvas (spec: docs/
@@ -1617,6 +1618,7 @@ export function describeBlock(block) {
   if (block.type === 'scene') return { kind: 'Blender scene', title: block.title, text: [`Generated 3D scene: ${block.title}`, block.brief || '', `Status: ${block.status}`, `Scene specification: ${JSON.stringify(block.operation)}`].join(NEWLINE) };
   if (block.type === 'model3d') return { kind: '3D model', title: block.title, text: [`3D model on the canvas: ${block.title}`, block.brief || '', `Model file: ${block.modelUrl}`, `Animation: ${block.animation?.autoplay ? 'playing' : 'paused'}${block.animation?.clipName ? ` (${block.animation.clipName})` : ''}`].join(NEWLINE) };
   if (block.type === 'image') return { kind: 'Image', title: block.title, text: [`Image on the canvas: ${block.title}`, block.alt || '', block.caption || '', `Source: ${block.src}`].join(NEWLINE) };
+  if (block.type === 'video' && block.videoId) return { kind: 'YouTube moment', title: block.title, text: describeYouTube(block) };
   if (block.type === 'video') return { kind: 'Video', title: block.title, text: [`Video on the canvas: ${block.title}`, block.caption || '', `Status: ${block.status || 'ready'}`, block.operation ? `Generation prompt: ${block.operation.prompt}` : `Source: ${block.src}`].join(NEWLINE) };
   if (block.type === 'paper') return { kind: 'Paper', title: block.title, text: `Paper on the canvas: ${block.title} (arXiv ${block.paper.id}), page ${block.paper.page}.`, paper: { id: block.paper.id, page: block.paper.page } };
   if (block.type === 'table') return { kind: 'Table', title: block.title, text: [`Table: ${block.title}`, block.caption || '', block.columns.join(' | '), ...block.rows.map(row => row.join(' | '))].join('\n') };
