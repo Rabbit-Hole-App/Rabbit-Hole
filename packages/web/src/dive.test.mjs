@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { diveRecord, diveTopic, discardHole, dropPending, holeHref, keepPending, levelHref, meaningful, navigatorRows, newHoleName, pendingHole, pendingHoles, planDive, setReturn, takeReturn } from './dive.js';
+import { anchorBlock, anchorTitle, diveRecord, diveTopic, discardHole, dropPending, holeHref, keepPending, levelHref, meaningful, navigatorRows, newHoleName, pendingHole, pendingHoles, planDive, setReturn, takeReturn } from './dive.js';
 
 const memory = () => { const map = new Map(); return { getItem: k => (map.has(k) ? map.get(k) : null), setItem: (k, v) => map.set(k, String(v)), removeItem: k => map.delete(k), key: i => [...map.keys()][i], get length() { return map.size; }, map }; };
 const local = () => { const store = memory(); return new Proxy(store, { ownKeys: () => [...store.map.keys()], getOwnPropertyDescriptor: () => ({ enumerable: true, configurable: true }) }); };
@@ -15,16 +15,26 @@ test('hole names are canvas slugs; URLs keep the board and project tab', () => {
   assert.equal(holeHref(parent, 'canvas-12345678'), '/apps/canvas-00000000?board=nanogpt-deep-dive&hole=canvas-12345678');
 });
 
-test('Ctrl+K and /dive: a selected card is mandatory; one child per card; a pending hole is re-entered, never duplicated', () => {
-  assert.deepEqual(planDive({ card: null, args: ' softmax ', parent }), { wait: { topic: 'softmax' } });
-  assert.deepEqual(planDive({ card: null, parent }), { wait: { topic: null } });
-  assert.deepEqual(planDive({ card, args: 'softmax', parent }), { create: { title: 'softmax' } });
+test('selected card + /dive or Ctrl+K: that card is the origin; one child per card; a pending hole is re-entered, never duplicated', () => {
+  assert.deepEqual(planDive({ card, args: 'explain softmax', parent }), { create: { title: 'Softmax' } });
   assert.deepEqual(planDive({ card, parent }), { create: { title: 'Causal mask' } }); // bare /dive and Ctrl+K: from the card
+  assert.deepEqual(planDive({ card, parent, referent: 'ignored while a card is selected' }), { create: { title: 'Causal mask' } });
   assert.deepEqual(planDive({ card, args: 'other', parent, children: [{ name: 'canvas-11111111', origin_block_id: card.id }] }), { enter: 'canvas-11111111' });
   const pending = { 'canvas-22222222': { name: 'canvas-22222222', parent, origin_block_id: card.id } };
   assert.deepEqual(planDive({ card, parent, pending }), { resume: 'canvas-22222222' });
   assert.deepEqual(planDive({ card, parent: { ...parent, board: 'main' }, pending }), { create: { title: 'Causal mask' } });
   assert.equal(diveTopic('', null), 'Untitled hole');
+});
+
+test('no selected card: /dive <topic> makes a topic anchor card the origin; bare /dive uses the last question, or asks', () => {
+  assert.deepEqual(planDive({ card: null, args: 'explain softmax', parent }), { anchor: { request: 'explain softmax', title: 'Softmax' } });
+  assert.deepEqual(planDive({ card: null, args: '', parent, referent: 'Why do these weights add up to 1?' }), { anchor: { request: 'Why do these weights add up to 1?', title: 'These weights add up to 1' } });
+  assert.deepEqual(planDive({ card: null, args: '', parent }), { ask: true }); // never an empty "Dive" card
+  assert.deepEqual(planDive({ card: null, args: '  ', parent, referent: '  ' }), { ask: true });
+  // The anchor is an ordinary explanation block holding the learner's own words; nothing generated.
+  assert.deepEqual(anchorBlock('explain softmax'), { type: 'explanation', title: 'Softmax', body: 'Explain softmax', anchor: { request: 'explain softmax' } });
+  for (const [request, title] of [['what is the softmax function?', 'Softmax function'], ['How does layer norm work', 'Layer norm work'], ['numerical stability', 'Numerical stability'], ['tell me about the KV cache', 'KV cache']])
+    assert.equal(anchorTitle(request), title, request);
 });
 
 test('only canvas objects make a hole worth keeping; chat alone does not', () => {

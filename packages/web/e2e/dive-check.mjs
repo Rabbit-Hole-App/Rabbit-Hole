@@ -54,6 +54,14 @@ await open(ROOT_URL);
 await shot('01-root-navigator');
 await inGutter('root');
 const [card1, card2] = (await blocks()).slice(0, 2);
+// The composer: no model picker; the / button opens the same palette typing / does.
+const dock = page.locator('[data-learn-dock]');
+assert.doesNotMatch(await dock.innerText(), /\b(Auto|Opus|Sonnet|Haiku)\b/, 'no model names in the Learn composer');
+await dock.getByRole('button', { name: 'Commands' }).click();
+await page.getByText('Go down a Rabbit Hole').first().waitFor();
+await shot('01b-slash-palette');
+await dock.getByRole('button', { name: 'Commands' }).click();
+assert.equal(await composer().inputValue(), '');
 await select(card1);
 await shot('02-selected-card');
 
@@ -88,7 +96,7 @@ await addObject('Softmax sketch');
 const softmax = url().pathname.split('/').pop();
 await shot('05-persistent-child');
 let rootTree = await tree(root.name, BOARD);
-assert.deepEqual(rootTree.children.map(child => [child.name, child.title, child.origin_block_id]), [[softmax, 'softmax', card1]]);
+assert.deepEqual(rootTree.children.map(child => [child.name, child.title, child.origin_block_id]), [[softmax, 'Softmax', card1]]);
 await up();
 assert.equal(url().pathname + url().search, ROOT_URL);
 assert.equal(await page.locator(`[data-dive-portal="${softmax}"]`).count(), 1, 'the originating card is a portal');
@@ -106,24 +114,43 @@ assert.equal((await tree(root.name, BOARD)).children.length, 1, 'no duplicate ch
 await up();
 console.log('flows B C D ok');
 
-// ---- E: /dive with no card selected waits for one, then completes without retyping ----
+// ---- E: no card selected - /dive <topic> makes a topic anchor card on this canvas and dives from it ----
+const anchorCard = () => page.$$eval('[data-block-id]:not([data-chat-block])', nodes => nodes.find(node => node.innerText.includes('Explain numerical stability'))?.dataset.blockId || null);
 await deselect();
-await slash('/dive attention scores');
-assert.equal(url().searchParams.get('hole'), null, 'no hole without a card');
-await page.getByText('Select the card you want to go deeper from.').first().waitFor();
-await shot('07-no-card-dive');
-await select(card2);
+await slash('/dive explain numerical stability');
 await page.waitForFunction(() => location.search.includes('hole=')); await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1000);
-assert.equal(await nav().locator('[aria-current="location"]').innerText(), 'attention scores');
-await addObject('Scores sketch');
+assert.equal(await nav().locator('[aria-current="location"] [data-dive-level]').innerText(), 'Numerical stability');
+await shot('07-anchor-pending-hole');
+await up(); // left empty: the hole goes, the anchor card stays on the parent with no outline
+const anchor = await anchorCard();
+assert.ok(anchor, 'the anchor card stays on the parent');
+assert.equal(await page.locator(`[data-dive-portal]`).count(), 1, 'an abandoned hole leaves no outline (only softmax has one)');
+await page.locator(`[data-block-id="${anchor}"]`).scrollIntoViewIfNeeded();
+await shot('07b-anchor-card-no-outline');
+await select(anchor);
+await page.keyboard.press('Control+k');
+await page.waitForFunction(() => location.search.includes('hole=')); await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1000);
+await addObject('Stability sketch');
 await up();
+assert.equal(await page.locator(`[data-block-id="${anchor}"] [data-dive-portal]`).count(), 1, 'a persisted child outlines its anchor');
+await shot('07c-anchor-red-outline');
+// Bare /dive, no card, no conversation: ask, never an empty "Dive" card.
+await deselect();
+const before = (await blocks()).length;
+await slash('/dive');
+await composer().press('Enter'); await page.waitForTimeout(800); // the picker fills "/dive ", Enter runs it
+await page.getByText('What do you want to go deeper into?').first().waitFor();
+assert.equal((await blocks()).length, before, 'no card made without a topic');
+assert.equal(url().searchParams.get('hole'), null);
+await shot('07d-bare-dive-asks');
+await composer().fill(''); await page.keyboard.press('Escape');
 console.log('flow E ok');
 
 // ---- H: two cards, two holes: the child picker ----
 await nav().locator('[data-dive-down]').click();
 await page.locator('[data-dive-picker]').waitFor();
 await shot('08-child-picker');
-await page.locator('[data-dive-picker]').getByRole('menuitem', { name: 'softmax' }).click();
+await page.locator('[data-dive-picker]').getByRole('menuitem', { name: 'Softmax' }).click();
 await page.waitForFunction(name => location.pathname.endsWith(name), softmax); await page.waitForTimeout(1200);
 console.log('flow H ok');
 
@@ -174,7 +201,7 @@ assert.match(await page.getByRole('dialog').innerText(), /3 holes inside it/);
 await page.getByRole('dialog').getByRole('button', { name: /Delete 4 holes/ }).click();
 await page.waitForTimeout(1200);
 rootTree = await tree(root.name, BOARD);
-assert.deepEqual(rootTree.children.map(child => child.title), ['attention scores']);
+assert.deepEqual(rootTree.children.map(child => child.title), ['Numerical stability']);
 assert.equal(await page.locator(`[data-dive-portal="${softmax}"]`).count(), 0, 'the outline goes with the hole');
 console.log('flow I ok');
 

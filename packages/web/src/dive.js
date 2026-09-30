@@ -29,7 +29,7 @@ export function holeHref(parent, name) {
 // leaves chat out).
 export const meaningful = state => (state?.content || 0) > 0;
 
-export const diveTopic = (args, card) => String(args || card?.title || 'Untitled hole').trim().slice(0, 120) || 'Untitled hole';
+
 
 const read = (storage, key) => { try { return JSON.parse(storage.getItem(key) || 'null'); } catch { return null; } };
 const write = (storage, key, value) => { try { value == null ? storage.removeItem(key) : storage.setItem(key, JSON.stringify(value)); } catch { /* blocked storage: the hole lasts this page only */ } };
@@ -56,13 +56,35 @@ export function takeReturn(storage, { app, board }) {
   return point;
 }
 
-// What a dive request does. One child per originating card, never a duplicate:
-//   { wait }    no card selected: keep the intent until one is
+// A topic anchor's display title from the learner's own words: "explain softmax" -> "Softmax".
+// The raw request is kept on the card beside it.
+const LEAD = /^(?:please\s+)?(?:explain|describe|define|what(?:'s| is| are)|how (?:does|do|is|are)|why (?:does|do|is|are)|tell me about|teach me(?: about)?|go deeper (?:into|on)|dive into|learn about|understand|show me|about)\s+/i;
+export function anchorTitle(request) {
+  const topic = String(request).trim().replace(LEAD, '').replace(/[?.!\s]+$/, '').replace(/^(?:the|a|an)\s+/i, '').slice(0, 60).trim();
+  return topic ? topic[0].toUpperCase() + topic.slice(1) : '';
+}
+// The card a topic dive creates on the current canvas: an ordinary explanation block holding the
+// request, marked as a dive anchor. Never a generated lesson.
+export const anchorBlock = request => {
+  const text = String(request).trim();
+  return { type: 'explanation', title: anchorTitle(text), body: text[0].toUpperCase() + text.slice(1), anchor: { request: text } };
+};
+
+// A hole's title: the topic in the learner's words ("explain softmax" -> Softmax), else the card's title.
+export const diveTopic = (args, card) => (anchorTitle(args || '') || String(card?.title || '').trim()).slice(0, 120) || 'Untitled hole';
+
+// What a dive request does. Every hole has exactly one originating card, never a duplicate child:
 //   { enter }   the card already has a persisted hole
 //   { resume }  the card already has a pending hole in this tab
-//   { create }  a new pending hole
-export function planDive({ card, args = '', children = [], pending = {}, parent }) {
-  if (!card) return { wait: { topic: args.trim() || null } };
+//   { create }  a new pending hole from the selected card
+//   { anchor }  no card selected: a topic anchor card is made on this canvas and becomes the origin;
+//               the topic is the argument, or else the conversation's last question
+//   { ask }     no card, no argument, no referent: ask what to go deeper into
+export function planDive({ card, args = '', children = [], pending = {}, parent, referent = '' }) {
+  if (!card) {
+    const request = args.trim() || String(referent || '').trim();
+    return request && anchorTitle(request) ? { anchor: { request, title: anchorTitle(request) } } : { ask: true };
+  }
   const child = children.find(entry => entry.origin_block_id === card.id);
   if (child) return { enter: child.name };
   const open = Object.values(pending).find(hole => hole.parent.app === parent.app && hole.parent.board === parent.board && hole.origin_block_id === card.id);

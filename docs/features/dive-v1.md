@@ -46,11 +46,18 @@ canvas_dives(org, owner_email, child, parent_app, parent_board, origin_block_id,
 
 `src/dive.js` holds the pure rules (tested in `dive.test.mjs`). `src/Dive.jsx` holds the hook and UI.
 
-- **Selected card is mandatory.** Ctrl+K on Learn with a card selected dives, and so does `/dive
-  [topic]`. A topic is taken from the argument, or else from the card title.
-- **No card selected.** `/dive x` creates nothing. It answers "Select the card you want to go deeper
-  from.", keeps the intent, and completes on the next card selection. Esc, a new /dive, or leaving
-  clears it.
+- **Every hole has exactly one originating card** (owner correction, 2026-09-30). That card is the
+  selected card, or a topic anchor card made from the request.
+- **Selected card.** Ctrl+K or `/dive [topic]` dives from it (`diveFromCard`). The hole's title is
+  taken from the request ("explain softmax" gives Softmax), or else from the card's title.
+- **No card selected, with a topic.** `/dive explain softmax` adds a topic anchor card to the current
+  canvas and opens its pending child (`diveFromTopic`). The anchor is an ordinary `explanation`
+  block: its title is Softmax, its body is the learner's words, and it carries
+  `anchor.request` = "explain softmax". Nothing is generated.
+- **No card selected, bare `/dive`.** It uses the conversation's last question as the request. With
+  none, it asks "What do you want to go deeper into?" and never makes an empty "Dive" card.
+- **The anchor lives on the parent.** It does not persist the child: an abandoned child leaves the
+  anchor with no outline, and the child's first object gives the anchor the red outline.
 - **Ctrl+K without a card**, and Ctrl+K outside Learn, is the global Search, unchanged
   (`Search.jsx`).
 - **Pending hole.**
@@ -65,8 +72,9 @@ canvas_dives(org, owner_email, child, parent_app, parent_board, origin_block_id,
   parent's `children`, through the `DivePortals` context read by `CanvasNode`. No card data changes.
 - **Navigator.**
   - It sits at the top of the tools' gutter and never covers content.
-  - Levels are joined by short organic root segments. The current level has a red dot, dashed while
-    the hole is pending. Paths deeper than five levels fold their middle into "⋯ n".
+  - It reads top to bottom: the parent above, the deeper level below. Levels are joined by straight
+    connectors with a ▾ head, and the arrows are square-capped (geometric, not rounded or chevrons).
+    The current level has a small red square, dashed while the hole is pending. Paths deeper than five levels fold their middle into "⋯ n".
   - ↑ goes to the parent. ↓ goes to the only child, or opens a compact picker when there are several.
   - Click a level to go there. Double-click a name to rename it (Enter saves, Esc cancels).
 - **Return point.** Climbing up restores the parent's viewport, selects the originating card, and puts
@@ -78,6 +86,7 @@ canvas_dives(org, owner_email, child, parent_app, parent_board, origin_block_id,
   - Deleted holes' local keys are cleared, and the outline goes with the link.
 - **Suggestion (structure only).**
   - `DiveSuggestion` shows [Go down a Rabbit Hole] / [Keep it on this canvas].
+  - With a blockId the card is the origin; without one, confirming makes a topic anchor card.
   - The Tutor will raise it with
     `window.dispatchEvent(new CustomEvent('small:dive-suggest', { detail: { blockId, topic } }))`.
   - No model is wired to it.
@@ -97,6 +106,8 @@ npx wrangler dev -c packages/web/wrangler.dev.jsonc -c packages/control-plane/wr
 
 ## Known limits (v1)
 
+- The conversational referent for a bare /dive is the last chat question as typed, not a resolved
+  concept: resolving "why do these add to 1?" to Softmax is the Learner Intent Resolver's job.
 - Asking in chat inside a pending hole fails, because the hole has no canvas row yet. Chat alone
   never persists a hole (R-4).
 - Persisted holes are canvases, so they also appear in Home, Library and Search as standalone
