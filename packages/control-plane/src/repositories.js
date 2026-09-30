@@ -134,7 +134,7 @@ export async function repositoriesFetch(req,env,ctx){
       const name=`repo-${crypto.randomUUID().slice(0,8)}-${repo.split('/')[1].toLowerCase().replace(/[^a-z0-9-]/g,'-').slice(0,28)}`;
       // Confirm public visibility and branch before creating a project.
       const head=await repositoryMetadata(env,repo,{branch:body.branch});
-      const count=await db.prepare('SELECT COUNT(*) AS n FROM repository_apps WHERE org=?').bind(user.org).first();if(count.n>=25)throw Error('This workspace has reached the 25 repository preview limit');
+      const count=await db.prepare('SELECT COUNT(*) AS n FROM repository_apps WHERE org=? AND owner_email=?').bind(user.org,user.email).first();if(count.n>=25)throw Error('You have reached the 25 repository preview limit');
       const row=await db.prepare('INSERT INTO repository_apps(org,name,owner_email,repo,branch) VALUES(?,?,?,?,?) RETURNING *').bind(user.org,name,user.email,repo,body.branch).first();
       try{await enqueue(env,row,repo,body.branch,head);}catch(error){await db.prepare("UPDATE repository_apps SET status='failed',error=? WHERE id=?").bind(error.message,row.id).run();}
       return json({name},202);

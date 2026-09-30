@@ -348,3 +348,15 @@ test('a refused project answers exactly like one that does not exist',async t=>{
   const denied=await get('repo-example',{'x-email':'viewer@test'}),missing=await get('repo-does-not-exist',{'x-email':'viewer@test'});
   assert.equal(denied.status,missing.status);assert.equal(await denied.text(),await missing.text());
 });
+test('the 25-project import cap counts only projects the caller owns, never the whole org',async t=>{
+  const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});
+  globalThis.fetch=async()=>Response.json({commit:newer});
+  f.env.REPOSITORY_IMPORTS={idFromName:String,get:()=>({fetch:(url,init)=>f.actor.fetch(new Request(url,init))})};
+  const fill=(email,n)=>{for(let i=0;i<n;i++)f.sqlite.prepare("INSERT INTO repository_apps(org,name,owner_email,repo,branch) VALUES('team',?,?,'example/x','main')").run(`repo-${email}-${i}`,email);};
+  const connect=()=>repositoriesFetch(new Request('https://dev.test/api/repositories',{method:'POST',body:JSON.stringify({url:'https://github.com/example/project',branch:'main'})}),f.env,{});
+  fill('viewer@test',25);
+  assert.equal((await connect()).status,202); // 25 projects owned by a colleague leave this person's quota untouched
+  fill('owner@test',24); // the connect above plus these 24 make 25 owned
+  const refused=await connect();
+  assert.match(JSON.stringify(await refused.json()),/You have reached the 25 repository preview limit/);
+});
