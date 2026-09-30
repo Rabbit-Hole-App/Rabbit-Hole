@@ -6,9 +6,12 @@
 
 export const JEV_URL = 'https://ai-gateway.vercel.sh/typesafe/v1/systemone';
 export const JEV_MODEL = 'typesafe-ai/jev';
-// Bench-only transport experiment: the same request body sent straight to
-// TypeSafe. Only the URL, the key and the model name differ; the direct arm
-// pins a concrete Jev version, which the gateway cannot.
+// Two transports for the same request body. Canvas shadow grades always use
+// direct (straight to TypeSafe, pinned to a concrete Jev version, which the
+// gateway cannot pin); the gateway stays for bench diagnostics, and a bench
+// run picks either (learn-grade-routes.js grade(), which always passes one).
+// askJev alone defaults to the gateway. Only the URL, the key and the
+// model name differ.
 export const JEV_TRANSPORTS = Object.freeze({
   gateway: Object.freeze({ url: JEV_URL, key: 'VERCEL_TYPESAFE_API_KEY', model: JEV_MODEL }),
   direct: Object.freeze({ url: 'https://api.typesafe.ai/v1/systemone', key: 'TYPESAFE_API_KEY', model: 'jev-1.13.0' }),
