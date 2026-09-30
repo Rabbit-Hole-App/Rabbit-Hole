@@ -760,6 +760,8 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     createdAt: Date.now(), snapshot: captureNotePage(editor, true),
   });
   const returnToNoteLesson = async (record, resume = true) => {
+    // ponytail: with the lesson player parked there is no editor to seek, so a note just closes back to the canvas.
+    if (!editor) { setNoteEditing(null); setLearningView('lesson'); setCourseView(false); return; }
     if (record.lessonId === 'learn-freeform' && lesson.current?.lessonId === record.lessonId && editor?.getPage(record.pageId)) {
       setNoteEditing(null); setLearningView('lesson'); setCourseView(false);
       editor.setCurrentPage(record.pageId);
