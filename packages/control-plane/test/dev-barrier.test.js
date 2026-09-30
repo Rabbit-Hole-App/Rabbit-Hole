@@ -136,12 +136,13 @@ test('production GET /api/me answers who is signed in with reads only; GET /api/
   const production = (await productionWorker()).default;
   const sql = [];
   const DB = { prepare: text => ({ bind: () => ({
-    first: async () => { sql.push(text); return /workspace_members/.test(text) ? { slug: 'w-lab', name: 'Lab' } : null; },
+    first: async () => { sql.push(text); return /workspace_members/.test(text) ? { slug: 'w-lab', name: 'Lab' } : /FROM users/.test(text) ? { session_epoch: 0 } : null; },
     all: async () => { sql.push(text); return { results: [] }; },
     run: async () => { sql.push(text); return { meta: { changes: 0 } }; },
   }), run: async () => { sql.push(text); return { meta: { changes: 0 } }; } }) };
   const env = { MASTER_KEY: 'test-master-key', DB };
-  const session = await sign({ t: 'sess', email: 'owner@team.test', exp: Math.floor(Date.now() / 1000) + 60 }, env.MASTER_KEY);
+  // a current session (auth.js): uid + epoch, checked against users with one SELECT
+  const session = await sign({ t: 'sess', uid: 'u1', email: 'owner@team.test', ep: 0, exp: Math.floor(Date.now() / 1000) + 60 }, env.MASTER_KEY);
   const me = headers => production.fetch(new Request('https://small-cp.test/api/me', { headers }), env, {});
   assert.deepEqual(await (await me({ 'X-Small-Session': session })).json(), { email: 'owner@team.test', org: 'team-test', orgName: null });
   assert.deepEqual(await (await me({ 'X-Small-Session': session, 'X-Small-Workspace': 'w-lab' })).json(), { email: 'owner@team.test', org: 'w-lab', orgName: 'Lab' });
@@ -149,7 +150,7 @@ test('production GET /api/me answers who is signed in with reads only; GET /api/
   assert.ok(sql.length && sql.every(text => /^\s*SELECT/i.test(text)), sql.join(' | '));
   sql.length = 0;
   await production.fetch(new Request('https://small-cp.test/api/apps', { headers: { 'X-Small-Session': session } }), env, {});
-  assert.match(sql[0], /^UPDATE runs/, 'GET /api/apps sweeps first: why the dev worker no longer asks it');
+  assert.match(sql.find(text => !/FROM users/.test(text)), /^UPDATE runs/, 'GET /api/apps sweeps first (after the session check): why the dev worker no longer asks it');
 });
 
 test('dev identity asks GET /api/me, and falls back to two reads while production does not have it yet', async () => {
