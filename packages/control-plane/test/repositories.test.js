@@ -88,6 +88,20 @@ test('repository chat runs Auto as claude-opus-5 with fallback, and a picked key
   for(const model of [undefined,'sonnet-5','gpt-5'])await(await f.send('ask',{message:'Hi',...(model?{model}:{})})).text();
   assert.deepEqual(sent,[{host:'api.anthropic.com',model:'claude-opus-5',fallbacks:'default'},{host:'api.anthropic.com',model:'claude-sonnet-5',fallbacks:undefined},{host:'api.anthropic.com',model:'claude-opus-5',fallbacks:'default'}]);
 });
+// models-4: repository asks and course authoring reach the dev worker through
+// /api/repositories before its owner gate, so repositoriesFetch applies it itself.
+test('subscription mode: only the owner may ask or author courses on a repository, and course model actions get 503',async t=>{
+  const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});const hosts=[];
+  Object.assign(f.env,{SUBSCRIPTION_ONLY:'true',SUBSCRIPTION_OWNER_EMAIL:'owner@test',SUBSCRIPTION_BRIDGE_URL:'https://bridge.test',SUBSCRIPTION_BRIDGE_TOKEN:'t',ANTHROPIC_API_KEY:'paid'});
+  globalThis.fetch=async url=>{hosts.push(new URL(url).host);return Response.json({billing:'claude-subscription',content:[{type:'text',text:'ok'}],stop_reason:'end_turn'});};
+  const member={'x-email':'viewer@test'};
+  assert.equal((await f.send('ask',{message:'Hi'},member)).status,403);
+  for(const action of ['brief','draft'])assert.equal((await f.send('learn-course',{action,revision:0},member)).status,403,action);
+  for(const action of ['draft','generate','revise_section'])assert.equal((await f.send('learn-course',{action,revision:0})).status,503,action);
+  assert.deepEqual(hosts,[]);
+  await(await f.send('ask',{message:'Hi'})).text();
+  assert.deepEqual(hosts,['bridge.test']);
+});
 test('graph answers stream an exact view and retain it with the saved answer',async t=>{
   const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});let calls=0;
   globalThis.fetch=async()=>Response.json(++calls===1?{content:[{type:'tool_use',id:'path',name:'find_connection_path',input:{from:'Model',to:'forward'}}]}:{content:[{type:'text',text:'Model contains forward (EXTRACTED).'}],stop_reason:'end_turn'});

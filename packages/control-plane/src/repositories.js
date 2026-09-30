@@ -9,6 +9,7 @@ import { readArxivPaper, paperDocument } from './arxiv.js';
 import { paperSelectionImage } from './learn-preview-review.js';
 import { isUploadedMediaId, uploadedMediaAsImage } from './learn-media.js';
 import { paperIdentity, PAPER_PAGE_LIMIT } from './learn-paper.js';
+import { subscriptionOwnerRefusal, subscriptionCourseRefusal } from './subscription-transport.js';
 import { FIND_VIDEO_MOMENTS_TOOL, SHOW_VIDEO_TOOL, VIDEO_SYSTEM, validateShowVideo, findVideoMoments } from './learn-youtube.js';
 
 const json=(body,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store'}});
@@ -133,6 +134,11 @@ export async function repositoriesFetch(req,env,ctx){
     if(!match)return json({error:'Not found'},404);
     const row=await db.prepare('SELECT * FROM repository_apps WHERE org=? AND name=?').bind(user.org,match[1]).first();if(!row)return json({error:'Repository not found in this workspace'},404);
     const app=repositoryApp(row,user),action=match[2];
+    // Dev subscription mode: the dev worker routes these here before its own owner gate.
+    if(env.SUBSCRIPTION_ONLY==='true'&&req.method==='POST'&&(action==='ask'||action==='learn-course')){
+      const refused=subscriptionOwnerRefusal(env,user)||(action==='learn-course'&&subscriptionCourseRefusal(env,(await req.clone().json().catch(()=>null))?.action));
+      if(refused)return refused;
+    }
     if(!action)return req.method==='GET'?json(app):json({error:'Repository updates use the refresh action'},405);
     if(['snapshot'].includes(action)&&req.method!=='GET'||['file','ask'].includes(action)&&req.method!=='POST')return json({error:'Method not allowed'},405);
     if(action==='refresh'){
