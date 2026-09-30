@@ -46,9 +46,12 @@ const html = (body, status = 200, headers = {}) =>
     headers: { 'Content-Type': 'text/html;charset=utf-8', ...headers },
   });
 
-// Test/dev bypasses (echoed login code, dev sign-in link, /test/*) need SMALL_ENV test or dev
-// AND their secret. Any other SMALL_ENV, including none, is production: fail closed.
+// Test/dev bypasses (/test/*) need SMALL_ENV test or dev AND their secret. Any other SMALL_ENV,
+// including none, is production: fail closed.
 const testMode = (env) => env.SMALL_ENV === 'test' || env.SMALL_ENV === 'dev';
+// Echoing a login code or sign-in link hands a session for any email to whoever asks, so it is
+// SMALL_ENV=test only. A public dev control plane (rabbit-hole-cp-dev) mints through /test/session.
+const echoesLogin = (env) => env.SMALL_ENV === 'test' && !!env.TEST_BYPASS_SECRET;
 
 // false when there is no provider or the send fails/throws. Never logs the body - it holds codes and links.
 async function sendEmail(env, to, subject, text) {
@@ -226,8 +229,8 @@ async function apiLogin(req, env) {
   const challenge = await sign({ t: 'challenge', id, exp: t + 600 }, env.MASTER_KEY);
   const sent = await sendEmail(env, email, `small deploy login code: ${code}`, `Your small deploy login code is ${code}\nIt expires in 10 minutes.`);
   if (sent) return json({ challenge });
-  // Echoing the code is an auth bypass - only on test/dev instances (SMALL_ENV test|dev plus TEST_BYPASS_SECRET).
-  if (testMode(env) && env.TEST_BYPASS_SECRET) return json({ challenge, devCode: code, warning: 'test instance - code echoed' });
+  // Echoing the code is an auth bypass - only on test instances (SMALL_ENV test plus TEST_BYPASS_SECRET).
+  if (echoesLogin(env)) return json({ challenge, devCode: code, warning: 'test instance - code echoed' });
   // Undelivered: drop the row. Best effort - its id was never handed out, so a leftover row is unusable anyway.
   try { await env.DB.prepare('DELETE FROM cli_login_challenges WHERE id = ?').bind(id).run(); } catch {}
   return json({ error: CLI_LOGIN_UNAVAILABLE }, 503);
@@ -2299,7 +2302,7 @@ async function loginPage(req, env, baseUrl) {
     const link = `${baseUrl}/auth?token=${encodeURIComponent(magic)}`;
     const sent = await sendEmail(env, email, 'Your small deploy sign-in link', `Sign in: ${link}\nExpires in 15 minutes.`);
     if (sent) return html(`<h2>Check your inbox</h2><p>We sent a sign-in link to <b>${email}</b>.</p>`);
-    if (testMode(env) && env.TEST_BYPASS_SECRET) return html(`<h2>Test instance</h2><p>Dev sign-in link:</p><p><a href="${link}">${link}</a></p>`);
+    if (echoesLogin(env)) return html(`<h2>Test instance</h2><p>Dev sign-in link:</p><p><a href="${link}">${link}</a></p>`);
     return html("<p>We couldn't send a sign-in email right now. Try again in a few minutes.</p>", 503);
   }
   return html(

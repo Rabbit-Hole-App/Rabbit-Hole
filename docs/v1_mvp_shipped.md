@@ -56,9 +56,10 @@ Deviations from SCOPE.md, chosen deliberately (see memory/small-deploy-decisions
   the whole domain; `private` admits owner + shared members only.
 - Container: refuses everything without `X-Small-Proxy: <per-app secret>` — a
   leaked fly.dev URL answers 403.
-- **Test instance**: SMALL_ENV `test` or `dev` + TEST_BYPASS_SECRET set, so when
-  email can't be sent, login codes and magic links are echoed inline, and
-  `/test/session` mints sessions for the integration tests. Any other SMALL_ENV
+- **Test instance**: SMALL_ENV `test` or `dev` + TEST_BYPASS_SECRET set, so
+  `/test/session` mints sessions for the integration tests. Only SMALL_ENV `test`
+  also echoes login codes and magic links inline when email can't be sent; `dev`
+  (the public rabbit-hole-cp-dev) returns 503 there. Any other SMALL_ENV
   (small-cp sets `production`) ignores the bypass secret; echo paths return 503.
 
 ## Daily commands

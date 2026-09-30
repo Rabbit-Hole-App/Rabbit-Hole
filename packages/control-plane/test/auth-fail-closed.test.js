@@ -150,15 +150,29 @@ test('production with a working provider: web says Check your inbox, CLI returns
 for (const mode of ['test', 'dev']) {
   const env = { ...BASE, SMALL_ENV: mode, TEST_BYPASS_SECRET: SECRET, SMALL_TEST_BYPASS: SECRET };
 
-  test(`SMALL_ENV=${mode} + secret keeps the bypasses: devCode, dev link, /test/session, /test/watch, mock`, async (t) => {
-    provider(t, 'ok');
-    const cli = JSON.parse((await cliLogin(withDb(t, env))).text);
-    assert.equal(cli.devCode, CODE);
-    assert.ok(cli.challenge);
+  // The login echo (devCode, dev link) is SMALL_ENV=test only: a public dev control plane
+  // (rabbit-hole-cp-dev) must not hand any caller a sign-in for any email. Dev mints sessions
+  // only through the secret-gated /test/session.
+  const echoes = mode === 'test';
+  test(`SMALL_ENV=${mode} + secret keeps /test/session, /test/watch and the mock; ${echoes ? 'echoes devCode and the dev link' : 'login still fails closed without email'}`, async (t) => {
+    const sent = provider(t, 'ok');
+    const cli = await cliLogin(withDb(t, env));
+    if (echoes) {
+      assert.equal(JSON.parse(cli.text).devCode, CODE);
+      assert.ok(JSON.parse(cli.text).challenge);
+    } else {
+      assert.equal(cli.res.status, 503);
+      assert.ok(!cli.text.includes(CODE) && !cli.text.includes('devCode') && !cli.text.includes('challenge'), cli.text);
+    }
 
     const web = await webLogin(env);
-    assert.equal(web.res.status, 200);
-    assert.ok(web.text.includes('/auth?token='), web.text);
+    if (echoes) {
+      assert.equal(web.res.status, 200);
+      assert.ok(web.text.includes('/auth?token='), web.text);
+    } else {
+      assert.equal(web.res.status, 503);
+      assertNoAuthMaterial(web, sent);
+    }
 
     const s = await call(post('/test/session', { email: EMAIL, secret: SECRET }), env);
     assert.equal(s.res.status, 200);
