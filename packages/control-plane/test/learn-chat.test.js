@@ -6,7 +6,7 @@ import { SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, WIKI_S
 import { validateVideoContext, FIND_VIDEO_MOMENTS_TOOL, SHOW_VIDEO_TOOL, VIDEO_SYSTEM, validateShowVideo } from '../src/learn-youtube.js';
 import { isUploadedPaperId, uploadedPaperAsDocument, paperIdentity, PAPER_PAGE_LIMIT } from '../src/learn-paper.js';
 import { isUploadedMediaId } from '../src/learn-media.js';
-import { LEARN_SYSTEM, validateLessonSnapshot, validateOutline, renderOutline } from '../src/learn-context.js';
+import { LEARN_SYSTEM, LEARN_SNAPSHOT_SYSTEM, validateLessonSnapshot, validateOutline, renderOutline } from '../src/learn-context.js';
 import { canvasApp, canvasAskSeam } from '../src/canvases.js';
 import { VIDEO_SHOWN_NOTE, WIKI_SHOWN_NOTE } from '../src/agents/learn-chat.js';
 import { ATTACHMENT_LIMIT, attachmentBlocks, readAskRequest, askStream } from '../src/ask.js';
@@ -50,6 +50,7 @@ const deps = {
   randomHex,
   ASK_TOOLS: [],
   LEARN_SYSTEM,
+  LEARN_SNAPSHOT_SYSTEM,
   validateLessonSnapshot,
   validateOutline,
   renderOutline,
@@ -252,7 +253,7 @@ test('selection questions authorize app access, disable tools, and use the tutor
   const req=()=>request({scope:{app:'counter'},message:'Why is this 0.5?',lesson_snapshot:snapshot});
   assert.equal((await handlers.apiAsk(req(),env,{},owner,'learn')).status,200);
   const answer=env.answers[0];
-  assert.equal(answer.toolOpts,null); assert.equal(answer.system,LEARN_SYSTEM);
+  assert.equal(answer.toolOpts,null); assert.equal(answer.system,LEARN_SNAPSHOT_SYSTEM);
   assert.equal(JSON.parse(answer.context).target.objectId,'midpoint');
   env.apps.counter.canView=false;
   assert.equal((await handlers.apiAsk(req(),env,{},owner,'learn')).status,403);
@@ -276,7 +277,7 @@ test('general lesson questions include only visible objects and use the protecte
   const req = () => request({ scope: { app: 'counter' }, message: 'Explain this step again', lesson_snapshot: snapshot });
   assert.equal((await handlers.apiAsk(req(), env, {}, owner, 'learn')).status, 200);
   assert.equal(env.answers[0].toolOpts, null);
-  assert.equal(env.answers[0].system, LEARN_SYSTEM);
+  assert.equal(env.answers[0].system, LEARN_SNAPSHOT_SYSTEM);
   assert.equal(JSON.parse(env.answers[0].context).lessonContext.currentStage, 'equation');
   env.apps.counter.canView = false;
   assert.equal((await handlers.apiAsk(req(), env, {}, owner, 'learn')).status, 403);

@@ -18,9 +18,10 @@ import { challengePrompt } from '../../web/src/learn-grade-prompts.js';
 const fingerprint = text => createHash('sha256').update(text).digest('hex').slice(0, 16);
 const PINS = {
   teachingPolicy: '874f9413c8f3bfb0',
-  chat: '55dbbad2b89ae532', // canvas seam and app asks, and grading through them
-  chatOutline: '5c17dbe712fdf54b',
-  repository: 'e574855d5f9b3471',
+  chat: '8d62639c40d72726', // canvas seam and app asks, and grading through them
+  chatSnapshot: 'a7388e187fdeb522', // an app ask carrying a lesson_snapshot (legacy selection contract)
+  chatOutline: '9437972a8114e94e',
+  repository: 'bc79880546a95fe5',
   artifact: '870e84a3aa127657',
   board: 'a219807ee7666961',
   boardReview: '5a2e1cab79b26025',
@@ -211,6 +212,28 @@ test('chat prompts offer no canvas operations and say chat cannot draw or genera
   for (const body of [await chat(t, { message: 'Draw it' }), await chat(t, { message: 'Draw it' }, { canvas: false }), await repositoryChat(t, { message: 'Draw it' })]) {
     for (const claim of ['Explain on canvas', 'Canvas operations are available', 'structured drawings', 'generate_3d_animation', 'interactive_3d']) assert.equal(body.system.includes(claim), false, claim);
     assert.ok(body.system.includes(CANNOT_GENERATE));
+  }
+});
+
+// prompts-3: only a lesson_snapshot request carries canvas geometry, render
+// state and a null target; every other request is told what it actually sees.
+const SNAPSHOT_SENTENCES = [
+  'Use the supplied semantic snapshot, page explanation, and related objects to explain the lesson.',
+  'Canvas page bounds are display positions, never mathematical coordinates. Treat each object\'s original text as its content. Drawing progress and partially displayed text are rendering state: never mention, describe or reason about them unless the learner asks about the drawing itself.',
+  'When target is null, answer about the current lesson without assuming the learner selected anything. Teach from the current stage and what is already displayed; do not claim unfinished objects or later steps have been shown.',
+  'Camera and animation state in selected threeD context are current learner state.',
+];
+const SEES = 'You see only what this request supplies:';
+test('a canvas, app or repository ask is told what it sees; only a lesson snapshot ask gets the snapshot sentences', async t => {
+  for (const body of [await chat(t, { message: 'What is this?' }), await chat(t, { message: 'What is this?' }, { canvas: false }), await repositoryChat(t, { message: 'What is this?' })]) {
+    assert.ok(body.system.includes(SEES));
+    for (const sentence of SNAPSHOT_SENTENCES) assert.equal(body.system.includes(sentence), false, sentence);
+  }
+  const snapshotAsk = await chat(t, { message: 'Why 0.5?', lesson_snapshot: lesson }, { canvas: false });
+  assert.equal(fingerprint(snapshotAsk.system), PINS.chatSnapshot);
+  for (const body of [snapshotAsk, await repositoryChat(t, { message: 'Why 0.5?', lesson_snapshot: lesson })]) {
+    includesAll(body.system, SNAPSHOT_SENTENCES);
+    assert.equal(body.system.includes(SEES), false);
   }
 });
 

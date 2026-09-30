@@ -1,6 +1,6 @@
 import { arxivId, readArxivPaper, paperDocument } from './arxiv.js';
 import { canvasSeed } from './canvas-conversation.js';
-import { LEARN_SYSTEM, validateLessonSnapshot, validateOutline, renderOutline } from './learn-context.js';
+import { LEARN_SYSTEM, LEARN_SNAPSHOT_SYSTEM, validateLessonSnapshot, validateOutline, renderOutline } from './learn-context.js';
 import { paperSelectionImage } from './learn-preview-review.js';
 import { isUploadedPaperId, uploadedPaperAsDocument, paperIdentity, PAPER_PAGE_LIMIT } from './learn-paper.js';
 import { isUploadedMediaId, uploadedMediaAsImage } from './learn-media.js';
@@ -1230,7 +1230,7 @@ ${renderOutline(body.outline)}`;
   // it goes through learnMomentsDb (learn-storage.js), LEARN_DB on dev for every app kind.
   return askStream(seam ? { ...env, DB: db } : env, context, history, q, async (full) => {
     await db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)').bind(threadId, 'assistant', full).run();
-  }, { threadId, ...(note ? { note } : {}) }, extraBlocks, toolOpts, modelId, conversation === 'learn' ? null : user.org, conversation === 'learn' ? LEARN_SYSTEM : undefined, research);
+  }, { threadId, ...(note ? { note } : {}) }, extraBlocks, toolOpts, modelId, conversation === 'learn' ? null : user.org, conversation === 'learn' ? (lessonSnapshot ? LEARN_SNAPSHOT_SYSTEM : LEARN_SYSTEM) : undefined, research);
 }
 
 // ---------- Slack adapter (transport for Ask) ----------

@@ -1,4 +1,4 @@
-export { LEARN_SYSTEM } from './agents/learn-chat.js';
+export { LEARN_SYSTEM, LEARN_SNAPSHOT_SYSTEM } from './agents/learn-chat.js';
 
 export function validateLessonSnapshot(value) {
   const text = (s, max = 1000) => typeof s === 'string' && s.length > 0 && s.length <= max;
