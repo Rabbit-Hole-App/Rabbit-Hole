@@ -555,7 +555,7 @@ LearnerTurn
   current_location:
     concept: attention
     depth: guided
-    current_card: attention-mask-step
+    current_card: depth-attention-guided   # authored card id (evidence.card)
   prior_exposure: [query/key/value, q·k scores, scaling, causal mask]
   evidence:
     - failed causal-mask check twice
@@ -680,9 +680,16 @@ understands is recorded only as T1 evidence states (understood · uncertain · m
 prerequisite_gap · not_yet_observed), per concept and claim, never as a depth.
 
 **Stable semantic IDs**
-- Card: `scene.id` — `c11-causal-mask`, `depth-attention-deep`, … Every card module also exports
-  `plan` (concept, objective, prerequisites), `sources`, `evidence`, `reviewStates` and, where it
-  has practice, `activity`.
+- Card: two identifiers, never interchangeable. `scene.id` is the runtime scene and board-block
+  identity; `evidence.card` is the authored card identity that relationships and transitions use.
+  On deep-dive cards they normally differ (`scene.id` `nanogpt-c11-causal-mask`, `evidence.card`
+  `c11-causal-mask`; c06 is the exception, both `c06-tokenizer`). On depth cards they are equal
+  (`depth-attention-deep`).
+- Card metadata: every card module exports `scene`, `sources` and `evidence` (including
+  `evidence.concept`), most export `reviewStates`, and cards with practice export `activity`. Some
+  authored cards also expose `plan` (concept, objective, prerequisites); the depth cards do not.
+  `evidence` and the `conceptId`s on scene objects are the more broadly available semantic
+  metadata.
 - Sub-card: the six paged Deep modules export `partIds` (e.g. Attention Deep: `shapes`,
   `causal-mask`, `memory`, `scaling`). `partIndex(card, id)` returns the pager index, or null →
   open the whole card at its default part (a fallback, never an error).
@@ -707,8 +714,9 @@ Card practice is graded deterministically by a closed predicate set (`set_equals
 `choice_equals`, `projection_zero`); no model grades card practice, and "not ready" is distinct from
 a failed attempt. This is J4's deterministic rung, and card practice asks about a case the card
 does not draw. How a card attempt maps to a T1 record (e.g. `demonstrated_in_transfer`) is for the
-Tutor Agent to settle against T19; attempts carry no timestamp or concept tag yet (the card's
-`plan.concept` is the nearest key).
+Tutor Agent to settle against T19; attempts carry no timestamp or concept tag yet (the nearest keys
+are the card's authored `evidence.card` and the `conceptId`s on its scene objects; `plan.concept`
+only where a card has a plan).
 
 The agent-facing serializers are `describeAnimation` (packages/web/src/scene-describe.js) and
 `describeActivity` (packages/web/src/scene-activity.js): bounded, learner-visible wording, hidden

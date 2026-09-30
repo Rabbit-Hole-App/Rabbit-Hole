@@ -37,7 +37,7 @@ is a **deferred integration** question.
 | X1 | T9, T12, Runtime loop ("explicit /deeper with a known target → move deeper") vs the Cards-runtime section | The spec treats `/deeper` and `/simplify` as depth moves; today they are slash prompts that generate new content and never navigate the authored ladder. | Decide in §7 (D5) whether they navigate authored cards when a transition exists. Until then, the Runtime-loop bypass is future behaviour. |
 | X2 | T1 `result: pass \| fail \| partial \| misconception \| non_attempt` vs card `attemptLog` `result: passed \| failed` | There is no defined mapping from a card attempt to a T1 record, and no rule for whether card practice counts as `demonstrated_in_transfer`. | Settle in §2 (E6). |
 | X3 | Resolver `LearnerTurn.intent { … navigate, derive, implement … }` vs the T2 move taxonomy | Intents and moves are two vocabularies with no mapping. `navigate` has no matching move, and there is no navigation runtime. | Settle in §1 (R9). |
-| X4 | Resolver example `current_card: attention-mask-step` | Not a real id. Real ids are `scene.id`, for example `c11-causal-mask` or `depth-attention-guided`. | **Editorial / cleanup.** Fix the example when the spec is next edited. |
+| X4 | Card identity: runtime `scene.id` vs authored `evidence.card` | The docs blurred the two identifiers: the Resolver example used a card id that does not exist (`attention-mask-step`), and the spec and this agenda called the authored id `c11-causal-mask` a `scene.id`. On deep-dive cards they differ: runtime `nanogpt-c11-causal-mask` ↔ authored `c11-causal-mask`. Relationships and transitions use the authored `evidence.card`. | **EDITORIAL — corrected by docs/runtime identity clarification** (adaptive-tutor-v1.md "Stable semantic IDs" and the Resolver example). |
 | X5 | Ownership table and T0 | Written against the pre-integration worktrees (smart-home, smart-parallel, "merged Learn/cards branch"). After the baseline, the Tutor branches from `main` / `rabbit-hole-pre-tutor-baseline`, and some T0 items are already satisfied by final integration. | **Editorial / cleanup.** Re-state T0 as a checklist against the baseline when the spec is next edited. |
 | X6 | T8 prerequisite branching ("temporary softmax branch → return") vs future `/dive` child canvases | It is not decided whether a T8 branch is the same thing as a `/dive` child canvas or a lighter in-place detour. | Settle in §8 (N1). |
 | X7 | learn-artifact-generation.md §3 says the Resolver contract lives "on feat/canvas-block-conversations until merge" | Stale pointer: the contract is now on `feature/final-integration`. | **Editorial / cleanup.** |
@@ -63,7 +63,8 @@ permanent labels; explicit request outranks inference; evidence per concept and 
   every field is a contract other agents (Motion Director, practice planner) will depend on; B is
   cheaper to change but may starve prerequisite recovery.
 - **R2 [before coding]** — Which fields are **deterministic** from runtime state? Candidates:
-  `target` (selection, chip, card `scene.id`, sub-card part id), `current_depth` (from the card's
+  `target` (selection, chip, the card's runtime `scene.id` and authored `evidence.card`, sub-card
+  part id), `current_depth` (from the card's
   depth), `recent_teaching_moves` (from T18 planner outputs), `source_context` (the card's
   `sources`), and the parts of `evidence_context` that come from `attemptLog`.
 - **R3 [before coding]** — Which fields need **model inference**? Candidates: `intent`,
@@ -128,7 +129,8 @@ evaluator `uncertain`/`error` results are stored but never settle a state on the
   **B** a pass is `demonstrated_here` unless the practice is tagged as transfer; **C** tag each
   card's practice once (transfer or recognition) in its card data. Tradeoff: A is simplest but
   over-credits; C is precise but touches frozen card data (a later Cards change, not now). Also:
-  which claim does a card attempt evidence? The nearest key today is `plan.concept`.
+  which claim does a card attempt evidence? The nearest keys today are the authored `evidence.card`
+  and the `conceptId`s on the card's scene objects (`plan.concept` exists only on some cards).
 - **E7 [before coding]** — JEV to T1: how do per-idea checks (idea_0…, misconception, non_attempt)
   become claim-level records? One record per check, or one per response with check detail inside?
 - **E8** — The `partial` result: when does the ladder produce it, and how does it aggregate?
@@ -275,7 +277,8 @@ code sample/exercise, whiteboard, paper/source; later motion, visual summary and
 - **T-2** — When is a text-only answer right (a factual question, `understood` evidence, explicit
   request)?
 - **T-3** — Reuse detection: how does the Tutor know an existing artifact already teaches this
-  (card `plan.concept`, relationships, or the canvas outline)?
+  (the card's concept metadata — `evidence.concept`, object `conceptId`s, `plan.concept` where
+  present — its relationships, or the canvas outline)?
 - **T-4** — Latency and cost ordering: a fixed order, or a score from T3's economics fields?
 - **T-5** — Interactive graph versus motion, and notebook versus explanation: decision rules, or
   golden-trace examples only?
