@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Loader2, X } from 'lucide-react';
+import { FileText, FolderGit2, Loader2, MessageCircleQuestion, SquareDashed, X } from 'lucide-react';
 import { executeCommand, prepareCommand } from './agent/commands.js';
 import ConfirmCard from './agent/ConfirmCard.jsx';
 import { learnAction } from './agent/learn-hook.js';
@@ -13,6 +13,7 @@ const PLANNED = connectionsFor().filter((c) => c.availability === 'planned');
 // ponytail: every connection source is planned (connections.js), so Sources offers PDF upload only.
 // Flip when a provider can supply sources and canSubmit (start.js) accepts it.
 const connectionSources = false;
+const PATH_ICONS = { repository: FolderGit2, sources: FileText, question: MessageCircleQuestion, blank: SquareDashed };
 const LOCAL = 'Only you can see this canvas. Its content stays in this browser.';
 
 // T02 §5: one portaled dialog with four paths, hosted once by StartHost (main.jsx) on
@@ -122,7 +123,7 @@ export default function StartDialog({ ctx, initial, onClose }) {
         <p className="pb-3 text-xs text-ink-2">Start from a repository, sources, a question, or a blank canvas.</p>
         <Tabs value={path} onValueChange={(p) => { setPath(p); setError(''); }}>
           <TabsList pill className="max-w-full overflow-x-auto">
-            {PATHS.map(([id, label]) => <TabsTrigger key={id} pill value={id}>{label}</TabsTrigger>)}
+            {PATHS.map(([id, label]) => { const Icon = PATH_ICONS[id]; return <TabsTrigger key={id} pill value={id} className="gap-1.5"><Icon size={14} strokeWidth={1.75} aria-hidden="true" />{label}</TabsTrigger>; })}
           </TabsList>
           <TabsContent value="repository">
             <form onSubmit={onRepository} className="pt-4">
