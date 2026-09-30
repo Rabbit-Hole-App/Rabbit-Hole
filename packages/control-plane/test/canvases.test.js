@@ -169,3 +169,10 @@ test('canvas routes match only real canvas slugs and Learn history; canvas chat 
   await authorizedBoardApp(new Request('https://dev.test/api/learn/board'), f.env, 'canvas-painter').catch(() => {});
   assert.ok(f.seen.includes('GET /api/apps/canvas-painter'), f.seen.join());
 });
+
+test('a canvas cannot be created inside another person\'s project', async t => {
+  const f = fixture(t);
+  const refused = await f.send('POST', '/api/canvases', { title: 'Theirs', project: 'repo-example' }, colleague);
+  assert.equal(refused.status, 404);
+  assert.equal((await f.send('POST', '/api/canvases', { title: 'Mine', project: 'repo-example' })).status, 201);
+});

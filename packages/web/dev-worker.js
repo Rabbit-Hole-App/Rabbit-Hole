@@ -1,5 +1,5 @@
 import { sceneFetch } from '../control-plane/src/learn-scene.js';
-import { repositoriesFetch, repositoryIdentity, repositoryApp } from '../control-plane/src/repositories.js';
+import { repositoriesFetch, repositoryIdentity, ownerRepositories } from '../control-plane/src/repositories.js';
 import { canvasesFetch, canvasRoute, ownerCanvases, refuseCanvasAsk, refuseLiveLearnAsk, canvasAskSeam } from '../control-plane/src/canvases.js';
 export { RepositoryImports } from '../control-plane/src/repositories.js';
 export { LearnScenes } from '../control-plane/src/learn-scene.js';
@@ -41,8 +41,7 @@ export default {
     if (path === '/api/apps' && req.method === 'GET') {
       const catalog = await repositoryIdentity(req, env);
       if (catalog instanceof Response) return catalog;
-      const { results } = await env.LEARN_DB.prepare('SELECT * FROM repository_apps WHERE org=? ORDER BY created_at DESC').bind(catalog.org).all();
-      return Response.json({ ...catalog, apps: [...catalog.apps, ...results.map(row => repositoryApp(row, catalog)), ...(await ownerCanvases(env, catalog))] }, { headers: { 'Cache-Control': 'no-store' } });
+      return Response.json({ ...catalog, apps: [...catalog.apps, ...(await ownerRepositories(env, catalog)), ...(await ownerCanvases(env, catalog))] }, { headers: { 'Cache-Control': 'no-store' } });
     }
     const repositoryRoute = path.match(/^\/api\/apps\/(repo-[a-z0-9-]+)(\/learn-course)?$/);
     if (repositoryRoute) {
