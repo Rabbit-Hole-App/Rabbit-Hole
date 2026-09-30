@@ -301,3 +301,395 @@ further architectural approval.
 selection, learner-state routing and likely-next-tool prediction. This layer
 only answers: given a request for tool family X, can Rabbit Hole safely
 generate a valid artifact of primitive Y?
+
+## Deferred: `/motion`, the educational motion explainer
+
+Status: deferred documentation only. The full direction is in
+[learn-video-motion-generation.md](learn-video-motion-generation.md). This
+change does not implement any of these:
+- the `/motion` command
+- the Motion Director agent
+- the MotionBrief schema
+- the Motion Author
+- renderer integration
+- paid render
+- Tutor routing
+
+**`/motion` is the future canonical slash command** for Rabbit Hole's
+code-driven educational motion explainers. Do not use `/video` for this
+capability. `/video` may later cover generic video media, search or
+provider-generated video. `/motion` means one specific thing: an animated
+teaching artifact that is pedagogically planned, code-driven and
+deterministic.
+
+```
+/motion explain softmax
+/motion give me an intuition-first animation for attention
+/motion turn this card into a 30-second explainer
+/motion show visually why gradient descent works
+```
+
+### The raw learner prompt never goes straight to the authoring model
+
+"Design a video that explains softmax" is not enough as a production prompt.
+A dedicated **Motion Director** turns the learner's request plus the learning
+context into a structured production brief:
+
+```
+learner
+  ↓
+/motion "explain softmax"
+  ↓
+gather learning context
+  ↓
+MOTION DIRECTOR
+  ↓
+validated MotionBrief
+  ↓
+MOTION AUTHOR
+  ↓
+deterministic animation code/spec
+  ↓
+preview render
+  ↓
+visual QA + pedagogical QA
+  ↓
+optional repair
+  ↓
+final render
+```
+
+The Motion Director and the Motion Author are different responsibilities.
+
+### 1. Motion Director
+
+The Motion Director does not write Remotion code. It turns an underspecified
+learner request into a high-quality educational motion-design brief.
+
+**Input:** `/motion explain softmax`, plus whatever Rabbit Hole context is
+available:
+- the current card and concept
+- the current rabbit-hole depth
+- the learner's question
+- source references
+- codebase context
+- equations and concepts already introduced or taught
+- the learner's current evidence/state, once a Tutor exists
+
+**Example output** (the schema is provisional; do not implement it yet):
+
+```
+MotionBrief
+objective:        Build intuition for Softmax before introducing its formula.
+learner_takeaway: Softmax turns arbitrary scores into positive relative shares
+                  that sum to one.
+teaching_mode:    intuition_first
+duration:         25 seconds
+visual_metaphor:  Four competitors divide one fixed bar of attention.
+causal_sequence:  raw scores → why raw scores cannot directly be probabilities
+                  → exponentiate → sum → divide → probability distribution
+                  → formal equation
+must_show:        scores 2, 1, 0, -1; the negative raw score problem;
+                  exponentiation makes every quantity positive; normalized values
+                  approximately 0.64, 0.24, 0.09, 0.03; probabilities sum to 1;
+                  the final Softmax equation
+must_not_imply:   raw logits are probabilities; Softmax chooses only the maximum;
+                  negative logits receive zero probability
+style:            playful educational motion design, warm paper background,
+                  flat semantic colors, no gratuitous glow/gradient effects
+progression:      intuition → mechanism → notation → formula
+sources:          [...]
+```
+
+### 2. Direction, not prompt expansion
+
+The Motion Director is not "raw prompt + make this prettier". It makes real
+pedagogical decisions:
+- What exactly should the learner understand afterward, and what do they
+  already know?
+- Should it start with intuition, mechanism, math, code or a story?
+- Which visual metaphor helps, and where does it stop being exact?
+- Which facts must be source-grounded?
+- What moves, what stays constant, and what is the causal sequence?
+- Which quantities must visibly change?
+- When do the terminology and the formula appear?
+- What is the final takeaway?
+
+That is the difference between prompt enhancement and educational direction.
+
+### 3. Context by default
+
+`/motion` is contextual. Invoked on a selected card ("select the Softmax card,
+`/motion explain this`"), that semantic object is the Director's primary
+target. It may receive:
+- concept ID
+- the card's objective
+- sources
+- equations
+- code references
+- parent concepts
+- the current depth
+- concepts already taught
+- the current canvas/rabbit-hole context
+
+Build a bounded motion-context package. Never dump the whole canvas or
+repository into the prompt.
+
+### 4. Tutor relationship
+
+- **Tutor** decides WHETHER an animation is the right teaching move.
+- **Motion Director** decides HOW that animation should teach the concept.
+- **Motion Author** decides HOW to implement and render the approved brief.
+
+The Tutor never writes Remotion prompts or animation code. `/motion` also
+works without a Tutor: when a learner invokes it by hand, the Motion Director
+starts directly.
+
+### 5. Model roles
+
+- **Motion Director:** reasoning, pedagogy, storyboard.
+- **Motion Author:** high-agency visual implementation.
+
+A strong coding/creative model such as Opus 5.5 may serve as Motion Author.
+Model names are never hard-coded into the artifact contract: provider and
+model selection belong in configuration.
+
+### 6. The author prompt is generated from the MotionBrief
+
+The request the Motion Author receives is much richer than the learner's.
+`/motion explain softmax` ultimately becomes something like:
+
+```
+Create a 25-second educational motion explainer.
+Learning objective: Make Softmax intuitive before showing the equation.
+Audience state: Learner understands scores but has not yet learned normalization.
+Primary visual metaphor: Four competitors sharing one fixed unit of attention.
+Teaching sequence:
+1. Show arbitrary scores 2, 1, 0, -1.
+2. Demonstrate why these cannot directly be probabilities.
+3. Transform them with exponentiation.
+4. Show the positive quantities.
+5. Add them.
+6. Divide each by the total.
+7. Recover 0.64, 0.24, 0.09, 0.03.
+8. Show that they sum to 1.
+9. Morph the concrete calculation into the Softmax equation.
+Important conceptual constraints: [...]
+Visual direction: [...]
+Source truth: [...]
+Build a timecoded storyboard first. Then implement with the allowlisted renderer.
+Render a low-resolution preview. Inspect representative frames.
+Repair visual/pedagogical defects once.
+```
+
+This author brief is internal implementation context. The learner never has
+to write it.
+
+### 7. The storyboard is a first-class artifact
+
+The flow is learner request → MotionBrief → storyboard → preview → final
+render, and the storyboard comes before any expensive rendering.
+
+Each beat records:
+- `start_time`, `end_time`
+- `pedagogical_role`
+- `visual_state`
+- animation/change
+- narration/caption
+- source grounding
+- transition
+
+Example roles: hook, intuition, problem, analogy, mechanism,
+bridge_to_formalism, notation, formula, implementation, takeaway.
+
+### 8. Intuition-first is an explicit teaching mode
+
+`/motion` is not just "animate this formula". One of its most important modes
+is `intuition_first`:
+
+```
+concrete visual/story
+↓
+causal mechanism
+↓
+technical vocabulary
+↓
+simplified representation
+↓
+notation
+↓
+formula
+```
+
+Other future modes may include `mechanism_first`, `formal_first`,
+`code_walkthrough`, `system_flow` and `spatial_3d`. The enum names are not
+frozen.
+
+### 9. Analogy correctness
+
+A cartoon, story or metaphor comes with an explicit internal mapping:
+
+| Analogy object | Real concept |
+|---|---|
+| competitor | logit/category |
+| score tag | raw logit |
+| share of bar | Softmax probability |
+| whole bar | probability mass = 1 |
+
+The mapping also records where the analogy stops being exact. Pedagogical QA
+checks it.
+
+### 10. Motion Author responsibilities
+
+The Motion Author receives the validated MotionBrief and storyboard. It makes
+implementation-level creative choices:
+- easing
+- composition
+- typography
+- staging
+- camera
+- morph implementation
+- character motion
+- transitions
+- timing refinement
+
+It never silently changes the learning objective, factual content,
+conceptual mapping, required sequence or source-backed claims. If
+implementation reveals a problem with the brief, it returns a structured
+failure or repair request instead of improvising new teaching content.
+
+### 11. Visual creativity stays high
+
+Do not overconstrain the author into template-looking output.
+- **The brief fixes:** truth, pedagogy, the required beats and the semantic
+  invariants.
+- **The author keeps broad freedom over:** visual treatment, timing,
+  choreography, transitions, typography, style and composition.
+
+The rule is strict semantic constraints with loose visual execution, not
+rigid animation templates. The strongest Opus 5.5 examples appear to benefit
+from high creative agency.
+
+### 12. Future `/motion` lifecycle (not implemented)
+
+1. resolve the target and context
+2. the Motion Director creates the brief
+3. validate the brief
+4. generate the storyboard
+5. pick the renderer and estimate the cost
+6. present a proposal if it is paid
+7. the user confirms
+8. the Motion Author implements
+9. render a low-res preview
+10. visual QA
+11. pedagogical QA
+12. at most one repair
+13. final render
+14. insert the result onto the Learn canvas
+
+### 13. Cheap planning vs expensive rendering
+
+`/motion` never starts an expensive render straight away. There are three
+stages:
+- **Planning** (the MotionBrief and storyboard) is cheap.
+- **Preview** (a low-resolution render) may be paid or controlled.
+- **Final** (the full-resolution video) is paid.
+
+Paid stages later follow the Usage/Credits flow: quote → explicit
+confirmation → reserve → render → settle.
+
+### 14. Potential learner-facing UX
+
+`/motion explain softmax` could answer with a compact proposal:
+
+```
+Softmax · 25 sec
+Approach
+Four scores compete for one whole.
+We'll show why raw scores don't work,
+then transform them into probabilities,
+and finish by revealing the equation.
+Style
+Intuition-first · animated diagram/cartoon
+[Create preview]
+```
+
+The internal author prompt is never shown to the learner. Advanced users may
+eventually open **View storyboard**.
+
+### 15. A family command, not one command per animation type
+
+Use `/motion` and let the planner pick the visual and rendering strategy.
+Do not add `/softmax-video`, `/attention-video`, `/cartoon`, `/remotion` or
+`/three-video`.
+
+The registry should eventually keep these four layers apart:
+- the user-visible command family
+- the generation capability
+- the renderer or provider
+- production readiness
+
+### 16. Not the existing `video_generate`
+
+- `video_generate` is a provider-generated video.
+- `motion_explainer` is a code-driven pedagogical animation.
+
+Both may produce MP4s, but they are different artifact capabilities, and
+`/motion` means the second. A future `/video` family could cover media and
+video generation separately if needed.
+
+### 17. Routing principle
+
+The learner states the learning intent ("`/motion explain softmax
+intuitively`"), not the renderer technology ("`/motion --remotion --svg
+--30fps`"). Renderer selection belongs to the system. Advanced controls may
+come later, but they are not the default experience.
+
+### 18. Softmax reference workflow
+
+The successful Softmax storyboard experiment is the quality bar for `/motion`
+planning:
+
+```
+Hook
+→ raw score problem
+→ intuitive normalized shares
+→ morph characters into bars
+→ exponentiate
+→ sum
+→ divide
+→ morph into formula
+→ takeaway
+```
+
+It works because:
+- one metaphor persists throughout
+- visual objects become mathematical objects
+- the negative score problem is surfaced
+- normalization is shown physically
+- the formula arrives after understanding
+
+### 19. Architecture principle
+
+**The learner supplies intent. The Motion Director supplies pedagogical
+direction. The Motion Author supplies visual execution.**
+
+**Do not require learners to become prompt engineers in order to receive
+excellent educational motion design.**
+
+The planner is named the Motion Director, not a "prompt enhancer". The
+architecture is:
+
+```
+user → Motion Director → pedagogical production brief → Motion Author → renderer
+```
+
+not `user → prompt enhancer → model`.
+
+When the Tutor exists, the Tutor decides what teaching move is needed, the
+Motion Director designs that move as an animation, and the Motion Author
+executes it.
+
+### 20. Status
+
+Deferred. This section is documentation only.
