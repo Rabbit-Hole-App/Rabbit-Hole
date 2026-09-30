@@ -9,6 +9,7 @@ import { ArrowUp, AtSign, BookOpen, Check, Copy, Crown, Feather, FileText, Globe
 import { ago, api, navigate, wsHeaders } from './api.js';
 import { colorLine } from './code.jsx';
 import { MathText, tokenizeMath } from './MathText.jsx';
+import { MODEL_CHOICES } from './model-choices.js';
 import { cn, CodeBlock, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
 
 // What the agent may read, per scope - the ⚙ picker mirrors Notion's "My sources".
@@ -22,10 +23,11 @@ const PRIVATE_SOURCE_OPTIONS = {
 };
 const SOURCE_ICON = { log: ScrollText, outputs: Package, runs: Play, requests: Globe, runbook: BookOpen, review: Shield, agent: FileText };
 // model rows carry a strength icon + one-word hint (Opus strongest, Haiku fastest)
-const MODEL_META = { auto: [SlidersHorizontal, 'Picks for you'], 'opus-5': [Crown, 'Most capable'], 'sonnet-5': [Zap, 'Balanced'], 'haiku-4.5': [Feather, 'Fastest'] };
+const MODEL_ICON = { auto: SlidersHorizontal, 'opus-5': Crown, 'sonnet-5': Zap, 'haiku-4.5': Feather };
+const MODEL_META = Object.fromEntries(MODEL_CHOICES.map(({ key, hint }) => [key, [MODEL_ICON[key], hint]]));
 
 // Model picker keys → labels (server holds the allowlist; auto = default).
-const MODELS = [['auto', 'Auto'], ['opus-5', 'Opus 5'], ['sonnet-5', 'Sonnet 5'], ['haiku-4.5', 'Haiku 4.5']];
+const MODELS = MODEL_CHOICES.map(({ key, label }) => [key, label]);
 
 function EvidencePill({ icon: Icon = FileText, children, ...props }) {
   const Tag = props.href ? 'a' : props.onClick ? 'button' : 'span';
