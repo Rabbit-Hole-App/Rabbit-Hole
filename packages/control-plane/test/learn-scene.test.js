@@ -4,6 +4,7 @@ import example from '../../lesson-renderer/example-scene.json' with { type: 'jso
 import { validateScene, sceneCacheKey } from '../src/learn-scene-schema.js';
 import { LearnScenes, sceneFetch } from '../src/learn-scene.js';
 import { validateBoardPlan } from '../src/learn-board.js';
+import { liveRuns } from './live-storage-spy.js';
 
 test('scene schema permits deterministic geometry and rejects scripts, cycles, invalid animation and limits', () => {
   assert.equal(validateScene(example).output, 'glb');
@@ -28,7 +29,7 @@ test('scene cache ignores presentation ids/captions, normalizes key order and in
 function fixture() {
   const data = new Map(), assets = new Map(); let lock = Promise.resolve();
   const state = { id: 'test-scene', storage: { get: async k => structuredClone(data.get(k)), put: async (k, v) => data.set(k, structuredClone(v)), list: async ({ prefix }) => new Map([...data].filter(([k]) => k.startsWith(prefix)).map(([k, v]) => [k, structuredClone(v)])), setAlarm: async () => {} }, blockConcurrencyWhile: fn => { const result = lock.then(fn); lock = result.catch(() => {}); return result; } };
-  const env = { SCENE_WORKER_URL: 'https://renderer.test', SCENE_WORKER_TOKEN: 'secret', RUNS: { put: async (k, bytes) => assets.set(k, bytes), get: async k => assets.has(k) ? { body: assets.get(k), size: assets.get(k).byteLength } : null } };
+  const env = { SCENE_WORKER_URL: 'https://renderer.test', SCENE_WORKER_TOKEN: 'secret', LEARN_MEDIA: { put: async (k, bytes) => assets.set(k, bytes), get: async k => assets.has(k) ? { body: assets.get(k), size: assets.get(k).byteLength } : null }, RUNS: liveRuns() };
   return { data, assets, state, env, actor: new LearnScenes(state, env) };
 }
 const request = (body = {}) => new Request('https://dev.test/api/learn/scene?app=demo', { method: 'POST', body: JSON.stringify({ operation: example, lessonId: 'lesson', page: 'freeform', confirmed: true, ...body }) });
@@ -52,6 +53,8 @@ test('durable scene job queues asynchronously, deduplicates, stores GLB and reta
     assert.deepEqual((await f.actor.list()).scenes[0].viewState, viewState);
     await f.actor.fetch(request()); assert.equal(posts, 1);
     assert.equal((await f.actor.fetch(new Request(`https://dev.test/api/learn/scene?asset=${result.scenes[0].key}`))).headers.get('Content-Type'), 'model/gltf-binary');
+    assert.match([...f.assets.keys()][0], /^learn-scene-dev\//);
+    assert.deepEqual(f.env.RUNS.calls, [], 'the GLB never reaches the live bucket');
   } finally { globalThis.fetch = original; }
 });
 test('worker failure requires explicit retry with a new attempt key; access check happens first', async () => {

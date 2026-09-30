@@ -5,6 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { learnDb } from './learn-grade-fixture.js';
 import { learnBoardsRoute } from '../src/learn-boards.js';
+import { liveDb, liveRuns } from './live-storage-spy.js';
 
 const PEOPLE = { owner: { email: 'owner@test', org: 'team' }, friend: { email: 'friend@elsewhere', org: 'elsewhere' } };
 
@@ -13,8 +14,10 @@ function setup(t) {
   // smart-home's canvases catalog (their repository-schema.sql), which a fork joins.
   sqlite.exec(`CREATE TABLE IF NOT EXISTS canvases (id INTEGER PRIMARY KEY, org TEXT NOT NULL, name TEXT NOT NULL, owner_email TEXT NOT NULL, title TEXT NOT NULL, project TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')), archived_at TEXT, device_id TEXT, UNIQUE(org,name))`);
+  const liveWrites = [];
   const CONTROL_PLANE = {
     fetch: async request => {
+      if (request.method !== 'GET') { liveWrites.push(`${request.method} ${new URL(request.url).pathname}`); throw new Error('live small-cp write'); }
       const who = PEOPLE[(request.headers.get('cookie') || '').replace('small_session=', '')];
       if (!who) return new Response('sign in', { status: 401 });
       const path = new URL(request.url).pathname;
@@ -23,14 +26,17 @@ function setup(t) {
       return new Response('no', { status: 404 });
     },
   };
-  // R2, in memory: enough of put/get/list for board files.
+  // R2, in memory: enough of put/get/list for board files. Bound as LEARN_MEDIA, the dev bucket,
+  // beside a live DB and RUNS that record and throw (C1, docs/features/learn-cleanup.md).
   const objects = new Map();
-  const RUNS = {
+  const LEARN_MEDIA = {
     put: async (key, bytes, { httpMetadata, customMetadata }) => { objects.set(key, { bytes: new Uint8Array(bytes), httpMetadata, customMetadata }); },
     get: async key => { const object = objects.get(key); return object ? { body: object.bytes, httpMetadata: object.httpMetadata, customMetadata: object.customMetadata } : null; },
     list: async ({ prefix }) => ({ objects: [...objects].filter(([key]) => key.startsWith(prefix)).map(([key, object]) => ({ key, customMetadata: object.customMetadata })), truncated: false }),
   };
-  const env = { LEARN_DB, CONTROL_PLANE, RUNS };
+  const DB = liveDb(), RUNS = liveRuns();
+  const env = { LEARN_DB, CONTROL_PLANE, LEARN_MEDIA, DB, RUNS };
+  t.after(() => assert.deepEqual([DB.calls, RUNS.calls, liveWrites], [[], [], []], 'a board route touched production storage'));
   const call = async (method, path, { as, body, raw, headers: extra = {} } = {}) => {
     const headers = { 'Content-Type': 'application/json', ...extra, ...(as ? { cookie: `small_session=${as}` } : {}) };
     const response = await learnBoardsRoute(path, new Request(`https://dev.test${path}`, { method, headers, ...(raw !== undefined ? { body: raw } : body ? { body: JSON.stringify(body) } : {}) }), env);
@@ -55,6 +61,19 @@ test('the owner saves a board and reads it back; versions count saves', async t 
   assert.equal(read.body.version, 2);
   assert.deepEqual(read.body.state.shapes, [{ id: 's' }]);
   assert.equal(read.body.sharing.shared, false);
+});
+
+test('a repo-* app and a canvas save, share and store board files the same way', async t => {
+  const { call, sqlite } = setup(t);
+  sqlite.exec(`INSERT INTO repository_apps(id,org,name,owner_email,repo,branch,commit_sha,status) VALUES(1,'team','repo-example','owner@test','example/project','main','${'a'.repeat(40)}','ready');
+    INSERT INTO canvases(org,name,owner_email,title) VALUES('team','canvas-0a1b2c3d','owner@test','Board')`);
+  for (const app of ['repo-example', 'canvas-0a1b2c3d']) {
+    const own = `/api/learn/boards/${app}/main`;
+    assert.equal((await call('PUT', own, { as: 'owner', body: { state: STATE } })).body.version, 1, app);
+    const links = (await call('POST', `${own}/share`, { as: 'owner', body: { shared: true, view: true } })).body.sharing;
+    assert.equal((await call('PUT', `${own}/assets/${encodeURIComponent('pdf:p')}`, { as: 'owner', raw: new Uint8Array([1]), headers: { 'Content-Type': 'application/pdf' } })).status, 200, app);
+    assert.equal((await call('GET', `/api/learn/boards/shared/${links.view}`, { as: 'owner' })).body.role, 'view', app);
+  }
 });
 
 test('only someone with access to the app can save or share it', async t => {

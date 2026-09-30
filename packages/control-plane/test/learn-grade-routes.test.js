@@ -404,3 +404,23 @@ test('a failed Jev call reports its transport, error code and status', async t =
   const failed = await (await w.post('/api/learn/grade/bench', gradeBody({ attempt_id: `${run}:direct:c01`, set: 'benchmark-v1', bench_run: run, transport: 'direct' }), BENCH)).json();
   assert.deepEqual({ transport: failed.transport, error_code: failed.error_code, error_status: failed.error_status }, { transport: 'direct', error_code: 'http', error_status: 400 });
 });
+
+// C1 (docs/features/learn-cleanup.md): every Jev route stores in LEARN_DB for every app kind the
+// dev worker authorizes, and touches neither the live D1, the live bucket nor a live small-cp write.
+test('Jev grade, baseline, bench and report never touch production storage, for a live app, a repo-* app and a canvas', async t => {
+  const { liveDb, liveRuns, readOnlyControlPlane } = await import('./live-storage-spy.js');
+  const DB = liveDb(), RUNS = liveRuns(), CONTROL_PLANE = readOnlyControlPlane({ email: 'learner@test', apps: { 'demo-app': { hosting: null, kind: 'server' } } });
+  const w = world(t, { envExtra: { DB, RUNS, CONTROL_PLANE } });
+  w.sqlite.exec(`INSERT INTO repository_apps(id,org,name,owner_email,repo,branch,commit_sha,status) VALUES(1,'team','repo-example','learner@test','example/project','main','${'a'.repeat(40)}','ready');
+    INSERT INTO canvases(org,name,owner_email,title) VALUES('team','canvas-0a1b2c3d','learner@test','Board')`);
+  for (const [at, app] of ['demo-app', 'repo-example', 'canvas-0a1b2c3d'].entries()) {
+    const graded = await w.post('/api/learn/grade', gradeBody({ app, attempt_id: `attempt-000${at}` }));
+    assert.equal(graded.status, 200, app);
+    assert.equal((await w.post(`/api/learn/grade/${(await graded.json()).grade_id}/baseline`, { app, verdict: 'good', ms: 10 })).status, 200, app);
+    const run = `benchmark-v1-2026-09-29-${at}`;
+    assert.equal((await w.post('/api/learn/grade/bench', gradeBody({ app, attempt_id: `${run}:c01`, set: 'benchmark-v1', bench_run: run }), BENCH)).status, 200, app);
+    assert.equal((await w.get(`/api/learn/grade/report?app=${app}`)).status, 200, app);
+  }
+  assert.deepEqual(w.sqlite.prepare('SELECT app, COUNT(*) AS n FROM learn_grades GROUP BY app ORDER BY app').all().map(row => [row.app, row.n]), [['canvas-0a1b2c3d', 2], ['demo-app', 2], ['repo-example', 2]]);
+  assert.deepEqual([DB.calls, RUNS.calls, CONTROL_PLANE.refused], [[], [], []]);
+});

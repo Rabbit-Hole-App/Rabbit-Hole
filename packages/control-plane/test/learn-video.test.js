@@ -4,6 +4,7 @@ import { validateVideo, videoCacheKey } from '../src/learn-video-schema.js';
 import { FalSeedanceProvider } from '../src/video-provider.js';
 import { LearnVideos, videoFetch } from '../src/learn-video.js';
 import { validateBoardPlan, BOARD_SYSTEM } from '../src/learn-board.js';
+import { liveRuns } from './live-storage-spy.js';
 
 const op = { op: 'generate_video', id: 'motion', prompt: 'A pendulum swings from left to right. No text.', purpose: 'physical_process', duration: 2 };
 test('generic operation validates and cache covers content and provider version, not placement or caption', async () => {
@@ -42,7 +43,7 @@ function fixture() {
   const data = new Map(); let lock = Promise.resolve();
   const state = { id: 'actor-test', storage: { get: async k => structuredClone(data.get(k)), put: async (k, v) => data.set(k, structuredClone(v)), list: async ({ prefix }) => new Map([...data].filter(([k]) => k.startsWith(prefix)).map(([k, v]) => [k, structuredClone(v)])), setAlarm: async () => {} }, blockConcurrencyWhile: fn => { const result = lock.then(fn); lock = result.catch(() => {}); return result; } };
   const assets = new Map();
-  const env = { LEARN_VIDEO_PROVIDER: 'fal-seedance-lite', FAL_API_KEY: 'test', RUNS: { put: async (k, v) => assets.set(k, v), get: async k => ({ body: assets.get(k), size: assets.get(k).byteLength }) } };
+  const env = { LEARN_VIDEO_PROVIDER: 'fal-seedance-lite', FAL_API_KEY: 'test', LEARN_MEDIA: { put: async (k, v) => assets.set(k, v), get: async k => ({ body: assets.get(k), size: assets.get(k).byteLength }) }, RUNS: liveRuns() };
   return { state, env, assets, data, actor: new LearnVideos(state, env) };
 }
 const request = (extra = {}) => new Request('https://dev.test/api/learn/video?app=demo', { method: 'POST', body: JSON.stringify({ operation: op, lessonId: 'lesson', page: 'freeform', confirmed: true, ...extra }) });
@@ -61,6 +62,8 @@ test('concurrent duplicate requests submit once; durable completion copies the a
     assert.equal((await responses[0].json()).videos[0].status, 'generating');
     await new LearnVideos(f.state, f.env).alarm();
     assert.equal(f.assets.size, 1);
+    assert.match([...f.assets.keys()][0], /^learn-video-dev\//);
+    assert.deepEqual(f.env.RUNS.calls, [], 'the clip never reaches the live bucket');
     const ready = await (await new LearnVideos(f.state, f.env).fetch(request())).json();
     assert.equal(ready.videos[0].status, 'ready');
     assert.equal(ready.videos[0].generationId, 'generation-1');
