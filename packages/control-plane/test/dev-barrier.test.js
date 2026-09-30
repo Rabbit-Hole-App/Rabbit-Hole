@@ -37,7 +37,7 @@ function fixture(t) {
     method, headers: { cookie: 'small_session=s', ...(body ? { 'content-type': 'application/json' } : {}), ...headers }, ...(body ? { body: JSON.stringify(body) } : {}),
   }), env, { waitUntil() {} });
   // Zero production writes: no DB statement, no RUNS call, and every request that reached
-  // production is a GET the allowlist names, or sign-in.
+  // production is a GET the allowlist names (no production authentication ever crosses).
   t.after(() => {
     assert.deepEqual(env.DB.calls, [], 'the dev worker touched production D1');
     assert.deepEqual(env.RUNS.calls, [], 'the dev worker touched production small-runs');
@@ -82,16 +82,24 @@ test('side-effectful and customer-facing GETs are refused too', async t => {
   assert.deepEqual(f.sent, []);
 });
 
-test('each allowlisted production read and the sign-in bridge still reach production, unchanged', async t => {
+test('each allowlisted production read still reaches production, unchanged', async t => {
   const f = fixture(t);
   const reads = ['/', '/api/workspaces', '/api/watch', '/api/ask/threads', '/api/ask/threads/42', '/api/runs/r-1', '/api/runs/r-1/outputs', '/api/runs/r-1/outputs/chart.png',
     '/api/apps/counter', '/api/apps/counter/deploys', '/api/apps/counter/runbook', '/api/apps/counter/learn-course', '/api/trash', '/api/org/ai', '/api/teams', '/api/members',
-    '/api/request-logs', '/api/review', '/login', '/auth', '/logout'];
+    '/api/request-logs', '/api/review'];
   for (const path of reads) assert.deepEqual(await (await f.send('GET', path)).json(), { forwarded: path }, path);
-  assert.deepEqual(await (await f.send('POST', '/login', {})).json(), { forwarded: '/login' });
-  // Production test sessions never cross: review clones get them from the dev control plane only.
-  assert.equal((await f.send('POST', '/test/session', {})).status, 403);
-  assert.deepEqual(f.sent, [...reads.map(path => `GET ${path}`), 'POST /login']);
+  assert.deepEqual(f.sent, reads.map(path => `GET ${path}`));
+});
+
+// Production authentication never crosses (owner, 2026-09-30): the dedicated dev control plane is the
+// replacement, not a production bridge. Zero forwarding, zero DB, zero RUNS for every method.
+test('production sign-in, sign-out, magic links and test sessions are refused with every method', async t => {
+  const f = fixture(t);
+  for (const path of ['/login', '/auth', '/auth?token=t', '/logout', '/test/session'])
+    for (const method of ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']) await blocked(await f.send(method, path, method === 'GET' || method === 'DELETE' ? undefined : {}), `${method} ${path}`);
+  assert.deepEqual(f.sent, []);
+  assert.deepEqual(f.env.DB.calls, []);
+  assert.deepEqual(f.env.RUNS.calls, []);
 });
 
 test('writes the dev worker answers itself stay on dev storage', async t => {

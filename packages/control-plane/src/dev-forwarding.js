@@ -23,16 +23,12 @@ const READS = [
   /^\/api\/review$/,
 ];
 
-// Sign-in while dev identity is still production (until the dev control plane, deployment step 5).
-// They write no D1, R2 or Fly state: sessions and magic links are HMAC-signed tokens, not rows.
-// ponytail: POST /login sends a real email once production has RESEND_API_KEY (step 2); drop it
-// here if dev sign-in should stop emailing before the dev control plane exists.
-// POST /test/session is NOT forwarded (owner, 2026-09-30): review clones never mint test sessions from
-// production; the dedicated dev control plane will be the only place they are minted (step 5).
-const SESSION = new Set(['GET /login', 'POST /login', 'GET /auth', 'GET /logout']);
-
+// No production authentication crosses the barrier (owner, 2026-09-30): /login, /auth, /logout and
+// /test/session are refused with every method. Dev and review sign-in comes only from the dedicated dev
+// control plane with its own MASTER_KEY (deployment step 5); until it exists, auth-dependent dev flows
+// are unavailable, with no bypass in between.
 export function productionAllows(method, path) {
-  return SESSION.has(`${method} ${path}`) || (method === 'GET' && READS.some(pattern => pattern.test(path)));
+  return method === 'GET' && READS.some(pattern => pattern.test(path));
 }
 
 // Who is signed in, asked of production without side effects: GET /api/me (index.js). The dev worker

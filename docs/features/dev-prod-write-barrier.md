@@ -20,7 +20,7 @@ against the deployed code, or deploy this branch's control plane (an approved st
 - The barrier fails closed. A request reaches production only when its method and path match the allowlist.
   Anything else gets `403 {"error":"Blocked on this preview: it would change live state."}` and is never
   forwarded.
-- The barrier does not go by HTTP method. Only the listed `GET`s and the five sign-in routes cross. `HEAD`,
+- The barrier does not go by HTTP method. Only the listed `GET`s cross; no production authentication route does (§1b). `HEAD`,
   and every `GET` that is not listed, are refused.
 - `dev-worker.js` calls `env.CONTROL_PLANE.fetch` in only one place: the barrier. A test pins this
   (`dev-barrier.test.js`).
@@ -61,20 +61,13 @@ Production reads that the dev worker makes itself, not through the barrier:
 | `GET /api/workspaces` and `GET /api/trash` | `devIdentity` fallback while production does not have `/api/me` (§4) | rows above |
 | `GET /api/apps/<name>` | `authorizedBoardApp` (`learn-board.js`), and the BYOC hosted-name check (`byoc.js` `hostedApp`) | row above |
 
-### 1b. Sign-in bridge (allowed, not a read)
+### 1b. Production authentication is forbidden (no sign-in bridge)
 
-`GET /login`, `POST /login`, `GET /auth`, `GET /logout` (`index.js` :2231, :2250, :2448).
+Every production authentication route is refused on the dev/review worker, with every method: `/login`, `/auth`, `/logout` and `/test/session` (owner decision 2026-09-30). They get the same JSON 403 as any other route that is not on the allowlist, and never reach production (`dev-barrier.test.js`: zero forwarding, zero DB, zero RUNS).
 
-`POST /test/session` is **refused** (owner decision 2026-09-30): production test sessions never cross the barrier, even while production still has `TEST_BYPASS_SECRET`. Review clones lose test sessions until the dedicated dev control plane (step 5) mints them; no production bypass is kept as a bridge.
-
-- They write no D1, R2 or Fly state. Magic links and sessions are HMAC-signed tokens, not rows.
-- They stay allowed because dev identity is still production identity until the dev control plane exists
-  (deployment step 5, §6). Without them no review clone could sign in.
-- **Known gap.** These sessions are signed with the production `MASTER_KEY`. That is the P0 identity issue, and
-  deployment steps 5 to 8 close it.
-- **Owner decision.** Once production has `RESEND_API_KEY` (step 2), `POST /login` on a dev host sends a real
-  email whose link points at the dev host. Removing `'POST /login'` from `SESSION` in `dev-forwarding.js` is a
-  one-line change.
+- **Why.** A production sign-in on a dev host would be signed with the production `MASTER_KEY`. Once production has `RESEND_API_KEY`, `POST /login` from a dev host would also send a real production magic link.
+- **The replacement is the dedicated dev control plane, not production auth.** It runs the same control-plane code with its own `MASTER_KEY` and its own `/test/session` (deployment step 5, §6), and review/e2e sessions are minted only there.
+- **Until it exists,** authentication-dependent dev flows are unavailable. That is accepted, and no temporary bypass is added.
 
 ### 1c. Refused route classes
 
