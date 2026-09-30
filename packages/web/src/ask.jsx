@@ -360,6 +360,16 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     setInput(value);
   };
   const openPalette = () => { if (!input.startsWith('/')) { stash.current = input; setInput('/'); } inputRef.current?.focus(); };
+  // A click outside the composer closes the command palette the way Escape does (LearnSlash.jsx):
+  // the command search is dropped and what was typed before it comes back.
+  const composerBox = useRef(null);
+  const paletteOpen = !!slash && input.startsWith('/');
+  useEffect(() => {
+    if (!paletteOpen) return;
+    const away = event => { if (!composerBox.current?.contains(event.target)) setComposerInput(''); };
+    document.addEventListener('pointerdown', away, true); // capture: the canvas stops its own pointer events
+    return () => document.removeEventListener('pointerdown', away, true);
+  }, [paletteOpen]); // eslint-disable-line react-hooks/exhaustive-deps
   const [busy, setBusy] = useState(false);
   const [blockCopy, setBlockCopy] = useState(null);
   useEffect(() => {
@@ -882,7 +892,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         {tutor?.extras && <div data-tutor-extras className="flex flex-col items-start gap-2 py-2">{tutor.extras}</div>}
       </div>
       {/* non-compact: the box sticks to the viewport bottom - the page can scroll, the input never leaves */}
-      <div className={cn('relative mt-2 shrink-0', !compact && 'sticky bottom-0 bg-white pt-1 pb-2')}>
+      <div ref={composerBox} className={cn('relative mt-2 shrink-0', !compact && 'sticky bottom-0 bg-white pt-1 pb-2')}>
         {/* @-mention suggestions above the input */}
         {atHits.length > 0 && (
           <div className="absolute bottom-full left-0 z-20 mb-1 max-h-56 w-64 overflow-y-auto rounded-md bg-white p-1 shadow-pop">

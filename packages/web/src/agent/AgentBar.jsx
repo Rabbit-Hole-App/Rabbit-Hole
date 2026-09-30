@@ -72,6 +72,14 @@ export default function AgentBar({ page }) {
   const entries = [...modesFor(target).map(([name, desc]) => ({ name, desc, shortcut: false })), ...shortcutsFor(target, surface.catalog).map(([name, desc]) => ({ name, desc, shortcut: true }))]
     .filter((e) => e.name.startsWith(modeQuery(draft) || ''));
   const pickerOpen = picker && entries.length > 0;
+  // A click outside the composer closes the mode picker, as Escape does (onKeyDown).
+  const dock = useRef(null);
+  useEffect(() => {
+    if (!pickerOpen) return;
+    const away = (e) => { if (!dock.current?.contains(e.target)) setPicker(false); };
+    document.addEventListener('pointerdown', away, true); // capture: the canvas stops its own pointer events
+    return () => document.removeEventListener('pointerdown', away, true);
+  }, [pickerOpen]);
   const hiIndex = Math.min(hi, entries.length - 1);
   // A mode becomes the pill; a shortcut is typed into the draft ('/find ') for the rest of the request.
   const pick = ({ name, shortcut }) => {
@@ -357,7 +365,7 @@ export default function AgentBar({ page }) {
     <div ref={root} data-agent-bar onKeyDown={onKeyDown}
       className={cn('fixed right-0 bottom-0 left-0 z-20 transition-[left] duration-200 md:left-[var(--sidebar-w,0px)]', DOCK_PAD, 'bg-linear-to-t from-white from-70% to-white/0')}>
       {sheet && !panelHosts(surface, sheet) && <ResultSheet key={resultsKey(sheet)} scope={sheet} label={nameOf(sheet)} onClose={() => setSheet(null)} />}
-      <div className={cn('relative', DOCK_WIDTH)}>
+      <div ref={dock} className={cn('relative', DOCK_WIDTH)}>
         {pickerOpen && (
           <div role="listbox" aria-label="Modes" className="absolute bottom-full left-0 z-10 mb-1 w-[26rem] max-w-full rounded-md bg-white p-1 shadow-pop">
             {entries.map((entry, i) => {
