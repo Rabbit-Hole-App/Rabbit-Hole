@@ -9,6 +9,7 @@ import { isPrivateByoc } from './private-auth.js';
 import { titleOf } from './agent/catalog.js';
 import { learnPreview, PRODUCT } from './flags.js';
 import { pinnedApps, RAIL_W, readPinned, secClosedInit, togglePin } from './home/pinned.js';
+import { readRecent, recentItems } from './home/continue.js';
 import { isLearnResource } from './library-filter.js';
 import { pageFor, sectionActive, sectionHref } from './routes.js';
 import FeedbackButton from './FeedbackButton.jsx';
@@ -641,6 +642,8 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
   }, []);
   const pins = learnPreview && email ? readPinned(localStorage, org, email) : [];
   const pinned = pinnedApps(pins, apps);
+  // Recent (user, 2026-09-30): the last three opened on this device, the same list Home's Recent reads.
+  const recentOpened = learnPreview && email ? recentItems(readRecent(localStorage), apps).slice(0, 3) : [];
 
   const openTrash = () => {
     setTrashOpen(true);
@@ -927,21 +930,20 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
             </div>
           </div>
         ) : learnPreview ? (
-          <>
-            <div className="flex h-9 items-center gap-2 px-2">
-              <ProductMark />
-              <span className="min-w-0 flex-1 truncate text-sm font-semibold">{PRODUCT}</span>
-              <ByocDevBadge />
-              <IconBtn title="Close sidebar" onClick={onCollapse} className="opacity-0 group-hover/sb:opacity-100 max-md:opacity-100">
-                <ChevronsLeft size={15} />
-              </IconBtn>
-            </div>
-            {/* the workspace is context, not identity: its own switcher under the brand */}
-            <button onClick={() => setWsMenu(!wsMenu)} title="Switch workspace" className={cn('ml-1 flex h-6 max-w-[calc(100%-8px)] cursor-pointer items-center gap-1 rounded-sm px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink', wsMenu && 'bg-active text-ink')}>
-              <span className="truncate">{wsLabel}</span>
-              <ChevronDown size={12} className="shrink-0" />
+          // The person, top left (user, 2026-09-30): their avatar and name open the account menu
+          // (workspace, Settings, Log out). Never the internal principal (session-display.js).
+          <div className="flex h-9 items-center gap-1 px-1">
+            <button onClick={() => setWsMenu(!wsMenu)} title="Account" aria-haspopup="menu" aria-expanded={wsMenu} data-account-menu
+              className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-sm px-1.5 py-1 text-left hover:bg-hover">
+              {shownId.label ? <Avatar email={shownId.email || shownId.label} /> : <ProductMark />}
+              <span className="min-w-0 truncate text-sm font-medium">{shownId.label || wsLabel}</span>
+              <ChevronDown size={12} className="shrink-0 text-ink-3" />
             </button>
-          </>
+            <ByocDevBadge />
+            <IconBtn title="Close sidebar" onClick={onCollapse} className="opacity-0 group-hover/sb:opacity-100 max-md:opacity-100">
+              <ChevronsLeft size={15} />
+            </IconBtn>
+          </div>
         ) : (
         <div className="flex h-9 items-center gap-2 px-2">
           <button
@@ -960,7 +962,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         )}
         {/* fixed!: the sidebar is a scroll container and clips anything wider than
             itself - pinning to the viewport lets the menu fit the full email */}
-        <Menu open={wsMenu} onClose={() => setWsMenu(false)} className={rail ? 'fixed! top-2 left-14 w-auto! min-w-60 max-w-[340px]' : learnPreview ? 'fixed! top-[70px] left-3 w-auto! min-w-60 max-w-[340px]' : 'fixed! top-11 left-3 w-auto! min-w-60 max-w-[340px]'}>
+        <Menu open={wsMenu} onClose={() => setWsMenu(false)} className={rail ? 'fixed! top-2 left-14 w-auto! min-w-60 max-w-[340px]' : learnPreview ? 'fixed! top-[44px] left-3 w-auto! min-w-60 max-w-[340px]' : 'fixed! top-11 left-3 w-auto! min-w-60 max-w-[340px]'}>
           <div className="flex items-center gap-2 px-2 py-1.5">
             {shownId.label && <Avatar email={shownId.email || shownId.label} />}
             <span className="text-xs whitespace-nowrap text-ink-2">{shownId.label}</span>
@@ -1179,6 +1181,12 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
           ))}
         </nav>
       )}
+      {recentOpened.length > 0 && (
+        <section aria-label="Recent">
+          <div className="px-2 pt-3 pb-1 text-xs text-ink-2">Recent</div>
+          {recentOpened.map((a) => appRow(a))}
+        </section>
+      )}
       {pinned.length > 0 && (
         <section aria-label="Pinned">
           <div className="px-2 pt-3 pb-1 text-xs text-ink-2">Pinned</div>
@@ -1350,7 +1358,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
             onClick={() => navigate('/chat')}
             className={cn('flex h-9 min-w-0 flex-1 items-center gap-2 rounded-full border border-line px-4 text-sm shadow-sm hover:bg-hover', path === '/chat' ? 'bg-active' : 'bg-white')}
           >
-            <img src="/icon-32.png" alt="" className="h-4 w-4 shrink-0" />
+            <AppIcon size={16} className="h-4 w-4 shrink-0" />
             New chat
             <span className="ml-auto shrink-0 text-xs text-ink-3">Ctrl + O</span>
           </button>
@@ -1451,31 +1459,45 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         </SlidePanel>
       )}
 
-      {trashOpen && (
-        <SlidePanel title="Trash" width={400} onClose={() => setTrashOpen(false)}>
-          <div className="flex min-h-0 flex-1 flex-col px-5">
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              {trash === null && <div className="pt-2 text-sm text-ink-2">loading…</div>}
-              {trash?.trash.length === 0 && <div className="pt-2 text-sm text-ink-2">Nothing in the trash.</div>}
-              {(trash?.trash || []).map((t) => (
-                <div key={t.name} className="group/tr flex h-9 items-center gap-2 rounded-sm px-2 text-sm hover:bg-hover">
-                  <KindIcon kind={t.kind} />
-                  <span className="min-w-0 flex-1 truncate">{t.name}</span>
-                  <span className="text-xs text-ink-3">{ago(t.deleted_at)}</span>
-                  {t.owner_email === trash.email && (
-                    <Button variant="secondary" size="sm" className="opacity-0 group-hover/tr:opacity-100" onClick={() => restore(t.name)}>
-                      <RotateCcw size={13} strokeWidth={1.5} /> Restore
-                    </Button>
-                  )}
-                </div>
-              ))}
-            </div>
-            <div className="shrink-0 border-t border-line py-2 text-xs text-ink-3">
-              Items in Trash are deleted forever after 30 days.
-            </div>
-          </div>
-        </SlidePanel>
-      )}
+      {trashOpen && <TrashDialog trash={trash} onRestore={restore} onClose={() => setTrashOpen(false)} />}
     </aside>
+  );
+}
+
+// Trash as a modal over the page (user, 2026-09-30), not a side panel: Esc, the backdrop or X closes it.
+// Portaled, so the sidebar's transform (Shell.jsx) cannot clip it.
+function TrashDialog({ trash, onRestore, onClose }) {
+  useEffect(() => {
+    const esc = (e) => { if (e.key === 'Escape') { e.stopPropagation(); onClose(); } };
+    window.addEventListener('keydown', esc, true);
+    return () => window.removeEventListener('keydown', esc, true);
+  }, []);
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/20 animate-[fade-in_100ms_ease-out]" onMouseDown={onClose}>
+      <div role="dialog" aria-modal="true" aria-label="Trash" className="mt-[14vh] flex max-h-[70vh] w-[480px] max-w-[92vw] flex-col rounded-2xl bg-white shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
+        <div className="flex shrink-0 items-center justify-between px-5 pt-4 pb-2">
+          <div className="text-base font-semibold">Trash</div>
+          <IconBtn aria-label="Close" onClick={onClose}><X size={14} /></IconBtn>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-3">
+          {trash === null && <div className="px-2 py-2 text-sm text-ink-2">loading…</div>}
+          {trash?.trash.length === 0 && <div className="px-2 py-2 text-sm text-ink-2">Nothing in the trash.</div>}
+          {(trash?.trash || []).map((t) => (
+            <div key={t.name} className="group/tr flex h-9 items-center gap-2 rounded-sm px-2 text-sm hover:bg-hover">
+              <KindIcon kind={t.kind} />
+              <span className="min-w-0 flex-1 truncate">{t.name}</span>
+              <span className="text-xs text-ink-3">{ago(t.deleted_at)}</span>
+              {t.owner_email === trash.email && (
+                <Button variant="secondary" size="sm" className="opacity-0 group-hover/tr:opacity-100 focus-visible:opacity-100 max-md:opacity-100" onClick={() => onRestore(t.name)}>
+                  <RotateCcw size={13} strokeWidth={1.5} /> Restore
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="shrink-0 border-t border-line px-5 py-3 text-xs text-ink-3">Items in Trash are deleted forever after 30 days.</div>
+      </div>
+    </div>,
+    document.body,
   );
 }
