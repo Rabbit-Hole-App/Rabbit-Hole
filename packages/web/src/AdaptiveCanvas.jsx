@@ -13,6 +13,7 @@ import { pageRects, PAGE_W } from './learn-pages.js';
 import { outlineFrom, applyOutlineOps } from './learn-outline-model.js';
 import { loadAsset } from './learn-board-assets.js';
 import { groupShot } from './learn-group-shot.js';
+import { groupTargetText } from './learn-ask-target.js';
 import LearnWiki from './LearnWiki.jsx';
 import { momentGeometry, seekTo, clock, embedUrl } from './learn-video-moment.js';
 import { snapMove, snapGrid, SNAP_TOLERANCE, GRID } from './learn-snap.js';
@@ -1788,6 +1789,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const described = describeBlock(block);
     if (described) onAskTargetRef.current?.({ id: block.id, ...described });
   };
+  // Continue convo on an answer linked from a card: that card rides the first follow-up.
+  const linkedTarget = exchange => {
+    const block = exchange.linkFrom && blocksRef.current.find(entry => entry.id === exchange.linkFrom);
+    const described = block && describeBlock(block);
+    return described ? { id: block.id, ...described } : null;
+  };
   // A red region drawn on a paper page arms the composer with its thumbnail
   // and the page context, so the answer node links back to that paper block.
   const askRegion = (block, selection) => {
@@ -2513,7 +2520,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           </svg>
         )}
         <div ref={column} style={{ width: COLUMN }} className={`absolute top-0 left-0 flex flex-col gap-5 ${drawing || tool === 'eraser' || tool === 'hand' ? 'pointer-events-none' : ''}`}>
-          {exchanges.map(exchange => <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />)}
+          {exchanges.map(exchange => <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />)}
           {blocks.map(block => <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} />)}
         </div>
         {/* The gap near the pointer shows its dotted line and [-] [+] [...] at the far left. */}
@@ -2588,16 +2595,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
                   <button type="button" data-group-ask title="Ask the tutor about this group"
                     onPointerDown={event => event.stopPropagation()}
                     onClick={() => {
-                      const parts = [];
+                      const entries = [];
                       for (const member of members) {
                         const block = blocksRef.current.find(entry => entry.id === member.id);
-                        if (block) { const described = describeBlock(block); if (described?.text) parts.push(described.text); continue; }
+                        if (block) { const described = describeBlock(block); entries.push(described?.text ? { text: described.text } : { skipped: block.type }); continue; }
                         const exchange = exchangesRef.current.find(entry => entry.id === member.id);
-                        if (exchange) { parts.push(`Q: ${exchange.question}\nA: ${String(exchange.answer || '').slice(0, 600)}`); continue; }
+                        if (exchange) { entries.push({ question: exchange.question, answer: exchange.answer }); continue; }
                         const item = itemsRef.current.find(entry => entry.id === member.id);
-                        if (item?.text) parts.push(item.text);
+                        if (item?.text) entries.push({ text: item.text });
                       }
-                      onAskTargetRef.current?.({ id: group.id, kind: group.label ? `group "${group.label}"` : 'group', text: parts.join('\n\n').slice(0, 4000) || 'An empty group of drawings.' });
+                      onAskTargetRef.current?.({ id: group.id, kind: group.label ? `group "${group.label}"` : 'group', title: group.label || `${members.length} items`, text: groupTargetText(entries) });
                       // The visuals ride too: a rendered snapshot of the
                       // outline area becomes this question's image context.
                       const memberIds = new Set(members.map(member => member.id));
@@ -2606,7 +2613,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
                         strokes: strokes.filter(stroke => stroke.points?.some(point => point.x >= left && point.x <= right && point.y >= top && point.y <= bottom)),
                         shapes, items, blocks, bounds, cachedAsset: loadAsset,
                         dark: document.documentElement.classList.contains('dark'),
-                      }).then(blob => { if (blob) onGroupShotRef.current?.(blob, group.label || 'group'); }).catch(() => { /* text still asks */ });
+                      }).then(blob => { if (blob) onGroupShotRef.current?.(blob, group.label || 'group', group.id); }).catch(() => { /* text still asks */ });
                     }}
                     className="flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium whitespace-nowrap text-ink shadow-md hover:bg-hover">
                     <MessageCircle size={13} />Ask in chat

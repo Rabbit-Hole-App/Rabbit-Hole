@@ -10,6 +10,7 @@ import { ago, api, navigate, wsHeaders } from './api.js';
 import { colorLine } from './code.jsx';
 import { MathText, tokenizeMath } from './MathText.jsx';
 import { MODEL_CHOICES, MODEL_SCOPE } from './model-choices.js';
+import { canvasTargetField } from './learn-ask-target.js';
 import { cn, CodeBlock, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
 
 // What the agent may read, per scope - the ⚙ picker mirrors Notion's "My sources".
@@ -472,6 +473,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     if (!isDemo) boardContext?.removeImage();
     const target = canvasTarget; // selected lesson block riding as context
     if (target) onClearCanvasTarget?.();
+    const imageId = !target?.paper && !questionPaper ? target?.image || questionImage?.id : null;
     const replyId = crypto.randomUUID();
     const card = sheetMode && !panelAsk ? { card: true } : {}; // answered as a card, kept out of the sheet
     setMsgs((m) => [...m, { role: 'user', content: attached ? `${message} 📎 ${attached.name}` : message, ...card, ...(canvasImage ? { canvasImage } : {}), ...(sourceRange ? { passage: `${sourceRange.path}:${sourceRange.start}-${sourceRange.end}` } : {}) }, { role: 'assistant', content: '', id: replyId, demo: !!isDemo, ...card }]);
@@ -499,17 +501,21 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         // wiki source arrives here as null and the key is simply absent.
         // A dropped image outranks the article and video cards - it is the
         // thing most recently put in front of the tutor - but a paper wins.
-        ...(!target?.paper && !questionPaper && questionImage?.id ? { image_context: { id: questionImage.id } } : {}),
-        ...(!target?.paper && !questionPaper && !questionImage?.id && questionWiki?.title ? { wiki_context: { title: questionWiki.title, section: questionWiki.section || 0, ...(questionWiki.selection ? { selection: questionWiki.selection } : {}) } } : {}),
+        // A group's own snapshot rides only with the question about that group.
+        ...(imageId ? { image_context: { id: imageId } } : {}),
+        ...(!target?.paper && !questionPaper && !imageId && questionWiki?.title ? { wiki_context: { title: questionWiki.title, section: questionWiki.section || 0, ...(questionWiki.selection ? { selection: questionWiki.selection } : {}) } } : {}),
         // A video card is the quietest context: any open reader outranks it.
-        ...(!target?.paper && !questionPaper && !questionImage?.id && !questionWiki?.title && questionVideo?.videoId ? { video_context: { videoId: questionVideo.videoId, start: questionVideo.start || 0, ...(questionVideo.end != null ? { end: questionVideo.end } : {}), ...(questionVideo.title ? { title: questionVideo.title } : {}) } } : {}),
+        ...(!target?.paper && !questionPaper && !imageId && !questionWiki?.title && questionVideo?.videoId ? { video_context: { videoId: questionVideo.videoId, start: questionVideo.start || 0, ...(questionVideo.end != null ? { end: questionVideo.end } : {}), ...(questionVideo.title ? { title: questionVideo.title } : {}) } } : {}),
         scope: scopeOverride || scope,
         ...(repository && repositoryContext ? { repository_context: { ...repositoryContext, commit: sourceRange?.commit || repositoryCommit || repositoryContext?.commit, ...(sourceRange ? {range:{path:sourceRange.path,start:sourceRange.start,end:sourceRange.end}} : {}) } } : {}),
         // @-mentioned apps: the server adds each one's context to this chat.
         ...(mentions.length ? { mentions: [...mentions] } : {}),
-        message: target ? `Question about this ${target.kind} block on the lesson canvas:\n${target.text}\n\nLearner question: ${message}` : message,
+        // The learner's own words; the card, group or region they asked about rides beside them.
+        message,
+        ...(target ? { canvas_target: canvasTargetField(target) } : {}),
         thread_id: threadId.current,
-        ...(canvasSeed && !threadId.current ? { canvas_seed: canvasSeed } : {}),
+        // A Continue convo's first request also carries the card its answer was linked from.
+        ...(canvasSeed && !threadId.current ? { canvas_seed: { question: canvasSeed.question, answer: canvasSeed.answer }, ...(!target && canvasSeed.target ? { canvas_target: canvasTargetField(canvasSeed.target) } : {}) } : {}),
         ...(srcOpts.length && srcOn.size < srcOpts.length ? { sources: [...srcOn] } : {}),
         ...(model !== 'auto' ? { model } : {}),
       };
