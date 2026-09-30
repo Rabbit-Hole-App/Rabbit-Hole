@@ -1,0 +1,56 @@
+{
+  "a32-b20": {
+    "a": [
+      3,
+      2
+    ],
+    "b": [
+      2,
+      0
+    ],
+    "projection": {
+      "defined": true,
+      "scale": 1.5,
+      "vector": [
+        3,
+        0
+      ],
+      "dot": 6,
+      "length": 3
+    }
+  },
+  "a03-b20": {
+    "a": [
+      0,
+      3
+    ],
+    "b": [
+      2,
+      0
+    ],
+    "projection": {
+      "defined": true,
+      "scale": 0,
+      "vector": [
+        0,
+        0
+      ],
+      "dot": 0,
+      "length": 0
+    }
+  },
+  "zero-axis": {
+    "a": [
+      1,
+      1
+    ],
+    "b": [
+      0,
+      0
+    ],
+    "projection": {
+      "defined": false,
+      "reason": "The projection axis has zero length, so it has no direction."
+    }
+  }
+}

@@ -20,6 +20,10 @@ const objectSchema = z.object({
   type: z.enum(RENDERED_TYPES),
   semanticId: z.string().max(64).optional(),
   conceptId: z.string().max(64).optional(),
+  // Sub-cards: the part (0-based) of a paged scene this object belongs to -
+  // on screen only while the scene's pager input picks that part. No part:
+  // on every part. See scene-evaluate.js.
+  part: z.number().int().min(0).max(3).optional(),
   initialState: z.object({
     label: z.string().max(200).optional(),
     text: z.string().max(600).optional(),
@@ -77,6 +81,14 @@ const objectSchema = z.object({
     columnLabels: z.array(z.string().max(24)).max(64).optional(),
     tokens: z.array(z.string().max(24)).max(48).optional(),
     src: z.string().max(300).optional(),
+    // Show only this region of the image, as fractions of the object's own
+    // displayed box (0..1 each). The renderer maps the fractions through the
+    // same centre-slice fit the full image uses, so a crop names exactly the
+    // region a grid overlaid on the displayed image would name.
+    crop: z.object({
+      x: z.number().min(0).max(1), y: z.number().min(0).max(1),
+      w: z.number().gt(0).max(1), h: z.number().gt(0).max(1),
+    }).optional(),
     // true predates modes and still means the same thing it always did - the
     // gate below normalises both spellings to { mode } so nothing past it
     // reads a bare boolean.
@@ -103,6 +115,32 @@ const objectSchema = z.object({
     // highlighted-role-ring treatment, so the two never read the same way.
     // See AnimatedScene.jsx's grid/strip path.
     cellHighlightKind: z.enum(['select', 'highlight']).optional(),
+    // An authored opening highlight, same shapes highlight_cell events carry
+    // (a flat index, several, a row/col band, bars' 'max'). Exists so an
+    // interactive scene can bind the lit part to a learning input through the
+    // derive pool; a later highlight_cell event still overrides it.
+    cellHighlight: z.union([
+      z.number().int(), z.array(z.number().int()).max(256),
+      z.object({ row: z.number().int().optional(), col: z.number().int().optional() }),
+      z.literal('max'),
+      // A derived highlight may resolve to "nothing selected" (argmin over a
+      // fully gated vector) - an explicit null, distinct from never authored.
+      z.null(),
+    ]).optional(),
+    // Direct manipulation on the visual: clicking this object's Nth item (a
+    // token chip, a grid cell) writes N to the named learning input. Names an
+    // input declaration, never behaviour - evaluateScene refuses a name that
+    // is not a declared index input over a domain of this object's item count.
+    pickInput: z.string().min(1).max(40).optional(),
+    // How a token sequence is drawn. 'chips' (the default) is the affordance
+    // of something operable; 'labels' draws plain text, for a sequence that
+    // NAMES things and must not read as a second control row - the card
+    // grammar puts the real control in the INTERACT zone below the visual.
+    tokenStyle: z.enum(['chips', 'labels']).optional(),
+    // How a grid or strip prints its numbers (scene-format.js): two decimals
+    // by default at every magnitude; 'integer' for values that are whole by
+    // meaning - token IDs, counts - never inferred from a value's size.
+    numberFormat: z.enum(['decimal', 'integer']).optional(),
   }).prefault({}),
 });
 
@@ -142,7 +180,9 @@ export const animationSchema = z.object({
   width: z.number().positive().max(4096).default(960),
   height: z.number().positive().max(4096).default(540),
   duration: z.number().positive().max(120),
-  objects: z.array(objectSchema).max(60),
+  // At most 60 on screen at once: per part for a paged scene (checked in
+  // validateScene), so four sub-cards may carry 60 each.
+  objects: z.array(objectSchema).max(240),
   timeline: z.array(eventSchema).max(200),
   camera: z.object({ x: z.number().nullable().default(null), y: z.number().nullable().default(null), zoom: z.number().positive().max(8).default(1) }).prefault({}),
 });
@@ -183,6 +223,10 @@ export function validateScene(raw) {
   // ever sees it, and the object it touched is stamped provenance: derived.
   // See scene-derive.js - this is the one place duplicated numbers stop
   // being possible, so it must run before anything else.
+  // A part only means something under a pager (scene-evaluate.js onePart);
+  // anywhere else every part would draw at once, on top of each other.
+  const unpaged = !raw?.paged && (raw?.objects || []).find(object => object?.part !== undefined);
+  if (unpaged) throw new Error(`Object "${unpaged.id}" declares a part, but no input is presented as a pager`);
   raw = resolveDerived(raw);
   // A legacy scene may still name a hex colour. Translate the closed set we
   // recognise into a role before zod ever sees `color` - unknown keys are
@@ -195,6 +239,11 @@ export function validateScene(raw) {
     throw new Error(`Invalid animation at ${issue.path.join('.') || 'root'}: ${issue.message}`);
   }
   const scene = parsed.data;
+  const parts = [...new Set(scene.objects.map(object => object.part).filter(part => part !== undefined))];
+  for (const part of parts.length ? parts : [undefined]) {
+    const onScreen = scene.objects.filter(object => object.part === undefined || object.part === part).length;
+    if (onScreen > 60) throw new Error(`Invalid animation at objects: ${onScreen} objects on screen at once${part === undefined ? '' : ` on part ${part + 1}`} (at most 60)`);
+  }
   const byId = new Map(scene.objects.map(object => [object.id, object]));
   const ids = new Set(byId.keys());
   if (ids.size !== scene.objects.length) throw new Error('Every animation object needs a unique id');
@@ -408,7 +457,10 @@ const sizeOf = object => {
   const cell = state.cell ?? GEOMETRY.cellPitch;
   if (object.type === 'grid') return { w: (state.cols || 1) * cell, h: (state.rows || 1) * cell };
   if (object.type === 'strip') return { w: (state.values?.length || 1) * cell, h: cell };
-  if (object.type === 'bars') return { w: (state.values?.length || 1) * GEOMETRY.barWidth, h: state.h ?? GEOMETRY.barHeight };
+  // Bars accept the same per-object `cell` pitch grids and strips already
+  // have: the default suits single-character labels, but a bar labelled with
+  // a word needs the pitch its own label actually occupies.
+  if (object.type === 'bars') return { w: (state.values?.length || 1) * (state.cell ?? GEOMETRY.barWidth), h: state.h ?? GEOMETRY.barHeight };
   if (object.type === 'tokens') return { w: (state.tokens || []).reduce((total, token) => total + CHIP_PAD * 2 + token.length * CHIP_CHAR + CHIP_GAP, 0), h: GEOMETRY.chipHeight };
   return { w: state.w ?? (object.type === 'box' ? GEOMETRY.nodeMinWidth : undefined), h: state.h ?? (object.type === 'box' ? GEOMETRY.nodeHeight : undefined) };
 };
@@ -463,6 +515,11 @@ export function getSceneState(scene, time) {
     rowLabels: object.initialState.rowLabels ?? null,
     columnLabels: object.initialState.columnLabels ?? null,
     tokens: object.initialState.tokens ?? null,
+    // 'labels' draws a token sequence as plain display-only text instead of
+    // chips - the renderer's cue that this is a labeled sequence, not a
+    // control row (the control lives in the INTERACT zone below).
+    tokenStyle: object.initialState.tokenStyle ?? null,
+    numberFormat: object.initialState.numberFormat ?? null,
     heat: object.initialState.heat ?? null,
     peak: object.initialState.peak ?? null,
     // Both static for the object's whole life (validateScene resolves them
@@ -472,8 +529,10 @@ export function getSceneState(scene, time) {
     // point of not self-normalising.
     valueScale: object.initialState.valueScale ?? null,
     valueDomain: object.valueDomain ?? null,
-    cellHighlight: null,
+    cellHighlight: object.initialState.cellHighlight ?? null,
     cellHighlightKind: object.initialState.cellHighlightKind ?? null,
+    pickInput: object.initialState.pickInput ?? null,
+    crop: object.initialState.crop ?? null,
     sweep: null,
     emphasis: 0,
   }]));

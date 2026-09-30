@@ -14,7 +14,10 @@
   --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'SFMono-Regular', Menlo, Consolas, monospace;
   --color-ink: #37352f; /* text */
-  --color-ink-2: #787774; /* text-secondary */
+  /* text-secondary. Darker than Notion's #787774 (4.32:1 on the scene surface,
+     3.37:1 on a soft cell tint): secondary text is learner-facing and clears
+     4.5:1 on every surface it is drawn on - text-contrast.test.mjs. */
+  --color-ink-2: #63615d;
   --color-ink-3: #9b9a97; /* text-tertiary: placeholders, disabled */
   --color-line: #e9e9e7; /* borders, dividers */
   --color-line-strong: #d3d1cb; /* input border on focus */
@@ -27,6 +30,11 @@
   --color-danger: #eb5757;
   --color-warn: #d9730d;
   --color-success: #448361;
+  /* Practice feedback text (Right. / Not quite.): Tailwind's green-700 and
+     red-700 in light, flipped in .dark - the fixed palette shades fell to
+     3.56:1 and 2.74:1 on the dark card. text-contrast.test.mjs. */
+  --color-pass: #008236;
+  --color-fail: #c10007;
   --shadow-pop: 0 0 0 1px rgba(15, 15, 15, 0.05), 0 3px 6px rgba(15, 15, 15, 0.1), 0 9px 24px rgba(15, 15, 15, 0.2);
 }
 
@@ -62,6 +70,19 @@ html {
   --viz-code: #787774;
   --viz-warning: #c0392b;
   --viz-success: #157f43;
+  /* A role- or identity-hued TEXT line is drawn in --viz-<hue>-text when one
+     is declared (scene-style.js textObjectInk), else in the hue itself. The
+     hues are tuned for strokes and fills at 3:1; these are the same hues
+     darkened just enough that a line of text clears 4.5:1 on --viz-surface.
+     Each hex one is reset in .dark (a name .dark leaves alone keeps this
+     value), where every hue but identity-3 already passes; code's follows
+     --color-ink-2 in both themes. text-contrast.test.mjs. */
+  --viz-input-text: #1b6fc2; /* the app's own --color-accent-hover */
+  --viz-output-text: #2e8157;
+  --viz-prediction-text: #8c60ad;
+  --viz-learner-text: #af5d0a;
+  --viz-code-text: var(--color-ink-2);
+  --viz-identity-2-text: #867033;
   --viz-surface: #fbfbfa;
   /* A solid-filled role carries its own readable ink, because the fill is the
      background at that point and which ink reads on it flips with the theme:
@@ -173,8 +194,10 @@ html {
   --tok-n: #e8a15c;
   --color-white: #191919; /* page + popover surfaces */
   --color-ink: #d4d4d4;
-  --color-ink-2: #979797;
+  --color-ink-2: #a1a1a1; /* 4.5:1 on bg-active and soft tints too - see the light token */
   --color-ink-3: #6f6f6f;
+  --color-pass: #05df72; /* Tailwind green-400 */
+  --color-fail: #ff6467; /* Tailwind red-400 */
   --color-line: #2f2f2f;
   --color-line-strong: #4a4a4a;
   --color-hover: #2c2c2c;
@@ -205,6 +228,13 @@ html {
   --viz-code: #979797;
   --viz-warning: #ef6351;
   --viz-success: #49d67f;
+  /* Text-safe hues, dark: the hue itself, except identity-3 (4.47:1 as text). */
+  --viz-input-text: var(--viz-input);
+  --viz-output-text: var(--viz-output);
+  --viz-prediction-text: var(--viz-prediction);
+  --viz-learner-text: var(--viz-learner);
+  --viz-identity-2-text: var(--viz-identity-2);
+  --viz-identity-3-text: #9c6aff;
   --viz-surface: #1f1f1f;
   --viz-on-observed: #1f1f1f;
   --viz-on-success: #1f1f1f;
@@ -302,7 +332,7 @@ a {
   --secondary: #efefed;
   --secondary-foreground: #37352f;
   --muted: #efefed;
-  --muted-foreground: #787774;
+  --muted-foreground: #63615d; /* --color-ink-2's light value: secondary text clears 4.5:1 */
   --accent: #efefed;
   --accent-foreground: #37352f;
   --destructive: #eb5757;

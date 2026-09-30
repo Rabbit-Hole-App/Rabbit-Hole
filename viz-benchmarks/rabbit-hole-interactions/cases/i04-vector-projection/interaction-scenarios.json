@@ -1,0 +1,29 @@
+{
+  "case": "i04-vector-projection",
+  "scenarios": [
+    {
+      "action": "drag a from (3,2) through 5 intermediate points",
+      "expect": "the projection readout changes at every step - live recomputation, not endpoint swap"
+    },
+    {
+      "action": "press Escape mid-drag; release outside the frame",
+      "expect": "Escape restores the committed coordinates; an outside release commits the clamped value (±5)"
+    },
+    {
+      "action": "type coordinates: a=(0,3); half-type \"-\"; type 12",
+      "expect": "typed input equals dragging; \"-\" stays an edit buffer (never NaN); 12 clamps to 5"
+    },
+    {
+      "action": "set b=(0,0)",
+      "expect": "explanatory not-ready state; Check disabled; recovers when b is edited"
+    },
+    {
+      "action": "zoom the canvas, then drag",
+      "expect": "the handle follows the pointer through the live transform - never raw screen pixels"
+    },
+    {
+      "action": "practice: make a perpendicular to b, Check zero projection",
+      "expect": "passes only for a defined, zero-length projection through a nonzero axis"
+    }
+  ]
+}

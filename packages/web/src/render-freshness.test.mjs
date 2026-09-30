@@ -14,7 +14,7 @@ import { expectedFingerprint, fingerprintPathFor, rendererHash } from '../script
 // scene-spec.json passed.
 const WEB_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const REPO_ROOT = dirname(dirname(WEB_ROOT));
-const SKIP_DIRS = new Set(['node_modules', '.git', '.local-benchmark-cache', 'dist', 'build']);
+const SKIP_DIRS = new Set(['node_modules', '.git', '.claude', '.small', '.local-benchmark-cache', 'dist', 'build']);
 
 function findStaticRenders(dir, found) {
   for (const entry of readdirSync(dir)) {

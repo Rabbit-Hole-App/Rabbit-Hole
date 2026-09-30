@@ -58,6 +58,18 @@ export function textStyle(typographyRole) {
   return TEXT_STYLE[typographyRole] ?? TEXT_STYLE.body;
 }
 
+// The ink of a scene text object's glyphs (AnimatedScene's text path). A
+// neutral line takes its typography's ink; any other role takes its hue -
+// identity's when it has one - through that hue's text-safe variant
+// (index.css --viz-<hue>-text), because a hue tuned for strokes at 3:1 can
+// fall under 4.5:1 as a line of text. Checked for every role x identity slot
+// in both themes, and on every card at rest: text-contrast.test.mjs.
+export function textObjectInk(role, typography, identitySlot = null) {
+  if (!ROLES.includes(role) || role === 'neutral') return textStyle(typography).fill;
+  const hue = IDENTITY_SLOTS.includes(identitySlot) ? identitySlot : role;
+  return `var(--viz-${hue}-text, var(--viz-${hue}))`;
+}
+
 // A state picks a step along its role's own fill band, and a stroke weight.
 // Colour never appears here - that is the orthogonality the whole model rests
 // on. `step` indexes FILL's [muted, rest, lit, peak].
@@ -76,11 +88,60 @@ const RESTING = { step: 1, strokeWidth: 1.5 };
 // or the frame promises an interaction that will not answer.
 const STATE_PRIORITY = ['disabled', 'blocked', 'chosen', 'selected', 'highlighted', 'active'];
 
-// What ink reads on top of this role's own fill. Only a solid role is its own
-// background; everything else is a tint over the surface, so the page's ink
-// still wins. The token flips with the theme, which a fixed white could not.
-export function inkOn(role) {
+// What ink reads on top of this role's own fill. A soft role is a tint over
+// the surface, so the page's ink still wins; a solid role is its own
+// background and carries its own ink. Every token flips with the theme, which
+// a fixed white could not. Where one ink cannot hold a loud role's whole band
+// in both themes, the fill step (its percent, from shapeStyle) picks it -
+// heat's HEAT_INK_ZONES pattern, [upto percent, ink], existing inks only.
+// Measured with the box shadow under the fill (text-contrast.test.mjs):
+//   learner: page ink fell to 4.21:1 at rest in dark (3.30 at the peak); the
+//     extreme of page ink's own direction, --viz-ink-mid (black in light,
+//     white in dark), holds every step, 4.90:1 or more.
+//   success: white fell to 4.09-4.25:1 at rest in light; black
+//     (--viz-ink-solid, both themes) holds up to lit (4.52:1), white the
+//     peak (5.06:1).
+// Without a percent it is the tier's nominal ink.
+const ON_FILL_ZONES = {
+  learner: [[100, 'var(--viz-ink-mid)']],
+  success: [[94, 'var(--viz-ink-solid)'], [100, 'var(--viz-on-success)']],
+};
+export function inkOn(role, percent = null) {
+  const zones = percent != null && ON_FILL_ZONES[role];
+  if (zones) return zones.find(([upto]) => percent <= upto)[1];
   return ROLE_FILL[role] === 'solid' ? `var(--viz-on-${role})` : 'var(--color-ink)';
+}
+
+// A glyph drawn over ANOTHER object's shape - a token or bar label, a line of
+// text, an equation - reads against that shape's fill, not the surface. On a
+// strong or solid role fill it takes that fill's own ink (the shape's onFill,
+// exactly what its own label gets); over a soft tint or the bare surface it
+// keeps its own. `shapes`: the boxes and circles drawn before it, as
+// { xMin, xMax, yMin, yMax, role, onFill }; `box`: the glyph's estimated box
+// (scene-layout.js estimateTextBox). The last shape holding its centre is the
+// one it sits on.
+export function inkOver(ink, shapes, box) {
+  const x = (box.xMin + box.xMax) / 2, y = (box.yMin + box.yMax) / 2;
+  const under = shapes.findLast(shape => x >= shape.xMin && x <= shape.xMax && y >= shape.yMin && y <= shape.yMax);
+  return under && ROLE_FILL[under.role] ? under.onFill : ink;
+}
+
+// A grid/strip numeral's ink (non-heat). Unlit on a soft fill it is the quiet
+// secondary ink, proved against every soft resting tint in both themes by
+// text-contrast.test.mjs. A strong or solid fill leaves no grey that passes
+// 4.5:1 (in dark it would have to be --color-ink itself), so there the
+// numeral takes the fill's own ink, lit or not - the cell's onFill, which is
+// its step's (inkOn) - and the fill step and the selection mark still tell
+// lit from unlit.
+// ponytail: unproven on a loud fill in any identity hue (identity has no
+// on-ink of its own; text-contrast.test.mjs UNPROVEN - only the IDENTITY
+// benchmark draws one). And with cellHighlightKind 'highlight' on a strong
+// role, lit and unlit share this ink and differ only by the 38 -> 44% fill
+// step and a 0.5px stroke. Give identity hues their own on-ink when a lesson
+// draws numbers on a loud identity fill.
+export function cellInk(role, lit, onFill = inkOn(role)) {
+  if (ROLE_FILL[role]) return onFill;
+  return lit ? 'var(--color-ink)' : 'var(--color-ink-2)';
 }
 
 // defaultTier only ever weakens the fallback FILL uses for a role ROLE_FILL
@@ -105,7 +166,7 @@ export function shapeStyle(role, state = {}, defaultTier = 'soft', identitySlot 
   // Exposed so a caller can prove its own fill landed in this band, rather
   // than trusting that it did - see the grid-path test in scene-style.test.mjs,
   // which is exactly the test that was missing.
-  return { fill: tintHue(hue, band[step]), stroke: hue, strokeWidth, onFill: inkOn(role), fillBand: band };
+  return { fill: tintHue(hue, band[step]), stroke: hue, strokeWidth, onFill: inkOn(role, band[step]), fillBand: band };
 }
 
 // Heat's own ramp, kept apart from FILL on purpose (see scene-vocab.js's

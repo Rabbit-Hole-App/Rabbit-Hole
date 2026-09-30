@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import { applyAction, prepareScene, sceneContext } from './scene-engine.js';
-import VectorScene from './VectorScene.jsx';
+import VectorScene, { VectorControls } from './VectorScene.jsx';
 import PipelineScene from './PipelineScene.jsx';
 import './scene-behaviors.js';
 
@@ -34,7 +34,9 @@ function StepsSvg({ spec, state, behavior, onSelect, selected }) {
               stroke={selected === (step.id || `step-${index}`) ? '#2383e2' : active ? '#2383e2' : '#e9e9e7'}
               strokeWidth={selected === (step.id || `step-${index}`) ? 2 : 1} />
             <text x={14} y={17} fontSize="12" fontWeight={active ? 600 : 400} fill={active ? '#ffffff' : '#37352f'}>{step.label}</text>
-            {step.detail && <text x={14} y={30} fontSize="10" fill={active ? '#dbeafe' : '#787774'} fontFamily="ui-monospace, monospace">{step.detail}</text>}
+            {/* A light-only island (its fills are fixed hex), so its secondary ink is
+                --color-ink-2's light value, not the flipping token. */}
+            {step.detail && <text x={14} y={30} fontSize="10" fill={active ? '#dbeafe' : '#63615d'} fontFamily="ui-monospace, monospace">{step.detail}</text>}
           </g>
         );
       })}
@@ -44,6 +46,9 @@ function StepsSvg({ spec, state, behavior, onSelect, selected }) {
 
 // One renderer per behaviour shape; a behaviour declares which it supports.
 const RENDERERS = { walkthrough_v1: StepsSvg, vector_projection_v1: VectorScene, pipeline_assembly_v1: PipelineScene };
+// Optional per-behaviour control panel rendered in the INTERACT zone below the
+// visualization (keeps the card grammar: explanation above, controls below).
+const CONTROLS = { vector_projection_v1: VectorControls };
 
 // What the tutor is told when the learner asks about this block.
 export function sceneSummary(block) {
@@ -81,27 +86,43 @@ export default function InteractiveScene({ block, onChange }) {
   };
   const progress = behavior.progress ? behavior.progress(state) : null;
   const buttons = spec.interactions.filter(interaction => interaction.input === 'button');
+  const Controls = CONTROLS[spec.behaviorId];
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2" onPointerDown={event => event.stopPropagation()}>
-      <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-line bg-white p-2">
+      {/* A flex column, not plain block flow: renderers size against the
+          card's real height (a square vector frame stays inside the card
+          instead of growing to its own width and scrolling the handles out
+          of reach); a renderer taller than the card still scrolls. */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-auto rounded-lg border border-line bg-white p-2">
         {Renderer
           ? <Renderer spec={spec} state={state} behavior={behavior} selected={selected} onSelect={setSelected} run={run} reduced={reduced} />
           : <p className="text-xs text-ink-2">No renderer for {spec.behaviorId}.</p>}
       </div>
-      <div className="flex shrink-0 flex-wrap items-center gap-1.5">
-        {buttons.map((interaction, index) => (
-          <button key={index} type="button" data-scene-action={interaction.action}
-            onClick={() => run({ type: interaction.action })}
-            className="flex h-8 items-center gap-1.5 rounded-lg border border-line px-3 text-sm hover:bg-hover">
-            {interaction.action === 'previous_step' && <ChevronLeft size={14} />}
-            {interaction.action === 'reset_attempt' && <RotateCcw size={13} />}
-            {interaction.label || interaction.action.replace('_', ' ')}
-            {interaction.action === 'advance_step' && <ChevronRight size={14} />}
-          </button>
-        ))}
-        {progress && <span className="ml-auto text-xs tabular-nums text-ink-2">{progress.seen} / {progress.total} {spec.behaviorId === 'pipeline_assembly_v1' ? 'in place' : 'steps'}{progress.complete ? ' · done' : ''}</span>}
+      {/* INTERACT zone: a behaviour's control panel (e.g. the vec2 coordinate
+          fields, via CONTROLS) plus the transport-independent action buttons
+          like Reset, all below the visualization under one label - the card
+          grammar (explanation above, controls below the divider). Asking the
+          tutor lives only in the Ask-in-chat pill + bottom composer. */}
+      <div className="shrink-0 rounded-lg border border-line bg-white px-3 pt-1.5 pb-2">
+        <div className="mb-1.5 flex items-center justify-between">
+          <p className="text-xs font-semibold tracking-wide text-ink-2 uppercase">Interact</p>
+          {progress && <span className="text-xs tabular-nums text-ink-2">{progress.seen} / {progress.total} {behavior.progressNoun || 'steps'}{progress.complete ? ' · done' : ''}</span>}
+        </div>
+        {Controls && <div className="mb-2"><Controls state={state} run={run} /></div>}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {buttons.map((interaction, index) => (
+            <button key={index} type="button" data-scene-action={interaction.action}
+              onClick={() => run({ type: interaction.action })}
+              className="flex h-8 items-center gap-1.5 rounded-lg border border-line px-3 text-sm hover:bg-hover">
+              {interaction.action === 'previous_step' && <ChevronLeft size={14} />}
+              {interaction.action === 'reset_attempt' && <RotateCcw size={13} />}
+              {interaction.label || interaction.action.replace('_', ' ')}
+              {interaction.action === 'advance_step' && <ChevronRight size={14} />}
+            </button>
+          ))}
+        </div>
       </div>
-      <p className="shrink-0 text-[11px] text-ink-3">{MODE_LABEL[spec.execution.mode]}</p>
+      <p className="shrink-0 text-xs text-ink-2">{MODE_LABEL[spec.execution.mode]}</p>
     </div>
   );
 }

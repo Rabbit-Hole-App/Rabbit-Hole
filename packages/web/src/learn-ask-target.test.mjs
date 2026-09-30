@@ -26,7 +26,9 @@ test('a group target names every cut and every member it could not describe (con
 test('Ask in chat sends the typed words as message and the card as canvas_target (context-1, context-10)', () => {
   assert.doesNotMatch(ask, /Question about this \$\{target\.kind\} block/);
   assert.match(ask, /\n {8}message,\n/);
-  assert.match(ask, /\.\.\.\(target \? \{ canvas_target: canvasTargetField\(target\) \}/);
+  // Cards' live card text (a getter or function) is resolved once at send and frozen into this request.
+  assert.match(ask, /const targetText = target \? \(typeof target\.text === 'function' \? target\.text\(\) : target\.text\) : null;/);
+  assert.match(ask, /\.\.\.\(target \? \{ canvas_target: canvasTargetField\(\{ \.\.\.target, text: targetText \}\) \}/);
   // The first Continue convo request carries the card its answer was linked from.
   assert.match(ask, /canvasSeed && !threadId\.current \? \{ canvas_seed: \{ question: canvasSeed\.question, answer: canvasSeed\.answer \}, \.\.\.\(!target && canvasSeed\.target \? \{ canvas_target: canvasTargetField\(canvasSeed\.target\) \} : \{\}\) \}/);
   assert.match(canvas, /renderComposer=\{renderBlockComposer && \(\(exchange, receive\) => renderBlockComposer\(exchange, receive, linkedTarget\(exchange\)\)\)\}/);

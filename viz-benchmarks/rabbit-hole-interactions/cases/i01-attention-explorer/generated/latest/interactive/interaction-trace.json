@@ -1,0 +1,13 @@
+{
+  "script": "i01-attention-check.mjs",
+  "port": "5199",
+  "lines": [
+    "initial: query river, card shot",
+    "query south via token click: caption, control, weights label all follow",
+    "mask off: shot taken",
+    "inspect + ask: payload carries query, mask, inspected cell",
+    "reset: defaults back, lesson intact",
+    "reload: same effective state",
+    "PASS - shots: i01-initial/query-south/mask-off/mask-restored/dark"
+  ]
+}

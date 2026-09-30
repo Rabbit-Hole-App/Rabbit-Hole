@@ -1,0 +1,18 @@
+{
+  "case": "i02-image-patch-explorer",
+  "expected": {
+    "patch-5": {
+      "human": "Patch 6 of 16 · row 2, column 2",
+      "crop": {
+        "x": 0.25,
+        "y": 0.25,
+        "w": 0.25,
+        "h": 0.25
+      }
+    },
+    "patch-9": {
+      "human": "Patch 10 of 16 · row 3, column 2"
+    },
+    "bounds": "index domain 0..15; no wrap"
+  }
+}

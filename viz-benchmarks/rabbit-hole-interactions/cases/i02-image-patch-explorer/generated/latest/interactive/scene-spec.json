@@ -1,0 +1,327 @@
+{
+  "scene": {
+    "id": "image-patch-explorer",
+    "title": "Image-patch explorer",
+    "width": 960,
+    "height": 590,
+    "duration": 3,
+    "inputs": [
+      {
+        "name": "patchIndex",
+        "type": "index",
+        "label": "Patch",
+        "of": "patches",
+        "default": 0,
+        "presentation": "slider"
+      }
+    ],
+    "exampleData": {
+      "patches": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0.25,
+          "h": 0.25,
+          "human": "Patch 1 of 16 · row 1, column 1"
+        },
+        {
+          "x": 0.25,
+          "y": 0,
+          "w": 0.25,
+          "h": 0.25,
+          "human": "Patch 2 of 16 · row 1, column 2"
+        },
+        {
+          "x": 0.5,
+          "y": 0,
+          "w": 0.25,
+          "h": 0.25,
+          "human": "Patch 3 of 16 · row 1, column 3"
+        },
+        {
+          "x": 0.75,
+          "y": 0,
+          "w": 0.25,
+          "h": 0.25,
+          "human": "Patch 4 of 16 · row 1, column 4"
+        },
+        {
+          "x": 0,
+          "y": 0.25,
+          "w": 0.25,
+          "h": 0.25,
+          "human": "Patch 5 of 16 · row 2, column 1"
+        },
+        {
+          "x": 0.25,
+          "y": 0.25,
+          "w": 0.25,
+          "h": 0.25,
+          "human": "Patch 6 of 16 · row 2, column 2"
+        },
+        {
+          "x": 0.5,
+          "y": 0.25,
+          "w": 0.25,
+          "h": 0.25,
+          "human": "Patch 7 of 16 · row 2, column 3"
+        },
+        {
+          "x": 0.75,
+          "y": 0.25,
+          "w": 0.25,
+          "h": 0.25,
+          "human": "Patch 8 of 16 · row 2, column 4"
+        },
+        {
+          "x": 0,
+          "y": 0.5,
+          "w": 0.25,
+          "h": 0.25,
+          "human": "Patch 9 of 16 · row 3, column 1"
+        },
+        {
+          "x": 0.25,
+          "y": 0.5,
+          "w": 0.25,
+          "h": 0.25,
+          "human": "Patch 10 of 16 · row 3, column 2"
+        },
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "w": 0.25,
+          "h": 0.25,
+          "human": "Patch 11 of 16 · row 3, column 3"
+        },
+        {
+          "x": 0.75,
+          "y": 0.5,
+          "w": 0.25,
+          "h": 0.25,
+          "human": "Patch 12 of 16 · row 3, column 4"
+        },
+        {
+          "x": 0,
+          "y": 0.75,
+          "w": 0.25,
+          "h": 0.25,
+          "human": "Patch 13 of 16 · row 4, column 1"
+        },
+        {
+          "x": 0.25,
+          "y": 0.75,
+          "w": 0.25,
+          "h": 0.25,
+          "human": "Patch 14 of 16 · row 4, column 2"
+        },
+        {
+          "x": 0.5,
+          "y": 0.75,
+          "w": 0.25,
+          "h": 0.25,
+          "human": "Patch 15 of 16 · row 4, column 3"
+        },
+        {
+          "x": 0.75,
+          "y": 0.75,
+          "w": 0.25,
+          "h": 0.25,
+          "human": "Patch 16 of 16 · row 4, column 4"
+        }
+      ]
+    },
+    "derived": {
+      "patch": {
+        "op": "pick",
+        "args": [
+          "patches",
+          "patchIndex"
+        ]
+      }
+    },
+    "objects": [
+      {
+        "id": "caption",
+        "type": "text",
+        "semanticId": "caption",
+        "conceptId": "vlm-pipeline",
+        "initialState": {
+          "text": "{{patch.human}} - click the image, drag the slider, or step",
+          "x": 40,
+          "y": 36
+        }
+      },
+      {
+        "id": "photo",
+        "type": "image",
+        "semanticId": "source-image",
+        "conceptId": "vlm-pipeline",
+        "initialState": {
+          "src": "/lesson-assets/vlm-patch-source.jpg",
+          "x": 40,
+          "y": 100,
+          "w": 320,
+          "h": 320,
+          "opacity": 0,
+          "role": "input"
+        }
+      },
+      {
+        "id": "patch-grid",
+        "type": "grid",
+        "semanticId": "patch-grid",
+        "conceptId": "vlm-pipeline",
+        "initialState": {
+          "label": "16 fixed-size patches - click one",
+          "x": 40,
+          "y": 100,
+          "rows": 4,
+          "cols": 4,
+          "cell": 80,
+          "opacity": 0,
+          "role": "input",
+          "pickInput": "patchIndex",
+          "cellHighlight": {
+            "$derive": "patchIndex"
+          }
+        }
+      },
+      {
+        "id": "patch-crop",
+        "type": "image",
+        "semanticId": "patch-crop",
+        "conceptId": "vlm-pipeline",
+        "initialState": {
+          "src": "/lesson-assets/vlm-patch-source.jpg",
+          "x": 520,
+          "y": 140,
+          "w": 220,
+          "h": 220,
+          "opacity": 0,
+          "role": "input",
+          "crop": {
+            "$derive": "patch"
+          }
+        }
+      },
+      {
+        "id": "patch-crop-outline",
+        "type": "box",
+        "semanticId": "patch-crop-outline",
+        "conceptId": "vlm-pipeline",
+        "initialState": {
+          "x": 520,
+          "y": 140,
+          "w": 220,
+          "h": 220,
+          "opacity": 0,
+          "role": "neutral"
+        }
+      },
+      {
+        "id": "crop-label",
+        "type": "text",
+        "semanticId": "crop-label",
+        "conceptId": "vlm-pipeline",
+        "initialState": {
+          "text": "the same patch, enlarged - a window onto the same file",
+          "x": 520,
+          "y": 384,
+          "opacity": 0,
+          "typography": "annotation"
+        }
+      },
+      {
+        "id": "positions",
+        "type": "tokens",
+        "semanticId": "patch-positions",
+        "conceptId": "vlm-pipeline",
+        "initialState": {
+          "label": "the 16 patches as a token sequence",
+          "x": 40,
+          "y": 490,
+          "w": 859,
+          "h": 32,
+          "opacity": 0,
+          "role": "observed",
+          "tokens": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "10",
+            "11",
+            "12",
+            "13",
+            "14",
+            "15",
+            "16"
+          ],
+          "cellHighlight": {
+            "$derive": "patchIndex"
+          },
+          "cellHighlightKind": "highlight"
+        }
+      }
+    ],
+    "timeline": [
+      {
+        "at": 0,
+        "action": "appear",
+        "target": "photo",
+        "duration": 0.4
+      },
+      {
+        "at": 0.3,
+        "action": "appear",
+        "target": "patch-grid",
+        "duration": 0.4
+      },
+      {
+        "at": 0.8,
+        "action": "appear",
+        "target": "patch-crop",
+        "duration": 0.4
+      },
+      {
+        "at": 0.8,
+        "action": "appear",
+        "target": "patch-crop-outline",
+        "duration": 0.4
+      },
+      {
+        "at": 1,
+        "action": "appear",
+        "target": "crop-label",
+        "duration": 0.3
+      },
+      {
+        "at": 1.6,
+        "action": "appear",
+        "target": "positions",
+        "duration": 0.4
+      }
+    ]
+  },
+  "activity": {
+    "id": "i02-practice",
+    "check": "index_equals",
+    "version": 1,
+    "prompt": "Which patch sits at row 3, column 2 of the grid? Pick its number.",
+    "answer": {
+      "type": "index",
+      "label": "Your answer",
+      "of": "patches",
+      "default": 0
+    },
+    "expected": 9,
+    "feedbackPass": "Right - patches count row-major, so row 3 starts at patch 9 and its second column is patch 10.",
+    "feedbackFail": "Not quite - the grid counts row-major: patches 1-4 are row 1, 5-8 row 2, so row 3 column 2 is patch 10. Try a new attempt."
+  }
+}

@@ -35,7 +35,7 @@ function useDark() {
 // nivo draws SVG text in its own theme, not CSS - dark mode needs explicit fills.
 const nivoTheme = (dark) => ({
   text: { fill: dark ? '#d4d4d4' : '#37352f' },
-  axis: { ticks: { text: { fill: dark ? '#9b9b9b' : '#787774' } } },
+  axis: { ticks: { text: { fill: dark ? '#9b9b9b' : '#63615d' } } }, // light: --color-ink-2
   grid: { line: { stroke: dark ? '#333' : '#e9e9e7' } },
   tooltip: { container: { background: dark ? '#252525' : '#fff', color: dark ? '#d4d4d4' : '#37352f' } },
 });

@@ -1,0 +1,27 @@
+{
+  "project": "rabbit-hole-interaction-holdouts",
+  "case": "h1-repo-navigator",
+  "status": "ready",
+  "referenceType": "none",
+  "heldOut": true,
+  "objective": "Drill a codebase (repo -> file -> class -> function); breadcrumb, architecture highlight and code all follow one selection.",
+  "scope": "A scene NOT used while building the interaction runtime, authored only from existing input types.",
+  "constraints": {
+    "noNewInputType": true,
+    "noNewPrimitive": true,
+    "noSceneIdBranch": true,
+    "noBespokeRenderer": true,
+    "existingTypesOnly": [
+      "index",
+      "bool",
+      "choice",
+      "indices",
+      "vec2"
+    ]
+  },
+  "patterns": [
+    "zoom_drilldown",
+    "coordinated_views",
+    "routing"
+  ]
+}

@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { LEGIBILITY_FLOORS, MAX_SCENE_VIEWPORT, legibilityIssues, sceneLegibility, typographyClassesUsed } from './scene-layout.js';
+import { LEGIBILITY_FLOORS, MAX_SCENE_VIEWPORT, cellLegibilityIssues, legibilityIssues, sceneLegibility, typographyClassesUsed } from './scene-layout.js';
+import { BOARDS, BOARD_REVIEW_STATES } from './demo-scenes.js';
+import { evaluateScene } from './scene-evaluate.js';
 import { transformerBlockScene, vlmScene, worldModelScene, codebaseOrientationScene } from './gallery-scenes.js';
 import { causalAttentionScene } from './reference-scenes.js';
 
@@ -94,4 +96,30 @@ test('mutation proof: raising a floor above what a scene can deliver fails it, a
   const halved = legibilityIssues(transformerBlockScene, { w: report.viewport.w / 2, h: report.viewport.h / 2 });
   assert.ok(halved.some(issue => issue.textClass === 'annotation' && issue.effectivePx < real), 'halving the frame must drop the annotation class below its floor');
   assert.deepEqual(legibilityIssues(transformerBlockScene), [], 'and the real viewport still passes');
+});
+
+// The numbers inside grids and strips are text too: on every registered board,
+// at its default inputs and every review state, each cell's number renders at
+// or above the smallest floor (cellLegibilityIssues). Wider cells, not smaller
+// numbers - a card that only fits by shrinking them is a card to re-author.
+test('every board grid and strip number clears the 12px floor at every reviewed state', () => {
+  const issues = [];
+  for (const [board, make] of Object.entries(BOARDS)) {
+    for (const block of make().filter(entry => entry.scene)) {
+      const scene = block.scene;
+      const defaults = Object.fromEntries((scene.inputs || []).map(d => [d.name, d.default]));
+      for (const inputs of [defaults, ...((BOARD_REVIEW_STATES[board] || {})[scene.id] || [])]) {
+        const { state } = evaluateScene(structuredClone(scene), scene.duration, { ...defaults, ...inputs });
+        for (const issue of cellLegibilityIssues(state)) issues.push(`${board} / ${scene.id} ${JSON.stringify(inputs)}: ${issue.object} "${issue.longest}" at ${issue.effectivePx}px in ${issue.cell}px cells`);
+      }
+    }
+  }
+  assert.deepEqual(issues, []);
+});
+
+test('the cell floor gate catches a cell too narrow for its numbers', () => {
+  const narrow = { objects: [{ id: 'g', type: 'grid', visible: true, cell: 30, values: [-0.82, 0.5] }] };
+  assert.equal(cellLegibilityIssues(narrow).length, 1);
+  const wide = { objects: [{ id: 'g', type: 'grid', visible: true, cell: 42, values: [-0.82, 0.5] }] };
+  assert.deepEqual(cellLegibilityIssues(wide), []);
 });

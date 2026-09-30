@@ -4,9 +4,10 @@ import { minimapLayout, minimapToView } from './learn-minimap.js';
 
 const SIZE = { w: 184, h: 124 };
 
-// Bottom-right overview of the canvas. Press or drag inside it to send the
-// camera there; the button in its corner frames everything at once, which is the
-// way back when you have panned into empty space and lost the column.
+// Overview of the canvas, shown in the tools' gutter beside it - never over it.
+// Press or drag inside it to send the camera there; the button in its corner
+// frames everything at once, which is the way back when you have panned into
+// empty space and lost the column.
 export default function CanvasMinimap({ boxes, view, surface, onView, onFit }) {
   const frame = useRef(null);
   const layout = minimapLayout(boxes, view, surface, SIZE);
@@ -23,7 +24,7 @@ export default function CanvasMinimap({ boxes, view, surface, onView, onFit }) {
   };
   return (
     <div style={{ width: SIZE.w, height: SIZE.h }}
-      className="absolute right-3 bottom-4 z-20 overflow-hidden rounded-xl border border-line bg-white/90 shadow-md backdrop-blur-sm">
+      className="relative overflow-hidden rounded-xl border border-line bg-white shadow-md">
       <svg ref={frame} role="img" aria-label="Canvas overview" width={SIZE.w} height={SIZE.h} className="block cursor-pointer touch-none"
         onPointerDown={drag} onPointerMove={event => { if (event.currentTarget.hasPointerCapture(event.pointerId)) goTo(event); }}>
         {layout.boxes.map((box, index) => (

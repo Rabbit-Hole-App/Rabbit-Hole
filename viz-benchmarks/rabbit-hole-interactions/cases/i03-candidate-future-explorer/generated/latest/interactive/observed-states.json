@@ -1,0 +1,21 @@
+{
+  "pre-commit": {
+    "shownCosts": [
+      null,
+      null,
+      null
+    ]
+  },
+  "post-commit": {
+    "shownCosts": [
+      4,
+      1,
+      9
+    ],
+    "costs": [
+      4,
+      1,
+      9
+    ]
+  }
+}

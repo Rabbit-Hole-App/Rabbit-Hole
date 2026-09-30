@@ -267,7 +267,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     // One reader holds one thing. Leaving paperContext set would keep sending
     // the paper instead - ask.jsx prefers it - for the rest of the session.
     setPaperContext(null);
-    setWikiOpen(true); setPaperOpen(false); setSourceOpen(false); setLearnerOpen(false); setSetupChat(false); setPanelOpen(true);
+    setWikiOpen(true); setPaperOpen(false); setSourceOpen(false); setLessonSource(null); setLearnerOpen(false); setSetupChat(false); setPanelOpen(true);
     if (blockId) registerSource({ id: `wiki:${blockId}`, kind: 'wiki', label: String(title).replace(/_/g, ' ') });
   };
   // The id names the card, never the article, so clicking through twenty links
@@ -299,7 +299,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     // pointing at, and that must win.
     setPaperContext({ ...paper, page: paper.page || 1 });
     setWikiContext(null); setWikiOpen(false);
-    setPaperOpen(true); setSourceOpen(false); setLearnerOpen(false); setSetupChat(false); setPanelOpen(true);
+    setPaperOpen(true); setSourceOpen(false); setLessonSource(null); setLearnerOpen(false); setSetupChat(false); setPanelOpen(true);
     registerSource({ id: `paper:${paper.id}`, kind: 'paper', label: paper.title || `arXiv ${paper.id}` });
   };
   // A PDF needs no account and no server: the bytes go to this browser's asset
@@ -573,7 +573,12 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
     }
   };
   // A file reference clicked inside a canvas block opens in the right panel.
-  const openCanvasFile = (path, line, lineEnd) => { setPaperOpen(false); setSourceOpen(false); setLessonSource({ path, line, lineEnd, commit: nanoActive ? nanoSourceVersion : repositoryContext?.commit }); };
+  // A cited source names its own revision (and repository, for the link out);
+  // a bare path reference reads the lesson's.
+  const openCanvasFile = (path, line, lineEnd, cited = {}) => {
+    setPaperOpen(false); setSourceOpen(false); setWikiOpen(false); setPanelOpen(true);
+    setLessonSource({ path, line, lineEnd, commit: cited.commit || (nanoActive ? nanoSourceVersion : repositoryContext?.commit), repo: cited.repo });
+  };
   const clearAskTarget = () => { setAskTarget(null); canvasApi.current?.deselect(); };
   const playback = useRef(null);
   const startDemo = useRef(null);
@@ -676,6 +681,9 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
           const link = event.target.closest?.('a');
           const href = link?.getAttribute('href');
           if (!href || link.closest('[aria-label="Paper reader"]')) return;
+          // A card's Wikipedia source opens in the wiki reader, like the tutor's.
+          const wiki = link.getAttribute('data-source-wiki');
+          if (wiki) { if (event.type === 'click') { event.preventDefault(); event.stopPropagation(); openWiki({ title: wiki }); } else event.stopPropagation(); return; }
           let url; try { url = new URL(href); } catch { return; }
           if (url.protocol !== 'https:' || url.hostname !== 'arxiv.org') return;
           const match = url.pathname.match(/^\/(?:pdf|abs)\/(\d{4}\.\d{4,5}(?:v\d+)?|[a-z.-]+\/\d{7}(?:v\d+)?)(?:\.pdf)?$/i);
@@ -683,7 +691,10 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
           const shape = editor?.getCurrentPageShapes().find(shape => shape.meta?.paper?.id === match[1]);
           const paper = shape?.meta.paper || { id: match[1], title: link.textContent, pdfUrl: `https://arxiv.org/pdf/${match[1]}`, page: 1 };
           event.preventDefault(); event.stopPropagation();
-          addPaper({ ...paper, page: Number(url.hash.match(/page=(\d+)/)?.[1]) || paper.page });
+          const paged = { ...paper, page: Number(url.hash.match(/page=(\d+)/)?.[1]) || paper.page };
+          // A card's Sources link opens the paper reader, one reader at a time as openPaper does;
+          // any other arXiv link on the canvas lands as a paper card.
+          if (link.hasAttribute('data-source-link')) openPaper(paged); else addPaper(paged);
   };
   const boardContext = {
     paper: paperContext, clearPaper: () => { setPaperContext(null); setPaperOpen(false); setWikiContext(null); setWikiOpen(false); },
@@ -1054,8 +1065,11 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
             return meta?.author === 'script' && meta.learnLesson?.startsWith('course-');
           }));
         }} />;
-  return <main className="relative flex min-w-0 flex-1 overflow-hidden max-lg:flex-col">
-    <section aria-label="Learn" className="min-h-0 min-w-0 flex-1">
+  return <main className="relative flex min-w-0 flex-1 overflow-hidden max-lg:flex-col max-lg:overflow-y-auto">
+    {/* Below lg the panel stacks under the lesson and the page scrolls: the
+        lesson canvas keeps a real working height (see below) instead of being
+        squeezed into what the panel leaves. */}
+    <section aria-label="Learn" className={`min-h-0 min-w-0 flex-1 ${!courseView && learningView === 'lesson' ? 'max-lg:flex-none' : ''}`}>
       {/* The lesson canvas goes full-bleed so its toolbar and zoom controls sit
           at the window edges; every other view keeps the centered page frame. */}
       <div className={`expanded-page-frame mx-auto flex h-full w-full min-h-0 flex-col ${!courseView && learningView === 'lesson' ? '' : 'max-w-[900px] px-6 py-6'}`}>
@@ -1124,7 +1138,7 @@ export default function LearnPage({ app, onBack, repositoryContext = null, onGra
         {/* The adaptive canvas: a plain React whiteboard where chat exchanges
             land as movable blocks. Lesson playback stays parked. */}
         {board && !BOARDS[board] && <div className="border-b border-line bg-hover px-4 py-2 text-sm text-ink-2">No review board is registered as <span className="font-medium text-ink">{board}</span> - this is an empty scratch board. Registered boards live in BOARDS in demo-scenes.js.</div>}
-        <div aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="min-h-0 flex-1"><Suspense fallback={null}><AdaptiveCanvas key={canvasEpoch} onSave={pushBoard} bottomLeft={<FeedbackButton app={app.name} board={board} />} onSearch={source => { setSearchSeed({ source }); setSearchOpen(true); }} exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onState={onCanvasState} edgeInset={!panelOpen && canvasOutline.length ? 52 : 0} storageKey={boardStorageKey} seedBlocks={board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange, target) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer, target }} onExchange={onExchange} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} composer={(app.hosting !== 'aws' || app.app_chat) ? <div data-learn-dock className="contents"><AskPanel compact composerOnly dock sheet onAddToCanvas={chat => canvas()?.insertChat(chat)} boardContext={boardContext} onExchange={placeExchange} slash={learnSlash} canvasTarget={askTarget} onClearCanvasTarget={clearAskTarget} key={`dock:${app.name}`} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={askPlaceholder} autoFocus /></div> : null} /></Suspense></div>
+        <div aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="min-h-0 flex-1 max-lg:h-[75dvh] max-lg:flex-none"><Suspense fallback={null}><AdaptiveCanvas key={canvasEpoch} onSave={pushBoard} bottomLeft={<FeedbackButton app={app.name} board={board} />} onSearch={source => { setSearchSeed({ source }); setSearchOpen(true); }} exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} askTargetId={askTarget?.id ?? null} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onState={onCanvasState} edgeInset={!panelOpen && canvasOutline.length ? 52 : 0} storageKey={boardStorageKey} seedBlocks={board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange, target) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer, target }} onExchange={onExchange} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} composer={(app.hosting !== 'aws' || app.app_chat) ? <div data-learn-dock className="contents"><AskPanel compact composerOnly dock sheet onAddToCanvas={chat => canvas()?.insertChat(chat)} boardContext={boardContext} onExchange={placeExchange} slash={learnSlash} canvasTarget={askTarget} onClearCanvasTarget={clearAskTarget} key={`dock:${app.name}`} scope={{ app: app.name }} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={askPlaceholder} autoFocus /></div> : null} /></Suspense></div>
         {/* ponytail: playback bar and timeline parked while the lesson-2 canvas is redesigned */}
         {false && <div aria-label="Lesson playback" className={`${courseView || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
           <div className="flex items-center gap-1">

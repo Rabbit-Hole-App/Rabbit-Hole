@@ -1,0 +1,606 @@
+{
+  "scene": {
+    "id": "attention-explorer",
+    "title": "Attention explorer",
+    "width": 980,
+    "height": 720,
+    "duration": 4,
+    "inputs": [
+      {
+        "name": "queryIndex",
+        "type": "index",
+        "label": "Query token",
+        "of": "tokens",
+        "default": 0,
+        "presentation": "visual"
+      },
+      {
+        "name": "maskEnabled",
+        "type": "bool",
+        "label": "Causal mask",
+        "default": true
+      }
+    ],
+    "exampleData": {
+      "tokens": [
+        "river",
+        "flows",
+        "south",
+        "today"
+      ],
+      "Q": [
+        [
+          1,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          -1
+        ]
+      ],
+      "K": [
+        [
+          1,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          -1,
+          1
+        ]
+      ],
+      "V": [
+        [
+          1,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          -1,
+          0
+        ]
+      ],
+      "scoresCaptionOn": "scores QKᵀ/√dk — future positions masked",
+      "scoresCaptionOff": "scores QKᵀ/√dk — all positions available",
+      "maskLegendOn": "gray cells = masked (unavailable to this query)",
+      "maskLegendOff": ""
+    },
+    "derived": {
+      "scoresRaw": {
+        "op": "matmul",
+        "args": [
+          "Q",
+          "K"
+        ]
+      },
+      "scores": {
+        "op": "scale",
+        "args": [
+          "scoresRaw",
+          0.7071067811865476
+        ]
+      },
+      "masked": {
+        "op": "causal_mask",
+        "args": [
+          "scores",
+          "maskEnabled"
+        ]
+      },
+      "weights": {
+        "op": "softmax",
+        "args": [
+          "masked"
+        ]
+      },
+      "qword": {
+        "op": "pick",
+        "args": [
+          "tokens",
+          "queryIndex"
+        ]
+      },
+      "qrow": {
+        "op": "pick",
+        "args": [
+          "Q",
+          "queryIndex"
+        ]
+      },
+      "wrow": {
+        "op": "pick",
+        "args": [
+          "weights",
+          "queryIndex"
+        ]
+      },
+      "output": {
+        "op": "weighted_sum",
+        "args": [
+          "wrow",
+          "V"
+        ]
+      },
+      "scoresCaption": {
+        "op": "choose",
+        "args": [
+          "maskEnabled",
+          "scoresCaptionOn",
+          "scoresCaptionOff"
+        ]
+      },
+      "maskLegend": {
+        "op": "choose",
+        "args": [
+          "maskEnabled",
+          "maskLegendOn",
+          "maskLegendOff"
+        ]
+      }
+    },
+    "objects": [
+      {
+        "id": "caption",
+        "type": "text",
+        "semanticId": "caption",
+        "conceptId": "causal-self-attention",
+        "initialState": {
+          "text": "query: {{qword}} — follow one row: token → its Q row → its weights → its output",
+          "x": 40,
+          "y": 36
+        }
+      },
+      {
+        "id": "chars",
+        "type": "tokens",
+        "semanticId": "tokens",
+        "conceptId": "qkv-projection",
+        "initialState": {
+          "label": "the query token (also selectable with Interact below)",
+          "x": 40,
+          "y": 88,
+          "opacity": 0,
+          "tokens": [
+            "river",
+            "flows",
+            "south",
+            "today"
+          ],
+          "role": "input",
+          "pickInput": "queryIndex",
+          "cellHighlight": {
+            "$derive": "queryIndex"
+          }
+        }
+      },
+      {
+        "id": "q-row",
+        "type": "strip",
+        "semanticId": "selected-query-vector",
+        "conceptId": "qkv-projection",
+        "initialState": {
+          "label": "Q[{{queryIndex}}] — its query row",
+          "x": 40,
+          "y": 208,
+          "cell": 46,
+          "w": 92,
+          "h": 46,
+          "opacity": 0,
+          "role": "observed",
+          "identity": "query",
+          "heat": {
+            "mode": "signed"
+          },
+          "valueScale": "shared",
+          "valueScaleGroup": "qk-inputs",
+          "values": {
+            "$derive": "qrow"
+          }
+        }
+      },
+      {
+        "id": "arrow-q-weights",
+        "type": "arrow",
+        "semanticId": "arrow-q-weights",
+        "conceptId": "softmax-attention-weights",
+        "initialState": {
+          "from": {
+            "x": 142,
+            "y": 231
+          },
+          "to": {
+            "x": 196,
+            "y": 231
+          },
+          "opacity": 0,
+          "role": "neutral"
+        }
+      },
+      {
+        "id": "weights-row",
+        "type": "grid",
+        "semanticId": "attention-weights",
+        "conceptId": "softmax-attention-weights",
+        "initialState": {
+          "label": "attention weights for {{qword}} — the row sums to 1",
+          "x": 206,
+          "y": 208,
+          "rows": 1,
+          "cols": 4,
+          "cell": 52,
+          "opacity": 0,
+          "role": "observed",
+          "matrixKind": "derived",
+          "distribution": true,
+          "heat": true,
+          "valueScale": "fixed",
+          "columnLabels": [
+            "river",
+            "flows",
+            "south",
+            "today"
+          ],
+          "values": {
+            "$derive": "wrow"
+          }
+        }
+      },
+      {
+        "id": "arrow-weights-output",
+        "type": "arrow",
+        "semanticId": "arrow-weights-output",
+        "conceptId": "attention-output",
+        "initialState": {
+          "from": {
+            "x": 424,
+            "y": 231
+          },
+          "to": {
+            "x": 478,
+            "y": 231
+          },
+          "opacity": 0,
+          "role": "neutral"
+        }
+      },
+      {
+        "id": "output-row",
+        "type": "strip",
+        "semanticId": "attention-output",
+        "conceptId": "attention-output",
+        "initialState": {
+          "label": "output — the weighted mix of V",
+          "x": 488,
+          "y": 208,
+          "cell": 46,
+          "w": 92,
+          "h": 46,
+          "opacity": 0,
+          "role": "output",
+          "heat": true,
+          "valueScale": "shared",
+          "valueScaleGroup": "v-chain",
+          "values": {
+            "$derive": "output"
+          }
+        }
+      },
+      {
+        "id": "equation",
+        "type": "equation",
+        "semanticId": "attention-equation",
+        "conceptId": "attention-output",
+        "initialState": {
+          "text": "\\text{softmax}\\left(\\dfrac{QK^T}{\\sqrt{d_k}}\\right)V",
+          "x": 640,
+          "y": 196,
+          "w": 430,
+          "h": 60,
+          "opacity": 0
+        }
+      },
+      {
+        "id": "full-picture",
+        "type": "text",
+        "semanticId": "full-picture-heading",
+        "conceptId": "causal-self-attention",
+        "initialState": {
+          "text": "the full picture — every query at once",
+          "x": 40,
+          "y": 316,
+          "typography": "annotation"
+        }
+      },
+      {
+        "id": "q-matrix",
+        "type": "grid",
+        "semanticId": "query-matrix",
+        "conceptId": "qkv-projection",
+        "initialState": {
+          "label": "Q",
+          "x": 90,
+          "y": 360,
+          "rows": 4,
+          "cols": 2,
+          "cell": 40,
+          "opacity": 0,
+          "role": "observed",
+          "identity": "query",
+          "heat": {
+            "mode": "signed"
+          },
+          "valueScale": "shared",
+          "valueScaleGroup": "qk-inputs",
+          "matrixKind": "input",
+          "rowLabels": [
+            "river",
+            "flows",
+            "south",
+            "today"
+          ],
+          "values": [
+            1,
+            0,
+            0,
+            1,
+            1,
+            1,
+            1,
+            -1
+          ],
+          "cellHighlight": {
+            "row": {
+              "$derive": "queryIndex"
+            }
+          },
+          "cellHighlightKind": "highlight"
+        }
+      },
+      {
+        "id": "k-matrix",
+        "type": "grid",
+        "semanticId": "key-matrix",
+        "conceptId": "qkv-projection",
+        "initialState": {
+          "label": "K",
+          "x": 270,
+          "y": 360,
+          "rows": 4,
+          "cols": 2,
+          "cell": 40,
+          "opacity": 0,
+          "role": "observed",
+          "identity": "key",
+          "heat": {
+            "mode": "signed"
+          },
+          "valueScale": "shared",
+          "valueScaleGroup": "qk-inputs",
+          "matrixKind": "input",
+          "rowLabels": [
+            "river",
+            "flows",
+            "south",
+            "today"
+          ],
+          "values": [
+            1,
+            0,
+            0,
+            1,
+            1,
+            1,
+            -1,
+            1
+          ]
+        }
+      },
+      {
+        "id": "v-matrix",
+        "type": "grid",
+        "semanticId": "value-matrix",
+        "conceptId": "qkv-projection",
+        "initialState": {
+          "label": "V",
+          "x": 450,
+          "y": 360,
+          "rows": 4,
+          "cols": 2,
+          "cell": 40,
+          "opacity": 0,
+          "role": "observed",
+          "identity": "value",
+          "heat": true,
+          "valueScale": "shared",
+          "valueScaleGroup": "v-chain",
+          "matrixKind": "input",
+          "rowLabels": [
+            "river",
+            "flows",
+            "south",
+            "today"
+          ],
+          "values": [
+            1,
+            0,
+            0,
+            1,
+            1,
+            1,
+            -1,
+            0
+          ]
+        }
+      },
+      {
+        "id": "scores-matrix",
+        "type": "grid",
+        "semanticId": "scores-matrix",
+        "conceptId": "causal-self-attention",
+        "initialState": {
+          "label": "{{scoresCaption}}",
+          "x": 680,
+          "y": 360,
+          "rows": 4,
+          "cols": 4,
+          "cell": 50,
+          "opacity": 0,
+          "role": "observed",
+          "heat": {
+            "mode": "signed"
+          },
+          "valueScale": "shared",
+          "valueScaleGroup": "scores-view",
+          "matrixKind": "relational",
+          "rowLabels": [
+            "river",
+            "flows",
+            "south",
+            "today"
+          ],
+          "columnLabels": [
+            "river",
+            "flows",
+            "south",
+            "today"
+          ],
+          "values": {
+            "$derive": "masked"
+          },
+          "cellHighlight": {
+            "row": {
+              "$derive": "queryIndex"
+            }
+          },
+          "cellHighlightKind": "highlight"
+        }
+      },
+      {
+        "id": "mask-legend",
+        "type": "text",
+        "semanticId": "mask-legend",
+        "conceptId": "causal-self-attention",
+        "initialState": {
+          "text": "{{maskLegend}}",
+          "x": 680,
+          "y": 600,
+          "typography": "annotation"
+        }
+      }
+    ],
+    "timeline": [
+      {
+        "at": 0,
+        "action": "appear",
+        "target": "chars",
+        "duration": 0.4
+      },
+      {
+        "at": 0.5,
+        "action": "appear",
+        "target": "q-row",
+        "duration": 0.4
+      },
+      {
+        "at": 0.7,
+        "action": "appear",
+        "target": "arrow-q-weights",
+        "duration": 0.3
+      },
+      {
+        "at": 0.9,
+        "action": "appear",
+        "target": "weights-row",
+        "duration": 0.4
+      },
+      {
+        "at": 1.1,
+        "action": "appear",
+        "target": "arrow-weights-output",
+        "duration": 0.3
+      },
+      {
+        "at": 1.3,
+        "action": "appear",
+        "target": "output-row",
+        "duration": 0.4
+      },
+      {
+        "at": 1.6,
+        "action": "appear",
+        "target": "equation",
+        "duration": 0.4
+      },
+      {
+        "at": 2.2,
+        "action": "appear",
+        "target": "q-matrix",
+        "duration": 0.4
+      },
+      {
+        "at": 2.4,
+        "action": "appear",
+        "target": "k-matrix",
+        "duration": 0.4
+      },
+      {
+        "at": 2.6,
+        "action": "appear",
+        "target": "v-matrix",
+        "duration": 0.4
+      },
+      {
+        "at": 3,
+        "action": "appear",
+        "target": "scores-matrix",
+        "duration": 0.5
+      }
+    ]
+  },
+  "activity": {
+    "id": "i01-practice",
+    "check": "set_equals",
+    "version": 2,
+    "prompt": "With the query fixed on the THIRD token and the causal mask on, select every position that query may attend to.",
+    "fixedInputs": {
+      "queryIndex": 2,
+      "maskEnabled": true
+    },
+    "answer": {
+      "type": "indices",
+      "label": "Your prediction",
+      "of": "tokens",
+      "default": []
+    },
+    "expected": [
+      0,
+      1,
+      2
+    ],
+    "notReady": "Select at least one position first.",
+    "feedbackPass": "Right - a causal query attends to itself and every earlier position, so positions 1, 2 and 3 are all allowed.",
+    "feedbackFail": "Not quite - a causal query sees every earlier position AND itself, never a later one. Try again with a new attempt."
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "case": "i04-vector-projection",
+  "expected": {
+    "a=(3,2), b=(2,0)": {
+      "projection": [
+        3,
+        0
+      ]
+    },
+    "a=(0,3), b=(2,0)": {
+      "projection": [
+        0,
+        0
+      ],
+      "check": "passes"
+    },
+    "b=(0,0)": "undefined - not-ready, never a passing answer",
+    "range": "declared symmetric ±5 on every write path"
+  }
+}

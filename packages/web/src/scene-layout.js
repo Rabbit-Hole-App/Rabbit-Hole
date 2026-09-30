@@ -8,6 +8,7 @@
 // anything the lint needs has to live here instead.
 import { SPACE } from './scene-vocab.js';
 import { textStyle } from './scene-style.js';
+import { cellNumeralSize, formatCell } from './scene-format.js';
 
 // No DOM exists outside the browser, so there is no real text-measurement API
 // to call from a lint or a node:test file. This is a deliberate approximation
@@ -121,10 +122,14 @@ export function gridAxisLabelBoxes(object) {
   if (object.type !== 'grid') return [];
   const cell = object.cell || 24;
   const boxes = [];
-  for (const [row, text] of (object.rowLabels || []).entries()) {
+  // Before evaluation a derived label list is still a {$derive} marker (the
+  // canvas sizes a card from its raw scene): nothing to measure yet, never a
+  // crash. The evaluated frame fit measures the resolved labels.
+  const list = labels => (Array.isArray(labels) ? labels : []);
+  for (const [row, text] of list(object.rowLabels).entries()) {
     boxes.push({ text, x: object.x - ROW_LABEL_GAP, y: object.y + row * cell + cell / 2, anchor: 'end', baseline: 'central' });
   }
-  for (const [column, text] of (object.columnLabels || []).entries()) {
+  for (const [column, text] of list(object.columnLabels).entries()) {
     boxes.push({ text, x: object.x + column * cell + cell / 2, y: object.y - COLUMN_LABEL_GAP, anchor: 'middle', baseline: 'auto' });
   }
   return boxes;
@@ -228,6 +233,9 @@ function widestText(scene, object) {
 }
 
 function everDrawn(scene, object) {
+  // A sub-card object is drawn on its own part (scene-evaluate.js onePart), so
+  // every part counts toward the frame and paging never rescales the card.
+  if (object.part !== undefined) return true;
   if ((object.initialState?.opacity ?? 1) > 0) return true;
   return (scene.timeline || []).some(event => event.target === object.id && REVEALING_ACTIONS.has(event.action));
 }
@@ -382,6 +390,25 @@ export function legibilityIssues(scene, viewport = null) {
   return Object.entries(report.effective)
     .filter(([, size]) => size.effectivePx < size.floor - 0.5)
     .map(([name, size]) => ({ scene: scene.id, textClass: name, authored: size.authored, effectivePx: Number(size.effectivePx.toFixed(2)), floor: size.floor }));
+}
+
+// The numbers inside a grid or strip, at 100% canvas zoom: an evaluated
+// state's cells, sized exactly as the renderer sizes them (cellNumeralSize),
+// must clear the smallest floor there is - 'metadata', 12px - with the same
+// half-pixel slack. A cell too narrow for its numbers is fixed by a wider
+// declared cell, never by shrinking the numbers into it.
+export function cellLegibilityIssues(state) {
+  const base = textStyle('annotation').fontSize;
+  const floor = LEGIBILITY_FLOORS.metadata;
+  const issues = [];
+  for (const object of state?.objects || []) {
+    if (!object.visible || !['grid', 'strip'].includes(object.type) || !Array.isArray(object.values) || object.cell < 22) continue;
+    const texts = object.values.filter(value => value != null).map(value => formatCell(value, object.numberFormat || undefined));
+    if (!texts.length) continue;
+    const px = cellNumeralSize(texts, object.cell, base);
+    if (px < floor - 0.5) issues.push({ object: object.id, cell: object.cell, longest: texts.reduce((a, t) => (t.length > a.length ? t : a), ''), effectivePx: Number(px.toFixed(2)), floor });
+  }
+  return issues;
 }
 
 export function estimateTextBox({ text, x, y, fontSize, anchor, baseline }) {

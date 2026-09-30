@@ -477,6 +477,11 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     const questionOutline = boardContext?.outline?.();
     if (!isDemo) boardContext?.removeImage();
     const target = canvasTarget; // selected lesson block riding as context
+    // The attachment follows its card until this exact moment: a function-
+    // valued text resolves the card's CURRENT visible state now, and the
+    // string it returns is frozen into this one request. A later input
+    // change can never rewrite an in-flight question's evidence.
+    const targetText = target ? (typeof target.text === 'function' ? target.text() : target.text) : null;
     if (target) onClearCanvasTarget?.();
     const imageId = !target?.paper && !questionPaper ? target?.image || questionImage?.id : null;
     const replyId = crypto.randomUUID();
@@ -515,9 +520,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         ...(repository && repositoryContext ? { repository_context: { ...repositoryContext, commit: sourceRange?.commit || repositoryCommit || repositoryContext?.commit, ...(sourceRange ? {range:{path:sourceRange.path,start:sourceRange.start,end:sourceRange.end}} : {}) } } : {}),
         // @-mentioned apps: the server adds each one's context to this chat.
         ...(mentions.length ? { mentions: [...mentions] } : {}),
-        // The learner's own words; the card, group or region they asked about rides beside them.
+        // The learner's own words; the card, group or region they asked about rides beside them,
+        // its text resolved at send (targetText) so a live card sends the state the learner sees.
         message,
-        ...(target ? { canvas_target: canvasTargetField(target) } : {}),
+        ...(target ? { canvas_target: canvasTargetField({ ...target, text: targetText }) } : {}),
         thread_id: threadId.current,
         // A Continue convo's first request also carries the card its answer was linked from.
         ...(canvasSeed && !threadId.current ? { canvas_seed: { question: canvasSeed.question, answer: canvasSeed.answer }, ...(!target && canvasSeed.target ? { canvas_target: canvasTargetField(canvasSeed.target) } : {}) } : {}),

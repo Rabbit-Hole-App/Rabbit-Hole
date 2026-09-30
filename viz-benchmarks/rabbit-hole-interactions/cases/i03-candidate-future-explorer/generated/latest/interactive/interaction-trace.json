@@ -1,0 +1,11 @@
+{
+  "script": "i03-candidate-check.mjs",
+  "port": "5199",
+  "lines": [
+    "choice C: ring moved, details follow",
+    "pre-reveal: no cost leak on card or in payload",
+    "post-reveal: derived 4,1,9 in view and payload",
+    "reset: back to path A",
+    "PASS - shots: i03-initial / i03-choose-c / i03-revealed / i03-dark"
+  ]
+}
