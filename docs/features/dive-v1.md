@@ -121,11 +121,19 @@ canvas_dives(org, owner_email, child, parent_app, parent_board, origin_block_id,
 ## Run it locally (no remote resources)
 
 ```bash
-# once: packages/control-plane/.dev.vars with a local MASTER_KEY and TEST_BYPASS_SECRET (gitignored)
-npx wrangler d1 execute small-learn-dev --local -c packages/web/wrangler.dev.jsonc --persist-to .small/dive-local --file packages/control-plane/repository-schema.sql
-cd packages/web && VITE_COACHING_DEV=true VITE_BYOC_DEV=true npx vite build --outDir dist-dev && cd ../..
-npx wrangler dev -c packages/web/wrangler.dev.jsonc -c packages/control-plane/wrangler.jsonc --local --persist-to .small/dive-local --port 8788
+# once: packages/control-plane/.dev.vars (gitignored): SMALL_ENV=test, MASTER_KEY, TEST_BYPASS_SECRET, OAUTH_MOCK=true
+# main D1 as docs/features/rabbit-hole-dev.md builds it: bootstrap.sql, then every migration (run in packages/control-plane)
+npx wrangler d1 execute rabbit-hole-dev --local -c wrangler.rabbit-hole-dev.jsonc --persist-to ../../.small/fi-local --file bootstrap.sql
+npx wrangler d1 migrations apply rabbit-hole-dev --local -c wrangler.rabbit-hole-dev.jsonc --persist-to ../../.small/fi-local
+npx wrangler d1 execute rabbit-hole-learn-dev --local -c packages/control-plane/wrangler.rabbit-hole-dev.jsonc --persist-to .small/fi-local --file packages/control-plane/repository-schema.sql
+cd packages/web && npx vite build && VITE_COACHING_DEV=true VITE_BYOC_DEV=true npx vite build --outDir dist-dev && cd ../..
+# the app (dev worker + dev control plane), and the control plane on its own origin, where sessions and sign-in live
+npx wrangler dev -c packages/web/wrangler.dev.jsonc -c packages/control-plane/wrangler.rabbit-hole-dev.jsonc --local --persist-to .small/fi-local --port 8788
+npx wrangler dev -c packages/control-plane/wrangler.rabbit-hole-dev.jsonc --local --persist-to .small/fi-local --port 8790
 ```
+
+- The app's P0-B barrier refuses `/auth/*` and `/test/session` on 8788, so the check scripts mint sessions on 8790
+  (`SMALL_CP`); a session from there works on 8788.
 
 - `wrangler dev` bundles `dist-dev/index.html` into the worker, so restart it after every rebuild.
 - `node packages/web/e2e/dive-local.mjs` opens a signed-in browser window on a stable review canvas

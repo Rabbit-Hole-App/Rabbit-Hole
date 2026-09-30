@@ -10,8 +10,11 @@ import assert from 'node:assert/strict';
 const BASE = 'http://127.0.0.1:8788';
 const OUT = process.argv[2] || 'canvas-shell-shots';
 mkdirSync(OUT, { recursive: true });
+// Sessions are minted on the control plane's own origin (the app origin's P0-B barrier refuses /test/session):
+// the standalone local control plane, SMALL_CP (default http://127.0.0.1:8790).
+const CP = process.env.SMALL_CP || 'http://127.0.0.1:8790';
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
-const { session } = await (await fetch(`${BASE}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) })).json();
+const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) })).json();
 const root = await (await fetch(`${BASE}/api/canvases`, { method: 'POST', headers: { cookie: `small_session=${session}`, 'content-type': 'application/json' }, body: JSON.stringify({ title: 'Attention' }) })).json();
 
 const browser = await chromium.launch();
