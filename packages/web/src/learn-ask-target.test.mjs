@@ -54,3 +54,15 @@ test('a YouTube moment card is described by its video id and window, never Sourc
 test('a whiteboard region chip says only its text reaches the tutor (context-9)', () => {
   assert.match(ask, /\{canvasTarget\.preview && !canvasTarget\.paper && <span data-text-only title="The tutor gets the shapes' text, not this picture" className="shrink-0 text-ink-3">text only<\/span>\}/);
 });
+
+// delta-7, delta-8, context-14, context-11: a standalone canvas composer offers only what its chat can use.
+test('a canvas composer disables + attachments with the server refusal and shows no Sources control', () => {
+  assert.match(ask, /const canvasChat = \/\^canvas-\[a-f0-9\]\{8\}\$\/\.test\(scope\.app \|\| ''\);/);
+  assert.match(ask, /<MenuItem icon=\{Paperclip\} disabled=\{privateChat \|\| canvasChat\} title=\{privateChat \? 'Attachments are not connected for private chat yet\.' : canvasChat \? 'Attachments are not available on canvases yet\. Upload a PDF from the canvas menu\.' : undefined\}/);
+  assert.match(ask, /const srcOpts = repository \|\| canvasChat \? \[\] :/);
+});
+
+test('@mentions never offer canvases and stop at three chips', () => {
+  assert.match(ask, /\(repository \? a\.name\.startsWith\('repo-'\) : !a\.name\.startsWith\('repo-'\) && !a\.name\.startsWith\('canvas-'\)\)/);
+  assert.match(ask, /const atMatch = privateChat \|\| mentions\.length >= MENTION_CHIPS \? null :/);
+});

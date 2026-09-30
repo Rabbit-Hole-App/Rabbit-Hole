@@ -14,6 +14,8 @@ import { canvasTargetField } from './learn-ask-target.js';
 import { cn, CodeBlock, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
 
 // What the agent may read, per scope - the ⚙ picker mirrors Notion's "My sources".
+// Mentioned apps a chat reads at most (MENTION_LIMIT in control-plane learn-models.js).
+const MENTION_CHIPS = 3;
 const SOURCE_OPTIONS = {
   run: [['log', 'Log'], ['outputs', 'Outputs'], ['runbook', 'Runbook'], ['review', 'Review'], ['agent', 'AGENT.md']],
   app: [['runs', 'Runs'], ['requests', 'Request log'], ['runbook', 'Runbook'], ['review', 'Review'], ['agent', 'AGENT.md']],
@@ -333,6 +335,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     return api(`/api/repositories/${appName}/threads${tail.replace(/\/(delete|rename)$/, '')}`, action ? { ...options, method: action } : options);
   };
   const privateChat = chatConfig?.provider === 'bedrock';
+  // A standalone canvas chat (canvases.js): no + attachments, and no app context to filter.
+  const canvasChat = /^canvas-[a-f0-9]{8}$/.test(scope.app || '');
   const learnChat = conversation === 'learn';
   const guardedHistory = privateChat || learnChat;
   const [msgs, setMsgs] = useState([]);
@@ -367,7 +371,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   const scopeRef = scope.run || scope.app || null;
   const historyScope = learnChat ? 'learn' : scopeKind;
   const askPath = learnChat ? '/api/learn/ask' : '/api/ask';
-  const srcOpts = repository ? [] : (privateChat ? PRIVATE_SOURCE_OPTIONS : SOURCE_OPTIONS)[scopeKind] || [];
+  const srcOpts = repository || canvasChat ? [] : (privateChat ? PRIVATE_SOURCE_OPTIONS : SOURCE_OPTIONS)[scopeKind] || [];
   const [srcOn, setSrcOn] = useState(() => new Set(srcOpts.map(([k]) => k)));
   const [srcOpen, setSrcOpen] = useState(false);
   const [model, setModel] = useState(() => privateChat ? 'auto' : localStorage.getItem('small.askModel') || 'auto'); // Settings > Small AI sets the default
@@ -386,13 +390,14 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   });
 
   // "@yol" at the end of the input → app-name suggestions
-  const atMatch = privateChat ? null : input.match(/@([a-z0-9-]*)$/);
+  // The server reads at most three mentions, so the composer offers no fourth chip.
+  const atMatch = privateChat || mentions.length >= MENTION_CHIPS ? null : input.match(/@([a-z0-9-]*)$/);
   useEffect(() => {
     if (atMatch && appNames === null) api('/api/apps').then((d) => setAppNames(d.apps.map((a) => ({ name: a.name, kind: a.kind, schedule: a.schedule })))).catch(() => setAppNames([]));
   }, [!!atMatch]);
   // Only apps this chat can resolve: a repository chat reads other repositories,
-  // any other chat reads deployed apps; never the chat's own app.
-  const atHits = atMatch && appNames ? appNames.filter((a) => a.name.includes(atMatch[1]) && a.name !== appName && (repository ? a.name.startsWith('repo-') : !a.name.startsWith('repo-'))) : [];
+  // any other chat reads deployed apps (never canvases); never the chat's own app.
+  const atHits = atMatch && appNames ? appNames.filter((a) => a.name.includes(atMatch[1]) && a.name !== appName && (repository ? a.name.startsWith('repo-') : !a.name.startsWith('repo-') && !a.name.startsWith('canvas-'))) : [];
 
   useEffect(() => {
     const focus = () => inputRef.current?.focus();
@@ -899,10 +904,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
               <Plus size={14} strokeWidth={1.5} />
             </button>
             <Menu open={plusOpen} onClose={() => setPlusOpen(false)} className={dock ? 'bottom-11 left-0 w-64' : 'bottom-8 left-0 w-64'}>
-              <MenuItem icon={Paperclip} disabled={privateChat} title={privateChat ? 'Attachments are not connected for private chat yet.' : undefined} onClick={() => { setPlusOpen(false); fileRef.current?.click(); }}>
+              <MenuItem icon={Paperclip} disabled={privateChat || canvasChat} title={privateChat ? 'Attachments are not connected for private chat yet.' : canvasChat ? 'Attachments are not available on canvases yet. Upload a PDF from the canvas menu.' : undefined} onClick={() => { setPlusOpen(false); fileRef.current?.click(); }}>
                 Add images, PDFs, or CSVs
               </MenuItem>
-              <MenuItem icon={AtSign} disabled={privateChat} title={privateChat ? `This chat uses only the selected ${scope.run ? 'run' : 'app'}.` : undefined} onClick={() => { setPlusOpen(false); setInput((v) => `${v}@`); inputRef.current?.focus(); }}>
+              <MenuItem icon={AtSign} disabled={privateChat || mentions.length >= MENTION_CHIPS} title={privateChat ? `This chat uses only the selected ${scope.run ? 'run' : 'app'}.` : mentions.length >= MENTION_CHIPS ? 'A question reads at most three mentioned apps.' : undefined} onClick={() => { setPlusOpen(false); setInput((v) => `${v}@`); inputRef.current?.focus(); }}>
                 Mention an app
               </MenuItem>
             </Menu>
