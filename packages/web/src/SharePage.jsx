@@ -17,6 +17,7 @@ import CoachingPanel from './coaching/CoachingPanel.jsx';
 import { RunForm, RunPeek, RunsDb, RunView } from './run.jsx';
 import Shell from './Shell.jsx';
 import { Avatar, Button, Chk, ConfirmDialog, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, Select, ShareInput, SkeletonRows, Tabs, TabsContent, TabsList, TabsTrigger, Tip, cn, toast } from './ui.jsx';
+import { personLabel } from './session-display.js';
 
 // Refreshing into Learn must not flash the app-page row skeleton.
 function LearnLoading() {
@@ -353,7 +354,7 @@ function SharePopover({ app, onChanged }) {
             {app.members.map((m) => (
               <div key={m.email} className="group/p flex items-center gap-2 rounded-sm px-2 py-1.5 hover:bg-hover">
                 <Avatar email={m.email} />
-                <span className="min-w-0 flex-1 truncate text-sm">{m.email}</span>
+                <span className="min-w-0 flex-1 truncate text-sm">{personLabel(m.email)}</span>
                 {app.canEdit ? (
                   <>
                     <select
@@ -405,7 +406,7 @@ function Denied({ slug, error }) {
 }
 
 const Person = ({ email }) => (email
-  ? <span className="inline-flex items-center gap-1.5"><Avatar email={email} />{email}</span>
+  ? <span className="inline-flex items-center gap-1.5"><Avatar email={email} />{personLabel(email)}</span>
   : '-');
 
 // "next in 3h" for the schedule row; nextRun is a ms epoch from the worker.
@@ -871,7 +872,7 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
 
             {app.lastOpened && shown !== 'graph' && (
               <div className="pt-6 text-sm text-ink-2">
-                Last opened by {app.lastOpened.email} · {ago(app.lastOpened.ts)}
+                Last opened by {personLabel(app.lastOpened.email)} · {ago(app.lastOpened.ts)}
               </div>
             )}
 

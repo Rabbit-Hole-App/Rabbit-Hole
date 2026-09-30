@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import * as TabsPrimitive from '@radix-ui/react-tabs';
 import { clsx as cn } from 'clsx';
 import { Check, ChevronDown, ChevronRight, Clock, Copy as CopyIcon, File as FileIcon, Globe, Maximize2, Minimize2, Network, PenLine, Play, TriangleAlert, Upload, X } from 'lucide-react';
+import { personLabel } from './session-display.js';
 
 export { cn };
 
@@ -428,7 +429,7 @@ export function ShareInput({ value, onChange, onPick, people = [], teams = [], e
               {it.team
                 ? <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-hover">#</span>
                 : <Avatar email={it.email} />}
-              <span className="min-w-0 flex-1 truncate">{it.team ? `#${it.team}` : it.email}</span>
+              <span className="min-w-0 flex-1 truncate">{it.team ? `#${it.team}` : personLabel(it.email)}</span>
               {it.team && it.count != null && <span className="text-xs text-ink-2">{it.count} people</span>}
             </button>
           ))}

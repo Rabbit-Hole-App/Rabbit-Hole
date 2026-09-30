@@ -13,6 +13,7 @@ import { isLearnResource } from './library-filter.js';
 import { pageFor, sectionActive, sectionHref } from './routes.js';
 import FeedbackButton from './FeedbackButton.jsx';
 import { AppIcon, Avatar, Button, cn, ConfirmDialog, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, Select, SettingsRow, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
+import { isInternalPrincipal, personLabel, useShownIdentity } from './session-display.js';
 import { MODEL_CHOICES, MODEL_SCOPE } from './model-choices.js';
 
 // Settings (workspace dropdown → Settings): Notion-style two-pane modal -
@@ -24,6 +25,8 @@ const AVAILABILITY_COLOR = { available: 'green', preview: 'yellow', planned: 'gr
 // ponytail: nav copied verbatim from the Notion reference (user: "copy the same we
 // will remove later") - most items render an empty pane until we prune/wire them.
 function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initialTab, focus: initialFocus, pendingGrant, onAccessChanged, awsAvailable }) {
+  // Shown identity: GET /auth/session's display, never the internal principal (session-display.js).
+  const shown = useShownIdentity(email);
   const [tab, setTab] = useState(initialTab || 'preferences');
   const [focus, setFocus] = useState(initialFocus || null); // the row open_settings asked for, e.g. google-slides
   const box = useRef(null);
@@ -85,8 +88,8 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
         <div className={cn('w-[260px] shrink-0 overflow-y-auto border-r border-line bg-side py-4 px-3', learnPreview && 'max-md:max-h-40 max-md:w-full max-md:border-r-0 max-md:border-b')}>
           <div className="px-2 pb-1 text-xs font-medium text-ink-3">Account</div>
           <div className="flex items-center gap-2 rounded-sm px-2 py-1.5">
-            {email && <Avatar email={email} />}
-            <span className="truncate text-sm" title={email}>{email}</span>
+            {shown.label && <Avatar email={shown.email || shown.label} />}
+            <span className="truncate text-sm" title={shown.label}>{shown.label}</span>
           </div>
           <NavBtn id="preferences" icon={SlidersHorizontal}>Preferences</NavBtn>
           <NavBtn id="notifications" icon={Bell}>Notifications</NavBtn>
@@ -233,7 +236,7 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
                 )}
               </SettingsRow>
               <SettingsRow title="Slug" desc="Its id in app URLs">
-                <code className="rounded-sm bg-code px-1.5 py-0.5 text-xs">{wsInfo?.active || '…'}</code>
+                <code className="rounded-sm bg-code px-1.5 py-0.5 text-xs">{isInternalPrincipal(wsInfo?.active) ? 'personal' : wsInfo?.active || '…'}</code>
               </SettingsRow>
               {!learnPreview && <SettingsRow title="Type" desc="Domain workspaces include everyone with your email domain; custom ones are invite only">
                 <span className="text-sm text-ink-2">{activeWs?.kind === 'custom' ? 'custom' : 'email domain'}</span>
@@ -358,9 +361,9 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
               <div className="text-2xl font-semibold">Identity</div>
               <div className="pt-2 text-base text-ink-2">Who you are here</div>
               <Heading>Account</Heading>
-              <SettingsRow title="Email" desc="Your sign-in identity"><span className="text-sm text-ink-2">{email}</span></SettingsRow>
+              <SettingsRow title="Email" desc="Your sign-in identity"><span className="text-sm text-ink-2">{shown.email || shown.label}</span></SettingsRow>
               {!learnPreview && <SettingsRow title="Home workspace" desc={isPrivateByoc ? 'Access is granted by your workspace administrator.' : 'Everyone with this email domain shares it'}>
-                <code className="rounded-sm bg-code px-1.5 py-0.5 text-xs">{isPrivateByoc ? org : email ? email.split('@')[1] : ''}</code>
+                <code className="rounded-sm bg-code px-1.5 py-0.5 text-xs">{isPrivateByoc ? org : shown.email ? shown.email.split('@')[1] : ''}</code>
               </SettingsRow>}
             </>
           )}
@@ -492,6 +495,7 @@ const ProductMark = () => <span className="grid h-5 w-5 shrink-0 place-items-cen
 // Resizable by dragging the right edge (200–400px). Rabbit Hole dev: `rail` is the collapsed
 // icon rail (Shell.jsx), and the Apps tree, Shared, Private and New chat are gone.
 export default function Sidebar({ org, orgName, email, apps, folders, awsError, awsAvailable, width = 260, rail = false, onResize, onReload, onCollapse, onExpand }) {
+  const shownId = useShownIdentity(email);
   const [dragging, setDragging] = useState(null);
   const [closed, setClosed] = useState({}); // folder id -> collapsed
   const [newFolder, setNewFolder] = useState(null);
@@ -936,14 +940,14 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
             itself - pinning to the viewport lets the menu fit the full email */}
         <Menu open={wsMenu} onClose={() => setWsMenu(false)} className={rail ? 'fixed! top-2 left-14 w-auto! min-w-60 max-w-[340px]' : learnPreview ? 'fixed! top-[70px] left-3 w-auto! min-w-60 max-w-[340px]' : 'fixed! top-11 left-3 w-auto! min-w-60 max-w-[340px]'}>
           <div className="flex items-center gap-2 px-2 py-1.5">
-            {email && <Avatar email={email} />}
-            <span className="text-xs whitespace-nowrap text-ink-2">{email}</span>
+            {shownId.label && <Avatar email={shownId.email || shownId.label} />}
+            <span className="text-xs whitespace-nowrap text-ink-2">{shownId.label}</span>
           </div>
           <div className="my-1 border-t border-line" />
           {/* every workspace the user belongs to; the active one gets the check. Solo v1 (preview): only Personal,
               the person's own workspaces and the active one - not one someone else added them to */}
           {(wsList || []).filter((w) => !learnPreview || w.kind === 'domain' || w.role === 'owner' || w.slug === wsList.activeSlug).map((w) => {
-            const label = workspaceLabel(w.name, w.slug);
+            const label = isInternalPrincipal(w.name) ? workspaceLabel(null, w.slug, true) : workspaceLabel(w.name, w.slug);
             const active = w.slug === (wsList?.activeSlug ?? org);
             return (
               <MenuItem
@@ -1399,7 +1403,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
                   {s.team
                     ? <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-hover ring-1 ring-white"><Users size={12} className="text-ink-2" /></span>
                     : <Avatar email={s.email} />}
-                  <span className="min-w-0 flex-1 truncate">{s.team ? `#${s.team}` : s.email}</span>
+                  <span className="min-w-0 flex-1 truncate">{s.team ? `#${s.team}` : personLabel(s.email)}</span>
                   <select
                     value={s.role}
                     onChange={(e) => shareFolderCall({ email: s.email, team: s.team, role: e.target.value })}

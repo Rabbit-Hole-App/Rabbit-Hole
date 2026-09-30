@@ -4,6 +4,7 @@ import { api, navigate, workspaceLabel, wsName } from './api.js';
 import { learnPreview } from './flags.js';
 import Shell from './Shell.jsx';
 import { Avatar, Button, cn, ConfirmDialog, IconBtn, Input, Menu, MenuItem, Pill, ShareInput, SkeletonRows, toast } from './ui.jsx';
+import { personLabel } from './session-display.js';
 
 // "acme.com" and "acme-com" are the same org - dots normalize to dashes.
 const norm = (s) => (s || '').toLowerCase().replace(/\./g, '-');
@@ -227,7 +228,7 @@ function MembersContent({ data }) {
                   {t.members.map((m) => (
                     <div key={m} className="group/m flex h-8 items-center gap-2 rounded-sm px-2 text-sm hover:bg-hover">
                       <Avatar email={m} />
-                      <span className="min-w-0 flex-1 truncate">{m}</span>
+                      <span className="min-w-0 flex-1 truncate">{personLabel(m)}</span>
                       <button
                         aria-label={`Remove ${m}`}
                         onClick={async () => { try { await api(`/api/teams/${t.name}/members`, { method: 'POST', body: JSON.stringify({ email: m, remove: true }) }); load(); } catch {} }}
