@@ -917,7 +917,7 @@ function StylePanel({ side = 'right', text, showFill, corners, order, route = fa
   const rule = <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />;
   return (
     <div role="group" aria-label="Style" onPointerDown={event => event.stopPropagation()}
-      className={`absolute top-1/2 ${side === 'left' ? 'left-24' : 'right-16'} z-20 grid max-h-full -translate-y-1/2 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md @max-[640px]:top-auto @max-[640px]:left-auto @max-[640px]:right-0 @max-[640px]:bottom-full @max-[640px]:mb-2 @max-[640px]:max-h-[60vh] @max-[640px]:translate-y-0`}>
+      className={`absolute top-1/2 ${side === 'left' ? 'left-24' : 'right-24'} z-20 grid max-h-full -translate-y-1/2 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md @max-[640px]:top-auto @max-[640px]:left-auto @max-[640px]:right-0 @max-[640px]:bottom-full @max-[640px]:mb-2 @max-[640px]:max-h-[60vh] @max-[640px]:translate-y-0`}>
       {COLORS.map(value => (
         <button key={value} type="button" title="Color" aria-label={`Color ${value}`} aria-pressed={color === value} onClick={() => onColor(value)}
           className="flex h-6 w-8 items-center justify-center rounded-lg hover:bg-hover">
@@ -2777,9 +2777,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           overview on the next row. The style panel opens from it. */}
       {presenting === null && (
         <div ref={gutter} data-tool-gutter
-          // With the contents rail, the -mr-6 hang still ends 8px short of it (right: 8 + edgeInset).
-          style={{ '--edge': `${edgeInset ? edgeInset + 32 : 0}px` }}
-          className={`relative flex shrink-0 flex-col justify-center gap-2 ${toolSide === 'left' ? `order-first items-start pl-2 ${overviewOpen ? 'w-[192px]' : 'w-[84px]'}` : `items-end mr-(--edge) ${overviewOpen ? 'w-[168px]' : 'w-[60px]'}`} @max-[640px]:order-none @max-[640px]:mr-0 @max-[640px]:grid @max-[640px]:w-full @max-[640px]:grid-cols-[auto_minmax(0,1fr)_auto] @max-[640px]:items-center @max-[640px]:pt-2 @max-[640px]:pl-0`}>
+          // Docked right it mirrors the left side (84/192px, 8px in from the edge) and clears the contents rail (edgeInset); the full-bleed Learn shell has no page padding for a hang.
+          style={{ '--edge': `${edgeInset || 0}px` }}
+          className={`relative flex shrink-0 flex-col justify-center gap-2 ${toolSide === 'left' ? `order-first items-start pl-2 ${overviewOpen ? 'w-[192px]' : 'w-[84px]'}` : `items-end pr-2 mr-(--edge) ${overviewOpen ? 'w-[192px]' : 'w-[84px]'}`} @max-[640px]:order-none @max-[640px]:mr-0 @max-[640px]:grid @max-[640px]:w-full @max-[640px]:grid-cols-[auto_minmax(0,1fr)_auto] @max-[640px]:items-center @max-[640px]:pt-2 @max-[640px]:pl-0`}>
         {/* Dev-only workbench: drop any lesson block on the canvas to review its
             look before lessons are assembled. */}
         {!readOnly && import.meta.env.VITE_COACHING_DEV === 'true' && (
@@ -2794,7 +2794,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         )}
         {!readOnly && <div ref={toolbarRef} role="toolbar" aria-label="Canvas tools"
           style={toolDrag ? { position: 'absolute', left: toolDrag.x, top: toolDrag.y } : toolCap != null ? { maxHeight: toolCap } : undefined}
-          className={`z-20 ${toolSide === 'left' ? '' : '-mr-6'} grid max-h-full shrink-0 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md @max-[640px]:col-start-2 @max-[640px]:mr-0 @max-[640px]:min-w-0 @max-[640px]:grid-flow-col @max-[640px]:grid-cols-none @max-[640px]:grid-rows-1 @max-[640px]:overflow-x-auto`}>
+          className={`z-20 grid max-h-full shrink-0 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md @max-[640px]:col-start-2 @max-[640px]:mr-0 @max-[640px]:min-w-0 @max-[640px]:grid-flow-col @max-[640px]:grid-cols-none @max-[640px]:grid-rows-1 @max-[640px]:overflow-x-auto`}>
           {/* The handle: drag the palette and it parks on whichever edge you let
               go nearer to - left or right - never floating mid-canvas. A phone's
               strip sits under the canvas either way, so it has no handle. */}
@@ -2845,12 +2845,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         {minimap && (
           <button type="button" aria-label={overviewOpen ? 'Hide overview' : 'Show overview'} title={overviewOpen ? 'Hide overview' : 'Show overview'}
             aria-expanded={overviewOpen} onClick={() => setOverview(!overviewOpen)}
-            className={`${toolSide === 'left' ? '' : '-mr-6'} flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-line shadow-md hover:text-ink @max-[640px]:col-start-3 @max-[640px]:mr-0 ${overviewOpen ? 'bg-hover text-ink' : 'bg-white text-ink-2'}`}>
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-line shadow-md hover:text-ink @max-[640px]:col-start-3 @max-[640px]:mr-0 ${overviewOpen ? 'bg-hover text-ink' : 'bg-white text-ink-2'}`}>
             <MapIcon size={15} strokeWidth={1.7} />
           </button>
         )}
         {overviewOpen && (
-          <div className={`${toolSide === 'left' ? '' : '-mr-6'} shrink-0 @max-[640px]:col-span-3 @max-[640px]:mr-0 @max-[640px]:justify-self-start`}>
+          <div className={`shrink-0 @max-[640px]:col-span-3 @max-[640px]:mr-0 @max-[640px]:justify-self-start`}>
             <CanvasMinimap boxes={minimapBoxes} view={view} onFit={zoomFit}
               surface={{ w: surface.current?.clientWidth || 0, h: surface.current?.clientHeight || 0 }}
               onView={next => setView(v => ({ ...v, x: next.x, y: next.y }))} />
