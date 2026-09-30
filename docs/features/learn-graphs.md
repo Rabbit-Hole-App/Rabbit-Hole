@@ -30,6 +30,6 @@ One real Claude explanation workflow generated both renderer specifications and 
 
 Browser testing caught native wheel events reaching both the embedded plot and tldraw. The graph host now stops native wheel bubbling after the engine handles it; pointer events are marked handled for tldraw while remaining available to the graph engine.
 
-To try it, ask Learn Agent to explore a function with sliders or plot a numeric dataset, then click **Explain on canvas**. Use the graph interior to explore and its top frame to move/select it. Personal graph state currently persists in this browser only.
+To try it, type `/graph sigmoid` in the Learn composer (the **Explain on canvas** button this once used was removed on 2026-09-29). Use the graph interior to explore and its top frame to move/select it. Personal graph state currently persists in this browser only.
 
 Sources: [Desmos API 1.11](https://www.desmos.com/api/v1.11/docs/index.html), [Plotly events](https://plotly.com/javascript/plotlyjs-events/), [Plotly function reference](https://plotly.com/javascript/plotlyjs-function-reference/).

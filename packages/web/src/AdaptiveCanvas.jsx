@@ -1038,6 +1038,8 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
   );
 }
 
+const CARDS_COPIED = 'rabbit-hole:copied-cards';
+
 export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false }) {
   // A view-only board pans and zooms with the hand and edits nothing.
   const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
@@ -1310,6 +1312,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         return insertAtView(newNotebookBlock());
       },
       // A validated block from a / command (learn-slash.js).
+      // A chat answer the learner puts on the canvas from the dock's sheet: a
+      // finished chat card, centred like a fresh question's.
+      insertChat: ({ question, answer }) => {
+        snapshot(true);
+        const id = crypto.randomUUID();
+        seenChats.current.add(id);
+        centerRef.current = id;
+        onAddRef.current?.([{ id, question, answer, linkFrom: null, status: 'done', dx: 0, dy: 0 }]);
+        return id;
+      },
       insertBlock: block => {
         snapshot();
         return insertAtView({ ...block, id: crypto.randomUUID(), dx: 0, dy: 0 });
@@ -1409,6 +1421,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const connectionCleanup = useRef(null);
   const boundsRef = useRef({});
   const clipboard = useRef(null);
+  const markingCopy = useRef(false);
   const [canPaste, setCanPaste] = useState(false);
   // Copy works on every selected node, note and shape. The clipboard holds
   // ids, never the objects: copy then edit then paste has to produce what is
@@ -1421,6 +1434,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (!has(blocksRef.current) && !has(itemsRef.current) && !has(shapesRef.current) && !has(exchangesRef.current)) return false;
     clipboard.current = picked.slice();
     setCanPaste(true);
+    // The system clipboard says which copy is newest: our marker there means
+    // Ctrl+V pastes these cards; an image copied after it wins instead. Until
+    // the write lands, a paste takes the cards.
+    if (navigator.clipboard) {
+      markingCopy.current = true;
+      navigator.clipboard.writeText(CARDS_COPIED).catch(() => {}).finally(() => { markingCopy.current = false; });
+    }
     toast(`Copied ${picked.length} item${picked.length === 1 ? '' : 's'}`);
     return true;
   };
@@ -1464,6 +1484,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     return true;
   };
   const pasteIdsRef = useRef(pasteIds);
+  const dropFilesRef = useRef(onDropFiles);
+  dropFilesRef.current = onDropFiles;
   pasteIdsRef.current = pasteIds;
   const shapesRef = useRef([]);
   const onAddRef = useRef(null);
@@ -1585,7 +1607,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const element = surface.current;
     if (!box || !element) return false;
     const top = box.y * view.z + view.y, bottom = (box.y + box.h) * view.z + view.y;
-    if (top < 0 || bottom > element.clientHeight) setView(v => ({ ...v, y: element.clientHeight / 2 - (box.y + Math.min(box.h, element.clientHeight / v.z) / 2) * v.z }));
+    const left = box.x * view.z + view.x, right = (box.x + box.w) * view.z + view.x;
+    // Both axes: after a sideways pan the column is off to one side, and a
+    // card inserted into it landed off screen.
+    const offY = top < 0 || bottom > element.clientHeight, offX = left < 0 || right > element.clientWidth;
+    if (offY || offX) setView(v => ({ ...v,
+      ...(offX ? { x: element.clientWidth / 2 - (box.x + Math.min(box.w, element.clientWidth / v.z) / 2) * v.z } : {}),
+      ...(offY ? { y: element.clientHeight / 2 - (box.y + Math.min(box.h, element.clientHeight / v.z) / 2) * v.z } : {}) }));
     return true;
   };
   useEffect(() => {
@@ -1728,11 +1756,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         if (commands.copy()) event.preventDefault();
         return;
       }
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v') {
-        if (typing || !clipboard.current?.length) return;
-        if (pasteIdsRef.current(clipboard.current)) event.preventDefault();
-        return;
-      }
       if (event.key !== 'Delete' && event.key !== 'Backspace') return;
       if (typing) return;
       deleteSelectionRef.current();
@@ -1740,8 +1763,24 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // Capture phase: several lesson blocks stop keydown on their own container
     // (an embedded graph, a chart, a 3D view), which otherwise kills copy,
     // paste, undo and delete for the whole canvas while one is focused.
+    // Ctrl+V: a copied image becomes an image card, like a dropped one;
+    // otherwise the canvas's own copied cards paste.
+    const paste = event => {
+      const active = document.activeElement;
+      if (active && (active.isContentEditable || active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+      const data = event.clipboardData;
+      const images = [...(data?.files || [])].filter(file => file.type.startsWith('image/'));
+      // ponytail: if writing the marker failed, an image copied before the cards still wins.
+      if (images.length && dropFilesRef.current && !markingCopy.current && data.getData('text/plain') !== CARDS_COPIED) {
+        event.preventDefault();
+        dropFilesRef.current(images);
+        return;
+      }
+      if (clipboard.current?.length && pasteIdsRef.current(clipboard.current)) event.preventDefault();
+    };
     window.addEventListener('keydown', key, true);
-    return () => window.removeEventListener('keydown', key, true);
+    window.addEventListener('paste', paste, true);
+    return () => { window.removeEventListener('keydown', key, true); window.removeEventListener('paste', paste, true); };
   }, []);
   // The Ask-in-chat button on a selected block arms the dock composer with
   // that block as context; plain selection stays just a selection.
@@ -1821,30 +1860,40 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       }
       const flowX = own.x - exchange.dx, flowY = own.y - exchange.dy;
       onMove(exchange.id, x - flowX, y - flowY);
+      if (centerRef.current === exchange.id) { centerRef.current = null; centerOn({ x, y, w: own.w, h: own.h }); }
       if (!present.current.links.some(link => link.from === exchange.linkFrom && link.to === exchange.id)) {
         setLinks(previous => [...previous, { id: crypto.randomUUID(), from: exchange.linkFrom, fromSide: 'bottom', to: exchange.id, toSide: 'top', color: LINK_COLORS[blocksRef.current.find(block => block.id === exchange.linkFrom)?.type] || '#2383e2' }]);
       }
     }
   }, [exchanges, bounds]);
-  // Keep the newest exchange in sight while it streams. Moving a node must
-  // not re-trigger this, so the pan is keyed on arrivals and status changes.
-  const autoPanKey = useRef('');
+  // A new question's card lands in the middle of the view, once: chat cards
+  // sit at the top of the column, so following the column's bottom left the
+  // new card off screen above. Nothing pans while the answer streams, and a
+  // board opening with chats, undo or pasted copies never pans (only a fresh
+  // ask arrives 'thinking'). An asked-about card's answer is centred after
+  // the auto-link above parks it under its source.
+  const centerRef = useRef(null);
+  const seenChats = useRef(null);
+  if (!seenChats.current) seenChats.current = new Set(exchanges.map(exchange => exchange.id));
+  const centerOn = box => {
+    const element = surface.current;
+    if (!element) return;
+    // An open chat sheet covers the lower part of the view: centre above it.
+    const sheet = element.parentElement?.querySelector('[data-chat-sheet]')?.getBoundingClientRect();
+    const h = sheet?.height ? Math.max(120, sheet.top - element.getBoundingClientRect().top) : element.clientHeight;
+    setView(v => ({ ...v, x: element.clientWidth / 2 - (box.x + box.w / 2) * v.z, y: h / 2 - (box.y + Math.min(box.h, h / v.z) / 2) * v.z }));
+  };
   useEffect(() => {
-    const element = surface.current, col = column.current;
-    // No exchanges means nothing is streaming, so there is no newest thing to
-    // follow - and panning anyway drags a seeded board past its own first
-    // block. Inserting still pans, through insertBlock's own camera move.
-    if (!element || !col || !exchanges.length) return;
-    const last = exchanges[exchanges.length - 1];
-    const key = `${exchanges.length}:${blocks.length}:${last?.id || ''}:${last?.status || ''}`;
-    if (key === autoPanKey.current) return;
-    autoPanKey.current = key;
-    setView(v => {
-      const bottom = v.y + (24 + col.offsetHeight) * v.z;
-      const want = element.clientHeight - 150;
-      return bottom > want ? { ...v, y: v.y - (bottom - want) } : v;
-    });
-  }, [exchanges, blocks.length]);
+    for (const exchange of exchanges) {
+      if (seenChats.current.has(exchange.id)) continue;
+      seenChats.current.add(exchange.id);
+      if (exchange.status === 'thinking') centerRef.current = exchange.id;
+    }
+    const id = centerRef.current, exchange = exchanges.find(entry => entry.id === id);
+    if (!exchange || exchange.linkFrom || !bounds[id]) return;
+    centerRef.current = null;
+    centerOn(bounds[id]);
+  }, [exchanges, bounds]); // eslint-disable-line react-hooks/exhaustive-deps
   const zoomAt = (cx, cy, factor) => setView(v => {
     const z = Math.min(3, Math.max(0.25, v.z * factor));
     const f = z / v.z;

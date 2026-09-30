@@ -21,9 +21,15 @@ $env:JUPYTER_CONFIG_DIR = Join-Path (Get-Location) '.small/jupyter-config'
 if ($LASTEXITCODE -ne 0) { throw 'Canvas notebook build failed' }
 node packages/web/notebook-canvas/patch-site.mjs .small/canvas-notebook-site
 Push-Location packages/web
-try { npx wrangler deploy --config wrangler.canvas-notebook-parallel.jsonc }
+try { npx wrangler deploy --config wrangler.canvas-notebook-parallel.jsonc --name small-learn-canvas-notebook-dev }
 finally { Pop-Location }
 ```
 
-Then build the web app with `VITE_NOTEBOOK_ORIGIN` set to that worker's URL.
-The shared default, `small-learn-canvas-notebook-dev`, is not deployed yet.
+Two sites, one build:
+
+- Shared dev site: `small-learn-canvas-notebook-dev`
+  (https://small-learn-canvas-notebook-dev.zeroshothq.workers.dev). The web
+  build uses it by default. Deploy it only with the `--name` override above.
+- Session review site: `small-learn-canvas-notebook-dev-small-parallel`, the
+  config's own name. Drop `--name` to deploy there, then build the web app with
+  `VITE_NOTEBOOK_ORIGIN` set to that worker's URL.

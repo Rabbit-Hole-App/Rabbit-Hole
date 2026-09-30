@@ -4,7 +4,6 @@ import { boardFetch, validateBoardPlan, generateBoardPlan } from '../src/learn-b
 import { strictTool, REVIEW_TOOL, validateBoardReview, validateTeachingPlan } from '../src/learn-board-review.js';
 import { searchPexels, inspectImage } from '../src/pexels.js';
 import { connector } from '../../web/src/learn-board-layout.js';
-import { answerBlocks } from '../../web/src/answer-blocks.js';
 
 const object = { objectId: 'equation', lessonId: 'sigmoid-demo', runId: 'test-run', author: 'script', kind: 'equation', originalText: 'σ(x) = 1 / (1 + exp(-x))', relatedObjectIds: [], shapeIds: ['shape:eq'], renderStatus: 'complete', shapes: [{ shapeId: 'shape:eq', pageBounds: { x: 0, y: 0, w: 300, h: 30 } }] };
 const snapshot = { lessonId: 'sigmoid-demo', runId: 'test-run', method: 'lesson', target: null, relatedObjects: [object], lessonContext: { topic: 'Sigmoid', currentStage: 'sigmoid', recentExplanations: ['The midpoint is 0.5.'] } };
@@ -62,10 +61,6 @@ test('connectors avoid crossing obstacles and long diagonal arrows', () => {
   assert.ok(connector(source, target, []));
   assert.equal(connector(source, target, [{ x: 95, y: 20, w: 3, h: 10 }]), null);
   assert.equal(connector(source, { ...target, x: 700 }, []), null);
-});
-
-test('answer blocks derive from prose and keep code and math together', () => {
-  assert.deepEqual(answerBlocks('Step one\n\n$$x=1$$\n\nStep two\n\n```py\nx=2\n\nprint(x)\n```'), ['Step one\n\n$$x=1$$', 'Step two\n\n```py\nx=2\n\nprint(x)\n```']);
 });
 
 test('Pexels uses server authorization and rejects untrusted image URLs', async () => {

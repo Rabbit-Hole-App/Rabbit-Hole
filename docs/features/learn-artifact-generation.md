@@ -94,15 +94,13 @@ before its provider call. Without `confirmed: true` it answers HTTP 428 with
 
 In the UI:
 
-- **Explain on canvas** draws video and scene blocks as *proposed*: "This
-  uses paid generation. [Cancel] [Generate]" on the shape. A failed job's
-  Retry proposes it again.
 - **Cards** (Blender scene, Video generate, Maths animation, Image generate):
-  the button opens the same confirmation.
+  the button opens the confirmation: "This uses paid generation. [Cancel]
+  [Generate]". A failed job's Retry asks again.
 - **A paid `/` proposal** is confirmed in the composer. The card is then
   inserted with `confirmedStart` and starts once.
-- **Narration** never autoplays. Explain on canvas, a whiteboard explanation,
-  the whiteboard's "Read it aloud" and the Narration card all offer
+- **Narration** never autoplays. A whiteboard explanation, the whiteboard's
+  "Read it aloud" and the Narration card all offer
   "Narration available. This uses paid generation. [Cancel] [Generate]" first.
 - **A whiteboard card** has no paid job runner. Its video and scene blocks say
   "Generation isn't available from this canvas yet" and show no Generate

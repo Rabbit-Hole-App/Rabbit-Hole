@@ -87,7 +87,9 @@ await shot(page, 'notebook-resized');
 const cellsBefore = await cells.count();
 await page.getByRole('button', { name: /^Hand/ }).first().click();
 const canvasBox = await page.locator('[aria-label="Lesson canvas"]').boundingBox();
-const from = { x: canvasBox.x + 60, y: canvasBox.y + canvasBox.height - 80 };
+// Empty canvas left of the card: the canvas's bottom edge sits under the
+// composer dock, so a drag started there never reaches the canvas.
+const from = { x: canvasBox.x + 300, y: canvasBox.y + canvasBox.height / 2 + 150 };
 const cardBefore = await card.boundingBox();
 await page.mouse.move(from.x, from.y);
 await page.mouse.down();

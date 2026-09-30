@@ -5,12 +5,11 @@ import { FILE_TOKEN, INLINE_PARTS, sourceReference, singleSourcePath } from './s
 // peek's ask box, and ⌘K's Ask tab. POST /api/ask streams SSE; org-scope
 // ambiguity comes back as { choose } and renders candidate pills. ───
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUp, AtSign, BookOpen, Copy, Crown, Feather, FileText, Globe, History, Loader2, MoreHorizontal, MessageCircle, Network, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap } from 'lucide-react';
+import { ArrowUp, AtSign, BookOpen, Check, Copy, Crown, Feather, FileText, Globe, History, Loader2, MoreHorizontal, Minus, Network, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap } from 'lucide-react';
 import { ago, api, navigate, wsHeaders } from './api.js';
 import { colorLine } from './code.jsx';
-import { answerBlocks, isAnswerMetadata } from './answer-blocks.js';
 import { MathText, tokenizeMath } from './MathText.jsx';
-import { Button, cn, CodeBlock, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
+import { cn, CodeBlock, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
 
 // What the agent may read, per scope - the ⚙ picker mirrors Notion's "My sources".
 const SOURCE_OPTIONS = {
@@ -309,7 +308,18 @@ function OutputRow({ runId, name, size }) {
 
 // One chat, scoped: {app} | {run} | {} (org). Style per the Notion AI reference -
 // user turns as a right-aligned bubble, answers as plain text, pill input at the bottom.
-export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, dock = false }) {
+// The Learn chat sheet's History lists only chats started in the sheet: card
+// questions and grading also make learn threads, and the server does not say
+// which is which.
+// ponytail: remembered per browser; a thread source column when History must follow the learner across devices.
+const sheetThreadsKey = app => `small.learn-sheet-threads:${app || ''}`;
+const sheetThreadIds = app => { try { return JSON.parse(localStorage.getItem(sheetThreadsKey(app)) || '[]'); } catch { return []; } };
+const rememberSheetThread = (app, id) => {
+  try { localStorage.setItem(sheetThreadsKey(app), JSON.stringify([String(id), ...sheetThreadIds(app).filter(entry => entry !== String(id))].slice(0, 50))); }
+  catch { /* storage off: History stays empty */ }
+};
+
+export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, dock = false, sheet = false, onAddToCanvas = null }) {
   const repository = appName?.startsWith('repo-');
   const [repositoryCommit, setRepositoryCommit] = useState(repositoryContext?.commit || null);
   const [codeSelection, setCodeSelection] = useState(null);
@@ -323,17 +333,21 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   const learnChat = conversation === 'learn';
   const guardedHistory = privateChat || learnChat;
   const [msgs, setMsgs] = useState([]);
+  // The Learn canvas dock (sheet): plain questions answer in a panel above the
+  // composer, in one thread, and make no card; Add to canvas turns an answer
+  // into a card. Asking about a selected card still answers as a linked card.
+  const sheetMode = sheet && composerOnly;
+  const [sheetOpen, setSheetOpen] = useState(true);
+  const [sheetHistory, setSheetHistory] = useState(false);
+  const sheetThread = useRef(null);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
-  const [selectedPassage, setSelectedPassage] = useState(null);
   const [blockCopy, setBlockCopy] = useState(null);
   useEffect(() => {
     if (!blockCopy) return;
     const timer = setTimeout(() => setBlockCopy(null), 1800);
     return () => clearTimeout(timer);
   }, [blockCopy]);
-  const [drawingReply, setDrawingReply] = useState(null);
-  const [boardError, setBoardError] = useState(null);
   const [choices, setChoices] = useState(null); // { message, candidates }
   const [file, setFile] = useState(null); // one attachment per question
   const [mentions, setMentions] = useState([]); // @app chips
@@ -391,16 +405,18 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       if (repository) { setRepositoryCommit(d.commit); setCodeSelection(null); }
       if (guardedHistory && request !== historyRequest.current) return;
       threadId.current = d.id;
+      sheetThread.current = d.id;
       setMsgs(d.messages);
       setChoices(null);
       if (d.messages?.length) onHasChat?.(); // the parent may surface a Chat tab
       if (toChat) setView('chat'); // the silent resume-on-mount must not yank the user out of History
     } catch { /* stale id - stay on the empty chat */ }
   };
+  const threadsPath = `/api/ask/threads?scope=${historyScope}${scopeRef ? `&ref=${encodeURIComponent(scopeRef)}` : ''}${privateChat ? `&app=${encodeURIComponent(fileApp)}` : ''}`;
   useEffect(() => {
     if (composerOnly || canvasSeed) return; // Canvas conversations never resume an unrelated thread.
     const request = ++historyRequest.current;
-    chatApi(`/api/ask/threads?scope=${historyScope}${scopeRef ? `&ref=${encodeURIComponent(scopeRef)}` : ''}${privateChat ? `&app=${encodeURIComponent(fileApp)}` : ''}`)
+    chatApi(threadsPath)
       .then(async (d) => {
         if (guardedHistory && request !== historyRequest.current) return;
         setThreads(d.threads || []);
@@ -409,7 +425,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       .catch(() => {});
     return () => { if (guardedHistory) historyRequest.current++; };
   }, [historyScope, scopeRef, privateChat, appName]);
-  const newChat = () => { setCodeSelection(null); setFilePeek(null); setRepositoryCommit(repositoryContext?.commit || null); boardContext?.clearPaper?.(); onCloseContentPanel?.(); historyRequest.current++; threadId.current = null; boardContext?.removeImage(); setMsgs([]); setSelectedPassage(null); setChoices(null); setView('chat'); };
+  const newChat = () => { setCodeSelection(null); setFilePeek(null); setRepositoryCommit(repositoryContext?.commit || null); boardContext?.clearPaper?.(); onCloseContentPanel?.(); historyRequest.current++; threadId.current = null; sheetThread.current = null; setSheetHistory(false); boardContext?.removeImage(); setMsgs([]); setSelectedPassage(null); setChoices(null); setView('chat'); };
   useEffect(() => {
     if (boxRef.current) boxRef.current.scrollTop = boxRef.current.scrollHeight;
   }, [msgs]);
@@ -424,8 +440,11 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     // @-chips ride at the front of the message text
     const message = [...mentions.map((m) => `@${m}`), raw.trim()].filter(Boolean).join(' ');
     if (!message || busy) return;
-    if (composerOnly && !canvasSeed) threadId.current = null; // The main composer starts a new block.
-    if (selectedPassage && message.length + selectedPassage.text.length > 3850) { setBoardError({ id: selectedPassage.reply, message: 'This passage and question are too long. Ask a shorter question or clear the passage.' }); return; }
+    // The main composer starts a new block; the sheet keeps its own thread.
+    const panelAsk = sheetMode && !canvasTarget;
+    if (composerOnly && !canvasSeed) threadId.current = panelAsk ? sheetThread.current : null;
+    const exchange = panelAsk ? null : onExchange;
+    if (panelAsk) { setSheetOpen(true); setSheetHistory(false); }
     const isDemo = demo && message.toLowerCase().replace(/[.!?]+$/, '') === demo.prompt.toLowerCase() && !file;
     if (isDemo && demo.disabled) return;
     if (!isDemo) { boardContext?.pause(); boardContext?.setAnswering(true); }
@@ -440,8 +459,6 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     setMentions([]);
     const sourceRange = codeSelection;
     setCodeSelection(null);
-    const passage = selectedPassage;
-    setSelectedPassage(null);
     const attached = file;
     setFile(null);
     const canvasImage = !isDemo ? boardContext?.preview : null;
@@ -454,14 +471,15 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     const target = canvasTarget; // selected lesson block riding as context
     if (target) onClearCanvasTarget?.();
     const replyId = crypto.randomUUID();
-    setMsgs((m) => [...m, { role: 'user', content: attached ? `${message} 📎 ${attached.name}` : message, ...(canvasImage ? { canvasImage } : {}), ...(sourceRange ? { passage: `${sourceRange.path}:${sourceRange.start}-${sourceRange.end}` } : passage ? { passage: passage.text } : {}) }, { role: 'assistant', content: '', id: replyId, demo: !!isDemo }]);
-    if (!isDemo) onExchange?.({ id: replyId, question: message, ...(target ? { linkFrom: target.id } : {}) });
+    const card = sheetMode && !panelAsk ? { card: true } : {}; // answered as a card, kept out of the sheet
+    setMsgs((m) => [...m, { role: 'user', content: attached ? `${message} 📎 ${attached.name}` : message, ...card, ...(canvasImage ? { canvasImage } : {}), ...(sourceRange ? { passage: `${sourceRange.path}:${sourceRange.start}-${sourceRange.end}` } : {}) }, { role: 'assistant', content: '', id: replyId, demo: !!isDemo, ...card }]);
+    if (!isDemo) exchange?.({ id: replyId, question: message, ...(target ? { linkFrom: target.id } : {}) });
     const append = (t) => setMsgs((m) => {
       const next = m.slice();
       next[next.length - 1] = { ...next[next.length - 1], content: next[next.length - 1].content + t };
       return next;
     });
-    const mirror = (t) => { onExchange?.({ id: replyId, delta: t }); append(t); };
+    const mirror = (t) => { exchange?.({ id: replyId, delta: t }); append(t); };
     let snapshot = null;
     let selectionAnswer = '';
     let responseGraph = null;
@@ -492,7 +510,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         ...(repository && repositoryContext ? { repository_context: { ...repositoryContext, commit: sourceRange?.commit || repositoryCommit || repositoryContext?.commit, ...(sourceRange ? {range:{path:sourceRange.path,start:sourceRange.start,end:sourceRange.end}} : {}) } } : {}),
         // @-mentioned apps: the server adds each one's context to this chat.
         ...(mentions.length ? { mentions: [...mentions] } : {}),
-        message: target ? `Question about this ${target.kind} block on the lesson canvas:\n${target.text}\n\nLearner question: ${message}` : passage ? `Question about this previous answer passage:\n${passage.text}\n\nLearner question: ${message}` : message,
+        message: target ? `Question about this ${target.kind} block on the lesson canvas:\n${target.text}\n\nLearner question: ${message}` : message,
         thread_id: threadId.current,
         ...(canvasSeed && !threadId.current ? { canvas_seed: canvasSeed } : {}),
         ...(srcOpts.length && srcOn.size < srcOpts.length ? { sources: [...srcOn] } : {}),
@@ -545,7 +563,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           if (!type || !data) continue;
           const d = JSON.parse(data);
           if (type === 'chunk') { if (snapshot) selectionAnswer += d.text; else mirror(d.text); }
-          else if (type === 'progress') { onExchange?.({ id: replyId, stage: d.stage }); setMsgs(messages => messages.map(item => item.id === replyId ? { ...item, status: d.stage } : item)); }
+          else if (type === 'progress') { exchange?.({ id: replyId, stage: d.stage }); setMsgs(messages => messages.map(item => item.id === replyId ? { ...item, status: d.stage } : item)); }
           else if (type === 'graph') { responseGraph=d; setMsgs(messages=>messages.map(item=>item.id===replyId?{...item,graph:d}:item)); }
           else if (type === 'outline') { boardContext?.onOutlineProposal?.(d.ops); }
           else if (type === 'paper') { boardContext?.onShowPaper?.(d); }
@@ -555,6 +573,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           else if (type === 'proposal') setMsgs((m) => [...m, { role: 'proposal', proposal: d }]);
           else if (type === 'done' && d.threadId) {
             threadId.current = d.threadId;
+            if (panelAsk) { sheetThread.current = d.threadId; rememberSheetThread(appName, d.threadId); }
             if (repository && d.commit) setRepositoryCommit(d.commit);
             if (responseGraph && onGraph) onGraph(responseGraph);
             if (learnChat) setThreads(ts => ts.some(t => t.id === d.threadId) ? ts : [{ id: d.threadId, title: message.slice(0, 120) }, ...ts]);
@@ -563,13 +582,12 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         }
       }
       if (snapshot) mirror(boardContext.isCurrent(snapshot) ? selectionAnswer : 'The lesson or selected object changed while answering. Select it again and ask again.');
-      if (snapshot && selectionAnswer.trim() && boardContext.isCurrent(snapshot)) setMsgs(messages => messages.map(item => item.id === replyId ? { ...item, board: { snapshot, question: passage ? `${message}\nAbout: ${passage.text}` : message, answer: selectionAnswer, model } } : item));
     } catch (e) {
       // A stopped answer keeps what arrived; it is not an error.
       if (e.name !== 'AbortError') mirror(`✗ ${e.message}`);
     } finally {
       if (answerFlight.current === flight) answerFlight.current = null;
-      if (!isDemo) onExchange?.({ id: replyId, done: true });
+      if (!isDemo) exchange?.({ id: replyId, done: true });
       if (!isDemo) boardContext?.setAnswering(false);
       setBusy(false);
     }
@@ -599,7 +617,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   );
   if (repository && filePeek) contentPanel = <RepositorySource appName={fileApp} {...filePeek} commit={repositoryCommit || repositoryContext?.commit} onClose={() => setFilePeek(null)} />;
   return (
-    <div className={cn('flex min-h-0 flex-col', compact ? 'max-h-[320px]' : 'flex-1')}>
+    <div className={cn('flex min-h-0 flex-col', compact ? 'max-h-[320px]' : 'flex-1', sheetMode && 'relative')}>
       {!compact && (msgs.length > 0 || threads.length > 0 || headerExtra || headerTitle) && (
         <div className="flex shrink-0 items-center justify-end gap-1 pb-1">
           {headerTitle && <h2 className="mr-auto text-sm font-semibold">{headerTitle}</h2>}
@@ -702,8 +720,31 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       )}
       {(view === 'chat' || contentPanel) && (<>
       {contentPanel && <div className="flex min-h-0 flex-1 flex-col overflow-hidden"><SourceSelectionContext.Provider value={{value:codeSelection,set:setCodeSelection}}>{contentPanel}</SourceSelectionContext.Provider></div>}
-      <div ref={boxRef} className={cn('no-scrollbar min-h-0 flex-1 overflow-y-auto', (contentPanel || composerOnly) && 'hidden')}>
-        {msgs.length === 0 && !choices && (
+      <div ref={boxRef} data-chat-sheet={sheetMode || undefined} className={cn('no-scrollbar min-h-0 flex-1 overflow-y-auto', (contentPanel || (composerOnly && !sheetMode)) && 'hidden',
+        sheetMode && 'absolute right-0 bottom-full left-0 z-30 mb-2 max-h-[45vh] rounded-xl border border-line bg-white px-3 pb-3 shadow-pop',
+        sheetMode && !(sheetOpen && (sheetHistory || msgs.some(m => !m.card))) && 'hidden')}>
+        {sheetMode && (
+          <div className="sticky top-0 z-10 -mx-3 flex items-center gap-1 bg-white px-3 pt-2 pb-1">
+            <span className="mr-auto text-xs text-ink-2">Rabbit Hole</span>
+            <button type="button" disabled={busy} onClick={() => { if (sheetHistory) return setSheetHistory(false); setSheetHistory(true); chatApi(threadsPath).then(d => { const mine = new Set(sheetThreadIds(appName)); setThreads((d.threads || []).filter(t => mine.has(String(t.id)))); }).catch(() => {}); }}
+              className={cn('flex h-6 cursor-pointer items-center gap-1 rounded-sm px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-50', sheetHistory && 'bg-active text-ink')}>
+              <History size={12} strokeWidth={1.5} />{sheetHistory ? 'Back to chat' : 'History'}
+            </button>
+            <button type="button" disabled={busy} onClick={newChat} className="flex h-6 cursor-pointer items-center gap-1 rounded-sm px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-50">
+              <Plus size={12} strokeWidth={1.5} />New chat
+            </button>
+            <button type="button" aria-label="Collapse chat" title="Collapse" onClick={() => setSheetOpen(false)} className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink">
+              <Minus size={14} />
+            </button>
+          </div>
+        )}
+        {sheetMode && sheetHistory && (threads.length ? threads.map(t => (
+          <button key={t.id} type="button" onClick={async () => { await loadThread(t.id); setSheetHistory(false); }} className="flex h-9 w-full cursor-pointer items-center gap-2 rounded-sm px-2 text-left text-sm hover:bg-hover">
+            <span className="min-w-0 flex-1 truncate">{t.title}</span>
+            {t.created_at && <span className="shrink-0 text-xs text-ink-3">{ago(t.created_at)}</span>}
+          </button>
+        )) : <p className="py-2 text-sm text-ink-3">No past chats.</p>)}
+        {!sheetMode && msgs.length === 0 && !choices && (
           <div className="flex flex-col items-start gap-1.5 py-3">
             {(repository
               ? ['What are the main concepts in this repository?', 'How does the code fit together?', 'Where should I start reading?']
@@ -724,7 +765,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
             ))}
           </div>
         )}
-        {msgs.map((m, i) => (
+        {!(sheetMode && sheetHistory) && msgs.map((m, i) => (sheetMode && m.card) ? null : (
           <div key={i} className={cn('py-1.5', m.role === 'user' && 'flex justify-end')}>
             {m.role === 'user' ? (
               <div className="max-w-[85%] rounded-lg bg-hover px-3 py-1.5 text-sm">
@@ -746,26 +787,23 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
                 <button type="button" aria-label="Copy error" title="Copy error" onClick={() => navigator.clipboard.writeText(m.content)} className="shrink-0 rounded p-1 hover:bg-danger/10"><Copy size={14} /></button>
               </div>
             ) : m.content ? (
-              <>{learnChat ? <div className="space-y-2">{answerBlocks(m.content).map((block, blockIndex) => isAnswerMetadata(block) ? <Md key={blockIndex} text={block} sourcePath={singleSourcePath(m.content)} onRun={id => { setFilePeek(null); setRunPeek(id); }} onFile={fileApp ? (path, line, lineEnd) => { setRunPeek(null); setFilePeek({ path, line, lineEnd }); } : null} /> : <div key={blockIndex} className={cn('relative min-w-0 rounded-lg border border-accent/30 p-3 pr-16', selectedPassage?.reply === (m.id || i) && selectedPassage?.index === blockIndex ? 'ring-2 ring-accent bg-accent/10 text-black' : 'bg-transparent')}>
-                <Md text={block} sourcePath={singleSourcePath(m.content)} onRun={id => { setFilePeek(null); setRunPeek(id); }} onFile={fileApp ? (path, line, lineEnd) => { setRunPeek(null); setFilePeek({ path, line, lineEnd }); } : null} />
-                <button type="button" title="Copy block" aria-label={`Copy answer block ${blockIndex + 1}`} className="absolute top-2 right-9 rounded p-1 text-accent hover:bg-accent/10" onClick={async () => {
-                  try { await navigator.clipboard.writeText(block); setBlockCopy({ reply: m.id || i, index: blockIndex, text: 'Copied' }); }
-                  catch { setBlockCopy({ reply: m.id || i, index: blockIndex, text: 'Copy failed' }); }
+              <>{learnChat ? <div className="relative min-w-0 rounded-lg border border-accent/30 p-3 pr-10">
+                <Md text={m.content} onRun={id => { setFilePeek(null); setRunPeek(id); }} onFile={fileApp ? (path, line, lineEnd) => { setRunPeek(null); setFilePeek({ path, line, lineEnd }); } : null} />
+                <button type="button" title="Copy" aria-label="Copy answer" className="absolute top-2 right-2 rounded p-1 text-accent hover:bg-accent/10" onClick={async () => {
+                  try { await navigator.clipboard.writeText(m.content); setBlockCopy({ reply: m.id || i, text: 'Copied' }); }
+                  catch { setBlockCopy({ reply: m.id || i, text: 'Copy failed' }); }
                 }}><Copy size={14} /></button>
-                {blockCopy?.reply === (m.id || i) && blockCopy.index === blockIndex && <span role="status" className="absolute right-2 top-9 z-10 rounded border border-accent/30 bg-accent/10 px-2 py-1 text-xs text-black shadow-sm">{blockCopy.text}</span>}
-                <button type="button" title="Ask about this block" aria-label={`Ask about answer block ${blockIndex + 1}`} aria-pressed={selectedPassage?.reply === (m.id || i) && selectedPassage?.index === blockIndex} disabled={busy || drawingReply !== null} className="absolute top-2 right-2 rounded p-1 text-accent hover:bg-accent/10 disabled:opacity-40" onClick={() => {
-                  boardContext?.pause(); boardContext?.clear(); setSelectedPassage({ reply: m.id || i, index: blockIndex, text: block }); inputRef.current?.focus();
-                }}><MessageCircle size={14} /></button>
-              </div>)}</div> : <Md text={m.content} onRun={id => { if (privateChat) navigate(`/apps/${encodeURIComponent(appName)}/runs/${encodeURIComponent(id)}`); else { setFilePeek(null); setRunPeek(id); } }} onFile={!privateChat && fileApp ? (path, ln, lnEnd) => { setRunPeek(null); setFilePeek({ path, line: ln, lineEnd: lnEnd }); } : null} />}
+                {blockCopy?.reply === (m.id || i) && <span role="status" className="absolute right-2 top-9 z-10 rounded border border-accent/30 bg-accent/10 px-2 py-1 text-xs text-black shadow-sm">{blockCopy.text}</span>}
+              </div> : <Md text={m.content} onRun={id => { if (privateChat) navigate(`/apps/${encodeURIComponent(appName)}/runs/${encodeURIComponent(id)}`); else { setFilePeek(null); setRunPeek(id); } }} onFile={!privateChat && fileApp ? (path, ln, lnEnd) => { setRunPeek(null); setFilePeek({ path, line: ln, lineEnd: lnEnd }); } : null} />}
               {m.graph&&onGraph&&<div className="mt-2"><EvidencePill icon={Network} type="button" onClick={()=>onGraph(m.graph)} title={m.graph.title}>Show on graph</EvidencePill></div>}
-              {learnChat && !m.demo && !m.content.startsWith('\u2717') && boardContext?.explain && msgs.slice(0, i).some(item => item.role === 'user') && <div className="mt-2"><Button size="sm" variant="primary" disabled={busy || drawingReply !== null || !boardContext.ready} onClick={async () => {
-                setDrawingReply(m.id ?? i); setBoardError(null); boardContext.setAnswering(true);
-                try { await boardContext.explain({ ...(m.board || { snapshot: null, question: [...msgs.slice(0, i)].reverse().find(item => item.role === 'user').content, answer: m.content, model }), paperIds: m.papers?.map(p => p.id) || [], ...(repository && repositoryContext ? { repository_context: { commit: repositoryCommit || repositoryContext?.commit } } : {}), history: msgs.slice(0, i).filter(item => !item.demo && ['user', 'assistant'].includes(item.role) && item.content?.trim()).slice(-6).map(item => ({ role: item.role, content: item.content.slice(0, 1000) })) }); }
-                catch (error) { setBoardError({ id: m.id ?? i, message: error.message }); }
-                finally { setDrawingReply(null); boardContext.setAnswering(false); }
-              }}>{drawingReply === (m.id ?? i) ? <><Loader2 size={13} className="shrink-0 animate-spin" /><span className="min-w-0 max-w-64 truncate" title={boardContext.status || ''}>{boardContext.status || 'Preparing explanation...'}</span></> : <><Pencil size={13} />Explain on canvas</>}</Button>
-                {boardError?.id === (m.id ?? i) && <p role="alert" className="mt-2 text-xs text-red-700">{boardError.message}</p>}
-              </div>}</>
+              {sheetMode && onAddToCanvas && !m.demo && !m.content.startsWith('\u2717') && !(busy && i === msgs.length - 1) && (
+                <button type="button" data-add-to-canvas disabled={m.added} onClick={() => {
+                  onAddToCanvas({ question: [...msgs.slice(0, i)].reverse().find(item => item.role === 'user')?.content || '', answer: m.content });
+                  setMsgs(ms => ms.map((x, j) => (j === i ? { ...x, added: true } : x)));
+                }} className="mt-2 flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-line px-2 text-xs text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:text-green-700 disabled:hover:bg-transparent">
+                  {m.added ? <><Check size={13} />On the canvas</> : <><Plus size={13} />Add to canvas</>}
+                </button>
+              )}</>
             ) : (
               <span className="flex items-center gap-2 text-xs text-ink-2"><Loader2 size={14} className="animate-spin text-ink-3" />{m.status || 'Thinking...'}</span>
             )}
@@ -835,7 +873,6 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           {demo.prompt} <span className="ml-1 text-ink-3">· Demo</span>
         </button>}
         {repository && repositoryContext?.label && <div className="mb-2 inline-flex max-w-full self-start items-center gap-1.5 rounded-md border border-green-600/45 bg-green-50 px-2 py-1.5 text-xs text-green-800"><span className="min-w-0 truncate">Asking about: {repositoryContext.label} · {(repositoryCommit || repositoryContext?.commit || '').slice(0,7)}</span>{onClearRepository && <button type="button" className="shrink-0 rounded p-0.5 hover:bg-green-100" aria-label="Clear repository selection" onClick={onClearRepository}><X size={12}/></button>}</div>}
-        {selectedPassage && <div className="mb-2 flex items-start gap-2 rounded-lg border border-accent/30 bg-accent/10 p-2 text-xs text-black"><div className="min-w-0 flex-1"><span className="font-medium">Asking about this answer</span><div className="mt-1 max-h-24 overflow-auto"><Md text={selectedPassage.text} /></div></div><button type="button" aria-label="Clear answer selection" title="Clear answer selection" onClick={() => setSelectedPassage(null)}><X size={13} /></button></div>}
         {canvasTarget && <div data-canvas-target className="mb-1.5 inline-flex max-w-full items-center gap-1.5 rounded-full border border-line bg-hover py-1 pr-1.5 pl-2.5 text-xs text-ink-2">
           {canvasTarget.preview && <img src={canvasTarget.preview} alt="Selected region" className="h-7 w-10 shrink-0 rounded border border-line bg-white object-contain" />}
           <span className="shrink-0 font-medium text-ink">{canvasTarget.kind}</span>

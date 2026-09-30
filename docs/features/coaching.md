@@ -92,6 +92,9 @@ Deployed to regular Small dev as `3ca0d796-6510-425c-85ec-5169a30ad84c`.
 This increment extends the original dev canvas explanation. Live and BYOC
 remain unchanged. Model calls use Anthropic API billing, not a chat subscription.
 
+- **Removed 2026-09-29:** the **Explain on canvas** button under Learn chat
+  answers, which drew on the earlier lesson board. What follows describes it as
+  it was.
 - Completed Learn chat answers offer **Explain on canvas**, including general
   questions before a lesson starts and answers reopened from History. A blank
   canvas gets a freeform explanation context; no demo prerequisite. New explanations

@@ -47,6 +47,6 @@ Testing found a Python/NumPy mismatch in the initial container. Using Debian's P
 
 Regular dev version: `79f67b60-5321-4536-a778-43775e001437`.
 
-Try in Learn: **“Explain perspective projection with a new interactive 3D scene: a camera frustum, a cube and an animated ray.”** Then click **Explain on canvas**, wait for the scene, and use **Interact** or **Play animation**.
+Try in Learn: **“Explain perspective projection with a new interactive 3D scene: a camera frustum, a cube and an animated ray.”** Then click **Explain on canvas**, wait for the scene, and use **Interact** or **Play animation**. (That button was removed from Learn chat answers on 2026-09-29; this walkthrough no longer runs as written.)
 
 References: [Blender glTF export API](https://docs.blender.org/api/main/bpy.ops.export_scene.html), [Fly deployment](https://fly.io/docs/flyctl/deploy/), [existing 3D viewer](learn-three-d.md), [generated video lifecycle](learn-video.md).
