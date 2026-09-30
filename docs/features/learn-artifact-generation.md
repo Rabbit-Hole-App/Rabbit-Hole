@@ -259,6 +259,8 @@ After that, future instances need no per-card review.
 
 **Deferred: Visual Summary / Concept Map** (`visual_summary`, modes `summary` / `concept_map`, under `/diagram`). Future, not implemented; spec in docs/features/learn-visual-summary.md (on feat/canvas-block-conversations until merge). Do not add it to learn-primitives.js, slash.js, BLOCK_TYPES or Tutor tools yet.
 
+**Deferred: Video / Motion Generation** (code-driven, source-grounded motion explainers; intuition-first teaching videos). Future, not implemented; spec in docs/features/learn-video-motion-generation.md. It is not the existing paid `video_generate` primitive. Do not add slash commands, registry entries, API routes, provider bindings, UI, billing or Tutor routing for it yet.
+
 ## Adding a primitive (handoff contract, owner-approved 2026-09-29)
 
 **The card owner supplies,** once a card type's format is stable:
