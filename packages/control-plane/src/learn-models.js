@@ -7,8 +7,6 @@
 export const MODEL = 'claude-opus-5';
 // Model picker allowlist - "Auto" resolves to the default.
 export const ASK_MODELS = { auto: MODEL, 'opus-5': 'claude-opus-5', 'sonnet-5': 'claude-sonnet-5', 'haiku-4.5': 'claude-haiku-4-5-20251001' };
-// The cards and whiteboard OpenAI model when planModel takes that branch.
-export const PLAN_MODEL = 'gpt-4.1-mini';
 
 // A picker key to its model id; anything else gets the caller's fallback.
 // Own keys only: 'constructor' or '__proto__' would otherwise send a function
@@ -17,7 +15,8 @@ export const askModel = (key, fallback = null) => (typeof key === 'string' && Ob
 
 // What each Learn task sends. provider: 'anthropic' is ask.js anthropic() (the
 // platform key, or the subscription bridge in SUBSCRIPTION_ONLY); 'plan' is
-// planModel (OpenAI when configured, otherwise anthropic()). model null is
+// planModel (OpenAI only with both OPENAI_API_KEY and LEARN_PLAN_MODEL set,
+// outside subscription mode; otherwise anthropic()). model null is
 // Auto: claude-opus-5 plus the server-side refusal fallback; an explicit id
 // gets no fallback. org is null on every task, so per-org AI settings
 // (org_ai) never apply to Learn. No task sets thinking or effort, so the

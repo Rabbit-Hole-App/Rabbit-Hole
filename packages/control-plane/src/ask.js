@@ -1,12 +1,12 @@
 import { subscriptionTransport } from './subscription-transport.js';
 import { researchAnswer } from './learn-research.js';
 import { learnMomentsDb } from './learn-storage.js';
-import { MODEL, PLAN_MODEL } from './learn-models.js';
+import { MODEL } from './learn-models.js';
 // Ask (phase 1 - read only): one agent function, scoped per question. This module
 // holds the model call + prompt; index.js owns auth, scope resolution, and context
 // assembly so permissions are enforced by queries, never by the prompt.
 // Model ids and per-task settings live in learn-models.js; re-exported for existing importers.
-export { ASK_MODELS, PLAN_MODEL, askModel } from './learn-models.js';
+export { ASK_MODELS, askModel } from './learn-models.js';
 
 export const ASK_SYSTEM = [
   'You are the built-in assistant of "small", a platform where teams deploy Python apps',
@@ -257,10 +257,13 @@ export function fromOpenAI(j) {
   };
 }
 
+// Cards and the whiteboard. OpenAI is opt-in: it needs both the key and an
+// explicit LEARN_PLAN_MODEL (the key alone also gates image generation and
+// transcription), and subscription mode never leaves the bridge.
 export async function planModel(env, body, model, org) {
-  if (!env.OPENAI_API_KEY) return anthropic(env, body, model, org);
+  if (env.SUBSCRIPTION_ONLY === 'true' || !env.OPENAI_API_KEY || !env.LEARN_PLAN_MODEL) return anthropic(env, body, model, org);
   const { stream, ...rest } = body;
-  const chosen = env.LEARN_PLAN_MODEL || PLAN_MODEL;
+  const chosen = env.LEARN_PLAN_MODEL;
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.OPENAI_API_KEY}` },

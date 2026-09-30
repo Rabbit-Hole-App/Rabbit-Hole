@@ -96,20 +96,29 @@ test('an OpenAI key with LEARN_PLAN_MODEL runs cards and the whiteboard on that 
   assert.deepEqual(shape(calls), [openai('gpt-4.1-mini'), openai('gpt-4.1-mini'), openai('gpt-4.1-mini')]);
 });
 
-test('today: an OpenAI key alone switches cards and the whiteboard to gpt-4.1-mini (models-2)', async t => {
+// Owner decision 4: OpenAI only on an explicit LEARN_PLAN_MODEL. The key alone
+// also gates image generation and transcription, so it no longer flips these.
+test('an OpenAI key alone leaves cards and the whiteboard on claude-opus-5 (models-2)', async t => {
   const env = { ANTHROPIC_API_KEY: 'a', OPENAI_API_KEY: 'o' };
   let calls = recordFetch(t);
   await artifact(env);
-  assert.deepEqual(shape(calls), [openai('gpt-4.1-mini')]);
+  assert.deepEqual(shape(calls), [pinned('claude-opus-5')]);
   calls = recordFetch(t);
   await board(env);
-  assert.deepEqual(shape(calls), [openai('gpt-4.1-mini'), openai('gpt-4.1-mini'), openai('gpt-4.1-mini')]);
+  assert.deepEqual(shape(calls), [pinned('claude-opus-5'), pinned('claude-opus-5'), pinned('claude-opus-5')]);
 });
 
-test('today: SUBSCRIPTION_ONLY with an OpenAI key still sends plan calls to OpenAI (models-3)', async t => {
-  const calls = recordFetch(t);
-  await planModel({ SUBSCRIPTION_ONLY: 'true', SUBSCRIPTION_BRIDGE_URL: 'https://bridge.test', SUBSCRIPTION_BRIDGE_TOKEN: 't', OPENAI_API_KEY: 'o' }, { max_tokens: 10, messages: [] }, 'claude-opus-5', null);
-  assert.deepEqual(calls.map(c => c.host), ['api.openai.com']);
+// coaching.md: SUBSCRIPTION_ONLY routes canvas generation and reviews only
+// through the subscription bridge, never to a paid API.
+test('SUBSCRIPTION_ONLY sends cards and the whiteboard to the subscription bridge even with OpenAI configured (models-3)', async t => {
+  const env = { SUBSCRIPTION_ONLY: 'true', SUBSCRIPTION_BRIDGE_URL: 'https://bridge.test', SUBSCRIPTION_BRIDGE_TOKEN: 't', OPENAI_API_KEY: 'o', LEARN_PLAN_MODEL: 'gpt-4.1-mini' };
+  let calls = recordFetch(t);
+  await planModel(env, { max_tokens: 10, messages: [] }, 'claude-opus-5', null);
+  assert.deepEqual(calls.map(c => c.host), ['bridge.test']);
+  calls = recordFetch(t);
+  await artifact(env);
+  await board(env);
+  assert.deepEqual([...new Set(calls.map(c => c.host))], ['bridge.test']);
 });
 
 test('the whiteboard still honours a crafted model key when no OpenAI key is set (models-7, kept)', async t => {
