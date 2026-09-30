@@ -1,0 +1,272 @@
+# Learn cleanup (C0-C11)
+
+Status (2026-09-29): C0 done; C1-C10 in progress on `feature/learn-cleanup`.
+Not a Tutor Agent: no Socrates, Feynman, Plato, learner state or adaptive
+routing. Every existing Learn request should have an understandable path,
+the right context, an explicit model configuration, an accurate prompt and
+predictable output and storage.
+
+## Baseline
+
+- Branch `feature/learn-cleanup`, baseline commit `feb4825` (local tag
+  `learn-cleanup-baseline`).
+- It is the frozen WP7 acceptance build `8fbc6fb` (tag `wp7-acceptance-build`,
+  smart-home WP1-WP7 plus parallel-work up to `546763c`), merged cleanly
+  with `feature/parallel-work` `caca1c2`: the chat sheet, one-block answers and
+  `docs/learn-agent-canvas-architecture.md`.
+- The WP7 build is not modified. It stays the regression baseline.
+- `feat/canvas-block-conversations` (NC cards) is not in the baseline. It
+  shares no merge base with WP7 after main `94dad46`. It touches `ask.jsx`
+  (7 lines), `LearnPage.jsx` and `AdaptiveCanvas.jsx`, so that later merge
+  must re-check them.
+- Baseline unit tests: 1162/1162 node, 31/31 python.
+
+The architecture doc describes `3bc489e`, before smart-home's work merged.
+The main differences on the baseline:
+- Standalone canvases (`canvas-<8 hex>`, `LEARN_DB canvases`) answer through
+  `apiAsk` with the `canvasAskSeam`. Their threads live in `LEARN_DB`.
+- Learn is mounted only for canvases and `repo-*` projects. Job/server apps
+  no longer show it.
+- The Mothership Agent Bar sends project asks to `repositoryAsk`.
+- The repository page's Graph Agent panel is gone.
+
+## Owner decisions (2026-09-29)
+
+1. **Storage:** stop both production writes. Dev reads and writes of
+   `learn_moments` use `LEARN_DB` (production `small-cp` has no `LEARN_DB`,
+   so it is unchanged). Dev Keep/Dismiss and hot moments stay quiet until a
+   `learn_moments` table exists in `small-learn-dev`, which is a separate go.
+   The dev worker refuses Learn asks for job/server apps with a 403.
+2. **Card context:** a new optional `canvas_target {id, kind, title, text}`
+   field on the Learn ask. The card text is bounded separately, with an
+   explicit truncation marker, and `message` stays the learner's words.
+   Old wrapped messages are still accepted.
+3. **Grading:** a new dev-only `POST /api/learn/assess`. The server builds
+   today's instruction text unchanged, with the same default model and no
+   tools, thread or app context. `/api/learn/grade` stays Jev-only.
+4. **Cards and whiteboard model:** OpenAI is used only when
+   `LEARN_PLAN_MODEL` is set explicitly. With no var, every environment,
+   shared dev included, uses `claude-opus-5`.
+
+## Classification
+
+Produced by 16 read-only audits, each checked by an independent verifier,
+against the baseline.
+
+### Findings (182)
+
+| Id | Status on baseline | Change type | Finding |
+|---|---|---|---|
+| delta-1 | branch specific | record only | Baseline map: every UI entry into a Learn model call, with endpoint, handler, authorization and storage (and corrections to the three canvas kinds) |
+| delta-2 | branch specific | docs or tests only | Doc sections 1, 2, 4.2, 4.4, 7 and 14 describe two Learn chat paths; the baseline has a third (standalone canvas through apiAsk with the LEARN_DB seam) |
+| delta-3 | still present | behavior bug fix (decision) | canvasAskSeam covers thread storage and the askStream moment insert only: research tools use the unswapped env, @mentions read production app context, and moment feedback on a canvas still writes the production D1 |
+| delta-4 | still present | behavior bug fix (decision) | Repository Learn asks (repo-* Learn canvas and the new Agent Bar project asks) still write the video-moment log to the production D1 |
+| delta-5 | still present | contract change (decision) | Job/server Learn: the preview no longer mounts it, but the dev worker still serves /api/learn/ask for those apps and writes threads and messages to the production D1 |
+| delta-6 | still present | docs or tests only | The D7 preview write guard is browser-only, skips fetch() callers and allowlists dev-worker routes that still write the production D1 |
+| delta-7 | branch specific | behavior bug fix (decision) | Canvas attachments: the server refuses them, the canvas composer still offers them, and the refusal's rationale went stale in the merge |
+| delta-8 | still present | behavior bug fix (decision) | The canvas composer offers app-only context controls: the Sources toggles do nothing and @mentions mix production app context with silently dropped canvases |
+| delta-9 | still present | contract change (decision) | The Mothership Agent Bar is a new, undocumented entry into repositoryAsk, and that handler's prompt and tools describe canvas side effects the bar cannot show |
+| delta-10 | branch specific | docs or tests only | The repository page Graph Agent panel was removed, so e2e/learn-chat-one-block.mjs and doc section 16 point at a surface that no longer exists |
+| delta-11 | still present | contract change (decision) | New thread lists on the baseline (Project Overview 'Recent activity', Agent Bar History) show Learn grading and card threads under their instruction text; canvases get the same thread titles |
+| delta-12 | already fixed | docs or tests only | Repository snapshots moved out of the production R2 bucket; doc section 14 omits the new binding, the canvases table and the new browser keys |
+| delta-13 | still present | behavior bug fix (decision) | wrangler.parallel.jsonc lacks REPOSITORY_SNAPSHOTS, so every repository ask fails on a clone deployed from it; the two clone deploy recipes disagree; snapshots imported before the move may be unreadable |
+| delta-14 | branch specific | docs or tests only | a3cda90 changed REPOSITORY_SYSTEM; the doc's verbatim prompt is stale and the change must be carried through C3 |
+| delta-15 | needs reproduction | pure refactor | live-bundle-check.mjs keeps Rabbit Hole shell code out of the live build but does not cover Learn canvas code, which an unconditional lazy import still emits |
+| delta-16 | branch specific | record only | The Learn handoff is merged but switched off: /teach, Start -> Question and the Map's 'Learn this' fall back without a model call |
+| delta-17 | already fixed | docs or tests only | Doc section 15 'hi carries the whole appContext' no longer happens through the preview UI; only @mentions and the unmounted job/server server path remain |
+| delta-18 | still present | docs or tests only | 'No router' still holds for Learn, but the baseline adds a deterministic command router in front of the Agent Bar |
+| prompts-1 | still present | behavior bug fix | Chat prompt still advertises the removed 'Explain on canvas' button and canvas operations on every Learn chat route |
+| prompts-2 | still present | behavior bug fix | Whiteboard draft prompt says video and 3D scenes are generated after review, but the only caller renders them as 'not generated' placeholders |
+| prompts-3 | still present | behavior bug fix | Chat prompt describes a lesson snapshot and a displayed canvas that no canvas route sends |
+| prompts-4 | still present | behavior bug fix | Chat identity hard-codes the provider: 'You are Claude' |
+| prompts-5 | still present | behavior bug fix | No greeting or small-talk rule in any Learn chat prompt |
+| prompts-6 | still present | behavior bug fix | Blanket notation rule in the shared teaching policy forbids defining unfamiliar symbols and contradicts the policy's own example |
+| prompts-7 | still present | behavior bug fix | Hot video candidates are presented to the model as trusted rather than as a previously accepted window |
+| prompts-8 | still present | behavior bug fix | Outline editing is mentioned on routes that never supply propose_lesson_outline |
+| prompts-9 | still present | behavior bug fix | Learn attachment note tells the model a run tool can use the upload, but Learn never supplies one |
+| prompts-10 | still present | behavior bug fix | Inline context lines mislabel group snapshots and are missing on the repository route for paper regions and images |
+| prompts-11 | still present | behavior bug fix | Video tool text and tool-result notes say the learner sees the clip playing; it arrives after the answer, cued, not playing |
+| prompts-12 | still present | docs or tests only | Grading is assembled as a chat message under the tutor prompt and tools, so every C3 chat-prompt edit also changes the grader |
+| prompts-13 | not a problem | record only | Jev gradeQuestions: pinned protocol that already separates the learner's answer from instructions |
+| prompts-14 | still present | pure refactor | Learn prompts live outside the src/agents/ convention; give them a prompt-only home with compatibility exports |
+| prompts-15 | still present | behavior bug fix | Advertised versus supplied capabilities per route: remaining mismatches (video provider, 'deployed app', minor tool text) |
+| prompts-16 | not a problem | none | The Mothership Agent Bar composes no Learn prompt text |
+| prompts-17 | needs reproduction | docs or tests only | Client prompt modules versus the production browser bundle: grading prompt now gated, but the boundary is not checked for prompt text and one Learn canvas path is unguarded |
+| prompts-18 | still present | docs or tests only | Architecture doc prompt sections have drifted from the baseline |
+| prompts-19 | not a problem | docs or tests only | Evidence safeguards to preserve through every prompt edit (inventory) |
+| prompts-20 | still present | docs or tests only | No test checks the assembled per-route prompt or tool list at the model boundary |
+| prompts-21 | branch specific | behavior bug fix | Tool-result notes tell the model the learner sees a paper, article or video, but Agent Bar asks drop the paper and show the others only as source links |
+| models-1 | still present | record only | Effective model per Learn task and environment on the baseline (characterization matrix) |
+| models-2 | still present | behavior bug fix (decision) | OPENAI_API_KEY on its own switches slash-command cards and the whiteboard (plan, draft and review) from claude-opus-5 to gpt-4.1-mini |
+| models-3 | still present | behavior bug fix (decision) | SUBSCRIPTION_ONLY is bypassed by planModel: with an OpenAI key, cards and whiteboard generation and review go to paid OpenAI |
+| models-4 | still present | behavior bug fix | The subscription owner gate misses repository asks and repository course authoring, so any member could spend the owner's personal subscription |
+| models-5 | still present | behavior bug fix (decision) | The chat model picker does not say that its choice reaches only chat answers |
+| models-6 | branch specific | behavior bug fix (decision) | Agent Bar Learn asks always run Auto and ignore the Settings default model |
+| models-7 | still present | contract change (decision) | The whiteboard server still accepts a `model` request field that no client sends |
+| models-8 | still present | behavior bug fix | The model allowlist lookup accepts Object.prototype keys and then sends a request with no model |
+| models-9 | still present | record only | Refusal-fallback policy is implicit and differs by task for the same model id |
+| models-10 | still present | record only | Thinking and effort are implicit model defaults that share tight max_tokens budgets |
+| models-11 | still present | behavior bug fix | No sanitized model diagnostics on any Learn path: task, provider, served model, config source, prompt version and fallback use are all unrecorded |
+| models-12 | still present | pure refactor | Model resolution, provider dispatch and error handling are duplicated across the four paths (C2) |
+| models-13 | still present | pure refactor | Picker metadata is written out three times with no shared list or test |
+| models-14 | still present | record only | Per-org AI settings (org_ai) never apply to Learn chat, grading, cards or the whiteboard; course authoring does apply them |
+| models-15 | still present | pure refactor | Limits are literals spread over about twelve files with no shared tested configuration, and several model calls have no timeout |
+| models-16 | still present | docs or tests only | A stale Jev transport comment, and three transport defaults in two files |
+| models-17 | still present | docs or tests only | Architecture doc model statements need corrections (sections 9, 10.3, 15 and 17.4) |
+| models-18 | still present | behavior bug fix | On the OpenAI plan path, Pexels photos become an invalid data URL in whiteboard review and revision, and inspect_image results reach the model as JSON text |
+| context-1 | still present | contract change (decision) | Ask in chat (K4) puts unbounded card text into `message`; validated cards exceed the 4000-character limit |
+| context-2 | still present | behavior bug fix | Group Ask (K5) caps the members' text at 4000 before wrapping, so a capped group always exceeds the message limit; truncation is silent |
+| context-3 | still present | behavior bug fix | Group Ask screenshot (K5 image_context) sticks to every later question, outranks wiki/video, can miss its own question, and is invisible |
+| context-4 | still present | behavior bug fix (decision) | Single-source precedence is invisible and sticky: a dropped image outranks later cards, attached sources ride with card asks, and Files says 'Tutor reads' for every source |
+| context-5 | still present | behavior bug fix (decision) | Repository path silently drops outline, wiki_context and video_context (not validated, not used, no unsupported state) |
+| context-6 | still present | behavior bug fix | Repository path cannot read an uploaded PDF; after an upload every question on a repository canvas fails until the paper chip is cleared |
+| context-7 | still present | behavior bug fix | Composer + attachments (K3) differ by canvas kind without saying so: repository apps refuse anything over ~64 KB, standalone canvases refuse after send |
+| context-8 | needs reproduction | behavior bug fix | Paper-region questions (K7) on repository apps may hit the same 64 KB cap, because the preview PNG rides inside the JSON body |
+| context-9 | still present | behavior bug fix | Whiteboard region (K6) shows the region picture in the composer chip, but only shape types and text reach the model |
+| context-10 | still present | contract change (decision) | Continue convo (K8) seeds only the raw question and answer; the linked card the answer was about is lost |
+| context-11 | still present | behavior bug fix | @mentions (K9): unresolved mentions are dropped silently, canvases are offered but never resolvable, and mentioned app context has no combined budget |
+| context-12 | still present | behavior bug fix (decision) | A plain ask or greeting (K1) on a project-owned canvas carries the whole appContext; code questions rely on the bundle because the non-repository Learn chat has no code retrieval tool |
+| context-13 | still present | behavior bug fix (decision) | The deployed source is dropped whole and silently when appContext would exceed 600k characters |
+| context-14 | still present | behavior bug fix | Sources toggles: switching all off sends [] which the server reads as 'everything'; the toggles cannot remove the source or members; they do nothing on standalone canvases |
+| context-15 | still present | behavior bug fix | Learn questions with a + attachment are told about a 'run tool' that the Learn route never supplies |
+| context-16 | still present | behavior bug fix (decision) | Switching the repository off in Files does not stop repository context or tools, although Files says the tutor ignores it |
+| context-17 | still present | behavior bug fix | Ask about a YouTube moment card sends 'Source: undefined' and drops the video id and window |
+| context-18 | not a problem | record only | Standalone canvas chat context (canvasAskSeam) is one fixed line by design; mentions still read the live DB |
+| context-19 | still present | pure refactor | Learn context validation and source building are duplicated between apiAsk and repositoryAsk and have diverged (C2) |
+| context-20 | still present | behavior bug fix | Grading (K10) embeds the learner's answer in `message`; long answers exceed 4000 and the card shows a misleading 'Could not reach the tutor' (owned by C6) |
+| context-21 | still present | docs or tests only | The architecture doc's context sections (4.4, 5, 6.1, 7, 15) are inaccurate or incomplete on the baseline |
+| context-22 | still present | behavior bug fix | Group Ask composer chip shows the literal text 'undefined' as the card title |
+| grading-1 | still present | contract change (decision) | Opus grading runs as a full Learn chat turn: it gets the Learn system prompt, the research tools, up to 9 model calls and the chat context |
+| grading-2 | still present | behavior bug fix (decision) | Where a grade is stored on each canvas kind: the dev handlers can still write the Opus grade or a moment row to production storage |
+| grading-3 | still present | behavior bug fix (decision) | Every grade creates a new chat thread: sheet History gets crowded out, the canvas can no longer be deleted, threads are titled with the instruction, and a storage failure erases a verdict already shown |
+| grading-4 | still present | behavior bug fix | A long answer cannot be graded, because the instruction and the learner's answer share the 4000-character cap on chat messages |
+| grading-5 | still present | pure refactor | Grading instructions and VERDICT parsing are not in one canonical module: the parse exists in three copies, and the prompt test does not pin the text |
+| grading-6 | not a problem | record only (decision) | Fingerprints and the holdout: moving the prompts or changing the Opus call burns nothing, but it still shifts the Opus comparator |
+| grading-7 | not a problem | record only | The existing /api/learn/grade contract (Jev shadow): its callers, request and response. It already stays within the dev storage boundary. |
+| grading-8 | still present | behavior bug fix | A grade can end in a permanent 'Reading your answer…' or end silently with no verdict |
+| grading-9 | still present | behavior bug fix | Clicking Answer again during a grade lets the old attempt's verdict land in the new attempt |
+| grading-10 | still present | behavior bug fix | The benchmark's Opus arm stores every case, holdout cases included, as a chat thread, and nothing stops it from targeting a normal app on the production DB |
+| grading-11 | still present | contract change (decision) | The grading instruction is built in the browser and the learner's answer is pasted into it; the Opus side has no guard that treats the answer as data |
+| grading-12 | still present | pure refactor | The grader's model configuration is implicit: default Opus 5 with server-side fallback, the picker and org AI settings are ignored, and the serving model is not recorded |
+| grading-13 | still present | docs or tests only | The architecture doc and the Jev doc are stale or inaccurate about grading on the baseline |
+| grading-14 | already fixed | none | AWS-hosted apps: grading could not follow the app's chat route, but the baseline no longer mounts Learn for those apps |
+| grading-15 | still present | behavior bug fix | Grade threads appear in the Agent Bar History on a project page, titled with the grading instruction, and opening one makes it the bar's current conversation |
+| registries-1 | still present | behavior bug fix | Artifact generator offers and proposes provider-backed primitives without checking the provider is configured |
+| registries-2 | still present | contract change (decision) | Browser surfaces show every keyed or paid tool as usable, failure comes only at use time, and the palette's dev tier is always on |
+| registries-3 | still present | pure refactor | The primitive -> block.type -> palette -> slash -> paid -> provider mapping is only implicit; code_exercise->code and narration->audio are not encoded anywhere |
+| registries-4 | still present | docs or tests only | No unit test cross-checks palette ids, BLOCK_TYPES, CARD_OF and renderer dispatch against PRIMITIVES; the palette test only checks itself |
+| registries-5 | still present | behavior bug fix (decision) | The canvas sizes cards by block.type, but the Slash commands sheet sizes them by palette id while claiming to match the canvas |
+| registries-6 | still present | pure refactor | The / picker treats a command as available because of a direct primitive the command cannot insert (/video) |
+| registries-7 | not a problem | none | The /api/learn/artifact boundary is intact on the baseline: tools derived on the server, schema and semantic checks, one repair, explicit results |
+| registries-8 | not a problem | none | No code marks a generator ready because a renderer or Insert-palette sample() exists |
+| registries-9 | still present | record only | The whiteboard explainer has its own generator vocabulary; its video and scene kinds are generated and validated but cannot run on the only mounted renderer |
+| registries-10 | still present | record only (decision) | Speech-to-text is an OpenAI provider call that sits outside the paid registry and has no paid gate |
+| registries-11 | still present | behavior bug fix (decision) | /source is offered in the Learn picker, but no canvas wires its handler |
+| registries-12 | still present | docs or tests only | The architecture and feature docs misstate parts of the registries |
+| registries-13 | needs reproduction | none | Which providers are configured on each dev worker cannot be verified from code |
+| registries-14 | still present | behavior bug fix | The whiteboard explainer offers Desmos graphs without checking DESMOS_API_KEY, unlike its Pexels tools |
+| lifecycle-1 | still present | behavior bug fix | Stop and interrupted answers have no end state: the sheet spins forever, a linked card reads 'done…' and cannot continue, and replies restored after a reload or a server pull stay 'Thinking…' |
+| lifecycle-2 | still present | behavior bug fix | A non-JSON error page, or a stream that ends without done/error, fails silently in the Learn chat and grading consumers |
+| lifecycle-3 | branch specific | behavior bug fix | Mothership: a stream that closes without done or error leaves the turn open forever, with a spinner (or no end state) and History and New chat disabled |
+| lifecycle-4 | needs reproduction | behavior bug fix | Stop, client timeouts and navigation never reach server model or tool work; the loop stops only if the platform cancels the response stream, and a reason-less cancel crashes the error handler |
+| lifecycle-5 | still present | behavior bug fix (decision) | No deadline on Learn model calls or on the slash, grading and Continue convo requests, and only the dock has Stop |
+| lifecycle-6 | still present | behavior bug fix | A second slash command while one runs is swallowed with no message, and a clarification then overwrites what was typed |
+| lifecycle-7 | still present | behavior bug fix | Grading: a late verdict from an earlier attempt lands in the next attempt, a reload mid-grade shows 'Reading your answer…' forever, and an error after a streamed verdict replaces it |
+| lifecycle-8 | still present | behavior bug fix (decision) | Continue convo replies (and grading) receive paper, wiki and video events with no handler, while the model is told the learner now sees the card |
+| lifecycle-9 | still present | behavior bug fix (decision) | An outline proposal from the dock lands in the right panel, which is closed by default and not mounted at all on narrow screens |
+| lifecycle-10 | still present | behavior bug fix | The side-panel Learn chat navigates the learner out of Learn to the Map whenever a repository answer carries a graph |
+| lifecycle-11 | still present | behavior bug fix | An error that arrives after the answer chunk is glued onto the answer text in the sheet and card |
+| lifecycle-12 | still present | contract change (decision) | The thread id arrives only with done, so a stopped or failed first question leaves a thread and a user message the browser never learns about |
+| lifecycle-13 | still present | pure refactor | Request and loop limits are inline literals across about ten files; the research-step, artifact-repair and whiteboard-review limits are already separate and must stay separate |
+| lifecycle-14 | still present | behavior bug fix (decision) | Attachment and message limits differ by route: repository asks cap the whole request at 64 KB, canvases refuse attachments, apiAsk allows 4 MB, and the Learn composer has no length cap |
+| lifecycle-15 | still present | docs or tests only | SSE audit, every Learn event by producer and surface (rendered, metadata or unsupported); the dock's graph is stored-only by design and doc §6.2 needs a per-surface column |
+| lifecycle-16 | not a problem | none | Late answers cannot land in another canvas or another sheet thread; two edge cases remain unverified |
+| lifecycle-17 | not a problem | none | The artifact repair loop and the whiteboard review loop end in explicit states and match the doc's limits |
+| lifecycle-18 | not a problem | record only | What 'no token streaming' means today: every Learn surface gets progress labels, then the whole answer as one chunk |
+| paid-persist-1 | not a problem | none | paidRefusal checks only `confirmed === true`, runs at every paid generation handler before the provider call, and every client sender is behind PaidConfirm |
+| paid-persist-2 | still present | behavior bug fix | A `confirmedStart` flag stored in block data starts a paid job on mount with no Generate press, including from a shared view or a fork of a crafted board |
+| paid-persist-3 | still present | record only (decision) | Image and TTS paid routes check authorization only; nothing limits repeats or duplicates |
+| paid-persist-4 | still present | record only (decision) | /api/learn/transcribe calls a paid OpenAI model with no paidRefusal and no confirmation; learn-paid.js says every provider must be gated |
+| paid-persist-5 | still present | record only (decision) | 'One job at a time' holds per learner per app Durable Object, not per learner, and standalone canvases are uncapped |
+| paid-persist-6 | still present | behavior bug fix | A busy Manim worker (429, nothing started) is recorded as an 'uncertain' submission, so that animation can never be retried in that app |
+| paid-persist-7 | still present | docs or tests only | LearnScenes re-sends /jobs to the Blender worker with no new learner action (bounded; the docs do not say so) |
+| paid-persist-8 | still present | behavior bug fix | A paid card saved mid-job never resumes after reload, share or fork: permanent progress bar with no Generate or Retry |
+| paid-persist-9 | still present | behavior bug fix | Sheet History ids are stored under `small.learn-sheet-threads:<app>` with no org or email scope; scope the key and adopt legacy ids only after the server confirms them |
+| paid-persist-10 | not a problem | none | The server rejects reading or continuing another user's thread ids on all three Learn paths |
+| paid-persist-11 | still present | record only (decision) | Sheet History only sees the 20 newest Learn threads, and card asks and grading each create one, so older sheet chats silently drop out |
+| paid-persist-12 | still present | docs or tests only | Inventory of Learn and canvas browser keys, and which are scoped by org and email; architecture section 14 is incomplete |
+| paid-persist-13 | still present | behavior bug fix (decision) | A ?board= review board writes attached sources into the main canvas's sources key |
+| paid-persist-14 | needs reproduction | behavior bug fix | Image, TTS and transcribe routes have no Origin check, so a same-site page (any *.zeroshothq.workers.dev host) can plausibly spend a signed-in learner's paid calls |
+| inert-1 | still present | record only (decision) | LearnPage `editor` is never set, so every editor-gated lesson-player path in LearnPage is unreachable. It is parked on purpose, not dead by accident. |
+| inert-2 | still present | pure refactor | boardContext.snapshot/isCurrent and ask.jsx's /api/learn/selection and lesson_snapshot branch have no reachable producer |
+| inert-3 | still present | pure refactor | boardContext.label/clear and the 'Asking about: {label}' chip can never render |
+| inert-4 | still present | docs or tests only | boardContext.preview is half live: paper-region previews from the right-panel reader work and reach the model; only the canvas half is dead. The doc says preview 'does nothing'. |
+| inert-5 | still present | behavior bug fix | The right-panel 'Learn Agent' chat receives the dead demo: it shows a permanently disabled 'Explain the sigmoid function · Demo' pill and silently drops that exact question |
+| inert-6 | still present | docs or tests only | The second boardContext consumer is undocumented: the right-panel 'Learn Agent' AskPanel in the My notes view is a non-sheet Learn chat |
+| inert-7 | needs reproduction | behavior bug fix | LearnNotes 'Return to lesson' and 'Save & resume' call editor-dependent code and throw when the editor is null |
+| inert-8 | still present | pure refactor | Leftovers of the removed Explain on canvas (490c171): boardVisible, explanation, boardRequest, the 'Save to notes / Resume lesson' strip, and addNote |
+| inert-9 | still present | pure refactor | Several tldraw-era identifiers in LearnPage have zero references, even from parked code |
+| inert-10 | not a problem | none | The /api/learn/selection route, the lesson_snapshot server contract and validateLessonSnapshot should stay: the contract is retained and tested, and the validator is live |
+| inert-11 | still present | docs or tests only | e2e/canvas-conversations-check.mjs asserts pre-sheet behavior and card chrome that no longer exists |
+| inert-12 | still present | docs or tests only (decision) | e2e/learn-preview.spec.js fails on the baseline before its first click, and all 11 of its tests drive UI with no entry point |
+| inert-13 | still present | docs or tests only (decision) | e2e/coaching.preview.js has eight Learn tests that assert the tldraw lesson and /api/learn/selection snapshot payloads |
+| inert-14 | still present | docs or tests only | e2e/chat-block-check.mjs expects a plain dock ask to create the movable chat card that its later checks depend on |
+| inert-15 | still present | record only (decision) | e2e/nanogpt-canvas-shots.mjs drives the parked lesson timeline and the removed tldraw lesson canvas |
+| inert-16 | still present | docs or tests only | docs/features/canvas-sharing.md says board files are stored in small-runs, but they go to LEARN_MEDIA (small-learn-media-dev) |
+| inert-17 | still present | docs or tests only | docs/features/coaching.md describes the tldraw selection flow and a stale check as if they were current |
+| inert-18 | still present | docs or tests only | Section 15 and rows 4.1 #6/#8 of the architecture doc misstate the inert plumbing and understate the stale checks |
+| inert-19 | still present | behavior bug fix (decision) | My notes is a one-way door: the notes view has no control back to the canvas, and on canvases it is always empty |
+| duplication-1 | still present | behavior bug fix | paper_context validation and loading duplicated in apiAsk and repositoryAsk; the repository copy rejects uploaded PDFs |
+| duplication-2 | still present | behavior bug fix | Repository asks cap the whole request at 64 KB, so the composer's 4 MB attachments fail on repository canvases |
+| duplication-3 | still present | pure refactor | Video-moment tool runner, tool list and VIDEO_SYSTEM pairing copied between apiAsk and repositoryAsk |
+| duplication-4 | still present | pure refactor | Model resolution written at four sites with three different Auto policies |
+| duplication-5 | still present | behavior bug fix | ASK_MODELS[key] accepts prototype keys (constructor, toString, __proto__) and sends a non-string model |
+| duplication-6 | still present | pure refactor | Chat system prompt is assembled in three layers, and differently per handler |
+| duplication-7 | still present | pure refactor | Model-call failure handling and tool-call extraction copied across researchAnswer, generateBoardPlan and generateArtifact |
+| duplication-8 | still present | pure refactor | arXiv search/read execution and the two-paper cap duplicated between researchAnswer and the whiteboard draft loop |
+| duplication-9 | still present | pure refactor | Thread storage and the 10-turn history window re-implemented in apiAsk, repositoryAsk and canvasAskSeam |
+| duplication-10 | still present | pure refactor | Request limits repeated as literals and inconsistent across the four paths |
+| duplication-11 | still present | pure refactor | SSE framing: two server producers and four browser parsers |
+| duplication-12 | still present | pure refactor | Grading verdict parsing duplicated between parseVerdict and ChallengeBody |
+| duplication-13 | still present | pure refactor | Four base64 encoders for model content blocks |
+| duplication-14 | still present | pure refactor | apiAsk re-implements readAskRequest's JSON/multipart branch and the 4 MB check |
+| duplication-15 | still present | pure refactor | Dev-only subscription owner gate pasted three times; artifact and board requests are authorized twice when it is on |
+| duplication-16 | still present | record only | Same-origin POST guard copied into eight handlers but missing on chat, whiteboard, upload and paid dev routes |
+| duplication-17 | still present | behavior bug fix | Chat 'Papers read' footer labels an uploaded PDF as arXiv with a null link |
+| duplication-18 | still present | record only | Untrusted-evidence rule restated in about 15 prompt strings; the Opus grading prompt lacks the guard Jev's protocol has |
+| duplication-19 | not a problem | none | The one-repair loops in the artifact maker and the whiteboard look alike but are different contracts; do not merge |
+| duplication-20 | not a problem | none | agents/loop.js is not used by Learn and should not be |
+| duplication-21 | not a problem | none | The no-store JSON response helper is redefined in six Learn modules |
+| duplication-22 | still present | record only | A project-canvas ask is authorized twice: through the service binding, then directly against DB |
+| duplication-23 | still present | behavior bug fix | apiAsk's attachment copy stashes Learn attachments in ask-uploads and tells the model about a run tool Learn never supplies; repositoryAsk's copy does neither |
+
+### Storage traces (C1, before fixes)
+
+| Operation | Canvas kind | Production write | Production targets |
+|---|---|---|---|
+| T1-plain-ask | standalone canvas | no | CONTROL_PLANE -> live small-cp env.DB.runs |
+| T1-plain-ask | project app canvas | yes | DB.threads, DB.messages, DB.learn_moments, CONTROL_PLANE -> live small-cp DB.threads, CONTROL_PLANE -> live small-cp DB.threads, messages, proposals, CONTROL_PLANE -> live small-cp DB.threads, messages, learn_moments |
+| T1-plain-ask | repository app | yes | DB.learn_moments, CONTROL_PLANE -> live small-cp DB.runs |
+| T1-plain-ask | mothership or other | yes | DB.learn_moments, CONTROL_PLANE -> live small-cp DB.runs |
+| T2-ask-in-chat | standalone canvas | no | - |
+| T2-ask-in-chat | project app canvas | yes | DB.threads, DB.messages, DB.learn_moments |
+| T2-ask-in-chat | repository app | yes | DB.learn_moments |
+| T2-ask-in-chat | mothership or other | n/a | - |
+| T3-continue-convo | standalone canvas | no | - |
+| T3-continue-convo | project app canvas | yes | DB.threads, DB.messages, DB.learn_moments |
+| T3-continue-convo | repository app | yes | DB.learn_moments |
+| T3-continue-convo | mothership or other | n/a | - |
+| T4-grading | standalone canvas | no | - |
+| T4-grading | project app canvas | no | - |
+| T4-grading | repository app | yes | DB.learn_moments |
+| T4-grading | mothership or other | yes | DB.threads, DB.messages, DB.learn_moments |
+| T5-moments | standalone canvas | yes | DB.learn_moments |
+| T5-moments | project app canvas | yes | DB.learn_moments, DB.threads, messages |
+| T5-moments | repository app | yes | DB.learn_moments |
+| T5-moments | mothership or other | no | - |
+| T6-boards-media | standalone canvas | yes | DB on production small-cp, reached through CONTROL_PLANE GET /api/apps.runs |
+| T6-boards-media | project app canvas | no | - |
+| T6-boards-media | repository app | yes | DB on production small-cp, reached through CONTROL_PLANE GET /api/apps.runs |
+| T6-boards-media | mothership or other | yes | DB on production small-cp, reached through CONTROL_PLANE GET /api/apps.runs |
+| T6-boards-media | mothership or other | yes | DB on production small-cp, reached through CONTROL_PLANE GET /api/apps.runs |
+| T6-boards-media | mothership or other | yes | DB on production small-cp, reached through CONTROL_PLANE GET /api/apps.runs, RUNS (on the production worker, reached through the CONTROL_PLANE proxy) ask-uploads/<u-id>/ (multipart /api/ask); runs/<id>/inputs/ (approve -> startRun) |
