@@ -13,7 +13,7 @@ import { handleLearnCourse } from './learn-course.js';
 // URLs are path-based (no custom domain): /a/<org>/<app>/... proxies to the app's Fly origin.
 import { sign, verify, sha256, randomHex } from './token.js';
 import { ensureFlyApp, ensureVolume, deployTokenFor, startMachine, destroyMachine, destroyFlyApp } from './fly.js';
-import { aiCacheDrop, ASK_TOOLS, askOnce, askStream, capJoin, DIAGNOSIS_PROMPT, diffBundles, getBundle, parseBundle } from './ask.js';
+import { aiCacheDrop, ASK_TOOLS, askOnce, askStream, capJoin, CAP_CHARS, DIAGNOSIS_PROMPT, diffBundles, getBundle, parseBundle } from './ask.js';
 import { assumeRole, iamRolePolicies, s3Buckets, s3Get, s3List } from './aws.js';
 import { handleSlackCommand, handleSlackEvent, handleSlackInteract, notifySlackRun, slackApi, verifySlackSignature } from './slack.js';
 import { runWatchPass, weeklyWatchEmail } from './watch.js';
@@ -1048,9 +1048,16 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
     scopeRef = scope.app;
     // @-mentioned apps (the composer's chips) join this chat's context, each
     // one the learner can see; at most three, so one answer stays focused.
-    for (const name of (Array.isArray(body.mentions) ? body.mentions : []).filter(name => typeof name === 'string' && name !== scope.app).slice(0, MENTION_LIMIT)) {
-      const mentioned = await appForUser(env, user, name);
-      if (mentioned?.canView) context = `${context}\n\nMentioned app ${name}:\n${await appContext(env, mentioned, useSet)}`;
+    // A mention not read says so, and all mentioned context shares what is left of one CAP_CHARS budget.
+    const mentionNames = (Array.isArray(body.mentions) ? body.mentions : []).filter(name => typeof name === 'string' && name !== scope.app);
+    for (const [index, name] of mentionNames.entries()) {
+      const mentioned = index < MENTION_LIMIT ? await appForUser(env, user, name) : null;
+      if (!mentioned?.canView) {
+        context = `${context}\n\nMentioned app ${name}: not available to this chat${index < MENTION_LIMIT ? '' : ` (a question reads at most ${MENTION_LIMIT} mentioned apps)`}.`;
+        continue;
+      }
+      const text = await appContext(env, mentioned, useSet), room = Math.max(0, CAP_CHARS - context.length);
+      context = `${context}\n\nMentioned app ${name}:\n${text.length > room ? `${text.slice(0, room)}\n[mentioned app context truncated: showing ${room} of ${text.length} characters]` : text}`;
     }
   } else {
     const visible = await orgVisibleApps(env, user);

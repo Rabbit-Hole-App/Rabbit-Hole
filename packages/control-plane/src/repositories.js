@@ -212,11 +212,11 @@ async function repositoryAsk(req,env,user,app){
   // A file from the composer's +: an image or PDF as a block, anything else as text.
   if(file)extraBlocks.push(...(await attachmentBlocks(file)).blocks);
   // @-mentioned repositories in this workspace ride as their overview (files and
-  // most connected symbols); at most three.
-  const mentioned=[];
-  for(const name of (Array.isArray(body.mentions)?body.mentions:[]).filter(n=>typeof n==='string'&&n!==app.name).slice(0,MENTION_LIMIT)){
-    const row=await db.prepare('SELECT * FROM repository_apps WHERE org=? AND name=?').bind(user.org,name).first();
-    if(!row?.commit_sha)continue;
+  // most connected symbols); at most three. A mention not read says so, as on chat asks.
+  const mentioned=[],notRead=[];
+  for(const [index,name] of (Array.isArray(body.mentions)?body.mentions:[]).filter(n=>typeof n==='string'&&n!==app.name).entries()){
+    const row=index<MENTION_LIMIT?await db.prepare('SELECT * FROM repository_apps WHERE org=? AND name=?').bind(user.org,name).first():null;
+    if(!row?.commit_sha){notRead.push(`Mentioned app ${name}: not available to this chat${index<MENTION_LIMIT?'':` (a question reads at most ${MENTION_LIMIT} mentioned apps)`}.`);continue;}
     mentioned.push({name,...repositoryTool(await repositorySnapshot(env,repositoryApp(row,user)),'get_repo_overview')});
   }
   // The one attached source (paper, image, article or watched video) as chat asks read it; the
@@ -227,7 +227,7 @@ async function repositoryAsk(req,env,user,app){
   const id=thread?.id||`repochat-${crypto.randomUUID()}`;
   if(!thread)await db.prepare('INSERT INTO threads(id,org,user,scope_ref,commit_sha,title) VALUES(?,?,?,?,?,?)').bind(id,user.org,user.email,app.name,commit,body.message.slice(0,120)).run();
   const history=await threadTurns(db,id,seed,question);
-  return askStream(env,appendCanvasTarget(appendOutline(JSON.stringify({repo:app.repo,commit,selected,selectedCode,lesson:body.lesson_snapshot||null,paper:null,...source,...(mentioned.length?{mentionedRepositories:mentioned}:{})}),body.outline),canvasTarget),history,question,
+  return askStream(env,appendCanvasTarget(appendOutline(JSON.stringify({repo:app.repo,commit,selected,selectedCode,lesson:body.lesson_snapshot||null,paper:null,...source,...(mentioned.length?{mentionedRepositories:mentioned}:{})})+notRead.map(line=>`\n\n${line}`).join(''),body.outline),canvasTarget),history,question,
     async answer=>{const message=await db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?) RETURNING id').bind(id,'assistant',answer).first();if(graphView)await db.prepare('INSERT INTO repository_message_graphs(message_id,graph_json) VALUES(?,?)').bind(message.id,JSON.stringify(graphView)).run();},{threadId:id,commit},extraBlocks,null,askModel(body.model),null,
     body.lesson_snapshot?LEARN_SNAPSHOT_SYSTEM:LEARN_SYSTEM,{papers,system:[REPOSITORY_SYSTEM,videos.system].filter(Boolean).join('\n'),tools:[...REPOSITORY_TOOLS,...videos.tools],runTool,getGraphView:()=>graphView,shownVideo:videos.shown,org:user.org});
 }

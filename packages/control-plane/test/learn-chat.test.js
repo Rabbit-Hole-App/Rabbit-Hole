@@ -10,7 +10,7 @@ import { LEARN_SYSTEM, LEARN_SNAPSHOT_SYSTEM, validateLessonSnapshot, validateOu
 import { canvasApp, canvasAskSeam } from '../src/canvases.js';
 import { validateLearnContext, validateCanvasTarget, appendCanvasTarget, appendOutline, readLearnSource } from '../src/learn-ask-context.js';
 import { VIDEO_SHOWN_NOTE, WIKI_SHOWN_NOTE } from '../src/agents/learn-chat.js';
-import { ATTACHMENT_LIMIT, attachmentBlocks, readAskRequest, askStream } from '../src/ask.js';
+import { ATTACHMENT_LIMIT, attachmentBlocks, readAskRequest, askStream, CAP_CHARS } from '../src/ask.js';
 import { askModel, MESSAGE_LIMIT, MENTION_LIMIT, HISTORY_TURNS } from '../src/learn-models.js';
 import { findVideoMoments, videoMomentTools } from '../src/learn-youtube.js';
 import { liveDb, memoryBucket } from './live-storage-spy.js';
@@ -45,6 +45,7 @@ const deps = {
   MENTION_LIMIT,
   HISTORY_TURNS,
   ATTACHMENT_LIMIT,
+  CAP_CHARS,
   attachmentBlocks,
   readAskRequest,
   learnMedia,
@@ -893,4 +894,21 @@ test('an empty sources list reads no toggleable section; no sources field still 
   await recorded.apiAsk(request({ scope: { app: 'counter' }, message: 'hi' }), env, {}, owner, 'agent');
   await recorded.apiAsk(request({ scope: { app: 'counter' }, message: 'hi', sources: ['runs'] }), env, {}, owner, 'agent');
   assert.deepEqual(uses.map(use => use && [...use]), [[], null, ['runs']]);
+});
+
+// context-11: a mention the chat cannot read says so, and all mentioned context shares one budget.
+test('unreadable, unknown and fourth mentions are named as not available, and mentioned context is bounded together', async t => {
+  const env = fixture(t);
+  env.apps.hidden = { name: 'hidden', canView: false };
+  for (const name of ['a1', 'a2']) env.apps[name] = { name, canView: true };
+  const big = new Function(...Object.keys(deps), `${functions}; return { ${names.join(',')} };`)(...Object.values({ ...deps, appContext: async (env, app) => (app.name === 'counter' ? 'APP counter' : `${app.name}:${'m'.repeat(400000)}`) }));
+  assert.equal((await big.apiAsk(request({ scope: { app: 'counter' }, message: 'compare', mentions: ['hidden', 'a1', 'a2', 'other'] }), env, {}, owner, 'learn')).status, 200);
+  const { context } = env.answers[0];
+  assert.match(context, /Mentioned app hidden: not available to this chat\./);
+  assert.match(context, /Mentioned app other: not available to this chat \(a question reads at most 3 mentioned apps\)\./);
+  assert.match(context, /Mentioned app a1:\na1:m/);
+  assert.match(context, /\[mentioned app context truncated: showing \d+ of 400003 characters\]/);
+  assert.ok(context.length < 600000 + 2000, `combined context ${context.length}`);
+  await big.apiAsk(request({ scope: { app: 'counter' }, message: 'and this canvas', mentions: ['canvas-99999999'] }), env, {}, owner, 'learn');
+  assert.match(env.answers[1].context, /Mentioned app canvas-99999999: not available to this chat\.$/);
 });

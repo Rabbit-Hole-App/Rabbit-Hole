@@ -300,3 +300,13 @@ test('a repository ask takes a + attachment up to 4 MB while JSON requests keep 
   assert.equal((await f.send('ask',{message:'q',outline:[{id:'h',label:'x'.repeat(70000),level:1,done:false}]})).status,413);
   assert.equal((await f.send('file',{path:'x'.repeat(70000)})).status,413);
 });
+// context-11: a mention the repository chat cannot read says so instead of vanishing.
+test('an unknown or fourth repository mention is named as not available',async t=>{
+  const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});const prompts=[];
+  globalThis.fetch=async(_,options)=>{prompts.push(JSON.parse(options.body));return Response.json({content:[{type:'text',text:'Ok.'}],stop_reason:'end_turn'});};
+  await (await f.send('ask',{message:'compare',mentions:['repo-missing','counter','repo-a','repo-b']})).text();
+  const turn=JSON.stringify(prompts[0].messages.at(-1));
+  assert.match(turn,/Mentioned app repo-missing: not available to this chat\./);
+  assert.match(turn,/Mentioned app counter: not available to this chat\./);
+  assert.match(turn,/Mentioned app repo-b: not available to this chat \(a question reads at most 3 mentioned apps\)\./);
+});
