@@ -8,7 +8,7 @@ import { TUTOR_BOARD } from './learn-tutor-claims.js';
 import { loadStore, saveStore, storeKey } from './learn-tutor-evidence.js';
 import { arriveAt, enterHole, executeActions, keepHere, markOpened, openingQuestion, runTurn } from './learn-tutor.js';
 
-export function useTutor({ app, board, access, canvasApi, canvasState, dive, placeExchange }) {
+export function useTutor({ app, board, access, canvasApi, canvasState, dive }) {
   const record = dive.tree?.dive || null;
   const active = board === TUTOR_BOARD || dive.tree?.path?.[0]?.board === TUTOR_BOARD;
   const here = { app: app.name, board };
@@ -43,42 +43,38 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, pla
     return result.text || (result.actions.some(action => action.type !== 'no_action') ? '' : 'Nothing to add here yet.');
   }, [access, record, here.app, here.board]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // A hole's opening turn (§6.4): once, answering the pending question inside the hole.
-  const opened = useRef(null);
+  // A hole's opening turn (§6.4): once per hole, the pending question asked inside the hole. The
+  // dock sends it like a typed message (ask.jsx), so it reads as the learner's question carried down
+  // and never lands on the empty hole's canvas.
+  const [opening, setOpening] = useState(null);
   useEffect(() => {
-    if (!active || !record?.dive_id || opened.current === record.dive_id) return;
-    opened.current = record.dive_id;
-    let store = enterHole(load(), record);
+    if (!active || !record?.dive_id) return;
+    const store = enterHole(load(), record);
     const question = openingQuestion(store, record);
-    save(store);
-    if (!question) return;
-    save(store = markOpened(store, record));
-    const id = crypto.randomUUID();
-    placeExchange({ id, question });
-    turn({ raw: question, opening: true })
-      .then(text => placeExchange({ id, delta: text }))
-      .catch(error => placeExchange({ id, delta: `✗ ${error.message}` }))
-      .finally(() => placeExchange({ id, done: true }));
+    save(question ? markOpened(store, record) : store);
+    if (question) setOpening({ key: record.dive_id, question });
   }, [active, record?.dive_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!active) return { active: false };
   return {
     active: true,
-    ask: ({ raw, targetId }) => { setChips([]); return turn({ raw, targetId }); },
+    ask: ({ raw, targetId, opening: first = false }) => { setChips([]); return turn({ raw, targetId, opening: first }); },
+    opening,
     // /deeper and /simplify go to the Tutor as the turn's slash (§5): its prompt is sent through
     // the composer as usual, and the Tutor reads the typed command in its place.
     slash: (name, raw) => { slashNext.current = { name, raw }; },
-    // "Keep it on this canvas" on the dive suggestion: the next turn here gets dive_choice inline.
-    wrapSuggestion: card => card && cloneElement(card, { onKeep: () => { save(keepHere(load(), here)); card.props.onKeep(); } }),
-    chipBar: chips.length ? (
-      <div data-tutor-chips role="group" aria-label="Tutor suggestions" className="flex flex-wrap justify-center gap-2">
+    // Shown under the Tutor's reply in the chat (ask.jsx): the dive suggestion, whose "Keep it on
+    // this canvas" also gives the next turn here dive_choice inline, and the suggestion chips.
+    extras: (dive.suggestionCard || chips.length) ? <>
+      {dive.suggestionCard && cloneElement(dive.suggestionCard, { onKeep: () => { save(keepHere(load(), here)); dive.suggestionCard.props.onKeep(); } })}
+      {chips.length > 0 && <div data-tutor-chips role="group" aria-label="Tutor suggestions" className="flex flex-wrap gap-2">
         {chips.map(chip => (
           <button key={chip.label} type="button" onClick={() => { chip.run(); setChips(previous => previous.filter(other => other !== chip)); }}
             className="rounded-full border border-line bg-white px-3 py-1 text-xs font-medium text-ink shadow-sm hover:bg-hover">
             {chip.label}
           </button>
         ))}
-      </div>
-    ) : null,
+      </div>}
+    </> : null,
   };
 }
