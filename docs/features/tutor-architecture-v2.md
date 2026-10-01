@@ -95,7 +95,8 @@ Implemented with free/scripted tests only; no paid call. Checkpoints (pushed, no
 |---|---|---|
 | B | D1 evaluation dependency | `8223fc31` |
 | C | D4 constraint-first questions, D2 held fast-tier sentences, D3 exact model ids | `3d6c42e3` |
-| D | D7 per-idea evidence (merge of the sub-agent branch) | see git log |
+| D | D7 per-idea evidence (merge of the sub-agent branch) | `644f6955` |
+| E | D5A prompt-caching request construction | see git log |
 
 ### D1. Evaluation dependency
 
@@ -166,6 +167,22 @@ Exact ids, never substituted: fast tier `claude-haiku-4-5-20251001` or `claude-s
   1 (the one is the deliberate contradiction turn; 20 -> 0 on the original 40 turns), misconception
   events 10 -> 10, larger-evaluator escalation 0.073 -> 0.073, evidence dimension 0.944 -> 1.0. Cost:
   JEV questions per call 9.05 -> 12.05 (one more check per idea); its latency effect needs the paid run.
+
+### D5A. Prompt caching (request construction only)
+
+`TUTOR_PLANNER_CACHE=on` (off by default; never under `SUBSCRIPTION_ONLY`, whose bridge's handling of a
+cached system block is unverified) sends the system prompt as one block with
+`cache_control: { type: 'ephemeral' }`. Render order is tools -> system -> messages, so that single
+breakpoint caches exactly the stable material: the `tutor_response` tool schema and the fixed Tutor policy
+prompt (~1.4k tokens). The Teaching State and the canvas's context documents stay in the uncached user
+message. Minimum cacheable prefix (claude-api skill, cached 2026-09-25): 512 tokens on Opus 5.5 and
+Sonnet 5.5, 4096 on Haiku 4.5, so Haiku requests silently do not cache. Prices: write 1.25x input (5-minute
+TTL), read $0.20 / MTok on Opus 5.5 and Sonnet 5.5, 0.1x on Haiku. Telemetry gains
+`cache_creation_input_tokens` / `cache_read_input_tokens` only when caching is on (Baseline telemetry
+unchanged). Tests (`learn-tutor-speed.test.js`, no model call): the prefix is byte-identical across
+learners, no marker inside the learner message, context and documents stay out of the cached prefix, off
+and subscription mode keep the Baseline string system, the fast tier caches the same prefix. No latency
+gain is claimed: the paid run measures cold (write) vs warm (read) requests, tokens, cost and latency.
 
 ## Target pipeline
 

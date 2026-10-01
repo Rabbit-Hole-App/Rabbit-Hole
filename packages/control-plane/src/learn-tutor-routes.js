@@ -136,14 +136,18 @@ export async function readPlannerStream(response, onInput) {
 // One planner call on `model`. effort: output_config.effort, or null for the model default.
 // onSentence (v2 checkpoint I): stream the reply and hand over the plan's first sentence as soon as
 // firstSentence finds it. Not under SUBSCRIPTION_ONLY, whose bridge replays text only.
+// Decision 5A: TUTOR_PLANNER_CACHE=on caches the stable planner prefix (plannerRequest); off by default
+// (Baseline A) and never under SUBSCRIPTION_ONLY, whose bridge's handling of a cached system block is
+// unverified. Cache writes and reads come back in telemetry; latency gains are claimed only once measured.
 async function planOnce(env, context, model, effort, { callModel = loggedModel('tutor', anthropic), onSentence = null } = {}, documents = []) {
   const started = Date.now();
   const stream = !!onSentence && env.SUBSCRIPTION_ONLY !== 'true';
-  const telemetry = { ms: null, requested_model: model, effort, served_model: null, input_tokens: null, output_tokens: null, stop_reason: null, outcome: null, ...(stream ? { streamed: true, first_sentence_ms: null } : {}) };
+  const cache = env.TUTOR_PLANNER_CACHE === 'on' && env.SUBSCRIPTION_ONLY !== 'true';
+  const telemetry = { ms: null, requested_model: model, effort, served_model: null, input_tokens: null, output_tokens: null, ...(cache ? { cache: true, cache_creation_input_tokens: null, cache_read_input_tokens: null } : {}), stop_reason: null, outcome: null, ...(stream ? { streamed: true, first_sentence_ms: null } : {}) };
   const done = outcome => ({ ...telemetry, ms: Date.now() - started, outcome });
   let result;
   try {
-    const response = await callModel(env, plannerRequest(context, LEARN_TASKS.tutor.maxTokens, documents, { effort, stream }), model, null);
+    const response = await callModel(env, plannerRequest(context, LEARN_TASKS.tutor.maxTokens, documents, { effort, stream, cache }), model, null);
     if (!response.ok) throw await modelFailure(response, 'The tutor is unavailable');
     result = stream ? await readPlannerStream(response, input => {
       if (telemetry.first_sentence_ms != null) return;
@@ -151,7 +155,8 @@ async function planOnce(env, context, model, effort, { callModel = loggedModel('
       if (sentence) { telemetry.first_sentence_ms = Date.now() - started; telemetry.first_sentence_action = sentence.action; onSentence(sentence); }
     }) : await response.json();
   } catch (error) { throw Object.assign(error, { telemetry: done('error') }); }
-  Object.assign(telemetry, { served_model: result.model ?? null, input_tokens: result.usage?.input_tokens ?? null, output_tokens: result.usage?.output_tokens ?? null, stop_reason: result.stop_reason ?? null });
+  Object.assign(telemetry, { served_model: result.model ?? null, input_tokens: result.usage?.input_tokens ?? null, output_tokens: result.usage?.output_tokens ?? null, stop_reason: result.stop_reason ?? null,
+    ...(cache ? { cache_creation_input_tokens: result.usage?.cache_creation_input_tokens ?? null, cache_read_input_tokens: result.usage?.cache_read_input_tokens ?? null } : {}) });
   const call = result.content?.find(block => block.type === 'tool_use' && block.name === TUTOR_TOOL.name);
   if (!call?.input || !Array.isArray(call.input.actions)) throw Object.assign(new Error('The tutor returned no turn'), { telemetry: done('invalid') });
   return { ...call.input, telemetry: done('ok') };

@@ -192,13 +192,18 @@ export const PLANNER_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
 // effort: output_config.effort, only when set (v2 checkpoint G); otherwise the model default.
 // stream (v2 checkpoint I): a streamed request whose tool input streams as it is written
 // (eager_input_streaming; the client then owns validation: planTurn parses it strictly).
-export const plannerRequest = (context, maxTokens, documents = [], { effort = null, stream = false } = {}) => {
+// cache (Decision 5A): one cache breakpoint on the system prompt. Render order is tools -> system ->
+// messages, so it caches exactly the stable planner material - the tutor_response tool schema and the
+// fixed Tutor policy prompt - and nothing learner-specific: the Teaching State and the canvas's context
+// documents stay in the uncached user message. Below a model's minimum (Opus 5.5 / Sonnet 5.5: 512
+// tokens; Haiku 4.5: 4096, more than this ~1.4k-token prefix) the API silently does not cache.
+export const plannerRequest = (context, maxTokens, documents = [], { effort = null, stream = false, cache = false } = {}) => {
   const text = `Compose this turn.\n\ncontext = ${JSON.stringify(context)}`;
   return {
     max_tokens: maxTokens,
     ...(effort ? { output_config: { effort } } : {}),
     ...(stream ? { stream: true } : {}),
-    system: PLANNER_SYSTEM,
+    system: cache ? [{ type: 'text', text: PLANNER_SYSTEM, cache_control: { type: 'ephemeral' } }] : PLANNER_SYSTEM,
     tools: [stream ? { ...TUTOR_TOOL, eager_input_streaming: true } : TUTOR_TOOL],
     // auto, not forced: claude-opus-5-5 refuses tool_choice tool/any (HTTP 400). A reply without the
     // tutor_response call stays invalid (planTurn), so free text is never a plan.
