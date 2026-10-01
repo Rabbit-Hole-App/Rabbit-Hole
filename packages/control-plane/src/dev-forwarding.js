@@ -60,6 +60,8 @@ export async function devIdentity(req, env) {
 // Wrappers made here are remembered in a WeakSet, not flagged by a property: on a deployed service binding
 // every property name reads as an RPC method stub (a function), so a `binding.guarded` flag is always truthy.
 const WRAPPED = new WeakSet();
+// Production's own control plane (ownControlPlane below): the only binding the barrier passes through.
+const OWN = new WeakSet();
 export function guardControlPlane(env) {
   const live = env?.CONTROL_PLANE;
   if (!live || WRAPPED.has(live)) return env;
@@ -75,7 +77,17 @@ export function guardControlPlane(env) {
   return { ...env, CONTROL_PLANE: guarded };
 }
 
+// Production Rabbit Hole (packages/web/app-worker.js): CONTROL_PLANE is that deployment's own control plane,
+// so nothing crosses into another environment and the barrier steps aside. Only code can mark a binding as
+// its own; no config value or binding property can.
+export function ownControlPlane(env) {
+  const live = env.CONTROL_PLANE;
+  const own = { fetch: (input, init) => live.fetch(input, init) };
+  WRAPPED.add(own); OWN.add(own);
+  return { ...env, CONTROL_PLANE: own };
+}
+
 export function forwardToProduction(req, env) {
-  if (productionAllows(req.method, new URL(req.url).pathname)) return env.CONTROL_PLANE.fetch(req);
+  if (OWN.has(env.CONTROL_PLANE) || productionAllows(req.method, new URL(req.url).pathname)) return env.CONTROL_PLANE.fetch(req);
   return Response.json({ error: 'Blocked on this preview: it would change live state.' }, { status: 403, headers: { 'Cache-Control': 'no-store' } });
 }

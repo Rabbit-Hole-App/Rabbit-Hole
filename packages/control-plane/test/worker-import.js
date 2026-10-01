@@ -9,3 +9,4 @@ registerHooks({
 
 export const devWorker = () => import('../../web/dev-worker.js');
 export const productionWorker = () => import('../src/index.js');
+export const appWorker = () => import('../../web/app-worker.js');

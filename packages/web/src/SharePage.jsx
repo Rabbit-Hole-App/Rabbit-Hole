@@ -63,9 +63,9 @@ function LearnLoading() {
 const Runbook = lazy(() => import('./RunbookEditor.jsx'));
 // Preview-only project page. A static import would keep the top-level code of its Agent Bar imports (agent/bar.js,
 // agent/slash.js) in the live index even though the page folds away; the literal env check drops the chunk (live-bundle-check.mjs).
-const RepositoryPage = import.meta.env.VITE_COACHING_DEV === 'true' && learnPreview ? lazy(() => import('./RepositoryPage.jsx')) : null;
+const RepositoryPage = (import.meta.env.VITE_RABBIT_HOLE === 'true' || import.meta.env.VITE_COACHING_DEV === 'true') && learnPreview ? lazy(() => import('./RepositoryPage.jsx')) : null;
 // The canvas destination brings all of Learn with it; the same literal guard keeps Learn out of the live index (WP7).
-const CanvasPage = import.meta.env.VITE_COACHING_DEV === 'true' && learnPreview ? lazy(() => import('./CanvasPage.jsx')) : null;
+const CanvasPage = (import.meta.env.VITE_RABBIT_HOLE === 'true' || import.meta.env.VITE_COACHING_DEV === 'true') && learnPreview ? lazy(() => import('./CanvasPage.jsx')) : null;
 
 function initialAppTab() {
   const tab = new URLSearchParams(window.location.search).get('tab');

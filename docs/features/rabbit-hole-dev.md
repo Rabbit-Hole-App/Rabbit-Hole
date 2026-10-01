@@ -93,11 +93,10 @@ migration in order, then checks the result against `schema.sql`.
 
 **Migration numbers:**
 - `0025` is the CLI login challenges table (P0-A).
-- `0026` is users, identities and login links. It lives on `feature/rabbit-hole-auth` and is not on
-  this branch yet.
+- `0026` is users, identities and login links (from `feature/rabbit-hole-auth`, now on main).
 - `0027` is `learn_moments`.
-- `rabbit-hole-dev` currently records 0001–0025 and 0027. `0026-users.sql` becomes pending when the
-  auth branch is merged.
+- `rabbit-hole-dev` records 0001–0027: `d1 migrations list rabbit-hole-dev --remote` answered
+  "No migrations to apply" on 2026-10-01.
 
 ## Deploy
 

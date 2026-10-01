@@ -4,7 +4,8 @@
 // path, file list) and a plain nbformat 4 copy of its active notebook.
 
 export const NOTEBOOK_PROTOCOL = 'rh-notebook/1';
-export const NOTEBOOK_ORIGIN = import.meta.env?.VITE_NOTEBOOK_ORIGIN || 'https://small-learn-canvas-notebook-dev.zeroshothq.workers.dev';
+// Production sets VITE_NOTEBOOK_ORIGIN (rabbit-hole-canvas-notebook); the default is the rabbit-hole account's dev site.
+export const NOTEBOOK_ORIGIN = import.meta.env?.VITE_NOTEBOOK_ORIGIN || 'https://small-learn-canvas-notebook-dev.tryrabbithole.workers.dev';
 export const notebookUrl = notebookId => `${NOTEBOOK_ORIGIN}/lab/index.html?mode=single-document&workspace=${encodeURIComponent(notebookId)}`;
 export const FIRST_NOTEBOOK = 'notebook.ipynb';
 

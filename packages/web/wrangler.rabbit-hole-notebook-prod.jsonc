@@ -1,0 +1,12 @@
+{
+  // Rabbit Hole PRODUCTION Lesson-view notebook site: the static JupyterLite build the Lesson view iframes
+  // (LearnExtras.jsx, VITE_LESSON_NOTEBOOK_ORIGIN). It runs user Python with allow-same-origin, so it stays on
+  // the account's workers.dev, a different site from digrabbithole.com (docs/features/rabbit-hole-production.md).
+  // NOT CREATED YET: deploying needs the owner's GO.
+  "name": "rabbit-hole-notebook",
+  "account_id": "c08d3dbdc53a3afd3cb09a536ac42318",
+  "compatibility_date": "2026-09-16",
+  "workers_dev": true,
+  "preview_urls": false,
+  "assets": { "directory": "../../.small/notebook-site" }
+}
