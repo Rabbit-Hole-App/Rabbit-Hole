@@ -42,7 +42,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive }) {
         post: (path, body) => api(path, { method: 'POST', body: JSON.stringify(body), signal: AbortSignal.any([AbortSignal.timeout(TURN_TIMEOUT_MS), ...(signal ? [signal] : [])]) }),
       });
     } catch (error) {
-      bench({ error: error?.name || 'Error', ms: { total_in_app: Math.round((performance.now() - started) * 10) / 10 } });
+      bench({ error: error?.name || 'Error', trace: error?.trace ?? null, ms: { total_in_app: Math.round((performance.now() - started) * 10) / 10 } });
       throw error;
     }
     save(result.store);
@@ -52,6 +52,8 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive }) {
       suggestDive: detail => window.dispatchEvent(new CustomEvent('small:dive-suggest', { detail })),
       climb: () => dive.navigator.climb(dive.navigator.tree.path.length - 2),
     }));
+    result.mark('canvas_action_complete');
+    result.mark('reply_ready'); // the reply text goes to the chat now; tutor-bench measures when it is drawn
     const done = Math.round((performance.now() - started) * 10) / 10;
     bench({ ...result.bench, ms: { ...result.bench.ms, canvas_done: done, total_in_app: done } });
     // An empty reply is drawn as the spinner (ask.jsx), so a turn that only acts on the canvas says so.

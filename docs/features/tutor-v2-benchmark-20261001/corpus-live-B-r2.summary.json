@@ -1,0 +1,472 @@
+{
+  "stage": "B-r2",
+  "mode": "live",
+  "candidate": "B",
+  "group": null,
+  "traces": 33,
+  "turns": 44,
+  "errored_turns": 0,
+  "aborted": null,
+  "late_evidence": {
+    "off_path_turns": 4,
+    "with_evidence": 1,
+    "route_changed": 0,
+    "route_changed_rate": 0,
+    "dependent_actions_dropped": 0
+  },
+  "speed": {
+    "jev_ms": {
+      "count": 41,
+      "mean": 139,
+      "p50": 129,
+      "p95": 217,
+      "max": 279
+    },
+    "jev_timeout_rate": 0,
+    "jev_error_rate": 0,
+    "larger_ms": {
+      "count": 6,
+      "mean": 4674,
+      "p50": 5484,
+      "p95": 5866,
+      "max": 5866
+    },
+    "larger_errors": 0,
+    "planner_ms": {
+      "count": 44,
+      "mean": 8141,
+      "p50": 7622,
+      "p95": 12405,
+      "max": 16209
+    },
+    "planner_ms_routine": {
+      "count": 7,
+      "mean": 8432,
+      "p50": 8295,
+      "p95": 10201,
+      "max": 10201
+    },
+    "planner_ms_graded": {
+      "count": 37,
+      "mean": 8086,
+      "p50": 7493,
+      "p95": 13901,
+      "max": 16209
+    },
+    "first_sentence_ms": {
+      "count": 44,
+      "mean": 8141,
+      "p50": 7622,
+      "p95": 12404,
+      "max": 16208
+    },
+    "first_sentence_ms_routine": {
+      "count": 7,
+      "mean": 8431,
+      "p50": 8294,
+      "p95": 10201,
+      "max": 10201
+    },
+    "first_sentence_ms_graded": {
+      "count": 37,
+      "mean": 8086,
+      "p50": 7493,
+      "p95": 13901,
+      "max": 16208
+    },
+    "planner_errors": 0,
+    "turn_ms": {
+      "count": 44,
+      "mean": 8897,
+      "p50": 7787,
+      "p95": 14333,
+      "max": 16325
+    }
+  },
+  "tokens": {
+    "planner_in": {
+      "count": 44,
+      "mean": 2652,
+      "p50": 2632,
+      "p95": 3168,
+      "max": 3781
+    },
+    "planner_out": {
+      "count": 44,
+      "mean": 670,
+      "p50": 663,
+      "p95": 950,
+      "max": 1152
+    },
+    "larger_in": {
+      "count": 6,
+      "mean": 1082,
+      "p50": 1196,
+      "p95": 1269,
+      "max": 1269
+    },
+    "larger_out": {
+      "count": 6,
+      "mean": 339,
+      "p50": 372,
+      "p95": 497,
+      "max": 497
+    }
+  },
+  "cost_usd": {
+    "anthropic_total": 1.1505,
+    "per_turn": 0.02615,
+    "per_100_turns": 2.615,
+    "unpriced_models": [],
+    "note": "Anthropic calls only, per model at PRICES incl. cache writes/reads and fast mode; JEV (TypeSafe) is not priced here"
+  },
+  "cache": {
+    "cold": {
+      "calls": 1,
+      "planner_ms": {
+        "count": 1,
+        "mean": 6673,
+        "p50": 6673,
+        "p95": 6673,
+        "max": 6673
+      },
+      "input_tokens": {
+        "count": 1,
+        "mean": 4328,
+        "p50": 4328,
+        "p95": 4328,
+        "max": 4328
+      }
+    },
+    "warm": {
+      "calls": 43,
+      "planner_ms": {
+        "count": 43,
+        "mean": 8175,
+        "p50": 7630,
+        "p95": 12405,
+        "max": 16209
+      },
+      "cached_tokens": {
+        "count": 43,
+        "mean": 2019,
+        "p50": 2019,
+        "p95": 2019,
+        "max": 2019
+      }
+    },
+    "uncached": {
+      "calls": 0,
+      "planner_ms": {
+        "count": 0
+      }
+    }
+  },
+  "served_model_mismatches": [],
+  "speed_mismatches": 0,
+  "latency_by_group": {
+    "all": {
+      "turns": 44,
+      "first_validated_sentence_ms": {
+        "count": 44,
+        "mean": 8897,
+        "p50": 7786.7,
+        "p95": 14332.9,
+        "max": 16324
+      },
+      "full_plan_ms": {
+        "count": 44,
+        "mean": 8141,
+        "p50": 7622,
+        "p95": 12405,
+        "max": 16209
+      }
+    },
+    "routine": {
+      "turns": 11,
+      "first_validated_sentence_ms": {
+        "count": 11,
+        "mean": 9681,
+        "p50": 9421,
+        "p95": 14332.9,
+        "max": 14332.9
+      },
+      "full_plan_ms": {
+        "count": 11,
+        "mean": 9104,
+        "p50": 9287,
+        "p95": 10742,
+        "max": 10742
+      }
+    },
+    "evidence": {
+      "turns": 27,
+      "first_validated_sentence_ms": {
+        "count": 27,
+        "mean": 8831,
+        "p50": 7391.2,
+        "p95": 15529.6,
+        "max": 16324
+      },
+      "full_plan_ms": {
+        "count": 27,
+        "mean": 7856,
+        "p50": 7182,
+        "p95": 13901,
+        "max": 16209
+      }
+    },
+    "structural": {
+      "turns": 6,
+      "first_validated_sentence_ms": {
+        "count": 6,
+        "mean": 7754,
+        "p50": 7697,
+        "p95": 10201.3,
+        "max": 10201.3
+      },
+      "full_plan_ms": {
+        "count": 6,
+        "mean": 7656,
+        "p50": 7493,
+        "p95": 10201,
+        "max": 10201
+      }
+    }
+  },
+  "model_calls_per_turn": 2.068,
+  "pass_rate": 0.136,
+  "groups": {
+    "routine": {
+      "turns": 11,
+      "categories": {
+        "explicit_implementation": 2,
+        "question_request": 6,
+        "slash_deeper": 1,
+        "slash_simplify": 1,
+        "action_validation": 1
+      }
+    },
+    "evidence": {
+      "turns": 27,
+      "categories": {
+        "correct_explanation": 4,
+        "practice_evidence": 3,
+        "repeated_misconception": 5,
+        "prerequisite_gap": 1,
+        "evaluator_disagreement": 5,
+        "partial_explanation": 4,
+        "ambiguous_explanation": 1,
+        "misconception": 2,
+        "evaluator_error": 2
+      }
+    },
+    "structural": {
+      "turns": 6,
+      "categories": {
+        "rabbit_hole": 2,
+        "rabbit_hole_keep": 1,
+        "child_entry": 1,
+        "child_turn": 1,
+        "return_to_parent": 1
+      }
+    }
+  },
+  "gate_inputs": {
+    "audit": {
+      "consent": 0,
+      "policy": 0,
+      "resource": 0
+    },
+    "evidence_corruption": 0,
+    "spoken_then_replaced": 0,
+    "invalid_plans": 0,
+    "routine_fast_escalations": "0/14"
+  },
+  "golden_traces": {
+    "total": 9,
+    "passed": 1
+  },
+  "by_dimension": {
+    "selection": {
+      "scored": 17,
+      "pass_rate": 1
+    },
+    "evaluation": {
+      "scored": 30,
+      "pass_rate": 0.733
+    },
+    "evidence": {
+      "scored": 36,
+      "pass_rate": 0.5
+    },
+    "route": {
+      "scored": 30,
+      "pass_rate": 0.4
+    },
+    "actions": {
+      "scored": 42,
+      "pass_rate": 0.262
+    }
+  },
+  "jev_calls_per_turn": 0.932,
+  "jev_questions_per_call": 12.05,
+  "claims_selected_per_jev_turn": 1.59,
+  "larger_calls_per_turn": 0.136,
+  "larger_evaluator_escalation_rate": 0.146,
+  "free_text_negative_events": {
+    "fail": 15,
+    "misconception": 7
+  },
+  "critical_path": {
+    "evaluated_turns": 41,
+    "off_critical_path": 4,
+    "skip_rate": 0.098,
+    "misses": [],
+    "reasons": {
+      "explanation": 18,
+      "evidence_row": 4,
+      "answer": 8,
+      "request": 2,
+      "gap_check": 7,
+      "returned": 1,
+      "question": 1
+    }
+  },
+  "evaluation_dependency": {
+    "to_first_safe_sentence_ms": {
+      "count": 44,
+      "mean": 8897,
+      "p50": 7786.7,
+      "p95": 14332.9,
+      "max": 16324
+    },
+    "to_evidence_ready_ms": {
+      "count": 41,
+      "mean": 823,
+      "p50": 129.9,
+      "p95": 5901.1,
+      "max": 6041.1
+    },
+    "to_first_evidence_action_ms": {
+      "count": 37,
+      "mean": 8916,
+      "p50": 7682.1,
+      "p95": 15529.8,
+      "max": 16324.4
+    },
+    "turns_with_evidence_actions": 37,
+    "evidence_actions_dropped": 0,
+    "note": "ms from the turn start"
+  },
+  "modeled_first_audio_ms": {
+    "note": "MODELED from Baseline A component means, planner fixed at 7707 ms",
+    "baseline_policy": {
+      "count": 44,
+      "mean": 9260,
+      "p50": 8707,
+      "p95": 12857,
+      "max": 12857
+    },
+    "this_stage": {
+      "count": 44,
+      "mean": 9243,
+      "p50": 8707,
+      "p95": 12857,
+      "max": 12857
+    }
+  },
+  "planner_calls_per_turn": 1,
+  "first_sentence": {
+    "early_rate": 0.977,
+    "consistent_rate": 1,
+    "at_fraction_of_output": {
+      "count": 43,
+      "mean": 0,
+      "p50": 0,
+      "p95": 0,
+      "max": 0
+    },
+    "question_turns": {
+      "turns": 17,
+      "early": 17,
+      "early_rate": 1,
+      "at_fraction_of_output": {
+        "count": 17,
+        "mean": 0,
+        "p50": 0,
+        "p95": 0,
+        "max": 0
+      },
+      "first_sentence_ms": {
+        "count": 17,
+        "mean": 6755,
+        "p50": 6377,
+        "p95": 9714,
+        "max": 9714
+      }
+    },
+    "note": "at_fraction_of_output in thousandths of the tool-input characters written before the first sentence is ready (stub: scripted plans, control fields then actions)"
+  },
+  "planner_fast_tier_share": 0.318,
+  "planner_escalations": [],
+  "planner_input_tokens_est": {
+    "count": 44,
+    "mean": 2636,
+    "p50": 2603,
+    "p95": 2979,
+    "max": 3239
+  },
+  "claims_available_per_jev_turn": 2.98,
+  "rejections_by_stage": {
+    "schema": 8,
+    "resource": 2
+  },
+  "actions": {
+    "proposed": 77,
+    "accepted": 67,
+    "rejected": 10
+  },
+  "authored_content_reuse_rate": 0.114,
+  "generated_text_rate": 0.5,
+  "failed": [
+    "GT-01#0: evidence,route,actions",
+    "GT-02#0: evaluation,route,actions",
+    "GT-03#1: evaluation",
+    "GT-03#2: actions",
+    "GT-04#0: actions",
+    "GT-07#1: evidence,route,actions",
+    "GT-11#0: evaluation,actions",
+    "GT-12#0: evaluation,actions",
+    "GT-D#0: route,actions",
+    "GT-D#1: route,actions",
+    "GT-D#2: actions",
+    "GT-D#3: actions",
+    "B-correct-transfer#0: evidence,route,actions",
+    "B-partial#0: evidence,route,actions",
+    "B-ambiguous#0: route,actions",
+    "B-misconception-once#0: route,actions",
+    "B-misconception-repeated#0: route",
+    "B-misconception-repeated#1: evidence,route",
+    "B-misconception-unsure-second#0: route",
+    "B-misconception-unsure-second#1: evaluation,evidence,route",
+    "B-question#0: evaluation,actions",
+    "B-question-softmax#0: evidence,actions",
+    "B-another-way#0: actions",
+    "B-simplify#0: actions",
+    "B-deep-part#0: actions",
+    "B-gap-long-reply#0: evidence,route,actions",
+    "B-gap-unsure#0: evaluation,evidence,route,actions",
+    "B-practice-pass#0: evidence,actions",
+    "B-jev-error#0: actions",
+    "B-larger-error#0: evaluation,evidence",
+    "B-selection-zero#0: evidence,actions",
+    "B-no-quiz#0: evidence",
+    "B-no-quiz#1: evidence,actions",
+    "B-invalid-actions#0: evidence,actions",
+    "D7-one-idea-untouched#0: evidence,route,actions",
+    "D7-contradicts-second-idea#0: evidence,route,actions",
+    "D7-prompted-one-idea#1: actions",
+    "D7-practice-incomplete#0: evidence,route,actions"
+  ]
+}

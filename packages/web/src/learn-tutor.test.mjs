@@ -306,9 +306,9 @@ test('GT-D1 / GT-D2 / GT-D3: suggest, keep or go down, answer in the hole, climb
   assert.match(question, /add up to one/);
   const hole = { app: 'canvas-bbbb2222', board: 'main', dive: record };
   const { post } = worker({ plan: context => {
-    assert.equal(context.dive.origin_card, 'depth-attention-guided');
-    assert.equal(context.dive.concept, 'softmax');
-    assert.equal(context.concept_states.softmax, 'not_yet_observed');
+    assert.equal(context.dive_context.origin_card, 'depth-attention-guided');
+    assert.equal(context.dive_context.concept, 'softmax');
+    assert.equal(context.relevant_evidence.concepts.softmax, 'not_yet_observed');
     return { strategy: 'feynman', move: 'explain', reason: '', actions: [say('Softmax exponentiates, then divides by the sum.'), { type: 'show_authored_card', card: 'c21-temperature', mode: 'suggest' }] };
   } });
   const opening = await runTurn({ raw: question, opening: true, canvas: hole, access: { app: hole.app }, block: null, store: markOpened(store, record), post });

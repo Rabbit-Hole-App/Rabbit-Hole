@@ -1,0 +1,397 @@
+{
+  "stage": "D-routine-r5",
+  "mode": "live",
+  "candidate": "D",
+  "group": "routine",
+  "traces": 10,
+  "turns": 11,
+  "errored_turns": 0,
+  "aborted": null,
+  "late_evidence": {
+    "off_path_turns": 2,
+    "with_evidence": 0,
+    "route_changed": 0,
+    "route_changed_rate": 0,
+    "dependent_actions_dropped": 0
+  },
+  "speed": {
+    "jev_ms": {
+      "count": 9,
+      "mean": 146,
+      "p50": 128,
+      "p95": 281,
+      "max": 281
+    },
+    "jev_timeout_rate": 0,
+    "jev_error_rate": 0,
+    "larger_ms": {
+      "count": 3,
+      "mean": 3363,
+      "p50": 3357,
+      "p95": 4912,
+      "max": 4912
+    },
+    "larger_errors": 0,
+    "planner_ms": {
+      "count": 11,
+      "mean": 3237,
+      "p50": 2994,
+      "p95": 5602,
+      "max": 5602
+    },
+    "planner_ms_routine": {
+      "count": 4,
+      "mean": 2789,
+      "p50": 2600,
+      "p95": 3500,
+      "max": 3500
+    },
+    "planner_ms_graded": {
+      "count": 7,
+      "mean": 3493,
+      "p50": 3205,
+      "p95": 5602,
+      "max": 5602
+    },
+    "first_sentence_ms": {
+      "count": 11,
+      "mean": 3237,
+      "p50": 2994,
+      "p95": 5602,
+      "max": 5602
+    },
+    "first_sentence_ms_routine": {
+      "count": 4,
+      "mean": 2789,
+      "p50": 2600,
+      "p95": 3500,
+      "max": 3500
+    },
+    "first_sentence_ms_graded": {
+      "count": 7,
+      "mean": 3493,
+      "p50": 3205,
+      "p95": 5602,
+      "max": 5602
+    },
+    "planner_errors": 0,
+    "turn_ms": {
+      "count": 11,
+      "mean": 4618,
+      "p50": 3547,
+      "p95": 9955,
+      "max": 9955
+    }
+  },
+  "tokens": {
+    "planner_in": {
+      "count": 11,
+      "mean": 3637,
+      "p50": 3710,
+      "p95": 4024,
+      "max": 4024
+    },
+    "planner_out": {
+      "count": 11,
+      "mean": 278,
+      "p50": 262,
+      "p95": 416,
+      "max": 416
+    },
+    "larger_in": {
+      "count": 3,
+      "mean": 1108,
+      "p50": 1190,
+      "p95": 1199,
+      "max": 1199
+    },
+    "larger_out": {
+      "count": 3,
+      "mean": 141,
+      "p50": 158,
+      "p95": 158,
+      "max": 158
+    }
+  },
+  "cost_usd": {
+    "anthropic_total": 0.0987,
+    "per_turn": 0.00897,
+    "per_100_turns": 0.897,
+    "unpriced_models": [],
+    "note": "Anthropic calls only, per model at PRICES incl. cache writes/reads and fast mode; JEV (TypeSafe) is not priced here"
+  },
+  "cache": {
+    "cold": {
+      "calls": 0,
+      "planner_ms": {
+        "count": 0
+      },
+      "input_tokens": {
+        "count": 0
+      }
+    },
+    "warm": {
+      "calls": 1,
+      "planner_ms": {
+        "count": 1,
+        "mean": 5602,
+        "p50": 5602,
+        "p95": 5602,
+        "max": 5602
+      },
+      "cached_tokens": {
+        "count": 1,
+        "mean": 2019,
+        "p50": 2019,
+        "p95": 2019,
+        "max": 2019
+      }
+    },
+    "uncached": {
+      "calls": 10,
+      "planner_ms": {
+        "count": 10,
+        "mean": 3001,
+        "p50": 2976,
+        "p95": 3500,
+        "max": 3500
+      }
+    }
+  },
+  "served_model_mismatches": [],
+  "speed_mismatches": 0,
+  "latency_by_group": {
+    "all": {
+      "turns": 11,
+      "first_validated_sentence_ms": {
+        "count": 11,
+        "mean": 4617,
+        "p50": 3544.2,
+        "p95": 9954.1,
+        "max": 9954.1
+      },
+      "full_plan_ms": {
+        "count": 11,
+        "mean": 3237,
+        "p50": 2994,
+        "p95": 5602,
+        "max": 5602
+      }
+    },
+    "routine": {
+      "turns": 11,
+      "first_validated_sentence_ms": {
+        "count": 11,
+        "mean": 4617,
+        "p50": 3544.2,
+        "p95": 9954.1,
+        "max": 9954.1
+      },
+      "full_plan_ms": {
+        "count": 11,
+        "mean": 3237,
+        "p50": 2994,
+        "p95": 5602,
+        "max": 5602
+      }
+    },
+    "evidence": {
+      "turns": 0,
+      "first_validated_sentence_ms": {
+        "count": 0
+      },
+      "full_plan_ms": {
+        "count": 0
+      }
+    },
+    "structural": {
+      "turns": 0,
+      "first_validated_sentence_ms": {
+        "count": 0
+      },
+      "full_plan_ms": {
+        "count": 0
+      }
+    }
+  },
+  "model_calls_per_turn": 2.182,
+  "pass_rate": 0.091,
+  "groups": {
+    "routine": {
+      "turns": 11,
+      "categories": {
+        "explicit_implementation": 2,
+        "question_request": 6,
+        "slash_deeper": 1,
+        "slash_simplify": 1,
+        "action_validation": 1
+      }
+    },
+    "evidence": {
+      "turns": 0,
+      "categories": {}
+    },
+    "structural": {
+      "turns": 0,
+      "categories": {}
+    }
+  },
+  "gate_inputs": {
+    "audit": {
+      "consent": 0,
+      "policy": 0,
+      "resource": 0
+    },
+    "evidence_corruption": 0,
+    "spoken_then_replaced": 0,
+    "invalid_plans": 1,
+    "routine_fast_escalations": "1/11"
+  },
+  "golden_traces": {
+    "total": 1,
+    "passed": 0
+  },
+  "by_dimension": {
+    "selection": {
+      "scored": 2,
+      "pass_rate": 1
+    },
+    "evaluation": {
+      "scored": 5,
+      "pass_rate": 0.8
+    },
+    "evidence": {
+      "scored": 11,
+      "pass_rate": 0.636
+    },
+    "route": {
+      "scored": 2,
+      "pass_rate": 1
+    },
+    "actions": {
+      "scored": 11,
+      "pass_rate": 0.091
+    }
+  },
+  "jev_calls_per_turn": 0.818,
+  "jev_questions_per_call": 12,
+  "claims_selected_per_jev_turn": 1.67,
+  "larger_calls_per_turn": 0.273,
+  "larger_evaluator_escalation_rate": 0.333,
+  "free_text_negative_events": {
+    "fail": 0,
+    "misconception": 0
+  },
+  "critical_path": {
+    "evaluated_turns": 9,
+    "off_critical_path": 2,
+    "skip_rate": 0.222,
+    "misses": [],
+    "reasons": {
+      "request": 2,
+      "gap_check": 5,
+      "evidence_row": 2
+    }
+  },
+  "evaluation_dependency": {
+    "to_first_safe_sentence_ms": {
+      "count": 11,
+      "mean": 4617,
+      "p50": 3544.2,
+      "p95": 9954.1,
+      "max": 9954.1
+    },
+    "to_evidence_ready_ms": {
+      "count": 9,
+      "mean": 1268,
+      "p50": 243.2,
+      "p95": 5033.7,
+      "max": 5033.7
+    },
+    "to_first_evidence_action_ms": {
+      "count": 6,
+      "mean": 5771,
+      "p50": 3629.4,
+      "p95": 9955.1,
+      "max": 9955.1
+    },
+    "turns_with_evidence_actions": 6,
+    "evidence_actions_dropped": 0,
+    "note": "ms from the turn start"
+  },
+  "modeled_first_audio_ms": {
+    "note": "MODELED from Baseline A component means, planner fixed at 7707 ms",
+    "baseline_policy": {
+      "count": 11,
+      "mean": 9805,
+      "p50": 8707,
+      "p95": 12857,
+      "max": 12857
+    },
+    "this_stage": {
+      "count": 11,
+      "mean": 9770,
+      "p50": 8707,
+      "p95": 12857,
+      "max": 12857
+    }
+  },
+  "planner_calls_per_turn": 1,
+  "first_sentence": {
+    "early_rate": 1,
+    "consistent_rate": 1,
+    "at_fraction_of_output": {
+      "count": 11,
+      "mean": 0,
+      "p50": 0,
+      "p95": 0,
+      "max": 0
+    },
+    "question_turns": {
+      "turns": 0,
+      "early": 0,
+      "early_rate": null,
+      "at_fraction_of_output": {
+        "count": 0
+      },
+      "first_sentence_ms": {
+        "count": 0
+      }
+    },
+    "note": "at_fraction_of_output in thousandths of the tool-input characters written before the first sentence is ready (stub: scripted plans, control fields then actions)"
+  },
+  "planner_fast_tier_share": 1,
+  "planner_escalations": [
+    "B-question-softmax#0: The tutor returned no turn"
+  ],
+  "planner_input_tokens_est": {
+    "count": 11,
+    "mean": 2639,
+    "p50": 2664,
+    "p95": 2831,
+    "max": 2831
+  },
+  "claims_available_per_jev_turn": 3.33,
+  "rejections_by_stage": {
+    "schema": 3
+  },
+  "actions": {
+    "proposed": 22,
+    "accepted": 19,
+    "rejected": 3
+  },
+  "authored_content_reuse_rate": 0.182,
+  "generated_text_rate": 0.818,
+  "failed": [
+    "GT-04#0: actions",
+    "B-question#0: evaluation,actions",
+    "B-question-softmax#0: evidence,actions",
+    "B-another-way#0: actions",
+    "B-simplify#0: actions",
+    "B-deep-part#0: actions",
+    "B-selection-zero#0: evidence,actions",
+    "B-no-quiz#0: evidence,actions",
+    "B-no-quiz#1: actions",
+    "B-invalid-actions#0: evidence,actions"
+  ]
+}

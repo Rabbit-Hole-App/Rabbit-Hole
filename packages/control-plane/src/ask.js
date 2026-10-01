@@ -314,16 +314,19 @@ export async function anthropic(env, body, model, org) {
   // explicit model with fallbacks, is unverified: Auto itself names
   // claude-opus-5 explicitly (models-9 in docs/features/learn-cleanup.md).
   const chosen = model || ai?.model || null;
+  // body.betas (the Tutor planner's fast mode, Decision 5B) goes in the anthropic-beta header, not the body.
+  const { betas = [], ...payload } = body;
+  const beta = [...(chosen ? [] : ['server-side-fallback-2026-07-01']), ...betas].join(',');
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'x-api-key': env.ANTHROPIC_API_KEY,
       'anthropic-version': '2023-06-01',
-      ...(chosen ? {} : { 'anthropic-beta': 'server-side-fallback-2026-07-01' }),
+      ...(beta ? { 'anthropic-beta': beta } : {}),
       'Content-Type': 'application/json',
       ...(env.ANTHROPIC_WORKSPACE_ID ? { 'anthropic-workspace-id': env.ANTHROPIC_WORKSPACE_ID } : {}),
     },
-    body: JSON.stringify(chosen ? { ...body, model: chosen } : { model: MODEL, fallbacks: 'default', ...body }),
+    body: JSON.stringify(chosen ? { ...payload, model: chosen } : { model: MODEL, fallbacks: 'default', ...payload }),
   });
   // Surface the API's own reason in logs; callers only relay the status code.
   // The fingerprint (shapes and sizes only, never content) identifies which

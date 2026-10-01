@@ -41,6 +41,9 @@ export function appendEvents(store, events) {
 // through the practice-task registry. The grade is already in the log; nothing is re-graded.
 // A pass is transfer only on the FIRST attempt of a transfer task: a later pass follows the card's
 // answer-revealing feedback, so it counts as demonstrated_here.
+// Completeness exception (Decision 7): practice events are claim-level (no `idea`). The task grades
+// the whole answer, so an incomplete enumeration (c11 "0 to Q-1", leaving out the position itself)
+// is a fail. Conversational explanations never fail an idea they leave out (evaluationFrom).
 export function practiceEvents(store, block, target, canvas) {
   const log = block?.attemptLog || [];
   const seen = store.cursors[block?.id] || 0;
@@ -73,9 +76,12 @@ function claimState(events, id, conceptOf) {
   if (!own.length) return { concept: CLAIMS[id].concept, claim: id, state: 'not_yet_observed', basis: [] };
   const settled = own.filter(event => event.settled);
   const base = { concept: CLAIMS[id].concept, claim: id };
-  // understood: a settled transfer pass with no later settled fail or misconception.
+  // understood: a settled transfer pass with no later settled fail or misconception, and coverage
+  // (Decision 7): every idea has a settled pass, or a settled claim-level pass (no `idea`: practice).
   const transfer = settled.filter(event => event.result === 'pass' && event.kind === 'demonstrated_in_transfer').at(-1);
-  if (transfer && !settled.some(event => event.seq > transfer.seq && negative(event))) return { ...base, state: 'understood', basis: [transfer.seq] };
+  const passes = settled.filter(event => event.result === 'pass');
+  const covered = passes.some(event => event.idea == null) || CLAIMS[id].ideas.every((_, i) => passes.some(event => event.idea === i));
+  if (transfer && covered && !settled.some(event => event.seq > transfer.seq && negative(event))) return { ...base, state: 'understood', basis: [transfer.seq] };
   // misconception: at least 2 settled events naming the same misconception, no later transfer pass.
   const named = {};
   for (const event of settled) if (event.misconception_id && negative(event)) (named[event.misconception_id] ||= []).push(event.seq);
@@ -109,3 +115,17 @@ export function conceptStateOf(claimStates) {
   return WORST.find(state => claimStates.some(entry => entry.state === state)) || 'not_yet_observed';
 }
 export const conceptState = (states, concept) => conceptStateOf(claimsOfConcept(concept).map(id => states[id]));
+
+// Stage D, the evidence reconciler (docs/features/tutor-architecture-v2.md): evaluators return
+// observations; this is the only place they become store events, and the locked states come from
+// all events (deriveClaimStates: one fail is never a misconception, a later settled transfer pass
+// supersedes, conflicting evidence is uncertain). A failed evaluation (error, timeout) adds nothing.
+// Returns the claims whose state changed, for the turn trace.
+export function reconcile(store, evaluation, ref) {
+  const before = deriveClaimStates(store.events);
+  const observations = !evaluation || evaluation.status === 'error' ? [] : evaluation.events || [];
+  const { store: next } = appendEvents(store, observations.map(event => ({ ...event, ref })));
+  const states = deriveClaimStates(next.events);
+  const transitions = Object.keys(states).filter(id => states[id].state !== before[id].state).map(id => ({ claim: id, from: before[id].state, to: states[id].state }));
+  return { store: next, states, transitions, added: observations.length };
+}
