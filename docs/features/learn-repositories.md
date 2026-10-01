@@ -84,7 +84,7 @@ bearer secret `SCENE_WORKER_TOKEN`. The renderer compares the bearer to its own
 `SCENE_WORKER_TOKEN` (`packages/lesson-renderer/server.py`). Both sides must hold the same value.
 
 - **Fly:** app `small-lesson-renderer-dev` (`packages/lesson-renderer/fly.dev.toml`), Fly org
-  `personal`. Holds the secret today (`flyctl secrets list` shows a digest only).
+  `personal`. Holds the secret (`flyctl secrets list` shows a digest only). Temporary: see Migration below.
 - **Cloudflare:** every Worker whose `main` is `packages/web/dev-worker.js`, because only that
   entry routes `/api/repositories` to `repositories.js`: `small-cp-dev` (`wrangler.dev.jsonc`),
   `small-cp-dev-small-parallel` (`wrangler.parallel.jsonc`) and any `small-cp-dev-<worktree>`
@@ -105,8 +105,8 @@ bearer secret `SCENE_WORKER_TOKEN`. The renderer compares the bearer to its own
   error page). A 4xx with a reason (such as no public repository) keeps 400 and that reason. Never 401,
   which the web app reads as signed out. Nothing is written in any of these cases.
 
-**Rotation (NOT YET RUN; needs the owner's GO).** One new value goes to both sides, never
-printed. Git Bash, repo root, with Fly logged in and a rabbit-hole Cloudflare credential loaded
+**Rotation** (last run 2026-10-01, owner-approved, on Fly, `small-cp-dev` and the
+`small-cp-dev-rabbit-hole-scene-worker` clone). One new value goes to every side, never printed. Git Bash, repo root, with Fly logged in and a rabbit-hole Cloudflare credential loaded
 (`wrangler.dev.jsonc` pins `account_id`).
 
 ```bash
@@ -126,6 +126,14 @@ unset t
   second step, and the app has no users to protect from a restart.
 - Between the two setters, imports fail with the wrong-credential error. Rotation also breaks any
   other holder of the old value, such as the quarantined personal-account `small-cp-dev`.
+
+**Migration to a Rabbit Hole-owned indexer (not started).** `small-lesson-renderer-dev` lives in the old
+personal Fly org and is only the stopgap that closed the dev import bug. The permanent dev indexer is a new
+Fly app in the `rabbit-hole` org, for example `rabbit-hole-lesson-renderer-dev`, deployed from
+`packages/lesson-renderer` with a fly.toml of that name, using a Fly token scoped to the `rabbit-hole` org.
+It gets its own freshly generated `SCENE_WORKER_TOKEN`, set the same way as above. Then `SCENE_WORKER_URL` in
+`packages/web/wrangler.dev.jsonc` and `wrangler.parallel.jsonc` and the Makefile `clone-scene-token` target
+are repointed. Verify one import, then retire the personal app with the owner's approval.
 
 ## Graph and source interactions
 
