@@ -1,6 +1,6 @@
 # Voice Tutor MVP
 
-Status: building on `feature/voice-tutor-mvp` (worktree `workspace/voice-tutor-mvp`, from main 5fac2ee2).
+Status: built on `feature/voice-tutor-mvp` (worktree `workspace/voice-tutor-mvp`, from main 5fac2ee2).
 Not merged. Live provider calls wait for the owner's typed `GO VOICE LIVE`.
 
 ## What it is
@@ -321,6 +321,29 @@ Real mic → ElevenLabs Scribe → real Tutor → Fish TTS → speakers. The seq
 7. multi-turn
 8. manual interruption
 9. Voice OFF
+
+**Setup for the live run.**
+
+1. Add these keys to `packages/web/.dev.vars` in this worktree. The file is gitignored; never print it.
+   - `ELEVENLABS_API_KEY` and `FISH_AUDIO_API_KEY`, which are in `small-parallel/.env`.
+   - `ANTHROPIC_API_KEY`, `ANTHROPIC_WORKSPACE_ID` and `TYPESAFE_API_KEY`, the Tutor's own keys.
+2. Restart the app worker.
+3. Open the Tutor board **without** `?voice=fake`. The owner speaks; a microphone is needed, so this
+   cannot be scripted.
+4. Collect the `small:tutor-voice` events from the console:
+   `window.addEventListener('small:tutor-voice', e => console.log(e.detail))`.
+
+**Expected usage and cost for the full sequence.** These are estimates.
+
+| Item | Assumption | Estimated cost |
+|---|---|---|
+| ElevenLabs Scribe v2 Realtime | $0.39 per audio hour. The socket stays open while Voice is on, and audio is sent only while listening. About 15 minutes connected, at most 0.25 h. | About $0.10 or less |
+| Fish Audio s1 | $15 per million UTF-8 bytes. About 25 Tutor utterances of about 200 characters each, about 5,000 bytes. | About $0.08 |
+| Tutor model calls | The same calls as typed turns: about 25 Opus 5.5 planner calls plus JEV and the larger evaluator when uncertain. | Like a 25-turn typed Tutor session; this dominates |
+| Scribe tokens | One single-use token per connect, plus one per reconnect. | Free |
+
+The voice providers together come to well under $1. The Tutor's own model calls are the main cost, just
+as for typed turns.
 
 ## Not in the MVP
 
