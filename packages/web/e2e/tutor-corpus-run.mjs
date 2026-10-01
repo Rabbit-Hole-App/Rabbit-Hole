@@ -84,7 +84,9 @@ if (LIVE && !(BUDGET > 0)) throw Error('--live needs --budget USD (the owner spe
 // A refused request is never retried (owner): a planner HTTP 4xx other than 429, or fast mode not served
 // on arm C, stops the run; its rows are stamped run_aborted and the gates mark the arm unavailable.
 let ABORTED = null;
-const refused = message => /model HTTP 4(?!29)\d\d/.test(String(message || ''));
+// A 429 that reports a rate limit of 0 is an account without the feature (fast mode: "rate limit of 0
+// fast mode input tokens per minute"), not congestion: also a refusal.
+const refused = message => /model HTTP 4(?!29)\d\d|model HTTP 429: [^)]*rate limit of 0 /.test(String(message || ''));
 const STREAM = LIVE ? CANDIDATES[CANDIDATE].stream : args.includes('--stream');
 const ENV = LIVE ? Object.fromEntries(readFileSync(new URL('../.dev.vars', import.meta.url), 'utf8').split(/\r?\n/)
   .filter(line => /^[A-Z_]+=/.test(line)).map(line => [line.slice(0, line.indexOf('=')), line.slice(line.indexOf('=') + 1).trim()]).concat(Object.entries(CANDIDATES[CANDIDATE].env))) : null;
@@ -237,7 +239,7 @@ async function runTrace(trace) {
         const result = LIVE ? await evaluateFreeText(ENV, input.value.spec, input.value.message)
           : await evaluateFreeText({ TYPESAFE_API_KEY: 'stub' }, input.value.spec, input.value.message, { ask, callModel });
         const { jev, larger } = result.telemetry || {};
-        Object.assign(calls, { jev: jev?.called ? 1 : 0, jevQuestions: jev?.questions ?? 0, jevMs: jev?.ms ?? null, jevOutcome: jev?.outcome ?? null,
+        Object.assign(calls, { jev: jev?.called ? 1 : 0, jevQuestions: jev?.questions ?? 0, jevMs: jev?.ms ?? null, jevOutcome: jev?.outcome ?? null, jevError: jev?.error ? String(jev.error).slice(0, 160) : null,
           larger: larger?.called ? 1 : 0, largerMs: larger?.ms ?? null, largerOutcome: larger?.outcome ?? null,
           largerTokens: larger?.called ? { in: larger.input_tokens, out: larger.output_tokens, model: larger.requested_model } : null, escalation: result.escalation?.reason ?? larger?.reason ?? null });
         return result;
@@ -279,7 +281,8 @@ async function runTrace(trace) {
       rows.push({ stage: STAGE, mode: MODE, trace: trace.id, turn: index, category: step.category || trace.category, golden: !!trace.golden, error: String(error.message).slice(0, 200),
         jev_calls: calls.jev, jev_questions: calls.jevQuestions, larger_calls: calls.larger, planner_calls: calls.planner, jev_ms: calls.jevMs, larger_ms: calls.largerMs, planner_ms: calls.plannerMs, planner_outcome: calls.plannerOutcome,
         turn_ms: Math.round(performance.now() - started), selected: calls.selected, checks: { turn: false }, pass: false, proposed: 0, accepted: 0, rejected: 0, authored_actions: 0, text_actions: 0,
-        group: GROUP_OF[step.category || trace.category], planner_invalid: calls.plannerOutcome === 'invalid' ? 1 : 0, planner_tier: calls.tier });
+        group: GROUP_OF[step.category || trace.category], planner_invalid: calls.plannerOutcome === 'invalid' ? 1 : 0, planner_tier: calls.tier,
+        jev_outcome: calls.jevOutcome, jev_error: calls.jevError ?? null, larger_tokens: calls.largerTokens, cost_usd: +[calls.fastTokens, calls.largerTokens].filter(Boolean).reduce((n, t) => n + usd(t), 0).toFixed(6) });
       if (LIVE && refused(error.message)) ABORTED = `planner refused: ${String(error.message).slice(0, 160)}`;
       break;
     }
@@ -313,7 +316,7 @@ async function runTrace(trace) {
       to_first_evidence_action: result.bench?.ms.to_first_evidence_action ?? null,
       // turn-relative: where the planner started + its first output (live; stub: null)
       to_first_planner_output: calls.firstOutputMs != null && result.bench ? +(result.bench.ms.to_planner_ready - result.bench.ms.planner + calls.firstOutputMs).toFixed(1) : null,
-      expects_card: !!step.expect.card, jev_outcome_detail: calls.jevOutcome,
+      expects_card: !!step.expect.card, jev_error: calls.jevError ?? null,
       evidence_dropped: (result.decisions || []).filter(decision => decision.stage === 'evidence').length,
       opens_with: result.actions.find(action => action.type === 'respond_text' || action.type === 'ask_question')?.type ?? null,
       group: GROUP_OF[step.category || trace.category], to_planner_ready: result.bench?.ms.to_planner_ready ?? null,

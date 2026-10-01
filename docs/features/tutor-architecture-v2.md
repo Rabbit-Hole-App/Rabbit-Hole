@@ -429,7 +429,67 @@ What the free numbers cannot say: real planner latency per tier and effort, time
 sentence, real JEV uncertainty (hence the real escalation rate and the critical-path misses), fast
 planner action accuracy and escalation rate, and output tokens after G's schema change.
 
-## Paid benchmark plan (final; prepared, NOT run; needs a NEW GO BENCHMARK)
+## Paid benchmark results (GO BENCHMARK 2026-10-01; code dd580111, planner as 6f948c69)
+
+Raw rows, per-run summaries, the driver log, `report.md` (every table) and `gates.json` are in
+`docs/features/tutor-v2-benchmark-20261001/` (`node e2e/tutor-bench-report.mjs <dir>` rebuilds them).
+Corpus: 18:01-19:45 UTC, one run at a time, 924 planned observations; arm C unavailable. UI reference:
+Baseline A code (`main` ce856371), `tutor-bench.mjs`, 3 x 9 golden turns on a private local stack.
+
+Spend: corpus $17.92 (A 5.08, B 3.97, D 2.93, E 3.04, F 2.90, C $0 plus 5 larger-evaluator calls whose
+tokens were not recorded, ~$0.10) + UI reference ~$1.21 = ~$19.2 Anthropic (JEV not priced). Calls:
+Opus 5.5 planner 591, Opus 5.5 larger evaluator 119 corpus + 14 UI, Haiku 4.5 65, Sonnet 5.5 128 (E 62,
+F 66), Opus fast mode 33 attempts all refused, JEV 736 corpus + 24 UI, plus 24 UI Opus planner calls.
+
+Arm C: the organisation has no fast-mode quota (HTTP 429 "rate limit of 0 fast mode input tokens per
+minute"). The first run's 33 planner attempts were all refused before the runner treated that 429 as a
+refusal (fixed after the run, `refused()`); C was then stamped unavailable and never retried.
+
+First validated speakable sentence, ms from the turn start (N / mean / p50 / p95 / max):
+
+| group | A Opus | B Opus opt. | D Haiku | E Sonnet default | F Sonnet low |
+|---|---|---|---|---|---|
+| routine | 55 / 9586 / 8546 / 14481 / 16968 | 55 / 9562 / 8950 / 16141 / 18646 | 55 / 5264 / 3573 / 11722 / 15076 | 55 / 5594 / 5051 / 10151 / 10740 | 55 / 4264 / 3643 / 8027 / 10753 |
+| evidence | 81 / 8741 / 8082 / 15307 / 20002 | 81 / 8633 / 7671 / 14032 / 17046 | 81 / 8621 / 7701 / 16884 / 19991 | 81 / 8147 / 7514 / 14113 / 16244 | 81 / 8583 / 7458 / 15990 / 22395 |
+| structural | 18 / 8690 / 7760 / 13195 / 13195 | 18 / 8312 / 7734 / 15226 / 15226 | 18 / 7731 / 7074 / 17563 / 17563 | 18 / 8472 / 8227 / 11955 / 11955 | 18 / 6897 / 6432 / 15435 / 15435 |
+| all | 154 / 9037 / 8309 / 14481 / 20002 | 154 / 8927 / 8049 / 15530 / 18646 | 154 / 7318 / 6745 / 15806 / 19991 | 154 / 7273 / 6879 / 12432 / 16244 | 154 / 6844 / 6347 / 15131 / 22395 |
+
+Full planner, routine p50 / p95: A 8507 / 12194, B 8589 / 13903, D 3150 / 10080, E 4713 / 7437, F 3345 /
+4279. On every arm the first planner output arrives with the first sentence and the turn ends right after:
+the planner's time is spent before any visible output (thinking, omitted display), so streaming saves
+little. Routine evidence-ready p95 is 3.6-4.6 s (max 8.1 s): routine questions with a prerequisite check
+wait for an uncertain gap check's larger evaluator.
+
+Quality (exact counts; the corpus expectations are the scripted TARGETS, which real models rarely meet
+exactly, so absolute rates are low on every arm, Opus included):
+
+| | A | B | D | E | F |
+|---|---|---|---|---|---|
+| actions | 41/148 | 46/148 | 33/148 | 45/148 | 38/148 |
+| evidence | 58/130 | 64/130 | 66/130 | 59/130 | 63/130 |
+| route | 31/94 | 37/94 | 37/94 | 29/94 | 36/94 |
+| corpus golden traces, every repetition | 0/9 | 1/9 | 0/9 | 0/9 | 0/9 |
+| invalid structured plans | 0/154 | 0/154 | 10/167 | 0/154 | 1/155 |
+| routine fast-tier escalation | - | - | 13/65 | 0/62 | 1/66 |
+| hard gates (consent, policy, resources, spoken-then-replaced, corruption) | 0 | 0 | 0 | 0 | 0 |
+| cost / turn | $0.0330 | $0.0258 | $0.0190 | $0.0197 | $0.0188 |
+
+Winner under the locked gates: none of the fast tiers. With the live corpus golden traces as the golden
+gate no arm is eligible (Opus included). With the unit golden traces (11/11, code shared by every arm) A
+and B are eligible; D fails actions (5.4 pp), invalid plans (6.0%) and routine escalation (20.0%); E
+fails route by 2.1 pp (29/94 vs 31/94); F fails actions by 2.0 pp (38/148 vs 41/148, 2.03). Between A and
+B the gate script reports a split: B best p50, A best p95. The Opus-vs-Opus spread (A vs B: 5 actions,
+6 routes) is larger than the 2 pp gate at this N.
+
+JEV: 736 corpus calls at 12.04 checks per call: 0 timeouts, 1 error (891 ms, the first call of the first
+run), mean 133-145 ms, p95 200-259 ms by arm; Baseline A UI: 24 calls at 5-9 checks, mean 129 ms, p95
+184 ms, 0 timeouts. The ~33% more checks did not add timeouts. Larger-evaluator escalation 14-18% of JEV
+turns (Baseline A UI 58% on its evaluation-heavy golden turns). Late evidence: 16 off-path turns per arm,
+3 with evidence landing late, 0 route changes, 0 dependent actions dropped. Early sentence 96-99% on the
+streamed arms; early questions 100% of question-opening turns. Caching: 151-154 warm reads per cached
+arm, ~0.30M cached tokens each; cost -22% (B vs A), no measurable latency change.
+
+## Paid benchmark plan (final; run 2026-10-01, results above)
 
 No paid call has run. The interrupted GO BENCHMARK of 2026-10-01 made none: the earlier agent was
 stopped at 16:27:25 after a memory check and source greps; no `--live` or UI bench command ran, no
