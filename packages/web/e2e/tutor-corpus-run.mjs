@@ -9,8 +9,11 @@
 // packages/web/.dev.vars, gitignored), with per-rung latency and tokens; the stub answers are unused
 // and the expectations then score the real models. Refused unless TUTOR_BENCH_PAID=GO is set, which
 // only the owner's GO BENCHMARK authorises; never from make.
-// --candidate (live only): the worker's planner knobs for this run (CANDIDATES below; v2 checkpoints
-// G and H). The stub run reports which tier H would pick per turn without calling anything.
+// --candidate (live only): the benchmark arm, i.e. the worker's planner knobs for this run (CANDIDATES
+// below, owner decisions 3 and 5). The stub run reports which tier a fast arm would pick per turn
+// without calling anything. Live, the arm decides streaming (--stream is for stub runs only).
+// Groups (owner): routine / evaluation-independent, evidence-dependent and structural turns, by
+// category (GROUP_OF); never one average. e2e/tutor-bench-gates.mjs applies decision 6 to the rows.
 // --stream (v2 checkpoint I): turns ask for the plan's first sentence early (runTurn onSpeakable). Stub:
 // the scripted plan, written as the planner is asked to (Decision 4: constraints_add, the other control
 // fields and strategy first, then actions), is streamed through the real planTurn as SSE;
@@ -21,31 +24,89 @@ import { cardBlock } from '../src/nanogpt/board.js';
 import { applyCheck, applyNewAttempt, enterPractice, setActivityAnswer } from '../src/scene-activity.js';
 import { applyInputToBlock } from '../src/scene-evaluate.js';
 import { resolveTarget } from '../src/learn-target.js';
-import { cardModule } from '../src/learn-tutor-claims.js';
+import { CLAIMS, SLICE_CARDS, cardModule, ladderStep } from '../src/learn-tutor-claims.js';
+import { statedConstraints } from '../src/learn-tutor-validate.js';
 import { partIndex } from '../src/nanogpt/depth/board.js';
 import { emptyStore } from '../src/learn-tutor-evidence.js';
 import { arriveAt, enterHole, keepHere, markOpened, openingQuestion, runTurn } from '../src/learn-tutor.js';
-import { evaluateFreeText, plannerTier, planTurn, validateEvaluateBody } from '../../control-plane/src/learn-tutor-routes.js';
+import { evaluateFreeText, FAST_PLANNER_MODELS, plannerTier, planTurn, validateEvaluateBody } from '../../control-plane/src/learn-tutor-routes.js';
+import { LEARN_TASKS } from '../../control-plane/src/learn-models.js';
 import { firstSentence, PLANNER_SYSTEM, TUTOR_TOOL, tutorQuestions } from '../../control-plane/src/agents/learn-tutor.js';
 import { CORPUS } from './tutor-corpus.mjs';
 
 const args = process.argv.slice(2);
 const flag = (name, fallback) => { const at = args.indexOf(`--${name}`); return at >= 0 ? args[at + 1] : fallback; };
-const STAGE = flag('stage', 'A'), OUT = flag('out', 'tutor-bench-out'), LIVE = args.includes('--live'), STREAM = args.includes('--stream');
-// USD per MTok in / out, first-party rates (claude-api skill model table, cached 2026-09-25).
-const PRICES = { 'claude-opus-5-5': [4, 20], 'claude-sonnet-5-5': [2, 10], 'claude-haiku-4-5-20251001': [1, 5] };
+const STAGE = flag('stage', 'A'), OUT = flag('out', 'tutor-bench-out'), LIVE = args.includes('--live');
+// USD per MTok, first-party rates (claude-api skill, cached 2026-09-25): input, output, cache read.
+// A 5-minute cache write is 1.25x input. Opus 5.5 fast mode is $8 / $40 (2x); its cache prices are taken
+// as 2x too (assumption: the skill gives only the fast input and output rates).
+const PRICES = { 'claude-opus-5-5': [4, 20, 0.2], 'claude-sonnet-5-5': [2, 10, 0.2], 'claude-haiku-4-5-20251001': [1, 5, 0.1] };
+const FAST_MODE_X = 2, CACHE_WRITE_X = 1.25;
+const usd = t => { const p = PRICES[t.model]; if (!p) return 0; const x = t.speed === 'fast' ? FAST_MODE_X : 1; return x * ((t.in || 0) * p[0] + (t.out || 0) * p[1] + (t.cw || 0) * p[0] * CACHE_WRITE_X + (t.cr || 0) * p[2]) / 1e6; };
 if (LIVE && process.env.TUTOR_BENCH_PAID !== 'GO') throw Error('--live makes paid model calls: set TUTOR_BENCH_PAID=GO only after the owner typed GO BENCHMARK');
-// Planner candidates for the paid benchmark (env knobs read by planTurn). Baseline A is its own SHA.
+// The benchmark arms (owner decisions 3 and 5, 2026-10-01). Same corpus, same JEV and the same larger
+// evaluator (5C: fixed, Opus 5.5) in every arm; only the planner knobs differ. Opus effort stays at the
+// model default (medium) everywhere, so each arm changes one thing.
+//   A  Opus 5.5 as Baseline A: no streaming, no caching (the v2 pipeline: compact state, critical path)
+//   B  optimized Opus 5.5: first-sentence streaming + prompt caching (5A)
+//   C  B + Opus 5.5 fast mode (5B; documented, first-party API only)
+//   D  B + Haiku 4.5 fast tier, Opus escalation (no cache below Haiku's 4096-token minimum)
+//   E  B + Sonnet 5.5 fast tier at effort low, Opus escalation
 const CANDIDATES = {
-  'G-default': {}, // Opus 5.5 at the model-default effort (medium), compact output
-  'G-low': { TUTOR_PLANNER_EFFORT: 'low' },
-  'H-haiku': { TUTOR_PLANNER_EFFORT: 'low', TUTOR_PLANNER_FAST_MODEL: 'claude-haiku-4-5-20251001' },
-  'H-sonnet': { TUTOR_PLANNER_EFFORT: 'low', TUTOR_PLANNER_FAST_MODEL: 'claude-sonnet-5-5', TUTOR_PLANNER_FAST_EFFORT: 'low' },
+  A: { stream: false, env: {} },
+  B: { stream: true, env: { TUTOR_PLANNER_CACHE: 'on' } },
+  C: { stream: true, env: { TUTOR_PLANNER_CACHE: 'on', TUTOR_PLANNER_SPEED: 'fast' } },
+  D: { stream: true, env: { TUTOR_PLANNER_CACHE: 'on', TUTOR_PLANNER_FAST_MODEL: 'claude-haiku-4-5-20251001' } },
+  E: { stream: true, env: { TUTOR_PLANNER_CACHE: 'on', TUTOR_PLANNER_FAST_MODEL: 'claude-sonnet-5-5', TUTOR_PLANNER_FAST_EFFORT: 'low' } },
 };
-const CANDIDATE = flag('candidate', 'G-default');
+const CANDIDATE = flag('candidate', 'B');
 if (!CANDIDATES[CANDIDATE]) throw Error(`--candidate is one of ${Object.keys(CANDIDATES).join(', ')}`);
+// Decision 3: the exact model ids, never substituted.
+const EXPECTED_MODELS = { planner: 'claude-opus-5-5', evaluator: 'claude-opus-5-5' };
+if (LEARN_TASKS.tutor.model !== EXPECTED_MODELS.planner || LEARN_TASKS.tutor_evaluator.model !== EXPECTED_MODELS.evaluator) throw Error('the planner and larger evaluator must be claude-opus-5-5 (decision 3)');
+for (const { env } of Object.values(CANDIDATES)) if (env.TUTOR_PLANNER_FAST_MODEL && !FAST_PLANNER_MODELS.includes(env.TUTOR_PLANNER_FAST_MODEL)) throw Error(`unknown fast model ${env.TUTOR_PLANNER_FAST_MODEL}`);
+const STREAM = LIVE ? CANDIDATES[CANDIDATE].stream : args.includes('--stream');
 const ENV = LIVE ? Object.fromEntries(readFileSync(new URL('../.dev.vars', import.meta.url), 'utf8').split(/\r?\n/)
-  .filter(line => /^[A-Z_]+=/.test(line)).map(line => [line.slice(0, line.indexOf('=')), line.slice(line.indexOf('=') + 1).trim()]).concat(Object.entries(CANDIDATES[CANDIDATE]))) : null;
+  .filter(line => /^[A-Z_]+=/.test(line)).map(line => [line.slice(0, line.indexOf('=')), line.slice(line.indexOf('=') + 1).trim()]).concat(Object.entries(CANDIDATES[CANDIDATE].env))) : null;
+// Owner's result groups. A category missing here stops the run, so a new corpus turn is always grouped.
+const GROUP_OF = {
+  question_request: 'routine', slash_deeper: 'routine', slash_simplify: 'routine', explicit_implementation: 'routine', action_validation: 'routine',
+  correct_explanation: 'evidence', partial_explanation: 'evidence', ambiguous_explanation: 'evidence', misconception: 'evidence', repeated_misconception: 'evidence',
+  evaluator_disagreement: 'evidence', evaluator_error: 'evidence', practice_evidence: 'evidence', prerequisite_gap: 'evidence',
+  rabbit_hole: 'structural', rabbit_hole_keep: 'structural', child_entry: 'structural', child_turn: 'structural', return_to_parent: 'structural',
+};
+for (const trace of CORPUS) for (const step of trace.turns) if (!GROUP_OF[step.category || trace.category]) throw Error(`no group for category ${step.category || trace.category}`);
+
+// ponytail: a cross-check that is 0 by construction while the validator holds; a non-zero count means the
+// validator regressed. Decision 6 hard gates, checked on the ACCEPTED actions independently of the validator (which should
+// already make every count 0): consent, critical policy and nonexistent authored resources.
+function audit(result, inHole) {
+  const { actions, routed, turn, response } = result;
+  const done = actions.filter(action => action.type !== 'no_action');
+  const quoted = typeof response.explicit_request === 'string' ? response.explicit_request.trim().toLowerCase() : '';
+  const explicit = !!quoted && turn.raw_user_message.toLowerCase().includes(quoted);
+  const allowed = new Set([...routed.allowed, ...(explicit ? ['respond_text', 'show_authored_card', 'focus_part'] : [])]);
+  const constraints = [...turn.constraints, ...(response.constraints_add || [])].filter(item => !(response.constraints_remove || []).includes(item)).concat(statedConstraints(turn.raw_user_message));
+  const count = test => done.filter(test).length;
+  const consent = count(action => action.type === 'open_dive' || (action.mode === 'navigate' && !(explicit || routed.row === 'slash' || routed.row === 'gap_inline')));
+  const before = done.some(action => action.type === 'suggest_dive') ? done.filter(action => action.type === 'respond_text').reduce((n, action) => n + action.text.trim().split(/(?<=[.!?])\s+/).length, 0) : 0;
+  const policy = count(action => !allowed.has(action.type)) + count(action => action.type === 'ask_question' && (constraints.includes('no_quiz') || constraints.includes('just_answer')))
+    + Math.max(0, count(action => action.type === 'ask_question') - 1) + Math.max(0, done.length - 3) + (before > 2 ? 1 : 0);
+  const resource = count(action => ['show_authored_card', 'focus_part', 'suggest_depth', 'suggest_practice'].includes(action.type) && !SLICE_CARDS.includes(action.card))
+    + count(action => action.type === 'focus_part' && SLICE_CARDS.includes(action.card) && partIndex(cardModule(action.card), action.part_id) == null)
+    + count(action => action.type === 'suggest_depth' && SLICE_CARDS.includes(action.card) && !ladderStep(action.card, action.direction || 'deeper'))
+    + count(action => action.type === 'suggest_practice' && SLICE_CARDS.includes(action.card) && !cardModule(action.card).activity)
+    + count(action => action.type === 'return_from_dive' && !inHole)
+    + done.reduce((n, action) => n + (action.cites || []).filter(cite => !SLICE_CARDS.includes(cite.card) || !(cite.source_index < (cardModule(cite.card).sources || []).length)).length, 0);
+  return { consent, policy, resource };
+}
+// Decision 6 "no evidence corruption": free-text evidence stored from a failed evaluation, on a claim
+// that was not evaluated, or naming an idea the claim does not have.
+function corruption(added, evaluation, selected) {
+  const free = added.filter(event => event.source === 'free_text');
+  return (evaluation?.status === 'error' ? free.length : 0) + free.filter(event => !selected.includes(event.claim)).length
+    + free.filter(event => event.idea != null && !(event.idea < CLAIMS[event.claim].ideas.length)).length;
+}
 const MODE = LIVE ? 'live' : 'stub';
 const PARENT = { app: 'canvas-aaaa1111', board: 'nanogpt-attention-tutor' };
 const AUTHORED = ['show_authored_card', 'focus_part', 'suggest_depth', 'suggest_practice'];
@@ -174,11 +235,14 @@ async function runTrace(trace) {
       try {
         const planned = await planTurn(ENV, body.context, STREAM ? { onSentence: options.onSentence } : {});
         calls.firstSentenceMs = planned.telemetry.first_sentence_ms ?? null;
-        Object.assign(calls, { plannerMs: planned.telemetry.ms, plannerOutcome: 'ok', plannerTokens: { in: planned.telemetry.input_tokens, out: planned.telemetry.output_tokens, model: planned.telemetry.requested_model }, fastTokens: planned.telemetry.escalated && planned.telemetry.fast ? { in: planned.telemetry.fast.input_tokens, out: planned.telemetry.fast.output_tokens, model: planned.telemetry.fast.requested_model } : null,
+        const tokens = t => ({ in: t.input_tokens, out: t.output_tokens, cw: t.cache_creation_input_tokens, cr: t.cache_read_input_tokens, model: t.requested_model, served: t.served_model, speed: t.speed ?? null, requested_speed: t.requested_speed ?? null });
+        Object.assign(calls, { plannerMs: planned.telemetry.ms, plannerOutcome: 'ok', plannerTokens: tokens(planned.telemetry), fastTokens: planned.telemetry.escalated && planned.telemetry.fast ? tokens(planned.telemetry.fast) : null,
+          fastInvalid: planned.telemetry.escalated && planned.telemetry.fast?.outcome === 'invalid' ? 1 : 0,
           servedTier: planned.telemetry.tier ?? 'opus', escalated: planned.telemetry.escalated ?? null });
         return planned;
       } catch (error) {
         Object.assign(calls, { plannerMs: error.telemetry?.ms ?? null, plannerOutcome: error.telemetry?.outcome ?? 'error' });
+        // A failed turn is still a failed plan for decision 6 (invalid or errored), never silently dropped.
         throw error;
       }
     };
@@ -190,10 +254,12 @@ async function runTrace(trace) {
       // A failed turn (the planner errored or returned no turn) ends its trace: later turns depend on it.
       rows.push({ stage: STAGE, mode: MODE, trace: trace.id, turn: index, category: step.category || trace.category, golden: !!trace.golden, error: String(error.message).slice(0, 200),
         jev_calls: calls.jev, jev_questions: calls.jevQuestions, larger_calls: calls.larger, planner_calls: calls.planner, jev_ms: calls.jevMs, larger_ms: calls.largerMs, planner_ms: calls.plannerMs, planner_outcome: calls.plannerOutcome,
-        turn_ms: Math.round(performance.now() - started), selected: calls.selected, checks: { turn: false }, pass: false, proposed: 0, accepted: 0, rejected: 0, authored_actions: 0, text_actions: 0 });
+        turn_ms: Math.round(performance.now() - started), selected: calls.selected, checks: { turn: false }, pass: false, proposed: 0, accepted: 0, rejected: 0, authored_actions: 0, text_actions: 0,
+        group: GROUP_OF[step.category || trace.category], planner_invalid: calls.plannerOutcome === 'invalid' ? 1 : 0, planner_tier: calls.tier });
       break;
     }
     const turnMs = Math.round(performance.now() - started);
+    const added = result.store.events.slice(before);
     store = result.store;
     const got = {
       selected: calls.selected, jev: calls.jev > 0, larger: calls.larger > 0,
@@ -220,6 +286,10 @@ async function runTrace(trace) {
       to_first_evidence_action: result.bench?.ms.to_first_evidence_action ?? null,
       evidence_dropped: (result.decisions || []).filter(decision => decision.stage === 'evidence').length,
       opens_with: result.actions.find(action => action.type === 'respond_text' || action.type === 'ask_question')?.type ?? null,
+      group: GROUP_OF[step.category || trace.category], to_planner_ready: result.bench?.ms.to_planner_ready ?? null,
+      audit: audit(result, !!inHole), evidence_corruption: corruption(added, result.evaluation, calls.selected),
+      planner_invalid: (calls.plannerOutcome === 'invalid' ? 1 : 0) + (calls.fastInvalid || 0),
+      cost_usd: +[calls.plannerTokens, calls.fastTokens, calls.largerTokens].filter(Boolean).reduce((n, t) => n + usd(t), 0).toFixed(6),
       planner_calls: calls.planner, planner_context_chars: calls.plannerChars, planner_tier: calls.tier, planner_served_tier: calls.servedTier, planner_escalated: calls.escalated,
       planner_input_tokens_est: calls.planner ? Math.round((calls.plannerChars + PLANNER_SYSTEM.length + JSON.stringify(TUTOR_TOOL).length) / 4) : 0,
       authored_actions: got.actions.filter(action => AUTHORED.includes(action.type)).length, text_actions: got.actions.filter(action => action.type === 'respond_text').length,
@@ -238,7 +308,7 @@ const jevTurns = rows.filter(row => row.jev_calls);
 const golden = [...new Set(rows.filter(row => row.golden).map(row => row.trace))];
 const tokens = rows.flatMap(row => [row.planner_tokens, row.fast_tokens, row.larger_tokens]).filter(Boolean);
 const unpriced = [...new Set(tokens.filter(t => !PRICES[t.model]).map(t => t.model))];
-const cost = tokens.length ? tokens.reduce((usd, t) => usd + (PRICES[t.model] ? ((t.in || 0) * PRICES[t.model][0] + (t.out || 0) * PRICES[t.model][1]) / 1e6 : 0), 0) : null;
+const cost = tokens.length ? tokens.reduce((n, t) => n + usd(t), 0) : null;
 const values = key => rows.map(row => key(row)).filter(value => value != null);
 // MODELED, not measured: speech end -> first Tutor audio from Baseline A's live component means
 // (owner brief 2026-10-01: STT commit 602, JEV 188, larger evaluator 4150, Opus planner 7707, Fish
@@ -266,10 +336,33 @@ const summary = {
       planner_in: stats(values(row => row.planner_tokens?.in)), planner_out: stats(values(row => row.planner_tokens?.out)),
       larger_in: stats(values(row => row.larger_tokens?.in)), larger_out: stats(values(row => row.larger_tokens?.out)),
     },
-    cost_usd: cost == null ? null : { anthropic_total: +cost.toFixed(4), per_turn: +(cost / rows.length).toFixed(5), per_100_turns: +(cost / rows.length * 100).toFixed(3), unpriced_models: unpriced, note: 'Anthropic calls only, per model at PRICES; JEV (TypeSafe) is not priced here' },
+    cost_usd: cost == null ? null : { anthropic_total: +cost.toFixed(4), per_turn: +(cost / rows.length).toFixed(5), per_100_turns: +(cost / rows.length * 100).toFixed(3), unpriced_models: unpriced, note: 'Anthropic calls only, per model at PRICES incl. cache writes/reads and fast mode; JEV (TypeSafe) is not priced here' },
+    // Decision 5A: cold (cache write) vs warm (cache read) planner requests; claim nothing until measured.
+    cache: {
+      cold: { calls: rows.filter(row => row.planner_tokens?.cw > 0).length, planner_ms: stats(values(row => (row.planner_tokens?.cw > 0 ? row.planner_ms : null))), input_tokens: stats(values(row => (row.planner_tokens?.cw > 0 ? row.planner_tokens.in + row.planner_tokens.cw : null))) },
+      warm: { calls: rows.filter(row => row.planner_tokens?.cr > 0).length, planner_ms: stats(values(row => (row.planner_tokens?.cr > 0 ? row.planner_ms : null))), cached_tokens: stats(values(row => row.planner_tokens?.cr || null)) },
+      uncached: { calls: rows.filter(row => row.planner_tokens && !row.planner_tokens.cw && !row.planner_tokens.cr).length, planner_ms: stats(values(row => (row.planner_tokens && !row.planner_tokens.cw && !row.planner_tokens.cr ? row.planner_ms : null))) },
+    },
+    // Decisions 3 and 5B: what actually served each call, so no model or speed is ever substituted silently.
+    served_model_mismatches: tokens.filter(t => t.served && t.served !== t.model).map(t => `${t.model} -> ${t.served}`),
+    speed_mismatches: tokens.filter(t => t.requested_speed && t.speed !== t.requested_speed).length,
+    // Decision 6 latency, per group: the first validated speakable sentence (to_first_safe_sentence) and the full plan.
+    latency_by_group: Object.fromEntries(['all', 'routine', 'evidence', 'structural'].map(group => {
+      const list = rows.filter(row => !row.error && (group === 'all' || row.group === group));
+      return [group, { turns: list.length, first_validated_sentence_ms: stats(list.map(row => row.to_first_safe_sentence).filter(v => v != null)), full_plan_ms: stats(list.map(row => row.planner_ms).filter(v => v != null)) }];
+    })),
     model_calls_per_turn: +((rows.reduce((n, row) => n + row.jev_calls + row.larger_calls + row.planner_calls + (row.fast_tokens ? 1 : 0), 0)) / rows.length).toFixed(3),
   } : {}),
   pass_rate: rate(rows, row => row.pass),
+  groups: Object.fromEntries(['routine', 'evidence', 'structural'].map(group => [group, { turns: rows.filter(row => row.group === group).length, categories: rows.filter(row => row.group === group).reduce((acc, row) => { acc[row.category] = (acc[row.category] || 0) + 1; return acc; }, {}) }])),
+  // Decision 6 hard-gate inputs for this run (e2e/tutor-bench-gates.mjs judges across arms and repetitions).
+  gate_inputs: {
+    audit: ['consent', 'policy', 'resource'].reduce((acc, key) => ({ ...acc, [key]: rows.reduce((n, row) => n + (row.audit?.[key] || 0), 0) }), {}),
+    evidence_corruption: rows.reduce((n, row) => n + (row.evidence_corruption || 0), 0),
+    spoken_then_replaced: rows.filter(row => row.spoken && !row.spoken.consistent).length,
+    invalid_plans: rows.reduce((n, row) => n + (row.planner_invalid || 0), 0),
+    routine_fast_escalations: `${rows.filter(row => row.planner_tier === 'fast' && row.planner_escalated).length}/${rows.filter(row => row.planner_tier === 'fast').length}`,
+  },
   golden_traces: { total: golden.length, passed: golden.filter(id => rows.filter(row => row.trace === id).every(row => row.pass)).length },
   by_dimension: Object.fromEntries(dims.map(dim => { const scored = rows.filter(row => dim in row.checks); return [dim, { scored: scored.length, pass_rate: rate(scored, row => row.checks[dim]) }]; })),
   jev_calls_per_turn: +(rows.reduce((n, row) => n + row.jev_calls, 0) / rows.length).toFixed(3),

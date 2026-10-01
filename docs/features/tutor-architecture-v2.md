@@ -97,7 +97,8 @@ Implemented with free/scripted tests only; no paid call. Checkpoints (pushed, no
 | C | D4 constraint-first questions, D2 held fast-tier sentences, D3 exact model ids | `3d6c42e3` |
 | D | D7 per-idea evidence (merge of the sub-agent branch) | `644f6955` |
 | E | D5A prompt-caching request construction | `a460108e` |
-| F | D5B Opus 5.5 fast-mode arm (documented support), D5C evaluator fixed | see git log |
+| F | D5B Opus 5.5 fast-mode arm (documented support), D5C evaluator fixed | `629d851a` |
+| G | Benchmark arms A-E, groups, decision-6 gates | see git log |
 
 ### D1. Evaluation dependency
 
@@ -204,6 +205,32 @@ parameters. Fast mode must pass the same gates as every arm (no quality assumpti
 The larger evaluator stays `claude-opus-5-5` with its frozen request in every arm: a test sends every
 planner knob (cache, fast mode, fast tier, effort) and checks the evaluator request carries none of them.
 A faster evaluator is a separate, later benchmark on the same JEV-uncertain cases.
+
+### G. Benchmark harness: arms, groups and the decision-6 gates
+
+- `tutor-corpus-run.mjs --live --candidate A|B|C|D|E` (PAID, refused without `TUTOR_BENCH_PAID=GO`):
+  A Opus 5.5 as Baseline A (no streaming, no cache), B optimized Opus (streaming + cache), C B + fast
+  mode, D B + Haiku 4.5 fast tier with Opus escalation, E B + Sonnet 5.5 fast tier (effort low) with
+  Opus escalation. Opus effort stays at the model default everywhere; JEV and the larger evaluator are
+  identical in every arm. The runner refuses a planner or evaluator other than `claude-opus-5-5` or an
+  unknown fast model, and reports `served_model_mismatches` and `speed_mismatches`.
+- Every turn row carries its `group` (routine / evidence / structural, `GROUP_OF` by category; an
+  ungrouped category stops the run), an independent post-validation `audit` (consent, policy,
+  nonexistent resource), `evidence_corruption`, `planner_invalid`, `cost_usd` (cache writes 1.25x, reads
+  at the model's cache price, fast mode 2x), and the D1 timings. The summary adds `groups`,
+  `gate_inputs`, `latency_by_group` (first validated sentence and full plan: p50, p95, mean, max) and
+  `cache` (cold write vs warm read requests).
+- `e2e/tutor-bench-gates.mjs --arm A=a1.jsonl,a2.jsonl,a3.jsonl --arm B=... [--reference A]
+  [--baseline A]` pools every repetition and applies decision 6 in order: hard gates (golden traces pass
+  in every repetition; zero consent, policy, nonexistent-resource, spoken-then-replaced and
+  evidence-corruption counts), quality (actions, evidence, route as exact numerator/denominator, at most
+  2 pp below the Opus reference), reliability (invalid structured plans < 2%; routine fast-tier
+  escalation < 20%, counted only on turns routed to the fast tier), cost per turn <= the baseline arm,
+  then latency. The winner is the eligible arm fastest on BOTH p50 and p95 of the first validated
+  speakable sentence; a split is reported for the owner, never resolved silently; nothing eligible means
+  no fast tier ships. `learn-tutor-gates.test.mjs` covers each gate.
+- Stub corpus at G: 33 traces, 44 turns (routine 11, evidence 27, structural 6), pass 1.000, golden
+  9/9 corpus traces (the 11 golden traces, GT-D1/D2/D3 as one), every gate input 0.
 
 ## Target pipeline
 
@@ -379,104 +406,102 @@ What the free numbers cannot say: real planner latency per tier and effort, time
 sentence, real JEV uncertainty (hence the real escalation rate and the critical-path misses), fast
 planner action accuracy and escalation rate, and output tokens after G's schema change.
 
-## Paid benchmark plan (prepared, NOT run; needs GO BENCHMARK)
+## Paid benchmark plan (decisions 1-7; prepared, NOT run; needs a NEW GO BENCHMARK)
 
-Runs (all on the dev keys in `packages/web/.dev.vars`: direct Anthropic and direct JEV, no
-subscription bridge, so streaming works):
+Interrupted GO BENCHMARK (2026-10-01): no paid call was made. The earlier agent received GO at 16:26
+and was stopped at 16:27:25 after a memory check and source greps; no `--live` or UI bench command ran,
+no file in this worktree changed after 93480dfc (2026-09-30 22:29), no `tutor-bench-out` or
+`corpus-live-*` exists anywhere under workspace/, and `.small/v2-bench` and `%TEMP%/tb` hold stub runs
+only (2026-09-30). Calls 0, tokens 0, cost $0.
 
-| Run | Code | Turns |
-|---|---|---|
-| Baseline A, UI | `main` ce856371, `node e2e/tutor-bench.mjs` x 3 (first cold) | 27 |
-| Candidate, UI | `c2fd4b5c` local dev worker (knobs unset), `tutor-bench.mjs` x 3 | 27 |
-| F reference, corpus | `f4eddade` (v2 without C, G-I), `TUTOR_BENCH_PAID=GO node e2e/tutor-corpus-run.mjs --live` x 2 | 78 |
-| G-default, corpus | head, `... --live --stream --candidate G-default` x 2 | 78 |
-| G-low | `--candidate G-low` x 2 | 78 |
-| H-haiku | `--candidate H-haiku` x 2 | 78 |
-| H-sonnet | `--candidate H-sonnet` x 2 | 78 |
-| total | | 444 |
+Corpus: 33 traces, 44 turns. Groups / categories (turns per repetition):
+- routine 11: question_request 6, explicit_implementation 2, slash_deeper 1, slash_simplify 1,
+  action_validation 1
+- evidence-dependent 27: repeated_misconception 5, evaluator_disagreement 5, correct_explanation 4,
+  partial_explanation 4, practice_evidence 3, misconception 2, evaluator_error 2, prerequisite_gap 1,
+  ambiguous_explanation 1 (quiz answers are the answering turns inside these)
+- structural 6: rabbit_hole 2, rabbit_hole_keep 1, child_entry 1, child_turn 1, return_to_parent 1
 
-Estimated calls: JEV ~400 (0.92 per corpus turn, ~42 UI); larger evaluator (Opus 5.5) 35 expected
-(stub rate) to ~100 (25% of JEV turns, as in the live voice sample); Opus planner ~400 (F-ref 78,
-G-default 78, G-low 78, H-haiku ~56, H-sonnet ~56 including ~3 escalations per run, UI 54); fast
-planner 28 Haiku 4.5 + 28 Sonnet 5.5.
+Runs (one at a time, on the dev keys in `packages/web/.dev.vars`, direct Anthropic and direct JEV):
+3 repetitions per turn per arm, first repetition cold. Arms A-E x 44 turns x 3 = 660 corpus turns, plus
+the true Baseline A anchor on `main` ce856371 (`tutor-bench.mjs`, 9 golden turns x 3 = 27 UI turns).
+2 repetitions would cut every count and cost below by a third, with p95 resting on 22 routine samples.
 
-Estimated tokens: planner input ~2.5k estimated (characters / 4; the Opus tokenizer may read up to
-~1.35x), so ~1.0-1.4M input tokens on Opus and ~0.17M on the fast models; planner output 0.3-2k per
-Opus call (tool call plus thinking), ~0.12-0.8M; larger evaluator ~1k in, 0.3-1.5k out per call.
+Expected calls (3 repetitions; stub rates: JEV 0.93 per turn, larger evaluator 0.07 per turn, 15 of 44
+turns routed to the fast tier; live fast-tier escalation assumed 0-20%, larger-evaluator escalation
+7-45% of JEV turns, ~25% in the live voice sample):
+- Haiku `claude-haiku-4-5-20251001`: 45 (arm D)
+- Sonnet `claude-sonnet-5-5`: 45 (arm E)
+- Opus `claude-opus-5-5` planner, normal speed: A 132 + B 132 + D 87 + E 87 + escalations 0-18 (expected
+  ~12) = 438-456, expected ~450; plus 27 for the UI anchor
+- Opus fast mode: 132 (arm C)
+- Larger evaluator (Opus 5.5, fixed): 45 low / ~150 expected / ~300 high, plus 2-7 for the UI anchor
+- JEV (TypeSafe, not priced here): ~615 + ~25
 
-Estimated cost (first-party $/MTok in/out: Opus 5.5 4/20, Sonnet 5.5 2/10, Haiku 4.5 1/5, from the
-claude-api skill's model table, cached 2026-09-25): Opus planner ~$6.5-21, fast planners ~$0.5,
-larger evaluator ~$0.4-3.5. Total about $7-25, expected ~$12. JEV (TypeSafe) is not priced here:
-~400 calls. Per 100 Tutor turns, expected: G-default ~$2.5-5.5, H-haiku ~$1.7-3.7 (Anthropic only).
+Expected tokens: planner input ~3.0k per call (2.6k estimated as characters/4, Opus tokenizer up to
+~1.35x), ~2.0M input on Opus of which ~0.6M are cache reads on arms B-E; Opus output 0.4-2k per call
+(tool call plus thinking at the default medium effort), ~0.25-1.2M (expected ~0.55M); fast tiers ~0.27M
+input, ~45k output; larger evaluator ~1.2k in and 0.3-1.5k out per call (~0.18M / ~0.1M expected).
+Total about 2.5M input and 0.35-1.5M output.
 
-Each corpus summary reports JEV / larger / planner mean, p50, p95, max, timeouts and errors; planner
-input and output tokens; planner ms and first-sentence ms split into routine (evaluation off the path)
-and graded turns; the escalation rate; fast-tier share and escalations; critical-path skip rate and
-misses; quality by dimension and the golden traces; cost per turn and per 100 turns; model calls per
-turn. Speech end -> first audio is then STT commit + first-sentence ms + Fish first byte (measured on
-the voice branch), reported per routine / graded class.
+Expected cost (first-party $/MTok: Opus 5.5 4 / 20, cache read 0.20; fast mode 8 / 40; Sonnet 5.5 2 /
+10; Haiku 4.5 1 / 5; cache write 1.25x), per repetition low / expected / high: A $0.8 / 1.5 / 3.1,
+B 0.6 / 1.3 / 2.8, C 1.2 / 2.4 / 5.0, D 0.5 / 1.0 / 2.4, E 0.5 / 1.1 / 2.6. Three repetitions: low ~$11,
+expected ~$22, high ~$48, plus ~$1-2 for the UI anchor. Two repetitions: ~$7 / ~$15 / ~$32.
 
-## Earlier paid benchmark proposal (superseded by the plan above)
+Runtime: ~8-10 s per Opus turn (planner ~7.7 s mean), faster on C, D, E: about 75-100 minutes for the
+660 corpus turns plus ~10 minutes for the UI anchor, run sequentially (memory); about 1.5-2 hours.
 
-Baseline A (`4e5f81a1`) vs Candidate F (`f4eddade`), each: `tutor-bench.mjs` x 3 runs (9 UI turns,
-first run cold) and `tutor-corpus-run.mjs --live` x 2 (39 turns). 2 x (27 + 78) = 210 Tutor turns.
+Metrics produced, per arm and pooled across repetitions (`tutor-bench-gates.mjs`), never collapsed across
+groups: the hard gates (golden traces, consent, policy, nonexistent resources, spoken-then-replaced,
+evidence corruption); action / evidence / route accuracy as numerator/denominator and pp vs Opus;
+invalid structured plans; routine fast-tier escalation; cost per turn; first validated speakable
+sentence and full-plan latency, p50 / p95 / mean / max, for all turns and per group; the winner or the
+p50/p95 split. Per run (`summary.json`): JEV / larger / planner ms (mean, p50, p95, max), timeouts and
+errors; planner input / output / cache tokens; cold vs warm cache requests; time to first safe sentence,
+evidence ready and first evidence-dependent action (D1); question-turn early rate and timing (D4);
+fast-tier share and escalations; critical-path skip rate and misses; free-text negative events (D7);
+larger-evaluator escalation rate; cost per turn and per 100 turns; model calls per turn; served-model and
+speed mismatches. Speech end -> first audio = STT commit + first validated sentence + Fish first byte.
 
-| | A | F | total |
-|---|---|---|---|
-| Tutor turns | 105 | 105 | 210 |
-| JEV calls (0.89-0.92 per turn) | ~96 | ~96 | ~192 |
-| Opus larger-evaluator calls | ~11 (stub rate) - 96 (every JEV uncertain) | ~8 - ~40 | ~19 expected, 192 worst case |
-| Opus planner calls | 105 | 105 | 210 |
+## Earlier paid benchmark plans (superseded)
 
-Cost, Anthropic only, at Opus 5.5 $4 / MTok in and $20 / MTok out (claude-api skill model table,
-cached 2026-09-25, first-party rates): planner ~2.4-3.1k input tokens (estimate) and an unknown
-output (tool call plus always-on thinking at the default `medium` effort; assumed 0.5-2k) ->
-$0.02-0.05 per call, $4-11 for 210 calls; larger evaluator ~$0.01-0.04 per call, $0.2-0.8 expected,
-~$7 worst case. Total expected ~$5-12, worst case ~$18. JEV (TypeSafe) price unknown: ~192 calls.
+The 2026-10-01 plan (F reference, G-default, G-low, H-haiku, H-sonnet, 444 turns, ~$12) and the earlier
+A-vs-F proposal (210 turns) are superseded by the decisions 1-7 plan above.
 
 ## Open questions for the owner
 
-Voice checkpoints (2026-10-01):
+Resolved by decisions 1-7: gap checks and evidence rows stay on the critical path (D1); early questions
+(D4); held fast-tier sentences (D2); model ids (D3); caching and fast mode (D5); per-idea evidence (D7).
+Remaining:
 
-- Gap checks keep a question on the critical path (only JEV, ~188 ms, unless the gap check is
-  uncertain and escalates). Allowing them off the path would raise the corpus skip rate from 0.139 but
-  can miss a Rabbit Hole suggestion on that turn. Kept conservative.
-- Socratic and clarifying turns (route allows only `ask_question`) get no early sentence: an early
-  question could break `no_quiz` stated later in the same plan. Speaking questions early would need
-  `constraints_add` written before `actions`. Decision needed if graded-turn first audio misses 3-4 s.
-- On the tiered planner, a sentence spoken from a fast plan that is then re-planned on Opus does not
-  open the final reply (recorded as `spoken.consistent = false`). Accept, or hold fast-tier sentences
-  until the fast plan passes its check (costs the fast plan's remaining output time)?
-- Fast-model ids: `claude-haiku-4-5` and `claude-sonnet-5-5` come from the claude-api skill's model
-  table; the chat picker (`learn-models.js`) still names `claude-haiku-4-5-20251001` and
-  `claude-sonnet-5`. Confirm the candidates before the paid run.
-- Not built, each a small change if wanted: a faster larger-evaluator candidate (brief stage 9; a
-  `TUTOR_EVALUATOR_MODEL` knob and a run over the corpus's escalated turns), Opus 5.5 fast mode
-  (`speed: "fast"`, beta header, $8 / $40 per MTok, needs a header in `ask.js`), and prompt caching of
-  the ~1.4k-token system prompt and tool (above Opus 5.5's 512-token minimum; the subscription
-  bridge's handling of a cached system block is unverified).
-- Which effort the Opus planner should default to, and whether H ships, are for after the paid run.
+- D1: after a critical-path miss the evidence-dependent actions are dropped, not re-planned (a second
+  planner call). The paid run counts misses; re-planning is a small change if they occur.
+- D4 question budget: the locked rules define a per-turn budget (one question, at most three actions)
+  and the Socratic limit; there is no session-level question budget. If one is wanted, it is one rule in
+  `questionBlocked` and the validator.
+- D7: JEV questions per call rise ~33% (12.05 vs 9.05) for the contradiction checks; JEV keeps its
+  800 ms budget, and the paid run shows whether timeouts rise.
+- Routine turns are 11 of 44; their p95 rests on 33 samples at 3 repetitions. Adding routine corpus turns
+  before the run would tighten it.
+- Arm A is Baseline A's planner settings on the v2 pipeline (compact state, critical path); true
+  Baseline A code is the UI anchor on `main`. Arm E runs Sonnet at effort low (the Opus arms at the
+  model default), so E differs from B in model and effort.
+- Fast mode is a research preview: whether the dev organisation has it is known only at run time.
 
-## Voice MVP conflicts (`feature/voice-tutor-mvp`, 20c20801, read-only)
+## Voice MVP conflicts (`feature/voice-tutor-mvp` 2b96f0df, read-only; not merged)
 
-- `agents/learn-tutor.js` PLANNER_SYSTEM: voice adds one line after "respond_text stays under 120
-  words" that reads `context.turn.input_modality`; v2 adds lines in the same place, and the v2 planner
-  context has no `turn` field. On merge: one voice line, reading `context.learner_intent` (carry
-  `input_modality` there); its "at most two short sentences" fits the first-sentence stream.
-- `web/src/learn-tutor.js`: voice threads `inputModality` and `turnId` through `buildTurn` and
-  `runTurn`, adds `input_modality` to the bench, rewrites the v1 `plannerContext` (v2 replaced it) and
-  `enforce`'s log line (v2 moved `enforce` to `learn-tutor-validate.js`; the "never log the quoted
-  words" change must be ported there), and nulls `suggested.question` on voice turns. Expect textual
-  conflicts in `runTurn` (v2 restructured evaluation for C and added `onSpeakable`) and in the bench.
-  The voice `turnId` and the v2 `trace.trace_id` should become one id.
-- `LearnTutor.jsx` (voice only): the voice `post` should use `readPlanStream` on `{ stream: true }`
-  and pass `onSpeakable` to start Fish on the first sentence.
-
-Earlier:
-
-- "Untouched ideas never receive fail evidence": implemented at claim level (B + JEV's engaged
-  check). Inside a claim the learner engaged, an unstated idea still gets a fail event (v1). Reading
-  the rule per idea would drop those fails; it changes no state on the corpus but would let a
-  one-idea transfer pass mark a claim understood. Kept v1; needs a decision.
-- Opus 5.5 thinking is always on (effort default `medium`); planner latency depends on it. Baseline A
-  does not set effort. Worth measuring in the paid run before tuning.
+- `agents/learn-tutor.js` PLANNER_SYSTEM: voice adds one line reading `context.turn.input_modality`
+  ("at most two short sentences ... show cards rather than narrate"); v2 has no `turn` in the planner
+  context and rewrote the neighbouring output-order line (D4: control fields first, first-heard action
+  first). On merge: one voice line reading `context.learner_intent.input_modality`.
+- `web/src/learn-tutor.js`: voice threads `inputModality` and `turnId` through `buildTurn` / `runTurn`,
+  adds `input_modality` to the bench, rewrites the v1 `plannerContext` (v2 replaced it), nulls
+  `suggested.question` on voice turns, and stops logging the quoted explicit_request in v1 `enforce`
+  (v2 moved it to `learn-tutor-validate.js`, which still logs the quote: port that). Expect textual
+  conflicts in `runTurn` (D1 hold/release, D4 `onSentence`) and in the bench.
+- Integration points (not built): the voice `turnId` and the v2 `trace.trace_id` become one id (pass the
+  voice id into `turnTrace` / `buildTurn`); `LearnTutor.jsx` posts `{ stream: true }`, reads it with
+  `readPlanStream` and passes `onSpeakable(text)` to start Fish streaming on the first validated
+  sentence. The NDJSON `sentence` event is now `{ text, action, constraints_add, explicit_request }`
+  and may be a question; `onSpeakable` still receives the text only.

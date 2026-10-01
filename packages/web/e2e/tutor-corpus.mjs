@@ -84,7 +84,7 @@ export const CORPUS = [
     { raw: 'Just explain it here.', keep: true, category: 'rabbit_hole_keep',
       stub: { jev: { attempt: 0 }, plan: plan('feynman', 'reuse', [{ type: 'show_authored_card', card: 'c21-temperature', mode: 'navigate' }, say('c21 shows softmax with a divisor.')]) },
       expect: { row: 'gap_inline', actions: ['show_authored_card', 'respond_text'], modes: { show_authored_card: 'navigate' }, card: 'c21-temperature' } },
-    { opening: true, enter_hole: true, category: 'child_turn',
+    { opening: true, enter_hole: true, category: 'child_entry',
       stub: { plan: plan('feynman', 'explain', [say('Softmax exponentiates, then divides by the sum.'), { type: 'show_authored_card', card: 'c21-temperature', mode: 'suggest' }]) },
       expect: { jev: false, events: [], actions: ['respond_text', 'show_authored_card'], modes: { show_authored_card: 'suggest' } } },
     { raw: 'With scores 2, 1, 0: e² ≈ 7.4, e ≈ 2.7, 1; divide each by their sum 11.1 and you get 0.67, 0.24, 0.09, which add up to one.', category: 'child_turn',
