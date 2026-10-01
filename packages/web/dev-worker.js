@@ -27,6 +27,7 @@ import { apiAsk } from '../control-plane/src/index.js';
 import { boardFetch, authorizedBoardApp, paperFetch, mediaFetch, momentFeedback, videoGone, canvasSearch, wikiArticle } from '../control-plane/src/learn-board.js';
 import { learnGradeRoute, assessAnswer } from '../control-plane/src/learn-grade-routes.js';
 import { tutorRoute } from '../control-plane/src/learn-tutor-routes.js';
+import { voiceRoute } from '../control-plane/src/learn-voice-routes.js';
 import { learnBoardsRoute } from '../control-plane/src/learn-boards.js';
 import { artifactFetch } from '../control-plane/src/learn-artifact.js';
 import { paidRefusal } from '../control-plane/src/learn-paid.js';
@@ -200,6 +201,8 @@ export default {
       const heard = await upstream.json();
       return Response.json({ text: (heard.text || '').trim() });
     }
+    // Voice Mode: the Scribe token and the Tutor's spoken words (docs/features/voice-tutor-mvp.md §5).
+    if (path.startsWith('/api/learn/voice/')) { const voiced = await voiceRoute(path, req, env); if (voiced) return voiced; }
     if (path === '/api/learn/paper') return paperFetch(req, env);
     if (path === '/api/learn/media') return mediaFetch(req, env);
     if (path === '/api/learn/moment-feedback') return momentFeedback(req, env);

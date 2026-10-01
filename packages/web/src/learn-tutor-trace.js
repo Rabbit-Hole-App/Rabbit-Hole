@@ -6,10 +6,11 @@
 // reply_ready and canvas_action_complete marks.
 const statusOf = error => /timed? ?out|timeout|abort/i.test(`${error?.name || ''} ${error?.message || ''}`) ? 'timeout' : 'error';
 
-export function turnTrace(now = () => performance.now()) {
+// id: the canonical turn id (runTurn's turnId, shared with Voice); a fresh one when none is given.
+export function turnTrace(now = () => performance.now(), id = null) {
   const t0 = now();
   const offset = () => +(now() - t0).toFixed(1);
-  const trace = { trace_id: crypto.randomUUID(), started_at: new Date().toISOString(), stages: [], marks: {} };
+  const trace = { trace_id: id || crypto.randomUUID(), started_at: new Date().toISOString(), stages: [], marks: {} };
   const record = (stage, start, status, result) => trace.stages.push({ stage, start_ms: start, ms: +(offset() - start).toFixed(1), status, result });
   return {
     trace,

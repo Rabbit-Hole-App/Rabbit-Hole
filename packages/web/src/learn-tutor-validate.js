@@ -81,7 +81,8 @@ export function validateActions(response, routed, turn) {
   const log = [], decisions = [];
   const quoted = typeof response.explicit_request === 'string' ? response.explicit_request.trim() : '';
   const explicit = !!quoted && turn.raw_user_message.toLowerCase().includes(quoted.toLowerCase());
-  if (quoted && !explicit) log.push(`explicit_request not in the learner's words: "${quoted}"`);
+  // The quote is the learner's words: the log (console, the bench's `rejected`) never carries them (Voice privacy).
+  if (quoted && !explicit) log.push("explicit_request not in the learner's words");
   const navigate = explicit || routed.row === 'slash' || routed.row === 'gap_inline';
   const allowed = new Set([...routed.allowed, ...(explicit ? ['respond_text', 'show_authored_card', 'focus_part'] : [])]);
   // v2: a constraint the learner states in this very message ("Don't quiz me") already binds this turn.

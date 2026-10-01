@@ -83,14 +83,17 @@ function withPrerequisites(claims) {
 }
 const turnEvidence = (claims, states) => withPrerequisites(claims).map(id => states[id]);
 
-export function buildTurn({ raw, slash = null, opening = false, canvas, block, store, states }) {
+// inputModality: 'text' (typed) or 'voice' (Voice Mode, docs/features/voice-tutor-mvp.md §1);
+// turnId: the voice trace id minted at the utterance commit, else a fresh one.
+export function buildTurn({ raw, slash = null, opening = false, canvas, block, store, states, inputModality = 'text', turnId = null }) {
   const here = { app: canvas.app, board: canvas.board || 'main' };
   const open = store.open && sameCanvas(store.open.canvas, here) && !slash ? store.open : null;
   const keep = store.keep && sameCanvas(store.keep.canvas, here) ? store.keep : null;
   const back = store.returned && sameCanvas(store.returned.parent, here) ? store.returned : null;
   const turn = {
-    turn_id: crypto.randomUUID(),
+    turn_id: turnId || crypto.randomUUID(),
     raw_user_message: raw,
+    input_modality: inputModality === 'voice' ? 'voice' : 'text',
     slash: SLASHES.includes(slash) ? slash : null,
     ...(open ? { answering: open.action_id } : {}),
     ...(keep ? { dive_choice: { concept: keep.concept, choice: 'inline' } } : {}),
@@ -183,7 +186,8 @@ export function learnerIntent(turn) {
   const kind = turn.slash ? 'slash' : turn.opening ? 'opening' : turn.returned_from ? 'returned' : turn.answering ? 'answer'
     : /^(please |can you |could you |just )?(show|take|give|explain|tell|walk|go|simplify|don'?t|do not|no more|stop)\b/i.test(raw) ? 'request'
     : /\?\s*$/.test(raw) || /^(why|how|what|when|where|which|who|is|are|does|do|can|could|should|would)\b/i.test(raw) ? 'question' : 'explanation';
-  return { kind, raw_user_message: turn.raw_user_message, ...(turn.slash ? { slash: turn.slash } : {}), ...(turn.dive_choice ? { dive_choice: turn.dive_choice } : {}) };
+  // input_modality only on voice turns, so a typed turn's planner context is unchanged.
+  return { kind, raw_user_message: turn.raw_user_message, ...(turn.input_modality === 'voice' ? { input_modality: 'voice' } : {}), ...(turn.slash ? { slash: turn.slash } : {}), ...(turn.dive_choice ? { dive_choice: turn.dive_choice } : {}) };
 }
 
 // ---------- Critical-path evaluation policy (v2 Stage C) ----------
@@ -268,9 +272,12 @@ export const enforce = validateActions;
 // onSpeakable(sentence) (v2 checkpoint I, for voice): the planner is asked to stream ({ stream: true },
 // and post gets a third argument { onSentence }, see readPlanStream); the plan's first sentence is
 // handed over before the plan is complete, only if speakable() passes for this turn's route.
-export async function runTurn({ raw, slash = null, opening = false, canvas, access, block, store, post, onSpeakable = null }) {
+// turnId: one canonical id for the learner turn - the turn's turn_id and the trace's trace_id - that Voice
+// also uses for its telemetry and speech (LearnVoice, voice-session).
+export async function runTurn({ raw, slash = null, opening = false, canvas, access, block, store, post, onSpeakable = null, inputModality = 'text', turnId = null }) {
   const t = [now()];
-  const tracer = turnTrace(now); // v2: the turn trace (learn-tutor-trace.js), returned in bench.trace
+  const id = turnId || crypto.randomUUID();
+  const tracer = turnTrace(now, id); // v2: the turn trace (learn-tutor-trace.js), returned in bench.trace
   let current = store;
   const here = { app: canvas.app, board: canvas.board || 'main' };
   const target = tracer.step('target_resolution', () => targetOf(block), found => found?.card ?? 'none');
@@ -282,7 +289,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   }
   t.push(now());
   let states = deriveClaimStates(current.events);
-  const built = tracer.step('claim_selection', () => buildTurn({ raw, slash, opening, canvas, block, store: current, states }),
+  const built = tracer.step('claim_selection', () => buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id }),
     out => out.selection ? `${out.selection.selected.length}/${out.selection.available}${out.selection.fallback ? ' fallback' : ''}` : 'none');
   const { turn, selection } = built;
   // Evaluation and routing work on the claims the learner touched (Stage B); a turn without words
@@ -299,7 +306,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
     }
     const ref = { card: target?.card ?? null, scene_id: target?.scene_id ?? null, part_id: target?.part_id ?? null, turn_id: turn.turn_id, canvas: here };
     ({ store: current, states, transitions } = tracer.step('evidence_reconciliation', () => reconcile(current, evaluation, ref), out => `${out.added} observations, ${out.transitions.length} state changes`));
-    turn.evidence = buildTurn({ raw, slash, opening, canvas, block, store: current, states }).turn.evidence;
+    turn.evidence = buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id }).turn.evidence;
   };
   if (raw.trim() && !turn.slash && !opening && claims.length) {
     const spec = evaluationSpec(turn, claims, current);
@@ -361,12 +368,14 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   const socratic = routed.row === 'misconception' ? { ...current.socratic, [routed.claim]: (current.socratic[routed.claim] || 0) + 1 } : current.socratic;
   const text = actions.filter(action => action.type === 'respond_text' || action.type === 'ask_question').map(action => action.text.trim()).join('\n\n');
   const dive = actions.find(action => action.type === 'suggest_dive');
+  // A spoken question never becomes the hole's typed opening (openingQuestion): the dock would show it
+  // as a user bubble, and Voice Mode never shows the learner's words.
   current = {
     ...current, constraints, socratic,
     open: asked ? { action_id: asked.action_id, claim: asked.claim, text: asked.text, canvas: here } : turn.answering ? null : current.open,
     keep: turn.dive_choice ? null : current.keep,
     returned: turn.returned_from ? null : current.returned,
-    suggested: dive ? { concept: dive.concept, title: dive.title, block_id: dive.from.block_id ?? null, question: raw, claim: routed.claim, canvas: here } : current.suggested,
+    suggested: dive ? { concept: dive.concept, title: dive.title, block_id: dive.from.block_id ?? null, question: turn.input_modality === 'voice' ? null : raw, claim: routed.claim, canvas: here } : current.suggested,
     turns: [...current.turns, { learner: raw, tutor: text }].slice(-8),
     actions: [...current.actions, ...actions.map(action => ({ type: action.type, strategy: response.strategy, claim: action.claim ?? routed.claim }))].slice(-6),
   };
@@ -374,7 +383,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   const ms = (from, to) => Math.round((to - from) * 10) / 10;
   const end = now();
   const bench = {
-    trace: tracer.trace, turn_id: turn.turn_id, route: routed.row, strategy: response.strategy ?? null, claims, evaluated: !!evidence,
+    trace: tracer.trace, turn_id: turn.turn_id, input_modality: turn.input_modality, route: routed.row, strategy: response.strategy ?? null, claims, evaluated: !!evidence,
     critical_path: critical && { ...critical, miss },
     // The spoken first sentence must open the validated reply (respond_text and ask_question texts in
     // order); a mismatch would mean speech the final plan contradicts, and is recorded, never hidden.

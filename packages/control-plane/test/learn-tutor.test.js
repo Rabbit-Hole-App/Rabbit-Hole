@@ -190,6 +190,9 @@ test('plan: one forced tutor_response call on Opus 5.5 (no fallback); its input 
   // Decision 4 (constraint-first): the fields that can cancel a question come before the actions.
   assert.deepEqual(Object.keys(TUTOR_TOOL.input_schema.properties).slice(0, 5), ['constraints_add', 'constraints_remove', 'explicit_request', 'strategy', 'actions'], 'control fields, then actions');
   assert.deepEqual(TUTOR_TOOL.input_schema.required, ['constraints_add', 'strategy', 'actions']);
+  // Voice Mode (docs/features/voice-tutor-mvp.md §1): one line, keyed on the v2 learner_intent, read only on voice turns.
+  assert.equal(calls[0].body.system.split('\n').filter(line => /input_modality/.test(line)).length, 1);
+  assert.match(calls[0].body.system, /When context\.learner_intent\.input_modality is "voice", respond_text is spoken aloud: at most two short sentences of plain speech, with no markdown, code or equations read out; show cards rather than narrate them; always speak English, whatever language the transcript seems to be in\./);
 });
 
 test('plan: TUTOR_PLANNER_EFFORT sets output_config.effort; an unknown value is ignored (v2 checkpoint G)', async t => {

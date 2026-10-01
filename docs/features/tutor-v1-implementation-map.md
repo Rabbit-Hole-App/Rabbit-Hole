@@ -222,6 +222,14 @@ Models and telemetry (benchmarking): the planner (`LEARN_TASKS.tutor`) and the l
 `error`); `/plan` adds `telemetry` (`ms`, requested/served model, tokens, `stop_reason`, `outcome`
 ok / error / invalid), on its 502 too. `outcome: 'timeout'` is kept apart from `error`.
 
+Voice telemetry (docs/features/voice-tutor-mvp.md §7): a Voice Mode turn is the same Tutor turn with
+`input_modality: 'voice'`, so its `small:tutor-bench` record is unchanged apart from `input_modality`.
+The voice session (`voice-session.js`) adds `small:tutor-voice` window events and `rh:voice:<name>`
+performance marks: ids, kinds and timings only, never words. The trace id is the Tutor's `turn_id`,
+minted at the utterance commit and sent to TTS as `trace_id`. Per turn, `voice_turn` carries the derived
+`ms` (speech end to commit, to canvas action, to Tutor speaking and to listening resumed; TTS request to
+first byte; play duration). `speech_end` is the commit minus Scribe's 1.0 s VAD window, an estimate.
+
 ## 7. Acceptance slice checklist
 
 Legend:
