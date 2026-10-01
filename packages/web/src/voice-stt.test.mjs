@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { scribeUrl, encodeChunk, parseScribeFrame, downsample, createScribeStt, createFakeStt } from './voice-stt.js';
+import { scribeUrl, encodeChunk, parseScribeFrame, downsample, createScribeStt, createFakeStt, WORKLET } from './voice-stt.js';
 
 // A fake browser: every seam the Scribe adapter touches, recording what it did.
 function fakeBrowser({ deny = false } = {}) {
@@ -266,4 +266,16 @@ test('fake STT: say emits speech_start, partial, commit; silent when paused or s
   stt.say('after stop');
   assert.equal(events.length, 4);
   await assert.rejects(createFakeStt({ onEvent: () => {}, denyPermission: true }).start(), { name: 'NotAllowedError' });
+});
+
+test('the capture worklet still runs when the bundler renames downsample (minified build)', () => {
+  // Simulate the minifier: the embedded function keeps working under another name.
+  const src = WORKLET.replace('function downsample(', 'function va(');
+  let Processor = null; const posted = [];
+  class Base { constructor() { this.port = { postMessage: data => posted.push(data) }; } }
+  new Function('AudioWorkletProcessor', 'registerProcessor', 'sampleRate', src)(Base, (name, cls) => { Processor = cls; }, 48000);
+  const node = new Processor();
+  node.process([[new Float32Array(4800).fill(0.5)]]);
+  assert.equal(posted.length, 1, 'one 100 ms frame posted');
+  assert.equal(posted[0].length, 1600, '16 kHz PCM16');
 });

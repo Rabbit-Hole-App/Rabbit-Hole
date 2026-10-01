@@ -58,8 +58,9 @@ export function downsample(input, inRate, outRate) {
 
 // Buffers 100 ms of the first input channel at the context rate, then posts it
 // as 16 kHz PCM16. 100 ms is a whole number of samples at 16, 44.1 and 48 kHz,
-// so no fractional sample is dropped between frames.
-const WORKLET = `${downsample}
+// so no fractional sample is dropped between frames. The helper is bound by name: the minifier renames
+// the module function (downsample becomes va), and the worklet would call a name that does not exist.
+export const WORKLET = `const downsample = ${downsample};
 class ScribeCapture extends AudioWorkletProcessor {
   constructor() { super(); this.buffer = new Float32Array(Math.round(sampleRate / 10)); this.filled = 0; }
   process(inputs) {
