@@ -66,7 +66,7 @@ async function wikiFetch(url) {
     response = await fetch(url, {
       signal: AbortSignal.timeout(20000),
       redirect: 'follow',
-      headers: { 'User-Agent': 'SmallLearn/1.0 (https://small-cp-dev.zeroshothq.workers.dev)', 'Accept-Encoding': 'gzip' },
+      headers: { 'User-Agent': 'RabbitHole/1.0 (https://digrabbithole.com)', 'Accept-Encoding': 'gzip' },
     });
   } catch (error) {
     // A timeout is a DOMException whose message says nothing a learner can act on.

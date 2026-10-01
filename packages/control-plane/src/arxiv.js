@@ -38,7 +38,7 @@ async function arxivFetch(url) {
     const delay = Math.max(0, lastRequest + 3000 - Date.now());
     if (delay) await new Promise(resolve => setTimeout(resolve, delay));
     lastRequest = Date.now();
-    return fetch(url, { signal: AbortSignal.timeout(20000), redirect: 'manual', headers: { 'User-Agent': 'SmallLearn/1.0 (https://small-cp-dev.zeroshothq.workers.dev)' } });
+    return fetch(url, { signal: AbortSignal.timeout(20000), redirect: 'manual', headers: { 'User-Agent': 'RabbitHole/1.0 (https://digrabbithole.com)' } });
   });
   queue = task.then(() => {}, () => {});
   const response = await task;

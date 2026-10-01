@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, House, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Play, Redo2, RotateCcw, Search, Share2, Trash2, NotebookPen, Undo2, ZoomIn, ZoomOut, GripVertical, Plus } from 'lucide-react';
 import { SPEEDS, getSpeed, setSpeed } from './learn-audio.js';
 import { api, navigate, wsHeaders } from './api.js';
-import { learnPreview } from './flags.js';
+import { learnPreview, reviewTools } from './flags.js';
 import { AskPanel } from './ask.jsx';
 import { Button, IconBtn, ConfirmDialog, toast } from './ui.jsx';
 import SharePanel from './SharePanel.jsx';
@@ -191,7 +191,8 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
   // any other name is an empty board to work in. The name is slugged rather
   // than validated, because a rejected name would silently fall through to the
   // learner's real canvas - the one place a test board must never land.
-  const named = hole ? null : new URLSearchParams(window.location.search).get('board');
+  // Review boards are review tooling: only in the dev/review build (reviewTools), never on production.
+  const named = hole || !reviewTools ? null : new URLSearchParams(window.location.search).get('board');
   // An unknown review-board name renders a visible notice rather than a blank
   // canvas: a blank is indistinguishable from a broken deploy, and it burned a
   // review twice. Scratch boards are still available - any name works as an

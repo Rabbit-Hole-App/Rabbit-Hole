@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ArrowRight, ArrowUpRight } from 'lucide-react';
 import { navigate } from './api.js';
-import { learnPreview } from './flags.js';
+import { reviewTools } from './flags.js';
 import { openHref, readContinue, readRecent, recentCard, recentItems } from './home/continue.js';
 import { BANNER, DEMO, readSaved, toggleSaved } from './home/explore.js';
 import { Creator, ForkedFrom, Forks, SourceLink } from './home/Provenance.jsx';
@@ -32,7 +32,7 @@ function HomeContent({ data, load }) {
   const recent = readRecent(localStorage);
   const cont = ready ? readContinue({ org: data.org, email: data.email, recent, catalog: apps, storage: localStorage }) : null;
   // Review fixtures (preview only, ?fixtures=1) lead Recent: an original, a fork, an original canvas.
-  const fixtures = fixturesOn(localStorage, window.location.search, learnPreview);
+  const fixtures = reviewTools && fixturesOn(localStorage, window.location.search, reviewTools);
   const fx = useFixtures(fixtures);
   const shown = fx ? fx.RECENT_FIXTURES.map((n) => ({ ...fx.FIXTURES.find((a) => a.name === n), org: data?.org })) : [];
   const items = [...shown, ...recentItems(recent, apps)].slice(0, 5);

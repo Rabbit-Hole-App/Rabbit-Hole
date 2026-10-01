@@ -13,7 +13,7 @@ import { learnProgress, onAnotherDevice } from './home/continue.js';
 import { cardModel } from './home/provenance.js';
 import { SourceLink } from './home/Provenance.jsx';
 import { getTurns, resultsKey, subscribeTurns } from './agent/bar.js';
-import { learnPreview } from './flags.js';
+import { reviewTools } from './flags.js';
 import { fixturesOn, useMapMemory } from './home/review-fixtures.js';
 import { fixtureAnswer, layerGraph, MEMORY_KINDS, titleOfRecord, visibleMemory } from './map-memory.js';
 import { LayersRow, MemoryEntity, MemorySections, Starters } from './MapMemory.jsx';
@@ -45,7 +45,7 @@ export default function RepositoryPage({ app: initial, catalog = [] }) {
   const [app,setApp]=useState(initial),[snapshot,setSnapshot]=useState(null),[error,setError]=useState(''),[mode,setMode]=useState('graph'),[query,setQuery]=useState(''),[selected,setSelected]=useState(null),[source,setSource]=useState(null),[asking,setAsking]=useState(null);
   const [graphView,setGraphView]=useState(null),[view,setView]=useState('conversation');
   // WP6 checkpoint 2: work memory exists only as labelled fixtures (?fixtures=1, karpathy/nanoGPT), filtered to what this viewer may see.
-  const fixtures=fixturesOn(localStorage,window.location.search,learnPreview),stored=useMapMemory(fixtures,app.repo),viewer=getSurface().email||null;
+  const fixtures=reviewTools&&fixturesOn(localStorage,window.location.search,reviewTools),stored=useMapMemory(fixtures,app.repo),viewer=getSurface().email||null;
   const memory=useMemo(()=>stored&&visibleMemory(stored,viewer),[stored,viewer]),[layers,setLayers]=useState(()=>new Set());
   const shown=useMemo(()=>snapshot&&(memory&&layers.size?layerGraph(snapshot.graph,memory,layers):snapshot.graph),[snapshot,memory,layers]);
   const toggleLayer=key=>setLayers(previous=>{const next=new Set(previous);if(next.has(key))next.delete(key);else next.add(key);return next;});

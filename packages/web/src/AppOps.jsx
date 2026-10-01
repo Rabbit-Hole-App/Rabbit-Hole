@@ -7,7 +7,7 @@ import { D7_REASON } from './agent/slash.js';
 import { patchSurface } from './agent/surface.js';
 import { fmtDur, secs } from './run.jsx';
 import { Pill, StatusPill } from './ui.jsx';
-import { learnPreview } from './flags.js';
+import { learnPreview, reviewTools } from './flags.js';
 import { fixturesOn, useFixtures } from './home/review-fixtures.js';
 import { repositoriesOf, titleOf } from './agent/catalog.js';
 
@@ -16,7 +16,7 @@ export default function AppOps({ app, catalog }) {
   const path = window.location.pathname + window.location.search;
   useEffect(() => { patchSurface({ resource: { kind: 'app', slug: app.name, title: app.name } }); }, [path, app.name]);
   const lr = app.lastRun;
-  const fixtures = useFixtures(fixturesOn(localStorage, window.location.search, learnPreview)); // data loads only through review-fixtures.js's literal guard
+  const fixtures = useFixtures(reviewTools && fixturesOn(localStorage, window.location.search, reviewTools)); // data loads only through review-fixtures.js's literal guard
   const from = fixtures && repositoriesOf(catalog, fixtures.BUILT_FROM)[0]; // ponytail: a review fixture only; read the app's recorded project when the backend has one
   // ponytail: runtime = the last run's duration; a server keeps the existing "deployed <ago>" (no health field). Outputs are one
   // link to the run page (RunView); list names inline when asked.

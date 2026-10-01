@@ -8,7 +8,10 @@ const dir = new URL(`../${process.env.DIST || 'dist-dev'}/static/`, import.meta.
 const names = readdirSync(dir);
 const REQUIRED_CHUNKS = ['CanvasPage', 'RepositoryPage', 'Home', 'AgentBar'];
 const DEV_CHUNKS = /^(review-fixtures-data|map-memory-data)-/;
-const DEV_MARKERS = ['Insert a sample lesson block'];
+// Lesson-block workbench, coaching dev panel, dev-only palette items, review fixtures, review boards, and the
+// dev notebook origins a build falls back to without VITE_NOTEBOOK_ORIGIN / VITE_LESSON_NOTEBOOK_ORIGIN.
+const DEV_MARKERS = ['Insert a sample lesson block', 'Agent workspace', 'Maths animation (paid)', 'Review fixtures are on',
+  'No review board is registered', 'small-learn-notebook-dev', 'small-learn-canvas-notebook-dev'];
 const failures = [];
 for (const chunk of REQUIRED_CHUNKS) if (!names.some(n => n.startsWith(`${chunk}-`))) failures.push(`missing Learn chunk ${chunk}`);
 for (const name of names) {

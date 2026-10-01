@@ -3,7 +3,7 @@ import { Archive, ArchiveRestore, ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight,
 import { ago, api, cronHuman, cronList, fmtTime, navigate, sectionOf, wsName } from './api.js';
 import Panel from './Panel.jsx';
 import Shell from './Shell.jsx';
-import { aiFindAllowed } from './flags.js';
+import { aiFindAllowed, reviewTools } from './flags.js';
 import { isPrivateByoc } from './private-auth.js';
 import { titleOf } from './agent/catalog.js';
 import { learnPreview } from './flags.js';
@@ -140,7 +140,7 @@ function AppContent({ data, load }) {
     ? apps.filter((a) => a.folder_id === folder.id)
     : section ? apps.filter((a) => (learnPreview ? isMine(a, data?.email) : sectionOf(a, org, data?.email) === section)) : apps, type);
   // Review fixtures (preview only, ?fixtures=1): made-up cards mixed into the unfiltered card views.
-  const fixtures = learnPreview && fixturesOn(localStorage, window.location.search, learnPreview);
+  const fixtures = reviewTools && fixturesOn(localStorage, window.location.search, reviewTools);
   const fx = useFixtures(fixtures);
   const withFixtures = fx && !section && !folder ? [...sectionApps, ...ofType(fx.FIXTURES.map((a) => ({ ...a, org })), type)] : sectionApps;
   // T02 §4, §8.4: archived canvases come from LEARN_DB (GET /api/canvases?archived=1), never /api/apps.
