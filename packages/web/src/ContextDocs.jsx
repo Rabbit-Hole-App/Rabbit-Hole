@@ -2,9 +2,11 @@
 // composer's Context button both show - Upload Context, then one switch per document for whether the
 // agent reads it, and a delete. Switching off keeps the file; the trash removes it.
 import { useRef } from 'react';
-import { FileText, Loader2, NotebookText, Trash2, Upload } from 'lucide-react';
+import { CircleAlert, FileText, Loader2, NotebookText, Trash2, Upload } from 'lucide-react';
+import { Tip } from './ui.jsx';
 import { ATTACHED_LIMIT, CONTEXT_ACCEPT } from './context-docs.js';
 
+const ABOUT = 'Upload a PDF, .txt or .md file. The agent reads the ones switched on when it answers, makes cards or tutors - they are not added to the canvas.';
 const size = bytes => (bytes >= 1024 * 1024 ? `${(bytes / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`);
 
 export default function ContextDocs({ context }) {
@@ -13,7 +15,10 @@ export default function ContextDocs({ context }) {
   return (
     <div data-context-docs>
       <div className="flex items-center justify-between gap-2 px-2 pt-1.5 pb-1">
-        <span className="text-[11px] font-semibold tracking-wider text-ink-3 uppercase">Context <span className="font-normal normal-case tracking-normal">· {on} of {ATTACHED_LIMIT} on</span></span>
+        <span className="flex items-center gap-1.5 text-[11px] font-semibold tracking-wider text-ink-3 uppercase">
+          Context <span className="font-normal normal-case tracking-normal">· {on} of {ATTACHED_LIMIT} on</span>
+          <span className="inline-flex font-normal normal-case tracking-normal"><Tip label="Context documents" info={ABOUT}><span tabIndex={0} role="img" aria-label={ABOUT} className="inline-flex cursor-help text-ink-3 hover:text-ink"><CircleAlert size={13} /></span></Tip></span>
+        </span>
         <input ref={picker} type="file" accept={CONTEXT_ACCEPT} className="hidden" onChange={(e) => { const file = e.target.files?.[0]; e.target.value = ''; upload(file); }} />
         <button type="button" disabled={busy} onClick={() => picker.current?.click()}
           className="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-line bg-white px-2 text-xs font-medium text-ink shadow-sm hover:bg-hover disabled:cursor-default disabled:opacity-60">
@@ -42,7 +47,7 @@ export default function ContextDocs({ context }) {
           })}
         </ul>
       ) : (
-        <p className="px-2 pb-2 text-xs text-ink-3">Upload a PDF, .txt or .md file. The agent reads the ones switched on when it answers, makes cards or tutors - they are not added to the canvas.</p>
+        <p className="px-2 pb-2 text-xs text-ink-3">No documents yet.</p>
       )}
     </div>
   );
