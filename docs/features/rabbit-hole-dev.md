@@ -28,8 +28,10 @@ the P0-A auth hotfix, cherry-picked.
 - **No paid-provider keys.**
 - **Workers AI, Vectorize (`small-learn-moments`) and the index Queue (`small-learn-index`) stay
   unbound.** Every use is guarded (`learn-moment-index.js`), so Learn falls back to the cold path.
-- **Repository import answers "The scene worker is not configured".** The lesson-renderer token is not
-  set, so the import writes nothing.
+- **Repository import is refused: the indexer is not configured.** `small-cp-dev` has
+  `SCENE_WORKER_URL` but no `SCENE_WORKER_TOKEN` secret (secret list, 2026-10-01), while the Fly app
+  `small-lesson-renderer-dev` has one. The import writes nothing. The wiring and rotation
+  procedure are in [learn-repositories.md](learn-repositories.md#indexer-credential-scene_worker_token).
 
 ## Auth on dev
 

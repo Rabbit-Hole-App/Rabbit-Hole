@@ -76,6 +76,49 @@ dev test; no GitHub token is required for this implementation.
   refreshes leave the previous commit usable. Conversations keep their original
   commit. A selected node from another commit requires a new chat.
 
+## Indexer credential (`SCENE_WORKER_TOKEN`)
+
+Branch lookup and import call the lesson-renderer Fly app through `workerRequest`
+(`packages/control-plane/src/learn-scene.js`) with `SCENE_WORKER_URL` (a plain var) and the
+bearer secret `SCENE_WORKER_TOKEN`. The renderer compares the bearer to its own
+`SCENE_WORKER_TOKEN` (`packages/lesson-renderer/server.py`). Both sides must hold the same value.
+
+- **Fly:** app `small-lesson-renderer-dev` (`packages/lesson-renderer/fly.dev.toml`), Fly org
+  `personal`. Holds the secret today (`flyctl secrets list` shows a digest only).
+- **Cloudflare:** every Worker whose `main` is `packages/web/dev-worker.js`, because only that
+  entry routes `/api/repositories` to `repositories.js`: `small-cp-dev` (`wrangler.dev.jsonc`),
+  `small-cp-dev-small-parallel` (`wrangler.parallel.jsonc`) and any `small-cp-dev-<worktree>`
+  clone. `rabbit-hole-cp-dev` and production `small-cp` run `src/index.js`, which has no
+  repository import, so they do not need it.
+- **Local:** `wrangler dev -c packages/web/wrangler.dev.jsonc ...` reads
+  `packages/web/.dev.vars` (gitignored). Add `SCENE_WORKER_TOKEN=<value>` there; `SCENE_WORKER_URL`
+  comes from the config. Plain `npm run dev` (Vite) proxies `/api` to `rabbit-hole-cp-dev`, which
+  has no repository import.
+- Neither side can read the value back: `flyctl secrets list` shows a digest and Cloudflare
+  secrets are write-only. To wire a new Worker, rotate rather than recover.
+
+**Rotation (NOT YET RUN; needs the owner's GO).** One new value goes to both sides, never
+printed. Git Bash, repo root, with Fly logged in and a rabbit-hole Cloudflare credential loaded
+(`wrangler.dev.jsonc` pins `account_id`).
+
+```bash
+t=$(node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))")
+# Fly reads NAME=VALUE from stdin, so the value never sits in argv. Without --stage this
+# updates (restarts) the app's machines; a stopped machine picks the value up on its next start.
+printf 'SCENE_WORKER_TOKEN=%s\n' "$t" | flyctl secrets import -a small-lesson-renderer-dev
+# Repeat for each dev-worker.js Worker that exists (small-cp-dev today).
+(cd packages/web && printf '%s' "$t" | npx wrangler secret put SCENE_WORKER_TOKEN --config wrangler.dev.jsonc --name small-cp-dev)
+unset t
+```
+
+- `flyctl secrets set -a small-lesson-renderer-dev SCENE_WORKER_TOKEN=...` works too, but puts the
+  value in argv. `--stage` on either Fly command stores the secret without restarting;
+  `flyctl secrets deploy -a small-lesson-renderer-dev` applies it later. Recommended: no
+  `--stage`. `server.py` reads the token once at start, so a staged value does nothing until that
+  second step, and the app has no users to protect from a restart.
+- Between the two setters, imports fail with the wrong-credential error. Rotation also breaks any
+  other holder of the old value, such as the quarantined personal-account `small-cp-dev`.
+
 ## Graph and source interactions
 
 - Nodes use file colors, gray external dependencies, and muted edges. Selected

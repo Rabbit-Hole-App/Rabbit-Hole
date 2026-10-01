@@ -375,3 +375,19 @@ test('a repository course draft uses the default provider and reads no org_ai ro
   assert.deepEqual(live.calls,[]);
   assert.equal(await aiSettings({},'team'),null);
 });
+
+// Scene-worker diagnosis (2026-10-01): repository import reaches the lesson-renderer Fly app through
+// workerRequest with SCENE_WORKER_URL + SCENE_WORKER_TOKEN, both read on the dev worker that runs this file.
+test('the indexer call carries the bearer token; an unconfigured indexer is refused before any row or request',async t=>{
+  const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});const calls=[];
+  globalThis.fetch=async(url,init)=>{calls.push({url:String(url),method:init.method,auth:init.headers.Authorization});return Response.json({repo:'example/project',defaultBranch:'main',branches:['main']});};
+  const branches=await repositoriesFetch(new Request('https://dev.test/api/repositories/branches?url=https://github.com/example/project'),f.env,{});
+  assert.equal(branches.status,200);
+  assert.deepEqual(calls,[{url:'https://worker.test/repository-metadata',method:'POST',auth:'Bearer secret'}]);
+  const rows=()=>f.sqlite.prepare('SELECT count(*) n FROM repository_apps').get().n,before=rows();
+  for(const unset of ['SCENE_WORKER_TOKEN','SCENE_WORKER_URL']){
+    const env={...f.env};delete env[unset];calls.length=0;
+    const response=await repositoriesFetch(new Request('https://dev.test/api/repositories',{method:'POST',body:JSON.stringify({url:'https://github.com/example/project',branch:'main'})}),env,{});
+    assert.equal(response.ok,false,unset);assert.deepEqual(calls,[],unset);assert.equal(rows(),before,unset);
+  }
+});
