@@ -144,6 +144,9 @@ test('plan: one forced tutor_response call on Opus 5.5 (no fallback); its input 
   assert.equal('fallbacks' in calls[0].body, false, 'no silent fallback');
   assert.deepEqual(calls[0].body.tool_choice, { type: 'auto' });
   assert.match(calls[0].body.system, /authored/i);
+  // Voice Mode (docs/features/voice-tutor-mvp.md §1): one line, read only on voice turns.
+  assert.equal(calls[0].body.system.split('\n').filter(line => /input_modality/.test(line)).length, 1);
+  assert.match(calls[0].body.system, /When context\.turn\.input_modality is "voice", respond_text is spoken aloud: at most two short sentences of plain speech, with no markdown, code or equations read out; show cards rather than narrate them\./);
 });
 
 test('plan: switched-on canvas context documents come first, then the context (canvas-context-docs.md)', async t => {

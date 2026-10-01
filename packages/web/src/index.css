@@ -651,3 +651,31 @@ tr.cursor-pointer:active > td {
 @media (prefers-reduced-motion: reduce) {
   .shimmer { animation: none; background: none; color: var(--color-ink-2); }
 }
+
+/* Voice Mode's red mic breathes (VoiceMode.jsx): a ring swells out and fades while the icon softly
+   pulses, 2s ease-in-out; a little quicker while listening. Reduced motion keeps a static ring - the
+   composer's state label still says Listening / Thinking / Tutor speaking. */
+.voice-breathe::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 2px #b42318;
+  pointer-events: none;
+  animation: voice-breathe 2s ease-in-out infinite;
+}
+.voice-breathe > svg { animation: voice-breathe-icon 2s ease-in-out infinite; }
+.voice-breathe-live::after { animation-duration: 1.5s; }
+.voice-breathe-live > svg { animation-duration: 1.5s; }
+@keyframes voice-breathe {
+  from { transform: scale(1); opacity: 0.55; }
+  to { transform: scale(1.35); opacity: 0; }
+}
+@keyframes voice-breathe-icon {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .voice-breathe::after, .voice-breathe > svg { animation: none; }
+  .voice-breathe::after { transform: scale(1.2); opacity: 0.35; }
+}

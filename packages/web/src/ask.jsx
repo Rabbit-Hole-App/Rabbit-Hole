@@ -1,4 +1,5 @@
 import ChatComposer, { COMPOSER_ADD, COMPOSER_PILL } from './ChatComposer.jsx';
+import { VoiceField, VoiceToggle } from './VoiceMode.jsx';
 import ContextDocs from './ContextDocs.jsx';
 import { useContextDocs } from './context-docs.js';
 import RepositorySource, { SourceSelectionContext } from './RepositorySource.jsx';
@@ -326,7 +327,7 @@ const rememberSheetThread = (app, id) => {
   catch { /* storage off: History stays empty */ }
 };
 
-export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, tutor = null, dock = false, sheet = false, onAddToCanvas = null }) {
+export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, tutor = null, dock = false, sheet = false, onAddToCanvas = null, voice = null }) {
   const repository = appName?.startsWith('repo-');
   const [repositoryCommit, setRepositoryCommit] = useState(repositoryContext?.commit || null);
   const [codeSelection, setCodeSelection] = useState(null);
@@ -340,6 +341,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   // A standalone canvas chat (canvases.js): no + attachments, and no app context to filter.
   const canvasChat = /^canvas-[a-f0-9]{8}$/.test(scope.app || '');
   const learnChat = conversation === 'learn';
+  // Voice Mode (VoiceMode.jsx, the dock only): while on, the field is the voice state, the side controls rest, and
+  // tutor.extras move to the left caption.
+  const voiceOn = !!(dock && voice && voice.state !== 'off');
   const guardedHistory = privateChat || learnChat;
   const [msgs, setMsgs] = useState([]);
   // The Learn canvas dock (sheet): plain questions answer in a panel above the
@@ -673,14 +677,14 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   // Learn's command slot: Auto (Rabbit Hole picks the action and the model) opens the same palette typing / does;
   // a chosen command sits here as a pill (its name, no slash) - the name reopens the palette to swap it, × goes back to Auto and keeps the text.
   const slashControl = slash && (command
-    ? <span data-command-pill className={cn(dock ? 'h-9 rounded-lg pl-2.5 text-sm max-md:pl-1.5' : 'h-6 rounded-full pl-2 text-xs', 'inline-flex shrink-0 items-center border border-line bg-hover text-ink')}>
-        <button type="button" title="Change the command" onMouseDown={event => event.preventDefault()} onClick={openPalette} className="cursor-pointer font-medium">{command}</button>
-        <button type="button" aria-label={`Remove ${command}`} title="Back to Auto" onMouseDown={event => event.preventDefault()} onClick={() => { setCommand(null); inputRef.current?.focus(); }}
+    ? <span data-command-pill className={cn(dock ? 'h-9 rounded-lg pl-2.5 text-sm max-md:pl-1.5' : 'h-6 rounded-full pl-2 text-xs', 'inline-flex shrink-0 items-center border border-line bg-hover text-ink', voiceOn && 'opacity-45')}>
+        <button type="button" title="Change the command" disabled={voiceOn} onMouseDown={event => event.preventDefault()} onClick={openPalette} className="cursor-pointer font-medium">{command}</button>
+        <button type="button" aria-label={`Remove ${command}`} title="Back to Auto" onMouseDown={event => event.preventDefault()} onClick={() => { setCommand(null); inputRef.current?.focus(); }} disabled={voiceOn}
           className={cn(dock ? 'mx-1 h-7 w-7' : 'mx-0.5 h-5 w-5', 'flex cursor-pointer items-center justify-center rounded-md text-ink-3 hover:bg-white hover:text-ink')}><X size={13} /></button>
       </span>
-    : <button type="button" aria-label="Auto" title="Auto: Rabbit Hole picks the action. Choose a command" aria-expanded={input.startsWith('/')}
+    : <button type="button" aria-label="Auto" title="Auto: Rabbit Hole picks the action. Choose a command" aria-expanded={input.startsWith('/')} disabled={voiceOn}
         onMouseDown={event => event.preventDefault()} onClick={() => (input.startsWith('/') ? setComposerInput('') : openPalette())}
-        className={cn(dock ? COMPOSER_PILL : 'h-6 cursor-pointer rounded-full px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink', input.startsWith('/') && 'bg-active text-ink')}>Auto</button>);
+        className={cn(dock ? COMPOSER_PILL : 'h-6 cursor-pointer rounded-full px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink', input.startsWith('/') && 'bg-active text-ink', voiceOn && 'cursor-default opacity-45')}>Auto</button>);
   const chatControl = learnChat ? slashControl : modelControl;
   if (repository && filePeek) contentPanel = <RepositorySource appName={fileApp} {...filePeek} commit={repositoryCommit || repositoryContext?.commit} onClose={() => setFilePeek(null)} />;
   return (
@@ -894,7 +898,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           </div>
         )}
         {/* Tutor v1: its suggestion chips and the dive suggestion sit under its reply, never over it. */}
-        {tutor?.extras && <div data-tutor-extras className="flex flex-col items-start gap-2 py-2">{tutor.extras}</div>}
+        {tutor?.extras && !voiceOn && <div data-tutor-extras className="flex flex-col items-start gap-2 py-2">{tutor.extras}</div>}
       </div>
       {/* non-compact: the box sticks to the viewport bottom - the page can scroll, the input never leaves */}
       <div ref={composerBox} className={cn('relative mt-2 shrink-0', !compact && 'sticky bottom-0 bg-white pt-1 pb-2')}>
@@ -954,6 +958,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           <button type="button" aria-label={boardContext.previewKind === 'paper' ? 'Remove paper selection' : 'Remove canvas image'} title="Remove image preview" onClick={boardContext.removeImage} className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border border-line bg-white text-ink-2 shadow-sm hover:bg-hover"><X size={12} /></button>
         </div>}
         {slash && <div className="relative"><slash.Picker apiRef={slashRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onPrompt={prompt => send(prompt)} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
+        {dock && voice?.state === 'off' && voice.caption?.error && <div role="alert" data-voice-error className="mb-1.5 truncate text-xs text-fail">{voice.caption.error}</div>}
         <ChatComposer value={input} onChange={value => { boardContext?.pause(); setComposerInput(value); }} onSubmit={send} ready={!!command}
           onKeyDown={slash ? event => { if (command && event.key === 'Backspace' && !input) { event.preventDefault(); setCommand(null); return; } slashRef.current?.onKeyDown(event); } : undefined} inputRef={inputRef} autoFocus={autoFocus} placeholder={command ? 'Add details, or press Enter' : placeholder} busy={busy}
           dock={dock} onStop={dock ? () => answerFlight.current?.abort() : undefined}
@@ -962,8 +967,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
             <button
               type="button"
               aria-label="Add"
+              disabled={voiceOn}
               onMouseDown={(e) => { e.stopPropagation(); setPlusOpen(!plusOpen); }}
-              className={cn(dock ? COMPOSER_ADD : 'inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-line text-ink-2 hover:bg-hover hover:text-ink', plusOpen && 'bg-active text-ink')}
+              className={cn(dock ? COMPOSER_ADD : 'inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-line text-ink-2 hover:bg-hover hover:text-ink', plusOpen && 'bg-active text-ink', voiceOn && 'cursor-default opacity-45')}
             >
               <Plus size={14} strokeWidth={1.5} />
             </button>
@@ -985,9 +991,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           </div>
           {contextDocs.enabled && (
             <div className="relative shrink-0">
-              <button type="button" aria-label="Context documents" title="Documents the agent reads" data-context-button
+              <button type="button" aria-label="Context documents" title="Documents the agent reads" data-context-button disabled={voiceOn}
                 onMouseDown={(e) => { e.stopPropagation(); setCtxOpen(!ctxOpen); }}
-                className={cn(dock ? COMPOSER_ADD.replace(' w-9 ', ' min-w-9 ') : 'inline-flex h-6 min-w-6 cursor-pointer items-center justify-center rounded-full border border-line text-ink-2 hover:bg-hover hover:text-ink', 'gap-1 px-2', ctxOpen && 'bg-active text-ink')}>
+                className={cn(dock ? COMPOSER_ADD.replace(' w-9 ', ' min-w-9 ') : 'inline-flex h-6 min-w-6 cursor-pointer items-center justify-center rounded-full border border-line text-ink-2 hover:bg-hover hover:text-ink', 'gap-1 px-2', ctxOpen && 'bg-active text-ink', voiceOn && 'cursor-default opacity-45')}>
                 <Files size={dock ? 16 : 14} strokeWidth={1.5} />
                 {contextDocs.on > 0 && <span className="text-xs font-medium">{contextDocs.on}</span>}
               </button>
@@ -1029,7 +1035,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
             </div>
           )}
           {dock && chatControl}
+          {dock && voice && voice.state === 'off' && <VoiceToggle voice={voice} disabled={busy} />}
           </>}
+          voice={voiceOn ? <VoiceField voice={voice} /> : null}
           trailing={dock ? null : chatControl}
         />
       </div>

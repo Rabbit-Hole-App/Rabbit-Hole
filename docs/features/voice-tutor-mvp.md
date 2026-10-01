@@ -29,6 +29,11 @@ Voice Mode exists wherever the Tutor is active (`useTutor().active`: the `nanogp
 and its Rabbit Holes). There is no voice brain of its own. Without the Tutor there is no mic button.
 
 - ponytail: canvases without the Tutor have no voice. Add it when the Tutor runs on every canvas.
+- ponytail: going down or back up a Rabbit Hole remounts the Learn surface, which ends Voice Mode; the
+  next surface shows a one-line notice ("Voice Mode turned off when the canvas changed. Click the mic to
+  talk again."). Carry the session across the remount if learners want voice to follow them into holes.
+- A Tutor dive suggestion made in a voice turn never carries the spoken words into the hole: its opening
+  question is `Take me into <title>.`, because the dock sends the opening as a typed message.
 
 ## Contracts (the workstreams build to these)
 
@@ -192,7 +197,8 @@ The handlers:
   - `VoiceField`: the composer field while voice is on.
   - `TutorCaption`: the left caption.
 - **Text Mode:** a neutral mic button, styled with `COMPOSER_ADD`, at the end of the dock composer's
-  `leading` row, with `aria-label="Voice mode"`.
+  `leading` row, with `aria-label="Voice mode"`. It is disabled while a typed answer is in flight, because
+  Voice Mode replaces that answer's Stop button.
 - **Voice Mode:**
   - `ChatComposer` gets a new optional prop `voice`. When it is set, it replaces the input field and the
     Send/Stop button. The composer frame stays, per the contract that the composer is never hidden.
@@ -201,6 +207,9 @@ The handlers:
     - The label reads "Voice on · Listening", "Voice on · Thinking…" or "Voice on · Tutor speaking".
     - The label is `role="status"` and `aria-live="polite"`.
     - The interrupt control is shown only while speaking: a "Stop speaking" button with a Square icon.
+    - Below `md` the "Voice on · " prefix and the "Stop speaking" text are screen-reader only, so the
+      state word stays visible at phone widths.
+    - When the neutral mic or Stop speaking unmounts under keyboard focus, focus moves to the red mic.
   - Clicking the red mic always turns Voice Mode off.
   - Under reduced motion the ring is static and the label still carries the state.
 - **The `+` and Auto controls** stay visible but disabled while voice is on.
@@ -217,7 +226,9 @@ The handlers:
 ### 6b. The handshake between UI (A) and integration (D)
 
 - **`LearnVoice.jsx` (owner D)** exports
-  `useVoiceSession({ tutor, app, access, targetId }) -> voice | null`.
+  `useVoiceSession({ tutor, app, access, targetId, onTargetUsed }) -> voice | null`.
+  - `onTargetUsed` (LearnPage's `clearAskTarget`): the armed card rides one voice turn and is then
+    cleared, as a typed turn clears it.
   - It returns `null` when `!tutor?.active`.
   - Otherwise `voice` is `{ state, caption: { current, previous, error }, enter, exit, interrupt }`.
   - It picks the adapters: fake STT and TTS when the URL has `?voice=fake`, Scribe and Fish otherwise.
@@ -277,10 +288,12 @@ All of these use the fake STT, the fake TTS and a stubbed Tutor:
 
 - `packages/web/src/voice-session.test.mjs`: the state machine. VOICE-02, 05, 07, 09–19 and 21–22 run
   the real controller.
-- `packages/web/src/voice-ui.test.mjs`: source pins for the UI. VOICE-01, 03, 04, 06, 08 and 20: no
-  transcript rendering path, caption on the left and in flow, mic states.
+- `packages/web/src/voice-ui.test.mjs`: VOICE-01, 03, 04, 06, 08 and 20. `VoiceMode.jsx` and
+  `ChatComposer.jsx` are rendered with esbuild and react-dom/server; the `ask.jsx` and `AdaptiveCanvas.jsx`
+  wiring is pinned in source. No transcript rendering path, caption on the left and in flow, mic states.
 - `packages/web/src/learn-tutor.test.mjs`: a voice turn's plan context and enforced actions equal the
-  typed run's (VOICE-07); the turnId pass-through; bench `input_modality`.
+  typed run's (VOICE-07); the turnId pass-through; bench `input_modality`; a spoken dive suggestion only
+  suggests and its hole opens on the topic, never the spoken words (VOICE-14).
 - `packages/web/src/voice-tts.test.mjs` and `voice-stt.test.mjs`: `speakable`, the fake adapters, and
   the Scribe frame encoding and parsing with a fake WebSocket.
 - `packages/control-plane/test/learn-voice.test.js`: both routes, covering:

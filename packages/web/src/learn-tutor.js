@@ -78,14 +78,17 @@ function turnEvidence(claims, states) {
   return ids.slice(0, 10).map(id => states[id]);
 }
 
-export function buildTurn({ raw, slash = null, opening = false, canvas, block, store, states }) {
+// inputModality: 'text' (typed) or 'voice' (Voice Mode, docs/features/voice-tutor-mvp.md §1);
+// turnId: the voice trace id minted at the utterance commit, else a fresh one.
+export function buildTurn({ raw, slash = null, opening = false, canvas, block, store, states, inputModality = 'text', turnId = null }) {
   const here = { app: canvas.app, board: canvas.board || 'main' };
   const open = store.open && sameCanvas(store.open.canvas, here) && !slash ? store.open : null;
   const keep = store.keep && sameCanvas(store.keep.canvas, here) ? store.keep : null;
   const back = store.returned && sameCanvas(store.returned.parent, here) ? store.returned : null;
   const turn = {
-    turn_id: crypto.randomUUID(),
+    turn_id: turnId || crypto.randomUUID(),
     raw_user_message: raw,
+    input_modality: inputModality === 'voice' ? 'voice' : 'text',
     slash: SLASHES.includes(slash) ? slash : null,
     ...(open ? { answering: open.action_id } : {}),
     ...(keep ? { dive_choice: { concept: keep.concept, choice: 'inline' } } : {}),
@@ -165,8 +168,10 @@ export function plannerContext({ turn, routed, block, states }) {
   const described = block?.type === 'animation' ? describeAnimation(block).text : block ? [block.title, block.body].filter(Boolean).join('\n') : null;
   const ids = [...new Set([...turnClaims(turn, { open: null }), routed.claim].filter(Boolean))];
   const { record, ...dive } = turn.canvas.dive || {};
+  // The planner reads input_modality only on voice turns, so a typed turn's context is unchanged.
+  const { input_modality, ...typed } = turn;
   return {
-    turn: { ...turn, canvas: { ...turn.canvas, ...(turn.canvas.dive ? { dive } : {}) } },
+    turn: { ...(input_modality === 'voice' ? turn : typed), canvas: { ...turn.canvas, ...(turn.canvas.dive ? { dive } : {}) } },
     route: routed,
     target: card ? {
       card: card.evidence.card, title: card.scene.title, depth: card.evidence.depth ?? null,
@@ -190,7 +195,8 @@ export function enforce(response, routed, turn) {
   const log = [];
   const quoted = typeof response.explicit_request === 'string' ? response.explicit_request.trim() : '';
   const explicit = !!quoted && turn.raw_user_message.toLowerCase().includes(quoted.toLowerCase());
-  if (quoted && !explicit) log.push(`explicit_request not in the learner's words: "${quoted}"`);
+  // The quote is the learner's words: the log (console, the bench's `rejected`) never carries it.
+  if (quoted && !explicit) log.push('explicit_request not in the learner\'s words');
   const navigate = explicit || routed.row === 'slash' || routed.row === 'gap_inline';
   const allowed = new Set([...routed.allowed, ...(explicit ? ['respond_text', 'show_authored_card', 'focus_part'] : [])]);
   const noQuiz = turn.constraints.includes('no_quiz') || turn.constraints.includes('just_answer');
@@ -242,8 +248,9 @@ export function enforce(response, routed, turn) {
 
 // Runs the turn up to the enforced actions and the updated store. `post(path, body)` resolves the
 // route's JSON or throws; the canvas is not touched here (see executeActions).
-export async function runTurn({ raw, slash = null, opening = false, canvas, access, block, store, post }) {
+export async function runTurn({ raw, slash = null, opening = false, canvas, access, block, store, post, inputModality = 'text', turnId = null }) {
   const t = [now()];
+  const id = turnId || crypto.randomUUID(); // one id for both buildTurn calls
   let current = store;
   const here = { app: canvas.app, board: canvas.board || 'main' };
   const target = targetOf(block);
@@ -255,7 +262,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   }
   t.push(now());
   let states = deriveClaimStates(current.events);
-  const built = buildTurn({ raw, slash, opening, canvas, block, store: current, states });
+  const built = buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id });
   const { turn, claims } = built;
   // 2. JEV, then the larger evaluator on uncertain - free text on slice claims only.
   let evaluation = null, evidence = null;
@@ -267,7 +274,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
     const ref = { card: target?.card ?? null, scene_id: target?.scene_id ?? null, part_id: target?.part_id ?? null, turn_id: turn.turn_id, canvas: here };
     current = appendEvents(current, (evaluation.events || []).map(event => ({ ...event, ref }))).store;
     states = deriveClaimStates(current.events);
-    turn.evidence = buildTurn({ raw, slash, opening, canvas, block, store: current, states }).turn.evidence;
+    turn.evidence = buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id }).turn.evidence;
   }
   // 3. Router, planner, enforcement.
   const routed = route({ turn, claims, states, evaluation, store: current });
@@ -283,19 +290,21 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   const socratic = routed.row === 'misconception' ? { ...current.socratic, [routed.claim]: (current.socratic[routed.claim] || 0) + 1 } : current.socratic;
   const text = actions.filter(action => action.type === 'respond_text' || action.type === 'ask_question').map(action => action.text.trim()).join('\n\n');
   const dive = actions.find(action => action.type === 'suggest_dive');
+  // A spoken question never becomes the hole's typed opening (openingQuestion): the dock would show it
+  // as a user bubble, and Voice Mode never shows the learner's words.
   current = {
     ...current, constraints, socratic,
     open: asked ? { action_id: asked.action_id, claim: asked.claim, text: asked.text, canvas: here } : turn.answering ? null : current.open,
     keep: turn.dive_choice ? null : current.keep,
     returned: turn.returned_from ? null : current.returned,
-    suggested: dive ? { concept: dive.concept, title: dive.title, block_id: dive.from.block_id ?? null, question: raw, claim: routed.claim, canvas: here } : current.suggested,
+    suggested: dive ? { concept: dive.concept, title: dive.title, block_id: dive.from.block_id ?? null, question: turn.input_modality === 'voice' ? null : raw, claim: routed.claim, canvas: here } : current.suggested,
     turns: [...current.turns, { learner: raw, tutor: text }].slice(-8),
     actions: [...current.actions, ...actions.map(action => ({ type: action.type, strategy: response.strategy, claim: action.claim ?? routed.claim }))].slice(-6),
   };
   // The benchmark record: ids, types and timings only - never the learner's words or card content.
   const ms = (from, to) => Math.round((to - from) * 10) / 10;
   const bench = {
-    turn_id: turn.turn_id, route: routed.row, strategy: response.strategy ?? null, claims, evaluated: !!evidence,
+    turn_id: turn.turn_id, input_modality: turn.input_modality, route: routed.row, strategy: response.strategy ?? null, claims, evaluated: !!evidence,
     evaluation: evaluation && { status: evaluation.status, evaluator: evaluation.evaluator, events: (evaluation.events || []).length, telemetry: evaluation.telemetry ?? null },
     planner: { telemetry: response.telemetry ?? null },
     requested_actions: (Array.isArray(response.actions) ? response.actions : []).map(action => action?.type),
