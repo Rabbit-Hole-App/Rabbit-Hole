@@ -103,7 +103,7 @@ function MembersContent({ data }) {
                     <td className="rounded-l-sm pr-3 pl-1">
                       <span className="flex items-center gap-2">
                         <Avatar email={email} />
-                        {email}
+                        {personLabel(email)}
                       </span>
                     </td>
                     <td className="pr-3">
@@ -113,7 +113,7 @@ function MembersContent({ data }) {
                     <td className="rounded-r-sm pr-1 text-right">
                       {p.owned === 0 && email !== data?.email && (
                         <button
-                          aria-label={`Remove ${email}`}
+                          aria-label={`Remove ${personLabel(email)}`}
                           title="Remove from this workspace (their shares and team seats go too)"
                           onClick={() => setConfirm({ kind: 'person', name: email })}
                           className="rounded-sm p-0.5 text-ink-2 opacity-0 group-hover/p:opacity-100 hover:text-ink"

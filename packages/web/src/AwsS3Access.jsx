@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Copy, ExternalLink } from 'lucide-react';
 import { api } from './api.js';
 import { Button, IconBtn, Input } from './ui.jsx';
+import { personLabel } from './session-display.js';
 
 const actionHelp = { 's3:GetObject': 'Read objects', 's3:PutObject': 'Write or replace objects',
   's3:ListBucket': 'List object names', 'lambda:InvokeFunction': 'Run this function with its existing permissions',
@@ -73,7 +74,7 @@ export default function AwsS3Access({ connection, onAccessChanged }) {
         <Button variant="soft" size="sm" disabled={busy || !state.approval_enabled || !['pending', 'applying'].includes(pending.status)} onClick={() => act('approve')}>{busy ? 'Working…' : pending.status === 'applying' ? 'Retry approval' : 'Approve & deploy'}</Button>
         <Button variant="ghost" size="sm" disabled={busy} onClick={load}>Check approval</Button>
         <Button variant="ghost" size="sm" disabled={busy || ['updating', 'applying'].includes(pending.status)} onClick={() => act('dismiss')}>Cancel</Button>
-      </div> : <p className="mt-3 text-xs text-ink-3">{connection.owner_email} manages this permission request.</p>}
+      </div> : <p className="mt-3 text-xs text-ink-3">{personLabel(connection.owner_email)} manages this permission request.</p>}
     </div>}
       {templateUrl && !state?.approval_enabled && <div className="mt-3">
         <p className="mb-2 text-xs text-ink-3">In AWS, use Replace existing template. If the template URL is empty, copy this generated URL into Amazon S3 URL. Review the changes and choose Update stack.</p>

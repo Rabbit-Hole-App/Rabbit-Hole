@@ -34,7 +34,7 @@ The code is in `packages/control-plane/src/auth.js`. The tests are `test/web-aut
 | `/login?next=&error=` | GET | Transitional sign-in page, until Landing replaces it. Shows a provider button only when that provider is configured. |
 | `/login?next=` | POST form `email` | Sends a sign-in link, then shows "Check your email". |
 | `/auth/email/start` | POST JSON `{email, next}` | The same flow as JSON, for Landing. |
-| `/auth/session` | GET | Display identity for the frontend (see below). It never returns the internal principal. 401 `{signedIn:false}` when signed out. |
+| `/auth/session` | GET | Display identity for the frontend (see below). It never returns the internal principal. 401 `{signedIn:false}` when signed out. Always `Cache-Control: no-store`. |
 | `/auth?token=` | GET | Shows "Continue as <email>". It does **not** spend the link, so mail scanners are safe. |
 | `/auth` | POST form `token` | Spends the link once and signs in. Redirects to the safe `next`. |
 | `/auth/google/start?next=` | GET | Redirects to Google with state and PKCE S256. |
@@ -97,9 +97,9 @@ The logs carry statuses and provider error codes only, never tokens.
 - `sessionOf` reads D1 once per request. A D1 error counts as no session.
 - Sessions from before this change carry no `uid`. They are void, so everyone signs in once after deploy.
 - Logout bumps the epoch, which means **sign out everywhere**. There is no per-device logout yet.
-- A logout arriving as a cross-site navigation (`Sec-Fetch-Site: cross-site`) does nothing.
+- A logout from another site or a sibling subdomain (`Sec-Fetch-Site` `cross-site` or `same-site`) does nothing. Only `same-origin`, `none` (a typed URL) or no header proceed.
 
-**`next`** accepts only a same-site path (`safeNext`). `//host`, `/\host`, schemes, whitespace and control characters all become `/`. It is checked when the flow starts and again when it is used.
+**`next`** accepts only a same-site path (`safeNext`). `//host`, `/\host`, schemes, whitespace, control and non-ASCII characters all become `/`. So do the sign-in routes themselves (`/login`, `/logout`, `/auth*`, `/test/*`), so `next=/logout` cannot sign someone out right after sign-in. It is checked when the flow starts and again when it is used.
 
 **Login CSRF.** A POST to `/login`, `/auth`, `/auth/email/start` or `/logout` with a foreign `Origin` gets a 403.
 
@@ -132,7 +132,7 @@ Landing lives on the same worker origin, and cookies are host-only.
   - `503 {error}`: show `error` as it is.
   - `SMALL_ENV=test` instances add `devLink`; dev never does.
 - **`next`:** carry the `next` from the sign-in page's own query into all three.
-- **Errors:** after the integration, `/login` should redirect to Landing's `/sign-in` with the same query string. The sign-in page shows the message for `error`:
+- **Errors:** on a Worker with `PUBLIC_ORIGIN` set, `GET /login` redirects to Landing's `/sign-in` with the same query string. Elsewhere it is still the transitional page. The sign-in page shows the message for `error`:
   - unavailable: "That sign-in option isn't available right now. Try another one."
   - cancelled: "Sign-in was cancelled."
   - expired: "That sign-in attempt expired. Try again."
@@ -158,6 +158,12 @@ Redirect URIs to register for each host:
 - `https://<host>/auth/github/callback`
 
 The email sign-in still needs `RESEND_API_KEY` and `EMAIL_FROM`, in the P0-A rollout order.
+
+`PUBLIC_ORIGIN` is a var, not a secret, set only on the Worker that serves Landing and sign-in at that origin. Production uses `https://digrabbithole.com`; leave it unset on dev and local Workers.
+- Sign-in routes (`/login`, `/logout`, `/auth*`, `/test/*`) reached on any other host are redirected there. GET goes to the same path; POST is refused with a 403.
+- The callbacks, the emailed link and the CSRF check therefore always use that one origin.
+- `/login` becomes `/sign-in`, so do not set it before that origin serves Landing.
+- See [rabbit-hole-production-auth.md](rabbit-hole-production-auth.md).
 
 ## Local development
 

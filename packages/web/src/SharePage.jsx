@@ -317,7 +317,7 @@ function SharePopover({ app, onChanged }) {
           <div className="mt-1 border-t border-line pt-1">
             <div className="group/p flex items-center gap-2 rounded-sm px-2 py-1.5">
               <Avatar email={app.owner_email} />
-              <span className="min-w-0 flex-1 truncate text-sm">{app.owner_email}</span>
+              <span className="min-w-0 flex-1 truncate text-sm">{personLabel(app.owner_email)}</span>
               <span className="text-xs text-ink-2">owner</span>
             </div>
             {(app.teams || []).map((t) => (
@@ -766,7 +766,7 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
                     )}
                   </span>
                 )}
-                <span className="flex items-center gap-1.5"><Avatar email={app.owner_email} />{app.owner_email}</span>
+                <span className="flex items-center gap-1.5"><Avatar email={app.owner_email} />{personLabel(app.owner_email)}</span>
                 {app.schedule && (
                   <span className="flex items-center gap-1.5">
                     {cronList(app.schedule).map((c) => (

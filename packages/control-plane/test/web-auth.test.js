@@ -77,24 +77,24 @@ const githubOk = (user = { id: 4242, login: 'octo', email: null }) => ({
   'https://api.github.com/user': () => [200, user],
 });
 
-const call = async (env, path, { method = 'GET', headers = {}, form, body } = {}) => {
+const call = async (env, path, { method = 'GET', headers = {}, form, body, origin = ORIGIN } = {}) => {
   const init = { method, headers: { ...headers } };
   if (form) init.body = new URLSearchParams(form);
   if (body) { init.body = JSON.stringify(body); init.headers['Content-Type'] = 'application/json'; }
-  const res = await worker.fetch(new Request(`${ORIGIN}${path}`, init), env, { waitUntil() {} });
+  const res = await worker.fetch(new Request(`${origin}${path}`, init), env, { waitUntil() {} });
   const cookies = res.headers.getSetCookie();
   return { res, status: res.status, location: res.headers.get('Location'), cookies, text: await res.text(), cookie: (name) => cookies.find((c) => c.startsWith(`${name}=`)) };
 };
 const cookieValue = (setCookie) => setCookie.split(';')[0].split('=').slice(1).join('=');
 
 // Start + callback, the way a browser does it: the flow cookie from start comes back on callback.
-async function oauthSignIn(env, provider, { next = '/apps/x', state, callbackQuery } = {}) {
-  const start = await call(env, `/auth/${provider}/start?next=${encodeURIComponent(next)}`);
+async function oauthSignIn(env, provider, { next = '/apps/x', state, callbackQuery, origin = ORIGIN } = {}) {
+  const start = await call(env, `/auth/${provider}/start?next=${encodeURIComponent(next)}`, { origin });
   assert.equal(start.status, 302, start.text);
   const flow = start.cookie('rh_oauth');
   const url = new URL(start.location);
   const q = callbackQuery ?? `code=provider-code&state=${state ?? url.searchParams.get('state')}`;
-  const cb = await call(env, `/auth/${provider}/callback?${q}`, { headers: flow ? { Cookie: `rh_oauth=${cookieValue(flow)}` } : {} });
+  const cb = await call(env, `/auth/${provider}/callback?${q}`, { origin, headers: flow ? { Cookie: `rh_oauth=${cookieValue(flow)}` } : {} });
   return { start, url, flow, cb, session: cb.cookie('small_session') && cookieValue(cb.cookie('small_session')) };
 }
 const authed = (env, session, headers = {}) => call(env, '/api/no-such-endpoint', { headers: { Cookie: `small_session=${session}`, ...headers } });
@@ -102,8 +102,8 @@ const authed = (env, session, headers = {}) => call(env, '/api/no-such-endpoint'
 // ---------- safe next ----------
 
 test('safe next: only same-site paths survive; everything else becomes /', () => {
-  for (const ok of ['/', '/apps', '/apps/x?tab=runs#top', '/a/corp-test/app/', '/apps/%2F%2Fevil.test']) assert.equal(safeNext(ok), ok);
-  for (const bad of ['//evil.test', '//evil.test/apps', '/\\evil.test', '\\\\evil.test', 'https://evil.test', 'http:/evil.test',
+  for (const ok of ['/', '/apps', '/apps/x?tab=runs#top', '/a/corp-test/app/', '/apps/%2F%2Fevil.test', '/apps/%E2%82%AC', '/authors', '/sign-in']) assert.equal(safeNext(ok), ok);
+  for (const bad of ['/apps/€', '/é', '/logout', '/login?next=%2Fapps', '/auth', '/auth/google/start?next=%2Fapps', '/test/session','//evil.test', '//evil.test/apps', '/\\evil.test', '\\\\evil.test', 'https://evil.test', 'http:/evil.test',
     'javascript:alert(1)', '/\t/evil.test', '/\n/evil.test', '/ /x', 'evil.test', '', null, undefined, `/${'a'.repeat(1100)}`]) {
     assert.equal(safeNext(bad), '/', `accepted ${JSON.stringify(bad)}`);
   }
@@ -236,7 +236,8 @@ test('OAuth state: a callback this browser did not start is refused before any p
     'no flow cookie': [`code=c&state=${state}`, null],
     'state mismatch': ['code=c&state=0000', flow],
     'no state': ['code=c', flow],
-    'tampered cookie': [`code=c&state=${state}`, `${flow.slice(0, -2)}xx`],
+    // the signature's first character carries 6 full bits (its last one has unused bits, so editing it can be a no-op)
+    'tampered cookie': [`code=c&state=${state}`, flow.replace(/\.(.)/, (m, c) => `.${c === 'A' ? 'B' : 'A'}`)],
     'expired cookie': [`code=c&state=${state}`, expiredFlow],
   };
   for (const [name, [q, cookie]] of Object.entries(cases)) {
@@ -411,19 +412,20 @@ test('SMALL_ENV=test + secret + OAUTH_MOCK=true: the mock provider walks the who
 // ---------- Passwordless email ----------
 
 // POST /auth/email/start, read the link out of the email, open it (GET), then Continue (POST).
-async function emailSignIn(env, email, sent, next) {
-  const start = await call(env, '/auth/email/start', { method: 'POST', body: { email, next }, headers: { Origin: ORIGIN } });
+async function emailSignIn(env, email, sent, next, origin = ORIGIN) {
+  const start = await call(env, '/auth/email/start', { method: 'POST', body: { email, next }, headers: { Origin: origin }, origin });
   assert.equal(start.status, 200, start.text);
   assert.deepEqual(JSON.parse(start.text), { ok: true });
   const link = new URL(sent.at(-1).text.match(/https?:\/\/\S+/)[0]);
   const token = link.searchParams.get('token');
-  const page = await call(env, `${link.pathname}${link.search}`);
+  const page = await call(env, `${link.pathname}${link.search}`, { origin });
   assert.equal(page.status, 200);
   assert.ok(page.text.includes(`Continue as <b>${email}</b>`));
-  const done = await call(env, '/auth', { method: 'POST', form: { token }, headers: { Origin: ORIGIN } });
+  const done = await call(env, '/auth', { method: 'POST', form: { token }, headers: { Origin: origin }, origin });
   assert.equal(done.status, 302, done.text);
   env.lastLocation = done.location;
   env.lastToken = token;
+  env.lastLink = link.href;
   return cookieValue(done.cookie('small_session'));
 }
 
@@ -565,6 +567,145 @@ test('/test/session still works on test instances and makes a revocable user ses
   assert.equal((await authed(env, session)).status, 401);
 });
 
+// ---------- Production origin: PUBLIC_ORIGIN=https://digrabbithole.com ----------
+
+const SITE = 'https://digrabbithole.com';
+const SITE_ENV = { ...PROD, PUBLIC_ORIGIN: SITE, RESEND_API_KEY: 're_fake', EMAIL_FROM: 'Rabbit Hole <signin@digrabbithole.com>' };
+const OTHER_HOSTS = ['https://small-cp.example.workers.dev', 'http://digrabbithole.com', 'https://www.digrabbithole.com'];
+
+test('production origin: Google and GitHub send digrabbithole.com callbacks, the code exchange repeats them, the session lands there host-only', async (t) => {
+  for (const [provider, routes, exchange] of [['google', await googleOk(), 'https://oauth2.googleapis.com/token'], ['github', githubOk(), 'https://github.com/login/oauth/access_token']]) {
+    t.mock.restoreAll();
+    const calls = network(t, routes);
+    const env = withDb(t, SITE_ENV);
+    const { url, flow, cb } = await oauthSignIn(env, provider, { origin: SITE, next: '/apps/x' });
+    assert.equal(url.searchParams.get('redirect_uri'), `${SITE}/auth/${provider}/callback`);
+    assert.equal(url.searchParams.get('code_challenge_method'), 'S256');
+    assert.equal(calls.find((c) => c.url === exchange).body.redirect_uri, `${SITE}/auth/${provider}/callback`);
+    // anchored: no Domain attribute, so the cookies belong to digrabbithole.com alone
+    assert.match(flow, /^rh_oauth=[^;]+; Path=\/auth\/; HttpOnly; Secure; SameSite=Lax; Max-Age=600$/);
+    assert.match(cb.cookie('small_session'), /^small_session=[^;]+; Path=\/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800$/);
+    assert.equal(cb.location, '/apps/x');
+  }
+});
+
+test('production origin: sign-in routes on any other host go to digrabbithole.com first; POSTs there are refused; other paths are untouched', async (t) => {
+  network(t, {}); // no provider or email call may happen
+  for (const configured of [SITE, `${SITE}/`]) {
+    const env = withDb(t, { ...SITE_ENV, PUBLIC_ORIGIN: configured });
+    for (const origin of OTHER_HOSTS) {
+      for (const path of ['/auth/google/start?next=%2Fapps', '/auth/github/callback?code=c&state=s', '/auth?token=x', '/auth/session', '/login?next=%2Fapps', '/logout']) {
+        const r = await call(env, path, { origin });
+        assert.equal(r.status, 302, `${origin}${path}`);
+        assert.equal(r.location, `${SITE}${path}`);
+        assert.deepEqual(r.cookies, [], `${origin}${path} set a cookie`);
+      }
+      const post = await call(env, '/auth/email/start', { method: 'POST', body: { email: 'a@corp.test' }, headers: { Origin: origin }, origin });
+      assert.equal(post.status, 403);
+      assert.equal((await call(env, '/api/no-such-endpoint', { origin })).status, 401);
+    }
+    assert.deepEqual(env.q('SELECT * FROM login_links'), []);
+    // the canonical host itself is not redirected
+    assert.equal(new URL((await call(env, '/auth/google/start', { origin: SITE })).location).origin, 'https://accounts.google.com');
+  }
+});
+
+test('production origin: /login is Landing /sign-in with the same next and error; without PUBLIC_ORIGIN it stays the transitional page', async (t) => {
+  const env = withDb(t, SITE_ENV);
+  const r = await call(env, '/login?next=%2Fapps%2Fx&error=expired', { origin: SITE });
+  assert.equal(r.status, 302);
+  assert.equal(r.location, '/sign-in?next=%2Fapps%2Fx&error=expired');
+  assert.equal((await call(env, '/login', { origin: SITE })).location, '/sign-in');
+  const cb = await call(env, '/auth/google/callback?code=c&state=s', { origin: SITE }); // no flow cookie
+  assert.equal(cb.location, '/login?error=expired');
+  assert.equal((await call(env, cb.location, { origin: SITE })).location, '/sign-in?error=expired');
+  const plain = await call(withDb(t, PROD), '/login');
+  assert.equal(plain.status, 200);
+  assert.ok(plain.text.includes('Continue with Google'));
+});
+
+test('production origin: the emailed link is https://digrabbithole.com/auth?token=..., sent from EMAIL_FROM, and nothing is echoed', async (t) => {
+  const sent = [];
+  network(t, { 'https://api.resend.com/emails': (b) => { sent.push(b); return [200, {}]; } });
+  const env = withDb(t, SITE_ENV);
+  const session = await emailSignIn(env, 'a@corp.test', sent, '/apps', SITE);
+  assert.match(env.lastLink, /^https:\/\/digrabbithole\.com\/auth\?token=[^&\s]+$/);
+  assert.equal(sent[0].from, SITE_ENV.EMAIL_FROM);
+  assert.deepEqual(sent[0].to, ['a@corp.test']);
+  assert.equal(env.lastLocation, '/apps');
+  assert.equal((await authed(env, session)).status, 404);
+});
+
+test('production origin: a non-ASCII next no longer breaks the redirect after sign-in; it lands on /', async (t) => {
+  const sent = [];
+  network(t, { ...(await googleOk()), 'https://api.resend.com/emails': (b) => { sent.push(b); return [200, {}]; } });
+  const env = withDb(t, SITE_ENV);
+  const { cb, session } = await oauthSignIn(env, 'google', { origin: SITE, next: '/apps/€' });
+  assert.equal(cb.location, '/');
+  assert.ok(session);
+  await emailSignIn(env, 'a@corp.test', sent, '/apps/é', SITE);
+  assert.equal(env.lastLocation, '/');
+});
+
+test('production origin: same-origin sign-in POSTs pass; any other origin, sibling subdomains and http included, is refused', async (t) => {
+  const sent = [];
+  network(t, { ...(await googleOk()), 'https://api.resend.com/emails': (b) => { sent.push(b); return [200, {}]; } });
+  const env = withDb(t, SITE_ENV);
+  for (const origin of ['https://evil.test', 'null', 'http://digrabbithole.com', 'https://www.digrabbithole.com', 'https://app.digrabbithole.com', 'https://rabbit-hole-cp-dev.tryrabbithole.workers.dev']) {
+    const h = { Origin: origin };
+    assert.equal((await call(env, '/auth/email/start', { method: 'POST', body: { email: 'a@corp.test' }, headers: h, origin: SITE })).status, 403, origin);
+    assert.equal((await call(env, '/login', { method: 'POST', form: { email: 'a@corp.test' }, headers: h, origin: SITE })).status, 403, origin);
+    assert.equal((await call(env, '/auth', { method: 'POST', form: { token: 'x' }, headers: h, origin: SITE })).status, 403, origin);
+    assert.equal((await call(env, '/logout', { method: 'POST', headers: h, origin: SITE })).status, 403, origin);
+  }
+  assert.equal(sent.length, 0);
+  assert.deepEqual(env.q('SELECT * FROM login_links'), []);
+  const same = { Origin: SITE };
+  assert.equal((await call(env, '/auth/email/start', { method: 'POST', body: { email: 'a@corp.test' }, headers: same, origin: SITE })).status, 200);
+  assert.equal((await call(env, '/login', { method: 'POST', form: { email: 'b@corp.test' }, headers: same, origin: SITE })).status, 200);
+  assert.equal(sent.length, 2);
+  const { session } = await oauthSignIn(env, 'google', { origin: SITE });
+  const out = await call(env, '/logout', { method: 'POST', headers: { ...same, Cookie: `small_session=${session}` }, origin: SITE });
+  assert.equal(out.status, 302);
+  assert.equal((await authed(env, session)).status, 401);
+});
+
+test('production origin: logout from this origin or a typed URL revokes; a sibling subdomain or another site does not; /auth/session is never cached', async (t) => {
+  network(t, await googleOk());
+  const env = withDb(t, SITE_ENV);
+  const who = (session) => call(env, '/auth/session', { origin: SITE, headers: session ? { Cookie: `small_session=${session}` } : {} });
+  for (const site of ['same-origin', 'none']) {
+    const { session } = await oauthSignIn(env, 'google', { origin: SITE });
+    const signedIn = await who(session);
+    assert.equal(signedIn.status, 200);
+    assert.equal(signedIn.res.headers.get('Cache-Control'), 'no-store');
+    for (const foreign of ['same-site', 'cross-site']) {
+      const r = await call(env, '/logout', { origin: SITE, headers: { Cookie: `small_session=${session}`, 'Sec-Fetch-Site': foreign } });
+      assert.deepEqual(r.cookies, [], foreign);
+      assert.equal((await who(session)).status, 200, foreign);
+    }
+    const out = await call(env, '/logout', { origin: SITE, headers: { Cookie: `small_session=${session}`, 'Sec-Fetch-Site': site } });
+    assert.equal(out.location, '/login');
+    assert.equal(out.cookie('small_session'), 'small_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0');
+    const after = await who(session);
+    assert.equal(after.status, 401, site);
+    assert.equal(after.text, '{"signedIn":false}');
+    assert.equal(after.res.headers.get('Cache-Control'), 'no-store');
+  }
+});
+
+test('production origin: no mock provider, no /test/session and no echoed link on digrabbithole.com, even with test secrets present', async (t) => {
+  network(t, { 'https://api.resend.com/emails': () => [500, {}] });
+  const env = withDb(t, { ...SITE_ENV, OAUTH_MOCK: 'true', TEST_BYPASS_SECRET: SECRET });
+  assert.equal((await call(env, '/test/oauth/authorize?provider=google&state=s&sub=victim', { origin: SITE })).status, 404);
+  assert.equal((await call(env, '/test/session', { method: 'POST', body: { email: 'a@corp.test', secret: SECRET }, origin: SITE })).status, 404);
+  assert.equal(new URL((await call(env, '/auth/github/start', { origin: SITE })).location).origin, 'https://github.com');
+  const r = await call(env, '/auth/email/start', { method: 'POST', body: { email: 'a@corp.test' }, headers: { Origin: SITE }, origin: SITE });
+  assert.equal(r.status, 503);
+  for (const needle of ['devLink', 'token', '/auth?']) assert.ok(!r.text.includes(needle), needle);
+  assert.equal(env.q('SELECT COUNT(*) AS n FROM users')[0].n, 0);
+});
+
 // ---------- Display identity: what the frontend may show, never the internal principal ----------
 
 const display = async (env, session) => {
@@ -610,6 +751,24 @@ test('GET /auth/session: provider email/name as display metadata, a neutral labe
   network(t, { 'https://api.resend.com/emails': (b) => { sent.push(b); return [200, {}]; } });
   const viaEmail = await emailSignIn(env, 'e@corp.test', sent);
   assert.deepEqual((await display(env, viaEmail)).body, { signedIn: true, provider: 'email', display: { name: null, email: 'e@corp.test', label: 'e@corp.test' } });
+});
+
+test('an app a Google/GitHub user cannot open says so without their .invalid principal; an email user still sees their address', async (t) => {
+  const sent = [];
+  network(t, { ...githubOk({ id: 77, login: 'octo', email: null }), 'https://api.resend.com/emails': (b) => { sent.push(b); return [200, {}]; } });
+  const env = withDb(t, SITE_ENV);
+  env.q(`CREATE TABLE apps (id TEXT, org TEXT, name TEXT, owner_email TEXT, visibility TEXT, folder_id TEXT, fly_app TEXT, deleted_at INTEGER)`);
+  for (const ddl of ['members (app_id, email, role)', 'app_teams (app_id, team_id, role)', 'team_members (team_id, email)', 'workspace_members (slug, email)']) env.q(`CREATE TABLE ${ddl}`);
+  env.q(`INSERT INTO apps (id, org, name, owner_email, visibility) VALUES ('a1', 'corp-test', 'app', 'o@corp.test', 'private') RETURNING id`);
+  const open = async (session) => call(env, '/a/corp-test/app/', { origin: SITE, headers: { Cookie: `small_session=${session}` } });
+  const { session } = await oauthSignIn(env, 'github', { origin: SITE });
+  const denied = await open(session);
+  assert.equal(denied.status, 403);
+  assert.ok(denied.text.includes('You do not have access to <b>app</b>'), denied.text);
+  assert.ok(!denied.text.includes('.invalid') && !denied.text.includes(payloadOf(session).email));
+  const byEmail = await open(await emailSignIn(env, 'c@other.test', sent, '/apps', SITE));
+  assert.equal(byEmail.status, 403);
+  assert.ok(byEmail.text.includes('<b>c@other.test</b> does not have access'));
 });
 
 // Last on purpose: it leaves auth.js's per-isolate JWKS cache holding only the rotated key.

@@ -10,7 +10,7 @@ const SESSION_TTL = 7 * 24 * 3600;
 const OAUTH_COOKIE = 'rh_oauth';
 const LINK_TTL = 900;
 const now = () => Math.floor(Date.now() / 1000);
-const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', ...headers } });
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 // Test/dev bypasses (/test/*) need SMALL_ENV test or dev AND their secret. Any other SMALL_ENV,
@@ -34,9 +34,12 @@ export const loginEmail = (raw) => {
 
 // Where to land after sign-in: a path on this site only. //host, /\host, schemes and
 // whitespace/control characters (browsers drop tabs and newlines, turning /\t/host into //host) become /.
+// Printable ASCII only: a raw non-ASCII character cannot go in a Location header (browsers send it
+// percent-encoded anyway). A sign-in route is not a destination: next=/logout would sign out at once.
+const AUTH_ROUTE = /^\/(?:login|logout|auth|test)(?:[/?#]|$)/;
 export function safeNext(raw) {
   const s = String(raw ?? '');
-  return s.length <= 1024 && /^\/(?![/\\])[^\\\x00-\x20\x7f]*$/.test(s) ? s : '/';
+  return s.length <= 1024 && /^\/(?![/\\])[\x21-\x5b\x5d-\x7e]*$/.test(s) && !AUTH_ROUTE.test(s) ? s : '/';
 }
 
 const cookieValue = (req, name) => (req.headers.get('Cookie') || '').match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`))?.[1];
@@ -101,10 +104,11 @@ export async function sessionOf(req, env) {
 // What the frontend may show for the signed-in user. Never the internal principal: Google/GitHub
 // users get the provider's email/name when there is one, else a neutral label like "GitHub user".
 const PROVIDER_LABELS = { google: 'Google user', github: 'GitHub user', email: 'Email user' };
+const NO_STORE = { 'Cache-Control': 'no-store' }; // per person: never from a shared cache
 const shown = (v) => (typeof v === 'string' && v && !v.endsWith('.invalid') ? v : null);
 async function sessionDisplay(req, env) {
   const s = await sessionOf(req, env);
-  if (!s) return json({ signedIn: false }, 401);
+  if (!s) return json({ signedIn: false }, 401, NO_STORE);
   let row = null;
   try {
     row = await env.DB.prepare('SELECT provider_email, provider_name FROM user_identities WHERE user_id = ? AND provider = ?').bind(s.uid, s.prov).first();
@@ -112,7 +116,7 @@ async function sessionDisplay(req, env) {
   const email = shown(row?.provider_email);
   const name = shown(row?.provider_name);
   const provider = PROVIDER_LABELS[s.prov] ? s.prov : null;
-  return json({ signedIn: true, provider, display: { name, email, label: name || email || PROVIDER_LABELS[provider] || 'Signed in' } });
+  return json({ signedIn: true, provider, display: { name, email, label: name || email || PROVIDER_LABELS[provider] || 'Signed in' } }, 200, NO_STORE);
 }
 
 // ---------- Google and GitHub ----------
@@ -347,6 +351,14 @@ const FORM_POSTS = new Set(['/login', '/auth', '/auth/email/start', '/logout']);
 // The web sign-in routes; null for any other path. deps: { baseUrl, html, sendEmail } from index.js.
 export async function handleWebAuth(req, env, path, { baseUrl, html, sendEmail }) {
   const url = new URL(req.url);
+  // PUBLIC_ORIGIN (production: https://digrabbithole.com) is the one origin sign-in happens on. Cookies
+  // are host-only and providers accept only registered callbacks, so a sign-in route reached on any other
+  // host this Worker answers (workers.dev, www, plain http) is sent there first; a POST is refused.
+  // That origin also serves Landing, so the transitional /login page becomes /sign-in.
+  const canonical = env.PUBLIC_ORIGIN ? new URL(env.PUBLIC_ORIGIN).origin : null;
+  if (canonical && baseUrl !== canonical && AUTH_ROUTE.test(path)) {
+    return req.method === 'GET' || req.method === 'HEAD' ? redirect(canonical + path + url.search) : json({ error: `sign in on ${canonical}` }, 403);
+  }
   // Login CSRF: a browser always sends Origin on POST, so a cross-site form post is refused.
   // Non-browser clients may omit Origin; they cannot plant a cookie in someone's browser.
   const origin = req.headers.get('Origin');
@@ -354,7 +366,7 @@ export async function handleWebAuth(req, env, path, { baseUrl, html, sendEmail }
 
   if (path === '/login') {
     const next = safeNext(url.searchParams.get('next'));
-    if (req.method !== 'POST') return loginPage(env, next, url.searchParams.get('error'), html);
+    if (req.method !== 'POST') return canonical ? redirect(`/sign-in${url.search}`) : loginPage(env, next, url.searchParams.get('error'), html);
     const email = loginEmail((await req.formData()).get('email'));
     if (!email) return html('<p>Enter a valid email address.</p><a href="javascript:history.back()">back</a>', 400);
     const r = await emailLogin(env, email, next, baseUrl, sendEmail);
@@ -377,8 +389,10 @@ export async function handleWebAuth(req, env, path, { baseUrl, html, sendEmail }
   const oauth = path.match(/^\/auth\/(google|github)\/(start|callback)$/);
   if (oauth && req.method === 'GET') return oauth[2] === 'start' ? oauthStart(req, env, oauth[1], baseUrl) : oauthCallback(req, env, oauth[1], baseUrl);
   if (path === '/logout') {
-    // Signs out every session of this user (the epoch bump). A cross-site navigation does nothing.
-    if (req.headers.get('Sec-Fetch-Site') === 'cross-site') return redirect('/login');
+    // Signs out every session of this user (the epoch bump). Only this origin's own pages, or the person
+    // typing the URL (none), may do it: a cross-site or sibling-subdomain (same-site) request does nothing.
+    const site = req.headers.get('Sec-Fetch-Site');
+    if (site && site !== 'same-origin' && site !== 'none') return redirect('/login');
     const s = await sessionOf(req, env);
     if (s) {
       try { await env.DB.prepare('UPDATE users SET session_epoch = session_epoch + 1 WHERE id = ?').bind(s.uid).run(); } catch {}
