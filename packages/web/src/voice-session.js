@@ -45,6 +45,12 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now 
       speech_end_to_tutor_speaking: span(m.speech_end, m.tts_play_start),
       speech_end_to_canvas_action: span(m.speech_end, m.canvas_action_visible),
       tts_request_to_first_byte: span(m.tts_request_start, m.tts_first_byte),
+      // Streaming playback (owner, 2026-10-01): text ready is when the Tutor's reply arrived here.
+      text_ready_to_tts_request: span(m.text_ready, m.tts_request_start),
+      tts_request_to_play_start: span(m.tts_request_start, m.tts_play_start),
+      text_ready_to_play_start: span(m.text_ready, m.tts_play_start),
+      // Stop click to the pause call; the silence itself is measured in e2e/voice-tts-stream-check.mjs.
+      stop_to_pause: span(m.interrupted, m.tts_stopped),
       tts_play_duration: span(m.tts_play_start, m.tts_play_end),
       speech_end_to_listening_resumed: span(m.speech_end, m.listening),
     } });
@@ -81,6 +87,7 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now 
       emit(name, { turn_id: turnId, ms });
     }
     const speech = typeof reply?.speech === 'string' ? reply.speech : '';
+    m.text_ready = now();
     set(null, { current: speech, previous: caption.current || null });
     if (!speech) return finish(turn);
     set('speaking');
@@ -144,7 +151,8 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now 
     interrupt() {
       if (!current || (state !== 'speaking' && state !== 'thinking')) return;
       const turn = current, from = state;
-      emit('voice_interrupted', { turn_id: turn.turnId, from });
+      turn.marks.interrupted = now();
+      emit('voice_interrupted', { turn_id: turn.turnId, from, at: turn.marks.interrupted });
       if (from === 'speaking') tts.stop();
       finish(turn);
       if (from === 'thinking') turn.controller.abort();

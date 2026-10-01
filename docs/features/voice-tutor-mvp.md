@@ -136,10 +136,10 @@ onEvent({ type: 'speech_start' | 'partial' | 'commit' | 'error', text?, kind? })
 ### 4. TTS adapter: `packages/web/src/voice-tts.js` (owner C)
 
 ```js
-createFishTts({ post, onEvent, makeAudio }) -> { speak(text, { turnId }) -> Promise<'ended'|'stopped'|'failed'>, stop() }
+createFishTts({ post, onEvent, makeAudio, MediaSource }) -> { speak(text, { turnId }) -> Promise<'ended'|'stopped'|'failed'>, stop() }
 createFakeTts({ onEvent, ms }) -> same; resolves 'ended' after ms (scripted QA and tests)
 speakable(text) -> string
-onEvent({ type: 'tts_request_start' | 'tts_first_byte' | 'tts_play_start' | 'tts_play_end' | 'tts_error', turnId })
+onEvent({ type: 'tts_request_start' | 'tts_first_byte' | 'tts_play_start' | 'tts_play_end' | 'tts_stopped' | 'tts_error', turnId })
 ```
 
 - `speakable(text)` strips what must not be read aloud:
@@ -149,9 +149,21 @@ onEvent({ type: 'tts_request_start' | 'tts_first_byte' | 'tts_play_start' | 'tts
   - It collapses whitespace and caps the result at about 600 characters.
 - `speak` POSTs `/api/learn/voice/tts` with `{ app, pending?, text, trace_id: turnId, confirmed: true }`.
   - It reads the streamed body: the first chunk is `tts_first_byte`.
-  - It plays the audio through an HTMLAudioElement from a Blob URL.
+  - Streaming playback (owner, 2026-10-01): where `MediaSource.isTypeSupported('audio/mpeg')`, the audio
+    element plays a MediaSource. `play()` is called at once (iOS-family Safari loads media only on play())
+    and the element starts sounding when the first chunk is buffered. Each chunk is appended to its
+    SourceBuffer as it arrives, and `endOfStream()` follows the last one. Elsewhere the whole body is buffered
+    into a Blob URL first, as before.
+  - Measured locally with a real narrator MP3 at the live Fish pace (`e2e/voice-tts-stream-check.mjs`):
+    request to first audio went from 2736 ms buffered to 285 ms streamed (5 runs each). After Stop the audio
+    pauses within 0.6 ms, and the playhead stays frozen for 2.5 s while the server keeps streaming.
   - It resolves on `ended`.
-- `stop()` pauses playback at once and resolves the pending `speak` with `'stopped'`.
+- `stop()` pauses playback at once and detaches the element's source, so the player is released. It
+  emits `tts_stopped`, aborts the request and resolves the pending `speak` with `'stopped'`. A stop
+  before the MediaSource opens settles the wait too. The run is detached, so a chunk read after the stop is never appended or
+  played, and a new turn never plays the previous turn's audio.
+- `voice_turn` adds `text_ready_to_tts_request`, `tts_request_to_play_start`, `text_ready_to_play_start`
+  and `stop_to_pause`. Text ready is when the Tutor's reply reached the session.
 - Errors resolve `'failed'` and are never thrown.
 
 ### 5. Routes: `packages/control-plane/src/learn-voice-routes.js` (owner D), dispatched in `packages/web/dev-worker.js`

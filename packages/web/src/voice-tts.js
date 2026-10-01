@@ -28,8 +28,12 @@ export function speakable(text) {
 }
 
 // post(path, body, signal) -> fetch Response; the hook adds credentials, workspace headers, app
-// and pending.
-export function createFishTts({ post, onEvent = () => {}, makeAudio = url => new Audio(url), now = () => performance.now() }) {
+// and pending. Playback streams (owner, 2026-10-01): with MediaSource, each Fish chunk is appended as it
+// arrives and play() starts after the first one, so the Tutor is heard while the rest still streams. Without
+// MediaSource for audio/mpeg the whole body is buffered first, as before. Stop aborts the request, pauses and
+// detaches the audio and the run, so no chunk read after a stop is appended or played.
+export function createFishTts({ post, onEvent = () => {}, makeAudio = url => new Audio(url), now = () => performance.now(), MediaSource = globalThis.MediaSource }) {
+  const streams = !!MediaSource?.isTypeSupported?.('audio/mpeg');
   let current = null;
   const stop = () => current?.finish('stopped');
 
@@ -49,7 +53,11 @@ export function createFishTts({ post, onEvent = () => {}, makeAudio = url => new
         if (run.audio) {
           run.audio.onplaying = run.audio.onended = run.audio.onerror = null;
           run.audio.pause();
+          // Detach the source so the browser releases the player (and an open MediaSource) right away.
+          run.audio.removeAttribute?.('src');
+          run.audio.load?.();
         }
+        if (outcome === 'stopped') emit('tts_stopped');
         if (run.url) URL.revokeObjectURL(run.url);
         resolve(outcome);
       };
@@ -58,13 +66,51 @@ export function createFishTts({ post, onEvent = () => {}, makeAudio = url => new
         emit('tts_error');
         run.finish('failed');
       };
+      const listen = audio => {
+        audio.onplaying = () => { audio.onplaying = null; emit('tts_play_start'); };
+        audio.onended = () => { emit('tts_play_end'); run.finish('ended'); };
+        audio.onerror = fail;
+      };
       (async () => {
         emit('tts_request_start');
         const response = await post('/api/learn/voice/tts', { text: words, trace_id: turnId, confirmed: true }, controller.signal);
+        if (run.done) return;
         if (!response.ok || !response.body) throw new Error(`tts ${response.status}`);
-        // ponytail: the whole body is buffered before play. MediaSource streaming of audio/mpeg is
-        // the upgrade path when first-audio latency matters more than simplicity.
-        const reader = response.body.getReader(), chunks = [];
+        const reader = response.body.getReader();
+        if (streams) {
+          const source = new MediaSource();
+          run.url = URL.createObjectURL(source);
+          const audio = run.audio = makeAudio(run.url);
+          listen(audio);
+          // play() now, not after the first append: iOS-family Safari loads a media element only once play()
+          // is called, so waiting for sourceopen first would wait forever. It stays pending until data arrives.
+          const playing = audio.play().catch(fail);
+          // A stop before sourceopen settles the wait too, so nothing is left pending.
+          await new Promise(open => { source.addEventListener('sourceopen', open, { once: true }); controller.signal.addEventListener('abort', open, { once: true }); });
+          if (run.done) return;
+          const buffer = source.addSourceBuffer('audio/mpeg');
+          const appended = chunk => new Promise((ok, bad) => {
+            buffer.addEventListener('updateend', ok, { once: true });
+            buffer.addEventListener('error', bad, { once: true });
+            buffer.appendBuffer(chunk);
+          });
+          let bytes = 0;
+          for (;;) {
+            const { done, value } = await reader.read();
+            if (run.done) return; // stopped or superseded: nothing read after that is appended or played
+            if (done) break;
+            if (!bytes) emit('tts_first_byte');
+            bytes += value.length;
+            await appended(value);
+            if (run.done) return;
+          }
+          // An empty body has nothing to play; ended never comes.
+          if (!bytes) throw new Error('tts empty');
+          if (source.readyState === 'open') source.endOfStream();
+          await playing;
+          return;
+        }
+        const chunks = [];
         for (;;) {
           const { done, value } = await reader.read();
           if (run.done) return;
@@ -74,9 +120,7 @@ export function createFishTts({ post, onEvent = () => {}, makeAudio = url => new
         }
         run.url = URL.createObjectURL(new Blob(chunks, { type: 'audio/mpeg' }));
         const audio = run.audio = makeAudio(run.url);
-        audio.onplaying = () => { audio.onplaying = null; emit('tts_play_start'); };
-        audio.onended = () => { emit('tts_play_end'); run.finish('ended'); };
-        audio.onerror = fail;
+        listen(audio);
         await audio.play(); // rejects when autoplay is blocked
       })().catch(fail);
     });

@@ -3,6 +3,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { speakable, createFishTts, createFakeTts } from './voice-tts.js';
+import { createVoiceSession } from './voice-session.js';
+import { createFakeStt } from './voice-stt.js';
 
 test('speakable drops code, math, URLs and markdown syntax but keeps link text', () => {
   assert.equal(speakable('Run ```py\nprint(1)\n``` then `x = 1` now.'), 'Run then now.');
@@ -137,4 +139,154 @@ test('createFakeTts: ended after ms, stopped on stop, failed with fail, same eve
   assert.equal(await tts.speak('Hi.', { turnId: 'f3' }), 'failed');
   assert.deepEqual(events, ['tts_request_start', 'tts_error']);
   assert.equal(await tts.speak('```code```', { turnId: 'f4' }), 'ended');
+});
+
+// Streaming playback (owner, 2026-10-01): a MediaSource fake that records what is appended, and a Fish
+// body whose chunks the test releases one at a time.
+class FakeMediaSource extends EventTarget {
+  static isTypeSupported = type => type === 'audio/mpeg';
+  static made = [];
+  readyState = 'closed';
+  constructor() {
+    super();
+    FakeMediaSource.made.push(this);
+    setTimeout(() => { this.readyState = 'open'; this.dispatchEvent(new Event('sourceopen')); });
+  }
+  addSourceBuffer(type) {
+    assert.equal(type, 'audio/mpeg');
+    const buffer = this.buffer = Object.assign(new EventTarget(), { appended: [] });
+    buffer.appendBuffer = chunk => { buffer.appended.push([...chunk]); setTimeout(() => { buffer.dispatchEvent(new Event('updateend')); this.onData?.(); }); };
+    return buffer;
+  }
+  endOfStream() { this.readyState = 'ended'; }
+}
+const createURL = URL.createObjectURL;
+URL.createObjectURL = source => (source instanceof FakeMediaSource ? `blob:ms-${FakeMediaSource.made.indexOf(source)}` : createURL(source));
+function heldBody() {
+  let control;
+  const body = new ReadableStream({ start(c) { control = c; } });
+  return { response: new Response(body, { headers: { 'Content-Type': 'audio/mpeg' } }), push: bytes => control.enqueue(new Uint8Array(bytes)), close: () => control.close() };
+}
+const settle = async () => { for (let i = 0; i < 5; i++) await tick(); };
+// Like a browser, a MediaSource audio element starts playing (onplaying) only once data is buffered.
+function streamAudio(made) {
+  return url => {
+    const source = FakeMediaSource.made.at(-1);
+    const audio = { url, paused: true, pause: () => { audio.paused = true; } };
+    audio.play = async () => { audio.paused = false; source.onData = () => { source.onData = null; if (!audio.paused) audio.onplaying?.(); }; };
+    made.push(audio);
+    return audio;
+  };
+}
+function streamingRig() {
+  const events = [], bodies = [], signals = [], made = [], makeAudio = streamAudio(made);
+  const tts = createFishTts({ post: async (path, body, signal) => { signals.push(signal); const held = heldBody(); bodies.push(held); return held.response; }, onEvent: e => events.push(e.type), makeAudio, MediaSource: FakeMediaSource });
+  return { tts, events, bodies, signals, made };
+}
+
+test('streaming: playback starts after the first chunk, before the Fish body completes', async () => {
+  const r = streamingRig();
+  const done = r.tts.speak('Here it is. Notice the division before softmax.', { turnId: 's1' });
+  await settle();
+  assert.deepEqual(r.events, ['tts_request_start'], 'nothing audible before the first chunk');
+  r.bodies[0].push([1, 2]);
+  await settle();
+  assert.equal(r.made[0].paused, false, 'playing while the body is still open');
+  assert.deepEqual(r.events, ['tts_request_start', 'tts_first_byte', 'tts_play_start']);
+  r.bodies[0].push([3]);
+  r.bodies[0].close();
+  await settle();
+  const source = FakeMediaSource.made.at(-1);
+  assert.deepEqual(source.buffer.appended, [[1, 2], [3]]);
+  assert.equal(source.readyState, 'ended', 'endOfStream once the body is done');
+  r.made[0].onended();
+  assert.equal(await done, 'ended');
+  assert.equal(revoked.at(-1), r.made[0].url);
+});
+
+test('streaming: Stop pauses at once, aborts the request and no later chunk is appended or played', async () => {
+  const r = streamingRig();
+  const done = r.tts.speak('A long explanation the learner cuts short.', { turnId: 's2' });
+  await settle();
+  r.bodies[0].push([1]);
+  await settle();
+  const source = FakeMediaSource.made.at(-1);
+  r.tts.stop();
+  assert.equal(r.made[0].paused, true, 'silent immediately');
+  assert.equal(r.signals[0].aborted, true, 'the Fish stream is aborted');
+  assert.equal(await done, 'stopped');
+  assert.ok(r.events.includes('tts_stopped'));
+  // A stale chunk that still arrives is never appended, and nothing plays again.
+  try { r.bodies[0].push([9]); r.bodies[0].close(); } catch {}
+  await settle();
+  assert.deepEqual(source.buffer.appended, [[1]]);
+  assert.equal(r.made[0].paused, true);
+  assert.ok(!r.events.includes('tts_error') && !r.events.includes('tts_play_end'));
+});
+
+test('streaming: a new turn never plays audio from the previous turn', async () => {
+  const r = streamingRig();
+  const first = r.tts.speak('First reply.', { turnId: 'old' });
+  await settle();
+  r.bodies[0].push([1]);
+  await settle();
+  const oldSource = FakeMediaSource.made.at(-1);
+  const second = r.tts.speak('Second reply.', { turnId: 'new' });
+  assert.equal(await first, 'stopped');
+  try { r.bodies[0].push([2]); } catch {}
+  await settle();
+  r.bodies[1].push([7]);
+  await settle();
+  assert.deepEqual(oldSource.buffer.appended, [[1]], 'the old stream gets nothing more');
+  assert.equal(r.made[0].paused, true);
+  assert.deepEqual(FakeMediaSource.made.at(-1).buffer.appended, [[7]]);
+  assert.equal(r.made[1].paused, false);
+  assert.notEqual(r.made[1].url, r.made[0].url);
+  r.bodies[1].close();
+  await settle();
+  r.made[1].onended();
+  assert.equal(await second, 'ended');
+});
+
+test('streaming in a voice session: canvas acts before audio, Stop keeps Voice Mode on and listening', async () => {
+  const r = streamingRig();
+  const canvas = [];
+  const sttEvents = [];
+  let session;
+  const stt = createFakeStt({ onEvent: event => session.sttEvent(event) });
+  const tts = createFishTts({ post: async (path, body, signal) => { r.signals.push(signal); const held = heldBody(); r.bodies.push(held); return held.response; }, onEvent: event => session.ttsEvent(event), makeAudio: streamAudio(r.made), MediaSource: FakeMediaSource });
+  const tutor = { voiceTurn: async ({ turnId }) => { canvas.push(turnId); return { speech: 'Here it is. Notice the division before softmax.', turnId, ms: { to_evidence_ready: 1, to_planner_ready: 2, canvas_done: 3 } }; } };
+  session = createVoiceSession({ stt, tts, tutor, telemetry: (name, detail) => sttEvents.push({ name, ...detail }) });
+  await session.enter();
+  stt.say('show me where this happens');
+  await settle();
+  assert.equal(canvas.length, 1, 'the canvas acted before any audio');
+  assert.ok(sttEvents.some(e => e.name === 'canvas_action_visible'));
+  r.bodies[0].push([1, 2]);
+  await settle();
+  assert.equal(session.state, 'speaking');
+  assert.ok(!sttEvents.some(e => e.name === 'tts_play_end'), 'the canvas did not wait for speech to finish');
+  session.interrupt();
+  assert.equal(session.state, 'listening', 'Voice Mode stays on and listens again');
+  assert.equal(r.made[0].paused, true);
+  try { r.bodies[0].push([3]); r.bodies[0].close(); } catch {}
+  await settle();
+  assert.equal(session.state, 'listening');
+  assert.deepEqual(FakeMediaSource.made.at(-1).buffer.appended, [[1, 2]]);
+  const turn = sttEvents.find(e => e.name === 'voice_turn');
+  assert.equal(typeof turn.ms.text_ready_to_tts_request, 'number');
+  assert.equal(typeof turn.ms.text_ready_to_play_start, 'number');
+  assert.equal(typeof turn.ms.stop_to_pause, 'number');
+  session.exit();
+});
+
+test('streaming: a Stop before the MediaSource opens resolves stopped and leaves nothing waiting', async () => {
+  const r = streamingRig();
+  const done = r.tts.speak('Hello there.', { turnId: 's5' });
+  while (!r.made.length) await tick();
+  r.tts.stop();
+  assert.equal(await done, 'stopped');
+  assert.ok(r.events.includes('tts_stopped'));
+  await settle();
+  assert.equal(FakeMediaSource.made.at(-1).buffer, undefined, 'no SourceBuffer after the stop');
 });
