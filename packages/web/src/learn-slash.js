@@ -114,7 +114,8 @@ export async function runLearnCommand(text, { app, target = null, canvas, openSe
   }
   if (!request.allowedPrimitives) return request.prompt ? { prompt: request.prompt } : { notice: { tone: 'info', text: `Add what you want after /${name}.` } };
   const result = await post('/api/learn/artifact', { app, command: name, args, selection, context: target?.text ? String(target.text).slice(0, 8000) : null });
-  if (result.result === 'artifact') { canvas.insertBlock(result.block); return { notice: { tone: 'done', text: `Added ${NAMES[result.primitive] || 'the artifact'}.` } }; }
+  // The notice names the new card and can take the learner to it.
+  if (result.result === 'artifact') { const blockId = canvas.insertBlock(result.block); return { notice: { tone: 'done', text: `Added ${NAMES[result.primitive] || 'the artifact'}.`, ...(blockId ? { blockId } : {}) } }; }
   // Generate inserts the card already confirmed, so it starts once (useConfirmedStart).
   if (result.result === 'paid_proposal') return { proposal: { primitive: result.primitive, message: result.message, generate: () => canvas.insertBlock({ ...result.block, confirmedStart: true }) } };
   if (result.result === 'clarification') return { notice: { tone: 'question', text: result.question }, keep: `/${name} ` };
