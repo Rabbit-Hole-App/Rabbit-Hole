@@ -41,14 +41,34 @@ const slash = async text => { await composer().click(); await composer().fill(te
 const deselect = async () => { await page.evaluate(() => document.activeElement?.blur()); await page.keyboard.press('Escape'); await page.waitForTimeout(200); }; // never a click: it could land on a card
 const nav = () => page.locator('[data-dive-navigator]');
 const waitPersisted = async () => { await page.waitForFunction(() => /^\/apps\/canvas-[a-f0-9]{8}$/.test(location.pathname) && !location.search.includes('hole='), null, { timeout: 15000 }); await page.waitForTimeout(600); };
-// Canvas chrome never covers content (learn-canvas-blocks.md): the navigator sits in the tools' gutter, clear of the surface and the toolbar.
-const inGutter = async label => {
-  const g = await page.evaluate(() => { const box = s => { const r = document.querySelector(s)?.getBoundingClientRect(); return r && { x: r.x, y: r.y, right: r.right, bottom: r.bottom }; }; return { nav: box('[data-dive-navigator]'), gutter: (() => { const r = document.querySelector('[data-dive-navigator]')?.closest('[data-dive-gutter],[data-tool-gutter]')?.getBoundingClientRect(); return r && { x: r.x, y: r.y, right: r.right, bottom: r.bottom }; })(), surface: box('[data-canvas-surface]'), toolbar: box('[role="toolbar"][aria-label="Canvas tools"]') }; });
+// The Rabbit Holes Map's accepted place (owner, ce856371 "a little bit on top and on left"): pinned to the top
+// right of its gutter (pt-1, pr-4: 4 px down, 16 px in). The map is 76 px wide in an 84 px gutter, so the left
+// inset lets it reach at most 8 px past the gutter onto the surface's edge - never further into the canvas.
+// It stays clear of the toolbar, and the toolbar keeps its usable height.
+const MAP_TOP = 4, MAP_RIGHT = 16, MAP_OVERHANG = 8;
+const gutterProblems = g => {
+  const problems = [];
   const apart = (a, b) => a.right <= b.x || b.right <= a.x || a.bottom <= b.y || b.bottom <= a.y;
-  assert.ok(g.nav && g.nav.x >= g.gutter.x - 1 && g.nav.right <= g.gutter.right + 1 && g.nav.y >= g.gutter.y, `${label}: navigator inside the gutter`);
-  assert.ok(apart(g.nav, g.surface), `${label}: navigator clear of the canvas surface`);
-  assert.ok(apart(g.nav, g.toolbar), `${label}: navigator clear of the toolbar`);
-  assert.ok(g.toolbar.bottom - g.toolbar.y > 120, `${label}: the toolbar keeps usable height`);
+  if (!g.nav || !g.gutter) return ['navigator or its gutter missing'];
+  if (Math.abs(g.nav.right - (g.gutter.right - MAP_RIGHT)) > 1) problems.push(`navigator right edge ${g.nav.right} not ${MAP_RIGHT} px inside the gutter (${g.gutter.right})`);
+  if (Math.abs(g.nav.y - (g.gutter.y + MAP_TOP)) > 1) problems.push(`navigator top ${g.nav.y} not ${MAP_TOP} px below the gutter top (${g.gutter.y})`);
+  if (g.nav.x < g.surface.right - MAP_OVERHANG - 1) problems.push(`navigator reaches ${g.surface.right - g.nav.x} px into the canvas (at most ${MAP_OVERHANG})`);
+  if (!apart(g.nav, g.toolbar)) problems.push('navigator overlaps the toolbar');
+  if (g.toolbar.bottom - g.toolbar.y <= 120) problems.push('toolbar lost its usable height');
+  return problems;
+};
+const geometry = () => page.evaluate(() => { const box = s => { const r = document.querySelector(s)?.getBoundingClientRect(); return r && { x: r.x, y: r.y, right: r.right, bottom: r.bottom }; }; return { nav: box('[data-dive-navigator]'), gutter: (() => { const r = document.querySelector('[data-dive-navigator]')?.closest('[data-dive-gutter],[data-tool-gutter]')?.getBoundingClientRect(); return r && { x: r.x, y: r.y, right: r.right, bottom: r.bottom }; })(), surface: box('[data-canvas-surface]'), toolbar: box('[role="toolbar"][aria-label="Canvas tools"]') }; });
+const inGutter = async label => {
+  const problems = gutterProblems(await geometry());
+  assert.deepEqual(problems, [], `${label}: Rabbit Holes Map placement`);
+};
+// The check is real: the map shifted 40 px further into the canvas, or 20 px down, must fail it.
+const gutterCheckBites = async () => {
+  for (const shift of ['translateX(-40px)', 'translateY(20px)']) {
+    await page.evaluate(t => { document.querySelector('[data-dive-navigator]').style.transform = t; }, shift);
+    assert.ok(gutterProblems(await geometry()).length > 0, `the placement check catches a map moved by ${shift}`);
+  }
+  await page.evaluate(() => { document.querySelector('[data-dive-navigator]').style.transform = ''; });
 };
 const up = async () => { await nav().getByRole('button', { name: 'Up to the parent hole' }).click(); await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1500); };
 
@@ -56,6 +76,8 @@ const up = async () => { await nav().getByRole('button', { name: 'Up to the pare
 await open(ROOT_URL);
 await shot('01-root-navigator');
 await inGutter('root');
+await gutterCheckBites();
+await inGutter('root, restored');
 const [card1, card2] = (await blocks()).slice(0, 2);
 // The composer: Auto (not a model picker) opens the palette; a chosen command is a removable pill.
 const dock = page.locator('[data-learn-dock]');
@@ -100,24 +122,25 @@ const askedText = await asked.text();
 assert.doesNotMatch(askedText, /Canvas not found|App required/, `a pending hole's ask reaches the tutor: ${asked.status} ${askedText.slice(0, 120)}`);
 assert.equal((await get(`/api/canvases/dives?app=${root.name}&board=${BOARD}`)).children.length, 0, 'chat alone never persists the hole');
 await up();
-// Back on the parent: the empty hole is still this tab's, its card shows the temporary (dashed) portal.
-assert.ok(await page.evaluate(name => !!JSON.parse(sessionStorage.getItem('small.dive.pending') || '{}')[name], pendingName), 'the pending hole survives going up');
-assert.equal(await page.locator(`[data-block-id="${card1}"]`).first().evaluate(node => node.className.includes('outline-[#e5484d]')), true, 'temporary red highlighter portal on the card');
-assert.equal(await nav().locator('[data-dive-down]').count(), 1, 'the pending child is below the root');
-await select(card1);
-assert.equal(await page.locator(`[data-block-id="${card1}"]`).first().evaluate(node => node.className.includes('ring-2') && node.className.includes('outline-[#e5484d]')), true, 'selection and portal show together');
-await shot('04-pending-portal');
-// Double-click the card goes down its hole.
+// Back on the parent (owner, 4b764cb0): an empty hole is discarded as soon as the learner leaves it, so it
+// never shows on the map or as a portal - no pending record, no local keys, no red portal, no level below.
+const discarded = async (name, label) => {
+  assert.equal(await page.evaluate(n => !!JSON.parse(sessionStorage.getItem('small.dive.pending') || '{}')[n], name), false, `${label}: no pending record`);
+  assert.equal(await page.evaluate(n => Object.keys(localStorage).filter(key => key.includes(n)).length, name), 0, `${label}: no local keys`);
+  assert.equal(await page.locator(`[data-block-id="${card1}"]`).first().evaluate(node => node.className.includes('outline-[#e5484d]')), false, `${label}: no red portal on the card`);
+  assert.equal(await page.locator('[data-dive-portal]').count(), 0, `${label}: no portal`);
+  assert.equal(await nav().locator('[data-dive-down]').count(), 0, `${label}: nothing below the root on the map`);
+};
+await discarded(pendingName, 'leaving an empty hole');
+await shot('04-empty-hole-discarded');
+// Double-click on the card goes down a fresh hole; leaving it empty discards it too.
 await page.locator(`[data-block-id="${card1}"]`).first().dblclick({ position: { x: 40, y: 40 } });
-await page.waitForFunction(name => new URLSearchParams(location.search).get('hole') === name, pendingName); await page.waitForTimeout(1000);
+await page.waitForFunction(() => location.search.includes('hole=')); await page.waitForTimeout(1000);
+const again = url().searchParams.get('hole');
 await up();
-// Leaving the tree (in-app, to Home) while it is still empty discards it.
-await page.evaluate(() => { history.pushState(null, '', '/apps'); dispatchEvent(new PopStateEvent('popstate')); });
-await page.waitForTimeout(1000);
-assert.equal(await page.evaluate(() => sessionStorage.getItem('small.dive.pending')), null, 'leaving the tree discards the pending record');
-assert.equal(await page.evaluate(name => Object.keys(localStorage).filter(key => key.includes(name)).length, pendingName), 0, 'and its local keys');
+await discarded(again, 'a double-clicked hole left empty');
 await open(ROOT_URL);
-assert.equal(await page.locator('[data-dive-portal]').count(), 0, 'no outline for an abandoned hole');
+assert.equal(await page.locator('[data-dive-portal]').count(), 0, 'no outline for an abandoned hole after a reload');
 await shot('04b-after-leaving-tree');
 
 console.log('flow A ok');
@@ -170,10 +193,10 @@ await slash('/dive explain numerical stability');
 await page.waitForFunction(() => location.search.includes('hole=')); await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1000);
 assert.equal(await nav().locator('[aria-current="location"] [data-dive-level]').innerText(), 'Numerical stability');
 await shot('07-anchor-pending-hole');
-await up(); // still empty: the anchor stays on the parent with the temporary portal
+await up(); // still empty: the anchor card stays on the parent; its empty hole is discarded (owner, 4b764cb0)
 const anchor = await anchorCard();
 assert.ok(anchor, 'the anchor card stays on the parent');
-assert.equal(await page.locator(`[data-block-id="${anchor}"]`).first().evaluate(node => node.className.includes('outline-[#e5484d]')), true, 'the anchor shows the temporary portal while its hole is pending');
+assert.equal(await page.locator(`[data-block-id="${anchor}"]`).first().evaluate(node => node.className.includes('outline-[#e5484d]')), false, 'the discarded empty hole leaves no portal on its anchor');
 await page.locator(`[data-block-id="${anchor}"]`).scrollIntoViewIfNeeded();
 await shot('07b-anchor-card-no-outline');
 await select(anchor);
