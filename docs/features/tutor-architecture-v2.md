@@ -489,6 +489,17 @@ turns (Baseline A UI 58% on its evaluation-heavy golden turns). Late evidence: 1
 streamed arms; early questions 100% of question-opening turns. Caching: 151-154 warm reads per cached
 arm, ~0.30M cached tokens each; cost -22% (B vs A), no measurable latency change.
 
+## Free semantic rescore (GO FREE RESCORE, 2026-10-01)
+
+The paid rows re-scored with a semantic-equivalence rubric committed before any arm was scored
+(`docs/features/tutor-v2-rescore-20261001/`: `rubric.md`, `README.md` = the revised report). No model call;
+paid data, latency, cost and the hard and reliability gates unchanged. Semantic accuracy vs A (actions /
+evidence / route): A 96/142, 63/124, 52/94; B 100, 68, 57; D 94, 69, 56; E 100, 65, 51; F 97, 67, 55. With
+the unit golden traces as the golden gate, A, B, E and F pass the locked gates; D fails reliability.
+Routine first validated sentence (paid): F p50 3.6 s / p95 8.0 s, fastest on both; the all-turn
+comparison is a p50 (F) / p95 (E) split left to the owner. F (Sonnet 5.5 low + Opus) is the recommended
+fast tier. B: caching is a 22% cost saving, no latency gain.
+
 ## Paid benchmark plan (final; run 2026-10-01, results above)
 
 No paid call has run. The interrupted GO BENCHMARK of 2026-10-01 made none: the earlier agent was
