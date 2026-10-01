@@ -987,8 +987,23 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
     : isRepository ? (nanoActive || lesson.current?.lessonId?.startsWith('course-') ? courseTitle : app.repo || app.name)
     : courseTitle || app.repo || app.name;
   // Never the canvas id: its title, or plain words when there is none.
-  const askPlaceholder = isCanvas ? (app.title ? `Ask about ${app.title}…` : 'Ask about this canvas…') : `Ask about ${app.repo || app.name}…`;
+  const askPlaceholder = isCanvas ? ((canvasTitle || app.title) ? `Ask about ${canvasTitle || app.title}…` : 'Ask about this canvas…') : `Ask about ${app.repo || app.name}…`;
   const [titleDraft, setTitleDraft] = useState(null); // non-null only while the title is focused
+  // Renaming a canvas from the top bar saves it on the server through the Rabbit Hole map's rename
+  // (Dive.jsx), so the map, Home, Library and the placeholder follow; that rename calls saveTitle back.
+  const renameTitle = value => {
+    const here = isCanvas ? dive.navigator.tree?.path?.at(-1) : null;
+    if (value && here?.app === app.name && value !== (canvasTitle || fallbackTitle) && value !== here.title) { dive.navigator.rename(here, value); return; }
+    saveTitle(value === fallbackTitle ? '' : value);
+  };
+  // A name given before renames reached the server lived only in this browser: send it once.
+  const syncedTitle = useRef(null); // the canvas already checked
+  useEffect(() => {
+    const here = isCanvas ? dive.navigator.tree?.path?.at(-1) : null;
+    if (syncedTitle.current === app.name || !here || here.app !== app.name || here.pending) return;
+    syncedTitle.current = app.name;
+    if (canvasTitle && canvasTitle !== here.title) dive.navigator.rename(here, canvasTitle);
+  }, [dive.navigator.tree]); // eslint-disable-line react-hooks/exhaustive-deps
   const saveTitle = value => {
     const clean = value.trim().slice(0, 120);
     setCanvasTitle(clean);
@@ -1153,7 +1168,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
             // name keeps tracking the course title.
             value={titleDraft ?? (canvasTitle || fallbackTitle)}
             onChange={event => setTitleDraft(event.target.value)}
-            onBlur={event => { const value = event.target.value.trim().slice(0, 120); setTitleDraft(null); saveTitle(value === fallbackTitle ? '' : value); }}
+            onBlur={event => { const value = event.target.value.trim().slice(0, 120); setTitleDraft(null); renameTitle(value); }}
             onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); }}
             onFocus={event => {
               setTitleDraft(canvasTitle || fallbackTitle);
