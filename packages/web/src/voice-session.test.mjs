@@ -383,7 +383,8 @@ test('barge-in: the interrupting turn is never dropped as echo, even when it reu
   await r.session.enter();
   r.stt.say('explain the mask');
   await until(r.session, 'speaking');
-  // Scribe partials grow; the newest words decide.
+  // The learner starts speaking (new speech on the mic); Scribe partials grow and the newest words decide.
+  r.session.sttEvent({ type: 'speech_start' });
   r.session.sttEvent({ type: 'partial', text: 'no wait' });
   assert.equal(r.session.state, 'speaking', 'one qualifying partial is not enough');
   r.session.sttEvent({ type: 'partial', text: 'no wait the mask' });
@@ -492,5 +493,25 @@ test('early speech: two clips in one turn keep the first clip as when the learne
   const turnEvent = r.events.find(event => event.name === 'voice_turn');
   const firstHeard = r.events.find(event => event.name === 'speech_end').at;
   assert.ok(Math.abs(turnEvent.ms.speech_end_to_tutor_speaking - (starts[0] - firstHeard)) < 1, 'measured to the first clip');
+  r.session.exit();
+});
+
+test('barge-in needs new speech on the mic: a leftover partial from before the reply never interrupts the Tutor', async () => {
+  const tutor = scriptedTutor('The causal mask sets every later score to minus infinity before softmax.');
+  const r = rig(tutor, { ttsMs: 10000 });
+  await r.session.enter();
+  r.stt.say('explain the mask');
+  await until(r.session, 'speaking');
+  // Scribe delivers the tail of an earlier, split utterance after the mic reopens: partials, no new speech.
+  r.session.sttEvent({ type: 'partial', text: 'and why does that matter' });
+  r.session.sttEvent({ type: 'partial', text: 'and why does that matter for training' });
+  assert.equal(r.session.state, 'speaking', 'the Tutor keeps speaking');
+  assert.ok(!r.names().includes('voice_barge_in'));
+  // The learner really talks over it: new speech, then words.
+  r.session.sttEvent({ type: 'speech_start' });
+  r.session.sttEvent({ type: 'partial', text: 'wait hold on' });
+  r.session.sttEvent({ type: 'partial', text: 'wait hold on please' });
+  assert.equal(r.session.state, 'listening');
+  assert.ok(r.names().includes('voice_barge_in'));
   r.session.exit();
 });

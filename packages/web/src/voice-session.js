@@ -170,7 +170,7 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now 
     turn.marks.text_ready ??= now();
     turn.speech = words;
     set('speaking', { current: words, previous: caption.current || null });
-    barge = { hits: 0 };
+    barge = { hits: 0, heard: false };
     if (stt.echoCancelled !== false) Promise.resolve(stt.resume()).catch(() => sttFailed('resume'));
   }
 
@@ -241,7 +241,11 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now 
     subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
     sttEvent(event) {
       if (event?.type === 'error') return sttFailed(event.kind);
-      if (state === 'speaking' && current && (event?.type === 'partial' || event?.type === 'commit')) {
+      // New speech on the mic while the Tutor speaks (the adapter's speech_start after it resumed). A partial
+      // before that is a leftover of an utterance from before the reply (live, 2026-10-01: the tail of a split
+      // sentence arrived once the mic reopened and cut the Tutor off), never a barge-in.
+      if (state === 'speaking' && current && event?.type === 'speech_start') barge.heard = true;
+      if (state === 'speaking' && current && barge?.heard && (event?.type === 'partial' || event?.type === 'commit')) {
         // Two qualifying partials in a row (or a commit) take the floor; one stray partial does not.
         barge.hits = bargesIn(event.text, current.speech) ? barge.hits + 1 : 0;
         if (barge.hits >= 2 || (barge.hits && event.type === 'commit')) {
