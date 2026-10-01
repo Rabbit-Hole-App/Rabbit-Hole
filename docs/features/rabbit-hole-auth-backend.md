@@ -132,7 +132,7 @@ Landing lives on the same worker origin, and cookies are host-only.
   - `503 {error}`: show `error` as it is.
   - `SMALL_ENV=test` instances add `devLink`; dev never does.
 - **`next`:** carry the `next` from the sign-in page's own query into all three.
-- **Errors:** after the integration, `/login` should redirect to Landing's `/sign-in` with the same query string. The sign-in page shows the message for `error`:
+- **Errors:** on a Worker with `PUBLIC_ORIGIN` set, `GET /login` redirects to Landing's `/sign-in` with the same query string. Elsewhere it is still the transitional page. The sign-in page shows the message for `error`:
   - unavailable: "That sign-in option isn't available right now. Try another one."
   - cancelled: "Sign-in was cancelled."
   - expired: "That sign-in attempt expired. Try again."
@@ -158,6 +158,12 @@ Redirect URIs to register for each host:
 - `https://<host>/auth/github/callback`
 
 The email sign-in still needs `RESEND_API_KEY` and `EMAIL_FROM`, in the P0-A rollout order.
+
+`PUBLIC_ORIGIN` is a var, not a secret, set only on the Worker that serves Landing and sign-in at that origin. Production uses `https://tryrabbithole.dev`; leave it unset on dev and local Workers.
+- Sign-in routes (`/login`, `/logout`, `/auth*`, `/test/*`) reached on any other host are redirected there. GET goes to the same path; POST is refused with a 403.
+- The callbacks, the emailed link and the CSRF check therefore always use that one origin.
+- `/login` becomes `/sign-in`, so do not set it before that origin serves Landing.
+- See [rabbit-hole-production-auth.md](rabbit-hole-production-auth.md).
 
 ## Local development
 

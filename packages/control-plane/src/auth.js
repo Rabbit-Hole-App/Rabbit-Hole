@@ -343,10 +343,19 @@ async function mockAuthorize(req, env, baseUrl, html) {
 // ---------- Router ----------
 
 const FORM_POSTS = new Set(['/login', '/auth', '/auth/email/start', '/logout']);
+const AUTH_ROUTE = /^\/(?:login|logout|auth|test)(?:[/?#]|$)/;
 
 // The web sign-in routes; null for any other path. deps: { baseUrl, html, sendEmail } from index.js.
 export async function handleWebAuth(req, env, path, { baseUrl, html, sendEmail }) {
   const url = new URL(req.url);
+  // PUBLIC_ORIGIN (production: https://tryrabbithole.dev) is the one origin sign-in happens on. Cookies
+  // are host-only and providers accept only registered callbacks, so a sign-in route reached on any other
+  // host this Worker answers (workers.dev, www, plain http) is sent there first; a POST is refused.
+  // That origin also serves Landing, so the transitional /login page becomes /sign-in.
+  const canonical = env.PUBLIC_ORIGIN ? new URL(env.PUBLIC_ORIGIN).origin : null;
+  if (canonical && baseUrl !== canonical && AUTH_ROUTE.test(path)) {
+    return req.method === 'GET' || req.method === 'HEAD' ? redirect(canonical + path + url.search) : json({ error: `sign in on ${canonical}` }, 403);
+  }
   // Login CSRF: a browser always sends Origin on POST, so a cross-site form post is refused.
   // Non-browser clients may omit Origin; they cannot plant a cookie in someone's browser.
   const origin = req.headers.get('Origin');
@@ -354,7 +363,7 @@ export async function handleWebAuth(req, env, path, { baseUrl, html, sendEmail }
 
   if (path === '/login') {
     const next = safeNext(url.searchParams.get('next'));
-    if (req.method !== 'POST') return loginPage(env, next, url.searchParams.get('error'), html);
+    if (req.method !== 'POST') return canonical ? redirect(`/sign-in${url.search}`) : loginPage(env, next, url.searchParams.get('error'), html);
     const email = loginEmail((await req.formData()).get('email'));
     if (!email) return html('<p>Enter a valid email address.</p><a href="javascript:history.back()">back</a>', 400);
     const r = await emailLogin(env, email, next, baseUrl, sendEmail);
