@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { learnDb } from './learn-grade-fixture.js';
 import { liveDb, liveRuns, readOnlyControlPlane } from './live-storage-spy.js';
-import { tutorRoute, JEV_TIMEOUT_MS } from '../src/learn-tutor-routes.js';
+import { tutorRoute, JEV_TIMEOUT_MS, fastPlanProblem, plannerTier } from '../src/learn-tutor-routes.js';
 import { tutorQuestions, evaluationFrom, TUTOR_TOOL } from '../src/agents/learn-tutor.js';
 import { protocolFingerprint, GRADER_PROTOCOL_FINGERPRINT, JevError } from '../src/learn-grade-jev.js';
 
@@ -199,4 +199,59 @@ test('the routes refuse bad input and apps the learner cannot reach', async t =>
   assert.equal((await w.post('/api/learn/tutor/plan', { app: 'canvas-0a1b2c3d', context: 'x' })).status, 400);
   assert.ok((await w.post('/api/learn/tutor/plan', { app: 'canvas-ffffffff', context: {} })).status >= 400);
   assert.equal(await tutorRoute('/api/learn/other', new Request('https://dev.test/api/learn/other'), w.env), null);
+});
+
+// v2 checkpoint H: the tiered planner.
+function replies(t, list) {
+  const calls = [], original = globalThis.fetch;
+  t.after(() => { globalThis.fetch = original; });
+  globalThis.fetch = async (url, options = {}) => {
+    const body = JSON.parse(options.body);
+    calls.push(body);
+    const input = list[calls.length - 1];
+    return Response.json({ model: body.model, usage: {}, content: [{ type: 'tool_use', name: 'tutor_response', input }], stop_reason: 'tool_use' });
+  };
+  return calls;
+}
+const routine = { learner_intent: { kind: 'question' }, route: { row: 'not_yet_observed' }, allowed_actions: ['respond_text', 'ask_question', 'show_authored_card', 'suggest_depth'] };
+const answer = { strategy: 'none', actions: [{ type: 'respond_text', text: 'Every layer uses the same mask.' }] };
+
+test('plannerTier: routine questions, requests, slashes and openings on fixed-move rows go fast; the rest stay on Opus', () => {
+  assert.equal(plannerTier(routine).tier, 'fast');
+  assert.equal(plannerTier({ learner_intent: { kind: 'slash' }, route: { row: 'slash' } }).tier, 'fast');
+  assert.equal(plannerTier({ learner_intent: { kind: 'question' }, route: { row: 'misconception' } }).tier, 'opus');
+  assert.equal(plannerTier({ learner_intent: { kind: 'question' }, route: { row: 'uncertain' } }).tier, 'opus');
+  assert.equal(plannerTier({ learner_intent: { kind: 'explanation' }, route: { row: 'understood' } }).tier, 'opus');
+  assert.equal(plannerTier({ learner_intent: { kind: 'returned' }, route: { row: 'returned' } }).tier, 'opus');
+});
+
+test('plan: with TUTOR_PLANNER_FAST_MODEL a routine turn is planned by the fast model with the same prompt and tool', async t => {
+  const calls = replies(t, [answer]);
+  const body = await (await world(t, { TUTOR_PLANNER_FAST_MODEL: 'claude-haiku-4-5' }).post('/api/learn/tutor/plan', { app: 'canvas-0a1b2c3d', context: routine })).json();
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].model, 'claude-haiku-4-5');
+  assert.equal(calls[0].tools[0].name, 'tutor_response');
+  assert.match(calls[0].system, /router has already chosen/);
+  assert.equal('output_config' in calls[0], false, 'no fast effort set');
+  assert.deepEqual([body.telemetry.tier, body.telemetry.escalated, body.telemetry.requested_model], ['fast', null, 'claude-haiku-4-5']);
+});
+
+test('plan: an unusable fast plan is re-planned on Opus 5.5; a non-routine turn goes straight to Opus', async t => {
+  const calls = replies(t, [{ strategy: 'none', actions: [{ type: 'open_dive', concept: 'softmax' }] }, answer]);
+  const w = world(t, { TUTOR_PLANNER_FAST_MODEL: 'claude-haiku-4-5' });
+  const body = await (await w.post('/api/learn/tutor/plan', { app: 'canvas-0a1b2c3d', context: routine })).json();
+  assert.deepEqual(calls.map(call => call.model), ['claude-haiku-4-5', 'claude-opus-5-5']);
+  assert.deepEqual([body.telemetry.tier, body.telemetry.escalated, body.telemetry.fast.requested_model], ['opus', 'an action outside the allowed types', 'claude-haiku-4-5']);
+  assert.deepEqual(body.actions, answer.actions);
+  const graded = await (await w.post('/api/learn/tutor/plan', { app: 'canvas-0a1b2c3d', context: { ...routine, route: { row: 'misconception' } } })).json();
+  assert.equal(calls[2].model, 'claude-opus-5-5');
+  assert.equal(graded.telemetry.tier, 'opus');
+  assert.equal(fastPlanProblem({ actions: [{ type: 'show_authored_card', card: 'c' }] }, routine), 'no words');
+});
+
+test('plan: an unknown fast model name tiers nothing', async t => {
+  const calls = replies(t, [answer]);
+  const body = await (await world(t, { TUTOR_PLANNER_FAST_MODEL: 'claude-haiku-9' }).post('/api/learn/tutor/plan', { app: 'canvas-0a1b2c3d', context: routine })).json();
+  assert.equal(calls[0].model, 'claude-opus-5-5');
+  assert.equal('tier' in body.telemetry, false);
 });

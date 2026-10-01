@@ -102,16 +102,14 @@ export async function evaluateFreeText(env, spec, message, deps = {}) {
 
 // The TutorResponse at top level (the client reads it) plus `telemetry`. A failure throws with
 // `error.telemetry`: outcome 'invalid' when the reply has no usable tutor_response, else 'error'.
-// v2 checkpoint G: TUTOR_PLANNER_EFFORT (one of PLANNER_EFFORTS) sets the planner's effort; unset, the
-// model default (Baseline A). Only the benchmark sets it until the owner picks a level.
-export async function planTurn(env, context, { callModel = loggedModel('tutor', anthropic) } = {}, documents = []) {
+// One planner call on `model`. effort: output_config.effort, or null for the model default.
+async function planOnce(env, context, model, effort, { callModel = loggedModel('tutor', anthropic) } = {}, documents = []) {
   const started = Date.now();
-  const effort = PLANNER_EFFORTS.includes(env.TUTOR_PLANNER_EFFORT) ? env.TUTOR_PLANNER_EFFORT : null;
-  const telemetry = { ms: null, requested_model: LEARN_TASKS.tutor.model, effort, served_model: null, input_tokens: null, output_tokens: null, stop_reason: null, outcome: null };
+  const telemetry = { ms: null, requested_model: model, effort, served_model: null, input_tokens: null, output_tokens: null, stop_reason: null, outcome: null };
   const done = outcome => ({ ...telemetry, ms: Date.now() - started, outcome });
   let result;
   try {
-    const response = await callModel(env, plannerRequest(context, LEARN_TASKS.tutor.maxTokens, documents, { effort }), LEARN_TASKS.tutor.model, null);
+    const response = await callModel(env, plannerRequest(context, LEARN_TASKS.tutor.maxTokens, documents, { effort }), model, null);
     if (!response.ok) throw await modelFailure(response, 'The tutor is unavailable');
     result = await response.json();
   } catch (error) { throw Object.assign(error, { telemetry: done('error') }); }
@@ -119,6 +117,53 @@ export async function planTurn(env, context, { callModel = loggedModel('tutor', 
   const call = result.content?.find(block => block.type === 'tool_use' && block.name === TUTOR_TOOL.name);
   if (!call?.input || !Array.isArray(call.input.actions)) throw Object.assign(new Error('The tutor returned no turn'), { telemetry: done('invalid') });
   return { ...call.input, telemetry: done('ok') };
+}
+
+// v2 checkpoint H: the tiered planner, off unless TUTOR_PLANNER_FAST_MODEL names one of these
+// (claude-api skill model table, cached 2026-09-25). Only the benchmark sets it until the owner picks.
+export const FAST_PLANNER_MODELS = ['claude-haiku-4-5', 'claude-sonnet-5-5'];
+// Routine: a question, request, slash or hole opening on a row whose move the router has already fixed.
+// Everything else (misconceptions, unsettled or uncertain evidence, a return from a hole, any
+// explanation or answer) stays on Opus 5.5.
+const ROUTINE_ROWS = ['slash', 'off_slice', 'not_yet_observed', 'understood', 'gap', 'gap_inline'];
+const ROUTINE_INTENTS = ['question', 'request', 'slash', 'opening'];
+export function plannerTier(context) {
+  const row = context?.route?.row, kind = context?.learner_intent?.kind;
+  if (!ROUTINE_ROWS.includes(row)) return { tier: 'opus', reason: `row ${row}` };
+  if (!ROUTINE_INTENTS.includes(kind)) return { tier: 'opus', reason: `intent ${kind}` };
+  return { tier: 'fast', reason: `${row}/${kind}` };
+}
+// The fast plan's confidence check: any action outside the allowed types, or no words to say, sends
+// the turn to Opus 5.5. The browser's validator still gates whichever plan comes back.
+export function fastPlanProblem(plan, context) {
+  const allowed = new Set([...(context?.allowed_actions || []), 'no_action', ...(plan.explicit_request ? ['respond_text', 'show_authored_card', 'focus_part'] : [])]);
+  if (plan.actions.some(action => !allowed.has(action?.type))) return 'an action outside the allowed types';
+  if (!plan.actions.some(action => (action?.type === 'respond_text' || action?.type === 'ask_question') && String(action.text || '').trim())) return 'no words';
+  return null;
+}
+
+// v2 checkpoint G: TUTOR_PLANNER_EFFORT (one of PLANNER_EFFORTS) sets the Opus planner's effort; unset,
+// the model default (Baseline A). H: TUTOR_PLANNER_FAST_MODEL (+ TUTOR_PLANNER_FAST_EFFORT) tiers it.
+// The fast model gets the same system prompt, Teaching State, route and allowed actions: it never
+// sets policy. A failed or unusable fast plan is re-planned on Opus 5.5 (telemetry.escalated).
+export async function planTurn(env, context, deps = {}, documents = []) {
+  const level = name => PLANNER_EFFORTS.includes(env[name]) ? env[name] : null;
+  const fast = FAST_PLANNER_MODELS.includes(env.TUTOR_PLANNER_FAST_MODEL) ? env.TUTOR_PLANNER_FAST_MODEL : null;
+  const tier = fast ? plannerTier(context) : null;
+  const opus = () => planOnce(env, context, LEARN_TASKS.tutor.model, level('TUTOR_PLANNER_EFFORT'), deps, documents);
+  if (!tier) return opus();
+  const tagged = (plan, extra) => ({ ...plan, telemetry: { ...plan.telemetry, tier: tier.tier, tier_reason: tier.reason, ...extra } });
+  if (tier.tier === 'opus') {
+    try { return tagged(await opus()); } catch (error) { throw Object.assign(error, { telemetry: { ...error.telemetry, tier: 'opus', tier_reason: tier.reason } }); }
+  }
+  let first, problem;
+  try { first = await planOnce(env, context, fast, level('TUTOR_PLANNER_FAST_EFFORT'), deps, documents); problem = fastPlanProblem(first, context); }
+  catch (error) { first = { telemetry: error.telemetry }; problem = error.message; }
+  if (!problem) return tagged(first, { escalated: null });
+  const escalated = { tier: 'opus', tier_reason: tier.reason, escalated: problem, fast: first.telemetry ?? null };
+  let plan;
+  try { plan = await opus(); } catch (error) { throw Object.assign(error, { telemetry: { ...error.telemetry, ...escalated } }); }
+  return { ...plan, telemetry: { ...plan.telemetry, ...escalated } };
 }
 
 export async function tutorRoute(path, req, env, deps = {}) {

@@ -9,7 +9,9 @@
 // packages/web/.dev.vars, gitignored), with per-rung latency and tokens; the stub answers are unused
 // and the expectations then score the real models. Refused unless TUTOR_BENCH_PAID=GO is set, which
 // only the owner's GO BENCHMARK authorises; never from make.
-// Usage: node e2e/tutor-corpus-run.mjs [--stage A] [--out dir] [--live [--price-in USD --price-out USD]]
+// --candidate (live only): the worker's planner knobs for this run (CANDIDATES below; v2 checkpoints
+// G and H). The stub run reports which tier H would pick per turn without calling anything.
+// Usage: node e2e/tutor-corpus-run.mjs [--stage A] [--out dir] [--live [--candidate G-default] [--price-in USD --price-out USD]]
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { cardBlock } from '../src/nanogpt/board.js';
 import { applyCheck, applyNewAttempt, enterPractice, setActivityAnswer } from '../src/scene-activity.js';
@@ -19,7 +21,7 @@ import { cardModule } from '../src/learn-tutor-claims.js';
 import { partIndex } from '../src/nanogpt/depth/board.js';
 import { emptyStore } from '../src/learn-tutor-evidence.js';
 import { arriveAt, enterHole, keepHere, markOpened, openingQuestion, runTurn } from '../src/learn-tutor.js';
-import { evaluateFreeText, planTurn, validateEvaluateBody } from '../../control-plane/src/learn-tutor-routes.js';
+import { evaluateFreeText, plannerTier, planTurn, validateEvaluateBody } from '../../control-plane/src/learn-tutor-routes.js';
 import { PLANNER_SYSTEM, TUTOR_TOOL, tutorQuestions } from '../../control-plane/src/agents/learn-tutor.js';
 import { CORPUS } from './tutor-corpus.mjs';
 
@@ -28,8 +30,17 @@ const flag = (name, fallback) => { const at = args.indexOf(`--${name}`); return 
 const STAGE = flag('stage', 'A'), OUT = flag('out', 'tutor-bench-out'), LIVE = args.includes('--live');
 const PRICE = { in: Number(flag('price-in', NaN)), out: Number(flag('price-out', NaN)) };
 if (LIVE && process.env.TUTOR_BENCH_PAID !== 'GO') throw Error('--live makes paid model calls: set TUTOR_BENCH_PAID=GO only after the owner typed GO BENCHMARK');
+// Planner candidates for the paid benchmark (env knobs read by planTurn). Baseline A is its own SHA.
+const CANDIDATES = {
+  'G-default': {}, // Opus 5.5 at the model-default effort (medium), compact output
+  'G-low': { TUTOR_PLANNER_EFFORT: 'low' },
+  'H-haiku': { TUTOR_PLANNER_EFFORT: 'low', TUTOR_PLANNER_FAST_MODEL: 'claude-haiku-4-5' },
+  'H-sonnet': { TUTOR_PLANNER_EFFORT: 'low', TUTOR_PLANNER_FAST_MODEL: 'claude-sonnet-5-5', TUTOR_PLANNER_FAST_EFFORT: 'low' },
+};
+const CANDIDATE = flag('candidate', 'G-default');
+if (!CANDIDATES[CANDIDATE]) throw Error(`--candidate is one of ${Object.keys(CANDIDATES).join(', ')}`);
 const ENV = LIVE ? Object.fromEntries(readFileSync(new URL('../.dev.vars', import.meta.url), 'utf8').split(/\r?\n/)
-  .filter(line => /^[A-Z_]+=/.test(line)).map(line => [line.slice(0, line.indexOf('=')), line.slice(line.indexOf('=') + 1).trim()])) : null;
+  .filter(line => /^[A-Z_]+=/.test(line)).map(line => [line.slice(0, line.indexOf('=')), line.slice(line.indexOf('=') + 1).trim()]).concat(Object.entries(CANDIDATES[CANDIDATE]))) : null;
 const MODE = LIVE ? 'live' : 'stub';
 const PARENT = { app: 'canvas-aaaa1111', board: 'nanogpt-attention-tutor' };
 const AUTHORED = ['show_authored_card', 'focus_part', 'suggest_depth', 'suggest_practice'];
@@ -108,7 +119,7 @@ async function runTrace(trace) {
     }
     if (step.opening) { raw = openingQuestion(store, inHole); store = markOpened(store, inHole); }
     if (step.climb) { store = arriveAt(store, PARENT); canvas = PARENT; inHole = null; }
-    const calls = { jev: 0, larger: 0, planner: 0, plannerChars: 0, jevQuestions: 0, selected: [], escalation: null, invalid: 0, jevMs: null, jevOutcome: null, largerMs: null, largerOutcome: null, largerTokens: null, plannerMs: null, plannerTokens: null, plannerOutcome: null };
+    const calls = { jev: 0, larger: 0, planner: 0, plannerChars: 0, jevQuestions: 0, selected: [], escalation: null, invalid: 0, jevMs: null, jevOutcome: null, largerMs: null, largerOutcome: null, largerTokens: null, plannerMs: null, plannerTokens: null, plannerOutcome: null, tier: null, servedTier: null, escalated: null };
     const post = async (path, body) => {
       if (path === '/api/learn/tutor/evaluate') {
         const input = validateEvaluateBody(body);
@@ -135,10 +146,12 @@ async function runTrace(trace) {
       }
       calls.planner++;
       calls.plannerChars = JSON.stringify(body.context).length;
+      calls.tier = plannerTier(body.context).tier;
       if (!LIVE) return step.stub.plan;
       try {
         const planned = await planTurn(ENV, body.context);
-        Object.assign(calls, { plannerMs: planned.telemetry.ms, plannerOutcome: 'ok', plannerTokens: { in: planned.telemetry.input_tokens, out: planned.telemetry.output_tokens } });
+        Object.assign(calls, { plannerMs: planned.telemetry.ms, plannerOutcome: 'ok', plannerTokens: { in: planned.telemetry.input_tokens, out: planned.telemetry.output_tokens },
+          servedTier: planned.telemetry.tier ?? 'opus', escalated: planned.telemetry.escalated ?? null });
         return planned;
       } catch (error) {
         Object.assign(calls, { plannerMs: error.telemetry?.ms ?? null, plannerOutcome: error.telemetry?.outcome ?? 'error' });
@@ -177,7 +190,7 @@ async function runTrace(trace) {
       turn_trace: result.bench?.trace ? { trace_id: result.bench.trace.trace_id, stages: result.bench.trace.stages.map(stage => `${stage.stage}:${stage.status}:${stage.result}`) } : null,
       turn_ms: turnMs, jev_ms: calls.jevMs, jev_outcome: calls.jevOutcome, larger_ms: calls.largerMs, larger_outcome: calls.largerOutcome, larger_tokens: calls.largerTokens,
       planner_ms: calls.plannerMs, planner_outcome: calls.plannerOutcome, planner_tokens: calls.plannerTokens,
-      planner_calls: calls.planner, planner_context_chars: calls.plannerChars,
+      planner_calls: calls.planner, planner_context_chars: calls.plannerChars, planner_tier: calls.tier, planner_served_tier: calls.servedTier, planner_escalated: calls.escalated,
       planner_input_tokens_est: calls.planner ? Math.round((calls.plannerChars + PLANNER_SYSTEM.length + JSON.stringify(TUTOR_TOOL).length) / 4) : 0,
       authored_actions: got.actions.filter(action => AUTHORED.includes(action.type)).length, text_actions: got.actions.filter(action => action.type === 'respond_text').length,
       invalid_requests: calls.invalid, checks, pass: Object.values(checks).every(Boolean),
@@ -235,6 +248,8 @@ const summary = {
   },
   modeled_first_audio_ms: { note: 'MODELED from Baseline A component means, planner fixed at 7707 ms', baseline_policy: stats(modeled(() => true)), this_stage: stats(modeled(row => !row.critical_path || row.critical_path.blocking)) },
   planner_calls_per_turn: +(rows.reduce((n, row) => n + row.planner_calls, 0) / rows.length).toFixed(3),
+  planner_fast_tier_share: rate(rows.filter(row => row.planner_tier), row => row.planner_tier === 'fast'),
+  ...(LIVE ? { candidate: CANDIDATE, planner_escalations: rows.filter(row => row.planner_escalated).map(row => `${row.trace}#${row.turn}: ${row.planner_escalated}`) } : {}),
   planner_input_tokens_est: stats(rows.filter(row => row.planner_calls).map(row => row.planner_input_tokens_est)),
   claims_available_per_jev_turn: jevTurns.some(row => row.claims_available != null) ? +(jevTurns.reduce((n, row) => n + (row.claims_available || 0), 0) / jevTurns.length).toFixed(2) : null,
   rejections_by_stage: rows.flatMap(row => row.rejections || []).reduce((acc, entry) => { const stage = entry.split('@')[1].split(':')[0]; acc[stage] = (acc[stage] || 0) + 1; return acc; }, {}),
