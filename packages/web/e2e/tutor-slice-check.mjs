@@ -179,8 +179,8 @@ nextPlan = () => ({ strategy: 'none', move: 'go_deeper', reason: 'explicit reque
   actions: [{ type: 'show_authored_card', card: 'depth-attention-deep', part_id: 'shapes', mode: 'navigate' }, say('Here is CausalSelfAttention.forward, from the split into heads onwards.')] });
 await ask("Don't simplify this. Show me the implementation.");
 await waitPlan(1);
-assert.equal(plans[0].turn.target.card, 'depth-attention-overview');
-assert.notEqual(plans[0].turn.target.block_id, plans[0].turn.target.scene_id);
+assert.equal(plans[0].target.card, 'depth-attention-overview');
+assert.equal(plans[0].learner_intent.raw_user_message.length > 0, true);
 await page.getByText('Here is CausalSelfAttention.forward').first().waitFor();
 assert.ok(await selected('depth-attention-deep'), 'the Deep card is focused');
 await shot('02-gt04-deep-card');
@@ -217,7 +217,7 @@ await page.locator('[data-dive-suggestion]').waitFor();
 await shot('05-gt06-dive-suggestion');
 await page.getByRole('button', { name: 'Keep it on this canvas' }).click();
 nextPlan = sent => {
-  assert.deepEqual(sent.turn.dive_choice, { concept: 'softmax', choice: 'inline' });
+  assert.deepEqual(sent.learner_intent.dive_choice, { concept: 'softmax', choice: 'inline' });
   assert.equal(sent.route.row, 'gap_inline');
   return { strategy: 'feynman', move: 'inline', reason: '', actions: [say('Here, then: softmax exponentiates each score and divides by the sum.')] };
 };
@@ -234,10 +234,10 @@ await ask(gapQuestion);
 await waitPlan(5);
 await page.locator('[data-dive-suggestion]').waitFor();
 nextPlan = sent => {
-  assert.equal(sent.turn.opening, true);
-  assert.equal(sent.dive.origin_card, 'depth-attention-guided');
-  assert.equal(sent.dive.concept, 'softmax');
-  assert.match(sent.turn.raw_user_message, /add up to one/);
+  assert.equal(sent.learner_intent.kind, 'opening');
+  assert.equal(sent.dive_context.origin_card, 'depth-attention-guided');
+  assert.equal(sent.dive_context.concept, 'softmax');
+  assert.match(sent.learner_intent.raw_user_message, /add up to one/);
   return { strategy: 'feynman', move: 'explain', reason: '', actions: [say('In this hole: softmax turns scores into weights that add up to one.'), { type: 'show_authored_card', card: 'c21-temperature', mode: 'suggest' }] };
 };
 await page.getByRole('button', { name: 'Go down a Rabbit Hole' }).click();
@@ -254,7 +254,7 @@ await shot('08-gt-d1-c21-in-hole');
 // ---- in the hole: a transfer explanation, then back up ----
 nextEvaluation = () => ({ status: 'settled', evaluator: 'jev', events: [0, 1].map(() => event('softmax/normalizes-to-one', 'softmax', { result: 'pass', kind: 'demonstrated_in_transfer' })) });
 nextPlan = sent => {
-  assert.equal(sent.turn.canvas.dive.dive_id, hole);
+  assert.equal(sent.dive_context.dive_id, hole);
   return { strategy: 'none', move: 'ack', reason: '', actions: [say('Right - that is softmax.'), { type: 'return_from_dive' }] };
 };
 await ask('With scores 2, 1, 0: e² ≈ 7.4, e ≈ 2.7, 1; divided by their sum 11.1 they are 0.67, 0.24, 0.09 and add up to one.');
@@ -266,7 +266,7 @@ assert.ok(await page.locator(`[data-dive-portal="${hole}"]`).count(), 'the Guide
 
 // ---- GT-D3: the parent's next turn carries returned_from and asks one question ----
 nextPlan = sent => {
-  assert.equal(sent.turn.returned_from.dive_id, hole);
+  assert.equal(sent.dive_context.returned_from.dive_id, hole);
   assert.equal(sent.route.row, 'returned');
   assert.equal(sent.route.claim, 'attention/weights-from-scores');
   return { strategy: 'socrates', move: 're-check', reason: '', actions: [{ type: 'ask_question', text: 'So why do the attention weights add up to one?', claim: 'attention/weights-from-scores', purpose: 'transfer' }] };

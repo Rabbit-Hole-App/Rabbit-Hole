@@ -224,6 +224,38 @@ test('bench: route, action types, enforce drops and timings per turn; never the 
   assert.ok(!JSON.stringify(opening.bench).includes(raw));
 });
 
+test('VOICE-07 a voice turn is the typed turn: same enforced actions, same plan context but input_modality; the turnId carries through', async () => {
+  // GT-04 (an explicit navigate) and GT-06 (a dive suggestion), each run typed and spoken with one turnId.
+  const traces = [
+    [block('depth-attention-overview'), "Don't simplify this. Show me the implementation.", { strategy: 'none', move: 'go_deeper', reason: '', explicit_request: 'Show me the implementation', actions: [{ type: 'show_authored_card', card: 'depth-attention-deep', part_id: 'shapes', mode: 'navigate' }, say('Here is CausalSelfAttention.forward.')] }, jev({ attempt: 0 })],
+    [block('depth-attention-guided'), "I get that q·k gives a score, but why do the weights add up to one? Why isn't the score just the weight?", { strategy: 'none', move: 'prerequisite', reason: '', actions: [say('The weights come from softmax.'), { type: 'suggest_dive', concept: 'softmax', title: 'Softmax' }] }, jev({ attempt: 0, gaps: { softmax: 1 } })],
+  ];
+  for (const [target, raw, plan, evaluate] of traces) {
+    const typed = await turnOn(target, raw, emptyStore(), plan, evaluate, { turnId: 'turn-1' });
+    const voice = await turnOn(target, raw, emptyStore(), plan, evaluate, { turnId: 'turn-1', inputModality: 'voice' });
+    assert.deepEqual(voice.actions, typed.actions, 'the same enforced actions');
+    const contextOf = result => result.sent.find(call => call.path === '/api/learn/tutor/plan').body.context;
+    const typedContext = JSON.stringify(contextOf(typed));
+    assert.ok(!typedContext.includes('input_modality'), 'a typed plan context is unchanged');
+    // Voice identifies itself through the v2 learner intent, not a separate turn object or path.
+    assert.equal(contextOf(voice).learner_intent.input_modality, 'voice');
+    const { input_modality, ...spoken } = contextOf(voice).learner_intent;
+    assert.equal(JSON.stringify({ ...contextOf(voice), learner_intent: spoken }), typedContext, 'equal but for input_modality');
+    // Grading never sees the modality.
+    assert.deepEqual(voice.sent.filter(call => call.path === '/api/learn/tutor/evaluate'), typed.sent.filter(call => call.path === '/api/learn/tutor/evaluate'));
+    assert.equal(voice.turn.turn_id, 'turn-1');
+    assert.equal(voice.bench.turn_id, 'turn-1');
+    assert.equal(voice.bench.trace.trace_id, 'turn-1', 'one canonical id: the turn id is the trace id');
+    assert.deepEqual([typed.turn.input_modality, typed.bench.input_modality, voice.bench.input_modality], ['text', 'text', 'voice']);
+    assert.ok(!JSON.stringify(voice.bench).includes(raw.slice(0, 20)), 'no learner text in the bench');
+  }
+  // Without a turnId each turn mints its own, and both buildTurn calls share it.
+  const { result } = await gt06();
+  assert.match(result.turn.turn_id, /^[0-9a-f-]{36}$/);
+  assert.equal(result.bench.turn_id, result.turn.turn_id);
+  assert.equal(result.bench.trace.trace_id, result.turn.turn_id);
+});
+
 test('the words before a dive suggestion are cut to two sentences; replies without one are untouched', async () => {
   // The live planner's gap reply (2026-09-30): six sentences, with decimals and code that are not ends.
   const long = 'Because the output is a weighted average of the value vectors, not a sum of scores. Raw scores are unbounded and can be negative, your row is (-1, 1, 4, 1) after scaling. If you used them directly, the output would scale with how big the scores happen to be. "att = F.softmax(att, dim=-1)" fixes both: exp makes everything positive. Here e^4/(e^4 + 2e + e^-1) = 0.904. So the output stays inside the span of the values!';
@@ -306,9 +338,9 @@ test('GT-D1 / GT-D2 / GT-D3: suggest, keep or go down, answer in the hole, climb
   assert.match(question, /add up to one/);
   const hole = { app: 'canvas-bbbb2222', board: 'main', dive: record };
   const { post } = worker({ plan: context => {
-    assert.equal(context.dive.origin_card, 'depth-attention-guided');
-    assert.equal(context.dive.concept, 'softmax');
-    assert.equal(context.concept_states.softmax, 'not_yet_observed');
+    assert.equal(context.dive_context.origin_card, 'depth-attention-guided');
+    assert.equal(context.dive_context.concept, 'softmax');
+    assert.equal(context.relevant_evidence.concepts.softmax, 'not_yet_observed');
     return { strategy: 'feynman', move: 'explain', reason: '', actions: [say('Softmax exponentiates, then divides by the sum.'), { type: 'show_authored_card', card: 'c21-temperature', mode: 'suggest' }] };
   } });
   const opening = await runTurn({ raw: question, opening: true, canvas: hole, access: { app: hole.app }, block: null, store: markOpened(store, record), post });
@@ -335,6 +367,32 @@ test('GT-D1 / GT-D2 / GT-D3: suggest, keep or go down, answer in the hole, climb
   assert.equal(back.store.returned, null);
   const again = await turnOn(guided, 'Still here.', back.store, { strategy: 'none', move: 'x', reason: '', actions: [say('ok')] }, jev({ attempt: 0 }));
   assert.equal(again.turn.returned_from, undefined, 'returned_from is carried once');
+});
+
+test('VOICE-14 a spoken Rabbit Hole suggestion only suggests; Go down opens on the topic, never the learner\'s words', async () => {
+  const guided = block('depth-attention-guided');
+  const raw = "I get that q·k gives a score, but why do the weights add up to one? Why isn't the score just the weight?";
+  const plan = { strategy: 'none', move: 'prerequisite', reason: '', actions: [say('The weights come from softmax.'), { type: 'suggest_dive', concept: 'softmax', title: 'Softmax' }, { type: 'open_dive', concept: 'softmax', title: 'Softmax' }] };
+  const spoken = await turnOn(guided, raw, emptyStore(), plan, jev({ attempt: 0, gaps: { softmax: 1 } }), { inputModality: 'voice' });
+  // LearnTutor.jsx runs these actions inside the voice turn: a suggestion event, no card, no hole, no climb.
+  const canvas = fakeCanvas([guided]), suggested = [];
+  const chips = executeActions(spoken.actions, { canvas, suggestDive: detail => suggested.push(detail), climb: () => assert.fail('no climb') });
+  assert.deepEqual(suggested, [{ blockId: guided.id, topic: 'Softmax' }]);
+  assert.deepEqual(canvas.calls, []);
+  assert.equal(chips.length, 0);
+  // Go down: the dock sends the opening as a typed message (a user bubble), so it is the topic, not the speech.
+  const record = HOLE(guided);
+  const store = enterHole(spoken.store, record);
+  assert.equal(store.dive.claim, 'attention/weights-from-scores', 'the blocked claim still travels');
+  assert.equal(openingQuestion(store, record), 'Take me into Softmax.');
+  assert.equal(store.suggested.question, null);
+});
+
+test('the enforce log never quotes the planner\'s explicit_request (it may be the learner\'s words)', async () => {
+  const plan = { strategy: 'none', move: 'go_deeper', reason: '', explicit_request: 'please show me the secret implementation', actions: [say('Here.')] };
+  const result = await turnOn(block('depth-attention-overview'), 'Show me the implementation.', emptyStore(), plan, jev({ attempt: 0 }));
+  assert.ok(result.log.includes('explicit_request not in the learner\'s words'));
+  assert.ok(!JSON.stringify(result.bench.rejected).includes('secret'));
 });
 
 test('evidence: misconception needs two settled events with the same id; a later transfer pass supersedes', () => {

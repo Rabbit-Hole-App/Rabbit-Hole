@@ -148,7 +148,7 @@ for (let run = 1; run <= RUNS; run++) {
       run, turn: turn.id, cold: serverCold, run_first: runFirst, stub: STUB,
       ui: { first_visible_ms: visible, hang, error_ui: /^\s*✗/.test(reply), timeout: /took too long/.test(reply), stopped: reply.trim() === 'Stopped.', reply_sentences: reply.trim() ? reply.trim().split(/(?<=[.!?])\s+/).length : 0 },
       evaluation: evaluate ? { status: evaluate.body?.status, evaluator: evaluate.body?.evaluator, http: evaluate.status, events: (evaluate.body?.events || []).map(event => ({ claim: event.claim, result: event.result, settled: event.settled, kind: event.kind ?? null, misconception_id: event.misconception_id ?? null, prerequisite: event.prerequisite ?? null })), larger_error: evaluate.body?.larger_error ?? null, telemetry: evaluate.body?.telemetry ?? null } : null,
-      planner: plan ? { http: plan.status, strategy: plan.body?.strategy ?? null, requested: (plan.body?.actions || []).map(action => action.type), error: plan.status === 200 ? null : plan.body?.error ?? null, telemetry: plan.body?.telemetry ?? null, returned_from: plan.plan?.turn?.returned_from ? { dive_id: plan.plan.turn.returned_from.dive_id, claim: plan.plan.turn.returned_from.claim } : null } : null,
+      planner: plan ? { http: plan.status, strategy: plan.body?.strategy ?? null, requested: (plan.body?.actions || []).map(action => action.type), error: plan.status === 200 ? null : plan.body?.error ?? null, telemetry: plan.body?.telemetry ?? null, returned_from: plan.plan?.dive_context?.returned_from ? { dive_id: plan.plan.dive_context.returned_from.dive_id, claim: plan.plan.dive_context.returned_from.claim } : null } : null,
       app: bench,
     };
     record.checks = check(turn, record, hole);

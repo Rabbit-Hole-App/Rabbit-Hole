@@ -43,8 +43,9 @@ store. One model call per turn keeps latency down (J13), and R11 is settled by m
 
 ```
 LearnerTurn v1 {
-  turn_id: string                        // uuid
+  turn_id: string                        // uuid; a voice turn's is minted at the utterance commit
   raw_user_message: string               // verbatim, never rewritten or summarized
+  input_modality: 'text' | 'voice'       // default 'text'; the planner sees it only on voice turns (voice-tutor-mvp.md §1)
   slash?: 'deeper' | 'simplify' | 'dive' | null   // typed command, if any
   answering?: string                     // action_id of the Tutor question this message answers
   dive_choice?: { concept, choice: 'dive' | 'inline' }   // the learner's pick on a suggest_dive (§6.3)

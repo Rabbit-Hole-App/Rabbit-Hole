@@ -1,0 +1,265 @@
+{
+  "when": "2026-10-01T19:58:52.639Z",
+  "runs": 3,
+  "turns": 24,
+  "skipped": 3,
+  "stub": false,
+  "models": {
+    "planner": [
+      "claude-opus-5-5"
+    ],
+    "larger": [
+      "claude-opus-5-5"
+    ]
+  },
+  "latency_ms": {
+    "jev": {
+      "all": {
+        "count": 24,
+        "mean": 129,
+        "p50": 112,
+        "p95": 184,
+        "max": 290
+      },
+      "cold": {
+        "count": 1,
+        "mean": 290,
+        "p50": 290,
+        "p95": 290,
+        "max": 290
+      },
+      "warm": {
+        "count": 23,
+        "mean": 122,
+        "p50": 112,
+        "p95": 178,
+        "max": 184
+      }
+    },
+    "larger_evaluator": {
+      "all": {
+        "count": 14,
+        "mean": 5873,
+        "p50": 5676,
+        "p95": 8015,
+        "max": 8015
+      },
+      "cold": {
+        "count": 0
+      },
+      "warm": {
+        "count": 14,
+        "mean": 5873,
+        "p50": 5676,
+        "p95": 8015,
+        "max": 8015
+      }
+    },
+    "planner": {
+      "all": {
+        "count": 24,
+        "mean": 12436,
+        "p50": 11753,
+        "p95": 16773,
+        "max": 17252
+      },
+      "cold": {
+        "count": 1,
+        "mean": 11753,
+        "p50": 11753,
+        "p95": 11753,
+        "max": 11753
+      },
+      "warm": {
+        "count": 23,
+        "mean": 12466,
+        "p50": 11846,
+        "p95": 16773,
+        "max": 17252
+      }
+    },
+    "first_visible_response": {
+      "all": {
+        "count": 24,
+        "mean": 16281,
+        "p50": 16101,
+        "p95": 24183,
+        "max": 24474
+      },
+      "cold": {
+        "count": 1,
+        "mean": 12329,
+        "p50": 12329,
+        "p95": 12329,
+        "max": 12329
+      },
+      "warm": {
+        "count": 23,
+        "mean": 16452,
+        "p50": 16909,
+        "p95": 24183,
+        "max": 24474
+      }
+    },
+    "evidence_ready_in_app": {
+      "all": {
+        "count": 24,
+        "mean": 3597,
+        "p50": 4048.8,
+        "p95": 8167.8,
+        "max": 8248.2
+      },
+      "cold": {
+        "count": 1,
+        "mean": 342,
+        "p50": 341.8,
+        "p95": 341.8,
+        "max": 341.8
+      },
+      "warm": {
+        "count": 23,
+        "mean": 3738,
+        "p50": 4408.9,
+        "p95": 8167.8,
+        "max": 8248.2
+      }
+    },
+    "planner_ready_in_app": {
+      "all": {
+        "count": 24,
+        "mean": 16060,
+        "p50": 15957.6,
+        "p95": 23989.3,
+        "max": 24250.6
+      },
+      "cold": {
+        "count": 1,
+        "mean": 12120,
+        "p50": 12119.9,
+        "p95": 12119.9,
+        "max": 12119.9
+      },
+      "warm": {
+        "count": 23,
+        "mean": 16231,
+        "p50": 16688.8,
+        "p95": 23989.3,
+        "max": 24250.6
+      }
+    },
+    "canvas_action_complete_in_app": {
+      "all": {
+        "count": 24,
+        "mean": 16061,
+        "p50": 15958.3,
+        "p95": 23989.8,
+        "max": 24251
+      },
+      "cold": {
+        "count": 1,
+        "mean": 12121,
+        "p50": 12121.1,
+        "p95": 12121.1,
+        "max": 12121.1
+      },
+      "warm": {
+        "count": 23,
+        "mean": 16232,
+        "p50": 16689.4,
+        "p95": 23989.8,
+        "max": 24251
+      }
+    }
+  },
+  "reliability": {
+    "jev_timeouts": 0,
+    "jev_errors": 0,
+    "larger_timeouts": 3,
+    "larger_errors": 0,
+    "planner_timeouts": 0,
+    "planner_errors": 0,
+    "invalid_structured_outputs": 0,
+    "rejected_actions": 1,
+    "frontend_hangs": 0,
+    "error_ui_turns": 0
+  },
+  "correctness": {
+    "turns_as_expected": 15,
+    "by_turn": {
+      "GT-01": {
+        "as_expected": 3,
+        "of": 3,
+        "failures": []
+      },
+      "GT-04": {
+        "as_expected": 3,
+        "of": 3,
+        "failures": []
+      },
+      "GT-03a": {
+        "as_expected": 3,
+        "of": 3,
+        "failures": []
+      },
+      "GT-03b": {
+        "as_expected": 3,
+        "of": 3,
+        "failures": []
+      },
+      "GT-07": {
+        "as_expected": 3,
+        "of": 3,
+        "failures": []
+      },
+      "GT-06": {
+        "as_expected": 0,
+        "of": 3,
+        "failures": [
+          "route uncertain_unsettled not in gap",
+          "no Rabbit Hole suggestion",
+          "5 sentences before the suggestion",
+          "9 sentences before the suggestion"
+        ]
+      },
+      "GT-D1": {
+        "as_expected": 0,
+        "of": 0,
+        "failures": []
+      },
+      "hole-answer": {
+        "as_expected": 0,
+        "of": 3,
+        "failures": [
+          "no return offered"
+        ]
+      },
+      "GT-D3": {
+        "as_expected": 0,
+        "of": 3,
+        "failures": [
+          "route gap not in returned",
+          "return context missing the hole",
+          "route uncertain not in returned"
+        ]
+      }
+    }
+  },
+  "efficiency": {
+    "jev_calls_per_turn": 1,
+    "larger_calls_per_turn": 0.58,
+    "planner_calls_per_turn": 1,
+    "larger_escalation_rate": 0.58,
+    "authored_content_reuse_rate": 0.13,
+    "generated_text_rate": 1,
+    "model_tokens_per_turn": 7996,
+    "input_tokens": 164081,
+    "output_tokens": 27812,
+    "price_per_mtok": {
+      "in": 4,
+      "out": 20
+    },
+    "est_cost_per_turn_usd": 0.0505,
+    "est_cost_per_100_turns_usd": 5.05,
+    "note": "JEV (TypeSafe) is not priced here; cost covers the Anthropic calls at the supplied per-MTok prices."
+  }
+}

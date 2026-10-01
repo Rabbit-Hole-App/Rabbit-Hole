@@ -1,0 +1,332 @@
+{
+  "stage": "C-r1",
+  "mode": "live",
+  "candidate": "C",
+  "group": null,
+  "traces": 33,
+  "turns": 33,
+  "errored_turns": 33,
+  "aborted": "fast mode unavailable: HTTP 429, organization rate limit of 0 fast-mode input tokens per minute (claude-opus-5-5); first run only, no further attempt",
+  "late_evidence": {
+    "off_path_turns": 0,
+    "with_evidence": 0,
+    "route_changed": 0,
+    "route_changed_rate": null,
+    "dependent_actions_dropped": 0
+  },
+  "speed": {
+    "jev_ms": {
+      "count": 31,
+      "mean": 106,
+      "p50": 100,
+      "p95": 174,
+      "max": 188
+    },
+    "jev_timeout_rate": 0,
+    "jev_error_rate": 0,
+    "larger_ms": {
+      "count": 5,
+      "mean": 5202,
+      "p50": 6546,
+      "p95": 6864,
+      "max": 6864
+    },
+    "larger_errors": 0,
+    "planner_ms": {
+      "count": 33,
+      "mean": 342,
+      "p50": 326,
+      "p95": 456,
+      "max": 470
+    },
+    "planner_ms_routine": {
+      "count": 33,
+      "mean": 342,
+      "p50": 326,
+      "p95": 456,
+      "max": 470
+    },
+    "planner_ms_graded": {
+      "count": 0
+    },
+    "first_sentence_ms": {
+      "count": 0
+    },
+    "first_sentence_ms_routine": {
+      "count": 0
+    },
+    "first_sentence_ms_graded": {
+      "count": 0
+    },
+    "planner_errors": 33,
+    "turn_ms": {
+      "count": 33,
+      "mean": 1224,
+      "p50": 427,
+      "p95": 7153,
+      "max": 7329
+    }
+  },
+  "tokens": {
+    "planner_in": {
+      "count": 0
+    },
+    "planner_out": {
+      "count": 0
+    },
+    "larger_in": {
+      "count": 0
+    },
+    "larger_out": {
+      "count": 0
+    }
+  },
+  "cost_usd": null,
+  "cache": {
+    "cold": {
+      "calls": 0,
+      "planner_ms": {
+        "count": 0
+      },
+      "input_tokens": {
+        "count": 0
+      }
+    },
+    "warm": {
+      "calls": 0,
+      "planner_ms": {
+        "count": 0
+      },
+      "cached_tokens": {
+        "count": 0
+      }
+    },
+    "uncached": {
+      "calls": 0,
+      "planner_ms": {
+        "count": 0
+      }
+    }
+  },
+  "served_model_mismatches": [],
+  "speed_mismatches": 0,
+  "latency_by_group": {
+    "all": {
+      "turns": 0,
+      "first_validated_sentence_ms": {
+        "count": 0
+      },
+      "full_plan_ms": {
+        "count": 0
+      }
+    },
+    "routine": {
+      "turns": 0,
+      "first_validated_sentence_ms": {
+        "count": 0
+      },
+      "full_plan_ms": {
+        "count": 0
+      }
+    },
+    "evidence": {
+      "turns": 0,
+      "first_validated_sentence_ms": {
+        "count": 0
+      },
+      "full_plan_ms": {
+        "count": 0
+      }
+    },
+    "structural": {
+      "turns": 0,
+      "first_validated_sentence_ms": {
+        "count": 0
+      },
+      "full_plan_ms": {
+        "count": 0
+      }
+    }
+  },
+  "model_calls_per_turn": 2.091,
+  "pass_rate": 0,
+  "groups": {
+    "routine": {
+      "turns": 10,
+      "categories": {
+        "explicit_implementation": 2,
+        "question_request": 5,
+        "slash_deeper": 1,
+        "slash_simplify": 1,
+        "action_validation": 1
+      }
+    },
+    "evidence": {
+      "turns": 21,
+      "categories": {
+        "correct_explanation": 3,
+        "practice_evidence": 3,
+        "repeated_misconception": 2,
+        "prerequisite_gap": 1,
+        "evaluator_disagreement": 4,
+        "partial_explanation": 3,
+        "ambiguous_explanation": 1,
+        "misconception": 2,
+        "evaluator_error": 2
+      }
+    },
+    "structural": {
+      "turns": 2,
+      "categories": {
+        "rabbit_hole": 2
+      }
+    }
+  },
+  "gate_inputs": {
+    "audit": {
+      "consent": 0,
+      "policy": 0,
+      "resource": 0
+    },
+    "evidence_corruption": 0,
+    "spoken_then_replaced": 0,
+    "invalid_plans": 0,
+    "routine_fast_escalations": "0/12"
+  },
+  "golden_traces": {
+    "total": 9,
+    "passed": 0
+  },
+  "by_dimension": {
+    "selection": {
+      "scored": 0,
+      "pass_rate": null
+    },
+    "evaluation": {
+      "scored": 0,
+      "pass_rate": null
+    },
+    "evidence": {
+      "scored": 0,
+      "pass_rate": null
+    },
+    "route": {
+      "scored": 0,
+      "pass_rate": null
+    },
+    "actions": {
+      "scored": 0,
+      "pass_rate": null
+    }
+  },
+  "jev_calls_per_turn": 0.939,
+  "jev_questions_per_call": 12.19,
+  "claims_selected_per_jev_turn": 1.61,
+  "larger_calls_per_turn": 0.152,
+  "larger_evaluator_escalation_rate": 0.161,
+  "free_text_negative_events": {
+    "fail": 0,
+    "misconception": 0
+  },
+  "critical_path": {
+    "evaluated_turns": 0,
+    "off_critical_path": 0,
+    "skip_rate": null,
+    "misses": [],
+    "reasons": {}
+  },
+  "evaluation_dependency": {
+    "to_first_safe_sentence_ms": {
+      "count": 0
+    },
+    "to_evidence_ready_ms": {
+      "count": 0
+    },
+    "to_first_evidence_action_ms": {
+      "count": 0
+    },
+    "turns_with_evidence_actions": 0,
+    "evidence_actions_dropped": 0,
+    "note": "ms from the turn start"
+  },
+  "modeled_first_audio_ms": {
+    "note": "MODELED from Baseline A component means, planner fixed at 7707 ms",
+    "baseline_policy": {
+      "count": 0
+    },
+    "this_stage": {
+      "count": 0
+    }
+  },
+  "planner_calls_per_turn": 1,
+  "first_sentence": {
+    "early_rate": null,
+    "consistent_rate": null,
+    "at_fraction_of_output": {
+      "count": 0
+    },
+    "question_turns": {
+      "turns": 0,
+      "early": 0,
+      "early_rate": null,
+      "at_fraction_of_output": {
+        "count": 0
+      },
+      "first_sentence_ms": {
+        "count": 0
+      }
+    },
+    "note": "at_fraction_of_output in thousandths of the tool-input characters written before the first sentence is ready (stub: scripted plans, control fields then actions)"
+  },
+  "planner_fast_tier_share": 0.364,
+  "planner_escalations": [],
+  "planner_input_tokens_est": {
+    "count": 33,
+    "mean": null,
+    "max": null
+  },
+  "claims_available_per_jev_turn": null,
+  "rejections_by_stage": {},
+  "actions": {
+    "proposed": 0,
+    "accepted": 0,
+    "rejected": 0
+  },
+  "authored_content_reuse_rate": null,
+  "generated_text_rate": null,
+  "failed": [
+    "GT-01#0: turn",
+    "GT-02#0: turn",
+    "GT-03#0: turn",
+    "GT-04#0: turn",
+    "GT-06#0: turn",
+    "GT-07#0: turn",
+    "GT-11#0: turn",
+    "GT-12#0: turn",
+    "GT-D#0: turn",
+    "B-correct-transfer#0: turn",
+    "B-partial#0: turn",
+    "B-ambiguous#0: turn",
+    "B-misconception-once#0: turn",
+    "B-misconception-repeated#0: turn",
+    "B-misconception-unsure-second#0: turn",
+    "B-question#0: turn",
+    "B-question-softmax#0: turn",
+    "B-another-way#0: turn",
+    "B-deeper#0: turn",
+    "B-simplify#0: turn",
+    "B-deep-part#0: turn",
+    "B-gap-long-reply#0: turn",
+    "B-gap-unsure#0: turn",
+    "B-practice-pass#0: turn",
+    "B-jev-error#0: turn",
+    "B-larger-error#0: turn",
+    "B-selection-zero#0: turn",
+    "B-no-quiz#0: turn",
+    "B-invalid-actions#0: turn",
+    "D7-one-idea-untouched#0: turn",
+    "D7-contradicts-second-idea#0: turn",
+    "D7-prompted-one-idea#0: turn",
+    "D7-practice-incomplete#0: turn"
+  ]
+}

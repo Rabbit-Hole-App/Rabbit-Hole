@@ -11,8 +11,11 @@ import { describeAnimation } from './scene-describe.js';
 import { checkStatus, enterPractice, isPracticing } from './scene-activity.js';
 import { applyInputToBlock } from './scene-evaluate.js';
 import { coerceInputs, validateInputDeclarations } from './scene-inputs.js';
-import { CLAIMS, CONCEPTS, SLICE_CARDS, catalogue, cardModule, claimsOfConcept, conceptOf, ladderStep, partLabels, targetClaims } from './learn-tutor-claims.js';
-import { appendEvents, conceptState, deriveClaimStates, practiceEvents } from './learn-tutor-evidence.js';
+import { ATTENTION_LADDER, CLAIMS, CONCEPTS, SLICE_CARDS, catalogue, cardModule, claimsOfConcept, conceptOf, ladderStep, partLabels, targetClaims } from './learn-tutor-claims.js';
+import { appendEvents, conceptState, deriveClaimStates, practiceEvents, reconcile } from './learn-tutor-evidence.js';
+import { selectClaims } from './learn-tutor-select.js';
+import { EVIDENCE_ACTIONS, EVIDENCE_ROWS, speakable, statedConstraints, validateActions } from './learn-tutor-validate.js';
+import { turnTrace } from './learn-tutor-trace.js';
 
 const SLASHES = ['deeper', 'simplify', 'dive'];
 const canvasKey = canvas => `${canvas.app}|${canvas.board || 'main'}`;
@@ -71,21 +74,26 @@ export function turnClaims(turn, store) {
   return out.slice(0, 4);
 }
 
-// The ClaimStates the turn carries: its claims and their prerequisites' claims (at most 10).
-function turnEvidence(claims, states) {
+// The turn's claims and their prerequisites' claims (at most 10): the ClaimStates the turn carries,
+// and the selector's candidates.
+function withPrerequisites(claims) {
   const ids = [...claims];
   for (const id of claims) for (const concept of CLAIMS[id].prerequisites) for (const other of claimsOfConcept(concept)) if (!ids.includes(other)) ids.push(other);
-  return ids.slice(0, 10).map(id => states[id]);
+  return ids.slice(0, 10);
 }
+const turnEvidence = (claims, states) => withPrerequisites(claims).map(id => states[id]);
 
-export function buildTurn({ raw, slash = null, opening = false, canvas, block, store, states }) {
+// inputModality: 'text' (typed) or 'voice' (Voice Mode, docs/features/voice-tutor-mvp.md §1);
+// turnId: the voice trace id minted at the utterance commit, else a fresh one.
+export function buildTurn({ raw, slash = null, opening = false, canvas, block, store, states, inputModality = 'text', turnId = null }) {
   const here = { app: canvas.app, board: canvas.board || 'main' };
   const open = store.open && sameCanvas(store.open.canvas, here) && !slash ? store.open : null;
   const keep = store.keep && sameCanvas(store.keep.canvas, here) ? store.keep : null;
   const back = store.returned && sameCanvas(store.returned.parent, here) ? store.returned : null;
   const turn = {
-    turn_id: crypto.randomUUID(),
+    turn_id: turnId || crypto.randomUUID(),
     raw_user_message: raw,
+    input_modality: inputModality === 'voice' ? 'voice' : 'text',
     slash: SLASHES.includes(slash) ? slash : null,
     ...(open ? { answering: open.action_id } : {}),
     ...(keep ? { dive_choice: { concept: keep.concept, choice: 'inline' } } : {}),
@@ -101,7 +109,12 @@ export function buildTurn({ raw, slash = null, opening = false, canvas, block, s
   };
   const claims = turnClaims(turn, store);
   turn.evidence = turnEvidence(claims, states);
-  return { turn, claims };
+  // Stage B: the claims the learner's words touch, out of the turn's claims and their prerequisites'.
+  const selection = raw.trim() && !turn.slash && !opening ? selectClaims(raw, {
+    candidates: withPrerequisites(claims), fallback: claims,
+    forced: [turn.answering ? store.open?.claim : null, turn.returned_from?.claim].filter(Boolean),
+  }) : null;
+  return { turn, claims, selection };
 }
 
 // What /api/learn/tutor/evaluate checks: the turn's claims, and gap checks for their prerequisites.
@@ -115,7 +128,12 @@ export function evaluationSpec(turn, claims, store) {
   return {
     answering: !!turn.answering,
     ...(turn.answering && store.open?.text ? { question: store.open.text } : {}),
-    claims: claims.map(id => ({ id, concept: CLAIMS[id].concept, statement: CLAIMS[id].statement, ideas: CLAIMS[id].ideas, misconceptions: CLAIMS[id].misconceptions, drawn: CLAIMS[id].drawn })),
+    claims: claims.map(id => {
+      // The named misconceptions this claim already has a settled event for: one more settled one
+      // makes the claim `misconception`, so the escalation policy treats that check as important.
+      const prior = [...new Set(store.events.filter(event => event.claim === id && event.settled && event.misconception_id).map(event => event.misconception_id))];
+      return { id, concept: CLAIMS[id].concept, statement: CLAIMS[id].statement, ideas: CLAIMS[id].ideas, misconceptions: CLAIMS[id].misconceptions, drawn: CLAIMS[id].drawn, ...(prior.length ? { prior_misconceptions: prior } : {}) };
+    }),
     gaps,
   };
 }
@@ -148,167 +166,274 @@ export function route({ turn, claims, states, evaluation, store }) {
     return finish('misconception_explain', 'feynman', ['respond_text', 'ask_question', 'focus_part'], wrong);
   }
   const unsure = pick(state => state.state === 'uncertain');
-  if (unsure && evaluation?.status === 'uncertain') return finish('uncertain_unsettled', 'feynman', ['ask_question'], unsure);
+  // An explanation whose content JEV could not settle and the policy did not escalate (Stage C):
+  // one clarifying question, never a fail.
+  const unclear = evaluation?.status === 'uncertain' && (evaluation.escalation?.uncertain || []).some(key => /^c\d+_(idea|mis|contra)/.test(key));
+  if ((unsure || unclear) && evaluation?.status === 'uncertain') return finish('uncertain_unsettled', 'feynman', ['ask_question'], unsure || claims[0]);
   if (unsure) return finish('uncertain', 'feynman', ['respond_text', 'focus_part', 'show_authored_card', 'suggest_depth', 'suggest_practice', 'ask_question'], unsure);
   const unseen = pick(state => state.state === 'not_yet_observed');
   if (unseen) return finish('not_yet_observed', 'feynman', ['respond_text', 'ask_question', 'show_authored_card', 'suggest_depth'], unseen);
   return finish('understood', 'none', ['respond_text', 'suggest_depth', 'ask_question'], claims[0]);
 }
 
-// ---------- Planner context (§9) ----------
+// ---------- Compact Teaching State (§9, v2 Stage E) ----------
 
-export function plannerContext({ turn, routed, block, states }) {
+// What the learner is doing this turn, deterministically: a slash, a hole's opening, an answer to the
+// Tutor's open question, a request ("show me", "explain", "don't quiz me"), a question, else an
+// explanation. The planner reads it; JEV still decides whether words were an attempt.
+export function learnerIntent(turn) {
+  const raw = turn.raw_user_message.trim();
+  const kind = turn.slash ? 'slash' : turn.opening ? 'opening' : turn.returned_from ? 'returned' : turn.answering ? 'answer'
+    : /^(please |can you |could you |just )?(show|take|give|explain|tell|walk|go|simplify|don'?t|do not|no more|stop)\b/i.test(raw) ? 'request'
+    : /\?\s*$/.test(raw) || /^(why|how|what|when|where|which|who|is|are|does|do|can|could|should|would)\b/i.test(raw) ? 'question' : 'explanation';
+  // input_modality only on voice turns, so a typed turn's planner context is unchanged.
+  return { kind, raw_user_message: turn.raw_user_message, ...(turn.input_modality === 'voice' ? { input_modality: 'voice' } : {}), ...(turn.slash ? { slash: turn.slash } : {}), ...(turn.dive_choice ? { dive_choice: turn.dive_choice } : {}) };
+}
+
+// ---------- Critical-path evaluation policy (v2 Stage C) ----------
+
+// Must evaluation finish before the Tutor answers? Decided before any model call:
+//   an answer to the Tutor's question or an explanation -> yes: the evidence decides the move
+//   a question or request whose claims carry a prerequisite check -> yes: a gap turns the reply
+//     into a Rabbit Hole suggestion (GT-06)
+//   a request, a question that ends in "?", and a turn back from a hole (its route ignores
+//     evidence) -> no: evaluation runs beside the planner and its evidence is stored when it lands.
+//     A question is never a failed explanation, so only JEV's attempt check can still find evidence.
+//   anything else -> yes ("When it reads a character it looks back..." starts like a question but
+//     explains; an unpunctuated question only waits for JEV).
+//   Decision 1: a request or question that the prior evidence routes to an evidence row (a gap,
+//     misconception or uncertain move: EVIDENCE_ROWS) -> yes: that intervention depends on what this
+//     turn's evaluation says (priorRow is route() on the prior evidence).
+// ponytail: a stated belief phrased as a question ("Isn't the mask after softmax?") is routed on the
+// prior evidence and counted as a critical-path miss in the trace; tighten if the paid run shows misses.
+export function criticalPath(intent, spec, priorRow = null) {
+  if (intent.kind === 'answer') return { blocking: true, reason: 'answer' };
+  if (intent.kind === 'returned') return { blocking: false, reason: 'returned' };
+  if (!(intent.kind === 'request' || (intent.kind === 'question' && /\?\s*$/.test(intent.raw_user_message)))) return { blocking: true, reason: 'explanation' };
+  if (EVIDENCE_ROWS.includes(priorRow)) return { blocking: true, reason: 'evidence_row' };
+  if (spec.gaps.length) return { blocking: true, reason: 'gap_check' };
+  return { blocking: false, reason: intent.kind };
+}
+
+// The cards that bear on this turn: the target, its ladder neighbours, and the cards that teach the
+// route's claim, the turn's claims or their prerequisite concepts.
+function relevantCards(target, concepts) {
+  const ids = new Set([target, ...(ATTENTION_LADDER.includes(target) ? [ladderStep(target, 'deeper'), ladderStep(target, 'shallower')] : [])].filter(id => id && SLICE_CARDS.includes(id)));
+  for (const id of SLICE_CARDS) if (targetClaims({ card_id: id }).some(claim => concepts.has(CLAIMS[claim].concept))) ids.add(id);
+  return catalogue().filter(card => ids.has(card.card));
+}
+
+// The planner's whole input: the turn's intent, target, relevant evidence, route and allowed actions,
+// the authored content that bears on it, constraints, recent context and the hole - nothing else
+// (no unrelated cards, concepts or transcript).
+export function plannerContext({ turn, routed, block, states, claims = [], store = null }) {
   const card = cardModule(turn.target?.card);
   const labels = partLabels(card);
   const index = turn.target?.part_id ? partIndex(card, turn.target.part_id) : null;
   const sources = (block?.sources || card?.sources || []).slice(0, 3).map((source, i) => ({ source_index: i, path: source.path || source.url || null, lines: source.lines || null, note: String(source.note || '').slice(0, 400) }));
   const described = block?.type === 'animation' ? describeAnimation(block).text : block ? [block.title, block.body].filter(Boolean).join('\n') : null;
-  const ids = [...new Set([...turnClaims(turn, { open: null }), routed.claim].filter(Boolean))];
-  const { record, ...dive } = turn.canvas.dive || {};
+  const ids = [...new Set([routed.claim, ...claims].filter(Boolean))].slice(0, 4);
+  const concepts = new Set(ids.flatMap(id => [CLAIMS[id].concept, ...CLAIMS[id].prerequisites]));
+  const record = turn.canvas.dive?.record;
+  const evidence = id => { const { concept, claim, state, misconception_id, prerequisite } = states[id]; return { claim, concept, statement: CLAIMS[id].statement, state, ...(misconception_id ? { misconception_id } : {}), ...(prerequisite ? { prerequisite } : {}), misconceptions: CLAIMS[id].misconceptions.map(wrong => wrong.id) }; };
   return {
-    turn: { ...turn, canvas: { ...turn.canvas, ...(turn.canvas.dive ? { dive } : {}) } },
-    route: routed,
+    learner_intent: learnerIntent(turn),
     target: card ? {
       card: card.evidence.card, title: card.scene.title, depth: card.evidence.depth ?? null,
-      learning_question: card.evidence.learningQuestion, concept: card.evidence.concept,
-      part_label: index != null ? labels[index] : null, description: described, sources,
+      learning_question: card.evidence.learningQuestion, concepts: turn.target.concepts, selected_object: turn.target.selected_object ?? null,
+      part_id: turn.target.part_id ?? null, part_label: index != null ? labels[index] : null, description: described, sources,
     } : described ? { description: described } : null,
-    claims: ids.map(id => ({ id, statement: CLAIMS[id].statement, prerequisites: CLAIMS[id].prerequisites, misconceptions: CLAIMS[id].misconceptions.map(wrong => wrong.id) })),
-    states: turn.evidence.filter(Boolean),
-    concept_states: Object.fromEntries(Object.keys(CONCEPTS).map(concept => [concept, conceptState(states, concept)])),
-    catalogue: catalogue(),
-    ...(record ? { dive: { title: record.title, concept: holeConcept(record), created_by: record.created_by, origin_card: record.origin?.origin_card_id ?? null, origin_part: record.origin?.origin_part_id ?? null, pending_question: record.return_point?.pending_question ?? null } } : {}),
+    relevant_evidence: { claims: ids.map(evidence), concepts: Object.fromEntries([...concepts].map(concept => [concept, conceptState(states, concept)])) },
+    route: { row: routed.row, strategy: routed.strategy, claim: routed.claim },
+    allowed_actions: routed.allowed,
+    relevant_authored_content: { cards: relevantCards(turn.target?.card, concepts), ...(turn.card_state ? { card_state: turn.card_state } : {}) },
+    learner_constraints: turn.constraints,
+    recent_relevant_context: {
+      turns: turn.recent_turns.slice(-2), actions: turn.recent_actions.slice(-2),
+      ...(turn.answering && store?.open?.text ? { open_question: store.open.text } : {}),
+    },
+    dive_context: record || turn.returned_from ? {
+      ...(record ? { dive_id: record.dive_id, title: record.title, concept: holeConcept(record), created_by: record.created_by, origin_card: record.origin?.origin_card_id ?? null, origin_part: record.origin?.origin_part_id ?? null, pending_question: record.return_point?.pending_question ?? null } : {}),
+      ...(turn.returned_from ? { returned_from: { dive_id: turn.returned_from.dive_id, concept: turn.returned_from.concept, claim: turn.returned_from.claim } } : {}),
+    } : null,
   };
 }
 
 // ---------- Enforcement (§5) ----------
 
-// The router's allowed types are binding; navigate needs an explicit request (quoted from the
-// learner's own words), a slash, or the learner's "Keep it on this canvas". Anything else is
-// dropped or downgraded to a suggestion chip, and logged.
-export function enforce(response, routed, turn) {
-  const log = [];
-  const quoted = typeof response.explicit_request === 'string' ? response.explicit_request.trim() : '';
-  const explicit = !!quoted && turn.raw_user_message.toLowerCase().includes(quoted.toLowerCase());
-  if (quoted && !explicit) log.push(`explicit_request not in the learner's words: "${quoted}"`);
-  const navigate = explicit || routed.row === 'slash' || routed.row === 'gap_inline';
-  const allowed = new Set([...routed.allowed, ...(explicit ? ['respond_text', 'show_authored_card', 'focus_part'] : [])]);
-  const noQuiz = turn.constraints.includes('no_quiz') || turn.constraints.includes('just_answer');
-  const actions = [];
-  for (const action of Array.isArray(response.actions) ? response.actions : []) {
-    if (!action || !allowed.has(action.type)) { log.push(`dropped ${action?.type}: not allowed in row ${routed.row}`); continue; }
-    if (action.type === 'ask_question' && noQuiz) { log.push('dropped ask_question: no_quiz'); continue; }
-    if (action.type === 'ask_question' && actions.some(other => other.type === 'ask_question')) { log.push('dropped a second ask_question'); continue; }
-    if ((action.type === 'respond_text' || action.type === 'ask_question') && !String(action.text || '').trim()) { log.push(`dropped empty ${action.type}`); continue; }
-    if (['show_authored_card', 'focus_part', 'suggest_depth', 'suggest_practice'].includes(action.type) && !SLICE_CARDS.includes(action.card)) { log.push(`dropped ${action.type}: unknown card ${action.card}`); continue; }
-    if (action.type === 'focus_part' && partIndex(cardModule(action.card), action.part_id) == null) { log.push(`dropped focus_part: ${action.card} has no part ${action.part_id}`); continue; }
-    if (action.type === 'return_from_dive' && !turn.canvas.dive) { log.push('dropped return_from_dive outside a hole'); continue; }
-    if (action.type === 'open_dive') { log.push('dropped open_dive: only the learner opens a hole (/dive, Ctrl+K, Go down)'); continue; }
-    let next = { ...action };
-    if ((next.type === 'show_authored_card' || next.type === 'focus_part') && next.mode === 'navigate' && !navigate) { next.mode = 'suggest'; log.push(`downgraded ${next.type} to a chip: no explicit request`); }
-    if ((next.type === 'show_authored_card' || next.type === 'focus_part') && !next.mode) next.mode = 'suggest';
-    if (next.type === 'ask_question') next = { ...next, action_id: crypto.randomUUID(), claim: CLAIMS[next.claim] ? next.claim : routed.claim };
-    if (next.type === 'suggest_dive') {
-      // Exactly one originating card (R-10): the target card, else a topic anchor made on Go down.
-      const concept = CONCEPTS[next.concept] ? next.concept : conceptOf(next.title) || conceptOf(next.concept) || null;
-      const title = String(next.title || CONCEPTS[concept]?.label || next.concept || '').slice(0, 80);
-      if (!title) { log.push('dropped suggest_dive: no topic'); continue; }
-      next = { type: 'suggest_dive', concept, title, from: turn.target?.block_id ? { block_id: turn.target.block_id } : { anchor: { topic: title } } };
-    }
-    actions.push(next);
-    if (actions.length === 3) break;
-  }
-  // The words before a Rabbit Hole suggestion are at most two sentences (locked §4, gap row): the
-  // planner is asked for it, and this keeps it when the planner writes more. A sentence ends at . ! or ?
-  // followed by a space, so decimals (0.904) and code (F.softmax) stay whole.
-  if (actions.some(action => action.type === 'suggest_dive')) {
-    let budget = 2;
-    const capped = [];
-    for (const action of actions) {
-      if (action.type !== 'respond_text') { capped.push(action); continue; }
-      const sentences = action.text.trim().split(/(?<=[.!?])\s+/);
-      if (!budget) { log.push('dropped respond_text: over two sentences before a dive suggestion'); continue; }
-      if (sentences.length > budget) log.push(`shortened respond_text to ${budget} sentence(s) before a dive suggestion`);
-      capped.push({ ...action, text: sentences.slice(0, budget).join(' ') });
-      budget -= Math.min(budget, sentences.length);
-    }
-    return { actions: capped, log };
-  }
-  if (!actions.length) actions.push({ type: 'no_action' });
-  return { actions, log };
-}
+// The action validator / policy gate (v2 Stage F, learn-tutor-validate.js): schema -> route ->
+// resource -> consent, one decision per proposed action.
+export const enforce = validateActions;
 
 // ---------- One turn ----------
 
 // Runs the turn up to the enforced actions and the updated store. `post(path, body)` resolves the
 // route's JSON or throws; the canvas is not touched here (see executeActions).
-export async function runTurn({ raw, slash = null, opening = false, canvas, access, block, store, post }) {
+// onSpeakable(sentence) (v2 checkpoint I, for voice): the planner is asked to stream ({ stream: true },
+// and post gets a third argument { onSentence }, see readPlanStream); the plan's first sentence is
+// handed over before the plan is complete, only if speakable() passes for this turn's route.
+// turnId: one canonical id for the learner turn - the turn's turn_id and the trace's trace_id - that Voice
+// also uses for its telemetry and speech (LearnVoice, voice-session).
+export async function runTurn({ raw, slash = null, opening = false, canvas, access, block, store, post, onSpeakable = null, inputModality = 'text', turnId = null }) {
   const t = [now()];
+  const id = turnId || crypto.randomUUID();
+  const tracer = turnTrace(now, id); // v2: the turn trace (learn-tutor-trace.js), returned in bench.trace
   let current = store;
   const here = { app: canvas.app, board: canvas.board || 'main' };
-  const target = targetOf(block);
+  const target = tracer.step('target_resolution', () => targetOf(block), found => found?.card ?? 'none');
   t.push(now());
   // 1. Deterministic rung: new attemptLog entries on the target card.
   if (block && target?.card) {
-    const practiced = practiceEvents(current, block, { card_id: target.card, scene_id: target.scene_id, part_id: target.part_id }, here);
+    const practiced = tracer.step('practice_evaluation', () => practiceEvents(current, block, { card_id: target.card, scene_id: target.scene_id, part_id: target.part_id }, here), out => `${out.events.length} events`);
     current = appendEvents(practiced.store, practiced.events.map(event => ({ ...event, ref: { ...event.ref, block_id: block.id } }))).store;
   }
   t.push(now());
   let states = deriveClaimStates(current.events);
-  const built = buildTurn({ raw, slash, opening, canvas, block, store: current, states });
-  const { turn, claims } = built;
-  // 2. JEV, then the larger evaluator on uncertain - free text on slice claims only.
-  let evaluation = null, evidence = null;
-  if (raw.trim() && !turn.slash && !opening && claims.length) {
-    const sent = now();
-    try { evaluation = await post('/api/learn/tutor/evaluate', { ...access, message: raw, spec: evaluationSpec(turn, claims, current) }); }
-    catch (error) { evaluation = { status: 'error', evaluator: 'jev', events: [], error: error.message }; }
-    evidence = [sent, now()];
+  const built = tracer.step('claim_selection', () => buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id }),
+    out => out.selection ? `${out.selection.selected.length}/${out.selection.available}${out.selection.fallback ? ' fallback' : ''}` : 'none');
+  const { turn, selection } = built;
+  // Evaluation and routing work on the claims the learner touched (Stage B); a turn without words
+  // (a slash, a hole's opening) keeps the turn's claims.
+  const claims = selection ? selection.selected : built.claims;
+  // 2. JEV, then the larger evaluator when the escalation policy says so - free text on slice claims
+  // only. Stage C: off the critical path (criticalPath) it runs beside the planner.
+  let evaluation = null, evidence = null, transitions = [], critical = null, pending = null;
+  const settle = result => {
+    evaluation = result;
+    for (const rung of ['jev', 'larger']) {
+      const telemetry = evaluation.telemetry?.[rung];
+      if (telemetry?.called) tracer.add(rung, telemetry.ms, telemetry.outcome === 'timeout' || telemetry.outcome === 'error' ? telemetry.outcome : 'ok', telemetry.reason ? `${telemetry.outcome} (${telemetry.reason})` : telemetry.outcome);
+    }
     const ref = { card: target?.card ?? null, scene_id: target?.scene_id ?? null, part_id: target?.part_id ?? null, turn_id: turn.turn_id, canvas: here };
-    current = appendEvents(current, (evaluation.events || []).map(event => ({ ...event, ref }))).store;
-    states = deriveClaimStates(current.events);
-    turn.evidence = buildTurn({ raw, slash, opening, canvas, block, store: current, states }).turn.evidence;
+    ({ store: current, states, transitions } = tracer.step('evidence_reconciliation', () => reconcile(current, evaluation, ref), out => `${out.added} observations, ${out.transitions.length} state changes`));
+    turn.evidence = buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id }).turn.evidence;
+  };
+  if (raw.trim() && !turn.slash && !opening && claims.length) {
+    const spec = evaluationSpec(turn, claims, current);
+    critical = criticalPath(learnerIntent(turn), spec, route({ turn, claims, states, evaluation: null, store: current }).row);
+    const sent = now();
+    const evaluating = (async () => tracer.step('evaluate', () => post('/api/learn/tutor/evaluate', { ...access, message: raw, spec }), out => out.status))()
+      .catch(error => ({ status: 'error', evaluator: 'jev', events: [], error: error.message }))
+      .then(result => { evidence = [sent, now()]; return result; });
+    if (critical.blocking) settle(await evaluating);
+    else pending = evaluating;
   }
   // 3. Router, planner, enforcement.
-  const routed = route({ turn, claims, states, evaluation, store: current });
-  const context = plannerContext({ turn, routed, block, states });
+  const routed = tracer.step('router', () => route({ turn, claims, states, evaluation, store: current }), out => out.row);
+  const context = plannerContext({ turn, routed, block, states, claims, store: current });
   const planned = now();
-  const response = await post('/api/learn/tutor/plan', { ...access, context });
+  let response;
+  let spoken = null, spokenAction = null;
+  const intent = learnerIntent(turn);
+  // sentence: firstSentence's { text, action, constraints_add, explicit_request } (see readPlanStream).
+  const onSentence = sentence => {
+    // A turn back from a hole routes on returned_from alone (route ignores evidence), so its re-check
+    // question does not wait for this turn's evaluation.
+    if (spoken != null || !speakable(sentence, routed, { pending: !!pending && !evidence && routed.row !== 'returned', turn, intent })) return;
+    spoken = sentence.text.trim();
+    spokenAction = sentence.action;
+    tracer.mark('first_sentence');
+    onSpeakable(spoken);
+  };
+  try { response = await tracer.step('planner', () => (onSpeakable ? post('/api/learn/tutor/plan', { ...access, context, stream: true }, { onSentence }) : post('/api/learn/tutor/plan', { ...access, context })), out => out.telemetry?.outcome ?? 'ok'); }
+  catch (error) { throw Object.assign(error, { trace: tracer.trace }); } // the failed turn's trace travels with its error
   const ready = now();
-  const { actions, log } = enforce(response, routed, turn);
+  let { actions, log, decisions } = tracer.step('action_validation', () => enforce(response, routed, turn),
+    out => `${out.decisions.filter(decision => decision.accepted).length} accepted, ${out.decisions.filter(decision => !decision.accepted).length} rejected`);
   const enforced = now();
+  // Off the critical path: the evaluation lands now. Its evidence is stored like any other; a route it
+  // would have changed is a critical-path miss (the reply was planned on the prior evidence).
+  // Decision 1: evidence actions (EVIDENCE_ACTIONS) are released only now; after a miss they were chosen
+  // on evidence this turn changed, so they are dropped (stage 'evidence'). The words stay: an off-path
+  // turn is never on an evidence row, so its reply is evidence-independent.
+  // ponytail: dropped, not re-planned; re-plan on the new route if the paid run shows misses.
+  let miss = null;
+  if (pending) {
+    settle(await pending);
+    const after = route({ turn, claims, states, evaluation, store: current }).row;
+    if (after !== routed.row) {
+      miss = { planned: routed.row, after };
+      for (const action of actions.filter(entry => EVIDENCE_ACTIONS.includes(entry.type))) {
+        decisions.push({ type: action.type, accepted: false, stage: 'evidence', reason: `planned on ${routed.row}, evidence says ${after}` });
+        log.push(`dropped ${action.type}: planned on evidence this turn changed`);
+      }
+      actions = actions.filter(entry => !EVIDENCE_ACTIONS.includes(entry.type));
+      if (!actions.length) actions = [{ type: 'no_action' }];
+    }
+  }
+  const released = now();
   // 4. The session record.
-  const constraints = [...new Set([...current.constraints, ...(response.constraints_add || [])])].filter(item => !(response.constraints_remove || []).includes(item));
+  const constraints = [...new Set([...current.constraints, ...(response.constraints_add || [])].filter(item => !(response.constraints_remove || []).includes(item)).concat(statedConstraints(raw)))];
   const asked = actions.find(action => action.type === 'ask_question');
   const socratic = routed.row === 'misconception' ? { ...current.socratic, [routed.claim]: (current.socratic[routed.claim] || 0) + 1 } : current.socratic;
   const text = actions.filter(action => action.type === 'respond_text' || action.type === 'ask_question').map(action => action.text.trim()).join('\n\n');
   const dive = actions.find(action => action.type === 'suggest_dive');
+  // A spoken question never becomes the hole's typed opening (openingQuestion): the dock would show it
+  // as a user bubble, and Voice Mode never shows the learner's words.
   current = {
     ...current, constraints, socratic,
     open: asked ? { action_id: asked.action_id, claim: asked.claim, text: asked.text, canvas: here } : turn.answering ? null : current.open,
     keep: turn.dive_choice ? null : current.keep,
     returned: turn.returned_from ? null : current.returned,
-    suggested: dive ? { concept: dive.concept, title: dive.title, block_id: dive.from.block_id ?? null, question: raw, claim: routed.claim, canvas: here } : current.suggested,
+    suggested: dive ? { concept: dive.concept, title: dive.title, block_id: dive.from.block_id ?? null, question: turn.input_modality === 'voice' ? null : raw, claim: routed.claim, canvas: here } : current.suggested,
     turns: [...current.turns, { learner: raw, tutor: text }].slice(-8),
     actions: [...current.actions, ...actions.map(action => ({ type: action.type, strategy: response.strategy, claim: action.claim ?? routed.claim }))].slice(-6),
   };
   // The benchmark record: ids, types and timings only - never the learner's words or card content.
   const ms = (from, to) => Math.round((to - from) * 10) / 10;
+  const end = now();
   const bench = {
-    turn_id: turn.turn_id, route: routed.row, strategy: response.strategy ?? null, claims, evaluated: !!evidence,
+    trace: tracer.trace, turn_id: turn.turn_id, input_modality: turn.input_modality, route: routed.row, strategy: response.strategy ?? null, claims, evaluated: !!evidence,
+    critical_path: critical && { ...critical, miss },
+    // The spoken first sentence must open the validated reply (respond_text and ask_question texts in
+    // order); a mismatch would mean speech the final plan contradicts, and is recorded, never hidden.
+    spoken: spoken && { chars: spoken.length, action: spokenAction, tier: response.telemetry?.tier ?? null, consistent: text.startsWith(spoken) },
+    selection: selection && { available: selection.available, selected: selection.selected.length, fallback: selection.fallback, ms: selection.ms },
     evaluation: evaluation && { status: evaluation.status, evaluator: evaluation.evaluator, events: (evaluation.events || []).length, telemetry: evaluation.telemetry ?? null },
-    planner: { telemetry: response.telemetry ?? null },
+    transitions: transitions.map(({ claim, from, to }) => `${claim}: ${from} -> ${to}`),
+    planner: { telemetry: response.telemetry ?? null, context_chars: JSON.stringify(context).length },
     requested_actions: (Array.isArray(response.actions) ? response.actions : []).map(action => action?.type),
     accepted_actions: actions.map(action => action.type),
     rejected: log,
+    rejections: decisions.filter(decision => !decision.accepted).map(({ type, stage, reason }) => ({ type, stage, reason })),
     ms: {
       target: ms(t[0], t[1]), practice: ms(t[1], t[2]), evidence: evidence && ms(...evidence), planner: ms(planned, ready), enforce: ms(ready, enforced),
       to_evidence_ready: evidence && ms(t[0], evidence[1]), to_planner_ready: ms(t[0], ready),
+      // Decision 1, measured separately: the first safe sentence (spoken early, else the validated reply
+      // when the turn returns), evidence ready (above), and the first evidence-dependent action.
+      to_first_safe_sentence: spoken ? tracer.trace.marks.first_sentence : text ? ms(t[0], end) : null,
+      to_first_evidence_action: actions.some(action => EVIDENCE_ACTIONS.includes(action.type)) ? ms(t[0], released) : null,
     },
   };
-  return { store: current, turn, evaluation, routed, response, actions, log, text, states: deriveClaimStates(current.events), bench };
+  return { store: current, turn, selection, evaluation, transitions, routed, response, actions, decisions, log, text, states: deriveClaimStates(current.events), bench, mark: tracer.mark };
 }
 const now = () => (globalThis.performance ?? Date).now();
+
+// The browser side of a streamed plan (v2 checkpoint I): reads the NDJSON reply of
+// /api/learn/tutor/plan with { stream: true }, hands each sentence event ({ text, action,
+// constraints_add, explicit_request }) to onSentence, and resolves the final TutorResponse (or throws
+// the route's error, with its telemetry).
+export async function readPlanStream(response, onSentence) {
+  if (!response.ok) {
+    const data = await response.json().catch(() => null);
+    throw Object.assign(new Error(data?.error || `The tutor is unavailable (${response.status})`), { status: response.status, data });
+  }
+  const reader = response.body.getReader(), decoder = new TextDecoder();
+  let buffer = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    buffer += done ? '' : decoder.decode(value, { stream: true });
+    const lines = done ? [buffer] : buffer.split('\n');
+    if (!done) buffer = lines.pop();
+    for (const line of lines.filter(entry => entry.trim())) {
+      const { type, ...event } = JSON.parse(line);
+      if (type === 'sentence') onSentence?.(event);
+      else if (type === 'plan') return event;
+      else if (type === 'error') throw Object.assign(new Error(event.error), { telemetry: event.telemetry });
+    }
+    if (done) throw new Error('The tutor returned no turn');
+  }
+}
 
 // ---------- /dive session record (§6.3, §6.4) ----------
 

@@ -21,7 +21,9 @@ export const DOCK_PAD = 'px-4 pt-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))
 
 // onKeyDown (the Learn / picker, feature/parallel-work a9d770d): runs first; a handler that calls preventDefault keeps Enter from sending.
 // ready: the caller can send an empty line (Learn, with a command chosen: a bare /dive).
-export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inputRef, autoFocus, placeholder, busy, disabled, maxLength, leading, trailing, multiline, dock, onStop, ready = false }) {
+// voice (Learn Voice Mode, docs/features/voice-tutor-mvp.md): a node that stands in for the field and the Send/Stop
+// control while voice is on; the frame, leading and trailing stay. Callers without it render exactly as before.
+export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inputRef, autoFocus, placeholder, busy, disabled, maxLength, leading, trailing, multiline, dock, onStop, ready = false, voice = null }) {
   const submit = () => { if (!busy && !disabled && (ready || value.trim())) onSubmit(value); };
   // ponytail: [field-sizing:content] grows the textarea in Chromium; other engines keep one row and scroll. Add a JS auto-grow if reviewers on Safari or Firefox need it.
   const field = multiline
@@ -32,9 +34,9 @@ export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inp
     : 'gap-2 rounded-lg border border-line px-2.5 py-1.5';
   return <form data-chat-composer className={`flex ${multiline ? 'items-end' : 'items-center'} ${frame} focus-within:border-line-strong focus-within:shadow-[0_0_0_2px_rgba(35,131,226,0.2)]`} onSubmit={event => { event.preventDefault(); submit(); }}>
     {leading}
-    {field}
+    {voice || field}
     {trailing}
-    {busy && onStop ? (
+    {voice ? null : busy && onStop ? (
       <button type="button" aria-label="Stop" title="Stop the answer" onClick={onStop} className={`inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full bg-ink text-white ${dock ? 'h-9 w-9' : 'h-6 w-6'}`}>
         <Square size={dock ? 13 : 10} fill="currentColor" />
       </button>

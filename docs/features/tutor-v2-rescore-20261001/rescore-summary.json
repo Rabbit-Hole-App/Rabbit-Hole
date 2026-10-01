@@ -1,0 +1,1249 @@
+{
+ "accuracy": {
+  "A": {
+   "actions_old": {
+    "num": 41,
+    "den": 148
+   },
+   "actions_new": {
+    "num": 101,
+    "den": 142
+   },
+   "evidence_old": {
+    "num": 58,
+    "den": 130
+   },
+   "evidence_new": {
+    "num": 63,
+    "den": 124
+   },
+   "route_old": {
+    "num": 31,
+    "den": 94
+   },
+   "route_new": {
+    "num": 52,
+    "den": 94
+   },
+   "evaluation_old": {
+    "num": 74,
+    "den": 100
+   },
+   "evaluation_new": {
+    "num": 94,
+    "den": 94
+   }
+  },
+  "B": {
+   "actions_old": {
+    "num": 46,
+    "den": 148
+   },
+   "actions_new": {
+    "num": 105,
+    "den": 142
+   },
+   "evidence_old": {
+    "num": 64,
+    "den": 130
+   },
+   "evidence_new": {
+    "num": 68,
+    "den": 124
+   },
+   "route_old": {
+    "num": 37,
+    "den": 94
+   },
+   "route_new": {
+    "num": 57,
+    "den": 94
+   },
+   "evaluation_old": {
+    "num": 74,
+    "den": 100
+   },
+   "evaluation_new": {
+    "num": 94,
+    "den": 94
+   }
+  },
+  "D": {
+   "actions_old": {
+    "num": 33,
+    "den": 148
+   },
+   "actions_new": {
+    "num": 96,
+    "den": 142
+   },
+   "evidence_old": {
+    "num": 66,
+    "den": 130
+   },
+   "evidence_new": {
+    "num": 69,
+    "den": 124
+   },
+   "route_old": {
+    "num": 37,
+    "den": 94
+   },
+   "route_new": {
+    "num": 56,
+    "den": 94
+   },
+   "evaluation_old": {
+    "num": 76,
+    "den": 100
+   },
+   "evaluation_new": {
+    "num": 94,
+    "den": 94
+   }
+  },
+  "E": {
+   "actions_old": {
+    "num": 45,
+    "den": 148
+   },
+   "actions_new": {
+    "num": 105,
+    "den": 142
+   },
+   "evidence_old": {
+    "num": 59,
+    "den": 130
+   },
+   "evidence_new": {
+    "num": 65,
+    "den": 124
+   },
+   "route_old": {
+    "num": 29,
+    "den": 94
+   },
+   "route_new": {
+    "num": 51,
+    "den": 94
+   },
+   "evaluation_old": {
+    "num": 77,
+    "den": 100
+   },
+   "evaluation_new": {
+    "num": 94,
+    "den": 94
+   }
+  },
+  "F": {
+   "actions_old": {
+    "num": 38,
+    "den": 148
+   },
+   "actions_new": {
+    "num": 102,
+    "den": 142
+   },
+   "evidence_old": {
+    "num": 63,
+    "den": 130
+   },
+   "evidence_new": {
+    "num": 67,
+    "den": 124
+   },
+   "route_old": {
+    "num": 36,
+    "den": 94
+   },
+   "route_new": {
+    "num": 55,
+    "den": 94
+   },
+   "evaluation_old": {
+    "num": 74,
+    "den": 100
+   },
+   "evaluation_new": {
+    "num": 94,
+    "den": 94
+   }
+  }
+ },
+ "paired": {
+  "B": {
+   "routine": {
+    "both": 19,
+    "opus": 2,
+    "cand": 1,
+    "none": 33,
+    "na": 0
+   },
+   "evidence": {
+    "both": 35,
+    "opus": 3,
+    "cand": 4,
+    "none": 33,
+    "na": 6
+   },
+   "structural": {
+    "both": 3,
+    "opus": 2,
+    "cand": 2,
+    "none": 11,
+    "na": 0
+   }
+  },
+  "D": {
+   "routine": {
+    "both": 15,
+    "opus": 6,
+    "cand": 4,
+    "none": 30,
+    "na": 0
+   },
+   "evidence": {
+    "both": 36,
+    "opus": 2,
+    "cand": 2,
+    "none": 35,
+    "na": 6
+   },
+   "structural": {
+    "both": 4,
+    "opus": 1,
+    "cand": 1,
+    "none": 12,
+    "na": 0
+   }
+  },
+  "E": {
+   "routine": {
+    "both": 19,
+    "opus": 2,
+    "cand": 5,
+    "none": 29,
+    "na": 0
+   },
+   "evidence": {
+    "both": 37,
+    "opus": 1,
+    "cand": 2,
+    "none": 35,
+    "na": 6
+   },
+   "structural": {
+    "both": 2,
+    "opus": 3,
+    "cand": 1,
+    "none": 12,
+    "na": 0
+   }
+  },
+  "F": {
+   "routine": {
+    "both": 16,
+    "opus": 5,
+    "cand": 5,
+    "none": 29,
+    "na": 0
+   },
+   "evidence": {
+    "both": 36,
+    "opus": 2,
+    "cand": 2,
+    "none": 35,
+    "na": 6
+   },
+   "structural": {
+    "both": 3,
+    "opus": 2,
+    "cand": 3,
+    "none": 10,
+    "na": 0
+   }
+  }
+ },
+ "changes": {
+  "A": {
+   "fail_to_pass": [
+    {
+     "turn": "A-r1 GT-02#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "A-r1 GT-03#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (misconception)"
+    },
+    {
+     "turn": "A-r1 GT-03#1",
+     "why": "evaluation §3: larger ran as the escalation policy decided (misconception)"
+    },
+    {
+     "turn": "A-r1 GT-03#2",
+     "why": "evaluation §3: larger ran as the escalation policy decided (gap); actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "A-r1 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
+    },
+    {
+     "turn": "A-r1 GT-11#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "A-r1 GT-12#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "A-r1 B-misconception-once#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "A-r1 B-misconception-repeated#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "A-r1 B-misconception-unsure-second#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "A-r1 B-question#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (gap); actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "A-r1 D7-prompted-one-idea#1",
+     "why": "actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "A-r2 GT-01#0",
+     "why": "evidence E2 unsettled = settled, E1 multiplicity: [attention/looks-back-never-ahead:pass?] vs [attention/looks-back-never-ahead:pass, attention/looks-back-never-ahead:pass]; route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text, suggest_depth, show_authored_card] (extra ask_question) (replaced respond_text, suggest_depth, show_authored_card)"
+    },
+    {
+     "turn": "A-r2 GT-02#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (misconception); route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "A-r2 GT-03#2",
+     "why": "actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "A-r2 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
+    },
+    {
+     "turn": "A-r2 GT-11#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "A-r2 GT-12#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "A-r2 B-misconception-once#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "A-r2 B-misconception-repeated#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "A-r2 B-misconception-unsure-second#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "A-r2 B-question#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (gap); actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "A-r2 D7-prompted-one-idea#1",
+     "why": "evidence E2 unsettled = settled: [attention-output/weighted-average:pass?] vs [attention-output/weighted-average:pass]; route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "A-r3 GT-01#0",
+     "why": "evidence E2 unsettled = settled, E1 multiplicity: [attention/looks-back-never-ahead:pass?] vs [attention/looks-back-never-ahead:pass, attention/looks-back-never-ahead:pass]; route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text, suggest_depth, show_authored_card] (extra ask_question) (replaced respond_text, suggest_depth, show_authored_card)"
+    },
+    {
+     "turn": "A-r3 GT-02#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "A-r3 GT-03#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (misconception)"
+    },
+    {
+     "turn": "A-r3 GT-03#1",
+     "why": "evaluation §3: larger ran as the escalation policy decided (misconception)"
+    },
+    {
+     "turn": "A-r3 GT-03#2",
+     "why": "actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "A-r3 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
+    },
+    {
+     "turn": "A-r3 GT-11#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "A-r3 GT-12#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "A-r3 B-misconception-once#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "A-r3 B-misconception-repeated#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "A-r3 B-misconception-unsure-second#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "A-r3 B-question#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (gap); actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "A-r3 D7-prompted-one-idea#1",
+     "why": "evidence E2 unsettled = settled: [attention-output/weighted-average:pass?] vs [attention-output/weighted-average:pass]; route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "A-routine-r4 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
+    },
+    {
+     "turn": "A-routine-r4 B-question#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (gap)"
+    },
+    {
+     "turn": "A-routine-r4 B-another-way#0",
+     "why": "actions A5 allowed extra: [respond_text, ask_question, show_authored_card] vs [respond_text, show_authored_card] (extra ask_question)"
+    },
+    {
+     "turn": "A-routine-r4 B-no-quiz#1",
+     "why": "actions A5 allowed extra: [respond_text, suggest_dive] vs [respond_text] (extra suggest_dive)"
+    },
+    {
+     "turn": "A-routine-r5 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
+    },
+    {
+     "turn": "A-routine-r5 B-question#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (gap); actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    }
+   ],
+   "pass_to_fail": [],
+   "not_applicable": [
+    "A-r1 B-jev-error#0",
+    "A-r1 B-larger-error#0",
+    "A-r2 B-jev-error#0",
+    "A-r2 B-larger-error#0",
+    "A-r3 B-jev-error#0",
+    "A-r3 B-larger-error#0"
+   ]
+  },
+  "B": {
+   "fail_to_pass": [
+    {
+     "turn": "B-r1 GT-01#0",
+     "why": "evidence E2 unsettled = settled, E1 multiplicity: [attention/looks-back-never-ahead:pass?] vs [attention/looks-back-never-ahead:pass, attention/looks-back-never-ahead:pass]; route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text, suggest_depth, show_authored_card] (extra ask_question) (replaced respond_text, suggest_depth, show_authored_card)"
+    },
+    {
+     "turn": "B-r1 GT-02#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "B-r1 GT-03#1",
+     "why": "evaluation §3: larger ran as the escalation policy decided (misconception)"
+    },
+    {
+     "turn": "B-r1 GT-03#2",
+     "why": "evaluation §3: larger ran as the escalation policy decided (misconception)"
+    },
+    {
+     "turn": "B-r1 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
+    },
+    {
+     "turn": "B-r1 GT-11#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "B-r1 GT-12#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "B-r1 B-misconception-once#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "B-r1 B-misconception-repeated#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "B-r1 B-misconception-unsure-second#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "B-r1 B-question#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (gap)"
+    },
+    {
+     "turn": "B-r1 B-no-quiz#1",
+     "why": "actions A5 allowed extra: [respond_text, suggest_dive] vs [respond_text] (extra suggest_dive)"
+    },
+    {
+     "turn": "B-r1 D7-prompted-one-idea#1",
+     "why": "evidence E2 unsettled = settled: [attention-output/weighted-average:pass?] vs [attention-output/weighted-average:pass]; route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "B-r2 GT-01#0",
+     "why": "evidence E2 unsettled = settled, E1 multiplicity: [attention/looks-back-never-ahead:pass?] vs [attention/looks-back-never-ahead:pass, attention/looks-back-never-ahead:pass]; route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text, suggest_depth, show_authored_card] (extra ask_question) (replaced respond_text, suggest_depth, show_authored_card)"
+    },
+    {
+     "turn": "B-r2 GT-02#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "B-r2 GT-03#1",
+     "why": "evaluation §3: larger ran as the escalation policy decided (misconception)"
+    },
+    {
+     "turn": "B-r2 GT-03#2",
+     "why": "actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "B-r2 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
+    },
+    {
+     "turn": "B-r2 GT-11#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "B-r2 B-misconception-once#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "B-r2 B-misconception-repeated#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "B-r2 B-misconception-unsure-second#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "B-r2 B-question#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (gap); actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "B-r2 D7-prompted-one-idea#1",
+     "why": "actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "B-r3 GT-01#0",
+     "why": "evidence E2 unsettled = settled, E1 multiplicity: [attention/looks-back-never-ahead:pass?] vs [attention/looks-back-never-ahead:pass, attention/looks-back-never-ahead:pass]; route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text, suggest_depth, show_authored_card] (extra ask_question) (replaced respond_text, suggest_depth, show_authored_card)"
+    },
+    {
+     "turn": "B-r3 GT-03#1",
+     "why": "evaluation §3: larger ran as the escalation policy decided (misconception)"
+    },
+    {
+     "turn": "B-r3 GT-03#2",
+     "why": "actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "B-r3 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
+    },
+    {
+     "turn": "B-r3 GT-11#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "B-r3 GT-12#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "B-r3 B-misconception-once#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "B-r3 B-misconception-repeated#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "B-r3 B-misconception-unsure-second#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "B-r3 B-question#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (gap)"
+    },
+    {
+     "turn": "B-r3 D7-prompted-one-idea#1",
+     "why": "actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "B-routine-r4 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
+    },
+    {
+     "turn": "B-routine-r4 B-question#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (gap); actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "B-routine-r4 B-another-way#0",
+     "why": "actions A5 allowed extra: [respond_text, ask_question, show_authored_card] vs [respond_text, show_authored_card] (extra ask_question)"
+    },
+    {
+     "turn": "B-routine-r5 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
+    },
+    {
+     "turn": "B-routine-r5 B-question#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (gap); actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    }
+   ],
+   "pass_to_fail": [],
+   "not_applicable": [
+    "B-r1 B-jev-error#0",
+    "B-r1 B-larger-error#0",
+    "B-r2 B-jev-error#0",
+    "B-r2 B-larger-error#0",
+    "B-r3 B-jev-error#0",
+    "B-r3 B-larger-error#0"
+   ]
+  },
+  "D": {
+   "fail_to_pass": [
+    {
+     "turn": "D-r1 GT-01#0",
+     "why": "evidence E2 unsettled = settled, E1 multiplicity: [attention/looks-back-never-ahead:pass?] vs [attention/looks-back-never-ahead:pass, attention/looks-back-never-ahead:pass]; route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text, suggest_depth, show_authored_card] (extra ask_question) (replaced respond_text, suggest_depth, show_authored_card)"
+    },
+    {
+     "turn": "D-r1 GT-02#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (misconception); route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "D-r1 GT-03#1",
+     "why": "evaluation §3: larger ran as the escalation policy decided (gap)"
+    },
+    {
+     "turn": "D-r1 GT-03#2",
+     "why": "actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "D-r1 GT-04#0",
+     "why": "actions A5 allowed extra: [show_authored_card, respond_text] vs [show_authored_card, respond_text]"
+    },
+    {
+     "turn": "D-r1 GT-11#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "D-r1 GT-12#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "D-r1 B-misconception-once#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "D-r1 B-misconception-repeated#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "D-r1 B-misconception-unsure-second#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "D-r1 B-question#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (gap); actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "D-r1 B-no-quiz#1",
+     "why": "actions A5 allowed extra: [respond_text, suggest_dive] vs [respond_text] (extra suggest_dive)"
+    },
+    {
+     "turn": "D-r1 B-invalid-actions#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card, ask_question] vs [respond_text] (extra show_authored_card, ask_question)"
+    },
+    {
+     "turn": "D-r1 D7-prompted-one-idea#1",
+     "why": "actions A5 allowed extra: [respond_text, suggest_practice] vs [respond_text] (extra suggest_practice)"
+    },
+    {
+     "turn": "D-r2 GT-01#0",
+     "why": "evidence E2 unsettled = settled, E1 multiplicity: [attention/looks-back-never-ahead:pass?] vs [attention/looks-back-never-ahead:pass, attention/looks-back-never-ahead:pass]; route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text, suggest_depth, show_authored_card] (extra ask_question) (replaced respond_text, suggest_depth, show_authored_card)"
+    },
+    {
+     "turn": "D-r2 GT-02#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "D-r2 GT-03#2",
+     "why": "evaluation §3: larger ran as the escalation policy decided (misconception)"
+    },
+    {
+     "turn": "D-r2 GT-11#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "D-r2 GT-12#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "D-r2 B-misconception-once#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "D-r2 B-misconception-repeated#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "D-r2 B-misconception-unsure-second#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "D-r2 B-question#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (gap); actions A5 allowed extra: [respond_text, show_authored_card] vs [respond_text] (extra show_authored_card)"
+    },
+    {
+     "turn": "D-r2 B-no-quiz#1",
+     "why": "actions A5 allowed extra: [respond_text, suggest_dive] vs [respond_text] (extra suggest_dive)"
+    },
+    {
+     "turn": "D-r2 B-invalid-actions#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card, ask_question] vs [respond_text] (extra show_authored_card, ask_question)"
+    },
+    {
+     "turn": "D-r2 D7-prompted-one-idea#1",
+     "why": "actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "D-r3 GT-01#0",
+     "why": "evidence E2 unsettled = settled, E1 multiplicity: [attention/looks-back-never-ahead:pass?] vs [attention/looks-back-never-ahead:pass, attention/looks-back-never-ahead:pass]; route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text, suggest_depth, show_authored_card] (extra ask_question) (replaced respond_text, suggest_depth, show_authored_card)"
+    },
+    {
+     "turn": "D-r3 GT-02#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "D-r3 GT-03#1",
+     "why": "evaluation §3: larger ran as the escalation policy decided (gap)"
+    },
+    {
+     "turn": "D-r3 GT-03#2",
+     "why": "actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "D-r3 GT-11#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "D-r3 GT-12#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "D-r3 B-misconception-once#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "D-r3 B-misconception-repeated#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "D-r3 B-misconception-unsure-second#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "D-r3 B-question#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (gap); actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "D-r3 B-no-quiz#1",
+     "why": "actions A5 allowed extra: [respond_text, suggest_dive] vs [respond_text] (extra suggest_dive)"
+    },
+    {
+     "turn": "D-r3 D7-prompted-one-idea#1",
+     "why": "actions A5 allowed extra: [respond_text, suggest_practice] vs [respond_text] (extra suggest_practice)"
+    },
+    {
+     "turn": "D-routine-r4 B-question#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (gap); actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "D-routine-r4 B-no-quiz#1",
+     "why": "actions A5 allowed extra: [respond_text, suggest_dive] vs [respond_text] (extra suggest_dive)"
+    },
+    {
+     "turn": "D-routine-r5 GT-04#0",
+     "why": "actions A5 allowed extra: [show_authored_card, respond_text] vs [show_authored_card, respond_text]"
+    },
+    {
+     "turn": "D-routine-r5 B-question#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (gap); actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "D-routine-r5 B-no-quiz#1",
+     "why": "actions A5 allowed extra: [respond_text, suggest_dive] vs [respond_text] (extra suggest_dive)"
+    }
+   ],
+   "pass_to_fail": [],
+   "not_applicable": [
+    "D-r1 B-jev-error#0",
+    "D-r1 B-larger-error#0",
+    "D-r2 B-jev-error#0",
+    "D-r2 B-larger-error#0",
+    "D-r3 B-jev-error#0",
+    "D-r3 B-larger-error#0"
+   ]
+  },
+  "E": {
+   "fail_to_pass": [
+    {
+     "turn": "E-r1 GT-01#0",
+     "why": "evidence E2 unsettled = settled, E1 multiplicity: [attention/looks-back-never-ahead:pass?] vs [attention/looks-back-never-ahead:pass, attention/looks-back-never-ahead:pass]; route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text, suggest_depth, show_authored_card] (extra ask_question) (replaced respond_text, suggest_depth, show_authored_card)"
+    },
+    {
+     "turn": "E-r1 GT-03#1",
+     "why": "evaluation §3: larger ran as the escalation policy decided (gap)"
+    },
+    {
+     "turn": "E-r1 GT-03#2",
+     "why": "actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "E-r1 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
+    },
+    {
+     "turn": "E-r1 GT-11#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "E-r1 GT-12#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "E-r1 B-misconception-once#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "E-r1 B-misconception-repeated#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "E-r1 B-misconception-unsure-second#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "E-r1 B-question#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (gap)"
+    },
+    {
+     "turn": "E-r1 B-no-quiz#1",
+     "why": "actions A5 allowed extra: [respond_text, suggest_dive] vs [respond_text] (extra suggest_dive)"
+    },
+    {
+     "turn": "E-r1 B-invalid-actions#0",
+     "why": "actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "E-r1 D7-prompted-one-idea#1",
+     "why": "evidence E2 unsettled = settled: [attention-output/weighted-average:pass?] vs [attention-output/weighted-average:pass]; route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "E-r2 GT-01#0",
+     "why": "evidence E2 unsettled = settled, E1 multiplicity: [attention/looks-back-never-ahead:pass?] vs [attention/looks-back-never-ahead:pass, attention/looks-back-never-ahead:pass]; route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text, suggest_depth, show_authored_card] (extra ask_question) (replaced respond_text, suggest_depth, show_authored_card)"
+    },
+    {
+     "turn": "E-r2 GT-02#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (misconception); route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "E-r2 GT-03#1",
+     "why": "evaluation §3: larger ran as the escalation policy decided (misconception)"
+    },
+    {
+     "turn": "E-r2 GT-03#2",
+     "why": "evaluation §3: larger ran as the escalation policy decided (misconception)"
+    },
+    {
+     "turn": "E-r2 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
+    },
+    {
+     "turn": "E-r2 GT-11#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "E-r2 GT-12#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "E-r2 B-misconception-once#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "E-r2 B-misconception-repeated#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "E-r2 B-misconception-unsure-second#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "E-r2 B-question#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (gap)"
+    },
+    {
+     "turn": "E-r2 D7-prompted-one-idea#1",
+     "why": "evidence E2 unsettled = settled: [attention-output/weighted-average:pass?] vs [attention-output/weighted-average:pass]; route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "E-r3 GT-01#0",
+     "why": "evidence E2 unsettled = settled, E1 multiplicity: [attention/looks-back-never-ahead:pass?] vs [attention/looks-back-never-ahead:pass, attention/looks-back-never-ahead:pass]; route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text, suggest_depth, show_authored_card] (extra ask_question) (replaced respond_text, suggest_depth, show_authored_card)"
+    },
+    {
+     "turn": "E-r3 GT-02#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "E-r3 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
+    },
+    {
+     "turn": "E-r3 GT-11#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "E-r3 GT-12#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "E-r3 B-misconception-once#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "E-r3 B-misconception-repeated#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "E-r3 B-misconception-unsure-second#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "E-r3 B-question#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (gap)"
+    },
+    {
+     "turn": "E-r3 B-no-quiz#1",
+     "why": "actions A5 allowed extra: [respond_text, suggest_dive] vs [respond_text] (extra suggest_dive)"
+    },
+    {
+     "turn": "E-r3 D7-prompted-one-idea#1",
+     "why": "actions A5 allowed extra: [respond_text, suggest_practice] vs [respond_text] (extra suggest_practice)"
+    },
+    {
+     "turn": "E-routine-r4 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
+    },
+    {
+     "turn": "E-routine-r4 B-question#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (gap)"
+    },
+    {
+     "turn": "E-routine-r5 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
+    },
+    {
+     "turn": "E-routine-r5 B-question#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (gap)"
+    },
+    {
+     "turn": "E-routine-r5 B-no-quiz#1",
+     "why": "actions A5 allowed extra: [respond_text, suggest_dive] vs [respond_text] (extra suggest_dive)"
+    }
+   ],
+   "pass_to_fail": [],
+   "not_applicable": [
+    "E-r1 B-jev-error#0",
+    "E-r1 B-larger-error#0",
+    "E-r2 B-jev-error#0",
+    "E-r2 B-larger-error#0",
+    "E-r3 B-jev-error#0",
+    "E-r3 B-larger-error#0"
+   ]
+  },
+  "F": {
+   "fail_to_pass": [
+    {
+     "turn": "F-r1 GT-01#0",
+     "why": "evidence E2 unsettled = settled, E1 multiplicity: [attention/looks-back-never-ahead:pass?] vs [attention/looks-back-never-ahead:pass, attention/looks-back-never-ahead:pass]; route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text, suggest_depth, show_authored_card] (extra ask_question) (replaced respond_text, suggest_depth, show_authored_card)"
+    },
+    {
+     "turn": "F-r1 GT-02#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (misconception); route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "F-r1 GT-03#1",
+     "why": "evaluation §3: larger ran as the escalation policy decided (gap)"
+    },
+    {
+     "turn": "F-r1 GT-03#2",
+     "why": "evaluation §3: larger ran as the escalation policy decided (misconception); actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "F-r1 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
+    },
+    {
+     "turn": "F-r1 GT-11#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "F-r1 GT-12#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "F-r1 B-misconception-once#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "F-r1 B-misconception-repeated#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "F-r1 B-misconception-unsure-second#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "F-r1 B-question#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (gap)"
+    },
+    {
+     "turn": "F-r1 B-no-quiz#1",
+     "why": "actions A5 allowed extra: [respond_text, suggest_dive] vs [respond_text] (extra suggest_dive)"
+    },
+    {
+     "turn": "F-r1 D7-prompted-one-idea#1",
+     "why": "actions A5 allowed extra: [respond_text, suggest_practice] vs [respond_text] (extra suggest_practice)"
+    },
+    {
+     "turn": "F-r2 GT-01#0",
+     "why": "evidence E2 unsettled = settled, E1 multiplicity: [attention/looks-back-never-ahead:pass?] vs [attention/looks-back-never-ahead:pass, attention/looks-back-never-ahead:pass]; route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text, suggest_depth, show_authored_card] (extra ask_question) (replaced respond_text, suggest_depth, show_authored_card)"
+    },
+    {
+     "turn": "F-r2 GT-02#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "F-r2 GT-03#1",
+     "why": "evaluation §3: larger ran as the escalation policy decided (gap)"
+    },
+    {
+     "turn": "F-r2 GT-03#2",
+     "why": "evaluation §3: larger ran as the escalation policy decided (misconception); actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "F-r2 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
+    },
+    {
+     "turn": "F-r2 GT-11#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "F-r2 B-misconception-once#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "F-r2 B-misconception-repeated#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "F-r2 B-misconception-unsure-second#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "F-r2 B-question#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (gap)"
+    },
+    {
+     "turn": "F-r2 B-no-quiz#1",
+     "why": "actions A5 allowed extra: [respond_text, suggest_dive] vs [respond_text] (extra suggest_dive)"
+    },
+    {
+     "turn": "F-r2 D7-prompted-one-idea#1",
+     "why": "evidence E2 unsettled = settled: [attention-output/weighted-average:pass?] vs [attention-output/weighted-average:pass]; route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "F-r3 GT-01#0",
+     "why": "evidence E2 unsettled = settled, E1 multiplicity: [attention/looks-back-never-ahead:pass?] vs [attention/looks-back-never-ahead:pass, attention/looks-back-never-ahead:pass]; route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text, suggest_depth, show_authored_card] (extra ask_question) (replaced respond_text, suggest_depth, show_authored_card)"
+    },
+    {
+     "turn": "F-r3 GT-02#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "F-r3 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
+    },
+    {
+     "turn": "F-r3 GT-11#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "F-r3 GT-12#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "F-r3 B-misconception-once#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "F-r3 B-misconception-repeated#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "F-r3 B-misconception-unsure-second#0",
+     "why": "route R2: uncertain_unsettled ~ uncertain"
+    },
+    {
+     "turn": "F-r3 B-question#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (gap)"
+    },
+    {
+     "turn": "F-r3 B-no-quiz#1",
+     "why": "actions A5 allowed extra: [respond_text, suggest_dive] vs [respond_text] (extra suggest_dive)"
+    },
+    {
+     "turn": "F-r3 D7-prompted-one-idea#1",
+     "why": "evidence E2 unsettled = settled: [attention-output/weighted-average:pass?] vs [attention-output/weighted-average:pass]; route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
+    },
+    {
+     "turn": "F-routine-r4 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
+    },
+    {
+     "turn": "F-routine-r4 B-question#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (gap)"
+    },
+    {
+     "turn": "F-routine-r4 B-no-quiz#1",
+     "why": "actions A5 allowed extra: [respond_text, suggest_dive] vs [respond_text] (extra suggest_dive)"
+    },
+    {
+     "turn": "F-routine-r5 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
+    },
+    {
+     "turn": "F-routine-r5 B-question#0",
+     "why": "evaluation §3: larger ran as the escalation policy decided (gap)"
+    },
+    {
+     "turn": "F-routine-r5 B-no-quiz#1",
+     "why": "actions A5 allowed extra: [respond_text, suggest_dive] vs [respond_text] (extra suggest_dive)"
+    }
+   ],
+   "pass_to_fail": [],
+   "not_applicable": [
+    "F-r1 B-jev-error#0",
+    "F-r1 B-larger-error#0",
+    "F-r2 B-jev-error#0",
+    "F-r2 B-larger-error#0",
+    "F-r3 B-jev-error#0",
+    "F-r3 B-larger-error#0"
+   ]
+  }
+ },
+ "verdicts": {
+  "A": {
+   "eligible_unit_golden": true,
+   "eligible_live_golden": false,
+   "failed": [],
+   "live_golden": {
+    "passed": 5,
+    "total": 9,
+    "failed": [
+     "GT-01",
+     "GT-06",
+     "GT-07",
+     "GT-D"
+    ]
+   }
+  },
+  "B": {
+   "eligible_unit_golden": true,
+   "eligible_live_golden": false,
+   "failed": [],
+   "live_golden": {
+    "passed": 5,
+    "total": 9,
+    "failed": [
+     "GT-02",
+     "GT-07",
+     "GT-12",
+     "GT-D"
+    ]
+   }
+  },
+  "D": {
+   "eligible_unit_golden": false,
+   "eligible_live_golden": false,
+   "failed": [
+    "actions 96/142 is 3.5 pp below A (101/142)",
+    "invalid plans 10/167",
+    "routine escalation 13/65"
+   ],
+   "live_golden": {
+    "passed": 5,
+    "total": 9,
+    "failed": [
+     "GT-04",
+     "GT-06",
+     "GT-07",
+     "GT-D"
+    ]
+   }
+  },
+  "E": {
+   "eligible_unit_golden": true,
+   "eligible_live_golden": false,
+   "failed": [],
+   "live_golden": {
+    "passed": 5,
+    "total": 9,
+    "failed": [
+     "GT-02",
+     "GT-06",
+     "GT-07",
+     "GT-D"
+    ]
+   }
+  },
+  "F": {
+   "eligible_unit_golden": true,
+   "eligible_live_golden": false,
+   "failed": [],
+   "live_golden": {
+    "passed": 4,
+    "total": 9,
+    "failed": [
+     "GT-03",
+     "GT-06",
+     "GT-07",
+     "GT-12",
+     "GT-D"
+    ]
+   }
+  }
+ }
+}
