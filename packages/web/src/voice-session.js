@@ -58,6 +58,7 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now 
   let heard = {};      // the utterance being listened to: speech_start, first partial
   let current = null;  // the turn in flight: { turnId, controller, marks }
   let lastSpoken = null; // { text, at }: the Tutor's last reply when it played to the end, for echoesEnd
+  let pendingSay = null; // a say() that arrived while Voice Mode was still starting
   let barge = null;      // while speaking: { hits } qualifying partials in a row; after a barge-in: { speech }
   const listeners = new Set();
 
@@ -98,15 +99,18 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now 
     } });
   }
 
-  async function commit(text) {
-    const turn = current = { turnId: crypto.randomUUID(), controller: new AbortController(), marks: { ...heard } };
+  // opening: a Rabbit Hole's opening turn (say()), not words the learner spoke - no STT marks, same Tutor turn.
+  async function commit(text, { opening = false } = {}) {
+    const turn = current = { turnId: crypto.randomUUID(), controller: new AbortController(), marks: opening ? {} : { ...heard } };
     const m = turn.marks, turnId = turn.turnId;
     heard = {};
     stt.pause();
     m.commit = now();
-    m.speech_end = m.commit - VAD_SILENCE_MS;
-    emit('speech_end', { turn_id: turnId, at: m.speech_end, estimated: true });
-    emit('stt_commit', { turn_id: turnId, at: m.commit });
+    if (!opening) {
+      m.speech_end = m.commit - VAD_SILENCE_MS;
+      emit('speech_end', { turn_id: turnId, at: m.speech_end, estimated: true });
+      emit('stt_commit', { turn_id: turnId, at: m.commit });
+    }
     set('thinking', { error: null });
     m.tutor_request_start = now();
     emit('tutor_request_start', { turn_id: turnId, at: m.tutor_request_start });
@@ -123,7 +127,7 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now 
     };
     let reply;
     try {
-      reply = await tutor.voiceTurn({ raw: text, turnId, signal: turn.controller.signal, onSpeakable });
+      reply = await tutor.voiceTurn({ raw: text, turnId, signal: turn.controller.signal, onSpeakable, ...(opening ? { opening: true } : {}) });
     } catch (error) {
       if (current !== turn) return; // exited: nothing to show
       // The plan failed after its first sentence began: that sentence never validated as a reply, so it stops.
@@ -198,6 +202,7 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now 
   // Everything off: the turn in flight is aborted and its late answer ignored.
   function stop() {
     epoch++;
+    pendingSay = null;
     starting = false;
     const turn = current;
     current = null;
@@ -230,6 +235,7 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now 
       if (mine !== epoch) return;
       starting = false;
       set('listening');
+      if (pendingSay) { const { text, options } = pendingSay; pendingSay = null; commit(text, options); }
     },
     exit() {
       const on = state !== 'off' || starting;
@@ -241,6 +247,17 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now 
     // At any point of a turn the learner can take the floor back; Voice stays on.
     // Speaking: the audio stops now. Thinking: the Tutor turn is cancelled and its late answer ignored.
     interrupt,
+    get starting() { return starting; },
+    // A Tutor turn Voice Mode runs without the learner speaking - a Rabbit Hole's opening (ask.jsx): spoken and
+    // captioned like any voice reply, never a chat bubble. Waits for listening if Voice Mode is still starting;
+    // false when Voice Mode is off or busy, so the caller can fall back to the typed path.
+    say(text, options = {}) {
+      const words = String(text || '').trim();
+      if (!words) return false;
+      if (state === 'listening' && !current) { commit(words, options); return true; }
+      if (starting) { pendingSay = { text: words, options }; return true; }
+      return false;
+    },
     subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
     sttEvent(event) {
       if (event?.type === 'error') return sttFailed(event.kind);

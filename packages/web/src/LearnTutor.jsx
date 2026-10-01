@@ -90,9 +90,9 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive }) {
     },
     // Voice Mode (docs/features/voice-tutor-mvp.md §1): the same turn, spoken. `speech` is the Tutor's
     // own words or '' - never a fallback; `ms` are the turn's timings for the voice telemetry.
-    voiceTurn: async ({ raw, targetId, signal, turnId, onSpeakable = null }) => {
+    voiceTurn: async ({ raw, targetId, signal, turnId, onSpeakable = null, opening = false }) => {
       setChips([]);
-      const result = await turn({ raw, targetId, signal, inputModality: 'voice', turnId, onSpeakable });
+      const result = await turn({ raw, targetId, opening, signal, inputModality: 'voice', turnId, onSpeakable });
       return { speech: result.text, turnId: result.turn.turn_id, ms: result.bench.ms };
     },
     opening,

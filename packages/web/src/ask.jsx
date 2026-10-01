@@ -649,8 +649,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   useEffect(() => {
     if (!tutor?.opening || openedHole.current === tutor.opening.key || busy) return;
     openedHole.current = tutor.opening.key;
+    // Voice Mode: the opening is a voice turn - spoken, in the Tutor caption only, never a chat bubble.
+    if (dock && voice?.on && voice.say(tutor.opening.question, { opening: true })) return;
     send(tutor.opening.question, undefined, { opening: true });
-  }, [tutor?.opening?.key, busy]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tutor?.opening?.key, busy, voice?.on]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const modelControl = (
           <div className="relative shrink-0">

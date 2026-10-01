@@ -533,3 +533,50 @@ test('early speech: the continuation is requested while the first sentence still
   assert.equal(r.calls.filter(call => call === 'tts.speak').length, 2);
   r.session.exit();
 });
+
+test('say(): a Rabbit Hole opening runs as a voice turn - spoken and captioned, flagged opening, no learner speech marks', async () => {
+  const tutor = scriptedTutor('Softmax turns scores into weights.');
+  const r = rig(tutor, { ttsMs: 5 });
+  await r.session.enter();
+  assert.equal(r.session.say('Take me into Softmax.', { opening: true }), true);
+  await until(r.session, 'speaking');
+  await until(r.session, 'listening');
+  assert.equal(tutor.calls.length, 1);
+  assert.equal(tutor.calls[0].raw, 'Take me into Softmax.');
+  assert.equal(tutor.calls[0].opening, true);
+  assert.equal(r.session.caption.current, 'Softmax turns scores into weights.');
+  assert.ok(!r.names().includes('stt_commit') && !r.names().includes('speech_end'), 'not learner speech');
+  assert.ok(r.calls.includes('tts.speak'), 'spoken');
+  r.session.exit();
+});
+
+test('say(): while Voice Mode is still starting (after a Rabbit Hole move) the opening waits for listening', async () => {
+  const tutor = scriptedTutor('Here is the hole.');
+  const r = rig(tutor, { ttsMs: 5 });
+  const entering = r.session.enter();
+  assert.equal(r.session.starting, true);
+  assert.equal(r.session.say('Take me into Softmax.', { opening: true }), true, 'queued');
+  assert.equal(tutor.calls.length, 0, 'not before listening');
+  await entering;
+  await until(r.session, 'listening');
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.equal(tutor.calls.length, 1, 'ran once Voice Mode listened');
+  r.session.exit();
+});
+
+test('say(): off or busy returns false (the caller falls back to the typed path); exit drops a queued opening', async () => {
+  const tutor = scriptedTutor('Busy reply.');
+  const r = rig(tutor, { ttsMs: 10000 });
+  assert.equal(r.session.say('Take me into Softmax.', { opening: true }), false, 'off');
+  const entering = r.session.enter();
+  r.session.say('Queued opening.', { opening: true });
+  r.session.exit();
+  await entering;
+  await new Promise(resolve => setTimeout(resolve, 10));
+  assert.equal(tutor.calls.length, 0, 'the queued opening never ran after exit');
+  await r.session.enter();
+  r.stt.say('a question');
+  await until(r.session, 'speaking');
+  assert.equal(r.session.say('Another opening.'), false, 'busy');
+  r.session.exit();
+});

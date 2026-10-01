@@ -78,7 +78,7 @@ test('VOICE-03: in every on state the mic is the red breathing one, with the sta
 
 test('VOICE-04/06: no learner transcript has a rendering path', () => {
   const used = (source, pattern) => new Set([...source.matchAll(pattern)].map(match => match[1]));
-  const voiceFields = new Set(['state', 'caption', 'enter', 'exit', 'interrupt']);
+  const voiceFields = new Set(['state', 'caption', 'enter', 'exit', 'interrupt', 'on', 'say']);
   for (const [name, source] of [['VoiceMode.jsx', mode], ['ask.jsx', ask]]) {
     for (const key of used(source, /\bvoice\??\.(\w+)/g)) assert.ok(voiceFields.has(key), `${name} reads voice.${key}`);
     for (const key of used(source, /\bcaption\??\.(\w+)/g)) assert.ok(['current', 'previous', 'error'].includes(key), `${name} reads caption.${key}`);
@@ -142,4 +142,12 @@ test('the breathing ring stops under reduced motion and leaves a static ring', (
   assert.match(css, /@keyframes voice-breathe \{\n\s+from \{ transform: scale\(1\); opacity: 0\.55; \}\n\s+to \{ transform: scale\(1\.35\); opacity: 0; \}/);
   assert.match(css, /animation: voice-breathe 2s ease-in-out infinite;/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{\n\s+\.voice-breathe::after, \.voice-breathe > svg \{ animation: none; \}\n\s+\.voice-breathe::after \{ transform: scale\(1\.2\); opacity: 0\.35; \}/);
+});
+
+test('a Rabbit Hole opening in Voice Mode is a voice turn, never a chat bubble (ask.jsx)', () => {
+  // The opening goes to voice.say when Voice Mode is on (or turning on after the move); send() - the chat path that
+  // draws the bubble and the typed reply - runs only when Voice Mode is off.
+  const say = ask.indexOf('if (dock && voice?.on && voice.say(tutor.opening.question, { opening: true })) return;');
+  const typed = ask.indexOf('send(tutor.opening.question, undefined, { opening: true });');
+  assert.ok(say > 0 && typed > say && ask.slice(say, typed).split('\n').length === 2, 'voice.say first; send only when it does not take the turn');
 });
