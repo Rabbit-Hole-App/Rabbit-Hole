@@ -21,7 +21,7 @@ test('speakable: allowed by the route itself, prose, not code', () => {
 const streaming = (plan, sentence) => async (path, body, options) => {
   if (path === '/api/learn/tutor/evaluate') return { status: 'settled', evaluator: 'jev', events: [] };
   assert.equal(body.stream, true);
-  options.onSentence(sentence);
+  options.onSentence({ text: sentence, action: 'respond_text', constraints_add: [] });
   return plan;
 };
 const turn = (raw, post, onSpeakable) => runTurn({ raw, canvas: { app: 'a', board: 'b' }, access: { app: 'a' }, block: cardBlock(cardModule('c11-causal-mask')), store: emptyStore(), post, onSpeakable });
@@ -31,14 +31,14 @@ test('runTurn speaks the first sentence before the plan resolves, and records th
   const plan = { strategy: 'none', actions: [{ type: 'respond_text', text: 'Every layer uses the same mask. It is built once.' }] };
   const result = await turn('Is it the same mask in every layer?', streaming(plan, 'Every layer uses the same mask.'), text => heard.push(text));
   assert.deepEqual(heard, ['Every layer uses the same mask.']);
-  assert.deepEqual(result.bench.spoken, { chars: 31, consistent: true });
+  assert.deepEqual(result.bench.spoken, { chars: 31, action: 'respond_text', tier: null, consistent: true });
   assert.equal(typeof result.bench.trace.marks.first_sentence, 'number');
 });
 
 test('a sentence the reply does not open with is recorded as inconsistent; no onSpeakable, no stream', async () => {
   const plan = { strategy: 'none', actions: [{ type: 'respond_text', text: 'Something else.' }] };
   const result = await turn('Is it the same mask in every layer?', streaming(plan, 'Fast first.'), () => {});
-  assert.deepEqual(result.bench.spoken, { chars: 11, consistent: false });
+  assert.deepEqual(result.bench.spoken, { chars: 11, action: 'respond_text', tier: null, consistent: false });
   const plain = await turn('Is it the same mask in every layer?', async (path, body) => {
     assert.equal('stream' in body, false);
     return path.endsWith('/evaluate') ? { status: 'settled', evaluator: 'jev', events: [] } : plan;
@@ -50,7 +50,7 @@ test('readPlanStream: sentence events, then the plan; an error event throws with
   const body = lines => new Response(lines.map(line => JSON.stringify(line)).join('\n') + '\n');
   const heard = [];
   const plan = await readPlanStream(body([{ type: 'sentence', text: 'Hi.' }, { type: 'plan', strategy: 'none', actions: [] }]), text => heard.push(text));
-  assert.deepEqual([heard, plan], [['Hi.'], { strategy: 'none', actions: [] }]);
+  assert.deepEqual([heard, plan], [[{ text: 'Hi.' }], { strategy: 'none', actions: [] }]);
   await assert.rejects(readPlanStream(body([{ type: 'error', error: 'The tutor returned no turn', telemetry: { outcome: 'invalid' } }])), error => error.telemetry.outcome === 'invalid');
   await assert.rejects(readPlanStream(body([{ type: 'sentence', text: 'Hi.' }])), /no turn/);
 });

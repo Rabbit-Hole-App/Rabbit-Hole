@@ -12,7 +12,8 @@
 // --candidate (live only): the worker's planner knobs for this run (CANDIDATES below; v2 checkpoints
 // G and H). The stub run reports which tier H would pick per turn without calling anything.
 // --stream (v2 checkpoint I): turns ask for the plan's first sentence early (runTurn onSpeakable). Stub:
-// the scripted plan, actions first as checkpoint G asks, is streamed through the real planTurn as SSE;
+// the scripted plan, written as the planner is asked to (Decision 4: constraints_add, the other control
+// fields and strategy first, then actions), is streamed through the real planTurn as SSE;
 // live: the real streamed planner, with the time to the first sentence.
 // Usage: node e2e/tutor-corpus-run.mjs [--stage A] [--out dir] [--stream] [--live [--candidate G-default]]
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -32,13 +33,13 @@ const args = process.argv.slice(2);
 const flag = (name, fallback) => { const at = args.indexOf(`--${name}`); return at >= 0 ? args[at + 1] : fallback; };
 const STAGE = flag('stage', 'A'), OUT = flag('out', 'tutor-bench-out'), LIVE = args.includes('--live'), STREAM = args.includes('--stream');
 // USD per MTok in / out, first-party rates (claude-api skill model table, cached 2026-09-25).
-const PRICES = { 'claude-opus-5-5': [4, 20], 'claude-sonnet-5-5': [2, 10], 'claude-haiku-4-5': [1, 5] };
+const PRICES = { 'claude-opus-5-5': [4, 20], 'claude-sonnet-5-5': [2, 10], 'claude-haiku-4-5-20251001': [1, 5] };
 if (LIVE && process.env.TUTOR_BENCH_PAID !== 'GO') throw Error('--live makes paid model calls: set TUTOR_BENCH_PAID=GO only after the owner typed GO BENCHMARK');
 // Planner candidates for the paid benchmark (env knobs read by planTurn). Baseline A is its own SHA.
 const CANDIDATES = {
   'G-default': {}, // Opus 5.5 at the model-default effort (medium), compact output
   'G-low': { TUTOR_PLANNER_EFFORT: 'low' },
-  'H-haiku': { TUTOR_PLANNER_EFFORT: 'low', TUTOR_PLANNER_FAST_MODEL: 'claude-haiku-4-5' },
+  'H-haiku': { TUTOR_PLANNER_EFFORT: 'low', TUTOR_PLANNER_FAST_MODEL: 'claude-haiku-4-5-20251001' },
   'H-sonnet': { TUTOR_PLANNER_EFFORT: 'low', TUTOR_PLANNER_FAST_MODEL: 'claude-sonnet-5-5', TUTOR_PLANNER_FAST_EFFORT: 'low' },
 };
 const CANDIDATE = flag('candidate', 'G-default');
@@ -163,7 +164,8 @@ async function runTrace(trace) {
       calls.tier = plannerTier(body.context).tier;
       if (!LIVE && !STREAM) return step.stub.plan;
       if (!LIVE) {
-        const { actions, ...rest } = step.stub.plan, json = JSON.stringify({ actions, ...rest });
+        const { constraints_add = [], constraints_remove, explicit_request, strategy, actions, ...rest } = step.stub.plan;
+        const json = JSON.stringify({ constraints_add, ...(constraints_remove ? { constraints_remove } : {}), ...(explicit_request ? { explicit_request } : {}), strategy, actions, ...rest });
         calls.sentenceAt = sentenceAt(json);
         return planTurn({}, body.context, { onSentence: options.onSentence, callModel: async () => stubSse(json) });
       }
@@ -215,6 +217,7 @@ async function runTrace(trace) {
       to_first_safe_sentence: result.bench?.ms.to_first_safe_sentence ?? null, to_evidence_ready: result.bench?.ms.to_evidence_ready ?? null,
       to_first_evidence_action: result.bench?.ms.to_first_evidence_action ?? null,
       evidence_dropped: (result.decisions || []).filter(decision => decision.stage === 'evidence').length,
+      opens_with: result.actions.find(action => action.type === 'respond_text' || action.type === 'ask_question')?.type ?? null,
       planner_calls: calls.planner, planner_context_chars: calls.plannerChars, planner_tier: calls.tier, planner_served_tier: calls.servedTier, planner_escalated: calls.escalated,
       planner_input_tokens_est: calls.planner ? Math.round((calls.plannerChars + PLANNER_SYSTEM.length + JSON.stringify(TUTOR_TOOL).length) / 4) : 0,
       authored_actions: got.actions.filter(action => AUTHORED.includes(action.type)).length, text_actions: got.actions.filter(action => action.type === 'respond_text').length,
@@ -290,7 +293,14 @@ const summary = {
     early_rate: rate(rows.filter(row => row.planner_calls && !row.error), row => !!row.spoken),
     consistent_rate: rate(rows.filter(row => row.spoken), row => row.spoken.consistent),
     at_fraction_of_output: stats(values(row => (row.spoken ? Math.round(row.first_sentence_at * 1000) : null))),
-    note: 'at_fraction_of_output in thousandths of the tool-input characters written before the first sentence is ready (stub: scripted plans, actions first)',
+    // Decision 4: question turns (the validated reply opens with ask_question) measured on their own.
+    question_turns: (() => {
+      const asking = rows.filter(row => !row.error && row.opens_with === 'ask_question');
+      return { turns: asking.length, early: asking.filter(row => row.spoken).length, early_rate: rate(asking, row => !!row.spoken),
+        at_fraction_of_output: stats(values(row => (row.spoken?.action === 'ask_question' ? Math.round(row.first_sentence_at * 1000) : null))),
+        first_sentence_ms: stats(values(row => (row.spoken?.action === 'ask_question' ? row.first_sentence_ms : null))) };
+    })(),
+    note: 'at_fraction_of_output in thousandths of the tool-input characters written before the first sentence is ready (stub: scripted plans, control fields then actions)',
   } } : {}),
   planner_fast_tier_share: rate(rows.filter(row => row.planner_tier), row => row.planner_tier === 'fast'),
   ...(LIVE ? { candidate: CANDIDATE, planner_escalations: rows.filter(row => row.planner_escalated).map(row => `${row.trace}#${row.turn}: ${row.planner_escalated}`) } : {}),

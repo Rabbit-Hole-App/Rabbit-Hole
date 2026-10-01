@@ -62,9 +62,9 @@ test('D1: a question the prior evidence routes to a gap, misconception or uncert
 });
 
 test('D1: speakable never lets an evidence-row sentence out while evaluation is pending', () => {
-  assert.equal(speakable('Look at row 3.', { row: 'misconception_explain', allowed: ['respond_text'] }, true), false);
-  assert.equal(speakable('Look at row 3.', { row: 'misconception_explain', allowed: ['respond_text'] }, false), true);
-  assert.equal(speakable('Every layer uses it.', { row: 'not_yet_observed', allowed: ['respond_text'] }, true), true);
+  assert.equal(speakable('Look at row 3.', { row: 'misconception_explain', allowed: ['respond_text'] }, { pending: true }), false);
+  assert.equal(speakable('Look at row 3.', { row: 'misconception_explain', allowed: ['respond_text'] }, { pending: false }), true);
+  assert.equal(speakable('Every layer uses it.', { row: 'not_yet_observed', allowed: ['respond_text'] }, { pending: true }), true);
 });
 
 // An off-path question whose evaluation lands after the planner: `pass` true makes the evidence change
@@ -82,7 +82,7 @@ async function offPath(pass, plan, onSpeakable = null) {
       return { status: 'settled', evaluator: 'jev', events: pass ? [{ concept: claim.concept, claim: claim.id, settled: true, evaluator: 'jev', source: 'free_text', result: 'pass', kind: 'demonstrated_here' }] : [] };
     }
     order.push('planner');
-    if (options?.onSentence) options.onSentence(plan.actions[0].text);
+    if (options?.onSentence) options.onSentence({ text: plan.actions[0].text, action: plan.actions[0].type, constraints_add: [] });
     release();
     return plan;
   };

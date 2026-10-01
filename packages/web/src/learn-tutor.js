@@ -14,7 +14,7 @@ import { coerceInputs, validateInputDeclarations } from './scene-inputs.js';
 import { ATTENTION_LADDER, CLAIMS, CONCEPTS, SLICE_CARDS, catalogue, cardModule, claimsOfConcept, conceptOf, ladderStep, partLabels, targetClaims } from './learn-tutor-claims.js';
 import { appendEvents, conceptState, deriveClaimStates, practiceEvents, reconcile } from './learn-tutor-evidence.js';
 import { selectClaims } from './learn-tutor-select.js';
-import { EVIDENCE_ACTIONS, EVIDENCE_ROWS, speakable, validateActions } from './learn-tutor-validate.js';
+import { EVIDENCE_ACTIONS, EVIDENCE_ROWS, speakable, statedConstraints, validateActions } from './learn-tutor-validate.js';
 import { turnTrace } from './learn-tutor-trace.js';
 
 const SLASHES = ['deeper', 'simplify', 'dive'];
@@ -316,10 +316,15 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   const context = plannerContext({ turn, routed, block, states, claims, store: current });
   const planned = now();
   let response;
-  let spoken = null;
-  const onSentence = text => {
-    if (spoken != null || !speakable(text, routed, !!pending && !evidence)) return;
-    spoken = text.trim();
+  let spoken = null, spokenAction = null;
+  const intent = learnerIntent(turn);
+  // sentence: firstSentence's { text, action, constraints_add, explicit_request } (see readPlanStream).
+  const onSentence = sentence => {
+    // A turn back from a hole routes on returned_from alone (route ignores evidence), so its re-check
+    // question does not wait for this turn's evaluation.
+    if (spoken != null || !speakable(sentence, routed, { pending: !!pending && !evidence && routed.row !== 'returned', turn, intent })) return;
+    spoken = sentence.text.trim();
+    spokenAction = sentence.action;
     tracer.mark('first_sentence');
     onSpeakable(spoken);
   };
@@ -351,7 +356,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   }
   const released = now();
   // 4. The session record.
-  const constraints = [...new Set([...current.constraints, ...(response.constraints_add || [])])].filter(item => !(response.constraints_remove || []).includes(item));
+  const constraints = [...new Set([...current.constraints, ...(response.constraints_add || [])].filter(item => !(response.constraints_remove || []).includes(item)).concat(statedConstraints(raw)))];
   const asked = actions.find(action => action.type === 'ask_question');
   const socratic = routed.row === 'misconception' ? { ...current.socratic, [routed.claim]: (current.socratic[routed.claim] || 0) + 1 } : current.socratic;
   const text = actions.filter(action => action.type === 'respond_text' || action.type === 'ask_question').map(action => action.text.trim()).join('\n\n');
@@ -371,9 +376,9 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   const bench = {
     trace: tracer.trace, turn_id: turn.turn_id, route: routed.row, strategy: response.strategy ?? null, claims, evaluated: !!evidence,
     critical_path: critical && { ...critical, miss },
-    // The spoken first sentence must open the validated reply; a mismatch (a fast plan re-planned on
-    // Opus after it spoke) is recorded, never hidden.
-    spoken: spoken && { chars: spoken.length, consistent: !!actions.find(action => action.type === 'respond_text')?.text.trim().startsWith(spoken) },
+    // The spoken first sentence must open the validated reply (respond_text and ask_question texts in
+    // order); a mismatch would mean speech the final plan contradicts, and is recorded, never hidden.
+    spoken: spoken && { chars: spoken.length, action: spokenAction, tier: response.telemetry?.tier ?? null, consistent: text.startsWith(spoken) },
     selection: selection && { available: selection.available, selected: selection.selected.length, fallback: selection.fallback, ms: selection.ms },
     evaluation: evaluation && { status: evaluation.status, evaluator: evaluation.evaluator, events: (evaluation.events || []).length, telemetry: evaluation.telemetry ?? null },
     transitions: transitions.map(({ claim, from, to }) => `${claim}: ${from} -> ${to}`),
@@ -396,8 +401,9 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
 const now = () => (globalThis.performance ?? Date).now();
 
 // The browser side of a streamed plan (v2 checkpoint I): reads the NDJSON reply of
-// /api/learn/tutor/plan with { stream: true }, hands each sentence event to onSentence, and resolves
-// the final TutorResponse (or throws the route's error, with its telemetry).
+// /api/learn/tutor/plan with { stream: true }, hands each sentence event ({ text, action,
+// constraints_add, explicit_request }) to onSentence, and resolves the final TutorResponse (or throws
+// the route's error, with its telemetry).
 export async function readPlanStream(response, onSentence) {
   if (!response.ok) throw new Error(`The tutor is unavailable (${response.status})`);
   const reader = response.body.getReader(), decoder = new TextDecoder();
@@ -409,7 +415,7 @@ export async function readPlanStream(response, onSentence) {
     if (!done) buffer = lines.pop();
     for (const line of lines.filter(entry => entry.trim())) {
       const { type, ...event } = JSON.parse(line);
-      if (type === 'sentence') onSentence?.(event.text);
+      if (type === 'sentence') onSentence?.(event);
       else if (type === 'plan') return event;
       else if (type === 'error') throw Object.assign(new Error(event.error), { telemetry: event.telemetry });
     }

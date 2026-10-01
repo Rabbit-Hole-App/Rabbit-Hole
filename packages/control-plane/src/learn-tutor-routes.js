@@ -148,7 +148,7 @@ async function planOnce(env, context, model, effort, { callModel = loggedModel('
     result = stream ? await readPlannerStream(response, input => {
       if (telemetry.first_sentence_ms != null) return;
       const sentence = firstSentence(input);
-      if (sentence) { telemetry.first_sentence_ms = Date.now() - started; onSentence(sentence); }
+      if (sentence) { telemetry.first_sentence_ms = Date.now() - started; telemetry.first_sentence_action = sentence.action; onSentence(sentence); }
     }) : await response.json();
   } catch (error) { throw Object.assign(error, { telemetry: done('error') }); }
   Object.assign(telemetry, { served_model: result.model ?? null, input_tokens: result.usage?.input_tokens ?? null, output_tokens: result.usage?.output_tokens ?? null, stop_reason: result.stop_reason ?? null });
@@ -157,9 +157,10 @@ async function planOnce(env, context, model, effort, { callModel = loggedModel('
   return { ...call.input, telemetry: done('ok') };
 }
 
-// v2 checkpoint H: the tiered planner, off unless TUTOR_PLANNER_FAST_MODEL names one of these
+// v2 checkpoint H: the tiered planner, off unless TUTOR_PLANNER_FAST_MODEL names one of these exact ids
+// (Decision 3, owner 2026-10-01: never substituted; Opus stays LEARN_TASKS.tutor.model, claude-opus-5-5)
 // (claude-api skill model table, cached 2026-09-25). Only the benchmark sets it until the owner picks.
-export const FAST_PLANNER_MODELS = ['claude-haiku-4-5', 'claude-sonnet-5-5'];
+export const FAST_PLANNER_MODELS = ['claude-haiku-4-5-20251001', 'claude-sonnet-5-5'];
 // Routine: a question, request, slash or hole opening on a row whose move the router has already fixed.
 // Everything else (misconceptions, unsettled or uncertain evidence, a return from a hole, any
 // explanation or answer) stays on Opus 5.5.
@@ -184,6 +185,10 @@ export function fastPlanProblem(plan, context) {
 // the model default (Baseline A). H: TUTOR_PLANNER_FAST_MODEL (+ TUTOR_PLANNER_FAST_EFFORT) tiers it.
 // The fast model gets the same system prompt, Teaching State, route and allowed actions: it never
 // sets policy. A failed or unusable fast plan is re-planned on Opus 5.5 (telemetry.escalated).
+// Decision 2: a fast-tier sentence is HELD until the fast plan is complete, parsed and passes
+// fastPlanProblem; an invalid or escalated fast plan speaks nothing, and Opus's re-plan streams its own
+// sentence. No speculative speech, no rollback. first_sentence_ms on a fast plan is the release time;
+// sentence_written_ms is when the fast model had written it.
 export async function planTurn(env, context, deps = {}, documents = []) {
   // One first sentence per turn, even when a fast plan is re-planned on Opus.
   if (deps.onSentence) { let sent = false; const hand = deps.onSentence; deps = { ...deps, onSentence: text => { if (!sent) { sent = true; hand(text); } } }; }
@@ -196,10 +201,14 @@ export async function planTurn(env, context, deps = {}, documents = []) {
   if (tier.tier === 'opus') {
     try { return tagged(await opus()); } catch (error) { throw Object.assign(error, { telemetry: { ...error.telemetry, tier: 'opus', tier_reason: tier.reason } }); }
   }
-  let first, problem;
-  try { first = await planOnce(env, context, fast, level('TUTOR_PLANNER_FAST_EFFORT'), deps, documents); problem = fastPlanProblem(first, context); }
+  let first, problem, held = null;
+  const hold = deps.onSentence ? { ...deps, onSentence: sentence => { held ??= sentence; } } : deps;
+  try { first = await planOnce(env, context, fast, level('TUTOR_PLANNER_FAST_EFFORT'), hold, documents); problem = fastPlanProblem(first, context); }
   catch (error) { first = { telemetry: error.telemetry }; problem = error.message; }
-  if (!problem) return tagged(first, { escalated: null });
+  if (!problem) {
+    if (held) deps.onSentence(held);
+    return tagged(first, { escalated: null, ...(held ? { sentence_written_ms: first.telemetry.first_sentence_ms, first_sentence_ms: first.telemetry.ms } : {}) });
+  }
   const escalated = { tier: 'opus', tier_reason: tier.reason, escalated: problem, fast: first.telemetry ?? null };
   let plan;
   try { plan = await opus(); } catch (error) { throw Object.assign(error, { telemetry: { ...error.telemetry, ...escalated } }); }
@@ -234,7 +243,7 @@ export async function tutorRoute(path, req, env, deps = {}) {
     const writer = writable.getWriter(), encoder = new TextEncoder();
     const send = event => writer.write(encoder.encode(`${JSON.stringify(event)}\n`)).catch(() => {});
     (async () => {
-      try { await send({ type: 'plan', ...await planTurn(env, body.context, { ...deps, onSentence: text => send({ type: 'sentence', text }) }, documents) }); }
+      try { await send({ type: 'plan', ...await planTurn(env, body.context, { ...deps, onSentence: sentence => send({ type: 'sentence', ...sentence }) }, documents) }); }
       catch (error) { await send({ type: 'error', error: error.message, telemetry: error.telemetry }); }
       finally { await writer.close().catch(() => {}); }
     })();

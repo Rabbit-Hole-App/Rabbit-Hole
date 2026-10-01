@@ -93,7 +93,8 @@ Implemented with free/scripted tests only; no paid call. Checkpoints (pushed, no
 
 | Checkpoint | Decision | SHA |
 |---|---|---|
-| B | D1 evaluation dependency | see git log |
+| B | D1 evaluation dependency | `8223fc31` |
+| C | D4 constraint-first questions, D2 held fast-tier sentences, D3 exact model ids | see git log |
 
 ### D1. Evaluation dependency
 
@@ -111,6 +112,39 @@ Implemented with free/scripted tests only; no paid call. Checkpoints (pushed, no
 - Stub corpus: off-path turns 5 -> 3 of 36 (GT-03#0 and GT-07#0, a belief phrased as a question on a
   prior misconception, GT-D#1 on gap_inline and both B-no-quiz turns on uncertain now wait), no misses,
   pass 1.000, golden 9/9.
+
+### D2. Fast tier vs Opus replacement
+
+`planTurn` holds a fast-tier sentence until the fast plan is complete, strictly parsed and passes
+`fastPlanProblem`; only then is it released (telemetry `first_sentence_ms` = release, `sentence_written_ms`
+= when the fast model wrote it). An invalid or escalated fast plan speaks nothing; Opus re-plans and its
+own first sentence streams under the same rules. No speculative speech, no rollback. `bench.spoken` now
+carries `action` and `tier`, and `consistent` checks the whole validated reply (text actions in order).
+
+### D3. Models
+
+Exact ids, never substituted: fast tier `claude-haiku-4-5-20251001` or `claude-sonnet-5-5`
+(`FAST_PLANNER_MODELS`), planner and larger evaluator `claude-opus-5-5` (`LEARN_TASKS`).
+
+### D4. Constraint-first questions (option B)
+
+- `TUTOR_TOOL` order: `constraints_add` (required, may be empty), `constraints_remove`, `explicit_request`,
+  `strategy`, then `actions`; the prompt asks for that order and for the first-heard action first.
+- `firstSentence` offers the first text action's first sentence (respond_text or ask_question) as
+  `{ text, action, constraints_add, explicit_request }`; a question only when `constraints_add` was written
+  before the actions and adds neither no_quiz nor just_answer. The NDJSON `sentence` event carries the
+  same fields; `readPlanStream` hands the whole event to `onSentence`.
+- The browser speaks a question early only if `questionBlocked` finds nothing: evidence pending,
+  route without ask_question, constraints unknown, no_quiz / just_answer (session, plan, or the learner's
+  own words: `statedConstraints`, which now also binds the final gate and the session), the Socratic-turn
+  limit (`misconception_explain`: explain first, then ask), a conflicting explicit request (request or
+  slash intent, or explicit_request), and the per-turn question budget (only the first question, within
+  the first three actions). A return-to-parent re-check question does not wait for evidence (its route
+  ignores evidence). Every check is at least as strict as the final gate.
+- Tests: `learn-tutor-questions.test.mjs` (the six regression cases plus Socratic limit, explicit request
+  and late constraints), D2 cases in `learn-tutor-stream.test.js`.
+- Stub corpus: early sentence 0.769 -> 0.974 of planner turns; question turns 9/9 early (none before);
+  consistency 1.0; sentence ready at p50 0.582 / p95 0.905 of the tool output (control fields first).
 
 ## Target pipeline
 

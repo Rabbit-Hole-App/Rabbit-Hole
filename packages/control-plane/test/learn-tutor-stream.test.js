@@ -26,12 +26,12 @@ test('parsePartial closes what is open and leaves out what is unfinished', () =>
 test('firstSentence: the first respond_text\'s first sentence, as soon as it has ended', () => {
   const json = JSON.stringify({ actions: [{ type: 'respond_text', text: 'Softmax divides by the sum. So they add to 1.' }, { type: 'show_authored_card', card: 'c21-temperature' }], strategy: 'none' });
   const [at, sentence] = earliest(json);
-  assert.equal(sentence, 'Softmax divides by the sum.');
+  assert.deepEqual(sentence, { text: 'Softmax divides by the sum.', action: 'respond_text', constraints_add: null, explicit_request: null });
   assert.ok(at <= json.indexOf('So they'), 'before the rest of the text is written');
   const one = JSON.stringify({ actions: [{ type: 'respond_text', text: 'Yes, every layer.' }] });
   assert.equal(earliest(one)[0], one.indexOf('."') + 2, 'a one-sentence text is complete once its string closes');
-  assert.equal(firstSentence(JSON.stringify({ actions: [{ type: 'respond_text', text: 'The weights are 0.67 and 0.24 here. Next' }] })), 'The weights are 0.67 and 0.24 here.');
-  assert.equal(firstSentence(JSON.stringify({ actions: [{ type: 'show_authored_card', card: 'x' }, { type: 'respond_text', text: 'Here it is. Look.' }] })), 'Here it is.');
+  assert.equal(firstSentence(JSON.stringify({ actions: [{ type: 'respond_text', text: 'The weights are 0.67 and 0.24 here. Next' }] })).text, 'The weights are 0.67 and 0.24 here.');
+  assert.equal(firstSentence(JSON.stringify({ actions: [{ type: 'show_authored_card', card: 'x' }, { type: 'respond_text', text: 'Here it is. Look.' }] })).text, 'Here it is.');
 });
 
 test('firstSentence waits while an earlier action has no type, and ignores text past the third action', () => {
@@ -88,10 +88,24 @@ test('plan with stream: invalid streamed JSON is an invalid turn; subscription m
   assert.deepEqual(spoken, [], 'no early sentence without a stream');
 });
 
-test('plan with stream and a tiered fast plan re-planned on Opus: one sentence only', async t => {
-  const replies = [sse({ actions: [{ type: 'respond_text', text: 'Fast first. Then.' }, { type: 'open_dive', concept: 'softmax' }], strategy: 'none' }, 'claude-haiku-4-5'), sse(plan)];
-  const events = await lines(await world(t, { TUTOR_PLANNER_FAST_MODEL: 'claude-haiku-4-5' })({ app: 'canvas-0a1b2c3d', context: { learner_intent: { kind: 'question' }, route: { row: 'not_yet_observed' }, allowed_actions: ['respond_text'] }, stream: true }, { callModel: async () => replies.shift() }));
+// Decision 2: a fast-tier sentence is held until its plan is complete and passes the escalation check.
+test('D2: a fast plan that escalates to Opus speaks nothing of its own; Opus re-plans and speaks', async t => {
+  const replies = [sse({ actions: [{ type: 'respond_text', text: 'Fast first. Then.' }, { type: 'open_dive', concept: 'softmax' }], strategy: 'none' }, 'claude-haiku-4-5-20251001'), sse(plan)];
+  const events = await lines(await world(t, { TUTOR_PLANNER_FAST_MODEL: 'claude-haiku-4-5-20251001' })({ app: 'canvas-0a1b2c3d', context: { learner_intent: { kind: 'question' }, route: { row: 'not_yet_observed' }, allowed_actions: ['respond_text'] }, stream: true }, { callModel: async () => replies.shift() }));
   assert.deepEqual(events.map(event => event.type), ['sentence', 'plan']);
-  assert.equal(events[0].text, 'Fast first.');
-  assert.equal(events[1].telemetry.escalated, 'an action outside the allowed types', 'the mismatch is visible; the browser records it as spoken.consistent = false');
+  assert.equal(events[0].text, 'Every layer uses the same mask.', 'the held fast sentence is never sent');
+  assert.equal(events[1].telemetry.escalated, 'an action outside the allowed types');
+});
+
+test('D2: a valid fast plan releases its held sentence only after the whole plan passed', async t => {
+  const order = [];
+  const fastPlan = { actions: [{ type: 'respond_text', text: 'Fast and fine. More.' }], strategy: 'none' };
+  const turn = await planTurn({ TUTOR_PLANNER_FAST_MODEL: 'claude-haiku-4-5-20251001' }, { learner_intent: { kind: 'question' }, route: { row: 'not_yet_observed' }, allowed_actions: ['respond_text'] }, {
+    onSentence: sentence => order.push(`sentence:${sentence.text}`),
+    callModel: async () => { order.push('fast:called'); return sse(fastPlan, 'claude-haiku-4-5-20251001'); },
+  });
+  order.push('plan');
+  assert.deepEqual(order, ['fast:called', 'sentence:Fast and fine.', 'plan']);
+  assert.equal(turn.telemetry.tier, 'fast');
+  assert.ok(turn.telemetry.first_sentence_ms >= turn.telemetry.sentence_written_ms, 'released at the end of the fast plan, not when written');
 });

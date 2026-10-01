@@ -157,8 +157,9 @@ test('plan: one forced tutor_response call on Opus 5.5 (no fallback); its input 
   assert.deepEqual(calls[0].body.tool_choice, { type: 'auto' });
   assert.match(calls[0].body.system, /authored/i);
   assert.equal('output_config' in calls[0].body, false, 'no effort set: the model default (Baseline A)');
-  assert.equal(Object.keys(TUTOR_TOOL.input_schema.properties)[0], 'actions', 'actions first in the output');
-  assert.deepEqual(TUTOR_TOOL.input_schema.required, ['actions', 'strategy']);
+  // Decision 4 (constraint-first): the fields that can cancel a question come before the actions.
+  assert.deepEqual(Object.keys(TUTOR_TOOL.input_schema.properties).slice(0, 5), ['constraints_add', 'constraints_remove', 'explicit_request', 'strategy', 'actions'], 'control fields, then actions');
+  assert.deepEqual(TUTOR_TOOL.input_schema.required, ['constraints_add', 'strategy', 'actions']);
 });
 
 test('plan: TUTOR_PLANNER_EFFORT sets output_config.effort; an unknown value is ignored (v2 checkpoint G)', async t => {
@@ -227,21 +228,21 @@ test('plannerTier: routine questions, requests, slashes and openings on fixed-mo
 
 test('plan: with TUTOR_PLANNER_FAST_MODEL a routine turn is planned by the fast model with the same prompt and tool', async t => {
   const calls = replies(t, [answer]);
-  const body = await (await world(t, { TUTOR_PLANNER_FAST_MODEL: 'claude-haiku-4-5' }).post('/api/learn/tutor/plan', { app: 'canvas-0a1b2c3d', context: routine })).json();
+  const body = await (await world(t, { TUTOR_PLANNER_FAST_MODEL: 'claude-haiku-4-5-20251001' }).post('/api/learn/tutor/plan', { app: 'canvas-0a1b2c3d', context: routine })).json();
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].model, 'claude-haiku-4-5');
+  assert.equal(calls[0].model, 'claude-haiku-4-5-20251001');
   assert.equal(calls[0].tools[0].name, 'tutor_response');
   assert.match(calls[0].system, /router has already chosen/);
   assert.equal('output_config' in calls[0], false, 'no fast effort set');
-  assert.deepEqual([body.telemetry.tier, body.telemetry.escalated, body.telemetry.requested_model], ['fast', null, 'claude-haiku-4-5']);
+  assert.deepEqual([body.telemetry.tier, body.telemetry.escalated, body.telemetry.requested_model], ['fast', null, 'claude-haiku-4-5-20251001']);
 });
 
 test('plan: an unusable fast plan is re-planned on Opus 5.5; a non-routine turn goes straight to Opus', async t => {
   const calls = replies(t, [{ strategy: 'none', actions: [{ type: 'open_dive', concept: 'softmax' }] }, answer]);
-  const w = world(t, { TUTOR_PLANNER_FAST_MODEL: 'claude-haiku-4-5' });
+  const w = world(t, { TUTOR_PLANNER_FAST_MODEL: 'claude-haiku-4-5-20251001' });
   const body = await (await w.post('/api/learn/tutor/plan', { app: 'canvas-0a1b2c3d', context: routine })).json();
-  assert.deepEqual(calls.map(call => call.model), ['claude-haiku-4-5', 'claude-opus-5-5']);
-  assert.deepEqual([body.telemetry.tier, body.telemetry.escalated, body.telemetry.fast.requested_model], ['opus', 'an action outside the allowed types', 'claude-haiku-4-5']);
+  assert.deepEqual(calls.map(call => call.model), ['claude-haiku-4-5-20251001', 'claude-opus-5-5']);
+  assert.deepEqual([body.telemetry.tier, body.telemetry.escalated, body.telemetry.fast.requested_model], ['opus', 'an action outside the allowed types', 'claude-haiku-4-5-20251001']);
   assert.deepEqual(body.actions, answer.actions);
   const graded = await (await w.post('/api/learn/tutor/plan', { app: 'canvas-0a1b2c3d', context: { ...routine, route: { row: 'misconception' } } })).json();
   assert.equal(calls[2].model, 'claude-opus-5-5');

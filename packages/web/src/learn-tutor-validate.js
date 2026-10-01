@@ -28,11 +28,45 @@ export const EVIDENCE_ACTIONS = ['suggest_dive', 'suggest_practice', 'suggest_de
 // characters, no code. Otherwise the Tutor waits for the validated plan.
 // Decision 1: while this turn's evaluation is pending only an evidence-independent sentence may be
 // spoken; criticalPath already keeps every evidence row blocking, so a pending turn is never on one.
-export function speakable(sentence, routed, pending = false) {
-  const text = String(sentence || '').trim();
+// Decision 4: a question (sentence.action ask_question, from firstSentence) is spoken early only when
+// nothing that could cancel it is left: questionBlocked returns null.
+// sentence: firstSentence's { text, action, constraints_add, explicit_request } (or a plain string, a
+// statement). options: { pending (this turn's evaluation has not landed), turn, intent (learnerIntent) }.
+export function speakable(sentence, routed, { pending = false, turn = null, intent = null } = {}) {
+  const { text: raw = '', action = 'respond_text' } = typeof sentence === 'string' ? { text: sentence } : sentence || {};
+  const text = String(raw).trim();
+  if (text.length < 2 || text.length > 300 || /[`{}<>]|=>/.test(text)) return false;
+  if (action === 'ask_question') return !questionBlocked(sentence, routed, { pending, turn, intent });
   if (pending && EVIDENCE_ROWS.includes(routed.row)) return false;
-  return routed.allowed.includes('respond_text') && text.length >= 2 && text.length <= 300 && !/[`{}<>]|=>/.test(text);
+  return routed.allowed.includes('respond_text');
 }
+
+// Decision 4: the deterministic constraints that can cancel a question, checked BEFORE it is spoken.
+// The first reason found, or null when the question may stream. Each is at least as strict as the
+// final gate (validateActions), so a question spoken early is never dropped afterwards.
+//   evidence_pending    this turn's evaluation has not landed (quiz selection depends on it, D1)
+//   route               the route itself does not allow ask_question
+//   constraints_unknown constraints_add was not written before the actions
+//   no_quiz             no_quiz / just_answer in the session, in constraints_add, or in the learner's words
+//   socratic_limit      two Socratic turns are spent (misconception_explain): explain first, then ask
+//   explicit_request    the learner asked to be shown, told or given something (or typed a slash)
+//   question_budget     not the plan's first question within the first three actions (enforced in
+//                       firstSentence: only the first text action of the first three is ever offered)
+export function questionBlocked(sentence, routed, { pending = false, turn = null, intent = null } = {}) {
+  if (pending) return 'evidence_pending';
+  if (!routed.allowed.includes('ask_question')) return 'route';
+  if (!Array.isArray(sentence?.constraints_add)) return 'constraints_unknown';
+  const constraints = [...(turn?.constraints || []), ...statedConstraints(turn?.raw_user_message), ...sentence.constraints_add];
+  if (constraints.includes('no_quiz') || constraints.includes('just_answer')) return 'no_quiz';
+  if (routed.row === 'misconception_explain') return 'socratic_limit';
+  if (intent?.kind === 'request' || intent?.kind === 'slash' || turn?.slash || sentence.explicit_request) return 'explicit_request';
+  return null;
+}
+
+// "Don't quiz me" in the learner's own words binds this turn deterministically, whatever the planner
+// reports (locked: no_quiz removes every ask_question for the session).
+const STATED_NO_QUIZ = /\b(don'?t|do not|no more|stop)\s+(quiz|test)(z?ing)?\b|\bno (more )?(quiz|quizzes)\b/i;
+export const statedConstraints = raw => (STATED_NO_QUIZ.test(String(raw || '')) ? ['no_quiz'] : []);
 
 function schema(action) {
   if (!action || typeof action !== 'object' || !ACTION_TYPES.includes(action.type)) return `unknown action type ${action?.type}`;
@@ -51,7 +85,7 @@ export function validateActions(response, routed, turn) {
   const navigate = explicit || routed.row === 'slash' || routed.row === 'gap_inline';
   const allowed = new Set([...routed.allowed, ...(explicit ? ['respond_text', 'show_authored_card', 'focus_part'] : [])]);
   // v2: a constraint the learner states in this very message ("Don't quiz me") already binds this turn.
-  const constraints = [...turn.constraints, ...(response.constraints_add || [])].filter(item => !(response.constraints_remove || []).includes(item));
+  const constraints = [...turn.constraints, ...(response.constraints_add || [])].filter(item => !(response.constraints_remove || []).includes(item)).concat(statedConstraints(turn.raw_user_message));
   const noQuiz = constraints.includes('no_quiz') || constraints.includes('just_answer');
   const actions = [];
   const reject = (action, stage, reason) => { decisions.push({ type: action?.type ?? null, accepted: false, stage, reason }); log.push(`dropped ${action?.type}: ${reason}`); };
