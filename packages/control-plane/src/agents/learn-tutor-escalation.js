@@ -8,11 +8,13 @@
 //     misconception a named-misconception check whose id already has one settled event on the claim
 //                  (a second settled one makes the claim `misconception` and starts Socrates)
 //     contradiction a claim with a confident pass (idea or transfer) and a confident or uncertain
-//                  named misconception, or the reverse
+//                  named misconception, or the reverse; or one idea both stated (yes or unsure) and
+//                  contradicted (yes)
+// An uncertain contradiction check (contra, Decision 7) on its own is low consequence.
 // spec.claims[i].prior_misconceptions: the misconception ids with one settled event already (the
 // browser knows the evidence; the worker does not store any).
 
-const KEY = /^c(\d+)_(idea|mis|transfer)(\d*)$/;
+const KEY = /^c(\d+)_(idea|mis|contra|transfer)(\d*)$/;
 
 export function escalation(spec, answers, thresholds) {
   const yes = p => p >= thresholds.yes, no = p => p <= thresholds.no, unsure = p => !yes(p) && !no(p);
@@ -33,7 +35,8 @@ export function escalation(spec, answers, thresholds) {
     const wrong = own.some(key => /_mis\d+$/.test(key) && !no(answers[key]));
     const positiveUnsure = own.some(key => /_(idea\d+|transfer)$/.test(key) && unsure(answers[key]));
     const wrongSure = own.some(key => /_mis\d+$/.test(key) && yes(answers[key]));
-    if ((positive && wrong) || (positiveUnsure && wrongSure)) return { escalate: true, reason: 'contradiction', uncertain };
+    const both = spec.claims[c].ideas.some((_, i) => !no(answers[`c${c}_idea${i}`]) && yes(answers[`c${c}_contra${i}`]));
+    if ((positive && wrong) || (positiveUnsure && wrongSure) || both) return { escalate: true, reason: 'contradiction', uncertain };
   }
   return { escalate: false, reason: 'low_consequence', uncertain };
 }

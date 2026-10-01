@@ -211,6 +211,40 @@ export const CORPUS = [
     stub: { jev: { attempt: 0 }, plan: plan('none', 'x', [{ type: 'show_authored_card', card: 'c99-made-up', mode: 'suggest' }, { type: 'open_dive', concept: 'softmax', title: 'Softmax' }, say('The mask keeps each row to itself and earlier columns.')]) },
     expect: { events: [], actions: ['respond_text'] },
   }] },
+
+  // ---------- Decision 7: per-idea evidence (stub `contra: [p]` per idea, missing: "no") ----------
+  // The owner's example: idea 0 touched, idea 1 (add up to one) untouched -> one pass, no fail. "weights"
+  // added to the owner's words: the verbatim sentence selects only the softmax concept's claims.
+  { id: 'D7-one-idea-untouched', category: 'partial_explanation', start: { card: 'depth-attention-guided' }, turns: [{
+    raw: 'Softmax turns the scores into probabilities: the weights.',
+    stub: { jev: { 'attention/weights-from-scores': { ideas: [1, 0], contra: [0, 0] } }, plan: plan('feynman', 'explain', [say('Right. And what do the weights in a row add up to?')]) },
+    expect: { selected_includes: ['attention/weights-from-scores'], jev: true, larger: false, events: ['attention/weights-from-scores:pass'],
+      states: { 'attention/weights-from-scores': 'uncertain' }, row: 'uncertain', actions: ['respond_text'] },
+  }] },
+  { id: 'D7-contradicts-second-idea', category: 'misconception', start: { card: 'depth-attention-guided' }, turns: [{
+    raw: "Softmax turns the scores into weights, but the weights don't have to add up to one.",
+    stub: { jev: { 'attention/weights-from-scores': { ideas: [1, 0], contra: [0, 1] } }, plan: plan('feynman', 'hint', [say('Add up the softmax row on the card.')]) },
+    expect: { selected_includes: ['attention/weights-from-scores'], jev: true, larger: false, events: ['attention/weights-from-scores:pass', 'attention/weights-from-scores:fail'],
+      states: { 'attention/weights-from-scores': 'uncertain' }, row: 'uncertain', actions: ['respond_text'] },
+  }] },
+  // A prompted answer in a new case (transfer) that touches only idea 0: no fail on idea 1, and one
+  // covered idea of two is not understood.
+  { id: 'D7-prompted-one-idea', category: 'partial_explanation', start: { card: 'c10-weighted-values' }, turns: [
+    { raw: 'What is this card about?',
+      stub: { jev: { attempt: 0 }, plan: plan('feynman', 'ask', [say('How the weights mix the values.'), ask('How would you get the output from 8 values and their weights?', 'attention-output/weighted-average', 'transfer')]) },
+      expect: { events: [], actions: ['respond_text', 'ask_question'] } },
+    { raw: 'Multiply each of the 8 values by its weight and add them up.',
+      stub: { jev: { 'attention-output/weighted-average': { ideas: [1, 0], transfer: 1 } }, plan: plan('feynman', 'explain', [say('Yes. Where does that land relative to the values?')]) },
+      expect: { selected_includes: ['attention-output/weighted-average'], jev: true, larger: false, events: ['attention-output/weighted-average:pass'],
+        states: { 'attention-output/weighted-average': 'uncertain' }, row: 'uncertain', actions: ['respond_text'] } },
+  ] },
+  // Completeness exception: the c11 practice option "0 to Q-1" omits the position itself; deterministic
+  // practice grades the whole enumeration, so the incomplete answer stays a fail.
+  { id: 'D7-practice-incomplete', category: 'practice_evidence', start: { card: 'c11-causal-mask', practice: ['before'] }, turns: [{
+    raw: 'I checked my answer.',
+    stub: { jev: { attempt: 0 }, plan: plan('feynman', 'hint', [say('Does a position read itself?')]) },
+    expect: { jev: true, larger: false, events: ['causal-mask/reads-self-and-earlier:fail'], states: { 'causal-mask/reads-self-and-earlier': 'uncertain' }, row: 'uncertain', actions: ['respond_text'] },
+  }] },
 ];
 
 export const CATEGORIES = [...new Set(CORPUS.flatMap(trace => [trace.category, ...trace.turns.map(turn => turn.category).filter(Boolean)]))];

@@ -58,6 +58,7 @@ function answersFor(spec, script = {}) {
     const s = script[claim.id];
     if (!s) return;
     (s.ideas || []).forEach((p, i) => { answers[`c${c}_idea${i}`] = p; });
+    (s.contra || []).forEach((p, i) => { if (`c${c}_contra${i}` in answers) answers[`c${c}_contra${i}`] = p; });
     claim.misconceptions.forEach((wrong, m) => { if (s.mis?.[wrong.id] != null) answers[`c${c}_mis${m}`] = s.mis[wrong.id]; });
     if (s.transfer != null) answers[`c${c}_transfer`] = s.transfer;
   });
@@ -95,6 +96,7 @@ function stubSse(json) {
 // How far into the plan's output the first sentence is ready: prefix characters / all characters.
 const sentenceAt = json => { for (let n = 1; n <= json.length; n++) if (firstSentence(json.slice(0, n))) return +(n / json.length).toFixed(3); return null; };
 
+const negativeResult = event => event.result === 'fail' || event.result === 'misconception';
 const eventKey = event => `${event.claim}:${event.result}${event.settled ? '' : '?'}`;
 const sameBag = (a, b) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
 const sentences = text => String(text || '').trim().split(/(?<=[.!?])\s+/).filter(Boolean).length;
@@ -193,7 +195,7 @@ async function runTrace(trace) {
     store = result.store;
     const got = {
       selected: calls.selected, jev: calls.jev > 0, larger: calls.larger > 0,
-      events: store.events.slice(before).map(eventKey), states: Object.fromEntries(Object.entries(result.states).map(([id, state]) => [id, state.state])),
+      events: store.events.slice(before).map(eventKey), free_text_negative: store.events.slice(before).filter(event => event.source === 'free_text' && negativeResult(event)).map(event => event.result), states: Object.fromEntries(Object.entries(result.states).map(([id, state]) => [id, state.state])),
       row: result.routed.row, actions: result.actions.filter(action => action.type !== 'no_action'),
     };
     const checks = score(step.expect, got);
@@ -202,7 +204,7 @@ async function runTrace(trace) {
       stage: STAGE, mode: MODE, trace: trace.id, turn: index, category: step.category || trace.category, golden: !!trace.golden,
       selected: got.selected, claims_available: result.selection?.available ?? null, selection_ms: result.selection?.ms ?? null, selection_fallback: result.selection?.fallback ?? null,
       jev_calls: calls.jev, jev_questions: calls.jevQuestions, larger_calls: calls.larger, escalation: calls.escalation,
-      evaluation: result.evaluation ? result.evaluation.status : null, events: got.events, row: got.row,
+      evaluation: result.evaluation ? result.evaluation.status : null, events: got.events, free_text_negative: got.free_text_negative, row: got.row,
       actions: got.actions.map(action => ({ type: action.type, ...(action.mode ? { mode: action.mode } : {}), ...(action.card ? { card: action.card } : {}), ...(action.part_id ? { part_id: action.part_id } : {}) })),
       proposed, accepted, rejected: Math.max(0, proposed - accepted), log: result.log,
       rejections: (result.decisions || []).filter(decision => !decision.accepted).map(decision => `${decision.type}@${decision.stage}: ${decision.reason}`),
@@ -268,6 +270,8 @@ const summary = {
   claims_selected_per_jev_turn: jevTurns.length ? +(jevTurns.reduce((n, row) => n + row.selected.length, 0) / jevTurns.length).toFixed(2) : null,
   larger_calls_per_turn: +(rows.reduce((n, row) => n + row.larger_calls, 0) / rows.length).toFixed(3),
   larger_evaluator_escalation_rate: rate(jevTurns, row => row.larger_calls > 0),
+  // Decision 7: negative free-text evidence (JEV / larger evaluator), for before/after comparison.
+  free_text_negative_events: ['fail', 'misconception'].reduce((acc, result) => ({ ...acc, [result]: rows.reduce((n, row) => n + (row.free_text_negative || []).filter(r => r === result).length, 0) }), {}),
   critical_path: {
     evaluated_turns: evaluatedRows.length, off_critical_path: evaluatedRows.filter(row => !row.critical_path.blocking).length,
     skip_rate: rate(evaluatedRows, row => !row.critical_path.blocking), misses: evaluatedRows.filter(row => row.critical_path.miss).map(row => `${row.trace}#${row.turn}`),

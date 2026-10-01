@@ -20,6 +20,8 @@ export function tutorQuestions(spec) {
   spec.claims.forEach((claim, c) => {
     claim.ideas.forEach((idea, i) => {
       questions[`c${c}_idea${i}`] = { type: 'noul', instructions: `Does learner_answer state or clearly imply this idea, in any wording: "${idea}"? ${GUARD}` };
+      // Decision 7: only a contradiction fails an idea; a message that leaves it out does not.
+      questions[`c${c}_contra${i}`] = { type: 'noul', instructions: `Does learner_answer state something that contradicts or gets wrong this idea: "${idea}"? A message that does not mention the idea does not contradict it. ${GUARD}` };
     });
     claim.misconceptions.forEach((wrong, m) => {
       questions[`c${c}_mis${m}`] = { type: 'noul', instructions: `Does learner_answer assert this wrong idea: it ${wrong.check}? ${GUARD}` };
@@ -54,8 +56,10 @@ export function readTutorAnswers(body, spec) {
 }
 
 // Probabilities -> { status, events } (§3). settled when every check is at or beyond a threshold,
-// uncertain when any falls between. Per idea its own event (E8: no `partial` in v1); passes come
-// before negatives, so a partly right answer never ends on a pass. Gap checks always count.
+// uncertain when any falls between. Per idea its own event (E8: no `partial` in v1), carrying the
+// idea index: stated -> pass, contradicted -> fail, untouched or unsure -> nothing (Decision 7: an
+// idea the learner did not address is never a fail, prompted or not). Passes come before negatives,
+// so a partly right answer never ends on a pass. Gap checks always count.
 export function evaluationFrom(spec, answers, thresholds, evaluator) {
   const yes = p => p >= thresholds.yes, no = p => p <= thresholds.no;
   const status = Object.values(answers).every(p => yes(p) || no(p)) ? 'settled' : 'uncertain';
@@ -67,17 +71,15 @@ export function evaluationFrom(spec, answers, thresholds, evaluator) {
   if (attempted) {
     const passes = [], negatives = [];
     spec.claims.forEach((claim, c) => {
-      // A claim the message does not engage with gets no events: missing ideas are only evidence
-      // when the learner was asked about the claim, stated part of it, or asserted a named wrong
-      // model of it. Otherwise one message about the mask would fail every other card claim.
-      const engaged = (spec.answering && c === 0) || claim.ideas.some((_, i) => yes(answers[`c${c}_idea${i}`]))
+      // A claim the message does not engage with gets no events: the learner was asked about it,
+      // stated or contradicted part of it, or asserted a named wrong model of it.
+      const engaged = (spec.answering && c === 0) || claim.ideas.some((_, i) => yes(answers[`c${c}_idea${i}`]) || yes(answers[`c${c}_contra${i}`]))
         || claim.misconceptions.some((_, m) => yes(answers[`c${c}_mis${m}`]));
       if (!engaged) return;
       const kind = yes(answers[`c${c}_transfer`]) ? 'demonstrated_in_transfer' : 'demonstrated_here';
       claim.ideas.forEach((_, i) => {
-        const p = answers[`c${c}_idea${i}`];
-        if (yes(p)) passes.push(event(claim, { result: 'pass', kind }));
-        else if (no(p)) negatives.push(event(claim, { result: 'fail', kind: null }));
+        if (yes(answers[`c${c}_idea${i}`])) passes.push(event(claim, { result: 'pass', kind, idea: i }));
+        else if (yes(answers[`c${c}_contra${i}`])) negatives.push(event(claim, { result: 'fail', kind: null, idea: i }));
       });
       claim.misconceptions.forEach((wrong, m) => {
         if (yes(answers[`c${c}_mis${m}`])) negatives.push(event(claim, { result: 'misconception', misconception_id: wrong.id, kind: null }));
