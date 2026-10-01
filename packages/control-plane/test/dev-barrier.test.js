@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
-import { devWorker, productionWorker } from './worker-import.js';
+import { devWorker, productionWorker, appWorker } from './worker-import.js';
 import { sign } from '../src/token.js';
 import { liveDb, liveRuns, memoryBucket } from './live-storage-spy.js';
 import { productionAllows, devIdentity, guardControlPlane } from '../src/dev-forwarding.js';
@@ -207,4 +207,21 @@ test('the barrier wraps a real service binding, whose every property reads as tr
   await blocked(await env.CONTROL_PLANE.fetch(new Request('https://dev.test/api/workspaces', { method: 'POST' })), 'module call');
   assert.equal((await env.CONTROL_PLANE.fetch('https://dev.test/api/me')).status, 200);
   assert.deepEqual(live.sent, ['GET /api/me']);
+});
+
+// Production Rabbit Hole (packages/web/app-worker.js): CONTROL_PLANE is that deployment's own control
+// plane, so sign-in and writes pass through; the dev worker given the same binding still refuses them.
+test('the production app worker passes everything to its own control plane; the dev worker does not', async () => {
+  const app = (await appWorker()).default;
+  const live = rpcBinding(production());
+  const env = { LEARN_MEDIA: memoryBucket(), CONTROL_PLANE: live };
+  const send = (w, method, path) => w.fetch(new Request(`https://tryrabbithole.test${path}`, { method, redirect: 'manual' }), env, { waitUntil() {} });
+  for (const [method, path] of [['POST', '/auth/email/start'], ['GET', '/auth/google/start'], ['GET', '/auth/session'], ['POST', '/logout'], ['POST', '/api/workspaces'], ['POST', '/api/cli/login']]) {
+    assert.equal((await send(app, method, path)).status, 200, `app ${method} ${path}`);
+    await blocked(await send(worker, method, path), `dev ${method} ${path}`);
+  }
+  assert.deepEqual(live.sent, ['POST /auth/email/start', 'GET /auth/google/start', 'GET /auth/session', 'POST /logout', 'POST /api/workspaces', 'POST /api/cli/login']);
+  const login = await send(app, 'GET', '/login?next=%2Fapps&error=expired');
+  assert.equal(login.status, 302);
+  assert.equal(login.headers.get('location'), 'https://tryrabbithole.test/sign-in?next=%2Fapps&error=expired');
 });
