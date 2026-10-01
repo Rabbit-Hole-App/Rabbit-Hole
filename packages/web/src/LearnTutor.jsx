@@ -3,7 +3,7 @@
 // messages here instead of /api/learn/ask; /dive stays /dive's (Dive.jsx), and the Tutor only
 // proposes a dive through it.
 import { cloneElement, useCallback, useEffect, useRef, useState } from 'react';
-import { api, wsHeaders } from './api.js';
+import { api, apiFetch } from './api.js';
 import { TUTOR_BOARD } from './learn-tutor-claims.js';
 import { loadStore, saveStore, storeKey } from './learn-tutor-evidence.js';
 import { arriveAt, enterHole, executeActions, keepHere, markOpened, openingQuestion, readPlanStream, runTurn } from './learn-tutor.js';
@@ -45,7 +45,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive }) {
         post: (path, body, stream) => {
           const limit = AbortSignal.any([AbortSignal.timeout(TURN_TIMEOUT_MS), ...(signal ? [signal] : [])]);
           // A streamed plan (body.stream, NDJSON): its sentences reach onSentence as they validate.
-          if (stream?.onSentence) return fetch(path, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', ...wsHeaders() }, body: JSON.stringify(body), signal: limit }).then(response => readPlanStream(response, stream.onSentence));
+          if (stream?.onSentence) return apiFetch(path, { method: 'POST', body: JSON.stringify(body), signal: limit }).then(response => readPlanStream(response, stream.onSentence));
           return api(path, { method: 'POST', body: JSON.stringify(body), signal: limit });
         },
       });

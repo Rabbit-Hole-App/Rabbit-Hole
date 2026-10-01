@@ -467,3 +467,30 @@ test('early speech: a reply without an early sentence speaks as before', async (
   assert.ok(!r.names().includes('first_sentence'));
   r.session.exit();
 });
+
+test('early speech: a plan that fails after its first sentence began stops that audio and shows the error', async () => {
+  const tutor = scriptedTutor(args => { args.onSpeakable('Here is the start.'); return new Promise((_, reject) => setTimeout(() => reject(new Error('The tutor returned no turn')), 5)); });
+  const r = rig(tutor, { ttsMs: 10000 });
+  await r.session.enter();
+  r.stt.say('explain it');
+  await until(r.session, 'speaking');
+  await until(r.session, 'listening');
+  assert.ok(r.calls.includes('tts.stop'), 'the unvalidated sentence stops');
+  assert.equal(r.session.caption.error, TUTOR_FAILED);
+  r.session.exit();
+});
+
+test('early speech: two clips in one turn keep the first clip as when the learner first heard the Tutor', async () => {
+  const tutor = scriptedTutor(args => { args.onSpeakable('First part.'); return Promise.resolve({ speech: 'First part. Second part.', turnId: args.turnId, ms: MS }); });
+  const r = rig(tutor, { ttsMs: 5 });
+  await r.session.enter();
+  r.stt.say('go');
+  await until(r.session, 'speaking');
+  await until(r.session, 'listening');
+  const starts = r.events.filter(event => event.name === 'tts_play_start').map(event => event.at);
+  assert.equal(starts.length, 2, 'two clips');
+  const turnEvent = r.events.find(event => event.name === 'voice_turn');
+  const firstHeard = r.events.find(event => event.name === 'speech_end').at;
+  assert.ok(Math.abs(turnEvent.ms.speech_end_to_tutor_speaking - (starts[0] - firstHeard)) < 1, 'measured to the first clip');
+  r.session.exit();
+});

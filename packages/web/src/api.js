@@ -49,7 +49,9 @@ export function setWs(slug) {
 export const wsHeaders = () => (getWs() ? { 'X-Small-Workspace': getWs() } : {});
 
 // Same-origin control-plane API. Session cookie rides along; 401 → magic-link login and back.
-export async function api(path, opts = {}) {
+// The request api() makes - preview write refusal, private-BYOC auth, workspace header, 401 to login - with the
+// raw Response returned, for a streamed body (the Tutor's NDJSON plan, LearnTutor.jsx).
+export async function apiFetch(path, opts = {}) {
   // D7: the preview never writes live small-cp; the refusal reads like any other failed call (routes.js).
   if (learnPreview && (opts.method || 'GET') !== 'GET' && !previewWriteAllowed(path)) throw new Error(PREVIEW_WRITE_REFUSED);
   let authorization = {};
@@ -67,6 +69,11 @@ export async function api(path, opts = {}) {
     window.location.href = `/login?next=${encodeURIComponent(window.location.pathname)}`;
     return new Promise(() => {}); // navigation in flight
   }
+  return r;
+}
+
+export async function api(path, opts = {}) {
+  const r = await apiFetch(path, opts);
   const data = await r.json();
   if (!r.ok) throw Object.assign(new Error(data.error || `HTTP ${r.status}`), { status: r.status, data });
   return data;

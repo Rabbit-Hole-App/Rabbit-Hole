@@ -126,6 +126,8 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now 
       reply = await tutor.voiceTurn({ raw: text, turnId, signal: turn.controller.signal, onSpeakable });
     } catch (error) {
       if (current !== turn) return; // exited: nothing to show
+      // The plan failed after its first sentence began: that sentence never validated as a reply, so it stops.
+      if (early) tts.stop();
       const timeout = error?.name === 'TimeoutError';
       emit('voice_error', { turn_id: turnId, kind: timeout ? 'tutor_timeout' : 'tutor' });
       set(null, { error: timeout ? TUTOR_TIMEOUT : TUTOR_FAILED });
@@ -271,8 +273,12 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now 
     },
     ttsEvent(event) {
       if (!current || event?.turnId !== current.turnId || event.type === 'tts_error') return;
-      current.marks[event.type] = event.at ?? now();
-      emit(event.type, { turn_id: current.turnId, at: current.marks[event.type] });
+      // A turn can play two clips (the early first sentence, then the rest): the start marks keep the first
+      // clip, which is when the learner first heard the Tutor; the end marks take the last.
+      const first = ['tts_request_start', 'tts_first_byte', 'tts_play_start'].includes(event.type);
+      if (first) current.marks[event.type] ??= event.at ?? now();
+      else current.marks[event.type] = event.at ?? now();
+      emit(event.type, { turn_id: current.turnId, at: event.at ?? now() });
     },
   };
 }

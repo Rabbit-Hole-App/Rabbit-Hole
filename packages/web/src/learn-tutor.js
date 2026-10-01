@@ -414,7 +414,10 @@ const now = () => (globalThis.performance ?? Date).now();
 // constraints_add, explicit_request }) to onSentence, and resolves the final TutorResponse (or throws
 // the route's error, with its telemetry).
 export async function readPlanStream(response, onSentence) {
-  if (!response.ok) throw new Error(`The tutor is unavailable (${response.status})`);
+  if (!response.ok) {
+    const data = await response.json().catch(() => null);
+    throw Object.assign(new Error(data?.error || `The tutor is unavailable (${response.status})`), { status: response.status, data });
+  }
   const reader = response.body.getReader(), decoder = new TextDecoder();
   let buffer = '';
   for (;;) {

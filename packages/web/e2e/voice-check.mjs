@@ -44,10 +44,13 @@ await page.route('**/api/learn/tutor/evaluate', async route => {
   nextEvaluation = null;
 });
 await page.route('**/api/learn/tutor/plan', async route => {
-  const { context: sent } = route.request().postDataJSON();
+  const { context: sent, stream } = route.request().postDataJSON();
   plans.push(sent);
   if (hold) await hold;
-  await route.fulfill({ json: nextPlan(sent) });
+  // A voice turn streams the plan (NDJSON, learn-tutor.js readPlanStream); a typed one takes JSON.
+  if (stream) await route.fulfill({ contentType: 'application/x-ndjson', body: JSON.stringify({ type: 'plan', ...nextPlan(sent) }) + '
+' });
+  else await route.fulfill({ json: nextPlan(sent) });
 });
 const say = text => ({ type: 'respond_text', text });
 const event = (claim, concept, extra) => ({ concept, claim, settled: true, evaluator: 'jev', source: 'free_text', kind: null, ...extra });
