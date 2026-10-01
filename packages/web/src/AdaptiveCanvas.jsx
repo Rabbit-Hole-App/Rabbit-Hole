@@ -323,7 +323,7 @@ function SlideCard({ block, zoom, selected, connected, onSelect, onMove, onLayou
   }, [block.assetKey]);
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost wide space={block.space}
-      connected={connected} width={SLIDE_W} autoMax={undefined}
+      connected={connected} width={SLIDE_W} autoMax={null}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
       {selected && (
         <div className="absolute -top-10 right-0 z-30">
@@ -334,10 +334,20 @@ function SlideCard({ block, zoom, selected, connected, onSelect, onMove, onLayou
         </div>
       )}
       <div data-slide={block.number} className="px-1 pb-1">
-        {block.number > 1 && <div data-slide-divider className="mb-2 flex items-center gap-2 text-[11px] text-ink-3"><span className="h-px flex-1 bg-line-strong" />Slide {block.number}<span className="h-px flex-1 bg-line-strong" /></div>}
         {url ? <img src={url} alt={`${block.label || 'Slide'} ${block.number}`} className="w-full rounded border border-line" draggable={false} />
           : <p className="p-4 text-sm text-ink-2">This slide is not in this browser.</p>}
       </div>
+    </CanvasNode>
+  );
+}
+
+// The line between two slides: its own block, so it can be selected and deleted on its own.
+function DividerCard({ block, zoom, selected, connected, onSelect, onMove, onLayout, onConnect, onSnap }) {
+  return (
+    <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost wide space={block.space}
+      connected={connected} width={SLIDE_W} autoMax={null}
+      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
+      <div data-slide-divider className="flex items-center gap-2 px-1 pb-2 text-[11px] text-ink-3"><span className="h-px flex-1 bg-line-strong" />{block.label}<span className="h-px flex-1 bg-line-strong" /></div>
     </CanvasNode>
   );
 }
@@ -595,6 +605,7 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
   if (block.type === 'video' && block.videoId) return <VideoCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWatch={onWatch} />;
   if (block.type === 'wiki') return <WikiCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWiki={onWiki} />;
   if (block.type === 'file') return <FileCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
+  if (block.type === 'divider') return <DividerCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'slide') return <SlideCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onAsk={onAsk} />;
   if (block.type === 'pdf') return <PdfCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'notebook') return <NotebookCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onChangeQuiet={onChangeQuiet} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
@@ -1373,7 +1384,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       insertSlides: ({ pages, label, pdf }) => {
         if (!pages.length) return;
         snapshot();
-        const slides = pages.map((assetKey, index) => ({ id: crypto.randomUUID(), type: 'slide', dx: 0, dy: 0, assetKey, label, number: index + 1, pdf }));
+        // A divider block between consecutive pages, so a separator can be deleted on its own.
+        const slides = pages.flatMap((assetKey, index) => [
+          ...(index ? [{ id: crypto.randomUUID(), type: 'divider', dx: 0, dy: 0, label: `Slide ${index + 1}`, pdf }] : []),
+          { id: crypto.randomUUID(), type: 'slide', dx: 0, dy: 0, assetKey, label, number: index + 1, pdf },
+        ]);
         const index = flowIndexAtView();
         setBlocks(previous => [...previous.slice(0, index), ...slides, ...previous.slice(index)]);
         revealAfter(slides[0].id);
