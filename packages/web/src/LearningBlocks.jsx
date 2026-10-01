@@ -1660,6 +1660,7 @@ export function describeBlock(block) {
   if (block.type === 'quiz') return { kind: 'Quiz', title: block.question, text: `Quiz question: ${block.question}\nOptions:\n${block.options.map(option => `${option.key}. ${option.text}${option.correct ? ' (correct answer)' : ''}`).join('\n')}\nLearner's current choice: ${block.choice || 'none yet'}` };
   if (block.type === 'flashcards') return { kind: 'Flashcards', title: `${block.cards.length} cards`, text: `Flashcards:\n${block.cards.map((card, index) => `- ${card.front} → ${card.back} (learner self-rated: ${(block.marks || {})[index] || 'unrated'})`).join('\n')}` };
   if (block.type === 'challenge' && block.mode === 'explain_back') return { kind: 'Explain back', title: block.prompt, text: [`Explain-back prompt: ${block.prompt}`, `Key ideas expected: ${(block.expects || []).join('; ')}`, `Learner's explanation: ${block.answer || 'not given yet'}`, block.verdict ? `Understanding evidence: ${block.verdict}` : ''].join(NEWLINE) };
+  if (block.type === 'slide') return { kind: 'Slide', title: `${block.label || 'PDF'}, slide ${block.number}`, text: `Slide ${block.number} of the PDF ${block.label || ''} on the canvas.` };
   if (block.type === 'challenge') return { kind: 'Challenge', title: block.prompt, text: [`Challenge: ${block.prompt}`, `Learner's committed answer: ${block.answer || 'none yet'}`, block.verdict ? `Tutor verdict: ${block.verdict}` : ''].join(NEWLINE) };
   return null;
 }

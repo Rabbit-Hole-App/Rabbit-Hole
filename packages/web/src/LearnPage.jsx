@@ -329,10 +329,11 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
     // The reader can only take the learner to a page the model will also read,
     // and paper_context refuses anything past 100. Say so before the upload
     // rather than failing on every question afterwards.
+    let pdf;
     try {
       const { getDocument } = await import('./learn-paper-figures.js');
-      const pages = (await getDocument({ data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false }).promise).numPages;
-      if (pages > 100) { toast(`That PDF has ${pages} pages. The tutor can read up to 100.`); return; }
+      pdf = await getDocument({ data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false }).promise;
+      if (pdf.numPages > 100) { toast(`That PDF has ${pdf.numPages} pages. The tutor can read up to 100.`); return; }
     } catch { toast('That file could not be read as a PDF.'); return; }
     const body = new FormData();
     body.append('file', file, file.name);
@@ -346,8 +347,27 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
     // page, native scrolling - and it survives a reload because the bytes are
     // in this browser's asset store and the block keeps only the key.
     const assetKey = `pdf:${stored.id}`;
-    await cacheAsset(assetKey, file);
-    canvas()?.insertPdf({ assetKey, label: stored.title, slides: mode === 'slides' });
+    if (mode === 'slides') {
+      // Slides: every page drawn once to an image and placed on the canvas itself, in order.
+      const pages = [];
+      try {
+        const sheet = document.createElement('canvas');
+        for (let number = 1; number <= pdf.numPages; number++) {
+          const page = await pdf.getPage(number);
+          const viewport = page.getViewport({ scale: 1120 / page.getViewport({ scale: 1 }).width });
+          sheet.width = viewport.width; sheet.height = viewport.height;
+          await page.render({ canvasContext: sheet.getContext('2d'), viewport }).promise;
+          const blob = await new Promise(resolve => sheet.toBlob(resolve, 'image/png'));
+          const key = `slide:${crypto.randomUUID()}`;
+          await cacheAsset(key, blob);
+          pages.push(key);
+        }
+      } catch { toast('The slides could not be drawn.'); return; }
+      canvas()?.insertSlides({ pages, label: stored.title, pdf: assetKey });
+    } else {
+      await cacheAsset(assetKey, file);
+      canvas()?.insertPdf({ assetKey, label: stored.title });
+    }
     // Opening it in the reader is what makes the tutor page-aware: boardContext
     // carries paperContext, and ask.jsx turns that into paper_context with the
     // page the learner is actually on. The card cannot do that job - an iframe
@@ -1050,7 +1070,9 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
   // and whatever context pointed at it stops riding the next question.
   const removeSource = source => {
     const blockId = cardOf(source);
-    if (blockId) canvas()?.removeBlock(blockId);
+    // A PDF added as slides is one block per page: removing it removes every page.
+    if (source.kind === 'pdf') for (const [id, key] of canvasState.cards || []) { if (key === `pdf:${source.id}`) canvas()?.removeBlock(id); }
+    else if (blockId) canvas()?.removeBlock(blockId);
     setSources(previous => previous.filter(entry => entry.id !== source.id));
     if (wikiContext?.blockId && wikiContext.blockId === blockId) { setWikiContext(null); setWikiOpen(false); }
     if (videoContext?.blockId && videoContext.blockId === blockId) setVideoContext(null);

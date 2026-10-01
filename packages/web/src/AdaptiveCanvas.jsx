@@ -148,7 +148,7 @@ function outlineOf(shape) {
 // Shared node chrome for everything card-shaped on the canvas: drag with
 // lift, corner resize, selection ring, top/bottom connection ports, and the
 // layout observer that keeps connector geometry fresh. Content is children.
-function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, space = 0, connected = null, autoMax = 420, width = 380, height = undefined, extraHeight = 0, saved = null, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, children }) {
+function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, wide = false, space = 0, connected = null, autoMax = 420, width = 380, height = undefined, extraHeight = 0, saved = null, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, children }) {
   const [lifted, setLifted] = useState(false);
   // A card with a Rabbit Hole under it (docs/features/dive-v1.md): derived from the dive link, never stored on the card.
   const dive = useContext(DivePortals), portal = dive?.portals?.[id];
@@ -180,10 +180,10 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, s
   return (
     <div ref={card} data-block data-block-id={id} {...(chat ? { 'data-chat-block': true } : {})}
       onPointerDown={event => { if (event.button !== 0) return; if (event.target.closest('[data-drag-zone]')) drag(event); else onSelect(id, event); }}
-      // A card with a Rabbit Hole (saved or still empty): double-click goes down it; a single click still selects.
-      onDoubleClick={portal ? event => { if (!event.target.closest('input, textarea, select, button, [contenteditable="true"]')) dive.enter(portal.name); } : undefined}
+      // Double-click goes down this card's Rabbit Hole, making it when there is none yet; a single click still selects.
+      onDoubleClick={dive && !chat ? event => { if (event.target.closest('input, textarea, select, button, a, iframe, [contenteditable="true"]')) return; if (portal) dive.enter(portal.name); else dive.open?.(id); } : undefined}
       style={{ transform: `translate(${dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, marginTop: space || undefined, width: size.w || width, height: size.h || height ? (size.h || height) + extraHeight : undefined, maxHeight: size.h || height ? undefined : autoMax }}
-      className={`group relative mx-auto flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-[#2383e2]' : ''} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-[#e5484d]/40' : 'outline-2 outline-offset-4 outline-[#b42318]') : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
+      className={`group relative ${wide ? 'self-center' : 'mx-auto'} flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-[#2383e2]' : ''} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-[#e5484d]/40' : 'outline-8 outline-offset-1 outline-[#b42318]/45') : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
       {/* Only this strip drags; the body keeps a normal cursor so text can be
           selected and links inside the block stay clickable. */}
       <div data-drag-handle data-drag-zone title="Drag to move this block"
@@ -307,44 +307,38 @@ function HeadingCard({ block, zoom, selected, connected, onSelect, onMove, onCha
   );
 }
 
-// A PDF added as slides: every page drawn once to an image, one under the next
-// with a numbered divider between them. Uploads stop at 100 pages, so all of
-// them are drawn up front.
-function PdfSlides({ file, label }) {
-  const [slides, setSlides] = useState([]);
-  const [error, setError] = useState(false);
+// Slides fill the A4 page guide, wider than the card column, centred on it.
+const SLIDE_W = PAGE_W - 48;
+
+// One page of a PDF added as slides: straight on the canvas, no card chrome, with
+// a numbered divider above every page after the first. Each page is its own block,
+// so it moves, groups and deletes like anything else; the image sits in this
+// browser's asset store and the block keeps only the key.
+function SlideCard({ block, zoom, selected, connected, onSelect, onMove, onLayout, onConnect, onSnap, onAsk }) {
+  const [url, setUrl] = useState(null);
   useEffect(() => {
-    let active = true, task = null;
-    const urls = [];
-    (async () => {
-      const { getDocument } = await import('./learn-paper-figures.js');
-      task = getDocument({ data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false });
-      const pdf = await task.promise;
-      const canvas = document.createElement('canvas');
-      for (let number = 1; number <= pdf.numPages && active; number++) {
-        const page = await pdf.getPage(number);
-        const viewport = page.getViewport({ scale: (COLUMN * 2) / page.getViewport({ scale: 1 }).width });
-        canvas.width = viewport.width; canvas.height = viewport.height;
-        await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-        if (!active || !blob) break;
-        urls.push(URL.createObjectURL(blob));
-        setSlides([...urls]);
-      }
-    })().catch(() => { if (active) setError(true); });
-    return () => { active = false; task?.destroy(); urls.forEach(url => URL.revokeObjectURL(url)); };
-  }, [file]);
-  if (error) return <p className="p-4 text-sm text-ink-2">This PDF could not be drawn as slides.</p>;
-  if (!slides.length) return <p className="p-4 text-sm text-ink-2">Opening…</p>;
+    let revoke = null;
+    loadAsset(block.assetKey).then(file => { if (file) { revoke = URL.createObjectURL(file); setUrl(revoke); } });
+    return () => { if (revoke) URL.revokeObjectURL(revoke); };
+  }, [block.assetKey]);
   return (
-    <div data-pdf-slides className="flex flex-col gap-3 p-3">
-      {slides.map((url, index) => (
-        <div key={url}>
-          {index > 0 && <div data-slide-divider className="mb-3 flex items-center gap-2 text-[11px] text-ink-3"><span className="h-px flex-1 bg-line" />Slide {index + 1}<span className="h-px flex-1 bg-line" /></div>}
-          <img src={url} alt={`${label || 'PDF'} slide ${index + 1}`} className="w-full rounded border border-line" draggable={false} />
+    <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost wide space={block.space}
+      connected={connected} width={SLIDE_W} autoMax={undefined}
+      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
+      {selected && (
+        <div className="absolute -top-10 right-0 z-30">
+          <button type="button" title="Ask the tutor about this slide" onPointerDown={e => e.stopPropagation()} onClick={() => onAsk(block)}
+            className="flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium whitespace-nowrap text-ink shadow-md hover:bg-hover">
+            <MessageCircle size={13} />Ask in chat
+          </button>
         </div>
-      ))}
-    </div>
+      )}
+      <div data-slide={block.number} className="px-1 pb-1">
+        {block.number > 1 && <div data-slide-divider className="mb-2 flex items-center gap-2 text-[11px] text-ink-3"><span className="h-px flex-1 bg-line-strong" />Slide {block.number}<span className="h-px flex-1 bg-line-strong" /></div>}
+        {url ? <img src={url} alt={`${block.label || 'Slide'} ${block.number}`} className="w-full rounded border border-line" draggable={false} />
+          : <p className="p-4 text-sm text-ink-2">This slide is not in this browser.</p>}
+      </div>
+    </CanvasNode>
   );
 }
 
@@ -353,14 +347,13 @@ function PdfSlides({ file, label }) {
 // PDF is far past that. The file itself sits in IndexedDB and survives reloads.
 function PdfCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onLayout, onConnect, onSnap }) {
   const [url, setUrl] = useState(null);
-  const [file, setFile] = useState(null);
   const [missing, setMissing] = useState(false);
   useEffect(() => {
     let revoke = null;
     loadAsset(block.assetKey).then(file => {
       if (!file) { setMissing(true); return; }
       revoke = URL.createObjectURL(file);
-      setUrl(revoke); setFile(file);
+      setUrl(revoke);
     });
     return () => { if (revoke) URL.revokeObjectURL(revoke); };
   }, [block.assetKey]);
@@ -370,16 +363,15 @@ function PdfCard({ block, zoom, selected, connected, onSelect, onMove, onChange,
       onSize={(id, w, h) => onChange({ ...block, w, h })}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
       <div className="flex shrink-0 items-center gap-2 px-4 pb-2 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">
-        <span className="h-1.5 w-1.5 rounded-full bg-ink" />{block.slides ? 'Slides' : 'PDF'}<span className="truncate normal-case tracking-normal text-ink-3">{block.label}</span>
+        <span className="h-1.5 w-1.5 rounded-full bg-ink" />PDF<span className="truncate normal-case tracking-normal text-ink-3">{block.label}</span>
       </div>
       {/* Until the card is selected the page ignores the pointer, so the first
           press selects the card and keeps focus in this document. A focused
           iframe receives keydown in its own document, where the canvas never
           sees it - copy, paste, undo and delete would all be dead on this card. */}
-      <div className={`min-h-0 flex-1 rounded-b-xl border-t border-line ${block.slides ? `overflow-y-auto ${selected ? '' : 'pointer-events-none'}` : 'overflow-hidden'}`}
-        onPointerDown={event => { if (selected) event.stopPropagation(); }} onWheel={event => { if (selected && block.slides) event.stopPropagation(); }}>
-        {file && block.slides ? <PdfSlides file={file} label={block.label} />
-          : url
+      <div className="min-h-0 flex-1 overflow-hidden rounded-b-xl border-t border-line"
+        onPointerDown={event => { if (selected) event.stopPropagation(); }}>
+        {url
           ? <iframe src={url} title={block.label || 'PDF'} className={`h-full w-full ${selected ? '' : 'pointer-events-none'}`} />
           : <p className="p-4 text-sm text-ink-2">{missing ? 'This PDF is not in this browser. Upload it again from Sources.' : 'Opening…'}</p>}
       </div>
@@ -603,6 +595,7 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
   if (block.type === 'video' && block.videoId) return <VideoCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWatch={onWatch} />;
   if (block.type === 'wiki') return <WikiCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWiki={onWiki} />;
   if (block.type === 'file') return <FileCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
+  if (block.type === 'slide') return <SlideCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onAsk={onAsk} />;
   if (block.type === 'pdf') return <PdfCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'notebook') return <NotebookCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onChangeQuiet={onChangeQuiet} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'heading') return <HeadingCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
@@ -1371,9 +1364,19 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // free items land at its centre, and the camera only moves if the new
       // thing would otherwise be off screen.
       insertHeading: level => revealAfter(insertHeadingAt(level, flowIndexAtView())),
-      insertPdf: ({ assetKey, label, slides = false }) => {
+      insertPdf: ({ assetKey, label }) => {
         snapshot();
-        insertAtView({ id: crypto.randomUUID(), type: 'pdf', dx: 0, dy: 0, assetKey, label, ...(slides ? { slides } : {}) });
+        insertAtView({ id: crypto.randomUUID(), type: 'pdf', dx: 0, dy: 0, assetKey, label });
+      },
+      // A PDF added as slides: one block per page, in order, where the learner is looking.
+      // `pdf` names the upload, so Files and the reader context follow the pages.
+      insertSlides: ({ pages, label, pdf }) => {
+        if (!pages.length) return;
+        snapshot();
+        const slides = pages.map((assetKey, index) => ({ id: crypto.randomUUID(), type: 'slide', dx: 0, dy: 0, assetKey, label, number: index + 1, pdf }));
+        const index = flowIndexAtView();
+        setBlocks(previous => [...previous.slice(0, index), ...slides, ...previous.slice(index)]);
+        revealAfter(slides[0].id);
       },
       // A dropped image, GIF, or clip. `mediaId` is the server copy an image
       // context can name later; GIFs and clips never have one.
@@ -1504,7 +1507,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Serialised for the comparison on the page: the outline changes whenever a
   // heading is added, retitled, reordered or ticked, and only then.
   const outlineKey = JSON.stringify(outline);
-  const cardsKey = JSON.stringify(blocks.map(block => [block.id, block.assetKey || null, block.paper?.id || null]));
+  const cardsKey = JSON.stringify(blocks.map(block => [block.id, block.pdf || block.assetKey || null, block.paper?.id || null]));
   const connectionCleanup = useRef(null);
   const boundsRef = useRef({});
   const clipboard = useRef(null);
@@ -1921,6 +1924,19 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const described = describeBlock(block);
     if (!described) return false;
     armedId.current = block.id;
+    // A slide sends the slide itself: its page of the uploaded PDF, read by the model as the
+    // reader's pages are (paper_context). The thumbnail only shows on the chip.
+    if (block.type === 'slide') {
+      const target = { id: block.id, ...described, paper: { id: String(block.pdf || '').slice('pdf:'.length), page: block.number } };
+      onAskTargetRef.current?.(target);
+      loadAsset(block.assetKey).then(blob => {
+        if (!blob || armedId.current !== block.id) return;
+        const reader = new FileReader();
+        reader.onload = () => { if (armedId.current === block.id) onAskTargetRef.current?.({ ...target, preview: reader.result }); };
+        reader.readAsDataURL(blob);
+      }).catch(() => { /* the chip just has no thumbnail */ });
+      return true;
+    }
     // A getter, not a function value: every reader (canvas_target, / commands)
     // still gets a string, resolved when it is read at send.
     const live = liveAskText(block.id, described);
@@ -1951,7 +1967,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (current) {
       if (lastArmed.current === current) return;
       lastArmed.current = current;
-      armTarget(current);
+      // A slide never changes what it shows, so moving it does not re-send its picture.
+      if (current.type !== 'slide') armTarget(current);
       return;
     }
     if (lastArmed.current === 'removed') return;
@@ -2803,8 +2820,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
                   Ctrl presses and non-select tools fall through to the canvas. */}
               <div data-group-box={group.id}
                 style={{ left: left - pad, top: top - pad, width: right - left + pad * 2, height: bottom - top + pad * 2 }}
-                className={`absolute rounded-xl border ${active ? 'border-[#2383e2] bg-[#2383e2]/[0.03]' : 'border-line-strong'} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-[#e5484d]/40' : 'outline-2 outline-offset-4 outline-[#b42318]') : ''} cursor-grab active:cursor-grabbing`}
-                onDoubleClick={portal ? () => divePortals.enter(portal.name) : undefined}
+                className={`absolute rounded-xl border ${active ? 'border-[#2383e2] bg-[#2383e2]/[0.03]' : 'border-line-strong'} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-[#e5484d]/40' : 'outline-8 outline-offset-1 outline-[#b42318]/45') : ''} cursor-grab active:cursor-grabbing`}
+                onDoubleClick={divePortals ? () => (portal ? divePortals.enter(portal.name) : divePortals.open?.(group.id, group.label || `${members.length} items`)) : undefined}
                 onPointerDown={event => {
                   if (event.button !== 0 || tool !== 'select' || event.ctrlKey || event.metaKey) return;
                   event.stopPropagation();

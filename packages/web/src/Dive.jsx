@@ -6,7 +6,7 @@
 import { createContext, useCallback, useEffect, useRef, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { api, navigate } from './api.js';
-import { Button, ConfirmDialog } from './ui.jsx';
+import { Button, ConfirmDialog, toast } from './ui.jsx';
 import { deviceId } from './home/canvas-local.js';
 import { resolveTarget } from './learn-target.js';
 import { anchorBlock, diveRecord, discardHole, dropPending, holeHref, keepPending, levelHref, meaningful, navigatorRows, newHoleName, pendingHole, pendingHoles, planDive, setReturn, takeReturn } from './dive.js';
@@ -238,7 +238,13 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
   return {
     tree, pending, error, confirm, suggestion, diveFromTopic,
     run: args => dive(args, 'learner_slash'),
-    portals: { portals, enter },
+    // Double-clicking a card or a group goes down its hole, making it first when it has none.
+    // The first click of the double-click selected the card, so its title is already known.
+    portals: { portals, enter, open: (id, title) => {
+      const known = stateRef.current.card?.id === id ? stateRef.current.card : null;
+      const { notice } = dive('', 'learner_dblclick', title ? { id, title } : known || { id, title: canvasApi.current?.block?.(id)?.title || '' });
+      if (notice?.text) toast(notice.text);
+    } },
     navigator: { tree: tree && { ...tree, children }, pending, error, climb, enter, rename, askDelete },
     // An empty hole says what it is and what keeps it; gone with the first object.
     emptyHint: pending && !canvasState.content && tree && <div data-dive-empty className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center px-6">
@@ -291,6 +297,7 @@ export function DiveNavigator({ tree, pending, error, climb, enter, rename, askD
   const down = () => (children.length === 1 ? enter(children[0].name) : setPicking(open => !open));
   return (
     <nav data-dive-navigator aria-label="Rabbit Hole levels" className="relative flex w-[76px] flex-col items-center text-center text-[11px] leading-[14px] select-none">
+      <span data-dive-map-title className="mb-1 text-[10px] leading-tight font-medium text-ink-3">Rabbit Holes Map</span>
       {up && <button type="button" aria-label="Up to the parent hole" title={`Up to ${tree.path.at(-2).title}`}
         onClick={() => climb(tree.path.length - 2)} className="flex h-6 w-6 items-center justify-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink">
         <Arrow up />
