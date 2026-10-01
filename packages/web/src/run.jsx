@@ -1016,7 +1016,7 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
       )}
 
       <div className="overflow-x-auto">
-          {aiRuns === 'loading' && <div className="px-2 py-1 text-xs text-ink-3">Thinking…</div>}
+          {aiRuns === 'loading' && <div className="px-2 py-1 text-xs text-ink-3"><span className="shimmer">Thinking…</span></div>}
           {aiRuns?.ids?.length === 0 && <div className="px-2 py-1 text-sm text-ink-2">{aiRuns.note || 'No runs match that.'}</div>}
           {/* fixed layout + explicit total width: columns keep their exact px (resize persists);
               the wrapper scrolls horizontally when the columns outgrow the page */}

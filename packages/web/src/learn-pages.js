@@ -12,12 +12,13 @@ export const PAGE_H = 1123;
 export const PAGE_LIMIT = 200;
 
 // `extent` is the lowest world y that has to be covered - the bottom of the
-// content or of the viewport, whichever is further down.
-export function pageRects(extent, columnWidth) {
+// content or of the viewport, whichever is further down. Landscape swaps the sides.
+export function pageRects(extent, columnWidth, landscape = false) {
+  const w = landscape ? PAGE_H : PAGE_W, h = landscape ? PAGE_W : PAGE_H;
   const bottom = Number.isFinite(extent) ? Math.max(0, extent) : 0;
-  const count = Math.min(PAGE_LIMIT, Math.max(1, Math.ceil(bottom / PAGE_H)));
+  const count = Math.min(PAGE_LIMIT, Math.max(1, Math.ceil(bottom / h)));
   // The column is centred on the paper, so the margin either side is the room
   // left before the content runs off the page.
-  const x = (columnWidth - PAGE_W) / 2;
-  return Array.from({ length: count }, (_, index) => ({ n: index + 1, x, y: index * PAGE_H, w: PAGE_W, h: PAGE_H }));
+  const x = (columnWidth - w) / 2;
+  return Array.from({ length: count }, (_, index) => ({ n: index + 1, x, y: index * h, w, h }));
 }

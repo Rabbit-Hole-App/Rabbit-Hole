@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { outlineFrom, outlineProgress, applyOutlineOps } from './learn-outline-model.js';
+import { outlineFrom, outlineProgress, applyOutlineOps, moveSection } from './learn-outline-model.js';
 
 const h = (id, level, text, done = false) => ({ id, type: 'heading', level, text, done });
 const card = id => ({ id, type: 'explanation' });
@@ -139,4 +139,15 @@ test('a new heading is shaped like one the menu would insert', () => {
   const [added] = applyOutlineOps([], [{ op: 'add', text: 'First', level: 3, after: null }], ids());
   assert.deepEqual(Object.keys(added).sort(), ['done', 'dx', 'dy', 'id', 'level', 'text', 'type']);
   assert.equal(added.type, 'heading');
+});
+
+test('moving a section carries its cards and sub-sections, and never into itself', () => {
+  const c = id => ({ id, type: 'card' });
+  const list = [h('a', 1, 'A'), c('a1'), h('a2', 2, 'A.2'), c('a21'), h('b', 1, 'B'), c('b1'), h('c', 1, 'C')];
+  const ids = out => out.map(block => block.id);
+  assert.deepEqual(ids(moveSection(list, 'b', 'a')), ['b', 'b1', 'a', 'a1', 'a2', 'a21', 'c']);
+  assert.deepEqual(ids(moveSection(list, 'a', null)), ['b', 'b1', 'c', 'a', 'a1', 'a2', 'a21']);
+  assert.deepEqual(ids(moveSection(list, 'a2', 'c')), ['a', 'a1', 'b', 'b1', 'a2', 'a21', 'c'], 'a sub-section stops at the next section');
+  assert.equal(moveSection(list, 'a', 'a2'), list, 'not into itself');
+  assert.equal(moveSection(list, 'gone', 'a'), list);
 });

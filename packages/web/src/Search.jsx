@@ -107,7 +107,7 @@ export default function SearchModal() {
           />
         </div>
         <div className="max-h-80 overflow-y-auto p-1">
-          {ai === 'loading' && <div className="px-3 pt-1.5 pb-0.5 text-xs text-ink-3">Thinking…</div>}
+          {ai === 'loading' && <div className="px-3 pt-1.5 pb-0.5 text-xs text-ink-3"><span className="shimmer">Thinking…</span></div>}
           {ai?.apps?.length > 0 && (
             <>
               <div className="px-3 pt-1.5 pb-0.5 text-xs text-ink-3">Recommended</div>

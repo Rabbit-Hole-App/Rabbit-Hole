@@ -2,6 +2,7 @@ import { readArxivPaper } from './arxiv.js';
 import { canvasSeed, threadTurns } from './canvas-conversation.js';
 import { LEARN_SYSTEM, LEARN_SNAPSHOT_SYSTEM, validateLessonSnapshot } from './learn-context.js';
 import { validateLearnContext, validateCanvasTarget, appendCanvasTarget, appendOutline, readLearnSource } from './learn-ask-context.js';
+import { contextDocumentBlocks } from './learn-context-docs.js';
 import { uploadedPaperAsDocument } from './learn-paper.js';
 import { uploadedMediaAsImage } from './learn-media.js';
 import { OUTLINE_TOOL, OUTLINE_SYSTEM, validateOutlineOps } from './learn-outline-tool.js';
@@ -1129,6 +1130,11 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
   if (source) {
     context = JSON.stringify({ lesson: context, ...source });
     canAct = false;
+  }
+  // Canvas context documents (docs/features/canvas-context-docs.md): the switched-on ones ride every
+  // Learn ask on their canvas, after any single source above.
+  if (scopedApp && conversation === 'learn') {
+    try { extraBlocks.push(...await contextDocumentBlocks(env, scopedApp)); } catch (error) { return json({ error: `Context documents: ${error.message}` }, 502); }
   }
   context = appendCanvasTarget(context, canvasTarget);
   // thread per scope and user; follow-ups ride the same thread

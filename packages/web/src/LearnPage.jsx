@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, House, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Play, Redo2, RotateCcw, Search, Share2, Trash2, Trophy, NotebookPen, Undo2, ZoomIn, ZoomOut } from 'lucide-react';
+import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, House, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Play, Redo2, RotateCcw, Search, Share2, Trash2, NotebookPen, Undo2, ZoomIn, ZoomOut, GripVertical, Plus } from 'lucide-react';
 import { SPEEDS, getSpeed, setSpeed } from './learn-audio.js';
 import { api, navigate, wsHeaders } from './api.js';
 import { AskPanel } from './ask.jsx';
@@ -23,8 +23,6 @@ const SlashCommandsSheet = lazy(() => import('./SlashCommandsSheet.jsx'));
 import FilesPanel from './FilesPanel.jsx';
 import LearnWiki from './LearnWiki.jsx';
 import { withSource, toggleSource, isAttached } from './learn-sources.js';
-import { lessonMilestones } from './learn-milestones.js';
-import { outlineProgress } from './learn-outline-model.js';
 import LessonPlanPreview from './LessonPlanPreview.jsx';
 import NanoLessonReading, { useNanoProgress } from './NanoLessonReading.jsx';
 import { nanoLesson, nanoSourceVersion } from './nanogpt-lesson.js';
@@ -43,6 +41,7 @@ import { useTutor } from './LearnTutor.jsx';
 const LearnNotes = lazy(() => import('./LearnNotes.jsx'));
 const boardSlug = name => String(name).toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32) || 'test';
 const AdaptiveCanvas = lazy(() => import('./AdaptiveCanvas.jsx'));
+const SECTION_LEVELS = [[1, 'Section', Heading1], [2, 'Sub-section', Heading2], [3, 'Sub-sub-section', Heading3]];
 
 // A pending Rabbit Hole (Dive.jsx) opens in its parent's place until its first canvas object keeps it.
 export default function LearnPage(props) {
@@ -103,6 +102,11 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
   // A proposal from the tutor. It sits here until the learner applies or
   // discards it; nothing reaches the canvas on its own.
   const [proposal, setProposal] = useState(null);
+  // The table of contents: which level is being added, the section being dragged, and the heading it lands before (null: the end).
+  const [tocAdding, setTocAdding] = useState(null);
+  const [tocEditing, setTocEditing] = useState(null);
+  const [tocDrag, setTocDrag] = useState(null);
+  const [tocDrop, setTocDrop] = useState(undefined);
   const [searchOpen, setSearchOpen] = useState(false);
   // What a /paper <topic> command searches for; null for the plain search bar.
   const [searchSeed, setSearchSeed] = useState(null);
@@ -315,15 +319,21 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
   // triggered from the Sources menu, so there is no dialog to dismiss.
   // The Files menu's Upload: same router as a drop, one picker for all kinds.
   const filePicker = useRef(null);
+  // An upload asks once whether the card shows the PDF or its pages as slides; Cancel adds nothing.
+  const [pdfChoice, setPdfChoice] = useState(null);
   const takePdf = async file => {
     if (!file) return;
+    const mode = await new Promise(resolve => setPdfChoice({ name: file.name, resolve }));
+    setPdfChoice(null);
+    if (!mode) return;
     // The reader can only take the learner to a page the model will also read,
     // and paper_context refuses anything past 100. Say so before the upload
     // rather than failing on every question afterwards.
+    let pdf;
     try {
       const { getDocument } = await import('./learn-paper-figures.js');
-      const pages = (await getDocument({ data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false }).promise).numPages;
-      if (pages > 100) { toast(`That PDF has ${pages} pages. The tutor can read up to 100.`); return; }
+      pdf = await getDocument({ data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false }).promise;
+      if (pdf.numPages > 100) { toast(`That PDF has ${pdf.numPages} pages. The tutor can read up to 100.`); return; }
     } catch { toast('That file could not be read as a PDF.'); return; }
     const body = new FormData();
     body.append('file', file, file.name);
@@ -337,8 +347,27 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
     // page, native scrolling - and it survives a reload because the bytes are
     // in this browser's asset store and the block keeps only the key.
     const assetKey = `pdf:${stored.id}`;
-    await cacheAsset(assetKey, file);
-    canvas()?.insertPdf({ assetKey, label: stored.title });
+    if (mode === 'slides') {
+      // Slides: every page drawn once to an image and placed on the canvas itself, in order.
+      const pages = [];
+      try {
+        const sheet = document.createElement('canvas');
+        for (let number = 1; number <= pdf.numPages; number++) {
+          const page = await pdf.getPage(number);
+          const viewport = page.getViewport({ scale: 1120 / page.getViewport({ scale: 1 }).width });
+          sheet.width = viewport.width; sheet.height = viewport.height;
+          await page.render({ canvasContext: sheet.getContext('2d'), viewport }).promise;
+          const blob = await new Promise(resolve => sheet.toBlob(resolve, 'image/png'));
+          const key = `slide:${crypto.randomUUID()}`;
+          await cacheAsset(key, blob);
+          pages.push(key);
+        }
+      } catch { toast('The slides could not be drawn.'); return; }
+      canvas()?.insertSlides({ pages, label: stored.title, pdf: assetKey });
+    } else {
+      await cacheAsset(assetKey, file);
+      canvas()?.insertPdf({ assetKey, label: stored.title });
+    }
     // Opening it in the reader is what makes the tutor page-aware: boardContext
     // carries paperContext, and ask.jsx turns that into paper_context with the
     // page the learner is actually on. The card cannot do that job - an iframe
@@ -355,6 +384,17 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
   // in this browser by design - the tutor never sees them.
   const [imageContext, setImageContext] = useState(null);
   const imageAttached = !imageContext?.blockId || isAttached(sources, `image:${imageContext.blockId}`);
+  // A paper switched off in Files stops reaching the tutor too (uploads are registered as upload:..., arXiv as paper:<id>).
+  const paperAttached = !paperContext?.id || isAttached(sources, String(paperContext.id).startsWith('upload:') ? paperContext.id : `paper:${paperContext.id}`);
+  // Deleting the paper's card on the canvas drops it from the next question too, as removing it in Files does.
+  // Only a card seen and then gone counts: a paper opened in the reader alone never had one.
+  const paperCardId = paperContext?.id ? (canvasState.cards || []).find(([, assetKey, paperId]) => assetKey === `pdf:${paperContext.id}` || paperId === paperContext.id)?.[0] || null : null;
+  const paperCardSeen = useRef(null);
+  useEffect(() => {
+    if (paperCardId) { paperCardSeen.current = paperContext.id; return; }
+    if (paperCardSeen.current !== (paperContext?.id ?? null)) { paperCardSeen.current = null; return; }
+    if (canvasState.cards && paperCardSeen.current) { paperCardSeen.current = null; setPaperContext(null); setPaperOpen(false); }
+  }, [paperCardId, paperContext?.id, canvasState.cards]);
   const takeDrop = async files => {
     for (const file of files) {
       const { kind, error } = classifyDrop(file);
@@ -406,6 +446,23 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
       setAskTarget(previous => previous?.id === groupId ? { ...previous, image: stored.id } : previous);
     } catch { /* the text target still asks; the tutor just cannot see it */ }
   };
+  // Ask about selection (AdaptiveCanvas askArea): the area becomes the ask target and the thumbnail
+  // above the composer; its PNG is uploaded like a group shot, so the tutor sees the pixels.
+  const takeAreaShot = async ({ target, preview: shot, blob }) => {
+    // One chip: the selection's own thumbnail and its x, no second canvas-image attachment beside it.
+    setAskTarget({ ...target, ...(shot ? { preview: shot } : {}) });
+    previewRequest.current++;
+    setPreview(null);
+    if (!blob) return;
+    try {
+      const body = new FormData();
+      body.append('file', blob, 'selected-area.png');
+      const response = await fetch(`/api/learn/media?app=${encodeURIComponent(app.name)}`, { method: 'POST', body, headers: wsHeaders() });
+      const stored = await response.json();
+      if (!response.ok) throw new Error(stored?.error || 'Upload failed');
+      setAskTarget(previous => previous?.id === target.id ? { ...previous, image: stored.id } : previous);
+    } catch { /* the text of the cards inside still asks */ }
+  };
   const repoSourceId = app.repo ? `repo:${app.repo}` : null;
   // The repository is the one source that exists on day one, and detaching it
   // genuinely stops repository_context reaching the agent (ask.jsx:467).
@@ -416,6 +473,8 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
   const learnSlash = {
     Picker: LearnSlash,
     isCommand: isLearnCommand,
+    onHelp: () => setSlashHelpOpen(true),
+    focusBlock: id => canvas()?.focusBlock(id),
     run: text => {
       // Tutor v1: /deeper and /simplify are the turn's slash (tutor-v1-locked-decisions.md §5).
       const parsed = tutor.active && parseSlash(text);
@@ -683,7 +742,8 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
   const pinned = useRef(null);
   const [preview, setPreview] = useState(null);
   const previewRequest = useRef(0);
-  const removeImage = () => { previewRequest.current++; setPreview(null); };
+  // Removing the thumbnail also drops a selected area's picture from the question.
+  const removeImage = () => { previewRequest.current++; setPreview(null); setAskTarget(previous => (String(previous?.id || '').startsWith('area:') ? { ...previous, image: undefined, preview: undefined } : previous)); };
   const preparePreview = async () => {
     const request = ++previewRequest.current;
     setPreview(null);
@@ -739,7 +799,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
           if (link.hasAttribute('data-source-link')) openPaper(paged); else addPaper(paged);
   };
   const boardContext = {
-    paper: paperContext, clearPaper: () => { setPaperContext(null); setPaperOpen(false); setWikiContext(null); setWikiOpen(false); },
+    paper: paperAttached ? paperContext : null, clearPaper: () => { setPaperContext(null); setPaperOpen(false); setWikiContext(null); setWikiOpen(false); },
     // Detaching the source is a context switch, not a deletion: the card stays
     // on the canvas and the reader stays open, the tutor just stops being told.
     wiki: wikiAttached ? wikiContext : null,
@@ -866,11 +926,6 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
   useEffect(() => {
     if (learningView === 'lesson' && suppliedCourse && editor && nanoProgress.loaded && !lesson.current && !answering) previewLesson(nanoLesson, true);
   }, [learningView, editor, nanoProgress.loaded, answering]);
-  const trackingSample = !isRepository && !isCanvas && (sampleOutline || !course.course?.curriculum);
-  const trackedLessons = trackingSample ? sampleCourse.lessons : (course.course?.curriculum?.lessons || []).map((item, index) => index === 0 && course.course.lesson ? course.course.lesson : { ...item, pages: (item.topics || item.pages || []) });
-  const sectionKeys = suppliedCourse ? [...Array.from({ length: 6 }, (_, i) => `${nanoLesson.id}:${i}`), 'predict-next', 'represent-text', 'training-vs-generation'] : trackedLessons.flatMap(item => [...item.pages.map((_, index) => `${item.id || 'unavailable'}:${index}`), ...(item.id === architectureLesson.id ? ['notebook', 'quiz', 'flashcards'].map(view => `${item.id}:${view}`) : [])]);
-  const finishedCount = suppliedCourse ? Object.keys(nanoProgress.saved.pages || {}).filter(key => ['0', '1', '2', '3', '4', '5'].includes(key) && nanoProgress.saved.pages[key]).length + ['encoding', 'prefixTarget', 'generationWeights'].filter(check => nanoProgress.saved[check]?.count).length : sectionKeys.filter(key => completed[key]).length;
-  const allFinished = sectionKeys.length > 0 && finishedCount === sectionKeys.length;
   const canvas = () => canvasApi.current;
   // The Agent Bar's way in, from Home, Library and Project. A request arrives
   // as the one-shot sessionStorage key small.learn.request, written before
@@ -968,8 +1023,23 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
     : isRepository ? (nanoActive || lesson.current?.lessonId?.startsWith('course-') ? courseTitle : app.repo || app.name)
     : courseTitle || app.repo || app.name;
   // Never the canvas id: its title, or plain words when there is none.
-  const askPlaceholder = isCanvas ? (app.title ? `Ask about ${app.title}…` : 'Ask about this canvas…') : `Ask about ${app.repo || app.name}…`;
+  const askPlaceholder = isCanvas ? ((canvasTitle || app.title) ? `Ask about ${canvasTitle || app.title}…` : 'Ask about this canvas…') : `Ask about ${app.repo || app.name}…`;
   const [titleDraft, setTitleDraft] = useState(null); // non-null only while the title is focused
+  // Renaming a canvas from the top bar saves it on the server through the Rabbit Hole map's rename
+  // (Dive.jsx), so the map, Home, Library and the placeholder follow; that rename calls saveTitle back.
+  const renameTitle = value => {
+    const here = isCanvas ? dive.navigator.tree?.path?.at(-1) : null;
+    if (value && here?.app === app.name && value !== (canvasTitle || fallbackTitle) && value !== here.title) { dive.navigator.rename(here, value); return; }
+    saveTitle(value === fallbackTitle ? '' : value);
+  };
+  // A name given before renames reached the server lived only in this browser: send it once.
+  const syncedTitle = useRef(null); // the canvas already checked
+  useEffect(() => {
+    const here = isCanvas ? dive.navigator.tree?.path?.at(-1) : null;
+    if (syncedTitle.current === app.name || !here || here.app !== app.name || here.pending) return;
+    syncedTitle.current = app.name;
+    if (canvasTitle && canvasTitle !== here.title) dive.navigator.rename(here, canvasTitle);
+  }, [dive.navigator.tree]); // eslint-disable-line react-hooks/exhaustive-deps
   const saveTitle = value => {
     const clean = value.trim().slice(0, 120);
     setCanvasTitle(clean);
@@ -1001,7 +1071,9 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
   // and whatever context pointed at it stops riding the next question.
   const removeSource = source => {
     const blockId = cardOf(source);
-    if (blockId) canvas()?.removeBlock(blockId);
+    // A PDF added as slides is one block per page: removing it removes every page.
+    if (source.kind === 'pdf') for (const [id, key] of canvasState.cards || []) { if (key === `pdf:${source.id}`) canvas()?.removeBlock(id); }
+    else if (blockId) canvas()?.removeBlock(blockId);
     setSources(previous => previous.filter(entry => entry.id !== source.id));
     if (wikiContext?.blockId && wikiContext.blockId === blockId) { setWikiContext(null); setWikiOpen(false); }
     if (videoContext?.blockId && videoContext.blockId === blockId) setVideoContext(null);
@@ -1012,7 +1084,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
   const canvasMenus = [
     {
       title: 'Files',
-      panel: close => <FilesPanel sources={listedSources} close={close}
+      panel: close => <FilesPanel app={app.name} sources={listedSources} close={close}
         onToggle={id => setSources(previous => toggleSource(previous, id))}
         onLocate={locateSource} onRemove={removeSource} />,
     },
@@ -1075,7 +1147,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
         { divider: true },
         { label: 'Minimap', icon: MapIcon, checked: canvasState.minimap, onSelect: () => canvas()?.toggleMinimap() },
         { label: 'Snap to grid', icon: Grid3x3, checked: canvasState.grid, onSelect: () => canvas()?.toggleGrid() },
-        { label: 'Page guides (A4)', icon: FileText, checked: canvasState.pages, onSelect: () => canvas()?.togglePages() },
+        { label: 'Page guides', icon: FileText, choice: { value: canvasState.pages || 'off', options: [['off', 'Off'], ['portrait', 'A4 portrait'], ['landscape', 'A4 landscape']], onChange: value => canvas()?.setPages(value === 'off' ? false : value) } },
         { label: 'Keep tool active', icon: Lock, checked: canvasState.lock, onSelect: () => canvas()?.toggleLock() },
         { divider: true },
         { label: 'Keyboard shortcuts', icon: Keyboard, hint: '?', onSelect: () => setShortcutsOpen(true) },
@@ -1083,18 +1155,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
       ],
     },
   ];
-  const milestones = lessonMilestones(sectionKeys);
-  // Once the lesson has sections of its own, the bar measures those. A canvas
-  // with no headings keeps the course-completion meaning it has today.
   const canvasOutline = canvasState.outline || [];
-  const canvasProgress = outlineProgress(canvasOutline);
-  const usingCanvas = canvasOutline.length > 0;
-  const barTotal = usingCanvas ? canvasProgress.total : sectionKeys.length;
-  const barDone = usingCanvas ? canvasProgress.done : finishedCount;
-  const barFraction = usingCanvas ? canvasProgress.fraction : (sectionKeys.length ? finishedCount / sectionKeys.length : 0);
-  const barMilestones = usingCanvas
-    ? canvasProgress.milestones.map(milestone => ({ ...milestone, reached: milestone.done }))
-    : milestones.map(milestone => ({ ...milestone, id: milestone.id || milestone.label, reached: finishedCount >= milestone.done }));
   const outlineDisabled = !editor || answering || !!noteEditing;
   const coursePanel = <CoursePanel planningOnly={suppliedCourse} state={course} app={app} onPreview={previewLesson} onDeleted={() => {
           if (lesson.current?.lessonId?.startsWith('course-')) {
@@ -1115,6 +1176,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
       {/* The lesson canvas goes full-bleed so its toolbar and zoom controls sit
           at the window edges; every other view keeps the centered page frame. */}
       <div className={`expanded-page-frame mx-auto flex h-full w-full min-h-0 flex-col ${!courseView && learningView === 'lesson' ? '' : 'max-w-[900px] px-6 py-6'}`}>
+        {pdfChoice && <ConfirmDialog title="Add this PDF as" body={`Add ${pdfChoice.name} as one PDF, or as slides with a divider between every page.`} altLabel="PDF" onAlt={() => pdfChoice.resolve('pdf')} confirmLabel="Slides" confirmVariant="primary" onConfirm={() => pdfChoice.resolve('slides')} onCancel={() => pdfChoice.resolve(null)} />}
         {pendingNoteView && <ConfirmDialog title="Save notes before switching?" body="Save your changes and open the selected view, or cancel to keep editing." confirmLabel="Save notes" confirmVariant="primary" onCancel={() => setPendingNoteView(null)} onConfirm={async () => { if (await noteSave.current?.()) leaveNote(pendingNoteView); }} />}
         {/* One centered strip is all the chrome the canvas gets: an editable
             title, the menubar, and the three one-press actions. No page
@@ -1134,7 +1196,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
             // name keeps tracking the course title.
             value={titleDraft ?? (canvasTitle || fallbackTitle)}
             onChange={event => setTitleDraft(event.target.value)}
-            onBlur={event => { const value = event.target.value.trim().slice(0, 120); setTitleDraft(null); saveTitle(value === fallbackTitle ? '' : value); }}
+            onBlur={event => { const value = event.target.value.trim().slice(0, 120); setTitleDraft(null); renameTitle(value); }}
             onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); }}
             onFocus={event => {
               setTitleDraft(canvasTitle || fallbackTitle);
@@ -1185,7 +1247,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
         {/* The adaptive canvas: a plain React whiteboard where chat exchanges
             land as movable blocks. Lesson playback stays parked. */}
         {board && !BOARDS[board] && <div className="border-b border-line bg-hover px-4 py-2 text-sm text-ink-2">No review board is registered as <span className="font-medium text-ink">{board}</span> - this is an empty scratch board. Registered boards live in BOARDS in demo-scenes.js.</div>}
-        <div ref={canvasFrame} aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="relative min-h-0 flex-1 max-lg:h-[var(--phone-canvas-h,75dvh)] max-lg:flex-none" style={phoneCanvasHeight ? { "--phone-canvas-h": `${phoneCanvasHeight}px` } : undefined}><Suspense fallback={null}><DivePortals.Provider value={dive.portals}><AdaptiveCanvas key={canvasEpoch} gutterTop={dive.tree ? <DiveNavigator {...dive.navigator} /> : null} onSave={pushBoard} bottomLeft={<FeedbackButton app={app.name} board={board} />} onSearch={source => { setSearchSeed({ source }); setSearchOpen(true); }} exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} askTargetId={askTarget?.id ?? null} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onState={onCanvasState} edgeInset={!panelOpen && canvasOutline.length ? 52 : 0} storageKey={boardStorageKey} seedBlocks={board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange, target) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer, target }} onExchange={onExchange} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} composer={(app.hosting !== 'aws' || app.app_chat) ? <div data-learn-dock className="contents"><AskPanel compact composerOnly dock sheet onAddToCanvas={chat => canvas()?.insertChat(chat)} boardContext={boardContext} onExchange={placeExchange} slash={learnSlash} tutor={tutor.active ? tutor : null} canvasTarget={askTarget} onClearCanvasTarget={clearAskTarget} key={`dock:${app.name}`} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={askPlaceholder} autoFocus /></div> : null} /></DivePortals.Provider></Suspense>{dive.emptyHint}{dive.suggestionCard && !tutor.active && <div className="pointer-events-none absolute inset-x-0 bottom-28 z-30 flex justify-center px-4"><div className="pointer-events-auto">{dive.suggestionCard}</div></div>}{dive.confirmDialog}</div>
+        <div ref={canvasFrame} aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="relative min-h-0 flex-1 max-lg:h-[var(--phone-canvas-h,75dvh)] max-lg:flex-none" style={phoneCanvasHeight ? { "--phone-canvas-h": `${phoneCanvasHeight}px` } : undefined}><Suspense fallback={null}><DivePortals.Provider value={dive.portals}><AdaptiveCanvas key={canvasEpoch} gutterTop={dive.tree ? <DiveNavigator {...dive.navigator} /> : null} onSave={pushBoard} bottomLeft={<FeedbackButton app={app.name} board={board} />} onSearch={source => { setSearchSeed({ source }); setSearchOpen(true); }} exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} askTargetId={askTarget?.id ?? null} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onAreaShot={takeAreaShot} onState={onCanvasState} edgeInset={!panelOpen && canvasOutline.length ? 52 : 0} storageKey={boardStorageKey} seedBlocks={board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange, target) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer, target }} onExchange={onExchange} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} conversation="learn" placeholder="Follow up in this block..." autoFocus /> : null} composer={(app.hosting !== 'aws' || app.app_chat) ? <div data-learn-dock className="contents"><AskPanel compact composerOnly dock sheet onAddToCanvas={chat => canvas()?.insertChat(chat)} boardContext={boardContext} onExchange={placeExchange} slash={learnSlash} tutor={tutor.active ? tutor : null} canvasTarget={askTarget} onClearCanvasTarget={clearAskTarget} key={`dock:${app.name}`} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} conversation="learn" placeholder={askPlaceholder} autoFocus /></div> : null} /></DivePortals.Provider></Suspense>{dive.emptyHint}{dive.suggestionCard && !tutor.active && <div className="pointer-events-none absolute inset-x-0 bottom-28 z-30 flex justify-center px-4"><div className="pointer-events-auto">{dive.suggestionCard}</div></div>}{dive.confirmDialog}</div>
         {/* ponytail: playback bar and timeline parked while the lesson-2 canvas is redesigned */}
         {false && <div aria-label="Lesson playback" className={`${courseView || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
           <div className="flex items-center gap-1">
@@ -1219,20 +1281,20 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
       </div>
     </section>
     <ResizableSidePanel aria-label="Learn agent chat" resizeLabel="Resize Learn panel" defaultWidth={480} collapsed={!panelOpen} onClickCapture={openPaperReference} className="px-5 pt-6 pb-4">
-      <div className="mb-3 flex shrink-0 items-center gap-3">
-        {/* The fill is clipped to the track; the milestone dots sit on top of it
-            and must not be, so the rounding lives on an inner element. */}
-        <div role="progressbar" aria-label={canvasOutline.length ? 'Lesson sections completed' : suppliedCourse ? 'Lesson 1 participation progress' : 'Course completion'} aria-valuemin={0} aria-valuemax={barTotal} aria-valuenow={barDone} className="relative h-1.5 flex-1 rounded-full bg-hover">
-          <div className="absolute inset-0 overflow-hidden rounded-full"><div className="h-full rounded-full bg-green-600 transition-[width] duration-300 motion-reduce:transition-none" style={{ width: `${barFraction * 100}%` }} /></div>
-          {barMilestones.map(milestone => <span key={milestone.id} role="img" aria-label={`${milestone.label}: ${milestone.reached ? 'complete' : 'not complete'}`} title={milestone.label} style={{ left: `${milestone.at * 100}%` }} className={`absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white ${milestone.reached ? 'bg-green-600' : 'bg-line-strong'}`} />)}
+      {/* The table of contents IS the lesson's structure, not a view onto another
+          document: its sections are the canvas headings, and the learner and the agent
+          both author them. Dragging a section carries its cards and sub-sections. */}
+      <div data-toc className="mb-3 flex max-h-[45%] shrink-0 flex-col overflow-y-auto">
+        <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+          <h2 className="text-base font-semibold text-ink">Table of contents</h2>
+          <div className="flex items-center gap-0.5 text-ink-2">
+            <Plus size={15} aria-hidden className="mr-0.5 text-ink-3" />
+            {SECTION_LEVELS.map(([level, label, Icon]) => (
+              <button key={level} type="button" onClick={() => setTocAdding(level)} aria-label={`Add a ${label.toLowerCase()}`} title={`Add a ${label.toLowerCase()}`}
+                className="flex h-7 w-7 items-center justify-center rounded hover:bg-hover hover:text-ink"><Icon size={17} /></button>
+            ))}
+          </div>
         </div>
-        <Trophy size={18} role="img" aria-label={suppliedCourse ? 'Complete all six pages and three objective checks to finish Lesson 1' : allFinished ? 'Course complete' : 'Complete all sections and activities to earn this award'} className={allFinished ? 'text-green-600 drop-shadow-sm' : 'text-ink-3 opacity-35'} />
-      </div>
-      {/* This IS the lesson's structure, not a view onto another document: both
-          the learner and the agent author it through the same section tool.
-          No heading and no empty-state prose - a sectionless canvas simply
-          shows nothing here, and the outline speaks for itself once it exists. */}
-      <div className="mb-3 flex max-h-[45%] shrink-0 flex-col overflow-y-auto">
         {/* The tutor proposes; the learner decides. Applying is one undoable
             step, and nothing here has touched the canvas yet. */}
         {proposal?.length > 0 && (
@@ -1253,23 +1315,61 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
             </div>
           </div>
         )}
-        {canvasOutline.length > 0 ? (
-          <ol className="space-y-0.5">
-            {canvasOutline.map(entry => (
-              <li key={entry.id} style={{ paddingLeft: (entry.level - 1) * 16 }} className="flex items-start gap-2">
-                <input type="checkbox" checked={entry.done} aria-label={`${entry.label} done`}
-                  onChange={() => canvasApi.current?.toggleSectionDone(entry.id)}
-                  className="mt-1 h-3.5 w-3.5 shrink-0 cursor-pointer accent-green-600" />
-                <button type="button" onClick={() => { setPanelOpen(true); canvasApi.current?.showSection(entry.id); }}
-                  className={`flex-1 rounded text-left hover:text-accent ${entry.level === 1 ? 'text-sm font-medium' : 'text-sm text-ink-2'} ${entry.done ? 'line-through decoration-ink-3' : ''}`}>
+        <ol className="space-y-1" onDragEnd={() => { setTocDrag(null); setTocDrop(undefined); }}>
+          {canvasOutline.map((entry, index) => (
+            <li key={entry.id} draggable={tocEditing !== entry.id} style={{ paddingLeft: (entry.level - 1) * 16 }}
+              onDragStart={event => { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', entry.id); setTocDrag(entry.id); }}
+              onDragOver={event => {
+                if (!tocDrag) return;
+                event.preventDefault();
+                const box = event.currentTarget.getBoundingClientRect();
+                setTocDrop(event.clientY < box.top + box.height / 2 ? entry.id : canvasOutline[index + 1]?.id ?? null);
+              }}
+              onDrop={event => { event.preventDefault(); if (tocDrag && tocDrop !== undefined) canvasApi.current?.moveSection(tocDrag, tocDrop); setTocDrag(null); setTocDrop(undefined); }}
+              className={`group flex items-start gap-2 border-y-2 border-transparent ${tocDrag === entry.id ? 'opacity-40' : ''} ${tocDrag && tocDrop === entry.id ? 'border-t-accent' : ''} ${tocDrag && tocDrop === null && index === canvasOutline.length - 1 ? 'border-b-accent' : ''}`}>
+              <GripVertical size={16} aria-hidden className="mt-1 -mr-1 shrink-0 cursor-grab text-ink-3 opacity-0 group-hover:opacity-100" />
+              <input type="checkbox" checked={entry.done} aria-label={`${entry.label} done`}
+                onChange={() => canvasApi.current?.toggleSectionDone(entry.id)}
+                className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-green-600" />
+              {tocEditing === entry.id ? (
+                <input autoFocus defaultValue={entry.label} aria-label={`Rename ${entry.label}`} onFocus={event => event.currentTarget.select()}
+                  onKeyDown={event => {
+                    if (event.key === 'Escape') { event.currentTarget.dataset.cancel = '1'; event.currentTarget.blur(); }
+                    if (event.key === 'Enter') event.currentTarget.blur();
+                  }}
+                  onBlur={event => {
+                    const text = event.currentTarget.value.trim();
+                    if (!event.currentTarget.dataset.cancel && text && text !== entry.label) canvasApi.current?.applyOutline([{ op: 'retitle', id: entry.id, text }]);
+                    setTocEditing(null);
+                  }}
+                  className="h-7 min-w-0 flex-1 rounded border border-line px-1.5 text-base outline-none focus:border-ink-3" />
+              ) : (
+                <button type="button" title="Double-click to rename" onClick={() => { setPanelOpen(true); canvasApi.current?.showSection(entry.id); }} onDoubleClick={() => setTocEditing(entry.id)}
+                  className={`flex-1 rounded text-left hover:text-accent ${entry.level === 1 ? 'text-base font-medium' : 'text-[15px] text-ink-2'} ${entry.done ? 'line-through decoration-ink-3' : ''}`}>
                   {entry.label}
                 </button>
-              </li>
-            ))}
-          </ol>
-        ) : null}
-        <button type="button" disabled={!course.loaded || course.dirty} aria-current={learningView === 'notes' ? 'page' : undefined} onClick={() => requestLearningView(learningView === 'notes' ? 'lesson' : 'notes')}
-          className={`shrink-0 text-left text-sm text-ink-2 hover:text-accent aria-[current=page]:font-medium aria-[current=page]:text-accent disabled:text-ink-3 ${canvasOutline.length ? 'mt-3 border-t border-line pt-3' : ''}`}>My notes</button>
+              )}
+              {/* Deletes the heading only; the cards under it stay, and Ctrl+Z brings it back. */}
+              <button type="button" aria-label={`Delete ${entry.label}`} title="Delete section" onClick={() => canvasApi.current?.removeBlock(entry.id)}
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-ink-3 opacity-0 group-hover:opacity-100 hover:bg-hover hover:text-red-700 focus-visible:opacity-100 max-md:opacity-100"><Trash2 size={15} /></button>
+            </li>
+          ))}
+          {tocAdding && (
+            <li style={{ paddingLeft: (tocAdding - 1) * 16 + 18 }} className="flex items-center gap-2">
+              <input autoFocus aria-label={`New ${SECTION_LEVELS[tocAdding - 1][1].toLowerCase()} title`} placeholder={`${SECTION_LEVELS[tocAdding - 1][1]} title`}
+                onKeyDown={event => {
+                  if (event.key === 'Escape') setTocAdding(null);
+                  if (event.key === 'Enter') event.currentTarget.blur();
+                }}
+                onBlur={event => {
+                  const text = event.currentTarget.value.trim();
+                  if (text) canvasApi.current?.applyOutline([{ op: 'add', level: tocAdding, text, after: null }]);
+                  setTocAdding(null);
+                }}
+                className="h-8 min-w-0 flex-1 rounded border border-line px-2 text-base outline-none focus:border-ink-3" />
+            </li>
+          )}
+        </ol>
       </div>
       {setupChat && <CourseInterview state={course} app={app} sectionEditor={suppliedCourse ? sectionEditor : null} />}
       <div className={`${setupChat ? 'hidden' : 'flex'} min-h-0 flex-1 flex-col`}>

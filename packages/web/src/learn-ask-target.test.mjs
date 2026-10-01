@@ -36,7 +36,9 @@ test('Ask in chat sends the typed words as message and the card as canvas_target
 });
 
 test('a group Ask has a title, bounded text through groupTargetText, and its own snapshot (context-2, -3, -22)', () => {
-  assert.match(canvas, /onAskTargetRef\.current\?\.\(\{ id: group\.id, kind: group\.label \? `group "\$\{group\.label\}"` : 'group', title: group\.label \|\| `\$\{members\.length\} items`, text: groupTargetText\(entries\) \}\);/);
+  assert.ok(canvas.includes("onAskTargetRef.current?.({ id: group.id, kind: 'Group', title: group.label || `${members.length} items`, text: groupTargetText(entries) });"));
+  // Its chip goes when the group does.
+  assert.ok(canvas.includes('armedGroup.current = null;\n    onAskTargetRef.current?.(null);'));
   assert.doesNotMatch(canvas, /parts\.join\('\\n\\n'\)\.slice\(0, 4000\)/);
   assert.match(canvas, /onGroupShotRef\.current\?\.\(blob, group\.label \|\| 'group', group\.id\)/);
   // The snapshot joins that group's armed target, never the global image context.
@@ -54,7 +56,8 @@ test('a YouTube moment card is described by its video id and window, never Sourc
 });
 
 test('a whiteboard region chip says only its text reaches the tutor (context-9)', () => {
-  assert.match(ask, /\{canvasTarget\.preview && !canvasTarget\.paper && <span data-text-only title="The tutor gets the shapes' text, not this picture" className="shrink-0 text-ink-3">text only<\/span>\}/);
+  // A selected area (Ask about selection) sends its picture, so only it is exempt.
+  assert.match(ask, /\{canvasTarget\.preview && !canvasTarget\.paper && !canvasTarget\.image && !canvasTarget\.id\?\.startsWith\?\.\('area:'\) && <span data-text-only title="The tutor gets the shapes' text, not this picture" className="shrink-0 text-ink-3">text only<\/span>\}/);
 });
 
 // delta-7, delta-8, context-14, context-11: a standalone canvas composer offers only what its chat can use.

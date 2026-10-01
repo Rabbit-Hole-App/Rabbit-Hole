@@ -75,3 +75,9 @@ test('a very tall canvas keeps a usable width, and the frame follows the viewpor
   const back = minimapToView({ x: deep.view.x + deep.view.w / 2, y: deep.view.y + deep.view.h / 2 }, deep, surface, 1);
   assert.ok(Math.abs(back.y + 12000) < 2, `${back.y}`);
 });
+
+test('a card with a Rabbit Hole keeps its hole flag so the minimap draws it red', () => {
+  const layout = minimapLayout([{ x: 0, y: 0, w: 500, h: 400, hole: true }, { x: 0, y: 500, w: 500, h: 100 }], { x: 0, y: 0, z: 1 }, surface, size);
+  assert.equal(layout.boxes[0].hole, true);
+  assert.equal('hole' in layout.boxes[1], false);
+});

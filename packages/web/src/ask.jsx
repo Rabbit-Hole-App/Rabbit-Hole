@@ -1,11 +1,13 @@
 import ChatComposer, { COMPOSER_ADD, COMPOSER_PILL } from './ChatComposer.jsx';
+import ContextDocs from './ContextDocs.jsx';
+import { useContextDocs } from './context-docs.js';
 import RepositorySource, { SourceSelectionContext } from './RepositorySource.jsx';
 import { FILE_TOKEN, INLINE_PARTS, sourceReference, singleSourcePath } from './source-references.js';
 // ─── Ask (phase 1 - read only): the chat panel behind the Agent tab, the run
 // peek's ask box, and ⌘K's Ask tab. POST /api/ask streams SSE; org-scope
 // ambiguity comes back as { choose } and renders candidate pills. ───
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUp, AtSign, BookOpen, Check, Copy, Crown, Feather, FileText, Globe, History, Loader2, MoreHorizontal, Minus, Network, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap } from 'lucide-react';
+import { ArrowUp, AtSign, BookOpen, Check, Copy, Crown, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Network, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap } from 'lucide-react';
 import { ago, api, navigate, wsHeaders } from './api.js';
 import { colorLine } from './code.jsx';
 import { MathText, tokenizeMath } from './MathText.jsx';
@@ -360,6 +362,16 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     setInput(value);
   };
   const openPalette = () => { if (!input.startsWith('/')) { stash.current = input; setInput('/'); } inputRef.current?.focus(); };
+  // A click outside the composer closes the command palette the way Escape does (LearnSlash.jsx):
+  // the command search is dropped and what was typed before it comes back.
+  const composerBox = useRef(null);
+  const paletteOpen = !!slash && input.startsWith('/');
+  useEffect(() => {
+    if (!paletteOpen) return;
+    const away = event => { if (!composerBox.current?.contains(event.target)) setComposerInput(''); };
+    document.addEventListener('pointerdown', away, true); // capture: the canvas stops its own pointer events
+    return () => document.removeEventListener('pointerdown', away, true);
+  }, [paletteOpen]); // eslint-disable-line react-hooks/exhaustive-deps
   const [busy, setBusy] = useState(false);
   const [blockCopy, setBlockCopy] = useState(null);
   useEffect(() => {
@@ -371,6 +383,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   const [file, setFile] = useState(null); // one attachment per question
   const [mentions, setMentions] = useState([]); // @app chips
   const [plusOpen, setPlusOpen] = useState(false);
+  // Canvas context documents (canvas-context-docs.md): the composer's Context button and list.
+  const contextDocs = useContextDocs(scope?.app);
+  const [ctxOpen, setCtxOpen] = useState(false);
   const [threads, setThreads] = useState([]); // past chats for this scope
   const [view, setView] = useState('chat'); // 'chat' | 'history' - history REPLACES the chat
   const [rowMenu, setRowMenu] = useState(null); // thread id with its ⋯ open
@@ -485,7 +500,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     setCodeSelection(null);
     const attached = file;
     setFile(null);
-    const canvasImage = !isDemo ? boardContext?.preview : null;
+    const canvasImage = !isDemo ? boardContext?.preview || (canvasTarget?.id?.startsWith?.('area:') ? canvasTarget.preview : null) : null;
     const questionPaper = boardContext?.paper;
     const questionWiki = boardContext?.wiki;
     const questionVideo = boardContext?.video;
@@ -857,7 +872,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
                 </button>
               )}</>
             ) : (
-              <span className="flex items-center gap-2 text-xs text-ink-2"><Loader2 size={14} className="animate-spin text-ink-3" />{m.status || 'Thinking...'}</span>
+              <span className="flex items-center gap-2 text-xs text-ink-2"><Loader2 size={14} className="animate-spin text-ink-3" /><span className="shimmer">{m.status || 'Thinking…'}</span></span>
             )}
           </div>
         ))}
@@ -882,7 +897,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         {tutor?.extras && <div data-tutor-extras className="flex flex-col items-start gap-2 py-2">{tutor.extras}</div>}
       </div>
       {/* non-compact: the box sticks to the viewport bottom - the page can scroll, the input never leaves */}
-      <div className={cn('relative mt-2 shrink-0', !compact && 'sticky bottom-0 bg-white pt-1 pb-2')}>
+      <div ref={composerBox} className={cn('relative mt-2 shrink-0', !compact && 'sticky bottom-0 bg-white pt-1 pb-2')}>
         {/* @-mention suggestions above the input */}
         {atHits.length > 0 && (
           <div className="absolute bottom-full left-0 z-20 mb-1 max-h-56 w-64 overflow-y-auto rounded-md bg-white p-1 shadow-pop">
@@ -926,8 +941,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         {repository && repositoryContext?.label && <div className="mb-2 inline-flex max-w-full self-start items-center gap-1.5 rounded-md border border-green-600/45 bg-green-50 px-2 py-1.5 text-xs text-green-800"><span className="min-w-0 truncate">Asking about: {repositoryContext.label} · {(repositoryCommit || repositoryContext?.commit || '').slice(0,7)}</span>{onClearRepository && <button type="button" className="shrink-0 rounded p-0.5 hover:bg-green-100" aria-label="Clear repository selection" onClick={onClearRepository}><X size={12}/></button>}</div>}
         {canvasTarget && <div data-canvas-target className="mb-1.5 inline-flex max-w-full items-center gap-1.5 rounded-full border border-line bg-hover py-1 pr-1.5 pl-2.5 text-xs text-ink-2">
           {canvasTarget.preview && <img src={canvasTarget.preview} alt="Selected region" className="h-7 w-10 shrink-0 rounded border border-line bg-white object-contain" />}
-          {canvasTarget.preview && !canvasTarget.paper && <span data-text-only title="The tutor gets the shapes' text, not this picture" className="shrink-0 text-ink-3">text only</span>}
-          <span className="shrink-0 font-medium text-ink">{canvasTarget.kind}</span>
+          {canvasTarget.preview && !canvasTarget.paper && !canvasTarget.image && !canvasTarget.id?.startsWith?.('area:') && <span data-text-only title="The tutor gets the shapes' text, not this picture" className="shrink-0 text-ink-3">text only</span>}
+          {/* A title that already names its kind (a group called Group 2) is shown once. */}
+          {!String(canvasTarget.title ?? '').toLowerCase().startsWith(String(canvasTarget.kind).toLowerCase()) && <span className="shrink-0 font-medium text-ink">{canvasTarget.kind}</span>}
           <span className="max-w-[260px] truncate">{String(canvasTarget.title).replace(/\$([^$]*)\$/g, '$1')}</span>
           <button type="button" aria-label="Clear block selection" title="Clear block selection" onClick={onClearCanvasTarget} className="shrink-0 rounded-full p-0.5 hover:bg-active hover:text-ink"><X size={12} /></button>
         </div>}
@@ -937,7 +953,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           <img src={boardContext.preview} alt={boardContext.previewKind === 'paper' ? 'Selected paper region' : 'Selected canvas preview'} className="h-20 w-28 rounded-lg border border-line bg-white object-contain" />
           <button type="button" aria-label={boardContext.previewKind === 'paper' ? 'Remove paper selection' : 'Remove canvas image'} title="Remove image preview" onClick={boardContext.removeImage} className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border border-line bg-white text-ink-2 shadow-sm hover:bg-hover"><X size={12} /></button>
         </div>}
-        {slash && <div className="relative"><slash.Picker apiRef={slashRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onPrompt={prompt => send(prompt)} /></div>}
+        {slash && <div className="relative"><slash.Picker apiRef={slashRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFocusBlock={slash.focusBlock} onPrompt={prompt => send(prompt)} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
         <ChatComposer value={input} onChange={value => { boardContext?.pause(); setComposerInput(value); }} onSubmit={send} ready={!!command}
           onKeyDown={slash ? event => { if (command && event.key === 'Backspace' && !input) { event.preventDefault(); setCommand(null); return; } slashRef.current?.onKeyDown(event); } : undefined} inputRef={inputRef} autoFocus={autoFocus} placeholder={command ? 'Add details, or press Enter' : placeholder} busy={busy}
           dock={dock} onStop={dock ? () => answerFlight.current?.abort() : undefined}
@@ -967,6 +983,19 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
               onChange={(e) => { if (e.target.files[0]) setFile(e.target.files[0]); e.target.value = ''; }}
             />
           </div>
+          {contextDocs.enabled && (
+            <div className="relative shrink-0">
+              <button type="button" aria-label="Context documents" title="Documents the agent reads" data-context-button
+                onMouseDown={(e) => { e.stopPropagation(); setCtxOpen(!ctxOpen); }}
+                className={cn(dock ? COMPOSER_ADD.replace(' w-9 ', ' min-w-9 ') : 'inline-flex h-6 min-w-6 cursor-pointer items-center justify-center rounded-full border border-line text-ink-2 hover:bg-hover hover:text-ink', 'gap-1 px-2', ctxOpen && 'bg-active text-ink')}>
+                <Files size={dock ? 16 : 14} strokeWidth={1.5} />
+                {contextDocs.on > 0 && <span className="text-xs font-medium">{contextDocs.on}</span>}
+              </button>
+              <Menu open={ctxOpen} onClose={() => setCtxOpen(false)} className={dock ? 'bottom-11 left-0 w-[22rem] max-w-[92vw] p-1' : 'bottom-8 left-0 w-[22rem] max-w-[92vw] p-1'}>
+                <ContextDocs context={contextDocs} />
+              </Menu>
+            </div>
+          )}
           {srcOpts.length > 0 && (
             <div className="relative shrink-0">
               <button

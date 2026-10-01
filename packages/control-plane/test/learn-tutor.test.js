@@ -158,6 +158,17 @@ test('plan: one forced tutor_response call on Opus 5.5 (no fallback); its input 
   assert.match(calls[0].body.system, /authored/i);
 });
 
+test('plan: switched-on canvas context documents come first, then the context (canvas-context-docs.md)', async t => {
+  const turn = { strategy: 'none', move: 'answer', reason: 'r', actions: [{ type: 'respond_text', text: 'Hi.' }] };
+  const calls = recordFetch(t, { model: 'claude-opus-5-5', usage: {}, content: [{ type: 'tool_use', name: 'tutor_response', input: turn }], stop_reason: 'tool_use' });
+  const w = world(t);
+  const doc = { type: 'document', title: 'notes.md', source: { type: 'text', media_type: 'text/plain', data: 'softmax' } };
+  await w.post('/api/learn/tutor/plan', { app: 'canvas-0a1b2c3d', context: { turn: { raw_user_message: 'hi' } } }, { documents: async () => [doc] });
+  const content = calls[0].body.messages[0].content;
+  assert.deepEqual(content[0], doc);
+  assert.match(content.at(-1).text, /^Compose this turn/);
+});
+
 test('plan: no usable tutor_response is a 502 with telemetry outcome invalid; a different served model shows', async t => {
   recordFetch(t, { model: 'claude-opus-5', usage: { input_tokens: 3000, output_tokens: 9 }, content: [{ type: 'text', text: 'hello' }], stop_reason: 'max_tokens' });
   const w = world(t);

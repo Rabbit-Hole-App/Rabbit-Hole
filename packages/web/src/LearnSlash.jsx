@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronRight, CircleHelp, Loader2, X } from 'lucide-react';
+import { ArrowUpRight, ChevronRight, CircleHelp, Loader2, SquareSlash, X } from 'lucide-react';
 import { parseSlash, pickerSections } from './learn-slash.js';
 import PaidConfirm from './PaidConfirm.jsx';
 
@@ -8,7 +8,7 @@ import PaidConfirm from './PaidConfirm.jsx';
 // offers commands for a leading /, and runs a sent command through `run`
 // (runLearnCommand, bound to this canvas by the page). apiRef gives the
 // composer its key handler and send interception.
-export default function LearnSlash({ apiRef, input, setInput, target, run, onPrompt }) {
+export default function LearnSlash({ apiRef, input, setInput, target, run, onPrompt, onHelp = null, onFocusBlock = null }) {
   const [active, setActive] = useState(0);
   const [catalog, setCatalog] = useState(false);
   const [notice, setNotice] = useState(null);
@@ -68,11 +68,15 @@ export default function LearnSlash({ apiRef, input, setInput, target, run, onPro
   return (
     <>
       {(notice || proposal) && (
-        <div data-slash-result role="status" className="mb-1.5 flex items-start gap-2 rounded-lg border border-line bg-white px-2.5 py-1.5 text-xs">
-          {notice?.tone === 'busy' && <Loader2 size={13} className="mt-px shrink-0 animate-spin text-ink-2" />}
-          {notice?.tone === 'question' && <CircleHelp size={13} className="mt-px shrink-0 text-accent" />}
+        // A compact blue status box, as wide as its words; a finished card's notice opens that card.
+        <div data-slash-result role="status" className="mb-1.5 flex w-fit max-w-full items-start gap-2 rounded-lg border border-[#2383e2]/30 bg-[#2383e2]/[0.07] px-3 py-2 text-sm">
+          {notice?.tone === 'busy' && <Loader2 size={15} className="mt-0.5 shrink-0 animate-spin text-accent" />}
+          {notice?.tone === 'question' && <CircleHelp size={15} className="mt-0.5 shrink-0 text-accent" />}
           <div className="min-w-0 flex-1">
-            {notice && <p className={tone[notice.tone] || 'text-ink-2'}>{notice.text}</p>}
+            {notice && (notice.blockId && onFocusBlock
+              ? <button type="button" data-slash-open={notice.blockId} title="Go to the card" onClick={() => onFocusBlock(notice.blockId)}
+                  className="inline-flex cursor-pointer items-center gap-1 text-left font-medium text-accent hover:underline">{notice.text}<ArrowUpRight size={14} className="shrink-0" /></button>
+              : <p className={tone[notice.tone] || 'text-ink-2'}>{notice.text}</p>)}
             {proposal && <PaidConfirm message={proposal.message}
               onCancel={() => setProposal(null)}
               onGenerate={() => { proposal.generate(); setProposal(null); setNotice({ tone: 'done', text: 'Generating on the canvas.' }); }} />}
@@ -83,6 +87,9 @@ export default function LearnSlash({ apiRef, input, setInput, target, run, onPro
       {sections && (
         <div role="listbox" aria-label="Commands" data-slash-picker className="absolute bottom-full left-0 z-30 mb-1 max-h-80 w-80 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-pop"
           onScroll={event => { const box = event.currentTarget; if (!moreOpen && box.scrollTop + box.clientHeight >= box.scrollHeight - 4) setMoreOpen(true); }}>
+          {/* The full Slash commands view (View > Slash commands), one click from the palette. */}
+          {onHelp && <div className="sticky top-0 z-10 -mb-7 flex justify-end"><button type="button" aria-label="Open Slash commands" title="Open Slash commands" data-slash-help onMouseDown={event => event.preventDefault()} onClick={onHelp}
+            className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-ink-3 hover:bg-hover hover:text-ink"><SquareSlash size={15} /></button></div>}
           {items.length ? sections.map((section, sectionIndex) => (
             <div key={section.title || sectionIndex}>
               {sectionIndex > 0 && <div className="mx-2 my-1 border-t border-line" />}

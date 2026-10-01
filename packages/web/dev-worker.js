@@ -1,5 +1,7 @@
 import { sceneFetch } from '../control-plane/src/learn-scene.js';
 import { repositoriesFetch, repositoryIdentity, ownerRepositories } from '../control-plane/src/repositories.js';
+import { profileFetch, profileRoute } from '../control-plane/src/profile.js';
+import { contextDocsFetch, contextDocsRoute } from '../control-plane/src/learn-context-docs.js';
 import { canvasesFetch, canvasRoute, ownerCanvases, refuseCanvasAsk, refuseLiveLearnAsk, canvasAskSeam } from '../control-plane/src/canvases.js';
 export { RepositoryImports } from '../control-plane/src/repositories.js';
 export { LearnScenes } from '../control-plane/src/learn-scene.js';
@@ -78,6 +80,10 @@ export default {
     if (!env.LEARN_MEDIA) return Response.json({ error: 'LEARN_MEDIA is not bound on this dev worker; add it to the wrangler config.' }, { status: 503 });
     if (path.startsWith('/api/repositories')) return repositoriesFetch(req, env, ctx);
     if (canvasRoute(new URL(req.url))) return canvasesFetch(req, env);
+    // Settings > Profile: the person's own name and picture (LEARN_DB user_profiles).
+    if (profileRoute(new URL(req.url))) return profileFetch(req, env);
+    // Canvas context documents (docs/features/canvas-context-docs.md): upload, list, toggle, delete.
+    if (contextDocsRoute(new URL(req.url))) return contextDocsFetch(req, env);
     if (path === '/api/apps' && req.method === 'GET') {
       const catalog = await repositoryIdentity(req, env);
       if (catalog instanceof Response) return catalog;

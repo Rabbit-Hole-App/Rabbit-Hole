@@ -24,7 +24,8 @@ export function minimapLayout(boxes, view, surface, size) {
   // Centre whatever is framed, so a tall canvas is not pinned to one corner.
   const offsetX = (size.w - (right - left) * scale) / 2 - left * scale;
   const offsetY = windowTop === null ? (size.h - (bottom - top) * scale) / 2 - top * scale : PAD - windowTop * scale;
-  const project = box => ({ x: box.x * scale + offsetX, y: box.y * scale + offsetY, w: box.w * scale, h: box.h * scale });
+  // A card with a Rabbit Hole keeps its flag, so the minimap can draw it red.
+  const project = box => ({ x: box.x * scale + offsetX, y: box.y * scale + offsetY, w: box.w * scale, h: box.h * scale, ...(box.hole ? { hole: true } : {}) });
   return { scale, offsetX, offsetY, boxes: boxes.map(project), view: project(port) };
 }
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowRight, ArrowUpRight } from 'lucide-react';
 import { navigate } from './api.js';
 import { learnPreview } from './flags.js';
 import { openHref, readContinue, readRecent, recentCard, recentItems } from './home/continue.js';
@@ -72,21 +72,27 @@ function HomeContent({ data, load }) {
   );
 }
 
+// Continue (user, 2026-09-30): its own kind of card, not a Recent card - a wide resume strip with an
+// accent edge and tint, the item and where it left off, and one primary action. The whole card opens it.
 function Continue({ item }) {
+  const go = () => navigate(openHref(item));
   return (
     <section aria-label="Continue">
       <h2 className={HEADING}>Continue — on this device</h2>
-      <div className="rounded-md bg-code p-4">
-        <div className="flex items-center gap-2">
-          <KindIcon kind={item.kind} />
-          <span className="min-w-0 truncate text-sm font-medium">{item.title}</span>
-          <Pill kind={item.kind}>{KIND[item.kind] || item.kind}</Pill>
+      <div data-continue-card onClick={go} className="lift-card relative flex w-full max-w-[640px] cursor-pointer items-center gap-4 overflow-hidden rounded-xl border border-accent/25 bg-accent/5 py-4 pr-4 pl-5">
+        <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-accent" />
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white shadow-sm"><KindIcon kind={item.kind} /></span>
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="truncate text-base font-semibold">{item.title}</span>
+            <Pill kind={item.kind}>{KIND[item.kind] || item.kind}</Pill>
+          </div>
+          <p className="truncate pt-0.5 text-sm text-ink-2">{item.lastExplored ? <>Last explored: <span className="text-ink">{item.lastExplored}</span></> : 'Pick up where you left off'}</p>
+          {item.next && <p className="truncate text-sm text-ink-2">Next: <span className="text-ink">{item.next}</span></p>}
         </div>
-        {item.lastExplored && <p className="truncate pt-2 text-sm text-ink-2">Last explored: <span className="text-ink">{item.lastExplored}</span></p>}
-        {item.next && <p className="truncate pt-1 text-sm text-ink-2">Next: <span className="text-ink">{item.next}</span></p>}
-        <div className="flex gap-2 pt-3">
-          <Button variant="secondary" onClick={() => navigate(openHref(item))}>{item.canvas ? 'Continue learning' : 'Open'}</Button>
-          {item.canvas && item.kind === 'repository' && <Button onClick={() => navigate(`/apps/${item.slug}`)}>Open project</Button>}
+        <div className="flex shrink-0 gap-2">
+          {item.canvas && item.kind === 'repository' && <Button variant="secondary" onClick={(e) => { e.stopPropagation(); navigate(`/apps/${item.slug}`); }}>Open project</Button>}
+          <Button variant="primary" onClick={(e) => { e.stopPropagation(); go(); }}>{item.canvas ? 'Continue learning' : 'Continue'} <ArrowRight size={13} className="nudge-arrow" /></Button>
         </div>
       </div>
     </section>
@@ -105,7 +111,7 @@ function RecentCard({ app, card }) {
   const go = (fn) => () => (app.fixture ? toast('Review fixture: there is nothing behind this card.') : fn());
   const link = 'inline-flex items-center gap-1 self-start text-xs font-medium text-accent hover:underline opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100';
   return (
-    <li data-recent-card className={`${CARD} group flex min-w-0 flex-col gap-1 p-3`}>
+    <li data-recent-card onClick={action?.to ? go(() => navigate(action.to)) : undefined} className={`${CARD} group flex min-w-0 flex-col gap-1 p-3 ${action?.to ? 'lift-card cursor-pointer' : ''}`}>
       <div className="flex min-w-0 items-start gap-2">
         <span className="pt-0.5"><KindIcon kind={app.kind} schedule={app.schedule} /></span>
         <span className="line-clamp-2 min-w-0 flex-1 break-words text-sm font-medium leading-snug">{m.title}</span>
@@ -116,7 +122,7 @@ function RecentCard({ app, card }) {
       <ForkedFrom m={m} onOpen={(id) => go(() => navigate(`/apps/${id}`))()} />
       {lineB && <span className="line-clamp-2 text-xs text-ink-3">{lineB}</span>}
       <div className="mt-auto flex items-center gap-2 pt-1">
-        {action?.to && <button type="button" className={link} onClick={go(() => navigate(action.to))}>{action.label}</button>}
+        {action?.to && <button type="button" className={link} onClick={(e) => { e.stopPropagation(); go(() => navigate(action.to))(); }}>{action.label} <ArrowRight size={12} className="nudge-arrow" /></button>}
         {action?.href && <a href={action.href} target="_blank" rel="noreferrer" className={link}>{action.label} <ArrowUpRight size={12} /></a>}
         <span className="flex-1" />
         <Forks m={m} />

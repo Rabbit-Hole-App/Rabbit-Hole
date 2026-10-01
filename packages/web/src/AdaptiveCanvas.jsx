@@ -10,7 +10,7 @@ import { panelFor, textStyle, stickyTone, dashArray, dashStyle, reorder, TEXT_LE
 import CanvasMinimap from './CanvasMinimap.jsx';
 import { presentSteps } from './learn-present.js';
 import { pageRects, PAGE_W } from './learn-pages.js';
-import { outlineFrom, applyOutlineOps } from './learn-outline-model.js';
+import { outlineFrom, applyOutlineOps, moveSection } from './learn-outline-model.js';
 import { loadAsset } from './learn-board-assets.js';
 import { groupShot } from './learn-group-shot.js';
 import { groupTargetText } from './learn-ask-target.js';
@@ -38,6 +38,8 @@ import { DivePortals } from './Dive.jsx';
 const NAV_TOOLS = [
   ['select', MousePointer2, 'Select and move'],
   ['hand', Hand, 'Hand — pan the canvas'],
+  // Ask about selection (user, 2026-09-30): drag over anything - cards, slides, images - to ask about that area.
+  ['askArea', Scan, 'Ask about selection — drag over any part of the canvas'],
 ];
 const DRAW_TOOLS = [
   ['pen', Pencil, 'Pen'],
@@ -146,7 +148,7 @@ function outlineOf(shape) {
 // Shared node chrome for everything card-shaped on the canvas: drag with
 // lift, corner resize, selection ring, top/bottom connection ports, and the
 // layout observer that keeps connector geometry fresh. Content is children.
-function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, space = 0, connected = null, autoMax = 420, width = 380, height = undefined, extraHeight = 0, saved = null, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, children }) {
+function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, wide = false, space = 0, connected = null, autoMax = 420, width = 380, height = undefined, extraHeight = 0, saved = null, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, children }) {
   const [lifted, setLifted] = useState(false);
   // A card with a Rabbit Hole under it (docs/features/dive-v1.md): derived from the dive link, never stored on the card.
   const dive = useContext(DivePortals), portal = dive?.portals?.[id];
@@ -178,10 +180,10 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, s
   return (
     <div ref={card} data-block data-block-id={id} {...(chat ? { 'data-chat-block': true } : {})}
       onPointerDown={event => { if (event.button !== 0) return; if (event.target.closest('[data-drag-zone]')) drag(event); else onSelect(id, event); }}
-      // A card with a Rabbit Hole (saved or still empty): double-click goes down it; a single click still selects.
-      onDoubleClick={portal ? event => { if (!event.target.closest('input, textarea, select, button, [contenteditable="true"]')) dive.enter(portal.name); } : undefined}
+      // Double-click goes down this card's Rabbit Hole, making it when there is none yet; a single click still selects.
+      onDoubleClick={dive && !chat ? event => { if (event.target.closest('input, textarea, select, button, a, iframe, [contenteditable="true"]')) return; if (portal) dive.enter(portal.name); else dive.open?.(id); } : undefined}
       style={{ transform: `translate(${dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, marginTop: space || undefined, width: size.w || width, height: size.h || height ? (size.h || height) + extraHeight : undefined, maxHeight: size.h || height ? undefined : autoMax }}
-      className={`group relative mx-auto flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-[#2383e2]' : ''} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-[#e5484d]/40' : 'outline-2 outline-offset-4 outline-[#b42318]') : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
+      className={`group relative ${wide ? 'self-center' : 'mx-auto'} flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-[#2383e2]' : ''} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-[#e5484d]/40' : 'outline-8 outline-offset-1 outline-[#b42318]/80') : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
       {/* Only this strip drags; the body keeps a normal cursor so text can be
           selected and links inside the block stay clickable. */}
       <div data-drag-handle data-drag-zone title="Drag to move this block"
@@ -260,10 +262,10 @@ function ChatCard({ exchange, zoom, selected, connected, boardId, onSelect, onMo
       <div ref={body} data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
         {exchange.answer
           ? <div className="text-sm"><Md text={exchange.answer} onFile={onFile} /></div>
-          : <p className="text-sm text-ink-2 italic">{exchange.status === 'thinking' ? 'Thinking…' : `${exchange.status}…`}</p>}
+          : <p className="text-sm text-ink-2 italic">{exchange.status === 'thinking' ? <span className="shimmer not-italic">Thinking…</span> : `${exchange.status}…`}</p>}
         {replies.map(turn => <div key={turn.id} className="mt-3 border-t border-line pt-3">
           <div className="mb-3 flex justify-end"><span className="rounded-xl bg-accent px-3 py-1.5 text-sm whitespace-pre-wrap text-white">{turn.question}</span></div>
-          <div className="text-sm">{turn.answer ? <Md text={turn.answer} onFile={onFile} /> : <span className="text-ink-2">{turn.status === 'done' ? 'No answer received. Try again.' : 'Thinking…'}</span>}</div>
+          <div className="text-sm">{turn.answer ? <Md text={turn.answer} onFile={onFile} /> : <span className="text-ink-2">{turn.status === 'done' ? 'No answer received. Try again.' : <span className="shimmer">Thinking…</span>}</span>}</div>
         </div>)}
       </div>
       {started && <div data-block-composer className={`shrink-0 border-t border-line px-3 pb-3 ${replyOpen ? '' : 'hidden'}`} onPointerDown={e => e.stopPropagation()}>
@@ -282,6 +284,14 @@ function HeadingCard({ block, zoom, selected, connected, onSelect, onMove, onCha
   const level = levelOf(block);
   const body = useRef(null);
   const shown = useRef(block.text);
+  // A rename from outside (the table of contents, an applied outline) reaches the text being shown;
+  // never while the learner is typing in it.
+  useEffect(() => {
+    const element = body.current;
+    if (!element || document.activeElement === element || element.textContent === (block.text || '')) return;
+    shown.current = block.text;
+    element.textContent = block.text || '';
+  }, [block.text]);
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost space={block.space}
       connected={connected} width={COLUMN} autoMax={240}
@@ -293,6 +303,51 @@ function HeadingCard({ block, zoom, selected, connected, onSelect, onMove, onCha
           onBlur={event => { const text = event.currentTarget.textContent; shown.current = text; onChange({ ...block, text }); }}
           className="leading-tight outline-none empty:before:text-ink-3 empty:before:content-[attr(data-placeholder)]">{shown.current}</div>
       </div>
+    </CanvasNode>
+  );
+}
+
+// Slides fill the A4 page guide, wider than the card column, centred on it.
+const SLIDE_W = PAGE_W - 48;
+
+// One page of a PDF added as slides: straight on the canvas, no card chrome, with
+// a numbered divider above every page after the first. Each page is its own block,
+// so it moves, groups and deletes like anything else; the image sits in this
+// browser's asset store and the block keeps only the key.
+function SlideCard({ block, zoom, selected, connected, onSelect, onMove, onLayout, onConnect, onSnap, onAsk }) {
+  const [url, setUrl] = useState(null);
+  useEffect(() => {
+    let revoke = null;
+    loadAsset(block.assetKey).then(file => { if (file) { revoke = URL.createObjectURL(file); setUrl(revoke); } });
+    return () => { if (revoke) URL.revokeObjectURL(revoke); };
+  }, [block.assetKey]);
+  return (
+    <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost wide space={block.space}
+      connected={connected} width={SLIDE_W} autoMax={null}
+      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
+      {selected && (
+        <div className="absolute -top-10 right-0 z-30">
+          <button type="button" title="Ask the tutor about this slide" onPointerDown={e => e.stopPropagation()} onClick={() => onAsk(block)}
+            className="flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium whitespace-nowrap text-ink shadow-md hover:bg-hover">
+            <MessageCircle size={13} />Ask in chat
+          </button>
+        </div>
+      )}
+      <div data-slide={block.number} className="px-1 pb-1">
+        {url ? <img src={url} alt={`${block.label || 'Slide'} ${block.number}`} className="w-full rounded border border-line" draggable={false} />
+          : <p className="p-4 text-sm text-ink-2">This slide is not in this browser.</p>}
+      </div>
+    </CanvasNode>
+  );
+}
+
+// The line between two slides: its own block, so it can be selected and deleted on its own.
+function DividerCard({ block, zoom, selected, connected, onSelect, onMove, onLayout, onConnect, onSnap }) {
+  return (
+    <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost wide space={block.space}
+      connected={connected} width={SLIDE_W} autoMax={null}
+      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
+      <div data-slide-divider className="flex items-center gap-2 px-1 pb-2 text-[11px] text-ink-3"><span className="h-px flex-1 bg-line-strong" />{block.label}<span className="h-px flex-1 bg-line-strong" /></div>
     </CanvasNode>
   );
 }
@@ -550,6 +605,8 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
   if (block.type === 'video' && block.videoId) return <VideoCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWatch={onWatch} />;
   if (block.type === 'wiki') return <WikiCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWiki={onWiki} />;
   if (block.type === 'file') return <FileCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
+  if (block.type === 'divider') return <DividerCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
+  if (block.type === 'slide') return <SlideCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onAsk={onAsk} />;
   if (block.type === 'pdf') return <PdfCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'notebook') return <NotebookCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onChangeQuiet={onChangeQuiet} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'heading') return <HeadingCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
@@ -1059,7 +1116,7 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
 
 const CARDS_COPIED = 'rabbit-hole:copied-cards';
 
-export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, gutterTop = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, gutterTop = null }) {
   // A view-only board pans and zooms with the hand and edits nothing.
   const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
   const readOnlyRef = useRef(readOnly);
@@ -1140,6 +1197,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Named groups. Membership lives on the members themselves (groupId), so
   // undo restores it with them; this list only carries each group's label.
   const [groups, setGroups] = useState(stored.current.groups || []);
+  // Every area asked about stays on the canvas, outlined and lightly filled red, saved with the
+  // board, until the learner clicks its outline to remove it.
+  const [areas, setAreas] = useState(stored.current.areas || []);
+  const areaById = id => areas.find(area => area.id === id);
+  const divePortals = useContext(DivePortals);
   // Every change also goes to onSave (a shared board's server copy), if given.
   const onSaveRef = useRef(onSave);
   onSaveRef.current = onSave;
@@ -1153,14 +1215,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const loaded = firstSave.current;
     firstSave.current = false;
     const timer = setTimeout(() => {
-      const state = { strokes, shapes, items, links, blocks: light, groups };
+      const state = { strokes, shapes, items, links, blocks: light, groups, areas };
       if (storageKey) { try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch { /* full or blocked storage loses drawings only */ } }
       if (!loaded) onSaveRef.current?.(state);
     }, 400);
     return () => clearTimeout(timer);
-  }, [strokes, shapes, items, links, blocks, groups, storageKey]);
+  }, [strokes, shapes, items, links, blocks, groups, areas, storageKey]);
   const [connecting, setConnecting] = useState(null);
   const [bounds, setBounds] = useState({});
+  // Where an asked-about area is now: on its host card when it has one, else where it was drawn.
+  const areaBox = area => { const host = area.blockId && bounds[area.blockId]; return host ? { ...area, x: host.x + area.dx, y: host.y + area.dy } : area; };
   const [hoverGap, setHoverGap] = useState(null);
   const [gapAdding, setGapAdding] = useState(false);
   // A press anywhere outside the rail - canvas, card or shape - closes its menu.
@@ -1220,6 +1284,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   onCardActionRef.current = onCardAction;
   const onGroupShotRef = useRef(onGroupShot);
   onGroupShotRef.current = onGroupShot;
+  const onAreaShotRef = useRef(onAreaShot);
+  onAreaShotRef.current = onAreaShot;
+  const [areaMarquee, setAreaMarquee] = useState(null);
   const onPaperRef = useRef(onPaper);
   onPaperRef.current = onPaper;
   // Put the camera around a set of boxes. Used both to find your way back to
@@ -1317,6 +1384,20 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       insertPdf: ({ assetKey, label }) => {
         snapshot();
         insertAtView({ id: crypto.randomUUID(), type: 'pdf', dx: 0, dy: 0, assetKey, label });
+      },
+      // A PDF added as slides: one block per page, in order, where the learner is looking.
+      // `pdf` names the upload, so Files and the reader context follow the pages.
+      insertSlides: ({ pages, label, pdf }) => {
+        if (!pages.length) return;
+        snapshot();
+        // A divider block between consecutive pages, so a separator can be deleted on its own.
+        const slides = pages.flatMap((assetKey, index) => [
+          ...(index ? [{ id: crypto.randomUUID(), type: 'divider', dx: 0, dy: 0, label: `Slide ${index + 1}`, pdf }] : []),
+          { id: crypto.randomUUID(), type: 'slide', dx: 0, dy: 0, assetKey, label, number: index + 1, pdf },
+        ]);
+        const index = flowIndexAtView();
+        setBlocks(previous => [...previous.slice(0, index), ...slides, ...previous.slice(index)]);
+        revealAfter(slides[0].id);
       },
       // A dropped image, GIF, or clip. `mediaId` is the server copy an image
       // context can name later; GIFs and clips never have one.
@@ -1425,10 +1506,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // The divider used to live on the zoom pill; the menubar is its home now.
       toggleGrid: () => setGrid(previous => !previous),
       toggleMinimap: () => setMinimap(previous => !previous),
-      togglePages: () => setPages(previous => !previous),
+      // Page guides: false (off), 'portrait' or 'landscape' A4.
+      setPages,
       // One snapshot for the whole restructure, so Ctrl+Z reverts the proposal
       // rather than one heading at a time.
       applyOutline: ops => { snapshot(); setBlocks(previous => applyOutlineOps(previous, ops)); },
+      moveSection: (id, beforeId) => { snapshot(); setBlocks(previous => moveSection(previous, id, beforeId)); },
       toggleSectionDone: id => { snapshot(); setBlocks(previous => previous.map(block => block.id === id ? { ...block, done: !block.done } : block)); },
       // Frame the section rather than scroll to it: a section is a heading plus
       // what follows, and the camera already knows how to land on one.
@@ -1446,7 +1529,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Serialised for the comparison on the page: the outline changes whenever a
   // heading is added, retitled, reordered or ticked, and only then.
   const outlineKey = JSON.stringify(outline);
-  const cardsKey = JSON.stringify(blocks.map(block => [block.id, block.assetKey || null, block.paper?.id || null]));
+  const cardsKey = JSON.stringify(blocks.map(block => [block.id, block.pdf || block.assetKey || null, block.paper?.id || null]));
   const connectionCleanup = useRef(null);
   const boundsRef = useRef({});
   const clipboard = useRef(null);
@@ -1663,7 +1746,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const grouped = selection.some(id => groupOf(id));
   // The one selected lesson card, for /dive and Ctrl+K; and how many canvas objects exist (chat left out), for a hole's first object.
   const soleCard = selection.length === 1 ? blocks.find(block => block.id === selection[0]) : null;
-  const card = soleCard ? { id: soleCard.id, title: soleCard.title || describeBlock(soleCard)?.title || '' } : null;
+  // A whole group selected is one origin too, so loose shapes dive only once they are grouped.
+  const selectedGroup = !soleCard && selection.length > 1 && groups.find(group => {
+    const members = [...blocks, ...items, ...shapes, ...exchanges].filter(entry => entry.groupId === group.id).map(entry => entry.id);
+    return members.length === selection.length && members.every(id => selection.includes(id));
+  });
+  const card = soleCard ? { id: soleCard.id, title: soleCard.title || describeBlock(soleCard)?.title || '' }
+    : selectedGroup ? { id: selectedGroup.id, title: selectedGroup.label || `${selection.length} items` } : null;
   const cardKey = JSON.stringify(card), content = strokes.length + shapes.length + items.length + blocks.length;
   useEffect(() => { onState?.({ grid, lock, minimap, pages, presenting: presenting !== null, outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey), selected: selectedCount, units, grouped, canPaste, card: JSON.parse(cardKey), content }); }, [grid, lock, minimap, pages, presenting, outlineKey, cardsKey, selectedCount, units, grouped, canPaste, cardKey, content, onState]);
   useEffect(() => () => connectionCleanup.current?.(), []);
@@ -1857,6 +1946,19 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const described = describeBlock(block);
     if (!described) return false;
     armedId.current = block.id;
+    // A slide sends the slide itself: its page of the uploaded PDF, read by the model as the
+    // reader's pages are (paper_context). The thumbnail only shows on the chip.
+    if (block.type === 'slide') {
+      const target = { id: block.id, ...described, paper: { id: String(block.pdf || '').slice('pdf:'.length), page: block.number } };
+      onAskTargetRef.current?.(target);
+      loadAsset(block.assetKey).then(blob => {
+        if (!blob || armedId.current !== block.id) return;
+        const reader = new FileReader();
+        reader.onload = () => { if (armedId.current === block.id) onAskTargetRef.current?.({ ...target, preview: reader.result }); };
+        reader.readAsDataURL(blob);
+      }).catch(() => { /* the chip just has no thumbnail */ });
+      return true;
+    }
     // A getter, not a function value: every reader (canvas_target, / commands)
     // still gets a string, resolved when it is read at send.
     const live = liveAskText(block.id, described);
@@ -1870,6 +1972,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // a changed input re-arms the same target with its fresh description, and a
   // deleted target flips to a visible warning rather than being dropped.
   const lastArmed = useRef(null);
+  // A group's chip goes with the group: deleted or ungrouped, nothing is left to ask about.
+  const armedGroup = useRef(null);
+  useEffect(() => {
+    if (!askTargetId || askTargetId !== armedGroup.current) return;
+    if ([...blocks, ...items, ...shapes, ...exchanges].filter(entry => entry.groupId === askTargetId).length >= 2) return;
+    armedGroup.current = null;
+    onAskTargetRef.current?.(null);
+  }, [blocks, items, shapes, exchanges, askTargetId]);
   useEffect(() => {
     if (!askTargetId || askTargetId !== armedId.current) { lastArmed.current = null; return; }
     const current = blocks.find(entry => entry.id === askTargetId);
@@ -1879,7 +1989,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (current) {
       if (lastArmed.current === current) return;
       lastArmed.current = current;
-      armTarget(current);
+      // A slide never changes what it shows, so moving it does not re-send its picture.
+      if (current.type !== 'slide') armTarget(current);
       return;
     }
     if (lastArmed.current === 'removed') return;
@@ -1947,12 +2058,23 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       if (!exchange.linkFrom) continue;
       const placed = autoLinked.current.has(exchange.id);
       if (placed && (autoSettled.current.has(exchange.id) || exchange.status !== 'done')) continue;
-      const source = bounds[exchange.linkFrom], own = bounds[exchange.id];
+      const linkedArea = areaById(exchange.linkFrom);
+      const source = bounds[exchange.linkFrom] || (linkedArea && areaBox(linkedArea)), own = bounds[exchange.id];
       if (!source || !own) continue; // wait for both to be measured
       autoLinked.current.add(exchange.id);
       if (exchange.status === 'done') autoSettled.current.add(exchange.id);
-      const x = source.x + (source.w - own.w) / 2;
-      let y = source.y + source.h + 28;
+      // An asked-about area's answer goes beside what the area sits on (a slide, a card), on the
+      // nearer side and a little above the area, never over it; a card's answer goes under it.
+      const area = String(exchange.linkFrom).startsWith('area:') ? source : null;
+      let x = source.x + (source.w - own.w) / 2, y = source.y + source.h + 28, sides = ['bottom', 'top'];
+      if (area) {
+        const under = Object.entries(bounds).filter(([id, b]) => id !== exchange.id && b.x < area.x + area.w && b.x + b.w > area.x && b.y < area.y + area.h && b.y + b.h > area.y).map(([, b]) => b);
+        const left = Math.min(area.x, ...under.map(b => b.x)), right = Math.max(area.x + area.w, ...under.map(b => b.x + b.w));
+        const toRight = area.x + area.w / 2 >= (left + right) / 2;
+        x = toRight ? right + 48 : left - 48 - own.w;
+        y = area.y - 24;
+        sides = toRight ? ['right', 'left'] : ['left', 'right'];
+      }
       // Push below any node whose box would overlap this one.
       const others = Object.entries(bounds).filter(([id]) => id !== exchange.id && id !== exchange.linkFrom).map(([, box]) => box).sort((a, b) => a.y - b.y);
       for (let pass = 0; pass < 8; pass++) {
@@ -1964,10 +2086,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       onMove(exchange.id, x - flowX, y - flowY);
       if (centerRef.current === exchange.id) { centerRef.current = null; centerOn({ x, y, w: own.w, h: own.h }); }
       if (!present.current.links.some(link => link.from === exchange.linkFrom && link.to === exchange.id)) {
-        setLinks(previous => [...previous, { id: crypto.randomUUID(), from: exchange.linkFrom, fromSide: 'bottom', to: exchange.id, toSide: 'top', color: LINK_COLORS[blocksRef.current.find(block => block.id === exchange.linkFrom)?.type] || '#2383e2' }]);
+        setLinks(previous => [...previous, { id: crypto.randomUUID(), from: exchange.linkFrom, fromSide: sides[0], to: exchange.id, toSide: sides[1], ...(area ? { route: 'curve' } : {}), color: area ? '#dc2626' :LINK_COLORS[blocksRef.current.find(block => block.id === exchange.linkFrom)?.type] || '#2383e2' }]);
       }
     }
-  }, [exchanges, bounds]);
+  }, [exchanges, bounds, areas]);
   // A new question's card lands in the middle of the view, once: chat cards
   // sit at the top of the column, so following the column's bottom left the
   // new card off screen above. Nothing pans while the answer streams, and a
@@ -2012,7 +2134,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const portPosition = (id, side) => {
     const shape = shapesRef.current.find(entry => entry.id === id);
     if (shape) return sidePoint(shapeBox(shape), side);
-    const box = bounds[id];
+    // An asked-about area is a link end too: its answer card hangs from it.
+    const area = areaById(id);
+    const box = bounds[id] || (area && areaBox(area));
+    if (box && (side === 'left' || side === 'right')) return { x: box.x + (side === 'right' ? box.w : 0), y: box.y + box.h / 2 };
     return box ? { x: box.x + box.w / 2, y: box.y + (side === 'bottom' ? box.h : 0) } : null;
   };
   // Dropping a connector is forgiving near a port, but not so greedy that
@@ -2166,6 +2291,58 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       if (touches({ x: node.offsetLeft, y: node.offsetTop, w: node.offsetWidth, h: node.offsetHeight })) ids.push(node.dataset.itemId);
     }
     setSelection([...new Set(ids)]);
+  };
+  // Ask about selection: a rectangle in page coordinates becomes a PNG of that part of the screen, the
+  // cards it touches, and an ask target (LearnPage uploads the image so the tutor sees it).
+  const askArea = async rect => {
+    const x = Math.min(rect.x1, rect.x2), y = Math.min(rect.y1, rect.y2), w = Math.abs(rect.x2 - rect.x1), h = Math.abs(rect.y2 - rect.y1);
+    if (w * view.z < 8 || h * view.z < 8) return;
+    const node = surface.current, box = node.getBoundingClientRect();
+    const crop = { x: view.x + x * view.z, y: view.y + y * view.z, w: w * view.z, h: h * view.z };
+    const inside = Object.entries(boundsRef.current).filter(([, b]) => b.x + b.w > x && b.x < x + w && b.y + b.h > y && b.y < y + h).map(([id]) => blocks.find(block => block.id === id)).filter(Boolean);
+    let preview = null, blob = null;
+    try {
+      const { toCanvas } = await import('html-to-image');
+      const skip = el => el.nodeType === 1 && (el.tagName === 'IFRAME' || el.getAttribute?.('role') === 'toolbar' || el.hasAttribute?.('data-canvas-minimap') || el.hasAttribute?.('data-dive-gutter') || el.hasAttribute?.('data-area-marquee') || el.hasAttribute?.('data-area-mark'));
+      const ratio = Math.min(2, window.devicePixelRatio || 1);
+      const full = await toCanvas(node, { pixelRatio: ratio, width: box.width, height: box.height, filter: el => !skip(el), cacheBust: false });
+      const out = document.createElement('canvas');
+      const scale = Math.min(1, 1400 / Math.max(crop.w * ratio, crop.h * ratio));
+      out.width = Math.max(1, Math.round(crop.w * ratio * scale)); out.height = Math.max(1, Math.round(crop.h * ratio * scale));
+      out.getContext('2d').drawImage(full, crop.x * ratio, crop.y * ratio, crop.w * ratio, crop.h * ratio, 0, 0, out.width, out.height);
+      preview = out.toDataURL('image/png');
+      blob = await new Promise(resolve => out.toBlob(resolve, 'image/png'));
+    } catch { /* the text of the cards inside still asks */ }
+    const titles = inside.map(block => block.title || block.type).filter(Boolean);
+    const id = `area:${Date.now().toString(36)}`;
+    // The area rides on the card or slide under its centre, so it stays put when the column above it grows.
+    const cx = x + w / 2, cy = y + h / 2;
+    const host = Object.entries(boundsRef.current).find(([hostId, b]) => blocks.some(block => block.id === hostId) && cx >= b.x && cx <= b.x + b.w && cy >= b.y && cy <= b.y + b.h);
+    setAreas(previous => [...previous, { id, x, y, w, h, ...(host ? { blockId: host[0], dx: x - host[1].x, dy: y - host[1].y } : {}) }]);
+    onAreaShotRef.current?.({
+      target: {
+        id, kind: 'Canvas selection',
+        title: titles.length ? `Selected area · ${titles.slice(0, 2).join(', ')}${titles.length > 2 ? '…' : ''}` : 'Selected area',
+        text: [
+          'The learner drew a rectangle on the canvas and asks about what is inside it; the attached image shows that area.',
+          titles.length ? `Cards inside or touching it: ${titles.join('; ')}` : 'No card is inside it, only the canvas itself.',
+        ].join(String.fromCharCode(10)),
+      },
+      preview, blob,
+    });
+  };
+  // With Ask about selection picked, a press anywhere - over cards too - starts the rectangle
+  // (capture phase, before a card takes the press); the tool goes back to Select once it is drawn.
+  const startArea = event => {
+    if (event.button !== 0 || event.target.closest('[role="toolbar"],[data-zoom],[data-dive-gutter],[data-canvas-minimap]')) return;
+    const start = local(event);
+    let rect = { x1: start.x, y1: start.y, x2: start.x, y2: start.y };
+    setAreaMarquee(rect);
+    const apply = (px, py) => { rect = { ...rect, x2: px, y2: py }; setAreaMarquee(rect); };
+    // The rectangle stays, labelled Capturing..., until the picture is ready (a big board takes seconds).
+    // ponytail: the whole surface is rendered, then cropped; render only the cards under the area if it is too slow.
+    apply.done = () => { setTool('select'); setAreaMarquee({ ...rect, busy: true }); requestAnimationFrame(() => askArea(rect).finally(() => setAreaMarquee(null))); };
+    startDrag(event, start, apply, view.z);
   };
   const down = event => {
     // A press on the canvas dismisses the floating chrome - the style island
@@ -2474,7 +2651,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   };
   const inking = tool === 'pen' || tool === 'highlighter';
   const drawing = inking || shapeTool;
-  const cursor = tool === 'hand' ? 'cursor-grab' : inking || tool === 'eraser' || shapeTool ? 'cursor-crosshair' : tool === 'select' ? '' : 'cursor-copy';
+  // Ask about selection: the crosshair wins over every card's own cursor, slides included.
+  const cursor = tool === 'askArea' ? 'cursor-crosshair [&_*]:!cursor-crosshair' : tool === 'hand' ? 'cursor-grab' : inking || tool === 'eraser' || shapeTool ? 'cursor-crosshair' : tool === 'select' ? '' : 'cursor-copy';
   // The rail answers to the blank canvas right of the column, where its buttons
   // live; over the cards themselves it would only be in the way. Held by index
   // rather than by value so the line keeps following the cards as they move.
@@ -2498,10 +2676,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         ...items.map(item => item.y + (item.h || 40)),
         ((surface.current?.clientHeight || 0) - view.y) / view.z,
         0,
-      ), COLUMN)
+      ), COLUMN, pages === 'landscape')
     : [];
   const minimapBoxes = [
-    ...Object.values(bounds),
+    ...Object.entries(bounds).map(([id, box]) => (divePortals?.portals?.[id] ? { ...box, hole: true } : box)),
     ...shapes.map(shape => ({ x: Math.min(shape.x1, shape.x2), y: Math.min(shape.y1, shape.y2), w: Math.abs(shape.x2 - shape.x1), h: Math.abs(shape.y2 - shape.y1) })),
     ...items.map(item => ({ x: item.x, y: item.y, w: item.w || 160, h: item.h || 40 })),
   ];
@@ -2548,7 +2726,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           the page's: these ride the camera, so the grid you snap to is the grid
           you can see. An opaque surface keeps the page dots from showing through
           and doubling them up. */}
-      <div ref={surface} data-canvas-surface data-presenting={presenting !== null ? '' : undefined} onPointerDown={down} onPointerMove={trackGap} onPointerLeave={() => { if (!gapAdding) setHoverGap(null); }}
+      <div ref={surface} data-canvas-surface onPointerDownCapture={tool === 'askArea' ? startArea : undefined} data-presenting={presenting !== null ? '' : undefined} onPointerDown={down} onPointerMove={trackGap} onPointerLeave={() => { if (!gapAdding) setHoverGap(null); }}
         onContextMenu={event => {
           event.preventDefault();
           if (event.ctrlKey || marqueeRef.current || presenting !== null) return;
@@ -2622,7 +2800,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           </svg>
         )}
         <div ref={column} style={{ width: COLUMN }} className={`absolute top-0 left-0 flex flex-col gap-5 ${drawing || tool === 'eraser' || tool === 'hand' ? 'pointer-events-none' : ''}`}>
-          {exchanges.map(exchange => <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />)}
+          {/* An answer to a red box lives beside it: out of the column flow (no height, no gap), so asking never pushes the slides or the box down. */}
+          {exchanges.map(exchange => (String(exchange.linkFrom).startsWith('area:')
+            ? <div key={exchange.id} className="-mb-5 h-0 overflow-visible"><ChatCard exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} /></div>
+            : <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />))}
           {blocks.map(block => <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} />)}
         </div>
         {/* The gap near the pointer shows its dotted line and [-] [+] [...] at the far left. */}
@@ -2634,6 +2815,31 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             onNudge={delta => nudgeGap(gap, delta)}
             onAdding={open => { setHoverGap(gap.index); setGapAdding(open); }} onAddHeading={insertHeadingAt} />
         ))}
+        {presenting === null && areas.length > 0 && (
+          <svg data-area-mark width="1" height="1" className="pointer-events-none absolute top-0 left-0 z-30 overflow-visible">
+            {areas.map(stored => ({ ...areaBox(stored), id: stored.id })).map(area => (
+              <g key={area.id}>
+                <rect x={area.x} y={area.y} width={area.w} height={area.h} fill="rgba(220, 38, 38, 0.08)" stroke="#dc2626" strokeWidth={2 / view.z} pointerEvents="none" />
+                {/* A small x on the top-right corner removes the box (and its chip); the cards inside stay usable. */}
+                <g data-area-remove={area.id} transform={`translate(${area.x + area.w} ${area.y}) scale(${1 / view.z})`} pointerEvents="all" className="cursor-pointer"
+                  onPointerDown={event => event.stopPropagation()}
+                  onClick={event => { event.stopPropagation(); setAreas(previous => previous.filter(entry => entry.id !== area.id)); if (askTargetId === area.id) onAskTargetRef.current?.(null); }}>
+                  <title>Remove this selection</title>
+                  <circle r="8" fill="#dc2626" />
+                  <path d="M-3 -3 L3 3 M3 -3 L-3 3" stroke="white" strokeWidth="1.6" strokeLinecap="round" />
+                </g>
+              </g>
+            ))}
+          </svg>
+        )}
+        {areaMarquee && (
+          <svg data-area-marquee width="1" height="1" aria-hidden="true" className="pointer-events-none absolute top-0 left-0 z-30 overflow-visible">
+            <rect x={Math.min(areaMarquee.x1, areaMarquee.x2)} y={Math.min(areaMarquee.y1, areaMarquee.y2)}
+              width={Math.abs(areaMarquee.x2 - areaMarquee.x1)} height={Math.abs(areaMarquee.y2 - areaMarquee.y1)}
+              fill="rgba(220, 38, 38, 0.06)" stroke="#dc2626" strokeWidth={2 / view.z} strokeDasharray={`${6 / view.z} ${4 / view.z}`} />
+            {areaMarquee.busy && <text x={Math.min(areaMarquee.x1, areaMarquee.x2) + 6 / view.z} y={Math.min(areaMarquee.y1, areaMarquee.y2) - 6 / view.z} fill="#dc2626" fontSize={12 / view.z} fontWeight="600">Capturing…</text>}
+          </svg>
+        )}
         {marquee && (
           <svg width="1" height="1" aria-hidden="true" className="pointer-events-none absolute top-0 left-0 z-30 overflow-visible">
             <rect x={Math.min(marquee.x1, marquee.x2)} y={Math.min(marquee.y1, marquee.y2)}
@@ -2666,6 +2872,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           if (!Number.isFinite(left)) return null;
           const pad = 12;
           const active = members.some(member => selection.includes(member.id));
+          const portal = divePortals?.portals?.[group.id];
           return (
             <div key={group.id}>
               {/* The group's own body: an outline you can see, and a surface
@@ -2675,7 +2882,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
                   Ctrl presses and non-select tools fall through to the canvas. */}
               <div data-group-box={group.id}
                 style={{ left: left - pad, top: top - pad, width: right - left + pad * 2, height: bottom - top + pad * 2 }}
-                className={`absolute rounded-xl border ${active ? 'border-[#2383e2] bg-[#2383e2]/[0.03]' : 'border-line-strong'} cursor-grab active:cursor-grabbing`}
+                className={`absolute rounded-xl border ${active ? 'border-[#2383e2] bg-[#2383e2]/[0.03]' : 'border-line-strong'} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-[#e5484d]/40' : 'outline-8 outline-offset-1 outline-[#b42318]/80') : ''} cursor-grab active:cursor-grabbing`}
+                onDoubleClick={divePortals ? () => (portal ? divePortals.enter(portal.name) : divePortals.open?.(group.id, group.label || `${members.length} items`)) : undefined}
                 onPointerDown={event => {
                   if (event.button !== 0 || tool !== 'select' || event.ctrlKey || event.metaKey) return;
                   event.stopPropagation();
@@ -2688,6 +2896,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
                 <GroupChip group={group} editOn={chipEdit === group.id}
                   onSelect={() => setSelection(membersOf(group.id))}
                   onLabel={label => { setChipEdit(null); setGroups(previous => previous.map(entry => entry.id === group.id ? { ...entry, label } : entry)); }} />
+                {portal && <button type="button" data-dive-portal={portal.name} title={`Enter the Rabbit Hole: ${portal.title}`} onPointerDown={event => event.stopPropagation()} onClick={() => divePortals.enter(portal.name)}
+                  className="flex max-w-60 items-center gap-1 rounded-sm border border-[#b42318]/40 bg-white px-2 py-0.5 text-[11px] text-[#912018] shadow-sm hover:bg-[#fef3f2]">
+                  <svg aria-hidden="true" width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter" className="shrink-0"><path d="M6 1.5V10M2.5 6.5 6 10l3.5-3.5" /></svg><span className="truncate">{portal.title}</span></button>}
               </div>
               {/* The same pill every card shows when selected, in the same
                   place: right above the outline, right-aligned. It arms the
@@ -2707,7 +2918,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
                         const item = itemsRef.current.find(entry => entry.id === member.id);
                         if (item?.text) entries.push({ text: item.text });
                       }
-                      onAskTargetRef.current?.({ id: group.id, kind: group.label ? `group "${group.label}"` : 'group', title: group.label || `${members.length} items`, text: groupTargetText(entries) });
+                      armedGroup.current = group.id;
+                      onAskTargetRef.current?.({ id: group.id, kind: 'Group', title: group.label || `${members.length} items`, text: groupTargetText(entries) });
                       // The visuals ride too: a rendered snapshot of the
                       // outline area becomes this question's image context.
                       const memberIds = new Set(members.map(member => member.id));
@@ -2809,7 +3021,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           row under the canvas instead - the toolbar scrolling in it - with the
           overview on the next row. The style panel opens from it. */}
       {/* The Rabbit Hole navigator's own gutter, top right, while the tools dock left (Dive.jsx). */}
-      {presenting === null && gutterTop && toolSide === 'left' && <div data-dive-gutter className="flex w-[84px] shrink-0 flex-col items-end pt-3 pr-2 @max-[640px]:hidden">{gutterTop}</div>}
+      {presenting === null && gutterTop && toolSide === 'left' && <div data-dive-gutter className="flex w-[84px] shrink-0 flex-col items-end pt-1 pr-4 @max-[640px]:hidden">{gutterTop}</div>}
       {presenting === null && (
         <div ref={gutter} data-tool-gutter
           // Docked right it mirrors the left side (84/192px, 8px in from the edge) and clears the contents rail (edgeInset); the full-bleed Learn shell has no page padding for a hang.

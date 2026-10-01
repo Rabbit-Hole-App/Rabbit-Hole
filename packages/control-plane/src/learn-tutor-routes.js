@@ -5,6 +5,7 @@
 // Both responses carry `telemetry` (per-rung ms, outcome, requested/served model, usage) for the bench.
 // Nothing is stored here: evidence is session-scoped in the browser (§2).
 import { authorizedBoardApp } from './learn-board.js';
+import { contextDocumentBlocks } from './learn-context-docs.js';
 import { JEV_TRANSPORTS, THRESHOLDS, askJev } from './learn-grade-jev.js';
 import { anthropic } from './ask.js';
 import { modelFailure } from './learn-research.js';
@@ -101,13 +102,13 @@ export async function evaluateFreeText(env, spec, message, deps = {}) {
 
 // The TutorResponse at top level (the client reads it) plus `telemetry`. A failure throws with
 // `error.telemetry`: outcome 'invalid' when the reply has no usable tutor_response, else 'error'.
-export async function planTurn(env, context, { callModel = loggedModel('tutor', anthropic) } = {}) {
+export async function planTurn(env, context, { callModel = loggedModel('tutor', anthropic) } = {}, documents = []) {
   const started = Date.now();
   const telemetry = { ms: null, requested_model: LEARN_TASKS.tutor.model, served_model: null, input_tokens: null, output_tokens: null, stop_reason: null, outcome: null };
   const done = outcome => ({ ...telemetry, ms: Date.now() - started, outcome });
   let result;
   try {
-    const response = await callModel(env, plannerRequest(context, LEARN_TASKS.tutor.maxTokens), LEARN_TASKS.tutor.model, null);
+    const response = await callModel(env, plannerRequest(context, LEARN_TASKS.tutor.maxTokens, documents), LEARN_TASKS.tutor.model, null);
     if (!response.ok) throw await modelFailure(response, 'The tutor is unavailable');
     result = await response.json();
   } catch (error) { throw Object.assign(error, { telemetry: done('error') }); }
@@ -134,5 +135,8 @@ export async function tutorRoute(path, req, env, deps = {}) {
   }
   const serialized = JSON.stringify(body?.context ?? null);
   if (!body?.context || typeof body.context !== 'object' || serialized.length > CONTEXT_LIMIT) return json({ error: `context must be an object of at most ${CONTEXT_LIMIT} characters` }, 400);
-  try { return json(await planTurn(env, body.context, deps)); } catch (error) { return json({ error: error.message, telemetry: error.telemetry }, 502); }
+  // The canvas's switched-on context documents reach the planner (canvas-context-docs.md); JEV is unchanged.
+  let documents;
+  try { documents = await (deps.documents || contextDocumentBlocks)(env, access); } catch (error) { return json({ error: `Context documents: ${error.message}` }, 502); }
+  try { return json(await planTurn(env, body.context, deps, documents)); } catch (error) { return json({ error: error.message, telemetry: error.telemetry }, 502); }
 }

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import * as TabsPrimitive from '@radix-ui/react-tabs';
 import { clsx as cn } from 'clsx';
 import { Check, ChevronDown, ChevronRight, Clock, Copy as CopyIcon, File as FileIcon, Globe, Maximize2, Minimize2, Network, PenLine, Play, TriangleAlert, Upload, X } from 'lucide-react';
+import { learnPreview } from './flags.js';
 import { personLabel } from './session-display.js';
 
 export { cn };
@@ -138,7 +139,9 @@ export const StatusPill = ({ status, className }) => (
 
 // Avatar chips keep the tag palette hashed by email - a person keeps their color everywhere.
 const AVATAR_BG = ['#D3E5EF', '#DBEDDB', '#FADEC9', '#E8DEEE', '#F5E0E9', '#FDECC8', '#EEE0DA'];
-export function Avatar({ email, className }) {
+export function Avatar({ email, src = null, className }) {
+  // A picture the person uploaded in Profile (a PNG data URL) replaces the initial.
+  if (src) return <img src={src} alt="" title={email} className={cn('inline-block h-5 w-5 shrink-0 rounded-full object-cover ring-1 ring-white', className)} />;
   const i = [...email].reduce((h, c) => h + c.charCodeAt(0), 0) % AVATAR_BG.length;
   return (
     <span
@@ -174,8 +177,12 @@ export function TabsTrigger({ className, pill = false, ...props }) {
 }
 export const TabsContent = TabsPrimitive.Content;
 
-// The product mark (E2: a small cloud, boxed) in currentColor - themes for free.
+// Rabbit Hole's mark: the website's aperture favicon (public/landing), never the small cloud.
+const RABBIT_HOLE_MARK = '/landing/favicon-32-v1.png';
+
+// The product mark (E2: a small cloud, boxed) in currentColor - themes for free. Rabbit Hole shows its own.
 export function Mark({ size = 20, className }) {
+  if (learnPreview) return <img src={RABBIT_HOLE_MARK} alt="" aria-label="Rabbit Hole" width={size} height={size} className={cn('shrink-0 rounded-[22%]', className)} />;
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" className={className} aria-label="small deploy">
       <rect x="2" y="2" width="28" height="28" rx="7" fill="none" stroke="currentColor" strokeWidth="2.5" />
@@ -441,7 +448,7 @@ export function ShareInput({ value, onChange, onPick, people = [], teams = [], e
 
 // ─── ConfirmDialog - the one modal (Delete only, per notion.md §7): item name in
 // the body, red primary button. ───
-export function ConfirmDialog({ title, body, confirmLabel = 'Delete', confirmVariant = 'danger', onConfirm, onCancel }) {
+export function ConfirmDialog({ title, body, confirmLabel = 'Delete', confirmVariant = 'danger', onConfirm, onCancel, altLabel = null, onAlt }) {
   useEffect(() => {
     const esc = (e) => e.key === 'Escape' && onCancel();
     window.addEventListener('keydown', esc);
@@ -454,6 +461,7 @@ export function ConfirmDialog({ title, body, confirmLabel = 'Delete', confirmVar
         <div className="pb-4 text-sm text-ink-2">{body}</div>
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+          {altLabel && <Button variant="secondary" onClick={onAlt}>{altLabel}</Button>}
           <Button variant={confirmVariant} onClick={onConfirm}>{confirmLabel}</Button>
         </div>
       </div>
@@ -700,7 +708,7 @@ export function MenuItem({ icon: Icon, className, children, ...props }) {
 
 // the product mark (favicon set) as an inline icon; brand rule: never lucide Sparkles
 export const AppIcon = ({ size = 15, className }) => (
-  <img src="/icon-32.png" alt="" width={size} height={size} className={className} />
+  <img src={learnPreview ? RABBIT_HOLE_MARK : '/icon-32.png'} alt="" width={size} height={size} className={cn(learnPreview && 'rounded-[22%]', className)} />
 );
 
 // Pointer-based column-header drag: horizontal only, live reorder, and a FLIP
@@ -810,11 +818,12 @@ export function SettingsRow({ title, desc, children }) {
 }
 
 // Hover/focus tooltip, Notion-style inverted chrome: bold label line, plain info under it.
-export function Tip({ label, info, children }) {
+// align 'end' pins the tooltip to the trigger's right edge, for triggers at the screen's right edge.
+export function Tip({ label, info, children, align = 'center' }) {
   return (
-    <span className="group/tip relative inline-flex min-w-0">
+    <span className="group/tip relative inline-flex min-w-0 max-w-full">
       {children}
-      <span role="tooltip" className="pointer-events-none absolute top-full left-1/2 z-50 mt-1.5 hidden w-max max-w-60 -translate-x-1/2 flex-col rounded-md bg-ink px-2.5 py-1.5 text-left whitespace-normal shadow-pop group-hover/tip:flex group-focus-within/tip:flex">
+      <span role="tooltip" className={`pointer-events-none absolute top-full z-50 mt-1.5 hidden w-max max-w-60 flex-col ${align === 'end' ? 'right-0' : 'left-1/2 -translate-x-1/2'} rounded-md bg-ink px-2.5 py-1.5 text-left whitespace-normal shadow-pop group-hover/tip:flex group-focus-within/tip:flex`}>
         <span className="text-xs font-semibold text-white">{label}</span>
         {info && <span className="pt-0.5 text-xs font-normal text-white/75">{info}</span>}
       </span>

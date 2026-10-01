@@ -1,0 +1,216 @@
+{
+  "source": "Existing Rabbit Hole SVG artwork, rendered without redesign",
+  "sizes": [
+    16,
+    32,
+    48,
+    64,
+    128,
+    180,
+    192,
+    256,
+    512,
+    1024,
+    2048
+  ],
+  "files": [
+    {
+      "file": "black-transparent\\rabbit-hole-black-transparent-16.png",
+      "width": 16,
+      "height": 16,
+      "bytes": 363
+    },
+    {
+      "file": "black-transparent\\rabbit-hole-black-transparent-32.png",
+      "width": 32,
+      "height": 32,
+      "bytes": 918
+    },
+    {
+      "file": "black-transparent\\rabbit-hole-black-transparent-48.png",
+      "width": 48,
+      "height": 48,
+      "bytes": 1684
+    },
+    {
+      "file": "black-transparent\\rabbit-hole-black-transparent-64.png",
+      "width": 64,
+      "height": 64,
+      "bytes": 2596
+    },
+    {
+      "file": "black-transparent\\rabbit-hole-black-transparent-128.png",
+      "width": 128,
+      "height": 128,
+      "bytes": 6197
+    },
+    {
+      "file": "black-transparent\\rabbit-hole-black-transparent-180.png",
+      "width": 180,
+      "height": 180,
+      "bytes": 9182
+    },
+    {
+      "file": "black-transparent\\rabbit-hole-black-transparent-192.png",
+      "width": 192,
+      "height": 192,
+      "bytes": 9742
+    },
+    {
+      "file": "black-transparent\\rabbit-hole-black-transparent-256.png",
+      "width": 256,
+      "height": 256,
+      "bytes": 13529
+    },
+    {
+      "file": "black-transparent\\rabbit-hole-black-transparent-512.png",
+      "width": 512,
+      "height": 512,
+      "bytes": 29397
+    },
+    {
+      "file": "black-transparent\\rabbit-hole-black-transparent-1024.png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 60447
+    },
+    {
+      "file": "black-transparent\\rabbit-hole-black-transparent-2048.png",
+      "width": 2048,
+      "height": 2048,
+      "bytes": 123805
+    },
+    {
+      "file": "white-transparent\\rabbit-hole-white-transparent-16.png",
+      "width": 16,
+      "height": 16,
+      "bytes": 378
+    },
+    {
+      "file": "white-transparent\\rabbit-hole-white-transparent-32.png",
+      "width": 32,
+      "height": 32,
+      "bytes": 972
+    },
+    {
+      "file": "white-transparent\\rabbit-hole-white-transparent-48.png",
+      "width": 48,
+      "height": 48,
+      "bytes": 1818
+    },
+    {
+      "file": "white-transparent\\rabbit-hole-white-transparent-64.png",
+      "width": 64,
+      "height": 64,
+      "bytes": 2756
+    },
+    {
+      "file": "white-transparent\\rabbit-hole-white-transparent-128.png",
+      "width": 128,
+      "height": 128,
+      "bytes": 6632
+    },
+    {
+      "file": "white-transparent\\rabbit-hole-white-transparent-180.png",
+      "width": 180,
+      "height": 180,
+      "bytes": 9753
+    },
+    {
+      "file": "white-transparent\\rabbit-hole-white-transparent-192.png",
+      "width": 192,
+      "height": 192,
+      "bytes": 10459
+    },
+    {
+      "file": "white-transparent\\rabbit-hole-white-transparent-256.png",
+      "width": 256,
+      "height": 256,
+      "bytes": 14452
+    },
+    {
+      "file": "white-transparent\\rabbit-hole-white-transparent-512.png",
+      "width": 512,
+      "height": 512,
+      "bytes": 31681
+    },
+    {
+      "file": "white-transparent\\rabbit-hole-white-transparent-1024.png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 66656
+    },
+    {
+      "file": "white-transparent\\rabbit-hole-white-transparent-2048.png",
+      "width": 2048,
+      "height": 2048,
+      "bytes": 139718
+    },
+    {
+      "file": "white-on-black\\rabbit-hole-white-on-black-16.png",
+      "width": 16,
+      "height": 16,
+      "bytes": 550
+    },
+    {
+      "file": "white-on-black\\rabbit-hole-white-on-black-32.png",
+      "width": 32,
+      "height": 32,
+      "bytes": 1391
+    },
+    {
+      "file": "white-on-black\\rabbit-hole-white-on-black-48.png",
+      "width": 48,
+      "height": 48,
+      "bytes": 2328
+    },
+    {
+      "file": "white-on-black\\rabbit-hole-white-on-black-64.png",
+      "width": 64,
+      "height": 64,
+      "bytes": 3223
+    },
+    {
+      "file": "white-on-black\\rabbit-hole-white-on-black-128.png",
+      "width": 128,
+      "height": 128,
+      "bytes": 6735
+    },
+    {
+      "file": "white-on-black\\rabbit-hole-white-on-black-180.png",
+      "width": 180,
+      "height": 180,
+      "bytes": 9540
+    },
+    {
+      "file": "white-on-black\\rabbit-hole-white-on-black-192.png",
+      "width": 192,
+      "height": 192,
+      "bytes": 10083
+    },
+    {
+      "file": "white-on-black\\rabbit-hole-white-on-black-256.png",
+      "width": 256,
+      "height": 256,
+      "bytes": 13917
+    },
+    {
+      "file": "white-on-black\\rabbit-hole-white-on-black-512.png",
+      "width": 512,
+      "height": 512,
+      "bytes": 31782
+    },
+    {
+      "file": "white-on-black\\rabbit-hole-white-on-black-1024.png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 73097
+    },
+    {
+      "file": "white-on-black\\rabbit-hole-white-on-black-2048.png",
+      "width": 2048,
+      "height": 2048,
+      "bytes": 159504
+    }
+  ]
+}

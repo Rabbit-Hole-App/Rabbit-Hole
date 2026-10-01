@@ -40,14 +40,11 @@ test('Return to lesson with no lesson player shows the canvas and calls no edito
   }
 });
 
-test('My notes toggles back to the canvas', () => {
-  const end = source.indexOf('>My notes</button>');
-  const button = source.slice(source.lastIndexOf('<button', end), end);
-  assert.match(button, /aria-current=\{learningView === 'notes' \? 'page' : undefined\}/);
-  const handler = button.match(/onClick=\{(\(\) => [^}]*)\}/)[1];
-  for (const [view, next] of [['lesson', 'notes'], ['notes', 'lesson']]) {
-    const asked = [];
-    new Function('learningView', 'requestLearningView', `return ${handler};`)(view, value => asked.push(value))();
-    assert.deepEqual(asked, [next], view);
-  }
+test('the side panel is a Table of contents: no My notes link, no trophy bar, add and drag sections', () => {
+  assert.ok(!source.includes('>My notes</button>'));
+  assert.ok(!source.includes('<Trophy') && !source.includes('role="progressbar"'));
+  assert.ok(source.includes('>Table of contents</h2>'));
+  assert.ok(source.includes("const SECTION_LEVELS = [[1, 'Section', Heading1], [2, 'Sub-section', Heading2], [3, 'Sub-sub-section', Heading3]];"));
+  assert.ok(source.includes('canvasApi.current?.moveSection(tocDrag, tocDrop)'));
+  assert.ok(source.includes('onClick={() => canvasApi.current?.removeBlock(entry.id)}'));
 });

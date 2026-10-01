@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Archive, ArrowRight, ArrowUpRight, BookOpen, Check, ListFilter, Loader2, MoreHorizontal, Network, Pin, PinOff, Play, X } from 'lucide-react';
+import { AppWindow, Archive, ArrowRight, ArrowUpRight, BookOpen, Check, FolderGit2, ListFilter, Loader2, MoreHorizontal, Network, PenLine, Pin, PinOff, Play, UserRound, X } from 'lucide-react';
 import { titleOf } from './agent/catalog.js';
 import { ago, navigate } from './api.js';
 import { learnProgress, onAnotherDevice, readRecent } from './home/continue.js';
@@ -62,11 +62,13 @@ export default function LibraryViews({ apps, type, data, onType, onArchive, onRu
 // One Filters control instead of permanent tabs (user, 2026-09-28): Type and Ownership in a popover.
 // It, View all and the Agent Bar's filter_library all set the same URL state (library-filter.js).
 const setFilter = (key, value) => navigate(chipHref(window.location.search, key, value));
+// Each filter row carries an icon: a type's matches its cards (repository, canvas pencil, app).
+const FILTER_ICONS = { projects: FolderGit2, canvases: PenLine, apps: AppWindow };
 export function LibraryFilters({ type, section, archived }) {
   const [open, setOpen] = useState(false);
   const count = [type, section].filter(Boolean).length;
-  const item = (label, on, pick) => (
-    <MenuItem key={label} onClick={() => { pick(); setOpen(false); }}>
+  const item = (label, on, pick, icon) => (
+    <MenuItem key={label} icon={icon} onClick={() => { pick(); setOpen(false); }}>
       <span className="flex w-full items-center justify-between">{label}{on && <Check size={14} strokeWidth={2} />}</span>
     </MenuItem>
   );
@@ -76,11 +78,11 @@ export function LibraryFilters({ type, section, archived }) {
       <Button variant="secondary" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}><ListFilter size={14} /> Filters{count > 0 && ` · ${count}`}</Button>
       <Menu open={open} onClose={() => setOpen(false)} className="top-10 right-0 w-56">
         {heading('Type')}
-        {Object.entries(TYPES).map(([k, t]) => item(t.label, type === k && !archived, () => setFilter('type', type === k && !archived ? null : k)))}
-        {item('Archived canvases', archived, () => { const q = new URLSearchParams(window.location.search); navigate(libraryHref({ f: q.get('f'), s: q.get('s'), ...(archived ? {} : { type: 'canvases', archived: '1' }) })); })}
+        {Object.entries(TYPES).map(([k, t]) => item(t.label, type === k && !archived, () => setFilter('type', type === k && !archived ? null : k), FILTER_ICONS[k]))}
+        {item('Archived canvas', archived, () => { const q = new URLSearchParams(window.location.search); navigate(libraryHref({ f: q.get('f'), s: q.get('s'), ...(archived ? {} : { type: 'canvases', archived: '1' }) })); }, Archive)}
         {heading('Ownership')}
-        {Object.entries(SCOPES).map(([k, label]) => item(label, section === k, () => setFilter('s', section === k ? null : k)))}
-        {count > 0 && <><div className="my-1 border-t border-line" /><MenuItem className="text-ink-2" onClick={() => { navigate('/library'); setOpen(false); }}>Clear filters</MenuItem></>}
+        {Object.entries(SCOPES).map(([k, label]) => item(label, section === k, () => setFilter('s', section === k ? null : k), UserRound))}
+        {count > 0 && <><div className="my-1 border-t border-line" /><MenuItem icon={X} className="text-ink-2" onClick={() => { navigate('/library'); setOpen(false); }}>Clear filters</MenuItem></>}
       </Menu>
     </div>
   );
@@ -88,7 +90,7 @@ export function LibraryFilters({ type, section, archived }) {
 
 export function ActiveFilters({ type, section, archived }) {
   const pills = [
-    type && [archived ? 'Archived canvases' : TYPES[type].label, () => setFilter('type', null)],
+    type && [archived ? 'Archived canvas' : TYPES[type].label, () => setFilter('type', null)],
     section && [SCOPES[section], () => setFilter('s', null)],
   ].filter(Boolean);
   if (!pills.length) return null;
@@ -109,7 +111,7 @@ export function ActiveFilters({ type, section, archived }) {
 // Title and footer are the card's controls; a click anywhere else on it opens it too.
 function Card({ kind, a, m, badge, action, onMore, source, context, meta }) {
   return (
-    <li data-library-card={kind} onClick={() => open(a)} className={`${CARD} group flex min-h-[156px] min-w-0 cursor-pointer flex-col gap-1 p-4 transition-colors duration-100 hover:border-line-strong`}>
+    <li data-library-card={kind} onClick={() => open(a)} className={`${CARD} lift-card group flex min-h-[156px] min-w-0 cursor-pointer flex-col gap-1 p-4`}>
       <div className="flex min-w-0 items-start gap-2">
         <span className="pt-0.5"><KindIcon kind={a.kind} /></span>
         <button type="button" data-card-title onClick={stop(() => open(a))} className="line-clamp-2 min-w-0 flex-1 cursor-pointer text-left text-[15px] font-semibold leading-snug">{m.title}</button>
@@ -121,7 +123,7 @@ function Card({ kind, a, m, badge, action, onMore, source, context, meta }) {
       {context}
       {meta}
       <div className="mt-auto flex items-center gap-2 pt-3">
-        <Button size="sm" variant="secondary" onClick={stop(() => open(a))}>{action} <ArrowRight size={13} /></Button>
+        <Button size="sm" variant="secondary" onClick={stop(() => open(a))}>{action} <ArrowRight size={13} className="nudge-arrow" /></Button>
         <span className="flex-1" />
         <Forks m={m} />
         <IconBtn title="More" className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100" onClick={onMore}><MoreHorizontal size={16} strokeWidth={1.5} /></IconBtn>
