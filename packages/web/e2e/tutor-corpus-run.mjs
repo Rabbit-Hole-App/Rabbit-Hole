@@ -14,7 +14,7 @@
 // --stream (v2 checkpoint I): turns ask for the plan's first sentence early (runTurn onSpeakable). Stub:
 // the scripted plan, actions first as checkpoint G asks, is streamed through the real planTurn as SSE;
 // live: the real streamed planner, with the time to the first sentence.
-// Usage: node e2e/tutor-corpus-run.mjs [--stage A] [--out dir] [--stream] [--live [--candidate G-default] [--price-in USD --price-out USD]]
+// Usage: node e2e/tutor-corpus-run.mjs [--stage A] [--out dir] [--stream] [--live [--candidate G-default]]
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { cardBlock } from '../src/nanogpt/board.js';
 import { applyCheck, applyNewAttempt, enterPractice, setActivityAnswer } from '../src/scene-activity.js';
@@ -31,7 +31,8 @@ import { CORPUS } from './tutor-corpus.mjs';
 const args = process.argv.slice(2);
 const flag = (name, fallback) => { const at = args.indexOf(`--${name}`); return at >= 0 ? args[at + 1] : fallback; };
 const STAGE = flag('stage', 'A'), OUT = flag('out', 'tutor-bench-out'), LIVE = args.includes('--live'), STREAM = args.includes('--stream');
-const PRICE = { in: Number(flag('price-in', NaN)), out: Number(flag('price-out', NaN)) };
+// USD per MTok in / out, first-party rates (claude-api skill model table, cached 2026-09-25).
+const PRICES = { 'claude-opus-5-5': [4, 20], 'claude-sonnet-5-5': [2, 10], 'claude-haiku-4-5': [1, 5] };
 if (LIVE && process.env.TUTOR_BENCH_PAID !== 'GO') throw Error('--live makes paid model calls: set TUTOR_BENCH_PAID=GO only after the owner typed GO BENCHMARK');
 // Planner candidates for the paid benchmark (env knobs read by planTurn). Baseline A is its own SHA.
 const CANDIDATES = {
@@ -154,7 +155,7 @@ async function runTrace(trace) {
         const { jev, larger } = result.telemetry || {};
         Object.assign(calls, { jev: jev?.called ? 1 : 0, jevQuestions: jev?.questions ?? 0, jevMs: jev?.ms ?? null, jevOutcome: jev?.outcome ?? null,
           larger: larger?.called ? 1 : 0, largerMs: larger?.ms ?? null, largerOutcome: larger?.outcome ?? null,
-          largerTokens: larger?.called ? { in: larger.input_tokens, out: larger.output_tokens } : null, escalation: result.escalation?.reason ?? larger?.reason ?? null });
+          largerTokens: larger?.called ? { in: larger.input_tokens, out: larger.output_tokens, model: larger.requested_model } : null, escalation: result.escalation?.reason ?? larger?.reason ?? null });
         return result;
       }
       calls.planner++;
@@ -169,7 +170,7 @@ async function runTrace(trace) {
       try {
         const planned = await planTurn(ENV, body.context, STREAM ? { onSentence: options.onSentence } : {});
         calls.firstSentenceMs = planned.telemetry.first_sentence_ms ?? null;
-        Object.assign(calls, { plannerMs: planned.telemetry.ms, plannerOutcome: 'ok', plannerTokens: { in: planned.telemetry.input_tokens, out: planned.telemetry.output_tokens },
+        Object.assign(calls, { plannerMs: planned.telemetry.ms, plannerOutcome: 'ok', plannerTokens: { in: planned.telemetry.input_tokens, out: planned.telemetry.output_tokens, model: planned.telemetry.requested_model }, fastTokens: planned.telemetry.escalated && planned.telemetry.fast ? { in: planned.telemetry.fast.input_tokens, out: planned.telemetry.fast.output_tokens, model: planned.telemetry.fast.requested_model } : null,
           servedTier: planned.telemetry.tier ?? 'opus', escalated: planned.telemetry.escalated ?? null });
         return planned;
       } catch (error) {
@@ -208,7 +209,7 @@ async function runTrace(trace) {
       transitions: result.transitions || [], critical_path: result.bench?.critical_path ?? null,
       turn_trace: result.bench?.trace ? { trace_id: result.bench.trace.trace_id, stages: result.bench.trace.stages.map(stage => `${stage.stage}:${stage.status}:${stage.result}`) } : null,
       turn_ms: turnMs, jev_ms: calls.jevMs, jev_outcome: calls.jevOutcome, larger_ms: calls.largerMs, larger_outcome: calls.largerOutcome, larger_tokens: calls.largerTokens,
-      planner_ms: calls.plannerMs, planner_outcome: calls.plannerOutcome, planner_tokens: calls.plannerTokens,
+      planner_ms: calls.plannerMs, planner_outcome: calls.plannerOutcome, planner_tokens: calls.plannerTokens, fast_tokens: calls.fastTokens ?? null,
       spoken: result.bench?.spoken ?? null, first_sentence_at: calls.sentenceAt, first_sentence_ms: calls.firstSentenceMs,
       planner_calls: calls.planner, planner_context_chars: calls.plannerChars, planner_tier: calls.tier, planner_served_tier: calls.servedTier, planner_escalated: calls.escalated,
       planner_input_tokens_est: calls.planner ? Math.round((calls.plannerChars + PLANNER_SYSTEM.length + JSON.stringify(TUTOR_TOOL).length) / 4) : 0,
@@ -226,8 +227,9 @@ const rate = (list, test) => list.length ? +(list.filter(test).length / list.len
 const turnsWithActions = rows.filter(row => row.accepted);
 const jevTurns = rows.filter(row => row.jev_calls);
 const golden = [...new Set(rows.filter(row => row.golden).map(row => row.trace))];
-const tokens = rows.flatMap(row => [row.planner_tokens, row.larger_tokens]).filter(Boolean);
-const cost = tokens.length && PRICE.in >= 0 && PRICE.out >= 0 ? tokens.reduce((usd, t) => usd + ((t.in || 0) * PRICE.in + (t.out || 0) * PRICE.out) / 1e6, 0) : null;
+const tokens = rows.flatMap(row => [row.planner_tokens, row.fast_tokens, row.larger_tokens]).filter(Boolean);
+const unpriced = [...new Set(tokens.filter(t => !PRICES[t.model]).map(t => t.model))];
+const cost = tokens.length ? tokens.reduce((usd, t) => usd + (PRICES[t.model] ? ((t.in || 0) * PRICES[t.model][0] + (t.out || 0) * PRICES[t.model][1]) / 1e6 : 0), 0) : null;
 const values = key => rows.map(row => key(row)).filter(value => value != null);
 // MODELED, not measured: speech end -> first Tutor audio from Baseline A's live component means
 // (owner brief 2026-10-01: STT commit 602, JEV 188, larger evaluator 4150, Opus planner 7707, Fish
@@ -255,8 +257,8 @@ const summary = {
       planner_in: stats(values(row => row.planner_tokens?.in)), planner_out: stats(values(row => row.planner_tokens?.out)),
       larger_in: stats(values(row => row.larger_tokens?.in)), larger_out: stats(values(row => row.larger_tokens?.out)),
     },
-    cost_usd: cost == null ? { note: 'pass --price-in and --price-out (USD per MTok) for the Anthropic calls; JEV is not priced here' }
-      : { anthropic_total: +cost.toFixed(4), per_turn: +(cost / rows.length).toFixed(5), per_100_turns: +(cost / rows.length * 100).toFixed(3), note: 'Anthropic calls only; JEV (TypeSafe) is not priced here' },
+    cost_usd: cost == null ? null : { anthropic_total: +cost.toFixed(4), per_turn: +(cost / rows.length).toFixed(5), per_100_turns: +(cost / rows.length * 100).toFixed(3), unpriced_models: unpriced, note: 'Anthropic calls only, per model at PRICES; JEV (TypeSafe) is not priced here' },
+    model_calls_per_turn: +((rows.reduce((n, row) => n + row.jev_calls + row.larger_calls + row.planner_calls + (row.fast_tokens ? 1 : 0), 0)) / rows.length).toFixed(3),
   } : {}),
   pass_rate: rate(rows, row => row.pass),
   golden_traces: { total: golden.length, passed: golden.filter(id => rows.filter(row => row.trace === id).every(row => row.pass)).length },
