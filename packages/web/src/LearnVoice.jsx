@@ -8,11 +8,9 @@ import { createFakeStt, createScribeStt } from './voice-stt.js';
 import { createFakeTts, createFishTts } from './voice-tts.js';
 import { voiceEvent } from './voice-telemetry.js';
 
-// ponytail: going down or back up a Rabbit Hole remounts the Learn surface (LearnPage.jsx keys it by
-// hole), so its voice session exits; the next surface says so once. Carry the session across the remount
-// if learners want Voice Mode to follow them into holes.
-export const VOICE_ENDED_BY_MOVE = 'Voice Mode turned off when the canvas changed. Click the mic to talk again.';
-let endedByMove = false;
+// Going down or back up a Rabbit Hole remounts the Learn surface (LearnPage.jsx keys it by hole), which
+// ends its voice session; Voice Mode stays the learner's choice, so the next surface turns it back on.
+let onAcrossMove = false;
 
 // -> { state, caption: { current, previous, error }, enter, exit, interrupt } | null without the Tutor.
 // onTargetUsed: the armed card rides one voice turn and is then cleared, as a typed turn clears it (ask.jsx).
@@ -22,7 +20,6 @@ export function useVoiceSession({ tutor, app, access, targetId, onTargetUsed = n
   const live = useRef(null);
   live.current = { tutor, access, targetId, onTargetUsed };
   const [session, setSession] = useState(null);
-  const [notice, setNotice] = useState(null);
   const [, rerender] = useReducer(count => count + 1, 0);
   const appName = app?.name ?? app;
 
@@ -64,10 +61,10 @@ export function useVoiceSession({ tutor, app, access, targetId, onTargetUsed = n
     });
     const unsubscribe = voice.subscribe(rerender);
     setSession(voice);
-    if (endedByMove) { endedByMove = false; setNotice(VOICE_ENDED_BY_MOVE); }
+    if (onAcrossMove) { onAcrossMove = false; voice.enter(); }
     return () => {
       unsubscribe();
-      if (voice.state !== 'off') endedByMove = true;
+      if (voice.state !== 'off') onAcrossMove = true;
       voice.exit();
       setSession(null);
       if (fake) delete window.__voiceFake;
@@ -75,6 +72,5 @@ export function useVoiceSession({ tutor, app, access, targetId, onTargetUsed = n
   }, [active, appName]);
 
   if (!active || !session) return null;
-  const caption = notice && session.state === 'off' && !session.caption.error ? { ...session.caption, error: notice } : session.caption;
-  return { state: session.state, caption, enter: () => { setNotice(null); return session.enter(); }, exit: session.exit, interrupt: session.interrupt };
+  return { state: session.state, caption: session.caption, enter: session.enter, exit: session.exit, interrupt: session.interrupt };
 }

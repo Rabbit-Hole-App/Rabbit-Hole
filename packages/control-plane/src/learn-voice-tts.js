@@ -20,7 +20,8 @@ export async function voiceSpeech(env, body, deps = {}) {
     const upstream = await (deps.fetch || fetch)('https://api.fish.audio/v1/tts', {
       method: 'POST',
       headers: { Authorization: `Bearer ${env.FISH_AUDIO_API_KEY}`, 'Content-Type': 'application/json', model: 's1' },
-      body: JSON.stringify({ text, reference_id: NARRATOR, format: 'mp3', mp3_bitrate: 64, latency: 'balanced', normalize: true }),
+      // Calm and steady (owner, 2026-10-01): a little slower, and lower sampling so the narrator does not drift between replies.
+      body: JSON.stringify({ text, reference_id: NARRATOR, format: 'mp3', mp3_bitrate: 64, latency: 'balanced', normalize: true, temperature: 0.5, top_p: 0.6, prosody: { speed: 0.92 } }),
       signal: AbortSignal.timeout(VOICE_TTS_TIMEOUT_MS),
     });
     status = upstream.status;

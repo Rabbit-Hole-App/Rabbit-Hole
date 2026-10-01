@@ -227,6 +227,27 @@ test('VOICE-18 exit while thinking aborts the Tutor turn; its late answer is nev
   assert.notEqual(r.session.caption.current, 'Too late.');
 });
 
+test('VOICE-19b interrupt while thinking: the Tutor turn is cancelled, listening resumes, Voice stays on, the late answer is never spoken', async () => {
+  let release;
+  const tutor = scriptedTutor(args => new Promise(resolve => { release = () => resolve({ speech: 'Too late.', turnId: args.turnId, ms: MS }); }), 'Next answer.');
+  const r = rig(tutor);
+  await r.session.enter();
+  r.stt.say('a long question');
+  await until(r.session, 'thinking');
+  r.session.interrupt();
+  assert.equal(r.session.state, 'listening', 'Voice stays on and listens again');
+  assert.equal(tutor.calls[0].aborted(), true, 'the in-flight turn is aborted');
+  assert.ok(r.events.some(event => event.name === 'voice_interrupted' && event.from === 'thinking'));
+  release();
+  await new Promise(resolve => setTimeout(resolve, 5));
+  assert.equal(r.session.state, 'listening');
+  assert.ok(!r.calls.includes('tts.speak'), 'the cancelled answer is never spoken');
+  assert.notEqual(r.session.caption.current, 'Too late.');
+  await turn(r, 'next');
+  assert.equal(r.session.caption.current, 'Next answer.', 'the next turn works');
+  r.session.exit();
+});
+
 test('VOICE-19 microphone permission denied: Voice stays off with the one-line reason', async () => {
   const r = rig(scriptedTutor(), { denyPermission: true });
   await r.session.enter();

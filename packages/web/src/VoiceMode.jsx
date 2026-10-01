@@ -35,8 +35,9 @@ export function VoiceField({ voice }) {
         : voice.state === 'speaking' ? <><AudioLines size={15} strokeWidth={1.6} className="shrink-0 text-[#b42318]" />Tutor speaking</>
         : 'Listening'}
     </span>
-    {voice.state === 'speaking' && <button type="button" onClick={() => { voice.interrupt(); field.current?.querySelector('button')?.focus(); }} className={`${COMPOSER_PILL} inline-flex items-center gap-1.5`}>
-      <Square size={11} fill="currentColor" /><span className="max-md:sr-only">Stop speaking</span>
+    {/* The learner can take the floor back at any point of a turn: while the Tutor thinks or speaks. */}
+    {(voice.state === 'speaking' || voice.state === 'thinking') && <button type="button" aria-label={voice.state === 'speaking' ? 'Stop speaking' : 'Stop the Tutor'} onClick={() => { voice.interrupt(); field.current?.querySelector('button')?.focus(); }} className={`${COMPOSER_PILL} inline-flex items-center gap-1.5`}>
+      <Square size={11} fill="currentColor" /><span className="max-md:sr-only">{voice.state === 'speaking' ? 'Stop speaking' : 'Stop'}</span>
     </button>}
   </div>;
 }

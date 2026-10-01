@@ -13,6 +13,10 @@ const SPEECH_RMS = 0.02;
 const ERRORS = new Set(['error', 'auth_error', 'quota_exceeded', 'commit_throttled', 'transcriber_error', 'unaccepted_terms',
   'rate_limited', 'input_error', 'queue_overflow', 'resource_exhausted', 'session_time_limit_exceeded', 'chunk_size_exceeded',
   'insufficient_audio_activity']);
+// Voice Mode stays on until the learner turns it off: a dropped or failed stream reconnects with a
+// fresh token. Only these, which a new token cannot fix, and RETRIES failed reconnects in a row stop it.
+const FATAL = new Set(['auth_error', 'quota_exceeded', 'unaccepted_terms']);
+const RETRIES = 3;
 
 export function scribeUrl(token) {
   const params = new URLSearchParams({
@@ -93,7 +97,7 @@ export function createScribeStt({ fetchToken, onEvent, deps = {} }) {
     AudioWorkletNode: WorkletNode = globalThis.AudioWorkletNode,
   } = deps;
   let stream = null, context = null, node = null, socket = null;
-  let stopped = true, paused = false, heard = false, failed = false;
+  let stopped = true, paused = false, heard = false, failed = false, retries = 0;
   // Bumped by start() and stop(): an await that resumes into a later generation acquires nothing.
   let generation = 0;
 
@@ -122,14 +126,23 @@ export function createScribeStt({ fetchToken, onEvent, deps = {} }) {
         if (event.type === 'error') { socket = null; ws.close(); }
         return;
       }
-      if (event.type === 'error') fail(event.kind);
-      else onEvent(event);
+      if (event.type === 'error') return dropped(ws, event.kind);
+      if (event.type === 'partial' || event.type === 'commit') retries = 0;
+      onEvent(event);
     };
     ws.onclose = () => {
       if (ws !== socket) return;
       socket = null;
-      if (!paused) fail('closed');
+      if (!paused) dropped(ws, 'closed');
     };
+  }
+
+  // A stream lost while listening reconnects; resume() reconnects one lost while paused.
+  function dropped(ws, kind) {
+    if (socket === ws) { socket = null; ws.close(); }
+    if (stopped || failed) return;
+    if (FATAL.has(kind) || ++retries > RETRIES) return fail(kind);
+    connect().catch(() => fail('token'));
   }
 
   function send(pcm) {
@@ -142,7 +155,7 @@ export function createScribeStt({ fetchToken, onEvent, deps = {} }) {
   const api = {
     async start() {
       const mine = ++generation;
-      stopped = false; paused = false; heard = false; failed = false;
+      stopped = false; paused = false; heard = false; failed = false; retries = 0;
       try {
         // A stop() while the permission prompt is open: release the mic it grants, mint nothing.
         const mic = await getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });

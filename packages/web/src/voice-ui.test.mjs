@@ -59,10 +59,12 @@ test('VOICE-03: in every on state the mic is the red breathing one, with the sta
     assert.match(mic, /voice-breathe /);
     assert.match(mic, /bg-\[#b42318\] text-white/);
     assert.match(html, /<span role="status" aria-live="polite"/);
-    assert.equal(text(html.slice(html.indexOf('>', html.indexOf('role="status"')) + 1)).replace(/Stop speaking$/, '').replace(/\s+/g, ' ').trim(), `Voice on · ${label}`);
-    // Stop speaking only while the Tutor speaks; its name survives the icon-only phone layout.
-    assert.equal(rest.length, state === 'speaking' ? 1 : 0, state);
-    if (state === 'speaking') assert.match(html, /<span class="max-md:sr-only">Stop speaking<\/span>/);
+    assert.equal(text(html.slice(html.indexOf('>', html.indexOf('role="status"')) + 1)).replace(/(Stop speaking|Stop)$/, '').replace(/\s+/g, ' ').trim(), `Voice on · ${label}`);
+    // The learner can interrupt at any point of a turn: Stop while the Tutor thinks, Stop speaking while it speaks.
+    // The name survives the icon-only phone layout.
+    assert.equal(rest.length, state === 'listening' ? 0 : 1, state);
+    if (state === 'speaking') assert.match(html, /aria-label="Stop speaking"[\s\S]*<span class="max-md:sr-only">Stop speaking<\/span>/);
+    if (state === 'thinking') assert.match(html, /aria-label="Stop the Tutor"[\s\S]*<span class="max-md:sr-only">Stop<\/span>/);
   }
   // Below md the prefix is screen-reader only, so the visible state word is never clipped.
   assert.match(render(VoiceField, { voice: voiceIn('speaking') }), /<span class="max-md:sr-only">Voice on ·<\/span>/);

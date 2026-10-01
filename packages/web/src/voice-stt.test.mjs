@@ -101,7 +101,7 @@ test('start: echo-cancelled mic, worklet posts 100 ms of 16 kHz PCM, chunks go o
   assert.equal(world.sockets[0].sent[0].message_type, 'input_audio_chunk');
 });
 
-test('events: speech_start once per listen, partial and commit pass through, errors surface', async () => {
+test('events: speech_start once per listen, partial and commit pass through, a fatal error surfaces', async () => {
   const world = fakeBrowser();
   const events = [];
   const stt = createScribeStt({ fetchToken: world.fetchToken, onEvent: event => events.push(event), deps: world.deps });
@@ -114,19 +114,48 @@ test('events: speech_start once per listen, partial and commit pass through, err
   world.sockets[0].serve({ message_type: 'partial_transcript', text: 'why' });
   world.sockets[0].serve({ message_type: 'committed_transcript', text: 'why scale' });
   assert.deepEqual(events.slice(1), [{ type: 'partial', text: 'why' }, { type: 'commit', text: 'why scale' }]);
-  world.sockets[0].serve({ message_type: 'transcriber_error', error: 'x' });
+  world.sockets[0].serve({ message_type: 'auth_error', error: 'x' });
   world.sockets[0].drop();
-  assert.deepEqual(events.at(-1), { type: 'error', kind: 'transcriber_error' });
+  assert.deepEqual(events.at(-1), { type: 'error', kind: 'auth_error' });
   assert.equal(events.filter(event => event.type === 'error').length, 1);
+  assert.equal(world.sockets.length, 1, 'a new token cannot fix it: no reconnect');
 });
 
-test('an unexpected socket close while listening is an error', async () => {
+const settle = () => new Promise(resolve => setImmediate(resolve));
+test('Voice stays on: a stream dropped or failed while listening reconnects with a fresh token', async () => {
   const world = fakeBrowser();
   const events = [];
   const stt = createScribeStt({ fetchToken: world.fetchToken, onEvent: event => events.push(event), deps: world.deps });
   await stt.start();
   world.sockets[0].drop();
-  assert.deepEqual(events, [{ type: 'error', kind: 'closed' }]);
+  await settle();
+  assert.equal(world.sockets.length, 2);
+  assert.equal(new URL(world.sockets[1].url).searchParams.get('token'), 'tok-2');
+  world.sockets[1].serve({ message_type: 'session_time_limit_exceeded', error: 'x' });
+  await settle();
+  assert.equal(world.sockets[1].closed, true);
+  assert.equal(world.sockets.length, 3);
+  assert.deepEqual(events, [], 'nothing reaches the session');
+  world.frame(loud());
+  assert.equal(world.sockets[2].sent.length, 1, 'audio flows on the new stream');
+  assert.equal(world.tracks[0].stopped, false, 'the mic stays open');
+});
+
+test('reconnects give up after three failures in a row; a transcript resets the count', async () => {
+  const world = fakeBrowser();
+  const events = [];
+  const stt = createScribeStt({ fetchToken: world.fetchToken, onEvent: event => events.push(event), deps: world.deps });
+  await stt.start();
+  for (let i = 0; i < 3; i++) { world.sockets.at(-1).drop(); await settle(); }
+  assert.equal(world.sockets.length, 4);
+  world.sockets.at(-1).serve({ message_type: 'partial_transcript', text: 'hi' });
+  for (let i = 0; i < 3; i++) { world.sockets.at(-1).drop(); await settle(); }
+  assert.equal(world.sockets.length, 7);
+  assert.deepEqual(events.filter(event => event.type === 'error'), []);
+  world.sockets.at(-1).drop();
+  await settle();
+  assert.equal(world.sockets.length, 7);
+  assert.deepEqual(events.at(-1), { type: 'error', kind: 'closed' });
 });
 
 test('pause: no audio, no commit; resume reconnects with a fresh token if the socket closed', async () => {

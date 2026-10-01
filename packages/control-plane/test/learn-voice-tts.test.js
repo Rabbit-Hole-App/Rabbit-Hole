@@ -48,7 +48,7 @@ test('the Fish request: pinned narrator, s1, mp3 64 kbps, balanced latency, time
   assert.equal(url, 'https://api.fish.audio/v1/tts');
   assert.equal(options.method, 'POST');
   assert.deepEqual(options.headers, { Authorization: 'Bearer fish-test-key', 'Content-Type': 'application/json', model: 's1' });
-  assert.deepEqual(JSON.parse(options.body), { text, reference_id: '802e3bc2b27e49c2995d23ef70e6ac89', format: 'mp3', mp3_bitrate: 64, latency: 'balanced', normalize: true });
+  assert.deepEqual(JSON.parse(options.body), { text, reference_id: '802e3bc2b27e49c2995d23ef70e6ac89', format: 'mp3', mp3_bitrate: 64, latency: 'balanced', normalize: true, temperature: 0.5, top_p: 0.6, prosody: { speed: 0.92 } });
   assert.ok(options.signal instanceof AbortSignal);
   assert.equal(VOICE_TTS_TIMEOUT_MS, 20000);
 });

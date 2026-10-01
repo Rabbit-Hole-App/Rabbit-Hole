@@ -29,9 +29,9 @@ Voice Mode exists wherever the Tutor is active (`useTutor().active`: the `nanogp
 and its Rabbit Holes). There is no voice brain of its own. Without the Tutor there is no mic button.
 
 - ponytail: canvases without the Tutor have no voice. Add it when the Tutor runs on every canvas.
-- ponytail: going down or back up a Rabbit Hole remounts the Learn surface, which ends Voice Mode; the
-  next surface shows a one-line notice ("Voice Mode turned off when the canvas changed. Click the mic to
-  talk again."). Carry the session across the remount if learners want voice to follow them into holes.
+- Voice Mode stays on until the learner clicks the red mic (owner, 2026-10-01). Going down or back up a
+  Rabbit Hole remounts the Learn surface and ends its session, so the next surface turns Voice Mode back
+  on by itself (a new mic stream and a new Scribe token).
 - A Tutor dive suggestion made in a voice turn never carries the spoken words into the hole: its opening
   question is `Take me into <title>.`, because the dock sends the opening as a typed message.
 
@@ -68,7 +68,8 @@ createVoiceSession({ stt, tts, tutor, telemetry, now }) -> {
   state,                       // 'off' | 'listening' | 'thinking' | 'speaking'
   caption,                     // { current: string, previous: string|null, error: string|null }
   enter(), exit(),             // the mic toggle
-  interrupt(),                 // while speaking: stop audio now, go listening (Voice stays ON)
+  interrupt(),                 // at any point of a turn (owner, 2026-10-01): thinking cancels the Tutor turn,
+                               // speaking stops the audio now; either way it goes listening (Voice stays ON)
   subscribe(listener) -> unsubscribe
 }
 ```
@@ -88,7 +89,7 @@ createVoiceSession({ stt, tts, tutor, telemetry, now }) -> {
   - resumes listening.
 - A TTS failure: the caption stays, canvas actions have already happened, and listening resumes.
 - An STT failure: `caption.error = 'Voice input stopped. Click the mic to try again.'`. The state goes
-  `off` and nothing is faked.
+  `off` and nothing is faked. The real adapter reports one only when reconnecting cannot help (§3).
 - `exit()`: stops TTS, stops STT, aborts any turn in flight, emits `voice_mode_exit`, goes `off`.
 - Never stores or emits learner text anywhere except the one `tutor.voiceTurn` call.
 
@@ -121,7 +122,9 @@ onEvent({ type: 'speech_start' | 'partial' | 'commit' | 'error', text?, kind? })
 - Server messages:
   - `partial_transcript` becomes `partial`, internal only.
   - `committed_transcript` becomes `commit`.
-  - Any `{ message_type, error }` frame, or a socket close while not paused, becomes `error`.
+  - A `{ message_type, error }` frame or a socket close while listening reconnects with a fresh token,
+    so Voice Mode stays on. It becomes `error` only for `auth_error`, `quota_exceeded` or
+    `unaccepted_terms`, or after 3 failed reconnects in a row (a partial or commit resets the count).
 - `pause()` stops sending audio, but the mic track stays and the socket may stay open. While paused it
   ignores any commit.
 - `resume()` sends audio again. If the socket closed while paused, it reconnects with a fresh token.
@@ -181,7 +184,9 @@ The handlers:
   - POST `https://api.fish.audio/v1/tts` with:
     - `Authorization: Bearer FISH_AUDIO_API_KEY`;
     - header `model: s1`;
-    - JSON `{ text, reference_id: '802e3bc2b27e49c2995d23ef70e6ac89', format: 'mp3', mp3_bitrate: 64, latency: 'balanced', normalize: true }`.
+    - JSON `{ text, reference_id: '802e3bc2b27e49c2995d23ef70e6ac89', format: 'mp3', mp3_bitrate: 64, latency: 'balanced', normalize: true, temperature: 0.5, top_p: 0.6, prosody: { speed: 0.92 } }`.
+    - Lower sampling and a slightly slower pace keep the narrator calm and the same from reply to reply
+      (owner, 2026-10-01).
   - That is the same pinned narrator as `/api/learn/tts`.
   - It streams the body back as `audio/mpeg` with no-store.
   - It logs one line, `{"event":"learn_voice","kind":"tts","turn_id","status","ms","chars"}`, with no text.
@@ -206,7 +211,8 @@ The handlers:
     - The red mic is `#b42318` with a breathing ring, a 2 s ease-in-out scale and opacity cycle.
     - The label reads "Voice on · Listening", "Voice on · Thinking…" or "Voice on · Tutor speaking".
     - The label is `role="status"` and `aria-live="polite"`.
-    - The interrupt control is shown only while speaking: a "Stop speaking" button with a Square icon.
+    - The interrupt control is shown while thinking ("Stop", aria-label "Stop the Tutor") and while
+      speaking ("Stop speaking"), with a Square icon.
     - Below `md` the "Voice on · " prefix and the "Stop speaking" text are screen-reader only, so the
       state word stays visible at phone widths.
     - When the neutral mic or Stop speaking unmounts under keyboard focus, focus moves to the red mic.

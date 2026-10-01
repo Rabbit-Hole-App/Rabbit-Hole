@@ -139,12 +139,15 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now 
       // A deliberate Voice OFF leaves no stale turn error over the normal composer.
       set('off', { error: null });
     },
-    // While speaking: the audio stops now and the learner has the floor; Voice stays on.
+    // At any point of a turn the learner can take the floor back; Voice stays on.
+    // Speaking: the audio stops now. Thinking: the Tutor turn is cancelled and its late answer ignored.
     interrupt() {
-      if (state !== 'speaking' || !current) return;
-      const turn = current;
-      tts.stop();
+      if (!current || (state !== 'speaking' && state !== 'thinking')) return;
+      const turn = current, from = state;
+      emit('voice_interrupted', { turn_id: turn.turnId, from });
+      if (from === 'speaking') tts.stop();
       finish(turn);
+      if (from === 'thinking') turn.controller.abort();
     },
     subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
     sttEvent(event) {
