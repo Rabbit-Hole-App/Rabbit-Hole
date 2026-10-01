@@ -34,7 +34,7 @@ The code is in `packages/control-plane/src/auth.js`. The tests are `test/web-aut
 | `/login?next=&error=` | GET | Transitional sign-in page, until Landing replaces it. Shows a provider button only when that provider is configured. |
 | `/login?next=` | POST form `email` | Sends a sign-in link, then shows "Check your email". |
 | `/auth/email/start` | POST JSON `{email, next}` | The same flow as JSON, for Landing. |
-| `/auth/session` | GET | Display identity for the frontend (see below). It never returns the internal principal. 401 `{signedIn:false}` when signed out. |
+| `/auth/session` | GET | Display identity for the frontend (see below). It never returns the internal principal. 401 `{signedIn:false}` when signed out. Always `Cache-Control: no-store`. |
 | `/auth?token=` | GET | Shows "Continue as <email>". It does **not** spend the link, so mail scanners are safe. |
 | `/auth` | POST form `token` | Spends the link once and signs in. Redirects to the safe `next`. |
 | `/auth/google/start?next=` | GET | Redirects to Google with state and PKCE S256. |
@@ -97,9 +97,9 @@ The logs carry statuses and provider error codes only, never tokens.
 - `sessionOf` reads D1 once per request. A D1 error counts as no session.
 - Sessions from before this change carry no `uid`. They are void, so everyone signs in once after deploy.
 - Logout bumps the epoch, which means **sign out everywhere**. There is no per-device logout yet.
-- A logout arriving as a cross-site navigation (`Sec-Fetch-Site: cross-site`) does nothing.
+- A logout from another site or a sibling subdomain (`Sec-Fetch-Site` `cross-site` or `same-site`) does nothing. Only `same-origin`, `none` (a typed URL) or no header proceed.
 
-**`next`** accepts only a same-site path (`safeNext`). `//host`, `/\host`, schemes, whitespace and control characters all become `/`. It is checked when the flow starts and again when it is used.
+**`next`** accepts only a same-site path (`safeNext`). `//host`, `/\host`, schemes, whitespace, control and non-ASCII characters all become `/`. So do the sign-in routes themselves (`/login`, `/logout`, `/auth*`, `/test/*`), so `next=/logout` cannot sign someone out right after sign-in. It is checked when the flow starts and again when it is used.
 
 **Login CSRF.** A POST to `/login`, `/auth`, `/auth/email/start` or `/logout` with a foreign `Origin` gets a 403.
 

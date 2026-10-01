@@ -102,8 +102,8 @@ const authed = (env, session, headers = {}) => call(env, '/api/no-such-endpoint'
 // ---------- safe next ----------
 
 test('safe next: only same-site paths survive; everything else becomes /', () => {
-  for (const ok of ['/', '/apps', '/apps/x?tab=runs#top', '/a/corp-test/app/', '/apps/%2F%2Fevil.test']) assert.equal(safeNext(ok), ok);
-  for (const bad of ['//evil.test', '//evil.test/apps', '/\\evil.test', '\\\\evil.test', 'https://evil.test', 'http:/evil.test',
+  for (const ok of ['/', '/apps', '/apps/x?tab=runs#top', '/a/corp-test/app/', '/apps/%2F%2Fevil.test', '/apps/%E2%82%AC', '/authors', '/sign-in']) assert.equal(safeNext(ok), ok);
+  for (const bad of ['/apps/€', '/é', '/logout', '/login?next=%2Fapps', '/auth', '/auth/google/start?next=%2Fapps', '/test/session','//evil.test', '//evil.test/apps', '/\\evil.test', '\\\\evil.test', 'https://evil.test', 'http:/evil.test',
     'javascript:alert(1)', '/\t/evil.test', '/\n/evil.test', '/ /x', 'evil.test', '', null, undefined, `/${'a'.repeat(1100)}`]) {
     assert.equal(safeNext(bad), '/', `accepted ${JSON.stringify(bad)}`);
   }
@@ -634,6 +634,76 @@ test('production origin: the emailed link is https://tryrabbithole.dev/auth?toke
   assert.deepEqual(sent[0].to, ['a@corp.test']);
   assert.equal(env.lastLocation, '/apps');
   assert.equal((await authed(env, session)).status, 404);
+});
+
+test('production origin: a non-ASCII next no longer breaks the redirect after sign-in; it lands on /', async (t) => {
+  const sent = [];
+  network(t, { ...(await googleOk()), 'https://api.resend.com/emails': (b) => { sent.push(b); return [200, {}]; } });
+  const env = withDb(t, SITE_ENV);
+  const { cb, session } = await oauthSignIn(env, 'google', { origin: SITE, next: '/apps/€' });
+  assert.equal(cb.location, '/');
+  assert.ok(session);
+  await emailSignIn(env, 'a@corp.test', sent, '/apps/é', SITE);
+  assert.equal(env.lastLocation, '/');
+});
+
+test('production origin: same-origin sign-in POSTs pass; any other origin, sibling subdomains and http included, is refused', async (t) => {
+  const sent = [];
+  network(t, { ...(await googleOk()), 'https://api.resend.com/emails': (b) => { sent.push(b); return [200, {}]; } });
+  const env = withDb(t, SITE_ENV);
+  for (const origin of ['https://evil.test', 'null', 'http://tryrabbithole.dev', 'https://www.tryrabbithole.dev', 'https://app.tryrabbithole.dev', 'https://rabbit-hole-cp-dev.tryrabbithole.workers.dev']) {
+    const h = { Origin: origin };
+    assert.equal((await call(env, '/auth/email/start', { method: 'POST', body: { email: 'a@corp.test' }, headers: h, origin: SITE })).status, 403, origin);
+    assert.equal((await call(env, '/login', { method: 'POST', form: { email: 'a@corp.test' }, headers: h, origin: SITE })).status, 403, origin);
+    assert.equal((await call(env, '/auth', { method: 'POST', form: { token: 'x' }, headers: h, origin: SITE })).status, 403, origin);
+    assert.equal((await call(env, '/logout', { method: 'POST', headers: h, origin: SITE })).status, 403, origin);
+  }
+  assert.equal(sent.length, 0);
+  assert.deepEqual(env.q('SELECT * FROM login_links'), []);
+  const same = { Origin: SITE };
+  assert.equal((await call(env, '/auth/email/start', { method: 'POST', body: { email: 'a@corp.test' }, headers: same, origin: SITE })).status, 200);
+  assert.equal((await call(env, '/login', { method: 'POST', form: { email: 'b@corp.test' }, headers: same, origin: SITE })).status, 200);
+  assert.equal(sent.length, 2);
+  const { session } = await oauthSignIn(env, 'google', { origin: SITE });
+  const out = await call(env, '/logout', { method: 'POST', headers: { ...same, Cookie: `small_session=${session}` }, origin: SITE });
+  assert.equal(out.status, 302);
+  assert.equal((await authed(env, session)).status, 401);
+});
+
+test('production origin: logout from this origin or a typed URL revokes; a sibling subdomain or another site does not; /auth/session is never cached', async (t) => {
+  network(t, await googleOk());
+  const env = withDb(t, SITE_ENV);
+  const who = (session) => call(env, '/auth/session', { origin: SITE, headers: session ? { Cookie: `small_session=${session}` } : {} });
+  for (const site of ['same-origin', 'none']) {
+    const { session } = await oauthSignIn(env, 'google', { origin: SITE });
+    const signedIn = await who(session);
+    assert.equal(signedIn.status, 200);
+    assert.equal(signedIn.res.headers.get('Cache-Control'), 'no-store');
+    for (const foreign of ['same-site', 'cross-site']) {
+      const r = await call(env, '/logout', { origin: SITE, headers: { Cookie: `small_session=${session}`, 'Sec-Fetch-Site': foreign } });
+      assert.deepEqual(r.cookies, [], foreign);
+      assert.equal((await who(session)).status, 200, foreign);
+    }
+    const out = await call(env, '/logout', { origin: SITE, headers: { Cookie: `small_session=${session}`, 'Sec-Fetch-Site': site } });
+    assert.equal(out.location, '/login');
+    assert.equal(out.cookie('small_session'), 'small_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0');
+    const after = await who(session);
+    assert.equal(after.status, 401, site);
+    assert.equal(after.text, '{"signedIn":false}');
+    assert.equal(after.res.headers.get('Cache-Control'), 'no-store');
+  }
+});
+
+test('production origin: no mock provider, no /test/session and no echoed link on tryrabbithole.dev, even with test secrets present', async (t) => {
+  network(t, { 'https://api.resend.com/emails': () => [500, {}] });
+  const env = withDb(t, { ...SITE_ENV, OAUTH_MOCK: 'true', TEST_BYPASS_SECRET: SECRET });
+  assert.equal((await call(env, '/test/oauth/authorize?provider=google&state=s&sub=victim', { origin: SITE })).status, 404);
+  assert.equal((await call(env, '/test/session', { method: 'POST', body: { email: 'a@corp.test', secret: SECRET }, origin: SITE })).status, 404);
+  assert.equal(new URL((await call(env, '/auth/github/start', { origin: SITE })).location).origin, 'https://github.com');
+  const r = await call(env, '/auth/email/start', { method: 'POST', body: { email: 'a@corp.test' }, headers: { Origin: SITE }, origin: SITE });
+  assert.equal(r.status, 503);
+  for (const needle of ['devLink', 'token', '/auth?']) assert.ok(!r.text.includes(needle), needle);
+  assert.equal(env.q('SELECT COUNT(*) AS n FROM users')[0].n, 0);
 });
 
 // ---------- Display identity: what the frontend may show, never the internal principal ----------
