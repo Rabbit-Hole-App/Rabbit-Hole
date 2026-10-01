@@ -94,8 +94,15 @@ bearer secret `SCENE_WORKER_TOKEN`. The renderer compares the bearer to its own
   `packages/web/.dev.vars` (gitignored). Add `SCENE_WORKER_TOKEN=<value>` there; `SCENE_WORKER_URL`
   comes from the config. Plain `npm run dev` (Vite) proxies `/api` to `rabbit-hole-cp-dev`, which
   has no repository import.
-- Neither side can read the value back: `flyctl secrets list` shows a digest and Cloudflare
-  secrets are write-only. To wire a new Worker, rotate rather than recover.
+- `flyctl secrets list` shows only a digest and Cloudflare secrets are write-only.
+  `make clone-scene-token` copies the value out of a running Fly machine over SSH, which needs the
+  stopped machine started. Rotating is the cleaner way to wire a Worker.
+- **What the learner sees** (`repositoryMetadata`, branch lookup and import): a missing URL or
+  token answers 503 "Repository import is unavailable because the indexing service is not
+  configured on this server."; a 401/403 from Fly answers 502 "...rejected this server's
+  credential."; a network error, timeout or 5xx answers 503 "...did not respond. Try again in a
+  minute." A 4xx with a reason (such as no public repository) keeps 400 and that reason. Never 401,
+  which the web app reads as signed out. Nothing is written in any of these cases.
 
 **Rotation (NOT YET RUN; needs the owner's GO).** One new value goes to both sides, never
 printed. Git Bash, repo root, with Fly logged in and a rabbit-hole Cloudflare credential loaded

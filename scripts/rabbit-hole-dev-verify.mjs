@@ -108,9 +108,10 @@ await check('Learn media lands in rabbit-hole-dev-learn-media only', async () =>
 await check('a repository import degrades without the indexer and writes nothing', async () => {
   const r = await fetch(`${WEB}/api/repositories`, { method: 'POST', headers: { ...as(owner), 'Content-Type': 'application/json' }, body: JSON.stringify({ url: 'https://github.com/octocat/Hello-World', branch: 'master' }) });
   // No indexer token on dev (the lesson renderer is not wired in Phase 2B): refused before any write.
-  const body = await r.json(); assert.equal(r.status, 400, JSON.stringify(body)); assert.match(body.error, /scene worker is not configured/);
+  // Once SCENE_WORKER_TOKEN is set (docs/features/learn-repositories.md), this check must change.
+  const body = await r.json(); assert.equal(r.status, 503, JSON.stringify(body)); assert.match(body.error, /indexing service is not configured/);
   assert.equal((await sql('learn', 'SELECT COUNT(*) AS n FROM repository_apps WHERE repo = ?', ['octocat/Hello-World']))[0].n, 0);
-  return `400 ${body.error}; no row, no snapshot`;
+  return `503 ${body.error}; no row, no snapshot`;
 });
 
 await check('every rabbit-hole Worker binds only rabbit-hole dev resources; small-cp is not on this account', async () => {

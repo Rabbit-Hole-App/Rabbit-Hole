@@ -22,8 +22,15 @@ export function parseRepository(value) {
   if(!match||[match[1],match[2]].some(v=>v==='.'||v==='..')) throw Error('Use the repository URL, without a branch or file path');
   return `${match[1]}/${match[2].replace(/\.git$/,'')}`;
 }
+// The indexer is the lesson-renderer Fly app. Each failure gets its own safe message and status, never 401:
+// the web api() reads 401 as signed out (packages/web/src/api.js). Wiring: docs/features/learn-repositories.md.
+const unavailable=(message,status=503)=>Object.assign(Error(message),{status});
+const INDEXER_DOWN='Repository import is unavailable right now because the indexing service did not respond. Try again in a minute.';
 async function repositoryMetadata(env, repo, options={}) {
-  const response=await workerRequest(env,'/repository-metadata',{repo,...options});
+  if(!env.SCENE_WORKER_URL||!env.SCENE_WORKER_TOKEN)throw unavailable('Repository import is unavailable because the indexing service is not configured on this server.');
+  const response=await workerRequest(env,'/repository-metadata',{repo,...options}).catch(()=>{throw unavailable(INDEXER_DOWN);});
+  if([401,403].includes(response.status))throw unavailable('Repository import is unavailable because the indexing service rejected this server\'s credential.',502);
+  if(response.status>=500)throw unavailable(INDEXER_DOWN);
   const data=await response.json();if(!response.ok)throw Error(data.error||'Public repository metadata unavailable');
   return data;
 }
@@ -174,7 +181,7 @@ export async function repositoriesFetch(req,env,ctx){
     }
     if(action==='ask')return await repositoryAsk(req,env,user,app);
     return json({error:'Not found'},404);
-  }catch(error){return json({error:error.message},400);}
+  }catch(error){return json({error:error.message},error.status||400);}
 }
 export async function repositoryThreads(req,db,user,app,id){
   if(!id){const {results}=await db.prepare('SELECT id,title,created_at,commit_sha FROM threads WHERE org=? AND user=? AND scope_ref=? ORDER BY created_at DESC LIMIT 20').bind(user.org,user.email,app.name).all();return json({threads:results});}
