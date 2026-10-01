@@ -33,12 +33,17 @@ Merging them into one Worker would be new architecture.
 
 **Why one origin still works.**
 - **Cookie.** The session cookie has no `Domain` attribute (`auth.js` `setCookie`), so it stays on whichever host served it.
-- **Request URL.** The app forwards the original `Request` through the binding. The control plane therefore sees `https://tryrabbithole.dev/...`, builds its OAuth `redirect_uri` and magic links from that origin, and passes its CSRF origin check.
+- **Request URL.** The app forwards the original `Request` through the binding. The control plane therefore sees `https://tryrabbithole.dev/...`, builds its OAuth `redirect_uri` and magic links from that origin, and passes its CSRF origin check. No auth URL is rewritten to an internal host (`test/rabbit-hole-app-worker.test.js` checks the exact URL that crosses).
+- **`PUBLIC_ORIGIN`.** Both production configs set `PUBLIC_ORIGIN=https://tryrabbithole.dev`; the control plane keeps `BASE_URL` (cron run links) too. No code on this branch reads it. On `origin/feature/rabbit-hole-production-auth`, `auth.js` `handleWebAuth` reads it: a sign-in route reached on any other host redirects there (a POST gets 403), and `GET /login` goes to `/sign-in`. Its `baseUrl` comes from the request URL, which is the public one, so on production nothing redirects. Dev and local Workers leave it unset.
 - **Same-origin calls.** There is no CORS anywhere; the SPA calls relative `/api`.
 - **Private control plane.** `rabbit-hole-cp` is not public. Its own `/` would serve the older `dist` shell, and a second public host would mint cookies the app never sees.
 
 **Production entry.** `packages/web/app-worker.js` reuses `dev-worker.js` unchanged, so a route added for dev (for example Voice's `/api/learn/voice/*`) also ships to production.
-- Its only differences: `ownControlPlane(env)` marks the binding as this deployment's own control plane, so the P0-B barrier passes sign-in and writes through instead of returning 403; and `GET /login` redirects to `/sign-in` with the query string kept.
+- Its only differences:
+  - `ownControlPlane(env)` marks the binding as this deployment's own control plane, so the P0-B barrier passes sign-in and writes through instead of returning 403;
+  - `GET /login` redirects to `/sign-in` with the query string kept;
+  - `/a` and `/a/*` get a bare 404 and never reach the control plane (see Untrusted content below).
+- **`/` is Landing.** `dev-worker.js` answers `/` with Landing for every method before any fall-through, so the control plane's legacy `/` → `/apps` 302 is unreachable. `test/rabbit-hole-app-worker.test.js` pins it: GET and HEAD `/` are Landing and `CONTROL_PLANE` is never called.
 - Only code can set that mark, not config. The dev configs keep `main: dev-worker.js`, pinned by `test/rabbit-hole-prod-config.test.js`.
 
 **Barrier fix found during this prep.** On a deployed service binding every property name reads as an RPC method stub, so the old `binding.guarded` check was always truthy (verified under `wrangler dev`). `guardControlPlane` therefore left module-level `CONTROL_PLANE` calls unwrapped on the live dev worker; the `fetch()` fall-through was unaffected. Wrappers are now tracked in a `WeakSet` (`test/dev-barrier.test.js`).
@@ -60,7 +65,32 @@ Merging them into one Worker would be new architecture.
 | `/auth/{google,github}/start`, `/auth/{google,github}/callback`, `/auth/email/start`, `/auth?token=`, `/auth/session`, `POST /login`, `/logout` | cp, through the app | Callbacks to register: `https://tryrabbithole.dev/auth/google/callback` and `https://tryrabbithole.dev/auth/github/callback` |
 | `/api/cli/login`, `/api/cli/verify`, `/api/me`, `/api/workspaces*`, `/api/members`, `/api/ask/threads*`, other `/api/*` | cp, through the app | |
 | `/test/*` | cp | Dead: `SMALL_ENV=production`, and no test secret is set |
-| `/a/*`, `/slack/*`, run and deploy APIs | cp | Legacy hosted-app features; they answer 503 without Fly, RUNS or Slack secrets |
+| `/a`, `/a/*` | app | Plain-text 404, `Cache-Control: no-store`, no cookie, no CORS. Never forwarded (below). |
+| `/slack/*`, run and deploy APIs | cp | Legacy hosted-app features; they answer 503 without Fly, RUNS or Slack secrets |
+
+### Untrusted content on the public origin
+
+A response on `https://tryrabbithole.dev` that runs someone else's script is same-origin with the session cookie and can call `/api/*` as the signed-in person.
+
+**`/a/*` is blocked.** It is the control plane's hosted-app proxy (`index.js` `proxyApp`), which serves deployed apps' own HTML and JS unsandboxed. `app-worker.js` answers `/a` and `/a/*`, any method, with a plain-text 404 before anything reaches `CONTROL_PLANE`. `test/rabbit-hole-app-worker.test.js` checks that the response has no app HTML or JS, no `Set-Cookie` and no CORS header, and that the binding received nothing.
+
+If hosted apps ever ship on Rabbit Hole, they move to a separate *site*, such as a dedicated Worker on `*.workers.dev`. They never go on a `*.tryrabbithole.dev` subdomain, which is same-site and gets the `SameSite=Lax` cookie. Nothing may send credentialed CORS back to the app.
+
+**The other routes that return user or stored content:**
+
+| Route | Content | Decision |
+|---|---|---|
+| `/api/runs/<id>/outputs/<name>` (`index.js` `apiRunOutputGet`) | Files a hosted run wrote; `.html` is `text/html` | Isolated. HTML gets `Content-Security-Policy: sandbox allow-scripts`, with no `allow-same-origin`, so it runs in an opaque origin, with no cookie and no same-origin `/api` read. No SVG type. Also unreachable: production binds no `RUNS`, so it answers 404. |
+| `/api/runs/<id>/inputs/<name>` | Run inputs | `application/octet-stream` (downloaded, never rendered); production has no `RUNS` |
+| `/api/apps/<app>/s3-object` | Customer S3 preview | Images, PDF, JSON, text and CSV only, `nosniff`; no HTML or SVG. Needs AWS keys production does not set. |
+| `/api/learn/boards/<id>/assets/<key>` (`learn-boards.js`) | Board files people upload | Isolated. `sandbox; default-src 'none'`, `Content-Disposition: attachment`, `nosniff`; the stored type is limited to images, PDF, video, audio and a cached-string type, never HTML or SVG. |
+| `/api/learn/media` (`learn-board.js` `mediaFetch`) | Uploaded images | Bytes are sniffed on upload: PNG, JPEG or WebP only; `nosniff` |
+| `/api/learn/paper` | Uploaded or arXiv PDFs | `application/pdf` with `nosniff`. Browsers render PDF in their own viewer, which runs no script with the page origin; a `sandbox` CSP would break Chrome's viewer. Not blocked. |
+| `/api/learn/video`, `/api/learn/scene` | Generated MP4, glTF | Fixed media types, `nosniff` |
+| `/b/<token>`, `/apps/*` | Shared boards and canvases | The first-party SPA shell renders the stored JSON; no stored file is served as a page |
+| Notebook iframes | Notebook Python and JS | Already on separate `*.workers.dev` sites (Notebooks below) |
+
+So `/a/*` is the only route that is blocked.
 
 ## Resources
 
@@ -84,7 +114,10 @@ Merging them into one Worker would be new architecture.
 **Owner decisions:**
 - **BYOC.** `BYOC_DB` plus the AWS keys. The UI hides AWS Connection on a 503, so leaving them unbound is safe.
 - **Moment log.** `learn_moments` is in the main DB (0027) but not in `repository-schema.sql`. With `LEARN_DB` bound, `learnMomentsDb` picks `LEARN_DB`, so the video-moment log stays off until a `learn-migrations/0004` adds it. That is the same as dev today.
-- **Preview restrictions.** The `VITE_COACHING_DEV=true` build also ships them: `/chat` and `/members` redirect, and the browser refuses writes outside Learn (`flags.js`, `api.js`). Production needs that build flag for Rabbit Hole to exist at all.
+- **Preview restrictions.** The `VITE_COACHING_DEV=true` build also ships them: `/chat` and `/members` redirect, and the browser refuses writes outside Learn (`flags.js`, `api.js`).
+  - Landing, `/sign-in`, `/sign-up`, `/check-email`, and the support and docs pages no longer need the flag. `vite.config.js` emits them in every build except private BYOC (`src/landing/public-pages-build.test.mjs`).
+  - The legacy `dist` build carries them too, under `dist/design/`. `small-cp` serves none of them: it bundles only `index.html` and passes just `/static/*` and the icons to `ASSETS`.
+  - **Open:** the Learn UI (`learnPreview`) still needs `VITE_COACHING_DEV=true`, so production builds with it today.
 - **Data.** Should anything carry over from legacy `small` (users, workspaces, `learn_courses`)? The default is a fresh start. No Rabbit Hole canvas or board data exists in `small`.
 
 ### Secrets
@@ -137,6 +170,7 @@ Prefix 0001–0003 each have two files. Wrangler and the test both sort by full 
 
 ```bash
 cd ../web
+# VITE_COACHING_DEV: the Learn UI still needs it (Landing and sign-in do not).
 export VITE_COACHING_DEV=true VITE_NOTEBOOK_ORIGIN=https://rabbit-hole-canvas-notebook.tryrabbithole.workers.dev
 export VITE_TLDRAW_LICENSE_KEY=<from root .env - never print it>
 npm run build && npm run build -- --outDir dist-dev

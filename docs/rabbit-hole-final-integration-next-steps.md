@@ -871,6 +871,8 @@ as canonical user-facing destinations.
 
 ## Domain architecture
 
+> **Superseded by [docs/features/rabbit-hole-production.md](features/rabbit-hole-production.md) (one origin):** production is ONE public origin, `https://tryrabbithole.dev`, serving Landing, sign-in, the app and its API. There is no `app.tryrabbithole.dev` or `api.tryrabbithole.dev`.
+
 Before wiring DNS/routes, propose and document the final hostname map.
 
 Preferred direction:
@@ -1343,6 +1345,8 @@ docs
 
 ## 7. tryrabbithole.dev auth migration
 
+> **Superseded by [docs/features/rabbit-hole-production.md](features/rabbit-hole-production.md) (one origin):** production is ONE public origin, `https://tryrabbithole.dev`, serving Landing, sign-in, the app and its API. There is no `app.tryrabbithole.dev` or `api.tryrabbithole.dev`.
+
 Auth must use the new canonical Rabbit Hole hostnames.
 
 Assuming the final host map remains:
@@ -1518,6 +1522,8 @@ Do not leak raw OAuth/provider errors to users.
 
 ## 13. Landing page relationship
 
+> **Superseded by [docs/features/rabbit-hole-production.md](features/rabbit-hole-production.md) (one origin):** production is ONE public origin, `https://tryrabbithole.dev`, serving Landing, sign-in, the app and its API. There is no `app.tryrabbithole.dev` or `api.tryrabbithole.dev`.
+
 The new landing page from:
 
 ```text
@@ -1581,6 +1587,8 @@ workers.dev
 product identity.
 
 ## 15. Required auth tests
+
+> **Superseded by [docs/features/rabbit-hole-production.md](features/rabbit-hole-production.md) (one origin):** production is ONE public origin, `https://tryrabbithole.dev`, serving Landing, sign-in, the app and its API. There is no `app.tryrabbithole.dev` or `api.tryrabbithole.dev`.
 
 Before the pre-Tutor baseline can be considered complete, verify:
 
