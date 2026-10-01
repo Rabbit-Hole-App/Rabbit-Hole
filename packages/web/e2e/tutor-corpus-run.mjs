@@ -55,13 +55,15 @@ if (LIVE && process.env.TUTOR_BENCH_PAID !== 'GO') throw Error('--live makes pai
 //   E  B + Sonnet 5.5 fast tier at its DEFAULT effort (high), Opus escalation
 //   F  B + Sonnet 5.5 fast tier at effort low (documented for Sonnet 5.5), Opus escalation: E and F
 //      separate the model from the effort (owner answer D)
+// Every knob is explicit, so each arm reproduces what was benchmarked on 2026-10-01 now that F is the
+// default (PLANNER_DEFAULTS in learn-tutor-routes.js): 'off' / 'default' opt out of a default.
 const CANDIDATES = {
-  A: { stream: false, env: {} },
-  B: { stream: true, env: { TUTOR_PLANNER_CACHE: 'on' } },
-  C: { stream: true, env: { TUTOR_PLANNER_CACHE: 'on', TUTOR_PLANNER_SPEED: 'fast' } },
+  A: { stream: false, env: { TUTOR_PLANNER_FAST_MODEL: 'off', TUTOR_PLANNER_CACHE: 'off' } },
+  B: { stream: true, env: { TUTOR_PLANNER_FAST_MODEL: 'off', TUTOR_PLANNER_CACHE: 'on' } },
+  C: { stream: true, env: { TUTOR_PLANNER_FAST_MODEL: 'off', TUTOR_PLANNER_CACHE: 'on', TUTOR_PLANNER_SPEED: 'fast' } },
   D: { stream: true, env: { TUTOR_PLANNER_CACHE: 'on', TUTOR_PLANNER_FAST_MODEL: 'claude-haiku-4-5-20251001' } },
-  E: { stream: true, env: { TUTOR_PLANNER_CACHE: 'on', TUTOR_PLANNER_FAST_MODEL: 'claude-sonnet-5-5' } },
-  F: { stream: true, env: { TUTOR_PLANNER_CACHE: 'on', TUTOR_PLANNER_FAST_MODEL: 'claude-sonnet-5-5', TUTOR_PLANNER_FAST_EFFORT: 'low' } },
+  E: { stream: true, env: { TUTOR_PLANNER_CACHE: 'on', TUTOR_PLANNER_FAST_MODEL: 'claude-sonnet-5-5', TUTOR_PLANNER_FAST_EFFORT: 'default' } },
+  F: { stream: true, env: { TUTOR_PLANNER_CACHE: 'on', TUTOR_PLANNER_FAST_MODEL: 'claude-sonnet-5-5', TUTOR_PLANNER_FAST_EFFORT: 'low' } }, // = the accepted default
 };
 const CANDIDATE = flag('candidate', 'B');
 if (!CANDIDATES[CANDIDATE]) throw Error(`--candidate is one of ${Object.keys(CANDIDATES).join(', ')}`);
@@ -69,7 +71,7 @@ if (!CANDIDATES[CANDIDATE]) throw Error(`--candidate is one of ${Object.keys(CAN
 const EXPECTED_MODELS = { planner: 'claude-opus-5-5', evaluator: 'claude-opus-5-5' };
 if (LEARN_TASKS.tutor.model !== EXPECTED_MODELS.planner || LEARN_TASKS.tutor_evaluator.model !== EXPECTED_MODELS.evaluator) throw Error('the planner and larger evaluator must be claude-opus-5-5 (decision 3)');
 for (const { env } of Object.values(CANDIDATES)) {
-  if (env.TUTOR_PLANNER_FAST_MODEL && !FAST_PLANNER_MODELS.includes(env.TUTOR_PLANNER_FAST_MODEL)) throw Error(`unknown fast model ${env.TUTOR_PLANNER_FAST_MODEL}`);
+  if (env.TUTOR_PLANNER_FAST_MODEL && env.TUTOR_PLANNER_FAST_MODEL !== 'off' && !FAST_PLANNER_MODELS.includes(env.TUTOR_PLANNER_FAST_MODEL)) throw Error(`unknown fast model ${env.TUTOR_PLANNER_FAST_MODEL}`);
   if (env.TUTOR_PLANNER_FAST_EFFORT && env.TUTOR_PLANNER_FAST_MODEL?.startsWith('claude-haiku')) throw Error('Haiku 4.5 takes no effort parameter: never send one');
 }
 // --group routine: only the traces made entirely of that group's turns (owner answer C: routine turns

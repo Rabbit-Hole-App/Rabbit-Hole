@@ -8,7 +8,7 @@ import { CORPUS } from './tutor-corpus.mjs';
 import { cardBlock } from '../src/nanogpt/board.js';
 import { applyCheck, applyNewAttempt, enterPractice, setActivityAnswer } from '../src/scene-activity.js';
 import { applyInputToBlock } from '../src/scene-evaluate.js';
-import { cardModule, ladderStep } from '../src/learn-tutor-claims.js';
+import { cardModule, ladderStep, partLabels } from '../src/learn-tutor-claims.js';
 import { partIndex } from '../src/nanogpt/depth/board.js';
 import { appendEvents, deriveClaimStates, emptyStore, practiceEvents } from '../src/learn-tutor-evidence.js';
 
@@ -83,7 +83,17 @@ function satisfies(name, fs, row) {
   return false;
 }
 
-function scoreActions(expect, plan, row, target, statedNoQuiz, audit) {
+// A3 part rule (owner correction, 2026-10-01): the part is required only when the learner's words or the
+// turn's context identify it.
+const GENERIC = new Set(['show', 'this', 'that', 'where', 'with', 'from', 'code', 'card', 'part', 'into']);
+export function partSpecific(step, trace, card, part) {
+  if (trace.start.part === part || trace.start.selected === part) return true;
+  const module = cardModule(card), index = module ? partIndex(module, part) : null;
+  const words = `${part} ${index != null ? partLabels(module)[index] : ''}`.toLowerCase().split(/[^a-z]+/).filter(word => word.length >= 4 && !GENERIC.has(word));
+  const said = String(step.raw || '').toLowerCase();
+  return words.some(word => new RegExp(`(^|[^a-z])${word}`).test(said));
+}
+function scoreActions(expect, plan, row, target, statedNoQuiz, audit, step, trace) {
   const fs = functions(row.actions, target);
   const actualRow = row.row;
   let need;
@@ -91,7 +101,7 @@ function scoreActions(expect, plan, row, target, statedNoQuiz, audit) {
   else need = required(expect, plan, target).map(name => [name]);
   const a1 = need.every(alternatives => alternatives.some(name => satisfies(name, fs, actualRow)));
   const a3 = (!expect.card || fs.some(entry => (entry.f === 'SHOW' || entry.f === 'NEXT') && entry.card === expect.card))
-    && (!expect.part || fs.some(entry => entry.part === expect.part && entry.card === (expect.card || entry.card)));
+    && (!expect.part || !partSpecific(step, trace, expect.card, expect.part) || fs.some(entry => entry.part === expect.part && entry.card === (expect.card || entry.card)));
   const a4 = Object.entries(expect.modes || {}).every(([type, mode]) => {
     const same = row.actions.filter(action => action.type === type || ((type === 'show_authored_card' || type === 'focus_part') && (action.type === 'show_authored_card' || action.type === 'focus_part')));
     return mode === 'navigate' ? same.some(action => action.mode === 'navigate' && (!expect.card || action.card === expect.card)) : !same.some(action => action.mode === 'navigate');
@@ -160,7 +170,7 @@ export function rescoreRows(rows) {
           if ('jev' in expect || 'larger' in expect) checks.evaluation = (!('jev' in expect) || expect.jev === (row.jev_calls > 0)) && (!('larger' in expect) || (row.larger_calls > 0) === ESCALATING.includes(row.escalation));
           if (expect.events || expect.states) { const e = scoreEvidence(expect, row, { stateOf }); checks.evidence = e.pass; why.evidence = e.why; if (e.unreconstructable) why.unreconstructable = e.unreconstructable; }
           if (expect.row) { checks.route = expect.row === row.row || ROUTE_CLASS(expect.row) === ROUTE_CLASS(row.row); if (!checks.route) why.route = [`${row.row} != ${expect.row}`]; }
-          if (expect.actions) { const a = scoreActions(expect, step.stub?.plan, row, target, statedNoQuiz, row.audit); checks.actions = a.pass; why.actions = a.why; }
+          if (expect.actions) { const a = scoreActions(expect, step.stub?.plan, row, target, statedNoQuiz, row.audit, step, trace); checks.actions = a.pass; why.actions = a.why; }
         }
       }
       out.push({ stage: row.stage, trace: row.trace, turn: row.turn, group: row.group, category: row.category, golden: row.golden, na_fault: !!fault, old: row.checks, new: checks, why, pass: Object.values(checks).every(Boolean), old_pass: row.pass });

@@ -6,7 +6,7 @@
     "den": 148
    },
    "actions_new": {
-    "num": 96,
+    "num": 101,
     "den": 142
    },
    "evidence_old": {
@@ -40,7 +40,7 @@
     "den": 148
    },
    "actions_new": {
-    "num": 100,
+    "num": 105,
     "den": 142
    },
    "evidence_old": {
@@ -74,7 +74,7 @@
     "den": 148
    },
    "actions_new": {
-    "num": 94,
+    "num": 96,
     "den": 142
    },
    "evidence_old": {
@@ -108,7 +108,7 @@
     "den": 148
    },
    "actions_new": {
-    "num": 100,
+    "num": 105,
     "den": 142
    },
    "evidence_old": {
@@ -142,7 +142,7 @@
     "den": 148
    },
    "actions_new": {
-    "num": 97,
+    "num": 102,
     "den": 142
    },
    "evidence_old": {
@@ -174,10 +174,10 @@
  "paired": {
   "B": {
    "routine": {
-    "both": 14,
+    "both": 19,
     "opus": 2,
     "cand": 1,
-    "none": 38,
+    "none": 33,
     "na": 0
    },
    "evidence": {
@@ -197,10 +197,10 @@
   },
   "D": {
    "routine": {
-    "both": 13,
-    "opus": 3,
+    "both": 15,
+    "opus": 6,
     "cand": 4,
-    "none": 35,
+    "none": 30,
     "na": 0
    },
    "evidence": {
@@ -220,10 +220,10 @@
   },
   "E": {
    "routine": {
-    "both": 14,
+    "both": 19,
     "opus": 2,
     "cand": 5,
-    "none": 34,
+    "none": 29,
     "na": 0
    },
    "evidence": {
@@ -243,10 +243,10 @@
   },
   "F": {
    "routine": {
-    "both": 11,
+    "both": 16,
     "opus": 5,
     "cand": 5,
-    "none": 34,
+    "none": 29,
     "na": 0
    },
    "evidence": {
@@ -283,6 +283,10 @@
     {
      "turn": "A-r1 GT-03#2",
      "why": "evaluation §3: larger ran as the escalation policy decided (gap); actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "A-r1 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
     },
     {
      "turn": "A-r1 GT-11#0",
@@ -323,6 +327,10 @@
     {
      "turn": "A-r2 GT-03#2",
      "why": "actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "A-r2 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
     },
     {
      "turn": "A-r2 GT-11#0",
@@ -373,6 +381,10 @@
      "why": "actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
     },
     {
+     "turn": "A-r3 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
+    },
+    {
      "turn": "A-r3 GT-11#0",
      "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
     },
@@ -401,6 +413,10 @@
      "why": "evidence E2 unsettled = settled: [attention-output/weighted-average:pass?] vs [attention-output/weighted-average:pass]; route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
     },
     {
+     "turn": "A-routine-r4 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
+    },
+    {
      "turn": "A-routine-r4 B-question#0",
      "why": "evaluation §3: larger ran as the escalation policy decided (gap)"
     },
@@ -411,6 +427,10 @@
     {
      "turn": "A-routine-r4 B-no-quiz#1",
      "why": "actions A5 allowed extra: [respond_text, suggest_dive] vs [respond_text] (extra suggest_dive)"
+    },
+    {
+     "turn": "A-routine-r5 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
     },
     {
      "turn": "A-routine-r5 B-question#0",
@@ -444,6 +464,10 @@
     {
      "turn": "B-r1 GT-03#2",
      "why": "evaluation §3: larger ran as the escalation policy decided (misconception)"
+    },
+    {
+     "turn": "B-r1 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
     },
     {
      "turn": "B-r1 GT-11#0",
@@ -494,6 +518,10 @@
      "why": "actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
     },
     {
+     "turn": "B-r2 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
+    },
+    {
      "turn": "B-r2 GT-11#0",
      "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
     },
@@ -530,6 +558,10 @@
      "why": "actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
     },
     {
+     "turn": "B-r3 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
+    },
+    {
      "turn": "B-r3 GT-11#0",
      "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
     },
@@ -558,12 +590,20 @@
      "why": "actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
     },
     {
+     "turn": "B-routine-r4 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
+    },
+    {
      "turn": "B-routine-r4 B-question#0",
      "why": "evaluation §3: larger ran as the escalation policy decided (gap); actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
     },
     {
      "turn": "B-routine-r4 B-another-way#0",
      "why": "actions A5 allowed extra: [respond_text, ask_question, show_authored_card] vs [respond_text, show_authored_card] (extra ask_question)"
+    },
+    {
+     "turn": "B-routine-r5 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
     },
     {
      "turn": "B-routine-r5 B-question#0",
@@ -597,6 +637,10 @@
     {
      "turn": "D-r1 GT-03#2",
      "why": "actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "D-r1 GT-04#0",
+     "why": "actions A5 allowed extra: [show_authored_card, respond_text] vs [show_authored_card, respond_text]"
     },
     {
      "turn": "D-r1 GT-11#0",
@@ -739,6 +783,10 @@
      "why": "actions A5 allowed extra: [respond_text, suggest_dive] vs [respond_text] (extra suggest_dive)"
     },
     {
+     "turn": "D-routine-r5 GT-04#0",
+     "why": "actions A5 allowed extra: [show_authored_card, respond_text] vs [show_authored_card, respond_text]"
+    },
+    {
      "turn": "D-routine-r5 B-question#0",
      "why": "evaluation §3: larger ran as the escalation policy decided (gap); actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
     },
@@ -770,6 +818,10 @@
     {
      "turn": "E-r1 GT-03#2",
      "why": "actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "E-r1 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
     },
     {
      "turn": "E-r1 GT-11#0",
@@ -824,6 +876,10 @@
      "why": "evaluation §3: larger ran as the escalation policy decided (misconception)"
     },
     {
+     "turn": "E-r2 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
+    },
+    {
      "turn": "E-r2 GT-11#0",
      "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
     },
@@ -860,6 +916,10 @@
      "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
     },
     {
+     "turn": "E-r3 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
+    },
+    {
      "turn": "E-r3 GT-11#0",
      "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
     },
@@ -892,8 +952,16 @@
      "why": "actions A5 allowed extra: [respond_text, suggest_practice] vs [respond_text] (extra suggest_practice)"
     },
     {
+     "turn": "E-routine-r4 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
+    },
+    {
      "turn": "E-routine-r4 B-question#0",
      "why": "evaluation §3: larger ran as the escalation policy decided (gap)"
+    },
+    {
+     "turn": "E-routine-r5 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
     },
     {
      "turn": "E-routine-r5 B-question#0",
@@ -931,6 +999,10 @@
     {
      "turn": "F-r1 GT-03#2",
      "why": "evaluation §3: larger ran as the escalation policy decided (misconception); actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
+    },
+    {
+     "turn": "F-r1 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
     },
     {
      "turn": "F-r1 GT-11#0",
@@ -981,6 +1053,10 @@
      "why": "evaluation §3: larger ran as the escalation policy decided (misconception); actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
     },
     {
+     "turn": "F-r2 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
+    },
+    {
      "turn": "F-r2 GT-11#0",
      "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
     },
@@ -1017,6 +1093,10 @@
      "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
     },
     {
+     "turn": "F-r3 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
+    },
+    {
      "turn": "F-r3 GT-11#0",
      "why": "evaluation §3: larger ran as the escalation policy decided (contradiction); actions A5 allowed extra: [respond_text, ask_question] vs [respond_text] (extra ask_question)"
     },
@@ -1049,12 +1129,20 @@
      "why": "evidence E2 unsettled = settled: [attention-output/weighted-average:pass?] vs [attention-output/weighted-average:pass]; route R2: uncertain_unsettled ~ uncertain; actions A2 move of the equivalent route: [ask_question] vs [respond_text] (extra ask_question) (replaced respond_text)"
     },
     {
+     "turn": "F-routine-r4 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
+    },
+    {
      "turn": "F-routine-r4 B-question#0",
      "why": "evaluation §3: larger ran as the escalation policy decided (gap)"
     },
     {
      "turn": "F-routine-r4 B-no-quiz#1",
      "why": "actions A5 allowed extra: [respond_text, suggest_dive] vs [respond_text] (extra suggest_dive)"
+    },
+    {
+     "turn": "F-routine-r5 GT-04#0",
+     "why": "actions A5 allowed extra: [respond_text, show_authored_card] vs [show_authored_card, respond_text]"
     },
     {
      "turn": "F-routine-r5 B-question#0",
@@ -1082,11 +1170,10 @@
    "eligible_live_golden": false,
    "failed": [],
    "live_golden": {
-    "passed": 4,
+    "passed": 5,
     "total": 9,
     "failed": [
      "GT-01",
-     "GT-04",
      "GT-06",
      "GT-07",
      "GT-D"
@@ -1098,11 +1185,10 @@
    "eligible_live_golden": false,
    "failed": [],
    "live_golden": {
-    "passed": 4,
+    "passed": 5,
     "total": 9,
     "failed": [
      "GT-02",
-     "GT-04",
      "GT-07",
      "GT-12",
      "GT-D"
@@ -1113,6 +1199,7 @@
    "eligible_unit_golden": false,
    "eligible_live_golden": false,
    "failed": [
+    "actions 96/142 is 3.5 pp below A (101/142)",
     "invalid plans 10/167",
     "routine escalation 13/65"
    ],
@@ -1132,11 +1219,10 @@
    "eligible_live_golden": false,
    "failed": [],
    "live_golden": {
-    "passed": 4,
+    "passed": 5,
     "total": 9,
     "failed": [
      "GT-02",
-     "GT-04",
      "GT-06",
      "GT-07",
      "GT-D"
@@ -1148,11 +1234,10 @@
    "eligible_live_golden": false,
    "failed": [],
    "live_golden": {
-    "passed": 3,
+    "passed": 4,
     "total": 9,
     "failed": [
      "GT-03",
-     "GT-04",
      "GT-06",
      "GT-07",
      "GT-12",

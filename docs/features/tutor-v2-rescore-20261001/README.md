@@ -10,6 +10,30 @@ same rules. Full outputs: `rescored.json` (every turn, old and new checks, reaso
 
 Latency, cost, tokens, hard gates and reliability are the paid measurements, not recomputed.
 
+## Correction: general part rule (owner decision ACCEPT OPTION F, 2026-10-01)
+
+Rubric A3 now requires the expected part only when the learner's words or the turn's context identify that
+part; card identity stays strict (`rubric.md` A3). Applied to every trace and arm by the scorer; no trace
+exception, no output changed, no new call. Only GT-04 ("Don't simplify this. Show me the implementation.",
+no part named or selected) changes; B-deep-part ("Show me where the mask is applied in the code.") still
+requires the causal-mask part. `rescored.json`, `rescore-report.md` and `rescore-summary.json` are
+regenerated with the corrected rule; the first rescore (part always required, rubric at cacca65e) is in
+git history at 29651c69.
+
+| arm | actions first rescore | actions corrected | GT-04 passing | corpus golden traces |
+|---|---|---|---|---|
+| A | 96/142 | 101/142 | 0/5 -> 5/5 | 4/9 -> 5/9 |
+| B | 100/142 | 105/142 | 0/5 -> 5/5 | 4/9 -> 5/9 |
+| D | 94/142 | 96/142 | 0/5 -> 2/5 (3 repetitions open a different card) | 5/9 -> 5/9 |
+| E | 100/142 | 105/142 | 0/5 -> 5/5 | 4/9 -> 5/9 |
+| F | 97/142 | 102/142 | 0/5 -> 5/5 | 3/9 -> 4/9 |
+
+Evidence and route are unchanged. Locked-gate verdicts with the corrected rule: A, B, E and F eligible with
+the unit golden traces; D fails (actions 3.5 points below A, invalid plans 6.0%, routine escalation 20.0%).
+F: actions 102/142 vs A 101/142, evidence 67/124 vs 63/124, route 55/94 vs 52/94. The owner accepted F.
+
+The sections below are the first rescore (before this correction).
+
 ## Old vs semantic accuracy (exact numerator / denominator)
 
 | arm | actions old | actions new | evidence old | evidence new | route old | route new |

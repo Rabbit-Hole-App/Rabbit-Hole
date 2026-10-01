@@ -25,12 +25,12 @@ test('5A: caching marks only the stable prefix - tool schema and policy prompt -
   assert.equal(plannerRequest(context('Ada'), 2000).system, PLANNER_SYSTEM, 'off: Baseline A request shape');
 });
 
-test('5A: TUTOR_PLANNER_CACHE=on sends the marker and reports cache writes and reads; off by default and under SUBSCRIPTION_ONLY', async () => {
+test('5A: caching is on by default (accepted F) and reports cache writes and reads; TUTOR_PLANNER_CACHE=off and SUBSCRIPTION_ONLY turn it off', async () => {
   const on = recorder({ cache_creation_input_tokens: 1400, cache_read_input_tokens: 0 });
-  const turn = await planTurn({ TUTOR_PLANNER_CACHE: 'on' }, context('Ada'), { callModel: on.callModel });
+  const turn = await planTurn({ TUTOR_PLANNER_FAST_MODEL: 'off' }, context('Ada'), { callModel: on.callModel });
   assert.ok(Array.isArray(on.calls[0].body.system));
   assert.deepEqual([turn.telemetry.cache, turn.telemetry.cache_creation_input_tokens, turn.telemetry.cache_read_input_tokens], [true, 1400, 0]);
-  for (const env of [{}, { TUTOR_PLANNER_CACHE: 'on', SUBSCRIPTION_ONLY: 'true' }]) {
+  for (const env of [{ TUTOR_PLANNER_FAST_MODEL: 'off', TUTOR_PLANNER_CACHE: 'off' }, { TUTOR_PLANNER_FAST_MODEL: 'off', SUBSCRIPTION_ONLY: 'true' }]) {
     const off = recorder();
     const plain = await planTurn(env, context('Ada'), { callModel: off.callModel });
     assert.equal(typeof off.calls[0].body.system, 'string');
@@ -47,16 +47,16 @@ test('5B: TUTOR_PLANNER_SPEED=fast asks Opus 5.5 for fast mode exactly as docume
   assert.equal(FAST_MODE_BETA, 'fast-mode-2026-02-01');
   assert.equal('speed' in plannerRequest(context('Ada'), 2000), false, 'off by default');
   const opus = recorder({ speed: 'fast' });
-  const turn = await planTurn({ TUTOR_PLANNER_SPEED: 'fast' }, context('Ada'), { callModel: opus.callModel });
+  const turn = await planTurn({ TUTOR_PLANNER_SPEED: 'fast', TUTOR_PLANNER_FAST_MODEL: 'off' }, context('Ada'), { callModel: opus.callModel });
   assert.deepEqual([opus.calls[0].model, opus.calls[0].body.speed, turn.telemetry.requested_speed, turn.telemetry.speed], ['claude-opus-5-5', 'fast', 'fast', 'fast'], 'usage.speed shows what served it');
   const standard = recorder({ speed: 'standard' });
-  const fellBack = await planTurn({ TUTOR_PLANNER_SPEED: 'fast' }, context('Ada'), { callModel: standard.callModel });
+  const fellBack = await planTurn({ TUTOR_PLANNER_SPEED: 'fast', TUTOR_PLANNER_FAST_MODEL: 'off' }, context('Ada'), { callModel: standard.callModel });
   assert.deepEqual([fellBack.telemetry.requested_speed, fellBack.telemetry.speed], ['fast', 'standard'], 'a standard-speed answer is visible, not hidden');
   const tier = recorder();
   await planTurn({ TUTOR_PLANNER_SPEED: 'fast', TUTOR_PLANNER_FAST_MODEL: 'claude-haiku-4-5-20251001' }, context('Ada'), { callModel: tier.callModel });
   assert.equal('speed' in tier.calls[0].body, false, 'the fast tier model never gets fast mode');
   const sub = recorder();
-  await planTurn({ TUTOR_PLANNER_SPEED: 'fast', SUBSCRIPTION_ONLY: 'true' }, context('Ada'), { callModel: sub.callModel });
+  await planTurn({ TUTOR_PLANNER_SPEED: 'fast', TUTOR_PLANNER_FAST_MODEL: 'off', SUBSCRIPTION_ONLY: 'true' }, context('Ada'), { callModel: sub.callModel });
   assert.equal('speed' in sub.calls[0].body, false);
 });
 
@@ -83,4 +83,22 @@ test('5C: the larger evaluator stays fixed - Opus 5.5, no cache, no fast mode - 
   assert.equal(calls[0].model, 'claude-opus-5-5');
   assert.deepEqual(['speed', 'betas', 'system', 'output_config'].filter(key => key in calls[0].body), [], 'the evaluator request is untouched by every planner knob');
   assert.equal(JSON.stringify(calls[0].body).includes('cache_control'), false);
+});
+
+test('accepted F (owner, 2026-10-01): with no knobs set, routine turns go to Sonnet 5.5 at effort low with caching, everything else to Opus 5.5', async () => {
+  const fast = recorder();
+  const routine = await planTurn({}, context('Ada'), { callModel: fast.callModel });
+  assert.deepEqual([fast.calls[0].model, fast.calls[0].body.output_config, Array.isArray(fast.calls[0].body.system), routine.telemetry.tier], ['claude-sonnet-5-5', { effort: 'low' }, true, 'fast']);
+  const opus = recorder();
+  const graded = await planTurn({}, { ...context('Ada'), learner_intent: { kind: 'explanation' }, route: { row: 'misconception' } }, { callModel: opus.callModel });
+  assert.deepEqual([opus.calls[0].model, 'output_config' in opus.calls[0].body, graded.telemetry.tier], ['claude-opus-5-5', false, 'opus'], 'Opus at its default effort');
+  const haiku = recorder();
+  await planTurn({ TUTOR_PLANNER_FAST_MODEL: 'claude-haiku-4-5-20251001' }, context('Ada'), { callModel: haiku.callModel });
+  assert.equal('output_config' in haiku.calls[0].body, false, 'Haiku 4.5 never gets an effort');
+  const sonnetDefault = recorder();
+  await planTurn({ TUTOR_PLANNER_FAST_EFFORT: 'default' }, context('Ada'), { callModel: sonnetDefault.callModel });
+  assert.equal('output_config' in sonnetDefault.calls[0].body, false, 'default = the model default effort (arm E)');
+  const opusOnly = recorder();
+  await planTurn({ TUTOR_PLANNER_FAST_MODEL: 'off', TUTOR_PLANNER_CACHE: 'off' }, context('Ada'), { callModel: opusOnly.callModel });
+  assert.deepEqual([opusOnly.calls[0].model, typeof opusOnly.calls[0].body.system], ['claude-opus-5-5', 'string'], 'Baseline A reproduction');
 });

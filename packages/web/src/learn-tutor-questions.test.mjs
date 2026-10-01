@@ -1,4 +1,5 @@
-// Decision 4 (owner, 2026-10-01, option B): constraint-first planner output. A Tutor question may be
+// Decision 4 (owner, 2026-10-01, option B): constraint-first planner output. These tests exercise one planner
+// (TUTOR_PLANNER_FAST_MODEL off) unless a test sets a fast model. A Tutor question may be
 // spoken before the plan is complete only once every deterministic constraint that could cancel it has
 // passed: the learner's "don't quiz me", the route, the question budget, the Socratic-turn limit, a
 // conflicting explicit request, required evidence, and (Decision 2) no pending Opus re-plan.
@@ -28,7 +29,7 @@ function sse(input, model = 'claude-opus-5-5') {
 
 // One turn on the causal-mask card. evaluation: what /evaluate returns (after `delay` planner calls
 // have started, to model an evaluation still running); replies: the planner's SSE replies in order.
-async function turn(raw, replies, { store = emptyStore(), env = {}, evaluation = { status: 'settled', evaluator: 'jev', events: [] }, slash = null } = {}) {
+async function turn(raw, replies, { store = emptyStore(), env = { TUTOR_PLANNER_FAST_MODEL: 'off' }, evaluation = { status: 'settled', evaluator: 'jev', events: [] }, slash = null } = {}) {
   const heard = [], order = [];
   const post = async (path, body, options) => {
     if (path === '/api/learn/tutor/evaluate') { order.push('evaluate'); return evaluation; }
@@ -90,7 +91,7 @@ test('D4-6: no question is spoken before the evaluation it depends on has landed
   const post = async (path, body, options) => {
     if (path === '/api/learn/tutor/evaluate') { await landed; return { status: 'settled', evaluator: 'jev', events: [] }; }
     const question = { type: 'ask_question', text: 'What if every weight were 0.25? Try it.', claim: 'attention-output/weighted-average', purpose: 'transfer' };
-    const result = await planTurn({}, body.context, { onSentence: options.onSentence, callModel: async () => sse(plan([question])) });
+    const result = await planTurn({ TUTOR_PLANNER_FAST_MODEL: 'off' }, body.context, { onSentence: options.onSentence, callModel: async () => sse(plan([question])) });
     land();
     return result;
   };

@@ -489,6 +489,21 @@ turns (Baseline A UI 58% on its evaluation-heavy golden turns). Late evidence: 1
 streamed arms; early questions 100% of question-opening turns. Caching: 151-154 warm reads per cached
 arm, ~0.30M cached tokens each; cost -22% (B vs A), no measurable latency change.
 
+## Accepted architecture: F (owner decision ACCEPT OPTION F, 2026-10-01)
+
+The branch is the F-ready candidate. With no planner knobs set (`PLANNER_DEFAULTS` in
+`learn-tutor-routes.js`): routine turns (a question, request, slash or hole opening on the rows `slash`,
+`off_slice`, `not_yet_observed`, `understood`, `gap`, `gap_inline`) are planned by `claude-sonnet-5-5` at
+effort low; every other turn, and any fast plan that fails its check (an error, invalid JSON, an action
+outside the allowed types, no words), is planned by `claude-opus-5-5` at its default effort; prompt caching
+is on. The fast-tier sentence is held until its plan passes (D2); the evaluator path (JEV, explicit
+escalation, the Opus 5.5 larger evaluator), critical-path policy, late-evidence handling, constraint-first
+questions and per-idea evidence are unchanged. No Haiku; optimized Opus is not a latency strategy.
+Opt-outs: `TUTOR_PLANNER_FAST_MODEL=off` (Opus only), `TUTOR_PLANNER_CACHE=off`,
+`TUTOR_PLANNER_FAST_EFFORT=default`. The benchmark runner sets every knob per arm, so arms A-F reproduce
+what was measured. Rubric correction: a part is required only when the learner or the context names it
+(`docs/features/tutor-v2-rescore-20261001/`).
+
 ## Free semantic rescore (GO FREE RESCORE, 2026-10-01)
 
 The paid rows re-scored with a semantic-equivalence rubric committed before any arm was scored

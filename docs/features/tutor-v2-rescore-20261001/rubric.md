@@ -101,7 +101,15 @@ suggest mode of the target's ladder neighbour is also NEXT of that card), PRACTI
   `uncertain_unsettled` requires QUESTION (one clarifying question); `uncertain` requires TEXT or SHOW
   (explain concretely or re-represent with an authored card).
 - A3 Card and part: `expect.card` must be the card of the SHOW or NEXT function (focus_part on the card
-  counts; NEXT counts when its ladder step is that card); `expect.part` must equal the focused part.
+  counts; NEXT counts when its ladder step is that card). Card identity is always strict.
+  Part (corrected 2026-10-01 by the owner's decision ACCEPT OPTION F; a general rule for every trace and
+  arm, no trace exception): `expect.part` must equal the focused part ONLY when the learner turn or its
+  context identifies that specific part - the learner's words name the part (a word of four or more
+  letters from the part's id or authored label, other than show, this, that, where, with, from, code,
+  card, part, into), or the turn's context has that part selected (the scripted start part or selected
+  object is that part). For a card-level request ("show me the implementation"), opening the correct card
+  is sufficient and the expected part is not required. Originally (committed at cacca65e) the part was
+  always required; that version's results stay in git history and in the delta below.
 - A4 Modes (consent-relevant, strict): an expected `navigate` must be a navigating show/focus on that card
   (a suggestion chip does not honour an explicit request); an expected `suggest` must not navigate.
 - A5 Extras: functions beyond the required ones are allowed only when the route row's allowed set permits

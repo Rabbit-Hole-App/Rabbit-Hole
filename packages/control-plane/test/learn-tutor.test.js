@@ -177,7 +177,7 @@ test('evaluate: the larger evaluator failing keeps JEV\'s unsettled events', asy
 test('plan: one forced tutor_response call on Opus 5.5 (no fallback); its input is the TutorResponse, plus telemetry', async t => {
   const turn = { strategy: 'none', move: 'answer', reason: 'r', actions: [{ type: 'respond_text', text: 'Hi.' }] };
   const calls = recordFetch(t, { model: 'claude-opus-5-5', usage: { input_tokens: 3100, output_tokens: 120 }, content: [{ type: 'tool_use', name: 'tutor_response', input: turn }], stop_reason: 'tool_use' });
-  const w = world(t);
+  const w = world(t, { TUTOR_PLANNER_FAST_MODEL: 'off', TUTOR_PLANNER_CACHE: 'off' }); // the Opus-only call shape (Baseline A; F opts out)
   const response = await w.post('/api/learn/tutor/plan', { app: 'canvas-0a1b2c3d', context: { turn: { raw_user_message: 'hi' } } });
   const { telemetry, ...body } = await response.json();
   assert.deepEqual(body, turn);
@@ -215,7 +215,7 @@ test('plan: switched-on canvas context documents come first, then the context (c
 
 test('plan: no usable tutor_response is a 502 with telemetry outcome invalid; a different served model shows', async t => {
   recordFetch(t, { model: 'claude-opus-5', usage: { input_tokens: 3000, output_tokens: 9 }, content: [{ type: 'text', text: 'hello' }], stop_reason: 'max_tokens' });
-  const w = world(t);
+  const w = world(t, { TUTOR_PLANNER_FAST_MODEL: 'off', TUTOR_PLANNER_CACHE: 'off' });
   const response = await w.post('/api/learn/tutor/plan', { app: 'canvas-0a1b2c3d', context: { turn: { raw_user_message: 'hi' } } });
   assert.equal(response.status, 502);
   const { error, telemetry } = await response.json();
@@ -258,7 +258,7 @@ test('plannerTier: routine questions, requests, slashes and openings on fixed-mo
 
 test('plan: with TUTOR_PLANNER_FAST_MODEL a routine turn is planned by the fast model with the same prompt and tool', async t => {
   const calls = replies(t, [answer]);
-  const body = await (await world(t, { TUTOR_PLANNER_FAST_MODEL: 'claude-haiku-4-5-20251001' }).post('/api/learn/tutor/plan', { app: 'canvas-0a1b2c3d', context: routine })).json();
+  const body = await (await world(t, { TUTOR_PLANNER_FAST_MODEL: 'claude-haiku-4-5-20251001', TUTOR_PLANNER_CACHE: 'off' }).post('/api/learn/tutor/plan', { app: 'canvas-0a1b2c3d', context: routine })).json();
   assert.equal(calls.length, 1);
   assert.equal(calls[0].model, 'claude-haiku-4-5-20251001');
   assert.equal(calls[0].tools[0].name, 'tutor_response');

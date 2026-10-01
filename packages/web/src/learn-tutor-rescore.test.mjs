@@ -2,7 +2,8 @@
 // different behaviour still fails. Rows are hand-built in the recorded-row shape; no model is involved.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { rescoreRows } from '../e2e/tutor-bench-rescore.mjs';
+import { partSpecific, rescoreRows } from '../e2e/tutor-bench-rescore.mjs';
+import { CORPUS } from '../e2e/tutor-corpus.mjs';
 
 const base = { stage: 'X', group: 'routine', category: 'c', golden: false, checks: {}, pass: false, jev_calls: 1, larger_calls: 0, escalation: 'settled', jev_outcome: 'settled', larger_outcome: null, audit: { consent: 0, policy: 0, resource: 0 }, transitions: [], events: [], selected: [], actions: [] };
 const one = row => rescoreRows([{ ...base, ...row }])[0];
@@ -13,6 +14,7 @@ test('rubric: a question answered with an answer passes; a question-only reply o
   const nav = { trace: 'GT-04', turn: 0, row: 'uncertain', events: [] };
   assert.equal(one({ ...nav, actions: [{ type: 'focus_part', card: 'depth-attention-deep', part_id: 'shapes', mode: 'navigate' }, { type: 'respond_text' }] }).new.actions, true, 'focus_part on the card = show the card');
   assert.equal(one({ ...nav, actions: [{ type: 'show_authored_card', card: 'depth-attention-deep', mode: 'suggest' }, { type: 'respond_text' }] }).new.actions, false, 'a chip does not honour an explicit request');
+  assert.equal(one({ ...nav, actions: [{ type: 'show_authored_card', card: 'depth-attention-deep', mode: 'navigate' }, { type: 'respond_text' }] }).new.actions, true, 'a card-level request: the correct card is enough (A3 part rule)');
   assert.equal(one({ ...nav, actions: [{ type: 'show_authored_card', card: 'depth-attention-guided', mode: 'navigate' }, { type: 'respond_text' }] }).new.actions, false, 'another card');
 });
 
@@ -30,4 +32,14 @@ test('rubric: routes are strict apart from settled vs unsettled uncertainty; scr
   const jev = one({ trace: 'B-jev-error', turn: 0, row: 'uncertain', jev_outcome: 'settled', actions: [] });
   assert.deepEqual([jev.na_fault, Object.keys(jev.new)], [true, []]);
   assert.equal(one({ trace: 'B-jev-error', turn: 0, row: 'not_yet_observed', jev_outcome: 'timeout', events: [], actions: [{ type: 'respond_text' }] }).na_fault, false, 'the fault happened: scored');
+});
+
+test('rubric A3 part rule: a part is required only when the learner or the context names it', () => {
+  const trace = id => CORPUS.find(t => t.id === id);
+  assert.equal(partSpecific(trace('GT-04').turns[0], trace('GT-04'), 'depth-attention-deep', 'shapes'), false, '"Show me the implementation" is card-level');
+  assert.equal(partSpecific(trace('B-deep-part').turns[0], trace('B-deep-part'), 'depth-attention-deep', 'causal-mask'), true, '"where the mask is applied" names the part');
+  const deep = { trace: 'B-deep-part', turn: 0, row: 'uncertain', events: [] };
+  assert.equal(one({ ...deep, actions: [{ type: 'show_authored_card', card: 'depth-attention-deep', mode: 'navigate' }, { type: 'respond_text' }] }).new.actions, false, 'the whole card does not answer a part-specific request');
+  assert.equal(one({ ...deep, actions: [{ type: 'focus_part', card: 'depth-attention-deep', part_id: 'causal-mask', mode: 'navigate' }, { type: 'respond_text' }] }).new.actions, true);
+  assert.equal(partSpecific({ raw: 'Show me this.' }, { start: { card: 'depth-attention-deep', part: 'shapes' } }, 'depth-attention-deep', 'shapes'), true, 'a selected part + "show me this"');
 });

@@ -147,7 +147,7 @@ export async function readPlannerStream(response, onInput, onDelta = null) {
 async function planOnce(env, context, model, effort, { callModel = loggedModel('tutor', anthropic), onSentence = null } = {}, documents = []) {
   const started = Date.now();
   const stream = !!onSentence && env.SUBSCRIPTION_ONLY !== 'true';
-  const cache = env.TUTOR_PLANNER_CACHE === 'on' && env.SUBSCRIPTION_ONLY !== 'true';
+  const cache = env.TUTOR_PLANNER_CACHE !== 'off' && env.SUBSCRIPTION_ONLY !== 'true'; // F default: on
   const speed = env.TUTOR_PLANNER_SPEED === 'fast' && model === LEARN_TASKS.tutor.model && env.SUBSCRIPTION_ONLY !== 'true' ? 'fast' : null;
   const telemetry = { ms: null, requested_model: model, effort, served_model: null, input_tokens: null, output_tokens: null, ...(cache ? { cache: true, cache_creation_input_tokens: null, cache_read_input_tokens: null } : {}), ...(speed ? { requested_speed: speed, speed: null } : {}), stop_reason: null, outcome: null, ...(stream ? { streamed: true, first_output_ms: null, first_sentence_ms: null } : {}) };
   const done = outcome => ({ ...telemetry, ms: Date.now() - started, outcome });
@@ -170,8 +170,14 @@ async function planOnce(env, context, model, effort, { callModel = loggedModel('
 
 // v2 checkpoint H: the tiered planner, off unless TUTOR_PLANNER_FAST_MODEL names one of these exact ids
 // (Decision 3, owner 2026-10-01: never substituted; Opus stays LEARN_TASKS.tutor.model, claude-opus-5-5)
-// (claude-api skill model table, cached 2026-09-25). Only the benchmark sets it until the owner picks.
+// (claude-api skill model table, cached 2026-09-25).
 export const FAST_PLANNER_MODELS = ['claude-haiku-4-5-20251001', 'claude-sonnet-5-5'];
+// The accepted architecture (owner decision ACCEPT OPTION F, 2026-10-01; benchmark arm F): routine turns
+// on Sonnet 5.5 at effort low, Opus 5.5 for everything else and whenever a fast plan fails its check,
+// prompt caching on. These are the defaults when the knobs are unset. Opt-outs (benchmark arms, Baseline A
+// reproduction): TUTOR_PLANNER_FAST_MODEL=off (Opus only), TUTOR_PLANNER_CACHE=off,
+// TUTOR_PLANNER_FAST_EFFORT=default (the fast model's own default effort). Haiku 4.5 takes no effort.
+export const PLANNER_DEFAULTS = Object.freeze({ fast_model: 'claude-sonnet-5-5', fast_effort: 'low', cache: 'on' });
 // Routine: a question, request, slash or hole opening on a row whose move the router has already fixed.
 // Everything else (misconceptions, unsettled or uncertain evidence, a return from a hole, any
 // explanation or answer) stays on Opus 5.5.
@@ -204,7 +210,9 @@ export async function planTurn(env, context, deps = {}, documents = []) {
   // One first sentence per turn, even when a fast plan is re-planned on Opus.
   if (deps.onSentence) { let sent = false; const hand = deps.onSentence; deps = { ...deps, onSentence: text => { if (!sent) { sent = true; hand(text); } } }; }
   const level = name => PLANNER_EFFORTS.includes(env[name]) ? env[name] : null;
-  const fast = FAST_PLANNER_MODELS.includes(env.TUTOR_PLANNER_FAST_MODEL) ? env.TUTOR_PLANNER_FAST_MODEL : null;
+  const fastName = env.TUTOR_PLANNER_FAST_MODEL ?? PLANNER_DEFAULTS.fast_model;
+  const fast = FAST_PLANNER_MODELS.includes(fastName) ? fastName : null;
+  const fastEffort = env.TUTOR_PLANNER_FAST_EFFORT == null ? (fast === PLANNER_DEFAULTS.fast_model ? PLANNER_DEFAULTS.fast_effort : null) : level('TUTOR_PLANNER_FAST_EFFORT');
   const tier = fast ? plannerTier(context) : null;
   const opus = () => planOnce(env, context, LEARN_TASKS.tutor.model, level('TUTOR_PLANNER_EFFORT'), deps, documents);
   if (!tier) return opus();
@@ -214,7 +222,7 @@ export async function planTurn(env, context, deps = {}, documents = []) {
   }
   let first, problem, held = null;
   const hold = deps.onSentence ? { ...deps, onSentence: sentence => { held ??= sentence; } } : deps;
-  try { first = await planOnce(env, context, fast, level('TUTOR_PLANNER_FAST_EFFORT'), hold, documents); problem = fastPlanProblem(first, context); }
+  try { first = await planOnce(env, context, fast, fastEffort, hold, documents); problem = fastPlanProblem(first, context); }
   catch (error) { first = { telemetry: error.telemetry }; problem = error.message; }
   if (!problem) {
     if (held) deps.onSentence(held);
