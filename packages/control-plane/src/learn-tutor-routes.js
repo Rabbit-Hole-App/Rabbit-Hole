@@ -12,7 +12,7 @@ import { modelFailure } from './learn-research.js';
 import { LEARN_TASKS, loggedModel } from './learn-models.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { escalation } from './agents/learn-tutor-escalation.js';
-import { evaluationFrom, largerInstruction, parseLarger, PLANNER_EFFORTS, plannerRequest, readTutorAnswers, tutorJevRequest, TUTOR_TOOL } from './agents/learn-tutor.js';
+import { evaluationFrom, firstSentence, largerInstruction, parseLarger, PLANNER_EFFORTS, plannerRequest, readTutorAnswers, tutorJevRequest, TUTOR_TOOL } from './agents/learn-tutor.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 export const JEV_TIMEOUT_MS = 800;
@@ -102,16 +102,54 @@ export async function evaluateFreeText(env, spec, message, deps = {}) {
 
 // The TutorResponse at top level (the client reads it) plus `telemetry`. A failure throws with
 // `error.telemetry`: outcome 'invalid' when the reply has no usable tutor_response, else 'error'.
+// A streamed planner reply (Anthropic SSE) -> the same shape as a non-streamed one. The tutor_response
+// input is parsed strictly at the end (eager streaming skips the API's own check); `onInput` sees the
+// input so far after every fragment.
+export async function readPlannerStream(response, onInput) {
+  const message = { model: null, usage: {}, stop_reason: null, content: [] };
+  const reader = response.body.getReader(), decoder = new TextDecoder();
+  let buffer = '', tool = null, input = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop();
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      let event;
+      try { event = JSON.parse(line.slice(6)); } catch { continue; }
+      if (event.type === 'message_start') Object.assign(message, { model: event.message?.model ?? null, usage: { ...event.message?.usage } });
+      else if (event.type === 'content_block_start' && event.content_block?.type === 'tool_use' && event.content_block.name === TUTOR_TOOL.name && tool == null) tool = event.index;
+      else if (event.type === 'content_block_delta' && event.index === tool && event.delta?.type === 'input_json_delta') { input += event.delta.partial_json || ''; onInput?.(input); }
+      else if (event.type === 'message_delta') { message.stop_reason = event.delta?.stop_reason ?? message.stop_reason; Object.assign(message.usage, event.usage || {}); }
+    }
+  }
+  if (tool != null) {
+    let parsed;
+    try { parsed = JSON.parse(input); } catch { parsed = null; }
+    message.content.push({ type: 'tool_use', name: TUTOR_TOOL.name, input: parsed });
+  }
+  return message;
+}
+
 // One planner call on `model`. effort: output_config.effort, or null for the model default.
-async function planOnce(env, context, model, effort, { callModel = loggedModel('tutor', anthropic) } = {}, documents = []) {
+// onSentence (v2 checkpoint I): stream the reply and hand over the plan's first sentence as soon as
+// firstSentence finds it. Not under SUBSCRIPTION_ONLY, whose bridge replays text only.
+async function planOnce(env, context, model, effort, { callModel = loggedModel('tutor', anthropic), onSentence = null } = {}, documents = []) {
   const started = Date.now();
-  const telemetry = { ms: null, requested_model: model, effort, served_model: null, input_tokens: null, output_tokens: null, stop_reason: null, outcome: null };
+  const stream = !!onSentence && env.SUBSCRIPTION_ONLY !== 'true';
+  const telemetry = { ms: null, requested_model: model, effort, served_model: null, input_tokens: null, output_tokens: null, stop_reason: null, outcome: null, ...(stream ? { streamed: true, first_sentence_ms: null } : {}) };
   const done = outcome => ({ ...telemetry, ms: Date.now() - started, outcome });
   let result;
   try {
-    const response = await callModel(env, plannerRequest(context, LEARN_TASKS.tutor.maxTokens, documents, { effort }), model, null);
+    const response = await callModel(env, plannerRequest(context, LEARN_TASKS.tutor.maxTokens, documents, { effort, stream }), model, null);
     if (!response.ok) throw await modelFailure(response, 'The tutor is unavailable');
-    result = await response.json();
+    result = stream ? await readPlannerStream(response, input => {
+      if (telemetry.first_sentence_ms != null) return;
+      const sentence = firstSentence(input);
+      if (sentence) { telemetry.first_sentence_ms = Date.now() - started; onSentence(sentence); }
+    }) : await response.json();
   } catch (error) { throw Object.assign(error, { telemetry: done('error') }); }
   Object.assign(telemetry, { served_model: result.model ?? null, input_tokens: result.usage?.input_tokens ?? null, output_tokens: result.usage?.output_tokens ?? null, stop_reason: result.stop_reason ?? null });
   const call = result.content?.find(block => block.type === 'tool_use' && block.name === TUTOR_TOOL.name);
@@ -147,6 +185,8 @@ export function fastPlanProblem(plan, context) {
 // The fast model gets the same system prompt, Teaching State, route and allowed actions: it never
 // sets policy. A failed or unusable fast plan is re-planned on Opus 5.5 (telemetry.escalated).
 export async function planTurn(env, context, deps = {}, documents = []) {
+  // One first sentence per turn, even when a fast plan is re-planned on Opus.
+  if (deps.onSentence) { let sent = false; const hand = deps.onSentence; deps = { ...deps, onSentence: text => { if (!sent) { sent = true; hand(text); } } }; }
   const level = name => PLANNER_EFFORTS.includes(env[name]) ? env[name] : null;
   const fast = FAST_PLANNER_MODELS.includes(env.TUTOR_PLANNER_FAST_MODEL) ? env.TUTOR_PLANNER_FAST_MODEL : null;
   const tier = fast ? plannerTier(context) : null;
@@ -186,5 +226,19 @@ export async function tutorRoute(path, req, env, deps = {}) {
   // The canvas's switched-on context documents reach the planner (canvas-context-docs.md); JEV is unchanged.
   let documents;
   try { documents = await (deps.documents || contextDocumentBlocks)(env, access); } catch (error) { return json({ error: `Context documents: ${error.message}` }, 502); }
+  // v2 checkpoint I: { stream: true } answers in NDJSON - {type:'sentence', text} as soon as the plan's
+  // first sentence is written, then {type:'plan', ...TutorResponse} or {type:'error', error, telemetry}.
+  // The browser validates the sentence against the route before anything is spoken (speakable).
+  if (body.stream === true) {
+    const { readable, writable } = new TransformStream();
+    const writer = writable.getWriter(), encoder = new TextEncoder();
+    const send = event => writer.write(encoder.encode(`${JSON.stringify(event)}\n`)).catch(() => {});
+    (async () => {
+      try { await send({ type: 'plan', ...await planTurn(env, body.context, { ...deps, onSentence: text => send({ type: 'sentence', text }) }, documents) }); }
+      catch (error) { await send({ type: 'error', error: error.message, telemetry: error.telemetry }); }
+      finally { await writer.close().catch(() => {}); }
+    })();
+    return new Response(readable, { headers: { 'Content-Type': 'application/x-ndjson', 'Cache-Control': 'no-store' } });
+  }
   try { return json(await planTurn(env, body.context, deps, documents)); } catch (error) { return json({ error: error.message, telemetry: error.telemetry }, 502); }
 }

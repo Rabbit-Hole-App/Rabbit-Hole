@@ -186,16 +186,93 @@ export const PLANNER_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
 
 // documents: the canvas's switched-on context documents (canvas-context-docs.md), read before the context.
 // effort: output_config.effort, only when set (v2 checkpoint G); otherwise the model default.
-export const plannerRequest = (context, maxTokens, documents = [], { effort = null } = {}) => {
+// stream (v2 checkpoint I): a streamed request whose tool input streams as it is written
+// (eager_input_streaming; the client then owns validation: planTurn parses it strictly).
+export const plannerRequest = (context, maxTokens, documents = [], { effort = null, stream = false } = {}) => {
   const text = `Compose this turn.\n\ncontext = ${JSON.stringify(context)}`;
   return {
     max_tokens: maxTokens,
     ...(effort ? { output_config: { effort } } : {}),
+    ...(stream ? { stream: true } : {}),
     system: PLANNER_SYSTEM,
-    tools: [TUTOR_TOOL],
+    tools: [stream ? { ...TUTOR_TOOL, eager_input_streaming: true } : TUTOR_TOOL],
     // auto, not forced: claude-opus-5-5 refuses tool_choice tool/any (HTTP 400). A reply without the
     // tutor_response call stays invalid (planTurn), so free text is never a plan.
     tool_choice: { type: 'auto' },
     messages: [{ role: 'user', content: documents.length ? [...documents, { type: 'text', text }] : text }],
   };
 };
+
+// ---------- First sentence from a streaming plan (v2 checkpoint I) ----------
+
+// A prefix of a JSON document -> the value it has so far: open strings, arrays and objects are
+// closed, a key without its value and an unfinished number or literal are left out. `open` names
+// the object and key whose string value is still being written, if any.
+export function parsePartial(text) {
+  let i = 0, open = null;
+  const END = Symbol('end');
+  const ws = () => { while (i < text.length && ' \t\r\n'.includes(text[i])) i++; };
+  const string = () => { // at a quote; returns { value, done }
+    let raw = '';
+    for (i++; i < text.length; i++) {
+      const ch = text[i];
+      if (ch === '"') { i++; return { value: JSON.parse(`"${raw}"`), done: true }; }
+      if (ch === '\\') { if (i + 1 >= text.length) break; raw += ch + text[++i]; continue; }
+      raw += ch;
+    }
+    raw = raw.replace(/\\u[0-9a-fA-F]{0,3}$/, '');
+    return { value: JSON.parse(`"${raw}"`), done: false };
+  };
+  function value(owner, key) {
+    ws();
+    if (i >= text.length) return END;
+    const ch = text[i];
+    if (ch === '"') { const s = string(); if (!s.done) open = { owner, key }; return s.value; }
+    if (ch === '{' || ch === '[') {
+      const list = ch === '[', out = list ? [] : {};
+      for (i++; ;) {
+        ws();
+        if (i >= text.length) return out;
+        if (text[i] === (list ? ']' : '}')) { i++; return out; }
+        if (text[i] === ',') { i++; continue; }
+        if (list) { const v = value(out, out.length); if (v === END) return out; out.push(v); continue; }
+        if (text[i] !== '"') return out;
+        const k = string();
+        if (!k.done) return out;
+        ws();
+        if (text[i] !== ':') return out;
+        i++;
+        const v = value(out, k.value);
+        if (v === END) return out;
+        out[k.value] = v;
+      }
+    }
+    const literal = /^(-?\d+(\.\d+)?([eE][+-]?\d+)?|true|false|null)/.exec(text.slice(i));
+    if (!literal || i + literal[0].length >= text.length) return END; // unfinished, or cut at the end
+    i += literal[0].length;
+    return JSON.parse(literal[0]);
+  }
+  const result = value(null, null);
+  return { value: result === END ? undefined : result, open };
+}
+
+// The first complete sentence of the plan's first respond_text, once it is safe to know: every action
+// before it has its type and is not respond_text, it is within the first three actions (the gate keeps
+// at most three, and cuts words before a dive suggestion to two sentences, never below one), and the
+// sentence has ended (". " inside the text, or the text itself has closed on . ! or ?). A sentence ends
+// where the validator splits one: at . ! or ? followed by a space, so 0.67 or F.softmax stay whole.
+export function firstSentence(partialJson) {
+  const { value, open } = parsePartial(String(partialJson || ''));
+  const actions = Array.isArray(value?.actions) ? value.actions.slice(0, 3) : [];
+  for (const action of actions) {
+    if (!action || typeof action.type !== 'string') return null;
+    if (action.type !== 'respond_text') continue;
+    if (typeof action.text !== 'string') return null;
+    const text = action.text.trimStart();
+    const ended = text.match(/^[\s\S]*?[.!?](?=\s)/);
+    if (ended) return ended[0];
+    const closed = !(open && open.owner === action && open.key === 'text');
+    return closed && /[.!?]$/.test(text.trim()) ? text.trim() : null;
+  }
+  return null;
+}

@@ -11,7 +11,10 @@
 // only the owner's GO BENCHMARK authorises; never from make.
 // --candidate (live only): the worker's planner knobs for this run (CANDIDATES below; v2 checkpoints
 // G and H). The stub run reports which tier H would pick per turn without calling anything.
-// Usage: node e2e/tutor-corpus-run.mjs [--stage A] [--out dir] [--live [--candidate G-default] [--price-in USD --price-out USD]]
+// --stream (v2 checkpoint I): turns ask for the plan's first sentence early (runTurn onSpeakable). Stub:
+// the scripted plan, actions first as checkpoint G asks, is streamed through the real planTurn as SSE;
+// live: the real streamed planner, with the time to the first sentence.
+// Usage: node e2e/tutor-corpus-run.mjs [--stage A] [--out dir] [--stream] [--live [--candidate G-default] [--price-in USD --price-out USD]]
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { cardBlock } from '../src/nanogpt/board.js';
 import { applyCheck, applyNewAttempt, enterPractice, setActivityAnswer } from '../src/scene-activity.js';
@@ -22,12 +25,12 @@ import { partIndex } from '../src/nanogpt/depth/board.js';
 import { emptyStore } from '../src/learn-tutor-evidence.js';
 import { arriveAt, enterHole, keepHere, markOpened, openingQuestion, runTurn } from '../src/learn-tutor.js';
 import { evaluateFreeText, plannerTier, planTurn, validateEvaluateBody } from '../../control-plane/src/learn-tutor-routes.js';
-import { PLANNER_SYSTEM, TUTOR_TOOL, tutorQuestions } from '../../control-plane/src/agents/learn-tutor.js';
+import { firstSentence, PLANNER_SYSTEM, TUTOR_TOOL, tutorQuestions } from '../../control-plane/src/agents/learn-tutor.js';
 import { CORPUS } from './tutor-corpus.mjs';
 
 const args = process.argv.slice(2);
 const flag = (name, fallback) => { const at = args.indexOf(`--${name}`); return at >= 0 ? args[at + 1] : fallback; };
-const STAGE = flag('stage', 'A'), OUT = flag('out', 'tutor-bench-out'), LIVE = args.includes('--live');
+const STAGE = flag('stage', 'A'), OUT = flag('out', 'tutor-bench-out'), LIVE = args.includes('--live'), STREAM = args.includes('--stream');
 const PRICE = { in: Number(flag('price-in', NaN)), out: Number(flag('price-out', NaN)) };
 if (LIVE && process.env.TUTOR_BENCH_PAID !== 'GO') throw Error('--live makes paid model calls: set TUTOR_BENCH_PAID=GO only after the owner typed GO BENCHMARK');
 // Planner candidates for the paid benchmark (env knobs read by planTurn). Baseline A is its own SHA.
@@ -81,6 +84,16 @@ const hole = parent => ({
   return_point: { block_id: parent.id, part_id: null, pending_question: null, viewport: null },
 });
 
+// A scripted plan as an Anthropic SSE stream of its tutor_response input, in small fragments.
+function stubSse(json) {
+  const events = [{ type: 'message_start', message: { model: 'stub', usage: {} } }, { type: 'content_block_start', index: 0, content_block: { type: 'tool_use', name: TUTOR_TOOL.name, input: {} } }];
+  for (let at = 0; at < json.length; at += 8) events.push({ type: 'content_block_delta', index: 0, delta: { type: 'input_json_delta', partial_json: json.slice(at, at + 8) } });
+  events.push({ type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: {} });
+  return new Response(events.map(event => `data: ${JSON.stringify(event)}\n\n`).join(''));
+}
+// How far into the plan's output the first sentence is ready: prefix characters / all characters.
+const sentenceAt = json => { for (let n = 1; n <= json.length; n++) if (firstSentence(json.slice(0, n))) return +(n / json.length).toFixed(3); return null; };
+
 const eventKey = event => `${event.claim}:${event.result}${event.settled ? '' : '?'}`;
 const sameBag = (a, b) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
 const sentences = text => String(text || '').trim().split(/(?<=[.!?])\s+/).filter(Boolean).length;
@@ -119,8 +132,8 @@ async function runTrace(trace) {
     }
     if (step.opening) { raw = openingQuestion(store, inHole); store = markOpened(store, inHole); }
     if (step.climb) { store = arriveAt(store, PARENT); canvas = PARENT; inHole = null; }
-    const calls = { jev: 0, larger: 0, planner: 0, plannerChars: 0, jevQuestions: 0, selected: [], escalation: null, invalid: 0, jevMs: null, jevOutcome: null, largerMs: null, largerOutcome: null, largerTokens: null, plannerMs: null, plannerTokens: null, plannerOutcome: null, tier: null, servedTier: null, escalated: null };
-    const post = async (path, body) => {
+    const calls = { jev: 0, larger: 0, planner: 0, plannerChars: 0, jevQuestions: 0, selected: [], escalation: null, invalid: 0, jevMs: null, jevOutcome: null, largerMs: null, largerOutcome: null, largerTokens: null, plannerMs: null, plannerTokens: null, plannerOutcome: null, tier: null, servedTier: null, escalated: null, sentenceAt: null, firstSentenceMs: null };
+    const post = async (path, body, options = {}) => {
       if (path === '/api/learn/tutor/evaluate') {
         const input = validateEvaluateBody(body);
         if (input.error) { calls.invalid++; throw new Error(input.error); }
@@ -147,9 +160,15 @@ async function runTrace(trace) {
       calls.planner++;
       calls.plannerChars = JSON.stringify(body.context).length;
       calls.tier = plannerTier(body.context).tier;
-      if (!LIVE) return step.stub.plan;
+      if (!LIVE && !STREAM) return step.stub.plan;
+      if (!LIVE) {
+        const { actions, ...rest } = step.stub.plan, json = JSON.stringify({ actions, ...rest });
+        calls.sentenceAt = sentenceAt(json);
+        return planTurn({}, body.context, { onSentence: options.onSentence, callModel: async () => stubSse(json) });
+      }
       try {
-        const planned = await planTurn(ENV, body.context);
+        const planned = await planTurn(ENV, body.context, STREAM ? { onSentence: options.onSentence } : {});
+        calls.firstSentenceMs = planned.telemetry.first_sentence_ms ?? null;
         Object.assign(calls, { plannerMs: planned.telemetry.ms, plannerOutcome: 'ok', plannerTokens: { in: planned.telemetry.input_tokens, out: planned.telemetry.output_tokens },
           servedTier: planned.telemetry.tier ?? 'opus', escalated: planned.telemetry.escalated ?? null });
         return planned;
@@ -161,7 +180,7 @@ async function runTrace(trace) {
     const before = store.events.length;
     const started = performance.now();
     let result;
-    try { result = await runTurn({ raw, slash: step.slash || null, opening: !!step.opening, canvas, access: { app: canvas.app }, block: inHole ? null : block, store, post }); }
+    try { result = await runTurn({ raw, slash: step.slash || null, opening: !!step.opening, canvas, access: { app: canvas.app }, block: inHole ? null : block, store, post, onSpeakable: STREAM ? () => {} : null }); }
     catch (error) {
       // A failed turn (the planner errored or returned no turn) ends its trace: later turns depend on it.
       rows.push({ stage: STAGE, mode: MODE, trace: trace.id, turn: index, category: step.category || trace.category, golden: !!trace.golden, error: String(error.message).slice(0, 200),
@@ -190,6 +209,7 @@ async function runTrace(trace) {
       turn_trace: result.bench?.trace ? { trace_id: result.bench.trace.trace_id, stages: result.bench.trace.stages.map(stage => `${stage.stage}:${stage.status}:${stage.result}`) } : null,
       turn_ms: turnMs, jev_ms: calls.jevMs, jev_outcome: calls.jevOutcome, larger_ms: calls.largerMs, larger_outcome: calls.largerOutcome, larger_tokens: calls.largerTokens,
       planner_ms: calls.plannerMs, planner_outcome: calls.plannerOutcome, planner_tokens: calls.plannerTokens,
+      spoken: result.bench?.spoken ?? null, first_sentence_at: calls.sentenceAt, first_sentence_ms: calls.firstSentenceMs,
       planner_calls: calls.planner, planner_context_chars: calls.plannerChars, planner_tier: calls.tier, planner_served_tier: calls.servedTier, planner_escalated: calls.escalated,
       planner_input_tokens_est: calls.planner ? Math.round((calls.plannerChars + PLANNER_SYSTEM.length + JSON.stringify(TUTOR_TOOL).length) / 4) : 0,
       authored_actions: got.actions.filter(action => AUTHORED.includes(action.type)).length, text_actions: got.actions.filter(action => action.type === 'respond_text').length,
@@ -223,7 +243,12 @@ const summary = {
     speed: {
       jev_ms: stats(values(row => row.jev_ms)), jev_timeout_rate: rate(jevTurns, row => row.jev_outcome === 'timeout'), jev_error_rate: rate(jevTurns, row => row.jev_outcome === 'error'),
       larger_ms: stats(values(row => row.larger_ms)), larger_errors: rows.filter(row => row.larger_outcome === 'error' || row.larger_outcome === 'timeout').length,
-      planner_ms: stats(values(row => row.planner_ms)), planner_errors: rows.filter(row => row.planner_outcome && row.planner_outcome !== 'ok').length,
+      planner_ms: stats(values(row => row.planner_ms)),
+      // Routine: evaluation off the critical path or not run; graded: evaluation blocks the reply.
+      planner_ms_routine: stats(values(row => (row.critical_path?.blocking ? null : row.planner_ms))), planner_ms_graded: stats(values(row => (row.critical_path?.blocking ? row.planner_ms : null))),
+      first_sentence_ms: stats(values(row => row.first_sentence_ms)),
+      first_sentence_ms_routine: stats(values(row => (row.critical_path?.blocking ? null : row.first_sentence_ms))), first_sentence_ms_graded: stats(values(row => (row.critical_path?.blocking ? row.first_sentence_ms : null))),
+      planner_errors: rows.filter(row => row.planner_outcome && row.planner_outcome !== 'ok').length,
       turn_ms: stats(values(row => row.turn_ms)),
     },
     tokens: {
@@ -248,6 +273,12 @@ const summary = {
   },
   modeled_first_audio_ms: { note: 'MODELED from Baseline A component means, planner fixed at 7707 ms', baseline_policy: stats(modeled(() => true)), this_stage: stats(modeled(row => !row.critical_path || row.critical_path.blocking)) },
   planner_calls_per_turn: +(rows.reduce((n, row) => n + row.planner_calls, 0) / rows.length).toFixed(3),
+  ...(STREAM ? { first_sentence: {
+    early_rate: rate(rows.filter(row => row.planner_calls && !row.error), row => !!row.spoken),
+    consistent_rate: rate(rows.filter(row => row.spoken), row => row.spoken.consistent),
+    at_fraction_of_output: stats(values(row => (row.spoken ? Math.round(row.first_sentence_at * 1000) : null))),
+    note: 'at_fraction_of_output in thousandths of the tool-input characters written before the first sentence is ready (stub: scripted plans, actions first)',
+  } } : {}),
   planner_fast_tier_share: rate(rows.filter(row => row.planner_tier), row => row.planner_tier === 'fast'),
   ...(LIVE ? { candidate: CANDIDATE, planner_escalations: rows.filter(row => row.planner_escalated).map(row => `${row.trace}#${row.turn}: ${row.planner_escalated}`) } : {}),
   planner_input_tokens_est: stats(rows.filter(row => row.planner_calls).map(row => row.planner_input_tokens_est)),

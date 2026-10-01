@@ -14,7 +14,7 @@ import { coerceInputs, validateInputDeclarations } from './scene-inputs.js';
 import { ATTENTION_LADDER, CLAIMS, CONCEPTS, SLICE_CARDS, catalogue, cardModule, claimsOfConcept, conceptOf, ladderStep, partLabels, targetClaims } from './learn-tutor-claims.js';
 import { appendEvents, conceptState, deriveClaimStates, practiceEvents, reconcile } from './learn-tutor-evidence.js';
 import { selectClaims } from './learn-tutor-select.js';
-import { validateActions } from './learn-tutor-validate.js';
+import { speakable, validateActions } from './learn-tutor-validate.js';
 import { turnTrace } from './learn-tutor-trace.js';
 
 const SLASHES = ['deeper', 'simplify', 'dive'];
@@ -261,7 +261,10 @@ export const enforce = validateActions;
 
 // Runs the turn up to the enforced actions and the updated store. `post(path, body)` resolves the
 // route's JSON or throws; the canvas is not touched here (see executeActions).
-export async function runTurn({ raw, slash = null, opening = false, canvas, access, block, store, post }) {
+// onSpeakable(sentence) (v2 checkpoint I, for voice): the planner is asked to stream ({ stream: true },
+// and post gets a third argument { onSentence }, see readPlanStream); the plan's first sentence is
+// handed over before the plan is complete, only if speakable() passes for this turn's route.
+export async function runTurn({ raw, slash = null, opening = false, canvas, access, block, store, post, onSpeakable = null }) {
   const t = [now()];
   const tracer = turnTrace(now); // v2: the turn trace (learn-tutor-trace.js), returned in bench.trace
   let current = store;
@@ -309,7 +312,14 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   const context = plannerContext({ turn, routed, block, states, claims, store: current });
   const planned = now();
   let response;
-  try { response = await tracer.step('planner', () => post('/api/learn/tutor/plan', { ...access, context }), out => out.telemetry?.outcome ?? 'ok'); }
+  let spoken = null;
+  const onSentence = text => {
+    if (spoken != null || !speakable(text, routed)) return;
+    spoken = text.trim();
+    tracer.mark('first_sentence');
+    onSpeakable(spoken);
+  };
+  try { response = await tracer.step('planner', () => (onSpeakable ? post('/api/learn/tutor/plan', { ...access, context, stream: true }, { onSentence }) : post('/api/learn/tutor/plan', { ...access, context })), out => out.telemetry?.outcome ?? 'ok'); }
   catch (error) { throw Object.assign(error, { trace: tracer.trace }); } // the failed turn's trace travels with its error
   const ready = now();
   const { actions, log, decisions } = tracer.step('action_validation', () => enforce(response, routed, turn),
@@ -343,6 +353,9 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   const bench = {
     trace: tracer.trace, turn_id: turn.turn_id, route: routed.row, strategy: response.strategy ?? null, claims, evaluated: !!evidence,
     critical_path: critical && { ...critical, miss },
+    // The spoken first sentence must open the validated reply; a mismatch (a fast plan re-planned on
+    // Opus after it spoke) is recorded, never hidden.
+    spoken: spoken && { chars: spoken.length, consistent: !!actions.find(action => action.type === 'respond_text')?.text.trim().startsWith(spoken) },
     selection: selection && { available: selection.available, selected: selection.selected.length, fallback: selection.fallback, ms: selection.ms },
     evaluation: evaluation && { status: evaluation.status, evaluator: evaluation.evaluator, events: (evaluation.events || []).length, telemetry: evaluation.telemetry ?? null },
     transitions: transitions.map(({ claim, from, to }) => `${claim}: ${from} -> ${to}`),
@@ -359,6 +372,28 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   return { store: current, turn, selection, evaluation, transitions, routed, response, actions, decisions, log, text, states: deriveClaimStates(current.events), bench, mark: tracer.mark };
 }
 const now = () => (globalThis.performance ?? Date).now();
+
+// The browser side of a streamed plan (v2 checkpoint I): reads the NDJSON reply of
+// /api/learn/tutor/plan with { stream: true }, hands each sentence event to onSentence, and resolves
+// the final TutorResponse (or throws the route's error, with its telemetry).
+export async function readPlanStream(response, onSentence) {
+  if (!response.ok) throw new Error(`The tutor is unavailable (${response.status})`);
+  const reader = response.body.getReader(), decoder = new TextDecoder();
+  let buffer = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    buffer += done ? '' : decoder.decode(value, { stream: true });
+    const lines = done ? [buffer] : buffer.split('\n');
+    if (!done) buffer = lines.pop();
+    for (const line of lines.filter(entry => entry.trim())) {
+      const { type, ...event } = JSON.parse(line);
+      if (type === 'sentence') onSentence?.(event.text);
+      else if (type === 'plan') return event;
+      else if (type === 'error') throw Object.assign(new Error(event.error), { telemetry: event.telemetry });
+    }
+    if (done) throw new Error('The tutor returned no turn');
+  }
+}
 
 // ---------- /dive session record (§6.3, §6.4) ----------
 

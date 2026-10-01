@@ -14,6 +14,15 @@ import { ACTION_TYPES } from '../../control-plane/src/agents/learn-tutor.js';
 const CARD_ACTIONS = ['show_authored_card', 'focus_part', 'suggest_depth', 'suggest_practice'];
 const TEXT_ACTIONS = ['respond_text', 'ask_question'];
 
+// v2 checkpoint I: may the plan's first sentence (firstSentence) be spoken before the plan is complete?
+// Only when the final gate cannot drop it: respond_text is allowed by the route itself (not only by an
+// explicit request, which arrives later in the plan), and it is speakable prose - 2 to 300
+// characters, no code. Otherwise the Tutor waits for the validated plan.
+export function speakable(sentence, routed) {
+  const text = String(sentence || '').trim();
+  return routed.allowed.includes('respond_text') && text.length >= 2 && text.length <= 300 && !/[`{}<>]|=>/.test(text);
+}
+
 function schema(action) {
   if (!action || typeof action !== 'object' || !ACTION_TYPES.includes(action.type)) return `unknown action type ${action?.type}`;
   if (TEXT_ACTIONS.includes(action.type) && !String(action.text || '').trim()) return `empty ${action.type}`;
