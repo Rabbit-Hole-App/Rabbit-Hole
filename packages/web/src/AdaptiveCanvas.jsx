@@ -10,7 +10,7 @@ import { panelFor, textStyle, stickyTone, dashArray, dashStyle, reorder, TEXT_LE
 import CanvasMinimap from './CanvasMinimap.jsx';
 import { presentSteps } from './learn-present.js';
 import { pageRects, PAGE_W } from './learn-pages.js';
-import { outlineFrom, applyOutlineOps } from './learn-outline-model.js';
+import { outlineFrom, applyOutlineOps, moveSection } from './learn-outline-model.js';
 import { loadAsset } from './learn-board-assets.js';
 import { groupShot } from './learn-group-shot.js';
 import { groupTargetText } from './learn-ask-target.js';
@@ -284,6 +284,14 @@ function HeadingCard({ block, zoom, selected, connected, onSelect, onMove, onCha
   const level = levelOf(block);
   const body = useRef(null);
   const shown = useRef(block.text);
+  // A rename from outside (the table of contents, an applied outline) reaches the text being shown;
+  // never while the learner is typing in it.
+  useEffect(() => {
+    const element = body.current;
+    if (!element || document.activeElement === element || element.textContent === (block.text || '')) return;
+    shown.current = block.text;
+    element.textContent = block.text || '';
+  }, [block.text]);
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost space={block.space}
       connected={connected} width={COLUMN} autoMax={240}
@@ -299,18 +307,60 @@ function HeadingCard({ block, zoom, selected, connected, onSelect, onMove, onCha
   );
 }
 
+// A PDF added as slides: every page drawn once to an image, one under the next
+// with a numbered divider between them. Uploads stop at 100 pages, so all of
+// them are drawn up front.
+function PdfSlides({ file, label }) {
+  const [slides, setSlides] = useState([]);
+  const [error, setError] = useState(false);
+  useEffect(() => {
+    let active = true, task = null;
+    const urls = [];
+    (async () => {
+      const { getDocument } = await import('./learn-paper-figures.js');
+      task = getDocument({ data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false });
+      const pdf = await task.promise;
+      const canvas = document.createElement('canvas');
+      for (let number = 1; number <= pdf.numPages && active; number++) {
+        const page = await pdf.getPage(number);
+        const viewport = page.getViewport({ scale: (COLUMN * 2) / page.getViewport({ scale: 1 }).width });
+        canvas.width = viewport.width; canvas.height = viewport.height;
+        await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        if (!active || !blob) break;
+        urls.push(URL.createObjectURL(blob));
+        setSlides([...urls]);
+      }
+    })().catch(() => { if (active) setError(true); });
+    return () => { active = false; task?.destroy(); urls.forEach(url => URL.revokeObjectURL(url)); };
+  }, [file]);
+  if (error) return <p className="p-4 text-sm text-ink-2">This PDF could not be drawn as slides.</p>;
+  if (!slides.length) return <p className="p-4 text-sm text-ink-2">Opening…</p>;
+  return (
+    <div data-pdf-slides className="flex flex-col gap-3 p-3">
+      {slides.map((url, index) => (
+        <div key={url}>
+          {index > 0 && <div data-slide-divider className="mb-3 flex items-center gap-2 text-[11px] text-ink-3"><span className="h-px flex-1 bg-line" />Slide {index + 1}<span className="h-px flex-1 bg-line" /></div>}
+          <img src={url} alt={`${label || 'PDF'} slide ${index + 1}`} className="w-full rounded border border-line" draggable={false} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // An uploaded PDF, read by the browser's own viewer. The block carries a key,
 // never the bytes: a data URL of any size over 120kB is stripped on save, and a
 // PDF is far past that. The file itself sits in IndexedDB and survives reloads.
 function PdfCard({ block, zoom, selected, connected, onSelect, onMove, onChange, onLayout, onConnect, onSnap }) {
   const [url, setUrl] = useState(null);
+  const [file, setFile] = useState(null);
   const [missing, setMissing] = useState(false);
   useEffect(() => {
     let revoke = null;
     loadAsset(block.assetKey).then(file => {
       if (!file) { setMissing(true); return; }
       revoke = URL.createObjectURL(file);
-      setUrl(revoke);
+      setUrl(revoke); setFile(file);
     });
     return () => { if (revoke) URL.revokeObjectURL(revoke); };
   }, [block.assetKey]);
@@ -320,15 +370,16 @@ function PdfCard({ block, zoom, selected, connected, onSelect, onMove, onChange,
       onSize={(id, w, h) => onChange({ ...block, w, h })}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
       <div className="flex shrink-0 items-center gap-2 px-4 pb-2 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">
-        <span className="h-1.5 w-1.5 rounded-full bg-ink" />PDF<span className="truncate normal-case tracking-normal text-ink-3">{block.label}</span>
+        <span className="h-1.5 w-1.5 rounded-full bg-ink" />{block.slides ? 'Slides' : 'PDF'}<span className="truncate normal-case tracking-normal text-ink-3">{block.label}</span>
       </div>
       {/* Until the card is selected the page ignores the pointer, so the first
           press selects the card and keeps focus in this document. A focused
           iframe receives keydown in its own document, where the canvas never
           sees it - copy, paste, undo and delete would all be dead on this card. */}
-      <div className="min-h-0 flex-1 overflow-hidden rounded-b-xl border-t border-line"
-        onPointerDown={event => { if (selected) event.stopPropagation(); }}>
-        {url
+      <div className={`min-h-0 flex-1 rounded-b-xl border-t border-line ${block.slides ? `overflow-y-auto ${selected ? '' : 'pointer-events-none'}` : 'overflow-hidden'}`}
+        onPointerDown={event => { if (selected) event.stopPropagation(); }} onWheel={event => { if (selected && block.slides) event.stopPropagation(); }}>
+        {file && block.slides ? <PdfSlides file={file} label={block.label} />
+          : url
           ? <iframe src={url} title={block.label || 'PDF'} className={`h-full w-full ${selected ? '' : 'pointer-events-none'}`} />
           : <p className="p-4 text-sm text-ink-2">{missing ? 'This PDF is not in this browser. Upload it again from Sources.' : 'Opening…'}</p>}
       </div>
@@ -1142,6 +1193,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Named groups. Membership lives on the members themselves (groupId), so
   // undo restores it with them; this list only carries each group's label.
   const [groups, setGroups] = useState(stored.current.groups || []);
+  const divePortals = useContext(DivePortals);
   // Every change also goes to onSave (a shared board's server copy), if given.
   const onSaveRef = useRef(onSave);
   onSaveRef.current = onSave;
@@ -1319,9 +1371,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // free items land at its centre, and the camera only moves if the new
       // thing would otherwise be off screen.
       insertHeading: level => revealAfter(insertHeadingAt(level, flowIndexAtView())),
-      insertPdf: ({ assetKey, label }) => {
+      insertPdf: ({ assetKey, label, slides = false }) => {
         snapshot();
-        insertAtView({ id: crypto.randomUUID(), type: 'pdf', dx: 0, dy: 0, assetKey, label });
+        insertAtView({ id: crypto.randomUUID(), type: 'pdf', dx: 0, dy: 0, assetKey, label, ...(slides ? { slides } : {}) });
       },
       // A dropped image, GIF, or clip. `mediaId` is the server copy an image
       // context can name later; GIFs and clips never have one.
@@ -1434,6 +1486,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // One snapshot for the whole restructure, so Ctrl+Z reverts the proposal
       // rather than one heading at a time.
       applyOutline: ops => { snapshot(); setBlocks(previous => applyOutlineOps(previous, ops)); },
+      moveSection: (id, beforeId) => { snapshot(); setBlocks(previous => moveSection(previous, id, beforeId)); },
       toggleSectionDone: id => { snapshot(); setBlocks(previous => previous.map(block => block.id === id ? { ...block, done: !block.done } : block)); },
       // Frame the section rather than scroll to it: a section is a heading plus
       // what follows, and the camera already knows how to land on one.
@@ -1668,7 +1721,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const grouped = selection.some(id => groupOf(id));
   // The one selected lesson card, for /dive and Ctrl+K; and how many canvas objects exist (chat left out), for a hole's first object.
   const soleCard = selection.length === 1 ? blocks.find(block => block.id === selection[0]) : null;
-  const card = soleCard ? { id: soleCard.id, title: soleCard.title || describeBlock(soleCard)?.title || '' } : null;
+  // A whole group selected is one origin too, so loose shapes dive only once they are grouped.
+  const selectedGroup = !soleCard && selection.length > 1 && groups.find(group => {
+    const members = [...blocks, ...items, ...shapes, ...exchanges].filter(entry => entry.groupId === group.id).map(entry => entry.id);
+    return members.length === selection.length && members.every(id => selection.includes(id));
+  });
+  const card = soleCard ? { id: soleCard.id, title: soleCard.title || describeBlock(soleCard)?.title || '' }
+    : selectedGroup ? { id: selectedGroup.id, title: selectedGroup.label || `${selection.length} items` } : null;
   const cardKey = JSON.stringify(card), content = strokes.length + shapes.length + items.length + blocks.length;
   useEffect(() => { onState?.({ grid, lock, minimap, pages, presenting: presenting !== null, outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey), selected: selectedCount, units, grouped, canPaste, card: JSON.parse(cardKey), content }); }, [grid, lock, minimap, pages, presenting, outlineKey, cardsKey, selectedCount, units, grouped, canPaste, cardKey, content, onState]);
   useEffect(() => () => connectionCleanup.current?.(), []);
@@ -1875,6 +1934,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // a changed input re-arms the same target with its fresh description, and a
   // deleted target flips to a visible warning rather than being dropped.
   const lastArmed = useRef(null);
+  // A group's chip goes with the group: deleted or ungrouped, nothing is left to ask about.
+  const armedGroup = useRef(null);
+  useEffect(() => {
+    if (!askTargetId || askTargetId !== armedGroup.current) return;
+    if ([...blocks, ...items, ...shapes, ...exchanges].filter(entry => entry.groupId === askTargetId).length >= 2) return;
+    armedGroup.current = null;
+    onAskTargetRef.current?.(null);
+  }, [blocks, items, shapes, exchanges, askTargetId]);
   useEffect(() => {
     if (!askTargetId || askTargetId !== armedId.current) { lastArmed.current = null; return; }
     const current = blocks.find(entry => entry.id === askTargetId);
@@ -2726,6 +2793,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           if (!Number.isFinite(left)) return null;
           const pad = 12;
           const active = members.some(member => selection.includes(member.id));
+          const portal = divePortals?.portals?.[group.id];
           return (
             <div key={group.id}>
               {/* The group's own body: an outline you can see, and a surface
@@ -2735,7 +2803,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
                   Ctrl presses and non-select tools fall through to the canvas. */}
               <div data-group-box={group.id}
                 style={{ left: left - pad, top: top - pad, width: right - left + pad * 2, height: bottom - top + pad * 2 }}
-                className={`absolute rounded-xl border ${active ? 'border-[#2383e2] bg-[#2383e2]/[0.03]' : 'border-line-strong'} cursor-grab active:cursor-grabbing`}
+                className={`absolute rounded-xl border ${active ? 'border-[#2383e2] bg-[#2383e2]/[0.03]' : 'border-line-strong'} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-[#e5484d]/40' : 'outline-2 outline-offset-4 outline-[#b42318]') : ''} cursor-grab active:cursor-grabbing`}
+                onDoubleClick={portal ? () => divePortals.enter(portal.name) : undefined}
                 onPointerDown={event => {
                   if (event.button !== 0 || tool !== 'select' || event.ctrlKey || event.metaKey) return;
                   event.stopPropagation();
@@ -2748,6 +2817,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
                 <GroupChip group={group} editOn={chipEdit === group.id}
                   onSelect={() => setSelection(membersOf(group.id))}
                   onLabel={label => { setChipEdit(null); setGroups(previous => previous.map(entry => entry.id === group.id ? { ...entry, label } : entry)); }} />
+                {portal && <button type="button" data-dive-portal={portal.name} title={`Enter the Rabbit Hole: ${portal.title}`} onPointerDown={event => event.stopPropagation()} onClick={() => divePortals.enter(portal.name)}
+                  className="flex max-w-60 items-center gap-1 rounded-sm border border-[#b42318]/40 bg-white px-2 py-0.5 text-[11px] text-[#912018] shadow-sm hover:bg-[#fef3f2]">
+                  <svg aria-hidden="true" width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter" className="shrink-0"><path d="M6 1.5V10M2.5 6.5 6 10l3.5-3.5" /></svg><span className="truncate">{portal.title}</span></button>}
               </div>
               {/* The same pill every card shows when selected, in the same
                   place: right above the outline, right-aligned. It arms the
@@ -2767,7 +2839,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
                         const item = itemsRef.current.find(entry => entry.id === member.id);
                         if (item?.text) entries.push({ text: item.text });
                       }
-                      onAskTargetRef.current?.({ id: group.id, kind: group.label ? `group "${group.label}"` : 'group', title: group.label || `${members.length} items`, text: groupTargetText(entries) });
+                      armedGroup.current = group.id;
+                      onAskTargetRef.current?.({ id: group.id, kind: 'Group', title: group.label || `${members.length} items`, text: groupTargetText(entries) });
                       // The visuals ride too: a rendered snapshot of the
                       // outline area becomes this question's image context.
                       const memberIds = new Set(members.map(member => member.id));

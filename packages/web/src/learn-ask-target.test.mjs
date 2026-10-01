@@ -36,7 +36,9 @@ test('Ask in chat sends the typed words as message and the card as canvas_target
 });
 
 test('a group Ask has a title, bounded text through groupTargetText, and its own snapshot (context-2, -3, -22)', () => {
-  assert.match(canvas, /onAskTargetRef\.current\?\.\(\{ id: group\.id, kind: group\.label \? `group "\$\{group\.label\}"` : 'group', title: group\.label \|\| `\$\{members\.length\} items`, text: groupTargetText\(entries\) \}\);/);
+  assert.ok(canvas.includes("onAskTargetRef.current?.({ id: group.id, kind: 'Group', title: group.label || `${members.length} items`, text: groupTargetText(entries) });"));
+  // Its chip goes when the group does.
+  assert.ok(canvas.includes('armedGroup.current = null;\n    onAskTargetRef.current?.(null);'));
   assert.doesNotMatch(canvas, /parts\.join\('\\n\\n'\)\.slice\(0, 4000\)/);
   assert.match(canvas, /onGroupShotRef\.current\?\.\(blob, group\.label \|\| 'group', group\.id\)/);
   // The snapshot joins that group's armed target, never the global image context.

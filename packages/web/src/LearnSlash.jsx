@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronRight, CircleHelp, Loader2, X } from 'lucide-react';
+import { ChevronRight, CircleHelp, Loader2, SquareSlash, X } from 'lucide-react';
 import { parseSlash, pickerSections } from './learn-slash.js';
 import PaidConfirm from './PaidConfirm.jsx';
 
@@ -8,7 +8,7 @@ import PaidConfirm from './PaidConfirm.jsx';
 // offers commands for a leading /, and runs a sent command through `run`
 // (runLearnCommand, bound to this canvas by the page). apiRef gives the
 // composer its key handler and send interception.
-export default function LearnSlash({ apiRef, input, setInput, target, run, onPrompt }) {
+export default function LearnSlash({ apiRef, input, setInput, target, run, onPrompt, onHelp = null }) {
   const [active, setActive] = useState(0);
   const [catalog, setCatalog] = useState(false);
   const [notice, setNotice] = useState(null);
@@ -83,6 +83,9 @@ export default function LearnSlash({ apiRef, input, setInput, target, run, onPro
       {sections && (
         <div role="listbox" aria-label="Commands" data-slash-picker className="absolute bottom-full left-0 z-30 mb-1 max-h-80 w-80 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-pop"
           onScroll={event => { const box = event.currentTarget; if (!moreOpen && box.scrollTop + box.clientHeight >= box.scrollHeight - 4) setMoreOpen(true); }}>
+          {/* The full Slash commands view (View > Slash commands), one click from the palette. */}
+          {onHelp && <div className="sticky top-0 z-10 -mb-7 flex justify-end"><button type="button" aria-label="Open Slash commands" title="Open Slash commands" data-slash-help onMouseDown={event => event.preventDefault()} onClick={onHelp}
+            className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-ink-3 hover:bg-hover hover:text-ink"><SquareSlash size={15} /></button></div>}
           {items.length ? sections.map((section, sectionIndex) => (
             <div key={section.title || sectionIndex}>
               {sectionIndex > 0 && <div className="mx-2 my-1 border-t border-line" />}

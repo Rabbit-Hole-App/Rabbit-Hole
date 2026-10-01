@@ -70,3 +70,22 @@ export function applyOutlineOps(blocks, ops, newId = () => crypto.randomUUID()) 
   }
   return next;
 }
+
+// Drag a section in the table of contents: its heading moves with everything
+// under it - cards and deeper headings - up to the next heading at its level or
+// above, and lands before the heading `beforeId` (null: the end). Dropping a
+// section inside itself changes nothing.
+export function moveSection(blocks, id, beforeId) {
+  const list = blocks || [];
+  const start = list.findIndex(block => block.id === id && block.type === 'heading');
+  if (start < 0 || id === beforeId) return list;
+  const level = list[start].level || 1;
+  let end = start + 1;
+  while (end < list.length && !(list[end].type === 'heading' && (list[end].level || 1) <= level)) end += 1;
+  const chunk = list.slice(start, end);
+  if (chunk.some(block => block.id === beforeId)) return list;
+  const rest = [...list.slice(0, start), ...list.slice(end)];
+  const at = beforeId == null ? rest.length : rest.findIndex(block => block.id === beforeId);
+  if (at < 0) return list;
+  return [...rest.slice(0, at), ...chunk, ...rest.slice(at)];
+}
