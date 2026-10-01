@@ -54,7 +54,8 @@ test('a YouTube moment card is described by its video id and window, never Sourc
 });
 
 test('a whiteboard region chip says only its text reaches the tutor (context-9)', () => {
-  assert.match(ask, /\{canvasTarget\.preview && !canvasTarget\.paper && <span data-text-only title="The tutor gets the shapes' text, not this picture" className="shrink-0 text-ink-3">text only<\/span>\}/);
+  // A selected area (Ask about selection) sends its picture, so only it is exempt.
+  assert.match(ask, /\{canvasTarget\.preview && !canvasTarget\.paper && !canvasTarget\.image && !canvasTarget\.id\?\.startsWith\?\.\('area:'\) && <span data-text-only title="The tutor gets the shapes' text, not this picture" className="shrink-0 text-ink-3">text only<\/span>\}/);
 });
 
 // delta-7, delta-8, context-14, context-11: a standalone canvas composer offers only what its chat can use.

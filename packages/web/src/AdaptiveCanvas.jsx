@@ -38,6 +38,8 @@ import { DivePortals } from './Dive.jsx';
 const NAV_TOOLS = [
   ['select', MousePointer2, 'Select and move'],
   ['hand', Hand, 'Hand — pan the canvas'],
+  // Ask about selection (user, 2026-09-30): drag over anything - cards, slides, images - to ask about that area.
+  ['askArea', Scan, 'Ask about selection — drag over any part of the canvas'],
 ];
 const DRAW_TOOLS = [
   ['pen', Pencil, 'Pen'],
@@ -1059,7 +1061,7 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
 
 const CARDS_COPIED = 'rabbit-hole:copied-cards';
 
-export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, gutterTop = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, gutterTop = null }) {
   // A view-only board pans and zooms with the hand and edits nothing.
   const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
   const readOnlyRef = useRef(readOnly);
@@ -1220,6 +1222,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   onCardActionRef.current = onCardAction;
   const onGroupShotRef = useRef(onGroupShot);
   onGroupShotRef.current = onGroupShot;
+  const onAreaShotRef = useRef(onAreaShot);
+  onAreaShotRef.current = onAreaShot;
+  const [areaMarquee, setAreaMarquee] = useState(null);
   const onPaperRef = useRef(onPaper);
   onPaperRef.current = onPaper;
   // Put the camera around a set of boxes. Used both to find your way back to
@@ -2167,6 +2172,53 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     }
     setSelection([...new Set(ids)]);
   };
+  // Ask about selection: a rectangle in page coordinates becomes a PNG of that part of the screen, the
+  // cards it touches, and an ask target (LearnPage uploads the image so the tutor sees it).
+  const askArea = async rect => {
+    const x = Math.min(rect.x1, rect.x2), y = Math.min(rect.y1, rect.y2), w = Math.abs(rect.x2 - rect.x1), h = Math.abs(rect.y2 - rect.y1);
+    if (w * view.z < 8 || h * view.z < 8) return;
+    const node = surface.current, box = node.getBoundingClientRect();
+    const crop = { x: view.x + x * view.z, y: view.y + y * view.z, w: w * view.z, h: h * view.z };
+    const inside = Object.entries(boundsRef.current).filter(([, b]) => b.x + b.w > x && b.x < x + w && b.y + b.h > y && b.y < y + h).map(([id]) => blocks.find(block => block.id === id)).filter(Boolean);
+    let preview = null, blob = null;
+    try {
+      const { toCanvas } = await import('html-to-image');
+      const skip = el => el.nodeType === 1 && (el.tagName === 'IFRAME' || el.getAttribute?.('role') === 'toolbar' || el.hasAttribute?.('data-canvas-minimap') || el.hasAttribute?.('data-dive-gutter') || el.hasAttribute?.('data-area-marquee'));
+      const ratio = Math.min(2, window.devicePixelRatio || 1);
+      const full = await toCanvas(node, { pixelRatio: ratio, width: box.width, height: box.height, filter: el => !skip(el), cacheBust: false });
+      const out = document.createElement('canvas');
+      const scale = Math.min(1, 1400 / Math.max(crop.w * ratio, crop.h * ratio));
+      out.width = Math.max(1, Math.round(crop.w * ratio * scale)); out.height = Math.max(1, Math.round(crop.h * ratio * scale));
+      out.getContext('2d').drawImage(full, crop.x * ratio, crop.y * ratio, crop.w * ratio, crop.h * ratio, 0, 0, out.width, out.height);
+      preview = out.toDataURL('image/png');
+      blob = await new Promise(resolve => out.toBlob(resolve, 'image/png'));
+    } catch { /* the text of the cards inside still asks */ }
+    const titles = inside.map(block => block.title || block.type).filter(Boolean);
+    onAreaShotRef.current?.({
+      target: {
+        id: `area:${Date.now().toString(36)}`, kind: 'Canvas selection',
+        title: titles.length ? `Selected area · ${titles.slice(0, 2).join(', ')}${titles.length > 2 ? '…' : ''}` : 'Selected area',
+        text: [
+          'The learner drew a rectangle on the canvas and asks about what is inside it; the attached image shows that area.',
+          titles.length ? `Cards inside or touching it: ${titles.join('; ')}` : 'No card is inside it, only the canvas itself.',
+        ].join(String.fromCharCode(10)),
+      },
+      preview, blob,
+    });
+  };
+  // With Ask about selection picked, a press anywhere - over cards too - starts the rectangle
+  // (capture phase, before a card takes the press); the tool goes back to Select once it is drawn.
+  const startArea = event => {
+    if (event.button !== 0 || event.target.closest('[role="toolbar"],[data-zoom],[data-dive-gutter],[data-canvas-minimap]')) return;
+    const start = local(event);
+    let rect = { x1: start.x, y1: start.y, x2: start.x, y2: start.y };
+    setAreaMarquee(rect);
+    const apply = (px, py) => { rect = { ...rect, x2: px, y2: py }; setAreaMarquee(rect); };
+    // The rectangle stays, labelled Capturing..., until the picture is ready (a big board takes seconds).
+    // ponytail: the whole surface is rendered, then cropped; render only the cards under the area if it is too slow.
+    apply.done = () => { setTool('select'); setAreaMarquee({ ...rect, busy: true }); requestAnimationFrame(() => askArea(rect).finally(() => setAreaMarquee(null))); };
+    startDrag(event, start, apply, view.z);
+  };
   const down = event => {
     // A press on the canvas dismisses the floating chrome - the style island
     // and the dev insert menu - the way it already dismisses a menubar menu.
@@ -2474,7 +2526,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   };
   const inking = tool === 'pen' || tool === 'highlighter';
   const drawing = inking || shapeTool;
-  const cursor = tool === 'hand' ? 'cursor-grab' : inking || tool === 'eraser' || shapeTool ? 'cursor-crosshair' : tool === 'select' ? '' : 'cursor-copy';
+  const cursor = tool === 'askArea' ? 'cursor-crosshair' : tool === 'hand' ? 'cursor-grab' : inking || tool === 'eraser' || shapeTool ? 'cursor-crosshair' : tool === 'select' ? '' : 'cursor-copy';
   // The rail answers to the blank canvas right of the column, where its buttons
   // live; over the cards themselves it would only be in the way. Held by index
   // rather than by value so the line keeps following the cards as they move.
@@ -2548,7 +2600,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           the page's: these ride the camera, so the grid you snap to is the grid
           you can see. An opaque surface keeps the page dots from showing through
           and doubling them up. */}
-      <div ref={surface} data-canvas-surface data-presenting={presenting !== null ? '' : undefined} onPointerDown={down} onPointerMove={trackGap} onPointerLeave={() => { if (!gapAdding) setHoverGap(null); }}
+      <div ref={surface} data-canvas-surface onPointerDownCapture={tool === 'askArea' ? startArea : undefined} data-presenting={presenting !== null ? '' : undefined} onPointerDown={down} onPointerMove={trackGap} onPointerLeave={() => { if (!gapAdding) setHoverGap(null); }}
         onContextMenu={event => {
           event.preventDefault();
           if (event.ctrlKey || marqueeRef.current || presenting !== null) return;
@@ -2634,6 +2686,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             onNudge={delta => nudgeGap(gap, delta)}
             onAdding={open => { setHoverGap(gap.index); setGapAdding(open); }} onAddHeading={insertHeadingAt} />
         ))}
+        {areaMarquee && (
+          <svg data-area-marquee width="1" height="1" aria-hidden="true" className="pointer-events-none absolute top-0 left-0 z-30 overflow-visible">
+            <rect x={Math.min(areaMarquee.x1, areaMarquee.x2)} y={Math.min(areaMarquee.y1, areaMarquee.y2)}
+              width={Math.abs(areaMarquee.x2 - areaMarquee.x1)} height={Math.abs(areaMarquee.y2 - areaMarquee.y1)}
+              fill="rgba(220, 38, 38, 0.06)" stroke="#dc2626" strokeWidth={2 / view.z} strokeDasharray={`${6 / view.z} ${4 / view.z}`} />
+            {areaMarquee.busy && <text x={Math.min(areaMarquee.x1, areaMarquee.x2) + 6 / view.z} y={Math.min(areaMarquee.y1, areaMarquee.y2) - 6 / view.z} fill="#dc2626" fontSize={12 / view.z} fontWeight="600">Capturing…</text>}
+          </svg>
+        )}
         {marquee && (
           <svg width="1" height="1" aria-hidden="true" className="pointer-events-none absolute top-0 left-0 z-30 overflow-visible">
             <rect x={Math.min(marquee.x1, marquee.x2)} y={Math.min(marquee.y1, marquee.y2)}
