@@ -872,7 +872,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
                 </button>
               )}</>
             ) : (
-              <span className="flex items-center gap-2 text-xs text-ink-2"><Loader2 size={14} className="animate-spin text-ink-3" />{m.status || 'Thinking...'}</span>
+              <span className="flex items-center gap-2 text-xs text-ink-2"><Loader2 size={14} className="animate-spin text-ink-3" /><span className="shimmer">{m.status || 'Thinking…'}</span></span>
             )}
           </div>
         ))}

@@ -562,7 +562,7 @@ function AppContent({ data, load }) {
                 </tbody>
               </table>
               </div>
-              {aiFind === 'loading' && <div className="flex h-7 items-center px-2 text-xs text-ink-3">Thinking…</div>}
+              {aiFind === 'loading' && <div className="flex h-7 items-center px-2 text-xs text-ink-3"><span className="shimmer">Thinking…</span></div>}
               {aiFind?.names?.length === 0 && (
                 <div className="flex h-7 items-center px-2 text-sm text-ink-2">{aiFind.note || 'Nothing here does that yet.'}</div>
               )}

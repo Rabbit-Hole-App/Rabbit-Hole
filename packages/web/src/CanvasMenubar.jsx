@@ -25,6 +25,16 @@ export default function CanvasMenubar({ menus, className = '' }) {
           <Menu open={open === menu.title} onClose={() => setOpen(null)} className={`top-9 left-0 border border-line ${menu.panel ? 'w-auto!' : ''}`}>
             {menu.panel ? menu.panel(() => setOpen(null)) : menu.items.map((item, index) => (item.divider ? (
               <div key={`rule-${index}`} className="my-1 h-px bg-line" />
+            ) : item.choice ? (
+              // One row, one dropdown: a setting with several values rather than a row per value.
+              <label key={item.label} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-ink hover:bg-hover">
+                {item.icon && <item.icon size={15} strokeWidth={1.8} className="shrink-0 text-ink-2" />}
+                <span className="flex-1 whitespace-nowrap">{item.label}</span>
+                <select value={item.choice.value} onChange={event => { setOpen(null); item.choice.onChange(event.target.value); }}
+                  className="h-7 cursor-pointer rounded-md border border-line bg-white px-1 text-xs text-ink outline-none focus:border-ink-3">
+                  {item.choice.options.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                </select>
+              </label>
             ) : (
               <button key={item.label} type="button" role="menuitem" disabled={item.disabled}
                 aria-checked={item.checked === undefined ? undefined : !!item.checked}

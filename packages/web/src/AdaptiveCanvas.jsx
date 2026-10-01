@@ -262,10 +262,10 @@ function ChatCard({ exchange, zoom, selected, connected, boardId, onSelect, onMo
       <div ref={body} data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
         {exchange.answer
           ? <div className="text-sm"><Md text={exchange.answer} onFile={onFile} /></div>
-          : <p className="text-sm text-ink-2 italic">{exchange.status === 'thinking' ? 'Thinking…' : `${exchange.status}…`}</p>}
+          : <p className="text-sm text-ink-2 italic">{exchange.status === 'thinking' ? <span className="shimmer not-italic">Thinking…</span> : `${exchange.status}…`}</p>}
         {replies.map(turn => <div key={turn.id} className="mt-3 border-t border-line pt-3">
           <div className="mb-3 flex justify-end"><span className="rounded-xl bg-accent px-3 py-1.5 text-sm whitespace-pre-wrap text-white">{turn.question}</span></div>
-          <div className="text-sm">{turn.answer ? <Md text={turn.answer} onFile={onFile} /> : <span className="text-ink-2">{turn.status === 'done' ? 'No answer received. Try again.' : 'Thinking…'}</span>}</div>
+          <div className="text-sm">{turn.answer ? <Md text={turn.answer} onFile={onFile} /> : <span className="text-ink-2">{turn.status === 'done' ? 'No answer received. Try again.' : <span className="shimmer">Thinking…</span>}</span>}</div>
         </div>)}
       </div>
       {started && <div data-block-composer className={`shrink-0 border-t border-line px-3 pb-3 ${replyOpen ? '' : 'hidden'}`} onPointerDown={e => e.stopPropagation()}>
@@ -1506,8 +1506,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // The divider used to live on the zoom pill; the menubar is its home now.
       toggleGrid: () => setGrid(previous => !previous),
       toggleMinimap: () => setMinimap(previous => !previous),
-      // Page guides: off, A4 portrait or A4 landscape; picking the one already on turns them off.
-      togglePages: (orientation = 'portrait') => setPages(previous => (previous === orientation ? false : orientation)),
+      // Page guides: false (off), 'portrait' or 'landscape' A4.
+      setPages,
       // One snapshot for the whole restructure, so Ctrl+Z reverts the proposal
       // rather than one heading at a time.
       applyOutline: ops => { snapshot(); setBlocks(previous => applyOutlineOps(previous, ops)); },
@@ -2800,7 +2800,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           </svg>
         )}
         <div ref={column} style={{ width: COLUMN }} className={`absolute top-0 left-0 flex flex-col gap-5 ${drawing || tool === 'eraser' || tool === 'hand' ? 'pointer-events-none' : ''}`}>
-          {exchanges.map(exchange => <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />)}
+          {/* An answer to a red box lives beside it: out of the column flow (no height, no gap), so asking never pushes the slides or the box down. */}
+          {exchanges.map(exchange => (String(exchange.linkFrom).startsWith('area:')
+            ? <div key={exchange.id} className="-mb-5 h-0 overflow-visible"><ChatCard exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} /></div>
+            : <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />))}
           {blocks.map(block => <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} />)}
         </div>
         {/* The gap near the pointer shows its dotted line and [-] [+] [...] at the far left. */}
@@ -2817,12 +2820,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             {areas.map(stored => ({ ...areaBox(stored), id: stored.id })).map(area => (
               <g key={area.id}>
                 <rect x={area.x} y={area.y} width={area.w} height={area.h} fill="rgba(220, 38, 38, 0.08)" stroke="#dc2626" strokeWidth={2 / view.z} pointerEvents="none" />
-                {/* Only the outline takes the click (a wide invisible stroke), so the cards inside stay usable. */}
-                <rect data-area-outline={area.id} x={area.x} y={area.y} width={area.w} height={area.h} fill="none" stroke="transparent" strokeWidth={14 / view.z} pointerEvents="stroke" className="cursor-pointer"
+                {/* A small x on the top-right corner removes the box (and its chip); the cards inside stay usable. */}
+                <g data-area-remove={area.id} transform={`translate(${area.x + area.w} ${area.y}) scale(${1 / view.z})`} pointerEvents="all" className="cursor-pointer"
                   onPointerDown={event => event.stopPropagation()}
                   onClick={event => { event.stopPropagation(); setAreas(previous => previous.filter(entry => entry.id !== area.id)); if (askTargetId === area.id) onAskTargetRef.current?.(null); }}>
-                  <title>Click the outline to remove this selection</title>
-                </rect>
+                  <title>Remove this selection</title>
+                  <circle r="8" fill="#dc2626" />
+                  <path d="M-3 -3 L3 3 M3 -3 L-3 3" stroke="white" strokeWidth="1.6" strokeLinecap="round" />
+                </g>
               </g>
             ))}
           </svg>
