@@ -151,11 +151,24 @@ test('plan: one forced tutor_response call on Opus 5.5 (no fallback); its input 
   const response = await w.post('/api/learn/tutor/plan', { app: 'canvas-0a1b2c3d', context: { turn: { raw_user_message: 'hi' } } });
   const { telemetry, ...body } = await response.json();
   assert.deepEqual(body, turn);
-  assert.deepEqual({ ...telemetry, ms: typeof telemetry.ms }, { ms: 'number', requested_model: 'claude-opus-5-5', served_model: 'claude-opus-5-5', input_tokens: 3100, output_tokens: 120, stop_reason: 'tool_use', outcome: 'ok' });
+  assert.deepEqual({ ...telemetry, ms: typeof telemetry.ms }, { ms: 'number', requested_model: 'claude-opus-5-5', effort: null, served_model: 'claude-opus-5-5', input_tokens: 3100, output_tokens: 120, stop_reason: 'tool_use', outcome: 'ok' });
   assert.equal(calls[0].body.model, 'claude-opus-5-5');
   assert.equal('fallbacks' in calls[0].body, false, 'no silent fallback');
   assert.deepEqual(calls[0].body.tool_choice, { type: 'auto' });
   assert.match(calls[0].body.system, /authored/i);
+  assert.equal('output_config' in calls[0].body, false, 'no effort set: the model default (Baseline A)');
+  assert.equal(Object.keys(TUTOR_TOOL.input_schema.properties)[0], 'actions', 'actions first in the output');
+  assert.deepEqual(TUTOR_TOOL.input_schema.required, ['actions', 'strategy']);
+});
+
+test('plan: TUTOR_PLANNER_EFFORT sets output_config.effort; an unknown value is ignored (v2 checkpoint G)', async t => {
+  const turn = { strategy: 'none', actions: [{ type: 'respond_text', text: 'Hi.' }] };
+  const calls = recordFetch(t, { model: 'claude-opus-5-5', usage: {}, content: [{ type: 'tool_use', name: 'tutor_response', input: turn }], stop_reason: 'tool_use' });
+  const low = await (await world(t, { TUTOR_PLANNER_EFFORT: 'low' }).post('/api/learn/tutor/plan', { app: 'canvas-0a1b2c3d', context: { turn: {} } })).json();
+  assert.deepEqual(calls[0].body.output_config, { effort: 'low' });
+  assert.equal(low.telemetry.effort, 'low');
+  await world(t, { TUTOR_PLANNER_EFFORT: 'turbo' }).post('/api/learn/tutor/plan', { app: 'canvas-0a1b2c3d', context: { turn: {} } });
+  assert.equal('output_config' in calls[1].body, false);
 });
 
 test('plan: switched-on canvas context documents come first, then the context (canvas-context-docs.md)', async t => {
@@ -176,7 +189,7 @@ test('plan: no usable tutor_response is a 502 with telemetry outcome invalid; a 
   assert.equal(response.status, 502);
   const { error, telemetry } = await response.json();
   assert.match(error, /no turn/);
-  assert.deepEqual({ ...telemetry, ms: typeof telemetry.ms }, { ms: 'number', requested_model: 'claude-opus-5-5', served_model: 'claude-opus-5', input_tokens: 3000, output_tokens: 9, stop_reason: 'max_tokens', outcome: 'invalid' });
+  assert.deepEqual({ ...telemetry, ms: typeof telemetry.ms }, { ms: 'number', requested_model: 'claude-opus-5-5', effort: null, served_model: 'claude-opus-5', input_tokens: 3000, output_tokens: 9, stop_reason: 'max_tokens', outcome: 'invalid' });
 });
 
 test('the routes refuse bad input and apps the learner cannot reach', async t => {

@@ -83,7 +83,7 @@ function score(expect, got) {
   if (expect.row) checks.route = expect.row === got.row;
   if (expect.actions) {
     const shown = got.actions.find(action => action.type === 'show_authored_card' || action.type === 'focus_part');
-    checks.actions = JSON.stringify(expect.actions) === JSON.stringify(got.actions.map(action => action.type))
+    checks.actions = sameBag(expect.actions, got.actions.map(action => action.type))
       && Object.entries(expect.modes || {}).every(([type, mode]) => got.actions.find(action => action.type === type)?.mode === mode)
       && (!expect.card || shown?.card === expect.card) && (!expect.part || shown?.part_id === expect.part)
       && (!expect.max_sentences || got.actions.filter(action => action.type === 'respond_text').reduce((n, action) => n + sentences(action.text), 0) <= expect.max_sentences);

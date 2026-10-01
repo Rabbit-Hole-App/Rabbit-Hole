@@ -8,7 +8,7 @@
 //   expect: the TARGET architecture's behaviour (stage F), so every stage is scored against it:
 //           selected_includes / selected_excludes (claims sent to JEV), jev / larger (called?),
 //           events ('claim:result', '?' suffix = unsettled; the turn's new events, any order),
-//           states { claim: state }, row, actions (types after validation, in order),
+//           states { claim: state }, row, actions (types after validation, any order: the planner now writes respond_text first),
 //           modes { type: mode }, card / part (the authored card an action shows).
 // Turn ops: practice [answers] (new card attempts before the turn), slash, opening, keep (the
 // learner pressed "Keep it on this canvas"), enter_hole (the next turns run in a softmax hole

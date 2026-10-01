@@ -12,7 +12,7 @@ import { modelFailure } from './learn-research.js';
 import { LEARN_TASKS, loggedModel } from './learn-models.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { escalation } from './agents/learn-tutor-escalation.js';
-import { evaluationFrom, largerInstruction, parseLarger, plannerRequest, readTutorAnswers, tutorJevRequest, TUTOR_TOOL } from './agents/learn-tutor.js';
+import { evaluationFrom, largerInstruction, parseLarger, PLANNER_EFFORTS, plannerRequest, readTutorAnswers, tutorJevRequest, TUTOR_TOOL } from './agents/learn-tutor.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 export const JEV_TIMEOUT_MS = 800;
@@ -102,13 +102,16 @@ export async function evaluateFreeText(env, spec, message, deps = {}) {
 
 // The TutorResponse at top level (the client reads it) plus `telemetry`. A failure throws with
 // `error.telemetry`: outcome 'invalid' when the reply has no usable tutor_response, else 'error'.
+// v2 checkpoint G: TUTOR_PLANNER_EFFORT (one of PLANNER_EFFORTS) sets the planner's effort; unset, the
+// model default (Baseline A). Only the benchmark sets it until the owner picks a level.
 export async function planTurn(env, context, { callModel = loggedModel('tutor', anthropic) } = {}, documents = []) {
   const started = Date.now();
-  const telemetry = { ms: null, requested_model: LEARN_TASKS.tutor.model, served_model: null, input_tokens: null, output_tokens: null, stop_reason: null, outcome: null };
+  const effort = PLANNER_EFFORTS.includes(env.TUTOR_PLANNER_EFFORT) ? env.TUTOR_PLANNER_EFFORT : null;
+  const telemetry = { ms: null, requested_model: LEARN_TASKS.tutor.model, effort, served_model: null, input_tokens: null, output_tokens: null, stop_reason: null, outcome: null };
   const done = outcome => ({ ...telemetry, ms: Date.now() - started, outcome });
   let result;
   try {
-    const response = await callModel(env, plannerRequest(context, LEARN_TASKS.tutor.maxTokens, documents), LEARN_TASKS.tutor.model, null);
+    const response = await callModel(env, plannerRequest(context, LEARN_TASKS.tutor.maxTokens, documents, { effort }), LEARN_TASKS.tutor.model, null);
     if (!response.ok) throw await modelFailure(response, 'The tutor is unavailable');
     result = await response.json();
   } catch (error) { throw Object.assign(error, { telemetry: done('error') }); }
