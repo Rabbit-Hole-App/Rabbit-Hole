@@ -114,10 +114,16 @@ So `/a/*` is the only route that is blocked.
 **Owner decisions:**
 - **BYOC.** `BYOC_DB` plus the AWS keys. The UI hides AWS Connection on a 503, so leaving them unbound is safe.
 - **Moment log.** `learn_moments` is in the main DB (0027) but not in `repository-schema.sql`. With `LEARN_DB` bound, `learnMomentsDb` picks `LEARN_DB`, so the video-moment log stays off until a `learn-migrations/0004` adds it. That is the same as dev today.
-- **Preview restrictions.** The `VITE_COACHING_DEV=true` build also ships them: `/chat` and `/members` redirect, and the browser refuses writes outside Learn (`flags.js`, `api.js`).
+- **Preview restrictions.** Every Rabbit Hole build (`learnPreview`) also ships them: `/chat` and `/members` redirect, and the browser refuses writes outside Learn (`flags.js`, `api.js`).
   - Landing, `/sign-in`, `/sign-up`, `/check-email`, and the support and docs pages no longer need the flag. `vite.config.js` emits them in every build except private BYOC (`src/landing/public-pages-build.test.mjs`).
   - The legacy `dist` build carries them too, under `dist/design/`. `small-cp` serves none of them: it bundles only `index.html` and passes just `/static/*` and the icons to `ASSETS`.
-  - **Open:** the Learn UI (`learnPreview`) still needs `VITE_COACHING_DEV=true`, so production builds with it today.
+  - **Learn UI flag.** Production builds with `VITE_RABBIT_HOLE=true`, which turns on Rabbit Hole (`learnPreview`, the Learn,
+    Home and canvas chunks) and nothing else. `VITE_COACHING_DEV=true` stays the dev/review build: the same app plus the dev-only
+    tools (coaching dev panel, review fixtures, the canvas lesson-block workbench, dev palette items, the supplied nanoGPT course).
+    `node e2e/production-bundle-check.mjs` (packages/web, after the production build) fails if the Learn chunks are missing or
+    any dev-only tool shipped.
+  - **Open (owner):** the supplied nanoGPT course (`LearnPage.jsx`) is still dev-only, so production `karpathy/nanoGPT` gets the
+    generated course, not the supplied one.
 - **Data.** Should anything carry over from legacy `small` (users, workspaces, `learn_courses`)? The default is a fresh start. No Rabbit Hole canvas or board data exists in `small`.
 
 ### Secrets
@@ -170,10 +176,13 @@ Prefix 0001–0003 each have two files. Wrangler and the test both sort by full 
 
 ```bash
 cd ../web
-# VITE_COACHING_DEV: the Learn UI still needs it (Landing and sign-in do not).
-export VITE_COACHING_DEV=true VITE_NOTEBOOK_ORIGIN=https://rabbit-hole-canvas-notebook.tryrabbithole.workers.dev
+# The production Rabbit Hole build: never VITE_COACHING_DEV (dev-only tools) or VITE_BYOC_DEV.
+export VITE_RABBIT_HOLE=true
+export VITE_NOTEBOOK_ORIGIN=https://rabbit-hole-canvas-notebook.tryrabbithole.workers.dev
+export VITE_LESSON_NOTEBOOK_ORIGIN=https://rabbit-hole-notebook.tryrabbithole.workers.dev
 export VITE_TLDRAW_LICENSE_KEY=<from root .env - never print it>
 npm run build && npm run build -- --outDir dist-dev
+node e2e/production-bundle-check.mjs    # Learn app in, dev-only tools out
 ```
 
 4. Deploy the control plane before the app, so the app's binding resolves. Set each Worker's secrets (table above) after its first deploy, piping every value into `wrangler secret put` from that Worker's own directory:
@@ -218,11 +227,18 @@ Canonical production domain, bought inside the Rabbit Hole Cloudflare account (o
 
 The notebook iframes use `sandbox="allow-scripts allow-same-origin"`, so only a separate *site* keeps notebook Python away from the session.
 - Host them on `*.tryrabbithole.workers.dev` and not on a `digrabbithole.com` subdomain: a subdomain is same-site, so the `SameSite=Lax` cookie would ride along. `workers.dev` is a different registrable domain from digrabbithole.com, so notebooks are cross-site and the same-site cookie concern does not apply.
-- Before relying on this, confirm `workers.dev` is on the Public Suffix List.
+- `workers.dev` is on the Public Suffix List (checked 2026-10-01), so each `*.workers.dev` host is its own site.
 
-**Code to fix before a production build:**
-- `packages/web/src/learn-notebook.js:7` defaults `VITE_NOTEBOOK_ORIGIN` to the quarantined personal-account `small-learn-canvas-notebook-dev.zeroshothq.workers.dev`.
-- `packages/web/src/LearnExtras.jsx:45` hard-codes `small-learn-notebook-dev.zeroshothq.workers.dev`, with no env override.
+**Production notebook sites (configs ready, NOT CREATED):**
+
+| Worker | Config | Serves | Build variable |
+|---|---|---|---|
+| `rabbit-hole-notebook` | `packages/web/wrangler.rabbit-hole-notebook-prod.jsonc` | `.small/notebook-site` (Lesson view, `LearnExtras.jsx`) | `VITE_LESSON_NOTEBOOK_ORIGIN=https://rabbit-hole-notebook.tryrabbithole.workers.dev` |
+| `rabbit-hole-canvas-notebook` | `packages/web/wrangler.rabbit-hole-canvas-notebook-prod.jsonc` | `.small/canvas-notebook-site` (canvas cards, `learn-notebook.js`) | `VITE_NOTEBOOK_ORIGIN=https://rabbit-hole-canvas-notebook.tryrabbithole.workers.dev` |
+
+Both are static assets only, on the rabbit-hole account, with nothing bound and no route (`rabbit-hole-prod-config.test.js`).
+- **To create later (owner GO):** build the two JupyterLite sites (`packages/web/notebook/README.md`, `packages/web/notebook-canvas/README.md`), then `npx wrangler deploy --config <each config>` from `packages/web`. Deploy them before the app build that points at them.
+- **Defaults.** Without the variables, a build uses the rabbit-hole account's dev sites (`small-learn-notebook-dev`, `small-learn-canvas-notebook-dev` on `tryrabbithole.workers.dev`), never the personal-account `zeroshothq` hosts (`src/notebook-hosts.test.mjs`).
 
 ## Legacy `small-*` names
 
@@ -233,12 +249,13 @@ The notebook iframes use `sandbox="allow-scripts allow-same-origin"`, so only a 
 | `small-cp-dev` | rabbit-hole | Required (the dev web Worker) | Rename candidate: `rabbit-hole-web-dev` |
 | `small-cp-dev-<worktree>` clones | none on rabbit-hole | Transient | Prefix change after the dev web rename, if wanted |
 | `small-learn-notebook-dev`, `small-learn-canvas-notebook-dev` | rabbit-hole | Required (dev iframes) | Rename candidates: `rabbit-hole-notebook-dev`, `rabbit-hole-canvas-notebook-dev` |
-| Fly `small-lesson-renderer-dev`, `small-math-renderer-dev` | personal Fly org | Required for dev repository import and maths animation | Optional new Fly apps with new tokens |
+| Fly `small-lesson-renderer-dev` | personal Fly org | Superseded by `rabbit-hole-lesson-renderer-dev` (Fly org `rabbit-hole`, 2026-10-01); stopped, kept as rollback | Retire in the final `small-*` cleanup |
+| Fly `small-math-renderer-dev` | personal Fly org | Required for maths animation if kept | Optional new `rabbit-hole-*` Fly app with a new token |
 | Personal-account `small-cp-dev*`, `small-learn-*-dev`, `small-*-dev` D1/R2, `small-learn-moments`, `small-learn-index` | personal account | Obsolete (quarantined) | Delete only with owner approval |
 | Fly `small-itest-*`, `small-yolo-*` and similar | personal Fly org | Obsolete test leftovers | Delete only with owner approval |
 
 **Order.** Smallest blast radius first. Each step creates the new name beside the old one, repoints, verifies, and only then retires the old one with owner approval.
-1. Fix the two notebook defaults (no rename).
+1. ~~Fix the two notebook defaults~~ (done: rabbit-hole account dev defaults plus build variables).
 2. Rename the notebook sites. `rabbit-hole-dev-config.test.js` pins the web config *file names*, not the Worker names.
 3. Rename `small-cp-dev` to `rabbit-hole-web-dev`. This is the largest step:
    - it covers about 38 e2e defaults, `rabbit-hole-dev-verify.mjs`, `byoc-admin.py`, the CLI README and the docs;

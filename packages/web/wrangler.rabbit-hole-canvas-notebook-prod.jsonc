@@ -1,0 +1,11 @@
+{
+  // Rabbit Hole PRODUCTION canvas notebook site: the content-free JupyterLite build each canvas notebook card
+  // opens (learn-notebook.js, VITE_NOTEBOOK_ORIGIN). Same isolation rule as rabbit-hole-notebook: workers.dev only,
+  // never a digrabbithole.com subdomain (docs/features/rabbit-hole-production.md). NOT CREATED YET: needs the owner's GO.
+  "name": "rabbit-hole-canvas-notebook",
+  "account_id": "c08d3dbdc53a3afd3cb09a536ac42318",
+  "compatibility_date": "2026-09-16",
+  "workers_dev": true,
+  "preview_urls": false,
+  "assets": { "directory": "../../.small/canvas-notebook-site" }
+}

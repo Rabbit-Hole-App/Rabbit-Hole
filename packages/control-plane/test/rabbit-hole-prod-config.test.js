@@ -72,3 +72,19 @@ test('only the production app config runs app-worker.js; every dev and review wo
   for (const name of ['wrangler.dev.jsonc', 'wrangler.parallel.jsonc']) assert.equal(config(new URL(name, web)).main, 'dev-worker.js', name);
   assert.match(raw(APP), /"main": "app-worker\.js"/);
 });
+
+// The notebook iframes run user Python with allow-same-origin, so their sites must be a different site from
+// digrabbithole.com: static Workers on the rabbit-hole account's workers.dev, no bindings, no route.
+test('the production notebook sites are static rabbit-hole Workers on workers.dev with nothing bound', () => {
+  for (const [file, name, site] of [['wrangler.rabbit-hole-notebook-prod.jsonc', 'rabbit-hole-notebook', 'notebook-site'], ['wrangler.rabbit-hole-canvas-notebook-prod.jsonc', 'rabbit-hole-canvas-notebook', 'canvas-notebook-site']]) {
+    const c = config(`../../web/${file}`);
+    assert.equal(c.name, name, file);
+    assert.equal(c.account_id, RABBIT_HOLE, file);
+    assert.equal(c.workers_dev, true, file);
+    assert.equal(c.preview_urls, false, file);
+    assert.equal(c.routes, undefined, file);
+    assert.equal(c.main, undefined, `${file}: static assets only`);
+    assert.deepEqual(Object.keys(c).filter(k => /d1_|r2_|services|vars|durable|queues|ai|vectorize/.test(k)), [], file);
+    assert.equal(c.assets.directory, `../../.small/${site}`, file);
+  }
+});

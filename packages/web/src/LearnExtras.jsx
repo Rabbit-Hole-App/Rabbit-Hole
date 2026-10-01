@@ -3,6 +3,8 @@ import { ArrowUpRight, BookOpen, ChevronLeft, ChevronRight, RotateCcw, X } from 
 import { Button, CodeBlock, ConfirmDialog, IconBtn } from './ui.jsx';
 import { colorLine } from './code.jsx';
 import { architecturePages, flashcards, quiz, sourceSample } from './learn-preview.js';
+// The Lesson view's notebook site: production sets VITE_LESSON_NOTEBOOK_ORIGIN (rabbit-hole-notebook); the default is the rabbit-hole account's dev site.
+const LESSON_NOTEBOOK_ORIGIN = import.meta.env?.VITE_LESSON_NOTEBOOK_ORIGIN || 'https://small-learn-notebook-dev.tryrabbithole.workers.dev';
 
 export function LessonReading({ architecture, page, narration, onSource, onNotebook }) {
   const reading = architecture ? architecturePages[page] : null;
@@ -42,7 +44,7 @@ export function LessonNotebook({ active }) {
     <div className="flex shrink-0 justify-end"><Button size="sm" variant="secondary" onClick={() => setConfirm(true)}><RotateCcw size={13} />Reset notebook</Button></div>
     <div className="relative min-h-[420px] flex-1 overflow-hidden rounded-lg border border-line">
       {!loaded && <p role="status" className="absolute inset-x-0 top-0 z-10 bg-white p-3 text-sm text-ink-2">Loading Jupyter… Python may take a moment to start.</p>}
-      {opened && <iframe key={version} title="Jupyter lesson notebook" className="absolute inset-0 h-full w-full bg-white" onLoad={() => setLoaded(true)} src="https://small-learn-notebook-dev.zeroshothq.workers.dev/lab/index.html?path=lesson.ipynb&mode=single-document" sandbox="allow-scripts allow-same-origin allow-downloads" allow="clipboard-write" />}
+      {opened && <iframe key={version} title="Jupyter lesson notebook" className="absolute inset-0 h-full w-full bg-white" onLoad={() => setLoaded(true)} src={`${LESSON_NOTEBOOK_ORIGIN}/lab/index.html?path=lesson.ipynb&mode=single-document`} sandbox="allow-scripts allow-same-origin allow-downloads" allow="clipboard-write" />}
     </div>
     {confirm && <ConfirmDialog title="Reset notebook?" body="Restore the original lesson notebook? Your edits, added cells, outputs, and Python variables will be cleared. Download a copy first if you want to keep them." confirmLabel="Reset notebook" onCancel={() => setConfirm(false)} onConfirm={() => { setVersion(v => v + 1); setLoaded(false); setConfirm(false); }} />}
   </section>;

@@ -23,8 +23,8 @@ const FORBIDDEN = [
   'small-runs', 'small-learn-media-dev', 'small-repositories-dev', 'small-learn-moments', 'small-learn-index',
 ];
 
-// wrangler.rabbit-hole-prod.jsonc is production (rabbit-hole-prod-config.test.js), not a dev or review config.
-const WEB = readdirSync(new URL('../../web/', here)).filter(f => /^wrangler\..*\.jsonc$/.test(f) && f !== 'wrangler.rabbit-hole-prod.jsonc').map(f => `../../web/${f}`);
+// wrangler.*-prod.jsonc files are production (rabbit-hole-prod-config.test.js), not dev or review configs.
+const WEB = readdirSync(new URL('../../web/', here)).filter(f => /^wrangler\..*\.jsonc$/.test(f) && !f.endsWith('-prod.jsonc')).map(f => `../../web/${f}`);
 const CP_DEV = '../wrangler.rabbit-hole-dev.jsonc';
 const DEV_CONFIGS = [...WEB, CP_DEV];
 
