@@ -161,7 +161,7 @@ test('VOICE-14 a Rabbit Hole suggestion is only spoken: the session makes one vo
   await r.session.enter();
   await turn(r, 'why do the weights add up to one');
   assert.equal(r.session.caption.current, 'That needs softmax first. Want to go down a Rabbit Hole on it?');
-  assert.deepEqual(tutor.calls.map(call => Object.keys(call).sort()), [['aborted', 'raw', 'signal', 'turnId']], 'one voiceTurn call, nothing else');
+  assert.deepEqual(tutor.calls.map(call => Object.keys(call).sort()), [['aborted', 'onSpeakable', 'raw', 'signal', 'turnId']], 'one voiceTurn call, nothing else');
   r.session.exit();
 });
 
@@ -420,5 +420,50 @@ test('the Tutor voice transcribed just after it stops speaking is not a learner 
   r.stt.say('why minus infinity though');
   await until(r.session, 'speaking');
   assert.equal(tutor.calls.length, 2, 'the learner own words still count');
+  r.session.exit();
+});
+
+test('early speech: the first validated sentence plays before the plan completes, then the rest of the reply', async () => {
+  let release;
+  const tutor = scriptedTutor(args => { args.onSpeakable('Softmax turns scores into weights.'); return new Promise(resolve => { release = () => resolve({ speech: 'Softmax turns scores into weights. Each row adds up to one.', turnId: args.turnId, ms: MS }); }); });
+  const r = rig(tutor, { ttsMs: 5 });
+  await r.session.enter();
+  r.stt.say('why do the weights add up to one');
+  await until(r.session, 'speaking');
+  assert.equal(r.session.caption.current, 'Softmax turns scores into weights.', 'speaking before the plan is complete');
+  assert.ok(r.names().includes('first_sentence'));
+  release();
+  await until(r.session, 'listening');
+  assert.equal(r.calls.filter(call => call === 'tts.speak').length, 2, 'the first sentence, then the rest');
+  assert.equal(r.session.caption.current, 'Softmax turns scores into weights. Each row adds up to one.');
+  const turnEvent = r.events.find(event => event.name === 'voice_turn');
+  assert.equal(typeof turnEvent.ms.speech_end_to_first_sentence, 'number');
+  r.session.exit();
+});
+
+test('early speech: Stop while the first sentence plays cancels the unfinished plan; nothing more is spoken', async () => {
+  let release;
+  const tutor = scriptedTutor(args => { args.onSpeakable('Here is the idea.'); return new Promise(resolve => { release = () => resolve({ speech: 'Here is the idea. And much more.', turnId: args.turnId, ms: MS }); }); });
+  const r = rig(tutor, { ttsMs: 10000 });
+  await r.session.enter();
+  r.stt.say('explain it');
+  await until(r.session, 'speaking');
+  r.session.interrupt();
+  assert.equal(r.session.state, 'listening', 'Voice stays on');
+  assert.equal(tutor.calls[0].aborted(), true, 'the plan request is cancelled');
+  release();
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.equal(r.calls.filter(call => call === 'tts.speak').length, 1, 'the rest is never spoken');
+  assert.equal(r.session.state, 'listening');
+  r.session.exit();
+});
+
+test('early speech: a reply without an early sentence speaks as before', async () => {
+  const tutor = scriptedTutor('Just one reply.');
+  const r = rig(tutor, { ttsMs: 5 });
+  await r.session.enter();
+  await turn(r, 'hello');
+  assert.equal(r.calls.filter(call => call === 'tts.speak').length, 1);
+  assert.ok(!r.names().includes('first_sentence'));
   r.session.exit();
 });

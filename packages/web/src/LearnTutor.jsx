@@ -3,10 +3,10 @@
 // messages here instead of /api/learn/ask; /dive stays /dive's (Dive.jsx), and the Tutor only
 // proposes a dive through it.
 import { cloneElement, useCallback, useEffect, useRef, useState } from 'react';
-import { api } from './api.js';
+import { api, wsHeaders } from './api.js';
 import { TUTOR_BOARD } from './learn-tutor-claims.js';
 import { loadStore, saveStore, storeKey } from './learn-tutor-evidence.js';
-import { arriveAt, enterHole, executeActions, keepHere, markOpened, openingQuestion, runTurn } from './learn-tutor.js';
+import { arriveAt, enterHole, executeActions, keepHere, markOpened, openingQuestion, readPlanStream, runTurn } from './learn-tutor.js';
 
 // A Tutor request that never answers ends as an error reply, not an endless spinner; Stop ends it too.
 const TURN_TIMEOUT_MS = 60000;
@@ -26,7 +26,9 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive }) {
   useEffect(() => { if (active) save(arriveAt(load(), here)); }, [active, here.app, here.board]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Resolves the turn's result once its canvas actions have run; typed and voice turns share it.
-  const turn = useCallback(async ({ raw, targetId = null, opening = false, signal, inputModality = 'text', turnId = null }) => {
+  // onSpeakable (voice): the plan streams, and its first validated, self-contained sentence is handed over
+  // before the plan is complete (runTurn, learn-tutor-validate.js speakable) so Fish can start on it.
+  const turn = useCallback(async ({ raw, targetId = null, opening = false, signal, inputModality = 'text', turnId = null, onSpeakable = null }) => {
     const canvas = canvasApi.current;
     const block = canvas?.block?.(targetId) || canvas?.block?.(stateRef.current.card?.id) || null;
     const slash = slashNext.current;
@@ -39,8 +41,13 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive }) {
       result = await runTurn({
         raw: slash?.raw || raw, slash: slash?.name || null, opening,
         canvas: { ...here, ...(record ? { dive: record } : {}) },
-        access, block, store: load(), inputModality, turnId,
-        post: (path, body) => api(path, { method: 'POST', body: JSON.stringify(body), signal: AbortSignal.any([AbortSignal.timeout(TURN_TIMEOUT_MS), ...(signal ? [signal] : [])]) }),
+        access, block, store: load(), inputModality, turnId, onSpeakable,
+        post: (path, body, stream) => {
+          const limit = AbortSignal.any([AbortSignal.timeout(TURN_TIMEOUT_MS), ...(signal ? [signal] : [])]);
+          // A streamed plan (body.stream, NDJSON): its sentences reach onSentence as they validate.
+          if (stream?.onSentence) return fetch(path, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', ...wsHeaders() }, body: JSON.stringify(body), signal: limit }).then(response => readPlanStream(response, stream.onSentence));
+          return api(path, { method: 'POST', body: JSON.stringify(body), signal: limit });
+        },
       });
     } catch (error) {
       bench({ error: error?.name || 'Error', trace: error?.trace ?? null, ms: { total_in_app: Math.round((performance.now() - started) * 10) / 10 } });
@@ -83,9 +90,9 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive }) {
     },
     // Voice Mode (docs/features/voice-tutor-mvp.md §1): the same turn, spoken. `speech` is the Tutor's
     // own words or '' - never a fallback; `ms` are the turn's timings for the voice telemetry.
-    voiceTurn: async ({ raw, targetId, signal, turnId }) => {
+    voiceTurn: async ({ raw, targetId, signal, turnId, onSpeakable = null }) => {
       setChips([]);
-      const result = await turn({ raw, targetId, signal, inputModality: 'voice', turnId });
+      const result = await turn({ raw, targetId, signal, inputModality: 'voice', turnId, onSpeakable });
       return { speech: result.text, turnId: result.turn.turn_id, ms: result.bench.ms };
     },
     opening,

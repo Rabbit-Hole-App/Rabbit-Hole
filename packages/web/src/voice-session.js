@@ -84,6 +84,7 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now 
       speech_start_to_first_partial: span(m.speech_start, m.first_partial),
       speech_end_to_commit: span(m.speech_end, m.commit),
       speech_end_to_tutor_speaking: span(m.speech_end, m.tts_play_start),
+      speech_end_to_first_sentence: span(m.speech_end, m.first_sentence),
       speech_end_to_canvas_action: span(m.speech_end, m.canvas_action_visible),
       tts_request_to_first_byte: span(m.tts_request_start, m.tts_first_byte),
       // Streaming playback (owner, 2026-10-01): text ready is when the Tutor's reply arrived here.
@@ -109,9 +110,20 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now 
     set('thinking', { error: null });
     m.tutor_request_start = now();
     emit('tutor_request_start', { turn_id: turnId, at: m.tutor_request_start });
+    // The Tutor's first validated, self-contained sentence (Tutor v2) starts Fish before the plan is complete.
+    let early = null;
+    const onSpeakable = sentence => {
+      const words = typeof sentence === 'string' ? sentence.trim() : '';
+      if (current !== turn || early || !words) return;
+      m.first_sentence = now();
+      emit('first_sentence', { turn_id: turnId, at: m.first_sentence });
+      early = { text: words };
+      speak(turn, words);
+      early.speaking = tts.speak(words, { turnId });
+    };
     let reply;
     try {
-      reply = await tutor.voiceTurn({ raw: text, turnId, signal: turn.controller.signal });
+      reply = await tutor.voiceTurn({ raw: text, turnId, signal: turn.controller.signal, onSpeakable });
     } catch (error) {
       if (current !== turn) return; // exited: nothing to show
       const timeout = error?.name === 'TimeoutError';
@@ -128,18 +140,36 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now 
       emit(name, { turn_id: turnId, ms });
     }
     const speech = typeof reply?.speech === 'string' ? reply.speech : '';
-    m.text_ready = now();
-    set(null, { current: speech, previous: caption.current || null });
+    if (early) {
+      // The first sentence is already playing: the caption shows the whole reply, and what follows that
+      // sentence is spoken once it ends. The plan validated the sentence as the reply's opening.
+      turn.speech = speech || early.text;
+      set(null, { current: turn.speech });
+      const outcome = await early.speaking;
+      if (current !== turn) return;
+      if (outcome === 'failed') emit('voice_error', { turn_id: turnId, kind: 'tts' });
+      const rest = speech.startsWith(early.text) ? speech.slice(early.text.length).trim() : '';
+      if (rest && outcome === 'ended') {
+        const more = await tts.speak(rest, { turnId });
+        if (more === 'failed' && current === turn) emit('voice_error', { turn_id: turnId, kind: 'tts' });
+      }
+      return finish(turn);
+    }
     if (!speech) return finish(turn);
-    turn.speech = speech;
-    set('speaking');
-    // Listen while speaking, so the learner can interrupt by talking (sttEvent) - only where the browser
-    // confirms echo cancellation; otherwise the mic waits for the reply to end, as before.
-    barge = { hits: 0 };
-    if (stt.echoCancelled !== false) Promise.resolve(stt.resume()).catch(() => sttFailed('resume'));
+    speak(turn, speech);
     const outcome = await tts.speak(speech, { turnId });
     if (outcome === 'failed' && current === turn) emit('voice_error', { turn_id: turnId, kind: 'tts' });
     finish(turn); // ended, failed or stopped: the caption stays, the canvas has already acted
+  }
+
+  // Into speaking with these words on the caption. Listen while speaking, so the learner can interrupt by
+  // talking (sttEvent) - only where the browser confirms echo cancellation; otherwise the mic waits.
+  function speak(turn, words) {
+    turn.marks.text_ready ??= now();
+    turn.speech = words;
+    set('speaking', { current: words, previous: caption.current || null });
+    barge = { hits: 0 };
+    if (stt.echoCancelled !== false) Promise.resolve(stt.resume()).catch(() => sttFailed('resume'));
   }
 
   function interrupt() {
@@ -149,7 +179,8 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now 
     emit('voice_interrupted', { turn_id: turn.turnId, from, at: turn.marks.interrupted });
     if (from === 'speaking') tts.stop();
     finish(turn);
-    if (from === 'thinking') turn.controller.abort();
+    // Thinking, or speaking an early sentence while the plan is still coming: cancel the Tutor turn.
+    turn.controller.abort();
   }
 
   function sttFailed(kind) {
