@@ -40,7 +40,12 @@
   ],
   "services": [{ "binding": "CONTROL_PLANE", "service": "rabbit-hole-cp" }],
   // The one public origin; the control plane sets the same value.
-  "vars": { "PUBLIC_ORIGIN": "https://digrabbithole.com" }
-  // No SCENE_WORKER_URL/TOKEN: there is no production indexer yet, so repository import answers 503
-  // "not configured". Secrets (owner sets): ANTHROPIC_API_KEY; optional OPENAI_API_KEY and paid-provider keys.
+  "vars": {
+    "PUBLIC_ORIGIN": "https://digrabbithole.com",
+    // Repository import: the Rabbit Hole-owned production renderer (Fly org rabbit-hole), never a dev one.
+    // Its bearer SCENE_WORKER_TOKEN is a fresh production-only secret set on both sides at the production GO.
+    "SCENE_WORKER_URL": "https://rabbit-hole-lesson-renderer-prod.fly.dev"
+  }
+  // Secrets (owner sets): ANTHROPIC_API_KEY, SCENE_WORKER_TOKEN; optional OPENAI_API_KEY and paid-provider keys.
+  // Never here: RESEND_API_KEY or OAuth secrets (rabbit-hole-cp only).
 }
