@@ -110,3 +110,30 @@ test('D1: after a miss the evidence-dependent action planned on stale evidence i
   assert.equal(result.store.open, null, 'the dropped question is not left open');
   assert.equal(result.bench.ms.to_first_evidence_action, null);
 });
+
+// Owner answer A (2026-10-01): late evidence. Keep the concurrency model; never retract the spoken
+// neutral sentence; drop the dependent actions it invalidated; no automatic second planner call; store
+// the evidence so the next turn routes on it.
+test('A: late evidence keeps the spoken sentence, drops the invalidated action, stores the evidence for the next turn, and never re-plans', async () => {
+  const heard = [];
+  const { result, order } = await offPath(true, QUIZ_PLAN, text => heard.push(text));
+  // 1. the neutral early sentence stays valid: spoken before the evidence, and still opens the reply
+  assert.deepEqual(heard, ['Yes, always between them.']);
+  assert.equal(result.bench.spoken.consistent, true);
+  assert.equal(result.text, 'Yes, always between them.');
+  // 2. the dependent action the late evidence invalidated is dropped
+  assert.deepEqual(result.bench.critical_path.miss, { planned: 'not_yet_observed', after: 'uncertain' });
+  assert.deepEqual(result.actions.map(action => action.type), ['respond_text']);
+  // 3. the evidence is stored and reconciled as usual
+  assert.equal(result.states['attention-output/weighted-average'].state, 'uncertain');
+  assert.equal(result.store.events.filter(event => event.source === 'free_text').length, 1);
+  // 5. one planner call: no automatic late re-plan
+  assert.equal(order.filter(step => step === 'planner').length, 1);
+  // 4. the next turn routes on the stored evidence (an uncertain claim now keeps evaluation first)
+  const plans = [];
+  const next = await runTurn({ raw: 'Is the output always between the values?', canvas: { app: 'a', board: 'b' }, access: { app: 'a' }, block: cardBlock(cardModule('c10-weighted-values')), store: result.store,
+    post: async (path, body) => { if (path === '/api/learn/tutor/evaluate') return { status: 'settled', evaluator: 'jev', events: [] }; plans.push(body.context); return { strategy: 'feynman', actions: [{ type: 'respond_text', text: 'Mixed by weight.' }] }; } });
+  assert.equal(next.routed.row, 'uncertain');
+  assert.deepEqual(next.bench.critical_path, { blocking: true, reason: 'evidence_row', miss: null });
+  assert.equal(plans[0].relevant_evidence.claims.find(claim => claim.claim === 'attention-output/weighted-average').state, 'uncertain', 'the planner sees it too');
+});

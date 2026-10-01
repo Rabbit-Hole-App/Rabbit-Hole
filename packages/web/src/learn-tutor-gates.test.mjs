@@ -54,3 +54,14 @@ test('D6: a great p50 with a pathological p95 is not picked silently; groups sta
   assert.deepEqual(Object.keys(results.E.latency), ['all', 'routine', 'evidence', 'structural']);
   assert.equal(judge({ A: arm(10, () => 8000, () => ({ pass: false })) }).winner.arm, null, 'nothing eligible: no fast tier ships');
 });
+
+test('owner answers A and C: an arm stopped on a refusal is unavailable; late evidence and per-category N are reported', () => {
+  const refusedArm = arm(10, () => 500, () => ({ run_aborted: 'planner refused: model HTTP 400' }));
+  const late = arm(10, () => 8000, i => ({ category: i < 5 ? 'question_request' : 'misconception', critical_path: i < 4 ? { blocking: false, miss: i === 0 ? { planned: 'not_yet_observed', after: 'uncertain' } : null } : { blocking: true }, late_evidence_events: i < 2 ? 1 : 0, evidence_dropped: i === 0 ? 1 : 0 }));
+  const { verdicts } = judge({ A: late, C: refusedArm });
+  assert.match(verdicts.C.failed[0], /^unavailable: planner refused/);
+  assert.deepEqual(late.late_evidence, { off_path_turns: 4, with_evidence: 2, route_changed: 1, dependent_actions_dropped: 1 });
+  assert.deepEqual(Object.keys(late.latency_by_category), ['misconception', 'question_request']);
+  assert.deepEqual(Object.keys(late.latency_by_category.question_request.first_validated_sentence_ms), ['n', 'p50', 'p95', 'mean', 'max']);
+  assert.equal(late.latency_by_category.question_request.first_validated_sentence_ms.n, 5);
+});

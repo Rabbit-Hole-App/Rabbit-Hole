@@ -25,8 +25,14 @@ export function measure(rows) {
   const goldenPassed = golden.filter(id => rows.filter(row => row.trace === id).every(row => row.pass));
   const fastTurns = rows.filter(row => row.planner_tier === 'fast');
   const latency = list => ({ first_validated_sentence_ms: stats(list.map(row => row.to_first_safe_sentence).filter(v => v != null)), full_plan_ms: stats(list.map(row => row.planner_ms ?? row.to_planner_ready).filter(v => v != null)) });
+  const categories = [...new Set(ok.map(row => row.category))].sort();
+  const off = rows.filter(row => row.critical_path && !row.critical_path.blocking);
   return {
     turns: rows.length, errored: rows.length - ok.length,
+    // A run stopped on a refusal (never retried): the arm is unavailable.
+    unavailable: rows.find(row => row.run_aborted)?.run_aborted ?? null,
+    // Owner answer A: late evidence and the dependent actions it dropped (no second planner call).
+    late_evidence: { off_path_turns: off.length, with_evidence: off.filter(row => row.late_evidence_events > 0).length, route_changed: off.filter(row => row.critical_path.miss).length, dependent_actions_dropped: sum(rows, row => row.evidence_dropped) },
     hard: {
       golden: { passed: goldenPassed.length, total: golden.length, failed: golden.filter(id => !goldenPassed.includes(id)) },
       consent_violations: sum(rows, row => row.audit?.consent), policy_violations: sum(rows, row => row.audit?.policy),
@@ -40,7 +46,9 @@ export function measure(rows) {
       routine_fast_escalation: ratio(fastTurns.filter(row => row.planner_escalated).length, fastTurns.length),
     },
     cost_per_turn_usd: rows.length ? +(sum(rows, row => row.cost_usd) / rows.length).toFixed(5) : null,
+    // N, mean, p50, p95 and max everywhere; the N says how much a percentile can carry.
     latency: { all: latency(ok), ...Object.fromEntries(GROUPS.map(group => [group, latency(ok.filter(row => row.group === group))])) },
+    latency_by_category: Object.fromEntries(categories.map(category => [category, latency(ok.filter(row => row.category === category))])),
   };
 }
 
@@ -49,6 +57,7 @@ export function judge(results, reference = 'A', baseline = 'A') {
   const verdicts = {};
   for (const [arm, m] of Object.entries(results)) {
     const failed = [];
+    if (m.unavailable) failed.push(`unavailable: ${m.unavailable}`);
     const h = m.hard;
     if (h.golden.passed !== h.golden.total) failed.push(`golden ${h.golden.passed}/${h.golden.total}`);
     for (const key of ['consent_violations', 'policy_violations', 'nonexistent_resource_actions', 'spoken_then_replaced', 'evidence_corruption']) if (h[key]) failed.push(`${key} ${h[key]}`);

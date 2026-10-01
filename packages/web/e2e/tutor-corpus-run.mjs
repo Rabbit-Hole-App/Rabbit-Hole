@@ -50,21 +50,35 @@ if (LIVE && process.env.TUTOR_BENCH_PAID !== 'GO') throw Error('--live makes pai
 //   A  Opus 5.5 as Baseline A: no streaming, no caching (the v2 pipeline: compact state, critical path)
 //   B  optimized Opus 5.5: first-sentence streaming + prompt caching (5A)
 //   C  B + Opus 5.5 fast mode (5B; documented, first-party API only)
-//   D  B + Haiku 4.5 fast tier, Opus escalation (no cache below Haiku's 4096-token minimum)
-//   E  B + Sonnet 5.5 fast tier at effort low, Opus escalation
+//   D  B + Haiku 4.5 fast tier, Opus escalation (no cache below Haiku's 4096-token minimum; Haiku 4.5
+//      takes no effort parameter, so none is sent)
+//   E  B + Sonnet 5.5 fast tier at its DEFAULT effort (high), Opus escalation
+//   F  B + Sonnet 5.5 fast tier at effort low (documented for Sonnet 5.5), Opus escalation: E and F
+//      separate the model from the effort (owner answer D)
 const CANDIDATES = {
   A: { stream: false, env: {} },
   B: { stream: true, env: { TUTOR_PLANNER_CACHE: 'on' } },
   C: { stream: true, env: { TUTOR_PLANNER_CACHE: 'on', TUTOR_PLANNER_SPEED: 'fast' } },
   D: { stream: true, env: { TUTOR_PLANNER_CACHE: 'on', TUTOR_PLANNER_FAST_MODEL: 'claude-haiku-4-5-20251001' } },
-  E: { stream: true, env: { TUTOR_PLANNER_CACHE: 'on', TUTOR_PLANNER_FAST_MODEL: 'claude-sonnet-5-5', TUTOR_PLANNER_FAST_EFFORT: 'low' } },
+  E: { stream: true, env: { TUTOR_PLANNER_CACHE: 'on', TUTOR_PLANNER_FAST_MODEL: 'claude-sonnet-5-5' } },
+  F: { stream: true, env: { TUTOR_PLANNER_CACHE: 'on', TUTOR_PLANNER_FAST_MODEL: 'claude-sonnet-5-5', TUTOR_PLANNER_FAST_EFFORT: 'low' } },
 };
 const CANDIDATE = flag('candidate', 'B');
 if (!CANDIDATES[CANDIDATE]) throw Error(`--candidate is one of ${Object.keys(CANDIDATES).join(', ')}`);
 // Decision 3: the exact model ids, never substituted.
 const EXPECTED_MODELS = { planner: 'claude-opus-5-5', evaluator: 'claude-opus-5-5' };
 if (LEARN_TASKS.tutor.model !== EXPECTED_MODELS.planner || LEARN_TASKS.tutor_evaluator.model !== EXPECTED_MODELS.evaluator) throw Error('the planner and larger evaluator must be claude-opus-5-5 (decision 3)');
-for (const { env } of Object.values(CANDIDATES)) if (env.TUTOR_PLANNER_FAST_MODEL && !FAST_PLANNER_MODELS.includes(env.TUTOR_PLANNER_FAST_MODEL)) throw Error(`unknown fast model ${env.TUTOR_PLANNER_FAST_MODEL}`);
+for (const { env } of Object.values(CANDIDATES)) {
+  if (env.TUTOR_PLANNER_FAST_MODEL && !FAST_PLANNER_MODELS.includes(env.TUTOR_PLANNER_FAST_MODEL)) throw Error(`unknown fast model ${env.TUTOR_PLANNER_FAST_MODEL}`);
+  if (env.TUTOR_PLANNER_FAST_EFFORT && env.TUTOR_PLANNER_FAST_MODEL?.startsWith('claude-haiku')) throw Error('Haiku 4.5 takes no effort parameter: never send one');
+}
+// --group routine: only the traces made entirely of that group's turns (owner answer C: routine turns
+// get 5 repetitions per arm, i.e. 3 full-corpus runs + 2 routine-only runs; evidence and structural 3).
+const GROUP = flag('group', null);
+// A refused request is never retried (owner): a planner HTTP 4xx other than 429, or fast mode not served
+// on arm C, stops the run; its rows are stamped run_aborted and the gates mark the arm unavailable.
+let ABORTED = null;
+const refused = message => /model HTTP 4(?!29)\d\d/.test(String(message || ''));
 const STREAM = LIVE ? CANDIDATES[CANDIDATE].stream : args.includes('--stream');
 const ENV = LIVE ? Object.fromEntries(readFileSync(new URL('../.dev.vars', import.meta.url), 'utf8').split(/\r?\n/)
   .filter(line => /^[A-Z_]+=/.test(line)).map(line => [line.slice(0, line.indexOf('=')), line.slice(line.indexOf('=') + 1).trim()]).concat(Object.entries(CANDIDATES[CANDIDATE].env))) : null;
@@ -235,6 +249,8 @@ async function runTrace(trace) {
       try {
         const planned = await planTurn(ENV, body.context, STREAM ? { onSentence: options.onSentence } : {});
         calls.firstSentenceMs = planned.telemetry.first_sentence_ms ?? null;
+        if (refused(planned.telemetry.escalated)) ABORTED = `fast tier refused: ${planned.telemetry.escalated}`;
+        if (CANDIDATES[CANDIDATE].env.TUTOR_PLANNER_SPEED === 'fast' && planned.telemetry.speed !== 'fast') ABORTED = `fast mode not served (usage.speed ${planned.telemetry.speed})`;
         const tokens = t => ({ in: t.input_tokens, out: t.output_tokens, cw: t.cache_creation_input_tokens, cr: t.cache_read_input_tokens, model: t.requested_model, served: t.served_model, speed: t.speed ?? null, requested_speed: t.requested_speed ?? null });
         Object.assign(calls, { plannerMs: planned.telemetry.ms, plannerOutcome: 'ok', plannerTokens: tokens(planned.telemetry), fastTokens: planned.telemetry.escalated && planned.telemetry.fast ? tokens(planned.telemetry.fast) : null,
           fastInvalid: planned.telemetry.escalated && planned.telemetry.fast?.outcome === 'invalid' ? 1 : 0,
@@ -256,6 +272,7 @@ async function runTrace(trace) {
         jev_calls: calls.jev, jev_questions: calls.jevQuestions, larger_calls: calls.larger, planner_calls: calls.planner, jev_ms: calls.jevMs, larger_ms: calls.largerMs, planner_ms: calls.plannerMs, planner_outcome: calls.plannerOutcome,
         turn_ms: Math.round(performance.now() - started), selected: calls.selected, checks: { turn: false }, pass: false, proposed: 0, accepted: 0, rejected: 0, authored_actions: 0, text_actions: 0,
         group: GROUP_OF[step.category || trace.category], planner_invalid: calls.plannerOutcome === 'invalid' ? 1 : 0, planner_tier: calls.tier });
+      if (LIVE && refused(error.message)) ABORTED = `planner refused: ${String(error.message).slice(0, 160)}`;
       break;
     }
     const turnMs = Math.round(performance.now() - started);
@@ -277,6 +294,8 @@ async function runTrace(trace) {
       proposed, accepted, rejected: Math.max(0, proposed - accepted), log: result.log,
       rejections: (result.decisions || []).filter(decision => !decision.accepted).map(decision => `${decision.type}@${decision.stage}: ${decision.reason}`),
       transitions: result.transitions || [], critical_path: result.bench?.critical_path ?? null,
+      // Owner answer A: evidence that landed after the reply was planned (off the critical path).
+      late_evidence_events: result.bench?.critical_path && !result.bench.critical_path.blocking ? added.filter(event => event.source === 'free_text').length : null,
       turn_trace: result.bench?.trace ? { trace_id: result.bench.trace.trace_id, stages: result.bench.trace.stages.map(stage => `${stage.stage}:${stage.status}:${stage.result}`) } : null,
       turn_ms: turnMs, jev_ms: calls.jevMs, jev_outcome: calls.jevOutcome, larger_ms: calls.largerMs, larger_outcome: calls.largerOutcome, larger_tokens: calls.largerTokens,
       planner_ms: calls.plannerMs, planner_outcome: calls.plannerOutcome, planner_tokens: calls.plannerTokens, fast_tokens: calls.fastTokens ?? null,
@@ -299,8 +318,15 @@ async function runTrace(trace) {
   return rows;
 }
 
+const TRACES = GROUP ? CORPUS.filter(trace => trace.turns.every(step => GROUP_OF[step.category || trace.category] === GROUP)) : CORPUS;
+if (GROUP) {
+  const all = CORPUS.flatMap(trace => trace.turns.map(step => GROUP_OF[step.category || trace.category])).filter(group => group === GROUP).length;
+  const here = TRACES.reduce((n, trace) => n + trace.turns.length, 0);
+  if (!here || here !== all) throw Error(`--group ${GROUP}: ${here} of its ${all} turns sit in traces of their own; only a group whose traces hold nothing else can be repeated alone`);
+}
 const rows = [];
-for (const trace of CORPUS) rows.push(...await runTrace(trace));
+for (const trace of TRACES) { if (ABORTED) break; rows.push(...await runTrace(trace)); }
+if (ABORTED) rows.forEach(row => { row.run_aborted = ABORTED; });
 const dims = ['selection', 'evaluation', 'evidence', 'route', 'actions'];
 const rate = (list, test) => list.length ? +(list.filter(test).length / list.length).toFixed(3) : null;
 const turnsWithActions = rows.filter(row => row.accepted);
@@ -319,7 +345,13 @@ const evalMs = row => row.jev_calls ? BASE_MS.jev + (row.larger_calls ? BASE_MS.
 const modeled = blocking => rows.filter(row => !row.error).map(row => BASE_MS.stt + (blocking(row) ? evalMs(row) : 0) + BASE_MS.planner + BASE_MS.fish);
 const evaluatedRows = rows.filter(row => row.critical_path);
 const summary = {
-  stage: STAGE, mode: MODE, traces: CORPUS.length, turns: rows.length, errored_turns: rows.filter(row => row.error).length,
+  stage: STAGE, mode: MODE, ...(LIVE ? { candidate: CANDIDATE } : {}), group: GROUP, traces: TRACES.length, turns: rows.length, errored_turns: rows.filter(row => row.error).length, aborted: ABORTED,
+  // Owner answer A: late evidence (off-path turns whose evaluation landed after planning) and what it cost.
+  late_evidence: (() => {
+    const off = rows.filter(row => row.critical_path && !row.critical_path.blocking);
+    return { off_path_turns: off.length, with_evidence: off.filter(row => row.late_evidence_events > 0).length, route_changed: off.filter(row => row.critical_path.miss).length,
+      route_changed_rate: rate(off, row => !!row.critical_path.miss), dependent_actions_dropped: rows.reduce((n, row) => n + (row.evidence_dropped || 0), 0) };
+  })(),
   ...(LIVE ? {
     speed: {
       jev_ms: stats(values(row => row.jev_ms)), jev_timeout_rate: rate(jevTurns, row => row.jev_outcome === 'timeout'), jev_error_rate: rate(jevTurns, row => row.jev_outcome === 'error'),
@@ -400,7 +432,7 @@ const summary = {
     note: 'at_fraction_of_output in thousandths of the tool-input characters written before the first sentence is ready (stub: scripted plans, control fields then actions)',
   } } : {}),
   planner_fast_tier_share: rate(rows.filter(row => row.planner_tier), row => row.planner_tier === 'fast'),
-  ...(LIVE ? { candidate: CANDIDATE, planner_escalations: rows.filter(row => row.planner_escalated).map(row => `${row.trace}#${row.turn}: ${row.planner_escalated}`) } : {}),
+  ...(LIVE ? { planner_escalations: rows.filter(row => row.planner_escalated).map(row => `${row.trace}#${row.turn}: ${row.planner_escalated}`) } : {}),
   planner_input_tokens_est: stats(rows.filter(row => row.planner_calls).map(row => row.planner_input_tokens_est)),
   claims_available_per_jev_turn: jevTurns.some(row => row.claims_available != null) ? +(jevTurns.reduce((n, row) => n + (row.claims_available || 0), 0) / jevTurns.length).toFixed(2) : null,
   rejections_by_stage: rows.flatMap(row => row.rejections || []).reduce((acc, entry) => { const stage = entry.split('@')[1].split(':')[0]; acc[stage] = (acc[stage] || 0) + 1; return acc; }, {}),
