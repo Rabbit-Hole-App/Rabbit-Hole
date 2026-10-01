@@ -405,13 +405,17 @@ test('an unavailable indexer answers with its own safe message and status and wr
     ['timeout',stub(async()=>{throw new DOMException('The operation was aborted due to timeout','TimeoutError');}),503,/did not respond/],
     ['proxy 502 page',stub(async()=>new Response('<html>Bad gateway</html>',{status:502})),503,/did not respond/],
     ['worker 503',stub(async()=>Response.json({error:'busy'},{status:503})),503,/did not respond/],
+    ['plain-http url',()=>({...f.env,SCENE_WORKER_URL:'http://worker.test'}),503,/^Repository import is unavailable because the indexing service is not configured/],
+    ['forbidden token',stub(async()=>new Response('Forbidden',{status:403})),502,/rejected this server's credential/],
+    ['html 404 page',stub(async()=>new Response('<html>Not found</html>',{status:404})),503,/did not respond/],
+    ['redirect',stub(async()=>new Response(null,{status:302,headers:{location:'https://elsewhere.test/'}})),503,/did not respond/],
     ['repository not found',stub(async()=>Response.json({error:'Public repository was not found or GitHub is unavailable'},{status:400})),400,/^Public repository was not found/],
   ];
   for(const [name,setup,status,message] of cases){
     for(const req of [new Request('https://dev.test/api/repositories/branches?url=https://github.com/example/project'),new Request('https://dev.test/api/repositories',{method:'POST',body:JSON.stringify({url:'https://github.com/example/project',branch:'main'})})]){
       const response=await repositoriesFetch(req,setup(),{}),body=await response.json();
       assert.equal(response.status,status,`${name} ${req.method}`);assert.match(body.error,message,`${name} ${req.method}`);
-      assert.doesNotMatch(body.error,/SCENE_WORKER|scene worker|Unauthorized|fetch failed/i,`${name} ${req.method}`);
+      assert.doesNotMatch(body.error,/SCENE_WORKER|scene worker|Unauthorized|fetch failed|HTTPS|Unexpected token|JSON/i,`${name} ${req.method}`);
     }
   }
   assert.equal(rows(),before);

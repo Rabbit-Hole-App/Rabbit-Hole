@@ -99,9 +99,10 @@ bearer secret `SCENE_WORKER_TOKEN`. The renderer compares the bearer to its own
   stopped machine started. Rotating is the cleaner way to wire a Worker.
 - **What the learner sees** (`repositoryMetadata`, branch lookup and import): a missing URL or
   token answers 503 "Repository import is unavailable because the indexing service is not
-  configured on this server."; a 401/403 from Fly answers 502 "...rejected this server's
+  configured on this server." (a URL that is not `https://` counts as missing); a 401/403 from Fly answers 502 "...rejected this server's
   credential."; a network error, timeout or 5xx answers 503 "...did not respond. Try again in a
-  minute." A 4xx with a reason (such as no public repository) keeps 400 and that reason. Never 401,
+  minute." So does a redirect or any answer that is not the worker's JSON (such as a proxy's HTML
+  error page). A 4xx with a reason (such as no public repository) keeps 400 and that reason. Never 401,
   which the web app reads as signed out. Nothing is written in any of these cases.
 
 **Rotation (NOT YET RUN; needs the owner's GO).** One new value goes to both sides, never
