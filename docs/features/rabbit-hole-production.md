@@ -92,7 +92,7 @@ Merging them into one Worker would be new architecture.
 | Worker | Required | Optional |
 |---|---|---|
 | `rabbit-hole-cp` | `MASTER_KEY` (fresh), `GOOGLE_CLIENT_ID/SECRET`, `GITHUB_CLIENT_ID/SECRET` | `RESEND_API_KEY` with an `EMAIL_FROM` var on a verified domain (email sign-in), `ANTHROPIC_API_KEY` |
-| `rabbit-hole-app` | `ANTHROPIC_API_KEY` | `OPENAI_API_KEY`, `DESMOS_API_KEY`, `PEXELS_API_KEY`, `EXA_API_KEY`, `FAL_API_KEY`, `FISH_AUDIO_API_KEY`, `ELEVENLABS_API_KEY` (Voice), `SCENE_WORKER_URL` + `SCENE_WORKER_TOKEN` (indexer) |
+| `rabbit-hole-app` | `ANTHROPIC_API_KEY` | `OPENAI_API_KEY`, `DESMOS_API_KEY`, `PEXELS_API_KEY`, `EXA_API_KEY`, `FISH_AUDIO_API_KEY`, `ELEVENLABS_API_KEY` (Voice), `FAL_API_KEY` with the vars `LEARN_VIDEO_PROVIDER` and `LEARN_VIDEO_RESOLUTION` (video; dev uses `fal-seedance-lite`, `480p`), `SCENE_WORKER_URL` var + `SCENE_WORKER_TOKEN` (indexer) |
 
 ### Repository-import indexer
 
@@ -107,10 +107,11 @@ Run from `packages/control-plane`, with the rabbit-hole `CLOUDFLARE_API_TOKEN` a
 2. Create the resources and the schema:
 
 ```bash
-npx wrangler d1 create rabbit-hole-prod
-npx wrangler d1 create rabbit-hole-learn-prod
-npx wrangler r2 bucket create rabbit-hole-prod-learn-media
-npx wrangler r2 bucket create rabbit-hole-prod-repositories
+# --config keeps wrangler off wrangler.jsonc (legacy small-cp). Answer "no" if it offers to add the binding to a config.
+npx wrangler d1 create rabbit-hole-prod --config wrangler.rabbit-hole-prod.jsonc
+npx wrangler d1 create rabbit-hole-learn-prod --config wrangler.rabbit-hole-prod.jsonc
+npx wrangler r2 bucket create rabbit-hole-prod-learn-media --config wrangler.rabbit-hole-prod.jsonc
+npx wrangler r2 bucket create rabbit-hole-prod-repositories --config wrangler.rabbit-hole-prod.jsonc
 # Replace the four PENDING-* database_id values in both wrangler.rabbit-hole-prod.jsonc files with the printed ids
 # (rabbit-hole-prod-config.test.js keeps the names; a PENDING id refuses to deploy).
 
@@ -132,16 +133,24 @@ npx wrangler d1 migrations list rabbit-hole-prod --remote --config wrangler.rabb
 
 Prefix 0001–0003 each have two files. Wrangler and the test both sort by full filename, so the order is fixed.
 
-3. Set the secrets (table above) with `wrangler secret put <NAME> --config wrangler.rabbit-hole-prod.jsonc`, piping each value in.
-4. Deploy, control plane first so the app's binding resolves:
+3. Build first. `src/index.js` imports `../../web/dist/index.html` and `dev-worker.js` bundles `dist-dev`, and both directories are gitignored. A clean checkout fails to bundle; a dirty one ships a stale page.
 
 ```bash
-npx wrangler deploy --config wrangler.rabbit-hole-prod.jsonc                # rabbit-hole-cp
 cd ../web
 export VITE_COACHING_DEV=true VITE_NOTEBOOK_ORIGIN=https://rabbit-hole-canvas-notebook.tryrabbithole.workers.dev
 export VITE_TLDRAW_LICENSE_KEY=<from root .env - never print it>
-npm run build && npm run build -- --outDir dist-dev    # dev-worker.js bundles from both
-npx wrangler deploy --config wrangler.rabbit-hole-prod.jsonc                # rabbit-hole-app, attaches tryrabbithole.dev
+npm run build && npm run build -- --outDir dist-dev
+```
+
+4. Deploy the control plane before the app, so the app's binding resolves. Set each Worker's secrets (table above) after its first deploy, piping every value into `wrangler secret put` from that Worker's own directory:
+
+```bash
+cd ../control-plane
+npx wrangler deploy --config wrangler.rabbit-hole-prod.jsonc                                    # rabbit-hole-cp
+printf '%s' "$VALUE" | npx wrangler secret put MASTER_KEY --config wrangler.rabbit-hole-prod.jsonc  # and the rest of its row
+cd ../web
+npx wrangler deploy --config wrangler.rabbit-hole-prod.jsonc                                    # rabbit-hole-app, attaches tryrabbithole.dev
+printf '%s' "$VALUE" | npx wrangler secret put ANTHROPIC_API_KEY --config wrangler.rabbit-hole-prod.jsonc  # and the rest of its row
 ```
 
 The app config's custom-domain route needs the zone **active**. Until it is, the app deploy fails at the domain step. To smoke-test before cutover, deploy once with the route removed and `workers_dev: true`. OAuth would then need that host's callbacks registered too.
