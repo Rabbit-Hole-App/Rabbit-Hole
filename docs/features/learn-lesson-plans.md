@@ -83,6 +83,21 @@ answer key, not the learner's scored quiz. Curriculum cards keep their existing
 activity tabs. Edit course / Learner view appear on the overview only, not
 inside a detailed material plan; returning to the overview restores the switch.
 
+The review wording and answer key above belong to the owner's editor view in
+the dev/review build (`reviewTools`, VITE_COACHING_DEV) only. Learner view, and
+every view in the production build (VITE_RABBIT_HOLE alone), shows the lesson
+inside the plan: learner labels ("Lesson pages, quiz and flashcards", "Outline
+only"); no Canvas text, Assets, Drawing sequence or Planned evidence sections;
+no "Insert/Reuse … here" author notes, captions or "pending testing"; and
+"Spoken or written explanation" reads "Explanation". Quiz questions are answered
+first: radio choices, the Before answering hint, and Check answer. A wrong
+choice shows only its own "If you chose" note and can be changed; the right one
+locks the choices and shows the why and the transfer check. Objective lines are
+never shown. Flashcard backs stay folded behind Show answer.
+`src/lesson-plan-preview.test.mjs` renders both builds, and
+`e2e/production-bundle-check.mjs` fails a production bundle that still carries
+"Material plan ready for review", "Draft material plan" or "Quiz answer key".
+
 Lesson 1 displays separate timing labels sourced from the Markdown: Guided
 explanation ~6 min; Quiz and review self-paced; Optional notebook ~5 min, pending
 testing. Page durations describe playback, not total completion time. Overview
