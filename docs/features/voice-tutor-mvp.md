@@ -90,6 +90,18 @@ createVoiceSession({ stt, tts, tutor, telemetry, now }) -> {
 - A TTS failure: the caption stays, canvas actions have already happened, and listening resumes.
 - An STT failure: `caption.error = 'Voice input stopped. Click the mic to try again.'`. The state goes
   `off` and nothing is faked. The real adapter reports one only when reconnecting cannot help (§3).
+- Barge-in (owner, 2026-10-01): the learner interrupts by talking.
+  - When the Tutor starts speaking, STT resumes, but only if the adapter confirms the browser applied echo
+    cancellation (`stt.echoCancelled !== false`). Otherwise the mic waits for the reply to end, as before.
+  - `bargesIn(partial, reply)` judges only the newest four words of each growing Scribe partial. It needs
+    two words that are neither the Tutor's (a misheard split word like "soft max" still counts as the
+    Tutor's) nor filler, or a last word of stop, wait, hold or pause that the Tutor is not saying.
+  - Two qualifying partials in a row, or a qualifying commit, interrupt: `voice_barge_in`, the audio stops,
+    and the learner's utterance becomes the next turn. A leading run of four or more Tutor words is
+    stripped from that turn's text.
+  - Echo tail: a commit within 2.5 s of a reply that played to the end, which repeats the reply's end (at
+    least three words, or all of a shorter reply, one miss in five), is `voice_echo_ignored`. An
+    interrupting turn is never judged this way.
 - `exit()`: stops TTS, stops STT, aborts any turn in flight, emits `voice_mode_exit`, goes `off`.
 - Never stores or emits learner text anywhere except the one `tutor.voiceTurn` call.
 

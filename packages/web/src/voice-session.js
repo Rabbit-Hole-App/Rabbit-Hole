@@ -14,12 +14,51 @@ export const VAD_SILENCE_MS = 1000;
 const PERMISSION = new Set(['NotAllowedError', 'SecurityError', 'PermissionDeniedError']);
 const round = value => Math.round(value * 10) / 10;
 const span = (from, to) => (from == null || to == null ? null : round(to - from));
+// The learner talks over the Tutor (owner, 2026-10-01): the mic stays open while the Tutor speaks, and
+// new words of the learner's take the floor. The Tutor's own voice leaking from the speakers past echo
+// cancellation must not: it is made of the reply's words, so only the newest words of each partial are judged
+// (Scribe partials grow through the whole segment), and they need two learner words that are not the Tutor's
+// and not filler, or a stop word the Tutor is not saying.
+const words = text => String(text || '').toLowerCase().match(/[a-z0-9']+/g) || [];
+const STOP_WORDS = new Set(['stop', 'wait', 'hold', 'pause']);
+const FILLER = new Set(['yeah', 'yes', 'okay', 'ok', 'uh', 'um', 'huh', 'mm', 'hmm', 'ah', 'oh', 'right', 'i', 'see', 'so']);
+export function bargesIn(heard, spoken) {
+  const said = words(heard), tutor = new Set(words(spoken));
+  const last = said.at(-1);
+  if (!last) return false;
+  if (STOP_WORDS.has(last) && !tutor.has(last)) return true;
+  const tail = said.slice(-4);
+  // "soft max" for "softmax": a misheard split word still counts as the Tutor's.
+  const own = (word, i) => tutor.has(word) || tutor.has(word + (tail[i + 1] ?? '')) || tutor.has((tail[i - 1] ?? '') + word);
+  return tail.filter((word, i) => !own(word, i) && !FILLER.has(word)).length >= 2;
+}
+// The Tutor's own words, committed by Scribe just after it stops speaking: they repeat the end of the reply
+// (one misheard word in five allowed), at least three words of it or all of a shorter reply - so a short
+// answer that reuses the question's last words ("the fourth") still counts. A learner turn is never judged
+// this way after an interruption.
+const ECHO_TAIL_MS = 2500;
+export function echoesEnd(heard, spoken) {
+  const said = words(heard), reply = words(spoken);
+  if (said.length < Math.min(3, reply.length) || said.length > reply.length) return false;
+  const end = reply.slice(-said.length);
+  return said.filter((word, i) => word !== end[i]).length <= Math.floor(said.length / 5);
+}
+// After a barge-in the commit can start with the Tutor's words heard before the learner's: drop a run of
+// four or more at its start.
+function withoutEcho(text, spoken) {
+  const tokens = String(text).trim().split(/\s+/), tutor = new Set(words(spoken));
+  let lead = 0;
+  while (lead < tokens.length && words(tokens[lead]).every(word => tutor.has(word))) lead++;
+  return lead >= 4 && lead < tokens.length ? tokens.slice(lead).join(' ') : text;
+}
 
 export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now = () => (globalThis.performance ?? Date).now() }) {
   let state = 'off', caption = { current: '', previous: null, error: null };
   let sessionId = null, starting = false, epoch = 0;
   let heard = {};      // the utterance being listened to: speech_start, first partial
   let current = null;  // the turn in flight: { turnId, controller, marks }
+  let lastSpoken = null; // { text, at }: the Tutor's last reply when it played to the end, for echoesEnd
+  let barge = null;      // while speaking: { hits } qualifying partials in a row; after a barge-in: { speech }
   const listeners = new Set();
 
   const set = (next, words) => {
@@ -33,6 +72,8 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now 
   function finish(turn) {
     if (current !== turn) return;
     current = null;
+    // Only a reply that played to the end leaves an echo tail; an interrupted one never filters the learner.
+    lastSpoken = turn.speech && turn.marks.interrupted == null ? { text: turn.speech, at: now() } : null;
     const m = turn.marks;
     m.listening = now();
     heard = {};
@@ -90,10 +131,25 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now 
     m.text_ready = now();
     set(null, { current: speech, previous: caption.current || null });
     if (!speech) return finish(turn);
+    turn.speech = speech;
     set('speaking');
+    // Listen while speaking, so the learner can interrupt by talking (sttEvent) - only where the browser
+    // confirms echo cancellation; otherwise the mic waits for the reply to end, as before.
+    barge = { hits: 0 };
+    if (stt.echoCancelled !== false) Promise.resolve(stt.resume()).catch(() => sttFailed('resume'));
     const outcome = await tts.speak(speech, { turnId });
     if (outcome === 'failed' && current === turn) emit('voice_error', { turn_id: turnId, kind: 'tts' });
     finish(turn); // ended, failed or stopped: the caption stays, the canvas has already acted
+  }
+
+  function interrupt() {
+    if (!current || (state !== 'speaking' && state !== 'thinking')) return;
+    const turn = current, from = state;
+    turn.marks.interrupted = now();
+    emit('voice_interrupted', { turn_id: turn.turnId, from, at: turn.marks.interrupted });
+    if (from === 'speaking') tts.stop();
+    finish(turn);
+    if (from === 'thinking') turn.controller.abort();
   }
 
   function sttFailed(kind) {
@@ -148,18 +204,22 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now 
     },
     // At any point of a turn the learner can take the floor back; Voice stays on.
     // Speaking: the audio stops now. Thinking: the Tutor turn is cancelled and its late answer ignored.
-    interrupt() {
-      if (!current || (state !== 'speaking' && state !== 'thinking')) return;
-      const turn = current, from = state;
-      turn.marks.interrupted = now();
-      emit('voice_interrupted', { turn_id: turn.turnId, from, at: turn.marks.interrupted });
-      if (from === 'speaking') tts.stop();
-      finish(turn);
-      if (from === 'thinking') turn.controller.abort();
-    },
+    interrupt,
     subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
     sttEvent(event) {
       if (event?.type === 'error') return sttFailed(event.kind);
+      if (state === 'speaking' && current && (event?.type === 'partial' || event?.type === 'commit')) {
+        // Two qualifying partials in a row (or a commit) take the floor; one stray partial does not.
+        barge.hits = bargesIn(event.text, current.speech) ? barge.hits + 1 : 0;
+        if (barge.hits >= 2 || (barge.hits && event.type === 'commit')) {
+          const speech = current.speech;
+          emit('voice_barge_in', { turn_id: current.turnId });
+          interrupt();
+          barge = { speech };
+          heard.speech_start ??= now();
+          emit('speech_start', { at: heard.speech_start });
+        }
+      }
       if (state !== 'listening') return;
       if (event?.type === 'speech_start' && heard.speech_start == null) {
         heard.speech_start = now();
@@ -168,7 +228,13 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now 
         heard.first_partial = now();
         emit('stt_first_partial', { at: heard.first_partial });
       } else if (event?.type === 'commit') {
-        const text = String(event.text || '').trim();
+        let text = String(event.text || '').trim();
+        if (barge?.speech) { text = withoutEcho(text, barge.speech); barge = null; }
+        else if (text && lastSpoken && now() - lastSpoken.at < ECHO_TAIL_MS && echoesEnd(text, lastSpoken.text)) {
+          // The Tutor's own last words, committed just after it stopped speaking: not a turn.
+          emit('voice_echo_ignored');
+          return;
+        }
         if (text) commit(text);
       }
     },

@@ -3,7 +3,7 @@
 // canned speech. No mic, no network, no paid call.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createVoiceSession, MIC_REQUIRED, STT_STOPPED, TUTOR_FAILED, TUTOR_TIMEOUT, VAD_SILENCE_MS } from './voice-session.js';
+import { bargesIn, echoesEnd, createVoiceSession, MIC_REQUIRED, STT_STOPPED, TUTOR_FAILED, TUTOR_TIMEOUT, VAD_SILENCE_MS } from './voice-session.js';
 import { createFakeStt } from './voice-stt.js';
 import { createFakeTts } from './voice-tts.js';
 import { voiceEvent } from './voice-telemetry.js';
@@ -28,7 +28,7 @@ function scriptedTutor(...replies) {
 function rig(tutor, { ttsMs = 5, denyPermission = false } = {}) {
   const calls = [], events = [];
   let session;
-  const spy = (name, adapter) => Object.fromEntries(Object.entries(adapter).map(([key, fn]) => [key, (...args) => { calls.push(`${name}.${key}`); return fn(...args); }]));
+  const spy = (name, adapter) => Object.defineProperty(Object.fromEntries(Object.entries(adapter).filter(([, fn]) => typeof fn === 'function').map(([key, fn]) => [key, (...args) => { calls.push(`${name}.${key}`); return fn(...args); }])), 'echoCancelled', { get: () => adapter.echoCancelled });
   const stt = createFakeStt({ onEvent: event => session.sttEvent(event), denyPermission });
   const ttsOptions = { onEvent: event => session.ttsEvent(event), ms: ttsMs };
   const tts = createFakeTts(ttsOptions);
@@ -97,7 +97,8 @@ test('VOICE-09 a normal question: listening -> thinking -> speaking -> listening
   await turn(r, 'what does the mask keep');
   assert.deepEqual(r.states, ['off', 'listening', 'thinking', 'speaking', 'listening']);
   assert.equal(r.session.caption.current, 'Each row keeps the columns up to its own position.');
-  assert.deepEqual(r.calls, ['stt.start', 'stt.pause', 'tts.speak', 'stt.resume']);
+  // The mic reopens as the Tutor starts speaking, so the learner can talk over it (barge-in).
+  assert.deepEqual(r.calls, ['stt.start', 'stt.pause', 'stt.resume', 'tts.speak', 'stt.resume']);
   for (const name of ['speech_start', 'stt_first_partial', 'speech_end', 'stt_commit', 'tutor_request_start', 'evidence_ready', 'planner_ready', 'canvas_action_visible', 'tts_request_start', 'tts_first_byte', 'tts_play_start', 'tts_play_end', 'voice_listening_resumed', 'voice_turn']) assert.ok(r.names().includes(name), name);
   const { ms } = r.events.find(event => event.name === 'voice_turn');
   assert.equal(ms.speech_end_to_commit, VAD_SILENCE_MS, 'speech_end is the commit minus the VAD window');
@@ -208,7 +209,9 @@ test('VOICE-17 the red mic turns Voice off: TTS and STT stop, voice_mode_exit, o
   assert.equal(r.names().at(-1), 'voice_mode_exit');
   await new Promise(resolve => setTimeout(resolve, 5));
   assert.equal(r.session.state, 'off', 'the stopped speech does not resume listening');
-  assert.ok(!r.calls.includes('stt.resume'));
+  // Only the open mic while speaking resumed STT; the exit stopped it after that.
+  assert.equal(r.calls.filter(call => call === 'stt.resume').length, 1);
+  assert.ok(r.calls.lastIndexOf('stt.stop') > r.calls.indexOf('stt.resume'));
 });
 
 test('VOICE-18 exit while thinking aborts the Tutor turn; its late answer is never spoken', async () => {
@@ -313,4 +316,109 @@ test('a commit is heard only while listening, and an empty one is ignored', asyn
 test('voiceEvent is safe under node: a performance mark, no window', () => {
   voiceEvent('voice_mode_enter', { session_id: 's' });
   assert.ok(performance.getEntriesByName('rh:voice:voice_mode_enter').length >= 1);
+});
+
+test('barge-in: talking over the Tutor stops its audio at once and the learner words are the next turn', async () => {
+  const tutor = scriptedTutor('The causal mask sets every later score to minus infinity before softmax.', 'Sure, here is the mask again.');
+  const r = rig(tutor, { ttsMs: 10000 });
+  await r.session.enter();
+  r.stt.say('explain the mask');
+  await until(r.session, 'speaking');
+  r.stt.say('wait, what about the padding tokens');
+  assert.ok(r.names().includes('voice_barge_in'));
+  assert.ok(r.calls.includes('tts.stop'), 'the audio stops');
+  await until(r.session, 'speaking');
+  assert.equal(tutor.calls.length, 2, 'the interruption became the next turn');
+  assert.equal(tutor.calls[1].raw, 'wait, what about the padding tokens');
+  assert.equal(r.session.caption.current, 'Sure, here is the mask again.');
+  r.session.exit();
+});
+
+test('barge-in ignores the Tutor own voice and single-word noise', async () => {
+  const tutor = scriptedTutor('The causal mask sets every later score to minus infinity before softmax.');
+  const r = rig(tutor, { ttsMs: 10000 });
+  await r.session.enter();
+  r.stt.say('explain the mask');
+  await until(r.session, 'speaking');
+  r.stt.say('the causal mask sets every later score');
+  r.stt.say('uh');
+  r.stt.say('softmax');
+  assert.equal(r.session.state, 'speaking', 'echo and noise do not interrupt');
+  assert.ok(!r.names().includes('voice_barge_in'));
+  assert.equal(tutor.calls.length, 1);
+  r.session.exit();
+});
+
+test('bargesIn judges the newest words: two learner words, or a stop word the Tutor is not saying', () => {
+  const spoken = 'Softmax turns the scores into weights that add up to one. Wait for the next row.';
+  assert.equal(bargesIn('hold on', spoken), true);
+  assert.equal(bargesIn('why does it', spoken), true);
+  assert.equal(bargesIn('stop', spoken), true, 'a stop word alone interrupts');
+  assert.equal(bargesIn('scores into weights that add up stop', spoken), true, 'a stop word after echo still interrupts');
+  assert.equal(bargesIn('wait', spoken), false, 'not when the Tutor is saying it');
+  assert.equal(bargesIn('scores into weights that add up', spoken), false, 'the Tutor own words');
+  assert.equal(bargesIn('um', spoken), false);
+  assert.equal(bargesIn('uh huh okay', spoken), false, 'backchannel filler');
+  assert.equal(bargesIn('', spoken), false);
+  // A long echo prefix does not dilute the learner words at the end.
+  assert.equal(bargesIn('softmax turns the scores into weights that add up to one what about padding', spoken), true);
+  // Misheard echo stays the Tutor's: one wrong word, or a split word.
+  assert.equal(bargesIn('the casual softmax', 'The causal mask feeds softmax.'), false);
+  assert.equal(bargesIn('before soft max', 'The causal mask feeds softmax before.'), false);
+});
+
+test('echoesEnd: the end of the reply, three words or the whole short reply, one miss in five', () => {
+  const reply = 'Which row do you mean, the third or the fourth?';
+  assert.equal(echoesEnd('or the fourth', reply), true);
+  assert.equal(echoesEnd('the fourth', reply), false, 'a short answer reusing the last words counts');
+  assert.equal(echoesEnd('yes exactly', 'Yes, exactly.'), true, 'all of a short reply');
+  assert.equal(echoesEnd('do you mean the third or the forth', reply), true, 'one misheard word');
+  assert.equal(echoesEnd('the third one please', reply), false);
+});
+
+test('barge-in: the interrupting turn is never dropped as echo, even when it reuses the Tutor words', async () => {
+  const speech = 'The causal mask sets every later score to minus infinity before softmax.';
+  const tutor = scriptedTutor(speech, 'Right, the mask comes first.');
+  const r = rig(tutor, { ttsMs: 10000 });
+  await r.session.enter();
+  r.stt.say('explain the mask');
+  await until(r.session, 'speaking');
+  // Scribe partials grow; the newest words decide.
+  r.session.sttEvent({ type: 'partial', text: 'no wait' });
+  assert.equal(r.session.state, 'speaking', 'one qualifying partial is not enough');
+  r.session.sttEvent({ type: 'partial', text: 'no wait the mask' });
+  assert.equal(r.session.state, 'listening');
+  r.session.sttEvent({ type: 'commit', text: 'no wait the mask sets every later score to minus infinity' });
+  await until(r.session, 'speaking');
+  assert.equal(tutor.calls.length, 2);
+  assert.equal(tutor.calls[1].raw, 'no wait the mask sets every later score to minus infinity');
+  r.session.exit();
+});
+
+test('without confirmed echo cancellation the mic waits for the reply to end', async () => {
+  const tutor = scriptedTutor('A long explanation.');
+  const r = rig(tutor, { ttsMs: 10000 });
+  r.stt.echoCancelled = false;
+  await r.session.enter();
+  r.stt.say('explain');
+  await until(r.session, 'speaking');
+  r.stt.say('hold on please');
+  assert.equal(r.session.state, 'speaking', 'nothing heard while speaking');
+  r.session.exit();
+});
+
+test('the Tutor voice transcribed just after it stops speaking is not a learner turn', async () => {
+  const tutor = scriptedTutor('The causal mask sets every later score to minus infinity before softmax.', 'Next answer.');
+  const r = rig(tutor, { ttsMs: 5 });
+  await r.session.enter();
+  r.stt.say('explain the mask');
+  await until(r.session, 'speaking');
+  await until(r.session, 'listening');
+  r.stt.say('to minus infinity before softmax');
+  assert.ok(r.names().includes('voice_echo_ignored'));
+  assert.equal(tutor.calls.length, 1, 'no turn from the echo');
+  r.stt.say('why minus infinity though');
+  await until(r.session, 'speaking');
+  assert.equal(tutor.calls.length, 2, 'the learner own words still count');
+  r.session.exit();
 });

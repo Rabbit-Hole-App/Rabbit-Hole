@@ -98,7 +98,7 @@ export function createScribeStt({ fetchToken, onEvent, deps = {} }) {
     AudioContext: Context = globalThis.AudioContext,
     AudioWorkletNode: WorkletNode = globalThis.AudioWorkletNode,
   } = deps;
-  let stream = null, context = null, node = null, socket = null;
+  let stream = null, context = null, node = null, socket = null, connecting = null, echoCancelled;
   let stopped = true, paused = false, heard = false, failed = false, retries = 0;
   // Bumped by start() and stop(): an await that resumes into a later generation acquires nothing.
   let generation = 0;
@@ -109,7 +109,14 @@ export function createScribeStt({ fetchToken, onEvent, deps = {} }) {
     onEvent({ type: 'error', kind });
   };
 
-  async function connect() {
+  // One connect at a time: a second caller waits for the one in flight instead of minting another token.
+  // stop() forgets it, so a new start() never waits on a stale one.
+  function connect() {
+    if (connecting) return connecting;
+    const pending = connecting = open().finally(() => { if (connecting === pending) connecting = null; });
+    return pending;
+  }
+  async function open() {
     const mine = generation;
     const minted = await fetchToken();
     // The session's fetchToken may hand back the route's { token } or the bare string.
@@ -117,7 +124,9 @@ export function createScribeStt({ fetchToken, onEvent, deps = {} }) {
     if (!token) throw new Error('Voice input is unavailable right now.');
     if (stopped || mine !== generation) return;
     const ws = new Socket(scribeUrl(token));
+    const previous = socket;
     socket = ws;
+    previous?.close(); // never two streams open
     ws.onmessage = ({ data }) => {
       if (ws !== socket) return;
       const event = parseScribeFrame(data);
@@ -155,6 +164,7 @@ export function createScribeStt({ fetchToken, onEvent, deps = {} }) {
   }
 
   const api = {
+    get echoCancelled() { return echoCancelled; },
     async start() {
       const mine = ++generation;
       stopped = false; paused = false; heard = false; failed = false; retries = 0;
@@ -163,6 +173,8 @@ export function createScribeStt({ fetchToken, onEvent, deps = {} }) {
         const mic = await getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
         if (mine !== generation) return mic.getTracks().forEach(track => track.stop());
         stream = mic;
+        // Voice Mode listens while the Tutor speaks only when the browser confirms echo cancellation.
+        echoCancelled = mic.getAudioTracks?.()[0]?.getSettings?.().echoCancellation;
         context = new Context();
         const url = URL.createObjectURL(new Blob([WORKLET], { type: 'text/javascript' }));
         try { await context.audioWorklet.addModule(url); } finally { URL.revokeObjectURL(url); }
@@ -187,7 +199,7 @@ export function createScribeStt({ fetchToken, onEvent, deps = {} }) {
       if (!socket) await connect().catch(() => fail('token'));
     },
     stop() {
-      stopped = true; paused = false; generation++;
+      stopped = true; paused = false; generation++; connecting = null;
       if (node) node.port.onmessage = null;
       stream?.getTracks().forEach(track => track.stop());
       context?.close();
