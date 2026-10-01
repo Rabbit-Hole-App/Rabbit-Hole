@@ -106,7 +106,7 @@
     "BYOC_REGION": "us-east-1",
     "BYOC_PRINCIPAL_ARN": "arn:aws:iam::637423432890:user/small-byoc-dev",
     "BYOC_TEMPLATE_BUCKET": "small-byoc-installer-637423432890-us-east-1",
-    "SCENE_WORKER_URL": "https://small-lesson-renderer-dev.fly.dev"
+    "SCENE_WORKER_URL": "https://rabbit-hole-lesson-renderer-dev.fly.dev"
   },
   "services": [
     {
