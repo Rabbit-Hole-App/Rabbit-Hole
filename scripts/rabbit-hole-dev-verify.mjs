@@ -1,7 +1,7 @@
 // Live isolation check for the Rabbit Hole dev environment (docs/features/rabbit-hole-dev.md).
 // Synthetic users only (@example.test). Never prints a secret or a session.
 // Needs CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID (rabbit-hole) in the environment and
-// RABBIT_HOLE_DEV_TEST_BYPASS in the repo-root .env.
+// RABBIT_HOLE_DEV_TEST_BYPASS in the environment or the repo-root .env.
 //   node scripts/rabbit-hole-dev-verify.mjs
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
@@ -13,8 +13,9 @@ const D1 = { main: '1ad18fef-ccf9-4a2c-86c7-dc7e87b268a2', learn: '028f800f-ce8e
 const PRODUCTION = ['small-cp', 'small', '3a9cc077-4dc8-4fbd-8bf7-8ed3b971af8b', 'small-runs'];
 
 assert.equal(process.env.CLOUDFLARE_ACCOUNT_ID, ACCOUNT, 'CLOUDFLARE_ACCOUNT_ID must be the rabbit-hole account');
-const secret = readFileSync(new URL('../.env', import.meta.url), 'utf8').match(/^RABBIT_HOLE_DEV_TEST_BYPASS=(.*)$/m)?.[1]?.trim();
-assert.ok(secret, 'RABBIT_HOLE_DEV_TEST_BYPASS missing from the repo-root .env');
+const env = () => { try { return readFileSync(new URL('../.env', import.meta.url), 'utf8'); } catch { return ''; } };
+const secret = process.env.RABBIT_HOLE_DEV_TEST_BYPASS || env().match(/^RABBIT_HOLE_DEV_TEST_BYPASS=(.*)$/m)?.[1]?.trim();
+assert.ok(secret, 'RABBIT_HOLE_DEV_TEST_BYPASS missing from the environment and the repo-root .env');
 
 const UA = { 'User-Agent': 'rabbit-hole-dev-verify' };
 const cf = async (path, init = {}) => {
@@ -105,12 +106,14 @@ await check('Learn media lands in rabbit-hole-dev-learn-media only', async () =>
   return `new object(s): ${added.length}`;
 });
 
-await check('a repository import degrades without the indexer and writes nothing', async () => {
-  const r = await fetch(`${WEB}/api/repositories`, { method: 'POST', headers: { ...as(owner), 'Content-Type': 'application/json' }, body: JSON.stringify({ url: 'https://github.com/octocat/Hello-World', branch: 'master' }) });
-  // No indexer token on dev (the lesson renderer is not wired in Phase 2B): refused before any write.
-  const body = await r.json(); assert.equal(r.status, 400, JSON.stringify(body)); assert.match(body.error, /scene worker is not configured/);
-  assert.equal((await sql('learn', 'SELECT COUNT(*) AS n FROM repository_apps WHERE repo = ?', ['octocat/Hello-World']))[0].n, 0);
-  return `400 ${body.error}; no row, no snapshot`;
+await check('repository import reaches the dev indexer with the shared credential', async () => {
+  // SCENE_WORKER_TOKEN on the dev worker matches the Fly lesson renderer (docs/features/learn-repositories.md).
+  // The renderer scales to zero, so a cold start may answer the mapped 503 once.
+  const branches = () => fetch(`${WEB}/api/repositories/branches?url=${encodeURIComponent('https://github.com/octocat/Hello-World')}`, { headers: as(owner) });
+  let r = await branches();
+  if (r.status === 503) { await new Promise(done => setTimeout(done, 20000)); r = await branches(); }
+  const body = await r.json(); assert.equal(r.status, 200, JSON.stringify(body)); assert.ok(body.branches.includes('master'), JSON.stringify(body));
+  return `branches ${body.branches.join(',')}`;
 });
 
 await check('every rabbit-hole Worker binds only rabbit-hole dev resources; small-cp is not on this account', async () => {

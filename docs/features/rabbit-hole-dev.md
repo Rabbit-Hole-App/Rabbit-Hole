@@ -28,8 +28,12 @@ the P0-A auth hotfix, cherry-picked.
 - **No paid-provider keys.**
 - **Workers AI, Vectorize (`small-learn-moments`) and the index Queue (`small-learn-index`) stay
   unbound.** Every use is guarded (`learn-moment-index.js`), so Learn falls back to the cold path.
-- **Repository import answers "The scene worker is not configured".** The lesson-renderer token is not
-  set, so the import writes nothing.
+- **Repository import uses `rabbit-hole-lesson-renderer-dev`** (Fly org `rabbit-hole`). Its fresh
+  `SCENE_WORKER_TOKEN` is set on that app and on `small-cp-dev` (2026-10-01). The personal-org
+  `small-lesson-renderer-dev` stays stopped as a rollback until the final `small-*` cleanup.
+- **Learn D1.** `rabbit-hole-learn-dev` has `learn-migrations/0001`-`0003` (`canvas_dives`, `user_profiles`,
+  `canvas_context_documents`), applied 2026-10-01 with `d1 execute --file`; the Learn DB has no migrations table.
+  Wiring, rotation and migration: [learn-repositories.md](learn-repositories.md#indexer-credential-scene_worker_token).
 
 ## Auth on dev
 

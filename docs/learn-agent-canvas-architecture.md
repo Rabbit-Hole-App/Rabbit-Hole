@@ -896,7 +896,7 @@ packages/
 │     ├─ PaidConfirm.jsx, learn-scene-client.js            paid confirmation and job client
 │     └─ learn-insert-palette.js     canvas + palette (no model)
 │
-├─ lesson-renderer/                  private Blender worker on Fly (small-lesson-renderer-dev):
+├─ lesson-renderer/                  private Blender worker on Fly (rabbit-hole-lesson-renderer-dev):
 │                                    server.py, compile_scene.py, scene-schema.json (shared with
 │                                    learn-scene-schema.js); also the repository indexing jobs
 │                                    (index_repository.py, repository_jobs.py) behind repository apps

@@ -375,3 +375,48 @@ test('a repository course draft uses the default provider and reads no org_ai ro
   assert.deepEqual(live.calls,[]);
   assert.equal(await aiSettings({},'team'),null);
 });
+
+// Scene-worker diagnosis (2026-10-01): repository import reaches the lesson-renderer Fly app through
+// workerRequest with SCENE_WORKER_URL + SCENE_WORKER_TOKEN, both read on the dev worker that runs this file.
+test('the indexer call carries the bearer token; an unconfigured indexer is refused before any row or request',async t=>{
+  const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});const calls=[];
+  globalThis.fetch=async(url,init)=>{calls.push({url:String(url),method:init.method,auth:init.headers.Authorization});return Response.json({repo:'example/project',defaultBranch:'main',branches:['main']});};
+  const branches=await repositoriesFetch(new Request('https://dev.test/api/repositories/branches?url=https://github.com/example/project'),f.env,{});
+  assert.equal(branches.status,200);
+  assert.deepEqual(calls,[{url:'https://worker.test/repository-metadata',method:'POST',auth:'Bearer secret'}]);
+  const rows=()=>f.sqlite.prepare('SELECT count(*) n FROM repository_apps').get().n,before=rows();
+  for(const unset of ['SCENE_WORKER_TOKEN','SCENE_WORKER_URL']){
+    const env={...f.env};delete env[unset];calls.length=0;
+    const response=await repositoriesFetch(new Request('https://dev.test/api/repositories',{method:'POST',body:JSON.stringify({url:'https://github.com/example/project',branch:'main'})}),env,{});
+    assert.equal(response.ok,false,unset);assert.deepEqual(calls,[],unset);assert.equal(rows(),before,unset);
+  }
+});
+// Each indexer failure has its own safe message and status. Never 401: the web api() reads 401 as signed
+// out and redirects to /login (packages/web/src/api.js). No secret or variable name reaches the learner.
+test('an unavailable indexer answers with its own safe message and status and writes no row',async t=>{
+  const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});
+  const rows=()=>f.sqlite.prepare('SELECT count(*) n FROM repository_apps').get().n,before=rows();
+  const unset=name=>()=>{const env={...f.env};delete env[name];return env;},stub=reply=>()=>{globalThis.fetch=reply;return f.env;};
+  const cases=[
+    ['missing token',unset('SCENE_WORKER_TOKEN'),503,/^Repository import is unavailable because the indexing service is not configured/],
+    ['missing url',unset('SCENE_WORKER_URL'),503,/^Repository import is unavailable because the indexing service is not configured/],
+    ['wrong token',stub(async()=>Response.json({error:'Unauthorized'},{status:401})),502,/^Repository import is unavailable because the indexing service rejected this server's credential/],
+    ['network error',stub(async()=>{throw new TypeError('fetch failed');}),503,/^Repository import is unavailable right now because the indexing service did not respond/],
+    ['timeout',stub(async()=>{throw new DOMException('The operation was aborted due to timeout','TimeoutError');}),503,/did not respond/],
+    ['proxy 502 page',stub(async()=>new Response('<html>Bad gateway</html>',{status:502})),503,/did not respond/],
+    ['worker 503',stub(async()=>Response.json({error:'busy'},{status:503})),503,/did not respond/],
+    ['plain-http url',()=>({...f.env,SCENE_WORKER_URL:'http://worker.test'}),503,/^Repository import is unavailable because the indexing service is not configured/],
+    ['forbidden token',stub(async()=>new Response('Forbidden',{status:403})),502,/rejected this server's credential/],
+    ['html 404 page',stub(async()=>new Response('<html>Not found</html>',{status:404})),503,/did not respond/],
+    ['redirect',stub(async()=>new Response(null,{status:302,headers:{location:'https://elsewhere.test/'}})),503,/did not respond/],
+    ['repository not found',stub(async()=>Response.json({error:'Public repository was not found or GitHub is unavailable'},{status:400})),400,/^Public repository was not found/],
+  ];
+  for(const [name,setup,status,message] of cases){
+    for(const req of [new Request('https://dev.test/api/repositories/branches?url=https://github.com/example/project'),new Request('https://dev.test/api/repositories',{method:'POST',body:JSON.stringify({url:'https://github.com/example/project',branch:'main'})})]){
+      const response=await repositoriesFetch(req,setup(),{}),body=await response.json();
+      assert.equal(response.status,status,`${name} ${req.method}`);assert.match(body.error,message,`${name} ${req.method}`);
+      assert.doesNotMatch(body.error,/SCENE_WORKER|scene worker|Unauthorized|fetch failed|HTTPS|Unexpected token|JSON/i,`${name} ${req.method}`);
+    }
+  }
+  assert.equal(rows(),before);
+});

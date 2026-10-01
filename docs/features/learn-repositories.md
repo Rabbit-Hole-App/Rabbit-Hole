@@ -57,11 +57,11 @@ dev test; no GitHub token is required for this implementation.
 
 - Package: `graphifyy==0.9.63`; local environment `.small/graphify-venv`, worker
   environment `/opt/indexer`. No agent hooks or global skill installation.
-- Metadata, courses and conversations: dev-only `small-learn-dev` D1 / `LEARN_DB`.
+- Metadata, courses and conversations: dev-only `rabbit-hole-learn-dev` D1 / `LEARN_DB`.
 - Source and graph: immutable R2 snapshots under `learn-repositories-dev/` in the dev-only
-  bucket `small-repositories-dev` (binding `REPOSITORY_SNAPSHOTS`), never the live
+  bucket `rabbit-hole-dev-repositories` (binding `REPOSITORY_SNAPSHOTS`), never the live
   `small-runs` bucket (2026-09-28).
-- Async coordinator: `REPOSITORY_IMPORTS`; worker: `small-lesson-renderer-dev`.
+- Async coordinator: `REPOSITORY_IMPORTS`; worker: `rabbit-hole-lesson-renderer-dev` (Fly org `rabbit-hole`).
 - Limits: 20 MB compressed, 32 MB expanded, 8 MB indexed text, 512 KB per file,
   2,000 indexed files, 10,000 nodes and 30,000 edges. Excluded files are listed.
 - The graph initially shows 24 connected nodes; search/neighborhood views show
@@ -75,6 +75,66 @@ dev test; no GitHub token is required for this implementation.
 - Refresh is manual and owner-only. Unchanged commits reuse the snapshot; failed
   refreshes leave the previous commit usable. Conversations keep their original
   commit. A selected node from another commit requires a new chat.
+
+## Indexer credential (`SCENE_WORKER_TOKEN`)
+
+Branch lookup and import call the lesson-renderer Fly app through `workerRequest`
+(`packages/control-plane/src/learn-scene.js`) with `SCENE_WORKER_URL` (a plain var) and the
+bearer secret `SCENE_WORKER_TOKEN`. The renderer compares the bearer to its own
+`SCENE_WORKER_TOKEN` (`packages/lesson-renderer/server.py`). Both sides must hold the same value.
+
+- **Fly:** app `rabbit-hole-lesson-renderer-dev` (`packages/lesson-renderer/fly.dev.toml`), Fly org
+  `rabbit-hole`. Holds the secret (`flyctl secrets list` shows a digest only). Use a Fly token scoped to the
+  `rabbit-hole` org (`FLY_API_TOKEN` in the command environment), never a personal-org login.
+- **Cloudflare:** every Worker whose `main` is `packages/web/dev-worker.js`, because only that
+  entry routes `/api/repositories` to `repositories.js`: `small-cp-dev` (`wrangler.dev.jsonc`),
+  `small-cp-dev-small-parallel` (`wrangler.parallel.jsonc`) and any `small-cp-dev-<worktree>`
+  clone. `rabbit-hole-cp-dev` and production `small-cp` run `src/index.js`, which has no
+  repository import, so they do not need it.
+- **Local:** `wrangler dev -c packages/web/wrangler.dev.jsonc ...` reads
+  `packages/web/.dev.vars` (gitignored). Add `SCENE_WORKER_TOKEN=<value>` there; `SCENE_WORKER_URL`
+  comes from the config. Plain `npm run dev` (Vite) proxies `/api` to `rabbit-hole-cp-dev`, which
+  has no repository import.
+- `flyctl secrets list` shows only a digest and Cloudflare secrets are write-only.
+  `make clone-scene-token` copies the value out of a running Fly machine over SSH, which needs the
+  stopped machine started. Rotating is the cleaner way to wire a Worker.
+- **What the learner sees** (`repositoryMetadata`, branch lookup and import): a missing URL or
+  token answers 503 "Repository import is unavailable because the indexing service is not
+  configured on this server." (a URL that is not `https://` counts as missing); a 401/403 from Fly answers 502 "...rejected this server's
+  credential."; a network error, timeout or 5xx answers 503 "...did not respond. Try again in a
+  minute." So does a redirect or any answer that is not the worker's JSON (such as a proxy's HTML
+  error page). A 4xx with a reason (such as no public repository) keeps 400 and that reason. Never 401,
+  which the web app reads as signed out. Nothing is written in any of these cases.
+
+**Rotation** (last run 2026-10-01, owner-approved: a fresh value on `rabbit-hole-lesson-renderer-dev` and
+`small-cp-dev`). One new value goes to every side, never printed. Git Bash, repo root, with a `rabbit-hole`
+Fly-org token and a rabbit-hole Cloudflare credential loaded
+(`wrangler.dev.jsonc` pins `account_id`).
+
+```bash
+t=$(node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))")
+# Fly reads NAME=VALUE from stdin, so the value never sits in argv. Without --stage this
+# updates (restarts) the app's machines; a stopped machine picks the value up on its next start.
+printf 'SCENE_WORKER_TOKEN=%s\n' "$t" | flyctl secrets import -a rabbit-hole-lesson-renderer-dev
+# Repeat for each dev-worker.js Worker that exists (small-cp-dev today).
+(cd packages/web && printf '%s' "$t" | npx wrangler secret put SCENE_WORKER_TOKEN --config wrangler.dev.jsonc --name small-cp-dev)
+unset t
+```
+
+- `flyctl secrets set -a rabbit-hole-lesson-renderer-dev SCENE_WORKER_TOKEN=...` works too, but puts the
+  value in argv. `--stage` on either Fly command stores the secret without restarting;
+  `flyctl secrets deploy -a rabbit-hole-lesson-renderer-dev` applies it later. Recommended: no
+  `--stage`. `server.py` reads the token once at start, so a staged value does nothing until that
+  second step, and the app has no users to protect from a restart.
+- Between the two setters, imports fail with the wrong-credential error. Rotation also breaks any
+  other holder of the old value, such as the quarantined personal-account `small-cp-dev`.
+
+**Rabbit Hole-owned indexer (done 2026-10-01).** The dev indexer moved from the personal-org
+`small-lesson-renderer-dev` to `rabbit-hole-lesson-renderer-dev` in the `rabbit-hole` Fly org, deployed from
+`packages/lesson-renderer` (`fly.dev.toml`) with its own fresh `SCENE_WORKER_TOKEN`. `SCENE_WORKER_URL` in
+`wrangler.dev.jsonc` and `wrangler.parallel.jsonc` and the Makefile `clone-scene-token` target point at it.
+`small-lesson-renderer-dev` is kept stopped, untouched, only as a rollback until the final `small-*` cleanup:
+rolling back means pointing `SCENE_WORKER_URL` at it again and rotating the token on both sides.
 
 ## Graph and source interactions
 

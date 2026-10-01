@@ -85,4 +85,4 @@ FLY ?= flyctl
 
 # The lesson renderer's bearer token, needed by repository imports and branch lookups on a clone.
 clone-scene-token:
-	$(call fly_secret_to_clone,small-lesson-renderer-dev,SCENE_WORKER_TOKEN,$(CLONE))
+	$(call fly_secret_to_clone,rabbit-hole-lesson-renderer-dev,SCENE_WORKER_TOKEN,$(CLONE))
