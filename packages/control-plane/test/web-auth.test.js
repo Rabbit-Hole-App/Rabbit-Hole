@@ -753,6 +753,24 @@ test('GET /auth/session: provider email/name as display metadata, a neutral labe
   assert.deepEqual((await display(env, viaEmail)).body, { signedIn: true, provider: 'email', display: { name: null, email: 'e@corp.test', label: 'e@corp.test' } });
 });
 
+test('an app a Google/GitHub user cannot open says so without their .invalid principal; an email user still sees their address', async (t) => {
+  const sent = [];
+  network(t, { ...githubOk({ id: 77, login: 'octo', email: null }), 'https://api.resend.com/emails': (b) => { sent.push(b); return [200, {}]; } });
+  const env = withDb(t, SITE_ENV);
+  env.q(`CREATE TABLE apps (id TEXT, org TEXT, name TEXT, owner_email TEXT, visibility TEXT, folder_id TEXT, fly_app TEXT, deleted_at INTEGER)`);
+  for (const ddl of ['members (app_id, email, role)', 'app_teams (app_id, team_id, role)', 'team_members (team_id, email)', 'workspace_members (slug, email)']) env.q(`CREATE TABLE ${ddl}`);
+  env.q(`INSERT INTO apps (id, org, name, owner_email, visibility) VALUES ('a1', 'corp-test', 'app', 'o@corp.test', 'private') RETURNING id`);
+  const open = async (session) => call(env, '/a/corp-test/app/', { origin: SITE, headers: { Cookie: `small_session=${session}` } });
+  const { session } = await oauthSignIn(env, 'github', { origin: SITE });
+  const denied = await open(session);
+  assert.equal(denied.status, 403);
+  assert.ok(denied.text.includes('You do not have access to <b>app</b>'), denied.text);
+  assert.ok(!denied.text.includes('.invalid') && !denied.text.includes(payloadOf(session).email));
+  const byEmail = await open(await emailSignIn(env, 'c@other.test', sent, '/apps', SITE));
+  assert.equal(byEmail.status, 403);
+  assert.ok(byEmail.text.includes('<b>c@other.test</b> does not have access'));
+});
+
 // Last on purpose: it leaves auth.js's per-isolate JWKS cache holding only the rotated key.
 test('Google key rotation: a token signed with a new kid refetches the JWKS; a dropped key stops working', async (t) => {
   const env = withDb(t, PROD);

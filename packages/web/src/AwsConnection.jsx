@@ -4,6 +4,7 @@ import { api, navigate } from './api.js';
 import { Button, ConfirmDialog, Field, IconBtn, Input, SettingsRow, Tip } from './ui.jsx';
 import AwsS3Access from './AwsS3Access.jsx';
 import { learnPreview } from './flags.js';
+import { personLabel } from './session-display.js';
 
 const dataInfo = `Your source, inputs, logs, and outputs stay in your AWS account. ${learnPreview ? 'Rabbit Hole' : 'Small'} stores the connection details.`;
 
@@ -89,7 +90,7 @@ export default function AwsConnection({ workspace, apps = [], onChanged, onAcces
     </ol>}
     {connection?.state === 'pending' && <p className="mt-3 text-xs text-ink-3">Waiting for AWS installation. This updates when the stack finishes registering.</p>}
     {connection?.state === 'installed' && <p className="mt-3 text-xs text-ink-3">AWS has registered the installation. Finish connecting verifies this account and workspace.</p>}
-    {connection && !connection.can_deploy && connection.state !== 'connected' && <p className="mt-3 text-xs text-ink-3">{connection.owner_email} manages this connection.</p>}
+    {connection && !connection.can_deploy && connection.state !== 'connected' && <p className="mt-3 text-xs text-ink-3">{personLabel(connection.owner_email)} manages this connection.</p>}
     {error && !confirmDisconnect && <p role="alert" className="mt-3 text-sm text-danger">{error}</p>}
     {connection?.state === 'connected' && <AwsS3Access key={connection.id} connection={connection} onAccessChanged={(pending) => onAccessChanged?.(connection.can_deploy ? pending : null)} />}
   </div>;

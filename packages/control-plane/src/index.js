@@ -2291,7 +2291,11 @@ async function proxyApp(req, env, org, name, rest, baseUrl) {
   }
   const app = await appRow(env, org, name);
   if (!app) return html(`<p>No app <b>${name}</b> here.</p>`, 404);
-  if (!(await canView(env, app, sess.email))) return html(`<p><b>${sess.email}</b> does not have access to <b>${name}</b>. Ask the owner to run <code>small share ${sess.email}</code>.</p>`, 403);
+  if (!(await canView(env, app, sess.email))) {
+    // A Google/GitHub principal (user@<id>.rabbithole.invalid) is never shown, and cannot be shared with by address yet.
+    if (sess.email.endsWith('.invalid')) return html(`<p>You do not have access to <b>${name}</b>. Ask the owner to share it with you.</p>`, 403);
+    return html(`<p><b>${sess.email}</b> does not have access to <b>${name}</b>. Ask the owner to run <code>small share ${sess.email}</code>.</p>`, 403);
+  }
   if (rest === '') return new Response(null, { status: 301, headers: { Location: `${prefix}/` } }); // relative URLs need the trailing slash
 
   const origin = `https://${app.fly_app}.fly.dev`;

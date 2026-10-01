@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readdirSync, readFileSync } from 'node:fs';
 import { isInternalPrincipal, personLabel, shownIdentity } from './session-display.js';
 
 // Auth's display contract (docs/features/rabbit-hole-auth-backend.md): the UI shows GET /auth/session's
@@ -17,4 +18,15 @@ test('the shown identity is the /auth/session display, and an internal principal
   assert.deepEqual(shownIdentity('ada@corp.com', null, { name: null, avatar: null }), { label: 'ada@corp.com', email: 'ada@corp.com' });
   assert.equal(personLabel(principal), 'Rabbit Hole user');
   assert.equal(personLabel('ada@corp.com'), 'ada@corp.com');
+});
+
+// Another person's address reaches the screen through personLabel only: a raw {email} or {x.owner_email}
+// as text or a title would show user@<id>.rabbithole.invalid for every Google or GitHub user.
+test('no component renders an address as text or a tooltip without personLabel', () => {
+  const dir = new URL('.', import.meta.url);
+  const raw = /(?:^|>|title=)\s*\{(?:\w+\.)*(?:owner_)?email\}/;
+  const hits = readdirSync(dir, { recursive: true }).filter((f) => f.endsWith('.jsx'))
+    .flatMap((f) => readFileSync(new URL(f.replaceAll('\\', '/'), dir), 'utf8').split('\n').map((line, i) => [f, i + 1, line]))
+    .filter(([, , line]) => raw.test(line)).map(([f, n]) => `${f}:${n}`);
+  assert.deepEqual(hits, []);
 });
