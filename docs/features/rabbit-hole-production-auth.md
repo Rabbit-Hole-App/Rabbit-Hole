@@ -74,3 +74,131 @@ Auth v1 and the Landing sign-in are both on main. They came in through `abc32fd2
    - No wrangler config routes tryrabbithole.dev.
 
    This is Infra's topology work, not auth's. The requirements are in section F.
+
+## B. One origin: `PUBLIC_ORIGIN`
+
+The production Worker sets `PUBLIC_ORIGIN = "https://tryrabbithole.dev"` as a var. Dev and local Workers leave it unset, and their behaviour is unchanged.
+
+- **Other hosts are redirected.** Sign-in routes (`/login`, `/logout`, `/auth`, `/auth/*`, `/test/*`) reached on any other host this Worker answers are sent to the same path on tryrabbithole.dev. That covers workers.dev, `www` and `http://`. A POST there is a 403.
+- **Everything is built on that one origin:** the callbacks, the emailed link and the login-CSRF reference.
+- **`GET /login` becomes Landing's `/sign-in`** with the same `next` and `error`. Errors, logout and the expired-link page still point at `/login`, so they reach Landing through that redirect.
+- Set `PUBLIC_ORIGIN` only once that origin serves Landing; before that, `/sign-in` would be a 404.
+
+**Production callbacks** (built as `${PUBLIC_ORIGIN}/auth/<provider>/callback`; start and code exchange send the same string):
+- `https://tryrabbithole.dev/auth/google/callback`
+- `https://tryrabbithole.dev/auth/github/callback`
+
+## C. Session, cookie and origin model on tryrabbithole.dev
+
+**Cookies.** Both are host-only (no `Domain`), so they belong to tryrabbithole.dev alone and a subdomain cannot read them.
+
+| Cookie | Attributes | Set by | Cleared by |
+|---|---|---|---|
+| `small_session` | `Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800` | OAuth callback, magic-link POST | `/logout` (same attributes, `Max-Age=0`) |
+| `rh_oauth` | `Path=/auth/; HttpOnly; Secure; SameSite=Lax; Max-Age=600` | `/auth/<provider>/start` | every callback outcome |
+
+**Session.** It is a signed token `{uid, ep, prov, exp}`, valid while `ep` equals `users.session_epoch`.
+- Logout bumps the epoch, which signs out every browser at once.
+- `GET /auth/session` answers `401 {signedIn:false}` or `200 {signedIn, provider, display:{name,email,label}}`, always with `Cache-Control: no-store` and never with a `.invalid` value.
+- Normal navigation keeps the session: the cookie is `Path=/` and `SameSite=Lax`, so a top-level return from Google or GitHub carries it.
+
+**CSRF and origin checks:**
+- **Sign-in POSTs** to `/login`, `/auth`, `/auth/email/start` and `/logout`: an `Origin` header that is present must equal `https://tryrabbithole.dev` exactly. Otherwise the answer is 403. That refuses `null`, `http://tryrabbithole.dev`, sibling subdomains and workers.dev.
+- **`/logout`** proceeds only for `Sec-Fetch-Site` `same-origin`, `none` (a typed URL) or a missing header. `same-site` and `cross-site` do nothing.
+- **`next`** is a printable-ASCII path on this origin:
+  - no `//`, `/\`, scheme, whitespace or control characters;
+  - not a sign-in route;
+  - at most 1024 characters.
+
+  Anything else becomes `/`. It is checked at start and again when used, and every redirect to it is relative.
+- **Callback host validation:** the `redirect_uri` is always the canonical origin (B), and the provider rejects any URI that is not registered.
+
+**Tests** in `packages/control-plane/test/web-auth.test.js` (section "Production origin"):
+- Google and GitHub start send production callbacks, and the code exchange repeats them.
+- Anchored cookie attributes, which proves there is no `Domain`.
+- Other hosts are redirected; POSTs there are refused.
+- `/login` becomes `/sign-in`.
+- The emailed link is `https://tryrabbithole.dev/auth?token=` and is sent from `EMAIL_FROM`.
+- A non-ASCII `next` and sign-in-route `next` values are dropped.
+- Same-origin POSTs pass; foreign origins are refused.
+- Logout revocation, with the exact cleared cookie.
+- No mock provider, no `/test/session` and no echo.
+- The app 403 page shows no principal.
+
+`packages/web/src/session-display.test.mjs` fails on any raw address render in a component.
+
+## D. Passwordless email in production
+
+- **Link:** `https://tryrabbithole.dev/auth?token=<signed id>`. It is single use, through the `login_links` row: GET only shows "Continue as ..."; POST spends the link with an atomic `UPDATE ... RETURNING`.
+- **Lifetime and limits:** 15 minutes. Per address, 3 links per 15 minutes and 10 per day.
+- **Email:** subject `Your Rabbit Hole sign-in link`, plain text, sent with `POST https://api.resend.com/emails`.
+- **Failure:** a missing key, a Resend error or a network error deletes the row and answers 503 "We couldn't send a sign-in email right now...". It never carries the link, `devLink` or a token. Logs show only `email send failed: status N`.
+- **`EMAIL_FROM`** is passed straight to Resend as `from`. Without it the sender is `small <onboarding@resend.dev>`, which Resend only delivers to the account owner, so production needs it.
+
+**Resend setup** (not done yet; take the DNS values from the Resend dashboard, not from here):
+1. Add the sending domain in Resend: `tryrabbithole.dev`, or a subdomain such as `mail.tryrabbithole.dev` to keep the apex's reputation separate.
+2. Add the DNS records Resend shows: DKIM TXT, the SPF TXT and MX for its return-path subdomain, and optionally DMARC. The tryrabbithole.dev zone is still pending (nameservers not delegated), so this waits for Infra's DNS step.
+3. Turn click tracking off for that domain; it would rewrite the sign-in link.
+4. Create an API key with Sending access, restricted to that domain. It becomes `RESEND_API_KEY`.
+5. Set `EMAIL_FROM` to an address on the verified domain, e.g. `Rabbit Hole <signin@tryrabbithole.dev>`.
+
+The CLI login code (`/api/cli/login`) uses the same sender. Its subject still says "small deploy".
+
+## E. Provider changes, prepared and not applied
+
+**Google Cloud Console**, OAuth client of type Web application:
+- **Authorized redirect URIs:** add `https://tryrabbithole.dev/auth/google/callback`.
+  - Keep `https://rabbit-hole-cp-dev.tryrabbithole.workers.dev/auth/google/callback` and any URI already there.
+  - Local development needs none, because it uses the mock provider.
+- **Authorized JavaScript origins:** not required, because no Google JavaScript runs. Adding `https://tryrabbithole.dev` does no harm.
+- **Branding:**
+  - home page `https://tryrabbithole.dev`;
+  - privacy `https://tryrabbithole.dev/privacy` and terms `https://tryrabbithole.dev/terms`, which must be served there first;
+  - authorized domain `tryrabbithole.dev`.
+- **Data access:** scopes `openid` and `.../auth/userinfo.email`, which is all the code asks for (`scope=openid email`).
+- **Audience:** External, published "In production". The scopes are non-sensitive, but check the console's own verification prompts.
+- **Production client:** a separate one is optional. The secrets are per Worker, so production can carry its own `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`.
+
+**GitHub.** An OAuth App has one callback URL. Its host must match, and the `redirect_uri` path must be at or under it. So create a **new production OAuth App** and leave the dev app alone:
+- Application name: Rabbit Hole
+- Homepage URL: `https://tryrabbithole.dev`
+- Authorization callback URL: `https://tryrabbithole.dev/auth/github/callback`
+- Enable Device Flow: off
+- No scopes are requested; sign-in reads the public profile and its numeric `id` only.
+
+## F. Production Worker requirements (Infra)
+
+Auth is ready for any topology that keeps one origin. Infra owns these:
+1. **One origin.** One Worker answers https://tryrabbithole.dev for Landing, the sign-in routes and the app.
+   - Landing: `/`, `/sign-in`, `/sign-up`, `/check-email`, `/privacy`, `/terms`.
+   - Sign-in routes: `/login`, `/logout`, `/auth`, `/auth/*`, through `handleWebAuth`.
+   - The app: `/apps`, `/api/*`.
+   - If a web Worker fronts the control plane, it must forward those routes with the original `Request`; rewriting the URL breaks callbacks, links and the CSRF check. The P0-B barrier is dev-only and must not run in production.
+2. **Vars:**
+   - `SMALL_ENV=production`
+   - `PUBLIC_ORIGIN=https://tryrabbithole.dev`
+   - `BASE_URL=https://tryrabbithole.dev`, which runners use; legacy `small-cp` still points at zeroshothq.
+
+   Also `workers_dev: false`; PUBLIC_ORIGIN redirects anyway. Turn on Always Use HTTPS and HSTS on the zone.
+3. **Never set in production:** `TEST_BYPASS_SECRET`, `OAUTH_MOCK` or `SMALL_TEST_BYPASS`.
+4. **`/` conflict:** the control plane sends `/` to `/apps`; Landing wants `/`.
+5. **Landing in the production build:** `vite.config.js` builds the Landing pages only under `VITE_COACHING_DEV=true`.
+6. **D1:** `0025-cli-login-challenges` and `0026-users` must be applied first. Sessions minted before `users` existed are void at deploy.
+7. **Risk, P0 before any shared origin: app proxy `/a/<org>/<app>/`.**
+   - `index.js` `proxyApp` serves deployed apps on the same origin with no sandbox, so their JavaScript could call `/api/*` and `/logout` with the viewer's cookie.
+   - Do not route `/a/*` on tryrabbithole.dev, or isolate it (separate origin, or `Content-Security-Policy: sandbox`).
+8. **Known risk, not changed:** `/api/*` mutations have no `Origin` check. They rely on `SameSite=Lax` and the absence of CORS. That holds on one origin with no untrusted sibling subdomains. Add a same-origin check if a subdomain ever hosts untrusted content (for example a notebook origin).
+9. **Dev notebook origins hard-coded in the web app:** `packages/web/src/learn-notebook.js:7` and `packages/web/src/LearnExtras.jsx:45`.
+
+## Secrets and vars for the production Worker (names only)
+
+| Name | Kind | Note |
+|---|---|---|
+| `MASTER_KEY` | secret | New for production; signs sessions, flow cookies and links |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | secret | Google button hidden without both |
+| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | secret | Production OAuth App (E) |
+| `RESEND_API_KEY` | secret | Email sign-in is a 503 without it |
+| `EMAIL_FROM` | secret or var | Address on the Resend-verified domain |
+| `PUBLIC_ORIGIN` | var | `https://tryrabbithole.dev` |
+| `SMALL_ENV` | var | `production` |
+| `BASE_URL` | var | `https://tryrabbithole.dev` (runners) |
