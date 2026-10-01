@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AudioLines, Mic, PanelLeftClose, PanelLeftOpen, Square } from 'lucide-react';
+import { AudioLines, MessageSquareText, Mic, Minus, Square } from 'lucide-react';
 import { COMPOSER_ADD, COMPOSER_PILL } from './ChatComposer.jsx';
 
 // Voice Mode's UI (docs/features/voice-tutor-mvp.md, sections 6 and 6b). voice is useVoiceSession's
@@ -42,25 +42,33 @@ export function VoiceField({ voice }) {
   </div>;
 }
 
-// The Tutor's spoken words, left of the canvas in AdaptiveCanvas's leftRail slot: in flow, never over the surface.
-// extras is tutor.extras (the Rabbit Hole suggestion and chips), shown here instead of the chat sheet while voice is on.
+// The Tutor's spoken words in a small window at the lower left of the canvas (owner, 2026-10-01), anchored by
+// AdaptiveCanvas's leftRail slot. Only the reply being spoken now, no history: the next turn's Thinking… replaces
+// it. extras is tutor.extras (the Rabbit Hole suggestion and chips), shown here instead of the chat sheet while
+// voice is on. On a phone it is an in-flow strip above the canvas.
 export function TutorCaption({ caption, state, extras }) {
   const [open, setOpen] = useState(true);
-  const toggle = 'flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-ink-2 hover:bg-hover hover:text-ink';
-  if (!open) return <aside aria-label="Tutor caption" data-tutor-caption className="flex h-full w-10 shrink-0 flex-col items-center border-r border-line bg-white pt-2 @max-[640px]:h-auto @max-[640px]:w-full @max-[640px]:border-r-0 @max-[640px]:border-b">
-    <button type="button" aria-label="Show the Tutor caption" title="Show the Tutor caption" onClick={() => setOpen(true)} className={toggle}><PanelLeftOpen size={15} strokeWidth={1.6} /></button>
-  </aside>;
-  return <aside aria-label="Tutor caption" data-tutor-caption className="flex h-full w-[280px] shrink-0 flex-col border-r border-line bg-white @max-[1100px]:w-[220px] @max-[640px]:h-auto @max-[640px]:max-h-40 @max-[640px]:w-full @max-[640px]:border-r-0 @max-[640px]:border-b">
-    <div className="flex h-11 shrink-0 items-center justify-between pr-2 pl-4">
-      <span className="text-xs font-medium text-ink-2">Tutor</span>
-      <button type="button" aria-label="Collapse the Tutor caption" title="Collapse" onClick={() => setOpen(false)} className={toggle}><PanelLeftClose size={15} strokeWidth={1.6} /></button>
+  const thinking = state === 'thinking', hasExtras = !!extras;
+  // A new Rabbit Hole suggestion or chip row opens a hidden window: nothing else shows it while voice is on.
+  useEffect(() => { if (hasExtras) setOpen(true); }, [hasExtras]);
+  if (!thinking && !caption.current && !caption.error && !extras) return null;
+  const place = 'absolute bottom-3 left-3 @max-[640px]:relative @max-[640px]:bottom-auto @max-[640px]:left-auto';
+  // One toggle node in both states (first child), so keyboard focus survives Hide and Show.
+  const toggle = <button type="button" aria-expanded={open} aria-label={open ? 'Hide the Tutor caption' : 'Show the Tutor caption'} title={open ? 'Hide' : 'Show the Tutor caption'}
+    onClick={() => setOpen(!open)} className={`flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-ink-2 hover:bg-hover hover:text-ink ${open ? 'absolute top-0.5 right-1' : ''}`}>
+    {open ? <Minus size={14} strokeWidth={1.6} /> : <MessageSquareText size={15} strokeWidth={1.6} />}
+  </button>;
+  if (!open) return <aside aria-label="Tutor caption" data-tutor-caption className={`${place} rounded-lg border border-line bg-white shadow-pop`}>{toggle}</aside>;
+  // Only the reply text scrolls; the suggestion's buttons stay in view under it, even while the Tutor thinks.
+  // A failed turn shows its error, not the last reply as if it answered.
+  return <aside aria-label="Tutor caption" data-tutor-caption className={`${place} flex max-h-[180px] w-[300px] flex-col rounded-xl border border-line bg-white shadow-pop @max-[640px]:w-full @max-[640px]:rounded-none @max-[640px]:border-x-0 @max-[640px]:border-t-0 @max-[640px]:shadow-none`}>
+    {toggle}
+    <span className="flex h-8 shrink-0 items-center pl-3 text-xs font-medium text-ink-2">Tutor</span>
+    <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
+      {thinking ? <p className="text-sm leading-5"><span className="shimmer">Thinking…</span></p>
+        : caption.current && !caption.error && <p className="text-sm leading-5 text-ink">{caption.current}</p>}
+      {caption.error && <p className="text-xs text-fail">{caption.error}</p>}
     </div>
-    <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
-      {caption.previous && <p className="mb-3 text-[13px] leading-5 text-ink-2">{caption.previous}</p>}
-      {caption.current ? <p className="text-[15px] leading-6 text-ink">{caption.current}</p>
-        : state === 'thinking' && <p className="text-[15px] leading-6"><span className="shimmer">Thinking…</span></p>}
-      {caption.error && <p className="mt-2 text-xs text-fail">{caption.error}</p>}
-      {extras && <div className="mt-4 flex flex-col items-start gap-2">{extras}</div>}
-    </div>
+    {extras && <div className="flex shrink-0 flex-col items-start gap-2 px-3 pb-3">{extras}</div>}
   </aside>;
 }

@@ -2726,10 +2726,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           the page's: these ride the camera, so the grid you snap to is the grid
           you can see. An opaque surface keeps the page dots from showing through
           and doubling them up. */}
-      {/* Voice Mode's Tutor caption (VoiceMode.jsx): its own in-flow column after the tools gutter (which docks
-          order-first) and before the surface, so it reflows the canvas and never covers it. */}
-      {/* The Tutor caption (Voice Mode): in flow, so the surface reflows; never while presenting, as the gutters are not either. */}
-      {leftRail && presenting === null && <div data-voice-rail className="flex shrink-0">{leftRail}</div>}
+      {/* Voice Mode's Tutor caption (VoiceMode.jsx): a zero-width anchor after the tools gutter (which docks
+          order-first), so the small caption window floats at the surface's lower left, above the zoom pill, as the
+          owner asked (2026-10-01). On a phone it is an in-flow strip. Never while presenting. It sits over the canvas
+          but outside the surface's drop target, so a file dropped on it is ignored rather than opened by the browser. */}
+      {leftRail && presenting === null && <div data-voice-rail className="relative z-20 w-0 shrink-0 @max-[640px]:w-full"
+        onDragOver={event => event.preventDefault()} onDrop={event => event.preventDefault()}>{leftRail}</div>}
       <div ref={surface} data-canvas-surface onPointerDownCapture={tool === 'askArea' ? startArea : undefined} data-presenting={presenting !== null ? '' : undefined} onPointerDown={down} onPointerMove={trackGap} onPointerLeave={() => { if (!gapAdding) setHoverGap(null); }}
         onContextMenu={event => {
           event.preventDefault();

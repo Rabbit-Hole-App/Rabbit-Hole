@@ -220,13 +220,19 @@ The handlers:
   - Under reduced motion the ring is static and the label still carries the state.
 - **The `+` and Auto controls** stay visible but disabled while voice is on.
 - **`TutorCaption`:**
-  - It lives in an in-flow column to the left of the canvas surface: a new `leftRail` slot in
-    AdaptiveCanvas, after the tools gutter, 280 px wide, shown only while voice is on.
-  - It reflows the canvas and never overlays the surface, following the canvas-utilities rule.
-  - It shows a "Tutor" label, the current utterance and, smaller and dimmer above it, the previous one.
-  - It shows a short error line when there is one, and `tutor.extras` (the Rabbit Hole suggestion and
-    chips) under the text.
-  - It is collapsible to a 40 px strip.
+  - It is a small window (300 px wide, at most 180 px tall) at the lower left of the canvas surface, just
+    above the zoom pill, anchored by a zero-width `leftRail` slot after the tools gutter. The owner chose
+    this over the earlier full-height in-flow column (2026-10-01), so it floats over the canvas corner.
+    On a phone it is an in-flow strip above the canvas.
+  - It shows a "Tutor" label and only the reply being spoken now, with no history. While the Tutor is
+    thinking, "Thinking…" replaces the last reply. When there is nothing to show, it renders nothing.
+  - A failed turn shows its short error line instead of the last reply.
+  - `tutor.extras` (the Rabbit Hole suggestion and chips) sit in a fixed footer under the reply. Only the
+    reply text scrolls, so the suggestion's buttons stay in view, and they stay while the Tutor thinks.
+  - A file dropped on the window is ignored rather than opened by the browser.
+  - It can be hidden to one small button and shown again. One toggle node serves both states, so
+    keyboard focus survives. A new suggestion opens a hidden window, because nothing else shows it while
+    voice is on.
   - It never shows learner text.
 
 ### 6b. The handshake between UI (A) and integration (D)
@@ -245,8 +251,8 @@ The handlers:
   - When `voice.state !== 'off'`, it passes `voice={<VoiceField voice={voice} />}` to `ChatComposer`.
   - When `voice.caption.error` is set and the state is `off`, it shows the error as a one-line notice
     above the composer.
-- **`AdaptiveCanvas` (owner A)** gets a new optional prop `leftRail`, a node. It renders in flow between
-  `[data-tool-gutter]` and `[data-canvas-surface]` inside a `[data-voice-rail]` wrapper.
+- **`AdaptiveCanvas` (owner A)** gets a new optional prop `leftRail`, a node. It renders between
+  `[data-tool-gutter]` and `[data-canvas-surface]` inside a zero-width `[data-voice-rail]` anchor.
 - **`TutorCaption` (owner A)** takes `{ caption, state, extras }`. `extras` is `tutor.extras`.
 - **`LearnPage.jsx` (owner D)** wires it together:
   - `const voice = useVoiceSession({ tutor, app, access: askScope, targetId: askTarget?.id })`;
@@ -296,7 +302,7 @@ All of these use the fake STT, the fake TTS and a stubbed Tutor:
   the real controller.
 - `packages/web/src/voice-ui.test.mjs`: VOICE-01, 03, 04, 06, 08 and 20. `VoiceMode.jsx` and
   `ChatComposer.jsx` are rendered with esbuild and react-dom/server; the `ask.jsx` and `AdaptiveCanvas.jsx`
-  wiring is pinned in source. No transcript rendering path, caption on the left and in flow, mic states.
+  wiring is pinned in source. No transcript rendering path, the small lower-left caption with only the current reply, mic states.
 - `packages/web/src/learn-tutor.test.mjs`: a voice turn's plan context and enforced actions equal the
   typed run's (VOICE-07); the turnId pass-through; bench `input_modality`; a spoken dive suggestion only
   suggests and its hole opens on the topic, never the spoken words (VOICE-14).

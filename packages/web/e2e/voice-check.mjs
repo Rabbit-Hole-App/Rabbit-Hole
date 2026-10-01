@@ -88,7 +88,7 @@ await mic.click();
 await waitState('listening');
 assert.ok(await page.locator('[data-voice-field] .voice-breathe').count(), 'the red mic breathes');
 assert.equal(await page.locator('[data-learn-dock] input:not([type="file"]), [data-learn-dock] textarea').count(), 0, 'no typing field while voice is on');
-assert.ok(await caption().count(), 'the Tutor caption rail is in the layout');
+assert.equal(await caption().count(), 0, 'nothing said yet: no caption window');
 await shot('02-voice-on');
 
 // 3-5. A normal question: listening (no transcript) -> thinking (mic still red) -> Tutor speaking with the
@@ -116,6 +116,11 @@ await setTts(2500);
 await learnerSays('Explain this.');
 await waitState('speaking');
 await caption().getByText('Do you mean the causal mask or the softmax step?').waitFor();
+// A small window at the surface's lower left, with only the reply being spoken now (owner, 2026-10-01).
+const box = await caption().boundingBox(), surfaceBox = await page.locator('[data-canvas-surface]').boundingBox();
+assert.ok(box.width <= 300 && box.height <= 180, 'a small window');
+assert.ok(box.x - surfaceBox.x <= 16 && surfaceBox.y + surfaceBox.height - (box.y + box.height) <= 16, 'at the lower left of the canvas');
+assert.equal(await caption().getByText('Here it is.').count(), 0, 'no history of earlier replies');
 await shot('06-clarification');
 await waitState('listening');
 nextPlan = () => ({ strategy: 'feynman', move: 'explain', reason: '', actions: [say('The mask hides future positions before softmax, so they get no weight.')] });
@@ -160,6 +165,12 @@ await setTts(3000);
 await learnerSays("Why do the weights add up to one? Why isn't the score the weight?");
 await waitState('speaking');
 await caption().locator('[data-dive-suggestion]').waitFor();
+// The suggestion's buttons stay fully inside the small window, under the reply.
+const win = await caption().boundingBox();
+for (const name of ['Go down a Rabbit Hole', 'Keep it on this canvas']) {
+  const button = await caption().getByRole('button', { name }).boundingBox();
+  assert.ok(button.y >= win.y && button.y + button.height <= win.y + win.height, name + ' is in view');
+}
 await shot('10-rabbit-hole-suggestion');
 await waitState('listening');
 assert.equal(page.url(), before, 'no automatic dive');

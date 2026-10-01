@@ -93,26 +93,35 @@ test('VOICE-04/06: no learner transcript has a rendering path', () => {
   for (const html of [render(VoiceField, { voice: leaky }), render(TutorCaption, { caption: leaky.caption, state: 'listening', extras: null })]) assert.ok(!html.includes(learner));
 });
 
-test('VOICE-08: the caption shows the Tutor\'s words in an in-flow left rail between the tools and the surface', () => {
-  const html = render(TutorCaption, { caption: { current: 'The weights come from softmax.', previous: 'Earlier words.', error: 'The Tutor could not answer. Try again.' }, state: 'listening', extras: createElement('button', { 'data-extra': '' }, 'Go down') });
-  assert.match(html, /^<aside aria-label="Tutor caption" data-tutor-caption="true" class="flex h-full w-\[280px\] /);
-  assert.match(html, /<p class="text-\[15px\] leading-6 text-ink">The weights come from softmax\.<\/p>/);
-  assert.match(html, /<p class="mb-3 text-\[13px\] leading-5 text-ink-2">Earlier words\.<\/p>/, 'smaller and dimmer, still AA');
-  assert.ok(html.indexOf('Earlier words.') < html.indexOf('The weights come from'), 'the previous line sits above');
-  assert.match(html, /text-fail">The Tutor could not answer\. Try again\.<\/p>/);
-  assert.match(html, /<button data-extra="">Go down<\/button>/, 'tutor.extras under the text');
-  assert.doesNotMatch(html, /\b(absolute|fixed)\b/);
-  assert.match(render(TutorCaption, { caption: { current: '', previous: null, error: null }, state: 'thinking', extras: null }), /<span class="shimmer">Thinking…<\/span>/);
-  assert.match(mode, /className="flex h-full w-10 /, 'collapses to a 40px strip');
-  // The rail sits right before the surface; the tools gutter docks order-first, so it lands left of the rail.
-  assert.match(canvas, /gutterTop = null, leftRail = null \}\) \{/);
-  assert.match(canvas, /\{leftRail && presenting === null && <div data-voice-rail className="flex shrink-0">\{leftRail\}<\/div>\}\n\s+<div ref=\{surface\} data-canvas-surface/);
-  // Narrower at mid widths so the canvas stays dominant.
-  assert.match(mode, /w-\[280px\] shrink-0 flex-col border-r border-line bg-white @max-\[1100px\]:w-\[220px\]/);
+test('VOICE-08: a small lower-left window shows only the reply being spoken now, never the history', () => {
+  const extras = createElement('button', { 'data-extra': '' }, 'Go down');
+  const html = render(TutorCaption, { caption: { current: 'The weights come from softmax.', previous: 'Earlier words.', error: null }, state: 'speaking', extras });
+  assert.ok(html.startsWith('<aside aria-label="Tutor caption" data-tutor-caption="true" class="absolute bottom-3 left-3 '));
+  assert.ok(html.includes(' flex max-h-[180px] w-[300px] '));
+  assert.ok(html.includes('<p class="text-sm leading-5 text-ink">The weights come from softmax.</p>'));
+  assert.ok(!html.includes('Earlier words.'), 'no message history');
+  // The suggestion's buttons sit in a fixed footer outside the scrolling reply, so a long reply cannot push them out.
+  assert.ok(html.includes('</div><div class="flex shrink-0 flex-col items-start gap-2 px-3 pb-3"><button data-extra="">Go down</button></div></aside>'));
+  // A failed turn shows its error, not the last reply as if it answered.
+  const failed = render(TutorCaption, { caption: { current: 'Old reply.', previous: null, error: 'The Tutor could not answer. Try again.' }, state: 'listening', extras: null });
+  assert.ok(failed.includes('text-fail">The Tutor could not answer. Try again.</p>'));
+  assert.ok(!failed.includes('Old reply.'));
+  // Thinking replaces the last reply, the suggestion stays; nothing to say renders nothing.
+  const thinking = render(TutorCaption, { caption: { current: 'Old reply.', previous: null, error: null }, state: 'thinking', extras: null });
+  assert.ok(thinking.includes('<span class="shimmer">Thinking…</span>'));
+  assert.ok(!thinking.includes('Old reply.'));
+  assert.ok(render(TutorCaption, { caption: { current: '', previous: null, error: null }, state: 'thinking', extras }).includes('Go down'));
+  assert.equal(render(TutorCaption, { caption: { current: '', previous: null, error: null }, state: 'listening', extras: null }), '');
+  // It hides to one small button; the same toggle node serves both states, so focus survives.
+  assert.ok(html.includes('aria-expanded="true" aria-label="Hide the Tutor caption"'));
+  assert.ok(mode.includes('if (!open) return <aside aria-label="Tutor caption" data-tutor-caption className={`${place} rounded-lg border border-line bg-white shadow-pop`}>{toggle}</aside>;'));
+  // The anchor is a zero-width slot right before the surface; the tools gutter docks order-first, left of it.
+  assert.ok(canvas.includes('gutterTop = null, leftRail = null }) {'));
+  assert.match(canvas, /\{leftRail && presenting === null && <div data-voice-rail className="relative z-20 w-0 shrink-0 @max-\[640px\]:w-full"\n\s+onDragOver=\{event => event\.preventDefault\(\)\} onDrop=\{event => event\.preventDefault\(\)\}>\{leftRail\}<\/div>\}\n\s+<div ref=\{surface\} data-canvas-surface/);
   assert.match(canvas, /data-tool-gutter[\s\S]*?toolSide === 'left' \? `order-first /);
   // While voice is on, tutor.extras live in the caption, not the chat sheet.
-  assert.match(ask, /\{tutor\?\.extras && !voiceOn && <div data-tutor-extras/);
-  assert.match(ask, /\{dock && voice\?\.state === 'off' && voice\.caption\?\.error && <div role="alert" data-voice-error /);
+  assert.ok(ask.includes('{tutor?.extras && !voiceOn && <div data-tutor-extras'));
+  assert.ok(ask.includes("{dock && voice?.state === 'off' && voice.caption?.error && <div role=\"alert\" data-voice-error "));
 });
 
 test('VOICE-20: without voice the composer renders its field and Send exactly as text mode', () => {
