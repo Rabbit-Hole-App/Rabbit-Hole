@@ -32,3 +32,11 @@ test('a confident pass beside an uncertain misconception, or the reverse, is a c
   assert.equal(escalation(SPEC, { ...base, c0_mis0: 0.5 }, T).reason, 'contradiction');
   assert.equal(escalation(SPEC, { ...base, c0_idea0: 0.5, c0_mis0: 1 }, T).reason, 'contradiction');
 });
+
+test('one idea both stated (yes or unsure) and contradicted is a contradiction; an uncertain contradiction check alone is low consequence (D7)', () => {
+  const d7 = { ...base, c0_contra0: 0, c0_contra1: 0 };
+  assert.equal(escalation(SPEC, { ...d7, c0_idea1: 0.5, c0_contra1: 1 }, T).reason, 'contradiction');
+  assert.equal(escalation(SPEC, { ...d7, c0_contra0: 1, c0_transfer: 0.5 }, T).reason, 'contradiction');
+  assert.equal(escalation(SPEC, { ...d7, c0_contra1: 0.5 }, T).reason, 'low_consequence');
+  assert.equal(escalation(SPEC, { ...d7, c0_contra0: 0.5 }, T).reason, 'low_consequence', 'stated and only maybe contradicted: low consequence');
+});

@@ -94,7 +94,8 @@ Implemented with free/scripted tests only; no paid call. Checkpoints (pushed, no
 | Checkpoint | Decision | SHA |
 |---|---|---|
 | B | D1 evaluation dependency | `8223fc31` |
-| C | D4 constraint-first questions, D2 held fast-tier sentences, D3 exact model ids | see git log |
+| C | D4 constraint-first questions, D2 held fast-tier sentences, D3 exact model ids | `3d6c42e3` |
+| D | D7 per-idea evidence (merge of the sub-agent branch) | see git log |
 
 ### D1. Evaluation dependency
 
@@ -145,6 +146,26 @@ Exact ids, never substituted: fast tier `claude-haiku-4-5-20251001` or `claude-s
   and late constraints), D2 cases in `learn-tutor-stream.test.js`.
 - Stub corpus: early sentence 0.769 -> 0.974 of planner turns; question turns 9/9 early (none before);
   consistency 1.0; sentence ready at p50 0.582 / p95 0.905 of the tool output (control fields first).
+
+### D7. Per-idea evidence (built by a sub-agent on a local branch, merged here)
+
+- JEV (and the larger evaluator, same checks) gets one contradiction check per idea, `c{c}_contra{i}`.
+  Per idea of an engaged claim: stated -> pass, contradicted -> fail, untouched or unsure -> no event,
+  for prompted and unprompted explanations alike; questions and requests stay non-attempts. Free-text
+  events carry `idea`. Misconception events still need the named wrong idea asserted.
+- `understood` additionally needs coverage: every idea has a settled pass, or a claim-level settled pass
+  (deterministic practice, no `idea`). One idea passed in transfer leaves the claim `uncertain`.
+- Completeness exception: deterministic card practice stays claim-level, so an incomplete enumeration
+  (c11 "0 to Q-1", which leaves out the position itself) is still a fail. Conversational explanations
+  never fail an idea they leave out.
+- Escalation reads `contra`: an uncertain contradiction check alone is low consequence; one idea both
+  stated and contradicted is a contradiction. The router's `unclear` check includes `contra`.
+- Tests: control-plane evaluationFrom (owner's softmax example, contradiction, prompted answer touching
+  one idea, misconception only) and escalation; web reconcile (coverage, practice, completeness).
+- Corpus +4 traces / 5 turns (44 turns). Stub, same 44 turns before -> after: free-text fail events 23 ->
+  1 (the one is the deliberate contradiction turn; 20 -> 0 on the original 40 turns), misconception
+  events 10 -> 10, larger-evaluator escalation 0.073 -> 0.073, evidence dimension 0.944 -> 1.0. Cost:
+  JEV questions per call 9.05 -> 12.05 (one more check per idea); its latency effect needs the paid run.
 
 ## Target pipeline
 

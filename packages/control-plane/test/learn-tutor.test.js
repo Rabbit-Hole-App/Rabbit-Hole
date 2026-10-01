@@ -15,7 +15,7 @@ const SPEC = {
   gaps: [],
 };
 const answersOf = (values) => ({ answers: Object.fromEntries(Object.entries(values).map(([key, noul]) => [key, { type: 'noul', noul }])) });
-const settledAnswers = { attempt: 0.95, c0_idea0: 0.9, c0_idea1: 0.92, c0_mis0: 0.05, c0_transfer: 0.9 };
+const settledAnswers = { attempt: 0.95, c0_idea0: 0.9, c0_contra0: 0.05, c0_idea1: 0.92, c0_contra1: 0.05, c0_mis0: 0.05, c0_transfer: 0.9 };
 
 function recordFetch(t, reply) {
   const calls = [], original = globalThis.fetch;
@@ -35,20 +35,50 @@ function world(t, envExtra = {}) {
 }
 
 test('the Tutor has its own JEV question set; the grader protocol is untouched', async () => {
-  assert.deepEqual(Object.keys(tutorQuestions(SPEC)), ['attempt', 'c0_idea0', 'c0_idea1', 'c0_mis0', 'c0_transfer']);
+  assert.deepEqual(Object.keys(tutorQuestions(SPEC)), ['attempt', 'c0_idea0', 'c0_contra0', 'c0_idea1', 'c0_contra1', 'c0_mis0', 'c0_transfer']);
   assert.deepEqual(Object.keys(tutorQuestions({ ...SPEC, answering: true, gaps: [{ concept: 'softmax', statement: 's', claims: [] }] }))[0], 'non_attempt');
   assert.equal(await protocolFingerprint(), GRADER_PROTOCOL_FINGERPRINT);
   assert.equal(TUTOR_TOOL.name, 'tutor_response');
 });
 
 test('evaluationFrom: per-idea events, passes before negatives, transfer from its own check, unengaged claims untouched', () => {
-  const { status, events } = evaluationFrom(SPEC, { attempt: 1, c0_idea0: 1, c0_idea1: 0, c0_mis0: 0, c0_transfer: 1 }, { yes: 0.7, no: 0.3 }, 'jev');
+  const { status, events } = evaluationFrom(SPEC, { attempt: 1, c0_idea0: 1, c0_contra0: 0, c0_idea1: 0, c0_contra1: 1, c0_mis0: 0, c0_transfer: 1 }, { yes: 0.7, no: 0.3 }, 'jev');
   assert.equal(status, 'settled');
   assert.deepEqual(events.map(event => [event.result, event.kind]), [['pass', 'demonstrated_in_transfer'], ['fail', null]]);
   assert.equal(evaluationFrom(SPEC, { attempt: 1, c0_idea0: 0, c0_idea1: 0, c0_mis0: 0, c0_transfer: 0 }, { yes: 0.7, no: 0.3 }, 'jev').events.length, 0);
   const question = evaluationFrom(SPEC, { attempt: 0, c0_idea0: 1, c0_idea1: 1, c0_mis0: 0, c0_transfer: 0 }, { yes: 0.7, no: 0.3 }, 'jev');
   assert.equal(question.events.length, 0, 'a question or a request is not an attempt');
   assert.equal(evaluationFrom(SPEC, { ...settledAnswers, c0_idea1: 0.5 }, { yes: 0.7, no: 0.3 }, 'jev').status, 'uncertain');
+});
+
+// Decision 7: an idea fails only when the learner contradicts it; an untouched idea gets no event.
+const T = { yes: 0.7, no: 0.3 };
+const OWNER = { answering: false, gaps: [], claims: [{ id: 'softmax/x', concept: 'softmax', statement: 's', ideas: ['softmax normalizes scores', 'outputs sum to one'], misconceptions: [{ id: 'divides-raw-scores', check: 'x' }], drawn: 'd' }] };
+const ownerAnswers = extra => ({ attempt: 1, c0_idea0: 1, c0_contra0: 0, c0_idea1: 0, c0_contra1: 0, c0_mis0: 0, c0_transfer: 0, ...extra });
+const results = events => events.map(event => [event.result, event.idea]);
+
+test('evaluationFrom (D7): "Softmax turns the scores into probabilities." -> a pass on idea 0, no fail on the untouched idea 1', () => {
+  assert.deepEqual(results(evaluationFrom(OWNER, ownerAnswers(), T, 'jev').events), [['pass', 0]]);
+});
+
+test('evaluationFrom (D7): contradicting idea 1 -> pass idea 0 and fail idea 1', () => {
+  assert.deepEqual(results(evaluationFrom(OWNER, ownerAnswers({ c0_contra1: 1 }), T, 'jev').events), [['pass', 0], ['fail', 1]]);
+  assert.deepEqual(results(evaluationFrom(OWNER, ownerAnswers({ c0_idea0: 0, c0_contra1: 1 }), T, 'jev').events), [['fail', 1]], 'a confident contradiction alone engages the claim');
+  assert.deepEqual(evaluationFrom(OWNER, ownerAnswers({ c0_contra1: 0.5 }), T, 'jev').events.map(event => [event.result, event.settled]), [['pass', false]], 'an unsure contradiction is no fail');
+});
+
+test('evaluationFrom (D7): answering a tutor question while touching one idea fails nothing; an empty answer is still a non-attempt', () => {
+  const answering = { ...OWNER, answering: true, question: 'What does softmax do to the scores?' };
+  const { attempt, ...rest } = ownerAnswers({ c0_idea0: 0 });
+  assert.deepEqual(evaluationFrom(answering, { non_attempt: 0, ...rest }, T, 'jev').events, [], 'engaged by the question, but nothing stated or contradicted');
+  const { attempt: _, ...one } = ownerAnswers();
+  assert.deepEqual(results(evaluationFrom(answering, { non_attempt: 0, ...one }, T, 'jev').events), [['pass', 0]]);
+  assert.deepEqual(results(evaluationFrom(answering, { non_attempt: 1, ...rest }, T, 'jev').events), [['non_attempt', undefined]]);
+});
+
+test('evaluationFrom (D7): a misconception-only message keeps its misconception event and fails no idea', () => {
+  const { events } = evaluationFrom(OWNER, ownerAnswers({ c0_idea0: 0, c0_mis0: 1 }), T, 'jev');
+  assert.deepEqual(events.map(event => [event.result, event.misconception_id]), [['misconception', 'divides-raw-scores']]);
 });
 
 test('evaluate: a settled JEV answer ends the ladder - one batched 800 ms request, no retry, no model call', async t => {
@@ -68,7 +98,7 @@ test('evaluate: a settled JEV answer ends the ladder - one batched 800 ms reques
   assert.equal(asked[0].request.state.learner_answer, 'With scores 2, 1, 0 ...');
   assert.equal(calls.length, 0);
   const { jev, larger } = result.telemetry;
-  assert.deepEqual({ ...jev, ms: typeof jev.ms }, { called: true, ms: 'number', outcome: 'settled', claims: 1, ideas: 2, questions: 5, error: null });
+  assert.deepEqual({ ...jev, ms: typeof jev.ms }, { called: true, ms: 'number', outcome: 'settled', claims: 1, ideas: 2, questions: 7, error: null });
   assert.deepEqual(larger, { called: false, ms: null, outcome: null, reason: null, requested_model: null, served_model: null, input_tokens: null, output_tokens: null, error: null });
 });
 
@@ -85,7 +115,7 @@ test('evaluate: JEV uncertain on a low-consequence check -> no larger evaluator;
 });
 
 test('evaluate: JEV uncertain on a contradiction -> the larger evaluator on Opus 5.5 (no fallback), structured, settles it', async t => {
-  const calls = recordFetch(t, { model: 'claude-opus-5-5', usage: { input_tokens: 812, output_tokens: 64 }, content: [{ type: 'text', text: '{"attempt":"yes","c0_idea0":"yes","c0_idea1":"yes","c0_mis0":"no","c0_transfer":"no"}' }], stop_reason: 'end_turn' });
+  const calls = recordFetch(t, { model: 'claude-opus-5-5', usage: { input_tokens: 812, output_tokens: 64 }, content: [{ type: 'text', text: '{"attempt":"yes","c0_idea0":"yes","c0_contra0":"no","c0_idea1":"yes","c0_contra1":"no","c0_mis0":"no","c0_transfer":"no"}' }], stop_reason: 'end_turn' });
   const w = world(t);
   const ask = async () => ({ body: answersOf({ ...settledAnswers, c0_mis0: 0.55 }) });
   const result = await (await w.post('/api/learn/tutor/evaluate', { app: 'canvas-0a1b2c3d', message: 'kind of in the middle', spec: SPEC }, { ask })).json();

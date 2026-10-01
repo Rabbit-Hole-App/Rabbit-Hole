@@ -165,7 +165,7 @@ export function route({ turn, claims, states, evaluation, store }) {
   const unsure = pick(state => state.state === 'uncertain');
   // An explanation whose content JEV could not settle and the policy did not escalate (Stage C):
   // one clarifying question, never a fail.
-  const unclear = evaluation?.status === 'uncertain' && (evaluation.escalation?.uncertain || []).some(key => /^c\d+_(idea|mis)/.test(key));
+  const unclear = evaluation?.status === 'uncertain' && (evaluation.escalation?.uncertain || []).some(key => /^c\d+_(idea|mis|contra)/.test(key));
   if ((unsure || unclear) && evaluation?.status === 'uncertain') return finish('uncertain_unsettled', 'feynman', ['ask_question'], unsure || claims[0]);
   if (unsure) return finish('uncertain', 'feynman', ['respond_text', 'focus_part', 'show_authored_card', 'suggest_depth', 'suggest_practice', 'ask_question'], unsure);
   const unseen = pick(state => state.state === 'not_yet_observed');
