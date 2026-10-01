@@ -11,6 +11,27 @@ Each of these steps needs the owner's explicit GO:
 
 Dev is described in [rabbit-hole-dev.md](rabbit-hole-dev.md). Production `small-cp` (`packages/control-plane/wrangler.jsonc`) is the legacy hosted-apps product and is not part of this.
 
+## Launch status (2026-10-01, main `19a7f5ab`)
+
+**Done outside the repo (owner):**
+- Google OAuth production client, callback `https://digrabbithole.com/auth/google/callback` (`openid`, `email`, `profile`).
+- GitHub OAuth production app, callback `https://digrabbithole.com/auth/github/callback` (no wildcard, no Device Flow).
+- Separate dev and production OAuth credentials (`*_DEV`, `*_PROD` in the local secret source).
+- `RESEND_API_KEY` in the local secret source.
+- Fly app `rabbit-hole-lesson-renderer-prod` (org `rabbit-hole`, no image yet).
+- Zone `digrabbithole.com` active in the Rabbit Hole account; the Cloudflare token has DNS, Workers Routes and Single Redirect edit on it.
+
+**Still outstanding (each needs the production GO):**
+1. Production D1 (`rabbit-hole-prod`, `rabbit-hole-learn-prod`) and R2 (`rabbit-hole-prod-learn-media`, `rabbit-hole-prod-repositories`); fill the `PENDING-*` ids.
+2. Production migrations: `bootstrap.sql` then `migrations/` 0001-0027 on the main D1; `repository-schema.sql` on the Learn D1.
+3. Production renderer: fresh `SCENE_WORKER_TOKEN`, image deployed to `rabbit-hole-lesson-renderer-prod`.
+4. Production Workers: `rabbit-hole-cp`, then `rabbit-hole-app`, with their secrets.
+5. Notebook builds and deploys: `rabbit-hole-notebook`, `rabbit-hole-canvas-notebook`.
+6. Resend: add and verify `digrabbithole.com` (its DKIM, SPF and DMARC records) and the sender `signin@digrabbithole.com`. Read-only check 2026-10-01: the key's Resend account holds only `apateo.ai`, and DNS has no Resend records yet.
+7. `hello@digrabbithole.com` receiving or forwarding.
+8. DNS: the apex custom domain (attached by the app deploy), the `www` placeholder record and the 301 redirect rule.
+9. Final production smoke test, including one real Google and one real GitHub sign-in and one real repository import.
+
 ## Topology: one public origin, two Workers
 
 ```
@@ -111,33 +132,55 @@ So `/a/*` is the only route that is blocked.
 - **`AI`, Vectorize and Queue:** guarded, so Learn falls back to the cold path.
 - **Test secrets:** `TEST_BYPASS_SECRET`, `SMALL_TEST_BYPASS` and `OAUTH_MOCK` must never be set on production.
 
-**Owner decisions:**
-- **BYOC.** `BYOC_DB` plus the AWS keys. The UI hides AWS Connection on a 503, so leaving them unbound is safe.
-- **Moment log.** `learn_moments` is in the main DB (0027) but not in `repository-schema.sql`. With `LEARN_DB` bound, `learnMomentsDb` picks `LEARN_DB`, so the video-moment log stays off until a `learn-migrations/0004` adds it. That is the same as dev today.
-- **Preview restrictions.** Every Rabbit Hole build (`learnPreview`) also ships them: `/chat` and `/members` redirect, and the browser refuses writes outside Learn (`flags.js`, `api.js`).
-  - Landing, `/sign-in`, `/sign-up`, `/check-email`, and the support and docs pages no longer need the flag. `vite.config.js` emits them in every build except private BYOC (`src/landing/public-pages-build.test.mjs`).
-  - The legacy `dist` build carries them too, under `dist/design/`. `small-cp` serves none of them: it bundles only `index.html` and passes just `/static/*` and the icons to `ASSETS`.
+**Launch decisions (owner, locked 2026-10-01):**
+- **BYOC: OFF** for the first production release. No `BYOC_DB`, no AWS keys, no `VITE_BYOC_DEV`; the UI hides AWS Connection on the 503.
+- **Moment log: same as dev.** `learn_moments` is in the main DB (0027), not in `repository-schema.sql`; with `LEARN_DB` bound the video-moment log stays off, exactly as on dev. No production-only variant.
+- **Preview/write restrictions: KEPT.** Every Rabbit Hole build (`learnPreview`) ships them: `/chat` and `/members` redirect, and the browser refuses writes outside Learn (`flags.js`, `api.js`).
+  - Landing, `/sign-in`, `/sign-up`, `/check-email`, and the support and docs pages are in every build except private BYOC (`src/landing/public-pages-build.test.mjs`). `small-cp` serves none of them.
   - **Learn UI flag.** Production builds with `VITE_RABBIT_HOLE=true`, which turns on Rabbit Hole (`learnPreview`, the Learn,
-    Home and canvas chunks) and nothing else. `VITE_COACHING_DEV=true` stays the dev/review build: the same app plus the dev-only
-    tools (coaching dev panel, review fixtures, the canvas lesson-block workbench, dev palette items, the supplied nanoGPT course).
+    Home and canvas chunks). `VITE_COACHING_DEV=true` stays the dev/review build: the same app plus the dev-only tools
+    (coaching dev panel, review fixtures, the canvas lesson-block workbench, dev palette items).
     `node e2e/production-bundle-check.mjs` (packages/web, after the production build) fails if the Learn chunks are missing or
     any dev-only tool shipped.
-  - **Open (owner):** the supplied nanoGPT course (`LearnPage.jsx`) is still dev-only, so production `karpathy/nanoGPT` gets the
-    generated course, not the supplied one.
+  - The canonical NanoGPT course is product content and ships wherever Rabbit Hole does (main `ace6a64a`).
 - **Data.** Should anything carry over from legacy `small` (users, workspaces, `learn_courses`)? The default is a fresh start. No Rabbit Hole canvas or board data exists in `small`.
 
 ### Secrets
 
+All are set at the production GO, each piped into `wrangler secret put` from that Worker's directory, never printed. The
+local source is the gitignored `small-deploy/.env`; before every `secret put`, confirm the rabbit-hole account and the exact Worker.
+
 | Worker | Required | Optional |
 |---|---|---|
-| `rabbit-hole-cp` | `MASTER_KEY` (fresh), `GOOGLE_CLIENT_ID/SECRET`, `GITHUB_CLIENT_ID/SECRET` | `RESEND_API_KEY` with an `EMAIL_FROM` var on a verified domain (target `digrabbithole.com`, sender `Rabbit Hole <signin@digrabbithole.com>`, not configured) (email sign-in), `ANTHROPIC_API_KEY` |
-| `rabbit-hole-app` | `ANTHROPIC_API_KEY` | `OPENAI_API_KEY`, `DESMOS_API_KEY`, `PEXELS_API_KEY`, `EXA_API_KEY`, `FISH_AUDIO_API_KEY`, `ELEVENLABS_API_KEY` (Voice), `FAL_API_KEY` with the vars `LEARN_VIDEO_PROVIDER` and `LEARN_VIDEO_RESOLUTION` (video; dev uses `fal-seedance-lite`, `480p`), `SCENE_WORKER_URL` var + `SCENE_WORKER_TOKEN` (indexer) |
+| `rabbit-hole-cp` | `MASTER_KEY` (fresh), `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` and `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET` from the `*_PROD` values, `RESEND_API_KEY` (email sign-in; `EMAIL_FROM` is a pinned var) | `ANTHROPIC_API_KEY` |
+| `rabbit-hole-app` | `ANTHROPIC_API_KEY`, `SCENE_WORKER_TOKEN` (production-only, below) | `OPENAI_API_KEY`, `DESMOS_API_KEY`, `PEXELS_API_KEY`, `EXA_API_KEY`, `FISH_AUDIO_API_KEY`, `ELEVENLABS_API_KEY` (Voice), `FAL_API_KEY` with the vars `LEARN_VIDEO_PROVIDER` and `LEARN_VIDEO_RESOLUTION` (video; dev uses `fal-seedance-lite`, `480p`) |
+
+- **OAuth mapping.** The runtime names never change. Production gets `GITHUB_CLIENT_ID_PROD` to `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET_PROD` to `GITHUB_CLIENT_SECRET`, `GOOGLE_CLIENT_ID_PROD` to `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET_PROD` to `GOOGLE_CLIENT_SECRET`. Dev Workers get only the `*_DEV` values. Never cross them.
+- **Only `rabbit-hole-cp`** gets `RESEND_API_KEY` and the OAuth secrets: never the app Worker, the renderers, the notebook Workers or any `VITE_*` build variable.
 
 ### Repository-import indexer
 
-Repository import calls the lesson-renderer Fly app with a shared bearer `SCENE_WORKER_TOKEN` ([learn-repositories.md](learn-repositories.md#indexer-credential-scene_worker_token)).
-- Production has no indexer yet. Without one, import answers 503 "Repository import is unavailable because the indexing service is not configured on this server." and writes nothing.
-- Shipping it means a production renderer app, for example `rabbit-hole-lesson-renderer`, deployed from `packages/lesson-renderer`. It must have its own token, set on that Fly app and on `rabbit-hole-app` from one generated value.
+Production repository import calls `rabbit-hole-lesson-renderer-prod` (Fly org `rabbit-hole`, created by the owner 2026-10-01; never recreate it) with a production-only bearer `SCENE_WORKER_TOKEN`. Wiring and error contract: [learn-repositories.md](learn-repositories.md#indexer-credential-scene_worker_token).
+- **Config.** `packages/lesson-renderer/fly.prod.toml` (`app = "rabbit-hole-lesson-renderer-prod"`; the validated dev renderer's runtime, health check and VM, unchanged) and `SCENE_WORKER_URL = https://rabbit-hole-lesson-renderer-prod.fly.dev` on `rabbit-hole-app`. `rabbit-hole-prod-config.test.js` pins both and refuses any `lesson-renderer-dev` in a production config.
+- **Token (at the production GO, NOT RUN).** One fresh value, never the dev token, never printed. Git Bash, repo root, with the `rabbit-hole` Fly-org token (`FLY_ORG_TOKEN` exported as `FLY_API_TOKEN`) and the rabbit-hole Cloudflare credential loaded:
+
+```bash
+t=$(node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))")
+# Staged: the app has no image yet, so the secret lands with the first deploy.
+printf 'SCENE_WORKER_TOKEN=%s\n' "$t" | flyctl secrets import --stage -a rabbit-hole-lesson-renderer-prod
+(cd packages/web && printf '%s' "$t" | npx wrangler secret put SCENE_WORKER_TOKEN --config wrangler.rabbit-hole-prod.jsonc)
+unset t
+```
+
+- **Deploy into the existing app (at the GO, NOT RUN):** `cd packages/lesson-renderer && flyctl deploy -c fly.prod.toml -a rabbit-hole-lesson-renderer-prod --remote-only --ha=false`.
+- **Acceptance after deploy:**
+  1. `flyctl status -a rabbit-hole-lesson-renderer-prod`: Owner `rabbit-hole`, an image, the machine started with its check passing.
+  2. `https://rabbit-hole-lesson-renderer-prod.fly.dev/health` answers over HTTPS. It may cold-start, so the first app call can answer the mapped 503 once.
+  3. With the production token, a branch lookup for `octocat/Hello-World` returns 200 with its branches.
+  4. With a wrong token, the same lookup through `repositoriesFetch` returns 502 "rejected this server's credential".
+  5. A repository that does not exist returns 400 "Public repository was not found or GitHub is unavailable".
+  6. A real import on `https://digrabbithole.com` (signed in, Start dialog, Check repository, Confirm) reaches `ready` with the right branch and commit.
+  7. No token value in `flyctl logs`, Worker logs, tracked files or shell history.
 
 ## Production bootstrap (NOT RUN)
 
@@ -180,6 +223,7 @@ cd ../web
 export VITE_RABBIT_HOLE=true
 export VITE_NOTEBOOK_ORIGIN=https://rabbit-hole-canvas-notebook.tryrabbithole.workers.dev
 export VITE_LESSON_NOTEBOOK_ORIGIN=https://rabbit-hole-notebook.tryrabbithole.workers.dev
+# Never here: secrets of any kind (Resend, OAuth, SCENE_WORKER_TOKEN). VITE_* values are public in the bundle.
 export VITE_TLDRAW_LICENSE_KEY=<from root .env - never print it>
 npm run build && npm run build -- --outDir dist-dev
 node e2e/production-bundle-check.mjs    # Learn app in, dev-only tools out

@@ -18,7 +18,7 @@ const BUCKETS = { LEARN_MEDIA: 'rabbit-hole-prod-learn-media', REPOSITORY_SNAPSH
 // Dev, legacy production and personal-account identifiers that no production config may name.
 const FORBIDDEN = [
   '1ad18fef-ccf9-4a2c-86c7-dc7e87b268a2', '028f800f-ce8e-4461-adb2-827f417492eb', 'cae839e6-6d58-4037-9e92-d47346356c2f',
-  '3a9cc077-4dc8-4fbd-8bf7-8ed3b971af8b', 'small-runs', 'rabbit-hole-cp-dev', 'small-cp', 'zeroshothq', 'fly.dev',
+  '3a9cc077-4dc8-4fbd-8bf7-8ed3b971af8b', 'small-runs', 'rabbit-hole-cp-dev', 'small-cp', 'zeroshothq', 'lesson-renderer-dev',
 ];
 
 test('both production configs pin the rabbit-hole account and name no dev, legacy or personal resource', () => {
@@ -87,4 +87,23 @@ test('the production notebook sites are static rabbit-hole Workers on workers.de
     assert.deepEqual(Object.keys(c).filter(k => /d1_|r2_|services|vars|durable|queues|ai|vectorize/.test(k)), [], file);
     assert.equal(c.assets.directory, `../../.small/${site}`, file);
   }
+});
+
+// Production repository import must not launch on the 503: it calls the Rabbit Hole-owned production renderer
+// (Fly org rabbit-hole), never a dev one, with its own SCENE_WORKER_TOKEN (docs/features/rabbit-hole-production.md).
+test('production repository import calls rabbit-hole-lesson-renderer-prod, never a dev renderer', () => {
+  const app = config(APP), cp = config(CP);
+  assert.equal(app.vars.SCENE_WORKER_URL, 'https://rabbit-hole-lesson-renderer-prod.fly.dev');
+  assert.equal(cp.vars.SCENE_WORKER_URL, undefined, 'only the app Worker runs repository import');
+  for (const c of [app, cp]) assert.doesNotMatch(JSON.stringify(c), /lesson-renderer-dev/);
+  const prod = raw('../../lesson-renderer/fly.prod.toml'), dev = raw('../../lesson-renderer/fly.dev.toml');
+  assert.match(prod, /^app = "rabbit-hole-lesson-renderer-prod"\r?$/m);
+  // The validated dev renderer's runtime, health check and VM, unchanged: only the app line differs.
+  const body = toml => toml.split(/\r?\n/).filter(line => !line.startsWith('app = ')).join('\n');
+  assert.equal(body(prod), body(dev));
+});
+
+test('production sign-in email goes out as Rabbit Hole <signin@digrabbithole.com>, from the control plane only', () => {
+  assert.equal(config(CP).vars.EMAIL_FROM, 'Rabbit Hole <signin@digrabbithole.com>');
+  assert.equal(config(APP).vars.EMAIL_FROM, undefined);
 });
