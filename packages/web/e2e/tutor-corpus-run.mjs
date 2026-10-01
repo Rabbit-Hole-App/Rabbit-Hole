@@ -19,7 +19,7 @@
 // fields and strategy first, then actions), is streamed through the real planTurn as SSE;
 // live: the real streamed planner, with the time to the first sentence.
 // Usage: node e2e/tutor-corpus-run.mjs [--stage A] [--out dir] [--stream] [--live [--candidate G-default]]
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { cardBlock } from '../src/nanogpt/board.js';
 import { applyCheck, applyNewAttempt, enterPractice, setActivityAnswer } from '../src/scene-activity.js';
 import { applyInputToBlock } from '../src/scene-evaluate.js';
@@ -75,6 +75,12 @@ for (const { env } of Object.values(CANDIDATES)) {
 // --group routine: only the traces made entirely of that group's turns (owner answer C: routine turns
 // get 5 repetitions per arm, i.e. 3 full-corpus runs + 2 routine-only runs; evidence and structural 3).
 const GROUP = flag('group', null);
+// Paid runs (owner GO BENCHMARK 2026-10-01): rows are appended to the JSONL trace by trace, so a stop keeps
+// every completed observation; --resume skips the traces already in this run's file (a trace cut midway
+// is run again from its start, since its turns depend on each other). --budget USD stops the run once the
+// Anthropic cost of every live run in --out, this one included, reaches it.
+const RESUME = args.includes('--resume'), BUDGET = Number(flag('budget', 'NaN'));
+if (LIVE && !(BUDGET > 0)) throw Error('--live needs --budget USD (the owner spend guard)');
 // A refused request is never retried (owner): a planner HTTP 4xx other than 429, or fast mode not served
 // on arm C, stops the run; its rows are stamped run_aborted and the gates mark the arm unavailable.
 let ABORTED = null;
@@ -211,7 +217,7 @@ async function runTrace(trace) {
     }
     if (step.opening) { raw = openingQuestion(store, inHole); store = markOpened(store, inHole); }
     if (step.climb) { store = arriveAt(store, PARENT); canvas = PARENT; inHole = null; }
-    const calls = { jev: 0, larger: 0, planner: 0, plannerChars: 0, jevQuestions: 0, selected: [], escalation: null, invalid: 0, jevMs: null, jevOutcome: null, largerMs: null, largerOutcome: null, largerTokens: null, plannerMs: null, plannerTokens: null, plannerOutcome: null, tier: null, servedTier: null, escalated: null, sentenceAt: null, firstSentenceMs: null };
+    const calls = { firstOutputMs: null, jev: 0, larger: 0, planner: 0, plannerChars: 0, jevQuestions: 0, selected: [], escalation: null, invalid: 0, jevMs: null, jevOutcome: null, largerMs: null, largerOutcome: null, largerTokens: null, plannerMs: null, plannerTokens: null, plannerOutcome: null, tier: null, servedTier: null, escalated: null, sentenceAt: null, firstSentenceMs: null };
     const post = async (path, body, options = {}) => {
       if (path === '/api/learn/tutor/evaluate') {
         const input = validateEvaluateBody(body);
@@ -249,6 +255,8 @@ async function runTrace(trace) {
       try {
         const planned = await planTurn(ENV, body.context, STREAM ? { onSentence: options.onSentence } : {});
         calls.firstSentenceMs = planned.telemetry.first_sentence_ms ?? null;
+        // The planner's first output (any delta), from the start of planTurn: a fast call that escalated came first.
+        calls.firstOutputMs = (planned.telemetry.escalated && planned.telemetry.fast ? planned.telemetry.fast.ms : 0) + (planned.telemetry.first_output_ms ?? planned.telemetry.ms);
         if (refused(planned.telemetry.escalated)) ABORTED = `fast tier refused: ${planned.telemetry.escalated}`;
         if (CANDIDATES[CANDIDATE].env.TUTOR_PLANNER_SPEED === 'fast' && planned.telemetry.speed !== 'fast') ABORTED = `fast mode not served (usage.speed ${planned.telemetry.speed})`;
         const tokens = t => ({ in: t.input_tokens, out: t.output_tokens, cw: t.cache_creation_input_tokens, cr: t.cache_read_input_tokens, model: t.requested_model, served: t.served_model, speed: t.speed ?? null, requested_speed: t.requested_speed ?? null });
@@ -303,6 +311,9 @@ async function runTrace(trace) {
       // Decision 1: three timings from the turn's start (live: real; stub: stub wall-clock only).
       to_first_safe_sentence: result.bench?.ms.to_first_safe_sentence ?? null, to_evidence_ready: result.bench?.ms.to_evidence_ready ?? null,
       to_first_evidence_action: result.bench?.ms.to_first_evidence_action ?? null,
+      // turn-relative: where the planner started + its first output (live; stub: null)
+      to_first_planner_output: calls.firstOutputMs != null && result.bench ? +(result.bench.ms.to_planner_ready - result.bench.ms.planner + calls.firstOutputMs).toFixed(1) : null,
+      expects_card: !!step.expect.card, jev_outcome_detail: calls.jevOutcome,
       evidence_dropped: (result.decisions || []).filter(decision => decision.stage === 'evidence').length,
       opens_with: result.actions.find(action => action.type === 'respond_text' || action.type === 'ask_question')?.type ?? null,
       group: GROUP_OF[step.category || trace.category], to_planner_ready: result.bench?.ms.to_planner_ready ?? null,
@@ -324,9 +335,25 @@ if (GROUP) {
   const here = TRACES.reduce((n, trace) => n + trace.turns.length, 0);
   if (!here || here !== all) throw Error(`--group ${GROUP}: ${here} of its ${all} turns sit in traces of their own; only a group whose traces hold nothing else can be repeated alone`);
 }
-const rows = [];
-for (const trace of TRACES) { if (ABORTED) break; rows.push(...await runTrace(trace)); }
-if (ABORTED) rows.forEach(row => { row.run_aborted = ABORTED; });
+mkdirSync(OUT, { recursive: true });
+const FILE = `${OUT}/corpus-${MODE}-${STAGE}.jsonl`;
+const read = file => readFileSync(file, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line));
+if (existsSync(FILE) && LIVE && !RESUME) throw Error(`${FILE} exists: paid rows are never overwritten (use --resume or a new --stage)`);
+const rows = existsSync(FILE) && RESUME ? read(FILE) : [];
+if (!RESUME || !existsSync(FILE)) writeFileSync(FILE, '');
+const done = new Set(rows.map(row => row.trace));
+const spentBefore = LIVE ? readdirSync(OUT).filter(name => /^corpus-live-.*\.jsonl$/.test(name) && `${OUT}/${name}` !== FILE).reduce((n, name) => n + read(`${OUT}/${name}`).reduce((m, row) => m + (row.cost_usd || 0), 0), 0) : 0;
+const spent = () => spentBefore + rows.reduce((n, row) => n + (row.cost_usd || 0), 0);
+for (const trace of TRACES) {
+  if (ABORTED) break;
+  if (done.has(trace.id)) continue;
+  if (LIVE && spent() >= BUDGET) { ABORTED = `budget: $${spent().toFixed(2)} of $${BUDGET} spent`; break; }
+  const traced = await runTrace(trace);
+  rows.push(...traced);
+  appendFileSync(FILE, traced.map(row => JSON.stringify(row)).join('\n') + '\n');
+  if (LIVE) console.error(`${trace.id}: ${traced.length} turns, run $${traced.reduce((n, row) => n + (row.cost_usd || 0), 0).toFixed(3)}, all live runs $${spent().toFixed(2)}`);
+}
+if (ABORTED) { rows.forEach(row => { row.run_aborted = ABORTED; }); writeFileSync(FILE, rows.map(row => JSON.stringify(row)).join('\n') + '\n'); }
 const dims = ['selection', 'evaluation', 'evidence', 'route', 'actions'];
 const rate = (list, test) => list.length ? +(list.filter(test).length / list.length).toFixed(3) : null;
 const turnsWithActions = rows.filter(row => row.accepted);

@@ -24,7 +24,18 @@ export function measure(rows) {
   const golden = [...new Set(rows.filter(row => row.golden).map(row => row.trace))];
   const goldenPassed = golden.filter(id => rows.filter(row => row.trace === id).every(row => row.pass));
   const fastTurns = rows.filter(row => row.planner_tier === 'fast');
-  const latency = list => ({ first_validated_sentence_ms: stats(list.map(row => row.to_first_safe_sentence).filter(v => v != null)), full_plan_ms: stats(list.map(row => row.planner_ms ?? row.to_planner_ready).filter(v => v != null)) });
+  const of = (list, key) => stats(list.map(key).filter(v => v != null));
+  // The owner's six timings, each from the turn's start: evidence ready, first planner output, first
+  // validated speakable sentence, full planner (its own duration), first evidence-dependent action, turn.
+  const latency = list => ({
+    evidence_ready_ms: of(list, row => row.to_evidence_ready), first_planner_output_ms: of(list, row => row.to_first_planner_output ?? row.to_planner_ready),
+    first_validated_sentence_ms: of(list, row => row.to_first_safe_sentence), full_plan_ms: of(list, row => row.planner_ms ?? row.to_planner_ready),
+    first_evidence_action_ms: of(list, row => row.to_first_evidence_action), total_turn_ms: of(list, row => row.turn_ms),
+  });
+  const share = (list, test) => ratio(list.filter(test).length, list.length);
+  const count = (list, key) => list.reduce((acc, row) => { const k = key(row); if (k) acc[k] = (acc[k] || 0) + 1; return acc; }, {});
+  const jevRows = rows.filter(row => row.jev_calls), streamed = ok.filter(row => row.planner_calls && row.spoken !== undefined);
+  const tokensOf = key => rows.map(row => row.planner_tokens?.[key]).filter(v => v != null);
   const categories = [...new Set(ok.map(row => row.category))].sort();
   const off = rows.filter(row => row.critical_path && !row.critical_path.blocking);
   return {
@@ -41,6 +52,27 @@ export function measure(rows) {
       evidence_corruption: sum(rows, row => row.evidence_corruption),
     },
     quality: { actions: dim('actions'), evidence: dim('evidence'), route: dim('route') },
+    quality_detail: {
+      selection: dim('selection'), evaluation: dim('evaluation'),
+      authored_card: ratio(rows.filter(row => row.expects_card && row.checks?.actions).length, rows.filter(row => row.expects_card).length),
+      rabbit_hole: share(rows.filter(row => ['rabbit_hole', 'rabbit_hole_keep', 'child_entry', 'child_turn', 'prerequisite_gap'].includes(row.category)), row => row.pass),
+      return_context: share(rows.filter(row => row.category === 'return_to_parent'), row => row.pass),
+      failed_turns: rows.filter(row => !row.pass).map(row => `${row.trace}#${row.turn}: ${row.error ? 'error' : Object.entries(row.checks || {}).filter(([, v]) => !v).map(([k]) => k).join(',')}`),
+    },
+    v2: {
+      jev_checks_per_turn: rows.length ? +(sum(rows, row => row.jev_questions) / rows.length).toFixed(2) : null,
+      jev_checks_per_call: jevRows.length ? +(sum(jevRows, row => row.jev_questions) / sum(jevRows, row => row.jev_calls)).toFixed(2) : null,
+      jev_timeouts: share(jevRows, row => row.jev_outcome === 'timeout'), jev_errors: share(jevRows, row => row.jev_outcome === 'error'), jev_ms: of(jevRows, row => row.jev_ms),
+      larger_escalation: share(jevRows, row => row.larger_calls > 0), larger_ms: of(rows, row => row.larger_ms),
+      fast_tier_validation_failures: count(fastTurns, row => row.planner_escalated), opus_escalation_reasons: count(rows, row => row.planner_escalated),
+      early_sentence: share(streamed, row => !!row.spoken), early_question: share(ok.filter(row => row.opens_with === 'ask_question'), row => row.spoken?.action === 'ask_question'),
+    },
+    tokens: {
+      planner_in: stats(tokensOf('in')), planner_out: stats(tokensOf('out')), cache_writes: tokensOf('cw').filter(Boolean).length, cache_reads: tokensOf('cr').filter(Boolean).length,
+      cache_read_tokens: tokensOf('cr').reduce((a, b) => a + b, 0), cache_write_tokens: tokensOf('cw').reduce((a, b) => a + b, 0),
+      calls: count(rows.flatMap(row => [row.planner_tokens, row.fast_tokens, row.larger_tokens].filter(Boolean).map(t => ({ t }))), entry => `${entry.t.model}${entry.t.speed === 'fast' ? ' (fast)' : ''}`),
+    },
+    cost_total_usd: +sum(rows, row => row.cost_usd).toFixed(4),
     reliability: {
       invalid_plans: ratio(sum(rows, row => row.planner_invalid), sum(rows, row => row.planner_calls + (row.fast_tokens ? 1 : 0))),
       routine_fast_escalation: ratio(fastTurns.filter(row => row.planner_escalated).length, fastTurns.length),

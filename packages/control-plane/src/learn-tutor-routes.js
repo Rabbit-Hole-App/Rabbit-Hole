@@ -105,7 +105,8 @@ export async function evaluateFreeText(env, spec, message, deps = {}) {
 // A streamed planner reply (Anthropic SSE) -> the same shape as a non-streamed one. The tutor_response
 // input is parsed strictly at the end (eager streaming skips the API's own check); `onInput` sees the
 // input so far after every fragment.
-export async function readPlannerStream(response, onInput) {
+// onDelta (optional) sees every content delta, thinking included: the first one is the planner's first output.
+export async function readPlannerStream(response, onInput, onDelta = null) {
   const message = { model: null, usage: {}, stop_reason: null, content: [] };
   const reader = response.body.getReader(), decoder = new TextDecoder();
   let buffer = '', tool = null, input = '';
@@ -121,7 +122,8 @@ export async function readPlannerStream(response, onInput) {
       try { event = JSON.parse(line.slice(6)); } catch { continue; }
       if (event.type === 'message_start') Object.assign(message, { model: event.message?.model ?? null, usage: { ...event.message?.usage } });
       else if (event.type === 'content_block_start' && event.content_block?.type === 'tool_use' && event.content_block.name === TUTOR_TOOL.name && tool == null) tool = event.index;
-      else if (event.type === 'content_block_delta' && event.index === tool && event.delta?.type === 'input_json_delta') { input += event.delta.partial_json || ''; onInput?.(input); }
+      else if (event.type === 'content_block_delta' && event.index === tool && event.delta?.type === 'input_json_delta') { onDelta?.(); input += event.delta.partial_json || ''; onInput?.(input); }
+      else if (event.type === 'content_block_delta') onDelta?.();
       else if (event.type === 'message_delta') { message.stop_reason = event.delta?.stop_reason ?? message.stop_reason; Object.assign(message.usage, event.usage || {}); }
     }
   }
@@ -147,7 +149,7 @@ async function planOnce(env, context, model, effort, { callModel = loggedModel('
   const stream = !!onSentence && env.SUBSCRIPTION_ONLY !== 'true';
   const cache = env.TUTOR_PLANNER_CACHE === 'on' && env.SUBSCRIPTION_ONLY !== 'true';
   const speed = env.TUTOR_PLANNER_SPEED === 'fast' && model === LEARN_TASKS.tutor.model && env.SUBSCRIPTION_ONLY !== 'true' ? 'fast' : null;
-  const telemetry = { ms: null, requested_model: model, effort, served_model: null, input_tokens: null, output_tokens: null, ...(cache ? { cache: true, cache_creation_input_tokens: null, cache_read_input_tokens: null } : {}), ...(speed ? { requested_speed: speed, speed: null } : {}), stop_reason: null, outcome: null, ...(stream ? { streamed: true, first_sentence_ms: null } : {}) };
+  const telemetry = { ms: null, requested_model: model, effort, served_model: null, input_tokens: null, output_tokens: null, ...(cache ? { cache: true, cache_creation_input_tokens: null, cache_read_input_tokens: null } : {}), ...(speed ? { requested_speed: speed, speed: null } : {}), stop_reason: null, outcome: null, ...(stream ? { streamed: true, first_output_ms: null, first_sentence_ms: null } : {}) };
   const done = outcome => ({ ...telemetry, ms: Date.now() - started, outcome });
   let result;
   try {
@@ -157,7 +159,7 @@ async function planOnce(env, context, model, effort, { callModel = loggedModel('
       if (telemetry.first_sentence_ms != null) return;
       const sentence = firstSentence(input);
       if (sentence) { telemetry.first_sentence_ms = Date.now() - started; telemetry.first_sentence_action = sentence.action; onSentence(sentence); }
-    }) : await response.json();
+    }, () => { telemetry.first_output_ms ??= Date.now() - started; }) : await response.json();
   } catch (error) { throw Object.assign(error, { telemetry: done('error') }); }
   Object.assign(telemetry, { served_model: result.model ?? null, input_tokens: result.usage?.input_tokens ?? null, output_tokens: result.usage?.output_tokens ?? null, stop_reason: result.stop_reason ?? null,
     ...(speed ? { speed: result.usage?.speed ?? null } : {}), ...(cache ? { cache_creation_input_tokens: result.usage?.cache_creation_input_tokens ?? null, cache_read_input_tokens: result.usage?.cache_read_input_tokens ?? null } : {}) });
