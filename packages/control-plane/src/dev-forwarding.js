@@ -57,11 +57,13 @@ export async function devIdentity(req, env) {
 // Every CONTROL_PLANE call on the dev worker, not only the fall-through: dev-worker.js wraps the
 // binding once at the top of fetch() and queue(), so a module that later adds a production call
 // (learn-board.js authorizedBoardApp, byoc.js hostedApp, devIdentity today) is refused by default too.
+// Wrappers made here are remembered in a WeakSet, not flagged by a property: on a deployed service binding
+// every property name reads as an RPC method stub (a function), so a `binding.guarded` flag is always truthy.
+const WRAPPED = new WeakSet();
 export function guardControlPlane(env) {
   const live = env?.CONTROL_PLANE;
-  if (!live || live.guarded) return env;
+  if (!live || WRAPPED.has(live)) return env;
   const guarded = {
-    guarded: true,
     fetch(input, init) {
       const req = input instanceof Request && !init ? input : new Request(input, init);
       const path = new URL(req.url).pathname;
@@ -69,6 +71,7 @@ export function guardControlPlane(env) {
       return Promise.resolve(Response.json({ error: 'Blocked on this preview: it would change live state.' }, { status: 403, headers: { 'Cache-Control': 'no-store' } }));
     },
   };
+  WRAPPED.add(guarded);
   return { ...env, CONTROL_PLANE: guarded };
 }
 

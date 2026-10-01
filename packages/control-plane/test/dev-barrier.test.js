@@ -193,3 +193,18 @@ test('every CONTROL_PLANE call on the dev worker passes the allowlist, whichever
   assert.match(source, /async queue\(batch, env\) \{\n {4}env = guardControlPlane\(env\);/);
   assert.match(source, /async fetch\(req, env, ctx\) \{\n(?: {4}\/\/[^\n]*\n)? {4}env = guardControlPlane\(env\);/);
 });
+
+// A deployed service binding is an RPC stub: every property name reads as a method stub (a function),
+// so a `binding.guarded` flag is always truthy there (checked under wrangler dev, 2026-10-01). The
+// barrier must still wrap such a binding.
+const rpcBinding = live => new Proxy(live, { get: (target, key) => key in target ? target[key] : typeof key === 'string' ? () => {} : undefined });
+
+test('the barrier wraps a real service binding, whose every property reads as truthy', async () => {
+  const live = rpcBinding(production());
+  const env = guardControlPlane({ CONTROL_PLANE: live });
+  assert.notEqual(env.CONTROL_PLANE, live, 'a binding with a truthy guarded property went unwrapped');
+  assert.equal(guardControlPlane(env), env, 'wrapping twice is a no-op');
+  await blocked(await env.CONTROL_PLANE.fetch(new Request('https://dev.test/api/workspaces', { method: 'POST' })), 'module call');
+  assert.equal((await env.CONTROL_PLANE.fetch('https://dev.test/api/me')).status, 200);
+  assert.deepEqual(live.sent, ['GET /api/me']);
+});
