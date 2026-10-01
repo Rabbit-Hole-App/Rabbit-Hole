@@ -104,7 +104,9 @@ test('VOICE-08: the caption shows the Tutor\'s words in an in-flow left rail bet
   assert.match(mode, /className="flex h-full w-10 /, 'collapses to a 40px strip');
   // The rail sits right before the surface; the tools gutter docks order-first, so it lands left of the rail.
   assert.match(canvas, /gutterTop = null, leftRail = null \}\) \{/);
-  assert.match(canvas, /\{leftRail && <div data-voice-rail className="flex shrink-0">\{leftRail\}<\/div>\}\n\s+<div ref=\{surface\} data-canvas-surface/);
+  assert.match(canvas, /\{leftRail && presenting === null && <div data-voice-rail className="flex shrink-0">\{leftRail\}<\/div>\}\n\s+<div ref=\{surface\} data-canvas-surface/);
+  // Narrower at mid widths so the canvas stays dominant.
+  assert.match(mode, /w-\[280px\] shrink-0 flex-col border-r border-line bg-white @max-\[1100px\]:w-\[220px\]/);
   assert.match(canvas, /data-tool-gutter[\s\S]*?toolSide === 'left' \? `order-first /);
   // While voice is on, tutor.extras live in the caption, not the chat sheet.
   assert.match(ask, /\{tutor\?\.extras && !voiceOn && <div data-tutor-extras/);

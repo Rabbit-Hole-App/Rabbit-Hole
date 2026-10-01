@@ -49,7 +49,7 @@ export function TutorCaption({ caption, state, extras }) {
   if (!open) return <aside aria-label="Tutor caption" data-tutor-caption className="flex h-full w-10 shrink-0 flex-col items-center border-r border-line bg-white pt-2 @max-[640px]:h-auto @max-[640px]:w-full @max-[640px]:border-r-0 @max-[640px]:border-b">
     <button type="button" aria-label="Show the Tutor caption" title="Show the Tutor caption" onClick={() => setOpen(true)} className={toggle}><PanelLeftOpen size={15} strokeWidth={1.6} /></button>
   </aside>;
-  return <aside aria-label="Tutor caption" data-tutor-caption className="flex h-full w-[280px] shrink-0 flex-col border-r border-line bg-white @max-[640px]:h-auto @max-[640px]:max-h-40 @max-[640px]:w-full @max-[640px]:border-r-0 @max-[640px]:border-b">
+  return <aside aria-label="Tutor caption" data-tutor-caption className="flex h-full w-[280px] shrink-0 flex-col border-r border-line bg-white @max-[1100px]:w-[220px] @max-[640px]:h-auto @max-[640px]:max-h-40 @max-[640px]:w-full @max-[640px]:border-r-0 @max-[640px]:border-b">
     <div className="flex h-11 shrink-0 items-center justify-between pr-2 pl-4">
       <span className="text-xs font-medium text-ink-2">Tutor</span>
       <button type="button" aria-label="Collapse the Tutor caption" title="Collapse" onClick={() => setOpen(false)} className={toggle}><PanelLeftClose size={15} strokeWidth={1.6} /></button>
