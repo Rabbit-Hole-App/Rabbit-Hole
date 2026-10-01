@@ -147,12 +147,15 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now 
       // sentence is spoken once it ends. The plan validated the sentence as the reply's opening.
       turn.speech = speech || early.text;
       set(null, { current: turn.speech });
+      // The continuation is requested now, while the first sentence still plays, and queued behind it: no
+      // dead gap between them, never reordered or repeated; Stop ends both (tts.stop()).
+      const rest = speech.startsWith(early.text) ? speech.slice(early.text.length).trim() : '';
+      const queued = rest ? tts.speak(rest, { turnId, after: early.speaking }) : null;
       const outcome = await early.speaking;
       if (current !== turn) return;
       if (outcome === 'failed') emit('voice_error', { turn_id: turnId, kind: 'tts' });
-      const rest = speech.startsWith(early.text) ? speech.slice(early.text.length).trim() : '';
-      if (rest && outcome === 'ended') {
-        const more = await tts.speak(rest, { turnId });
+      if (queued) {
+        const more = await queued;
         if (more === 'failed' && current === turn) emit('voice_error', { turn_id: turnId, kind: 'tts' });
       }
       return finish(turn);

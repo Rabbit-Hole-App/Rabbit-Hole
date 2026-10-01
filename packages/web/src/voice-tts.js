@@ -34,21 +34,26 @@ export function speakable(text) {
 // detaches the audio and the run, so no chunk read after a stop is appended or played.
 export function createFishTts({ post, onEvent = () => {}, makeAudio = url => new Audio(url), now = () => performance.now(), MediaSource = globalThis.MediaSource }) {
   const streams = !!MediaSource?.isTypeSupported?.('audio/mpeg');
-  let current = null;
-  const stop = () => current?.finish('stopped');
+  // Every run in flight: the one playing and at most a queued continuation. stop() ends them all.
+  const runs = new Set();
+  const stop = () => { for (const run of [...runs]) run.finish('stopped'); };
 
-  function speak(text, { turnId } = {}) {
-    stop();
+  // after (a speak() promise): queue this clip behind that one - the request and its audio start now, playback
+  // starts only once that clip ended ('ended'); if it stopped or failed, this one is stopped and never plays.
+  // Without after, a new speak stops everything before it, so no stale clip from an earlier turn plays.
+  function speak(text, { turnId, after = null } = {}) {
+    if (!after) stop();
     const words = speakable(text);
     if (!words) return Promise.resolve('ended');
     const emit = type => onEvent({ type, turnId, at: now() });
     return new Promise(resolve => {
       const controller = new AbortController();
-      const run = current = { audio: null, url: null, done: false };
+      const run = { audio: null, url: null, done: false };
+      runs.add(run);
       run.finish = outcome => {
         if (run.done) return;
         run.done = true;
-        if (current === run) current = null;
+        runs.delete(run);
         controller.abort();
         if (run.audio) {
           run.audio.onplaying = run.audio.onended = run.audio.onerror = null;
@@ -65,6 +70,13 @@ export function createFishTts({ post, onEvent = () => {}, makeAudio = url => new
         if (run.done) return;
         emit('tts_error');
         run.finish('failed');
+      };
+      // A queued clip waits for the clip before it; true when it may play now.
+      const ready = async () => {
+        if (!after) return true;
+        const prior = await after;
+        if (prior !== 'ended' || run.done) { run.finish('stopped'); return false; }
+        return true;
       };
       const listen = audio => {
         audio.onplaying = () => { audio.onplaying = null; emit('tts_play_start'); };
@@ -84,7 +96,7 @@ export function createFishTts({ post, onEvent = () => {}, makeAudio = url => new
           listen(audio);
           // play() now, not after the first append: iOS-family Safari loads a media element only once play()
           // is called, so waiting for sourceopen first would wait forever. It stays pending until data arrives.
-          const playing = audio.play().catch(fail);
+          const playing = (after ? ready().then(go => go && audio.play()) : audio.play()).catch(fail);
           // A stop before sourceopen settles the wait too, so nothing is left pending.
           await new Promise(open => { source.addEventListener('sourceopen', open, { once: true }); controller.signal.addEventListener('abort', open, { once: true }); });
           if (run.done) return;
@@ -121,6 +133,7 @@ export function createFishTts({ post, onEvent = () => {}, makeAudio = url => new
         run.url = URL.createObjectURL(new Blob(chunks, { type: 'audio/mpeg' }));
         const audio = run.audio = makeAudio(run.url);
         listen(audio);
+        if (!(await ready())) return;
         await audio.play(); // rejects when autoplay is blocked
       })().catch(fail);
     });
@@ -133,11 +146,11 @@ export function createFishTts({ post, onEvent = () => {}, makeAudio = url => new
 // object is read on every speak, so the hook can flip `fail` or `ms` between turns.
 export function createFakeTts(options = {}) {
   const { onEvent = () => {}, now = () => performance.now() } = options;
-  let current = null;
-  const stop = () => current?.('stopped');
+  const runs = new Set();
+  const stop = () => { for (const finish of [...runs]) finish('stopped'); };
 
-  function speak(text, { turnId } = {}) {
-    stop();
+  function speak(text, { turnId, after = null } = {}) {
+    if (!after) stop();
     const words = speakable(text);
     if (!words) return Promise.resolve('ended');
     const emit = type => onEvent({ type, turnId, at: now() });
@@ -148,14 +161,22 @@ export function createFakeTts(options = {}) {
         return resolve('failed');
       }
       emit('tts_first_byte');
-      emit('tts_play_start');
+      let timer = null, done = false;
       const finish = outcome => {
+        if (done) return;
+        done = true;
         clearTimeout(timer);
-        if (current === finish) current = null;
+        runs.delete(finish);
         resolve(outcome);
       };
-      const timer = setTimeout(() => { emit('tts_play_end'); finish('ended'); }, options.ms ?? Math.min(words.length * 40, 8000));
-      current = finish;
+      runs.add(finish);
+      const play = () => {
+        if (done) return;
+        emit('tts_play_start');
+        timer = setTimeout(() => { emit('tts_play_end'); finish('ended'); }, options.ms ?? Math.min(words.length * 40, 8000));
+      };
+      if (after) after.then(prior => (prior === 'ended' ? play() : finish('stopped')));
+      else play();
     });
   }
 

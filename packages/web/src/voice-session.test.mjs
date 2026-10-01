@@ -515,3 +515,21 @@ test('barge-in needs new speech on the mic: a leftover partial from before the r
   assert.ok(r.names().includes('voice_barge_in'));
   r.session.exit();
 });
+
+test('early speech: the continuation is requested while the first sentence still plays (no dead gap)', async () => {
+  const tutor = scriptedTutor(args => { args.onSpeakable('First part.'); return Promise.resolve({ speech: 'First part. Second part.', turnId: args.turnId, ms: MS }); });
+  const r = rig(tutor, { ttsMs: 30 });
+  await r.session.enter();
+  r.stt.say('go');
+  await until(r.session, 'speaking');
+  await new Promise(resolve => setTimeout(resolve, 5));
+  const requests = r.events.filter(event => event.name === 'tts_request_start').length;
+  const ended = r.events.filter(event => event.name === 'tts_play_end').length;
+  assert.equal(requests >= 1 && ended, 0, 'the first sentence is still playing');
+  await until(r.session, 'listening');
+  const names = r.names();
+  const secondRequest = names.indexOf('tts_request_start', names.indexOf('tts_request_start') + 1);
+  assert.ok(secondRequest > -1 && secondRequest < names.indexOf('tts_play_end'), 'the continuation was requested before the first sentence ended');
+  assert.equal(r.calls.filter(call => call === 'tts.speak').length, 2);
+  r.session.exit();
+});

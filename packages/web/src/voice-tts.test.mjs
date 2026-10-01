@@ -173,7 +173,8 @@ function streamAudio(made) {
   return url => {
     const source = FakeMediaSource.made.at(-1);
     const audio = { url, paused: true, pause: () => { audio.paused = true; } };
-    audio.play = async () => { audio.paused = false; source.onData = () => { source.onData = null; if (!audio.paused) audio.onplaying?.(); }; };
+    // Like a browser: 'playing' fires once data is buffered - at once when it already is (a queued clip).
+    audio.play = async () => { audio.paused = false; if (source.buffer?.appended.length) { queueMicrotask(() => audio.onplaying?.()); return; } source.onData = () => { source.onData = null; if (!audio.paused) audio.onplaying?.(); }; };
     made.push(audio);
     return audio;
   };
@@ -289,4 +290,64 @@ test('streaming: a Stop before the MediaSource opens resolves stopped and leaves
   assert.ok(r.events.includes('tts_stopped'));
   await settle();
   assert.equal(FakeMediaSource.made.at(-1).buffer, undefined, 'no SourceBuffer after the stop');
+});
+
+test('queued continuation: requested at once, plays only after the first clip ends, in order, never twice', async () => {
+  const r = streamingRig();
+  const first = r.tts.speak('Softmax turns scores into weights.', { turnId: 'q1' });
+  await settle();
+  r.bodies[0].push([1]);
+  await settle();
+  const rest = r.tts.speak('Each row adds up to one.', { turnId: 'q1', after: first });
+  await settle();
+  assert.equal(r.bodies.length, 2, 'the continuation is requested while the first clip plays');
+  r.bodies[1].push([2]);
+  r.bodies[1].close();
+  await settle();
+  assert.equal(r.made[1].paused, true, 'buffered, not playing yet');
+  assert.equal(r.made[0].paused, false, 'the first clip still plays');
+  r.bodies[0].close();
+  await settle();
+  r.made[0].onended();
+  assert.equal(await first, 'ended');
+  await settle();
+  assert.equal(r.made[1].paused, false, 'the continuation plays right after');
+  r.made[1].onended();
+  assert.equal(await rest, 'ended');
+  assert.equal(r.events.filter(type => type === 'tts_play_start').length, 2, 'each clip played once');
+});
+
+test('queued continuation: Stop cancels the playing and the queued clip; a stopped first clip never lets the queue play', async () => {
+  const r = streamingRig();
+  const first = r.tts.speak('First part.', { turnId: 'q2' });
+  await settle();
+  r.bodies[0].push([1]);
+  await settle();
+  const rest = r.tts.speak('Second part.', { turnId: 'q2', after: first });
+  await settle();
+  r.bodies[1].push([2]);
+  await settle();
+  r.tts.stop();
+  assert.equal(await first, 'stopped');
+  assert.equal(await rest, 'stopped');
+  await settle();
+  assert.equal(r.made[1]?.paused ?? true, true, 'the queued clip never plays');
+  assert.equal(r.signals[1].aborted, true, 'its request is aborted');
+});
+
+test('queued continuation: a new turn stops a queued clip from an earlier turn', async () => {
+  const r = streamingRig();
+  const first = r.tts.speak('Old first.', { turnId: 'old' });
+  await settle();
+  const rest = r.tts.speak('Old rest.', { turnId: 'old', after: first });
+  await settle();
+  const next = r.tts.speak('New turn.', { turnId: 'new' });
+  assert.equal(await first, 'stopped');
+  assert.equal(await rest, 'stopped', 'the stale continuation never plays');
+  await settle();
+  r.bodies[2].push([3]);
+  r.bodies[2].close();
+  await settle();
+  r.made.at(-1).onended();
+  assert.equal(await next, 'ended');
 });
