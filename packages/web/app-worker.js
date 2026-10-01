@@ -1,4 +1,4 @@
-// Production Rabbit Hole (tryrabbithole.dev; config wrangler.rabbit-hole-prod.jsonc). The same routes as the
+// Production Rabbit Hole (digrabbithole.com; config wrangler.rabbit-hole-prod.jsonc). The same routes as the
 // dev worker, so a route added there ships here too, but CONTROL_PLANE is this deployment's own control
 // plane (rabbit-hole-cp), so sign-in and writes pass through instead of hitting the P0-B dev barrier.
 // Topology: docs/features/rabbit-hole-production.md.

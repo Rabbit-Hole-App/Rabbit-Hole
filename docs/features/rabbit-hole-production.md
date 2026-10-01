@@ -14,7 +14,7 @@ Dev is described in [rabbit-hole-dev.md](rabbit-hole-dev.md). Production `small-
 ## Topology: one public origin, two Workers
 
 ```
-browser ── https://tryrabbithole.dev ──▶ rabbit-hole-app  (packages/web/app-worker.js, public, custom domain)
+browser ── https://digrabbithole.com ──▶ rabbit-hole-app  (packages/web/app-worker.js, public, custom domain)
                                             │ Landing, /sign-in, /apps, Learn, Tutor, repositories, media,
                                             │ the three Durable Objects, every /api/learn* route
                                             └─ CONTROL_PLANE service binding ─▶ rabbit-hole-cp
@@ -33,8 +33,8 @@ Merging them into one Worker would be new architecture.
 
 **Why one origin still works.**
 - **Cookie.** The session cookie has no `Domain` attribute (`auth.js` `setCookie`), so it stays on whichever host served it.
-- **Request URL.** The app forwards the original `Request` through the binding. The control plane therefore sees `https://tryrabbithole.dev/...`, builds its OAuth `redirect_uri` and magic links from that origin, and passes its CSRF origin check. No auth URL is rewritten to an internal host (`test/rabbit-hole-app-worker.test.js` checks the exact URL that crosses).
-- **`PUBLIC_ORIGIN`.** Both production configs set `PUBLIC_ORIGIN=https://tryrabbithole.dev`; the control plane keeps `BASE_URL` (cron run links) too. No code on this branch reads it. On `origin/feature/rabbit-hole-production-auth`, `auth.js` `handleWebAuth` reads it: a sign-in route reached on any other host redirects there (a POST gets 403), and `GET /login` goes to `/sign-in`. Its `baseUrl` comes from the request URL, which is the public one, so on production nothing redirects. Dev and local Workers leave it unset.
+- **Request URL.** The app forwards the original `Request` through the binding. The control plane therefore sees `https://digrabbithole.com/...`, builds its OAuth `redirect_uri` and magic links from that origin, and passes its CSRF origin check. No auth URL is rewritten to an internal host (`test/rabbit-hole-app-worker.test.js` checks the exact URL that crosses).
+- **`PUBLIC_ORIGIN`.** Both production configs set `PUBLIC_ORIGIN=https://digrabbithole.com`; the control plane keeps `BASE_URL` (cron run links) too. No code on this branch reads it. On `origin/feature/rabbit-hole-production-auth`, `auth.js` `handleWebAuth` reads it: a sign-in route reached on any other host redirects there (a POST gets 403), and `GET /login` goes to `/sign-in`. Its `baseUrl` comes from the request URL, which is the public one, so on production nothing redirects. Dev and local Workers leave it unset.
 - **Same-origin calls.** There is no CORS anywhere; the SPA calls relative `/api`.
 - **Private control plane.** `rabbit-hole-cp` is not public. Its own `/` would serve the older `dist` shell, and a second public host would mint cookies the app never sees.
 
@@ -62,7 +62,7 @@ Merging them into one Worker would be new architecture.
 | Repository import: `/api/repositories*`, `/api/apps/repo-*` | app | Needs the indexer (below) |
 | Media: `/api/learn/media` | app | `LEARN_MEDIA` |
 | `GET /api/apps` | app | Canvases and repositories only |
-| `/auth/{google,github}/start`, `/auth/{google,github}/callback`, `/auth/email/start`, `/auth?token=`, `/auth/session`, `POST /login`, `/logout` | cp, through the app | Callbacks to register: `https://tryrabbithole.dev/auth/google/callback` and `https://tryrabbithole.dev/auth/github/callback` |
+| `/auth/{google,github}/start`, `/auth/{google,github}/callback`, `/auth/email/start`, `/auth?token=`, `/auth/session`, `POST /login`, `/logout` | cp, through the app | Callbacks to register: `https://digrabbithole.com/auth/google/callback` and `https://digrabbithole.com/auth/github/callback` |
 | `/api/cli/login`, `/api/cli/verify`, `/api/me`, `/api/workspaces*`, `/api/members`, `/api/ask/threads*`, other `/api/*` | cp, through the app | |
 | `/test/*` | cp | Dead: `SMALL_ENV=production`, and no test secret is set |
 | `/a`, `/a/*` | app | Plain-text 404, `Cache-Control: no-store`, no cookie, no CORS. Never forwarded (below). |
@@ -70,11 +70,11 @@ Merging them into one Worker would be new architecture.
 
 ### Untrusted content on the public origin
 
-A response on `https://tryrabbithole.dev` that runs someone else's script is same-origin with the session cookie and can call `/api/*` as the signed-in person.
+A response on `https://digrabbithole.com` that runs someone else's script is same-origin with the session cookie and can call `/api/*` as the signed-in person.
 
 **`/a/*` is blocked.** It is the control plane's hosted-app proxy (`index.js` `proxyApp`), which serves deployed apps' own HTML and JS unsandboxed. `app-worker.js` answers `/a` and `/a/*`, any method, with a plain-text 404 before anything reaches `CONTROL_PLANE`. `test/rabbit-hole-app-worker.test.js` checks that the response has no app HTML or JS, no `Set-Cookie` and no CORS header, and that the binding received nothing.
 
-If hosted apps ever ship on Rabbit Hole, they move to a separate *site*, such as a dedicated Worker on `*.workers.dev`. They never go on a `*.tryrabbithole.dev` subdomain, which is same-site and gets the `SameSite=Lax` cookie. Nothing may send credentialed CORS back to the app.
+If hosted apps ever ship on Rabbit Hole, they move to a separate *site*, such as a dedicated Worker on `*.workers.dev`. They never go on a `*.digrabbithole.com` subdomain, which is same-site and gets the `SameSite=Lax` cookie. Nothing may send credentialed CORS back to the app.
 
 **The other routes that return user or stored content:**
 
@@ -124,7 +124,7 @@ So `/a/*` is the only route that is blocked.
 
 | Worker | Required | Optional |
 |---|---|---|
-| `rabbit-hole-cp` | `MASTER_KEY` (fresh), `GOOGLE_CLIENT_ID/SECRET`, `GITHUB_CLIENT_ID/SECRET` | `RESEND_API_KEY` with an `EMAIL_FROM` var on a verified domain (email sign-in), `ANTHROPIC_API_KEY` |
+| `rabbit-hole-cp` | `MASTER_KEY` (fresh), `GOOGLE_CLIENT_ID/SECRET`, `GITHUB_CLIENT_ID/SECRET` | `RESEND_API_KEY` with an `EMAIL_FROM` var on a verified domain (target `digrabbithole.com`, sender `Rabbit Hole <signin@digrabbithole.com>`, not configured) (email sign-in), `ANTHROPIC_API_KEY` |
 | `rabbit-hole-app` | `ANTHROPIC_API_KEY` | `OPENAI_API_KEY`, `DESMOS_API_KEY`, `PEXELS_API_KEY`, `EXA_API_KEY`, `FISH_AUDIO_API_KEY`, `ELEVENLABS_API_KEY` (Voice), `FAL_API_KEY` with the vars `LEARN_VIDEO_PROVIDER` and `LEARN_VIDEO_RESOLUTION` (video; dev uses `fal-seedance-lite`, `480p`), `SCENE_WORKER_URL` var + `SCENE_WORKER_TOKEN` (indexer) |
 
 ### Repository-import indexer
@@ -183,43 +183,41 @@ cd ../control-plane
 npx wrangler deploy --config wrangler.rabbit-hole-prod.jsonc                                    # rabbit-hole-cp
 printf '%s' "$VALUE" | npx wrangler secret put MASTER_KEY --config wrangler.rabbit-hole-prod.jsonc  # and the rest of its row
 cd ../web
-npx wrangler deploy --config wrangler.rabbit-hole-prod.jsonc                                    # rabbit-hole-app, attaches tryrabbithole.dev
+npx wrangler deploy --config wrangler.rabbit-hole-prod.jsonc                                    # rabbit-hole-app, attaches digrabbithole.com
 printf '%s' "$VALUE" | npx wrangler secret put ANTHROPIC_API_KEY --config wrangler.rabbit-hole-prod.jsonc  # and the rest of its row
 ```
 
-The app config's custom-domain route needs the zone **active**. Until it is, the app deploy fails at the domain step. To smoke-test before cutover, deploy once with the route removed and `workers_dev: true`. OAuth would then need that host's callbacks registered too.
+The zone is active (see digrabbithole.com below), so the app deploy can attach the domain. To smoke-test before cutover, deploy once with the route removed and `workers_dev: true`. OAuth would then need that host's callbacks registered too.
 
 **Hazard.** `make cp-deploy` / `make web-deploy` (`run.sh`) runs a bare `wrangler deploy` of `wrangler.jsonc`, which is legacy `small-cp`. Never use them for Rabbit Hole.
 
-## tryrabbithole.dev
+## digrabbithole.com
 
-**Zone state, read 2026-10-01:**
-- Zone `96a369eea702ebde9ed876d189f2991d` on the rabbit-hole account is **pending**, with `activation_failure_reason: ns_mismatch`.
-- The zone was assigned `addilyn.ns.cloudflare.com` and `robert.ns.cloudflare.com`.
-- Public delegation (1.1.1.1, 8.8.8.8 and RDAP) points at `macy.ns.cloudflare.com` and `rene.ns.cloudflare.com`. Those are the zone's `original_name_servers`, and they answer authoritatively with a different SOA serial, so a second Cloudflare zone holds the domain.
-- The domain was registered through Cloudflare Registrar on 2026-09-29, and Registrar delegates to a zone in the buying account. Cloudflare cannot change a zone's assigned nameservers.
-- A free zone left pending for 28 days is deleted, around **2026-10-28**.
+Canonical production domain, bought inside the Rabbit Hole Cloudflare account (owner decision 2026-10-01). `tryrabbithole.dev` is no longer the production origin (see Legacy below).
 
-**Fix (owner):**
-1. Find the account that bought the domain and holds the `macy`/`rene` zone.
-2. Then either:
-   - (a) move the registration to the rabbit-hole account (Cloudflare Support), delete the stray zone, and re-check activation of the rabbit-hole zone; or
-   - (b) have Support set the registrar nameservers to `addilyn`/`robert`.
+**Zone state, read-only API check 2026-10-01:**
+- Zone `ff5791fb6665b929a46acbb6cfd4ec27`, **active**, full setup, Free plan, in account `rabbit-hole` (`c08d3dbdc53a3afd3cb09a536ac42318`).
+- Assigned nameservers: `addilyn.ns.cloudflare.com`, `robert.ns.cloudflare.com`. Public NS (`nslookup -type=NS digrabbithole.com 1.1.1.1`) returns the same two, so delegation matches.
+- The zone's permission list for the current token shows `#zone:read` and `#dns_records:read` but no DNS, redirect-rule or zone edit permission (only Workers, D1, R2 and Vectorize edit). Nothing was changed.
 
-   Hosting the Workers in the buying account instead would move every production resource with them, because a custom domain must be in the same account as its zone and Worker.
+**Domain plan:**
+- Apex `https://digrabbithole.com` is canonical: a custom domain on `rabbit-hole-app`.
+- `https://www.digrabbithole.com/*` answers 301 to `https://digrabbithole.com/*`, path and query preserved.
+- OAuth callbacks: `https://digrabbithole.com/auth/google/callback` and `https://digrabbithole.com/auth/github/callback`.
+- Resend: target domain `digrabbithole.com`, suggested sender `Rabbit Hole <signin@digrabbithole.com>`. **Not configured**; it needs separate approval.
 
-**Token gaps.** The current token cannot read the zone's DNS records (code 10000), settings (9109), Worker routes or the Registrar. To inspect, add Zone DNS Read, Zone Settings Read and Registrar Read. To perform the steps below, add Zone DNS Edit, Workers Routes Edit and Single Redirect Edit.
-
-**Once the zone is active:**
-1. **Apex.** The app config's `routes: [{ "pattern": "tryrabbithole.dev", "custom_domain": true }]` creates the DNS record and certificate on deploy. A custom domain cannot be added over an existing CNAME.
-2. **`www` is not canonical.** Add a proxied `A www 192.0.2.0` record. Then add a Single Redirect from the "Redirect from WWW to root" template: `https://www.*` → `https://${1}`, status 301, query string preserved.
-3. **Checks.** In the dashboard, check Always Use HTTPS, HSTS and minimum TLS (unknown today because of the token).
+**Steps (each needs the owner's GO; the zone is already active):**
+1. **Apex.** The app config's `routes: [{ "pattern": "digrabbithole.com", "custom_domain": true }]` creates the DNS record and certificate on deploy. A custom domain cannot be added over an existing CNAME.
+2. **`www` is not canonical.** Add a proxied `A www 192.0.2.0` placeholder record. Then add a Single Redirect from the "Redirect from WWW to root" template: `https://www.*` to `https://${1}`, status 301, query string preserved. To perform steps 1 and 2 the token needs Zone DNS Edit, Workers Routes Edit and Single Redirect Edit (env var `CLOUDFLARE_API_TOKEN` for the rabbit-hole account).
+3. **Checks.** In the dashboard, check Always Use HTTPS, HSTS and minimum TLS (unknown today because the token cannot read zone settings).
 4. **OAuth.** Register the two callbacks above with Google and GitHub.
+
+**Legacy: `tryrabbithole.dev`.** Not a launch blocker. Its zone is stuck pending (`ns_mismatch`) because the domain's registrar and delegation sit in another Cloudflare account. Later: move it into the Rabbit Hole account and 301-redirect it to `https://digrabbithole.com`. No production config names it, and `rabbit-hole-prod-config.test.js` pins that.
 
 ## Notebooks
 
 The notebook iframes use `sandbox="allow-scripts allow-same-origin"`, so only a separate *site* keeps notebook Python away from the session.
-- Host them on `*.tryrabbithole.workers.dev` and not on a `tryrabbithole.dev` subdomain: a subdomain is same-site, so the `SameSite=Lax` cookie would ride along.
+- Host them on `*.tryrabbithole.workers.dev` and not on a `digrabbithole.com` subdomain: a subdomain is same-site, so the `SameSite=Lax` cookie would ride along. `workers.dev` is a different registrable domain from digrabbithole.com, so notebooks are cross-site and the same-site cookie concern does not apply.
 - Before relying on this, confirm `workers.dev` is on the Public Suffix List.
 
 **Code to fix before a production build:**

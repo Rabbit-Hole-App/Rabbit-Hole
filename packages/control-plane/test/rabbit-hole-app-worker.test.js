@@ -1,5 +1,5 @@
 // Production Rabbit Hole's public origin (packages/web/app-worker.js, docs/features/rabbit-hole-production.md).
-// rabbit-hole-app serves no hosted app (/a/*): an app's JS on https://tryrabbithole.dev would be same-origin with
+// rabbit-hole-app serves no hosted app (/a/*): an app's JS on https://digrabbithole.com would be same-origin with
 // the session and could call /api/* as the signed-in person. Everything else keeps its route, and what crosses
 // to rabbit-hole-cp keeps the public URL.
 import { test } from 'node:test';
@@ -8,7 +8,7 @@ import { appWorker } from './worker-import.js';
 import { memoryBucket } from './live-storage-spy.js';
 
 const app = (await appWorker()).default;
-const ORIGIN = 'https://tryrabbithole.dev';
+const ORIGIN = 'https://digrabbithole.com';
 
 // rabbit-hole-cp as a deployed service binding: an RPC stub, so every property name reads as a method.
 // It answers like the hosted-app proxy would, so a leak would show up as app HTML or JS.

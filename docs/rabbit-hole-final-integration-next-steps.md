@@ -853,6 +853,8 @@ Do not publish a guessed npm installation command until the package-name decisio
 
 # D. Replace `workers.dev` product URLs with `tryrabbithole.dev`
 
+> **Production domain is now `digrabbithole.com`** ([rabbit-hole-production.md](features/rabbit-hole-production.md)); read every `tryrabbithole.dev` below as `digrabbithole.com`.
+
 The user owns:
 
 ```text
@@ -871,7 +873,7 @@ as canonical user-facing destinations.
 
 ## Domain architecture
 
-> **Superseded by [docs/features/rabbit-hole-production.md](features/rabbit-hole-production.md) (one origin):** production is ONE public origin, `https://tryrabbithole.dev`, serving Landing, sign-in, the app and its API. There is no `app.tryrabbithole.dev` or `api.tryrabbithole.dev`.
+> **Superseded by [docs/features/rabbit-hole-production.md](features/rabbit-hole-production.md) (one origin):** production is ONE public origin, `https://digrabbithole.com` (owner decision 2026-10-01), serving Landing, sign-in, the app and its API. There is no `app.` or `api.` host. `tryrabbithole.dev` and every `tryrabbithole.dev` host named below are legacy: a later 301 redirect to digrabbithole.com, not a launch blocker.
 
 Before wiring DNS/routes, propose and document the final hostname map.
 
@@ -1345,7 +1347,7 @@ docs
 
 ## 7. tryrabbithole.dev auth migration
 
-> **Superseded by [docs/features/rabbit-hole-production.md](features/rabbit-hole-production.md) (one origin):** production is ONE public origin, `https://tryrabbithole.dev`, serving Landing, sign-in, the app and its API. There is no `app.tryrabbithole.dev` or `api.tryrabbithole.dev`.
+> **Superseded by [docs/features/rabbit-hole-production.md](features/rabbit-hole-production.md) (one origin):** production is ONE public origin, `https://digrabbithole.com` (owner decision 2026-10-01), serving Landing, sign-in, the app and its API. There is no `app.` or `api.` host. `tryrabbithole.dev` and every `tryrabbithole.dev` host named below are legacy: a later 301 redirect to digrabbithole.com, not a launch blocker.
 
 Auth must use the new canonical Rabbit Hole hostnames.
 
@@ -1522,7 +1524,7 @@ Do not leak raw OAuth/provider errors to users.
 
 ## 13. Landing page relationship
 
-> **Superseded by [docs/features/rabbit-hole-production.md](features/rabbit-hole-production.md) (one origin):** production is ONE public origin, `https://tryrabbithole.dev`, serving Landing, sign-in, the app and its API. There is no `app.tryrabbithole.dev` or `api.tryrabbithole.dev`.
+> **Superseded by [docs/features/rabbit-hole-production.md](features/rabbit-hole-production.md) (one origin):** production is ONE public origin, `https://digrabbithole.com` (owner decision 2026-10-01), serving Landing, sign-in, the app and its API. There is no `app.` or `api.` host. `tryrabbithole.dev` and every `tryrabbithole.dev` host named below are legacy: a later 301 redirect to digrabbithole.com, not a launch blocker.
 
 The new landing page from:
 
@@ -1588,7 +1590,7 @@ product identity.
 
 ## 15. Required auth tests
 
-> **Superseded by [docs/features/rabbit-hole-production.md](features/rabbit-hole-production.md) (one origin):** production is ONE public origin, `https://tryrabbithole.dev`, serving Landing, sign-in, the app and its API. There is no `app.tryrabbithole.dev` or `api.tryrabbithole.dev`.
+> **Superseded by [docs/features/rabbit-hole-production.md](features/rabbit-hole-production.md) (one origin):** production is ONE public origin, `https://digrabbithole.com` (owner decision 2026-10-01), serving Landing, sign-in, the app and its API. There is no `app.` or `api.` host. `tryrabbithole.dev` and every `tryrabbithole.dev` host named below are legacy: a later 301 redirect to digrabbithole.com, not a launch blocker.
 
 Before the pre-Tutor baseline can be considered complete, verify:
 

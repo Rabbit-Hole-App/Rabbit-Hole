@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-// Rabbit Hole production (docs/features/rabbit-hole-production.md): one public origin, tryrabbithole.dev, served
+// Rabbit Hole production (docs/features/rabbit-hole-production.md): one public origin, digrabbithole.com, served
 // by the app Worker; the control plane has no public route and is reached only through the app's service binding.
 // Neither config shares a resource with dev or with the legacy small-cp production.
 const here = new URL('.', import.meta.url);
@@ -26,6 +26,8 @@ test('both production configs pin the rabbit-hole account and name no dev, legac
     const c = config(path), text = JSON.stringify(c);
     assert.equal(c.account_id, RABBIT_HOLE, path);
     for (const id of FORBIDDEN) assert.ok(!text.includes(id), `${path} names ${id}`);
+    // tryrabbithole.dev is legacy (redirect to digrabbithole.com later), never a production origin or comment target.
+    assert.ok(!raw(path).includes('tryrabbithole'), `${path} names tryrabbithole`);
     for (const name of [c.name, ...Object.values(d1(c)), ...Object.values(r2(c)), ...(c.services || []).map(s => s.service)]) assert.doesNotMatch(name, /-dev\b/, `${path} names dev resource ${name}`);
     assert.deepEqual(d1(c), D1, path);
     assert.deepEqual(r2(c), BUCKETS, path);
@@ -36,12 +38,12 @@ test('both production configs pin the rabbit-hole account and name no dev, legac
   }
 });
 
-test('the app Worker owns tryrabbithole.dev and binds its own control plane, with the dev worker Durable Objects', () => {
+test('the app Worker owns digrabbithole.com and binds its own control plane, with the dev worker Durable Objects', () => {
   const app = config(APP), dev = config('../../web/wrangler.dev.jsonc');
   assert.equal(app.name, 'rabbit-hole-app');
   assert.equal(app.main, 'app-worker.js');
   assert.equal(app.workers_dev, false);
-  assert.deepEqual(app.routes, [{ pattern: 'tryrabbithole.dev', custom_domain: true }]);
+  assert.deepEqual(app.routes, [{ pattern: 'digrabbithole.com', custom_domain: true }]);
   assert.deepEqual(app.services, [{ binding: 'CONTROL_PLANE', service: 'rabbit-hole-cp' }]);
   // Same classes and migration tags as dev, so the Durable Object model is the one tested there.
   assert.deepEqual(app.durable_objects, dev.durable_objects);
@@ -49,7 +51,7 @@ test('the app Worker owns tryrabbithole.dev and binds its own control plane, wit
   // dev-worker.js bundles its HTML from ./dist-dev, so the directory keeps that name.
   assert.equal(app.assets.directory, './dist-dev');
   // The one public origin (auth.js on feature/rabbit-hole-production-auth sends sign-in there).
-  assert.equal(app.vars.PUBLIC_ORIGIN, 'https://tryrabbithole.dev');
+  assert.equal(app.vars.PUBLIC_ORIGIN, 'https://digrabbithole.com');
 });
 
 test('the control plane is private: no route, no workers.dev, SMALL_ENV production, BASE_URL and PUBLIC_ORIGIN the public origin', () => {
@@ -60,8 +62,8 @@ test('the control plane is private: no route, no workers.dev, SMALL_ENV producti
   assert.equal(cp.routes, undefined);
   assert.equal(cp.services, undefined);
   assert.equal(cp.vars.SMALL_ENV, 'production');
-  assert.equal(cp.vars.BASE_URL, 'https://tryrabbithole.dev');
-  assert.equal(cp.vars.PUBLIC_ORIGIN, 'https://tryrabbithole.dev');
+  assert.equal(cp.vars.BASE_URL, 'https://digrabbithole.com');
+  assert.equal(cp.vars.PUBLIC_ORIGIN, 'https://digrabbithole.com');
   assert.equal(cp.d1_databases.find(d => d.binding === 'DB').migrations_dir, 'migrations');
 });
 

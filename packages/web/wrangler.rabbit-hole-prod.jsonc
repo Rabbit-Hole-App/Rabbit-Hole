@@ -1,5 +1,5 @@
 {
-  // Rabbit Hole PRODUCTION app Worker: the one public origin, https://tryrabbithole.dev
+  // Rabbit Hole PRODUCTION app Worker: the one public origin, https://digrabbithole.com
   // (docs/features/rabbit-hole-production.md). NOT CREATED YET: every deploy, resource and secret here needs the
   // owner's explicit GO. Deploy only with --config wrangler.rabbit-hole-prod.jsonc.
   "name": "rabbit-hole-app",
@@ -9,9 +9,9 @@
   "compatibility_date": "2026-08-01",
   "workers_dev": false,
   "preview_urls": false,
-  // Needs the tryrabbithole.dev zone ACTIVE first (it is pending, ns_mismatch, 2026-10-01). www redirects to the
-  // apex with a zone redirect rule, not a second custom domain.
-  "routes": [{ "pattern": "tryrabbithole.dev", "custom_domain": true }],
+  // The digrabbithole.com zone is ACTIVE in the Rabbit Hole account (checked 2026-10-01). www redirects to the
+  // apex with a proxied placeholder record plus a Single Redirect rule, not a second custom domain.
+  "routes": [{ "pattern": "digrabbithole.com", "custom_domain": true }],
   "observability": { "enabled": true },
   "durable_objects": {
     "bindings": [
@@ -40,7 +40,7 @@
   ],
   "services": [{ "binding": "CONTROL_PLANE", "service": "rabbit-hole-cp" }],
   // The one public origin; the control plane sets the same value.
-  "vars": { "PUBLIC_ORIGIN": "https://tryrabbithole.dev" }
+  "vars": { "PUBLIC_ORIGIN": "https://digrabbithole.com" }
   // No SCENE_WORKER_URL/TOKEN: there is no production indexer yet, so repository import answers 503
   // "not configured". Secrets (owner sets): ANTHROPIC_API_KEY; optional OPENAI_API_KEY and paid-provider keys.
 }
