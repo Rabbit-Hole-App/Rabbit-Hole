@@ -48,8 +48,7 @@ await page.route('**/api/learn/tutor/plan', async route => {
   plans.push(sent);
   if (hold) await hold;
   // A voice turn streams the plan (NDJSON, learn-tutor.js readPlanStream); a typed one takes JSON.
-  if (stream) await route.fulfill({ contentType: 'application/x-ndjson', body: JSON.stringify({ type: 'plan', ...nextPlan(sent) }) + '
-' });
+  if (stream) await route.fulfill({ contentType: 'application/x-ndjson', body: JSON.stringify({ type: 'plan', ...nextPlan(sent) }) + '\n' });
   else await route.fulfill({ json: nextPlan(sent) });
 });
 const say = text => ({ type: 'respond_text', text });
@@ -108,8 +107,8 @@ await shot('04-thinking');
 release(); hold = null;
 await waitState('speaking');
 await caption().getByText('Here it is. Notice the division right before softmax.').waitFor();
-assert.equal(plans.at(-1).turn.input_modality, 'voice', 'the plan context marks a voice turn');
-assert.equal(plans.at(-1).turn.raw_user_message, 'Show me where this happens in the code.', 'the same Tutor turn as typed input');
+assert.equal(plans.at(-1).learner_intent.input_modality, 'voice', 'the plan context marks a voice turn (v2 learner_intent)');
+assert.equal(plans.at(-1).learner_intent.raw_user_message, 'Show me where this happens in the code.', 'the same Tutor turn as typed input');
 await shot('05-tutor-speaking-caption-and-card');
 await waitState('listening');
 
@@ -157,7 +156,7 @@ const evaluatedBefore = evaluations.length;
 await learnerSays('One, two, and three.');
 await waitState('speaking');
 await waitState('listening');
-assert.ok(evaluations.length > evaluatedBefore || plans.at(-1).turn.answering, 'the spoken answer went through the evaluator path');
+assert.ok(evaluations.length > evaluatedBefore || plans.at(-1).learner_intent.kind === 'answer', 'the spoken answer went through the evaluator path');
 
 // 10. A Rabbit Hole suggestion: offered in the caption, never taken by itself.
 await select('depth-attention-guided');
