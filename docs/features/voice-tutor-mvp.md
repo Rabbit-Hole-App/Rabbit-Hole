@@ -57,7 +57,7 @@ and its Rabbit Holes). There is no voice brain of its own. Without the Tutor the
 - The planner context carries `input_modality` only for voice turns, and `PLANNER_SYSTEM` gets one line:
   when `turn.input_modality` is `'voice'`, `respond_text` is spoken aloud. It must be at most two short
   sentences of plain speech, with no markdown, code or equations read out. Show cards rather than narrate
-  them.
+  them. Always speak English.
 - `/api/learn/tutor/evaluate` is untouched. Grading never sees the modality.
 - The bench event gains `input_modality`. It still never carries learner text.
 
@@ -108,6 +108,8 @@ onEvent({ type: 'speech_start' | 'partial' | 'commit' | 'error', text?, kind? })
   - `model_id=scribe_v2_realtime`
   - `token=…`
   - `audio_format=pcm_16000`
+  - `language_code=en`: English only (owner, 2026-10-01). Auto-detect heard a short sentence as Spanish,
+    and the Tutor answered in Spanish. The planner voice line also says to always speak English.
   - `commit_strategy=vad`
   - `vad_silence_threshold_secs=1.0`
   - `min_speech_duration_ms=100`

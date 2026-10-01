@@ -42,7 +42,7 @@ test('the Scribe URL carries exactly the spec query params', () => {
   const url = new URL(scribeUrl('t/k+n'));
   assert.equal(`${url.origin}${url.pathname}`, 'wss://api.elevenlabs.io/v1/speech-to-text/realtime');
   assert.deepEqual(Object.fromEntries(url.searchParams), {
-    model_id: 'scribe_v2_realtime', token: 't/k+n', audio_format: 'pcm_16000', commit_strategy: 'vad',
+    model_id: 'scribe_v2_realtime', token: 't/k+n', audio_format: 'pcm_16000', language_code: 'en', commit_strategy: 'vad',
     vad_silence_threshold_secs: '1.0', min_speech_duration_ms: '100',
   });
 });

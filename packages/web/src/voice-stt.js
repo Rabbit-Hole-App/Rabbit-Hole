@@ -18,9 +18,11 @@ const ERRORS = new Set(['error', 'auth_error', 'quota_exceeded', 'commit_throttl
 const FATAL = new Set(['auth_error', 'quota_exceeded', 'unaccepted_terms']);
 const RETRIES = 3;
 
+// language_code pins English (owner, 2026-10-01): left to auto-detect, a short or accented sentence came back
+// as Spanish and the Tutor answered in Spanish.
 export function scribeUrl(token) {
   const params = new URLSearchParams({
-    model_id: 'scribe_v2_realtime', token, audio_format: 'pcm_16000', commit_strategy: 'vad',
+    model_id: 'scribe_v2_realtime', token, audio_format: 'pcm_16000', language_code: 'en', commit_strategy: 'vad',
     vad_silence_threshold_secs: '1.0', min_speech_duration_ms: '100',
   });
   return `${SCRIBE}?${params}`;
