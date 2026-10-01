@@ -48,9 +48,11 @@ test('the app Worker owns tryrabbithole.dev and binds its own control plane, wit
   assert.deepEqual(app.migrations, dev.migrations);
   // dev-worker.js bundles its HTML from ./dist-dev, so the directory keeps that name.
   assert.equal(app.assets.directory, './dist-dev');
+  // The one public origin (auth.js on feature/rabbit-hole-production-auth sends sign-in there).
+  assert.equal(app.vars.PUBLIC_ORIGIN, 'https://tryrabbithole.dev');
 });
 
-test('the control plane is private: no route, no workers.dev, SMALL_ENV production, BASE_URL the public origin', () => {
+test('the control plane is private: no route, no workers.dev, SMALL_ENV production, BASE_URL and PUBLIC_ORIGIN the public origin', () => {
   const cp = config(CP);
   assert.equal(cp.name, 'rabbit-hole-cp');
   assert.equal(cp.main, 'src/index.js');
@@ -59,6 +61,7 @@ test('the control plane is private: no route, no workers.dev, SMALL_ENV producti
   assert.equal(cp.services, undefined);
   assert.equal(cp.vars.SMALL_ENV, 'production');
   assert.equal(cp.vars.BASE_URL, 'https://tryrabbithole.dev');
+  assert.equal(cp.vars.PUBLIC_ORIGIN, 'https://tryrabbithole.dev');
   assert.equal(cp.d1_databases.find(d => d.binding === 'DB').migrations_dir, 'migrations');
 });
 

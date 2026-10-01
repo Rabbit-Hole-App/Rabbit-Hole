@@ -25,7 +25,9 @@
   ],
   "vars": {
     "SMALL_ENV": "production",
-    "BASE_URL": "https://tryrabbithole.dev"
+    "BASE_URL": "https://tryrabbithole.dev",
+    // Sign-in happens only on this origin (auth.js, feature/rabbit-hole-production-auth).
+    "PUBLIC_ORIGIN": "https://tryrabbithole.dev"
   }
   // Secrets (owner sets, fresh values unrelated to dev or small-cp): MASTER_KEY, ANTHROPIC_API_KEY,
   // GOOGLE_CLIENT_ID/SECRET, GITHUB_CLIENT_ID/SECRET; RESEND_API_KEY plus an EMAIL_FROM var on a verified domain

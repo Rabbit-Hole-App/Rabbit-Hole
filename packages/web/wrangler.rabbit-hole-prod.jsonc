@@ -38,7 +38,9 @@
     { "binding": "LEARN_MEDIA", "bucket_name": "rabbit-hole-prod-learn-media" },
     { "binding": "REPOSITORY_SNAPSHOTS", "bucket_name": "rabbit-hole-prod-repositories" }
   ],
-  "services": [{ "binding": "CONTROL_PLANE", "service": "rabbit-hole-cp" }]
+  "services": [{ "binding": "CONTROL_PLANE", "service": "rabbit-hole-cp" }],
+  // The one public origin; the control plane sets the same value.
+  "vars": { "PUBLIC_ORIGIN": "https://tryrabbithole.dev" }
   // No SCENE_WORKER_URL/TOKEN: there is no production indexer yet, so repository import answers 503
   // "not configured". Secrets (owner sets): ANTHROPIC_API_KEY; optional OPENAI_API_KEY and paid-provider keys.
 }
