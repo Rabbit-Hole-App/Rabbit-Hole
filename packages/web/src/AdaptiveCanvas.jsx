@@ -1197,6 +1197,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Named groups. Membership lives on the members themselves (groupId), so
   // undo restores it with them; this list only carries each group's label.
   const [groups, setGroups] = useState(stored.current.groups || []);
+  // Every area asked about stays on the canvas, outlined and lightly filled red, saved with the
+  // board, until the learner clicks its outline to remove it.
+  const [areas, setAreas] = useState(stored.current.areas || []);
+  const areaById = id => areas.find(area => area.id === id);
   const divePortals = useContext(DivePortals);
   // Every change also goes to onSave (a shared board's server copy), if given.
   const onSaveRef = useRef(onSave);
@@ -1211,14 +1215,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const loaded = firstSave.current;
     firstSave.current = false;
     const timer = setTimeout(() => {
-      const state = { strokes, shapes, items, links, blocks: light, groups };
+      const state = { strokes, shapes, items, links, blocks: light, groups, areas };
       if (storageKey) { try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch { /* full or blocked storage loses drawings only */ } }
       if (!loaded) onSaveRef.current?.(state);
     }, 400);
     return () => clearTimeout(timer);
-  }, [strokes, shapes, items, links, blocks, groups, storageKey]);
+  }, [strokes, shapes, items, links, blocks, groups, areas, storageKey]);
   const [connecting, setConnecting] = useState(null);
   const [bounds, setBounds] = useState({});
+  // Where an asked-about area is now: on its host card when it has one, else where it was drawn.
+  const areaBox = area => { const host = area.blockId && bounds[area.blockId]; return host ? { ...area, x: host.x + area.dx, y: host.y + area.dy } : area; };
   const [hoverGap, setHoverGap] = useState(null);
   const [gapAdding, setGapAdding] = useState(false);
   // A press anywhere outside the rail - canvas, card or shape - closes its menu.
@@ -1500,7 +1506,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // The divider used to live on the zoom pill; the menubar is its home now.
       toggleGrid: () => setGrid(previous => !previous),
       toggleMinimap: () => setMinimap(previous => !previous),
-      togglePages: () => setPages(previous => !previous),
+      // Page guides: off, A4 portrait or A4 landscape; picking the one already on turns them off.
+      togglePages: (orientation = 'portrait') => setPages(previous => (previous === orientation ? false : orientation)),
       // One snapshot for the whole restructure, so Ctrl+Z reverts the proposal
       // rather than one heading at a time.
       applyOutline: ops => { snapshot(); setBlocks(previous => applyOutlineOps(previous, ops)); },
@@ -2051,12 +2058,23 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       if (!exchange.linkFrom) continue;
       const placed = autoLinked.current.has(exchange.id);
       if (placed && (autoSettled.current.has(exchange.id) || exchange.status !== 'done')) continue;
-      const source = bounds[exchange.linkFrom], own = bounds[exchange.id];
+      const linkedArea = areaById(exchange.linkFrom);
+      const source = bounds[exchange.linkFrom] || (linkedArea && areaBox(linkedArea)), own = bounds[exchange.id];
       if (!source || !own) continue; // wait for both to be measured
       autoLinked.current.add(exchange.id);
       if (exchange.status === 'done') autoSettled.current.add(exchange.id);
-      const x = source.x + (source.w - own.w) / 2;
-      let y = source.y + source.h + 28;
+      // An asked-about area's answer goes beside what the area sits on (a slide, a card), on the
+      // nearer side and a little above the area, never over it; a card's answer goes under it.
+      const area = String(exchange.linkFrom).startsWith('area:') ? source : null;
+      let x = source.x + (source.w - own.w) / 2, y = source.y + source.h + 28, sides = ['bottom', 'top'];
+      if (area) {
+        const under = Object.entries(bounds).filter(([id, b]) => id !== exchange.id && b.x < area.x + area.w && b.x + b.w > area.x && b.y < area.y + area.h && b.y + b.h > area.y).map(([, b]) => b);
+        const left = Math.min(area.x, ...under.map(b => b.x)), right = Math.max(area.x + area.w, ...under.map(b => b.x + b.w));
+        const toRight = area.x + area.w / 2 >= (left + right) / 2;
+        x = toRight ? right + 48 : left - 48 - own.w;
+        y = area.y - 24;
+        sides = toRight ? ['right', 'left'] : ['left', 'right'];
+      }
       // Push below any node whose box would overlap this one.
       const others = Object.entries(bounds).filter(([id]) => id !== exchange.id && id !== exchange.linkFrom).map(([, box]) => box).sort((a, b) => a.y - b.y);
       for (let pass = 0; pass < 8; pass++) {
@@ -2068,10 +2086,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       onMove(exchange.id, x - flowX, y - flowY);
       if (centerRef.current === exchange.id) { centerRef.current = null; centerOn({ x, y, w: own.w, h: own.h }); }
       if (!present.current.links.some(link => link.from === exchange.linkFrom && link.to === exchange.id)) {
-        setLinks(previous => [...previous, { id: crypto.randomUUID(), from: exchange.linkFrom, fromSide: 'bottom', to: exchange.id, toSide: 'top', color: LINK_COLORS[blocksRef.current.find(block => block.id === exchange.linkFrom)?.type] || '#2383e2' }]);
+        setLinks(previous => [...previous, { id: crypto.randomUUID(), from: exchange.linkFrom, fromSide: sides[0], to: exchange.id, toSide: sides[1], ...(area ? { route: 'curve' } : {}), color: area ? '#dc2626' :LINK_COLORS[blocksRef.current.find(block => block.id === exchange.linkFrom)?.type] || '#2383e2' }]);
       }
     }
-  }, [exchanges, bounds]);
+  }, [exchanges, bounds, areas]);
   // A new question's card lands in the middle of the view, once: chat cards
   // sit at the top of the column, so following the column's bottom left the
   // new card off screen above. Nothing pans while the answer streams, and a
@@ -2116,7 +2134,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const portPosition = (id, side) => {
     const shape = shapesRef.current.find(entry => entry.id === id);
     if (shape) return sidePoint(shapeBox(shape), side);
-    const box = bounds[id];
+    // An asked-about area is a link end too: its answer card hangs from it.
+    const area = areaById(id);
+    const box = bounds[id] || (area && areaBox(area));
+    if (box && (side === 'left' || side === 'right')) return { x: box.x + (side === 'right' ? box.w : 0), y: box.y + box.h / 2 };
     return box ? { x: box.x + box.w / 2, y: box.y + (side === 'bottom' ? box.h : 0) } : null;
   };
   // Dropping a connector is forgiving near a port, but not so greedy that
@@ -2282,7 +2303,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     let preview = null, blob = null;
     try {
       const { toCanvas } = await import('html-to-image');
-      const skip = el => el.nodeType === 1 && (el.tagName === 'IFRAME' || el.getAttribute?.('role') === 'toolbar' || el.hasAttribute?.('data-canvas-minimap') || el.hasAttribute?.('data-dive-gutter') || el.hasAttribute?.('data-area-marquee'));
+      const skip = el => el.nodeType === 1 && (el.tagName === 'IFRAME' || el.getAttribute?.('role') === 'toolbar' || el.hasAttribute?.('data-canvas-minimap') || el.hasAttribute?.('data-dive-gutter') || el.hasAttribute?.('data-area-marquee') || el.hasAttribute?.('data-area-mark'));
       const ratio = Math.min(2, window.devicePixelRatio || 1);
       const full = await toCanvas(node, { pixelRatio: ratio, width: box.width, height: box.height, filter: el => !skip(el), cacheBust: false });
       const out = document.createElement('canvas');
@@ -2293,9 +2314,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       blob = await new Promise(resolve => out.toBlob(resolve, 'image/png'));
     } catch { /* the text of the cards inside still asks */ }
     const titles = inside.map(block => block.title || block.type).filter(Boolean);
+    const id = `area:${Date.now().toString(36)}`;
+    // The area rides on the card or slide under its centre, so it stays put when the column above it grows.
+    const cx = x + w / 2, cy = y + h / 2;
+    const host = Object.entries(boundsRef.current).find(([hostId, b]) => blocks.some(block => block.id === hostId) && cx >= b.x && cx <= b.x + b.w && cy >= b.y && cy <= b.y + b.h);
+    setAreas(previous => [...previous, { id, x, y, w, h, ...(host ? { blockId: host[0], dx: x - host[1].x, dy: y - host[1].y } : {}) }]);
     onAreaShotRef.current?.({
       target: {
-        id: `area:${Date.now().toString(36)}`, kind: 'Canvas selection',
+        id, kind: 'Canvas selection',
         title: titles.length ? `Selected area · ${titles.slice(0, 2).join(', ')}${titles.length > 2 ? '…' : ''}` : 'Selected area',
         text: [
           'The learner drew a rectangle on the canvas and asks about what is inside it; the attached image shows that area.',
@@ -2625,7 +2651,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   };
   const inking = tool === 'pen' || tool === 'highlighter';
   const drawing = inking || shapeTool;
-  const cursor = tool === 'askArea' ? 'cursor-crosshair' : tool === 'hand' ? 'cursor-grab' : inking || tool === 'eraser' || shapeTool ? 'cursor-crosshair' : tool === 'select' ? '' : 'cursor-copy';
+  // Ask about selection: the crosshair wins over every card's own cursor, slides included.
+  const cursor = tool === 'askArea' ? 'cursor-crosshair [&_*]:!cursor-crosshair' : tool === 'hand' ? 'cursor-grab' : inking || tool === 'eraser' || shapeTool ? 'cursor-crosshair' : tool === 'select' ? '' : 'cursor-copy';
   // The rail answers to the blank canvas right of the column, where its buttons
   // live; over the cards themselves it would only be in the way. Held by index
   // rather than by value so the line keeps following the cards as they move.
@@ -2649,7 +2676,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         ...items.map(item => item.y + (item.h || 40)),
         ((surface.current?.clientHeight || 0) - view.y) / view.z,
         0,
-      ), COLUMN)
+      ), COLUMN, pages === 'landscape')
     : [];
   const minimapBoxes = [
     ...Object.values(bounds),
@@ -2785,6 +2812,21 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             onNudge={delta => nudgeGap(gap, delta)}
             onAdding={open => { setHoverGap(gap.index); setGapAdding(open); }} onAddHeading={insertHeadingAt} />
         ))}
+        {presenting === null && areas.length > 0 && (
+          <svg data-area-mark width="1" height="1" className="pointer-events-none absolute top-0 left-0 z-30 overflow-visible">
+            {areas.map(stored => ({ ...areaBox(stored), id: stored.id })).map(area => (
+              <g key={area.id}>
+                <rect x={area.x} y={area.y} width={area.w} height={area.h} fill="rgba(220, 38, 38, 0.08)" stroke="#dc2626" strokeWidth={2 / view.z} pointerEvents="none" />
+                {/* Only the outline takes the click (a wide invisible stroke), so the cards inside stay usable. */}
+                <rect data-area-outline={area.id} x={area.x} y={area.y} width={area.w} height={area.h} fill="none" stroke="transparent" strokeWidth={14 / view.z} pointerEvents="stroke" className="cursor-pointer"
+                  onPointerDown={event => event.stopPropagation()}
+                  onClick={event => { event.stopPropagation(); setAreas(previous => previous.filter(entry => entry.id !== area.id)); if (askTargetId === area.id) onAskTargetRef.current?.(null); }}>
+                  <title>Click the outline to remove this selection</title>
+                </rect>
+              </g>
+            ))}
+          </svg>
+        )}
         {areaMarquee && (
           <svg data-area-marquee width="1" height="1" aria-hidden="true" className="pointer-events-none absolute top-0 left-0 z-30 overflow-visible">
             <rect x={Math.min(areaMarquee.x1, areaMarquee.x2)} y={Math.min(areaMarquee.y1, areaMarquee.y2)}

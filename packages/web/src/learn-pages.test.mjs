@@ -54,3 +54,9 @@ test('nonsense never produces a broken page list', () => {
 test('the page count is capped', () => {
   assert.equal(pageRects(PAGE_H * 10000, COLUMN).length, PAGE_LIMIT);
 });
+
+test('landscape pages swap the A4 sides and still centre on the column', () => {
+  const [page] = pageRects(0, COLUMN, true);
+  assert.deepEqual([page.w, page.h, page.x], [PAGE_H, PAGE_W, (COLUMN - PAGE_H) / 2]);
+  assert.equal(pageRects(PAGE_W + 1, COLUMN, true).length, 2);
+});
