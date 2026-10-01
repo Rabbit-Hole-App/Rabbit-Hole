@@ -211,6 +211,10 @@ async function runTrace(trace) {
       turn_ms: turnMs, jev_ms: calls.jevMs, jev_outcome: calls.jevOutcome, larger_ms: calls.largerMs, larger_outcome: calls.largerOutcome, larger_tokens: calls.largerTokens,
       planner_ms: calls.plannerMs, planner_outcome: calls.plannerOutcome, planner_tokens: calls.plannerTokens, fast_tokens: calls.fastTokens ?? null,
       spoken: result.bench?.spoken ?? null, first_sentence_at: calls.sentenceAt, first_sentence_ms: calls.firstSentenceMs,
+      // Decision 1: three timings from the turn's start (live: real; stub: stub wall-clock only).
+      to_first_safe_sentence: result.bench?.ms.to_first_safe_sentence ?? null, to_evidence_ready: result.bench?.ms.to_evidence_ready ?? null,
+      to_first_evidence_action: result.bench?.ms.to_first_evidence_action ?? null,
+      evidence_dropped: (result.decisions || []).filter(decision => decision.stage === 'evidence').length,
       planner_calls: calls.planner, planner_context_chars: calls.plannerChars, planner_tier: calls.tier, planner_served_tier: calls.servedTier, planner_escalated: calls.escalated,
       planner_input_tokens_est: calls.planner ? Math.round((calls.plannerChars + PLANNER_SYSTEM.length + JSON.stringify(TUTOR_TOOL).length) / 4) : 0,
       authored_actions: got.actions.filter(action => AUTHORED.includes(action.type)).length, text_actions: got.actions.filter(action => action.type === 'respond_text').length,
@@ -272,6 +276,13 @@ const summary = {
     evaluated_turns: evaluatedRows.length, off_critical_path: evaluatedRows.filter(row => !row.critical_path.blocking).length,
     skip_rate: rate(evaluatedRows, row => !row.critical_path.blocking), misses: evaluatedRows.filter(row => row.critical_path.miss).map(row => `${row.trace}#${row.turn}`),
     reasons: evaluatedRows.reduce((acc, row) => { acc[row.critical_path.reason] = (acc[row.critical_path.reason] || 0) + 1; return acc; }, {}),
+  },
+  // Decision 1: first safe sentence, evidence ready and first evidence-dependent action, separately.
+  evaluation_dependency: {
+    to_first_safe_sentence_ms: stats(values(row => row.to_first_safe_sentence)), to_evidence_ready_ms: stats(values(row => row.to_evidence_ready)),
+    to_first_evidence_action_ms: stats(values(row => row.to_first_evidence_action)),
+    turns_with_evidence_actions: rows.filter(row => row.to_first_evidence_action != null).length, evidence_actions_dropped: rows.reduce((n, row) => n + (row.evidence_dropped || 0), 0),
+    note: LIVE ? 'ms from the turn start' : 'stub: wall-clock of stubbed calls, not model latency',
   },
   modeled_first_audio_ms: { note: 'MODELED from Baseline A component means, planner fixed at 7707 ms', baseline_policy: stats(modeled(() => true)), this_stage: stats(modeled(row => !row.critical_path || row.critical_path.blocking)) },
   planner_calls_per_turn: +(rows.reduce((n, row) => n + row.planner_calls, 0) / rows.length).toFixed(3),

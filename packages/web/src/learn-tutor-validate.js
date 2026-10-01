@@ -14,12 +14,23 @@ import { ACTION_TYPES } from '../../control-plane/src/agents/learn-tutor.js';
 const CARD_ACTIONS = ['show_authored_card', 'focus_part', 'suggest_depth', 'suggest_practice'];
 const TEXT_ACTIONS = ['respond_text', 'ask_question'];
 
+// Decision 1 (evaluation dependency): router rows whose move is chosen from evidence (a gap, a
+// misconception, unsettled or uncertain evidence) and action types whose choice depends on it
+// (a Rabbit Hole suggestion, practice, the next rung, a quiz question). While this turn's evaluation
+// is still running these wait for it: an evidence row keeps evaluation on the critical path
+// (criticalPath), and evidence actions are released only once the evaluation has landed.
+export const EVIDENCE_ROWS = ['gap', 'gap_inline', 'misconception', 'misconception_explain', 'uncertain', 'uncertain_unsettled'];
+export const EVIDENCE_ACTIONS = ['suggest_dive', 'suggest_practice', 'suggest_depth', 'ask_question'];
+
 // v2 checkpoint I: may the plan's first sentence (firstSentence) be spoken before the plan is complete?
 // Only when the final gate cannot drop it: respond_text is allowed by the route itself (not only by an
 // explicit request, which arrives later in the plan), and it is speakable prose - 2 to 300
 // characters, no code. Otherwise the Tutor waits for the validated plan.
-export function speakable(sentence, routed) {
+// Decision 1: while this turn's evaluation is pending only an evidence-independent sentence may be
+// spoken; criticalPath already keeps every evidence row blocking, so a pending turn is never on one.
+export function speakable(sentence, routed, pending = false) {
   const text = String(sentence || '').trim();
+  if (pending && EVIDENCE_ROWS.includes(routed.row)) return false;
   return routed.allowed.includes('respond_text') && text.length >= 2 && text.length <= 300 && !/[`{}<>]|=>/.test(text);
 }
 

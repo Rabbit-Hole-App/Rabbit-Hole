@@ -14,7 +14,7 @@ import { coerceInputs, validateInputDeclarations } from './scene-inputs.js';
 import { ATTENTION_LADDER, CLAIMS, CONCEPTS, SLICE_CARDS, catalogue, cardModule, claimsOfConcept, conceptOf, ladderStep, partLabels, targetClaims } from './learn-tutor-claims.js';
 import { appendEvents, conceptState, deriveClaimStates, practiceEvents, reconcile } from './learn-tutor-evidence.js';
 import { selectClaims } from './learn-tutor-select.js';
-import { speakable, validateActions } from './learn-tutor-validate.js';
+import { EVIDENCE_ACTIONS, EVIDENCE_ROWS, speakable, validateActions } from './learn-tutor-validate.js';
 import { turnTrace } from './learn-tutor-trace.js';
 
 const SLASHES = ['deeper', 'simplify', 'dive'];
@@ -197,12 +197,16 @@ export function learnerIntent(turn) {
 //     A question is never a failed explanation, so only JEV's attempt check can still find evidence.
 //   anything else -> yes ("When it reads a character it looks back..." starts like a question but
 //     explains; an unpunctuated question only waits for JEV).
+//   Decision 1: a request or question that the prior evidence routes to an evidence row (a gap,
+//     misconception or uncertain move: EVIDENCE_ROWS) -> yes: that intervention depends on what this
+//     turn's evaluation says (priorRow is route() on the prior evidence).
 // ponytail: a stated belief phrased as a question ("Isn't the mask after softmax?") is routed on the
 // prior evidence and counted as a critical-path miss in the trace; tighten if the paid run shows misses.
-export function criticalPath(intent, spec) {
+export function criticalPath(intent, spec, priorRow = null) {
   if (intent.kind === 'answer') return { blocking: true, reason: 'answer' };
   if (intent.kind === 'returned') return { blocking: false, reason: 'returned' };
   if (!(intent.kind === 'request' || (intent.kind === 'question' && /\?\s*$/.test(intent.raw_user_message)))) return { blocking: true, reason: 'explanation' };
+  if (EVIDENCE_ROWS.includes(priorRow)) return { blocking: true, reason: 'evidence_row' };
   if (spec.gaps.length) return { blocking: true, reason: 'gap_check' };
   return { blocking: false, reason: intent.kind };
 }
@@ -299,7 +303,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   };
   if (raw.trim() && !turn.slash && !opening && claims.length) {
     const spec = evaluationSpec(turn, claims, current);
-    critical = criticalPath(learnerIntent(turn), spec);
+    critical = criticalPath(learnerIntent(turn), spec, route({ turn, claims, states, evaluation: null, store: current }).row);
     const sent = now();
     const evaluating = (async () => tracer.step('evaluate', () => post('/api/learn/tutor/evaluate', { ...access, message: raw, spec }), out => out.status))()
       .catch(error => ({ status: 'error', evaluator: 'jev', events: [], error: error.message }))
@@ -314,7 +318,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   let response;
   let spoken = null;
   const onSentence = text => {
-    if (spoken != null || !speakable(text, routed)) return;
+    if (spoken != null || !speakable(text, routed, !!pending && !evidence)) return;
     spoken = text.trim();
     tracer.mark('first_sentence');
     onSpeakable(spoken);
@@ -322,17 +326,30 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   try { response = await tracer.step('planner', () => (onSpeakable ? post('/api/learn/tutor/plan', { ...access, context, stream: true }, { onSentence }) : post('/api/learn/tutor/plan', { ...access, context })), out => out.telemetry?.outcome ?? 'ok'); }
   catch (error) { throw Object.assign(error, { trace: tracer.trace }); } // the failed turn's trace travels with its error
   const ready = now();
-  const { actions, log, decisions } = tracer.step('action_validation', () => enforce(response, routed, turn),
+  let { actions, log, decisions } = tracer.step('action_validation', () => enforce(response, routed, turn),
     out => `${out.decisions.filter(decision => decision.accepted).length} accepted, ${out.decisions.filter(decision => !decision.accepted).length} rejected`);
   const enforced = now();
   // Off the critical path: the evaluation lands now. Its evidence is stored like any other; a route it
   // would have changed is a critical-path miss (the reply was planned on the prior evidence).
+  // Decision 1: evidence actions (EVIDENCE_ACTIONS) are released only now; after a miss they were chosen
+  // on evidence this turn changed, so they are dropped (stage 'evidence'). The words stay: an off-path
+  // turn is never on an evidence row, so its reply is evidence-independent.
+  // ponytail: dropped, not re-planned; re-plan on the new route if the paid run shows misses.
   let miss = null;
   if (pending) {
     settle(await pending);
     const after = route({ turn, claims, states, evaluation, store: current }).row;
-    if (after !== routed.row) miss = { planned: routed.row, after };
+    if (after !== routed.row) {
+      miss = { planned: routed.row, after };
+      for (const action of actions.filter(entry => EVIDENCE_ACTIONS.includes(entry.type))) {
+        decisions.push({ type: action.type, accepted: false, stage: 'evidence', reason: `planned on ${routed.row}, evidence says ${after}` });
+        log.push(`dropped ${action.type}: planned on evidence this turn changed`);
+      }
+      actions = actions.filter(entry => !EVIDENCE_ACTIONS.includes(entry.type));
+      if (!actions.length) actions = [{ type: 'no_action' }];
+    }
   }
+  const released = now();
   // 4. The session record.
   const constraints = [...new Set([...current.constraints, ...(response.constraints_add || [])])].filter(item => !(response.constraints_remove || []).includes(item));
   const asked = actions.find(action => action.type === 'ask_question');
@@ -350,6 +367,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   };
   // The benchmark record: ids, types and timings only - never the learner's words or card content.
   const ms = (from, to) => Math.round((to - from) * 10) / 10;
+  const end = now();
   const bench = {
     trace: tracer.trace, turn_id: turn.turn_id, route: routed.row, strategy: response.strategy ?? null, claims, evaluated: !!evidence,
     critical_path: critical && { ...critical, miss },
@@ -367,6 +385,10 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
     ms: {
       target: ms(t[0], t[1]), practice: ms(t[1], t[2]), evidence: evidence && ms(...evidence), planner: ms(planned, ready), enforce: ms(ready, enforced),
       to_evidence_ready: evidence && ms(t[0], evidence[1]), to_planner_ready: ms(t[0], ready),
+      // Decision 1, measured separately: the first safe sentence (spoken early, else the validated reply
+      // when the turn returns), evidence ready (above), and the first evidence-dependent action.
+      to_first_safe_sentence: spoken ? tracer.trace.marks.first_sentence : text ? ms(t[0], end) : null,
+      to_first_evidence_action: actions.some(action => EVIDENCE_ACTIONS.includes(action.type)) ? ms(t[0], released) : null,
     },
   };
   return { store: current, turn, selection, evaluation, transitions, routed, response, actions, decisions, log, text, states: deriveClaimStates(current.events), bench, mark: tracer.mark };

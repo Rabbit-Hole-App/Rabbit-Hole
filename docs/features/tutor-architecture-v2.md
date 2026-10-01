@@ -87,6 +87,31 @@ the spoken sentence. Under `SUBSCRIPTION_ONLY` (text-only replay) the planner do
 nothing is spoken early. `LearnTutor.jsx` is unchanged: the text chat does not use it; the voice client
 wires it (see "Voice MVP conflicts").
 
+## Decisions 1-7 (owner, 2026-10-01)
+
+Implemented with free/scripted tests only; no paid call. Checkpoints (pushed, no force):
+
+| Checkpoint | Decision | SHA |
+|---|---|---|
+| B | D1 evaluation dependency | see git log |
+
+### D1. Evaluation dependency
+
+- `criticalPath(intent, spec, priorRow)`: a request or "?" question that the PRIOR evidence routes to an
+  evidence row (`EVIDENCE_ROWS`: gap, gap_inline, misconception, misconception_explain, uncertain,
+  uncertain_unsettled) now blocks (`evidence_row`): a gap-, misconception- or uncertainty-specific
+  intervention waits for this turn's evaluation. Off the path remain neutral answers, clarification,
+  simple requests, show-card requests, slashes (never evaluated) and returns.
+- While evaluation is pending, only an evidence-independent sentence is spoken (`speakable`), and the
+  evidence actions (`EVIDENCE_ACTIONS`: suggest_dive, suggest_practice, suggest_depth, ask_question) are
+  released only after the evaluation lands. If it changed the route (a critical-path miss) they are
+  dropped (decision stage `evidence`); the words stay. `ponytail:` dropped, not re-planned.
+- `bench.ms` measures separately `to_first_safe_sentence`, `to_evidence_ready` and
+  `to_first_evidence_action`; the corpus summary reports them as `evaluation_dependency`.
+- Stub corpus: off-path turns 5 -> 3 of 36 (GT-03#0 and GT-07#0, a belief phrased as a question on a
+  prior misconception, GT-D#1 on gap_inline and both B-no-quiz turns on uncertain now wait), no misses,
+  pass 1.000, golden 9/9.
+
 ## Target pipeline
 
 ```
