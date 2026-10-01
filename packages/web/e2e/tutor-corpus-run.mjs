@@ -173,7 +173,7 @@ async function runTrace(trace) {
       actions: got.actions.map(action => ({ type: action.type, ...(action.mode ? { mode: action.mode } : {}), ...(action.card ? { card: action.card } : {}), ...(action.part_id ? { part_id: action.part_id } : {}) })),
       proposed, accepted, rejected: Math.max(0, proposed - accepted), log: result.log,
       rejections: (result.decisions || []).filter(decision => !decision.accepted).map(decision => `${decision.type}@${decision.stage}: ${decision.reason}`),
-      transitions: result.transitions || [],
+      transitions: result.transitions || [], critical_path: result.bench?.critical_path ?? null,
       turn_trace: result.bench?.trace ? { trace_id: result.bench.trace.trace_id, stages: result.bench.trace.stages.map(stage => `${stage.stage}:${stage.status}:${stage.result}`) } : null,
       turn_ms: turnMs, jev_ms: calls.jevMs, jev_outcome: calls.jevOutcome, larger_ms: calls.largerMs, larger_outcome: calls.largerOutcome, larger_tokens: calls.largerTokens,
       planner_ms: calls.plannerMs, planner_outcome: calls.plannerOutcome, planner_tokens: calls.plannerTokens,
@@ -196,6 +196,14 @@ const golden = [...new Set(rows.filter(row => row.golden).map(row => row.trace))
 const tokens = rows.flatMap(row => [row.planner_tokens, row.larger_tokens]).filter(Boolean);
 const cost = tokens.length && PRICE.in >= 0 && PRICE.out >= 0 ? tokens.reduce((usd, t) => usd + ((t.in || 0) * PRICE.in + (t.out || 0) * PRICE.out) / 1e6, 0) : null;
 const values = key => rows.map(row => key(row)).filter(value => value != null);
+// MODELED, not measured: speech end -> first Tutor audio from Baseline A's live component means
+// (owner brief 2026-10-01: STT commit 602, JEV 188, larger evaluator 4150, Opus planner 7707, Fish
+// first byte 210 ms), applied to each turn's calls. Baseline policy: evaluation always blocks; this
+// stage: only when the critical-path policy says so. The planner is held at Baseline A's mean.
+const BASE_MS = { stt: 602, jev: 188, larger: 4150, planner: 7707, fish: 210 };
+const evalMs = row => row.jev_calls ? BASE_MS.jev + (row.larger_calls ? BASE_MS.larger : 0) : 0;
+const modeled = blocking => rows.filter(row => !row.error).map(row => BASE_MS.stt + (blocking(row) ? evalMs(row) : 0) + BASE_MS.planner + BASE_MS.fish);
+const evaluatedRows = rows.filter(row => row.critical_path);
 const summary = {
   stage: STAGE, mode: MODE, traces: CORPUS.length, turns: rows.length, errored_turns: rows.filter(row => row.error).length,
   ...(LIVE ? {
@@ -220,6 +228,12 @@ const summary = {
   claims_selected_per_jev_turn: jevTurns.length ? +(jevTurns.reduce((n, row) => n + row.selected.length, 0) / jevTurns.length).toFixed(2) : null,
   larger_calls_per_turn: +(rows.reduce((n, row) => n + row.larger_calls, 0) / rows.length).toFixed(3),
   larger_evaluator_escalation_rate: rate(jevTurns, row => row.larger_calls > 0),
+  critical_path: {
+    evaluated_turns: evaluatedRows.length, off_critical_path: evaluatedRows.filter(row => !row.critical_path.blocking).length,
+    skip_rate: rate(evaluatedRows, row => !row.critical_path.blocking), misses: evaluatedRows.filter(row => row.critical_path.miss).map(row => `${row.trace}#${row.turn}`),
+    reasons: evaluatedRows.reduce((acc, row) => { acc[row.critical_path.reason] = (acc[row.critical_path.reason] || 0) + 1; return acc; }, {}),
+  },
+  modeled_first_audio_ms: { note: 'MODELED from Baseline A component means, planner fixed at 7707 ms', baseline_policy: stats(modeled(() => true)), this_stage: stats(modeled(row => !row.critical_path || row.critical_path.blocking)) },
   planner_calls_per_turn: +(rows.reduce((n, row) => n + row.planner_calls, 0) / rows.length).toFixed(3),
   planner_input_tokens_est: stats(rows.filter(row => row.planner_calls).map(row => row.planner_input_tokens_est)),
   claims_available_per_jev_turn: jevTurns.some(row => row.claims_available != null) ? +(jevTurns.reduce((n, row) => n + (row.claims_available || 0), 0) / jevTurns.length).toFixed(2) : null,

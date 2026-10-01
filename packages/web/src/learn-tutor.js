@@ -186,6 +186,27 @@ export function learnerIntent(turn) {
   return { kind, raw_user_message: turn.raw_user_message, ...(turn.slash ? { slash: turn.slash } : {}), ...(turn.dive_choice ? { dive_choice: turn.dive_choice } : {}) };
 }
 
+// ---------- Critical-path evaluation policy (v2 Stage C) ----------
+
+// Must evaluation finish before the Tutor answers? Decided before any model call:
+//   an answer to the Tutor's question or an explanation -> yes: the evidence decides the move
+//   a question or request whose claims carry a prerequisite check -> yes: a gap turns the reply
+//     into a Rabbit Hole suggestion (GT-06)
+//   a request, a question that ends in "?", and a turn back from a hole (its route ignores
+//     evidence) -> no: evaluation runs beside the planner and its evidence is stored when it lands.
+//     A question is never a failed explanation, so only JEV's attempt check can still find evidence.
+//   anything else -> yes ("When it reads a character it looks back..." starts like a question but
+//     explains; an unpunctuated question only waits for JEV).
+// ponytail: a stated belief phrased as a question ("Isn't the mask after softmax?") is routed on the
+// prior evidence and counted as a critical-path miss in the trace; tighten if the paid run shows misses.
+export function criticalPath(intent, spec) {
+  if (intent.kind === 'answer') return { blocking: true, reason: 'answer' };
+  if (intent.kind === 'returned') return { blocking: false, reason: 'returned' };
+  if (!(intent.kind === 'request' || (intent.kind === 'question' && /\?\s*$/.test(intent.raw_user_message)))) return { blocking: true, reason: 'explanation' };
+  if (spec.gaps.length) return { blocking: true, reason: 'gap_check' };
+  return { blocking: false, reason: intent.kind };
+}
+
 // The cards that bear on this turn: the target, its ladder neighbours, and the cards that teach the
 // route's claim, the turn's claims or their prerequisite concepts.
 function relevantCards(target, concepts) {
@@ -260,13 +281,11 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   // Evaluation and routing work on the claims the learner touched (Stage B); a turn without words
   // (a slash, a hole's opening) keeps the turn's claims.
   const claims = selection ? selection.selected : built.claims;
-  // 2. JEV, then the larger evaluator on uncertain - free text on slice claims only.
-  let evaluation = null, evidence = null, transitions = [];
-  if (raw.trim() && !turn.slash && !opening && claims.length) {
-    const sent = now();
-    try { evaluation = await tracer.step('evaluate', () => post('/api/learn/tutor/evaluate', { ...access, message: raw, spec: evaluationSpec(turn, claims, current) }), out => out.status); }
-    catch (error) { evaluation = { status: 'error', evaluator: 'jev', events: [], error: error.message }; }
-    evidence = [sent, now()];
+  // 2. JEV, then the larger evaluator when the escalation policy says so - free text on slice claims
+  // only. Stage C: off the critical path (criticalPath) it runs beside the planner.
+  let evaluation = null, evidence = null, transitions = [], critical = null, pending = null;
+  const settle = result => {
+    evaluation = result;
     for (const rung of ['jev', 'larger']) {
       const telemetry = evaluation.telemetry?.[rung];
       if (telemetry?.called) tracer.add(rung, telemetry.ms, telemetry.outcome === 'timeout' || telemetry.outcome === 'error' ? telemetry.outcome : 'ok', telemetry.reason ? `${telemetry.outcome} (${telemetry.reason})` : telemetry.outcome);
@@ -274,6 +293,16 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
     const ref = { card: target?.card ?? null, scene_id: target?.scene_id ?? null, part_id: target?.part_id ?? null, turn_id: turn.turn_id, canvas: here };
     ({ store: current, states, transitions } = tracer.step('evidence_reconciliation', () => reconcile(current, evaluation, ref), out => `${out.added} observations, ${out.transitions.length} state changes`));
     turn.evidence = buildTurn({ raw, slash, opening, canvas, block, store: current, states }).turn.evidence;
+  };
+  if (raw.trim() && !turn.slash && !opening && claims.length) {
+    const spec = evaluationSpec(turn, claims, current);
+    critical = criticalPath(learnerIntent(turn), spec);
+    const sent = now();
+    const evaluating = (async () => tracer.step('evaluate', () => post('/api/learn/tutor/evaluate', { ...access, message: raw, spec }), out => out.status))()
+      .catch(error => ({ status: 'error', evaluator: 'jev', events: [], error: error.message }))
+      .then(result => { evidence = [sent, now()]; return result; });
+    if (critical.blocking) settle(await evaluating);
+    else pending = evaluating;
   }
   // 3. Router, planner, enforcement.
   const routed = tracer.step('router', () => route({ turn, claims, states, evaluation, store: current }), out => out.row);
@@ -286,6 +315,14 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   const { actions, log, decisions } = tracer.step('action_validation', () => enforce(response, routed, turn),
     out => `${out.decisions.filter(decision => decision.accepted).length} accepted, ${out.decisions.filter(decision => !decision.accepted).length} rejected`);
   const enforced = now();
+  // Off the critical path: the evaluation lands now. Its evidence is stored like any other; a route it
+  // would have changed is a critical-path miss (the reply was planned on the prior evidence).
+  let miss = null;
+  if (pending) {
+    settle(await pending);
+    const after = route({ turn, claims, states, evaluation, store: current }).row;
+    if (after !== routed.row) miss = { planned: routed.row, after };
+  }
   // 4. The session record.
   const constraints = [...new Set([...current.constraints, ...(response.constraints_add || [])])].filter(item => !(response.constraints_remove || []).includes(item));
   const asked = actions.find(action => action.type === 'ask_question');
@@ -305,6 +342,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   const ms = (from, to) => Math.round((to - from) * 10) / 10;
   const bench = {
     trace: tracer.trace, turn_id: turn.turn_id, route: routed.row, strategy: response.strategy ?? null, claims, evaluated: !!evidence,
+    critical_path: critical && { ...critical, miss },
     selection: selection && { available: selection.available, selected: selection.selected.length, fallback: selection.fallback, ms: selection.ms },
     evaluation: evaluation && { status: evaluation.status, evaluator: evaluation.evaluator, events: (evaluation.events || []).length, telemetry: evaluation.telemetry ?? null },
     transitions: transitions.map(({ claim, from, to }) => `${claim}: ${from} -> ${to}`),
