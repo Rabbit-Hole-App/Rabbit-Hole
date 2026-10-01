@@ -183,7 +183,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
       // Double-click goes down this card's Rabbit Hole, making it when there is none yet; a single click still selects.
       onDoubleClick={dive && !chat ? event => { if (event.target.closest('input, textarea, select, button, a, iframe, [contenteditable="true"]')) return; if (portal) dive.enter(portal.name); else dive.open?.(id); } : undefined}
       style={{ transform: `translate(${dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, marginTop: space || undefined, width: size.w || width, height: size.h || height ? (size.h || height) + extraHeight : undefined, maxHeight: size.h || height ? undefined : autoMax }}
-      className={`group relative ${wide ? 'self-center' : 'mx-auto'} flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-[#2383e2]' : ''} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-[#e5484d]/40' : 'outline-8 outline-offset-1 outline-[#b42318]/45') : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
+      className={`group relative ${wide ? 'self-center' : 'mx-auto'} flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-[#2383e2]' : ''} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-[#e5484d]/40' : 'outline-8 outline-offset-1 outline-[#b42318]/80') : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
       {/* Only this strip drags; the body keeps a normal cursor so text can be
           selected and links inside the block stay clickable. */}
       <div data-drag-handle data-drag-zone title="Drag to move this block"
@@ -2835,7 +2835,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
                   Ctrl presses and non-select tools fall through to the canvas. */}
               <div data-group-box={group.id}
                 style={{ left: left - pad, top: top - pad, width: right - left + pad * 2, height: bottom - top + pad * 2 }}
-                className={`absolute rounded-xl border ${active ? 'border-[#2383e2] bg-[#2383e2]/[0.03]' : 'border-line-strong'} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-[#e5484d]/40' : 'outline-8 outline-offset-1 outline-[#b42318]/45') : ''} cursor-grab active:cursor-grabbing`}
+                className={`absolute rounded-xl border ${active ? 'border-[#2383e2] bg-[#2383e2]/[0.03]' : 'border-line-strong'} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-[#e5484d]/40' : 'outline-8 outline-offset-1 outline-[#b42318]/80') : ''} cursor-grab active:cursor-grabbing`}
                 onDoubleClick={divePortals ? () => (portal ? divePortals.enter(portal.name) : divePortals.open?.(group.id, group.label || `${members.length} items`)) : undefined}
                 onPointerDown={event => {
                   if (event.button !== 0 || tool !== 'select' || event.ctrlKey || event.metaKey) return;

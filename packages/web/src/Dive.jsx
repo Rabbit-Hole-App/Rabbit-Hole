@@ -14,14 +14,13 @@ import { anchorBlock, diveRecord, discardHole, dropPending, holeHref, keepPendin
 // The red portal outline on an originating card, read by the canvas's card chrome.
 export const DivePortals = createContext(null);
 
-// A pending hole lives while the learner stays in its part of the tree - the hole or its parent
-// board - so the parent can show its temporary portal and go back down (owner 2026-09-30). Leaving
-// that part of the tree while it is still empty discards it: no record, no local keys, no outline.
+// A pending hole lives only while the learner is inside it. Leaving it while it is still empty,
+// back up to its parent included, discards it: no record, no local keys, no portal, nothing on
+// the map (owner 2026-10-01: empty Rabbit Holes are never shown).
 function sweepPending() {
   const { pathname, search } = window.location, query = new URLSearchParams(search);
   for (const hole of Object.values(pendingHoles(sessionStorage))) {
-    const here = pathname === `/apps/${hole.name}` || query.get('hole') === hole.name
-      || (pathname === `/apps/${hole.parent.app}` && (query.get('board') || 'main') === hole.parent.board);
+    const here = pathname === `/apps/${hole.name}` || query.get('hole') === hole.name;
     if (!here && hole.base) discardHole({ session: sessionStorage, local: localStorage, base: hole.base, name: hole.name });
   }
 }
@@ -138,13 +137,9 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
       .then(() => { kept.current = true; dropPending(sessionStorage, name); setPersisted(true); setError(''); window.history.replaceState(null, '', levelHref({ app: name })); })
       .catch(failure => { saving.current = false; setError(`This hole was not saved: ${failure.message}`); });
   }, [pending, canvasState.content]); // eslint-disable-line react-hooks/exhaustive-deps
-  // This level's pending children, read after mount (a hole left a moment ago has been swept by then).
-  const [localHoles, setLocalHoles] = useState([]);
-  useEffect(() => {
-    setLocalHoles(pending ? [] : Object.values(pendingHoles(sessionStorage)).filter(entry => entry.parent.app === here.app && entry.parent.board === here.board));
-  }, [tree, pending]); // eslint-disable-line react-hooks/exhaustive-deps
-  const children = [...(tree?.children || []), ...localHoles.map(entry => ({ name: entry.name, title: entry.title, origin_block_id: entry.origin_block_id, pending: true }))];
-  const enter = name => navigate(children.find(child => child.name === name)?.pending ? holeHref(here, name) : levelHref({ app: name }));
+  // Only kept holes are children: an empty one was discarded on the way back up.
+  const children = tree?.children || [];
+  const enter = name => navigate(levelHref({ app: name }));
 
   // Arriving back at a level: its viewport, the originating card selected, the pending question.
   useEffect(() => {
@@ -309,7 +304,7 @@ export function DiveNavigator({ tree, pending, error, climb, enter, rename, askD
         {row.role === 'current' && <div className="group relative flex w-full flex-col items-center" aria-current="location">
           {/* The hole you are in: a red square and a red label with white text, unmistakable at a glance. */}
           <span aria-hidden="true" title={pending ? 'Empty: kept once you add something' : undefined}
-            className={`mb-1 h-2 w-2 ${pending ? 'border border-dashed border-[#b42318] bg-white' : 'bg-[#b42318]'}`} />
+            className="mb-1 h-2 w-2 bg-[#b42318]" />
           <Name level={current} active className={`font-semibold ${pending ? 'italic' : ''}`} onOpen={() => {}} onRename={rename} />
           {index > 0 && <button type="button" aria-label={`Delete ${current.title}`} title={pending ? 'Leave this empty hole' : 'Delete this hole'} onClick={() => askDelete(current)}
             className="absolute -right-1 bottom-0 hidden h-5 w-5 items-center justify-center rounded-sm text-ink-3 group-hover:flex hover:bg-hover hover:text-[#b42318] focus:flex"><Trash2 size={11} /></button>}

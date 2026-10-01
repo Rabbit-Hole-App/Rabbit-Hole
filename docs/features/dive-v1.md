@@ -72,9 +72,10 @@ canvas_dives(org, owner_email, child, parent_app, parent_board, origin_block_id,
 - **Ctrl+K without a card**, and Ctrl+K outside Learn, is the global Search, unchanged
   (`Search.jsx`).
 - **Stabilization (2026-09-30):**
-  - **Pending lifetime.** An empty hole lives in this tab while the learner stays at the hole or its
-    parent board. On the parent, its card shows a temporary portal: a thick translucent red highlighter band around it (a kept hole is the solid red outline) and the navigator
-    lists it below. Leaving that part of the tree while it is still empty discards it.
+  - **Pending lifetime.** An empty hole lives in this tab only while the learner is inside it.
+    Leaving it while it is still empty, back up to its parent included, discards it, so an empty
+    hole never shows on the map or as a portal on its card (owner 2026-10-01; this replaces the
+    2026-09-30 rule that kept it while the learner was on the parent board).
   - **Chat in a pending hole.** Chat and / commands work there: the ask carries `scope.pending`
     (parent and title), and the server answers it as a virtual canvas under a parent board the
     learner owns (`dives.js` `pendingHoleApp`). Chat alone still never persists the hole.
