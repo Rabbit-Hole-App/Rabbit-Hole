@@ -159,7 +159,7 @@ Redirect URIs to register for each host:
 
 The email sign-in still needs `RESEND_API_KEY` and `EMAIL_FROM`, in the P0-A rollout order.
 
-`PUBLIC_ORIGIN` is a var, not a secret, set only on the Worker that serves Landing and sign-in at that origin. Production uses `https://tryrabbithole.dev`; leave it unset on dev and local Workers.
+`PUBLIC_ORIGIN` is a var, not a secret, set only on the Worker that serves Landing and sign-in at that origin. Production uses `https://digrabbithole.com`; leave it unset on dev and local Workers.
 - Sign-in routes (`/login`, `/logout`, `/auth*`, `/test/*`) reached on any other host are redirected there. GET goes to the same path; POST is refused with a 403.
 - The callbacks, the emailed link and the CSRF check therefore always use that one origin.
 - `/login` becomes `/sign-in`, so do not set it before that origin serves Landing.

@@ -567,13 +567,13 @@ test('/test/session still works on test instances and makes a revocable user ses
   assert.equal((await authed(env, session)).status, 401);
 });
 
-// ---------- Production origin: PUBLIC_ORIGIN=https://tryrabbithole.dev ----------
+// ---------- Production origin: PUBLIC_ORIGIN=https://digrabbithole.com ----------
 
-const SITE = 'https://tryrabbithole.dev';
-const SITE_ENV = { ...PROD, PUBLIC_ORIGIN: SITE, RESEND_API_KEY: 're_fake', EMAIL_FROM: 'Rabbit Hole <signin@tryrabbithole.dev>' };
-const OTHER_HOSTS = ['https://small-cp.example.workers.dev', 'http://tryrabbithole.dev', 'https://www.tryrabbithole.dev'];
+const SITE = 'https://digrabbithole.com';
+const SITE_ENV = { ...PROD, PUBLIC_ORIGIN: SITE, RESEND_API_KEY: 're_fake', EMAIL_FROM: 'Rabbit Hole <signin@digrabbithole.com>' };
+const OTHER_HOSTS = ['https://small-cp.example.workers.dev', 'http://digrabbithole.com', 'https://www.digrabbithole.com'];
 
-test('production origin: Google and GitHub send tryrabbithole.dev callbacks, the code exchange repeats them, the session lands there host-only', async (t) => {
+test('production origin: Google and GitHub send digrabbithole.com callbacks, the code exchange repeats them, the session lands there host-only', async (t) => {
   for (const [provider, routes, exchange] of [['google', await googleOk(), 'https://oauth2.googleapis.com/token'], ['github', githubOk(), 'https://github.com/login/oauth/access_token']]) {
     t.mock.restoreAll();
     const calls = network(t, routes);
@@ -582,14 +582,14 @@ test('production origin: Google and GitHub send tryrabbithole.dev callbacks, the
     assert.equal(url.searchParams.get('redirect_uri'), `${SITE}/auth/${provider}/callback`);
     assert.equal(url.searchParams.get('code_challenge_method'), 'S256');
     assert.equal(calls.find((c) => c.url === exchange).body.redirect_uri, `${SITE}/auth/${provider}/callback`);
-    // anchored: no Domain attribute, so the cookies belong to tryrabbithole.dev alone
+    // anchored: no Domain attribute, so the cookies belong to digrabbithole.com alone
     assert.match(flow, /^rh_oauth=[^;]+; Path=\/auth\/; HttpOnly; Secure; SameSite=Lax; Max-Age=600$/);
     assert.match(cb.cookie('small_session'), /^small_session=[^;]+; Path=\/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800$/);
     assert.equal(cb.location, '/apps/x');
   }
 });
 
-test('production origin: sign-in routes on any other host go to tryrabbithole.dev first; POSTs there are refused; other paths are untouched', async (t) => {
+test('production origin: sign-in routes on any other host go to digrabbithole.com first; POSTs there are refused; other paths are untouched', async (t) => {
   network(t, {}); // no provider or email call may happen
   for (const configured of [SITE, `${SITE}/`]) {
     const env = withDb(t, { ...SITE_ENV, PUBLIC_ORIGIN: configured });
@@ -624,12 +624,12 @@ test('production origin: /login is Landing /sign-in with the same next and error
   assert.ok(plain.text.includes('Continue with Google'));
 });
 
-test('production origin: the emailed link is https://tryrabbithole.dev/auth?token=..., sent from EMAIL_FROM, and nothing is echoed', async (t) => {
+test('production origin: the emailed link is https://digrabbithole.com/auth?token=..., sent from EMAIL_FROM, and nothing is echoed', async (t) => {
   const sent = [];
   network(t, { 'https://api.resend.com/emails': (b) => { sent.push(b); return [200, {}]; } });
   const env = withDb(t, SITE_ENV);
   const session = await emailSignIn(env, 'a@corp.test', sent, '/apps', SITE);
-  assert.match(env.lastLink, /^https:\/\/tryrabbithole\.dev\/auth\?token=[^&\s]+$/);
+  assert.match(env.lastLink, /^https:\/\/digrabbithole\.com\/auth\?token=[^&\s]+$/);
   assert.equal(sent[0].from, SITE_ENV.EMAIL_FROM);
   assert.deepEqual(sent[0].to, ['a@corp.test']);
   assert.equal(env.lastLocation, '/apps');
@@ -651,7 +651,7 @@ test('production origin: same-origin sign-in POSTs pass; any other origin, sibli
   const sent = [];
   network(t, { ...(await googleOk()), 'https://api.resend.com/emails': (b) => { sent.push(b); return [200, {}]; } });
   const env = withDb(t, SITE_ENV);
-  for (const origin of ['https://evil.test', 'null', 'http://tryrabbithole.dev', 'https://www.tryrabbithole.dev', 'https://app.tryrabbithole.dev', 'https://rabbit-hole-cp-dev.tryrabbithole.workers.dev']) {
+  for (const origin of ['https://evil.test', 'null', 'http://digrabbithole.com', 'https://www.digrabbithole.com', 'https://app.digrabbithole.com', 'https://rabbit-hole-cp-dev.tryrabbithole.workers.dev']) {
     const h = { Origin: origin };
     assert.equal((await call(env, '/auth/email/start', { method: 'POST', body: { email: 'a@corp.test' }, headers: h, origin: SITE })).status, 403, origin);
     assert.equal((await call(env, '/login', { method: 'POST', form: { email: 'a@corp.test' }, headers: h, origin: SITE })).status, 403, origin);
@@ -694,7 +694,7 @@ test('production origin: logout from this origin or a typed URL revokes; a sibli
   }
 });
 
-test('production origin: no mock provider, no /test/session and no echoed link on tryrabbithole.dev, even with test secrets present', async (t) => {
+test('production origin: no mock provider, no /test/session and no echoed link on digrabbithole.com, even with test secrets present', async (t) => {
   network(t, { 'https://api.resend.com/emails': () => [500, {}] });
   const env = withDb(t, { ...SITE_ENV, OAUTH_MOCK: 'true', TEST_BYPASS_SECRET: SECRET });
   assert.equal((await call(env, '/test/oauth/authorize?provider=google&state=s&sub=victim', { origin: SITE })).status, 404);

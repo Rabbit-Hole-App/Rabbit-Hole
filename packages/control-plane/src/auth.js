@@ -351,7 +351,7 @@ const FORM_POSTS = new Set(['/login', '/auth', '/auth/email/start', '/logout']);
 // The web sign-in routes; null for any other path. deps: { baseUrl, html, sendEmail } from index.js.
 export async function handleWebAuth(req, env, path, { baseUrl, html, sendEmail }) {
   const url = new URL(req.url);
-  // PUBLIC_ORIGIN (production: https://tryrabbithole.dev) is the one origin sign-in happens on. Cookies
+  // PUBLIC_ORIGIN (production: https://digrabbithole.com) is the one origin sign-in happens on. Cookies
   // are host-only and providers accept only registered callbacks, so a sign-in route reached on any other
   // host this Worker answers (workers.dev, www, plain http) is sent there first; a POST is refused.
   // That origin also serves Landing, so the transitional /login page becomes /sign-in.
