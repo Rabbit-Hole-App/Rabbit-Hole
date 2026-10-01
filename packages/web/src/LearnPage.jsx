@@ -476,6 +476,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
     Picker: LearnSlash,
     isCommand: isLearnCommand,
     onHelp: () => setSlashHelpOpen(true),
+    focusBlock: id => canvas()?.focusBlock(id),
     run: text => {
       // Tutor v1: /deeper and /simplify are the turn's slash (tutor-v1-locked-decisions.md §5).
       const parsed = tutor.active && parseSlash(text);

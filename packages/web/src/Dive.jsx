@@ -6,7 +6,7 @@
 import { createContext, useCallback, useEffect, useRef, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { api, navigate } from './api.js';
-import { Button, ConfirmDialog, toast } from './ui.jsx';
+import { Button, ConfirmDialog, Tip, toast } from './ui.jsx';
 import { deviceId } from './home/canvas-local.js';
 import { resolveTarget } from './learn-target.js';
 import { anchorBlock, diveRecord, discardHole, dropPending, holeHref, keepPending, levelHref, meaningful, navigatorRows, newHoleName, pendingHole, pendingHoles, planDive, setReturn, takeReturn } from './dive.js';
@@ -271,9 +271,11 @@ function Name({ level, className, onOpen, onRename, active = false }) {
     onKeyDown={event => { if (event.key === 'Enter') { onRename(level, draft); setDraft(null); } if (event.key === 'Escape') { event.stopPropagation(); setDraft(null); } }}
     className="w-full rounded-sm border border-line bg-white px-1 py-0.5 text-center text-[11px] text-ink outline-none focus:border-[#b42318]/50" />;
   const renamable = level.kind === 'canvas';
-  return <button type="button" data-dive-level={level.app} onClick={onOpen} onDoubleClick={renamable ? () => setDraft(level.title) : undefined}
-    title={`${level.title}${renamable ? ' · double-click to rename' : ''}`}
-    className={`block max-w-full overflow-hidden rounded-sm py-0.5 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] ${active ? 'bg-[#b42318] px-1.5 text-white' : 'px-0.5 hover:bg-hover'} ${className}`}>{level.title}</button>;
+  // One line, never wrapped: the full name is in the tooltip.
+  return <Tip label={level.title} info={renamable ? 'Double-click to rename' : null} align="end">
+    <button type="button" data-dive-level={level.app} onClick={onOpen} onDoubleClick={renamable ? () => setDraft(level.title) : undefined}
+      className={`block max-w-full truncate rounded-sm py-0.5 ${active ? 'bg-[#b42318] px-1.5 text-white' : 'px-0.5 hover:bg-hover'} ${className}`}>{level.title}</button>
+  </Tip>;
 }
 
 // The descending roots (R-1): path from the root, the current level marked, then its children.
@@ -292,7 +294,7 @@ export function DiveNavigator({ tree, pending, error, climb, enter, rename, askD
   const down = () => (children.length === 1 ? enter(children[0].name) : setPicking(open => !open));
   return (
     <nav data-dive-navigator aria-label="Rabbit Hole levels" className="relative flex w-[76px] flex-col items-center text-center text-[11px] leading-[14px] select-none">
-      <span data-dive-map-title className="mb-1 text-[10px] leading-tight font-medium text-ink-3">Rabbit Holes Map</span>
+      <span data-dive-map-title className="mb-1 text-[10px] leading-tight font-medium whitespace-nowrap text-ink-3">Rabbit Holes Map</span>
       {up && <button type="button" aria-label="Up to the parent hole" title={`Up to ${tree.path.at(-2).title}`}
         onClick={() => climb(tree.path.length - 2)} className="flex h-6 w-6 items-center justify-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink">
         <Arrow up />
@@ -312,12 +314,14 @@ export function DiveNavigator({ tree, pending, error, climb, enter, rename, askD
       </div>)}
       {children.length > 0 && <>
         <Root />
-        <button type="button" data-dive-down aria-label="Down into a hole" aria-expanded={children.length > 1 ? picking : undefined}
-          title={children.map(child => child.title).join(', ')}
-          onClick={down} className="flex max-w-full items-center gap-0.5 rounded-sm px-1 py-0.5 text-ink-2 hover:bg-hover hover:text-ink">
-          <Arrow size={11} />
-          <span className="truncate">{children.length === 1 ? children[0].title : `${children.length} holes`}</span>
-        </button>
+        {/* Several holes below: the tooltip names them all before the picker opens. */}
+        <Tip label={children.length === 1 ? children[0].title : `${children.length} holes below`} info={children.length > 1 ? children.map(child => child.title).join(' · ') : null} align="end">
+          <button type="button" data-dive-down aria-label="Down into a hole" aria-expanded={children.length > 1 ? picking : undefined}
+            onClick={down} className="flex max-w-full items-center gap-0.5 rounded-sm px-1 py-0.5 whitespace-nowrap text-ink-2 hover:bg-hover hover:text-ink">
+            <Arrow size={11} />
+            <span className="truncate">{children.length === 1 ? children[0].title : `${children.length} holes`}</span>
+          </button>
+        </Tip>
       </>}
       {error && <p role="alert" className="mt-1.5 text-[10px] leading-3 text-[#b42318]">{error}</p>}
       {picking && children.length > 1 && (
@@ -325,7 +329,7 @@ export function DiveNavigator({ tree, pending, error, climb, enter, rename, askD
           <p className="px-2 pt-1 pb-1.5 text-[11px] text-ink-3">Below {current.title}</p>
           {children.map(child => <div key={child.name} className="group flex items-center rounded-sm hover:bg-hover">
             <button type="button" role="menuitem" onClick={() => { setPicking(false); enter(child.name); }} className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-sm text-ink">
-              <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 ${child.pending ? 'border border-dashed border-[#b42318]' : 'bg-[#b42318]/70'}`} /><span className={`truncate ${child.pending ? 'italic' : ''}`}>{child.title}</span>
+              <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 ${child.pending ? 'border border-dashed border-[#b42318]' : 'bg-[#b42318]/70'}`} /><span title={child.title} className={`truncate ${child.pending ? 'italic' : ''}`}>{child.title}</span>
             </button>
             <button type="button" aria-label={`Delete ${child.title}`} title={child.pending ? 'Leave this empty hole' : 'Delete this hole'} onClick={() => { setPicking(false); askDelete({ ...child, app: child.name, kind: 'canvas' }); }}
               className="mr-1 hidden h-6 w-6 items-center justify-center rounded text-ink-3 group-hover:flex hover:text-[#b42318]"><Trash2 size={12} /></button>

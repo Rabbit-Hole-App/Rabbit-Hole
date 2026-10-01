@@ -2679,7 +2679,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       ), COLUMN, pages === 'landscape')
     : [];
   const minimapBoxes = [
-    ...Object.values(bounds),
+    ...Object.entries(bounds).map(([id, box]) => (divePortals?.portals?.[id] ? { ...box, hole: true } : box)),
     ...shapes.map(shape => ({ x: Math.min(shape.x1, shape.x2), y: Math.min(shape.y1, shape.y2), w: Math.abs(shape.x2 - shape.x1), h: Math.abs(shape.y2 - shape.y1) })),
     ...items.map(item => ({ x: item.x, y: item.y, w: item.w || 160, h: item.h || 40 })),
   ];
@@ -3025,7 +3025,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           row under the canvas instead - the toolbar scrolling in it - with the
           overview on the next row. The style panel opens from it. */}
       {/* The Rabbit Hole navigator's own gutter, top right, while the tools dock left (Dive.jsx). */}
-      {presenting === null && gutterTop && toolSide === 'left' && <div data-dive-gutter className="flex w-[84px] shrink-0 flex-col items-end pt-3 pr-2 @max-[640px]:hidden">{gutterTop}</div>}
+      {presenting === null && gutterTop && toolSide === 'left' && <div data-dive-gutter className="flex w-[84px] shrink-0 flex-col items-end pt-1 pr-4 @max-[640px]:hidden">{gutterTop}</div>}
       {presenting === null && (
         <div ref={gutter} data-tool-gutter
           // Docked right it mirrors the left side (84/192px, 8px in from the edge) and clears the contents rail (edgeInset); the full-bleed Learn shell has no page padding for a hang.
