@@ -10,6 +10,6 @@ function socialLink(name, url, icon) {
     : `<span class="footer-social-icon" role="img" aria-label="${name}: profile coming soon" title="${name}: profile coming soon">${icon}</span>`;
 }
 export function footerLinks() {
-  return `<div class="footer-links-row"><nav class="footer-secondary-nav" aria-label="More from Rabbit Hole"><a href="/manifesto">Manifesto</a><a href="/team">Team</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav><div class="footer-socials">${socialLink('X', profiles.x, xIcon)}${socialLink('LinkedIn', profiles.linkedin, linkedinIcon)}<a class="footer-email" href="mailto:hello@tryrabbithole.dev">${emailIcon}<span>hello@tryrabbithole.dev</span></a></div></div>`;
+  return `<div class="footer-links-row"><nav class="footer-secondary-nav" aria-label="More from Rabbit Hole"><a href="/manifesto">Manifesto</a><a href="/team">Team</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav><div class="footer-socials">${socialLink('X', profiles.x, xIcon)}${socialLink('LinkedIn', profiles.linkedin, linkedinIcon)}<a class="footer-email" href="mailto:hello@digrabbithole.com">${emailIcon}<span>hello@digrabbithole.com</span></a></div></div>`;
 }
 document.querySelectorAll('[data-footer-links]').forEach(element => { element.innerHTML = footerLinks(); });

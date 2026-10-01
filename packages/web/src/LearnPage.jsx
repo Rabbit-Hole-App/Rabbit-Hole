@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, House, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Play, Redo2, RotateCcw, Search, Share2, Trash2, NotebookPen, Undo2, ZoomIn, ZoomOut, GripVertical, Plus } from 'lucide-react';
 import { SPEEDS, getSpeed, setSpeed } from './learn-audio.js';
 import { api, navigate, wsHeaders } from './api.js';
+import { learnPreview } from './flags.js';
 import { AskPanel } from './ask.jsx';
 import { Button, IconBtn, ConfirmDialog, toast } from './ui.jsx';
 import SharePanel from './SharePanel.jsx';
@@ -56,7 +57,9 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
   const isCanvas = /^canvas-[a-f0-9]{8}$/.test(app.name);
   const course = useLearnCourse(app);
   const [courseView, setCourseView] = useState(false);
-  const suppliedCourse = import.meta.env.VITE_COACHING_DEV === 'true' && app.repo === 'karpathy/nanoGPT';
+  // The canonical NanoGPT course is product content, so it ships wherever Rabbit Hole does (VITE_RABBIT_HOLE in
+  // production, VITE_COACHING_DEV in dev/review), not only in the dev build; the dev tools stay behind their own gates.
+  const suppliedCourse = learnPreview && app.repo === 'karpathy/nanoGPT';
   const nanoProgress = useNanoProgress(app, suppliedCourse);
   const [lessonSource, setLessonSource] = useState(null);
   const [plannedLesson, setPlannedLesson] = useState(null);

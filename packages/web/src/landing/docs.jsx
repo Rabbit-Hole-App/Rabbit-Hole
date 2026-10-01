@@ -14,7 +14,7 @@ function DocsLink({ slug, children, ...props }) {
   return <a href={docsPath(slug)} {...props}>{children}</a>;
 }
 function Index({ slug }) {
-  return <nav aria-label="Documentation chapters" className="docs-chapters">{groups.map(group => <div key={group} className="docs-chapter-group"><h2>{group}</h2>{entries.filter(([, doc]) => doc.group === group).map(([key, doc]) => <DocsLink key={key} slug={key} aria-current={slug === key ? 'page' : undefined}><span className="docs-nav-dot" />{doc.nav}</DocsLink>)}</div>)}<a className="docs-index-help" href="mailto:hello@tryrabbithole.dev">Need a hand? <span>Email us ↗</span></a></nav>;
+  return <nav aria-label="Documentation chapters" className="docs-chapters">{groups.map(group => <div key={group} className="docs-chapter-group"><h2>{group}</h2>{entries.filter(([, doc]) => doc.group === group).map(([key, doc]) => <DocsLink key={key} slug={key} aria-current={slug === key ? 'page' : undefined}><span className="docs-nav-dot" />{doc.nav}</DocsLink>)}</div>)}<a className="docs-index-help" href="mailto:hello@digrabbithole.com">Need a hand? <span>Email us ↗</span></a></nav>;
 }
 function Contents({ sections, active, choose }) {
   return <nav aria-label="On this page" className="docs-contents"><h2>On this page</h2>{sections.map(s => <a key={s.id} href={`#${s.id}`} aria-current={active === s.id ? 'location' : undefined} onClick={() => choose(s.id)}>{s.title}</a>)}</nav>;
@@ -121,7 +121,7 @@ function DocsApp() {
       <details className="docs-mobile-contents"><summary>On this page <ChevronDown size={15} /></summary><Contents sections={doc.sections} active={active} choose={setActive} /></details>
       {doc.sections.map(s => <section key={s.id} id={s.id} className="docs-section"><h2><a href={`#${s.id}`}>{s.title}<span aria-hidden="true">#</span></a></h2>{s.blocks.map((block, i) => <Block key={i} block={block} />)}</section>)}
       <nav className="docs-pagination" aria-label="Adjacent documentation pages">{index > 0 ? <DocsLink slug={entries[index - 1][0]}><ArrowLeft size={18} /><span><small>Previous</small>{entries[index - 1][1].nav}</span></DocsLink> : <span />}{index < entries.length - 1 && <DocsLink slug={entries[index + 1][0]}><span><small>Next</small>{entries[index + 1][1].nav}</span><ArrowRight size={18} /></DocsLink>}</nav>
-      <p className="docs-feedback">Something unclear? <a href="mailto:hello@tryrabbithole.dev?subject=Documentation%20feedback">Tell us what’s missing ↗</a></p></main>
+      <p className="docs-feedback">Something unclear? <a href="mailto:hello@digrabbithole.com?subject=Documentation%20feedback">Tell us what’s missing ↗</a></p></main>
       <ResizableSidePanel className="docs-toc-panel" defaultWidth={210} minWidth={180} maxWidth={270} resizeLabel="Resize page contents"><Contents sections={doc.sections} active={active} choose={setActive} /><a className="docs-rail-link" href="/manifesto">Why we’re building this <ArrowRight size={16} /></a><span className="rh-mark docs-rail-mark" aria-hidden="true" /></ResizableSidePanel>
     </div>
     {menuOpen && <SlidePanel title="Documentation" width={380} z={50} onClose={() => setMenuOpen(false)}><Index slug={slug} /></SlidePanel>}
