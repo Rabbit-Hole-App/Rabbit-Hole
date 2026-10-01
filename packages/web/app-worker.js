@@ -12,6 +12,9 @@ export default {
     const url = new URL(req.url);
     // Auth errors, sign-out and the app's 401 handler all land on /login, the control plane's legacy page.
     if (url.pathname === '/login' && ['GET', 'HEAD'].includes(req.method)) { url.pathname = '/sign-in'; return Response.redirect(url, 302); }
+    // No hosted apps here: an app's JS on this origin would be same-origin with the session and could call /api/*.
+    // If they return, it is on a separate site (docs/features/rabbit-hole-production.md), never through this Worker.
+    if (/^\/a(?:\/|$)/.test(url.pathname)) return new Response(req.method === 'HEAD' ? null : 'Not found', { status: 404, headers: { 'Content-Type': 'text/plain;charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
     return worker.fetch(req, ownControlPlane(env), ctx);
   },
 };
