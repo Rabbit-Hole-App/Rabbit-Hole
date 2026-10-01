@@ -35,8 +35,9 @@ export default defineConfig({
   // /assets/* is cache-poisoned on workers.dev (stale edge entries that outlive deploys); /static is virgin
   build: {
     assetsDir: 'static',
-    // The existing Rabbit Hole landing belongs to the regular dev preview only.
-    ...(process.env.VITE_COACHING_DEV === 'true' && process.env.VITE_PRIVATE_BYOC !== 'true' ? {
+    // Landing, sign-in and the support/docs pages are in every build except private BYOC: production
+    // (app-worker.js) serves them without the dev flag. The legacy small-cp serves none of them.
+    ...(process.env.VITE_PRIVATE_BYOC !== 'true' ? {
       rolldownOptions: { input: {
         app: fileURLToPath(new URL('./index.html', import.meta.url)),
         landing: fileURLToPath(new URL('./design/rabbit-hole-hero.html', import.meta.url)),
