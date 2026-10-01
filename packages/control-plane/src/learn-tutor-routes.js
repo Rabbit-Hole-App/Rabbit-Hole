@@ -139,15 +139,19 @@ export async function readPlannerStream(response, onInput) {
 // Decision 5A: TUTOR_PLANNER_CACHE=on caches the stable planner prefix (plannerRequest); off by default
 // (Baseline A) and never under SUBSCRIPTION_ONLY, whose bridge's handling of a cached system block is
 // unverified. Cache writes and reads come back in telemetry; latency gains are claimed only once measured.
+// Decision 5B: TUTOR_PLANNER_SPEED=fast runs the Opus 5.5 planner in fast mode (benchmark arm C only;
+// off by default). Opus only - a fast-tier model never gets it - and never under SUBSCRIPTION_ONLY.
+// telemetry.speed is the API's usage.speed, so a request served at standard speed is visible.
 async function planOnce(env, context, model, effort, { callModel = loggedModel('tutor', anthropic), onSentence = null } = {}, documents = []) {
   const started = Date.now();
   const stream = !!onSentence && env.SUBSCRIPTION_ONLY !== 'true';
   const cache = env.TUTOR_PLANNER_CACHE === 'on' && env.SUBSCRIPTION_ONLY !== 'true';
-  const telemetry = { ms: null, requested_model: model, effort, served_model: null, input_tokens: null, output_tokens: null, ...(cache ? { cache: true, cache_creation_input_tokens: null, cache_read_input_tokens: null } : {}), stop_reason: null, outcome: null, ...(stream ? { streamed: true, first_sentence_ms: null } : {}) };
+  const speed = env.TUTOR_PLANNER_SPEED === 'fast' && model === LEARN_TASKS.tutor.model && env.SUBSCRIPTION_ONLY !== 'true' ? 'fast' : null;
+  const telemetry = { ms: null, requested_model: model, effort, served_model: null, input_tokens: null, output_tokens: null, ...(cache ? { cache: true, cache_creation_input_tokens: null, cache_read_input_tokens: null } : {}), ...(speed ? { requested_speed: speed, speed: null } : {}), stop_reason: null, outcome: null, ...(stream ? { streamed: true, first_sentence_ms: null } : {}) };
   const done = outcome => ({ ...telemetry, ms: Date.now() - started, outcome });
   let result;
   try {
-    const response = await callModel(env, plannerRequest(context, LEARN_TASKS.tutor.maxTokens, documents, { effort, stream, cache }), model, null);
+    const response = await callModel(env, plannerRequest(context, LEARN_TASKS.tutor.maxTokens, documents, { effort, stream, cache, speed }), model, null);
     if (!response.ok) throw await modelFailure(response, 'The tutor is unavailable');
     result = stream ? await readPlannerStream(response, input => {
       if (telemetry.first_sentence_ms != null) return;
@@ -156,7 +160,7 @@ async function planOnce(env, context, model, effort, { callModel = loggedModel('
     }) : await response.json();
   } catch (error) { throw Object.assign(error, { telemetry: done('error') }); }
   Object.assign(telemetry, { served_model: result.model ?? null, input_tokens: result.usage?.input_tokens ?? null, output_tokens: result.usage?.output_tokens ?? null, stop_reason: result.stop_reason ?? null,
-    ...(cache ? { cache_creation_input_tokens: result.usage?.cache_creation_input_tokens ?? null, cache_read_input_tokens: result.usage?.cache_read_input_tokens ?? null } : {}) });
+    ...(speed ? { speed: result.usage?.speed ?? null } : {}), ...(cache ? { cache_creation_input_tokens: result.usage?.cache_creation_input_tokens ?? null, cache_read_input_tokens: result.usage?.cache_read_input_tokens ?? null } : {}) });
   const call = result.content?.find(block => block.type === 'tool_use' && block.name === TUTOR_TOOL.name);
   if (!call?.input || !Array.isArray(call.input.actions)) throw Object.assign(new Error('The tutor returned no turn'), { telemetry: done('invalid') });
   return { ...call.input, telemetry: done('ok') };

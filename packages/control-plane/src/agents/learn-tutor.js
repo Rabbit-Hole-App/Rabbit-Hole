@@ -197,10 +197,16 @@ export const PLANNER_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
 // fixed Tutor policy prompt - and nothing learner-specific: the Teaching State and the canvas's context
 // documents stay in the uncached user message. Below a model's minimum (Opus 5.5 / Sonnet 5.5: 512
 // tokens; Haiku 4.5: 4096, more than this ~1.4k-token prefix) the API silently does not cache.
-export const plannerRequest = (context, maxTokens, documents = [], { effort = null, stream = false, cache = false } = {}) => {
+// speed (Decision 5B): 'fast' asks for Opus 5.5 fast mode, documented (claude-api skill, cached
+// 2026-09-25) as a research preview on the first-party Claude API only: top-level speed "fast" plus the
+// beta fast-mode-2026-02-01 (betas is lifted into the anthropic-beta header by ask.js anthropic()).
+// $8 / $40 per MTok; usage.speed reports the speed actually used.
+export const FAST_MODE_BETA = 'fast-mode-2026-02-01';
+export const plannerRequest = (context, maxTokens, documents = [], { effort = null, stream = false, cache = false, speed = null } = {}) => {
   const text = `Compose this turn.\n\ncontext = ${JSON.stringify(context)}`;
   return {
     max_tokens: maxTokens,
+    ...(speed ? { speed, betas: [FAST_MODE_BETA] } : {}),
     ...(effort ? { output_config: { effort } } : {}),
     ...(stream ? { stream: true } : {}),
     system: cache ? [{ type: 'text', text: PLANNER_SYSTEM, cache_control: { type: 'ephemeral' } }] : PLANNER_SYSTEM,

@@ -96,7 +96,8 @@ Implemented with free/scripted tests only; no paid call. Checkpoints (pushed, no
 | B | D1 evaluation dependency | `8223fc31` |
 | C | D4 constraint-first questions, D2 held fast-tier sentences, D3 exact model ids | `3d6c42e3` |
 | D | D7 per-idea evidence (merge of the sub-agent branch) | `644f6955` |
-| E | D5A prompt-caching request construction | see git log |
+| E | D5A prompt-caching request construction | `a460108e` |
+| F | D5B Opus 5.5 fast-mode arm (documented support), D5C evaluator fixed | see git log |
 
 ### D1. Evaluation dependency
 
@@ -183,6 +184,26 @@ unchanged). Tests (`learn-tutor-speed.test.js`, no model call): the prefix is by
 learners, no marker inside the learner message, context and documents stay out of the cached prefix, off
 and subscription mode keep the Baseline string system, the fast tier caches the same prefix. No latency
 gain is claimed: the paid run measures cold (write) vs warm (read) requests, tokens, cost and latency.
+
+### D5B. Opus 5.5 fast mode: SUPPORTED (documented), arm C
+
+Documented without a live call (claude-api skill, cached 2026-09-25, "Fast Mode" and platform
+availability): a research preview for Claude Opus 5.5 (also Opus 5 / 4.8) on the first-party Claude API
+only (not Bedrock, Vertex, Foundry or Claude Platform on AWS); every request needs the beta
+`fast-mode-2026-02-01` and the top-level `speed: "fast"`; $8 / $40 per MTok (2x); up to 2.5x output
+tokens per second; own rate limit; `usage.speed` reports the speed used; switching speed invalidates the
+prompt cache. `TUTOR_PLANNER_SPEED=fast` (off by default) adds both to the Opus planner request only
+(never the fast tier, never under `SUBSCRIPTION_ONLY`); `ask.js anthropic()` lifts `body.betas` into the
+`anthropic-beta` header. Telemetry keeps `requested_speed` and the served `speed`, so a standard-speed
+answer is visible. Not knowable without a call: whether the dev key's organisation has the research
+preview. If the paid run gets a rejection, arm C is reported as failed; nothing is retried with other
+parameters. Fast mode must pass the same gates as every arm (no quality assumption).
+
+### D5C. Larger evaluator fixed
+
+The larger evaluator stays `claude-opus-5-5` with its frozen request in every arm: a test sends every
+planner knob (cache, fast mode, fast tier, effort) and checks the evaluator request carries none of them.
+A faster evaluator is a separate, later benchmark on the same JEV-uncertain cases.
 
 ## Target pipeline
 
