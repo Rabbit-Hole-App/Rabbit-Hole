@@ -11,7 +11,7 @@ import SharePage from './SharePage.jsx';
 // Preview-only pages: the live build never routes to them (routes.js), so it builds no chunk for them.
 // learnPreview is not constant-folded (flags.js reads import.meta.env?.), so the live build would still
 // emit these chunks as downloadable orphans (e2e/live-bundle-check.mjs). The literal check lets Rollup drop them.
-const previewBuild = import.meta.env.VITE_COACHING_DEV === 'true' && learnPreview;
+const previewBuild = (import.meta.env.VITE_RABBIT_HOLE === 'true' || import.meta.env.VITE_COACHING_DEV === 'true') && learnPreview;
 const Home = previewBuild ? lazy(() => import('./Home.jsx')) : null;
 const ExplorePreview = previewBuild ? lazy(() => import('./Home.jsx').then((m) => ({ default: m.ExplorePreview }))) : null;
 import Shell, { storedSidebar } from './Shell.jsx';

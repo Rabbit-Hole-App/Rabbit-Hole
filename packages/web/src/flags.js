@@ -1,6 +1,7 @@
-// Rabbit Hole ships behind the dev build only (T02 D2); private BYOC never gets it.
+// Rabbit Hole is on in the production build (VITE_RABBIT_HOLE) and in the dev/review build (VITE_COACHING_DEV,
+// which alone also turns on the dev-only tools); private BYOC never gets it (T02 D2).
 // `?.` keeps this importable by node tests, as private-auth.js:3 already does.
-export const learnPreview = import.meta.env?.VITE_COACHING_DEV === 'true' && import.meta.env?.VITE_PRIVATE_BYOC !== 'true';
+export const learnPreview = (import.meta.env?.VITE_RABBIT_HOLE === 'true' || import.meta.env?.VITE_COACHING_DEV === 'true') && import.meta.env?.VITE_PRIVATE_BYOC !== 'true';
 
 // First-party product name: document title and first-party copy. Workspace names never change (T02 §2).
 export const PRODUCT = learnPreview ? 'Rabbit Hole' : 'small';
