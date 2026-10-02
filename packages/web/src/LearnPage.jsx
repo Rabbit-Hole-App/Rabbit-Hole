@@ -1,8 +1,8 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, House, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Play, Redo2, RotateCcw, Search, Share2, Trash2, NotebookPen, Undo2, ZoomIn, ZoomOut, GripVertical, Plus } from 'lucide-react';
+import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, House, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Play, Redo2, RotateCcw, Search, Share2, Trash2, NotebookPen, Undo2, ZoomIn, ZoomOut, GripVertical, Plus, ArrowLeft, ListChecks } from 'lucide-react';
 import { SPEEDS, getSpeed, setSpeed } from './learn-audio.js';
 import { api, navigate, wsHeaders } from './api.js';
-import { learnPreview, reviewTools } from './flags.js';
+import { canEditCourse, learnPreview, reviewTools } from './flags.js';
 import { AskPanel } from './ask.jsx';
 import { Button, IconBtn, ConfirmDialog, toast } from './ui.jsx';
 import SharePanel from './SharePanel.jsx';
@@ -63,6 +63,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
   // production, VITE_COACHING_DEV in dev/review), not only in the dev build; the dev tools stay behind their own gates.
   const suppliedCourse = learnPreview && app.repo === 'karpathy/nanoGPT';
   const nanoProgress = useNanoProgress(app, suppliedCourse);
+  const canAuthor = canEditCourse(course.canAuthor, suppliedCourse);
   const [lessonSource, setLessonSource] = useState(null);
   const [plannedLesson, setPlannedLesson] = useState(null);
   const [planOpen, setPlanOpen] = useState(false);
@@ -71,10 +72,10 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
   const [planStorageError, setPlanStorageError] = useState('');
   const planKey = `small.lesson-plan:${app.org}:${app.email || app.owner_email}:${app.name}`;
   useEffect(() => {
-    if (!course.canAuthor) return;
+    if (!canAuthor) return;
     try { setPlanEdits(JSON.parse(localStorage.getItem(planKey) || '{}')); }
     catch { setPlanStorageError('Could not restore draft edits from this browser.'); }
-  }, [planKey, course.canAuthor]);
+  }, [planKey, canAuthor]);
   const sectionEditor = {
     target: sectionTarget,
     clear: () => setSectionTarget(null),
@@ -905,9 +906,9 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
   };
   const changeLearningView = value => {
     clearRegionMarker(); pauseLesson(); setSourceOpen(false); setLessonSource(null); setPaperOpen(false);
-    setLearningView(value); if (value !== 'curriculum') setSectionTarget(null); setCourseView(value === 'curriculum' && course.canAuthor);
-    setLearnerOpen(value === 'curriculum' && !course.canAuthor);
-    setSetupChat(value === 'curriculum' && course.canAuthor);
+    setLearningView(value); if (value !== 'curriculum') setSectionTarget(null); setCourseView(value === 'curriculum' && canAuthor);
+    setLearnerOpen(value === 'curriculum' && !canAuthor);
+    setSetupChat(value === 'curriculum' && canAuthor);
   };
   const leaveNote = value => { setNoteEditing(null); setNoteChanged(false); setPendingNoteView(null); changeLearningView(value); };
   // Shared by the contents list in the right panel and the author's learner
@@ -1222,6 +1223,11 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
           {slashHelpOpen && <Suspense fallback={null}><SlashCommandsSheet appName={app.name} onClose={() => setSlashHelpOpen(false)} /></Suspense>}
           {searchOpen && <SearchBar app={app.name} initialSource={searchSeed?.source} initialQuery={searchSeed?.query} onClose={() => { setSearchOpen(false); setSearchSeed(null); }}
             onPick={pickResult} />}
+          {/* The supplied course's quiz, flashcards and notebooks live in Practice (the curriculum view). */}
+          {suppliedCourse && <button type="button" data-learn-practice aria-pressed={learningView === 'curriculum'}
+            onClick={() => { setPlanOpen(false); requestLearningView(learningView === 'curriculum' ? 'lesson' : 'curriculum'); }}
+            className="flex h-8 items-center gap-1.5 rounded-lg border border-line bg-white px-2.5 text-xs font-medium text-ink hover:bg-hover">
+            {learningView === 'curriculum' ? <><ArrowLeft size={14} strokeWidth={1.8} />Back to lesson</> : <><ListChecks size={14} strokeWidth={1.8} />Practice</>}</button>}
           <div className="flex items-center gap-0.5">
             {/* One search bar for YouTube, arXiv and Wikipedia, beside Present. */}
             <button type="button" title="Search YouTube, arXiv and Wikipedia (/)" aria-label="Search YouTube, arXiv and Wikipedia"
@@ -1245,9 +1251,9 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
             </button>
           </div>
         </div>}
-        {learningView === 'curriculum' && course.canAuthor && !(suppliedCourse && planOpen) && <div role="tablist" aria-label="Curriculum views" className="mb-4 flex gap-1">{[['edit', 'Edit course'], ['learner', 'Learner view']].map(([value, label]) => <button key={value} role="tab" aria-selected={value === 'edit' ? courseView : learnerOpen} disabled={course.dirty} className={`rounded px-3 py-1.5 text-xs hover:bg-hover ${(value === 'edit' ? courseView : learnerOpen) ? 'bg-hover font-medium' : 'text-ink-2'}`} onClick={() => { setCourseView(value === 'edit'); setSetupChat(value === 'edit'); setLearnerOpen(value === 'learner'); }}>{label}</button>)}</div>}
+        {learningView === 'curriculum' && canAuthor && !(suppliedCourse && planOpen) && <div role="tablist" aria-label="Curriculum views" className="mb-4 flex gap-1">{[['edit', 'Edit course'], ['learner', 'Learner view']].map(([value, label]) => <button key={value} role="tab" aria-selected={value === 'edit' ? courseView : learnerOpen} disabled={course.dirty} className={`rounded px-3 py-1.5 text-xs hover:bg-hover ${(value === 'edit' ? courseView : learnerOpen) ? 'bg-hover font-medium' : 'text-ink-2'}`} onClick={() => { setCourseView(value === 'edit'); setSetupChat(value === 'edit'); setLearnerOpen(value === 'learner'); }}>{label}</button>)}</div>}
         {planStorageError && <p role="alert" className="mb-3 text-xs text-red-700">{planStorageError}</p>}
-        {suppliedCourse && learningView === 'curriculum' && <LessonPlanPreview onPreview={editor && nanoProgress.loaded && !answering ? () => previewLesson(nanoLesson, true) : null} edits={course.canAuthor ? planEdits : {}} selectedSection={sectionTarget?.id} onEdit={target => { setSectionTarget(target); setSetupChat(true); }} course={course.course} learnerView={!course.canAuthor || learnerOpen} editorPanel={courseView ? coursePanel : null} view={planOpen ? 'plan' : 'curriculum'} selected={plannedLesson} onBack={() => { setPlanOpen(false); setSectionTarget(null); }} onSelect={index => { setPlannedLesson(index); setPlanOpen(true); }} />}
+        {suppliedCourse && learningView === 'curriculum' && <LessonPlanPreview onPreview={editor && nanoProgress.loaded && !answering ? () => previewLesson(nanoLesson, true) : null} edits={canAuthor ? planEdits : {}} selectedSection={sectionTarget?.id} onEdit={target => { setSectionTarget(target); setSetupChat(true); }} course={course.course} learnerView={!canAuthor || learnerOpen} editorPanel={courseView ? coursePanel : null} view={planOpen ? 'plan' : 'curriculum'} selected={plannedLesson} onBack={() => { setPlanOpen(false); setSectionTarget(null); }} onSelect={index => { setPlannedLesson(index); setPlanOpen(true); }} />}
         {courseView && !suppliedCourse && coursePanel}
         {learnerOpen && !suppliedCourse && <LearnOutline allowSample={!isRepository && !isCanvas} onToggleComplete={toggleSection} completed={completed} state={course} sample={sampleOutline} onSampleChange={setSampleOutline} activeId={lesson.current?.lessonId} activePage={progress?.page} disabled={outlineDisabled} onOpen={openFromOutline} />}
         <div className={`${courseView || learningView !== 'lesson' ? 'hidden' : 'flex'} min-h-0 flex-1 flex-col pr-1`}>

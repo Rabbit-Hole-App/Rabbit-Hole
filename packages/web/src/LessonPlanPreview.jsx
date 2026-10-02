@@ -114,7 +114,7 @@ function MaterialBlock({ block, page, context, learnerView, selectedSection, onE
     {isQuiz ? <QuizPlanMarkdown text={block.text} name={block.id} reviewing={reviewing} />
       : back ? <><PlanMarkdown text={front} /><details className="mt-2 text-sm"><summary className="cursor-pointer text-accent">Show answer</summary><PlanMarkdown text={`**Back:** ${back}`} /></details></>
       : <PlanMarkdown text={reviewing ? block.text : learnerText(block.text)} />}
-    {!learnerView && onEdit && <button type="button" title="Edit this section in chat" aria-label={`Edit ${page}: ${block.title} in chat`} aria-pressed={selectedSection === block.id} onClick={() => onEdit({ ...block, page, context })} className="absolute right-3 top-3 rounded-md p-1.5 text-accent hover:bg-accent/10"><MessageSquareText size={16} /></button>}
+    {reviewing && onEdit && <button type="button" title="Edit this section in chat" aria-label={`Edit ${page}: ${block.title} in chat`} aria-pressed={selectedSection === block.id} onClick={() => onEdit({ ...block, page, context })} className="absolute right-3 top-3 rounded-md p-1.5 text-accent hover:bg-accent/10"><MessageSquareText size={16} /></button>}
   </section>;
 }
 
@@ -156,8 +156,8 @@ function ActivityTabs({ item, index, edits, showSources = true, only, ...editing
 
 export default function LessonPlanPreview({ view, selected, onSelect, course, editorPanel, learnerView, onBack, edits = {}, selectedSection, onEdit, onPreview }) {
   const reviewing = reviewTools && !learnerView;
-  if (view === 'curriculum') return <section aria-label="Quickstart curriculum" className="min-h-0 flex-1 overflow-y-auto pr-2">
-    <h2 className="text-xl font-semibold">Quickstart: karpathy/nanoGPT</h2>
+  if (view === 'curriculum') return <section aria-label={reviewing ? 'Quickstart curriculum' : 'Practice'} className="min-h-0 flex-1 overflow-y-auto pr-2">
+    <h2 className="text-xl font-semibold">{reviewing ? 'Quickstart: karpathy/nanoGPT' : 'Practice: karpathy/nanoGPT quickstart'}</h2>
     <div className="mt-2 mb-6 flex flex-wrap items-center gap-4 text-xs text-ink-2"><span className="inline-flex items-center gap-1.5"><BookOpen size={14} />8 lessons</span><span className="inline-flex items-center gap-1.5"><Clock size={14} />~50 min guided explanations</span><span>Self-paced practice · Optional notebooks</span></div>
     <ol className="space-y-4">{(course?.curriculum?.lessons || lessons).map((saved, index) => {
       const item = lessons[index];
@@ -172,7 +172,7 @@ export default function LessonPlanPreview({ view, selected, onSelect, course, ed
       <ul className="mt-3 space-y-2">{topics.map((topic, i) => <li key={i} className="flex items-start gap-2.5 text-sm text-ink-2">{learnerView ? <CompletionBox label={topic} /> : <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-ink-3" />}<span>{topic}</span></li>)}</ul>
       <ActivityTabs item={item} index={index} edits={edits} learnerView={learnerView} selectedSection={selectedSection} onEdit={onEdit} />
     </li>; })}</ol>
-    {editorPanel && <details className="mt-5 rounded-lg border border-line p-4"><summary className="cursor-pointer font-medium">Edit and approve curriculum</summary><div className="mt-4">{editorPanel}</div></details>}
+    {reviewTools && editorPanel && <details className="mt-5 rounded-lg border border-line p-4"><summary className="cursor-pointer font-medium">Edit and approve curriculum</summary><div className="mt-4">{editorPanel}</div></details>}
   </section>;
   const item = lessons[selected];
   if (!item) return null;
@@ -188,7 +188,7 @@ export default function LessonPlanPreview({ view, selected, onSelect, course, ed
     }).filter(block => reviewing || !isSpecSection(block.title)) };
   });
   return <section key={selected} aria-label={reviewing ? 'Lesson material plan' : 'Lesson'} className="min-h-0 flex-1 overflow-y-auto pr-2">
-    <button type="button" onClick={onBack} className="mb-4 inline-flex items-center gap-1.5 rounded-md border border-line px-3 py-1.5 text-xs text-ink-2 hover:bg-hover"><ArrowLeft size={14} />Back to curriculum</button>
+    <button type="button" onClick={onBack} className="mb-4 inline-flex items-center gap-1.5 rounded-md border border-line px-3 py-1.5 text-xs text-ink-2 hover:bg-hover"><ArrowLeft size={14} />{reviewing ? 'Back to curriculum' : 'Back to Practice'}</button>
     <h2 className="text-xl font-semibold">{plan ? item.title.replace(/ —.*$/, '') : item.title.replace(/\s*\u2014\s*/g, ': ')}</h2>
     <p className="mt-2 mb-5 text-sm text-ink-2">{reviewing ? plan ? 'Draft material plan · review before rendering or generating assets' : 'Curriculum outline · the detailed material plan has not been written yet' : plan ? 'Read the lesson pages, then try the quiz, flashcards and optional notebook.' : 'Outline only · the full lesson pages are not available yet.'}</p>
     {selected === 0 && <button type="button" disabled={!onPreview} onClick={onPreview} className="mb-5 inline-flex items-center gap-2 rounded-md bg-accent px-3 py-2 text-sm text-white hover:opacity-90 disabled:opacity-40"><ArrowRight size={15} />Play Lesson 1</button>}

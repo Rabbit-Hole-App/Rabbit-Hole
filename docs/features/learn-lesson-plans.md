@@ -96,7 +96,23 @@ locks the choices and shows the why and the transfer check. Objective lines are
 never shown. Flashcard backs stay folded behind Show answer.
 `src/lesson-plan-preview.test.mjs` renders both builds, and
 `e2e/production-bundle-check.mjs` fails a production bundle that still carries
-"Material plan ready for review", "Draft material plan" or "Quiz answer key".
+"Material plan ready for review", "Draft material plan", "Quiz answer key",
+"Edit this section in chat", "Edit and approve curriculum" or the old "Finish
+up in Curriculum".
+
+Learners reach this view through **Practice**, a labelled button in the strip
+above the lesson canvas on a `karpathy/nanoGPT` repository (internally still
+the `curriculum` learning view). It opens the overview, titled "Practice:
+karpathy/nanoGPT quickstart", whose lesson cards carry the Quiz, Flashcards and
+Notebook tabs; the button then reads "Back to lesson", and a lesson's detail
+says "Back to Practice". The lesson's closing line reads "Continue to Practice
+for the quiz, flashcards, and optional notebook." In production nobody, the
+repository owner included, gets the editor: ownership alone never enables Edit
+course, Edit in chat or curriculum approval (`canEditCourse`, `flags.js`); the
+dev/review build keeps them for the owner.
+
+Known MVP limitation: the answers ship in the bundled lesson Markdown, so the
+UI hides them until a check, but a learner reading the JS can find them.
 
 Lesson 1 displays separate timing labels sourced from the Markdown: Guided
 explanation ~6 min; Quiz and review self-paced; Optional notebook ~5 min, pending

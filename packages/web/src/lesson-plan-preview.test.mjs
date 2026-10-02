@@ -27,6 +27,8 @@ const load = async (name, define) => {
     stdin: {
       contents: [
         "export { default as LessonPlanPreview, parseQuiz, quizFeedback } from './LessonPlanPreview.jsx';",
+        "export { canEditCourse } from './flags.js';",
+        "export { nanoLesson } from './nanogpt-lesson.js';",
         "export { createElement } from 'react';",
         "export { renderToStaticMarkup } from 'react-dom/server';",
       ].join('\n'),
@@ -41,22 +43,24 @@ const production = await load('production', {});
 const review = await load('review', { 'import.meta.env': '{"VITE_COACHING_DEV":"true"}' });
 rmSync(dir, { recursive: true, force: true });
 
+// As LearnPage passes them: the owner's editor panel and Edit in chat handler, which only the review build may show.
 const render = ({ LessonPlanPreview, createElement, renderToStaticMarkup }, props) =>
-  renderToStaticMarkup(createElement(LessonPlanPreview, { onSelect() {}, onBack() {}, edits: {}, ...props }));
+  renderToStaticMarkup(createElement(LessonPlanPreview, { onSelect() {}, onBack() {}, onEdit() {}, edits: {}, editorPanel: props.learnerView ? null : createElement('p', null, 'Curriculum editor panel'), ...props }));
 const text = html => html.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/\s+/g, ' ');
 const views = [
   { view: 'curriculum' },
   ...[0, 1, 2].map(selected => ({ view: 'plan', selected })),
 ].flatMap(props => [true, false].map(learnerView => ({ ...props, learnerView })));
-const INTERNAL = /material plan|ready for review|review before|draft|rendering or generating|answer key|planned asset|insert the|reuse the|reuse and expand|supporting visual|caption:|alt text|pending testing|objective:|canvas text|drawing sequence|spoken or written|planned evidence|not written yet/i;
+const INTERNAL = /material plan|ready for review|review before|draft|rendering or generating|answer key|planned asset|insert the|reuse the|reuse and expand|supporting visual|caption:|alt text|pending testing|objective:|canvas text|drawing sequence|spoken or written|planned evidence|not written yet|edit this section|edit and approve|curriculum|that table from/i;
 
-test('production, owner or learner, shows no review wording, build specs or author notes', () => {
+test('production, owner or learner, shows no review wording, build specs, author notes or editor controls', () => {
   for (const props of views) {
     const html = render(production, props);
     assert.doesNotMatch(text(html), INTERNAL, `${JSON.stringify(props)}: ${text(html).match(INTERNAL)?.[0]} in …${text(html).slice(Math.max(0, text(html).search(INTERNAL) - 120), text(html).search(INTERNAL) + 80)}`);
-    assert.doesNotMatch(html, /aria-label="(?:Lesson material plan|Quiz answer key|Correct answer)"/, JSON.stringify(props));
+    assert.doesNotMatch(html, /aria-label="(?:Lesson material plan|Quiz answer key|Correct answer|Edit [^"]* in chat)"/, JSON.stringify(props));
   }
-  assert.match(text(render(production, { view: 'curriculum', learnerView: true })), /Lesson pages, quiz and flashcards.*Outline only/);
+  assert.match(text(render(production, { view: 'curriculum', learnerView: true })), /Practice: karpathy\/nanoGPT quickstart.*Lesson pages, quiz and flashcards.*Outline only/);
+  assert.match(text(render(production, { view: 'plan', selected: 1, learnerView: false })), /Back to Practice.*Being able to trace the shapes from memory \(IDs, to t × n_embd/);
   assert.match(text(render(production, { view: 'plan', selected: 0, learnerView: true })), /Read the lesson pages, then try the quiz, flashcards and optional notebook\..*Play Lesson 1.*Explanation.*Further explanations.*References and further reading/);
 });
 
@@ -104,4 +108,20 @@ test('the review build keeps the answer key and review wording in the owner edit
   const learner = render(review, { view: 'plan', selected: 0, learnerView: true });
   assert.doesNotMatch(text(learner), INTERNAL);
   assert.doesNotMatch(learner, /aria-label="Quiz answer key"/);
+});
+
+test('ownership alone never opens the supplied course editor in production; the review build and generated courses keep it', () => {
+  assert.equal(production.canEditCourse(true, true), false); // production owner of karpathy/nanoGPT
+  assert.equal(production.canEditCourse(false, true), false);
+  assert.equal(production.canEditCourse(true, false), true); // a generated course keeps its owner editor
+  assert.equal(review.canEditCourse(true, true), true);
+  const editor = render(review, { view: 'curriculum', learnerView: false });
+  assert.match(text(editor), /Edit and approve curriculum.*Curriculum editor panel/);
+  assert.match(render(review, { view: 'plan', selected: 0, learnerView: false }), /aria-label="Edit [^"]* in chat"/);
+});
+
+test('the lesson ends by pointing to Practice, not the old Curriculum view', () => {
+  const words = JSON.stringify(production.nanoLesson);
+  assert.match(words, /Continue to Practice for the quiz, flashcards, and optional notebook\./);
+  assert.doesNotMatch(words, /Curriculum/);
 });

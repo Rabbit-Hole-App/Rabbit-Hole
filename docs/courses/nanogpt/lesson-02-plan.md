@@ -608,9 +608,9 @@ Page 4. The quoted lines are from the pinned source; the page-mapping comments
 are ours. Before the lookups, the method asserts the sequence fits in
 `block_size`: the position table simply has no rows past it.
 
-**Insert the shape-trace table here.** Being able to produce that table from
-memory: IDs, to `t × n_embd`, unchanged through the blocks, to `t ×
-vocab_size`: is this lesson's core skill.
+**Insert the shape-trace table here.** Being able to trace the shapes from
+memory (IDs, to `t × n_embd`, unchanged through the blocks, to `t ×
+vocab_size`) is this lesson's core skill.
 
 #### Where the numbers come from
 
