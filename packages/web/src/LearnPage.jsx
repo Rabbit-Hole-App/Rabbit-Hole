@@ -1193,7 +1193,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, onGraph = null, h
             heading, no rule underneath - the canvas has no boundary. */}
         {/* On a phone the row wraps (menubar compact) instead of clipping its
             start; not a scroller, which would clip the menus' dropdowns. */}
-        {!canvasState.presenting && <div className="relative flex shrink-0 items-center justify-center gap-1 px-3 pt-3 pb-1 max-md:flex-wrap max-md:gap-y-0.5 max-md:px-2 max-md:pt-2">
+        {!canvasState.presenting && <div className={`relative flex shrink-0 items-center justify-center gap-1 px-3 pt-3 pb-1 max-md:flex-wrap max-md:gap-y-0.5 max-md:px-2 max-md:pt-2 ${!courseView && learningView === 'lesson' ? '' : 'pl-12'}`}>
           {/* The page's top-left corner is Home (owner 2026-09-30): the Home page from any Rabbit Hole, at any depth; the
               navigator climbs holes. Learn has no sidebar button; recentring is Shift 0 and the minimap. */}
           <button type="button" data-learn-home aria-label="Home" title="Home"

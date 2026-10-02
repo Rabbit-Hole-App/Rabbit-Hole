@@ -109,7 +109,8 @@ says "Back to Practice". The lesson's closing line reads "Continue to Practice
 for the quiz, flashcards, and optional notebook." In production nobody, the
 repository owner included, gets the editor: ownership alone never enables Edit
 course, Edit in chat or curriculum approval (`canEditCourse`, `flags.js`); the
-dev/review build keeps them for the owner.
+dev/review build keeps them for the owner. `e2e/practice-check.mjs` walks that
+flow as the owner on the local stack with a production-flag build.
 
 Known MVP limitation: the answers ship in the bundled lesson Markdown, so the
 UI hides them until a check, but a learner reading the JS can find them.
