@@ -201,7 +201,7 @@ export const nanoLesson = {
         text('check2', 'Check 2: Why separate training and validation data?', 45, 360, 735, 'm', 3500, 'red'),
         box('answer2', 45, 405, 730, 56, 'orange', 'semi'),
         text('answer2', 'To evaluate on examples training never used', 65, 419, 690, 'm', 2000, 'orange'),
-        text('closing', 'Finish up in Curriculum: quiz, flashcards, notebook.', 45, 490, 735, 'm', 800, 'green'),
+        text('closing', 'Continue to Practice for the quiz, flashcards, and optional notebook.', 45, 490, 735, 'm', 800, 'green'),
       ],
     },
   ],

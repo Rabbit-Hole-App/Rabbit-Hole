@@ -142,7 +142,13 @@ So `/a/*` is the only route that is blocked.
     (coaching dev panel, review fixtures, the canvas lesson-block workbench, dev palette items).
     `node e2e/production-bundle-check.mjs` (packages/web, after the production build) fails if the Learn chunks are missing or
     any dev-only tool shipped.
-  - The canonical NanoGPT course is product content and ships wherever Rabbit Hole does (main `ace6a64a`).
+  - The canonical NanoGPT course is product content and ships wherever Rabbit Hole does (main `ace6a64a`): a
+    `karpathy/nanoGPT` repository's Learn tab plays the lesson, and the **Practice** button above the canvas opens its
+    quiz, flashcards and optional notebooks (`docs/features/learn-lesson-plans.md`). Production shows every user, the
+    repository owner included, the learner view: no review wording, no Edit in chat, no Edit course or curriculum approval
+    (`canEditCourse` in `flags.js`); those are review tooling and the bundle check fails if they ship.
+  - **Known MVP limitation:** the quiz answers are authored in the lesson Markdown that ships in the JS bundle. The UI
+    reveals an answer only after the learner checks one; a learner who reads the bundle can find them. Not graded.
 - **Data.** Should anything carry over from legacy `small` (users, workspaces, `learn_courses`)? The default is a fresh start. No Rabbit Hole canvas or board data exists in `small`.
 
 ### Secrets
