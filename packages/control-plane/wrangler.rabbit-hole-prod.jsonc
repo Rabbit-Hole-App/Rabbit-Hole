@@ -15,8 +15,8 @@
   "rules": [{ "type": "Text", "globs": ["**/*.html"], "fallthrough": true }],
   "d1_databases": [
     // Brand-new database: bootstrap.sql, then migrations/ (docs/features/rabbit-hole-production.md).
-    { "binding": "DB", "database_name": "rabbit-hole-prod", "database_id": "PENDING-rabbit-hole-prod", "migrations_dir": "migrations" },
-    { "binding": "LEARN_DB", "database_name": "rabbit-hole-learn-prod", "database_id": "PENDING-rabbit-hole-learn-prod" }
+    { "binding": "DB", "database_name": "rabbit-hole-prod", "database_id": "ecb90fe5-07f5-4824-b070-38ae76916e37", "migrations_dir": "migrations" },
+    { "binding": "LEARN_DB", "database_name": "rabbit-hole-learn-prod", "database_id": "f28417c4-d8ce-448e-8687-cc7bc2edf3a8" }
   ],
   // No RUNS and no Fly tokens: hosted small apps are not part of Rabbit Hole.
   "r2_buckets": [

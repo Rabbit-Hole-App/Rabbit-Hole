@@ -28,10 +28,10 @@
   // dev-worker.js bundles its pages from ./dist-dev; build with the production VITE_* env into that directory.
   "assets": { "directory": "./dist-dev", "binding": "ASSETS", "run_worker_first": true },
   "rules": [{ "type": "Text", "globs": ["**/*.html", "**/*.py"], "fallthrough": true }],
-  // ids are filled in after `wrangler d1 create` (owner GO). A PENDING id refuses to deploy.
+  // Created 2026-10-03 at the owner's production GO (rabbit-hole account).
   "d1_databases": [
-    { "binding": "DB", "database_name": "rabbit-hole-prod", "database_id": "PENDING-rabbit-hole-prod" },
-    { "binding": "LEARN_DB", "database_name": "rabbit-hole-learn-prod", "database_id": "PENDING-rabbit-hole-learn-prod" }
+    { "binding": "DB", "database_name": "rabbit-hole-prod", "database_id": "ecb90fe5-07f5-4824-b070-38ae76916e37" },
+    { "binding": "LEARN_DB", "database_name": "rabbit-hole-learn-prod", "database_id": "f28417c4-d8ce-448e-8687-cc7bc2edf3a8" }
   ],
   // No RUNS: hosted small apps are not part of Rabbit Hole. No BYOC_DB until the owner decides BYOC ships.
   "r2_buckets": [
