@@ -147,6 +147,9 @@ So `/a/*` is the only route that is blocked.
     quiz, flashcards and optional notebooks (`docs/features/learn-lesson-plans.md`). Production shows every user, the
     repository owner included, the learner view: no review wording, no Edit in chat, no Edit course or curriculum approval
     (`canEditCourse` in `flags.js`); those are review tooling and the bundle check fails if they ship.
+  - **Tutor entry.** The same strip has **Tutor**, which opens the approved NanoGPT Tutor (Tutor v2 and Voice) as a
+    product experience: `?tab=learn&experience=tutor`, from the explicit allowlist in `learn-experiences.js`.
+    `?board=` stays review-only and production ignores it. See [production-tutor-entry.md](production-tutor-entry.md).
   - **Known MVP limitation:** the quiz answers are authored in the lesson Markdown that ships in the JS bundle. The UI
     reveals an answer only after the learner checks one; a learner who reads the bundle can find them. Not graded.
 - **Data.** Should anything carry over from legacy `small` (users, workspaces, `learn_courses`)? The default is a fresh start. No Rabbit Hole canvas or board data exists in `small`.

@@ -38,7 +38,7 @@ builder in the browser (§1 of the locked doc); none needs a card change.
 | `answering` | none | — | no | the Tutor store's open `ask_question` `action_id`, set when the next non-slash message arrives |
 | `dive_choice` | **WAITING ON feature/dive-v1**: `DiveSuggestion` has Go down / Keep here, but `onKeep` only clears the card (`Dive.jsx` `suggestionCard`) | — | no | a Keep-here callback that tells the Tutor `{ concept, choice: 'inline' }` |
 | `canvas.app` | `app.name` | `LearnPage.jsx` props; `canvasKey` at `:172` | yes | — |
-| `canvas.board` | `board` (slugged `?board=`) or `'main'` | `LearnPage.jsx:184`, `boardName` at `:446` | yes | — |
+| `canvas.board` | `board` (the product Tutor entry's board from `learn-experiences.js`, else slugged `?board=` in the review build) or `'main'` | `LearnPage.jsx:184`, `boardName` at `:446` | yes | — |
 | `canvas.dive` | **WAITING ON feature/dive-v1**: a pending hole carries `hole.dive` (the Dive record) in sessionStorage; a persisted hole's record comes back with the dive tree | `Dive.jsx` `usePendingHole`, `useDive().tree` | no | read the record; its origin identities must follow the locked contract (B-2) |
 | (removed) `pending_dive` | — | — | — | not part of the LearnerTurn: R-10 now anchors a no-selection `/dive <topic>` on a new topic card, so nothing waits for a card selection. The pending child hole of R-4 is unrelated and belongs to `/dive` |
 | `target.block_id` | the armed Ask target (`askTarget.id`); a plain selection is not armed | `LearnPage.jsx:441`, `AdaptiveCanvas.jsx:1824` `armTarget` | partly | use the armed target, else the one selected card. The selected card reaches the page only on dive-v1 (`onState.card`) |
