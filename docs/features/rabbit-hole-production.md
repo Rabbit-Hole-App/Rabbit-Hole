@@ -162,8 +162,9 @@ local source is the gitignored `small-deploy/.env`; before every `secret put`, c
 | Worker | Required | Optional |
 |---|---|---|
 | `rabbit-hole-cp` | `MASTER_KEY` (fresh), `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` and `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET` from the `*_PROD` values, `RESEND_API_KEY` (email sign-in; `EMAIL_FROM` is a pinned var) | `ANTHROPIC_API_KEY` |
-| `rabbit-hole-app` | `ANTHROPIC_API_KEY`, `SCENE_WORKER_TOKEN` (production-only, below) | `OPENAI_API_KEY`, `DESMOS_API_KEY`, `PEXELS_API_KEY`, `EXA_API_KEY`, `FISH_AUDIO_API_KEY`, `ELEVENLABS_API_KEY` (Voice), `FAL_API_KEY` with the vars `LEARN_VIDEO_PROVIDER` and `LEARN_VIDEO_RESOLUTION` (video; dev uses `fal-seedance-lite`, `480p`) |
+| `rabbit-hole-app` | `ANTHROPIC_API_KEY`, `ANTHROPIC_WORKSPACE_ID` (the key is not scoped to one workspace, so Anthropic rejects a call without the `anthropic-workspace-id` header; `ask.js`, `review.js`), `SCENE_WORKER_TOKEN` (production-only, below) | `FISH_AUDIO_API_KEY` and `ELEVENLABS_API_KEY` (Voice; set in production), `OPENAI_API_KEY`, `DESMOS_API_KEY`, `PEXELS_API_KEY`, `EXA_API_KEY`, `FAL_API_KEY` with the vars `LEARN_VIDEO_PROVIDER` and `LEARN_VIDEO_RESOLUTION` (video; dev uses `fal-seedance-lite`, `480p`) |
 
+- **Live state (2026-10-03).** `rabbit-hole-app` has `ANTHROPIC_API_KEY`, `ANTHROPIC_WORKSPACE_ID`, `SCENE_WORKER_TOKEN`, `ELEVENLABS_API_KEY` and `FISH_AUDIO_API_KEY`. Without `ANTHROPIC_WORKSPACE_ID` every Learn answer failed with a 503 (model HTTP 400) on the first production smoke. Never rotate or remove the workspace id without the owner.
 - **OAuth mapping.** The runtime names never change. Production gets `GITHUB_CLIENT_ID_PROD` to `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET_PROD` to `GITHUB_CLIENT_SECRET`, `GOOGLE_CLIENT_ID_PROD` to `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET_PROD` to `GOOGLE_CLIENT_SECRET`. Dev Workers get only the `*_DEV` values. Never cross them.
 - **Only `rabbit-hole-cp`** gets `RESEND_API_KEY` and the OAuth secrets: never the app Worker, the renderers, the notebook Workers or any `VITE_*` build variable.
 
