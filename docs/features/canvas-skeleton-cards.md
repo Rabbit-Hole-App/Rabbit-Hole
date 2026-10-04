@@ -93,6 +93,16 @@ at 1440x900: the palette samples, and the six seeded NanoGPT Tutor slice cards.
 - **Reserve.** `canvas.reserve({ label, card, samples })` takes the slot `insertAtView` would use now:
   `flowIndexAtView`, stored as "in front of block X", or the end. It returns a stable transient id
   (`slot:<uuid>`).
+- **Never under a card.**
+  - **The bug.** A card keeps its dragged offset (`dx`, `dy`) from its place in the column; the gap rail's pull
+    moves cards the same way. A card dragged up is therefore drawn over the place in front of it.
+    `flowIndexAtView` picks by where cards are drawn, so it chose exactly that place, and the skeleton sat under
+    the card. That was the owner's 8828 report of 2026-10-04.
+  - **The fix.** `reserve` checks the place against every card as drawn (`canvas-slots.js` `freeSlot`). If a card
+    covers it, the skeleton takes the nearest free place instead, the later one on a tie.
+  - **None free.** It takes the end of the column, with room above it (`slot.top`). The card that fills the slot
+    keeps that room as its top margin (`space`), so it lands where its skeleton stood.
+  - **Untouched.** A plain insert without a skeleton still uses `flowIndexAtView` as before.
 - **Fill.** The card's insert takes `into: <id>`: `insertBlock(block, { into })`, and `insertPaper` /
   `insertWiki` / `insertVideo` `{ …, into }`. The card lands at that slot's index, never a new place. The skeleton
   and the card swap in one render.
@@ -202,8 +212,8 @@ pulls them back.
 ## Checks
 
 - Unit tests:
-  - `canvas-slots.test.mjs`: placement, filling, typical sizing, the visible area and pan-only camera, and a
-    structural pin that the save, the undo snapshot and the content count stay slot-free.
+  - `canvas-slots.test.mjs`: placement, filling, the free place beside dragged cards, typical sizing, the visible
+    area and pan-only camera, and a structural pin that the save, the undo snapshot and the content count stay slot-free.
   - `learn-tutor-skeleton.test.mjs`: the intent table, the decision before any request, slot hand-off, the part
     on a new card, and that the reveal comes after the insert on a deferred canvas.
   - `learn-slash.test.mjs`: reserve before the post, fill, release on every non-card outcome including a timeout,
@@ -224,6 +234,9 @@ pulls them back.
   - Tutor at the learner's zoom with the chat open: visual, question, text-only, Stop, failure, existing card and
     timeout.
   - A pending Rabbit Hole.
+  - No overlap, in dark mode, against height-capped scrolling cards. At the reserve moment and mid-wait, the
+    skeleton's box meets no card's box: before the first card, between cards, at the end, and next to a card
+    dragged 250 px up. Neither does the card that then takes the slot. The dragged case fails on the pre-fix build.
 
 ## Known issues / follow-ups
 

@@ -26,7 +26,7 @@ import { DOCK_PAD, DOCK_WIDTH } from './ChatComposer.jsx';
 import { PerfContext, perfMark, usePaintedMarks } from './learn-perf.js';
 import LaserPointer from './LaserPointer.jsx';
 import { DivePortals } from './Dive.jsx';
-import { columnEntries, fillSlot, freeArea, panInto, slotIndex, slotSize } from './canvas-slots.js';
+import { columnEntries, fillSlot, freeArea, freeSlot, panInto, slotIndex, slotSize } from './canvas-slots.js';
 import { waitingText } from './waiting-text.js';
 
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is
@@ -216,7 +216,7 @@ function SlotCard({ slot }) {
   const [now, setNow] = useState(() => performance.now());
   useEffect(() => { const timer = setInterval(() => setNow(performance.now()), 100); return () => clearInterval(timer); }, []);
   return (
-    <div data-slot-id={slot.id} role="status" aria-label={slot.label} style={{ width: slot.w, height: slot.h }}
+    <div data-slot-id={slot.id} role="status" aria-label={slot.label} style={{ width: slot.w, height: slot.h, marginTop: slot.top || undefined }}
       className="relative mx-auto flex shrink-0 cursor-default flex-col overflow-hidden rounded-xl border border-line bg-white shadow-sm">
       <div className="flex h-6 shrink-0 items-center justify-center"><span className="h-1 w-12 rounded-full bg-line" /></div>
       <div className="flex items-center gap-2 px-4 pb-4 text-sm">
@@ -1479,14 +1479,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         return insertAtView({ ...block, id: crypto.randomUUID(), dx: 0, dy: 0 }, into);
       },
       // A skeleton where a card on its way will land (docs/features/canvas-skeleton-cards.md): the slot
-      // insertAtView would use now, the card's size (slotSize: `card` names its BLOCK_TYPES entry, `samples`
-      // the cards it can be), the camera on it. Returns the slot id the card fills (insert*'s `into`);
-      // release() drops it, a no-op once filled.
+      // insertAtView would use now - or the nearest one nothing drawn covers (freeSlot: a dragged card keeps its
+      // offset) - the card's size (slotSize: `card` names its BLOCK_TYPES entry, `samples` the cards it can be),
+      // the camera on it. Returns the slot id the card fills (insert*'s `into`); release() drops it, a no-op once filled.
       reserve: ({ label, card = null, samples = [] }) => {
         const id = `slot:${crypto.randomUUID()}`;
-        const before = blocksRef.current[flowIndexAtView()]?.id ?? null;
+        const size = slotSize(card, BLOCK_TYPES, samples);
+        const place = freeSlot(columnItems(), flowIndexAtView(), size, { column: COLUMN });
+        const before = blocksRef.current[place.at]?.id ?? null;
         // moves: the learner's camera moves so far; once they move it, nothing about this slot moves it again.
-        setSlots(previous => [...previous, { id, before, label, ...slotSize(card, BLOCK_TYPES, samples), started: performance.now(), moves: manualMoves.current }]);
+        setSlots(previous => [...previous, { id, before, top: place.top, label, ...size, started: performance.now(), moves: manualMoves.current }]);
         cameraRef.current = { id, smooth: true, centre: true };
         return id;
       },
@@ -2664,12 +2666,27 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const at = list.findIndex(block => { const box = boundsRef.current[block.id]; return box && box.y + box.h / 2 > y; });
     return at < 0 ? list.length : at;
   };
-  // A card for a reserved slot (`into`) takes that slot's place, never a new one; a slot that has gone
+  // The column as freeSlot reads it, in render order (chat cards, then blocks): each card's flow place, its top
+  // margin included, and where it is drawn (its bounds: flow place plus its dragged dx, dy). A card not yet
+  // measured keeps its index and covers nothing.
+  const columnItems = () => {
+    let last = 0;
+    return [...exchangesRef.current.map(owner => [owner, false]), ...blocksRef.current.map(owner => [owner, true])].flatMap(([owner, block]) => {
+      const box = boundsRef.current[owner.id];
+      if (!box) return block ? [{ id: owner.id, block, flowTop: last, flowBottom: last, x: -1, y: last, w: 0, h: 0 }] : [];
+      const flowTop = box.y - (owner.dy || 0) - (owner.space || 0);
+      last = box.y - (owner.dy || 0) + box.h;
+      return [{ id: owner.id, block, flowTop, flowBottom: last, x: box.x, y: box.y, w: box.w, h: box.h }];
+    });
+  };
+  // A card for a reserved slot (`into`) takes that slot's place, never a new one - with the room the slot kept
+  // above it at the end of a crowded column (its `top`, as the card's own top margin); a slot that has gone
   // (released, or this is another canvas) leaves the card to land where the learner is looking.
   const insertAtView = (block, into = null) => {
     perfMark(block.id, 'insert');
     const slot = into && slotsRef.current.find(entry => entry.id === into);
     const index = slot ? null : flowIndexAtView();
+    if (slot?.top) block = { ...block, space: slot.top };
     setBlocks(previous => { const at = slot ? slotIndex(previous, slot) : index; return [...previous.slice(0, at), block, ...previous.slice(at)]; });
     if (slot) setSlots(previous => fillSlot(previous, into, block.id));
     return revealAfter(block.id, slot?.moves);

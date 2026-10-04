@@ -469,6 +469,96 @@ const [deepBox, holeArea] = [await deep.boundingBox(), await freeArea()];
 check('G3 taller than the visible canvas at the learner\'s zoom: its top just inside the frame, zoom kept', await zoom() === holeZoom && Math.abs(deepBox.y - holeArea.top) <= 2 && deepBox.x >= holeArea.left - 2 && deepBox.x + deepBox.width <= holeArea.right + 2, `${JSON.stringify(deepBox)} ${JSON.stringify(holeArea)}`);
 await shot('12-hole-card-at-part');
 
+// =====================  O. No overlap, ever: a fresh canvas in dark mode  =====================
+// The owner's 8828 report (2026-10-04): a card dragged up (it keeps its dy from its flow place) was drawn over the
+// skeleton reserved in front of it. At the reserve moment and mid-wait, the skeleton's box meets no card's box: before
+// the first card, between cards, at the end, next to a dragged card, next to a height-capped scrolling card.
+const dark = await browser.newContext({ viewport: { width: 1265, height: 918 }, colorScheme: 'dark' });
+await dark.addCookies([{ name: 'small_session', value: owner, url: BASE }]);
+await dark.addInitScript(() => { try { localStorage.setItem('small.theme', 'dark'); } catch { /* the default theme then */ } });
+const darkPage = await dark.newPage();
+darkPage.on('pageerror', error => errors.push(`dark: ${error.message}`));
+let darkNext = null;
+await darkPage.route('**/api/learn/artifact', async route => route.fulfill(await darkNext()).catch(() => {}));
+await darkPage.route(/\/api\/learn\/(ask|tutor|assess|voice|selection|board|home-ask)/, route => { if (route.request().method() === 'GET') return route.continue(); refused.push(route.request().url()); return route.abort(); });
+const overlapCanvas = await call(owner, '/api/canvases', { method: 'POST', body: JSON.stringify({ title: 'Skeleton overlap check' }) });
+await darkPage.goto(`${BASE}/apps/${overlapCanvas.name}`);
+await darkPage.waitForSelector('[data-tool-gutter]', { timeout: 60000 }); await darkPage.waitForTimeout(2000);
+const darkComposer = () => darkPage.locator('[data-learn-dock] textarea, [data-learn-dock] input:not([type="file"])').first();
+const darkSend = async text => { await darkComposer().click(); await darkComposer().fill(text); await darkPage.waitForTimeout(120); await darkComposer().press('Enter'); };
+const CAPPED = title => ({ type: 'explanation', title, body: Array.from({ length: 12 }, (_, i) => `**Step ${i + 1}.** A model's final layer spits out raw scores, any real numbers, positive or negative; softmax turns them into probabilities.`).join('\n\n') });
+// Three height-capped explanation cards (520, scrolling inside), placed by the canvas as usual.
+for (const title of ['Overlap one', 'Overlap two', 'Overlap three']) {
+  darkNext = () => ({ json: { result: 'artifact', primitive: 'explanation', block: CAPPED(title) } });
+  await darkSend(`/explain ${title}`);
+  await darkPage.locator('[data-block-id]', { hasText: title }).first().waitFor({ timeout: 10000 });
+  await darkPage.waitForTimeout(800);
+}
+const darkSurface = await darkPage.locator('[data-canvas-surface]').boundingBox();
+const centreY = darkSurface.y + darkSurface.height / 2;
+const darkCardBox = title => darkPage.locator('[data-block-id]', { hasText: title }).first().boundingBox();
+// The skeleton's box against every card's box, as drawn (dx, dy included): the cards it meets, if any.
+const meets = () => darkPage.evaluate(() => {
+  const slot = document.querySelector('[data-slot-id]')?.getBoundingClientRect();
+  if (!slot) return ['no skeleton'];
+  return [...document.querySelectorAll('[data-block-id]')].map(node => [node.innerText.split('\n').find(line => /^Overlap|^Placed/.test(line)) || node.dataset.blockId, node.getBoundingClientRect()])
+    .filter(([, box]) => box.left < slot.right - 0.5 && box.right > slot.left + 0.5 && box.top < slot.bottom - 0.5 && box.bottom > slot.top + 0.5).map(([name]) => name);
+});
+const capped = title => darkPage.locator('[data-block-id]', { hasText: title }).first().locator('[data-scroll]').first().evaluate(node => node.scrollHeight > node.clientHeight + 4);
+// The view moved so a card's top sits `below` px under the view's middle: insertAtView picks the place in front of it.
+const viewAt = async (title, below = 100) => {
+  await darkPage.mouse.move(darkSurface.x + 40, centreY);
+  await darkPage.mouse.wheel(0, (await darkCardBox(title)).y - centreY - below);
+  await darkPage.waitForTimeout(500);
+};
+const reserveClear = async (name, text, shotName = null) => {
+  let release;
+  darkNext = () => new Promise(resolve => { release = () => resolve({ json: { result: 'artifact', primitive: 'explanation', block: CAPPED(`Placed ${name}`) } }); });
+  await darkSend(text);
+  await darkPage.locator('[data-slot-id]').waitFor({ timeout: 2000 });
+  const atReserve = await meets();
+  await darkPage.waitForTimeout(1200);
+  const midWait = await meets();
+  if (shotName) { await darkPage.screenshot({ path: `${OUT}/${shotName}.png` }); console.log('shot', shotName); }
+  release();
+  await darkPage.locator('[data-slot-id]').waitFor({ state: 'detached', timeout: 10000 });
+  await darkPage.waitForTimeout(800);
+  // The card that took the slot meets no other card either.
+  const placed = await darkPage.evaluate(text => {
+    const nodes = [...document.querySelectorAll('[data-block-id]')], card = nodes.find(node => node.innerText.includes(text))?.getBoundingClientRect();
+    return nodes.filter(node => !node.innerText.includes(text)).map(node => node.getBoundingClientRect()).filter(box => box.left < card.right - 0.5 && box.right > card.left + 0.5 && box.top < card.bottom - 0.5 && box.bottom > card.top + 0.5).length;
+  }, `Placed ${name}`);
+  check(`O ${name}: the skeleton meets no card at the reserve moment or mid-wait, nor does the card that takes its slot`, !atReserve.length && !midWait.length && placed === 0, `reserve ${JSON.stringify(atReserve)} mid-wait ${JSON.stringify(midWait)} card meets ${placed}`);
+};
+const order = async () => darkPage.$$eval('[data-block-id]', nodes => nodes.map(node => node.innerText.split('\n').find(line => /^Overlap|^Placed/.test(line))));
+const [first] = await order();
+check('O the cards are height-capped and scroll inside', await capped('Overlap one') && await capped('Overlap two'));
+await viewAt(first);
+await reserveClear('before the first card', '/explain in front of the first card', 'O1-before-first-card-dark');
+const middle = (await order())[2];
+await viewAt(middle);
+await reserveClear('between cards', '/explain between two cards');
+await darkPage.mouse.move(darkSurface.x + 40, centreY);
+for (let i = 0; i < 20; i++) await darkPage.mouse.wheel(0, 1200);
+await darkPage.waitForTimeout(500);
+await reserveClear('at the end', '/explain after everything');
+// A card dragged 250 up by its strip, the way the owner's was: it keeps that offset from its flow place.
+const dragTitle = (await order())[3];
+await viewAt(dragTitle, 260);
+const strip = darkPage.locator('[data-block-id]', { hasText: dragTitle }).first().locator('[data-drag-zone]').first();
+const stripBox = await strip.boundingBox();
+await darkPage.mouse.move(stripBox.x + 30, stripBox.y + 5); await darkPage.mouse.down();
+await darkPage.mouse.move(stripBox.x + 30, stripBox.y - 120, { steps: 8 }); await darkPage.mouse.move(stripBox.x + 30, stripBox.y - 245, { steps: 8 }); await darkPage.mouse.up();
+await darkPage.waitForTimeout(600);
+await darkPage.keyboard.press('Escape'); await darkPage.evaluate(() => document.activeElement?.blur());
+const dragged = await darkPage.locator('[data-block-id]', { hasText: dragTitle }).first().evaluate(node => node.style.transform);
+const draggedDy = Number(dragged.match(/translate\([-\d.]+px, ([-\d.]+)px\)/)?.[1]);
+check('O a card was dragged up and keeps its offset', draggedDy < -200 && draggedDy > -300, dragged);
+// Its top 110 px above the view's middle: insertAtView picks the place in front of it, which it is drawn over.
+await viewAt(dragTitle, -110);
+await reserveClear('next to a dragged card', '/explain in front of the dragged card', 'O4-dragged-card-dark');
+await dark.close();
+
 check('no page errors', errors.length === 0, errors.join(' | ').slice(0, 300));
 check('nothing reached a model route outside the scripts', refused.length === 0, refused.join(', '));
 await browser.close();

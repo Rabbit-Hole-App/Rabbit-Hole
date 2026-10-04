@@ -79,3 +79,30 @@ export function panInto(box, view, area, centre = false) {
   };
   return { ...view, x: axis(box.x, box.w, view.x, area.left, area.right), y: axis(box.y, box.h, view.y, area.top, area.bottom) };
 }
+
+// Where a slot can stand without covering anything drawn in the column. A card keeps its dragged offset (dx, dy)
+// from its flow place - a drag, or the gap rail's pull - so one dragged up can be drawn over the flow place in front of
+// it, and a slot reserved there would sit under it. The slot takes the free place nearest the one insertAtView picks
+// (`at`, a block index); when none is free, the end of the column, below whatever is drawn there (`top`).
+// items: the column in render order - chat cards, then blocks - { id, block, flowTop, flowBottom } (their flow
+// place, margin included) and { x, y, w, h } (where they are drawn). slot: { w, h }. Returns { at, top }.
+export function freeSlot(items, at, slot, { column = 560, gap = 20 } = {}) {
+  const blocks = items.filter(item => item.block);
+  const left = slot.w > column ? 0 : (column - slot.w) / 2, right = left + slot.w;
+  const end = items.length ? Math.max(...items.map(item => item.flowBottom)) + gap : 0;
+  const topOf = k => (k < blocks.length ? blocks[k].flowTop : end);
+  // What a slot at block index k, its top at `top`, would cover: the blocks from k on move down by the slot.
+  const covered = (k, top) => {
+    const moved = new Set(blocks.slice(k).map(block => block.id));
+    return items.filter(item => {
+      const y = item.y + (moved.has(item.id) ? slot.h + gap : 0);
+      return item.x < right && item.x + item.w > left && y < top + slot.h && y + item.h > top;
+    });
+  };
+  const order = [...Array(blocks.length + 1).keys()].sort((a, b) => Math.abs(topOf(a) - topOf(at)) - Math.abs(topOf(b) - topOf(at)) || b - a); // a tie: the later, reading on
+  const free = order.find(k => !covered(k, topOf(k)).length);
+  if (free != null) return { at: free, top: 0 };
+  let top = end;
+  for (let hits = covered(blocks.length, top); hits.length; hits = covered(blocks.length, top)) top = Math.max(...hits.map(item => item.y + item.h)) + gap;
+  return { at: blocks.length, top: top - end };
+}

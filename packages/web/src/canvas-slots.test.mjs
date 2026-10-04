@@ -110,3 +110,22 @@ test('the camera pans a card into the visible area and never changes the zoom', 
   const tall = panInto({ x: 0, y: 900, w: 560, h: 1000 }, view, area);
   assert.equal(900 * 0.8 + tall.y, 24);
 });
+
+test('a slot never stands under a card drawn over its flow place (a dragged card keeps its offset)', async () => {
+  const { freeSlot } = await import('./canvas-slots.js');
+  // Two explanation cards (440 wide, centred in the 560 column), 520 tall, one gap apart.
+  const card = (id, flowTop, { dx = 0, dy = 0, h = 520 } = {}) => ({ id, block: true, flowTop, flowBottom: flowTop + h, x: 60 + dx, y: flowTop + dy, w: 440, h });
+  const slot = { w: 440, h: 330 };
+  assert.deepEqual(freeSlot([card('a', 0), card('b', 540)], 1, slot), { at: 1, top: 0 }, 'nothing dragged: where insertAtView picks');
+  assert.deepEqual(freeSlot([card('a', 0), card('b', 540)], 0, slot), { at: 0, top: 0 }, 'before the first card');
+  assert.deepEqual(freeSlot([], 0, slot), { at: 0, top: 0 }, 'an empty column');
+  // b was dragged 250 up: in front of it, b would be drawn over the slot; the nearest free place is after it.
+  assert.deepEqual(freeSlot([card('a', 0), card('b', 540, { dy: -250 })], 1, slot), { at: 2, top: 0 });
+  // a was dragged 300 down, over b's flow place: the slot cannot stand in front of b; the end is as near as the top.
+  assert.deepEqual(freeSlot([card('a', 0, { dy: 300 }), card('b', 540)], 1, slot), { at: 2, top: 0 });
+  // A card dragged sideways, clear of the column, covers nothing.
+  assert.deepEqual(freeSlot([card('a', 0), card('b', 540, { dx: 700, dy: -250 })], 1, slot), { at: 1, top: 0 });
+  // A chat card drawn over every place: the end, below it.
+  const chat = { id: 'c', block: false, flowTop: 0, flowBottom: 200, x: 0, y: 0, w: 560, h: 3000 };
+  assert.deepEqual(freeSlot([chat, card('a', 220)], 1, slot), { at: 1, top: 3020 - 760 });
+});
