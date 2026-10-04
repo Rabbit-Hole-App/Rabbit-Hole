@@ -72,14 +72,15 @@ skill-mirror:
 
 # ---------- dev clone secrets ----------
 # $(call fly_secret_to_clone,<fly app>,<secret name>,<worker clone>): read a secret from a running Fly
-# machine and upload it to a small-cp-dev-<name> worker clone, printing only its length.
-# Refuses the shared small-cp-dev worker and anything that is not a clone.
+# machine and upload it to a rabbit-hole-web-dev-<name> worker clone, printing only its length.
+# Refuses the shared small-cp-dev worker and anything that is not a clone. wrangler secret put can create a missing
+# Worker, so only the Rabbit Hole clone prefix is accepted: no new small-* Worker (owner, 2026-10-04).
 define fly_secret_to_clone
-$(BASH) -c 'case "$(3)" in small-cp-dev-?*) ;; *) echo "refusing: $(3) is not a small-cp-dev-<name> clone"; exit 1;; esac; t=$$($(FLY) ssh console -q -a $(1) -C "printenv $(2)" | tr -d "\r\n"); if [ -z "$$t" ]; then echo "empty $(2) from $(1)"; exit 1; fi; echo "$(2) length: $${#t}"; cd packages/web && printf "%s" "$$t" | npx wrangler secret put $(2) --config wrangler.dev.jsonc --name $(3)'
+$(BASH) -c 'case "$(3)" in rabbit-hole-web-dev-?*) ;; *) echo "refusing: $(3) is not a rabbit-hole-web-dev-<name> clone"; exit 1;; esac; t=$$($(FLY) ssh console -q -a $(1) -C "printenv $(2)" | tr -d "\r\n"); if [ -z "$$t" ]; then echo "empty $(2) from $(1)"; exit 1; fi; echo "$(2) length: $${#t}"; cd packages/web && printf "%s" "$$t" | npx wrangler secret put $(2) --config wrangler.dev.jsonc --name $(3)'
 endef
 
-# The clone defaults to this worktree's own (CLAUDE.md: small-cp-dev-<worktree name>).
-CLONE ?= small-cp-dev-$(notdir $(CURDIR))
+# The clone defaults to this worktree's own (CLAUDE.md: rabbit-hole-web-dev-<worktree name>).
+CLONE ?= rabbit-hole-web-dev-$(notdir $(CURDIR))
 # Installs put flyctl on PATH, not always a fly alias.
 FLY ?= flyctl
 

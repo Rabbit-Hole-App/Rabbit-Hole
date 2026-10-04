@@ -656,7 +656,7 @@ CREATE INDEX IF NOT EXISTS idx_learn_grades_created ON learn_grades(created_at);
 
 **Before it runs**, it prints one line, for example:
 `✓ target: https://small-cp-dev-small-parallel.zeroshothq.workers.dev · app repo-06745f10-nanogpt · set benchmark-v1 · run 2026-09-25-a · 62 cases (31 challenge / 31 explain_back) · ~62 Opus calls`.
-- It refuses any host that is not a `small-cp-dev-<name>` clone.
+- It refuses any host that is not a `rabbit-hole-web-dev-<name>` clone (or an existing legacy `small-cp-dev-<name>` clone).
 - It names the run `${set}-${YYYY-MM-DD}-${letter}`, for example
   `benchmark-v1-holdout-2026-09-25-a`. It refuses to start if
   `results/*/<bench_run>.json` already exists.

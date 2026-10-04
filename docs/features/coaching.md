@@ -1197,7 +1197,7 @@ try {
 }
 if ($devBuildResult -ne 0) { throw 'Dev build failed; do not deploy' }
 $devSessionName = Split-Path (Resolve-Path ../..) -Leaf
-npx wrangler deploy --config wrangler.dev.jsonc --name "small-cp-dev-$devSessionName"
+npx wrangler deploy --config wrangler.dev.jsonc --name "rabbit-hole-web-dev-$devSessionName"
 ```
 
 Stop if the build fails. The separate `dist-dev` output leaves the live `dist`

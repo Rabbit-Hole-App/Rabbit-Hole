@@ -301,7 +301,7 @@ Both are static assets only, on the rabbit-hole account, with nothing bound and 
 | `small-cp` | personal account | Still required (legacy product, CLI `DEFAULT_API`) | Not renamed. Rabbit Hole production is a new script beside it. |
 | `rabbit-hole-cp-dev` | rabbit-hole | Required | Already on the target name |
 | `small-cp-dev` | rabbit-hole | Required (the dev web Worker) | Rename candidate: `rabbit-hole-web-dev` |
-| `small-cp-dev-<worktree>` clones | none on rabbit-hole | Transient | Prefix change after the dev web rename, if wanted |
+| `small-cp-dev-<worktree>` clones | none on rabbit-hole | Transient, legacy | New clones are `rabbit-hole-web-dev-<worktree>` (owner, 2026-10-04: no new `small-*` resources) |
 | `small-learn-notebook-dev`, `small-learn-canvas-notebook-dev` | rabbit-hole | Required (dev iframes) | Rename candidates: `rabbit-hole-notebook-dev`, `rabbit-hole-canvas-notebook-dev` |
 | Fly `small-lesson-renderer-dev` | personal Fly org | Superseded by `rabbit-hole-lesson-renderer-dev` (Fly org `rabbit-hole`, 2026-10-01); stopped, kept as rollback | Retire in the final `small-*` cleanup |
 | Fly `small-math-renderer-dev` | personal Fly org | Required for maths animation if kept | Optional new `rabbit-hole-*` Fly app with a new token |

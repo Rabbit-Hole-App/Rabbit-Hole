@@ -73,7 +73,7 @@ const common = (base, dir) => ['--base', base, '--app', 'repo-demo', '--env-file
 test('refuses a host that is not a dev clone', () => {
   const result = spawnSync(process.execPath, [BENCH, '--base', 'https://small-cp.example.com', '--app', 'repo-demo'], { encoding: 'utf8', env: { ...process.env, LEARN_BENCH_ALLOW_LOCAL: '' } });
   assert.equal(result.status, 1);
-  assert.match(result.stdout + result.stderr, /refusing .* not a small-cp-dev-<name> clone/);
+  assert.match(result.stdout + result.stderr, /refusing .* not a rabbit-hole-web-dev-<name> clone/);
 });
 
 // grading-10: the clone's DB is the live D1, so the bench grades only on apps the
@@ -182,7 +182,7 @@ test('a pending that never resolves is scored as a pending error', async () => {
 test('--holdout-hash-file is refused outside local mode', async () => {
   const dir = workspace(tinySet('benchmark-v1-holdout'), { 'HOLDOUT.sha256': 'f'.repeat(64) });
   const result = await new Promise(resolve => {
-    const child = spawn(process.execPath, [BENCH, '--base', 'https://small-cp-dev-x.tryrabbithole.workers.dev', '--app', 'repo-demo', '--env-file', join(dir, '.env'), '--holdout', join(dir, 'set.json'), '--holdout-hash-file', join(dir, 'HOLDOUT.sha256')], { env: { ...process.env, LEARN_BENCH_ALLOW_LOCAL: '' } });
+    const child = spawn(process.execPath, [BENCH, '--base', 'https://rabbit-hole-web-dev-x.tryrabbithole.workers.dev', '--app', 'repo-demo', '--env-file', join(dir, '.env'), '--holdout', join(dir, 'set.json'), '--holdout-hash-file', join(dir, 'HOLDOUT.sha256')], { env: { ...process.env, LEARN_BENCH_ALLOW_LOCAL: '' } });
     let out = '';
     child.stdout.on('data', chunk => { out += chunk; });
     child.stderr.on('data', chunk => { out += chunk; });

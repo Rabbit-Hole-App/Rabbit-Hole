@@ -13,10 +13,10 @@ Deploy under a **per-session worker name**:
 cd packages/web
 # env vars BEFORE the build, as always
 npm run build -- --outDir dist-dev
-npx wrangler deploy --config wrangler.dev.jsonc --name small-cp-dev-<session>
+npx wrangler deploy --config wrangler.dev.jsonc --name rabbit-hole-web-dev-<session>
 ```
 
-That creates (or updates) `https://small-cp-dev-<session>.tryrabbithole.workers.dev`
+That creates (or updates) `https://rabbit-hole-web-dev-<session>.tryrabbithole.workers.dev`
 on the rabbit-hole account, with the same config, bindings and dev D1 as `small-cp-dev`
 (P0-B Phase 2B, [rabbit-hole-dev.md](rabbit-hole-dev.md); test sessions now come from
 `rabbit-hole-cp-dev`). Before 2026-09-30 clones lived on `*.zeroshothq.workers.dev`
@@ -24,8 +24,18 @@ on the rabbit-hole account, with the same config, bindings and dev D1 as `small-
 `small-cp-dev-parallel` serves the app and `/test/session` authenticates, so the
 full review flow (test session, boards, screenshots) works against a clone.
 
-Name by session or branch, kebab-case: `small-cp-dev-moments`,
-`small-cp-dev-canvas2`.
+Name by session (the worktree directory), kebab-case: `rabbit-hole-web-dev-moments`,
+`rabbit-hole-web-dev-canvas2`.
+
+**Naming (owner, 2026-10-04):**
+- No new `small-*` resources.
+- New clones are `rabbit-hole-web-dev-<session>`, after the planned Rabbit Hole name of
+  the dev web Worker, `rabbit-hole-web-dev` ([rabbit-hole-production.md](rabbit-hole-production.md)).
+- Not `rabbit-hole-cp-dev-<session>`: that prefix is the real dev control plane `rabbit-hole-cp-dev`, and a
+  dropped suffix in `wrangler delete` would remove it.
+- Existing `small-cp-dev` and `small-cp-dev-<name>` clones are legacy. They stay until their retirement
+  checkpoint and are never renamed in place, and no new one is created.
+- The clone `small-cp-dev-parallel` named below is one of those legacy clones; it is history, not the pattern.
 
 ## Rules
 
@@ -42,7 +52,8 @@ Name by session or branch, kebab-case: `small-cp-dev-moments`,
   YouTube key) will show its no-credential path on a clone — that is the
   designed message, not a break.
 - **Clean up when a session ends:**
-  `npx wrangler delete --name small-cp-dev-<session> --config wrangler.dev.jsonc`
+  `npx wrangler delete --name rabbit-hole-web-dev-<session> --config wrangler.dev.jsonc`
+  (or a legacy `small-cp-dev-<name>` clone you own)
 - Live (`small-cp`) is untouched by all of this and keeps its own rules.
 
 ## Why not version preview URLs

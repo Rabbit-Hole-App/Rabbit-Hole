@@ -23,7 +23,7 @@ const fail = (code, message) => { console.log(message); process.exit(code); };
 
 const base = (args.base || '').replace(/\/$/, '');
 const allowLocal = process.env.LEARN_BENCH_ALLOW_LOCAL === '1' && /^http:\/\/127\.0\.0\.1:\d+$/.test(base);
-if (!/^https:\/\/small-cp-dev-[a-z0-9-]+\.tryrabbithole\.workers\.dev$/.test(base) && !allowLocal) fail(1, `refusing ${base || '(no --base)'}: not a small-cp-dev-<name> clone`);
+if (!/^https:\/\/(rabbit-hole-web-dev|small-cp-dev)-[a-z0-9-]+\.tryrabbithole\.workers\.dev$/.test(base) && !allowLocal) fail(1, `refusing ${base || '(no --base)'}: not a rabbit-hole-web-dev-<name> clone`);
 if (!args.app) fail(1, 'usage: transport-ab.mjs --base <clone url> --app <app name>');
 if (args.holdout || (args['set-file'] && !allowLocal)) fail(1, 'refusing: the transport A/B runs on benchmark-v1 only');
 const envFile = args['env-file'] || path('../../../../small-deploy/.env');

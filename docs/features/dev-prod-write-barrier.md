@@ -4,7 +4,7 @@ Status: code on `hotfix/dev-prod-write-isolation`. Nothing is deployed. No Cloud
 changed. The audit behind this work is `docs/dev-prod-storage-isolation-plan.md` (§3, §4, §7).
 
 **Invariant.** A dev or review worker (`packages/web/dev-worker.js`: the shared `small-cp-dev` and every
-`small-cp-dev-<worktree>` clone) never writes production D1, R2 or Fly state. It also never reads production
+`rabbit-hole-web-dev-<worktree>` or legacy `small-cp-dev-<worktree>` clone) never writes production D1, R2 or Fly state. It also never reads production
 storage into dev history. It may read a short, documented list of production data through production
 `small-cp`, and nothing else.
 

@@ -285,7 +285,7 @@ Legend:
   - The ladder, thresholds and timeouts are unchanged.
 - **R-1: secrets on the per-session clone.**
   - The planner (Anthropic) and JEV (TypeSafe) keys are wrangler secrets, and secrets do not clone (CLAUDE.md, parallel-dev deploys).
-  - Before relying on a clone for a live check, list its secret names with `npx wrangler secret list --name small-cp-dev-<worktree>`, run from `packages/web` so it reads `wrangler.dev.jsonc`.
+  - Before relying on a clone for a live check, list its secret names with `npx wrangler secret list --name rabbit-hole-web-dev-<worktree>`, run from `packages/web` so it reads `wrangler.dev.jsonc`.
   - Without them, JEV returns `error` (events stay unsettled) and the planner route fails visibly. The e2e above stubs both routes, so acceptance does not depend on the secrets.
 - **R-2: merge overlap, closed by the locked sequencing** at the top of this document: `/dive` first, then the Tutor branch from the integrated baseline.
 

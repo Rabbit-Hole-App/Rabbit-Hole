@@ -18,7 +18,7 @@ the P0-A auth hotfix, cherry-picked.
 | R2 (`LEARN_MEDIA`) | `rabbit-hole-dev-learn-media` | | |
 | R2 (`REPOSITORY_SNAPSHOTS`) | `rabbit-hole-dev-repositories` | | |
 | Dev control plane | `rabbit-hole-cp-dev` | https://rabbit-hole-cp-dev.tryrabbithole.workers.dev | `packages/control-plane/wrangler.rabbit-hole-dev.jsonc` |
-| Dev / review worker | `small-cp-dev` (clones: `small-cp-dev-<worktree>`) | https://small-cp-dev.tryrabbithole.workers.dev | `packages/web/wrangler.dev.jsonc` |
+| Dev / review worker | `small-cp-dev` (legacy name; new clones: `rabbit-hole-web-dev-<worktree>`, never `small-*`) | https://small-cp-dev.tryrabbithole.workers.dev | `packages/web/wrangler.dev.jsonc` |
 | Notebook origins | `small-learn-canvas-notebook-dev`, `small-learn-notebook-dev` | `*.tryrabbithole.workers.dev` | static JupyterLite sites |
 
 **Deliberately absent in Phase 2B:**
@@ -109,7 +109,7 @@ export VITE_TLDRAW_LICENSE_KEY=<from root .env - never print it>
 npm run build                          # dist, served by the dev control plane
 npm run build -- --outDir dist-dev     # dist-dev, served by the dev worker
 cd ../control-plane && npx wrangler deploy --config wrangler.rabbit-hole-dev.jsonc
-cd ../web && npx wrangler deploy --config wrangler.dev.jsonc --name small-cp-dev-<worktree>
+cd ../web && npx wrangler deploy --config wrangler.dev.jsonc --name rabbit-hole-web-dev-<worktree>
 ```
 
 - `wrangler.jsonc` in `packages/control-plane` is **production** `small-cp`. It has no

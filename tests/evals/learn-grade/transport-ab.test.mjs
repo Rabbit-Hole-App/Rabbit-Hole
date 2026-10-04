@@ -62,8 +62,8 @@ const run = args => new Promise(resolve => {
 const common = (base, dir) => ['--base', base, '--app', 'demo-app', '--env-file', join(dir, '.env'), '--results-dir', join(dir, 'results'), '--set-file', join(dir, 'set.json'), '--min-per-mode', '1'];
 
 test('refuses a host that is not a dev clone, and the holdout', async () => {
-  assert.match((await run(['--base', 'https://small-cp.zeroshothq.workers.dev', '--app', 'x'])).out, /refusing https:\/\/small-cp\.zeroshothq\.workers\.dev: not a small-cp-dev-<name> clone/);
-  assert.match((await run(['--base', 'https://small-cp-dev-x.tryrabbithole.workers.dev', '--app', 'x', '--holdout', 'h.json'])).out, /refusing: the transport A\/B runs on benchmark-v1 only/);
+  assert.match((await run(['--base', 'https://small-cp.zeroshothq.workers.dev', '--app', 'x'])).out, /refusing https:\/\/small-cp\.zeroshothq\.workers\.dev: not a rabbit-hole-web-dev-<name> clone/);
+  assert.match((await run(['--base', 'https://rabbit-hole-web-dev-x.tryrabbithole.workers.dev', '--app', 'x', '--holdout', 'h.json'])).out, /refusing: the transport A\/B runs on benchmark-v1 only/);
 });
 
 test('each case goes through both transports in alternating order, with its own attempt id, and never calls Opus', async () => {

@@ -108,15 +108,22 @@ both dev build flags using the Coaching deployment steps above.
 
 ## Deploy rule for parallel sessions
 
-Never run bare `wrangler deploy` - that is the shared `small-cp-dev` worker and
-other sessions are testing on it. Deploy to your own clone instead. Full
+Never run bare `wrangler deploy` - that is the shared `small-cp-dev` worker (a legacy name, kept until its
+retirement checkpoint) and other sessions are testing on it. Deploy to your own clone instead. New clones use
+Rabbit Hole naming, never `small-*`. Full
 procedure is in [docs/features/parallel-dev-deploys.md](docs/features/parallel-dev-deploys.md)
 (on main); read it first.
 
 **Your session name is the git worktree directory you are in.** A session in the
-`smart-landing-page` worktree deploys as `small-cp-dev-smart-landing-page`; one
-in `small-parallel` deploys as `small-cp-dev-small-parallel`. Never invent a
+`smart-landing-page` worktree deploys as `rabbit-hole-web-dev-smart-landing-page`; one
+in `small-parallel` deploys as `rabbit-hole-web-dev-small-parallel`. Never invent a
 different name.
+
+Use the `rabbit-hole-web-dev-` prefix, after the planned Rabbit Hole name of the dev web Worker, `rabbit-hole-web-dev`
+(docs/features/rabbit-hole-production.md). Never use
+`rabbit-hole-cp-dev-`: that prefix is the real dev control plane `rabbit-hole-cp-dev`, and a dropped suffix
+in `wrangler delete` would remove it. Existing `small-cp-dev-<name>` clones are legacy: reuse or delete them,
+but never create a new one.
 
 Short version:
 
@@ -126,14 +133,14 @@ cd packages/web
 export VITE_COACHING_DEV=true VITE_BYOC_DEV=true
 export VITE_TLDRAW_LICENSE_KEY=<from root .env - never print it>
 npm run build -- --outDir dist-dev
-npx wrangler deploy --config wrangler.dev.jsonc --name small-cp-dev-<worktree-name>
+npx wrangler deploy --config wrangler.dev.jsonc --name rabbit-hole-web-dev-<worktree-name>
 ```
 
-Your app is then at `https://small-cp-dev-<worktree-name>.zeroshothq.workers.dev`
+Your app is then at `https://rabbit-hole-web-dev-<worktree-name>.tryrabbithole.workers.dev`
 - test sessions, boards and screenshots all work there (verified). Constraints:
 the dev D1 is shared across all clones, so announce any schema migration before
 running it; true wrangler secrets do not clone, so a feature needing one shows
 its no-credential message on your clone; rebase onto main before pushing; and
 delete your clone when the session ends:
-`npx wrangler delete --name small-cp-dev-<worktree-name> --config wrangler.dev.jsonc`.
+`npx wrangler delete --name rabbit-hole-web-dev-<worktree-name> --config wrangler.dev.jsonc`.
 Only deploy to the shared worker (no `--name`) when explicitly told to promote.
