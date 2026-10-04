@@ -94,7 +94,7 @@ Do not build a general-purpose video editor. Do not build unrestricted text-to-v
 - HyperFrames, Three.js, Blender or Manim production adapters
 - milestone M9 (§26)
 
-Creating new infrastructure (for example the development render service in §10) still requires explicit approval before it is deployed.
+Creating new infrastructure still requires explicit approval before it is deployed. The development render service `rabbit-hole-motion-renderer-dev` (§10.2) is approved as the M1 Linux runtime (owner decision 2026-10-04); Home creates and deploys it.
 
 ---
 
@@ -626,11 +626,13 @@ Rules:
   - A `needs_revision` from the repair round's own Author call fails the job.
   - After the repaired render, any further blocking semantic or visual failure fails the job. There is no second repair loop.
 - Only **blocking** findings consume the repair round. Advisory findings are recorded, never repaired automatically.
-- **Format retry** is separate from semantic repair. Each structured model stage may get at most one formatting/schema re-ask when its response is malformed or unparseable.
-  - **The prompt:** the re-ask carries the malformed output and the validation errors, and asks only to return the same result in the required schema. It adds no findings and no new instructions.
-  - **The repair round:** the re-ask does not consume it, provided no teaching decision, claim or storyboard semantics change.
-  - **A second malformed result** fails that stage, and the job fails naming the stage.
-  - **Visibility:** every re-ask is recorded on the job (`format_retries`). Repeated failures are never hidden behind retries.
+- **Format retry** is separate from semantic repair. Every distinct structured model invocation may get at most ONE schema-only re-ask when its response is malformed or unparseable (owner decision 2026-10-04).
+  - **Invocation:** a stage in a round. Round 0 is the first pass; round 1 is the single repair round. The repair round's Director revision and its Author call are distinct invocations, so each gets its own re-ask.
+  - **The prompt:** the re-ask carries the malformed output and the validation errors, and asks only to return the same intended response in the required structure. It adds no findings and no new instructions.
+  - **What it may not change:** the MotionBrief, the storyboard semantics, the claims, the teaching mode, the source grounding or the composition intent.
+  - **The repair round:** the re-ask never consumes it and never starts another semantic repair.
+  - **A second malformed result** from the same invocation fails the job, naming the stage (and "repair round" when it happened there).
+  - **Visibility:** every re-ask is recorded on the job as `format_retries` (`{stage, round, errors}`), separately from `repair_count`. Repeated failures are never hidden behind retries.
 - Reviewers are fresh for each review pass and never receive the Author's or Director's self-assessment, rationale or earlier reviewer output.
 - Repair inputs are grounded in the actual findings and diagnostics.
 
@@ -841,7 +843,8 @@ MotionJob {
   author_model_config            // {role: "MOTION_AUTHOR_MODEL", resolved_model}
   review_model_config            // {visual: {...}, pedagogical: {...}}
   repair_count                   // 0 or 1: the one semantic repair round (§4.8)
-  format_retries[]               // {stage, errors}: at most one per structured stage; never counted in repair_count
+  format_retries[]               // {stage, round, errors}: at most one per structured invocation
+                                 // (stage x round 0|1); never counted in repair_count
   findings[]                     // ReviewFinding (§5.4), per review pass
   preview_refs {video?, contact_sheet, keyframes[]}
   final_ref?                     // the LearnVideos job key / LEARN_MEDIA storage key
@@ -979,6 +982,10 @@ Static validation narrows what generated code can do; the sandbox (§10) is stil
 
 Render the **same frame** in two fresh rendering contexts (two separate `renderStill` runs from a fresh bundle), hash both images, and require the hashes to match. M1 proves this on the hand-written composition; M5 runs it on every generated composition at the contact-sheet timestamps.
 
+**What must match** (owner decision 2026-10-04): the same composition + the same pinned assets and fonts + the same renderer image + the same frame, rendered in two fresh Linux render contexts, give an identical decoded-pixel hash. Windows authoring hashes are never compared with Linux hashes: Chromium rasterizes text differently per OS. Every Linux proof reports the renderer image it ran on (the service's `/health` version and the image digest).
+
+The development render service (§10.2) runs this check on every job: the first, middle and last frames, rendered again by a second fresh context (its own bundle and browser), compared by decoded-pixel sha256.
+
 ---
 
 # 9. Renderer: the existing Remotion stack
@@ -995,7 +1002,7 @@ Motion V1 renders with the existing Remotion stack in **`packages/learn-render`*
 | Still-frame rendering (`renderStill`, one still per screen) | `scripts/stills.mjs` |
 | Content-hash cache: unchanged inputs skip the Remotion pass | `scripts/render.mjs` |
 | Acceptance tests: duration within 10% of the beat clips, fonts are real woff2 and load, a colour at a known beat, cached re-render under 60 s | `scripts/test.mjs` |
-| Pinned fonts (Inter, Virgil) | `assets/fonts/` |
+| Pinned fonts (Inter, Virgil; Motion adds JetBrains Mono for code) | `assets/fonts/`, sha256-pinned in `FONT_PINS` |
 | Existing visual primitives (rough.js whiteboard, captions, code) | `src/lecture/` |
 
 Motion extends this package: a Motion composition entry, the static validator, the determinism test and the final-validation checks are added next to the existing lecture pipeline. The CLI's zero-dependency rule is unaffected (learn-render has its own dependencies, and the CLI never imports from it).
@@ -1047,15 +1054,95 @@ Rendering happens in Linux from the first real render milestone (M1). Final fram
 
 The primary development machine currently has **no Docker, no WSL and no ffmpeg** (checked 2026-10-03). Motion V1 therefore cannot assume a local sandbox runtime.
 
-## 10.2 Proposed development render service
+**Chosen Linux runtime** (owner decision 2026-10-04): the Rabbit Hole-owned Fly development renderer `rabbit-hole-motion-renderer-dev` in the `rabbit-hole` Fly org. Developers are not required to install WSL or Docker Desktop, and GitHub Actions is not used for the primary renderer proof. `motion/linux/` (a one-shot `docker` / `unshare` proof image) stays available for anyone who has a Linux host, but it is not the M1 runtime.
 
-Preferred initial architecture: a new Rabbit Hole-owned development render service,
+## 10.2 Development render service (`rabbit-hole-motion-renderer-dev`)
+
+The development render service lives in `packages/learn-render/motion/service/`. It is built inside M1 (owner decision 2026-10-04) and modelled on the math-renderer service. It exists ONLY to execute already-validated Motion render jobs in a restricted Linux environment:
+
+- it makes no model calls;
+- it decides no pedagogy;
+- it writes no MotionBriefs or storyboards;
+- it holds no Fish or provider credentials.
+
+**Ownership.** The branch provides everything needed to deploy it; **Home owns all external infrastructure mutation** (creating the app, setting the secret, deploying). The app is DEVELOPMENT ONLY. No `small-*` resource is used or created.
+
+| Piece | Where |
+|---|---|
+| HTTP service | `motion/service/server.mjs` (stdlib `node:http`) |
+| Render child | `motion/service/child.mjs` |
+| Sandbox launcher (root, via one sudo rule) | `motion/service/motion-sandbox`, `motion/service/sandbox-init`, `motion/service/sudoers` |
+| Image | `motion/service/Dockerfile` |
+| Fly config | `motion/service/fly.dev.toml` |
+| Deploy context (the committed tree only) | `motion/service/context.sh`, which prints Home's commands |
+| Tests | `motion/service/service.test.mjs` (any host), `motion/service/service.linux.test.mjs` (the image) |
+
+**Secret.** `MOTION_RENDERER_TOKEN`, a dedicated development secret of at least 32 characters. The service refuses to start without it. It is not `SCENE_WORKER_TOKEN`, not a math-renderer credential and never a production credential. Home generates and sets it; it is never printed or committed. The control plane reads the same name, plus `MOTION_RENDERER_URL`, for the dev carrier (§18).
+
+**API.**
+
+| Route | Auth | Behaviour |
+|---|---|---|
+| `GET /health` | none | `{ok, service: "rabbit-hole-motion-renderer", version, sandbox, busy, limits}`. The version hashes the service, renderer, contracts and sandbox files, plus the Remotion version and the build commit. No secrets. |
+| `POST /render` | Bearer | Body: a `motion-render/1` job, `{schema, renderer: "remotion", brief, storyboard, composition: {composition_id, source}}`, validated by `validateRenderRequest` (`motion/contracts.js`) and then by the §8.2 static check. Unknown fields, paths, URLs and commands are rejected (400 `invalid_job`, or `malformed` for non-JSON; 413 over 512 KiB). The service chooses its own render id (32 hex). Accepted: 202 `{render_id, status: "rendering", poll}`. Busy: 429 `{error: "busy", render_id}`. |
+| `GET /render/<id>` | Bearer | Status (`rendering` / `ready` / `failed` with `error` and `detail`) and metadata: duration, fps, resolution, frame count, output bytes, final validation, the determinism result, preview size, the preview/final comparison, the contact-sheet manifest, the fonts that loaded, the sandbox report, timings and renderer versions. When ready, it also returns artifact refs. |
+| `GET /render/<id>/artifacts/<name>` | Bearer | `final.mp4`, `preview.mp4`, `contact-sheet.png` or `poster.png`. Only those fixed names; nothing in a URL becomes a file path. |
+
+Rendering is asynchronous so that no HTTP request waits up to 420 s behind Fly's proxy. Callers poll `GET /render/<id>` while a render runs and fetch the artifacts promptly. Finished renders stay in memory for at most 30 minutes, and at most three are kept. This is the development transport only, not the production artifact API.
+
+**Limits.**
+
+- **Concurrency:** one active render; a second `POST /render` gets 429. Nothing queues.
+- **Time:** a hard 420 s. The service stops the child at 420 s and reports `error: "timeout"`. The launcher's own `timeout 425s` is the backstop.
+- **Output:** final ≤ 25 MB, enforced by the renderer's final validation and again by the service (`output_too_large`). Each file the child writes is capped at 64 MB (`prlimit --fsize`).
+- **Workspace:** each render gets a fresh `/var/motion/jobs/<id>/` (setgid group `motion`, 2770), which is removed after success, failure or timeout.
+
+**Isolation.** The service runs as `motion-svc`. For each job it runs `sudo -n /usr/local/sbin/motion-sandbox <render id>`, the only sudo rule. The launcher accepts nothing but the 32-hex id, builds every path itself, and runs:
 
 ```text
-rabbit-hole-motion-renderer-dev
+timeout 425s unshare --net --pid --mount --ipc --uts --fork --kill-child --mount-proc sandbox-init <id>
 ```
 
-a Fly app in the **Rabbit Hole Fly org**, using the existing math-renderer container pattern. Creating it requires explicit approval before deployment. It is not created by this spec.
+`sandbox-init` runs as root inside the new namespaces:
+
+1. brings up loopback only;
+2. makes all mounts private;
+3. mounts a private tmpfs on `/tmp` and `/dev/shm`;
+4. re-exposes only this job's directory, at `/tmp/job`;
+5. hides `/var/motion`, `/home`, `/root` and `/.fly` behind empty mounts;
+6. remounts the renderer `/app` read-only;
+7. becomes `motion-render` with `setpriv`: group `motion`, no supplementary groups, no capabilities, `no_new_privs`, an empty environment (`HOME`, `TMPDIR`, `PATH`, `NODE_ENV`, `MOTION_SANDBOX` only) and `umask 007`.
+
+The result:
+
+- **Network:** the child, its Chromium and its ffmpeg have no route off the machine; the service keeps its normal Fly networking.
+- **Processes:** the child sees only its own processes.
+- **Files:** it cannot read the service's environment, token or files.
+- **Cleanup:** when the launcher exits or is signalled, the PID namespace ends and every process in it dies, so there are no orphan Chromium or ffmpeg processes.
+
+This is an OS boundary on top of the page Content Security Policy and the static validation, not a replacement for them.
+
+**Self-check.** The render child checks its own boundary on every job (network reachable, root, the service's files visible, a writable renderer, an inherited environment) and refuses to render on any breach (`error: "sandbox_breach"`). Each result carries that report.
+
+**What the service still checks.** The full M0/M1 validation runs before any render, first in the service and again in the child:
+
+- the brief, storyboard and render-request schemas;
+- the import allowlist and banned APIs;
+- the fixed 1920×1080 / 30 fps stage and frame count;
+- deterministic timing rules;
+- bundled fonts only.
+
+The webpack import allowlist and the page CSP still apply at render time.
+
+**Home's deploy, from a clean commit.** `sh packages/learn-render/motion/service/context.sh` builds the context from `git archive HEAD` and prints:
+
+```text
+fly apps create rabbit-hole-motion-renderer-dev --org rabbit-hole
+fly secrets set --stage MOTION_RENDERER_TOKEN=<at least 32 random characters> -a rabbit-hole-motion-renderer-dev
+fly deploy <context> --config <context>/fly.dev.toml --build-arg MOTION_RENDERER_BUILD=<sha> --ha=false
+```
+
+**Design basis** (the M1 proposal this implements):
 
 Do not reuse `small-math-renderer-dev` as the Motion service, and do not create any new `small-*` resource. The math renderer is a pattern source only.
 
@@ -1322,19 +1409,25 @@ Motion V1 reuses the existing video pipeline. It does **not** introduce a new Mo
 | `BLOCK_TYPES.video` + `VideoBody` (`packages/web/src/LearningBlocks.jsx`) | the canvas card and player |
 | `runLearnCommand` → `canvas.insertBlock` (`packages/web/src/learn-slash.js`) | inserts the result |
 
-Insertion is an ordinary video block:
+Insertion is an ordinary video block, not a new Motion card system. The development carrier exists since M1 (owner decision 2026-10-04: the Motion result must never travel through the maths-animation carrier or show its copy):
 
 ```js
+// motionVideoBlock({ brief, renderId, jobId }) in packages/learn-render/motion/video-block.js
 insertBlock({
-  type: 'video',
-  // title, caption, the src/asset wiring and status follow the existing
-  // video block; M7 decides the exact mode/src fields against VideoBody
-  // and the LearnVideos placement model.
-  provenance: { motion_job_id, prompt_spec_version, source_refs, claim_ids },
+  type: 'video', mode: 'generate', title: brief.title, src: '', caption: '', status: 'idle',
+  operation: { op: 'motion_render', render_id },            // nothing else: no source, no URL
+  motion: { job_id, duration_seconds, renderer: 'remotion', teaching_mode,
+            prompt_spec_version, source_refs, claim_ids },  // provenance, below
 })
 ```
 
-not a new Motion card system.
+- **Control plane:** `LearnVideos` treats `motion_render` as a third provider next to maths and FAL. `MotionProvider` (`packages/control-plane/src/motion-provider.js`):
+  - reads `MOTION_RENDERER_URL` (HTTPS only) and `MOTION_RENDERER_TOKEN`;
+  - only GETs a finished render from the render service (§10.2), with the `submit → ticket`, `poll → null | bytes` contract;
+  - lets the bytes land in `LEARN_MEDIA` like any clip.
+  - `paidRefusal` and every existing limit still apply.
+- **Web:** `VideoBody`'s operation copy lives in `packages/web/src/learn-video-label.js`. A Motion block reads "15s · Motion explainer · Remotion", and its button reads "Add the rendered video". Once ready, it shows that line and its sources (`model.py:62–64`, …) under the video. It never shows Manim or sigmoid copy.
+- **Regression tests:** `learn-video-label.test.mjs`, `motion/video-block.test.mjs` and `packages/control-plane/test/motion-provider.test.js`.
 
 Provenance lives in the existing video job/block metadata. It must answer: *what source, card, code and claims generated this motion explainer?* Do not expose inaccessible source references to viewers who lack permission.
 
@@ -1585,12 +1678,28 @@ No model calls.
 - the approved primitive allowlist
 - exact dependencies and licences
 
-M1's first real render needs either the approved `rabbit-hole-motion-renderer-dev` Fly app or a Linux container runtime on the development machine. Neither exists today; request the approval at M1 start.
+M1's Linux runtime is the development render service `rabbit-hole-motion-renderer-dev` (§10.2, owner decision 2026-10-04). The branch builds the service; Home creates and deploys it. The Linux M1 proof runs there:
+
+- the Demo A render (1920×1080, 30 fps, 15 s, 450 frames);
+- same-frame determinism in two fresh contexts;
+- the isolation probe;
+- the timeout kill;
+- a Demo B run that proves JetBrains Mono loads deterministically.
+
+Those are `motion/service/service.linux.test.mjs`, plus the existing video-block insertion and playback.
 
 **M1 decisions (implemented in `packages/learn-render/motion/`, 2026-10-04):**
 
 - Composition module: `export const stage = {width: 1920, height: 1080, fps: 30, durationInFrames}` as number literals, plus `export default` the component. The harness owns the Remotion root and the bundled-font loading.
-- Approved imports: `react` (default, `Fragment`, `useMemo`, `useRef`, `useLayoutEffect`) and `remotion` (`AbsoluteFill`, `Sequence`, `Series`, `Freeze`, `Loop`, `Easing`, `interpolate`, `interpolateColors`, `spring`, `measureSpring`, `random`, `useCurrentFrame`, `useVideoConfig`). Not approved: the lecture `Code` primitive (unbundled system monospace fonts) and rough.js (unseeded shapes call `Math.random`). Fonts: Inter and Virgil only; no monospace font is bundled yet.
+- Approved imports: `react` (default, `Fragment`, `useMemo`, `useRef`, `useLayoutEffect`) and `remotion` (`AbsoluteFill`, `Sequence`, `Series`, `Freeze`, `Loop`, `Easing`, `interpolate`, `interpolateColors`, `spring`, `measureSpring`, `random`, `useCurrentFrame`, `useVideoConfig`). Not approved: the lecture `Code` primitive (unbundled system monospace fonts) and rough.js (unseeded shapes call `Math.random`).
+- Fonts (owner decision 2026-10-04 adds the monospace face): Inter 400/500, Virgil, and **JetBrains Mono 2.304 Regular 400 only** for code walkthroughs.
+  - JetBrains Mono comes from the official release `JetBrainsMono-2.304.zip`, with `OFL.txt` copied verbatim to `assets/fonts/JetBrainsMono-OFL.txt`. It is sha256-pinned.
+  - All fonts load from the bundled woff2 through `src/motion/fonts.jsx`, and a failed face cancels the render. There is no network font loading.
+  - Generic families such as `monospace` are rejected by static validation, so code never falls back to a system font.
+  - Code highlights use colour, not weight.
+  - The stage logs the loaded faces (`MOTION_FONTS`).
+  - Demo B (`motion/fixtures/demo-b/`) and `node scripts/motion.mjs font-proof` prove the faces load and render identically in two fresh contexts.
+- Development render service and the Motion video carrier: §10.2 and §18.
 - Source-size cap: 64 KiB. Static validation parses with `@babel/parser`; webpack refuses any non-allowlisted import at bundle time as a second layer.
 - Preview scale 0.45 (864×486): Remotion needs whole, even output dimensions, and 854×480 is not a uniform scale of 1920×1080.
 - Final encoding: h264, yuv420p, bt709, muted while `narration_policy` is `none`. The duration check reads the video stream.
@@ -1631,7 +1740,7 @@ Fresh visual and pedagogical reviewers; harness classification (§13); one repai
 
 ## M7 — final render and insertion (development only)
 
-Final render, final validation, Motion provider in LearnVideos, `LEARN_MEDIA` storage, `insertBlock({type: 'video', …})` in a development environment. Narration may be enabled here only after silent runs pass.
+Final render, final validation, `LEARN_MEDIA` storage and `insertBlock({type: 'video', …})` in a development environment. The Motion provider and the `motion_render` carrier already exist since M1 (§18); M7 connects them to the orchestrated pipeline. Narration may be enabled here only after silent runs pass.
 
 ## M8 — end-to-end development demonstration
 
@@ -1649,6 +1758,8 @@ Before any production work, with a separate explicit GO, review:
 - observability
 - abuse/resource caps
 - the licence items in §34
+
+**Hard release gate:** M9 / public production `/motion` MUST NOT launch until Remotion's commercial licensing requirements have been reviewed and satisfied (§34). This is a release gate, not a code problem; nothing in the code tries to solve licensing.
 
 ---
 
@@ -1848,7 +1959,7 @@ V1 development uses the existing `LEARN_MEDIA` binding and LearnVideos key schem
 - Do not run ffmpeg, Chromium or generated code inside any Cloudflare Worker.
 - All new Rabbit Hole resources, development or permanent, use `rabbit-hole-*` names, in the Rabbit Hole Cloudflare account and Fly org.
 - Never create a new `small-*` resource. Existing `small-*` names (for example the `small-learn-media-dev` bucket behind `LEARN_MEDIA`, or `small-math-renderer-dev`) appear in this spec only because they refer to existing resources awaiting migration or retirement.
-- Creating `rabbit-hole-motion-renderer-dev` (§10.2) requires explicit approval before deployment.
+- `rabbit-hole-motion-renderer-dev` (§10.2) is the approved development render service (owner decision 2026-10-04). Home creates the app in the `rabbit-hole` Fly org, sets `MOTION_RENDERER_TOKEN` and deploys it; nothing on the Motion branch mutates infrastructure.
 
 Likely production topology (M9, not V1):
 
@@ -1888,15 +1999,16 @@ Get one renderer and one workflow extremely reliable first.
 
 ---
 
-# 34. Release / legal checklist
+# 34. Production-release checklist (release / legal)
 
-These are owner/legal review items, not architectural blockers for the development harness:
+These are owner/legal review items. None of them blocks the M0–M8 development harness:
 
-- **Remotion licence.** Free for individuals, non-profits and for-profit organizations with up to 3 employees; larger for-profit organizations need a company licence. Check before broad commercial production use.
+- **Remotion licence: HARD RELEASE GATE** (owner decision 2026-10-04). M9 / public production `/motion` MUST NOT launch until Remotion's commercial licensing requirements have been reviewed and satisfied. Today Remotion is free for individuals, non-profits and for-profit organizations with up to 3 employees; larger for-profit organizations need a company licence. Licensing is not solved in code.
 - **GSAP licence.** Free under GSAP's standard "no charge" licence, which prohibits use in tools that let users build animations without code in competition with Webflow's visual animation features. Not used in V1 (§9.2); review before any Motion use.
 - **HyperFrames licence.** Apache-2.0. Review only if it becomes an adapter.
 - **Fish Audio** terms for generated narration in distributed videos, when narration ships.
 - **nanoGPT** (MIT) excerpts shown in videos keep their attribution in provenance.
+- **JetBrains Mono** (SIL OFL 1.1) is bundled unmodified with its licence file, `assets/fonts/JetBrainsMono-OFL.txt` ("Copyright 2020 The JetBrains Mono Project Authors"). Redistributing it inside the renderer is allowed; the font is not sold on its own.
 
 ---
 

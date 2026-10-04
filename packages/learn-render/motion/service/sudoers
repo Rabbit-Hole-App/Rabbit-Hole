@@ -1,0 +1,4 @@
+# /etc/sudoers.d/motion: the service user may start the sandbox launcher as root and nothing
+# else. The launcher validates its one argument (the render id) and builds every path itself.
+Defaults:motion-svc env_reset, !requiretty, !lecture
+motion-svc ALL=(root) NOPASSWD: /usr/local/sbin/motion-sandbox

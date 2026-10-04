@@ -1,0 +1,37 @@
+#!/bin/sh
+# Runs as root INSIDE the new namespaces made by motion-sandbox, then becomes the render child.
+# Installed root-owned at /usr/local/lib/motion/sandbox-init. Nothing here reaches the host:
+# every mount is private to this mount namespace and vanishes with it.
+set -eu
+ID=$1
+JOB=/var/motion/jobs/$ID
+
+# Network: a fresh namespace has only loopback, down. Bring it up for Remotion's local bundle
+# server; there is no route anywhere else.
+ip link set lo up
+
+# Filesystem: nothing propagates back to the host.
+mount --make-rprivate /
+# Private, size-capped scratch (Chromium's profile and temp files, the bundle, the frames).
+mount -t tmpfs -o size=1536m,mode=1777,nosuid,nodev tmpfs /tmp
+mount -t tmpfs -o size=256m,mode=1777,nosuid,nodev tmpfs /dev/shm
+# Only this job's directory is re-exposed, at /tmp/job; the service's job tree, the homes and
+# Fly's own directory are replaced by empty mounts.
+mkdir /tmp/job
+mount --bind "$JOB" /tmp/job
+mount -t tmpfs -o size=1m,mode=755 tmpfs /var/motion
+mount -t tmpfs -o size=1m,mode=755 tmpfs /home
+mount -t tmpfs -o size=1m,mode=700 tmpfs /root
+if [ -d /.fly ]; then mount -t tmpfs -o size=1m,mode=700 tmpfs /.fly; fi
+# The renderer (code, node_modules, Chrome, fonts) is read-only for the child.
+mount --bind /app /app
+mount -o remount,bind,ro /app
+
+# The child: the motion-render user (group motion, so the service can remove what it writes),
+# no supplementary groups, no capabilities, no new privileges, an empty environment, a 64 MB
+# per-file write limit and a bounded number of open files.
+umask 007
+exec setpriv --reuid=motion-render --regid=motion --clear-groups --no-new-privs --inh-caps=-all --bounding-set=-all -- \
+  env -i HOME=/tmp TMPDIR=/tmp PATH=/usr/local/bin:/usr/bin:/bin NODE_ENV=production MOTION_SANDBOX=linux \
+  prlimit --fsize=67108864 --nofile=4096 -- \
+  /usr/local/bin/node /app/packages/learn-render/motion/service/child.mjs /tmp/job

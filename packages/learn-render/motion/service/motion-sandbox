@@ -1,0 +1,20 @@
+#!/bin/sh
+# Runs one Motion render child in a fresh sandbox (spec §10.2). Installed root-owned at
+# /usr/local/sbin/motion-sandbox; the service user may run it through sudo with ONE argument,
+# the 32-hex render id. Every path is built here from that id; nothing else is accepted.
+#
+# The child gets new network, PID, mount, IPC and UTS namespaces (unshare), so it has only
+# loopback, sees only its own processes and its own mounts; sandbox-init then hides the
+# service's files and drops to the motion-render user with no capabilities and no environment.
+# `timeout` is the hard backstop just above the service's 420 s limit; when it fires, or when
+# the service's SIGTERM arrives through sudo, unshare dies and --kill-child ends the whole PID
+# namespace, so no Chromium or ffmpeg outlives the job.
+set -eu
+ID=${1:-}
+case "$ID" in ''|*[!0-9a-f]*) echo "motion-sandbox: render id must be 32 lowercase hex" >&2; exit 64 ;; esac
+[ "${#ID}" -eq 32 ] || { echo "motion-sandbox: render id must be 32 lowercase hex" >&2; exit 64; }
+JOB=/var/motion/jobs/$ID
+[ -d "$JOB" ] && [ ! -L "$JOB" ] || { echo "motion-sandbox: no job directory for $ID" >&2; exit 66; }
+exec timeout --kill-after=5s 425s \
+  unshare --net --pid --mount --ipc --uts --fork --kill-child --mount-proc \
+  /usr/local/lib/motion/sandbox-init "$ID"

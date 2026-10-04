@@ -1,0 +1,8 @@
+# Files that run inside the Linux render images: LF on every checkout and in `git archive`
+# (core.autocrlf=true hosts would otherwise ship "#!/bin/sh\r" into the image).
+*.sh text eol=lf
+service/motion-sandbox text eol=lf
+service/sandbox-init text eol=lf
+service/sudoers text eol=lf
+service/Dockerfile text eol=lf
+linux/Dockerfile text eol=lf

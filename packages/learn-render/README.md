@@ -43,9 +43,11 @@ Spec: `docs/features/rabbit-hole-motion-v1-harness-spec.md`. No model calls here
 ```
 npm run motion:prove [outDir]   # Demo A: static validation, preview, contact sheet, final + validation,
                                 # determinism (two fresh contexts), network probe, bundle-time allowlist
-node --test "motion/*.test.mjs" # contracts, duration, static validation (no rendering)
+node scripts/motion.mjs font-proof [outDir]   # Demo B: JetBrains Mono loads, identical in two fresh contexts
+node --test "motion/*.test.mjs" "motion/service/service.test.mjs"   # contracts, static checks, the service contract
 sh motion/linux/run.sh docker|unshare   # the same proof on Linux with the network denied
-node scripts/motion-local-check.mjs setup|run <final.mp4>   # local stack: LearnVideos -> LEARN_MEDIA -> video block
+node scripts/motion-local-check.mjs setup|run <final.mp4>   # local stack: Motion render API stand-in -> LearnVideos -> LEARN_MEDIA -> video block
+sh motion/service/context.sh   # deploy context for rabbit-hole-motion-renderer-dev (Home deploys)
 ```
 
 - `motion/contracts.js`: the canonical MotionBrief, storyboard, Author output, finding and
@@ -54,7 +56,8 @@ node scripts/motion-local-check.mjs setup|run <final.mp4>   # local stack: Learn
 - `motion/static-check.js`: §8.2 rules for composition source (@babel/parser 7.24.1, MIT).
   Imports: `react` (useMemo, useRef, useLayoutEffect, Fragment) and `remotion` (AbsoluteFill,
   Sequence, Series, Freeze, Loop, Easing, interpolate, interpolateColors, spring,
-  measureSpring, random, useCurrentFrame, useVideoConfig). Fonts: Inter, Virgil. Cap 64 KiB.
+  measureSpring, random, useCurrentFrame, useVideoConfig). Fonts: Inter, Virgil, JetBrains Mono
+  (2.304 Regular, OFL-1.1, assets/fonts/JetBrainsMono-OFL.txt); no generic families. Cap 64 KiB.
 - `motion/remotion-renderer.mjs`: `RemotionRenderer`, the §9.4 adapter. Bundles
   `src/motion/index.jsx` with the job's composition aliased in, refuses non-allowlisted
   imports at bundle time, injects a self-only CSP into the bundle page, renders preview
@@ -62,7 +65,18 @@ node scripts/motion-local-check.mjs setup|run <final.mp4>   # local stack: Learn
   none), stills, the labelled contact sheet, and validates the final with the compositor's
   ffprobe. Bundles and MP4s are cached by content hash.
 - `motion/fixtures/`: §27 demos, verbatim source excerpts at pinned SHAs, and the
-  hand-written Demo A brief, storyboard and composition.
+  hand-written Demo A and Demo B briefs, storyboards and compositions.
+- `motion/service/`: the DEV render service `rabbit-hole-motion-renderer` (spec §10.2).
+  `server.mjs` (GET /health; Bearer `MOTION_RENDERER_TOKEN`: POST /render a motion-render/1
+  job, GET /render/<id>, GET /render/<id>/artifacts/<name>), one render at a time (429),
+  420 s, 25 MB. `child.mjs` renders one job (preview, contact sheet, final, validation, two-context
+  determinism, preview/final comparison) inside `motion-sandbox` / `sandbox-init`: unshare
+  net/pid/mount/ipc/uts, the motion-render user, empty environment, private /tmp, service files
+  hidden, renderer read-only. `Dockerfile` + `fly.dev.toml` for Home; `service.linux.test.mjs`
+  runs in that image.
+- `motion/video-block.js`: the existing `type: "video"` block for a finished render
+  (`operation: {op: "motion_render", render_id}` + Motion metadata); LearnVideos pulls the MP4
+  through `MotionProvider` (packages/control-plane/src/motion-provider.js).
 
 Windows renders are authoring evidence only (spec §10.3). Frame hashes are compared within
 one OS image: Chromium rasterizes text differently across OSes, so Windows and Linux hashes
