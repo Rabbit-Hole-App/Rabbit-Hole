@@ -41,3 +41,10 @@ test('the shared canvas page shows the product top left: the aperture mark and t
   const page = readFileSync(new URL('./SharedBoardPage.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   assert.match(page, /<header[^>]*>\n\s+\{\/\* The product, top left[^\n]*\n\s+<a href="\/" data-shared-brand[^>]*>\n\s+<img src="\/landing\/favicon-32-v1\.png"[^>]*\/>\n\s+<span[^>]*>\{PRODUCT\}<\/span>/);
 });
+
+test('the canvas top bar opens the new fork with navigate, which LearnPage imports (lost once in a rebase onto goBack)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const learn = readFileSync(new URL('./LearnPage.jsx', import.meta.url), 'utf8');
+  assert.match(learn, /onForked=\{fork => navigate\(fork\.url\)\}/);
+  assert.match(learn, /^import \{[^}]*\bnavigate\b[^}]*\} from '\.\/api\.js';/m);
+});
