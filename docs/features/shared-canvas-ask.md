@@ -37,12 +37,16 @@ sees, and nothing is written to the owner's board, threads or any owner data. Ke
   snapshot that is gone answers from the canvas only, with a notice under the answer.
   **Backfill:** a link made before this shipped has no pin row; it is pinned at its first open or ask after the
   deploy (the repository's commit then), and holds from then on.
-- **C. A share link never grants a private repository by itself.** A repository's code, name and commit reach the
-  page and the model only when it is confirmed public, or private and its owner switched on "Answers can read the
-  private repository" for this link. The server decides from its own rows; nothing the client sends counts.
-  Unknown visibility is private.
+- **C. A share link never grants a private repository by itself.** A public repository's code is used normally, at
+  the pinned commit. A private one's code, name and commit reach the page and the model only when its owner switched
+  on "Allow questions to use private repository code" for this link (Share panel: "Signed-in viewers' questions can
+  use code from <repo> at <short commit>, the revision pinned for this link. Off: only this canvas's cards, notes
+  and sources."). Off by default and for every new link, per share, kept and enforced on the server; nothing the
+  client sends counts. Off, questions use only the shared canvas's cards, notes and content and its explicitly
+  shared sources - never the repository's files. Unknown visibility is private.
 - **D. Limits and usage.** Sign-in is required; each admitted question is one `shared_canvas_ask` usage event and
-  counts against per-viewer and per-share limits (one config place, below). Over a limit: 429 with a message that
+  counts against per-viewer and per-share limits (one config place, below). Usage & Credits will meter it to the
+  viewer, the signed-in account that asked - never to the owner because someone opened their share. Over a limit: 429 with a message that
   says which, shown in the viewer's window, with the question put back in the composer. No limit or failure touches
   the owner's canvas.
 - **E. Citations stay plain text.** File citations such as `model.py:62-64` are not clickable on a shared page and
@@ -111,7 +115,10 @@ The usage event is the `shared_ask_events` row the admission inserts:
 `{ id, category: 'shared_canvas_ask', asked_at (unix seconds), viewer_email, board_id, owner_email, repository (0/1) }`.
 Never the question, the answer, the history or any source; the board id, not the link's token. It is written only
 when a question is admitted, before the model call, so a refused request (400, 401, 404, 429, 503) writes nothing
-and a failed model call still counts. `ponytail:` rows are never pruned; Usage & Credits takes them over when it lands.
+and a failed model call still counts. Billing (owner, 2026-10-04): when Usage & Credits lands it meters
+`shared_canvas_ask` to `viewer_email`, the requester; `owner_email` only records whose share it was and is never
+charged. No second billing system: these rows are the event it reads. `ponytail:` rows are never pruned; Usage &
+Credits takes them over when it lands.
 
 ## API
 
@@ -158,8 +165,11 @@ From `packages/control-plane`, once a deploy is approved, before the code that r
 
 1. `learn-migrations/0004-canvas-forks.sql` ([canvas-forking.md](canvas-forking.md)).
 2. `learn-migrations/0005-shared-canvas-v1.sql`: `board_repository_pins`, `repository_visibility`,
-   `shared_ask_events`, and the visibility backfill (every existing `repository_apps` row came in through the
-   anonymous import, so each is marked public as of its `created_at`). Dev:
+   `shared_ask_events`. Tables and indexes only, **no backfill** (owner, 2026-10-04: a migration never broadens
+   visibility; nothing stored before it says a repository is public). Every existing repository stays unknown, so
+   private to shares, until its owner imports or refreshes it (the anonymous `git ls-remote` marks it public) or
+   switches on private repository code for a link. So after this ships, an existing public repository's shares show
+   no repository pill and read no code until its owner refreshes it. Dev:
    `npx wrangler d1 execute rabbit-hole-learn-dev --remote -c wrangler.rabbit-hole-dev.jsonc --file learn-migrations/0005-shared-canvas-v1.sql`;
    production: `rabbit-hole-learn-prod` with `-c wrangler.rabbit-hole-prod.jsonc` (names from those configs' `LEARN_DB`).
 
@@ -169,8 +179,10 @@ import still works (its visibility write is best effort and leaves the repositor
 ## Verification
 
 - `packages/control-plane/test/shared-canvas-ask.test.js` (8, the original spec) and `test/shared-canvas-v1.test.js`
-  (16: A 1, B 4, C 5, D 5, F 1), both on `test/shared-canvas-fixture.js`; `test/repositories.test.js` "C visibility"
-  (import, refresh, refusal, outage).
+  (18: A 1, B 4, C 6, D 5, F 1, Lineage 1), both on `test/shared-canvas-fixture.js`. "C migration" applies 0005 to a
+  database with existing repositories and proves none becomes public and the file writes no rows. "Lineage": a fork
+  of a fork is owned and editable by its forker, names its source, keeps parent, root and the pinned revision.
+  `test/repositories.test.js` "C visibility" (import, refresh, refusal, outage).
 - `packages/web/src/shared-ask.test.mjs` (9: the original 4, then A, B, C, D, F).
 - `packages/web/e2e/shared-canvas-ask-check.mjs` (local stack only, the ask route scripted in the browser, the app
   worker run without model keys): the original walk plus the pinned commit across an owner refresh, `/` as a plain

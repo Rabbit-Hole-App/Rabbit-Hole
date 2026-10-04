@@ -125,7 +125,8 @@ grades and share settings are never read. The fork starts private.
   title snapshot, ↗ available/unavailable without leaks, direct counts, permissions, double click
   and retry. `learn-boards.test.js` keeps the original shared-board fork test.
 - `test/shared-canvas-v1.test.js`: "A chat" (a fork stores none of the viewer's chat, whatever the
-  request carries), "B pin: a fork records the revision..." and "C permission: a fork never opens up...".
+  request carries), "B pin: a fork records the revision...", "C permission: a fork never opens up..." and
+  "Lineage" (a fork of a fork: owned and editable by its forker, source title, parent, root and pinned revision).
 - `packages/web/src/canvas-fork.test.mjs`, `home/canvas-local.test.mjs`, `home/provenance.test.mjs`.
 - `packages/web/e2e/canvas-forking-check.mjs` (local stack only, 21 checks): top-bar double click,
   rename, ↗, Library `[Open] [Fork]`, counts, a second person forking through a link, and the

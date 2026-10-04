@@ -127,6 +127,8 @@ export const sharedAskLimits = env => Object.fromEntries(Object.entries(SHARED_A
 // is the usage event - category, time, viewer, shared board, its owner, whether repository code was in context;
 // never the question, the answer or any source - and the rate-limit count. A refusal writes nothing and says which
 // limit, as a 429. A share's budget is its board's (learn_boards.id), so a new link does not reset it.
+// Billing (owner, 2026-10-04): Usage & Credits will meter shared_canvas_ask to viewer_email, the signed-in account that
+// asked - never to owner_email, which only says whose share it was: someone opening a share never costs its owner.
 // ponytail: rows are never pruned (the caps read one day); prune or roll up when Usage & Credits takes them over.
 async function admitAsk(env, row, viewer, repository) {
   const db = env.LEARN_DB, limits = sharedAskLimits(env), now = Math.floor(Date.now() / 1000);

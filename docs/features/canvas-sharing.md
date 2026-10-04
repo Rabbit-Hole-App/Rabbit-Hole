@@ -10,9 +10,10 @@ A learner shares a canvas board by link. Dev only, like the rest of Learn.
     view. **Public** makes the view link work without signing in.
   - Turning a link off revokes it; turning it on again makes a new one, pinned again to the
     repository's current commit (a link keeps its pin through the owner's refreshes).
-  - **Answers can read the private repository** (only for a private repository of yours, off for every
-    new link): viewers' answers may read its code at the pinned commit. Off, a link shows nothing of
-    the repository. See [shared-canvas-ask.md](shared-canvas-ask.md).
+  - **Allow questions to use private repository code** (only for a private repository of yours, off
+    for every new link): signed-in viewers' questions may use its code at the commit pinned for this
+    link. Off, a link shows nothing of the repository and questions use only the canvas's cards, notes
+    and sources. See [shared-canvas-ask.md](shared-canvas-ask.md).
 - Anyone with an account can open a link after the usual email sign-in (any
   email). Links look like `/b/<token>`.
 - Shared boards are always view-only: pan and zoom, no toolbar, no edits.
