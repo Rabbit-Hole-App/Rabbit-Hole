@@ -4,6 +4,7 @@ import { setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
 import ForkButton from './ForkButton.jsx';
 import { forkLabel } from './home/provenance.js';
 import { Forks } from './home/Provenance.jsx';
+import { PRODUCT } from './flags.js';
 
 const AdaptiveCanvas = lazy(() => import('./AdaptiveCanvas.jsx'));
 
@@ -61,6 +62,11 @@ export default function SharedBoardPage({ token }) {
   return (
     <main className="flex h-screen flex-col bg-white">
       <header className="flex shrink-0 items-center gap-3 border-b border-line px-4 py-2">
+        {/* The product, top left (owner, 2026-10-04): the aperture mark and the name, to the site home. */}
+        <a href="/" data-shared-brand className="flex shrink-0 items-center gap-2 border-r border-line pr-3 no-underline" aria-label={`${PRODUCT} home`}>
+          <img src="/landing/favicon-32-v1.png" alt="" width="20" height="20" className="h-5 w-5 rounded-sm" />
+          <span className="text-sm font-semibold text-ink">{PRODUCT}</span>
+        </a>
         <span className="text-sm font-semibold text-ink">{shared.title || (shared.board === 'main' ? shared.app : shared.board)}</span>
         <span className="flex items-center gap-1 rounded-full bg-hover px-2 py-0.5 text-xs text-ink-2"><Eye size={11} />View only</span>
         <span className="truncate text-xs text-ink-3">Shared by {shared.owner}</span>
