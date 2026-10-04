@@ -111,7 +111,7 @@ const Branches = ({ f }) => {
 
 export default function SoftmaxInAttention() {
   const f = useCurrentFrame();
-  const dim = 1 - 0.82 * during(f, 11, 13.4);
+  const dim = 1 - 0.94 * during(f, 11, 13.4);
   const takeaway = ramp(f, 13.35, 13.85);
   return (
     <AbsoluteFill style={{ backgroundColor: '#FFFFFF' }}>
