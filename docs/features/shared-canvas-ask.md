@@ -45,7 +45,7 @@ sees, and nothing is written to the owner's board, threads or any owner data. Ke
   client sends counts. Off, questions use only the shared canvas's cards, notes and content and its explicitly
   shared sources - never the repository's files. Unknown visibility is private.
 - **D. Limits and usage.** Sign-in is required; each admitted question is one `shared_canvas_ask` usage event and
-  counts against per-viewer and per-share limits (one config place, below). Usage & Credits will meter it to the
+  counts against per-viewer and per-share-link limits (one config place, below). Usage & Credits will meter it to the
   viewer, the signed-in account that asked - never to the owner because someone opened their share. Over a limit: 429 with a message that
   says which, shown in the viewer's window, with the question put back in the composer. No limit or failure touches
   the owner's canvas.
@@ -66,7 +66,7 @@ public at that moment. There is no GitHub API flag and no stored token.
 | Table (LEARN_DB) | Columns | Written by | Read by |
 |---|---|---|---|
 | `repository_visibility` | `app_id` (= `repository_apps.id`), `visibility` (`'public'`), `checked_at` | `repositories.js` `enqueue` on import and refresh: `public` when the anonymous read succeeds; the row is deleted when the indexer refuses a refresh (private now, gone, or branch gone). An outage leaves it. | `shareSource` |
-| `board_repository_pins` | `board_id` (= `learn_boards.id`), `repository_id`, `commit_sha`, `view_token` (the link it was taken for; NULL for a fork's inherited revision), `repo_access` (0/1), `pinned_at` | `share()` and the first open or ask of an unpinned link (`sharePin`); the fork batch (inherited row); `POST .../share/repository` (`repo_access` only) | `shareSource`, `boardRevision` |
+| `board_repository_pins` | `board_id` (= `learn_boards.id`), `repository_id`, `commit_sha`, `share_key` (the link it was taken for, as its one-way key; NULL for a fork's inherited revision), `repo_access` (0/1), `pinned_at` | `share()` and the first open or ask of an unpinned link (`sharePin`); the fork batch (inherited row); `POST .../share/repository` (`repo_access` only) | `shareSource`, `boardRevision` |
 
 `shareSource` (`learn-shared-ask.js`) decides, on every open, ask and fork:
 
@@ -105,15 +105,24 @@ atomic-insert pattern on its own LEARN_DB table, with the caps in one place:
 |---|---|---|
 | `SHARED_ASK_VIEWER_HOUR` | 20 | one signed-in viewer's questions on any shared canvas, last hour |
 | `SHARED_ASK_VIEWER_DAY` | 60 | the same, last 24 hours |
-| `SHARED_ASK_SHARE_HOUR` | 60 | every viewer's questions on one shared board (all its links), last hour |
+| `SHARED_ASK_SHARE_HOUR` | 60 | every viewer's questions through one share link, last hour |
 | `SHARED_ASK_SHARE_DAY` | 300 | the same, last 24 hours |
 
 `SHARED_ASK_LIMITS` and `sharedAskLimits(env)` in `learn-shared-ask.js` are that place; none is set in a wrangler
-config, so the defaults apply until one is.
+config, so the defaults apply until one is. They are V1 launch protection, not product policy.
+
+**The share bucket is the share link, never the board** (owner, 2026-10-04): a board's links can differ in audience,
+private-repository permission, lifecycle and traffic. A link is identified on the server by its `share_key`:
+`shareKey(token)` in `learn-shared-ask.js`, the SHA-256 of `shared-canvas-link:<token>`. Tokens are 24 random bytes, so
+the key is one-way and unguessable; it needs no secret (the app worker has none suitable), and there is no separate
+share record id - the token on `learn_boards` is the share record. Two questions through one link land in one bucket;
+a link switched off and on is a new token, so a new key and a fresh budget, and the old link answers 404. The raw token
+is never stored outside `learn_boards`, logged, or put in a usage row, pin, error body or reply. The viewer bucket is
+the signed-in viewer's email, across every link.
 
 The usage event is the `shared_ask_events` row the admission inserts:
-`{ id, category: 'shared_canvas_ask', asked_at (unix seconds), viewer_email, board_id, owner_email, repository (0/1) }`.
-Never the question, the answer, the history or any source; the board id, not the link's token. It is written only
+`{ id, category: 'shared_canvas_ask', asked_at (unix seconds), viewer_email, share_key, board_id, owner_email, repository (0/1) }`.
+Never the question, the answer, the history, any source or the link's token. It is written only
 when a question is admitted, before the model call, so a refused request (400, 401, 404, 429, 503) writes nothing
 and a failed model call still counts. Billing (owner, 2026-10-04): when Usage & Credits lands it meters
 `shared_canvas_ask` to `viewer_email`, the requester; `owner_email` only records whose share it was and is never
@@ -179,7 +188,10 @@ import still works (its visibility write is best effort and leaves the repositor
 ## Verification
 
 - `packages/control-plane/test/shared-canvas-ask.test.js` (8, the original spec) and `test/shared-canvas-v1.test.js`
-  (18: A 1, B 4, C 6, D 5, F 1, Lineage 1), both on `test/shared-canvas-fixture.js`. "C migration" applies 0005 to a
+  (20: A 1, B 4, C 6, D 7, F 1, Lineage 1), both on `test/shared-canvas-fixture.js`. "D links": two live links of one
+  board have separate share buckets and the viewer's bucket spans both; "D limits" (second): a link over its limit, then
+  off and on - the old link 404s, the new one has its own key and budget; "D tokens": no raw token in logs, usage rows,
+  pins or replies. "C migration" applies 0005 to a
   database with existing repositories and proves none becomes public and the file writes no rows. "Lineage": a fork
   of a fork is owned and editable by its forker, names its source, keeps parent, root and the pinned revision.
   `test/repositories.test.js` "C visibility" (import, refresh, refusal, outage).
