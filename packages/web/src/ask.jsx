@@ -14,6 +14,7 @@ import { colorLine } from './code.jsx';
 import { MathText, tokenizeMath } from './MathText.jsx';
 import { MODEL_CHOICES } from './model-choices.js';
 import { canvasTargetField } from './learn-ask-target.js';
+import { waitingText } from './waiting-text.js';
 import { cn, CodeBlock, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
 
 // What the agent may read, per scope - the ⚙ picker mirrors Notion's "My sources".
@@ -870,7 +871,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
                 </button>
               )}</>
             ) : (
-              <span className="flex items-center gap-2 text-xs text-ink-2"><Loader2 size={14} className="animate-spin text-ink-3" /><span className="shimmer">{m.status || 'Thinking…'}</span></span>
+              <span className="flex items-center gap-2 text-xs text-ink-2"><Loader2 size={14} className="animate-spin text-ink-3" /><span className="shimmer">{waitingText(m.status)}</span></span>
             )}
           </div>
         ))}

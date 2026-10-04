@@ -57,7 +57,7 @@ function fakeCanvas(blocks) {
   const canvas = {
     calls,
     blocks: () => blocks,
-    focusBlock: id => calls.push(['focus', id]),
+    revealBlock: id => calls.push(['focus', id]),
     insertBlock: inserted => { const id = crypto.randomUUID(); blocks.push({ ...inserted, id }); calls.push(['insert', inserted.scene?.id]); return id; },
     updateBlock: (id, change) => { const at = blocks.findIndex(entry => entry.id === id); blocks[at] = change(blocks[at]); calls.push(['update', id]); return true; },
   };

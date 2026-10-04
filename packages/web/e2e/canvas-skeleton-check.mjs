@@ -6,15 +6,20 @@
 //   control plane: npx wrangler dev -c <control-plane config> --local --persist-to <dir> --port 8849
 // Usage: BASE=http://127.0.0.1:8848 SMALL_CP=http://127.0.0.1:8849 node e2e/canvas-skeleton-check.mjs [shotsDir]
 // It proves, with screenshots mid-wait and after:
-//   A. /explain: the skeleton is there at once, the camera glides to it, and the card replaces it in place.
+//   A. /explain: the skeleton is there at once at the explanation's typical height, the camera glides it to the centre
+//      of the visible canvas without touching the zoom, and the card replaces it in place.
 //   B. Layout: the cards below make room for the skeleton, and close up (or not) to the card's measured height.
 //   C. A clarification and a failure leave no skeleton.
+//   P. A paid command (/animate) shows its proposal and no skeleton; Cancel shows none; Generate shows one, and the
+//      confirmed card takes its slot.
 //   D. Sharing and forks: a push made while a skeleton waits, and a fork of that board, carry no skeleton.
 //   E. Research: no skeleton while searching; one at the committed "Opening…", filled by the paper; a suppressed
 //      article's goes when the answer ends; a paper already on the canvas takes the slot's place.
-//   F. The Tutor: "show me this visually" holds the place before the plan and the card fills it, selected and framed;
+//   F. The Tutor: "show me this visually" holds the place before the plan and the card fills it, selected, at the
+//      learner's zoom, inside the part of the canvas the open chat leaves visible;
 //      a question gets none; text only, Stop, a failure and a timeout leave none; a card already there is focused.
 //   G. A pending Rabbit Hole is not kept by a skeleton - only by the card - and the card opens at the asked part.
+//   The chat status reads "Preparing answer…": one ellipsis character, never "......".
 import { chromium } from '@playwright/test';
 import http from 'node:http';
 import { readFileSync, mkdirSync } from 'node:fs';
@@ -61,6 +66,9 @@ await page.route('**/api/learn/tutor/plan', async route => { const { context: se
 await page.route('**/api/learn/ask', route => route.continue({ url: `http://127.0.0.1:${sse.address().port}/ask` }));
 await page.route(/\/api\/learn\/(assess|voice|selection|board|home-ask)/, route => { if (route.request().method() === 'GET') return route.continue(); refused.push(route.request().url()); return route.abort(); });
 await page.route('**/api/learn/paper**', route => route.fulfill({ status: 404, json: { error: 'not in this check' } }));
+// A confirmed paid card starts its own job: refused here and counted, so nothing paid ever runs.
+const paidStarts = [];
+await page.route(/\/api\/learn\/(video|scene)\?/, route => { if (route.request().method() === 'GET') return route.continue(); paidStarts.push(route.request().url()); return route.fulfill({ status: 503, json: { error: 'not in this check' } }); });
 await page.route('**/api/canvases/dives', route => { if (route.request().method() === 'POST') dives.push(route.request().postDataJSON()); return route.continue(); });
 await page.route(/\/api\/learn\/boards\/[^/]+\/[^/]+$/, route => { if (route.request().method() === 'PUT') pushes.push(route.request().postData()); return route.continue(); });
 
@@ -79,6 +87,16 @@ const column = () => page.evaluate(() => {
 const camera = () => page.evaluate(() => [...document.querySelector('[data-canvas-surface]').children].find(node => node.style.transform)?.style.transform);
 const surface = () => page.locator('[data-canvas-surface]').boundingBox();
 const visible = async locator => { const [box, frame] = [await locator.boundingBox(), await surface()]; return !!box && box.y >= frame.y - 1 && box.y < frame.y + frame.height - 120 && box.x >= frame.x - 1 && box.x + box.width <= frame.x + frame.width + 1; };
+const zoom = async () => Number((await camera()).match(/scale\(([\d.]+)\)/)[1]);
+// What the learner can see of the canvas: the surface less the open chat sheet above the composer, 24 px in.
+const freeArea = () => page.evaluate(() => {
+  const frame = document.querySelector('[data-canvas-surface]').getBoundingClientRect(), sheet = document.querySelector('[data-chat-sheet]')?.getBoundingClientRect();
+  const bottom = sheet && sheet.height && sheet.top < frame.bottom ? Math.min(frame.bottom, sheet.top) : frame.bottom;
+  return { left: frame.left + 24, top: frame.top + 24, right: frame.right - 24, bottom: bottom - 24, sheet: sheet && sheet.height ? { top: sheet.top, left: sheet.left, right: sheet.right, bottom: sheet.bottom } : null };
+});
+const inFree = async locator => { const [box, area] = [await locator.boundingBox(), await freeArea()]; return box.x >= area.left - 2 && box.y >= area.top - 2 && box.x + box.width <= area.right + 2 && box.y + box.height <= area.bottom + 2; };
+// Centred where the camera had to move (here, up or down); an axis already in view is left alone.
+const centred = async locator => { const [box, area] = [await locator.boundingBox(), await freeArea()]; return Math.abs(box.y + box.height / 2 - (area.top + area.bottom) / 2) < 3 && box.x >= area.left - 2 && box.x + box.width <= area.right + 2; };
 const selected = id => page.locator(`[data-block-id="${id}"]`).evaluate(node => node.className.includes('ring-2'));
 const stored = () => page.evaluate(() => Object.entries(localStorage).filter(([key]) => key.startsWith('small.adaptive-canvas')).map(([, value]) => value).join('\n'));
 const later = (ms, reply) => sleep(ms).then(() => reply);
@@ -98,8 +116,9 @@ await open(`/apps/${canvas.name}?board=${BOARD}`);
 const box = await surface();
 await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
 for (let i = 0; i < 30; i++) await page.mouse.wheel(0, 1200);
+await page.locator('[data-zoom] [title="Zoom out"]').click(); // the learner's own zoom, 80%: nothing below may change it
 await page.waitForTimeout(600);
-const parked = await camera();
+const parked = await camera(), parkedZoom = await zoom();
 const EXPLAIN = { type: 'explanation', title: 'A token id is only an index', body: 'The embedding table turns the index into a learned vector; everything after works with vectors.' };
 let releaseArtifact;
 artifactNext = () => new Promise(resolve => { releaseArtifact = () => resolve({ json: { result: 'artifact', primitive: 'explanation', block: EXPLAIN } }); });
@@ -112,9 +131,9 @@ await page.waitForTimeout(400); // the 200 ms glide
 const slotA = slots().first();
 check('A2 it says what is being made, with the time waited', /Creating \/explain…/.test(await slotA.getAttribute('aria-label')) && /^\d+\.\ds$/.test(await slotA.locator('[data-slot-elapsed]').innerText()));
 const atReserve = await column(), reservedA = atReserve.find(entry => entry.slot);
-check('A3 sized as an explanation card (440 x its 520 cap)', reservedA.w === 440 && reservedA.h === 520, `${reservedA.w}x${reservedA.h}`);
+check('A3 sized as a typical explanation card (440 x 330), not its 520 cap', reservedA.w === 440 && reservedA.h === 330, `${reservedA.w}x${reservedA.h}`);
 check('A4 it holds the slot the card would take: the end of the column', atReserve.at(-1).slot);
-check('A5 the camera moved to it and it is in view', (await camera()) !== parked && await visible(slotA), `${parked} -> ${await camera()}`);
+check('A5 the camera panned it to the centre of the visible canvas, zoom kept', (await camera()) !== parked && await centred(slotA) && await zoom() === parkedZoom, `${parked} -> ${await camera()}`);
 check('A6 nothing about it is saved', !SLOT_ID.test(await stored()));
 await page.waitForTimeout(1200);
 await shot('01-explain-skeleton-mid-wait');
@@ -126,7 +145,7 @@ const cardA = afterA.at(-1);
 check('A7 the card replaced it in place: same index, same top', !cardA.slot && cardA.top === reservedA.top && afterA.length === atReserve.length, `${cardA.top} vs ${reservedA.top}`);
 check('A8 the card is the explanation', (await page.locator(`[data-block-id="${cardA.id}"]`).innerText()).includes(EXPLAIN.title));
 await page.waitForTimeout(500);
-check('A9 the camera did not jump again: the card is in view', await visible(page.locator(`[data-block-id="${cardA.id}"]`)), `${cameraBefore} -> ${await camera()}`);
+check('A9 no second fit: same zoom, the card in the visible canvas', await zoom() === parkedZoom && await inFree(page.locator(`[data-block-id="${cardA.id}"]`)), `${cameraBefore} -> ${await camera()}`);
 await shot('02-explain-replaced');
 
 // ---- B. Layout in the middle of the column: the cards below make room, then close up to the measured card ----
@@ -174,6 +193,35 @@ await noSlot();
 check('C2 a failure removes the skeleton; the error stays in the composer', (await page.locator('[data-slash-result]').innerText()).includes('unavailable') && (await column()).length === blocksBefore);
 await shot('05-failure-no-ghost');
 
+// ---- P. A paid command: the proposal only; Cancel never shows a skeleton; Generate does, and the card takes it ----
+// Every skeleton that ever enters the DOM is recorded: one painted for a single frame still counts.
+await page.evaluate(() => {
+  window.__slotsSeen = [];
+  new MutationObserver(records => { for (const record of records) for (const node of record.addedNodes) if (node.dataset?.slotId) window.__slotsSeen.push({ label: node.getAttribute('aria-label'), top: node.offsetTop, w: node.offsetWidth, h: node.offsetHeight }); })
+    .observe(document.querySelector('[data-canvas-surface]'), { childList: true, subtree: true });
+});
+const slotsSeen = () => page.evaluate(() => window.__slotsSeen.length);
+const PAID = { type: 'video', mode: 'generate', title: 'Why the sigmoid saturates', src: '', caption: 'An illustration, not measured footage.', operation: { steps: [] }, status: 'idle' };
+artifactNext = () => later(900, { json: { result: 'paid_proposal', primitive: 'maths_animation', block: PAID, message: 'This uses paid generation.' } });
+const paidBlocks = (await column()).length;
+await send('/animate why the sigmoid saturates');
+await page.locator('[data-paid-generate]').waitFor({ timeout: 5000 });
+check('P1 a paid command shows its proposal and no skeleton', (await slotsSeen()) === 0 && (await slots().count()) === 0);
+await shot('05b-paid-proposal-no-skeleton');
+await page.locator('[data-paid-cancel]').click();
+await page.waitForTimeout(800);
+check('P2 Cancel never shows a skeleton or a card', (await slotsSeen()) === 0 && (await column()).length === paidBlocks && paidStarts.length === 0);
+await send('/animate why the sigmoid saturates');
+await page.locator('[data-paid-generate]').waitFor({ timeout: 5000 });
+check('P3 the proposal again: still no skeleton', (await slotsSeen()) === 0);
+await page.locator('[data-paid-generate]').click();
+await waitFor(async () => (await column()).length === paidBlocks + 1, 'the confirmed card');
+await page.waitForTimeout(600);
+const [paidSlot] = await page.evaluate(() => window.__slotsSeen);
+const paidCard = (await column()).find(entry => entry.top === paidSlot?.top);
+check('P4 Generate shows a skeleton, and the confirmed card takes its slot', (await slotsSeen()) === 1 && /Creating \/animate…/.test(paidSlot.label) && !!paidCard && !paidCard.slot && (await page.locator(`[data-block-id="${paidCard.id}"]`).innerText()).includes(PAID.title), JSON.stringify(paidSlot));
+await shot('05c-paid-confirmed-card-in-slot');
+
 // ---- D. Sharing: a push made while a skeleton waits carries none, and neither does a fork of the board ----
 await page.waitForTimeout(2500);
 pushes.length = 0;
@@ -201,6 +249,8 @@ const ask = async (text, script) => { askScript = script; await send(text); };
 await ask('Which paper introduced attention?', [[0, 'progress', { stage: 'Finding papers...' }], [1200, 'progress', { stage: `Opening ${PAPER.title}...`, card: 'paper' }], [2200, 'chunk', { text: 'The Transformer paper.' }], [0, 'paper', PAPER], [0, 'done', { ok: true }]]);
 await page.waitForTimeout(700);
 check('E1 no skeleton while it is only searching', (await slots().count()) === 0);
+const status = await page.locator('[data-chat-sheet] .shimmer').last().innerText();
+check('E1b the chat status ends in one ellipsis character', status === 'Finding papers…', JSON.stringify(status));
 await slots().first().waitFor({ timeout: 3000 });
 await page.waitForTimeout(400);
 const researchSlot = (await column()).find(entry => entry.slot);
@@ -237,7 +287,16 @@ gate.release();
 await page.getByText('so the weights add to one').first().waitFor({ timeout: 15000 });
 check('F1 a normal question gets no skeleton', seen === 0 && (await slots().count()) === 0);
 
-// F2. "Show me this visually": the place is held before the plan answers; the new card fills it, selected and framed.
+// F2. "Show me this visually": the place is held before the plan answers; the new card fills it, selected, at the
+// learner's zoom, inside what the open chat leaves visible. The learner zooms out to 26% (six steps), where a slice
+// card fits above the open chat.
+for (let i = 0; i < 6; i++) await page.locator('[data-zoom] [title="Zoom out"]').click();
+// Parked below the slice, so the skeleton (at the column's end) starts out of view and the camera has to bring it.
+const tutorBox = await surface();
+await page.mouse.move(tutorBox.x + 150, tutorBox.y + 200);
+for (let i = 0; i < 20; i++) await page.mouse.wheel(0, 1200);
+await page.waitForTimeout(500);
+const tutorZoom = await zoom();
 gate = hold();
 const C21 = cardModule('c21-temperature').scene.title;
 planNext = () => gate.held.then(() => ({ json: { strategy: 'none', move: 'show', reason: '', explicit_request: 'Show me this visually', actions: [{ type: 'show_authored_card', card: 'c21-temperature', mode: 'navigate' }, say('Here is temperature, drawn.')] } }));
@@ -246,7 +305,7 @@ await slots().first().waitFor({ timeout: 2000 });
 const plansAtSlot = plans.length;
 await page.waitForTimeout(400);
 const tutorSlot = (await column()).find(entry => entry.slot);
-check('F2 the skeleton is up before the plan has answered, sized as the slice cards', /Creating a card…/.test(await slots().first().getAttribute('aria-label')) && await visible(slots().first()) && tutorSlot.w === 981 && tutorSlot.h === 834, `${plansAtSlot} plan request(s) in flight, ${tutorSlot.w}x${tutorSlot.h}`);
+check('F2 the skeleton is up before the plan has answered, sized as a typical slice card, centred in the visible canvas, zoom kept', /Creating a card…/.test(await slots().first().getAttribute('aria-label')) && await centred(slots().first()) && await zoom() === tutorZoom && tutorSlot.w === 981 && tutorSlot.h === 1014, `${plansAtSlot} plan request(s) in flight, ${tutorSlot.w}x${tutorSlot.h}`);
 await page.waitForTimeout(1500);
 await shot('08-tutor-skeleton-mid-wait');
 gate.release();
@@ -255,10 +314,9 @@ await page.waitForTimeout(800);
 const c21 = (await column()).find(entry => entry.top === tutorSlot.top);
 const c21Node = c21 && page.locator(`[data-block-id="${c21.id}"]`);
 check('F3 the card took the skeleton\'s place', !!c21 && !c21.slot && (await c21Node.innerText()).includes(C21));
-const [cardBox, frame] = [await c21Node.boundingBox(), await surface()];
-const centred = Math.abs(cardBox.x + cardBox.width / 2 - (frame.x + frame.width / 2)) < 4;
-check('F4 the new card is focused after it is laid out: selected, framed, in view', await selected(c21.id) && centred && await visible(c21Node), `centre ${Math.round(cardBox.x + cardBox.width / 2)} vs ${Math.round(frame.x + frame.width / 2)}`);
-await shot('09-tutor-card-replaced-and-focused');
+const area = await freeArea(), cardBox = await c21Node.boundingBox();
+check('F4 the new card is selected at the same zoom, no fit, inside the canvas the open chat leaves visible', await selected(c21.id) && await zoom() === tutorZoom && !!area.sheet && await inFree(c21Node), `card ${JSON.stringify(cardBox)} area ${JSON.stringify(area)}`);
+await shot('09-tutor-card-above-open-chat-same-zoom');
 
 // F5. A visual request the Tutor answers in words only: the skeleton goes, no ghost.
 planNext = () => later(1500, { json: { strategy: 'none', move: 'explain', reason: '', actions: [say('Temperature divides the logits before softmax.')] } });
@@ -295,7 +353,7 @@ await slots().first().waitFor({ timeout: 2000 });
 await noSlot();
 await page.waitForTimeout(800);
 const c11Node = page.locator('[data-block-id]:not([data-chat-block])', { hasText: C11 }).first();
-check('F8 a card already there is focused and nothing is added', (await column()).length === tutorCount && await selected(await c11Node.getAttribute('data-block-id')) && await visible(c11Node));
+check('F8 a card already there is selected and brought into the visible canvas at the same zoom; nothing is added', (await column()).length === tutorCount && await selected(await c11Node.getAttribute('data-block-id')) && await zoom() === tutorZoom && await inFree(c11Node));
 await shot('10-tutor-existing-card-focused');
 
 // F9. A timeout (the Tutor's 60 s): the skeleton goes with the error.
@@ -312,7 +370,7 @@ planNext = sent => later(300, { json: { strategy: 'none', move: 'explain', reaso
 await send('/dive softmax');
 await page.waitForFunction(() => location.search.includes('hole='), null, { timeout: 20000 });
 await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(3000);
-const hole = new URL(page.url()).searchParams.get('hole');
+const hole = new URL(page.url()).searchParams.get('hole'), holeZoom = await zoom();
 dives.length = 0;
 gate = hold();
 planNext = () => gate.held.then(() => ({ json: { strategy: 'none', move: 'show', reason: '', explicit_request: 'Show me the memory part', actions: [{ type: 'focus_part', card: 'depth-attention-deep', part_id: 'memory', mode: 'navigate' }, say('Here is the memory part.')] } }));
@@ -326,6 +384,8 @@ await noSlot();
 await waitFor(async () => dives.length > 0, 'the card keeps the hole', 10000);
 const deep = page.locator('[data-block-id]:not([data-chat-block])', { hasText: cardModule('depth-attention-deep').scene.title }).first();
 check('G2 the card keeps the hole, and opens at the asked part', dives.length === 1 && /3 \/ 4/.test(await deep.locator('[data-pager-readout]').innerText()));
+const [deepBox, holeArea] = [await deep.boundingBox(), await freeArea()];
+check('G3 taller than the visible canvas at the learner\'s zoom: its top just inside the frame, zoom kept', await zoom() === holeZoom && Math.abs(deepBox.y - holeArea.top) <= 2 && deepBox.x >= holeArea.left - 2 && deepBox.x + deepBox.width <= holeArea.right + 2, `${JSON.stringify(deepBox)} ${JSON.stringify(holeArea)}`);
 await shot('12-hole-card-at-part');
 
 check('no page errors', errors.length === 0, errors.join(' | ').slice(0, 300));

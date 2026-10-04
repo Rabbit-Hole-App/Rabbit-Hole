@@ -164,3 +164,21 @@ test('commands that make no card, or make one at once, reserve nothing', async (
     assert.deepEqual(did, [], text);
   }
 });
+
+// A skeleton means a card is committed: a command that can end in a paid proposal holds no place at send, only
+// once the learner confirms Generate; Cancel never shows one.
+test('a paid command holds no place until Generate; Generate holds it and the confirmed card takes it', async () => {
+  const proposal = { result: 'paid_proposal', primitive: 'maths_animation', block: { type: 'video', mode: 'generate' }, message: 'This uses paid generation.' };
+  for (const command of ['/animate why the sigmoid saturates', '/video light through a prism', '/3d a camera frustum']) {
+    const { did, run } = slotHarness(proposal);
+    const out = await run(command);
+    assert.deepEqual(did.map(entry => entry[0]), ['post'], `${command}: the proposal only, no skeleton`);
+    assert.equal(out.proposal.message, 'This uses paid generation.');
+  }
+  const { did, run } = slotHarness(proposal);
+  const out = await run('/animate why the sigmoid saturates');
+  // Cancel: the composer drops the proposal and nothing reaches the canvas.
+  assert.ok(!did.some(entry => entry[0] === 'reserve' || entry[0] === 'block'));
+  out.proposal.generate();
+  assert.deepEqual(did.slice(1), [['reserve', { label: 'Creating /animate…', card: 'mathAnimation' }], ['block', 'video', { into: 'slot:1' }]]);
+});

@@ -81,6 +81,9 @@ const known = id => { try { return arxivId(id); } catch { return null; } };
 // One or two model calls (learn-artifact.js); a request that never answers ends as an error, not a skeleton
 // left waiting (learn-board-request.js waits as long for a board).
 const ARTIFACT_TIMEOUT_MS = 120000;
+// After the next paint: a slot reserved this tick is only in the canvas once it has rendered (outside a
+// browser, at once).
+const afterPaint = run => (globalThis.requestAnimationFrame ? requestAnimationFrame(() => requestAnimationFrame(run)) : run());
 const NAMES = { explanation: 'an explanation', quiz: 'a quiz', challenge: 'a challenge', explain_back: 'an explain-back', flashcards: 'flashcards', table: 'a table', code_sample: 'a code sample', flow_diagram: 'a flow diagram', mermaid_diagram: 'a diagram', walkthrough: 'a walkthrough', interactive_graph: 'a graph', data_plot: 'a plot' };
 
 // Run one typed command. Returns what the composer shows next:
@@ -118,16 +121,23 @@ export async function runLearnCommand(text, { app, target = null, canvas, openSe
   if (!request.allowedPrimitives) return request.prompt ? { prompt: request.prompt } : { notice: { tone: 'info', text: `Add what you want after /${name}.` } };
   // The card's place is held from the moment the command is sent (docs/features/canvas-skeleton-cards.md),
   // sized as the command's first card; anything but a card (a question, a proposal, an error, a request
-  // that never answers) gives it up.
-  const slot = canvas.reserve?.({ label: `Creating /${name}…`, card: cardsFor(name)[0]?.card ?? null });
+  // that never answers) gives it up. A skeleton means a card is committed: a command that can end in a paid
+  // proposal holds no place until the learner confirms it (generate, below).
+  const hold = () => canvas.reserve?.({ label: `Creating /${name}…`, card: cardsFor(name)[0]?.card ?? null });
+  const slot = mayConfirmPaid(name) ? null : hold();
   let result;
   try { result = await post('/api/learn/artifact', { app, command: name, args, selection, context: target?.text ? String(target.text).slice(0, 8000) : null }, { signal: AbortSignal.timeout(ARTIFACT_TIMEOUT_MS) }); }
   catch (error) { if (error.name === 'TimeoutError') return { notice: { tone: 'error', text: `/${name} took too long. Try again.` } }; throw error; }
-  finally { if (result?.result !== 'artifact') canvas.release?.(slot); }
+  finally { if (slot && result?.result !== 'artifact') canvas.release?.(slot); }
   // The notice names the new card and can take the learner to it.
   if (result.result === 'artifact') { const blockId = canvas.insertBlock(result.block, { into: slot }); return { notice: { tone: 'done', text: `Added ${NAMES[result.primitive] || 'the artifact'}.`, ...(blockId ? { blockId } : {}) } }; }
-  // Generate inserts the card already confirmed, so it starts once (useConfirmedStart).
-  if (result.result === 'paid_proposal') return { proposal: { primitive: result.primitive, message: result.message, generate: () => canvas.insertBlock({ ...result.block, confirmedStart: true }) } };
+  // Generate inserts the card already confirmed, so it starts once (useConfirmedStart). Confirming commits it:
+  // its place is held at once (the camera glides there), and the card - which shows its own progress while the
+  // paid job runs - takes that slot as soon as the skeleton has been drawn. Cancel holds nothing.
+  if (result.result === 'paid_proposal') return { proposal: { primitive: result.primitive, message: result.message, generate: () => {
+    const held = hold();
+    afterPaint(() => canvas.insertBlock({ ...result.block, confirmedStart: true }, { into: held }));
+  } } };
   if (result.result === 'clarification') return { notice: { tone: 'question', text: result.question }, keep: `/${name} ` };
   if (result.result === 'unsupported') return { notice: { tone: 'info', text: result.message } };
   return { notice: { tone: 'error', text: result.error || 'That could not be made. Try again.' } };

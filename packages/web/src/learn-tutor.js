@@ -493,8 +493,8 @@ const findCard = (canvas, cardId) => (canvas.blocks?.() || []).find(block => res
 
 // Shows an authored card (added with cardBlock when it is not on the canvas) at a part. A new card takes
 // the slot `take()` hands it (the one held while the plan came), and comes with its part already set: an
-// update right after the insert would read the canvas before the card is in it. The canvas frames it once
-// it is laid out (focusBlock).
+// update right after the insert would read the canvas before the card is in it. The canvas brings it into
+// the visible area at the learner's zoom once it is laid out (revealBlock).
 function showCard(canvas, cardId, partId = null, take = () => null) {
   const module = cardModule(cardId);
   if (!module) return false;
@@ -506,7 +506,7 @@ function showCard(canvas, cardId, partId = null, take = () => null) {
   if (block && pager && index != null) canvas.updateBlock?.(block.id, atPart);
   const id = block?.id || canvas.insertBlock?.(atPart(cardBlock(module)), { into: take() });
   if (!id) return false;
-  canvas.focusBlock?.(id);
+  canvas.revealBlock?.(id);
   return true;
 }
 
@@ -534,7 +534,7 @@ export function executeActions(actions, { canvas, suggestDive, climb, slot = nul
         const block = findCard(canvas, action.card);
         if (!block) return showCard(canvas, action.card);
         canvas.updateBlock?.(block.id, enterPractice);
-        canvas.focusBlock?.(block.id);
+        canvas.revealBlock?.(block.id);
         return true;
       } });
     } else if (action.type === 'suggest_dive') suggestDive({ blockId: action.from.block_id ?? null, topic: action.title });

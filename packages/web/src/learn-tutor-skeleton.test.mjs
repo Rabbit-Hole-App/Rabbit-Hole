@@ -44,7 +44,7 @@ function deferredCanvas(blocks) {
     calls, blocks: () => blocks,
     insertBlock: (inserted, options = {}) => { const id = `b${calls.length}`; pending.push({ ...inserted, id }); calls.push(['insert', inserted.scene.id, options.into ?? null, inserted.inputs?.part ?? null]); return id; },
     updateBlock: (id, change) => { const at = blocks.findIndex(entry => entry.id === id); if (at < 0) { calls.push(['update-missed', id]); return false; } blocks[at] = change(blocks[at]); calls.push(['update', id]); return true; },
-    focusBlock: id => calls.push(['focus', id]),
+    revealBlock: id => calls.push(['focus', id]),
     commit: () => blocks.push(...pending.splice(0)),
   };
 }
