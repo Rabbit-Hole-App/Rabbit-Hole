@@ -88,15 +88,16 @@ export default function SharePanel({ sharing, busy, error, onChange, onRepositor
                 <Switch on={current.public_view} label="Public view link" disabled={busy} onChange={on => set({ public_view: on })} />
               </label>
             )}
-            {/* Only for a private repository of yours: off, viewers' answers use this canvas and its sources only. */}
+            {/* Only for a private repository of yours, off for every new link; the server keeps and enforces it. Off,
+                viewers' questions use this canvas's cards, notes and sources only - never the repository's files. */}
             {current.view && current.repository?.private && (
-              <label data-share-repository className="mt-2 flex items-center gap-2 text-xs text-ink-2">
-                <FolderLock size={13} className="shrink-0" />
+              <label data-share-repository className="mt-2 flex items-start gap-2 text-xs text-ink-2">
+                <FolderLock size={13} className="mt-0.5 shrink-0" />
                 <span className="min-w-0 flex-1">
-                  <span className="block">Answers can read the private repository</span>
-                  <span className="block break-words text-ink-3">{current.repository.repo} at {current.repository.commit.slice(0, 7)}. Off: this canvas only.</span>
+                  <span className="block">Allow questions to use private repository code</span>
+                  <span className="block break-words text-ink-3">Signed-in viewers' questions can use code from {current.repository.repo} at {current.repository.commit.slice(0, 7)}, the revision pinned for this link. Off: only this canvas's cards, notes and sources.</span>
                 </span>
-                <Switch on={current.repository.repo_access} label="Answers can read the private repository" disabled={busy} onChange={onRepository} />
+                <Switch on={current.repository.repo_access} label="Allow questions to use private repository code" disabled={busy} onChange={onRepository} />
               </label>
             )}
           </LinkRow>

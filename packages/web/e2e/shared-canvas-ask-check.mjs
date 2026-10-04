@@ -198,7 +198,10 @@ await ownerPage.waitForTimeout(1500);
 await ownerPage.locator('[data-share-button]').click();
 const toggle = ownerPage.locator('[data-share-repository]');
 await toggle.waitFor({ timeout: 20000 });
-check('the owner\'s Share panel offers the private repository\'s code, off', (await toggle.locator('[role="switch"]').getAttribute('aria-checked')) === 'false' && /acme\/private-lab at 3adf61e/.test(await toggle.innerText()));
+const toggleText = (await toggle.innerText()).replace(/\s+/g, ' ');
+check('the owner\'s Share panel offers private repository code for this link, off', (await toggle.locator('[role="switch"]').getAttribute('aria-checked')) === 'false'
+  && toggleText.includes('Allow questions to use private repository code')
+  && toggleText.includes("Signed-in viewers' questions can use code from acme/private-lab at 3adf61e, the revision pinned for this link. Off: only this canvas's cards, notes and sources."), toggleText);
 await shot(ownerPage, '06-owner-share-private-toggle');
 await toggle.locator('[role="switch"]').click();
 await ownerPage.waitForFunction(() => document.querySelector('[data-share-repository] [role="switch"]')?.getAttribute('aria-checked') === 'true', null, { timeout: 20000 });

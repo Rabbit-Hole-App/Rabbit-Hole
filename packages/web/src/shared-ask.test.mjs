@@ -75,7 +75,10 @@ test('C: the Share panel offers repository code only for a private repository, t
   const panel = readFileSync(new URL('./SharePanel.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   const learn = readFileSync(new URL('./LearnPage.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   assert.match(panel, /\{current\.view && current\.repository\?\.private && \(\n\s+<label data-share-repository/);
-  assert.match(panel, /<Switch on=\{current\.repository\.repo_access\} label="Answers can read the private repository" disabled=\{busy\} onChange=\{onRepository\} \/>/);
+  assert.match(panel, /<Switch on=\{current\.repository\.repo_access\} label="Allow questions to use private repository code" disabled=\{busy\} onChange=\{onRepository\} \/>/);
+  // The owner's copy (2026-10-04): what it allows, for whom, at which pinned revision, and what Off means.
+  assert.match(panel, /<span className="block">Allow questions to use private repository code<\/span>/);
+  assert.match(panel, /Signed-in viewers' questions can use code from \{current\.repository\.repo\} at \{current\.repository\.commit\.slice\(0, 7\)\}, the revision pinned for this link\. Off: only this canvas's cards, notes and sources\./);
   assert.match(learn, /api\(`\$\{boardPath\}\/share\/repository`, \{ method: 'POST', body: JSON\.stringify\(\{ allow \}\) \}\)/);
   assert.match(learn, /onRepository=\{changeRepositoryAccess\}/);
   // The shared page shows a repository pill only when the server sends one.
