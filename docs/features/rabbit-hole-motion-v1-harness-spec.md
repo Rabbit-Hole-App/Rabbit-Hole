@@ -328,7 +328,11 @@ not `learner → prompt enhancer → model`. "Prompt enhancer" is not a componen
 
 Motion does not invent its own context-resolution system. It uses the shared **Learner Intent Resolver** whose contract is "Future shared input layer: Learner Intent Resolver" in `docs/features/adaptive-tutor-v1.md` (on main). That contract builds a structured `LearnerTurn` and keeps `raw_user_message` next to `structured_interpretation`, with per-concept evidence and no permanent learner labels.
 
-The Resolver is not implemented yet. M2 builds the motion-facing slice of it **in the shared location, to the shared contract**, so that the Tutor and other specialists can consume the same component later. It must not be a private `/motion` resolver.
+M2 built the motion-facing slice of it **in the shared location, to the shared contract**, so that the Tutor and other specialists can consume the same component later. It is not a private `/motion` resolver:
+
+- `packages/control-plane/src/learner-intent.js`: `resolveLearnerTurn({message, location, selection, canvas_target, repository_context})` returns the `LearnerTurn` (`raw_user_message` verbatim, `command`, `structured_interpretation {request_text, target {binding: named | deictic | deictic_unbound | none, name, kind_hint}, requested_duration, requested_mode}`, `current_location`, and the validated `selection`, `canvas_target` and `repository_context` in their existing identity shapes). It reads the request; it does not ground it, normalize the duration or label the learner.
+- `packages/control-plane/src/source-grounding.js`: `groundTarget(turn, source)` decides which occurrence the target is, against a pinned source `{repository, commit, files, read}`, and returns `grounded` (resolved target, candidates considered, source refs, verbatim evidence, implementation conditions) or `needs_clarification` / `not_found` with one question.
+- `packages/control-plane/src/request-duration.js`: the one duration reader, shared by the Resolver and Motion's duration policy (`packages/learn-render/motion/duration.js`).
 
 For `/motion` the Resolver resolves:
 
@@ -672,7 +676,7 @@ MOTION_VISUAL_REVIEW_MODEL         visual reviewer
 MOTION_PEDAGOGICAL_REVIEW_MODEL    pedagogical reviewer
 ```
 
-Runtime configuration may initially resolve all four to `claude-opus-5-5`. The roles resolve through the existing per-task model configuration (`LEARN_TASKS` in `packages/control-plane/src/learn-models.js`) or environment; M2 decides which. The MotionJob records which model each role actually resolved to, for provenance, never credentials.
+Runtime configuration may initially resolve all four to `claude-opus-5-5`. **M2 decision:** a role resolves from the environment, else from one development default in `packages/learn-render/motion/model-config.js` (`MOTION_DIRECTOR_MODEL` → `claude-opus-5-5`; the other roles get their defaults when their milestones add them). Whether the Motion roles join `LEARN_TASKS` is decided at M7, when Motion has a product entry point. The MotionJob records which model each role actually resolved to, for provenance, never credentials; the MotionBrief carries no model id (`validateBrief` rejects one).
 
 Motion generation is an artifact-generation job, not an interactive Tutor turn. Do not reuse the Tutor fast tier automatically.
 
@@ -1816,7 +1820,7 @@ Do not attempt everything in one commit.
 |---|---|---|
 | **M0** | Documentation, canonical schemas (§5), demo fixtures (§27) | Schemas and fixture definitions: this document. Fixture files (brief/storyboard examples, pinned source excerpts) are created at the start of implementation. |
 | **M1** | Remotion sandbox / render proof: the existing Remotion render path, the deterministic Linux render harness and the development render service | Authorized |
-| **M2** | Shared, renderer-neutral pipeline (M2–M6): Learner Intent Resolver integration (shared slice) + Motion Director + grounded MotionBrief | Authorized |
+| **M2** | Shared, renderer-neutral pipeline (M2–M6): Learner Intent Resolver integration (shared slice) + Motion Director + grounded MotionBrief | Done (2026-10-04; see "M2 result") |
 | **M3** | Storyboard generation + validation | Authorized |
 | **M4** | Renderer selection + Motion Author → renderer-specific composition source (Remotion first) + static validation | Authorized |
 | **M5** | Preview + contact sheet + determinism checks | Authorized |
@@ -1882,6 +1886,32 @@ raw request
 ```
 
 Deterministic tests use the §27 fixtures (pinned commits and recorded model responses). The most important cases: `/motion explain me softmax func` resolves to the attention occurrence with K1 recorded when the attention lesson is current, and asks one clarification when it is not.
+
+### M2 result (2026-10-04)
+
+**Pipeline.** `resolveLearnerTurn` (§4.2) → `groundTarget` (§4.4) → `runDirector` (`packages/learn-render/motion/director.js`) → `validateBrief` + grounding rules. Only the Director uses a model. Clarification and not-found turns never call it and never produce a brief.
+
+**Pinned source.** `packages/learn-render/motion/fixtures/sources/nanogpt-3adf61e/`: the Python files and LICENSE of karpathy/nanoGPT at `3adf61e154c3fe3fca428ad6bc3818b27a3b8291` (MIT), byte-exact (`-text`), every file checked against `MANIFEST.json` sha256 on load (`motion/fixture-source.js`).
+
+**Grounding.** Occurrences are grouped by enclosing symbol (`Class.method`). One group: named. Several: a selected range that overlaps one wins, then the current concept when its words are a subset of the symbol's words (`attention` → `CausalSelfAttention.forward`), else one clarification naming the options. The occurrence span is the innermost branch or block (at most 30 lines). Every if/else the span sits in becomes an implementation condition (K1, ...) with both branches as source refs; registered buffers the span reads (`self.bias`) are added as definitions with their own branch condition, and the line that sets each condition flag is added as a condition ref. Every excerpt is verbatim. For `/motion 15s explain me softmax func` on the attention concept: S1 `model.py:44-45` (flash flag), S2 `48-50` (causal-mask buffer, K1), S3 `62-64` (SDPA with `is_causal=True`, K1), S4 `65-71` (mask → `F.softmax` fallback, K1); K1 = `self.flash` (model.py:62). `GPT.generate (model.py:324)` is recorded as considered and set aside.
+
+**Director.** Role `MOTION_DIRECTOR_MODEL` (§4.9). Request: `tool_choice: {type: 'auto'}` with the single `motion_brief` tool, `thinking: {type: 'adaptive'}`, `output_config: {effort: 'high'}`, `fallbacks: 'default'` with the `server-side-fallback-2026-07-01` beta, a cache breakpoint on the fixed system prompt, `max_tokens` 16000, sent through the existing `anthropic()` chokepoint in `packages/control-plane/src/ask.js`. The model sees the LearnerTurn, the fixed duration and the evidence pack as data. It writes title, objective, audience_context, scope_note, teaching_mode, claims (cited S ids + condition ids), analogy_map, must_show, must_not_claim, semantic visual_direction, narration_policy and keyframe_times. The harness writes everything else: id, prompt_spec_version (`motion-v1.0/director-1`), raw_user_request, resolved_target, source_refs, evidence, implementation_conditions, duration, output and QA requirements, provenance.
+
+**Validation.** Schema errors in the tool input get the one schema-only re-ask (§4.8; append-only: the assistant turn unchanged, then an `is_error` tool_result listing the errors and asking for the same intended brief), recorded in `format_retries`; a second malformed answer fails the stage. Contract and grounding errors are never re-asked: a claim citing an id the grounding did not produce, a claim resting on a branch without naming its condition, branch-dependent behavior described as unconditional ("always", "every time", ...), a code identifier that is not in the claim's cited evidence (or the evidence of a condition it names), no required claim on the target occurrence, a requested teaching mode not honored, narration that does not fit the duration, or a renderer or web technology named in title, visual_direction or must_show.
+
+**Real calls (Claude Opus 5.5, development key, effort high).**
+
+| Request | Result | Latency | Input / output / cache write / cache read tokens | Cost |
+|---|---|---|---|---|
+| `/motion 15s explain me softmax func`, concept attention | failed `invalid_brief`: the first validator rejected a branch claim naming `self.flash` and a flash-branch claim naming `F.softmax`; the evidence a claim may draw on now includes its named conditions' refs | 23.8 s | 1347 / 2424 / 2034 / 0 | $0.064 |
+| same | brief, 0 format retries (`motion/fixtures/m2/softmax-15s-attention.brief.json`) | 25.2 s | 1347 / 2472 / 2059 / 0 | $0.065 |
+| `/motion explain this`, concept tokenization, selection `model.py:62-71` | brief on the selection (10 s default), 0 format retries | 31.6 s | 1281 / 2983 / 0 / 2059 | $0.065 |
+
+Costs use $4 / $20 per million input / output tokens, cache writes at 1.25× input and reads at $0.20.
+
+**Development harness.** `node packages/learn-render/scripts/motion-brief.mjs "/motion 15s explain me softmax func" --concept attention [--select model.py:62-71] [--call]` prints the resolved intent, source refs, normalized duration, Director result and validated MotionBrief; without `--call` it stops before the model. Call records (never prompts or credentials) append to `out/motion/director-calls.jsonl`. In Git Bash set `MSYS_NO_PATHCONV=1`, or the leading `/motion` is rewritten into a Windows path.
+
+**Known limits.** ponytail: the grounding reads Python block structure by indentation (`if`/`elif`/`else`, `def`, `class`) and only the pinned fixture sources; it does not parse other languages or follow calls across files. Concept-to-symbol disambiguation is a word-subset match; a lesson whose concept words do not appear in a symbol name asks instead of guessing.
 
 ## M3 — storyboard
 

@@ -6,3 +6,5 @@ service/sandbox-init text eol=lf
 service/sudoers text eol=lf
 service/Dockerfile text eol=lf
 linux/Dockerfile text eol=lf
+# Pinned third-party source fixtures: byte-exact, never line-ending converted.
+fixtures/sources/nanogpt-3adf61e/** -text

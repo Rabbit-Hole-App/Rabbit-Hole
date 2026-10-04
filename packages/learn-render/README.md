@@ -36,9 +36,9 @@ stroke-dashoffset and a pen sprite rides the head of the active stroke.
 tldraw is the learner's canvas (pausing the lecture and scribbling on the board),
 not part of the renderer — deliberately not installed here.
 
-## Motion (V1 harness, M0–M1)
+## Motion (V1 harness, M0–M2)
 
-Spec: `docs/features/rabbit-hole-motion-v1-harness-spec.md`. No model calls here yet.
+Spec: `docs/features/rabbit-hole-motion-v1-harness-spec.md`. M2 adds the only model call so far: the Motion Director.
 
 ```
 npm run motion:prove [outDir]   # Demo A: static validation, preview, contact sheet, final + validation,
@@ -46,6 +46,7 @@ npm run motion:prove [outDir]   # Demo A: static validation, preview, contact sh
 node scripts/motion.mjs font-proof [outDir]   # Demo B: JetBrains Mono loads, identical in two fresh contexts
 node --test "motion/*.test.mjs" "motion/service/service.test.mjs"   # contracts, static checks, the service contract
 sh motion/linux/run.sh docker|unshare   # the same proof on Linux with the network denied
+node scripts/motion-brief.mjs "/motion 15s explain me softmax func" --concept attention [--select model.py:62-71] [--call]   # M2: intent, sources, duration, Director, MotionBrief (dry run without --call)
 node scripts/motion-local-check.mjs setup|run <final.mp4>   # local stack: Motion render API stand-in -> LearnVideos -> LEARN_MEDIA -> video block
 sh motion/service/context.sh   # deploy context for rabbit-hole-motion-renderer-dev (Home deploys)
 ```
@@ -80,6 +81,11 @@ sh motion/service/context.sh   # deploy context for rabbit-hole-motion-renderer-
 - `motion/lockfile.test.mjs`: the lockfile must carry the Linux platform binaries the image
   needs (`@esbuild/linux-x64` at the bundler's esbuild version, pinned as an optional
   dependency here; Remotion's Linux compositor). A Windows-written lock once dropped esbuild's.
+- `motion/director.js`: the Motion Director (M2). A grounded LearnerTurn (shared resolver:
+  `packages/control-plane/src/learner-intent.js`, `source-grounding.js`) becomes one validated,
+  renderer-neutral MotionBrief; one schema-only re-ask; grounding errors fail the brief.
+  `motion/model-config.js` resolves `MOTION_DIRECTOR_MODEL` (env, else `claude-opus-5-5`).
+  `motion/fixture-source.js` serves the pinned nanoGPT source, checked against its MANIFEST.
 - `motion/video-block.js`: the existing `type: "video"` block for a finished render
   (`operation: {op: "motion_render", render_id}` + Motion metadata); LearnVideos pulls the MP4
   through `MotionProvider` (packages/control-plane/src/motion-provider.js).
