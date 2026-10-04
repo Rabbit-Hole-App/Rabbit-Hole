@@ -60,7 +60,8 @@ are served as downloads with `nosniff` and a sandbox CSP, never as pages.
 |---|---|---|
 | `GET/PUT /api/learn/boards/:app/:board` | someone with access to the app | read / save the owner's board |
 | `POST /api/learn/boards/:app/:board/share` | same | set `shared`, `view`, `public_view` |
-| `GET /api/learn/boards/shared/:token` | signed in, or anyone for a public view link | open a shared board |
+| `GET /api/learn/boards/shared/:token` | signed in, or anyone for a public view link | open a shared board; also `viewer` and the composer's `context` ([shared-canvas-ask.md](shared-canvas-ask.md)) |
+| `POST /api/learn/boards/shared/:token/ask` | signed in (any link they can open, public too) | ask about the shared canvas; streams the answer, writes nothing ([shared-canvas-ask.md](shared-canvas-ask.md)) |
 | `GET/PUT /api/learn/boards/:app/:board/assets/:key`, `GET .../assets` | owner | board files, list |
 | `GET /api/learn/boards/shared/:token/assets/:key` | as the link | board files through a link |
 | `POST /api/learn/boards/shared/:token/fork` | signed in (any link they can open) | make the viewer's Canvas copy; returns `{ name, url, files, forked_from }`. Same handler as `POST /api/learn/boards/fork` ([canvas-forking.md](canvas-forking.md)) |

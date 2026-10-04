@@ -46,7 +46,8 @@ export async function streamAsk({ path, body, file = null, signal, onEvent }) {
   const response = await fetch(path, { method: 'POST', signal, ...request });
   if ((response.headers.get('Content-Type') || '').includes('json')) {
     const data = await response.json();
-    return data.choose ? onEvent('choose', data) : onEvent('error', { error: data.error || `HTTP ${response.status}` });
+    // The reply's own fields ride along: a shared canvas's composer reads signIn (SharedBoardPage.jsx).
+    return data.choose ? onEvent('choose', data) : onEvent('error', { ...data, error: data.error || `HTTP ${response.status}` });
   }
   if (!response.ok) return onEvent('error', { error: `HTTP ${response.status}` });
   const reader = response.body.getReader();

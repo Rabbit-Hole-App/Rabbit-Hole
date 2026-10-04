@@ -10,6 +10,7 @@ import { repositoryIdentity } from './repositories.js';
 import { sha256Hex } from './learn-grade-jev.js';
 import { learnMedia } from './learn-storage.js';
 import { FORK_COUNT } from './canvases.js';
+import { askShared, boardSources, sharedRepository } from './learn-shared-ask.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/;
@@ -127,15 +128,32 @@ async function sharedRow(env, token) {
 }
 
 // Who may open a shared link: anyone for a public view link, otherwise any
-// signed-in account. Returns the row and role, or the refusal.
+// signed-in account. Returns the row and role (and the viewer, when it had to
+// ask), or the refusal.
 async function sharedAccess(req, env, token) {
   const found = await sharedRow(env, token);
   if (!found) return json({ error: 'This link is not shared any more, or never was.' }, 404);
   if (!(found.role === 'view' && found.row.public_view)) {
     const viewer = await repositoryIdentity(req, env);
     if (viewer instanceof Response) return json({ error: 'Sign in to open this board.', signIn: true }, 401);
+    found.viewer = viewer;
   }
   return found;
+}
+
+// Asking about a shared canvas (docs/features/shared-canvas-ask.md): whoever may open the link, and signed
+// in even on a public link. Answered by learn-shared-ask.js, which writes nothing.
+const MAX_ASK_BODY = 128 * 1024;
+async function askAboutShared(req, env, token) {
+  const found = await sharedAccess(req, env, token);
+  if (found instanceof Response) return found;
+  const viewer = found.viewer || await repositoryIdentity(req, env);
+  if (viewer instanceof Response) return viewer.status === 401 ? json({ error: 'Sign in to ask about this canvas.', signIn: true }, 401) : viewer;
+  const raw = await req.text();
+  if (raw.length > MAX_ASK_BODY) return json({ error: 'This question and its history are too long.' }, 413);
+  let body = null;
+  try { body = JSON.parse(raw); } catch { /* askShared refuses a missing message */ }
+  return askShared(env, found.row, viewer, body);
 }
 
 // Forking (docs/features/canvas-forking.md): the signed-in user gets their own
@@ -273,7 +291,13 @@ async function openShared(req, env, token) {
   const { row, role } = found;
   // A canvas's link shows the canvas's own title and its direct fork count (docs/features/canvas-forking.md).
   const canvas = CANVAS.test(row.app) ? await env.LEARN_DB.prepare(`SELECT title, ${FORK_COUNT} AS fork_count FROM canvases c WHERE org = ? AND name = ?`).bind(row.org, row.app).first() : null;
-  return json({ role, app: row.app, board: row.board, title: canvas?.title || row.title || null, owner: row.owner_email, fork_count: canvas?.fork_count || 0, version: row.version, updated_at: row.updated_at, state: JSON.parse(row.state_json) });
+  // The composer (docs/features/shared-canvas-ask.md): who is viewing (their own email, or null signed out),
+  // and the context pills - the project's public repository and commit, and the sources on the board.
+  const viewer = found.viewer || await repositoryIdentity(req, env);
+  const repository = await sharedRepository(env.LEARN_DB, row);
+  const state = JSON.parse(row.state_json);
+  return json({ role, app: row.app, board: row.board, title: canvas?.title || row.title || null, owner: row.owner_email, fork_count: canvas?.fork_count || 0, version: row.version, updated_at: row.updated_at,
+    viewer: viewer instanceof Response ? null : viewer.email, context: { repository: repository && { repo: repository.repo, commit: repository.commit }, sources: boardSources(state) }, state });
 }
 
 export async function learnBoardsRoute(path, req, env) {
@@ -292,6 +316,8 @@ export async function learnBoardsRoute(path, req, env) {
   // The shared board's own path, kept for pages loaded before the one call.
   const forking = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)\/fork$/);
   if (forking) return req.method === 'POST' ? fork(req, env, { ...(await readBody(req)), source: { token: decodeURIComponent(forking[1]) } }) : json({ error: 'Method not allowed' }, 405);
+  const asking = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)\/ask$/);
+  if (asking) return req.method === 'POST' ? askAboutShared(req, env, decodeURIComponent(asking[1])) : json({ error: 'Method not allowed' }, 405);
   const shared = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)$/);
   if (shared) {
     const token = decodeURIComponent(shared[1]);
