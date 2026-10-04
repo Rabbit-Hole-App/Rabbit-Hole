@@ -725,7 +725,13 @@ MotionBrief {
   implementation_conditions[] {
     id                           // K1, K2, ...
     condition                    // e.g. "torch.nn.functional has scaled_dot_product_attention (PyTorch >= 2.0)"
-    branches[]                   // what runs when the condition holds / does not hold
+    branches[] {                 // [condition holds, condition does not hold]
+      when
+      runs                       // what runs, as text
+      source_ref_ids[]?          // the refs that run on this side (grounding writes them)
+      no_op?                     // true: this side has no code of its own (an if without else);
+                                 // its source_ref_ids are empty and no source is invented
+    }
     source_ref_ids[]
   }
   claim_registry[] {
@@ -1975,9 +1981,31 @@ Call records append to `out/motion/director-calls.jsonl` with their stage. The r
 
 **Known limits.** ponytail: the semantic checks are lexical (word stems, code names, order words, term overlap). A misconception paraphrased in words the brief also uses, or a visual implication described in new words, is left to the M6 reviewers.
 
-Two M2 grounding limits showed on the Demo B selection; they are recorded, not changed:
-- An `if` without an `else` (`if top_k is not None:`, the crop) is not recorded as an implementation condition. The Director still carried top-k and the crop as conditional claim text and must_not_claim items.
-- A range starting on a decorator line labels its symbol as the class (`GPT`, not `GPT.generate`).
+### Grounding hardening before M4 (2026-10-04)
+
+M3 surfaced two M2 grounding gaps on the Demo B selection. Both are fixed in `packages/control-plane/src/source-grounding.js`; the M3 architecture and semantics are unchanged.
+
+**Every if statement is a structural condition.** A selected or occurrence span is split wherever its set of enclosing branches changes, so each ref names exactly the conditions its lines run under:
+- if/else: one condition, both sides;
+- if without else: the body carries the condition, and the other side is `no_op`, with empty `source_ref_ids` and `runs: "nothing: <path:lines> is skipped (no else branch)"`; no source line is invented;
+- nested ifs: the inner body carries both conditions;
+- sequential ifs: each carries its own;
+- `if not x`: the body runs on the false side of `x`.
+
+Each branch now records the refs that run on it (`branches[].source_ref_ids`, §5.1; optional in the contract, always written by grounding), so "this code runs only when the condition holds" is machine-visible to the Director checks, the storyboard checks and the future Author. The storyboard checks read the branch refs from these fields (older briefs fall back to the `runs` text) and read a condition's names from its expression (`top_k is not None` → `top_k`). An `else` that belongs to `for`, `while` or `try` is no longer paired with an earlier `if`.
+
+**Decorators resolve to the decorated symbol.** A range starting on a decorator, including stacked ones and ones with multi-line arguments, or on a def/class header, resolves to that symbol; the exact selected range and evidence are kept. Examples: `@torch.no_grad()` at model.py:305 → `GPT.generate`, `@classmethod` → `GPT.from_pretrained`, `@dataclass` → `GPTConfig`, train.py:215 → `estimate_loss`. Named occurrences on a header line now group with their function's body.
+
+**Demo B (`model.py:305-330`).**
+- Before: one ref S1 305-330, no conditions, labelled `GPT`.
+- After: S1 305-319, S2 320-322 [K1], S3 323-330, with K1 = `top_k is not None` (true: S2; false: no_op), labelled `GPT.generate`.
+- One real Director call (28.6 s; 1289 / 2583 / 2059 / 0 tokens; $0.067; 0 retries) taught the top-k step as K1's true side and said it is skipped when `top_k` is None. That brief is kept at `fixtures/m3/generate-20s-selection.brief.json`.
+
+**Still not conditions** (ponytail, statement-level indentation reading):
+- inline `a if c else b` expressions, such as the crop at model.py:314 and `dropout_p=self.dropout if self.training else 0` at :64;
+- one-line `if x: y`;
+- multi-line `if` headers;
+- the earlier tests an `elif` implies.
 
 ## M4 — Author
 

@@ -207,3 +207,58 @@ test('the brief fixtures the harness storyboards from are valid briefs', async (
   const { validateBrief } = await import('./contracts.js');
   for (const f of ['softmax-15s-attention', 'explain-this-selection-62-71']) assert.deepEqual(validateBrief(read(`./fixtures/m2/${f}.brief.json`)), [], f);
 });
+
+// An if without else end to end, with fake models: Demo B's `if top_k is not None:` grounds as
+// K1 with a no_op side, the brief keeps it structurally, and Director and storyboard enforce it.
+test('if without else: K1 survives into the brief and binds the Director and the storyboard', async () => {
+  const { resolveLearnerTurn } = await import('../../control-plane/src/learner-intent.js');
+  const { groundTarget } = await import('../../control-plane/src/source-grounding.js');
+  const { fixtureSource } = await import('./fixture-source.js');
+  const { runDirector } = await import('./director.js');
+  const { validateBrief } = await import('./contracts.js');
+  const src = fixtureSource();
+  const turn = resolveLearnerTurn({ message: '/motion 20s show what happens here', repository_context: { commit: src.commit, label: 'model.py:305-330', range: { path: 'model.py', start: 305, end: 330 } } });
+  const g = groundTarget(turn, src);
+  const output = {
+    title: 'One pass of GPT.generate', objective: 'Follow one pass of the sampling loop.', audience_context: 'nanoGPT sampling code.',
+    teaching_mode: 'code_walkthrough', narration_policy: 'none', visual_direction: 'The loop runs once, step by step.',
+    claims: [
+      { id: 'C1', text: 'generate runs `for _ in range(max_new_tokens)` and calls the model on idx_cond each pass.', source_ref_ids: ['S1'], condition_ids: [], required: true },
+      { id: 'C2', text: 'Only when `top_k is not None`, `torch.topk` keeps the top_k largest logits and the rest become -Inf.', source_ref_ids: ['S2'], condition_ids: ['K1'], required: true },
+      { id: 'C3', text: '`F.softmax(logits, dim=-1)` gives probabilities and `torch.multinomial` samples idx_next.', source_ref_ids: ['S3'], condition_ids: [], required: true },
+    ],
+    must_show: ['the loop over max_new_tokens', 'the top_k step, marked as optional', 'softmax then multinomial'],
+    must_not_claim: ['top-k filtering always runs'],
+  };
+  const directorMessage = input => ({ ...toolMessage({}), content: [{ type: 'tool_use', id: 'tu_d', name: 'motion_brief', input }] });
+  const brief = (await runDirector({ turn, grounding: g, call: fakeModel(directorMessage(output)).call, clock })).brief;
+  assert.deepEqual(validateBrief(brief), []);
+  assert.deepEqual(brief.implementation_conditions[0].branches.map(b => [b.source_ref_ids, b.no_op ?? false]), [[['S2'], false], [[], true]]);
+  // The Director cannot drop the condition from the top-k claim.
+  const unconditioned = structuredClone(output);
+  unconditioned.claims[1].condition_ids = [];
+  const r = await runDirector({ turn, grounding: g, call: fakeModel(directorMessage(unconditioned)).call, clock });
+  assert.ok(r.errors.some(e => /C2: rests on branch-dependent code but does not name K1/.test(e)), r.errors?.join('\n'));
+  // The storyboard: top-k code must name K1 and keep it visible.
+  const sb = cond => ({ id: 'sb', brief_id: brief.id, version: 1, beats: [
+    { id: 'B1', start_time: 0, end_time: 10, pedagogical_role: 'implementation', visible_objects: [{ id: 'loop_code', description: 'the loop line', source: { source_ref_id: 'S1', start_line: 312, end_line: 312 }, change: 'is highlighted' }], claim_ids: ['C1'], must_show_covered: [], transition: 'opens on the code', framing: 'the code centred', on_screen_text: '' },
+    { id: 'B2', start_time: 10, end_time: 20, pedagogical_role: 'implementation', visible_objects: [{ id: 'mask_line', description: 'the line that sets the other logits to -Inf', source: { source_ref_id: 'S2', start_line: 322, end_line: 322 }, change: 'is highlighted', ...(cond.label ? { label: cond.label } : {}) }], claim_ids: ['C3'], ...(cond.k ? { condition_ids: ['K1'] } : {}), must_show_covered: [], transition: 'the highlight moves down', framing: 'the code centred', on_screen_text: '' },
+  ] });
+  const errs = cond => checkStoryboard(sb(cond), brief).errors;
+  assert.ok(errs({}).some(e => /B2: shows code or claims that run only under K1 but does not name K1/.test(e)));
+  assert.ok(errs({ k: true }).some(e => /B2: teaches under K1 but nothing on screen says so \(name top_k or the branch\)/.test(e)));
+  assert.ok(!errs({ k: true, label: 'only if top_k is set' }).some(e => /K1/.test(e)));
+});
+
+test('brief contract: branch source_ref_ids belong to the condition, and no_op marks only an empty side', async () => {
+  const { validateBrief } = await import('./contracts.js');
+  const b = brief();
+  b.implementation_conditions[0].branches[0].source_ref_ids = ['S3'];
+  b.implementation_conditions[0].branches[1].source_ref_ids = ['S4'];
+  assert.deepEqual(validateBrief(b), []);
+  b.implementation_conditions[0].branches[1].no_op = true;
+  assert.ok(validateBrief(b).some(e => /branches\[1\]\.no_op: true, only on a side that runs no code/.test(e)));
+  delete b.implementation_conditions[0].branches[1].no_op;
+  b.implementation_conditions[0].branches[0].source_ref_ids = ['S9'];
+  assert.ok(validateBrief(b).some(e => /branches\[0\]\.source_ref_ids: refs of this condition/.test(e)));
+});

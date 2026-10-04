@@ -122,6 +122,12 @@ export function validateBrief(b) {
     if (!str(k?.condition)) e.push(`${at}.condition: required string`);
     if (!arr(k?.branches) || k.branches.length < 2 || k.branches.some(x => !str(x?.when) || !str(x?.runs))) e.push(`${at}.branches: at least two {when, runs}`);
     if (!arr(k?.source_ref_ids) || !k.source_ref_ids.length || k.source_ref_ids.some(id => !hasRef(id))) e.push(`${at}.source_ref_ids: known source refs required`);
+    // Optional, structural: the refs that run on each side, and `no_op` for a side with no code
+    // of its own (an if without else: its body runs only when the condition holds).
+    (arr(k?.branches) ? k.branches : []).forEach((x, j) => {
+      if (x?.source_ref_ids !== undefined && (!arr(x.source_ref_ids) || x.source_ref_ids.some(id => !(k.source_ref_ids || []).includes(id)))) e.push(`${at}.branches[${j}].source_ref_ids: refs of this condition`);
+      if (x?.no_op !== undefined && (x.no_op !== true || (x.source_ref_ids || []).length)) e.push(`${at}.branches[${j}].no_op: true, only on a side that runs no code`);
+    });
   });
 
   const claims = arr(b.claim_registry) ? b.claim_registry : [];

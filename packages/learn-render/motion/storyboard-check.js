@@ -24,6 +24,7 @@ export const LIMITS = Object.freeze({
 });
 // Implementation detail that belongs to the Author, never the storyboard.
 const IMPLEMENTATION = /\b\d+(?:\.\d+)?\s*(?:px|rem|em|pt|vh|vw)\b|#[0-9a-f]{6}\b|#[0-9a-f]{3}\b|\b(?:rgba?|hsla?)\s*\(|cubic-bezier|\bease(?:In|Out|InOut)\w*|\b(?:useCurrentFrame|useVideoConfig|interpolate|spring|AbsoluteFill|requestAnimationFrame|className|zIndex|z-index|translate[XYZ]?|div)\b/i;
+const CONDITION_WORDS = new Set(['self', 'not', 'is', 'None', 'True', 'False', 'and', 'or', 'in']);
 const CONDITION_CUE = /\b(?:fallback|otherwise|unless|only (?:when|if)|if|else|branch)\b/i;
 const NOT_TAUGHT = ['hook', 'takeaway']; // beats that point or recap; they do not animate steps
 // Words that carry no claim: function words, common verbs, and the vocabulary of pointing at things.
@@ -64,8 +65,10 @@ function briefFacts(brief) {
   const excerpt = new Map(brief.evidence.map(e => [e.source_ref_id, e.excerpt]));
   const refs = new Map(brief.source_refs.map(r => [r.id, r]));
   const lineText = (id, a, b) => { const r = refs.get(id); return (excerpt.get(id) || '').split('\n').slice(a - r.start_line, b - r.start_line + 1).join('\n'); };
-  // The refs each branch of each condition runs (from "path:a-b: ..." or "(S2, S3)" in `runs`).
+  // The refs each branch of each condition runs: structural `source_ref_ids` (grounding since the
+  // M3 hardening; [] on a no_op side), else read from "path:a-b: ..." or "(S2, S3)" in `runs`.
   const branches = new Map(brief.implementation_conditions.map(k => [k.id, k.branches.map(b => {
+    if (Array.isArray(b.source_ref_ids)) return b.source_ref_ids;
     const ids = new Set(b.runs.match(/\bS\d+\b/g) || []);
     const m = /^(.+?):(\d+)-(\d+):/.exec(b.runs);
     if (m) for (const r of brief.source_refs) if (r.path === m[1] && r.start_line === +m[2] && r.end_line === +m[3]) ids.add(r.id);
@@ -79,7 +82,8 @@ function briefFacts(brief) {
     if (!holders.length || holders.some(id => !branchOf.has(id))) return [];
     return [...new Set(holders.flatMap(id => branchOf.get(id).map(b => b.k)))];
   };
-  const flags = new Map(brief.implementation_conditions.map(k => [k.id, [...k.condition.matchAll(/`([^`]+)`/g)].flatMap(m => m[1].match(/[A-Za-z_]\w*$/) || [])]));
+  // The names a condition tests (`self.flash` -> flash, `top_k is not None` -> top_k).
+  const flags = new Map(brief.implementation_conditions.map(k => [k.id, [...k.condition.matchAll(/`([^`]+)`/g)].flatMap(m => (m[1].match(/[A-Za-z_]\w*/g) || []).filter(n => !CONDITION_WORDS.has(n)))]));
   // Operations each code excerpt performs, in line order: calls, named by their distinctive word parts.
   const ops = brief.evidence.filter(e => refs.get(e.source_ref_id)?.kind === 'code').map(e => {
     const r = refs.get(e.source_ref_id);

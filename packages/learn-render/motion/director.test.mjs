@@ -189,3 +189,20 @@ test('the recorded real softmax brief: valid, grounded, and branch-correct about
   assert.match(never, /masking happens after softmax/);
   assert.match(never, /removes masked positions/);
 });
+
+// Demo B after the grounding hardening, written by a real Claude Opus 5.5 Director call on
+// 2026-10-04 (`/motion 20s show what happens here` on model.py:305-330) and kept verbatim.
+test('the recorded real Demo B brief: the if-without-else top_k is K1 with a no_op side, cited by its claim', async () => {
+  const { readFileSync } = await import('node:fs');
+  const b = JSON.parse(readFileSync(new URL('./fixtures/m3/generate-20s-selection.brief.json', import.meta.url), 'utf8'));
+  const turn = resolveLearnerTurn({ message: '/motion 20s show what happens here', repository_context: { commit: source.commit, label: 'model.py:305-330', range: { path: 'model.py', start: 305, end: 330 } } });
+  const g = groundTarget(turn, source);
+  const { groundingErrors } = await import('./director.js');
+  assert.deepEqual(validateBrief(b), []);
+  assert.deepEqual(groundingErrors(b, g, turn), []);
+  assert.deepEqual(b.implementation_conditions, g.implementation_conditions);
+  assert.equal(b.resolved_target.label, 'model.py:305-330 (GPT.generate, model.py:305-330)');
+  assert.deepEqual(b.implementation_conditions[0].branches.map(x => [x.source_ref_ids, x.no_op ?? false]), [[['S2'], false], [[], true]]);
+  const topK = b.claim_registry.filter(c => c.source_ref_ids.includes('S2'));
+  assert.ok(topK.length && topK.every(c => c.condition_ids.includes('K1')));
+});

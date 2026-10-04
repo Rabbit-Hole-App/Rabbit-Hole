@@ -39,19 +39,40 @@ function blockEnd(lines, h) {
   return end;
 }
 const symbolOf = chain => chain.map(b => b.text.match(/^(?:class|def)\s+(\w+)/)?.[1]).filter(Boolean).join('.') || '<module>';
+// The symbol a line belongs to. A decorator line (stacked, multi-line arguments included) or a
+// def/class header belongs to the symbol it declares: `@torch.no_grad()` above `def generate`
+// inside `class GPT` is GPT.generate, not GPT.
+function symbolAt(lines, i) {
+  let j = i;
+  while (j < lines.length && lines[j].trim().startsWith('@')) {
+    let depth = 0;
+    do { depth += (lines[j].match(/[([{]/g) || []).length - (lines[j].match(/[)\]}]/g) || []).length; j++; } while (depth > 0 && j < lines.length);
+    while (j < lines.length && quiet(lines[j])) j++;
+  }
+  const header = j < lines.length && /^\s*(?:async\s+)?(?:class|def)\s+\w+/.test(lines[j]) ? j : null;
+  if (header === null) return symbolOf(enclosing(lines, i).filter(b => /^(?:class|def)\s/.test(b.text)));
+  const chain = enclosing(lines, header).filter(b => /^(?:class|def)\s/.test(b.text));
+  return symbolOf([...chain, { text: lines[header].trim().replace(/^async\s+/, '') }]);
+}
 
-// An if/else pair around or at line h: {condition, ifSpan, elseSpan}. ponytail: if/else only;
-// elif chains are reported as the branch that contains the line.
+// The if statement around or at line h: {condition, ifSpan, elseSpan}; elseSpan is null when the
+// statement has no else (its body runs only when the condition holds). ponytail: statements
+// only, read by indentation: an elif is reported as its own condition (the earlier tests it
+// implies are not recorded), and one-line `if x: y`, multi-line headers and inline
+// `a if c else b` expressions are not conditions.
 function conditional(lines, h) {
   const text = lines[h].trim();
   const ind = indentOf(lines[h]);
   let ifLine = h;
   if (/^else\s*:/.test(text)) {
+    ifLine = null;
     for (let j = h - 1; j >= 0; j--) {
       if (quiet(lines[j]) || indentOf(lines[j]) > ind) continue;
-      if (indentOf(lines[j]) < ind) return null;
-      if (/^(?:if|elif)\b/.test(lines[j].trim())) { ifLine = j; break; }
+      // The nearest statement at the else's own indent opens it: if/elif, or for/while/try (not a condition).
+      if (indentOf(lines[j]) === ind && /^(?:if|elif)\b/.test(lines[j].trim())) ifLine = j;
+      break;
     }
+    if (ifLine === null) return null;
   }
   const expr = lines[ifLine].trim().match(/^(?:if|elif)\s+(.+):\s*(?:#.*)?$/)?.[1];
   if (!expr) return null;
@@ -83,46 +104,55 @@ function definitionOf(lines, i, name) {
 }
 
 // The ref/evidence/condition pack for spans of one file. Spans are 0-based [start, end].
+// Every if statement a line sits in is a condition (K1, ...), with or without an else: a body
+// that runs only when its condition holds carries that condition. A span is split wherever the
+// set of enclosing branches changes, so each ref names exactly the branches its lines run under.
 function pack(source, path, lines, spans) {
-  const conditions = []; // {id, key, pair: {condition, ifSpan, elseSpan}, defs: [span]}
-  const refs = []; // {span, role, condition_ids}
+  const conditions = []; // {id, key, negated, pair: {condition, ifSpan, elseSpan}, defs: [span]}
+  const refs = []; // {span, role, context: [{k, side}]}; side 0: the condition holds, 1: it does not
   const conditionFor = c => {
     const key = c.condition.replace(/^not\s+/, '');
     let k = conditions.find(x => x.key === key);
     if (!k) conditions.push(k = { id: `K${conditions.length + 1}`, key, pair: c, defs: [] });
     return k;
   };
-  const addRef = (span, role, conditionIds = []) => {
-    if (!refs.some(r => r.span[0] === span[0] && r.span[1] === span[1])) refs.push({ span, role, condition_ids: conditionIds });
-  };
-  // The if/else pairs a line sits in (a branch header counts from its first body line).
+  // The if statements a line sits in, outermost first (a branch header counts from its first body line).
   const branchesAround = i => {
     let body = i;
     if (/:\s*(?:#.*)?$/.test(lines[i]) && /^(?:if|elif|else)\b/.test(lines[i].trim())) for (body = i + 1; body < lines.length && quiet(lines[body]); body++);
     return enclosing(lines, body).filter(b => /^(?:if|elif|else)\b/.test(b.text)).map(b => conditional(lines, b.line)).filter(Boolean);
   };
+  // Which side of which condition line i runs on.
+  const contextOf = i => branchesAround(i).map(c => {
+    const inIf = i >= c.ifSpan[0] && i <= c.ifSpan[1];
+    return { k: conditionFor(c).id, side: inIf !== /^not\s+/.test(c.condition) ? 0 : 1, c };
+  });
+  const addRef = (span, role, context = contextOf(span[0])) => {
+    if (!refs.some(r => r.span[0] === span[0] && r.span[1] === span[1])) refs.push({ span, role, context: context.map(({ k, side }) => ({ k, side })) });
+  };
   for (const { span, role } of spans) {
-    const inside = [];
-    for (let j = span[0]; j <= span[1]; j++) if (/^(?:if|elif)\b/.test(lines[j].trim())) { const c = conditional(lines, j); if (c?.elseSpan) inside.push(c); }
-    if (inside.length) {
-      // A span holding a whole if/else is split into its branches, so each one carries its condition.
-      for (const c of inside) { const k = conditionFor(c); addRef(c.ifSpan, role, [k.id]); addRef(c.elseSpan, role, [k.id]); }
-      const covered = inside.flatMap(c => [c.ifSpan, c.elseSpan]);
-      for (let j = span[0]; j <= span[1]; j++) if (!quiet(lines[j]) && !covered.some(([a, b]) => j >= a && j <= b)) addRef([j, j], role);
-    } else {
-      // A span inside one branch depends on that branch's condition; the other branch is evidence too.
-      const around = branchesAround(span[0]);
-      addRef(span, role, around.map(c => conditionFor(c).id));
-      for (const c of around) {
-        const other = span[0] >= c.ifSpan[0] && span[0] <= c.ifSpan[1] ? c.elseSpan : c.ifSpan;
-        if (other) addRef(other, 'branch', [conditionFor(c).id]);
-      }
+    // Consecutive lines under the same branches form one ref; blank lines never split one.
+    const runs = [];
+    for (let j = span[0]; j <= span[1]; j++) {
+      if (!lines[j].trim()) continue;
+      const context = contextOf(j);
+      const sig = context.map(x => `${x.k}:${x.side}`).join(',');
+      const last = runs.at(-1);
+      if (last && last.sig === sig) last.end = j;
+      else runs.push({ start: j, end: j, sig, context });
+    }
+    for (const run of runs) addRef([run.start, run.end], role, run.context);
+    // The other side of each branch a run sits in is evidence too (none for an if without else),
+    // unless the selection already covers part of it.
+    for (const run of runs) for (const { c, side } of run.context) {
+      const other = (side === 0) !== /^not\s+/.test(c.condition) ? c.elseSpan : c.ifSpan;
+      if (other && !runs.some(r => r.start <= other[1] && r.end >= other[0])) addRef(other, 'branch');
     }
   }
   // Buffers the spans read (a causal mask is a registered buffer), with the branch they live in.
   for (const r of [...refs]) for (let j = r.span[0]; j <= r.span[1]; j++) for (const m of lines[j].matchAll(/self\.(\w+)\[/g)) {
     const def = definitionOf(lines, j, m[1]);
-    if (def && /register_buffer/.test(lines.slice(def[0], def[1] + 1).join('\n'))) addRef(def, 'definition', branchesAround(def[0]).map(c => conditionFor(c).id));
+    if (def && /register_buffer/.test(lines.slice(def[0], def[1] + 1).join('\n'))) addRef(def, 'definition');
   }
   // What each condition tests: the line that sets `self.<flag>`.
   for (const k of conditions) for (const name of (k.key.match(/self\.\w+/g) || []).map(s => s.slice(5))) {
@@ -130,21 +160,31 @@ function pack(source, path, lines, spans) {
     if (def) { addRef(def, 'condition'); k.defs.push(def); }
   }
   refs.sort((a, b) => a.span[0] - b.span[0]);
-  const sourceRefs = refs.map((r, i) => ({ id: `S${i + 1}`, kind: 'code', repository: source.repository, commit: source.commit, path, start_line: r.span[0] + 1, end_line: r.span[1] + 1, role: r.role, condition_ids: r.condition_ids }));
+  const sourceRefs = refs.map((r, i) => ({ id: `S${i + 1}`, kind: 'code', repository: source.repository, commit: source.commit, path, start_line: r.span[0] + 1, end_line: r.span[1] + 1, role: r.role, condition_ids: [...new Set(r.context.map(x => x.k))] }));
   const idOf = span => sourceRefs[refs.findIndex(r => r.span[0] === span[0] && r.span[1] === span[1])]?.id;
   const where = ([a, b]) => `${path}:${a + 1}-${b + 1}`;
   const firstCode = ([a, b]) => lines.slice(a, b + 1).map(s => s.trim()).find(s => s && !s.startsWith('#') && !/^(?:if|elif|else)\b/.test(s)) || '';
   return {
     source_refs: sourceRefs,
     evidence: refs.map((r, i) => ({ source_ref_id: sourceRefs[i].id, excerpt: lines.slice(r.span[0], r.span[1] + 1).join('\n') })),
-    implementation_conditions: conditions.map(({ id, key, pair, defs }) => ({
-      id, condition: `\`${key}\` (${path}:${pair.ifSpan[0] + 1})`,
-      branches: [
-        { when: `\`${key}\` is true`, runs: `${where(pair.ifSpan)}: ${firstCode(pair.ifSpan)}` },
-        { when: `\`${key}\` is false`, runs: pair.elseSpan ? `${where(pair.elseSpan)}: ${firstCode(pair.elseSpan)}` : 'the block is skipped' },
-      ],
-      source_ref_ids: [pair.ifSpan, pair.elseSpan, ...defs].filter(Boolean).map(idOf).filter(Boolean),
-    })),
+    implementation_conditions: conditions.map(({ id, key, pair, defs }) => {
+      const negated = /^not\s+/.test(pair.condition);
+      const sideSpans = negated ? [pair.elseSpan, pair.ifSpan] : [pair.ifSpan, pair.elseSpan];
+      const branches = [0, 1].map(side => {
+        const ids = sourceRefs.filter((s, i) => refs[i].context.some(x => x.k === id && x.side === side)).map(s => s.id);
+        const span = sideSpans[side];
+        const when = `\`${key}\` is ${side === 0 ? 'true' : 'false'}`;
+        if (span) return { when, runs: `${where(span)}: ${firstCode(span)}`, source_ref_ids: ids };
+        // No code of its own on this side: the other side's body is skipped, nothing runs instead.
+        return ids.length ? { when, runs: `${where(refs[sourceRefs.findIndex(s => s.id === ids[0])].span)}`, source_ref_ids: ids }
+          : { when, runs: `nothing: ${where(sideSpans[1 - side])} is skipped (no else branch)`, source_ref_ids: [], no_op: true };
+      });
+      return {
+        id, condition: `\`${key}\` (${path}:${pair.ifSpan[0] + 1})`,
+        branches,
+        source_ref_ids: [...new Set([...branches.flatMap(b => b.source_ref_ids), ...defs.map(idOf).filter(Boolean)])],
+      };
+    }),
   };
 }
 
@@ -156,7 +196,7 @@ export function findOccurrences(source, name) {
     const lines = splitLines(source.read(path));
     lines.forEach((text, i) => {
       if (!re.test(text)) return;
-      const symbol = symbolOf(enclosing(lines, i).filter(b => /^(?:class|def)\s/.test(b.text)));
+      const symbol = symbolAt(lines, i);
       const key = `${path}#${symbol}`;
       if (!groups.has(key)) groups.set(key, { path, symbol, lines: [] });
       groups.get(key).lines.push(i);
@@ -196,7 +236,7 @@ export function groundTarget(turn, source) {
     const lines = splitLines(source.read(rc.range.path));
     const span = [rc.range.start - 1, Math.min(rc.range.end, lines.length) - 1];
     const p = pack(source, rc.range.path, lines, [{ span, role: 'occurrence' }]);
-    const symbol = symbolOf(enclosing(lines, span[0]).filter(b => /^(?:class|def)\s/.test(b.text)));
+    const symbol = symbolAt(lines, span[0]);
     return {
       status: 'grounded', target, resolution: 'deictic', candidates: [], chosen: { path: rc.range.path, symbol, label: rc.label, span: [rc.range.start, rc.range.end] },
       resolved_target: { kind: 'code_span', label: `${rc.label} (${symbol}, ${rc.range.path}:${rc.range.start}-${rc.range.end})`, resolution: 'deictic', candidates_considered: [], repository_context: rc },

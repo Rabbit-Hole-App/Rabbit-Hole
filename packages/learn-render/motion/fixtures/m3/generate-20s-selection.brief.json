@@ -1,0 +1,209 @@
+{
+  "id": "brief-471627df",
+  "prompt_spec_version": "motion-v1.0/director-1",
+  "raw_user_request": "/motion 20s show what happens here",
+  "resolved_target": {
+    "kind": "code_span",
+    "label": "model.py:305-330 (GPT.generate, model.py:305-330)",
+    "resolution": "deictic",
+    "repository_context": {
+      "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+      "label": "model.py:305-330",
+      "range": {
+        "path": "model.py",
+        "start": 305,
+        "end": 330
+      }
+    },
+    "candidates_considered": []
+  },
+  "title": "One Token at a Time: Inside GPT.generate",
+  "objective": "Follow one pass of the generate loop in order, from the running sequence to one sampled index added to its end, and see that this pass repeats max_new_tokens times. Make clear that the top-k step runs only when top_k is set.",
+  "audience_context": "The learner is looking at nanoGPT's model.py lines 305-330, the GPT.generate method, and asked to see what happens in this code span. No concept or lesson position is given beyond this code.",
+  "scope_note": "This leaves out the model internals behind self(idx_cond), what @torch.no_grad() and eval mode do, and a fuller look at how temperature values reshape the distribution. Twenty seconds only fits one clear pass of the sampling loop and its optional top-k branch.",
+  "source_refs": [
+    {
+      "id": "S1",
+      "kind": "code",
+      "repository": "karpathy/nanoGPT",
+      "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+      "path": "model.py",
+      "start_line": 305,
+      "end_line": 319
+    },
+    {
+      "id": "S2",
+      "kind": "code",
+      "repository": "karpathy/nanoGPT",
+      "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+      "path": "model.py",
+      "start_line": 320,
+      "end_line": 322
+    },
+    {
+      "id": "S3",
+      "kind": "code",
+      "repository": "karpathy/nanoGPT",
+      "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+      "path": "model.py",
+      "start_line": 323,
+      "end_line": 330
+    }
+  ],
+  "evidence": [
+    {
+      "source_ref_id": "S1",
+      "excerpt": "    @torch.no_grad()\n    def generate(self, idx, max_new_tokens, temperature=1.0, top_k=None):\n        \"\"\"\n        Take a conditioning sequence of indices idx (LongTensor of shape (b,t)) and complete\n        the sequence max_new_tokens times, feeding the predictions back into the model each time.\n        Most likely you'll want to make sure to be in model.eval() mode of operation for this.\n        \"\"\"\n        for _ in range(max_new_tokens):\n            # if the sequence context is growing too long we must crop it at block_size\n            idx_cond = idx if idx.size(1) <= self.config.block_size else idx[:, -self.config.block_size:]\n            # forward the model to get the logits for the index in the sequence\n            logits, _ = self(idx_cond)\n            # pluck the logits at the final step and scale by desired temperature\n            logits = logits[:, -1, :] / temperature\n            # optionally crop the logits to only the top k options"
+    },
+    {
+      "source_ref_id": "S2",
+      "excerpt": "            if top_k is not None:\n                v, _ = torch.topk(logits, min(top_k, logits.size(-1)))\n                logits[logits < v[:, [-1]]] = -float('Inf')"
+    },
+    {
+      "source_ref_id": "S3",
+      "excerpt": "            # apply softmax to convert logits to (normalized) probabilities\n            probs = F.softmax(logits, dim=-1)\n            # sample from the distribution\n            idx_next = torch.multinomial(probs, num_samples=1)\n            # append sampled index to the running sequence and continue\n            idx = torch.cat((idx, idx_next), dim=1)\n\n        return idx"
+    }
+  ],
+  "implementation_conditions": [
+    {
+      "id": "K1",
+      "condition": "`top_k is not None` (model.py:320)",
+      "branches": [
+        {
+          "when": "`top_k is not None` is true",
+          "runs": "model.py:320-322: v, _ = torch.topk(logits, min(top_k, logits.size(-1)))",
+          "source_ref_ids": [
+            "S2"
+          ]
+        },
+        {
+          "when": "`top_k is not None` is false",
+          "runs": "nothing: model.py:320-322 is skipped (no else branch)",
+          "source_ref_ids": [],
+          "no_op": true
+        }
+      ],
+      "source_ref_ids": [
+        "S2"
+      ]
+    }
+  ],
+  "claim_registry": [
+    {
+      "id": "C1",
+      "text": "generate runs a loop max_new_tokens times. Each pass feeds the current sequence idx back into the model and adds one newly sampled index to idx.",
+      "source_ref_ids": [
+        "S1",
+        "S3"
+      ],
+      "condition_ids": [],
+      "required": true
+    },
+    {
+      "id": "C2",
+      "text": "If idx is longer than self.config.block_size, only its last block_size positions are passed to the model as idx_cond (idx[:, -self.config.block_size:]). Otherwise idx_cond is idx unchanged. This crop affects only the model input; idx itself keeps every token.",
+      "source_ref_ids": [
+        "S1"
+      ],
+      "condition_ids": [],
+      "required": false
+    },
+    {
+      "id": "C3",
+      "text": "The model is called on idx_cond to produce logits. Only the logits at the final step are kept (logits[:, -1, :]), and they are divided by temperature.",
+      "source_ref_ids": [
+        "S1"
+      ],
+      "condition_ids": [],
+      "required": true
+    },
+    {
+      "id": "C4",
+      "text": "Only when top_k is not None (K1 true branch), torch.topk finds the top_k largest logits, and every logit below the smallest of them is set to -float('Inf'). When top_k is None (K1 false branch), this step is skipped and the logits pass through unchanged.",
+      "source_ref_ids": [
+        "S2"
+      ],
+      "condition_ids": [
+        "K1"
+      ],
+      "required": true
+    },
+    {
+      "id": "C5",
+      "text": "F.softmax turns the logits into normalized probabilities. torch.multinomial then draws one index (idx_next) at random from that distribution instead of always taking the most likely index.",
+      "source_ref_ids": [
+        "S3"
+      ],
+      "condition_ids": [],
+      "required": true
+    },
+    {
+      "id": "C6",
+      "text": "torch.cat((idx, idx_next), dim=1) appends the sampled index to the running sequence. After the loop, generate returns idx, which holds the original conditioning indices followed by the new ones.",
+      "source_ref_ids": [
+        "S3"
+      ],
+      "condition_ids": [],
+      "required": true
+    }
+  ],
+  "duration": {
+    "requested_text": "20s",
+    "requested_seconds": 20,
+    "seconds": 20
+  },
+  "aspect_ratio": "16:9",
+  "teaching_mode": "mechanism_first",
+  "must_show": [
+    "A row of token indices labeled idx that grows by one cell at the end of each loop pass",
+    "A loop counter tied to max_new_tokens that shows the pass repeating",
+    "Steps in source order: idx_cond (crop to block_size if too long) → self(idx_cond) gives logits → keep the last position logits[:, -1, :] → divide by temperature → optional top-k → softmax → multinomial sample → torch.cat append",
+    "A row of logits for the final position only, separated from the earlier positions, which are set aside",
+    "The top-k step drawn as a gated branch labeled 'top_k is not None': on the true path, logits below the k-th largest become -Inf; on the false path, the logits pass by untouched",
+    "Probabilities from softmax shown as bars, with multinomial drawing a random pick that is not necessarily the tallest bar",
+    "The returned idx still beginning with the original prompt indices"
+  ],
+  "must_not_claim": [
+    "Top-k filtering is always applied, on every call or in every pass (it runs only when top_k is not None)",
+    "The steps run in a different order, e.g. softmax before the temperature division or top-k, sampling before softmax, or appending before sampling",
+    "Sampling always picks the most likely token (argmax); torch.multinomial draws at random according to the probabilities",
+    "The model produces all max_new_tokens tokens in one forward pass",
+    "Cropping to block_size deletes tokens from idx or from the returned sequence (only idx_cond, the model input, is cropped)",
+    "Top-k removes tokens from the vocabulary or shrinks the logits tensor (it sets the filtered logits to -Inf in place)",
+    "Dividing by temperature changes which token has the highest logit (it only scales the logits)",
+    "The returned idx holds only the newly generated tokens"
+  ],
+  "visual_direction": "Open on the idx row and a loop counter. Follow one pass through the pipeline: the end of the sequence is framed as idx_cond (show a crop window only for the too-long case), the model turns it into a grid of logits, the grid shrinks to just the final row, and the row is scaled down by temperature. Then comes a visible fork for top_k: on the taken path, the low values drop to -Inf; on the bypass path, the row passes through unchanged. The row then becomes probability bars, a random draw lands on one bar, and that index slides onto the end of idx. Speed through the next passes quickly so the repetition and the growing sequence stand out. End on the full returned idx, with the prompt part and the generated part told apart. Attention should always follow the data moving left to right through each stage.",
+  "narration_policy": "concise",
+  "output_requirements": {
+    "stage_width": 1920,
+    "stage_height": 1080,
+    "fps": 30,
+    "preview_scale": 0.45,
+    "poster": true
+  },
+  "qa_requirements": {
+    "blocking_categories": [
+      "unsupported_claim",
+      "must_not_claim_violation",
+      "required_claim_contradicted",
+      "wrong_source_branch",
+      "blank_frame",
+      "clipped_text",
+      "overlapping_text",
+      "missing_must_show",
+      "duration_over_max",
+      "corrupt_output",
+      "renderer_failure",
+      "narration_contradicts_visuals"
+    ],
+    "keyframe_times": [
+      6,
+      10,
+      15
+    ]
+  },
+  "provenance": {
+    "created_at": "2026-10-04T21:59:30.496Z"
+  }
+}
