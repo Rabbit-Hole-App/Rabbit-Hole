@@ -40,6 +40,10 @@ import { DiveNavigator, DivePortals, holeApp, useDive, usePendingHole } from './
 import { useTutor } from './LearnTutor.jsx';
 import { useVoiceSession } from './LearnVoice.jsx';
 import { TutorCaption } from './VoiceMode.jsx';
+import ForkButton from './ForkButton.jsx';
+import { ForkedFrom } from './home/Provenance.jsx';
+import { cardModel } from './home/provenance.js';
+import { hasLocalContent } from './home/canvas-local.js';
 
 const LearnNotes = lazy(() => import('./LearnNotes.jsx'));
 const boardSlug = name => String(name).toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32) || 'test';
@@ -621,8 +625,9 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
       boardVersion.current = data.version;
       const mine = Number(localStorage.getItem(versionKey) || 0);
       // A newer server copy wins when this browser has none (a fork, or this
-      // board on another device) or someone else saved it.
-      const hasLocal = localStorage.getItem(boardStorageKey) !== null;
+      // board on another device) or someone else saved it. Empty keys are not
+      // a copy: the canvas writes them on mount, before a slow reply lands.
+      const hasLocal = hasLocalContent(localStorage, { ink: boardStorageKey, chat: chatKey });
       if (data.version > mine && (!hasLocal || (data.sharing.shared && data.updated_by !== (app.email || app.owner_email)))) {
         const { exchanges: chats, ...state } = data.state || {};
         try { localStorage.setItem(boardStorageKey, JSON.stringify(state)); localStorage.setItem(versionKey, String(data.version)); } catch { /* keep the local copy */ }
@@ -1219,6 +1224,8 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
               });
             }}
             className="h-8 min-w-16 max-w-96 shrink cursor-text truncate rounded-lg border border-transparent bg-transparent px-2 text-sm font-semibold text-ink outline-none [field-sizing:content] placeholder:text-ink-2 hover:border-line focus:border-line" />
+          {/* A fork names its source (docs/features/canvas-forking.md): the title it had when forked, kept through renames. */}
+          {isCanvas && <ForkedFrom m={cardModel(app)} className="max-w-80 items-center pr-1 [&_.line-clamp-3]:line-clamp-2" />}
           <CanvasMenubar menus={canvasMenus} />
           {shortcutsOpen && <ShortcutsSheet onClose={() => setShortcutsOpen(false)} />}
           {slashHelpOpen && <Suspense fallback={null}><SlashCommandsSheet appName={app.name} onClose={() => setSlashHelpOpen(false)} /></Suspense>}
@@ -1235,6 +1242,8 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
             <button type="button" title="Present" aria-label="Present"
               onClick={() => { if (canvasApi.current?.present()) setPanelOpen(false); }}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><Play size={15} strokeWidth={1.8} /></button>
+            {/* Fork this canvas: your browser's copy of it becomes a new canvas of yours, opened next. */}
+            {isCanvas && !hole && !board && <ForkButton iconOnly source={{ canvas: app.name }} snapshot={boardSnapshot} onForked={fork => navigate(fork.url)} />}
             <span className="relative">
               <button type="button" data-share-button title={sharing?.unavailable || (sharing?.shared ? 'Shared - manage links' : 'Share this board')} aria-label="Share" aria-expanded={shareOpen}
                 disabled={!!sharing?.unavailable} onClick={() => setShareOpen(open => !open)}

@@ -17,7 +17,14 @@ export function learnDb(t) {
         first: async () => statement.get(...args) || null,
         all: async () => ({ results: statement.all(...args) }),
         run: async () => ({ meta: statement.run(...args) }),
+        runNow: () => ({ meta: statement.run(...args) }),
       };
+    },
+    // D1 batches are one transaction: a failing statement rolls the earlier ones back. Synchronous, so two
+    // requests' batches never interleave on this one connection (D1 serializes them).
+    batch: async statements => {
+      sqlite.exec('BEGIN');
+      try { const out = statements.map(s => s.runNow()); sqlite.exec('COMMIT'); return out; } catch (error) { sqlite.exec('ROLLBACK'); throw error; }
     },
   };
   return { sqlite, LEARN_DB };

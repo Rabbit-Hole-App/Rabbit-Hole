@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { AppWindow, Archive, ArrowRight, ArrowUpRight, BookOpen, Check, FolderGit2, ListFilter, Loader2, MoreHorizontal, Network, PenLine, Pin, PinOff, Play, UserRound, X } from 'lucide-react';
+import { AppWindow, Archive, ArrowRight, ArrowUpRight, BookOpen, Check, FolderGit2, GitFork, ListFilter, Loader2, MoreHorizontal, Network, PenLine, Pin, PinOff, Play, UserRound, X } from 'lucide-react';
 import { titleOf } from './agent/catalog.js';
 import { ago, navigate } from './api.js';
 import { learnProgress, onAnotherDevice, readRecent } from './home/continue.js';
+import { canvasKeys, localBoard } from './home/canvas-local.js';
+import ForkButton from './ForkButton.jsx';
 import { readPinned, togglePin } from './home/pinned.js';
 import { Creator, ForkedFrom, Forks, SourceLink } from './home/Provenance.jsx';
 import { cardModel } from './home/provenance.js';
@@ -20,9 +22,9 @@ const fixtureNote = () => toast('Review fixture: there is nothing behind this ca
 const guard = (a, fn) => () => (a.fixture ? fixtureNote() : fn());
 const open = (a) => guard(a, () => navigate(`/apps/${a.name}`))();
 
-export default function LibraryViews({ apps, type, data, onType, onArchive, onRun, runningOf }) {
+export default function LibraryViews({ apps, type, data, onType, onArchive, onRun, runningOf, onForked }) {
   const [menu, setMenu] = useState(null); // { a, top, left }
-  const ctx = { org: data?.org, email: data?.email, storage: localStorage, catalog: data?.apps || [] };
+  const ctx = { org: data?.org, email: data?.email, storage: localStorage, catalog: data?.apps || [], onForked };
   const more = (a) => stop((e) => { const r = e.currentTarget.getBoundingClientRect(); setMenu({ a, top: r.bottom + 4, left: r.right - 176 }); });
   const card = (a) => (a.kind === 'repository' ? <ProjectCard key={a.name} a={a} ctx={ctx} onMore={more(a)} /> : <CanvasCard key={a.name} a={a} ctx={ctx} onMore={more(a)} />);
   const recent = readRecent(localStorage);
@@ -107,9 +109,9 @@ export function ActiveFilters({ type, section, archived }) {
 }
 
 // Card hierarchy (user, 2026-09-28): title; creator and the source-owner check; source and a
-// short context; provenance when forked; then light metadata, the fork count and one action.
+// short context; provenance when forked; then light metadata, the fork count and one action (canvases add Fork).
 // Title and footer are the card's controls; a click anywhere else on it opens it too.
-function Card({ kind, a, m, badge, action, onMore, source, context, meta }) {
+function Card({ kind, a, m, badge, action, fork = null, onMore, source, context, meta }) {
   return (
     <li data-library-card={kind} onClick={() => open(a)} className={`${CARD} lift-card group flex min-h-[156px] min-w-0 cursor-pointer flex-col gap-1 p-4`}>
       <div className="flex min-w-0 items-start gap-2">
@@ -124,6 +126,7 @@ function Card({ kind, a, m, badge, action, onMore, source, context, meta }) {
       {meta}
       <div className="mt-auto flex items-center gap-2 pt-3">
         <Button size="sm" variant="secondary" onClick={stop(() => open(a))}>{action} <ArrowRight size={13} className="nudge-arrow" /></Button>
+        {fork}
         <span className="flex-1" />
         <Forks m={m} />
         <IconBtn title="More" className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100" onClick={onMore}><MoreHorizontal size={16} strokeWidth={1.5} /></IconBtn>
@@ -165,8 +168,13 @@ function CanvasCard({ a, ctx, onMore }) {
   const away = !a.fixture && onAnotherDevice(a, ctx.email, ctx.storage);
   const last = !a.fixture && !away && learnProgress(a, ctx)?.lastExplored;
   // ponytail: canvases record created_at only (content lives in the browser), so no 'last edited' yet.
+  // [Open] [Fork] (docs/features/canvas-forking.md): your own canvas forks from what this browser holds,
+  // else its server copy; the new canvas joins this Library at once.
+  const fork = a.fixture
+    ? <Button size="sm" variant="secondary" onClick={stop(fixtureNote)}><GitFork size={13} strokeWidth={1.8} />Fork</Button>
+    : <ForkButton size="sm" source={{ canvas: a.name }} snapshot={() => localBoard(ctx.storage, canvasKeys({ org: a.org || ctx.org, email: a.email || ctx.email, slug: a.name }))} onForked={() => ctx.onForked?.()} />;
   return (
-    <Card kind="canvas" a={a} m={m} onMore={onMore} action={last ? 'Continue' : 'Open'} badge={<Pill kind="canvas">Canvas</Pill>} meta={(
+    <Card kind="canvas" a={a} m={m} onMore={onMore} action={last ? 'Continue' : 'Open'} fork={fork} badge={<Pill kind="canvas">Canvas</Pill>} meta={(
       <span className="flex min-w-0 items-center gap-1.5 pt-1 text-xs text-ink-3">
         <span className="truncate">Created {ago(a.created_at)}</span>
         {!a.fixture && (away ? <Pill>On another device</Pill> : <span className="truncate">· Content in this browser</span>)}

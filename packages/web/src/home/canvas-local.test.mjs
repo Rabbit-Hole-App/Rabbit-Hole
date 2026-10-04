@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { canvasKeys, deviceId, hasLocalContent, opensHere } from './canvas-local.js';
+import { canvasKeys, deviceId, hasLocalContent, localBoard, opensHere } from './canvas-local.js';
 
 const memory = (entries = {}) => { const items = new Map(Object.entries(entries)); return { getItem: (key) => (items.has(key) ? items.get(key) : null), setItem: (key, value) => items.set(key, String(value)) }; };
 const KEYS = canvasKeys({ org: 'gmail-com', email: 'a@gmail.com', slug: 'canvas-0f9e8d7c' });
@@ -52,4 +52,16 @@ test('a canvas opens with local content, on the device that made it, or with no 
   assert.equal(on({ 'small.device': 'dev-b', [KEYS.chat]: '[{"question":"q"}]' }), true);
   assert.equal(on({ 'small.device': 'dev-b' }, { ...record, device_id: null }), true);
   assert.equal(on({}), false);
+});
+
+// Fork (docs/features/canvas-forking.md): your own canvas forks from what this browser saved, or from
+// nothing local at all - never an empty board standing in for content held elsewhere.
+test("a Fork sends this browser's board with its chat cards, and nothing when the browser holds none", () => {
+  assert.equal(localBoard(memory(), KEYS), null, 'never opened here');
+  assert.equal(localBoard(memory(OPENED), KEYS), null, 'opened but empty is not a copy');
+  const ink = { strokes: [], shapes: [{ id: 's' }], items: [], links: [], blocks: [{ id: 'b', type: 'explanation' }] };
+  const chat = [{ id: '1', question: 'why sqrt(dk)?', answer: 'scale', status: 'done' }];
+  assert.deepEqual(localBoard(memory({ [KEYS.ink]: JSON.stringify(ink), [KEYS.chat]: JSON.stringify(chat) }), KEYS), { ...ink, exchanges: chat });
+  assert.deepEqual(localBoard(memory({ ...OPENED, [KEYS.chat]: JSON.stringify(chat) }), KEYS).exchanges, chat, 'chat cards alone are content');
+  assert.equal(localBoard(memory({ [KEYS.ink]: '{not json' }), KEYS), null, 'unreadable: let the server copy decide');
 });

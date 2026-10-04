@@ -9,6 +9,7 @@ import { authorizedBoardApp } from './learn-board.js';
 import { repositoryIdentity } from './repositories.js';
 import { sha256Hex } from './learn-grade-jev.js';
 import { learnMedia } from './learn-storage.js';
+import { FORK_COUNT } from './canvases.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/;
@@ -137,41 +138,105 @@ async function sharedAccess(req, env, token) {
   return found;
 }
 
-// Forking a shared board (docs/features/canvas-sharing.md): the signed-in
-// viewer gets their own Canvas - a row in the smart-home canvases catalog,
-// standalone (no project) - holding a server copy of the board, its files and
-// its notebook workspaces. Notebooks get new ids, so a fork never shares a
-// browser workspace with its source. Provenance rides on the copy's
-// forked_from (smart-home's cards read it; see their home/provenance.js).
+// Forking (docs/features/canvas-forking.md): the signed-in user gets their own
+// Canvas - a row in the canvases catalog, standalone (no project) - holding a
+// server copy of the board, its files and its notebook workspaces. Notebooks
+// get new ids, so a fork never shares a browser workspace with its source.
+// Where it came from is a canvas_forks row; the copy's forked_from JSON keeps
+// the title for Learn's "Your fork of ..." notice.
 const CANVAS = /^canvas-[a-f0-9]{8}$/;
+const FORK_KEY = /^[A-Za-z0-9_-]{8,64}$/;
+// A fork copies the board's content and nothing else a browser saved beside it
+// (selection, view, anything newer); chat cards arrive settled, never mid-answer.
+const CONTENT = ['strokes', 'shapes', 'items', 'links', 'blocks', 'groups', 'areas', 'exchanges'];
+export function forkState(state) {
+  const out = {};
+  for (const key of CONTENT) if (Array.isArray(state?.[key])) out[key] = state[key];
+  if (out.exchanges) out.exchanges = out.exchanges.map(exchange => ({ ...exchange, status: 'done' }));
+  return out;
+}
 
-async function fork(req, env, token) {
-  const found = await sharedAccess(req, env, token);
-  if (found instanceof Response) return found;
+// What a fork copies from. A share link: whoever may open it (existing rules).
+// A canvas by name: its owner only - and their browser holds its content, so
+// the request carries it (`state`); without it, the board's server copy.
+async function forkSource(req, env, user, body) {
+  const source = body?.source;
+  if (typeof source?.token === 'string') {
+    const found = await sharedAccess(req, env, source.token);
+    if (found instanceof Response) return found;
+    const { row } = found;
+    const canvas = CANVAS.test(row.app) ? await env.LEARN_DB.prepare('SELECT name, title FROM canvases WHERE org = ? AND name = ?').bind(row.org, row.app).first() : null;
+    return { row, state: JSON.parse(row.state_json), org: row.org, canvas: canvas?.name ?? null, owner: row.owner_email, title: canvas?.title || row.title || (row.board === 'main' ? row.app : row.board), share: source.token };
+  }
+  if (typeof source?.canvas !== 'string' || !CANVAS.test(source.canvas)) return json({ error: 'Choose a canvas or a share link to fork.' }, 400);
+  const canvas = await env.LEARN_DB.prepare('SELECT name, title, owner_email FROM canvases WHERE org = ? AND name = ?').bind(user.org, source.canvas).first();
+  if (!canvas) return json({ error: 'Canvas not found in this workspace' }, 404);
+  if (canvas.owner_email !== user.email) return json({ error: 'This canvas is private to its owner' }, 403);
+  if (body.state !== undefined) {
+    const checked = stateText(body.state);
+    if (checked.error) return json({ error: checked.error }, checked.status || 400);
+  }
+  const row = await ownerRow(env, user, canvas.name, 'main');
+  const state = body.state ?? (row ? JSON.parse(row.state_json) : null);
+  if (!state) return json({ error: "There is nothing to fork here: this canvas's content isn't in this browser or saved on the server. Open it where it was made and fork it there." }, 409);
+  return { row, state, org: user.org, canvas: canvas.name, owner: user.email, title: canvas.title, share: null };
+}
+
+const forkReply = (name, title, extra = {}) => ({ name, title, url: `/apps/${name}?tab=learn`, ...extra });
+
+async function fork(req, env, body) {
   const user = await repositoryIdentity(req, env);
-  if (user instanceof Response) return json({ error: 'Sign in to fork this board.', signIn: true }, 401);
-  const source = found.row;
-  const title = (source.title || (source.board === 'main' ? source.app : source.board)).slice(0, 120);
+  if (user instanceof Response) return user.status === 401 ? json({ error: 'Sign in to fork this board.', signIn: true }, 401) : user;
+  if (body?.key !== undefined && !(typeof body.key === 'string' && FORK_KEY.test(body.key))) return json({ error: 'Bad fork key' }, 400);
+  // An old client sends no key: its fork is never a replay.
+  const key = body?.key ?? crypto.randomUUID();
+  const db = env.LEARN_DB;
+  // The same action again (double click, a retried request): the fork it already made.
+  const replay = async () => {
+    const made = await db.prepare('SELECT c.name, c.title FROM canvas_forks f JOIN canvases c ON c.org = f.org AND c.name = f.canvas WHERE f.owner_email = ? AND f.fork_key = ?').bind(user.email, key).first();
+    return made && json(forkReply(made.name, made.title, { replayed: true }));
+  };
+  const earlier = await replay();
+  if (earlier) return earlier;
+  const source = await forkSource(req, env, user, body);
+  if (source instanceof Response) return source;
+  const title = String(source.title).slice(0, 120);
+  // Lineage: the parent is the source canvas; the root is the parent's root, or the parent itself.
+  const up = source.canvas && await db.prepare('SELECT root_org, root_canvas_id FROM canvas_forks WHERE org = ? AND canvas = ?').bind(source.org, source.canvas).first();
+  const root = up?.root_canvas_id ? [up.root_org, up.root_canvas_id] : source.canvas ? [source.org, source.canvas] : [null, null];
   const name = `canvas-${crypto.randomUUID().slice(0, 8)}`;
-  await env.LEARN_DB.prepare('INSERT INTO canvases(org,name,owner_email,title,project,device_id) VALUES(?,?,?,?,?,?)')
-    .bind(user.org, name, user.email, title, null, null).run();
   const renamed = new Map();
-  const state = JSON.parse(source.state_json);
+  const state = forkState(source.state);
   state.blocks = (state.blocks || []).map(block => {
     if (block.type !== 'notebook' || !block.notebook_id) return block;
     const fresh = crypto.randomUUID();
     renamed.set(`notebook:${block.notebook_id}`, `notebook:${fresh}`);
     return { ...block, notebook_id: fresh };
   });
-  const id = crypto.randomUUID();
-  const forkedFrom = { resource_id: source.app, board: source.board, board_id: source.id, title, creator: { name: source.owner_email, source_owner_verified: false }, share_url: `/b/${token}` };
-  await env.LEARN_DB.prepare('INSERT INTO learn_boards (id, org, owner_email, app, board, state_json, version, updated_by, updated_at, title, forked_from) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)')
-    .bind(id, user.org, user.email, name, 'main', JSON.stringify(state), user.email, new Date().toISOString(), title, JSON.stringify(forkedFrom)).run();
+  const id = crypto.randomUUID(), now = new Date().toISOString();
+  const forkedFrom = { resource_id: source.canvas || source.row?.app || null, board: source.row?.board || 'main', board_id: source.row?.id || null, title, creator: { name: source.owner, source_owner_verified: false }, share_url: source.share ? `/b/${source.share}` : null };
+  // One batch: a fork is its canvas, board and link together, or nothing. The UNIQUE key refuses a
+  // concurrent duplicate of the same action, which then answers with the fork that won.
+  try {
+    await db.batch([
+      db.prepare('INSERT INTO canvases(org,name,owner_email,title,project,device_id) VALUES(?,?,?,?,NULL,NULL)').bind(user.org, name, user.email, title),
+      db.prepare('INSERT INTO learn_boards (id, org, owner_email, app, board, state_json, version, updated_by, updated_at, title, forked_from) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)')
+        .bind(id, user.org, user.email, name, 'main', JSON.stringify(state), user.email, now, title, JSON.stringify(forkedFrom)),
+      db.prepare('INSERT INTO canvas_forks (org, canvas, owner_email, fork_key, forked_from_org, forked_from_canvas_id, root_org, root_canvas_id, forked_from_owner_id, forked_from_title, forked_from_share, forked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        .bind(user.org, name, user.email, key, source.canvas ? source.org : null, source.canvas, root[0], root[1], source.owner, title, source.share, now),
+    ]);
+  } catch (error) {
+    const won = await replay();
+    if (won) return won;
+    return json({ error: `The fork could not be made: ${error.message}` }, 500);
+  }
   let files = 0;
-  if (learnMedia(env)) {
+  // ponytail: files copy after the rows commit, so a worker dying mid-copy leaves the fork with fewer files and a
+  // replay does not re-copy. Copy before the batch (orphan R2 objects on a lost race) if that is ever seen.
+  if (learnMedia(env) && source.row) {
     let cursor;
     do {
-      const page = await learnMedia(env).list({ prefix: `learn-boards/${source.id}/`, cursor, include: ['customMetadata'] });
+      const page = await learnMedia(env).list({ prefix: `learn-boards/${source.row.id}/`, cursor, include: ['customMetadata'] });
       for (const object of page.objects) {
         const key = object.customMetadata?.key;
         if (!key) continue;
@@ -184,7 +249,7 @@ async function fork(req, env, token) {
       cursor = page.truncated ? page.cursor : undefined;
     } while (cursor);
   }
-  return json({ name, title, url: `/apps/${name}?tab=learn`, files, forked_from: forkedFrom }, 201);
+  return json(forkReply(name, title, { files, forked_from: forkedFrom }), 201);
 }
 
 // The owner of a board: someone with access to its app - or, for a canvas
@@ -206,7 +271,9 @@ async function openShared(req, env, token) {
   const found = await sharedAccess(req, env, token);
   if (found instanceof Response) return found;
   const { row, role } = found;
-  return json({ role, app: row.app, board: row.board, title: row.title || null, owner: row.owner_email, version: row.version, updated_at: row.updated_at, state: JSON.parse(row.state_json) });
+  // A canvas's link shows the canvas's own title and its direct fork count (docs/features/canvas-forking.md).
+  const canvas = CANVAS.test(row.app) ? await env.LEARN_DB.prepare(`SELECT title, ${FORK_COUNT} AS fork_count FROM canvases c WHERE org = ? AND name = ?`).bind(row.org, row.app).first() : null;
+  return json({ role, app: row.app, board: row.board, title: canvas?.title || row.title || null, owner: row.owner_email, fork_count: canvas?.fork_count || 0, version: row.version, updated_at: row.updated_at, state: JSON.parse(row.state_json) });
 }
 
 export async function learnBoardsRoute(path, req, env) {
@@ -220,8 +287,11 @@ export async function learnBoardsRoute(path, req, env) {
     if (req.method === 'PUT') return json({ error: 'Shared links are view-only. Fork the board to edit your own copy.' }, 403);
     return json({ error: 'Method not allowed' }, 405);
   }
+  // One fork call for every surface (Library card, canvas top bar, shared board): { source, key, state? }.
+  if (path === '/api/learn/boards/fork') return req.method === 'POST' ? fork(req, env, await readBody(req)) : json({ error: 'Method not allowed' }, 405);
+  // The shared board's own path, kept for pages loaded before the one call.
   const forking = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)\/fork$/);
-  if (forking) return req.method === 'POST' ? fork(req, env, decodeURIComponent(forking[1])) : json({ error: 'Method not allowed' }, 405);
+  if (forking) return req.method === 'POST' ? fork(req, env, { ...(await readBody(req)), source: { token: decodeURIComponent(forking[1]) } }) : json({ error: 'Method not allowed' }, 405);
   const shared = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)$/);
   if (shared) {
     const token = decodeURIComponent(shared[1]);
