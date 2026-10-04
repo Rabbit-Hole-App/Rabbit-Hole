@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, House, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Play, Redo2, RotateCcw, Search, Share2, Trash2, NotebookPen, Undo2, ZoomIn, ZoomOut, GripVertical, Plus, Network } from 'lucide-react';
 import { SPEEDS, getSpeed, setSpeed } from './learn-audio.js';
-import { api, navigate, wsHeaders } from './api.js';
+import { api, goBack, wsHeaders } from './api.js';
 import { canEditCourse, learnPreview, reviewTools } from './flags.js';
 import { AskPanel } from './ask.jsx';
 import { Button, IconBtn, ConfirmDialog, toast } from './ui.jsx';
@@ -1195,10 +1195,10 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
         {/* On a phone the row wraps (menubar compact) instead of clipping its
             start; not a scroller, which would clip the menus' dropdowns. */}
         {!canvasState.presenting && <div className={`relative flex shrink-0 items-center justify-center gap-1 px-3 pt-3 pb-1 max-md:flex-wrap max-md:gap-y-0.5 max-md:px-2 max-md:pt-2 ${!courseView && learningView === 'lesson' ? '' : 'pl-12'}`}>
-          {/* The page's top-left corner is Home (owner 2026-09-30): the Home page from any Rabbit Hole, at any depth; the
-              navigator climbs holes. Learn has no sidebar button; recentring is Shift 0 and the minimap. */}
-          <button type="button" data-learn-home aria-label="Home" title="Home"
-            onClick={() => navigate('/apps')}
+          {/* The page's top-left corner goes back (owner 2026-10-04: Back, not a jump to Home): to the page the learner
+              came from, or Home when the canvas was opened directly. The navigator climbs holes; recentring is Shift 0. */}
+          <button type="button" data-learn-home aria-label="Back" title="Back"
+            onClick={() => goBack('/apps')}
             className="absolute top-3 left-3 flex h-8 w-8 items-center justify-center rounded-xl border border-line bg-white text-ink-2 shadow-md hover:text-ink max-md:hidden"><House size={15} strokeWidth={1.7} /></button>
           <input aria-label="Canvas title" title="Rename this canvas"
             // The name on screen is always the value - editing edits IT, via a

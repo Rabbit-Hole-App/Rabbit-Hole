@@ -34,9 +34,15 @@ export function setTheme(t) {
 }
 
 // Two pages don't need a router dep: pushState + a popstate event the root listens to.
+// Each in-app entry records its depth, so goBack can tell an in-app page to return to from leaving the app.
 export function navigate(to) {
-  window.history.pushState(null, '', to);
+  window.history.pushState({ depth: (window.history.state?.depth || 0) + 1 }, '', to);
   window.dispatchEvent(new PopStateEvent('popstate'));
+}
+// Back to the previous in-app page, or to fallback when this page was opened directly (owner, 2026-10-04: the
+// canvas's corner button is a Back button, not a jump to Home).
+export function goBack(fallback) {
+  if (window.history.state?.depth > 0) window.history.back(); else navigate(fallback);
 }
 
 // Active workspace: '' = the email-domain one; custom slugs (w-*) ride a header

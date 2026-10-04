@@ -8,7 +8,7 @@ import { FILE_TOKEN, INLINE_PARTS, citedSources, sourceReference, singleSourcePa
 // peek's ask box, and ⌘K's Ask tab. POST /api/ask streams SSE; org-scope
 // ambiguity comes back as { choose } and renders candidate pills. ───
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUp, AtSign, BookOpen, Check, Copy, Crown, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Network, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap } from 'lucide-react';
+import { ArrowUp, AtSign, BookOpen, Eraser, Check, Copy, Crown, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Network, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap } from 'lucide-react';
 import { ago, api, navigate, wsHeaders } from './api.js';
 import { colorLine } from './code.jsx';
 import { MathText, tokenizeMath } from './MathText.jsx';
@@ -698,18 +698,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       {!compact && (msgs.length > 0 || threads.length > 0 || headerExtra || headerTitle) && (
         <div className="flex shrink-0 items-center justify-end gap-1 pb-1">
           {headerTitle && <h2 className="mr-auto text-sm font-semibold">{headerTitle}</h2>}
-          {(threads.length > 0 || headerTitle) && (
-            <button
-              disabled={guardedHistory && busy}
-              onClick={() => { setFilePeek(null); onCloseContentPanel?.(); setView(view === 'history' ? 'chat' : 'history'); }}
-              className={cn('flex h-6 cursor-pointer items-center gap-1 rounded-sm px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink', view === 'history' && 'bg-active text-ink')}
-            >
-              <History size={12} strokeWidth={1.5} /> {view === 'history' ? 'Back to chat' : 'History'}
-            </button>
-          )}
-          <button disabled={guardedHistory && busy} onClick={newChat} className="flex h-6 cursor-pointer items-center gap-1 rounded-sm px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink">
-            <Plus size={12} strokeWidth={1.5} /> New chat
-          </button>
+          {/* No History or New chat (owner, 2026-10-04): one icon clears the conversation. */}
+          <button type="button" data-chat-clear aria-label="Clear the conversation" title="Clear" disabled={guardedHistory && busy} onClick={newChat} className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-50"><Eraser size={13} /></button>
           {headerExtra}
         </div>
       )}
@@ -803,13 +793,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         {sheetMode && (
           <div className="sticky top-0 z-10 -mx-3 flex items-center gap-1 bg-white px-3 pt-2 pb-1">
             <span className="mr-auto text-xs text-ink-2">Rabbit Hole</span>
-            <button type="button" disabled={busy} onClick={() => { if (sheetHistory) return setSheetHistory(false); setSheetHistory(true); chatApi(threadsPath).then(d => { const mine = new Set(sheetThreadIds(appName)); setThreads((d.threads || []).filter(t => mine.has(String(t.id)))); }).catch(() => {}); }}
-              className={cn('flex h-6 cursor-pointer items-center gap-1 rounded-sm px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-50', sheetHistory && 'bg-active text-ink')}>
-              <History size={12} strokeWidth={1.5} />{sheetHistory ? 'Back to chat' : 'History'}
-            </button>
-            <button type="button" disabled={busy} onClick={newChat} className="flex h-6 cursor-pointer items-center gap-1 rounded-sm px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-50">
-              <Plus size={12} strokeWidth={1.5} />New chat
-            </button>
+            <button type="button" data-chat-clear aria-label="Clear the conversation" title="Clear" disabled={busy} onClick={newChat} className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-50"><Eraser size={13} /></button>
             <button type="button" aria-label="Collapse chat" title="Collapse" onClick={() => setSheetOpen(false)} className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink">
               <Minus size={14} />
             </button>

@@ -16,8 +16,8 @@ test('the tool palette docks left by default and still lives in its own gutter',
   assert.match(canvas, /role="toolbar" aria-label="Canvas tools"/);
 });
 
-test('the top-left corner is Home at every depth, never a back button; no sidebar button', () => {
-  assert.match(page, /data-learn-home aria-label="Home" title="Home"\r?\n\s+onClick=\{\(\) => navigate\('\/apps'\)\}/);
+test('the top-left corner goes Back (owner, 2026-10-04: no longer a jump to Home), Home when opened directly; no sidebar button', () => {
+  assert.match(page, /data-learn-home aria-label="Back" title="Back"\r?\n\s+onClick=\{\(\) => goBack\('\/apps'\)\}/);
   assert.match(page, /className="absolute top-3 left-3 /);
   assert.doesNotMatch(canvas, /data-canvas-home/, 'recentring is Shift 0 and the minimap, not a second corner button');
   assert.doesNotMatch(shell, /immersive && !drawer/, 'Learn shows no Open sidebar button');

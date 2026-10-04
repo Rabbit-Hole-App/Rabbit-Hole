@@ -50,7 +50,7 @@ test('the Map: details and layers behind icons, the side panel closed until used
   assert.match(page, /className=\{inUse\?'p-5 ring-2 ring-accent ring-inset':'p-5'\}/);
   // What lands in the panel opens it: an answer, a node, a file, a cited source.
   assert.match(page, /if\(pushed\)\{setView\('conversation'\);setPanelOpen\(true\);\}/);
-  assert.match(page, /<ResultList scopeKey=\{key\} onFile=\{\(path,line\)=>\{setSource\(\{path,line:line\|\|1\}\);[^}]*setPanelOpen\(true\);\}\}\/>/);
+  assert.match(page, /<ResultList scopeKey=\{key\} tools=\{false\} onFile=\{\(path,line\)=>\{setSource\(\{path,line:line\|\|1\}\);[^}]*setPanelOpen\(true\);\}\}\/>/);
 });
 
 test('an answer lists every cited file once, in order, including line lists written one per line', () => {
@@ -91,4 +91,22 @@ test('the window over the main composer: no History or New chat, a clear icon, a
   assert.match(sheet, /data-result-clear aria-label="Clear the conversation"[\s\S]*?onClick=\{\(\) => \{ resetThread\(key\); onClose\(\); \}\}/);
   assert.doesNotMatch(bar, /data-result-line/);
   assert.match(bar, /\{!sheet && line && !panelHosts\(surface, line\.scope\) && <button type="button" data-result-open aria-label="Open the conversation"/);
+});
+
+test('the Map side panel shows no "Answers from the bar below land here." hint (owner, 2026-10-04)', () => {
+  assert.doesNotMatch(page, /Answers from the bar below land here/);
+});
+
+test('no History or New chat anywhere: the Map panel, the Learn chat sheet and side panel each have one clear icon (owner, 2026-10-04)', () => {
+  assert.match(page, /data-map-panel-clear aria-label="Clear the conversation"[\s\S]*?onClick=\{\(\)=>resetThread\(key\)\} className="absolute top-3 right-11/);
+  assert.equal((md.match(/data-chat-clear aria-label="Clear the conversation"[^\n]*onClick=\{newChat\}/g) || []).length, 2);
+  assert.doesNotMatch(md, /> New chat|>New chat/);
+  assert.doesNotMatch(page, /New chat<\/|>New chat/);
+});
+
+test('the canvas corner button goes Back: to the previous in-app page, or Home when opened directly (owner, 2026-10-04)', () => {
+  const api = read('api.js');
+  assert.match(api, /window\.history\.pushState\(\{ depth: \(window\.history\.state\?\.depth \|\| 0\) \+ 1 \}, '', to\);/);
+  assert.match(api, /if \(window\.history\.state\?\.depth > 0\) window\.history\.back\(\); else navigate\(fallback\);/);
+  assert.match(learn, /data-learn-home aria-label="Back" title="Back"\s+onClick=\{\(\) => goBack\('\/apps'\)\}/);
 });

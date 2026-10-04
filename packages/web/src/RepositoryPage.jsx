@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FileCode, GitBranch, Info, Layers, Network, PanelRightClose, PanelRightOpen, RefreshCw } from 'lucide-react';
+import { Eraser, FileCode, GitBranch, Info, Layers, Network, PanelRightClose, PanelRightOpen, RefreshCw } from 'lucide-react';
 import { api, navigate } from './api.js';
 import { Button, ExpandedPageFrame, IconBtn, Input, Menu, Tabs, TabsContent, TabsList, TabsTrigger, Tip, toast } from './ui.jsx';
 import LearnPage from './LearnPage.jsx';
@@ -11,7 +11,7 @@ import { titleOf } from './agent/catalog.js';
 import { projectTab } from './routes.js';
 import { cardModel } from './home/provenance.js';
 import { SourceLink } from './home/Provenance.jsx';
-import { getTurns, resultsKey, subscribeTurns } from './agent/bar.js';
+import { getTurns, resetThread, resultsKey, subscribeTurns } from './agent/bar.js';
 import { reviewTools } from './flags.js';
 import { fixturesOn, useMapMemory } from './home/review-fixtures.js';
 import { fixtureAnswer, layerGraph, MEMORY_KINDS, titleOfRecord, visibleMemory } from './map-memory.js';
@@ -37,7 +37,7 @@ export default function RepositoryPage({ app: initial, catalog = [] }) {
   // The Map is the default (routes.js); a repository with no snapshot yet has nothing to learn from, so ?tab=learn shows its Map too.
   const asked=projectTab(window.location.search),tab=asked==='learn'&&!app.commit_sha?'map':asked,go=t=>navigate(`/apps/${app.name}?tab=${t}`);
   // ...and says so in its URL, so the shell (sidebar, bar) treats it as the Map too.
-  useEffect(()=>{if(tab!==asked){window.history.replaceState(null,'',`/apps/${app.name}?tab=map`);window.dispatchEvent(new PopStateEvent('popstate'));}},[tab,asked,app.name]);
+  useEffect(()=>{if(tab!==asked){window.history.replaceState(window.history.state,'',`/apps/${app.name}?tab=map`);window.dispatchEvent(new PopStateEvent('popstate'));}},[tab,asked,app.name]);
   const canvases=catalog.filter(c=>c.kind==='canvas'&&c.project===app.name),picked=tab==='learn'&&canvases.find(c=>c.name===new URLSearchParams(window.location.search).get('canvas')); // LibraryViews.jsx's filter. ponytail: an unknown ?canvas= falls back to the Project canvas
   const root=`/api/repositories/${app.name}`;
   useEffect(()=>{
@@ -96,6 +96,8 @@ export default function RepositoryPage({ app: initial, catalog = [] }) {
         snapshot: a hidden panel would mean invisible answers. Checkpoint 2: Why | Questions | Sessions are sections of Selected (MapMemory.jsx). ponytail: no phone bottom
         drawer (§6.5) - below lg the panel stacks at 45% (ResizableSidePanel.jsx). */}
     {tab==='map'&&<ResizableSidePanel data-map-panel data-in-use={inUse||undefined} aria-label="Context" resizeLabel="Resize repository panel" defaultWidth={420} collapsed={!panelOpen} className={inUse?'p-5 ring-2 ring-accent ring-inset':'p-5'}>
+      {/* No History or New chat (owner, 2026-10-04): one icon clears the conversation, beside the close icon. */}
+      <IconBtn data-map-panel-clear aria-label="Clear the conversation" title="Clear" disabled={busy} onClick={()=>resetThread(key)} className="absolute top-3 right-11 z-10"><Eraser size={15}/></IconBtn>
       <IconBtn data-map-panel-close aria-label="Close the side panel" title="Close the side panel" onClick={()=>setPanelOpen(false)} className="absolute top-3 right-3 z-10"><PanelRightClose size={16}/></IconBtn>
       <Tabs value={view==='selected'&&!selected||view==='source'&&!source?'conversation':view} onValueChange={setView} className="flex min-h-0 flex-1 flex-col">
         {/* Tabs only when there is more than the conversation to switch to (owner, 2026-10-04). */}
@@ -108,7 +110,7 @@ export default function RepositoryPage({ app: initial, catalog = [] }) {
               this statically imported page. ponytail: while learnHandoff is off (flags.js) it only opens this project's Learn and the node
               travels as repositoryContext; the fallback line is for a typed prompt, so a click shows none. */}
           <Button size="sm" variant="secondary" className="mt-3" onClick={()=>learnAction('teach',{app:app.name,prompt:`Teach me ${selected.label}`},{}).then(r=>{if(r.status!=='fallback'&&r.message)toast(r.message);})}>Learn this</Button></div>}</TabsContent>
-        <TabsContent value="conversation" className="min-h-0 flex-1 overflow-y-auto"><p className="pb-2 text-xs text-ink-3">Answers from the bar below land here.</p>{!talked&&<Starters/>}<ResultList scopeKey={key} onFile={(path,line)=>{setSource({path,line:line||1});setSelected(null);setAsking(null);setView('source');setPanelOpen(true);}}/></TabsContent>
+        <TabsContent value="conversation" className="min-h-0 flex-1 overflow-y-auto">{!talked&&<Starters/>}<ResultList scopeKey={key} tools={false} onFile={(path,line)=>{setSource({path,line:line||1});setSelected(null);setAsking(null);setView('source');setPanelOpen(true);}}/></TabsContent>
         <TabsContent value="source" className="flex min-h-0 flex-1 flex-col">{source&&<RepositorySource appName={app.name} {...source} commit={source.commit||snapshot?.commit} onClose={()=>setSource(null)}/>}</TabsContent>
       </Tabs>
     </ResizableSidePanel>}
