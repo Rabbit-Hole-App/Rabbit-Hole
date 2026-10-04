@@ -259,7 +259,7 @@ After that, future instances need no per-card review.
 
 **Deferred: Visual Summary / Concept Map** (`visual_summary`, modes `summary` / `concept_map`, under `/diagram`). Future, not implemented; spec in docs/features/learn-visual-summary.md (on feat/canvas-block-conversations until merge). Do not add it to learn-primitives.js, slash.js, BLOCK_TYPES or Tutor tools yet.
 
-**Deferred: Video / Motion Generation** (code-driven, source-grounded motion explainers; intuition-first teaching videos). Future, not implemented; spec in docs/features/learn-video-motion-generation.md. It is not the existing paid `video_generate` primitive. Do not add slash commands, registry entries, API routes, provider bindings, UI, billing or Tutor routing for it yet.
+**Video / Motion Generation** (code-driven, source-grounded motion explainers; intuition-first teaching videos). The Motion V1 development harness is authorized by docs/features/rabbit-hole-motion-v1-harness-spec.md, development environment only. Long-term direction: docs/features/learn-video-motion-generation.md. It is not the existing paid `video_generate` primitive. Production `/motion`, production paid rendering, Tutor routing and broad rollout remain deferred.
 
 ## Adding a primitive (handoff contract, owner-approved 2026-09-29)
 
@@ -302,18 +302,23 @@ selection, learner-state routing and likely-next-tool prediction. This layer
 only answers: given a request for tool family X, can Rabbit Hole safely
 generate a valid artifact of primitive Y?
 
-## Deferred: `/motion`, the educational motion explainer
+## `/motion`, the educational motion explainer
 
-Status: deferred documentation only. The full direction is in
-[learn-video-motion-generation.md](learn-video-motion-generation.md). This
-change does not implement any of these:
-- the `/motion` command
-- the Motion Director agent
-- the MotionBrief schema
-- the Motion Author
-- renderer integration
-- paid render
+Status: the Motion V1 development harness is authorized by
+[rabbit-hole-motion-v1-harness-spec.md](rabbit-hole-motion-v1-harness-spec.md),
+the authoritative implementation spec for V1 (development environment only).
+The long-term direction is in
+[learn-video-motion-generation.md](learn-video-motion-generation.md).
+
+This section keeps the shared artifact policy for `/motion`. It does not
+duplicate the V1 implementation; where an implementation detail here
+conflicts with the V1 spec, the V1 spec wins for V1.
+
+Still deferred:
+- public production `/motion`
+- production paid render
 - Tutor routing
+- renderers other than the existing Remotion stack
 
 **`/motion` is the future canonical slash command** for Rabbit Hole's
 code-driven educational motion explainers. Do not use `/video` for this
@@ -376,7 +381,8 @@ available:
 - equations and concepts already introduced or taught
 - the learner's current evidence/state, once a Tutor exists
 
-**Example output** (the schema is provisional; do not implement it yet):
+**Example output** (illustrative; the canonical V1 MotionBrief is §5.1 of
+the V1 spec):
 
 ```
 MotionBrief
@@ -441,8 +447,16 @@ route → Motion Director. `/motion` has no separate context or prompt system.
 The resolver keeps `raw_user_message` next to the structured interpretation
 and uses per-concept evidence, never permanent learner labels. The contract
 is "Future shared input layer: Learner Intent Resolver" in
-docs/features/adaptive-tutor-v1.md (on feat/canvas-block-conversations until
-merge). It is future architecture only and not implemented.
+docs/features/adaptive-tutor-v1.md (on main). It is not implemented yet.
+Motion V1 builds its motion-facing slice in the shared location, to that
+contract, so other specialists can reuse it (V1 spec §4.2).
+
+Explicit named concepts beat ambient context ("/motion explain gradient
+descent" on an attention canvas targets gradient descent); deictic words
+("this", "here") bind to the selection. Source grounding then decides which
+occurrence of a named target is meant, and records branch conditions such as
+nanoGPT's flash-attention vs fallback path. If materially different targets
+remain, ask one concise clarification.
 
 ### 4. Tutor relationship
 
@@ -461,7 +475,13 @@ starts directly.
 
 A strong coding/creative model such as Opus 5.5 may serve as Motion Author.
 Model names are never hard-coded into the artifact contract: provider and
-model selection belong in configuration.
+model selection belong in configuration. V1 configures calls by role:
+`MOTION_DIRECTOR_MODEL`, `MOTION_AUTHOR_MODEL`, `MOTION_VISUAL_REVIEW_MODEL`
+and `MOTION_PEDAGOGICAL_REVIEW_MODEL`.
+
+The visual and pedagogical reviewers are fresh, blind calls. They never
+receive the Author's self-assessment, and the Author never grades its own
+output.
 
 ### 6. The author prompt is generated from the MotionBrief
 
@@ -486,13 +506,17 @@ Teaching sequence:
 Important conceptual constraints: [...]
 Visual direction: [...]
 Source truth: [...]
-Build a timecoded storyboard first. Then implement with the allowlisted renderer.
-Render a low-resolution preview. Inspect representative frames.
-Repair visual/pedagogical defects once.
+Validated storyboard: [...]
+Implement the storyboard with the allowlisted renderer.
 ```
 
 This author brief is internal implementation context. The learner never has
 to write it.
+
+The Author does not storyboard, render, inspect or repair on its own. The
+harness owns every stage: it validates the brief and the storyboard, renders
+the preview, sends the frames to fresh reviewers, decides whether a finding
+is blocking, and runs at most one repair round (V1 spec §4.8).
 
 ### 7. The storyboard is a first-class artifact
 
@@ -530,9 +554,10 @@ notation
 formula
 ```
 
-Other future modes may include `mechanism_first`, `formal_first`,
-`code_walkthrough`, `system_flow` and `spatial_3d`. The enum names are not
-frozen.
+Motion V1's canonical `teaching_mode` values are `intuition_first`,
+`mechanism_first`, `code_walkthrough` and `system_flow`. Use only these
+names. Future modes such as `formal_first` and `spatial_3d` may be added
+later.
 
 ### 9. Analogy correctness
 
@@ -579,7 +604,11 @@ The rule is strict semantic constraints with loose visual execution, not
 rigid animation templates. The strongest Opus 5.5 examples appear to benefit
 from high creative agency.
 
-### 12. Future `/motion` lifecycle (not implemented)
+### 12. `/motion` lifecycle
+
+Policy-level order. The V1 stage-by-stage harness is §4.8 of the V1 spec;
+in V1 the cost estimate and proposal (steps 5–7) are the existing
+confirmation gate only.
 
 1. resolve the target and context
 2. the Motion Director creates the brief
@@ -605,7 +634,11 @@ stages:
 - **Final** (the full-resolution video) is paid.
 
 Paid stages later follow the Usage/Credits flow: quote → explicit
-confirmation → reserve → render → settle.
+confirmation → reserve → render → settle. That flow is not implemented yet.
+Today only the confirmation gate (`paidRefusal`, see "Paid generation
+boundary") and the `paid_proposal` exist. The Motion V1 development harness
+needs no production billing; paid production rendering is deferred until
+Usage & Credits exists.
 
 ### 14. Potential learner-facing UX
 
@@ -644,7 +677,9 @@ The registry should eventually keep these four layers apart:
 - `motion_explainer` is a code-driven pedagogical animation.
 
 Both may produce MP4s, but they are different artifact capabilities, and
-`/motion` means the second. A future `/video` family could cover media and
+`/motion` means the second. They share storage and display: a Motion V1
+result is stored through the existing LearnVideos / `LEARN_MEDIA` pipeline
+and inserted as the existing `type: 'video'` block, not a new card system. A future `/video` family could cover media and
 video generation separately if needed.
 
 ### 17. Routing principle
@@ -701,4 +736,7 @@ executes it.
 
 ### 20. Status
 
-Deferred. This section is documentation only.
+Motion V1 development harness: authorized by the V1 spec, development
+environment only. Production `/motion`, production paid rendering, Tutor
+routing and broad rollout: deferred. This section is policy documentation;
+it implements nothing.

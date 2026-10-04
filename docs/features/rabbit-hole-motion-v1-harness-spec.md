@@ -1,8 +1,19 @@
 # Rabbit Hole `/motion` V1 — Motion Explainer Harness Specification
 
 **Audience:** Parallel / Rabbit Hole engineering agents  
-**Status:** Implementation specification for an isolated V1 harness. Do not deploy to production until the acceptance gates in this document pass and a separate production GO is given.  
+**Status:** AUTHORIZED FOR DEVELOPMENT HARNESS ONLY (owner decision, 2026-10-03). See §0.1 for exactly what is and is not authorized.  
 **Primary goal:** Turn a short learner request such as `/motion explain me softmax func` into a source-grounded, deterministic, 5–30 second technical motion explainer that is actually useful for learning.
+
+## Document relationship
+
+| Document | Owns |
+|---|---|
+| **this spec** (`rabbit-hole-motion-v1-harness-spec.md`) | The authoritative implementation spec for Motion V1 |
+| [learn-video-motion-generation.md](learn-video-motion-generation.md) | Long-term motion architecture and product vision: future renderers, long-form video, intuition-first pedagogy, creator/export use cases |
+| [learn-artifact-generation.md](learn-artifact-generation.md) | Shared artifact policy: generation boundaries, validation, paid confirmation, security principles, artifact lifecycle |
+| `docs/features/adaptive-tutor-v1.md` (on main) | The shared Learner Intent Resolver contract ("Future shared input layer: Learner Intent Resolver") |
+
+If an implementation-level detail in this spec conflicts with the older motion architecture document, **this spec wins for the V1 implementation**. It does not supersede the unrelated future vision in that document.
 
 ---
 
@@ -16,49 +27,74 @@ The user may type something very small:
 /motion explain me softmax func
 ```
 
-That prompt is **not sufficient** to send directly to the animation agent.
+That prompt is **not sufficient** to send to the animation author.
 
-Rabbit Hole must first resolve what the learner means, gather source-grounded context, decide the learning objective and pedagogical treatment, identify what the video must and must not claim, choose a duration and renderer, and construct a much richer internal motion brief.
+Rabbit Hole must first resolve what the learner means, gather source-grounded context, decide the learning objective and pedagogical treatment, identify what the video must and must not claim, and fix the duration. Only then is a structured brief handed to the author.
 
-The core production pattern is:
+The V1 pipeline, with every stage owned by the harness:
 
 ```text
 raw learner request
     ↓
-context / target resolution
+Learner Intent Resolver          (shared; resolves target + context)
     ↓
-source-grounded claim extraction
+Motion Director                  (pedagogy, claims, scope)
     ↓
-prompt enhancement → MotionBrief
+MotionBrief                      (validated)
     ↓
-storyboard
+Storyboard                       (Director role; validated)
     ↓
-deterministic animation code
+Motion Author                    (writes composition source only)
     ↓
-sandboxed render
+composition source               (statically validated)
     ↓
-contact-sheet visual QA
+render harness                   (packages/learn-render, Linux render container)
     ↓
-pedagogical / source QA
+preview + contact sheet + determinism checks
     ↓
-max one repair pass
+fresh visual reviewer + fresh pedagogical reviewer
     ↓
-final MP4/WebM + provenance
+at most one repair round (only for blocking findings)
     ↓
-insert as a Rabbit Hole canvas artifact
+final render + automatic final validation
+    ↓
+existing LEARN_MEDIA / LearnVideos storage
+    ↓
+existing `type: "video"` block via insertBlock
 ```
 
-The V1 should support videos up to **30 seconds**.
+**Duration:** any whole number of seconds from 5 to 30. Default 10 seconds when the learner gives none. See §2.2.
 
-Recommended duration presets:
-
-- 5 seconds — one visual idea / micro-mechanism
-- 10 seconds — default; one focused concept
-- 15 seconds — mechanism plus takeaway
-- 20 seconds — intuition → mechanism or richer code walkthrough
-- 30 seconds — the V1 maximum; intuition → mechanism → formal/code bridge when appropriate
+**Renderer:** the existing Remotion stack in `packages/learn-render`. HyperFrames, Three.js, Manim and Blender are future adapters, not V1. See §9.
 
 Do not build a general-purpose video editor. Do not build unrestricted text-to-video. Do not make learners choose rendering technologies.
+
+### 0.1 Authorization
+
+**Authorized (development harness only):**
+
+- MotionBrief generation (Learner Intent Resolver integration + Motion Director)
+- storyboard generation
+- Motion Author
+- Remotion composition generation
+- sandboxed development rendering
+- preview and contact sheet
+- fresh visual and pedagogical QA
+- one repair round
+- final local/development render
+- insertion through the existing video block in a development environment
+
+**Not authorized:**
+
+- public production `/motion`
+- production paid rendering
+- automatic paid charges
+- broad user rollout
+- arbitrary generated-code execution (generated composition source runs only after static validation, inside the render sandbox, with allowlisted imports; see §8 and §10)
+- HyperFrames, Three.js, Blender or Manim production adapters
+- milestone M9 (§26)
+
+Creating new infrastructure (for example the development render service in §10) still requires explicit approval before it is deployed.
 
 ---
 
@@ -116,72 +152,104 @@ Examples:
 /motion 30s intuition attention
 ```
 
-The user should not need to know Remotion, GSAP, HyperFrames, SVG, Canvas, Three.js, Manim, Blender, ffmpeg, or rendering terminology.
+The user should not need to know Remotion, React, SVG, Canvas, Three.js, Manim, Blender, ffmpeg, or rendering terminology.
 
-## 2.2 Optional user controls
-
-V1 may parse optional duration and teaching treatment from natural language or explicit tokens:
+Every `/motion` run prints what it decided, one line per decision, so a wrong guess is visible at once:
 
 ```text
-/motion 5s ...
-/motion 10s ...
-/motion 15s ...
-/motion 20s ...
-/motion 30s ...
-
-/motion intuition ...
-/motion mechanism ...
-/motion code ...
-/motion system ...
+✓ target: softmax in attention (nanoGPT model.py:69, fallback path; SDPA branch noted)
+✓ duration: 15s
+✓ mode: mechanism_first
 ```
 
-These are preferences, not a requirement that the user understand a schema.
+## 2.2 Duration
 
-Default duration:
+**Motion V1 output is 5–30 seconds.** Internally every duration is a whole number of seconds from 5 to 30. Longer videos are the future long-form tier in [learn-video-motion-generation.md](learn-video-motion-generation.md), not V1.
+
+**Default:** 10 seconds when the learner supplies no duration.
+
+**Parsing:** accept any reasonable stated duration, not only preset values.
+
+| Learner wrote | Duration used | Decision line |
+|---|---|---|
+| (nothing) | 10s | `✓ duration: 10s (default)` |
+| `12 seconds` | 12s | `✓ duration: 12s` |
+| `25 sec` | 25s | `✓ duration: 25s` |
+| `45 sec` | 30s | `✓ duration: 30s (asked 45s; Motion V1 max is 30s)` |
+| `1 minute` | 30s | `✓ duration: 30s (asked 60s; Motion V1 max is 30s)` |
+| `3 sec` | 5s | `✓ duration: 5s (asked 3s; Motion V1 min is 5s)` |
+| `12.5s` | 13s | `✓ duration: 13s (asked 12.5s; whole seconds only)` |
+
+Rules:
+
+- Never change the requested duration silently. Every normalization prints its decision line, and the MotionBrief records both the requested and the normalized value.
+- The Director never lengthens a video beyond the requested (or default) duration.
+- If the teaching objective cannot be conveyed faithfully in the duration, the Director **narrows the scope**. It never crams unsupported content into the video, and it records what it dropped in `scope_note`.
+
+Example:
 
 ```text
-10 seconds
+/motion explain attention in 5 sec
 ```
 
-Maximum:
+Acceptable: teach only the core intuition (one query weighs other tokens by relevance and blends them).
+
+Not acceptable: Q/K/V, scaling, masking, softmax, weighted values and the implementation, all in five seconds.
+
+Complexity guide for the Director when choosing scope inside the duration:
 
 ```text
-30 seconds
+~5s     single visual fact or micro-mechanism
+~10s    single mechanism
+~15s    mechanism + takeaway
+~20s    intuition → mechanism, or a richer code walkthrough
+~30s    intuition → mechanism → formal/code bridge
 ```
 
-If a request cannot be taught coherently in 30 seconds, narrow the objective or ask the learner to choose what to focus on. Do not silently compress a whole chapter into an incoherent 30-second animation.
+If a request cannot be taught coherently even in 30 seconds, narrow the objective or ask the learner what to focus on. Do not silently compress a whole chapter into an incoherent 30-second animation.
 
-## 2.3 Contextual use
+## 2.3 Teaching mode hints
 
-`/motion` should use Rabbit Hole context.
+The canonical `teaching_mode` values are:
 
-Examples:
+```text
+intuition_first
+mechanism_first
+code_walkthrough
+system_flow
+```
+
+These are the only names used in schemas, prompts, tests and docs. Future modes may be added later.
+
+Learners can hint at a mode in their own words ("intuitively", "show the mechanism", "walk through the code", "how the request flows"). The Resolver and Director map those words to the canonical values. A coherent learner preference wins; otherwise the Director chooses from the request and the source.
+
+## 2.4 Contextual use
+
+`/motion` uses Rabbit Hole context through the Learner Intent Resolver (§4.2).
 
 ```text
 selected card + /motion make this intuitive
 ```
 
-means the selected card is the primary target.
+The selected card is the primary target ("this" binds to the selection).
 
 ```text
 selected code block + /motion show what happens here
 ```
 
-means the selected source/code evidence is the primary target.
+The selected code span (`repository_context`) is the primary target.
 
 ```text
 current Rabbit Hole + /motion explain this flow
 ```
 
-means the current Rabbit Hole and relevant child/source context are available to the prompt enhancer.
+The current Rabbit Hole and its relevant child/source context are the target.
 
 The user should not need to restate information Rabbit Hole already knows.
 
 ---
 
-# 3. Critical rule: never send the raw `/motion` prompt directly to the video agent
-
-This is one of the most important rules in the design.
+# 3. Critical rule: raw `/motion` prompts are not motion prompts
 
 A raw request such as:
 
@@ -189,109 +257,177 @@ A raw request such as:
 /motion explain me softmax func
 ```
 
-is underspecified.
+is underspecified. It does not reliably tell an animation model:
 
-It does not reliably tell the animation model:
-
-- which `softmax` implementation the user means
+- which `softmax` occurrence the user means
 - what repository/file/function is relevant
+- which implementation branch actually runs
 - what the learner already knows
 - what the learning objective should be
 - what claims are source-supported
-- whether the focus is intuition, mechanism, math, or code
-- whether numerical stability exists in this implementation
-- whether masking happens before or after this function in the current source
+- whether the focus is intuition, mechanism, math, code or system flow
 - what must be shown
 - what must not be implied
 - how long the video should spend on each beat
-- what renderer should be used
 - what constitutes a successful result
 
-Therefore the raw user request is only the **seed** for a hidden prompt-enhancement pipeline.
+Therefore:
+
+- The learner's raw text is input **only** to the Learner Intent Resolver.
+- It is never sent to the Motion Author.
+- It is kept verbatim (`raw_user_request` in the MotionBrief) for provenance and so specialists can see the learner's exact wording. It is never presented as an instruction to the Author.
+- Only the validated MotionBrief and the validated storyboard reach downstream generation.
 
 ---
 
-# 4. Prompt enhancement pipeline
+# 4. Roles and stages
 
-The prompt enhancer converts the learner's short request into a grounded `MotionBrief`.
+## 4.1 Who owns what
 
-## 4.1 Step A — resolve the target
+| Role | Owns | Never does |
+|---|---|---|
+| **Learner Intent Resolver** (shared) | target resolution, selection/context binding, concept identity, source candidates | pedagogy, rendering |
+| **Motion Director** | learning objective, scope, teaching mode, claims, constraints, source grounding, storyboard requirements, the storyboard | rendering code |
+| **Motion Author** | composition source from the validated brief + storyboard + renderer contract | changing the objective, claims, sequence or scope; grading its own output |
+| **Render harness** | every stage transition, validation, rendering, repair counting, final validation, storage | creative or pedagogical decisions |
+| **Visual reviewer** (fresh) | visual findings from the brief + rendered frames | seeing the Author's self-assessment |
+| **Pedagogical reviewer** (fresh) | correctness findings from the brief + source evidence + rendered frames | seeing the Author's self-assessment |
 
-Resolve the user's referent using, in order:
+The architecture is:
 
-1. explicitly selected object/card/part/code span
-2. current canvas / Rabbit Hole context
-3. current repository and current lesson/concept
-4. explicit phrase in the user's request
-5. repository symbol search when the phrase looks like a function/class/file
+```text
+learner → Learner Intent Resolver → Motion Director → MotionBrief + storyboard → Motion Author → renderer
+```
 
-Do not guess when more than one plausible target remains.
+not `learner → prompt enhancer → model`. "Prompt enhancer" is not a component name in this system.
 
-Example:
+## 4.2 Learner Intent Resolver
+
+Motion does not invent its own context-resolution system. It uses the shared **Learner Intent Resolver** whose contract is "Future shared input layer: Learner Intent Resolver" in `docs/features/adaptive-tutor-v1.md` (on main). That contract builds a structured `LearnerTurn` and keeps `raw_user_message` next to `structured_interpretation`, with per-concept evidence and no permanent learner labels.
+
+The Resolver is not implemented yet. M2 builds the motion-facing slice of it **in the shared location, to the shared contract**, so that the Tutor and other specialists can consume the same component later. It must not be a private `/motion` resolver.
+
+For `/motion` the Resolver resolves:
+
+- the explicit named target in the request
+- the selected card (`SELECTIONS` kind `card`; `packages/web/src/agent/slash.js`)
+- the selected canvas object (`canvas_object`, and `canvas_target` from `canvasTargetField()` in `packages/web/src/learn-ask-target.js`)
+- the selected code span: `repository_context {commit, nodeId, label, range: {path, start, end}}`
+- the selected part (`part_id` from `resolveTarget()` in `packages/web/src/learn-target.js`, on main)
+- the current canvas / Rabbit Hole and lesson
+- candidate source references
+- the relevant concept identity
+
+## 4.3 Resolution precedence
+
+**Explicit named concepts beat ambient context.**
+
+```text
+current canvas: attention
+/motion explain gradient descent
+→ target: gradient descent (not attention)
+```
+
+**Deictic language binds to the selection or context.**
+
+```text
+/motion explain this                 → the selected card/object
+/motion show what happens here       → the selected code/source target
+/motion explain this flow            → the current Rabbit Hole / selection
+```
+
+**A named target is then grounded in the source.**
 
 ```text
 /motion explain me softmax func
+→ the named target is softmax
+→ repository/source grounding decides WHICH softmax occurrence, function or
+  context the learner most likely means, using the current lesson, canvas
+  and selection as tie-breakers
 ```
 
-Possible resolution:
+**If several materially different targets remain, ask one concise clarification.** Never guess, and never render a "generic" version of the concept disconnected from the source.
 
-```text
-repository: karpathy/nanoGPT
-file: model.py
-symbol: softmax call or softmax-related implementation path
-current lesson: attention
-current concept: attention weights
-selected evidence: exact source span / authored card
-```
+Order of evidence:
 
-If there are two unrelated `softmax` functions and no contextual signal selects one, clarify instead of rendering.
+1. the name the learner typed (what)
+2. deictic words bound to the current selection: card, part, canvas object, code span (what, when no name)
+3. the current canvas / Rabbit Hole / lesson (which one, when the name is ambiguous)
+4. repository symbol and text search (where it occurs)
 
-## 4.2 Step B — collect source-grounded context
+## 4.4 Source grounding and implementation conditions
 
-Build a minimal evidence pack.
+After the target is resolved, build the smallest evidence pack that grounds the explanation:
 
-Possible inputs:
-
-- selected card content
-- selected part ID
-- repository file/symbol span
-- current lesson claims
-- current Rabbit Hole concept IDs
+- selected card content and part id
+- the exact repository file/symbol span at a pinned commit
+- current lesson claims and concept IDs
 - relevant source citations
-- exact implementation details
-- surrounding call path when necessary
+- the surrounding call path when necessary
 - Tutor claim/evidence registry only when useful and privacy-safe
 
-Do not dump an entire repository into the motion planner.
+Do not dump an entire repository or canvas into any prompt.
 
-Prefer the smallest evidence set that can ground the explanation.
+**Implementation conditions are first-class evidence.** When the source has branches that decide which code actually runs, the resolver/grounding step must find them, and the MotionBrief must record them in `implementation_conditions`. Claims that depend on a branch reference that condition.
 
-## 4.3 Step C — extract supported claims
+nanoGPT is the reference case. At commit `3adf61e154c3fe3fca428ad6bc3818b27a3b8291` (the commit the NanoGPT course docs pin), `model.py` has **no `softmax()` function**. It has two `F.softmax` calls:
 
-Create a small claim registry for the video.
+- line 69, inside `CausalSelfAttention.forward`, on the **fallback** attention path (lines 65–71)
+- line 324, inside `GPT.generate`, converting the final logits to sampling probabilities
 
-Example:
+and the attention path depends on a branch:
 
-```text
-C1: softmax converts a vector of logits/scores into normalized positive weights
-C2: the weights sum to 1 along the chosen dimension
-C3: this implementation applies softmax over attention scores after masking
-C4: masked future positions are unavailable before normalization
+```python
+45:  self.flash = hasattr(torch.nn.functional, 'scaled_dot_product_attention')
+...
+62:  if self.flash:
+63:      # efficient attention using Flash Attention CUDA kernels
+64:      y = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=self.dropout if self.training else 0, is_causal=True)
+65:  else:
+66:      # manual implementation of attention
+67:      att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
+68:      att = att.masked_fill(self.bias[:,:,:T,:T] == 0, float('-inf'))
+69:      att = F.softmax(att, dim=-1)
+70:      att = self.attn_dropout(att)
+71:      y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
 ```
 
-Only include C3/C4 if supported by the actual source context.
+The source comment at line 44 says flash support "is only in PyTorch >= 2.0". So on modern PyTorch the explicit mask-then-softmax path does not run; `scaled_dot_product_attention(..., is_causal=True)` performs causal attention internally.
 
-Each storyboard beat should later reference the claim IDs it teaches.
+The Director must preserve this condition. It must **not** produce the unconditional claim "nanoGPT always masks scores and then calls `F.softmax`".
 
-This lets QA answer:
+## 4.5 Motion Director
+
+The Director turns the LearnerTurn plus the evidence pack into a validated MotionBrief (schema: §5.1). It makes real pedagogical decisions; it is not "raw prompt + make this prettier".
+
+The Director owns:
+
+- the learning objective
+- the target-resolution output it accepts into the brief
+- scope (including narrowing to fit the duration)
+- the teaching mode
+- the claim registry
+- the constraints (`must_show`, `must_not_claim`)
+- source grounding and implementation conditions
+- the storyboard requirements, and the storyboard itself (§4.6)
+
+The Director does **not** write rendering code.
+
+### Step A — claim registry
+
+Create a small claim registry. Each claim cites its source refs, and conditional claims cite their implementation condition.
 
 ```text
-Which source-supported claim is this visual teaching?
+C1: softmax converts eligible scores into normalized non-negative weights
+C2: in nanoGPT fallback attention, masking occurs before F.softmax        [K1: flash unavailable]
+C3: the optimized PyTorch SDPA path performs causal attention internally   [K1: flash available]
 ```
 
-## 4.4 Step D — infer the learning objective
+Every storyboard beat later references the claim IDs it teaches, so QA can answer: *which source-supported claim is this visual teaching?*
 
-The prompt enhancer should convert a vague request into one concrete learning outcome.
+### Step B — learning objective
+
+Convert a vague request into one concrete learning outcome.
 
 Bad objective:
 
@@ -302,41 +438,22 @@ Explain softmax.
 Better objective:
 
 ```text
-After this 10-second animation, the learner should be able to explain in plain language how the selected softmax operation turns attention scores into relative weights and identify where it occurs in the current attention flow.
+After this animation, the learner can explain in plain language how softmax
+turns one row of attention scores into weights over the eligible positions,
+and knows that nanoGPT's explicit mask-then-softmax code is the fallback path.
 ```
 
-For code requests, include the implementation relationship:
+For code requests, include the implementation relationship: what enters the code, what transformation occurs, and what the result means to the next stage.
 
-```text
-The learner should understand what enters this function, what transformation occurs, and what the returned tensor means to the next stage.
-```
+### Step C — audience context
 
-## 4.5 Step E — determine learner level/context
+Use the current learning context when available, for example: currently inside the NanoGPT attention lesson; knows logits but not normalization. This is lesson context, not a permanent learner label. Do not use sensitive personal profiling.
 
-Use known current learning context when available.
+### Step D — teaching mode
 
-Examples:
+Renderer and pedagogy are separate decisions. Canonical modes:
 
-- early ML learner
-- already knows logits but not normalization
-- understands attention scores but not masking
-- currently inside the NanoGPT attention lesson
-
-Do not use sensitive personal profiling.
-
-This is lesson context, not a permanent learner label.
-
-## 4.6 Step F — choose pedagogical treatment
-
-Renderer and pedagogy are separate decisions.
-
-V1 teaching treatments:
-
-### `intuition`
-
-Use a visual metaphor or concrete story first, then map it back to the actual mechanism.
-
-Example:
+**`intuition_first`** — a visual metaphor or concrete story first, then an explicit mapping back to the real mechanism.
 
 ```text
 speakers in a room
@@ -345,13 +462,9 @@ speakers in a room
 → labels become Q/K/V / attention weights
 ```
 
-The analogy must map explicitly to the real concept and must not introduce false causality.
+The analogy must map explicitly to the real concept (`analogy_map` in the brief), must record where it stops being exact, and must not introduce false causality.
 
-### `mechanism`
-
-Use direct technical visualization.
-
-Example:
+**`mechanism_first`** — direct technical visualization.
 
 ```text
 scores
@@ -360,11 +473,7 @@ scores
 → weighted values
 ```
 
-### `code`
-
-Show source/code execution or data flow.
-
-Example:
+**`code_walkthrough`** — source/code execution or data flow.
 
 ```text
 input tensor
@@ -374,39 +483,21 @@ input tensor
 → next caller
 ```
 
-### `system`
-
-Show flow across modules/services/components.
-
-Example:
+**`system_flow`** — flow across modules/services/components.
 
 ```text
 browser request
-→ Worker
-→ control plane
-→ provider
+→ Worker route
+→ Durable Object
+→ storage
 → response
 ```
 
-For V1, user-specified treatment wins when coherent. Otherwise the prompt enhancer chooses based on the request and source.
+### Step E — duration and scope
 
-## 4.7 Step G — choose duration
+Apply §2.2. Record the requested and normalized duration. Narrow the scope when needed and say what was dropped in `scope_note`.
 
-If explicitly requested, respect 5/10/15/20/30 seconds when feasible.
-
-Otherwise choose using complexity:
-
-```text
-single visual fact                 → 5s
-single mechanism                  → 10s
-mechanism + takeaway              → 15s
-intuition → mechanism             → 20s
-intuition → mechanism → formalism → 30s
-```
-
-Never exceed 30 seconds in V1.
-
-## 4.8 Step H — define must-show and must-not-claim constraints
+### Step F — must-show and must-not-claim
 
 Example for causal masking:
 
@@ -415,7 +506,7 @@ must_show:
 - token positions
 - attention-score matrix
 - future positions
-- mask applied before normalization
+- mask applied before normalization (fallback path), or causal attention inside SDPA (flash path), per the brief's condition
 - blocked cells unavailable
 - softmax over permitted cells
 
@@ -425,485 +516,608 @@ must_not_claim:
 - masked values become ordinary zeros that softmax may still use
 ```
 
-These constraints are part of the production contract.
+These constraints are part of the production contract. Reviewers check them.
 
-## 4.9 Step I — choose renderer
+### Step G — visual direction and narration policy
 
-For the first implementation, use one reliable default renderer.
+Short, semantic visual direction (for example "clean technical motion graphics; position, size and opacity make normalization legible; no decorative bouncing"). The brief fixes truth, pedagogy, required beats and semantic invariants; the Author keeps broad freedom over visual treatment, timing, choreography, transitions and typography.
 
-Recommended V1 default:
+## 4.6 Storyboard (Director role)
 
-```text
-HyperFrames
-+ HTML/SVG/Canvas
-+ GSAP
-```
+The storyboard is its own harness stage between the brief and the Author. It is produced by a Director-role call (configured by `MOTION_DIRECTOR_MODEL`) from the validated MotionBrief, and validated by the harness against §5.2 before the Author sees it.
 
-Why:
+The storyboard comes before any renderer code. The Author cannot bypass it.
 
-- code-driven and deterministic
-- HTML-native
-- strong fit for Claude-generated visual programs
-- good for technical diagrams and typography
-- GSAP provides polished, seekable motion
-- Chromium-based preview/render workflow
-- easy to inspect at arbitrary times
-- straightforward MP4 generation with a controlled render pipeline
-
-Build a renderer-adapter boundary so future renderers can be added without changing `/motion` semantics.
-
-Future candidates:
+Example 15-second storyboard for the softmax brief in §6:
 
 ```text
-Remotion   → longer/template-heavy React compositions
-Three.js   → spatial / 3D concepts
-Manim      → mathematical derivations
-Blender    → physically rich 3D / cinematic work
+0–3s     B1 hook        One row of raw attention scores for the last token; future cells greyed.
+                        claims: C1          must_show: raw scores, unavailable future positions
+3–7s     B2 mechanism   Fallback path label (K1). Future cells become -inf, then vanish from the weights.
+                        claims: C2          must_show: unavailable future positions
+7–11s    B3 mechanism   Eligible scores become non-negative weights; a sum indicator resolves to 1.
+                        claims: C1          must_show: normalized allowed weights, sum to 1
+11–13s   B4 bridge      Second lane: "PyTorch ≥ 2.0: scaled_dot_product_attention(is_causal=True)
+                        does this internally."  claims: C3
+13–15s   B5 takeaway    "Softmax turns the allowed scores into weights that sum to 1."
+                        claims: C1, C2, C3
 ```
 
-Do not support all of them in V1.
+## 4.7 Motion Author
 
-## 4.10 Step J — produce the `MotionBrief`
+The Author receives only:
 
-Conceptual shape:
+- the validated MotionBrief
+- the validated storyboard
+- the renderer contract (§8, §9)
+
+It writes **only** the Remotion composition source (§5.3). It makes implementation-level creative choices: easing, composition, typography, staging, framing, transitions, timing refinement inside each beat.
+
+It never silently changes the learning objective, factual content, conceptual mapping, required sequence, scope or source-backed claims.
+
+If the brief or storyboard is insufficient or inconsistent, the Author returns a **structured failure** instead of improvising around missing evidence:
+
+```json
+{
+  "status": "needs_revision",
+  "reason": "storyboard claims masking always uses explicit F.softmax but source has an SDPA branch",
+  "stage": "storyboard",
+  "refs": ["B2", "C2", "K1"]
+}
+```
+
+The harness routes it back to the Director (§4.8). The Author does not grade itself, and nothing it says about its own output reaches the reviewers.
+
+## 4.8 The harness owns the loop
+
+No model autonomously controls `storyboard → render → inspect → rerender → repeat`. The harness runs every stage and decides every transition:
+
+```text
+1. Resolver                → LearnerTurn (or needs_clarification → stop, ask)
+2. Director call           → harness validates MotionBrief (§5.1)
+3. Storyboard call         → harness validates storyboard JSON (§5.2)
+4. Author call             → harness validates composition source (§5.3)
+                             (needs_revision → step 8 as the repair round)
+5. Harness                 → render preview + contact sheet + determinism checks (§11)
+6. Fresh visual reviewer   → brief + rendered frames only
+   Fresh pedagogical reviewer → brief + source evidence + rendered frames
+                             (+ narration script when narration is on)
+7. Harness                 → classifies findings; any BLOCKING finding? (§13)
+     no  → step 9
+     yes → step 8
+8. Repair round (once per job)
+     - Author-level defect           → one Author call with the blocking findings
+     - brief/storyboard-level defect → one Director revision (revalidated),
+                                        then one Author call
+     → re-render preview, re-run both fresh reviewers
+     → still blocking → job fails with diagnostics; no further repair
+9. Harness                 → final render + automatic final validation (§11.3)
+     fails → job fails; no further repair
+10. Harness                → store via LearnVideos / LEARN_MEDIA; insert video block (§18)
+```
+
+Rules:
+
+- **Exactly one repair round per job** (`repair_count` ≤ 1). An Author `needs_revision` consumes that round.
+- Only **blocking** findings consume the repair round. Advisory findings are recorded, never repaired automatically.
+- **Format retry** is separate from repair: a stage call whose output is not parseable or fails schema validation gets at most one re-ask with the validation errors. A second malformed output fails the job.
+- Reviewers are fresh for each review pass and never receive the Author's or Director's self-assessment, rationale or earlier reviewer output.
+- Repair inputs are grounded in the actual findings and diagnostics.
+
+## 4.9 Structured output and model configuration
+
+`claude-opus-5-5` returns HTTP 400 for a forced `tool_choice` (`tool` or `any`) and for `thinking: {type: 'disabled'}`. This was observed in this repo (2026-09-30); main's Tutor planner uses `tool_choice: {type: 'auto'}` for this reason. The existing artifact path in `packages/control-plane/src/learn-artifact.js` forces `{type: 'any'}` and must not be reused as-is for Motion calls on that model.
+
+Every Motion model call uses:
+
+- `tool_choice: {type: 'auto'}` with the stage's single output tool, or a plain JSON response
+- adaptive thinking, with `output_config.effort` where appropriate (generation stages use high effort)
+- schema validation of the response by the harness
+- the format-retry and repair policy in §4.8
+
+**Model IDs are never part of the Motion contract or schemas.** Calls are configured by role:
+
+```text
+MOTION_DIRECTOR_MODEL              Director + storyboard calls
+MOTION_AUTHOR_MODEL                Author calls (including the repair call)
+MOTION_VISUAL_REVIEW_MODEL         visual reviewer
+MOTION_PEDAGOGICAL_REVIEW_MODEL    pedagogical reviewer
+```
+
+Runtime configuration may initially resolve all four to `claude-opus-5-5`. The roles resolve through the existing per-task model configuration (`LEARN_TASKS` in `packages/control-plane/src/learn-models.js`) or environment; M2 decides which. The MotionJob records which model each role actually resolved to, for provenance, never credentials.
+
+Motion generation is an artifact-generation job, not an interactive Tutor turn. Do not reuse the Tutor fast tier automatically.
+
+---
+
+# 5. Canonical schemas
+
+This section is the **only** definition of these schemas. Other sections reference it and do not redefine fields.
+
+## 5.1 MotionBrief
 
 ```text
 MotionBrief {
   id
-  raw_user_request
-  resolved_target
+  prompt_spec_version            // version of the Motion prompt/spec templates used
+  raw_user_request               // verbatim learner text; provenance only, never an Author instruction
+  resolved_target {
+    kind                         // concept | card | canvas_object | code_span | route | rabbit_hole
+    label
+    concept_id?
+    selection?                   // {kind (one of SELECTIONS), id} when the target came from a selection
+    part_id?
+    repository_context?          // {commit, nodeId, label, range: {path, start, end}}
+    resolution                   // named | deictic | context_disambiguated
+    candidates_considered[]      // other occurrences and why they were not chosen
+  }
   title
   objective
-  audience_context?
-  source_refs[]
-  claim_registry[]
-  duration_seconds   // <= 30
-  aspect_ratio
-  teaching_mode
-  visual_direction
-  renderer
-  narration_policy
+  audience_context?              // lesson context only; never a permanent learner label
+  scope_note?                    // what was narrowed or dropped to fit the duration, and why
+  source_refs[] {
+    id                           // S1, S2, ...
+    kind                         // code | card | lesson | doc
+    repository?                  // e.g. karpathy/nanoGPT
+    commit?                      // full SHA; required for kind = code
+    path?
+    start_line?
+    end_line?
+    card_id?
+    url?
+  }
+  evidence[] {
+    source_ref_id
+    excerpt                      // exact supporting text or code, verbatim
+  }
+  implementation_conditions[] {
+    id                           // K1, K2, ...
+    condition                    // e.g. "torch.nn.functional has scaled_dot_product_attention (PyTorch >= 2.0)"
+    branches[]                   // what runs when the condition holds / does not hold
+    source_ref_ids[]
+  }
+  claim_registry[] {
+    id                           // C1, C2, ...
+    text
+    source_ref_ids[]
+    condition_ids[]              // empty when unconditional
+    required                     // true: the video must teach it
+  }
+  duration {
+    requested_text?              // learner's words, e.g. "45 sec"
+    requested_seconds?
+    seconds                      // whole number, 5..30
+    normalization?               // the printed decision line when seconds != requested
+  }
+  aspect_ratio                   // "16:9" in V1
+  teaching_mode                  // intuition_first | mechanism_first | code_walkthrough | system_flow
+  analogy_map[]?                 // required for intuition_first: {analogy_element, real_concept, limit}
   must_show[]
   must_not_claim[]
-  output_requirements
-  qa_requirements
+  visual_direction
+  narration_policy               // none | one_line | concise
+  output_requirements {
+    stage_width: 1920
+    stage_height: 1080
+    fps: 30
+    preview_scale                // preview = same composition at reduced scale (§11.1)
+    poster: true
+  }
+  qa_requirements {
+    blocking_categories[]        // §13.1
+    keyframe_times[]?            // extra timestamps reviewers must see
+  }
+  provenance {
+    learner_turn_id?
+    canvas_id?
+    card_id?
+    created_at
+  }
 }
 ```
 
-This is the real input to the motion agent.
+Validation (harness, before the storyboard call):
 
-Do not treat the literal user string as the motion-agent prompt.
+- `duration.seconds` is an integer in 5..30.
+- `teaching_mode` is one of the four canonical values.
+- every `claim_registry[].source_ref_ids` and `condition_ids` entry exists.
+- every `kind: code` source ref has a full commit SHA and a line range.
+- `intuition_first` has a non-empty `analogy_map`.
+- `must_show` and `must_not_claim` are non-empty.
+- no model ID and no credential appears anywhere in the brief.
+
+## 5.2 MotionStoryboard
+
+```text
+MotionStoryboard {
+  id
+  brief_id
+  version
+  beats[] {
+    id                           // B1, B2, ...
+    start_time                   // seconds
+    end_time
+    pedagogical_role             // hook | intuition | analogy | mechanism | bridge_to_formalism
+                                 // | notation | equation | implementation | takeaway
+    visible_objects[]
+    claim_ids[]
+    condition_ids[]?
+    must_show_covered[]          // which brief must_show items this beat shows
+    transition
+    framing
+    on_screen_text
+    narration_line?
+  }
+}
+```
+
+Validation (harness, before the Author call):
+
+- 2–8 beats.
+- beats are contiguous from 0 to exactly `duration.seconds`; none overlaps.
+- every beat references at least one existing claim ID.
+- every `required` claim is covered by some beat.
+- every `must_show` item is covered by some beat.
+- a beat that teaches a conditional claim names its condition.
+- `narration_line` appears only when `narration_policy` is not `none`.
+
+## 5.3 Author output
+
+Exactly one of:
+
+```text
+{ status: "composition",
+  source,                        // one Remotion composition module (§8, §9)
+  composition_id,
+  notes? }                       // never shown to reviewers
+
+{ status: "needs_revision",
+  reason,
+  stage,                         // brief | storyboard
+  refs[] }                       // beat / claim / condition IDs
+```
+
+Static validation of `source` (harness, before any render): §8.2.
+
+## 5.4 Review finding
+
+```text
+ReviewFinding {
+  reviewer                       // visual | pedagogical
+  category                       // one of §13.1 (blocking) or §13.2 (advisory)
+  beat_id?
+  timestamp?
+  claim_id?
+  description
+}
+```
+
+The harness, not the reviewer, decides whether a finding is blocking, by category.
+
+## 5.5 MotionJob
+
+```text
+MotionJob {
+  id
+  status                         // resolving | needs_clarification | directing | storyboarding
+                                 // | authoring | rendering_preview | reviewing | repairing
+                                 // | rendering_final | validating_final | ready | failed
+  owner                          // org + app + learner, as LearnVideos already scopes jobs
+  brief                          // MotionBrief (§5.1)
+  storyboard                     // MotionStoryboard (§5.2)
+  renderer                       // "remotion" in V1, plus the renderer/service version
+  prompt_spec_version
+  director_model_config          // {role: "MOTION_DIRECTOR_MODEL", resolved_model}
+  author_model_config            // {role: "MOTION_AUTHOR_MODEL", resolved_model}
+  review_model_config            // {visual: {...}, pedagogical: {...}}
+  repair_count                   // 0 or 1
+  findings[]                     // ReviewFinding (§5.4), per review pass
+  preview_refs {video?, contact_sheet, keyframes[]}
+  final_ref?                     // the LearnVideos job key / LEARN_MEDIA storage key
+  final_validation?              // §11.3 results
+  source_refs[]                  // copied from the brief for provenance queries
+  created_at
+  updated_at
+  failure_reason?
+}
+```
+
+No model credentials are stored anywhere in the job.
 
 ---
 
-# 5. Worked example: `/motion explain me softmax func`
+# 6. Worked example: `/motion 15s explain me softmax func`
 
-## 5.1 Raw request
+Fixture: Demo A in §27 (nanoGPT at `3adf61e154c3fe3fca428ad6bc3818b27a3b8291`, learner in the NanoGPT attention lesson, nothing selected). Without `15s` the same run produces a 10-second default and a narrower scope.
 
-```text
-/motion explain me softmax func
-```
-
-## 5.2 Resolved context
-
-Illustrative example:
+## 6.1 Raw request
 
 ```text
-repository: karpathy/nanoGPT
-current learning area: attention
-selected/current code context: attention score normalization
-learner level: early ML
-source refs:
-- exact source span around softmax
-- relevant attention card / claim
-- masking step immediately before it, if supported
+/motion 15s explain me softmax func
 ```
 
-## 5.3 Enhanced internal brief
+## 6.2 Learner Intent Resolver
 
 ```text
-TITLE
-How softmax turns attention scores into weights
-
-OBJECTIVE
-After 10 seconds, the learner should be able to explain how the selected
-softmax operation converts the current attention-score row into relative
-attention weights and identify what those weights mean downstream.
-
-AUDIENCE
-Early ML learner currently studying attention.
-
-SOURCE OF TRUTH
-- selected repository source span
-- selected/current lesson evidence
-- source claim IDs C1–C4
-
-CLAIMS
-C1: softmax maps relative scores to positive normalized weights
-C2: the weights sum to 1 across the selected axis
-C3: in this source path, masking has already removed disallowed future positions
-C4: the resulting weights are later used to combine values
-
-TEACHING MODE
-mechanism
-
-DURATION
-10 seconds
-
-MUST SHOW
-- one row of attention scores
-- score magnitudes visually compared
-- transformation into normalized weights
-- weights sum to 1
-- downstream weighted combination cue
-
-MUST NOT CLAIM
-- softmax chooses one single winner
-- softmax removes future tokens by itself
-- weights are probabilities of token correctness
-
-VISUAL DIRECTION
-Clean technical motion graphics. Minimal text. Use position, size and opacity
-changes to make normalization legible. Motion should show transformation,
-not decorative bouncing.
-
-RENDERER
-HyperFrames + SVG/Canvas + GSAP
-
-NARRATION
-Optional one short sentence, only if it improves comprehension.
-
-QA
-- no unsupported claims
-- labels readable at 1080p
-- no clipping
-- numerical/visual ordering consistent with source example
-- takeaway understandable without narration
+raw_user_message:   "/motion 15s explain me softmax func"
+named target:       softmax ("softmax func")
+deictic words:      none
+current location:   NanoGPT course, concept: attention
+selection:          none
+duration hint:      15s
+mode hint:          none ("explain")
+source candidates:  model.py:69   F.softmax(att, dim=-1)       in CausalSelfAttention.forward
+                    model.py:324  F.softmax(logits, dim=-1)    in GPT.generate
+chosen:             model.py:69 — current concept is attention
+                    (324 recorded in candidates_considered: sampling, not attention)
 ```
 
-## 5.4 Hidden implementation-agent prompt
+With no lesson context and no selection, both candidates remain materially different, and the Resolver asks one clarification instead: "Softmax in attention (model.py:69) or in sampling (model.py:324)?"
 
-The motion harness then produces a prompt similar to:
+## 6.3 Evidence and conditions
 
 ```text
-You are an educational motion designer, animation engineer and storyboarder.
+S1  karpathy/nanoGPT @ 3adf61e1… model.py 44–45    flash flag
+S2  karpathy/nanoGPT @ 3adf61e1… model.py 62–64    SDPA path, is_causal=True
+S3  karpathy/nanoGPT @ 3adf61e1… model.py 65–71    fallback: scale, masked_fill(-inf), F.softmax, att @ v
+S4  karpathy/nanoGPT @ 3adf61e1… model.py 48–50    tril causal-mask buffer (fallback only)
 
-Create a deterministic 10-second technical motion explainer from the supplied
-MotionBrief.
-
-Do not invent facts beyond SOURCE OF TRUTH and CLAIMS.
-
-PROCESS
-1. Write a compact timed storyboard.
-2. Map every beat to one or more claim IDs.
-3. Implement the storyboard in the allowlisted HyperFrames renderer using
-   SVG/Canvas/GSAP as appropriate.
-4. Every rendered state must be deterministic from timeline time and explicit state.
-5. Do not use wall-clock timers, unseeded randomness or render-time network access.
-6. Run renderer validation.
-7. Render representative keyframes/contact sheet.
-8. Inspect for clipping, hierarchy, timing and conceptual errors.
-9. Inspect for unsupported or misleading teaching claims.
-10. Repair at most once if a blocking issue is found.
-11. Produce the final artifact package.
-
-OUTPUT
-- storyboard.json
-- composition source
-- render manifest
-- contact sheet
-- QA report
-- final.mp4
-- poster image
-- provenance metadata
+K1  torch.nn.functional has scaled_dot_product_attention (PyTorch >= 2.0)
+      true  → SDPA with is_causal=True (S2)
+      false → explicit mask then F.softmax (S3, S4)
 ```
 
-The precise prompt can evolve, but this **enhancement architecture is mandatory**.
+## 6.4 Director output (MotionBrief excerpt)
+
+```text
+title:            How softmax turns attention scores into weights
+objective:        Learner understands what softmax does to attention scores.
+audience_context: NanoGPT attention lesson; has seen scores, not normalization.
+claim_registry:
+  C1  softmax converts eligible scores into normalized non-negative weights   [S3]
+  C2  in nanoGPT fallback attention, masking occurs before F.softmax           [S3, S4] [K1=false]
+  C3  the optimized PyTorch SDPA path performs causal attention internally     [S2]     [K1=true]
+duration:         {requested_text: "15s", seconds: 15}
+teaching_mode:    mechanism_first
+must_show:
+  - raw scores
+  - unavailable future positions
+  - normalized allowed weights
+  - weights summing to 1 over eligible positions
+must_not_claim:
+  - nanoGPT always executes the explicit F.softmax path
+  - masking happens after softmax
+  - future tokens are removed from the token sequence
+  - softmax chooses one single winner
+visual_direction: Clean technical motion graphics. Minimal text. Position, size
+                  and opacity make normalization legible. No decorative bouncing.
+narration_policy: none
+```
+
+Only this validated brief, then the validated storyboard (§4.6), reaches downstream generation.
 
 ---
 
-# 6. Storyboard contract
+# 7. Storyboard rules
 
-Before implementation, create a short timed storyboard.
-
-For 5–30 second videos, a storyboard should generally have **2–8 beats**.
-
-Example 10-second softmax storyboard:
-
-```text
-0.0–1.5s
-A row of attention scores appears.
-Claim: C1
-Takeaway: these are relative raw scores.
-
-1.5–4.0s
-Scores stretch/compress visually according to magnitude.
-A normalization transform begins.
-Claim: C1
-
-4.0–6.5s
-Scores become positive weights with percentages / normalized bars.
-A subtle sum = 1 indicator resolves.
-Claim: C1, C2
-
-6.5–8.5s
-Weights flow toward value vectors / information blocks.
-Claim: C4
-
-8.5–10.0s
-Takeaway: "softmax turns scores into relative attention weights."
-Claim: C1, C4
-```
-
-Each beat should include:
-
-```text
-start_time
-end_time
-pedagogical_role
-visible_objects
-claim_ids
-transition
-camera/framing
-on_screen_text
-narration_line?
-```
-
-Possible `pedagogical_role` values:
-
-- hook
-- intuition
-- mechanism
-- bridge_to_formalism
-- notation
-- equation
-- implementation
-- takeaway
-
-These names can remain internal and may evolve.
+- A storyboard exists before any renderer code.
+- 5–30 second videos use 2–8 beats.
+- Each beat records the fields in §5.2.
+- `pedagogical_role` names are internal and may grow; the validator accepts the §5.2 list.
+- Each beat should answer: *what mental model is this visual giving the learner?*
 
 ---
 
-# 7. Deterministic animation contract
+# 8. Deterministic render contract
 
-The preferred mental model is:
-
-```text
-frame = pure_function(time, scene_state)
-```
-
-Generated motion code should be seekable and replayable.
-
-Avoid:
-
-- wall-clock-dependent animation
-- hidden mutable timers
-- uncontrolled DOM timing
-- unseeded randomness
-- network calls during render
-- nondeterministic asset loading
-
-The renderer must be able to request:
+## 8.1 The rule
 
 ```text
-render frame at t = 0.0
-render frame at t = 2.5
-render frame at t = 9.8
+frame = pure_function(frame_number, explicit_state)
 ```
 
-and obtain the correct visual state independently.
+Generated motion must be seekable and replayable. The renderer must be able to render frame N alone and get the same pixels every time.
 
-This matters for:
+Required in every composition:
 
-- reproducibility
-- contact-sheet QA
-- deterministic repairs
-- caching
-- debugging
-- future distributed rendering
+- visual state derived only from Remotion's `useCurrentFrame()` / `useVideoConfig()`, through `interpolate()` / `spring()` or plain arithmetic on the frame
+- no wall-clock time: `Date` and `performance.now` are prohibited
+- no state driven by `requestAnimationFrame`, `setTimeout` or `setInterval`
+- seeded randomness only, through Remotion's `random(seed)`; `Math.random` is prohibited
+- no render-time network requests
+- bundled, pinned fonts (woff2 files in the render package), and rendering waits for `document.fonts.ready` / Remotion's `delayRender()` until fonts load; a failed font load cancels the render (learn-render already does this)
+- deterministic asset inputs, resolved before the render (§16)
+- no uncontrolled CSS animation: CSS `@keyframes`, `animation` and `transition` are prohibited; all motion is driven from the frame
+
+## 8.2 Static validation of composition source
+
+Before any render, the harness rejects composition source that:
+
+- imports anything outside the allowlist: `react`, `remotion`, and the approved primitive modules chosen in M1 (candidates: learn-render's lecture components and rough.js)
+- uses a dynamic `import()`, `require`, `eval` or `new Function`
+- references `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `navigator.sendBeacon`, `Date`, `performance`, `Math.random`, `requestAnimationFrame`, `setTimeout`, `setInterval`, `localStorage`, `sessionStorage`, `indexedDB` or `document.cookie`
+- contains CSS `@keyframes`, `animation` or `transition`
+- does not declare the brief's stage: 1920×1080, 30 fps, `durationInFrames` = `duration.seconds × 30`
+- exceeds the source-size cap set in M1
+
+Static validation narrows what generated code can do; the sandbox (§10) is still the security boundary.
+
+## 8.3 Determinism test
+
+Render the **same frame** in two fresh rendering contexts (two separate `renderStill` runs from a fresh bundle), hash both images, and require the hashes to match. M1 proves this on the hand-written composition; M5 runs it on every generated composition at the contact-sheet timestamps.
 
 ---
 
-# 8. Toolchain for Motion V1
+# 9. Renderer: the existing Remotion stack
 
-## 8.1 Model
+## 9.1 V1 renderer
 
-Primary storyboard + implementation model:
+Motion V1 renders with the existing Remotion stack in **`packages/learn-render`**. It does not create a parallel rendering system. What already exists there:
 
-```text
-claude-opus-5-5
-```
+| Capability | Where |
+|---|---|
+| Remotion bundle + render to MP4 (1920×1080, 30 fps; h264) | `scripts/render.mjs` (CLI `remotion render`), `@remotion/bundler`, `@remotion/renderer` |
+| Fish Audio TTS, one call per beat, cached by hash of text + voice + model | `scripts/tts.mjs` |
+| Measured audio timing: beat duration = measured clip length + 0.6 s; silent fallback with estimated durations | `scripts/tts.mjs` |
+| Still-frame rendering (`renderStill`, one still per screen) | `scripts/stills.mjs` |
+| Content-hash cache: unchanged inputs skip the Remotion pass | `scripts/render.mjs` |
+| Acceptance tests: duration within 10% of the beat clips, fonts are real woff2 and load, a colour at a known beat, cached re-render under 60 s | `scripts/test.mjs` |
+| Pinned fonts (Inter, Virgil) | `assets/fonts/` |
+| Existing visual primitives (rough.js whiteboard, captions, code) | `src/lecture/` |
 
-Use high reasoning effort when supported by the configured API for generation tasks.
+Motion extends this package: a Motion composition entry, the static validator, the determinism test and the final-validation checks are added next to the existing lecture pipeline. The CLI's zero-dependency rule is unaffected (learn-render has its own dependencies, and the CLI never imports from it).
 
-Do not reuse the Tutor fast-tier architecture automatically. Motion generation is an artifact-generation job, not an interactive Tutor turn.
+## 9.2 Visual primitives
 
-## 8.2 Primary renderer
+Inside Remotion compositions, V1 allows:
 
-Recommended first renderer:
+- React
+- SVG
+- Canvas (drawn from the current frame)
+- CSS (static styling only; no CSS animation)
+- existing safe animation primitives approved in M1
 
-```text
-HyperFrames
-```
+**GSAP is not used in V1.** `packages/web/package.json` lists `gsap`, but nothing imports it, and Motion compositions must not import it until the owner/legal review in §34 is done. GSAP's standard licence prohibits use in tools that let users build animations without code in competition with Webflow's visual animation features; a prompt-to-animation product may be close enough to matter.
 
-with:
+## 9.3 Fixed authoring stage
 
-```text
-SVG
-Canvas
-HTML/CSS
-GSAP
-```
+Author every landscape composition at **1920×1080, 30 fps** unless another format is explicitly requested. Do not author one layout at 480p and another at 1080p. The preview is a scaled render of the same composition (§11.1).
 
-Use a pinned, allowlisted renderer environment.
+16:9 is the V1 format. Architect for future 9:16 / 1:1, but do not let format proliferation block V1.
 
-## 8.3 Browser/render capture
-
-Use controlled Chromium / headless Chrome tooling for preview and frame capture.
-
-Possible implementation tooling:
-
-- Playwright or Puppeteer
-- Chromium
-- deterministic page/timeline seek API
-
-## 8.4 Encoding
-
-Use:
-
-```text
-ffmpeg
-```
-
-for final video encoding / muxing.
-
-## 8.5 Image/frame inspection
-
-Generate:
-
-- poster frame
-- contact sheet
-- representative keyframes
-
-These are inputs to visual QA.
-
-## 8.6 Audio / narration
-
-Narration is optional.
-
-Policy suggestion:
-
-```text
-5s       → no narration by default
-10–15s   → optional one short line
-20–30s   → optional concise narration when useful
-```
-
-If narration is generated, reuse a server-side approved TTS provider such as the existing Fish Audio integration rather than exposing credentials client-side.
-
-For synchronized narration:
-
-```text
-script
-→ TTS
-→ actual timestamps / cue timings
-→ animation timing adjustment
-```
-
-Do not guess narration duration when actual timing can be measured.
-
-Narration must never include unsupported claims or private learner content.
-
----
-
-# 9. Renderer adapter boundary
-
-Define a renderer abstraction so `/motion` does not depend directly on HyperFrames forever.
-
-Conceptually:
+## 9.4 Renderer adapter boundary
 
 ```text
 MotionRenderer {
-  validate(brief, storyboard)
-  generateSource(...)
-  renderPreview(...)
-  renderKeyframes(...)
-  renderFinal(...)
-  collectDiagnostics(...)
+  validateSource(brief, storyboard, source)
+  renderPreview(job)
+  renderStills(job, frames)
+  renderFinal(job)
+  validateFinal(job)
+  collectDiagnostics(job)
 }
 ```
 
-V1 implementation:
+V1 implementation: `RemotionRenderer` (packages/learn-render).
 
-```text
-HyperFramesRenderer
-```
+Future adapters (not V1): HyperFrames, Three.js, Manim, Blender. The learner-facing `/motion` command does not change when a renderer is added.
 
-Later:
-
-```text
-RemotionRenderer
-ThreeRenderer
-ManimRenderer
-BlenderRenderer
-```
-
-The learner-facing `/motion` command must not change when a renderer changes.
+**HyperFrames** (HeyGen, Apache-2.0, released April 2026) stays documented as a future renderer experiment. If it later produces materially better results, it can become another adapter. It is not a V1 dependency.
 
 ---
 
-# 10. Preview and render strategy
+# 10. Render service and sandbox
+
+## 10.1 Linux from the first real render
+
+Rendering happens in Linux from the first real render milestone (M1). Final frame fidelity never depends on the Windows development host: Chromium and font rasterization differ between hosts, and the determinism and preview/final checks assume one environment.
+
+The primary development machine currently has **no Docker, no WSL and no ffmpeg** (checked 2026-10-03). Motion V1 therefore cannot assume a local sandbox runtime.
+
+## 10.2 Proposed development render service
+
+Preferred initial architecture: a new Rabbit Hole-owned development render service,
+
+```text
+rabbit-hole-motion-renderer-dev
+```
+
+a Fly app in the **Rabbit Hole Fly org**, using the existing math-renderer container pattern. Creating it requires explicit approval before deployment. It is not created by this spec.
+
+Do not reuse `small-math-renderer-dev` as the Motion service, and do not create any new `small-*` resource. The math renderer is a pattern source only.
+
+Proven ideas to reuse from `packages/math-renderer` (`Dockerfile`, `server.py`) and `packages/control-plane/src/math-provider.js`:
+
+- Debian slim image, ffmpeg installed, non-root user
+- bearer-token auth on every request, compared with `hmac.compare_digest`
+- `/health` reports a version that becomes part of the job cache key
+- one render slot at a time; busy answers 429
+- a fresh temporary directory per job
+- the render child gets a credential-free environment
+- a hard render timeout (math renderer: 420 s)
+- an output-size cap (math renderer: 25 MB)
+- schema validation before rendering
+- provider contract `submit → ticket`, `poll → null | bytes`, consumed by the LearnVideos Durable Object (§18)
+
+New requirements for Motion, because composition source is generated code:
+
+- the render child runs as a **separate unprivileged user** from the service process, so it cannot read the service's environment or token
+- **no arbitrary network access**: the render child gets loopback only (for Remotion's local bundle server). The mechanism (for example a network namespace for the child, plus a Content Security Policy on the bundle page) is chosen in M1 and proven by a test in which a composition's outbound request fails
+- **no arbitrary filesystem access**: the child reads only its job directory and the read-only render package, and writes only its output directory
+- CPU, memory, process-count and wall-clock limits
+- output validation before acceptance (§11.3)
+- no model keys, Fish key, user cookies, OAuth tokens or provider keys ever reach the render service; it receives only the composition source and deterministic assets for one job
+
+Model calls (Director, storyboard, Author, reviewers) and TTS calls happen **outside** the render service, on the orchestrator side (§18). The render service never holds model or Fish credentials.
+
+## 10.3 Authoring on the Windows host
+
+learn-render may still run on the Windows host for authoring iteration. Those renders are never used for determinism, preview/final comparison or acceptance.
+
+---
+
+# 11. Preview, contact sheet and final validation
+
+## 11.1 Preview
 
 Do not repeatedly render full-resolution final video during iteration.
 
-Recommended pipeline:
-
 ```text
-storyboard
-→ source generation
-→ low-resolution preview
+validated composition
+→ preview: same composition, same fps and timing, rendered with Remotion's output scale (≈ 854×480)
+→ stills at the contact-sheet timestamps
 → contact sheet
-→ QA
-→ max one repair
-→ high-resolution final
+→ determinism check (§8.3)
+→ fresh reviews
 ```
 
-Suggested initial preview:
+The preview changes resolution only. Layout, timing and stage are identical to the final.
 
-```text
-854×480 or similar
-15–24 fps
-```
+## 11.2 Contact sheet
 
-Suggested final:
+Stills at least at:
 
-```text
-1920×1080
-30 fps
-```
+- the first frame
+- the hook
+- every beat boundary and the middle of every beat
+- any notation/equation frame
+- the final takeaway
+- any `qa_requirements.keyframe_times`
 
-Default aspect ratio:
+Reuse `scripts/stills.mjs` / `renderStill`.
 
-```text
-16:9
-```
+## 11.3 Final validation (automatic, after the final render)
 
-Architect for future 9:16 / 1:1 support, but do not let format proliferation block V1.
+Preview QA does not prove the final output. After the final render, run cheap automatic checks:
+
+- `ffprobe` duration ≈ `duration.seconds` (within one frame) and ≤ 30 s
+- frame count and fps (30)
+- resolution 1920×1080
+- output size under the cap
+- blank-frame detection on the contact-sheet timestamps and the last frame
+- final keyframe hashes recorded in the job
+- final vs preview: render the contact-sheet frames at final scale, downscale them to preview size, and compare with the preview frames under a pixel-difference threshold set in M5 (exact hash equality is expected between two renders at the same scale, not across scales)
+
+If the final differs unexpectedly from the preview, **fail the job**. Do not launch another repair; the single repair round is only before the final render.
 
 ---
 
-# 11. Visual QA
+# 12. Review
 
-The visual reviewer should inspect at least:
+## 12.1 Fresh, blind reviewers
 
-- first frame
-- hook
-- major transitions
-- the primary teaching beat
-- any formal notation/equation frame
-- final takeaway
+Both reviewers are fresh calls with no memory of earlier stages.
 
-Check for:
+| Reviewer | Receives | Never receives |
+|---|---|---|
+| Visual reviewer | the MotionBrief + rendered frames (contact sheet, keyframes) | Author/Director rationale or self-assessment; storyboard notes; earlier findings |
+| Pedagogical reviewer | the MotionBrief + source evidence + rendered frames (+ narration script when narration is on) | Author/Director rationale or self-assessment; earlier findings |
+
+"Review the artifact, not the author's argument for why it is good."
+
+## 12.2 Visual checks
+
+At least the first frame, the hook, major transitions, the primary teaching beat, any notation/equation frame and the final takeaway. Check for:
 
 - clipping
 - blank frames
@@ -919,37 +1133,28 @@ Check for:
 - timing too fast to understand
 - decorative motion that obscures the concept
 
-The contact sheet should make obvious problems easy to spot before the final video is accepted.
+## 12.3 Pedagogical / source checks
 
----
-
-# 12. Pedagogical / source QA
-
-A visually beautiful video that teaches the wrong thing is a failure.
-
-Pedagogical QA is separate from visual QA.
-
-Check:
+A visually beautiful video that teaches the wrong thing is a failure. Check:
 
 - every major beat maps to a source-supported claim
+- the correct source/code branch is represented, with its condition
 - the conceptual order is coherent
 - no prerequisite is skipped in a way that makes the video misleading
 - the visual implies the correct causal relationship
 - labels match source semantics
-- analogies map explicitly to real concepts
-- the analogy's limits are not hidden when relevant
+- analogies map explicitly to real concepts, and their limits are not hidden when relevant
 - the takeaway matches the objective
-- no `must_not_claim` violation occurs
+- no `must_not_claim` violation
+- every `must_show` item appears
 - narration and visuals agree
 
-For intuition-first videos, apply this test:
+For `intuition_first`:
 
 ```text
 If the equation/formal notation were hidden,
 could the learner explain the core mechanism in plain language?
 ```
-
-Then:
 
 ```text
 After formalism appears,
@@ -958,77 +1163,100 @@ can the learner map the major intuition elements to the real mechanism?
 
 ---
 
-# 13. Repair policy
+# 13. Blocking findings and the single repair
 
-V1 allows at most **one automatic repair pass**.
+## 13.1 Blocking
+
+These consume the single repair round (§4.8):
+
+- unsupported factual claim
+- `must_not_claim` violation
+- required claim contradicted
+- wrong source/code branch represented
+- blank frame
+- materially clipped text
+- materially overlapping, unreadable text
+- missing `must_show` concept
+- duration > 30 seconds
+- corrupt or unplayable output
+- renderer failure
+- narration materially contradicts visuals
+
+## 13.2 Advisory (never repaired automatically)
+
+- minor easing preference
+- aesthetic preference
+- small spacing issue that does not affect readability
+- alternate but valid colour choice
+
+## 13.3 Policy
 
 ```text
-render preview
-→ QA
-→ blocking issue?
-    no  → final render
-    yes → repair once
-           ↓
-         re-render
-           ↓
-         final QA
+preview → fresh reviews → blocking?
+    no  → final render → final validation
+    yes → one repair round → re-render preview → fresh reviews
+            still blocking → job failed, diagnostics kept
+            clean          → final render → final validation
 ```
 
-If the second result still fails a critical check, stop and report the failure.
-
-Do not create an unbounded autonomous rendering loop.
+If the job fails, keep its diagnostics, do not insert a broken video into the canvas, and do not start another repair. No unbounded rendering loop exists.
 
 ---
 
-# 14. Security and execution boundary
+# 14. Toolchain
 
-Generated animation code is **untrusted code**.
+| Piece | V1 choice |
+|---|---|
+| Director, storyboard, Author, reviewers | role-configured models (§4.9); runtime may resolve to `claude-opus-5-5` |
+| Renderer | Remotion via `packages/learn-render` |
+| Browser | the headless Chromium that Remotion drives |
+| Encoding / probing | ffmpeg / ffprobe in the Linux render container |
+| Frame inspection | `renderStill` stills, contact sheet, poster frame |
+| Narration (optional) | Fish Audio through learn-render's per-beat path (§15) |
 
-Never execute generated motion code inside the main Rabbit Hole Cloudflare Worker or directly in the learner's browser as unrestricted arbitrary code.
-
-Use an isolated renderer sandbox.
-
-Requirements:
-
-- no arbitrary filesystem access
-- no access to host secrets
-- no production credentials
-- no arbitrary network access
-- allowlisted runtime / packages only
-- CPU limit
-- memory limit
-- render timeout
-- output-size limit
-- deterministic assets
-- explicit input/output directories
-- kill runaway processes
-- validate output media before accepting
-
-The render service should receive only the data/assets needed for that job.
-
-Do not send user auth cookies, OAuth tokens or provider keys into the generated-code sandbox.
+Pin every version in the render image. M1 reports exact dependencies and licences.
 
 ---
 
-# 15. Asset policy
+# 15. Narration (optional)
+
+Narration is optional and not required for V1 acceptance. Add it only after silent motion passes the M8 demos. Do not let audio complexity block visual V1.
+
+Policy:
+
+```text
+5s       → no narration by default
+10–15s   → optional one short line
+20–30s   → optional concise narration when useful
+```
+
+Reuse learn-render's per-beat path: one Fish call per beat, measured clip duration, beat duration = clip + 0.6 s. Do not guess narration duration when it can be measured.
+
+- TTS calls run on the orchestrator side; the audio files enter the render package as deterministic assets (§16). The render service never holds the Fish key.
+- Narration is a paid call and follows the existing confirmation gate (§25).
+- Narration never includes unsupported claims or private learner content.
+
+**Secret name.** The canonical runtime secret is `FISH_AUDIO_API_KEY` (the dev worker's `/api/learn/tts` and the documented secrets list use it). `packages/learn-render/scripts/tts.mjs`, its README and `render.config.json` still use `FISH_AUDIO_KEY`. Compatibility mapping until that script is updated: `FISH_AUDIO_KEY` is a legacy alias for the same key. When Motion first uses narration, `tts.mjs` reads `FISH_AUDIO_API_KEY` and falls back to `FISH_AUDIO_KEY`. Do not introduce a third name.
+
+---
+
+# 16. Asset policy
 
 Prefer programmatic vectors, shapes, diagrams and typography for V1.
 
 If a job requires external assets:
 
 ```text
-asset resolution happens BEFORE sandbox render
+asset resolution happens BEFORE the sandboxed render
 ```
 
-The main service fetches/validates an allowlisted asset and copies the deterministic asset into the render package.
+The orchestrator fetches/validates an allowlisted asset and copies the deterministic asset into the render package. The generated composition never fetches anything during render.
 
-The generated animation itself should not freely browse the internet during render.
-
-For code explainers, screenshots/source excerpts should be generated from approved repository content and included as deterministic assets.
+For code explainers, source excerpts are generated from approved repository content at the pinned commit and included as deterministic assets (or as text in the brief's evidence).
 
 ---
 
-# 16. Privacy policy
+# 17. Privacy policy
 
 Do not place learner-private content into generated videos unless that content is intentionally part of the learner's requested artifact.
 
@@ -1048,150 +1276,78 @@ Do not upload private source to third parties beyond the approved model/render p
 
 ---
 
-# 17. Artifact data model
+# 18. Storage, artifact and canvas insertion
 
-Conceptual records:
+Motion V1 reuses the existing video pipeline. It does **not** introduce a new MotionArtifact persistence model.
 
-## 17.1 `MotionJob`
+| Existing piece | Reuse |
+|---|---|
+| `LearnVideos` Durable Object (`packages/control-plane/src/learn-video.js`) | holds the job per learner (org, app, email); one generating job at a time; saved-video limit; alarm-driven polling; never automatically repeats a potentially charged submission |
+| Provider contract (`ManimProvider` in `math-provider.js`) | a Motion provider follows the same `submit → ticket`, `poll → null \| bytes` contract against the render service |
+| `LEARN_MEDIA` R2 binding, `learnMedia(env)` (`learn-storage.js`) | stores the final MP4 under the existing `learn-video-dev/<doId>/<key>.mp4` key scheme |
+| `GET /api/learn/video?app=…&asset=<64-hex>` | serves the MP4 privately with Range / 206 |
+| `BLOCK_TYPES.video` + `VideoBody` (`packages/web/src/LearningBlocks.jsx`) | the canvas card and player |
+| `runLearnCommand` → `canvas.insertBlock` (`packages/web/src/learn-slash.js`) | inserts the result |
 
-```text
-id
-user_id
-canvas_id
-status
-raw_request
-brief_id
-renderer
-created_at
-started_at
-completed_at
-failure_reason?
+Insertion is an ordinary video block:
+
+```js
+insertBlock({
+  type: 'video',
+  // title, caption, the src/asset wiring and status follow the existing
+  // video block; M7 decides the exact mode/src fields against VideoBody
+  // and the LearnVideos placement model.
+  provenance: { motion_job_id, prompt_spec_version, source_refs, claim_ids },
+})
 ```
 
-Statuses might include:
+not a new Motion card system.
 
-```text
-planning
-storyboarding
-generating
-rendering_preview
-reviewing
-repairing
-rendering_final
-ready
-failed
-```
+Provenance lives in the existing video job/block metadata. It must answer: *what source, card, code and claims generated this motion explainer?* Do not expose inaccessible source references to viewers who lack permission.
 
-## 17.2 `MotionBrief`
+Preview and contact-sheet refs point to harness job-directory files in M1–M6, and from M7 to `LEARN_MEDIA` keys under the job's existing prefix. Serving previews to learners is not part of V1.
 
-```text
-id
-resolved_target
-objective
-audience_context
-source_refs
-claims
-duration_seconds
-aspect_ratio
-teaching_mode
-visual_direction
-renderer
-narration_policy
-must_show
-must_not_claim
-```
+Where the orchestration runs in M7 (alarm-driven stages in the LearnVideos Durable Object, like its existing polling, or a development-only harness process) is an M7 decision. Either way, model and Fish keys stay outside the render service.
 
-## 17.3 `MotionStoryboard`
-
-```text
-id
-beats[]
-version
-```
-
-Each beat stores timing + claim references.
-
-## 17.4 `MotionArtifact`
-
-```text
-id
-motion_job_id
-video_url
-poster_url
-contact_sheet_url?
-duration
-width
-height
-fps
-renderer
-source_manifest
-qa_report
-created_at
-```
-
-## 17.5 Provenance
-
-Retain enough metadata to answer:
-
-```text
-What source/card/code/claims generated this motion explainer?
-```
-
-Do not expose inaccessible source references to viewers who lack permission.
-
----
-
-# 18. Canvas artifact UX
-
-When ready, `/motion` inserts a motion artifact into the current canvas.
-
-Suggested card behavior:
+Card behaviour once ready:
 
 ```text
 [poster / video]
 Title
-10 sec · Motion explainer
+15 sec · Motion explainer
 Play
 
 Sources / provenance
 Open storyboard (optional/debug/creator)
 ```
 
-The learner can play the artifact without leaving the canvas.
+The learner plays the artifact without leaving the canvas. A failed job inserts nothing broken.
 
-Potential later actions:
-
-- Fork canvas with artifact
-- Share artifact
-- Regenerate with different teaching mode
-- Expand to interactive explanation
-- Open source concept
-
-Do not implement all later actions in V1.
+Later actions (fork canvas with artifact, share, regenerate with a different teaching mode, expand to interactive explanation, open source concept) are not V1.
 
 ---
 
 # 19. Relationship to Tutor
 
-Tutor may suggest motion when it is pedagogically useful, but V1 should not automatically generate paid motion on every difficult concept.
-
-Examples of acceptable future behavior:
+Tutor may suggest motion when it is pedagogically useful, but V1 does not automatically generate paid motion on every difficult concept.
 
 ```text
 Tutor: "This relationship is easier to see moving. Want a 10-second animation?"
 ```
 
-Generation should start only after learner intent/confirmation according to cost policy.
+Generation starts only after learner intent/confirmation according to cost policy.
 
-Tutor must reuse the same `/motion` pipeline rather than creating a second video-generation implementation.
+- **Tutor** decides WHETHER an animation is the right teaching move.
+- **Motion Director** decides HOW that animation should teach the concept.
+- **Motion Author** decides HOW to implement it against the renderer contract.
+
+Tutor reuses the same `/motion` pipeline and the same Learner Intent Resolver. There is no second video-generation implementation.
 
 ---
 
 # 20. Relationship to `/dive`
 
 A Rabbit Hole provides a natural scope for a motion explainer.
-
-Example:
 
 ```text
 Transformer canvas
@@ -1223,53 +1379,35 @@ Do not automatically insert motion into every authored course lesson.
 
 ---
 
-# 22. Production prompt architecture
+# 22. Prompt architecture
 
-Do not maintain one giant unstructured prompt string.
+Do not maintain one giant unstructured prompt string. Each stage call has its own structured template, built from brief fields:
 
-Build the final motion-agent prompt from structured sections:
+| Call | Sections |
+|---|---|
+| Director | ROLE, TASK, LEARNER TURN, SOURCE OF TRUTH, IMPLEMENTATION CONDITIONS, DURATION POLICY, TEACHING MODES, OUTPUT SCHEMA |
+| Storyboard | ROLE, MOTIONBRIEF, STORYBOARD RULES, OUTPUT SCHEMA |
+| Author | ROLE, TASK, OBJECTIVE, AUDIENCE, SOURCE OF TRUTH, CLAIMS, CONDITIONS, MUST SHOW, MUST NOT CLAIM, TEACHING MODE, DURATION, VISUAL DIRECTION, STORYBOARD, RENDERER CONTRACT, NARRATION POLICY, OUTPUT |
+| Visual reviewer | ROLE, MOTIONBRIEF, FRAMES, CHECKS, FINDING SCHEMA |
+| Pedagogical reviewer | ROLE, MOTIONBRIEF, SOURCE EVIDENCE, FRAMES, CHECKS, FINDING SCHEMA |
+| Repair | the original stage's sections + BLOCKING FINDINGS |
 
-```text
-ROLE
-TASK
-OBJECTIVE
-AUDIENCE
-SOURCE OF TRUTH
-CLAIMS
-MUST SHOW
-MUST NOT CLAIM
-TEACHING MODE
-DURATION
-VISUAL DIRECTION
-RENDERER CONTRACT
-NARRATION POLICY
-PROCESS
-QA
-DELIVERABLES
-```
+Benefits: easier testing, source grounding, renderer-specific contracts, reproducible failures, model comparison and prompt versioning.
 
-Benefits:
-
-- easier testing
-- easier source grounding
-- renderer-specific adapters
-- reproducible failures
-- easier future model comparison
-- easier prompt versioning
-
-Store a prompt/template version with each `MotionJob`.
+Every MotionJob stores `prompt_spec_version`.
 
 ---
 
-# 23. Example production prompt template
+# 23. Example Author prompt template
 
 ```text
 ROLE
-You are an educational motion designer, animation engineer and storyboarder.
+You are an educational motion designer and animation engineer.
 Your job is to make motion reveal the concept clearly and accurately.
 
 TASK
-Create a {duration_seconds}-second motion explainer.
+Implement the validated storyboard as one Remotion composition
+of exactly {duration_seconds} seconds at 1920×1080, 30 fps.
 
 LEARNING OBJECTIVE
 {objective}
@@ -1278,10 +1416,13 @@ AUDIENCE CONTEXT
 {audience_context}
 
 SOURCE OF TRUTH
-{source_refs_and_evidence}
+{evidence}
 
 SUPPORTED CLAIMS
 {claim_registry}
+
+IMPLEMENTATION CONDITIONS
+{implementation_conditions}
 
 MUST SHOW
 {must_show}
@@ -1295,49 +1436,29 @@ TEACHING MODE
 VISUAL DIRECTION
 {visual_direction}
 
+STORYBOARD
+{storyboard}
+
 RENDERER CONTRACT
-Use the allowlisted HyperFrames environment.
-Use SVG/Canvas/HTML/GSAP as appropriate.
-Every visible state must be deterministic from timeline time and explicit state.
-No render-time network calls.
-No wall-clock-dependent animation.
-No unseeded randomness.
+Remotion. Imports: react, remotion, and the approved primitives only.
+Derive every visible state from useCurrentFrame()/useVideoConfig()
+with interpolate()/spring() or arithmetic on the frame.
+No Date, performance.now, Math.random (use random(seed)),
+requestAnimationFrame, timers, network or storage APIs.
+No CSS @keyframes, animation or transition.
+Use only the bundled fonts.
 
 NARRATION POLICY
 {narration_policy}
 
-PROCESS
-1. Produce a compact timed storyboard.
-2. Map each storyboard beat to supported claim IDs.
-3. Implement the animation.
-4. Run renderer validation.
-5. Render representative keyframes/contact sheet.
-6. Self-review visual quality.
-7. Self-review source/pedagogical correctness.
-8. Repair at most once if required.
-9. Produce final render artifacts.
-
-ACCEPTANCE
-- no unsupported claim
-- readable typography
-- no clipping
-- no broken geometry
-- motion reveals mechanism/sequence/causality
-- takeaway matches objective
-- output duration <= {duration_seconds}
-
-DELIVERABLES
-storyboard.json
-composition source
-render manifest
-contact sheet
-qa report
-final.mp4
-poster.png
-provenance.json
+OUTPUT
+Return either the composition source, or a needs_revision object
+naming the beat/claim/condition that makes the brief or storyboard
+insufficient or inconsistent. Do not improvise around missing evidence.
+Do not review or grade your own output.
 ```
 
-The implementation agent can improve the wording, but not weaken the contract.
+The implementation can improve the wording, but not weaken the contract.
 
 ---
 
@@ -1345,33 +1466,21 @@ The implementation agent can improve the wording, but not weaken the contract.
 
 Do not start a render when the target cannot be resolved safely.
 
-Examples:
-
-### Ambiguous symbol
+### Ambiguous target
 
 ```text
 /motion explain softmax func
 ```
 
-but repository contains several unrelated targets and no current selection.
-
-Response:
-
-```text
-Ask which function/source target the learner means.
-```
+with several materially different occurrences and no context that selects one. Ask one concise clarification (§6.2).
 
 ### Unsupported source claim
-
-If the learner asks:
 
 ```text
 /motion show why this function uses temperature 0.7
 ```
 
-but the selected source has no temperature behavior, do not invent it.
-
-Clarify or explain that the requested claim is not supported by the current source.
+when the selected source has no such behavior. Do not invent it. Explain that the requested claim is not supported by the current source, or ask what the learner meant.
 
 ### Too broad
 
@@ -1379,264 +1488,210 @@ Clarify or explain that the requested claim is not supported by the current sour
 /motion explain transformers
 ```
 
-for a 10-second default.
+for a 10-second default. Narrow to one useful objective (with a `scope_note` and a decision line) or ask the learner to choose: attention intuition, causal mask, residual stream, one forward pass.
 
-Narrow to one useful objective or ask the learner to choose:
+### Author cannot implement the brief
 
-- attention intuition
-- causal mask
-- residual stream
-- one forward pass
+The Author returns `needs_revision`; the harness uses the single repair round for one Director revision and one Author call. If the round is already used, the job fails with the reason.
 
-### Renderer failure
+### Renderer or final-validation failure
 
-If rendering fails after one repair pass, keep the job failed with diagnostics and do not insert a broken video into the canvas.
+If rendering fails after the repair round, or final validation fails, keep the job failed with diagnostics and do not insert a broken video into the canvas.
 
 ---
 
-# 25. Cost / confirmation policy
+# 25. Cost / paid policy
 
-The architecture should separate:
+The architecture separates:
 
 ```text
-cheap planning/storyboard
+cheap planning (brief + storyboard)
 → cheap preview
 → expensive final render
 ```
 
-For local development, no billing layer is required.
+**Current reality.** The only paid-generation primitives that exist are the confirmation gate and the proposal:
 
-For production, if final rendering is billable, use Rabbit Hole's existing paid-artifact pattern:
+- `paidRefusal(body)` (`packages/control-plane/src/learn-paid.js`) answers HTTP 428 `needsConfirm` unless the request carries `confirmed: true`, set only by an explicit Generate press. LearnVideos already runs it before every submission.
+- a paid `/` command returns a `paid_proposal` (currently with `estimatedCost: null`) that the composer confirms.
 
-```text
-quote
-→ explicit user confirmation
-→ reserve
-→ render
-→ settle
-```
+Quote → reserve → settle is **not implemented**. It belongs to the future Usage & Credits work (paused).
 
-Do not charge or launch an expensive final render solely because a learner typed a question.
+**Motion V1 development harness:** no production billing is required. Development runs still go through the existing confirmation gate, so nothing paid starts because a learner typed a question.
 
-A cheap storyboard/preview may be treated separately if product policy allows.
+**Paid production rendering is deferred** until Usage & Credits exists. Then the production flow is: quote → explicit user confirmation → reserve → render → settle. M9 depends on it.
 
 ---
 
-# 26. Motion V1 implementation milestones
+# 26. Milestones
 
 Do not attempt everything in one commit.
 
-## M0 — tool/runtime audit
+| Milestone | Scope | Status |
+|---|---|---|
+| **M0** | Documentation, canonical schemas (§5), demo fixtures (§27) | Schemas and fixture definitions: this document. Fixture files (brief/storyboard examples, pinned source excerpts) are created at the start of implementation. |
+| **M1** | Audit the existing Remotion render path; deterministic Linux render harness | Authorized |
+| **M2** | Learner Intent Resolver integration (shared slice) + Motion Director + grounded MotionBrief | Authorized |
+| **M3** | Storyboard generation + validation | Authorized |
+| **M4** | Motion Author → Remotion composition source + static validation | Authorized |
+| **M5** | Preview + contact sheet + determinism checks | Authorized |
+| **M6** | Fresh visual + pedagogical review + exactly one repair round | Authorized |
+| **M7** | Final render + final validation + LearnVideos / R2 + existing video-block insertion, in a development environment only | Authorized |
+| **M8** | End-to-end development demonstration: §27 demos pass human review; required report (§36) | Authorized |
+| **M9** | Production `/motion` integration | **DEFERRED** pending explicit approval and the Usage & Credits payment architecture. Do not start M9 from this specification alone. |
 
-Confirm locally:
+## M1 — Remotion render path audit + deterministic Linux render harness
 
-- HyperFrames install/runtime
-- Claude Code / agent skill availability if useful
-- Chromium/headless render path
-- ffmpeg
-- deterministic seek/render
-- output MP4
-- source/check command
+No model calls.
 
-Return a minimal proof:
+- run learn-render's existing pipeline in Linux and record what works
+- a hand-written 5-second deterministic Remotion composition
+- preview (scaled) → final MP4 → stills → contact sheet
+- determinism hash test (§8.3)
+- proof that `Math.random`, `Date`, network and CSS-animation use are rejected by static validation, and that an outbound request from a composition fails in the sandbox
+- the approved primitive allowlist
+- exact dependencies and licences
 
-```text
-hand-written 5-second deterministic animation
-→ preview
-→ MP4
-→ contact sheet
-```
+M1's first real render needs either the approved `rabbit-hole-motion-renderer-dev` Fly app or a Linux container runtime on the development machine. Neither exists today; request the approval at M1 start.
 
-No LLM yet.
+**Stop and report after M1** before building the model pipeline if the renderer/toolchain is not reliable.
 
-## M1 — renderer sandbox/harness
-
-Build a local isolated render harness with:
-
-- job directory
-- allowlisted runtime
-- input manifest
-- output directory
-- timeout
-- resource limits
-- deterministic frame seek
-- contact-sheet generation
-- ffmpeg encoding
-
-Do not connect `/motion` yet.
-
-## M2 — prompt enhancer / MotionBrief
-
-Implement:
+## M2 — Resolver + Director + MotionBrief
 
 ```text
 raw request
-→ target resolution
-→ source pack
-→ claim extraction
-→ objective
-→ teaching mode
-→ duration
-→ must-show/must-not-claim
-→ MotionBrief
+→ Learner Intent Resolver (shared slice)
+→ resolved target + candidates
+→ evidence pack + implementation conditions
+→ claim registry
+→ objective, teaching mode, duration, scope
+→ must_show / must_not_claim
+→ validated MotionBrief
 ```
 
-Add deterministic tests using fixture repositories/cards.
+Deterministic tests use the §27 fixtures (pinned commits and recorded model responses). The most important cases: `/motion explain me softmax func` resolves to the attention occurrence with K1 recorded when the attention lesson is current, and asks one clarification when it is not.
 
-## M3 — storyboard generation
+## M3 — storyboard
 
-Use Opus 5.5 to generate structured storyboard JSON from `MotionBrief`.
+Director-role call → storyboard JSON → harness validation (§5.2). Malformed or ungrounded storyboards are rejected (one format retry).
 
-Validate schema.
+## M4 — Author
 
-Reject malformed or ungrounded storyboards.
+Author call → composition source or `needs_revision` → static validation (§8.2).
 
-## M4 — code generation + preview
+## M5 — preview and determinism
 
-Generate renderer source from the validated storyboard.
+Preview render, contact sheet, determinism hashes, preview/final comparison threshold.
 
-Run:
+## M6 — review and repair
 
-```text
-validation
-→ low-res preview
-→ representative keyframes
-→ contact sheet
-```
+Fresh visual and pedagogical reviewers; harness classification (§13); one repair round.
 
-## M5 — QA + repair
+## M7 — final render and insertion (development only)
 
-Implement:
+Final render, final validation, Motion provider in LearnVideos, `LEARN_MEDIA` storage, `insertBlock({type: 'video', …})` in a development environment. Narration may be enabled here only after silent runs pass.
 
-- visual QA
-- pedagogical/source QA
-- one repair pass
+## M8 — end-to-end development demonstration
 
-Keep repair inputs grounded in actual diagnostics.
+All §27 demos through the full pipeline; human review; the required report.
 
-## M6 — final render + artifact package
+## M9 — production (deferred)
 
-Produce:
-
-- final MP4
-- poster
-- storyboard
-- contact sheet
-- QA report
-- provenance manifest
-
-## M7 — local `/motion` command integration
-
-Wire the slash command only after the harness can produce good artifacts independently.
-
-Use the current Rabbit Hole context/selection system.
-
-Insert resulting artifact into the canvas.
-
-## M8 — optional narration
-
-Add narration after silent motion is reliable.
-
-Reuse server-side TTS and actual audio timing.
-
-Do not let audio complexity block visual V1.
-
-## M9 — production design review
-
-Before production deployment, review:
+Before any production work, with a separate explicit GO, review:
 
 - sandbox isolation
 - model/provider cost
-- storage
-- media serving
-- cleanup/retention
-- paid confirmation
+- storage, media serving, cleanup and retention
+- paid confirmation through Usage & Credits (quote → confirm → reserve → render → settle)
 - privacy
 - observability
 - abuse/resource caps
-
-Production deployment requires a separate GO.
+- the licence items in §34
 
 ---
 
-# 27. Required V1 demo cases
+# 27. Demo fixtures
 
-Before `/motion` is considered successful, produce at least these three demos.
+No demo may depend on unspecified repository or context state.
 
-## Demo A — mechanism
+## Demo A — Softmax / attention (`mechanism_first`)
 
-```text
-/motion 10s explain causal masking
-```
+| Field | Value |
+|---|---|
+| Repository | `karpathy/nanoGPT` |
+| Commit | `3adf61e154c3fe3fca428ad6bc3818b27a3b8291` (pinned by the NanoGPT course docs) |
+| Context | NanoGPT course, current concept: attention; nothing selected |
+| Request A1 | `/motion 15s explain me softmax func` |
+| Expected target | `model.py:69` (`F.softmax` in `CausalSelfAttention.forward`); `model.py:324` (`GPT.generate`) recorded in `candidates_considered` |
+| Expected conditions | K1 from `model.py:44–45`: SDPA (`model.py:62–64`, `is_causal=True`) vs fallback (`model.py:65–71`, mask buffer `48–50`) |
+| Expected claims | C1–C3 as in §6.4 |
+| Must not appear | "nanoGPT always executes the explicit F.softmax path" |
+| Duration | 15 s (the demo may use any requested value from 15 to 25 s) |
+| Request A2 | `/motion explain me softmax func` with **no** lesson context and nothing selected |
+| Expected A2 | one clarification: attention (`model.py:69`) or sampling (`model.py:324`); no render |
 
-Expected:
+## Demo B — code walkthrough (`code_walkthrough`)
 
-- attention matrix
-- future region blocked
-- normalization over permitted cells
-- clear takeaway
+| Field | Value |
+|---|---|
+| Repository | `karpathy/nanoGPT` |
+| Commit | `3adf61e154c3fe3fca428ad6bc3818b27a3b8291` |
+| Selection | `repository_context {commit: <above>, label: "GPT.generate", range: {path: "model.py", start: 305, end: 330}}` |
+| Request | `/motion 20s show what happens here` |
+| Expected target | the selected span (deictic "here"), `GPT.generate` |
+| Expected source refs | `model.py:306` signature (`temperature=1.0, top_k=None`); `312` loop over `max_new_tokens`; `314` crop context to `block_size`; `316` forward pass; `318` last-position logits divided by `temperature`; `320–322` optional top-k sets the rest to `-inf`; `324` `F.softmax` → probabilities; `326` `torch.multinomial` sample; `328` append and continue |
+| Must not appear | "generate always picks the highest-probability token"; "temperature is applied after softmax"; "top-k is always applied" |
 
-## Demo B — code
+## Demo C — request flow (`system_flow`)
 
-```text
-/motion explain me softmax func
-```
+| Field | Value |
+|---|---|
+| Repository | this repository (Rabbit Hole) |
+| Commit | `e9d6dbe7f088a8a2d99e138c0b08a4c7a2dfcc25` (origin/main on 2026-10-03) |
+| Selection | `repository_context {commit: <above>, label: "LearnVideos asset GET", range: {path: "packages/control-plane/src/learn-video.js", start: 34, end: 46}}` |
+| Request C1 | `/motion 30s show how this request moves through the app` |
+| Expected request path | `GET /api/learn/video?app=…&asset=<64-hex>` |
+| Expected source refs | `packages/web/dev-worker.js:135` route → `videoFetch`; `learn-video.js:12–14` `videoFetch` → `privateLessonAssetFetch(LEARN_VIDEOS)`; `:21–23` app authorization + sign-in check; `:27–28` per-learner Durable Object id from org, app and email; `:37–39` 64-hex key check and ready-job check; `:40` R2 read with the request's Range header; `:42–45` headers and 206/200; `packages/control-plane/src/learn-storage.js:10` `learnMedia` = `LEARN_MEDIA` or `RUNS` |
+| Must not appear | the Worker generating the video on request; the browser reading R2 directly; public video URLs; any service not in the refs (no CDN, no invented queue) |
+| Request C2 | the same request with **nothing selected** |
+| Expected C2 | one clarification asking which request or route; no render |
 
-Expected:
+## Optional Demo D — intuition (`intuition_first`)
 
-- exact selected/source-resolved implementation context
-- input → transformation → output meaning
-- no generic softmax animation disconnected from the repo
-
-## Demo C — system/code path
-
-```text
-/motion 30s show how this request moves through the app
-```
-
-Expected:
-
-- source-grounded component/service flow
-- clear data/request transitions
-- no invented services
-
-Optional fourth demo:
-
-```text
-/motion 20s intuition attention
-```
-
-for intuition → mechanism bridging.
+`/motion 20s intuition attention`, in the NanoGPT attention lesson. Expected: an `analogy_map` with limits, then the bridge to the real mechanism.
 
 ---
 
 # 28. Acceptance criteria
 
-A Motion V1 candidate must demonstrate:
+A Motion V1 development candidate must demonstrate:
 
-1. `/motion` accepts a short user prompt.
-2. The raw user prompt is enhanced before generation.
-3. Target resolution uses current Rabbit Hole/repository context.
-4. Unsupported ambiguity produces clarification, not guessing.
-5. MotionBrief contains source refs and supported claims.
-6. Video duration is <= 30 seconds.
-7. Storyboard is created before renderer code.
-8. Storyboard beats map to claim IDs.
-9. Renderer output is deterministic/seekable.
-10. Generated code runs only in the sandbox.
-11. Preview render completes.
-12. Contact sheet is generated.
-13. Visual QA runs.
-14. Pedagogical/source QA runs.
-15. At most one repair pass occurs.
-16. Final MP4 is generated.
-17. Poster is generated.
-18. Provenance is retained.
-19. Final artifact can be inserted into a Rabbit Hole canvas.
-20. No unsupported claim appears.
-21. No secret/private unrelated material leaks.
-22. No arbitrary network or filesystem access exists in the renderer.
-23. The three required demo cases pass human review.
+1. `/motion` accepts a short learner prompt.
+2. The raw prompt reaches only the Learner Intent Resolver; the Author never receives it.
+3. Target resolution uses the shared Resolver slice and the §4.3 precedence.
+4. Unresolved ambiguity produces one clarification, not a guess.
+5. The MotionBrief validates against §5.1, with source refs, evidence, implementation conditions and supported claims.
+6. Duration parsing and normalization follow §2.2; every normalization prints its decision line.
+7. Video duration is 5–30 seconds.
+8. The storyboard exists and validates before any composition source is written.
+9. Storyboard beats map to claim IDs; required claims and `must_show` items are covered.
+10. Composition source passes static validation.
+11. Renderer output is deterministic (§8.3).
+12. Generated code runs only in the sandbox.
+13. Preview render completes.
+14. Contact sheet is generated.
+15. Fresh visual review runs.
+16. Fresh pedagogical/source review runs.
+17. At most one repair round occurs.
+18. Final MP4 is generated and passes final validation (§11.3).
+19. Poster is generated.
+20. Provenance is retained in the existing video job/block metadata.
+21. The final artifact is inserted as an existing `type: 'video'` block in a development environment.
+22. No unsupported claim appears.
+23. No secret/private unrelated material leaks.
+24. No arbitrary network or filesystem access exists in the renderer.
+25. No model ID appears in the brief, storyboard or other contract objects.
+26. The §27 demos pass human review.
 
 ---
 
@@ -1644,75 +1699,82 @@ A Motion V1 candidate must demonstrate:
 
 ## Unit tests
 
-- duration parsing
-- max 30-second enforcement
-- target resolution
-- selected-card precedence
-- selected-code precedence
-- ambiguous target clarification
-- MotionBrief schema
-- claim registry
-- must-show/must-not-claim construction
-- renderer selection default
-- prompt-template construction
-- storyboard schema validation
-- one-repair maximum
+- duration parsing and normalization (every row of the §2.2 table)
+- 5–30 second enforcement
+- explicit name beats ambient context
+- deictic binding to selected card / code span
+- ambiguous target → one clarification
+- nanoGPT softmax: candidates found, K1 recorded, unconditional claim rejected
+- MotionBrief schema validation (§5.1 rules)
+- storyboard schema validation (§5.2 rules)
+- composition static validation (§8.2)
+- blocking vs advisory classification (§13)
+- one repair round maximum; `needs_revision` consumes it
+- one format retry maximum
+- prompt-template construction per stage
+- model IDs absent from contract objects
 - provenance serialization
 
 ## Security tests
 
-- generated code cannot read host env
-- generated code cannot access arbitrary filesystem
-- generated code cannot call internet
-- timeout kills runaway job
-- oversized output rejected
+- generated code cannot read the host or service environment
+- generated code cannot access arbitrary filesystem paths
+- generated code cannot reach the network
+- timeout kills a runaway job
+- oversized output is rejected
 - secret-looking input is not logged
 
 ## Rendering tests
 
-- deterministic frame at same timestamp
+- same frame in two fresh contexts → same hash
 - preview output exists
-- final MP4 valid
+- final MP4 valid (ffprobe duration, fps, resolution)
 - no blank final frame
-- contact sheet includes requested timestamps
+- contact sheet includes the requested timestamps
+- final vs preview comparison within threshold
 
 ## Product tests
 
-- selected card + `/motion this`
-- selected code + `/motion show this`
+- selected card + `/motion explain this`
+- selected code + `/motion show what happens here`
 - explicit duration
 - default duration
 - ambiguous request
-- insertion into canvas
-- failed job does not insert broken artifact
+- insertion into the canvas as a video block
+- a failed job inserts nothing broken
 
 ---
 
 # 30. Observability
 
-Add safe job-level telemetry later / when observability lands:
+Motion V1 does not depend on any particular observability provider. Sentry does not exist in the repo today; when it lands, these events may be emitted there.
+
+Job-level events:
 
 ```text
 motion_requested
+motion_clarification_needed
 motion_brief_created
 motion_storyboard_created
 motion_preview_rendered
-motion_qa_failed
+motion_review_blocking
 motion_repair_started
+motion_final_validated
 motion_ready
 motion_failed
 ```
 
 Safe properties:
 
+- `render_job_id`
+- stage
+- renderer
 - duration
 - teaching mode
-- renderer
-- stage
 - failure category
-- elapsed time
-- model
 - repair count
+- timing per stage
+- model role (and resolved model)
 
 Do not log:
 
@@ -1722,58 +1784,41 @@ Do not log:
 - generated private narration/source
 - secrets
 
-Sentry should capture renderer/orchestrator errors with safe job IDs and stage names.
-
 ---
 
 # 31. Storage / cleanup
 
-Local harness:
+Development harness:
 
 ```text
 scratch job directory
-→ clean after test unless retained intentionally
+→ clean after the run unless retained intentionally
 ```
 
-Future production storage should separate:
+Production storage (M9) should separate source package / manifest, preview media, final media, poster/contact sheet and QA/provenance, with retention rules so failed preview artifacts do not accumulate forever.
 
-- source package / manifest
-- preview media
-- final media
-- poster/contact sheet
-- QA/provenance
-
-Add retention rules so failed preview artifacts do not accumulate forever.
-
-Do not decide final production bucket names in this harness task unless infrastructure work is separately approved.
+V1 development uses the existing `LEARN_MEDIA` binding and LearnVideos key scheme (§18). Do not decide new production bucket names in this harness work.
 
 ---
 
-# 32. Renderer service deployment direction
+# 32. Infrastructure and naming
 
-Do not run ffmpeg/Chromium/generated code inside the primary Cloudflare Worker.
+- Do not run ffmpeg, Chromium or generated code inside any Cloudflare Worker.
+- All new Rabbit Hole resources, development or permanent, use `rabbit-hole-*` names, in the Rabbit Hole Cloudflare account and Fly org.
+- Never create a new `small-*` resource. Existing `small-*` names (for example the `small-learn-media-dev` bucket behind `LEARN_MEDIA`, or `small-math-renderer-dev`) appear in this spec only because they refer to existing resources awaiting migration or retirement.
+- Creating `rabbit-hole-motion-renderer-dev` (§10.2) requires explicit approval before deployment.
 
-Likely future topology:
+Likely production topology (M9, not V1):
 
 ```text
 rabbit-hole-app
    ↓ internal authenticated job
 rabbit-hole-motion-renderer
    ↓
-sandboxed renderer container
+sandboxed render container
    ↓
 artifact storage
 ```
-
-For the first implementation:
-
-- local/containerized harness only
-- no production deployment
-- no permanent production resource creation
-
-After local acceptance, Home/Infra can prepare a Rabbit Hole-owned render service if approved.
-
-All permanent infrastructure must use `rabbit-hole-*` naming.
 
 ---
 
@@ -1781,26 +1826,39 @@ All permanent infrastructure must use `rabbit-hole-*` naming.
 
 Do not build:
 
-- full video editor
-- timeline editor UI
+- a full video editor
+- a timeline editor UI
 - arbitrary third-party plugins
 - unrestricted user JavaScript execution
 - arbitrary Blender Python
 - autonomous long-form video essays
-- >30 second videos
+- videos longer than 30 seconds
 - automatic video for every Tutor answer
 - automatic video for every lesson
-- social video marketplace
+- a social video marketplace
 - multi-user live editing
-- renderer marketplace
-- six renderers at once
-- iterative repair loops beyond one repair
+- a renderer marketplace
+- several renderers at once (HyperFrames, Three.js, Manim, Blender adapters)
+- a new MotionArtifact store or a special Motion card system
+- iterative repair loops beyond one repair round
 
 Get one renderer and one workflow extremely reliable first.
 
 ---
 
-# 34. References / inspiration corpus
+# 34. Release / legal checklist
+
+These are owner/legal review items, not architectural blockers for the development harness:
+
+- **Remotion licence.** Free for individuals, non-profits and for-profit organizations with up to 3 employees; larger for-profit organizations need a company licence. Check before broad commercial production use.
+- **GSAP licence.** Free under GSAP's standard "no charge" licence, which prohibits use in tools that let users build animations without code in competition with Webflow's visual animation features. Not used in V1 (§9.2); review before any Motion use.
+- **HyperFrames licence.** Apache-2.0. Review only if it becomes an adapter.
+- **Fish Audio** terms for generated narration in distributed videos, when narration ships.
+- **nanoGPT** (MIT) excerpts shown in videos keep their attribution in provenance.
+
+---
+
+# 35. References / inspiration corpus
 
 Use these for design research and prompt inspiration, not as runtime dependencies.
 
@@ -1809,7 +1867,7 @@ Use these for design research and prompt inspiration, not as runtime dependencie
 - YouMind Opus 5.5 prompt examples
 - Jason Zhu Opus 5.5 prompt/video library
 - educational Canvas explainer workflows shared by Claude users
-- HyperFrames / Claude Code workflow
+- HyperFrames (future renderer experiment, §9.4)
 - Remotion agent skills and rendering patterns
 
 Important lesson from the public examples:
@@ -1836,128 +1894,74 @@ brief
 → final
 ```
 
+with the harness, not the model, owning each arrow.
+
 ---
 
-# 35. Instructions to Parallel
+# 36. Instructions to Parallel
 
 Create an isolated branch/worktree from the latest canonical main after currently active merges are stable.
 
-Suggested:
-
 ```text
-branch:
-feature/motion-v1-harness
-
-worktree:
-workspace/motion-v1-harness
+branch:   feature/motion-v1-harness
+worktree: workspace/motion-v1-harness
 ```
 
-Use sub-agent-driven implementation/review where useful, with one primary owner.
+Use sub-agent-driven implementation/review where useful, with one primary owner. Do not work directly on main.
 
-Do not work directly on main.
+## Checkpoints
 
-## First checkpoint — no model calls
+1. **After M1** (no model calls): Linux render path, hand-written deterministic composition, preview, MP4, contact sheet, determinism hashes, restriction tests, dependencies and licences. Stop and report before building the model pipeline if the toolchain is not reliable.
+2. **After M2**: show for `/motion explain me softmax func` (both Demo A requests):
 
-Before connecting Opus:
+   ```text
+   raw prompt
+   → LearnerTurn
+   → resolved target + candidates
+   → evidence pack + implementation conditions
+   → claim registry
+   → learning objective
+   → teaching mode
+   → duration (+ decision line)
+   → must_show
+   → must_not_claim
+   → final MotionBrief
+   ```
 
-1. prove HyperFrames/renderer runtime locally
-2. create a deterministic hand-written 5-second animation
-3. render low-res preview
-4. render MP4
-5. create contact sheet
-6. prove random/network/wall-clock restrictions
-7. report exact dependencies and licenses
-
-Stop and report this checkpoint before building a large pipeline if the renderer/toolchain is not reliable.
-
-## Second checkpoint — prompt enhancement
-
-Implement MotionBrief generation and fixture tests.
-
-The most important acceptance case is:
-
-```text
-/motion explain me softmax func
-```
-
-The raw prompt must NOT be passed directly to the motion agent.
-
-Show in the report:
-
-```text
-raw prompt
-→ resolved target
-→ evidence pack
-→ claim registry
-→ learning objective
-→ teaching mode
-→ duration
-→ must-show
-→ must-not-claim
-→ final MotionBrief
-```
-
-## Third checkpoint — Opus storyboard/code generation
-
-Use:
-
-```text
-claude-opus-5-5
-```
-
-Generate structured storyboard first, then implementation.
-
-Do not allow Opus to bypass the storyboard contract.
-
-## Fourth checkpoint — render/QA/repair
-
-Implement:
-
-- preview
-- keyframes/contact sheet
-- visual QA
-- source/pedagogical QA
-- max one repair
-- final export
-
-## Fifth checkpoint — local slash-command integration
-
-Only after the harness works end-to-end, wire `/motion` in the local Rabbit Hole app.
-
-Do not deploy production.
+3. **After M4**: storyboard and composition source for Demo A; the Author never saw the raw prompt.
+4. **After M6**: review findings, the harness's blocking classification, and the repair round if one ran.
+5. **After M8**: the full report below.
 
 ## Required report
 
-Return:
-
 1. branch/SHA
 2. dependency/tool audit
-3. renderer choice and why
-4. sandbox design
-5. MotionBrief schema
-6. prompt-enhancement implementation
+3. renderer setup (Remotion via learn-render) and what changed in learn-render
+4. sandbox design and the network/filesystem isolation proof
+5. MotionBrief schema as implemented
+6. Resolver + Director implementation
 7. exact enriched example for `/motion explain me softmax func`
-8. storyboard schema
-9. generated-code contract
-10. QA implementation
+8. storyboard schema as implemented
+9. generated-code contract and static validator
+10. review implementation
 11. repair behavior
 12. audio/narration status
-13. output artifact structure
+13. output artifact structure (job/block metadata)
 14. all tests
 15. render timings
 16. approximate model/render cost for 5/10/15/20/30 seconds
-17. the three required demo videos
+17. the demo videos
 18. screenshots/contact sheets
 19. remaining blockers before production
 
 Do not merge.
-Do not deploy.
-Do not create permanent production infrastructure.
+Do not deploy production.
+Do not create infrastructure without explicit approval.
 Stop for review.
 
 ---
 
-# 36. Final principle
+# 37. Final principle
 
 The goal of `/motion` is not to make formulas prettier.
 

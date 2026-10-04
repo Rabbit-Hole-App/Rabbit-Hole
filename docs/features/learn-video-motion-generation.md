@@ -2,8 +2,24 @@
 
 ## Status
 
-Deferred. This is an architecture and product spec only. No implementation
-is authorized.
+Motion V1 development harness is authorized by
+[rabbit-hole-motion-v1-harness-spec.md](rabbit-hole-motion-v1-harness-spec.md).
+Broader motion/video functionality described here remains deferred.
+
+This document is the long-term motion architecture and product vision: the
+future renderer ecosystem, longer videos, intuition-first pedagogy,
+creator/export use cases, future Three.js / Manim / Blender adapters and the
+broad motion philosophy. Where an implementation-level detail here conflicts
+with the V1 spec, the V1 spec wins for the V1 implementation. It does not
+supersede the future vision in this document.
+
+Motion V1 in one paragraph: 5–30 second explainers (default 10 seconds) from
+the `/motion` command; Learner Intent Resolver → Motion Director → MotionBrief
+→ storyboard → Motion Author → Remotion composition, rendered by the existing
+`packages/learn-render` stack in a Linux sandbox; fresh visual and
+pedagogical reviewers; at most one repair round; stored through the existing
+LearnVideos / `LEARN_MEDIA` pipeline and inserted as an existing `type:
+'video'` block, in a development environment only.
 
 ## Purpose
 
@@ -173,7 +189,8 @@ MotionExplainerRequest
 }
 ```
 
-Do not lock this schema now. It documents a future design.
+Do not lock this schema now. It documents a future design. The canonical
+Motion V1 schema is the MotionBrief in §5.1 of the V1 spec.
 
 ## 7. Storyboard-first workflow
 
@@ -218,11 +235,16 @@ Suggested initial roles:
 Renderer selection should eventually depend on capability, not only on the
 user's wording. No generated code runs without a sandbox.
 
+Motion V1 uses one renderer: the existing Remotion stack in
+`packages/learn-render`. HyperFrames is a documented future renderer
+experiment, and the other rows above are future adapters (V1 spec §9).
+
 ## 9. Potential relationship with existing Artifact Generation
 
-Video should eventually become a generated artifact family. Conceptually that
-could be `/video` or `/generate video`, but this document does not decide the
-final command.
+Video should eventually become a generated artifact family. The command for
+code-driven motion explainers is `/motion` (decided in
+learn-artifact-generation.md). A future `/video` family may cover generic
+video media separately.
 
 Current Artifact Generation principles continue to apply:
 - allowlisted families
@@ -320,7 +342,8 @@ script
 ```
 
 Sync the animation to actual timestamps rather than guessing how long the
-speech takes.
+speech takes. Motion V1 does this per beat with learn-render's measured clip
+durations (V1 spec §15); word-level timestamps stay future work.
 - Narration never autoplays inside normal Learn.
 - The existing paid confirmation rules still apply.
 - Audio may include voice, subtle SFX and music, but education comes first.
@@ -399,6 +422,9 @@ video".
 
 ## 16. Future Rabbit Hole examples
 
+Examples longer than 30 seconds belong to the future long-form tier. Motion
+V1 output is 5–30 seconds (V1 spec §2.2).
+
 **Attention:** "Make me a 45-second visual explanation of causal
 self-attention." Output: tokens enter, Q/K/V split, score matrix, causal
 mask, softmax, weighted value aggregation, final residual stream.
@@ -416,7 +442,7 @@ using Three.js or Blender.
 ## 17. Creator use case
 
 Later, a creator may build a Rabbit Hole and ask: "Turn this rabbit hole into
-a 45-second explainer."
+a 45-second explainer." (Long-form tier; not Motion V1.)
 
 The generated video could become:
 - a LinkedIn teaser
@@ -463,6 +489,12 @@ A paid final render follows quote → explicit confirmation → reserve → rend
 → settle, consistent with the Usage/Credits architecture. No paid render
 starts merely because a learner asks a question.
 
+Quote, reserve and settle are not implemented yet; they belong to the future
+Usage & Credits work. Today only the confirmation gate exists (`paidRefusal`
+in `packages/control-plane/src/learn-paid.js`, HTTP 428 until the learner
+confirms). Paid production rendering is deferred until Usage & Credits
+exists (V1 spec §25).
+
 ## 21. Performance strategy
 
 Render a low-resolution preview first and the high-resolution final render
@@ -484,7 +516,11 @@ Never execute generated code inside the main web worker.
 
 ## 23. Suggested milestone breakdown later
 
-Do not execute now. A future sequence could be:
+Motion V1 follows the milestones M0–M9 in the V1 spec §26 instead of the
+VM list below. The VM list stays as the long-term sequence for work beyond
+V1 (narration with timestamps at scale, more adapters, creator export).
+
+A future sequence could be:
 
 | Milestone | Scope |
 |---|---|
@@ -498,8 +534,9 @@ Do not execute now. A future sequence could be:
 | VM8 | Blender adapter |
 | VM9 | creator export/share |
 
-Start with one reliable renderer, probably Remotion plus SVG/Canvas
-primitives, rather than supporting everything at once.
+Start with one reliable renderer rather than supporting everything at once.
+Decided for V1: the existing Remotion stack in `packages/learn-render`, with
+React/SVG/Canvas primitives.
 
 ## 24. Explicitly out of scope for the first implementation
 
@@ -515,8 +552,11 @@ primitives, rather than supporting everything at once.
 
 ## 25. Future acceptance criteria
 
-When implementation is eventually authorized, an initial v1 should
-demonstrate:
+These criteria describe the future **long-form tier** (20–60 second
+explainers). Motion V1 is 5–30 seconds and is accepted against the V1 spec
+§28 instead.
+
+A long-form implementation should demonstrate:
 
 1. a source-grounded educational objective
 2. a generated storyboard
@@ -593,6 +633,11 @@ example:
 - `3d_spatial_explanation`
 
 Do not lock these exact enum names yet.
+
+These are visual treatments, not `teaching_mode` values. Motion V1's
+canonical `teaching_mode` vocabulary is `intuition_first`,
+`mechanism_first`, `code_walkthrough` and `system_flow` (V1 spec §2.3);
+future modes may be added later.
 
 The key architectural point: **renderer/style and pedagogy are separate
 decisions.** For example:
@@ -737,8 +782,10 @@ and the requested duration:
 - intuition → theory
 - intuition → full formal derivation
 
-A 20-second video may only establish the intuition. A 90-second video may
-progress through analogy → mechanism → notation → equation.
+A 20-second video may only establish the intuition. A 90-second video
+(future long-form tier) may progress through analogy → mechanism → notation
+→ equation. In Motion V1 (5–30 seconds) the Director narrows the scope to
+fit the duration instead of compressing more content into it.
 
 ### Avoid "edutainment slop"
 
@@ -763,6 +810,9 @@ teaching_mode:
   formal_first
 ```
 
+(V1 implements `intuition_first`, `mechanism_first`, `code_walkthrough` and
+`system_flow`; `formal_first` stays future.)
+
 and per beat:
 
 ```
@@ -777,7 +827,8 @@ pedagogical_role:
   takeaway
 ```
 
-These names are provisional. Do not implement a schema yet.
+These names are provisional here. The V1 storyboard schema is §5.2 of the
+V1 spec.
 
 ### Acceptance condition for intuition-first videos
 
@@ -797,13 +848,16 @@ formulas prettier; it is to build the mental model that makes the formulas
 make sense.
 
 This section is still doc-only. It authorizes no video generation, Tutor
-routing, renderer, command or schema.
+routing, renderer, command or schema beyond what the V1 spec authorizes.
 
 ---
 
-Status: DEFERRED.
+Status: Motion V1 development harness authorized by
+[rabbit-hole-motion-v1-harness-spec.md](rabbit-hole-motion-v1-harness-spec.md);
+everything else here is DEFERRED.
 
-This document records the Video / Motion Generation direction only.
+This document records the long-term Video / Motion Generation direction.
 
-No video command, registry entry, renderer service, provider binding,
-Tutor routing, paid render or production code is authorized by this document.
+It authorizes nothing by itself. Beyond the V1 development harness, no video
+command, registry entry, renderer service, provider binding, Tutor routing,
+paid render or production code is authorized.
