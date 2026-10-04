@@ -168,7 +168,13 @@ Every `/motion` run prints what it decided, one line per decision, so a wrong gu
 
 **Default:** 10 seconds when the learner supplies no duration.
 
-**Parsing:** accept any reasonable stated duration, not only preset values.
+**Parsing:** accept any reasonable stated duration, not only preset values, including fractional seconds.
+
+**Normalization** (owner decision, 2026-10-04):
+
+1. Round to the nearest whole second; `.5` rounds up (12.4s → 12s, 12.5s → 13s).
+2. Clamp to 5..30.
+3. Print the decision line whenever the used value differs from what was asked.
 
 | Learner wrote | Duration used | Decision line |
 |---|---|---|
@@ -178,7 +184,8 @@ Every `/motion` run prints what it decided, one line per decision, so a wrong gu
 | `45 sec` | 30s | `✓ duration: 30s (asked 45s; Motion V1 max is 30s)` |
 | `1 minute` | 30s | `✓ duration: 30s (asked 60s; Motion V1 max is 30s)` |
 | `3 sec` | 5s | `✓ duration: 5s (asked 3s; Motion V1 min is 5s)` |
-| `12.5s` | 13s | `✓ duration: 13s (asked 12.5s; whole seconds only)` |
+| `12.4s` | 12s | `✓ duration: 12s (asked 12.4s)` |
+| `12.5s` | 13s | `✓ duration: 13s (asked 12.5s)` |
 
 Rules:
 
@@ -524,9 +531,24 @@ Short, semantic visual direction (for example "clean technical motion graphics; 
 
 ## 4.6 Storyboard (Director role)
 
-The storyboard is its own harness stage between the brief and the Author. It is produced by a Director-role call (configured by `MOTION_DIRECTOR_MODEL`) from the validated MotionBrief, and validated by the harness against §5.2 before the Author sees it.
+The storyboard is its own harness stage between the brief and the Author.
 
-The storyboard comes before any renderer code. The Author cannot bypass it.
+- **How it is made:** a separate, stateless model call that the harness invokes under the Motion Director role (configured by `MOTION_DIRECTOR_MODEL`), after and apart from the brief call. Its input is the validated MotionBrief.
+- **Validation:** the harness validates it against §5.2 before the Author sees it.
+- **Order:** the storyboard comes before any renderer code, and the Author cannot bypass it.
+
+```text
+Learner Intent Resolver
+→ Director brief call      → validated MotionBrief
+→ Director storyboard call → validated Storyboard
+→ Motion Author            → composition source
+```
+
+**Ownership** (owner decision, 2026-10-04):
+
+- The Director owns the pedagogical and storyboard semantics.
+- The Author never invents or rewrites the storyboard.
+- The storyboard changes only through a Director revision inside the single repair round (§4.8).
 
 Example 15-second storyboard for the softmax brief in §6:
 
@@ -598,9 +620,17 @@ No model autonomously controls `storyboard → render → inspect → rerender �
 
 Rules:
 
-- **Exactly one repair round per job** (`repair_count` ≤ 1). An Author `needs_revision` consumes that round.
+- **Exactly one semantic repair round per job** (`repair_count` ≤ 1, owner decision 2026-10-04).
+  - Example: review finds a brief or storyboard problem → one Director revision → one Author regeneration → re-render → final review and checks. That consumes the round.
+  - An Author `needs_revision` (the brief or storyboard is unsupported or inconsistent) also consumes the round.
+  - A `needs_revision` from the repair round's own Author call fails the job.
+  - After the repaired render, any further blocking semantic or visual failure fails the job. There is no second repair loop.
 - Only **blocking** findings consume the repair round. Advisory findings are recorded, never repaired automatically.
-- **Format retry** is separate from repair: a stage call whose output is not parseable or fails schema validation gets at most one re-ask with the validation errors. A second malformed output fails the job.
+- **Format retry** is separate from semantic repair. Each structured model stage may get at most one formatting/schema re-ask when its response is malformed or unparseable.
+  - **The prompt:** the re-ask carries the malformed output and the validation errors, and asks only to return the same result in the required schema. It adds no findings and no new instructions.
+  - **The repair round:** the re-ask does not consume it, provided no teaching decision, claim or storyboard semantics change.
+  - **A second malformed result** fails that stage, and the job fails naming the stage.
+  - **Visibility:** every re-ask is recorded on the job (`format_retries`). Repeated failures are never hidden behind retries.
 - Reviewers are fresh for each review pass and never receive the Author's or Director's self-assessment, rationale or earlier reviewer output.
 - Repair inputs are grounded in the actual findings and diagnostics.
 
@@ -810,7 +840,8 @@ MotionJob {
   director_model_config          // {role: "MOTION_DIRECTOR_MODEL", resolved_model}
   author_model_config            // {role: "MOTION_AUTHOR_MODEL", resolved_model}
   review_model_config            // {visual: {...}, pedagogical: {...}}
-  repair_count                   // 0 or 1
+  repair_count                   // 0 or 1: the one semantic repair round (§4.8)
+  format_retries[]               // {stage, errors}: at most one per structured stage; never counted in repair_count
   findings[]                     // ReviewFinding (§5.4), per review pass
   preview_refs {video?, contact_sheet, keyframes[]}
   final_ref?                     // the LearnVideos job key / LEARN_MEDIA storage key
@@ -828,7 +859,9 @@ No model credentials are stored anywhere in the job.
 
 # 6. Worked example: `/motion 15s explain me softmax func`
 
-Fixture: Demo A in §27 (nanoGPT at `3adf61e154c3fe3fca428ad6bc3818b27a3b8291`, learner in the NanoGPT attention lesson, nothing selected). Without `15s` the same run produces a 10-second default and a narrower scope.
+Fixture: Demo A in §27 (nanoGPT at `3adf61e154c3fe3fca428ad6bc3818b27a3b8291`, learner in the NanoGPT attention lesson, nothing selected).
+
+This example explicitly asks for 15s. If the learner writes only `/motion explain me softmax func`, the Director receives `duration = 10s`. It must narrow the teaching scope to fit and must not silently extend to 15s.
 
 ## 6.1 Raw request
 
