@@ -27,6 +27,18 @@ Reconciled on 2026-10-04 against canonical main `74d20468` and HeyGen's public d
 
 Where an earlier section and §4.1 (Tutor action), §6 (AvatarBrief) or §8 (provider interface) disagree, those three sections win.
 
+The owner accepted this review on 2026-10-04 and locked eight decisions:
+- the action name `suggest_avatar_clip`;
+- a stock V1 face;
+- HeyGen's native voice;
+- Rabbit Hole-generated course clips that learners never pay for;
+- no autoplay;
+- no suggestions in Voice Mode;
+- the HeyGen account prerequisites;
+- the shared reload fix as an AV5 prerequisite.
+
+They are written into the sections they govern and listed in §32. AV2–AV4 groundwork is authorized, with no paid calls.
+
 ---
 
 # 1. Product idea
@@ -138,12 +150,19 @@ So in V1 a purpose is tied to an existing signal:
 | `concept_intro` | row `not_yet_observed` | |
 | `section_transition` | row `understood`, next to a `suggest_depth` | introduces the next ladder card (`ladderStep`) |
 | `checkpoint_feedback` | row `understood`, after a settled `pass` this turn | no mastery wording (§7) |
-| `section_greeting`, `course_completion` | never by the Tutor in V1 | no section-entry turn or completion state exists; prototype clips only (AV1) |
+| `section_greeting`, `course_completion` | never by the Tutor in V1 | no section-entry turn or completion state exists. Prototype-only as Tutor triggers; their clips are still product content (§14). |
 
 The Tutor never suggests a clip on the rows that need the learner's attention elsewhere, or that are a direct request: `gap`, `gap_inline`, `misconception`, `misconception_explain`, `uncertain`, `uncertain_unsettled`, `slash`, `off_slice`. The learner's own explicit request for a teacher or avatar clip allows it on any other row.
 
+**Never while Voice Mode is active** (owner decision 2026-10-04). The Tutor stays in the real-time voice interaction; with Voice Mode off, the approved moments above may be suggested. If the learner explicitly asks for the avatar teacher during Voice Mode, the spoken reply says in one sentence that teacher clips play outside Voice Mode. The two modalities never overlap (§4.1).
+
+**Every V1 moment is canonical product content** (owner decision 2026-10-04, §14–§15):
+- In V1 a clip depends only on its moment, concept and course (`personalization: none`). Rabbit Hole generates it once, ahead of time, and every learner reuses it. Learners never pay for it.
+- The Tutor offers a chip only when that canonical clip is ready (§4.1).
+- The owner named section greeting, standard section transition, Rabbit Hole return and standard completion. `rabbit_hole_intro`, `concept_intro` and the standard `checkpoint_feedback` count as canonical too, for the same reason.
+
 "~1 per section" becomes, in V1, two limits counted in the Tutor's session store:
-- at most one `show_avatar_message` per turn;
+- at most one `suggest_avatar_clip` per turn;
 - at most one suggestion per (canvas or hole, concept) per session.
 
 ---
@@ -161,13 +180,16 @@ Instead introduce a semantic action conceptually like:
 ```text
 TutorAction
 {
-  type: "show_avatar_message",
-  purpose: "section_transition",
+  type: "suggest_avatar_clip",
+  moment: "section_transition",
   content_goal: "...",
-  max_duration_seconds: 10,
-  context_refs: [...]
+  max_duration_seconds: 10
 }
 ```
+
+The name is `suggest_avatar_clip` (owner decision 2026-10-04):
+- At action time the Tutor neither generates nor shows anything. It only suggests.
+- The name also avoids the bare word `avatar`, which in the code already means the user's profile picture (§30).
 
 Tutor chooses **why / when** a human-teacher moment is useful.
 
@@ -178,7 +200,7 @@ Conceptual architecture:
 ```text
 Tutor
   ↓
-show_avatar_message
+suggest_avatar_clip
   ↓
 Avatar Director
   ↓
@@ -196,27 +218,42 @@ Future providers can be added without rewriting Tutor logic.
 The conceptual action above becomes one member of the Tutor's closed action list (`ACTION_TYPES`, `packages/control-plane/src/agents/learn-tutor.js:130`):
 
 ```text
-{ type: "show_avatar_message",
+{ type: "suggest_avatar_clip",
   moment,                  // rabbit_hole_intro | rabbit_hole_return | concept_intro
                            // | section_transition | checkpoint_feedback   (§3 table)
   concept,                 // a registry concept id (learn-tutor-claims.js CONCEPTS)
   to_concept?,             // section_transition and rabbit_hole_return: where the learner goes next
+  content_goal?,           // ≤ 120 characters; a hint for the Avatar Director only (below)
   max_duration_seconds? }  // integer 3..30; default 8
 ```
 
 **What changed from the conceptual action:**
 - **`moment`, not `purpose`.** The planner tool has one flat action-item schema, and its `purpose` is already the `ask_question` enum `diagnose | predict | explain_back | transfer` (`agents/learn-tutor.js:154`). The AvatarBrief keeps `purpose`, with the same values as `moment`.
 - **No `context_refs`.** The validator resolves `concept` and `to_concept` against `CONCEPTS`, and the sources come from the concept's slice cards, as `suggest_dive` resolves its concept.
-- **No `content_goal` in V1.** Free text from the planner is a channel for the learner's words into the Director and could leak into a script. It also defeats cross-learner caching (§14): the moment and the concepts fully define a V1 clip. A personalized goal comes back with personalized clips (deferred, §32).
+- **`content_goal` is kept, but bounded.** See the reconciliation below.
+
+**`content_goal` reconciliation** (owner decision 2026-10-04). The first reconciliation (f639a825) removed this field: free text from the planner can carry the learner's words into a script, and it breaks cross-learner caching. The owner kept it. Both concerns are now met by bounding it:
+- It is at most 120 characters.
+- It goes only to the Avatar Director, as a hint. It never reaches the provider, the chip label, a log line or any cache key (the script-slot and render keys, §14).
+- The validator drops the field, but keeps the action, when the field:
+  - contains code characters (the speakable test, `` /[`{}<>]\|=>/ ``);
+  - contains an email address, URL, @-handle or long digit run;
+  - repeats any five consecutive words of the learner's message (`turn.raw_user_message`, which the validator already holds).
+
+  The drop is logged without the text, as `explicit_request` already is (`learn-tutor-validate.js:84-85`).
+- **Canonical product moments ignore it.** A canonical clip is keyed by moment, concept and course, and its script is product content written ahead of time (§14). In V1 every moment is canonical (§3), so `content_goal` changes nothing a learner sees in V1.
+- It is carried so that personalized, learner-scope clips (deferred, §32) can use it later without a contract change.
 
 **Validation** (`packages/web/src/learn-tutor-validate.js`, the existing four stages):
 
 | Stage | Rule |
 |---|---|
-| schema | `moment` is in the V1 list; `concept` and `to_concept` are in `CONCEPTS`; `max_duration_seconds` is an integer from 3 to 30 |
-| route | allowed only when the router added it for this row (§3 table), or on the learner's explicit request. Never on a voice turn in V1: Voice Mode already speaks as the Tutor, and two teacher voices at once is not V1. At most one per turn, and one per (canvas or hole, concept) per session (a new session-store counter next to `socratic`). |
-| resource | the concept exists; `section_transition` also needs a `ladderStep` |
+| schema | `moment` is in the V1 list; `concept` and `to_concept` are in `CONCEPTS`; `max_duration_seconds` is an integer from 3 to 30; `content_goal` is bounded as above |
+| route | allowed only when the router added it for this row (§3 table), or on the learner's explicit request. **Never while Voice Mode is active** (`input_modality: "voice"`): the Tutor stays in the voice interaction, and the two modalities never overlap. At most one per turn, and one per (canvas or hole, concept) per session (a new session-store counter next to `socratic`). |
+| resource | the concept exists; `section_transition` also needs a `ladderStep`; the canonical clip for (moment, concept, course) is **ready** in the product cache (§14). Otherwise the action is dropped: learners never pay for a canonical moment. |
 | consent | it never starts anything. It always becomes a chip; there is no `mode: "navigate"`, and an explicit request does not change that |
+
+**An explicit request in Voice Mode.** If the learner asks for the avatar teacher while Voice Mode is on, the action is still dropped. A `PLANNER_SYSTEM` line has the spoken reply say, in one sentence, that teacher clips play outside Voice Mode. With Voice Mode off, the same request gets the chip.
 
 It is never the turn's only action:
 - the router always keeps `respond_text` allowed (`finish`, `learn-tutor.js:149`);
@@ -224,19 +261,31 @@ It is never the turn's only action:
 
 So the Tutor's text turn is never lost.
 
-**Execution.** `executeActions` (`learn-tutor.js:496`) turns it into a chip such as `Watch: Softmax intro · 8 s`. On click:
-1. **Cached clip ready in its scope (§14):** a video card is inserted (§13) and plays from that click. The click is the learner's gesture, so sound is allowed. Nothing is paid, and no proposal is shown.
-2. **No cached clip:** the Avatar Director writes the script, or reuses the script slot's (§14). Then the paid proposal appears in the composer: the script, the duration, "This uses paid generation." and [Cancel] [Generate]. There is no canvas skeleton yet (§15).
-3. **Generate:** a skeleton reserves the slot, and the confirmed card (`confirmedStart`) replaces it and runs the job.
+**Execution.** `executeActions` (`learn-tutor.js:496`) turns it into a chip such as `Watch: Softmax intro · 8 s`.
+- **The click is the explicit start.** The chip inserts the video card (§13) and plays it from the learner's click, with sound. Nothing is paid, and no proposal is shown.
+- **Cached does not mean automatic** (owner decision 2026-10-04). A ready clip removes the generation and payment steps, not the learner's choice to play it. Nothing ever plays because a clip exists. Muted visual previews are deferred (§32).
+- **The Tutor never reaches the provider.** No Tutor path calls HeyGen or the Director in V1, because a canonical clip is pre-generated.
 
-**Planner changes (AV6):**
+The paid path (Director → proposal → Generate → paid job) belongs only to learner-specific or explicitly requested personalized clips (§15).
+- On that path, generation begins only after the learner explicitly chooses Generate.
+- In V1 that path is deferred, and this action cannot reach it.
+- If no canonical clip is ready, the chip is simply not offered.
+
+**Planner changes (in the AV2 groundwork schema, switched on in AV6):**
 - `ACTION_TYPES` and the `TUTOR_TOOL` item schema gain the type and the fields above.
-- `PLANNER_SYSTEM` gains one line: `show_avatar_message` only suggests a short teacher clip, at most once, only when `context.allowed_actions` lists it. The existing "never generate new artifacts" line (`agents/learn-tutor.js:176`) stays true.
+- `PLANNER_SYSTEM` gains two lines:
+  - `suggest_avatar_clip` only suggests a short teacher clip, at most once, only when `context.allowed_actions` lists it. Its `content_goal` never quotes the learner.
+  - On a voice turn, a request for the teacher clip gets one spoken sentence saying that clips play outside Voice Mode.
+- The existing "never generate new artifacts" line (`agents/learn-tutor.js:176`) stays true.
 - `tool_choice` stays `{type: "auto"}`: `claude-opus-5-5` answers HTTP 400 to a forced tool choice (`agents/learn-tutor.js:215-217`; Motion V1 spec §4.9).
 
-Adding the type changes the planner request on every turn. That includes the cached prefix, which the Voice and golden-trace tests pin. So AV6 sits behind an off-by-default knob (`TUTOR_AVATAR`), in line with Tutor v2's off-by-default rule. Turning it on needs the owner's sign-off and a re-run of the Tutor benchmark.
+Adding the type changes the planner request on every turn. That includes the cached prefix, which the Voice and golden-trace tests pin. So the action sits behind an off-by-default knob, `TUTOR_AVATAR` (owner decision 2026-10-04), in line with Tutor v2's off-by-default rule. With the knob off:
+- the type and its two `PLANNER_SYSTEM` lines are absent;
+- the planner request is byte-identical to today.
 
-This is the first Tutor action that can lead to a paid job. The Tutor's locked decisions still list "`generate_artifact`, `suggest_motion` and the paid-tool confirmation UX" as open (`docs/features/tutor-v1-locked-decisions.md:249, 260, 553`). AV6 resolves that open item for avatar clips only, and only with the owner's approval.
+Turning it on is not authorized yet (§32). It needs the owner's GO and a re-run of the Tutor benchmark.
+
+The Tutor's locked decisions still list "`generate_artifact`, `suggest_motion` and the paid-tool confirmation UX" as open (`docs/features/tutor-v1-locked-decisions.md:249, 260, 553`). `suggest_avatar_clip` leaves that item open: in V1 it leads only to free, pre-generated product clips, never to a paid job.
 
 ---
 
@@ -275,13 +324,14 @@ The provider should receive the final spoken script plus avatar rendering config
 
 | | |
 |---|---|
-| **Allowed inputs** | the purpose (`moment`) and the registry concept ids. The authored content of those concepts: `CLAIMS` statements, the cards' `learningQuestion` and titles, and up to 3 pinned source notes per card, at the course's pinned commit. The lesson/TOC titles. With `personalization: session_concepts` only: the ids of concepts that have a settled `pass` this session. |
-| **Forbidden inputs** | the raw learner message or voice transcript; Tutor turns and text; evidence events, probabilities or misconception ids; canvas state; private repository source (V1 covers the public `karpathy/nanoGPT` course only, the only place the Tutor runs: `docs/features/production-tutor-entry.md`); identity (email, name, org); auth data; model or provider ids |
-| **Output** | a validated AvatarBrief (§6) with `script`, or a failure. A failure shows no chip or proposal ("The teacher clip isn't available right now."). The Tutor's text answer stands. |
+| **Allowed inputs** | the purpose (`moment`) and the registry concept ids. The authored content of those concepts: `CLAIMS` statements, the cards' `learningQuestion` and titles, and up to 3 pinned source notes per card, at the course's pinned commit. The lesson/TOC titles. Learner-scope briefs only: the ids of concepts that have a settled `pass` this session (with `personalization: session_concepts`), and the Tutor's validated `content_goal` as a hint (§4.1). A canonical brief never takes `content_goal`. |
+| **Forbidden inputs** | the raw learner message or voice transcript; Tutor turns and text, except the validated `content_goal` hint on learner-scope briefs; evidence events, probabilities or misconception ids; canvas state; private repository source (V1 covers the public `karpathy/nanoGPT` course only, the only place the Tutor runs: `docs/features/production-tutor-entry.md`); identity (email, name, org); auth data; model or provider ids |
+| **When it runs** | canonical moments: once per slot, when Rabbit Hole prepares product content (§14), never on a learner's turn. Learner-scope clips (deferred): on the learner's request, before the paid proposal. |
+| **Output** | a validated AvatarBrief (§6) with `script`, or a failure. A failure produces no clip and no proposal. The Tutor's text answer stands. |
 | **Grounding** | every factual phrase maps to a `source_refs` entry. The script may state only claims that are already in the concepts' `CLAIMS` statements or `learningQuestion`. |
 | **Script limits** | at most `floor(duration_seconds × 2.4)` words, about 150 words a minute (8 s = 19 words, 15 s = 36, 30 s = 72). At most 2 sentences, or 3 above 15 s. No code characters (the Tutor's speakable test, `` /[`{}<>]\|=>/ ``, `learn-tutor-validate.js:38`). No equations. No mastery or score wording. No mention of the Tutor, the model, the provider or "learner state". |
 | **Model call** | role `AVATAR_DIRECTOR_MODEL`, resolved through `LEARN_TASKS` (`learn-models.js`) and never named in the brief. `tool_choice: auto` with one output tool, harness validation and at most one schema-only re-ask, as in Motion V1 §4.8–§4.9. Never the artifact path's forced `{type: "any"}` (`learn-artifact.js:53`). |
-| **Review** | a fresh, blind, text-only script reviewer, with the blocking categories unsupported claim, mastery claim, internal language, code/equation and over length. At most one repair. In development, the owner also approves every shared-scope script (§14) before its first paid generation. |
+| **Review** | a fresh, blind, text-only script reviewer, with the blocking categories unsupported claim, mastery claim, internal language, code/equation and over length. At most one repair. The owner also approves every canonical script (§14) before it is generated as product content. |
 
 ---
 
@@ -298,9 +348,12 @@ AvatarBrief {
   prompt_spec_version            // Director prompt template version; part of the script-slot key
   purpose                        // section_greeting | section_transition | concept_intro | checkpoint_feedback
                                  // | rabbit_hole_intro | rabbit_hole_return | course_completion
-  origin                         // tutor | learner_request | dev_fixture
+  origin                         // product (canonical, prepared by Rabbit Hole) | learner_request | dev_fixture
   scope                          // cache scope (§14): { kind: "public_course", course: "karpathy/nanoGPT@<commit>" }
-                                 //                  | { kind: "learner" }   (never shared)
+                                 //                  (canonical product content; never learner-paid)
+                                 //                  | { kind: "learner" }   (personalized; never shared; deferred)
+  content_goal?                  // learner scope only: the Tutor's validated hint (≤ 120 chars, §4.1);
+                                 // never sent to the provider, never in a key, never logged
 
   learner_context {              // registry ids only (CONCEPTS), never free text
     current_concept
@@ -347,7 +400,8 @@ AvatarBrief {
 
   render {                       // provider-neutral; the adapter maps it (§8)
     avatar_profile               // a Rabbit Hole profile id, e.g. "rh-teacher-1"; never a provider id
-    voice_profile                // a Rabbit Hole profile id
+                                 // (V1: a HeyGen stock/licensed avatar, §17)
+    voice_profile                // a Rabbit Hole profile id (V1: a HeyGen native voice, §18)
     tone                         // calm | warm | encouraging
     framing                      // head_shoulders | half_body
     expressiveness               // low | medium
@@ -377,6 +431,7 @@ AvatarBrief {
 - `script` meets `script_constraints` (§5.1);
 - every `script.source_ref_ids` entry exists;
 - `personalization: none` carries no `session_concepts`;
+- a `public_course` brief carries no `content_goal`;
 - no model id, provider id, credential, email or name appears anywhere in the brief.
 
 **What changed from the conceptual schema:**
@@ -546,10 +601,13 @@ Provider capability detection belongs inside the HeyGen adapter.
 - **Engine.**
   - Avatar IV is the v3 default and accepts studio avatars, digital twins and photo avatars.
   - Avatar V is documented for digital twins only. Its eligibility is the look's `supported_api_engines` (`GET /v3/avatars/looks/{look_id}`).
-  - The adapter picks per profile: Avatar V if the profile is an eligible digital twin, else Avatar IV.
+  - **V1 uses a HeyGen stock/licensed avatar (owner decision 2026-10-04),** so V1 renders on whatever engine that stock look lists in `supported_api_engines`. Today that is Avatar IV.
+  - The preferred policy above (Avatar V first) applies only once a Rabbit Hole digital twin exists (§17).
+  - The adapter still picks per profile from `supported_api_engines`; nothing is hard-coded.
   - Avatar III is the cheap fallback, and only a configured option for the AV8 cost benchmark.
 - **Secret and configuration** (proposed names; none exists today):
-  - `HEYGEN_API_KEY` is a Worker secret, set on the development Worker only, at AV3, with the owner's GO.
+  - `HEYGEN_API_KEY` is a Worker secret, and the API credentials are owned by Rabbit Hole (§10).
+  - It is set on the development Worker only, and only once the account prerequisites in §10 are met and the owner approves the spend. Until then, AV3 runs against a test stub.
   - `LEARN_AVATAR_PROVIDER=heygen` is a var.
   - Neither is set on the production Worker before AV9.
   - This matters because `rabbit-hole-app` reuses `dev-worker.js` unchanged, so any route added for development also ships to production (`docs/features/rabbit-hole-production.md`, "Production entry"). The unconfigured provider is that route's off switch.
@@ -577,7 +635,7 @@ Use MCP for:
 - exploring stock avatars / Digital Twins,
 - testing prompts,
 - prototyping body-motion directions,
-- comparing Avatar IV vs Avatar V,
+- comparing Avatar IV vs Avatar V (later: Avatar V needs a digital twin, and V1 uses a stock avatar, §17),
 - testing transparent WebM,
 - checking generation latency,
 - evaluating quality before building the provider adapter.
@@ -597,13 +655,20 @@ REST/API
 **Development MCP workflow (AV1), checked against HeyGen's docs on 2026-10-04 (§31):**
 
 1. **Install.** The command above is HeyGen's documented Claude Code install. Add `-s user` for user scope. Run `/mcp` once to complete the browser OAuth; there is no API key.
-2. **Account.** Use a HeyGen account owned by the Rabbit Hole org, never a personal one (the infrastructure-ownership rule). The account's owner approves its plan and spend.
-3. **Credits.** MCP generation "draws on your existing HeyGen plan's credits". That is the web plan, not the API pay-as-you-go wallet AV3 will use. So every MCP generation is paid. AV1 needs its own owner GO with a credit ceiling.
+2. **Account prerequisites** (owner decision 2026-10-04). All five must hold before any paid prototype, whether MCP or API:
+   - a HeyGen account owned by Rabbit Hole;
+   - API credentials owned by Rabbit Hole;
+   - provider training on our inputs disabled, where the account allows it (§16);
+   - an explicit spending/credit ceiling;
+   - no dependency of anything production-facing on a personal account.
+3. **Credits.** MCP generation "draws on your existing HeyGen plan's credits". That is the web plan, not the API pay-as-you-go wallet AV3 will use. So every MCP generation is paid.
+   - No paid MCP or API call is made until step 2 holds **and** the owner explicitly approves the spend.
+   - Every actual prototype generation needs that approval.
 4. **Explore before paying.** Discovery tools such as `list_avatar_groups`, `list_avatar_looks`, `get_avatar_look` and `list_voices` are expected to cost nothing. Check that against the account's credit balance before and after; it is UNVERIFIED (§31).
 5. **Inputs are fixtures only.** The prototype scripts in §21, written by hand or by the AV2 Director from fixtures. Never a learner's words, a transcript, private source or anything from a real session.
-6. **Generate.** Use `create_video` and `get_video` for the §21 set: Avatar IV vs Avatar V where the look allows it, and MP4 vs WebM alpha. Record the video id, engine, settings, wall-clock latency and credits used.
+6. **Generate.** Use `create_video` and `get_video` for the §21 set with a stock/licensed avatar look that is trained with matting, and a HeyGen native voice: MP4 vs WebM alpha. Record the video id, engine, settings, wall-clock latency and credits used.
 7. **Clean up.** Download what the evaluation needs to the job's temp folder (`.claude/jobs/<id>/tmp/avatar/`, never committed). Then `delete_video` each prototype on HeyGen.
-8. **Promote nothing.** No MCP output becomes a learner-facing asset. Shared production clips come only from the REST path (AV3–AV4), with provenance.
+8. **Promote nothing.** No MCP output becomes a learner-facing asset. Canonical product clips come only from the REST path (AV3–AV4), with provenance.
 
 The production runtime never calls MCP, Claude Code or the Video Agent tools (`create_video_agent`). The MCP is only a quick, interactive way to judge quality, latency and alpha before AV3 is written.
 
@@ -646,7 +711,7 @@ Opaque MP4 remains supported.
 1. **Requesting alpha.** HeyGen v3 returns "a WebM file with a real alpha channel" when the request sets `output_format: "webm"`. Background removal is then automatic, and a `background` value in the same request is rejected.
    - The look must be "trained with matting". This is "the default for recently-created avatars, so most Digital Twins and Studio Avatars qualify". Otherwise the call fails: "This video avatar does not support webm output."
    - Webm works on Avatar IV, Avatar V and Avatar III. It is "not available for Cinematic Avatar".
-   - The adapter's `capabilities(profile)` reports alpha per profile. V1 picks an avatar profile that supports it.
+   - The adapter's `capabilities(profile)` reports alpha per profile. V1 picks a stock/licensed look trained with matting (§17).
 2. **Browser support.** Chrome, Edge and Firefox render VP9 alpha. Safari plays WebM but ignores its alpha, so the clip shows on black. Safari's alpha format is HEVC with alpha, which Chrome does not play (§31). So:
    - **Overlay** is offered only where alpha renders: the clip has alpha and the browser is not WebKit (Safari, or any iOS browser).
    - **Fallback (V1, every browser):** the opaque or alpha clip plays in a small rounded picture-in-picture frame anchored bottom-right. It needs no alpha. This is also what WebKit always gets.
@@ -787,7 +852,11 @@ For transparent overlays:
 
   AV4 stores the clip's real `contentType` (`video/webm` for alpha) on the job and serves that.
 - **Copy.** `VideoBody` prints the FAL or Manim line under a pending clip (`LearningBlocks.jsx:1415-1421`). An avatar block gets its own line ("8 s · Teacher clip · AI-generated") and never FAL or Manim copy. This mirrors the Motion branch's `learn-video-label.js`.
-- **Reload.** A paid video card saved mid-job never resumes after reload, share or fork. It is left with a permanent progress bar. The cause: `follow(placementId)` polls in memory only and never stores the id on the block (`LearningBlocks.jsx:1366-1389`; finding `paid-persist-8`, `docs/features/learn-cleanup.md:193`, deferred to unit U8). The avatar card must not ship with this bug. AV5 either lands after U8's fix, or fixes it in the shared `VideoBody` (store the placement/job id on the block, re-follow on mount), coordinated with `feature/learn-cleanup`.
+- **Reload: a prerequisite for AV5** (owner decision 2026-10-04).
+  - **The bug.** A paid video card saved mid-job never resumes after reload, share or fork. It is left with a permanent progress bar. The cause: `follow(placementId)` polls in memory only and never stores the id on the block (`LearningBlocks.jsx:1366-1389`; finding `paid-persist-8`, `docs/features/learn-cleanup.md:193`, deferred to unit U8).
+  - **Fixed once, for everyone.** The fix lives in the shared video pipeline: the placement/job id is stored on the block and re-followed on mount. Motion, avatar clips and every other LearnVideos card benefit. There is no avatar-only playback state.
+  - **If AV5 gets there first.** If no other branch has fixed it and the fix is small, it lands as its own prerequisite commit, separate from any avatar work, for Parallel to integrate and review on its own.
+  - AV5 playback does not ship before that fix.
 - **Disclosure.** Every avatar card and overlay is labelled AI-generated. HeyGen's Terms require commercial outputs to be disclosed as AI-made (§31).
 
 ---
@@ -838,7 +907,7 @@ Do not accidentally include private learner text in cache keys or logs.
                        personalization, sorted session_concepts)
    ```
 
-   The first validated and approved script for a slot is reused by everyone who reaches that slot.
+   The first validated and approved script for a slot is reused by everyone who reaches that slot. `content_goal` is never part of this key, or of the render key (§4.1).
 2. **Render key.** This is the conceptual key above, with every provider-specific value resolved server-side:
 
    ```text
@@ -851,8 +920,8 @@ Do not accidentally include private learner text in cache keys or logs.
 
 | Scope | Used when | Where the job and index live |
 |---|---|---|
-| `public_course` | `personalization: none` on the public `karpathy/nanoGPT` course at its pinned commit | one Durable Object instance per scope, `idFromName(["avatar", scope])`, with the LearnVideos pattern: `blockConcurrencyWhile`, one generating job, alarm polling, never resubmit. Two learners who miss the same key at once pay once. |
-| `learner` | anything personalized, any private course or repository, and any learner-requested free-form clip (deferred) | the learner's own LearnVideos instance, unchanged |
+| `public_course`: **canonical product content** | `personalization: none` on the public `karpathy/nanoGPT` course at its pinned commit. Every V1 moment (§3). Generated by Rabbit Hole, never by or for a learner's payment. | one Durable Object instance per scope, `idFromName(["avatar", scope])`, with the LearnVideos pattern: `blockConcurrencyWhile`, one generating job, alarm polling, never resubmit. Learners only read from it. |
+| `learner`: **personalized** (deferred) | learner-specific or explicitly requested personalized clips, and anything on a private course or repository. Paid from learner or account credits (§15). | the learner's own LearnVideos instance, unchanged |
 
 - **Storage.** `LEARN_MEDIA` through `learnMedia(env)`, under the key `learn-avatar/<scope hash>/<render_key>.<webm|mp4>`. That bucket is `rabbit-hole-dev-learn-media` on development and `rabbit-hole-prod-learn-media` on production.
 - **Playback.** An asset GET checks the viewer's access to the scope: any signed-in learner of the course for `public_course`, the owner only for `learner`. The canvas block holds only `operation.render_key` and `scope` (§13).
@@ -861,7 +930,13 @@ Do not accidentally include private learner text in cache keys or logs.
   - Old objects are swept by a manual purge in development; production retention is decided at AV9.
   - Revoking an avatar's consent disables the profile and purges every clip made with it (§17).
   - A provider-side copy is deleted as soon as the clip is stored (§16).
-- **Pre-warming.** In development the owner may pre-generate the shared V1 slots (the §21 set) with an approved paid GO. Learners then mostly hit the cache, and Tutor suggestions then cost nothing.
+- **Canonical clips are prepared by Rabbit Hole** (owner decision 2026-10-04).
+  - **How.** Each canonical slot (moment × concept × course) is pre-generated once by Rabbit Hole as product content:
+    - the Director writes its script;
+    - the owner approves it;
+    - an owner-run generation job renders it, after the §10 account prerequisites and an explicit spend approval.
+  - **What learners get.** A reusable cached course asset. Learners never pay for one, and the Tutor offers a chip only once it is ready (§4.1).
+  - **Prerequisites.** In development this needs the paid GO. In production it needs the AV9 GO.
 
 ---
 
@@ -876,6 +951,7 @@ Policy:
 ```text
 cached clip exists
 → may show/play immediately if product rules allow
+  (V1 rule: shown as a chip, played only when the learner starts it; never autoplayed)
 
 new generation required
 → proposal / explicit confirmation / credits flow
@@ -889,16 +965,27 @@ Therefore production-paid generation remains deferred until the payment architec
 
 Development prototype generation can be separately approved.
 
-**Paid-generation boundary, as built today:**
-- **One gate for every provider.** Every avatar submission runs `paidRefusal(body)` (`packages/control-plane/src/learn-paid.js`) in its Durable Object before the provider call. Without `confirmed: true`, which only a Generate press sends, the answer is HTTP 428 `needsConfirm` (commit `2cb7f566`; `docs/features/learn-artifact-generation.md`, "Paid generation boundary"). AV3 adds an `/api/learn/avatar` row to that doc's gate table.
-- **Free paths.** A cached clip is free: no proposal, and it plays on the learner's click. The Director's script call costs Rabbit Hole a model call, not the learner a provider generation.
-- **No skeleton before commitment.** A canvas skeleton means "we have committed to creating an artifact here" (`docs/features/canvas-skeleton-cards.md` on `ui/canvas-skeleton-cards`). So:
-  - nothing appears on the canvas at the chip or at the proposal;
+**Paid-generation boundary, as built today.** There are two separate cases (owner decision 2026-10-04).
+
+| | Canonical product clips (`public_course`, every V1 moment) | Personalized clips (`learner`, deferred) |
+|---|---|---|
+| Who pays | Rabbit Hole, once per slot, as product content | the learner or account, from credits |
+| Who starts generation | the owner, through an owner-run job with an explicit spend approval (§14) | the learner, by choosing Generate on a proposal |
+| What the learner sees | a chip, then a card that plays when the learner clicks "Watch" | a proposal (script, duration, "This uses paid generation.", [Cancel] [Generate]), then a card |
+| Canvas skeleton | none: the ready clip inserts at once | only after Generate (below) |
+
+- **One gate for every provider.** Every avatar submission, from either case, runs `paidRefusal(body)` (`packages/control-plane/src/learn-paid.js`) in its Durable Object before the provider call. Without `confirmed: true`, which only an explicit Generate (the learner's, or the owner's for product content) sends, the answer is HTTP 428 `needsConfirm` (commit `2cb7f566`; `docs/features/learn-artifact-generation.md`, "Paid generation boundary"). AV3 adds an `/api/learn/avatar` row to that doc's gate table.
+- **Cached means free, not automatic** (owner decision 2026-10-04).
+  - A ready clip skips generation and payment.
+  - It never autoplays, with or without sound, just because it exists. The learner explicitly starts it.
+  - Muted visual previews are deferred.
+  - The Director's script call costs Rabbit Hole a model call, never the learner.
+- **No skeleton before commitment** (personalized path). A canvas skeleton means "we have committed to creating an artifact here" (`docs/features/canvas-skeleton-cards.md` on `ui/canvas-skeleton-cards`). So:
+  - nothing appears on the canvas at the proposal;
   - Cancel shows nothing;
-  - Generate reserves the slot and inserts the confirmed card (`confirmedStart`), which replaces the skeleton at once and shows its own in-card progress;
-  - a cached clip inserts instantly and needs no skeleton.
+  - Generate reserves the slot and inserts the confirmed card (`confirmedStart`), which replaces the skeleton at once and shows its own in-card progress.
 - **No automatic paid retries.** A failed or `uncertain` job's Retry asks for confirmation again, as `VideoBody` does today. There is one generating avatar job per Durable Object.
-- **Who pays for a shared clip.** The first learner who confirms a `public_course` slot pays, and later learners reuse it for free. Whether production instead pre-warms every shared slot at Rabbit Hole's cost, so no learner ever pays for a shared clip, is an owner decision (§32).
+- **The first learner never pays for a shared clip.** That earlier option is dropped. A canonical moment that is not ready yet is simply not offered.
 - **Usage & Credits** (quote → confirm → reserve → run → settle) is **not on main**. It is revision 3 on the unmerged `feature/usage-credits`, which prices a paid job as `max(1, ceil(max_cost_usd / 0.03))` credits against a 10-minute quote. Development needs only the confirmation gate. Production paid generation (AV9) waits for that branch.
 
 ---
@@ -932,12 +1019,15 @@ The provider receives the final script, not the reasoning/context corpus.
 - engine, alpha/format, resolution, aspect ratio and the captions flag;
 - `title: "rh-avatar-<render key prefix>"`.
 
-It never receives an email, name, org, app, canvas or turn id, and no `callback_id` that identifies a learner. Because V1 polls, there is no callback URL.
+It never receives:
+- an email, name, org, app, canvas or turn id;
+- a `callback_id` that identifies a learner (because V1 polls, there is no callback URL at all);
+- the Tutor's `content_goal` (§4.1).
 
 **Further rules:**
 - **The Director boundary is the guarantee.** The V1 script is built only from public course content and registry ids (§5.1). Even a leaked script reveals nothing about a learner.
 - **Provider retention.** HeyGen's non-enterprise privacy policy and Terms allow it to use inputs "to train or otherwise improve" its models, with an opt-out by email; enterprise data is excluded by default (§31).
-  - Before any real generation, the Rabbit Hole HeyGen account opts out of training (an owner action, recorded).
+  - Before any real generation, the Rabbit Hole-owned HeyGen account opts out of training wherever the account allows it (an owner action, recorded; one of the §10 account prerequisites).
   - Once our copy is stored, the adapter calls `DELETE /v3/videos/{video_id}` ("Permanently deletes a video and its associated files").
   - HeyGen's DPA or enterprise terms are an AV9 legal-review item.
 - **Logs.** One line per job state change:
@@ -978,19 +1068,29 @@ Do not expose sensitive consent metadata to ordinary learners.
   - Its Terms ban impersonation and require AI-made commercial output to be disclosed.
 
 **V1 policy:**
-- **Allowed identities.** Only (a) HeyGen stock studio avatars and voices under HeyGen's terms, or (b) one Rabbit Hole-owned digital twin of a consenting adult, created through HeyGen's own consent flow.
-- **Not allowed:** photo avatars of real people, learner-created avatars, voice clones of anyone but that consenting owner (through the provider's flow), and celebrity or third-party likeness.
+- **V1 face: a HeyGen stock/licensed avatar only** (owner decision 2026-10-04). There is no Rabbit Hole digital twin yet. This:
+  - avoids a likeness-consent workflow for our own twin;
+  - speeds up the prototype;
+  - lets the owner judge the interaction before choosing a permanent teacher identity.
+- **A digital twin later** is a brand/identity decision, not a V1 one. If it is ever made:
+  - Rabbit Hole owns the HeyGen account;
+  - consent is documented through HeyGen's own consent flow;
+  - provider terms are followed;
+  - no one's likeness is used casually.
+
+  Avatar V (digital twins only, §9) becomes available only then.
+- **Not allowed:** photo avatars of real people, learner-created avatars, voice clones of anyone, and celebrity or third-party likeness.
 - **Profile registry.** Each avatar and voice profile is one server-side record:
 
   ```text
-  { profile_id, provider, provider_ref, kind: stock | owned_twin, consent_basis,
-    consent_record_ref (private), granted_at, revoked_at? }
+  { profile_id, provider, provider_ref, kind: stock (V1) | owned_twin (later), consent_basis,
+    consent_record_ref (private; twins only), granted_at, revoked_at? }
   ```
 
   It lives in server configuration, never in a block or brief. Learners see only "AI-generated teacher".
-- **Revocation.** Revoking consent disables the profile at once, removes its clips from R2 and from HeyGen, and makes every later cache lookup miss (§14).
+- **Revocation.** Revoking consent, or withdrawing a stock avatar's licence, disables the profile at once, removes its clips from R2 and from HeyGen, and makes every later cache lookup miss (§14).
 - **Disclosure.** Every clip is labelled AI-generated (§13).
-- **Fish voice.** Using the Voice Tutor's pinned Fish narrator (`reference_id 802e3bc2…`) as the avatar's audio (`audio_url` input, §18) also needs the Fish voice's licence checked for distributed video. That is already a Motion V1 §34 release item.
+- **Fish voice (later comparison only, §18).** Using the Voice Tutor's pinned Fish narrator (`reference_id 802e3bc2…`) as the avatar's audio needs the Fish voice's licence to permit distributed avatar video. That is already a Motion V1 §34 release item.
 
 ---
 
@@ -1016,12 +1116,18 @@ If provider-native voice performs poorly on technical language, investigate:
 
 Do not solve this before prototype evidence exists.
 
+**V1 voice: HeyGen's native provider voice** (owner decision 2026-10-04). The first prototypes and the V1 baseline use a HeyGen voice. Fish plus HeyGen is **not** the baseline: a native voice means one provider call, less latency, lower cost and simpler lip-sync.
+
+**Priority later comparison: Fish-supplied audio.** It is run if any one of these holds, and only if the Fish licence permits Fish audio in distributed avatar video (§17):
+- HeyGen's pronunciation of technical terms is poor;
+- the owner strongly wants the Voice Tutor's professor voice.
+
 What HeyGen offers, per its docs on 2026-10-04 (§31):
 - **Pronunciation:** a Brand Glossary of respellings ("`hey-jen`"; no IPA or phonemes), passed as `brand_glossary_id`.
 - **Pauses:** `<break>` tags only.
-- **Your own audio:** `audio_url` or `audio_asset_id` (MP3/WAV, up to 32 MB), which are "mutually exclusive with `script`". This lets the avatar lip-sync the Voice Tutor's own Fish narrator.
+- **Your own audio:** `audio_url` or `audio_asset_id` (MP3/WAV, up to 32 MB), which are "mutually exclusive with `script`". This is the mechanism for the later Fish comparison.
   - In that case the provider receives audio of the same script, which is no extra private data.
-  - The Fish call is a second paid call under the same confirmation.
+  - The Fish call would be a second paid call under the same approval.
   - Whether WebM alpha works with `audio_url` is UNVERIFIED.
 
 ---
@@ -1033,7 +1139,8 @@ Avatar clips should not unexpectedly hijack the learning experience.
 Guidelines:
 - short,
 - skippable,
-- no autoplay with sound unless current product policy explicitly allows it (it does not: paid narration "never autoplays", `docs/features/learn-artifact-generation.md`; in V1 a clip plays only from the learner's click),
+- no autoplay with sound unless current product policy explicitly allows it (it does not: paid narration "never autoplays", `docs/features/learn-artifact-generation.md`. Owner decision 2026-10-04: a cached clip never autoplays just because it exists; the learner explicitly starts it, and muted previews are deferred),
+- no avatar suggestion while Voice Mode is active (§3, §4.1),
 - subtitles/captions when appropriate,
 - no excessive frequency,
 - no giant talking head obscuring the learning canvas,
@@ -1070,13 +1177,18 @@ if new paid generation required:
 
 Tutor decides pedagogical intent, not provider execution.
 
-In V1, "play/show" and "show proposal" are both reached through the chip in §4.1, never automatically. Whether a cached clip may later show without a click is an owner decision (§32).
+In V1 (owner decisions 2026-10-04):
+- A suggestion is a chip (§4.1), offered only when the canonical clip is ready, and never while Voice Mode is active.
+- A cached clip plays only when the learner starts it; it never autoplays.
+- "Show proposal" belongs to the deferred personalized path (§15).
 
 ---
 
 # 21. Development prototype set
 
 Prototype at least four clips.
+
+These four are canonical product moments (§3, §14). Once approved, they are the first clips Rabbit Hole generates as reusable course assets.
 
 ## A. Course greeting
 
@@ -1123,11 +1235,11 @@ Target:
 ~6–10 seconds.
 
 Compare where available:
-- Avatar V (documented for digital twins only, so it needs the owned twin of §17),
-- Avatar IV (stock studio avatars and digital twins),
+- Avatar V: not in V1. It is documented for digital twins only, and V1 uses a stock/licensed avatar (§17). It comes back with a twin, if one is ever made.
+- Avatar IV, the V1 engine for the stock look (or whatever that look's `supported_api_engines` lists),
 - opaque MP4,
-- transparent WebM (needs a matting-trained look),
-- HeyGen TTS voice vs the Fish narrator through `audio_url` (§18).
+- transparent WebM (needs a matting-trained stock look),
+- voice: HeyGen's native voice is the V1 baseline. The Fish narrator through `audio_url` is a priority later comparison under the §18 conditions, not part of the first prototypes.
 
 Evaluate:
 - lip sync,
@@ -1262,7 +1374,7 @@ Treat it as a separate milestone.
 - API contract,
 - MCP development workflow.
 
-**Status: done by this reconciliation** (§30, §31). Every later milestone is development only, and each has its own GO (§32).
+**Status: accepted by the owner (2026-10-04).** Every later milestone is development only, and each has its own GO (§32).
 
 ## AV1 — MCP prototypes
 
@@ -1274,7 +1386,12 @@ Using HeyGen MCP in development only:
 
 No Rabbit Hole production integration.
 
-Paid: MCP spends the HeyGen web plan's credits (§10). It needs the owner's GO with a credit ceiling, a Rabbit Hole-owned account, and training opted out (§16). Fixture scripts only. Report: the §22 review per clip, latency, credits, and alpha edges in Chrome and in Safari.
+Paid: MCP spends the HeyGen web plan's credits (§10).
+- **Prerequisites.** All §10 account prerequisites, plus the owner's explicit spend approval: a Rabbit Hole-owned account and credentials, training disabled, a credit ceiling, and no personal-account dependency.
+- **Inputs.** A stock/licensed avatar, a HeyGen native voice, fixture scripts only.
+- **Report.** The §22 review per clip, latency, credits, and alpha edges in Chrome and in Safari.
+
+**Not yet authorized.**
 
 ## AV2 — AvatarBrief + Avatar Director
 
@@ -1292,7 +1409,12 @@ It also includes:
 - the script-slot cache (§14);
 - tests against recorded model responses: a forbidden input never reaches the prompt, a mastery claim is blocked, and the second request for a slot makes no model call.
 
-Model calls run under the existing dev model configuration. There is no provider call.
+**Authorized now: AV2 groundwork, with no paid calls.**
+- The AvatarBrief schema (§6) and its validator.
+- The Avatar Director contract (§5.1): input boundary, output schema, validation and script-slot key, tested against recorded fixtures with no live model call.
+- The Tutor `suggest_avatar_clip` schema and validator (§4.1), including the bounded `content_goal`, behind `TUTOR_AVATAR`, which stays off. With the knob off, the planner request is byte-identical to today.
+
+Live Director model calls, and switching the Tutor action on, wait for later GOs (§32).
 
 ## AV3 — provider adapter
 
@@ -1306,7 +1428,8 @@ Dev only.
 
 - It is v3 only (§9), env-gated (`LEARN_AVATAR_PROVIDER`, `HEYGEN_API_KEY`), and built under `paidRefusal`.
 - Tests use a stubbed transport: unconfirmed is 428 with no call, a lost response becomes `uncertain`, there is no resubmission, the host and content type are checked, and every error category is covered.
-- The first real HeyGen REST call needs a separate owner GO.
+
+**Authorized now: AV3 groundwork.** The AvatarProvider interface (§8) and the HeyGen v3 adapter against a **test stub only**. No `HEYGEN_API_KEY` is set anywhere. The first real HeyGen REST call needs the §10 account prerequisites and the owner's explicit spend approval.
 
 ## AV4 — storage/cache
 
@@ -1324,6 +1447,15 @@ As reconciled in §13–§14:
 
 Test: a second request for a ready key makes no provider call, and two concurrent misses submit once.
 
+**Authorized now: AV4 groundwork.** The storage and cache contracts:
+- the script-slot and render keys;
+- the two scopes (canonical `public_course` content, personalized `learner`);
+- the R2 key scheme and content type;
+- the scope-checked asset GET;
+- the ready-clip lookup the Tutor's resource stage uses.
+
+All tested against stubs. No real generation and no deploy.
+
 ## AV5 — canvas playback
 
 - normal avatar video card,
@@ -1332,18 +1464,25 @@ Test: a second request for a ready key makes no provider call, and two concurren
 
 It also includes:
 - the `operation.op: avatar_clip` card with its own copy and the AI-generated label;
+- playback only on the learner's explicit start (no autoplay; muted previews deferred);
 - the PiP fallback and WebKit detection (§11);
-- the reload-resume fix (`paid-persist-8`, §13);
 - the build deployed to this worktree's own dev clone for visual review (`rabbit-hole-web-dev-avatar-teacher-v1-spec`), never the shared dev Worker.
+
+**Prerequisite:** the shared video resume-after-reload fix (`paid-persist-8`, §13). It is fixed once in the shared pipeline, or, if AV5 gets there first, landed as its own separate prerequisite commit for Parallel to review. It is never avatar-only state.
+
+**Not yet authorized** (it deploys).
 
 ## AV6 — Tutor suggestion flow
 
 Tutor:
 - recognizes approved moments,
-- emits provider-independent `show_avatar_message`,
+- emits provider-independent `suggest_avatar_clip`,
 - never silently spends money.
 
-The action contract, router rows, validator stages, chip and proposal are in §4.1. It sits behind the off-by-default `TUTOR_AVATAR` knob. Golden-trace tests check that typed and voice turns are byte-identical while the knob is off. It needs the owner's sign-off on the Tutor contract change and a Tutor benchmark re-run before the knob is turned on.
+The action contract, router rows, validator stages and chip are in §4.1.
+- The schema lands in AV2 groundwork behind the off-by-default `TUTOR_AVATAR` knob. Golden-trace tests check that typed and voice turns are byte-identical while the knob is off.
+- AV6 is the integration: chip execution, ready canonical clips, and the knob turned on.
+- **Not yet authorized:** it needs the owner's GO and a Tutor benchmark re-run.
 
 ## AV7 — Motion composition prototype
 
@@ -1354,7 +1493,7 @@ Combine:
 
 Still dev only.
 
-It starts after Motion M7A and AV4, under the §12 boundary, with the cached clip as a deterministic asset. Any change it needs on the Motion side goes through the Motion branch's owner.
+It starts after Motion M7A and AV4, under the §12 boundary, with the cached clip as a deterministic asset. Any change it needs on the Motion side goes through the Motion branch's owner. **Not yet authorized.**
 
 ## AV8 — quality/cost benchmark
 
@@ -1366,7 +1505,11 @@ Compare:
 - latency/cost,
 - visual/pedagogical quality.
 
-It adds Avatar III as a cost reference and HeyGen voice vs the Fish narrator. Paid: it needs its own GO.
+In V1, Avatar V is out of scope until a digital twin exists (§17). The benchmark adds:
+- Avatar III as a cost reference;
+- the priority Fish-supplied-audio comparison, under the §18 conditions and Fish licensing.
+
+Paid: it needs the §10 prerequisites and its own spend approval.
 
 ## AV9 — production rollout
 
@@ -1402,7 +1545,8 @@ A successful Avatar Teacher development prototype demonstrates:
 10. Tutor remains provider-independent,
 11. no silent paid generation,
 12. one Motion + avatar composition prototype works,
-13. provenance identifies provider/avatar/voice/config used.
+13. provenance identifies provider/avatar/voice/config used,
+14. canonical moments are free to learners, and never autoplay or appear during Voice Mode.
 
 ---
 
@@ -1448,7 +1592,7 @@ For avatar moments:
 
 ```text
 Tutor
-→ show_avatar_message
+→ suggest_avatar_clip
 → Avatar Director
 → grounded script
 → AvatarProvider
@@ -1473,10 +1617,10 @@ Each row is a conflict, inconsistency or wrong assumption found in the owner's d
 
 | # | Found | Evidence | Resolution |
 |---|---|---|---|
-| 1 | The Tutor has no generation action and no paid tools. `generate_artifact`, `suggest_motion` and the paid-tool UX are an open decision. The planner prompt says "never generate new artifacts". | `tutor-v1-locked-decisions.md:206, 249, 260, 496-503, 553`; `agents/learn-tutor.js:176` | `show_avatar_message` is a chip-only suggestion that never starts anything. It sits behind the off-by-default `TUTOR_AVATAR` knob and needs the owner's sign-off as the avatar-only resolution of that open item (§4.1). |
+| 1 | The Tutor has no generation action and no paid tools. `generate_artifact`, `suggest_motion` and the paid-tool UX are an open decision. The planner prompt says "never generate new artifacts". | `tutor-v1-locked-decisions.md:206, 249, 260, 496-503, 553`; `agents/learn-tutor.js:176` | `suggest_avatar_clip` (renamed from `show_avatar_message`, owner 2026-10-04) is a chip-only suggestion behind the off-by-default `TUTOR_AVATAR` knob. In V1 it leads only to free, pre-generated canonical clips, so the open paid-tool item stays open (§4.1). |
 | 2 | The action field `purpose` collides with the planner tool's existing `purpose` enum for `ask_question`. | `agents/learn-tutor.js:154` | The Tutor field is `moment`; the brief keeps `purpose` (§4.1). |
 | 3 | Purposes assume section and course-completion state that the Tutor does not have. | `learn-tutor-evidence.js:1-23` (session-only store); `learn-tutor.js:144-177` (router rows) | Each purpose is mapped to a real signal; `section_greeting` and `course_completion` are prototype-only in V1 (§3). |
-| 4 | `content_goal` and `context_refs` are free text from the planner: a path for learner words into the Director and provider, and a cache breaker. | §4 draft vs §16 draft | Dropped in V1. Registry concept ids only (§4.1, §5.1). |
+| 4 | `content_goal` and `context_refs` are free text from the planner: a path for learner words into the Director and provider, and a cache breaker. | §4 draft vs §16 draft | `context_refs` dropped: registry concept ids only. `content_goal` kept by owner decision, but bounded: ≤ 120 characters; a Director hint only; never sent to the provider, logged or used in a key; dropped if it carries code, identifiers or five consecutive words of the learner's message. Canonical moments ignore it, so it has no V1 effect (§4.1). |
 | 5 | `completed_topics`, and the examples "you've got causal masking" and "You can now explain…", are mastery claims. | `agents/learn-tutor.js:181`; `adaptive-tutor-v1.md:43` (T1) | Concept ids plus a `personalization` switch, `no_mastery_claims`, and the examples rewritten (§2, §6, §7, §21). |
 | 6 | Opus 5.5 rejects a forced `tool_choice`, and the artifact path forces `any`. | `agents/learn-tutor.js:215-217`; `learn-artifact.js:53`; Motion V1 §4.9 | The Director uses `auto`, harness validation and one schema re-ask; the planner stays `auto` (§4.1, §5.1). |
 | 7 | The cache key uses `final_script`, but the Director is a model, so two learners would get two scripts and two paid renders. | §14 draft | A script-slot key comes first, then the render key (§14). |
@@ -1484,21 +1628,26 @@ Each row is a conflict, inconsistency or wrong assumption found in the owner's d
 | 9 | The draft assumes video metadata `video_kind: motion \| avatar`; the code tells video blocks apart by `operation.op`. | `learn-video.js:64-66`; `motion_render` on `feature/motion-v1-harness` | `operation.op: avatar_clip` plus an `avatar_clip` provenance object (§13). |
 | 10 | LearnVideos hard-codes MP4, so WebM alpha would be served as `video/mp4`. | `learn-video.js:42, 117-118, 135-136` | The job stores its real `contentType` (§13, AV4). |
 | 11 | The draft's provider method list duplicates an existing contract. | `video-provider.js:1-8`; `math-provider.js`; Motion V1 §18 | Reuse `submit → ticket`, `poll → null \| result`; the job runner owns download and storage (§8). |
-| 12 | A paid video card never resumes after reload. | `LearningBlocks.jsx:1366-1389`; `learn-cleanup.md:193` (`paid-persist-8`) | AV5 lands after the fix or carries it (§13). |
-| 13 | "Cached clip → may play immediately" conflicts with the no-autoplay rule and with the Tutor's chip authority. | `learn-artifact-generation.md:102-104`; `tutor-v1-locked-decisions.md:255-266` | Chip only; it plays from the learner's click (§4.1, §19, §20). |
+| 12 | A paid video card never resumes after reload. | `LearningBlocks.jsx:1366-1389`; `learn-cleanup.md:193` (`paid-persist-8`) | A prerequisite for AV5, fixed once in the shared video pipeline, or landed as its own separate prerequisite commit for Parallel. No avatar-only state (§13, owner 2026-10-04). |
+| 13 | "Cached clip → may play immediately" conflicts with the no-autoplay rule and with the Tutor's chip authority. | `learn-artifact-generation.md:102-104`; `tutor-v1-locked-decisions.md:255-266` | Chip only. Cached means no generation or payment, never automatic playback: the learner explicitly starts it. Muted previews are deferred (§4.1, §15, §19, §20; owner 2026-10-04). |
 | 14 | The draft is silent on canvas skeletons for paid work. | `canvas-skeleton-cards.md:7, 41-54` on `ui/canvas-skeleton-cards` | No skeleton at the chip or proposal; Generate reserves the slot (§15). |
 | 15 | The draft's "credits flow" does not exist on main. | `feature/usage-credits` (revision 3, unmerged); `learn-paid.js` | Development uses the confirmation gate only; production waits for Usage & Credits (§15, AV9). |
 | 16 | "Production deferred" had no mechanism, yet production reuses every development route. | `rabbit-hole-production.md`, "Production entry" (`app-worker.js` reuses `dev-worker.js`) | An env-gated provider; no key on `rabbit-hole-app` before AV9 (§8, §9). |
 | 17 | HeyGen v1 and v2 (including `/v2/video/generate` and `/v1/video.webm`) sunset on 2026-10-31. | §31 | v3 only (§9). |
 | 18 | The draft treated MCP as free exploration; it spends HeyGen plan credits. | §31 | AV1 needs a paid GO with a ceiling (§10). |
-| 19 | Avatar V is documented for digital twins only, so stock avatars cannot use it. | §31 | The engine is chosen per profile; Avatar V needs the owned twin (§9, §21). |
+| 19 | Avatar V is documented for digital twins only, so stock avatars cannot use it. | §31 | The V1 face is a HeyGen stock/licensed avatar on its supported engine (Avatar IV today). Avatar V waits for a possible later twin (§9, §17, §21; owner 2026-10-04). |
 | 20 | Safari ignores WebM alpha. | §31 | PiP fallback, with the overlay off on WebKit (§11). |
 | 21 | Body motion is not a general control: `motion_prompt` is documented for photo avatars only. | §31 | `motion_direction` is optional and used only where supported (§6). |
 | 22 | The Learner Intent Resolver is the shared input for specialists, but V1 avatar clips are learner-agnostic. | `adaptive-tutor-v1.md:502-664` | The V1 Director takes no LearnerTurn: the Tutor, which reads the turn, picks the moment. Personalized clips will consume the Resolver's bounded LearnerTurn (pointer added there). |
-| 23 | "Avatar" already means the profile picture in code. | `profile.js:8-48`; `learn-migrations/0002-user-profiles.sql:7` | Identifiers are `avatar_clip`, `learn-avatar/`, `AvatarBrief`; `/api/profile` is untouched. |
+| 23 | "Avatar" already means the profile picture in code. | `profile.js:8-48`; `learn-migrations/0002-user-profiles.sql:7` | Identifiers are `suggest_avatar_clip`, `avatar_clip`, `learn-avatar/` and `AvatarBrief`. `/api/profile` is untouched. |
 | 24 | An early product plan lists "Talking-head avatar" as a v1 non-goal. | `docs/02-how-we-will-build-it (1).md:15, 115` | Historical. This spec governs the avatar teacher; that file is not edited. |
 | 25 | Stale bucket names in other docs, not edited here: Motion V1 §32 names `small-learn-media-dev`, and the storage table says production has no `LEARN_MEDIA`. | `rabbit-hole-motion-v1-harness-spec.md` §32; `learn-artifact-generation.md:163-164` vs `packages/web/wrangler.dev.jsonc:77-79` (`rabbit-hole-dev-learn-media`) and `wrangler.rabbit-hole-prod.jsonc:38` (`rabbit-hole-prod-learn-media`) | This spec uses the real bucket names. The other docs are left for their owners. |
 | 26 | New names were needed. | `CLAUDE.md:34` (`rabbit-hole-*`, never `small-*`) | No new Cloudflare or Fly resource. New names: secret `HEYGEN_API_KEY` and var `LEARN_AVATAR_PROVIDER` (none exists today), R2 prefix `learn-avatar/`, dev clone `rabbit-hole-web-dev-avatar-teacher-v1-spec`. |
+| 27 | The first reconciliation let "the first learner who confirms" pay for a shared clip. | §15 (f639a825) | Dropped. Canonical moments are pre-generated by Rabbit Hole as reusable course assets, and learners never pay for them. Only deferred personalized clips are learner-paid. The two cases are kept apart in §3, §14, §15 and §26 (owner 2026-10-04). |
+| 28 | The first reconciliation's chip could open a paid proposal when no clip was cached. | §4.1 (f639a825) | The chip is offered only when the canonical clip is ready. The proposal → Generate path belongs to deferred personalized clips (§4.1, §15). |
+| 29 | Voice turns: the first pass only blocked suggestions, with no answer for an explicit request. | §4.1 (f639a825) | No suggestion while Voice Mode is active. An explicit request gets one spoken sentence saying clips play outside Voice Mode; the modalities never overlap (§3, §4.1; owner 2026-10-04). |
+| 30 | Voice: the first pass compared HeyGen and Fish as equals. | §18, §21 (f639a825) | HeyGen's native voice is the V1 baseline. Fish-supplied audio is a priority later comparison, under stated conditions and Fish licensing (§18; owner 2026-10-04). |
+| 31 | Account: the first pass mentioned a Rabbit Hole account only for MCP. | §10 (f639a825) | Five account prerequisites, plus explicit spend approval, before any paid MCP or API call (§10; owner 2026-10-04). |
 
 ---
 
@@ -1546,37 +1695,63 @@ Public documentation only. No key, no account call and no MCP session was used. 
 
 # 32. Authorized next vs deferred
 
-**Authorized by this document:** AV0 only (this reconciliation). The status at the top still holds: architecture and development spec only.
+**Status (owner, 2026-10-04): AV0 is accepted.** The decisions below are locked. Implementation starts only on the coordinator's implementation GO.
 
-**Ready on the owner's GO, development only, with no paid provider call:**
-- **AV2:** AvatarBrief, Director, script review and the script-slot cache, under the existing dev model configuration.
-- **AV3:** the HeyGen v3 adapter against a stubbed transport.
-- **AV4:** storage, cache and scopes.
-- **AV5:** the canvas card, the PiP fallback and reload-resume, deployed only to this worktree's own dev clone for review.
+**Next authorized, with NO paid calls, no live model or provider calls, and no deploy:**
+- **AV2 groundwork:**
+  - the AvatarBrief schema (§6);
+  - the Avatar Director contract (§5.1), tested against recorded fixtures;
+  - the Tutor `suggest_avatar_clip` schema and validator (§4.1), behind `TUTOR_AVATAR`, which stays off.
+- **AV3 groundwork:** the AvatarProvider interface (§8) and the HeyGen v3 adapter against a **test stub only**.
+- **AV4 groundwork:** the storage and cache contracts (§14).
 
-**Needs a separate typed GO:**
-- AV1: MCP prototypes, which spend HeyGen plan credits;
-- the first real HeyGen REST call in AV3;
-- AV8: the benchmark;
-- AV6: the Tutor contract change, its knob turned on, and a Tutor benchmark re-run;
-- AV7: after Motion M7A.
+**Not yet authorized:**
+- real HeyGen API calls;
+- MCP credits (AV1);
+- turning `TUTOR_AVATAR` on;
+- paid clips, canonical or personalized;
+- Tutor generation integration (AV6);
+- Motion composition (AV7);
+- any deploy, including the AV5 dev clone;
+- the AV8 benchmark.
+
+Paid MCP or API calls also need the §10 account prerequisites and the owner's explicit spend approval.
 
 **Still deferred:**
 - AV9: production on digrabbithole.com. It waits for Usage & Credits, legal and privacy review, cost caps and the production GO.
 - Live Avatar.
-- Personalized or learner-requested free-form clips, including `content_goal`.
-- A Tutor trigger for `section_greeting` and `course_completion`.
-- Learner-created avatars and any voice cloning beyond the consenting owner.
+- Personalized, learner-specific or learner-requested clips: the learner-paid path, and the point where `content_goal` takes effect.
+- A Tutor trigger for `section_greeting` and `course_completion` (their clips are product content).
+- A Rabbit Hole digital twin and Avatar V: a later brand/identity decision.
+- Fish-supplied audio: a priority later comparison (§18).
+- Muted visual previews.
+- Learner-created avatars and any voice cloning.
 - Webhooks.
 - The chroma-key and Safari HEVC-alpha transcodes.
 - An avatar slash command.
 
-**Owner decisions:**
-1. Approve `show_avatar_message` (chip only, behind `TUTOR_AVATAR`) as the avatar-only resolution of the Tutor's open paid-tool item, and decide whether the name stays `show_…` or becomes `suggest_avatar_message` to match the other suggestion actions.
-2. Avatar identity for V1: a HeyGen stock studio avatar, which works with Avatar IV, or a Rabbit Hole-owned digital twin of a consenting adult, which Avatar V needs and which requires HeyGen's consent flow. If a twin, whose likeness.
-3. Voice: HeyGen TTS, or the Voice Tutor's Fish narrator through `audio_url` (two paid calls, and the Fish licence for video).
-4. Who pays for a shared `public_course` clip: the first learner who confirms, or Rabbit Hole pre-warming every shared slot.
-5. Whether a cached clip may ever show without a click (V1: never).
-6. No avatar suggestion on voice turns in V1: confirm.
-7. A Rabbit Hole-owned HeyGen account, with a training opt-out, and the credit ceiling for AV1.
-8. Whether AV5 waits for Learn cleanup U8's `paid-persist-8` fix or carries it.
+**Locked owner decisions (2026-10-04):**
+1. **Tutor action.** The action is `suggest_avatar_clip` (§4).
+   - It sits behind `TUTOR_AVATAR`, which is off by default.
+   - It produces only a suggestion chip and never calls HeyGen.
+   - Generation begins only after an explicit Generate.
+   - `content_goal` is kept, bounded as in §4.1.
+2. **V1 face.** A HeyGen stock/licensed avatar on its supported engine (Avatar IV today). A digital twin is a later identity decision: Rabbit Hole-owned, consent documented, provider terms followed (§9, §17).
+3. **V1 voice.** HeyGen's native voice. Fish-supplied audio is a priority later comparison under the §18 conditions and licensing.
+4. **Payment.** Canonical product moments are pre-generated by Rabbit Hole as reusable course assets, and learners never pay for them. Learner-specific or explicitly requested personalized clips may later be paid from learner or account credits (§14, §15).
+5. **Cached playback.** A cached clip never autoplays, with or without sound. The learner explicitly starts it. Muted previews are deferred (§4.1, §15, §19).
+6. **Voice Mode.** No avatar suggestion while Voice Mode is active. An explicit request gets one spoken sentence saying clips play outside Voice Mode; the modalities never overlap (§3, §4.1).
+7. **HeyGen account.** Before any paid prototype:
+   - the account and API credentials are owned by Rabbit Hole;
+   - provider training is disabled where allowed;
+   - there is an explicit credit ceiling;
+   - nothing depends on a personal account.
+
+   Plus the owner's explicit spend approval for each paid call (§10).
+8. **Reload bug.** The video resume-after-reload fix is a prerequisite for AV5. It is fixed once in the shared video pipeline, or landed as its own separate prerequisite commit for Parallel to review. There is no avatar-only playback state (§13).
+
+**Interpretations to confirm:**
+1. **`content_goal` reconciliation.** It is accepted, validated and carried as a Director-only hint. It never reaches the provider, a log or a key. Because every V1 moment is canonical, it has no effect a learner can see in V1 (§4.1).
+2. **What counts as canonical.** Besides the four moments the owner named, `rabbit_hole_intro`, `concept_intro` and the standard `checkpoint_feedback` are treated as canonical product content, since in V1 each depends only on moment, concept and course (§3).
+3. **When the chip appears.** It is offered only when its canonical clip is ready. Before Rabbit Hole has generated the canonical set, the Tutor suggests nothing.
+4. **Picking the stock look.** The stock look is chosen during AV1, among stock looks trained with matting, so WebM alpha works.
