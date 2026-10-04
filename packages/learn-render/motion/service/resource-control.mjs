@@ -255,6 +255,16 @@ export function renderUserProcesses({ fs = realFs, root = '', user = 'motion-ren
   });
 }
 
+// One field of /proc/<pid>/status (the Linux identity tests). Only horizontal whitespace
+// follows the colon: with \s an empty field ("Groups:" on a process with no supplementary
+// groups) swallows the newline and reads the next line ("NStgid: ...") as its value.
+// ponytail: renderUserProcesses above keeps its own \s+ patterns for Uid/Name/State, which are
+// never empty; move it onto this helper with the next runtime change.
+export function procStatusField(status, name) {
+  const m = status.match(new RegExp(`^${name}:[ \\t]*(.*)$`, 'm'));
+  return m ? m[1].trim() : null;
+}
+
 async function cli([cmd, id, shell, status]) {
   jobPath(id);
   if (!/^[1-9]\d*$/.test(String(shell))) throw new Error('shell pid must be a positive integer');

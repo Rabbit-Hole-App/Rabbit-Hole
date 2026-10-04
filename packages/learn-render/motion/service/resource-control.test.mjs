@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import {
   LIMITS, ResourceLimitsUnavailable, attach, cleanup, controllerFor, cpuQuota, detach, detect, jobPath, normalize, parseMounts,
-  removeGroups, renderUserProcesses, selfLimits, unlimited, finishJob,
+  removeGroups, renderUserProcesses, selfLimits, unlimited, finishJob, procStatusField,
 } from './resource-control.mjs';
 
 const ID = '0123456789abcdef0123456789abcdef';
@@ -211,6 +211,19 @@ test('cleanup settle: a process that is still there after the bounded window is 
   assert.equal(proof.render_user_processes, 1);
   assert.deepEqual(proof.lingering, [{ pid: 88, name: 'chrome', state: 'S' }]);
   assert.ok(proof.settle_ms >= 5000);
+});
+
+test('/proc status fields: an empty Groups line followed by NStgid reads as empty, never as the next line', () => {
+  // motion-svc as Fly runs it: uid 10011, gid motion (10010), no supplementary groups.
+  const status = 'Name:\tnode\nState:\tS (sleeping)\nUid:\t10011\t10011\t10011\t10011\nGid:\t10010\t10010\t10010\t10010\nFDSize:\t64\nGroups:\t\nNStgid:\t4242\nNSpid:\t4242\n';
+  assert.equal(procStatusField(status, 'Groups'), '');
+  assert.equal(procStatusField(status, 'NStgid'), '4242');
+  assert.equal(procStatusField(status, 'Uid'), '10011\t10011\t10011\t10011');
+  assert.equal(procStatusField(status, 'Gid').split(/\s+/)[0], '10010');
+  assert.equal(procStatusField(status, 'Missing'), null);
+  // The old pattern let \s* cross the newline and read the next line as the group list.
+  assert.equal(status.match(/^Groups:\s*(.*)$/m)[1], 'NStgid:\t4242');
+  assert.equal(procStatusField('Groups:\t10010 27\nNStgid:\t1\n', 'Groups'), '10010 27');
 });
 
 test('parseMounts keeps the type and every option', () => {

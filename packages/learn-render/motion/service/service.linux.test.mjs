@@ -17,7 +17,7 @@ import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { LINUX_JOBS_DIR } from './server.mjs';
-import { controllerFor, detect } from './resource-control.mjs';
+import { controllerFor, detect, procStatusField } from './resource-control.mjs';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const SERVER = join(HERE, 'server.mjs');
@@ -103,10 +103,10 @@ fs.writeFileSync(dir + '/job.json', body, { mode: Number(mode) }); fs.chmodSync(
 test('identities: the service runs as motion-svc with only the motion group, the render user shares only that group', { skip }, async t => {
   const { pid } = await service(t);
   const status = readFileSync(`/proc/${pid}/status`, 'utf8');
-  const field = name => status.match(new RegExp(`^${name}:\\s+(.*)$`, 'm'))[1].trim().split(/\s+/).map(Number);
-  assert.equal(field('Uid')[0], idOf('-u', 'motion-svc'));
-  assert.equal(field('Gid')[0], idOf('-g', 'motion-svc'));
-  assert.deepEqual(status.match(/^Groups:\s*(.*)$/m)[1].trim(), '');
+  const ids = name => procStatusField(status, name).split(/\s+/).map(Number);
+  assert.equal(ids('Uid')[0], idOf('-u', 'motion-svc'));
+  assert.equal(ids('Gid')[0], idOf('-g', 'motion-svc'));
+  assert.equal(procStatusField(status, 'Groups'), ''); // no supplementary groups
   assert.equal(idOf('-g', 'motion-svc'), idOf('-g', 'motion-render')); // the shared primary group: motion
   assert.equal(sh('id', ['-gn', 'motion-svc']).stdout.trim(), 'motion');
   assert.equal(sh('id', ['-Gn', 'motion-svc']).stdout.trim(), 'motion'); // no supplementary groups
@@ -171,6 +171,33 @@ test('resource limits hold, one phase at a time: PID storm then settle, CPU quot
   assertClean(exit);
   assert.equal(groupsGone(id), true);
   assert.equal((await (await call('/health')).json()).ok, true);
+});
+
+// A valid composition (it passes the request and static checks like any job) that tries to hold
+// 4 GiB in the page. The job's 3 GiB memory limit, with memsw equal to it, must OOM-kill the
+// renderer, and the result must travel the real path: controller record -> service mapping.
+const MEMORY_HOG = `import { AbsoluteFill, useCurrentFrame } from 'remotion';
+export const stage = { width: 1920, height: 1080, fps: 30, durationInFrames: 450 };
+const held = [];
+export default function MemoryHog() {
+  const frame = useCurrentFrame();
+  while (held.length < 16) held.push(new Uint8Array(256 * 1024 * 1024).fill(1));
+  return <AbsoluteFill style={{ backgroundColor: 'white', fontFamily: 'Inter' }}>{frame + held.length}</AbsoluteFill>;
+}
+`;
+
+test('a real kernel OOM in a render job is reported as memory_limit_exceeded through the service, which stays healthy', { skip, timeout: 300000 }, async t => {
+  const { call, until } = await service(t);
+  const res = await call('/render', { method: 'POST', body: JSON.stringify({ ...job('demo-a'), composition: { composition_id: 'memory-hog', source: MEMORY_HOG } }) });
+  assert.equal(res.status, 202);
+  const r = await until((await res.json()).render_id);
+  assert.equal(r.status, 'failed');
+  assert.equal(r.error, 'memory_limit_exceeded', `${r.error}: ${r.detail}`);
+  assert.ok(r.resources.oom_kills >= 1, JSON.stringify(r.resources));
+  assertClean(r.resources);
+  assert.equal(r.artifacts, undefined);
+  assert.equal((await (await call('/health')).json()).ok, true);
+  assert.equal(sh('pgrep', ['-u', 'motion-render']).status, 1);
 });
 
 test('a real Demo A render through the sandboxed service: 1920x1080, 30 fps, 450 frames, deterministic, one at a time, cleaned up', { skip, timeout: 10 * 60 * 1000 }, async t => {

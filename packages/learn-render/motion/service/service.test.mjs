@@ -170,16 +170,33 @@ test('a crashed or failed render leaves the service healthy and free', async t =
   }
 });
 
-test('resource limits: no limits means no render, and an OOM kill is named, never a silent failure', async t => {
-  for (const [mode, error, re] of [['nolimits', 'resource_limits_unavailable', /memory cgroup controller/], ['oom', 'memory_limit_exceeded', /without a result/]]) {
-    const { post, until, jobsDir } = await start(t, mode);
+test('resource limits: no limits means no render, never a silent unlimited one', async t => {
+  const { post, until, jobsDir } = await start(t, 'nolimits');
+  const { render_id } = await (await post(job())).json();
+  const r = await until(render_id);
+  assert.deepEqual([r.status, r.error], ['failed', 'resource_limits_unavailable']);
+  assert.match(r.detail, /memory cgroup controller/);
+  assert.deepEqual(readdirSync(jobsDir), []);
+});
+
+// The kernel's OOM count reaches the service through the real controller record
+// (resource-control.mjs finishJob + normalize, as motion-sandbox writes it) and the real
+// service mapping. service.linux.test.mjs drives the same mapping with a real kernel OOM.
+test('a kernel OOM kill is reported as memory_limit_exceeded through the service, whether the child died or reported the broken render', async t => {
+  for (const [mode, detail] of [['oom', /exited \(137\) without a result/], ['oom-result', /Target closed/]]) {
+    const { post, call, until, jobsDir } = await start(t, mode);
     const { render_id } = await (await post(job())).json();
     const r = await until(render_id);
-    assert.equal(r.status, 'failed');
-    assert.equal(r.error, error);
-    assert.match(r.detail, re);
-    if (mode === 'oom') assert.equal(r.resources.oom_kills, 1);
-    assert.deepEqual(readdirSync(jobsDir), []);
+    assert.deepEqual([r.status, r.error], ['failed', 'memory_limit_exceeded'], mode);
+    assert.match(r.detail, detail);
+    assert.equal(r.artifacts, undefined);
+    const res = r.resources;
+    assert.deepEqual([res.backend, res.oom_kills, res.memory_bytes, res.swap_bytes, res.pids_max, res.cpu_quota], ['cgroup-v1', 1, 3 * 1024 ** 3, 0, 1024, 1.5]);
+    assert.equal(res.cleanup.ok, true);
+    // The service stays healthy and takes the next render.
+    assert.equal((await (await call('/health', { headers: {} })).json()).ok, true);
+    assert.equal((await post(job())).status, 202);
+    assert.ok(readdirSync(jobsDir).length <= 1);
   }
 });
 

@@ -1,10 +1,14 @@
 // Test double for child.mjs (service.test.mjs only): the same job-directory protocol with no
 // rendering, so the service's HTTP, limits, cleanup and environment rules test in seconds.
-//   node stub-child.mjs <jobDir> ready | sleep | tree | big | crash | failed | nolimits | oom | dirty
-// nolimits / oom / dirty stand in for motion-sandbox's out/sandbox-exit.json on Linux.
+//   node stub-child.mjs <jobDir> ready | sleep | tree | big | crash | failed | nolimits | oom | oom-result | dirty
+// nolimits / dirty stand in for motion-sandbox's out/sandbox-exit.json on Linux. oom and
+// oom-result write the record the REAL ResourceController produces (finishJob + normalize) over
+// a fake cgroup v1 tree whose memory controller counted a kernel OOM kill; only the kernel is fake.
 import { spawn } from 'node:child_process';
-import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import * as fs from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { controllerFor, detect, finishJob, normalize } from './resource-control.mjs';
 
 const [dir, mode] = process.argv.slice(2);
 const out = join(dir, 'out');
@@ -18,6 +22,21 @@ const ready = (finalBytes = 64) => {
   result({ status: 'ready', duration_seconds: 15, fps: 30, width: 1920, height: 1080, frame_count: 450, output_bytes: finalBytes, determinism: { identical: true }, not_a_result_field: 'dropped' });
 };
 const forever = () => setInterval(() => {}, 1000);
+// motion-sandbox's exit record for a job whose memory group recorded one kernel OOM kill.
+async function kernelOomRecord(exitStatus) {
+  const root = join(dir, 'fake-cgroup').replaceAll('\\', '/');
+  const files = {
+    '/proc/mounts': ['memory', 'pids', 'cpu,cpuacct', 'freezer'].map(c => `cgroup /sys/fs/cgroup/${c} cgroup rw,nosuid,nodev,noexec,relatime,${c} 0 0`).join('\n'),
+    '/sys/fs/cgroup/memory/memory.memsw.limit_in_bytes': '9223372036854771712',
+  };
+  for (const [p, text] of Object.entries(files)) { mkdirSync(dirname(root + p), { recursive: true }); writeFileSync(root + p, text); }
+  const fakeFs = { ...fs, rmdirSync: p => rmSync(p, { recursive: true, force: true }) };
+  const d = detect({ fs: fakeFs, root }), ctl = controllerFor(d, { fs: fakeFs, root });
+  ctl.create(job.render_id);
+  writeFileSync(`${root}/sys/fs/cgroup/memory/motion/${job.render_id}/memory.oom_control`, 'oom_kill_disable 0\nunder_oom 0\noom_kill 1');
+  const { stats, cleanup } = await finishJob(ctl, job.render_id, { renderProcs: () => [], kill: () => {}, sleep: async () => {} });
+  return { exit_status: exitStatus, ...normalize(d.backend, stats), controllers: d.controllers, cleanup };
+}
 
 if (mode === 'ready') ready();
 else if (mode === 'big') ready(2000);
@@ -29,9 +48,12 @@ else if (mode === 'nolimits') {
 } else if (mode === 'dirty') {
   ready();
   writeFileSync(join(out, 'sandbox-exit.json'), JSON.stringify({ exit_status: 0, backend: 'cgroup-v1', cleanup: { freezer: 'used', terminated: 1, killed: 1, remaining: 1, groups_removed: false, render_user_processes: 1, ok: false } }));
-} else if (mode === 'oom') {
-  writeFileSync(join(out, 'sandbox-exit.json'), JSON.stringify({ exit_status: 137, memory_max: 3221225472, pids_max: 1024, cpu_max: '150000 100000', oom_kills: 1 }));
-  process.exit(137);
+} else if (mode === 'oom' || mode === 'oom-result') {
+  writeFileSync(join(out, 'sandbox-exit.json'), JSON.stringify(await kernelOomRecord(mode === 'oom' ? 137 : 0)));
+  // oom: the kernel killed the child itself, so there is no result. oom-result: it killed the
+  // biggest process (Chromium), and the child reported the broken render.
+  if (mode === 'oom') process.exit(137);
+  result({ status: 'failed', error: 'renderer_failure', detail: 'Target closed (the browser process was killed)' });
 }
 else if (mode === 'sleep') { writeFileSync(join(out, 'pids.json'), JSON.stringify([process.pid])); forever(); }
 else if (mode === 'tree') {
