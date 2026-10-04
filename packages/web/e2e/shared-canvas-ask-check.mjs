@@ -1,6 +1,9 @@
 // The shared canvas composer (docs/features/shared-canvas-ask.md) end to end, against the LOCAL stack only - it writes
 // to local D1 and fresh browser profiles; never point it at a deployed worker. The ask route is scripted in the
-// browser: no model is called (run the app worker without model keys too, below). Prints no secrets.
+// browser: no model is called (run the app worker without model keys too, below). Prints no secrets. Shared canvas v1
+// checks (owner decisions A-F): the viewer's chat never reaches a fork, the repository pill holds the pinned commit
+// across a refresh, a private repository shows no pill until its owner turns it on in the Share panel, a rate limit
+// shows in the viewer's window with the draft kept, and a / message is a plain question.
 //   build:         VITE_RABBIT_HOLE=true VITE_NOTEBOOK_ORIGIN=… VITE_LESSON_NOTEBOOK_ORIGIN=… VITE_TLDRAW_LICENSE_KEY=… npx vite build --outDir dist-dev
 //   app:           npx wrangler dev -c packages/web/wrangler.dev.jsonc -c packages/control-plane/wrangler.rabbit-hole-dev.jsonc --local --persist-to .small/fork-local --port 8848 --env-file <a copy of packages/control-plane/.dev.vars>
 //   control plane: npx wrangler dev -c packages/control-plane/wrangler.rabbit-hole-dev.jsonc --local --persist-to .small/fork-local --port 8849
@@ -30,8 +33,10 @@ const check = (name, ok, detail = '') => { results.push(ok); console.log(`${ok ?
 // ---- the owner's project: a repository app (seeded in local D1: importing needs the indexer) and a canvas on it ----
 const catalog = await api(owner, '/api/apps');
 const REPO = `repo-${run.slice(-8).padStart(8, '0')}-nanogpt`, SHA = '3adf61e0c1b2a3d4e5f60718293a4b5c6d7e8f90'; // fixture commit
-const sql = `INSERT INTO repository_apps(org,name,owner_email,repo,branch,commit_sha,status) VALUES('${catalog.org}','${REPO}','${catalog.email}','karpathy/nanoGPT','master','${SHA}','ready')`;
-execFileSync(`npx wrangler d1 execute rabbit-hole-learn-dev --local --persist-to .small/fork-local -c packages/web/wrangler.dev.jsonc --command "${sql}"`, { cwd: ROOT, shell: true, stdio: 'ignore' });
+// The import confirms a public repository (repository_visibility); the private one has no row, so it is private.
+const PRIVATE_REPO = `repo-${run.slice(-8).padStart(8, '0')}-lab`;
+const d1 = sql => execFileSync(`npx wrangler d1 execute rabbit-hole-learn-dev --local --persist-to .small/fork-local -c packages/web/wrangler.dev.jsonc --command "${sql}"`, { cwd: ROOT, shell: true, stdio: 'ignore' });
+d1(`INSERT INTO repository_apps(org,name,owner_email,repo,branch,commit_sha,status) VALUES('${catalog.org}','${REPO}','${catalog.email}','karpathy/nanoGPT','master','${SHA}','ready'),('${catalog.org}','${PRIVATE_REPO}','${catalog.email}','acme/private-lab','main','${SHA}','ready'); INSERT INTO repository_visibility(app_id, visibility) SELECT id, 'public' FROM repository_apps WHERE name = '${REPO}'`);
 const TITLE = 'nanoGPT attention (ask check)';
 const canvas = await api(owner, '/api/canvases', { method: 'POST', body: JSON.stringify({ title: TITLE, project: REPO }) });
 const style = { color: '#37352f', width: 2, dash: 'solid', fill: null, opacity: 1, round: false };
@@ -62,7 +67,8 @@ check('the ask route refuses an empty question before any model', (await ask(vie
 const browser = await chromium.launch();
 const errors = [], aborted = [], asked = [];
 const ANSWER = 'The 1/sqrt(d) scale keeps the dot products from growing with the head size, so softmax stays out of saturation.\nSources: model.py:62-64';
-const WRITES = [/^\/api\/learn\/boards\/fork$/, /^\/api\/canvases$/];
+const WRITES = [/^\/api\/learn\/boards\/fork$/, /^\/api\/canvases$/, /\/share\/repository$/];
+let limitNext = false; // the next ask answers 429, as the server's rate limit does
 const contextFor = async (who = null) => {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   if (who) await context.addCookies([{ name: 'small_session', value: who.session, url: BASE }]);
@@ -76,6 +82,7 @@ const contextFor = async (who = null) => {
   await context.route(url => url.pathname === '/login', route => route.fulfill({ status: 302, headers: { location: route.request().url().replace('/login?', '/sign-in?') } }));
   await context.route(url => /^\/api\/learn\/boards\/shared\/[^/]+\/ask$/.test(url.pathname), route => {
     asked.push(JSON.parse(route.request().postData() || '{}'));
+    if (limitNext) { limitNext = false; return route.fulfill({ status: 429, contentType: 'application/json', body: JSON.stringify({ error: 'You have asked 20 questions about shared canvases in the last hour, the limit for now. Try again later.', limited: true }) }); }
     const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
     return route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body: frame('progress', { stage: 'read source...' }) + frame('chunk', { text: asked.length === 1 ? ANSWER : 'Yes: the same scale applies to every head.' }) + frame('done', { ok: true }) });
   });
@@ -130,6 +137,32 @@ await page.reload();
 await page.locator('[data-shared-answer]').nth(1).waitFor({ timeout: 30000 });
 check('the conversation stays in this viewer\'s tab across a reload', await page.locator('[data-shared-answer]').count() === 2);
 
+// ---- B: the owner refreshes the repository to a new commit; the share keeps its pinned commit ----
+d1(`UPDATE repository_apps SET commit_sha = '${'b'.repeat(40)}' WHERE name = '${REPO}'`);
+await page.reload();
+await composer.waitFor({ timeout: 60000 });
+check('after the owner refreshes the repository, the pill still shows the pinned commit', (await page.locator('[data-context-pill="repository"]').innerText()).trim() === 'karpathy/nanoGPT · 3adf61e');
+check('the share\'s API still answers from the pinned commit', (await api(viewer, `/api/learn/boards/shared/${token}`)).context.repository?.commit === SHA);
+
+// ---- F: a / message is a plain question - no command picker, no command chip ----
+await field.fill('/');
+await page.waitForTimeout(400);
+check('typing / opens no command picker in the shared composer', await page.locator('[data-slash-picker], [role="listbox"][aria-label="Commands"], [data-command-pill]').count() === 0);
+await field.fill('/dive attention');
+await field.press('Enter');
+await page.locator('[data-shared-answer]').nth(2).waitFor({ timeout: 20000 });
+check('/dive attention is sent as a plain question and answered in the window', asked.at(-1)?.message === '/dive attention' && Object.keys(asked.at(-1)).sort().join() === 'history,message', JSON.stringify(asked.at(-1)));
+
+// ---- D: a rate-limited ask shows in the viewer's window and the question goes back into the composer ----
+limitNext = true;
+const LIMITED = 'One more question about the mask?';
+await field.fill(LIMITED);
+await field.press('Enter');
+await page.locator('[data-shared-limited]').waitFor({ timeout: 20000 });
+check('the limit message shows in the viewer\'s window', /questions about shared canvases in the last hour/.test(await page.locator('[data-shared-limited]').innerText()));
+check('the draft is back in the composer, not lost', await field.inputValue() === LIMITED);
+await shot(page, '04-rate-limited');
+
 // ---- the owner's board and threads are untouched ----
 const after = await ownerBoard(), threadsAfter = await ownerThreads();
 check('the owner\'s board version and content are unchanged', after.version === before.version && JSON.stringify(after.state) === JSON.stringify(before.state), `${before.version} -> ${after.version}`);
@@ -140,9 +173,40 @@ await page.locator('[data-fork-button]').click();
 await page.waitForURL(/\/apps\/canvas-[a-f0-9]{8}\?tab=learn$/, { timeout: 20000 });
 const forkName = new URL(page.url()).pathname.split('/').pop();
 check('Fork makes the viewer\'s own canvas', (await api(viewer, '/api/canvases')).canvases.some(c => c.name === forkName && c.owner_email === VIEWER));
+const forked = JSON.stringify(await api(viewer, `/api/learn/boards/${forkName}/main`));
+check('A: the fork holds the canvas, never the viewer\'s private chat', forked.includes('Why exponentiate?') && !forked.includes('softmax stays out of saturation') && !forked.includes(DRAFT) && !forked.includes(LIMITED));
 await page.goto(`${BASE}/b/${token}`);
 await composer.waitFor({ timeout: 60000 });
 check('the shared page then counts the fork beside Fork, the composer still at the bottom', (await page.locator('[data-fork-count]').innerText()).trim() === '1 fork' && await composer.count() === 1);
+
+// ---- C: a private repository's canvas: no repository pill until the owner opens it up for this link ----
+const lab = await api(owner, '/api/canvases', { method: 'POST', body: JSON.stringify({ title: 'Lab notes (private repo)', project: PRIVATE_REPO }) });
+const labShare = await api(owner, `/api/learn/boards/${lab.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, public_view: true, state: BOARD }) });
+const labToken = labShare.sharing.view;
+check('the owner\'s Share panel data marks the repository private, off', JSON.stringify(labShare.sharing.repository) === JSON.stringify({ repo: 'acme/private-lab', commit: SHA, private: true, repo_access: false }), JSON.stringify(labShare.sharing.repository));
+const labPage = await contextFor(viewer);
+await labPage.goto(`${BASE}/b/${labToken}`);
+await labPage.locator('[data-shared-ask] [data-chat-composer]').waitFor({ timeout: 60000 });
+const labPills = await labPage.locator('[data-context-pill]').evaluateAll(nodes => nodes.map(node => node.dataset.contextPill));
+check('a private repository shows no repository pill, only the board\'s sources', JSON.stringify(labPills) === JSON.stringify(['video', 'wiki', 'paper']), JSON.stringify(labPills));
+check('the shared page names neither the private repository nor its commit', !(await labPage.content()).includes('acme/private-lab') && !(await labPage.content()).includes(SHA.slice(0, 7)));
+await shot(labPage, '05-private-repo-no-pill');
+const ownerPage = await contextFor(owner);
+await ownerPage.goto(`${BASE}/apps/${lab.name}?tab=learn`);
+await ownerPage.locator('[data-share-button]').waitFor({ timeout: 60000 });
+await ownerPage.waitForTimeout(1500);
+await ownerPage.locator('[data-share-button]').click();
+const toggle = ownerPage.locator('[data-share-repository]');
+await toggle.waitFor({ timeout: 20000 });
+check('the owner\'s Share panel offers the private repository\'s code, off', (await toggle.locator('[role="switch"]').getAttribute('aria-checked')) === 'false' && /acme\/private-lab at 3adf61e/.test(await toggle.innerText()));
+await shot(ownerPage, '06-owner-share-private-toggle');
+await toggle.locator('[role="switch"]').click();
+await ownerPage.waitForFunction(() => document.querySelector('[data-share-repository] [role="switch"]')?.getAttribute('aria-checked') === 'true', null, { timeout: 20000 });
+check('turning it on is saved on the server for this link', (await api(viewer, `/api/learn/boards/shared/${labToken}`)).context.repository?.repo === 'acme/private-lab');
+await shot(ownerPage, '07-owner-share-private-toggle-on');
+await labPage.reload();
+await labPage.locator('[data-context-pill="repository"]').waitFor({ timeout: 60000 });
+check('the viewer then sees the repository pill', (await labPage.locator('[data-context-pill="repository"]').innerText()).trim() === 'acme/private-lab · 3adf61e');
 
 await browser.close();
 check('no page errors', errors.length === 0, errors.join(' | '));

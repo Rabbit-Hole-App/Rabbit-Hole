@@ -56,3 +56,41 @@ test('back from sign-in: the draft is restored and focused, ?ask=1 leaves the ad
   assert.doesNotMatch(composer, /\bsend\(/);
   assert.match(composer, /if \(!viewer\) return toSignIn\(raw\);/);
 });
+
+// Shared canvas v1, the owner's locked decisions (docs/features/shared-canvas-ask.md).
+test('A: the viewer\'s chat stays private - the heading says so, and Fork sends only the link, never the chat', () => {
+  assert.match(composer, /<Lock size=\{11\} \/>Only you see this chat\. Fork to make your own editable copy\.<\/span>/);
+  assert.match(page, /<ForkButton source=\{\{ token \}\} auto=\{forkRequested\} onForked=\{[^}]*\}[^}]*\} \/>/);
+  assert.doesNotMatch(page, /<ForkButton[^>]*snapshot=/, 'no browser state rides with a shared fork');
+  // The chat goes to this tab's sessionStorage (saveChat) and, as history, only with this viewer's own questions.
+  assert.deepEqual(composer.match(/saveChat\([^)]*\)|askHistory\([^)]*\)/g), ['saveChat(token, viewer, turns)', 'askHistory(turns)']);
+});
+
+test('B: a notice that the pinned repository could not be read shows under that answer', () => {
+  assert.match(composer, /else if \(type === 'done' && data\.notice\) last\(\{ notice: data\.notice \}\);/);
+  assert.match(composer, /\{turn\.notice && <p data-shared-notice[^>]*>\{turn\.notice\}<\/p>\}/);
+});
+
+test('C: the Share panel offers repository code only for a private repository, through the owner-only route', () => {
+  const panel = readFileSync(new URL('./SharePanel.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const learn = readFileSync(new URL('./LearnPage.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  assert.match(panel, /\{current\.view && current\.repository\?\.private && \(\n\s+<label data-share-repository/);
+  assert.match(panel, /<Switch on=\{current\.repository\.repo_access\} label="Answers can read the private repository" disabled=\{busy\} onChange=\{onRepository\} \/>/);
+  assert.match(learn, /api\(`\$\{boardPath\}\/share\/repository`, \{ method: 'POST', body: JSON\.stringify\(\{ allow \}\) \}\)/);
+  assert.match(learn, /onRepository=\{changeRepositoryAccess\}/);
+  // The shared page shows a repository pill only when the server sends one.
+  assert.match(composer, /\{repository && <span data-context-pill="repository"/);
+});
+
+test('D: over a limit, the message shows in the viewer\'s window and the question goes back into the composer', () => {
+  assert.match(composer, /else if \(type === 'error'\) \{ limited = !!data\.limited; last\(\{ error: data\.error, limited \}\); \}/);
+  assert.match(composer, /if \(limited\) setInput\(current => current \|\| raw\);/);
+  assert.match(composer, /<div role="alert" data-shared-limited=\{turn\.limited \|\| undefined\}/);
+});
+
+test('F: the shared composer is a plain Q&A box - no +, attachments, model picker or / commands', () => {
+  const call = composer.match(/<ChatComposer dock [^\n]*\n[^\n]*\/>/)[0];
+  for (const prop of ['leading=', 'trailing=', 'onKeyDown=', 'ready=', 'voice=', 'multiline']) assert.ok(!call.includes(prop), prop);
+  assert.doesNotMatch(composer, /SlashCommands|CommandsSheet|ModelPicker|Paperclip|\bPlus\b|type="file"|attachment/i);
+  assert.match(composer, /body: \{ message, history \}/, 'only the question and history are sent');
+});

@@ -101,7 +101,8 @@ const PILL = 'inline-flex max-w-[260px] shrink-0 items-center gap-1.5 rounded-md
 
 // The shared canvas's composer: Learn's composer shell (ChatComposer dock) in the canvas's composer slot, the
 // canvas's context as read-only pills above it, and the answers in a window above that only this viewer sees -
-// kept in this tab (shared-ask.js), never on the owner's board. Anyone may type; sending needs an account, so
+// kept in this tab (shared-ask.js), never on the owner's board and never in a fork (Fork sends only the link). It is
+// a Q&A surface only: no +, attachments, model picker or / commands (the server ignores them too). Anyone may type; sending needs an account, so
 // signed out, Send keeps the draft and goes through sign-in. `draft` (back from sign-in) is restored, never sent.
 function SharedAsk({ token, viewer, context, draft }) {
   const [input, setInput] = useState(draft || '');
@@ -125,13 +126,15 @@ function SharedAsk({ token, viewer, context, draft }) {
     setTurns(all => [...all, { role: 'user', content: message }, { role: 'assistant', content: '', pending: true }]);
     const controller = new AbortController();
     flight.current = controller;
-    let signIn = false;
+    let signIn = false, limited = false;
     try {
       await streamAsk({ path: askPath(token), body: { message, history }, signal: controller.signal, onEvent: (type, data) => {
         if (type === 'chunk') last(turn => ({ content: turn.content + data.text }));
         else if (type === 'progress') last({ status: data.stage });
         else if (type === 'error' && data.signIn) signIn = true;
-        else if (type === 'error') last({ error: data.error });
+        else if (type === 'error') { limited = !!data.limited; last({ error: data.error, limited }); }
+        // The server could not read the share's repository at its pinned commit: said under the answer.
+        else if (type === 'done' && data.notice) last({ notice: data.notice });
       } });
     } catch (error) {
       last({ error: error.name === 'AbortError' ? 'Stopped.' : error.message });
@@ -142,6 +145,8 @@ function SharedAsk({ token, viewer, context, draft }) {
     }
     // The session ended since the page opened: the question goes back through sign-in as a draft.
     if (signIn) { setTurns(all => all.slice(0, -2)); toSignIn(message); }
+    // Over a limit (429): the limit shows in the window and the question goes back into the composer, unless a new one is being typed.
+    if (limited) setInput(current => current || raw);
   };
   const sources = context?.sources || [];
   const repository = context?.repository;
@@ -150,17 +155,18 @@ function SharedAsk({ token, viewer, context, draft }) {
       {open && turns.length > 0 && (
         <div ref={box} data-shared-chat className="no-scrollbar absolute right-0 bottom-full left-0 z-30 mb-2 max-h-[45vh] overflow-y-auto rounded-xl border border-line bg-white px-3 pb-3 shadow-pop">
           <div className="sticky top-0 z-10 -mx-3 flex items-center gap-1 bg-white px-3 pt-2 pb-1">
-            <span className="mr-auto flex items-center gap-1 text-xs text-ink-2"><Lock size={11} />Only you see this chat. Fork to keep your own copy.</span>
+            <span className="mr-auto flex items-center gap-1 text-xs text-ink-2"><Lock size={11} />Only you see this chat. Fork to make your own editable copy.</span>
             <button type="button" disabled={busy} onClick={() => setTurns([])} className="flex h-6 cursor-pointer items-center rounded-sm px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-50">Clear</button>
             <button type="button" aria-label="Collapse chat" title="Collapse" onClick={() => setOpen(false)} className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink"><Minus size={14} /></button>
           </div>
           {turns.map((turn, i) => (
             <div key={i} className={`py-1.5 ${turn.role === 'user' ? 'flex justify-end' : ''}`}>
               {turn.role === 'user' ? <div className="max-w-[85%] rounded-lg bg-hover px-3 py-1.5 text-sm">{turn.content}</div>
-                : turn.error ? <div role="alert" className="rounded-lg border border-danger/40 bg-danger/5 px-3 py-2 text-sm text-danger">{turn.error}</div>
+                : turn.error ? <div role="alert" data-shared-limited={turn.limited || undefined} className="rounded-lg border border-danger/40 bg-danger/5 px-3 py-2 text-sm text-danger">{turn.error}</div>
                 : turn.content ? <div data-shared-answer className="min-w-0 rounded-lg border border-accent/30 p-3">
                   {/* ponytail: no onFile - a shared view cannot open the owner-only repository file viewer, so cited files show as plain pills and there is no Sources dropdown. A share-scoped read-only file route would make them open. */}
                   <Md text={turn.content} />
+                  {turn.notice && <p data-shared-notice className="mt-2 text-xs text-ink-3">{turn.notice}</p>}
                 </div>
                 : <span className="flex items-center gap-2 text-xs text-ink-2"><Loader2 size={14} className="animate-spin text-ink-3" /><span className="shimmer">{turn.status || 'Thinking…'}</span></span>}
             </div>

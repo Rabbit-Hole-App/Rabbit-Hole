@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, CircleAlert, Copy, Eye, Globe } from 'lucide-react';
+import { Check, CircleAlert, Copy, Eye, FolderLock, Globe } from 'lucide-react';
 
 // The Share popover for a Learn board (docs/features/canvas-sharing.md): one
 // switch shares or stops sharing; the view link can be public (no sign-in).
@@ -42,7 +42,8 @@ function LinkRow({ Icon, title, detail, token, on, disabled, onToggle, children 
   );
 }
 
-export default function SharePanel({ sharing, busy, error, onChange, onClose }) {
+// onRepository(allow): the owner's switch for a private repository's code on this link (docs/features/shared-canvas-ask.md).
+export default function SharePanel({ sharing, busy, error, onChange, onRepository, onClose }) {
   const panel = useRef(null);
   useEffect(() => {
     const away = event => { if (!panel.current?.contains(event.target) && !event.target.closest?.('[data-share-button]')) onClose(); };
@@ -85,6 +86,17 @@ export default function SharePanel({ sharing, busy, error, onChange, onClose }) 
                 <Globe size={13} className="shrink-0" />
                 <span className="flex-1">Public: no sign-in needed to view</span>
                 <Switch on={current.public_view} label="Public view link" disabled={busy} onChange={on => set({ public_view: on })} />
+              </label>
+            )}
+            {/* Only for a private repository of yours: off, viewers' answers use this canvas and its sources only. */}
+            {current.view && current.repository?.private && (
+              <label data-share-repository className="mt-2 flex items-center gap-2 text-xs text-ink-2">
+                <FolderLock size={13} className="shrink-0" />
+                <span className="min-w-0 flex-1">
+                  <span className="block">Answers can read the private repository</span>
+                  <span className="block truncate text-ink-3">{current.repository.repo} at {current.repository.commit.slice(0, 7)}. Off: this canvas only.</span>
+                </span>
+                <Switch on={current.repository.repo_access} label="Answers can read the private repository" disabled={busy} onChange={onRepository} />
               </label>
             )}
           </LinkRow>
