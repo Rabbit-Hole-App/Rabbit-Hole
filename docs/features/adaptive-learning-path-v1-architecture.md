@@ -1,676 +1,736 @@
-# Adaptive Learning Path V1: LP0 audit and architecture
+# Adaptive Learning Path V1 — architecture (LP0, revision 2)
 
-Status: **LP0. Architecture proposal awaiting owner approval. Nothing is implemented.**
+Status: **LP0 revision 2, with the owner decisions of 2026-10-04 locked in. LP1 is building against this
+document.**
 
 - Spec, the source of truth: [rabbit-hole-adaptive-learning-path-v1.md](rabbit-hole-adaptive-learning-path-v1.md).
   This branch carries a verbatim copy, because the original is untracked in the `small-parallel` worktree.
-- Branch `feature/adaptive-learning-path-v1`, worktree `workspace/adaptive-learning-path-v1`, cut from
-  `origin/main` 74d20468.
-- Owner: Learning Path / Curriculum agent. Parallel integrates. Not deployed, not merged.
+- Branch `feature/adaptive-learning-path-v1`, rebased on `origin/main` 68f02092.
+- Owner: Learning Path / Curriculum agent. Parallel integrates. Not merged.
 
 Out of scope for this agent: `/motion`, the HeyGen Avatar Teacher, Shared Canvas, skeleton cards, the CLI,
-infrastructure and deployments, and canonical main integration.
+infrastructure, and canonical main integration.
+
+> **Task-level override of CLAUDE.md (owner, 2026-10-04): LP1 is not deployed.** CLAUDE.md asks that every UI
+> change be deployed to a dev clone for visual review. For this task the owner's instruction wins. LP1 is
+> reviewed only on the local stack, through browser checks, screenshots and the Figma review. No dev-clone or
+> other deployment happens until the owner explicitly authorizes one.
+
+This document is the contract for every sub-agent working on the subsystem. A sub-agent implements its section
+as written. It does not redesign: an open question goes back to the primary owner.
 
 ---
 
-## 1. Current behaviour in code (audit, 2026-10-04, main 74d20468)
+## 0. Locked owner decisions (2026-10-04)
 
-### 1.1 Broad learning intent today
+| # | Decision |
+|---|---|
+| D1 | **Generalize Tutor v2 first.** On a canvas with an active learning journey, Tutor v2 is the one Tutor. There is no separate journey tutor, and no "Learn chat plus journey probes" brain. A blank canvas without a journey keeps the Learn chat. The nanoGPT Tutor keeps its behaviour exactly. The golden traces and the benchmark gate are re-run before LP1 is accepted. |
+| D1b | **Journey evidence is server-side** and is the source of truth for active journeys. The existing event shapes, `reconcile()`, the JEV → larger-evaluator ladder and the locked five states are reused. The nanoGPT `sessionStorage` store stays until it is migrated deliberately. There are no mastery percentages. |
+| D2 | **LEARN_DB tables**, as an additive migration numbered with the next unused number: **0006**. It is applied locally only. The shared dev and production LEARN_DB wait for an explicit GO. |
+| D3 | **Model roles resolve through `LEARN_TASKS`**; no model id appears in any schema. Intake and diagnostic planner: Sonnet 5.5 at effort low. Diagnostic evaluation: the existing deterministic → JEV → larger ladder. Initial path: Opus 5.5. Section: Sonnet 5.5 at effort low. Adaptation: Sonnet 5.5 at effort low, escalating to the path model on a validator rejection, contradictory evidence or reported ambiguity. Tests run on fixtures; only a few real calls happen once the slice works. |
+| D4 | **Home `teach()` starts the journey on the server.** The exact learner request is kept, the journey starts in `intake`, Learn opens and the tray appears. No cards are generated during this handoff. Factual Home questions never start a journey. This agent owns the `AgentBar.jsx` change. |
+| D5 | **The Adaptive Contents Rail stays reachable while the Learn agent chat panel is open.** LP1 is desktop-primary. The component is split so that a later Path button → drawer/sheet can render the same state. Narrow and mobile access is required before production. |
+| D6 | **Voice is a communication mode.** A voice utterance goes through the same interaction resolver as typed text. An unrelated question gets a normal Tutor answer with journey context, then the journey resumes. Voice has no curriculum logic of its own. |
+| D7 | **LP1 is not deployed** (the override above). |
+| R1 | **No routing on punctuation.** While a tray is active, every learner turn goes through the interaction resolver. Its categories are `tray_answer`, `path_edit`, `unrelated_question`, `cancel` and `clarification_needed`. It tries deterministic matching first, then a lightweight model call. Free text always comes from the existing composer. |
+| R2 | **The rail is a teaching plan.** It renders the LearningPath states: completed, current, upcoming, optional, needs_review and adapted/new. Clicking an upcoming section shows its purpose and never generates anything. |
+| R3 | **Identity.** A stable internal user id is preferred over email where the platform provides one, and no new identity system is created. See §10.2: the Learn worker only receives the account principal, so this needs an owner call (N1). |
+| R4 | **Diagnostic evidence rule.** `understood` still requires settled transfer evidence. Diagnostic probes are designed so they can genuinely test transfer. A correct self-report is never mastery evidence. |
+| R5 | **One section at a time.** Sections contain no generated content. After acceptance, only the current section gets a SectionPlan and teaching artifacts. |
 
-| Entry | What happens | Code |
+---
+
+## 1. Audit summary (main 68f02092)
+
+The full audit is in revision 1 (commit f0523fe7, §1). These are the facts the design depends on.
+
+**Tutor v2 is hard-wired to the nanoGPT Attention slice.**
+- The registry is static: `CONCEPTS`, `CLAIMS`, `PRACTICE`, `CARD_CLAIMS`/`PART_CLAIMS`, `SLICE_CARDS` and the
+  attention ladder, all in `learn-tutor-claims.js`.
+- The selector's cue phrases are hand-written (`learn-tutor-select.js` `CUES`).
+- The validator's resource checks only know the slice: `SLICE_CARDS`, `cardModule`, `partIndex`, `ladderStep`.
+- `PLANNER_SYSTEM` says "about nanoGPT attention" and "never generate new artifacts".
+- `useTutor` is active only on the supplied course, the slice board and the holes under them.
+
+**Orchestration runs in the browser.** `runTurn` posts to `/api/learn/tutor/evaluate` and
+`/api/learn/tutor/plan`; the worker stores nothing. Evidence lives in `sessionStorage` (`small.tutor:<org>:<email>`).
+
+**The evaluate route is registry-agnostic.** It takes the claims in the body (at most 6 claims, 4 gaps, 4 ideas
+and 5 misconceptions each). JEV's transfer check reads `claim.drawn`: "a specific case other than the one the
+card draws".
+
+**Planner context.** Its key list is pinned by `learn-tutor-context.test.mjs`. The golden traces live in
+`learn-tutor.test.mjs` (11/11). The stub corpus runner is `e2e/tutor-corpus-run.mjs`, and the paid gates are
+`e2e/tutor-bench-gates.mjs`.
+
+**New on main since revision 1.**
+- Skeleton card slots: `canvas.reserve()`, `insertBlock(block, { into })`, `revealBlock`, with `wantsCard` and
+  `showableCards` in `learn-tutor.js`. Materialization reuses the slots.
+- Canvas forking and Shared Canvas v1 (`learn-migrations/0004`, `0005`).
+
+**Learn panels.**
+- The Learn agent chat panel is a `ResizableSidePanel` (`LearnPage.jsx:1323`).
+- `ContentsRail` is mounted outside the canvas frame and only while that panel is closed (`LearnPage.jsx:1430`).
+  It has no statuses and is fed only by heading blocks.
+
+**Home `teach()` drops the learner's words.** It creates a canvas titled with the raw sentence, and
+`learnHandoff = false`.
+
+**Voice exists only where `useTutor` is active.** A journey canvas on which Tutor v2 is active therefore gets
+Voice with no change to the voice code.
+
+**Identity.** The Learn worker resolves identity through `devIdentity` → `/api/me`, which returns
+`{ email, org, orgName }`. Every LEARN_DB table keys on `(org, owner_email)`. That email is the internal account
+principal of `users.email` (migration 0026): unique, never updated by any code, and a synthetic
+`user@<id>.rabbithole.invalid` for Google- or GitHub-only users. `users.id` exists in DB and in the session
+(`uid`), but it does not reach the Learn worker.
+
+---
+
+## 2. Architecture
+
+```
+                      ┌──────────── Learning Journey Orchestrator (server, /api/learn/journey) ───────────┐
+                      │ Intent Intake · Diagnostic Planner · Learning Path Planner · Section Planner        │
+                      │ state machine · path versions · section materializer plan · probe policy          │
+                      └───────────────┬───────────────────────────────────────────────▲────────────────────┘
+          journey domain (registry,   │                                               │ evidence states,
+          current section, context)   ▼                                               │ path adaptation
+Learner ─▶ interaction resolver ─▶ LearnerTurn ─▶ Evaluator (det → JEV → larger) ─▶ Evidence Store ─▶ Router
+ (chat/voice)  (tray active?)       (Tutor v2)     /api/learn/tutor/evaluate          (server, journey)
+                                                                                         ─▶ Tutor Planner ─▶ Validator ─▶ TutorAction ─▶ Canvas
+```
+
+- The Orchestrator decides **what** is taught next: setup, path and current section.
+- Tutor v2 decides **how** to answer this turn.
+- One Tutor, one evaluator ladder and one evidence store serve every journey canvas.
+- What changes per canvas is the **TutorDomain**.
+
+Which brain answers:
+
+| Canvas | Responder |
+|---|---|
+| Blank canvas, no journey | Learn chat (`/api/learn/ask`), unchanged |
+| Canvas with a live journey (any state) | Tutor v2 with the journey domain |
+| Supplied nanoGPT course, slice board, holes under them | Tutor v2 with the nanoGPT domain, byte-identical |
+
+---
+
+## 3. Generalized Tutor v2: the TutorDomain
+
+Every nanoGPT-specific read in the Tutor modules goes through one injected object. The default is the existing
+nanoGPT domain, built from the current constants, so nanoGPT callers change nothing and produce identical output.
+
+```
+TutorDomain {
+  kind          'nanogpt' | 'journey'
+  subject       'nanoGPT attention' | <journey topic>
+  concepts      { [id]: { label, names[] } }
+  claims        { [id]: { concept, statement, ideas[≤4], misconceptions[{id, check}] ≤5, prerequisites[], drawn, cues?[] } }
+  practice(card, taskId, version)       → { claim, transfer, wrong } | null
+  targetClaims(target)                  → claim ids                      (card/part/selected object → claims)
+  defaultClaims(turn)                   → claim ids                      (nanoGPT: the hole's concept; journey: the current section's)
+  conceptOf(text)                       → concept id | null
+  cards         showable card ids       (nanoGPT: SLICE_CARDS; journey: the materialized blocks of current + completed sections)
+  cardModule(id) / catalogue() / ladderStep(id, dir) / partLabels(card)
+  showCard(canvas, id, partId, take)    (nanoGPT: insert the authored module; journey: reveal the existing block, never generate)
+  context?      journey_context for the planner (journey only; see §3.3)
+  evidence      { mode: 'session' } | { mode: 'journey', journey_id }
+}
+```
+
+### 3.1 Module changes
+
+These are surgical: every function gains an optional `domain = NANOGPT` parameter.
+
+| Module | Change |
+|---|---|
+| `learn-tutor-claims.js` | Export `NANOGPT` (the domain object over the existing constants). The constants keep their names and values. |
+| `learn-tutor-evidence.js` | `deriveClaimStates(events, claims = CLAIMS)`, `reconcile(store, evaluation, ref, claims = CLAIMS)`, `conceptState(states, concept, claims = CLAIMS)`, `practiceEvents(…, domain)`. The locked derivation is unchanged. |
+| `learn-tutor-select.js` | `selectClaims(raw, opts, domain = NANOGPT)`. Cues come from `CUES[id]`, else `claim.cues`, else the concept names. |
+| `learn-tutor-validate.js` | `validateActions(response, routed, turn, domain = NANOGPT)`. Resource checks go through `domain.cards`, `cardModule`, `ladderStep` and `claims`. |
+| `learn-tutor.js` | `buildTurn`, `turnClaims`, `evaluationSpec`, `route`, `plannerContext`, `runTurn` and `executeActions` take `domain`. `runTurn({ …, domain, plan = true })`: `plan: false` stops after evidence reconciliation (diagnostic turns, §6.3). `off_slice` keeps its name: no claim in the domain's scope. |
+| `agents/learn-tutor.js` | `plannerSystem(kind)`. `plannerSystem('nanogpt') === PLANNER_SYSTEM`, byte-identical, pinned by a snapshot test. `plannerSystem('journey')` is the same lines with the subject line and the authored-content line made generic (point at the section's cards on the canvas, never invent cards), plus three journey lines: teach inside `context.journey_context.section`; name an upcoming section instead of teaching it early; never mention a level or a score. `TUTOR_TOOL` and `ACTION_TYPES` are unchanged in LP1. |
+| `learn-tutor-routes.js` | `/plan`: `context.journey_context` present → `plannerSystem('journey')`, otherwise unchanged. `/evaluate`: a body with `journey_id` takes the journey evidence path (§5). Tiering, caching and streaming are unchanged. The journey prompt is its own stable cached prefix, the same for every journey, because the topic sits in the user message. |
+| `LearnTutor.jsx` | `useTutor({ …, domain, journey })`. `active` additionally covers a board with a live journey. The interaction resolver runs at the top of `turn()`, the one entry shared by typed and voice turns (§7). The store hydrates its events from the journey on load. |
+
+### 3.2 Journey domain behaviour
+
+- **Claims in scope for a turn**, in this order:
+  1. the open question's claim;
+  2. the target block's `journey.claims`, stamped on the block at materialization from the step's claims;
+  3. otherwise `defaultClaims`, which is the current section's `expected_evidence` claims (at most 4).
+
+  In the setup states (`intake`, `diagnostic`, `path_review`) nothing is in scope outside an open probe. A free
+  question there routes `off_slice` and gets a `respond_text` answer with no cards.
+- **Cards are blocks already on the canvas** (current and completed sections).
+  - `show_authored_card` / `focus_part` reveal them.
+  - `suggest_practice` needs a block with an `activity`.
+  - `suggest_depth` has no ladder, so the validator rejects it at the resource stage.
+  - `suggest_dive` and `return_from_dive` work as they do today.
+  - The Tutor never generates artifacts. Generation belongs to the materializer and to the learner's own slash
+    commands.
+- **Policy is unchanged:** one question per turn, `no_quiz`, the two-turn Socratic limit, navigation consent and
+  the critical-path rules.
+
+### 3.3 `journey_context`, journey turns only
+
+```
+journey_context {
+  phase            setup | active | paused
+  goal             one sentence
+  section          { title, purpose, target_concepts: [labels], expected_evidence: [claim ids] } | null
+  upcoming         [titles] ≤ 6
+  constraints      { depth, minutes, coding, math }
+}
+```
+
+The context is bounded to about 1.5 KB. It never carries the whole path, evidence history or raw intake answers.
+It is the tenth Teaching State key, present only on journey turns. The pinned nine-key test stays as it is for
+nanoGPT, and a new test pins the ten keys for journeys.
+
+### 3.4 Preservation gates (run on every Tutor commit; LP1 acceptance needs all of them)
+
+1. `learn-tutor.test.mjs`: golden traces 11/11, unchanged.
+2. The whole existing web and control-plane unit suites, unchanged.
+3. Snapshot tests: `plannerSystem('nanogpt') === PLANNER_SYSTEM`, and the nanoGPT `plannerContext` output is
+   deep-equal to the pre-change output on the corpus inputs.
+4. `node e2e/tutor-corpus-run.mjs --stage lp1` (stub, free): 44 turns, pass 1.000, golden 9/9, every gate input
+   0, compared with a baseline run from main.
+5. `e2e/tutor-slice-check.mjs` in stub mode.
+6. The paid benchmark gate needs an explicit GO and budget. Its scope is owner question N2.
+
+---
+
+## 4. Dynamic journey claim registry
+
+- **Who writes it.**
+  - The Diagnostic Planner creates it: the concepts of the topic's scope, two or three claims each.
+  - The Path Planner may add concepts and claims (`concepts_added`).
+  - The Section Planner may add claims for its own section's concepts.
+  - Every addition goes through `validateRegistry`.
+- **Shape.** The same as the nanoGPT `CLAIMS`, so `/evaluate`, JEV, the larger evaluator and the derivation run
+  unchanged.
+  - Ids: `<concept-slug>/<claim-slug>`, at most 120 characters.
+  - Field limits match `validateEvaluateBody`.
+  - Caps: 16 concepts, 40 claims.
+  - `cues` is optional: up to 12 lowercase phrases for the selector.
+- **`drawn`** is the canonical case the path will teach first, for example "a single-feature spam/not-spam
+  example with threshold 0.5". A diagnostic probe set on a different case can therefore earn
+  `demonstrated_in_transfer` honestly (R4). When a section materializes, the Section Planner may sharpen `drawn`
+  only on claims that have no events yet.
+- **Immutable once used.** A claim that has any event is never edited or deleted, because evidence points at it.
+  A changed claim is a new id.
+- **"Current-section registry"** means the subset in scope for the turn (§3.2). The derivation always runs over
+  the whole journey registry.
+
+---
+
+## 5. Server evidence design
+
+- **Store.** `learning_journeys.evidence_json = { seq, events[] }`. Events have the learn-tutor-evidence shape
+  `{ seq, concept, claim, result, kind, idea?, misconception_id?, prerequisite?, settled, evaluator, source, ref }`.
+  Sources are `free_text` and `journey_probe`; the cap is 500 events (`ponytail:`).
+- **The single write path:** `appendJourneyEvidence(env, journey, evaluation, ref)` in
+  `control-plane/src/learn-journey.js`.
+  1. It imports the pure `reconcile()` from `web/src/learn-tutor-evidence.js`.
+  2. It reconciles with the journey registry.
+  3. It persists with the journey's optimistic `revision`.
+  4. It returns `{ events, seq, states, transitions }`.
+
+  No other code writes journey evidence.
+- **Free text:** `POST /api/learn/tutor/evaluate { app, board, journey_id, message, claims: [ids], answering, question? }`.
+  1. The worker loads the journey (owner only) and checks that every claim id is in its registry.
+  2. It rebuilds the spec from the registry: claim content, gaps from prerequisites, and `prior_misconceptions`
+     from the stored events. Client-sent claim content is ignored.
+  3. It runs the existing `evaluateFreeText` ladder.
+  4. It calls `appendJourneyEvidence` and returns the evaluation plus `journey: { events, seq }`.
+- **Multiple choice and prediction:** the same route with `{ journey_id, probe_id, option_id }`. The answer key
+  lives only on the server (`diagnostic_json` / `section_plan_json`). The result is a deterministic claim-level
+  event: `evaluator: 'deterministic'`, `source: 'journey_probe'`, `pass` | `fail` | `misconception`, and `kind`
+  `demonstrated_in_transfer` only when the probe is marked `transfer: true`.
+- **Client.** On a journey turn, `runTurn`'s `settle` adopts `result.journey.events` as the store's events, then
+  derives states with the journey registry, so there is no second client-side reconcile. The rest of the
+  conversational store stays in `sessionStorage` under a journey key (`small.tutor:<org>:<email>:journey:<id>`):
+  open question, turns, Socratic counts and dive bookkeeping. The constraints are also persisted on the journey.
+- **Evaluator unavailable.** An error adds nothing (existing rule). The diagnostic walker moves on, and the path
+  planner is told the evidence is missing, so it keeps prerequisites and skips nothing.
+
+---
+
+## 6. Learning Journey Orchestrator
+
+### 6.1 Intent (deterministic, `journeyIntent(text)`)
+
+It returns `{ kind, topic, constraints: { minutes?, depth?, style?, coding? }, skip_setup }`, where `kind` is one
+of `learning_journey | focused_skill | quick_overview | fast_start | direct_question | none`.
+
+- The patterns extend the router's `LEARN_INTENT` ("I want to learn", "teach me", "walk me through", "I want to
+  understand", "I need to learn … (from scratch)", "show me how to build … from scratch", "teach me how … works",
+  "give me a N-minute … overview of", "skip setup and (just) start").
+- "What is X?" and other factual questions give `direct_question`.
+- Home keeps its existing negatives: "learn attention" and "how do I learn faster" are not journeys.
+- `ponytail:` regex. A missed broad intent falls back to the normal responder, which can offer "Learn this as a
+  guided path". A model classifier comes when misses show it is needed.
+
+It runs on the Home teach path and on the Learn composer of a canvas that has no live journey and no nanoGPT
+Tutor. A broad intent on a board that already has a live journey opens a `clarification` tray: "Continue <topic>
+or start <new topic>?".
+
+### 6.2 Intake (deterministic bank, no model call)
+
+- **Slots:**
+  - `goal`: understand the intuition · build it from scratch · use it in a project · prepare for an exam or
+    interview · something else (free text);
+  - `familiarity`: completely new · seen it before · understand parts of it · fairly comfortable;
+  - `depth`, which carries a default time: quick visual overview (~10 min) · guided understanding (~30 min) ·
+    deep dive (~1 h) · build-first.
+- **At most three questions.** Slots the request already states are skipped, and a slot is never asked twice.
+  A quick overview asks at most one question. "Skip" fills the remaining slots with defaults marked `default`.
+- **Familiarity is self-report.** It steers the diagnostic. It is never evidence (R4).
+
+### 6.3 Diagnostic
+
+- **Planner** (`LEARN_TASKS.journey_diagnostic`, Sonnet 5.5 at effort low, one call). Input: the topic, intake
+  slots and grounding. Output:
+  - the registry;
+  - an ordered probe ladder of 2-4 probes, from prerequisite to advanced;
+  - optionally one topic-specific background question in the tray ("How comfortable are you with probability?").
+    It is recorded as self-report only.
+- **Probes.** Kinds are `mcq | prediction | explain_back` in LP1. Each probe names 1-3 claims, and a probe meant
+  to be strong evidence is set on a case other than `drawn` and marked `transfer: true`.
+- **Walker** (deterministic):
+  1. Ask the middle-information probe first.
+  2. On settled transfer evidence, step up the ladder. On a fail, uncertain result, gap or `non_attempt`, step
+     down.
+  3. Stop after 3 probes, on two consistent results, or on "Skip the assessment".
+
+  On a skip, every concept stays `not_yet_observed` (spec §8).
+- **Answers are Tutor turns.** Showing a probe sets the Tutor store's `open = { action_id: probe.id, claim,
+  text: prompt }`.
+  - A typed or spoken answer runs `runTurn({ answering, plan: false, domain })`: LearnerTurn → evaluate (journey
+    path, §5) → server evidence → derived states, with no planner call.
+  - An option click posts `probe_id`/`option_id` to the same evaluate route.
+  - Either way the walker then picks the next probe. No per-answer grading is shown, because this is placement.
+
+### 6.4 Path Planner
+
+- **Initial draft:** `LEARN_TASKS.journey_path` (Opus 5.5). **Revisions and adaptations:** `journey_adapt`
+  (Sonnet 5.5 at effort low).
+- `journey_adapt` escalates to `journey_path` when:
+  - `validatePath` or the invariants reject the result;
+  - the evidence the change rests on is contradictory (an `uncertain` claim with both settled passes and
+    negatives);
+  - the planner returns `ambiguous: true`.
+- **Input:** the topic, intake (raw request kept), derived states per claim plus settled pass counts (never a
+  score), constraints, the previous version for a revision, and any pending learner edit text.
+- **Output:** a full LearningPath version, plus `concepts_added` and a `learner_note` when something changed.
+- **The server enforces the invariants (§9.2) before it writes.** A violating draft is rejected and the previous
+  version stays.
+
+### 6.5 Section Planner and materializer
+
+1. On accept, and after each section completes (following any adaptation), the current section is planned with
+   `LEARN_TASKS.journey_section` (Sonnet 5.5 at effort low), giving a SectionPlan.
+2. The server stores only the **current** section's plan.
+3. The browser materializes it:
+   - It appends a level-1 heading `{ type: 'heading', text: title, journey_section_id }` at the end of the flow.
+   - It reserves one skeleton slot (`canvas.reserve`).
+   - Each step runs through the existing `/api/learn/artifact` (`generateArtifact`) with the step's slash
+     command and request.
+   - The resulting block is inserted under the heading, stamped `journey: { section_id, step_id, claims }`.
+4. Paid primitives come back as proposals and become a tray `generation_proposal`. They are never generated
+   automatically.
+5. A failed step leaves the section current with `generation_state: 'planning'`, the steps already done stay,
+   and the tray offers Retry. Nothing is generated for any other section.
+
+### 6.6 State machine (server `journeyStep`, shared pure module)
+
+```
+(none) ── intent learning_journey | focused_skill | quick_overview ─▶ intake
+(none) ── fast_start ─▶ intake(defaults) ─▶ path drafted ─▶ auto-accept ─▶ active(section 1)
+intake ── slots done | skip ─▶ diagnostic          (pending: diagnostic)
+         quick_overview: diagnostic skipped ─▶ path_review
+diagnostic ── walker stops | skip ─▶ path_review   (pending: path)
+path_review ── edit ─▶ path_review v+1             (pending: revise)
+path_review ── accept ─▶ active: section 1 current (pending: section → materialize)
+active ── continue past section s ─▶ s completed ─▶ adapt? (0-1 call) ─▶ next current (pending: section)
+active ── path edit ─▶ active v+1 (future sections only)
+active ── dive opened ─▶ paused ── return ─▶ active
+active ── last section completed ─▶ completed
+any   ── planner failure ─▶ same state, error set, inputs kept, Retry (never random cards)
+```
+
+A transition is legal only if `journeyStep(journey, event)` returns a next state. The server refuses anything
+else with 409.
+
+---
+
+## 7. Tutor Prompt Tray and interaction resolver
+
+### 7.1 Tray
+
+The tray is one component, `TutorPromptTray`. It renders in the `LearnSlash` slot above the composer
+(`ask.jsx:950`), styled like the `data-slash-result` box. It is not persisted: `trayFor(journey, signals)`
+recomputes it after every event and reload.
+
+```
+tray: null | { id, mode, prompt, options[{id,label}] 0-5, free_text, probe_id?, slot?, busy?, error?, dismissible }
+mode: intent_intake | diagnostic_probe | path_preview | check_in | clarification | next_step | branch_choice | generation_proposal
+```
+
+- `path_preview` offers Start · Make it shorter · Go deeper · More practical · More mathematical.
+- On resume, `next_step` offers Continue · Quick recap · Revisit <previous concept>.
+- With Voice on, the tray's prompt is spoken through `voice.say`.
+
+### 7.2 Interaction resolver (R1, D6)
+
+`resolveTurn(text, tray, journey)` → `{ kind, option_id?, edit? }`. It runs at the top of `useTutor.turn()`, so
+typed and voice turns share it.
+
+| Order | Rule | Result |
 |---|---|---|
-| Home: "I want to learn logistic regression" | The `LEARN_INTENT` regex returns `mode: 'teach'`. `teach()` creates an empty canvas titled with the raw sentence. `learnAction` is a no-op while `learnHandoff = false`, so the learner's words are dropped and the learner lands on an empty canvas. | `agent/router.js:52,137`, `agent/AgentBar.jsx:291-305`, `agent/learn-hook.js:46-58`, `flags.js:18`, `start.js:25` |
-| Same phrase in a generic canvas composer | `AskPanel.send` posts to `/api/learn/ask`, the general Learn chat. The answer appears in the chat sheet. The agent may auto-insert Wikipedia, video or paper cards. If a card is selected, a chat card is placed. | `ask.jsx:546` onward, `LearnPage.jsx:230-267,819-824` |
-| Same phrase on the NanoGPT Tutor canvas | `learnerIntent` classifies it as `explanation`. With no card selected, the route is `off_slice` (`respond_text` only). With a card selected, it is sent to evaluation as if it were an answer attempt. | `learn-tutor.js:155,184-191,209-216` |
+| 1 | Normalized text equals an option label, an ordinal ("the first one", "option 2", "B") or a unique option-label prefix | `tray_answer` |
+| 2 | Accept words in `path_preview` ("start", "looks good", "let's go", "go ahead", "yes") | `tray_answer` (start) |
+| 3 | A bare skip or cancel ("skip", "skip this", "skip the assessment", "skip setup", "not now", "cancel", "never mind") | `cancel`, which means skip the current step and is never a path change |
+| 4 | An edit verb with a path object ("skip probability", "move implementation earlier", "add Python", "make it 20 minutes", "make it shorter", "more practical", "less maths", "go deeper", "do Python first") | `path_edit` |
+| 5 | Tray open and none of the above matched | a model call, `LEARN_TASKS.journey_resolver` (Sonnet 5.5 at effort low), giving one of the five categories (`clarification_needed` when unsure) |
+| — | No tray open | rule 4 only; anything else is a normal Tutor turn |
 
-No code does intake, diagnosis or path planning, and nothing stores the intent. `docs/features/home-ask.md:37`
-claims the canvas "keeps the whole question as the learning intent", but it does not.
+Punctuation never decides. "Can we skip this?", "Why is this section here?" and "Could we do Python first?" go
+through rules 3-5 like any other text.
 
-### 1.2 Tutor v2 (merged on main)
-
-- **Orchestration** runs in the browser, in `runTurn` (`learn-tutor.js:277-409`). The browser makes two worker
-  calls: `/api/learn/tutor/evaluate` and `/api/learn/tutor/plan`. Both routes live in
-  `learn-tutor-routes.js`, which is mounted in `packages/web/dev-worker.js:214`. The production `app-worker`
-  wraps it.
-- **The LearnerTurn** is a plain object built by `buildTurn` (`learn-tutor.js:88-118`). There is no Learner
-  Intent Resolver module. `learner_intent.kind` is one of `slash | opening | returned | answer | request |
-  question | explanation`.
-- **The Evaluator** runs deterministic practice, then JEV, then the Opus 5.5 larger evaluator when the
-  escalation policy calls for it. `/evaluate` takes the claims in the request body (at most 6 claims, 4 gaps,
-  4 ideas per claim and 5 misconceptions; `learn-tutor-routes.js:23-37`), so the endpoint itself is
-  registry-agnostic.
-- **The Evidence Store** is `learn-tutor-evidence.js`. Its states are exactly `understood | uncertain |
-  misconception | prerequisite_gap | not_yet_observed`. `reconcile()` is the only place where evaluator output
-  becomes events, and `deriveClaimStates` recomputes every state from all events. The store lives in
-  `sessionStorage` under `small.tutor:<org>:<email>`: per user and per tab, not per canvas. Nothing about it is
-  stored on the server.
-- **Hard-wired to the nanoGPT Attention slice:**
-  - static `CONCEPTS`, `CLAIMS` and `SLICE_CARDS` (`learn-tutor-claims.js`);
-  - `deriveClaimStates` iterates `Object.keys(CLAIMS)` (`learn-tutor-evidence.js:103`);
-  - `PLANNER_SYSTEM` says "a Rabbit Hole learning canvas about nanoGPT attention" (`agents/learn-tutor.js:172`);
-  - the validator rejects any card that is not in `SLICE_CARDS`;
-  - the Tutor is active only on the supplied `karpathy/nanoGPT` course, its slice board and the holes under
-    them (`LearnTutor.jsx:16-20`, `LearnPage.jsx:64,534`).
-- **Questions:** the only learner-facing question is the `ask_question` action. It is free text with a claim
-  and a `purpose` (`diagnose | predict | explain_back | transfer`), and has no options. The limits are one
-  question per turn, at most 3 actions, and no question at all under `no_quiz` or `just_answer`. While
-  `store.open` is set, the next message is read as an answer.
-- **No plan, path or section concept.** The planner context has no outline, course or section field. The
-  Teaching State key list is pinned by `learn-tutor-context.test.mjs:21`.
-
-### 1.3 Surfaces
-
-- **Above the composer.** AskPanel's `composerBox` (`ask.jsx:894-952`) stacks, from top to bottom: the chat
-  sheet, the mention list, chips, the target pill, then the `LearnSlash` slot. That slot renders the blue
-  `data-slash-result` notice box (tones `busy | question | done | info | error`, with an optional embedded
-  `PaidConfirm`) and the command picker. No existing component combines a question, option buttons and a
-  free-text answer on the canvas. The nearest is `CourseInterview` (`LearnCourse.jsx:62-120`): choice buttons
-  plus a `ChatComposer`, but inline, in the right panel, and for owner courses only.
-- **Contents rail.** `ContentsRail({ entries, onOpen })` (`ContentsRail.jsx:9-43`):
-  - An entry is `{ n, label, available, active }`, fed only from canvas heading blocks (`outlineFrom`).
-  - It has no done, current, optional or review states.
-  - It opens on hover only, is hidden below `lg`, and is hidden while the right panel is open.
-  - The right panel holds a richer table of contents with done, reorder, rename and add
-    (`LearnPage.jsx:1301-1387`).
-- **Sections** are heading blocks (`type:'heading'`, `level`, `text`, `done`) in the flat block column.
-  - Card insertion goes through the `canvasApi` commands `insertBlock`, `updateBlock`, `insertHeading` and so on
-    (`AdaptiveCanvas.jsx:1355-1525`).
-  - `insertBlock` inserts at the current view, not at the end.
-  - `applyOutline` does not return the ids it mints.
-- **Canvas persistence.**
-  - Blocks are kept in `localStorage`, plus `learn_boards.state_json` on LEARN_DB, but only while the board is
-    shared.
-  - The AdaptiveCanvas save rebuilds state from a fixed set of keys, so any unknown top-level key is dropped.
-  - The `canvases` table has no metadata column.
-
-### 1.4 Existing course and curriculum structures
-
-- **`learn_courses`, curriculum v2** (`curriculum-agent.js:23-70`, `learn-course.js`):
-  - Each unit is `{title, objective, topics, principles, requires, rationale, minutes, assessment, evidence}`.
-    That is nearly one-to-one with a path section.
-  - However, the course is owner-authored and stored per app (primary key `app_id`).
-  - Its revision is a counter, not a history.
-  - Generation is hard-wired to `lessons[0]`.
-  - Any revision clears the generated `lesson`.
-- **The outline experiment** (`curriculum-outline.js`, evaluator, workflow) is a standalone tool and is not
-  wired into the app.
-- **Lesson material plans** (`learn-lesson-plans.md`) describe a plan → approve → build flow, one lesson at a
-  time. It is not built.
-- **The NanoGPT course** is fully authored and seeded eagerly from static arrays. It contains no runtime
-  generation.
-- **Migrations:**
-  - LEARN_DB: `learn-migrations/0001-0003`, applied by hand with `wrangler d1 execute` and mirrored in
-    `repository-schema.sql`.
-  - The `DB` migrations reach `0027`.
-  - No table exists for learner progress, evidence or paths.
-
-### 1.5 `/dive` and Voice
-
-- **`/dive`:**
-  - `canvas_dives` links a child canvas to its parent through a free-form `dive_json` capped at 16 000
-    characters.
-  - On return, `small.dive.return` restores the parent viewport.
-  - Only the Tutor reacts to a return, through `returned_from` on its next turn. Nothing is reconciled on
-    generic canvases.
-  - Latent bug: `Dive.jsx:193` calls `setLocalHoles`, which is defined nowhere.
-- **Voice:**
-  - `useVoiceSession` returns null unless the Tutor is active (`LearnVoice.jsx:20,29,76`), so there is no voice
-    on generic canvases.
-  - Voice turns go through `tutor.voiceTurn` → `runTurn`, the same pipeline as chat.
-  - Nothing can answer structured options by voice.
-
-### 1.6 Shared Learner Intent Resolver (coordination)
-
-`docs/features/adaptive-tutor-v1.md:502-664` specifies the Resolver as future work. The Motion agent's branch
-(`feature/motion-v1-harness` 7c2e1153, not merged) adds `packages/control-plane/src/learner-intent.js`:
-`resolveLearnerTurn`, which is deterministic and returns `{raw_user_message, command,
-structured_interpretation{request_text, target, requested_duration, requested_mode}, current_location,
-selection, canvas_target, repository_context}`.
-
-This branch will **not** create a second resolver file. The journey classifier is a pure function. When both
-branches are on main, the Resolver adds `structured_interpretation.journey = journeyIntent(request_text)`; that
-is a one-line integration for Parallel.
-
-### 1.7 Doc drift found (reported, not fixed here)
-
-- `tutor-architecture-v2.md`:
-  - The header ("Not merged", "every knob off by default") is out of date. Caching and the Sonnet tier are on
-    by default.
-  - The G and I sections are superseded by D4.
-  - The voice conflicts section is already resolved on main.
-- `home-ask.md:37`: says the learning intent is kept. It is not.
-- `learn-chat-sheet.md:12`: mentions History and New chat. The code has only Clear and Collapse.
-- `production-tutor-entry.md:3` and `voice-tutor-mvp.md:3`: their status lines predate the merges.
+Results:
+- **`tray_answer`:** the journey event (intake slot, probe answer, preview choice).
+- **`path_edit`:** a path revision. During `intake` or `diagnostic` the edit is stored as `pending_edits` and
+  applied when the path is drafted.
+- **`unrelated_question`:** a normal Tutor v2 turn with the journey domain. The tray stays open and the journey
+  state is unchanged.
+- **`cancel`:** skip or dismiss the current step.
+- **`clarification_needed`:** a `clarification` tray: [Answer the question] [Change the path] [Ask the Tutor].
 
 ---
 
-## 2. Conflicts between the spec and the implementation
+## 8. Adaptive Contents Rail (D5, R2)
 
-| # | Spec assumption | Reality | Proposal |
-|---|---|---|---|
-| C1 | Tutor v2 decides how to respond on any learning canvas, including the blank-canvas case. | Tutor v2 runs only on the NanoGPT slice. A blank canvas is answered by the Learn chat (`/api/learn/ask`), which has no evaluator or evidence. | V1: the journey owns intake, diagnostics and probes. On generic canvases the per-turn responder stays the Learn chat, given a bounded `journey_context`. Generalising Tutor v2 to generated topics is milestone **LP-T**, gated on owner approval because it changes `PLANNER_SYSTEM`, the cached prefix and the benchmark baselines. **Owner decision D1.** |
-| C2 | Reuse the Evidence Store. | It is per tab (`sessionStorage`), and states come only from the static nanoGPT registry. | Reuse the event shape, `reconcile` and the locked derivation, given a claims registry as a parameter (the default stays `CLAIMS`, so Tutor v2 is unchanged). Journey evidence is persisted on the server per journey. |
-| C3 | Reuse the Evaluator. | `/evaluate` is registry-agnostic, but generated topics have no claims. | The diagnostic planner writes claims in the registry shape (`statement`, `ideas`, `misconceptions`, `drawn`). Free-text answers go through the existing JEV → larger-evaluator path. |
-| C4 | "Strong diagnostic → skip prerequisite" (AT-06). | The locked derivation gives `understood` only for a settled transfer pass with idea coverage, so one plain answer is at best `uncertain`. | Write diagnostic probes as transfer items: a new case, a prediction or an application. The path planner receives the per-claim states and settled pass counts, never a score. The locked semantics are not changed. |
-| C5 | The Contents rail shows the path with statuses. | The rail has no statuses, is fed only by headings, opens on hover, and is hidden below `lg` and while the panel is open. | Extend `ContentsRail` with a `status` per entry and a path data source, and pin it open during path review. Mobile stays out of V1 (owner decision D5). |
-| C6 | A Tutor Prompt Tray already exists, or should be reused. | No such component exists. The `LearnSlash` notice box sits in the right slot, but it has no options and no answer input. | One `TutorPromptTray` in the `LearnSlash` slot, styled like the notice box. Free-text answers use the existing composer, never a second input. The `LearnSlash` notice may move onto it later; that is not needed for LP1. |
-| C7 | Voice parity. | Voice exists only where the Tutor is active. | LP5: `useVoiceSession` accepts a journey turn adapter as well as the Tutor. Spoken answers resolve to tray options or free text. **Owner decision D6** covers which general voice questions on generic canvases are answered. |
-| C8 | Home "I want to learn X" starts the journey. | The intent is dropped (`learnHandoff = false`, and the handoff only prefills). | `teach()` starts the journey on the server right after creating the canvas, so no prompt handoff is needed. The canvas title becomes the topic. **Owner decision D4**, because it touches `agent/`. |
-| C9 | No permanent cards before acceptance. | The Learn chat can auto-insert wiki, video and paper cards, and placing a selected card creates a chat card. | During `intake`, `diagnostic` and `path_review`, composer text goes to the journey. A `?` question goes to chat with `journey_context.phase = 'setup'`, and in that phase the server leaves out the card-inserting tools. |
-| C10 | `/dive` reconciliation. | Only the Tutor reacts to a return, and nothing is written to the parent. | The parent journey pauses when a hole opens. On return it offers a return probe or choice. Path changes go only through an `adapt` call on the parent with reason `dive_return`. The child never writes the parent path. |
-| C11 | A versioned LearningPath. | `learn_courses` has a revision counter but no history, is per app and owner-authored, and wipes content on revision. | New LEARN_DB tables (section 7). Reuse the unit shape, limits and validation style of curriculum v2, not its table. |
-| C12 | Repository grounding parity. | Repository learning is the authored NanoGPT course plus the Tutor. | The schema carries `grounding`. V1 builds topic grounding only. Repository-grounded paths come with LP-T (section 9). |
-
----
-
-## 3. Components and file plan
-
-```
-packages/web/src/learn-journey.js         pure, shared with the worker: journeyIntent, journeyStep (state machine),
-                                          intake bank, diagnostic walker, probe policy, path invariants, trayFor,
-                                          railEntries. Tests: learn-journey.test.mjs
-packages/web/src/LearnJourney.jsx         useJourney hook (like useTutor) + TutorPromptTray
-packages/web/src/ContentsRail.jsx         + status per entry, + open prop
-packages/web/src/ask.jsx                  composer routing while a tray is open; tray in the LearnSlash slot
-packages/web/src/learn-tutor-evidence.js  deriveClaimStates / reconcile take an optional claims registry
-packages/web/src/learn-tutor-claims.js    claimsOfConcept takes an optional registry (default unchanged)
-packages/control-plane/src/learn-journey.js         GET/POST /api/learn/journey: authorize, validate, run journeyStep,
-                                                    call planners, persist
-packages/control-plane/src/agents/learn-journey.js  the three planner prompts and tool schemas
-packages/control-plane/learn-migrations/0004-learning-journeys.sql  (+ repository-schema.sql mirror)
-packages/web/dev-worker.js                one route line next to tutorRoute
-packages/web/e2e/journey-check.mjs        browser acceptance, local stack, stubbed planners
-```
-
-Server modules can import `packages/web/src` pure modules; `learn-artifact.js` already imports `agent/slash.js`.
-Both sides therefore run the same state machine and invariants.
-
-**The server is authoritative.** The browser posts learner events, and the worker:
-1. validates the event;
-2. runs `journeyStep`;
-3. makes any planner or evaluator call;
-4. checks the invariants;
-5. persists, with an optimistic `revision`;
-6. returns `{ journey, path, tray }`.
-
-Chat and Voice call the same endpoint, which is how channel parity works. Answer keys for diagnostic multiple
-choice stay on the server.
+- **Model:** `pathEntries(path, prevPath, blocks)` → `[{ id, n, title, purpose, status, changed, heading_block_id }]`.
+  - `status` is one of `completed | current | upcoming | optional | skipped | needs_review`.
+  - `changed` (`added | moved | changed | null`) comes from diffing the version with the previous one, and
+    clears once the learner has seen it.
+- **View.** One presentational `PathList` is used by the rail now and by the later Path button → drawer/sheet.
+- **Placement.** For a live journey with a path, the rail mounts **inside the canvas frame** at its right edge
+  (`LearnPage.jsx:1290` frame, `edgeInset` reserved whether or not the panel is open). It therefore sits next to
+  the Learn agent chat panel instead of disappearing under it.
+  - Collapsed, it is a narrow strip of status glyphs: ✓ completed, ● current, ○ upcoming, a dashed ring for
+    optional, ↺ needs_review, a highlight dot for changed.
+  - Expanded, it shows titles, on hover or focus, or with a "Path" button so it works by keyboard.
+  - It is pinned open during `path_review` and for one viewing after an adaptation.
+- **Clicks.**
+  - A materialized section (completed or current) calls `canvasApi.showSection(heading_block_id)`.
+  - An upcoming section expands its purpose inline and never generates anything.
+- **Canvases without a journey** keep today's heading rail, unchanged.
+- **Narrow layouts.** The LP1 journey rail is desktop (`lg` and up). Below `lg`, the tray still works and a Path
+  sheet comes before production (N3).
 
 ---
 
-## 4. Schemas (final proposal)
+## 9. Schemas
 
-### 4.1 LearningJourney
+### 9.1 LearningJourney (`learning_journeys` row, API shape)
 
 ```
 LearningJourney {
-  id                        "lj_<uuid>"
-  scope { org, owner_email, app, board }      at most one live journey per learner per board
-  state                     intake | diagnostic | path_review | active | paused | completed
-  pending                   null | diagnostic | path | revise | section | adapt      (planner call in flight)
-  error                     null | { op, message, retryable: true }                 (answers and path are kept)
-  request {
-    raw_user_message        verbatim, never in analytics
-    topic                   "logistic regression"
-    intent                  learning_journey | focused_skill | quick_overview | fast_start
-    channel                 text | voice                                             (first message only)
-  }
-  grounding                 { kind: 'topic' }  |  { kind: 'repository', repo, commit }     (V1: topic)
-  intake {
-    slots { goal?, familiarity?, depth?, minutes?, coding?, math? }
-    source { <slot>: stated | answered | default }
-    goal_text?              the learner's own words for "Something else…"
-  }
-  concepts {                the per-journey claim registry, the same shape as learn-tutor-claims CLAIMS
-    concepts [{ id, name, prerequisites[] }]                               ≤ 16
-    claims   { <id>: { concept, statement, ideas[≤4], misconceptions[{id, check}] ≤5, drawn: '' } }   ≤ 40
-  }
-  diagnostic { probes: Probe[] (answer keys server-only), asked[probe_id], skipped: bool }
-  evidence { seq, events[] }   the learn-tutor-evidence event shape; source 'journey_probe'; ≤ 500 events
-  path_version              0 until the first draft
-  active_section_id         null until accepted
-  section_plan              SectionPlan | null      (current section only)
-  paused_for?               { child_app, concept }
-  revision, created_at, updated_at
+  id                 "lj_<uuid>"
+  scope              { org, owner_email, app, board }   (§10.2, N1)
+  state              intake | diagnostic | path_review | active | paused | completed
+  pending            null | diagnostic | path | revise | section | adapt | resolve
+  error              null | { op, message, retryable: true }
+  request            { raw_user_message, topic, intent, channel: text | voice }      raw_user_message never in analytics
+  grounding          { kind: 'topic' }   (repository grounding: LP-T)
+  intake             { slots { goal?, familiarity?, depth?, minutes?, coding?, math?, background? }, source { <slot>: stated | answered | default }, goal_text? }
+  constraints        Tutor CONSTRAINTS (no_quiz …), persisted for the journey
+  pending_edits      [text] ≤ 5                         (edits made before a path exists)
+  registry           { concepts { [id]: { label, names[], prerequisites[] } }, claims { [id]: claim } }
+  diagnostic         { probes [Probe + server-only key], asked [{ probe_id, result }], skipped, background? }
+  evidence           { seq, events[] }
+  path_version       0 until the first draft
+  active_section_id  null until accepted
+  section_plan       SectionPlan | null     (current section only)
+  paused_for?        { child_app, concept }
+  revision, created_at, updated_at, archived_at?
 }
 ```
 
-Nothing else about the learner is stored: no level, no score, no profile.
-
-### 4.2 LearningPath (one immutable row per version)
+### 9.2 LearningPath (`learning_path_versions` row; immutable)
 
 ```
 LearningPath {
-  id                        "lp_<journey>_v<version>"
-  journey_id, version
-  goal                      one learner-facing sentence
-  target_topic
-  grounding
-  intake_ref                the journey's intake at draft time (journey_id + revision)
-  diagnostic_evidence_refs[]   event seqs
-  sections[]                1-12 LearningPathSection
-  current_section_id        null in path_review
-  change {                  why this version exists
-    source                  draft | learner_edit | evidence | dive_return | resume
-    reason                  internal sentence
-    learner_note?           short, evidence-specific, shown once in the tray ("I added … because …")
-    evidence_refs[]
-    sections_changed[{ id, op: added | removed | merged | split | reordered | optional | depth | retitled }]
-  }
+  journey_id, version, goal, target_topic, grounding
+  intake_ref { journey_revision }
+  diagnostic_evidence_refs [seq]
+  sections [1-12 LearningPathSection]
+  current_section_id | null
+  change { source: draft | learner_edit | evidence | dive_return, reason, learner_note?, evidence_refs [seq],
+           sections_changed [{ id, op: added | removed | merged | split | reordered | optional | depth | retitled }] }
   created_at
 }
-
 LearningPathSection {
-  id                        stable across versions; merge/split mint new ids and keep from[]
-  title                     ≤ 80
-  purpose                   ≤ 240, learner-facing
-  kind                      core | refresher | bridge | review
-  target_concepts[]         registry concept ids
-  prerequisites[]           registry concept ids
-  expected_evidence[]       [{ claim, kind: explain | predict | apply | transfer }] ≤ 4
-  estimated_minutes?
-  depth                     overview | guided | deep
-  status                    upcoming | current | completed | optional | skipped | needs_review
-  generation_state          not_generated | planning | generated
-  heading_block_id?         set when the section materializes on the canvas
-  adaptation_reason?        learner-facing, evidence-specific
-  from?[]
+  id (stable across versions), title ≤80, purpose ≤240, kind: core | refresher | bridge | review,
+  target_concepts [ids], prerequisites [ids], expected_evidence [{ claim, kind: explain | predict | apply | transfer }] ≤4,
+  estimated_minutes?, depth: overview | guided | deep,
+  status: upcoming | current | completed | optional | skipped | needs_review,
+  generation_state: not_generated | planning | generated,
+  heading_block_id?, adaptation_reason?, from? [ids]
 }
 ```
 
-`added`, `reordered` and `adapted` from spec section 4.1 are not stored statuses. The rail derives them as
-transient highlights by diffing a version against the one before it.
+**Invariants**, in `validatePath(next, prev)`, shared by the browser and the worker:
+1. A completed section keeps its `title`, `purpose`, `target_concepts`, `heading_block_id` and its order among
+   the completed sections. A shaky completed concept gets a new `review` section.
+2. At most one section is `current`, and none before acceptance.
+3. Only the current or a completed section may have `generation_state ≠ not_generated`.
+4. **A section has no content fields.** Any key outside the schema, such as `blocks`, `cards` or `steps`, is
+   rejected.
+5. Every referenced concept and claim exists in the registry.
+6. The version increments by exactly 1 and carries a `change`.
 
-**Invariants**, enforced by the shared module on both sides and re-checked by the server before any write:
-1. A completed section's `title`, `purpose`, `target_concepts`, position relative to the other completed
-   sections, and `heading_block_id` never change. A shaky completed concept gets a new `review` section.
-2. At most one section is `current`. It is null before acceptance.
-3. A section may reach `generation_state != not_generated` only while it is current or completed.
-4. A section carries no content fields: no `blocks`, `cards` or `steps`. This is the hard rule that
-   "LearningPath != generated course content".
-5. Every concept a section references exists in the registry.
-6. `version` increments by exactly 1, and every version has a `change`.
-
-### 4.3 SectionPlan (current section only, planned just in time)
+### 9.3 SectionPlan (current section only)
 
 ```
 SectionPlan {
-  section_id, path_version
-  learning_objective
-  target_concepts[]
-  prerequisite_evidence[]   [{ concept, state }]   snapshot of the derived states at planning time
-  teaching_sequence[]       2-6 steps, no fixed template
-    { step_id,
-      role: framing | interactive_visual | explanation | worked_example | prediction | practice | code | transfer_check,
-      make: { command, request } | { text },
-      claims[] }
-  checks[]                  0-3 Probe, each with a trigger: { after_step } | 'before_transition'
-  completion_evidence[]     [{ claim, minimum: attempted | demonstrated_here | demonstrated_in_transfer }]
+  section_id, path_version, learning_objective, target_concepts [ids],
+  prerequisite_evidence [{ concept, state }],
+  teaching_sequence [2-6 { step_id, role: framing | interactive_visual | explanation | worked_example | prediction | practice | code | transfer_check,
+                           make: { command: explain | code | graph | diagram | walkthrough | animate | practice | flashcards, request } | { text },
+                           claims [ids] }],
+  checks [0-3 Probe with trigger { after_step } | 'before_transition'],
+  completion_evidence [{ claim, minimum: attempted | demonstrated_here | demonstrated_in_transfer }]
 }
 ```
 
-- **`command`** is a slash command from `agent/slash.js`: `explain | code | graph | diagram | walkthrough |
-  animate | practice | flashcards`.
-- **Materialization:**
-  - A level-1 heading block bound to the section (`journey_section_id`) is appended at the end of the flow.
-  - Each step then goes through the existing `generateArtifact` and is inserted under that heading.
-- **Paid primitives:**
-  - `PAID` in `slash.js` is `maths_animation`, `image_generate`, `video_generate`, `blender_scene` and
-    `narration`.
-  - Paid primitives come back as proposals and appear as a tray `generation_proposal`. They are never generated
-    automatically.
-- **Completion evidence is soft.** If it is missing, one `before_transition` probe is offered. The learner can
-  always continue.
-
-### 4.4 Probe
+### 9.4 Probe
 
 ```
-Probe {
-  id
-  kind      mcq | prediction | explain_back | short_calculation | confidence_explain | code_reading | choice
-  prompt    ≤ 300
-  options?  [{ id, label }] ≤ 4, plus "Not sure"      (server keeps correct / misconception_id)
-  claims[]  ≤ 3 registry ids                          (empty for kind 'choice')
-  purpose   diagnose | predict | explain_back | transfer | choose
-  trigger?  section checks only
-}
+Probe { id, kind: mcq | prediction | explain_back | choice, prompt ≤300, options? [{ id, label }] ≤4 (+ "Not sure"),
+        claims [ids] ≤3, purpose: diagnose | predict | explain_back | transfer | choose, transfer: boolean, trigger? }
+server-only key: options[].correct, options[].misconception_id
 ```
-
-- V1 builds `mcq`, `prediction`, `explain_back` and `choice`. The other kinds wait for a later milestone.
-- Multiple-choice and prediction probes are evaluated deterministically, as claim-level pass or fail. Choosing
-  an option tagged with a misconception records a `misconception` result with that id.
-- Free text is evaluated by JEV via the existing evaluate path, with `answering: true` and `question:
-  probe.prompt`.
 
 ---
 
-## 5. State machine
+## 10. Persistence
 
-```
-            journeyIntent = learning_journey | focused_skill | quick_overview
- (none) ───────────────────────────────────────────────────────────▶ intake
-            fast_start ("skip setup and start") ──▶ path drafted with defaults ──▶ active (section 1)
+### 10.1 Migration `learn-migrations/0006-learning-journeys.sql`
 
- intake      ── next unknown slot ──▶ ask (≤ 3 questions, minus slots already stated)
-             ── slots enough | "skip" ──▶ diagnostic        [pending: diagnostic → 1 planner call]
- diagnostic  ── walk probes (1-3) ──▶ enough evidence | 3 asked | "skip the assessment"
-             ──▶ path_review                                  [pending: path → 1 planner call]
-             quick_overview: diagnostic skipped (concepts not_yet_observed)
- path_review ── edit (button or words) ──▶ path_review v+1   [pending: revise]
-             ── accept ("Start", "looks good", "let's go") ──▶ active
- active      ── section s current: planning ──▶ generated     [pending: section → 1 call + N artifact calls]
-             ── learner continues ──▶ s completed ──▶ adapt?  [0-1 call; only if evidence changed upcoming
-                                                               concepts or an edit is pending]
-                                    ──▶ next upcoming section current ──▶ planning …
-             ── path edit in words ──▶ active v+1 (future sections only)
-             ── dive opened ──▶ paused ── return ──▶ active (return probe or choice; adapt only via evidence)
-             ── last section completed ──▶ completed
- any         ── planner failure ──▶ same state, error set, inputs kept, Retry in tray (never random cards)
-```
-
-- A broad intent on a board with a live journey does not start a second journey. The tray asks: "Continue
-  <topic> or start <new topic>?". Starting the new one archives the old journey.
-- The NanoGPT course canvases, where the Tutor is active, do not start journeys in V1.
-
----
-
-## 6. Tutor Prompt Tray state model
-
-The tray is not persisted. `trayFor(journey, signals)` recomputes it after every reload or event.
-
-```
-tray: null | {
-  id
-  mode        intent_intake | diagnostic_probe | path_preview | check_in | clarification
-              | next_step | branch_choice | generation_proposal
-  prompt      string (spoken by voice when Voice is on)
-  options     [{ id, label }] 0-5
-  free_text   true → the main composer answers it (its placeholder says so); never a second input
-  probe_id?, slot?
-  busy?       "Drafting your path…" (no options while pending)
-  error?      { message } + Retry option
-  dismissible
-}
-```
-
-| Journey state | Tray |
-|---|---|
-| intake | `intent_intake`: the next unknown slot, with topic-templated options from spec section 6 |
-| diagnostic | `diagnostic_probe`, plus "Skip the assessment" |
-| path_review | `path_preview`: Start · Make it shorter · Go deeper · More practical · More mathematical, plus free-text edits |
-| active | `check_in`, `branch_choice`, `next_step` or `generation_proposal`, only when the probe policy fires |
-| resume (active, on load) | `next_step`: Continue · Quick recap · Revisit <previous concept> |
-| back from dive | `next_step` or a return probe |
-
-**How composer text is routed while a tray is open:**
-1. Acceptance words in `path_preview` mean accept.
-2. Text ending in `?` goes to chat as a question, and the tray stays open.
-3. Any other text in `path_preview` is a path edit.
-4. Any other text in intake or diagnostic is the answer.
-
-Voice transcripts follow the same rules. A spoken answer is first matched to an option label (normalised token
-overlap) and is treated as free text otherwise.
-
-**Probe policy** is deterministic: `probeDue(journey, signals)`.
-- Fire on any of:
-  - a key step (`interactive_visual` or `practice`) that the learner interacted with;
-  - a section transition;
-  - uncertain evidence on a section claim;
-  - two fails on the same claim;
-  - passive click-through: steps seen with no interaction, then "continue";
-  - practice completed;
-  - a return from a dive.
-- Suppress when any of these holds:
-  - card input changed less than 8 s ago;
-  - Voice is speaking or listening;
-  - a probe was resolved or dismissed less than 2 min ago;
-  - two probes have already run this section and the evidence is not uncertain;
-  - the claim is already `understood`;
-  - the learner set `no_quiz` (choice nudges only).
-- Never more than one tray at a time. Never "Did you understand?".
-
----
-
-## 7. Integration with the Evaluator and Evidence Store
-
-- **Free-text answers.** The worker calls the existing evaluation function behind `/api/learn/tutor/evaluate`
-  (JEV, the explicit escalation policy, the Opus 5.5 larger evaluator). It sends the journey's registry claims,
-  as allowed by `validateEvaluateBody`.
-- **Multiple choice and prediction** are evaluated deterministically, with `evaluator: 'deterministic'` and
-  `source: 'journey_probe'`.
-- **Reconciliation.** Results go through `reconcile(store, evaluation, ref, claims)`. `deriveClaimStates(events,
-  claims = CLAIMS)` and `claimsOfConcept(name, claims = CLAIMS)` gain an optional registry parameter. The
-  default keeps Tutor v2 byte-identical, and its existing tests pin that.
-- **Locked semantics, unchanged:**
-  - one fail is `uncertain`, never a misconception;
-  - two settled events naming the same misconception are a `misconception`;
-  - a later transfer pass supersedes;
-  - a gap needs a named prerequisite;
-  - there are no percentages.
-- **Evaluator unavailable.** An error adds no events. The diagnostic walker moves on, and the path planner is
-  told that evidence is missing, so it keeps prerequisites and skips nothing. Adaptation never runs on missing
-  evidence.
-- **Learner-facing wording** quotes the evidence ("the last answer mixed up a score and a probability"). It never
-  says "mastered" or reports a level.
-
----
-
-## 8. Integration with the Tutor Planner
-
-- **Generic canvases (V1):**
-  - The journey decides what to teach next, whether to probe, and which section materializes.
-  - The Learn chat still answers the learner's free questions. While a section is active, `/api/learn/ask`
-    receives `journey_context { phase, goal, section { title, purpose, target concepts, expected evidence },
-    upcoming titles, constraints }`. That context is bounded to about 1.5 KB, never the full path or evidence.
-  - Its system prompt gains one rule: teach inside the current section, and point at an upcoming section
-    instead of teaching it early.
-  - In `setup` phase the card-inserting tools are left out.
-- **The NanoGPT Tutor canvases are unchanged.** No `PLANNER_SYSTEM`, `TUTOR_TOOL`, Teaching State or validator
-  change happens before LP-T.
-- **LP-T (gated):** Tutor v2 becomes the per-turn responder on journey canvases.
-  - The journey registry replaces `CLAIMS`.
-  - Materialized section blocks replace `SLICE_CARDS`.
-  - The Teaching State gains `journey_context`; the pinned key test changes.
-  - `ask_question` gains options so the tray can render them.
-  - Section checks become `ask_question` actions.
-
-  This needs a benchmark re-baseline and owner approval.
-
----
-
-## 9. Persistence and migration
-
-**Proposed `learn-migrations/0004-learning-journeys.sql`**, mirrored into `repository-schema.sql`:
+The migration is additive and re-runnable, and is mirrored into `repository-schema.sql`.
 
 ```sql
 CREATE TABLE IF NOT EXISTS learning_journeys (
-  id TEXT PRIMARY KEY,
-  org TEXT NOT NULL,
-  owner_email TEXT NOT NULL,
-  app TEXT NOT NULL,
-  board TEXT NOT NULL,
-  state TEXT NOT NULL,
-  topic TEXT NOT NULL,
-  raw_request TEXT NOT NULL,
-  intake_json TEXT NOT NULL,
-  concepts_json TEXT NOT NULL,
-  diagnostic_json TEXT NOT NULL,
-  evidence_json TEXT NOT NULL,
-  path_version INTEGER NOT NULL DEFAULT 0,
-  active_section_id TEXT,
-  section_plan_json TEXT,
-  pending TEXT,
-  error_json TEXT,
-  revision INTEGER NOT NULL DEFAULT 0,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  archived_at TEXT
+  id TEXT PRIMARY KEY, org TEXT NOT NULL, owner_email TEXT NOT NULL, app TEXT NOT NULL, board TEXT NOT NULL,
+  state TEXT NOT NULL, topic TEXT NOT NULL, raw_request TEXT NOT NULL,
+  intake_json TEXT NOT NULL, constraints_json TEXT NOT NULL DEFAULT '[]', pending_edits_json TEXT NOT NULL DEFAULT '[]',
+  registry_json TEXT NOT NULL, diagnostic_json TEXT NOT NULL, evidence_json TEXT NOT NULL,
+  path_version INTEGER NOT NULL DEFAULT 0, active_section_id TEXT, section_plan_json TEXT,
+  pending TEXT, error_json TEXT, paused_json TEXT,
+  revision INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, archived_at TEXT
 );
-CREATE UNIQUE INDEX IF NOT EXISTS learning_journeys_live
-  ON learning_journeys (org, owner_email, app, board) WHERE archived_at IS NULL;
-
+CREATE UNIQUE INDEX IF NOT EXISTS learning_journeys_live ON learning_journeys (org, owner_email, app, board) WHERE archived_at IS NULL;
 CREATE TABLE IF NOT EXISTS learning_path_versions (
-  journey_id TEXT NOT NULL,
-  version INTEGER NOT NULL,
-  path_json TEXT NOT NULL,
-  source TEXT NOT NULL,
-  reason TEXT NOT NULL,
-  evidence_refs TEXT NOT NULL,
-  changes_json TEXT NOT NULL,
-  created_at TEXT NOT NULL,
-  PRIMARY KEY (journey_id, version)
+  journey_id TEXT NOT NULL, version INTEGER NOT NULL, path_json TEXT NOT NULL,
+  source TEXT NOT NULL, reason TEXT NOT NULL, evidence_refs TEXT NOT NULL, changes_json TEXT NOT NULL,
+  created_at TEXT NOT NULL, PRIMARY KEY (journey_id, version)
 );
 ```
 
-**Why LEARN_DB and not the alternatives:**
-- **`learn_courses`:** owner-authored and per app, with no history, and it wipes generated content on revision.
-- **Board `state_json`:** browser-local unless shared, visible to every viewer, and unreachable by server-side
-  planners.
-- **`sessionStorage`:** per tab.
+0006 was checked as unused on main 68f02092 (the highest there is 0005) and on every remote branch.
 
-**Canvas binding.** Materialized sections are ordinary heading blocks with an extra `journey_section_id` field.
-Extra block fields already survive saves. Card blocks under a heading belong to that section by the existing
-heading-range rule, so the canvas needs no new top-level key.
+**Applied:** locally only. The shared dev (`rabbit-hole-learn-dev`) and production LEARN_DB wait for an explicit
+GO.
 
-**Rollout:**
-1. Local first.
-2. The dev LEARN_DB `rabbit-hole-learn-dev` is shared by every dev clone. The migration is announced before it
-   is applied there, by hand with `wrangler d1 execute --file`, as for 0001-0003.
-3. Production `rabbit-hole-learn-prod` belongs to Parallel and Home, and needs an explicit GO.
+**Canvas binding.** Section headings are ordinary heading blocks with a `journey_section_id`; generated blocks
+carry `journey`. Extra block fields already survive saves, so the canvas needs no new top-level key.
 
-**Resume.** Load reads the live journey for `(org, email, app, board)` and the latest path version. The tray is
-recomputed from them.
+### 10.2 Identity (R3) — new conflict N1
 
-**Access.** Only the journey's owner sees it. Viewers of a shared board see the canvas headings, not the tray
-or the path. `ponytail:` per-viewer journeys on shared boards come when sharing needs them.
+- The Learn worker's identity is `{ email, org, orgName }` from `/api/me`.
+- `users.id` is not exposed to it.
+- The email it receives is the internal account principal (`users.email`, migration 0026): unique, never
+  rewritten by any code, and synthetic for provider-only users. Every LEARN_DB table (`canvases`, `learn_boards`,
+  `canvas_dives`, `repository_apps`) keys on `(org, owner_email)`.
+
+LP1 therefore scopes journeys by `(org, owner_email)`, the existing principal convention. Using `users.id`
+instead needs `/api/me` and `devIdentity` to return it: a control-plane change and deploy outside this agent's
+ownership. It is a one-column additive change later (`user_id`). Owner decision N1.
+
+**Access.** Only the journey's owner reads or writes it. Viewers of a shared board see the canvas, not the tray
+or the path.
 
 ---
 
-## 10. Planners and model calls
+## 11. Model roles (`LEARN_TASKS`; no ids in schemas)
 
-| Planner | When | Calls | Output |
+| Task key | Role | Model | Effort |
 |---|---|---|---|
-| Intent | every composer or Home message, deterministic | 0 | `journeyIntent`: kind, topic, constraints (minutes, depth, style, coding), skip_setup |
-| Intake | deterministic question bank, templated with the topic | 0 | the next slot question |
-| Diagnostic planner | intake → diagnostic | 1 | registry (concepts and claims) plus a probe ladder of 2-4 probes, from prerequisite to advanced |
-| Diagnostic walker | each answer, deterministic | 0 (+ JEV for free text) | next probe or stop |
-| Learning Path planner | draft, revise, adapt | 1 per draft, edit or adaptation | a full LearningPath version plus `concepts_added` |
-| Section planner | a section becomes current | 1 | SectionPlan |
-| Materializer | after a SectionPlan | N (`generateArtifact`) | canvas blocks for the current section only |
+| `journey_resolver` | tray interaction classification, only after the deterministic rules miss | `claude-sonnet-5-5` | low |
+| `journey_diagnostic` | registry + probe ladder (+ one background question) | `claude-sonnet-5-5` | low |
+| (existing) | diagnostic evaluation: deterministic → JEV → `tutor_evaluator` only on escalation | unchanged | — |
+| `journey_path` | initial path; escalation target | `claude-opus-5-5` | default |
+| `journey_section` | SectionPlan | `claude-sonnet-5-5` | low |
+| `journey_adapt` | revisions and adaptations; escalates to `journey_path` | `claude-sonnet-5-5` | low |
+| (existing) `tutor` | per-turn planner, F tiering | unchanged | — |
 
-- Every planner takes an injected `callModel`, as `generateArtifact` does, so unit, route and e2e tests run on
-  fixtures.
-- No paid call is made without an owner GO.
-- The model ids are owner decision D3. Proposed: `claude-opus-5-5` for the diagnostic and path planners,
-  `claude-sonnet-5-5` for the section planner. All are recorded in `LEARN_TASKS`.
-- `ponytail:` the intent classifier and edit detection are regexes. A model classifier comes if the miss rate
-  shows it is needed. A missed broad intent falls back to normal chat, which can offer "Learn this as a guided
-  path".
+`LEARN_TASKS` entries gain an `effort` field (additive; `test/learn-models.test.js` is extended). Every planner
+takes an injected `callModel`. Tests and the e2e harness use fixtures through a local-only stub flag
+(`JOURNEY_MODEL_STUB=fixtures`, refused unless the worker runs locally, as `OAUTH_MOCK` is).
 
 ---
 
-## 11. Telemetry
+## 12. Voice (D6)
 
-Event names follow spec section 38 (`learning_journey_started` … `journey_completed`). Properties are ids and
-categories only: `journey_id`, `path_version`, `section_index`, `probe_kind`, `result` (pass, fail, uncertain,
-skipped), `channel`.
+- Voice turns enter `useTutor.turn()` and pass the same resolver as typed turns.
+- Tray prompts are spoken. Spoken words are matched to option labels by rule 1, then classified by rules 3-5.
+- An unrelated spoken question gets a Tutor answer with journey context (two short sentences, the existing voice
+  rule), and the tray stays.
+- There is one journey state and no voice-only curriculum.
+- Voice on journey canvases comes from `useTutor` being active there. The voice code itself is unchanged in LP1;
+  the parity e2e is LP5.
 
-Events are emitted as a `small:journey` window event, and the worker logs ids. Raw learner text, tutor text,
-code and transcripts never appear in events.
+## 13. `/dive` (LP5)
+
+- When a hole opens from a journey canvas, the journey becomes `paused` (`paused_for`).
+- The child canvas has no journey and never writes the parent's path.
+- On return, the existing Tutor `returned_from` re-check runs with the journey domain, and its evidence goes to
+  the parent journey's server store.
+- After that, the orchestrator may run one `journey_adapt` with `source: 'dive_return'`.
+
+## 14. Telemetry
+
+- Events follow spec §38, sent as a `small:journey` window event, with the worker logging ids.
+- Properties are limited to `journey_id`, `path_version`, `section_index`, `probe_kind`, `result` and `channel`.
+- Raw learner text, tutor text and transcripts never appear in events.
 
 ---
 
-## 12. Milestones
+## 15. Milestones and execution
 
 | Milestone | Scope | Acceptance |
 |---|---|---|
-| **LP0** (this) | Audit, conflicts, schemas, state machine, plan | owner approval |
-| **LP1** | `journeyIntent`, the tray, intake, the diagnostic (multiple choice and explain-back, JEV), path draft, the rail with statuses, migration 0004 (local), the `/api/learn/journey` route, the evidence registry parameter, Home `teach()` start (if D4 is approved) | AT-01, AT-02, AT-13, AT-14; unit suites |
-| **LP2** | Accept and edit (buttons and words), section planner, materialization of the current section only, failure policy | AT-03, AT-04, AT-05, AT-15 |
-| **LP3** | Evidence-driven adaptation at section boundaries, versions with learner notes, `needs_review` and review sections | AT-06, AT-09 |
-| **LP4** | Probe policy, section checks, choice nudges | AT-07, AT-08 |
-| **LP5** | Voice adapter, resume nudges, `/dive` pause and return reconciliation | AT-10, AT-11, AT-12 |
-| **LP-T** (gated) | Tutor v2 on journey canvases; repository-grounded paths | new Tutor corpus traces and a re-baseline |
+| **LP1** | TutorDomain generalization; journey evidence route; `learn-journey.js` pure module (intent, intake, walker, resolver rules 1-4, `journeyStep`, `validatePath`, `validateRegistry`, `trayFor`, `pathEntries`); migration 0006 (local); `/api/learn/journey` with the diagnostic, path and section planners (stub-injectable); resolver model fallback; `TutorPromptTray`; `useJourney`; the journey rail inside the canvas frame; composer and voice routing through `useTutor`; Home `teach()` start; materialization of section 1 | §16, plus the preservation gates in §3.4 |
+| LP2 | Path edits during `active`, section completion → next section, retry and failure UX | AT-05, AT-15 complete |
+| LP3 | Evidence-driven adaptation, versions shown with learner notes, `needs_review` and review sections | AT-06, AT-09 |
+| LP4 | Section checks and the probe policy; `ask_question` with options for the tray (a `TUTOR_TOOL` change, which needs a re-baseline) | AT-07, AT-08 |
+| LP5 | Voice parity e2e, resume nudges, `/dive` pause and reconcile | AT-10, AT-11, AT-12 |
+| LP-T | Repository-grounded journeys; migrating nanoGPT evidence to the server | owner GO |
 
-Each milestone is several small commits, each with `make test-unit` green. `make test-integration` runs before
-any merge request. A visual review on a dev clone (`rabbit-hole-web-dev-adaptive-learning-path-v1`) needs the
-owner's go; this branch does not deploy now.
+**Execution: sub-agent-driven.** One primary owner (this agent) holds this document, integrates and commits each
+checkpoint. Focused sub-agents implement contracts and never redesign:
+
+- **SA-Tutor:** §3 and §5, the client-side Tutor modules plus the `/evaluate` journey path. It owns the
+  preservation gates in §3.4.
+- **SA-State:** §6, §9 and §10, the `learn-journey.js` pure module, migration 0006, the
+  `control-plane/src/learn-journey.js` routes, the planners with fixtures, and `LEARN_TASKS`.
+- **SA-UI:** §7, §8 and §6.5 on the browser side: tray, `useJourney`, rail, `LearnPage` and `ask.jsx` wiring,
+  Home `teach()`, materializer.
+
+**Order:**
+1. The shared pure module contract (SA-State).
+2. SA-Tutor and SA-State's routes in parallel, on disjoint files.
+3. SA-UI.
+4. The primary owner's integration, e2e and gates.
+
+Every checkpoint gets `make test-unit` green and a commit made with `git commit --only` on its own files. The
+branch is pushed per checkpoint, and nothing is merged.
 
 ---
 
-## 13. First vertical-slice tests (LP1)
+## 16. LP1 tests
 
-**Unit tests** (`node --test`, no model):
+**Unit** (`node --test`, no model):
 - **U1 `journeyIntent`:**
-  - The five spec phrasings resolve to `learning_journey` or `focused_skill`.
-  - "What is logistic regression?" resolves to `direct_question`.
-  - "Give me a 10-minute visual overview of logistic regression" resolves to `quick_overview {minutes: 10,
-    style: 'visual'}`.
-  - "Skip setup and start" resolves to `fast_start`.
-  - Home's existing negatives, "learn attention" and "how do I learn faster", stay non-journey.
-- **U2 intake:**
-  - At most 3 questions.
-  - Stated constraints remove their slots.
-  - An answered slot is never re-asked.
-  - A quick overview asks at most 1 question.
-- **U3 diagnostic walker:**
-  - 1-3 probes; stops early on consistent evidence.
-  - "Skip the assessment" leaves every concept `not_yet_observed`.
-  - A JEV error adds no evidence.
-  - One multiple-choice fail gives `uncertain`, not `misconception`.
-- **U4 path validator:**
-  - Limits, unique ids, concept references, no `current` before acceptance.
-  - A section with `blocks`, `cards` or `steps` is rejected.
+  - the spec's broad phrasings give `learning_journey` or `focused_skill`;
+  - "What is logistic regression?" gives `direct_question`;
+  - "Give me a 10-minute visual overview of logistic regression" gives `quick_overview { minutes: 10, style: visual }`;
+  - "Skip setup and start" gives `fast_start`;
+  - Home's negatives stay non-journey.
+- **U2 intake:** at most 3 questions; stated slots are skipped; nothing is asked twice; a quick overview asks at
+  most 1.
+- **U3 walker:**
+  - 1-3 probes, with step-up and step-down;
+  - a skip leaves everything `not_yet_observed`;
+  - an evaluator error adds nothing;
+  - one multiple-choice fail gives `uncertain`, never `misconception`;
+  - a correct non-transfer answer is not `understood`;
+  - a settled transfer pass with idea coverage is `understood`.
+- **U4 `validatePath` / `validateRegistry`:**
+  - every invariant in §9.2;
+  - a section carrying `blocks`, `cards` or `steps` is rejected;
+  - a claim with events cannot be edited.
 - **U5 `journeyStep`:**
-  - Illegal transitions are rejected, for example planning a section before acceptance, or materializing a
-    section that is not current.
-  - A planner failure keeps the intake and diagnostic answers.
-- **U6 invariants:** a revise that touches a completed section is rejected; versions advance by 1 and carry a
-  `change`.
-- **U7 `railEntries`:** status mapping; upcoming entries are not generation triggers.
-- **U8 evidence:** the existing Tutor v2 suites pass unchanged, and a journey registry derives states for its own
-  claims only.
+  - illegal transitions are refused (a section planned before acceptance, materializing a section that is not
+    current);
+  - a planner failure keeps the answers.
+- **U6 resolver:**
+  - "Can we skip this?" gives `cancel`;
+  - "Could we do Python first?" gives `path_edit`;
+  - "Why is this section here?" with an open tray goes to the model rule (stubbed);
+  - exact labels and ordinals give `tray_answer`;
+  - accept words give start;
+  - punctuation never changes a result.
+- **U7 `pathEntries`:** status and changed mapping; an upcoming entry never asks for generation.
+- **U8 TutorDomain:**
+  - the nanoGPT snapshot tests (system prompt, planner context);
+  - the journey domain derives states over its own registry;
+  - the journey context has exactly ten keys;
+  - the validator rejects a non-canvas card, and `suggest_depth`, in the journey domain.
 
-**Route tests** (control-plane, stubbed `callModel`):
-- start → intake → diagnostic → path;
-- a path planner failure gives `error` with the answers kept and no other model call;
-- auth and owner-only checks;
-- revision conflict gives 409.
+**Routes** (control-plane, stubbed `callModel`):
+- start → intake → diagnostic → path → accept → section plan;
+- the journey `/evaluate` path builds its spec from the registry (client claim content ignored), appends events
+  server-side and rejects claims that are not in the registry;
+- multiple-choice keys never leave the server;
+- a path planner failure keeps the answers and gives a retryable error;
+- the adapt-to-path escalation conditions;
+- owner-only access;
+- a revision conflict gives 409;
+- the migration applies twice cleanly to an in-memory D1.
 
-**Browser acceptance** (`e2e/journey-check.mjs`): a local stack, a mock sign-in, stubbed planners through a
-local-only env flag (as `OAUTH_MOCK` is). No paid call.
-- **AT-01:**
-  - On a blank canvas, typing "I want to learn logistic regression" opens `[data-tutor-prompt-tray]` in mode
-    `intent_intake`.
-  - The canvas block count stays 0.
-  - No request goes to `/api/learn/ask` or `/api/learn/artifact`.
-- **AT-02:**
-  - The learner answers intake by clicking and the diagnostic by typing.
-  - The rail then lists the drafted sections as `upcoming`.
-  - The block count is still 0, and GET journey returns path v1 with every `generation_state = not_generated`.
-- **AT-13:** "What is logistic regression?" opens no tray, and one `/api/learn/ask` request is made.
-- **AT-14:** a quick overview asks at most 1 intake question, and the path has at most 3 sections.
-- **LP2 preview of AT-03 and AT-04:**
-  - Start leads to exactly one bound heading plus section 1's blocks.
-  - One section-plan request is made, for section 1 only.
-  - Sections 2-8 stay `not_generated`, with no heading on the canvas.
+**Browser** (`e2e/journey-check.mjs`: local stack, mock sign-in, `JOURNEY_MODEL_STUB=fixtures`, no paid call):
+- **J1:** a blank canvas, then "I want to learn logistic regression".
+  - Expect: the tray in `intent_intake`, 0 canvas blocks, and no `/api/learn/ask` or `/api/learn/artifact`
+    request.
+- **J2:** the learner answers intake by clicking, then a diagnostic probe by typing and one by clicking.
+  - Expect: `/api/learn/tutor/evaluate` called with `journey_id`, and the server journey holds the events.
+- **J3:** the path draft.
+  - Expect: the rail lists the sections as upcoming, the path is visible with the Learn agent chat panel open
+    (D5), still 0 blocks, and every `generation_state` is `not_generated`.
+- **J4:** Start.
+  - Expect: section 1 current; exactly one bound heading plus section 1's blocks; one section-plan request; no
+    heading, plan or artifact for sections 2..N.
+- **J5:** "What is logistic regression?" on a blank canvas.
+  - Expect: no tray, and one `/api/learn/ask` request.
+- **J6:** "Give me a 10-minute visual overview of logistic regression".
+  - Expect: at most 1 intake question and at most 3 sections.
+- **J7:** "Skip setup and start".
+  - Expect: a minimal path in the rail before any block, then section 1 materializes.
+- **J8:** Home "I want to learn logistic regression".
+  - Expect: a canvas titled with the topic, `journey.request.raw_user_message` equal to the exact text, and the
+    tray open on arrival.
+
+Screenshots of J1-J4, J7 and J8 go to the Figma review page for owner visual approval (D7: no deploy).
 
 ---
 
-## 14. Owner decisions needed before LP1
+## 17. New conflicts and owner questions
 
-- **D1. Per-turn responder on generic canvases.**
-  - Recommended: Learn chat plus journey-owned probes in V1, with Tutor v2 generalisation as gated LP-T.
-  - Alternative: generalise Tutor v2 first. This is larger and re-baselines the benchmarked planner.
-- **D2. Server-authoritative journeys in LEARN_DB** (migration 0004), applied locally in LP1. It is announced
-  before it is applied to the shared dev LEARN_DB.
-- **D3. Planner models.** Opus 5.5 for the diagnostic and path planners, Sonnet 5.5 for the section planner. No
-  paid call until GO; fixtures until then.
-- **D4. Home entry.** `teach()` starts the journey on the server and titles the canvas with the topic. This
-  touches `agent/AgentBar.jsx` and replaces the dropped-intent fallback for teach only.
-- **D5. Mobile.** The rail is hidden below `lg`. V1 stays desktop-only for the path view (the tray still works
-  on phones), in line with the deferred mobile work.
-- **D6. Voice on generic canvases (LP5).** Voice answers the tray and journey turns. Free spoken questions get a
-  short spoken Learn-chat answer, or stay unavailable.
-- **D7. Visual review.** CLAUDE.md asks for a dev-clone deploy for every UI change, and this task says not to
-  deploy. Which wins at LP1?
+- **N1 Identity.** `users.id` does not reach the Learn worker. LP1 keys on the `(org, owner_email)` principal,
+  which is internal and immutable (§10.2). Moving to `user_id` needs `/api/me` to expose it, a control-plane
+  change owned by Home or Parallel.
+- **N2 Benchmark gate scope.** The free gates in §3.4 run always. The paid corpus benchmark is about $18-30 for
+  the full run, and about $3-5 for the routine group on one arm. Which scope, if any, is required before LP1 is
+  accepted, given that the nanoGPT prompt and context are byte-identical by test?
+- **N3 Narrow layout.** The journey rail is `lg` and up in LP1. The Path sheet is required before production,
+  scheduled after LP2 unless the owner wants it sooner.
+- **N4 Tutor cannot generate cards on journey canvases** (unchanged policy). A learner who asks the Tutor to "show
+  me a visual of the sigmoid" gets a pointer to the existing section card or to `/graph`. A Tutor
+  `suggest_artifact` action would be a `TUTOR_TOOL` change, considered at LP4 together with the tray options.
