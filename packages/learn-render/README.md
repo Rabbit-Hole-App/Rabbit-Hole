@@ -45,6 +45,7 @@ npm run motion:prove [outDir]   # Demo A: static validation, preview, contact sh
                                 # determinism (two fresh contexts), network probe, bundle-time allowlist
 node --test "motion/*.test.mjs" # contracts, duration, static validation (no rendering)
 sh motion/linux/run.sh docker|unshare   # the same proof on Linux with the network denied
+node scripts/motion-local-check.mjs setup|run <final.mp4>   # local stack: LearnVideos -> LEARN_MEDIA -> video block
 ```
 
 - `motion/contracts.js`: the canonical MotionBrief, storyboard, Author output, finding and
