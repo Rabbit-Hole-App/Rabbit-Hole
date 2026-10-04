@@ -42,13 +42,15 @@ Motion Director                  (pedagogy, claims, scope)
     ↓
 MotionBrief                      (validated)
     ↓
-Storyboard                       (Director role; validated)
+Storyboard                       (Director role; validated; renderer-neutral)
     ↓
-Motion Author                    (writes composition source only)
+Renderer selection               (harness; the Director may recommend)
     ↓
-composition source               (statically validated)
+Motion Author                    (writes renderer-specific composition source only)
     ↓
-render harness                   (packages/learn-render, Linux render container)
+composition source               (statically validated for that renderer)
+    ↓
+render harness                   (MotionRenderer adapter, Linux render sandbox)
     ↓
 preview + contact sheet + determinism checks
     ↓
@@ -65,7 +67,14 @@ existing `type: "video"` block via insertBlock
 
 **Duration:** any whole number of seconds from 5 to 30. Default 10 seconds when the learner gives none. See §2.2.
 
-**Renderer:** the existing Remotion stack in `packages/learn-render`. HyperFrames, Three.js, Manim and Blender are future adapters, not V1. See §9.
+**Renderers** (owner decision 2026-10-04, locked): Motion V1 needs BOTH.
+
+- **Remotion** (`packages/learn-render`) is the baseline and the first implementation (M1, M7A).
+- **HyperFrames** is the priority second renderer (M7B), the first adapter built once the Remotion baseline works.
+- Both are required before the renderer-selection strategy is finalized by the M8 benchmark.
+- Neither replaces the other.
+
+Three.js, Manim and Blender remain future adapters, not V1. See §9.
 
 Do not build a general-purpose video editor. Do not build unrestricted text-to-video. Do not make learners choose rendering technologies.
 
@@ -91,7 +100,7 @@ Do not build a general-purpose video editor. Do not build unrestricted text-to-v
 - automatic paid charges
 - broad user rollout
 - arbitrary generated-code execution (generated composition source runs only after static validation, inside the render sandbox, with allowlisted imports; see §8 and §10)
-- HyperFrames, Three.js, Blender or Manim production adapters
+- production renderer adapters of any kind; the HyperFrames adapter is authorized for development at M7B (§9.5), and Three.js, Blender and Manim adapters are not authorized at all
 - milestone M9 (§26)
 
 Creating new infrastructure still requires explicit approval before it is deployed. The development render service `rabbit-hole-motion-renderer-dev` (§10.2) is approved as the M1 Linux runtime (owner decision 2026-10-04); Home creates and deploys it.
@@ -295,18 +304,25 @@ Therefore:
 |---|---|---|
 | **Learner Intent Resolver** (shared) | target resolution, selection/context binding, concept identity, source candidates | pedagogy, rendering |
 | **Motion Director** | learning objective, scope, teaching mode, claims, constraints, source grounding, storyboard requirements, the storyboard | rendering code |
-| **Motion Author** | composition source from the validated brief + storyboard + renderer contract | changing the objective, claims, sequence or scope; grading its own output |
-| **Render harness** | every stage transition, validation, rendering, repair counting, final validation, storage | creative or pedagogical decisions |
+| **Motion Author** | composition source from the validated brief + storyboard + the selected renderer's contract | changing the objective, claims, sequence or scope; grading its own output |
+| **Render harness** | every stage transition, renderer selection, validation, rendering, repair counting, final validation, storage | creative or pedagogical decisions |
 | **Visual reviewer** (fresh) | visual findings from the brief + rendered frames | seeing the Author's self-assessment |
 | **Pedagogical reviewer** (fresh) | correctness findings from the brief + source evidence + rendered frames | seeing the Author's self-assessment |
 
 The architecture is:
 
 ```text
-learner → Learner Intent Resolver → Motion Director → MotionBrief + storyboard → Motion Author → renderer
+learner → Learner Intent Resolver → Motion Director → MotionBrief + storyboard
+        → renderer selection → Motion Author → renderer-specific composition → sandbox → render → QA → video
 ```
 
 not `learner → prompt enhancer → model`. "Prompt enhancer" is not a component name in this system.
+
+**Renderer-neutral until the Author.**
+
+- The MotionBrief and the storyboard carry no Remotion- or HyperFrames-specific assumption unless one is absolutely required. They describe the stage, timing, beats, claims and visuals, not React components or HTML.
+- The renderer-specific contract starts at the Motion Author / renderer adapter boundary: imports, the composition format, the static rules and the render command.
+- The Director may recommend a renderer. The harness makes the final, allowed choice (§9.5).
 
 ## 4.2 Learner Intent Resolver
 
@@ -1017,7 +1033,7 @@ Inside Remotion compositions, V1 allows:
 - CSS (static styling only; no CSS animation)
 - existing safe animation primitives approved in M1
 
-**GSAP is not used in V1.** `packages/web/package.json` lists `gsap`, but nothing imports it, and Motion compositions must not import it until the owner/legal review in §34 is done. GSAP's standard licence prohibits use in tools that let users build animations without code in competition with Webflow's visual animation features; a prompt-to-animation product may be close enough to matter.
+**GSAP is not used in V1, by either renderer.** `packages/web/package.json` lists `gsap`, but nothing imports it, and Motion compositions must not import it until the owner/legal review in §34 is done. GSAP's standard licence prohibits use in tools that let users build animations without code in competition with Webflow's visual animation features; a prompt-to-animation product may be close enough to matter. GSAP can be evaluated separately after that review.
 
 ## 9.3 Fixed authoring stage
 
@@ -1038,11 +1054,82 @@ MotionRenderer {
 }
 ```
 
-V1 implementation: `RemotionRenderer` (packages/learn-render).
+V1 implementations (owner decision 2026-10-04, locked):
 
-Future adapters (not V1): HyperFrames, Three.js, Manim, Blender. The learner-facing `/motion` command does not change when a renderer is added.
+```text
+MotionRenderer
+├── RemotionRenderer      baseline, first implementation (M1, M7A), packages/learn-render
+└── HyperFramesRenderer   priority second renderer (M7B)
+```
 
-**HyperFrames** (HeyGen, Apache-2.0, released April 2026) stays documented as a future renderer experiment. If it later produces materially better results, it can become another adapter. It is not a V1 dependency.
+Future adapters (not V1): Three.js, Manim, Blender. The learner-facing `/motion` command does not change when a renderer is added.
+
+## 9.5 HyperFrames: the priority second renderer
+
+HyperFrames (HeyGen, Apache-2.0, released April 2026) is a serious production candidate, not a hidden experiment. It is the first adapter to build once the Remotion baseline works end to end (M7A), and it is required before the renderer-selection strategy is finalized.
+
+Why HyperFrames:
+
+- HTML/CSS/JS is a highly natural target for model-written motion code.
+- It is designed around agent-authored deterministic animation.
+- It is a strong fit for 5–30 s motion graphics, typography, diagrams and technical explainers.
+- Its animation primitives are framework-independent.
+- The Apache-2.0 licence is attractive.
+- It may give the Author more creative freedom than React/Remotion compositions.
+
+**The adapter may not weaken the contract.** `HyperFramesRenderer` obeys every rule `RemotionRenderer` does:
+
+- the fixed 1920×1080 / 30 fps stage;
+- explicit timeline / time seeking;
+- no wall-clock state and no uncontrolled `requestAnimationFrame` state;
+- seeded randomness only;
+- no arbitrary network;
+- bundled fonts and assets only (the same `assets/fonts`);
+- an import / dependency allowlist with its own static validation;
+- sandboxed Linux execution in the same render service and sandbox (§10.2), with the same resource limits;
+- the hard timeout, the output-size cap and a fresh temp workspace;
+- the same deterministic frame checks, preview/final comparison and final validation.
+
+An animation library that cannot be deterministically seeked to an exact time is not allowed in the adapter.
+
+**No mandatory GSAP.** The HyperFrames adapter must work without GSAP. It animates with the Web Animations API, CSS only where fully controlled and seekable, SVG/Canvas drawn directly from time, or Anime.js if its licence and technical review pass.
+
+**Renderer selection.**
+
+- **Today:** the harness chooses from the allowed renderers. The Director may recommend one; the harness's choice is final.
+- **Routing:** after the M8 benchmark, routing may become capability-based, for example technical / tightly structured → Remotion, and high-motion / HTML-native typography → HyperFrames. None of that is hard-coded before the benchmark.
+- **Production policy (after M8):** choose a DEFAULT renderer, keep the other as an approved alternative, and optionally route per teaching or visual need. Never delete either adapter.
+
+## 9.6 Renderer benchmark (M8)
+
+Once both adapters work, run a real benchmark. Each renderer receives the SAME:
+
+- learner request and source context;
+- MotionBrief and storyboard;
+- duration and teaching mode;
+- Author model/config;
+- review rubric.
+
+Only the renderer contract differs. Neither renderer may receive a different teaching brief.
+
+**Fixtures** (at least): durations of 5 s, 10 s, 15 s, and 30 s where appropriate.
+
+| Fixture | Mode | Exercises |
+|---|---|---|
+| A | `mechanism_first`: nanoGPT attention / softmax / causal masking | matrices, labels, arrows, state transitions, technical correctness |
+| B | `code_walkthrough`: a selected function / module flow | code typography, highlighting, source-to-visual transitions, camera / scroll |
+| C | `intuition_first`: an abstract ML concept | visual metaphor, smooth motion, character / object animation, the bridge into notation |
+| D | `system_flow`: a request path through a codebase | multiple components, packets / arrows / state transitions, labels and hierarchy |
+
+**Compared per renderer:**
+
+- **Generation reliability:** valid composition on the first try; schema / build failures; repair rate; unsupported API / import failures.
+- **Visual quality:** motion richness, polish, typography, composition, transitions, camera movement, perceived professional quality.
+- **Pedagogical quality:** claim correctness, `must_show` coverage, `must_not_claim` violations, mental-model clarity, narration / visual alignment when audio is on.
+- **Determinism:** repeated frame hashes, preview/final consistency, seek correctness.
+- **Performance:** model generation latency, bundle / build time, cold and cached render time, memory, CPU.
+- **Cost:** model tokens, render compute, repair cost.
+- **Engineering:** sandbox complexity, dependency surface, debugging difficulty, artifact size, maintenance burden.
 
 ---
 
@@ -1096,6 +1183,14 @@ Rendering is asynchronous so that no HTTP request waits up to 420 s behind Fly's
 - **Time:** a hard 420 s. The service stops the child at 420 s and reports `error: "timeout"`. The launcher's own `timeout 425s` is the backstop.
 - **Output:** final ≤ 25 MB, enforced by the renderer's final validation and again by the service (`output_too_large`). Each file the child writes is capped at 64 MB (`prlimit --fsize`).
 - **Workspace:** each render gets a fresh `/var/motion/jobs/<id>/` (setgid group `motion`, 2770), which is removed after success, failure or timeout.
+- **Machine resources** (M1 blocker 2, owner requirement 2026-10-04): the job runs in its own cgroup v2 group `/sys/fs/cgroup/motion/<id>`, created by `motion-sandbox` before the namespaces exist, so every process the job starts is limited from its first instruction:
+  - **memory:** `memory.max` 3 GiB (including the job's tmpfs), `memory.swap.max` 0;
+  - **process count:** `pids.max` 1024 tasks (processes and threads), plus `RLIMIT_NPROC` 1024 for the `motion-render` user;
+  - **CPU:** `cpu.max` 150000/100000 (1.5 of the dev machine's 2 CPUs, so the service keeps half a CPU for `/health` and status polls), on top of the 420 s wall limit.
+
+  The values match the 4 GB / 2-CPU `fly.dev.toml` machine; change them with the VM size. Chromium needs far more virtual address space than it uses, so `RLIMIT_AS` is not usable; memory is bounded only by the cgroup.
+- **Fail closed.** If cgroup v2 is not mounted, or the memory, pids or cpu controller is unavailable or cannot be delegated, the launcher renders nothing. It writes `{error: "resource_limits_unavailable", detail}` naming the exact missing piece, and the service reports that error. Limits are never silently dropped.
+- **After every job** `motion-sandbox` writes `out/sandbox-exit.json`: the limits, `oom_kills`, `memory_peak`, `pids_max_hits`, `cpu_usage_usec` and `cpu_nr_throttled`. It then clears the group (`cgroup.kill`) and removes it. The service returns this as `resources`. An OOM kill becomes `error: "memory_limit_exceeded"`.
 
 **Isolation.** The service runs as `motion-svc`. For each job it runs `sudo -n /usr/local/sbin/motion-sandbox <render id>`, the only sudo rule. The launcher accepts nothing but the 32-hex id, builds every path itself, and runs:
 
@@ -1123,6 +1218,14 @@ The result:
 This is an OS boundary on top of the page Content Security Policy and the static validation, not a replacement for them.
 
 **Self-check.** The render child checks its own boundary on every job (network reachable, root, the service's files visible, a writable renderer, an inherited environment) and refuses to render on any breach (`error: "sandbox_breach"`). Each result carries that report.
+
+The report includes `limits`: the cgroup the child is actually in and the `memory.max`, `memory.swap.max`, `pids.max`, `cpu.max`, `RLIMIT_NPROC`, `RLIMIT_FSIZE` and `RLIMIT_NOFILE` values, read from the kernel. A missing or unlimited value is also a breach.
+
+**Packaging** (M1 blocker 1). The image installs exactly the committed lockfile. A lockfile written on Windows once kept only `@esbuild/win32-x64`, so Linux `npm ci` could not bundle. The fix:
+
+- `packages/learn-render` pins `@esbuild/linux-x64` to the esbuild version `@remotion/bundler` uses (0.28.1), as an `optionalDependencies` entry, so Windows installs skip it.
+- The lockfile carries its entry.
+- `motion/lockfile.test.mjs` fails if that entry, or `@remotion/compositor-linux-x64-gnu` at the Remotion version, ever goes missing.
 
 **What the service still checks.** The full M0/M1 validation runs before any render, first in the service and again in the child:
 
@@ -1656,14 +1759,15 @@ Do not attempt everything in one commit.
 | Milestone | Scope | Status |
 |---|---|---|
 | **M0** | Documentation, canonical schemas (§5), demo fixtures (§27) | Schemas and fixture definitions: this document. Fixture files (brief/storyboard examples, pinned source excerpts) are created at the start of implementation. |
-| **M1** | Audit the existing Remotion render path; deterministic Linux render harness | Authorized |
-| **M2** | Learner Intent Resolver integration (shared slice) + Motion Director + grounded MotionBrief | Authorized |
+| **M1** | Remotion sandbox / render proof: the existing Remotion render path, the deterministic Linux render harness and the development render service | Authorized |
+| **M2** | Shared, renderer-neutral pipeline (M2–M6): Learner Intent Resolver integration (shared slice) + Motion Director + grounded MotionBrief | Authorized |
 | **M3** | Storyboard generation + validation | Authorized |
-| **M4** | Motion Author → Remotion composition source + static validation | Authorized |
+| **M4** | Renderer selection + Motion Author → renderer-specific composition source (Remotion first) + static validation | Authorized |
 | **M5** | Preview + contact sheet + determinism checks | Authorized |
 | **M6** | Fresh visual + pedagogical review + exactly one repair round | Authorized |
-| **M7** | Final render + final validation + LearnVideos / R2 + existing video-block insertion, in a development environment only | Authorized |
-| **M8** | End-to-end development demonstration: §27 demos pass human review; required report (§36) | Authorized |
+| **M7A** | Remotion end to end: final render + final validation + LearnVideos / R2 + existing video-block insertion, in a development environment only | Authorized |
+| **M7B** | HyperFrames adapter (§9.5) under the same sandbox, resource limits and determinism contract, through the same pipeline | Authorized (development) |
+| **M8** | Remotion vs HyperFrames benchmark (§9.6) on the same briefs and storyboards; §27 demos pass human review; choose the default routing; keep both adapters; required report (§36) | Authorized |
 | **M9** | Production `/motion` integration | **DEFERRED** pending explicit approval and the Usage & Credits payment architecture. Do not start M9 from this specification alone. |
 
 ## M1 — Remotion render path audit + deterministic Linux render harness
@@ -1684,7 +1788,8 @@ M1's Linux runtime is the development render service `rabbit-hole-motion-rendere
 - same-frame determinism in two fresh contexts;
 - the isolation probe;
 - the timeout kill;
-- a Demo B run that proves JetBrains Mono loads deterministically.
+- a Demo B run that proves JetBrains Mono loads deterministically;
+- the resource limits: a spawn storm stops at the task limit, a 4 GiB allocation is OOM-killed and busy CPU is throttled.
 
 Those are `motion/service/service.linux.test.mjs`, plus the existing video-block insertion and playback.
 
@@ -1738,13 +1843,17 @@ Preview render, contact sheet, determinism hashes, preview/final comparison thre
 
 Fresh visual and pedagogical reviewers; harness classification (§13); one repair round.
 
-## M7 — final render and insertion (development only)
+## M7A — Remotion end to end (development only)
 
 Final render, final validation, `LEARN_MEDIA` storage and `insertBlock({type: 'video', …})` in a development environment. The Motion provider and the `motion_render` carrier already exist since M1 (§18); M7 connects them to the orchestrated pipeline. Narration may be enabled here only after silent runs pass.
 
-## M8 — end-to-end development demonstration
+## M7B — HyperFrames adapter (development only)
 
-All §27 demos through the full pipeline; human review; the required report.
+`HyperFramesRenderer` behind the same `MotionRenderer` interface (§9.4–§9.5), its own Author contract and static validation, the same render service sandbox and resource limits, and the same determinism, preview/final and final-validation checks. GSAP is not required. Start it immediately after M7A.
+
+## M8 — benchmark and end-to-end development demonstration
+
+Run the §9.6 benchmark on the same briefs and storyboards for both renderers, then pass all §27 demos through the full pipeline with human review. Choose the default renderer and routing from the results; keep both adapters. Deliver the required report.
 
 ## M9 — production (deferred)
 
@@ -1991,11 +2100,11 @@ Do not build:
 - a social video marketplace
 - multi-user live editing
 - a renderer marketplace
-- several renderers at once (HyperFrames, Three.js, Manim, Blender adapters)
+- more renderers than Remotion and HyperFrames (no Three.js, Manim or Blender adapters)
 - a new MotionArtifact store or a special Motion card system
 - iterative repair loops beyond one repair round
 
-Get one renderer and one workflow extremely reliable first.
+Get the Remotion baseline and one workflow reliable first, then HyperFrames; nothing else.
 
 ---
 
@@ -2005,7 +2114,7 @@ These are owner/legal review items. None of them blocks the M0–M8 development 
 
 - **Remotion licence: HARD RELEASE GATE** (owner decision 2026-10-04). M9 / public production `/motion` MUST NOT launch until Remotion's commercial licensing requirements have been reviewed and satisfied. Today Remotion is free for individuals, non-profits and for-profit organizations with up to 3 employees; larger for-profit organizations need a company licence. Licensing is not solved in code.
 - **GSAP licence.** Free under GSAP's standard "no charge" licence, which prohibits use in tools that let users build animations without code in competition with Webflow's visual animation features. Not used in V1 (§9.2); review before any Motion use.
-- **HyperFrames licence.** Apache-2.0. Review only if it becomes an adapter.
+- **HyperFrames licence.** Apache-2.0; review the exact release used at M7B, including any bundled animation library (Anime.js is MIT, but it still needs licence and technical review before use).
 - **Fish Audio** terms for generated narration in distributed videos, when narration ships.
 - **nanoGPT** (MIT) excerpts shown in videos keep their attribution in provenance.
 - **JetBrains Mono** (SIL OFL 1.1) is bundled unmodified with its licence file, `assets/fonts/JetBrainsMono-OFL.txt` ("Copyright 2020 The JetBrains Mono Project Authors"). Redistributing it inside the renderer is allowed; the font is not sold on its own.
@@ -2021,7 +2130,7 @@ Use these for design research and prompt inspiration, not as runtime dependencie
 - YouMind Opus 5.5 prompt examples
 - Jason Zhu Opus 5.5 prompt/video library
 - educational Canvas explainer workflows shared by Claude users
-- HyperFrames (future renderer experiment, §9.4)
+- HyperFrames (the priority second renderer, §9.5)
 - Remotion agent skills and rendering patterns
 
 Important lesson from the public examples:

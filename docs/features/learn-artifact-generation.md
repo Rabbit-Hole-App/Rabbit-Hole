@@ -318,7 +318,8 @@ Still deferred:
 - public production `/motion`
 - production paid render
 - Tutor routing
-- renderers other than the existing Remotion stack
+- renderers other than Remotion (the baseline) and HyperFrames (the priority
+  second renderer, M7B)
 
 **`/motion` is the future canonical slash command** for Rabbit Hole's
 code-driven educational motion explainers. Do not use `/video` for this
