@@ -94,7 +94,7 @@ export default function SharePanel({ sharing, busy, error, onChange, onRepositor
                 <FolderLock size={13} className="shrink-0" />
                 <span className="min-w-0 flex-1">
                   <span className="block">Answers can read the private repository</span>
-                  <span className="block truncate text-ink-3">{current.repository.repo} at {current.repository.commit.slice(0, 7)}. Off: this canvas only.</span>
+                  <span className="block break-words text-ink-3">{current.repository.repo} at {current.repository.commit.slice(0, 7)}. Off: this canvas only.</span>
                 </span>
                 <Switch on={current.repository.repo_access} label="Answers can read the private repository" disabled={busy} onChange={onRepository} />
               </label>

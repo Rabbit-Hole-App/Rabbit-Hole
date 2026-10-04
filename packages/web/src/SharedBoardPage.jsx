@@ -101,9 +101,10 @@ const PILL = 'inline-flex max-w-[260px] shrink-0 items-center gap-1.5 rounded-md
 
 // The shared canvas's composer: Learn's composer shell (ChatComposer dock) in the canvas's composer slot, the
 // canvas's context as read-only pills above it, and the answers in a window above that only this viewer sees -
-// kept in this tab (shared-ask.js), never on the owner's board and never in a fork (Fork sends only the link). It is
-// a Q&A surface only: no +, attachments, model picker or / commands (the server ignores them too). Anyone may type; sending needs an account, so
-// signed out, Send keeps the draft and goes through sign-in. `draft` (back from sign-in) is restored, never sent.
+// kept in this tab (shared-ask.js), never on the owner's board and never in a fork (Fork sends only the link). A Q&A
+// surface only: no +, attachments, model picker or / commands (the server ignores them too). Anyone may type;
+// sending needs an account, so signed out, Send keeps the draft and goes through sign-in. `draft` (back from
+// sign-in) is restored, never sent.
 function SharedAsk({ token, viewer, context, draft }) {
   const [input, setInput] = useState(draft || '');
   const [turns, setTurns] = useState(() => (viewer ? loadChat(token, viewer) : []));
@@ -164,7 +165,7 @@ function SharedAsk({ token, viewer, context, draft }) {
               {turn.role === 'user' ? <div className="max-w-[85%] rounded-lg bg-hover px-3 py-1.5 text-sm">{turn.content}</div>
                 : turn.error ? <div role="alert" data-shared-limited={turn.limited || undefined} className="rounded-lg border border-danger/40 bg-danger/5 px-3 py-2 text-sm text-danger">{turn.error}</div>
                 : turn.content ? <div data-shared-answer className="min-w-0 rounded-lg border border-accent/30 p-3">
-                  {/* ponytail: no onFile - a shared view cannot open the owner-only repository file viewer, so cited files show as plain pills and there is no Sources dropdown. A share-scoped read-only file route would make them open. */}
+                  {/* ponytail: no onFile - a shared view cannot open the owner-only repository file viewer, so cited files show as plain pills and there is no Sources dropdown (owner decision E). A share viewer scoped to this share, its pinned commit and the allowed material could make them open. */}
                   <Md text={turn.content} />
                   {turn.notice && <p data-shared-notice className="mt-2 text-xs text-ink-3">{turn.notice}</p>}
                 </div>
