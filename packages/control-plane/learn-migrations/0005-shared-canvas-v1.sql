@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS shared_ask_events (
 CREATE INDEX IF NOT EXISTS shared_ask_events_viewer ON shared_ask_events(viewer_email, asked_at);
 CREATE INDEX IF NOT EXISTS shared_ask_events_board ON shared_ask_events(board_id, asked_at);
 
--- Backfill: every existing repository came in through the anonymous import (repositories.js POST and the
--- indexer's git ls-remote, no credentials), so each was public when imported. Existing shares are pinned at
--- their first open or ask after the code that reads this ships (learn-shared-ask.js sharePin).
-INSERT OR IGNORE INTO repository_visibility (app_id, visibility, checked_at) SELECT id, 'public', created_at FROM repository_apps;
+-- No backfill (owner, 2026-10-04): a migration never broadens visibility. Existing repositories have no row, so
+-- they stay unknown - private to every share - until their owner imports or refreshes them, whose anonymous
+-- git ls-remote is the only thing that marks one public (repositories.js). Nothing stored before this says a
+-- repository is public. Existing shares are pinned at their first open or ask after this ships (sharePin).

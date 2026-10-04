@@ -3,6 +3,8 @@
 // B pinned repository revision, C private repository boundary, D usage and limits, F composer controls.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
 import { sharedAskLimits, SHARED_ASK_LIMITS } from '../src/learn-shared-ask.js';
 import { SHARED_CANVAS_SYSTEM } from '../src/agents/learn-chat.js';
 import { setup, scriptModel, events, lastUserText, SHA, BOARD } from './shared-canvas-fixture.js';
@@ -10,6 +12,7 @@ import { setup, scriptModel, events, lastUserText, SHA, BOARD } from './shared-c
 const NEW = 'b'.repeat(40), LATER = 'c'.repeat(40);
 const NEW_FILES = { 'model.py': 'class Rewritten:\n    pass' };
 const REPO_TOOLS = ['get_repo_overview', 'search_code', 'read_source'];
+const READ_ONLY_TOOLS = ['get_repo_overview', 'search_code', 'get_relationships', 'explain_symbol', 'find_connection_path', 'query_graph', 'read_source', 'search_arxiv', 'read_arxiv_paper'];
 const readSource = { content: [{ type: 'tool_use', id: 'read', name: 'read_source', input: { path: 'model.py', start: 1, end: 2 } }], stop_reason: 'tool_use' };
 const toolResult = request => JSON.parse(request.messages.at(-1).content[0].content[0].text);
 const context = request => JSON.parse(lastUserText(request).split('\n\n---\n\n')[0]);
@@ -150,6 +153,46 @@ test('C boundary: a project board shared with its repository private withholds t
   assert.equal((await f.call('GET', `/api/learn/boards/shared/${token}`, { as: 'ben' })).body.app, 'repo-0a1b2c3d-nanogpt');
 });
 
+test('C migration: 0005 never marks a repository public - existing repositories stay unknown, so private to every share', () => {
+  const migration = readFileSync(new URL('../learn-migrations/0005-shared-canvas-v1.sql', import.meta.url), 'utf8');
+  const schema = readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8');
+  const before = schema.slice(0, schema.indexOf('-- Shared canvas v1'));
+  assert.ok(before.includes('CREATE TABLE IF NOT EXISTS repository_apps') && !before.includes('repository_visibility'), 'the schema as it was before 0005');
+  const sqlite = new DatabaseSync(':memory:');
+  sqlite.exec(before);
+  sqlite.exec("INSERT INTO repository_apps(id,org,name,owner_email,repo,branch,commit_sha,status) VALUES(1,'ws','repo-a','a@test','karpathy/nanoGPT','master','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','ready'),(2,'ws','repo-b','a@test','acme/lab','main',NULL,'failed')");
+  sqlite.exec(migration);
+  sqlite.exec(migration); // re-runnable
+  assert.equal(sqlite.prepare('SELECT count(*) AS n FROM repository_visibility').get().n, 0, 'no repository marked public');
+  assert.equal(sqlite.prepare('SELECT count(*) AS n FROM repository_apps').get().n, 2, 'repositories untouched');
+  // It changes structure only: no statement writes rows.
+  const statements = migration.replace(/--[^\n]*/g, '').split(';').map(sql => sql.trim()).filter(Boolean);
+  assert.deepEqual(statements.filter(sql => !/^CREATE (TABLE|INDEX) IF NOT EXISTS\b/i.test(sql)), []);
+  sqlite.close();
+});
+
+test('Lineage: a fork of a fork is owned and editable by its forker, names its source, keeps parent, root and the pinned revision', async t => {
+  const f = setup(t); scriptModel(t);
+  const { canvas: a, token } = await f.shareProject();
+  f.refresh(NEW, NEW_FILES);
+  const b = (await f.call('POST', '/api/learn/boards/fork', { as: 'ben', body: { source: { token }, key: 'fork-key-0010' } })).body;
+  const bLink = (await f.call('POST', `/api/learn/boards/${b.name}/main/share`, { as: 'ben', body: { shared: true, view: true, public_view: false } })).body.sharing.view;
+  f.refresh(LATER, NEW_FILES);
+  const c = (await f.call('POST', '/api/learn/boards/fork', { as: 'cara', body: { source: { token: bLink }, key: 'fork-key-0011' } })).body;
+  const link = name => ({ ...f.sqlite.prepare('SELECT org, owner_email, forked_from_org, forked_from_canvas_id, root_org, root_canvas_id, forked_from_owner_id, forked_from_title, forked_from_share FROM canvas_forks WHERE canvas = ?').get(name) });
+  assert.deepEqual(link(b.name), { org: 'ben-ws', owner_email: 'ben@test', forked_from_org: 'ana-ws', forked_from_canvas_id: a.name, root_org: 'ana-ws', root_canvas_id: a.name, forked_from_owner_id: 'ana@test', forked_from_title: 'nanoGPT attention', forked_from_share: token });
+  assert.deepEqual(link(c.name), { org: 'cara-ws', owner_email: 'cara@test', forked_from_org: 'ben-ws', forked_from_canvas_id: b.name, root_org: 'ana-ws', root_canvas_id: a.name, forked_from_owner_id: 'ben@test', forked_from_title: 'nanoGPT attention', forked_from_share: bLink });
+  // The pinned revision rides down the lineage: A's share pinned SHA; B inherited it; C read B's link at it.
+  for (const name of [b.name, c.name]) assert.equal(pinOf(f, name).commit_sha, SHA, name);
+  // Owned and editable by the forker only; the source shows in their Library.
+  const mine = (await f.call('GET', '/api/canvases', { as: 'cara' })).body.canvases.find(row => row.name === c.name);
+  assert.deepEqual([mine.owner_email, mine.forked_from_title, mine.forked_from_url], ['cara@test', 'nanoGPT attention', `/b/${bLink}`]);
+  const board = (await f.call('GET', `/api/learn/boards/${c.name}/main`, { as: 'cara' })).body;
+  assert.equal((await f.call('PUT', `/api/learn/boards/${c.name}/main`, { as: 'cara', body: { state: { ...board.state, items: [{ id: 'mine', text: 'my note' }] }, version: board.version } })).status, 200, 'the forker edits it');
+  for (const who of ['ben', 'ana']) assert.ok([403, 404].includes((await f.call('PUT', `/api/learn/boards/${c.name}/main`, { as: who, body: { state: {} } })).status), who);
+  assert.equal(JSON.parse(f.sqlite.prepare('SELECT state_json FROM learn_boards WHERE app = ?').get(a.name).state_json).items.length, BOARD.items.length, 'the original is untouched');
+});
+
 test('C permission: only the owner opens up their private repository, for one link, on the server; a new link starts closed', async t => {
   const f = setup(t, { visibility: 'private' }), replies = [], sent = scriptModel(t, replies);
   const { canvas, token } = await f.shareProject();
@@ -282,6 +325,8 @@ test('F controls: a / message is a plain question, and a model, command or file 
     assert.equal(request.model, 'claude-opus-5');
     assert.ok(request.system.startsWith(SHARED_CANVAS_SYSTEM));
     for (const ignored of ['notes.pdf', 'QUFBQQ', 'haiku-4-5', '"dive"']) assert.ok(!JSON.stringify(request).includes(ignored), ignored);
+    // No owner-only or writing tool: the repository's read-only tools and arXiv reading, nothing else.
+    assert.deepEqual(toolNames(request).filter(name => !READ_ONLY_TOOLS.includes(name)), [], 'only read-only tools');
   }
   assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM canvases').get().n, canvases, 'no Rabbit Hole or canvas made');
   for (const table of ['canvas_dives', 'threads']) assert.equal(f.sqlite.prepare(`SELECT count(*) AS n FROM ${table}`).get().n, 0, table);
