@@ -6,7 +6,7 @@ import { cloneElement, useCallback, useEffect, useRef, useState } from 'react';
 import { api, apiFetch } from './api.js';
 import { TUTOR_BOARD } from './learn-tutor-claims.js';
 import { loadStore, saveStore, storeKey } from './learn-tutor-evidence.js';
-import { arriveAt, enterHole, executeActions, keepHere, markOpened, openingQuestion, readPlanStream, runTurn } from './learn-tutor.js';
+import { arriveAt, enterHole, executeActions, keepHere, markOpened, openingQuestion, readPlanStream, runTurn, showableCards, wantsCard } from './learn-tutor.js';
 
 // A Tutor request that never answers ends as an error reply, not an endless spinner; Stop ends it too.
 const TURN_TIMEOUT_MS = 60000;
@@ -40,12 +40,18 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, on 
     // The per-turn benchmark record (e2e/tutor-bench.mjs listens); a failed turn reports its error name.
     const started = performance.now();
     const bench = detail => window.dispatchEvent(new CustomEvent('small:tutor-bench', { detail }));
+    // A turn that asks to see a card holds its place from the send (wantsCard,
+    // docs/features/canvas-skeleton-cards.md); the card takes it, and anything else - text only, a card
+    // already on the canvas, an error, a timeout, Stop - gives it up.
+    let slot = null;
+    const release = () => canvasApi.current?.release?.(slot);
     let result;
     try {
       result = await runTurn({
         raw: slash?.raw || raw, slash: slash?.name || null, opening,
         canvas: { ...here, ...(record ? { dive: record } : {}) },
         access, block, store: load(), inputModality, turnId, onSpeakable,
+        onTurn: built => { if (wantsCard(built)) slot = canvas?.reserve?.({ label: 'Creating a card…', card: 'animation', samples: showableCards() }) ?? null; },
         post: (path, body, stream) => {
           const limit = AbortSignal.any([AbortSignal.timeout(TURN_TIMEOUT_MS), ...(signal ? [signal] : [])]);
           // A streamed plan (body.stream, NDJSON): its sentences reach onSentence as they validate.
@@ -54,6 +60,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, on 
         },
       });
     } catch (error) {
+      release();
       bench({ error: error?.name || 'Error', trace: error?.trace ?? null, ms: { total_in_app: Math.round((performance.now() - started) * 10) / 10 } });
       throw error;
     }
@@ -63,7 +70,9 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, on 
       canvas: canvasApi.current || {},
       suggestDive: detail => window.dispatchEvent(new CustomEvent('small:dive-suggest', { detail })),
       climb: () => dive.navigator.climb(dive.navigator.tree.path.length - 2),
+      slot,
     }));
+    release();
     result.mark('canvas_action_complete');
     result.mark('reply_ready'); // the reply text goes to the chat now; tutor-bench measures when it is drawn
     const done = Math.round((performance.now() - started) * 10) / 10;

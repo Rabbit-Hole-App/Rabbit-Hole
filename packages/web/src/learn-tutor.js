@@ -190,6 +190,24 @@ export function learnerIntent(turn) {
   return { kind, raw_user_message: turn.raw_user_message, ...(turn.input_modality === 'voice' ? { input_modality: 'voice' } : {}), ...(turn.slash ? { slash: turn.slash } : {}), ...(turn.dive_choice ? { dive_choice: turn.dive_choice } : {}) };
 }
 
+// Does the learner clearly ask to see a card (docs/features/canvas-skeleton-cards.md)? Then its place on the
+// canvas is held while the plan comes. Decided before any model call, on learnerIntent: /deeper or
+// /simplify; or a request ("show me…", "explain this on the canvas"), or words that open with making or
+// showing ("make a card for this", "can you draw it?", which learnerIntent reads as an explanation or a
+// question), that name something to see. An ordinary question, an answer, a hole's opening or a
+// "don't…" gets no speculative skeleton.
+const SEE = /\b(show|visual\w*|card|canvas|draw|diagram|picture|animat\w*|mechanism)\b/i;
+const MAKE = /^(please |can you |could you |would you |will you )?(make|draw|create|put|show)\b/i;
+const NOT = /^(please |just )?(don'?t|do not|no more|stop)\b/i;
+export function wantsCard(turn) {
+  const { kind } = learnerIntent(turn), raw = turn.raw_user_message.trim();
+  if (kind === 'slash') return turn.slash === 'deeper' || turn.slash === 'simplify';
+  if (!['request', 'question', 'explanation'].includes(kind) || NOT.test(raw)) return false;
+  return (kind === 'request' || MAKE.test(raw)) && SEE.test(raw);
+}
+// The cards a turn can put on the canvas (the validator accepts no other): what its held place is sized from.
+export const showableCards = () => SLICE_CARDS.map(id => cardBlock(cardModule(id)));
+
 // ---------- Critical-path evaluation policy (v2 Stage C) ----------
 
 // Must evaluation finish before the Tutor answers? Decided before any model call:
@@ -274,7 +292,9 @@ export const enforce = validateActions;
 // handed over before the plan is complete, only if speakable() passes for this turn's route.
 // turnId: one canonical id for the learner turn - the turn's turn_id and the trace's trace_id - that Voice
 // also uses for its telemetry and speech (LearnVoice, voice-session).
-export async function runTurn({ raw, slash = null, opening = false, canvas, access, block, store, post, onSpeakable = null, inputModality = 'text', turnId = null }) {
+// onTurn(turn): the built LearnerTurn, handed over before any model call (the canvas holds a card's place
+// for a turn that wantsCard).
+export async function runTurn({ raw, slash = null, opening = false, canvas, access, block, store, post, onSpeakable = null, inputModality = 'text', turnId = null, onTurn = null }) {
   const t = [now()];
   const id = turnId || crypto.randomUUID();
   const tracer = turnTrace(now, id); // v2: the turn trace (learn-tutor-trace.js), returned in bench.trace
@@ -292,6 +312,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   const built = tracer.step('claim_selection', () => buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id }),
     out => out.selection ? `${out.selection.selected.length}/${out.selection.available}${out.selection.fallback ? ' fallback' : ''}` : 'none');
   const { turn, selection } = built;
+  onTurn?.(turn);
   // Evaluation and routing work on the claims the learner touched (Stage B); a turn without words
   // (a slash, a hole's opening) keeps the turn's claims.
   const claims = selection ? selection.selected : built.claims;
@@ -470,18 +491,23 @@ export function arriveAt(store, here) {
 
 const findCard = (canvas, cardId) => (canvas.blocks?.() || []).find(block => resolveTarget(block).card_id === cardId) || null;
 
-// Shows an authored card (added with cardBlock when it is not on the canvas) at a part.
-function showCard(canvas, cardId, partId = null) {
+// Shows an authored card (added with cardBlock when it is not on the canvas) at a part. A new card takes
+// the slot `take()` hands it (the one held while the plan came), and comes with its part already set: an
+// update right after the insert would read the canvas before the card is in it. The canvas brings it into
+// the visible area at the learner's zoom once it is laid out (revealBlock).
+function showCard(canvas, cardId, partId = null, take = () => null) {
   const module = cardModule(cardId);
   if (!module) return false;
-  let block = findCard(canvas, cardId);
-  const id = block?.id || canvas.insertBlock?.(cardBlock(module));
-  if (!id) return false;
+  const block = findCard(canvas, cardId);
   const pager = module.scene.inputs?.find(input => input.presentation === 'pager');
   const index = partId ? partIndex(module, partId) : null;
   // A part that does not exist opens the whole card at its default part: a fallback, never an error.
-  if (pager && index != null) canvas.updateBlock?.(id, current => applyInputToBlock(current, pager.name, index));
-  canvas.focusBlock?.(id);
+  const atPart = current => (pager && index != null ? applyInputToBlock(current, pager.name, index) : current);
+  if (block && pager && index != null) canvas.updateBlock?.(block.id, atPart);
+  const id = block?.id || canvas.insertBlock?.(atPart(cardBlock(module)), { into: take() });
+  if (!id) return false;
+  // A card already there answers the held slot: once the learner has moved the camera since, it is only selected.
+  canvas.revealBlock?.(id, block ? take.held?.() : null);
   return true;
 }
 
@@ -492,11 +518,15 @@ const partName = (cardId, partId) => {
 const titleOf = cardId => cardModule(cardId)?.scene.title || cardId;
 
 // Runs the enforced actions: navigations now, suggestions as chips the learner clicks.
-// deps: { canvas, suggestDive({ blockId, topic }), climb() }
-export function executeActions(actions, { canvas, suggestDive, climb }) {
+// deps: { canvas, suggestDive({ blockId, topic }), climb(), slot } - slot: the place held for a card while
+// the plan came (wantsCard); the first card this turn adds takes it, and the caller releases it otherwise.
+export function executeActions(actions, { canvas, suggestDive, climb, slot = null }) {
   const chips = [];
+  let held = slot;
+  const take = () => { const id = held; held = null; return id; };
+  take.held = () => held;
   for (const action of actions) {
-    if ((action.type === 'show_authored_card' || action.type === 'focus_part') && action.mode === 'navigate') showCard(canvas, action.card, action.part_id);
+    if ((action.type === 'show_authored_card' || action.type === 'focus_part') && action.mode === 'navigate') showCard(canvas, action.card, action.part_id, take);
     else if (action.type === 'show_authored_card' || action.type === 'focus_part') chips.push({ label: `Show ${titleOf(action.card)}${partName(action.card, action.part_id)}`, run: () => showCard(canvas, action.card, action.part_id) });
     else if (action.type === 'suggest_depth') {
       const next = ladderStep(action.card, action.direction || 'deeper');
@@ -506,7 +536,7 @@ export function executeActions(actions, { canvas, suggestDive, climb }) {
         const block = findCard(canvas, action.card);
         if (!block) return showCard(canvas, action.card);
         canvas.updateBlock?.(block.id, enterPractice);
-        canvas.focusBlock?.(block.id);
+        canvas.revealBlock?.(block.id);
         return true;
       } });
     } else if (action.type === 'suggest_dive') suggestDive({ blockId: action.from.block_id ?? null, topic: action.title });

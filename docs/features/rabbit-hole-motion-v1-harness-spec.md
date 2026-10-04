@@ -1336,6 +1336,8 @@ insertBlock({
 
 not a new Motion card system.
 
+Placement while it renders follows [canvas-skeleton-cards.md](canvas-skeleton-cards.md#paid-and-confirmed-artifacts): a paid or confirm-step command shows no canvas skeleton at the initial send, only its proposal. Confirming reserves the slot, and the committed card takes that slot.
+
 Provenance lives in the existing video job/block metadata. It must answer: *what source, card, code and claims generated this motion explainer?* Do not expose inaccessible source references to viewers who lack permission.
 
 Preview and contact-sheet refs point to harness job-directory files in M1–M6, and from M7 to `LEARN_MEDIA` keys under the job's existing prefix. Serving previews to learners is not part of V1.
