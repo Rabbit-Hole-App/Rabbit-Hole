@@ -33,11 +33,20 @@ The owner accepted this review on 2026-10-04 and locked eight decisions:
 - HeyGen's native voice;
 - Rabbit Hole-generated course clips that learners never pay for;
 - no autoplay;
-- no suggestions in Voice Mode;
+- no suggestions in Voice Mode (superseded the same day, see below);
 - the HeyGen account prerequisites;
 - the shared reload fix as an AV5 prerequisite.
 
 They are written into the sections they govern and listed in §32. AV2–AV4 groundwork is authorized, with no paid calls.
+
+**Owner correction, 2026-10-04 (later the same day).** Voice and Chat are communication modes; Avatar clips, Motion, cards and graphs are learning materials. Voice Mode never disables avatar clips, so decision 6 is superseded. Only clip playback pauses the Voice audio loop (§4.3). The correction also reshapes the action:
+- nine pedagogical moments;
+- `learning_goal`, which replaces `content_goal`;
+- an internal `visual_value`;
+- a six-question trigger validator;
+- an artifact routing principle.
+
+See §3, §4.1–§4.3 and §30 rows 32–36.
 
 ---
 
@@ -137,29 +146,53 @@ unless the learner explicitly requests an avatar/teacher explanation.
 
 Exact limits can remain configurable.
 
-**V1 mapping to real Tutor signals.** The Tutor on main has no "section" or "course completion" state:
+**Communication modes vs learning materials** (owner correction 2026-10-04; it supersedes locked decision 6).
+- Voice and Chat are **communication modes**.
+- Avatar Teacher clips, Motion, cards, graphs, quizzes and later artifacts are **learning materials**.
+- The two are independent dimensions. **Voice Mode never disables avatar clips.**
+
+Example. The learner asks by voice, "Why does attention need softmax?"
+- The Voice Tutor answers: "Softmax turns those raw scores into usable weights. I can show you a short professor explanation here."
+- The canvas gets `[Teacher clip · How to think about softmax · 9 s]`.
+
+The clip is extra learning material, not a second Tutor conversation. Only actual playback coordinates audio with Voice (§4.3).
+
+**The trigger is pedagogical value.** The planner asks one question: what does *seeing* a human teacher add here, beyond text or speech? If the answer is effectively nothing, the Tutor answers in plain Chat or Voice. Never trigger a clip:
+- because the Tutor has something to say;
+- as a talking head for every response;
+- for routine factual questions.
+
+| Good | Not good |
+|---|---|
+| "Welcome to Attention. Here's the question this section will answer." | a routine factual question |
+| "Before we continue, notice the difference between the fallback and flash branches." | a clip for every response |
+| "Let's reconnect what you learned about softmax to the attention mechanism." | |
+
+**The V1 router signals.** The Tutor on main has no "section" or "course completion" state:
 - Its evidence lives in a session-scoped browser store (`packages/web/src/learn-tutor-evidence.js:1-23`).
 - Its router rows are `slash`, `returned`, `off_slice`, `gap`, `gap_inline`, `misconception`, `misconception_explain`, `uncertain_unsettled`, `uncertain`, `not_yet_observed` and `understood` (`packages/web/src/learn-tutor.js:144-177`).
 
-So in V1 a purpose is tied to an existing signal:
+**Moments (V1).** Nine moments replace the allowlist above, and the earlier purposes fold into them. Each is either canonical (Rabbit Hole pre-generates it, decision 4) or personalized (learner-paid, deferred):
 
-| Purpose | The Tutor may suggest it when | Note |
-|---|---|---|
-| `rabbit_hole_intro` | a hole's opening turn (`learnerIntent` kind `opening`) | at most once per hole |
-| `rabbit_hole_return` | row `returned` | |
-| `concept_intro` | row `not_yet_observed` | |
-| `section_transition` | row `understood`, next to a `suggest_depth` | introduces the next ladder card (`ladderStep`) |
-| `checkpoint_feedback` | row `understood`, after a settled `pass` this turn | no mastery wording (§7) |
-| `section_greeting`, `course_completion` | never by the Tutor in V1 | no section-entry turn or completion state exists. Prototype-only as Tutor triggers; their clips are still product content (§14). |
+| Moment | Folds in | Canonical or personalized | The Tutor may suggest it when |
+|---|---|---|---|
+| `orientation` | section greeting, concept framing (`concept_intro`) | canonical | a hole's opening turn; row `not_yet_observed` |
+| `transition` | `section_transition` | canonical | row `understood`; needs a `ladderStep` |
+| `takeaway` | none | canonical | row `understood` |
+| `reflection` | `checkpoint_feedback` | canonical (standard wording; no learner evidence) | row `understood` or `returned` |
+| `rabbit_hole_intro` | none | canonical | a hole's opening turn |
+| `rabbit_hole_return` | none | canonical | row `returned` |
+| `completion` | `course_completion` | canonical | only on the learner's explicit request (no completion state exists) |
+| `human_explanation` | none | canonical if a product clip exists for (moment, concept); otherwise personalized | row `not_yet_observed` |
+| `demonstration` | none | the same as `human_explanation` | row `not_yet_observed` |
 
-The Tutor never suggests a clip on the rows that need the learner's attention elsewhere, or that are a direct request: `gap`, `gap_inline`, `misconception`, `misconception_explain`, `uncertain`, `uncertain_unsettled`, `slash`, `off_slice`. The learner's own explicit request for a teacher or avatar clip allows it on any other row.
+A greeting on *entering* a section has no Tutor turn. Its clip is still product content (`orientation`), placed later by product UI.
 
-**Never while Voice Mode is active** (owner decision 2026-10-04). The Tutor stays in the real-time voice interaction; with Voice Mode off, the approved moments above may be suggested. If the learner explicitly asks for the avatar teacher during Voice Mode, the spoken reply says in one sentence that teacher clips play outside Voice Mode. The two modalities never overlap (§4.1).
+The Tutor never suggests a clip on the rows that need the learner's attention elsewhere, or that are a direct request: `gap`, `gap_inline`, `misconception`, `misconception_explain`, `uncertain`, `uncertain_unsettled`, `slash`, `off_slice`. A learner's explicit request for the teacher, professor or avatar allows every moment on any other row.
 
-**Every V1 moment is canonical product content** (owner decision 2026-10-04, §14–§15):
-- In V1 a clip depends only on its moment, concept and course (`personalization: none`). Rabbit Hole generates it once, ahead of time, and every learner reuses it. Learners never pay for it.
-- The Tutor offers a chip only when that canonical clip is ready (§4.1).
-- The owner named section greeting, standard section transition, Rabbit Hole return and standard completion. `rabbit_hole_intro`, `concept_intro` and the standard `checkpoint_feedback` count as canonical too, for the same reason.
+**Canonical vs personalized** (decision 4, kept):
+- **Canonical.** A clip that depends only on its moment, concept and course (`personalization: none`). Rabbit Hole generates it once, ahead of time, and every learner reuses it. Learners never pay for it, and it is offered only when ready.
+- **Personalized.** A `human_explanation` or `demonstration` with no product clip, or anything learner-specific. This is the learner-paid Generate path (§15), and it is deferred.
 
 "~1 per section" becomes, in V1, two limits counted in the Tutor's session store:
 - at most one `suggest_avatar_clip` per turn;
@@ -181,9 +214,11 @@ Instead introduce a semantic action conceptually like:
 TutorAction
 {
   type: "suggest_avatar_clip",
-  moment: "section_transition",
-  content_goal: "...",
-  max_duration_seconds: 10
+  moment: "orientation" | "transition" | "takeaway" | "reflection" | "human_explanation"
+        | "demonstration" | "rabbit_hole_intro" | "rabbit_hole_return" | "completion",
+  learning_goal: "...",
+  visual_value: "...",
+  max_duration_seconds: 12
 }
 ```
 
@@ -219,20 +254,21 @@ The conceptual action above becomes one member of the Tutor's closed action list
 
 ```text
 { type: "suggest_avatar_clip",
-  moment,                  // rabbit_hole_intro | rabbit_hole_return | concept_intro
-                           // | section_transition | checkpoint_feedback   (§3 table)
-  concept,                 // a registry concept id (learn-tutor-claims.js CONCEPTS)
-  to_concept?,             // section_transition and rabbit_hole_return: where the learner goes next
-  content_goal?,           // ≤ 120 characters; a hint for the Avatar Director only (below)
+  moment,                  // §3 table
+  concept,                 // a registry concept id (CONCEPTS); with moment and course, the canonical slot
+  to_concept?,             // transition and rabbit_hole_return: where the learner goes next
+  learning_goal?,          // <= 120 characters; a Director-only hint (below)
+  visual_value,            // <= 200 characters; why SEEING a human teacher helps; trigger-validator input only (below)
   max_duration_seconds? }  // integer 3..30; default 8
 ```
 
 **What changed from the conceptual action:**
-- **`moment`, not `purpose`.** The planner tool has one flat action-item schema, and its `purpose` is already the `ask_question` enum `diagnose | predict | explain_back | transfer` (`agents/learn-tutor.js:154`). The AvatarBrief keeps `purpose`, with the same values as `moment`.
-- **No `context_refs`.** The validator resolves `concept` and `to_concept` against `CONCEPTS`, and the sources come from the concept's slice cards, as `suggest_dive` resolves its concept.
-- **`content_goal` is kept, but bounded.** See the reconciliation below.
+- **`moment`, not `purpose`.** The planner tool has one flat action-item schema, and its `purpose` is already the `ask_question` enum `diagnose | predict | explain_back | transfer` (`agents/learn-tutor.js:154`). The AvatarBrief's `purpose` takes the same nine values as `moment`.
+- **`concept` is kept.** The owner's example has no concept field, but a canonical clip is keyed by moment, concept and course (§14), so the Tutor must name the concept. There is no `context_refs`: `concept` and `to_concept` are resolved against `CONCEPTS`, as `suggest_dive` resolves its concept.
+- **`learning_goal` replaces `content_goal`.** It is the owner's renamed field, with the same bounds and rules.
+- **`visual_value` is new.** It is internal planning metadata.
 
-**`content_goal` reconciliation** (owner decision 2026-10-04). The first reconciliation (f639a825) removed this field: free text from the planner can carry the learner's words into a script, and it breaks cross-learner caching. The owner kept it. Both concerns are now met by bounding it:
+**`learning_goal` handling** (the `content_goal` reconciliation, renamed). The first reconciliation (f639a825) removed free text from the planner: it can carry the learner's words into a script, and it breaks cross-learner caching. The owner kept the field. Both concerns are met by bounding it:
 - It is at most 120 characters.
 - It goes only to the Avatar Director, as a hint. It never reaches the provider, the chip label, a log line or any cache key (the script-slot and render keys, §14).
 - The validator drops the field, but keeps the action, when the field:
@@ -241,51 +277,97 @@ The conceptual action above becomes one member of the Tutor's closed action list
   - repeats any five consecutive words of the learner's message (`turn.raw_user_message`, which the validator already holds).
 
   The drop is logged without the text, as `explicit_request` already is (`learn-tutor-validate.js:84-85`).
-- **Canonical product moments ignore it.** A canonical clip is keyed by moment, concept and course, and its script is product content written ahead of time (§14). In V1 every moment is canonical (§3), so `content_goal` changes nothing a learner sees in V1.
-- It is carried so that personalized, learner-scope clips (deferred, §32) can use it later without a contract change.
+- **Canonical moments ignore it.** A canonical clip is keyed by moment, concept and course, and its script is product content written ahead of time (§14). So `learning_goal` changes nothing a learner sees from a canonical clip. It matters only to personalized clips (deferred, §32).
 
-**Validation** (`packages/web/src/learn-tutor-validate.js`, the existing four stages):
+**`visual_value` handling** (decision 2026-10-04):
+- **Required.** No stated value means no suggestion (trigger question 2 below).
+- **Read only by the browser validator.** It is stripped from the accepted action. It therefore never reaches the chip, the session store, the trace, the Avatar Director, the brief, a cache key, a log line or the provider.
+- **Kept out of the Director.** The Director writes what the teacher says, from authored content. Why a human presenter helps is a routing reason, not teaching content, and passing it would open a second free-text channel from the planner into a script.
 
-| Stage | Rule |
-|---|---|
-| schema | `moment` is in the V1 list; `concept` and `to_concept` are in `CONCEPTS`; `max_duration_seconds` is an integer from 3 to 30; `content_goal` is bounded as above |
-| route | allowed only when the router added it for this row (§3 table), or on the learner's explicit request. **Never while Voice Mode is active** (`input_modality: "voice"`): the Tutor stays in the voice interaction, and the two modalities never overlap. At most one per turn, and one per (canvas or hole, concept) per session (a new session-store counter next to `socratic`). |
-| resource | the concept exists; `section_transition` also needs a `ladderStep`; the canonical clip for (moment, concept, course) is **ready** in the product cache (§14). Otherwise the action is dropped: learners never pay for a canonical moment. |
-| consent | it never starts anything. It always becomes a chip; there is no `mode: "navigate"`, and an explicit request does not change that |
+**Trigger validator.** Before a suggestion surfaces, the validator answers the six questions in order (`learn-tutor-validate.js`; no value means no suggestion):
 
-**An explicit request in Voice Mode.** If the learner asks for the avatar teacher while Voice Mode is on, the action is still dropped. A `PLANNER_SYSTEM` line has the spoken reply say, in one sentence, that teacher clips play outside Voice Mode. With Voice Mode off, the same request gets the chip.
+| # | Question | How it is decided | Stage |
+|---|---|---|---|
+| 1 | Is this an approved avatar moment? | the moment is allowed for this row or intent (§3 table), or the learner explicitly asked; blocked rows never allow one | route |
+| 2 | Does human visual presence add pedagogical value? | the planner must state `visual_value`; judging the value is the planner's job (§4.2), and the validator requires the stated reason | route |
+| 3 | Would Motion, a card or a graph be more appropriate? | if the same plan shows or focuses a card because the learner explicitly asked to see it (`mode: navigate`), the card is the material, and the clip is dropped. Otherwise it is the planner's routing (§4.2); Motion is not a Tutor action yet. | route |
+| 4 | Is it redundant with something already on the canvas? | the same slot is already on this canvas, or was already suggested here this session | route |
+| 5 | Is there already a reusable cached clip? | a ready canonical clip for the slot → `offer: "play"` (free) | resource |
+| 6 | Does generation require credits? | no ready clip: a canonical-only moment is dropped (learners never pay for canonical clips); `human_explanation` or `demonstration` → `offer: "generate"` (the personalized paid path, §15, deferred) | resource |
+
+The other existing rules still apply:
+- at most one suggestion per turn;
+- one per (canvas or hole, concept) per session;
+- the three-action cap;
+- `transition` needs a `ladderStep`;
+- schema: the moment and concepts are known, `max_duration_seconds` is 3..30, and the text fields respect their bounds.
+
+**Voice Mode does not suppress it.** The same plan validated on a typed turn and on a voice turn gives the same suggestion: Chat and Voice can produce the same learning material.
 
 It is never the turn's only action:
 - the router always keeps `respond_text` allowed (`finish`, `learn-tutor.js:149`);
 - a fast plan with no words already escalates to Opus (`fastPlanProblem`, `learn-tutor-routes.js:194-199`).
 
-So the Tutor's text turn is never lost.
+So the Tutor's text or spoken turn is never lost.
 
-**Execution.** `executeActions` (`learn-tutor.js:496`) turns it into a chip such as `Watch: Softmax intro · 8 s`.
-- **The click is the explicit start.** The chip inserts the video card (§13) and plays it from the learner's click, with sound. Nothing is paid, and no proposal is shown.
-- **Cached does not mean automatic** (owner decision 2026-10-04). A ready clip removes the generation and payment steps, not the learner's choice to play it. Nothing ever plays because a clip exists. Muted visual previews are deferred (§32).
-- **The Tutor never reaches the provider.** No Tutor path calls HeyGen or the Director in V1, because a canonical clip is pre-generated.
-
-The paid path (Director → proposal → Generate → paid job) belongs only to learner-specific or explicitly requested personalized clips (§15).
-- On that path, generation begins only after the learner explicitly chooses Generate.
-- In V1 that path is deferred, and this action cannot reach it.
-- If no canonical clip is ready, the chip is simply not offered.
+**Execution (AV6):**
+- **`offer: "play"`.** A chip such as `Teacher clip · How to think about softmax · 9 s`. The chip places the card; on the learner's explicit request the Tutor may place it directly, as with `show_authored_card`. Either way the clip plays only when the learner presses Play.
+  - It never autoplays, even in Voice Mode, and there is no charge.
+  - In Voice Mode the spoken reply may say, in one sentence, that the clip is on the canvas.
+- **`offer: "generate"`** (personalized, deferred). The suggestion leads to a proposal. The learner chooses Generate; then the skeleton reservation, the HeyGen job and the avatar video card follow.
+  - Voice Mode stays on as the communication mode throughout.
+  - Only actual playback pauses its audio loop (§4.3).
+- **The Tutor never reaches the provider or the Director.** No Tutor path calls either.
 
 **Planner changes (in the AV2 groundwork schema, switched on in AV6):**
 - `ACTION_TYPES` and the `TUTOR_TOOL` item schema gain the type and the fields above.
-- `PLANNER_SYSTEM` gains two lines:
-  - `suggest_avatar_clip` only suggests a short teacher clip, at most once, only when `context.allowed_actions` lists it. Its `content_goal` never quotes the learner.
-  - On a voice turn, a request for the teacher clip gets one spoken sentence saying that clips play outside Voice Mode.
+- `PLANNER_SYSTEM` gains three lines:
+  - the value question and the routing principle (§4.2);
+  - the field rules (`learning_goal` in the planner's own words, never the learner's);
+  - the Voice sentence that the clip is on the canvas.
 - The existing "never generate new artifacts" line (`agents/learn-tutor.js:176`) stays true.
 - `tool_choice` stays `{type: "auto"}`: `claude-opus-5-5` answers HTTP 400 to a forced tool choice (`agents/learn-tutor.js:215-217`; Motion V1 spec §4.9).
 
 Adding the type changes the planner request on every turn. That includes the cached prefix, which the Voice and golden-trace tests pin. So the action sits behind an off-by-default knob, `TUTOR_AVATAR` (owner decision 2026-10-04), in line with Tutor v2's off-by-default rule. With the knob off:
-- the type and its two `PLANNER_SYSTEM` lines are absent;
+- the type and its `PLANNER_SYSTEM` lines are absent;
 - the planner request is byte-identical to today.
 
 Turning it on is not authorized yet (§32). It needs the owner's GO and a re-run of the Tutor benchmark.
 
-The Tutor's locked decisions still list "`generate_artifact`, `suggest_motion` and the paid-tool confirmation UX" as open (`docs/features/tutor-v1-locked-decisions.md:249, 260, 553`). `suggest_avatar_clip` leaves that item open: in V1 it leads only to free, pre-generated product clips, never to a paid job.
+The Tutor's locked decisions still list "`generate_artifact`, `suggest_motion` and the paid-tool confirmation UX" as open (`docs/features/tutor-v1-locked-decisions.md:249, 260, 553`). `suggest_avatar_clip` leaves that item open: its canonical path is free, and its paid personalized path is deferred.
+
+## 4.2 Artifact routing principle
+
+| What the learner needs | Material |
+|---|---|
+| static structure | a card or a diagram |
+| a changing process or mechanism | Motion |
+| human presence, framing, gesture or emphasis | Avatar Teacher |
+| both | Avatar plus Motion, composed or sequenced later (§12; not implemented) |
+| neither | a normal Tutor response |
+
+A future session, not V1:
+1. The Voice Tutor says, "First listen to the intuition."
+2. An avatar clip plays.
+3. A Motion clip shows the mechanism.
+4. The Voice Tutor resumes.
+
+## 4.3 Voice Mode and clip audio (AV5/AV6)
+
+Voice Mode stays on while a clip is suggested, placed or generated. Only actual **playback** coordinates audio. When a clip plays while Voice Mode is on:
+1. Pause Tutor TTS.
+2. Pause or mute STT capture, so the clip is not transcribed.
+3. Play the clip.
+4. When it ends or is stopped, restore the mic, the listening state and the normal Voice loop.
+
+Voice Tutor speech and clip audio never overlap. Later, narrated Motion uses the same principle.
+
+**The seams:**
+- `createVoiceSession({ stt, tts, tutor })` in `packages/web/src/voice-session.js`. Its states are off, listening, thinking and speaking. It already calls `tts.stop()`, `stt.pause()` and `stt.resume()` on interrupts and on the speaking-to-listening transition.
+- `createScribeStt` in `voice-stt.js` has `pause` and `resume`; `createFishTts` in `voice-tts.js` has `speak` and `stop`.
+- `LearnVoice.jsx` exposes the session to the page: `state`, `enter`, `exit`, `interrupt`, `say`.
+
+AV5/AV6 adds a session-level hold and release around clip playback, on those same calls. The design is not decided here.
 
 ---
 
@@ -324,8 +406,8 @@ The provider should receive the final spoken script plus avatar rendering config
 
 | | |
 |---|---|
-| **Allowed inputs** | the purpose (`moment`) and the registry concept ids. The authored content of those concepts: `CLAIMS` statements, the cards' `learningQuestion` and titles, and up to 3 pinned source notes per card, at the course's pinned commit. The lesson/TOC titles. Learner-scope briefs only: the ids of concepts that have a settled `pass` this session (with `personalization: session_concepts`), and the Tutor's validated `content_goal` as a hint (§4.1). A canonical brief never takes `content_goal`. |
-| **Forbidden inputs** | the raw learner message or voice transcript; Tutor turns and text, except the validated `content_goal` hint on learner-scope briefs; evidence events, probabilities or misconception ids; canvas state; private repository source (V1 covers the public `karpathy/nanoGPT` course only, the only place the Tutor runs: `docs/features/production-tutor-entry.md`); identity (email, name, org); auth data; model or provider ids |
+| **Allowed inputs** | the purpose (`moment`) and the registry concept ids. The authored content of those concepts: `CLAIMS` statements, the cards' `learningQuestion` and titles, and up to 3 pinned source notes per card, at the course's pinned commit. The lesson/TOC titles. Learner-scope briefs only: the ids of concepts that have a settled `pass` this session (with `personalization: session_concepts`), and the Tutor's validated `learning_goal` as a hint (§4.1). A canonical brief never takes `learning_goal`. `visual_value` is never an input (§4.1). |
+| **Forbidden inputs** | the raw learner message or voice transcript; Tutor turns and text, except the validated `learning_goal` hint on learner-scope briefs; the Tutor's `visual_value`; evidence events, probabilities or misconception ids; canvas state; private repository source (V1 covers the public `karpathy/nanoGPT` course only, the only place the Tutor runs: `docs/features/production-tutor-entry.md`); identity (email, name, org); auth data; model or provider ids |
 | **When it runs** | canonical moments: once per slot, when Rabbit Hole prepares product content (§14), never on a learner's turn. Learner-scope clips (deferred): on the learner's request, before the paid proposal. |
 | **Output** | a validated AvatarBrief (§6) with `script`, or a failure. A failure produces no clip and no proposal. The Tutor's text answer stands. |
 | **Grounding** | every factual phrase maps to a `source_refs` entry. The script may state only claims that are already in the concepts' `CLAIMS` statements or `learningQuestion`. |
@@ -346,13 +428,13 @@ AvatarBrief {
   id
   brief_version                  // "avatar-brief/1"
   prompt_spec_version            // Director prompt template version; part of the script-slot key
-  purpose                        // section_greeting | section_transition | concept_intro | checkpoint_feedback
-                                 // | rabbit_hole_intro | rabbit_hole_return | course_completion
+  purpose                        // the nine moments (§3): orientation | transition | takeaway | reflection
+                                 // | human_explanation | demonstration | rabbit_hole_intro | rabbit_hole_return | completion
   origin                         // product (canonical, prepared by Rabbit Hole) | learner_request | dev_fixture
   scope                          // cache scope (§14): { kind: "public_course", course: "karpathy/nanoGPT@<commit>" }
                                  //                  (canonical product content; never learner-paid)
                                  //                  | { kind: "learner" }   (personalized; never shared; deferred)
-  content_goal?                  // learner scope only: the Tutor's validated hint (≤ 120 chars, §4.1);
+  learning_goal?                 // learner scope only: the Tutor's validated hint (≤ 120 chars, §4.1);
                                  // never sent to the provider, never in a key, never logged
 
   learner_context {              // registry ids only (CONCEPTS), never free text
@@ -431,7 +513,7 @@ AvatarBrief {
 - `script` meets `script_constraints` (§5.1);
 - every `script.source_ref_ids` entry exists;
 - `personalization: none` carries no `session_concepts`;
-- a `public_course` brief carries no `content_goal`;
+- a `public_course` brief carries no `learning_goal`;
 - no model id, provider id, credential, email or name appears anywhere in the brief.
 
 **What changed from the conceptual schema:**
@@ -907,7 +989,7 @@ Do not accidentally include private learner text in cache keys or logs.
                        personalization, sorted session_concepts)
    ```
 
-   The first validated and approved script for a slot is reused by everyone who reaches that slot. `content_goal` is never part of this key, or of the render key (§4.1).
+   The first validated and approved script for a slot is reused by everyone who reaches that slot. `learning_goal` and `visual_value` are never part of this key, or of the render key (§4.1).
 2. **Render key.** This is the conceptual key above, with every provider-specific value resolved server-side:
 
    ```text
@@ -971,8 +1053,9 @@ Development prototype generation can be separately approved.
 |---|---|---|
 | Who pays | Rabbit Hole, once per slot, as product content | the learner or account, from credits |
 | Who starts generation | the owner, through an owner-run job with an explicit spend approval (§14) | the learner, by choosing Generate on a proposal |
-| What the learner sees | a chip, then a card that plays when the learner clicks "Watch" | a proposal (script, duration, "This uses paid generation.", [Cancel] [Generate]), then a card |
+| What the learner sees | a chip that places the card; it plays when the learner presses Play, in Chat or Voice Mode | a proposal (script, duration, "This uses paid generation.", [Cancel] [Generate]), then a card |
 | Canvas skeleton | none: the ready clip inserts at once | only after Generate (below) |
+| Voice Mode | stays on; only playback pauses TTS and STT (§4.3) | stays on through proposal, Generate and the job; only playback pauses TTS and STT |
 
 - **One gate for every provider.** Every avatar submission, from either case, runs `paidRefusal(body)` (`packages/control-plane/src/learn-paid.js`) in its Durable Object before the provider call. Without `confirmed: true`, which only an explicit Generate (the learner's, or the owner's for product content) sends, the answer is HTTP 428 `needsConfirm` (commit `2cb7f566`; `docs/features/learn-artifact-generation.md`, "Paid generation boundary"). AV3 adds an `/api/learn/avatar` row to that doc's gate table.
 - **Cached means free, not automatic** (owner decision 2026-10-04).
@@ -1022,7 +1105,7 @@ The provider receives the final script, not the reasoning/context corpus.
 It never receives:
 - an email, name, org, app, canvas or turn id;
 - a `callback_id` that identifies a learner (because V1 polls, there is no callback URL at all);
-- the Tutor's `content_goal` (§4.1).
+- the Tutor's `learning_goal` or `visual_value` (§4.1).
 
 **Further rules:**
 - **The Director boundary is the guarantee.** The V1 script is built only from public course content and registry ids (§5.1). Even a leaked script reveals nothing about a learner.
@@ -1140,7 +1223,7 @@ Guidelines:
 - short,
 - skippable,
 - no autoplay with sound unless current product policy explicitly allows it (it does not: paid narration "never autoplays", `docs/features/learn-artifact-generation.md`. Owner decision 2026-10-04: a cached clip never autoplays just because it exists; the learner explicitly starts it, and muted previews are deferred),
-- no avatar suggestion while Voice Mode is active (§3, §4.1),
+- Voice Mode does not suppress suggestions; while a clip plays, Tutor TTS and STT pause, and they resume when it ends or stops; the two audio sources never overlap (§4.3),
 - subtitles/captions when appropriate,
 - no excessive frequency,
 - no giant talking head obscuring the learning canvas,
@@ -1178,7 +1261,7 @@ if new paid generation required:
 Tutor decides pedagogical intent, not provider execution.
 
 In V1 (owner decisions 2026-10-04):
-- A suggestion is a chip (§4.1), offered only when the canonical clip is ready, and never while Voice Mode is active.
+- A suggestion is a chip (§4.1), surfaced only after the six-question trigger validator. Chat and Voice suggest the same way.
 - A cached clip plays only when the learner starts it; it never autoplays.
 - "Show proposal" belongs to the deferred personalized path (§15).
 
@@ -1193,7 +1276,7 @@ These four are canonical product moments (§3, §14). Once approved, they are th
 ## A. Course greeting
 
 Purpose:
-`section_greeting`
+`orientation` (section greeting)
 
 Example goal:
 "Welcome the learner to Attention and explain what question the section answers."
@@ -1204,7 +1287,7 @@ Target:
 ## B. Section transition
 
 Purpose:
-`section_transition`
+`transition`
 
 Example:
 "Next, let's look at softmax and how it turns scores into weights."
@@ -1226,7 +1309,7 @@ Target:
 ## D. Completion
 
 Purpose:
-`course_completion`
+`completion`
 
 Example:
 "You've finished this section. Next, try explaining how causal masking and softmax work together."
@@ -1412,7 +1495,7 @@ It also includes:
 **Authorized now: AV2 groundwork, with no paid calls.**
 - The AvatarBrief schema (§6) and its validator.
 - The Avatar Director contract (§5.1): input boundary, output schema, validation and script-slot key, tested against recorded fixtures with no live model call.
-- The Tutor `suggest_avatar_clip` schema and validator (§4.1), including the bounded `content_goal`, behind `TUTOR_AVATAR`, which stays off. With the knob off, the planner request is byte-identical to today.
+- The Tutor `suggest_avatar_clip` schema and validator (§4.1), including the bounded `learning_goal`, the internal `visual_value` and the trigger validator, behind `TUTOR_AVATAR`, which stays off. With the knob off, the planner request is byte-identical to today.
 
 Live Director model calls, and switching the Tutor action on, wait for later GOs (§32).
 
@@ -1471,6 +1554,12 @@ It also includes:
 **Prerequisite:** the shared video resume-after-reload fix (`paid-persist-8`, §13). It is fixed once in the shared pipeline, or, if AV5 gets there first, landed as its own separate prerequisite commit for Parallel to review. It is never avatar-only state.
 
 **Not yet authorized** (it deploys).
+
+**AV5/AV6 acceptance (Voice audio, §4.3):**
+- (4) clip playback pauses Tutor TTS;
+- (5) playback pauses the mic/STT;
+- (6) stopping or ending the clip restores Voice listening;
+- (7) Voice and avatar audio never overlap.
 
 ## AV6 — Tutor suggestion flow
 
@@ -1546,7 +1635,20 @@ A successful Avatar Teacher development prototype demonstrates:
 11. no silent paid generation,
 12. one Motion + avatar composition prototype works,
 13. provenance identifies provider/avatar/voice/config used,
-14. canonical moments are free to learners, and never autoplay or appear during Voice Mode.
+14. canonical moments are free to learners, and never autoplay, in Chat or in Voice Mode,
+15. the owner correction's acceptance tests, numbered as the owner gave them:
+    1. Voice Mode ON does not suppress `suggest_avatar_clip`;
+    2. Chat and Voice can produce the same pedagogical suggestion;
+    3. an ordinary Voice response does not automatically produce avatar material;
+    4. clip playback pauses Tutor TTS;
+    5. playback pauses the mic/STT;
+    6. stopping or ending the clip restores Voice listening;
+    7. Voice and avatar audio never overlap;
+    8. a cached clip can be suggested during Voice Mode;
+    9. an uncached paid clip still requires Generate confirmation;
+    10. `visual_value` stays internal and is never sent to HeyGen.
+
+    Tests 1, 2, 3 (validator level), 8, 9 (contract level) and 10 are unit tests in the AV2–AV4 groundwork. Tests 4–7 are AV5/AV6 acceptance tests.
 
 ---
 
@@ -1619,8 +1721,8 @@ Each row is a conflict, inconsistency or wrong assumption found in the owner's d
 |---|---|---|---|
 | 1 | The Tutor has no generation action and no paid tools. `generate_artifact`, `suggest_motion` and the paid-tool UX are an open decision. The planner prompt says "never generate new artifacts". | `tutor-v1-locked-decisions.md:206, 249, 260, 496-503, 553`; `agents/learn-tutor.js:176` | `suggest_avatar_clip` (renamed from `show_avatar_message`, owner 2026-10-04) is a chip-only suggestion behind the off-by-default `TUTOR_AVATAR` knob. In V1 it leads only to free, pre-generated canonical clips, so the open paid-tool item stays open (§4.1). |
 | 2 | The action field `purpose` collides with the planner tool's existing `purpose` enum for `ask_question`. | `agents/learn-tutor.js:154` | The Tutor field is `moment`; the brief keeps `purpose` (§4.1). |
-| 3 | Purposes assume section and course-completion state that the Tutor does not have. | `learn-tutor-evidence.js:1-23` (session-only store); `learn-tutor.js:144-177` (router rows) | Each purpose is mapped to a real signal; `section_greeting` and `course_completion` are prototype-only in V1 (§3). |
-| 4 | `content_goal` and `context_refs` are free text from the planner: a path for learner words into the Director and provider, and a cache breaker. | §4 draft vs §16 draft | `context_refs` dropped: registry concept ids only. `content_goal` kept by owner decision, but bounded: ≤ 120 characters; a Director hint only; never sent to the provider, logged or used in a key; dropped if it carries code, identifiers or five consecutive words of the learner's message. Canonical moments ignore it, so it has no V1 effect (§4.1). |
+| 3 | Purposes assume section and course-completion state that the Tutor does not have. | `learn-tutor-evidence.js:1-23` (session-only store); `learn-tutor.js:144-177` (router rows) | Each moment is mapped to a real signal (§3 table, revised by the owner correction); `completion` and the section-entry greeting have no Tutor trigger in V1. |
+| 4 | `content_goal` and `context_refs` are free text from the planner: a path for learner words into the Director and provider, and a cache breaker. | §4 draft vs §16 draft | `context_refs` dropped: registry concept ids only. `content_goal` kept by owner decision and later renamed `learning_goal`, but bounded: ≤ 120 characters; a Director hint only; never sent to the provider, logged or used in a key; dropped if it carries code, identifiers or five consecutive words of the learner's message. Canonical moments ignore it, so it has no V1 effect (§4.1). |
 | 5 | `completed_topics`, and the examples "you've got causal masking" and "You can now explain…", are mastery claims. | `agents/learn-tutor.js:181`; `adaptive-tutor-v1.md:43` (T1) | Concept ids plus a `personalization` switch, `no_mastery_claims`, and the examples rewritten (§2, §6, §7, §21). |
 | 6 | Opus 5.5 rejects a forced `tool_choice`, and the artifact path forces `any`. | `agents/learn-tutor.js:215-217`; `learn-artifact.js:53`; Motion V1 §4.9 | The Director uses `auto`, harness validation and one schema re-ask; the planner stays `auto` (§4.1, §5.1). |
 | 7 | The cache key uses `final_script`, but the Director is a model, so two learners would get two scripts and two paid renders. | §14 draft | A script-slot key comes first, then the render key (§14). |
@@ -1645,9 +1747,14 @@ Each row is a conflict, inconsistency or wrong assumption found in the owner's d
 | 26 | New names were needed. | `CLAUDE.md:34` (`rabbit-hole-*`, never `small-*`) | No new Cloudflare or Fly resource. New names: secret `HEYGEN_API_KEY` and var `LEARN_AVATAR_PROVIDER` (none exists today), R2 prefix `learn-avatar/`, dev clone `rabbit-hole-web-dev-avatar-teacher-v1-spec`. |
 | 27 | The first reconciliation let "the first learner who confirms" pay for a shared clip. | §15 (f639a825) | Dropped. Canonical moments are pre-generated by Rabbit Hole as reusable course assets, and learners never pay for them. Only deferred personalized clips are learner-paid. The two cases are kept apart in §3, §14, §15 and §26 (owner 2026-10-04). |
 | 28 | The first reconciliation's chip could open a paid proposal when no clip was cached. | §4.1 (f639a825) | The chip is offered only when the canonical clip is ready. The proposal → Generate path belongs to deferred personalized clips (§4.1, §15). |
-| 29 | Voice turns: the first pass only blocked suggestions, with no answer for an explicit request. | §4.1 (f639a825) | No suggestion while Voice Mode is active. An explicit request gets one spoken sentence saying clips play outside Voice Mode; the modalities never overlap (§3, §4.1; owner 2026-10-04). |
+| 29 | Voice turns: the first pass only blocked suggestions, with no answer for an explicit request. | §4.1 (f639a825) | Superseded by row 32: Voice Mode no longer suppresses suggestions. |
 | 30 | Voice: the first pass compared HeyGen and Fish as equals. | §18, §21 (f639a825) | HeyGen's native voice is the V1 baseline. Fish-supplied audio is a priority later comparison, under stated conditions and Fish licensing (§18; owner 2026-10-04). |
 | 31 | Account: the first pass mentioned a Rabbit Hole account only for MCP. | §10 (f639a825) | Five account prerequisites, plus explicit spend approval, before any paid MCP or API call (§10; owner 2026-10-04). |
+| 32 | Locked decision 6 (no suggestions in Voice Mode) mixed up a communication mode with a learning material. | owner correction 2026-10-04 | Voice and Chat are modes; clips are materials. Voice never suppresses `suggest_avatar_clip`; only playback pauses TTS and STT (§3, §4.1, §4.3). |
+| 33 | The action had calendar-like purposes and no pedagogical test. | owner correction | Nine moments with a canonical/personalized mapping (§3), a required internal `visual_value` and the six-question trigger validator (§4.1). |
+| 34 | `content_goal` vs the owner's `learning_goal`. | owner correction | Renamed. Same bounds and drop rules; Director-only; never in a key, a log or a provider request (§4.1). |
+| 35 | The owner's example action has no `concept`, but the canonical key needs one. | §14 | `concept` (and `to_concept`) kept in the contract (§4.1). |
+| 36 | The first reconciliation's chip "plays from the click". | §4.1 (9ea577df) | The chip places the card; Play is a separate press of the learner. A clip never autoplays, in Voice Mode either (§4.1). |
 
 ---
 
@@ -1720,8 +1827,10 @@ Paid MCP or API calls also need the §10 account prerequisites and the owner's e
 **Still deferred:**
 - AV9: production on digrabbithole.com. It waits for Usage & Credits, legal and privacy review, cost caps and the production GO.
 - Live Avatar.
-- Personalized, learner-specific or learner-requested clips: the learner-paid path, and the point where `content_goal` takes effect.
-- A Tutor trigger for `section_greeting` and `course_completion` (their clips are product content).
+- Personalized, learner-specific or learner-requested clips (`offer: generate`): the learner-paid path, and the point where `learning_goal` takes effect.
+- Voice audio coordination during playback (§4.3), in AV5/AV6.
+- A shared teacher identity across the Voice Tutor and the clip: a later benchmark of a permanent Rabbit Hole teacher, a digital twin, Fish audio supplied to HeyGen, and HeyGen's native voice. Not a blocker for AV1.
+- A Tutor trigger for the section-entry greeting and `completion` (their clips are product content).
 - A Rabbit Hole digital twin and Avatar V: a later brand/identity decision.
 - Fish-supplied audio: a priority later comparison (§18).
 - Muted visual previews.
@@ -1735,12 +1844,12 @@ Paid MCP or API calls also need the §10 account prerequisites and the owner's e
    - It sits behind `TUTOR_AVATAR`, which is off by default.
    - It produces only a suggestion chip and never calls HeyGen.
    - Generation begins only after an explicit Generate.
-   - `content_goal` is kept, bounded as in §4.1.
+   - `learning_goal` (renamed from `content_goal`) is kept, bounded as in §4.1, and `visual_value` is internal (owner correction).
 2. **V1 face.** A HeyGen stock/licensed avatar on its supported engine (Avatar IV today). A digital twin is a later identity decision: Rabbit Hole-owned, consent documented, provider terms followed (§9, §17).
 3. **V1 voice.** HeyGen's native voice. Fish-supplied audio is a priority later comparison under the §18 conditions and licensing.
 4. **Payment.** Canonical product moments are pre-generated by Rabbit Hole as reusable course assets, and learners never pay for them. Learner-specific or explicitly requested personalized clips may later be paid from learner or account credits (§14, §15).
 5. **Cached playback.** A cached clip never autoplays, with or without sound. The learner explicitly starts it. Muted previews are deferred (§4.1, §15, §19).
-6. **Voice Mode.** No avatar suggestion while Voice Mode is active. An explicit request gets one spoken sentence saying clips play outside Voice Mode; the modalities never overlap (§3, §4.1).
+6. **Voice Mode** (corrected by the owner the same day). Voice Mode never suppresses avatar suggestions. Only playback pauses Tutor TTS and STT, and the Voice loop resumes when the clip ends or stops. The two audio sources never overlap (§3, §4.1, §4.3).
 7. **HeyGen account.** Before any paid prototype:
    - the account and API credentials are owned by Rabbit Hole;
    - provider training is disabled where allowed;
@@ -1751,7 +1860,7 @@ Paid MCP or API calls also need the §10 account prerequisites and the owner's e
 8. **Reload bug.** The video resume-after-reload fix is a prerequisite for AV5. It is fixed once in the shared video pipeline, or landed as its own separate prerequisite commit for Parallel to review. There is no avatar-only playback state (§13).
 
 **Interpretations to confirm:**
-1. **`content_goal` reconciliation.** It is accepted, validated and carried as a Director-only hint. It never reaches the provider, a log or a key. Because every V1 moment is canonical, it has no effect a learner can see in V1 (§4.1).
-2. **What counts as canonical.** Besides the four moments the owner named, `rabbit_hole_intro`, `concept_intro` and the standard `checkpoint_feedback` are treated as canonical product content, since in V1 each depends only on moment, concept and course (§3).
+1. **`learning_goal` reconciliation.** It is accepted, validated and carried as a Director-only hint. It never reaches the provider, a log or a key, and canonical clips ignore it. It takes effect only for personalized clips, which are deferred (§4.1).
+2. **Moment mapping.** Section greeting and concept framing fold into `orientation`, and checkpoint into `reflection`. Every moment is canonical, except `human_explanation` and `demonstration`, which are personalized when no product clip exists (§3).
 3. **When the chip appears.** It is offered only when its canonical clip is ready. Before Rabbit Hole has generated the canonical set, the Tutor suggests nothing.
 4. **Picking the stock look.** The stock look is chosen during AV1, among stock looks trained with matting, so WebM alpha works.
