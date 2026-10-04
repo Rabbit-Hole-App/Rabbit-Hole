@@ -45,6 +45,8 @@ const LearnNotes = lazy(() => import('./LearnNotes.jsx'));
 const boardSlug = name => String(name).toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32) || 'test';
 const AdaptiveCanvas = lazy(() => import('./AdaptiveCanvas.jsx'));
 const SECTION_LEVELS = [[1, 'Section', Heading1], [2, 'Sub-section', Heading2], [3, 'Sub-sub-section', Heading3]];
+// What a reserved research card says while the answer finishes (docs/features/canvas-skeleton-cards.md).
+const OPENING = { paper: 'Opening the paper…', wiki: 'Opening the article…', video: 'Opening the video…' };
 
 // A pending Rabbit Hole (Dive.jsx) opens in its parent's place until its first canvas object keeps it.
 export default function LearnPage(props) {
@@ -227,9 +229,10 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
   // retargets an existing card's moment, so the tutor pointing at a new
   // passage of a video already on the canvas moves that card rather than
   // stacking a twin next to it.
-  const addVideo = video => {
+  // `into`: the slot the canvas reserved for this card (docs/features/canvas-skeleton-cards.md), here and below.
+  const addVideo = (video, into = null) => {
     pauseLesson();
-    const blockId = canvas()?.insertVideo(video);
+    const blockId = canvas()?.insertVideo({ ...video, into });
     if (blockId) {
       registerSource({ id: `video:${blockId}`, kind: 'video', label: video.title || video.videoId });
       setVideoContext({ blockId, videoId: video.videoId, start: video.start || 0, end: video.end ?? null, title: video.title || null });
@@ -246,19 +249,19 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
   // Search and the tutor put things on the canvas as cards; the side panel
   // only opens through "Open in reader". What rides the next question is the
   // card just added - one context at a time, as before.
-  const addWiki = ({ title, section = 0 }) => {
+  const addWiki = ({ title, section = 0 }, into = null) => {
     pauseLesson();
-    const blockId = canvas()?.insertWiki({ title, section });
+    const blockId = canvas()?.insertWiki({ title, section, into });
     if (!blockId) return;
     setWikiContext({ blockId, title, section, selection: null });
     setPaperContext(null);
     registerSource({ id: `wiki:${blockId}`, kind: 'wiki', label: String(title).replace(/_/g, ' ') });
     return blockId;
   };
-  const addPaper = paper => {
+  const addPaper = (paper, into = null) => {
     pauseLesson();
     const page = paper.page || 1;
-    const blockId = canvas()?.insertPaper({ id: paper.id, title: paper.title, page });
+    const blockId = canvas()?.insertPaper({ id: paper.id, title: paper.title, page, into });
     if (!blockId) return;
     setPaperContext({ ...paper, page });
     setWikiContext(null);
@@ -491,12 +494,14 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
         target: askTarget,
         canvas: {
           insertNotebook: () => canvasApi.current?.insertNotebook(),
-          insertBlock: block => canvasApi.current?.insertBlock(block),
+          insertBlock: (block, options) => canvasApi.current?.insertBlock(block, options),
+          reserve: slot => canvasApi.current?.reserve(slot),
+          release: id => canvasApi.current?.release(id),
           insertPaper: ({ id }) => addPaper({ id }),
           dive: args => dive.run(args),
         },
         openSearch: seed => { setSearchSeed(seed); setSearchOpen(true); },
-        post: (path, body) => api(path, { method: 'POST', body: JSON.stringify({ ...body, ...(askScope.pending ? { pending: askScope.pending } : {}) }) }),
+        post: (path, body, options) => api(path, { ...options, method: 'POST', body: JSON.stringify({ ...body, ...(askScope.pending ? { pending: askScope.pending } : {}) }) }),
       });
     },
   };
@@ -816,12 +821,15 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
     wiki: wikiAttached ? wikiContext : null,
     video: videoAttached ? videoContext : null,
     image: imageAttached ? imageContext : null,
-    onShowWiki: article => addWiki(article),
-    onShowVideo: moment => addVideo(moment),
+    onShowWiki: (article, into) => addWiki(article, into),
+    onShowVideo: (moment, into) => addVideo(moment, into),
+    // A research answer that commits to opening a card holds its place until it lands (ask.jsx).
+    reserveCard: card => canvas()?.reserve({ label: OPENING[card], card: card === 'video' ? 'videoMoment' : card }),
+    releaseCard: id => canvas()?.release(id),
     // Read at send time, so a question always carries the outline as it is now.
     outline: () => canvasStateRef.current.outline || [],
     onOutlineProposal: ops => setProposal(ops),
-    onShowPaper: paper => addPaper(paper),
+    onShowPaper: (paper, into) => addPaper(paper, into),
     preview: paperContext?.selection?.preview || preview,
     previewKind: paperContext?.selection ? 'paper' : 'canvas',
     removeImage: () => { removeImage(); setPaperContext(previous => previous ? { ...previous, selection: undefined } : previous); },

@@ -78,6 +78,9 @@ export const parseSlash = text => {
 };
 
 const known = id => { try { return arxivId(id); } catch { return null; } };
+// One or two model calls (learn-artifact.js); a request that never answers ends as an error, not a skeleton
+// left waiting (learn-board-request.js waits as long for a board).
+const ARTIFACT_TIMEOUT_MS = 120000;
 const NAMES = { explanation: 'an explanation', quiz: 'a quiz', challenge: 'a challenge', explain_back: 'an explain-back', flashcards: 'flashcards', table: 'a table', code_sample: 'a code sample', flow_diagram: 'a flow diagram', mermaid_diagram: 'a diagram', walkthrough: 'a walkthrough', interactive_graph: 'a graph', data_plot: 'a plot' };
 
 // Run one typed command. Returns what the composer shows next:
@@ -113,9 +116,16 @@ export async function runLearnCommand(text, { app, target = null, canvas, openSe
     return { notice: { tone: 'done', text: args ? `Searching photos for "${args}".` : 'Added an image card; search for a picture.' } };
   }
   if (!request.allowedPrimitives) return request.prompt ? { prompt: request.prompt } : { notice: { tone: 'info', text: `Add what you want after /${name}.` } };
-  const result = await post('/api/learn/artifact', { app, command: name, args, selection, context: target?.text ? String(target.text).slice(0, 8000) : null });
+  // The card's place is held from the moment the command is sent (docs/features/canvas-skeleton-cards.md),
+  // sized as the command's first card; anything but a card (a question, a proposal, an error, a request
+  // that never answers) gives it up.
+  const slot = canvas.reserve?.({ label: `Creating /${name}…`, card: cardsFor(name)[0]?.card ?? null });
+  let result;
+  try { result = await post('/api/learn/artifact', { app, command: name, args, selection, context: target?.text ? String(target.text).slice(0, 8000) : null }, { signal: AbortSignal.timeout(ARTIFACT_TIMEOUT_MS) }); }
+  catch (error) { if (error.name === 'TimeoutError') return { notice: { tone: 'error', text: `/${name} took too long. Try again.` } }; throw error; }
+  finally { if (result?.result !== 'artifact') canvas.release?.(slot); }
   // The notice names the new card and can take the learner to it.
-  if (result.result === 'artifact') { const blockId = canvas.insertBlock(result.block); return { notice: { tone: 'done', text: `Added ${NAMES[result.primitive] || 'the artifact'}.`, ...(blockId ? { blockId } : {}) } }; }
+  if (result.result === 'artifact') { const blockId = canvas.insertBlock(result.block, { into: slot }); return { notice: { tone: 'done', text: `Added ${NAMES[result.primitive] || 'the artifact'}.`, ...(blockId ? { blockId } : {}) } }; }
   // Generate inserts the card already confirmed, so it starts once (useConfirmedStart).
   if (result.result === 'paid_proposal') return { proposal: { primitive: result.primitive, message: result.message, generate: () => canvas.insertBlock({ ...result.block, confirmedStart: true }) } };
   if (result.result === 'clarification') return { notice: { tone: 'question', text: result.question }, keep: `/${name} ` };

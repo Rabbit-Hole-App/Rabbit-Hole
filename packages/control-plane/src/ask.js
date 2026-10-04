@@ -380,7 +380,7 @@ export function askStream(env, context, history, message, onDone, meta = {}, ext
         // stated when it is actually offered.
         const researchSystem = research.system ? `${system}
 ${research.system}` : system;
-        const result = await researchAnswer(env, turns, researchSystem, model, { callModel: loggedModel('chat', anthropic), initialPapers: research.papers || [], tools: research.tools || [], runTool: research.runTool, onProgress: stage => send('progress', { stage }) });
+        const result = await researchAnswer(env, turns, researchSystem, model, { callModel: loggedModel('chat', anthropic), initialPapers: research.papers || [], tools: research.tools || [], runTool: research.runTool, onProgress: (stage, card) => send('progress', card ? { stage, card } : { stage }) });
         full = result.answer;
         if (result.papers.length) {
           // An uploaded PDF has no arXiv id or public link: its title alone.

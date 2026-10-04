@@ -651,6 +651,15 @@ tr.cursor-pointer:active > td {
 @media (prefers-reduced-motion: reduce) {
   .shimmer { animation: none; background: none; color: var(--color-ink-2); }
 }
+/* A reserved card's placeholder lines (AdaptiveCanvas SlotCard): the same soft band, slower. */
+.skeleton-line {
+  background: linear-gradient(90deg, var(--color-hover) 0%, var(--color-hover) 40%, var(--color-line) 50%, var(--color-hover) 60%, var(--color-hover) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2.4s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-line { animation: none; }
+}
 
 /* Voice Mode's red mic breathes (VoiceMode.jsx): a ring swells out and fades while the icon softly
    pulses, 2s ease-in-out; a little quicker while listening. Reduced motion keeps a static ring - the
