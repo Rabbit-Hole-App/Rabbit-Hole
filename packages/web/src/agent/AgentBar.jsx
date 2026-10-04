@@ -270,6 +270,21 @@ export default function AgentBar({ page }) {
   // is hidden on canvases (routes.js) and learnHandoff is off (flags.js). Wire learnAction('research')
   // when the bar shows on a canvas.
 
+  async function homeAsk(text, raw, scope, from = scope) {
+    const key = resultsKey(scope);
+    add(scope, { kind: 'user', text });
+    const id = add(scope, { kind: 'answer', text: '' });
+    clearDraft(from, raw);
+    showResults(scope);
+    try {
+      const d = await api('/api/learn/home-ask', { method: 'POST', body: JSON.stringify({ message: text }) });
+      updateTurn(key, id, (t) => ({ ...t, text: d.answer, done: true, links: d.references || [],
+        offer: d.offer_rabbit_hole ? { label: 'Start a Rabbit Hole', run: () => teach(text, '', scope) } : null }));
+    } catch (e) {
+      updateTurn(key, id, (t) => ({ ...t, done: true, error: e.message || 'Could not answer right now.' }));
+    }
+  }
+
   // §6.4 /teach through the Learn hook (§9). From the workspace a canvas comes
   // first. learnAction opens Learn itself, so the bar never navigates after it;
   // the bar is hidden on Learn, so its message is a toast.
@@ -294,7 +309,11 @@ export default function AgentBar({ page }) {
   // scope it was typed in (from), which differs when a question names a project.
   async function ask(text, raw, scope, only = null, from = scope) {
     if (abort.current) return; // one answer at a time; Stop (the send slot) belongs to it
-    // Workspace and app asks would write live chat history (bar.js modeAvailability): refuse, keep the draft.
+    // A question on Home is answered here, from the user's own library (learn-home-ask.js), never by the old apps
+    // agent (/api/ask). It creates nothing: only an explicit learning request (router.js LEARN_INTENT, /teach) or the
+    // answer's Start a Rabbit Hole button starts one (owner, 2026-10-04).
+    if (scope.kind === 'workspace') return homeAsk(text, raw, scope, from);
+    // App asks would write the old apps agent's chat history (bar.js modeAvailability): refuse, keep the draft.
     const can = modeAvailability('ask', scope.kind);
     if (!can.ok) return refuse(scope, can);
     const key = resultsKey(scope);

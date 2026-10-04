@@ -48,6 +48,9 @@ export function branchChoice(same, { url, repo, branch }) {
   ];
 }
 
+// Explicit learning requests (owner, 2026-10-04). Deliberately a short, literal list: anything else is a question.
+export const LEARN_INTENT = /^(?:please\s+)?(?:teach me\b|walk me through\b|i want to learn\b|i'd like to learn\b|i would like to learn\b|help me learn\b|start an? rabbit hole\b)/i;
+
 const ask = (text, mode = 'ask') => ({ type: 'ask', mode, text });
 const command = (name, args) => ({ type: 'command', name, args });
 
@@ -128,6 +131,10 @@ export function route(text, { mode = null, catalog = [], scope = null } = {}) {
     return { ...ask(message), note: `${repo} isn't connected, so answers can't read its code yet.`, offer: { label: `Connect ${repo}`, name: 'connect_repository', args: connect } };
   }
   if (/https?:\/\/\S/i.test(message)) return ask(message);
+  // 2a. An explicit learning request starts a Rabbit Hole, with the words kept as its learning intent (owner,
+  // 2026-10-04). After rule 2, so "start a rabbit hole with owner/repo" still connects. Only LEARN_INTENT's openings
+  // count: "what is softmax" or "explain attention" stays a question, answered in place, never sent to a canvas by a guess.
+  if (!pill && LEARN_INTENT.test(message)) return { type: 'mode', mode: 'teach', text: message };
   // 2b. Library words: "show my canvases" sets the Library's filters; with a topic or a name
   // ("show canvases about attention", "find my nanoGPT project") it searches that kind.
   let m = message.match(RECENT);

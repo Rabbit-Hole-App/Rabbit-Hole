@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { History, Loader2, Minus, Network, Plus, Eraser } from 'lucide-react';
-import { ago, api } from '../api.js';
+import { ago, api, navigate } from '../api.js';
 import { Md } from '../ask.jsx';
 import { Button, cn, IconBtn, Pill } from '../ui.jsx';
 import { getTurns, labelOf, resetThread, resultsKey, resultsView, setTurns, subscribeTurns, threadIds, threadsPath } from './bar.js';
@@ -75,6 +75,12 @@ function Turn({ t, onFile = null }) {
           {t.evidence.map((e, i) => <li key={i} data-evidence-kind={e.kind} className="rounded-md bg-code px-2.5 py-1.5"><span className="block text-xs text-ink-3">{EVIDENCE[e.kind]}</span>{e.label}{e.detail && <span className="text-ink-2"> · {e.detail}</span>}</li>)}
         </ol>
       )}
+      {t.links?.length > 0 && (
+        <div data-answer-links className="flex flex-wrap gap-1.5 pt-2">
+          {t.links.map((l) => <button key={l.name} type="button" onClick={() => navigate(`/apps/${l.name}`)} className="cursor-pointer"><Pill>{l.title}</Pill></button>)}
+        </div>
+      )}
+      {t.offer && <Button size="sm" variant="secondary" data-answer-offer className="mt-2" onClick={t.offer.run}>{t.offer.label}</Button>}
       {t.showGraph && <Button size="sm" className="mt-2" onClick={t.showGraph}><Network size={13} />Show on graph</Button>}
       {t.stopped && <p className="pt-1 text-xs text-ink-3">Stopped.</p>}
       {t.error && (
