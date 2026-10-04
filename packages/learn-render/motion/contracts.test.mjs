@@ -8,6 +8,7 @@ import { readFileSync } from 'node:fs';
 import {
   MODEL_ROLES, BLOCKING_CATEGORIES, ADVISORY_CATEGORIES, STRUCTURED_STAGES, validateBrief, validateStoryboard, validateAuthorOutput,
   validateFinding, classifyFindings, afterReview, afterNeedsRevision, startRepair, afterMalformed, validateJob, blockProvenance, leakErrors,
+  validateRenderRequest,
 } from './contracts.js';
 import { durationDecision, parseDuration } from './duration.js';
 
@@ -141,18 +142,47 @@ test('exactly one semantic repair round per job (§4.8)', () => {
   has(validateJob({ ...job(), repair_count: 2 }), /0 or 1/);
 });
 
-test('malformed output: one schema-only re-ask per structured stage, never a repair (§4.8)', () => {
+test('malformed output: one schema-only re-ask per structured invocation, never a repair (§4.8)', () => {
   const j = job();
   assert.equal(afterMalformed(j, 'storyboard', ['beats: not an array']), 'reask');
   assert.equal(afterMalformed(j, 'author', ['unparseable JSON']), 'reask');
   assert.equal(j.repair_count, 0);
-  assert.deepEqual(j.format_retries.map(r => r.stage), ['storyboard', 'author']);
+  assert.deepEqual(j.format_retries.map(r => [r.stage, r.round]), [['storyboard', 0], ['author', 0]]);
   assert.deepEqual(validateJob(j), []);
   assert.equal(afterMalformed(j, 'storyboard', ['still not an array']), 'fail');
   assert.equal(j.status, 'failed');
   assert.match(j.failure_reason, /^storyboard: output was malformed again/);
-  has(validateJob({ ...job(), format_retries: [{ stage: 'brief', errors: [] }, { stage: 'brief', errors: [] }] }), /more than one re-ask for stage brief/);
+  has(validateJob({ ...job(), format_retries: [{ stage: 'brief', round: 0, errors: [] }, { stage: 'brief', round: 0, errors: [] }] }), /more than one re-ask for brief in round 0/);
+  has(validateJob({ ...job(), format_retries: [{ stage: 'brief', errors: [] }] }), /round: 0 \| 1/);
+  has(validateJob({ ...job(), format_retries: [{ stage: 'author', round: 1, errors: [] }] }), /never past repair_count/);
   assert.deepEqual(STRUCTURED_STAGES, ['brief', 'storyboard', 'author', 'visual_review', 'pedagogical_review']);
+});
+
+test('the repair round\'s Author call gets its own schema-only re-ask; repair_count stays 1 (owner decision 2026-10-04)', () => {
+  const j = job();
+  assert.equal(afterMalformed(j, 'author', ['unparseable JSON']), 'reask'); // round 0
+  startRepair(j);
+  assert.equal(afterMalformed(j, 'author', ['missing composition_id']), 'reask'); // round 1: a distinct invocation
+  assert.equal(j.repair_count, 1);
+  assert.deepEqual(j.format_retries.map(r => [r.stage, r.round]), [['author', 0], ['author', 1]]);
+  assert.deepEqual(validateJob(j), []);
+  assert.equal(afterMalformed(j, 'author', ['still malformed']), 'fail'); // the same invocation twice
+  assert.match(j.failure_reason, /^author \(repair round\): output was malformed again/);
+  assert.equal(j.repair_count, 1);
+});
+
+test('render request: only an already-validated job, no paths, URLs or options (§10.2)', () => {
+  const source = readFileSync(new URL('./fixtures/demo-a/composition.jsx', import.meta.url), 'utf8');
+  const req = () => ({ schema: 'motion-render/1', renderer: 'remotion', brief: brief(), storyboard: storyboard(), composition: { composition_id: 'demo-a1', source } });
+  assert.deepEqual(validateRenderRequest(req()), []);
+  has(validateRenderRequest({ ...req(), dir: '../../etc' }), /request\.dir: unknown field/);
+  has(validateRenderRequest({ ...req(), output: '/app/x.mp4' }), /request\.output: unknown field/);
+  has(validateRenderRequest({ ...req(), composition: { composition_id: 'demo-a1', source, path: '/etc/passwd' } }), /composition\.path: unknown field/);
+  has(validateRenderRequest({ ...req(), composition: { composition_id: '../x', source } }), /composition_id: letters, digits and dashes/);
+  has(validateRenderRequest({ ...req(), renderer: 'hyperframes' }), /only V1 renderer/);
+  has(validateRenderRequest({ ...req(), schema: 'motion-render/2' }), /request\.schema/);
+  has(validateRenderRequest({ ...req(), storyboard: { ...storyboard(), beats: [] } }), /2-8 beats/);
+  has(validateRenderRequest([]), /not an object/);
 });
 
 test('MotionJob: roles, not model IDs, are the contract (§4.9, §5.5)', () => {

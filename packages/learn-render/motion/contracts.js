@@ -221,6 +221,27 @@ export function validateAuthorOutput(o) {
   return ['author.status: composition | needs_revision'];
 }
 
+// The dev render service's only input (spec §10.2): an already-validated job and nothing
+// else. No paths, URLs, commands or options: the service chooses every file location itself.
+// The composition source is checked separately by static-check.js before any render.
+export const RENDER_SCHEMA = 'motion-render/1';
+export function validateRenderRequest(r) {
+  if (!r || typeof r !== 'object' || Array.isArray(r)) return ['request: not an object'];
+  const e = [];
+  for (const k of Object.keys(r)) if (!['schema', 'renderer', 'brief', 'storyboard', 'composition'].includes(k)) e.push(`request.${k}: unknown field`);
+  if (r.schema !== RENDER_SCHEMA) e.push(`request.schema: "${RENDER_SCHEMA}"`);
+  if (r.renderer !== 'remotion') e.push('request.renderer: "remotion" (the only V1 renderer)');
+  const c = r.composition;
+  if (!c || typeof c !== 'object' || Array.isArray(c)) e.push('request.composition: {composition_id, source}');
+  else {
+    for (const k of Object.keys(c)) if (!['composition_id', 'source'].includes(k)) e.push(`request.composition.${k}: unknown field`);
+    e.push(...validateAuthorOutput({ status: 'composition', composition_id: c.composition_id, source: c.source }).map(x => x.replace(/^author\./, 'request.composition.')));
+  }
+  e.push(...validateBrief(r.brief));
+  if (r.brief && typeof r.brief === 'object') e.push(...validateStoryboard(r.storyboard, r.brief));
+  return e;
+}
+
 // §5.4
 export function validateFinding(f) {
   const e = [];
@@ -256,15 +277,20 @@ export function startRepair(job) {
   job.status = 'repairing';
 }
 // Malformed or unparseable stage output: one "same result, required schema" re-ask per
-// structured stage, recorded on the job and never counted as repair. A second one fails the job.
+// distinct structured invocation (owner decision 2026-10-04), recorded on the job and never
+// counted as repair. An invocation is a stage in a round: round 0 first, round 1 the single
+// repair round, so the repair round's Author call gets its own re-ask. The re-ask may not
+// change the brief, storyboard semantics, claims, mode, grounding or composition intent.
+// A second malformed result from the same invocation fails the job.
 export function afterMalformed(job, stage, errors) {
   if (!STRUCTURED_STAGES.includes(stage)) throw Error(`unknown structured stage ${stage}`);
-  if (job.format_retries.some(r => r.stage === stage)) {
+  const round = job.repair_count;
+  if (job.format_retries.some(r => r.stage === stage && r.round === round)) {
     job.status = 'failed';
-    job.failure_reason = `${stage}: output was malformed again after its one format re-ask: ${errors.join('; ')}`;
+    job.failure_reason = `${stage}${round ? ' (repair round)' : ''}: output was malformed again after its one format re-ask: ${errors.join('; ')}`;
     return 'fail';
   }
-  job.format_retries.push({ stage, errors });
+  job.format_retries.push({ stage, round, errors });
   return 'reask';
 }
 
@@ -279,8 +305,8 @@ export function validateJob(j) {
   if (j.repair_count !== 0 && j.repair_count !== 1) e.push('job.repair_count: 0 or 1 (exactly one semantic repair round per job)');
   if (!arr(j.format_retries)) e.push('job.format_retries: required array');
   else {
-    j.format_retries.forEach((r, i) => { if (!STRUCTURED_STAGES.includes(r?.stage) || !arr(r?.errors)) e.push(`job.format_retries[${i}]: {stage, errors[]}`); });
-    for (const d of dupes(j.format_retries.map(r => r?.stage))) e.push(`job.format_retries: more than one re-ask for stage ${d}`);
+    j.format_retries.forEach((r, i) => { if (!STRUCTURED_STAGES.includes(r?.stage) || ![0, 1].includes(r?.round) || r.round > j.repair_count || !arr(r?.errors)) e.push(`job.format_retries[${i}]: {stage, round: 0 | 1 (never past repair_count), errors[]}`); });
+    for (const d of dupes(j.format_retries.map(r => `${r?.stage} in round ${r?.round}`))) e.push(`job.format_retries: more than one re-ask for ${d}`);
   }
   const role = (cfg, want, at) => { if (cfg?.role !== want) e.push(`${at}.role: ${want}`); if (cfg?.resolved_model !== undefined && !str(cfg.resolved_model)) e.push(`${at}.resolved_model: string`); };
   role(j.director_model_config, MODEL_ROLES.director, 'job.director_model_config');
