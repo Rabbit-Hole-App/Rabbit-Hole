@@ -10,6 +10,7 @@ import { SHARED_CANVAS_SYSTEM, REPOSITORY_SYSTEM } from './agents/learn-chat.js'
 import { REPOSITORY_TOOLS, repositoryTool } from './repository-context.js';
 import { repositorySnapshot } from './repositories.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
+import { sha256Hex } from './learn-grade-jev.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const CANVAS = /^canvas-[a-f0-9]{8}$/;
@@ -21,7 +22,7 @@ const text = value => (typeof value === 'string' ? value.trim() : '');
 const clip = (value, max) => (value.length > max ? `${value.slice(0, max)} [truncated]` : value);
 
 // The revision a board reads now: its own project (a repo-* board, or a canvas's project) at the owner's current
-// commit; otherwise what it inherited as a fork (board_repository_pins, view_token NULL). { id, commit } or null;
+// commit; otherwise what it inherited as a fork (board_repository_pins, share_key NULL). { id, commit } or null;
 // the id never leaves the server. `row` needs org, app, owner_email and, for a fork, its learn_boards id.
 export async function boardRevision(db, row) {
   const name = row.app.startsWith('repo-') ? row.app
@@ -34,18 +35,25 @@ export async function boardRevision(db, row) {
   return inherited ? { id: inherited.repository_id, commit: inherited.commit_sha } : null;
 }
 
+// A share link's identity on the server (owner, 2026-10-04): the SHA-256 of its token with a fixed prefix. Tokens are
+// 24 random bytes, so the key is one-way and unguessable; it is what pins and the per-link rate limit are keyed by.
+// The raw token stays on learn_boards (the share record) and is never stored, logged or returned anywhere else. A link
+// switched off and on is a new token, so a new key.
+export const shareKey = token => sha256Hex(`shared-canvas-link:${token}`);
+
 // A share's pin (share -> canvas -> repository -> commit): taken when its link is made, and for a link from before
 // pinning, at its first open or ask. The same link keeps it whatever the owner refreshes; a new link pins again,
 // with repository code off. Never the current HEAD in place of a pin.
 export async function sharePin(db, row) {
   if (!row.view_token) return null;
-  const pin = await db.prepare('SELECT repository_id, commit_sha, view_token, repo_access FROM board_repository_pins WHERE board_id = ?').bind(row.id).first();
-  if (pin?.view_token === row.view_token) return pin;
+  const key = await shareKey(row.view_token);
+  const pin = await db.prepare('SELECT repository_id, commit_sha, share_key, repo_access FROM board_repository_pins WHERE board_id = ?').bind(row.id).first();
+  if (pin?.share_key === key) return pin;
   const revision = await boardRevision(db, row);
   if (!revision) return null;
-  await db.prepare('INSERT OR REPLACE INTO board_repository_pins (board_id, repository_id, commit_sha, view_token, repo_access, pinned_at) VALUES (?, ?, ?, ?, 0, ?)')
-    .bind(row.id, revision.id, revision.commit, row.view_token, new Date().toISOString()).run();
-  return { repository_id: revision.id, commit_sha: revision.commit, view_token: row.view_token, repo_access: 0 };
+  await db.prepare('INSERT OR REPLACE INTO board_repository_pins (board_id, repository_id, commit_sha, share_key, repo_access, pinned_at) VALUES (?, ?, ?, ?, 0, ?)')
+    .bind(row.id, revision.id, revision.commit, key, new Date().toISOString()).run();
+  return { repository_id: revision.id, commit_sha: revision.commit, share_key: key, repo_access: 0 };
 }
 
 // What a share may show and read of its repository (the private repository boundary). Its name, commit and code
@@ -115,8 +123,8 @@ export function viewerHistory(history) {
 export const sharedTitle = (row, canvasTitle, source) => canvasTitle || row.title
   || (row.app.startsWith('repo-') && !source?.allowed ? 'Shared canvas' : row.board === 'main' ? row.app : row.board);
 
-// The shared ask's limits, in one place (docs/features/shared-canvas-ask.md): per signed-in viewer and per shared
-// board, an hour and a day. A worker var of the same name overrides one (a whole number; anything else is ignored).
+// The shared ask's limits, in one place (docs/features/shared-canvas-ask.md): per signed-in viewer and per share
+// link, an hour and a day - V1 launch protection, not product policy. A worker var of the same name overrides one (a whole number; anything else is ignored).
 export const SHARED_ASK_LIMITS = { SHARED_ASK_VIEWER_HOUR: 20, SHARED_ASK_VIEWER_DAY: 60, SHARED_ASK_SHARE_HOUR: 60, SHARED_ASK_SHARE_DAY: 300 };
 export const sharedAskLimits = env => Object.fromEntries(Object.entries(SHARED_ASK_LIMITS).map(([name, fallback]) => {
   const value = String(env?.[name] ?? '').trim();
@@ -124,26 +132,28 @@ export const sharedAskLimits = env => Object.fromEntries(Object.entries(SHARED_A
 }));
 
 // Admits a question under every cap and records it, in one atomic insert (the login-link pattern, auth.js): the row
-// is the usage event - category, time, viewer, shared board, its owner, whether repository code was in context;
-// never the question, the answer or any source - and the rate-limit count. A refusal writes nothing and says which
-// limit, as a 429. A share's budget is its board's (learn_boards.id), so a new link does not reset it.
+// is the usage event - category, time, viewer, share link (shareKey), shared board, its owner, whether repository
+// code was in context; never the question, the answer, any source or the token - and the rate-limit count. Two
+// buckets: the signed-in viewer (viewer_email, across every link) and the share link (share_key, owner 2026-10-04:
+// a board's links differ in audience, permission, lifecycle and traffic, so each has its own budget, never the
+// board's). A refusal writes nothing and says which limit, as a 429.
 // Billing (owner, 2026-10-04): Usage & Credits will meter shared_canvas_ask to viewer_email, the signed-in account that
 // asked - never to owner_email, which only says whose share it was: someone opening a share never costs its owner.
 // ponytail: rows are never pruned (the caps read one day); prune or roll up when Usage & Credits takes them over.
 async function admitAsk(env, row, viewer, repository) {
   const db = env.LEARN_DB, limits = sharedAskLimits(env), now = Math.floor(Date.now() / 1000);
-  const admitted = await db.prepare(`INSERT INTO shared_ask_events (category, asked_at, viewer_email, board_id, owner_email, repository)
-    SELECT 'shared_canvas_ask', ?1, ?2, ?3, ?4, ?5
-    WHERE (SELECT COUNT(*) FROM shared_ask_events WHERE viewer_email = ?2 AND asked_at > ?1 - 3600) < ?6
-      AND (SELECT COUNT(*) FROM shared_ask_events WHERE viewer_email = ?2 AND asked_at > ?1 - 86400) < ?7
-      AND (SELECT COUNT(*) FROM shared_ask_events WHERE board_id = ?3 AND asked_at > ?1 - 3600) < ?8
-      AND (SELECT COUNT(*) FROM shared_ask_events WHERE board_id = ?3 AND asked_at > ?1 - 86400) < ?9`)
-    .bind(now, viewer.email, row.id, row.owner_email, repository ? 1 : 0, limits.SHARED_ASK_VIEWER_HOUR, limits.SHARED_ASK_VIEWER_DAY, limits.SHARED_ASK_SHARE_HOUR, limits.SHARED_ASK_SHARE_DAY).run();
+  const admitted = await db.prepare(`INSERT INTO shared_ask_events (category, asked_at, viewer_email, share_key, board_id, owner_email, repository)
+    SELECT 'shared_canvas_ask', ?1, ?2, ?3, ?4, ?5, ?6
+    WHERE (SELECT COUNT(*) FROM shared_ask_events WHERE viewer_email = ?2 AND asked_at > ?1 - 3600) < ?7
+      AND (SELECT COUNT(*) FROM shared_ask_events WHERE viewer_email = ?2 AND asked_at > ?1 - 86400) < ?8
+      AND (SELECT COUNT(*) FROM shared_ask_events WHERE share_key = ?3 AND asked_at > ?1 - 3600) < ?9
+      AND (SELECT COUNT(*) FROM shared_ask_events WHERE share_key = ?3 AND asked_at > ?1 - 86400) < ?10`)
+    .bind(now, viewer.email, await shareKey(row.view_token), row.id, row.owner_email, repository ? 1 : 0, limits.SHARED_ASK_VIEWER_HOUR, limits.SHARED_ASK_VIEWER_DAY, limits.SHARED_ASK_SHARE_HOUR, limits.SHARED_ASK_SHARE_DAY).run();
   if (admitted.meta.changes === 1) return null;
   const mine = await db.prepare('SELECT COUNT(*) AS day, COALESCE(SUM(asked_at > ?2 - 3600), 0) AS hour FROM shared_ask_events WHERE viewer_email = ?1 AND asked_at > ?2 - 86400').bind(viewer.email, now).first();
   const error = mine.hour >= limits.SHARED_ASK_VIEWER_HOUR ? `You have asked ${limits.SHARED_ASK_VIEWER_HOUR} questions about shared canvases in the last hour, the limit for now. Try again later.`
     : mine.day >= limits.SHARED_ASK_VIEWER_DAY ? `You have asked ${limits.SHARED_ASK_VIEWER_DAY} questions about shared canvases today, the daily limit. Try again tomorrow.`
-    : 'This shared canvas has had as many questions as it can take for now. Try again later, or fork it to keep learning on your own copy.';
+    : 'This share link has had as many questions as it can take for now. Try again later, or fork the canvas to keep learning on your own copy.';
   return json({ error, limited: true }, 429);
 }
 

@@ -10,7 +10,7 @@ import { repositoryIdentity } from './repositories.js';
 import { sha256Hex } from './learn-grade-jev.js';
 import { learnMedia } from './learn-storage.js';
 import { FORK_COUNT } from './canvases.js';
-import { askShared, boardRevision, boardSources, sharePin, shareSource, sharedTitle } from './learn-shared-ask.js';
+import { askShared, boardRevision, boardSources, shareKey, sharePin, shareSource, sharedTitle } from './learn-shared-ask.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/;
@@ -140,7 +140,7 @@ async function shareRepository(env, owner, app, board, body) {
   if (!row?.shared || !row.view_token) return json({ error: 'Turn the view link on first.' }, 409);
   const source = await shareSource(env.LEARN_DB, row);
   if (!source?.owned || source.public) return json({ error: 'Only a private repository of yours needs this permission.' }, 409);
-  await env.LEARN_DB.prepare('UPDATE board_repository_pins SET repo_access = ? WHERE board_id = ? AND view_token = ?').bind(body.allow ? 1 : 0, row.id, row.view_token).run();
+  await env.LEARN_DB.prepare('UPDATE board_repository_pins SET repo_access = ? WHERE board_id = ? AND share_key = ?').bind(body.allow ? 1 : 0, row.id, await shareKey(row.view_token)).run();
   return json({ version: row.version, sharing: await ownerSharing(env, row) });
 }
 
@@ -272,7 +272,7 @@ async function fork(req, env, body) {
       db.prepare('INSERT INTO canvas_forks (org, canvas, owner_email, fork_key, forked_from_org, forked_from_canvas_id, root_org, root_canvas_id, forked_from_owner_id, forked_from_title, forked_from_share, forked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
         .bind(user.org, name, user.email, key, source.canvas ? source.org : null, source.canvas, root[0], root[1], source.owner, title, source.share, now),
       // The repository revision the source was read at; the fork's share answers from it (docs/features/shared-canvas-ask.md).
-      ...(source.revision ? [db.prepare('INSERT INTO board_repository_pins (board_id, repository_id, commit_sha, view_token, repo_access, pinned_at) VALUES (?, ?, ?, NULL, 0, ?)').bind(id, source.revision.id, source.revision.commit, now)] : []),
+      ...(source.revision ? [db.prepare('INSERT INTO board_repository_pins (board_id, repository_id, commit_sha, share_key, repo_access, pinned_at) VALUES (?, ?, ?, NULL, 0, ?)').bind(id, source.revision.id, source.revision.commit, now)] : []),
     ]);
   } catch (error) {
     const won = await replay();

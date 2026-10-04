@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
-import { sharedAskLimits, SHARED_ASK_LIMITS } from '../src/learn-shared-ask.js';
+import { askShared, shareKey, sharedAskLimits, SHARED_ASK_LIMITS } from '../src/learn-shared-ask.js';
 import { SHARED_CANVAS_SYSTEM } from '../src/agents/learn-chat.js';
 import { setup, scriptModel, events, lastUserText, SHA, BOARD } from './shared-canvas-fixture.js';
 
@@ -19,7 +19,7 @@ const context = request => JSON.parse(lastUserText(request).split('\n\n---\n\n')
 const toolNames = request => (request.tools || []).map(tool => tool.name);
 // Every row of every table, as one string: what the server stored anywhere.
 const dump = sqlite => JSON.stringify(sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map(({ name }) => sqlite.prepare(`SELECT * FROM ${name}`).all()));
-const pinOf = (f, app) => f.sqlite.prepare('SELECT p.repository_id, p.commit_sha, p.view_token, p.repo_access FROM board_repository_pins p JOIN learn_boards b ON b.id = p.board_id WHERE b.app = ?').get(app);
+const pinOf = (f, app) => f.sqlite.prepare('SELECT p.repository_id, p.commit_sha, p.share_key, p.repo_access FROM board_repository_pins p JOIN learn_boards b ON b.id = p.board_id WHERE b.app = ?').get(app);
 const boardOf = (f, app) => ({ ...f.sqlite.prepare('SELECT version, state_json, updated_at FROM learn_boards WHERE app = ?').get(app) });
 const relink = async (f, canvas) => {
   await f.call('POST', `/api/learn/boards/${canvas.name}/main/share`, { as: 'ana', body: { shared: true, view: false } });
@@ -51,7 +51,7 @@ test('A chat: a fork copies the canvas, never the viewer\'s private chat - not f
 test('B pin: a share answers from the commit pinned when its link was made; refreshing the repository does not move it', async t => {
   const f = setup(t), sent = scriptModel(t, [readSource]);
   const { canvas, token } = await f.shareProject();
-  assert.deepEqual({ ...pinOf(f, canvas.name) }, { repository_id: 7, commit_sha: SHA, view_token: token, repo_access: 0 }, 'pinned when the link was made');
+  assert.deepEqual({ ...pinOf(f, canvas.name) }, { repository_id: 7, commit_sha: SHA, share_key: await shareKey(token), repo_access: 0 }, 'pinned when the link was made');
   f.refresh(NEW, NEW_FILES);
   assert.deepEqual((await f.call('GET', `/api/learn/boards/shared/${token}`, { as: 'ben' })).body.context.repository, { repo: 'karpathy/nanoGPT', commit: SHA });
   assert.equal((await f.ask(token, 'ben', { message: 'What is in model.py?' })).status, 200);
@@ -96,7 +96,7 @@ test('B pin: a fork records the revision it was forked at, and its own share ans
   const { canvas, token } = await f.shareProject();
   f.refresh(NEW, NEW_FILES);
   const fork = (await f.call('POST', '/api/learn/boards/fork', { as: 'ben', body: { source: { token }, key: 'fork-key-0002' } })).body;
-  assert.deepEqual({ ...pinOf(f, fork.name) }, { repository_id: 7, commit_sha: SHA, view_token: null, repo_access: 0 }, 'the share\'s pin, not the current HEAD');
+  assert.deepEqual({ ...pinOf(f, fork.name) }, { repository_id: 7, commit_sha: SHA, share_key: null, repo_access: 0 }, 'the share\'s pin, not the current HEAD');
   f.refresh(LATER, NEW_FILES);
   const shared = (await f.call('POST', `/api/learn/boards/${fork.name}/main/share`, { as: 'ben', body: { shared: true, view: true, public_view: true } })).body.sharing;
   assert.equal(shared.repository, undefined, 'not ben\'s repository: nothing for him to manage');
@@ -272,17 +272,62 @@ test('D limits: a viewer\'s daily limit, across every shared canvas', async t =>
   assert.match(limited.body.error, /1 questions about shared canvases today, the daily limit/);
 });
 
-test('D limits: a share over its limit refuses every viewer, and a new link for the same board shares the budget', async t => {
+test('D limits: a share link over its limit refuses every viewer on that link; the revoked link and its replacement are distinct identities', async t => {
   const f = setup(t, { vars: { SHARED_ASK_SHARE_HOUR: '2' } }), sent = scriptModel(t);
   const { canvas, token } = await f.shareProject();
   assert.equal((await f.ask(token, 'ben', { message: 'q' })).status, 200);
   assert.equal((await f.ask(token, 'cara', { message: 'q' })).status, 200);
   const limited = await f.ask(token, 'ben', { message: 'q' });
   assert.equal(limited.status, 429);
-  assert.match(limited.body.error, /This shared canvas has had as many questions as it can take for now/);
+  assert.match(limited.body.error, /This share link has had as many questions as it can take for now/);
+  // Off and on: the old link is dead, the new one is a new share with its own budget.
   const fresh = await relink(f, canvas);
-  assert.equal((await f.ask(fresh.view, 'cara', { message: 'q' })).status, 429);
-  assert.equal(sent.length, 2);
+  assert.equal((await f.ask(token, 'cara', { message: 'q' })).status, 404);
+  assert.equal((await f.ask(fresh.view, 'cara', { message: 'q' })).status, 200);
+  assert.equal(sent.length, 3);
+  const keys = f.sqlite.prepare('SELECT share_key FROM shared_ask_events ORDER BY id').all().map(row => row.share_key);
+  assert.deepEqual(keys, [await shareKey(token), await shareKey(token), await shareKey(fresh.view)], 'same link, same bucket; a new link, a new one');
+  assert.notEqual(keys[0], keys[2]);
+});
+
+test('D links: two share links of one board have separate share buckets, and the viewer\'s own bucket spans both', async t => {
+  const f = setup(t, { vars: { SHARED_ASK_SHARE_HOUR: '3', SHARED_ASK_VIEWER_HOUR: '2' } }), sent = scriptModel(t);
+  const { canvas, token } = await f.shareProject();
+  // Two live links of the same board (A and B): a board's links can differ in audience, permission and traffic.
+  const row = { ...f.sqlite.prepare('SELECT * FROM learn_boards WHERE app = ?').get(canvas.name) };
+  const A = { ...row, view_token: token }, B = { ...row, view_token: 'Bb'.repeat(16) };
+  const ask = async (link, email) => { const response = await askShared(f.env, link, { email, org: 'x-ws' }, { message: 'q' }); return { status: response.status, text: await response.text() }; };
+  for (const who of ['ben@test', 'cara@test', 'dan@test']) assert.equal((await ask(A, who)).status, 200, `A ${who}`);
+  const full = await ask(A, 'eve@test');
+  assert.equal(full.status, 429, 'A is limited');
+  assert.match(full.text, /This share link has had as many questions/);
+  assert.equal((await ask(B, 'ben@test')).status, 200, 'B is unaffected by A\'s share bucket');
+  const mine = await ask(B, 'ben@test');
+  assert.equal(mine.status, 429, 'ben\'s viewer bucket counts his questions on A and B');
+  assert.match(mine.text, /You have asked 2 questions about shared canvases in the last hour/);
+  assert.equal((await ask(B, 'cara@test')).status, 200, 'B still answers others');
+  assert.equal(sent.length, 5);
+  const counts = f.sqlite.prepare('SELECT share_key, count(*) AS n FROM shared_ask_events GROUP BY share_key').all().map(row => ({ ...row }));
+  assert.deepEqual(new Map(counts.map(row => [row.share_key, row.n])), new Map([[await shareKey(A.view_token), 3], [await shareKey(B.view_token), 2]]));
+  assert.ok(counts.every(({ share_key: key }) => /^[a-f0-9]{64}$/.test(key) && key !== row.id), 'a one-way key, never the board id');
+});
+
+test('D tokens: no raw share token in logs, usage rows, pins or error bodies', async t => {
+  const f = setup(t, { vars: { SHARED_ASK_SHARE_HOUR: '1' } }); scriptModel(t);
+  const { token } = await f.shareProject();
+  const logged = [];
+  const original = { log: console.log, info: console.info, warn: console.warn, error: console.error };
+  for (const level of Object.keys(original)) console[level] = (...args) => { logged.push(args.map(arg => (typeof arg === 'string' ? arg : JSON.stringify(arg))).join(' ')); };
+  t.after(() => Object.assign(console, original));
+  const bodies = [];
+  for (const [as, body] of [['ben', { message: 'q' }], ['cara', { message: 'q' }], ['ben', { message: '' }], [null, { message: 'q' }]]) bodies.push((await f.ask(token, as, body)).text);
+  bodies.push((await f.ask(`${token.slice(0, -2)}zz`, 'ben', { message: 'q' })).text);
+  Object.assign(console, original);
+  assert.ok(logged.length > 0, 'the ask logged its model call');
+  for (const line of logged) assert.ok(!line.includes(token), `a log line carries the token: ${line.slice(0, 80)}`);
+  for (const body of bodies) assert.ok(!body.includes(token), 'a reply carries the token');
+  assert.match(bodies[1], /"limited":true/);
+  for (const table of ['shared_ask_events', 'board_repository_pins', 'repository_visibility']) assert.ok(!JSON.stringify(f.sqlite.prepare(`SELECT * FROM ${table}`).all()).includes(token), table);
 });
 
 test('D usage: each admitted question is one shared_canvas_ask event, never its text; refused or failed asks change nothing of the owner\'s', async t => {
@@ -294,10 +339,10 @@ test('D usage: each admitted question is one shared_canvas_ask event, never its 
   assert.ok((await f.ask(token, 'ben', { message: QUESTION, history: [{ role: 'user', content: 'HISTORY-TEXT' }, { role: 'assistant', content: 'x' }] })).text.includes(ANSWER));
   const { id, asked_at: askedAt, ...event } = f.sqlite.prepare('SELECT * FROM shared_ask_events').get();
   const board = f.sqlite.prepare('SELECT id FROM learn_boards WHERE app = ?').get(canvas.name).id;
-  assert.deepEqual({ ...event }, { category: 'shared_canvas_ask', viewer_email: 'ben@test', board_id: board, owner_email: 'ana@test', repository: 1 });
+  assert.deepEqual({ ...event }, { category: 'shared_canvas_ask', viewer_email: 'ben@test', share_key: await shareKey(token), board_id: board, owner_email: 'ana@test', repository: 1 });
   assert.ok(Number.isInteger(id) && Math.abs(askedAt - Date.now() / 1000) < 60);
   for (const secret of [QUESTION, ANSWER, 'HISTORY-TEXT', 'CausalSelfAttention']) assert.ok(!dump(f.sqlite).includes(secret), secret);
-  assert.ok(!JSON.stringify(event).includes(token), 'the event names the board, never the link\'s token');
+  assert.ok(!JSON.stringify(event).includes(token), 'the event keys the link one-way, never by its token');
   // Refused before any model (bad body, signed out): no event. A failed model call: one event, the canvas untouched.
   await f.ask(token, 'ben', { message: '' });
   await f.ask(token, null, { message: 'q' });
