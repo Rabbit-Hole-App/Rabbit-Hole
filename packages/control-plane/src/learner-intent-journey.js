@@ -5,37 +5,62 @@
 // (interactionInterpretation). Nothing here binds targets, reads selection or deixis, or builds a LearnerTurn.
 // Import-free on purpose: the browser bundle and the control-plane worker both import this one copy.
 
-// Every rule runs on this form, which is how punctuation can never decide: "Can we skip this?" and "can we skip this" are one text.
-const norm = (s) => String(s ?? '').toLowerCase().replace(/['’]/g, '').replace(/[?.!,;:]/g, '').replace(/\s+/g, ' ').trim();
+// Every rule runs on this form, which is how punctuation can never decide: "Can we skip this?", "can we skip this…" and
+// "can we skip this" are one text. Any mark is a word break ("option,2", "skip...this", "skip 🙂"), except a hyphen or a
+// dot inside a word ("10-minute", "node.js"); dashes become hyphens first, so a spaced dash is a break too.
+const norm = (s) => String(s ?? '').toLowerCase().replace(/['‘’]/g, '').replace(/[‐-―]/g, '-')
+  .replace(/[^\p{L}\p{M}\p{N}.-]+|[.-](?![\p{L}\p{N}])|(?<![\p{L}\p{N}])[.-]/gu, ' ').replace(/\s+/g, ' ').trim();
 
 // ---- Intent (6.1) ----
 // ponytail: regex intent and edit rules; a model classifier when misses show
 // The broad verbs are web/src/agent/router.js LEARN_INTENT's (copied, router.js is untouched) plus "i want to understand" and "i need to learn".
-const BROAD = /^(?:please )?(?:teach me|walk me through|i want to learn|i would like to learn|id like to learn|help me learn|i want to understand|i need to learn) (.+)$/;
+const BROAD = /^(?:please )?(?:teach me|walk me through|i want to learn|i would like to learn|id like to learn|help me learn|i want to understand|i need to learn|start an? rabbit hole(?: on)?) (.+)$/;
 const FOCUSED = /^(?:please )?(?:show me how to (?:build|implement|code) (.+?)|teach me how (.+?) works?)$/;
 // ponytail: replace with request-duration.js parseDuration (Motion) once on main; it needs hyphen support ("10-minute")
+// (OVERVIEW and IN_MINUTES both).
 const OVERVIEW = /^(?:just )?give me (?:an? )?(\d+)[- ]minutes? (visual )?overview of (.+)$/;
-// A setup clause starts at a word: "skip setup" ends a request, the "no setup" inside "piano setup" does not.
-const SETUP_CLAUSE = /(?:^|\s)(?:skip (?:the )?setup|dont ask me (?:any )?(?:setup )?questions|no setup)\b.*$/;
+const IN_MINUTES = / in (\d+) (?:minutes?|mins?)$/;
+// Spoken filler anywhere and a greeting in front never decide either: "So, um, teach me transformers" is "teach me transformers".
+const FILLER = /\b(?:um+|uh+m?|erm|hmm+|you know)\b/g;
+const GREETING = /^(?:(?:so|okay|ok|well|hey|hi|hello|yeah|right|alright) )+/;
+// A setup clause starts at a word ("piano setup" is a topic). It means a fast start only when what stands around it is a
+// journey request or bare politeness ("Skip the setup, teach me X", "Teach me X with no setup questions", "Can we skip
+// setup and just start?"); in "What happens if I skip setup?" or "the no setup method" it is part of the text.
+const CLAUSE = /(?:^|\s)(?:(?:and|but|then) )?(?:skip (?:the )?(?:setup|questions)|dont ask (?:me )?(?:any )?(?:setup )?questions|(?:with )?no (?:setup|questions)(?: questions)?|just start)(?: and| then)?(?=\s|$)/;
+const BARE = /^(?:(?:(?:can|could) (?:we|you|i)|please|just|lets|and|then|now|start|begin|thanks)(?: |$))*$/;
+const STARTS = new Set(['learning_journey', 'focused_skill', 'quick_overview', 'fast_start']);
 const QUESTION = /^(?:what|why|how|when|who|where|which|is|are|does|do|can|explain)\b/;
-// "about transformers", "the basics of attention", "how to code", "a transformer" name the topic after the noise.
-// "the basics of" before "the": the first alternative that matches wins.
-const TOPIC_NOISE = /^(?:(?:about|the basics of|how to|an?|the) )+/;
+// "about transformers", "all about attention", "the basics of attention", "how to code", "a transformer" name the topic
+// after the noise. "the basics of" before "the": the first alternative that matches wins.
+const TOPIC_NOISE = /^(?:(?:like|(?:more |all |everything )?about|the basics of|how to|an?|the) )+/;
+const TOPIC_TAIL = /(?: (?:from scratch|step by step|please|thanks|thank you|like))+$/;
+// A deictic topic ("teach me this", "I want to understand this better") names what is on the canvas, not a subject: that
+// is target binding, the canonical resolver's job, so it is no journey here.
+const DEICTIC = /^(?:this|that|it|these|those)(?: (?:better|stuff|part|one|thing|more))?$/;
 
-const cleanTopic = (t) => (t ?? '').replace(TOPIC_NOISE, '').replace(/\s+from scratch$/, '').trim() || null;
+const cleanTopic = (t) => (t ?? '').replace(TOPIC_NOISE, '').replace(TOPIC_TAIL, '').trim() || null;
 const intent = (kind, topic = null, constraints = {}, skip_setup = false) => ({ kind, topic, constraints, skip_setup });
+const start = (kind, raw, constraints) => {
+  const topic = cleanTopic(raw);
+  return DEICTIC.test(topic ?? '') ? intent('none') : intent(kind, topic, constraints);
+};
 
 export function journeyIntent(text) {
-  const n = norm(text);
-  if (SETUP_CLAUSE.test(n)) {
-    // "Skip setup and start" has no topic; "Teach me X, skip setup and just start" keeps X.
-    const rest = journeyIntent(n.replace(SETUP_CLAUSE, ''));
-    return intent('fast_start', rest.topic, rest.constraints, true);
+  const n = norm(text).replace(FILLER, ' ').replace(/\s+/g, ' ').trim().replace(GREETING, '');
+  const c = n.match(CLAUSE);
+  if (c) {
+    const sides = [n.slice(0, c.index).trim(), n.slice(c.index + c[0].length).trim()].map((s) => [s, journeyIntent(s)]);
+    const req = sides.map(([, i]) => i).find((i) => STARTS.has(i.kind));
+    // A bare "just start" names no setup to skip: it needs a request beside it, or "Just start" alone would be a topicless journey.
+    if ((req || !c[0].endsWith('just start')) && sides.every(([s, i]) => BARE.test(s) || STARTS.has(i.kind)))
+      return intent('fast_start', req?.topic ?? null, req?.constraints ?? {}, true);
   }
-  let m = n.match(OVERVIEW);
-  if (m) return intent('quick_overview', cleanTopic(m[3]), { minutes: Number(m[1]), depth: 'overview', ...(m[2] ? { style: 'visual' } : {}) });
-  if ((m = n.match(FOCUSED))) return intent('focused_skill', cleanTopic(m[1] ?? m[2]), m[1] ? { coding: true } : {});
-  if ((m = n.match(BROAD))) return intent('learning_journey', cleanTopic(m[1]));
+  const t = n.match(IN_MINUTES);
+  const body = t ? n.slice(0, t.index) : n, time = t ? { minutes: Number(t[1]) } : {};
+  let m = body.match(OVERVIEW);
+  if (m) return start('quick_overview', m[3], { minutes: Number(m[1]), depth: 'overview', ...(m[2] ? { style: 'visual' } : {}) });
+  if ((m = body.match(FOCUSED))) return start('focused_skill', m[1] ?? m[2], { ...time, ...(m[1] ? { coding: true } : {}) });
+  if ((m = body.match(BROAD))) return start('learning_journey', m[1], time);
   return intent(QUESTION.test(n) ? 'direct_question' : 'none');
 }
 
@@ -45,10 +70,13 @@ const POLITE = /^(?:(?:can|could) we )?(?:please )?| please$/g;
 const ORDINALS = [['first', '1', 'one', 'a'], ['second', '2', 'two', 'b'], ['third', '3', 'three', 'c'], ['fourth', '4', 'four', 'd']];
 const ORDINAL = new RegExp(`^(?:do |pick )?(?:option |number |the )?(${ORDINALS.flat().join('|')})(?: one| option)?$`);
 const ACCEPT = new Set(['start', 'looks good', 'lets go', 'go ahead', 'yes', 'ok', 'okay', 'sounds good', 'start with section 1']);
-const CANCEL = /^(?:skip|cancel|never mind|not now|stop|move on)(?: (?:this|that|it|this one|for now|the rest|(?:the )?(?:setup|assessment|quiz|diagnostic)|(?:this|these|the) questions?))?$/;
-// "do" is an edit verb ("do Python first") but not in a question ("do I need calculus") or a choice ("do the first one").
-const EDIT = /^(?:go deeper\b.*|(?:skip|drop|remove|add|include|move|put|make (?:it|this|the path)|more|less|do(?! (?:you|i|we|they|not|option|number|(?:the )?(?:first|second|third|fourth|one|two|three|four|[1-4]))\b)) .+)$/;
-const NOT_AN_OBJECT = /^(?:drop|remove|do) (?:this|that|it|the assessment)$/;
+// A skip or move-on of the current step, with a deictic, next-step or setup object and an optional "for now".
+const CANCEL = /^(?:skip|cancel|never mind|not now|stop|move on)(?: (?:to )?(?:this|that|it|ahead|all of (?:this|it)|the rest|the next (?:question|one|step|section)|(?:the )?(?:setup|assessment|quiz|diagnostic|test)|(?:this|these|the) (?:questions?|part|step|bit|one)))?(?: for now)?$/;
+// "do" edits only in the spec's shape, an object then an order ("do Python first"): "do I need calculus", "do those need
+// calculus" and "do the first one" are a question or a choice.
+const EDIT = /^(?:go deeper\b.*|(?:skip|drop|remove|add|include|move|put|make (?:it|this|the path)|more|less) .+|do (?!(?:this|that|it|these|those|you|i|we|they|not)\b).+ (?:first|last|earlier|later|next|before .+|after .+))$/;
+// A bare deictic object names no path element: "add this", "move it", "drop that" are the Tutor's, with Motion's target binding.
+const NOT_AN_OBJECT = /^\w+ (?:this|that|it|these|those|the assessment)$/;
 
 // No tray open: rule 4 only (rules 1-2 have no options or mode to match, rule 3 is gated), anything else is a Tutor turn.
 export function resolveTurnRules(text, tray) {
@@ -73,6 +101,9 @@ export function resolveTurnRules(text, tray) {
   }
   // 2. accept words only mean "start" while a path is on offer
   if (tray?.mode === 'path_preview' && ACCEPT.has(n)) return { kind: 'tray_answer', option_id: 'start' };
+  // An answer is due (free text: goal "something else", explain_back; or a probe): "Skip connections let gradients flow
+  // back" or "more data" is that answer, never an edit. A real edit typed here still reaches rule 5, which has path_edit.
+  if (tray?.free_text || tray?.mode === 'diagnostic_probe') return null;
   // 4. an edit verb with a path object
   if (EDIT.test(n) && !NOT_AN_OBJECT.test(n)) return { kind: 'path_edit', edit: text };
   return null;
