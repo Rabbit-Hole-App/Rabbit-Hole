@@ -38,6 +38,8 @@ as written. It does not redesign: an open question goes back to the primary owne
 | R3 | **Identity.** A stable internal user id is preferred over email where the platform provides one, and no new identity system is created. See §10.2: the Learn worker only receives the account principal, so this needs an owner call (N1). |
 | R4 | **Diagnostic evidence rule.** `understood` still requires settled transfer evidence. Diagnostic probes are designed so they can genuinely test transfer. A correct self-report is never mastery evidence. |
 | R5 | **One section at a time.** Sections contain no generated content. After acceptance, only the current section gets a SectionPlan and teaching artifacts. |
+| R6 | **Tutor-core collision pause** (owner, later on 2026-10-04). LP1 must not edit `learn-tutor-validate.js`, `learn-tutor.js`, `agents/learn-tutor.js`, `learn-tutor-routes.js`, `learn-models.js` or `learn-tutor-evidence.js` until Avatar/Media has landed its Tutor changes on main. After that: fetch main, rebase, and make the generalized Tutor changes once (plan Tasks 6, 7, 12). Everything else in LP1 goes ahead first. |
+| R7 | **One shared Learner Intent Resolver.** Motion's `packages/control-plane/src/learner-intent.js` (`resolveLearnerTurn`, on `feature/motion-v1-harness`, not yet on main) is the canonical resolver; this subsystem does not create a second one. Journey interpretation and tray-interaction interpretation live in an import-free extension, `packages/control-plane/src/learner-intent-journey.js`. It is consumed by `resolveLearnerTurn` as `structured_interpretation.journey` and `structured_interpretation.interaction`, and by the browser (import-free, like `agents/learn-tutor.js`). It never re-implements target binding, selection or deixis. Duration uses Motion's `parseDuration` once that is on main; until then a hyphen-aware minutes fallback is marked `ponytail:`. |
 
 ---
 
@@ -239,7 +241,9 @@ nanoGPT, and a new test pins the ten keys for journeys.
   3. It persists with the journey's optimistic `revision`.
   4. It returns `{ events, seq, states, transitions }`.
 
-  No other code writes journey evidence.
+  No other code writes journey evidence. Under the R6 pause, `reconcile()` is called as it is today. Its event
+  writes do not depend on the registry. Registry-scoped `states` and `transitions` come with plan Task 7, once
+  `reconcile` takes the claims parameter.
 - **Free text:** `POST /api/learn/tutor/evaluate { app, board, journey_id, message, claims: [ids], answering, question? }`.
   1. The worker loads the journey (owner only) and checks that every claim id is in its registry.
   2. It rebuilds the spec from the registry: claim content, gaps from prerequisites, and `prior_misconceptions`
@@ -262,6 +266,9 @@ nanoGPT, and a new test pins the ten keys for journeys.
 ## 6. Learning Journey Orchestrator
 
 ### 6.1 Intent (deterministic, `journeyIntent(text)`)
+
+`journeyIntent` lives in the resolver extension `control-plane/src/learner-intent-journey.js` (R7). When Motion's
+resolver is on main, `resolveLearnerTurn` sets `structured_interpretation.journey = journeyIntent(request_text)`.
 
 It returns `{ kind, topic, constraints: { minutes?, depth?, style?, coding? }, skip_setup }`, where `kind` is one
 of `learning_journey | focused_skill | quick_overview | fast_start | direct_question | none`.
@@ -387,7 +394,9 @@ mode: intent_intake | diagnostic_probe | path_preview | check_in | clarification
 ### 7.2 Interaction resolver (R1, D6)
 
 `resolveTurn(text, tray, journey)` → `{ kind, option_id?, edit? }`. It runs at the top of `useTutor.turn()`, so
-typed and voice turns share it.
+typed and voice turns share it. The deterministic rules (`resolveTurnRules`) are part of the resolver extension
+`learner-intent-journey.js` (R7) and surface as `structured_interpretation.interaction`. Until the Tutor wiring
+(plan Task 12) lands, the tray-only path in `useJourney` calls the same function.
 
 | Order | Rule | Result |
 |---|---|---|
@@ -580,7 +589,9 @@ or the path.
 | `journey_adapt` | revisions and adaptations; escalates to `journey_path` | `claude-sonnet-5-5` | low |
 | (existing) `tutor` | per-turn planner, F tiering | unchanged | — |
 
-`LEARN_TASKS` entries gain an `effort` field (additive; `test/learn-models.test.js` is extended). Every planner
+`LEARN_TASKS` entries gain an `effort` field (additive; `test/learn-models.test.js` is extended). Because of the R6
+pause, the five journey roles first live as `JOURNEY_TASKS` in `learn-journey-planners.js`, with the identical
+shape. They move into `LEARN_TASKS` in plan Task 7, after the rebase. Every planner
 takes an injected `callModel`. Tests and the e2e harness use fixtures through a local-only stub flag
 (`JOURNEY_MODEL_STUB=fixtures`, refused unless the worker runs locally, as `OAUTH_MOCK` is).
 
@@ -633,11 +644,14 @@ checkpoint. Focused sub-agents implement contracts and never redesign:
 - **SA-UI:** §7, §8 and §6.5 on the browser side: tray, `useJourney`, rail, `LearnPage` and `ask.jsx` wiring,
   Home `teach()`, materializer.
 
-**Order:**
-1. The shared pure module contract (SA-State).
-2. SA-Tutor and SA-State's routes in parallel, on disjoint files.
-3. SA-UI.
-4. The primary owner's integration, e2e and gates.
+**Order (revised for R6/R7):**
+1. Before the rebase: plan Tasks 1, 2, 3, 4, 5, 8, 9 and 10. None of them touches the six Tutor-core files.
+2. Wait until Avatar/Media's Tutor changes are on main, then fetch, rebase and resolve.
+3. After the rebase: plan Task 6 (Tutor domain, browser), Task 7 (Tutor server, plus `JOURNEY_TASKS` →
+   `LEARN_TASKS`, plus registry-scoped reconcile), Task 12 (`useTutor` wiring on journey canvases, voice), then
+   Task 11 (e2e and gates).
+4. If Motion's `learner-intent.js` is on main by then, Task 12 also wires `structured_interpretation.journey` and
+   `.interaction` into `resolveLearnerTurn`. Otherwise Parallel does that one-line wiring at integration.
 
 Every checkpoint gets `make test-unit` green and a commit made with `git commit --only` on its own files. The
 branch is pushed per checkpoint, and nothing is merged.

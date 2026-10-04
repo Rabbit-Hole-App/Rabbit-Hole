@@ -48,6 +48,16 @@
   - Plain message: no Co-Authored-By or session trailers, no double quotes inside the message.
   - Do not push. The controller pushes.
 - **Privacy.** Raw learner text never reaches telemetry or `console` logs.
+- **R6, the Tutor-core collision pause.** Until the controller rebases onto main after Avatar/Media lands, no task edits any of these:
+  - `packages/web/src/learn-tutor-validate.js`
+  - `packages/web/src/learn-tutor.js`
+  - `packages/control-plane/src/agents/learn-tutor.js`
+  - `packages/control-plane/src/learn-tutor-routes.js`
+  - `packages/control-plane/src/learn-models.js`
+  - `packages/web/src/learn-tutor-evidence.js`
+
+  Tasks 6, 7 and 12 run only after that rebase.
+- **R7, one shared Learner Intent Resolver.** Motion's `learner-intent.js` (`resolveLearnerTurn`) is canonical. Journey and tray-interaction interpretation live only in the import-free extension `packages/control-plane/src/learner-intent-journey.js`. Nothing re-implements target binding, selection, deixis or a second LearnerTurn builder.
 
 ## Review Focus
 
@@ -60,6 +70,14 @@
 ---
 
 ### Task 1: `learn-journey.js` part A — intent, intake, interaction resolver rules, tray
+
+> **Revision (R7, controller ruling):** `journeyIntent`, `resolveTurnRules` and their patterns and normalisation move into a new import-free module, `packages/control-plane/src/learner-intent-journey.js`.
+> - It also exports `journeyInterpretation(requestText)`, the same value as `journeyIntent`, named for the resolver field `structured_interpretation.journey`.
+> - It also exports `interactionInterpretation(text, tray)`, the same value as `resolveTurnRules`, for `structured_interpretation.interaction`.
+>
+> `packages/web/src/learn-journey.js` keeps the intake bank, `slotsFromIntent`, `nextIntakeQuestion`, `applyIntakeAnswer` and `trayFor`. It imports intent from the extension, and it no longer exports `journeyIntent` or `resolveTurnRules`. Tests move with their code: create `packages/control-plane/test/learner-intent-journey.test.js`.
+>
+> The minutes parsing carries `// ponytail: replace with request-duration.js parseDuration (Motion) once on main; it needs hyphen support ("10-minute")`.
 
 **Files:**
 - Create: `packages/web/src/learn-journey.js`
@@ -199,7 +217,10 @@
 - Test: `packages/control-plane/test/learn-journey-store.test.js`
 
 **Interfaces:**
-- Consumes: `reconcile` and `deriveClaimStates` from `../../web/src/learn-tutor-evidence.js`, called with the journey registry's claims as the last argument. This task's tests pass a registry-shaped `claims` object, and the store must not rely on the default `CLAIMS`. If Task 6 has not landed yet, wrap the call as `reconcile(store, evaluation, ref, registry.claims)`; the extra argument is harmless until then. **Ordering ruling: Task 6 runs before this task; see the ledger.**
+- Consumes: `reconcile` from `../../web/src/learn-tutor-evidence.js`, **unmodified** (R6). Call it as `reconcile({ seq, events, … emptyStore fields }, evaluation, ref)` and keep only `result.store.events` and `result.store.seq`. Its event writes do not depend on the registry. Ignore its returned `states` and `transitions`, which are nanoGPT-scoped until Task 7.
+  - This task's `appendJourneyEvidence` returns `{ journey, events, seq }`.
+  - Task 7 adds `states` and `transitions`, derived with the journey registry.
+  - Never edit `learn-tutor-evidence.js` in this task.
 - Produces (all `async`, `env.LEARN_DB`):
   - `createJourney(env, scope, { request, grounding, intake }) → journey`, where `scope = { org, owner_email, app, board }`. A second live journey on the same scope throws `JourneyConflict` (`code: 'live_journey'`).
   - `loadJourney(env, scope) → journey | null`, the live one.
@@ -208,7 +229,7 @@
   - `archiveJourney(env, journey) → void`
   - `appendPathVersion(env, journey, path) → path`, which inserts `learning_path_versions` and sets `journey.path_version`.
   - `loadPath(env, journeyId, version = null) → path | null` (latest when null).
-  - `appendJourneyEvidence(env, journey, evaluation, ref) → { journey, events, seq, states, transitions }`. This is the ONLY evidence writer. It reconciles with `journey.registry.claims`, keeps at most 500 events (`ponytail:` oldest unsettled first), and saves with the revision.
+  - `appendJourneyEvidence(env, journey, evaluation, ref) → { journey, events, seq }`. This is the ONLY evidence writer. It calls `reconcile()` (unmodified), keeps at most 500 events (`ponytail:` oldest unsettled first), and saves with the revision. Task 7 adds registry-scoped `states` and `transitions`.
   - `toClient(journey) → journey`, which strips every probe option's `correct` and `misconception_id` keys and the `raw_request` duplicate.
 
 - [ ] **Step 1: Write failing tests**, using `learnDb(t)` from `test/learn-grade-fixture.js`. It builds node:sqlite from `repository-schema.sql`, which is why the mirror matters.
@@ -233,13 +254,14 @@
 - Create: `packages/control-plane/src/agents/learn-journey.js`. Pure: system prompts, tool schemas and the output validators that wrap Task 2's validators.
 - Create: `packages/control-plane/src/learn-journey-planners.js`. `planDiagnostic`, `planPath`, `adaptPath`, `planSection` and `resolveWithModel`, each `(env, input, { callModel }) → result`.
 - Create: `packages/control-plane/src/learn-journey-fixtures.js`. Deterministic outputs for `JOURNEY_MODEL_STUB=fixtures`.
-- Modify: `packages/control-plane/src/learn-models.js`. Add the `LEARN_TASKS` entries below and extend its test.
-- Test: `packages/control-plane/test/learn-journey-planners.test.js`, plus extending `test/learn-models.test.js`.
+- Do **not** modify `learn-models.js` (R6). The five role entries below are exported as `JOURNEY_TASKS` from `learn-journey-planners.js`, with exactly the `LEARN_TASKS` entry shape. Planners read `JOURNEY_TASKS[role]`. Task 7 moves them into `LEARN_TASKS`.
+- Test: `packages/control-plane/test/learn-journey-planners.test.js` only. The `learn-models.test.js` assertions move to Task 7.
+- Logging: do not pass journey roles to `loggedModel` from `learn-models.js`, because its `LEARN_TASKS[task]` lookup would miss. Write one sanitized log line per call in the same format: task, requested model and served model; never the message.
 
 **Interfaces:**
 - Consumes: `validateRegistry`, `validatePath` and `INTAKE_SLOTS` from `../../web/src/learn-journey.js`. `anthropic` from `./ask.js` and `loggedModel` from `./learn-models.js`, matching how `learn-tutor-routes.js` builds `callModel`.
 - Produces:
-  - `LEARN_TASKS.journey_resolver = { provider:'anthropic', model:'claude-sonnet-5-5', effort:'low', picker:false, fallback:'none', thinking:'model default', toolChoice:'auto (one tool)', maxTokens: 300 }`
+  - `JOURNEY_TASKS.journey_resolver = { provider:'anthropic', model:'claude-sonnet-5-5', effort:'low', picker:false, fallback:'none', thinking:'model default', toolChoice:'auto (one tool)', maxTokens: 300 }`
   - `journey_diagnostic`: the same, with `maxTokens: 3000`.
   - `journey_path = { …, model:'claude-opus-5-5', effort: null, maxTokens: 4000 }`.
   - `journey_section`: Sonnet, low, `maxTokens: 3000`.
@@ -247,7 +269,7 @@
   - The request builder sends `output_config: { effort }` only when `effort` is set. Every request uses `tool_choice: { type: 'auto' }` and one tool, as `plannerRequest` does; Opus 5.5 refuses forced tools.
   - `planDiagnostic(env, { topic, intake, grounding }) → { registry, probes, background? }`. `probes`: 2-4 entries of `{ id, kind: mcq | prediction | explain_back, prompt, options?, claims, purpose, transfer, key? }`, where `key = { correct: option_id, misconceptions: { option_id: misconception_id } }` is stored server-side only.
   - `planPath(env, { topic, intake, states, constraints, pending_edits, registry }) → { path, concepts_added }`. `path` has the §9.2 shape with `version: 1` and `change.source: 'draft'`.
-  - `adaptPath(env, { prev, edit | evidence, registry, states }) → { path, concepts_added, ambiguous }`. It first calls `LEARN_TASKS.journey_adapt`. It escalates to `journey_path` when `validatePath` rejects, when `ambiguous === true`, or when any affected claim has both a settled pass and a settled negative event. The result carries `escalated: <reason> | null`.
+  - `adaptPath(env, { prev, edit | evidence, registry, states }) → { path, concepts_added, ambiguous }`. It first calls `JOURNEY_TASKS.journey_adapt`. It escalates to `journey_path` when `validatePath` rejects, when `ambiguous === true`, or when any affected claim has both a settled pass and a settled negative event. The result carries `escalated: <reason> | null`.
   - `planSection(env, { path, section, registry, states }) → sectionPlan`, the §9.3 shape. Every step's `make.command` is in `['explain','code','graph','diagram','walkthrough','animate','practice','flashcards']` or the step is `make: { text }`.
   - `resolveWithModel(env, { text, tray }) → { kind }`, with `kind` in the five resolver categories; anything else becomes `clarification_needed`.
   - `fixtureFor(task, input)` returns, for any topic:
@@ -262,13 +284,13 @@
 
 - [ ] **Step 1: Write failing tests**, with an injected `callModel` that returns scripted Anthropic-shaped responses (`{ ok: true, json: async () => ({ content: [{ type: 'tool_use', name, input }] }) }`):
   - `planDiagnostic` returns the registry and probes when the scripted output is valid. An invalid registry (17 concepts) throws `PlannerInvalid`.
-  - **Model roles.** `planPath` sends `LEARN_TASKS.journey_path.model`, and `planSection` sends `LEARN_TASKS.journey_section.model` with `output_config.effort === 'low'`. Assert on the request the stub received.
+  - **Model roles.** `planPath` sends `JOURNEY_TASKS.journey_path.model`, and `planSection` sends `JOURNEY_TASKS.journey_section.model` with `output_config.effort === 'low'`. Assert on the request the stub received.
   - `adaptPath` escalates: (a) the first scripted reply breaks invariant 1 → a second call to the `journey_path` model, `escalated: 'validator'`; (b) `ambiguous: true` → `escalated: 'ambiguous'`; (c) contradictory evidence in `states` input → `escalated: 'contradictory'`. A valid, unambiguous reply → one call, `escalated: null`.
   - `planSection` rejects a step with `make.command: 'video'`.
   - `resolveWithModel` maps an unknown kind to `clarification_needed`.
   - `fixtureFor('journey_path', { topic: 'logistic regression', intake: { slots: { depth: 'guided' } } })` passes `validatePath(path, null, registry)` with 8 sections. With depth `overview` it has at most 3 sections.
   - `journeyCallModel({})` is not the fixture model. `journeyCallModel({ SMALL_ENV: 'test', JOURNEY_MODEL_STUB: 'fixtures' })` is. `journeyCallModel({ JOURNEY_MODEL_STUB: 'fixtures' })` without `SMALL_ENV: 'test'` is not.
-  - `learn-models.test.js`: the five new keys exist with the models and efforts above, and the existing keys are unchanged.
+  - `JOURNEY_TASKS` has exactly the five keys with the models and efforts above, in the `LEARN_TASKS` entry shape (provider, model, effort, picker, fallback, thinking, toolChoice, maxTokens). `learn-models.js` is untouched (R6).
 - [ ] **Step 2:** Run the tests. Expect FAIL.
 - [ ] **Step 3: Implement.** Write the prompts in `agents/learn-journey.js`.
   - Each prompt states the evidence rules: no levels or scores; transfer-only `understood`; diagnostic probes for strong evidence are set on a case other than the claim's `drawn`; `drawn` is the canonical first example.
@@ -287,7 +309,7 @@
 - Test: `packages/control-plane/test/learn-journey-route.test.js`
 
 **Interfaces:**
-- Consumes: Task 2 (`journeyStep`, `trayFor`, `nextProbe`, `journeyIntent`, `slotsFromIntent`, `applyIntakeAnswer`), Task 3 (the store), Task 4 (the planners and `journeyCallModel`), and `authorizedBoardApp` from `./learn-board.js` (the same pattern as `tutorRoute`: owner access, origin check, `subscriptionOwnerRefusal`).
+- Consumes: Task 1 (`journeyIntent` from `learner-intent-journey.js`; `slotsFromIntent`, `applyIntakeAnswer`, `trayFor` from `learn-journey.js`), Task 2 (`journeyStep`, `nextProbe`), Task 3 (the store), Task 4 (the planners and `journeyCallModel`), and `authorizedBoardApp` from `./learn-board.js` (the same pattern as `tutorRoute`: owner access, origin check, `subscriptionOwnerRefusal`).
 - Produces:
   - **`GET /api/learn/journey?app=&board=`** → `{ journey: toClient(j) | null, path | null, tray }`. `tray` is computed with `trayFor` on the server, and the client recomputes it the same way.
   - **`POST /api/learn/journey`** with `{ app, board, action, revision?, … }`. Every response is `{ journey, path, tray }`, or `{ error }` with a 400, 403, 409 or 502 status. Actions:
@@ -382,6 +404,11 @@
 
 ### Task 7: TutorDomain generalization, server side — journey system prompt and the `/evaluate` journey path
 
+> **Revision (R6):** this task runs after the controller's rebase onto main with Avatar/Media's Tutor changes. Two items arrive here from earlier tasks:
+>
+> 1. **Model roles.** Move `JOURNEY_TASKS` (Task 4) into `LEARN_TASKS` in `learn-models.js`, with identical entries. `learn-journey-planners.js` then reads `LEARN_TASKS[role]`, the planners' sanitized log switches to `loggedModel(role, …)`, and `test/learn-models.test.js` asserts the five keys.
+> 2. **Registry-scoped evidence.** `appendJourneyEvidence` (Task 3) calls `reconcile(store, evaluation, ref, journey.registry.claims)`, using the claims parameter that Task 6 adds, and returns `states` and `transitions` as well. Add a store test: the states' keys are exactly the registry claim ids.
+
 **Files:**
 - Modify: `packages/control-plane/src/agents/learn-tutor.js`.
   - Add `plannerSystem(kind)`. For `kind === 'nanogpt'` it returns exactly `PLANNER_SYSTEM`.
@@ -423,41 +450,43 @@
 
 ---
 
-### Task 8: Journey UI — `useJourney`, `TutorPromptTray`, resolver wiring, composer and voice routing
+### Task 8: Journey UI — `useJourney`, `TutorPromptTray`, tray-path routing (no Tutor-core, no LearnTutor.jsx)
+
+> **Revision (R6, controller ruling):** the `useTutor` wiring (journey domain, the resolver at the top of `turn()`, voice) moves to **Task 12**, which runs after the rebase. This task builds everything that needs no Tutor change. `LearnTutor.jsx` is not modified here.
 
 **Files:**
-- Create: `packages/web/src/LearnJourney.jsx`, containing `useJourney({ app, board, access, canvasApi })` and `TutorPromptTray({ tray, onOption, busyLabel })`.
-- Modify: `packages/web/src/LearnTutor.jsx`.
-  - `useTutor({ …, journey = null })`.
-  - `active ||= !!journey?.journey`.
-  - `domain = journey?.journey ? journeyDomain({ journey: journey.journey, path: journey.path, blocks: canvasApi.current?.blocks?.() || [] }) : NANOGPT`, passed to `runTurn` and `executeActions`.
-  - The store key for journeys is `small.tutor:<org>:<email>:journey:<id>`, and `load()` merges the journey's server events.
-  - **At the top of `turn()`**, when `journey?.journey` is set:
-    1. `const rule = resolveTurnRules(raw, journey.tray)`.
-    2. If `rule` is null and `journey.tray` is open, call `journey.resolve(raw)`, which posts `resolve`.
-    3. Dispatch on the kind:
-       - `tray_answer` → `journey.answer(option_id)`, then return `{ text: '' }` with no Tutor reply;
-       - `path_edit` → `journey.edit(raw)`;
-       - `cancel` → `journey.cancel()`;
-       - `clarification_needed` → `journey.clarify()`, which shows a local `clarification` tray (§7.2);
-       - `unrelated_question` or no tray → continue to `runTurn` with the journey domain.
-    4. **Free-text probe answers.** When the tray is a `diagnostic_probe` and the kind is `tray_answer` without `option_id` (free text in a `free_text` probe), call `runTurn({ raw, plan: false, domain, store: { ...load(), open: { action_id: probe_id, claim: probe.claims[0], text: prompt, canvas: here } }, … })`. `runTurn` has no `answering` parameter: `buildTurn` derives `answering` from `store.open`. Then call `journey.advance(probe_id)`.
-    5. **Option clicks on a probe.** In `diagnostic_probe` mode, `journey.answer(option_id)` with any option except `skip` posts `/api/learn/tutor/evaluate { app, board, journey_id, probe_id, option_id }` (the deterministic path, Task 7), then calls `advance(probe_id)`. The `skip` option posts `diagnostic_skip`.
+- Create: `packages/web/src/LearnJourney.jsx`, containing:
+  - `useJourney({ app, board, access, canvasApi, enabled })`;
+  - `TutorPromptTray({ tray, onOption })`;
+  - the exported pure helper `routeJourneyTurn(raw, tray)`, which returns `{ kind, option_id?, edit? }`.
 
-    `voiceTurn` and typed turns both go through `turn()`, so there is one resolver.
-- Modify: `packages/web/src/ask.jsx`. In `send()`, before the `tutor` branch (≈ line 546): if `!tutor && journeyIntentKinds.includes(journeyIntent(raw).kind) && journeyStarter`, call `await journeyStarter(raw)` and return, with no `/api/learn/ask` request.
+  `routeJourneyTurn` calls `interactionInterpretation` (Task 1's resolver extension) for rules 1-4. It returns `{ kind: 'needs_model' }` when no rule matched and a tray is open, and `{ kind: 'unrelated_question' }` when no tray is open and rule 4 did not match.
+- `useJourney().handleText(raw) → Promise<{ handled: boolean }>`: `routeJourneyTurn`, then for `needs_model` it posts `resolve`. Then:
+  - `tray_answer` → `answer(option_id)`. With no `option_id` (free text), the target depends on the tray:
+    - in an intake `free_text` slot it posts `intake_answer { slot, text }`;
+    - in a `diagnostic_probe` tray it calls `answerProbeText(probe_id, raw)`. That function posts `/api/learn/tutor/evaluate { app, board, journey_id, claims: probe.claims, answering: true, question: probe.prompt, message: raw }`, the journey evaluate contract of Task 7, then calls `advance(probe_id)`. Until Task 7 lands, that post fails. The failure is caught and treated as an evaluator error: `advance` still runs, and the walker moves on (the conservative path). Task 12 replaces this call with a `runTurn({ plan: false })` turn.
+  - `path_edit` → `edit(raw)`;
+  - `cancel` → `cancel()`;
+  - `clarification_needed` → a local `clarification` tray (§7.2);
+  - `unrelated_question` → `{ handled: false }`. The caller's existing responder answers.
+- **Option clicks on a probe.** In `diagnostic_probe` mode, `answer(option_id)` with any option except `skip` posts `/api/learn/tutor/evaluate { app, board, journey_id, probe_id, option_id }` (the Task 7 deterministic contract; until then it fails and is handled as above), then calls `advance(probe_id)`. The `skip` option posts `diagnostic_skip`.
+- Modify: `packages/web/src/ask.jsx`. In `send()`, before the `tutor` branch (≈ line 546):
+  - if a `journey` prop is set and `journey.tray` is open, run `const { handled } = await journey.handleText(raw)`. If handled, return; there is no `/api/learn/ask` and no Tutor call.
+  - else, if `journeyStartsHere(raw, { tutor, journeyStarter })`, call `await journeyStarter(raw)` and return, with no `/api/learn/ask` request.
+
+  `journeyStartsHere` uses `journeyIntent` from the resolver extension.
   - `journeyStarter` is a new optional AskPanel prop, passed from LearnPage only when the canvas is not the nanoGPT course and has no live journey.
   - Render `<TutorPromptTray>` in the composer box at the `LearnSlash` slot (≈ line 950), from a new optional `tray` prop: `{ tray, onOption }`.
   - The composer placeholder becomes "Type your answer, or ask anything" when `tray?.free_text`.
 - Modify: `packages/web/src/LearnPage.jsx`.
   - `const journey = useJourney({ app, board: boardName, access: askScope, canvasApi })`, with `enabled = learnPreview && !suppliedCourse`.
-  - Pass `journey` into `useTutor` (`on` stays `suppliedCourse && !board`).
-  - Pass `journeyStarter={journey.start}`, and `tray={journey.trayProps}` to the dock AskPanel.
+  - Do not pass `journey` into `useTutor` here; that is Task 12.
+  - Pass `journey={journey}`, `journeyStarter={journey.journey ? null : journey.start}`, and `tray={journey.trayProps}` to the dock AskPanel.
 - Test: create `packages/web/src/learn-journey-ui.test.mjs`. Pure tests of the exported routing helper `routeJourneyTurn(raw, tray, resolveRules)`; put the decision logic in `LearnJourney.jsx` as an exported pure function so node can test it. Also add rendering tests in the style of `voice-ui.test.mjs`, which uses `react-dom/server` `renderToStaticMarkup`.
 
 **Interfaces:**
-- Consumes: Task 1 (`journeyIntent`, `resolveTurnRules`, `trayFor`), Task 5 (route contract), Task 6 (`journeyDomain`, `runTurn({ domain, plan })`).
-- Produces: `useJourney()`, which returns `{ journey, path, tray, trayProps, start(text), answer(optionId), edit(text), cancel(), clarify(), resolve(text) → Promise<{kind}>, advance(probeId), accept(), retry(), refresh() }`.
+- Consumes: Task 1 (`journeyIntent` and `interactionInterpretation` from `learner-intent-journey.js`; `trayFor` from `learn-journey.js`) and Task 5 (route contract).
+- Produces: `useJourney()`, which returns `{ journey, path, tray, trayProps, start(text), handleText(raw) → Promise<{handled}>, answer(optionId), answerProbeText(probeId, text), edit(text), cancel(), clarify(), resolve(text) → Promise<{kind}>, advance(probeId), accept(), retry(), refresh() }`. Task 9 adds `materialized`, and Task 12 consumes `journey`, `path`, `tray` and `handleText`.
   - On mount it calls `GET /api/learn/journey`.
   - On 409 `revision` it re-fetches and replays the action once.
   - On 409 `live_journey` it opens a local clarification tray: [Continue <topic>] [Start <new topic>]. Start archives the old one through `POST { action: 'archive' }`; add this action to Task 5's route only if it is missing, as a one-line store call.
@@ -470,14 +499,14 @@
     - `role="group"`, `aria-label` = the prompt.
 
 - [ ] **Step 1: Write failing tests:**
-  - `routeJourneyTurn` dispatches each resolver kind to the right handler, and with no tray, `"What is a sigmoid?"` routes to `tutor`.
+  - `routeJourneyTurn` returns each resolver kind for its rule. With no tray, "What is a sigmoid?" gives `unrelated_question`. With an open tray and no rule matched, it gives `needs_model`.
   - **Punctuation:** "Can we skip this?" → `cancel` (not tutor).
   - The `TutorPromptTray` markup has no `input` or `textarea`, has one `[data-tray-option]` per option, shows the busy text when `tray.busy` is set, and shows the retry button when `tray.error` is set.
   - `ask.jsx` routing helper: export `journeyStartsHere(raw, { tutor, journeyStarter })`. It is true for "I want to learn logistic regression" with no tutor, false for "What is logistic regression?", and false when `tutor` is set.
 - [ ] **Step 2:** Run the tests. Expect FAIL.
 - [ ] **Step 3:** Implement. The tray style copies the `data-slash-result` box: `rounded-lg border border-[#2383e2]/30 bg-[#2383e2]/[0.07] px-3 py-2 text-sm`. Options are pill buttons in a wrapping row.
 - [ ] **Step 4:** Run the tests. Expect PASS. Then run `cd packages/web && npx vite build --outDir dist-check` to confirm it compiles, and delete `dist-check` afterwards.
-- [ ] **Step 5:** `make test-unit`, then commit: "feat(learn): Tutor Prompt Tray, useJourney and one interaction resolver for typed and voice turns on journey canvases (LP1)".
+- [ ] **Step 5:** `make test-unit`, then commit: "feat(learn): Tutor Prompt Tray, useJourney and tray-path routing through the shared resolver extension (LP1)".
 
 ---
 
@@ -543,7 +572,7 @@
 
 **Files:**
 - Modify: `packages/web/src/agent/AgentBar.jsx`. In `teach()`, for `scope.kind === 'workspace'`:
-  1. `const intent = journeyIntent(text)`.
+  1. `const intent = journeyIntent(text)`, imported from `../../../control-plane/src/learner-intent-journey.js`.
   2. Create the canvas with `title: intent.topic ? capitalize(intent.topic) : titleFromQuestion(text)`.
   3. `await api('/api/learn/journey', { method: 'POST', body: JSON.stringify({ app, board: 'main', action: 'start', text, channel: 'text' }) })`. On failure, `toast('✗ …')` and still open Learn.
   4. Navigate to `/apps/<app>?tab=learn` directly, the same URL `learnAction`'s `open()` uses.
@@ -557,7 +586,7 @@
   - factual questions never reach `teach` (the router's existing tests stay green).
 
 **Interfaces:**
-- Consumes: Task 1 (`journeyIntent`), Task 5 (`start`).
+- Consumes: Task 1 (`journeyIntent` from `packages/control-plane/src/learner-intent-journey.js`), Task 5 (`start`).
 - Produces: a Home → Learn arrival with a live journey in `intake`, whose `request.raw_user_message` equals the typed text exactly.
 
 - [ ] **Step 1:** Write the failing test.
@@ -627,3 +656,37 @@
 - [ ] **Step 3:** Run the preservation gates.
 - [ ] **Step 4:** Write §18 into the architecture doc: J1-J8 pass or fail, the gate numbers, and what the stack lacked (no keys).
 - [ ] **Step 5:** `make test-unit`, then commit the e2e script, the recipe and the doc: "test(learn): LP1 journey acceptance J1-J8 on a keyless local stack, Tutor preservation gates (LP1)".
+
+---
+
+### Task 12: Tutor v2 wiring on journey canvases — `useTutor`, the shared resolver at the top of `turn()`, voice (after the rebase)
+
+**Files:**
+- Modify: `packages/web/src/LearnTutor.jsx` (as merged on main with Avatar/Media's changes).
+  - `useTutor({ …, journey = null })`.
+  - `active ||= !!journey?.journey`.
+  - `domain = journey?.journey ? journeyDomain({ journey: journey.journey, path: journey.path, blocks: canvasApi.current?.blocks?.() || [] }) : NANOGPT`, passed to `runTurn` and `executeActions`.
+  - The store key for journeys is `small.tutor:<org>:<email>:journey:<id>`, and `load()` merges the journey's server events.
+  - **At the top of `turn()`**, when `journey?.journey` is set:
+    1. If the tray is a `diagnostic_probe` and `routeJourneyTurn` gives `tray_answer` with no `option_id`, run `runTurn({ raw, plan: false, domain, store: { ...load(), open: { action_id: probe_id, claim: probe.claims[0], text: prompt, canvas: here } }, … })`. `buildTurn` derives `answering` from `store.open`. Then call `journey.advance(probe_id)`. This replaces Task 8's interim `answerProbeText`.
+    2. Otherwise run `const { handled } = await journey.handleText(raw)`. If handled, return `{ text: '' }`.
+    3. Otherwise continue to `runTurn` with the journey domain. The question is answered by Tutor v2 with `journey_context`.
+
+    `voiceTurn` and typed turns both go through `turn()`, so Voice and Chat share one resolver (D6).
+- Modify: `packages/web/src/LearnPage.jsx`. Pass `journey` into `useTutor`. The dock `tutor` prop is then non-null on journey canvases, so `ask.jsx` routes journey canvases to the Tutor, and Task 8's `handleText` branch in `ask.jsx` is reached only through `turn()`. Remove the duplicate branch from `ask.jsx` so that exactly one path remains.
+- Modify (only if Motion's `learner-intent.js` is on main after the rebase): `packages/control-plane/src/learner-intent.js`. Add `journey: journeyInterpretation(request)` to `structured_interpretation`, and `interaction` when a `tray` input is given. Switch the extension's minutes fallback to `parseDuration`, with hyphen support added there. If it is not on main, write a note in the architecture doc §18 for Parallel.
+- Test: extend `packages/web/src/learn-journey-ui.test.mjs`:
+  - a typed and a voice turn with the same text produce the same routing decision;
+  - on a journey canvas with no tray, an unrelated question calls `runTurn` with `domain.kind === 'journey'`;
+  - a free-text probe answer calls `runTurn` with `plan: false`, and the evaluate body has `journey_id`;
+  - "Can we skip this?" with an open tray never reaches `runTurn`.
+
+**Interfaces:**
+- Consumes: Task 6 (`journeyDomain`, `runTurn({ domain, plan })`), Task 7 (the journey evaluate path), Task 8 (`useJourney`, `routeJourneyTurn`, `handleText`).
+- Produces: one Tutor on journey canvases, with Voice parity for tray answers and unrelated questions.
+
+- [ ] **Step 1:** Write the failing tests.
+- [ ] **Step 2:** Run them. Expect FAIL.
+- [ ] **Step 3:** Implement.
+- [ ] **Step 4:** Run the tests, the golden traces and the corpus gate (Task 6 Step 6, against Task 6's baseline). Expect PASS.
+- [ ] **Step 5:** `make test-unit`, then commit: "feat(learn): Tutor v2 is the Tutor on journey canvases - one resolver for typed and voice turns, journey domain, plan:false probe turns (LP1)".
