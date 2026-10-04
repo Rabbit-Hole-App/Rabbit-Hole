@@ -748,7 +748,7 @@ REST/API
    - Every actual prototype generation needs that approval.
 4. **Explore before paying.** Discovery tools such as `list_avatar_groups`, `list_avatar_looks`, `get_avatar_look` and `list_voices` are expected to cost nothing. Check that against the account's credit balance before and after; it is UNVERIFIED (§31).
 5. **Inputs are fixtures only.** The prototype scripts in §21, written by hand or by the AV2 Director from fixtures. Never a learner's words, a transcript, private source or anything from a real session.
-6. **Generate.** Use `create_video` and `get_video` for the §21 set with a stock/licensed avatar look that is trained with matting, and a HeyGen native voice: MP4 vs WebM alpha. Record the video id, engine, settings, wall-clock latency and credits used.
+6. **Generate.** Use `create_video` and `get_video` for the §21 set with a public stock/licensed avatar look picked by the §32 selection rule (interpretation 4), and a HeyGen native voice: MP4 first, WebM alpha only as a separate experiment after MP4 succeeds. Record the video id, engine, settings, wall-clock latency and credits used.
 7. **Clean up.** Download what the evaluation needs to the job's temp folder (`.claude/jobs/<id>/tmp/avatar/`, never committed). Then `delete_video` each prototype on HeyGen.
 8. **Promote nothing.** No MCP output becomes a learner-facing asset. Canonical product clips come only from the REST path (AV3–AV4), with provenance.
 
@@ -793,7 +793,7 @@ Opaque MP4 remains supported.
 1. **Requesting alpha.** HeyGen v3 returns "a WebM file with a real alpha channel" when the request sets `output_format: "webm"`. Background removal is then automatic, and a `background` value in the same request is rejected.
    - The look must be "trained with matting". This is "the default for recently-created avatars, so most Digital Twins and Studio Avatars qualify". Otherwise the call fails: "This video avatar does not support webm output."
    - Webm works on Avatar IV, Avatar V and Avatar III. It is "not available for Cinematic Avatar".
-   - The adapter's `capabilities(profile)` reports alpha per profile. V1 picks a stock/licensed look trained with matting (§17).
+   - The adapter's `capabilities(profile)` reports alpha per profile, and only from an empirically verified WebM render: no look field reports matting. V1 does not pick its look for matting (§32, interpretation 4); the first prototype is MP4 and WebM is a later controlled experiment.
 2. **Browser support.** Chrome, Edge and Firefox render VP9 alpha. Safari plays WebM but ignores its alpha, so the clip shows on black. Safari's alpha format is HEVC with alpha, which Chrome does not play (§31). So:
    - **Overlay** is offered only where alpha renders: the clip has alpha and the browser is not WebKit (Safari, or any iOS browser).
    - **Fallback (V1, every browser):** the opaque or alpha clip plays in a small rounded picture-in-picture frame anchored bottom-right. It needs no alpha. This is also what WebKit always gets.
@@ -1321,7 +1321,7 @@ Compare where available:
 - Avatar V: not in V1. It is documented for digital twins only, and V1 uses a stock/licensed avatar (§17). It comes back with a twin, if one is ever made.
 - Avatar IV, the V1 engine for the stock look (or whatever that look's `supported_api_engines` lists),
 - opaque MP4,
-- transparent WebM (needs a matting-trained stock look),
+- transparent WebM, a separate controlled experiment after MP4 succeeds (§32, interpretation 4),
 - voice: HeyGen's native voice is the V1 baseline. The Fish narrator through `audio_url` is a priority later comparison under the §18 conditions, not part of the first prototypes.
 
 Evaluate:
@@ -1859,19 +1859,19 @@ Paid MCP or API calls also need the §10 account prerequisites and the owner's e
    Plus the owner's explicit spend approval for each paid call (§10).
 8. **Reload bug.** The video resume-after-reload fix is a prerequisite for AV5. It is fixed once in the shared video pipeline, or landed as its own separate prerequisite commit for Parallel to review. There is no avatar-only playback state (§13).
 
-**Interpretations to confirm:**
-1. **`learning_goal` reconciliation.** It is accepted, validated and carried as a Director-only hint. It never reaches the provider, a log or a key, and canonical clips ignore it. It takes effect only for personalized clips, which are deferred (§4.1).
-2. **Moment mapping.** Section greeting and concept framing fold into `orientation`, and checkpoint into `reflection`. Every moment is canonical, except `human_explanation` and `demonstration`, which are personalized when no product clip exists (§3).
-3. **When the chip appears.** It is offered only when its canonical clip is ready. Before Rabbit Hole has generated the canonical set, the Tutor suggests nothing.
-4. **Picking the stock look.** The stock look is chosen during AV1, among stock looks trained with matting, so WebM alpha works.
+**Interpretations, locked by the owner (2026-10-04, third round, on `826045e7`):**
+1. **`learning_goal` reconciliation, approved.** A Director-only planning hint. It never reaches HeyGen, a cache key, a log, analytics or provider metadata. Canonical shared clips ignore it, and no canonical product asset depends on an individual learner's goal. Personalized learner-specific clips stay deferred (§4.1).
+2. **Moment mapping, approved.** Section greeting and concept framing fold into `orientation`, and checkpoint into `reflection`. The nine `moment` values of the action stay as they are; no near-duplicate names are added. `human_explanation` and `demonstration` may become personalized generation cases when no approved reusable product clip exists (§3).
+3. **Canonical chip availability, approved.** For a reusable moment, the Tutor may surface Play only when an approved cached clip exists; without one it offers no learner-paid generation. Rabbit Hole pre-generates canonical course clips as product content, so the first learner to reach a section never pays for Rabbit Hole's reusable asset. Only `human_explanation` and `demonstration` may later surface Generate for an uncached clip, behind the paid gate.
+4. **Stock look selection, modified.** No matting requirement is encoded: the public API exposes no reliable matting field. AV1 picks a public stock/licensed look by visual teaching quality, avatar type, supported engine, native-voice compatibility and output quality. Transparency is preferred only where it is verified empirically, never inferred from undocumented metadata. The first real prototype is MP4; transparent WebM is a separate controlled experiment after MP4 succeeds, and transparency never blocks the first teacher prototype.
 
-These four are **still open**: the owner does not approve them by reference (2026-10-04). The groundwork's code assumes 1–3 (the validator drops `learning_goal` from every canonical path; the moment table in `learn-tutor-validate.js`; a canonical moment without a ready clip is dropped). Decision 9 below adds to 4: WebM is not locked until discovery confirms the chosen look's transparent path.
+The code already holds 1–3: the validator drops `learning_goal` from every canonical path and logs only the reason; the moment table lives in `learn-tutor-validate.js`; a canonical moment without a ready clip goes to the resource stage, and only `PERSONALIZABLE_MOMENTS` returns the deferred `generate` offer.
 
 **Owner decisions, second round (2026-10-04, on checkpoint `61c35830`, accepted):**
 1. **Rabbit Hole return mapping, approved.** The Tutor action's `concept` is the child hole's concept and `to_concept` the parent concept being reconnected to (child `softmax` → parent attention: "connect softmax back to causal attention"). The brief carries them as `from_concept` (child) and `current_concept` (parent); the slot id is `rabbit_hole_return:<child>:<parent>`, and the script-slot key includes both sides, never the child alone.
 2. **The separate `LearnAvatarClips` store, approved.** Learner-reachable playback never reaches generation; the read path stays apart from generation and store orchestration. Shared media helpers are reused; generation stays isolated.
 3. **Director model.** The role resolves through `LEARN_TASKS`; no schema or permanent contract names a model. `claude-opus-5-5` is approved as the initial development mapping; a faster model is benchmarked once the pipeline works.
-4. **These four interpretations stay open** until each is approved by its text.
+4. **These four interpretations stay open** until each is approved by its text (since locked, third round below).
 5. **Pricing corrected** (§31). The first-call estimate uses the current per-minute API prices, and the rate is not assumed until discovery classifies the chosen look.
 6. **AV2 live Director validation, authorized:** a small development-only run of about four canonical briefs through the real Director. It does not authorize HeyGen generation. Done (§33).
 7. **Script reviewer:** exercised with real Director outputs, the deterministic rules and fake malformed or unsafe fixtures, keeping model samples minimal. Done (§33).
@@ -1879,6 +1879,18 @@ These four are **still open**: the owner does not approve them by reference (202
 9. **The first real HeyGen call stays proposed, not authorized** (§33). WebM is not locked until discovery confirms the look supports the transparent path.
 10. **Output host:** no host is trusted on expectation. On the first real response the actual hostname is checked against the documented and observed host, an unknown host fails closed, the allowlist changes only with that evidence, and no redirect or other download host is followed.
 11. **AV4 infrastructure waits:** no Durable Object binding, migration, Worker secret or deploy request to Home until the AV2 validation and the first-call proposal are done.
+
+**Owner decisions, third round (2026-10-04, on checkpoint `826045e7`, accepted; AV2 complete):**
+1. **History stays.** The merge of main is kept; no rebase or force-push to tidy history. Future checkpoints fetch the latest main first and follow the repo's normal integration rule.
+2. **The four interpretations are locked** as written above (1–3 approved, 4 modified).
+3. **Script reviewer model, approved.** `avatar_script_reviewer` resolves through `LEARN_TASKS` to `claude-opus-5-5` for the development stage; no schema names a model. A Sonnet 5.5 (low effort) versus Opus 5.5 benchmark waits until there are enough reviewer fixtures.
+4. **The 4000-token budget, approved** for both roles, to avoid truncated thinking or tool output. It does not authorize longer spoken scripts; the learner-facing limits (§5.1) are unchanged.
+5. **Repair policy, kept.** Director → deterministic validation → reviewer → at most one semantic repair → re-review → pass or fail. Repairs never loop.
+6. **The first provider prototype is approved in principle** as §33.2 describes it (orientation, attention, the owner's script, Avatar IV, a public stock/licensed look, HeyGen native voice, 720p, 16:9, MP4, about 7 s, a $1.00 hard spend ceiling, no automatic retry). The API is not called yet.
+7. **Discovery, when separately authorized,** uses only `GET /v3/avatars/looks`, `GET /v3/avatars/looks/{id}` and the relevant voice endpoint, and records only the look id, avatar type, supported engines, voice id and provider-safe capability metadata. The key is never logged. Discovery is not assumed free: the balance is recorded before and after if the API exposes it safely.
+8. **Output download, first result:** inspect the returned host; HTTPS only; validate the actual provider host and fail closed on an unknown one; download locally; sniff the type from the bytes; validate the video; store it only in a temporary dev location; delete the provider copy if the API supports it. The production allowlist is never broadened on assumption.
+9. **No Home action yet:** no Worker secret, binding, migration, AV4 deploy or production resource. One local API generation comes first.
+10. **The gate.** The only blocker to the first provider interaction is confirmation that `HEYGEN_API_KEY` (the local secret in the root `.env`, presence-checked only) belongs to the Rabbit Hole-owned HeyGen account intended for ongoing use, with input/model-training opt-out where supported and a spending ceiling or controlled wallet. Until then there is no discovery, generation or MCP call.
 
 ---
 
@@ -1935,9 +1947,9 @@ Owner GO (§32 second round, decisions 6 and 7). Run by hand with `node tests/ev
 - **Totals:** 12 calls (5 Director, 7 reviewer), 19,130 input / 4,721 output tokens, **$0.171** at $4 / $20 per MTok, plus a $0.019 smoke run of case A. Latency: Director 3.0–6.7 s per call; reviewer 2.8–9.8 s.
 - **What the provider would receive** for each slot is the final script text plus the render settings (`renderInputFor`), nothing else.
 
-## 33.2 The first paid HeyGen call: proposal (not authorized)
+## 33.2 The first paid HeyGen call: approved in principle, not run
 
-Nothing below has run. It needs, in order: (1) confirmation that `HEYGEN_API_KEY` belongs to a Rabbit Hole-owned HeyGen account (§32 second round, decision 8), with the other §10 prerequisites (training opt-out, a credit ceiling, no personal-account dependency); (2) a GO to use the key for discovery; (3) a spend GO for the one generation.
+Approved in principle by the owner (§32 third round, decision 6); nothing below has run. It needs, in order: (1) confirmation that `HEYGEN_API_KEY` belongs to the Rabbit Hole-owned HeyGen account intended for ongoing use, with training opt-out where supported and a spending ceiling or controlled wallet (the current gate, §32 third round, decision 10); (2) a separate authorization for discovery; (3) the GO to make the one generation call.
 
 **Step 0, discovery (read-only, no generation).** Three GETs with the key, never printed: `GET /v3/avatars/looks?ownership=public&avatar_type=studio_avatar&limit=50`, then `GET /v3/avatars/looks/{look_id}` for the chosen look, and the look's `default_voice_id` (checked against `GET /v3/voices`). Recorded: `id`, `avatar_type`, `supported_api_engines`, `default_voice_id`, `preferred_orientation`. Whether these GETs cost credits is UNVERIFIED (§31), so the balance is read before and after.
 - **Avatar type** comes from `avatar_type` (`studio_avatar` | `digital_twin` | `photo_avatar`); the price is chosen only after it is read.
@@ -1958,7 +1970,7 @@ Nothing below has run. It needs, in order: (1) confirmation that `HEYGEN_API_KEY
 - **Script:** the owner's orientation script, 16 words, which passes every deterministic rule; the script-slot pipeline above produces its own wording for product clips.
 - **Output format:** MP4. WebM is not locked until the transparent path is confirmed, and discovery cannot confirm it. A WebM attempt is a separate decision for the owner: it either renders with alpha or fails with HeyGen's documented error, and whether that failure is charged is UNVERIFIED.
 - **Expected duration:** about 6.5–7.5 s (16 words at about 150 words a minute, plus the voice's lead-in and tail).
-- **Then:** poll every 10 s; check the `video_url` hostname against the allowlist, failing closed with `unlisted_host:<hostname>` as evidence; download without following redirects, under 40 MB; sniff the type; save to `.claude/jobs/<id>/tmp/avatar/`, never committed; `DELETE /v3/videos/{video_id}`.
+- **Then:** poll every 10 s; check the `video_url` hostname against the allowlist, failing closed with `unlisted_host:<hostname>` as evidence; download without following redirects, under 40 MB; sniff the type from the bytes and reject anything but the requested MP4 or a duration past the ceiling; save to a temporary dev location (`.claude/jobs/<id>/tmp/avatar/`, never committed, never R2); `DELETE /v3/videos/{video_id}`. The production allowlist changes only on the host this call actually returns (§32 third round, decision 8).
 
 **Expected price** (owner's current API prices, charged per generated second):
 
