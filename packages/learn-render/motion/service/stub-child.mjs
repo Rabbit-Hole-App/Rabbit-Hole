@@ -1,7 +1,7 @@
 // Test double for child.mjs (service.test.mjs only): the same job-directory protocol with no
 // rendering, so the service's HTTP, limits, cleanup and environment rules test in seconds.
-//   node stub-child.mjs <jobDir> ready | sleep | tree | big | crash | failed | nolimits | oom
-// nolimits / oom stand in for motion-sandbox's out/sandbox-exit.json on Linux.
+//   node stub-child.mjs <jobDir> ready | sleep | tree | big | crash | failed | nolimits | oom | dirty
+// nolimits / oom / dirty stand in for motion-sandbox's out/sandbox-exit.json on Linux.
 import { spawn } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -25,6 +25,9 @@ else if (mode === 'crash') process.exit(3);
 else if (mode === 'nolimits') {
   writeFileSync(join(out, 'sandbox-exit.json'), JSON.stringify({ error: 'resource_limits_unavailable', detail: 'the memory cgroup controller is not available' }));
   process.exit(70);
+} else if (mode === 'dirty') {
+  ready();
+  writeFileSync(join(out, 'sandbox-exit.json'), JSON.stringify({ exit_status: 0, backend: 'cgroup-v1', cleanup: { freezer: 'used', terminated: 1, killed: 1, remaining: 1, groups_removed: false, render_user_processes: 1, ok: false } }));
 } else if (mode === 'oom') {
   writeFileSync(join(out, 'sandbox-exit.json'), JSON.stringify({ exit_status: 137, memory_max: 3221225472, pids_max: 1024, cpu_max: '150000 100000', oom_kills: 1 }));
   process.exit(137);

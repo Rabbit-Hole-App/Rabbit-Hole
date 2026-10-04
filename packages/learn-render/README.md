@@ -72,9 +72,11 @@ sh motion/service/context.sh   # deploy context for rabbit-hole-motion-renderer-
   420 s, 25 MB. `child.mjs` renders one job (preview, contact sheet, final, validation, two-context
   determinism, preview/final comparison) inside `motion-sandbox` / `sandbox-init`: unshare
   net/pid/mount/ipc/uts, the motion-render user, empty environment, private /tmp, service files
-  hidden, renderer read-only, and a cgroup v2 group per job (memory.max 3 GiB, pids.max 1024,
-  cpu.max 1.5 CPUs; no cgroup v2 = no render). `Dockerfile` + `fly.dev.toml` for Home;
-  `service.linux.test.mjs` runs in that image.
+  hidden, renderer read-only, and kernel limits per job from `resource-control.mjs`
+  (ResourceController: cgroup v2 when complete, else cgroup v1 as on Fly; 3 GiB with no swap
+  allowance, 1024 tasks, 1.5 CPUs, proven cleanup; neither backend = no render).
+  `Dockerfile` + `fly.dev.toml` for Home; `service.linux.test.mjs` runs in that image
+  (expects `cgroup-v1`; set MOTION_EXPECT_RESOURCE_BACKEND=cgroup-v2 elsewhere).
 - `motion/lockfile.test.mjs`: the lockfile must carry the Linux platform binaries the image
   needs (`@esbuild/linux-x64` at the bundler's esbuild version, pinned as an optional
   dependency here; Remotion's Linux compositor). A Windows-written lock once dropped esbuild's.

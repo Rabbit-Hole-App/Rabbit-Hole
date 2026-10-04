@@ -14,6 +14,7 @@ import { PNG } from 'pngjs';
 import { STAGE } from '../contracts.js';
 import { NET_PROBE, NET_PROBE_PREFIX } from '../probes.js';
 import { RemotionRenderer, chromeVersion, contactFrames, ffmpegVersion, probe } from '../remotion-renderer.mjs';
+import { selfLimits, unlimited } from './resource-control.mjs';
 
 // Preview vs final (§11.3): the final frame downscaled to preview size against the preview frame.
 // ponytail: provisional threshold from the Demo A authoring renders; M5 sets the real one.
@@ -40,7 +41,9 @@ async function sandboxReport() {
   report.hidden = Object.fromEntries(['/var/motion', '/home', '/root', '/.fly'].map(p => [p, seen(p)]));
   report.processes = readdirSync('/proc').filter(n => /^\d+$/.test(n)).length;
   report.renderer_write = (() => { try { writeFileSync('/app/.motion-probe', 'x'); return 'WRITABLE'; } catch (e) { return e.code; } })();
-  report.limits = limitsReport();
+  const { report: limits, cpuStat } = selfLimits();
+  report.limits = { ...limits, ...rlimits() };
+  cpuStatPath = cpuStat;
   const l = report.limits;
   report.breach = [
     report.network === 'reachable' && 'network reachable',
@@ -48,25 +51,22 @@ async function sandboxReport() {
     Object.entries(report.hidden).filter(([, v]) => v === 'VISIBLE').map(([p]) => `${p} visible`).join(', '),
     report.renderer_write === 'WRITABLE' && 'renderer writable',
     report.env_keys.some(k => /TOKEN|SECRET|KEY|PASSWORD|FLY_/i.test(k)) && 'service environment inherited',
-    !/^\/motion\/[0-9a-f]{32}$/.test(l.cgroup || '') && `not in a job cgroup (${l.cgroup})`,
-    [l.memory_max, l.pids_max].some(v => !v || v === 'max') && 'memory or process count unlimited',
-    (!l.cpu_max || l.cpu_max.startsWith('max')) && 'CPU unlimited',
+    !l.backend && `no resource backend (${l.reason})`,
+    !/^\/motion\/[0-9a-f]{32}$/.test(l.group || '') && 'not in one job group for every controller',
+    [l.memory_bytes, l.pids_max].some(unlimited) && 'memory or task count unlimited',
+    l.swap_bytes !== 0 && 'swap allowance above the memory limit',
+    !(l.cpu_quota > 0) && 'CPU unlimited',
     (!l.rlimit_nproc || l.rlimit_nproc === 'unlimited') && 'RLIMIT_NPROC unlimited',
   ].filter(Boolean);
   return report;
 }
+let cpuStatPath = null;
 
-// The limits this process actually runs under: its cgroup v2 group (set by motion-sandbox) and
-// its rlimits (set by sandbox-init). Read from the kernel, not from configuration.
-function limitsReport() {
-  const cgroup = readFileSync('/proc/self/cgroup', 'utf8').trim().split('::')[1] || null;
-  const cg = f => { try { return readFileSync(`/sys/fs/cgroup${cgroup}/${f}`, 'utf8').trim(); } catch { return null; } };
+// The rlimits sandbox-init set, read from the kernel (the cgroup limits come from selfLimits).
+function rlimits() {
   const limits = readFileSync('/proc/self/limits', 'utf8');
   const soft = name => limits.match(new RegExp(`^${name}\\s+(\\S+)`, 'm'))?.[1] ?? null;
-  return {
-    cgroup, memory_max: cg('memory.max'), memory_swap_max: cg('memory.swap.max'), pids_max: cg('pids.max'), cpu_max: cg('cpu.max'),
-    rlimit_nproc: soft('Max processes'), rlimit_fsize: soft('Max file size'), rlimit_nofile: soft('Max open files'),
-  };
+  return { rlimit_nproc: soft('Max processes'), rlimit_fsize: soft('Max file size'), rlimit_nofile: soft('Max open files') };
 }
 
 const readPng = f => PNG.sync.read(readFileSync(f));
@@ -127,9 +127,12 @@ async function resourceProbe(sandbox) {
     refused = await new Promise(r => { kid.once('spawn', () => r(null)); kid.once('error', e => r(e.code || e.message)); });
     if (!refused) kids.push(kid);
   }
+  // Every descendant stays in the job's groups: a child's /proc/<pid>/cgroup equals ours.
+  const own = readFileSync('/proc/self/cgroup', 'utf8');
+  const sameGroups = kids.length > 0 && [kids[0], kids.at(-1)].every(k => readFileSync(`/proc/${k.pid}/cgroup`, 'utf8') === own);
   for (const k of kids) k.kill('SIGKILL');
   const hog = spawnSync(process.execPath, ['-e', 'const a = []; for (let i = 0; i < 16; i++) a.push(Buffer.alloc(256 * 1024 * 1024, 1)); console.log("allocated 4 GiB")'], { encoding: 'utf8', timeout: 120000 });
-  const stat = () => Object.fromEntries(readFileSync(`/sys/fs/cgroup${sandbox.limits.cgroup}/cpu.stat`, 'utf8').trim().split('\n').map(l => l.split(' ')).map(([k, v]) => [k, Number(v)]));
+  const stat = () => Object.fromEntries(readFileSync(cpuStatPath, 'utf8').trim().split('\n').map(l => l.split(' ')).map(([k, v]) => [k, Number(v)]));
   const before = stat();
   const busy = [1, 2].map(() => spawn(process.execPath, ['-e', 'const t = Date.now(); while (Date.now() - t < 3000);'], { stdio: 'ignore' }));
   await Promise.all(busy.map(b => new Promise(r => b.once('exit', r))));
@@ -137,9 +140,11 @@ async function resourceProbe(sandbox) {
   write({
     status: 'probe', sandbox,
     probe: {
-      processes: { started: kids.length, refused },
+      processes: { started: kids.length, refused, same_groups: sameGroups },
       memory: { signal: hog.signal, status: hog.status, allocated: (hog.stdout || '').includes('allocated') },
-      cpu: { throttled_periods: after.nr_throttled - before.nr_throttled, usage_usec: after.usage_usec - before.usage_usec },
+      // cpu.stat on both backends: nr_periods and nr_throttled; throttled time is ns on v1, us on v2.
+      cpu: { periods: after.nr_periods - before.nr_periods, throttled_periods: after.nr_throttled - before.nr_throttled,
+        throttled_time_us: after.throttled_usec !== undefined ? after.throttled_usec - before.throttled_usec : Math.round((after.throttled_time - before.throttled_time) / 1000) },
     },
   });
 }

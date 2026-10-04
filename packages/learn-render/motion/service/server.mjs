@@ -25,6 +25,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { RENDER_SCHEMA, validateRenderRequest } from '../contracts.js';
 import { checkComposition } from '../static-check.js';
+import { detect } from './resource-control.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PKG = resolve(HERE, '..', '..');
@@ -43,7 +44,7 @@ const RESULT_FIELDS = ['duration_seconds', 'fps', 'width', 'height', 'frame_coun
 export function serviceVersion() {
   const h = createHash('sha256');
   const files = [
-    ...['service/server.mjs', 'service/child.mjs', 'service/motion-sandbox', 'service/sandbox-init', 'remotion-renderer.mjs', 'static-check.js', 'contracts.js', 'duration.js', 'probes.js'].map(f => join('motion', f)),
+    ...['service/server.mjs', 'service/child.mjs', 'service/resource-control.mjs', 'service/motion-sandbox', 'service/sandbox-init', 'remotion-renderer.mjs', 'static-check.js', 'contracts.js', 'duration.js', 'probes.js'].map(f => join('motion', f)),
     ...readdirSync(join(PKG, 'src', 'motion')).map(f => join('src', 'motion', f)),
   ];
   for (const f of files) if (existsSync(join(PKG, f))) h.update(f).update(readFileSync(join(PKG, f)));
@@ -131,17 +132,22 @@ export function motionRenderService({
   function finish(record, dir, { code, signal, timedOut, logs, spawnError }) {
     const fail = (error, detail, extra = {}) => Object.assign(record, { status: 'failed', error, detail, ...extra });
     try {
+      const out = join(dir, 'out');
+      const small = (f, max) => (existsSync(f) && statSync(f).size <= max ? JSON.parse(readFileSync(f, 'utf8')) : null);
+      // Written by motion-sandbox (root) after every job, timeouts included: the backend, the
+      // limits and what the job used, the cleanup proof, or why limits could not be set (then
+      // nothing rendered).
+      const limits = small(join(out, 'sandbox-exit.json'), 8192);
+      if (limits) record.resources = limits;
+      // Anything the job left running is a sandbox failure: no artifacts, and no new renders
+      // until the machine restarts. ponytail: degraded until restart, no in-process recovery.
+      if (limits?.cleanup && !limits.cleanup.ok) state.degraded = `render ${record.render_id} left processes or groups behind`;
       if (spawnError) fail('renderer_failure', `the render child could not start: ${spawnError.message}`);
+      else if (limits?.cleanup && !limits.cleanup.ok) fail('cleanup_failed', state.degraded);
       else if (timedOut) fail('timeout', `the render exceeded ${timeoutMs / 1000}s and was stopped`);
       else {
-        const out = join(dir, 'out');
-        const small = (f, max) => (existsSync(f) && statSync(f).size <= max ? JSON.parse(readFileSync(f, 'utf8')) : null);
-        // Written by motion-sandbox (root): the job's cgroup limits and what it used, or why
-        // the limits could not be set (then nothing rendered).
-        const limits = small(join(out, 'sandbox-exit.json'), 4096);
-        if (limits) record.resources = limits;
         const result = small(join(out, 'result.json'), 1024 * 1024);
-        if (limits?.error) fail(String(limits.error), String(limits.detail || ''));
+        if (limits?.error) fail(String(limits.error), `${limits.reason ? `${limits.reason}: ` : ''}${limits.detail || ''}`);
         else if (!result) fail(limits?.oom_kills > 0 ? 'memory_limit_exceeded' : 'renderer_failure', `the render child exited (${signal || code}) without a result`, { log_tail: logs.slice(-2000) });
         else {
           for (const k of RESULT_FIELDS) if (result[k] !== undefined) record[k] = result[k];
@@ -190,6 +196,7 @@ export function motionRenderService({
     const errors = validateRenderRequest(body);
     if (!errors.length) errors.push(...checkComposition(body.composition.source, { durationSeconds: body.brief.duration.seconds }));
     if (errors.length) return send(res, 400, { error: 'invalid_job', schema: RENDER_SCHEMA, errors: errors.slice(0, 50) });
+    if (state.degraded) return send(res, 503, { error: 'degraded', detail: `${state.degraded}; the machine must be restarted` });
     if (state.active) return send(res, 429, { error: 'busy', detail: 'one render at a time; retry when the current render has finished', render_id: state.active.render_id });
     const id = randomBytes(16).toString('hex');
     const dir = join(jobsDir, id);
@@ -215,7 +222,13 @@ export function motionRenderService({
     const path = req.url.split('?')[0];
     if (path === '/health') {
       if (req.method !== 'GET') return send(res, 405, { error: 'method_not_allowed' });
-      return send(res, 200, { ok: true, service: SERVICE, version, sandbox, busy: !!state.active, limits: LIMITS });
+      // The resource backend this kernel offers (names only, no host paths).
+      const rc = sandbox === 'linux' ? detect() : { backend: 'none', controllers: [] };
+      return send(res, 200, {
+        ok: !state.degraded, service: SERVICE, version, sandbox, busy: !!state.active, limits: LIMITS,
+        resource_backend: rc.backend || 'unavailable', resource_controllers: rc.controllers || [], ...(rc.backend ? {} : { resource_reason: rc.reason }),
+        ...(state.degraded ? { degraded: state.degraded } : {}),
+      });
     }
     if (!authorized(req)) return send(res, 401, { error: 'unauthorized' });
     if (path === '/render') {

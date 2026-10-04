@@ -176,6 +176,29 @@ test('resource limits: no limits means no render, and an OOM kill is named, neve
   }
 });
 
+test('cleanup that leaves anything behind fails the render, withholds its artifacts and stops new renders', async t => {
+  const { post, call, until } = await start(t, 'dirty');
+  const { render_id } = await (await post(job())).json();
+  const r = await until(render_id);
+  assert.equal(r.status, 'failed');
+  assert.equal(r.error, 'cleanup_failed');
+  assert.equal(r.artifacts, undefined);
+  assert.equal(r.resources.cleanup.ok, false);
+  const health = await (await call('/health', { headers: {} })).json();
+  assert.equal(health.ok, false);
+  assert.match(health.degraded, /left processes or groups behind/);
+  const next = await post(job());
+  assert.equal(next.status, 503);
+  assert.equal((await next.json()).error, 'degraded');
+});
+
+test('health names the resource backend (none when unsandboxed)', async t => {
+  const { call } = await start(t, 'ready');
+  const health = await (await call('/health', { headers: {} })).json();
+  assert.equal(health.resource_backend, 'none');
+  assert.deepEqual(health.resource_controllers, []);
+});
+
 test('a real Demo A render through the service (unsandboxed authoring host)', { skip: process.env.MOTION_RENDER_TESTS !== '1' && 'set MOTION_RENDER_TESTS=1 (minutes)', timeout: 15 * 60 * 1000 }, async t => {
   const { post, call, until, jobsDir } = await start(t, null, { childScript: join(HERE, 'child.mjs'), childArgs: [] });
   const { render_id } = await (await post(job())).json();

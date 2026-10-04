@@ -1183,14 +1183,41 @@ Rendering is asynchronous so that no HTTP request waits up to 420 s behind Fly's
 - **Time:** a hard 420 s. The service stops the child at 420 s and reports `error: "timeout"`. The launcher's own `timeout 425s` is the backstop.
 - **Output:** final ≤ 25 MB, enforced by the renderer's final validation and again by the service (`output_too_large`). Each file the child writes is capped at 64 MB (`prlimit --fsize`).
 - **Workspace:** each render gets a fresh `/var/motion/jobs/<id>/` (setgid group `motion`, 2770), which is removed after success, failure or timeout.
-- **Machine resources** (M1 blocker 2, owner requirement 2026-10-04): the job runs in its own cgroup v2 group `/sys/fs/cgroup/motion/<id>`, created by `motion-sandbox` before the namespaces exist, so every process the job starts is limited from its first instruction:
-  - **memory:** `memory.max` 3 GiB (including the job's tmpfs), `memory.swap.max` 0;
-  - **process count:** `pids.max` 1024 tasks (processes and threads), plus `RLIMIT_NPROC` 1024 for the `motion-render` user;
-  - **CPU:** `cpu.max` 150000/100000 (1.5 of the dev machine's 2 CPUs, so the service keeps half a CPU for `/health` and status polls), on top of the 420 s wall limit.
+- **Machine resources** (M1, owner requirements 2026-10-04): every job runs inside kernel-enforced limits through the `ResourceController` in `motion/service/resource-control.mjs`. `motion-sandbox` calls it (as root, with the validated render id only) before anything else starts, so every process the job starts is limited from its first instruction:
+  - **memory:** 3 GiB, including the job's tmpfs, with **no swap allowance**;
+  - **process count:** 1024 tasks (processes and threads), plus `RLIMIT_NPROC` 1024 for the `motion-render` user;
+  - **CPU:** a 1.5-CPU quota (150000 µs per 100000 µs period) of the dev machine's 2 CPUs, so the service keeps half a CPU for `/health` and status polls. This is on top of the independent 420 s wall limit.
 
   The values match the 4 GB / 2-CPU `fly.dev.toml` machine; change them with the VM size. Chromium needs far more virtual address space than it uses, so `RLIMIT_AS` is not usable; memory is bounded only by the cgroup.
-- **Fail closed.** If cgroup v2 is not mounted, or the memory, pids or cpu controller is unavailable or cannot be delegated, the launcher renders nothing. It writes `{error: "resource_limits_unavailable", detail}` naming the exact missing piece, and the service reports that error. Limits are never silently dropped.
-- **After every job** `motion-sandbox` writes `out/sandbox-exit.json`: the limits, `oom_kills`, `memory_peak`, `pids_max_hits`, `cpu_usage_usec` and `cpu_nr_throttled`. It then clears the group (`cgroup.kill`) and removes it. The service returns this as `resources`. An OOM kill becomes `error: "memory_limit_exceeded"`.
+- **Two backends, one logical job group** (owner decision 2026-10-04: support Fly's native cgroup v1):
+
+  ```text
+  ResourceController
+  ├── CgroupV2Controller   one delegated hierarchy: memory.max, memory.swap.max = 0, pids.max, cpu.max
+  └── CgroupV1Controller   Fly: memory (memory.limit_in_bytes, memory.memsw.limit_in_bytes = the same value),
+                           pids (pids.max), cpu,cpuacct (cpu.cfs_period_us 100000, cpu.cfs_quota_us 150000),
+                           freezer when present
+  ```
+
+  - **Detection order:** a complete v2 hierarchy (memory, pids, cpu) wins. Otherwise the complete v1 set is used: memory with swap accounting (`memory.memsw.*`), pids, cpu and cpuacct. Otherwise the job fails closed.
+  - **One logical job group:** on v1 the job is one group per hierarchy (`memory:/motion/<id>`, `pids:/motion/<id>`, `cpu,cpuacct:/motion/<id>`, `freezer:/motion/<id>`), all named from the same validated id. No path comes from a request.
+  - **Membership:** the launcher shell joins every group before it starts `timeout`/`unshare`. The child verifies it sits in one `/motion/<id>` group in every hierarchy, and the resource probe verifies its children do too.
+  - The v2 backend stays supported for hosts that delegate v2 controllers.
+- **Fail closed.** The job renders nothing and reports `{error: "resource_limits_unavailable", reason, detail}` if any of these holds:
+  - neither backend is complete (`controllers_missing`);
+  - the memory controller cannot enforce "no extra swap" (`swap_controller_unavailable`: no `memory.memsw.limit_in_bytes` on v1, no `memory.swap.max` on v2);
+  - the kernel does not keep a limit after it is written (`limits_not_applied`).
+
+  The service reports that error. Limits are never silently dropped.
+- **Cleanup, proven, on both backends.** After the sandbox exits, the controller:
+  1. detaches the launcher;
+  2. freezes the job (v1 freezer / v2 `cgroup.freeze`, reported as `unavailable` when absent);
+  3. sends SIGTERM to every task still in any job group, thaws, waits a short grace, and sends SIGKILL to survivors until every group is empty;
+  4. removes every controller's job directory and checks it is gone;
+  5. counts `motion-render` processes on the machine (must be 0).
+
+  The PID namespace normally ends every process first; this step proves it. If anything is left, the render fails with `cleanup_failed` and no artifacts, `/health` turns `ok: false` with `degraded`, and new renders get 503 until the machine restarts.
+- **After every job** `motion-sandbox` writes `out/sandbox-exit.json` (normalized, no host paths): `backend`, `controllers`, `memory_bytes`, `swap_bytes` (0), `pids_max`, `cpu_quota` (1.5), `cpu_period_us`, `cpu_quota_us`, `oom_kills`, `memory_peak`, `memory_failcnt`, the v1 `memsw_limit` / `memsw_peak`, `pids_peak`, `pids_limit_hits`, `cpu_nr_periods`, `cpu_throttled`, `cpu_throttled_time_us`, `cpu_usage_us` and `cleanup`. The service returns it as `resources`. A real kernel OOM kill becomes `error: "memory_limit_exceeded"`. `/health` reports `resource_backend` (`cgroup-v1` on Fly) and `resource_controllers` (names only).
 
 **Isolation.** The service runs as `motion-svc`. For each job it runs `sudo -n /usr/local/sbin/motion-sandbox <render id>`, the only sudo rule. The launcher accepts nothing but the 32-hex id, builds every path itself, and runs:
 
@@ -1219,7 +1246,7 @@ This is an OS boundary on top of the page Content Security Policy and the static
 
 **Self-check.** The render child checks its own boundary on every job (network reachable, root, the service's files visible, a writable renderer, an inherited environment) and refuses to render on any breach (`error: "sandbox_breach"`). Each result carries that report.
 
-The report includes `limits`: the cgroup the child is actually in and the `memory.max`, `memory.swap.max`, `pids.max`, `cpu.max`, `RLIMIT_NPROC`, `RLIMIT_FSIZE` and `RLIMIT_NOFILE` values, read from the kernel. A missing or unlimited value is also a breach.
+The report includes `limits`: the backend, the job group the child is actually in (the same `/motion/<id>` in every controller), and the `memory_bytes`, `swap_bytes`, `pids_max`, `cpu_quota`, `RLIMIT_NPROC`, `RLIMIT_FSIZE` and `RLIMIT_NOFILE` values, all read from the kernel. A missing backend, split groups, any unlimited value or a non-zero swap allowance is also a breach.
 
 **Packaging** (M1 blocker 1). The image installs exactly the committed lockfile. A lockfile written on Windows once kept only `@esbuild/win32-x64`, so Linux `npm ci` could not bundle. The fix:
 
