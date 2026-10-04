@@ -12,7 +12,7 @@ Tutor v2 and Voice shipped to https://digrabbithole.com, but nobody could reach 
 
 ## How it works now
 
-- Opening a `karpathy/nanoGPT` repository lands on its Learn canvas. The canvas composer is the Tutor there:
+- A `karpathy/nanoGPT` repository opens on its Map; its Learn canvas (one click away) has a composer that is the Tutor:
   - `LearnPage.jsx` passes `on: suppliedCourse && !board` to `useTutor`;
   - a typed or spoken message is a Tutor v2 turn;
   - the mic sits in the composer.
@@ -39,7 +39,7 @@ Tutor v2 and Voice shipped to https://digrabbithole.com, but nobody could reach 
   - `?board=` stays review-only.
 - `e2e/tutor-entry-check.mjs`, on the production-flag build, on the local stack, for the owner and for a learner
   (each on their own `karpathy/nanoGPT` app). It walks:
-  - landing on Learn: mic, no pill or buttons, the Map icon;
+  - landing on the Map, then Learn: mic, no pill or buttons, the Map icon;
   - a typed Tutor v2 turn;
   - a `/dive` hole that keeps the Tutor, and the climb back;
   - Map and back;

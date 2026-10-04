@@ -79,3 +79,16 @@ test('the Map node carried into Learn ("Asking about") has an x, as the Map chip
   assert.match(learn, /: repositoryContext\} onClearRepository=\{onClearRepository\} conversation="learn"/);
   assert.match(md, /\{onClearRepository && <button type="button" className="shrink-0 rounded p-0\.5 hover:bg-green-100" aria-label="Clear repository selection"/);
 });
+
+test('the main composer\'s + menu has no dead "Attach a file / not available on this preview" item (owner, 2026-10-04)', () => {
+  assert.doesNotMatch(bar, /Attach a file|Attachments aren't available|Paperclip/);
+});
+
+test('the window over the main composer: no History or New chat, a clear icon, and a reopen icon beside + when closed', () => {
+  const sheet = read('agent/ResultSheet.jsx');
+  assert.match(sheet, /<ResultList scopeKey=\{key\} tools=\{false\} \/>/);
+  assert.match(sheet, /\{path && tools && \(/);
+  assert.match(sheet, /data-result-clear aria-label="Clear the conversation"[\s\S]*?onClick=\{\(\) => \{ resetThread\(key\); onClose\(\); \}\}/);
+  assert.doesNotMatch(bar, /data-result-line/);
+  assert.match(bar, /\{!sheet && line && !panelHosts\(surface, line\.scope\) && <button type="button" data-result-open aria-label="Open the conversation"/);
+});

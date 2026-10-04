@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { History, Loader2, Minus, Network, Plus } from 'lucide-react';
+import { History, Loader2, Minus, Network, Plus, Eraser } from 'lucide-react';
 import { ago, api } from '../api.js';
 import { Md } from '../ask.jsx';
 import { Button, cn, IconBtn, Pill } from '../ui.jsx';
@@ -92,7 +92,9 @@ function Turn({ t, onFile = null }) {
 // sheet renders it; those pages mount it in their Context panel instead
 // (surface.resultsHost === 'panel'). The scopeKey prop takes a results key:
 // resultsKey(scopeOf(surface)), selection excluded.
-export function ResultList({ scopeKey: key, onFile = null }) {
+// tools: History and New chat (the Map's side panel). The window over the bar has none (owner, 2026-10-04): it is
+// just a window, cleared by its own icon.
+export function ResultList({ scopeKey: key, onFile = null, tools = true }) {
   const turns = useTurns(key);
   const surface = useSurface();
   const live = scopeOf(surface);
@@ -117,7 +119,7 @@ export function ResultList({ scopeKey: key, onFile = null }) {
   };
   return (
     <div className="flex flex-col gap-2">
-      {path && (
+      {path && tools && (
         <div className="flex items-center justify-end gap-1">
           <button type="button" disabled={busy} onClick={toggleHistory} className={cn(tool, threads && 'bg-active text-ink')}><History size={12} strokeWidth={1.5} />{threads ? 'Back to results' : 'History'}</button>
           <button type="button" disabled={busy} onClick={() => { resetThread(key); setThreads(null); }} className={tool}><Plus size={12} strokeWidth={1.5} />New chat</button>
@@ -156,9 +158,10 @@ export default function ResultSheet({ scope, label, onClose }) {
           onKeyDown={(e) => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); resize(now() + (e.key === 'ArrowUp' ? 24 : -24)); } }} />
         <div className="flex shrink-0 items-center gap-1 px-3 pb-1">
           <span className="mr-auto min-w-0 truncate text-xs text-ink-2">{label}</span>
+          <IconBtn data-result-clear aria-label="Clear the conversation" title="Clear" disabled={turns.some((t) => t.kind === 'answer' && !t.done)} onClick={() => { resetThread(key); onClose(); }}><Eraser size={14} /></IconBtn>
           <IconBtn aria-label="Collapse results" title="Collapse (Esc)" onClick={onClose}><Minus size={14} /></IconBtn>
         </div>
-        <div ref={box} className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-3 pb-3"><ResultList scopeKey={key} /></div>
+        <div ref={box} className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-3 pb-3"><ResultList scopeKey={key} tools={false} /></div>
       </div>
     </div>
   );

@@ -6,9 +6,9 @@
 // are refused.
 //   PRACTICE_BASE=http://127.0.0.1:8788 SMALL_CP=http://127.0.0.1:8790 node e2e/tutor-entry-check.mjs [outDir]
 // It proves:
-//   1. Opening the project lands on Learn, whose composer is the Tutor (mic, a typed turn on /api/learn/tutor), for
-//      the owner and a learner alike; no Overview/Learn/Map pill, Tutor or Practice button; the Map is one icon; a
-//      Rabbit Hole keeps the Tutor and climbs back to it.
+//   1. Opening the project lands on its Map; its Learn composer is the Tutor (mic, a typed turn on /api/learn/tutor),
+//      for the owner and a learner alike; no Overview/Learn/Map pill, Tutor or Practice button on the canvas; the
+//      Map is one icon; a Rabbit Hole keeps the Tutor and climbs back to it.
 //   2. ?board= stays dead in production: no review board (the Tutor slice's included) opens from a URL.
 //   3. ?voice=fake is ignored: the mic takes the real Voice path (a scribe token request, refused here), no fake.
 //   4. The build is the production one: no review-only code reached the browser.
@@ -61,11 +61,14 @@ const cardTitles = page => page.locator('[data-block-id]:not([data-chat-block])'
 const settle = page => page.waitForSelector('[data-tool-gutter]', { timeout: 30000 }).then(() => page.waitForTimeout(1500));
 const composer = page => page.locator('[data-learn-dock] textarea, [data-learn-dock] input:not([type="file"])').first();
 
-// 1. The project opens on Learn, and its composer is the Tutor: the owner and a learner get the same.
+// 1. The project opens on its Map; its Learn composer is the Tutor: the owner and a learner get the same.
 for (const [index, [email, app]] of PEOPLE.entries()) {
   const who = index ? 'learner' : 'owner';
   const { page, traffic, close } = await personPage(email);
   await page.goto(`${BASE}/apps/${app}`);
+  await page.locator('[data-project-tabs] [role="tab"][data-state="active"]', { hasText: 'Map' }).waitFor({ timeout: 30000 });
+  await shot(page, `${who}-0-map`);
+  await page.locator('[data-project-tabs] [role="tab"]', { hasText: 'Learn' }).click();
   await settle(page);
   await mic(page).waitFor({ timeout: 15000 });
   assert.equal(await page.locator('[data-project-tabs]').count(), 0, `${who}: no Overview/Learn/Map pill on the canvas`);
@@ -87,8 +90,8 @@ for (const [index, [email, app]] of PEOPLE.entries()) {
   // A Rabbit Hole under the course keeps the Tutor and climbs back to the course canvas.
   await composer(page).fill('/dive softmax'); await composer(page).press('Enter');
   await page.waitForURL(url => url.searchParams.has('hole'), { timeout: 20000 });
-  await page.waitForTimeout(2000);
-  assert.equal(await mic(page).count(), 1, `${who}: the hole keeps the Tutor`);
+  // The hole's Tutor waits for its Rabbit Hole path (the dives tree), which loads after the canvas.
+  await mic(page).waitFor({ timeout: 15000 }).catch(() => assert.fail(`${who}: the hole keeps the Tutor`));
   await shot(page, `${who}-3-hole`);
   await page.locator('[data-dive-navigator] [data-dive-level]').first().click();
   await page.waitForURL(url => url.pathname === `/apps/${app}` && !url.searchParams.has('hole') && !url.searchParams.has('board'));
@@ -126,7 +129,7 @@ await close();
 // nothing is paid), and no scripted session or window.__voiceFake exists.
 {
   const { page, traffic, close } = await personPage(PEOPLE[0][0]);
-  await page.goto(`${BASE}/apps/${APP}?voice=fake`);
+  await page.goto(`${BASE}/apps/${APP}?tab=learn&voice=fake`);
   await settle(page);
   await mic(page).click();
   for (let i = 0; i < 100 && !traffic.refused.some(url => url.includes('/api/learn/voice/scribe-token')); i++) await page.waitForTimeout(100);

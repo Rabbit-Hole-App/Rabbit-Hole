@@ -34,7 +34,7 @@ export default function RepositoryPage({ app: initial, catalog = [] }) {
   const answerLocally=(text,scope)=>memory&&snapshot&&scope.kind==='project'&&scope.slug===app.name?fixtureAnswer(text,{node:scope.selected&&snapshot.graph.nodes.find(n=>n.id===scope.selected.id)||null,memory,graph:snapshot.graph}):null;
   const showGraph=value=>{setGraphView({...value,requestId:crypto.randomUUID()});setMode('graph');if(projectTab(window.location.search)!=='map')navigate(`/apps/${app.name}?tab=map`);};
   const onGraph=(value,{auto=false}={})=>{if(auto&&projectTab(window.location.search)!=='map')return;showGraph(value);}; // only an explicit Show on graph leaves Learn for the Map
-  // Learn is the default; a repository with no snapshot yet has nothing to learn from, so it shows its Map.
+  // The Map is the default (routes.js); a repository with no snapshot yet has nothing to learn from, so ?tab=learn shows its Map too.
   const asked=projectTab(window.location.search),tab=asked==='learn'&&!app.commit_sha?'map':asked,go=t=>navigate(`/apps/${app.name}?tab=${t}`);
   // ...and says so in its URL, so the shell (sidebar, bar) treats it as the Map too.
   useEffect(()=>{if(tab!==asked){window.history.replaceState(null,'',`/apps/${app.name}?tab=map`);window.dispatchEvent(new PopStateEvent('popstate'));}},[tab,asked,app.name]);

@@ -6,9 +6,11 @@ rabbit-hole-checklist.md (WP6).
 ## Layout
 
 - **No Overview.** A repository project is Map or Learn.
-  - Opening `/apps/<repo>` lands on Learn (`routes.js` `projectTab`).
-  - An old `?tab=overview` link also lands on Learn.
-  - A repository with no snapshot yet shows its Map and rewrites its URL to `?tab=map`.
+  - A project has both a Map and a canvas, so opening `/apps/<repo>` lands on the Map (owner, 2026-10-04;
+    `routes.js` `projectTab`). Only `?tab=learn` opens Learn.
+  - An old `?tab=overview` link also lands on the Map.
+  - A repository with no snapshot yet shows its Map even for `?tab=learn`, and rewrites its URL to `?tab=map`.
+  - A standalone canvas (no project) still opens straight onto its canvas.
 - **Learn (the canvas)** has no Overview/Learn/Map pill and no repeated repository name.
   - The canvas strip's Map icon (`data-learn-map`) goes to the Map.
   - The canvas picker stays when the project has more than one canvas.

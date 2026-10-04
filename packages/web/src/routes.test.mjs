@@ -49,7 +49,7 @@ test('the baseline surface names the place and hides the bar where another input
   assert.deepEqual(at('/library?type=canvases'), ['library', false]);
   assert.deepEqual(at('/apps?s=shared'), ['library', false]);
   assert.deepEqual(at('/explore'), ['explore', false]);
-  assert.deepEqual(at('/apps/repo-1a2b3c4d-nanogpt'), ['learn', true]); // a project opens on Learn (owner, 2026-10-04)
+  assert.deepEqual(at('/apps/repo-1a2b3c4d-nanogpt'), ['project', false]); // a project opens on its Map (owner, 2026-10-04)
   assert.deepEqual(at('/apps/repo-1a2b3c4d-nanogpt?tab=map'), ['project', false]);
   assert.deepEqual(at('/apps/repo-1a2b3c4d-nanogpt?tab=learn'), ['learn', true]);
   assert.deepEqual(at('/apps/counter'), ['app', false]); // WP6: app pages show the bar
@@ -65,7 +65,7 @@ test('Learn and canvas routes are immersive, with no persistent sidebar or icon 
   assert.equal(on('/apps/canvas-1a2b3c4d'), true);
   assert.equal(on('/apps/repo-1a2b3c4d-nanogpt?tab=learn'), true);
   assert.equal(on('/apps/repo-1a2b3c4d-nanogpt?tab=learn&canvas=canvas-1a2b3c4d'), true);
-  assert.equal(on('/apps/repo-1a2b3c4d-nanogpt'), true); // a project opens on Learn
+  assert.equal(on('/apps/repo-1a2b3c4d-nanogpt'), false); // a project opens on its Map
   assert.equal(on('/apps/repo-1a2b3c4d-nanogpt?tab=map'), false);
   assert.equal(on('/apps/counter?tab=learn'), false); // D7: an app lands on Runbook, never Learn
   assert.equal(on('/apps/canvas-1a2b3c4d/runs/r-1'), false);
@@ -103,8 +103,8 @@ test('a workspace switch travels in the URL and applies only on the page it load
   assert.equal(takeWs(''), null);
 });
 
-test('a project opens on Learn (owner, 2026-10-04: no Overview); map and the legacy code, graph and agent open Map (T02 §1)', () => {
-  for (const s of ['', '?tab=overview', '?tab=sources', '?canvas=canvas-1a2b3c4d']) assert.equal(projectTab(s), 'learn', s);
+test('a project opens on its Map (owner, 2026-10-04: no Overview; a project has a Map and a canvas); learn is Learn (T02 §1)', () => {
+  for (const s of ['', '?tab=overview', '?tab=sources', '?canvas=canvas-1a2b3c4d']) assert.equal(projectTab(s), 'map', s);
   assert.equal(projectTab('?tab=learn&canvas=canvas-1a2b3c4d'), 'learn');
   for (const t of ['map', 'code', 'graph', 'agent']) assert.equal(projectTab(`tab=${t}`), 'map', t);
 });

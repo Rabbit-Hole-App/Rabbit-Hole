@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { Loader2, Paperclip, Plus, SquareSlash, X } from 'lucide-react';
+import { Loader2, MessageSquare, Plus, SquareSlash, X } from 'lucide-react';
 import ChatComposer, { COMPOSER_ADD, COMPOSER_PILL, DOCK_PAD, DOCK_WIDTH } from '../ChatComposer.jsx';
 import { api, navigate } from '../api.js';
 import { PATHS, slugOf, titleFromQuestion } from '../start.js';
@@ -402,9 +402,6 @@ export default function AgentBar({ page }) {
             <span className="min-w-0 flex-1 truncate">Answering in {streaming}…</span>
           </div>
         )}
-        {!sheet && !streaming && line && !panelHosts(surface, line.scope) && (
-          <button type="button" data-result-line onClick={() => setSheet(line.scope)} className="block w-full cursor-pointer truncate pb-1.5 text-left text-xs text-ink-2 hover:text-ink">{lineOf(line)}</button>
-        )}
         {offer && (
           <div role="status" className="flex flex-wrap items-center gap-2 pb-1.5 text-xs text-ink-2">
             {offer === 'resource' && <span>you're now viewing {nameOf(live)}</span>}
@@ -428,20 +425,20 @@ export default function AgentBar({ page }) {
           onChange={(value) => { setDrafts((d) => new Map(d).set(targetKey, value)); setHeld(target); setPicker(mode === 'auto' && modeQuery(value) !== null); }}
           onSubmit={(raw) => { if (pickerOpen) return pick(entries[hiIndex]); if (!shortcut) return submit(raw); setShortcut(null); return submit(`/${shortcut} ${raw}`.trim()); }} inputRef={inputRef} busy={!!streaming} maxLength={4000} placeholder={placeholderFor(target, surface)}
           leading={<>
-            {/* [+] Add (T02 §6.2, revised 2026-09-28): the Start paths through open_start. ponytail: Attach stays off on
-                the preview - workspace asks are off (G1) and canvas asks refuse files (canvases.js refuseCanvasAsk); a
-                project ask would send one to the model (repositories.js, up to 4 MB), storing no copy. streamAsk already takes a file. */}
+            {/* [+] Add (T02 §6.2, revised 2026-09-28): the Start paths through open_start. ponytail: no Attach entry (owner,
+                2026-10-04: no dead "not available" item) - workspace asks are off (G1) and canvas asks refuse files
+                (canvases.js refuseCanvasAsk); add it back when an ask takes a file (streamAsk already does). */}
             <div className="relative shrink-0">
               <button type="button" aria-label="Add" aria-haspopup="menu" aria-expanded={adding} onMouseDown={(e) => e.stopPropagation()} onClick={() => setAdding(!adding)}
                 className={COMPOSER_ADD}><Plus size={16} /></button>
               <Menu open={adding} onClose={() => setAdding(false)} className="bottom-full left-0 mb-2 w-64">
                 <div className="px-2 pb-1 pt-1 text-xs text-ink-3">Start from</div>
                 {PATHS.map(([path, label]) => <MenuItem key={path} icon={PATH_ICONS[path]} onClick={() => { setAdding(false); runCommand('open_start', { path }, '', target, true); }}>{label}</MenuItem>)}
-                <div className="my-1 border-t border-line" />
-                <MenuItem icon={Paperclip} disabled className="cursor-default opacity-50 hover:bg-transparent">Attach a file</MenuItem>
-                <p className="px-2 pb-1 text-xs text-ink-3">Attachments aren't available on this preview.</p>
               </Menu>
             </div>
+            {/* A closed or minimized conversation window reopens from this icon beside + (owner, 2026-10-04). */}
+            {!sheet && line && !panelHosts(surface, line.scope) && <button type="button" data-result-open aria-label="Open the conversation" title={lineOf(line)}
+              onMouseDown={(e) => e.preventDefault()} onClick={() => setSheet(line.scope)} className={COMPOSER_ADD}><MessageSquare size={16} /></button>}
             {shortcut
             ? <span data-command-pill className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg bg-hover pr-1.5 pl-2.5 text-sm text-ink">{shortcut}<button type="button" aria-label="Remove the command" onClick={() => { setShortcut(null); inputRef.current?.focus(); }} className="cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button></span>
             : mode === 'auto'
