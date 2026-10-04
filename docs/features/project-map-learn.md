@@ -35,6 +35,9 @@ rabbit-hole-checklist.md (WP6).
 - **Main composer** (Home, Library, Map): the Auto picker has a `/` icon (`data-bar-slash-help`). It opens a Slash
   commands sheet (`agent/BarCommandsSheet.jsx`) listing that place's commands, each with an example
   (`agent/bar.js` `exampleFor`), as the canvas composer opens its own sheet.
+- **The window over the main composer** is just a window: its label, a clear icon (`data-result-clear`: empties
+  the conversation and closes) and minimize. No History or New chat (the Map side panel keeps them). Closed or
+  minimized, a small chat icon beside + (`data-result-open`) reopens it. The + menu has no Attach item.
 - **Node pill.** A Map node carried into Learn shows as "Asking about: <node>" above the composer, with an x that
   clears it (`onClearRepository`), like the Map's chip.
 
