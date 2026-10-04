@@ -9,7 +9,8 @@
 //      lesson with Practice.
 //   2. ?board= stays dead in production: no review board (the Tutor's included) opens from a URL, and no
 //      unlisted ?experience= does either.
-//   3. The build is the production one: no review-only code reached the browser.
+//   3. ?voice=fake is ignored: the mic takes the real Voice path (a scribe token request, refused here), no fake.
+//   4. The build is the production one: no review-only code reached the browser.
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync } from 'node:fs';
 import assert from 'node:assert/strict';
@@ -25,20 +26,21 @@ const OUT = process.argv[2] || 'tutor-entry-shots';
 mkdirSync(OUT, { recursive: true });
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 // What only a review build carries (e2e/production-bundle-check.mjs DEV_MARKERS, plus the review-board notice).
-const REVIEW_ONLY = ['No review board is registered', 'Review fixtures are on', 'Insert a sample lesson block', 'Agent workspace', 'Quiz answer key', 'Edit and approve curriculum'];
+const REVIEW_ONLY = ['No review board is registered', 'Review fixtures are on', 'Insert a sample lesson block', 'Agent workspace', 'Quiz answer key', 'Edit and approve curriculum', '__voiceFake', 'failStt'];
 // Every review board's card titles, the Tutor's included: none may open from a URL.
 const titlesOf = name => BOARDS[name]().map(block => block.title || block.scene?.title).filter(Boolean);
 const TUTOR_TITLES = titlesOf(TUTOR_BOARD);
 const OVERVIEW = TUTOR_TITLES[0];
 
-const browser = await chromium.launch();
+// A fake microphone device (Chromium's, not the app's), so the real Voice path can start without hardware.
+const browser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
 const errors = [], scripts = new Map();
 const results = {};
 
 async function personPage(email) {
   const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, secret }) })).json();
   assert.ok(session, `a session for ${email}`);
-  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, permissions: ['microphone'] });
   await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
   const page = await context.newPage();
   page.on('pageerror', error => errors.push(`${email}: ${error.message}`));
@@ -141,7 +143,22 @@ for (const query of blocked) {
 await shot(page, '5-board-url-ignored');
 await close();
 
-// 3. The production build: no review-only code reached the browser.
+// 3. ?voice=fake: production ignores it. The mic is there and starts the REAL Voice path (its token request, refused
+// here so nothing is paid), and no scripted session or window.__voiceFake exists.
+{
+  const { page, traffic, close } = await personPage(PEOPLE[0][0]);
+  await page.goto(`${BASE}/apps/${APP}?tab=learn&experience=tutor&voice=fake`);
+  await settle(page);
+  await mic(page).click();
+  for (let i = 0; i < 100 && !traffic.refused.some(url => url.includes('/api/learn/voice/scribe-token')); i++) await page.waitForTimeout(100);
+  assert.ok(traffic.refused.some(url => url.includes('/api/learn/voice/scribe-token')), `?voice=fake still takes the real Voice path: ${traffic.refused.join(', ')}`);
+  assert.equal(await page.evaluate(() => typeof window.__voiceFake), 'undefined', 'no fake Voice harness in production');
+  await shot(page, '6-voice-fake-ignored');
+  results.voiceFakeIgnored = true;
+  await close();
+}
+
+// 4. The production build: no review-only code reached the browser.
 for (const [url, source] of scripts) for (const marker of REVIEW_ONLY) assert.ok(!source.includes(marker), `${marker} in ${url}`);
 assert.deepEqual(errors, [], 'page errors');
 console.log(JSON.stringify({ ok: true, ...results, blockedUrls: blocked.length, scripts: scripts.size, overview: OVERVIEW }));

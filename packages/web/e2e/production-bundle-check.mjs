@@ -11,11 +11,12 @@ const DEV_CHUNKS = /^(review-fixtures-data|map-memory-data)-/;
 // Lesson-block workbench, coaching dev panel, dev-only palette items, review fixtures, review boards, and the
 // dev notebook origins a build falls back to without VITE_NOTEBOOK_ORIGIN / VITE_LESSON_NOTEBOOK_ORIGIN, and the
 // NanoGPT course's review wording, quiz answer key and editor controls (LessonPlanPreview.jsx, owner editor view of the
-// review build: ownership alone never opens it in production), and the lesson's old dead pointer to Curriculum.
+// review build: ownership alone never opens it in production), the lesson's old dead pointer to Curriculum, and the
+// fake Voice harness (?voice=fake, LearnVoice.jsx: scripted STT/TTS and window.__voiceFake, review build only).
 const DEV_MARKERS = ['Insert a sample lesson block', 'Agent workspace', 'Maths animation (paid)', 'Review fixtures are on',
   'No review board is registered', 'small-learn-notebook-dev', 'small-learn-canvas-notebook-dev',
   'Material plan ready for review', 'Draft material plan', 'Quiz answer key', 'Edit this section in chat', 'Edit and approve curriculum',
-  'Finish up in Curriculum'];
+  'Finish up in Curriculum', '__voiceFake', 'failStt'];
 const failures = [];
 for (const chunk of REQUIRED_CHUNKS) if (!names.some(n => n.startsWith(`${chunk}-`))) failures.push(`missing Learn chunk ${chunk}`);
 for (const name of names) {
