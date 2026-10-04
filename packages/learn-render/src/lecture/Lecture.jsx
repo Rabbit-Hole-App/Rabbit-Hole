@@ -16,7 +16,7 @@ import {
 import { WhiteboardScene } from './WhiteboardScene.jsx';
 import { Caption } from './Caption.jsx';
 
-const useFonts = () => {
+export const useFonts = () => {
   const [handle] = useState(() => delayRender('loading Virgil + Inter'));
   useEffect(() => {
     const faces = [

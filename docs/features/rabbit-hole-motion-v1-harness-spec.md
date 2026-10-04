@@ -1587,6 +1587,15 @@ No model calls.
 
 M1's first real render needs either the approved `rabbit-hole-motion-renderer-dev` Fly app or a Linux container runtime on the development machine. Neither exists today; request the approval at M1 start.
 
+**M1 decisions (implemented in `packages/learn-render/motion/`, 2026-10-04):**
+
+- Composition module: `export const stage = {width: 1920, height: 1080, fps: 30, durationInFrames}` as number literals, plus `export default` the component. The harness owns the Remotion root and the bundled-font loading.
+- Approved imports: `react` (default, `Fragment`, `useMemo`, `useRef`, `useLayoutEffect`) and `remotion` (`AbsoluteFill`, `Sequence`, `Series`, `Freeze`, `Loop`, `Easing`, `interpolate`, `interpolateColors`, `spring`, `measureSpring`, `random`, `useCurrentFrame`, `useVideoConfig`). Not approved: the lecture `Code` primitive (unbundled system monospace fonts) and rough.js (unseeded shapes call `Math.random`). Fonts: Inter and Virgil only; no monospace font is bundled yet.
+- Source-size cap: 64 KiB. Static validation parses with `@babel/parser`; webpack refuses any non-allowlisted import at bundle time as a second layer.
+- Preview scale 0.45 (864×486): Remotion needs whole, even output dimensions, and 854×480 is not a uniform scale of 1920×1080.
+- Final encoding: h264, yuv420p, bt709, muted while `narration_policy` is `none`. The duration check reads the video stream.
+- Network on the Windows authoring host: a self-only Content Security Policy injected into the bundle page. The Linux render namespace (`motion/linux/`) is the boundary for everything CSP does not cover.
+
 **Stop and report after M1** before building the model pipeline if the renderer/toolchain is not reliable.
 
 ## M2 — Resolver + Director + MotionBrief
