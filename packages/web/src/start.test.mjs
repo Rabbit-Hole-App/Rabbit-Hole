@@ -2,8 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { canSubmit, pathOr, repositoryDecision, slugOf, teachPrompt, titleFromQuestion } from './start.js';
 
-test('the dialog opens on the path it was asked for, Repository otherwise', () => {
-  for (const path of ['repository', 'sources', 'question', 'blank']) assert.equal(pathOr(path), path);
+test('the dialog opens on the path it was asked for when it offers it (Repository, Blank canvas), Repository otherwise', () => {
+  for (const path of ['repository', 'blank']) assert.equal(pathOr(path), path);
+  // Sources and Question left the + menu and the dialog (owner, 2026-10-04).
+  for (const path of ['sources', 'question']) assert.equal(pathOr(path), 'repository');
   assert.equal(pathOr(undefined), 'repository');
   assert.equal(pathOr('share'), 'repository');
 });

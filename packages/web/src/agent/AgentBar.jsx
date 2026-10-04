@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Loader2, MessageSquare, Plus, SquareSlash, X } from 'lucide-react';
 import ChatComposer, { COMPOSER_ADD, COMPOSER_PILL, DOCK_PAD, DOCK_WIDTH } from '../ChatComposer.jsx';
 import { api, navigate } from '../api.js';
-import { PATHS, slugOf, titleFromQuestion } from '../start.js';
+import { START_PATHS, slugOf, titleFromQuestion } from '../start.js';
 import { PATH_ICONS } from '../start-icons.js';
 import { Button, cn, Menu, MenuItem, toast } from '../ui.jsx';
 import { askBody, streamAsk } from './ask-stream.js';
@@ -433,7 +433,7 @@ export default function AgentBar({ page }) {
                 className={COMPOSER_ADD}><Plus size={16} /></button>
               <Menu open={adding} onClose={() => setAdding(false)} className="bottom-full left-0 mb-2 w-64">
                 <div className="px-2 pb-1 pt-1 text-xs text-ink-3">Start from</div>
-                {PATHS.map(([path, label]) => <MenuItem key={path} icon={PATH_ICONS[path]} onClick={() => { setAdding(false); runCommand('open_start', { path }, '', target, true); }}>{label}</MenuItem>)}
+                {START_PATHS.map(([path, label]) => <MenuItem key={path} icon={PATH_ICONS[path]} onClick={() => { setAdding(false); runCommand('open_start', { path }, '', target, true); }}>{label}</MenuItem>)}
               </Menu>
             </div>
             {/* A closed or minimized conversation window reopens from this icon beside + (owner, 2026-10-04). */}

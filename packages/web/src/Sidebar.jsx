@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, BadgeCheck, Bell, Braces, Check, CircleUser, ChevronDown, ChevronUp, ChevronRight, ChevronsLeft, ChevronsRight, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, House, LayoutGrid, LayoutPanelLeft, Library, Link, LogOut, Mail, MoreHorizontal, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, Bell, Braces, Check, CircleUser, Compass, ChevronDown, ChevronUp, ChevronRight, ChevronsLeft, ChevronsRight, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, House, LayoutGrid, LayoutPanelLeft, Library, Link, LogOut, Mail, MoreHorizontal, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
 import { ago, api, getTheme, navigate, sectionOf, setTheme, setWs, wsName, workspaceLabel } from './api.js';
 import AwsConnection from './AwsConnection.jsx';
 import ByocDevBadge from './ByocDevBadge.jsx';
@@ -483,10 +483,9 @@ function AiModelSettings() {
   );
 }
 
-// Rabbit Hole dev: the main destinations, in the expanded nav and in the collapsed icon rail.
-// ponytail: Explore (/explore, Home.jsx ExplorePreview) is demo cards that open nothing, so the MVP nav
-// leaves it out; the route stays. Add ['Explore', '/explore', 'explore', Compass] back when it works.
-const NAV = [['Home', '/apps', 'home', House], ['Library', '/library', 'library', Library]];
+// Rabbit Hole dev: the main destinations, in the expanded nav and in the collapsed icon rail. Explore is listed even
+// while nothing is shared yet (owner, 2026-10-04): its page says so instead of showing demo cards.
+const NAV = [['Home', '/apps', 'home', House], ['Library', '/library', 'library', Library], ['Explore', '/explore', 'explore', Compass]];
 const RAIL_BTN = 'grid h-8 w-8 shrink-0 place-items-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink';
 // Report a bug or suggest a feature, below Trash (user, 2026-09-29): Learn's FeedbackButton, app-less. The sidebar
 // clips its overflow, so the button is fixed over a footer slot and its panel opens beside the strip, unclipped.

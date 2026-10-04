@@ -63,8 +63,9 @@ export function recentCard(a, { catalog = [], email, storage }) {
   if (a.kind === 'repository') {
     const canvases = catalog.filter((c) => c.kind === 'canvas' && c.project === a.name).length;
     // No Private/Workspace label: projects are owner-only (Privacy P0) and Rabbit Hole v1 is solo.
+    // No 'Map ready' label (owner, 2026-10-04): only a Map still indexing or failed says so.
     return {
-      meta: [a.commit_sha && a.commit_sha.slice(0, 7), `Map ${a.status}`, canvases && `${canvases} canvas${canvases > 1 ? 'es' : ''}`].filter(Boolean),
+      meta: [a.commit_sha && a.commit_sha.slice(0, 7), a.status !== 'ready' && `Map ${a.status}`, canvases && `${canvases} canvas${canvases > 1 ? 'es' : ''}`].filter(Boolean),
       action: { label: 'Open project', to: `/apps/${a.name}` },
     };
   }

@@ -1,14 +1,13 @@
 import { useState } from 'react';
-import { ArrowRight, ArrowUpRight } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Compass } from 'lucide-react';
 import { navigate } from './api.js';
 import { reviewTools } from './flags.js';
 import { openHref, readContinue, readRecent, recentCard, recentItems } from './home/continue.js';
-import { BANNER, DEMO, readSaved, toggleSaved } from './home/explore.js';
 import { Creator, ForkedFrom, Forks, SourceLink } from './home/Provenance.jsx';
 import { cardModel } from './home/provenance.js';
 import { fixturesOn, useFixtures } from './home/review-fixtures.js';
 import Shell from './Shell.jsx';
-import { Button, KindIcon, Pill, SkeletonRows, toast } from './ui.jsx';
+import { Button, EmptyState, KindIcon, Pill, SkeletonRows, toast } from './ui.jsx';
 
 // Home (T02 §3, preview build only): Continue, Recent, Start - three blocks, no others.
 // Composition follows Gate B (Figma F1): Continue as a callout, Recent as a gallery of compact
@@ -137,33 +136,12 @@ export function ExplorePreview() {
 }
 
 function Explore() {
-  const [saved, setSaved] = useState(() => readSaved(localStorage));
   return (
     <main className="flex-1 overflow-y-auto">
-      <div role="note" className="sticky top-0 z-10 border-b border-line bg-code px-4 py-2 text-sm text-ink-2">{BANNER}</div>
       <div className="max-w-[900px] px-24 pb-12 pt-12 max-lg:px-8 max-md:px-4 max-md:pt-6">
         <h1 className="text-[40px] font-bold leading-[1.2] tracking-[-0.01em]">Explore</h1>
         <p className="pb-8 pt-1 text-sm text-ink-2">Discover rabbit holes, projects, and learning resources shared beyond your library.</p>
-        <section aria-label="Examples">
-          <h2 className={HEADING}>Examples</h2>
-          <ul className={GRID}>
-            {DEMO.map((d) => {
-              const on = saved.includes(d.id);
-              return (
-                <li key={d.id} data-explore-card className={`${CARD} flex min-h-[120px] min-w-0 flex-col gap-1 p-3`}>
-                  <div className="flex min-w-0 items-start gap-2">
-                    <span className="pt-0.5"><KindIcon kind={d.kind === 'Project' ? 'repository' : 'canvas'} /></span>
-                    <span className="min-w-0 flex-1 text-sm font-medium leading-snug">{d.title}</span>
-                    <Pill kind={d.kind.toLowerCase()}>{d.kind}</Pill>
-                  </div>
-                  <p className="text-xs text-ink-2">{d.blurb}</p>
-                  <Button size="sm" variant="secondary" className="mt-auto self-start" aria-pressed={on} onClick={() => setSaved(toggleSaved(localStorage, d.id))}>{on ? 'Saved' : 'Save'}</Button>
-                </li>
-              );
-            })}
-          </ul>
-          <p className="pt-3 text-xs text-ink-3">These are examples. Nothing is published yet.</p>
-        </section>
+        <div data-explore-empty><EmptyState icon={Compass}>Nothing has been shared here yet. Rabbit holes and projects people share will appear here.</EmptyState></div>
       </div>
     </main>
   );

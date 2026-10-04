@@ -138,7 +138,8 @@ function ProjectCard({ a, ctx, onMore }) {
   const m = cardModel(a);
   const p = !a.fixture && learnProgress(a, ctx);
   const canvases = ctx.catalog.filter((c) => c.kind === 'canvas' && c.project === a.name).length;
-  const source = [a.commit_sha?.slice(0, 7), `Map ${a.status}`, canvases && `${canvases} canvas${canvases > 1 ? 'es' : ''}`].filter(Boolean).join(' · ');
+  // No 'Map ready' label (owner, 2026-10-04): only a Map still indexing or failed says so.
+  const source = [a.commit_sha?.slice(0, 7), a.status !== 'ready' && `Map ${a.status}`, canvases && `${canvases} canvas${canvases > 1 ? 'es' : ''}`].filter(Boolean).join(' · ');
   return (
     <Card kind="project" a={a} m={m} onMore={onMore} action={p?.lastExplored || p?.next ? 'Continue' : 'Open'} badge={<Pill kind="repository">Project</Pill>}
       source={<SourceLink m={m} suffix={a.branch && a.branch !== 'main' && a.branch !== 'master' ? ` · ${a.branch}` : ''} />}

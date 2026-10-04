@@ -180,18 +180,11 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     const writes = [];
     page.on('request', (r) => { const u = new URL(r.url()); if (u.pathname.startsWith('/api/') && r.method() !== 'GET') writes.push(`${r.method()} ${u.pathname}`); });
     await page.goto(`${base}/explore`);
-    await page.getByRole('note').filter({ hasText: 'Demo data — changes stay in this preview' }).waitFor({ timeout: 20000 });
-    await shH1(page, 'Explore').waitFor();
+    await shH1(page, 'Explore').waitFor({ timeout: 20000 });
     must(await page.getByText('Discover rabbit holes, projects, and learning resources shared beyond your library.', { exact: true }).count() === 1, 'Explore has no purpose sentence');
-    // Discovery cards in a grid, never the Library's list rows.
-    const xs = await page.locator('[data-explore-card]').evaluateAll((ns) => ns.map((n) => [n.getBoundingClientRect().x, getComputedStyle(n).borderTopWidth]));
-    must(xs.length >= 3 && new Set(xs.map(([x]) => Math.round(x))).size >= 2 && xs.every(([, b]) => b === '1px'), `Explore cards: ${JSON.stringify(xs)}`);
-    await page.getByRole('button', { name: 'Save', exact: true }).first().click();
-    await page.getByRole('button', { name: 'Saved', exact: true }).waitFor();
-    await page.reload();
-    await page.getByRole('button', { name: 'Saved', exact: true }).waitFor({ timeout: 20000 });
-    const stored = await page.evaluate(() => localStorage.getItem('small.preview:explore-saved'));
-    must(JSON.parse(stored || '[]').length === 1, `small.preview:explore-saved is ${stored}`);
+    // Nothing is shared publicly yet (owner, 2026-10-04): an honest empty state, no demo cards that open nothing.
+    must(await page.locator('[data-explore-empty]').count() === 1, 'Explore shows its empty state');
+    must(await page.locator('[data-explore-card]').count() === 0, 'no demo cards on Explore');
     must(!writes.length, `mutating calls: ${writes.join(', ')}`);
     await page.context().close();
   });

@@ -88,7 +88,7 @@ test('a canvas made in another browser is flagged, never opened as empty (T02 §
 test('recent cards carry per-kind metadata and a next action (T02 §3.2)', () => {
   const ctx = { catalog, email: EMAIL, storage: store({ 'small.device': 'dev-a' }) };
   // A domain-visibility project reads no Workspace label: projects are owner-only (Privacy P0) and v1 is solo.
-  assert.deepEqual(recentCard(repo, ctx), { meta: ['3f2a1c9', 'Map ready', '1 canvas'], action: { label: 'Open project', to: '/apps/repo-1' } });
+  assert.deepEqual(recentCard(repo, ctx), { meta: ['3f2a1c9', '1 canvas'], action: { label: 'Open project', to: '/apps/repo-1' } });
   assert.deepEqual(recentCard(canvas, ctx), { meta: ['In karpathy/nanoGPT', 'Content in this browser'], action: { label: 'Continue learning', to: '/apps/canvas-1a2b3c4d' } });
   assert.deepEqual(recentCard(canvas, { ...ctx, storage: store({ 'small.device': 'dev-b' }) }), { meta: ['On another device'], action: null });
   const jobCard = recentCard(job, ctx);

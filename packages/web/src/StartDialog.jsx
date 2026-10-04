@@ -7,7 +7,7 @@ import { learnAction } from './agent/learn-hook.js';
 import { learnHandoff } from './flags.js';
 import { connectionsFor } from './connections.js';
 import { PATH_ICONS } from './start-icons.js';
-import { canSubmit, PATHS, pathOr, repositoryDecision, slugOf, teachPrompt, titleFromQuestion, UNTITLED } from './start.js';
+import { canSubmit, START_PATHS, pathOr, repositoryDecision, slugOf, teachPrompt, titleFromQuestion, UNTITLED } from './start.js';
 import { Button, cn, IconBtn, Input, Pill, Tabs, TabsContent, TabsList, TabsTrigger, toast } from './ui.jsx';
 
 const PLANNED = connectionsFor().filter((c) => c.availability === 'planned');
@@ -123,7 +123,7 @@ export default function StartDialog({ ctx, initial, onClose }) {
         <p className="pb-3 text-xs text-ink-2">Start from a repository, sources, a question, or a blank canvas.</p>
         <Tabs value={path} onValueChange={(p) => { setPath(p); setError(''); }}>
           <TabsList pill className="max-w-full overflow-x-auto">
-            {PATHS.map(([id, label]) => { const Icon = PATH_ICONS[id]; return <TabsTrigger key={id} pill value={id} className="gap-1.5"><Icon size={14} strokeWidth={1.75} aria-hidden="true" />{label}</TabsTrigger>; })}
+            {START_PATHS.map(([id, label]) => { const Icon = PATH_ICONS[id]; return <TabsTrigger key={id} pill value={id} className="gap-1.5"><Icon size={14} strokeWidth={1.75} aria-hidden="true" />{label}</TabsTrigger>; })}
           </TabsList>
           <TabsContent value="repository">
             <form onSubmit={onRepository} className="pt-4">

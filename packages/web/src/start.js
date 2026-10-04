@@ -2,10 +2,13 @@
 import { route } from './agent/router.js';
 
 export const PATHS = [['repository', 'Repository'], ['sources', 'Sources'], ['question', 'Question'], ['blank', 'Blank canvas']];
+// What the + menu and the Start a rabbit hole dialog offer (owner, 2026-10-04): a repository or a blank canvas. A
+// question is asked in the composer (Home answers it, or an explicit learning request starts a Rabbit Hole).
+export const START_PATHS = PATHS.filter(([id]) => id === 'repository' || id === 'blank');
 export const UNTITLED = 'Untitled canvas';
 
 // 'small:start' carries a path; anything else opens on the first tab.
-export const pathOr = (path) => (PATHS.some(([id]) => id === path) ? path : 'repository');
+export const pathOr = (path) => (START_PATHS.some(([id]) => id === path) ? path : 'repository');
 
 // The bar's rule 2 (T02 §6.6) decides what a repository link means for this workspace, so the
 // dialog and the bar agree: connect, open the connected project, or choose between it and
