@@ -21,10 +21,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       libxrandr2 libxkbcommon0 libxfixes3 libxcomposite1 libxdamage1 libpango-1.0-0 libcairo2 libcups2 \
       iproute2 sudo procps \
     && rm -rf /var/lib/apt/lists/*
-# motion-svc runs the HTTP service; motion-render runs generated compositions. They share only
-# the motion group, which owns the job directories.
+# motion-svc runs the HTTP service; motion-render runs generated compositions. Separate uids,
+# the SAME primary group motion and no supplementary groups: Fly starts the service with its
+# primary gid only, so a supplementary group would silently not apply (the first Fly run hit
+# EACCES on job.json that way). The motion group owns the job directories (2770, setgid) and
+# the job input (0640). The render sandbox still sees only its own job directory.
 RUN groupadd -g 10010 motion \
- && useradd -u 10011 -M -d /var/motion -s /usr/sbin/nologin -G motion motion-svc \
+ && useradd -u 10011 -g motion -M -d /var/motion -s /usr/sbin/nologin motion-svc \
  && useradd -u 10012 -g motion -M -d /nonexistent -s /usr/sbin/nologin motion-render
 COPY --from=build /src/package.json /app/package.json
 COPY --from=build /src/node_modules /app/node_modules

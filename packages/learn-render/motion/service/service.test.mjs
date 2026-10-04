@@ -111,6 +111,13 @@ test('the child gets no service environment and no secrets', async t => {
   assert.equal(sandbox.mode, 'none');
 });
 
+test('the job workspace the child receives: 2770 directories and a 0640 job input (group-readable, never world-readable)', { skip: process.platform === 'win32' && 'POSIX modes' }, async t => {
+  const { post, until } = await start(t, 'ready');
+  const { render_id } = await (await post(job())).json();
+  const { sandbox } = await until(render_id);
+  assert.deepEqual(sandbox.job_modes, { dir: '2770', out: '2770', input: '640' });
+});
+
 test('one render at a time: a second POST while one runs is 429', async t => {
   const { post, call } = await start(t, 'sleep');
   const first = await post(job());

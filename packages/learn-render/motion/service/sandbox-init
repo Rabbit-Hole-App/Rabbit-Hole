@@ -27,6 +27,27 @@ if [ -d /.fly ]; then mount -t tmpfs -o size=1m,mode=700 tmpfs /.fly; fi
 mount --bind /app /app
 mount -o remount,bind,ro /app
 
+# Preflight, before any job code runs: the workspace has exactly the ownership the render user
+# needs (group motion, setgid 2770 directories, a 0640 job input), and nothing of the service
+# is readable to it. A failure is the job's result; the child never starts.
+asrender() { setpriv --reuid=motion-render --regid=motion --clear-groups -- "$@"; }
+preflight_fail() {
+  printf '{"status":"failed","error":"workspace_preflight_failed","detail":"%s"}\n' "$1" > /tmp/job/out/result.json
+  echo "sandbox-init: workspace preflight failed: $1" >&2
+  exit 65
+}
+for d in /tmp/job /tmp/job/out; do
+  [ "$(stat -c %G "$d")" = motion ] || preflight_fail "$d is not group motion"
+  [ "$(stat -c %a "$d")" = 2770 ] || preflight_fail "$d is not mode 2770 (setgid, group motion only)"
+done
+[ "$(stat -c %G /tmp/job/job.json)" = motion ] || preflight_fail "job.json is not group motion"
+[ "$(stat -c %a /tmp/job/job.json)" = 640 ] || preflight_fail "job.json is not mode 0640 (group-readable, never world-readable)"
+asrender test -r /tmp/job/job.json || preflight_fail "motion-render cannot read job.json"
+asrender test -w /tmp/job/out || preflight_fail "motion-render cannot write out/"
+[ -z "$(asrender ls -A /var/motion 2>/dev/null)" ] || preflight_fail "the service job tree is visible"
+[ -z "$(asrender ls -A /home 2>/dev/null)" ] || preflight_fail "home directories are visible"
+if asrender test -r /etc/sudoers.d/motion; then preflight_fail "service configuration is readable"; fi
+
 # The child: the motion-render user (group motion, so the service can remove what it writes),
 # no supplementary groups, no capabilities, no new privileges, an empty environment, a 64 MB
 # per-file write limit, bounded open files and at most 1024 tasks for the user (RLIMIT_NPROC,

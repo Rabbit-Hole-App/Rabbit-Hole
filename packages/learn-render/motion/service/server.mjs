@@ -259,7 +259,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
     console.error('✗ MOTION_SANDBOX=none renders generated code without the sandbox; set MOTION_ALLOW_UNSANDBOXED=1 only on a test or authoring host');
     process.exit(1);
   }
-  const svc = motionRenderService({ token: process.env.MOTION_RENDERER_TOKEN, sandbox, log: line => console.log(line) });
+  // MOTION_TIMEOUT_MS can only shorten the 420 s limit (the Linux timeout test); it never lengthens it.
+  const timeoutMs = Math.min(LIMITS.timeout_seconds * 1000, Number(process.env.MOTION_TIMEOUT_MS) || Infinity);
+  const svc = motionRenderService({ token: process.env.MOTION_RENDERER_TOKEN, sandbox, timeoutMs, log: line => console.log(line) });
   const port = Number(process.env.PORT || 8080);
   svc.server.listen(port, '0.0.0.0', () => console.log(`✓ ${SERVICE} ${svc.version} on :${port} (sandbox ${sandbox})`));
   for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => { svc.stop(); svc.server.close(); setTimeout(() => process.exit(0), 3000).unref(); });

@@ -3,14 +3,15 @@
 //   node stub-child.mjs <jobDir> ready | sleep | tree | big | crash | failed | nolimits | oom | dirty
 // nolimits / oom / dirty stand in for motion-sandbox's out/sandbox-exit.json on Linux.
 import { spawn } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const [dir, mode] = process.argv.slice(2);
 const out = join(dir, 'out');
 mkdirSync(out, { recursive: true });
 const job = JSON.parse(readFileSync(join(dir, 'job.json'), 'utf8'));
-const sandbox = { mode: process.env.MOTION_SANDBOX, env_keys: Object.keys(process.env).sort() };
+const octal = p => (statSync(p).mode & 0o7777).toString(8);
+const sandbox = { mode: process.env.MOTION_SANDBOX, env_keys: Object.keys(process.env).sort(), job_modes: { dir: octal(dir), out: octal(out), input: octal(join(dir, 'job.json')) } };
 const result = r => writeFileSync(join(out, 'result.json'), JSON.stringify({ render_id: job.render_id, sandbox, ...r }));
 const ready = (finalBytes = 64) => {
   for (const [name, n] of [['final.mp4', finalBytes], ['preview.mp4', 32], ['contact-sheet.png', 16], ['poster.png', 16]]) writeFileSync(join(out, name), Buffer.alloc(n, name[0]));
