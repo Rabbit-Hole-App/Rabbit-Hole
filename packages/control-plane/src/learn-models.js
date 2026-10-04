@@ -36,9 +36,12 @@ export const LEARN_TASKS = Object.freeze({
   tutor_evaluator: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'none (no tools)', maxTokens: 2400 }),
   // Home answers (/api/learn/home-ask, learn-home-ask.js): pinned to Sonnet 5.5 at effort low, grounded in the user's library.
   home_ask: Object.freeze({ provider: 'anthropic', model: 'claude-sonnet-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'none (no tools; one JSON reply)', maxTokens: 900 }),
-  // The Avatar Director (role AVATAR_DIRECTOR_MODEL, docs/features/rabbit-hole-avatar-teacher-v1-spec.md
-  // §5.1, learn-avatar-brief.js): one short grounded script per clip slot. Nothing calls it yet (no live GO).
-  avatar_director: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (the avatar_script tool; no tool call is a format failure)', maxTokens: 1000 }),
+  // The Avatar Director (role AVATAR_DIRECTOR_MODEL) and its fresh blind script reviewer
+  // (docs/features/rabbit-hole-avatar-teacher-v1-spec.md §5.1, learn-avatar-brief.js). claude-opus-5-5 is the
+  // initial development mapping (owner, 2026-10-04), not a product decision; a faster model is benchmarked once
+  // the pipeline works. Opus 5.5 always thinks, inside maxTokens, so the budget leaves room for the tool call.
+  avatar_director: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (the avatar_script tool; no tool call is a format failure)', maxTokens: 4000 }),
+  avatar_script_reviewer: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (the script_review tool; no tool call is a format failure)', maxTokens: 4000 }),
   // Slash-command cards (/api/learn/artifact).
   artifact: Object.freeze({ provider: 'plan', model: ASK_MODELS.auto, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'any', maxTokens: 4000 }),
   // The whiteboard (/api/learn/board): one model for plan, draft and review.

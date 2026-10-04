@@ -63,8 +63,10 @@ export function renderInputFor(brief, profiles = AVATAR_PROFILES) {
 }
 
 const API = 'https://api.heygen.com';
-// The v3 get-video reference's example URLs are all on files.heygen.ai (read 2026-10-04).
-// ponytail: confirm the host on the first real response; until then anything else is download_failed.
+// Fail closed (owner, 2026-10-04): only these hosts are ever downloaded, over https on the default port, with no
+// redirect followed (downloadClip). files.heygen.ai is the host of the v3 get-video reference's examples, not yet
+// observed. Any other host is download_failed carrying code "unlisted_host:<hostname>", the evidence the list
+// may change on - only with that evidence, never on expectation.
 export const HEYGEN_OUTPUT_HOSTS = ['files.heygen.ai'];
 const PENDING = ['pending', 'processing', 'waiting']; // create answers "waiting", which the status enum lacks (§31)
 
@@ -137,7 +139,7 @@ export class HeyGenAvatarProvider {
     if (video.status === 'failed') throw new AvatarError('provider_failed', { code: typeof video.failure_code === 'string' ? video.failure_code.slice(0, 60) : null });
     if (video.status !== 'completed') throw new AvatarError('provider_failed', { final: false });
     const url = allowedOutput(video.video_url);
-    if (!url) throw new AvatarError('download_failed');
+    if (!url) throw new AvatarError('download_failed', { code: `unlisted_host:${hostOf(video.video_url)}` });
     return {
       videoUrl: url, contentType: ticket.alpha ? 'video/webm' : 'video/mp4', durationSeconds: typeof video.duration === 'number' ? video.duration : null,
       captionsUrl: allowedOutput(video.subtitle_url), provider: 'heygen', generationId: ticket.id, engine: ticket.engine,
@@ -155,6 +157,8 @@ export class HeyGenAvatarProvider {
 function allowedOutput(value) {
   try {
     const url = new URL(value);
-    return url.protocol === 'https:' && !url.username && !url.password && HEYGEN_OUTPUT_HOSTS.includes(url.hostname) ? url.href : null;
+    return url.protocol === 'https:' && !url.port && !url.username && !url.password && HEYGEN_OUTPUT_HOSTS.includes(url.hostname) ? url.href : null;
   } catch { return null; }
 }
+// The hostname only (a presigned URL's path and query carry its signature): safe to record as evidence.
+const hostOf = value => { try { return new URL(value).hostname.slice(0, 100) || 'none'; } catch { return 'invalid'; } };

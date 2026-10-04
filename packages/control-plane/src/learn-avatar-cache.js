@@ -11,13 +11,13 @@ import { paidRefusal } from './learn-paid.js';
 import { learnMedia } from './learn-storage.js';
 import { downloadClip, serveClip } from './learn-video.js';
 import { AvatarError, HEYGEN_ADAPTER_VERSION, avatarProvider, renderInputFor } from './learn-avatar-provider.js';
-import { briefSlotId, directorInput, runDirector, validateBrief } from './learn-avatar-brief.js';
-import { CONCEPTS, SLICE_CARDS } from '../../web/src/learn-tutor-claims.js';
+import { BRIEF_VERSION, DEFAULT_SECONDS, DIRECTOR_PROMPT_VERSION, briefSlotId, directorInput, prepareScript, validateBrief } from './learn-avatar-brief.js';
+import { CLAIMS, CONCEPTS, SLICE_CARDS, cardModule, claimsOfConcept, targetClaims } from '../../web/src/learn-tutor-claims.js';
 
 const json = (value, status = 200) => Response.json(value, { status, headers: { 'Cache-Control': 'no-store' } });
 // Hex SHA-256, the same form as LearnVideos keys (learn-video-schema.js videoCacheKey; the asset GET takes 64 hex).
 const sha256 = async text => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))), b => b.toString(16).padStart(2, '0')).join('');
-const REGISTRY = { concepts: Object.keys(CONCEPTS), cards: SLICE_CARDS };
+export const AVATAR_REGISTRY = { concepts: Object.keys(CONCEPTS), cards: SLICE_CARDS };
 
 // V1 has one public course: the Tutor's nanoGPT slice at the pinned revision. The pin is nanoSourceVersion in
 // web nanogpt-lesson.js, which only Vite can import; test/learn-avatar.test.js keeps the two equal.
@@ -25,6 +25,41 @@ export const V1_COURSE = 'karpathy/nanoGPT@3adf61e154c3fe3fca428ad6bc3818b27a3b8
 // One Durable Object instance per scope (§14: idFromName(["avatar", scope])).
 export const scopeName = scope => JSON.stringify(['avatar', scope.kind, scope.course ?? null]);
 export const VIDEO_TYPES = Object.freeze({ 'video/webm': 'webm', 'video/mp4': 'mp4' });
+
+// One canonical slot, grounded in the Tutor registry (§5.1 allowed inputs): per concept, the card that teaches it -
+// its label, title, learning question and claims (cited as the card's ref) and up to 3 pinned code source notes.
+// moment x concept x to_concept, as the Tutor names a slot (avatarSlotId). A Rabbit Hole return (owner, 2026-10-04)
+// is concept = the child hole's concept -> to_concept = the parent concept: the brief's from_concept and
+// current_concept, so the script-slot key carries both sides. Returns { slot, authored }: the brief's fields
+// before its script, and the Director's authored content.
+export function canonicalRequest({ moment, concept, to_concept = null, duration_seconds = DEFAULT_SECONDS }) {
+  const lc = moment === 'rabbit_hole_return' ? { current_concept: to_concept, from_concept: concept }
+    : moment === 'transition' ? { current_concept: concept, next_concept: to_concept } : { current_concept: concept };
+  const ids = [lc.from_concept, lc.current_concept, lc.next_concept].filter(id => id != null);
+  if (!ids.length || ids.some(id => !CONCEPTS[id]) || ((moment === 'rabbit_hole_return' || moment === 'transition') && ids.length < 2)) throw new Error('Unknown or missing concept');
+  const authored = {}, source_refs = [];
+  ids.forEach((id, i) => {
+    const card = SLICE_CARDS.find(cardId => targetClaims({ card_id: cardId }).some(claim => CLAIMS[claim].concept === id));
+    const module = cardModule(card), ref = `C${i + 1}`;
+    source_refs.push({ id: ref, kind: 'card', card_id: card });
+    const sources = (module.sources || []).filter(source => source.kind === 'code' && source.path && source.lines?.length === 2).slice(0, 3).map(source => {
+      const sourceId = `S${source_refs.length}`;
+      source_refs.push({ id: sourceId, kind: 'code', repository: source.repo, commit: source.revision, path: source.path, start_line: source.lines[0], end_line: source.lines[1] });
+      return { id: sourceId, note: source.note };
+    });
+    authored[id] = { ref, label: CONCEPTS[id].label, title: module.scene.title, learning_question: module.evidence.learningQuestion, claims: claimsOfConcept(id).map(claim => CLAIMS[claim].statement), sources };
+  });
+  const slot = {
+    brief_version: BRIEF_VERSION, prompt_spec_version: DIRECTOR_PROMPT_VERSION, purpose: moment, origin: 'product',
+    scope: { kind: 'public_course', course: V1_COURSE }, learner_context: { ...lc, personalization: 'none' }, source_refs, duration_seconds,
+  };
+  return { slot, authored };
+}
+// The Director input of a canonical slot.
+export const canonicalInput = ({ slot, authored }) => directorInput({
+  purpose: slot.purpose, scope: slot.scope, duration_seconds: slot.duration_seconds, authored,
+  concepts: { current: slot.learner_context.current_concept, next: slot.learner_context.next_concept, from: slot.learner_context.from_concept },
+});
 
 const SOURCE_FIELDS = ['id', 'kind', 'card_id', 'repository', 'commit', 'path', 'start_line', 'end_line'];
 // Level 1 (§14): the approved script for a slot. slot: a brief's fields before its script exists. Two learners
@@ -80,11 +115,12 @@ const MAX_WAIT_MS = 30 * 60 * 1000;
 // every learner reuses. Learners only read from it (avatarClipFetch); script, approve and render are owner-run.
 //   GET            the ready list the Tutor's resource stage reads: [{ slot, render_key, ... }]
 //   GET ?asset=K   the stored clip, served with its own content type
-//   POST script    { slot, authored, toc_titles? } -> the slot's script; a cached slot makes no model call
+//   POST script    { moment, concept, to_concept?, duration_seconds? } -> the slot's script, written from the
+//                  registry (canonicalRequest) by prepareScript; a cached slot makes no model call
 //   POST approve   { script_key } -> the owner approves the slot's script (§14)
 //   POST render    { brief, confirmed: true } -> the clip; a ready render key makes no provider call
 export class LearnAvatarClips {
-  // deps is for tests only; the runtime passes state and env. { transport, profiles, director(request) }.
+  // deps is for tests only; the runtime passes state and env. { transport, profiles, director(request), reviewer(request) }.
   constructor(state, env, deps = {}) { this.state = state; this.env = env; this.deps = deps; }
 
   async fetch(req) {
@@ -114,19 +150,17 @@ export class LearnAvatarClips {
     });
   }
 
-  async script({ slot, authored, toc_titles }) {
-    if (slot?.scope?.kind !== 'public_course') throw new Error('Personalized teacher clips are not available yet');
-    const key = await scriptSlotKey(slot);
+  // The authored content comes from the registry here, never from the caller.
+  async script({ moment, concept, to_concept, duration_seconds }) {
+    const request = canonicalRequest({ moment, concept, to_concept, duration_seconds });
+    const key = await scriptSlotKey(request.slot);
     const cached = await this.state.storage.get(`slot:${key}`);
     if (cached) return { script_key: key, ...cached, cached: true };
-    // ponytail: no live Director call is authorized yet (§32); its GO wires loggedModel('avatar_director', anthropic) here.
-    if (!this.deps.director) throw new Error('The Avatar Director is not enabled');
-    const lc = slot.learner_context;
-    const out = await runDirector(this.deps.director, directorInput({
-      purpose: slot.purpose, scope: slot.scope, duration_seconds: slot.duration_seconds,
-      concepts: { current: lc.current_concept, next: lc.next_concept, from: lc.from_concept }, authored, toc_titles,
-    }));
-    if (out.status !== 'ok') return { script_key: key, status: 'failed', stage: out.stage, errors: out.errors };
+    // ponytail: only the hand-run eval (tests/evals/avatar-director.mjs) calls the models today; the store's route
+    // GO wires loggedModel('avatar_director' / 'avatar_script_reviewer', anthropic) here.
+    if (!this.deps.director || !this.deps.reviewer) throw new Error('The Avatar Director is not enabled');
+    const out = await prepareScript(this.deps, canonicalInput(request));
+    if (out.status !== 'ok') return { script_key: key, status: 'failed', stage: out.stage, errors: out.errors ?? out.blocking.map(finding => finding.category) };
     const record = { script: out.script, teaching_goal: out.teaching_goal, approved: false };
     await this.state.storage.put(`slot:${key}`, record);
     return { script_key: key, ...record, cached: false };
@@ -140,7 +174,7 @@ export class LearnAvatarClips {
   }
 
   async render(body) {
-    const brief = validateBrief(body.brief, REGISTRY);
+    const brief = validateBrief(body.brief, AVATAR_REGISTRY);
     if (brief.scope.kind !== 'public_course') throw new Error('Personalized teacher clips are not available yet');
     const slot = await this.state.storage.get(`slot:${await scriptSlotKey(brief)}`);
     if (!slot?.approved || slot.script.text !== brief.script.text) throw new Error("Approve this slot's script first");

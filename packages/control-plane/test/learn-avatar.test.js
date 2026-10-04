@@ -7,9 +7,9 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { ACTION_TYPES, AVATAR_ACTION, PLANNER_SYSTEM, TUTOR_TOOL, plannerRequest } from '../src/agents/learn-tutor.js';
 import { planTurn } from '../src/learn-tutor-routes.js';
-import { briefSlotId, directorInput, directorRequest, runDirector, validateBrief } from '../src/learn-avatar-brief.js';
+import { DIRECTOR_SYSTEM, assembleBrief, briefSlotId, directorInput, directorRequest, prepareScript, reviewRequest, runDirector, validateBrief } from '../src/learn-avatar-brief.js';
 import { AVATAR_ERRORS, HEYGEN_ADAPTER_VERSION, avatarGate, avatarProvider, renderInputFor } from '../src/learn-avatar-provider.js';
-import { LearnAvatarClips, V1_COURSE, avatarClipFetch, avatarObjectKey, renderKey, scopeName, scriptSlotKey, sniffVideoType } from '../src/learn-avatar-cache.js';
+import { AVATAR_REGISTRY, LearnAvatarClips, V1_COURSE, avatarClipFetch, avatarObjectKey, canonicalInput, canonicalRequest, renderKey, scopeName, scriptSlotKey, sniffVideoType } from '../src/learn-avatar-cache.js';
 
 const KEY = 'test-heygen-key-never-printed';
 const PROFILES = { avatars: { 'rh-teacher-1': { avatar_id: 'look_stock_1', engine: 'avatar_iv', alpha: true } }, voices: { 'rh-voice-1': { voice_id: 'voice_native_1' } } };
@@ -126,6 +126,62 @@ test('runDirector against recorded replies: one schema re-ask, a mastery claim i
   assert.deepEqual([mastery.status, mastery.stage, mastery.errors], ['failed', 'script_rules', ['mastery claim']]);
   const unsourced = await runDirector(async () => reply({ ...good, source_ref_ids: ['S7'] }), input);
   assert.deepEqual(unsourced.errors, ['unknown source S7']);
+  for (const code of ['Then att @ v mixes them.', 'It calls masked_fill first.', 'Look at att[0] here.']) {
+    assert.deepEqual((await runDirector(async () => reply({ ...good, text: code }), input)).errors, ['code'], code);
+  }
+});
+
+// ---------- Canonical slots from the registry, the reviewer and the one repair (§5.1, §14) ----------
+
+test('canonical slots come from the registry; a Rabbit Hole return keys on both the child and the parent concept', async () => {
+  const back = canonicalRequest({ moment: 'rabbit_hole_return', concept: 'softmax', to_concept: 'attention' });
+  assert.deepEqual(back.slot.learner_context, { current_concept: 'attention', from_concept: 'softmax', personalization: 'none' });
+  assert.equal(briefSlotId(back.slot), 'rabbit_hole_return:softmax:attention');
+  const otherParent = canonicalRequest({ moment: 'rabbit_hole_return', concept: 'softmax', to_concept: 'causal-mask' });
+  assert.notEqual(briefSlotId(otherParent.slot), briefSlotId(back.slot));
+  assert.notEqual(await scriptSlotKey(otherParent.slot), await scriptSlotKey(back.slot), 'never keyed by the child concept alone');
+  const input = canonicalInput(back);
+  assert.deepEqual(input.concepts, { current: 'attention', from: 'softmax' });
+  assert.deepEqual([input.authored.softmax.ref, input.authored.attention.ref], ['C1', 'C2']);
+  assert.deepEqual(back.slot.source_refs.filter(ref => ref.kind === 'card').map(ref => ref.card_id), ['c21-temperature', 'depth-attention-overview']);
+  const commit = V1_COURSE.split('@')[1];
+  assert.ok(back.slot.source_refs.filter(ref => ref.kind === 'code').every(ref => ref.commit === commit && ref.repository === 'karpathy/nanoGPT' && ref.end_line >= ref.start_line));
+  assert.ok(input.authored.softmax.sources.length <= 3 && input.authored.softmax.claims.length === 2);
+  assert.deepEqual(canonicalRequest({ moment: 'transition', concept: 'causal-mask', to_concept: 'softmax' }).slot.learner_context, { current_concept: 'causal-mask', next_concept: 'softmax', personalization: 'none' });
+  assert.throws(() => canonicalRequest({ moment: 'transition', concept: 'causal-mask' }), /missing concept/);
+  assert.throws(() => canonicalRequest({ moment: 'orientation', concept: 'made-up' }), /Unknown/);
+  const assembled = assembleBrief(back.slot, { script: scriptOf(TEXT), teaching_goal: 'Connect softmax back to attention.' }, { render: brief().render, resolved_model: 'claude-opus-5-5', created_at: '2026-10-04T00:00:00Z' });
+  assert.equal(validateBrief(assembled, AVATAR_REGISTRY), assembled);
+  assert.equal(await scriptSlotKey(assembled), await scriptSlotKey(back.slot), 'the full brief keeps its slot key');
+});
+
+const review = blocking => ({ content: [{ type: 'tool_use', id: 'tu_r', name: 'script_review', input: { blocking } }] });
+test('prepareScript: the rules first, then the fresh blind reviewer, at most one repair; a malformed review fails closed', async () => {
+  const input = canonicalInput(canonicalRequest({ moment: 'orientation', concept: 'attention' }));
+  const run = async (directorReplies, reviewReplies) => {
+    const requests = { director: [], reviewer: [] };
+    const out = await prepareScript({
+      director: async request => { requests.director.push(request); return directorReplies.shift(); },
+      reviewer: async request => { requests.reviewer.push(request); return reviewReplies.shift(); },
+    }, input);
+    return { out, requests };
+  };
+  const clean = await run([reply(good)], [review([])]);
+  assert.deepEqual([clean.out.status, clean.out.script.text, clean.out.trace.map(step => step.step)], ['ok', TEXT, ['director', 'review']]);
+  const ruled = await run([reply({ ...good, text: "You've mastered attention, so use softmax(x)." }), reply(good)], [review([])]);
+  assert.deepEqual([ruled.out.status, ruled.out.trace.map(step => step.step), ruled.requests.reviewer.length], ['ok', ['director', 'repair', 'review'], 1]);
+  assert.match(ruled.requests.director[1].messages[0].content, /Blocking findings: code_or_equation: code; mastery_claim: mastery claim/);
+  const reviewed = await run([reply(good), reply({ ...good, text: 'Welcome to attention. Each character looks back at earlier ones.' })], [review([{ category: 'unsupported_claim', reason: 'decide what matters is not in the card' }]), review([])]);
+  assert.deepEqual([reviewed.out.status, reviewed.out.script.text], ['ok', 'Welcome to attention. Each character looks back at earlier ones.']);
+  assert.match(reviewed.requests.director[1].messages[0].content, /Earlier script: "Welcome to attention\. Here/);
+  const stuck = await run([reply(good), reply(good)], [review([{ category: 'unsupported_claim', reason: 'x' }]), review([{ category: 'unsupported_claim', reason: 'x' }])]);
+  assert.deepEqual([stuck.out.status, stuck.out.stage, stuck.out.blocking.map(finding => finding.category)], ['failed', 'review', ['unsupported_claim']]);
+  assert.equal(stuck.requests.director.length, 2, 'one repair, never a second');
+  const garbled = await run([reply(good)], [{ content: [{ type: 'text', text: 'looks fine' }] }, review([{ category: 'tone', reason: 'x' }])]);
+  assert.deepEqual([garbled.out.status, garbled.out.stage], ['failed', 'review_format']);
+  // Blind and text-only: no Director prompt, teaching goal or model id reaches the reviewer.
+  const blind = JSON.stringify(reviewRequest(TEXT, input));
+  assert.ok(!blind.includes('Frame attention.') && !blind.includes(DIRECTOR_SYSTEM.slice(0, 40)) && !blind.includes('claude-') && blind.includes(TEXT));
 });
 
 // ---------- HeyGen v3 adapter against a stub transport (§8, §9) ----------
@@ -191,7 +247,9 @@ test('every HeyGen answer maps to one normalized category; no provider body reac
   assert.equal(await poll(() => Response.json({ data: { status: 'waiting' } })), null);
   assert.deepEqual(await poll(() => Response.json({ data: { status: 'completed', video_url: 'https://files.heygen.ai/a.webm', subtitle_url: 'https://files.heygen.ai/a.srt', duration: 8.4 } })),
     { videoUrl: 'https://files.heygen.ai/a.webm', contentType: 'video/webm', durationSeconds: 8.4, captionsUrl: 'https://files.heygen.ai/a.srt', provider: 'heygen', generationId: 'v_1', engine: 'avatar_iv' });
-  await assert.rejects(poll(() => Response.json({ data: { status: 'completed', video_url: 'https://evil.example/a.webm' } })), error => error.category === 'download_failed' && error.final);
+  await assert.rejects(poll(() => Response.json({ data: { status: 'completed', video_url: 'https://evil.example/a.webm?sig=SECRET' } })), error => error.category === 'download_failed' && error.final && error.code === 'unlisted_host:evil.example');
+  await assert.rejects(poll(() => Response.json({ data: { status: 'completed', video_url: 'https://files.heygen.ai:8443/a.webm' } })), error => error.code === 'unlisted_host:files.heygen.ai');
+  await assert.rejects(poll(() => Response.json({ data: { status: 'completed', video_url: 'http://files.heygen.ai/a.webm' } })), error => error.category === 'download_failed');
   await assert.rejects(poll(() => Response.json({ data: { status: 'failed', failure_code: 'MODERATION_REJECTED', failure_message: 'PROVIDER-BODY-TEXT' } })), error => error.category === 'provider_failed' && error.final && error.code === 'MODERATION_REJECTED' && !error.message.includes('PROVIDER'));
   await assert.rejects(poll(fail(503, 'service_unavailable')), error => error.category === 'provider_failed' && !error.final);
   await assert.rejects(poll(() => { throw new TypeError('reset'); }), error => error.category === 'provider_failed' && !error.final);
@@ -243,7 +301,6 @@ function clipStore(deps = {}) {
   return { data, assets, env, actor: new LearnAvatarClips(state, env, { profiles: PROFILES, ...deps }) };
 }
 const post = body => new Request('https://dev.test/api/learn/avatar', { method: 'POST', body: JSON.stringify(body) });
-const slotOf = ({ script: _s, render: _r, provenance: _p, ...slot }) => slot;
 const jobOf = s => [...s.data].find(([k]) => k.startsWith('job:'))?.[1];
 const approved = async s => s.data.set(`slot:${await scriptSlotKey(brief())}`, { script: brief().script, teaching_goal: 'Frame attention.', approved: true });
 
@@ -256,19 +313,22 @@ test('the clip store: a cached slot makes no model call; render needs Generate a
     if (init.method === 'DELETE') { deletes++; return Response.json({ data: {} }); }
     return Response.json({ data: { status: 'completed', video_url: 'https://files.heygen.ai/v_1.webm', subtitle_url: 'https://files.heygen.ai/v_1.srt', duration: 8.4 } });
   };
-  const s = clipStore({ director, transport });
-  const first = await (await s.actor.fetch(post({ action: 'script', slot: slotOf(brief()), authored }))).json();
+  const s = clipStore({ director, reviewer: async () => review([]), transport });
+  const orientation = { action: 'script', moment: 'orientation', concept: 'attention' };
+  const first = await (await s.actor.fetch(post(orientation))).json();
   assert.deepEqual([first.cached, first.approved, first.script.text], [false, false, TEXT]);
-  const second = await (await s.actor.fetch(post({ action: 'script', slot: slotOf(brief()), authored }))).json();
+  const second = await (await s.actor.fetch(post(orientation))).json();
+  // The canonical brief: the registry's slot plus the approved script (what the owner-run render sends).
+  const canonical = assembleBrief(canonicalRequest(orientation).slot, first, { render: brief().render, resolved_model: 'claude-opus-5-5', created_at: '2026-10-04T00:00:00Z' });
   assert.equal(second.cached, true);
   assert.equal(modelCalls, 1, 'the second request for a slot makes no model call');
-  const unconfirmed = await s.actor.fetch(post({ action: 'render', brief: brief() }));
+  const unconfirmed = await s.actor.fetch(post({ action: 'render', brief: canonical }));
   assert.equal(unconfirmed.status, 428);
-  const unapproved = await s.actor.fetch(post({ action: 'render', brief: brief(), confirmed: true }));
+  const unapproved = await s.actor.fetch(post({ action: 'render', brief: canonical, confirmed: true }));
   assert.match((await unapproved.json()).error, /Approve this slot/);
   assert.equal(submits, 0, 'no provider call before Generate and approval');
   await s.actor.fetch(post({ action: 'approve', script_key: first.script_key }));
-  const pair = await Promise.all([1, 2].map(() => s.actor.fetch(post({ action: 'render', brief: brief(), confirmed: true }))));
+  const pair = await Promise.all([1, 2].map(() => s.actor.fetch(post({ action: 'render', brief: canonical, confirmed: true }))));
   assert.deepEqual(pair.map(r => r.status), [202, 202]);
   assert.equal(submits, 1, 'two concurrent misses submit once');
   assert.equal(jobOf(s).status, 'generating');
@@ -285,7 +345,7 @@ test('the clip store: a cached slot makes no model call; render needs Generate a
   assert.deepEqual(list.clips, [{ slot: 'orientation:attention:', render_key: job.key, purpose: 'orientation', duration_seconds: 8, content_type: 'video/webm', alpha: true }]);
   const asset = await s.actor.fetch(new Request(`https://dev.test/api/learn/avatar?asset=${job.key}`));
   assert.equal(asset.headers.get('content-type'), 'video/webm');
-  const again = await (await s.actor.fetch(post({ action: 'render', brief: brief(), confirmed: true }))).json();
+  const again = await (await s.actor.fetch(post({ action: 'render', brief: canonical, confirmed: true }))).json();
   assert.deepEqual([again.status, again.cache_hit], ['ready', true]);
   assert.equal(submits, 1, 'a ready key makes no provider call');
   const lines = logs.mock.calls.map(call => call.arguments[0]).join('\n');
@@ -320,7 +380,7 @@ test('the clip store never repeats a paid POST: a lost submit is uncertain; a st
   const learner = brief({ scope: { kind: 'learner' }, origin: 'learner_request' });
   assert.match((await (await off.actor.fetch(post({ action: 'render', brief: learner, confirmed: true }))).json()).error, /not available yet/);
   const director = clipStore();
-  assert.match((await (await director.actor.fetch(post({ action: 'script', slot: slotOf(brief()), authored }))).json()).error, /Director is not enabled/);
+  assert.match((await (await director.actor.fetch(post({ action: 'script', moment: 'orientation', concept: 'attention' }))).json()).error, /Director is not enabled/);
 });
 
 test('the clip store polls without resubmitting: a provider failure is retryable, a timeout or a lost ticket is uncertain', async t => {

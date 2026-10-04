@@ -412,7 +412,7 @@ The provider should receive the final spoken script plus avatar rendering config
 | **Output** | a validated AvatarBrief (§6) with `script`, or a failure. A failure produces no clip and no proposal. The Tutor's text answer stands. |
 | **Grounding** | every factual phrase maps to a `source_refs` entry. The script may state only claims that are already in the concepts' `CLAIMS` statements or `learningQuestion`. |
 | **Script limits** | at most `floor(duration_seconds × 2.4)` words, about 150 words a minute (8 s = 19 words, 15 s = 36, 30 s = 72). At most 2 sentences, or 3 above 15 s. No code characters (the Tutor's speakable test, `` /[`{}<>]\|=>/ ``, `learn-tutor-validate.js:38`). No equations. No mastery or score wording. No mention of the Tutor, the model, the provider or "learner state". |
-| **Model call** | role `AVATAR_DIRECTOR_MODEL`, resolved through `LEARN_TASKS` (`learn-models.js`) and never named in the brief. `tool_choice: auto` with one output tool, harness validation and at most one schema-only re-ask, as in Motion V1 §4.8–§4.9. Never the artifact path's forced `{type: "any"}` (`learn-artifact.js:53`). |
+| **Model call** | role `AVATAR_DIRECTOR_MODEL`, resolved through `LEARN_TASKS` (`learn-models.js`, task `avatar_director`; the reviewer is task `avatar_script_reviewer`) and never named in the brief or a schema. The initial development mapping of both is `claude-opus-5-5` (owner, 2026-10-04): a development configuration, not a product decision. `tool_choice: auto` with one output tool, harness validation and at most one schema-only re-ask, as in Motion V1 §4.8–§4.9. Never the artifact path's forced `{type: "any"}` (`learn-artifact.js:53`). |
 | **Review** | a fresh, blind, text-only script reviewer, with the blocking categories unsupported claim, mastery claim, internal language, code/equation and over length. At most one repair. The owner also approves every canonical script (§14) before it is generated as product content. |
 
 ---
@@ -1775,7 +1775,7 @@ Public documentation only. No key, no account call and no MCP session was used. 
 | Webhooks | `POST /v3/webhooks/endpoints` returns a secret once. The `signature` header is a hex HMAC-SHA256 of the raw body. A 2xx is required within 10 s, and retries run up to 24 h. Events include `avatar_video.success` and `avatar_video.fail`. | https://developers.heygen.com/docs/webhooks, https://developers.heygen.com/docs/webhook-events.md |
 | Output URLs | Presigned, with a "limited expiry window": "Fetch and store the file promptly". | https://developers.heygen.com/docs/webhook-events.md, https://developers.heygen.com/video-details |
 | Deletion | `DELETE /v3/videos/{video_id}`: "Permanently deletes a video and its associated files." | https://developers.heygen.com/reference/delete-video.md |
-| Pricing | The self-serve API is pay-as-you-go, "separate from our regular HeyGen plans", starting at $5; credits expire after 12 months. Enterprise: 1 credit = $0.50; Avatar IV and V 0.1 credit/s (about $0.05/s, $3/min, derived); Avatar III 0.0167–0.0433 credit/s; no published webm or 4K surcharge. | https://help.heygen.com/en/articles/10060327-heygen-api-pricing-explained, https://www.heygen.com/faq, https://developers.heygen.com/docs/enterprise-pricing.md |
+| Pricing | **Corrected 2026-10-04 (owner review of the current public API pricing):** charged by actual generated seconds. Avatar IV: Photo Avatar $2.31/min, Digital Twin $4.83/min, Studio Avatar $4.83/min. Avatar V: Digital Twin $7.20/min. The earlier "0.1 credit/s, about $0.05/s" figure is the enterprise credit rate and is not used for estimates. The rate that applies depends on the avatar type the API reports for the chosen look (§33). The pay-as-you-go wallet is "separate from our regular HeyGen plans" and starts at $5. | owner review 2026-10-04 (the live page, `heygen.com/api-pricing` → `app.heygen.com/developers/api?modal=pricing`, renders by JavaScript and could not be re-read here); https://help.heygen.com/en/articles/10060327-heygen-api-pricing-explained |
 | MCP | Official remote server `https://mcp.heygen.com/mcp/v1/`, with OAuth ("no API key"). "Usage draws on your existing HeyGen plan's credits." About 90 tools, including `create_video`, `get_video`, `delete_video`, `list_avatar_groups`, `list_avatar_looks`, `get_avatar_look`, `list_voices`, `create_avatar_consent` and `create_video_agent`. Claude Code: `claude mcp add --transport http heygen https://mcp.heygen.com/mcp/v1/` (optionally `-s user`), then `/mcp` for OAuth. The old local `heygen-com/heygen-mcp` repository returns 404. | https://developers.heygen.com/mcp/overview, https://developers.heygen.com/mcp/claude-code.md |
 | Consent | "Digital twins require proof of consent; photo and prompt avatars do not." Level 1 is a webcam statement (all customers); Levels 2 and 3 are Enterprise. `POST /v3/avatars/{group_id}/consent` returns a link valid for 24 h. Photo avatars: "keeping your own record of it is your responsibility". The moderation policy bans real individuals "without their explicit consent" and minors. The Terms ban impersonation and require AI disclosure of commercial output. | https://developers.heygen.com/docs/avatar-consent.md, https://developers.heygen.com/docs/avatar-from-photo.md, https://www.heygen.com/moderation-policy, https://www.heygen.com/terms |
 | Privacy | Non-enterprise inputs may be used to "train and enhance the models"; the opt-out is by email. Enterprise data is excluded by default. Backups of deleted accounts are kept 60 days. Data is stored in the US on AWS. SOC 2 Type II. Biometric data is destroyed within 60 days of an avatar's deactivation. An older ethics page (2023) says consent-based training and disagrees with this. | https://www.heygen.com/privacy, https://www.heygen.com/security, https://www.heygen.com/biometric-privacy-notice, https://www.heygen.com/ethics |
@@ -1865,11 +1865,26 @@ Paid MCP or API calls also need the §10 account prerequisites and the owner's e
 3. **When the chip appears.** It is offered only when its canonical clip is ready. Before Rabbit Hole has generated the canonical set, the Tutor suggests nothing.
 4. **Picking the stock look.** The stock look is chosen during AV1, among stock looks trained with matting, so WebM alpha works.
 
+These four are **still open**: the owner does not approve them by reference (2026-10-04). The groundwork's code assumes 1–3 (the validator drops `learning_goal` from every canonical path; the moment table in `learn-tutor-validate.js`; a canonical moment without a ready clip is dropped). Decision 9 below adds to 4: WebM is not locked until discovery confirms the chosen look's transparent path.
+
+**Owner decisions, second round (2026-10-04, on checkpoint `61c35830`, accepted):**
+1. **Rabbit Hole return mapping, approved.** The Tutor action's `concept` is the child hole's concept and `to_concept` the parent concept being reconnected to (child `softmax` → parent attention: "connect softmax back to causal attention"). The brief carries them as `from_concept` (child) and `current_concept` (parent); the slot id is `rabbit_hole_return:<child>:<parent>`, and the script-slot key includes both sides, never the child alone.
+2. **The separate `LearnAvatarClips` store, approved.** Learner-reachable playback never reaches generation; the read path stays apart from generation and store orchestration. Shared media helpers are reused; generation stays isolated.
+3. **Director model.** The role resolves through `LEARN_TASKS`; no schema or permanent contract names a model. `claude-opus-5-5` is approved as the initial development mapping; a faster model is benchmarked once the pipeline works.
+4. **These four interpretations stay open** until each is approved by its text.
+5. **Pricing corrected** (§31). The first-call estimate uses the current per-minute API prices, and the rate is not assumed until discovery classifies the chosen look.
+6. **AV2 live Director validation, authorized:** a small development-only run of about four canonical briefs through the real Director. It does not authorize HeyGen generation. Done (§33).
+7. **Script reviewer:** exercised with real Director outputs, the deterministic rules and fake malformed or unsafe fixtures, keeping model samples minimal. Done (§33).
+8. **Account prerequisite stands.** Before any paid generation, confirmation that `HEYGEN_API_KEY` belongs to a Rabbit Hole-owned HeyGen account, not a personal one. The key is not exposed, deployed or copied to Cloudflare or Fly.
+9. **The first real HeyGen call stays proposed, not authorized** (§33). WebM is not locked until discovery confirms the look supports the transparent path.
+10. **Output host:** no host is trusted on expectation. On the first real response the actual hostname is checked against the documented and observed host, an unknown host fails closed, the allowlist changes only with that evidence, and no redirect or other download host is followed.
+11. **AV4 infrastructure waits:** no Durable Object binding, migration, Worker secret or deploy request to Home until the AV2 validation and the first-call proposal are done.
+
 ---
 
 # 33. Implementation status: AV2–AV4 groundwork (2026-10-04)
 
-Built on `feature/avatar-teacher-v1` (worktree `avatar-teacher-v1`): this spec as accepted at `1ed5a771` on `feature/avatar-teacher-v1-spec`, rebased unchanged onto main `e59a333c`, then the groundwork. Avatar ownership moved from Parallel to the Avatar / Media agent on 2026-10-04. Parallel's uncommitted groundwork in the spec worktree was read, checked against this spec and ported where it held (below). Nothing is deployed, `TUTOR_AVATAR` stays off, and no model, HeyGen or MCP call was made.
+Built on `feature/avatar-teacher-v1` (worktree `avatar-teacher-v1`): this spec as accepted at `1ed5a771` on `feature/avatar-teacher-v1-spec`, rebased unchanged onto main `e59a333c`, then the groundwork. Avatar ownership moved from Parallel to the Avatar / Media agent on 2026-10-04. Parallel's uncommitted groundwork in the spec worktree was read, checked against this spec and ported where it held (below). Nothing is deployed, `TUTOR_AVATAR` stays off, and no HeyGen or MCP call was made. The only model calls are the owner-authorized AV2 Director validation (§33.1).
 
 **What exists, and where:**
 
@@ -1877,15 +1892,16 @@ Built on `feature/avatar-teacher-v1` (worktree `avatar-teacher-v1`): this spec a
 |---|---|---|
 | `suggest_avatar_clip` schema, the three planner lines, `learning_goal` bounds, `avatarSlotId` | `packages/control-plane/src/agents/learn-tutor.js` | Behind `TUTOR_AVATAR=on` in `planOnce` (`learn-tutor-routes.js`). Off, the planner prefix and request hash exactly as on main (pinned in `test/learn-avatar.test.js`). |
 | Trigger validator (§4.1 questions 1–6), router rows, `avatar_moments` in the planner context | `packages/web/src/learn-tutor-validate.js`, `learn-tutor.js` | `route({ avatar })` adds the action; `runTurn` never passes `avatar` yet (AV6). |
-| AvatarBrief schema and validator, script rules, Director contract (input boundary, `avatar_script` tool, `tool_choice: auto`, one schema-only re-ask) | `packages/control-plane/src/learn-avatar-brief.js` | Tested against recorded replies. No live Director call: the store refuses `script` without an injected Director. |
-| `LEARN_TASKS.avatar_director` (role `AVATAR_DIRECTOR_MODEL`) | `learn-models.js` | `claude-opus-5-5`, no fallback, 1000 tokens; nothing calls it. |
+| AvatarBrief schema and validator, script rules, Director contract (input boundary, `avatar_script` tool, `tool_choice: auto`, one schema-only re-ask), the fresh blind reviewer (`script_review` tool), the one repair (`prepareScript`) and `assembleBrief` | `packages/control-plane/src/learn-avatar-brief.js` | Unit-tested on recorded and fake replies; validated live on four canonical slots (below). The store refuses `script` without injected models. |
+| Canonical slots from the Tutor registry (`canonicalRequest`, `canonicalInput`) | `learn-avatar-cache.js` | Per concept: the card that teaches it, its claims and learning question (cited as the card's ref `C<n>`) and up to 3 pinned code source notes (`S<n>`, with the course commit). The store's `POST script` takes only `{ moment, concept, to_concept?, duration_seconds? }`; authored content never comes from the caller. |
+| `LEARN_TASKS.avatar_director` and `avatar_script_reviewer` | `learn-models.js` | `claude-opus-5-5` as the initial development mapping, no fallback, 4000 tokens (Opus 5.5 always thinks, inside `max_tokens`). |
 | AvatarProvider contract and the HeyGen v3 adapter | `packages/control-plane/src/learn-avatar-provider.js` | Against a stub transport only. Off unless `LEARN_AVATAR_PROVIDER=heygen` and `HEYGEN_API_KEY`. Profiles registry empty until AV1 picks the stock look and voice. |
 | Script-slot key, render key, scopes, `learn-avatar/` keys, type sniffing, the shared `public_course` store `LearnAvatarClips`, the read route `avatarClipFetch` | `packages/control-plane/src/learn-avatar-cache.js` | Not bound or routed: the `LEARN_AVATAR_CLIPS` binding, its migration and the `/api/learn/avatar` routes land with the AV4 deploy GO. |
 | Real content type on shared video | `learn-video.js` (`serveClip`, `downloadClip`) | LearnVideos serves a job's own `contentType` (MP4 when none is recorded, as before). |
 | Voice hold and release | `packages/web/src/voice-session.js` | `hold()` / `release()` and state `held`; not exposed by `LearnVoice.jsx` or labelled in `VoiceMode.jsx` yet (AV5). |
 
 **Decisions made while building (within this spec):**
-- **The slot id.** A clip slot is `moment:concept:to_concept` (`avatarSlotId`). In a brief it comes from `briefSlotId`: a `transition` goes from `current_concept` to `next_concept`; a `rabbit_hole_return` is about the hole (`from_concept`) and goes back to the parent's concept (`current_concept`). The brief validator requires `next_concept` for a transition and `from_concept` for a return.
+- **The slot id** (the return mapping approved by the owner, §32 second round, decision 1). A clip slot is `moment:concept:to_concept` (`avatarSlotId`). In a brief it comes from `briefSlotId`: a `transition` goes from `current_concept` to `next_concept`; a `rabbit_hole_return` goes from the child hole's concept (`from_concept`) back to the parent concept (`current_concept`), so its slot is `rabbit_hole_return:<child>:<parent>` and its script-slot key carries both. The brief validator requires `next_concept` for a transition and `from_concept` for a return; a test keeps two returns from one child to two parents apart.
 - **The shared store is its own Durable Object class.** `LearnAvatarClips`, one instance per scope (`idFromName(["avatar", kind, course])`). It is not a branch inside LearnVideos: every learner can POST to their own LearnVideos through `/api/learn/videos`, and that must never reach a Rabbit Hole-paid canonical render. It reuses LearnVideos' job pattern and its shared `downloadClip` / `serveClip`.
 - **Canonical preparation in the store.** `POST script` (cached per script-slot key: the second request for a slot makes no model call), `POST approve` (the owner's approval, §14), `POST render` (`paidRefusal` first, then only an approved slot script; a ready render key makes no provider call; two concurrent misses submit once). `GET` is the ready list the Tutor's resource stage reads; `GET ?asset=` serves the clip with its own type. Who may call the three POSTs is decided with the route at the AV4 deploy GO; learners only ever reach `GET`, through `avatarClipFetch`.
 - **Never repeat a paid POST.** A lost submit, a `request_in_progress`, a 5xx on submit, a crash before the ticket is stored, a timeout or any failure after a ticket exists (except HeyGen's own `failed`) is `uncertain`: a retry answers 409. A refusal HeyGen stated (credits, 429, policy, configuration) is retryable with a new confirmation.
@@ -1900,4 +1916,56 @@ Built on `feature/avatar-teacher-v1` (worktree `avatar-teacher-v1`): this spec a
 - Changed: `directorModel` no longer reads an `AVATAR_DIRECTOR_MODEL` env override (§5.1 resolves the role through `LEARN_TASKS` only); the brief validator also checks card ids and the transition and return concepts; the media key refuses learner scope instead of hashing a session identity; the AV4 store and route are added (Parallel's version stopped at the keys).
 - Dropped: `productionWorker` in `dev-forwarding.js`. It is not in this spec, it touches shared infrastructure code, and it relied on `PUBLIC_ORIGIN` as a production marker without a check. The off switch stays §9's: no provider or key on production before AV9.
 
-**Not yet wired (each needs its GO):** the store's binding, migration and routes, and the `/api/learn/avatar` row in `learn-artifact-generation.md`'s gate table (AV4 deploy); the clip card, PiP, captions and the Voice hold in the UI (AV5, after the shared reload fix); `runTurn` passing `avatar`, the ready list, the canvas's clips and `avatar_seen` (AV6); a live Director call and the fresh script reviewer (AV2 proper); `capabilities()` from `supported_api_engines` (AV3 proper).
+**Not yet wired (each needs its GO):** the store's binding, migration and routes, its live model wiring, and the `/api/learn/avatar` row in `learn-artifact-generation.md`'s gate table (AV4 deploy); the clip card, PiP, captions and the Voice hold in the UI (AV5, after the shared reload fix); `runTurn` passing `avatar`, the ready list, the canvas's clips and `avatar_seen` (AV6); `capabilities()` from `supported_api_engines` (AV3 proper).
+
+## 33.1 AV2 live Director validation (2026-10-04)
+
+Owner GO (§32 second round, decisions 6 and 7). Run by hand with `node tests/evals/avatar-director.mjs`; the full record is `tests/evals/results/avatar-director-2026-10-04.json`. Every model call went through `LEARN_TASKS` (`claude-opus-5-5` served each one, `stop_reason: tool_use` every time, no format re-ask). No HeyGen call, no video.
+
+| Case | Slot | Final script | Words / sentences | Path | Director ms | Cost |
+|---|---|---|---|---|---|---|
+| A | `orientation:attention:` | "Welcome to attention. When the model reads one character, which earlier characters does it look at?" | 16/19, 2/2 | director → review pass | 3,005 | $0.0188 |
+| B | `transition:causal-mask:softmax` | "Masked scores become negative infinity, so softmax gives them weight exactly zero. Next: how softmax turns scores into weights." | 19/19, 2/2 | director → review **blocked** (`unsupported_claim`) → one repair → review pass | 5,791 + 6,218 | $0.0724 |
+| C | `rabbit_hole_return:softmax:attention` | "Back in attention, that same softmax turns the row of scores into positive weights that add up to one." | 19/19, 1/2 | director → review pass | 5,317 | $0.0285 |
+| D | `human_explanation:score-scaling:` (12 s) | "Before the mask and softmax, every score gets multiplied by one positive number. Smaller flattens the weights, larger sharpens them, yet the highest-scoring key stays the same." | 27/28, 2/2 | director → review pass | 6,661 | $0.0289 |
+
+- **Every final script** validates as a full AvatarBrief (`validateBrief` on `assembleBrief`), has no rule problem (length, sentences, code, equations, mastery, internal language), and cites only real refs: cards and `model.py` lines at the course commit.
+- **The reviewer** passed all four final scripts, blocked B's first draft once (the one repair fixed it), and caught both unsafe fixtures that pass every deterministic rule: F1 (an invented origin story, and "reads the ones after it", which contradicts the card) as `unsupported_claim` twice, and F2 ("you are now an expert") as `mastery_claim`.
+- **Deterministic rules** were also exercised with fakes (`test/learn-avatar.test.js`): a mastery claim and code (`softmax(x)`, `att @ v`, `masked_fill`, `att[0]`) are blocked before any review call and repaired once; a malformed review fails closed; the reviewer's request carries no Director prompt, teaching goal or model id.
+- **Totals:** 12 calls (5 Director, 7 reviewer), 19,130 input / 4,721 output tokens, **$0.171** at $4 / $20 per MTok, plus a $0.019 smoke run of case A. Latency: Director 3.0–6.7 s per call; reviewer 2.8–9.8 s.
+- **What the provider would receive** for each slot is the final script text plus the render settings (`renderInputFor`), nothing else.
+
+## 33.2 The first paid HeyGen call: proposal (not authorized)
+
+Nothing below has run. It needs, in order: (1) confirmation that `HEYGEN_API_KEY` belongs to a Rabbit Hole-owned HeyGen account (§32 second round, decision 8), with the other §10 prerequisites (training opt-out, a credit ceiling, no personal-account dependency); (2) a GO to use the key for discovery; (3) a spend GO for the one generation.
+
+**Step 0, discovery (read-only, no generation).** Three GETs with the key, never printed: `GET /v3/avatars/looks?ownership=public&avatar_type=studio_avatar&limit=50`, then `GET /v3/avatars/looks/{look_id}` for the chosen look, and the look's `default_voice_id` (checked against `GET /v3/voices`). Recorded: `id`, `avatar_type`, `supported_api_engines`, `default_voice_id`, `preferred_orientation`. Whether these GETs cost credits is UNVERIFIED (§31), so the balance is read before and after.
+- **Avatar type** comes from `avatar_type` (`studio_avatar` | `digital_twin` | `photo_avatar`); the price is chosen only after it is read.
+- **Transparency cannot be confirmed by discovery.** No documented look field reports matting, transparency or WebM support (the get-look and list-looks references, re-read 2026-10-04). HeyGen documents only the failure ("This video avatar does not support webm output.").
+- **Selection rule:** a public studio avatar whose `supported_api_engines` includes `avatar_iv`, with a neutral teacher presentation, `landscape` or `square`.
+
+**The one call.**
+- **Path:** `HeyGenAvatarProvider` with Node's fetch, from a one-off local dev script. No Worker, no deploy and no key outside the root `.env`. The script would be written at the GO.
+- **Request:** `POST https://api.heygen.com/v3/videos`, `Idempotency-Key: <render key>`, body:
+
+  ```
+  { "type": "avatar", "avatar_id": "<look id from Step 0>", "voice_id": "<default_voice_id>",
+    "script": "Welcome to attention. Here, each character looks back at the earlier ones to decide what matters.",
+    "engine": { "type": "avatar_iv" }, "output_format": "mp4", "resolution": "720p", "aspect_ratio": "16:9",
+    "title": "rh-avatar-<render key prefix>" }
+  ```
+
+- **Script:** the owner's orientation script, 16 words, which passes every deterministic rule; the script-slot pipeline above produces its own wording for product clips.
+- **Output format:** MP4. WebM is not locked until the transparent path is confirmed, and discovery cannot confirm it. A WebM attempt is a separate decision for the owner: it either renders with alpha or fails with HeyGen's documented error, and whether that failure is charged is UNVERIFIED.
+- **Expected duration:** about 6.5–7.5 s (16 words at about 150 words a minute, plus the voice's lead-in and tail).
+- **Then:** poll every 10 s; check the `video_url` hostname against the allowlist, failing closed with `unlisted_host:<hostname>` as evidence; download without following redirects, under 40 MB; sniff the type; save to `.claude/jobs/<id>/tmp/avatar/`, never committed; `DELETE /v3/videos/{video_id}`.
+
+**Expected price** (owner's current API prices, charged per generated second):
+
+| Avatar type (from Step 0) | Rate | 7 s | 10 s |
+|---|---|---|---|
+| `studio_avatar` (expected for a public stock look) | $4.83/min | $0.56 | $0.81 |
+| `photo_avatar` | $2.31/min | $0.27 | $0.39 |
+| `digital_twin` (not V1) | $4.83/min | $0.56 | $0.81 |
+
+**Suggested ceiling:** $1.00 for this one call, which covers about 12 s at the Studio rate. The wallet holds the $5 minimum top-up. There are no automatic retries: a failed or uncertain call stops and is reported.

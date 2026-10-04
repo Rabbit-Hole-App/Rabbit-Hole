@@ -1,0 +1,495 @@
+{
+  "run_at": "2026-10-04T22:57:19.696Z",
+  "tasks": {
+    "avatar_director": "claude-opus-5-5",
+    "avatar_script_reviewer": "claude-opus-5-5"
+  },
+  "cases": [
+    {
+      "id": "A",
+      "moment": "orientation",
+      "concept": "attention",
+      "to_concept": null,
+      "slot": "orientation:attention:",
+      "script_key": "d26b5fb7ca098b9331002e548b166ea69e1f8e9093c23df33ae9837ae9655274",
+      "limits": {
+        "duration_seconds": 8,
+        "max_words": 19,
+        "max_sentences": 2
+      },
+      "status": "ok",
+      "trace": [
+        {
+          "step": "director",
+          "status": "ok",
+          "format_retries": 0
+        },
+        {
+          "step": "review",
+          "status": "ok",
+          "blocking": [],
+          "format_retries": 0
+        }
+      ],
+      "ms": 5849,
+      "calls": [
+        {
+          "label": "A",
+          "task": "avatar_director",
+          "ms": 3005,
+          "requested_model": "claude-opus-5-5",
+          "served_model": "claude-opus-5-5",
+          "stop_reason": "tool_use",
+          "input_tokens": 1478,
+          "output_tokens": 163,
+          "cost_usd": 0.00917
+        },
+        {
+          "label": "A",
+          "task": "avatar_script_reviewer",
+          "ms": 2841,
+          "requested_model": "claude-opus-5-5",
+          "served_model": "claude-opus-5-5",
+          "stop_reason": "tool_use",
+          "input_tokens": 1306,
+          "output_tokens": 219,
+          "cost_usd": 0.0096
+        }
+      ],
+      "cost_usd": 0.01877,
+      "script": {
+        "text": "Welcome to attention. When the model reads one character, which earlier characters does it look at?",
+        "words": 16,
+        "estimated_seconds": 6.4,
+        "source_ref_ids": [
+          "C1"
+        ]
+      },
+      "teaching_goal": "Welcome the learner to attention and frame its question: which earlier characters get looked at while reading one character.",
+      "cited": [
+        {
+          "id": "C1",
+          "kind": "card",
+          "card_id": "depth-attention-overview"
+        }
+      ],
+      "checks": {
+        "brief_valid": true,
+        "rule_problems": [],
+        "words": "16/19",
+        "sentences": "2/2",
+        "grounded": true,
+        "reviewer_blocking": [
+          []
+        ],
+        "repaired": false,
+        "format_retries": 0
+      },
+      "provider_text": "Welcome to attention. When the model reads one character, which earlier characters does it look at?"
+    },
+    {
+      "id": "B",
+      "moment": "transition",
+      "concept": "causal-mask",
+      "to_concept": "softmax",
+      "slot": "transition:causal-mask:softmax",
+      "script_key": "2e18fabb7a6e99949d710b2154b7464d2f4ead89444b8b8ede63a415a4fdd828",
+      "limits": {
+        "duration_seconds": 8,
+        "max_words": 19,
+        "max_sentences": 2
+      },
+      "status": "ok",
+      "trace": [
+        {
+          "step": "director",
+          "status": "ok",
+          "format_retries": 0
+        },
+        {
+          "step": "review",
+          "status": "ok",
+          "blocking": [
+            "unsupported_claim"
+          ],
+          "format_retries": 0
+        },
+        {
+          "step": "repair",
+          "status": "ok",
+          "format_retries": 0
+        },
+        {
+          "step": "review",
+          "status": "ok",
+          "blocking": [],
+          "format_retries": 0
+        }
+      ],
+      "ms": 25487,
+      "calls": [
+        {
+          "label": "B",
+          "task": "avatar_director",
+          "ms": 5791,
+          "requested_model": "claude-opus-5-5",
+          "served_model": "claude-opus-5-5",
+          "stop_reason": "tool_use",
+          "input_tokens": 1854,
+          "output_tokens": 456,
+          "cost_usd": 0.01654
+        },
+        {
+          "label": "B",
+          "task": "avatar_script_reviewer",
+          "ms": 9832,
+          "requested_model": "claude-opus-5-5",
+          "served_model": "claude-opus-5-5",
+          "stop_reason": "tool_use",
+          "input_tokens": 1681,
+          "output_tokens": 897,
+          "cost_usd": 0.02466
+        },
+        {
+          "label": "B",
+          "task": "avatar_director",
+          "ms": 6218,
+          "requested_model": "claude-opus-5-5",
+          "served_model": "claude-opus-5-5",
+          "stop_reason": "tool_use",
+          "input_tokens": 1988,
+          "output_tokens": 576,
+          "cost_usd": 0.01947
+        },
+        {
+          "label": "B",
+          "task": "avatar_script_reviewer",
+          "ms": 3644,
+          "requested_model": "claude-opus-5-5",
+          "served_model": "claude-opus-5-5",
+          "stop_reason": "tool_use",
+          "input_tokens": 1688,
+          "output_tokens": 248,
+          "cost_usd": 0.01171
+        }
+      ],
+      "cost_usd": 0.07238,
+      "script": {
+        "text": "Masked scores become negative infinity, so softmax gives them weight exactly zero. Next: how softmax turns scores into weights.",
+        "words": 19,
+        "estimated_seconds": 7.6,
+        "source_ref_ids": [
+          "C1",
+          "S2",
+          "C2"
+        ]
+      },
+      "teaching_goal": "Close the causal mask by noting that masked scores end up with weight exactly zero after softmax, then move on to how softmax turns scores into weights.",
+      "cited": [
+        {
+          "id": "C1",
+          "kind": "card",
+          "card_id": "c11-causal-mask"
+        },
+        {
+          "id": "S2",
+          "kind": "code",
+          "repository": "karpathy/nanoGPT",
+          "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+          "path": "model.py",
+          "start_line": 67,
+          "end_line": 69
+        },
+        {
+          "id": "C2",
+          "kind": "card",
+          "card_id": "c21-temperature"
+        }
+      ],
+      "checks": {
+        "brief_valid": true,
+        "rule_problems": [],
+        "words": "19/19",
+        "sentences": "2/2",
+        "grounded": true,
+        "reviewer_blocking": [
+          [
+            "unsupported_claim"
+          ],
+          []
+        ],
+        "repaired": true,
+        "format_retries": 0
+      },
+      "provider_text": "Masked scores become negative infinity, so softmax gives them weight exactly zero. Next: how softmax turns scores into weights."
+    },
+    {
+      "id": "C",
+      "moment": "rabbit_hole_return",
+      "concept": "softmax",
+      "to_concept": "attention",
+      "slot": "rabbit_hole_return:softmax:attention",
+      "script_key": "ddecd5fad5b8531d31595ea044ebc184f8608cfdbb05d69271e9d3deef126b02",
+      "limits": {
+        "duration_seconds": 8,
+        "max_words": 19,
+        "max_sentences": 2
+      },
+      "status": "ok",
+      "trace": [
+        {
+          "step": "director",
+          "status": "ok",
+          "format_retries": 0
+        },
+        {
+          "step": "review",
+          "status": "ok",
+          "blocking": [],
+          "format_retries": 0
+        }
+      ],
+      "ms": 8092,
+      "calls": [
+        {
+          "label": "C",
+          "task": "avatar_director",
+          "ms": 5317,
+          "requested_model": "claude-opus-5-5",
+          "served_model": "claude-opus-5-5",
+          "stop_reason": "tool_use",
+          "input_tokens": 1833,
+          "output_tokens": 532,
+          "cost_usd": 0.01797
+        },
+        {
+          "label": "C",
+          "task": "avatar_script_reviewer",
+          "ms": 2774,
+          "requested_model": "claude-opus-5-5",
+          "served_model": "claude-opus-5-5",
+          "stop_reason": "tool_use",
+          "input_tokens": 1650,
+          "output_tokens": 197,
+          "cost_usd": 0.01054
+        }
+      ],
+      "cost_usd": 0.02851,
+      "script": {
+        "text": "Back in attention, that same softmax turns the row of scores into positive weights that add up to one.",
+        "words": 19,
+        "estimated_seconds": 7.6,
+        "source_ref_ids": [
+          "C1",
+          "C2"
+        ]
+      },
+      "teaching_goal": "Connect softmax, just explored in the side Rabbit Hole, back to attention: it turns each row of attention scores into positive weights that add up to one.",
+      "cited": [
+        {
+          "id": "C1",
+          "kind": "card",
+          "card_id": "c21-temperature"
+        },
+        {
+          "id": "C2",
+          "kind": "card",
+          "card_id": "depth-attention-overview"
+        }
+      ],
+      "checks": {
+        "brief_valid": true,
+        "rule_problems": [],
+        "words": "19/19",
+        "sentences": "1/2",
+        "grounded": true,
+        "reviewer_blocking": [
+          []
+        ],
+        "repaired": false,
+        "format_retries": 0
+      },
+      "provider_text": "Back in attention, that same softmax turns the row of scores into positive weights that add up to one."
+    },
+    {
+      "id": "D",
+      "moment": "human_explanation",
+      "concept": "score-scaling",
+      "to_concept": null,
+      "slot": "human_explanation:score-scaling:",
+      "script_key": "8f82c3e87a9666a0d75b094e90e4cdf0f712c06db2135aa865d86118f42b238a",
+      "limits": {
+        "duration_seconds": 12,
+        "max_words": 28,
+        "max_sentences": 2
+      },
+      "status": "ok",
+      "trace": [
+        {
+          "step": "director",
+          "status": "ok",
+          "format_retries": 0
+        },
+        {
+          "step": "review",
+          "status": "ok",
+          "blocking": [],
+          "format_retries": 0
+        }
+      ],
+      "ms": 10056,
+      "calls": [
+        {
+          "label": "D",
+          "task": "avatar_director",
+          "ms": 6661,
+          "requested_model": "claude-opus-5-5",
+          "served_model": "claude-opus-5-5",
+          "stop_reason": "tool_use",
+          "input_tokens": 1408,
+          "output_tokens": 683,
+          "cost_usd": 0.01929
+        },
+        {
+          "label": "D",
+          "task": "avatar_script_reviewer",
+          "ms": 3395,
+          "requested_model": "claude-opus-5-5",
+          "served_model": "claude-opus-5-5",
+          "stop_reason": "tool_use",
+          "input_tokens": 1262,
+          "output_tokens": 227,
+          "cost_usd": 0.00959
+        }
+      ],
+      "cost_usd": 0.02888,
+      "script": {
+        "text": "Before the mask and softmax, every score gets multiplied by one positive number. Smaller flattens the weights, larger sharpens them, yet the highest-scoring key stays the same.",
+        "words": 27,
+        "estimated_seconds": 10.8,
+        "source_ref_ids": [
+          "C1",
+          "S1"
+        ]
+      },
+      "teaching_goal": "Show that multiplying every score by one positive number changes how sharp the weights are, but not which key scores highest.",
+      "cited": [
+        {
+          "id": "C1",
+          "kind": "card",
+          "card_id": "c12-score-scaling"
+        },
+        {
+          "id": "S1",
+          "kind": "code",
+          "repository": "karpathy/nanoGPT",
+          "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+          "path": "model.py",
+          "start_line": 67,
+          "end_line": 67
+        }
+      ],
+      "checks": {
+        "brief_valid": true,
+        "rule_problems": [],
+        "words": "27/28",
+        "sentences": "2/2",
+        "grounded": true,
+        "reviewer_blocking": [
+          []
+        ],
+        "repaired": false,
+        "format_retries": 0
+      },
+      "provider_text": "Before the mask and softmax, every score gets multiplied by one positive number. Smaller flattens the weights, larger sharpens them, yet the highest-scoring key stays the same."
+    }
+  ],
+  "fixtures": [
+    {
+      "id": "F1",
+      "against": "A",
+      "expect": "unsupported_claim",
+      "text": "Welcome to attention. It was invented at Google in 2017, and each character also reads the ones after it.",
+      "rule_problems": [],
+      "status": "ok",
+      "blocking": [
+        {
+          "category": "unsupported_claim",
+          "reason": "The claim that attention was invented at Google in 2017 does not appear in the authored claims, learning question or source notes."
+        },
+        {
+          "category": "unsupported_claim",
+          "reason": "Saying each character also reads the ones after it contradicts the authored claim that attention never looks at later characters."
+        }
+      ],
+      "caught": true,
+      "ms": 3785,
+      "calls": [
+        {
+          "label": "F1",
+          "task": "avatar_script_reviewer",
+          "ms": 3785,
+          "requested_model": "claude-opus-5-5",
+          "served_model": "claude-opus-5-5",
+          "stop_reason": "tool_use",
+          "input_tokens": 1311,
+          "output_tokens": 334,
+          "cost_usd": 0.01192
+        }
+      ],
+      "cost_usd": 0.01192
+    },
+    {
+      "id": "F2",
+      "against": "B",
+      "expect": "mastery_claim",
+      "text": "Great work, you are now an expert on the causal mask. Next comes softmax.",
+      "rule_problems": [],
+      "status": "ok",
+      "blocking": [
+        {
+          "category": "mastery_claim",
+          "reason": "The script tells the learner \"you are now an expert on the causal mask,\" which labels the learner as having mastered the topic."
+        }
+      ],
+      "caught": true,
+      "ms": 2931,
+      "calls": [
+        {
+          "label": "F2",
+          "task": "avatar_script_reviewer",
+          "ms": 2931,
+          "requested_model": "claude-opus-5-5",
+          "served_model": "claude-opus-5-5",
+          "stop_reason": "tool_use",
+          "input_tokens": 1671,
+          "output_tokens": 189,
+          "cost_usd": 0.01046
+        }
+      ],
+      "cost_usd": 0.01046
+    }
+  ],
+  "totals": {
+    "calls": 12,
+    "input_tokens": 19130,
+    "output_tokens": 4721,
+    "cost_usd": 0.1709,
+    "director_ms": [
+      3005,
+      5791,
+      6218,
+      5317,
+      6661
+    ],
+    "reviewer_ms": [
+      2841,
+      9832,
+      3644,
+      2774,
+      3395,
+      3785,
+      2931
+    ]
+  }
+}
