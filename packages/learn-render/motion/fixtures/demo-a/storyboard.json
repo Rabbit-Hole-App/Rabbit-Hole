@@ -1,0 +1,118 @@
+{
+  "id": "storyboard-demo-a1",
+  "brief_id": "brief-demo-a1",
+  "version": 1,
+  "beats": [
+    {
+      "id": "B1",
+      "start_time": 0,
+      "end_time": 3,
+      "pedagogical_role": "hook",
+      "visible_objects": [
+        "row 4 of the attention scores: query token 4 against keys 1-6",
+        "raw score values",
+        "keys 5 and 6 greyed and tagged future"
+      ],
+      "claim_ids": [
+        "C1"
+      ],
+      "must_show_covered": [
+        "raw scores",
+        "unavailable future positions"
+      ],
+      "transition": "cells stagger in from slightly below",
+      "framing": "title top-left, one centred row of six cells",
+      "on_screen_text": "Token 4 scores every key, but keys 5 and 6 are in its future."
+    },
+    {
+      "id": "B2",
+      "start_time": 3,
+      "end_time": 7,
+      "pedagogical_role": "mechanism",
+      "visible_objects": [
+        "fallback-path label naming K1",
+        "code line 68 (masked_fill)",
+        "future scores turning into -inf in red"
+      ],
+      "claim_ids": [
+        "C2"
+      ],
+      "condition_ids": [
+        "K1"
+      ],
+      "must_show_covered": [
+        "unavailable future positions"
+      ],
+      "transition": "future values cross-fade to -inf; borders turn red",
+      "framing": "code strip under the title; the row stays put",
+      "on_screen_text": "Fallback path: future scores become −∞ before softmax runs."
+    },
+    {
+      "id": "B3",
+      "start_time": 7,
+      "end_time": 11,
+      "pedagogical_role": "mechanism",
+      "visible_objects": [
+        "code line 69 (F.softmax)",
+        "weight bars for keys 1-4",
+        "zero weight for keys 5-6 (still present)",
+        "stacked sum track resolving to 1.00"
+      ],
+      "claim_ids": [
+        "C1"
+      ],
+      "must_show_covered": [
+        "normalized allowed weights",
+        "weights summing to 1 over eligible positions"
+      ],
+      "transition": "bars grow; sum-track segments fill one by one",
+      "framing": "bars under each cell, sum track below",
+      "on_screen_text": "Softmax turns the eligible scores into non-negative weights that sum to 1."
+    },
+    {
+      "id": "B4",
+      "start_time": 11,
+      "end_time": 13,
+      "pedagogical_role": "implementation",
+      "visible_objects": [
+        "two-lane K1 panel: flash available -> scaled_dot_product_attention(is_causal=True); flash unavailable -> explicit masked_fill then F.softmax"
+      ],
+      "claim_ids": [
+        "C3",
+        "C2"
+      ],
+      "condition_ids": [
+        "K1"
+      ],
+      "must_show_covered": [],
+      "transition": "panel rises over the dimmed row",
+      "framing": "centred panel, two lanes",
+      "on_screen_text": "Which code runs depends on K1: is flash attention available?"
+    },
+    {
+      "id": "B5",
+      "start_time": 13,
+      "end_time": 15,
+      "pedagogical_role": "takeaway",
+      "visible_objects": [
+        "final weights",
+        "takeaway line",
+        "footnote on the fallback condition"
+      ],
+      "claim_ids": [
+        "C1",
+        "C2",
+        "C3"
+      ],
+      "condition_ids": [
+        "K1"
+      ],
+      "must_show_covered": [
+        "normalized allowed weights"
+      ],
+      "transition": "panel fades; takeaway fades in",
+      "framing": "full row with weights, takeaway at the bottom",
+      "on_screen_text": "Softmax turns the allowed scores into weights that sum to 1."
+    }
+  ]
+}
