@@ -6,7 +6,6 @@
 //
 //   node motion/service/child.mjs <jobDir>
 import { RenderInternals } from '@remotion/renderer';
-import { spawn, spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -15,6 +14,7 @@ import { STAGE } from '../contracts.js';
 import { NET_PROBE, NET_PROBE_PREFIX } from '../probes.js';
 import { RemotionRenderer, chromeVersion, contactFrames, ffmpegVersion, probe } from '../remotion-renderer.mjs';
 import { selfLimits, unlimited } from './resource-control.mjs';
+import { runPhaseProcess, runResourceProbe } from './stress-probe.mjs';
 
 // Preview vs final (§11.3): the final frame downscaled to preview size against the preview frame.
 // ponytail: provisional threshold from the Demo A authoring renders; M5 sets the real one.
@@ -41,9 +41,10 @@ async function sandboxReport() {
   report.hidden = Object.fromEntries(['/var/motion', '/home', '/root', '/.fly'].map(p => [p, seen(p)]));
   report.processes = readdirSync('/proc').filter(n => /^\d+$/.test(n)).length;
   report.renderer_write = (() => { try { writeFileSync('/app/.motion-probe', 'x'); return 'WRITABLE'; } catch (e) { return e.code; } })();
-  const { report: limits, cpuStat } = selfLimits();
+  const { report: limits, cpuStat, pidsCurrent } = selfLimits();
   report.limits = { ...limits, ...rlimits() };
   cpuStatPath = cpuStat;
+  pidsCurrentPath = pidsCurrent;
   const l = report.limits;
   report.breach = [
     report.network === 'reachable' && 'network reachable',
@@ -60,7 +61,7 @@ async function sandboxReport() {
   ].filter(Boolean);
   return report;
 }
-let cpuStatPath = null;
+let cpuStatPath = null, pidsCurrentPath = null;
 
 // The rlimits sandbox-init set, read from the kernel (the cgroup limits come from selfLimits).
 function rlimits() {
@@ -116,37 +117,20 @@ async function networkProbe(sandbox) {
   write({ status: 'probe', probe: { browser, csp: false }, sandbox });
 }
 
-// Proof-only (Linux service tests): push against each limit and record where the kernel stops it.
-// Processes: start sleepers until a spawn fails. Memory: a separate process touches 4 GiB and
-// must be killed by the job's memory.max. CPU: two busy processes for 3 s must be throttled.
+// Proof-only (Linux service tests): stress each kernel limit in its own subprocess, settling
+// the job's task count between phases (stress-probe.mjs). A probe failure is a result, not a crash.
 async function resourceProbe(sandbox) {
-  const kids = [];
-  let refused = null;
-  for (let i = 0; i < 1500 && !refused; i++) {
-    const kid = spawn('sleep', ['60'], { stdio: 'ignore' });
-    refused = await new Promise(r => { kid.once('spawn', () => r(null)); kid.once('error', e => r(e.code || e.message)); });
-    if (!refused) kids.push(kid);
+  const readKeyed = file => Object.fromEntries(readFileSync(file, 'utf8').trim().split(/\r?\n/).map(l => l.split(' ')).map(([k, v]) => [k, Number(v)]));
+  try {
+    const probe = await runResourceProbe({
+      runPhase: runPhaseProcess,
+      pidsCurrent: () => { try { return Number(readFileSync(pidsCurrentPath, 'utf8').trim()); } catch { return null; } },
+      cpuStat: () => readKeyed(cpuStatPath),
+    });
+    write({ status: 'probe', sandbox, probe });
+  } catch (error) {
+    write({ status: 'failed', error: 'probe_failed', detail: error.message, sandbox });
   }
-  // Every descendant stays in the job's groups: a child's /proc/<pid>/cgroup equals ours.
-  const own = readFileSync('/proc/self/cgroup', 'utf8');
-  const sameGroups = kids.length > 0 && [kids[0], kids.at(-1)].every(k => readFileSync(`/proc/${k.pid}/cgroup`, 'utf8') === own);
-  for (const k of kids) k.kill('SIGKILL');
-  const hog = spawnSync(process.execPath, ['-e', 'const a = []; for (let i = 0; i < 16; i++) a.push(Buffer.alloc(256 * 1024 * 1024, 1)); console.log("allocated 4 GiB")'], { encoding: 'utf8', timeout: 120000 });
-  const stat = () => Object.fromEntries(readFileSync(cpuStatPath, 'utf8').trim().split('\n').map(l => l.split(' ')).map(([k, v]) => [k, Number(v)]));
-  const before = stat();
-  const busy = [1, 2].map(() => spawn(process.execPath, ['-e', 'const t = Date.now(); while (Date.now() - t < 3000);'], { stdio: 'ignore' }));
-  await Promise.all(busy.map(b => new Promise(r => b.once('exit', r))));
-  const after = stat();
-  write({
-    status: 'probe', sandbox,
-    probe: {
-      processes: { started: kids.length, refused, same_groups: sameGroups },
-      memory: { signal: hog.signal, status: hog.status, allocated: (hog.stdout || '').includes('allocated') },
-      // cpu.stat on both backends: nr_periods and nr_throttled; throttled time is ns on v1, us on v2.
-      cpu: { periods: after.nr_periods - before.nr_periods, throttled_periods: after.nr_throttled - before.nr_throttled,
-        throttled_time_us: after.throttled_usec !== undefined ? after.throttled_usec - before.throttled_usec : Math.round((after.throttled_time - before.throttled_time) / 1000) },
-    },
-  });
 }
 
 async function main() {
