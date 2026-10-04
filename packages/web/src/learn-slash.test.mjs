@@ -110,3 +110,75 @@ test('every example runs as typed: it names its own command and never hits an un
     if (name !== 'image') assert.notEqual(artifactPlan(name, { args: parsed.args }).result, 'unsupported', `${text} would say not available`);
   }
 });
+
+// docs/features/canvas-skeleton-cards.md: a card command holds the card's place from the send; only a card
+// fills it, and every other ending gives it up.
+const slotHarness = reply => {
+  const did = [];
+  const canvas = {
+    reserve: slot => { did.push(['reserve', slot]); return 'slot:1'; },
+    release: id => did.push(['release', id]),
+    insertBlock: (block, options) => { did.push(['block', block.type, options]); return 'card-1'; },
+  };
+  const post = async (path, body, options) => { did.push(['post', options?.signal instanceof AbortSignal]); if (reply instanceof Error) throw reply; return reply; };
+  return { did, run: text => runLearnCommand(text, { app: 'demo', canvas, post, openSearch: () => {} }) };
+};
+
+test('a card command reserves before the request and its card takes that slot', async () => {
+  const { did, run } = slotHarness({ result: 'artifact', primitive: 'explanation', block: { type: 'explanation', title: 'T', body: 'B' } });
+  const out = await run('/explain why a token id is only an index');
+  assert.deepEqual(did, [['reserve', { label: 'Creating /explain…', card: 'explanation' }], ['post', true], ['block', 'explanation', { into: 'slot:1' }]]);
+  assert.equal(out.notice.blockId, 'card-1');
+  // Sized as the command's own card: /graph as a graph, /quiz as a quiz.
+  const graph = slotHarness({ result: 'clarification', question: 'Which function?' });
+  await graph.run('/graph');
+  assert.deepEqual(graph.did[0], ['reserve', { label: 'Creating /graph…', card: 'graph' }]);
+});
+
+test('a question, a proposal, an unsupported or invalid result, a failure or a timeout gives the slot up', async () => {
+  for (const reply of [
+    { result: 'clarification', question: 'Compare what?' },
+    { result: 'paid_proposal', primitive: 'maths_animation', block: { type: 'video' }, message: 'This uses paid generation.' },
+    { result: 'unsupported', message: 'Not yet.' },
+    { result: 'validation_error', error: 'Rejected' },
+  ]) {
+    const { did, run } = slotHarness(reply);
+    await run('/compare these');
+    assert.deepEqual(did.map(entry => entry[0]), ['reserve', 'post', 'release'], reply.result);
+    assert.equal(did[2][1], 'slot:1');
+  }
+  const failed = slotHarness(new Error('Artifact generation unavailable (model HTTP 529). Try again.'));
+  await assert.rejects(failed.run('/quiz'), /unavailable/);
+  assert.deepEqual(failed.did.at(-1), ['release', 'slot:1']);
+  const late = slotHarness(Object.assign(new Error('The operation was aborted due to timeout'), { name: 'TimeoutError' }));
+  const out = await late.run('/quiz');
+  assert.deepEqual(late.did.at(-1), ['release', 'slot:1']);
+  assert.equal(out.notice.text, '/quiz took too long. Try again.');
+});
+
+test('commands that make no card, or make one at once, reserve nothing', async () => {
+  for (const text of ['/notebook', '/whiteboard', '/paper 1706.03762', '/image a prism', '/deeper', '/dive', '/source', '/ask what is wte?']) {
+    const did = [];
+    const canvas = { reserve: () => did.push('reserve'), insertNotebook: () => {}, insertBlock: () => {}, insertPaper: () => {}, dive: () => ({}) };
+    await runLearnCommand(text, { app: 'demo', canvas, post: async () => ({}), openSearch: () => {} });
+    assert.deepEqual(did, [], text);
+  }
+});
+
+// A skeleton means a card is committed: a command that can end in a paid proposal holds no place at send, only
+// once the learner confirms Generate; Cancel never shows one.
+test('a paid command holds no place until Generate; Generate holds it and the confirmed card takes it', async () => {
+  const proposal = { result: 'paid_proposal', primitive: 'maths_animation', block: { type: 'video', mode: 'generate' }, message: 'This uses paid generation.' };
+  for (const command of ['/animate why the sigmoid saturates', '/video light through a prism', '/3d a camera frustum']) {
+    const { did, run } = slotHarness(proposal);
+    const out = await run(command);
+    assert.deepEqual(did.map(entry => entry[0]), ['post'], `${command}: the proposal only, no skeleton`);
+    assert.equal(out.proposal.message, 'This uses paid generation.');
+  }
+  const { did, run } = slotHarness(proposal);
+  const out = await run('/animate why the sigmoid saturates');
+  // Cancel: the composer drops the proposal and nothing reaches the canvas.
+  assert.ok(!did.some(entry => entry[0] === 'reserve' || entry[0] === 'block'));
+  out.proposal.generate();
+  assert.deepEqual(did.slice(1), [['reserve', { label: 'Creating /animate…', card: 'mathAnimation' }], ['block', 'video', { into: 'slot:1' }]]);
+});

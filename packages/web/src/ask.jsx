@@ -14,6 +14,7 @@ import { colorLine } from './code.jsx';
 import { MathText, tokenizeMath } from './MathText.jsx';
 import { MODEL_CHOICES } from './model-choices.js';
 import { canvasTargetField } from './learn-ask-target.js';
+import { waitingText } from './waiting-text.js';
 import { cn, CodeBlock, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
 
 // What the agent may read, per scope - the ⚙ picker mirrors Notion's "My sources".
@@ -534,6 +535,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     });
     const mirror = (t) => { exchange?.({ id: replyId, delta: t }); append(t); };
     let responseGraph = null;
+    // The cards this answer committed to opening (a progress event's card): each holds its place on the canvas
+    // until its card lands; whatever is still held when the answer ends goes (docs/features/canvas-skeleton-cards.md).
+    const slots = {};
     try {
       if (isDemo) {
         // Demo replies are temporary and never written into a saved conversation.
@@ -619,12 +623,12 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           if (!type || !data) continue;
           const d = JSON.parse(data);
           if (type === 'chunk') mirror(d.text);
-          else if (type === 'progress') { exchange?.({ id: replyId, stage: d.stage }); setMsgs(messages => messages.map(item => item.id === replyId ? { ...item, status: d.stage } : item)); }
+          else if (type === 'progress') { if (d.card && !slots[d.card]) slots[d.card] = boardContext?.reserveCard?.(d.card); exchange?.({ id: replyId, stage: d.stage }); setMsgs(messages => messages.map(item => item.id === replyId ? { ...item, status: d.stage } : item)); }
           else if (type === 'graph') { responseGraph=d; setMsgs(messages=>messages.map(item=>item.id===replyId?{...item,graph:d}:item)); }
           else if (type === 'outline') { boardContext?.onOutlineProposal?.(d.ops); }
-          else if (type === 'paper') { boardContext?.onShowPaper?.(d); }
-          else if (type === 'wiki') { boardContext?.onShowWiki?.(d); }
-          else if (type === 'video') { boardContext?.onShowVideo?.(d); }
+          else if (type === 'paper') { boardContext?.onShowPaper?.(d, slots.paper); }
+          else if (type === 'wiki') { boardContext?.onShowWiki?.(d, slots.wiki); }
+          else if (type === 'video') { boardContext?.onShowVideo?.(d, slots.video); }
           else if (type === 'papers') setMsgs(messages => messages.map(item => item.id === replyId ? { ...item, papers: d.papers } : item));
           else if (type === 'proposal') setMsgs((m) => [...m, { role: 'proposal', proposal: d }]);
           else if (type === 'done' && d.threadId) {
@@ -642,6 +646,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       if (e.name !== 'AbortError') mirror(`✗ ${e.message}`);
     } finally {
       if (answerFlight.current === flight) answerFlight.current = null;
+      for (const slot of Object.values(slots)) boardContext?.releaseCard?.(slot);
       if (!isDemo) exchange?.({ id: replyId, done: true });
       if (!isDemo) boardContext?.setAnswering(false);
       setBusy(false);
@@ -866,7 +871,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
                 </button>
               )}</>
             ) : (
-              <span className="flex items-center gap-2 text-xs text-ink-2"><Loader2 size={14} className="animate-spin text-ink-3" /><span className="shimmer">{m.status || 'Thinking…'}</span></span>
+              <span className="flex items-center gap-2 text-xs text-ink-2"><Loader2 size={14} className="animate-spin text-ink-3" /><span className="shimmer">{waitingText(m.status)}</span></span>
             )}
           </div>
         ))}

@@ -14,6 +14,9 @@ export async function modelFailure(response, label, suffix = '') {
 // eight retrieval calls and two papers so a question cannot trigger endless
 // research; eight, because a thorough answer can legitimately spend
 // search+read+read+show on one source family and still consult another.
+// onProgress(stage, card): card ('paper' | 'wiki' | 'video') once a show tool has validated, so the page
+// can hold that card's place on the canvas (docs/features/canvas-skeleton-cards.md).
+const SHOWN_CARD = { show_wikipedia: 'wiki', show_video: 'video' }; // learn-wiki.js, learn-youtube.js
 export async function researchAnswer(env, turns, system, model, {
   callModel, onProgress = async () => {}, findPapers = searchArxiv, readPaper = readArxivPaper, initialPapers = [], tools = [], runTool,
 }) {
@@ -59,11 +62,13 @@ export async function researchAnswer(env, turns, system, model, {
         content = [{ type: 'text', text: JSON.stringify(paper) }, paperDocument(paper)];
       } else if (call.name === SHOW_PAPER_TOOL.name) {
         shown = validateShowPaper(call.input, [...papers.values()]);
-        await onProgress(`Opening ${shown.title}...`);
+        await onProgress(`Opening ${shown.title}...`, 'paper');
         content = [{ type: 'text', text: JSON.stringify({ opened: true, page: shown.page, note: PAPER_SHOWN_NOTE }) }];
       } else if (runTool && tools.some(tool => tool.name === call.name)) {
-        await onProgress(`${call.name.replaceAll('_', ' ')}...`);
+        // A show tool reports once it has validated: a refused one opens nothing.
+        if (!SHOWN_CARD[call.name]) await onProgress(`${call.name.replaceAll('_', ' ')}...`);
         content = [{ type: 'text', text: JSON.stringify(await runTool(call.name, call.input)) }];
+        if (SHOWN_CARD[call.name]) await onProgress(`${call.name.replaceAll('_', ' ')}...`, SHOWN_CARD[call.name]);
       } else throw new Error('Unknown Learn tool');
     } catch (error) { await onProgress(`Retrieval failed: ${error.message}`); is_error = true; content = [{ type: 'text', text: error.message }]; }
     messages.push({ role: 'assistant', content: result.content }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: call.id, content, is_error }] });

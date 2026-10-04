@@ -186,11 +186,12 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
   // warning names them. Never a silent cascade.
   const [confirm, setConfirm] = useState(null);
   const askDelete = async level => {
-    // An empty hole is left, not deleted: nothing of it was saved.
+    // An empty hole is left, not deleted: nothing of it was saved. The only pending level the navigator
+    // shows is the hole the learner is in (one left is discarded, and children come from the server).
     if (level.pending) {
       const entry = pendingHole(sessionStorage, level.app);
       if (entry) discardHole({ session: sessionStorage, local: localStorage, base: entry.base || baseFor(entry.name), name: entry.name });
-      if (level.app === here.app) climb(treeRef.current.path.length - 2); else setLocalHoles(previous => previous.filter(entry => entry.name !== level.app));
+      if (level.app === here.app) climb(treeRef.current.path.length - 2);
       return;
     }
     try {

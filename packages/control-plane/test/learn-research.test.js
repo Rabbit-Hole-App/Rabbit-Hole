@@ -104,3 +104,27 @@ test('a model HTTP failure names the status and the API reason, cut to 160 chara
   await assert.rejects(researchAnswer({}, [], 'Tutor', null, { callModel: async () => new Response('down', { status: 503 }) }),
     { message: 'Learn answer unavailable (model HTTP 503)' });
 });
+
+// docs/features/canvas-skeleton-cards.md: a show tool that validated says which card is coming, so the page
+// holds its place; a refused show and every other step carry no card.
+test('a validated show reports its card on progress; a refused one never does', async () => {
+  const stages = [];
+  let calls = 0, videos = 0;
+  const runTool = async name => { if (name === 'show_video' && videos++) throw new Error('One video per answer'); return { opened: true }; };
+  const tools = ['search_wikipedia', 'show_wikipedia', 'show_video'].map(name => ({ name }));
+  await researchAnswer({}, [], 'Tutor', null, {
+    tools, runTool, readPaper: async () => paper,
+    onProgress: async (stage, card) => stages.push(card ? [stage, card] : [stage]),
+    callModel: async () => [
+      tool('read_arxiv_paper', { id: paper.id }), tool('show_paper', { id: paper.id, page: 2 }), tool('search_wikipedia', { query: 'x' }),
+      tool('show_wikipedia', { title: 'X' }), tool('show_video', { videoId: 'v' }), tool('show_video', { videoId: 'w' }), text('Done.'),
+    ][calls++],
+  });
+  assert.deepEqual(stages.filter(entry => entry[1]), [['Opening YOLO...', 'paper'], ['show wikipedia...', 'wiki'], ['show video...', 'video']]);
+  assert.ok(stages.some(([stage]) => stage === 'search wikipedia...'), 'other tools still report before they run');
+  assert.ok(stages.some(([stage, card]) => /^Retrieval failed: One video/.test(stage) && !card), 'the refused second video has no card');
+});
+test('the ask stream forwards a progress card and leaves other progress events as they were', () => {
+  const source = readFileSync(new URL('../src/ask.js', import.meta.url), 'utf8');
+  assert.match(source, /onProgress: \(stage, card\) => send\('progress', card \? \{ stage, card \} : \{ stage \}\)/);
+});

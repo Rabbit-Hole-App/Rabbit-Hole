@@ -51,9 +51,14 @@ const SIGMOID_FIGURE = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy
 // scene at 0.995 - under the type floors).
 const FRAME_CHROME = { w: 36, h: 140 };
 
+// typicalHeight (a card whose height follows its content): what a skeleton holds for one on its way
+// (canvas-slots.js slotSize, docs/features/canvas-skeleton-cards.md) - the palette sample's rendered height,
+// measured at 1440x900 on 2026-10-04. typicalRows (animation): the controls, practice and sources rows a card
+// grows by below the frame sizeFor sizes - the median over the NanoGPT Tutor slice, measured the same day.
 export const BLOCK_TYPES = {
   challenge: {
     label: 'Challenge',
+    typicalHeight: 220,
     sample: () => ({
       id: crypto.randomUUID(),
       type: 'challenge',
@@ -87,6 +92,7 @@ export const BLOCK_TYPES = {
   },
   explanation: {
     label: 'Explanation',
+    typicalHeight: 330,
     width: 440,
     autoMax: 520,
     sample: () => ({
@@ -105,6 +111,7 @@ export const BLOCK_TYPES = {
   },
   quiz: {
     label: 'Quiz',
+    typicalHeight: 270,
     ghost: true,
     sample: () => ({
       id: crypto.randomUUID(),
@@ -123,6 +130,7 @@ export const BLOCK_TYPES = {
   },
   flashcards: {
     label: 'Flashcards',
+    typicalHeight: 240,
     ghost: true,
     sample: () => ({
       id: crypto.randomUUID(),
@@ -138,6 +146,7 @@ export const BLOCK_TYPES = {
   },
   table: {
     label: 'Table',
+    typicalHeight: 610,
     width: 560,
     autoMax: 620,
     sample: () => ({
@@ -164,6 +173,7 @@ export const BLOCK_TYPES = {
   },
   snippet: {
     label: 'Code sample',
+    typicalHeight: 400,
     // Code needs room: wider than prose blocks and tall enough that the
     // output stays visible without a manual resize.
     width: 520,
@@ -439,6 +449,7 @@ export const BLOCK_TYPES = {
   },
   animation: {
     label: 'Animation',
+    typicalRows: 180,
     width: 560,
     height: 460,
     autoMax: 900,
@@ -636,6 +647,7 @@ export const BLOCK_TYPES = {
   },
   image: {
     label: 'Image',
+    typicalHeight: 450,
     width: 480,
     autoMax: 620,
     sample: () => ({
@@ -668,6 +680,7 @@ export const BLOCK_TYPES = {
   },
   video: {
     label: 'Video',
+    typicalHeight: 440,
     width: 560,
     autoMax: 620,
     sample: () => ({
