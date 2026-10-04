@@ -36,6 +36,9 @@ export const LEARN_TASKS = Object.freeze({
   tutor_evaluator: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'none (no tools)', maxTokens: 2400 }),
   // Home answers (/api/learn/home-ask, learn-home-ask.js): pinned to Sonnet 5.5 at effort low, grounded in the user's library.
   home_ask: Object.freeze({ provider: 'anthropic', model: 'claude-sonnet-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'none (no tools; one JSON reply)', maxTokens: 900 }),
+  // The Avatar Director (role AVATAR_DIRECTOR_MODEL, docs/features/rabbit-hole-avatar-teacher-v1-spec.md
+  // §5.1, learn-avatar-brief.js): one short grounded script per clip slot. Nothing calls it yet (no live GO).
+  avatar_director: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (the avatar_script tool; no tool call is a format failure)', maxTokens: 1000 }),
   // Slash-command cards (/api/learn/artifact).
   artifact: Object.freeze({ provider: 'plan', model: ASK_MODELS.auto, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'any', maxTokens: 4000 }),
   // The whiteboard (/api/learn/board): one model for plan, draft and review.

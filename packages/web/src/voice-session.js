@@ -60,6 +60,7 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now 
   let lastSpoken = null; // { text, at }: the Tutor's last reply when it played to the end, for echoesEnd
   let pendingSay = null; // a say() that arrived while Voice Mode was still starting
   let barge = null;      // while speaking: { hits } qualifying partials in a row; after a barge-in: { speech }
+  let holds = 0;         // learner-started media with sound playing now (hold())
   const listeners = new Set();
 
   const set = (next, words) => {
@@ -204,6 +205,7 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now 
     epoch++;
     pendingSay = null;
     starting = false;
+    holds = 0;
     const turn = current;
     current = null;
     heard = {};
@@ -234,6 +236,8 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now 
       }
       if (mine !== epoch) return;
       starting = false;
+      // Media started while the mic was still opening: it stays closed until the media ends (hold()).
+      if (holds) { stt.pause(); return set('held'); }
       set('listening');
       if (pendingSay) { const { text, options } = pendingSay; pendingSay = null; commit(text, options); }
     },
@@ -247,6 +251,37 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now 
     // At any point of a turn the learner can take the floor back; Voice stays on.
     // Speaking: the audio stops now. Thinking: the Tutor turn is cancelled and its late answer ignored.
     interrupt,
+    // Learner-started media with sound - an avatar clip now, narrated Motion later (rabbit-hole-avatar-teacher-v1-spec.md
+    // §4.3): the Tutor and the media never speak at once, and the mic never transcribes the media. hold() stops the
+    // Tutor's speech, cancels a turn in flight (its late answer is never spoken) and pauses STT; Voice Mode stays on,
+    // in state 'held'. It returns release(), for the media's end or Stop, which resumes listening once every hold is
+    // released. Off: a no-op. Exit while held drops the holds.
+    hold() {
+      if (state === 'off' && !starting) return () => {};
+      const mine = epoch;
+      holds++;
+      const turn = current;
+      if (turn) {
+        turn.marks.interrupted = now();
+        emit('voice_interrupted', { turn_id: turn.turnId, from: state, at: turn.marks.interrupted });
+        current = null;
+        turn.controller.abort();
+      }
+      tts.stop();
+      stt.pause();
+      heard = {}; barge = null; lastSpoken = null;
+      emit('voice_held');
+      if (!starting) set('held');
+      let released = false;
+      return () => {
+        if (released || mine !== epoch) return;
+        released = true;
+        if (--holds || starting) return;
+        Promise.resolve(stt.resume()).catch(() => sttFailed('resume'));
+        set('listening');
+        emit('voice_listening_resumed', { after: 'hold' });
+      };
+    },
     get starting() { return starting; },
     // A Tutor turn Voice Mode runs without the learner speaking - a Rabbit Hole's opening (ask.jsx): spoken and
     // captioned like any voice reply, never a chat bubble. Waits for listening if Voice Mode is still starting;

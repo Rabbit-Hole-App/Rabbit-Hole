@@ -153,7 +153,8 @@ async function planOnce(env, context, model, effort, { callModel = loggedModel('
   const done = outcome => ({ ...telemetry, ms: Date.now() - started, outcome });
   let result;
   try {
-    const response = await callModel(env, plannerRequest(context, LEARN_TASKS.tutor.maxTokens, documents, { effort, stream, cache, speed }), model, null);
+    // TUTOR_AVATAR=on adds suggest_avatar_clip (Avatar Teacher §4.1); unset or anything else, the request is unchanged.
+    const response = await callModel(env, plannerRequest(context, LEARN_TASKS.tutor.maxTokens, documents, { effort, stream, cache, speed, avatar: env.TUTOR_AVATAR === 'on' }), model, null);
     if (!response.ok) throw await modelFailure(response, 'The tutor is unavailable');
     result = stream ? await readPlannerStream(response, input => {
       if (telemetry.first_sentence_ms != null) return;

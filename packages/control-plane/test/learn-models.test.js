@@ -152,7 +152,8 @@ test('the task configuration states what the requests above carry, and the limit
   assert.deepEqual(pick(LEARN_TASKS.artifact), { provider: 'plan', model: 'claude-opus-5', maxTokens: 4000 });
   assert.deepEqual(pick(LEARN_TASKS.tutor), { provider: 'anthropic', model: 'claude-opus-5-5', maxTokens: 2000 });
   assert.deepEqual(pick(LEARN_TASKS.tutor_evaluator), { provider: 'anthropic', model: 'claude-opus-5-5', maxTokens: 2400 });
-  for (const task of ['tutor', 'tutor_evaluator']) assert.equal(LEARN_TASKS[task].fallback, 'none', task);
+  assert.deepEqual(pick(LEARN_TASKS.avatar_director), { provider: 'anthropic', model: 'claude-opus-5-5', maxTokens: 1000 });
+  for (const task of ['tutor', 'tutor_evaluator', 'avatar_director']) assert.equal(LEARN_TASKS[task].fallback, 'none', task);
   assert.deepEqual(pick(LEARN_TASKS.board), { provider: 'plan', model: 'claude-opus-5', maxTokens: { plan: 1200, draft: 3000, review: 1800 } });
   assert.equal(LEARN_TASKS.chat.picker, true);
   for (const task of ['grading', 'tutor', 'tutor_evaluator', 'artifact', 'board']) assert.equal(LEARN_TASKS[task].picker, false, task);
