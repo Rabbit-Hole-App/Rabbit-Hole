@@ -1947,7 +1947,7 @@ Owner GO (§32 second round, decisions 6 and 7). Run by hand with `node tests/ev
 - **Totals:** 12 calls (5 Director, 7 reviewer), 19,130 input / 4,721 output tokens, **$0.171** at $4 / $20 per MTok, plus a $0.019 smoke run of case A. Latency: Director 3.0–6.7 s per call; reviewer 2.8–9.8 s.
 - **What the provider would receive** for each slot is the final script text plus the render settings (`renderInputFor`), nothing else.
 
-## 33.2 The first paid HeyGen call: approved in principle, not run
+## 33.2 The first paid HeyGen call: approved, run on 2026-10-04 (§33.3)
 
 Approved in principle by the owner (§32 third round, decision 6); nothing below has run. It needs, in order: (1) confirmation that `HEYGEN_API_KEY` belongs to the Rabbit Hole-owned HeyGen account intended for ongoing use, with training opt-out where supported and a spending ceiling or controlled wallet (the current gate, §32 third round, decision 10); (2) a separate authorization for discovery; (3) the GO to make the one generation call.
 
@@ -1981,3 +1981,22 @@ Approved in principle by the owner (§32 third round, decision 6); nothing below
 | `digital_twin` (not V1) | $4.83/min | $0.56 | $0.81 |
 
 **Suggested ceiling:** $1.00 for this one call, which covers about 12 s at the Studio rate. The wallet holds the $5 minimum top-up. There are no automatic retries: a failed or uncertain call stops and is reported.
+
+## 33.3 The first HeyGen prototype: result (2026-10-04)
+
+Owner GO the same day: the key confirmed as the Rabbit Hole-owned HeyGen account; a $5 prototype budget, at most $1 per generation, no automatic retry; temporary local storage only (no R2, no Worker, no deploy). Run by hand with `node tests/evals/heygen-prototype.mjs` (`discover`, then `generate <look> <voice>`, then `resume`, which polls the stored ticket again and never resubmits); the record and the clip stay in the gitignored `.claude/jobs/heygen-prototype-1/tmp/avatar/`.
+
+- **Account:** `billing_type: wallet`, USD, $5.00, auto-reload off (`GET /v3/users/me`; only billing fields are read).
+- **Discovery cost nothing:** the wallet read $5.00 before and after about 30 GETs (12 pages of public studio looks, 12 of English voices, the look, and the voice pages). Public studio looks with `avatar_iv`: 101 of the first 600.
+- **Look:** `Judy_Teacher_Standing_public` ("Judy Teacher Standing"), `avatar_type: studio_avatar`, `supported_api_engines: [avatar_v, avatar_iv, avatar_iii]`, `preferred_orientation: landscape`, 1280×720; a classroom set (whiteboard, globe), glasses, cardigan. Chosen over the business and office looks as the most teacher-like; the preview was inspected first.
+- **Voice:** the look's `default_voice_id` `b45b647c9a2649dba247ff275365df2c`, "Judy": public, English, female, `default_engine: orca` (engines starfish, orca, elevenlabs, elevenlabs_v3).
+- **Request**, as the adapter sent it (`HeyGenAvatarProvider.submit`, recorded at the transport; the key header is never recorded): `POST /v3/videos`, `Idempotency-Key: 5de3d1c2…` (the render key), body `{ type: "avatar", avatar_id: "Judy_Teacher_Standing_public", script: "<the owner's orientation script>", voice_id: "b45b647c…", engine: { type: "avatar_iv" }, output_format: "mp4", resolution: "720p", aspect_ratio: "16:9", title: "rh-avatar-5de3d1c2cea0" }`. One POST; no retry.
+- **Latency:** the submit answered in 1.9 s; HeyGen's own `created_at` → `completed_at` is 223 s (3 min 43 s).
+- **Cost:** $0.48 (wallet $5.00 → $4.52). That matches 6 whole seconds at $4.83/min; the exact billing rule is not documented (the estimate was $0.64 for 7.9 s).
+- **Output host:** `https://files2.heygen.ai` (path `aws_pacific/avatar_tmp/…`), no port, no redirect. It failed closed on the first poll as `unlisted_host:files2.heygen.ai` (the list held only the docs' example host, `files.heygen.ai`). On that evidence `HEYGEN_OUTPUT_HOSTS` is now `['files2.heygen.ai']` only; the never-observed `files.heygen.ai` was removed and fails closed (tested). The preview images of public looks come from the same host.
+- **Content type:** the download answers `200 binary/octet-stream`, so the shared `downloadClip` refused it (`video/*` only). It now takes `{ sniffed: true }` from a caller that types the clip from its own bytes (the avatar store and this script), which then accepts a generic binary header; LearnVideos is unchanged (tested).
+- **MP4 validation:** sniffed `video/mp4` (`ftyp`), 6,000,835 bytes; H.264 1280×720 25 fps, AAC 48 kHz stereo; 6.8 s from the MP4 header (HeyGen reports 6.77 s), inside the 12.4 s that $1 buys at the Studio rate.
+- **Visual and audio check** (stills at 0.3, 2.0, 3.6, 5.2 and 6.5 s; audio loudness per 100 ms): photoreal, a stable framing and identity, no watermark, mouth shapes that change with speech, a natural closed-mouth smile at the end. Speech runs 0.3–6.5 s with a pause between the two sentences, peaking at −12 dBFS. Lip sync and the voice's delivery need a human watch.
+- **Provider copy:** `DELETE /v3/videos/{id}` succeeded; `GET` afterwards answers `404 video_not_found`.
+- **Captions: no `subtitle_url` came back.** The create-video reference says a sidecar subtitle "is always returned"; this render had none, so the V1 assumption (send no caption field, §33) does not hold.
+- **Training and privacy:** neither the API nor HeyGen's privacy policy (updated 2026-08-11) offers an account setting or toggle. Non-enterprise inputs may be used "to train and enhance the models"; the opt-out is a request by email to HeyGen support. Enterprise and business offerings are governed by their contracts. Not done: it is an outward request from the account owner.

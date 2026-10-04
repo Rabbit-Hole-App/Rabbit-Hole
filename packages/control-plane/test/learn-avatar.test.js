@@ -10,6 +10,7 @@ import { planTurn } from '../src/learn-tutor-routes.js';
 import { DIRECTOR_SYSTEM, assembleBrief, briefSlotId, directorInput, directorRequest, prepareScript, reviewRequest, runDirector, validateBrief } from '../src/learn-avatar-brief.js';
 import { AVATAR_ERRORS, HEYGEN_ADAPTER_VERSION, avatarGate, avatarProvider, renderInputFor } from '../src/learn-avatar-provider.js';
 import { AVATAR_REGISTRY, LearnAvatarClips, V1_COURSE, avatarClipFetch, avatarObjectKey, canonicalInput, canonicalRequest, renderKey, scopeName, scriptSlotKey, sniffVideoType } from '../src/learn-avatar-cache.js';
+import { downloadClip } from '../src/learn-video.js';
 
 const KEY = 'test-heygen-key-never-printed';
 const PROFILES = { avatars: { 'rh-teacher-1': { avatar_id: 'look_stock_1', engine: 'avatar_iv', alpha: true } }, voices: { 'rh-voice-1': { voice_id: 'voice_native_1' } } };
@@ -245,11 +246,13 @@ test('every HeyGen answer maps to one normalized category; no provider body reac
   const poll = answer => avatarProvider(heygenEnv, { transport: heygen(answer).transport, profiles: PROFILES }).poll({ id: 'v_1', engine: 'avatar_iv', alpha: true });
   assert.equal(await poll(() => Response.json({ data: { status: 'processing' } })), null);
   assert.equal(await poll(() => Response.json({ data: { status: 'waiting' } })), null);
-  assert.deepEqual(await poll(() => Response.json({ data: { status: 'completed', video_url: 'https://files.heygen.ai/a.webm', subtitle_url: 'https://files.heygen.ai/a.srt', duration: 8.4 } })),
-    { videoUrl: 'https://files.heygen.ai/a.webm', contentType: 'video/webm', durationSeconds: 8.4, captionsUrl: 'https://files.heygen.ai/a.srt', provider: 'heygen', generationId: 'v_1', engine: 'avatar_iv' });
+  assert.deepEqual(await poll(() => Response.json({ data: { status: 'completed', video_url: 'https://files2.heygen.ai/a.webm', subtitle_url: 'https://files2.heygen.ai/a.srt', duration: 8.4 } })),
+    { videoUrl: 'https://files2.heygen.ai/a.webm', contentType: 'video/webm', durationSeconds: 8.4, captionsUrl: 'https://files2.heygen.ai/a.srt', provider: 'heygen', generationId: 'v_1', engine: 'avatar_iv' });
   await assert.rejects(poll(() => Response.json({ data: { status: 'completed', video_url: 'https://evil.example/a.webm?sig=SECRET' } })), error => error.category === 'download_failed' && error.final && error.code === 'unlisted_host:evil.example');
-  await assert.rejects(poll(() => Response.json({ data: { status: 'completed', video_url: 'https://files.heygen.ai:8443/a.webm' } })), error => error.code === 'unlisted_host:files.heygen.ai');
-  await assert.rejects(poll(() => Response.json({ data: { status: 'completed', video_url: 'http://files.heygen.ai/a.webm' } })), error => error.category === 'download_failed');
+  await assert.rejects(poll(() => Response.json({ data: { status: 'completed', video_url: 'https://files2.heygen.ai:8443/a.webm' } })), error => error.code === 'unlisted_host:files2.heygen.ai');
+  await assert.rejects(poll(() => Response.json({ data: { status: 'completed', video_url: 'http://files2.heygen.ai/a.webm' } })), error => error.category === 'download_failed');
+  // The docs' example host was never observed on a real render, so it fails closed too.
+  await assert.rejects(poll(() => Response.json({ data: { status: 'completed', video_url: 'https://files.heygen.ai/a.mp4' } })), error => error.code === 'unlisted_host:files.heygen.ai');
   await assert.rejects(poll(() => Response.json({ data: { status: 'failed', failure_code: 'MODERATION_REJECTED', failure_message: 'PROVIDER-BODY-TEXT' } })), error => error.category === 'provider_failed' && error.final && error.code === 'MODERATION_REJECTED' && !error.message.includes('PROVIDER'));
   await assert.rejects(poll(fail(503, 'service_unavailable')), error => error.category === 'provider_failed' && !error.final);
   await assert.rejects(poll(() => { throw new TypeError('reset'); }), error => error.category === 'provider_failed' && !error.final);
@@ -276,6 +279,16 @@ test('script-slot key: the slot only - never learning_goal, visual_value, proven
 
 const WEBM = new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 1, 2, 3, 4, 5]);
 const MP4 = new Uint8Array([0, 0, 0, 24, ...new TextEncoder().encode('ftypisom')]);
+test('download: HeyGen serves MP4 as binary/octet-stream, accepted only by a caller that sniffs the bytes', async () => {
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(MP4, { headers: { 'Content-Type': 'binary/octet-stream' } });
+  try {
+    await assert.rejects(downloadClip('https://files2.heygen.ai/a.mp4'), /Video download unavailable/);
+    assert.deepEqual(await downloadClip('https://files2.heygen.ai/a.mp4', { sniffed: true }), MP4);
+    globalThis.fetch = async () => new Response('<html>', { headers: { 'Content-Type': 'text/html' } });
+    await assert.rejects(downloadClip('https://files2.heygen.ai/a.mp4', { sniffed: true }), /Video download unavailable/);
+  } finally { globalThis.fetch = realFetch; }
+});
 test('media contract: the real type from the bytes, learn-avatar/<scope hash>/<render key>.<webm|mp4>, the V1 course pin', async () => {
   assert.deepEqual([sniffVideoType(WEBM), sniffVideoType(MP4), sniffVideoType(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9]))], ['video/webm', 'video/mp4', null]);
   const key = 'c'.repeat(64), scope = { kind: 'public_course', course: V1_COURSE };
@@ -311,7 +324,7 @@ test('the clip store: a cached slot makes no model call; render needs Generate a
   const transport = async (url, init = {}) => {
     if (init.method === 'POST') { submits++; return Response.json({ data: { video_id: 'v_1', status: 'waiting' } }); }
     if (init.method === 'DELETE') { deletes++; return Response.json({ data: {} }); }
-    return Response.json({ data: { status: 'completed', video_url: 'https://files.heygen.ai/v_1.webm', subtitle_url: 'https://files.heygen.ai/v_1.srt', duration: 8.4 } });
+    return Response.json({ data: { status: 'completed', video_url: 'https://files2.heygen.ai/v_1.webm', subtitle_url: 'https://files2.heygen.ai/v_1.srt', duration: 8.4 } });
   };
   const s = clipStore({ director, reviewer: async () => review([]), transport });
   const orientation = { action: 'script', moment: 'orientation', concept: 'attention' };
@@ -333,14 +346,14 @@ test('the clip store: a cached slot makes no model call; render needs Generate a
   assert.equal(submits, 1, 'two concurrent misses submit once');
   assert.equal(jobOf(s).status, 'generating');
   const original = globalThis.fetch;
-  globalThis.fetch = async url => { assert.equal(url, 'https://files.heygen.ai/v_1.webm'); return new Response(WEBM, { headers: { 'Content-Type': 'video/webm' } }); };
+  globalThis.fetch = async url => { assert.equal(url, 'https://files2.heygen.ai/v_1.webm'); return new Response(WEBM, { headers: { 'Content-Type': 'video/webm' } }); };
   try { await s.actor.alarm(); } finally { globalThis.fetch = original; }
   const job = jobOf(s);
   assert.deepEqual([job.status, job.contentType], ['ready', 'video/webm']);
   assert.match(job.storageKey, /^learn-avatar\/[0-9a-f]{64}\/[0-9a-f]{64}\.webm$/);
   assert.equal(s.assets.get(job.storageKey).options.httpMetadata.contentType, 'video/webm');
   assert.equal(deletes, 1, 'the provider copy is deleted once ours is stored');
-  assert.ok(!JSON.stringify(job).includes('files.heygen.ai'), 'no expiring provider URL is kept');
+  assert.ok(!JSON.stringify(job).includes('files2.heygen.ai'), 'no expiring provider URL is kept');
   const list = await (await s.actor.fetch(new Request('https://dev.test/api/learn/avatar'))).json();
   assert.deepEqual(list.clips, [{ slot: 'orientation:attention:', render_key: job.key, purpose: 'orientation', duration_seconds: 8, content_type: 'video/webm', alpha: true }]);
   const asset = await s.actor.fetch(new Request(`https://dev.test/api/learn/avatar?asset=${job.key}`));

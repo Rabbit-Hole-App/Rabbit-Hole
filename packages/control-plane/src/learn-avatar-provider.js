@@ -64,10 +64,11 @@ export function renderInputFor(brief, profiles = AVATAR_PROFILES) {
 
 const API = 'https://api.heygen.com';
 // Fail closed (owner, 2026-10-04): only these hosts are ever downloaded, over https on the default port, with no
-// redirect followed (downloadClip). files.heygen.ai is the host of the v3 get-video reference's examples, not yet
-// observed. Any other host is download_failed carrying code "unlisted_host:<hostname>", the evidence the list
-// may change on - only with that evidence, never on expectation.
-export const HEYGEN_OUTPUT_HOSTS = ['files.heygen.ai'];
+// redirect followed (downloadClip). files2.heygen.ai is the host the first real v3 render returned (video
+// 13bf1aa2..., 2026-10-04, failing closed as unlisted_host:files2.heygen.ai). files.heygen.ai, the docs' example
+// host, was never observed and is not listed. Any other host is download_failed carrying code
+// "unlisted_host:<hostname>", the evidence the list may change on - only with that evidence, never on expectation.
+export const HEYGEN_OUTPUT_HOSTS = ['files2.heygen.ai'];
 const PENDING = ['pending', 'processing', 'waiting']; // create answers "waiting", which the status enum lacks (§31)
 
 // HTTP status + HeyGen error code -> category (developers.heygen.com/docs/error-codes, re-read 2026-10-04: the

@@ -39,10 +39,14 @@ export async function serveClip(env, job, req) {
   return new Response(object.body, { status: object.range ? 206 : 200, headers });
 }
 
-// A finished clip from the provider's URL (the adapter has already checked its host).
-export async function downloadClip(url) {
+// A finished clip from the provider's URL (the adapter has already checked its host). sniffed: the caller types
+// the clip from its own bytes (Avatar Teacher), so a generic binary header is accepted too - HeyGen's
+// files2.heygen.ai serves MP4 as binary/octet-stream (first real render, 2026-10-04).
+const GENERIC_TYPES = ['binary/octet-stream', 'application/octet-stream'];
+export async function downloadClip(url, { sniffed = false } = {}) {
   const response = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(30000) });
-  if (!response.ok || !response.headers.get('content-type')?.startsWith('video/')) throw new Error('Video download unavailable');
+  const type = response.headers.get('content-type') || '';
+  if (!response.ok || !(type.startsWith('video/') || (sniffed && GENERIC_TYPES.includes(type.split(';')[0].trim())))) throw new Error('Video download unavailable');
   // Short preview clips are bounded to protect Worker memory and storage.
   const chunks = [], reader = response.body.getReader(); let length = 0;
   for (;;) {

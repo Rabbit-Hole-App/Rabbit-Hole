@@ -217,7 +217,7 @@ export class LearnAvatarClips {
           const provider = avatarProvider(this.env, this.deps);
           const result = await provider.poll(job.ticket);
           if (result) {
-            const bytes = await downloadClip(result.videoUrl);
+            const bytes = await downloadClip(result.videoUrl, { sniffed: true });
             const contentType = sniffVideoType(bytes);
             if (!contentType) throw new AvatarError('download_failed');
             job.storageKey = await avatarObjectKey(job.scope, job.key, contentType);
