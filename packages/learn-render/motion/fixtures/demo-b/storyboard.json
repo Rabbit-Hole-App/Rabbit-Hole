@@ -9,9 +9,25 @@
       "end_time": 3,
       "pedagogical_role": "hook",
       "visible_objects": [
-        "the selected code: line 306 and lines 312-328 in JetBrains Mono, with line numbers",
-        "highlight on 306 (signature), then on 312 (the loop)",
-        "note beside 312: runs max_new_tokens times"
+        {
+          "id": "generate_code",
+          "description": "the selected code: line 306 and lines 312-328 in JetBrains Mono, with line numbers",
+          "source": {
+            "source_ref_id": "S1",
+            "start_line": 306,
+            "end_line": 306
+          }
+        },
+        {
+          "id": "line_highlight",
+          "description": "highlight on 306 (signature), then on 312 (the loop)",
+          "change": "moves from 306 to 312"
+        },
+        {
+          "id": "loop_note",
+          "description": "note beside 312: runs max_new_tokens times",
+          "label": "runs max_new_tokens times"
+        }
       ],
       "claim_ids": [
         "C1"
@@ -29,8 +45,16 @@
       "end_time": 7,
       "pedagogical_role": "mechanism",
       "visible_objects": [
-        "highlight on 314 (crop to block_size), then on 316 (forward pass)",
-        "note beside 316: logits for every position"
+        {
+          "id": "line_highlight",
+          "description": "highlight on 314 (crop to block_size), then on 316 (forward pass)",
+          "change": "moves from 314 to 316"
+        },
+        {
+          "id": "forward_note",
+          "description": "note beside 316: logits for every position",
+          "label": "logits for every position"
+        }
       ],
       "claim_ids": [
         "C2"
@@ -46,8 +70,16 @@
       "end_time": 10,
       "pedagogical_role": "mechanism",
       "visible_objects": [
-        "highlight on 318",
-        "note beside 318: last position only, ÷ temperature"
+        {
+          "id": "line_highlight",
+          "description": "highlight on 318",
+          "change": "moves to 318"
+        },
+        {
+          "id": "temperature_note",
+          "description": "note beside 318: last position only, divided by temperature",
+          "label": "last position only, ÷ temperature"
+        }
       ],
       "claim_ids": [
         "C3"
@@ -65,8 +97,15 @@
       "end_time": 13,
       "pedagogical_role": "implementation",
       "visible_objects": [
-        "highlight grows over 320-322",
-        "K1 box beside 320-322: top_k=None (default) skipped; top_k=k sets logits below the k-th largest to −inf"
+        {
+          "id": "line_highlight",
+          "description": "highlight grows over 320-322",
+          "change": "grows over 320-322"
+        },
+        {
+          "id": "top_k_box",
+          "description": "K1 box beside 320-322: top_k=None (default) skipped; top_k=k sets logits below the k-th largest to −inf"
+        }
       ],
       "claim_ids": [
         "C4"
@@ -87,8 +126,15 @@
       "end_time": 16,
       "pedagogical_role": "mechanism",
       "visible_objects": [
-        "highlight on 324 (softmax), then on 326 (multinomial)",
-        "notes: logits → probabilities; weighted random draw"
+        {
+          "id": "line_highlight",
+          "description": "highlight on 324 (softmax), then on 326 (multinomial)",
+          "change": "moves from 324 to 326"
+        },
+        {
+          "id": "sample_notes",
+          "description": "notes: logits → probabilities; weighted random draw"
+        }
       ],
       "claim_ids": [
         "C5"
@@ -106,9 +152,21 @@
       "end_time": 18.5,
       "pedagogical_role": "mechanism",
       "visible_objects": [
-        "highlight on 328",
-        "note beside 328: fed back in next step",
-        "loop arrow from 328 back up to 312 in the left margin"
+        {
+          "id": "line_highlight",
+          "description": "highlight on 328",
+          "change": "moves to 328"
+        },
+        {
+          "id": "append_note",
+          "description": "note beside 328: fed back in next step",
+          "label": "fed back in next step"
+        },
+        {
+          "id": "loop_arrow",
+          "description": "loop arrow from 328 back up to 312 in the left margin",
+          "change": "draws upward"
+        }
       ],
       "claim_ids": [
         "C6",
@@ -127,9 +185,19 @@
       "end_time": 20,
       "pedagogical_role": "takeaway",
       "visible_objects": [
-        "highlight over the whole loop, 312-328",
-        "loop arrow",
-        "takeaway line"
+        {
+          "id": "line_highlight",
+          "description": "highlight over the whole loop, 312-328",
+          "change": "spreads over 312-328"
+        },
+        {
+          "id": "loop_arrow",
+          "description": "loop arrow"
+        },
+        {
+          "id": "takeaway_line",
+          "description": "takeaway line"
+        }
       ],
       "claim_ids": [
         "C1",

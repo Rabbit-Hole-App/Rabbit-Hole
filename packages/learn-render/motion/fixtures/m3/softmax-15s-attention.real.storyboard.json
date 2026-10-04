@@ -1,0 +1,266 @@
+{
+  "id": "storyboard-0e5ddf31",
+  "brief_id": "brief-9883207f",
+  "version": 1,
+  "beats": [
+    {
+      "id": "B1",
+      "start_time": 0,
+      "end_time": 4,
+      "pedagogical_role": "hook",
+      "visible_objects": [
+        {
+          "id": "flash_if_line",
+          "description": "The branch header line from the flash check, shown dimmed above the manual path so the learner sees softmax sits under a condition.",
+          "source": {
+            "source_ref_id": "S3",
+            "start_line": 62,
+            "end_line": 62
+          },
+          "change": "Fades in dimmed, then recedes as focus moves to the else branch."
+        },
+        {
+          "id": "flash_path_note",
+          "description": "Small dimmed note beside the flash header naming what runs instead when the flag is true; it keeps the causal flag visible.",
+          "label": "If true: scaled_dot_product_attention, is_causal=True",
+          "change": "Appears dimmed next to the flash header and stays muted."
+        },
+        {
+          "id": "else_line",
+          "description": "The else line that opens the manual attention path.",
+          "source": {
+            "source_ref_id": "S4",
+            "start_line": 65,
+            "end_line": 65
+          },
+          "change": "Fades in below the flash header and brightens."
+        },
+        {
+          "id": "softmax_line",
+          "description": "The softmax code line, the subject of the video, indented under else and highlighted.",
+          "source": {
+            "source_ref_id": "S4",
+            "start_line": 69,
+            "end_line": 69
+          },
+          "change": "Slides in under the else line and gets a highlight that holds."
+        },
+        {
+          "id": "branch_tag",
+          "description": "Tag attached to the softmax line naming the branch it belongs to; it stays on screen through every later beat.",
+          "label": "else branch: self.flash is false",
+          "change": "Pops in, pinned to the highlighted softmax line."
+        }
+      ],
+      "claim_ids": [
+        "C1",
+        "C4"
+      ],
+      "condition_ids": [
+        "K1"
+      ],
+      "must_show_covered": [
+        "The code line `att = F.softmax(att, dim=-1)`, marked as part of the `else` branch (taken when `self.flash` is false)"
+      ],
+      "transition": "Opens on the code, with the flash header appearing first and the else branch appearing below it.",
+      "framing": "The highlighted softmax line sits in the centre, the else line just above it, and the dimmed flash header and note at the top edge.",
+      "on_screen_text": "",
+      "narration_line": "Softmax turns each row of attention scores into weights."
+    },
+    {
+      "id": "B2",
+      "start_time": 4,
+      "end_time": 7,
+      "pedagogical_role": "mechanism",
+      "visible_objects": [
+        {
+          "id": "softmax_line",
+          "description": "The softmax code line, now small as an anchor at the top.",
+          "source": {
+            "source_ref_id": "S4",
+            "start_line": 69,
+            "end_line": 69
+          },
+          "change": "Shrinks and moves to the top edge."
+        },
+        {
+          "id": "branch_tag",
+          "description": "Persistent branch tag, docked by the code anchor.",
+          "label": "else branch: self.flash is false",
+          "change": "Moves along with the code anchor to the top."
+        },
+        {
+          "id": "order_chain",
+          "description": "Short step chain showing the order on this branch, with masked_fill as the current step.",
+          "label": "scores → masked_fill → softmax",
+          "change": "Draws in from left to right, and masked_fill lights up."
+        },
+        {
+          "id": "score_row",
+          "description": "One query's row of scaled, masked scores over five key positions, shown as illustrative values; the last two cells hold -inf.",
+          "label": "2.1 | 0.5 | 1.3 | -inf | -inf",
+          "change": "Extends out of the chain one cell at a time, and the two rightmost cells flip to -inf."
+        },
+        {
+          "id": "future_marker",
+          "description": "Bracket over the two rightmost -inf cells, marking them as future positions.",
+          "label": "future positions",
+          "change": "Brackets the -inf cells as they flip."
+        }
+      ],
+      "claim_ids": [
+        "C2",
+        "C3"
+      ],
+      "condition_ids": [
+        "K1"
+      ],
+      "must_show_covered": [
+        "One row of attention scores in which the future positions hold -inf after `masked_fill`"
+      ],
+      "transition": "The code shrinks to a header, and one row of scores pulls out into the centre.",
+      "framing": "The score row is centred and large, the chain sits above it, and the code anchor and branch tag recede to the top.",
+      "on_screen_text": "After masked_fill, future positions hold -inf."
+    },
+    {
+      "id": "B3",
+      "start_time": 7,
+      "end_time": 10,
+      "pedagogical_role": "mechanism",
+      "visible_objects": [
+        {
+          "id": "branch_tag",
+          "description": "Persistent branch tag at the top.",
+          "label": "else branch: self.flash is false",
+          "change": "Holds in place."
+        },
+        {
+          "id": "order_chain",
+          "description": "Step chain with softmax now as the current step.",
+          "label": "scores → masked_fill → softmax",
+          "change": "The highlight moves from masked_fill to softmax."
+        },
+        {
+          "id": "score_row",
+          "description": "The same five-position row, now becoming weights: each score cell grows into an upright bar. The 2.1 bar is tallest, then 1.3, then 0.5, and the -inf cells sit flat at zero.",
+          "label": "weights",
+          "change": "The cells turn into bars sized by weight, larger scores growing larger bars, while the -inf cells collapse flat."
+        },
+        {
+          "id": "zero_labels",
+          "description": "Labels under the two collapsed future cells showing their weight is exactly zero.",
+          "label": "0",
+          "change": "Appear under each collapsed cell as it flattens."
+        },
+        {
+          "id": "row_axis_arrow",
+          "description": "Horizontal arrow running along the row across all key positions, showing the direction softmax normalizes.",
+          "label": "dim=-1: along the row, over key positions",
+          "change": "Sweeps left to right along the row as the bars grow."
+        }
+      ],
+      "claim_ids": [
+        "C1",
+        "C3"
+      ],
+      "condition_ids": [
+        "K1"
+      ],
+      "must_show_covered": [
+        "That row turning into weights: larger scores get larger weights, -inf entries become exactly 0",
+        "The arrow showing softmax works across the last dimension (along a row, over key positions)"
+      ],
+      "transition": "The softmax step lights up, and the arrow sweeps along the row as the scores become bars.",
+      "framing": "The row stays centred as it changes, with the arrow just above it. The chain and branch tag stay small at the top.",
+      "on_screen_text": "Larger scores get larger weights; -inf becomes exactly 0."
+    },
+    {
+      "id": "B4",
+      "start_time": 10,
+      "end_time": 12.5,
+      "pedagogical_role": "mechanism",
+      "visible_objects": [
+        {
+          "id": "branch_tag",
+          "description": "Persistent branch tag at the top.",
+          "label": "else branch: self.flash is false",
+          "change": "Holds in place."
+        },
+        {
+          "id": "score_row",
+          "description": "The row of five weights. The two masked slots are still present at zero, so the row has the same length as before.",
+          "label": "weights",
+          "change": "A ghost copy of the bars stacks end to end into one unit-length bar, while the original row stays in place."
+        },
+        {
+          "id": "unit_bracket",
+          "description": "Bracket spanning the stacked bar, showing it fills exactly one whole unit.",
+          "label": "sum = 1",
+          "change": "Closes around the stacked bar the moment it fills."
+        },
+        {
+          "id": "length_marker",
+          "description": "Span marker under the weight row, matching the earlier score row's five slots.",
+          "label": "Row length unchanged",
+          "change": "Draws under all five slots, including the zero ones."
+        }
+      ],
+      "claim_ids": [
+        "C3"
+      ],
+      "condition_ids": [
+        "K1"
+      ],
+      "must_show_covered": [
+        "The resulting row of weights summing to 1, with the row's length unchanged"
+      ],
+      "transition": "The finished bars copy downward and stack together into one unit.",
+      "framing": "The weight row is centred, with the unit-length stack below it. The arrow and chain fade back.",
+      "on_screen_text": "Non-negative weights that sum to 1."
+    },
+    {
+      "id": "B5",
+      "start_time": 12.5,
+      "end_time": 15,
+      "pedagogical_role": "mechanism",
+      "visible_objects": [
+        {
+          "id": "branch_tag",
+          "description": "Persistent branch tag at the top.",
+          "label": "else branch: self.flash is false",
+          "change": "Holds in place."
+        },
+        {
+          "id": "order_chain",
+          "description": "The full order on this branch as one short chain, ending at the matrix product.",
+          "label": "scores → masked_fill → softmax → attn_dropout → att @ v",
+          "change": "Extends past softmax through attn_dropout to att @ v, lighting each step in turn."
+        },
+        {
+          "id": "score_row",
+          "description": "The row of weights, travelling along the chain.",
+          "label": "weights",
+          "change": "Moves through the attn_dropout node and into the att @ v node."
+        },
+        {
+          "id": "matmul_node",
+          "description": "The final step, where the weights meet v to produce y.",
+          "label": "y = att @ v",
+          "change": "Receives the weight row and glows as y forms."
+        }
+      ],
+      "claim_ids": [
+        "C2"
+      ],
+      "condition_ids": [
+        "K1"
+      ],
+      "must_show_covered": [
+        "The weights then flowing into `y = att @ v`"
+      ],
+      "transition": "The chain grows rightward, and the weight row follows it to the end.",
+      "framing": "The full chain spans the screen with the y = att @ v node at the right. The branch tag stays visible at the top.",
+      "on_screen_text": "Weights then flow into att @ v."
+    }
+  ]
+}

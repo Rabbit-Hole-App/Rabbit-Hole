@@ -787,11 +787,18 @@ MotionStoryboard {
   version
   beats[] {
     id                           // B1, B2, ...
-    start_time                   // seconds
+    start_time                   // seconds, on the 0.1 s grid (3 frames at 30 fps)
     end_time
     pedagogical_role             // hook | intuition | analogy | mechanism | bridge_to_formalism
                                  // | notation | equation | implementation | takeaway
-    visible_objects[]
+    visible_objects[] {          // M3: was a list of strings
+      id                         // stable snake_case semantic id; the same id in a later beat
+                                 // is the same object (continuity is structural, not prose)
+      description                // what it is and its state in this beat (for the Author)
+      label?                     // the only learner-visible text on the object
+      source? {source_ref_id, start_line, end_line}   // verbatim lines of one brief code ref
+      change?                    // how it changes during this beat (enters, transforms, exits)
+    }
     claim_ids[]
     condition_ids[]?
     must_show_covered[]          // which brief must_show items this beat shows
@@ -812,6 +819,23 @@ Validation (harness, before the Author call):
 - every `must_show` item is covered by some beat.
 - a beat that teaches a conditional claim names its condition.
 - `narration_line` appears only when `narration_policy` is not `none`.
+- boundaries sit on the 0.1 s grid; object ids are snake_case and unique within a beat; a `source` lies inside its code ref.
+
+**Semantic checks** (M3, `packages/learn-render/motion/storyboard-check.js`, deterministic, after the shape above):
+
+- **scope:** at most floor(duration / 2) beats (8 maximum), each at least 1.5 s; no word from a topic the brief's `scope_note` leaves out.
+- **motion:** every beat changes at least one object.
+- **claims:** learner-facing text (labels, `on_screen_text`, `narration_line`) uses only the vocabulary of the brief's claims, must_show, objective, visual direction and evidence (plus function words). Named code must be in the evidence of the beat's claims or conditions. New facts are rejected even when true.
+- **conditions:** a beat that names branch-only code or shows a branch's code names that condition and keeps it visible on screen (the flag or a branch word). "always" and the like never appear on branch-dependent content. Teaching one side of a condition requires teaching the other side when the brief has claims there.
+- **must_not_claim:** a word that appears only in a must_not_claim item is rejected anywhere in the storyboard. A learner sentence that states steps against the code order ("X then Y", "Y after X") is rejected, and so are mechanism beats that animate a later step before an earlier one.
+- **must_show:** a coverage map item → beats. A declared item counts only when the beat visibly carries at least 40% of the item's terms (objects, labels, code lines, text).
+- **teaching mode:** checked from the beat structure.
+  - mechanism_first: no intuition or analogy beat before the mechanism.
+  - intuition_first: intuition or analogy first, then a mechanism or bridge beat.
+  - code_walkthrough: source lines in every teaching beat, plus an implementation beat.
+  - system_flow: three or more components, and a beat that changes two of them.
+- **concise text:** labels at most 60 characters and 10 words; `on_screen_text` at most 2 sentences and 25 words; at most 40 words on screen per beat; new words at most 6 + 4 per second. Narration is planning only: one sentence of at most 20 words at 2.5 words per second, and one beat in all under `one_line`.
+- **renderer-neutral:** no renderer, library, API, CSS, color code, easing function or pixel size anywhere.
 
 ## 5.3 Author output
 
@@ -1821,7 +1845,7 @@ Do not attempt everything in one commit.
 | **M0** | Documentation, canonical schemas (§5), demo fixtures (§27) | Schemas and fixture definitions: this document. Fixture files (brief/storyboard examples, pinned source excerpts) are created at the start of implementation. |
 | **M1** | Remotion sandbox / render proof: the existing Remotion render path, the deterministic Linux render harness and the development render service | Authorized |
 | **M2** | Shared, renderer-neutral pipeline (M2–M6): Learner Intent Resolver integration (shared slice) + Motion Director + grounded MotionBrief | Done (2026-10-04; see "M2 result") |
-| **M3** | Storyboard generation + validation | Authorized |
+| **M3** | Storyboard generation + validation | Done (2026-10-04; see "M3 result") |
 | **M4** | Renderer selection + Motion Author → renderer-specific composition source (Remotion first) + static validation | Authorized |
 | **M5** | Preview + contact sheet + determinism checks | Authorized |
 | **M6** | Fresh visual + pedagogical review + exactly one repair round | Authorized |
@@ -1916,6 +1940,44 @@ Costs use $4 / $20 per million input / output tokens, cache writes at 1.25× inp
 ## M3 — storyboard
 
 Director-role call → storyboard JSON → harness validation (§5.2). Malformed or ungrounded storyboards are rejected (one format retry).
+
+### M3 result (2026-10-04)
+
+**Call.** `packages/learn-render/motion/storyboard.js` `runStoryboard({brief, call})` is a separate, stateless call after the brief call.
+- **Role:** `MOTION_DIRECTOR_MODEL`, resolved by `model-config.js` (`claude-opus-5-5` in development).
+- **Request:** the same shape as the Director call. `tool_choice: {type: 'auto'}` with the single `motion_storyboard` tool, adaptive thinking, `output_config.effort: 'high'`, refusal fallbacks, a cached system prompt, sent through `ask.js` `anthropic()`.
+- **Input:** only the validated brief, minus harness bookkeeping (id, prompt_spec_version, output requirements, QA categories, provenance). It never sees grounding internals or the resolver.
+- **Who writes what:** the model writes the beats; the harness writes `id`, `brief_id` and `version`.
+
+**Validation.** `validateStoryboardOutput` checks the tool input's shape only, and that is the one thing re-asked: one schema-only re-ask (stage `storyboard`, round 0), recorded in `format_retries`; a second malformed answer fails the stage. Then `checkStoryboard` (`storyboard-check.js`) runs `validateStoryboard` plus the §5.2 semantic checks. A semantic failure returns `storyboard_invalid` with every reason and the storyboard for inspection. It is never re-asked, and M3 never spends the repair round (that is wired with the full QA loop, M6).
+
+**Schema change.** `visible_objects[]` became `{id, description, label?, source?, change?}` (§5.2), and boundaries sit on the 0.1 s grid. Strings could not carry stable ids or object continuity. The Demo A/B fixtures were converted with the same meaning. No other field changed and no MotionBrief field is duplicated.
+
+**Real calls (Claude Opus 5.5, effort high, 0 format retries).**
+
+| Input | First check | Latency | Input / output / cache write / cache read tokens | Cost |
+|---|---|---|---|---|
+| A: softmax brief (`fixtures/m2/softmax-15s-attention.brief.json`), 15 s, mechanism_first | `storyboard_invalid` (3 text-limit errors) - all from a validator defect: glyphs (→ \| @) counted as words; valid after the fix, kept as `fixtures/m3/softmax-15s-attention.real.storyboard.json` | 68.9 s | 2938 / 7069 / 2694 / 0 | $0.167 |
+| B: deictic brief (`fixtures/m2/explain-this-selection-62-71.brief.json`), 10 s | `storyboard_invalid`: a hook beat with no claim (a real §5.2 violation), plus two function words missing from the validator's list and named-flag evidence scoped too narrowly (both fixed) | 82.1 s | 3046 / 8619 / 0 / 2694 | $0.185 |
+| C: Demo B request `/motion 20s show what happens here`, selection `model.py:305-330` (new brief, mechanism_first, concise narration) | `storyboard` | 72.9 s (+30.7 s Director) | 2626 / 8060 / 2709 / 0 (+985 / 2845 / 2059 / 0) | $0.185 (+$0.071) |
+| B again, after the prompt says "every beat, hook included, cites a claim" | `storyboard` | 61.5 s | 3046 / 5916 / 0 / 2709 | $0.131 |
+
+First-pass validity: 1 of 3 as measured at the time. Against the final validator: 2 of 3, with B failing only for the genuine rule, which the clarified prompt fixed on its re-run.
+
+**Development harness.** `node packages/learn-render/scripts/motion-brief.mjs "15s explain me softmax func" --concept attention --storyboard [--call]`, or `--brief <brief.json> --storyboard [--call]`. It prints the intent, refs, duration, Director result and brief, then:
+- the storyboard result and errors;
+- the beat timeline with frames;
+- the verified must_show coverage;
+- the claim mapping and object continuity;
+- the storyboard JSON, saved to `out/motion/<id>.json`.
+
+Call records append to `out/motion/director-calls.jsonl` with their stage. The request may omit "/motion", and a Git Bash rewrite of a leading "/motion" into a Windows path is undone (`MSYS_NO_PATHCONV` is no longer needed).
+
+**Known limits.** ponytail: the semantic checks are lexical (word stems, code names, order words, term overlap). A misconception paraphrased in words the brief also uses, or a visual implication described in new words, is left to the M6 reviewers.
+
+Two M2 grounding limits showed on the Demo B selection; they are recorded, not changed:
+- An `if` without an `else` (`if top_k is not None:`, the crop) is not recorded as an implementation condition. The Director still carried top-k and the crop as conditional claim text and must_not_claim items.
+- A range starting on a decorator line labels its symbol as the class (`GPT`, not `GPT.generate`).
 
 ## M4 — Author
 

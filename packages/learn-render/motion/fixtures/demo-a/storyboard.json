@@ -9,9 +9,20 @@
       "end_time": 3,
       "pedagogical_role": "hook",
       "visible_objects": [
-        "row 4 of the attention scores: query token 4 against keys 1-6",
-        "raw score values",
-        "keys 5 and 6 greyed and tagged future"
+        {
+          "id": "score_row",
+          "description": "row 4 of the attention scores: query token 4 against keys 1-6",
+          "change": "cells stagger in"
+        },
+        {
+          "id": "score_values",
+          "description": "raw score values in each cell"
+        },
+        {
+          "id": "future_cells",
+          "description": "keys 5 and 6 greyed and tagged future",
+          "label": "future"
+        }
       ],
       "claim_ids": [
         "C1"
@@ -30,9 +41,26 @@
       "end_time": 7,
       "pedagogical_role": "mechanism",
       "visible_objects": [
-        "fallback-path label naming K1",
-        "code line 68 (masked_fill)",
-        "future scores turning into -inf in red"
+        {
+          "id": "fallback_label",
+          "description": "fallback-path label naming K1",
+          "label": "Fallback path (K1)",
+          "change": "appears above the row"
+        },
+        {
+          "id": "mask_code",
+          "description": "code line 68 (masked_fill)",
+          "source": {
+            "source_ref_id": "S3",
+            "start_line": 68,
+            "end_line": 68
+          }
+        },
+        {
+          "id": "future_cells",
+          "description": "future scores turning into -inf in red",
+          "change": "values cross-fade to -inf; borders turn red"
+        }
       ],
       "claim_ids": [
         "C2"
@@ -53,10 +81,30 @@
       "end_time": 11,
       "pedagogical_role": "mechanism",
       "visible_objects": [
-        "code line 69 (F.softmax)",
-        "weight bars for keys 1-4",
-        "zero weight for keys 5-6 (still present)",
-        "stacked sum track resolving to 1.00"
+        {
+          "id": "softmax_code",
+          "description": "code line 69 (F.softmax)",
+          "source": {
+            "source_ref_id": "S3",
+            "start_line": 69,
+            "end_line": 69
+          }
+        },
+        {
+          "id": "weight_bars",
+          "description": "weight bars for keys 1-4",
+          "change": "bars grow"
+        },
+        {
+          "id": "future_cells",
+          "description": "zero weight for keys 5-6 (still present)"
+        },
+        {
+          "id": "sum_track",
+          "description": "stacked sum track resolving to 1.00",
+          "label": "1.00",
+          "change": "segments fill one by one"
+        }
       ],
       "claim_ids": [
         "C1"
@@ -75,7 +123,11 @@
       "end_time": 13,
       "pedagogical_role": "implementation",
       "visible_objects": [
-        "two-lane K1 panel: flash available -> scaled_dot_product_attention(is_causal=True); flash unavailable -> explicit masked_fill then F.softmax"
+        {
+          "id": "k1_panel",
+          "description": "two-lane K1 panel: flash available -> scaled_dot_product_attention(is_causal=True); flash unavailable -> explicit masked_fill then F.softmax",
+          "change": "rises over the dimmed row"
+        }
       ],
       "claim_ids": [
         "C3",
@@ -95,9 +147,19 @@
       "end_time": 15,
       "pedagogical_role": "takeaway",
       "visible_objects": [
-        "final weights",
-        "takeaway line",
-        "footnote on the fallback condition"
+        {
+          "id": "weight_bars",
+          "description": "final weights"
+        },
+        {
+          "id": "takeaway_line",
+          "description": "takeaway line",
+          "change": "fades in"
+        },
+        {
+          "id": "fallback_footnote",
+          "description": "footnote on the fallback condition"
+        }
       ],
       "claim_ids": [
         "C1",

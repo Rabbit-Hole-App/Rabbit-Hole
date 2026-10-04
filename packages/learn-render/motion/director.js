@@ -173,9 +173,9 @@ export function assembleBrief({ turn, grounding, output, decision, id = `brief-$
 }
 
 // Code-like words in a claim: `backticked`, dotted names (F.softmax), snake_case, calls().
-const CODE_WORDS = /`([^`]+)`|\b([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)+)\b|\b([a-z][a-z0-9]*(?:_[a-z0-9]+)+)\b|\b([A-Za-z_]\w*)\(/g;
-const ABSOLUTE = /\b(?:always|every time|in all cases|unconditionally|regardless|never fails)\b/i;
-const RENDERER_WORDS = /\b(?:remotion|hyperframes|react|jsx|gsap|anime\.js|three\.js|manim|blender|html|css|svg|webgl|canvas element|keyframes?)\b/i;
+export const CODE_WORDS = /`([^`]+)`|\b([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)+)\b|\b([a-z][a-z0-9]*(?:_[a-z0-9]+)+)\b|\b([A-Za-z_]\w*)\(/g;
+export const ABSOLUTE = /\b(?:always|every time|in all cases|unconditionally|regardless|never fails)\b/i;
+export const RENDERER_WORDS = /\b(?:remotion|hyperframes|react|jsx|gsap|anime\.js|three\.js|manim|blender|html|css|svg|webgl|canvas element|keyframes?)\b/i;
 
 // Grounding rules beyond the schema (§13 "unsupported factual claim"): a claim cites the pack's
 // refs only, carries the condition of every branch it cites, never describes branch-dependent

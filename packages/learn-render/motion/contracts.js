@@ -36,7 +36,10 @@ export const BLOCKING_CATEGORIES = [
 export const ADVISORY_CATEGORIES = ['easing_preference', 'aesthetic_preference', 'minor_spacing', 'alternate_color'];
 
 const SHA = /^[0-9a-f]{40}$/;
-const ID = { S: /^S\d+$/, K: /^K\d+$/, C: /^C\d+$/, B: /^B\d+$/ };
+const ID = { S: /^S\d+$/, K: /^K\d+$/, C: /^C\d+$/, B: /^B\d+$/, object: /^[a-z][a-z0-9_]{0,39}$/ };
+// Beat boundaries sit on a 0.1 s grid (3 frames at 30 fps): timing is exact, never "about".
+export const TIME_GRID = 0.1;
+const onGrid = t => Math.abs(t / TIME_GRID - Math.round(t / TIME_GRID)) < 1e-6;
 const MODEL_ID = /\b(?:claude-[a-z0-9.-]+|(?:us|eu|apac|global)\.anthropic\.[a-z0-9.:-]+|anthropic\.claude[a-z0-9.:-]*|gpt-[a-z0-9.-]+|gemini-[a-z0-9.-]+|(?:opus|sonnet|haiku|fable)-\d[a-z0-9.-]*)/i;
 const SECRET = /sk-ant-[\w-]{8,}|\bsk-[A-Za-z0-9]{20,}|\bBearer\s+[\w.~+/-]{12,}|\bAKIA[0-9A-Z]{16}\b|-----BEGIN [A-Z ]*PRIVATE KEY-----|\bsmall_session=/;
 const SECRET_KEY = /^(?:api_?key|token|secret|password|cookie|authorization|credentials?)$/i;
@@ -157,7 +160,10 @@ export function validateBrief(b) {
   return [...e, ...leakErrors(b, 'brief')];
 }
 
-// §5.2, validated against its brief before the Author call.
+// §5.2, validated against its brief before the Author call. A visible object keeps its id across
+// beats: the same id in a later beat is the same object, so continuity is structural, never
+// inferred from prose. `source` shows verbatim lines of one of the brief's code refs.
+export const OBJECT_FIELDS = ['id', 'description', 'label', 'source', 'change'];
 export function validateStoryboard(s, brief) {
   if (!s || typeof s !== 'object') return ['storyboard: not an object'];
   const e = [];
@@ -177,9 +183,24 @@ export function validateStoryboard(s, brief) {
     if (!ID.B.test(x?.id || '')) e.push(`${at}.id: B1, B2, ...`);
     if (typeof x?.start_time !== 'number' || typeof x?.end_time !== 'number' || x.end_time <= x.start_time) e.push(`${at}: start_time < end_time required`);
     else if (Math.abs(x.start_time - cursor) > 1e-9) e.push(`${at}.start_time: ${x.start_time} leaves a gap or overlap (expected ${cursor})`);
+    else if (!onGrid(x.start_time) || !onGrid(x.end_time)) e.push(`${at}: start_time and end_time sit on the ${TIME_GRID} s grid`);
     cursor = x?.end_time;
     if (!PEDAGOGICAL_ROLES.includes(x?.pedagogical_role)) e.push(`${at}.pedagogical_role: one of ${PEDAGOGICAL_ROLES.join(' | ')}`);
     if (!arr(x?.visible_objects) || !x.visible_objects.length) e.push(`${at}.visible_objects: non-empty list`);
+    for (const d of dupes((x?.visible_objects || []).map(o => o?.id))) e.push(`${at}.visible_objects: duplicate id ${d}`);
+    (x?.visible_objects || []).forEach((o, j) => {
+      const oat = `${at}.visible_objects[${j}]`;
+      if (!o || typeof o !== 'object' || Array.isArray(o)) return e.push(`${oat}: {id, description, label?, source?, change?}`);
+      for (const k of Object.keys(o)) if (!OBJECT_FIELDS.includes(k)) e.push(`${oat}.${k}: not a field`);
+      if (!ID.object.test(o.id || '')) e.push(`${oat}.id: a stable snake_case id (score_row, fallback_label)`);
+      if (!str(o.description)) e.push(`${oat}.description: required string`);
+      for (const k of ['label', 'change']) if (o[k] !== undefined && !str(o[k])) e.push(`${oat}.${k}: non-empty string when present`);
+      if (o.source !== undefined) {
+        const ref = (brief?.source_refs || []).find(r => r.id === o.source?.source_ref_id);
+        if (ref?.kind !== 'code') e.push(`${oat}.source.source_ref_id: one of the brief's code refs`);
+        else if (!int(o.source.start_line) || !int(o.source.end_line) || o.source.start_line < ref.start_line || o.source.end_line > ref.end_line || o.source.end_line < o.source.start_line) e.push(`${oat}.source: lines inside ${ref.id} (${ref.path}:${ref.start_line}-${ref.end_line})`);
+      }
+    });
     if (!arr(x?.claim_ids) || !x.claim_ids.length) e.push(`${at}.claim_ids: at least one claim`);
     for (const id of x?.claim_ids || []) {
       const c = claims.get(id);
