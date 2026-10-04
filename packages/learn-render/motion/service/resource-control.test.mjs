@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import {
   LIMITS, ResourceLimitsUnavailable, attach, cleanup, controllerFor, cpuQuota, detach, detect, jobPath, normalize, parseMounts,
-  removeGroups, renderUserProcesses, selfLimits, unlimited,
+  removeGroups, renderUserProcesses, selfLimits, unlimited, finishJob,
 } from './resource-control.mjs';
 
 const ID = '0123456789abcdef0123456789abcdef';
@@ -180,7 +180,37 @@ test('render-user processes are counted from /proc after cleanup', t => {
     '/proc/1/status': 'Name:\tinit\nUid:\t0\t0\t0\t0', '/proc/77/status': 'Name:\tnode\nUid:\t10011\t10011\t10011\t10011',
     '/proc/88/status': 'Name:\tchrome\nUid:\t10012\t10012\t10012\t10012',
   });
-  assert.equal(renderUserProcesses(f.opts), 1);
+  assert.deepEqual(renderUserProcesses(f.opts), [{ pid: 88, name: 'chrome', state: null }]);
+  writeFileSync(`${f.root}/proc/88/status`, 'Name:\tchrome\nState:\tZ (zombie)\nUid:\t10012\t10012\t10012\t10012');
+  assert.deepEqual(renderUserProcesses(f.opts), [{ pid: 88, name: 'chrome', state: 'Z' }]);
+});
+
+// A fake clock for the bounded settle window: every sleep moves time forward.
+const clock = () => { let t = 0; return { now: () => t, sleep: async ms => { t += ms; } }; };
+
+test('cleanup settle: a process caught mid-exit (zombie) for a few polls, then gone, is a clean finish, not cleanup_failed', async t => {
+  const f = v1Root(t);
+  const ctl = controllerFor(detect(f.opts), f.opts);
+  ctl.create(ID);
+  let polls = 0;
+  const renderProcs = () => (++polls <= 3 ? [{ pid: 88, name: 'chrome', state: 'Z' }] : []);
+  const { cleanup: proof } = await finishJob(ctl, ID, { renderProcs, kill: () => {}, ...clock() });
+  assert.equal(proof.ok, true, JSON.stringify(proof));
+  assert.deepEqual([proof.remaining, proof.render_user_processes, proof.groups_removed], [0, 0, true]);
+  assert.ok(proof.settle_ms >= 300, `waited ${proof.settle_ms} ms for the exit to finish`);
+  for (const g of ctl.dirs(ID)) assert.equal(f.exists(g), false);
+});
+
+test('cleanup settle: a process that is still there after the bounded window is a real leak: cleanup fails closed', async t => {
+  const f = v1Root(t);
+  const ctl = controllerFor(detect(f.opts), f.opts);
+  ctl.create(ID);
+  const renderProcs = () => [{ pid: 88, name: 'chrome', state: 'S' }];
+  const { cleanup: proof } = await finishJob(ctl, ID, { renderProcs, kill: () => {}, settleMs: 5000, ...clock() });
+  assert.equal(proof.ok, false);
+  assert.equal(proof.render_user_processes, 1);
+  assert.deepEqual(proof.lingering, [{ pid: 88, name: 'chrome', state: 'S' }]);
+  assert.ok(proof.settle_ms >= 5000);
 });
 
 test('parseMounts keeps the type and every option', () => {

@@ -91,6 +91,7 @@ class CgroupV2Controller {
     this.f.write(file, on ? 1 : 0);
     return true;
   }
+  frozen(id) { return keyed(this.f.read(`${this.dirs(id)[0]}/cgroup.events`)).frozen === 1; }
   stats(id) {
     const g = this.dirs(id)[0], f = this.f, cpu = keyed(f.read(`${g}/cpu.stat`)), max = f.read(`${g}/cpu.max`)?.split(' ') || [];
     return {
@@ -128,6 +129,8 @@ class CgroupV1Controller {
     this.f.write(`${this.at('freezer', id)}/freezer.state`, on ? 'FROZEN' : 'THAWED');
     return true;
   }
+  // FREEZING until every task has stopped, then FROZEN.
+  frozen(id) { return this.f.read(`${this.at('freezer', id)}/freezer.state`) === 'FROZEN'; }
   stats(id) {
     const { f } = this, mem = this.at('memory', id), cpu = this.at('cpu', id), pids = this.at('pids', id);
     const limit = num(f.read(`${mem}/memory.limit_in_bytes`)), memsw = num(f.read(`${mem}/memory.memsw.limit_in_bytes`)), st = keyed(f.read(`${cpu}/cpu.stat`));
@@ -155,24 +158,54 @@ const tasks = (ctl, id) => [...new Set(ctl.dirs(id).flatMap(g => (ctl.f.read(`${
 export function attach(ctl, id, pid) { for (const g of ctl.dirs(id)) ctl.f.write(`${g}/cgroup.procs`, pid); }
 export function detach(ctl, pids) { for (const h of ctl.root()) for (const pid of pids) try { ctl.f.write(`${h}/cgroup.procs`, pid); } catch { /* already gone */ } }
 
-// v1 has no cgroup.kill: freeze (when available), SIGTERM every task still in a job group, thaw,
-// a short grace, SIGKILL survivors until every group is empty, then remove each group and check
-// it is gone. The PID namespace has normally ended everything already; this proves it.
-export async function cleanup(ctl, id, { kill = (pid, sig) => process.kill(pid, sig), sleep = ms => new Promise(r => setTimeout(r, ms)), graceMs = 2000 } = {}) {
+const realSleep = ms => new Promise(r => setTimeout(r, ms));
+// Poll kernel state until check() holds or the deadline passes. Every cleanup and probe wait
+// goes through this: never a blind sleep that assumes the kernel has caught up.
+export async function pollUntil(check, { timeoutMs, intervalMs = 100, sleep = realSleep, now = () => Date.now() } = {}) {
+  const start = now();
+  for (;;) {
+    if (await check()) return { ok: true, waited_ms: now() - start };
+    if (now() - start >= timeoutMs) return { ok: false, waited_ms: now() - start };
+    await sleep(intervalMs);
+  }
+}
+
+// v1 has no cgroup.kill: freeze (when available) and wait until the kernel says frozen, SIGTERM
+// every task still in a job group, thaw, give them up to graceMs to leave, SIGKILL the
+// survivors, then poll until every group is empty (re-sending SIGKILL), up to killWaitMs.
+export async function cleanup(ctl, id, { kill = (pid, sig) => process.kill(pid, sig), sleep = realSleep, now = () => Date.now(), graceMs = 2000, killWaitMs = 5000 } = {}) {
   const signal = (pid, sig) => { try { kill(pid, sig); } catch { /* exited */ } };
+  const poll = (check, timeoutMs, intervalMs = 100) => pollUntil(check, { timeoutMs, intervalMs, sleep, now });
   const frozen = ctl.freeze(id, true);
-  if (frozen) await sleep(100);
+  if (frozen) await poll(() => ctl.frozen(id), 1000, 20);
   const first = tasks(ctl, id);
   for (const pid of first) signal(pid, 'SIGTERM');
   if (frozen) ctl.freeze(id, false);
-  if (first.length) await sleep(graceMs);
-  let killed = 0;
-  for (let round = 0; round < 25 && tasks(ctl, id).length; round++) {
-    for (const pid of tasks(ctl, id)) { signal(pid, 'SIGKILL'); killed++; }
-    await sleep(200);
-  }
+  if (first.length) await poll(() => !tasks(ctl, id).length, graceMs);
+  const survivors = tasks(ctl, id);
+  for (const pid of survivors) signal(pid, 'SIGKILL');
+  if (survivors.length) await poll(() => { const left = tasks(ctl, id); for (const pid of left) signal(pid, 'SIGKILL'); return !left.length; }, killWaitMs, 200);
+  return { freezer: frozen ? 'used' : 'unavailable', terminated: first.length, killed: survivors.length, remaining: tasks(ctl, id).length };
+}
+
+// After the sandbox exits: detach the launcher, stop every task, then let the kernel finish.
+// A process in the middle of its exit (State Z or X) still shows in /proc for a moment, so
+// poll until the job groups are empty AND the render user owns no process, up to settleMs.
+// Anything still there after that is a real leak: cleanup fails closed. Stats are read
+// before the groups are removed; removal is polled and checked too.
+export async function finishJob(ctl, id, { detachPids = [], renderProcs = () => renderUserProcesses(), settleMs = 5000, sleep = realSleep, now = () => Date.now(), ...opts } = {}) {
+  detach(ctl, detachPids);
+  const clean = await cleanup(ctl, id, { sleep, now, ...opts });
+  let lingering = [];
+  const settled = await pollUntil(() => { lingering = renderProcs() || []; return !tasks(ctl, id).length && !lingering.length; }, { timeoutMs: settleMs, sleep, now });
   const remaining = tasks(ctl, id).length;
-  return { freezer: frozen ? 'used' : 'unavailable', terminated: first.length, killed, remaining };
+  const stats = ctl.stats(id);
+  const removed = (await pollUntil(() => removeGroups(ctl, id), { timeoutMs: settleMs, sleep, now })).ok;
+  return {
+    stats,
+    cleanup: { ...clean, remaining, settle_ms: settled.waited_ms, groups_removed: removed, render_user_processes: lingering.length,
+      ...(lingering.length ? { lingering: lingering.slice(0, 10) } : {}), ok: settled.ok && remaining === 0 && removed && !lingering.length },
+  };
 }
 export function removeGroups(ctl, id) {
   for (const g of ctl.dirs(id)) ctl.f.rmdir(g);
@@ -189,7 +222,7 @@ export function normalize(backend, s) {
 // cpu.stat file the resource probe needs.
 export function selfLimits({ fs = realFs, root = '' } = {}) {
   const d = detect({ fs, root });
-  if (!d.backend) return { report: { backend: null, reason: d.reason }, cpuStat: null };
+  if (!d.backend) return { report: { backend: null, reason: d.reason }, cpuStat: null, pidsCurrent: null };
   const f = io(fs, root);
   const lines = (f.read('/proc/self/cgroup') || '').split('\n').filter(Boolean).map(l => { const [h, c, ...p] = l.split(':'); return { h, c: c.split(','), path: p.join(':') }; });
   const group = c => (d.backend === 'cgroup-v2' ? lines.find(l => l.h === '0') : lines.find(l => l.c.includes(c)))?.path ?? null;
@@ -201,19 +234,25 @@ export function selfLimits({ fs = realFs, root = '' } = {}) {
     const id = common.slice('/motion/'.length);
     const ctl = controllerFor(d, { fs, root });
     s = ctl.stats(id);
-    const cpuStat = (d.backend === 'cgroup-v2' ? ctl.dirs(id)[0] : ctl.at('cpu', id)) + '/cpu.stat';
-    return { report: { ...normalize(d.backend, s), group: common, controllers: d.controllers }, cpuStat: root + cpuStat };
+    const dir = c => (d.backend === 'cgroup-v2' ? ctl.dirs(id)[0] : ctl.at(c, id));
+    return { report: { ...normalize(d.backend, s), group: common, controllers: d.controllers }, cpuStat: root + dir('cpu') + '/cpu.stat', pidsCurrent: root + dir('pids') + '/pids.current' };
   }
-  return { report: { backend: d.backend, group: common, groups, controllers: d.controllers }, cpuStat: null };
+  return { report: { backend: d.backend, group: common, groups, controllers: d.controllers }, cpuStat: null, pidsCurrent: null };
 }
 export const unlimited = v => v === null || v === undefined || v >= UNLIMITED || v < 0;
 
-// Every process the render user still owns (after cleanup this must be 0).
+// Every process the render user still owns, with its state (Z or X while the kernel finishes an
+// exit). After cleanup this must be empty.
 export function renderUserProcesses({ fs = realFs, root = '', user = 'motion-render' } = {}) {
   const f = io(fs, root);
   const uid = (f.read('/etc/passwd') || '').split('\n').map(l => l.split(':')).find(p => p[0] === user)?.[2];
   if (uid === undefined) return null;
-  return f.list('/proc').filter(n => /^\d+$/.test(n)).filter(pid => new RegExp(`^Uid:\\s+${uid}\\s`, 'm').test(f.read(`/proc/${pid}/status`) || '')).length;
+  return f.list('/proc').filter(n => /^\d+$/.test(n)).flatMap(pid => {
+    const status = f.read(`/proc/${pid}/status`) || '';
+    if (!new RegExp(`^Uid:\\s+${uid}\\s`, 'm').test(status)) return [];
+    const field = name => status.match(new RegExp(`^${name}:\\s+(.+)$`, 'm'))?.[1] ?? null;
+    return [{ pid: Number(pid), name: field('Name'), state: field('State')?.[0] ?? null }];
+  });
 }
 
 async function cli([cmd, id, shell, status]) {
@@ -242,13 +281,9 @@ async function cli([cmd, id, shell, status]) {
   }
   if (cmd === 'finish') {
     const ctl = controllerFor(d);
-    detach(ctl, [Number(shell), process.pid]);
-    const clean = await cleanup(ctl, id);
-    const s = ctl.stats(id);
-    const removed = removeGroups(ctl, id);
-    const left = renderUserProcesses();
-    out({ exit_status: Number(status), ...normalize(d.backend, s), controllers: d.controllers,
-      cleanup: { ...clean, groups_removed: removed, render_user_processes: left, ok: clean.remaining === 0 && removed && left === 0 } });
+    // This helper was started by the launcher shell, so it begins inside the job groups too.
+    const { stats, cleanup: proof } = await finishJob(ctl, id, { detachPids: [Number(shell), process.pid] });
+    out({ exit_status: Number(status), ...normalize(d.backend, stats), controllers: d.controllers, cleanup: proof });
     return 0;
   }
   throw new Error('usage: resource-control.mjs prepare <id> <shell-pid> | finish <id> <shell-pid> <status>');
