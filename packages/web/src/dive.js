@@ -3,16 +3,21 @@
 // An empty hole lives only in this tab (sessionStorage) until its first canvas object, then
 // POST /api/canvases/dives persists its canvas row and its link together (control-plane dives.js).
 
+import { experienceForBoard } from './learn-experiences.js';
+
 const PENDING = 'small.dive.pending';
 const RETURN = 'small.dive.return';
 
 // Same shape as the server's canvas slugs, so the hole's local keys never move when it persists.
 export const newHoleName = () => `canvas-${crypto.randomUUID().replace(/-/g, '').slice(0, 8)}`;
 
-// A level's URL: a canvas, or a repository project's Learn tab; a named board rides ?board=.
+// A level's URL: a canvas, or a repository project's Learn tab; a named board rides ?board=, except a
+// product experience's board on a repository, which climbs back through its product URL (?experience=).
 export function levelHref({ app, board = 'main' }) {
   const query = new URLSearchParams(app.startsWith('repo-') ? { tab: 'learn' } : {});
-  if (board !== 'main') query.set('board', board);
+  const experience = app.startsWith('repo-') ? experienceForBoard(board) : null;
+  if (experience) query.set('experience', experience);
+  else if (board !== 'main') query.set('board', board);
   const search = query.toString();
   return `/apps/${app}${search ? `?${search}` : ''}`;
 }

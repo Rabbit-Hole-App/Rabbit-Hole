@@ -1,8 +1,10 @@
 // Voice Mode on the Learn page (docs/features/voice-tutor-mvp.md §6b): one voice session per canvas
 // while the Tutor is active. It owns no brain: every utterance is tutor.voiceTurn, the same Tutor turn
-// as a typed message. ?voice=fake swaps in the scripted adapters and exposes window.__voiceFake.
+// as a typed message. ?voice=fake swaps in the scripted adapters and exposes window.__voiceFake, in the dev/review
+// build only (reviewTools): production ignores it and always runs the real providers.
 import { useEffect, useReducer, useRef, useState } from 'react';
 import { api, wsHeaders } from './api.js';
+import { reviewTools } from './flags.js';
 import { createVoiceSession } from './voice-session.js';
 import { createFakeStt, createScribeStt } from './voice-stt.js';
 import { createFakeTts, createFishTts } from './voice-tts.js';
@@ -29,7 +31,7 @@ export function useVoiceSession({ tutor, app, access, targetId, onTargetUsed = n
     const scope = () => ({ app: live.current.access.app, ...(live.current.access.pending ? { pending: live.current.access.pending } : {}) });
     const onStt = event => voice?.sttEvent(event);
     const onTts = event => voice?.ttsEvent(event);
-    const fake = new URLSearchParams(window.location.search).get('voice') === 'fake';
+    const fake = reviewTools && new URLSearchParams(window.location.search).get('voice') === 'fake';
     let stt, tts;
     if (fake) {
       const ttsOptions = { onEvent: onTts };

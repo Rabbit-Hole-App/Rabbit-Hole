@@ -151,3 +151,13 @@ test('a Rabbit Hole opening in Voice Mode is a voice turn, never a chat bubble (
   const typed = ask.indexOf('send(tutor.opening.question, undefined, { opening: true });');
   assert.ok(say > 0 && typed > say && ask.slice(say, typed).split('\n').length === 2, 'voice.say first; send only when it does not take the turn');
 });
+
+test('the fake Voice harness (?voice=fake) runs only in the dev/review build; production always takes the real providers', () => {
+  const voice = read('LearnVoice.jsx');
+  assert.match(voice, /import \{ reviewTools \} from '\.\/flags\.js';/);
+  assert.match(voice, /const fake = reviewTools && new URLSearchParams\(window\.location\.search\)\.get\('voice'\) === 'fake';/);
+  // The flag is the only way in: nothing else creates the scripted adapters or exposes window.__voiceFake.
+  assert.equal(voice.match(/createFakeStt\(|createFakeTts\(|window\.__voiceFake =/g).length, 3);
+  assert.match(voice, /if \(fake\) \{\n\s+const ttsOptions = \{ onEvent: onTts \};\n\s+stt = createFakeStt/);
+  assert.match(read('flags.js'), /export const reviewTools = learnPreview && import\.meta\.env\?\.VITE_COACHING_DEV === 'true';/);
+});
