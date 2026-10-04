@@ -1,9 +1,10 @@
 // M1 proof 11: the existing video pipeline accepts and plays a Motion render, on a LOCAL
-// stack only (no deploy, no remote D1/R2). No Motion provider exists before M7, so a local
-// HTTPS stand-in for the render service speaks the contract the spec names for it (the
-// math worker's: GET /health, POST /jobs, GET /jobs/<key>, GET /jobs/<key>/asset) and
-// returns the final MP4. The real LearnVideos Durable Object then stores it in LEARN_MEDIA
-// (local R2) and the canvas video block plays it through GET /api/learn/video.
+// stack only (no deploy, no remote D1/R2). A local HTTPS stand-in speaks the Motion render
+// service API (GET /render/<id>, GET /render/<id>/artifacts/final.mp4, bearer auth) and serves
+// the given final MP4 under one fixed render id. The canvas gets a Motion video block built by
+// motionVideoBlock (Demo A brief), seeded into the canvas state Learn already persists in this
+// browser; the real LearnVideos Durable Object fetches the render through MotionProvider,
+// stores it in LEARN_MEDIA (local R2) and the block plays it through GET /api/learn/video.
 //
 //   node scripts/motion-local-check.mjs setup                 renamed configs, certs and .dev.vars in .small/motion-local
 //   (run the wrangler commands setup prints, from the repo root)
@@ -12,11 +13,13 @@
 // Worker names are motion-local-app / motion-local-cp / motion-local-cp-sessions: wrangler's
 // machine-wide dev registry is keyed by name, so a shared name would collide with other stacks.
 import { spawnSync } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { createServer } from 'node:https';
 import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { motionVideoBlock } from '../motion/video-block.js';
+import { canvasKeys } from '../../web/src/home/canvas-local.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const DIR = join(ROOT, '.small', 'motion-local');
@@ -45,7 +48,7 @@ if (cmd === 'setup') {
   const cpVars = `SMALL_ENV=test\nMASTER_KEY=${secret()}\nTEST_BYPASS_SECRET=${secret()}\nOAUTH_MOCK=true\n`;
   const files = {
     'app/wrangler.jsonc': JSON.stringify(app, null, 2),
-    'app/.dev.vars': `MATH_WORKER_URL=https://localhost:${STANDIN_PORT}\nMATH_WORKER_TOKEN=${secret()}\n`,
+    'app/.dev.vars': `MOTION_RENDERER_URL=https://localhost:${STANDIN_PORT}\nMOTION_RENDERER_TOKEN=${secret()}\n`,
     'cp/wrangler.jsonc': JSON.stringify(plane('motion-local-cp'), null, 2), 'cp/.dev.vars': cpVars,
     'sessions/wrangler.jsonc': JSON.stringify(plane('motion-local-cp-sessions'), null, 2), 'sessions/.dev.vars': cpVars,
   };
@@ -66,24 +69,19 @@ if (cmd === 'run') {
   const mp4 = resolve(args[0]), shots = resolve(args[1] || join(DIR, 'shots'));
   mkdirSync(shots, { recursive: true });
   const env = name => Object.fromEntries(readFileSync(join(DIR, name, '.dev.vars'), 'utf8').trim().split('\n').map(l => l.split(/=(.*)/s).slice(0, 2)));
-  const token = env('app').MATH_WORKER_TOKEN, bytes = readFileSync(mp4);
+  const token = env('app').MOTION_RENDERER_TOKEN, bytes = readFileSync(mp4);
+  const brief = JSON.parse(readFileSync(join(ROOT, 'packages/learn-render/motion/fixtures/demo-a/brief.json'), 'utf8'));
+  const RENDER_ID = '00000000000000000000000000000a01'; // the one render this stand-in holds
   const calls = [];
-  const jobs = new Map();
-  // The stand-in render service: bearer auth on every request, like the math worker.
-  const standin = createServer({ key: readFileSync(join(DIR, 'certs', 'leaf.key')), cert: readFileSync(join(DIR, 'certs', 'leaf.pem')) }, async (req, res) => {
+  // The stand-in render service: bearer auth on every request, GET only, one ready render.
+  const standin = createServer({ key: readFileSync(join(DIR, 'certs', 'leaf.key')), cert: readFileSync(join(DIR, 'certs', 'leaf.pem')) }, (req, res) => {
     const send = (status, body, type = 'application/json') => { res.writeHead(status, { 'content-type': type }); res.end(type === 'application/json' ? JSON.stringify(body) : body); };
     calls.push(`${req.method} ${req.url}`);
     if (req.headers.authorization !== `Bearer ${token}`) return send(401, { error: 'unauthorized' });
-    if (req.url === '/health') return send(200, { ok: true, version: 'motion-local-standin' });
-    if (req.method === 'POST' && req.url === '/jobs') {
-      let raw = ''; for await (const chunk of req) raw += chunk;
-      const { key } = JSON.parse(raw);
-      jobs.set(key, 'ready');
-      return send(202, { key, status: 'ready' });
-    }
-    const m = req.url.match(/^\/jobs\/([a-f0-9]{64})(\/asset)?$/);
-    if (!m || !jobs.has(m[1])) return send(404, { error: 'Job not found' });
-    return m[2] ? send(200, bytes, 'video/mp4') : send(200, { status: 'ready' });
+    if (req.method !== 'GET') return send(405, { error: 'GET only' });
+    if (req.url === `/render/${RENDER_ID}`) return send(200, { render_id: RENDER_ID, status: 'ready', duration_seconds: brief.duration.seconds });
+    if (req.url === `/render/${RENDER_ID}/artifacts/final.mp4`) return send(200, bytes, 'video/mp4');
+    return send(404, { error: 'Render not found' });
   }).listen(STANDIN_PORT, '127.0.0.1');
 
   const { chromium } = await import('@playwright/test');
@@ -94,17 +92,18 @@ if (cmd === 'run') {
   const browser = await chromium.launch();
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
   await context.addCookies([{ name: 'small_session', value: session, url: APP }]);
+  // The Motion block goes into the canvas state Learn already keeps in this browser (canvasKeys
+  // ink = AdaptiveCanvas storageKey), before the page loads: no insert-menu item, no demo page.
+  const block = { ...motionVideoBlock({ brief, renderId: RENDER_ID, jobId: 'motion-local-check' }), id: randomUUID(), dx: 0, dy: 0 };
+  const { ink } = canvasKeys({ org: canvas.org, email: canvas.email, slug: canvas.name });
+  await context.addInitScript(([key, value]) => { if (localStorage.getItem(key) === null) localStorage.setItem(key, value); }, [ink, JSON.stringify({ blocks: [block] })]);
   const page = await context.newPage();
   const asset = [];
   page.on('response', r => { if (r.url().includes('/api/learn/video?') && r.url().includes('asset=')) asset.push(`${r.status()} ${r.headers()['content-type']} ${r.headers()['content-range'] || ''}`.trim()); });
   await page.goto(`${APP}/apps/${canvas.name}`);
-  await page.getByRole('button', { name: 'Insert lesson block' }).waitFor({ timeout: 60000 });
-  await page.waitForTimeout(1500);
-  await page.getByRole('button', { name: 'Insert lesson block' }).click();
-  await page.getByRole('menu', { name: 'Lesson blocks' }).getByRole('menuitem', { name: /^Maths animation/ }).click();
-  const found = page.locator('[data-block-id]').filter({ has: page.locator('[data-generate-video]') }).last();
-  await found.waitFor({ timeout: 15000 });
-  const card = page.locator(`[data-block-id="${await found.getAttribute('data-block-id')}"]`);
+  const card = page.locator(`[data-block-id="${block.id}"]`);
+  await card.locator('[data-generate-video]').waitFor({ timeout: 60000 });
+  const button = await card.locator('[data-generate-video]').innerText();
   await card.locator('[data-generate-video]').click();
   await card.locator('[data-paid-generate]').click(); // the existing confirmation gate; the stand-in charges nothing
   const t0 = Date.now();
@@ -118,12 +117,23 @@ if (cmd === 'run') {
   await page.waitForTimeout(800);
   await card.screenshot({ path: join(shots, 'video-block.png') });
   await page.screenshot({ path: join(shots, 'canvas.png') });
-  const result = { canvas: canvas.name, seconds_to_ready: Math.round((Date.now() - t0) / 1000), video, asset_responses: asset, standin_calls: calls, mp4_bytes: statSync(mp4).size, shots };
+  const text = await card.innerText(), meta = await card.locator('[data-video-meta]').innerText();
+  // The playing card is the Motion render's: its title and metadata, none of the maths sample's copy.
+  const checks = {
+    button: button.includes('Add the rendered video'),
+    title: text.includes(brief.title),
+    metadata: meta.includes(`${brief.duration.seconds}s · Motion explainer · Remotion`) && meta.includes('model.py:62–64'),
+    no_maths_copy: !/manim|sigmoid/i.test(text),
+    renderer_get_only: calls.every(call => call.startsWith('GET ')),
+    duration: video.duration > brief.duration.seconds - 0.1,
+    width: video.width === 1920,
+  };
+  const result = { canvas: canvas.name, render_id: RENDER_ID, checks, seconds_to_ready: Math.round((Date.now() - t0) / 1000), video, card_text: text, asset_responses: asset, standin_calls: calls, mp4_bytes: statSync(mp4).size, shots };
   console.log(JSON.stringify(result, null, 2));
   writeFileSync(join(shots, 'result.json'), JSON.stringify(result, null, 2));
   await browser.close();
   standin.close();
-  process.exit(video.duration > 14.9 && video.width === 1920 ? 0 : 1);
+  process.exit(Object.values(checks).every(Boolean) ? 0 : 1);
 }
 
 console.error('usage: node scripts/motion-local-check.mjs setup | run <final.mp4> [shotsDir]');

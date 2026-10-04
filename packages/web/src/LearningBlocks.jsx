@@ -27,6 +27,7 @@ import { describeActivity } from './scene-activity.js';
 import MermaidDiagram, { MermaidSource } from './MermaidDiagram.jsx';
 import { sceneAssetUrl, sceneList, startScene, startVideo, videoAssetUrl, videoList } from './learn-scene-client.js';
 import PaidConfirm from './PaidConfirm.jsx';
+import { videoLabel } from './learn-video-label.js';
 import { describeNotebook } from './learn-notebook.js';
 import { describeYouTube } from './learn-ask-target.js';
 import { afterPaint, usePerf } from './learn-perf.js';
@@ -1395,6 +1396,7 @@ function VideoBody({ block, appName, onChange, onFile }) {
   const position = Math.max(0, Math.min(block.variant ?? clips.length - 1, clips.length - 1));
   const shown = clips[position]?.src || '';
   useEffect(() => { if (!shown) afterPaint(() => { report('content'); report('interactive'); }); }, [shown]);
+  const label = videoLabel(block);
   return (
     <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
       <Kicker>Video</Kicker>
@@ -1410,15 +1412,19 @@ function VideoBody({ block, appName, onChange, onFile }) {
                 <button type="button" aria-label="Next clip" onClick={() => onChange({ ...block, variant: (position + 1) % clips.length })} className="rounded p-1 text-ink-2 hover:bg-hover hover:text-ink"><ChevronRight size={15} /></button>
               </div>
             )}
+            {label.sources && (
+              <div data-video-meta className="mt-1.5 text-xs text-ink-2">
+                <p>{label.detail}</p>
+                {label.sources.length > 0 && <p className="mt-0.5">Sources: {label.sources.join(', ')}</p>}
+              </div>
+            )}
           </>
         : <div className="mt-2 flex min-h-32 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-line bg-hover p-4 text-center" onPointerDown={event => event.stopPropagation()}>
-            {block.operation?.op === 'generate_math_animation'
-              ? <p className="text-xs text-ink-2">{block.operation.scene.steps.length} steps · {block.operation.scene.steps.map(step => step.kind).join(', ')} · rendered by manim</p>
-              : <p className="text-xs text-ink-2">{block.operation?.duration || 4}s · {block.operation?.aspectRatio || '16:9'} · {block.operation?.purpose?.replace('_', ' ')}</p>}
+            <p className="text-xs text-ink-2">{label.detail}</p>
             {pending
-              ? <Progress seconds={elapsed} expected={block.operation?.op === 'generate_math_animation' ? 240 : 180} label={block.operation?.op === 'generate_math_animation' ? 'Rendering the animation' : 'Generating the clip'} />
+              ? <Progress seconds={elapsed} expected={label.expected} label={label.progress} />
               : confirming ? <PaidConfirm onGenerate={() => generate()} onCancel={() => setConfirming(false)} />
-              : <button type="button" data-generate-video onClick={() => setConfirming(true)} className="flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3.5 text-sm font-medium text-white"><Play size={14} />{block.status === 'failed' ? 'Retry render' : block.operation?.op === 'generate_math_animation' ? 'Render the animation' : 'Generate the video'}</button>}
+              : <button type="button" data-generate-video onClick={() => setConfirming(true)} className="flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3.5 text-sm font-medium text-white"><Play size={14} />{block.status === 'failed' ? 'Retry render' : label.button}</button>}
             {error && <p className="text-xs text-red-700">{error}</p>}
           </div>}
       {block.caption && <div className="mt-1.5 text-xs text-ink-2"><Md text={block.caption} onFile={onFile} /></div>}

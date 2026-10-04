@@ -2,6 +2,7 @@ import { authorizedBoardApp } from './learn-board.js';
 import { validateVideo, videoCacheKey } from './learn-video-schema.js';
 import { videoProvider } from './video-provider.js';
 import { ManimProvider, cacheKey as mathCacheKey } from './math-provider.js';
+import { MotionProvider, motionCacheKey, validateMotionRender } from './motion-provider.js';
 import { paidRefusal } from './learn-paid.js';
 import { validateMathAnimation } from './learn-math-schema.js';
 import { learnMedia } from './learn-storage.js';
@@ -62,24 +63,26 @@ export class LearnVideos {
         // A paid job starts only from the learner's explicit confirmation.
         const refused = paidRefusal(body); if (refused) return refused;
         const maths = body.operation?.op === 'generate_math_animation';
-        const provider = maths ? new ManimProvider(this.env) : videoProvider(this.env);
-        const input = maths ? { spec: validateMathAnimation(body.operation), id: body.operation.id, caption: body.operation.caption } : validateVideo(body.operation);
+        const motion = body.operation?.op === 'motion_render';
+        const provider = maths ? new ManimProvider(this.env) : motion ? new MotionProvider(this.env) : videoProvider(this.env);
+        const input = maths ? { spec: validateMathAnimation(body.operation), id: body.operation.id, caption: body.operation.caption } : motion ? validateMotionRender(body.operation) : validateVideo(body.operation);
         if (typeof body.lessonId !== 'string' || body.lessonId.length > 150 || typeof body.page !== 'string' || body.page.length > 150) throw new Error('Lesson and page are required');
         // The worker's compiler version is part of the key, so a rebuilt
         // compiler renders again instead of serving a stale animation.
         const version = maths ? await provider.workerVersion() : provider.version;
-        const key = maths ? await mathCacheKey(input.spec, version) : await videoCacheKey(input, version);
+        const key = maths ? await mathCacheKey(input.spec, version) : motion ? await motionCacheKey(input) : await videoCacheKey(input, version);
         let job = await this.state.storage.get(`job:${key}`);
         if (!job || (body.retry === true && job.status === 'failed' && !job.uncertain)) {
           const all = await this.state.storage.list({ prefix: 'job:' });
           if ([...all.values()].some(j => j.status === 'generating')) return json({ error: 'One video is already generating. Wait for it before requesting another.' }, 409);
           if (all.size >= 100 && !job) throw new Error('This preview has reached its saved video limit');
-          job = { key, input, status: 'generating', startedAt: Date.now(), version, provider: maths ? 'manim' : this.env.LEARN_VIDEO_PROVIDER };
+          job = { key, input, status: 'generating', startedAt: Date.now(), version, provider: maths ? 'manim' : motion ? 'motion' : this.env.LEARN_VIDEO_PROVIDER };
           // Persist before submitting. Never automatically repeat a potentially charged POST.
           await this.state.storage.put(`job:${key}`, job);
           await this.state.storage.setAlarm(Date.now() + POLL_MS);
           try { job.ticket = maths ? await provider.submit(input, version) : await provider.submit(input); }
-          catch { job.status = 'failed'; job.uncertain = true; job.error = 'Submission could not be confirmed. Check the provider request history before generating again.'; }
+          // A Motion submit is a GET of a finished render (nothing charged), so its refusal stays retryable.
+          catch (error) { job.status = 'failed'; job.uncertain = !motion; job.error = motion ? error.message : 'Submission could not be confirmed. Check the provider request history before generating again.'; }
           await this.state.storage.put(`job:${key}`, job);
         } else if (body.retry === true && job.uncertain) {
           return json({ error: job.error }, 409);
@@ -110,8 +113,8 @@ export class LearnVideos {
       if (!job.ticket) { job.status = 'failed'; job.uncertain = true; job.error = 'Submission status is unknown. Check provider history before generating again.'; }
       else {
         try {
-          const result = job.provider === 'manim'
-            ? await new ManimProvider(this.env).poll(job.ticket)
+          const result = job.provider === 'manim' ? await new ManimProvider(this.env).poll(job.ticket)
+            : job.provider === 'motion' ? await new MotionProvider(this.env).poll(job.ticket)
             : await videoProvider({ ...this.env, LEARN_VIDEO_PROVIDER: job.provider }).poll(job.ticket);
           if (result?.bytes) {
             job.storageKey = `learn-video-dev/${this.state.id}/${job.key}.mp4`;
