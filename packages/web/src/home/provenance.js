@@ -16,8 +16,10 @@ export function cardModel(a) {
   const repo = a.kind === 'repository' ? a.repo : a.source_repo;
   const source = repo ? `${a.kind === 'repository' ? '' : 'From '}github.com/${repo}` : null;
   const sourceUrl = repo ? `https://github.com/${repo}` : null;
-  const forkedFrom = a.forked_from_resource_id
-    ? { id: a.forked_from_resource_id, title: a.forked_from_title, creator: a.forked_from_creator?.name, sourceOwner: a.forked_from_creator?.source_owner_verified === true }
+  // A real fork (docs/features/canvas-forking.md) carries the source's title as it was when forked and a
+  // url only while the original still opens for this person; review fixtures carry a resource id instead.
+  const forkedFrom = a.forked_from_title || a.forked_from_resource_id
+    ? { id: a.forked_from_resource_id || null, url: a.forked_from_url || null, title: a.forked_from_title, creator: a.forked_from_creator?.name, sourceOwner: a.forked_from_creator?.source_owner_verified === true }
     : null;
   return { title, creator, source, sourceUrl, summary: a.summary || null, forkedFrom, forks: forkLabel(a.fork_count) };
 }

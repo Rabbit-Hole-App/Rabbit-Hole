@@ -15,8 +15,20 @@ function canvasTitle(value) {
   if (typeof value !== 'string' || value.trim().length > TITLE) throw Error(`Use a title of up to ${TITLE} characters`);
   return value.trim();
 }
+// Fork provenance on every canvas its owner reads (docs/features/canvas-forking.md): the source's title when
+// it was forked, a link to the source only while this owner may still open it - their own canvas, or the
+// live share link they forked through; never a newer link or anything else about a source they lost - and
+// the canvas's direct fork count.
+export const FORK_COUNT = '(SELECT count(*) FROM canvas_forks k JOIN canvases kc ON kc.org = k.org AND kc.name = k.canvas WHERE k.forked_from_org = c.org AND k.forked_from_canvas_id = c.name)';
+const CANVAS_ROW = `SELECT c.*, f.forked_from_title, CASE
+    WHEN src.org = c.org AND src.owner_email = c.owner_email THEN '/apps/' || src.name
+    WHEN f.forked_from_share IS NOT NULL AND (f.forked_from_canvas_id IS NULL OR src.name IS NOT NULL)
+      AND EXISTS (SELECT 1 FROM learn_boards b WHERE b.shared = 1 AND b.view_token = f.forked_from_share) THEN '/b/' || f.forked_from_share
+  END AS forked_from_url, ${FORK_COUNT} AS fork_count
+  FROM canvases c LEFT JOIN canvas_forks f ON f.org = c.org AND f.canvas = c.name
+  LEFT JOIN canvases src ON src.org = f.forked_from_org AND src.name = f.forked_from_canvas_id`;
 async function ownedCanvas(env, user, name) {
-  const row = await env.LEARN_DB.prepare('SELECT * FROM canvases WHERE org=? AND name=?').bind(user.org, name).first();
+  const row = await env.LEARN_DB.prepare(`${CANVAS_ROW} WHERE c.org=? AND c.name=?`).bind(user.org, name).first();
   if (!row) return json({ error: 'Canvas not found in this workspace' }, 404);
   if (row.owner_email !== user.email) return json({ error: 'This canvas is private to its owner' }, 403);
   return canvasApp(row, user);
@@ -34,7 +46,7 @@ export async function canvasAccess(req, env, name, pending = null) {
 // out: they belong to their root's tree and open through its navigator and portals (dives.js), never
 // as top-level canvases in Home, Library or Search. They still open directly by their URL.
 export async function ownerCanvases(env, user, archived = false) {
-  const { results } = await env.LEARN_DB.prepare(`SELECT * FROM canvases WHERE org=? AND owner_email=? AND archived_at IS ${archived ? 'NOT ' : ''}NULL AND name NOT IN (SELECT child FROM canvas_dives WHERE org=? AND owner_email=?) ORDER BY created_at DESC, id DESC`).bind(user.org, user.email, user.org, user.email).all();
+  const { results } = await env.LEARN_DB.prepare(`${CANVAS_ROW} WHERE c.org=? AND c.owner_email=? AND c.archived_at IS ${archived ? 'NOT ' : ''}NULL AND c.name NOT IN (SELECT child FROM canvas_dives WHERE org=? AND owner_email=?) ORDER BY c.created_at DESC, c.id DESC`).bind(user.org, user.email, user.org, user.email).all();
   return results.map(row => canvasApp(row, user));
 }
 

@@ -25,7 +25,7 @@ test('the source-owner check comes only from source_owner_verified, never from a
 test('a fork shows where it came from; the check stays with the original creator', () => {
   const fork = cardModel(byName('fixture-canvas-attention-deep-dive'));
   assert.deepEqual(fork.creator, { name: 'Maya', sourceOwner: false });
-  assert.deepEqual(fork.forkedFrom, { id: 'fixture-proj-nanogpt-lab', title: 'nanoGPT from First Principles', creator: 'Yudhisteer', sourceOwner: true });
+  assert.deepEqual(fork.forkedFrom, { id: 'fixture-proj-nanogpt-lab', url: null, title: 'nanoGPT from First Principles', creator: 'Yudhisteer', sourceOwner: true });
   assert.equal(fork.forks, '12 forks');
 });
 
@@ -57,4 +57,16 @@ test('the source line links to the repository on GitHub; a canvas made from a re
   const canvas = cardModel(byName('fixture-canvas-nanogpt-internals'));
   assert.equal(canvas.source, 'From github.com/yudhisteer/nanogpt-lab');
   assert.equal(canvas.sourceUrl, 'https://github.com/yudhisteer/nanogpt-lab');
+});
+
+// A real fork (docs/features/canvas-forking.md): the server sends the title as it was when forked, a url
+// only while the original still opens for this person, and the direct fork count.
+test('a real fork keeps its source title, links the original only while it opens, and counts direct forks', () => {
+  const open = cardModel({ kind: 'canvas', name: 'canvas-0000000b', title: 'My notes', forked_from_title: 'Attention', forked_from_url: '/apps/canvas-0000000a', fork_count: 1 });
+  assert.deepEqual(open.forkedFrom, { id: null, url: '/apps/canvas-0000000a', title: 'Attention', creator: undefined, sourceOwner: false });
+  assert.equal(open.title, 'My notes', 'renaming the fork leaves the attribution alone');
+  assert.equal(open.forks, '1 fork');
+  const gone = cardModel({ kind: 'canvas', name: 'canvas-0000000c', title: 'Attention', forked_from_title: 'Attention', forked_from_url: null, fork_count: 0 });
+  assert.deepEqual([gone.forkedFrom.title, gone.forkedFrom.url, gone.forkedFrom.id, gone.forks], ['Attention', null, null, null]);
+  assert.equal(cardModel({ kind: 'canvas', name: 'canvas-0000000d', title: 'Mine', forked_from_title: null, forked_from_url: null, fork_count: 24 }).forkedFrom, null);
 });

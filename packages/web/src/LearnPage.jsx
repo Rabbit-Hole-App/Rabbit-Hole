@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, House, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Play, Redo2, RotateCcw, Search, Share2, Trash2, NotebookPen, Undo2, ZoomIn, ZoomOut, GripVertical, Plus, Network } from 'lucide-react';
 import { SPEEDS, getSpeed, setSpeed } from './learn-audio.js';
-import { api, goBack, wsHeaders } from './api.js';
+import { api, goBack, navigate, wsHeaders } from './api.js';
 import { canEditCourse, learnPreview, reviewTools } from './flags.js';
 import { AskPanel } from './ask.jsx';
 import { Button, IconBtn, ConfirmDialog, toast } from './ui.jsx';
@@ -40,6 +40,10 @@ import { DiveNavigator, DivePortals, holeApp, useDive, usePendingHole } from './
 import { useTutor } from './LearnTutor.jsx';
 import { useVoiceSession } from './LearnVoice.jsx';
 import { TutorCaption } from './VoiceMode.jsx';
+import ForkButton from './ForkButton.jsx';
+import { ForkedFrom } from './home/Provenance.jsx';
+import { cardModel } from './home/provenance.js';
+import { hasLocalContent } from './home/canvas-local.js';
 
 const LearnNotes = lazy(() => import('./LearnNotes.jsx'));
 const boardSlug = name => String(name).toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32) || 'test';
@@ -621,8 +625,9 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
       boardVersion.current = data.version;
       const mine = Number(localStorage.getItem(versionKey) || 0);
       // A newer server copy wins when this browser has none (a fork, or this
-      // board on another device) or someone else saved it.
-      const hasLocal = localStorage.getItem(boardStorageKey) !== null;
+      // board on another device) or someone else saved it. Empty keys are not
+      // a copy: the canvas writes them on mount, before a slow reply lands.
+      const hasLocal = hasLocalContent(localStorage, { ink: boardStorageKey, chat: chatKey });
       if (data.version > mine && (!hasLocal || (data.sharing.shared && data.updated_by !== (app.email || app.owner_email)))) {
         const { exchanges: chats, ...state } = data.state || {};
         try { localStorage.setItem(boardStorageKey, JSON.stringify(state)); localStorage.setItem(versionKey, String(data.version)); } catch { /* keep the local copy */ }
@@ -665,6 +670,15 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
         requestWorkspaceExports();
       }
     } catch (error) { setShareError(error.message); }
+    finally { setShareBusy(false); }
+  };
+  // A private repository's code for this link's viewers: the owner's switch, decided and kept on the server
+  // (docs/features/shared-canvas-ask.md).
+  const changeRepositoryAccess = async allow => {
+    setShareBusy(true);
+    setShareError(null);
+    try { setSharing((await api(`${boardPath}/share/repository`, { method: 'POST', body: JSON.stringify({ allow }) })).sharing); }
+    catch (error) { setShareError(error.message); }
     finally { setShareBusy(false); }
   };
   // Challenge blocks ask the tutor to judge a committed answer. Jev grades the
@@ -1219,6 +1233,8 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
               });
             }}
             className="h-8 min-w-16 max-w-96 shrink cursor-text truncate rounded-lg border border-transparent bg-transparent px-2 text-sm font-semibold text-ink outline-none [field-sizing:content] placeholder:text-ink-2 hover:border-line focus:border-line" />
+          {/* A fork names its source (docs/features/canvas-forking.md): the title it had when forked, kept through renames. */}
+          {isCanvas && <ForkedFrom m={cardModel(app)} className="max-w-80 items-center pr-1 [&_.line-clamp-3]:line-clamp-2" />}
           <CanvasMenubar menus={canvasMenus} />
           {shortcutsOpen && <ShortcutsSheet onClose={() => setShortcutsOpen(false)} />}
           {slashHelpOpen && <Suspense fallback={null}><SlashCommandsSheet appName={app.name} onClose={() => setSlashHelpOpen(false)} /></Suspense>}
@@ -1235,12 +1251,14 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
             <button type="button" title="Present" aria-label="Present"
               onClick={() => { if (canvasApi.current?.present()) setPanelOpen(false); }}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><Play size={15} strokeWidth={1.8} /></button>
+            {/* Fork this canvas: your browser's copy of it becomes a new canvas of yours, opened next. */}
+            {isCanvas && !hole && !board && <ForkButton iconOnly source={{ canvas: app.name }} snapshot={boardSnapshot} onForked={fork => navigate(fork.url)} />}
             <span className="relative">
               <button type="button" data-share-button title={sharing?.unavailable || (sharing?.shared ? 'Shared - manage links' : 'Share this board')} aria-label="Share" aria-expanded={shareOpen}
                 disabled={!!sharing?.unavailable} onClick={() => setShareOpen(open => !open)}
                 className={`flex h-8 w-8 items-center justify-center rounded-lg disabled:opacity-40 ${sharing?.shared ? 'text-[#2383e2]' : 'text-ink-2'} ${shareOpen ? 'bg-hover' : 'hover:bg-hover hover:text-ink'}`}>
                 <Share2 size={15} strokeWidth={1.8} /></button>
-              {shareOpen && <SharePanel sharing={sharing} busy={shareBusy} error={shareError} onChange={changeSharing} onClose={() => setShareOpen(false)} />}
+              {shareOpen && <SharePanel sharing={sharing} busy={shareBusy} error={shareError} onChange={changeSharing} onRepository={changeRepositoryAccess} onClose={() => setShareOpen(false)} />}
             </span>
             <button type="button" title={panelOpen ? 'Hide the right panel' : 'Show the right panel'}
               aria-label={panelOpen ? 'Hide the right panel' : 'Show the right panel'} aria-pressed={panelOpen}

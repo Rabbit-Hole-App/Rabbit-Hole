@@ -8,7 +8,12 @@ A learner shares a canvas board by link. Dev only, like the rest of Learn.
   - **Share this board**: on or off. Off means every link stops working.
   - **View link**: on or off, with its URL and Copy. People who sign in can
     view. **Public** makes the view link work without signing in.
-  - Turning a link off revokes it; turning it on again makes a new one.
+  - Turning a link off revokes it; turning it on again makes a new one, pinned again to the
+    repository's current commit (a link keeps its pin through the owner's refreshes).
+  - **Allow questions to use private repository code** (only for a private repository of yours, off
+    for every new link): signed-in viewers' questions may use its code at the commit pinned for this
+    link. Off, a link shows nothing of the repository and questions use only the canvas's cards, notes
+    and sources. See [shared-canvas-ask.md](shared-canvas-ask.md).
 - Anyone with an account can open a link after the usual email sign-in (any
   email). Links look like `/b/<token>`.
 - Shared boards are always view-only: pan and zoom, no toolbar, no edits.
@@ -20,12 +25,12 @@ A learner shares a canvas board by link. Dev only, like the rest of Learn.
   on the server under that canvas; the forker's Learn page loads it on first
   open, then it works like any canvas. A signed-out public viewer is sent to
   sign in and comes back to finish (`?fork=1`). The original is untouched.
-- Provenance for Library and Home cards is on the copy's `learn_boards` row,
-  `forked_from` JSON: `resource_id` (the source app or canvas), `board`,
-  `board_id`, `title`, `creator: { name, source_owner_verified: false }`
-  (never inferred), `share_url` (the view link, for a forker without access to
-  the source). A source's fork count is the number of rows whose
-  `forked_from.board_id` is its id.
+  Fork is canvas-level everywhere (Library card, canvas top bar, this page):
+  see [canvas-forking.md](canvas-forking.md).
+- Provenance, lineage and fork counts are `canvas_forks` rows
+  ([canvas-forking.md](canvas-forking.md)). The copy's `learn_boards` row
+  still carries `forked_from` JSON (`resource_id`, `board`, `board_id`,
+  `title`, `creator`, `share_url`) for Learn's "Your fork of …" notice.
 - While a board is shared, the owner's browser saves it to the server 1.5 s
   after each change. Opening the board on another browser takes the newer
   server copy, with a notice.
@@ -59,11 +64,13 @@ are served as downloads with `nosniff` and a sandbox CSP, never as pages.
 | Route | Who | Does |
 |---|---|---|
 | `GET/PUT /api/learn/boards/:app/:board` | someone with access to the app | read / save the owner's board |
-| `POST /api/learn/boards/:app/:board/share` | same | set `shared`, `view`, `public_view` |
-| `GET /api/learn/boards/shared/:token` | signed in, or anyone for a public view link | open a shared board |
+| `POST /api/learn/boards/:app/:board/share` | same | set `shared`, `view`, `public_view`; a new view link pins the repository commit it answers from ([shared-canvas-ask.md](shared-canvas-ask.md)) |
+| `POST /api/learn/boards/:app/:board/share/repository` | same | `{ allow }`: the owner lets this link's answers read their private repository's code; 409 for a public one or no link |
+| `GET /api/learn/boards/shared/:token` | signed in, or anyone for a public view link | open a shared board; also `viewer` and the composer's `context` ([shared-canvas-ask.md](shared-canvas-ask.md)) |
+| `POST /api/learn/boards/shared/:token/ask` | signed in (any link they can open, public too) | ask about the shared canvas; streams the answer, writes nothing of the owner's (one usage event), rate limited ([shared-canvas-ask.md](shared-canvas-ask.md)) |
 | `GET/PUT /api/learn/boards/:app/:board/assets/:key`, `GET .../assets` | owner | board files, list |
 | `GET /api/learn/boards/shared/:token/assets/:key` | as the link | board files through a link |
-| `POST /api/learn/boards/shared/:token/fork` | signed in (any link they can open) | make the viewer's Canvas copy; returns `{ name, url, files, forked_from }` |
+| `POST /api/learn/boards/shared/:token/fork` | signed in (any link they can open) | make the viewer's Canvas copy; returns `{ name, url, files, forked_from }`. Same handler as `POST /api/learn/boards/fork` ([canvas-forking.md](canvas-forking.md)) |
 
 Owner routes for a `canvas-*` board check the `canvases` row: its owner only.
 

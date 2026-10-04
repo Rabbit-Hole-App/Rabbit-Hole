@@ -1,4 +1,4 @@
-import { GitFork } from 'lucide-react';
+import { ArrowUpRight, GitFork } from 'lucide-react';
 import { Tip } from '../ui.jsx';
 
 // The pieces of a learning card's provenance (provenance.js cardModel). Secondary type
@@ -44,16 +44,22 @@ export function SourceLink({ m, suffix = '' }) {
   );
 }
 
-// "Forked from" opens the original Rabbit Hole resource (onOpen), never GitHub.
-export function ForkedFrom({ m, onOpen }) {
+// Forked from "<title>" ↗ opens the original Rabbit Hole resource, never GitHub: a real fork by its url
+// while the original still opens for this person (docs/features/canvas-forking.md), a review fixture by
+// onOpen. Otherwise the title stays - it is the fork's own record - and the original reads unavailable.
+export function ForkedFrom({ m, onOpen, className = '' }) {
   if (!m.forkedFrom) return null;
   const f = m.forkedFrom;
+  const title = <>&ldquo;{f.title}&rdquo; <ArrowUpRight size={11} strokeWidth={1.8} className="inline align-[-1px]" /></>;
+  const gone = !f.url && !f.id;
   return (
-    <span data-forked-from className="flex min-w-0 items-start gap-1 text-xs text-ink-2">
+    <span data-forked-from title={gone ? `Forked from “${f.title}”. The original was deleted, or is private or no longer shared with you.` : undefined} className={`flex min-w-0 items-start gap-1 text-xs text-ink-2 ${className}`}>
       <GitFork size={12} strokeWidth={1.5} className="mt-0.5 shrink-0" />
       <span className="line-clamp-3 min-w-0">
         Forked from{' '}
-        <button type="button" title="Open the original" onClick={(e) => { e.stopPropagation(); onOpen?.(f.id); }} className={`cursor-pointer text-ink ${LINK}`}>{f.title}</button>
+        {f.url ? <a data-forked-from-link href={f.url} title="Open the original" onClick={(e) => e.stopPropagation()} className={`text-ink ${LINK}`}>{title}</a>
+          : f.id ? <button type="button" title="Open the original" onClick={(e) => { e.stopPropagation(); onOpen?.(f.id); }} className={`cursor-pointer text-ink ${LINK}`}>{title}</button>
+          : <><span className="text-ink">&ldquo;{f.title}&rdquo;</span> <span data-forked-from-unavailable className="text-ink-3">· original unavailable</span></>}
         {f.creator && ' · '}
         {/* the creator and their badge wrap together */}
         {f.creator && <span className="whitespace-nowrap">{f.creator}{f.sourceOwner && <span className="ml-0.5 inline-flex align-[-3px]"><OwnerCheck /></span>}</span>}

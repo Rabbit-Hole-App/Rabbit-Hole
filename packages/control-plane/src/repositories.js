@@ -67,8 +67,13 @@ export async function repositorySnapshot(env,app,commit=app.commit_sha) {
   const object=await env.REPOSITORY_SNAPSHOTS.get(row.storage_key); if(!object) throw Error('Repository snapshot unavailable');
   return object.json();
 }
+// Visibility (docs/features/shared-canvas-ask.md): the metadata read is anonymous git ls-remote, so success confirms the
+// repository public now, and the indexer refusing it (private now, gone, or the branch gone) makes it unknown, which a
+// share treats as private. Best effort: a missing table leaves it unknown, never blocks an import.
+const markVisibility=(env,app,known)=>env.LEARN_DB.prepare(known?"INSERT OR REPLACE INTO repository_visibility(app_id,visibility,checked_at) VALUES(?,'public',datetime('now'))":'DELETE FROM repository_visibility WHERE app_id=?').bind(app.id).run().catch(()=>{});
 async function enqueue(env,app,repo,branch,resolved=null) {
-  const head=resolved||await repositoryMetadata(env,repo,{branch});
+  const head=resolved||await repositoryMetadata(env,repo,{branch}).catch(async error=>{if(!error.status)await markVisibility(env,app,false);throw error;});
+  await markVisibility(env,app,true);
   if(!/^[a-f0-9]{40}$/.test(head.commit)) throw Error('GitHub returned an invalid commit');
   const actor=env.REPOSITORY_IMPORTS.get(env.REPOSITORY_IMPORTS.idFromName(String(app.id)));
   const response=await actor.fetch('https://index/start',{method:'POST',body:JSON.stringify({appId:app.id,repo,branch,commit:head.commit})});

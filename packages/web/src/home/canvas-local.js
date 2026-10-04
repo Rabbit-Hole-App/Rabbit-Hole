@@ -28,6 +28,14 @@ function blank(storage, key, isBlank) {
 export const hasLocalContent = (storage, keys) =>
   !blank(storage, keys.ink, (blob) => Object.values(blob).every(empty)) || !blank(storage, keys.chat, empty);
 
+// The board a Fork sends for your own canvas (docs/features/canvas-forking.md): what Learn saved in this
+// browser - the canvas and its chat cards - or null when this browser holds none of it, so the server
+// copy (or a plain refusal) decides instead of an empty fork.
+export function localBoard(storage, keys) {
+  if (!hasLocalContent(storage, keys)) return null;
+  try { return { ...JSON.parse(storage.getItem(keys.ink) || '{}'), exchanges: JSON.parse(storage.getItem(keys.chat) || '[]') }; } catch { return null; }
+}
+
 // An opaque id for this browser, stored with each new canvas (T02 §8.3). Not personal data.
 export function deviceId(storage) {
   let id = null;

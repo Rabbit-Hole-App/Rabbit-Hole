@@ -420,3 +420,25 @@ test('an unavailable indexer answers with its own safe message and status and wr
   }
   assert.equal(rows(),before);
 });
+
+// Shared canvas v1, the private repository boundary (docs/features/shared-canvas-ask.md): visibility is what an anonymous
+// metadata read confirmed. Import and refresh mark it public; the indexer refusing a refresh makes it unknown (no row),
+// which a share treats as private; an outage leaves it as it was.
+test('C visibility: an anonymous import or refresh confirms public; a refused refresh makes it unknown',async t=>{
+  const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});
+  let reply=()=>Response.json({commit:newer});
+  globalThis.fetch=async url=>new URL(url).pathname==='/repository-metadata'?reply():Response.json({status:'queued'});
+  f.env.REPOSITORY_IMPORTS={idFromName:String,get:()=>({fetch:(url,init)=>f.actor.fetch(new Request(url,init))})};
+  const visibility=id=>f.sqlite.prepare('SELECT visibility FROM repository_visibility WHERE app_id=?').get(id)?.visibility??null;
+  const made=await repositoriesFetch(new Request('https://dev.test/api/repositories',{method:'POST',body:JSON.stringify({url:'https://github.com/example/other',branch:'main'})}),f.env,{});
+  assert.equal(made.status,202);
+  assert.equal(visibility(f.sqlite.prepare('SELECT id FROM repository_apps WHERE name=?').get((await made.json()).name).id),'public','an import confirms public');
+  assert.equal(visibility(1),null,'a row from before this is unknown until the migration backfills it');
+  f.data.clear();
+  assert.equal((await f.send('refresh',{})).status,202);assert.equal(visibility(1),'public','a refresh confirms public');
+  reply=()=>Response.json({error:'Public repository was not found or GitHub is unavailable'},{status:400});f.data.clear();
+  assert.equal((await f.send('refresh',{})).status,400);assert.equal(visibility(1),null,'refused: unknown, so private to a share');
+  f.sqlite.exec("INSERT INTO repository_visibility(app_id,visibility) VALUES(1,'public')");
+  reply=()=>new Response('down',{status:503});
+  assert.equal((await f.send('refresh',{})).status,503);assert.equal(visibility(1),'public','an outage changes nothing');
+});

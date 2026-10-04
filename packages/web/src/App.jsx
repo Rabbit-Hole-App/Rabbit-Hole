@@ -251,7 +251,7 @@ function AppContent({ data, load }) {
 
           {/* Projects and Canvases are cards, All is sections; only the Apps view is the table. */}
           {learnPreview && !archived && type !== 'apps' && withFixtures.length > 0 && (
-            <LibraryViews apps={withFixtures} type={type} data={data} runningOf={runningId} onRun={startRun} onArchive={setConfirmArchive}
+            <LibraryViews apps={withFixtures} type={type} data={data} runningOf={runningId} onRun={startRun} onArchive={setConfirmArchive} onForked={load}
               onType={(k) => navigate(chipHref(window.location.search, 'type', k))} />
           )}
           {!archived && (learnPreview ? type === 'apps' && sectionApps.length > 0 : apps.length > 0) && (
