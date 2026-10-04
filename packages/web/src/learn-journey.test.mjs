@@ -1,68 +1,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  JOURNEY_STATES, TRAY_MODES, INTAKE_SLOTS, journeyIntent, slotsFromIntent, nextIntakeQuestion,
-  applyIntakeAnswer, resolveTurnRules, trayFor,
-} from './learn-journey.js';
+import * as lj from './learn-journey.js';
+// Intent is the shared resolver's extension (R7); its own tests are control-plane/test/learner-intent-journey.test.js.
+import { journeyIntent } from '../../control-plane/src/learner-intent-journey.js';
+
+const { JOURNEY_STATES, TRAY_MODES, INTAKE_SLOTS, slotsFromIntent, nextIntakeQuestion, applyIntakeAnswer, trayFor } = lj;
 
 test('exports the locked state and mode lists', () => {
+  assert.equal('journeyIntent' in lj || 'resolveTurnRules' in lj, false);
   assert.deepEqual(JOURNEY_STATES, ['intake', 'diagnostic', 'path_review', 'active', 'paused', 'completed']);
   assert.equal(TRAY_MODES.length, 8);
   assert.deepEqual(INTAKE_SLOTS.map((s) => s.slot), ['goal', 'familiarity', 'depth']);
-});
-
-test('journeyIntent: broad phrasings are learning journeys', () => {
-  const cases = [
-    ['I want to learn logistic regression', 'logistic regression'],
-    ['Teach me transformers', 'transformers'],
-    ['Walk me through computer vision', 'computer vision'],
-    ['I want to understand reinforcement learning', 'reinforcement learning'],
-    ['I need to learn attention from scratch', 'attention'],
-  ];
-  for (const [text, topic] of cases) {
-    const i = journeyIntent(text);
-    assert.equal(i.kind, 'learning_journey', text);
-    assert.equal(i.topic, topic, text);
-    assert.equal(i.skip_setup, false);
-  }
-});
-
-test('journeyIntent: focused skill', () => {
-  const a = journeyIntent('Show me how to build logistic regression from scratch');
-  assert.equal(a.kind, 'focused_skill');
-  assert.equal(a.topic, 'logistic regression');
-  const b = journeyIntent('Teach me how backprop works');
-  assert.equal(b.kind, 'focused_skill');
-  assert.equal(b.topic, 'backprop');
-});
-
-test('journeyIntent: direct question', () => {
-  assert.equal(journeyIntent('What is logistic regression?').kind, 'direct_question');
-});
-
-test('journeyIntent: quick overview', () => {
-  const i = journeyIntent('Give me a 10-minute visual overview of logistic regression');
-  assert.equal(i.kind, 'quick_overview');
-  assert.equal(i.constraints.minutes, 10);
-  assert.equal(i.constraints.style, 'visual');
-  assert.equal(i.topic, 'logistic regression');
-  assert.equal(journeyIntent('Just give me a 5-minute visual overview of logistic regression').constraints.minutes, 5);
-});
-
-test('journeyIntent: fast start', () => {
-  const a = journeyIntent('Skip setup and start');
-  assert.equal(a.kind, 'fast_start');
-  assert.equal(a.skip_setup, true);
-  assert.equal(a.topic, null);
-  const b = journeyIntent('Teach me logistic regression, skip setup and just start');
-  assert.equal(b.kind, 'fast_start');
-  assert.equal(b.topic, 'logistic regression');
-  assert.equal(journeyIntent("Don't ask me setup questions, just start").kind, 'fast_start');
-});
-
-test('journeyIntent: Home negatives are never journeys', () => {
-  assert.equal(journeyIntent('learn attention').kind, 'none');
-  assert.ok(['direct_question', 'none'].includes(journeyIntent('how do I learn faster').kind));
 });
 
 // Answers every question with its first option; returns the slots asked, in order.
@@ -107,52 +55,21 @@ test('free text answers the goal as other', () => {
   assert.equal(intake.source.goal, 'answered');
 });
 
+test('applyIntakeAnswer: unknown slot, null intake and blank text change nothing; text is trimmed and capped', () => {
+  const intake = slotsFromIntent(journeyIntent('I want to learn logistic regression'));
+  assert.equal(applyIntakeAnswer(intake, 'colour', { option_id: 'red' }), intake);
+  assert.equal(applyIntakeAnswer(null, 'colour', { option_id: 'red' }), null);
+  assert.equal(applyIntakeAnswer(intake, 'goal', { text: '   ' }), intake);
+  assert.equal(applyIntakeAnswer(null, 'goal', { option_id: 'build' }).slots.goal, 'build');
+  assert.equal(applyIntakeAnswer(intake, 'goal', { text: '  pass my exam  ' }).goal_text, 'pass my exam');
+  assert.equal(applyIntakeAnswer(intake, 'goal', { text: 'x'.repeat(500) }).goal_text.length, 300);
+});
+
 test('fast start fills every slot with defaults', () => {
   const intent = journeyIntent('Skip setup and start');
   const intake = slotsFromIntent(intent);
   assert.equal(nextIntakeQuestion(intake, intent), null);
   assert.equal(intake.source.goal, 'default');
-});
-
-const intakeTray = { mode: 'intent_intake', options: [{ id: 'build', label: 'Build it from scratch' }, { id: 'intuition', label: 'Understand the intuition' }] };
-const previewTray = { mode: 'path_preview', options: [{ id: 'start', label: 'Start' }, { id: 'shorter', label: 'Make it shorter' }] };
-
-test('rule 1: exact labels and ordinals', () => {
-  assert.deepEqual(resolveTurnRules('build it from scratch', intakeTray), { kind: 'tray_answer', option_id: 'build' });
-  assert.equal(resolveTurnRules('the second one', intakeTray).option_id, 'intuition');
-  assert.equal(resolveTurnRules('option 1', intakeTray).option_id, 'build');
-  assert.equal(resolveTurnRules('B', intakeTray).option_id, 'intuition');
-  assert.equal(resolveTurnRules('understand', intakeTray).option_id, 'intuition');
-});
-
-test('rule 2: accept words in path_preview', () => {
-  for (const t of ['looks good', "let's go", 'go ahead', 'Start'])
-    assert.deepEqual(resolveTurnRules(t, previewTray), { kind: 'tray_answer', option_id: 'start' }, t);
-  assert.equal(resolveTurnRules('looks good', intakeTray), null);
-});
-
-test('rule 3: bare skip or cancel', () => {
-  const probeTray = { mode: 'diagnostic_probe', options: [{ id: 'skip', label: 'Skip the assessment' }] };
-  for (const t of ['Can we skip this?', 'skip', 'skip the assessment', 'never mind', 'not now'])
-    for (const tray of [intakeTray, previewTray, probeTray])
-      assert.deepEqual(resolveTurnRules(t, tray), { kind: 'cancel' }, t);
-});
-
-test('rule 4: path edits', () => {
-  for (const t of ['Could we do Python first?', 'Skip probability.', 'Move implementation earlier', 'Make this 20 minutes', 'Make it shorter', 'More practical', 'Add Python.', 'go deeper'])
-    assert.deepEqual(resolveTurnRules(t, intakeTray), { kind: 'path_edit', edit: t }, t);
-});
-
-test('no rule matched goes to rule 5', () => {
-  assert.equal(resolveTurnRules('Why is this section here?', previewTray), null);
-});
-
-const decision = (r) => r && { kind: r.kind, option_id: r.option_id };
-test('punctuation never decides', () => {
-  for (const t of ['skip this', 'could we do python first', 'why is this section here', 'build it from scratch', 'looks good', 'add python'])
-    for (const tray of [intakeTray, previewTray])
-      // path_edit carries the original text, so compare the decision, not the echoed edit.
-      assert.deepEqual(decision(resolveTurnRules(t + '?', tray)), decision(resolveTurnRules(t, tray)), t);
 });
 
 const journey = (over = {}) => ({
@@ -167,6 +84,9 @@ test('trayFor: intake question', () => {
   assert.equal(t.slot, 'goal');
   assert.equal(t.free_text, true);
   assert.deepEqual(t.options.map((o) => o.id), INTAKE_SLOTS[0].options.map((o) => o.id));
+  // An intent object with a topic still names it when request.topic is missing.
+  const noTopic = trayFor(journey({ request: { intent: journeyIntent('I want to learn logistic regression') } }), null);
+  assert.match(noTopic.prompt, /logistic regression/);
   const f = trayFor(journey({ intake: { slots: { goal: 'build' }, source: { goal: 'answered' } } }), null);
   assert.equal(f.slot, 'familiarity');
   assert.equal(f.free_text, false);
@@ -196,6 +116,12 @@ test('trayFor: diagnostic probe never leaks server keys', () => {
   assert.equal(JSON.stringify(t).includes('correct'), false);
   assert.equal(JSON.stringify(t).includes('misconception'), false);
   assert.equal(trayFor(journey({ state: 'diagnostic' }), null), null);
+});
+
+test('trayFor: explain_back probe takes free text with skip as its only option', () => {
+  const t = trayFor(journey({ state: 'diagnostic' }), null, { probe: { id: 'p2', kind: 'explain_back', prompt: 'Explain it back.' } });
+  assert.equal(t.free_text, true);
+  assert.deepEqual(t.options, [{ id: 'skip', label: 'Skip the assessment' }]);
 });
 
 test('trayFor: active', () => {
