@@ -655,6 +655,7 @@ layer serves:
 - Tutor routing
 - prerequisite recovery
 - code explanations
+- avatar teacher clips, once personalized (V1 clips take no LearnerTurn; see [rabbit-hole-avatar-teacher-v1-spec.md](rabbit-hole-avatar-teacher-v1-spec.md) §5.1)
 
 **Key principle.** The learner should only need to say what they mean
 naturally. Rabbit Hole is responsible for reconstructing the relevant
