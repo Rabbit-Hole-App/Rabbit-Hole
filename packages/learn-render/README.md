@@ -36,9 +36,9 @@ stroke-dashoffset and a pen sprite rides the head of the active stroke.
 tldraw is the learner's canvas (pausing the lecture and scribbling on the board),
 not part of the renderer — deliberately not installed here.
 
-## Motion (V1 harness, M0–M3)
+## Motion (V1 harness, M0–M4)
 
-Spec: `docs/features/rabbit-hole-motion-v1-harness-spec.md`. Model calls so far: the Motion Director (M2) and the storyboard (M3), both under `MOTION_DIRECTOR_MODEL`.
+Spec: `docs/features/rabbit-hole-motion-v1-harness-spec.md`. Model calls so far: the Motion Director (M2) and the storyboard (M3) under `MOTION_DIRECTOR_MODEL`, and the Motion Author (M4) under `MOTION_AUTHOR_MODEL`.
 
 ```
 npm run motion:prove [outDir]   # Demo A: static validation, preview, contact sheet, final + validation,
@@ -48,6 +48,8 @@ node --test "motion/*.test.mjs" "motion/service/service.test.mjs"   # contracts,
 sh motion/linux/run.sh docker|unshare   # the same proof on Linux with the network denied
 node scripts/motion-brief.mjs "15s explain me softmax func" --concept attention [--select model.py:62-71] [--storyboard] [--call]   # M2-M3: intent, sources, duration, Director, MotionBrief, storyboard (dry run without --call)
 node scripts/motion-brief.mjs --brief motion/fixtures/m2/softmax-15s-attention.brief.json --storyboard [--call]   # M3 from a saved brief
+node scripts/motion-brief.mjs --brief <brief.json> --storyboard-file <storyboard.json> --author [--proof] [--call]   # M4: Author, then local compile + probed beat frames
+node scripts/motion-brief.mjs --brief <brief.json> --storyboard-file <storyboard.json> --source-file <composition.jsx> --proof   # M4: check and prove a saved composition
 node scripts/motion-local-check.mjs setup|run <final.mp4>   # local stack: Motion render API stand-in -> LearnVideos -> LEARN_MEDIA -> video block
 sh motion/service/context.sh   # deploy context for rabbit-hole-motion-renderer-dev (Home deploys)
 ```
@@ -92,6 +94,11 @@ sh motion/service/context.sh   # deploy context for rabbit-hole-motion-renderer-
   with reasons and never spend the repair round. `motion/storyboard-check.js` is the
   deterministic validator (scope, claims, conditions, must_show coverage map, must_not_claim,
   teaching mode, concise text, renderer-neutral).
+- `motion/author.js`: the Motion Author (M4), a streamed Remotion Author call on the validated
+  brief + storyboard; `composition` | `needs_revision` | `author_invalid` | `failed`.
+  `motion/author-check.js` is the Author contract (timeline, TEXT, one element per object id) on
+  top of the unchanged `static-check.js`; `motion/author-proof.mjs` compiles and renders one
+  probed still per beat (`src/motion/probe.jsx`, on only with the `probe` input prop).
 - `motion/video-block.js`: the existing `type: "video"` block for a finished render
   (`operation: {op: "motion_render", render_id}` + Motion metadata); LearnVideos pulls the MP4
   through `MotionProvider` (packages/control-plane/src/motion-provider.js).

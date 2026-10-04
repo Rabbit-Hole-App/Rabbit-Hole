@@ -6,10 +6,13 @@ import React from 'react';
 import { Composition, registerRoot } from 'remotion';
 import Motion, { stage } from 'motion-composition';
 import { useMotionFonts } from './fonts.jsx';
+import { Probe } from './probe.jsx';
 
-const Stage = () => {
+// `probe` (an input prop, off unless the Author proof asks) logs what is visible in each
+// rendered frame (motion/author-proof.mjs); it draws nothing.
+const Stage = ({ probe }) => {
   useMotionFonts();
-  return <Motion />;
+  return <><Motion />{probe ? <Probe /> : null}</>;
 };
 
-registerRoot(() => <Composition id="motion" component={Stage} {...stage} />);
+registerRoot(() => <Composition id="motion" component={Stage} defaultProps={{ probe: false }} {...stage} />);

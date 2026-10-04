@@ -1,9 +1,10 @@
-// Motion development harness (spec §26 M2-M3): a learner request through the shared Learner
+// Motion development harness (spec §26 M2-M4): a learner request through the shared Learner
 // Intent Resolver, source grounding against the pinned nanoGPT fixture and the Motion Director to
 // a validated MotionBrief, then (--storyboard) the separate storyboard call to a validated
-// storyboard. Not a product command: no /motion route, no UI, no Author, no render.
-//   node scripts/motion-brief.mjs "15s explain me softmax func" --concept attention [--select model.py:62-71] [--storyboard] [--call]
-//   node scripts/motion-brief.mjs --brief motion/fixtures/m2/softmax-15s-attention.brief.json --storyboard [--call]
+// storyboard, then (--author) the Motion Author to a Remotion composition, and (--proof) a local
+// compile plus a probed frame sample. Not a product command: no /motion route, no UI, no review.
+//   node scripts/motion-brief.mjs "15s explain me softmax func" --concept attention [--select model.py:62-71] [--storyboard] [--author] [--proof] [--call]
+//   node scripts/motion-brief.mjs --brief <brief.json> [--storyboard | --storyboard-file <storyboard.json>] [--author | --source-file <composition.jsx>] [--proof] [--call]
 // The request may be written with or without "/motion"; a Git Bash path rewrite of "/motion" is undone.
 // Without --call it stops before the first model call (the request is built and sized, nothing is
 // sent). With --call each stage makes ONE paid call (plus at most one schema-only re-ask), and each
@@ -11,7 +12,7 @@
 // out/motion/director-calls.jsonl. Credentials: ANTHROPIC_API_KEY / ANTHROPIC_WORKSPACE_ID from the
 // environment, else from MOTION_ENV_FILE or <repo>/.env; values are never printed.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { anthropic } from '../../control-plane/src/ask.js';
 import { resolveLearnerTurn } from '../../control-plane/src/learner-intent.js';
@@ -22,6 +23,9 @@ import { durationDecision } from '../motion/duration.js';
 import { fixtureSource } from '../motion/fixture-source.js';
 import { resolveRole } from '../motion/model-config.js';
 import { runStoryboard, storyboardRequest } from '../motion/storyboard.js';
+import { checkStoryboard } from '../motion/storyboard-check.js';
+import { authorRequest, checkAuthorOutput, runAuthor } from '../motion/author.js';
+import { proveAuthor } from '../motion/author-proof.mjs';
 
 const PKG = dirname(dirname(fileURLToPath(import.meta.url)));
 const ROOT = resolve(PKG, '..', '..');
@@ -35,6 +39,10 @@ const briefFile = flag('--brief');
 const effort = flag('--effort') || 'high';
 const call = switchOn('--call');
 const withStoryboard = switchOn('--storyboard');
+const storyboardFile = flag('--storyboard-file');
+const sourceFile = flag('--source-file');
+const withAuthor = switchOn('--author');
+const withProof = switchOn('--proof');
 const typed = argv.join(' ').trim();
 if (!typed && !briefFile) { console.error('usage: node scripts/motion-brief.mjs "15s explain me softmax func" [--concept attention] [--select model.py:62-71] [--storyboard] [--call]\n       node scripts/motion-brief.mjs --brief <brief.json> --storyboard [--call]'); process.exit(2); }
 
@@ -49,7 +57,7 @@ function normalizeRequest(text) {
 
 // Only the two Anthropic names are read from an env file, and their values are never printed.
 function credentials() {
-  const env = { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY, ANTHROPIC_WORKSPACE_ID: process.env.ANTHROPIC_WORKSPACE_ID, MOTION_DIRECTOR_MODEL: process.env.MOTION_DIRECTOR_MODEL };
+  const env = { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY, ANTHROPIC_WORKSPACE_ID: process.env.ANTHROPIC_WORKSPACE_ID, MOTION_DIRECTOR_MODEL: process.env.MOTION_DIRECTOR_MODEL, MOTION_AUTHOR_MODEL: process.env.MOTION_AUTHOR_MODEL };
   const file = process.env.MOTION_ENV_FILE || join(ROOT, '.env');
   if (!env.ANTHROPIC_API_KEY && existsSync(file)) {
     for (const line of readFileSync(file, 'utf8').split(/\r?\n/)) {
@@ -111,7 +119,14 @@ if (briefFile) {
   else brief = result.brief;
 }
 
-if (withStoryboard && brief) {
+let storyboard = null;
+if (storyboardFile && brief) {
+  const raw = JSON.parse(readFileSync(resolve(process.cwd(), storyboardFile), 'utf8'));
+  storyboard = raw.storyboard ?? raw; // a saved storyboard result or a bare storyboard
+  const errors = checkStoryboard(storyboard, brief).errors;
+  section(6, 'Storyboard (from file)', errors.length ? `✗ invalid storyboard:\n  ${errors.join('\n  ')}` : `✓ ${storyboard.id}: ${storyboard.beats.length} beats, ${storyboard.beats.at(-1).end_time}s`);
+  if (errors.length) process.exit(1);
+} else if (withStoryboard && brief) {
   if (!call) {
     section(6, 'Storyboard result', `dry run: would call MOTION_DIRECTOR_MODEL -> ${model} for the storyboard, effort ${effort}, ${JSON.stringify(storyboardRequest(brief, { effort })).length} request bytes. Add --call to send it.`);
   } else {
@@ -129,5 +144,39 @@ if (withStoryboard && brief) {
     }
     if (r.calls.length) record({ stage: 'storyboard', brief_id: brief.id, status: r.status, error: r.error ?? null, semantic_errors: r.check?.errors.length ?? null, storyboard_id: r.storyboard?.id ?? null, calls: r.calls, format_retries: r.format_retries.length });
     process.exitCode = r.status === 'storyboard' ? 0 : 1; // not process.exit(): Node on Windows aborts while fetch's handles close
+    if (r.status === 'storyboard') storyboard = r.storyboard;
   }
+}
+
+let composition = null;
+if (sourceFile && brief && storyboard) {
+  const output = { status: 'composition', composition_id: 'from-file', source: readFileSync(resolve(process.cwd(), sourceFile), 'utf8') };
+  const check = checkAuthorOutput(output, brief, storyboard);
+  section(12, 'Composition (from file)', check.errors.length ? `✗ author_invalid:\n  ${check.errors.join('\n  ')}` : `✓ static safety and the Author contract pass (${Object.keys(check.mapping.objects).length} objects mapped)`);
+  if (!check.errors.length) composition = { output, mapping: check.mapping };
+} else if (withAuthor && brief && storyboard) {
+  const authorModel = resolveRole('MOTION_AUTHOR_MODEL', env);
+  if (!call) {
+    section(12, 'Author result', `dry run: would call MOTION_AUTHOR_MODEL -> ${authorModel}, effort ${effort}, streaming, ${JSON.stringify(authorRequest(brief, storyboard, { effort })).length} request bytes. Add --call to send it.`);
+  } else {
+    needKey();
+    const r = await runAuthor({ brief, storyboard, call: anthropic, env, effort });
+    section(12, 'Author result', { status: r.status, ...(r.error ? { error: r.error, detail: r.detail, errors: r.errors } : {}), ...(r.check?.errors.length ? { errors: r.check.errors } : {}), ...(r.output?.status === 'needs_revision' ? { needs_revision: r.output } : {}), calls: r.calls, format_retries: r.format_retries });
+    if (r.output?.status === 'composition') {
+      const file = join(OUT, `${r.output.composition_id}-${r.calls.at(-1).latency_ms}.jsx`);
+      writeFileSync(file, r.output.source);
+      section(13, 'Storyboard object -> renderer element', r.check.mapping ? Object.entries(r.check.mapping.objects).map(([id, el]) => `  ${id} -> ${el}`).join('\n') : 'none');
+      console.log(`\nsaved ${relative(PKG, file)} (${r.output.source.length} bytes)${r.output.notes ? `\nnotes: ${r.output.notes}` : ''}`);
+    }
+    if (r.calls.length) record({ stage: 'author', brief_id: brief.id, storyboard_id: storyboard.id, status: r.status, error: r.error ?? null, contract_errors: r.check?.errors.length ?? null, calls: r.calls, format_retries: r.format_retries.length });
+    process.exitCode = r.status === 'composition' || r.status === 'needs_revision' ? 0 : 1;
+    if (r.status === 'composition') composition = { output: r.output, mapping: r.check.mapping };
+  }
+}
+
+if (withProof && composition) {
+  const dir = join(OUT, `proof-${storyboard.id}`);
+  const p = await proveAuthor({ brief, storyboard, source: composition.output.source, TEXT: composition.mapping.text, dir });
+  section(14, 'Compile + probed frames (local)', { compiled: p.compiled, errors: p.errors, frames: p.frames.map(x => `#${x.frame} ${relative(PKG, x.file)}`), timings_s: p.timings });
+  if (!p.compiled || p.errors.length) process.exitCode = 1;
 }

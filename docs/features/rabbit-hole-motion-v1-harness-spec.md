@@ -856,8 +856,16 @@ Exactly one of:
 { status: "needs_revision",
   reason,
   stage,                         // brief | storyboard
-  refs[] }                       // beat / claim / condition IDs
+  refs[],                        // beat / claim / condition IDs
+  requested_changes[]? }         // M4: the concrete changes that would make it implementable
 ```
+
+The Remotion Author contract inside `source` (M4, `packages/learn-render/motion/author-check.js`):
+- `export const timeline = { B1: [from, to], ... }`: the storyboard's frames exactly.
+- `export const TEXT = {...}`: every learner-visible string. It holds every storyboard label, on_screen_text and shown source line verbatim, and JSX renders text only through `{TEXT.key}`.
+- One DOM element per storyboard object, carrying `data-object`. Each id is written exactly once as a literal: on the element, or as a prop or spec value handed to a primitive that sets `data-object={id}`.
+
+`requested_changes` is required by the Author tool and optional in the contract, so the M0 fixtures stay valid.
 
 Static validation of `source` (harness, before any render): §8.2.
 
@@ -1852,7 +1860,7 @@ Do not attempt everything in one commit.
 | **M1** | Remotion sandbox / render proof: the existing Remotion render path, the deterministic Linux render harness and the development render service | Authorized |
 | **M2** | Shared, renderer-neutral pipeline (M2–M6): Learner Intent Resolver integration (shared slice) + Motion Director + grounded MotionBrief | Done (2026-10-04; see "M2 result") |
 | **M3** | Storyboard generation + validation | Done (2026-10-04; see "M3 result") |
-| **M4** | Renderer selection + Motion Author → renderer-specific composition source (Remotion first) + static validation | Authorized |
+| **M4** | Renderer selection + Motion Author → renderer-specific composition source (Remotion first) + static validation | Done (2026-10-04; see "M4 result") |
 | **M5** | Preview + contact sheet + determinism checks | Authorized |
 | **M6** | Fresh visual + pedagogical review + exactly one repair round | Authorized |
 | **M7A** | Remotion end to end: final render + final validation + LearnVideos / R2 + existing video-block insertion, in a development environment only | Authorized |
@@ -2010,6 +2018,65 @@ Each branch now records the refs that run on it (`branches[].source_ref_ids`, §
 ## M4 — Author
 
 Author call → composition source or `needs_revision` → static validation (§8.2).
+
+### M4 result (2026-10-04)
+
+**Stage.** `packages/learn-render/motion/author.js` `runAuthor({brief, storyboard, call})` runs under role `MOTION_AUTHOR_MODEL` (`model-config.js`, `claude-opus-5-5` in development).
+- **Input:** the brief's contract fields (title, objective, scope_note, teaching_mode, duration, claims, conditions, must_show, must_not_claim, visual_direction, narration_policy), the storyboard beats, the evidence of refs that claims, conditions or storyboard code objects cite, and the renderer facts to copy (stage, timeline frames, required text). It never sees the learner's request, audience or grounding internals.
+- **Request:** `tool_choice: {type: 'auto'}` with the single `motion_composition` tool, adaptive thinking, `output_config.effort: 'high'`, refusal fallbacks, a cached system prompt, `max_tokens` 64000, streamed. `motion/stream-message.js` rebuilds the message, including thinking signatures for an append-only re-ask, because a generation can run for minutes. Calls go through `ask.js` `anthropic()`.
+- **Outcomes:**
+  - `composition`: passes static safety and the Author contract;
+  - `needs_revision`: its refs exist;
+  - `author_invalid`: source, contract or ref errors, surfaced and never re-asked or repaired in M4;
+  - `failed`: malformed twice (one schema-only re-ask, and a `max_tokens` stop counts as malformed), refused, or a model error.
+
+**Raw source is evidence, not a reasoning surface.** Author-added text uses only the contract's words: claims, must_show, objective, visual direction, conditions and storyboard text. Raw code is shown verbatim and never paraphrased into a new condition or claim, so the deferred grounding forms (below) cannot leak into teaching through the Author.
+
+**Static validation.** `static-check.js` (M1 safety) is unchanged and runs on every composition. `author-check.js` adds the contract:
+- the exact `timeline`;
+- `TEXT` with the storyboard text and source lines verbatim;
+- learner text only via `{TEXT.key}` and no prose outside `TEXT`;
+- Author text that is short, in the contract vocabulary, naming only evidenced code and never "always";
+- one literal per storyboard object id.
+
+**Compile and frame probe** (`motion/author-proof.mjs`, local/dev). The composition is compiled through the M1 Remotion path, whose bundler import allowlist still stops a disallowed module. Then one still per beat middle is rendered with the harness probe (`src/motion/probe.jsx`, enabled only by the `probe` input prop, drawing nothing). At each beat middle it checks:
+- every storyboard object is visible and the only element carrying its id;
+- labels and source lines show inside their objects;
+- the on_screen_text is visible;
+- a conditional beat shows its condition (flag or branch word);
+- all text uses a bundled font, with code in JetBrains Mono;
+- every visible word comes from `TEXT`.
+
+**Real calls (Claude Opus 5.5, effort high).**
+
+| Input | Result | Latency | Input / output / cache write / cache read tokens | Cost |
+|---|---|---|---|---|
+| A: softmax brief + real M3 storyboard (5 beats, 15 s) | 1st call hit `max_tokens` 32000 (mostly thinking), which used the one schema-only re-ask; the re-ask returned a `composition` that passes static + contract, compiles (bundle 9-10 s) and probes clean at 5/5 beats | 305 s + 67 s | 5552 / 32000 / 1909 / 0, then 32182 / 10010 / 0 / 1909 | $0.67 + $0.33 |
+| B: Demo B brief + storyboard (7 beats, 20 s) | `author_invalid` under the first contract (chips set `data-object={spec.id}` from a spec array); valid under the corrected contract (id literal once at the use site, one live element per id checked by the probe); compiles (bundle 19 s) and probes clean at 7/7 beats; top-k gate shows `top_k is not None` with the true path (`-Inf`) and the no-op false path ("unchanged") | 486 s | 8554 / 48619 / 0 / 1909 | $1.01 |
+| needs_revision fixture (a photograph of a paper figure required in B6) | `needs_revision`: stage brief, refs B6/C4/K1, three concrete requested changes, no invented content | 9.9 s | 4742 / 862 / 1909 / 0 | $0.05 |
+
+`max_tokens` is now 64000. The real outputs are kept as fixtures: `fixtures/m4/*.real.composition.jsx` and `needs-revision.real.author.json`. Tests check them by contract, safety and compilation, never byte for byte. They came from the prompt before two clarifications that match the corrected contract: id literals at the use site, and Author words from the contract rather than raw code.
+
+**Demo B storyboard.** Two real storyboard calls on the hardened Demo B brief were both `storyboard_invalid`:
+- 135.8 s, $0.29: after the validator fixes below, one genuine error ("smaller" in a narration line).
+- 104.4 s, $0.22: one genuine error (B7 changes a label to name `max_new_tokens` while citing only C6).
+
+The fixture `fixtures/m4/generate-20s-selection.storyboard.json` is the second output with one hand edit, `B7.claim_ids += C1`, standing in for the M6 Director revision. Nothing else was changed.
+
+**M3 validator fixes found by M4** (tested; no rule loosened):
+- `sentences()` treated the dot in `F.softmax` or `torch.cat` as a sentence end. A sentence now ends at . ! ? before a space or the end.
+- A label carried unchanged from the previous beat was re-checked against the next beat's claims. It is now checked where it is introduced or changed, as the reading-pace rule already counted it. A new or changed label is checked as before.
+
+**Known limitations.**
+- ponytail: the Author contract's text rules are lexical. A one-word string passed through a prop, or text built at run time, is visible only to the frame probe, which checks words, not meaning.
+- The probe samples beat middles only, not transitions; visual quality is not reviewed (M6).
+- Grounding still does not represent:
+  - inline `a if c else b` expressions;
+  - one-line `if x: y`;
+  - multi-line `if` headers;
+  - full `elif` semantics.
+
+  These are deferred by owner decision (2026-10-04) and are not M4 blockers. The Author cannot promote them into teaching (above).
 
 ## M5 — preview and determinism
 

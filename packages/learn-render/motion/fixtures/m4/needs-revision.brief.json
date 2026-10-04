@@ -1,0 +1,217 @@
+{
+  "id": "brief-needs-revision",
+  "prompt_spec_version": "motion-v1.0/director-1",
+  "raw_user_request": "/motion 15s explain me softmax func",
+  "resolved_target": {
+    "kind": "code_span",
+    "label": "softmax in CausalSelfAttention.forward (model.py:69)",
+    "resolution": "context_disambiguated",
+    "repository_context": {
+      "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+      "label": "CausalSelfAttention.forward",
+      "range": {
+        "path": "model.py",
+        "start": 65,
+        "end": 71
+      }
+    },
+    "candidates_considered": [
+      {
+        "label": "GPT.generate (model.py:324)",
+        "reason": "not the current concept \"attention\"",
+        "range": {
+          "path": "model.py",
+          "start": 324,
+          "end": 324
+        }
+      }
+    ]
+  },
+  "title": "Softmax: turning attention scores into weights",
+  "objective": "See what `att = F.softmax(att, dim=-1)` does in nanoGPT's manual attention path. Each row of scaled, masked scores becomes a row of non-negative weights that sum to 1. Masked future positions (-inf) get weight 0, and the weights are then used in `att @ v`.",
+  "audience_context": "The learner is in the attention concept and looking at CausalSelfAttention.forward in nanoGPT (model.py:65-71). They asked what the softmax call on line 69 does.",
+  "scope_note": "Left out to fit 15 seconds: the inside of the flash path (`scaled_dot_product_attention`), why scores are scaled by 1/sqrt(head size), attention dropout, and the other softmax in GPT.generate (model.py:324), which turns logits into sampling probabilities.",
+  "source_refs": [
+    {
+      "id": "S1",
+      "kind": "code",
+      "repository": "karpathy/nanoGPT",
+      "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+      "path": "model.py",
+      "start_line": 44,
+      "end_line": 45
+    },
+    {
+      "id": "S2",
+      "kind": "code",
+      "repository": "karpathy/nanoGPT",
+      "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+      "path": "model.py",
+      "start_line": 48,
+      "end_line": 50
+    },
+    {
+      "id": "S3",
+      "kind": "code",
+      "repository": "karpathy/nanoGPT",
+      "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+      "path": "model.py",
+      "start_line": 62,
+      "end_line": 64
+    },
+    {
+      "id": "S4",
+      "kind": "code",
+      "repository": "karpathy/nanoGPT",
+      "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+      "path": "model.py",
+      "start_line": 65,
+      "end_line": 71
+    }
+  ],
+  "evidence": [
+    {
+      "source_ref_id": "S1",
+      "excerpt": "        # flash attention make GPU go brrrrr but support is only in PyTorch >= 2.0\n        self.flash = hasattr(torch.nn.functional, 'scaled_dot_product_attention')"
+    },
+    {
+      "source_ref_id": "S2",
+      "excerpt": "            # causal mask to ensure that attention is only applied to the left in the input sequence\n            self.register_buffer(\"bias\", torch.tril(torch.ones(config.block_size, config.block_size))\n                                        .view(1, 1, config.block_size, config.block_size))"
+    },
+    {
+      "source_ref_id": "S3",
+      "excerpt": "        if self.flash:\n            # efficient attention using Flash Attention CUDA kernels\n            y = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=self.dropout if self.training else 0, is_causal=True)"
+    },
+    {
+      "source_ref_id": "S4",
+      "excerpt": "        else:\n            # manual implementation of attention\n            att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))\n            att = att.masked_fill(self.bias[:,:,:T,:T] == 0, float('-inf'))\n            att = F.softmax(att, dim=-1)\n            att = self.attn_dropout(att)\n            y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)"
+    }
+  ],
+  "implementation_conditions": [
+    {
+      "id": "K1",
+      "condition": "`self.flash` (model.py:62)",
+      "branches": [
+        {
+          "when": "`self.flash` is true",
+          "runs": "model.py:62-64: y = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=self.dropout if self.training else 0, is_causal=True)"
+        },
+        {
+          "when": "`self.flash` is false",
+          "runs": "model.py:65-71: att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))"
+        }
+      ],
+      "source_ref_ids": [
+        "S3",
+        "S4",
+        "S1"
+      ]
+    }
+  ],
+  "claim_registry": [
+    {
+      "id": "C1",
+      "text": "On the branch where `self.flash` is false (the manual implementation of attention), softmax is applied as `att = F.softmax(att, dim=-1)`, so it normalizes along the last dimension of `att`: each query's row of scores over key positions.",
+      "source_ref_ids": [
+        "S4"
+      ],
+      "condition_ids": [
+        "K1"
+      ],
+      "required": true
+    },
+    {
+      "id": "C2",
+      "text": "On the `self.flash` false branch, the order is: scores `(q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))`, then `masked_fill(... == 0, float('-inf'))`, then `F.softmax(att, dim=-1)`, then `self.attn_dropout(att)`, then `y = att @ v`.",
+      "source_ref_ids": [
+        "S4"
+      ],
+      "condition_ids": [
+        "K1"
+      ],
+      "required": true
+    },
+    {
+      "id": "C3",
+      "text": "On the `self.flash` false branch, softmax turns each row of scores into non-negative weights that sum to 1. The positions the causal mask set to `float('-inf')` (future positions) get weight 0, so attention goes only to the left in the sequence.",
+      "source_ref_ids": [
+        "S4",
+        "S2"
+      ],
+      "condition_ids": [
+        "K1"
+      ],
+      "required": true
+    },
+    {
+      "id": "C4",
+      "text": "When `self.flash` is true, this explicit softmax line does not run. Attention is computed by `torch.nn.functional.scaled_dot_product_attention(q, k, v, ..., is_causal=True)` instead.",
+      "source_ref_ids": [
+        "S3",
+        "S1"
+      ],
+      "condition_ids": [
+        "K1"
+      ],
+      "required": false
+    }
+  ],
+  "duration": {
+    "requested_text": "15s",
+    "requested_seconds": 15,
+    "seconds": 15
+  },
+  "aspect_ratio": "16:9",
+  "teaching_mode": "mechanism_first",
+  "must_show": [
+    "The code line `att = F.softmax(att, dim=-1)`, marked as part of the `else` branch (taken when `self.flash` is false)",
+    "One row of attention scores in which the future positions hold -inf after `masked_fill`",
+    "That row turning into weights: larger scores get larger weights, -inf entries become exactly 0",
+    "The resulting row of weights summing to 1, with the row's length unchanged",
+    "The arrow showing softmax works across the last dimension (along a row, over key positions)",
+    "The weights then flowing into `y = att @ v`",
+    "A photograph of Figure 1 from the FlashAttention paper, shown beside the flash path"
+  ],
+  "must_not_claim": [
+    "That `F.softmax` always runs, or runs on every forward pass. It runs only when `self.flash` is false.",
+    "That softmax is applied before the causal mask, or that masking happens after softmax",
+    "That softmax comes after `att @ v` or after dropout. The order is scores, mask, softmax, dropout, `att @ v`.",
+    "That softmax picks only the single largest score (argmax) and zeroes all the others",
+    "That softmax removes masked positions or changes the shape of `att`. It keeps the T×T shape, and masked entries become 0.",
+    "That softmax normalizes down columns or across the whole matrix instead of along `dim=-1` (each row)",
+    "That the flash path skips causal masking or gives different semantics. That path uses `is_causal=True`."
+  ],
+  "visual_direction": "Start on the highlighted `else` branch line `att = F.softmax(att, dim=-1)`, then move attention to a single row of scores. The -inf cells sit at the right, marked as future tokens. Show the transformation: each score grows into a bar whose size reflects its weight, the -inf cells collapse to zero, and the bars together fill exactly one whole unit. Mark the direction of normalization along the row. End with the row of weights flowing into `att @ v`, keeping the sequence mask → softmax → `att @ v` visible as a short chain so cause and order are clear.",
+  "narration_policy": "one_line",
+  "output_requirements": {
+    "stage_width": 1920,
+    "stage_height": 1080,
+    "fps": 30,
+    "preview_scale": 0.45,
+    "poster": true
+  },
+  "qa_requirements": {
+    "blocking_categories": [
+      "unsupported_claim",
+      "must_not_claim_violation",
+      "required_claim_contradicted",
+      "wrong_source_branch",
+      "blank_frame",
+      "clipped_text",
+      "overlapping_text",
+      "missing_must_show",
+      "duration_over_max",
+      "corrupt_output",
+      "renderer_failure",
+      "narration_contradicts_visuals"
+    ],
+    "keyframe_times": [
+      4,
+      10,
+      14
+    ]
+  },
+  "provenance": {
+    "created_at": "2026-10-04T21:17:13.075Z"
+  }
+}

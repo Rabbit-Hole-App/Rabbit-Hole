@@ -1,0 +1,15 @@
+{
+  "status": "needs_revision",
+  "reason": "Beat B6 includes the object `paper_figure`, described as \"the photograph of Figure 1 from the FlashAttention paper (the original raster image)\". The brief's must_show list also requires \"A photograph of Figure 1 from the FlashAttention paper, shown beside the flash path\". The composition contract does not allow external assets, raster images or <img>/<image> elements, and only \"react\" and \"remotion\" can be imported. So the photograph cannot be shown. Redrawing it as an imitation diagram would mean making up content that is not in the claims or evidence, so I can't build this faithfully. Everything else in the storyboard (B1–B5 and the flash_lane in B6) can be built as written.",
+  "stage": "brief",
+  "refs": [
+    "B6",
+    "C4",
+    "K1"
+  ],
+  "requested_changes": [
+    "Brief: remove the must_show item \"A photograph of Figure 1 from the FlashAttention paper, shown beside the flash path\". C4 is fully covered by the flash_lane label quoting `scaled_dot_product_attention(is_causal=True)`.",
+    "Storyboard B6: remove the `paper_figure` object and its \"fades in beside the flash lane\" change. Keep `flash_lane` and `fallback_label` as the two lanes of condition K1.",
+    "If a visual for the flash path is wanted, replace the photograph with a text-only object built from evidence S3. For example, show the source line model.py:64 `y = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=self.dropout if self.training else 0, is_causal=True)` as a code object beside the flash lane."
+  ]
+}

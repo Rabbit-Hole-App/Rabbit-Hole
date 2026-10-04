@@ -66,8 +66,9 @@ const beatAt = (storyboard, frame) => storyboard.beats.find(b => frame / STAGE.f
 export class RemotionRenderer {
   // cacheDir holds content-addressed bundles, previews and finals; fresh: true bypasses every cache
   // (the determinism check's "fresh context"). csp: false exists only for the network probe's control run.
-  constructor({ cacheDir = join(PKG, 'out', 'motion-cache'), fresh = false, csp = true, log = () => {} } = {}) {
-    Object.assign(this, { cacheDir, fresh, csp, log, timings: {}, browserLogs: [] });
+  // inputProps reach the harness root only (src/motion/index.jsx): {probe: true} for the Author proof.
+  constructor({ cacheDir = join(PKG, 'out', 'motion-cache'), fresh = false, csp = true, log = () => {}, inputProps = null } = {}) {
+    Object.assign(this, { cacheDir, fresh, csp, log, inputProps, timings: {}, browserLogs: [] });
     this.version = `remotion@${version('remotion')}`;
   }
 
@@ -84,7 +85,7 @@ export class RemotionRenderer {
 
   key(job) {
     const h = createHash('sha256').update(this.version).update(job.source).update(String(this.csp));
-    for (const f of ['src/motion/index.jsx', 'src/motion/fonts.jsx', 'motion/remotion-renderer.mjs', 'motion/static-check.js']) h.update(readFileSync(join(PKG, f)));
+    for (const f of ['src/motion/index.jsx', 'src/motion/fonts.jsx', 'src/motion/probe.jsx', 'motion/remotion-renderer.mjs', 'motion/static-check.js']) h.update(readFileSync(join(PKG, f)));
     for (const [f, pin] of Object.entries(FONT_PINS)) h.update(f).update(pin);
     return h.digest('hex').slice(0, 20);
   }
@@ -117,7 +118,7 @@ export class RemotionRenderer {
     } else this.timings.bundle = 0;
     this.serveUrl = outDir;
     this.browser = await this.time('browser', () => openBrowser('chrome', { logLevel: 'error' }));
-    const composition = await selectComposition({ serveUrl: outDir, id: 'motion', puppeteerInstance: this.browser, logLevel: 'error', onBrowserLog: l => this.onLog(l) });
+    const composition = await selectComposition({ serveUrl: outDir, id: 'motion', puppeteerInstance: this.browser, logLevel: 'error', onBrowserLog: l => this.onLog(l), ...(this.inputProps ? { inputProps: this.inputProps } : {}) });
     // The runtime stage must match the brief, whatever the source claimed statically.
     const want = { ...STAGE, durationInFrames: job.brief.duration.seconds * STAGE.fps };
     for (const k of Object.keys(want)) if (composition[k] !== want[k]) throw new Error(`stage.${k} is ${composition[k]}, the brief needs ${want[k]}`);
@@ -130,7 +131,7 @@ export class RemotionRenderer {
   }
 
   common(job) {
-    return { composition: this.composition, serveUrl: this.serveUrl, puppeteerInstance: this.browser, logLevel: 'error', timeoutInMilliseconds: 60000, onBrowserLog: l => this.onLog(l) };
+    return { composition: this.composition, serveUrl: this.serveUrl, puppeteerInstance: this.browser, logLevel: 'error', timeoutInMilliseconds: 60000, onBrowserLog: l => this.onLog(l), ...(this.inputProps ? { inputProps: this.inputProps } : {}) };
   }
 
   async renderMedia(job, name, scale) {

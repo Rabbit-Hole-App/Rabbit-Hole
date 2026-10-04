@@ -25,7 +25,7 @@ export const LIMITS = Object.freeze({
 // Implementation detail that belongs to the Author, never the storyboard.
 const IMPLEMENTATION = /\b\d+(?:\.\d+)?\s*(?:px|rem|em|pt|vh|vw)\b|#[0-9a-f]{6}\b|#[0-9a-f]{3}\b|\b(?:rgba?|hsla?)\s*\(|cubic-bezier|\bease(?:In|Out|InOut)\w*|\b(?:useCurrentFrame|useVideoConfig|interpolate|spring|AbsoluteFill|requestAnimationFrame|className|zIndex|z-index|translate[XYZ]?|div)\b/i;
 const CONDITION_WORDS = new Set(['self', 'not', 'is', 'None', 'True', 'False', 'and', 'or', 'in']);
-const CONDITION_CUE = /\b(?:fallback|otherwise|unless|only (?:when|if)|if|else|branch)\b/i;
+export const CONDITION_CUE = /\b(?:fallback|otherwise|unless|only (?:when|if)|if|else|branch)\b/i;
 const NOT_TAUGHT = ['hook', 'takeaway']; // beats that point or recap; they do not animate steps
 // Words that carry no claim: function words, common verbs, and the vocabulary of pointing at things.
 const GENERIC = new Set(`a an the and or but nor so yet of to in on at by for from with into onto over under about as than then
@@ -52,16 +52,34 @@ export function stem(w) {
   return s.replace(/e$/, '') || w;
 }
 const same = (a, b) => a === b || (Math.min(a.length, b.length) >= 3 && (a.startsWith(b) || b.startsWith(a)));
-const vocabulary = texts => [...new Set(texts.flatMap(words).filter(w => !GENERIC.has(w)).map(stem))];
+export const vocabulary = texts => [...new Set(texts.flatMap(words).filter(w => !GENERIC.has(w)).map(stem))];
 const inVocab = (s, vocab) => vocab.some(v => same(s, v));
 // A word has a letter or digit: glyphs such as → | @ = are read at a glance, not as words.
-const wordCount = text => (String(text || '').match(/\S+/g) || []).filter(t => /[\p{L}\p{N}]/u.test(t)).length;
-const sentences = text => (String(text || '').match(/[^.!?]+[.!?]*/g) || []).filter(x => x.trim()).length;
-const codeNames = text => [...String(text || '').matchAll(CODE_WORDS)].map(m => (m[1] || m[2] || m[3] || m[4]).replace(/\(.*$/, '').trim()).filter(Boolean);
+export const wordCount = text => (String(text || '').match(/\S+/g) || []).filter(t => /[\p{L}\p{N}]/u.test(t)).length;
+// A sentence ends at . ! or ? followed by a space or the end: `F.softmax` and `torch.cat` are not two sentences.
+export const sentences = text => (String(text || '').match(/(?:[^.!?]|[.!?](?=\S))+(?:[.!?]+|$)/g) || []).filter(x => x.trim()).length;
+export const codeNames = text => [...String(text || '').matchAll(CODE_WORDS)].map(m => (m[1] || m[2] || m[3] || m[4]).replace(/\(.*$/, '').trim()).filter(Boolean);
 const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+// Words in learner-visible text the brief does not support: an echo of a must_not_claim item, a
+// topic the scope_note leaves out, or a new term (a new claim?). `extra` stems widen the
+// vocabulary (the Author may also use the storyboard's own learner text).
+export function vocabularyErrors(at, text, f, extra = []) {
+  const e = [];
+  for (const w of new Set(words(text))) {
+    if (GENERIC.has(w)) continue;
+    const s = stem(w);
+    if (inVocab(s, f.positive) || inVocab(s, extra)) continue;
+    const echoes = f.misconception.filter(m => m.terms.some(t => same(s, t)));
+    if (echoes.length) e.push(`${at}: "${w}" echoes must_not_claim "${echoes[0].text}"`);
+    else if (f.excluded.some(t => same(s, t))) e.push(`${at}: "${w}" is a topic the scope_note leaves out`);
+    else e.push(`${at}: "${w}" is not in the brief's claims, must_show or evidence (a new claim?)`);
+  }
+  return e;
+}
+
 // Everything the checks need from the brief, computed once.
-function briefFacts(brief) {
+export function briefFacts(brief) {
   const excerpt = new Map(brief.evidence.map(e => [e.source_ref_id, e.excerpt]));
   const refs = new Map(brief.source_refs.map(r => [r.id, r]));
   const lineText = (id, a, b) => { const r = refs.get(id); return (excerpt.get(id) || '').split('\n').slice(a - r.start_line, b - r.start_line + 1).join('\n'); };
@@ -154,6 +172,8 @@ export function checkStoryboard(storyboard, brief) {
     const newWords = wordCount(beat.on_screen_text) + beat.visible_objects.filter(o => o.label && previousLabels.get(o.id) !== o.label).reduce((n, o) => n + wordCount(o.label), 0);
     const readable = Math.floor(LIMITS.read_base_words + LIMITS.read_words_per_second * len);
     if (newWords > readable) e.push(`${at}: ${newWords} new words to read in ${len}s (at most ${readable})`);
+    // A label carried unchanged from the previous beat was checked where it was introduced.
+    const carried = new Set(beat.visible_objects.filter(o => o.label && previousLabels.get(o.id) === o.label).map(o => `${o.id}.label`));
     previousLabels = new Map(beat.visible_objects.filter(o => o.label).map(o => [o.id, o.label]));
 
     // Narration is planning only: short, and speakable inside its beat.
@@ -171,17 +191,9 @@ export function checkStoryboard(storyboard, brief) {
     const beatEvidence = [...evidenceIds].map(id => f.excerpt.get(id) || '').join('\n') + '\n' + shownCode(beat, f) + '\n' + cited.map(c => c.text).join('\n');
     const needs = new Set(); // conditions the beat's named or shown code runs under (cited claims: contracts.js)
     for (const [field, text] of learnerText(beat)) {
-      for (const w of new Set(words(text))) {
-        if (GENERIC.has(w)) continue;
-        const s = stem(w);
-        if (inVocab(s, f.positive)) continue;
-        const echoes = f.misconception.filter(m => m.terms.some(t => same(s, t)));
-        if (echoes.length) e.push(`${at}.${field}: "${w}" echoes must_not_claim "${echoes[0].text}"`);
-        else if (f.excluded.some(t => same(s, t))) e.push(`${at}.${field}: "${w}" is a topic the scope_note leaves out`);
-        else e.push(`${at}.${field}: "${w}" is not in the brief's claims, must_show or evidence (a new claim?)`);
-      }
+      e.push(...vocabularyErrors(`${at}.${field}`, text, f));
       for (const name of codeNames(text)) {
-        if (!beatEvidence.includes(name)) e.push(`${at}.${field}: names "${name}", which is not in the evidence of claims ${beat.claim_ids.join(', ')}`);
+        if (!carried.has(field) && !beatEvidence.includes(name)) e.push(`${at}.${field}: names "${name}", which is not in the evidence of claims ${beat.claim_ids.join(', ')}`);
         for (const k of f.branchOnly(name)) needs.add(k);
       }
     }

@@ -262,3 +262,22 @@ test('brief contract: branch source_ref_ids belong to the condition, and no_op m
   b.implementation_conditions[0].branches[0].source_ref_ids = ['S9'];
   assert.ok(validateBrief(b).some(e => /branches\[0\]\.source_ref_ids: refs of this condition/.test(e)));
 });
+
+// M4 found two M3 validator defects on the Demo B storyboard (2026-10-04).
+test('sentences end at . ! ? before a space or the end: dotted code names are not sentence breaks', async () => {
+  const { sentences } = await import('./storyboard-check.js');
+  assert.equal(sentences('F.softmax gives probabilities; torch.multinomial draws one index.'), 1);
+  assert.equal(sentences('torch.cat appends it; the loop repeats.'), 1);
+  assert.equal(sentences('Softmax turns scores into weights. Larger scores get larger weights. The -inf entries become 0.'), 3);
+  rejects(s => { beat(s, 'B3').narration_line = 'Softmax turns rows. Then weights.'; }, /narration_line: one sentence/);
+});
+
+test('a label carried unchanged from the previous beat is not re-checked against the next beat\'s claims; a new one is', () => {
+  // The fallback badge names self.flash in every beat; B2 and B5 cite only C2, yet the badge is
+  // continuity, not new teaching. A label that changes is checked again.
+  const s = good();
+  for (const b of s.beats) for (const o of b.visible_objects) if (o.id === 'fallback_label') o.label = 'self.flash is False: torch.exp path';
+  const e = errorsOf(s);
+  assert.deepEqual(e.filter(x => /fallback_label\.label: names "torch\.exp"/.test(x)).map(x => x.split('.')[0]), ['B1'], e.join('\n')); // only where it first appears
+  rejects(s2 => { beat(s2, 'B3').visible_objects.find(o => o.id === 'fallback_label').label = 'Fallback: math.log(att)'; }, /B3\.fallback_label\.label: names "math\.log"/);
+});
