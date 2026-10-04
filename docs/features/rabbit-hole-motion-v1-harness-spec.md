@@ -1209,6 +1209,13 @@ Rendering is asynchronous so that no HTTP request waits up to 420 s behind Fly's
   - the kernel does not keep a limit after it is written (`limits_not_applied`).
 
   The service reports that error. Limits are never silently dropped.
+- **Cleanup settling** (fixed after the first Fly run). A process caught in the middle of its kernel exit (State Z/X) still shows in `/proc` for a moment. The controller therefore waits with bounded polls of kernel state, never blind sleeps:
+  - **SIGTERM grace:** up to 2 s, until the job groups are empty;
+  - **after SIGKILL:** up to 5 s, re-sending SIGKILL;
+  - **settle:** up to 5 s, until the groups are empty AND the render user owns no process;
+  - **group removal:** up to 5 s.
+
+  Only something still there after the window is a leak, and that stays fail-closed (`cleanup_failed`, `/health` `ok: false`, 503). The cleanup record reports `settle_ms` and any `lingering` processes (pid, name, state).
 - **Cleanup, proven, on both backends.** After the sandbox exits, the controller:
   1. detaches the launcher;
   2. freezes the job (v1 freezer / v2 `cgroup.freeze`, reported as `unavailable` when absent);
@@ -1218,6 +1225,20 @@ Rendering is asynchronous so that no HTTP request waits up to 420 s behind Fly's
 
   The PID namespace normally ends every process first; this step proves it. If anything is left, the render fails with `cleanup_failed` and no artifacts, `/health` turns `ok: false` with `degraded`, and new renders get 503 until the machine restarts.
 - **After every job** `motion-sandbox` writes `out/sandbox-exit.json` (normalized, no host paths): `backend`, `controllers`, `memory_bytes`, `swap_bytes` (0), `pids_max`, `cpu_quota` (1.5), `cpu_period_us`, `cpu_quota_us`, `oom_kills`, `memory_peak`, `memory_failcnt`, the v1 `memsw_limit` / `memsw_peak`, `pids_peak`, `pids_limit_hits`, `cpu_nr_periods`, `cpu_throttled`, `cpu_throttled_time_us`, `cpu_usage_us` and `cleanup`. The service returns it as `resources`. A real kernel OOM kill becomes `error: "memory_limit_exceeded"`. `/health` reports `resource_backend` (`cgroup-v1` on Fly) and `resource_controllers` (names only).
+
+**Identities** (fixed after the first Fly run, 2026-10-04):
+
+- `motion-svc` (the HTTP service) and `motion-render` (generated code) have distinct uids, the SAME primary group `motion`, and no supplementary groups.
+- Fly starts the service with its primary gid only. An earlier image gave `motion-svc` the shared group as a supplementary group, which Fly ignored, so `job.json` was unreadable to the render user (EACCES).
+- Job directories are `motion-svc:motion` 2770 (setgid); the job input is 0640 and never world-readable. Neither process runs as root.
+- **Preflight:** before the child starts, `sandbox-init` checks:
+  - the directories' group and 2770 mode;
+  - `job.json` is group `motion` and mode 0640;
+  - `motion-render` can read `job.json` and write `out/`;
+  - the service's job tree and the homes are empty to it, and service configuration (`/etc/sudoers.d/motion`) is unreadable.
+
+  A failure is the job's result (`workspace_preflight_failed`); the child never runs.
+- The shared group never widens what the child sees: the mount namespace still exposes only its own job directory.
 
 **Isolation.** The service runs as `motion-svc`. For each job it runs `sudo -n /usr/local/sbin/motion-sandbox <render id>`, the only sudo rule. The launcher accepts nothing but the 32-hex id, builds every path itself, and runs:
 
@@ -1245,6 +1266,14 @@ The result:
 This is an OS boundary on top of the page Content Security Policy and the static validation, not a replacement for them.
 
 **Self-check.** The render child checks its own boundary on every job (network reachable, root, the service's files visible, a writable renderer, an inherited environment) and refuses to render on any breach (`error: "sandbox_breach"`). Each result carries that report.
+
+**The resource probe** (proof-only, `motion/service/stress-probe.mjs`) runs each stress phase in its own subprocess:
+
+1. a PID storm, where EAGAIN at the limit is the expected evidence;
+2. two busy CPU workers;
+3. a 4 GiB allocation.
+
+Before each next phase, it polls `pids.current` back to the job's baseline (plus 8 tasks of slack for Node's worker threads, within 30 s). If the task count does not recover, the probe fails explicitly instead of letting one phase starve the next.
 
 The report includes `limits`: the backend, the job group the child is actually in (the same `/motion/<id>` in every controller), and the `memory_bytes`, `swap_bytes`, `pids_max`, `cpu_quota`, `RLIMIT_NPROC`, `RLIMIT_FSIZE` and `RLIMIT_NOFILE` values, all read from the kernel. A missing backend, split groups, any unlimited value or a non-zero swap allowance is also a breach.
 
