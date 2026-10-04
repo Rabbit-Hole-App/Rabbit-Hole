@@ -3,7 +3,7 @@ import { VoiceField, VoiceToggle } from './VoiceMode.jsx';
 import ContextDocs from './ContextDocs.jsx';
 import { useContextDocs } from './context-docs.js';
 import RepositorySource, { SourceSelectionContext } from './RepositorySource.jsx';
-import { FILE_TOKEN, INLINE_PARTS, sourceReference, singleSourcePath } from './source-references.js';
+import { FILE_TOKEN, INLINE_PARTS, citedSources, sourceReference, singleSourcePath } from './source-references.js';
 // ─── Ask (phase 1 - read only): the chat panel behind the Agent tab, the run
 // peek's ask box, and ⌘K's Ask tab. POST /api/ask streams SSE; org-scope
 // ambiguity comes back as { choose } and renders candidate pills. ───
@@ -139,6 +139,10 @@ export function Md({ text, onRun, onFile, sourcePath = singleSourcePath(text) })
   if (fence) out.push(<CodeBlock key="f-end" className="my-1.5 text-xs">{fence.map((fl, j) => <div key={j}>{colorLine(fl)}</div>)}</CodeBlock>);
   if (table) flushTable('t-end');
   if (bullets) out.push(<ul key="ul-end" className="my-1 list-disc pl-5">{bullets}</ul>);
+  // Every file the answer cites, in one Sources dropdown, each opening its file (owner, 2026-10-04).
+  const cited = onFile ? citedSources(text) : [];
+  if (cited.length) out.push(<details key="cited" data-cited-sources className="mt-2 text-xs"><summary className="cursor-pointer text-ink-2 hover:text-ink">Sources ({cited.length})</summary>
+    <div className="mt-1.5 flex flex-wrap gap-1">{cited.map(c => <EvidencePill key={`${c.path}:${c.start}-${c.end}`} type="button" data-cited-source title={`Open ${c.path}:${c.start}${c.end > c.start ? `-${c.end}` : ''}`} onClick={() => onFile(c.path, c.start, c.end)}>{c.path}:{c.start}{c.end > c.start ? `-${c.end}` : ''}</EvidencePill>)}</div></details>);
   return <div className="min-w-0 text-sm leading-normal">{out}</div>;
 }
 

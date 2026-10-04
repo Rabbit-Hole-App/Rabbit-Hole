@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { Loader2, Paperclip, Plus, X } from 'lucide-react';
+import { Loader2, Paperclip, Plus, SquareSlash, X } from 'lucide-react';
 import ChatComposer, { COMPOSER_ADD, COMPOSER_PILL, DOCK_PAD, DOCK_WIDTH } from '../ChatComposer.jsx';
 import { api, navigate } from '../api.js';
 import { PATHS, slugOf, titleFromQuestion } from '../start.js';
@@ -14,6 +14,8 @@ import { kindLabel, titleOf } from './catalog.js';
 import { COMMANDS, ctxOf, executeCommand, prepareCommand } from './commands.js';
 import { learnAction } from './learn-hook.js';
 import ResultSheet from './ResultSheet.jsx';
+import BarCommandsSheet from './BarCommandsSheet.jsx';
+import { placeOf } from './slash.js';
 import { route } from './router.js';
 import { chipsFor, endpointFor, scopeKey, scopeOf } from './scope.js';
 import { getSurface, useSurface } from './surface.js';
@@ -70,6 +72,7 @@ export default function AgentBar({ page }) {
   const [shortcut, setShortcut] = useState(null); // a picked /find, /open... shown as a pill, like a mode
   useEffect(() => { setMode('auto'); setShortcut(null); }, [page]);
   const [picker, setPicker] = useState(false);
+  const [commandsOpen, setCommandsOpen] = useState(false); // the / commands modal, from the picker's / icon
   const [hi, setHi] = useState(0);
   const entries = [...modesFor(target).map(([name, desc]) => ({ name, desc, shortcut: false })), ...shortcutsFor(target, surface.catalog).map(([name, desc]) => ({ name, desc, shortcut: true }))]
     .filter((e) => e.name.startsWith(modeQuery(draft) || ''));
@@ -372,6 +375,10 @@ export default function AgentBar({ page }) {
       <div ref={dock} className={cn('relative', DOCK_WIDTH)}>
         {pickerOpen && (
           <div role="listbox" aria-label="Modes" className="absolute bottom-full left-0 z-10 mb-1 w-[26rem] max-w-full rounded-md bg-white p-1 shadow-pop">
+            {/* Every command with an example, one click from the picker (owner, 2026-10-04), as on the canvas. */}
+            <div className="sticky top-0 z-10 -mb-7 flex justify-end"><button type="button" aria-label="Open Slash commands" title="Open Slash commands" data-bar-slash-help
+              onMouseDown={(e) => e.preventDefault()} onClick={() => { setPicker(false); setCommandsOpen(true); }}
+              className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-ink-3 hover:bg-hover hover:text-ink"><SquareSlash size={15} /></button></div>
             {entries.map((entry, i) => {
               const { name: m, desc } = entry;
               const can = entry.shortcut ? { ok: true } : modeAvailability(m, target.kind);
@@ -388,6 +395,7 @@ export default function AgentBar({ page }) {
             })}
           </div>
         )}
+        {commandsOpen && <BarCommandsSheet modes={modesFor(target)} shortcuts={shortcutsFor(target, surface.catalog)} place={placeOf(target) === 'project' ? 'project' : 'home'} onClose={() => { setCommandsOpen(false); inputRef.current?.focus(); }} />}
         {streaming && (
           <div role="status" className="flex items-center gap-2 pb-1.5 text-xs text-ink-2">
             <Loader2 size={13} className="shrink-0 animate-spin" />

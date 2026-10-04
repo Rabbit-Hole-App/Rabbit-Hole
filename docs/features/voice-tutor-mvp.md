@@ -26,8 +26,8 @@ It feels like a professor beside the canvas, not dictation into a chatbot:
 ## Where voice is available
 
 Voice Mode exists wherever the Tutor is active (`useTutor().active`: the `nanogpt-attention-tutor` board
-and its Rabbit Holes). In production that board is reached only through the Tutor entry on a `karpathy/nanoGPT`
-repository's Learn tab ([production-tutor-entry.md](production-tutor-entry.md)). There is no voice brain of its own. Without the Tutor there is no mic button.
+and its Rabbit Holes). In production the Tutor is the Learn composer on a `karpathy/nanoGPT` repository and the
+Rabbit Holes under it ([production-tutor-entry.md](production-tutor-entry.md)). There is no voice brain of its own. Without the Tutor there is no mic button.
 
 - ponytail: canvases without the Tutor have no voice. Add it when the Tutor runs on every canvas.
 - Voice Mode stays on until the learner clicks the red mic (owner, 2026-10-01). Going down or back up a

@@ -38,8 +38,7 @@ test('the Rabbit Hole navigator coexists: its own right gutter with the tools le
 });
 
 test('every Learn level renders the same shell: a pending or nested hole is the same LearnSurface', () => {
-  // The product Tutor (learn-experiences.js) is the same LearnSurface too, keyed so entering or leaving remounts.
-  assert.match(page, /return hole \? <LearnSurface key=\{hole\.name\} app=\{holeApp\(props\.app, hole\)\} hole=\{hole\} \/> : <LearnSurface key=\{experience \|\| 'lesson'\} \{\.\.\.props\} experience=\{experience\} \/>;/);
+  assert.match(page, /return hole \? <LearnSurface key=\{hole\.name\} app=\{holeApp\(props\.app, hole\)\} hole=\{hole\} \/> : <LearnSurface \{\.\.\.props\} \/>;/);
 });
 
 test('Learn keeps no persistent app rail: the immersive shell hides the sidebar', () => {

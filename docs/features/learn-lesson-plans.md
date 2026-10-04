@@ -100,17 +100,14 @@ never shown. Flashcard backs stay folded behind Show answer.
 "Edit this section in chat", "Edit and approve curriculum" or the old "Finish
 up in Curriculum".
 
-Learners reach this view through **Practice**, a labelled button in the strip
-above the lesson canvas on a `karpathy/nanoGPT` repository (internally still
-the `curriculum` learning view). It opens the overview, titled "Practice:
-karpathy/nanoGPT quickstart", whose lesson cards carry the Quiz, Flashcards and
-Notebook tabs; the button then reads "Back to lesson", and a lesson's detail
-says "Back to Practice". The lesson's closing line reads "Continue to Practice
-for the quiz, flashcards, and optional notebook." In production nobody, the
-repository owner included, gets the editor: ownership alone never enables Edit
-course, Edit in chat or curriculum approval (`canEditCourse`, `flags.js`); the
-dev/review build keeps them for the owner. `e2e/practice-check.mjs` walks that
-flow as the owner on the local stack with a production-flag build.
+This view (internally the `curriculum` learning view, titled "Practice:
+karpathy/nanoGPT quickstart") has had no way in since 2026-10-04. The owner removed
+its **Practice** button from the canvas strip, and `e2e/practice-check.mjs` was
+retired with it ([project-map-learn.md](project-map-learn.md)). Its lesson cards
+carry the Quiz, Flashcards and Notebook tabs, and a lesson's detail says "Back to
+Practice". In production nobody, the repository owner included, gets the editor:
+ownership alone never enables Edit course, Edit in chat or curriculum approval
+(`canEditCourse`, `flags.js`). The dev/review build keeps them for the owner.
 
 Known MVP limitation: the answers ship in the bundled lesson Markdown, so the
 UI hides them until a check, but a learner reading the JS can find them.

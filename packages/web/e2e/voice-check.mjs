@@ -6,8 +6,6 @@
 // It walks the VOICE flows the unit tests cover and saves the review screenshots:
 //   node e2e/voice-check.mjs [outDir]
 // Env: VOICE_BASE (the app, default http://127.0.0.1:8798) and SMALL_CP (the control plane, default http://127.0.0.1:8799).
-// VOICE_APP (a karpathy/nanoGPT repository app) and VOICE_EMAIL walk the same flows on the product Tutor entry
-// (?experience=tutor, learn-experiences.js), which also runs in the production build, instead of the review board.
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync } from 'node:fs';
 import assert from 'node:assert/strict';
@@ -19,10 +17,9 @@ const OUT = process.argv[2] || 'voice-shots';
 mkdirSync(OUT, { recursive: true });
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8799';
-const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: process.env.VOICE_EMAIL || 'yudhisteer.chin@gmail.com', secret }) })).json();
+const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret }) })).json();
 const cookie = `small_session=${session}`;
-const APP = process.env.VOICE_APP;
-const root = APP ? null : await (await fetch(`${BASE}/api/canvases`, { method: 'POST', headers: { cookie, 'content-type': 'application/json' }, body: JSON.stringify({ title: 'Attention (Voice)' }) })).json();
+const root = await (await fetch(`${BASE}/api/canvases`, { method: 'POST', headers: { cookie, 'content-type': 'application/json' }, body: JSON.stringify({ title: 'Attention (Voice)' }) })).json();
 
 const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
@@ -78,7 +75,7 @@ const select = async id => {
   await page.keyboard.press('Shift+Digit0'); await page.waitForTimeout(600);
 };
 
-await page.goto(APP ? `${BASE}/apps/${APP}?tab=learn&experience=tutor&voice=fake` : `${BASE}/apps/${root.name}?board=${TUTOR_BOARD}&voice=fake`);
+await page.goto(`${BASE}/apps/${root.name}?board=${TUTOR_BOARD}&voice=fake`);
 await page.waitForSelector('[data-tool-gutter]', { timeout: 30000 });
 await page.waitForTimeout(1500);
 

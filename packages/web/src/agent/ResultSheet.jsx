@@ -38,7 +38,7 @@ function Results({ t }) {
 // The evidence hierarchy (WP6): recorded decision; recorded question/session; code/source; inferred; model explanation.
 const EVIDENCE = { decision: 'Recorded decision', question: 'Recorded question', session: 'Recorded session', code: 'Code evidence', inferred: 'Inferred relationship', model: 'Model explanation' };
 
-function Turn({ t }) {
+function Turn({ t, onFile = null }) {
   if (t.kind === 'card') return <ConfirmCard card={t.card} onConfirm={t.confirm} onChange={t.change} onCancel={t.cancel} />;
   if (t.kind === 'results') return <Results t={t} />;
   if (t.kind === 'user') return <div className="flex justify-end"><div className="max-w-[85%] whitespace-pre-wrap rounded-lg bg-hover px-3 py-1.5 text-sm">{t.text}</div></div>;
@@ -62,7 +62,7 @@ function Turn({ t }) {
   return (
     <div className="min-w-0">
       {t.fixture && <Pill className="mb-1.5">Fixture · UI preview</Pill>}
-      {t.text ? <Md text={t.text} /> : !t.done && <span className="flex items-center gap-2 text-xs text-ink-2"><Loader2 size={14} className="animate-spin text-ink-3" /><span className="shimmer">{t.stage || 'Thinking…'}</span></span>}
+      {t.text ? <Md text={t.text} onFile={onFile} /> : !t.done && <span className="flex items-center gap-2 text-xs text-ink-2"><Loader2 size={14} className="animate-spin text-ink-3" /><span className="shimmer">{t.stage || 'Thinking…'}</span></span>}
       {/* ponytail: no [Add to canvas] on sources - research runs only in canvas scope, where the bar is
           hidden (routes.js), and learnHandoff is off (flags.js). Add it when the bar shows on a canvas. */}
       {t.sources?.length > 0 && (
@@ -92,7 +92,7 @@ function Turn({ t }) {
 // sheet renders it; those pages mount it in their Context panel instead
 // (surface.resultsHost === 'panel'). The scopeKey prop takes a results key:
 // resultsKey(scopeOf(surface)), selection excluded.
-export function ResultList({ scopeKey: key }) {
+export function ResultList({ scopeKey: key, onFile = null }) {
   const turns = useTurns(key);
   const surface = useSurface();
   const live = scopeOf(surface);
@@ -129,7 +129,7 @@ export function ResultList({ scopeKey: key }) {
           <span className="min-w-0 flex-1 truncate">{t.title}</span>
           <span className="shrink-0 text-xs text-ink-3">{ago(t.created_at)}</span>
         </button>
-      )) : <p className="text-sm text-ink-3">No past chats.</p>) : turns.map((t) => <Turn key={t.id} t={t} />)}
+      )) : <p className="text-sm text-ink-3">No past chats.</p>) : turns.map((t) => <Turn key={t.id} t={t} onFile={onFile} />)}
     </div>
   );
 }

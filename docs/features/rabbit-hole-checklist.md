@@ -157,6 +157,7 @@ wp6-library-d7, wp6-show-on-graph. Decisions: docs/superpowers/plans/2026-09-28-
 learning before a snapshot exists; a canvas made from the bar shows after a reload; a stale app
 chip while switching apps.
 
+- (Superseded 2026-10-04 by [project-map-learn.md](project-map-learn.md): no Overview; a project is Map or Learn.)
 - PROJECT = learning hub = Overview + Learn + Map. Overview (default): identity
   and source, Continue learning, learning canvases, light source/commit info,
   recent activity; no operational clutter. Learn is the real Learn canvas (its

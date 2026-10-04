@@ -1,73 +1,55 @@
-# Production Tutor entry
+# Production Tutor: the Learn composer is the Tutor
 
-Status: candidate on `fix/production-tutor-entry`, not deployed. Locked product decision (owner, 2026-10-03):
-the NanoGPT Tutor is a first-class product experience, reached from the product UI, never from `?board=`.
+Status: on branch `ui/repo-page-declutter`, not deployed. It replaces the first fix (`3c67a381`), which opened the
+Tutor on a separate `?experience=tutor` canvas from a Tutor button. The owner rejected that on 2026-10-04: "the main
+composer chat is the tutor", with no separate Tutor canvas and no Tutor or Practice button.
 
 ## The problem it fixes
 
-Tutor v2 and Voice shipped to https://digrabbithole.com but nobody could reach them. `useTutor` activated
-only on the `nanogpt-attention-tutor` board, and the only road to a named board was `?board=`, which
-production deliberately ignores (`reviewTools`, review boards are dev/review only).
+Tutor v2 and Voice shipped to https://digrabbithole.com, but nobody could reach them:
+- `useTutor` activated only on the `nanogpt-attention-tutor` review board;
+- the only way to a named board was `?board=`, which production ignores (`reviewTools`).
 
-## The road
+## How it works now
 
-Repository -> Learn -> **Tutor** -> the approved NanoGPT Tutor canvas, with Tutor v2 and Voice.
+- Opening a `karpathy/nanoGPT` repository lands on its Learn canvas. The canvas composer is the Tutor there:
+  - `LearnPage.jsx` passes `on: suppliedCourse && !board` to `useTutor`;
+  - a typed or spoken message is a Tutor v2 turn;
+  - the mic sits in the composer.
+- The Tutor shows a slice card when it teaches it: `showCard` inserts the card if it isn't on the canvas yet.
+- A Rabbit Hole keeps the Tutor when its root is that repository. The server names a repository root by its repo
+  (`dives.js` `level`), and `LearnTutor.jsx` checks `root.kind === 'repository' && root.title === COURSE_REPO`.
+  The slice review board keeps the Tutor too.
+- There is no Tutor or Practice button. The table of contents is how a learner moves around the canvas.
+- Nothing about Tutor v2 changes: the same tiers, evidence path, Voice, turn id and privacy rules as merged.
 
-- On a `karpathy/nanoGPT` repository's Learn tab, the strip above the canvas has **Tutor** beside **Practice**
-  (`data-learn-tutor`, `LearnPage.jsx`).
-- Tutor goes to `/apps/<repo-app>?tab=learn&experience=tutor`. That surface seeds the Tutor slice cards
-  (`tutorSliceBlocks`), the mic sits in the composer, and a typed or spoken message is a Tutor v2 turn.
-- Inside the Tutor, the same button reads **Back to lesson** and returns to `?tab=learn`. Practice belongs to the
-  lesson, so it is hidden inside the Tutor. A reload keeps the learner where they are.
-- A Rabbit Hole under the Tutor climbs back through the product URL: `dive.js` `levelHref` maps the Tutor
-  board on a repository to `?experience=tutor`, never `?board=`.
-- The Tutor canvas is the same one the review board used: same board id, seed version and storage keys.
+## What stays closed
 
-## The allowlist
-
-`learn-experiences.js` `EXPERIENCES` is the production allowlist. It is frozen and holds exactly one entry:
-`tutor` -> board `nanogpt-attention-tutor` on repository `karpathy/nanoGPT`.
-
-`experienceOf` opens an experience only when all of these hold:
-- it is a Rabbit Hole build;
-- the app is a repository;
-- `?experience=` is an own key of `EXPERIENCES`;
-- the repository is the entry's repository.
-
-The experience name is not a board id. Nothing in a URL, user input or repository metadata becomes a board:
-- `?board=` stays review tooling (`reviewTools`, `VITE_COACHING_DEV`), as before;
-- an unlisted `?experience=` opens the normal lesson.
-
-Review boards seed only in the review build (`reviewTools && board`).
-
-The Tutor's activation is unchanged: `useTutor().active` is the Tutor board or a hole under it. Production now
-reaches that board through the product state instead of a URL override, so Tutor v2, its model tiers, the
-evidence path, Voice, the turn id and the privacy rules are the merged ones, untouched.
+- `?board=` stays review tooling (`reviewTools`, `VITE_COACHING_DEV`). Review boards load and seed only in the
+  review build (`reviewTools && board`).
+- `?voice=fake` (the scripted Voice harness) works only in the review build. Production ignores it and the mic
+  takes the real providers (`LearnVoice.jsx`, `voice-ui.test.mjs`). The production bundle check fails if the
+  harness code ships (`__voiceFake`, `failStt`).
 
 ## Checks
 
-- `src/learn-experiences.test.mjs`:
-  - the allowlist is exactly the Tutor;
-  - the Tutor opens only by name, on its repository, in a Rabbit Hole build;
-  - board names, review boards and prototype keys open nothing;
-  - holes climb back through the product URL;
-  - `LearnPage.jsx` keeps `?board=` review-only.
-- `e2e/tutor-entry-check.mjs`, on the production-flag build (no `VITE_COACHING_DEV`), local stack:
-  - Repository -> Learn -> Tutor for the owner and a learner (each on their own `karpathy/nanoGPT` app;
-    repositories are private to whoever imported them): Tutor cards, mic, a typed Tutor v2 turn, reload,
-    a `/dive` Rabbit Hole and the climb back to the Tutor, Back to lesson;
-  - every review board's `?board=`, and unlisted `?experience=` values, open the normal lesson with no Tutor
-    and none of their cards or storage;
-  - no review-only code reaches the browser.
-- `e2e/voice-check.mjs` with `VOICE_APP=<repo app>` runs the fake-voice flows on the product entry.
+- `src/project-ui.test.mjs`:
+  - no Tutor or Practice button;
+  - the composer is the Tutor on the course and its holes;
+  - `?board=` stays review-only.
+- `e2e/tutor-entry-check.mjs`, on the production-flag build, on the local stack, for the owner and for a learner
+  (each on their own `karpathy/nanoGPT` app). It walks:
+  - landing on Learn: mic, no pill or buttons, the Map icon;
+  - a typed Tutor v2 turn;
+  - a `/dive` hole that keeps the Tutor, and the climb back;
+  - Map and back;
+  - every review board's `?board=` opening nothing;
+  - `?voice=fake` starting the real Voice path.
+- `e2e/voice-check.mjs` runs the scripted Voice flows on the review board in the dev build.
 
 ## Known limits
 
-- The review boards' card definitions still ship in the production bundle, as on main before this change.
-  They are inert: nothing in production can open them.
-- `?voice=fake` (scripted local adapters, no provider calls) is honoured in every build, as on main.
-- Review build only: a repository other than `karpathy/nanoGPT` opened on the Tutor board with `?board=` climbs back
-  from a Rabbit Hole to its normal lesson, because `levelHref` sends every repository's Tutor board to
-  `?experience=tutor`, which only the NanoGPT repository honours. Canvas review boards keep `?board=`.
-- A hole whose Rabbit Hole root is the Tutor board runs the Tutor wherever it lives (`useTutor`, as on main); the
-  server accepts any parent board name for a dive. It opens no review content.
+- Practice (the NanoGPT quiz, flashcards and notebooks, `LessonPlanPreview.jsx`) has no way in since its button
+  was removed. `e2e/practice-check.mjs` was retired with it. It returns when Practice gets a new entry point.
+- The review boards' card definitions still ship in the production bundle, as on main. They are inert: nothing in
+  production can open them.

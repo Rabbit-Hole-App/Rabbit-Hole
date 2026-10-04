@@ -11,9 +11,13 @@ import { arriveAt, enterHole, executeActions, keepHere, markOpened, openingQuest
 // A Tutor request that never answers ends as an error reply, not an endless spinner; Stop ends it too.
 const TURN_TIMEOUT_MS = 60000;
 
-export function useTutor({ app, board, access, canvasApi, canvasState, dive }) {
+// on: this canvas is the supplied NanoGPT course, whose composer is the Tutor (LearnPage.jsx). A Rabbit Hole keeps the
+// Tutor when its root is that course's repository (the server names a repository root by its repo) or the slice board.
+export const COURSE_REPO = 'karpathy/nanoGPT';
+export function useTutor({ app, board, access, canvasApi, canvasState, dive, on = false }) {
   const record = dive.tree?.dive || null;
-  const active = board === TUTOR_BOARD || dive.tree?.path?.[0]?.board === TUTOR_BOARD;
+  const root = dive.tree?.path?.[0];
+  const active = on || board === TUTOR_BOARD || root?.board === TUTOR_BOARD || (root?.kind === 'repository' && root.title === COURSE_REPO);
   const here = { app: app.name, board };
   const key = storeKey(app);
   const [chips, setChips] = useState([]);

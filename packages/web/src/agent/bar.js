@@ -187,3 +187,17 @@ export function threadsPath(scope, id) {
   if (scope.kind === 'canvas') return `/api/ask/threads?scope=learn&ref=${encodeURIComponent(scope.slug)}`;
   return scope.kind === 'app' ? `/api/ask/threads?scope=app&ref=${encodeURIComponent(scope.slug)}` : '/api/ask/threads?scope=org';
 }
+
+// An example for each command the bar offers, shown in its / commands sheet (BarCommandsSheet.jsx).
+const EXAMPLES = {
+  ask: { home: '/ask which projects did I open this week?', project: '/ask what does the GPT class do?' },
+  teach: { home: '/teach attention', project: '/teach causal masking' },
+  research: { home: '/research attention mechanisms', project: '/research layer normalization' },
+  do: { home: '/do open my last canvas', project: '/do open the Learn canvas' },
+  find: '/find nanoGPT',
+  open: '/open my last project',
+  new: '/new canvas called Attention',
+  connect: '/connect karpathy/minGPT',
+  run: '/run my training job',
+};
+export const exampleFor = (name, place) => { const e = EXAMPLES[name]; return typeof e === 'string' ? e : e?.[place] || e?.home || `/${name}`; };

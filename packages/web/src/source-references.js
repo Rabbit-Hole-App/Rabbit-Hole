@@ -12,3 +12,16 @@ export function singleSourcePath(text){
   for(const match of text.matchAll(new RegExp(`(${pathPattern}):\\d+(?:[-–—]\\d+)?`,'g')))paths.add(match[1]);
   return paths.size===1?[...paths][0]:null;
 }
+// Every file citation in an answer, in order and once each: "model.py:29", "train.py:12-20", and the
+// line lists models write as "model.py:29, 78" or one number per line ("prepare.py:4\n51"). Ask
+// answers show them in a Sources dropdown (ask.jsx Md), each one opening its file.
+export function citedSources(text){
+  const seen=new Set(),out=[];
+  const re=new RegExp(String.raw`(${pathPattern}):(\d+(?:[-–—]\d+)?)((?:[ \t]*[,\n][ \t]*\d+(?:[-–—]\d+)?(?=[ \t]*(?:[,\n\x60)]|$)))*)`,'g');
+  for(const match of text.matchAll(re))for(const span of [match[2],...match[3].split(/[,\n]/).map(part=>part.trim()).filter(Boolean)]){
+    const [start,end=start]=span.split(/[-–—]/).map(Number);
+    const key=`${match[1]}:${start}-${end}`;
+    if(start>0&&end>=start&&!seen.has(key)){seen.add(key);out.push({path:match[1],start,end});}
+  }
+  return out;
+}

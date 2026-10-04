@@ -1,0 +1,81 @@
+// The project UI pass (owner, 2026-10-04): a project is Map or Learn, the canvas carries no tab pill, Tutor or
+// Practice buttons (the composer is the Tutor), the Map hides its details, layers and panel until asked, answers
+// list their cited files in a Sources dropdown, and the main composer has a / commands sheet.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { citedSources } from './source-references.js';
+import { exampleFor } from './agent/bar.js';
+import { SLASH } from './agent/slash.js';
+
+const read = name => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const page = read('RepositoryPage.jsx'), learn = read('LearnPage.jsx'), tutor = read('LearnTutor.jsx'), bar = read('agent/AgentBar.jsx'), md = read('ask.jsx');
+
+test('a project is Map or Learn: no Overview, and the canvas has no Overview/Learn/Map pill', () => {
+  assert.doesNotMatch(page, /Overview|value="overview"/);
+  assert.match(page, /<TabsTrigger pill value="map">[\s\S]*<TabsTrigger pill value="learn"/);
+  // The Learn view renders no tabs: only the canvas picker, and only when there are canvases.
+  const learnView = page.slice(page.indexOf("if(tab==='learn')return"), page.indexOf('// A fixture record is only looked at'));
+  assert.doesNotMatch(learnView, /\{tabs\}/);
+  assert.match(learnView, /canvases\.length>0&&<div/);
+  // The canvas reaches the Map by one icon.
+  assert.match(learnView, /onMap=\{\(\)=>go\('map'\)\}/);
+  assert.match(learn, /\{onMap && <button type="button" data-learn-map title="Map: this repository's code graph" aria-label="Map" onClick=\{onMap\}/);
+  // A repository with no snapshot shows its Map.
+  assert.match(page, /tab=asked==='learn'&&!app\.commit_sha\?'map':asked/);
+});
+
+test('the canvas has no Tutor or Practice button: the composer is the Tutor on the NanoGPT course and its Rabbit Holes', () => {
+  assert.doesNotMatch(learn, /data-learn-tutor|data-learn-practice|experience/);
+  assert.match(learn, /useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, on: suppliedCourse && !board \}\)/);
+  assert.match(learn, /const suppliedCourse = learnPreview && app\.repo === 'karpathy\/nanoGPT';/);
+  assert.match(tutor, /const active = on \|\| board === TUTOR_BOARD \|\| root\?\.board === TUTOR_BOARD \|\| \(root\?\.kind === 'repository' && root\.title === COURSE_REPO\);/);
+  assert.match(tutor, /export const COURSE_REPO = 'karpathy\/nanoGPT';/);
+  // ?board= stays review-only.
+  assert.match(learn, /const named = hole \|\| !reviewTools \? null : new URLSearchParams\(window\.location\.search\)\.get\('board'\);/);
+});
+
+test('the Map: details and layers behind icons, the side panel closed until used, tabs only when needed, outlined in use', () => {
+  assert.match(page, /data-repo-info aria-label="Repository details"/);
+  assert.match(page, /<Menu open=\{infoOpen\}[\s\S]*?<SourceLink m=\{cardModel\(app\)\}\/>[\s\S]*?Refresh branch[\s\S]*?<\/Menu>/);
+  assert.match(page, /data-map-layers-open aria-label="Layers"[\s\S]*?<Menu open=\{layersOpen\}[\s\S]*?className="[^"]*"><LayersRow /);
+  assert.equal(page.match(/<LayersRow /g).length, 1, 'the layers row lives only in its menu');
+  assert.match(page, /const \[panelOpen,setPanelOpen\]=useState\(false\)/);
+  assert.match(page, /collapsed=\{!panelOpen\}/);
+  assert.match(page, /data-map-panel-close aria-label="Close the side panel"/);
+  assert.match(page, /\{!panelOpen&&<IconBtn data-map-panel-open aria-label="Open the side panel"/);
+  assert.match(page, /\{\(selected\|\|source\)&&<TabsList pill/);
+  assert.doesNotMatch(page, /disabled=\{!selected\}|disabled=\{!source\}/);
+  assert.match(page, /const inUse=panelOpen&&\(!!selected\|\|!!source\|\|busy\);/);
+  assert.match(page, /className=\{inUse\?'p-5 ring-2 ring-accent ring-inset':'p-5'\}/);
+  // What lands in the panel opens it: an answer, a node, a file, a cited source.
+  assert.match(page, /if\(pushed\)\{setView\('conversation'\);setPanelOpen\(true\);\}/);
+  assert.match(page, /<ResultList scopeKey=\{key\} onFile=\{\(path,line\)=>\{setSource\(\{path,line:line\|\|1\}\);[^}]*setPanelOpen\(true\);\}\}\/>/);
+});
+
+test('an answer lists every cited file once, in order, including line lists written one per line', () => {
+  const text = 'See configurator.py:1-20 and train.py:120.\n`data/shakespeare_char/prepare.py:4\n51`\n`model.py:29\n78\n94` (line anchors). Again model.py:29, 31\n2 more things';
+  assert.deepEqual(citedSources(text).map(c => `${c.path}:${c.start}-${c.end}`), [
+    'configurator.py:1-20', 'train.py:120-120', 'data/shakespeare_char/prepare.py:4-4', 'data/shakespeare_char/prepare.py:51-51',
+    'model.py:29-29', 'model.py:78-78', 'model.py:94-94', 'model.py:31-31']);
+  assert.deepEqual(citedSources('No files here, just 3 numbers: 1, 2.'), []);
+  // Md shows them in a Sources dropdown wherever opening a file is wired.
+  assert.match(md, /const cited = onFile \? citedSources\(text\) : \[\];/);
+  assert.match(md, /<details key="cited" data-cited-sources[^>]*><summary[^>]*>Sources \(\{cited\.length\}\)<\/summary>/);
+});
+
+test('the main composer: the Auto picker opens a / commands sheet with an example for every command it offers', () => {
+  assert.match(bar, /data-bar-slash-help[\s\S]*?onClick=\{\(\) => \{ setPicker\(false\); setCommandsOpen\(true\); \}\}/);
+  assert.match(bar, /\{commandsOpen && <BarCommandsSheet modes=\{modesFor\(target\)\} shortcuts=\{shortcutsFor\(target, surface\.catalog\)\}/);
+  for (const command of SLASH.filter(c => c.places.some(place => place !== 'learn')))
+    for (const place of command.places.filter(p => p !== 'learn')) {
+      const example = exampleFor(command.name, place);
+      assert.ok(example.startsWith(`/${command.name} `), `${command.name} in ${place}: ${example}`);
+    }
+});
+
+test('the Map node carried into Learn ("Asking about") has an x, as the Map chip does', () => {
+  assert.match(page, /<LearnPage app=\{app\} onGraph=\{showGraph\} onMap=\{\(\)=>go\('map'\)\} onClearRepository=\{asking\?\(\)=>setAsking\(null\):null\}/);
+  assert.match(learn, /: repositoryContext\} onClearRepository=\{onClearRepository\} conversation="learn"/);
+  assert.match(md, /\{onClearRepository && <button type="button" className="shrink-0 rounded p-0\.5 hover:bg-green-100" aria-label="Clear repository selection"/);
+});

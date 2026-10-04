@@ -9,9 +9,9 @@ import { titleOf } from './agent/catalog.js';
 import { canvasKeys, NOT_HERE, NOT_HERE_WHY, opensHere } from './home/canvas-local.js';
 
 // ponytail: T02 §8.3 [New canvas here] and [About local-only storage] are left out; add them when asked.
-export function CanvasLearn({ app, project }) { // callers key it by canvas: the decision is made once per mount
+export function CanvasLearn({ app, project, onMap = null }) { // callers key it by canvas: the decision is made once per mount
   const [here] = useState(() => opensHere({ storage: localStorage, keys: canvasKeys({ org: app.org, email: app.email || app.owner_email, slug: app.name }), record: app })); // LearnPage.jsx:143's key
-  if (here) return <LearnPage app={app} />;
+  if (here) return <LearnPage app={app} onMap={onMap} />;
   return <main data-canvas-gate className="min-w-0 flex-1 overflow-auto"><div className="mx-auto max-w-md px-6 pt-[18vh] text-center">
     <h1 className="text-lg font-semibold">{NOT_HERE}</h1>
     <p className="pt-2 text-sm text-ink-2">{NOT_HERE_WHY}</p>

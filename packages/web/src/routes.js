@@ -69,15 +69,15 @@ export function baseSurfaceFor(pathname, search, from = {}) {
   const place = at.page !== 'app' ? at.page
     : at.runId ? 'run'
     : at.slug.startsWith('canvas-') ? 'canvas'
-    : at.slug.startsWith('repo-') && new URLSearchParams(search).get('tab') === 'learn' ? 'learn' // an app's ?tab=learn is its Runbook (D7)
+    : at.slug.startsWith('repo-') && projectTab(search) === 'learn' ? 'learn' // a project opens on Learn; an app's ?tab=learn is its Runbook (D7)
     : at.slug.startsWith('repo-') ? 'project' : 'app';
   const identity = Object.fromEntries(IDENTITY.filter((k) => from[k] !== undefined).map((k) => [k, from[k]]));
   return { ...identity, place, resource: null, selected: null, barHidden: ['learn', 'canvas', 'chat', 'run'].includes(place), resultsHost: 'sheet', handlers: {} };
 }
 
-// Project tabs (T02 §1 aliases): Overview is the default; map and the legacy code, graph and agent open Map.
-// ponytail: ?tab=sources lands on Overview - WP6 has no Sources tab.
-export const projectTab = (search) => { const tab = new URLSearchParams(search).get('tab'); return tab === 'learn' ? 'learn' : ['map', 'code', 'graph', 'agent'].includes(tab) ? 'map' : 'overview'; };
+// Project tabs (T02 §1 aliases): a project is Map or Learn (owner, 2026-10-04: no Overview). Learn is the default;
+// map and the legacy code, graph and agent open Map; anything else (an old ?tab=overview or sources) is Learn.
+export const projectTab = (search) => { const tab = new URLSearchParams(search).get('tab'); return ['map', 'code', 'graph', 'agent'].includes(tab) ? 'map' : 'learn'; };
 // Learn is immersive (WP6 closeout): Shell shows no sidebar or icon rail on a canvas or a project's Learn tab.
 // An app's ?tab=learn lands on Runbook (D7), so it keeps the sidebar.
 export const immersiveAt = (pathname, search) => {
