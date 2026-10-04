@@ -8,7 +8,11 @@ A learner shares a canvas board by link. Dev only, like the rest of Learn.
   - **Share this board**: on or off. Off means every link stops working.
   - **View link**: on or off, with its URL and Copy. People who sign in can
     view. **Public** makes the view link work without signing in.
-  - Turning a link off revokes it; turning it on again makes a new one.
+  - Turning a link off revokes it; turning it on again makes a new one, pinned again to the
+    repository's current commit (a link keeps its pin through the owner's refreshes).
+  - **Answers can read the private repository** (only for a private repository of yours, off for every
+    new link): viewers' answers may read its code at the pinned commit. Off, a link shows nothing of
+    the repository. See [shared-canvas-ask.md](shared-canvas-ask.md).
 - Anyone with an account can open a link after the usual email sign-in (any
   email). Links look like `/b/<token>`.
 - Shared boards are always view-only: pan and zoom, no toolbar, no edits.
@@ -59,9 +63,10 @@ are served as downloads with `nosniff` and a sandbox CSP, never as pages.
 | Route | Who | Does |
 |---|---|---|
 | `GET/PUT /api/learn/boards/:app/:board` | someone with access to the app | read / save the owner's board |
-| `POST /api/learn/boards/:app/:board/share` | same | set `shared`, `view`, `public_view` |
+| `POST /api/learn/boards/:app/:board/share` | same | set `shared`, `view`, `public_view`; a new view link pins the repository commit it answers from ([shared-canvas-ask.md](shared-canvas-ask.md)) |
+| `POST /api/learn/boards/:app/:board/share/repository` | same | `{ allow }`: the owner lets this link's answers read their private repository's code; 409 for a public one or no link |
 | `GET /api/learn/boards/shared/:token` | signed in, or anyone for a public view link | open a shared board; also `viewer` and the composer's `context` ([shared-canvas-ask.md](shared-canvas-ask.md)) |
-| `POST /api/learn/boards/shared/:token/ask` | signed in (any link they can open, public too) | ask about the shared canvas; streams the answer, writes nothing ([shared-canvas-ask.md](shared-canvas-ask.md)) |
+| `POST /api/learn/boards/shared/:token/ask` | signed in (any link they can open, public too) | ask about the shared canvas; streams the answer, writes nothing of the owner's (one usage event), rate limited ([shared-canvas-ask.md](shared-canvas-ask.md)) |
 | `GET/PUT /api/learn/boards/:app/:board/assets/:key`, `GET .../assets` | owner | board files, list |
 | `GET /api/learn/boards/shared/:token/assets/:key` | as the link | board files through a link |
 | `POST /api/learn/boards/shared/:token/fork` | signed in (any link they can open) | make the viewer's Canvas copy; returns `{ name, url, files, forked_from }`. Same handler as `POST /api/learn/boards/fork` ([canvas-forking.md](canvas-forking.md)) |

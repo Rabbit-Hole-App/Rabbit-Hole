@@ -24,7 +24,15 @@ Fork used everywhere.
 - Permissions: the existing rules. Your own canvas, or a canvas whose share link you can open.
   Never a private canvas of someone else.
 - Never copied: another user's session, chat transcripts, voice transcripts, pending Rabbit Holes,
-  selection or other UI state, analytics or history.
+  selection or other UI state, analytics or history - nor a viewer's private chat on a shared page
+  (shared canvas v1, decision A in [shared-canvas-ask.md](shared-canvas-ask.md)): a fork through a
+  link sends only `{ source: { token }, key }`, and the server copies the stored board, ignoring any
+  `state`, `history` or chat in the request.
+- Repository revision (decision B there): a fork inherits the revision of the repository the source
+  was read at, never the current HEAD. Through a link, the share's pinned commit; your own canvas from
+  the Library or top bar, the commit its project is at now (or what it inherited, if it is a fork).
+  The fork's own share answers from that revision. A private repository's code never opens up through
+  a fork: only the repository's owner can allow it, on their own share.
 - One user action makes one fork, whatever the retries or double clicks.
 
 ## Where the content is (and the one decision this forced)
@@ -74,7 +82,11 @@ INDEX canvas_forks_parent (forked_from_org, forked_from_canvas_id)
 - A source that is not a canvas (a project board shared by link) has null parent and root; a fork
   of that fork starts its lineage at the first canvas.
 - The fork's `learn_boards` row keeps `forked_from` JSON (title for Learn's "Your fork of … is
-  ready" notice) as before.
+  ready" notice) as before. Through a link to a project board whose repository the share may not
+  show, the title is `Shared canvas` and `resource_id` is null, so nothing names that repository.
+- The inherited revision is a `board_repository_pins` row for the fork's board (`view_token` NULL),
+  in the same batch. Table and migration `learn-migrations/0005-shared-canvas-v1.sql`, applied after
+  0004: see [shared-canvas-ask.md](shared-canvas-ask.md).
 
 ## API
 
@@ -112,6 +124,8 @@ grades and share settings are never read. The fork starts private.
   clone equals the persisted board, no private or transient state, independence, lineage A → B → C,
   title snapshot, ↗ available/unavailable without leaks, direct counts, permissions, double click
   and retry. `learn-boards.test.js` keeps the original shared-board fork test.
+- `test/shared-canvas-v1.test.js`: "A chat" (a fork stores none of the viewer's chat, whatever the
+  request carries), "B pin: a fork records the revision..." and "C permission: a fork never opens up...".
 - `packages/web/src/canvas-fork.test.mjs`, `home/canvas-local.test.mjs`, `home/provenance.test.mjs`.
 - `packages/web/e2e/canvas-forking-check.mjs` (local stack only, 21 checks): top-bar double click,
   rename, ↗, Library `[Open] [Fork]`, counts, a second person forking through a link, and the
