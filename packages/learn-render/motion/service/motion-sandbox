@@ -3,18 +3,78 @@
 # /usr/local/sbin/motion-sandbox; the service user may run it through sudo with ONE argument,
 # the 32-hex render id. Every path is built here from that id; nothing else is accepted.
 #
-# The child gets new network, PID, mount, IPC and UTS namespaces (unshare), so it has only
-# loopback, sees only its own processes and its own mounts; sandbox-init then hides the
-# service's files and drops to the motion-render user with no capabilities and no environment.
-# `timeout` is the hard backstop just above the service's 420 s limit; when it fires, or when
-# the service's SIGTERM arrives through sudo, unshare dies and --kill-child ends the whole PID
-# namespace, so no Chromium or ffmpeg outlives the job.
+# Resources: the job runs in its own cgroup v2 group (memory, process count and CPU limits).
+# Without cgroup v2 and those three controllers there is no render: the job fails closed with
+# the exact missing piece in out/sandbox-exit.json, never unlimited.
+#
+# Namespaces: the child gets new network, PID, mount, IPC and UTS namespaces (unshare), so it
+# has only loopback, sees only its own processes and its own mounts; sandbox-init then hides
+# the service's files and drops to the motion-render user with no capabilities and no
+# environment. `timeout` is the hard backstop just above the service's 420 s limit; when it
+# fires, or when the service's SIGTERM arrives through sudo, unshare dies and --kill-child ends
+# the whole PID namespace, and cgroup.kill clears anything left in the job's group.
 set -eu
 ID=${1:-}
 case "$ID" in ''|*[!0-9a-f]*) echo "motion-sandbox: render id must be 32 lowercase hex" >&2; exit 64 ;; esac
 [ "${#ID}" -eq 32 ] || { echo "motion-sandbox: render id must be 32 lowercase hex" >&2; exit 64; }
 JOB=/var/motion/jobs/$ID
 [ -d "$JOB" ] && [ ! -L "$JOB" ] || { echo "motion-sandbox: no job directory for $ID" >&2; exit 66; }
-exec timeout --kill-after=5s 425s \
+EXIT=$JOB/out/sandbox-exit.json
+
+# Limits for the 4 GB / 2 CPU dev machine (fly.dev.toml): 3 GiB of memory including the job's
+# tmpfs, no swap, 1024 tasks (processes and threads), 1.5 CPUs, so the service keeps half a
+# CPU for /health and status polls. Change them with the VM size.
+MEMORY_MAX=3221225472
+PIDS_MAX=1024
+CPU_MAX="150000 100000"
+
+CG=/sys/fs/cgroup
+JOBCG=$CG/motion/$ID
+unavailable() {
+  printf '{"error":"resource_limits_unavailable","detail":"%s"}\n' "$1" > "$EXIT"
+  echo "motion-sandbox: resource limits unavailable: $1" >&2
+  exit 70
+}
+[ "$(stat -fc %T "$CG" 2>/dev/null)" = cgroup2fs ] || unavailable "cgroup v2 is not mounted at $CG"
+for c in memory pids cpu; do
+  grep -qw "$c" "$CG/cgroup.controllers" || unavailable "the $c cgroup controller is not available"
+done
+mkdir -p "$CG/motion" 2>/dev/null || unavailable "$CG is not writable"
+# Old job groups are empty once their processes are gone; remove them.
+for d in "$CG"/motion/*/; do [ -d "$d" ] && rmdir "$d" 2>/dev/null || true; done
+for parent in "$CG" "$CG/motion"; do
+  for c in memory pids cpu; do
+    grep -qw "$c" "$parent/cgroup.subtree_control" || echo "+$c" > "$parent/cgroup.subtree_control" 2>/dev/null \
+      || unavailable "cannot delegate the $c controller to $parent"
+  done
+done
+mkdir "$JOBCG" 2>/dev/null || unavailable "cannot create $JOBCG"
+{ echo "$MEMORY_MAX" > "$JOBCG/memory.max" && echo "$PIDS_MAX" > "$JOBCG/pids.max" && echo "$CPU_MAX" > "$JOBCG/cpu.max"; } 2>/dev/null \
+  || { rmdir "$JOBCG"; unavailable "cannot set memory.max, pids.max or cpu.max"; }
+if [ -e "$JOBCG/memory.swap.max" ]; then echo 0 > "$JOBCG/memory.swap.max" 2>/dev/null || { rmdir "$JOBCG"; unavailable "cannot set memory.swap.max"; }; fi
+# This shell joins the job group, so every process the job starts is limited from its first instruction.
+echo $$ > "$JOBCG/cgroup.procs"
+
+timeout --kill-after=5s 425s \
   unshare --net --pid --mount --ipc --uts --fork --kill-child --mount-proc \
-  /usr/local/lib/motion/sandbox-init "$ID"
+  /usr/local/lib/motion/sandbox-init "$ID" &
+CHILD=$!
+# The service's SIGTERM (relayed by sudo) goes to timeout, which stops unshare.
+trap 'kill -TERM "$CHILD" 2>/dev/null || true' TERM INT HUP
+STATUS=0
+wait "$CHILD" || STATUS=$?
+while kill -0 "$CHILD" 2>/dev/null; do wait "$CHILD" || STATUS=$?; done
+
+# Leave the job group (only the root group may hold this shell now), clear anything left in
+# it, record what the job used and remove the group.
+echo $$ > "$CG/cgroup.procs"
+if [ -e "$JOBCG/cgroup.kill" ]; then echo 1 > "$JOBCG/cgroup.kill" 2>/dev/null || true; fi
+OOM=$(awk '$1 == "oom_kill" {print $2}' "$JOBCG/memory.events" 2>/dev/null || echo 0)
+PEAK=$(cat "$JOBCG/memory.peak" 2>/dev/null || echo null)
+THROTTLED=$(awk '$1 == "nr_throttled" {print $2}' "$JOBCG/cpu.stat" 2>/dev/null || echo 0)
+CPU_USEC=$(awk '$1 == "usage_usec" {print $2}' "$JOBCG/cpu.stat" 2>/dev/null || echo 0)
+PIDS_FAILED=$(awk '$1 == "max" {print $2}' "$JOBCG/pids.events" 2>/dev/null || echo 0)
+printf '{"exit_status":%s,"memory_max":%s,"pids_max":%s,"cpu_max":"%s","oom_kills":%s,"memory_peak":%s,"pids_max_hits":%s,"cpu_usage_usec":%s,"cpu_nr_throttled":%s}\n' \
+  "$STATUS" "$MEMORY_MAX" "$PIDS_MAX" "$CPU_MAX" "${OOM:-0}" "$PEAK" "${PIDS_FAILED:-0}" "${CPU_USEC:-0}" "${THROTTLED:-0}" > "$EXIT"
+for i in 1 2 3 4 5; do rmdir "$JOBCG" 2>/dev/null && break; sleep 1; done
+exit "$STATUS"

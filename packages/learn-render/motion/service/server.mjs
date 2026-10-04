@@ -135,13 +135,18 @@ export function motionRenderService({
       else if (timedOut) fail('timeout', `the render exceeded ${timeoutMs / 1000}s and was stopped`);
       else {
         const out = join(dir, 'out');
-        const resultFile = join(out, 'result.json');
-        const result = existsSync(resultFile) && statSync(resultFile).size <= 1024 * 1024 ? JSON.parse(readFileSync(resultFile, 'utf8')) : null;
-        if (!result) fail('renderer_failure', `the render child exited (${signal || code}) without a result`, { log_tail: logs.slice(-2000) });
+        const small = (f, max) => (existsSync(f) && statSync(f).size <= max ? JSON.parse(readFileSync(f, 'utf8')) : null);
+        // Written by motion-sandbox (root): the job's cgroup limits and what it used, or why
+        // the limits could not be set (then nothing rendered).
+        const limits = small(join(out, 'sandbox-exit.json'), 4096);
+        if (limits) record.resources = limits;
+        const result = small(join(out, 'result.json'), 1024 * 1024);
+        if (limits?.error) fail(String(limits.error), String(limits.detail || ''));
+        else if (!result) fail(limits?.oom_kills > 0 ? 'memory_limit_exceeded' : 'renderer_failure', `the render child exited (${signal || code}) without a result`, { log_tail: logs.slice(-2000) });
         else {
           for (const k of RESULT_FIELDS) if (result[k] !== undefined) record[k] = result[k];
           const final = join(out, 'final.mp4');
-          if (result.status !== 'ready') fail(String(result.error || 'renderer_failure'), String(result.detail || ''), result.errors ? { errors: result.errors.slice(0, 50) } : {});
+          if (result.status !== 'ready') fail(limits?.oom_kills > 0 ? 'memory_limit_exceeded' : String(result.error || 'renderer_failure'), String(result.detail || ''), result.errors ? { errors: result.errors.slice(0, 50) } : {});
           else if (!existsSync(final)) fail('renderer_failure', 'the render reported ready without final.mp4');
           else if (statSync(final).size > outputMaxBytes) fail('output_too_large', `final.mp4 is ${statSync(final).size} bytes (cap ${outputMaxBytes})`);
           else {

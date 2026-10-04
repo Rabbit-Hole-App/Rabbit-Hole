@@ -1,6 +1,7 @@
 // Test double for child.mjs (service.test.mjs only): the same job-directory protocol with no
 // rendering, so the service's HTTP, limits, cleanup and environment rules test in seconds.
-//   node stub-child.mjs <jobDir> ready | sleep | tree | big | crash | failed
+//   node stub-child.mjs <jobDir> ready | sleep | tree | big | crash | failed | nolimits | oom
+// nolimits / oom stand in for motion-sandbox's out/sandbox-exit.json on Linux.
 import { spawn } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -21,6 +22,13 @@ if (mode === 'ready') ready();
 else if (mode === 'big') ready(2000);
 else if (mode === 'failed') result({ status: 'failed', error: 'nondeterministic', detail: 'frames differ' });
 else if (mode === 'crash') process.exit(3);
+else if (mode === 'nolimits') {
+  writeFileSync(join(out, 'sandbox-exit.json'), JSON.stringify({ error: 'resource_limits_unavailable', detail: 'the memory cgroup controller is not available' }));
+  process.exit(70);
+} else if (mode === 'oom') {
+  writeFileSync(join(out, 'sandbox-exit.json'), JSON.stringify({ exit_status: 137, memory_max: 3221225472, pids_max: 1024, cpu_max: '150000 100000', oom_kills: 1 }));
+  process.exit(137);
+}
 else if (mode === 'sleep') { writeFileSync(join(out, 'pids.json'), JSON.stringify([process.pid])); forever(); }
 else if (mode === 'tree') {
   // A grandchild standing in for Chromium/ffmpeg: a timeout must not leave it behind.

@@ -51,20 +51,33 @@ const assertSandboxed = sandbox => {
   for (const [path, seen] of Object.entries(sandbox.hidden)) assert.notEqual(seen, 'VISIBLE', path);
   assert.match(sandbox.renderer_write, /^(EROFS|EACCES)$/);
   assert.ok(sandbox.processes < 64, `${sandbox.processes} processes visible`);
+  // The limits the kernel applies to this child (cgroup v2 from motion-sandbox, rlimits from sandbox-init).
+  assert.match(sandbox.limits.cgroup, /^\/motion\/[0-9a-f]{32}$/);
+  assert.equal(sandbox.limits.memory_max, '3221225472');
+  assert.equal(sandbox.limits.memory_swap_max ?? '0', '0');
+  assert.equal(sandbox.limits.pids_max, '1024');
+  assert.equal(sandbox.limits.cpu_max, '150000 100000');
+  assert.equal(sandbox.limits.rlimit_nproc, '1024');
+  assert.equal(sandbox.limits.rlimit_fsize, '67108864');
   assert.deepEqual(sandbox.breach, []);
 };
-
-test('render child: its own user, no network for the page or for Node, the service hidden, the renderer read-only, an empty environment', { skip, timeout: 180000 }, async t => {
-  const { call } = await service(t);
+// Proof-only jobs (never accepted over HTTP): a job directory written here, run by the launcher.
+function probeJob(t, probe) {
   const id = randomBytes(16).toString('hex'), dir = join(LINUX_JOBS_DIR, id);
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   mkdirSync(join(dir, 'out'), { recursive: true });
   for (const d of [dir, join(dir, 'out')]) { chownSync(d, idOf('-u', 'motion-svc'), idOf('-g', 'motion-render')); chmodSync(d, 0o2770); }
-  // Proof-only job: the probe composition with the page CSP off, so only the OS boundary remains.
-  writeFileSync(join(dir, 'job.json'), JSON.stringify({ render_id: id, probe: 'network' }), { mode: 0o644 });
+  writeFileSync(join(dir, 'job.json'), JSON.stringify({ render_id: id, probe }), { mode: 0o644 });
   const run = process.getuid() === 0 ? sh(LAUNCHER, [id]) : sh('sudo', ['-n', LAUNCHER, id]);
+  const read = f => JSON.parse(readFileSync(join(dir, 'out', f), 'utf8'));
+  return { run, result: read('result.json'), exit: read('sandbox-exit.json'), id };
+}
+
+test('render child: its own user, no network for the page or for Node, the service hidden, the renderer read-only, an empty environment', { skip, timeout: 180000 }, async t => {
+  const { call } = await service(t);
+  // The probe composition with the page CSP off, so only the OS boundary remains.
+  const { run, result } = probeJob(t, 'network');
   assert.equal(run.status, 0, run.stderr);
-  const result = JSON.parse(readFileSync(join(dir, 'out', 'result.json'), 'utf8'));
   assert.equal(result.status, 'probe', JSON.stringify(result));
   assertSandboxed(result.sandbox);
   const page = result.probe.browser;
@@ -72,6 +85,21 @@ test('render child: its own user, no network for the page or for Node, the servi
   for (const k of ['fetchOut', 'xhr', 'websocket', 'image', 'loopbackOtherPort']) assert.match(page[k], /^(failed|timeout|threw)/, `${k}: ${page[k]}`);
   assert.match(page.ownOrigin, /^reached 200/);
   assert.equal((await (await call('/health')).json()).ok, true);
+});
+
+test('resource limits hold: a spawn storm stops at the task limit, a 4 GiB allocation is OOM-killed, busy CPU is throttled', { skip, timeout: 300000 }, async t => {
+  const { run, result, exit, id } = probeJob(t, 'resources');
+  assert.equal(run.status, 0, run.stderr);
+  assert.equal(result.status, 'probe', JSON.stringify(result));
+  assertSandboxed(result.sandbox);
+  const { processes, memory, cpu } = result.probe;
+  assert.ok(processes.started < 1024 && processes.refused, `started ${processes.started}, refused ${processes.refused}`);
+  assert.equal(memory.allocated, false);
+  assert.equal(memory.signal, 'SIGKILL');
+  assert.ok(cpu.throttled_periods > 0, `cpu.max did not throttle: ${JSON.stringify(cpu)}`);
+  assert.ok(exit.oom_kills >= 1 && exit.pids_max_hits >= 1, JSON.stringify(exit));
+  assert.deepEqual([exit.memory_max, exit.pids_max, exit.cpu_max], [3221225472, 1024, '150000 100000']);
+  assert.equal(existsSync(`/sys/fs/cgroup/motion/${id}`), false, 'the job cgroup was not removed');
 });
 
 test('a real Demo A render through the sandboxed service: 1920x1080, 30 fps, 450 frames, deterministic, validated, cleaned up', { skip, timeout: 10 * 60 * 1000 }, async t => {
@@ -88,6 +116,10 @@ test('a real Demo A render through the sandboxed service: 1920x1080, 30 fps, 450
   assert.equal(r.preview_final_comparison.ok, true);
   assert.ok(r.output_bytes <= 25 * 1024 * 1024);
   assertSandboxed(r.sandbox);
+  // A normal render stays inside the limits it ran under.
+  assert.equal(r.resources.oom_kills, 0);
+  assert.equal(r.resources.pids_max_hits, 0);
+  assert.ok(r.resources.memory_peak === null || r.resources.memory_peak < r.resources.memory_max);
   assert.equal((await (await call(r.artifacts.final)).arrayBuffer()).byteLength, r.output_bytes);
   assert.equal(existsSync(join(LINUX_JOBS_DIR, render_id)), false);
 });

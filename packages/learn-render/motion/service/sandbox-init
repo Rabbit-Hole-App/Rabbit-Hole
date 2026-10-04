@@ -29,9 +29,10 @@ mount -o remount,bind,ro /app
 
 # The child: the motion-render user (group motion, so the service can remove what it writes),
 # no supplementary groups, no capabilities, no new privileges, an empty environment, a 64 MB
-# per-file write limit and a bounded number of open files.
+# per-file write limit, bounded open files and at most 1024 tasks for the user (RLIMIT_NPROC,
+# on top of the job cgroup's pids.max set by motion-sandbox).
 umask 007
 exec setpriv --reuid=motion-render --regid=motion --clear-groups --no-new-privs --inh-caps=-all --bounding-set=-all -- \
   env -i HOME=/tmp TMPDIR=/tmp PATH=/usr/local/bin:/usr/bin:/bin NODE_ENV=production MOTION_SANDBOX=linux \
-  prlimit --fsize=67108864 --nofile=4096 -- \
+  prlimit --fsize=67108864 --nofile=4096 --nproc=1024 -- \
   /usr/local/bin/node /app/packages/learn-render/motion/service/child.mjs /tmp/job

@@ -163,6 +163,19 @@ test('a crashed or failed render leaves the service healthy and free', async t =
   }
 });
 
+test('resource limits: no limits means no render, and an OOM kill is named, never a silent failure', async t => {
+  for (const [mode, error, re] of [['nolimits', 'resource_limits_unavailable', /memory cgroup controller/], ['oom', 'memory_limit_exceeded', /without a result/]]) {
+    const { post, until, jobsDir } = await start(t, mode);
+    const { render_id } = await (await post(job())).json();
+    const r = await until(render_id);
+    assert.equal(r.status, 'failed');
+    assert.equal(r.error, error);
+    assert.match(r.detail, re);
+    if (mode === 'oom') assert.equal(r.resources.oom_kills, 1);
+    assert.deepEqual(readdirSync(jobsDir), []);
+  }
+});
+
 test('a real Demo A render through the service (unsandboxed authoring host)', { skip: process.env.MOTION_RENDER_TESTS !== '1' && 'set MOTION_RENDER_TESTS=1 (minutes)', timeout: 15 * 60 * 1000 }, async t => {
   const { post, call, until, jobsDir } = await start(t, null, { childScript: join(HERE, 'child.mjs'), childArgs: [] });
   const { render_id } = await (await post(job())).json();
