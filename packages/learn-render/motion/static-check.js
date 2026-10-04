@@ -18,7 +18,7 @@ export const IMPORTS = {
   remotion: ['AbsoluteFill', 'Sequence', 'Series', 'Freeze', 'Loop', 'Easing', 'interpolate', 'interpolateColors', 'spring', 'measureSpring', 'random', 'useCurrentFrame', 'useVideoConfig'],
 };
 // Families the render stage loads from the package's own woff2 files (assets/fonts).
-export const FONT_FAMILIES = ['Inter', 'Virgil'];
+export const FONT_FAMILIES = ['Inter', 'Virgil', 'JetBrains Mono'];
 
 const BANNED = new Set([
   // network

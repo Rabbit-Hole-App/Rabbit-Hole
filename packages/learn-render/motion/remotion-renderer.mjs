@@ -25,6 +25,8 @@ export const FONT_PINS = {
   'Inter-Regular.woff2': 'e06f6b1bc553aaea4e4668023ed0ab0a147129c3107f511bc7d03d361b0ae085',
   'Inter-Medium.woff2': '0ff3e94614e1493eb556314fd247ae6c4a85a7783b4cc86be539940cf83f2a48',
   'Virgil.woff2': '9976295bfe709bdea64839a4d4e9a1d436dd6eb67538399a5a0e8b8fadbcf1cf',
+  // JetBrains Mono 2.304, Regular only (OFL-1.1, JetBrainsMono-OFL.txt): the v2.304 GitHub release zip
+  'JetBrainsMono-Regular.woff2': 'a9cb1cd82332b23a47e3a1239d25d13c86d16c4220695e34b243effa999f45f2',
 };
 // The bundle page may load only from its own origin, the local bundle server. Every other
 // request (fetch, XHR, WebSocket, EventSource, beacon, images, fonts, media, frames,
@@ -82,7 +84,7 @@ export class RemotionRenderer {
 
   key(job) {
     const h = createHash('sha256').update(this.version).update(job.source).update(String(this.csp));
-    for (const f of ['src/motion/index.jsx', 'src/lecture/Lecture.jsx', 'motion/remotion-renderer.mjs', 'motion/static-check.js']) h.update(readFileSync(join(PKG, f)));
+    for (const f of ['src/motion/index.jsx', 'src/motion/fonts.jsx', 'motion/remotion-renderer.mjs', 'motion/static-check.js']) h.update(readFileSync(join(PKG, f)));
     for (const [f, pin] of Object.entries(FONT_PINS)) h.update(f).update(pin);
     return h.digest('hex').slice(0, 20);
   }

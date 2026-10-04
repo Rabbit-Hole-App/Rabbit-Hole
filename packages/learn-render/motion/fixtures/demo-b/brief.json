@@ -1,0 +1,278 @@
+{
+  "id": "brief-demo-b",
+  "prompt_spec_version": "motion-v1.0",
+  "raw_user_request": "/motion 20s show what happens here",
+  "resolved_target": {
+    "kind": "code_span",
+    "label": "GPT.generate in nanoGPT model.py (the selected lines 305-330)",
+    "repository_context": {
+      "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+      "label": "GPT.generate",
+      "range": {
+        "path": "model.py",
+        "start": 305,
+        "end": 330
+      }
+    },
+    "resolution": "deictic",
+    "candidates_considered": []
+  },
+  "title": "What happens on each step of GPT.generate",
+  "objective": "After this animation, the learner can trace one step of nanoGPT's GPT.generate loop line by line: crop the context, run the model, take the last position's logits divided by temperature, optionally keep only the top k, turn them into probabilities with softmax, sample one token and append it.",
+  "audience_context": "NanoGPT course; the learner selected GPT.generate in model.py and asked what happens here.",
+  "scope_note": "20s walks the loop body once, in source order. Dropped to fit: the @torch.no_grad() decorator (line 305), the docstring (307-311), the return (330) and tensor shapes.",
+  "source_refs": [
+    {
+      "id": "S1",
+      "kind": "code",
+      "repository": "karpathy/nanoGPT",
+      "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+      "path": "model.py",
+      "start_line": 306,
+      "end_line": 306
+    },
+    {
+      "id": "S2",
+      "kind": "code",
+      "repository": "karpathy/nanoGPT",
+      "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+      "path": "model.py",
+      "start_line": 312,
+      "end_line": 312
+    },
+    {
+      "id": "S3",
+      "kind": "code",
+      "repository": "karpathy/nanoGPT",
+      "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+      "path": "model.py",
+      "start_line": 314,
+      "end_line": 314
+    },
+    {
+      "id": "S4",
+      "kind": "code",
+      "repository": "karpathy/nanoGPT",
+      "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+      "path": "model.py",
+      "start_line": 316,
+      "end_line": 316
+    },
+    {
+      "id": "S5",
+      "kind": "code",
+      "repository": "karpathy/nanoGPT",
+      "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+      "path": "model.py",
+      "start_line": 318,
+      "end_line": 318
+    },
+    {
+      "id": "S6",
+      "kind": "code",
+      "repository": "karpathy/nanoGPT",
+      "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+      "path": "model.py",
+      "start_line": 320,
+      "end_line": 322
+    },
+    {
+      "id": "S7",
+      "kind": "code",
+      "repository": "karpathy/nanoGPT",
+      "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+      "path": "model.py",
+      "start_line": 324,
+      "end_line": 324
+    },
+    {
+      "id": "S8",
+      "kind": "code",
+      "repository": "karpathy/nanoGPT",
+      "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+      "path": "model.py",
+      "start_line": 326,
+      "end_line": 326
+    },
+    {
+      "id": "S9",
+      "kind": "code",
+      "repository": "karpathy/nanoGPT",
+      "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+      "path": "model.py",
+      "start_line": 328,
+      "end_line": 328
+    }
+  ],
+  "evidence": [
+    {
+      "source_ref_id": "S1",
+      "excerpt": "    def generate(self, idx, max_new_tokens, temperature=1.0, top_k=None):"
+    },
+    {
+      "source_ref_id": "S2",
+      "excerpt": "        for _ in range(max_new_tokens):"
+    },
+    {
+      "source_ref_id": "S3",
+      "excerpt": "            idx_cond = idx if idx.size(1) <= self.config.block_size else idx[:, -self.config.block_size:]"
+    },
+    {
+      "source_ref_id": "S4",
+      "excerpt": "            logits, _ = self(idx_cond)"
+    },
+    {
+      "source_ref_id": "S5",
+      "excerpt": "            logits = logits[:, -1, :] / temperature"
+    },
+    {
+      "source_ref_id": "S6",
+      "excerpt": "            if top_k is not None:\n                v, _ = torch.topk(logits, min(top_k, logits.size(-1)))\n                logits[logits < v[:, [-1]]] = -float('Inf')"
+    },
+    {
+      "source_ref_id": "S7",
+      "excerpt": "            probs = F.softmax(logits, dim=-1)"
+    },
+    {
+      "source_ref_id": "S8",
+      "excerpt": "            idx_next = torch.multinomial(probs, num_samples=1)"
+    },
+    {
+      "source_ref_id": "S9",
+      "excerpt": "            idx = torch.cat((idx, idx_next), dim=1)"
+    }
+  ],
+  "implementation_conditions": [
+    {
+      "id": "K1",
+      "condition": "top_k is not None (the signature default is top_k=None)",
+      "branches": [
+        {
+          "when": "true",
+          "runs": "torch.topk finds the k-th largest logit and every logit below it is set to -inf (S6)"
+        },
+        {
+          "when": "false",
+          "runs": "the top-k block is skipped; all logits go to softmax unchanged (S6)"
+        }
+      ],
+      "source_ref_ids": [
+        "S1",
+        "S6"
+      ]
+    }
+  ],
+  "claim_registry": [
+    {
+      "id": "C1",
+      "text": "generate runs the loop body once per new token, max_new_tokens times",
+      "source_ref_ids": [
+        "S2"
+      ],
+      "condition_ids": [],
+      "required": true
+    },
+    {
+      "id": "C2",
+      "text": "each step crops the context to at most the last block_size tokens and runs the model forward on it",
+      "source_ref_ids": [
+        "S3",
+        "S4"
+      ],
+      "condition_ids": [],
+      "required": true
+    },
+    {
+      "id": "C3",
+      "text": "only the last position's logits are used, and they are divided by temperature before softmax",
+      "source_ref_ids": [
+        "S5",
+        "S7"
+      ],
+      "condition_ids": [],
+      "required": true
+    },
+    {
+      "id": "C4",
+      "text": "top-k filtering runs only when top_k is set: logits below the k-th largest become -inf; with the default top_k=None it is skipped",
+      "source_ref_ids": [
+        "S1",
+        "S6"
+      ],
+      "condition_ids": [
+        "K1"
+      ],
+      "required": true
+    },
+    {
+      "id": "C5",
+      "text": "softmax turns the logits into probabilities and torch.multinomial samples the next token from them",
+      "source_ref_ids": [
+        "S7",
+        "S8"
+      ],
+      "condition_ids": [],
+      "required": true
+    },
+    {
+      "id": "C6",
+      "text": "the sampled token is appended to idx and fed back in on the next step",
+      "source_ref_ids": [
+        "S9"
+      ],
+      "condition_ids": [],
+      "required": true
+    }
+  ],
+  "duration": {
+    "requested_text": "20s",
+    "requested_seconds": 20,
+    "seconds": 20
+  },
+  "aspect_ratio": "16:9",
+  "teaching_mode": "code_walkthrough",
+  "must_show": [
+    "the generate loop's code",
+    "temperature division before softmax",
+    "the optional top-k branch",
+    "sampling from the probabilities",
+    "the sampled token appended to idx"
+  ],
+  "must_not_claim": [
+    "generate always picks the highest-probability token",
+    "temperature is applied after softmax",
+    "top-k is always applied"
+  ],
+  "visual_direction": "Code-first walkthrough: the selected code in JetBrains Mono, one highlight moving line by line in source order, a short note beside the highlighted line. Minimal text, no decorative motion.",
+  "narration_policy": "none",
+  "output_requirements": {
+    "stage_width": 1920,
+    "stage_height": 1080,
+    "fps": 30,
+    "preview_scale": 0.45,
+    "poster": true
+  },
+  "qa_requirements": {
+    "blocking_categories": [
+      "unsupported_claim",
+      "must_not_claim_violation",
+      "required_claim_contradicted",
+      "wrong_source_branch",
+      "blank_frame",
+      "clipped_text",
+      "overlapping_text",
+      "missing_must_show",
+      "duration_over_max",
+      "corrupt_output",
+      "renderer_failure",
+      "narration_contradicts_visuals"
+    ],
+    "keyframe_times": [
+      11.5,
+      17.5
+    ]
+  },
+  "provenance": {
+    "created_at": "2026-10-04T00:00:00Z"
+  }
+}

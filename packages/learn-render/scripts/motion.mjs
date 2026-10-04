@@ -1,7 +1,8 @@
 // Motion M1 render harness (spec §26 M1). No model calls: renders the hand-written Demo A
 // composition and proves the deterministic render contract (§8, §11).
 //   node scripts/motion.mjs prove [outDir]           every M1 proof -> <outDir>/report.json
-//   node scripts/motion.mjs still <jobDir> <f,f,..>  stills from a fresh bundle + fresh browser (determinism child)
+//   node scripts/motion.mjs still <jobDir> <f,f,..> [demo-a|demo-b]  stills from a fresh bundle + fresh browser (determinism child)
+//   node scripts/motion.mjs font-proof [outDir]      Demo B: JetBrains Mono loads and renders identically in two fresh contexts
 //   node scripts/motion.mjs net-probe [outDir]       runtime network denial, with and without the CSP
 //   node scripts/motion.mjs net-denied               exits 0 only if an outbound request fails (Linux namespace check)
 // Windows renders are authoring evidence only (§10.3); acceptance renders run in Linux (motion/linux/).
@@ -11,47 +12,17 @@ import { arch, cpus, platform, release } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { durationDecision } from '../motion/duration.js';
+import { NET_PROBE as PROBE, NET_PROBE_PREFIX } from '../motion/probes.js';
 import { CSP, RemotionRenderer, chromeVersion, ffmpegVersion, probe } from '../motion/remotion-renderer.mjs';
 
 const PKG = dirname(dirname(fileURLToPath(import.meta.url)));
 const ROOT = resolve(PKG, '..', '..');
-const FIX = join(PKG, 'motion', 'fixtures', 'demo-a');
+const FIX = join(PKG, 'motion', 'fixtures');
 const json = f => JSON.parse(readFileSync(f, 'utf8'));
-const demoJob = dir => ({ id: 'demo-a1', dir, brief: json(join(FIX, 'brief.json')), storyboard: json(join(FIX, 'storyboard.json')), source: readFileSync(join(FIX, 'composition.jsx'), 'utf8') });
+const demoJob = (dir, demo = 'demo-a') => ({ id: demo === 'demo-a' ? 'demo-a1' : demo, dir, brief: json(join(FIX, demo, 'brief.json')), storyboard: json(join(FIX, demo, 'storyboard.json')), source: readFileSync(join(FIX, demo, 'composition.jsx'), 'utf8') });
 const secs = t0 => +((performance.now() - t0) / 1000).toFixed(2);
 const [cmd, ...args] = process.argv.slice(2);
 
-// A deliberately unvalidated composition: it tries the network every way it can and logs
-// what happened. Static validation rejects it; this checks the runtime layer on its own.
-const PROBE = `import { AbsoluteFill, continueRender, delayRender } from 'remotion';
-import { useEffect, useState } from 'react';
-export const stage = { width: 1920, height: 1080, fps: 30, durationInFrames: 150 };
-const OUT = 'http://example.com/';
-const wait = p => Promise.race([p, new Promise(r => setTimeout(() => r('timeout'), 8000))]);
-const ev = make => wait(new Promise(r => { try { make(r); } catch (e) { r('threw: ' + e.name); } }));
-export default function Probe() {
-  const [h] = useState(() => delayRender('net probe'));
-  useEffect(() => {
-    const violations = [];
-    document.addEventListener('securitypolicyviolation', e => violations.push(e.violatedDirective + ' ' + e.blockedURI));
-    Promise.all([
-      wait(fetch(OUT, { mode: 'no-cors' }).then(r => 'reached (' + r.type + ')', e => 'failed: ' + e.message)),
-      ev(r => { const x = new XMLHttpRequest(); x.onload = () => r('reached ' + x.status); x.onerror = () => r('failed'); x.open('GET', OUT); x.send(); }),
-      ev(r => { const w = new WebSocket('ws://example.com/'); w.onopen = () => r('reached'); w.onerror = () => r('failed'); }),
-      ev(r => { const i = new Image(); i.onload = () => r('reached'); i.onerror = () => r('failed'); i.src = OUT + 'probe.png'; }),
-      wait(fetch('http://127.0.0.1:59999/', { mode: 'no-cors' }).then(r => 'reached', e => 'failed: ' + e.message)),
-      ev(r => r(navigator.sendBeacon(OUT, 'x') ? 'queued' : 'refused')),
-      wait(fetch('/index.html').then(r => 'reached ' + r.status, e => 'failed: ' + e.message)),
-    ]).then(([fetchOut, xhr, websocket, image, loopbackOtherPort, beacon, ownOrigin]) => {
-      setTimeout(() => {
-        console.log('MOTION_NET_PROBE ' + JSON.stringify({ fetchOut, xhr, websocket, image, loopbackOtherPort, beacon, ownOrigin, violations }));
-        continueRender(h);
-      }, 300);
-    });
-  }, []);
-  return <AbsoluteFill style={{ backgroundColor: 'white' }} />;
-}
-`;
 
 async function netProbe(out) {
   const brief = { duration: { seconds: 5 } };
@@ -60,7 +31,7 @@ async function netProbe(out) {
   for (const csp of [true, false]) {
     const r = new RemotionRenderer({ fresh: true, csp });
     let line = null;
-    r.log = l => { if (l.text.startsWith('MOTION_NET_PROBE ')) line = JSON.parse(l.text.slice(17)); };
+    r.log = l => { if (l.text.startsWith(NET_PROBE_PREFIX)) line = JSON.parse(l.text.slice(NET_PROBE_PREFIX.length)); };
     try { await r.renderStills({ id: 'net-probe', dir: join(out, `net-probe-${csp ? 'csp' : 'no-csp'}`), brief, source: PROBE }, [0]); }
     finally { await r.close(); }
     result.runs[csp ? 'with_csp' : 'without_csp_control'] = line;
@@ -90,17 +61,56 @@ function dependencies() {
     [comp]: (() => { try { return pkg(comp); } catch { return 'not installed'; } })(),
     react: pkg('react'), 'react-dom': pkg('react-dom'), pngjs: pkg('pngjs'), '@babel/parser': pkg('@babel/parser'), esbuild: pkg('esbuild'), webpack: pkg('webpack'),
     'chrome-headless-shell': `${chromeVersion()} (Chrome for Testing, downloaded by Remotion)`,
-    fonts: 'Inter 4.001 (OFL-1.1), Virgil 1.001 (OFL-1.1); assets/fonts, sha256-pinned',
+    fonts: 'Inter 4.001 (OFL-1.1), Virgil 1.001 (OFL-1.1), JetBrains Mono 2.304 Regular (OFL-1.1, JetBrainsMono-OFL.txt); assets/fonts, sha256-pinned',
   };
 }
 
+// §8.3: the same frames in two fresh contexts (separate processes, fresh bundles, fresh browsers).
+function freshContexts(out, frames, demo) {
+  const fresh = [1, 2].map(n => {
+    const t0 = performance.now();
+    const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url), 'still', join(out, `fresh-${n}`), frames.join(','), demo], { cwd: PKG, encoding: 'utf8' });
+    if (r.status !== 0) { console.error(r.stderr); process.exit(1); }
+    return { ...JSON.parse(r.stdout.trim().split('\n').at(-1)), seconds: secs(t0) };
+  });
+  return { fresh, same: frames.every((_, i) => fresh[0].stills[i].pixels_sha256 === fresh[1].stills[i].pixels_sha256) };
+}
+
 if (cmd === 'still') {
-  const [dir, frames] = args;
+  const [dir, frames, demo] = args;
   const r = new RemotionRenderer({ fresh: true });
-  const stills = await r.renderStills(demoJob(resolve(dir)), frames.split(',').map(Number));
+  const fonts = []; // one MOTION_FONTS line per page the stills load
+  r.log = l => { if (l.text.startsWith('MOTION_FONTS ')) fonts.push(JSON.parse(l.text.slice(13))); };
+  const stills = await r.renderStills(demoJob(resolve(dir), demo), frames.split(',').map(Number));
   await r.close();
-  console.log(JSON.stringify({ pid: process.pid, bundle: r.serveUrl, stills: stills.map(({ frame, pixels_sha256 }) => ({ frame, pixels_sha256 })) }));
+  console.log(JSON.stringify({ pid: process.pid, bundle: r.serveUrl, fonts, stills: stills.map(({ frame, pixels_sha256 }) => ({ frame, pixels_sha256 })) }));
   process.exit(0);
+}
+
+if (cmd === 'font-proof') {
+  const out = resolve(args[0] || join(PKG, 'out', 'motion', 'font-proof'));
+  rmSync(out, { recursive: true, force: true });
+  mkdirSync(out, { recursive: true });
+  const report = { at: new Date().toISOString(), host: { platform: platform(), release: release(), arch: arch(), cpus: cpus().length, node: process.version }, decisions: [] };
+  const say = line => { console.log(line); report.decisions.push(line); };
+  const job = demoJob(join(out, 'job'), 'demo-b');
+  report.validate_source = new RemotionRenderer().validateSource(job.brief, job.storyboard, job.source);
+  if (report.validate_source.length) { console.error(report.validate_source.join('\n')); process.exit(1); }
+  say(`✓ source: Demo B brief, storyboard and composition pass static validation (${job.source.length} bytes)`);
+
+  const frames = [0, 300, 599];
+  const { fresh, same } = freshContexts(out, frames, 'demo-b');
+  // FontFace.family comes back CSS-quoted for a name with a space: "\"JetBrains Mono\"".
+  const mono = l => l.check === true && l.faces.some(x => x.family.replace(/^"|"$/g, '') === 'JetBrains Mono' && x.weight === '400' && x.status === 'loaded');
+  const loaded = fresh.every(c => c.fonts.length > 0 && c.fonts.every(mono));
+  report.determinism = { method: 'renderStill PNG at scale 1, sha256 of decoded RGBA, two child processes each with a fresh bundle and a fresh browser', identical: same, contexts: fresh };
+  report.fonts = { jetbrains_mono_loaded: loaded, motion_fonts: fresh.map(c => c.fonts[0] ?? null) };
+  say(`${loaded ? '✓' : '✗'} fonts: JetBrains Mono 400 loaded and document.fonts.check true in both contexts (${fresh.map(c => c.fonts.length).join(' + ')} pages)`);
+  say(`${same ? '✓' : '✗'} determinism: frames ${frames.join(', ')} identical across two fresh contexts (pids ${fresh[0].pid}, ${fresh[1].pid})`);
+  report.dependencies = dependencies();
+  writeFileSync(join(out, 'report.json'), JSON.stringify(report, null, 2));
+  console.log(`✓ report: ${join(out, 'report.json')}`);
+  process.exit(same && loaded ? 0 : 1);
 }
 
 if (cmd === 'net-denied') {
@@ -150,15 +160,8 @@ if (cmd === 'prove') {
   report.final_validation = runs.cold.validation;
   say(`${runs.cold.validation.ok ? '✓' : '✗'} final: ${runs.cold.validation.checks.map(c => `${c.name} ${c.ok ? 'ok' : 'FAIL'}`).join(', ')}`);
 
-  // §8.3: the same frames in two fresh contexts (separate processes, fresh bundles, fresh browsers).
   const frames = [0, 150, 270, 360, 449];
-  const fresh = [1, 2].map(n => {
-    const t0 = performance.now();
-    const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url), 'still', join(out, `fresh-${n}`), frames.join(',')], { cwd: PKG, encoding: 'utf8' });
-    if (r.status !== 0) { console.error(r.stderr); process.exit(1); }
-    return { ...JSON.parse(r.stdout.trim().split('\n').at(-1)), seconds: secs(t0) };
-  });
-  const same = frames.every((_, i) => fresh[0].stills[i].pixels_sha256 === fresh[1].stills[i].pixels_sha256);
+  const { fresh, same } = freshContexts(out, frames, 'demo-a');
   report.determinism = { method: 'renderStill PNG, sha256 of decoded RGBA, two child processes each with a fresh bundle and a fresh browser', identical: same, contexts: fresh };
   say(`${same ? '✓' : '✗'} determinism: ${frames.length} frames identical across two fresh contexts (pids ${fresh[0].pid}, ${fresh[1].pid})`);
 
@@ -174,5 +177,5 @@ if (cmd === 'prove') {
   process.exit(runs.cold.validation.ok && same ? 0 : 1);
 }
 
-console.error('usage: node scripts/motion.mjs prove [outDir] | still <jobDir> <frames> | net-probe [outDir] | net-denied');
+console.error('usage: node scripts/motion.mjs prove [outDir] | still <jobDir> <frames> [demo] | font-proof [outDir] | net-probe [outDir] | net-denied');
 process.exit(2);

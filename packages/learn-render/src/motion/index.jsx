@@ -5,10 +5,10 @@
 import React from 'react';
 import { Composition, registerRoot } from 'remotion';
 import Motion, { stage } from 'motion-composition';
-import { useFonts } from '../lecture/Lecture.jsx';
+import { useMotionFonts } from './fonts.jsx';
 
 const Stage = () => {
-  useFonts();
+  useMotionFonts();
   return <Motion />;
 };
 

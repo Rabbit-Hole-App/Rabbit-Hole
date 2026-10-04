@@ -56,7 +56,8 @@
           "model.py:326": "torch.multinomial sample",
           "model.py:328": "append and continue"
         },
-        "must_not_appear": ["generate always picks the highest-probability token", "temperature is applied after softmax", "top-k is always applied"]
+        "must_not_appear": ["generate always picks the highest-probability token", "temperature is applied after softmax", "top-k is always applied"],
+        "hand_written": { "brief": "demo-b/brief.json", "storyboard": "demo-b/storyboard.json", "composition": "demo-b/composition.jsx" }
       }
     },
     {

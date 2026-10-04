@@ -97,6 +97,14 @@ test('fonts: only the bundled families', () => {
   rejects(mod("  const s = { font: '20px Inter' };"), /"font" shorthand/);
   rejects(`${STAGE}\nexport default function M() { return <svg><text fontFamily="Courier">x</text></svg>; }`, /font "Courier" is not bundled/);
   assert.deepEqual(check(`const F = 'Virgil';\n${STAGE}\nexport default function M() { return <div style={{ fontFamily: F }}>x</div>; }`), []);
+  // the bundled monospace: never a system fallback, not even as the tail of a stack
+  assert.deepEqual(check(mod("  const s = { fontFamily: 'JetBrains Mono' };")), []);
+  rejects(mod("  const s = { fontFamily: 'monospace' };"), /font "monospace" is not bundled/);
+  rejects(mod(`  const s = { fontFamily: "'JetBrains Mono', monospace" };`), /font "monospace" is not bundled/);
+});
+
+test('the hand-written Demo B composition passes', () => {
+  assert.deepEqual(checkComposition(readFileSync(new URL('./fixtures/demo-b/composition.jsx', import.meta.url), 'utf8'), { durationSeconds: 20 }), []);
 });
 
 test('the stage is the brief stage, as literals', () => {
