@@ -46,7 +46,7 @@
     // Its bearer SCENE_WORKER_TOKEN is a fresh production-only secret set on both sides at the production GO.
     "SCENE_WORKER_URL": "https://rabbit-hole-lesson-renderer-prod.fly.dev"
   }
-  // Secrets (required): ANTHROPIC_API_KEY, ANTHROPIC_WORKSPACE_ID (the key needs the workspace header), SCENE_WORKER_TOKEN.
-  // Voice: ELEVENLABS_API_KEY, FISH_AUDIO_API_KEY. Optional: OPENAI_API_KEY and the paid-provider keys.
+  // Secrets (required): ANTHROPIC_API_KEY, ANTHROPIC_WORKSPACE_ID (the key needs the workspace header), TYPESAFE_API_KEY,
+  // FISH_AUDIO_API_KEY, ELEVENLABS_API_KEY, SCENE_WORKER_TOKEN. Optional: OPENAI_API_KEY and the paid-provider keys.
   // Never here: RESEND_API_KEY or OAuth secrets (rabbit-hole-cp only).
 }
