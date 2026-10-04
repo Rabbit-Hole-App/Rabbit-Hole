@@ -506,7 +506,8 @@ function showCard(canvas, cardId, partId = null, take = () => null) {
   if (block && pager && index != null) canvas.updateBlock?.(block.id, atPart);
   const id = block?.id || canvas.insertBlock?.(atPart(cardBlock(module)), { into: take() });
   if (!id) return false;
-  canvas.revealBlock?.(id);
+  // A card already there answers the held slot: once the learner has moved the camera since, it is only selected.
+  canvas.revealBlock?.(id, block ? take.held?.() : null);
   return true;
 }
 
@@ -523,6 +524,7 @@ export function executeActions(actions, { canvas, suggestDive, climb, slot = nul
   const chips = [];
   let held = slot;
   const take = () => { const id = held; held = null; return id; };
+  take.held = () => held;
   for (const action of actions) {
     if ((action.type === 'show_authored_card' || action.type === 'focus_part') && action.mode === 'navigate') showCard(canvas, action.card, action.part_id, take);
     else if (action.type === 'show_authored_card' || action.type === 'focus_part') chips.push({ label: `Show ${titleOf(action.card)}${partName(action.card, action.part_id)}`, run: () => showCard(canvas, action.card, action.part_id) });

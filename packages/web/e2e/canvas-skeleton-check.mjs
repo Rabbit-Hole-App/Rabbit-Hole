@@ -8,6 +8,8 @@
 // It proves, with screenshots mid-wait and after:
 //   A. /explain: the skeleton is there at once at the explanation's typical height, the camera glides it to the centre
 //      of the visible canvas without touching the zoom, and the card replaces it in place.
+//   H. The learner's camera wins: a real wheel pan after the skeleton's pan, or a wheel zoom while the card settles,
+//      cancels every pending correction; untouched, the card gets exactly one.
 //   B. Layout: the cards below make room for the skeleton, and close up (or not) to the card's measured height.
 //   C. A clarification and a failure leave no skeleton.
 //   P. A paid command (/animate) shows its proposal and no skeleton; Cancel shows none; Generate shows one, and the
@@ -122,8 +124,10 @@ const parked = await camera(), parkedZoom = await zoom();
 const EXPLAIN = { type: 'explanation', title: 'A token id is only an index', body: 'The embedding table turns the index into a learned vector; everything after works with vectors.' };
 let releaseArtifact;
 artifactNext = () => new Promise(resolve => { releaseArtifact = () => resolve({ json: { result: 'artifact', primitive: 'explanation', block: EXPLAIN } }); });
+// Timed from the Enter that sends it (typing the command is not the wait).
+await composer().click(); await composer().fill('/explain why a token id is only an index'); await page.waitForTimeout(120);
 const sentAt = Date.now();
-await send('/explain why a token id is only an index');
+await composer().press('Enter');
 await slots().first().waitFor({ timeout: 2000 });
 const shownIn = Date.now() - sentAt;
 check('A1 the skeleton appears on send, before any answer', shownIn < 1500, `${shownIn} ms`);
@@ -147,6 +151,83 @@ check('A8 the card is the explanation', (await page.locator(`[data-block-id="${c
 await page.waitForTimeout(500);
 check('A9 no second fit: same zoom, the card in the visible canvas', await zoom() === parkedZoom && await inFree(page.locator(`[data-block-id="${cardA.id}"]`)), `${cameraBefore} -> ${await camera()}`);
 await shot('02-explain-replaced');
+
+// ---- H. The learner's camera wins: after the skeleton's pan, a real wheel pan or zoom drops every correction still
+// pending for it; untouched, the card gets exactly one. At 100%, with a tall explanation (it reaches its 520 cap
+// while the skeleton holds the typical 330), which overruns the visible area unless the camera corrects. ----
+const TALL = { ...EXPLAIN, title: 'The learner moves the camera', body: Array.from({ length: 14 }, (_, i) => `Line ${i + 1}: the embedding table turns each token id into a learned vector of n_embd numbers, and everything after works with vectors.`).join('\n\n') };
+const parkBelow = async () => {
+  await page.evaluate(() => document.activeElement?.blur());
+  await page.keyboard.press('Shift+Digit0'); await page.waitForTimeout(500);
+  await page.mouse.move(box.x + 40, box.y + box.height / 2); // empty canvas beside the column, clear of wide cards
+  for (let i = 0; i < 30; i++) await page.mouse.wheel(0, 1200);
+  await page.waitForTimeout(500);
+};
+// Every camera change from the moment the card enters the column (the world's transform, as painted).
+const watchCamera = (zoomOnInsert = false) => page.evaluate(zoomOnInsert => {
+  const world = [...document.querySelector('[data-canvas-surface]').children].find(node => node.style.transform);
+  const column = document.querySelector('[data-slot-id]').parentElement;
+  for (const observer of window.__camObservers || []) observer.disconnect(); // the previous flow's
+  window.__cam = { inserted: false, changes: 0 };
+  const styles = new MutationObserver(() => { if (window.__cam.inserted) window.__cam.changes += 1; });
+  styles.observe(world, { attributes: true, attributeFilter: ['style'] });
+  const cards = new MutationObserver(records => {
+    if (window.__cam.inserted || !records.some(record => [...record.addedNodes].some(node => node.dataset?.blockId))) return;
+    window.__cam.inserted = true;
+    // H2: a real ctrl+wheel zoom through the canvas's own wheel handler, in the card's settle window.
+    if (zoomOnInsert) { const frame = document.querySelector('[data-canvas-surface]').getBoundingClientRect(); document.querySelector('[data-canvas-surface]').dispatchEvent(new WheelEvent('wheel', { deltaY: -120, ctrlKey: true, clientX: frame.left + 150, clientY: frame.top + frame.height / 2, bubbles: true, cancelable: true })); }
+  });
+  cards.observe(column, { childList: true });
+  window.__camObservers = [styles, cards];
+}, zoomOnInsert);
+const explainHeld = async (text, block) => {
+  let release;
+  artifactNext = () => new Promise(resolve => { release = () => resolve({ json: { result: 'artifact', primitive: 'explanation', block } }); });
+  await send(text);
+  await slots().first().waitFor({ timeout: 2000 });
+  await page.waitForTimeout(400); // the skeleton's own glide
+  return () => release();
+};
+const newestCard = async title => page.locator('[data-block-id]:not([data-chat-block])', { hasText: title }).last();
+
+// H1. The skeleton pans into view; the learner wheels away; the card lands and re-measures; the camera stays put.
+await parkBelow();
+let releaseH = await explainHeld('/explain the learner pans away', TALL);
+const autoCam = await camera();
+await page.mouse.move(box.x + 40, box.y + box.height / 2);
+await page.mouse.wheel(0, 300); // the learner's own pan, down past the skeleton's top
+await page.waitForTimeout(400);
+const learnerCam = await camera();
+await watchCamera();
+releaseH();
+await noSlot();
+await page.waitForTimeout(2500); // past the card's settle window
+const [h1Box, h1Area] = [await (await newestCard(TALL.title)).boundingBox(), await freeArea()];
+check('H1 after the learner pans, the card lands and re-measures and the camera stays where they put it', learnerCam !== autoCam && (await camera()) === learnerCam && await page.evaluate(() => window.__cam.changes) === 0 && h1Box.y < h1Area.top, `auto ${autoCam} learner ${learnerCam} now ${await camera()}; card top ${Math.round(h1Box.y)} above the visible top ${Math.round(h1Area.top)}`);
+await shot('02b-learner-panned-camera-stays');
+
+// H2. A wheel zoom in the card's settle window drops its correction too.
+await parkBelow();
+releaseH = await explainHeld('/explain the learner zooms', { ...TALL, title: 'The learner zooms' });
+const zoomBefore = await zoom();
+await watchCamera(true);
+releaseH();
+await noSlot();
+await page.waitForTimeout(300);
+const zoomedCam = await camera();
+await page.waitForTimeout(2500);
+check('H2 a wheel zoom while the card settles cancels its correction; the learner\'s zoom stays', (await zoom()) !== zoomBefore && (await camera()) === zoomedCam, `${zoomBefore} -> ${await zoom()}, ${zoomedCam} -> ${await camera()}`);
+
+// H3. Untouched, the card gets exactly one correction, and it ends inside the visible canvas.
+await parkBelow();
+releaseH = await explainHeld('/explain nobody touches the camera', { ...TALL, title: 'Nobody touches the camera' });
+await watchCamera();
+releaseH();
+await noSlot();
+await page.waitForTimeout(2500);
+const h3 = await newestCard('Nobody touches the camera');
+check('H3 untouched: one correction, the tall card inside the visible canvas, zoom kept', await page.evaluate(() => window.__cam.changes) === 1 && await inFree(h3) && (await zoom()) === 1, `${await page.evaluate(() => window.__cam.changes)} camera change(s)`);
+await shot('02c-one-correction-when-untouched');
 
 // ---- B. Layout in the middle of the column: the cards below make room, then close up to the measured card ----
 await page.evaluate(() => document.activeElement?.blur());

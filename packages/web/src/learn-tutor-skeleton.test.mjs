@@ -44,7 +44,7 @@ function deferredCanvas(blocks) {
     calls, blocks: () => blocks,
     insertBlock: (inserted, options = {}) => { const id = `b${calls.length}`; pending.push({ ...inserted, id }); calls.push(['insert', inserted.scene.id, options.into ?? null, inserted.inputs?.part ?? null]); return id; },
     updateBlock: (id, change) => { const at = blocks.findIndex(entry => entry.id === id); if (at < 0) { calls.push(['update-missed', id]); return false; } blocks[at] = change(blocks[at]); calls.push(['update', id]); return true; },
-    revealBlock: id => calls.push(['focus', id]),
+    revealBlock: (id, slot = null) => calls.push(slot ? ['focus', id, slot] : ['focus', id]),
     commit: () => blocks.push(...pending.splice(0)),
   };
 }
@@ -68,7 +68,7 @@ test('only the first new card takes the slot; a card already on the canvas and a
     { type: 'show_authored_card', card: 'c11-causal-mask', mode: 'suggest' },
   ], { canvas, suggestDive: () => {}, slot: 'slot:1' });
   assert.deepEqual(canvas.calls.map(call => call.slice(0, 3)), [
-    ['focus', overview.id], // already there: focused, the slot left for the caller to release
+    ['focus', overview.id, 'slot:1'], // already there: revealed as that slot's answer (the learner's camera wins), the slot left for the caller to release
     ['insert', cardModule('depth-attention-guided').scene.id, 'slot:1'], ['focus', 'b1'],
     ['insert', cardModule('depth-attention-deep').scene.id, null], ['focus', 'b3'],
   ]);

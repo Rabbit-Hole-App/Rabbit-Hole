@@ -113,13 +113,51 @@ at 1440x900: the palette samples, and the six seeded NanoGPT Tutor slice cards.
 - **On reserve.** The skeleton glides (200 ms, instant under reduced motion) to the centre of that area on any
   axis where it is not already inside. An axis already in view is left alone. A skeleton taller than the area gets
   its top at the area's top.
-- **On replace.** There is no second fit and no zoom change. The camera nudges only if the card's measured bounds
-  leave the visible area, and then only far enough to bring the card back in, or its top for a card taller than
-  the area. The check repeats while the card settles to its final size: rows it measures a frame or two after
-  mount (an animation's controls, its sources), for 1.5 s (`REVEAL_MS` in `AdaptiveCanvas`).
-- **Who uses this rule.** Every insert reveal uses it, the Tutor's show (`revealBlock`: select, then glide into
-  the visible area) uses it, and so does a reused research card.
-- **Files panel.** "Show" keeps `focusBlock`'s existing frame.
+- **On replace.** There is no second fit and no zoom change. The card gets **one** correction, made once its
+  measured box has been still for 200 ms (`SETTLE_MS`). That wait covers the rows an animation card measures a frame
+  or two after mount, such as its controls and sources; the correction happens 1.5 s after the insert at the
+  latest (`REVEAL_MS`). The camera nudges only if the card leaves the visible area, and only far enough to bring
+  it back in, or its top for a card taller than the area.
+- **Who uses this rule.**
+  - Every insert reveal.
+  - The Tutor's show (`revealBlock`): select, then glide into the visible area. A card inserted that tick only
+    selects; its one correction is the settle above.
+  - A reused research card.
+- **Files panel.** "Show" keeps `focusBlock`'s existing frame. It is an explicit learner action.
+- **Tall cards (V1).** A card taller than the visible area is top-aligned in it, at the learner's zoom: its top
+  sits just inside the visible area, its left and right edges inside it, never under the chat. There is no
+  zoom-to-fit; the e2e asserts this (G3).
+
+**The learner's camera wins.** The canvas may pan to a skeleton, then make one correction after the real card is
+measured, and only if the learner has not moved the camera since. Once the learner moves it, the canvas never
+pulls them back.
+- **Where it hooks in.** `AdaptiveCanvas` counts every camera change it did not make itself: an effect on `view`
+  compares it with the last view the canvas set (`autoView`) and bumps `manualMoves`. Every camera input already
+  ends in `setView`:
+  - wheel pan, ctrl or ⌘ wheel zoom, and pinch;
+  - a hand-tool or canvas drag;
+  - keyboard scroll and zoom, and the zoom pill;
+  - the minimap;
+  - the Files panel's Show (`focusBlock`), a section from the contents rail, a presentation step;
+  - a Rabbit Hole return point.
+  So no input path changed, and the global camera policy is untouched.
+- **What it cancels.**
+  - Each reservation records the count when it is made. A card that fills it, a card reused for it, and the
+    Tutor's show of a card already on the canvas (`revealBlock(id, slot)`) do not move the camera if the count
+    changed in between.
+  - A new card's settle correction records the count when it is armed: the slot's count for a card that fills
+    one. It is dropped if the count changed before it fires, for example after a wheel zoom while the card settles.
+
+**The Tutor focus bug, fixed.**
+- **Before.** `showCard` did insert, then `updateBlock`, then `focusBlock` in one tick. The update read the canvas
+  before the card existed, so the part was ignored. The focus needed a measured box, so it did nothing.
+- **First fix (cde0d7b6).** It framed the card instead, which could zoom the learner from 100% to 60%. The owner
+  did not accept that.
+- **Now.**
+  - A new card is inserted with its part already applied.
+  - The Tutor calls `revealBlock`, which selects the card and, once it is in the DOM, pans it into the visible
+    area at the learner's zoom, unless the learner has moved the camera since asking.
+  - A card already on the canvas gets the same treatment.
 
 **The Tutor focus bug, fixed.**
 - **Before.** `showCard` did insert, then `updateBlock`, then `focusBlock` in one tick. The update read the canvas
@@ -175,6 +213,11 @@ at 1440x900: the palette samples, and the six seeded NanoGPT Tutor slice cards.
 - Browser: `packages/web/e2e/canvas-skeleton-check.mjs` runs against the local stack, with scripted model routes
   and screenshots mid-wait and after replacement.
   - Slash at the learner's zoom (80%), layout, clarification and failure.
+  - The learner's camera wins:
+    - a real wheel pan after the skeleton's pan keeps the camera where the learner put it while the card lands
+      and re-measures;
+    - a wheel zoom in the card's settle window cancels its correction;
+    - untouched, a tall card gets exactly one correction.
   - Paid: proposal, Cancel, Generate.
   - Shared push and fork.
   - Research, including the status ellipsis.
@@ -182,7 +225,14 @@ at 1440x900: the palette samples, and the six seeded NanoGPT Tutor slice cards.
     timeout.
   - A pending Rabbit Hole.
 
-## Open
+## Known issues / follow-ups
 
-- Only the world transform glides. The grid backdrop, when on, jumps (`ponytail:` in `AdaptiveCanvas`).
-- A learner who pans away within 1.5 s of a card landing, while that card is still growing, is brought back to it.
+- **Grid backdrop jump (small, not a merge blocker).**
+  - **What happens:** only the world transform glides. With the grid on, the dotted backdrop (the surface's
+    `background-position`) jumps to the new camera while the cards glide for 200 ms.
+  - **Fix:** transition `background-position` together with the world transform while `glide` is on.
+  - **In the code:** a `ponytail:` comment in `AdaptiveCanvas`.
+- **What counts as the canvas's own.** The canvas marks its own moves as its own: a skeleton's pan, a card's
+  correction, centring a newly asked chat card, and its first centring at mount. Every other camera change counts as
+  the learner's and cancels pending corrections. That includes the camera scroll after a + palette insert, itself
+  the result of a learner's click. If in doubt, the canvas does not move the camera.
