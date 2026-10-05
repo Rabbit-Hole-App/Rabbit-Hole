@@ -20,7 +20,7 @@ const outfile = join(dir, 'journey.cjs');
 await esbuild.build({
   stdin: {
     contents: [
-      "export { TutorPromptTray, routeJourneyTurn, journeyStartsHere, journeyRequest, shownTray, liveJourneyTray } from './LearnJourney.jsx';",
+      "export { TutorPromptTray, routeJourneyTurn, journeyStartsHere, journeyRequest, shownTray, liveJourneyTray, resolveBody } from './LearnJourney.jsx';",
       "export { createElement } from 'react';",
       "export { renderToStaticMarkup } from 'react-dom/server';",
     ].join('\n'),
@@ -29,7 +29,7 @@ await esbuild.build({
   },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent',
 });
-const { TutorPromptTray, routeJourneyTurn, journeyStartsHere, journeyRequest, shownTray, liveJourneyTray, createElement, renderToStaticMarkup } = createRequire(import.meta.url)(outfile);
+const { TutorPromptTray, routeJourneyTurn, journeyStartsHere, journeyRequest, shownTray, liveJourneyTray, resolveBody, createElement, renderToStaticMarkup } = createRequire(import.meta.url)(outfile);
 rmSync(dir, { recursive: true, force: true });
 
 const intake = (slots = {}) => ({ id: 'j1', state: 'intake', revision: 3, request: { topic: 'logistic regression', intent: { kind: 'learning_journey' } }, intake: { slots, source: {} }, pending: null, error: null });
@@ -153,6 +153,20 @@ test('liveJourneyTray: a broad intent on a board with a live journey asks contin
   assert.equal(tray.mode, 'clarification');
   assert.deepEqual(tray.options, [{ id: 'continue', label: 'Continue logistic regression' }, { id: 'start_new', label: 'Start transformers' }]);
   assert.equal(tray.free_text, false);
+});
+
+test('resolveBody: rule 5 sends the open tray inside the route limits, and no other field', () => {
+  const long = { id: 'clarification:x', mode: 'clarification', prompt: 'p'.repeat(400), free_text: true, dismissible: true, text: 'kept local',
+    options: Array.from({ length: 8 }, (_, i) => ({ id: `${i}`.repeat(50), label: 'l'.repeat(200), value: 'x' })) };
+  const body = resolveBody('w'.repeat(1200), long);
+  assert.deepEqual(Object.keys(body), ['action', 'text', 'tray']);
+  assert.equal(body.action, 'resolve');
+  assert.equal(body.text.length, 1000);
+  assert.deepEqual(Object.keys(body.tray), ['mode', 'prompt', 'options']);
+  assert.equal(body.tray.prompt.length, 300);
+  assert.equal(body.tray.options.length, 6);
+  assert.ok(body.tray.options.every(o => Object.keys(o).join() === 'id,label' && o.id.length === 40 && o.label.length === 120));
+  assert.deepEqual(resolveBody('hi', previewTray).tray, { mode: 'path_preview', prompt: previewTray.prompt, options: previewTray.options });
 });
 
 test('ask.jsx: the tray path runs before the Tutor and the Learn chat; a broad intent starts a journey; the tray sits in the LearnSlash slot', () => {

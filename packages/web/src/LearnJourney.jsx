@@ -41,6 +41,12 @@ export function shownTray(server, local, busy, error) {
   return tray && (busy || error) ? { ...tray, ...(busy ? { busy } : {}), ...(error ? { error } : {}) } : tray;
 }
 
+// Rule 5's request: the open tray as the route bounds it (prompt 300, 6 options, id 40, label 120, text 1000) and no
+// other field.
+export const resolveBody = (text, tray) => ({ action: 'resolve', text: String(text).slice(0, 1000), tray: {
+  mode: tray?.mode ?? null, prompt: String(tray?.prompt ?? '').slice(0, 300),
+  options: (tray?.options || []).slice(0, 6).map(({ id, label }) => ({ id: String(id).slice(0, 40), label: String(label).slice(0, 120) })) } });
+
 // §6.1: a broad intent on a board that already has a live journey asks first; the server never holds two (409).
 export function liveJourneyTray(journey, text) {
   const topic = journey?.request?.topic || 'this path', next = journeyIntent(text).topic || 'a new path';
@@ -169,7 +175,7 @@ export function useJourney({ app, board, access, enabled = true }) {
       if (optionId === 'continue') return setLocal(null);
       // Start the new topic: the live journey is archived first, so the board still holds one.
       const out = await act({ action: 'archive' }, () => answer('start_new'));
-      return out.status === 200 ? start(local.text) : out;
+      return out.status === 200 || out.d?.error === 'no_journey' ? start(local.text) : out; // no_journey: another tab archived it
     }
     if (local?.id === 'clarification:turn') {
       setLocal(null);
@@ -189,11 +195,10 @@ export function useJourney({ app, board, access, enabled = true }) {
     const out = await act({ action: 'cancel' });
     if (out.status === 409) setDismissed(latest.current.tray?.id ?? null);
   };
-  // Rule 5. An unreachable model leaves the learner to say which they meant.
+  // Rule 5. An unreachable model or a refused request (400) leaves the learner to say which they meant.
   const resolve = async text => {
-    const t = local || server;
     setBusy(BUSY);
-    try { return await api('/api/learn/journey', { method: 'POST', body: JSON.stringify({ ...where, action: 'resolve', text, tray: { mode: t?.mode, prompt: t?.prompt, options: (t?.options || []).map(({ id, label }) => ({ id, label })) } }) }); }
+    try { return await api('/api/learn/journey', { method: 'POST', body: JSON.stringify({ ...where, ...resolveBody(text, local || server) }) }); }
     catch { return { kind: 'clarification_needed' }; } finally { setBusy(null); }
   };
   // A composer turn while the tray is open. { handled: false } hands it to the composer's responder (with `text` when

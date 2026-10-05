@@ -12,7 +12,7 @@ import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { journeyIntent } from './learner-intent-journey.js';
 import { TRAY_MODES, journeyStep, nextIntakeQuestion, nextProbe, slotsFromIntent, trayFor, validateRegistry } from '../../web/src/learn-journey.js';
-import { JourneyConflict, appendPathVersion, createJourney, loadJourney, loadPath, saveJourney, toClient } from './learn-journey-store.js';
+import { JourneyConflict, appendPathVersion, archiveJourney, createJourney, loadJourney, loadPath, saveJourney, toClient } from './learn-journey-store.js';
 import { PlannerInvalid, adaptPath, journeyCallModel, planDiagnostic, planPath, planSection, resolveWithModel } from './learn-journey-planners.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -190,6 +190,9 @@ async function act(env, scope, body, callModel, now) {
   if (!j) return json({ error: 'no_journey', journey: null }, 409);
   if (body.revision != null && body.revision !== j.revision) return reply(env, j, 409, { error: 'revision' });
   const refuse = step => reply(env, j, 409, { error: step.error });
+  // The learner starts another topic on this board (§6.1 continue-or-start): the live journey is archived, read-only for
+  // good, and the board has none until the next start.
+  if (body.action === 'archive') { await archiveJourney(env, j); return json({ journey: null, path: null, tray: null }); }
   if (body.action === 'accept') {
     // Section 1 becomes current in a new version with only that status change, then only it is planned.
     const path = await loadPath(env, j.id), step = journeyStep(j, { type: 'accept', path });
@@ -216,7 +219,7 @@ async function act(env, scope, body, callModel, now) {
   return run(env, await saveJourney(env, step.journey, j.revision), step.effects, callModel);
 }
 
-const ACTIONS = new Set(['start', 'resolve', 'accept', 'probe_advance', 'intake_answer', 'cancel', ...Object.keys(EVENTS)]);
+const ACTIONS = new Set(['start', 'resolve', 'accept', 'probe_advance', 'intake_answer', 'cancel', 'archive', ...Object.keys(EVENTS)]);
 
 export async function journeyRoute(path, req, env, deps = {}) {
   if (path !== '/api/learn/journey') return null;

@@ -352,6 +352,18 @@ test('a path edit is 1-300 characters of text', async t => {
   assert.deepEqual(rows()[0], before);
 });
 
+test('archive retires the live journey, and a new one starts on the same board', async t => {
+  const { call, post, rows } = setup(t);
+  const first = await post('start', { text: LEARN });
+  let r = await post('archive', { revision: first.body.journey.revision });
+  assert.deepEqual([r.status, r.body], [200, { journey: null, path: null, tray: null }]);
+  assert.deepEqual((await call('GET')).body, { journey: null, path: null, tray: null });
+  r = await post('start', { text: 'Teach me linear algebra' });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.journey.request.topic, 'linear algebra');
+  assert.deepEqual(rows().map(row => [row.id === first.body.journey.id, row.archived_at != null]), [[true, true], [false, false]]);
+});
+
 test('LP1 journeys run on canvases only', async t => {
   const { call, post, rows } = setup(t);
   assert.deepEqual((await call('GET', { query: `app=${REPO}&board=${BOARD}` })).body, { journey: null, path: null, tray: null });
