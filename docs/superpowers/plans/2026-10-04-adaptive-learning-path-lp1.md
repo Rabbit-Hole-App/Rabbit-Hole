@@ -920,3 +920,86 @@ Logistic regression may appear in at most ONE example in the whole set, and neve
 - [ ] **Step 3:** Restructure the prompts.
 - [ ] **Step 4:** Run the tests and confirm they PASS, then run the free gates.
 - [ ] **Step 5:** `git commit --only <paths> -m "feat(learn): six separate structured journey prompts with diverse examples and counterexamples, stable cached prefixes, multi-subject prompt regression (LP1)"`.
+
+---
+
+### Task 17: Small real-model journey corpus, multi-subject, total spend ≤ $2 (owner, 2026-10-05)
+
+**Owner requirement.** "A small real-model journey corpus. Keep paid spend <= $2." The prompt architecture must not let logistic regression become the hidden template for every course.
+
+**Files:**
+- Create: `packages/web/e2e/journey-corpus-run.mjs`, modelled on `e2e/tutor-corpus-run.mjs` (PRICES, `usd()`, JSONL rows, `--budget`, `--resume`).
+- Create: `packages/web/e2e/journey-corpus.mjs`, the corpus definition.
+- Output: under `<SDD workspace>/journey-corpus/`, `journey-corpus-<mode>-<stamp>.jsonl` plus `summary.json`.
+
+**Modes.**
+- Default **stub** mode: free. It answers every call with `fixtureModel`, so the script, the checks and the budget logic can be tested without a key.
+- `--live` mode: paid. It is refused unless both of these hold:
+  - `JOURNEY_CORPUS_PAID=GO` is set (the controller sets it; the owner approved ≤ $2 on 2026-10-05);
+  - `--budget <USD>` is given, and it is at most 2.
+
+**Key handling in live mode.**
+- Read ONLY the line `ANTHROPIC_API_KEY=` from the repository-root `.env`. Locate it with `git rev-parse --git-common-dir`, then go up to the main checkout.
+- Never print, log or write the key, and never read any other line.
+- Build `env = { ANTHROPIC_API_KEY }` and nothing else. In particular, no `JOURNEY_MODEL_STUB` and no `SMALL_ENV`.
+
+**Calls.**
+- Use the real planner functions: `planDiagnostic`, `planPath`, `adaptPath`, `planSection` and `resolveWithModel` from `learn-journey-planners.js`.
+- Pass a `callModel` wrapper around `anthropic()` that records `usage` (input, output, cache write, cache read) and the served model per call.
+- The Tutor turn uses `plannerRequest` / `planTurn` with a journey `context` built by `journeyDomain`, as the route does.
+- Use the models from `LEARN_TASKS`. Never substitute a model.
+
+**Budget guard.**
+- Before each call, compute a worst case: input tokens estimated as characters / 3, plus `max_tokens` priced as output.
+- Refuse the call if spent + worst case > budget. Write the stop into the summary as `stopped_at_budget`.
+- `spent` sums every live JSONL in the output directory. Rows are appended per call, so a stop keeps every observation.
+
+**Corpus.** Four subjects, each with the full chain:
+1. "I want to learn logistic regression" (math/ML; depth default).
+2. "Teach me photosynthesis" (conceptual science; no math).
+3. "I want to learn binary search in Python" (coding; coding = yes).
+4. "Give me a 10-minute overview of the French Revolution" (humanities; quick overview).
+
+Each subject runs:
+- (a) **Diagnostic**, from intake answers that fit the subject.
+- (b) **Path**, from the diagnostic plus scripted evidence: one probe correct and one with a named misconception.
+- (c) **Section 1 plan**.
+- (d) **Adapt with an edit**: subject 1 "skip the section on X", subject 3 "add more practice", subject 2 "make it shorter". Section 1 is marked completed in the input.
+- (e) **Adapt with evidence**: a settled misconception on one section-2 claim.
+- (f) **One journey Tutor turn**: a learner question about section 1's first claim.
+
+Plus three resolver probes, on any subject:
+- a free-text tray answer;
+- an unrelated question during the tray;
+- a path edit typed into the tray.
+
+**Checks.** Each check is recorded per row as pass or fail with a reason; there is no averaging.
+- Every planner output passes its validator (the planner functions already throw `PlannerInvalid`; count it as a fail).
+- **Path:**
+  - 4-10 sections for default depth;
+  - at most 3 sections for the quick overview;
+  - every section `upcoming` / not generated;
+  - no section carries cards or content fields.
+- **Section:** planned only for section 1. Every step role is in STEP_ROLES.
+- **Adapt:**
+  - the completed section is byte-identical to the input;
+  - the edit is reflected (the skipped section is gone or marked skipped; the added practice is present; a shorter path has fewer minutes or sections);
+  - the evidence adapt touches only future sections.
+- **Wording:** no level words, percentages or "mastered" in `learner_note`, the Tutor say text, or `change.reason`, using the same LEVEL_WORDS as the validators plus `/\bmaster(ed|y)\b/i` and `/\d+\s*%/`.
+- **Hidden template:** for subjects 2-4, no output contains `logistic`, `sigmoid`, `log-odds`, `spam` or `decision boundary`.
+- **Tutor turn:** validates with the Tutor validator; asks at most one question; no "mastered".
+- **Resolver:** the three probes return tray_answer, unrelated_question and path_edit respectively.
+- **Cost:** the summary has per-role and per-subject tokens and USD, plus the total.
+
+**Tests.** No paid call is made in tests.
+- `node e2e/journey-corpus-run.mjs` in stub mode runs the whole corpus and every check against the fixtures. Record it in the report; failures that are fixture artefacts are listed, not hidden.
+- A unit check in the script runs at start: the budget guard refuses a call whose worst case exceeds what remains.
+
+**Run order.**
+- The implementer builds and stub-runs the script, then commits.
+- The controller then runs `--live --budget 1.9` once, after Task 14 has landed.
+
+- [ ] **Step 1:** Write the corpus definition and the runner (stub mode), including the budget guard and its start-up self-check.
+- [ ] **Step 2:** Stub run passes its checks, or lists the fixture artefacts.
+- [ ] **Step 3:** `git commit --only <paths> -m "test(learn): real-model journey corpus runner - four subjects, full chain, hidden-template and evidence-wording checks, spend guard (LP1)"`.
+- [ ] **Step 4 (controller):** run `JOURNEY_CORPUS_PAID=GO node e2e/journey-corpus-run.mjs --live --budget 1.9 --out <SDD workspace>/journey-corpus`. Record the results and the spend in §18.
