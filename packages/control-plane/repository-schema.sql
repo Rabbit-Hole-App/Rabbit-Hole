@@ -211,6 +211,7 @@ CREATE INDEX IF NOT EXISTS shared_ask_events_share ON shared_ask_events(share_ke
 -- never overwrite each other, and an archived journey is never written again. Evidence is written only by
 -- appendJourneyEvidence (src/learn-journey-store.js). The learner's exact words live only in raw_request;
 -- request_json is the rest of the request (intent, channel), grounding_json what the journey is grounded in.
+-- A local database that already applied an earlier draft of 0006 must be reset: CREATE TABLE IF NOT EXISTS adds no columns.
 
 CREATE TABLE IF NOT EXISTS learning_journeys (
   id TEXT PRIMARY KEY, org TEXT NOT NULL, owner_email TEXT NOT NULL, app TEXT NOT NULL, board TEXT NOT NULL,

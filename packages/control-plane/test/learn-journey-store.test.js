@@ -114,10 +114,21 @@ test('a path version is written atomically with the journey row; loadPath reads 
   const { LEARN_DB, sqlite } = learnDb(t);
   const env = { LEARN_DB };
   const journey = await createJourney(env, SCOPE, START);
-  // The caller's other changes (state, pending) land in the same write.
-  const one = await appendPathVersion(env, { ...journey, state: 'path_review', pending: null }, path(1), 0);
+  // (a) A journey already stepped by journeyStep(path_drafted), whose path_version is the new version. The caller's
+  // other changes (state, pending) land in the same write.
+  const one = await appendPathVersion(env, { ...journey, state: 'path_review', pending: null, path_version: 1 }, path(1), 0);
   assert.deepEqual([one.path.version, one.path.journey_id, one.journey.path_version, one.journey.revision, one.journey.state], [1, journey.id, 1, 1, 'path_review']);
   assert.deepEqual(await loadJourney(env, SCOPE), one.journey);
+  // (b) Or one not stepped yet, still at the previous path_version.
+  const other = await createJourney(env, { ...SCOPE, board: 'board-2' }, START);
+  assert.equal((await appendPathVersion(env, other, path(1), 0)).journey.path_version, 1);
+  // (c) A v3 against the stored v1 writes nothing, whichever of its two legal path_versions the passed journey has.
+  await assert.rejects(appendPathVersion(env, { ...one.journey, path_version: 3 }, path(3), 1), conflict('path_version'));
+  await assert.rejects(appendPathVersion(env, { ...one.journey, path_version: 2 }, path(3), 1), conflict('path_version'));
+  // Any other passed path_version is a caller bug, refused before the batch even when the stored row would allow it.
+  await assert.rejects(appendPathVersion(env, { ...one.journey, path_version: 7 }, path(2), 1), conflict('path_version'));
+  assert.deepEqual(pathRows(sqlite, journey.id), [1]);
+  assert.deepEqual([rawRow(sqlite, journey.id).path_version, rawRow(sqlite, journey.id).revision], [1, 1]);
   const two = await appendPathVersion(env, one.journey, path(2, 'The squash'), 1);
   assert.deepEqual([two.journey.path_version, two.journey.revision], [2, 2]);
   assert.deepEqual(await loadPath(env, journey.id), two.path);
@@ -125,14 +136,10 @@ test('a path version is written atomically with the journey row; loadPath reads 
   assert.equal(await loadPath(env, journey.id, 3), null);
   assert.equal(await loadPath(env, 'lj_none'), null);
 
-  // A stale revision writes neither row: no orphan version, path_version unchanged.
+  // (d) A stale revision writes neither row: no orphan version, path_version unchanged.
   await assert.rejects(appendPathVersion(env, two.journey, path(3), 1), conflict('revision'));
   assert.deepEqual(pathRows(sqlite, journey.id), [1, 2]);
   assert.deepEqual([rawRow(sqlite, journey.id).path_version, rawRow(sqlite, journey.id).revision], [2, 2]);
-  // A version that does not follow the journey's is refused, in memory or against the stored row.
-  await assert.rejects(appendPathVersion(env, two.journey, path(4), 2), conflict('path_version'));
-  await assert.rejects(appendPathVersion(env, { ...two.journey, path_version: 4 }, path(5), 2), conflict('path_version'));
-  assert.deepEqual(pathRows(sqlite, journey.id), [1, 2]);
   // The retry with the fresh revision inserts cleanly.
   const three = await appendPathVersion(env, two.journey, path(3), 2);
   assert.deepEqual([three.journey.path_version, three.journey.revision], [3, 3]);

@@ -79,8 +79,8 @@ export async function loadJourneyById(env, id, scope) {
 
 // Every journey write: all columns, revision + 1, only while the row is live and still at the expected revision.
 const updateSql = (cols, where = '') => `UPDATE learning_journeys SET ${Object.keys(cols).map(k => `${k} = ?`).join(', ')}, revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ? AND archived_at IS NULL${where}`;
-// Why a conditional write missed: the journey was archived, its path version moved (at the expected revision), or
-// its revision did.
+// Why a conditional write missed, read from the stored row: the journey was archived, its stored path_version is not
+// the one the new path follows (the revision matched), or its revision moved.
 async function conflict(env, id, revision) {
   const row = await env.LEARN_DB.prepare('SELECT revision, archived_at FROM learning_journeys WHERE id = ?').bind(id).first();
   return new JourneyConflict(row?.archived_at ? 'archived' : row?.revision === revision ? 'path_version' : 'revision');
@@ -103,17 +103,18 @@ export async function archiveJourney(env, journey) {
 }
 
 // One atomic batch: the immutable path row and the whole journey row (every other change the caller made, with
-// path_version = path.version). Both are conditional on the journey being live, at expectedRevision and at the
-// previous path version, so a stale call writes neither - no orphan path row - and a retry with the fresh revision
-// inserts cleanly.
+// path_version = path.version). Both are conditional on the STORED journey being live, at expectedRevision and at
+// path_version = path.version - 1, so a stale call writes neither - no orphan path row - and a retry with the fresh
+// revision inserts cleanly. The passed journey may be before or after journeyStep(path_drafted), which already sets
+// path_version to the new version; any other path_version is a caller bug.
 export async function appendPathVersion(env, journey, path, expectedRevision) {
   if (!path?.change || !text(path.change.source)) throw new TypeError('learning path: path.change with a source is required');
-  if (path.version !== journey.path_version + 1) throw new JourneyConflict('path_version');
+  if (!Number.isInteger(path.version) || ![path.version - 1, path.version].includes(journey.path_version)) throw new JourneyConflict('path_version');
   const now = new Date().toISOString();
   const stored = { ...path, journey_id: journey.id, created_at: now };
   const { change } = path;
   const cols = columns({ ...journey, path_version: path.version });
-  const live = [journey.id, expectedRevision, journey.path_version];
+  const live = [journey.id, expectedRevision, path.version - 1];
   const [, updated] = await env.LEARN_DB.batch([
     env.LEARN_DB
       .prepare('INSERT INTO learning_path_versions (journey_id, version, path_json, source, reason, evidence_refs, changes_json, created_at) SELECT ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM learning_journeys WHERE id = ? AND revision = ? AND path_version = ? AND archived_at IS NULL)')
