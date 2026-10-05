@@ -14,6 +14,7 @@ import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { journeyIntent } from './learner-intent-journey.js';
 import { TRAY_MODES, journeyStep, nextIntakeQuestion, nextProbe, slotsFromIntent, trayFor, validateRegistry } from '../../web/src/learn-journey.js';
+import { deriveClaimStates } from '../../web/src/learn-tutor-evidence.js';
 import { JourneyConflict, appendPathVersion, archiveJourney, createJourney, loadJourney, loadPath, saveJourney, toClient } from './learn-journey-store.js';
 import { PlannerInvalid, adaptPath, journeyCallModel, planDiagnostic, planPath, planSection, resolveWithModel } from './learn-journey-planners.js';
 
@@ -54,19 +55,14 @@ function plannerMessage(error, journeyId, op) {
   return FAILED;
 }
 
-// Planner `states`: per registry claim, a derived state plus settled counts, never a score. Conservative: understood only
-// for a settled transfer pass that covers the claim's ideas with no later settled negative; any other evidence is uncertain.
-// ponytail: local derivation (no misconception / prerequisite_gap); Task 7 swaps in the registry-aware deriveClaimStates
-// once R6 lifts and learn-tutor-evidence.js takes the journey's claims.
+// Planner `states`: per registry claim, its state from the shared locked derivation (deriveClaimStates over the journey
+// registry: understood | uncertain | misconception | prerequisite_gap | not_yet_observed) plus settled counts, never a score.
 const negative = e => e.result === 'fail' || e.result === 'misconception';
 function claimStates(j) {
-  const events = j.evidence?.events || [];
-  return Object.fromEntries(Object.entries(j.registry?.claims || {}).map(([id, claim]) => {
-    const own = events.filter(e => e.claim === id), settled = own.filter(e => e.settled), passes = settled.filter(e => e.result === 'pass');
-    const transfer = passes.filter(e => e.kind === 'demonstrated_in_transfer').at(-1);
-    const covered = passes.some(e => e.idea == null) || claim.ideas.every((_, i) => passes.some(e => e.idea === i));
-    const understood = transfer && covered && !settled.some(e => e.seq > transfer.seq && negative(e));
-    return [id, { state: understood ? 'understood' : own.length ? 'uncertain' : 'not_yet_observed', settled_passes: passes.length, settled_negatives: settled.filter(negative).length }];
+  const events = j.evidence?.events || [], derived = deriveClaimStates(events, j.registry?.claims || {});
+  return Object.fromEntries(Object.keys(derived).map(id => {
+    const settled = events.filter(e => e.claim === id && e.settled);
+    return [id, { state: derived[id].state, settled_passes: settled.filter(e => e.result === 'pass').length, settled_negatives: settled.filter(negative).length }];
   }));
 }
 

@@ -212,9 +212,8 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
   const edit = text => act({ action: 'path_edit', text: String(text).slice(0, 300) });
   const accept = () => act({ action: 'accept' });
   const retry = () => act({ action: 'retry' });
-  // §6.3: the evaluate route stores the probe's evidence, then the walker reads it. Until Task 7 that route refuses the
-  // journey contract (400): an evaluator error, so the walker steps on with no evidence (the conservative path) and
-  // nothing retries it.
+  // §6.3: the evaluate route stores the probe's evidence, then the walker reads it. An evaluate failure (an evaluator
+  // error, a refusal) leaves no evidence, so the walker steps on with none (the conservative path) and nothing retries it.
   const evaluate = async (probeId, body) => {
     set({ busy: BUSY, error: null });
     try { await fetchJson('/api/learn/tutor/evaluate', { ...where, journey_id: s.data.journey?.id, ...body }); } catch { /* evaluator error: no evidence */ }

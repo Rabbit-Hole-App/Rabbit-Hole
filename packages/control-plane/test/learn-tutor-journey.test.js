@@ -9,9 +9,10 @@ import { learnDb } from './learn-grade-fixture.js';
 import { tutorRoute } from '../src/learn-tutor-routes.js';
 import { PLANNER_SYSTEM, TUTOR_TOOL, plannerRequest, plannerSystem, tutorJevRequest, tutorQuestions } from '../src/agents/learn-tutor.js';
 import { JEV_TRANSPORTS } from '../src/learn-grade-jev.js';
-import { createJourney, loadJourney, saveJourney } from '../src/learn-journey-store.js';
+import { appendJourneyEvidence, createJourney, loadJourney, saveJourney } from '../src/learn-journey-store.js';
 import { fixtureFor } from '../src/learn-journey-fixtures.js';
 import { evaluationSpec } from '../../web/src/learn-tutor.js';
+import { deriveClaimStates } from '../../web/src/learn-tutor-evidence.js';
 
 // ---------- The planner system prompt ----------
 
@@ -107,6 +108,14 @@ async function setup(t, envExtra = {}) {
   const env = { LEARN_DB, CONTROL_PLANE, TYPESAFE_API_KEY: 'jev', ...envExtra };
   const created = await createJourney(env, SCOPE, START);
   const journey = await saveJourney(env, { ...created, state: 'diagnostic', registry: REG, diagnostic: { probes: DIAG.probes, asked: [], skipped: false }, section_plan: { section_id: 's1', checks: [CHECK] } }, 0);
+  // move(n): another tab moves the journey (revision + 1) just before each of the next n journey writes.
+  let moves = 0;
+  const prepare = LEARN_DB.prepare;
+  LEARN_DB.prepare = sql => {
+    if (moves > 0 && /^UPDATE learning_journeys SET state/.test(sql)) { moves--; sqlite.prepare('UPDATE learning_journeys SET revision = revision + 1').run(); }
+    return prepare(sql);
+  };
+  const patch = async fields => { const j = await loadJourney(env, SCOPE); return saveJourney(env, { ...j, ...fields }, j.revision); };
   const post = async (body, { as = 'ana', deps = {} } = {}) => {
     const req = new Request('https://app.test/api/learn/tutor/evaluate', { method: 'POST', headers: { 'Content-Type': 'application/json', cookie: `small_session=${as}` }, body: JSON.stringify({ app: APP, board: BOARD, journey_id: journey.id, ...body }) });
     const response = await tutorRoute('/api/learn/tutor/evaluate', req, env, deps);
@@ -115,8 +124,10 @@ async function setup(t, envExtra = {}) {
     for (const leak of ['"key"', '"correct"', 'u-ana-5d1e', 'u-ana-other']) assert.equal(text.includes(leak), false, `response carries ${leak}`);
     return { status: response.status, body: JSON.parse(text) };
   };
-  return { env, sqlite, journey, post, stored: () => loadJourney(env, SCOPE) };
+  return { env, sqlite, journey, post, patch, move: n => { moves = n; }, stored: () => loadJourney(env, SCOPE) };
 }
+// The journey in its active state, section s1 current, with that section's plan.
+const ACTIVE = (checks = [CHECK], section = 's1') => ({ state: 'active', active_section_id: section, section_plan: { section_id: section, checks } });
 
 // JEV answering every question: values[key], else a confident no. Records each request.
 function jev(values = {}) {
@@ -199,13 +210,35 @@ test('journey evaluate: only the owner of the journey on its own canvas and boar
   assert.equal((await w.stored()).revision, w.journey.revision);
 });
 
-test('journey evaluate: a journey that moved during the evaluation (another tab) is a 409 and stores nothing', async t => {
+// Review round 1, I-2: a revision conflict reloads once and stores on the fresh revision, so a paid evaluation is kept.
+test('journey evaluate: one concurrent move is retried once on the fresh journey and the evaluation is stored', async t => {
   const w = await setup(t);
-  const { ask } = jev({ c0_idea0: 0.95 });
-  const moving = async (...args) => { const j = await w.stored(); await saveJourney(w.env, j, j.revision); return ask(...args); };
-  const r = await w.post(free(), { deps: { ask: moving } });
+  const { asked, ask } = jev({ c0_idea0: 0.95 });
+  w.move(1);
+  const r = await w.post(free(), { deps: { ask } });
+  assert.equal(r.status, 200);
+  assert.equal(asked.length, 1, 'the evaluator ran once');
+  assert.deepEqual(r.body.events.map(e => e.result), ['pass']);
+  assert.deepEqual((await w.stored()).evidence, r.body.journey);
+  assert.equal(r.body.journey.seq, 1);
+});
+
+test('journey evaluate: a move on both attempts is a 409 and stores nothing', async t => {
+  const w = await setup(t);
+  w.move(2);
+  const r = await w.post(free(), { deps: jev({ c0_idea0: 0.95 }) });
   assert.deepEqual([r.status, r.body.error], [409, 'revision']);
   assert.deepEqual((await w.stored()).evidence, { seq: 0, events: [] });
+});
+
+test('journey evaluate: when another tab stored the same probe during the evaluation, the retry adds nothing', async t => {
+  const w = await setup(t);
+  const { ask } = jev({ c0_idea0: 0.95 });
+  const other = { status: 'settled', evaluator: 'jev', events: [{ concept: 'logistic-regression-core', claim: MECH, result: 'pass', kind: 'demonstrated_here', idea: 0, settled: true, evaluator: 'jev', source: 'free_text' }] };
+  const racing = async (...args) => { await appendJourneyEvidence(w.env, await w.stored(), other, { turn_id: 'other-tab', probe_id: 'p2' }); return ask(...args); };
+  const r = await w.post(free({ probe_id: 'p2' }), { deps: { ask: racing } });
+  assert.deepEqual([r.status, r.body.status, r.body.events], [200, 'duplicate', []]);
+  assert.deepEqual((await w.stored()).evidence.events.map(e => e.ref.turn_id), ['other-tab']);
 });
 
 test('journey multiple choice: the right option on a transfer probe is a settled demonstrated_in_transfer pass; JEV never runs', async t => {
@@ -223,23 +256,107 @@ test('journey multiple choice: a keyed wrong option is a misconception with its 
   const w = await setup(t);
   const named = await w.post({ probe_id: 'p1', option_id: 'b' }, { deps: never });
   assert.deepEqual(named.body.events.map(e => [e.result, e.kind, e.misconception_id]), [['misconception', null, 'vocabulary-confusion']]);
-  const wrong = await w.post({ probe_id: 'p1', option_id: 'c' }, { deps: never });
+  const wrong = await w.post({ probe_id: 'p3', option_id: 'c' }, { deps: never });
   assert.deepEqual(wrong.body.events.map(e => [e.result, e.kind, 'misconception_id' in e]), [['fail', null, false]]);
-  const here = await w.post({ probe_id: 'p3', option_id: 'a' }, { deps: never });
+  const here = await (await setup(t)).post({ probe_id: 'p3', option_id: 'a' }, { deps: never });
   assert.deepEqual(here.body.events.map(e => [e.claim, e.result, e.kind]), [['logistic-regression-practice/application', 'pass', 'demonstrated_here']]);
-  // A section plan check is graded the same way.
+  // A check of the current section, while active, is graded the same way and tagged with its section.
+  await w.patch(ACTIVE());
   const check = await w.post({ probe_id: 'c1', option_id: 'x' }, { deps: never });
   assert.deepEqual(check.body.events.map(e => [e.claim, e.result, e.misconception_id]), [[MECH, 'misconception', 'mechanism-confusion']]);
-  assert.equal(check.body.journey.seq, 4);
+  assert.deepEqual([check.body.journey.seq, check.body.journey.events.at(-1).ref.section_id], [3, 's1']);
 });
 
 test('journey multiple choice: an unknown probe or option, or a free-text probe, is a 400 and stores nothing', async t => {
   const w = await setup(t);
-  for (const [body, error] of [[{ probe_id: 'p9', option_id: 'a' }, 'unknown_probe'], [{ probe_id: 'p1', option_id: 'skip' }, 'unknown_option'], [{ probe_id: 'p1' }, 'unknown_option'], [{ probe_id: 'p2', option_id: 'a' }, 'unknown_option']]) {
+  for (const [body, error] of [[{ probe_id: 'p9', option_id: 'a' }, 'unknown_probe'], [{ probe_id: 'p1', option_id: 'skip' }, 'unknown_option'], [{ probe_id: 'p2', option_id: 'a' }, 'unknown_option'], [{ option_id: 'a' }, 'unknown_probe']]) {
     const r = await w.post(body, { deps: never });
     assert.deepEqual([r.status, r.body.error], [400, error], JSON.stringify(body));
   }
+  // Free text names only a keyless probe: a keyed one, or one that does not exist, is refused before any evaluator.
+  for (const probe_id of ['p1', 'p9']) assert.deepEqual([(await w.post(free({ probe_id }), { deps: never })).body.error], ['unknown_probe'], probe_id);
   assert.equal((await w.stored()).revision, w.journey.revision);
+});
+
+// Review round 1, I-1: a probe's evidence is stored once.
+test('journey probes: the same multiple-choice answer posted twice stores one event set, so one wrong pick is never a misconception', async t => {
+  const w = await setup(t);
+  const first = await w.post({ probe_id: 'p1', option_id: 'b' }, { deps: never });
+  const again = await w.post({ probe_id: 'p1', option_id: 'b' }, { deps: never });
+  assert.deepEqual([again.status, again.body.status, again.body.events], [200, 'duplicate', []]);
+  assert.deepEqual(again.body.journey, first.body.journey);
+  const stored = await w.stored();
+  assert.equal(stored.evidence.seq, 1);
+  assert.equal(deriveClaimStates(stored.evidence.events, REG.claims)['logistic-regression-foundations/vocabulary'].state, 'uncertain');
+});
+
+test('journey probes: free text naming a keyless probe is tagged with it, and a second answer calls no evaluator', async t => {
+  const w = await setup(t);
+  const { asked, ask } = jev({ c0_idea0: 0.95 });
+  const first = await w.post(free({ probe_id: 'p2' }), { deps: { ask } });
+  const again = await w.post(free({ probe_id: 'p2', message: 'Another try.' }), { deps: { ask } });
+  assert.equal(asked.length, 1);
+  assert.deepEqual([first.body.status, again.body.status, again.body.events], ['settled', 'duplicate', []]);
+  assert.deepEqual((await w.stored()).evidence.events.map(e => [e.seq, e.ref.probe_id, e.source]), [[1, 'p2', 'free_text']]);
+});
+
+test('journey probes: the same check id in two sections is stored twice; a check id equal to a diagnostic id is graded with the check key', async t => {
+  const w = await setup(t);
+  await w.patch(ACTIVE());
+  await w.post({ probe_id: 'c1', option_id: 'y' }, { deps: never });
+  await w.patch(ACTIVE([CHECK], 's2'));
+  const second = await w.post({ probe_id: 'c1', option_id: 'y' }, { deps: never });
+  assert.deepEqual(second.body.journey.events.map(e => [e.seq, e.ref.probe_id, e.ref.section_id, e.result]), [[1, 'c1', 's1', 'pass'], [2, 'c1', 's2', 'pass']]);
+  // A check named p1 in the current plan: the diagnostic p1's key (correct 'a') never applies.
+  await w.patch(ACTIVE([{ ...CHECK, id: 'p1' }], 's3'));
+  assert.deepEqual((await w.post({ probe_id: 'p1', option_id: 'a' }, { deps: never })).body.error, 'unknown_option');
+  const graded = await w.post({ probe_id: 'p1', option_id: 'y' }, { deps: never });
+  assert.deepEqual(graded.body.events.map(e => [e.claim, e.result]), [[MECH, 'pass']]);
+  assert.equal(graded.body.journey.events.at(-1).ref.section_id, 's3');
+});
+
+// Review round 1, M-1: a probe is answerable only while it is open.
+test('journey probes: a diagnostic probe after a skip or outside the diagnostic, or a check outside the current section, is 409 probe_closed', async t => {
+  const w = await setup(t);
+  const closed = async body => { const r = await w.post(body, { deps: never }); assert.deepEqual([r.status, r.body.error], [409, 'probe_closed'], JSON.stringify(body)); };
+  await closed({ probe_id: 'c1', option_id: 'y' }); // a check during the diagnostic
+  await w.patch({ diagnostic: { probes: DIAG.probes, asked: [], skipped: true } });
+  await closed({ probe_id: 'p1', option_id: 'a' });
+  await w.patch({ state: 'path_review', diagnostic: { probes: DIAG.probes, asked: [], skipped: false } });
+  await closed({ probe_id: 'p1', option_id: 'a' });
+  await closed(free({ probe_id: 'p2' }));
+  await w.patch({ ...ACTIVE(), active_section_id: 's2' }); // the plan is for s1, s2 is current
+  await closed({ probe_id: 'c1', option_id: 'y' });
+  await w.patch(ACTIVE());
+  await closed({ probe_id: 'p1', option_id: 'a' }); // the diagnostic is over
+  assert.deepEqual((await w.stored()).evidence, { seq: 0, events: [] });
+});
+
+// Review round 1, M-2 and M-3.
+test('journey free text: gaps are capped at 4 with statements of at most 600 characters, as validateEvaluateBody caps them', async t => {
+  const w = await setup(t);
+  const concepts = ['k0', 'k1', 'k2', 'k3', 'k4', 'k5'];
+  const claims = { ...REG.claims, [MECH]: { ...REG.claims[MECH], prerequisites: concepts } };
+  for (const k of concepts) claims[`${k}/c`] = { concept: k, statement: k[1].repeat(700), drawn: 'd', ideas: ['i'], misconceptions: [], prerequisites: [] };
+  await w.patch({ registry: { ...REG, claims } });
+  const { asked, ask } = jev();
+  await w.post(free(), { deps: { ask } });
+  const gaps = Object.keys(asked[0].questions).filter(key => /^g\d+$/.test(key));
+  assert.deepEqual(gaps, ['g0', 'g1', 'g2', 'g3']);
+  assert.ok(asked[0].questions.g0.instructions.includes('0'.repeat(600)));
+  assert.equal(asked[0].questions.g0.instructions.includes('0'.repeat(601)), false);
+});
+
+test('journey evaluate: a plain turn_id is kept on the ref; anything else gets a server id', async t => {
+  const w = await setup(t);
+  await w.post({ probe_id: 'p1', option_id: 'a', turn_id: 'turn_7-abc' }, { deps: never });
+  await w.post({ probe_id: 'p3', option_id: 'a', turn_id: 'not a plain id!' }, { deps: never });
+  const { ask } = jev({ c0_idea0: 0.95 });
+  await w.post(free({ turn_id: 't'.repeat(81) }), { deps: { ask } });
+  const ids = (await w.stored()).evidence.events.map(e => e.ref.turn_id);
+  assert.equal(ids.length, 3);
+  assert.equal(ids[0], 'turn_7-abc');
+  for (const id of ids.slice(1)) assert.match(id, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
 });
 
 test('journey free text under SUBSCRIPTION_ONLY or with no JEV key: an error, nothing stored, the journey evidence returned unchanged', async t => {

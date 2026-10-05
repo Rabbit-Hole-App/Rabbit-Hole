@@ -219,7 +219,7 @@ function harness(first, replies = []) {
   return { ctl, calls, actions: () => calls.filter(c => c.body).map(c => c.body.action ?? c.path), refresh: () => ctl.refresh(), view: () => ctl.view() };
 }
 
-test('controller: an evaluate refusal (400, until Task 7) still advances the walker exactly once and never retries', async () => {
+test('controller: an evaluate refusal (400) still advances the walker exactly once and never retries', async () => {
   const j = journeyOf({ state: 'diagnostic', diagnostic: { probes } });
   const h = harness(ok(j, probeTray), [{ status: 400, d: { error: 'bad evaluate body' } }, ok({ ...j, revision: 5 }, explainTray)]);
   await h.refresh();

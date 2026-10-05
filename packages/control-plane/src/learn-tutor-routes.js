@@ -119,7 +119,7 @@ function journeySpec(journey, body) {
   const ids = [...new Set(body.claims)], gaps = [];
   for (const id of ids) for (const concept of registry[id].prerequisites) {
     let gap = gaps.find(entry => entry.concept === concept);
-    if (!gap) gaps.push(gap = { concept, statement: claimsOfConceptIn(registry, concept).map(other => registry[other].statement).join(' '), claims: [] });
+    if (!gap) gaps.push(gap = { concept, statement: claimsOfConceptIn(registry, concept).map(other => registry[other].statement).join(' ').slice(0, 600), claims: [] });
     gap.claims.push(id);
   }
   const claims = ids.map(id => {
@@ -127,8 +127,31 @@ function journeySpec(journey, body) {
     const { concept, statement, ideas, misconceptions, drawn } = registry[id];
     return { id, concept, statement, ideas, misconceptions, drawn, ...(prior.length ? { prior_misconceptions: prior } : {}) };
   });
-  return { value: { answering: !!body.answering, ...(body.question ? { question: body.question } : {}), claims, gaps } };
+  // Gaps are bounded as validateEvaluateBody bounds a browser spec: at most 4, each statement at most 600 characters.
+  return { value: { answering: !!body.answering, ...(body.question ? { question: body.question } : {}), claims, gaps: gaps.slice(0, 4) } };
 }
+
+// The probe a body answers, while it is open (§6.3, §9.3): a diagnostic probe only during the diagnostic (never after a
+// skip), a section check only while active and only in the current section's plan. The journey state decides which set
+// is searched, so a check id equal to a diagnostic id is never graded with the diagnostic key; check ids are unique only
+// within one plan, so a check's tag carries its section_id. null: no such probe; { closed: true }: it exists, not open.
+function openProbe(journey, id) {
+  const plan = journey.section_plan, diagnostic = journey.diagnostic.probes;
+  if (journey.state === 'diagnostic' && !journey.diagnostic.skipped) {
+    const probe = diagnostic.find(p => p.id === id);
+    if (probe) return { probe, tag: { probe_id: id } };
+  } else if (journey.state === 'active' && plan && plan.section_id === journey.active_section_id) {
+    const probe = plan.checks?.find(p => p.id === id);
+    if (probe) return { probe, tag: { probe_id: id, section_id: plan.section_id } };
+  }
+  return diagnostic.some(p => p.id === id) || plan?.checks?.some(p => p.id === id) ? { closed: true } : null;
+}
+// A probe's evidence is stored once: an answer to a probe already tagged on the journey (a reload between the answer and
+// probe_advance, a double click, a retry) appends nothing, calls no evaluator and returns the stored evidence.
+const answered = (journey, tag) => journey.evidence.events.some(e => e.ref?.probe_id === tag.probe_id && (e.ref.section_id ?? null) === (tag.section_id ?? null));
+const replay = journey => ({ status: 'duplicate', evaluator: null, events: [], journey: { events: journey.evidence.events, seq: journey.evidence.seq } });
+const onCanvas = (journey, scope) => !!journey && journey.scope.app === scope.app && journey.scope.board === scope.board;
+const TURN_ID = /^[\w-]{1,80}$/;
 
 // A multiple-choice or prediction answer, graded from the probe's server-only key (§9.4), never by a model: the right
 // option is a pass on each of the probe's claims (demonstrated_in_transfer on a transfer probe), a keyed wrong option a
@@ -149,32 +172,40 @@ function probeEvaluation(registry, probe, option) {
 // Only the journey's owner (access.user_id, §10.2; no id fails closed), on the canvas and board it lives on. The
 // evaluation's events are stored only through appendJourneyEvidence; the response is the evaluation plus the journey's
 // stored events and seq, which the browser adopts. An evaluator error stores nothing and still returns them.
+// option_id set: a multiple-choice answer to a keyed probe. Otherwise free text, which may name the keyless probe it
+// answers (probe_id). turn_id (optional, the browser's turn id) is kept on the ref only when it is a plain id.
 async function journeyEvaluate(env, access, body, deps) {
   if (!access.user_id) return json({ error: 'identity_unavailable' }, 401);
   if (typeof body.journey_id !== 'string' || typeof body.board !== 'string' || !BOARD.test(body.board)) return json({ error: 'journey_id and board are required' }, 400);
   const scope = { org: access.org, owner_user_id: access.user_id, app: body.app, board: body.board };
   const journey = await loadJourneyById(env, body.journey_id, scope);
-  if (!journey || journey.scope.app !== scope.app || journey.scope.board !== scope.board) return json({ error: 'no_journey' }, 404);
-  const probing = body.probe_id != null || body.option_id != null;
-  let evaluation;
-  if (probing) {
-    const probe = [...journey.diagnostic.probes, ...(journey.section_plan?.checks || [])].find(p => p.id === body.probe_id);
-    if (!probe) return json({ error: 'unknown_probe' }, 400);
-    if (!probe.key || !probe.options?.some(option => option.id === body.option_id)) return json({ error: 'unknown_option' }, 400);
-    evaluation = probeEvaluation(journey.registry, probe, body.option_id);
-  } else {
-    const spec = journeySpec(journey, body);
-    if (spec.error) return json({ error: spec.error }, 400);
-    evaluation = await evaluateFreeText(env, spec.value, body.message, deps);
-  }
-  const ref = { turn_id: crypto.randomUUID(), ...(probing ? { probe_id: body.probe_id } : {}), canvas: { app: scope.app, board: scope.board } };
-  try {
-    const { events, seq } = await appendJourneyEvidence(env, journey, evaluation, ref);
-    return json({ ...evaluation, journey: { events, seq } });
-  } catch (error) {
-    // Another tab moved the journey during the evaluation: nothing is stored, the browser re-fetches.
-    if (error instanceof JourneyConflict) return json({ error: error.code }, 409);
-    throw error;
+  if (!onCanvas(journey, scope)) return json({ error: 'no_journey' }, 404);
+  const multiple = body.option_id != null, probing = multiple || body.probe_id != null;
+  const open = probing ? openProbe(journey, body.probe_id) : null;
+  if (probing && !open) return json({ error: 'unknown_probe' }, 400);
+  if (open?.closed) return json({ error: 'probe_closed' }, 409);
+  if (multiple && (!open.probe.key || !open.probe.options?.some(option => option.id === body.option_id))) return json({ error: 'unknown_option' }, 400);
+  if (!multiple && open?.probe.key) return json({ error: 'unknown_probe' }, 400); // free text answers a keyless probe only
+  const spec = multiple ? null : journeySpec(journey, body);
+  if (spec?.error) return json({ error: spec.error }, 400);
+  if (open && answered(journey, open.tag)) return json(replay(journey));
+  const evaluation = multiple ? probeEvaluation(journey.registry, open.probe, body.option_id) : await evaluateFreeText(env, spec.value, body.message, deps);
+  const turnId = typeof body.turn_id === 'string' && TURN_ID.test(body.turn_id) ? body.turn_id : crypto.randomUUID();
+  const ref = { turn_id: turnId, ...open?.tag, canvas: { app: scope.app, board: scope.board } };
+  let j = journey;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const { events, seq } = await appendJourneyEvidence(env, j, evaluation, ref);
+      return json({ ...evaluation, journey: { events, seq } });
+    } catch (error) {
+      if (!(error instanceof JourneyConflict)) throw error;
+      // Another tab moved the journey during the evaluation: reload once and store on the fresh revision, so a (possibly
+      // paid) evaluation is not lost. A second conflict, or an archived or missing journey, stores nothing.
+      if (error.code !== 'revision' || attempt) return json({ error: error.code }, 409);
+      j = await loadJourneyById(env, j.id, scope);
+      if (!onCanvas(j, scope)) return json({ error: 'no_journey' }, 409);
+      if (open && answered(j, open.tag)) return json(replay(j));
+    }
   }
 }
 

@@ -477,3 +477,18 @@ test('resolve classifies through the resolver model (rule 5)', async t => {
   assert.deepEqual(roles(), ['journey_resolver']);
   assert.equal((await post('resolve', { text: 'Why?', tray: { ...tray, mode: null } })).status, 200);
 });
+
+// LP1 Task 7 review round 1 (I-3): planner states come from the shared locked derivation over the journey registry, so a
+// claim with two settled events naming the same misconception reaches the path planner as misconception, not uncertain.
+test('planner states: two settled named misconceptions reach the path planner as misconception, with settled counts', async t => {
+  const { env, post, calls } = setup(t);
+  await post('start', { text: LEARN });
+  const r = await post('intake_skip');
+  const j = await loadJourney(env, SCOPE), probeId = r.body.tray.probe_id;
+  const claim = j.diagnostic.probes.find(p => p.id === probeId).claims[0], entry = j.registry.claims[claim];
+  const event = { concept: entry.concept, claim, result: 'misconception', misconception_id: entry.misconceptions[0].id, kind: null, settled: true, evaluator: 'deterministic', source: 'journey_probe' };
+  await appendJourneyEvidence(env, j, { status: 'settled', evaluator: 'deterministic', events: [event, event] }, { probe_id: probeId });
+  assert.equal((await post('cancel')).status, 200); // the diagnostic skip drafts the path
+  const { states } = calls.find(c => c.role === 'journey_path').input;
+  assert.deepEqual(states[claim], { state: 'misconception', settled_passes: 0, settled_negatives: 2 });
+});
