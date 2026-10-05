@@ -240,9 +240,12 @@ await group('J3', async () => {
     await page.waitForTimeout(900);
     const { box, inside } = await railBox(page);
     const nav = page.locator('nav[aria-label="Learning path"]'), list = await nav.isVisible() ? await nav.boundingBox() : null;
-    const hits = await covered(page, list, ['[data-learn-dock] [data-chat-composer]', '[data-tutor-prompt-tray]', '[data-chat-sheet]', '[data-dive-gutter] > *', '[data-gutter-top] > *', '[data-canvas-minimap]']);
+    const hits = await covered(page, list, ['[data-learn-dock] [data-chat-composer]', '[data-tutor-prompt-tray]', '[data-chat-sheet]', '[data-dive-gutter] > *', '[data-gutter-top] > *', '[data-canvas-minimap]', '[data-tool-gutter]', '[data-block-id]']);
     const at = `${width}x${height} panel ${open ? 'open' : 'closed'}`, size = list ? `list ${Math.round(list.width)}x${Math.round(list.height)}` : 'list closed (no room)';
     check(`J3 geometry ${at}`, inside && !hits.length, `rail inside the viewport, ${size}, covering nothing`, `rail ${inside ? 'inside' : 'outside'} the viewport, ${size}, covers ${hits.join(', ') || 'nothing'}`);
+    // Narrow side room (1440, panel open) on this empty canvas: the list takes the free canvas above the composer, full width.
+    if (width === 1440 && open) check('J3 pinned list width 1440 panel open', !!list && list.width >= 240 && !hits.length, `the pinned list is ${size.slice(5)} (at least 240 px wide) and meets nothing`,
+      `${size}${hits.length ? `, covers ${hits.join(', ')}` : ''}`);
     await shot(page, width === 1440 && open ? 'J3-path-rail-panel-open' : `J3-geometry-${width}-${open ? 'open' : 'closed'}`);
   }
   await page.setViewportSize({ width: 1440, height: 1000 });
