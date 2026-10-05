@@ -192,11 +192,13 @@ await group('J2', async () => {
   // Stored evidence is read back from GET /api/learn/journey after each answer (server evidence, LP1 Task 7/12).
   const stored = async () => (await journeyOf(lr)).journey.evidence?.events ?? [];
   const replied = (entry, timeout = 15000) => until(page, () => !!entry && entry.status != null && (entry.status !== 200 || entry.result != null), timeout);
+  const answered = [];
   for (let i = 0; i < 4 && t?.mode === 'diagnostic_probe'; i++) {
     const { journey } = await journeyOf(lr);
     const probe = journey.diagnostic.probes.find(p => p.prompt === t.label);
     if (!probe) throw Error('the open tray matches no stored probe');
     const before = calls('/api/learn/tutor/evaluate').length, eventsBefore = (await stored()).length;
+    answered.push(probe.kind);
     if (probe.kind === 'explain_back') {
       const asks = calls('/api/learn/ask').length, plans = calls('/api/learn/tutor/plan').length;
       await send(page, EXPLAIN);
@@ -204,10 +206,11 @@ await group('J2', async () => {
       const sent = calls('/api/learn/tutor/evaluate').slice(before), entry = sent.at(-1), body = entry?.body;
       await replied(entry);
       // The real routing: useTutor.turn runs the resolver first; rules 1-4 leave a free-text answer to rule 5 (resolve,
-      // the fixture's tray_answer), and the Tutor's plan:false probe turn posts evaluate with the probe it answers.
+      // the fixture's tray_answer), and the Tutor's plan:false probe turn posts evaluate with the probe it answers and its
+      // turn_id (the Tutor's own turn: proof the words went through useTutor, not the journey-only path).
       check('J2 explain-back posts evaluate', !!body?.journey_id && Array.isArray(body?.claims) && body.claims.length > 0 && body?.probe_id === probe.id
-        && calls('/api/learn/ask').length === asks && calls('/api/learn/tutor/plan').length === plans,
-        'the typed explain-back posts evaluate with journey_id, claims and probe_id (plan:false: no planner request), and nothing goes to /api/learn/ask',
+        && typeof body?.turn_id === 'string' && !!body.turn_id && calls('/api/learn/ask').length === asks && calls('/api/learn/tutor/plan').length === plans,
+        'the typed explain-back posts evaluate with journey_id, claims, probe_id and the Tutor turn_id (plan:false: no planner request), and nothing goes to /api/learn/ask',
         `${sent.length} evaluate request(s) (body keys ${keys(body).join(',') || 'none'}, probe ${body?.probe_id === probe.id ? 'matches' : 'differs'}), ${calls('/api/learn/ask').length - asks} ask, ${calls('/api/learn/tutor/plan').length - plans} plan request(s)`);
       // No JEV key: the free-text rung answers status 'error' without a call, and nothing settled is stored (§3.3).
       const after = (await stored()).length;
@@ -231,6 +234,9 @@ await group('J2', async () => {
     t = await nextTray(page, was);
     check(`J2 ${probe.kind} advances`, t?.label !== was.label || t?.mode !== was.mode, `the UI moves on to ${t?.mode === 'diagnostic_probe' ? 'the next probe' : t?.mode}`, 'the tray did not move');
   }
+  // Both kinds the brief names were answered, whatever order the fixture asks them in: J2 never passes on a skipped kind.
+  check('J2 explain-back and mcq answered', answered.includes('explain_back') && answered.includes('mcq'), `probes answered in order: ${answered.join(', ')}`,
+    `probes answered: ${answered.join(', ') || 'none'} (explain_back and mcq are both required)`);
   const events = await stored(), mcq = (await journeyOf(lr)).journey.diagnostic.probes.find(p => p.kind === 'mcq');
   check('J2 stored event', events.length >= 1 && events.some(e => e.ref?.probe_id === mcq?.id) && events.every(e => !!e.ref?.probe_id),
     `GET /api/learn/journey shows ${events.length} stored event(s), the mcq's among them, each tagged with its probe`,
@@ -298,7 +304,7 @@ await group('J4', async () => {
   await page.unroute('**/api/learn/journey', hold);
   await page.waitForTimeout(800);
   check('J4 planning until saved', held?.s1 === 'planning' && held.plan !== 'generated' && held.saved >= 4,
-    `while section_materialized was in flight the board was saved (${held?.saved} blocks) and the GET read section 1 planning`,
+    `while section_materialized was in flight this browser's copy was saved (${held?.saved} blocks; private board, no server board PUT) and the GET read section 1 planning`,
     held ? `in flight: s1 ${held.s1}, section_plan ${held.plan}, ${held.saved} saved blocks` : 'no section_materialized request');
   const explanations = own.filter(b => b.type === 'explanation');
   check('J4 one heading', headings.length === 1 && headings[0].journey_section_id === 's1', 'exactly one heading, journey_section_id s1', `headings for ${headings.map(h => h.journey_section_id).join(',') || 'none'}`);
@@ -307,12 +313,12 @@ await group('J4', async () => {
   const s1 = path.sections.find(s => s.id === 's1'), rest = path.sections.filter(s => s.id !== 's1');
   check('J4 section 1 current', s1?.status === 'current' && journey.active_section_id === 's1' && await page.locator('[data-path-entry="s1"][data-status="current"]').count() === 1,
     'section 1 is current (route and rail)', `s1 ${s1?.status}, active ${journey.active_section_id}`);
-  check('J4 section 1 generated', s1?.generation_state === 'generated' && journey.section_plan?.generation_state === 'generated' && s1?.heading_block_id === headings[0]?.id,
+  check('J4 section 1 generated', s1?.generation_state === 'generated' && journey.section_plan?.generation_state === 'generated' && !!headings[0]?.id && s1?.heading_block_id === headings[0].id,
     'after the save and section_materialized the GET reads section 1 generated, with its heading', `s1 ${s1?.generation_state}, section_plan ${journey.section_plan?.generation_state}, heading ${s1?.heading_block_id ? 'set' : 'none'}`);
   check('J4 later sections not generated', rest.length === 7 && rest.every(s => s.generation_state === 'not_generated' && !s.heading_block_id) && !blocks.some(b => b.journey_section_id && b.journey_section_id !== 's1'),
     'sections 2-8 have no heading (route or canvas) and are not_generated', rest.map(s => `${s.id}:${s.generation_state}${s.heading_block_id ? '+heading' : ''}`).join(','));
   check('J4 one section plan', journey.section_plan?.section_id === 's1', 'the one section plan is for s1', `section_plan ${journey.section_plan?.section_id}`);
-  check('J4 heading recorded', journey.section_plan?.heading_block_id === headings[0]?.id, 'section_materialized recorded the heading', `recorded ${journey.section_plan?.heading_block_id ? 'another id' : 'nothing'}`);
+  check('J4 heading recorded', !!headings[0]?.id && journey.section_plan?.heading_block_id === headings[0].id, 'section_materialized recorded the heading', `recorded ${journey.section_plan?.heading_block_id ? 'another id' : 'nothing'}`);
   check('J4 no artifact', !calls('/api/learn/artifact').length, 'text steps make no artifact request', `${calls('/api/learn/artifact').length} artifact requests`);
   const hits = await covered(page, (await railBox(page)).box, ['[data-block-id]', '[data-tutor-prompt-tray]', '[data-learn-dock] [data-chat-composer]']);
   check('J4 rail clear of cards', !hits.length, 'the rail covers no card, tray or composer', `the rail covers ${hits.join(', ')}`);

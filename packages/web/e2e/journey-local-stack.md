@@ -99,9 +99,13 @@ The page also answers `/api/learn/ask` (canned SSE), `/api/learn/home-ask` and t
 makes no model call from the browser. `/api/learn/tutor/evaluate` reaches the stack: without a JEV key it answers status
 `error` with no call, and probe options are graded from the server-only key.
 
-The Tutor slice check runs on the same stack in stub mode. It reads `packages/control-plane/.dev.vars`, so put only the
-stack's `TEST_BYPASS_SECRET` line there for the run and delete it afterwards:
-`TUTOR_BASE=http://127.0.0.1:8868 SMALL_CP=http://127.0.0.1:8869 node e2e/tutor-slice-check.mjs <ws>/screens/slice`.
+The Tutor slice check runs on the same stack in stub mode. Hand it this stack's secret through the environment (it
+then never reads `packages/control-plane/.dev.vars`; never create, overwrite or delete that file for this):
+
+```bash
+TEST_BYPASS_SECRET=$(sed -n 's/^TEST_BYPASS_SECRET=//p' <ws>/alp1-config/cp/.dev.vars) TUTOR_BASE=http://127.0.0.1:8868 \
+  SMALL_CP=http://127.0.0.1:8869 node e2e/tutor-slice-check.mjs <ws>/screens/slice
+```
 
 ## 5. Stop
 
