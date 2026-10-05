@@ -770,3 +770,79 @@
 - [ ] **Step 3:** Implement.
 - [ ] **Step 4:** Run the tests and confirm they PASS. Run `make test-unit` (green). Build the web bundle with `npx vite build --outDir dist-check` (it must succeed), then delete dist-check.
 - [ ] **Step 5:** `git commit --only <paths> -m "feat(learn): journeys keyed by the stable internal user id - /api/me and devIdentity carry the session uid, migration 0006 owner_user_id (LP1)"`.
+
+---
+
+### Task 15: Section save atomicity — a section is "generated" only after its board save succeeds (owner LP1 blocker, 2026-10-05)
+
+**Requirement.** Order: generate artifacts → save the board successfully → only then commit the section's generation state as generated. If the learner leaves or crashes before the board is persisted, the section stays safely resumable: there is no false "built" state and no duplicate regeneration on resume.
+
+**Files:**
+- Modify: `packages/web/src/AdaptiveCanvas.jsx`. Add one command: `canvasApi.persist() → Promise<{ ok: boolean, local: boolean, remote: 'ok' | 'skipped' | 'failed' }>`.
+  - It writes the latest committed board state to `localStorage` immediately, with the same key, shape and data-URL stripping as the debounced save.
+  - It awaits the `onSave` path when the board is shared.
+  - It reads the latest state through refs, so a call made after a paint following the inserts sees the inserted blocks.
+  - `ok` is true only when the local write succeeded (a full or blocked storage gives false) and, when shared, the remote push succeeded.
+  - Change nothing else about the existing debounced save.
+- Modify: `packages/web/src/LearnPage.jsx`. `pushBoard` gains an awaitable immediate variant, used by `persist()`'s `onSave` path. It returns `'ok'`, `'failed'` or `'skipped'` (not shared). The existing debounced behaviour and its 409 toast stay as they are.
+- Modify: `packages/web/src/learn-journey-materialize.js` and `packages/web/src/LearnJourney.jsx`.
+  - After the last step: paint, then `showSection`, then `await canvas.persist()`.
+  - Only on `ok` post `section_materialized`.
+  - On `!ok`, show the tray error line "This section is on the canvas but could not be saved yet." with Retry. Retry calls `persist()` again, then posts, without regenerating anything.
+  - The resumable path (stamped heading and steps already on the canvas) also calls `persist()` before posting.
+- Modify: `packages/web/src/learn-journey.js` `journeyStep('section_materialized')`. It records `section_plan.generation_state = 'generated'` beside `heading_block_id`.
+- Modify: `packages/control-plane/src/learn-journey.js` `reply()`. It overlays the current section's live generation state from the journey row onto the returned path: `generation_state` becomes `'generated'` only after `section_materialized`, and is `'planning'` from accept until then. Path versions stay immutable history.
+- Tests: `packages/web/src/learn-journey-materialize.test.mjs`, `learn-journey-ui.test.mjs`, the store/route tests as needed, and a pure test for any extracted persist helper.
+
+**Regression tests (required):**
+1. **Leave inside the window, nothing saved.** Steps are inserted, `persist()` has not resolved, and the page unloads (the controller is discarded). The server has no heading or `generated` state. On "reload" with a canvas holding none of the blocks, the section materializes exactly once.
+2. **Leave inside the window, blocks saved but no post.** The blocks are persisted locally, but `section_materialized` was never posted. On reload the resumable path reuses every stamped block, calls `persist()` and posts. No artifact or text step is regenerated (the artifact post count stays 0).
+3. **Save fails.** `persist()` returns `ok: false`, so nothing is posted, the error tray shows, and Retry posts after a later `ok` without regenerating.
+4. **Shared board.** A failed remote push gives `ok: false`.
+5. **Server state.** `section_materialized` sets `generation_state` to `generated`, and before it the current section reads `planning`.
+
+**Interfaces:** `canvasApi.persist()`, `section_plan.generation_state`.
+
+- [ ] **Step 1:** Write the failing tests.
+- [ ] **Step 2:** Run them and confirm they FAIL.
+- [ ] **Step 3:** Implement.
+- [ ] **Step 4:** Run the tests and confirm they PASS. Run `make test-unit` (green). Build with `vite build --outDir dist-check` (it must succeed), then delete dist-check.
+- [ ] **Step 5:** `git commit --only <paths> -m "fix(learn): a journey section is generated only after its board save succeeds - resumable, no false built state, no regeneration (LP1 blocker)"`.
+
+---
+
+### Task 14: Minimal journey context for a Rabbit Hole opened from a journey section (owner, 2026-10-05; full return reconciliation stays LP5)
+
+**Requirement.** When `/dive` starts from an active journey section, the hole carries minimal parent learning context: `journey_id`, `section_id`, and the relevant concept ids and claim ids. The existing origin identity fields stay distinct. The child Tutor knows which concept and claim caused the dive. The child never writes the parent's path or evidence; reconciliation on return is LP5.
+
+**Files:**
+- Modify: `packages/web/src/dive.js` `diveRecord(...)`. It accepts an optional `journey = null` and adds a top-level `journey: { journey_id, section_id, concept_ids[≤4], claim_ids[≤4] }` field.
+  - The field sits beside `origin` and `return_point`, never inside `origin`.
+  - It is absent when null.
+  - Keep `dive_json` under the 16000-character cap.
+- Modify: `packages/web/src/Dive.jsx`. `useDive` accepts a `journeyContext(block) → journey | null` callback and passes its result into `diveRecord`.
+- Modify: `packages/web/src/LearnJourney.jsx`. Export a pure `journeyDiveContext(journey, path, block)`.
+  - It returns null unless the journey is `active`.
+  - `claim_ids`: the block's stamped `journey.claims` when the dive starts from a section block; otherwise the current section's `expected_evidence` claims. At most 4, and only ids present in the registry.
+  - `concept_ids`: those claims' concepts, plus the section's `target_concepts`, deduped, at most 4.
+- Modify: `packages/web/src/LearnPage.jsx`. Pass `journeyContext` into `useDive` from the live journey.
+- Modify: `packages/web/src/LearnTutor.jsx` and `packages/web/src/learn-journey-domain.js`.
+  - In a hole whose dive record has `journey`, the Tutor is active. It reads the parent journey once, read-only, via `GET /api/learn/journey?app=<parent app>&board=<parent board>`. The parent is in `record.origin.parent`; the same owner is required, and a refusal leaves the Tutor on its existing behaviour.
+  - Build a dive domain with `journeyDomain`:
+    - claims in scope default to `record.journey.claim_ids`, with content from the parent registry;
+    - `journey_context.phase = 'dive'`, carrying the section title and the dive's concepts;
+    - `cards` is the hole's own blocks;
+    - **evidence mode `session`, not `journey`.** Evaluations use the existing client-built spec from the parent registry content and are stored only in the hole's session store. The parent evidence and path stay untouched until LP5.
+  - `dive_context` in the planner context includes `journey: { section_id, claim_ids, concept_ids }`.
+- Tests:
+  - `diveRecord` with and without `journey`; the origin fields are unchanged;
+  - `journeyDiveContext` from a stamped block, from the section, and in a non-active state;
+  - the dive domain's default claims equal `record.journey.claim_ids`;
+  - the planner context of a hole turn names the claim;
+  - no journey write request comes from the hole (a fetch spy shows only the GET).
+
+- [ ] **Step 1:** Write the failing tests.
+- [ ] **Step 2:** Run them and confirm they FAIL.
+- [ ] **Step 3:** Implement.
+- [ ] **Step 4:** Run the tests and confirm they PASS, along with the golden traces and the corpus gate. Run `make test-unit` (green). Build with `vite build --outDir dist-check` (it must succeed), then delete dist-check.
+- [ ] **Step 5:** `git commit --only <paths> -m "feat(learn): a Rabbit Hole opened from a journey section carries its journey, section, concepts and claims, so the child Tutor knows what caused the dive (LP1)"`.

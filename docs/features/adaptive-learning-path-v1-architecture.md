@@ -349,7 +349,8 @@ or start <new topic>?".
    - The resulting block is inserted under the heading, stamped `journey: { section_id, step_id, claims }`.
 4. Paid primitives come back as proposals and become a tray `generation_proposal`. They are never generated
    automatically.
-5. A failed step leaves the section current with `generation_state: 'planning'`, the steps already done stay,
+5. **Save before commit (owner LP1 blocker, 2026-10-05).** `section_materialized` is posted only after `canvasApi.persist()` confirms that the board is saved (locally, and remotely when shared). The journey row then records `generation_state: 'generated'`. A crash in between leaves the section resumable from the stamped blocks, with no false built state and no regeneration (plan Task 15).
+6. A failed step leaves the section current with `generation_state: 'planning'`, the steps already done stay,
    and the tray offers Retry. Nothing is generated for any other section.
 
 ### 6.6 State machine (server `journeyStep`, shared pure module)
@@ -604,7 +605,11 @@ takes an injected `callModel`. Tests and the e2e harness use fixtures through a 
 - Voice on journey canvases comes from `useTutor` being active there. The voice code itself is unchanged in LP1;
   the parity e2e is LP5.
 
-## 13. `/dive` (LP5)
+## 13. `/dive`
+
+**LP1 minimal context (owner, 2026-10-05):** a hole opened from an active journey section stores `journey: { journey_id, section_id, concept_ids, claim_ids }` in its `dive_json`, beside `origin` (plan Task 14). The child Tutor reads the parent journey read-only and plans around those claims, keeping its evidence in the hole's session store. It never writes the parent's path or evidence; reconciliation on return is LP5.
+
+### LP5 (full reconciliation)
 
 - When a hole opens from a journey canvas, the journey becomes `paused` (`paused_for`).
 - The child canvas has no journey and never writes the parent's path.
