@@ -151,7 +151,8 @@ export function evaluationSpec(turn, claims, store, domain = NANOGPT) {
 // route is exactly as before.
 // ponytail: runTurn never passes avatar yet; AV6 wires the knob, the ready-clip lookup (LearnAvatarClips
 // ?ready), the canvas's clips and the session's avatar_seen record.
-export function route({ turn, claims, states, evaluation, store, avatar = null }) {
+// domain: accepted for parity with the other stages; route reads nothing domain-specific (claims and states arrive scoped).
+export function route({ turn, claims, states, evaluation, store, avatar = null, domain = NANOGPT }) {
   const noQuiz = turn.constraints.includes('no_quiz') || turn.constraints.includes('just_answer');
   const inHole = !!turn.canvas.dive;
   const finish = (row, strategy, allowed, claim = null) => {
@@ -262,7 +263,7 @@ function relevantCards(target, concepts, domain) {
 export function plannerContext({ turn, routed, block, states, claims = [], store = null, domain = NANOGPT }) {
   const card = domain.cardModule(turn.target?.card);
   const labels = partLabels(card);
-  const index = turn.target?.part_id ? partIndex(card, turn.target.part_id) : null;
+  const index = card && turn.target?.part_id ? partIndex(card, turn.target.part_id) : null;
   const sources = (block?.sources || card?.sources || []).slice(0, 3).map((source, i) => ({ source_index: i, path: source.path || source.url || null, lines: source.lines || null, note: String(source.note || '').slice(0, 400) }));
   const described = block?.type === 'animation' ? describeAnimation(block).text : block ? [block.title, block.body].filter(Boolean).join('\n') : null;
   const ids = [...new Set([routed.claim, ...claims].filter(Boolean))].slice(0, 4);
@@ -346,7 +347,11 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
       if (telemetry?.called) tracer.add(rung, telemetry.ms, telemetry.outcome === 'timeout' || telemetry.outcome === 'error' ? telemetry.outcome : 'ok', telemetry.reason ? `${telemetry.outcome} (${telemetry.reason})` : telemetry.outcome);
     }
     const ref = { card: target?.card ?? null, scene_id: target?.scene_id ?? null, part_id: target?.part_id ?? null, turn_id: turn.turn_id, canvas: here };
-    ({ store: current, states, transitions } = tracer.step('evidence_reconciliation', () => (result.journey?.events ? adoptJourney(current, result, states, domain.claims) : reconcile(current, evaluation, ref, domain.claims)), out => `${out.added} observations, ${out.transitions.length} state changes`));
+    // A journey turn never reconciles locally (§5): without the server's stored events it adds nothing.
+    const journeyTurn = domain.evidence.mode === 'journey';
+    const reconciled = () => (!journeyTurn ? reconcile(current, evaluation, ref, domain.claims)
+      : result.journey?.events ? adoptJourney(current, result, states, domain.claims) : { store: current, states, transitions: [], added: 0 });
+    ({ store: current, states, transitions } = tracer.step('evidence_reconciliation', reconciled, out => `${out.added} observations, ${out.transitions.length} state changes`));
     turn.evidence = buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id, domain }).turn.evidence;
   };
   if (raw.trim() && !turn.slash && !opening && claims.length) {
@@ -370,7 +375,8 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
       evaluation: evaluation && { status: evaluation.status, evaluator: evaluation.evaluator, events: (evaluation.events || []).length, telemetry: evaluation.telemetry ?? null },
       transitions: transitions.map(({ claim, from, to }) => `${claim}: ${from} -> ${to}`),
     };
-    return { store: current, turn, evaluation, transitions, states, actions: [], text: '', bench };
+    // The probe this turn answered is closed, so the next free-text turn is not read as answering it again.
+    return { store: turn.answering ? { ...current, open: null } : current, turn, evaluation, transitions, states, actions: [], text: '', bench };
   }
   // 3. Router, planner, enforcement.
   const routed = tracer.step('router', () => route({ turn, claims, states, evaluation, store: current }), out => out.row);

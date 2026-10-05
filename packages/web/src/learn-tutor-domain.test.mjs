@@ -10,6 +10,7 @@ import { cardModule } from './learn-tutor-claims.js';
 import { appendEvents, emptyStore, deriveClaimStates } from './learn-tutor-evidence.js';
 import { buildTurn, executeActions, plannerContext, route, runTurn } from './learn-tutor.js';
 import { validateActions } from './learn-tutor-validate.js';
+import { selectClaims } from './learn-tutor-select.js';
 import { journeyDomain } from './learn-journey-domain.js';
 import { fixtureFor } from '../../control-plane/src/learn-journey-fixtures.js';
 
@@ -143,6 +144,7 @@ test('journey: plan:false stops after evidence and adopts the server events (no 
   assert.equal(result.text, '');
   assert.deepEqual(Object.keys(result.states).sort(), Object.keys(registry.claims).sort());
   assert.equal(result.states[WHY].state, 'uncertain');
+  assert.deepEqual(result.transitions, [{ claim: VOCAB, from: 'not_yet_observed', to: 'uncertain' }, { claim: WHY, from: 'not_yet_observed', to: 'uncertain' }], 'transitions from adopting the server events');
   const body = sent[0].body;
   assert.equal(body.journey_id, 'lj_test');
   assert.deepEqual(body.claims, [VOCAB, WHY]);
@@ -161,4 +163,97 @@ test('journey setup (intake), no open probe: off_slice, respond_text only, nothi
   assert.deepEqual(sent.map(entry => entry.path), ['/api/learn/tutor/plan']);
   assert.equal(sent[0].body.context.journey_context.phase, 'setup');
   assert.equal(sent[0].body.context.journey_context.section, null);
+});
+
+// ---------- Review round 1 ----------
+
+const evaluateOnly = (reply, sent = []) => async (path, body) => {
+  sent.push({ path, body });
+  if (path === '/api/learn/tutor/evaluate') return typeof reply === 'function' ? reply() : reply;
+  throw new Error(`unexpected ${path}`);
+};
+const answer = (extra = {}) => ({ raw: 'A classifier picks a label; regression predicts a number.', canvas: HERE, access: { app: 'a', board: 'b' }, block: null, store: emptyStore(), domain: domainFor(), plan: false, ...extra });
+
+test('journey cues come from the journey registry only, never the nanoGPT CUES of a same-named claim', () => {
+  const id = 'softmax/normalizes-to-one';
+  const domain = journeyDomain({
+    journey: { ...JOURNEY, registry: {
+      concepts: { softmax: { label: 'Softmax', names: ['softmax'], prerequisites: [] } },
+      claims: { [id]: { concept: 'softmax', statement: 'Weights are probabilities.', ideas: ['they sum to one'], misconceptions: [], prerequisites: [], drawn: 'one row', cues: ['probabilities sum'] } },
+    } },
+    path: PATH, blocks: [],
+  });
+  assert.deepEqual(selectClaims('the probabilities sum to one', { candidates: [id] }, domain).matched[id], ['probabilities sum']);
+  assert.equal(selectClaims('the weights add up to one', { candidates: [id] }, domain).matched[id], undefined, 'the nanoGPT cue "add up to one" is not this claim\'s');
+  assert.deepEqual(selectClaims('the weights add up to one', { candidates: [id] }).matched[id], ['add up to one'], 'nanoGPT keeps its CUES');
+});
+
+test('journey: an authored pager card on a journey canvas is no journey card - the planner context does not throw; route takes domain', () => {
+  const domain = domainFor();
+  const deep = cardBlock(cardModule('depth-attention-deep'));
+  const states = deriveClaimStates([], domain.claims);
+  const { turn, claims } = buildTurn({ raw: 'What is this?', canvas: HERE, block: deep, store: emptyStore(), states, domain });
+  assert.ok(turn.target.part_id, 'the pager card has a part');
+  const routed = route({ turn, claims, states, evaluation: null, store: emptyStore(), domain });
+  assert.deepEqual(routed, route({ turn, claims, states, evaluation: null, store: emptyStore() }), 'route reads nothing domain-specific');
+  const context = plannerContext({ turn, routed, block: deep, states, claims, store: emptyStore(), domain });
+  assert.ok(context.target && !('card' in context.target), 'described, not a journey card');
+});
+
+test('journey_context stays bounded with a 16-concept registry, long labels, long titles and a long goal', () => {
+  const concepts = Object.fromEntries(Array.from({ length: 16 }, (_, i) => [`concept-${i}`, { label: `${'a very long concept label '.repeat(8)}${i}`, names: [`concept ${i}`], prerequisites: [] }]));
+  const path = {
+    ...PATH, goal: 'g'.repeat(500),
+    sections: PATH.sections.map(s => (s.id === 's1' ? { ...s, target_concepts: Object.keys(concepts) } : { ...s, title: `${s.title} ${'t'.repeat(200)}` })),
+  };
+  const jc = journeyDomain({ journey: { ...JOURNEY, registry: { concepts, claims: registry.claims } }, path, blocks: BLOCKS }).context;
+  assert.equal(jc.goal.length, 200);
+  assert.equal(jc.section.target_concepts.length, 6);
+  assert.ok(jc.section.target_concepts.every(label => label.length <= 60));
+  assert.ok(jc.upcoming.length <= 6 && jc.upcoming.every(title => title.length <= 80));
+  assert.ok(JSON.stringify(jc).length <= 1500, `${JSON.stringify(jc).length} characters`);
+});
+
+test('journey: a settled result without the server journey events adds nothing - never a local reconcile', async () => {
+  const result = await runTurn({ ...answer(), post: evaluateOnly({ status: 'settled', evaluator: 'jev', events: [{ concept: VOCAB.split('/')[0], claim: VOCAB, result: 'pass', kind: 'demonstrated_here', settled: true }] }) });
+  assert.deepEqual(result.store.events, []);
+  assert.equal(result.store.seq, 0);
+  assert.deepEqual(result.transitions, []);
+  assert.equal(result.states[VOCAB].state, 'not_yet_observed');
+});
+
+test('journey plan:false closes the probe it answered', async () => {
+  const sent = [];
+  const store = { ...emptyStore(), open: { action_id: 'q1', claim: VOCAB, text: 'How is classification different from regression?', canvas: HERE } };
+  const result = await runTurn({ ...answer({ store }), post: evaluateOnly({ status: 'settled', evaluator: 'jev', events: [], journey: { events: [ev(1, VOCAB)], seq: 1 } }, sent) });
+  assert.equal(sent[0].body.answering, true);
+  assert.equal(sent[0].body.question, 'How is classification different from regression?');
+  assert.equal(result.turn.answering, 'q1');
+  assert.equal(result.store.open, null, 'the next free-text turn is not an answer to the old probe');
+});
+
+test('journey plan:false waits for an evaluation off the critical path, then returns its evidence', async () => {
+  const sent = [];
+  let landed = false;
+  const reply = () => new Promise(resolve => setTimeout(() => { landed = true; resolve({ status: 'settled', evaluator: 'jev', events: [], journey: { events: [ev(1, WHY)], seq: 1 } }); }, 20));
+  // A question that ends in "?" with no prerequisite check is not on the critical path (criticalPath).
+  const result = await runTurn({ ...answer({ raw: 'Why would anyone use a classifier here?' }), post: evaluateOnly(reply, sent) });
+  assert.ok(landed);
+  assert.deepEqual(sent.map(entry => entry.path), ['/api/learn/tutor/evaluate']);
+  assert.deepEqual(result.store.events, [ev(1, WHY)]);
+  assert.equal(result.bench.evaluated, true);
+});
+
+test('journey cards: completed-section blocks are showable; suggest_practice needs a block with an activity', () => {
+  const path = { ...PATH, current_section_id: 's2', sections: PATH.sections.map(s => (s.id === 's1' ? { ...s, status: 'completed' } : s.id === 's2' ? { ...s, status: 'current', generation_state: 'generated' } : s)) };
+  const practice = { ...step('b4', 's2', 'Practice', [WHY]), activity: { id: 'p1', kind: 'choice' } };
+  const domain = journeyDomain({ journey: { ...JOURNEY, active_section_id: 's2' }, path, blocks: [...BLOCKS, practice] });
+  assert.deepEqual(domain.cards, ['b1', 'b2', 'b9', 'b4']);
+  const states = deriveClaimStates([], domain.claims);
+  const { turn } = buildTurn({ raw: 'Can I practise this?', canvas: HERE, block: null, store: emptyStore(), states, domain });
+  const routed = { row: 'uncertain', strategy: 'feynman', allowed: ['respond_text', 'focus_part', 'show_authored_card', 'suggest_depth', 'suggest_practice', 'ask_question'], claim: WHY };
+  const decide = action => validateActions({ actions: [action] }, routed, turn, domain).decisions[0];
+  assert.equal(decide({ type: 'show_authored_card', card: 'b1' }).accepted, true, 'a completed section block');
+  assert.equal(decide({ type: 'suggest_practice', card: 'b4' }).accepted, true);
+  assert.deepEqual(decide({ type: 'suggest_practice', card: 'b9' }), { type: 'suggest_practice', accepted: false, stage: 'resource', reason: 'b9 has no practice' });
 });

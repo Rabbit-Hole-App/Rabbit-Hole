@@ -33,14 +33,15 @@ function hit(text, cue) {
 // candidates: claim ids, in priority order. forced: ids kept whatever the words (the open question's
 // claim when answering, the returned-from claim). fallback: the target's claims, kept when no cue at
 // all matched, so an explanation in unusual words is still evaluated (JEV's engaged check guards it).
-// domain (TutorDomain): a journey claim's cues are its registry `cues`; concept names are the domain's.
+// domain (TutorDomain): a journey claim's cues are its registry `cues` only (never CUES, even for an id that matches a
+// slice claim's); concept names are the domain's.
 export function selectClaims(raw, { candidates, forced = [], fallback = [] }, domain = NANOGPT) {
   const started = performance.now();
   const text = String(raw || '').toLowerCase();
   const pool = [...new Set(candidates)].filter(id => domain.claims[id]);
   const matched = {};
   for (const id of pool) {
-    const cues = (CUES[id] ?? domain.claims[id].cues ?? []).filter(cue => hit(text, cue.toLowerCase()));
+    const cues = ((domain.kind === 'nanogpt' ? CUES[id] : domain.claims[id]?.cues) ?? []).filter(cue => hit(text, cue.toLowerCase()));
     if (cues.length) matched[id] = cues;
   }
   const concepts = new Set(Object.keys(matched).map(id => domain.claims[id].concept));

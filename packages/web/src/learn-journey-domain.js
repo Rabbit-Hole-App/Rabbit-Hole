@@ -10,6 +10,7 @@
 //   evidence  the server's (§5): runTurn sends the journey id and adopts the stored events /evaluate returns
 // Pure: built per turn from the journey and path the journey route returns and the canvas blocks.
 const SETUP = ['intake', 'diagnostic', 'path_review'];
+const cap = (text, max) => String(text ?? '').slice(0, max);
 
 export function journeyDomain({ journey, path, blocks = [] }) {
   const { concepts = {}, claims = {} } = journey.registry || {};
@@ -48,18 +49,20 @@ export function journeyDomain({ journey, path, blocks = [] }) {
       canvas.revealBlock?.(id);
       return true;
     },
-    // §3.3: bounded (about 1.5 KB) - never the whole path, the evidence history or raw intake answers.
+    // §3.3: bounded (about 1.5 KB) - never the whole path, the evidence history or raw intake answers. Goal at most 200
+    // characters, at most 6 concept labels of 60, at most 6 upcoming titles of 80; title, purpose and the 4
+    // expected_evidence ids are already capped by the path schema (§9.2) and are cut to it here too.
     // ponytail: a completed journey reads as 'active' (§3.3 names three phases); a 'completed' phase once LP2 says
     // what the Tutor does after the last section.
     context: {
       phase: setup ? 'setup' : journey.state === 'paused' ? 'paused' : 'active',
-      goal: String(path?.goal || journey.request?.topic || '').slice(0, 200),
+      goal: cap(path?.goal || journey.request?.topic, 200),
       section: section && {
-        title: section.title, purpose: section.purpose,
-        target_concepts: (section.target_concepts || []).map(id => concepts[id]?.label ?? id),
-        expected_evidence: (section.expected_evidence || []).map(entry => entry.claim),
+        title: cap(section.title, 80), purpose: cap(section.purpose, 240),
+        target_concepts: (section.target_concepts || []).slice(0, 6).map(id => cap(concepts[id]?.label ?? id, 60)),
+        expected_evidence: (section.expected_evidence || []).slice(0, 4).map(entry => entry.claim),
       },
-      upcoming: sections.filter(s => s.status === 'upcoming').slice(0, 6).map(s => s.title),
+      upcoming: sections.filter(s => s.status === 'upcoming').slice(0, 6).map(s => cap(s.title, 80)),
       constraints: { depth: slots.depth ?? null, minutes: slots.minutes ?? null, coding: slots.coding ?? null, math: slots.math ?? null },
     },
     evidence: { mode: 'journey', journey_id: journey.id },
