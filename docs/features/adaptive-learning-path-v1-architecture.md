@@ -564,7 +564,7 @@ carry `journey`. Extra block fields already survive saves, so the canvas needs n
 ### 10.2 Identity (R3), resolved by the owner on 2026-10-05
 
 - **The key.** Journeys are scoped by `(org, owner_user_id, app, board)`, where `owner_user_id` is `users.id`: the opaque, stable internal user id that sessions carry as `uid` (auth.js `sessionOf`).
-- **Where the id comes from.** Control-plane `/api/me` returns `user_id` beside `{ email, org, orgName }`. For a browser session it is the session `uid`; for a CLI token it is null. The dev and app worker's `devIdentity` forwards it as `userId`. `canvasAccess`, `canvasApp` and `pendingHoleApp` then expose it on the app object as `user_id`.
+- **Where the id comes from.** Control-plane `/api/me` returns `user_id` beside `{ email, org, orgName }`. For a browser session it is the session `uid`; for a CLI token it is null. The dev and app worker's `devIdentity` forwards it as `userId`. `canvasAccess` (an owned canvas or a pending hole) attaches it to the access object only, as `user_id`. Canvas listings and responses never carry it, and the dev worker's `/api/apps` catalog strips it.
 - **Fail closed.** With no id — a CLI token, or the legacy small-cp fallback that answers `/api/me` with 404 — journey GET returns nulls and POST returns 401 `identity_unavailable`.
 - **Never shown.** The id never appears in a journey response, telemetry or logs.
 - **Canvas ownership is separate.** It stays on the canvas's own `owner_email` check through `authorizedBoardApp`. That is the canvas system's identity, not the journey's key.
