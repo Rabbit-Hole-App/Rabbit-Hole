@@ -202,14 +202,13 @@ export const STATE_RULES = [
   '  - understood: a settled transfer pass (right on a new case, not the one taught) covering its ideas, with no later settled fail.',
   '  - uncertain: thin or mixed evidence (one fail, a pass only on the taught case, conflicting or unsettled answers).',
   '  - misconception: one named wrong idea in two or more settled answers. One wrong answer is never a misconception.',
-  '  - prerequisite_gap: a settled answer showed a missing prerequisite.',
+  '  - prerequisite_gap: a settled answer named a missing prerequisite concept, one not itself understood.',
   '  - not_yet_observed: no evidence yet; it says nothing about the learner.',
-  '- Self-report ("I know this", familiarity, "got it") is never evidence. Never infer a mastery percentage, score, grade or permanent learner level.',
+  '- Self-report ("I know this", familiarity, "got it") is never evidence. Never infer or mention a mastery percentage, score, grade or learner level.',
 ];
 
 // The journey Tutor turn (architecture §3.1, §3.2, D6): the nanoGPT policy lines placed in the seven sections, verbatim
-// except the subject line (0) and the authored-content line (4), made generic, and the control-fields line (11), kept in
-// substance; plus the journey rules, the evidence states and examples. Like PLANNER_SYSTEM it is one stable cached prefix:
+// except the subject line (0) and the authored-content line (4), made generic; plus the journey rules, the evidence states and examples. Like PLANNER_SYSTEM it is one stable cached prefix:
 // the topic, goal and section travel in context.journey_context, in the user message.
 const L = i => `- ${LINES[i]}`;
 const JOURNEY_SYSTEM = tagged({
@@ -218,8 +217,9 @@ const JOURNEY_SYSTEM = tagged({
   current_state: [
     'The user message is context = this turn\'s Teaching State:',
     L(12),
-    '- context.journey_context: phase (setup during intake, diagnostic and path review; active; paused in a dive), goal, section ({ title, purpose, target_concepts, expected_evidence }; null in setup), upcoming (later section titles), constraints.',
-    '- Also: target, relevant_authored_content, learner_constraints, recent_relevant_context, dive_context.',
+    '- context.journey_context: phase (setup during intake, diagnostic and path review; active; paused in a dive), goal, section ({ title, purpose, target_concepts, expected_evidence }; null in setup), upcoming (later section titles), constraints (below).',
+    '- context.journey_context.constraints is { depth, minutes, coding, math } from the intake; the quiz and answer constraints (no_quiz, just_answer, ...) are context.learner_constraints.',
+    '- Also: target, relevant_authored_content, recent_relevant_context, dive_context.',
   ],
   allowed_evidence: ['- Evidence is context.relevant_evidence only: claim states the server derived from settled answers. You never set one.', L(8)],
   non_negotiable_rules: [
@@ -233,13 +233,12 @@ const JOURNEY_SYSTEM = tagged({
   ],
   examples: [
     '- [unrelated question] mid-section, learner: "unrelated, but why is the sky blue?" -> respond_text in two plain sentences, no question, no card; the section resumes next turn.',
-    '- [math/ML] upcoming "Choosing a learning rate"; learner: "how big should each step be?" -> respond_text: that comes in Choosing a learning rate; the gradient gives the direction, not the distance.',
+    '- [math/ML] upcoming "Choosing a learning rate"; learner: "how big should each step be?" -> respond_text: that comes in the section Choosing a learning rate; in one line, the learning rate scales how far each step goes.',
     '- Bad output [mastery without evidence]: learner: "I totally get eigenvectors now", evidence uncertain -> "You have mastered eigenvectors!" Why: self-report is not evidence; only a settled transfer pass makes a claim understood.',
   ],
   output_contract: [
-    // LINES[11] in substance, shortened so the prefix stays under 6,000 characters.
-    '- Call tutor_response once. Write the control fields first, in order: constraints_add (empty when none was stated), constraints_remove, explicit_request (only when they literally asked), strategy; then actions. Put the action the learner should hear first (respond_text, or ask_question on a questioning move) first among the actions, with a first sentence complete and useful on its own: it can be spoken before you finish the turn. Leave out move and reason.',
-    L(10), L(13),
+    'Call tutor_response once.',
+    L(11), L(10), L(13),
   ],
 });
 
