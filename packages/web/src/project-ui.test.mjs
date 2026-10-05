@@ -27,9 +27,10 @@ test('a project is Map or Learn: no Overview, and the canvas has no Overview/Lea
 
 test('the canvas has no Tutor or Practice button: the composer is the Tutor on the NanoGPT course and its Rabbit Holes', () => {
   assert.doesNotMatch(learn, /data-learn-tutor|data-learn-practice|experience/);
-  assert.match(learn, /useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, on: suppliedCourse && !board \}\)/);
+  // A live learning journey also makes the composer the Tutor (LP1 Task 12).
+  assert.match(learn, /useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, on: suppliedCourse && !board, journey \}\)/);
   assert.match(learn, /const suppliedCourse = learnPreview && app\.repo === 'karpathy\/nanoGPT';/);
-  assert.match(tutor, /const active = on \|\| board === TUTOR_BOARD \|\| root\?\.board === TUTOR_BOARD \|\| \(root\?\.kind === 'repository' && root\.title === COURSE_REPO\);/);
+  assert.match(tutor, /const active = on \|\| board === TUTOR_BOARD \|\| root\?\.board === TUTOR_BOARD \|\| \(root\?\.kind === 'repository' && root\.title === COURSE_REPO\) \|\| !!journey\?\.journey;/);
   assert.match(tutor, /export const COURSE_REPO = 'karpathy\/nanoGPT';/);
   // ?board= stays review-only.
   assert.match(learn, /const named = hole \|\| !reviewTools \? null : new URLSearchParams\(window\.location\.search\)\.get\('board'\);/);

@@ -359,8 +359,11 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
     critical = criticalPath(learnerIntent(turn), spec, route({ turn, claims, states, evaluation: null, store: current }).row);
     const sent = now();
     // A journey turn sends ids only: the worker rebuilds the spec from the journey registry and ignores claim content.
+    // The board is the canvas's (access is { app }); turn_id ties the stored evidence to this turn's trace. A plan:false
+    // turn answers a diagnostic probe (§6.3), whose id is the open question's: probe_id lets the route store that
+    // probe's evidence once (a repeat answer is `duplicate`, its stored evidence adopted below like any other).
     const body = domain.evidence.mode === 'journey'
-      ? { ...access, journey_id: domain.evidence.journey_id, message: raw, claims: spec.claims.map(claim => claim.id), answering: spec.answering, question: spec.question }
+      ? { ...access, board: here.board, journey_id: domain.evidence.journey_id, message: raw, claims: spec.claims.map(claim => claim.id), answering: spec.answering, question: spec.question, ...(!plan && turn.answering ? { probe_id: turn.answering } : {}), turn_id: turn.turn_id }
       : { ...access, message: raw, spec };
     const evaluating = (async () => tracer.step('evaluate', () => post('/api/learn/tutor/evaluate', body), out => out.status))()
       .catch(error => ({ status: 'error', evaluator: 'jev', events: [], error: error.message }))

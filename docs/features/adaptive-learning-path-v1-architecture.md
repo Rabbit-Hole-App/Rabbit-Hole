@@ -750,3 +750,14 @@ Screenshots of J1-J4, J7 and J8 go to the Figma review page for owner visual app
 - **N4 Tutor cannot generate cards on journey canvases** (unchanged policy). A learner who asks the Tutor to "show
   me a visual of the sigmoid" gets a pointer to the existing section card or to `/graph`. A Tutor
   `suggest_artifact` action would be a `TUTOR_TOOL` change, considered at LP4 together with the tray options.
+
+## 18. LP1 status
+
+**Resolver integration note for Parallel.** Motion's `packages/control-plane/src/learner-intent.js`
+(`resolveLearnerTurn`) is not on main (checked at a87b370a), so LP1 Task 12 runs the journey resolver from the
+import-free extension directly: `useTutor.turn()` → `journey.handleText` → `interactionInterpretation` (rules 1-4),
+then the journey route's rule 5. When Motion lands, the wiring is one line in `resolveLearnerTurn`:
+`structured_interpretation.journey = journeyInterpretation(request)`, plus
+`structured_interpretation.interaction = interactionInterpretation(text, tray)` when a `tray` input is given. At the
+same time the extension's minutes fallback (`OVERVIEW` and `IN_MINUTES` in `learner-intent-journey.js`, marked
+`ponytail:`) switches to Motion's `parseDuration`, with hyphen support ("a 10-minute overview") added there.

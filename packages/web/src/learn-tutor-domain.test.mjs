@@ -257,3 +257,34 @@ test('journey cards: completed-section blocks are showable; suggest_practice nee
   assert.equal(decide({ type: 'suggest_practice', card: 'b4' }).accepted, true);
   assert.deepEqual(decide({ type: 'suggest_practice', card: 'b9' }), { type: 'suggest_practice', accepted: false, stage: 'resource', reason: 'b9 has no practice' });
 });
+
+// ---------- LP1 Task 12: the journey evaluate body ----------
+
+test('journey evaluate body: the board from the canvas, the turn id, probe_id only on a plan:false probe answer', async () => {
+  const sent = [];
+  const reply = { status: 'settled', evaluator: 'jev', events: [], journey: { events: [ev(1, VOCAB)], seq: 1 } };
+  // The access LearnPage passes is { app } alone: the board comes from the canvas.
+  const probe = { ...emptyStore(), open: { action_id: 'p3', claim: VOCAB, text: 'Explain it in your words.', canvas: HERE } };
+  await runTurn({ ...answer({ store: probe, access: { app: 'a' }, turnId: 't-probe' }), post: evaluateOnly(reply, sent) });
+  assert.deepEqual(sent[0].body, { app: 'a', board: 'b', journey_id: 'lj_test', message: 'A classifier picks a label; regression predicts a number.', claims: [VOCAB], answering: true, question: 'Explain it in your words.', probe_id: 'p3', turn_id: 't-probe' });
+  // A planned turn that answers the Tutor's own question names no probe: its action id is no probe id.
+  const asked = { ...probe, open: { ...probe.open, action_id: 'tutor-q1' } };
+  const plan = { strategy: 'feynman', constraints_add: [], actions: [{ type: 'respond_text', text: 'Yes.' }] };
+  await runTurn({ ...answer({ store: asked, access: { app: 'a' }, turnId: 't-asked', plan: true }), post: async (path, body) => { sent.push({ path, body }); return path.endsWith('/evaluate') ? reply : plan; } });
+  assert.equal(sent[1].path, '/api/learn/tutor/evaluate');
+  assert.equal(sent[1].body.board, 'b');
+  assert.equal(sent[1].body.turn_id, 't-asked');
+  assert.equal(sent[1].body.answering, true);
+  assert.ok(!('probe_id' in sent[1].body));
+});
+
+test('journey: a duplicate probe answer (status duplicate) adopts the stored journey evidence and is never an error', async () => {
+  const stored = [ev(1, VOCAB), ev(2, WHY)];
+  const probe = { ...emptyStore(), open: { action_id: 'p3', claim: VOCAB, text: 'Explain it.', canvas: HERE } };
+  const result = await runTurn({ ...answer({ store: probe }), post: evaluateOnly({ status: 'duplicate', evaluator: null, events: [], journey: { events: stored, seq: 2 } }) });
+  assert.equal(result.evaluation.status, 'duplicate');
+  assert.deepEqual(result.store.events, stored);
+  assert.equal(result.store.seq, 2);
+  assert.equal(result.store.open, null);
+  assert.equal(result.bench.evaluation.status, 'duplicate');
+});

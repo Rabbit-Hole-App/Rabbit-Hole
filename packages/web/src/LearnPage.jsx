@@ -540,13 +540,14 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
   const boardName = board || 'main';
   // /dive: nested Rabbit Holes from the selected card (docs/features/dive-v1.md).
   const dive = useDive({ app, board: boardName, hole, canvasApi, canvasState, baseFor: name => `small.adaptive-canvas:${app.org}:${app.email || app.owner_email}:${name}`, onTitle: title => saveTitle(title), referent: () => exchangesRef.current.at(-1)?.question || '' });
-  // Tutor v1 on the NanoGPT Attention slice and its holes (LearnTutor.jsx).
-  // The composer is the Tutor on the supplied NanoGPT course (owner, 2026-10-04), and in the Rabbit Holes under it.
-  const tutor = useTutor({ app, board: boardName, access: askScope, canvasApi, canvasState, dive, on: suppliedCourse && !board });
   // Learning journeys (LearnJourney.jsx) on Learn canvases: its tray sits in the dock composer, and a broad intent starts
   // one while the board has none. Not on repository apps (the route refuses them; the supplied nanoGPT course is one) nor
-  // on a pending hole, which has no canvas row yet. useTutor takes the journey in Task 12.
+  // on a pending hole, which has no canvas row yet.
   const journey = useJourney({ app, board: boardName, access: askScope, canvasApi, enabled: learnPreview && isCanvas && !hole });
+  // Tutor v1 on the NanoGPT Attention slice and its holes (LearnTutor.jsx).
+  // The composer is the Tutor on the supplied NanoGPT course (owner, 2026-10-04), and in the Rabbit Holes under it. On a
+  // canvas with a live journey it is Tutor v2 with the journey domain, for typed and voice turns (LP1 Task 12, D1, D6).
+  const tutor = useTutor({ app, board: boardName, access: askScope, canvasApi, canvasState, dive, on: suppliedCourse && !board, journey });
   // The path rail's upcoming section whose purpose is open (a click on it never generates anything, §8).
   const [openEntry, setOpenEntry] = useState(null);
   // The board path whose saved board the canvas holds: the server's copy may replace this browser's (canvasEpoch) when

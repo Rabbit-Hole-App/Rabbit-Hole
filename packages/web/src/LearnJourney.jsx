@@ -1,11 +1,12 @@
 // Learning journeys in the Learn composer (docs/features/adaptive-learning-path-v1-architecture.md §6.1, §7; LP1 Task 8):
 // useJourney holds the board's journey from /api/learn/journey, TutorPromptTray renders its tray in the LearnSlash slot
-// above the one composer, and routeJourneyTurn sends a typed turn through the shared resolver extension's rules 1-4
-// (learner-intent-journey.js, R7), then rule 5 (the route's `resolve`). Punctuation never decides (R1).
-// ponytail: the tray path only. Task 12 moves the resolver to the top of useTutor.turn() (typed and voice turns), swaps
-// answerProbeText for a runTurn({ plan: false }) turn and speaks the prompt. Task 9: after the action that planned the
-// current section (accept, a fast start, a retry), or on a load once the canvas is ready, materializeSection draws it on
-// the canvas, once (§6.5, R5, ruling C-3).
+// above the one composer, and routeJourneyTurn sends a turn through the shared resolver extension's rules 1-4
+// (learner-intent-journey.js, R7), then rule 5 (the route's `resolve`). Punctuation never decides (R1). LP1 Task 12:
+// handleText runs at the top of useTutor.turn() (LearnTutor.jsx), so typed and voice turns share it (D6), and a
+// free-text probe answer is the Tutor's runTurn({ plan: false }) turn (answerProbe).
+// ponytail: tray prompts are not spoken yet: voice.say runs a Tutor turn, not speech alone; a speak-only voice call with
+// the LP5 voice parity work. Task 9: after the action that planned the current section (accept, a fast start, a retry),
+// or on a load once the canvas is ready, materializeSection draws it on the canvas, once (§6.5, R5, ruling C-3).
 import { useEffect, useRef, useState } from 'react';
 import { Loader2, X } from 'lucide-react';
 import { apiFetch } from './api.js';
@@ -30,8 +31,8 @@ export function routeJourneyTurn(raw, tray, resolveRules = interactionInterpreta
 // The Learn composer starts a journey (§6.1) only on a canvas with no live journey (no journeyStarter) and no Tutor.
 export const journeyStartsHere = (raw, { tutor = null, journeyStarter = null } = {}) => !tutor && !!journeyStarter && STARTS.has(journeyIntent(raw).kind);
 
-// Before the path is accepted the canvas gets no permanent card (controller ruling, LP1): a turn the Learn chat answers
-// on a journey in setup stays in the chat sheet. Task 12 hands those turns to the Tutor.
+// Before the path is accepted the canvas gets no permanent card (controller ruling, LP1): a turn the Tutor answers on a
+// journey in setup (off_slice, words only) stays in the chat sheet (ask.jsx).
 export const inJourneySetup = journey => SETUP.has(journey?.state);
 
 // One POST with the journey's revision. A 409 `revision` (another tab moved it) carries the re-read journey: the same
@@ -98,7 +99,7 @@ const EMPTY = { journey: null, path: null, tray: null, prevPath: null };
 // canvas up). Every action resolves to an outcome whose `ok` is false when it failed; handleText and start report that as
 // `failed`, and the composer gives the words back.
 export function journeyController({ where, fetchJson, onChange = () => {}, canvas = () => null }) {
-  const s = { data: EMPTY, local: null, dismissed: null, busy: null, error: null, proposals: [], ready: false };
+  const s = { data: EMPTY, local: null, dismissed: null, busy: null, error: null, proposals: [], ready: false, answerProbe: null };
   const set = patch => { Object.assign(s, patch); onChange(); };
   // prevPath: the version of this journey's path shown before the current one, so the rail marks what the new version
   // changed (pathEntries) until the next version replaces it.
@@ -219,9 +220,16 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
     try { await fetchJson('/api/learn/tutor/evaluate', { ...where, journey_id: s.data.journey?.id, ...body }); } catch { /* evaluator error: no evidence */ }
     return advance(probeId);
   };
-  const answerProbeText = (probeId, text) => {
-    const probe = s.data.journey?.diagnostic?.probes?.find(p => p.id === probeId);
-    return evaluate(probeId, { claims: probe?.claims || [], answering: true, question: probe?.prompt || '', message: text });
+  // A typed or spoken answer to an explain-back probe is a Tutor turn without a plan: s.answerProbe(probe, text), handed
+  // over by the Tutor's turn (handleText, LearnTutor.jsx), runs runTurn({ plan: false }) with the probe as the open
+  // question, which stores its evidence through the same route. The route grades free text on a keyless probe only, so
+  // an option-only probe stays open for a pick, like an option-only intake question.
+  const answerProbeText = async (t, text) => {
+    const probe = s.data.journey?.diagnostic?.probes?.find(p => p.id === t.probe_id);
+    if (!t.free_text || !probe || !s.answerProbe) return { ok: true };
+    set({ busy: BUSY, error: null });
+    try { await s.answerProbe(probe, text); } catch { /* evaluator error: no evidence */ }
+    return advance(probe.id);
   };
   // A free-text tray answer goes where the tray asks for it.
   const answerText = async (text, t = open()) => {
@@ -233,7 +241,7 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
       return { ...out, ok: !out.failed };
     }
     if (t?.mode === 'intent_intake' && t.free_text) return act({ action: 'intake_answer', slot: t.slot, text: text.slice(0, 300) });
-    if (t?.mode === 'diagnostic_probe') return answerProbeText(t.probe_id, text);
+    if (t?.mode === 'diagnostic_probe') return answerProbeText(t, text);
     return { ok: true }; // an option-only question stays open for a pick
   };
   // §7.2 clarification_needed, over the tray it covers (`under`), which Answer the question answers with the same words.
@@ -289,10 +297,13 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
       return status === 200 && d?.kind ? d : { kind: 'clarification_needed' };
     } catch { return { kind: 'clarification_needed' }; } finally { set({ busy: null }); }
   };
-  // Every composer turn on a board with a journey (or an open tray). { handled: false } hands it to the composer's
-  // responder (with `text` when the learner chose Ask the Tutor for earlier words); `failed` gives the words back.
-  const handleText = async raw => {
+  // Every turn on a board with a journey (or an open tray): the Tutor's typed and voice turns, and the composer's with no
+  // Tutor. { handled: false } hands it to the responder (with `text` when the learner chose Ask the Tutor for earlier
+  // words); `failed` gives the words back. answerProbe: the Tutor's probe turn, kept for the clarification a turn opens
+  // (its Answer the question and Continue answer the probe with the same words).
+  const handleText = async (raw, { answerProbe = null } = {}) => {
     set({ error: null });
+    if (answerProbe) s.answerProbe = answerProbe;
     const t = open(), j = s.data.journey, it = journeyIntent(raw);
     if (j && STARTS.has(it.kind) && it.topic) {
       set({ local: liveJourneyTray(j, raw, t?.id === 'clarification:live' ? t.under : t) });
@@ -300,7 +311,7 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
     }
     // A busy or failed tray asks nothing: like no tray, only a rule-4 path edit is the journey's, and only during setup.
     // An active, paused or completed journey takes no path edit until LP2 (journeyStep refuses it), so those words go to
-    // the responder: the Learn chat now, the Tutor after Task 12.
+    // the responder, the Tutor.
     let route = routeJourneyTurn(raw, t?.mode ? t : null);
     if (route.kind === 'needs_model') route = await resolve(raw);
     if (route.kind === 'unrelated_question' || (route.kind === 'path_edit' && !t?.mode && !inJourneySetup(j))) return { handled: false };
@@ -317,7 +328,7 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
   const view = () => {
     const tray = shownTray(server(), s.local, s.busy, s.error);
     return { ...s.data, tray, trayProps: tray ? { tray, onOption: answer } : null, busy: !!s.busy,
-      start, handleText, answer, answerProbeText, edit, cancel, clarify, resolve, advance, accept, retry, refresh, canvasReady };
+      start, handleText, answer, edit, cancel, clarify, resolve, advance, accept, retry, refresh, canvasReady };
   };
   return { state: s, view, refresh };
 }

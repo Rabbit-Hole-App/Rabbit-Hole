@@ -490,17 +490,21 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     // journey (or an open Tutor Prompt Tray) a turn goes through the shared resolver first. A tray answer, path edit,
     // cancel, clarification or a second broad intent (continue or start?) is the journey's: no chat bubble, no card, no
     // /api/learn/ask, no Tutor call. An unrelated question (or Ask the Tutor) goes on to the responder below. A failed
-    // journey request gives the words back to the composer.
+    // journey request gives the words back to the composer. LP1 Task 12: a live journey makes the Tutor this canvas's
+    // responder, and its turn runs the resolver for typed and voice turns alike (LearnTutor.jsx), so the call here is
+    // left for a canvas with no Tutor, whose only trays belong to a journey being started (What do you want to learn?).
     let routed = null;
     if ((journey?.journey || journey?.tray) && !skipJourney && raw.trim() && !busy) {
       if (journey.busy) return; // the words stay in the composer while the tray works
-      setInput('');
-      routed = await journey.handleText(raw.trim());
-      if (routed.handled) {
-        if (routed.failed) setInput(current => current || raw);
-        return;
+      if (!tutor) {
+        setInput('');
+        routed = await journey.handleText(raw.trim());
+        if (routed.handled) {
+          if (routed.failed) setInput(current => current || raw);
+          return;
+        }
+        raw = routed.text ?? raw;
       }
-      raw = routed.text ?? raw;
     }
     // A broad learning intent on a canvas with no journey and no Tutor starts one on the server (§6.1); the tray opens.
     if (!routed?.text && !skipJourney && !busy && journeyStartsHere(raw, { tutor, journeyStarter })) {
@@ -516,7 +520,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     if (!message || busy) return;
     // The main composer starts a new block; the sheet keeps its own thread.
     // A journey in setup (intake, diagnostic, path review) gets no permanent card before its path is accepted: the
-    // answer stays in the sheet, even about a selected card, and opens no reader on the canvas. Task 12: the Tutor.
+    // Tutor's answer stays in the sheet, even about a selected card, and opens no reader on the canvas.
     const panelAsk = sheetMode && (!canvasTarget || journeySetup);
     if (composerOnly && !canvasSeed) threadId.current = panelAsk ? sheetThread.current : null;
     const exchange = panelAsk || journeySetup ? null : onExchange;
@@ -554,8 +558,16 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     const imageId = !target?.paper && !questionPaper ? target?.image || questionImage?.id : null;
     const replyId = crypto.randomUUID();
     const card = sheetMode && !panelAsk ? { card: true } : {}; // answered as a card, kept out of the sheet
-    setMsgs((m) => [...m, { role: 'user', content: attached ? `${message} 📎 ${attached.name}` : message, ...card, ...(canvasImage ? { canvasImage } : {}), ...(sourceRange ? { passage: `${sourceRange.path}:${sourceRange.start}-${sourceRange.end}` } : {}) }, { role: 'assistant', content: '', id: replyId, demo: !!isDemo, ...card }]);
-    if (!isDemo) exchange?.({ id: replyId, question: message, ...(target ? { linkFrom: target.id } : {}) });
+    // The turn's chat bubbles and canvas exchange, drawn once. The Tutor draws them itself (begin), only for a turn it
+    // answers: a turn its journey resolver takes (LearnTutor.jsx) has neither.
+    let begun = false;
+    const begin = () => {
+      if (begun) return;
+      begun = true;
+      setMsgs((m) => [...m, { role: 'user', content: attached ? `${message} 📎 ${attached.name}` : message, ...card, ...(canvasImage ? { canvasImage } : {}), ...(sourceRange ? { passage: `${sourceRange.path}:${sourceRange.start}-${sourceRange.end}` } : {}) }, { role: 'assistant', content: '', id: replyId, demo: !!isDemo, ...card }]);
+      if (!isDemo) exchange?.({ id: replyId, question: message, ...(target ? { linkFrom: target.id } : {}) });
+    };
+    if (!tutor || isDemo) begin();
     const append = (t) => setMsgs((m) => {
       const next = m.slice();
       next[next.length - 1] = { ...next[next.length - 1], content: next[next.length - 1].content + t };
@@ -574,8 +586,15 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         return;
       }
       // Tutor v1 (LearnTutor.jsx): on the NanoGPT Attention slice the Tutor answers instead of the
-      // Learn chat - the learner's own words, and the card they armed or selected.
-      if (tutor) { mirror(await tutor.ask({ raw: raw.trim(), targetId: target?.id || null, opening, signal: flight.signal }).catch(e => { if (e.name === 'AbortError') return 'Stopped.'; if (e.name === 'TimeoutError') throw new Error('The Tutor took too long to answer. Try again.'); throw e; })); return; }
+      // Learn chat - the learner's own words, and the card they armed or selected. On a journey canvas a turn the
+      // journey takes comes back handled, with nothing drawn; a failed one gives the words back.
+      if (tutor) {
+        const reply = await tutor.ask({ raw: raw.trim(), targetId: target?.id || null, opening, signal: flight.signal, skipJourney, begin }).catch(e => { if (e.name === 'AbortError') return 'Stopped.'; if (e.name === 'TimeoutError') throw new Error('The Tutor took too long to answer. Try again.'); throw e; });
+        if (reply?.handled) { if (reply.failed) setInput(current => current || raw); return; }
+        begin();
+        mirror(reply);
+        return;
+      }
       const payload = {
         // The lesson's table of contents. Separate from lesson_snapshot, which
         // is tldraw-shaped and would reject it.
@@ -671,7 +690,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       }
     } catch (e) {
       // A stopped answer keeps what arrived; it is not an error.
-      if (e.name !== 'AbortError') mirror(`✗ ${e.message}`);
+      if (e.name !== 'AbortError') { begin(); mirror(`✗ ${e.message}`); }
     } finally {
       if (answerFlight.current === flight) answerFlight.current = null;
       for (const slot of Object.values(slots)) boardContext?.releaseCard?.(slot);
