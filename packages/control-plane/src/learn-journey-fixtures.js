@@ -39,7 +39,7 @@ function registryFor(topic) {
 
 // The ladder, prerequisite to advanced: a transfer mcq (set on a new case, not the drawn one), an explain-back, a prediction.
 function probesFor(topic) {
-  const slug = slugOf(topic), options = right => [{ id: 'a', label: right }, { id: 'b', label: 'Only on the example it was taught with' }, { id: 'c', label: 'Something else' }];
+  const slug = slugOf(topic), options = right => [{ id: 'a', label: right }, { id: 'b', label: 'Only on the example it was taught with' }, { id: 'c', label: 'It depends on the threshold' }];
   return [
     { id: 'p1', kind: 'mcq', prompt: `On a ${topic} case you have not seen before, which statement holds?`, options: options(`The ${topic} vocabulary applies the same way`),
       claims: [`${slug}-foundations/vocabulary`], purpose: 'transfer', transfer: true, key: { correct: 'a', misconceptions: { b: 'vocabulary-confusion' } } },
@@ -92,10 +92,13 @@ function sectionFor(input) {
   };
 }
 
+// Rule 5 as a model would mostly read it: words typed into a free-text tray answer it, unless they open like a question.
+const QUESTION = /^\s*(what|why|how|when|where|who|which|can|could|should|is|are|do|does)\b/i;
+
 export function fixtureFor(task, input) {
   const topic = topicOf(input);
   switch (task) {
-    case 'journey_resolver': return { kind: 'unrelated_question' };
+    case 'journey_resolver': return input?.tray?.free_text && !QUESTION.test(String(input?.text ?? '')) ? { kind: 'tray_answer' } : { kind: 'unrelated_question' };
     case 'journey_diagnostic': return { registry: registryFor(topic), probes: probesFor(topic) };
     case 'journey_path': case 'journey_adapt': return pathFor(topic, input);
     case 'journey_section': return sectionFor(input);

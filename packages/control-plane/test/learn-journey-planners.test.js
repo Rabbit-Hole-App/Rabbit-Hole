@@ -246,6 +246,21 @@ test('fixtures: the LP1 chain runs on the fixture model for any topic and every 
   assert.equal(Object.keys(quick.concepts_added.concepts).length, 3);
 });
 
+test('fixtures: the resolver reads a free-text answer as tray_answer and a question or an option-only tray as unrelated_question', async () => {
+  const callModel = fixtureModel;
+  const free = { ...TRAY, prompt: 'In one or two sentences, what is the core idea?', options: [{ id: 'skip', label: 'Skip the assessment' }], free_text: true };
+  for (const text of ['It squashes a weighted sum into a probability', 'to pass my exam next week', 'Prediction thresholds, I think']) {
+    assert.deepEqual(await resolveWithModel(env, { text, tray: free }, { callModel }), { kind: 'tray_answer' }, text);
+  }
+  for (const text of ['What is a sigmoid?', 'why does it saturate', 'How does it train', 'When do we code?', 'Where is the loss', 'Who invented it', 'Which one is it',
+    'Can we skip this?', 'could you slow down', 'Should I know calculus', 'Is this the sigmoid?', 'Are we done', 'Do I need numpy', 'Does it overfit']) {
+    assert.deepEqual(await resolveWithModel(env, { text, tray: free }, { callModel }), { kind: 'unrelated_question' }, text);
+  }
+  assert.deepEqual(await resolveWithModel(env, { text: 'It squashes a weighted sum', tray: TRAY }, { callModel }), { kind: 'unrelated_question' }, 'no free text: nothing to answer');
+  // The fixture MCQ's third option is a plausible distractor, not "Something else".
+  assert.ok(DIAG.probes.filter(p => p.options).every(p => p.options.some(o => o.label === 'It depends on the threshold') && !p.options.some(o => o.label === 'Something else')));
+});
+
 test('journeyCallModel: the fixture model only when SMALL_ENV is test and JOURNEY_MODEL_STUB is fixtures', () => {
   assert.notEqual(journeyCallModel({}), fixtureModel);
   assert.equal(journeyCallModel({ SMALL_ENV: 'test', JOURNEY_MODEL_STUB: 'fixtures' }), fixtureModel);

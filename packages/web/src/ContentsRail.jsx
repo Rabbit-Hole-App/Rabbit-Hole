@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 
 // What is left of the Learn panel once it is retracted: a column of ticks down
 // the right edge, one per lesson. Hovering them opens the contents list, so the
@@ -87,31 +87,100 @@ export function PathList({ entries, onOpen, expanded }) {
   );
 }
 
-// pinned keeps the list open (a path under review). Hover, the Path button (a toggle that keeps it open) and focus inside
-// the path rail (§8: hover or focus) each hold it open on their own, so the button never hides a list hover opened.
-// Pinned, the button can change nothing: it is disabled, and says it is expanded.
+// Where the open path list may stand (docs/features/learn-canvas-blocks.md, "Canvas utilities never cover authored
+// content"), in the canvas frame's coordinates ({ left, top, right, bottom }): left of the right-hand chrome (`gutter`: the
+// rail strip, or the tools when they dock right), below the Rabbit Hole navigator (`ceiling`: its bottom edge), above the
+// bottom strip (`floor`: its top; the composer, the tray and the minimap live there).
+// - Pinned (permanent: a path under review), it stays out of the composer column's horizontal span, so the chat sheet
+//   over that column can never be under it either; null when that leaves too little room, and the list is then not pinned.
+// - Opened by hover, focus or the toggle (temporary), it may lie over the canvas at full width, but ends above the sheet
+//   wherever the two would meet; else the pinned place; else nowhere. Placement, not z-order: the sheet's z-index lives
+//   inside the canvas, the rail outside it.
+export const FLYOUT = { width: 256, gap: 8, minWidth: 128, minHeight: 160 };
+export function flyoutRect({ gutter, column = null, sheet = null, ceiling = 0, floor, pinned }) {
+  const { width, gap, minWidth, minHeight } = FLYOUT;
+  const right = gutter.left - gap, top = ceiling + gap, bottom = floor - gap, left = right - width;
+  const fits = r => r.right - r.left >= minWidth && r.bottom - r.top >= minHeight;
+  const beside = { left: Math.max(left, (column?.right ?? -Infinity) + gap), top, right, bottom };
+  if (pinned) return fits(beside) ? beside : null;
+  const over = { left, top, right, bottom: sheet && left < sheet.right && sheet.left < right ? Math.min(bottom, sheet.top - gap) : bottom };
+  return fits(over) ? over : fits(beside) ? beside : null;
+}
+
+// The rail's places, measured from the live canvas in its frame and again whenever the frame, the bottom strip (the tray
+// comes and goes) or the sheet changes size: { wrap, pin, open }; undefined until measured (a server render).
+function useFlyout(wrapRef, pillRef, on, shown) {
+  const [place, setPlace] = useState(undefined);
+  useLayoutEffect(() => {
+    const wrap = wrapRef.current, frame = wrap?.parentElement;
+    if (!on || !frame) return undefined;
+    const measure = () => {
+      const f = frame.getBoundingClientRect();
+      const seen = el => {
+        const r = el?.getBoundingClientRect();
+        return r && r.width && r.height ? { left: r.left - f.left, top: r.top - f.top, right: r.right - f.left, bottom: r.bottom - f.top } : null;
+      };
+      const pill = seen(pillRef.current), column = seen(frame.querySelector('[data-canvas-composer]')), tools = seen(frame.querySelector('[data-tool-gutter]'));
+      if (!pill) { setPlace(null); return; } // below lg the rail is hidden
+      const gutter = { left: Math.min(pill.left, tools && column && tools.left > column.right ? tools.left : Infinity) };
+      const ceiling = Math.max(0, ...[...frame.querySelectorAll('[data-dive-gutter] > *, [data-gutter-top] > *')].map(seen).filter(Boolean).map(r => r.bottom));
+      const floor = seen(frame.querySelector('[data-canvas-bottom]'))?.top ?? f.height;
+      const near = { gutter, column, sheet: seen(frame.querySelector('[data-chat-sheet]')), ceiling, floor };
+      setPlace({ wrap: seen(wrap), pin: flyoutRect({ ...near, pinned: true }), open: flyoutRect({ ...near, pinned: false }) });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    for (const el of [frame, frame.querySelector('[data-canvas-bottom]'), frame.querySelector('[data-chat-sheet]')]) if (el) observer.observe(el);
+    return () => observer.disconnect();
+  }, [on, shown, wrapRef, pillRef]);
+  return place;
+}
+
+// pinned keeps the list open (a path under review) when there is room for it (flyoutRect). Hover, the Path button (a
+// toggle that keeps it open) and focus inside the path rail (§8: hover or focus) each hold it open on their own, so the
+// button never hides a list hover opened. Pinned open, the button can change nothing: disabled, and says it is expanded.
 export default function ContentsRail({ entries, onOpen, pinned = false, placement = 'page' }) {
   const [hover, setHover] = useState(false);
   const [toggled, setToggled] = useState(false);
   const [focus, setFocus] = useState(false);
+  const wrapRef = useRef(null), pillRef = useRef(null);
+  const path = entries.some(entry => entry.status);
+  const place = useFlyout(wrapRef, pillRef, path, hover || toggled || focus);
   if (!entries.length) return null;
-  const path = entries.some(entry => entry.status), shown = pinned || hover || toggled || focus;
+  // Before it is measured (a server render) a pinned list shows in the default place.
+  const pinnedOpen = pinned && place?.pin !== null;
+  const shown = pinnedOpen || hover || toggled || focus;
+  const rect = place && (pinnedOpen ? place.pin : place.open);
+  // The measured place, relative to the rail (the list's containing block): a band the list centres in and scrolls within.
+  const band = rect && place.wrap && { left: rect.left - place.wrap.left, top: rect.top - place.wrap.top, width: rect.right - rect.left, height: rect.bottom - rect.top };
+  const list = (
+    <>
+      <h2 className="mb-2 text-xs font-semibold tracking-wider text-ink-2 uppercase">{path ? 'Path' : 'Contents'}</h2>
+      <PathList entries={entries} onOpen={onOpen} expanded />
+    </>
+  );
   return (
-    <div data-contents-rail data-placement={placement === 'page' ? undefined : placement} onPointerEnter={() => setHover(true)} onPointerLeave={() => setHover(false)}
+    <div ref={wrapRef} data-contents-rail data-placement={placement === 'page' ? undefined : placement} onPointerEnter={() => setHover(true)} onPointerLeave={() => setHover(false)}
       onFocus={path ? () => setFocus(true) : undefined} onBlur={path ? event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocus(false); } : undefined}
       className={PLACEMENT[placement] ?? PLACEMENT.page}>
       {path ? (
-        <div className="flex flex-col items-center gap-2 rounded-full border border-line bg-white px-1 py-2 shadow-sm">
-          <button type="button" data-path-toggle aria-expanded={shown} disabled={pinned} onClick={() => setToggled(value => !value)}
+        <div ref={pillRef} className="flex flex-col items-center gap-2 rounded-full border border-line bg-white px-1 py-2 shadow-sm">
+          <button type="button" data-path-toggle aria-expanded={shown} disabled={pinnedOpen} onClick={() => setToggled(value => !value)}
             className="rounded-full px-1 py-0.5 text-[10px] font-semibold tracking-wider text-ink-2 uppercase hover:bg-hover hover:text-ink disabled:cursor-default disabled:hover:bg-transparent disabled:hover:text-ink-2">Path</button>
           <PathList entries={entries} onOpen={onOpen} expanded={false} />
         </div>
       ) : <PathList entries={entries} onOpen={onOpen} expanded={false} />}
-      <nav aria-label={path ? 'Learning path' : 'Table of contents'} hidden={!shown}
-        className="absolute top-1/2 right-full max-h-[80vh] w-64 -translate-y-1/2 overflow-y-auto rounded-xl border border-line bg-white p-4 shadow-md">
-        <h2 className="mb-2 text-xs font-semibold tracking-wider text-ink-2 uppercase">{path ? 'Path' : 'Contents'}</h2>
-        <PathList entries={entries} onOpen={onOpen} expanded />
-      </nav>
+      {path && place ? (
+        // No place (flyoutRect null): the list stays closed rather than covering the composer, tray or sheet.
+        <div data-path-flyout style={band || undefined} hidden={!band} className="pointer-events-none absolute flex flex-col justify-center">
+          <nav aria-label="Learning path" hidden={!shown} className="pointer-events-auto max-h-full overflow-y-auto rounded-xl border border-line bg-white p-3 shadow-md">{list}</nav>
+        </div>
+      ) : (
+        <nav aria-label={path ? 'Learning path' : 'Table of contents'} hidden={!shown}
+          className="absolute top-1/2 right-full max-h-[80vh] w-64 -translate-y-1/2 overflow-y-auto rounded-xl border border-line bg-white p-4 shadow-md">
+          {list}
+        </nav>
+      )}
     </div>
   );
 }
