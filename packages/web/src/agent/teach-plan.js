@@ -1,22 +1,34 @@
 // Home teach() (LP1 D4): does this teach request start a server-side learning journey, and what does its canvas call itself.
 // Pure so node can test it; AgentBar.jsx is JSX and cannot be imported by the node tests.
-import { journeyIntent } from '../../../control-plane/src/learner-intent-journey.js';
+import { journeyIntent, STARTS } from '../../../control-plane/src/learner-intent-journey.js';
 import { titleFromQuestion } from '../start.js';
 
-const JOURNEY = new Set(['learning_journey', 'focused_skill', 'quick_overview', 'fast_start']);
 const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-// A fast_start with no topic ("Skip setup and start") is still a journey: the server answers topic_required and the bar
-// says so. Any other teach (a question re-taught from an answer's offer, "teach me" alone, "teach me this") keeps today's path.
-// ponytail: the title is the resolver's normalized topic, so "teach me CNNs" titles "Cnns"; carry the typed casing if it shows.
+// The resolver's topic is lowercased and punctuation-normalized ("cnns"); the title is the learner's own spelling of it
+// ("CNNs"): the topic's span in the raw text, matched at word bounds, falling back to the topic when it is not found.
+const typed = (text, topic) => text.match(new RegExp(`(?<![\\p{L}\\p{N}])${escape(topic).replace(/ /g, '\\s+')}(?![\\p{L}\\p{N}])`, 'iu'))?.[0] ?? topic;
+
+export const NEEDS_TOPIC = 'Tell me what you want to learn, for example: Teach me logistic regression, skip setup.';
+
+// A fast start with no topic ("Skip setup and start") names nothing to learn: no journey, and needsTopic tells the bar to
+// say so before it creates a canvas. Any other teach (a question re-taught from an answer's offer, "teach me" alone,
+// "teach me this") keeps today's path. The canvas POST rejects a title over 120, so the title is capped like any question.
 export function teachPlan(text) {
   const { kind, topic } = journeyIntent(text);
-  return { journey: JOURNEY.has(kind), title: topic ? capitalize(topic) : titleFromQuestion(text) };
+  const title = titleFromQuestion(topic ? capitalize(typed(text, topic)) : text);
+  if (STARTS.has(kind) && !topic) return { journey: false, title, needsTopic: true };
+  return { journey: STARTS.has(kind), title };
 }
 
-// The route answers with codes (learn-journey.js); the toast says what to do.
+// A 502 from start means the journey row exists and only its planner failed (learn-journey.js run): the learner's words are
+// saved, Learn shows the retry, and a resend would make a second canvas.
+export const journeyStarted = (error) => error.status === 502 && !!error.data?.journey;
+
+// The route answers with codes and planner text (learn-journey.js); the toast says what to do.
 const MESSAGES = {
-  topic_required: 'Say what you want to learn, for example: teach me logistic regression.',
+  topic_required: NEEDS_TOPIC,
   live_journey: 'You already have a learning path on this canvas. Open Learn to continue it.',
 };
-export const journeyMessage = (error) => MESSAGES[error.message] || error.message;
+export const journeyMessage = (error) => (journeyStarted(error) ? 'Your journey started, but planning hit a problem. Open Learn to retry.' : MESSAGES[error.message] || error.message);

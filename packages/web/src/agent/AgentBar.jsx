@@ -13,7 +13,7 @@ import {
 import { kindLabel, titleOf } from './catalog.js';
 import { COMMANDS, ctxOf, executeCommand, prepareCommand } from './commands.js';
 import { learnAction } from './learn-hook.js';
-import { journeyMessage, teachPlan } from './teach-plan.js';
+import { journeyMessage, journeyStarted, NEEDS_TOPIC, teachPlan } from './teach-plan.js';
 import ResultSheet from './ResultSheet.jsx';
 import BarCommandsSheet from './BarCommandsSheet.jsx';
 import { placeOf } from './slash.js';
@@ -173,7 +173,7 @@ export default function AgentBar({ page }) {
   // §7: prepare (resolve, preview, policy), then a card for Confirm class, the
   // reason for a blocked command, or run it now and report its Result. The
   // command navigates itself; the bar never navigates after run().
-  async function runCommand(name, args, raw, scope, keep = false) {
+  async function runCommand(name, args, raw, scope, keep = false, silent = false) {
     const ctx = ctxOf(getSurface(), { scope });
     try {
       const ready = await prepareCommand(name, name === 'create_canvas' ? { ...args, open: false } : args, ctx);
@@ -185,7 +185,7 @@ export default function AgentBar({ page }) {
       if (ready.policy.blocked) { add(scope, { kind: 'note', text: ready.policy.reason, error: true }); showResults(scope); return null; }
       const result = (await executeCommand(name, ready.args, ctx)) || {};
       if (!keep) clearDraft(scope, raw);
-      report(scope, name, result, ctx, raw);
+      if (!silent) report(scope, name, result, ctx, raw);
       return result;
     } catch (e) {
       add(scope, { kind: 'note', text: `✗ ${e.message}`, error: true }); // the draft stays (§13)
@@ -295,8 +295,14 @@ export default function AgentBar({ page }) {
     try {
       let app = scope.slug;
       const plan = scope.kind === 'workspace' ? teachPlan(text) : null;
+      // "Skip setup and start" names nothing to learn: no canvas, the draft stays, the toast says what to type.
+      if (plan?.needsTopic) {
+        toast(`✗ ${NEEDS_TOPIC}`, { tone: 'error' });
+        return;
+      }
       if (plan) {
-        const made = await runCommand('create_canvas', { title: plan.title }, raw, scope, true);
+        // A journey canvas is silent: the Canvas created note's Undo deletes the row and would orphan the server journey.
+        const made = await runCommand('create_canvas', { title: plan.title }, raw, scope, true, plan.journey);
         app = slugOf(made?.href);
         if (!app) return;
       }
@@ -304,7 +310,12 @@ export default function AgentBar({ page }) {
         try {
           await api('/api/learn/journey', { method: 'POST', body: JSON.stringify({ app, board: 'main', action: 'start', text, channel: 'text' }) });
           clearDraft(scope, raw);
-        } catch (e) { toast(`✗ ${journeyMessage(e)}`, { tone: 'error' }); } // the draft stays; Learn still opens
+        } catch (e) {
+          // A planner failure (502) leaves the journey saved, so a resend would make a second canvas: the draft clears.
+          // Any other failure keeps it. Learn opens either way.
+          if (journeyStarted(e)) clearDraft(scope, raw);
+          toast(`✗ ${journeyMessage(e)}`, { tone: 'error' });
+        }
         navigate(`/apps/${app}?tab=learn`);
         return;
       }

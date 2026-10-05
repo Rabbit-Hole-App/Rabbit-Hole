@@ -33,7 +33,7 @@ const GREETING = /^(?:(?:so|okay|ok|well|hey|hi|hello|yeah|right|alright) )+/;
 // basics"); in "What happens if I skip setup?" or "the no setup method" it is part of the text.
 const CLAUSE = /(?:^|\s)(?:(?:and|but|then) )?(?:skip (?:the )?(?:setup(?: questions)?|questions)|dont ask (?:me )?(?:any )?(?:setup )?questions|(?:with )?no (?:setup|questions)(?: questions)?|just start)(?: and| then)?(?=\s|$)/;
 const BARE = /^(?:(?:(?:can|could) (?:we|you|i)|please|just|lets|and|then|now|for now|start|begin|thanks)(?: |$))*$/;
-const STARTS = new Set(['learning_journey', 'focused_skill', 'quick_overview', 'fast_start']);
+export const STARTS = new Set(['learning_journey', 'focused_skill', 'quick_overview', 'fast_start']);
 const QUESTION = /^(?:what|why|how|when|who|where|which|is|are|does|do|can|explain)\b/;
 // "about transformers", "all about attention", "the basics of attention", "how to code", "a transformer" name the topic
 // after the noise. "the basics of" before "the": the first alternative that matches wins.
