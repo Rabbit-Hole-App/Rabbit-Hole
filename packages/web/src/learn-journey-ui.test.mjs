@@ -21,7 +21,7 @@ await esbuild.build({
   stdin: {
     contents: [
       "export { TutorPromptTray, routeJourneyTurn, journeyStartsHere, journeyRequest, shownTray, liveJourneyTray, resolveBody, journeyController, inJourneySetup } from './LearnJourney.jsx';",
-      "export { default as ContentsRail, PathList, flyoutRect } from './ContentsRail.jsx';",
+      "export { default as ContentsRail, PathList, flyoutRect, canvasEmpty } from './ContentsRail.jsx';",
       "export { createElement } from 'react';",
       "export { renderToStaticMarkup } from 'react-dom/server';",
     ].join('\n'),
@@ -30,7 +30,7 @@ await esbuild.build({
   },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent',
 });
-const { TutorPromptTray, routeJourneyTurn, journeyStartsHere, journeyRequest, shownTray, liveJourneyTray, resolveBody, journeyController, inJourneySetup, ContentsRail, PathList, flyoutRect, createElement, renderToStaticMarkup } = createRequire(import.meta.url)(outfile);
+const { TutorPromptTray, routeJourneyTurn, journeyStartsHere, journeyRequest, shownTray, liveJourneyTray, resolveBody, journeyController, inJourneySetup, ContentsRail, PathList, flyoutRect, canvasEmpty, createElement, renderToStaticMarkup } = createRequire(import.meta.url)(outfile);
 rmSync(dir, { recursive: true, force: true });
 
 const intake = (slots = {}) => ({ id: 'j1', state: 'intake', revision: 3, request: { topic: 'logistic regression', intent: { kind: 'learning_journey' } }, intake: { slots, source: {} }, pending: null, error: null });
@@ -526,6 +526,17 @@ test('flyoutRect: pinned or opened, the path list never meets the composer, tray
   assert.equal(flyoutRect({ ...tight, sheet: { ...v.sheet, top: 150 }, pinned: false }), null);
 });
 
+test('canvasEmpty: only a canvas with no card, ink, shape, note, text, divider or placed chat lets the pinned list use the free canvas', () => {
+  // `content` is what AdaptiveCanvas publishes through onState: strokes + shapes + items (notes, text, dividers) + blocks.
+  assert.equal(canvasEmpty({ content: 0, cards: [] }, []), true);
+  assert.equal(canvasEmpty({ content: 1, cards: [] }, []), false, 'one ink stroke, shape, note, text box or divider, and no card');
+  assert.equal(canvasEmpty({ content: 1, cards: [['b1', null, null]] }, []), false, 'a card');
+  assert.equal(canvasEmpty({ content: 0, cards: [] }, [{ id: 'chat-1' }]), false, 'a chat placed on the canvas (not in content)');
+  // Before the canvas has reported, nothing is assumed empty: the list keeps the side place.
+  assert.equal(canvasEmpty({ grid: false, outline: [] }, []), false);
+  assert.equal(canvasEmpty(undefined, []), false);
+});
+
 test('ContentsRail.jsx: the flyout is placed from the live canvas (composer column, sheet, bottom strip, navigator, right-docked tools)', () => {
   const src = read('ContentsRail.jsx');
   for (const selector of ['[data-canvas-composer]', '[data-chat-sheet]', '[data-canvas-bottom]', '[data-dive-gutter] > *, [data-gutter-top] > *', '[data-tool-gutter]']) assert.ok(src.includes(`'${selector}'`), selector);
@@ -541,8 +552,8 @@ test('LearnPage.jsx: the journey rail sits inside the canvas frame whatever the 
   assert.ok(frame > 0 && at > frame && at < panel, 'inside the canvas frame div, before the Learn agent chat panel');
   assert.match(page, /\{journey\.path && <ContentsRail placement="canvas" entries=\{pathEntries\(journey\.path, journey\.prevPath\)/);
   assert.match(page, /pinned=\{journey\.journey\?\.state === 'path_review'\}/);
-  // A pinned list may use the free canvas above the composer only while the canvas has no cards (blocks or placed chats).
-  assert.match(page, /empty=\{!\(canvasState\.cards \|\| \[\]\)\.length && !exchanges\.length\}/);
+  // A pinned list may use the free canvas above the composer only while the canvas holds nothing at all (canvasEmpty).
+  assert.match(page, /empty=\{canvasEmpty\(canvasState, exchanges\)\}/);
   assert.match(page, /edgeInset=\{journey\.path \? 52 : \(!panelOpen && canvasOutline\.length \? 52 : 0\)\}/);
   assert.match(page, /\{!panelOpen && !journey\.path && <ContentsRail entries=\{canvasOutline\.map\(/);
   // A materialized section frames its heading; any other entry opens its purpose, with no request.

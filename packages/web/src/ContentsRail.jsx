@@ -146,6 +146,11 @@ function useFlyout(wrapRef, pillRef, on, shown, empty) {
   return place;
 }
 
+// The rail's `empty`: the canvas holds nothing a pinned list could sit over - no card, ink stroke, shape, note, text box or
+// divider (`content`, which AdaptiveCanvas publishes through onState: strokes + shapes + items + blocks) and no chat placed
+// on it (`exchanges`, not in content). Before the canvas has reported, nothing is assumed empty.
+export const canvasEmpty = (state, exchanges = []) => state?.content === 0 && !exchanges.length;
+
 // pinned keeps the list open (a path under review) when there is room for it (flyoutRect). Hover, the Path button (a
 // toggle that keeps it open) and focus inside the path rail (§8: hover or focus) each hold it open on their own, so the
 // button never hides a list hover opened. Pinned open, the button can change nothing: disabled, and says it is expanded.
