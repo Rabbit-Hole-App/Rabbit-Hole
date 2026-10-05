@@ -453,6 +453,7 @@ test('ContentsRail: entries with no status (the heading rail) render exactly the
   assert.equal(rail({ entries: [] }), '');
 });
 
+
 test('ContentsRail: a journey path in the canvas frame - glyph strip, a Path toggle for the keyboard, pinned open on review', () => {
   const html = rail({ entries: PATH, placement: 'canvas' });
   assert.match(html, /^<div data-contents-rail="true" data-placement="canvas" class="absolute top-1\/2 right-0 /);
@@ -461,8 +462,15 @@ test('ContentsRail: a journey path in the canvas frame - glyph strip, a Path tog
   assert.match(html, /<nav aria-label="Learning path" hidden=""/);
   const pinned = rail({ entries: PATH, placement: 'canvas', pinned: true });
   assert.match(pinned, /<nav aria-label="Learning path" class=/, 'pinned: the list is shown');
-  assert.match(pinned, /data-path-toggle="true" aria-expanded="true"/);
+  // Pinned, the toggle can change nothing: disabled, and honestly expanded.
+  assert.match(pinned, /<button type="button" data-path-toggle="true" aria-expanded="true" disabled=""/);
   assert.equal(count(pinned, /data-path-entry="/g), 3);
+  // Hover, the toggle and focus each hold it open on their own, so the toggle never hides a list hover opened.
+  const src = read('ContentsRail.jsx');
+  assert.match(src, /shown = pinned \|\| hover \|\| toggled \|\| focus/);
+  assert.match(src, /onClick=\{\(\) => setToggled\(value => !value\)\}/);
+  assert.match(src, /onFocus=\{path \? \(\) => setFocus\(true\) : undefined\}/);
+  assert.match(src, /onBlur=\{path \? event => \{ if \(!event\.currentTarget\.contains\(event\.relatedTarget\)\) setFocus\(false\); \} : undefined\}/);
 });
 
 test('LearnPage.jsx: the journey rail sits inside the canvas frame whatever the panel, the heading rail only without a path', () => {
@@ -477,70 +485,203 @@ test('LearnPage.jsx: the journey rail sits inside the canvas frame whatever the 
   assert.match(page, /entry\.heading_block_id \? canvasApi\.current\?\.showSection\(entry\.heading_block_id\) : setOpenEntry\(/);
 });
 
-// ---- The materialization trigger (§6.5, R5): after the action that planned the current section, once ----
-const fakeCanvas = () => {
-  const calls = [];
-  let n = 0;
-  return { calls, inserts: () => calls.filter(c => c[0] === 'insert'), reserve: () => 'slot:1', release: () => {},
-    insertBlock: (block, options) => { calls.push(['insert', block, options]); n += 1; return `b${n}`; } };
+test('LearnPage.jsx: the materializer may read the canvas only once its board is restored (server copy, canvasEpoch) and it has reported', () => {
+  const page = read('LearnPage.jsx');
+  assert.match(page, /const \[restoredBoard, setRestoredBoard\] = useState\(null\);/);
+  assert.match(page, /\.finally\(\(\) => \{ if \(live\) setRestoredBoard\(boardPath\); \}\);/);
+  assert.match(page, /useEffect\(\(\) => \{ if \(restoredBoard === boardPath\) journey\.canvasReady\?\.\(\); \}, \[restoredBoard, boardPath, canvasState, journey\.canvasReady\]\);/);
+});
+
+// ---- The materialization trigger (§6.5, R5, ruling C-3): after the action that planned the current section, and on a
+// load once the canvas is ready, never twice ----
+const fakeCanvas = (seed = [], { failReserve = 0 } = {}) => {
+  const calls = [], flow = seed.map(block => ({ ...block }));
+  let n = 0, fails = failReserve;
+  return {
+    calls, flow,
+    inserts: () => calls.filter(c => c[0] === 'insert'),
+    blocks: () => flow,
+    reserve: () => { if (fails > 0) { fails -= 1; throw new Error('no canvas column'); } return 'slot:1'; },
+    release: () => {},
+    showSection: id => calls.push(['show', id]),
+    insertBlock: (block, options) => {
+      calls.push(['insert', block, options]);
+      n += 1;
+      const at = options?.after ? flow.findIndex(b => b.id === options.after) + 1 : flow.length;
+      flow.splice(at || flow.length, 0, { ...block, id: `b${n}` });
+      return `b${n}`;
+    },
+  };
 };
 const reviewPath = { version: 1, sections: [
   { id: 's1', title: 'Classification vs regression', purpose: 'p', status: 'upcoming' },
   { id: 's2', title: 'From a linear score to probability', purpose: 'p', status: 'upcoming' }] };
 const activePath = { ...reviewPath, version: 2, current_section_id: 's1', sections: reviewPath.sections.map(s => (s.id === 's1' ? { ...s, status: 'current' } : s)) };
 const textStep = id => ({ step_id: id, role: 'explanation', make: { text: `${id} text` }, claims: [] });
+const graphStep = { step_id: 'graph', role: 'interactive_visual', make: { command: 'graph', request: 'the sigmoid' }, claims: [] };
 const sectionPlan = { section_id: 's1', path_version: 2, teaching_sequence: ['frame', 'explain', 'predict'].map(textStep) };
 const activeJourney = (over = {}) => journeyOf({ state: 'active', revision: 6, active_section_id: 's1', path_version: 2, section_plan: sectionPlan, ...over });
+const recorded = (heading, over = {}) => ok(activeJourney({ revision: 7, ...over, section_plan: { ...(over.section_plan || sectionPlan), heading_block_id: heading } }), null, activePath);
+const review = () => ok(journeyOf({ state: 'path_review', path_version: 1 }), previewTray, reviewPath);
+const GET = '/api/learn/journey?app=canvas-0a1b2c3d&board=main';
+// canvas() is a getter, so a test can bring the canvas up later; the controller reads it only after canvasReady().
 const scripted = (canvas, replies) => {
   const calls = [];
-  const ctl = journeyController({ where: { app: APP, board: 'main' }, canvas: () => canvas, fetchJson: async (path, body) => { calls.push({ path, body }); return replies.shift(); } });
-  return { ctl, calls, view: () => ctl.view() };
+  const ctl = journeyController({ where: { app: APP, board: 'main' }, canvas, fetchJson: async (path, body, options) => {
+    calls.push({ path, body, options });
+    if (!replies.length) throw new Error(`unexpected request ${path}`);
+    return replies.shift();
+  } });
+  return { ctl, calls, view: () => ctl.view(), steps: () => calls.map(c => c.body?.action ?? (c.path === GET ? 'GET' : c.path)) };
 };
 
-test('controller: accept materializes the current section once and posts section_materialized; a load or a second reply never does', async () => {
+test('controller: accept materializes the current section once and posts section_materialized; a failed post retries it, never redraws', async () => {
   const canvas = fakeCanvas();
-  const h = scripted(canvas, [
-    ok(journeyOf({ state: 'path_review', path_version: 1 }), previewTray, reviewPath),
+  const h = scripted(() => canvas, [
+    review(),
     ok(activeJourney(), null, activePath),
     { status: 500, d: { error: 'boom' } }, // section_materialized fails once: its retry re-posts it, nothing is drawn twice
-    ok(activeJourney({ revision: 7, section_plan: { ...sectionPlan, heading_block_id: 'b1' } }), null, activePath),
+    recorded('b1'),
   ]);
   await h.ctl.refresh();
+  h.view().canvasReady();
   assert.equal(h.view().prevPath, null);
   await h.view().answer('start');
-  assert.deepEqual(h.calls.slice(1).map(c => c.body.action), ['accept', 'section_materialized']);
+  assert.deepEqual(h.steps(), ['GET', 'accept', 'section_materialized']);
   assert.deepEqual(h.calls[2].body, { app: APP, board: 'main', action: 'section_materialized', section_id: 's1', heading_block_id: 'b1', revision: 6 });
   assert.deepEqual(canvas.inserts().map(c => c[1].type), ['heading', 'explanation', 'explanation', 'explanation']);
+  assert.deepEqual(canvas.calls.at(-1), ['show', 'b1'], 'the camera goes to the section start');
   assert.equal(h.view().tray.error.message, 'That did not go through.');
   await h.view().answer('retry');
-  assert.deepEqual(h.calls.slice(1).map(c => c.body.action), ['accept', 'section_materialized', 'section_materialized']);
-  assert.equal(canvas.inserts().length, 4, 'the ref guard: no second materialization');
+  assert.deepEqual(h.steps(), ['GET', 'accept', 'section_materialized', 'section_materialized']);
+  assert.equal(canvas.inserts().length, 4, 'no second materialization');
   assert.equal(h.view().journey.section_plan.heading_block_id, 'b1');
   assert.equal(h.view().prevPath, reviewPath, 'the rail diffs the accepted version with the one reviewed');
-  // A load (GET) of an active journey whose section has no heading draws nothing: a reload mid-way must not draw it twice.
-  const other = fakeCanvas();
-  const load = scripted(other, [ok(activeJourney(), null, activePath)]);
-  await load.ctl.refresh();
-  assert.deepEqual(other.calls, []);
+  assert.equal('materialized' in h.view(), false);
 });
 
-test('controller: a failed step shows the error line, and Try again resumes at that step under the blocks kept', async () => {
+test('controller: a load with no recorded heading waits for the ready canvas, re-reads, then draws the section once', async () => {
   const canvas = fakeCanvas();
-  const plan = { ...sectionPlan, teaching_sequence: [textStep('frame'), { step_id: 'graph', role: 'interactive_visual', make: { command: 'graph', request: 'the sigmoid' }, claims: [] }] };
-  const h = scripted(canvas, [
-    ok(journeyOf({ state: 'path_review', path_version: 1 }), previewTray, reviewPath),
+  let up = null;
+  const h = scripted(() => up, [ok(activeJourney(), null, activePath), ok(activeJourney(), null, activePath), recorded('b1')]);
+  await h.ctl.refresh();
+  await h.view().canvasReady();
+  assert.deepEqual(h.steps(), ['GET'], 'no canvas yet: nothing scanned, nothing drawn');
+  up = canvas;
+  await h.view().canvasReady();
+  assert.deepEqual(h.steps(), ['GET', 'GET', 'section_materialized'], 're-read first, then draw and record');
+  assert.deepEqual(canvas.inserts().map(c => c[1].type), ['heading', 'explanation', 'explanation', 'explanation']);
+  await h.view().canvasReady();
+  await h.ctl.refresh().catch(() => {});
+  assert.equal(canvas.inserts().length, 4, 'never twice');
+});
+
+test('controller: on a load, a heading stamped by an earlier visit is reused and only the missing steps are drawn', async () => {
+  const canvas = fakeCanvas([{ id: 'h-old', type: 'heading', journey_section_id: 's1' }, { id: 'f-old', type: 'explanation', journey: { section_id: 's1', step_id: 'frame', claims: [] } }]);
+  const h = scripted(() => canvas, [ok(activeJourney(), null, activePath), ok(activeJourney(), null, activePath), recorded('h-old')]);
+  h.view().canvasReady();
+  await h.ctl.refresh();
+  assert.deepEqual(h.steps(), ['GET', 'GET', 'section_materialized']);
+  assert.deepEqual(canvas.inserts().map(c => [c[1].journey.step_id, c[2]]), [['explain', { after: 'f-old' }], ['predict', { after: 'b1' }]]);
+  assert.equal(h.calls[2].body.heading_block_id, 'h-old');
+});
+
+test('controller: on a load, a re-read that finds the heading recorded draws nothing', async () => {
+  const canvas = fakeCanvas();
+  const h = scripted(() => canvas, [ok(activeJourney(), null, activePath), recorded('h-other-tab')]);
+  h.view().canvasReady();
+  await h.ctl.refresh();
+  assert.deepEqual(h.steps(), ['GET', 'GET']);
+  assert.deepEqual(canvas.calls, []);
+});
+
+test('controller: a 409 on section_materialized re-reads and posts once more with the same heading, then it is recorded', async () => {
+  const canvas = fakeCanvas();
+  const h = scripted(() => canvas, [
+    review(),
+    ok(activeJourney(), null, activePath),
+    { status: 409, d: { error: 'path_version', journey: activeJourney({ revision: 7 }), path: activePath, tray: null } },
+    ok(activeJourney({ revision: 8 }), null, activePath),
+    recorded('b1', { revision: 9 }),
+  ]);
+  await h.ctl.refresh();
+  h.view().canvasReady();
+  await h.view().answer('start');
+  assert.deepEqual(h.steps(), ['GET', 'accept', 'section_materialized', 'GET', 'section_materialized']);
+  assert.deepEqual([h.calls[4].body.heading_block_id, h.calls[4].body.revision], ['b1', 8]);
+  assert.equal(h.view().journey.section_plan.heading_block_id, 'b1');
+  assert.equal(canvas.inserts().length, 4);
+});
+
+test('controller: a failed step shows the error line, and Try again picks up at that step from the canvas', async () => {
+  const canvas = fakeCanvas();
+  const plan = { ...sectionPlan, teaching_sequence: [textStep('frame'), graphStep] };
+  const h = scripted(() => canvas, [
+    review(),
     ok(activeJourney({ section_plan: plan }), null, activePath),
     { status: 502, d: { error: 'model down' } },
     { status: 200, d: { result: 'artifact', block: { type: 'graph', title: 'Sigmoid' } } },
-    ok(activeJourney({ revision: 7, section_plan: { ...plan, heading_block_id: 'b1' } }), null, activePath),
+    recorded('b1', { section_plan: plan }),
   ]);
   await h.ctl.refresh();
+  h.view().canvasReady();
   await h.view().answer('start');
-  assert.deepEqual(h.calls[2], { path: '/api/learn/artifact', body: { app: APP, board: 'main', command: 'graph', args: 'the sigmoid', context: 'Journey section: Classification vs regression' } });
+  assert.equal(h.calls[2].path, '/api/learn/artifact');
+  assert.deepEqual(h.calls[2].body, { app: APP, board: 'main', command: 'graph', args: 'the sigmoid', context: 'Journey section: Classification vs regression' });
+  assert.ok(h.calls[2].options.signal instanceof AbortSignal, 'the artifact request can time out');
   assert.equal(h.view().tray.error.message, 'Part of this section could not be made.');
+  assert.equal(h.view().busy, false, 'the composer is free again');
   assert.equal(canvas.inserts().length, 2);
   await h.view().answer('retry');
   assert.deepEqual(canvas.inserts().map(c => [c[1].type, c[2]]), [['heading', { into: 'slot:1' }], ['explanation', { after: 'b1' }], ['graph', { after: 'b2' }]]);
+  assert.equal(h.calls.at(-1).body.action, 'section_materialized');
+  assert.equal(h.view().tray, null);
+});
+
+test('controller: a paid step surfaces as a generation_proposal tray; Generate inserts it confirmed under its predecessor, Not now dismisses', async () => {
+  const canvas = fakeCanvas();
+  const paid = (step_id, command) => ({ step_id, role: 'interactive_visual', make: { command, request: 'why it saturates' }, claims: ['c/x'] });
+  const plan = { ...sectionPlan, teaching_sequence: [textStep('frame'), paid('animate', 'animate'), paid('clip', 'animate')] };
+  const h = scripted(() => canvas, [
+    review(),
+    ok(activeJourney({ section_plan: plan }), null, activePath),
+    { status: 200, d: { result: 'paid_proposal', primitive: 'maths_animation', message: 'Generate this animation? It uses credits.', block: { type: 'mathAnimation', title: 'Saturation' } } },
+    { status: 200, d: { result: 'paid_proposal', primitive: 'video_generate', message: 'Generate this clip? It uses credits.', block: { type: 'videoGenerate', title: 'Clip' } } },
+    recorded('b1', { section_plan: plan }),
+  ]);
+  await h.ctl.refresh();
+  h.view().canvasReady();
+  await h.view().answer('start');
+  assert.equal(h.calls.at(-1).body.action, 'section_materialized', 'a declined paid step is optional: the section is recorded');
+  assert.deepEqual(canvas.inserts().map(c => c[1].type), ['heading', 'explanation'], 'nothing paid is generated on its own');
+  const tray = h.view().tray;
+  assert.equal(tray.mode, 'generation_proposal');
+  assert.equal(tray.prompt, 'Generate this animation? It uses credits.');
+  assert.deepEqual(tray.options, [{ id: 'generate', label: 'Generate' }, { id: 'not_now', label: 'Not now' }]);
+  assert.match(render({ tray }), /data-mode="generation_proposal"/);
+  const before = h.calls.length;
+  await h.view().answer('generate');
+  const [, block, options] = canvas.inserts().at(-1);
+  assert.deepEqual(block, { type: 'mathAnimation', title: 'Saturation', confirmedStart: true, journey: { section_id: 's1', step_id: 'animate', claims: ['c/x'] } });
+  assert.deepEqual(options, { after: 'b2' }, 'right after the step before it');
+  assert.equal(h.view().tray.prompt, 'Generate this clip? It uses credits.', 'the next proposal');
+  await h.view().answer('not_now');
+  assert.equal(h.view().tray, null);
+  assert.equal(canvas.inserts().length, 3, 'Not now inserts nothing');
+  assert.equal(h.calls.length, before, 'Generate and Not now are local: no request');
+});
+
+test('controller: a throw inside the materializer shows the error line, and Try again runs it again', async () => {
+  const canvas = fakeCanvas([], { failReserve: 1 });
+  const h = scripted(() => canvas, [review(), ok(activeJourney(), null, activePath), recorded('b1')]);
+  await h.ctl.refresh();
+  h.view().canvasReady();
+  await h.view().answer('start');
+  assert.equal(h.view().tray.error.message, 'This section could not be prepared.');
+  assert.equal(h.view().busy, false);
+  assert.deepEqual(canvas.inserts(), []);
+  await h.view().answer('retry');
+  assert.deepEqual(canvas.inserts().map(c => c[1].type), ['heading', 'explanation', 'explanation', 'explanation']);
   assert.equal(h.calls.at(-1).body.action, 'section_materialized');
   assert.equal(h.view().tray, null);
 });

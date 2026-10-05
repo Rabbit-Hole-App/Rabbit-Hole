@@ -549,6 +549,9 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
   const journey = useJourney({ app, board: boardName, access: askScope, canvasApi, enabled: learnPreview && isCanvas && !hole });
   // The path rail's upcoming section whose purpose is open (a click on it never generates anything, §8).
   const [openEntry, setOpenEntry] = useState(null);
+  // The board path whose saved board the canvas holds: the server's copy may replace this browser's (canvasEpoch) when
+  // the board GET lands, so until then the canvas may be an empty stand-in.
+  const [restoredBoard, setRestoredBoard] = useState(null);
   // Voice Mode wherever the Tutor is (docs/features/voice-tutor-mvp.md §6b): the dock mic, the left caption.
   const voice = useVoiceSession({ tutor, app, access: askScope, targetId: askTarget?.id, onTargetUsed: () => clearAskTarget() });
   const voiceOn = !!voice && voice.state !== 'off';
@@ -648,9 +651,14 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
         setCanvasEpoch(epoch => epoch + 1);
         toast(data.forked_from ? `Your fork of ${data.forked_from.title} is ready. It is yours to edit.` : 'You are seeing the latest saved version of this board.');
       }
-    }).catch(error => { if (live) setSharing(error.status === 404 ? (error.data?.sharing || { shared: false }) : { unavailable: error.message }); });
+    }).catch(error => { if (live) setSharing(error.status === 404 ? (error.data?.sharing || { shared: false }) : { unavailable: error.message }); })
+      .finally(() => { if (live) setRestoredBoard(boardPath); });
     return () => { live = false; };
   }, [boardPath]);
+  // The journey's section materializer reads the canvas for a section an earlier visit drew (ruling C-3): only once the
+  // board is restored and the canvas has reported (onCanvasState runs after it published canvasApi), never an empty
+  // canvas before the restore, which would get a second heading. canvasReady acts once per board.
+  useEffect(() => { if (restoredBoard === boardPath) journey.canvasReady?.(); }, [restoredBoard, boardPath, canvasState, journey.canvasReady]);
   const pushTimer = useRef(null);
   const pushBoard = useCallback(() => {
     if (!sharingRef.current?.shared) return;

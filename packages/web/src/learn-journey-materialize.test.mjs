@@ -1,7 +1,9 @@
 // The current section's materializer (docs/features/adaptive-learning-path-v1-architecture.md §6.5, R5; LP1 Task 9):
-// driven with a fake canvas that records every call and a fake post. No React, no network, no Send.
+// driven with a fake canvas that keeps a flow of blocks and records every call, and a fake post. No React, no network,
+// no Send.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { materializeSection } from './learn-journey-materialize.js';
 import { indexAfter } from './canvas-slots.js';
 import { fixtureFor } from '../../control-plane/src/learn-journey-fixtures.js';
@@ -15,24 +17,35 @@ const [section1, section2] = path.sections;
 const plan = fixtureFor('journey_section', { path, section: section1, registry });
 const others = path.sections.slice(1);
 
-function fakeCanvas() {
-  const calls = [];
-  let n = 0;
+// Like the real canvas: a reserved slot only exists once the canvas has rendered (a tick later), so an insert `into` it
+// before then lands elsewhere (`filled` false); `after` inserts follow the flow (indexAfter); blocks() is the flow.
+function fakeCanvas(seed = []) {
+  const calls = [], flow = seed.map(block => ({ ...block })), live = new Set();
+  let n = 0, slots = 0;
   return {
-    calls,
+    calls, flow,
     inserts: () => calls.filter(c => c[0] === 'insertBlock'),
-    reserve: slot => { calls.push(['reserve', slot]); return 'slot:1'; },
-    insertBlock: (block, options) => { const id = `b${++n}`; calls.push(['insertBlock', block, options, id]); return id; },
+    blocks: () => flow,
+    reserve: slot => { const id = `slot:${++slots}`; calls.push(['reserve', slot]); setTimeout(() => live.add(id), 0); return id; },
+    insertBlock: (block, options = {}) => {
+      const id = `b${++n}`;
+      calls.push(['insertBlock', block, options, id, options.into ? live.has(options.into) : null]);
+      flow.splice(options.after ? indexAfter(flow, options.after) : flow.length, 0, { ...block, id });
+      return id;
+    },
     release: id => { calls.push(['release', id]); },
+    showSection: id => { calls.push(['showSection', id]); },
   };
 }
 const journeyWith = (done = []) => ({ active_section_id: 's1', path, materialized: async (id, heading) => { done.push([id, heading]); } });
-const commandPlan = steps => ({ ...plan, teaching_sequence: steps });
-const text = (step_id, body) => ({ step_id, role: 'explanation', make: { text: body }, claims: plan.teaching_sequence[0].claims });
-const command = (step_id, cmd, request) => ({ step_id, role: 'interactive_visual', make: { command: cmd, request }, claims: plan.teaching_sequence[0].claims });
+const planOf = steps => ({ ...plan, teaching_sequence: steps });
+const claims = plan.teaching_sequence[0].claims;
+const text = (step_id, body) => ({ step_id, role: 'explanation', make: { text: body }, claims });
+const command = (step_id, cmd, request) => ({ step_id, role: 'interactive_visual', make: { command: cmd, request }, claims });
+const tagged = (id, step_id, type = 'explanation') => ({ id, type, journey: { section_id: 's1', step_id, claims } });
 
-test('materializeSection: section 1 current - exactly one heading and three blocks, all stamped section 1, nothing for any other section', async () => {
-  const canvas = fakeCanvas(), done = [], posts = [];
+test('materializeSection: section 1 current - one heading in the painted slot, three blocks under it, nothing for any other section', async () => {
+  const canvas = fakeCanvas([{ id: 'old', type: 'explanation' }]), done = [], posts = [];
   const out = await materializeSection({ canvas, journey: journeyWith(done), sectionPlan: plan, post: async (...a) => { posts.push(a); return {}; } });
   assert.equal(plan.teaching_sequence.length, 3);
   const inserts = canvas.inserts();
@@ -40,19 +53,22 @@ test('materializeSection: section 1 current - exactly one heading and three bloc
   assert.deepEqual(canvas.calls[0], ['reserve', { label: 'Preparing section 1…' }]);
   const [heading, ...blocks] = inserts;
   assert.deepEqual(heading[1], { type: 'heading', level: 1, text: section1.title, done: false, journey_section_id: 's1' });
-  assert.deepEqual(heading[2], { into: 'slot:1' }, 'the heading fills the reserved slot');
+  assert.deepEqual(heading[2], { into: 'slot:1' });
+  assert.equal(heading[4], true, 'one paint after reserve: the slot exists when the heading fills it');
   assert.deepEqual(blocks.map(b => b[1].type), ['explanation', 'explanation', 'explanation']);
   assert.ok(blocks.every(b => b[1].journey.section_id === section1.id));
   assert.deepEqual(blocks.map(b => b[1].journey.step_id), plan.teaching_sequence.map(s => s.step_id));
   assert.deepEqual(blocks.map(b => b[1].body), plan.teaching_sequence.map(s => s.make.text));
   assert.deepEqual(blocks.map(b => b[1].journey.claims), plan.teaching_sequence.map(s => s.claims));
-  // Each step lands right after the one before it, under the heading, whatever the view.
-  assert.deepEqual(blocks.map(b => b[2]), [{ after: 'b1' }, { after: 'b2' }, { after: 'b3' }]);
-  assert.deepEqual(canvas.calls.at(-1), ['release', 'slot:1']);
+  assert.deepEqual(blocks.map(b => b[2]), [{ after: 'b1' }, { after: 'b2' }, { after: 'b3' }], 'each step right after the one before');
+  assert.deepEqual(canvas.flow.map(b => b.id), ['old', 'b1', 'b2', 'b3', 'b4']);
+  const release = canvas.calls.findIndex(c => c[0] === 'release'), show = canvas.calls.findIndex(c => c[0] === 'showSection');
+  assert.deepEqual(canvas.calls[release], ['release', 'slot:1']);
+  assert.deepEqual(canvas.calls[show], ['showSection', 'b1'], 'the camera goes to the section start');
+  assert.ok(show > canvas.calls.findLastIndex(c => c[0] === 'insertBlock'), 'after the last step');
   assert.equal(posts.length, 0, 'make: { text } steps make no request');
   assert.deepEqual(done, [['s1', 'b1']], 'section_materialized names the current section and its heading, once');
   assert.deepEqual(out, { heading_block_id: 'b1', block_ids: ['b2', 'b3', 'b4'], proposals: [] });
-  // No insertion or post concerns any other section.
   const seen = JSON.stringify([canvas.calls, posts, done]);
   for (const s of others) {
     assert.doesNotMatch(seen, new RegExp(`"${s.id}"`), s.id);
@@ -65,54 +81,77 @@ test('materializeSection: a plan for section 2 while section 1 is current throws
   const wrong = fixtureFor('journey_section', { path, section: section2, registry });
   await assert.rejects(materializeSection({ canvas, journey: journeyWith(done), sectionPlan: wrong, post: async () => ({}) }), /current section/);
   await assert.rejects(materializeSection({ canvas, journey: { ...journeyWith(done), active_section_id: null }, sectionPlan: plan, post: async () => ({}) }));
+  await assert.rejects(materializeSection({ canvas, journey: { ...journeyWith(done), path: { sections: others } }, sectionPlan: plan, post: async () => ({}) }), /no section s1/);
   assert.deepEqual(canvas.calls, []);
   assert.deepEqual(done, []);
 });
 
-test('materializeSection: a command step runs the / command route; a paid proposal is reported, never inserted or generated', async () => {
+test('materializeSection: a command step runs the / command route with a timeout; a paid proposal is reported with its place, never inserted', async () => {
   const canvas = fakeCanvas(), done = [], posts = [];
   const replies = [
     { result: 'artifact', primitive: 'interactive_graph', block: { type: 'graph', title: 'Sigmoid' } },
     { result: 'paid_proposal', primitive: 'maths_animation', message: 'This animation costs credits.', block: { type: 'mathAnimation', title: 'Saturation' } },
   ];
   const steps = [command('graph', 'graph', 'the sigmoid curve'), command('animate', 'animate', 'why the sigmoid saturates'), text('predict', 'What would you predict?')];
-  const out = await materializeSection({ canvas, journey: journeyWith(done), sectionPlan: commandPlan(steps), post: async (...a) => { posts.push(a); return replies.shift(); } });
+  const out = await materializeSection({ canvas, journey: journeyWith(done), sectionPlan: planOf(steps), post: async (...a) => { posts.push(a); return replies.shift(); } });
   assert.deepEqual(posts.map(p => p[0]), ['/api/learn/artifact', '/api/learn/artifact']);
   assert.deepEqual(posts[0][1], { command: 'graph', args: 'the sigmoid curve', context: `Journey section: ${section1.title}` });
+  assert.ok(posts[0][2].signal instanceof AbortSignal, 'the request carries a timeout signal');
   const inserts = canvas.inserts();
   assert.deepEqual(inserts.map(i => i[1].type), ['heading', 'graph', 'explanation'], 'the proposal step inserts nothing');
-  assert.deepEqual(inserts[1][1].journey, { section_id: 's1', step_id: 'graph', claims: steps[0].claims }, 'the returned block is stamped');
+  assert.deepEqual(inserts[1][1].journey, { section_id: 's1', step_id: 'graph', claims }, 'the returned block is stamped');
   assert.deepEqual(inserts[2][2], { after: 'b2' });
   assert.equal(out.proposals.length, 1);
-  assert.deepEqual([out.proposals[0].step_id, out.proposals[0].primitive], ['animate', 'maths_animation']);
-  assert.equal(out.proposals[0].block.journey.section_id, 's1');
+  const [proposal] = out.proposals;
+  assert.deepEqual([proposal.step_id, proposal.primitive, proposal.message, proposal.after], ['animate', 'maths_animation', 'This animation costs credits.', 'b2']);
+  assert.deepEqual(proposal.block.journey, { section_id: 's1', step_id: 'animate', claims });
   assert.equal(out.failed_step, undefined);
-  assert.deepEqual(done, [['s1', 'b1']]);
+  assert.deepEqual(done, [['s1', 'b1']], 'a paid step is optional: the section is still materialized');
 });
 
-test('materializeSection: a step that fails stops there, keeps the blocks so far, reports failed_step; resume picks up at that step', async () => {
+test('materializeSection: a failed step stops there and keeps the blocks; run again, it resumes from the canvas at that step', async () => {
   const canvas = fakeCanvas(), done = [];
   let calls = 0;
   const steps = [text('frame', 'Where this fits.'), command('graph', 'graph', 'the sigmoid curve'), text('predict', 'What would you predict?')];
-  const failing = async () => { calls++; throw new Error('HTTP 502'); };
-  const out = await materializeSection({ canvas, journey: journeyWith(done), sectionPlan: commandPlan(steps), post: failing });
+  const out = await materializeSection({ canvas, journey: journeyWith(done), sectionPlan: planOf(steps), post: async () => { calls += 1; throw new Error('HTTP 502'); } });
   assert.equal(calls, 1);
   assert.equal(out.failed_step, 'graph');
   assert.deepEqual(out.block_ids, ['b2']);
   assert.deepEqual(canvas.inserts().map(i => i[1].type), ['heading', 'explanation'], 'the later step is not run');
   assert.deepEqual(canvas.calls.at(-1), ['release', 'slot:1'], 'the slot is given up');
+  assert.ok(!canvas.calls.some(c => c[0] === 'showSection'));
   assert.deepEqual(done, [], 'not materialized: the section is not complete');
   // A result that is not an artifact (a clarification, unsupported, an error) is a failed step too.
-  const unsupported = await materializeSection({ canvas: fakeCanvas(), journey: journeyWith([]), sectionPlan: commandPlan(steps), post: async () => ({ result: 'unsupported', message: 'Not yet.' }) });
+  const unsupported = await materializeSection({ canvas: fakeCanvas(), journey: journeyWith([]), sectionPlan: planOf(steps), post: async () => ({ result: 'unsupported', message: 'Not yet.' }) });
   assert.equal(unsupported.failed_step, 'graph');
-  // Retry: no second heading or slot; the failed step and the ones after it land under the last block kept.
-  const resumed = await materializeSection({ canvas, journey: journeyWith(done), sectionPlan: commandPlan(steps), resume: out,
-    post: async () => ({ result: 'artifact', block: { type: 'graph', title: 'Sigmoid' } }) });
-  const after = canvas.inserts().slice(2);
-  assert.deepEqual(after.map(i => [i[1].type, i[1].journey.step_id, i[2]]), [['graph', 'graph', { after: 'b2' }], ['explanation', 'predict', { after: 'b3' }]]);
+  // Again on the same canvas: its stamped heading and step are reused, no slot, the rest lands under them.
+  const resumed = await materializeSection({ canvas, journey: journeyWith(done), sectionPlan: planOf(steps), post: async () => ({ result: 'artifact', block: { type: 'graph', title: 'Sigmoid' } }) });
+  assert.deepEqual(canvas.inserts().slice(2).map(i => [i[1].type, i[1].journey.step_id, i[2]]), [['graph', 'graph', { after: 'b2' }], ['explanation', 'predict', { after: 'b3' }]]);
   assert.equal(canvas.calls.filter(c => c[0] === 'reserve').length, 1);
   assert.deepEqual(resumed, { heading_block_id: 'b1', block_ids: ['b2', 'b3', 'b4'], proposals: [] });
   assert.deepEqual(done, [['s1', 'b1']]);
+});
+
+test('materializeSection: a heading stamped by an earlier visit is reused and only the missing steps are drawn, in place', async () => {
+  const seed = [{ id: 'intro', type: 'explanation' }, { id: 'h-old', type: 'heading', level: 1, text: section1.title, journey_section_id: 's1' }, tagged('frame-old', 'frame'), { id: 'mine', type: 'sticky' }];
+  const canvas = fakeCanvas(seed), done = [];
+  const out = await materializeSection({ canvas, journey: journeyWith(done), sectionPlan: plan, post: async () => ({}) });
+  assert.ok(!canvas.calls.some(c => c[0] === 'reserve'), 'no second heading, no slot');
+  assert.deepEqual(canvas.inserts().map(i => [i[1].journey.step_id, i[2]]), [['explain', { after: 'frame-old' }], ['predict', { after: 'b1' }]]);
+  assert.deepEqual(canvas.flow.map(b => b.id), ['intro', 'h-old', 'frame-old', 'b1', 'b2', 'mine']);
+  assert.deepEqual(out, { heading_block_id: 'h-old', block_ids: ['frame-old', 'b1', 'b2'], proposals: [] });
+  assert.deepEqual(done, [['s1', 'h-old']]);
+  // Everything already drawn: nothing inserted, only recorded.
+  const full = fakeCanvas([{ id: 'h', type: 'heading', journey_section_id: 's1' }, tagged('x', 'frame'), tagged('y', 'explain'), tagged('z', 'predict')]), recorded = [];
+  await materializeSection({ canvas: full, journey: journeyWith(recorded), sectionPlan: plan, post: async () => ({}) });
+  assert.deepEqual(full.inserts(), []);
+  assert.deepEqual(recorded, [['s1', 'h']]);
+});
+
+test('materializeSection: an artifact request that hangs times out as a failed step', async () => {
+  const hang = (_path, _body, { signal }) => new Promise((_, reject) => signal.addEventListener('abort', () => reject(signal.reason)));
+  const out = await materializeSection({ canvas: fakeCanvas(), journey: journeyWith(), sectionPlan: planOf([command('graph', 'graph', 'x'), text('predict', 'y')]), post: hang, timeoutMs: 10 });
+  assert.equal(out.failed_step, 'graph');
 });
 
 test('materializeSection: progress names each step of the section', async () => {
@@ -130,8 +169,7 @@ test('indexAfter: right after the named block in the flow; the end when it has g
   assert.equal(indexAfter([], 'a'), 0);
 });
 
-test('AdaptiveCanvas.jsx: insertBlock takes `after` (indexAfter, ignoring the view) and keeps insertAtView for everything else', async () => {
-  const { readFileSync } = await import('node:fs');
+test('AdaptiveCanvas.jsx: insertBlock takes `after` (indexAfter, ignoring the view) and keeps insertAtView for everything else', () => {
   const src = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
   assert.match(src, /insertBlock: \(block, \{ into = null, after = null \} = \{\}\) => \{/);
   assert.match(src, /if \(after == null\) return insertAtView\(added, into\);/);

@@ -4,7 +4,8 @@
 // (learner-intent-journey.js, R7), then rule 5 (the route's `resolve`). Punctuation never decides (R1).
 // ponytail: the tray path only. Task 12 moves the resolver to the top of useTutor.turn() (typed and voice turns), swaps
 // answerProbeText for a runTurn({ plan: false }) turn and speaks the prompt. Task 9: after the action that planned the
-// current section (accept, a fast start, a retry), materializeSection draws it on the canvas, once (§6.5, R5).
+// current section (accept, a fast start, a retry), or on a load once the canvas is ready, materializeSection draws it on
+// the canvas, once (§6.5, R5, ruling C-3).
 import { useEffect, useRef, useState } from 'react';
 import { Loader2, X } from 'lucide-react';
 import { apiFetch } from './api.js';
@@ -91,12 +92,13 @@ export function TutorPromptTray({ tray, onOption }) {
 
 const EMPTY = { journey: null, path: null, tray: null, prevPath: null };
 
-// The journey's behaviour, apart from React so node can drive it: fetchJson(path, body?) -> { status, d } (a GET without
-// a body; it throws only when the network does), onChange after every state change, canvas() the board's canvasApi for
-// the section materializer (null until the canvas is up). Every action resolves to an outcome whose `ok` is false when it
-// failed; handleText and start report that as `failed`, and the composer gives the words back.
+// The journey's behaviour, apart from React so node can drive it: fetchJson(path, body?, options?) -> { status, d } (a GET
+// without a body; it throws only when the network does), onChange after every state change, canvas() the board's
+// canvasApi for the section materializer, read only once the page has called canvasReady() (its board restored, the
+// canvas up). Every action resolves to an outcome whose `ok` is false when it failed; handleText and start report that as
+// `failed`, and the composer gives the words back.
 export function journeyController({ where, fetchJson, onChange = () => {}, canvas = () => null }) {
-  const s = { data: EMPTY, local: null, dismissed: null, busy: null, error: null, proposals: [] };
+  const s = { data: EMPTY, local: null, dismissed: null, busy: null, error: null, proposals: [], ready: false };
   const set = patch => { Object.assign(s, patch); onChange(); };
   // prevPath: the version of this journey's path shown before the current one, so the rail marks what the new version
   // changed (pathEntries) until the next version replaces it.
@@ -108,9 +110,11 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
   const server = () => (s.data.tray && s.data.tray.id !== s.dismissed ? s.data.tray : null);
   const open = () => s.local || server();
 
-  // No journey here (a refused app, a network error): the Learn chat answers as before.
-  const refresh = () => fetchJson(`${JOURNEY}?app=${encodeURIComponent(where.app)}&board=${encodeURIComponent(where.board)}`)
-    .then(({ status, d }) => { if (status === 200) take(d); }).catch(() => {});
+  // No journey here (a refused app, a network error): the Learn chat answers as before. read() says whether it took one.
+  const read = () => fetchJson(`${JOURNEY}?app=${encodeURIComponent(where.app)}&board=${encodeURIComponent(where.board)}`)
+    .then(({ status, d }) => { if (status !== 200) return false; take(d); return true; }).catch(() => false);
+  // A load can find a planned section not drawn yet (a fast start from Home, a reload mid-way): the materializer checks.
+  const refresh = async () => { if (await read()) await materialize({ load: true }); };
 
   // Every action's body and reply. A reply that carries the journey (success, 409, a 502 planner failure) replaces it; a
   // replay that carries none falls back to the re-read.
@@ -133,39 +137,69 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
   const act = async (body, again = () => act(body)) => {
     const out = settle(await run(body), again);
     if (out.ok) await materialize();
+    else if (out.status === 409) await materialize({ load: true }); // the re-read journey may hold a section to draw
     return out;
   };
 
-  // §6.5, R5: the current section's plan becomes canvas content once, after the action that planned it - never on a load
-  // (a reload mid-way must not draw the section twice), never for another section, never from the rail. Done is the
-  // server holding its heading (section_materialized); `started` is the ref guard, so a second reply or a re-render
-  // never runs it again. A failed step leaves the error line, whose Try again resumes at that step.
-  // ponytail: a paid step's proposal is only kept (s.proposals); the generation_proposal tray (Generate inserts it with
-  // confirmedStart after its step, learn-slash.js) comes with the LP2 tray modes.
+  // §6.5, R5, ruling C-3: the current section's plan becomes canvas content once - after the action that planned it
+  // (accept, a fast start, a retry), and on a load (refresh, a 409 re-read, the canvas becoming ready) once the canvas is
+  // ready, never for another section, never from the rail. A load first reads the journey again and stops if the heading
+  // is recorded by then. Done is the server holding its heading (section_materialized). `started` is the ref guard while a
+  // run is on, and stays once the heading is recorded; a run that ends unrecorded (a failed step, a refused post, a throw)
+  // lifts it, so Try again or the next load picks the section up from the canvas, which the materializer resumes.
   const started = new Set();
-  const artifact = async (path, body) => {
-    const { status, d } = await fetchJson(path, { ...where, ...body });
+  const due = () => {
+    const j = s.data.journey, plan = j?.section_plan;
+    return j?.state === 'active' && !j.pending && plan && plan.section_id === j.active_section_id && !plan.heading_block_id && plan.generation_state !== 'generated' ? plan : null;
+  };
+  const artifact = async (path, body, options) => {
+    const { status, d } = await fetchJson(path, { ...where, ...body }, options);
     if (status !== 200) throw new Error(d?.error || `HTTP ${status}`);
     return d;
   };
-  const materialized = (section_id, heading_block_id) => act({ action: 'section_materialized', section_id, heading_block_id });
-  const materialize = async (resume = null) => {
-    const j = s.data.journey, plan = j?.section_plan, target = canvas();
-    if (!target || !plan || j.state !== 'active' || plan.section_id !== j.active_section_id) return;
-    if (!resume && (plan.heading_block_id || plan.generation_state === 'generated' || started.has(plan.section_id))) return;
-    started.add(plan.section_id);
-    set({ error: null });
-    try {
-      const out = await materializeSection({ canvas: target, journey: { ...j, path: s.data.path, materialized }, sectionPlan: plan, post: artifact, resume,
-        onProgress: ({ step, of }) => set({ busy: `Preparing step ${step} of ${of}...` }) });
-      if (out.proposals.length) set({ proposals: [...s.proposals, ...out.proposals] });
-      if (out.failed_step) set({ error: { message: 'Part of this section could not be made.', again: () => materialize(out) } });
-    } finally { set({ busy: null }); }
+  // A 409 (another tab moved the journey) re-reads it and posts once more with the same heading, while that section is
+  // still current and unrecorded.
+  const materialized = async (section_id, heading_block_id) => {
+    const body = { action: 'section_materialized', section_id, heading_block_id };
+    const out = await act(body);
+    if (out.status !== 409 || !(await read())) return out;
+    const j = s.data.journey;
+    return j?.state === 'active' && j.active_section_id === section_id && !j.section_plan?.heading_block_id ? act(body) : out;
   };
+  const materialize = async ({ load = false } = {}) => {
+    let plan = due();
+    const target = s.ready ? canvas() : null, id = plan?.section_id;
+    if (!target || !plan || started.has(id)) return;
+    started.add(id);
+    try {
+      if (load && (!(await read()) || (plan = due())?.section_id !== id)) return;
+      set({ error: null });
+      const out = await materializeSection({ canvas: target, journey: { ...s.data.journey, path: s.data.path, materialized }, sectionPlan: plan, post: artifact,
+        onProgress: ({ step, of }) => set({ busy: `Preparing step ${step} of ${of}...` }) });
+      if (out.proposals.length) set({ proposals: out.proposals, local: proposalTray(out.proposals[0]) });
+      if (out.failed_step) set({ error: { message: 'Part of this section could not be made.', again: () => materialize() } });
+    } catch {
+      set({ error: { message: 'This section could not be prepared.', again: () => materialize() } });
+    } finally {
+      if (!s.data.journey?.section_plan?.heading_block_id) started.delete(id);
+      set({ busy: null });
+    }
+  };
+  // The page calls this once the board is restored and the canvas is up, as often as it likes: the first call with a
+  // canvas there marks it ready and checks for a section to draw.
+  const canvasReady = () => {
+    if (s.ready || !canvas()) return;
+    s.ready = true;
+    return materialize({ load: true });
+  };
+  // §6.5.4: a paid step's proposal waits in a generation_proposal tray, one at a time, and is never generated on its own.
+  const proposalTray = p => (p ? { id: `generation_proposal:${p.step_id}`, mode: 'generation_proposal', prompt: p.message,
+    options: [{ id: 'generate', label: 'Generate' }, { id: 'not_now', label: 'Not now' }], free_text: false, dismissible: true } : null);
 
   const start = async text => {
     set({ local: null, dismissed: null, error: null });
     const out = await run({ action: 'start', text }, null);
+    if (out.status === 409) await materialize({ load: true });
     const why = out.d?.error;
     if (NOT_HERE.has(why)) return { handled: false };
     if (why === 'live_journey') set({ local: liveJourneyTray(out.d.journey, text) });
@@ -225,6 +259,14 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
       if (optionId === 'tutor') return { ask: local.text }; // the caller's responder answers the words
       return answerText(local.text, local.under);
     }
+    if (local?.mode === 'generation_proposal') {
+      // Generate inserts the card confirmed, so it starts once (as a / command's paid proposal, learn-slash.js), right
+      // after the card its step would have followed. Not now drops it; a declined paid step is optional.
+      const [proposal, ...rest] = s.proposals;
+      if (optionId === 'generate' && proposal) canvas()?.insertBlock({ ...proposal.block, confirmedStart: true }, { after: proposal.after });
+      set({ proposals: rest, local: proposalTray(rest[0]) });
+      return { ok: true };
+    }
     const t = server();
     if (t?.mode === 'intent_intake') return act({ action: 'intake_answer', slot: t.slot, option_id: optionId });
     if (t?.mode === 'diagnostic_probe') return optionId === 'skip' ? act({ action: 'diagnostic_skip' }) : evaluate(t.probe_id, { probe_id: t.probe_id, option_id: optionId });
@@ -233,6 +275,7 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
   };
   // Skip the current step. path_review and active have none (409): the tray is dismissed here instead.
   const cancel = async () => {
+    if (s.local?.mode === 'generation_proposal') return answer('not_now');
     if (s.local) { set({ local: null }); return { ok: true }; }
     const out = await act({ action: 'cancel' });
     if (out.status !== 409) return out;
@@ -274,14 +317,15 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
 
   const view = () => {
     const tray = shownTray(server(), s.local, s.busy, s.error);
-    return { ...s.data, tray, trayProps: tray ? { tray, onOption: answer } : null, busy: !!s.busy, proposals: s.proposals,
-      start, handleText, answer, answerProbeText, edit, cancel, clarify, resolve, advance, accept, retry, refresh, materialized };
+    return { ...s.data, tray, trayProps: tray ? { tray, onOption: answer } : null, busy: !!s.busy,
+      start, handleText, answer, answerProbeText, edit, cancel, clarify, resolve, advance, accept, retry, refresh, canvasReady };
   };
   return { state: s, view, refresh };
 }
 
-const fetchJson = async (path, body) => {
-  const r = await apiFetch(path, body ? { method: 'POST', body: JSON.stringify(body) } : {});
+// options: a POST's extra fetch options (the artifact request's timeout signal).
+const fetchJson = async (path, body, options = {}) => {
+  const r = await apiFetch(path, body ? { ...options, method: 'POST', body: JSON.stringify(body) } : options);
   return { status: r.status, d: await r.json().catch(() => ({})) };
 };
 const OFF = { ...EMPTY, trayProps: null, busy: false, start: null };

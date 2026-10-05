@@ -87,18 +87,23 @@ export function PathList({ entries, onOpen, expanded }) {
   );
 }
 
-// pinned keeps the list open (a path under review). The Path button toggles it by keyboard; hover opens it too.
+// pinned keeps the list open (a path under review). Hover, the Path button (a toggle that keeps it open) and focus inside
+// the path rail (§8: hover or focus) each hold it open on their own, so the button never hides a list hover opened.
+// Pinned, the button can change nothing: it is disabled, and says it is expanded.
 export default function ContentsRail({ entries, onOpen, pinned = false, placement = 'page' }) {
-  const [open, setOpen] = useState(false);
+  const [hover, setHover] = useState(false);
+  const [toggled, setToggled] = useState(false);
+  const [focus, setFocus] = useState(false);
   if (!entries.length) return null;
-  const path = entries.some(entry => entry.status), shown = pinned || open;
+  const path = entries.some(entry => entry.status), shown = pinned || hover || toggled || focus;
   return (
-    <div data-contents-rail data-placement={placement === 'page' ? undefined : placement} onPointerEnter={() => setOpen(true)} onPointerLeave={() => setOpen(false)}
+    <div data-contents-rail data-placement={placement === 'page' ? undefined : placement} onPointerEnter={() => setHover(true)} onPointerLeave={() => setHover(false)}
+      onFocus={path ? () => setFocus(true) : undefined} onBlur={path ? event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocus(false); } : undefined}
       className={PLACEMENT[placement] ?? PLACEMENT.page}>
       {path ? (
         <div className="flex flex-col items-center gap-2 rounded-full border border-line bg-white px-1 py-2 shadow-sm">
-          <button type="button" data-path-toggle aria-expanded={shown} onClick={() => setOpen(value => !value)}
-            className="rounded-full px-1 py-0.5 text-[10px] font-semibold tracking-wider text-ink-2 uppercase hover:bg-hover hover:text-ink">Path</button>
+          <button type="button" data-path-toggle aria-expanded={shown} disabled={pinned} onClick={() => setToggled(value => !value)}
+            className="rounded-full px-1 py-0.5 text-[10px] font-semibold tracking-wider text-ink-2 uppercase hover:bg-hover hover:text-ink disabled:cursor-default disabled:hover:bg-transparent disabled:hover:text-ink-2">Path</button>
           <PathList entries={entries} onOpen={onOpen} expanded={false} />
         </div>
       ) : <PathList entries={entries} onOpen={onOpen} expanded={false} />}
