@@ -251,7 +251,11 @@ nanoGPT, and a new test pins the ten keys for journeys.
   2. It rebuilds the spec from the registry: claim content, gaps from prerequisites, and `prior_misconceptions`
      from the stored events. Client-sent claim content is ignored.
   3. It runs the existing `evaluateFreeText` ladder.
-  4. It calls `appendJourneyEvidence` and returns the evaluation plus `journey: { events, seq }`.
+  4. It calls `appendJourneyEvidence` and returns the evaluation plus `journey: { events, seq, revision }` (the
+     revision the evidence was saved at, so the browser's next journey action needs no 409 retry; final review A-m6).
+
+  An answer that names an open probe (`probe_id`) is graded on that probe's own claims, all of them (at most 3, in
+  probe order); `claims` from the body is never used for probe-tagged evidence (final review A-m4 + C-m2, ruling).
 - **Multiple choice and prediction:** the same route with `{ journey_id, probe_id, option_id }`. The answer key
   lives only on the server (`diagnostic_json` / `section_plan_json`). The result is a deterministic claim-level
   event: `evaluator: 'deterministic'`, `source: 'journey_probe'`, `pass` | `fail` | `misconception`, and `kind`
@@ -259,7 +263,9 @@ nanoGPT, and a new test pins the ten keys for journeys.
 - **Client.** On a journey turn, `runTurn`'s `settle` adopts `result.journey.events` as the store's events, then
   derives states with the journey registry, so there is no second client-side reconcile. The rest of the
   conversational store stays in `sessionStorage` under a journey key (`small.tutor:<org>:<email>:journey:<id>`):
-  open question, turns, Socratic counts and dive bookkeeping. The constraints are also persisted on the journey.
+  open question, turns, Socratic counts and dive bookkeeping. Constraints on the journey are not persisted in LP1
+  (`j.constraints` stays `[]`, so a stated `no_quiz` does not reach the path planner); deferred to LP2 (final review
+  C-m3, ruling).
 - **Evaluator unavailable.** An error adds nothing (existing rule). The diagnostic walker moves on, and the path
   planner is told the evidence is missing, so it keeps prerequisites and skips nothing.
 
@@ -352,6 +358,15 @@ or start <new topic>?".
 4. Paid primitives come back as proposals and become a tray `generation_proposal`. They are never generated
    automatically.
 5. **Save before commit (owner LP1 blocker, 2026-10-05).** `section_materialized` is posted only after `canvasApi.persist()` confirms that the board is saved (locally, and remotely when shared). The journey row then records `generation_state: 'generated'`. A crash in between leaves the section resumable from the stamped blocks, with no false built state and no regeneration (plan Task 15).
+   **In-app leave (final review B-C1).** A learner who leaves mid-section inside the app (Home, the sidebar, a Rabbit
+   Hole remounting the page) is covered too: before the save, every block the run reports must be on the canvas, or the
+   section fails as `canvas`; an unmounted canvas inserts nothing (null) and saves nothing (`{ ok: false }`); and
+   `useJourney`'s unmount disposes the controller, which then sends nothing more (no paid artifact call, no post). The
+   next visit resumes from the stored copy and records the section once. A recorded heading is never replaced: a
+   `section_materialized` with another heading id is refused (409, same id idempotent; final review B-M1).
+   **Heading slot (final review B-M2).** LP1 reserves the heading's slot at the view (`canvas.reserve`, then the heading
+   inserted into it), which is equivalent to appending at the end of the flow while section 1 lands on an empty flow.
+   LP2 must append each later section after the previous section's last block.
 6. A failed step leaves the section current with `generation_state: 'planning'`, the steps already done stay,
    and the tray offers Retry. Nothing is generated for any other section.
 
@@ -392,7 +407,8 @@ mode: intent_intake | diagnostic_probe | path_preview | check_in | clarification
 
 - `path_preview` offers Start · Make it shorter · Go deeper · More practical · More mathematical.
 - On resume, `next_step` offers Continue · Quick recap · Revisit <previous concept>.
-- With Voice on, the tray's prompt is spoken through `voice.say`.
+- Tray prompts are spoken only from LP5 (ruling; final review C-m3): in LP1 the tray is read, not spoken, because
+  `voice.say` runs a Tutor turn, not speech alone.
 
 ### 7.2 Interaction resolver (R1, D6)
 
@@ -599,7 +615,8 @@ takes an injected `callModel`. Tests and the e2e harness use fixtures through a 
 ## 12. Voice (D6)
 
 - Voice turns enter `useTutor.turn()` and pass the same resolver as typed turns.
-- Tray prompts are spoken. Spoken words are matched to option labels by rule 1, then classified by rules 3-5.
+- Tray prompts are not spoken in LP1; they are spoken from LP5 (ruling; final review C-m3). Spoken words are matched
+  to option labels by rule 1, then classified by rules 3-5.
 - An unrelated spoken question gets a Tutor answer with journey context (two short sentences, the existing voice
   rule), and the tray stays.
 - There is one journey state and no voice-only curriculum.
@@ -608,10 +625,12 @@ takes an injected `callModel`. Tests and the e2e harness use fixtures through a 
 
 ## 13. `/dive`
 
-**LP1 minimal context (owner, 2026-10-05):** a hole opened from an active journey section stores `journey: { journey_id, section_id, concept_ids, claim_ids }` in its `dive_json`, beside `origin` (plan Task 14). The child Tutor reads the parent journey read-only and plans around those claims, keeping its evidence in the hole's session store. It never writes the parent's path or evidence; reconciliation on return is LP5.
+**LP1 minimal context (owner, 2026-10-05):** a hole opened from an active journey section stores `journey: { journey_id, section_id, concept_ids, claim_ids }` in its `dive_json`, beside `origin` (plan Task 14). The child Tutor reads the parent journey read-only and plans around those claims. Its evidence store is keyed per journey (`:dive:<journey_id>`), so holes opened from the same journey share evidence until LP5 (ruling; final review C-m3). It never writes the parent's path or evidence; reconciliation on return is LP5.
 
 ### LP5 (full reconciliation)
 
+- A journey hole starts without the parent's evidence for the claim that caused it (LP1, final review C-m4); LP5
+  carries that evidence down when the hole opens.
 - When a hole opens from a journey canvas, the journey becomes `paused` (`paused_for`).
 - The child canvas has no journey and never writes the parent's path.
 - On return, the existing Tutor `returned_from` re-check runs with the journey domain, and its evidence goes to
@@ -797,3 +816,32 @@ reaches the stack.
 the binding tables; `/api/learn/home-ask` answered 503). So the journey planners ran their fixtures, no free-text answer
 was graded (JEV `error` every time), no Tutor plan came from a model (canned in the page), and nothing was spoken.
 Real-model journey corpus: pending (controller)
+
+**Final review fix round, 2026-10-05, code at 1903e7ee.** One dispatch covered the three whole-branch reviews:
+B-C1 (an in-app leave mid-section recorded the section built: §6.5 item 5), B-I1 (a section's Retry can no longer be
+dismissed or typed away), B-I2 (a cancel at path review hides the tray only until the next turn), C-I1 (a journey hole's
+opening question is sent from the dock only, never again from each block composer), A-I1 (`journey_diagnostic` 8000 and
+`journey_path` 12000 max_tokens, so an empty-registry draft fits with Opus thinking; `journey_adapt`'s escalation runs
+with the `journey_path` cap), B-M1, A-m3 (a planner's output is re-applied once to the reloaded row after a revision
+conflict while the same step is still pending, else dropped), A-m4/C-m2 (§5), A-m5 (no production config names
+`JOURNEY_MODEL_STUB`; the app Worker sets no `SMALL_ENV`), A-m6 (§5) and C-m5 (`journey-check.mjs` refuses a vars file
+with an `_API_KEY=` or `ELEVENLABS_` line).
+- J1-J8 again on the keyless stack (LEARN DB reset): 58/58, no page error.
+- `make test-unit` green (1721 + 951 + 1 + 1 + 26); golden traces 18/18; free corpus `lp1-final2` against
+  `corpus-before`: 0 of 44 rows differ, summaries equal; Avatar pins 8/8 (web) and 17/17 (control plane).
+- The journey corpus gains a fifth case, last: a fast start (no diagnostic, empty registry; path, section 1 and one Tutor
+  turn). Stub mode: 36 stages, 30 passed, the 4 failures the fixture artefacts listed above. With the new caps the
+  pessimistic worst case of every call the run always makes is about $2.61 with fixture-sized inputs (about $3.0 with
+  live-sized registries), above the $1.90 ceiling: the per-call guard stops the run before it would pass the ceiling, and
+  the owner's four domains run before the fast-start case. The largest single call (a `journey_path` draft) is priced at
+  about $0.27-0.30, so the guard refuses only once real spend passes about $1.60.
+
+**Deploy order (release notes; final review A-I2).** LP1 adds learn migration 0006 (`learning_journeys`,
+`learning_path_versions`) and a `user_id` field on the control plane's `/api/me`, which the app's journey identity reads.
+Before any app deploy of a main that contains LP1:
+1. The owner's GO for 0006 on the target `LEARN_DB` comes first. `repository-schema.sql` now includes 0006, so the
+   runbooks' `repository-schema.sql --remote` commands (`rabbit-hole-dev.md`, `rabbit-hole-production.md`) apply it too
+   and carry that warning.
+2. The control plane with `/api/me` `user_id` deploys next.
+3. Only then the app.
+None of these commands was run by LP1.

@@ -211,6 +211,7 @@ npx wrangler r2 bucket create rabbit-hole-prod-repositories --config wrangler.ra
 npx wrangler d1 execute rabbit-hole-prod --remote --config wrangler.rabbit-hole-prod.jsonc --file bootstrap.sql
 npx wrangler d1 migrations apply rabbit-hole-prod --remote --config wrangler.rabbit-hole-prod.jsonc
 # Learn D1 (additive, re-runnable).
+# this file now includes learn migration 0006 (adaptive learning journeys) - apply only with the owner's GO for 0006
 npx wrangler d1 execute rabbit-hole-learn-prod --remote --config wrangler.rabbit-hole-prod.jsonc --file repository-schema.sql
 # Check: expect "No migrations to apply!"
 npx wrangler d1 migrations list rabbit-hole-prod --remote --config wrangler.rabbit-hole-prod.jsonc
