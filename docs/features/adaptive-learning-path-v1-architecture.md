@@ -815,7 +815,7 @@ reaches the stack.
 `VERCEL_TYPESAFE_API_KEY`, `OPENAI_API_KEY`, `FISH_AUDIO_API_KEY`, `ELEVENLABS_*`: checked by name in the vars files and
 the binding tables; `/api/learn/home-ask` answered 503). So the journey planners ran their fixtures, no free-text answer
 was graded (JEV `error` every time), no Tutor plan came from a model (canned in the page), and nothing was spoken.
-Real-model journey corpus: pending (controller)
+Real-model journey corpus: owner GO on 2026-10-05 for exactly one run, $1.90 ceiling. The attempt (runner at d2eca8ff) was refused at its first call (HTTP 400: the API key is not scoped to a workspace, and the runner sent no workspace id), so no stage ran and $0.00 was billed. The runner now reads ANTHROPIC_WORKSPACE_ID as ask.js expects (3c0c670e). After the final-review fixes it has a fifth fast-start case, run last. A re-run needs the owner's approval and has not happened, so the live-model assertions (no cross-domain leakage, no mastery or level labels, immutable completed sections, edits respected, evidence changing only future sections, the journey-domain Tutor turn) are unverified on real models in LP1.
 
 **Final review fix round, 2026-10-05, code at 1903e7ee.** One dispatch covered the three whole-branch reviews:
 B-C1 (an in-app leave mid-section recorded the section built: §6.5 item 5), B-I1 (a section's Retry can no longer be
