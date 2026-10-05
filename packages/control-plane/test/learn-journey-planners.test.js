@@ -116,8 +116,74 @@ test('adaptPath escalates to journey_path on a validator rejection, ambiguity or
   assert.deepEqual(s.calls.map(c => c.model), [JOURNEY_TASKS.journey_path.model]);
   assert.equal(out.escalated, 'contradictory');
   assert.equal(out.path.change.source, 'evidence');
+  // A learner edit escalates only on a rejection or ambiguity: a contradictory claim elsewhere is one journey_adapt call
+  // (controller ruling, review round 1).
+  s = scripted(REVISION);
+  out = await adaptPath(env, { prev: PREV, edit: 'make it shorter', registry: REG, states: { [CLAIM]: { state: 'uncertain', settled_passes: 1, settled_negatives: 1 } } }, { callModel: s.callModel });
+  assert.deepEqual(s.calls.map(c => c.model), [JOURNEY_TASKS.journey_adapt.model]);
+  assert.equal(out.escalated, null);
   // An escalated reply that is still invalid is PlannerInvalid.
   await assert.rejects(adaptPath(env, { prev: PREV, edit: 'x', registry: REG, states: CALM }, { callModel: scripted(renamed, renamed).callModel }), PlannerInvalid);
+});
+
+// Review round 1, fix 1: malformed output is always PlannerInvalid, never a TypeError or a SyntaxError.
+test('malformed model output is PlannerInvalid: null list items, a null claim under an mcq, a 200 body that is not JSON', async () => {
+  const nulled = key => ({ ...PLAN, [key]: [null, ...PLAN[key]] });
+  for (const key of ['teaching_sequence', 'prerequisite_evidence', 'completion_evidence']) {
+    await assert.rejects(planSection(env, SECTION_INPUT, { callModel: scripted(nulled(key)).callModel }), PlannerInvalid, key);
+  }
+  const mcqClaim = DIAG.probes[0].claims[0];
+  await assert.rejects(planDiagnostic(env, { topic: TOPIC }, { callModel: scripted({ ...DIAG, registry: { ...REG, claims: { ...REG.claims, [mcqClaim]: null } } }).callModel }), PlannerInvalid);
+  const notJson = async () => new Response('<html>gateway hiccup</html>', { status: 200 });
+  await assert.rejects(planDiagnostic(env, { topic: TOPIC }, { callModel: notJson }), PlannerInvalid);
+});
+
+// Review round 1, fix 2: the path is rebuilt from model-owned fields, and a revision never makes progress.
+test('pathOutput: smuggled keys are dropped and the server owns the refs', async () => {
+  const smuggled = { ...REVISION, path: { ...REVISION.path, cards: [{ id: 'c1' }], diagnostic_evidence_refs: [42], change: { ...REVISION.path.change, junk: true, evidence_refs: [999] } } };
+  let out = await adaptPath(env, { prev: PREV, edit: 'make it shorter', registry: REG, states: CALM }, { callModel: scripted(smuggled).callModel });
+  assert.equal(out.escalated, null);
+  assert.equal('cards' in out.path, false);
+  assert.equal('junk' in out.path.change, false);
+  assert.deepEqual(out.path.change.evidence_refs, []);
+  assert.deepEqual(out.path.diagnostic_evidence_refs, PREV.diagnostic_evidence_refs);
+  out = await adaptPath(env, { prev: PREV, evidence: { claims: [CLAIM], refs: [3, 4] }, registry: REG, states: CALM }, { callModel: scripted(smuggled).callModel });
+  assert.deepEqual(out.path.change.evidence_refs, [3, 4]);
+  const drafted = await planPath(env, { ...PATH_INPUT, diagnostic_evidence_refs: [1, 2] }, { callModel: scripted({ ...DRAFT, path: { ...DRAFT.path, diagnostic_evidence_refs: [9] } }).callModel });
+  assert.deepEqual(drafted.path.diagnostic_evidence_refs, [1, 2]);
+});
+
+test('adaptPath: a revision that completes a section, moves current_section_id or changes the current section is a validator escalation', async () => {
+  const sections = over => REVISION.path.sections.map(s => ({ ...s, ...over[s.id] }));
+  const replies = {
+    'the review probe case': { ...REVISION, path: { ...REVISION.path, cards: [], current_section_id: 's4', sections: sections({ s2: { status: 'completed' }, s3: { status: 'completed' }, s4: { status: 'current', generation_state: 'generated' } }), change: { ...REVISION.path.change, junk: 1, evidence_refs: [999] } } },
+    'completes an upcoming section': { ...REVISION, path: { ...REVISION.path, sections: sections({ s3: { status: 'completed', generation_state: 'generated' } }) } },
+    'moves current_section_id': { ...REVISION, path: { ...REVISION.path, current_section_id: 's3', sections: sections({ s2: { status: 'upcoming', generation_state: 'not_generated' }, s3: { status: 'current' } }) } },
+    'changes the current status': { ...REVISION, path: { ...REVISION.path, sections: sections({ s2: { status: 'needs_review', generation_state: 'not_generated' } }) } },
+  };
+  for (const [name, bad] of Object.entries(replies)) {
+    const s = scripted(bad, REVISION);
+    const out = await adaptPath(env, { prev: PREV, edit: 'skip ahead', registry: REG, states: CALM }, { callModel: s.callModel });
+    assert.deepEqual([out.escalated, s.calls.length], ['validator', 2], name);
+  }
+  // In path_review nothing is current: a revision that only sets current_section_id passes validatePath, not this check.
+  const review = fixtureFor('journey_adapt', { prev: DRAFT.path, edit: 'start', registry: REG });
+  const s = scripted({ ...review, path: { ...review.path, current_section_id: 's1' } }, review);
+  const out = await adaptPath(env, { prev: DRAFT.path, edit: 'start', registry: REG, states: {} }, { callModel: s.callModel });
+  assert.deepEqual([out.escalated, s.calls.length, out.path.current_section_id], ['validator', 2, null]);
+});
+
+// Review round 1, fix 3: level words are scrubbed from the copy, never fatal; a percentage is not a level word.
+test('pathOutput scrubs level words: a mastered note is dropped, a percentage or the master theorem is kept', async () => {
+  const withChange = (change, section = {}) => ({ ...REVISION, path: { ...REVISION.path, sections: REVISION.path.sections.map((s, i) => (i === 3 ? { ...s, ...section } : s)), change: { ...REVISION.path.change, ...change } } });
+  const adapt = async reply => (await adaptPath(env, { prev: PREV, edit: 'make it shorter', registry: REG, states: CALM }, { callModel: scripted(reply).callModel })).path;
+  for (const note of ['You predicted 0.95 (95%) for the new case, so thresholds come next.', 'Like the master theorem, this splits the problem.', 'Your answer sat in the 90th percentile band of the example.']) {
+    assert.equal((await adapt(withChange({ learner_note: note }))).change.learner_note, note);
+  }
+  const scrubbed = await adapt(withChange({ learner_note: 'You mastered sigmoid.', reason: 'An advanced learner skips this.' }, { adaptation_reason: 'Beginner level material.' }));
+  assert.equal('learner_note' in scrubbed.change, false);
+  assert.equal(scrubbed.change.reason, '');
+  assert.equal('adaptation_reason' in scrubbed.sections[3], false);
 });
 
 test('planSection rejects a step whose make.command is not one of the slash commands', async () => {

@@ -74,7 +74,9 @@ async function callRole(env, role, input, callModel) {
     messages: [{ role: 'user', content: `input = ${JSON.stringify(input)}` }],
   }, task.model, null);
   if (!response.ok) throw await modelFailure(response, 'The journey planner is unavailable');
-  const call = (await response.json()).content?.find(block => block.type === 'tool_use' && block.name === role);
+  // A body that is not JSON, or has no content list, is a reply with no tool call.
+  const content = (await response.json().catch(() => null))?.content;
+  const call = Array.isArray(content) ? content.find(block => block?.type === 'tool_use' && block.name === role) : null;
   if (call?.input == null || typeof call.input !== 'object' || Array.isArray(call.input)) throw new PlannerInvalid(role, ['the reply has no tool call']);
   return call.input;
 }
@@ -86,20 +88,23 @@ export async function planDiagnostic(env, input, { callModel = journeyCallModel(
   return valid('journey_diagnostic', diagnosticOutput(await callRole(env, 'journey_diagnostic', input, callModel)));
 }
 
-// input { topic, intake, states, constraints, pending_edits, registry } -> { path (version 1, change.source draft), concepts_added }.
+// input { topic, intake, states, constraints, pending_edits, registry, diagnostic_evidence_refs? } -> { path (version 1,
+// change.source draft, the input's diagnostic_evidence_refs), concepts_added }.
 export async function planPath(env, input, { callModel = journeyCallModel(env) } = {}) {
-  return valid('journey_path', pathOutput(await callRole(env, 'journey_path', input, callModel), { registry: input.registry, source: 'draft' }));
+  const out = await callRole(env, 'journey_path', input, callModel);
+  return valid('journey_path', pathOutput(out, { registry: input.registry, source: 'draft', diagnostic_evidence_refs: input.diagnostic_evidence_refs ?? [] }));
 }
 
 // input { prev, edit | evidence, registry, states } -> { path, concepts_added, ambiguous, escalated }. journey_adapt
 // first; journey_path (escalated: validator | ambiguous | contradictory) when the validators reject the adapt reply (no
-// tool call included), when it says ambiguous: true, or when the evidence the change rests on is contradictory: an
-// uncertain claim with both settled passes and settled negatives (§6.4). Contradiction is known before any call, so it
-// goes straight to journey_path instead of paying for an adapt reply it would throw away. Evidence rests on its claims; a
-// learner edit rests on the whole state map the planner reads.
+// tool call included), when it says ambiguous: true, or, for an evidence-driven adaptation only, when the evidence it
+// rests on is contradictory: one of evidence.claims is uncertain with both settled passes and settled negatives (§6.4).
+// Contradiction is known before any call, so it goes straight to journey_path instead of paying for an adapt reply it
+// would throw away. A learner edit escalates only on a rejection or ambiguity (controller ruling, Task 4 review round 1).
+// change.evidence_refs is evidence.refs; the model never sets it.
 export async function adaptPath(env, input, { callModel = journeyCallModel(env) } = {}) {
-  const check = out => pathOutput(out, { prev: input.prev, registry: input.registry, source: input.evidence ? 'evidence' : 'learner_edit' });
-  const contradictory = (input.evidence?.claims ?? Object.keys(input.states || {})).some(id => {
+  const check = out => pathOutput(out, { prev: input.prev, registry: input.registry, source: input.evidence ? 'evidence' : 'learner_edit', evidence_refs: input.evidence?.refs ?? [] });
+  const contradictory = !!input.evidence && (input.evidence.claims ?? []).some(id => {
     const s = input.states?.[id];
     return s?.state === 'uncertain' && s.settled_passes > 0 && s.settled_negatives > 0;
   });

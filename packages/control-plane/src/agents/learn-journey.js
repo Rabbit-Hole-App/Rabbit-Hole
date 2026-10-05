@@ -63,6 +63,7 @@ export const MAKE_COMMANDS = ['explain', 'code', 'graph', 'diagram', 'walkthroug
 const STEP_ROLES = ['framing', 'interactive_visual', 'explanation', 'worked_example', 'prediction', 'practice', 'code', 'transfer_check'];
 const MINIMUMS = ['attempted', 'demonstrated_here', 'demonstrated_in_transfer'];
 export const RESOLVER_KINDS = ['tray_answer', 'path_edit', 'unrelated_question', 'cancel', 'clarification_needed'];
+const CHANGE_OPS = ['added', 'removed', 'merged', 'split', 'reordered', 'optional', 'depth', 'retitled'];
 
 const S = { type: 'string' }, IDS = { type: 'array', items: S }, SEQS = { type: 'array', items: { type: 'integer' } };
 const obj = (properties, required = Object.keys(properties), extra = {}) => ({ type: 'object', properties, required, ...extra });
@@ -89,7 +90,7 @@ const SECTION = obj({
 const PATH = obj({
   path: obj({
     goal: S, target_topic: S, diagnostic_evidence_refs: SEQS, sections: { type: 'array', items: SECTION }, current_section_id: { type: ['string', 'null'] },
-    change: obj({ reason: S, learner_note: S, evidence_refs: SEQS, sections_changed: { type: 'array', items: obj({ id: S, op: { type: 'string', enum: ['added', 'removed', 'merged', 'split', 'reordered', 'optional', 'depth', 'retitled'] } }) } },
+    change: obj({ reason: S, learner_note: S, evidence_refs: SEQS, sections_changed: { type: 'array', items: obj({ id: S, op: { type: 'string', enum: CHANGE_OPS } }) } },
       ['reason', 'evidence_refs', 'sections_changed']),
   }, ['goal', 'target_topic', 'sections', 'change']),
   concepts_added: REGISTRY, ambiguous: { type: 'boolean' },
@@ -141,7 +142,7 @@ function probe(p, registry, seen, at, errors) {
   }
   if (badOptions(p.options, 2)) errors.push(`${at}: options must be 2-4 of { id, label } with unique ids`);
   const ids = options(p.options).map(o => o.id), wrong = p.key?.misconceptions ?? {};
-  const known = list(p.claims).flatMap(c => (has(registry?.claims, c) ? list(registry.claims[c].misconceptions).map(m => m?.id) : []));
+  const known = list(p.claims).flatMap(c => (has(registry?.claims, c) ? list(registry.claims[c]?.misconceptions).map(m => m?.id) : []));
   if (!isObj(p.key) || !ids.includes(p.key.correct) || !isObj(wrong)
     || Object.entries(wrong).some(([o, m]) => o === p.key.correct || !ids.includes(o) || !known.includes(m))) {
     errors.push(`${at}: key needs correct (an option id) and misconceptions mapping wrong option ids to misconception ids of its claims`);
@@ -162,21 +163,50 @@ export function diagnosticOutput(out) {
   return verdict(errors, value);
 }
 
-// planPath and adaptPath: { path, concepts_added }. The server owns the version (prev + 1, invariant 6) and the change
-// source (which operation ran); concepts_added only adds ids, so no claim with evidence can change through it (§4).
-const LEVEL_WORDS = /\bmaster(?:ed|y|ing)?\b|\d\s*%|\bpercent/i;
-export function pathOutput(out, { prev = null, registry, source }) {
+// planPath and adaptPath: { path, concepts_added }. The path is rebuilt from the fields the model owns (goal,
+// target_topic, sections, current_section_id, change { reason, learner_note?, sections_changed }); any other key is
+// dropped. The server owns the version (prev + 1, invariant 6), change.source (which operation ran),
+// change.evidence_refs (the input evidence's refs) and diagnostic_evidence_refs (prev's on a revision, the input's on a
+// draft). concepts_added only adds ids, so no claim with evidence can change through it (§4). A revision never makes
+// progress: completing a section, moving current_section_id or changing the current section's status, generation or
+// heading is journeyStep's alone, so such a reply is invalid (adaptPath then escalates).
+// Level words are scrubbed, never fatal: a learner_note or adaptation_reason that says "mastered" is dropped and such a
+// reason is blanked. A bare percentage is not a level word ("95%" can quote an answer).
+// ponytail: a short word list; extend it when real plans slip a level past it.
+const LEVEL_WORDS = /\bmaster(?:ed|y)\b|\b(?:beginner|intermediate|advanced|expert)[ -](?:level|learner)\b/i;
+const leveled = t => typeof t === 'string' && LEVEL_WORDS.test(t);
+const PROGRESS = ['status', 'generation_state', 'heading_block_id'];
+export function pathOutput(out, { prev = null, registry, source, evidence_refs = [], diagnostic_evidence_refs = [] }) {
   const errors = [], added = { concepts: { ...out?.concepts_added?.concepts }, claims: { ...out?.concepts_added?.claims } };
   for (const kind of ['concepts', 'claims']) for (const id of Object.keys(added[kind])) if (has(registry?.[kind], id)) errors.push(`concepts_added: ${id} already exists; a changed concept or claim needs a new id`);
   const merged = { concepts: { ...registry?.concepts, ...added.concepts }, claims: { ...registry?.claims, ...added.claims } };
   errors.push(...(validateRegistry(merged).errors || []));
-  if (!isObj(out?.path)) return verdict([...errors, 'the reply has no path']);
-  const path = { ...out.path, version: (prev?.version ?? 0) + 1, current_section_id: out.path.current_section_id ?? null, change: { ...out.path.change, source } };
+  const p = out?.path;
+  if (!isObj(p)) return verdict([...errors, 'the reply has no path']);
+  const change = isObj(p.change) ? p.change : {}, changed = change.sections_changed ?? [];
+  if (!str(p.goal, 300) || !str(p.target_topic, 300)) errors.push('goal and target_topic must be 1-300 characters');
+  if (!str(change.reason, 300)) errors.push('change.reason must be 1-300 characters');
+  if (change.learner_note != null && !str(change.learner_note, 300)) errors.push('change.learner_note must be 1-300 characters');
+  if (!Array.isArray(changed) || changed.some(c => !str(c?.id, 120) || !CHANGE_OPS.includes(c?.op))) errors.push(`change.sections_changed must be a list of { id, op: ${CHANGE_OPS.join(' | ')} }`);
+  const path = {
+    version: (prev?.version ?? 0) + 1, goal: p.goal, target_topic: p.target_topic,
+    diagnostic_evidence_refs: prev ? prev.diagnostic_evidence_refs ?? [] : diagnostic_evidence_refs,
+    sections: Array.isArray(p.sections) ? p.sections.map(s => (isObj(s) && leveled(s.adaptation_reason) ? (({ adaptation_reason, ...rest }) => rest)(s) : s)) : p.sections,
+    current_section_id: p.current_section_id ?? null,
+    change: {
+      source, reason: leveled(change.reason) ? '' : change.reason, ...(change.learner_note != null && !leveled(change.learner_note) ? { learner_note: change.learner_note } : {}),
+      evidence_refs, sections_changed: list(changed).map(c => ({ id: c?.id, op: c?.op })),
+    },
+  };
   errors.push(...(validatePath(path, prev, merged).errors || []));
-  if (!str(path.change.reason, 300)) errors.push('change.reason must be 1-300 characters');
-  const note = path.change.learner_note;
-  if (note != null && (!str(note, 300) || LEVEL_WORDS.test(note))) errors.push('change.learner_note must be 1-300 characters and never claim mastery or a percentage');
   if (!prev) for (const s of list(path.sections)) if (['current', 'completed', 'needs_review'].includes(s?.status)) errors.push(`a first draft has no ${s.status} section (${s.id})`);
+  if (prev) {
+    const was = id => list(prev.sections).find(s => s?.id === id), current = list(prev.sections).find(s => s?.status === 'current');
+    for (const s of list(path.sections)) if (s?.status === 'completed' && was(s.id)?.status !== 'completed') errors.push(`section ${s.id}: a revision never completes a section`);
+    if (path.current_section_id !== (prev.current_section_id ?? null)) errors.push('a revision never moves current_section_id');
+    const now = current && list(path.sections).find(s => s?.id === current.id);
+    if (current && PROGRESS.some(k => now?.[k] !== current[k])) errors.push(`section ${current.id}: a revision never changes the current section's ${PROGRESS.join(', ')}`);
+  }
   return verdict(errors, { path, concepts_added: added });
 }
 
@@ -210,9 +240,9 @@ export function sectionOutput(out, { path, section, registry }) {
   if (!Array.isArray(out?.completion_evidence) || out.completion_evidence.some(e => !has(registry?.claims, e?.claim) || !MINIMUMS.includes(e?.minimum))) errors.push(`completion_evidence must be { claim, minimum: ${MINIMUMS.join(' | ')} }`);
   return verdict(errors, {
     section_id: section?.id, path_version: path?.version, learning_objective: out?.learning_objective, target_concepts: out?.target_concepts,
-    prerequisite_evidence: list(out?.prerequisite_evidence).map(({ concept, state }) => ({ concept, state })),
-    teaching_sequence: steps.map(({ step_id, role, make, claims }) => ({ step_id, role, make, claims })),
-    checks: picked, completion_evidence: list(out?.completion_evidence).map(({ claim, minimum }) => ({ claim, minimum })),
+    prerequisite_evidence: list(out?.prerequisite_evidence).map(e => ({ concept: e?.concept, state: e?.state })),
+    teaching_sequence: steps.map(s => ({ step_id: s?.step_id, role: s?.role, make: s?.make, claims: s?.claims })),
+    checks: picked, completion_evidence: list(out?.completion_evidence).map(e => ({ claim: e?.claim, minimum: e?.minimum })),
   });
 }
 
