@@ -10,7 +10,7 @@
 // kept as they were; the new checks are marked "v2".
 import { CLAIMS, CONCEPTS, SLICE_CARDS, cardModule, conceptOf, ladderStep } from './learn-tutor-claims.js';
 import { partIndex } from './nanogpt/depth/board.js';
-import { ACTION_TYPES } from '../../control-plane/src/agents/learn-tutor.js';
+import { ACTION_TYPES, AVATAR_ACTION, AVATAR_MOMENTS, PERSONALIZABLE_MOMENTS, VISUAL_VALUE_MAX, avatarSlotId, learningGoalProblem } from '../../control-plane/src/agents/learn-tutor.js';
 const CARD_ACTIONS = ['show_authored_card', 'focus_part', 'suggest_depth', 'suggest_practice'];
 const TEXT_ACTIONS = ['respond_text', 'ask_question'];
 
@@ -68,8 +68,52 @@ export function questionBlocked(sentence, routed, { pending = false, turn = null
 const STATED_NO_QUIZ = /\b(don'?t|do not|no more|stop)\s+(quiz|test)(z?ing)?\b|\bno (more )?(quiz|quizzes)\b/i;
 export const statedConstraints = raw => (STATED_NO_QUIZ.test(String(raw || '')) ? ['no_quiz'] : []);
 
-function schema(action) {
-  if (!action || typeof action !== 'object' || !ACTION_TYPES.includes(action.type)) return `unknown action type ${action?.type}`;
+// ---------- Avatar Teacher V1 (docs/features/rabbit-hole-avatar-teacher-v1-spec.md §3, §4.1) ----------
+// suggest_avatar_clip exists only when the router allowed it (route({ avatar }) behind TUTOR_AVATAR, off by
+// default); otherwise it stays an unknown type, exactly as before. Voice and Chat are communication modes and
+// a clip is learning material, so input_modality never matters here. The moments each router row allows:
+const AVATAR_BLOCKED_ROWS = ['gap', 'gap_inline', 'misconception', 'misconception_explain', 'uncertain', 'uncertain_unsettled', 'slash', 'off_slice'];
+const AVATAR_ROW_MOMENTS = { returned: ['rabbit_hole_return', 'reflection'], not_yet_observed: ['orientation', 'human_explanation', 'demonstration'], understood: ['transition', 'takeaway', 'reflection'] };
+// ponytail: a word match stands for "the learner explicitly asked for the teacher"; it only widens the moments,
+// and a clip still needs a stated visual value and a ready canonical clip. Tighten if the benchmark shows misfires.
+const ASKS_FOR_TEACHER = /\b(avatar|teacher|professor)\b/i;
+export function avatarMoments(row, turn) {
+  if (AVATAR_BLOCKED_ROWS.includes(row)) return [];
+  if (ASKS_FOR_TEACHER.test(turn.raw_user_message || '')) return [...AVATAR_MOMENTS];
+  return [...new Set([...(turn.opening ? ['rabbit_hole_intro', 'orientation'] : []), ...(AVATAR_ROW_MOMENTS[row] || [])])];
+}
+// One suggestion per (canvas or hole, concept) per session: the key the session store counts.
+export const avatarSeenKey = (turn, concept) => `${turn.canvas?.app}|${turn.canvas?.board || 'main'}|${turn.canvas?.dive?.dive_id || ''}|${concept}`;
+
+function avatarSchema(action) {
+  if (!AVATAR_MOMENTS.includes(action.moment)) return `${AVATAR_ACTION}: unknown moment ${action.moment}`;
+  if (!CONCEPTS[action.concept] || (action.to_concept != null && !CONCEPTS[action.to_concept])) return `${AVATAR_ACTION}: unknown concept`;
+  if (action.max_duration_seconds != null && !(Number.isInteger(action.max_duration_seconds) && action.max_duration_seconds >= 3 && action.max_duration_seconds <= 30)) return `${AVATAR_ACTION}: max_duration_seconds outside 3..30`;
+  if (action.visual_value != null && (typeof action.visual_value !== 'string' || action.visual_value.length > VISUAL_VALUE_MAX)) return `${AVATAR_ACTION}: visual_value over ${VISUAL_VALUE_MAX} characters`;
+  if (action.learning_goal != null && typeof action.learning_goal !== 'string') return `${AVATAR_ACTION}: learning_goal is not text`;
+  return null;
+}
+// The six trigger questions (§4.1), in order; no value means no suggestion. Returns [stage, reason] to refuse,
+// or { offer } to surface: 'play' a ready clip (free), or 'generate' (the deferred learner-paid path).
+// routed.avatar = { moments, seen: [avatarSeenKey], ready: Set<avatarSlotId>, on_canvas: Set<avatarSlotId> }.
+// navigated: the plan shows or focuses a card because the learner explicitly asked to see it.
+function avatarTrigger(action, routed, turn, accepted, navigated) {
+  const info = routed.avatar, slot = avatarSlotId(action);
+  if (!info?.moments.includes(action.moment)) return ['route', `${action.moment} is not an approved moment in row ${routed.row}`]; // 1
+  if (!String(action.visual_value || '').trim()) return ['route', 'no stated visual value']; // 2
+  if (navigated) return ['route', 'the learner asked to see a card']; // 3 (the rest is the planner's routing, §4.2)
+  if (accepted.some(other => other.type === AVATAR_ACTION)) return ['route', `a second ${AVATAR_ACTION}`]; // 4
+  if (info.on_canvas?.has(slot)) return ['route', 'this clip is already on the canvas'];
+  if (info.seen.includes(avatarSeenKey(turn, action.concept))) return ['route', 'already suggested for this concept here'];
+  if (action.moment === 'transition' && !ladderStep(turn.target?.card, 'deeper')) return ['resource', 'no next ladder card'];
+  if (info.ready?.has(slot)) return { offer: 'play' }; // 5
+  if (PERSONALIZABLE_MOMENTS.includes(action.moment)) return { offer: 'generate' }; // 6: needs the learner's Generate
+  return ['resource', 'no ready canonical clip']; // canonical clips are never learner-paid
+}
+
+function schema(action, extra = []) {
+  if (!action || typeof action !== 'object' || ![...ACTION_TYPES, ...extra].includes(action.type)) return `unknown action type ${action?.type}`;
+  if (action.type === AVATAR_ACTION) return avatarSchema(action);
   if (TEXT_ACTIONS.includes(action.type) && !String(action.text || '').trim()) return `empty ${action.type}`;
   if (CARD_ACTIONS.includes(action.type) && typeof action.card !== 'string') return `${action.type} without a card`;
   if (action.type === 'focus_part' && typeof action.part_id !== 'string') return 'focus_part without a part';
@@ -90,8 +134,9 @@ export function validateActions(response, routed, turn) {
   const noQuiz = constraints.includes('no_quiz') || constraints.includes('just_answer');
   const actions = [];
   const reject = (action, stage, reason) => { decisions.push({ type: action?.type ?? null, accepted: false, stage, reason }); log.push(`dropped ${action?.type}: ${reason}`); };
+  const avatar = routed.allowed.includes(AVATAR_ACTION) ? [AVATAR_ACTION] : [];
   for (const action of Array.isArray(response.actions) ? response.actions : []) {
-    const bad = schema(action);
+    const bad = schema(action, avatar);
     if (bad) { reject(action, 'schema', bad); continue; }
     if (action.type === 'no_action') continue;
     if (action.type === 'open_dive') { reject(action, 'consent', 'only the learner opens a hole (/dive, Ctrl+K, Go down)'); continue; }
@@ -103,6 +148,19 @@ export function validateActions(response, routed, turn) {
     if (action.type === 'suggest_depth' && !ladderStep(action.card, action.direction || 'deeper')) { reject(action, 'resource', `no ${action.direction || 'deeper'} card after ${action.card}`); continue; } // v2
     if (action.type === 'suggest_practice' && !cardModule(action.card).activity) { reject(action, 'resource', `${action.card} has no practice`); continue; } // v2
     if (action.type === 'return_from_dive' && !turn.canvas.dive) { reject(action, 'resource', 'return_from_dive outside a hole'); continue; }
+    if (action.type === AVATAR_ACTION) { // Avatar Teacher §4.1: a suggestion of learning material, never more
+      const navigated = navigate && response.actions.some(other => (other?.type === 'show_authored_card' || other?.type === 'focus_part') && other.mode === 'navigate');
+      const trigger = avatarTrigger(action, routed, turn, actions, navigated);
+      if (Array.isArray(trigger)) { reject(action, ...trigger); continue; }
+      if (actions.length === 3) { reject(action, 'route', 'more than 3 actions'); continue; }
+      // visual_value is consumed here and never passed on (§4.1); learning_goal goes on only when clean.
+      const { moment, concept, to_concept, learning_goal, max_duration_seconds } = action;
+      const problem = learning_goal == null ? null : learningGoalProblem(learning_goal, turn.raw_user_message);
+      if (problem) log.push(`dropped ${AVATAR_ACTION} learning_goal: ${problem}`); // the reason, never the text
+      actions.push({ type: AVATAR_ACTION, moment, concept, ...(to_concept ? { to_concept } : {}), ...(learning_goal != null && !problem ? { learning_goal } : {}), ...(max_duration_seconds ? { max_duration_seconds } : {}), offer: trigger.offer });
+      decisions.push({ type: AVATAR_ACTION, accepted: true, stage: 'accepted', reason: null });
+      continue;
+    }
     let next = { ...action };
     if ((next.type === 'show_authored_card' || next.type === 'focus_part') && next.mode === 'navigate' && !navigate) { next.mode = 'suggest'; log.push(`downgraded ${next.type} to a chip: no explicit request`); }
     if ((next.type === 'show_authored_card' || next.type === 'focus_part') && !next.mode) next.mode = 'suggest';

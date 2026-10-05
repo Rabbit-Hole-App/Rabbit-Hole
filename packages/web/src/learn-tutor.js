@@ -14,7 +14,8 @@ import { coerceInputs, validateInputDeclarations } from './scene-inputs.js';
 import { ATTENTION_LADDER, CLAIMS, CONCEPTS, SLICE_CARDS, catalogue, cardModule, claimsOfConcept, conceptOf, ladderStep, partLabels, targetClaims } from './learn-tutor-claims.js';
 import { appendEvents, conceptState, deriveClaimStates, practiceEvents, reconcile } from './learn-tutor-evidence.js';
 import { selectClaims } from './learn-tutor-select.js';
-import { EVIDENCE_ACTIONS, EVIDENCE_ROWS, speakable, statedConstraints, validateActions } from './learn-tutor-validate.js';
+import { EVIDENCE_ACTIONS, EVIDENCE_ROWS, avatarMoments, speakable, statedConstraints, validateActions } from './learn-tutor-validate.js';
+import { AVATAR_ACTION } from '../../control-plane/src/agents/learn-tutor.js';
 import { turnTrace } from './learn-tutor-trace.js';
 
 const SLASHES = ['deeper', 'simplify', 'dive'];
@@ -141,13 +142,20 @@ export function evaluationSpec(turn, claims, store) {
 // ---------- Router (§7) ----------
 
 // First match wins; one strategy and one move per turn. The planner composes inside `allowed`.
-export function route({ turn, claims, states, evaluation, store }) {
+// avatar (TUTOR_AVATAR, Avatar Teacher §3/§4.1): { ready, on_canvas } (Sets of avatarSlotId) adds
+// suggest_avatar_clip on the rows that allow a moment, in Chat and Voice alike. Off (null, the default) the
+// route is exactly as before.
+// ponytail: runTurn never passes avatar yet; AV6 wires the knob, the ready-clip lookup (LearnAvatarClips
+// ?ready), the canvas's clips and the session's avatar_seen record.
+export function route({ turn, claims, states, evaluation, store, avatar = null }) {
   const noQuiz = turn.constraints.includes('no_quiz') || turn.constraints.includes('just_answer');
   const inHole = !!turn.canvas.dive;
   const finish = (row, strategy, allowed, claim = null) => {
     let list = noQuiz ? allowed.filter(type => type !== 'ask_question') : allowed;
     if (!list.some(type => type === 'respond_text' || type === 'ask_question')) list = ['respond_text', ...list];
     if (inHole && !list.includes('return_from_dive')) list = [...list, 'return_from_dive'];
+    const moments = avatar ? avatarMoments(row, turn) : [];
+    if (moments.length) return { row, strategy, allowed: [...list, AVATAR_ACTION], claim, avatar: { moments, seen: store?.avatar_seen || [], ready: avatar.ready || new Set(), on_canvas: avatar.on_canvas || new Set() } };
     return { row, strategy, allowed: list, claim };
   };
   if (turn.slash === 'deeper' || turn.slash === 'simplify') return finish('slash', 'none', ['respond_text', 'show_authored_card', 'focus_part'], claims[0] || null);
@@ -264,6 +272,7 @@ export function plannerContext({ turn, routed, block, states, claims = [], store
     relevant_evidence: { claims: ids.map(evidence), concepts: Object.fromEntries([...concepts].map(concept => [concept, conceptState(states, concept)])) },
     route: { row: routed.row, strategy: routed.strategy, claim: routed.claim },
     allowed_actions: routed.allowed,
+    ...(routed.avatar ? { avatar_moments: routed.avatar.moments } : {}),
     relevant_authored_content: { cards: relevantCards(turn.target?.card, concepts), ...(turn.card_state ? { card_state: turn.card_state } : {}) },
     learner_constraints: turn.constraints,
     recent_relevant_context: {

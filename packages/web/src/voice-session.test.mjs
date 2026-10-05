@@ -580,3 +580,86 @@ test('say(): off or busy returns false (the caller falls back to the typed path)
   assert.equal(r.session.say('Another opening.'), false, 'busy');
   r.session.exit();
 });
+
+// Avatar Teacher §4.3 (rabbit-hole-avatar-teacher-v1-spec.md, acceptance 4-7): a clip the learner plays holds the
+// Voice loop. The clip player itself is AV5; here the session's half: hold() and its release().
+test('AVATAR-4/5 playing a clip while the Tutor speaks: the Tutor stops at once, the mic pauses, Voice stays on (held)', async () => {
+  const tutor = scriptedTutor('Softmax turns the scores into weights that add up to one.', 'Next answer.');
+  const r = rig(tutor, { ttsMs: 10000 });
+  await r.session.enter();
+  r.stt.say('why softmax');
+  await until(r.session, 'speaking');
+  r.calls.length = 0;
+  const release = r.session.hold();
+  assert.equal(r.session.state, 'held');
+  assert.deepEqual(r.calls, ['tts.stop', 'stt.pause']);
+  r.stt.say('the teacher in the clip is talking now');
+  await new Promise(resolve => setTimeout(resolve, 5));
+  assert.equal(tutor.calls.length, 1, 'the clip audio is never transcribed into a turn');
+  assert.equal(r.session.state, 'held', 'the stopped reply does not resume listening');
+  r.session.interrupt();
+  assert.equal(r.session.say('an opening'), false, 'no Tutor turn starts while held');
+  assert.equal(r.session.state, 'held');
+  assert.ok(r.names().includes('voice_held'));
+  noWords(r, 'teacher in the clip');
+  release();
+  r.session.exit();
+});
+
+test('AVATAR-6 the clip ends or is stopped: listening resumes and the next spoken question is a normal turn', async () => {
+  const tutor = scriptedTutor('First answer.', 'Second answer.');
+  const r = rig(tutor, { ttsMs: 1 });
+  await r.session.enter();
+  await turn(r, 'first question');
+  const release = r.session.hold();
+  r.calls.length = 0;
+  release();
+  assert.equal(r.session.state, 'listening');
+  assert.deepEqual(r.calls, ['stt.resume']);
+  release();
+  assert.deepEqual(r.calls, ['stt.resume'], 'a second release does nothing');
+  await turn(r, 'second question');
+  assert.equal(tutor.calls.length, 2);
+  assert.equal(r.session.caption.current, 'Second answer.');
+  r.session.exit();
+});
+
+test('AVATAR-7 Voice and clip audio never overlap: a clip played while the Tutor thinks cancels the turn; its late answer is never spoken', async () => {
+  let reply;
+  const tutor = scriptedTutor(args => new Promise(resolve => { reply = () => resolve({ speech: 'Too late.', turnId: args.turnId, ms: MS }); }));
+  const r = rig(tutor);
+  await r.session.enter();
+  r.stt.say('a question');
+  await until(r.session, 'thinking');
+  const release = r.session.hold();
+  assert.equal(tutor.calls[0].aborted(), true);
+  reply();
+  await new Promise(resolve => setTimeout(resolve, 5));
+  assert.ok(!r.calls.includes('tts.speak'), 'nothing is spoken over the clip');
+  assert.equal(r.session.state, 'held');
+  release();
+  assert.equal(r.session.state, 'listening');
+  r.session.exit();
+});
+
+test('hold: two clips release in turn, a hold while Voice is starting keeps the mic closed, off or exited is a no-op', async () => {
+  const r = rig(scriptedTutor('Answer.'));
+  r.session.hold()();
+  assert.equal(r.session.state, 'off', 'off: nothing to hold');
+  const entering = r.session.enter();
+  const early = r.session.hold();
+  await entering;
+  assert.equal(r.session.state, 'held', 'media started while the mic was opening');
+  assert.equal(r.calls.at(-1), 'stt.pause');
+  const second = r.session.hold();
+  early();
+  assert.equal(r.session.state, 'held', 'one clip still plays');
+  second();
+  assert.equal(r.session.state, 'listening');
+  const stale = r.session.hold();
+  r.session.exit();
+  r.calls.length = 0;
+  stale();
+  assert.equal(r.session.state, 'off');
+  assert.deepEqual(r.calls, [], 'a release after exit never reopens the mic');
+});

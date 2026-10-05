@@ -28,6 +28,38 @@ export async function privateLessonAssetFetch(req, env, binding) {
   return binding.get(id).fetch(req);
 }
 
+// A stored clip, with range support. Its type is the job's own (Avatar Teacher §13: WebM with alpha stays
+// video/webm); jobs that recorded none are MP4, as every FAL and Manim clip is.
+export async function serveClip(env, job, req) {
+  const object = await learnMedia(env).get(job.storageKey, { range: req.headers });
+  if (!object) return json({ error: 'Video unavailable' }, 404);
+  const headers = new Headers({ 'Content-Type': job.contentType || 'video/mp4', 'Cache-Control': 'private, max-age=3600', 'Accept-Ranges': 'bytes', 'X-Content-Type-Options': 'nosniff' });
+  headers.set('Content-Length', String(object.range?.length ?? object.size));
+  if (object.range) headers.set('Content-Range', `bytes ${object.range.offset}-${object.range.offset + object.range.length - 1}/${object.size}`);
+  return new Response(object.body, { status: object.range ? 206 : 200, headers });
+}
+
+// A finished clip from the provider's URL (the adapter has already checked its host). sniffed: the caller types
+// the clip from its own bytes (Avatar Teacher), so a generic binary header is accepted too - HeyGen's
+// files2.heygen.ai serves MP4 as binary/octet-stream (first real render, 2026-10-04).
+const GENERIC_TYPES = ['binary/octet-stream', 'application/octet-stream'];
+export async function downloadClip(url, { sniffed = false } = {}) {
+  const response = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(30000) });
+  const type = response.headers.get('content-type') || '';
+  if (!response.ok || !(type.startsWith('video/') || (sniffed && GENERIC_TYPES.includes(type.split(';')[0].trim())))) throw new Error('Video download unavailable');
+  // Short preview clips are bounded to protect Worker memory and storage.
+  const chunks = [], reader = response.body.getReader(); let length = 0;
+  for (;;) {
+    const { done, value } = await reader.read(); if (done) break;
+    length += value.byteLength;
+    if (length > 40 * 1024 * 1024) { await reader.cancel(); throw new Error('Generated clip is too large'); }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(length); let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+  return bytes;
+}
+
 export class LearnVideos {
   constructor(state, env) { this.state = state; this.env = env; }
   async fetch(req) {
@@ -37,12 +69,7 @@ export class LearnVideos {
         if (!/^[a-f0-9]{64}$/.test(key)) return json({ error: 'Invalid asset' }, 400);
         const job = await this.state.storage.get(`job:${key}`);
         if (job?.status !== 'ready') return json({ error: 'Video not ready' }, 404);
-        const object = await learnMedia(this.env).get(job.storageKey, { range: req.headers });
-        if (!object) return json({ error: 'Video unavailable' }, 404);
-        const headers = new Headers({ 'Content-Type': 'video/mp4', 'Cache-Control': 'private, max-age=3600', 'Accept-Ranges': 'bytes', 'X-Content-Type-Options': 'nosniff' });
-        headers.set('Content-Length', String(object.range?.length ?? object.size));
-        if (object.range) headers.set('Content-Range', `bytes ${object.range.offset}-${object.range.offset + object.range.length - 1}/${object.size}`);
-        return new Response(object.body, { status: object.range ? 206 : 200, headers });
+        return serveClip(this.env, job, req);
       }
       return json(await this.list());
     }
@@ -120,18 +147,7 @@ export class LearnVideos {
             job.result = { provider: result.provider, generationId: result.generationId };
             job.status = 'ready';
           } else if (result) {
-            const response = await fetch(result.videoUrl, { redirect: 'manual', signal: AbortSignal.timeout(30000) });
-            if (!response.ok || !response.headers.get('content-type')?.startsWith('video/')) throw new Error('Video download unavailable');
-            // Short preview clips are bounded to protect Worker memory and storage.
-            const chunks = [], reader = response.body.getReader(); let length = 0;
-            for (;;) {
-              const { done, value } = await reader.read(); if (done) break;
-              length += value.byteLength;
-              if (length > 40 * 1024 * 1024) { await reader.cancel(); throw new Error('Generated clip is too large'); }
-              chunks.push(value);
-            }
-            const bytes = new Uint8Array(length); let offset = 0;
-            for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+            const bytes = await downloadClip(result.videoUrl);
             job.storageKey = `learn-video-dev/${this.state.id}/${job.key}.mp4`;
             await learnMedia(this.env).put(job.storageKey, bytes, { httpMetadata: { contentType: 'video/mp4' } });
             job.result = { ...result, videoUrl: undefined, duration: job.input.duration };
