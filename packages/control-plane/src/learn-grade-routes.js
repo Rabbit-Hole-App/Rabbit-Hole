@@ -189,15 +189,44 @@ export async function learnGradeRoute(path, req, env) {
 // no Learn system prompt, no thread, no app or repository context, and nothing
 // is stored. A block without key ideas keeps the instruction's fallback text.
 // The reply is the SSE gradeAnswer reads: one chunk then done, or one error.
+// An Explain Back sketch (docs/features/explain-back-sketch.md): a PNG data URL the browser drew from the sketch,
+// and the words in it. The image is optional (the browser sends null when it could not draw one).
+const PNG_URL = 'data:image/png;base64,';
+const SKETCH_IMAGE_MAX = 600000;
+function validSketch(sketch) {
+  if (!sketch || typeof sketch !== 'object' || Array.isArray(sketch)) return { error: 'sketch must be an object' };
+  if (typeof sketch.text !== 'string' || sketch.text.length < 1 || sketch.text.length > 2000) return { error: 'sketch.text must be 1-2000 characters' };
+  const image = sketch.image ?? null;
+  // iVBORw0KGgo is the PNG signature in base64.
+  if (image !== null && (typeof image !== 'string' || image.length > SKETCH_IMAGE_MAX || !image.startsWith(`${PNG_URL}iVBORw0KGgo`) || !/^[A-Za-z0-9+/]+={0,2}$/.test(image.slice(PNG_URL.length)))) {
+    return { error: 'sketch.image must be a PNG data URL of at most 600 KB' };
+  }
+  return { value: { image, text: sketch.text } };
+}
+
 export function validateAssessBody(body) {
   const { mode, prompt, answer } = body || {};
   const expects = body?.expects ?? [];
   if (mode !== 'challenge' && mode !== 'explain_back') return { error: 'mode must be challenge or explain_back' };
   if (typeof prompt !== 'string' || prompt.length > 4000) return { error: 'prompt must be a string of at most 4000 characters' };
   if (!Array.isArray(expects) || expects.length > 8 || expects.some(idea => typeof idea !== 'string' || idea.length > 300)) return { error: 'expects must be at most 8 ideas of at most 300 characters' };
+  if (body?.sketch !== undefined) {
+    if (mode !== 'explain_back') return { error: 'only an explain_back answer carries a sketch' };
+    const sketch = validSketch(body.sketch);
+    if (sketch.error) return sketch;
+    if (typeof body.attempt_id !== 'string' || !ATTEMPT.test(body.attempt_id)) return { error: 'attempt_id must be 8-120 letters, digits, colon, dash or underscore' };
+    // The typed text may be empty: the sketch alone is an answer.
+    if (typeof answer !== 'string' || answer.length > 4000) return { error: 'answer must be at most 4000 characters' };
+    return { value: { mode, prompt, expects, answer, attempt_id: body.attempt_id, sketch: sketch.value } };
+  }
   if (typeof answer !== 'string' || answer.length < 1 || answer.length > 4000) return { error: 'answer must be 1-4000 characters' };
   return { value: { mode, prompt, expects, answer } };
 }
+
+// The grading call's one user message: the instruction, with the sketch's picture before it when there is one.
+export const assessContent = (instruction, sketch = null) => (sketch?.image
+  ? [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: sketch.image.slice(PNG_URL.length) } }, { type: 'text', text: instruction }]
+  : instruction);
 
 async function assessText(env, instruction, callModel) {
   const messages = [{ role: 'user', content: instruction }];
@@ -228,11 +257,11 @@ export async function assessAnswer(req, env, { callModel = loggedModel('grading'
   if (ownerRefused) return ownerRefused;
   const input = validateAssessBody(body);
   if (input.error) return json({ error: input.error }, 400);
-  const { mode, prompt, expects, answer } = input.value;
+  const { mode, prompt, expects, answer, sketch = null } = input.value;
   // ponytail: the whole verdict arrives as one chunk, as the chat route's
   // research path already sends it; token streaming is out of scope.
   let events;
-  try { events = [['chunk', { text: await assessText(env, challengePrompt({ mode, prompt, expects }, answer), callModel) }], ['done', { ok: true }]]; }
+  try { events = [['chunk', { text: await assessText(env, assessContent(challengePrompt({ mode, prompt, expects }, answer, sketch), sketch), callModel) }], ['done', { ok: true }]]; }
   catch (error) { events = [['error', { error: error.message }]]; }
   return new Response(events.map(([event, data]) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`).join(''), { headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store' } });
 }

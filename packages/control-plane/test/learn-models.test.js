@@ -65,9 +65,10 @@ test('chat and grading on Auto run claude-opus-5 with the server-side fallback, 
     assert.equal(calls[0].maxTokens, 2400);
     assert.deepEqual(DB.sql, []);
   }
-  // The grader posts only the block's fields to /api/learn/assess, which has no model key.
+  // The grader posts only the block's fields (and an Explain Back sketch, docs/features/explain-back-sketch.md) to
+  // /api/learn/assess, which has no model key.
   const grade = readFileSync(new URL('../../web/src/learn-grade.js', import.meta.url), 'utf8');
-  assert.match(grade, /fetch\('\/api\/learn\/assess'[^]*body: JSON\.stringify\(\{ app, \.\.\.assessBody\(block, answer\) \}\)/);
+  assert.match(grade, /fetch\('\/api\/learn\/assess'[^]*body: JSON\.stringify\(\{ app, \.\.\.assessBody\(block, answer, sketch\) \}\)/);
   for (const env of [{ ANTHROPIC_API_KEY: 'a' }, { ANTHROPIC_API_KEY: 'a', OPENAI_API_KEY: 'o', LEARN_PLAN_MODEL: 'gpt-4.1-mini' }]) {
     const calls = recordFetch(t), DB = recordingDb();
     const graded = await assessAnswer(new Request('https://dev.test/api/learn/assess', { method: 'POST', body: JSON.stringify({ app: 'demo-app', mode: 'challenge', prompt: 'Why?', expects: [], answer: 'Because.' }) }),

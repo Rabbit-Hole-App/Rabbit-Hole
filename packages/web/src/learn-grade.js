@@ -11,12 +11,14 @@ export const { shadowGrade, recordBaseline } = createShadowGrader({ headers: wsH
 
 // The visible grade of a challenge block's answer (/api/learn/assess, dev
 // worker): the server builds the instruction from the block's fields and
-// streams the Learn chat's SSE shape back. No thread, chat or app context.
-export async function gradeAnswer({ app, block, answer, onDelta }) {
+// streams the Learn chat's SSE shape back. No thread, chat or app context. An
+// Explain Back sketch ({ image, text }) rides in the same request, one attempt
+// (docs/features/explain-back-sketch.md).
+export async function gradeAnswer({ app, block, answer, sketch = null, onDelta }) {
   const response = await fetch('/api/learn/assess', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...wsHeaders() },
-    body: JSON.stringify({ app, ...assessBody(block, answer) }),
+    body: JSON.stringify({ app, ...assessBody(block, answer, sketch) }),
   });
   if (!response.ok || (response.headers.get('Content-Type') || '').includes('json')) {
     const data = await response.json().catch(() => ({}));

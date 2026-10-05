@@ -690,13 +690,15 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
   // same attempt side by side (docs/features/jev-grading.md). The learner only
   // ever sees Opus: the shadow promise is never awaited here, and the Opus
   // error is rethrown unchanged by the try/finally.
-  const gradeCanvasAnswer = async (block, answer, onDelta) => {
-    const pending = shadowGrade({ app, board, block, answer });
+  // ponytail: Jev grades text only, so an Explain Back attempt with a sketch skips the shadow row instead of
+  // recording a verdict on half the answer; feed it the sketch's words once Jev is benchmarked on them.
+  const gradeCanvasAnswer = async (block, answer, onDelta, sketch = null) => {
+    const pending = sketch ? Promise.resolve(null) : shadowGrade({ app, board, block, answer });
     const started = performance.now();
     let text = '';
     let verdict = null;
     try {
-      await gradeAnswer({ app: app.name, block, answer, onDelta: delta => { text += delta; onDelta(delta); } });
+      await gradeAnswer({ app: app.name, block, answer, sketch, onDelta: delta => { text += delta; onDelta(delta); } });
       verdict = parseVerdict(text);
     } finally {
       const ms = Math.round(performance.now() - started);

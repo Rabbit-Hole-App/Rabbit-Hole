@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { parseVerdict, stripVerdict } from '../../control-plane/src/agents/learn-grade.js';
+import { hasMarks, sketchText } from './explain-sketch.js';
 
 // LearningBlocks.jsx cannot load under node, so these run ChallengeBody's real
 // commit, retry and status line from its source (grading-8, grading-9,
@@ -17,8 +18,9 @@ const piece = start => {
 const statusLine = body.match(/\n  const waiting = [^\n]*\n/)?.[0] || '';
 const moduleSets = (source.match(/^const gradingAttempts = new Set\(\);$/m) || [''])[0];
 
-function card(block, onGrade) {
-  const make = new Function('React', 'parseVerdict', 'stripVerdict', `${moduleSets}
+// host stands in for the canvas's SketchHost (docs/features/explain-back-sketch.md); null is a card with no sketch.
+function card(block, onGrade, host = null) {
+  const make = new Function('React', 'parseVerdict', 'stripVerdict', 'hasMarks', 'sketchText', 'sketchHost', `${moduleSets}
     return function mount(initial, onGrade) {
       const state = { block: initial, draft: '' };
       const latest = { current: initial }, inFlight = { current: false };
@@ -26,6 +28,7 @@ function card(block, onGrade) {
       const setDraft = next => { state.draft = typeof next === 'function' ? next(state.draft) : next; };
       const render = () => {
         const block = state.block, draft = state.draft;
+        const sketchShown = !!sketchHost && block.mode === 'explain_back' && !!block.sketchOpen;
         latest.current = block;
         const verdictText = stripVerdict(block.verdict);
         ${piece('  const commit = async () => {')}
@@ -35,7 +38,7 @@ function card(block, onGrade) {
       };
       return { state, render, type: text => { state.draft = text; } };
     };`);
-  return make(null, parseVerdict, stripVerdict)(block, onGrade);
+  return make(null, parseVerdict, stripVerdict, hasMarks, sketchText, host)(block, onGrade);
 }
 const challenge = { id: 'c1', type: 'challenge', prompt: 'Why exp?', expects: ['positive'], answer: null };
 const held = () => { let release; const promise = new Promise(resolve => { release = resolve; }); return { promise, release }; };
@@ -98,4 +101,55 @@ test('an undo during a grade releases the card: the next answer is committed and
   c.type('second');
   await c.render().commit();
   assert.deepEqual([c.state.block.answer, c.state.block.verdict, c.state.block.grading], ['second', 'VERDICT: good\nYes.', false]);
+});
+
+// ---- Explain Back sketch: one submission is one attempt, whatever it holds ----
+const sketchCard = { id: 'e1', type: 'challenge', mode: 'explain_back', prompt: 'What happens to token id 2?', expects: ['a row is picked'], answer: null, sketchOpen: true,
+  sketch: { strokes: [], shapes: [{ id: 's1', kind: 'rect', x1: 10, y1: 10, x2: 90, y2: 50, text: 'embedding row' }], items: [] } };
+const PNG = 'data:image/png;base64,iVBORw0KGgo=';
+const host = () => ({ captured: [], capture(id) { this.captured.push(id); return Promise.resolve(PNG); } });
+
+test('a sketch alone is submitted: one grade call with the picture and its words, one attempt id, no text needed', async () => {
+  const calls = [], h = host();
+  const c = card(sketchCard, async (committed, answer, onDelta, sketch) => { calls.push({ committed, answer, sketch }); onDelta('VERDICT: partial\nA start.'); }, h);
+  await c.render().commit();
+  assert.equal(calls.length, 1);
+  assert.deepEqual(h.captured, ['e1'], 'the picture is taken once, of this card');
+  assert.equal(calls[0].answer, '');
+  assert.deepEqual(calls[0].sketch, { image: PNG, text: sketchText(sketchCard.sketch) });
+  assert.equal(calls[0].committed.attemptId, c.state.block.attemptId);
+  assert.deepEqual([c.state.block.answer, c.state.block.sketchSubmitted, c.state.block.grading], ['', true, false]);
+});
+
+test('text and a sketch are one submission; Explain again keeps both and the resubmit is a new attempt', async () => {
+  const calls = [], h = host();
+  const c = card(sketchCard, async (committed, answer, onDelta, sketch) => { calls.push({ id: committed.attemptId, answer, sketch }); onDelta('VERDICT: partial\nCloser.'); }, h);
+  c.type('the id picks a row');
+  await c.render().commit();
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].answer, 'the id picks a row');
+  assert.ok(calls[0].sketch);
+  c.render().retry();
+  assert.equal(c.state.draft, 'the id picks a row', 'the text comes back to the field');
+  assert.deepEqual([c.state.block.sketchOpen, c.state.block.sketchSubmitted, c.state.block.answer], [true, false, null], 'the sketch opens again, editable');
+  assert.deepEqual(c.state.block.sketch, sketchCard.sketch, 'nothing of the drawing is erased');
+  await c.render().commit();
+  assert.equal(calls.length, 2);
+  assert.notEqual(calls[1].id, calls[0].id);
+});
+
+test('a hidden sketch, an empty one, or a card with no sketch host submits text only, as before', async () => {
+  const sent = [];
+  const grade = async (committed, answer, onDelta, sketch) => { sent.push(sketch); onDelta('VERDICT: good\nYes.'); };
+  const empty = { strokes: [], shapes: [], items: [] };
+  for (const [block, h] of [[{ ...sketchCard, sketchOpen: false }, host()], [{ ...sketchCard, sketch: empty }, host()], [sketchCard, null]]) {
+    const c = card(block, grade, h);
+    c.type('words');
+    await c.render().commit();
+    assert.equal(c.state.block.sketchSubmitted, false);
+  }
+  assert.deepEqual(sent, [null, null, null]);
+  const nothing = card({ ...sketchCard, sketch: empty }, grade, host());
+  await nothing.render().commit();
+  assert.equal(nothing.state.block.attemptId, undefined, 'no words and no marks: nothing is submitted');
 });
