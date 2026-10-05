@@ -276,6 +276,20 @@ test('controller: live_journey offers continue or start; Start archives the live
   assert.equal(h.view().journey.id, 'j2');
 });
 
+test('controller: Start after another tab archived first (409 archived) still starts the new topic', async () => {
+  const h = harness(none, [
+    { status: 409, d: { error: 'live_journey', journey: journeyOf({ revision: 6 }), path: null, tray: familiarityTray } },
+    { status: 409, d: { error: 'archived', journey: null, path: null, tray: null } },
+    ok(journeyOf({ id: 'j2', revision: 1, request: { topic: 'transformers' } }), goalTray),
+  ]);
+  await h.refresh();
+  await h.view().start('I want to learn transformers');
+  await h.view().answer('start_new');
+  assert.deepEqual(h.actions(), ['start', 'archive', 'start']);
+  assert.equal(h.view().journey.id, 'j2');
+  assert.equal(h.view().tray.id, goalTray.id);
+});
+
 test('controller: a broad intent typed on a live journey opens continue-or-start; Continue keeps a free-text answer', async () => {
   // On the goal question (free text), the words are an answer that reads like an intent: Continue submits them.
   const h = harness(ok(journeyOf(), goalTray), [ok(journeyOf({ revision: 5 }), familiarityTray)]);
@@ -294,10 +308,26 @@ test('controller: a broad intent typed on a live journey opens continue-or-start
   await active.view().answer('continue');
   assert.equal(active.view().tray, null);
   assert.equal(active.calls.length, 1);
-  // No tray and no start intent: the Learn chat's, except a rule-4 path edit.
+  // No tray and no start intent: the responder's (the Learn chat now, the Tutor after Task 12).
   assert.deepEqual(await active.view().handleText('What is a sigmoid?'), { handled: false });
   assert.deepEqual(await active.view().handleText('Can we skip this?'), { handled: false });
   assert.equal(active.calls.length, 1);
+});
+
+test('controller: a path edit on an active, paused or completed journey with no tray goes to the responder, never path_edit (LP2)', async () => {
+  for (const state of ['active', 'paused', 'completed']) {
+    const h = harness(ok(journeyOf({ state }), null));
+    await h.refresh();
+    assert.deepEqual(await h.view().handleText('Could we do Python first?'), { handled: false }, state);
+    assert.deepEqual(await h.view().handleText('skip probability'), { handled: false }, state);
+    assert.equal(h.calls.length, 1, `${state}: no request`);
+  }
+  // On the path preview the same words are a path edit (rule 4), posted as one.
+  const j = journeyOf({ state: 'path_review', path_version: 1 });
+  const review = harness(ok(j, previewTray), [ok({ ...j, revision: 5, pending: 'revise' }, null)]);
+  await review.refresh();
+  assert.deepEqual(await review.view().handleText('Could we do Python first?'), { handled: true });
+  assert.deepEqual(review.calls[1].body, { app: APP, board: 'main', action: 'path_edit', text: 'Could we do Python first?', revision: 4 });
 });
 
 test('controller: topic_required asks for the topic; the typed topic starts once, wrapped only when it is not already a request', async () => {

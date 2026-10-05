@@ -171,10 +171,10 @@ export function journeyController({ where, fetchJson, onChange = () => {} }) {
     const local = s.local;
     if (local?.id === 'clarification:live') {
       if (optionId === 'continue') { set({ local: null }); return local.under?.free_text ? answerText(local.text, local.under) : { ok: true }; }
-      // Start the new topic: the live journey is archived first, so the board still holds one. no_journey: another tab
-      // archived it already.
+      // Start the new topic: the live journey is archived first, so the board still holds one. no_journey or archived:
+      // another tab archived it already.
       const out = await act({ action: 'archive' }, () => answer('start_new'));
-      if (!out.ok && out.d?.error !== 'no_journey') return out;
+      if (!out.ok && out.d?.error !== 'no_journey' && out.d?.error !== 'archived') return out;
       const started = await start(local.text);
       return { ...started, ok: !started.failed };
     }
@@ -215,10 +215,12 @@ export function journeyController({ where, fetchJson, onChange = () => {} }) {
       set({ local: liveJourneyTray(j, raw, t?.id === 'clarification:live' ? t.under : t) });
       return { handled: true };
     }
-    // A busy or failed tray asks nothing: like no tray, only a rule-4 path edit is the journey's.
+    // A busy or failed tray asks nothing: like no tray, only a rule-4 path edit is the journey's, and only during setup.
+    // An active, paused or completed journey takes no path edit until LP2 (journeyStep refuses it), so those words go to
+    // the responder: the Learn chat now, the Tutor after Task 12.
     let route = routeJourneyTurn(raw, t?.mode ? t : null);
     if (route.kind === 'needs_model') route = await resolve(raw);
-    if (route.kind === 'unrelated_question') return { handled: false };
+    if (route.kind === 'unrelated_question' || (route.kind === 'path_edit' && !t?.mode && !inJourneySetup(j))) return { handled: false };
     let out;
     if (route.kind === 'tray_answer') {
       out = await (route.option_id ? answer(route.option_id) : answerText(raw));
