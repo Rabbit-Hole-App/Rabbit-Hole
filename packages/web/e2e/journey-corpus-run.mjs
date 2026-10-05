@@ -13,7 +13,7 @@
 // and the budget logic run without a key. The fixtures are logistic-regression-shaped and never revise a path or return
 // path_edit, so some checks fail in stub mode by construction; they are listed in the summary, never hidden.
 // --live: PAID. Refused unless JOURNEY_CORPUS_PAID=GO (the controller sets it; owner approval, 2026-10-05) and --budget
-// USD within the owner's hard ceiling of 1.90. The key is the one ANTHROPIC_API_KEY= line of the main checkout's .env;
+// USD within the owner's hard ceiling of 1.90. The key and workspace id are the ANTHROPIC_API_KEY= and ANTHROPIC_WORKSPACE_ID= lines of the main checkout .env;
 // the models are LEARN_TASKS', never substituted. Before each call the budget guard prices its worst case and refuses a
 // call that does not fit; rows are appended per call, so a stop keeps every observation, and spent sums every live JSONL
 // in --out. A refused request (HTTP 4xx other than 429, or a 429 with a rate limit of 0) stops the run.
@@ -92,14 +92,18 @@ const rows = existsSync(FILE) ? read(FILE) : [];
 const done = new Set(rows.filter(row => row.kind === 'subject_done').map(row => row.subject));
 const record = row => { const full = { mode: MODE, ...row }; rows.push(full); appendFileSync(FILE, `${JSON.stringify(full)}\n`); return full; };
 
-// Live only: the one ANTHROPIC_API_KEY= line of the main checkout's .env (the parent of git's common dir), never printed,
-// logged or written; no other line is kept. env is that key and nothing else (no JOURNEY_MODEL_STUB, no SMALL_ENV).
+// Live only: the ANTHROPIC_API_KEY= and ANTHROPIC_WORKSPACE_ID= lines of the main checkout's .env (the parent of git's
+// common dir), never printed, logged or written; no other line is kept. The key is not scoped to a workspace, so
+// anthropic() (ask.js) needs the workspace id header, as the deployed worker sends it. env is those two values and
+// nothing else (no JOURNEY_MODEL_STUB, no SMALL_ENV).
 function liveEnv() {
   const common = resolve(execFileSync('git', ['rev-parse', '--git-common-dir'], { encoding: 'utf8' }).trim());
-  const line = readFileSync(join(dirname(common), '.env'), 'utf8').split(/\r?\n/).find(l => l.startsWith('ANTHROPIC_API_KEY='));
-  const key = line?.slice('ANTHROPIC_API_KEY='.length).trim().replace(/^(["'])(.*)\1$/, '$2');
+  const lines = readFileSync(join(dirname(common), '.env'), 'utf8').split(/\r?\n/);
+  const value = name => lines.find(l => l.startsWith(`${name}=`))?.slice(name.length + 1).trim().replace(/^(["'])(.*)\1$/, '$2');
+  const key = value('ANTHROPIC_API_KEY'), workspace = value('ANTHROPIC_WORKSPACE_ID');
   if (!key) throw Error('the main checkout .env has no ANTHROPIC_API_KEY= line');
-  return { ANTHROPIC_API_KEY: key };
+  if (!workspace) throw Error('the main checkout .env has no ANTHROPIC_WORKSPACE_ID= line');
+  return { ANTHROPIC_API_KEY: key, ANTHROPIC_WORKSPACE_ID: workspace };
 }
 const ENV = LIVE ? liveEnv() : {};
 
