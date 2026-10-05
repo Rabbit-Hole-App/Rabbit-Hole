@@ -702,10 +702,11 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     }
   };
 
-  // Tutor v1: a hole's opening turn goes through send once, as the learner's carried-down question.
+  // Tutor v1: a hole's opening turn goes through send once, as the learner's carried-down question - from the dock only
+  // (final review C-I1: a journey hole's block composers get the same Tutor and would each send it again).
   const openedHole = useRef(null);
   useEffect(() => {
-    if (!tutor?.opening || openedHole.current === tutor.opening.key || busy) return;
+    if (!dock || !tutor?.opening || openedHole.current === tutor.opening.key || busy) return;
     openedHole.current = tutor.opening.key;
     // Voice Mode: the opening is a voice turn - spoken, in the Tutor caption only, never a chat bubble.
     if (dock && voice?.on && voice.say(tutor.opening.question, { opening: true })) return;

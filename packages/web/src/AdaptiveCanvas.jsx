@@ -1267,6 +1267,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // The board as last rendered, for persist(): a caller holding an older canvasApi still saves the latest.
   const boardRef = useRef(null);
   boardRef.current = { strokes, shapes, items, links, blocks, groups, areas };
+  // Final review B-C1: an unmounted canvas (Home, the sidebar, a Rabbit Hole remounting the page) neither inserts nor
+  // saves, so a run still holding its canvasApi never reports a block drawn or overwrites the new canvas's saved copy.
+  const alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   const firstSave = useRef(true);
   useEffect(() => {
     if (!storageKey && !onSaveRef.current) return;
@@ -1498,6 +1502,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // under their heading (learn-journey-materialize.js). The updater reads `previous`, so inserts chained in one
       // tick land in order.
       insertBlock: (block, { into = null, after = null } = {}) => {
+        if (!alive.current) return null;
         snapshot();
         const added = { ...block, id: crypto.randomUUID(), dx: 0, dy: 0 };
         if (after == null) return insertAtView(added, into);
@@ -1617,7 +1622,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // The board saved now, a shared board's push awaited (canvas-persist.js; architecture §6.5.5, LP1 Task 15): a
       // journey section is recorded only once this resolves ok. It reads boardRef, so a call after a paint that follows
       // the inserts saves them, from any canvasApi of this canvas. The debounced save above is unchanged.
-      persist: () => persistBoard({ state: boardRef.current, storageKey, storage: () => localStorage, onSave: onSaveRef.current }),
+      persist: () => (alive.current ? persistBoard({ state: boardRef.current, storageKey, storage: () => localStorage, onSave: onSaveRef.current }) : Promise.resolve({ ok: false })),
       toggleLock: () => setLock(previous => !previous),
     };
     if (apiRef) apiRef.current = commandsRef.current;

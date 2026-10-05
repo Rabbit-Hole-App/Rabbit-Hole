@@ -149,7 +149,7 @@ function openProbe(journey, id) {
 // A probe's evidence is stored once: an answer to a probe already tagged on the journey (a reload between the answer and
 // probe_advance, a double click, a retry) appends nothing, calls no evaluator and returns the stored evidence.
 const answered = (journey, tag) => journey.evidence.events.some(e => e.ref?.probe_id === tag.probe_id && (e.ref.section_id ?? null) === (tag.section_id ?? null));
-const replay = journey => ({ status: 'duplicate', evaluator: null, events: [], journey: { events: journey.evidence.events, seq: journey.evidence.seq } });
+const replay = journey => ({ status: 'duplicate', evaluator: null, events: [], journey: { events: journey.evidence.events, seq: journey.evidence.seq, revision: journey.revision } });
 const onCanvas = (journey, scope) => !!journey && journey.scope.app === scope.app && journey.scope.board === scope.board;
 const TURN_ID = /^[\w-]{1,80}$/;
 
@@ -186,7 +186,9 @@ async function journeyEvaluate(env, access, body, deps) {
   if (open?.closed) return json({ error: 'probe_closed' }, 409);
   if (multiple && (!open.probe.key || !open.probe.options?.some(option => option.id === body.option_id))) return json({ error: 'unknown_option' }, 400);
   if (!multiple && open?.probe.key) return json({ error: 'unknown_probe' }, 400); // free text answers a keyless probe only
-  const spec = multiple ? null : journeySpec(journey, body);
+  // Final review A-m4 + C-m2 (ruling): an answer to an open probe is graded on the probe's own claims (all of them, at most
+  // 3, in probe order), never on the claims the browser sent.
+  const spec = multiple ? null : journeySpec(journey, open ? { ...body, claims: open.probe.claims.slice(0, 3) } : body);
   if (spec?.error) return json({ error: spec.error }, 400);
   if (open && answered(journey, open.tag)) return json(replay(journey));
   const evaluation = multiple ? probeEvaluation(journey.registry, open.probe, body.option_id) : await evaluateFreeText(env, spec.value, body.message, deps);
@@ -195,8 +197,9 @@ async function journeyEvaluate(env, access, body, deps) {
   let j = journey;
   for (let attempt = 0; ; attempt++) {
     try {
-      const { events, seq } = await appendJourneyEvidence(env, j, evaluation, ref);
-      return json({ ...evaluation, journey: { events, seq } });
+      // Final review A-m6: with the revision the evidence was saved at, so the browser's probe_advance needs no 409 retry.
+      const { journey: saved, events, seq } = await appendJourneyEvidence(env, j, evaluation, ref);
+      return json({ ...evaluation, journey: { events, seq, revision: saved.revision } });
     } catch (error) {
       if (!(error instanceof JourneyConflict)) throw error;
       // Another tab moved the journey during the evaluation: reload once and store on the fresh revision, so a (possibly

@@ -438,6 +438,9 @@ test('journeyStep refuses illegal transitions', () => {
   // LP1 Task 15 (regression 5): posted only once the board is saved, it records the section generated beside its heading.
   assert.equal(done.journey.section_plan.generation_state, 'generated');
   assert.equal(active.section_plan, undefined, 'the journey it stepped from is unchanged');
+  // Final review B-M1: a recorded heading is never replaced (a replay from a second tab); the same id stays idempotent.
+  assert.match(journeyStep(done.journey, { type: 'section_materialized', section_id: 'classification-vs-regression', heading_block_id: 'h2' }).error, /already has heading h1/);
+  assert.equal(journeyStep(done.journey, { type: 'section_materialized', section_id: 'classification-vs-regression', heading_block_id: 'h1' }).journey.section_plan.heading_block_id, 'h1');
 });
 
 test('journeyStep: three answers move intake to diagnostic; a quick overview skips the diagnostic', () => {

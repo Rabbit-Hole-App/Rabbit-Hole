@@ -1,13 +1,18 @@
 // LP1 Task 17 (owner, 2026-10-05): the small real-model journey corpus that e2e/journey-corpus-run.mjs runs. Four subjects
 // of different shapes, so logistic regression cannot become the hidden template of every course, each through the whole
 // chain (diagnostic, path, section 1, adapt by edit, adapt by evidence, one journey Tutor turn), plus three resolver probes.
+// Final review A-I1: a fifth case, LAST so the owner's four domains finish first if the budget guard stops the run - a
+// fast start (skip setup): no diagnostic, so the path draft starts from an empty registry and returns the whole registry
+// in one journey_path call; path, section 1 and the Tutor turn only (no adapt stages, to save spend).
 // Data only: the runner builds every planner input the way the journey route (control-plane/src/learn-journey.js) does.
 //   text           the learner's opening message; journeyIntent reads the topic and stated constraints from it
 //   intake         the intake answers, slot -> option id, applied with applyIntakeAnswer in the bank's order (goal,
 //                  familiarity, depth); a slot the request already stated is never asked
 //   slots          extra intake slots the brief fixes for the subject (coding = yes, no math), recorded as stated
-//   diagnostic     true for every subject (controller ruling, 2026-10-05): the quick overview runs one too, although
-//                  journeyStep skips it for quick_overview in the product; its path is still capped at 3 sections (AT-14)
+//   diagnostic     true for every subject but the fast start (controller ruling, 2026-10-05): the quick overview runs one
+//                  too, although journeyStep skips it for quick_overview in the product; its path is still capped at 3
+//                  sections (AT-14). The fast start has none, as in the product.
+//   adapt          false: no adapt_edit or adapt_evidence stage (the fast start); absent, both run as the subject says
 //   edit           the learner edit of step (d), or null (no edit step); skip names a later section of the drafted path
 //   terms          words specific to the subject: no other subject's output may contain them (no topic leakage across
 //                  domains, owner 2026-10-05; logistic regression's are the brief's hidden-template words). Whole words
@@ -21,6 +26,8 @@ export const SUBJECTS = [
     terms: /binary search|\bbisect(?:_left|_right)?\b/i },
   { id: 'french-revolution', shape: 'humanities', text: 'Give me a 10-minute overview of the French Revolution', intake: { goal: 'intuition' }, slots: {}, diagnostic: true, edit: null,
     terms: /french revolution|bastille|robespierre|\bjacobins?\b|guillotine|estates[- ]general|louis xvi|marie antoinette/i },
+  { id: 'vaccines-fast-start', shape: 'fast start (empty registry)', text: 'Teach me how vaccines train the immune system, skip setup and just start', intake: {}, slots: {}, diagnostic: false, edit: null, adapt: false,
+    terms: /vaccin|antibod|antigen|immune system|lymphocyte|\b[bt][ -]cells?\b/i },
 ];
 
 export const EDITS = {

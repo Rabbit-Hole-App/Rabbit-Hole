@@ -15,7 +15,7 @@ import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { journeyIntent } from './learner-intent-journey.js';
 import { TRAY_MODES, journeyStep, nextIntakeQuestion, nextProbe, slotsFromIntent, trayFor, validateRegistry } from '../../web/src/learn-journey.js';
 import { deriveClaimStates } from '../../web/src/learn-tutor-evidence.js';
-import { JourneyConflict, appendPathVersion, archiveJourney, createJourney, loadJourney, loadPath, saveJourney, toClient } from './learn-journey-store.js';
+import { JourneyConflict, appendPathVersion, archiveJourney, createJourney, loadJourney, loadJourneyById, loadPath, saveJourney, toClient } from './learn-journey-store.js';
 import { PlannerInvalid, adaptPath, journeyCallModel, planDiagnostic, planPath, planSection, resolveWithModel } from './learn-journey-planners.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -106,12 +106,25 @@ async function stepped(env, j, event, revision) {
   return { journey: await saveJourney(env, step.journey, revision), effects: step.effects };
 }
 
+// Final review A-m3: a planner's output is written onto the row it was asked on. When another write moved that row
+// meanwhile (the evaluate route storing evidence), it is reloaded once and the output applied to the fresh row while it
+// still waits on the same step and path version, as journeyEvaluate re-applies an evaluation; otherwise the output is
+// dropped and the conflict goes on (409).
+async function onFresh(env, j, apply) {
+  try { return await apply(j); } catch (error) {
+    if (!(error instanceof JourneyConflict) || error.code !== 'revision') throw error;
+    const row = await loadJourneyById(env, j.id, j.scope);
+    if (!row || row.pending !== j.pending || row.path_version !== j.path_version) throw error;
+    return apply(row);
+  }
+}
+
 // journeyStep's effects (§6.6). Each runs one planner on the saved journey j and returns the next saved journey.
 const EFFECTS = {
   async plan_diagnostic(env, j, callModel) {
     const out = await planDiagnostic(env, { topic: j.request.topic, intake: j.intake, grounding: j.grounding }, { callModel });
     const diagnostic = { probes: out.probes, asked: [], skipped: false, ...(out.background ? { background: out.background } : {}) };
-    return stepped(env, { ...j, registry: out.registry, diagnostic }, { type: 'diagnostic_ready' }, j.revision);
+    return onFresh(env, j, row => stepped(env, { ...row, registry: out.registry, diagnostic }, { type: 'diagnostic_ready' }, row.revision));
   },
   // A draft rests on all the evidence so far: before a path exists, that is the diagnostic's. A quick overview's draft is
   // capped (the planner rejects a longer one).
@@ -119,18 +132,19 @@ const EFFECTS = {
     const quick = (j.request.intent?.kind ?? j.request.intent) === 'quick_overview';
     const input = { topic: j.request.topic, intake: j.intake, states: claimStates(j), constraints: j.constraints, pending_edits: j.pending_edits, registry: j.registry,
       diagnostic_evidence_refs: j.evidence.events.map(e => e.seq), ...(quick ? { max_sections: QUICK_SECTIONS } : {}) };
-    return drafted(env, j, await planPath(env, input, { callModel }), 'draft');
+    const out = await planPath(env, input, { callModel });
+    return onFresh(env, j, row => drafted(env, row, out, 'draft'));
   },
   async revise_path(env, j, callModel) {
     const prev = await loadPath(env, j.id);
     const out = await adaptPath(env, { prev, edit: j.pending_edits.join('\n'), registry: j.registry, states: claimStates(j) }, { callModel });
-    return drafted(env, j, out, 'learner_edit', prev);
+    return onFresh(env, j, row => drafted(env, row, out, 'learner_edit', prev));
   },
   // R5: only the current section gets a SectionPlan.
   async plan_section(env, j, callModel) {
     const path = await loadPath(env, j.id), section = path.sections.find(s => s.id === j.active_section_id);
     const plan = await planSection(env, { path, section, registry: j.registry, states: claimStates(j) }, { callModel });
-    return stepped(env, { ...j, section_plan: plan }, { type: 'section_planned' }, j.revision);
+    return onFresh(env, j, row => stepped(env, { ...row, section_plan: plan }, { type: 'section_planned' }, row.revision));
   },
 };
 

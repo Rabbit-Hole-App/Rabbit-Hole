@@ -46,10 +46,11 @@ export const LEARN_TASKS = Object.freeze({
   // tool_choice auto; effort is output_config.effort, null the model default.
   // Resolver rule 5: a tray message the deterministic rules missed -> one of the five kinds.
   journey_resolver: Object.freeze({ provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 300 }),
-  // The registry and the probe ladder (+ one background question).
-  journey_diagnostic: Object.freeze({ provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 3000 }),
-  // The first path draft, and the escalation target of journey_adapt.
-  journey_path: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', effort: null, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 4000 }),
+  // The registry and the probe ladder (+ one background question). Final review A-I1: thinking counts against max_tokens.
+  journey_diagnostic: Object.freeze({ provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 8000 }),
+  // The first path draft, and the escalation target of journey_adapt. Final review A-I1: with no diagnostic (fast start, a
+  // quick overview) one call returns the path and the whole registry, plus Opus thinking, under this cap.
+  journey_path: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', effort: null, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 12000 }),
   // The current section's SectionPlan.
   journey_section: Object.freeze({ provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 3000 }),
   // Path revisions and adaptations.

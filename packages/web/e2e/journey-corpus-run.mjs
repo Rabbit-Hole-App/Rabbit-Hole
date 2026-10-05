@@ -1,5 +1,6 @@
 // LP1 Task 17 (owner, 2026-10-05): the small real-model journey corpus runner, modelled on e2e/tutor-corpus-run.mjs. Runs
-// e2e/journey-corpus.mjs - four subjects (domains), each through the whole chain, and three resolver probes - through the
+// e2e/journey-corpus.mjs - four subjects (domains), each through the whole chain, a fifth fast-start case (no diagnostic,
+// no adapt stages; final review A-I1) last, and three resolver probes - through the
 // real planners (planDiagnostic, planPath, adaptPath, planSection, resolveWithModel) and one journey Tutor turn (runTurn
 // over journeyDomain, its plan from planTurn, enforced by the Tutor validator), building every input as the journey route
 // (control-plane/src/learn-journey.js) does; then, free, the journey Rabbit Hole record (diveRecord + journeyDiveContext)
@@ -76,7 +77,7 @@ const guard = (spent, worst, budget) => { if (spent + worst > Math.min(budget, C
 {
   const body = { max_tokens: LEARN_TASKS.journey_path.maxTokens, messages: [{ role: 'user', content: 'x'.repeat(3000) }] };
   const worst = worstCase(body, LEARN_TASKS.journey_path.model);
-  assert.ok(worst > 0.08, 'the worst case prices max_tokens as output (4000 Opus tokens are $0.08)');
+  assert.ok(worst > 0.24, 'the worst case prices max_tokens as output (12000 Opus tokens are $0.24)');
   assert.throws(() => guard(1, worst, 1 + worst / 2), BudgetStop);
   assert.doesNotThrow(() => guard(0, worst, worst));
   assert.throws(() => guard(CEILING - worst / 2, worst, 100), BudgetStop);
@@ -293,7 +294,7 @@ async function runSubject(subject) {
       registry = diagnostic.registry;
       ({ store } = appendEvents(store, probeEvents(registry, diagnostic.probes)));
     } else note = 'the diagnostic failed: drafted as after a skipped diagnostic (empty registry, no evidence)';
-  }
+  } else skip(subject, ['diagnostic'], 'a fast start has none: the path draft starts from an empty registry');
 
   // (b) Path: the first draft, its concepts_added merged into the registry (new ids only) as the route's drafted() does.
   const drafted = await step(subject, 'path', () => planPath(ENV, { topic, intake, states: claimStates(store.events, registry), constraints: [], pending_edits: [], registry,
@@ -326,10 +327,12 @@ async function runSubject(subject) {
     };
   } });
 
-  // (d), (e): both adapt the same input, section 1 completed and section 2 current.
-  const prev = s2 && { ...accepted, current_section_id: s2.id, change: { source: 'learner_edit', reason: 'section 1 completed', evidence_refs: [], sections_changed: [] },
+  // (d), (e): both adapt the same input, section 1 completed and section 2 current. The fast start runs neither (spend).
+  const adapting = subject.adapt !== false;
+  if (!adapting) skip(subject, ['adapt_evidence'], 'the fast-start case runs no adapt stage (spend)');
+  const prev = adapting && s2 && { ...accepted, current_section_id: s2.id, change: { source: 'learner_edit', reason: 'section 1 completed', evidence_refs: [], sections_changed: [] },
     sections: drafted.path.sections.map((s, i) => (i === 0 ? { ...s, status: 'completed', generation_state: 'generated', heading_block_id: 'corpus-s1-heading' } : i === 1 ? { ...s, status: 'current' } : s)) };
-  if (!prev) skip(subject, [...(subject.edit ? ['adapt_edit'] : []), 'adapt_evidence'], 'the drafted path has no section 2');
+  if (adapting && !prev) skip(subject, [...(subject.edit ? ['adapt_edit'] : []), 'adapt_evidence'], 'the drafted path has no section 2');
   const later = prev ? prev.sections.slice(2) : [], target = later[1] ?? later[0];
   if (prev && subject.edit && !target) skip(subject, ['adapt_edit'], 'the drafted path has no section after the current one to edit');
   else if (prev && subject.edit) {

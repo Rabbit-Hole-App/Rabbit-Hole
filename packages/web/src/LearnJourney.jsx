@@ -119,9 +119,15 @@ const EMPTY = { journey: null, path: null, tray: null, prevPath: null };
 // canvasApi for the section materializer, read only once the page has called canvasReady() (its board restored, the
 // canvas up). Every action resolves to an outcome whose `ok` is false when it failed; handleText and start report that as
 // `failed`, and the composer gives the words back.
-export function journeyController({ where, fetchJson, onChange = () => {}, canvas = () => null }) {
-  const s = { data: EMPTY, local: null, dismissed: null, busy: null, error: null, proposals: [], ready: false, answerProbe: null, waiting: null };
+export function journeyController({ where, fetchJson: send, onChange = () => {}, canvas = () => null }) {
+  const s = { data: EMPTY, local: null, dismissed: null, busy: null, error: null, proposals: [], ready: false, answerProbe: null, waiting: null, dead: false };
   const set = patch => { Object.assign(s, patch); onChange(); };
+  // Final review B-I1: a kept line (a section's Try again) survives Dismiss, a typed turn and other actions; only its own
+  // Retry (materialize) or the section going (take) clears it.
+  const kept = () => (s.error?.keep ? s.error : null);
+  // Final review B-C1: once dispose()d (useJourney's unmount: Home, the sidebar, a Rabbit Hole remounting the page) the
+  // controller sends nothing - a run still going stops before its next paid artifact call and never posts.
+  const fetchJson = (...args) => (s.dead ? Promise.reject(new Error('This journey view has closed.')) : send(...args));
   // prevPath: the version of this journey's path shown before the current one, so the rail marks what the new version
   // changed (pathEntries) until the next version replaces it.
   const take = d => {
@@ -129,6 +135,7 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
     const prevPath = !path || !same ? null : was && was.version !== path.version ? was : s.data.prevPath;
     set({ data: { journey: d.journey ?? null, path, tray: d.tray ?? null, prevPath } });
     if (s.waiting && !stillDue(s.waiting)) set({ waiting: null }); // archived, a new journey, or recorded elsewhere
+    if (s.error?.keep && !due()) set({ error: null }); // final review B-I1: the section its Retry would draw has gone
   };
   const server = () => (s.data.tray && s.data.tray.id !== s.dismissed ? s.data.tray : null);
   const open = () => s.local || server();
@@ -142,7 +149,7 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
   // Every action's body and reply. A reply that carries the journey (success, 409, a 502 planner failure) replaces it; a
   // replay that carries none falls back to the re-read.
   const run = async (body, revision = s.data.journey?.revision) => {
-    set({ busy: BUSY, error: null });
+    set({ busy: BUSY, error: kept() });
     try {
       const out = await journeyRequest({ ...where, ...body }, revision, payload => fetchJson(JOURNEY, payload));
       const fresh = out.d && 'journey' in out.d ? out.d : out.reread;
@@ -222,10 +229,10 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
       const out = await materializeSection({ canvas: target, journey: { ...s.data.journey, path: s.data.path, materialized: (sid, heading) => materialized(sid, heading, jid) }, sectionPlan: plan, post: artifact,
         onProgress: ({ step, of }) => set({ busy: `Preparing step ${step} of ${of}...` }) });
       if (out.proposals.length) set({ proposals: out.proposals, local: proposalTray(out.proposals[0]) });
-      if (out.failed_step) set({ error: { message: 'Part of this section could not be made.', again: () => materialize() } });
+      if (out.failed_step) set({ error: { message: 'Part of this section could not be made.', again: () => materialize(), keep: true } });
       else if (out.unsaved) { held = true; set({ waiting: { target, journey: jid, id, heading: out.heading_block_id } }); }
     } catch {
-      set({ error: { message: 'This section could not be prepared.', again: () => materialize() } });
+      set({ error: { message: 'This section could not be prepared.', again: () => materialize(), keep: true } });
     } finally {
       if (!held && !s.data.journey?.section_plan?.heading_block_id) started.delete(key);
       set({ busy: null });
@@ -262,7 +269,12 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
   // error, a refusal) leaves no evidence, so the walker steps on with none (the conservative path) and nothing retries it.
   const evaluate = async (probeId, body) => {
     set({ busy: BUSY, error: null });
-    try { await fetchJson('/api/learn/tutor/evaluate', { ...where, journey_id: s.data.journey?.id, ...body }); } catch { /* evaluator error: no evidence */ }
+    try {
+      const { d } = await fetchJson('/api/learn/tutor/evaluate', { ...where, journey_id: s.data.journey?.id, ...body });
+      // Final review A-m6: storing the evidence moved the revision; probe_advance goes on the one the reply carries.
+      const revision = d?.journey?.revision;
+      if (Number.isInteger(revision) && s.data.journey) set({ data: { ...s.data, journey: { ...s.data.journey, revision } } });
+    } catch { /* evaluator error: no evidence */ }
     return advance(probeId);
   };
   // A typed or spoken answer to an explain-back probe is a Tutor turn without a plan: s.answerProbe(probe, text), handed
@@ -295,7 +307,7 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
   const answer = async optionId => {
     const shown = s.error || waitingLine();
     if (optionId === 'retry') return shown?.again ? shown.again() : retry();
-    if (optionId === 'dismiss') return set({ error: null });
+    if (optionId === 'dismiss') return set({ error: kept() });
     const local = s.local;
     if (local?.id === 'clarification:live') {
       if (optionId === 'continue') { set({ local: null }); return local.under?.free_text ? answerText(local.text, local.under) : { ok: true }; }
@@ -326,7 +338,7 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
     if (t?.mode === 'path_preview') return optionId === 'start' ? accept() : edit(t.options.find(o => o.id === optionId)?.label || optionId);
     return { ok: true }; // ponytail: next_step and the LP2+ modes have no handler; the LP1 route sends none of them
   };
-  // Skip the current step. path_review and active have none (409): the tray is dismissed here instead.
+  // Skip the current step. path_review and active have none (409): the tray is dismissed here instead, until the next turn.
   const cancel = async () => {
     if (s.local?.mode === 'generation_proposal') return answer('not_now');
     if (s.local) { set({ local: null }); return { ok: true }; }
@@ -351,7 +363,9 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
   // second post would answer the same step twice.
   const handleText = async (raw, { answerProbe = null } = {}) => {
     if (s.busy) return { handled: true, failed: true };
-    set({ error: null });
+    // Final review B-I2: a tray dismissed by a cancel the journey could not take (path review) is back for the next turn,
+    // so the journey resumes after it (D6) and Start is never hidden for the session.
+    set({ error: kept(), dismissed: null });
     if (answerProbe) s.answerProbe = answerProbe;
     const t = open(), j = s.data.journey, it = journeyIntent(raw);
     if (j && STARTS.has(it.kind) && it.topic) {
@@ -379,7 +393,7 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
     return { ...s.data, tray, trayProps: tray ? { tray, onOption: answer } : null, busy: !!s.busy,
       start, handleText, answer, edit, cancel, clarify, resolve, advance, accept, retry, refresh, canvasReady };
   };
-  return { state: s, view, refresh };
+  return { state: s, view, refresh, dispose: () => { s.dead = true; } };
 }
 
 // options: a POST's extra fetch options (the artifact request's timeout signal).
@@ -399,7 +413,9 @@ export function useJourney({ app, board, access, canvasApi = null, enabled = tru
     ref.current = fresh;
   }
   const ctl = enabled && where.app ? ref.current : null;
-  useEffect(() => { ctl?.refresh(); }, [ctl]);
+  // Final review B-C1: an unmount or a board change disposes the controller (it sends nothing more); a later mount, or
+  // the board again, builds a fresh one.
+  useEffect(() => { ctl?.refresh(); return () => { ctl?.dispose(); if (ref.current === ctl) ref.current = null; }; }, [ctl]);
   // A planner call started elsewhere (another tab, or before a reload) shows the busy tray until the journey moves on.
   // ponytail: a 5 s poll while pending; a push channel if journeys ever get many watchers.
   const pending = !!ctl?.state.data.journey?.pending;

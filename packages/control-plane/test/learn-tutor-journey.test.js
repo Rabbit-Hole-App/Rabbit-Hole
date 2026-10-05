@@ -218,7 +218,9 @@ test('journey evaluate: one concurrent move is retried once on the fresh journey
   assert.equal(r.status, 200);
   assert.equal(asked.length, 1, 'the evaluator ran once');
   assert.deepEqual(r.body.events.map(e => e.result), ['pass']);
-  assert.deepEqual((await w.stored()).evidence, r.body.journey);
+  const stored = await w.stored();
+  // Final review A-m6: the reply carries the revision the evidence was saved at, so the next action needs no 409 retry.
+  assert.deepEqual({ ...stored.evidence, revision: stored.revision }, r.body.journey);
   assert.equal(r.body.journey.seq, 1);
 });
 
@@ -248,7 +250,7 @@ test('journey multiple choice: the right option on a transfer probe is a settled
   assert.deepEqual(r.body.events, [{ concept: 'logistic-regression-foundations', claim: 'logistic-regression-foundations/vocabulary', result: 'pass', kind: 'demonstrated_in_transfer', settled: true, evaluator: 'deterministic', source: 'journey_probe' }]);
   const [event] = (await w.stored()).evidence.events;
   assert.deepEqual([event.seq, event.ref.probe_id, event.ref.canvas], [1, 'p1', { app: APP, board: BOARD }]);
-  assert.deepEqual(r.body.journey, { events: [event], seq: 1 });
+  assert.deepEqual(r.body.journey, { events: [event], seq: 1, revision: (await w.stored()).revision });
 });
 
 test('journey multiple choice: a keyed wrong option is a misconception with its id, any other wrong option a fail, a non-transfer pass demonstrated_here', async t => {
@@ -297,6 +299,22 @@ test('journey probes: free text naming a keyless probe is tagged with it, and a 
   assert.equal(asked.length, 1);
   assert.deepEqual([first.body.status, again.body.status, again.body.events], ['settled', 'duplicate', []]);
   assert.deepEqual((await w.stored()).evidence.events.map(e => [e.seq, e.ref.probe_id, e.source]), [[1, 'p2', 'free_text']]);
+});
+
+// Final review A-m4 + C-m2 (ruling): an answer naming an open probe is graded on that probe's own claims - all of them,
+// at most 3, in probe order - whatever claims the browser sent, so a multi-claim explain_back is evidence on each of its
+// claims and an unrelated client claim gets no probe-tagged evidence.
+test('journey probes: free text for a multi-claim probe is graded on the probe\'s own claims; the body\'s claims are ignored', async t => {
+  const w = await setup(t);
+  const PRED = 'logistic-regression-core/prediction', PIT = 'logistic-regression-practice/pitfalls';
+  await w.patch({ diagnostic: { probes: DIAG.probes.map(p => (p.id === 'p2' ? { ...p, claims: [MECH, PRED] } : p)), asked: [], skipped: false } });
+  const { asked, ask } = jev({ c0_idea0: 0.95, c1_idea0: 0.95 });
+  const r = await w.post(free({ probe_id: 'p2', claims: [PIT] }), { deps: { ask } });
+  assert.equal(r.status, 200);
+  assert.equal(asked.length, 1);
+  const stored = (await w.stored()).evidence.events;
+  assert.deepEqual([...new Set(stored.map(e => e.claim))], [MECH, PRED], 'every probe claim, in probe order; never the client\'s');
+  assert.ok(stored.every(e => e.ref.probe_id === 'p2'));
 });
 
 test('journey probes: the same check id in two sections is stored twice; a check id equal to a diagnostic id is graded with the check key', async t => {

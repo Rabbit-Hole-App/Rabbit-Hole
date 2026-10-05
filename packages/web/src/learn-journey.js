@@ -302,6 +302,10 @@ export function journeyStep(journey, event) {
       if (j.state !== 'active') return no();
       if (event.section_id == null || event.section_id !== j.active_section_id) return no(`names ${event.section_id}, which is not the current section`);
       if (!str(event.heading_block_id, 200)) return no('needs a heading_block_id');
+      // Final review B-M1: a recorded heading is never replaced (a replay from a second tab, which the route steps through
+      // here too); the same id is idempotent.
+      const had = j.section_plan?.heading_block_id;
+      if (had && had !== event.heading_block_id) return no(`names ${event.heading_block_id}, but the section already has heading ${had}`);
       // The heading belongs to the current section, whose plan is the only one the journey row stores. The browser posts
       // this only once the board holding the section is saved (§6.5.5, LP1 Task 15), so the section is generated now.
       return go({ section_plan: { ...j.section_plan, heading_block_id: event.heading_block_id, generation_state: 'generated' } });

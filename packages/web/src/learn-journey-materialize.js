@@ -21,7 +21,8 @@ const roleTitle = role => (role ? role[0].toUpperCase() + role.slice(1).replace(
 // journey: { id, active_section_id, path, materialized(section_id, heading_block_id) }. post(path, body, { signal }) resolves
 // to the route's JSON and throws on a refusal. Returns { heading_block_id, block_ids (the section's step cards, in
 // order), proposals ({ step_id, primitive, message, block, after }: `after` is the card it would follow) } and, when a
-// step failed (stopping there, keeping what came before), failed_step - the section is then not reported as materialized.
+// step failed (stopping there, keeping what came before), failed_step - the section is then not reported as materialized;
+// 'canvas' when a block it reports never reached the canvas.
 // LP1 Task 15: after the last step, paint, showSection, then canvas.persist(); materialized() is called only when that
 // resolves ok, else the result carries `unsaved: true` (every block stays on the canvas).
 export async function materializeSection({ canvas, journey, sectionPlan, post, onProgress = () => {}, timeoutMs = ARTIFACT_TIMEOUT_MS }) {
@@ -72,6 +73,10 @@ export async function materializeSection({ canvas, journey, sectionPlan, post, o
   if (failed_step) return { ...out, failed_step };
   // The camera to the section's start, once its cards have been laid out.
   await paint();
+  // Final review B-C1: every block must be on the canvas by now. A canvas the learner left mid-section (Home, the sidebar,
+  // a Rabbit Hole remounting the page) answers an insert without drawing it and saves its stale board ok: never record it.
+  const on = new Set((canvas.blocks?.() || []).map(b => b.id));
+  if (![heading, ...block_ids].every(b => on.has(b))) return { ...out, failed_step: 'canvas' };
   canvas.showSection?.(heading);
   // §6.5.5 (owner LP1 blocker): the section is recorded only once its board is saved. A learner who leaves before then
   // finds it resumable from the stamped blocks above, never falsely built; a failed save is reported `unsaved`.

@@ -183,6 +183,30 @@ test('a fast start needs a topic; with one it drafts, accepts and plans section 
   assert.deepEqual(roles(), ['journey_path', 'journey_section']);
 });
 
+// Final review A-m3: another write moves the row while a planner runs (the evaluate route storing evidence). Its output
+// is applied once more to the reloaded row while the same step is still pending on the same path version; otherwise it
+// is dropped and the conflict answered.
+test('a planner whose final save hits a revision conflict reloads once and re-applies while the step is still pending', async t => {
+  const { sqlite, post, replies, roles, rows } = setup(t);
+  const bump = (role, also = '') => input => {
+    sqlite.prepare(`UPDATE learning_journeys SET revision = revision + 1${also}`).run();
+    delete replies[role];
+    return fixtureFor(role, input);
+  };
+  replies.journey_path = bump('journey_path');
+  replies.journey_section = bump('journey_section');
+  let r = await post('start', { text: 'Teach me logistic regression, skip setup and just start' });
+  assert.equal(r.status, 200);
+  assert.deepEqual(roles(), ['journey_path', 'journey_section'], 'no planner is paid twice');
+  assert.deepEqual([r.body.journey.state, r.body.journey.pending, r.body.path.version, r.body.journey.section_plan.section_id], ['active', null, 1, 's1']);
+  assert.equal(rows()[0].revision, 5, 'created at 0: intake_skip, a bump, the draft, a bump, the section plan');
+  // The step is no longer pending on the reloaded row (a stale-call recovery marked it failed): the output is dropped.
+  r = await post('archive');
+  replies.journey_path = bump('journey_path', ", pending = NULL, error_json = '{\"op\":\"path\",\"message\":\"The planner did not finish.\",\"retryable\":true}'");
+  r = await post('start', { text: 'Teach me logistic regression, skip setup and just start' });
+  assert.deepEqual([r.status, r.body.error, r.body.journey.path_version, r.body.journey.error.op], [409, 'revision', 0, 'path']);
+});
+
 test('a factual question is not a journey, and one board holds one live journey', async t => {
   const { post, rows } = setup(t);
   let r = await post('start', { text: 'What is logistic regression?' });
@@ -279,6 +303,14 @@ test('path edits, cancel as skip, and the materialized heading', async t => {
   const stored = JSON.parse(sqlite.prepare('SELECT path_json FROM learning_path_versions WHERE version = 3').get().path_json);
   assert.deepEqual([stored.sections[0].generation_state, stored.sections[0].heading_block_id], ['not_generated', undefined], 'path versions stay immutable history');
   assert.equal((await post('section_materialized', { journey_id: live.id, section_id: 's2', heading_block_id: 'h-s2' })).status, 409);
+  // Final review B-M1: a replay from a second tab with another heading id cannot overwrite the recorded one (409, row
+  // untouched); the same id stays idempotent.
+  const recorded = rows()[0];
+  const other = await post('section_materialized', { journey_id: live.id, section_id: 's1', heading_block_id: 'h-tab2' });
+  assert.deepEqual([other.status, other.body.journey.section_plan.heading_block_id], [409, 'h-s1']);
+  assert.deepEqual(rows()[0], recorded, 'the row is untouched');
+  r = await post('section_materialized', { journey_id: live.id, section_id: 's1', heading_block_id: 'h-s1' });
+  assert.deepEqual([r.status, r.body.journey.section_plan.heading_block_id], [200, 'h-s1']);
 });
 
 test('a settled misconception answer reads as fail and steps down the ladder', async t => {

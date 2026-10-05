@@ -185,6 +185,26 @@ test('materializeSection: a save that fails records nothing and reports the sect
   }
 });
 
+// Final review B-C1: the learner leaves mid-section (Home, the sidebar, a Rabbit Hole remounting the page). The old
+// canvas still answers insertBlock with an id (setBlocks on an unmounted canvas does nothing), blocks() is its last
+// render and persist() saves that stale board and answers ok - yet the section is never recorded as built.
+test('final review B-C1: an insert that never reaches the canvas fails the section as canvas - nothing is recorded, though the stale save answers ok', async () => {
+  let alive = true, n = 0;
+  const rendered = [];
+  const canvas = {
+    blocks: () => rendered, reserve: () => 'slot:1', release: () => {}, showSection: () => {},
+    insertBlock: block => { const id = `b${++n}`; if (alive) rendered.push({ ...block, id }); return id; },
+    persist: async () => ({ ok: true, local: true, remote: 'skipped' }),
+  };
+  const steps = [text('frame', 'x'), command('graph', 'graph', 'sigmoid'), command('code', 'code', 'fit')];
+  const done = [];
+  const post = async (_path, body) => { if (body.command === 'graph') alive = false; return { result: 'artifact', block: { type: body.command } }; };
+  const out = await materializeSection({ canvas, journey: journeyWith(done), sectionPlan: planOf(steps), post });
+  assert.deepEqual(rendered.map(b => b.type), ['heading', 'explanation'], 'the graph and code cards never reached the board');
+  assert.equal(out.failed_step, 'canvas');
+  assert.deepEqual(done, [], 'section_materialized is not posted');
+});
+
 // Review round 2: a section id is only unique within its journey (the fixtures use s1, s2 every time), so the stamps
 // carry the journey id, and an archived journey's blocks are never resumed as a new journey's section.
 test('materializeSection: blocks stamped for another journey with the same section id are not reused - a fresh section is drawn and stamped with this journey', async () => {
@@ -226,16 +246,20 @@ test('indexAfter: right after the named block in the flow; the end when it has g
 });
 
 test('AdaptiveCanvas.jsx: insertBlock takes `after` (indexAfter, ignoring the view) and keeps insertAtView for everything else', () => {
-  const src = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   assert.match(src, /insertBlock: \(block, \{ into = null, after = null \} = \{\}\) => \{/);
   assert.match(src, /if \(after == null\) return insertAtView\(added, into\);/);
   assert.match(src, /indexAfter\(previous, after\)/);
+  // Final review B-C1: once unmounted, an insert draws nothing and answers null (a run still holding this canvasApi).
+  assert.match(src, /const alive = useRef\(true\);\n\s+useEffect\(\(\) => \{ alive\.current = true; return \(\) => \{ alive\.current = false; \}; \}, \[\]\);/);
+  assert.match(src, /insertBlock: \(block, \{ into = null, after = null \} = \{\}\) => \{\n\s+if \(!alive\.current\) return null;/);
 });
 
 test('AdaptiveCanvas.jsx: persist() saves the board read through refs (canvas-persist.js); the debounced save is unchanged (LP1 Task 15)', () => {
   const src = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   assert.match(src, /boardRef\.current = \{ strokes, shapes, items, links, blocks, groups, areas \};/);
-  assert.match(src, /persist: \(\) => persistBoard\(\{ state: boardRef\.current, storageKey, storage: \(\) => localStorage, onSave: onSaveRef\.current \}\),/);
+  // Final review B-C1: an unmounted canvas saves nothing (its stale board would overwrite the new canvas's copy).
+  assert.match(src, /persist: \(\) => \(alive\.current \? persistBoard\(\{ state: boardRef\.current, storageKey, storage: \(\) => localStorage, onSave: onSaveRef\.current \}\) : Promise\.resolve\(\{ ok: false \}\)\),/);
   // The debounced save: same key, shape, stripping, 400 ms, and onSave only after the first (loaded) run.
   assert.match(src, /const light = lightBlocks\(blocks\);/);
   assert.match(src, /const state = \{ strokes, shapes, items, links, blocks: light, groups, areas \};\n\s+if \(storageKey\) \{ try \{ localStorage\.setItem\(storageKey, JSON\.stringify\(state\)\); \} catch \{ \/\* full or blocked storage loses drawings only \*\/ \} \}\n\s+if \(!loaded\) onSaveRef\.current\?\.\(state\);\n\s+\}, 400\);/);

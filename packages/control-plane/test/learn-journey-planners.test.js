@@ -110,6 +110,8 @@ test('adaptPath escalates to journey_path on a validator rejection, ambiguity or
   let s = scripted(renamed, REVISION);
   let out = await adaptPath(env, { prev: PREV, edit: 'rename the first section', registry: REG, states: CALM }, { callModel: s.callModel });
   assert.deepEqual(s.calls.map(c => c.model), both);
+  // Final review A-I1: the escalation runs with journey_path's own cap (12000), not journey_adapt's.
+  assert.deepEqual(s.calls.map(c => c.body.max_tokens), [LEARN_TASKS.journey_adapt.maxTokens, 12000]);
   assert.equal(out.escalated, 'validator');
   assert.equal(out.path.version, 2);
   // (b) ambiguous: true.

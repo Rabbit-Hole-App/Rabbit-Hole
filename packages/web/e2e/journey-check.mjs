@@ -20,7 +20,10 @@ const BASE = arg('base', 'http://127.0.0.1:8868'), CP = arg('cp', 'http://127.0.
 for (const origin of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(origin)) throw Error('journey-check runs against the local stack only');
 if (!VARS) throw Error('--vars <the local stack .dev.vars> is required (e2e/journey-local-stack.md)');
 mkdirSync(OUT, { recursive: true });
-const secret = readFileSync(VARS, 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)?.[1].trim();
+const vars = readFileSync(VARS, 'utf8');
+// Final review C-m5: keyless only. A vars file that binds a model or voice key is refused before any request.
+if (/_API_KEY=|ELEVENLABS_/.test(vars)) throw Error(`${VARS} binds a model or voice key: journey-check runs only against the keyless stack (e2e/journey-local-stack.md)`);
+const secret = vars.match(/^TEST_BYPASS_SECRET=(.*)$/m)?.[1].trim();
 if (!secret) throw Error(`no TEST_BYPASS_SECRET in ${VARS}`);
 
 const REQUEST = 'I want to learn logistic regression';

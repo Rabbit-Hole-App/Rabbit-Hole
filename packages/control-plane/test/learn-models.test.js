@@ -169,8 +169,10 @@ test('the journey roles: exactly five LEARN_TASKS entries, one tool each, no fal
   const journey = Object.fromEntries(Object.entries(LEARN_TASKS).filter(([key]) => key.startsWith('journey_')));
   assert.deepEqual(journey, {
     journey_resolver: role('claude-sonnet-5-5', 'low', 300),
-    journey_diagnostic: role('claude-sonnet-5-5', 'low', 3000),
-    journey_path: role('claude-opus-5-5', null, 4000),
+    // Final review A-I1: room for Opus thinking plus a whole registry when a draft starts from an empty one (fast start,
+    // a quick overview: no diagnostic).
+    journey_diagnostic: role('claude-sonnet-5-5', 'low', 8000),
+    journey_path: role('claude-opus-5-5', null, 12000),
     journey_section: role('claude-sonnet-5-5', 'low', 3000),
     journey_adapt: role('claude-sonnet-5-5', 'low', 4000),
   });

@@ -7,7 +7,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -243,6 +244,18 @@ test('controller: an evaluate refusal (400) still advances the walker exactly on
   assert.equal(h.view().tray.error, undefined, 'an evaluator error shows nothing: placement goes on');
 });
 
+test('final review A-m6: an mcq answer, then probe_advance on the revision the evaluate reply carries - no 409 and no replay', async () => {
+  const j = journeyOf({ state: 'diagnostic', diagnostic: { probes } });
+  // The server: probe_advance on a stale revision is a 409 with the re-read journey, as the route answers it.
+  const advance = (_path, body) => (body.revision === 5 ? ok({ ...j, revision: 6 }, explainTray) : { status: 409, d: { error: 'revision', journey: { ...j, revision: 5 }, path: null, tray: probeTray } });
+  const h = harness(ok(j, probeTray), [{ status: 200, d: { status: 'settled', evaluator: 'deterministic', events: [], journey: { events: [], seq: 1, revision: 5 } } }, advance, advance]);
+  await h.refresh();
+  await h.view().answer('a');
+  assert.deepEqual(h.calls.map(c => c.body?.action ?? c.path), [GET, '/api/learn/tutor/evaluate', 'probe_advance']);
+  assert.equal(h.calls[2].body.revision, 5);
+  assert.equal(h.view().tray.id, explainTray.id);
+});
+
 test('controller: free text answers the goal slot with intake_answer, and a probe through the Tutor probe turn then probe_advance', async () => {
   const goal = harness(ok(journeyOf(), goalTray), [{ status: 200, d: { kind: 'tray_answer' } }, ok(journeyOf({ revision: 5 }), familiarityTray)]);
   await goal.refresh();
@@ -291,6 +304,18 @@ test('controller: a cancel the journey cannot take (409 in path_review) dismisse
   assert.deepEqual(await h.view().handleText('Can we skip this?'), { handled: true });
   assert.deepEqual(h.actions(), ['cancel']);
   assert.equal(h.view().tray, null);
+});
+
+test('final review B-I2: a cancel at path review hides the tray only until the next turn - typed start brings it back and accepts (D6)', async () => {
+  for (const words of ['Can we skip this?', 'not now']) {
+    const j = journeyOf({ state: 'path_review', path_version: 1 });
+    const h = harness(ok(j, previewTray), [{ status: 409, d: { error: 'cancel is not legal in path_review', journey: j, path: null, tray: previewTray } }, ok(journeyOf({ state: 'active', revision: 5, path_version: 2 }), null)]);
+    await h.refresh();
+    await h.view().handleText(words);
+    assert.equal(h.view().tray, null, `${words}: dismissed for now`);
+    assert.deepEqual(await h.view().handleText('start'), { handled: true });
+    assert.deepEqual(h.actions(), ['cancel', 'accept'], `${words}: the path tray is back and Start accepts`);
+  }
 });
 
 test('controller: live_journey offers continue or start; Start archives the live one, then starts the new topic', async () => {
@@ -804,6 +829,45 @@ test('controller: a throw inside the materializer shows the error line, and Try 
   assert.equal(h.view().tray, null);
 });
 
+test('final review B-I1: a failed step or a throw keeps its Try again through Dismiss and a typed turn, and the Retry still works', async () => {
+  for (const [failure, message] of [['step', 'Part of this section could not be made.'], ['throw', 'This section could not be prepared.']]) {
+    const canvas = fakeCanvas([], { failReserve: failure === 'throw' ? 1 : 0 });
+    const plan = { ...sectionPlan, teaching_sequence: [textStep('frame'), graphStep] };
+    const h = scripted(() => canvas, [
+      review(),
+      ok(activeJourney({ section_plan: plan }), null, activePath),
+      ...(failure === 'step' ? [{ status: 502, d: { error: 'model down' } }] : []),
+      { status: 200, d: { result: 'artifact', block: { type: 'graph', title: 'Sigmoid' } } },
+      recorded('b1', { section_plan: plan }),
+    ]);
+    await h.ctl.refresh();
+    h.view().canvasReady();
+    await h.view().answer('start');
+    assert.equal(h.view().tray.error.message, message);
+    assert.doesNotMatch(render({ tray: h.view().tray }), /data-tray-dismiss/, `${failure}: no Dismiss on the line`);
+    await h.view().answer('dismiss');
+    assert.equal(h.view().tray?.error?.message, message, `${failure}: Dismiss leaves it`);
+    assert.deepEqual(await h.view().handleText('What is a sigmoid?'), { handled: false }, 'a question still goes to the Tutor');
+    assert.equal(h.view().tray?.error?.message, message, `${failure}: a typed turn leaves it`);
+    await h.view().answer('retry');
+    assert.equal(h.calls.at(-1).body.action, 'section_materialized', `${failure}: the Retry draws the rest and records it`);
+    assert.deepEqual(canvas.inserts().map(c => c[1].type), ['heading', 'explanation', 'graph']);
+    assert.equal(h.view().tray, null);
+  }
+});
+
+test('final review B-I1: the kept line goes once the section it would retry is recorded elsewhere (a load finds the heading)', async () => {
+  const canvas = fakeCanvas();
+  const plan = { ...sectionPlan, teaching_sequence: [textStep('frame'), graphStep] };
+  const h = scripted(() => canvas, [review(), ok(activeJourney({ section_plan: plan }), null, activePath), { status: 502, d: { error: 'model down' } }, recorded('h-other-tab', { section_plan: plan })]);
+  await h.ctl.refresh();
+  h.view().canvasReady();
+  await h.view().answer('start');
+  assert.equal(h.view().tray.error.message, 'Part of this section could not be made.');
+  await h.ctl.refresh();
+  assert.equal(h.view().tray, null, 'no Retry for a section the server holds');
+});
+
 // ---- Save before commit (architecture §6.5.5, LP1 Task 15, owner blocker): artifacts, then a saved board, then
 // section_materialized. A learner who leaves in between finds the section resumable, never falsely built, never made twice ----
 const UNSAVED = 'This section is on the canvas but could not be saved yet.';
@@ -981,6 +1045,53 @@ test('review round 2: an unsaved section another tab records meanwhile drops the
   assert.deepEqual(h.steps(), ['GET', 'accept', 'GET']);
   assert.equal(h.view().tray, null, 'no unsaved line for a section the server holds');
   assert.equal(canvas.persisted.length, 1);
+});
+
+// ---- Final review B-C1: the learner leaves mid-section inside the app (Home, the sidebar, a Rabbit Hole remounting the
+// page). The old canvas answers inserts without drawing them and saves its stale board ok (as AdaptiveCanvas did before
+// its alive guard); useJourney's unmount disposes the controller. ----
+const leavingCanvas = () => {
+  const canvas = fakeCanvas(), draw = canvas.insertBlock;
+  let alive = true, ghosts = 0;
+  return Object.assign(canvas, { leave: () => { alive = false; }, insertBlock: (block, options) => (alive ? draw(block, options) : `ghost${++ghosts}`) });
+};
+test('final review B-C1: leaving mid-section stops before the next paid call and records nothing; a fresh controller resumes from the stored copy and records once', async () => {
+  const shot = (step_id, request) => ({ step_id, role: 'interactive_visual', make: { command: 'graph', request }, claims: [] });
+  const plan = { ...sectionPlan, teaching_sequence: [shot('one', 'first'), shot('two', 'second'), shot('three', 'third')] };
+  const made = title => ({ status: 200, d: { result: 'artifact', block: { type: 'graph', title } } });
+  const old = leavingCanvas();
+  const h = scripted(() => old, [
+    review(),
+    ok(activeJourney({ section_plan: plan }), null, activePath),
+    made('one'),
+    () => { old.leave(); h.ctl.dispose?.(); return made('two'); }, // the learner clicks Home while step 2 is made
+  ]);
+  await h.ctl.refresh();
+  h.view().canvasReady();
+  await h.view().answer('start');
+  assert.deepEqual(h.steps(), ['GET', 'accept', '/api/learn/artifact', '/api/learn/artifact'], 'no paid call for step 3, no section_materialized');
+  assert.deepEqual(old.flow.map(b => b.type), ['heading', 'graph'], 'what reached the board (and the debounced save)');
+  // The return: a fresh controller over the stored copy (ids renamed apart from the fake's counter).
+  const fresh = fakeCanvas(old.flow.map(b => ({ ...b, id: `saved-${b.id}` })));
+  const r = scripted(() => fresh, [
+    ok(activeJourney({ section_plan: plan }), null, activePath),
+    ok(activeJourney({ section_plan: plan }), null, activePath),
+    made('two'), made('three'),
+    recorded('saved-b1', { section_plan: plan }),
+  ]);
+  r.view().canvasReady();
+  await r.ctl.refresh();
+  assert.deepEqual(r.steps(), ['GET', 'GET', '/api/learn/artifact', '/api/learn/artifact', 'section_materialized']);
+  assert.deepEqual(r.calls.filter(c => c.path === '/api/learn/artifact').map(c => c.body.args), ['second', 'third'], 'step 1 is not made again');
+  assert.equal(r.calls.at(-1).body.heading_block_id, 'saved-b1');
+  assert.deepEqual(fresh.inserts().map(c => c[1].journey.step_id), ['two', 'three']);
+  assert.equal(r.view().journey.section_plan.heading_block_id, 'saved-b1');
+});
+
+test('final review B-C1: useJourney disposes its controller on unmount or a board change, and a later mount builds a fresh one', () => {
+  const src = read('LearnJourney.jsx');
+  assert.match(src, /useEffect\(\(\) => \{ ctl\?\.refresh\(\); return \(\) => \{ ctl\?\.dispose\(\); if \(ref\.current === ctl\) ref\.current = null; \}; \}, \[ctl\]\);/);
+  assert.match(src, /const fetchJson = \(\.\.\.args\) => \(s\.dead \? Promise\.reject\(new Error\('This journey view has closed\.'\)\) : send\(\.\.\.args\)\);/);
 });
 
 // ---- useTutor on a journey canvas (LP1 Task 12; architecture §0 D1 and D6, §7.2, §12): the real hook, rendered once on
@@ -1185,6 +1296,9 @@ test('ask.jsx and LearnPage.jsx: the sheet opens only for a Tutor reply; slash p
   // asks about the block it sits in.
   assert.match(page, /renderBlockComposer=\{[^\n]*?canvasSeed=\{\{ question: exchange\.question, answer: exchange\.answer, target \}\} onExchange=\{onExchange\} tutor=\{journey\.journey \|\| \(tutor\.active && dive\.tree\?\.dive\?\.journey\) \? tutor : null\}/);
   assert.match(ask, /targetId: \(target \|\| canvasSeed\?\.target\)\?\.id \|\| null/);
+  // Final review C-I1: a hole's opening turn is sent once, from the dock - never again from each block's composer
+  // (Continue convo), which gets the same Tutor in a journey hole.
+  assert.match(ask, /if \(!dock \|\| !tutor\?\.opening \|\| openedHole\.current === tutor\.opening\.key \|\| busy\) return;/);
 });
 
 // ---- LP1 Task 14 (architecture §13): the minimal journey context a Rabbit Hole opened from a journey section carries.
@@ -1199,6 +1313,21 @@ const divePath = { current_section_id: 's2', sections: [
 ] };
 const activeDive = (over = {}) => journeyOf({ state: 'active', active_section_id: 's2', registry: DIVE_REGISTRY, ...over });
 const stampedBlock = (journey_id, section_id, claims) => ({ id: 'b7', type: 'explanation', title: 'Odds', journey: { journey_id, section_id, step_id: 'b7', claims } });
+
+// Final review C-m5: the J1-J8 harness runs only against the keyless stack - a vars file binding a model or voice key
+// is refused before any request (the origins here answer nothing, so a request would fail differently).
+test('journey-check.mjs refuses a vars file with an _API_KEY= or ELEVENLABS_ line, before any request', () => {
+  const tmp = mkdtempSync(join(tmpdir(), 'journey-check-'));
+  try {
+    for (const line of ['ANTHROPIC_API_KEY=not-a-key', 'ELEVENLABS_VOICE=not-a-voice']) {
+      const vars = join(tmp, '.dev.vars');
+      writeFileSync(vars, `SMALL_ENV=test\nTEST_BYPASS_SECRET=local\n${line}\n`);
+      const run = spawnSync(process.execPath, [fileURLToPath(new URL('../e2e/journey-check.mjs', import.meta.url)), '--base', 'http://127.0.0.1:9', '--cp', 'http://127.0.0.1:9', '--vars', vars, '--out', join(tmp, 'out')], { encoding: 'utf8' });
+      assert.notEqual(run.status, 0);
+      assert.match(run.stderr, /binds a model or voice key: journey-check runs only against the keyless stack/, line.split('=')[0]);
+    }
+  } finally { rmSync(tmp, { recursive: true, force: true }); }
+});
 
 test('journeyDiveContext: from a stamped section block - its claims (registry ids, at most 4) and its section; their concepts, then the section targets', () => {
   assert.deepEqual(journeyDiveContext(activeDive(), divePath, stampedBlock('j1', 's1', ['odds/log', 'gone/claim'])),
