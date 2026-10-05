@@ -277,3 +277,76 @@ test('journeyIntent: a deictic topic is no journey', () => {
   for (const t of ['Teach me this', 'I want to understand this', 'I want to understand this better', 'I need to learn this stuff'])
     assert.equal(journeyIntent(t).kind, 'none', t);
 });
+
+const JOURNEY_KINDS = ['learning_journey', 'focused_skill', 'quick_overview', 'fast_start'];
+const kts = (t) => { const i = journeyIntent(t); return [i.kind, i.topic, i.skip_setup]; };
+
+test('journeyIntent: a request with a skip clause beside it is a fast start, whatever follows', () => {
+  const cases = [
+    ['Teach me transformers, skip the setup questions', 'transformers'],
+    ['Teach me transformers, skip the setup for now', 'transformers'],
+    ['I want to learn X but skip the setup questions', 'x'],
+    ['Skip the setup questions and teach me transformers', 'transformers'],
+    ['Skip setup, just teach me transformers', 'transformers'],
+    ['Skip setup and start teaching me transformers', 'transformers'],
+    ['Teach me transformers and skip the setup questions', 'transformers'],
+    ['Teach me transformers, skip setup, I already know the basics', 'transformers'],
+    ['I want to learn React, skip setup, I know JavaScript', 'react'],
+    ['Teach me transformers, don’t ask me questions, I know the basics', 'transformers'],
+    ['Teach me transformers—skip setup', 'transformers'],
+    ['Skip setup—teach me transformers', 'transformers'],
+  ];
+  for (const [text, topic] of cases) assert.deepEqual(kts(text), ['fast_start', topic, true], text);
+  assert.deepEqual(kts('Skip the setup questions'), ['fast_start', null, true]);
+  // The protected cases stay as they were.
+  assert.deepEqual(kts('I want to learn how to skip setup steps in Docker'), ['learning_journey', 'skip setup steps in docker', false]);
+  assert.equal(journeyIntent('I want to learn the').topic, null);
+});
+
+test('journeyIntent: only a clause that names setup stands alone', () => {
+  for (const t of ['No questions', 'No questions, thanks', 'Thanks, no questions', 'Okay, no questions', 'no questions please',
+    'Skip the questions', "Don't ask questions", 'dont ask any questions', 'Just start then', 'Okay just start then', 'Lets just start then'])
+    assert.equal(journeyIntent(t).kind, 'none', t);
+  assert.equal(journeyIntent('Can you skip the questions?').kind, 'direct_question');
+  for (const t of ['Skip setup and start', 'Just start, skip setup', 'Can we skip setup and just start?', "Don't ask me setup questions, just start",
+    'Teach me transformers, no questions, just start'])
+    assert.equal(journeyIntent(t).kind, 'fast_start', t);
+});
+
+test('journeyIntent: symbols inside a topic are part of it', () => {
+  const cases = [
+    ['Teach me C++', 'c++'], ['Teach me C#', 'c#'], ['I want to learn C#', 'c#'], ['Teach me F#', 'f#'],
+    ['teach me c++ templates', 'c++ templates'], ['Teach me A/B testing', 'a/b testing'], ['Teach me the A* algorithm', 'a* algorithm'],
+    ['I want to learn C/C++', 'c/c++'], ['Teach me what a transformer looks like', 'what a transformer looks like'],
+  ];
+  for (const [text, topic] of cases) assert.deepEqual([journeyIntent(text).kind, journeyIntent(text).topic], ['learning_journey', topic], text);
+  assert.equal(journeyIntent('Teach me how C++ works').topic, 'c++');
+  assert.equal(journeyIntent('Teach me transformers + attention').topic, 'transformers attention');
+  // A mark that does not follow a word is still a break.
+  for (const t of ['#2', 'option #2']) assert.equal(resolveTurnRules(t, intakeTray)?.option_id, 'intuition', t);
+  assert.deepEqual(resolveTurnRules('skip ***', probeTray), { kind: 'cancel' });
+  // A star stays only after a one-letter word (A*): markdown emphasis is still a break.
+  assert.deepEqual(resolveTurnRules('*skip*', probeTray), { kind: 'cancel' });
+});
+
+test('journeyIntent: a deictic or contentless topic is no journey', () => {
+  for (const t of ['I want to understand how this works', 'I want to understand what this means', 'I want to understand this concept',
+    'I want to understand this diagram', 'I want to understand why this happens', 'Walk me through how this works', 'I want to understand it all',
+    'I want to learn more', 'I need to learn more', 'Teach me something new', 'Walk me through this diagram', 'Teach me this concept',
+    'I want to understand this equation', 'walk me through this code', 'I want to understand why this works', 'I want to understand this chart better',
+    'Teach me how it works', 'I want to understand how it works', 'Teach me that'])
+    assert.equal(journeyIntent(t).kind, 'none', t);
+  for (const [text, topic] of [['Teach me models that generate images', 'models that generate images'], ['Teach me models that scale', 'models that scale'],
+    ['Teach me IT security', 'it security'], ['I want to learn algorithms that sort lists', 'algorithms that sort lists']])
+    assert.deepEqual([journeyIntent(text).kind, journeyIntent(text).topic], ['learning_journey', topic], text);
+  assert.ok(JOURNEY_KINDS.includes(journeyIntent('Teach me more about transformers').kind));
+});
+
+test('rule 3 vs 4: skip the next X names a path element, skip to the next X moves on', () => {
+  for (const t of ['skip the next section', 'Skip the next section please', 'skip the next step', 'skip the next one']) {
+    for (const tray of [previewTray, null]) assert.deepEqual(resolveTurnRules(t, tray), { kind: 'path_edit', edit: t }, t);
+    assert.equal(resolveTurnRules(t, probeTray), null, t);
+  }
+  for (const t of ['skip to the next step', 'move on to the next question', 'move on to the next section'])
+    assert.deepEqual(resolveTurnRules(t, previewTray), { kind: 'cancel' }, t);
+});

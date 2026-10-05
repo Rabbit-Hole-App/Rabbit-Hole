@@ -6,16 +6,20 @@
 // Import-free on purpose: the browser bundle and the control-plane worker both import this one copy.
 
 // Every rule runs on this form, which is how punctuation can never decide: "Can we skip this?", "can we skip this…" and
-// "can we skip this" are one text. Any mark is a word break ("option,2", "skip...this", "skip 🙂"), except a hyphen or a
-// dot inside a word ("10-minute", "node.js"); dashes become hyphens first, so a spaced dash is a break too.
-const norm = (s) => String(s ?? '').toLowerCase().replace(/['‘’]/g, '').replace(/[‐-―]/g, '-')
-  .replace(/[^\p{L}\p{M}\p{N}.-]+|[.-](?![\p{L}\p{N}])|(?<![\p{L}\p{N}])[.-]/gu, ' ').replace(/\s+/g, ' ').trim();
+// "can we skip this" are one text. Any mark is a word break ("option,2", "skip...this", "skip 🙂", "#2"), except a hyphen,
+// dot, slash or ampersand inside a word ("10-minute", "node.js", "a/b", "r&d"), + or # after one ("c++", "c#") and * after
+// a one-letter word ("a*", while "*skip*" is still "skip"). Hyphen-like dashes (U+2010-2013) become hyphens first, so a
+// spaced dash is a break; an em dash is always a break ("transformers—skip setup").
+const norm = (s) => String(s ?? '').toLowerCase().replace(/['‘’]/g, '').replace(/[‐-–]/g, '-')
+  .replace(/[^\p{L}\p{M}\p{N}.\-\/&+#*]+|[.\-\/&](?![\p{L}\p{N}])|(?<![\p{L}\p{N}])[.\-\/&]|(?<![\p{L}\p{N}+#])[+#]+|(?<!(?<![\p{L}\p{N}])\p{L})\*+/gu, ' ')
+  .replace(/\s+/g, ' ').trim();
 
 // ---- Intent (6.1) ----
 // ponytail: regex intent and edit rules; a model classifier when misses show
-// The broad verbs are web/src/agent/router.js LEARN_INTENT's (copied, router.js is untouched) plus "i want to understand" and "i need to learn".
-const BROAD = /^(?:please )?(?:teach me|walk me through|i want to learn|i would like to learn|id like to learn|help me learn|i want to understand|i need to learn|start an? rabbit hole(?: on)?) (.+)$/;
-const FOCUSED = /^(?:please )?(?:show me how to (?:build|implement|code) (.+?)|teach me how (.+?) works?)$/;
+// The broad verbs are web/src/agent/router.js LEARN_INTENT's (copied, router.js is untouched) plus "i want to understand",
+// "i need to learn" and "start teaching me".
+const BROAD = /^(?:(?:please|just) )*(?:teach me|walk me through|i want to learn|i would like to learn|id like to learn|help me learn|i want to understand|i need to learn|start teaching me|start an? rabbit hole(?: on)?) (.+)$/;
+const FOCUSED = /^(?:(?:please|just) )*(?:show me how to (?:build|implement|code) (.+?)|teach me how (.+?) works?)$/;
 // ponytail: replace with request-duration.js parseDuration (Motion) once on main; it needs hyphen support ("10-minute")
 // (OVERVIEW and IN_MINUTES both).
 const OVERVIEW = /^(?:just )?give me (?:an? )?(\d+)[- ]minutes? (visual )?overview of (.+)$/;
@@ -25,20 +29,24 @@ const FILLER = /\b(?:um+|uh+m?|erm|hmm+|you know)\b/g;
 const GREETING = /^(?:(?:so|okay|ok|well|hey|hi|hello|yeah|right|alright) )+/;
 // A setup clause starts at a word ("piano setup" is a topic). It means a fast start only when what stands around it is a
 // journey request or bare politeness ("Skip the setup, teach me X", "Teach me X with no setup questions", "Can we skip
-// setup and just start?"); in "What happens if I skip setup?" or "the no setup method" it is part of the text.
-const CLAUSE = /(?:^|\s)(?:(?:and|but|then) )?(?:skip (?:the )?(?:setup|questions)|dont ask (?:me )?(?:any )?(?:setup )?questions|(?:with )?no (?:setup|questions)(?: questions)?|just start)(?: and| then)?(?=\s|$)/;
-const BARE = /^(?:(?:(?:can|could) (?:we|you|i)|please|just|lets|and|then|now|start|begin|thanks)(?: |$))*$/;
+// setup and just start?"), or when a request comes right before an imperative skip ("Teach me X, skip setup, I know the
+// basics"); in "What happens if I skip setup?" or "the no setup method" it is part of the text.
+const CLAUSE = /(?:^|\s)(?:(?:and|but|then) )?(?:skip (?:the )?(?:setup(?: questions)?|questions)|dont ask (?:me )?(?:any )?(?:setup )?questions|(?:with )?no (?:setup|questions)(?: questions)?|just start)(?: and| then)?(?=\s|$)/;
+const BARE = /^(?:(?:(?:can|could) (?:we|you|i)|please|just|lets|and|then|now|for now|start|begin|thanks)(?: |$))*$/;
 const STARTS = new Set(['learning_journey', 'focused_skill', 'quick_overview', 'fast_start']);
 const QUESTION = /^(?:what|why|how|when|who|where|which|is|are|does|do|can|explain)\b/;
 // "about transformers", "all about attention", "the basics of attention", "how to code", "a transformer" name the topic
 // after the noise. "the basics of" before "the": the first alternative that matches wins.
 const TOPIC_NOISE = /^(?:(?:like|(?:more |all |everything )?about|the basics of|how to|an?|the) )+/;
-const TOPIC_TAIL = /(?: (?:from scratch|step by step|please|thanks|thank you|like))+$/;
-// A deictic topic ("teach me this", "I want to understand this better") names what is on the canvas, not a subject: that
-// is target binding, the canonical resolver's job, so it is no journey here.
-const DEICTIC = /^(?:this|that|it|these|those)(?: (?:better|stuff|part|one|thing|more))?$/;
+const TOPIC_TAIL = /(?: (?:from scratch|step by step|please|thanks|thank you))+$/;
+// A deictic topic ("teach me this", "how this works", "this diagram", "it all") names what is on the canvas, not a
+// subject: that is target binding, the canonical resolver's job, so it is no journey here. "that" counts only first
+// ("models that scale" is a topic) and "it" only after a word ("IT security" is a topic). A contentless topic ("more",
+// "something new") is none too. A missed journey is cheap (the responder can offer the path); a false start is not.
+const DEICTIC = /(?:^|\s)(?:this|these|those)(?:\s|$)|^that(?:\s|$)|\sit(?:\s|$)|^it(?: (?:better|stuff|part|one|thing|more|all))?$|^(?:more|something|everything|anything)(?: new| else)?$/;
 
-const cleanTopic = (t) => (t ?? '').replace(TOPIC_NOISE, '').replace(TOPIC_TAIL, '').trim() || null;
+// The trailing space lets a lone noise word go too: "I want to learn the" has no topic.
+const cleanTopic = (t) => ((t ?? '') + ' ').replace(TOPIC_NOISE, '').trimEnd().replace(TOPIC_TAIL, '').trim() || null;
 const intent = (kind, topic = null, constraints = {}, skip_setup = false) => ({ kind, topic, constraints, skip_setup });
 const start = (kind, raw, constraints) => {
   const topic = cleanTopic(raw);
@@ -50,9 +58,13 @@ export function journeyIntent(text) {
   const c = n.match(CLAUSE);
   if (c) {
     const sides = [n.slice(0, c.index).trim(), n.slice(c.index + c[0].length).trim()].map((s) => [s, journeyIntent(s)]);
+    const left = sides[0][1];
+    if (/^(?:(?:and|but|then) )?(?:skip|dont ask)/.test(c[0].trim()) && STARTS.has(left.kind) && left.topic)
+      return intent('fast_start', left.topic, left.constraints, true);
     const req = sides.map(([, i]) => i).find((i) => STARTS.has(i.kind));
-    // A bare "just start" names no setup to skip: it needs a request beside it, or "Just start" alone would be a topicless journey.
-    if ((req || !c[0].endsWith('just start')) && sides.every(([s, i]) => BARE.test(s) || STARTS.has(i.kind)))
+    // Only a clause that names setup stands alone ("Skip setup and start"). "Just start", "no questions" and "skip the
+    // questions" need a request beside them, or a chat reply ("No questions, thanks") would be a topicless journey.
+    if ((req || /\bsetup\b/.test(c[0])) && sides.every(([s, i]) => BARE.test(s) || STARTS.has(i.kind)))
       return intent('fast_start', req?.topic ?? null, req?.constraints ?? {}, true);
   }
   const t = n.match(IN_MINUTES);
@@ -70,8 +82,9 @@ const POLITE = /^(?:(?:can|could) we )?(?:please )?| please$/g;
 const ORDINALS = [['first', '1', 'one', 'a'], ['second', '2', 'two', 'b'], ['third', '3', 'three', 'c'], ['fourth', '4', 'four', 'd']];
 const ORDINAL = new RegExp(`^(?:do |pick )?(?:option |number |the )?(${ORDINALS.flat().join('|')})(?: one| option)?$`);
 const ACCEPT = new Set(['start', 'looks good', 'lets go', 'go ahead', 'yes', 'ok', 'okay', 'sounds good', 'start with section 1']);
-// A skip or move-on of the current step, with a deictic, next-step or setup object and an optional "for now".
-const CANCEL = /^(?:skip|cancel|never mind|not now|stop|move on)(?: (?:to )?(?:this|that|it|ahead|all of (?:this|it)|the rest|the next (?:question|one|step|section)|(?:the )?(?:setup|assessment|quiz|diagnostic|test)|(?:this|these|the) (?:questions?|part|step|bit|one)))?(?: for now)?$/;
+// A skip or move-on of the current step, with a deictic, next-step or setup object and an optional "for now". A next-step
+// object needs "to": "skip to the next step" moves on, "skip the next section" names a path element (rule 4).
+const CANCEL = /^(?:skip|cancel|never mind|not now|stop|move on)(?: (?:this|that|it|ahead|all of (?:this|it)|the rest|to the next (?:question|one|step|section)|(?:the )?(?:setup|assessment|quiz|diagnostic|test)|(?:this|these|the) (?:questions?|part|step|bit|one)))?(?: for now)?$/;
 // "do" edits only in the spec's shape, an object then an order ("do Python first"): "do I need calculus", "do those need
 // calculus" and "do the first one" are a question or a choice.
 const EDIT = /^(?:go deeper\b.*|(?:skip|drop|remove|add|include|move|put|make (?:it|this|the path)|more|less) .+|do (?!(?:this|that|it|these|those|you|i|we|they|not)\b).+ (?:first|last|earlier|later|next|before .+|after .+))$/;
