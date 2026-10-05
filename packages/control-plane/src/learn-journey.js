@@ -134,13 +134,16 @@ const EFFECTS = {
   },
 };
 
-// The response: the browser copy of the journey (no answer keys), its current path with the materialized heading of the
-// current section (kept on the journey row, not in a path version) so pathEntries can show it, and the tray.
+// The response: the browser copy of the journey (no answer keys), its current path with the current section's live
+// progress from the journey row (never written into a path version, which stays immutable history) - its materialized
+// heading, so pathEntries can show it, and its generation_state: 'planning' from accept until section_materialized
+// (posted only once the board is saved, §6.5.5, LP1 Task 15), then 'generated' - and the tray.
 async function reply(env, j, status = 200, extra = {}) {
   let path = j?.path_version ? await loadPath(env, j.id) : null;
   const tray = trayFor(j, path, j?.state === 'diagnostic' ? { probe: nextProbe(j.diagnostic) } : {});
-  const heading = j?.section_plan?.heading_block_id;
-  if (path && heading) path = { ...path, sections: path.sections.map(s => (s.id === j.active_section_id ? { ...s, heading_block_id: heading } : s)) };
+  const plan = j?.section_plan, id = j?.active_section_id, heading = plan?.heading_block_id;
+  const generation_state = plan?.section_id === id && plan?.generation_state === 'generated' ? 'generated' : 'planning';
+  if (path && id) path = { ...path, sections: path.sections.map(s => (s.id === id ? { ...s, generation_state, ...(heading ? { heading_block_id: heading } : {}) } : s)) };
   return json({ ...extra, journey: j && toClient(j), path, tray }, status);
 }
 

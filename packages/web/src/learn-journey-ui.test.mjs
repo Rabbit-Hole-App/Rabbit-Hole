@@ -604,11 +604,18 @@ test('LearnPage.jsx: the materializer may read the canvas only once its board is
 
 // ---- The materialization trigger (§6.5, R5, ruling C-3): after the action that planned the current section, and on a
 // load once the canvas is ready, never twice ----
-const fakeCanvas = (seed = [], { failReserve = 0 } = {}) => {
-  const calls = [], flow = seed.map(block => ({ ...block }));
+// persist() (LP1 Task 15) records the flow ids it saved in `persisted` and answers the next of `saves` (a result, or a
+// function giving one or a promise), else a saved board.
+const fakeCanvas = (seed = [], { failReserve = 0, saves = [] } = {}) => {
+  const calls = [], flow = seed.map(block => ({ ...block })), persisted = [];
   let n = 0, fails = failReserve;
   return {
-    calls, flow,
+    calls, flow, persisted,
+    persist: async () => {
+      persisted.push(flow.map(block => block.id));
+      const next = saves.shift();
+      return typeof next === 'function' ? next() : next ?? { ok: true, local: true, remote: 'skipped' };
+    },
     inserts: () => calls.filter(c => c[0] === 'insert'),
     blocks: () => flow,
     reserve: () => { if (fails > 0) { fails -= 1; throw new Error('no canvas column'); } return 'slot:1'; },
@@ -640,7 +647,8 @@ const scripted = (canvas, replies) => {
   const ctl = journeyController({ where: { app: APP, board: 'main' }, canvas, fetchJson: async (path, body, options) => {
     calls.push({ path, body, options });
     if (!replies.length) throw new Error(`unexpected request ${path}`);
-    return replies.shift();
+    const reply = replies.shift();
+    return typeof reply === 'function' ? reply(path, body) : reply;
   } });
   return { ctl, calls, view: () => ctl.view(), steps: () => calls.map(c => c.body?.action ?? (c.path === GET ? 'GET' : c.path)) };
 };
@@ -793,6 +801,87 @@ test('controller: a throw inside the materializer shows the error line, and Try 
   await h.view().answer('retry');
   assert.deepEqual(canvas.inserts().map(c => c[1].type), ['heading', 'explanation', 'explanation', 'explanation']);
   assert.equal(h.calls.at(-1).body.action, 'section_materialized');
+  assert.equal(h.view().tray, null);
+});
+
+// ---- Save before commit (architecture §6.5.5, LP1 Task 15, owner blocker): artifacts, then a saved board, then
+// section_materialized. A learner who leaves in between finds the section resumable, never falsely built, never made twice ----
+const UNSAVED = 'This section is on the canvas but could not be saved yet.';
+const artifactPosts = h => h.calls.filter(c => c.path === '/api/learn/artifact').length;
+
+test('regression 1: leaving after the steps are drawn but before persist() resolves posts nothing; the reload draws the section exactly once', async () => {
+  let entered;
+  const inWindow = new Promise(resolve => { entered = resolve; });
+  // The first visit: the save never resolves - the page unloads inside the window and the controller is dropped.
+  const first = fakeCanvas([], { saves: [() => { entered(); return new Promise(() => {}); }] });
+  const h = scripted(() => first, [review(), ok(activeJourney(), null, activePath)]);
+  await h.ctl.refresh();
+  h.view().canvasReady();
+  await Promise.race([inWindow, h.view().answer('start')]);
+  assert.equal(first.inserts().length, 4, 'every step is on the canvas');
+  assert.deepEqual(h.steps(), ['GET', 'accept'], 'section_materialized is never posted before the save resolves');
+  const plan = h.view().journey.section_plan;
+  assert.deepEqual([plan.heading_block_id, plan.generation_state], [undefined, undefined], 'the server holds no heading and no generated state');
+  // The reload: a new controller over a canvas holding none of the blocks (nothing reached storage).
+  const fresh = fakeCanvas();
+  const r = scripted(() => fresh, [ok(activeJourney(), null, activePath), ok(activeJourney(), null, activePath), recorded('b1')]);
+  r.view().canvasReady();
+  await r.ctl.refresh();
+  assert.deepEqual(r.steps(), ['GET', 'GET', 'section_materialized']);
+  assert.deepEqual(fresh.inserts().map(c => c[1].type), ['heading', 'explanation', 'explanation', 'explanation']);
+  assert.deepEqual(fresh.persisted, [['b1', 'b2', 'b3', 'b4']], 'saved once, with every block, before the post');
+  await r.view().canvasReady();
+  await r.ctl.refresh().catch(() => {});
+  assert.equal(fresh.inserts().length, 4, 'materialized exactly once');
+});
+
+test('regression 2: blocks saved but section_materialized never posted - the reload reuses every stamped block, saves, then posts; nothing is made again', async () => {
+  const plan = { ...sectionPlan, teaching_sequence: [textStep('frame'), graphStep, textStep('predict')] };
+  const stamp = (id, step_id, type = 'explanation') => ({ id, type, journey: { section_id: 's1', step_id, claims: [] } });
+  const canvas = fakeCanvas([{ id: 'h-old', type: 'heading', level: 1, journey_section_id: 's1' }, stamp('f-old', 'frame'), stamp('g-old', 'graph', 'graph'), stamp('p-old', 'predict')]);
+  let savesAtPost = null;
+  const h = scripted(() => canvas, [
+    ok(activeJourney({ section_plan: plan }), null, activePath),
+    ok(activeJourney({ section_plan: plan }), null, activePath),
+    () => { savesAtPost = canvas.persisted.length; return recorded('h-old', { section_plan: plan }); },
+  ]);
+  h.view().canvasReady();
+  await h.ctl.refresh();
+  assert.deepEqual(canvas.inserts(), [], 'no step is drawn again');
+  assert.equal(artifactPosts(h), 0, 'no artifact is made again');
+  assert.deepEqual(h.steps(), ['GET', 'GET', 'section_materialized']);
+  assert.equal(savesAtPost, 1, 'the board is saved before the post');
+  assert.equal(h.calls[2].body.heading_block_id, 'h-old');
+  assert.equal(h.view().journey.section_plan.heading_block_id, 'h-old');
+  assert.equal(h.view().tray, null);
+});
+
+test('regression 3: a failed save posts nothing and shows the unsaved line; a load meanwhile draws nothing; Retry saves again and posts, making nothing again', async () => {
+  const plan = { ...sectionPlan, teaching_sequence: [textStep('frame'), graphStep] };
+  const canvas = fakeCanvas([], { saves: [{ ok: false, local: true, remote: 'failed' }] });
+  const h = scripted(() => canvas, [
+    review(),
+    ok(activeJourney({ section_plan: plan }), null, activePath),
+    { status: 200, d: { result: 'artifact', block: { type: 'graph', title: 'Sigmoid' } } },
+    ok(activeJourney({ section_plan: plan }), null, activePath), // the load while the error waits
+    recorded('b1', { section_plan: plan }),
+  ]);
+  await h.ctl.refresh();
+  h.view().canvasReady();
+  await h.view().answer('start');
+  assert.deepEqual(h.steps(), ['GET', 'accept', '/api/learn/artifact'], 'nothing is posted after the failed save');
+  assert.equal(h.view().tray.error.message, UNSAVED);
+  assert.match(render({ tray: h.view().tray }), /data-tray-retry/);
+  assert.equal(h.view().busy, false, 'the composer is free again');
+  await h.ctl.refresh();
+  assert.deepEqual(h.steps(), ['GET', 'accept', '/api/learn/artifact', 'GET'], 'a load does not run the section again');
+  await h.view().answer('retry');
+  assert.equal(canvas.persisted.length, 2, 'Retry saves again');
+  assert.deepEqual(h.steps(), ['GET', 'accept', '/api/learn/artifact', 'GET', 'section_materialized']);
+  assert.deepEqual(h.calls[4].body, { app: APP, board: 'main', action: 'section_materialized', section_id: 's1', heading_block_id: 'b1', revision: 6 });
+  assert.equal(canvas.inserts().length, 3, 'nothing is drawn again');
+  assert.equal(artifactPosts(h), 1, 'nothing is made again');
+  assert.equal(h.view().journey.section_plan.heading_block_id, 'b1');
   assert.equal(h.view().tray, null);
 });
 

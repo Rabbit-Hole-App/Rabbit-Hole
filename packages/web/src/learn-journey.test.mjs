@@ -435,6 +435,9 @@ test('journeyStep refuses illegal transitions', () => {
   const done = journeyStep(active, { type: 'section_materialized', section_id: 'classification-vs-regression', heading_block_id: 'h1' });
   assert.equal(done.error, undefined);
   assert.equal(done.journey.section_plan.heading_block_id, 'h1');
+  // LP1 Task 15 (regression 5): posted only once the board is saved, it records the section generated beside its heading.
+  assert.equal(done.journey.section_plan.generation_state, 'generated');
+  assert.equal(active.section_plan, undefined, 'the journey it stepped from is unchanged');
 });
 
 test('journeyStep: three answers move intake to diagnostic; a quick overview skips the diagnostic', () => {

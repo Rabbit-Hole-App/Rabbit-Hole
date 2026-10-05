@@ -18,6 +18,7 @@ const NOT_HERE = new Set(['not_a_learning_journey', 'journeys_on_canvases_only']
 const SETUP = new Set(['intake', 'diagnostic', 'path_review']);
 const JOURNEY = '/api/learn/journey';
 const BUSY = 'Working on it...';
+const UNSAVED = 'This section is on the canvas but could not be saved yet.';
 const CLARIFY = [{ id: 'answer', label: 'Answer the question' }, { id: 'edit', label: 'Change the path' }, { id: 'tutor', label: 'Ask the Tutor' }];
 // The composer's suggestion pills (ask.jsx), dimmed while the tray works.
 const PILL = 'cursor-pointer rounded-full border border-line bg-white px-3 py-1 text-left text-[13px] text-ink-2 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:border-line-strong hover:text-ink disabled:cursor-default disabled:opacity-50';
@@ -145,8 +146,9 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
   // §6.5, R5, ruling C-3: the current section's plan becomes canvas content once - after the action that planned it
   // (accept, a fast start, a retry), and on a load (refresh, a 409 re-read, the canvas becoming ready) once the canvas is
   // ready, never for another section, never from the rail. A load first reads the journey again and stops if the heading
-  // is recorded by then. Done is the server holding its heading (section_materialized). `started` is the ref guard while a
-  // run is on, and stays once the heading is recorded; a run that ends unrecorded (a failed step, a refused post, a throw)
+  // is recorded by then. Done is the server holding its heading (section_materialized, posted only once the board is
+  // saved, §6.5.5). `started` is the ref guard while a run is on, and stays once the heading is recorded or while an
+  // unsaved section waits for its Retry; a run that ends unrecorded otherwise (a failed step, a refused post, a throw)
   // lifts it, so Try again or the next load picks the section up from the canvas, which the materializer resumes.
   const started = new Set();
   const due = () => {
@@ -167,8 +169,17 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
     const j = s.data.journey;
     return j?.state === 'active' && j.active_section_id === section_id && !j.section_plan?.heading_block_id ? act(body) : out;
   };
+  // §6.5.5 (LP1 Task 15): a section whose board did not save is drawn but unrecorded. Its Retry saves the board again,
+  // then records it, drawing and requesting nothing; `started` stays held meanwhile, so no load runs the section again.
+  const unsaved = (target, id, heading) => set({ error: { message: UNSAVED, again: () => save(target, id, heading) } });
+  const save = async (target, id, heading) => {
+    set({ busy: BUSY, error: null });
+    let saved = null;
+    try { saved = await target.persist(); } catch { /* not saved */ } finally { set({ busy: null }); }
+    return saved?.ok ? materialized(id, heading) : unsaved(target, id, heading);
+  };
   const materialize = async ({ load = false } = {}) => {
-    let plan = due();
+    let plan = due(), held = false;
     const target = s.ready ? canvas() : null, id = plan?.section_id;
     if (!target || !plan || started.has(id)) return;
     started.add(id);
@@ -179,10 +190,11 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
         onProgress: ({ step, of }) => set({ busy: `Preparing step ${step} of ${of}...` }) });
       if (out.proposals.length) set({ proposals: out.proposals, local: proposalTray(out.proposals[0]) });
       if (out.failed_step) set({ error: { message: 'Part of this section could not be made.', again: () => materialize() } });
+      else if (out.unsaved) { held = true; unsaved(target, id, out.heading_block_id); }
     } catch {
       set({ error: { message: 'This section could not be prepared.', again: () => materialize() } });
     } finally {
-      if (!s.data.journey?.section_plan?.heading_block_id) started.delete(id);
+      if (!held && !s.data.journey?.section_plan?.heading_block_id) started.delete(id);
       set({ busy: null });
     }
   };

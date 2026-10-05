@@ -6,7 +6,8 @@
 // learn-slash.js). A paid primitive comes back as a proposal and is never generated here: it is reported for the tray.
 // Resumable from the canvas itself: a heading and steps already stamped for this section (an earlier visit, a failed
 // step, a reload mid-way) are reused, and only the missing steps are drawn, each under the step before it.
-// Pure apart from the injected canvas (canvasApi's blocks / reserve / insertBlock / release / showSection) and post.
+// Pure apart from the injected canvas (canvasApi's blocks / reserve / insertBlock / release / showSection / persist) and
+// post.
 
 // One or two model calls per step (learn-artifact.js): a request that never answers is a failed step, as a / command's is.
 const ARTIFACT_TIMEOUT_MS = 120000;
@@ -20,6 +21,8 @@ const roleTitle = role => (role ? role[0].toUpperCase() + role.slice(1).replace(
 // to the route's JSON and throws on a refusal. Returns { heading_block_id, block_ids (the section's step cards, in
 // order), proposals ({ step_id, primitive, message, block, after }: `after` is the card it would follow) } and, when a
 // step failed (stopping there, keeping what came before), failed_step - the section is then not reported as materialized.
+// LP1 Task 15: after the last step, paint, showSection, then canvas.persist(); materialized() is called only when that
+// resolves ok, else the result carries `unsaved: true` (every block stays on the canvas).
 export async function materializeSection({ canvas, journey, sectionPlan, post, onProgress = () => {}, timeoutMs = ARTIFACT_TIMEOUT_MS }) {
   const id = journey?.active_section_id;
   if (id == null || sectionPlan?.section_id !== id) throw new Error(`Only the current section is materialized: this plan is for ${sectionPlan?.section_id}, the current section is ${id}.`);
@@ -67,6 +70,9 @@ export async function materializeSection({ canvas, journey, sectionPlan, post, o
   // The camera to the section's start, once its cards have been laid out.
   await paint();
   canvas.showSection?.(heading);
+  // §6.5.5 (owner LP1 blocker): the section is recorded only once its board is saved. A learner who leaves before then
+  // finds it resumable from the stamped blocks above, never falsely built; a failed save is reported `unsaved`.
+  if (!(await canvas.persist?.())?.ok) return { ...out, unsaved: true };
   await journey.materialized(id, heading);
   return out;
 }

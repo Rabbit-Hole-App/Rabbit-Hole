@@ -19,11 +19,19 @@ const others = path.sections.slice(1);
 
 // Like the real canvas: a reserved slot only exists once the canvas has rendered (a tick later), so an insert `into` it
 // before then lands elsewhere (`filled` false); `after` inserts follow the flow (indexAfter); blocks() is the flow.
-function fakeCanvas(seed = []) {
-  const calls = [], flow = seed.map(block => ({ ...block })), live = new Set();
+// persist() (LP1 Task 15) records the flow it saved and answers the next of `saves` (a result, or a function giving
+// one or a promise), else a saved board.
+function fakeCanvas(seed = [], { saves = [] } = {}) {
+  const calls = [], flow = seed.map(block => ({ ...block })), live = new Set(), persisted = [];
   let n = 0, slots = 0;
   return {
-    calls, flow,
+    calls, flow, persisted,
+    persist: async () => {
+      calls.push(['persist']);
+      persisted.push(flow.map(block => block.id));
+      const next = saves.shift();
+      return typeof next === 'function' ? next() : next ?? { ok: true, local: true, remote: 'skipped' };
+    },
     inserts: () => calls.filter(c => c[0] === 'insertBlock'),
     blocks: () => flow,
     reserve: slot => { const id = `slot:${++slots}`; calls.push(['reserve', slot]); setTimeout(() => live.add(id), 0); return id; },
@@ -146,6 +154,35 @@ test('materializeSection: a heading stamped by an earlier visit is reused and on
   await materializeSection({ canvas: full, journey: journeyWith(recorded), sectionPlan: plan, post: async () => ({}) });
   assert.deepEqual(full.inserts(), []);
   assert.deepEqual(recorded, [['s1', 'h']]);
+  assert.deepEqual(full.calls.map(c => c[0]), ['showSection', 'persist'], 'the resumable path saves the board before it records (LP1 Task 15)');
+});
+
+// ---- Save before commit (architecture §6.5.5, LP1 Task 15, owner blocker): the section is recorded only once its board
+// is saved ----
+test('materializeSection: after the last step - paint, showSection, then persist(); section_materialized only once it resolves ok', async () => {
+  let entered, settle;
+  const inWindow = new Promise(resolve => { entered = resolve; }), gate = new Promise(resolve => { settle = resolve; });
+  const canvas = fakeCanvas([], { saves: [() => { entered(); return gate; }] }), done = [];
+  const run = materializeSection({ canvas, journey: journeyWith(done), sectionPlan: plan, post: async () => ({}) });
+  await Promise.race([inWindow, run]);
+  const at = name => canvas.calls.findIndex(c => c[0] === name);
+  assert.ok(at('persist') > at('showSection') && at('showSection') > canvas.calls.findLastIndex(c => c[0] === 'insertBlock'), 'insert, show, then save');
+  assert.deepEqual(canvas.persisted, [['b1', 'b2', 'b3', 'b4']], 'the save holds every inserted block');
+  assert.deepEqual(done, [], 'nothing is recorded while the save is in flight');
+  settle({ ok: true, local: true, remote: 'skipped' });
+  const out = await run;
+  assert.deepEqual(done, [['s1', 'b1']]);
+  assert.deepEqual(out, { heading_block_id: 'b1', block_ids: ['b2', 'b3', 'b4'], proposals: [] });
+});
+
+test('materializeSection: a save that fails records nothing and reports the section unsaved, keeping every block', async () => {
+  for (const failed of [{ ok: false, local: false, remote: 'skipped' }, { ok: false, local: true, remote: 'failed' }]) {
+    const canvas = fakeCanvas([], { saves: [failed] }), done = [];
+    const out = await materializeSection({ canvas, journey: journeyWith(done), sectionPlan: plan, post: async () => ({}) });
+    assert.deepEqual(done, [], 'section_materialized is not posted');
+    assert.deepEqual(out, { heading_block_id: 'b1', block_ids: ['b2', 'b3', 'b4'], proposals: [], unsaved: true });
+    assert.equal(canvas.inserts().length, 4);
+  }
 });
 
 test('materializeSection: an artifact request that hangs times out as a failed step', async () => {
@@ -174,4 +211,22 @@ test('AdaptiveCanvas.jsx: insertBlock takes `after` (indexAfter, ignoring the vi
   assert.match(src, /insertBlock: \(block, \{ into = null, after = null \} = \{\}\) => \{/);
   assert.match(src, /if \(after == null\) return insertAtView\(added, into\);/);
   assert.match(src, /indexAfter\(previous, after\)/);
+});
+
+test('AdaptiveCanvas.jsx: persist() saves the board read through refs (canvas-persist.js); the debounced save is unchanged (LP1 Task 15)', () => {
+  const src = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  assert.match(src, /boardRef\.current = \{ strokes, shapes, items, links, blocks, groups, areas \};/);
+  assert.match(src, /persist: \(\) => persistBoard\(\{ state: boardRef\.current, storageKey, storage: \(\) => localStorage, onSave: onSaveRef\.current \}\),/);
+  // The debounced save: same key, shape, stripping, 400 ms, and onSave only after the first (loaded) run.
+  assert.match(src, /const light = lightBlocks\(blocks\);/);
+  assert.match(src, /const state = \{ strokes, shapes, items, links, blocks: light, groups, areas \};\n\s+if \(storageKey\) \{ try \{ localStorage\.setItem\(storageKey, JSON\.stringify\(state\)\); \} catch \{ \/\* full or blocked storage loses drawings only \*\/ \} \}\n\s+if \(!loaded\) onSaveRef\.current\?\.\(state\);\n\s+\}, 400\);/);
+});
+
+test('LearnPage.jsx: pushBoard has an awaitable immediate variant for persist() - ok, failed, or skipped when not shared; the debounced push stays (LP1 Task 15)', () => {
+  const page = readFileSync(new URL('./LearnPage.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  assert.match(page, /const pushBoard = useCallback\(\(_state, \{ now = false \} = \{\}\) => \{\n\s+if \(!sharingRef\.current\?\.shared\) return 'skipped';/);
+  assert.match(page, /return 'ok';\n\s+\} catch \(error\) \{\n\s+if \(error\.status === 409\) toast\(/);
+  assert.match(page, /return 'failed';/);
+  assert.match(page, /if \(now\) return put\(\);\n\s+pushTimer\.current = setTimeout\(put, 1500\);/);
+  assert.match(page, /onSave=\{pushBoard\}/);
 });

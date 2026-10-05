@@ -224,7 +224,7 @@ test('a path planner failure keeps the answers, sets a retryable error and never
 });
 
 test('path edits, cancel as skip, and the materialized heading', async t => {
-  const { post, roles, calls, answer } = setup(t);
+  const { post, call, sqlite, roles, calls, answer } = setup(t);
   await post('start', { text: LEARN });
   // Before a path exists an edit waits in pending_edits and reaches the draft.
   let r = await post('path_edit', { text: 'Do Python first' });
@@ -256,11 +256,21 @@ test('path edits, cancel as skip, and the materialized heading', async t => {
   assert.deepEqual(calls.find(c => c.role === 'journey_path').input.pending_edits, ['Do Python first']);
 
   r = await post('accept');
+  // LP1 Task 15 (regression 5): from accept until section_materialized the current section reads planning; the rest of
+  // the path, and the stored version, keep their own state.
+  const gen = body => body.path.sections.map(s => s.generation_state);
+  assert.deepEqual(gen(r.body).slice(0, 2), ['planning', 'not_generated']);
+  assert.equal(r.body.journey.section_plan.generation_state, undefined);
+  assert.deepEqual(gen((await call('GET')).body).slice(0, 2), ['planning', 'not_generated'], 'a reload reads the same');
   r = await post('section_materialized', { section_id: 's1', heading_block_id: 'h-s1' });
   assert.equal(r.status, 200);
   assert.equal(r.body.journey.section_plan.heading_block_id, 'h-s1');
   assert.equal(r.body.path.version, 3);
   assert.equal(r.body.path.sections[0].heading_block_id, 'h-s1');
+  assert.equal(r.body.journey.section_plan.generation_state, 'generated');
+  assert.deepEqual(gen(r.body).slice(0, 2), ['generated', 'not_generated']);
+  const stored = JSON.parse(sqlite.prepare('SELECT path_json FROM learning_path_versions WHERE version = 3').get().path_json);
+  assert.deepEqual([stored.sections[0].generation_state, stored.sections[0].heading_block_id], ['not_generated', undefined], 'path versions stay immutable history');
   assert.equal((await post('section_materialized', { section_id: 's2', heading_block_id: 'h-s2' })).status, 409);
 });
 

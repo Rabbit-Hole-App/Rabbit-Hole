@@ -662,19 +662,25 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
   // canvas before the restore, which would get a second heading. canvasReady acts once per board.
   useEffect(() => { if (restoredBoard === boardPath) journey.canvasReady?.(); }, [restoredBoard, boardPath, canvasState, journey.canvasReady]);
   const pushTimer = useRef(null);
-  const pushBoard = useCallback(() => {
-    if (!sharingRef.current?.shared) return;
+  // A shared board's server copy, 1500 ms after the last change. `now` (the canvas's persist(), LP1 Task 15): the PUT at
+  // once, awaited, 'ok' or 'failed' - a journey section is recorded only once its board is saved. 'skipped': not shared.
+  const pushBoard = useCallback((_state, { now = false } = {}) => {
+    if (!sharingRef.current?.shared) return 'skipped';
     clearTimeout(pushTimer.current);
-    pushTimer.current = setTimeout(async () => {
+    const put = async () => {
       try {
         const data = await api(boardPath, { method: 'PUT', body: JSON.stringify({ state: boardSnapshot(), version: boardVersion.current }) });
         boardVersion.current = data.version;
         try { localStorage.setItem(versionKey, String(data.version)); } catch { /* the next open re-checks */ }
         syncAssets();
+        return 'ok';
       } catch (error) {
         if (error.status === 409) toast('This board changed in another tab or on another device. Reload to see those changes; your newer edits here are not saved to the link yet.', { tone: 'error' });
+        return 'failed';
       }
-    }, 1500);
+    };
+    if (now) return put();
+    pushTimer.current = setTimeout(put, 1500);
   }, [boardPath]);
   useEffect(() => { pushBoard(); }, [exchanges, pushBoard]);
   const changeSharing = async next => {
