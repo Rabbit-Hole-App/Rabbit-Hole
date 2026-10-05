@@ -11,24 +11,12 @@
 // is { claims: [ids], refs: [seq] }.
 import { anthropic } from './ask.js';
 import { modelFailure } from './learn-research.js';
-import { sha256 } from './token.js';
+import { LEARN_TASKS, loggedModel } from './learn-models.js';
 import { JOURNEY_SYSTEMS, JOURNEY_TOOLS, diagnosticOutput, pathOutput, resolverOutput, sectionOutput } from './agents/learn-journey.js';
 import { fixtureModel } from './learn-journey-fixtures.js';
 
-// The five journey roles in the LEARN_TASKS entry shape (learn-models.js), plus effort (output_config.effort; null is the
-// model default). They live here while the Tutor-core files are paused (R6); Task 7 moves them into LEARN_TASKS.
-export const JOURNEY_TASKS = Object.freeze({
-  // Resolver rule 5: a tray message the deterministic rules missed -> one of the five kinds.
-  journey_resolver: Object.freeze({ provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 300 }),
-  // The registry and the probe ladder (+ one background question).
-  journey_diagnostic: Object.freeze({ provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 3000 }),
-  // The first path draft, and the escalation target of journey_adapt.
-  journey_path: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', effort: null, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 4000 }),
-  // The current section's SectionPlan.
-  journey_section: Object.freeze({ provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 3000 }),
-  // Path revisions and adaptations.
-  journey_adapt: Object.freeze({ provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 4000 }),
-});
+// The five journey roles are LEARN_TASKS entries (learn-models.js): journey_resolver, journey_diagnostic, journey_path,
+// journey_section and journey_adapt, each with effort (output_config.effort; null is the model default).
 
 export class PlannerInvalid extends Error {
   constructor(role, errors) {
@@ -39,32 +27,17 @@ export class PlannerInvalid extends Error {
   }
 }
 
-// loggedModel's sanitized line (learn-models.js, models-11) for the journey roles, which its LEARN_TASKS lookup cannot
-// see yet: task, requested and served model, never the message, the input, tool input or a key. The task is the one
-// tool's name (JOURNEY_TOOLS names each tool after its role).
-// ponytail: a copy of loggedModel's line while R6 pauses learn-models.js; Task 7 swaps it for loggedModel(role, anthropic).
-export function journeyLogged(callModel) {
-  return async (env, body, model, org) => {
-    const response = await callModel(env, body, model, org);
-    try {
-      const task = body.tools?.[0]?.name, result = response.ok ? await response.clone().json() : null;
-      console.log(JSON.stringify({
-        event: 'learn_model', task, provider: env.SUBSCRIPTION_ONLY === 'true' ? 'subscription' : 'anthropic',
-        requested: model ?? 'auto', source: model == null ? 'auto' : model === JOURNEY_TASKS[task]?.model ? 'task' : 'request', fallback: 'none',
-        served: result?.model ?? null, fellBack: !!result?.usage?.iterations?.some(step => step.type === 'fallback_message'),
-        prompt: (await sha256(String(body.system ?? ''))).slice(0, 12), status: response.status, stopReason: result?.stop_reason ?? null,
-      }));
-    } catch { /* a log line is never worth a failed plan */ }
-    return response;
-  };
-}
+// loggedModel's sanitized line (learn-models.js, models-11) for the role of each call: task, requested and served model,
+// never the message, the input, tool input or a key. One callModel serves every role, so the role is read per call from
+// the one tool's name (JOURNEY_TOOLS names each tool after its role).
+export const journeyLogged = callModel => (env, body, model, org) => loggedModel(body.tools?.[0]?.name, callModel)(env, body, model, org);
 const LOGGED = journeyLogged(anthropic);
 
 // Fixtures only on a local test worker that asks for them (§11, like OAUTH_MOCK): never a paid call in tests or e2e.
 export const journeyCallModel = env => (env.SMALL_ENV === 'test' && env.JOURNEY_MODEL_STUB === 'fixtures' ? fixtureModel : LOGGED);
 
 async function callRole(env, role, input, callModel) {
-  const task = JOURNEY_TASKS[role];
+  const task = LEARN_TASKS[role];
   const response = await callModel(env, {
     max_tokens: task.maxTokens,
     ...(task.effort ? { output_config: { effort: task.effort } } : {}),

@@ -20,8 +20,8 @@ export const askModel = (key, fallback = null) => (typeof key === 'string' && Ob
 // outside subscription mode; otherwise anthropic()). model null is
 // Auto: claude-opus-5 plus the server-side refusal fallback; an explicit id
 // gets no fallback. org is null on every task, so per-org AI settings
-// (org_ai) never apply to Learn. No task sets thinking or effort, so the
-// model default thinks inside maxTokens.
+// (org_ai) never apply to Learn. No task sets thinking, and only the journey
+// roles carry an effort, so the model default thinks inside maxTokens.
 export const LEARN_TASKS = Object.freeze({
   // Sheet asks, Ask in chat, Continue convo and chat-answered slash commands,
   // on every canvas kind. The picker key resolves through askModel.
@@ -42,6 +42,18 @@ export const LEARN_TASKS = Object.freeze({
   // the pipeline works. Opus 5.5 always thinks, inside maxTokens, so the budget leaves room for the tool call.
   avatar_director: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (the avatar_script tool; no tool call is a format failure)', maxTokens: 4000 }),
   avatar_script_reviewer: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (the script_review tool; no tool call is a format failure)', maxTokens: 4000 }),
+  // The journey planners (learn-journey-planners.js, adaptive-learning-path-v1-architecture.md §11): one tool each on
+  // tool_choice auto; effort is output_config.effort, null the model default.
+  // Resolver rule 5: a tray message the deterministic rules missed -> one of the five kinds.
+  journey_resolver: Object.freeze({ provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 300 }),
+  // The registry and the probe ladder (+ one background question).
+  journey_diagnostic: Object.freeze({ provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 3000 }),
+  // The first path draft, and the escalation target of journey_adapt.
+  journey_path: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', effort: null, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 4000 }),
+  // The current section's SectionPlan.
+  journey_section: Object.freeze({ provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 3000 }),
+  // Path revisions and adaptations.
+  journey_adapt: Object.freeze({ provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 4000 }),
   // Slash-command cards (/api/learn/artifact).
   artifact: Object.freeze({ provider: 'plan', model: ASK_MODELS.auto, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'any', maxTokens: 4000 }),
   // The whiteboard (/api/learn/board): one model for plan, draft and review.

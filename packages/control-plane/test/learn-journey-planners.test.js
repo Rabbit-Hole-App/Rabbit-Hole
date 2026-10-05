@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validatePath, validateRegistry } from '../../web/src/learn-journey.js';
 import { LEARN_TASKS } from '../src/learn-models.js';
-import { JOURNEY_TASKS, PlannerInvalid, adaptPath, journeyCallModel, journeyLogged, planDiagnostic, planPath, planSection, resolveWithModel } from '../src/learn-journey-planners.js';
+import { PlannerInvalid, adaptPath, journeyCallModel, journeyLogged, planDiagnostic, planPath, planSection, resolveWithModel } from '../src/learn-journey-planners.js';
 import { fixtureFor, fixtureModel } from '../src/learn-journey-fixtures.js';
 
 const env = {};
@@ -49,7 +49,7 @@ test('planDiagnostic returns the registry and the probe ladder, answer keys kept
   assert.equal(out.probes[0].transfer, true);
   assert.deepEqual(out.probes[0].key, DIAG.probes[0].key);
   assert.equal(out.probes[1].key, undefined);
-  assert.equal(calls[0].model, JOURNEY_TASKS.journey_diagnostic.model);
+  assert.equal(calls[0].model, LEARN_TASKS.journey_diagnostic.model);
   assert.deepEqual(calls[0].body.output_config, { effort: 'low' });
 });
 
@@ -67,13 +67,13 @@ test('model roles: one tool on tool_choice auto, the role model, output_config o
   // The server owns the version and the change source, whatever the reply says.
   const path = scripted({ ...DRAFT, path: { ...DRAFT.path, version: 9, change: { ...DRAFT.path.change, source: 'evidence' } } });
   const drafted = await planPath(env, PATH_INPUT, { callModel: path.callModel });
-  assert.equal(path.calls[0].model, JOURNEY_TASKS.journey_path.model);
+  assert.equal(path.calls[0].model, LEARN_TASKS.journey_path.model);
   assert.equal('output_config' in path.calls[0].body, false);
   assert.equal(drafted.path.version, 1);
   assert.equal(drafted.path.change.source, 'draft');
   const section = scripted(PLAN);
   await planSection(env, SECTION_INPUT, { callModel: section.callModel });
-  assert.equal(section.calls[0].model, JOURNEY_TASKS.journey_section.model);
+  assert.equal(section.calls[0].model, LEARN_TASKS.journey_section.model);
   assert.equal(section.calls[0].body.output_config.effort, 'low');
   for (const { body } of [...path.calls, ...section.calls]) {
     assert.deepEqual(body.tool_choice, { type: 'auto' });
@@ -96,7 +96,7 @@ test('planPath: max_sections (a quick overview) rejects a longer draft as Planne
 test('adaptPath: a valid, unambiguous reply is one journey_adapt call, escalated null', async () => {
   const { calls, callModel } = scripted(REVISION);
   const out = await adaptPath(env, { prev: PREV, edit: 'make it shorter', registry: REG, states: CALM }, { callModel });
-  assert.deepEqual(calls.map(c => c.model), [JOURNEY_TASKS.journey_adapt.model]);
+  assert.deepEqual(calls.map(c => c.model), [LEARN_TASKS.journey_adapt.model]);
   assert.equal(out.escalated, null);
   assert.equal(out.ambiguous, false);
   assert.equal(out.path.version, 2);
@@ -104,7 +104,7 @@ test('adaptPath: a valid, unambiguous reply is one journey_adapt call, escalated
 });
 
 test('adaptPath escalates to journey_path on a validator rejection, ambiguity or contradictory evidence', async () => {
-  const both = [JOURNEY_TASKS.journey_adapt.model, JOURNEY_TASKS.journey_path.model];
+  const both = [LEARN_TASKS.journey_adapt.model, LEARN_TASKS.journey_path.model];
   // (a) The adapt reply renames the completed section s1: invariant 1.
   const renamed = { ...REVISION, path: { ...REVISION.path, sections: REVISION.path.sections.map((s, i) => (i ? s : { ...s, title: 'Renamed' })) } };
   let s = scripted(renamed, REVISION);
@@ -120,14 +120,14 @@ test('adaptPath escalates to journey_path on a validator rejection, ambiguity or
   // (c) The claim the change rests on is uncertain with a settled pass and a settled negative: straight to journey_path.
   s = scripted(REVISION);
   out = await adaptPath(env, { prev: PREV, evidence: { claims: [CLAIM], refs: [3, 4] }, registry: REG, states: { [CLAIM]: { state: 'uncertain', settled_passes: 1, settled_negatives: 1 } } }, { callModel: s.callModel });
-  assert.deepEqual(s.calls.map(c => c.model), [JOURNEY_TASKS.journey_path.model]);
+  assert.deepEqual(s.calls.map(c => c.model), [LEARN_TASKS.journey_path.model]);
   assert.equal(out.escalated, 'contradictory');
   assert.equal(out.path.change.source, 'evidence');
   // A learner edit escalates only on a rejection or ambiguity: a contradictory claim elsewhere is one journey_adapt call
   // (controller ruling, review round 1).
   s = scripted(REVISION);
   out = await adaptPath(env, { prev: PREV, edit: 'make it shorter', registry: REG, states: { [CLAIM]: { state: 'uncertain', settled_passes: 1, settled_negatives: 1 } } }, { callModel: s.callModel });
-  assert.deepEqual(s.calls.map(c => c.model), [JOURNEY_TASKS.journey_adapt.model]);
+  assert.deepEqual(s.calls.map(c => c.model), [LEARN_TASKS.journey_adapt.model]);
   assert.equal(out.escalated, null);
   // An escalated reply that is still invalid is PlannerInvalid.
   await assert.rejects(adaptPath(env, { prev: PREV, edit: 'x', registry: REG, states: CALM }, { callModel: scripted(renamed, renamed).callModel }), PlannerInvalid);
@@ -209,7 +209,7 @@ test('resolveWithModel: an unknown kind or a reply with no tool call is clarific
   assert.deepEqual(await resolveWithModel(env, { text: 'the first one I guess', tray: TRAY }, { callModel: scripted({ kind: 'tray_answer', option_id: 'a' }).callModel }), { kind: 'tray_answer', option_id: 'a' });
   const { calls, callModel } = scripted({ kind: 'unrelated_question' });
   assert.deepEqual(await resolveWithModel(env, { text: 'why is the sky blue', tray: TRAY }, { callModel }), { kind: 'unrelated_question' });
-  assert.equal(calls[0].model, JOURNEY_TASKS.journey_resolver.model);
+  assert.equal(calls[0].model, LEARN_TASKS.journey_resolver.model);
   assert.equal(calls[0].body.max_tokens, 300);
 });
 
@@ -281,16 +281,14 @@ test('journeyLogged writes one sanitized line per call: task, requested and serv
   assert.equal(lines[0].includes('private'), false);
 });
 
-test('JOURNEY_TASKS: exactly the five roles in the LEARN_TASKS entry shape, none of them in LEARN_TASKS yet (R6)', () => {
-  const role = (model, effort, maxTokens) => ({ provider: 'anthropic', model, effort, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens });
-  assert.deepEqual(JOURNEY_TASKS, {
-    journey_resolver: role('claude-sonnet-5-5', 'low', 300),
-    journey_diagnostic: role('claude-sonnet-5-5', 'low', 3000),
-    journey_path: role('claude-opus-5-5', null, 4000),
-    journey_section: role('claude-sonnet-5-5', 'low', 3000),
-    journey_adapt: role('claude-sonnet-5-5', 'low', 4000),
-  });
-  assert.ok(Object.isFrozen(JOURNEY_TASKS) && Object.values(JOURNEY_TASKS).every(Object.isFrozen));
-  // Task 7 moves them into LEARN_TASKS and flips this.
-  for (const key of Object.keys(JOURNEY_TASKS)) assert.equal(Object.hasOwn(LEARN_TASKS, key), false);
+// Task 7 moved the five roles into LEARN_TASKS (their entries are pinned in learn-models.test.js): each call carries its
+// role's model, max_tokens and effort from there.
+test('the planners read their roles from LEARN_TASKS: model, max_tokens and effort', async () => {
+  const { calls, callModel } = scripted(DIAG);
+  await planDiagnostic(env, { topic: TOPIC, intake: INTAKE, grounding: { kind: 'topic' } }, { callModel });
+  const task = LEARN_TASKS.journey_diagnostic;
+  assert.deepEqual([calls[0].model, calls[0].body.max_tokens, calls[0].body.output_config], [task.model, task.maxTokens, { effort: task.effort }]);
+  const path = scripted(DRAFT);
+  await planPath(env, PATH_INPUT, { callModel: path.callModel });
+  assert.deepEqual([path.calls[0].body.max_tokens, 'output_config' in path.calls[0].body], [LEARN_TASKS.journey_path.maxTokens, false]);
 });

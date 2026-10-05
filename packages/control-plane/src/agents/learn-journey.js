@@ -2,7 +2,7 @@
 // The journey planners' prompts, tools and output validators (architecture §4, §6.3-§6.5, §7.2 rule 5, §9). Pure: the
 // model call lives in learn-journey-planners.js. Each validator wraps Task 2's validateRegistry / validatePath and
 // returns { ok: true, value } with the output rebuilt from known fields, or { ok: false, errors }. Each tool is named
-// after its role (JOURNEY_TASKS key), so the log line and the fixture model can tell the calls apart.
+// after its role (LEARN_TASKS key), so the log line and the fixture model can tell the calls apart.
 import { validatePath, validateRegistry } from '../../../web/src/learn-journey.js';
 import { STATES } from '../../../web/src/learn-tutor-evidence.js';
 

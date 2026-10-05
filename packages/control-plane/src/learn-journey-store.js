@@ -155,16 +155,16 @@ function capped(events) {
   return events.filter(e => !drop.has(e));
 }
 
-// The ONLY journey evidence writer (§5). reconcile() is used as it is (R6): its event writes do not depend on the
-// registry, and its nanoGPT-scoped states and transitions are ignored here until Task 7 passes the journey's claims.
-// An evaluation that adds nothing (an evaluator error) saves nothing. ref is stored verbatim on every event: callers
-// must never put learner text (the message) in it.
+// The ONLY journey evidence writer (§5). reconcile() runs over the journey's own registry, so states (every registry
+// claim, the locked derivation) and transitions are the journey's. An evaluation that adds nothing (an evaluator error)
+// saves nothing. ref is stored verbatim on every event: callers must never put learner text (the message) in it.
+// ponytail: at the 500-event cap, states are derived before the oldest events drop; derive again if that ever matters.
 export async function appendJourneyEvidence(env, journey, evaluation, ref) {
-  const { store, added } = reconcile({ ...emptyStore(), ...journey.evidence }, evaluation, ref);
-  if (!added) return { journey, events: journey.evidence.events, seq: journey.evidence.seq };
+  const { store, states, transitions, added } = reconcile({ ...emptyStore(), ...journey.evidence }, evaluation, ref, journey.registry.claims);
+  if (!added) return { journey, events: journey.evidence.events, seq: journey.evidence.seq, states, transitions };
   const evidence = { seq: store.seq, events: capped(store.events) };
   const saved = await saveJourney(env, { ...journey, evidence }, journey.revision);
-  return { journey: saved, events: evidence.events, seq: evidence.seq };
+  return { journey: saved, events: evidence.events, seq: evidence.seq, states, transitions };
 }
 
 // The browser copy: no answer key on any probe (§9.4: the probe-level `key { correct, misconceptions }`; option-level

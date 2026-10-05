@@ -194,6 +194,22 @@ test('appendJourneyEvidence persists reconciled events with increasing seq and s
   await assert.rejects(appendJourneyEvidence(env, journey, jev('pass'), ref), conflict('revision'));
 });
 
+// Task 7: reconcile runs over the journey registry, so the states are the registry's claims, never nanoGPT's.
+test('appendJourneyEvidence returns registry-scoped states and transitions', async t => {
+  const env = { LEARN_DB: learnDb(t).LEARN_DB };
+  const created = await createJourney(env, SCOPE, START);
+  const other = { ...CLAIM, id: 'logistic-regression/threshold', statement: 'A threshold turns the probability into a class.' };
+  const registry = { ...REGISTRY, claims: { [CLAIM.id]: CLAIM, [other.id]: other } };
+  const journey = await saveJourney(env, { ...created, registry }, 0);
+  const out = await appendJourneyEvidence(env, journey, jev('pass'), { turn_id: 't1' });
+  assert.deepEqual(Object.keys(out.states).sort(), [CLAIM.id, other.id].sort());
+  assert.deepEqual([out.states[CLAIM.id].state, out.states[other.id].state], ['understood', 'not_yet_observed']);
+  assert.deepEqual(out.transitions, [{ claim: CLAIM.id, from: 'not_yet_observed', to: 'understood' }]);
+  // An evaluation that adds nothing still answers with the journey's states.
+  const none = await appendJourneyEvidence(env, out.journey, { status: 'error', events: [] }, {});
+  assert.deepEqual([Object.keys(none.states).sort(), none.transitions], [[CLAIM.id, other.id].sort(), []]);
+});
+
 test('an evaluator error adds nothing and saves nothing', async t => {
   const env = { LEARN_DB: learnDb(t).LEARN_DB };
   const journey = await createJourney(env, SCOPE, START);
