@@ -326,6 +326,11 @@
     - `retry` and `cancel`. `cancel` on a tray step equals that step's skip.
     - `resolve { text, tray }` → `{ kind }` through `resolveWithModel`, used only for resolver rule 5.
   - Every planner failure → `journeyStep({ type: 'planner_failed' })`, saved, then 502 `{ error, journey, tray }` with the answers intact. A planner failure never returns cards or calls the artifact route.
+  - **Task 2's contract.**
+    - `journeyStep` effects are `plan_diagnostic`, `plan_path`, `revise_path` (a `path_review` edit) and `plan_section`; the route runs each one.
+    - `accept` and `path_drafted` events carry `event.path`: load the latest path version and pass it.
+    - `section_materialized` stores the heading id on `journey.section_plan.heading_block_id`.
+    - `request.intent` may be the resolver object or its kind string.
   - A stale `revision` → 409 `{ error: 'revision', journey }`.
 
 - [ ] **Step 1: Write failing tests**, using the fixture style of `test/shared-canvas-fixture.js`: node:sqlite LEARN_DB, a scripted `CONTROL_PLANE` `/api/me`, a canvas row owned by `ana`, and `deps.callModel` set to the fixture model. Cover:
@@ -334,7 +339,7 @@
   - `start` "Skip setup and start" with no topic → 400 `topic_required`, and the tray asks "What do you want to learn?" (mode `clarification`). With "Teach me logistic regression, skip setup and just start" → active after the path is drafted, with section 1 planned.
   - `start` "What is logistic regression?" → 400 `not_a_learning_journey`, and no row is created.
   - A second `start` on the same board → 409 `live_journey`.
-  - A path planner failure (the stub returns HTTP 500 for `journey_path`) → 502, the journey is still in `diagnostic` with the intake intact, `error.retryable`, and no section plan. `retry` with a healthy stub → `path_review`.
+  - A path planner failure (the stub returns HTTP 500 for `journey_path`) → 502. The journey is in `path_review` with `pending: null`, `error.retryable`, `path_version` 0 (no path), and the intake and diagnostic intact, with no section plan. This follows the controller ruling: §6.6 "same state, error set". `retry` with a healthy stub → path v1.
   - `ben` (not the owner) → 403 on GET and POST.
   - A stale revision → 409.
   - `resolve` → `{ kind: 'unrelated_question' }` from the fixture.
