@@ -288,7 +288,7 @@ test('validateRegistry: concept cap, idea count and claim id format', () => {
   assert.ok(fails(validateRegistry(ideas), /sigmoid\/zero-score-is-one-half.*ideas/));
   const bad = clone(LR_REGISTRY);
   bad.claims['Foo Bar'] = clone(bad.claims['sigmoid/zero-score-is-one-half']);
-  assert.ok(fails(validateRegistry(bad), /Foo Bar/));
+  assert.ok(fails(validateRegistry(bad), /claim Foo Bar: the id must be <concept-slug>\/<claim-slug>/));
   const prereq = clone(LR_REGISTRY);
   prereq.claims['sigmoid/zero-score-is-one-half'].prerequisites = ['calculus'];
   assert.ok(fails(validateRegistry(prereq), /prerequisites/));
@@ -379,6 +379,44 @@ test('validatePath invariant 6: the version goes up by exactly one and carries a
   delete bare.change;
   assert.ok(fails(validatePath(bare, prev, LR_REGISTRY), /invariant 6/));
   assert.ok(fails(validatePath({ ...clone(LR_PATH), version: 2 }, null, LR_REGISTRY), /invariant 6/));
+});
+
+test('validators return errors for malformed planner output instead of throwing', () => {
+  for (const [key, value] of [['target_concepts', {}], ['target_concepts', 5], ['prerequisites', 7], ['expected_evidence', {}], ['expected_evidence', 5]]) {
+    const p = clone(LR_PATH);
+    p.sections[1][key] = value;
+    assert.equal(validatePath(p, null, LR_REGISTRY).ok, false, `${key}: ${JSON.stringify(value)}`);
+  }
+  for (const r of [null, 'registry', 5, [], { concepts: [], claims: {} }]) assert.equal(validateRegistry(r).ok, false, JSON.stringify(r));
+  const lists = clone(LR_REGISTRY);
+  lists.claims['sigmoid/zero-score-is-one-half'].ideas = 'a score of 0 gives 0.5';
+  lists.claims['sigmoid/squashes-score-to-probability'].misconceptions = { id: 'x', check: 'y' };
+  assert.equal(validateRegistry(lists).ok, false);
+  assert.deepEqual(validateRegistry(LR_REGISTRY, { prev: LR_REGISTRY, events: null }), { ok: true });
+});
+
+test('validatePath invariant 1: a completed section cannot be reopened or skipped', () => {
+  const prev = v2();
+  for (const status of ['upcoming', 'skipped']) {
+    const reopened = next(prev);
+    Object.assign(reopened.sections[0], { status, generation_state: 'not_generated' });
+    assert.ok(fails(validatePath(reopened, prev, LR_REGISTRY), /invariant 1: completed section classification-vs-regression must stay completed/), status);
+  }
+});
+
+test('validatePath invariant 2: current_section_id names a section of the path', () => {
+  const prev = v2();
+  const ghost = next(prev);
+  ghost.current_section_id = 'no-such-section';
+  Object.assign(ghost.sections[2], { status: 'upcoming', generation_state: 'not_generated' });
+  assert.ok(fails(validatePath(ghost, prev, LR_REGISTRY), /invariant 2.*no-such-section/));
+});
+
+test('journeyStep refuses a stale path on accept and on a fast-start draft', () => {
+  assert.ok(journeyStep(journey({ state: 'path_review', path_version: 2 }), { type: 'accept', path: LR_PATH }).error);
+  const fast = journey({ state: 'path_review', pending: 'path', request: { topic: 'logistic regression', intent: 'fast_start' } });
+  assert.ok(journeyStep(fast, { type: 'path_drafted', version: 1, path: { ...LR_PATH, version: 2 } }).error);
+  assert.equal(journeyStep(fast, { type: 'path_drafted', version: 1, path: LR_PATH }).journey.state, 'active');
 });
 
 test('the valid 8-section fixture passes both validators', () => {

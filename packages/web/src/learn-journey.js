@@ -107,6 +107,8 @@ export function trayFor(journey, path, signals = {}) {
 const isObj = (v) => v != null && typeof v === 'object' && !Array.isArray(v);
 const str = (v, max) => typeof v === 'string' && v.length > 0 && v.length <= max;
 const has = (o, k) => isObj(o) && Object.hasOwn(o, k);
+// Planner output is the trust boundary: iterate what should be a list without throwing (the shape check reports it).
+const list = (v) => (Array.isArray(v) ? v : []);
 // Deep equality that ignores key order: a stored claim read back from D1 may list its keys differently.
 const same = (a, b) => a === b || (a != null && b != null && typeof a === 'object' && typeof b === 'object'
   && Array.isArray(a) === Array.isArray(b) && Object.keys(a).length === Object.keys(b).length && Object.keys(a).every((k) => same(a[k], b[k])));
@@ -140,7 +142,7 @@ export function validateRegistry(registry, { prev = null, events = [] } = {}) {
     if (c.cues !== undefined && (!Array.isArray(c.cues) || c.cues.length > 12 || c.cues.some((q) => !str(q, Infinity) || q !== q.toLowerCase()))) errors.push(`${at}: cues must be at most 12 lowercase strings`);
   }
   for (const id of Object.keys(prev?.claims || {})) {
-    if (events.some((e) => e?.claim === id) && !same(claims[id], prev.claims[id])) errors.push(`claim ${id} has evidence, so it cannot change or be removed`);
+    if (list(events).some((e) => e?.claim === id) && !same(claims[id], prev.claims[id])) errors.push(`claim ${id} has evidence, so it cannot change or be removed`);
   }
   return verdict(errors);
 }
@@ -169,9 +171,9 @@ export function validatePath(next, prev, registry) {
     if (!str(s.purpose, 240)) errors.push(`${at}: purpose must be 1-240 characters`);
     for (const [k, allowed] of Object.entries(SECTION_ENUMS)) if (!allowed.includes(s[k])) errors.push(`${at}: ${k} must be one of ${allowed.join(', ')}`);
     if (!Array.isArray(s.target_concepts) || !Array.isArray(s.prerequisites)) errors.push(`${at}: target_concepts and prerequisites must be lists`);
-    for (const c of [...(s.target_concepts || []), ...(s.prerequisites || [])]) if (!has(registry?.concepts, c)) errors.push(`invariant 5: ${at} names the unknown concept ${c}`);
+    for (const c of [...list(s.target_concepts), ...list(s.prerequisites)]) if (!has(registry?.concepts, c)) errors.push(`invariant 5: ${at} names the unknown concept ${c}`);
     if (!Array.isArray(s.expected_evidence) || s.expected_evidence.length > 4) errors.push(`${at}: expected_evidence must be a list of at most 4`);
-    for (const e of s.expected_evidence || []) {
+    for (const e of list(s.expected_evidence)) {
       if (!has(registry?.claims, e?.claim)) errors.push(`invariant 5: ${at} names the unknown claim ${e?.claim}`);
       if (!EVIDENCE_KINDS.includes(e?.kind)) errors.push(`${at}: expected_evidence kind must be one of ${EVIDENCE_KINDS.join(', ')}`);
     }
@@ -181,11 +183,14 @@ export function validatePath(next, prev, registry) {
   const current = sections.filter((s) => s?.status === 'current');
   if (current.length > 1) errors.push(`invariant 2: ${current.length} sections are current`);
   if (current.length && current[0].id !== next.current_section_id) errors.push(`invariant 2: section ${current[0].id} is current, but current_section_id is ${next.current_section_id}`);
-  // 1: every section completed in prev is still there, unchanged, in the same order among the completed ones.
+  if (next.current_section_id != null && !ids.has(next.current_section_id)) errors.push(`invariant 2: current_section_id ${next.current_section_id} names no section`);
+  // 1: every section completed in prev is still there, still completed (a historical anchor: a shaky concept gets a new
+  // review section instead), unchanged, and in the same order among the completed ones.
   let last = -1;
-  for (const p of (prev?.sections || []).filter((s) => s?.status === 'completed')) {
+  for (const p of list(prev?.sections).filter((s) => s?.status === 'completed')) {
     const i = sections.findIndex((s) => s?.id === p.id);
     if (i < 0) { errors.push(`invariant 1: completed section ${p.id} was removed`); continue; }
+    if (sections[i].status !== 'completed') errors.push(`invariant 1: completed section ${p.id} must stay completed`);
     for (const k of KEPT_WHEN_COMPLETED) if (!same(sections[i][k], p[k])) errors.push(`invariant 1: completed section ${p.id} changed its ${k}`);
     if (i < last) errors.push(`invariant 1: completed section ${p.id} moved before an earlier completed section`);
     last = Math.max(last, i);
@@ -237,8 +242,10 @@ export function journeyStep(journey, event) {
   const wait = (state, op, over = {}) => go({ ...over, state, pending: op }, [EFFECT[op]]);
   // Intake is complete: a quick overview or a fast start skips the diagnostic.
   const intakeDone = (intake) => (kind === 'quick_overview' || kind === 'fast_start' ? wait('path_review', 'path', { intake }) : wait('diagnostic', 'diagnostic', { intake }));
-  const accept = (path, over = {}) => {
-    const first = path?.sections?.find((s) => s.status !== 'optional' && s.status !== 'skipped');
+  // Only the version the journey is on can be accepted: a stale path would start the wrong section.
+  const accept = (path, version, over = {}) => {
+    if (path?.version !== version) return no(`needs path version ${version}, got ${path?.version}`);
+    const first = list(path.sections).find((s) => s?.status !== 'optional' && s?.status !== 'skipped');
     return first ? wait('active', 'section', { ...over, active_section_id: first.id }) : no('needs a path with a section to start');
   };
 
@@ -277,7 +284,7 @@ export function journeyStep(journey, event) {
       if (event.version !== version) return no(`must be version ${version}`);
       // The planner has read every pending edit, so they clear with the new version.
       const over = { pending: null, path_version: version, pending_edits: [] };
-      return j.pending === 'path' && kind === 'fast_start' ? accept(event.path, over) : go(over);
+      return j.pending === 'path' && kind === 'fast_start' ? accept(event.path, version, over) : go(over);
     }
     case 'path_edit': {
       // Edits wait in pending_edits (at most 5) until a path version includes them, so a retry can re-send them.
@@ -288,7 +295,7 @@ export function journeyStep(journey, event) {
       return j.state === 'path_review' ? wait('path_review', 'revise', { pending_edits }) : no();
     }
     case 'accept':
-      return j.state === 'path_review' ? accept(event.path) : no();
+      return j.state === 'path_review' ? accept(event.path, j.path_version) : no();
     case 'section_planned':
       return j.state === 'active' ? go({ pending: null }) : no();
     case 'section_materialized': {
