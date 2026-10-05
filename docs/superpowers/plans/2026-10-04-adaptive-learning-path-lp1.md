@@ -330,6 +330,7 @@
     - `journeyStep` effects are `plan_diagnostic`, `plan_path`, `revise_path` (a `path_review` edit) and `plan_section`; the route runs each one.
     - `accept` and `path_drafted` events carry `event.path`: load the latest path version and pass it.
     - `section_materialized` stores the heading id on `journey.section_plan.heading_block_id`.
+    - **Store contract (Task 3 review ruling).** `appendPathVersion(env, journey, path, expectedRevision) → { journey, path }` writes the path version and the whole journey row in one atomic batch, so do not call `saveJourney` separately for that step. It throws `JourneyConflict` with code `revision`, `archived` or `path_version`. `loadJourneyById` excludes archived journeys. `saveJourney` refuses archived rows.
     - `request.intent` may be the resolver object or its kind string.
   - A stale `revision` → 409 `{ error: 'revision', journey }`.
 

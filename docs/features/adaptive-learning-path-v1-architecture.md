@@ -235,7 +235,7 @@ nanoGPT, and a new test pins the ten keys for journeys.
   `{ seq, concept, claim, result, kind, idea?, misconception_id?, prerequisite?, settled, evaluator, source, ref }`.
   Sources are `free_text` and `journey_probe`; the cap is 500 events (`ponytail:`).
 - **The single write path:** `appendJourneyEvidence(env, journey, evaluation, ref)` in
-  `control-plane/src/learn-journey.js`.
+  `control-plane/src/learn-journey-store.js`.
   1. It imports the pure `reconcile()` from `web/src/learn-tutor-evidence.js`.
   2. It reconciles with the journey registry.
   3. It persists with the journey's optimistic `revision`.
