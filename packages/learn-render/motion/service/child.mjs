@@ -2,7 +2,8 @@
 // user, no network, a private /tmp, the service's files hidden, the renderer read-only). It gets
 // no secrets and no options; everything comes from <jobDir>/job.json, written by the service
 // after validation. It writes <jobDir>/out/{result.json, final.mp4, preview.mp4,
-// contact-sheet.png, poster.png} and exits 0. A non-zero exit means the child itself crashed.
+// contact-sheet.png, poster.png} (a preview job, M6: result.json, preview.mp4, contact-sheet.png)
+// and exits 0. A non-zero exit means the child itself crashed.
 //
 //   node motion/service/child.mjs <jobDir>
 import { RenderInternals } from '@remotion/renderer';
@@ -135,6 +136,28 @@ async function resourceProbe(sandbox) {
   }
 }
 
+// M6 (spec §11.1): the preview and the contact sheet only, for the review pass. They are review
+// material, never a deliverable, so the caller gets them whatever they show; the caller judges
+// blank frames on the decoded preview and the reviewers judge the rest.
+async function previewJob(r, j, sandbox, firstLine) {
+  let preview, sheet;
+  try {
+    preview = await r.renderPreview(j);
+    sheet = await r.contactSheet(j);
+  } catch (error) {
+    return write({ status: 'failed', error: 'runtime_error', detail: firstLine(error), sandbox });
+  }
+  for (const [from, to] of [[preview.file, 'preview.mp4'], [sheet.file, 'contact-sheet.png']]) copyFileSync(from, join(out, to));
+  const { v: pv, size: psize } = await probe(join(out, 'preview.mp4'));
+  write({
+    status: 'ready', stage: 'preview',
+    preview: { width: pv.width, height: pv.height, frame_count: Number(pv.nb_read_frames), bytes: psize, scale: j.brief.output_requirements.preview_scale },
+    contact_sheet: sheet.manifest, sandbox, fonts: r.browserLogs.find(l => l.includes('MOTION_FONTS')) || null,
+    timings: { ...r.timings, total: +((performance.now() - t0) / 1000).toFixed(2) },
+    renderer: { version: r.version, chrome: chromeVersion(), ffmpeg: await ffmpegVersion() },
+  });
+}
+
 async function main() {
   const sandbox = await sandboxReport();
   if (sandbox.breach?.length) return write({ status: 'failed', error: 'sandbox_breach', detail: sandbox.breach.join('; '), sandbox });
@@ -152,6 +175,7 @@ async function main() {
   try {
     try { await r.prepare(j); }
     catch (error) { return write({ status: 'failed', error: 'compile_failed', detail: firstLine(error), sandbox }); }
+    if (job.stage === 'preview') return await previewJob(r, j, sandbox, firstLine);
     const frames = determinismFrames(j.brief, j.storyboard);
     const sample = coverageFrames(j.storyboard);
     const mids = new Set(sample.filter(s => s.roles.includes('mid')).map(s => s.frame));

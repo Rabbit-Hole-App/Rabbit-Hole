@@ -13,7 +13,7 @@
 // Outcomes: composition (passes static safety + the Author contract), needs_revision (refs valid),
 // author_invalid (source or contract errors; surfaced, not repaired in M4), failed (malformed
 // twice, refused, model error). One schema-only re-ask; the repair round is never spent here.
-import { MODEL_ROLES, STAGE, afterMalformed, validateAuthorOutput } from './contracts.js';
+import { MODEL_ROLES, STAGE, afterMalformed, repairFindings, validateAuthorOutput } from './contracts.js';
 import { callRecord } from './director.js';
 import { checkAuthorSource, requiredText, timelineFrames } from './author-check.js';
 import { resolveRole } from './model-config.js';
@@ -75,7 +75,8 @@ export function authorContext(brief, storyboard) {
 
 // 64000: at effort high the first real softmax call spent 32000 tokens (mostly thinking) before
 // finishing its tool call (2026-10-04); streaming keeps a long generation safe.
-export function authorRequest(brief, storyboard, { effort = 'high', maxTokens = 64000 } = {}) {
+export function authorRequest(brief, storyboard, { effort = 'high', maxTokens = 64000, repair = null } = {}) {
+  const ask = `Implement this storyboard.\n\ninput = ${JSON.stringify(authorContext(brief, storyboard))}`;
   return {
     max_tokens: maxTokens,
     stream: true, // a long generation never waits on a silent connection (stream-message.js)
@@ -86,8 +87,28 @@ export function authorRequest(brief, storyboard, { effort = 'high', maxTokens = 
     system: [{ type: 'text', text: AUTHOR_SYSTEM, cache_control: { type: 'ephemeral' } }],
     tools: [AUTHOR_TOOL],
     tool_choice: { type: 'auto' },
-    messages: [{ role: 'user', content: `Implement this storyboard.\n\ninput = ${JSON.stringify(authorContext(brief, storyboard))}` }],
+    messages: [{ role: 'user', content: repair ? `${ask}\n\n${repairSection(repair)}` : ask }],
   };
+}
+
+// The repair round's Author call (spec §4.8 step 8, §22: the original sections + BLOCKING
+// FINDINGS): the previous composition and the harness's blocking findings, never a reviewer's
+// rationale beyond the finding itself or any advisory finding. Every repair restates the
+// nonblank rules (owner decision 2026-10-04, M6).
+export const REPAIR_RULES = Object.freeze([
+  'Frame 0 is visibly nonblank: the first beat and at least its main object are already on screen at frame 0.',
+  'The first beat begins at useful visible opacity (its main object at full opacity), never at or near transparent.',
+  'No fade-in leaves the first sampled frames (0, 1 and the next few) blank or near-blank: an entrance may slide, scale or highlight, never fade up from empty or from dim.',
+  'The final frame also remains nonblank: the last beat stays on screen at full opacity through the last frame (no fade to empty).',
+]);
+export function repairSection({ source, findings }) {
+  return [
+    'REPAIR ROUND',
+    'Your previous composition for this storyboard (below) was rendered and reviewed. Return a corrected composition that fixes every blocking finding. Keep everything the findings do not implicate: the same timeline, TEXT, objects and layout where they are fine. The findings come from the rendered frames; fix the cause in the source.',
+    `blocking_findings = ${JSON.stringify(repairFindings(findings))}`,
+    `Repair requirements (always):\n${REPAIR_RULES.map(r => `- ${r}`).join('\n')}`,
+    `previous_source =\n${source}`,
+  ].join('\n\n');
 }
 
 // Schema-only: the M0 Author-output contract plus the tool's field types.
@@ -115,11 +136,13 @@ export function checkAuthorOutput(output, brief, storyboard) {
 
 const reask = errors => `Your motion_composition call did not match its schema:\n- ${errors.join('\n- ')}\nCall motion_composition again with the SAME intended result in the required structure. Do not change the composition, its timing, objects or text.`;
 
-export async function runAuthor({ brief, storyboard, call, env = {}, effort = 'high', clock = () => Date.now() }) {
+// round 1 with repair {source, findings} is the repair round's Author call (M6): its own
+// schema-only re-ask, recorded as round 1.
+export async function runAuthor({ brief, storyboard, call, env = {}, effort = 'high', round = 0, repair = null, clock = () => Date.now() }) {
   const role = MODEL_ROLES.author;
   const model = resolveRole(role, env);
-  const body = authorRequest(brief, storyboard, { effort });
-  const job = { repair_count: 0, format_retries: [] };
+  const body = authorRequest(brief, storyboard, { effort, repair });
+  const job = { repair_count: round, format_retries: [] };
   const calls = [];
   const fail = (error, detail, extra = {}) => ({ status: 'failed', error, detail, calls, format_retries: job.format_retries, ...extra });
   const messages = [...body.messages];
@@ -128,7 +151,7 @@ export async function runAuthor({ brief, storyboard, call, env = {}, effort = 'h
     const response = await call(env, { ...body, messages }, model);
     if (!response.ok) return fail('model_error', `HTTP ${response.status}: ${(await response.text().catch(() => '')).slice(0, 300)}`);
     const message = await readMessage(response);
-    calls.push({ stage: 'author', ...callRecord(role, model, message, clock() - t0) });
+    calls.push({ stage: 'author', round, ...callRecord(role, model, message, clock() - t0) });
     if (message.stop_reason === 'refusal') return fail('refused', message.stop_details?.category || 'refusal');
     const use = (message.content || []).find(b => b.type === 'tool_use' && b.name === AUTHOR_TOOL.name);
     const errors = message.stop_reason === 'max_tokens' ? [`the response hit max_tokens before the ${AUTHOR_TOOL.name} call was complete`]

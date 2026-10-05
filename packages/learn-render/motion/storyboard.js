@@ -8,7 +8,7 @@
 // schema-only re-ask; a semantically wrong storyboard is returned as storyboard_invalid with its
 // reasons. M3 never spends the repair round: that is wired with the full QA loop (M6).
 import { LIMITS, checkStoryboard } from './storyboard-check.js';
-import { MODEL_ROLES, OBJECT_FIELDS, PEDAGOGICAL_ROLES, TIME_GRID, afterMalformed } from './contracts.js';
+import { MODEL_ROLES, OBJECT_FIELDS, PEDAGOGICAL_ROLES, TIME_GRID, afterMalformed, repairFindings } from './contracts.js';
 import { callRecord } from './director.js';
 import { resolveRole } from './model-config.js';
 
@@ -86,7 +86,10 @@ export function storyboardContext(brief) {
   return { ...contract, ...(qa_requirements?.keyframe_times ? { keyframe_times: qa_requirements.keyframe_times } : {}) };
 }
 
-export function storyboardRequest(brief, { effort = 'high', maxTokens = 16000 } = {}) {
+// revision {storyboard, findings}: the repair round's Director revision (M6, spec §4.8 step 8):
+// the same sections, the storyboard as implemented, and the blocking findings.
+export function storyboardRequest(brief, { effort = 'high', maxTokens = 16000, revision = null } = {}) {
+  const ask = `Storyboard this brief.\n\nbrief = ${JSON.stringify(storyboardContext(brief))}`;
   return {
     max_tokens: maxTokens,
     thinking: { type: 'adaptive' },
@@ -96,9 +99,15 @@ export function storyboardRequest(brief, { effort = 'high', maxTokens = 16000 } 
     system: [{ type: 'text', text: STORYBOARD_SYSTEM, cache_control: { type: 'ephemeral' } }],
     tools: [STORYBOARD_TOOL],
     tool_choice: { type: 'auto' },
-    messages: [{ role: 'user', content: `Storyboard this brief.\n\nbrief = ${JSON.stringify(storyboardContext(brief))}` }],
+    messages: [{ role: 'user', content: revision ? `${ask}\n\n${revisionSection(revision)}` : ask }],
   };
 }
+const revisionSection = ({ storyboard, findings }) => [
+  'REVISION ROUND',
+  'The storyboard below was implemented, rendered and reviewed. Submit a revised storyboard that resolves every blocking finding. Keep the beats, timing, object ids and text the findings do not implicate.',
+  `blocking_findings = ${JSON.stringify(repairFindings(findings))}`,
+  `storyboard = ${JSON.stringify({ beats: storyboard.beats })}`,
+].join('\n\n');
 
 // Schema-only checks of the tool input: types, required fields, enums and id formats. Timing,
 // claims, coverage and teaching are semantic (storyboard-check.js) and never re-asked.
@@ -148,11 +157,13 @@ export function assembleStoryboard(brief, output, id = `storyboard-${globalThis.
 const reask = errors => `Your motion_storyboard call did not match its schema:\n- ${errors.join('\n- ')}\nCall motion_storyboard again with the SAME intended storyboard in the required structure. Do not change the beats, timing, roles, objects, claims, coverage or text.`;
 
 // -> { status: 'storyboard' | 'storyboard_invalid' | 'failed', storyboard?, check?, calls, format_retries }
-export async function runStoryboard({ brief, call, env = {}, effort = 'high', clock = () => Date.now() }) {
+// round 1 with revision {storyboard, findings} is the repair round's Director revision (M6): the
+// revised storyboard keeps the id, takes the next version, and is checked like any other.
+export async function runStoryboard({ brief, call, env = {}, effort = 'high', round = 0, revision = null, clock = () => Date.now() }) {
   const role = MODEL_ROLES.director;
   const model = resolveRole(role, env);
-  const body = storyboardRequest(brief, { effort });
-  const job = { repair_count: 0, format_retries: [] }; // the storyboard stage's one schema-only re-ask
+  const body = storyboardRequest(brief, { effort, revision });
+  const job = { repair_count: round, format_retries: [] }; // the storyboard stage's one schema-only re-ask
   const calls = [];
   const fail = (error, detail, extra = {}) => ({ status: 'failed', error, detail, calls, format_retries: job.format_retries, ...extra });
   const messages = [...body.messages];
@@ -162,12 +173,12 @@ export async function runStoryboard({ brief, call, env = {}, effort = 'high', cl
     const latency = clock() - t0;
     if (!response.ok) return fail('model_error', `HTTP ${response.status}: ${(await response.text().catch(() => '')).slice(0, 300)}`);
     const message = await response.json();
-    calls.push({ stage: 'storyboard', ...callRecord(role, model, message, latency) });
+    calls.push({ stage: 'storyboard', round, ...callRecord(role, model, message, latency) });
     if (message.stop_reason === 'refusal') return fail('refused', message.stop_details?.category || 'refusal');
     const use = (message.content || []).find(b => b.type === 'tool_use' && b.name === STORYBOARD_TOOL.name);
     const errors = use ? validateStoryboardOutput(use.input) : [`no ${STORYBOARD_TOOL.name} call (stop_reason ${message.stop_reason})`];
     if (!errors.length) {
-      const storyboard = assembleStoryboard(brief, use.input);
+      const storyboard = revision ? { ...assembleStoryboard(brief, use.input, revision.storyboard.id), version: (revision.storyboard.version || 1) + 1 } : assembleStoryboard(brief, use.input);
       const check = checkStoryboard(storyboard, brief);
       // Semantic failures are surfaced, never re-asked and never repaired here.
       return { status: check.errors.length ? 'storyboard_invalid' : 'storyboard', storyboard, check, calls, format_retries: job.format_retries };

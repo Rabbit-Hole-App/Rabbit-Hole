@@ -8,7 +8,8 @@
 //                     lines, on_screen_text visible, the condition shown, bundled fonts, TEXT words
 //   around a boundary objects in BOTH beats stay visible (an object leaving or arriving may fade)
 //   every frame       it rendered, and one element per storyboard object id
-// Blank frames are judged on the decoded final video (remotion-renderer.mjs validateFinal).
+// Blank frames are judged on the decoded preview (M6, before review) and the decoded final video
+// (remotion-renderer.mjs validateFinal), at nonblankFrames.
 import { STAGE } from './contracts.js';
 import { FONT_FAMILIES } from './static-check.js';
 import { CONDITION_CUE, briefFacts } from './storyboard-check.js';
@@ -50,6 +51,10 @@ export function contactFrames(brief, storyboard) {
   for (const b of storyboard.beats) frames.push(Math.round(b.start_time * fps), midFrame(b));
   return [...new Set(frames.map(f => Math.min(last, Math.max(0, f))))].sort((a, b) => a - b);
 }
+
+// Where blank frames are looked for: every contact-sheet frame and every coverage frame, so the
+// first two frames, each beat's start, start + 1, middle and end - 1, and the last frame.
+export const nonblankFrames = (brief, storyboard) => [...new Set([...contactFrames(brief, storyboard), ...coverageFrames(storyboard).map(s => s.frame)])].sort((a, b) => a - b);
 
 // What the child keeps of a probe line: text only at beat middles, where the text rules apply.
 export const compactProbe = (p, mid) => ({

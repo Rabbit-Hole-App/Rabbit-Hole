@@ -3,7 +3,7 @@
 // pedagogy, writes no briefs or storyboards and holds no Fish or provider credentials.
 //
 //   GET  /health                           no auth: {ok, service, version, sandbox, busy, limits}
-//   POST /render                           Bearer: a motion-render/1 job -> 202 {render_id}
+//   POST /render                           Bearer: a motion-render/1 job (stage preview | final) -> 202 {render_id}
 //   GET  /render/<id>                      Bearer: status and metadata (+ artifact refs when ready)
 //   GET  /render/<id>/artifacts/<name>     Bearer: final.mp4 | preview.mp4 | contact-sheet.png | poster.png
 //
@@ -151,10 +151,11 @@ export function motionRenderService({
         else if (!result) fail(limits?.oom_kills > 0 ? 'memory_limit_exceeded' : 'renderer_failure', `the render child exited (${signal || code}) without a result`, { log_tail: logs.slice(-2000) });
         else {
           for (const k of RESULT_FIELDS) if (result[k] !== undefined) record[k] = result[k];
-          const final = join(out, 'final.mp4');
+          // A preview job (M6) delivers preview.mp4 and the contact sheet; every other job final.mp4.
+          const main = record.stage === 'preview' ? 'preview.mp4' : 'final.mp4', final = join(out, main);
           if (result.status !== 'ready') fail(limits?.oom_kills > 0 ? 'memory_limit_exceeded' : String(result.error || 'renderer_failure'), String(result.detail || ''), result.errors ? { errors: result.errors.slice(0, 50) } : {});
-          else if (!existsSync(final)) fail('renderer_failure', 'the render reported ready without final.mp4');
-          else if (statSync(final).size > outputMaxBytes) fail('output_too_large', `final.mp4 is ${statSync(final).size} bytes (cap ${outputMaxBytes})`);
+          else if (!existsSync(final)) fail('renderer_failure', `the render reported ready without ${main}`);
+          else if (statSync(final).size > outputMaxBytes) fail('output_too_large', `${main} is ${statSync(final).size} bytes (cap ${outputMaxBytes})`);
           else {
             const files = {};
             for (const name of Object.keys(ARTIFACTS)) {
@@ -200,13 +201,13 @@ export function motionRenderService({
     if (state.active) return send(res, 429, { error: 'busy', detail: 'one render at a time; retry when the current render has finished', render_id: state.active.render_id });
     const id = randomBytes(16).toString('hex');
     const dir = join(jobsDir, id);
-    const record = { render_id: id, status: 'rendering', motion_job_id: body.brief.id, created_at: new Date().toISOString() };
+    const record = { render_id: id, status: 'rendering', stage: body.stage || 'final', motion_job_id: body.brief.id, created_at: new Date().toISOString() };
     state.active = record;
     try {
       // 2770 + the setgid parent: the render user writes here and the service can remove it afterwards.
       mkdirSync(join(dir, 'out'), { recursive: true });
       for (const d of [dir, join(dir, 'out')]) chmodSync(d, 0o2770);
-      writeFileSync(join(dir, 'job.json'), JSON.stringify({ render_id: id, brief: body.brief, storyboard: body.storyboard, composition: body.composition }), { mode: 0o640 });
+      writeFileSync(join(dir, 'job.json'), JSON.stringify({ render_id: id, stage: record.stage, brief: body.brief, storyboard: body.storyboard, composition: body.composition }), { mode: 0o640 });
     } catch (error) {
       state.active = null;
       rmSync(dir, { recursive: true, force: true });
@@ -214,7 +215,7 @@ export function motionRenderService({
     }
     renders.set(id, record);
     run(record, dir);
-    log(`render ${id} started (${body.brief.duration.seconds}s, ${body.composition.composition_id})`);
+    log(`render ${id} started (${record.stage}, ${body.brief.duration.seconds}s, ${body.composition.composition_id})`);
     send(res, 202, { render_id: id, status: 'rendering', poll: `/render/${id}` });
   }
 

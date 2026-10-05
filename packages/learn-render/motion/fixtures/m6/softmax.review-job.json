@@ -1,0 +1,1701 @@
+{
+  "job": {
+    "id": "motion-job-8f7ccd17",
+    "status": "ready",
+    "owner": {
+      "org": "development",
+      "app": "motion-v1-harness",
+      "learner": "harness"
+    },
+    "brief": {
+      "id": "brief-9883207f",
+      "prompt_spec_version": "motion-v1.0/director-1",
+      "raw_user_request": "/motion 15s explain me softmax func",
+      "resolved_target": {
+        "kind": "code_span",
+        "label": "softmax in CausalSelfAttention.forward (model.py:69)",
+        "resolution": "context_disambiguated",
+        "repository_context": {
+          "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+          "label": "CausalSelfAttention.forward",
+          "range": {
+            "path": "model.py",
+            "start": 65,
+            "end": 71
+          }
+        },
+        "candidates_considered": [
+          {
+            "label": "GPT.generate (model.py:324)",
+            "reason": "not the current concept \"attention\"",
+            "range": {
+              "path": "model.py",
+              "start": 324,
+              "end": 324
+            }
+          }
+        ]
+      },
+      "title": "Softmax: turning attention scores into weights",
+      "objective": "See what `att = F.softmax(att, dim=-1)` does in nanoGPT's manual attention path. Each row of scaled, masked scores becomes a row of non-negative weights that sum to 1. Masked future positions (-inf) get weight 0, and the weights are then used in `att @ v`.",
+      "audience_context": "The learner is in the attention concept and looking at CausalSelfAttention.forward in nanoGPT (model.py:65-71). They asked what the softmax call on line 69 does.",
+      "scope_note": "Left out to fit 15 seconds: the inside of the flash path (`scaled_dot_product_attention`), why scores are scaled by 1/sqrt(head size), attention dropout, and the other softmax in GPT.generate (model.py:324), which turns logits into sampling probabilities.",
+      "source_refs": [
+        {
+          "id": "S1",
+          "kind": "code",
+          "repository": "karpathy/nanoGPT",
+          "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+          "path": "model.py",
+          "start_line": 44,
+          "end_line": 45
+        },
+        {
+          "id": "S2",
+          "kind": "code",
+          "repository": "karpathy/nanoGPT",
+          "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+          "path": "model.py",
+          "start_line": 48,
+          "end_line": 50
+        },
+        {
+          "id": "S3",
+          "kind": "code",
+          "repository": "karpathy/nanoGPT",
+          "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+          "path": "model.py",
+          "start_line": 62,
+          "end_line": 64
+        },
+        {
+          "id": "S4",
+          "kind": "code",
+          "repository": "karpathy/nanoGPT",
+          "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+          "path": "model.py",
+          "start_line": 65,
+          "end_line": 71
+        }
+      ],
+      "evidence": [
+        {
+          "source_ref_id": "S1",
+          "excerpt": "        # flash attention make GPU go brrrrr but support is only in PyTorch >= 2.0\n        self.flash = hasattr(torch.nn.functional, 'scaled_dot_product_attention')"
+        },
+        {
+          "source_ref_id": "S2",
+          "excerpt": "            # causal mask to ensure that attention is only applied to the left in the input sequence\n            self.register_buffer(\"bias\", torch.tril(torch.ones(config.block_size, config.block_size))\n                                        .view(1, 1, config.block_size, config.block_size))"
+        },
+        {
+          "source_ref_id": "S3",
+          "excerpt": "        if self.flash:\n            # efficient attention using Flash Attention CUDA kernels\n            y = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=self.dropout if self.training else 0, is_causal=True)"
+        },
+        {
+          "source_ref_id": "S4",
+          "excerpt": "        else:\n            # manual implementation of attention\n            att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))\n            att = att.masked_fill(self.bias[:,:,:T,:T] == 0, float('-inf'))\n            att = F.softmax(att, dim=-1)\n            att = self.attn_dropout(att)\n            y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)"
+        }
+      ],
+      "implementation_conditions": [
+        {
+          "id": "K1",
+          "condition": "`self.flash` (model.py:62)",
+          "branches": [
+            {
+              "when": "`self.flash` is true",
+              "runs": "model.py:62-64: y = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=self.dropout if self.training else 0, is_causal=True)"
+            },
+            {
+              "when": "`self.flash` is false",
+              "runs": "model.py:65-71: att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))"
+            }
+          ],
+          "source_ref_ids": [
+            "S3",
+            "S4",
+            "S1"
+          ]
+        }
+      ],
+      "claim_registry": [
+        {
+          "id": "C1",
+          "text": "On the branch where `self.flash` is false (the manual implementation of attention), softmax is applied as `att = F.softmax(att, dim=-1)`, so it normalizes along the last dimension of `att`: each query's row of scores over key positions.",
+          "source_ref_ids": [
+            "S4"
+          ],
+          "condition_ids": [
+            "K1"
+          ],
+          "required": true
+        },
+        {
+          "id": "C2",
+          "text": "On the `self.flash` false branch, the order is: scores `(q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))`, then `masked_fill(... == 0, float('-inf'))`, then `F.softmax(att, dim=-1)`, then `self.attn_dropout(att)`, then `y = att @ v`.",
+          "source_ref_ids": [
+            "S4"
+          ],
+          "condition_ids": [
+            "K1"
+          ],
+          "required": true
+        },
+        {
+          "id": "C3",
+          "text": "On the `self.flash` false branch, softmax turns each row of scores into non-negative weights that sum to 1. The positions the causal mask set to `float('-inf')` (future positions) get weight 0, so attention goes only to the left in the sequence.",
+          "source_ref_ids": [
+            "S4",
+            "S2"
+          ],
+          "condition_ids": [
+            "K1"
+          ],
+          "required": true
+        },
+        {
+          "id": "C4",
+          "text": "When `self.flash` is true, this explicit softmax line does not run. Attention is computed by `torch.nn.functional.scaled_dot_product_attention(q, k, v, ..., is_causal=True)` instead.",
+          "source_ref_ids": [
+            "S3",
+            "S1"
+          ],
+          "condition_ids": [
+            "K1"
+          ],
+          "required": false
+        }
+      ],
+      "duration": {
+        "requested_text": "15s",
+        "requested_seconds": 15,
+        "seconds": 15
+      },
+      "aspect_ratio": "16:9",
+      "teaching_mode": "mechanism_first",
+      "must_show": [
+        "The code line `att = F.softmax(att, dim=-1)`, marked as part of the `else` branch (taken when `self.flash` is false)",
+        "One row of attention scores in which the future positions hold -inf after `masked_fill`",
+        "That row turning into weights: larger scores get larger weights, -inf entries become exactly 0",
+        "The resulting row of weights summing to 1, with the row's length unchanged",
+        "The arrow showing softmax works across the last dimension (along a row, over key positions)",
+        "The weights then flowing into `y = att @ v`"
+      ],
+      "must_not_claim": [
+        "That `F.softmax` always runs, or runs on every forward pass. It runs only when `self.flash` is false.",
+        "That softmax is applied before the causal mask, or that masking happens after softmax",
+        "That softmax comes after `att @ v` or after dropout. The order is scores, mask, softmax, dropout, `att @ v`.",
+        "That softmax picks only the single largest score (argmax) and zeroes all the others",
+        "That softmax removes masked positions or changes the shape of `att`. It keeps the T×T shape, and masked entries become 0.",
+        "That softmax normalizes down columns or across the whole matrix instead of along `dim=-1` (each row)",
+        "That the flash path skips causal masking or gives different semantics. That path uses `is_causal=True`."
+      ],
+      "visual_direction": "Start on the highlighted `else` branch line `att = F.softmax(att, dim=-1)`, then move attention to a single row of scores. The -inf cells sit at the right, marked as future tokens. Show the transformation: each score grows into a bar whose size reflects its weight, the -inf cells collapse to zero, and the bars together fill exactly one whole unit. Mark the direction of normalization along the row. End with the row of weights flowing into `att @ v`, keeping the sequence mask → softmax → `att @ v` visible as a short chain so cause and order are clear.",
+      "narration_policy": "one_line",
+      "output_requirements": {
+        "stage_width": 1920,
+        "stage_height": 1080,
+        "fps": 30,
+        "preview_scale": 0.45,
+        "poster": true
+      },
+      "qa_requirements": {
+        "blocking_categories": [
+          "unsupported_claim",
+          "must_not_claim_violation",
+          "required_claim_contradicted",
+          "wrong_source_branch",
+          "blank_frame",
+          "clipped_text",
+          "overlapping_text",
+          "missing_must_show",
+          "duration_over_max",
+          "corrupt_output",
+          "renderer_failure",
+          "narration_contradicts_visuals"
+        ],
+        "keyframe_times": [
+          4,
+          10,
+          14
+        ]
+      },
+      "provenance": {
+        "created_at": "2026-10-04T21:17:13.075Z"
+      }
+    },
+    "storyboard": {
+      "id": "storyboard-0e5ddf31",
+      "brief_id": "brief-9883207f",
+      "version": 1,
+      "beats": [
+        {
+          "id": "B1",
+          "start_time": 0,
+          "end_time": 4,
+          "pedagogical_role": "hook",
+          "visible_objects": [
+            {
+              "id": "flash_if_line",
+              "description": "The branch header line from the flash check, shown dimmed above the manual path so the learner sees softmax sits under a condition.",
+              "source": {
+                "source_ref_id": "S3",
+                "start_line": 62,
+                "end_line": 62
+              },
+              "change": "Fades in dimmed, then recedes as focus moves to the else branch."
+            },
+            {
+              "id": "flash_path_note",
+              "description": "Small dimmed note beside the flash header naming what runs instead when the flag is true; it keeps the causal flag visible.",
+              "label": "If true: scaled_dot_product_attention, is_causal=True",
+              "change": "Appears dimmed next to the flash header and stays muted."
+            },
+            {
+              "id": "else_line",
+              "description": "The else line that opens the manual attention path.",
+              "source": {
+                "source_ref_id": "S4",
+                "start_line": 65,
+                "end_line": 65
+              },
+              "change": "Fades in below the flash header and brightens."
+            },
+            {
+              "id": "softmax_line",
+              "description": "The softmax code line, the subject of the video, indented under else and highlighted.",
+              "source": {
+                "source_ref_id": "S4",
+                "start_line": 69,
+                "end_line": 69
+              },
+              "change": "Slides in under the else line and gets a highlight that holds."
+            },
+            {
+              "id": "branch_tag",
+              "description": "Tag attached to the softmax line naming the branch it belongs to; it stays on screen through every later beat.",
+              "label": "else branch: self.flash is false",
+              "change": "Pops in, pinned to the highlighted softmax line."
+            }
+          ],
+          "claim_ids": [
+            "C1",
+            "C4"
+          ],
+          "condition_ids": [
+            "K1"
+          ],
+          "must_show_covered": [
+            "The code line `att = F.softmax(att, dim=-1)`, marked as part of the `else` branch (taken when `self.flash` is false)"
+          ],
+          "transition": "Opens on the code, with the flash header appearing first and the else branch appearing below it.",
+          "framing": "The highlighted softmax line sits in the centre, the else line just above it, and the dimmed flash header and note at the top edge.",
+          "on_screen_text": "",
+          "narration_line": "Softmax turns each row of attention scores into weights."
+        },
+        {
+          "id": "B2",
+          "start_time": 4,
+          "end_time": 7,
+          "pedagogical_role": "mechanism",
+          "visible_objects": [
+            {
+              "id": "softmax_line",
+              "description": "The softmax code line, now small as an anchor at the top.",
+              "source": {
+                "source_ref_id": "S4",
+                "start_line": 69,
+                "end_line": 69
+              },
+              "change": "Shrinks and moves to the top edge."
+            },
+            {
+              "id": "branch_tag",
+              "description": "Persistent branch tag, docked by the code anchor.",
+              "label": "else branch: self.flash is false",
+              "change": "Moves along with the code anchor to the top."
+            },
+            {
+              "id": "order_chain",
+              "description": "Short step chain showing the order on this branch, with masked_fill as the current step.",
+              "label": "scores → masked_fill → softmax",
+              "change": "Draws in from left to right, and masked_fill lights up."
+            },
+            {
+              "id": "score_row",
+              "description": "One query's row of scaled, masked scores over five key positions, shown as illustrative values; the last two cells hold -inf.",
+              "label": "2.1 | 0.5 | 1.3 | -inf | -inf",
+              "change": "Extends out of the chain one cell at a time, and the two rightmost cells flip to -inf."
+            },
+            {
+              "id": "future_marker",
+              "description": "Bracket over the two rightmost -inf cells, marking them as future positions.",
+              "label": "future positions",
+              "change": "Brackets the -inf cells as they flip."
+            }
+          ],
+          "claim_ids": [
+            "C2",
+            "C3"
+          ],
+          "condition_ids": [
+            "K1"
+          ],
+          "must_show_covered": [
+            "One row of attention scores in which the future positions hold -inf after `masked_fill`"
+          ],
+          "transition": "The code shrinks to a header, and one row of scores pulls out into the centre.",
+          "framing": "The score row is centred and large, the chain sits above it, and the code anchor and branch tag recede to the top.",
+          "on_screen_text": "After masked_fill, future positions hold -inf."
+        },
+        {
+          "id": "B3",
+          "start_time": 7,
+          "end_time": 10,
+          "pedagogical_role": "mechanism",
+          "visible_objects": [
+            {
+              "id": "branch_tag",
+              "description": "Persistent branch tag at the top.",
+              "label": "else branch: self.flash is false",
+              "change": "Holds in place."
+            },
+            {
+              "id": "order_chain",
+              "description": "Step chain with softmax now as the current step.",
+              "label": "scores → masked_fill → softmax",
+              "change": "The highlight moves from masked_fill to softmax."
+            },
+            {
+              "id": "score_row",
+              "description": "The same five-position row, now becoming weights: each score cell grows into an upright bar. The 2.1 bar is tallest, then 1.3, then 0.5, and the -inf cells sit flat at zero.",
+              "label": "weights",
+              "change": "The cells turn into bars sized by weight, larger scores growing larger bars, while the -inf cells collapse flat."
+            },
+            {
+              "id": "zero_labels",
+              "description": "Labels under the two collapsed future cells showing their weight is exactly zero.",
+              "label": "0",
+              "change": "Appear under each collapsed cell as it flattens."
+            },
+            {
+              "id": "row_axis_arrow",
+              "description": "Horizontal arrow running along the row across all key positions, showing the direction softmax normalizes.",
+              "label": "dim=-1: along the row, over key positions",
+              "change": "Sweeps left to right along the row as the bars grow."
+            }
+          ],
+          "claim_ids": [
+            "C1",
+            "C3"
+          ],
+          "condition_ids": [
+            "K1"
+          ],
+          "must_show_covered": [
+            "That row turning into weights: larger scores get larger weights, -inf entries become exactly 0",
+            "The arrow showing softmax works across the last dimension (along a row, over key positions)"
+          ],
+          "transition": "The softmax step lights up, and the arrow sweeps along the row as the scores become bars.",
+          "framing": "The row stays centred as it changes, with the arrow just above it. The chain and branch tag stay small at the top.",
+          "on_screen_text": "Larger scores get larger weights; -inf becomes exactly 0."
+        },
+        {
+          "id": "B4",
+          "start_time": 10,
+          "end_time": 12.5,
+          "pedagogical_role": "mechanism",
+          "visible_objects": [
+            {
+              "id": "branch_tag",
+              "description": "Persistent branch tag at the top.",
+              "label": "else branch: self.flash is false",
+              "change": "Holds in place."
+            },
+            {
+              "id": "score_row",
+              "description": "The row of five weights. The two masked slots are still present at zero, so the row has the same length as before.",
+              "label": "weights",
+              "change": "A ghost copy of the bars stacks end to end into one unit-length bar, while the original row stays in place."
+            },
+            {
+              "id": "unit_bracket",
+              "description": "Bracket spanning the stacked bar, showing it fills exactly one whole unit.",
+              "label": "sum = 1",
+              "change": "Closes around the stacked bar the moment it fills."
+            },
+            {
+              "id": "length_marker",
+              "description": "Span marker under the weight row, matching the earlier score row's five slots.",
+              "label": "Row length unchanged",
+              "change": "Draws under all five slots, including the zero ones."
+            }
+          ],
+          "claim_ids": [
+            "C3"
+          ],
+          "condition_ids": [
+            "K1"
+          ],
+          "must_show_covered": [
+            "The resulting row of weights summing to 1, with the row's length unchanged"
+          ],
+          "transition": "The finished bars copy downward and stack together into one unit.",
+          "framing": "The weight row is centred, with the unit-length stack below it. The arrow and chain fade back.",
+          "on_screen_text": "Non-negative weights that sum to 1."
+        },
+        {
+          "id": "B5",
+          "start_time": 12.5,
+          "end_time": 15,
+          "pedagogical_role": "mechanism",
+          "visible_objects": [
+            {
+              "id": "branch_tag",
+              "description": "Persistent branch tag at the top.",
+              "label": "else branch: self.flash is false",
+              "change": "Holds in place."
+            },
+            {
+              "id": "order_chain",
+              "description": "The full order on this branch as one short chain, ending at the matrix product.",
+              "label": "scores → masked_fill → softmax → attn_dropout → att @ v",
+              "change": "Extends past softmax through attn_dropout to att @ v, lighting each step in turn."
+            },
+            {
+              "id": "score_row",
+              "description": "The row of weights, travelling along the chain.",
+              "label": "weights",
+              "change": "Moves through the attn_dropout node and into the att @ v node."
+            },
+            {
+              "id": "matmul_node",
+              "description": "The final step, where the weights meet v to produce y.",
+              "label": "y = att @ v",
+              "change": "Receives the weight row and glows as y forms."
+            }
+          ],
+          "claim_ids": [
+            "C2"
+          ],
+          "condition_ids": [
+            "K1"
+          ],
+          "must_show_covered": [
+            "The weights then flowing into `y = att @ v`"
+          ],
+          "transition": "The chain grows rightward, and the weight row follows it to the end.",
+          "framing": "The full chain spans the screen with the y = att @ v node at the right. The branch tag stays visible at the top.",
+          "on_screen_text": "Weights then flow into att @ v."
+        }
+      ]
+    },
+    "renderer": {
+      "name": "remotion",
+      "version": "motion-renderer-1-a86e713ce9d6/remotion@4.0.521"
+    },
+    "prompt_spec_version": "motion-v1.0/director-1",
+    "director_model_config": {
+      "role": "MOTION_DIRECTOR_MODEL",
+      "resolved_model": "claude-opus-5-5"
+    },
+    "author_model_config": {
+      "role": "MOTION_AUTHOR_MODEL",
+      "resolved_model": "claude-opus-5-5"
+    },
+    "review_model_config": {
+      "visual": {
+        "role": "MOTION_VISUAL_REVIEW_MODEL",
+        "resolved_model": "claude-opus-5-5"
+      },
+      "pedagogical": {
+        "role": "MOTION_PEDAGOGICAL_REVIEW_MODEL",
+        "resolved_model": "claude-opus-5-5"
+      }
+    },
+    "repair_count": 1,
+    "format_retries": [],
+    "findings": [
+      {
+        "reviewer": "harness",
+        "round": 0,
+        "category": "blank_frame",
+        "beat_id": "B1",
+        "timestamp": 0,
+        "description": "Blank or near-blank frames: #0 (0.00 s, luma stddev 1.34), #1 (0.03 s, luma stddev 1.35). Every sampled frame (0, 1, each beat's start, start + 1, middle and end - 1, and the last frame) needs luma standard deviation above 2; the final render is refused otherwise."
+      },
+      {
+        "reviewer": "visual",
+        "round": 0,
+        "beat_id": "B5",
+        "category": "aesthetic_preference",
+        "timestamp": 14.97,
+        "description": "The small weights chart inside the `y = att @ v` box has tiny value labels (0.61, 0.12, 0.27) and a tiny 'weights' tag that are still too small to read at full size. The bar shapes still make it clear that these are the weights."
+      },
+      {
+        "reviewer": "visual",
+        "round": 0,
+        "beat_id": "B4",
+        "category": "aesthetic_preference",
+        "timestamp": 11.27,
+        "description": "While 'sum = 1' is shown, the 'dim=-1: along the row, over key positions' arrow and its label fade to dark brown on the dark background. This low contrast makes the required direction-of-normalization marker hard to pick out, though it can still be read."
+      },
+      {
+        "reviewer": "visual",
+        "round": 0,
+        "beat_id": "B1",
+        "category": "aesthetic_preference",
+        "timestamp": 2,
+        "description": "The side note 'If true: scaled_dot_product_attention, is_causal=True' is small, thin, grey italic text on the dark background. Its contrast is low next to the main code lines."
+      },
+      {
+        "reviewer": "visual",
+        "round": 0,
+        "beat_id": "B1",
+        "category": "easing_preference",
+        "timestamp": 0,
+        "description": "The opening frame shows only a very faint 'if self.flash:' on an otherwise empty screen, so the video starts almost empty before the highlighted softmax line appears."
+      },
+      {
+        "reviewer": "visual",
+        "round": 1,
+        "beat_id": "B5",
+        "category": "aesthetic_preference",
+        "timestamp": 14.97,
+        "description": "The shrunken weights row that flows into the `y = att @ v` box keeps its value labels (0.61, 0.12, 0.27) and 'weights' tag. At this scale they are only a few pixels tall, so even at full size they are specks a learner cannot read. The bar shapes still carry the idea."
+      }
+    ],
+    "preview_refs": {
+      "video": "round-1/preview.mp4",
+      "contact_sheet": "round-1/contact-sheet.png",
+      "keyframes": [
+        "round-1/frames/frame-0000.png",
+        "round-1/frames/frame-0060.png",
+        "round-1/frames/frame-0120.png",
+        "round-1/frames/frame-0165.png",
+        "round-1/frames/frame-0210.png",
+        "round-1/frames/frame-0255.png",
+        "round-1/frames/frame-0300.png",
+        "round-1/frames/frame-0338.png",
+        "round-1/frames/frame-0375.png",
+        "round-1/frames/frame-0413.png",
+        "round-1/frames/frame-0420.png",
+        "round-1/frames/frame-0449.png"
+      ]
+    },
+    "source_refs": [
+      {
+        "id": "S1",
+        "kind": "code",
+        "repository": "karpathy/nanoGPT",
+        "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+        "path": "model.py",
+        "start_line": 44,
+        "end_line": 45
+      },
+      {
+        "id": "S2",
+        "kind": "code",
+        "repository": "karpathy/nanoGPT",
+        "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+        "path": "model.py",
+        "start_line": 48,
+        "end_line": 50
+      },
+      {
+        "id": "S3",
+        "kind": "code",
+        "repository": "karpathy/nanoGPT",
+        "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+        "path": "model.py",
+        "start_line": 62,
+        "end_line": 64
+      },
+      {
+        "id": "S4",
+        "kind": "code",
+        "repository": "karpathy/nanoGPT",
+        "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+        "path": "model.py",
+        "start_line": 65,
+        "end_line": 71
+      }
+    ],
+    "created_at": "2026-10-05T00:46:10.068Z",
+    "updated_at": "2026-10-05T00:53:02.145Z",
+    "final_validation": {
+      "ok": true,
+      "final": {
+        "ok": true,
+        "checks": [
+          {
+            "artifact": "final.mp4",
+            "name": "duration",
+            "ok": true,
+            "detail": "video 15s, container 15.061333s (want 15s within one frame, <= 30s)"
+          },
+          {
+            "artifact": "final.mp4",
+            "name": "frame count",
+            "ok": true,
+            "detail": "450 (want 450)"
+          },
+          {
+            "artifact": "final.mp4",
+            "name": "fps",
+            "ok": true,
+            "detail": "30/1"
+          },
+          {
+            "artifact": "final.mp4",
+            "name": "resolution",
+            "ok": true,
+            "detail": "1920x1080"
+          },
+          {
+            "artifact": "final.mp4",
+            "name": "codec",
+            "ok": true,
+            "detail": "h264 yuv420p bt709"
+          },
+          {
+            "artifact": "final.mp4",
+            "name": "size",
+            "ok": true,
+            "detail": "1809354 bytes (cap 26214400)"
+          },
+          {
+            "artifact": "final.mp4",
+            "name": "nonblank frames",
+            "ok": true,
+            "detail": "#0:14.63 #1:14.55 #60:16.53 #119:16.42 #120:16.43 #121:16.56 #165:20.75 #209:16.16 #210:16.16 #211:16.17 #255:35.33 #299:32.14 #300:32.06 #301:32.06 #338:36.04 #374:34.17 #375:34.17 #376:34.17 #413:20.19 #420:20.19 #449:20.7"
+          }
+        ],
+        "keyframes": 21
+      },
+      "artifacts": {
+        "ok": true,
+        "checks": [
+          {
+            "artifact": "preview.mp4",
+            "name": "frame count",
+            "ok": true,
+            "detail": "450 (want 450)"
+          },
+          {
+            "artifact": "preview.mp4",
+            "name": "fps",
+            "ok": true,
+            "detail": "30/1"
+          },
+          {
+            "artifact": "preview.mp4",
+            "name": "resolution",
+            "ok": true,
+            "detail": "864x486 (want 864x486, scale 0.45)"
+          },
+          {
+            "artifact": "preview.mp4",
+            "name": "codec",
+            "ok": true,
+            "detail": "h264 yuv420p bt709"
+          },
+          {
+            "artifact": "preview.mp4",
+            "name": "size",
+            "ok": true,
+            "detail": "1101220 bytes (cap 26214400)"
+          },
+          {
+            "artifact": "poster.png",
+            "name": "resolution",
+            "ok": true,
+            "detail": "1920x1080"
+          },
+          {
+            "artifact": "poster.png",
+            "name": "nonblank",
+            "ok": true,
+            "detail": "luma stddev 21.09"
+          },
+          {
+            "artifact": "poster.png",
+            "name": "last frame",
+            "ok": true,
+            "detail": "#449: pixels ef35f2808ce6 vs determinism ef35f2808ce6"
+          },
+          {
+            "artifact": "contact-sheet.png",
+            "name": "tiles",
+            "ok": true,
+            "detail": "3536x1654, 12 tiles (want 3536x1654, 12 tiles)"
+          },
+          {
+            "artifact": "contact-sheet.png",
+            "name": "nonblank",
+            "ok": true,
+            "detail": "luma stddev 73.43"
+          }
+        ]
+      },
+      "coverage": {
+        "ok": true,
+        "frames": 20,
+        "observed": 20,
+        "errors": []
+      },
+      "determinism": {
+        "ok": true,
+        "method": "renderStill PNG, sha256 of decoded RGBA, two fresh contexts (separate bundle and browser)",
+        "frames": [
+          {
+            "frame": 0,
+            "hashes": [
+              "e0a5a980ab31feeb91640b681a27c1e14002a6bbf3e883da29cfddc5006b72fb",
+              "e0a5a980ab31feeb91640b681a27c1e14002a6bbf3e883da29cfddc5006b72fb"
+            ]
+          },
+          {
+            "frame": 60,
+            "hashes": [
+              "91b63a0452f0ebed705fa13475f1ff1c544bada9e46e6863b0970fcf60be679d",
+              "91b63a0452f0ebed705fa13475f1ff1c544bada9e46e6863b0970fcf60be679d"
+            ]
+          },
+          {
+            "frame": 120,
+            "hashes": [
+              "50cc1550e9f3c3d2feaee867bb47c67f34f71e810679febd93f6e84d09a0860d",
+              "50cc1550e9f3c3d2feaee867bb47c67f34f71e810679febd93f6e84d09a0860d"
+            ]
+          },
+          {
+            "frame": 165,
+            "hashes": [
+              "2e6242454d9301c143bc564754dc3100b117da70524ccf2aca234a15ef091ef0",
+              "2e6242454d9301c143bc564754dc3100b117da70524ccf2aca234a15ef091ef0"
+            ]
+          },
+          {
+            "frame": 210,
+            "hashes": [
+              "f7915e527ae35b029554af7577593938352bdc110a051ce1245f0c1976e1f77e",
+              "f7915e527ae35b029554af7577593938352bdc110a051ce1245f0c1976e1f77e"
+            ]
+          },
+          {
+            "frame": 224,
+            "hashes": [
+              "c10dfdced8e2236f755e48d48c2f66d6589311caf7b539c9f2da318ba2a1e132",
+              "c10dfdced8e2236f755e48d48c2f66d6589311caf7b539c9f2da318ba2a1e132"
+            ]
+          },
+          {
+            "frame": 255,
+            "hashes": [
+              "dcfac8d2952fed113876bce7b20eedf633550ac741ed90631662ea72ac025129",
+              "dcfac8d2952fed113876bce7b20eedf633550ac741ed90631662ea72ac025129"
+            ]
+          },
+          {
+            "frame": 300,
+            "hashes": [
+              "b4739b924abadbb1940246d3d228c1222e54e7bc4b16ef9ec2dbd28d04335174",
+              "b4739b924abadbb1940246d3d228c1222e54e7bc4b16ef9ec2dbd28d04335174"
+            ]
+          },
+          {
+            "frame": 338,
+            "hashes": [
+              "527985a7159278278241311c97cfded847fbb33b7462b8e82395dbed51b7f5ad",
+              "527985a7159278278241311c97cfded847fbb33b7462b8e82395dbed51b7f5ad"
+            ]
+          },
+          {
+            "frame": 375,
+            "hashes": [
+              "17ccd079654a25ea8ddd7cc27a819c1506b5304bd9b7adda6aacc48ab3b993f1",
+              "17ccd079654a25ea8ddd7cc27a819c1506b5304bd9b7adda6aacc48ab3b993f1"
+            ]
+          },
+          {
+            "frame": 413,
+            "hashes": [
+              "b0a8d90998a5b9b0244ead38c8869f7964101141b4e1a2a30d0c9aea856348a1",
+              "b0a8d90998a5b9b0244ead38c8869f7964101141b4e1a2a30d0c9aea856348a1"
+            ]
+          },
+          {
+            "frame": 420,
+            "hashes": [
+              "b0a8d90998a5b9b0244ead38c8869f7964101141b4e1a2a30d0c9aea856348a1",
+              "b0a8d90998a5b9b0244ead38c8869f7964101141b4e1a2a30d0c9aea856348a1"
+            ]
+          },
+          {
+            "frame": 449,
+            "hashes": [
+              "ef35f2808ce62d11ccae762b470d3b56facd92542389995548a27418d885130e",
+              "ef35f2808ce62d11ccae762b470d3b56facd92542389995548a27418d885130e"
+            ]
+          }
+        ],
+        "errors": []
+      },
+      "preview_final": {
+        "ok": true,
+        "max": 2.104,
+        "threshold": 6
+      }
+    },
+    "final_ref": "final/final.mp4"
+  },
+  "passes": [
+    {
+      "round": 0,
+      "author": "composition",
+      "preview": {
+        "status": "ready",
+        "render_id": "8c122b5d6041614c568dc1b5f92bb522",
+        "composition_id": "softmax-attention-weights",
+        "renderer": {
+          "name": "remotion",
+          "service_version": "motion-renderer-1-a86e713ce9d6/remotion@4.0.521",
+          "sandbox": "none"
+        },
+        "artifacts": {
+          "preview_mp4": "preview.mp4",
+          "contact_sheet": "contact-sheet.png"
+        },
+        "hashes": {
+          "preview_mp4": "8f2f172d30b2d0ca80aaf9c3a8131beb6bfae0924f4717bcf026184f628fbf77",
+          "contact_sheet": "32ac67ac5da03d7b3c8d123e71cef55433b767c8b7e31f023c0d3acbb852d6b6"
+        },
+        "checks": {
+          "ok": true,
+          "rows": [
+            {
+              "artifact": "preview.mp4",
+              "name": "frame count",
+              "ok": true,
+              "detail": "450 (want 450)"
+            },
+            {
+              "artifact": "preview.mp4",
+              "name": "fps",
+              "ok": true,
+              "detail": "30/1"
+            },
+            {
+              "artifact": "preview.mp4",
+              "name": "resolution",
+              "ok": true,
+              "detail": "864x486 (want 864x486, scale 0.45)"
+            },
+            {
+              "artifact": "preview.mp4",
+              "name": "codec",
+              "ok": true,
+              "detail": "h264 yuv420p bt709"
+            },
+            {
+              "artifact": "preview.mp4",
+              "name": "size",
+              "ok": true,
+              "detail": "1082521 bytes (cap 26214400)"
+            },
+            {
+              "artifact": "contact-sheet.png",
+              "name": "tiles",
+              "ok": true,
+              "detail": "3536x1654, 12 tiles (want 3536x1654, 12 tiles)"
+            },
+            {
+              "artifact": "contact-sheet.png",
+              "name": "nonblank",
+              "ok": true,
+              "detail": "luma stddev 73.38"
+            }
+          ]
+        },
+        "nonblank": {
+          "ok": false,
+          "threshold": 2,
+          "detail": "#0:1.34 #1:1.35 #60:16.11 #119:16.14 #120:16.14 #121:16.26 #165:20.75 #209:15.63 #210:15.63 #211:15.63 #255:34.7 #299:31.42 #300:31.35 #301:31.35 #338:35.46 #374:33.55 #375:33.55 #376:33.54 #413:19.99 #420:19.99 #449:20.42",
+          "blank": [
+            {
+              "frame": 0,
+              "beat": "B1",
+              "luma_stddev": 1.34
+            },
+            {
+              "frame": 1,
+              "beat": "B1",
+              "luma_stddev": 1.35
+            }
+          ]
+        },
+        "frames": [
+          {
+            "frame": 0,
+            "time": 0,
+            "beat": "B1",
+            "file": "frames/frame-0000.png"
+          },
+          {
+            "frame": 60,
+            "time": 2,
+            "beat": "B1",
+            "file": "frames/frame-0060.png"
+          },
+          {
+            "frame": 120,
+            "time": 4,
+            "beat": "B2",
+            "file": "frames/frame-0120.png"
+          },
+          {
+            "frame": 165,
+            "time": 5.5,
+            "beat": "B2",
+            "file": "frames/frame-0165.png"
+          },
+          {
+            "frame": 210,
+            "time": 7,
+            "beat": "B3",
+            "file": "frames/frame-0210.png"
+          },
+          {
+            "frame": 255,
+            "time": 8.5,
+            "beat": "B3",
+            "file": "frames/frame-0255.png"
+          },
+          {
+            "frame": 300,
+            "time": 10,
+            "beat": "B4",
+            "file": "frames/frame-0300.png"
+          },
+          {
+            "frame": 338,
+            "time": 11.27,
+            "beat": "B4",
+            "file": "frames/frame-0338.png"
+          },
+          {
+            "frame": 375,
+            "time": 12.5,
+            "beat": "B5",
+            "file": "frames/frame-0375.png"
+          },
+          {
+            "frame": 413,
+            "time": 13.77,
+            "beat": "B5",
+            "file": "frames/frame-0413.png"
+          },
+          {
+            "frame": 420,
+            "time": 14,
+            "beat": "B5",
+            "file": "frames/frame-0420.png"
+          },
+          {
+            "frame": 449,
+            "time": 14.97,
+            "beat": "B5",
+            "file": "frames/frame-0449.png"
+          }
+        ],
+        "timings": {
+          "service": {
+            "bundle": 37.34,
+            "browser": 1.81,
+            "preview": 14.24,
+            "stills@0.45": 7.61,
+            "total": 64.61
+          },
+          "decode_s": 5.35,
+          "total_s": 73.68
+        },
+        "provenance": {
+          "motion_job_id": "brief-9883207f",
+          "prompt_spec_version": "motion-v1.0/director-1",
+          "brief_sha256": "c9b2cd9dfc675c37fcba7d843d6a4591cf3315aae81207d0dc895d3b6bb88c76",
+          "storyboard_sha256": "774103d32bcc173932171d8819d6b1e61fd8f843121c2f254be77fa63e0b870f",
+          "composition_sha256": "fd81cb6a9e735ebf86cd72e1f04120a489b7e394d5fb83429e24b86fd39add05",
+          "source_bytes": 20134,
+          "source_chars": 20122,
+          "storyboard_origin": "model_generated",
+          "composition_origin": "model_generated",
+          "fonts": {
+            "Inter-Regular.woff2": "e06f6b1bc553aaea4e4668023ed0ab0a147129c3107f511bc7d03d361b0ae085",
+            "Inter-Medium.woff2": "0ff3e94614e1493eb556314fd247ae6c4a85a7783b4cc86be539940cf83f2a48",
+            "Virgil.woff2": "9976295bfe709bdea64839a4d4e9a1d436dd6eb67538399a5a0e8b8fadbcf1cf",
+            "JetBrainsMono-Regular.woff2": "a9cb1cd82332b23a47e3a1239d25d13c86d16c4220695e34b243effa999f45f2"
+          }
+        }
+      },
+      "findings": [
+        {
+          "reviewer": "harness",
+          "round": 0,
+          "category": "blank_frame",
+          "beat_id": "B1",
+          "timestamp": 0,
+          "description": "Blank or near-blank frames: #0 (0.00 s, luma stddev 1.34), #1 (0.03 s, luma stddev 1.35). Every sampled frame (0, 1, each beat's start, start + 1, middle and end - 1, and the last frame) needs luma standard deviation above 2; the final render is refused otherwise."
+        },
+        {
+          "reviewer": "visual",
+          "round": 0,
+          "beat_id": "B5",
+          "category": "aesthetic_preference",
+          "timestamp": 14.97,
+          "description": "The small weights chart inside the `y = att @ v` box has tiny value labels (0.61, 0.12, 0.27) and a tiny 'weights' tag that are still too small to read at full size. The bar shapes still make it clear that these are the weights."
+        },
+        {
+          "reviewer": "visual",
+          "round": 0,
+          "beat_id": "B4",
+          "category": "aesthetic_preference",
+          "timestamp": 11.27,
+          "description": "While 'sum = 1' is shown, the 'dim=-1: along the row, over key positions' arrow and its label fade to dark brown on the dark background. This low contrast makes the required direction-of-normalization marker hard to pick out, though it can still be read."
+        },
+        {
+          "reviewer": "visual",
+          "round": 0,
+          "beat_id": "B1",
+          "category": "aesthetic_preference",
+          "timestamp": 2,
+          "description": "The side note 'If true: scaled_dot_product_attention, is_causal=True' is small, thin, grey italic text on the dark background. Its contrast is low next to the main code lines."
+        },
+        {
+          "reviewer": "visual",
+          "round": 0,
+          "beat_id": "B1",
+          "category": "easing_preference",
+          "timestamp": 0,
+          "description": "The opening frame shows only a very faint 'if self.flash:' on an otherwise empty screen, so the video starts almost empty before the highlighted softmax line appears."
+        }
+      ],
+      "blocking": 1,
+      "advisory": 4,
+      "decision": "repair"
+    },
+    {
+      "round": 1,
+      "author": "composition",
+      "preview": {
+        "status": "ready",
+        "render_id": "ef2c99e63db8087dfbbaf3b33e81856f",
+        "composition_id": "softmax-attention-weights",
+        "renderer": {
+          "name": "remotion",
+          "service_version": "motion-renderer-1-a86e713ce9d6/remotion@4.0.521",
+          "sandbox": "none"
+        },
+        "artifacts": {
+          "preview_mp4": "preview.mp4",
+          "contact_sheet": "contact-sheet.png"
+        },
+        "hashes": {
+          "preview_mp4": "935aa64d50c50d9452815f14de4ccade647e3020c234c8cc4a2df50af3d80683",
+          "contact_sheet": "3406af87501811fa0270aadeab8ced00aba6db036d23e8b26b80e78d406ee8de"
+        },
+        "checks": {
+          "ok": true,
+          "rows": [
+            {
+              "artifact": "preview.mp4",
+              "name": "frame count",
+              "ok": true,
+              "detail": "450 (want 450)"
+            },
+            {
+              "artifact": "preview.mp4",
+              "name": "fps",
+              "ok": true,
+              "detail": "30/1"
+            },
+            {
+              "artifact": "preview.mp4",
+              "name": "resolution",
+              "ok": true,
+              "detail": "864x486 (want 864x486, scale 0.45)"
+            },
+            {
+              "artifact": "preview.mp4",
+              "name": "codec",
+              "ok": true,
+              "detail": "h264 yuv420p bt709"
+            },
+            {
+              "artifact": "preview.mp4",
+              "name": "size",
+              "ok": true,
+              "detail": "1101220 bytes (cap 26214400)"
+            },
+            {
+              "artifact": "contact-sheet.png",
+              "name": "tiles",
+              "ok": true,
+              "detail": "3536x1654, 12 tiles (want 3536x1654, 12 tiles)"
+            },
+            {
+              "artifact": "contact-sheet.png",
+              "name": "nonblank",
+              "ok": true,
+              "detail": "luma stddev 73.43"
+            }
+          ]
+        },
+        "nonblank": {
+          "ok": true,
+          "threshold": 2,
+          "detail": "#0:14.5 #1:14.65 #60:16.3 #119:16.18 #120:16.18 #121:16.29 #165:20.77 #209:15.65 #210:15.65 #211:15.65 #255:34.7 #299:31.42 #300:31.35 #301:31.35 #338:35.46 #374:33.55 #375:33.55 #376:33.54 #413:19.99 #420:19.99 #449:20.42",
+          "blank": []
+        },
+        "frames": [
+          {
+            "frame": 0,
+            "time": 0,
+            "beat": "B1",
+            "file": "frames/frame-0000.png"
+          },
+          {
+            "frame": 60,
+            "time": 2,
+            "beat": "B1",
+            "file": "frames/frame-0060.png"
+          },
+          {
+            "frame": 120,
+            "time": 4,
+            "beat": "B2",
+            "file": "frames/frame-0120.png"
+          },
+          {
+            "frame": 165,
+            "time": 5.5,
+            "beat": "B2",
+            "file": "frames/frame-0165.png"
+          },
+          {
+            "frame": 210,
+            "time": 7,
+            "beat": "B3",
+            "file": "frames/frame-0210.png"
+          },
+          {
+            "frame": 255,
+            "time": 8.5,
+            "beat": "B3",
+            "file": "frames/frame-0255.png"
+          },
+          {
+            "frame": 300,
+            "time": 10,
+            "beat": "B4",
+            "file": "frames/frame-0300.png"
+          },
+          {
+            "frame": 338,
+            "time": 11.27,
+            "beat": "B4",
+            "file": "frames/frame-0338.png"
+          },
+          {
+            "frame": 375,
+            "time": 12.5,
+            "beat": "B5",
+            "file": "frames/frame-0375.png"
+          },
+          {
+            "frame": 413,
+            "time": 13.77,
+            "beat": "B5",
+            "file": "frames/frame-0413.png"
+          },
+          {
+            "frame": 420,
+            "time": 14,
+            "beat": "B5",
+            "file": "frames/frame-0420.png"
+          },
+          {
+            "frame": 449,
+            "time": 14.97,
+            "beat": "B5",
+            "file": "frames/frame-0449.png"
+          }
+        ],
+        "timings": {
+          "service": {
+            "bundle": 20,
+            "browser": 0.36,
+            "preview": 9.4,
+            "stills@0.45": 9.06,
+            "total": 41.61
+          },
+          "decode_s": 6.37,
+          "total_s": 51.84
+        },
+        "provenance": {
+          "motion_job_id": "brief-9883207f",
+          "prompt_spec_version": "motion-v1.0/director-1",
+          "brief_sha256": "c9b2cd9dfc675c37fcba7d843d6a4591cf3315aae81207d0dc895d3b6bb88c76",
+          "storyboard_sha256": "774103d32bcc173932171d8819d6b1e61fd8f843121c2f254be77fa63e0b870f",
+          "composition_sha256": "af342f80214cf373979a052e04806c381cb38dd8cf3a0717be919d3b989bd0f7",
+          "source_bytes": 20293,
+          "source_chars": 20281,
+          "storyboard_origin": "model_generated",
+          "composition_origin": "model_generated",
+          "fonts": {
+            "Inter-Regular.woff2": "e06f6b1bc553aaea4e4668023ed0ab0a147129c3107f511bc7d03d361b0ae085",
+            "Inter-Medium.woff2": "0ff3e94614e1493eb556314fd247ae6c4a85a7783b4cc86be539940cf83f2a48",
+            "Virgil.woff2": "9976295bfe709bdea64839a4d4e9a1d436dd6eb67538399a5a0e8b8fadbcf1cf",
+            "JetBrainsMono-Regular.woff2": "a9cb1cd82332b23a47e3a1239d25d13c86d16c4220695e34b243effa999f45f2"
+          }
+        }
+      },
+      "findings": [
+        {
+          "reviewer": "visual",
+          "round": 1,
+          "beat_id": "B5",
+          "category": "aesthetic_preference",
+          "timestamp": 14.97,
+          "description": "The shrunken weights row that flows into the `y = att @ v` box keeps its value labels (0.61, 0.12, 0.27) and 'weights' tag. At this scale they are only a few pixels tall, so even at full size they are specks a learner cannot read. The bar shapes still carry the idea."
+        }
+      ],
+      "blocking": 0,
+      "advisory": 1,
+      "decision": "render_final"
+    }
+  ],
+  "repair": {
+    "route": "author",
+    "findings": 1,
+    "author": {
+      "status": "composition"
+    }
+  },
+  "render": {
+    "schema": "motion-render-result/1",
+    "status": "ready",
+    "render_id": "eeb46d809d86e92b8c00f95d4b977ea5",
+    "composition_id": "softmax-attention-weights",
+    "renderer": {
+      "name": "remotion",
+      "service_version": "motion-renderer-1-a86e713ce9d6/remotion@4.0.521",
+      "remotion": "remotion@4.0.521",
+      "chrome": "149.0.7790.0",
+      "ffmpeg": "ffmpeg version n7.1 Copyright (c) 2000-2024 the FFmpeg developers",
+      "sandbox": "none"
+    },
+    "artifacts": {
+      "final_mp4": "final.mp4",
+      "preview_mp4": "preview.mp4",
+      "poster": "poster.png",
+      "contact_sheet": "contact-sheet.png"
+    },
+    "hashes": {
+      "final_mp4": "f1802e326b0cd6647cc8a2b6216ca021d325d89fe2faa872ccc5b437dd718fbf",
+      "preview_mp4": "935aa64d50c50d9452815f14de4ccade647e3020c234c8cc4a2df50af3d80683",
+      "poster": "657d6ede5561aff652c7195f85c384ac77a66f0161c9e729b2fb4e07e336f801",
+      "contact_sheet": "3406af87501811fa0270aadeab8ced00aba6db036d23e8b26b80e78d406ee8de"
+    },
+    "validation": {
+      "ok": true,
+      "final": {
+        "ok": true,
+        "checks": [
+          {
+            "artifact": "final.mp4",
+            "name": "duration",
+            "ok": true,
+            "detail": "video 15s, container 15.061333s (want 15s within one frame, <= 30s)"
+          },
+          {
+            "artifact": "final.mp4",
+            "name": "frame count",
+            "ok": true,
+            "detail": "450 (want 450)"
+          },
+          {
+            "artifact": "final.mp4",
+            "name": "fps",
+            "ok": true,
+            "detail": "30/1"
+          },
+          {
+            "artifact": "final.mp4",
+            "name": "resolution",
+            "ok": true,
+            "detail": "1920x1080"
+          },
+          {
+            "artifact": "final.mp4",
+            "name": "codec",
+            "ok": true,
+            "detail": "h264 yuv420p bt709"
+          },
+          {
+            "artifact": "final.mp4",
+            "name": "size",
+            "ok": true,
+            "detail": "1809354 bytes (cap 26214400)"
+          },
+          {
+            "artifact": "final.mp4",
+            "name": "nonblank frames",
+            "ok": true,
+            "detail": "#0:14.63 #1:14.55 #60:16.53 #119:16.42 #120:16.43 #121:16.56 #165:20.75 #209:16.16 #210:16.16 #211:16.17 #255:35.33 #299:32.14 #300:32.06 #301:32.06 #338:36.04 #374:34.17 #375:34.17 #376:34.17 #413:20.19 #420:20.19 #449:20.7"
+          }
+        ],
+        "keyframes": 21
+      },
+      "artifacts": {
+        "ok": true,
+        "checks": [
+          {
+            "artifact": "preview.mp4",
+            "name": "frame count",
+            "ok": true,
+            "detail": "450 (want 450)"
+          },
+          {
+            "artifact": "preview.mp4",
+            "name": "fps",
+            "ok": true,
+            "detail": "30/1"
+          },
+          {
+            "artifact": "preview.mp4",
+            "name": "resolution",
+            "ok": true,
+            "detail": "864x486 (want 864x486, scale 0.45)"
+          },
+          {
+            "artifact": "preview.mp4",
+            "name": "codec",
+            "ok": true,
+            "detail": "h264 yuv420p bt709"
+          },
+          {
+            "artifact": "preview.mp4",
+            "name": "size",
+            "ok": true,
+            "detail": "1101220 bytes (cap 26214400)"
+          },
+          {
+            "artifact": "poster.png",
+            "name": "resolution",
+            "ok": true,
+            "detail": "1920x1080"
+          },
+          {
+            "artifact": "poster.png",
+            "name": "nonblank",
+            "ok": true,
+            "detail": "luma stddev 21.09"
+          },
+          {
+            "artifact": "poster.png",
+            "name": "last frame",
+            "ok": true,
+            "detail": "#449: pixels ef35f2808ce6 vs determinism ef35f2808ce6"
+          },
+          {
+            "artifact": "contact-sheet.png",
+            "name": "tiles",
+            "ok": true,
+            "detail": "3536x1654, 12 tiles (want 3536x1654, 12 tiles)"
+          },
+          {
+            "artifact": "contact-sheet.png",
+            "name": "nonblank",
+            "ok": true,
+            "detail": "luma stddev 73.43"
+          }
+        ]
+      },
+      "coverage": {
+        "ok": true,
+        "frames": 20,
+        "observed": 20,
+        "errors": []
+      },
+      "determinism": {
+        "ok": true,
+        "method": "renderStill PNG, sha256 of decoded RGBA, two fresh contexts (separate bundle and browser)",
+        "frames": [
+          {
+            "frame": 0,
+            "hashes": [
+              "e0a5a980ab31feeb91640b681a27c1e14002a6bbf3e883da29cfddc5006b72fb",
+              "e0a5a980ab31feeb91640b681a27c1e14002a6bbf3e883da29cfddc5006b72fb"
+            ]
+          },
+          {
+            "frame": 60,
+            "hashes": [
+              "91b63a0452f0ebed705fa13475f1ff1c544bada9e46e6863b0970fcf60be679d",
+              "91b63a0452f0ebed705fa13475f1ff1c544bada9e46e6863b0970fcf60be679d"
+            ]
+          },
+          {
+            "frame": 120,
+            "hashes": [
+              "50cc1550e9f3c3d2feaee867bb47c67f34f71e810679febd93f6e84d09a0860d",
+              "50cc1550e9f3c3d2feaee867bb47c67f34f71e810679febd93f6e84d09a0860d"
+            ]
+          },
+          {
+            "frame": 165,
+            "hashes": [
+              "2e6242454d9301c143bc564754dc3100b117da70524ccf2aca234a15ef091ef0",
+              "2e6242454d9301c143bc564754dc3100b117da70524ccf2aca234a15ef091ef0"
+            ]
+          },
+          {
+            "frame": 210,
+            "hashes": [
+              "f7915e527ae35b029554af7577593938352bdc110a051ce1245f0c1976e1f77e",
+              "f7915e527ae35b029554af7577593938352bdc110a051ce1245f0c1976e1f77e"
+            ]
+          },
+          {
+            "frame": 224,
+            "hashes": [
+              "c10dfdced8e2236f755e48d48c2f66d6589311caf7b539c9f2da318ba2a1e132",
+              "c10dfdced8e2236f755e48d48c2f66d6589311caf7b539c9f2da318ba2a1e132"
+            ]
+          },
+          {
+            "frame": 255,
+            "hashes": [
+              "dcfac8d2952fed113876bce7b20eedf633550ac741ed90631662ea72ac025129",
+              "dcfac8d2952fed113876bce7b20eedf633550ac741ed90631662ea72ac025129"
+            ]
+          },
+          {
+            "frame": 300,
+            "hashes": [
+              "b4739b924abadbb1940246d3d228c1222e54e7bc4b16ef9ec2dbd28d04335174",
+              "b4739b924abadbb1940246d3d228c1222e54e7bc4b16ef9ec2dbd28d04335174"
+            ]
+          },
+          {
+            "frame": 338,
+            "hashes": [
+              "527985a7159278278241311c97cfded847fbb33b7462b8e82395dbed51b7f5ad",
+              "527985a7159278278241311c97cfded847fbb33b7462b8e82395dbed51b7f5ad"
+            ]
+          },
+          {
+            "frame": 375,
+            "hashes": [
+              "17ccd079654a25ea8ddd7cc27a819c1506b5304bd9b7adda6aacc48ab3b993f1",
+              "17ccd079654a25ea8ddd7cc27a819c1506b5304bd9b7adda6aacc48ab3b993f1"
+            ]
+          },
+          {
+            "frame": 413,
+            "hashes": [
+              "b0a8d90998a5b9b0244ead38c8869f7964101141b4e1a2a30d0c9aea856348a1",
+              "b0a8d90998a5b9b0244ead38c8869f7964101141b4e1a2a30d0c9aea856348a1"
+            ]
+          },
+          {
+            "frame": 420,
+            "hashes": [
+              "b0a8d90998a5b9b0244ead38c8869f7964101141b4e1a2a30d0c9aea856348a1",
+              "b0a8d90998a5b9b0244ead38c8869f7964101141b4e1a2a30d0c9aea856348a1"
+            ]
+          },
+          {
+            "frame": 449,
+            "hashes": [
+              "ef35f2808ce62d11ccae762b470d3b56facd92542389995548a27418d885130e",
+              "ef35f2808ce62d11ccae762b470d3b56facd92542389995548a27418d885130e"
+            ]
+          }
+        ],
+        "errors": []
+      },
+      "preview_final": {
+        "ok": true,
+        "max": 2.104,
+        "threshold": 6
+      }
+    },
+    "resources": {
+      "sandbox": {
+        "mode": "none",
+        "env_keys": [
+          "APPDATA",
+          "COMSPEC",
+          "HOME",
+          "HOMEDRIVE",
+          "HOMEPATH",
+          "LOCALAPPDATA",
+          "LOGONSERVER",
+          "MOTION_SANDBOX",
+          "PATH",
+          "PATHEXT",
+          "SYSTEMDRIVE",
+          "SYSTEMROOT",
+          "TEMP",
+          "TMP",
+          "TMPDIR",
+          "USERDOMAIN",
+          "USERNAME",
+          "USERPROFILE",
+          "WINDIR"
+        ]
+      },
+      "limits": null
+    },
+    "timings": {
+      "submit_to_finished_s": 162.04,
+      "service": {
+        "bundle": 21.07,
+        "browser": 0.45,
+        "preview": 11.38,
+        "stills@0.45": 7.9,
+        "final": 30.07,
+        "stills@1": 10.17,
+        "determinism_second_context": {
+          "bundle": 24.99,
+          "browser": 0.3,
+          "stills@1": 9.32
+        },
+        "coverage_probe": {
+          "bundle": 0,
+          "browser": 0.21,
+          "stills@0.25": 11.66
+        },
+        "total": 157.55
+      },
+      "download_s": 0.09,
+      "client_validation_s": 15.71,
+      "total_s": 177.85
+    },
+    "provenance": {
+      "motion_job_id": "brief-9883207f",
+      "prompt_spec_version": "motion-v1.0/director-1",
+      "brief_sha256": "c9b2cd9dfc675c37fcba7d843d6a4591cf3315aae81207d0dc895d3b6bb88c76",
+      "storyboard_sha256": "774103d32bcc173932171d8819d6b1e61fd8f843121c2f254be77fa63e0b870f",
+      "composition_sha256": "af342f80214cf373979a052e04806c381cb38dd8cf3a0717be919d3b989bd0f7",
+      "source_bytes": 20293,
+      "source_chars": 20281,
+      "storyboard_origin": "model_generated",
+      "composition_origin": "model_generated",
+      "fonts": {
+        "Inter-Regular.woff2": "e06f6b1bc553aaea4e4668023ed0ab0a147129c3107f511bc7d03d361b0ae085",
+        "Inter-Medium.woff2": "0ff3e94614e1493eb556314fd247ae6c4a85a7783b4cc86be539940cf83f2a48",
+        "Virgil.woff2": "9976295bfe709bdea64839a4d4e9a1d436dd6eb67538399a5a0e8b8fadbcf1cf",
+        "JetBrainsMono-Regular.woff2": "a9cb1cd82332b23a47e3a1239d25d13c86d16c4220695e34b243effa999f45f2"
+      }
+    },
+    "duration_seconds": 15,
+    "fps": 30,
+    "width": 1920,
+    "height": 1080
+  },
+  "calls": [
+    {
+      "stage": "visual_review",
+      "round": 0,
+      "role": "MOTION_VISUAL_REVIEW_MODEL",
+      "resolved_model": "claude-opus-5-5",
+      "served_model": "claude-opus-5-5",
+      "latency_ms": 19194,
+      "stop_reason": "tool_use",
+      "usage": {
+        "input_tokens": 7707,
+        "output_tokens": 1498,
+        "cache_creation_input_tokens": 1182,
+        "cache_read_input_tokens": 0
+      },
+      "fell_back": false,
+      "cost_usd": 0.0667
+    },
+    {
+      "stage": "pedagogical_review",
+      "round": 0,
+      "role": "MOTION_PEDAGOGICAL_REVIEW_MODEL",
+      "resolved_model": "claude-opus-5-5",
+      "served_model": "claude-opus-5-5",
+      "latency_ms": 10255,
+      "stop_reason": "tool_use",
+      "usage": {
+        "input_tokens": 9093,
+        "output_tokens": 935,
+        "cache_creation_input_tokens": 1273,
+        "cache_read_input_tokens": 0
+      },
+      "fell_back": false,
+      "cost_usd": 0.0614
+    },
+    {
+      "stage": "author",
+      "round": 1,
+      "role": "MOTION_AUTHOR_MODEL",
+      "resolved_model": "claude-opus-5-5",
+      "served_model": "claude-opus-5-5",
+      "latency_ms": 76895,
+      "stop_reason": "tool_use",
+      "usage": {
+        "input_tokens": 16288,
+        "output_tokens": 11350,
+        "cache_creation_input_tokens": 2097,
+        "cache_read_input_tokens": 0
+      },
+      "fell_back": false,
+      "cost_usd": 0.3026
+    },
+    {
+      "stage": "visual_review",
+      "round": 1,
+      "role": "MOTION_VISUAL_REVIEW_MODEL",
+      "resolved_model": "claude-opus-5-5",
+      "served_model": "claude-opus-5-5",
+      "latency_ms": 12168,
+      "stop_reason": "tool_use",
+      "usage": {
+        "input_tokens": 7707,
+        "output_tokens": 797,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 1182
+      },
+      "fell_back": false,
+      "cost_usd": 0.047
+    },
+    {
+      "stage": "pedagogical_review",
+      "round": 1,
+      "role": "MOTION_PEDAGOGICAL_REVIEW_MODEL",
+      "resolved_model": "claude-opus-5-5",
+      "served_model": "claude-opus-5-5",
+      "latency_ms": 6936,
+      "stop_reason": "tool_use",
+      "usage": {
+        "input_tokens": 9093,
+        "output_tokens": 570,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 1273
+      },
+      "fell_back": false,
+      "cost_usd": 0.048
+    }
+  ],
+  "composition": {
+    "composition_id": "softmax-attention-weights",
+    "file": "m6/softmax-15s-attention.repaired.composition.jsx"
+  },
+  "storyboard_revised": false,
+  "job_errors": []
+}

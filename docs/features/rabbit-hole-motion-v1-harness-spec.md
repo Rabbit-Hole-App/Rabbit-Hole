@@ -873,7 +873,8 @@ Static validation of `source` (harness, before any render): §8.2.
 
 ```text
 ReviewFinding {
-  reviewer                       // visual | pedagogical
+  reviewer                       // visual | pedagogical | harness (M6: the automatic preview checks)
+  round?                         // 0, or 1 after the repair round (M6)
   category                       // one of §13.1 (blocking) or §13.2 (advisory)
   beat_id?
   timestamp?
@@ -1213,7 +1214,7 @@ The development render service lives in `packages/learn-render/motion/service/`.
 | Route | Auth | Behaviour |
 |---|---|---|
 | `GET /health` | none | `{ok, service: "rabbit-hole-motion-renderer", version, sandbox, busy, limits}`. The version hashes the service, renderer, contracts and sandbox files, plus the Remotion version and the build commit. No secrets. |
-| `POST /render` | Bearer | Body: a `motion-render/1` job, `{schema, renderer: "remotion", brief, storyboard, composition: {composition_id, source}}`, validated by `validateRenderRequest` (`motion/contracts.js`) and then by the §8.2 static check. Unknown fields, paths, URLs and commands are rejected (400 `invalid_job`, or `malformed` for non-JSON; 413 over 512 KiB). The service chooses its own render id (32 hex). Accepted: 202 `{render_id, status: "rendering", poll}`. Busy: 429 `{error: "busy", render_id}`. |
+| `POST /render` | Bearer | Body: a `motion-render/1` job, `{schema, renderer: "remotion", stage?, brief, storyboard, composition: {composition_id, source}}` (M6: `stage` is `preview` for a review pass, which renders only preview.mp4 and the contact sheet and returns them whatever they show, or `final`, the default and the whole job), validated by `validateRenderRequest` (`motion/contracts.js`) and then by the §8.2 static check. Unknown fields, paths, URLs and commands are rejected (400 `invalid_job`, or `malformed` for non-JSON; 413 over 512 KiB). The service chooses its own render id (32 hex). Accepted: 202 `{render_id, status: "rendering", poll}`. Busy: 429 `{error: "busy", render_id}`. |
 | `GET /render/<id>` | Bearer | Status (`rendering` / `ready` / `failed` with `error` and `detail`) and metadata: duration, fps, resolution, frame count, output bytes, final validation, the determinism result, preview size, the preview/final comparison, the contact-sheet manifest, the fonts that loaded, the sandbox report, timings and renderer versions. When ready, it also returns artifact refs. |
 | `GET /render/<id>/artifacts/<name>` | Bearer | `final.mp4`, `preview.mp4`, `contact-sheet.png` or `poster.png`. Only those fixed names; nothing in a URL becomes a file path. |
 
@@ -1862,7 +1863,7 @@ Do not attempt everything in one commit.
 | **M3** | Storyboard generation + validation | Done (2026-10-04; see "M3 result") |
 | **M4** | Renderer selection + Motion Author → renderer-specific composition source (Remotion first) + static validation | Done (2026-10-04; see "M4 result") |
 | **M5** | Preview + contact sheet + determinism checks | Checkpoint (2026-10-04; see "M5 result"): render stage, RenderResult and checks done; no generated composition is `ready` yet (blank opening frames) |
-| **M6** | Fresh visual + pedagogical review + exactly one repair round | Authorized |
+| **M6** | Fresh visual + pedagogical review + exactly one repair round | Checkpoint (2026-10-05; see "M6 result"): both generated demos `ready` after one repair round |
 | **M7A** | Remotion end to end: final render + final validation + LearnVideos / R2 + existing video-block insertion, in a development environment only | Authorized |
 | **M7B** | HyperFrames adapter (§9.5) under the same sandbox, resource limits and determinism contract, through the same pipeline | Authorized (development) |
 | **M8** | Remotion vs HyperFrames benchmark (§9.6) on the same briefs and storyboards; §27 demos pass human review; choose the default routing; keep both adapters; required report (§36) | Authorized |
@@ -2154,7 +2155,7 @@ Each generated composition renders and passes every check except the unchanged M
 - The M4 outputs fade in from an empty stage (luma 0).
 - The M5 regeneration opens with one code line at 30% opacity (luma 1.28; it first passes at frame 10).
 
-The Demo B render uses the hand-corrected M3 storyboard and is recorded as such. It is renderer and Author execution proof, not proof that the Director/storyboard pipeline is reliable; M6's revision loop must remove the manual edit.
+The Demo B render uses the hand-corrected M3 storyboard and is recorded as such. It is renderer and Author execution proof, not proof that the Director/storyboard pipeline is reliable. It stays recorded as `fixture_with_manual_semantic_fix` (owner decision at M5 acceptance): automatic storyboard reliability is not proven yet.
 
 **Real call.** One Author call, the one M5 authorized for a concrete contract defect: softmax under the corrected prompt. It took 406 s and produced 40,011 output tokens, at $0.83; the request was capped at one with no re-ask. It returned a contract-valid `composition` that still opens near-blank, as above. No further calls were made.
 
@@ -2169,6 +2170,70 @@ The Demo B render uses the hand-corrected M3 storyboard and is recorded as such.
 ## M6 — review and repair
 
 Fresh visual and pedagogical reviewers; harness classification (§13); one repair round.
+
+### M6 result (2026-10-05)
+
+Owner decisions at M5 acceptance: keep the blank-opening rule unchanged, make no raw Author retries, run the check on the preview so the repair round fixes it, and keep Demo B recorded as `fixture_with_manual_semantic_fix`.
+
+**The loop** (`motion/review-job.mjs` `runMotionJob`, §4.8 steps 5-9). For each pass:
+1. **Preview** (`render-job.mjs` `renderPreview`). The render gate is the same as the final's. The service runs a **preview job** (`motion-render/1` with `stage: "preview"`): `child.mjs` renders only preview.mp4 and the contact sheet and returns them whatever they show. This side validates both files.
+2. **Blank check on the preview.** The preview is decoded at every frame the final is checked for blankness (`render-coverage.js` `nonblankFrames`): 0, 1, each beat's start, start + 1, middle and end - 1, and the last frame. It applies the unchanged M1 rule, luma stddev > 2 (`NONBLANK_MIN_LUMA_STDDEV`, shared with `validateFinal`). No threshold changed.
+3. **Harness findings** (reviewer `harness`): `blank_frame` for any blank or near-blank sampled frame, `renderer_failure` for a refused or failed render, `corrupt_output` for a broken preview. All three are §13.1 blocking.
+4. **Fresh reviewers** (`motion/review.js`), in parallel, each a new call:
+   - The visual reviewer sees the brief (no claims or evidence) and the contact frames decoded from the preview, labelled with frame, time and beat. Categories: `blank_frame`, `clipped_text`, `overlapping_text` and the four advisory ones.
+   - The pedagogical reviewer also sees the claims, conditions, must_not_claim and the cited source evidence. Categories: the six §13.1 content categories.
+   - Neither sees the composition source, the Author's notes, the storyboard text or any earlier finding (tested).
+   - Each pass gets one schema-only re-ask.
+5. **Classification** by category (`classifyFindings`, `afterReview`):
+   - Clean: the final render (M5 `renderComposition`, unchanged).
+   - Blocking with the round unused: the ONE repair round.
+   - Blocking after the repair: the job fails with its diagnostics, with no final render and no further call.
+
+**The repair round** (`startRepair`, `repair_count` 1).
+- **Storyboard-level findings** (`unsupported_claim`, `must_not_claim_violation`, `required_claim_contradicted`, `wrong_source_branch`, `missing_must_show`, `narration_contradicts_visuals`) take one Director revision first: `runStoryboard` with the storyboard and the findings. The revision is checked by `checkStoryboard` and keeps its id with the next version.
+- **Everything else** goes to the Author alone.
+- **The Author call** (`runAuthor` round 1) gets the original request plus a REPAIR ROUND section: the blocking findings, the previous source, and the four owner-required rules (`author.js` `REPAIR_RULES`):
+  - frame 0 is visibly nonblank;
+  - the first beat begins at useful visible opacity;
+  - no fade-in leaves the first sampled frames blank or near-blank;
+  - the final frame stays nonblank.
+- **needs_revision:** an Author `needs_revision` consumes the round (Director revision, then Author). One from the repair call fails the job.
+- **Format re-asks** are recorded per stage and round in `format_retries`. None happened in the real runs.
+
+**Contract changes.**
+- `validateRenderRequest` accepts `stage` (`preview` | `final`, default `final`). Every M1-M5 request is unchanged.
+- `ReviewFinding` gains reviewer `harness` and `round`.
+- Two new role defaults: `MOTION_VISUAL_REVIEW_MODEL` and `MOTION_PEDAGOGICAL_REVIEW_MODEL`, both `claude-opus-5-5` (§4.9).
+- The MotionJob (`validateJob`) is the job record: owner `development / motion-v1-harness` until M7 scopes jobs, and `final_ref` is a job-directory file until M7 stores it.
+
+**Service change.**
+- `child.mjs` has the preview job.
+- `server.mjs` records the stage and requires preview.mp4 (not final.mp4) for a ready preview job.
+- `remotion-renderer.mjs` shares `decodeFrames` and the nonblank check.
+- Service version `motion-renderer-1-a86e713ce9d6/remotion@4.0.521`; Home redeploys this checkpoint, which supersedes the M5 redeploy.
+- `service.linux.test.mjs` gains a sandboxed preview-job test.
+
+**Real runs** (2026-10-04/05, local service on the Windows authoring host, unsandboxed child). The round-0 inputs are the saved Author outputs from M5: the softmax M5 regeneration, and Demo B's M4 output on the hand-corrected storyboard. No raw Author retry; the only Author calls were the two repair calls.
+
+| Input | Round 0 blocking | Repair | Round 1 | Final | Model cost |
+|---|---|---|---|---|---|
+| Softmax (real M3 storyboard) | harness `blank_frame`; preview #0 luma 1.34 | one Author call: 77 s, 11350 output tokens, $0.3026 | 0 blocking (1 advisory); preview #0 luma 14.5 | `ready`: coverage 20/20, 13 determinism frames identical, preview vs final 2.104 | $0.53 |
+| Demo B (storyboard `fixture_with_manual_semantic_fix`) | harness `blank_frame` + visual `overlapping_text`; preview #0 luma 0 | one Author call: 100 s, 14221 output tokens, $0.3793 | 0 blocking (2 advisory); preview #0 luma 16.66 | `ready`: coverage 28/28, 16 determinism frames identical, preview vs final 1.367 | $0.66 |
+
+Observations:
+- **Softmax:** the repair changed only B1's entrance (about 30 lines): its code lines slide in at full opacity instead of fading up from 30%. Determinism frames #165 to #449 keep their M5 hashes; #0, #60 and #120 (B1 and its boundary into B2) changed.
+- **Demo B:** one round fixed both the blank opening and the overlapping `-Inf` labels the visual reviewer found. Against M5, only #0 and #45 (the opening) and #240 to #390 (the `-Inf` labels, B3 to B5) changed; the other determinism frames keep their hashes.
+- **Visual reviewer on the blank opening:** it reported the softmax opening as advisory (`easing_preference`: "starts almost empty"). The harness check is what made it blocking, which is why the rule is a harness check and not left to reviewer judgement.
+- **Pedagogical reviewers:** no findings on either demo in either pass.
+- **Advisory findings left:** small weight labels (softmax B5), stray branch dots and small `-Inf` labels (Demo B). Advisory findings are recorded and never repaired.
+
+Demo B stays `fixture_with_manual_semantic_fix` in every RenderResult. Its `ready` proves the review and repair loop and the render, not automatic storyboard reliability. Records: `motion/fixtures/m6/{softmax,generate}.review-job.json` and the repaired sources. Telemetry: `out/motion/review-telemetry.jsonl`.
+
+**Known limitations.**
+- Whether a finding blocks follows the reviewer's chosen category. A reviewer that files a material defect as advisory lets it through. The blank rule is therefore harness-owned; other visual rules are not.
+- ponytail: the brief is never revised. A brief-level defect goes through a storyboard revision that cannot fix it, and fails at the second review.
+- Reviewers see stills, not motion, so jitter and timing are judged only from neighbouring frames.
+- Windows renders are authoring evidence (§10.3). Linux acceptance is Home's Fly proof after the redeploy.
 
 ## M7A — Remotion end to end (development only)
 

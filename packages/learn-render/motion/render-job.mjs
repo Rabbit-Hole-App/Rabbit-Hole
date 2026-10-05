@@ -6,14 +6,15 @@
 //   renderComposition({brief, storyboard, author, service, dir, origin}) ->
 //     { submitted: false, reason, errors? }      needs_revision, author_invalid, failed, or a source the gate refuses
 //     { submitted: true, result: RenderResult }  ready | render_failed | artifact_invalid
+//   renderPreview(the same) -> the same shapes with a PreviewResult (M6: what a review pass sees)
 import { createHash, randomBytes } from 'node:crypto';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { PNG } from 'pngjs';
 import { checkAuthorSource } from './author-check.js';
 import { RENDER_ARTIFACTS, RENDER_RESULT_SCHEMA, RENDER_SCHEMA, STAGE, validateRenderRequest, validateRenderResult } from './contracts.js';
-import { FONT_PINS, OUTPUT_MAX_BYTES, RemotionRenderer, contactFrames, lumaStddev, probe } from './remotion-renderer.mjs';
-import { coverageErrors, coverageFrames, determinismFrames } from './render-coverage.js';
+import { FONT_PINS, NONBLANK_MIN_LUMA_STDDEV, OUTPUT_MAX_BYTES, RemotionRenderer, beatAt, contactFrames, decodeFrames, lumaStddev, nonblankCheck, probe } from './remotion-renderer.mjs';
+import { coverageErrors, coverageFrames, determinismFrames, nonblankFrames } from './render-coverage.js';
 import { motionRenderService } from './service/server.mjs';
 import { checkComposition } from './static-check.js';
 
@@ -91,15 +92,20 @@ export async function validateArtifacts({ dir, brief, storyboard, record }) {
     const last = record.determinism?.frames?.at(-1);
     row('poster.png', 'last frame', last?.frame === brief.duration.seconds * STAGE.fps - 1 && sha256(img.data) === last?.hashes?.[0], `#${last?.frame}: pixels ${sha256(img.data).slice(0, 12)} vs determinism ${String(last?.hashes?.[0]).slice(0, 12)}`);
   });
-  png('contact-sheet.png', img => {
-    const n = contactFrames(brief, storyboard).length, scale = brief.output_requirements.preview_scale;
-    const w = Math.round(STAGE.width * scale), h = Math.round(STAGE.height * scale), rows4 = Math.ceil(n / 4);
-    const want = [4 * w + 5 * 16, rows4 * (h + 44) + (rows4 + 1) * 16];
-    row('contact-sheet.png', 'tiles', img.width === want[0] && img.height === want[1] && record.contact_sheet?.length === n, `${img.width}x${img.height}, ${record.contact_sheet?.length} tiles (want ${want.join('x')}, ${n} tiles)`);
-    row('contact-sheet.png', 'nonblank', lumaStddev(img) > 2, `luma stddev ${lumaStddev(img).toFixed(2)}`);
-  });
+  png('contact-sheet.png', img => contactSheetRows(img, brief, storyboard, record).forEach(r => row('contact-sheet.png', ...r)));
   const finalRows = rows.filter(r => r.artifact === 'final.mp4'), others = rows.filter(r => r.artifact !== 'final.mp4');
   return { final: { ok: !!final?.ok && finalRows.every(r => r.ok), checks: finalRows, keyframes: final?.keyframe_hashes?.length ?? 0 }, others: { ok: others.every(r => r.ok), checks: others } };
+}
+
+// One tile per contact frame at preview scale (remotion-renderer.mjs contactSheet), not blank.
+function contactSheetRows(img, brief, storyboard, record) {
+  const n = contactFrames(brief, storyboard).length, scale = brief.output_requirements.preview_scale;
+  const w = Math.round(STAGE.width * scale), h = Math.round(STAGE.height * scale), rows4 = Math.ceil(n / 4);
+  const want = [4 * w + 5 * 16, rows4 * (h + 44) + (rows4 + 1) * 16];
+  return [
+    ['tiles', img.width === want[0] && img.height === want[1] && record.contact_sheet?.length === n, `${img.width}x${img.height}, ${record.contact_sheet?.length} tiles (want ${want.join('x')}, ${n} tiles)`],
+    ['nonblank', lumaStddev(img) > NONBLANK_MIN_LUMA_STDDEV, `luma stddev ${lumaStddev(img).toFixed(2)}`],
+  ];
 }
 
 // Decoded-pixel determinism, recomputed from the hashes (the service's own flag is not the verdict).
@@ -122,13 +128,54 @@ export function judgeCoverage(record, brief, storyboard, TEXT) {
   return { ok: !errors.length, frames: want.length, observed: obs.length, errors };
 }
 
-export async function renderComposition({ brief, storyboard, author, service, dir, origin, pollMs = 2000, waitMs = 8 * 60 * 1000, sleep = ms => new Promise(r => setTimeout(r, ms)), now = () => Date.now() }) {
-  if (author?.status !== 'composition') return { submitted: false, reason: `the Author result is ${author?.status ?? 'missing'}; only a validated composition is rendered` };
+// Every submission passes this gate: only a validated Author composition, then the service's
+// own checks and the Author contract.
+function gate(brief, storyboard, author) {
+  if (author?.status !== 'composition') return { reason: `the Author result is ${author?.status ?? 'missing'}; only a validated composition is rendered` };
   const request = renderRequest(brief, storyboard, author.output);
   const source = String(request.composition.source || '');
   const contract = checkAuthorSource(source, brief, storyboard);
-  const gate = [...validateRenderRequest(request), ...checkComposition(source, { durationSeconds: brief.duration.seconds }), ...contract.errors];
-  if (gate.length) return { submitted: false, reason: 'invalid_job', errors: gate };
+  const errors = [...validateRenderRequest(request), ...checkComposition(source, { durationSeconds: brief.duration.seconds }), ...contract.errors];
+  return errors.length ? { reason: 'invalid_job', errors } : { request, source, contract };
+}
+
+// Submit, then poll until the service finishes: {render_id, record} or {render_id, failure}.
+async function runOnService(service, request, { pollMs, waitMs, sleep, now }) {
+  let res;
+  try { res = await service.submit(request); } catch (error) { return { render_id: null, failure: ['unreachable', firstLine(error)] }; }
+  const accepted = await res.json().catch(() => ({}));
+  // Refused before anything ran: invalid_job, busy, degraded, unauthorized, too_large.
+  if (res.status !== 202) return { render_id: null, failure: [accepted.error || `http_${res.status}`, accepted.detail || (accepted.errors || []).slice(0, 3).join('; ') || `HTTP ${res.status}`, accepted.errors] };
+  for (const start = now(); ; await sleep(pollMs)) {
+    const record = await service.status(accepted.render_id).catch(() => null); // a dropped poll is retried until the deadline
+    if (record && record.status !== 'rendering') return { render_id: accepted.render_id, record };
+    if (now() - start > waitMs) return { render_id: accepted.render_id, failure: ['timeout', `the render did not finish within ${secs(waitMs)}s of polling`] };
+  }
+}
+
+// The named artifacts into a fresh dir, each with the sha256 of the bytes received.
+async function download(service, id, dir, artifacts) {
+  rmSync(dir, { recursive: true, force: true });
+  mkdirSync(dir, { recursive: true });
+  const files = {}, hashes = {}, missing = [];
+  for (const [key, name] of Object.entries(artifacts)) {
+    const got = await service.artifact(id, name).catch(error => ({ ok: false, status: firstLine(error) }));
+    const bytes = got.ok ? Buffer.from(await got.arrayBuffer()) : null;
+    if (!bytes?.length) { missing.push(`${name}: ${got.ok ? 'empty' : `HTTP ${got.status}`}`); continue; }
+    writeFileSync(join(dir, name), bytes);
+    files[key] = name;
+    hashes[key] = sha256(bytes);
+  }
+  return { files, hashes, missing };
+}
+
+const POLLING = { pollMs: 2000, waitMs: 8 * 60 * 1000, sleep: ms => new Promise(r => setTimeout(r, ms)), now: () => Date.now() };
+
+export async function renderComposition({ brief, storyboard, author, service, dir, origin, ...options }) {
+  const { pollMs, waitMs, sleep, now } = { ...POLLING, ...options };
+  const g = gate(brief, storyboard, author);
+  if (!g.request) return { submitted: false, reason: g.reason, ...(g.errors ? { errors: g.errors } : {}) };
+  const { request, source, contract } = g;
 
   const t0 = now();
   const result = {
@@ -145,19 +192,10 @@ export async function renderComposition({ brief, storyboard, author, service, di
   };
   const fail = (status, category, detail, errors) => done(status, { category, detail: String(detail || ''), ...(errors?.length ? { errors: errors.slice(0, 50) } : {}) });
 
-  let res;
-  try { res = await service.submit(request); } catch (error) { return fail('render_failed', 'unreachable', firstLine(error)); }
-  const accepted = await res.json().catch(() => ({}));
-  // Refused before anything ran: invalid_job, busy, degraded, unauthorized, too_large.
-  if (res.status !== 202) return fail('render_failed', accepted.error || `http_${res.status}`, accepted.detail || (accepted.errors || []).slice(0, 3).join('; ') || `HTTP ${res.status}`, accepted.errors);
-  result.render_id = accepted.render_id;
-
-  let record = null;
-  for (const start = now(); ; await sleep(pollMs)) {
-    record = await service.status(accepted.render_id).catch(() => null); // a dropped poll is retried until the deadline
-    if (record && record.status !== 'rendering') break;
-    if (now() - start > waitMs) return fail('render_failed', 'timeout', `the render did not finish within ${secs(waitMs)}s of polling`);
-  }
+  const run = await runOnService(service, request, { pollMs, waitMs, sleep, now });
+  result.render_id = run.render_id;
+  if (run.failure) return fail('render_failed', ...run.failure);
+  const { record } = run;
   result.timings.submit_to_finished_s = secs(now() - t0);
   result.timings.service = record.timings ?? null;
   Object.assign(result.renderer, { remotion: record.renderer?.version ?? null, chrome: record.renderer?.chrome ?? null, ffmpeg: record.renderer?.ffmpeg ?? null, sandbox: record.sandbox?.mode ?? null });
@@ -174,17 +212,9 @@ export async function renderComposition({ brief, storyboard, author, service, di
   }
 
   const t1 = now();
-  rmSync(dir, { recursive: true, force: true });
-  mkdirSync(dir, { recursive: true });
-  const missing = [];
-  for (const [key, name] of Object.entries(RENDER_ARTIFACTS)) {
-    const got = await service.artifact(record.render_id, name).catch(error => ({ ok: false, status: firstLine(error) }));
-    const bytes = got.ok ? Buffer.from(await got.arrayBuffer()) : null;
-    if (!bytes?.length) { missing.push(`${name}: ${got.ok ? 'empty' : `HTTP ${got.status}`}`); continue; }
-    writeFileSync(join(dir, name), bytes);
-    Object.assign(result.artifacts, { [key]: name });
-    Object.assign(result.hashes, { [key]: sha256(bytes) });
-  }
+  const { files, hashes, missing } = await download(service, record.render_id, dir, RENDER_ARTIFACTS);
+  Object.assign(result.artifacts, files);
+  Object.assign(result.hashes, hashes);
   result.timings.download_s = secs(now() - t1);
   if (missing.length) return fail('artifact_invalid', 'artifact_missing', missing.join('; '));
 
@@ -212,3 +242,56 @@ function previewFinalOf(record) {
   return { ok: pf?.ok === true && pf.max <= pf.threshold, max: pf?.max ?? null, threshold: pf?.threshold ?? null };
 }
 const ARTIFACT_CATEGORY = { 'preview.mp4': 'preview_invalid', 'poster.png': 'poster_invalid', 'contact-sheet.png': 'contact_sheet_invalid' };
+
+// M6 (spec §11.1): what one review pass sees. The same gate and service as the final, with stage
+// "preview": preview.mp4 and the contact sheet, validated here, then the preview decoded at every
+// nonblank frame (the final's frames, the same luma rule) before any final render. A blank frame
+// is a review finding (review-job.mjs), not a render failure, so the frames come back either way;
+// `frames` are the contact frames the reviewers see (§11.2), paths relative to dir.
+export const PREVIEW_ARTIFACTS = Object.freeze({ preview_mp4: 'preview.mp4', contact_sheet: 'contact-sheet.png' });
+export async function renderPreview({ brief, storyboard, author, service, dir, origin, ...options }) {
+  const { pollMs, waitMs, sleep, now } = { ...POLLING, ...options };
+  const g = gate(brief, storyboard, author);
+  if (!g.request) return { submitted: false, reason: g.reason, ...(g.errors ? { errors: g.errors } : {}) };
+  const t0 = now();
+  const result = {
+    status: 'render_failed', render_id: null, composition_id: g.request.composition.composition_id,
+    renderer: { name: 'remotion', service_version: (await service.health().catch(() => null))?.version ?? 'unreachable' },
+    artifacts: {}, hashes: {}, checks: null, nonblank: null, frames: [], timings: {}, provenance: renderProvenance({ brief, storyboard, source: g.source, origin }),
+  };
+  const done = (status, failure) => { Object.assign(result, { status }, failure ? { failure } : {}); result.timings.total_s = secs(now() - t0); return { submitted: true, result }; };
+  const fail = (status, category, detail, errors) => done(status, { category, detail: String(detail || ''), ...(errors?.length ? { errors: errors.slice(0, 50) } : {}) });
+
+  const run = await runOnService(service, { ...g.request, stage: 'preview' }, { pollMs, waitMs, sleep, now });
+  result.render_id = run.render_id;
+  if (run.failure) return fail('render_failed', ...run.failure);
+  const { record } = run;
+  Object.assign(result.renderer, { sandbox: record.sandbox?.mode ?? null });
+  result.timings.service = record.timings ?? null;
+  if (record.status !== 'ready') return fail('render_failed', record.error || 'renderer_failure', record.detail, record.errors);
+  const { files, hashes, missing } = await download(service, record.render_id, dir, PREVIEW_ARTIFACTS);
+  Object.assign(result.artifacts, files);
+  Object.assign(result.hashes, hashes);
+  if (missing.length) return fail('artifact_invalid', 'artifact_missing', missing.join('; '));
+
+  const rows = [];
+  const row = (artifact, name, ok, detail) => rows.push({ artifact, name, ok: !!ok, detail: String(detail) });
+  try { for (const r of previewChecks(await probe(join(dir, 'preview.mp4')), brief)) row('preview.mp4', ...r); }
+  catch (error) { row('preview.mp4', 'decodes', false, firstLine(error)); }
+  try { for (const r of contactSheetRows(PNG.sync.read(readFileSync(join(dir, 'contact-sheet.png'))), brief, storyboard, record)) row('contact-sheet.png', ...r); }
+  catch (error) { row('contact-sheet.png', 'decodes', false, firstLine(error)); }
+  result.checks = { ok: rows.every(r => r.ok), rows };
+  const bad = rows.find(r => !r.ok);
+  if (bad) return fail('artifact_invalid', ARTIFACT_CATEGORY[bad.artifact], `${bad.artifact} ${bad.name}: ${bad.detail}`);
+
+  const t1 = now();
+  const sample = nonblankFrames(brief, storyboard), contact = new Set(contactFrames(brief, storyboard));
+  let decoded;
+  try { decoded = await decodeFrames(join(dir, 'preview.mp4'), sample, join(dir, 'frames')); }
+  catch (error) { return fail('artifact_invalid', 'preview_invalid', `preview.mp4 frames: ${firstLine(error)}`); }
+  const [, ok, detail] = nonblankCheck(decoded, sample);
+  result.nonblank = { ok, threshold: NONBLANK_MIN_LUMA_STDDEV, detail, blank: decoded.filter(f => !(f.luma_stddev > NONBLANK_MIN_LUMA_STDDEV)).map(f => ({ frame: f.frame, beat: beatAt(storyboard, f.frame).id, luma_stddev: f.luma_stddev })) };
+  result.frames = decoded.filter(f => contact.has(f.frame)).map(f => ({ frame: f.frame, time: +(f.frame / STAGE.fps).toFixed(2), beat: beatAt(storyboard, f.frame).id, file: `frames/${basename(f.file)}` }));
+  result.timings.decode_s = secs(now() - t1);
+  return done('ready');
+}

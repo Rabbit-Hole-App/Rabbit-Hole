@@ -72,6 +72,22 @@ test('validation: malformed, unknown fields, unsafe paths, wrong renderer, banne
   await bad({ ...job(), composition: { ...job().composition, source: `${job().composition.source}\n// ${'x'.repeat(600 * 1024)}` } }, 413, /too_large/);
 });
 
+test('a preview job (M6) delivers only preview.mp4 and the contact sheet; a final job must deliver final.mp4', async t => {
+  const { post, call, until } = await start(t, 'preview');
+  assert.equal((await post({ ...job(), stage: 'draft' })).status, 400);
+  const { render_id } = await (await post({ ...job(), stage: 'preview' })).json();
+  const r = await until(render_id);
+  assert.equal(r.status, 'ready');
+  assert.equal(r.stage, 'preview');
+  assert.deepEqual(Object.keys(r.artifacts).sort(), ['contact_sheet', 'preview']);
+  assert.equal((await call(`/render/${render_id}/artifacts/preview.mp4`)).status, 200);
+  assert.equal((await call(`/render/${render_id}/artifacts/final.mp4`)).status, 404);
+  const final = await until((await (await post(job())).json()).render_id);
+  assert.equal(final.stage, 'final');
+  assert.equal(final.status, 'failed');
+  assert.match(final.detail, /without final.mp4/);
+});
+
 test('paths: only a 32-hex render id and fixed artifact names are routable', async t => {
   const { post, call, until } = await start(t, 'ready');
   const { render_id } = await (await post(job())).json();

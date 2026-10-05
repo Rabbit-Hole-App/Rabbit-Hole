@@ -11,7 +11,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PNG } from 'pngjs';
 import { STAGE, validateBrief, validateStoryboard } from './contracts.js';
-import { contactFrames, coverageFrames } from './render-coverage.js';
+import { contactFrames, nonblankFrames } from './render-coverage.js';
 import { IMPORTS, checkComposition } from './static-check.js';
 
 const PKG = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -55,7 +55,7 @@ class ImportAllowlist {
 }
 
 export { contactFrames };
-const beatAt = (storyboard, frame) => storyboard.beats.find(b => frame / STAGE.fps >= b.start_time && frame / STAGE.fps < b.end_time) || storyboard.beats.at(-1);
+export const beatAt = (storyboard, frame) => storyboard.beats.find(b => frame / STAGE.fps >= b.start_time && frame / STAGE.fps < b.end_time) || storyboard.beats.at(-1);
 
 export class RemotionRenderer {
   // cacheDir holds content-addressed bundles, previews and finals; fresh: true bypasses every cache
@@ -184,20 +184,9 @@ export class RemotionRenderer {
   async validateFinal(job) {
     const file = join(job.dir, 'final.mp4');
     const checks = finalChecks(await probe(file), job.brief.duration.seconds);
-    const sample = [...new Set([...contactFrames(job.brief, job.storyboard), ...coverageFrames(job.storyboard).map(s => s.frame)])].sort((a, b) => a - b);
-    const dir = join(job.dir, 'final-frames');
-    rmSync(dir, { recursive: true, force: true });
-    mkdirSync(dir, { recursive: true });
-    // Remotion's ffmpeg build has no select filter: one accurate seek per frame, a quarter
-    // frame early so the first frame at or after the seek point is exactly frame n.
-    const keyframes = [];
-    for (const n of sample) {
-      const f = join(dir, `frame-${String(n).padStart(4, '0')}.png`);
-      await ffmpeg('ffmpeg', ['-v', 'error', '-ss', Math.max(0, (n - 0.25) / STAGE.fps).toFixed(4), '-i', file, '-frames:v', '1', '-y', f]);
-      const png = PNG.sync.read(readFileSync(f));
-      keyframes.push({ frame: n, pixels_sha256: sha256(png.data), luma_stddev: +lumaStddev(png).toFixed(2) });
-    }
-    checks.push(['nonblank frames', keyframes.length === sample.length && keyframes.every(k => k.luma_stddev > 2), keyframes.map(k => `#${k.frame}:${k.luma_stddev}`).join(' ')]);
+    const sample = nonblankFrames(job.brief, job.storyboard);
+    const keyframes = (await decodeFrames(file, sample, join(job.dir, 'final-frames'))).map(({ frame, pixels_sha256, luma_stddev }) => ({ frame, pixels_sha256, luma_stddev }));
+    checks.push(nonblankCheck(keyframes, sample));
     const result = { ok: checks.every(c => c[1]), checks: checks.map(([name, ok, detail]) => ({ name, ok, detail })), keyframe_hashes: keyframes };
     writeFileSync(join(job.dir, 'final-validation.json'), JSON.stringify(result, null, 2));
     return result;
@@ -233,6 +222,27 @@ export async function probe(file) {
 }
 export const ffmpegVersion = async () => (await ffmpeg('ffmpeg', ['-version'])).stdout.split('\n')[0].trim();
 export const chromeVersion = () => { try { return readFileSync(join(PKG, 'node_modules', '.remotion', 'chrome-headless-shell', 'VERSION'), 'utf8').trim(); } catch { return 'unknown'; } };
+
+// Remotion's ffmpeg build has no select filter: one accurate seek per frame, a quarter frame
+// early so the first frame at or after the seek point is exactly frame n. Decoding a video runs
+// no composition code, so the orchestrator may do it outside the sandbox (M6 preview frames).
+export async function decodeFrames(file, frames, dir) {
+  rmSync(dir, { recursive: true, force: true });
+  mkdirSync(dir, { recursive: true });
+  const out = [];
+  for (const n of frames) {
+    const f = join(dir, `frame-${String(n).padStart(4, '0')}.png`);
+    await ffmpeg('ffmpeg', ['-v', 'error', '-ss', Math.max(0, (n - 0.25) / STAGE.fps).toFixed(4), '-i', file, '-frames:v', '1', '-y', f]);
+    const png = PNG.sync.read(readFileSync(f));
+    out.push({ frame: n, file: f, pixels_sha256: sha256(png.data), luma_stddev: +lumaStddev(png).toFixed(2) });
+  }
+  return out;
+}
+
+// A blank or near-blank frame: luma standard deviation at or under 2 (the M1 rule). The final
+// and (M6) the preview are judged by this one check.
+export const NONBLANK_MIN_LUMA_STDDEV = 2;
+export const nonblankCheck = (frames, sample) => ['nonblank frames', frames.length === sample.length && frames.every(k => k.luma_stddev > NONBLANK_MIN_LUMA_STDDEV), frames.map(k => `#${k.frame}:${k.luma_stddev}`).join(' ')];
 
 export function lumaStddev(png) {
   let n = 0, sum = 0, sq = 0;

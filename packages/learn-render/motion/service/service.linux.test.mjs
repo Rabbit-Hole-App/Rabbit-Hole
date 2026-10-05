@@ -224,6 +224,21 @@ test('a real Demo A render through the sandboxed service: 1920x1080, 30 fps, 450
   assert.equal(groupsGone(render_id), true);
 });
 
+test('a preview job (M6) in the sandbox: preview.mp4 and the contact sheet only, at preview scale, cleaned up', { skip, timeout: 5 * 60 * 1000 }, async t => {
+  const { call, until } = await service(t);
+  const { render_id } = await (await call('/render', { method: 'POST', body: JSON.stringify({ ...job('demo-a'), stage: 'preview' }) })).json();
+  const r = await until(render_id);
+  console.log(JSON.stringify({ stage: r.stage, status: r.status, preview: r.preview, timings: r.timings }, null, 2));
+  assert.equal(r.status, 'ready', `${r.error}: ${r.detail}`);
+  assert.equal(r.stage, 'preview');
+  assert.deepEqual(Object.keys(r.artifacts).sort(), ['contact_sheet', 'preview']);
+  assert.deepEqual([r.preview.width, r.preview.height, r.preview.frame_count], [864, 486, 450]);
+  assertSandboxed(r.sandbox);
+  assertClean(r.resources);
+  assert.equal(existsSync(join(LINUX_JOBS_DIR, render_id)), false);
+  assert.equal(groupsGone(render_id), true);
+});
+
 test('Demo B: JetBrains Mono comes from the bundled file and renders identically in two fresh contexts', { skip: skip || (!existsSync(join(HERE, '..', 'fixtures', 'demo-b', 'composition.jsx')) && 'no Demo B fixture'), timeout: 10 * 60 * 1000 }, async t => {
   const { call, until } = await service(t);
   const { render_id } = await (await call('/render', { method: 'POST', body: JSON.stringify(job('demo-b')) })).json();

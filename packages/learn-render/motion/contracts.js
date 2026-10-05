@@ -253,12 +253,16 @@ export function validateAuthorOutput(o) {
 // The dev render service's only input (spec §10.2): an already-validated job and nothing
 // else. No paths, URLs, commands or options: the service chooses every file location itself.
 // The composition source is checked separately by static-check.js before any render.
+// M6: an optional stage. "preview" renders only the preview and the contact sheet (review material,
+// returned whatever it shows); "final" (the default, and every M1-M5 request) is the whole job.
 export const RENDER_SCHEMA = 'motion-render/1';
+export const RENDER_STAGES = ['preview', 'final'];
 export function validateRenderRequest(r) {
   if (!r || typeof r !== 'object' || Array.isArray(r)) return ['request: not an object'];
   const e = [];
-  for (const k of Object.keys(r)) if (!['schema', 'renderer', 'brief', 'storyboard', 'composition'].includes(k)) e.push(`request.${k}: unknown field`);
+  for (const k of Object.keys(r)) if (!['schema', 'renderer', 'stage', 'brief', 'storyboard', 'composition'].includes(k)) e.push(`request.${k}: unknown field`);
   if (r.schema !== RENDER_SCHEMA) e.push(`request.schema: "${RENDER_SCHEMA}"`);
+  if (r.stage !== undefined && !RENDER_STAGES.includes(r.stage)) e.push(`request.stage: ${RENDER_STAGES.join(' | ')} (default final)`);
   if (r.renderer !== 'remotion') e.push('request.renderer: "remotion" (the only V1 renderer)');
   const c = r.composition;
   if (!c || typeof c !== 'object' || Array.isArray(c)) e.push('request.composition: {composition_id, source}');
@@ -317,10 +321,13 @@ export function validateRenderResult(r) {
   return [...e, ...leakErrors(r, 'render_result')];
 }
 
-// §5.4
+// §5.4. M6: reviewer "harness" marks the automatic preview checks (blank frames, a render that
+// failed or broke the artifact contract); round is the review pass (0, or 1 after the repair).
+export const REVIEWERS = ['visual', 'pedagogical', 'harness'];
 export function validateFinding(f) {
   const e = [];
-  if (!['visual', 'pedagogical'].includes(f?.reviewer)) e.push('finding.reviewer: visual | pedagogical');
+  if (!REVIEWERS.includes(f?.reviewer)) e.push(`finding.reviewer: ${REVIEWERS.join(' | ')}`);
+  if (f?.round !== undefined && f.round !== 0 && f.round !== 1) e.push('finding.round: 0 | 1');
   if (![...BLOCKING_CATEGORIES, ...ADVISORY_CATEGORIES].includes(f?.category)) e.push(`finding.category: unknown "${f?.category}"`);
   if (f?.beat_id !== undefined && !ID.B.test(f.beat_id)) e.push('finding.beat_id: B1, B2, ...');
   if (f?.claim_id !== undefined && !ID.C.test(f.claim_id)) e.push('finding.claim_id: C1, C2, ...');
@@ -328,6 +335,10 @@ export function validateFinding(f) {
   if (!str(f?.description)) e.push('finding.description: required');
   return e;
 }
+
+// What a repair call sees of a blocking finding (§4.8: repair inputs are the findings themselves).
+export const repairFindings = findings => findings.map(({ reviewer, category, beat_id, timestamp, claim_id, description }) =>
+  Object.fromEntries(Object.entries({ reviewer, category, beat_id, timestamp, claim_id, description }).filter(([, v]) => v !== undefined)));
 
 export function classifyFindings(findings) {
   return {

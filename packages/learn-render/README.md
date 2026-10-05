@@ -36,9 +36,9 @@ stroke-dashoffset and a pen sprite rides the head of the active stroke.
 tldraw is the learner's canvas (pausing the lecture and scribbling on the board),
 not part of the renderer — deliberately not installed here.
 
-## Motion (V1 harness, M0–M5)
+## Motion (V1 harness, M0–M6)
 
-Spec: `docs/features/rabbit-hole-motion-v1-harness-spec.md`. Model calls so far: the Motion Director (M2) and the storyboard (M3) under `MOTION_DIRECTOR_MODEL`, and the Motion Author (M4) under `MOTION_AUTHOR_MODEL`.
+Spec: `docs/features/rabbit-hole-motion-v1-harness-spec.md`. Model calls so far: the Motion Director (M2) and the storyboard (M3) under `MOTION_DIRECTOR_MODEL`, the Motion Author (M4) under `MOTION_AUTHOR_MODEL`, and the fresh reviewers (M6) under `MOTION_VISUAL_REVIEW_MODEL` and `MOTION_PEDAGOGICAL_REVIEW_MODEL`.
 
 ```
 npm run motion:prove [outDir]   # Demo A: static validation, preview, contact sheet, final + validation,
@@ -52,6 +52,7 @@ node scripts/motion-brief.mjs --brief <brief.json> --storyboard-file <storyboard
 node scripts/motion-brief.mjs --brief <brief.json> --storyboard-file <storyboard.json> --source-file <composition.jsx> --proof   # M4: check and prove a saved composition
 node scripts/motion-render.mjs softmax|softmax-m4|generate|reference [--service <url>]   # M5: a saved composition through the render service -> RenderResult (local service unless --service + MOTION_RENDERER_TOKEN)
 MOTION_RENDER_TESTS=1 node --test motion/render.test.mjs   # M5: real local renders of the generated compositions (minutes)
+node scripts/motion-review.mjs softmax|generate|reference [--service <url>] [--call --max-calls N]   # M6: preview -> blank check + fresh reviewers -> one repair round -> final (dry run without --call: the first preview and its harness findings only)
 node scripts/motion-local-check.mjs setup|run <final.mp4>   # local stack: Motion render API stand-in -> LearnVideos -> LEARN_MEDIA -> video block
 sh motion/service/context.sh   # deploy context for rabbit-hole-motion-renderer-dev (Home deploys)
 ```
@@ -110,6 +111,15 @@ sh motion/service/context.sh   # deploy context for rabbit-hole-motion-renderer-
   child's probe observations (`motion/render-coverage.js`), decoded-pixel determinism is
   recomputed, and one `RenderResult` (contracts.js) comes back: `ready` | `render_failed` |
   `artifact_invalid`, with provenance hashes and the input origins.
+- `motion/review.js`, `motion/review-job.mjs`: review and repair (M6). A review pass renders a
+  preview job on the service (`stage: "preview"`: preview.mp4 and the contact sheet only),
+  decodes the preview at every frame the final is checked for blankness and applies the same
+  luma rule, then runs a fresh visual and a fresh pedagogical reviewer (brief and frames only; the
+  pedagogical one also the source evidence). Harness findings (reviewer `harness`): blank
+  frames, a refused or failed render, a corrupt preview. Any blocking finding spends the ONE
+  repair round (storyboard-level findings: a Director revision, then the Author; otherwise the
+  Author alone, with the previous source, the findings and the nonblank rules); a second pass
+  that still blocks fails the job. A clean pass goes to the final render (M5 render stage).
 - `motion/video-block.js`: the existing `type: "video"` block for a finished render
   (`operation: {op: "motion_render", render_id}` + Motion metadata); LearnVideos pulls the MP4
   through `MotionProvider` (packages/control-plane/src/motion-provider.js).

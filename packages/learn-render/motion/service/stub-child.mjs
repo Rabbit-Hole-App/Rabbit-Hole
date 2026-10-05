@@ -1,6 +1,6 @@
 // Test double for child.mjs (service.test.mjs only): the same job-directory protocol with no
 // rendering, so the service's HTTP, limits, cleanup and environment rules test in seconds.
-//   node stub-child.mjs <jobDir> ready | sleep | tree | big | crash | failed | nolimits | oom | oom-result | dirty
+//   node stub-child.mjs <jobDir> ready | preview | sleep | tree | big | crash | failed | nolimits | oom | oom-result | dirty
 // nolimits / dirty stand in for motion-sandbox's out/sandbox-exit.json on Linux. oom and
 // oom-result write the record the REAL ResourceController produces (finishJob + normalize) over
 // a fake cgroup v1 tree whose memory controller counted a kernel OOM kill; only the kernel is fake.
@@ -39,6 +39,10 @@ async function kernelOomRecord(exitStatus) {
 }
 
 if (mode === 'ready') ready();
+else if (mode === 'preview') { // what a preview job (M6) leaves: no final.mp4, no poster
+  for (const [name, n] of [['preview.mp4', 32], ['contact-sheet.png', 16]]) writeFileSync(join(out, name), Buffer.alloc(n, name[0]));
+  result({ status: 'ready', stage: job.stage, preview: { width: 864, height: 486 } });
+}
 else if (mode === 'big') ready(2000);
 else if (mode === 'failed') result({ status: 'failed', error: 'nondeterministic', detail: 'frames differ' });
 else if (mode === 'crash') process.exit(3);
