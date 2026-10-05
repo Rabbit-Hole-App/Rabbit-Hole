@@ -29,6 +29,8 @@ const BANNED = new Set([
   'localStorage', 'sessionStorage', 'indexedDB',
   // escape hatches to any of the above
   'eval', 'Function', 'require', 'globalThis', 'window', 'document', 'WebAssembly',
+  // the harness probe's channel (M5 judges its MOTION_PROBE lines): a composition never logs
+  'console',
 ]);
 // Window aliases that are also ordinary names (a prop called `top`): banned unless the module declares them.
 // ponytail: module-wide, not per scope; a name declared in one function and used as the global in

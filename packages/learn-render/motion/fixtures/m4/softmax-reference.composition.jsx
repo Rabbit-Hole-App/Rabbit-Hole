@@ -32,8 +32,9 @@ const CELL = 180, GAP = 24, ROW_X = (1920 - (6 * CELL + 5 * GAP)) / 2, ROW_Y = 4
 
 const ease = Easing.bezier(0.33, 0, 0.2, 1);
 const ramp = (f, a, b) => interpolate(f, [a, b], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: ease });
-// visible from the start of beat `first` to the end of beat `last`, with short fades
-const span = (f, first, last) => Math.min(ramp(f, timeline[first][0], timeline[first][0] + 9), 1 - ramp(f, timeline[last][1] - 6, timeline[last][1]));
+// visible from the start of beat `first` to the end of beat `last`, with short fades; no fade at
+// the very start or end, because the renderer refuses a blank first or last frame
+const span = (f, first, last) => Math.min(timeline[first][0] === 0 ? 1 : ramp(f, timeline[first][0], timeline[first][0] + 9), timeline[last][1] === stage.durationInFrames ? 1 : 1 - ramp(f, timeline[last][1] - 6, timeline[last][1]));
 const at = (left, top, extra) => ({ position: 'absolute', left, top, ...extra });
 const code = { fontFamily: MONO, fontSize: 34, color: INK, background: SOFT, borderRadius: 12, padding: '14px 24px' };
 

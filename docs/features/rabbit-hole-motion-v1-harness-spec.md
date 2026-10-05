@@ -1042,7 +1042,7 @@ Render the **same frame** in two fresh rendering contexts (two separate `renderS
 
 **What must match** (owner decision 2026-10-04): the same composition + the same pinned assets and fonts + the same renderer image + the same frame, rendered in two fresh Linux render contexts, give an identical decoded-pixel hash. Windows authoring hashes are never compared with Linux hashes: Chromium rasterizes text differently per OS. Every Linux proof reports the renderer image it ran on (the service's `/health` version and the image digest).
 
-The development render service (§10.2) runs this check on every job: the first, middle and last frames, rendered again by a second fresh context (its own bundle and browser), compared by decoded-pixel sha256.
+The development render service (§10.2) runs this check on every job: the first, middle and last frames and (since M5) every contact-sheet timestamp, rendered again by a second fresh context (its own bundle and browser), compared by decoded-pixel sha256. The orchestrator recomputes the verdict from the hashes (`render-job.mjs`); the service's own flag is not trusted.
 
 ---
 
@@ -1415,9 +1415,9 @@ Preview QA does not prove the final output. After the final render, run cheap au
 - frame count and fps (30)
 - resolution 1920×1080
 - output size under the cap
-- blank-frame detection on the contact-sheet timestamps and the last frame
+- blank-frame detection on the contact-sheet timestamps and the last frame, and (M5) at every beat start, start + 1, middle and end - 1, which puts boundary - 1, boundary and boundary + 1 under the check
 - final keyframe hashes recorded in the job
-- final vs preview: render the contact-sheet frames at final scale, downscale them to preview size, and compare with the preview frames under a pixel-difference threshold set in M5 (exact hash equality is expected between two renders at the same scale, not across scales)
+- final vs preview: render the contact-sheet frames at final scale, downscale them to preview size, and compare with the preview frames under a pixel-difference threshold (M5 keeps mean |RGB difference| ≤ 6: four Windows authoring renders measured 1.27–2.10; the Linux values come with the Fly proof) (exact hash equality is expected between two renders at the same scale, not across scales)
 
 If the final differs unexpectedly from the preview, **fail the job**. Do not launch another repair; the single repair round is only before the final render.
 
@@ -1861,7 +1861,7 @@ Do not attempt everything in one commit.
 | **M2** | Shared, renderer-neutral pipeline (M2–M6): Learner Intent Resolver integration (shared slice) + Motion Director + grounded MotionBrief | Done (2026-10-04; see "M2 result") |
 | **M3** | Storyboard generation + validation | Done (2026-10-04; see "M3 result") |
 | **M4** | Renderer selection + Motion Author → renderer-specific composition source (Remotion first) + static validation | Done (2026-10-04; see "M4 result") |
-| **M5** | Preview + contact sheet + determinism checks | Authorized |
+| **M5** | Preview + contact sheet + determinism checks | Checkpoint (2026-10-04; see "M5 result"): render stage, RenderResult and checks done; no generated composition is `ready` yet (blank opening frames) |
 | **M6** | Fresh visual + pedagogical review + exactly one repair round | Authorized |
 | **M7A** | Remotion end to end: final render + final validation + LearnVideos / R2 + existing video-block insertion, in a development environment only | Authorized |
 | **M7B** | HyperFrames adapter (§9.5) under the same sandbox, resource limits and determinism contract, through the same pipeline | Authorized (development) |
@@ -2081,6 +2081,90 @@ The fixture `fixtures/m4/generate-20s-selection.storyboard.json` is the second o
 ## M5 — preview and determinism
 
 Preview render, contact sheet, determinism hashes, preview/final comparison threshold.
+
+### M5 result (2026-10-04)
+
+**Render stage.** `packages/learn-render/motion/render-job.mjs` `renderComposition({brief, storyboard, author, service, dir, origin})`:
+1. Only an Author `composition` is submitted. `needs_revision`, `author_invalid` and `failed` never reach the renderer (zero service calls, tested).
+2. Before submission it applies the service's own gate (`validateRenderRequest`, `static-check.js`) plus the Author contract (`author-check.js`). A refused source is `{submitted: false, reason: 'invalid_job'}`.
+3. It submits the unchanged `motion-render/1` request to the M1 service (`motion/service`), polls, and fetches the four artifacts.
+4. It validates them again on this side: final.mp4 through the M1 validator; preview.mp4 at its scale; the poster as the determinism check's last frame; the contact sheet as one tile per contact frame.
+5. It judges beat and transition coverage from the child's probe observations, and recomputes decoded-pixel determinism.
+
+The service record is input, never the verdict. `motion/service` remains the only place generated code runs.
+
+**RenderResult** (`contracts.js` `validateRenderResult`, schema `motion-render-result/1`):
+- `status`: `ready` | `render_failed` | `artifact_invalid`.
+- `render_id` (null when refused before rendering), `composition_id`.
+- `renderer`: {name, service_version, remotion, chrome, ffmpeg, sandbox}.
+- `duration_seconds`, `fps`, `width`, `height`.
+- `artifacts` {final_mp4, preview_mp4, poster, contact_sheet}, with `hashes` (sha256 of the received bytes).
+- `validation` {ok, final, artifacts, coverage, determinism, preview_final}.
+- `resources`: the child's sandbox report and the kernel limits and usage.
+- `timings`: the service's, plus submit-to-finish, download and client validation.
+- `provenance`: motion_job_id, prompt_spec_version, canonical-JSON sha256 of the brief and the storyboard, composition sha256, source bytes and characters, `storyboard_origin`, `composition_origin`, font pins.
+- `failure` {category, detail, errors} whenever the status is not `ready`.
+
+`ready` requires all four artifacts and every validation part, at 1920x1080 and 30 fps. No learner input, model ID or credential is allowed (validator-enforced).
+
+**Failure mapping.**
+- **`render_failed`:**
+  - refused before rendering: `invalid_job`, `busy`, `degraded`, `unauthorized`, `too_large`;
+  - `compile_failed`: the module did not bundle or load;
+  - `runtime_error`: a frame threw;
+  - `timeout`: the service's 420 s, or the caller's polling deadline;
+  - the sandbox categories, passed through.
+- **`artifact_invalid`:**
+  - the service refused its own output: `final_validation_failed`, `nondeterministic`, `preview_final_mismatch`, `output_too_large`. Its artifacts are withheld, and its observations are still judged;
+  - the caller found a problem: `artifact_missing`, `final_invalid`, `preview_invalid`, `poster_invalid`, `contact_sheet_invalid`, `coverage_failed`, `nondeterministic`, `preview_final_mismatch`.
+
+**Coverage** (`motion/render-coverage.js`). The sampled frames are each beat's start, start + 1, middle and end - 1, so boundary - 1, boundary and boundary + 1 are covered. At each kind of frame:
+- **Beat middle:** the M4 probe rules.
+- **Around a boundary:** an object in both beats stays visible; an object leaving or arriving may fade.
+- **Every frame:** it rendered, and one element carries each id.
+
+Blank frames are judged on the decoded final video at all of these frames.
+
+**Service change (Home redeploys the M5 checkpoint).** The request schema is unchanged, but the result is not:
+- `child.mjs`:
+  - reports `compile_failed` and `runtime_error`;
+  - renders the determinism frames at every contact-sheet timestamp plus the middle frame;
+  - runs the harness probe at every coverage frame and returns the observations as `coverage` (text kept at beat middles only).
+- `remotion-renderer.mjs` `validateFinal` decodes the coverage frames too.
+- `server.mjs` passes `coverage` through.
+
+**Contract changes M5 found.**
+- The Author contract never carried the M1 rule that the first and last frames are not blank. All three Author-contract compositions on hand open on a blank or near-blank frame: both M4 outputs and my hand-written M4 reference. Two fixes:
+  - The Author prompt now states the rule. Its first wording, "start placed or partly visible", invited a dim entrance; it now says full opacity.
+  - The local Author proof (`author-proof.mjs`) also checks frames 0 and last.
+- `console` is banned in compositions: the probe's lines are the coverage evidence.
+- The model-ID leak pattern needs a version after `gpt-`. The real composition id `gpt-generate-one-pass` (nanoGPT's GPT.generate) was a false positive.
+- The hand-written reference no longer fades its first or last frame.
+
+**Renders** (Windows authoring host, the service in process with the unsandboxed child; Linux acceptance is Home's Fly proof).
+
+| Input | Result | Coverage | Determinism (2 fresh contexts) | Preview vs final (≤ 6) | Bundle / preview / final / service total |
+|---|---|---|---|---|---|
+| Softmax, M5 regeneration (real M3 storyboard) | `artifact_invalid` (final_validation_failed: blank #0:1.28 #1:1.28) | 20/20 clean | 13 frames identical | 2.104 | 7.13 s / 6.89 s / 25.74 s / 114.01 s |
+| Softmax, M4 Author output | `artifact_invalid` (final_validation_failed: blank #0:0 #1:0) | 20/20 clean | 13 frames identical | 1.931 | 16.86 s / 9.66 s / 28.06 s / 138.81 s |
+| Demo B, M4 Author output (storyboard `fixture_with_manual_semantic_fix`) | `artifact_invalid` (final_validation_failed: blank #0:0) | 28/28 clean | 16 frames identical | 1.363 | 18 s / 11.93 s / 28.85 s / 141.21 s |
+| Hand-written control (never acceptance evidence) | `ready` | 24/24 clean | 16 frames identical | 1.272 | 9 s / 7.15 s / 14.62 s / 88.63 s |
+
+Each generated composition renders and passes every check except the unchanged M1 nonblank check on its opening frames. A blank frame is luma stddev ≤ 2.
+- The M4 outputs fade in from an empty stage (luma 0).
+- The M5 regeneration opens with one code line at 30% opacity (luma 1.28; it first passes at frame 10).
+
+The Demo B render uses the hand-corrected M3 storyboard and is recorded as such. It is renderer and Author execution proof, not proof that the Director/storyboard pipeline is reliable; M6's revision loop must remove the manual edit.
+
+**Real call.** One Author call, the one M5 authorized for a concrete contract defect: softmax under the corrected prompt. It took 406 s and produced 40,011 output tokens, at $0.83; the request was capped at one with no re-ask. It returned a contract-valid `composition` that still opens near-blank, as above. No further calls were made.
+
+**Telemetry for M8** (`out/motion/render-telemetry.jsonl` per render) covers Author calls, output tokens, latency and cost, source bytes and characters, compile time, render time and the end-to-end time.
+
+**Known limitations.**
+- No generated composition is `ready` yet. That needs the owner to authorize Author regeneration under the tightened rule (softmax and Demo B), or a decision on the opening-frame rule.
+- M6 should run the nonblank check on the preview render, so a blank opening spends the repair round instead of failing at final validation (§11.3 fails the job there with no repair).
+- ponytail: a composition that reaches the global object could still forge probe lines. `console` is banned statically and a second line for a frame fails coverage, but the pixels (nonblank, M6 review) stay the backstop.
+- Windows timings and hashes are authoring evidence only (§10.3). The service totals here are 89–141 s. Fly, with its 1.5 CPU quota, took 122 s for M1's Demo A. M5 adds 13–16 determinism frames per context and 20–28 probe stills, so a 20 s composition may approach the 420 s limit there; Home's proof measures it.
 
 ## M6 — review and repair
 

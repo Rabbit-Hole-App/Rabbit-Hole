@@ -224,7 +224,10 @@ test('valid source compiles and its probed frames match the storyboard; a disall
   const brief = A.brief(), storyboard = A.storyboard(), source = A.source();
   const TEXT = checkAuthorSource(source, brief, storyboard).mapping.text;
   const ok = await proveAuthor({ brief, storyboard, source, TEXT, dir: mkdtempSync(join(tmpdir(), 'author-proof-')) });
-  assert.deepEqual([ok.compiled, ok.errors, ok.frames.length], [true, [], storyboard.beats.length]);
+  assert.deepEqual([ok.compiled, ok.errors, ok.frames.length], [true, [], storyboard.beats.length + 2]); // + frame 0 and the last frame
+  // M5: a fade-in from an empty stage leaves frame 0 blank, which the renderer refuses.
+  const fadeIn = await proveAuthor({ brief, storyboard, source: source.replace('timeline[first][0] === 0 ? 1 : ', ''), TEXT, dir: mkdtempSync(join(tmpdir(), 'author-proof-')) });
+  assert.deepEqual(fadeIn.errors, ['#0: blank (the renderer refuses a blank first or last frame)']);
   // Static checks reject this first; the bundler's import allowlist still stops it if one slipped.
   const bad = await proveAuthor({ brief, storyboard, source: source.replace("import { AbsoluteFill,", "import 'node:fs';\nimport { AbsoluteFill,"), TEXT, dir: mkdtempSync(join(tmpdir(), 'author-proof-')) });
   assert.equal(bad.compiled, false);

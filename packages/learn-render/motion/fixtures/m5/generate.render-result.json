@@ -1,0 +1,264 @@
+{
+  "schema": "motion-render-result/1",
+  "status": "artifact_invalid",
+  "render_id": "13eb411b6b8aec0ec3f2d2c6bf465ed8",
+  "composition_id": "gpt-generate-one-pass",
+  "renderer": {
+    "name": "remotion",
+    "service_version": "motion-renderer-1-105c32045a43/remotion@4.0.521",
+    "remotion": "remotion@4.0.521",
+    "chrome": "149.0.7790.0",
+    "ffmpeg": "ffmpeg version n7.1 Copyright (c) 2000-2024 the FFmpeg developers",
+    "sandbox": "none"
+  },
+  "artifacts": {},
+  "hashes": {},
+  "validation": {
+    "ok": false,
+    "final": {
+      "ok": false,
+      "checks": [
+        {
+          "name": "duration",
+          "ok": true,
+          "detail": "video 20s, container 20.053333s (want 20s within one frame, <= 30s)"
+        },
+        {
+          "name": "frame count",
+          "ok": true,
+          "detail": "600 (want 600)"
+        },
+        {
+          "name": "fps",
+          "ok": true,
+          "detail": "30/1"
+        },
+        {
+          "name": "resolution",
+          "ok": true,
+          "detail": "1920x1080"
+        },
+        {
+          "name": "codec",
+          "ok": true,
+          "detail": "h264 yuv420p bt709"
+        },
+        {
+          "name": "size",
+          "ok": true,
+          "detail": "2438574 bytes (cap 26214400)"
+        },
+        {
+          "name": "nonblank frames",
+          "ok": false,
+          "detail": "#0:0 #1:2.08 #45:18.75 #89:10.54 #90:10.2 #91:10.2 #135:21.86 #179:14.81 #180:14.6 #181:14.41 #240:20.44 #299:15.5 #300:15.22 #301:14.65 #345:17.28 #389:15.61 #390:15.44 #391:15.67 #420:20.14 #449:15.76 #450:15.87 #451:15.86 #495:23.52 #539:20.06 #540:20.93 #541:20.83 #570:24.52 #599:24.42"
+        }
+      ]
+    },
+    "coverage": {
+      "ok": true,
+      "frames": 28,
+      "observed": 28,
+      "errors": []
+    },
+    "determinism": {
+      "ok": true,
+      "method": "renderStill PNG, sha256 of decoded RGBA, two fresh contexts (separate bundle and browser)",
+      "frames": [
+        {
+          "frame": 0,
+          "hashes": [
+            "bd869c17a35fb51f861ff3d8ff9fc58c5218a85d94a556a37d2a2045bafbdabd",
+            "bd869c17a35fb51f861ff3d8ff9fc58c5218a85d94a556a37d2a2045bafbdabd"
+          ]
+        },
+        {
+          "frame": 45,
+          "hashes": [
+            "3d3793c35dbe4c17b68f9ad0d67f3e3ebfc9bee869d682b6842c4b54da214051",
+            "3d3793c35dbe4c17b68f9ad0d67f3e3ebfc9bee869d682b6842c4b54da214051"
+          ]
+        },
+        {
+          "frame": 90,
+          "hashes": [
+            "847b773cf2dc07d570fe589e2ae0f9c1326d4e71b37f303f855a6bff708206f9",
+            "847b773cf2dc07d570fe589e2ae0f9c1326d4e71b37f303f855a6bff708206f9"
+          ]
+        },
+        {
+          "frame": 135,
+          "hashes": [
+            "49b8ceb5ca6223150fe949e2a1beb27b572031e4b0ef099bf5580ea44c682b70",
+            "49b8ceb5ca6223150fe949e2a1beb27b572031e4b0ef099bf5580ea44c682b70"
+          ]
+        },
+        {
+          "frame": 180,
+          "hashes": [
+            "3b46a22252c7658637ad6d1f0cadeb0354955e1384c8fc9bda50e95bbe523b01",
+            "3b46a22252c7658637ad6d1f0cadeb0354955e1384c8fc9bda50e95bbe523b01"
+          ]
+        },
+        {
+          "frame": 240,
+          "hashes": [
+            "30d62a0928aba94eaaae5e7e4073c7ce576da00f27e76a9679703619c2818952",
+            "30d62a0928aba94eaaae5e7e4073c7ce576da00f27e76a9679703619c2818952"
+          ]
+        },
+        {
+          "frame": 299,
+          "hashes": [
+            "fd3e18217740a9d1b9bd441a09bc73dbc25bfb09f979b5358937f3a24c86de9f",
+            "fd3e18217740a9d1b9bd441a09bc73dbc25bfb09f979b5358937f3a24c86de9f"
+          ]
+        },
+        {
+          "frame": 300,
+          "hashes": [
+            "5c467bb4761e0ffcb81b666cf73a91d73ac322e07ce42a3c9ed9f45b417f0c7c",
+            "5c467bb4761e0ffcb81b666cf73a91d73ac322e07ce42a3c9ed9f45b417f0c7c"
+          ]
+        },
+        {
+          "frame": 345,
+          "hashes": [
+            "113e6618682ce3cd511132aabac65ee5fba360261ab2aa2ca17600786df98c5d",
+            "113e6618682ce3cd511132aabac65ee5fba360261ab2aa2ca17600786df98c5d"
+          ]
+        },
+        {
+          "frame": 390,
+          "hashes": [
+            "c5e6ee9a610414a032fca9fe2e0e1f4824be53017b47cc8fdb5d46569fdee21a",
+            "c5e6ee9a610414a032fca9fe2e0e1f4824be53017b47cc8fdb5d46569fdee21a"
+          ]
+        },
+        {
+          "frame": 420,
+          "hashes": [
+            "545009603128100f28e907bf247f7afeb829e6c31422f5d6397fc6dfa1d93541",
+            "545009603128100f28e907bf247f7afeb829e6c31422f5d6397fc6dfa1d93541"
+          ]
+        },
+        {
+          "frame": 450,
+          "hashes": [
+            "f7301d7a5a91808d1564f5fa53509e1034f757253d24e39d6b3b4d6648ff4e58",
+            "f7301d7a5a91808d1564f5fa53509e1034f757253d24e39d6b3b4d6648ff4e58"
+          ]
+        },
+        {
+          "frame": 495,
+          "hashes": [
+            "fd12d00c20caaa93c5a0419c97fdfd9bc7c9204630465c98e7c0466908efdc2a",
+            "fd12d00c20caaa93c5a0419c97fdfd9bc7c9204630465c98e7c0466908efdc2a"
+          ]
+        },
+        {
+          "frame": 540,
+          "hashes": [
+            "ea714a074a72ec1347d65f3e5e916d3fc62bfc13ceaab406ccb672c4d1217e6d",
+            "ea714a074a72ec1347d65f3e5e916d3fc62bfc13ceaab406ccb672c4d1217e6d"
+          ]
+        },
+        {
+          "frame": 570,
+          "hashes": [
+            "e0dd33e9b543c3e909ee33b597e064148dabd97009302a1658e99ada1fd5efac",
+            "e0dd33e9b543c3e909ee33b597e064148dabd97009302a1658e99ada1fd5efac"
+          ]
+        },
+        {
+          "frame": 599,
+          "hashes": [
+            "1656e96aa1fbd1a206b6d796878feb21c68d8341a49b9775b59084ecbb84aaa1",
+            "1656e96aa1fbd1a206b6d796878feb21c68d8341a49b9775b59084ecbb84aaa1"
+          ]
+        }
+      ],
+      "errors": []
+    },
+    "preview_final": {
+      "ok": true,
+      "max": 1.363,
+      "threshold": 6
+    }
+  },
+  "resources": {
+    "sandbox": {
+      "mode": "none",
+      "env_keys": [
+        "APPDATA",
+        "COMSPEC",
+        "HOME",
+        "HOMEDRIVE",
+        "HOMEPATH",
+        "LOCALAPPDATA",
+        "LOGONSERVER",
+        "MOTION_SANDBOX",
+        "PATH",
+        "PATHEXT",
+        "SYSTEMDRIVE",
+        "SYSTEMROOT",
+        "TEMP",
+        "TMP",
+        "TMPDIR",
+        "USERDOMAIN",
+        "USERNAME",
+        "USERPROFILE",
+        "WINDIR"
+      ]
+    },
+    "limits": null
+  },
+  "timings": {
+    "submit_to_finished_s": 145.76,
+    "service": {
+      "bundle": 18,
+      "browser": 0.44,
+      "preview": 11.93,
+      "stills@0.45": 8,
+      "final": 28.85,
+      "stills@1": 9.78,
+      "determinism_second_context": {
+        "bundle": 17.78,
+        "browser": 0.2,
+        "stills@1": 9.15
+      },
+      "coverage_probe": {
+        "bundle": 0,
+        "browser": 0.25,
+        "stills@0.25": 13.89
+      },
+      "total": 141.21
+    },
+    "total_s": 145.77
+  },
+  "provenance": {
+    "motion_job_id": "brief-471627df",
+    "prompt_spec_version": "motion-v1.0/director-1",
+    "brief_sha256": "19641bbe6d8527cb2d93d87680c1fded1d5171aa9672dc494e642b399577c330",
+    "storyboard_sha256": "c6fcb87974d341d98b50796117783bb262708cecff6abc4be7c3ea01a4e22845",
+    "composition_sha256": "944a56d199b49533165ced0713c641972766db3b3181abb33370cae855e905ce",
+    "source_bytes": 23629,
+    "source_chars": 23625,
+    "storyboard_origin": "fixture_with_manual_semantic_fix",
+    "composition_origin": "model_generated",
+    "fonts": {
+      "Inter-Regular.woff2": "e06f6b1bc553aaea4e4668023ed0ab0a147129c3107f511bc7d03d361b0ae085",
+      "Inter-Medium.woff2": "0ff3e94614e1493eb556314fd247ae6c4a85a7783b4cc86be539940cf83f2a48",
+      "Virgil.woff2": "9976295bfe709bdea64839a4d4e9a1d436dd6eb67538399a5a0e8b8fadbcf1cf",
+      "JetBrainsMono-Regular.woff2": "a9cb1cd82332b23a47e3a1239d25d13c86d16c4220695e34b243effa999f45f2"
+    }
+  },
+  "duration_seconds": 20,
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "failure": {
+    "category": "final_validation_failed",
+    "detail": "nonblank frames: #0:0 #1:2.08 #45:18.75 #89:10.54 #90:10.2 #91:10.2 #135:21.86 #179:14.81 #180:14.6 #181:14.41 #240:20.44 #299:15.5 #300:15.22 #301:14.65 #345:17.28 #389:15.61 #390:15.44 #391:15.67 #420:20.14 #449:15.76 #450:15.87 #451:15.86 #495:23.52 #539:20.06 #540:20.93 #541:20.83 #570:24.52 #599:24.42"
+  }
+}

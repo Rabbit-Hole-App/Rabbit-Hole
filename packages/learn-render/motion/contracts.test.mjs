@@ -191,6 +191,8 @@ test('MotionJob: roles, not model IDs, are the contract (§4.9, §5.5)', () => {
   const j = job(); j.brief.objective += ' (written by claude-opus-5-5)';
   has(validateJob(j), /model ID/);
   has(validateJob({ ...job(), failure_reason: 'opus-5 timed out' }), /model ID/);
+  for (const id of ['gpt-4o', 'gpt-3.5-turbo', 'gpt-5', 'gpt-oss-120b', 'gemini-2.5-pro']) assert.match(leakErrors({ note: `made by ${id}` }, 'x').join(), /model ID/, id);
+  assert.deepEqual(leakErrors({ composition_id: 'gpt-generate-one-pass' }, 'x'), []); // nanoGPT's GPT.generate, a real Author composition id
   has(validateJob({ ...job(), director_model_config: { role: 'MOTION_DIRECTOR_MODEL', api_key: 'x' } }), /credential-shaped key/);
   has(validateJob({ ...job(), author_model_config: { role: 'claude-opus-5-5' } }), /MOTION_AUTHOR_MODEL/);
   has(validateJob({ ...job(), source_refs: [] }), /copied from the brief/);

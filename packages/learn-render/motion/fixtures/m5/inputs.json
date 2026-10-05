@@ -1,0 +1,97 @@
+{
+  "softmax": {
+    "brief": "m2/softmax-15s-attention.brief.json",
+    "storyboard": "m3/softmax-15s-attention.real.storyboard.json",
+    "composition": "m5/softmax-15s-attention.real.composition.jsx",
+    "composition_id": "softmax-attention-weights",
+    "storyboard_origin": "model_generated",
+    "composition_origin": "model_generated",
+    "note": "Regenerated in M5 with the one authorized Author call, after the Author contract gained the no-blank-first-or-last-frame and boundary-persistence rules; same brief and real M3 storyboard (storyboard-0e5ddf31), output unchanged.",
+    "author_calls": [
+      {
+        "role": "MOTION_AUTHOR_MODEL",
+        "resolved_model": "claude-opus-5-5",
+        "latency_ms": 406281,
+        "stop_reason": "tool_use",
+        "usage": {
+          "input_tokens": 5552,
+          "output_tokens": 40011,
+          "cache_creation_input_tokens": 2057,
+          "cache_read_input_tokens": 0
+        },
+        "cost_usd": 0.8327
+      }
+    ]
+  },
+  "softmax-m4": {
+    "brief": "m2/softmax-15s-attention.brief.json",
+    "storyboard": "m3/softmax-15s-attention.real.storyboard.json",
+    "composition": "m4/softmax-15s-attention.real.composition.jsx",
+    "composition_id": "softmax-attention-weights",
+    "storyboard_origin": "model_generated",
+    "composition_origin": "model_generated",
+    "note": "The M4 Author output (generated before M5), unchanged: real M3 storyboard storyboard-0e5ddf31.",
+    "author_calls": [
+      {
+        "role": "MOTION_AUTHOR_MODEL",
+        "resolved_model": "claude-opus-5-5",
+        "latency_ms": 305230,
+        "stop_reason": "max_tokens",
+        "usage": {
+          "input_tokens": 5552,
+          "output_tokens": 32000,
+          "cache_creation_input_tokens": 1909,
+          "cache_read_input_tokens": 0
+        },
+        "cost_usd": 0.6718
+      },
+      {
+        "role": "MOTION_AUTHOR_MODEL",
+        "resolved_model": "claude-opus-5-5",
+        "latency_ms": 66894,
+        "stop_reason": "tool_use",
+        "usage": {
+          "input_tokens": 32182,
+          "output_tokens": 10010,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 1909
+        },
+        "cost_usd": 0.3293
+      }
+    ]
+  },
+  "generate": {
+    "brief": "m3/generate-20s-selection.brief.json",
+    "storyboard": "m4/generate-20s-selection.storyboard.json",
+    "composition": "m4/generate-20s-selection.real.composition.jsx",
+    "composition_id": "gpt-generate-one-pass",
+    "storyboard_origin": "fixture_with_manual_semantic_fix",
+    "composition_origin": "model_generated",
+    "note": "Real M3 storyboard storyboard-9b18b25f with ONE hand edit (B7.claim_ids += C1) standing in for the M6 Director revision; the composition is the real M4 Author output, unchanged. Renderer and Author execution proof only, not proof that the automatic Director/storyboard pipeline is reliable.",
+    "author_calls": [
+      {
+        "role": "MOTION_AUTHOR_MODEL",
+        "resolved_model": "claude-opus-5-5",
+        "latency_ms": 485994,
+        "stop_reason": "tool_use",
+        "usage": {
+          "input_tokens": 8554,
+          "output_tokens": 48619,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 1909
+        },
+        "cost_usd": 1.007
+      }
+    ]
+  },
+  "reference": {
+    "brief": "m2/softmax-15s-attention.brief.json",
+    "storyboard": "m3/softmax-15s-attention.storyboard.json",
+    "composition": "m4/softmax-reference.composition.jsx",
+    "composition_id": "softmax-reference",
+    "storyboard_origin": "handwritten",
+    "composition_origin": "handwritten",
+    "note": "Hand-written control (M3 reference storyboard, M4 reference composition); never acceptance evidence.",
+    "author_calls": []
+  }
+}

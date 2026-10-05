@@ -40,7 +40,9 @@ const ID = { S: /^S\d+$/, K: /^K\d+$/, C: /^C\d+$/, B: /^B\d+$/, object: /^[a-z]
 // Beat boundaries sit on a 0.1 s grid (3 frames at 30 fps): timing is exact, never "about".
 export const TIME_GRID = 0.1;
 const onGrid = t => Math.abs(t / TIME_GRID - Math.round(t / TIME_GRID)) < 1e-6;
-const MODEL_ID = /\b(?:claude-[a-z0-9.-]+|(?:us|eu|apac|global)\.anthropic\.[a-z0-9.:-]+|anthropic\.claude[a-z0-9.:-]*|gpt-[a-z0-9.-]+|gemini-[a-z0-9.-]+|(?:opus|sonnet|haiku|fable)-\d[a-z0-9.-]*)/i;
+// gpt- needs a version (gpt-4o, gpt-5, gpt-oss-120b): nanoGPT's own names are not model IDs
+// (GPT.generate -> gpt-generate-one-pass, a real Author composition id).
+const MODEL_ID = /\b(?:claude-[a-z0-9.-]+|(?:us|eu|apac|global)\.anthropic\.[a-z0-9.:-]+|anthropic\.claude[a-z0-9.:-]*|gpt-(?:\d|oss)[a-z0-9.-]*|gemini-[a-z0-9.-]+|(?:opus|sonnet|haiku|fable)-\d[a-z0-9.-]*)/i;
 const SECRET = /sk-ant-[\w-]{8,}|\bsk-[A-Za-z0-9]{20,}|\bBearer\s+[\w.~+/-]{12,}|\bAKIA[0-9A-Z]{16}\b|-----BEGIN [A-Z ]*PRIVATE KEY-----|\bsmall_session=/;
 const SECRET_KEY = /^(?:api_?key|token|secret|password|cookie|authorization|credentials?)$/i;
 
@@ -267,6 +269,52 @@ export function validateRenderRequest(r) {
   e.push(...validateBrief(r.brief));
   if (r.brief && typeof r.brief === 'object') e.push(...validateStoryboard(r.storyboard, r.brief));
   return e;
+}
+
+// M5: one render job's result, as the orchestrator (render-job.mjs) reports it. The service's
+// record is input to it, never the verdict: `ready` means the caller received every artifact
+// and validated it again, so nothing partial is ever ready. A failed job keeps what it learned
+// (category, detail, and any artifacts that arrived). No learner input, model or credential.
+export const RENDER_RESULT_SCHEMA = 'motion-render-result/1';
+export const RENDER_RESULT_STATUSES = ['ready', 'render_failed', 'artifact_invalid'];
+export const RENDER_ARTIFACTS = Object.freeze({ final_mp4: 'final.mp4', preview_mp4: 'preview.mp4', poster: 'poster.png', contact_sheet: 'contact-sheet.png' });
+// How the inputs were made. A storyboard a person corrected is never presented as pipeline output.
+export const RENDER_ORIGINS = Object.freeze({ storyboard: ['model_generated', 'fixture_with_manual_semantic_fix', 'handwritten'], composition: ['model_generated', 'handwritten'] });
+const RESULT_KEYS = ['schema', 'status', 'render_id', 'composition_id', 'renderer', 'duration_seconds', 'fps', 'width', 'height', 'artifacts', 'hashes', 'validation', 'resources', 'timings', 'provenance', 'failure'];
+const PROVENANCE_KEYS = ['motion_job_id', 'prompt_spec_version', 'brief_sha256', 'storyboard_sha256', 'composition_sha256', 'source_bytes', 'source_chars', 'storyboard_origin', 'composition_origin', 'fonts'];
+const SHA256 = /^[0-9a-f]{64}$/;
+export function validateRenderResult(r) {
+  if (!r || typeof r !== 'object' || Array.isArray(r)) return ['render_result: not an object'];
+  const e = [];
+  for (const k of Object.keys(r)) if (!RESULT_KEYS.includes(k)) e.push(`render_result.${k}: unknown field`);
+  if (r.schema !== RENDER_RESULT_SCHEMA) e.push(`render_result.schema: "${RENDER_RESULT_SCHEMA}"`);
+  if (!RENDER_RESULT_STATUSES.includes(r.status)) e.push(`render_result.status: ${RENDER_RESULT_STATUSES.join(' | ')}`);
+  if (r.render_id !== null && !/^[0-9a-f]{32}$/.test(r.render_id || '')) e.push('render_result.render_id: the service id, or null when the job never started');
+  if (!/^[A-Za-z0-9-]+$/.test(r.composition_id || '')) e.push('render_result.composition_id: letters, digits and dashes');
+  if (r.renderer?.name !== 'remotion') e.push('render_result.renderer: {name: "remotion", ...}');
+  const p = r.provenance;
+  if (!p || typeof p !== 'object') e.push('render_result.provenance: required');
+  else {
+    for (const k of Object.keys(p)) if (!PROVENANCE_KEYS.includes(k)) e.push(`render_result.provenance.${k}: unknown field`);
+    for (const k of ['brief_sha256', 'storyboard_sha256', 'composition_sha256']) if (!SHA256.test(p[k] || '')) e.push(`render_result.provenance.${k}: sha256`);
+    if (!str(p.motion_job_id) || !str(p.prompt_spec_version)) e.push('render_result.provenance: motion_job_id and prompt_spec_version');
+    if (!int(p.source_bytes) || !int(p.source_chars)) e.push('render_result.provenance: source_bytes and source_chars');
+    if (!RENDER_ORIGINS.storyboard.includes(p.storyboard_origin)) e.push(`render_result.provenance.storyboard_origin: ${RENDER_ORIGINS.storyboard.join(' | ')}`);
+    if (!RENDER_ORIGINS.composition.includes(p.composition_origin)) e.push(`render_result.provenance.composition_origin: ${RENDER_ORIGINS.composition.join(' | ')}`);
+    if (!p.fonts || !Object.keys(p.fonts).length || Object.values(p.fonts).some(h => !SHA256.test(h))) e.push('render_result.provenance.fonts: file -> sha256');
+  }
+  for (const [k, name] of Object.entries(r.artifacts || {})) if (RENDER_ARTIFACTS[k] !== name || !SHA256.test(r.hashes?.[k] || '')) e.push(`render_result.artifacts.${k}: "${RENDER_ARTIFACTS[k]}" with its sha256 in hashes`);
+  if (r.status === 'ready') {
+    if (r.failure !== undefined) e.push('render_result.failure: a ready result has none');
+    for (const k of Object.keys(RENDER_ARTIFACTS)) if (!r.artifacts?.[k]) e.push(`render_result.artifacts.${k}: required when ready`);
+    if (r.validation?.ok !== true) e.push('render_result.validation.ok: ready needs every check to pass');
+    for (const k of ['final', 'artifacts', 'coverage', 'determinism', 'preview_final']) if (r.validation?.[k]?.ok !== true) e.push(`render_result.validation.${k}.ok: ready needs it`);
+    if (r.fps !== STAGE.fps || r.width !== STAGE.width || r.height !== STAGE.height) e.push(`render_result: ready is ${STAGE.width}x${STAGE.height} at ${STAGE.fps} fps`);
+    if (!(r.duration_seconds > 0)) e.push('render_result.duration_seconds: required when ready');
+  } else if (!/^[a-z0-9_]+$/.test(r.failure?.category || '') || typeof r.failure?.detail !== 'string') e.push('render_result.failure: {category, detail} when not ready');
+  // The learner's own words never travel with a render (the brief keeps them; hashes stand in).
+  for (const [path] of walk(r)) if (/\.(raw_user_request|audience_context)$/.test(path)) e.push(`render_result${path}: learner input does not belong in a render result`);
+  return [...e, ...leakErrors(r, 'render_result')];
 }
 
 // §5.4

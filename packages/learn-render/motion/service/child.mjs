@@ -13,11 +13,13 @@ import { PNG } from 'pngjs';
 import { STAGE } from '../contracts.js';
 import { NET_PROBE, NET_PROBE_PREFIX } from '../probes.js';
 import { RemotionRenderer, chromeVersion, contactFrames, ffmpegVersion, probe } from '../remotion-renderer.mjs';
+import { PROBE_PREFIX, compactProbe, coverageFrames, determinismFrames } from '../render-coverage.js';
 import { selfLimits, unlimited } from './resource-control.mjs';
 import { runPhaseProcess, runResourceProbe } from './stress-probe.mjs';
 
 // Preview vs final (§11.3): the final frame downscaled to preview size against the preview frame.
-// ponytail: provisional threshold from the Demo A authoring renders; M5 sets the real one.
+// M5 keeps 6: Windows authoring renders of four Author-contract compositions measured 1.27-2.10
+// (the Demo A authoring renders set it first). The Linux values come with Home's Fly proof.
 export const PREVIEW_FINAL_MAX_MEAN_DIFF = 6;
 
 const dir = resolve(process.argv[2] || '');
@@ -143,19 +145,40 @@ async function main() {
   const r = new RemotionRenderer({ cacheDir: join(work, 'cache') });
   const errors = r.validateSource(j.brief, j.storyboard, j.source);
   if (errors.length) return write({ status: 'failed', error: 'invalid_job', errors, sandbox });
-  let second;
+  // M5 failure categories: compile_failed (the composition did not bundle or load), runtime_error
+  // (a frame threw while rendering); anything after rendering is the renderer's own failure.
+  const firstLine = error => String(error?.message || error).split('\n')[0].slice(0, 500);
+  let second, prober;
   try {
-    const preview = await r.renderPreview(j);
-    const sheet = await r.contactSheet(j);
-    await r.renderFinal(j);
+    try { await r.prepare(j); }
+    catch (error) { return write({ status: 'failed', error: 'compile_failed', detail: firstLine(error), sandbox }); }
+    const frames = determinismFrames(j.brief, j.storyboard);
+    const sample = coverageFrames(j.storyboard);
+    const mids = new Set(sample.filter(s => s.roles.includes('mid')).map(s => s.frame));
+    const observations = [];
+    let preview, sheet, a, b;
+    try {
+      preview = await r.renderPreview(j);
+      sheet = await r.contactSheet(j);
+      await r.renderFinal(j);
+      // §8.3: the same frames from a second fresh context (its own bundle and browser).
+      a = await r.renderStills(j, frames, { scale: 1, dir: join(work, 'det-1') });
+      second = new RemotionRenderer({ fresh: true });
+      b = await second.renderStills({ ...j, dir: join(work, 'job-2') }, frames, { scale: 1, dir: join(work, 'det-2') });
+      await second.close();
+      // Beat and transition coverage (render-coverage.js): the harness probe on the same bundle,
+      // at a quarter scale. The orchestrator judges the observations against the storyboard.
+      prober = new RemotionRenderer({
+        cacheDir: join(work, 'cache'), inputProps: { probe: true },
+        log: l => { if (l.text?.startsWith(PROBE_PREFIX)) { const p = JSON.parse(l.text.slice(PROBE_PREFIX.length)); observations.push(compactProbe(p, mids.has(p.frame))); } },
+      });
+      await prober.renderStills({ ...j, dir: join(work, 'job-probe') }, sample.map(s => s.frame), { scale: 0.25, dir: join(work, 'probe') });
+    } catch (error) {
+      return write({ status: 'failed', error: 'runtime_error', detail: firstLine(error), sandbox });
+    }
     const validation = await r.validateFinal(j);
-    // §8.3: the same frames from a second fresh context (its own bundle and browser).
-    const last = j.brief.duration.seconds * STAGE.fps - 1;
-    const frames = [0, Math.floor(last / 2), last];
-    const a = await r.renderStills(j, frames, { scale: 1, dir: join(work, 'det-1') });
-    second = new RemotionRenderer({ fresh: true });
-    const b = await second.renderStills({ ...j, dir: join(work, 'job-2') }, frames, { scale: 1, dir: join(work, 'det-2') });
     const determinism = { method: 'renderStill PNG, sha256 of decoded RGBA, two fresh contexts (separate bundle and browser)', identical: frames.every((_, i) => a[i].pixels_sha256 === b[i].pixels_sha256), frames: frames.map((f, i) => ({ frame: f, hashes: [a[i].pixels_sha256, b[i].pixels_sha256] })) };
+    const coverage = { method: 'harness probe (src/motion/probe.jsx) at each beat start, start + 1, middle and end - 1, a quarter scale; text kept at beat middles', frames: sample, observations };
     const comparison = await comparePreviewFinal(j, contactFrames(j.brief, j.storyboard));
 
     for (const [from, to] of [[join(j.dir, 'final.mp4'), 'final.mp4'], [preview.file, 'preview.mp4'], [sheet.file, 'contact-sheet.png'], [a.at(-1).file, 'poster.png']]) copyFileSync(from, join(out, to));
@@ -168,15 +191,16 @@ async function main() {
       status: failed ? 'failed' : 'ready', ...(failed ? { error: failed[0], detail: failed[1] } : {}),
       duration_seconds: Number(v.duration), fps: STAGE.fps, width: v.width, height: v.height, frame_count: Number(v.nb_read_frames), output_bytes: size,
       final_validation: validation, determinism, preview: { width: pv.width, height: pv.height, frame_count: Number(pv.nb_read_frames), bytes: psize, scale: j.brief.output_requirements.preview_scale },
-      preview_final_comparison: comparison, contact_sheet: sheet.manifest, sandbox,
+      preview_final_comparison: comparison, contact_sheet: sheet.manifest, coverage, sandbox,
       // The stage logs which bundled faces loaded (src/motion); proof that no system font stood in.
       fonts: r.browserLogs.find(l => l.includes('MOTION_FONTS')) || null,
-      timings: { ...r.timings, determinism_second_context: second.timings, total: +((performance.now() - t0) / 1000).toFixed(2) },
+      timings: { ...r.timings, determinism_second_context: second.timings, coverage_probe: prober.timings, total: +((performance.now() - t0) / 1000).toFixed(2) },
       renderer: { version: r.version, chrome: chromeVersion(), ffmpeg: await ffmpegVersion() },
     });
   } finally {
     await r.close();
     await second?.close();
+    await prober?.close();
   }
 }
 

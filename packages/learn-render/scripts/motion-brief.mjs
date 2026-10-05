@@ -4,7 +4,7 @@
 // storyboard, then (--author) the Motion Author to a Remotion composition, and (--proof) a local
 // compile plus a probed frame sample. Not a product command: no /motion route, no UI, no review.
 //   node scripts/motion-brief.mjs "15s explain me softmax func" --concept attention [--select model.py:62-71] [--storyboard] [--author] [--proof] [--call]
-//   node scripts/motion-brief.mjs --brief <brief.json> [--storyboard | --storyboard-file <storyboard.json>] [--author | --source-file <composition.jsx>] [--proof] [--call]
+//   node scripts/motion-brief.mjs --brief <brief.json> [--storyboard | --storyboard-file <storyboard.json>] [--author | --source-file <composition.jsx>] [--proof] [--call] [--max-calls N]
 // The request may be written with or without "/motion"; a Git Bash path rewrite of "/motion" is undone.
 // Without --call it stops before the first model call (the request is built and sized, nothing is
 // sent). With --call each stage makes ONE paid call (plus at most one schema-only re-ask), and each
@@ -43,6 +43,7 @@ const storyboardFile = flag('--storyboard-file');
 const sourceFile = flag('--source-file');
 const withAuthor = switchOn('--author');
 const withProof = switchOn('--proof');
+const maxCalls = Number(flag('--max-calls')) || Infinity; // a hard cap on paid calls, the schema-only re-ask included
 const typed = argv.join(' ').trim();
 if (!typed && !briefFile) { console.error('usage: node scripts/motion-brief.mjs "15s explain me softmax func" [--concept attention] [--select model.py:62-71] [--storyboard] [--call]\n       node scripts/motion-brief.mjs --brief <brief.json> --storyboard [--call]'); process.exit(2); }
 
@@ -160,7 +161,9 @@ if (sourceFile && brief && storyboard) {
     section(12, 'Author result', `dry run: would call MOTION_AUTHOR_MODEL -> ${authorModel}, effort ${effort}, streaming, ${JSON.stringify(authorRequest(brief, storyboard, { effort })).length} request bytes. Add --call to send it.`);
   } else {
     needKey();
-    const r = await runAuthor({ brief, storyboard, call: anthropic, env, effort });
+    let spent = 0;
+    const capped = (...args) => (++spent > maxCalls ? Promise.resolve(new Response(`refused locally: the --max-calls ${maxCalls} budget is spent`, { status: 429 })) : anthropic(...args));
+    const r = await runAuthor({ brief, storyboard, call: capped, env, effort });
     section(12, 'Author result', { status: r.status, ...(r.error ? { error: r.error, detail: r.detail, errors: r.errors } : {}), ...(r.check?.errors.length ? { errors: r.check.errors } : {}), ...(r.output?.status === 'needs_revision' ? { needs_revision: r.output } : {}), calls: r.calls, format_retries: r.format_retries });
     if (r.output?.status === 'composition') {
       const file = join(OUT, `${r.output.composition_id}-${r.calls.at(-1).latency_ms}.jsx`);

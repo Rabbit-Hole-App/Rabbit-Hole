@@ -38,13 +38,13 @@ const KEEP_MS = 30 * 60 * 1000, KEEP_MAX = 3; // finished renders stay fetchable
 export const ARTIFACTS = Object.freeze({ 'final.mp4': 'video/mp4', 'preview.mp4': 'video/mp4', 'contact-sheet.png': 'image/png', 'poster.png': 'image/png' });
 // What a finished render reports back: the child's result.json is copied through this list only.
 const RESULT_FIELDS = ['duration_seconds', 'fps', 'width', 'height', 'frame_count', 'output_bytes', 'final_validation', 'determinism',
-  'preview', 'preview_final_comparison', 'contact_sheet', 'sandbox', 'fonts', 'timings', 'renderer'];
+  'preview', 'preview_final_comparison', 'contact_sheet', 'coverage', 'sandbox', 'fonts', 'timings', 'renderer'];
 
 // The renderer, the contract and the sandbox scripts make the version: a changed renderer is a new version.
 export function serviceVersion() {
   const h = createHash('sha256');
   const files = [
-    ...['service/server.mjs', 'service/child.mjs', 'service/resource-control.mjs', 'service/motion-sandbox', 'service/sandbox-init', 'remotion-renderer.mjs', 'static-check.js', 'contracts.js', 'duration.js', 'probes.js'].map(f => join('motion', f)),
+    ...['service/server.mjs', 'service/child.mjs', 'service/resource-control.mjs', 'service/motion-sandbox', 'service/sandbox-init', 'remotion-renderer.mjs', 'render-coverage.js', 'static-check.js', 'contracts.js', 'duration.js', 'probes.js'].map(f => join('motion', f)),
     ...readdirSync(join(PKG, 'src', 'motion')).map(f => join('src', 'motion', f)),
   ];
   for (const f of files) if (existsSync(join(PKG, f))) h.update(f).update(readFileSync(join(PKG, f)));

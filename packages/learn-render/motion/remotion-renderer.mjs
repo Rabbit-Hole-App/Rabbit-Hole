@@ -11,6 +11,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PNG } from 'pngjs';
 import { STAGE, validateBrief, validateStoryboard } from './contracts.js';
+import { contactFrames, coverageFrames } from './render-coverage.js';
 import { IMPORTS, checkComposition } from './static-check.js';
 
 const PKG = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -53,14 +54,7 @@ class ImportAllowlist {
   }
 }
 
-// Stills at the first frame, every beat start and middle, the last frame (the takeaway) and
-// any brief keyframe_times (spec §11.2).
-export function contactFrames(brief, storyboard) {
-  const fps = STAGE.fps, last = brief.duration.seconds * fps - 1;
-  const frames = [0, last, ...(brief.qa_requirements.keyframe_times || []).map(t => Math.round(t * fps))];
-  for (const b of storyboard.beats) frames.push(Math.round(b.start_time * fps), Math.round(((b.start_time + b.end_time) / 2) * fps));
-  return [...new Set(frames.map(f => Math.min(last, Math.max(0, f))))].sort((a, b) => a - b);
-}
+export { contactFrames };
 const beatAt = (storyboard, frame) => storyboard.beats.find(b => frame / STAGE.fps >= b.start_time && frame / STAGE.fps < b.end_time) || storyboard.beats.at(-1);
 
 export class RemotionRenderer {
@@ -184,22 +178,13 @@ export class RemotionRenderer {
   }
 
   // §11.3 automatic checks on the final MP4: ffprobe from Remotion's bundled compositor
-  // (no system ffmpeg needed), nonblank frames at the contact-sheet times and the last
-  // frame, and the decoded keyframe hashes recorded for the job.
+  // (no system ffmpeg needed), nonblank frames at the contact-sheet times, the last frame and
+  // (M5) every beat and transition frame the coverage samples (render-coverage.js), and the
+  // decoded keyframe hashes recorded for the job. M5 runs it again on the artifacts the caller received.
   async validateFinal(job) {
     const file = join(job.dir, 'final.mp4');
-    const { v, duration, size } = await probe(file);
-    const seconds = job.brief.duration.seconds, frames = seconds * STAGE.fps, video = Number(v.duration);
-    const checks = [
-      // the video stream, not the container: an AAC narration track pads the container by ~60 ms
-      ['duration', Math.abs(video - seconds) <= 1 / STAGE.fps + 1e-6 && duration <= 30 + 1e-6, `video ${video}s, container ${duration}s (want ${seconds}s within one frame, <= 30s)`],
-      ['frame count', Number(v.nb_read_frames) === frames, `${v.nb_read_frames} (want ${frames})`],
-      ['fps', v.r_frame_rate === `${STAGE.fps}/1`, v.r_frame_rate],
-      ['resolution', v.width === STAGE.width && v.height === STAGE.height, `${v.width}x${v.height}`],
-      ['codec', v.codec_name === 'h264' && v.pix_fmt === 'yuv420p' && v.color_space === 'bt709', `${v.codec_name} ${v.pix_fmt} ${v.color_space}`],
-      ['size', size <= OUTPUT_MAX_BYTES, `${size} bytes (cap ${OUTPUT_MAX_BYTES})`],
-    ];
-    const sample = contactFrames(job.brief, job.storyboard);
+    const checks = finalChecks(await probe(file), job.brief.duration.seconds);
+    const sample = [...new Set([...contactFrames(job.brief, job.storyboard), ...coverageFrames(job.storyboard).map(s => s.frame)])].sort((a, b) => a - b);
     const dir = join(job.dir, 'final-frames');
     rmSync(dir, { recursive: true, force: true });
     mkdirSync(dir, { recursive: true });
@@ -223,7 +208,21 @@ export class RemotionRenderer {
     return { renderer: this.version, chrome: chromeVersion(), timings: this.timings, cache_key: this.cacheKey, csp: this.csp, browser_logs: this.browserLogs.slice(-50), files };
   }
 
-  async close() { await this.browser?.close({ silent: true }); }
+  async close() { const b = this.browser; this.browser = null; await b?.close({ silent: true }); }
+}
+
+// The final MP4 contract from ffprobe output: [name, ok, detail] rows.
+export function finalChecks({ v, duration, size }, seconds) {
+  const frames = seconds * STAGE.fps, video = Number(v.duration);
+  return [
+    // the video stream, not the container: an AAC narration track pads the container by ~60 ms
+    ['duration', Math.abs(video - seconds) <= 1 / STAGE.fps + 1e-6 && duration <= 30 + 1e-6, `video ${video}s, container ${duration}s (want ${seconds}s within one frame, <= 30s)`],
+    ['frame count', Number(v.nb_read_frames) === frames, `${v.nb_read_frames} (want ${frames})`],
+    ['fps', v.r_frame_rate === `${STAGE.fps}/1`, v.r_frame_rate],
+    ['resolution', v.width === STAGE.width && v.height === STAGE.height, `${v.width}x${v.height}`],
+    ['codec', v.codec_name === 'h264' && v.pix_fmt === 'yuv420p' && v.color_space === 'bt709', `${v.codec_name} ${v.pix_fmt} ${v.color_space}`],
+    ['size', size <= OUTPUT_MAX_BYTES, `${size} bytes (cap ${OUTPUT_MAX_BYTES})`],
+  ];
 }
 
 const ffmpeg = (bin, args) => RenderInternals.callFf({ bin, args, indent: false, logLevel: 'error', binariesDirectory: null });
@@ -235,7 +234,7 @@ export async function probe(file) {
 export const ffmpegVersion = async () => (await ffmpeg('ffmpeg', ['-version'])).stdout.split('\n')[0].trim();
 export const chromeVersion = () => { try { return readFileSync(join(PKG, 'node_modules', '.remotion', 'chrome-headless-shell', 'VERSION'), 'utf8').trim(); } catch { return 'unknown'; } };
 
-function lumaStddev(png) {
+export function lumaStddev(png) {
   let n = 0, sum = 0, sq = 0;
   for (let i = 0; i < png.data.length; i += 16) {
     const y = 0.2126 * png.data[i] + 0.7152 * png.data[i + 1] + 0.0722 * png.data[i + 2];

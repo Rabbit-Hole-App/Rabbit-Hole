@@ -36,7 +36,7 @@ stroke-dashoffset and a pen sprite rides the head of the active stroke.
 tldraw is the learner's canvas (pausing the lecture and scribbling on the board),
 not part of the renderer — deliberately not installed here.
 
-## Motion (V1 harness, M0–M4)
+## Motion (V1 harness, M0–M5)
 
 Spec: `docs/features/rabbit-hole-motion-v1-harness-spec.md`. Model calls so far: the Motion Director (M2) and the storyboard (M3) under `MOTION_DIRECTOR_MODEL`, and the Motion Author (M4) under `MOTION_AUTHOR_MODEL`.
 
@@ -50,6 +50,8 @@ node scripts/motion-brief.mjs "15s explain me softmax func" --concept attention 
 node scripts/motion-brief.mjs --brief motion/fixtures/m2/softmax-15s-attention.brief.json --storyboard [--call]   # M3 from a saved brief
 node scripts/motion-brief.mjs --brief <brief.json> --storyboard-file <storyboard.json> --author [--proof] [--call]   # M4: Author, then local compile + probed beat frames
 node scripts/motion-brief.mjs --brief <brief.json> --storyboard-file <storyboard.json> --source-file <composition.jsx> --proof   # M4: check and prove a saved composition
+node scripts/motion-render.mjs softmax|softmax-m4|generate|reference [--service <url>]   # M5: a saved composition through the render service -> RenderResult (local service unless --service + MOTION_RENDERER_TOKEN)
+MOTION_RENDER_TESTS=1 node --test motion/render.test.mjs   # M5: real local renders of the generated compositions (minutes)
 node scripts/motion-local-check.mjs setup|run <final.mp4>   # local stack: Motion render API stand-in -> LearnVideos -> LEARN_MEDIA -> video block
 sh motion/service/context.sh   # deploy context for rabbit-hole-motion-renderer-dev (Home deploys)
 ```
@@ -74,7 +76,9 @@ sh motion/service/context.sh   # deploy context for rabbit-hole-motion-renderer-
   `server.mjs` (GET /health; Bearer `MOTION_RENDERER_TOKEN`: POST /render a motion-render/1
   job, GET /render/<id>, GET /render/<id>/artifacts/<name>), one render at a time (429),
   420 s, 25 MB. `child.mjs` renders one job (preview, contact sheet, final, validation, two-context
-  determinism, preview/final comparison) inside `motion-sandbox` / `sandbox-init`: unshare
+  determinism at the contact-sheet timestamps, preview/final comparison, and since M5 the harness
+  probe at every beat start, start + 1, middle and end - 1; failures are `compile_failed` or
+  `runtime_error`) inside `motion-sandbox` / `sandbox-init`: unshare
   net/pid/mount/ipc/uts, the motion-render user, empty environment, private /tmp, service files
   hidden, renderer read-only, and kernel limits per job from `resource-control.mjs`
   (ResourceController: cgroup v2 when complete, else cgroup v1 as on Fly; 3 GiB with no swap
@@ -99,6 +103,13 @@ sh motion/service/context.sh   # deploy context for rabbit-hole-motion-renderer-
   `motion/author-check.js` is the Author contract (timeline, TEXT, one element per object id) on
   top of the unchanged `static-check.js`; `motion/author-proof.mjs` compiles and renders one
   probed still per beat (`src/motion/probe.jsx`, on only with the `probe` input prop).
+- `motion/render-job.mjs`: the render stage (M5). Only an Author `composition` that passes the
+  request, static and Author-contract gate is submitted; the service record is input, not the
+  verdict. The four artifacts are fetched and validated again here (final.mp4 through the M1
+  validator, preview, poster, contact sheet), beat and transition coverage is judged from the
+  child's probe observations (`motion/render-coverage.js`), decoded-pixel determinism is
+  recomputed, and one `RenderResult` (contracts.js) comes back: `ready` | `render_failed` |
+  `artifact_invalid`, with provenance hashes and the input origins.
 - `motion/video-block.js`: the existing `type: "video"` block for a finished render
   (`operation: {op: "motion_render", render_id}` + Motion metadata); LearnVideos pulls the MP4
   through `MotionProvider` (packages/control-plane/src/motion-provider.js).
