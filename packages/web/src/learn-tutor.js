@@ -4,6 +4,9 @@
 // Pure apart from what is injected: `post` (the two /api/learn/tutor routes) and, for actions,
 // the canvas commands. The target identities come from the shared resolver (learn-target.js),
 // which /dive uses too; frozen card modules are only read.
+// TutorDomain (docs/features/adaptive-learning-path-v1-architecture.md §3): every slice-specific read goes through
+// `domain`, the nanoGPT one (NANOGPT, learn-tutor-claims.js) by default, so nanoGPT callers are unchanged; a journey
+// canvas passes journeyDomain (learn-journey-domain.js) to the same functions.
 import { resolveTarget } from './learn-target.js';
 import { cardBlock } from './nanogpt/board.js';
 import { partIndex } from './nanogpt/depth/board.js';
@@ -11,7 +14,7 @@ import { describeAnimation } from './scene-describe.js';
 import { checkStatus, enterPractice, isPracticing } from './scene-activity.js';
 import { applyInputToBlock } from './scene-evaluate.js';
 import { coerceInputs, validateInputDeclarations } from './scene-inputs.js';
-import { ATTENTION_LADDER, CLAIMS, CONCEPTS, SLICE_CARDS, catalogue, cardModule, claimsOfConcept, conceptOf, ladderStep, partLabels, targetClaims } from './learn-tutor-claims.js';
+import { NANOGPT, cardModule, claimsOfConceptIn, holeConcept, partLabels } from './learn-tutor-claims.js';
 import { appendEvents, conceptState, deriveClaimStates, practiceEvents, reconcile } from './learn-tutor-evidence.js';
 import { selectClaims } from './learn-tutor-select.js';
 import { EVIDENCE_ACTIONS, EVIDENCE_ROWS, avatarMoments, speakable, statedConstraints, validateActions } from './learn-tutor-validate.js';
@@ -56,37 +59,37 @@ export function cardState(block, store) {
   return { inputs, input_revision: block.inputRevision || 0, practice };
 }
 
-// A hole's concept: its title ("Softmax"), else a registry concept among its origin concepts.
-export function holeConcept(dive) {
-  if (!dive) return null;
-  return conceptOf(dive.title) || conceptOf(dive.concept) || (dive.origin?.origin_concept_ids || []).find(concept => CONCEPTS[concept]) || null;
-}
+// A hole's concept: its title ("Softmax"), else a registry concept among its origin concepts. holeConcept(dive,
+// domain) lives in learn-tutor-claims.js, where the nanoGPT domain's defaultClaims reads it too.
+export { holeConcept };
 
 // The claims this turn is about: the one an open question asks about, the blocked claim after a
-// return, then the target card's (or part's, or selected object's), else the hole's concept.
-export function turnClaims(turn, store) {
+// return, then the target card's (or part's, or selected object's), else the domain's default (nanoGPT: the hole's
+// concept; a journey: its current section's expected evidence, nothing in setup).
+export function turnClaims(turn, store, domain = NANOGPT) {
   const out = [];
-  const add = id => { if (id && CLAIMS[id] && !out.includes(id)) out.push(id); };
+  const add = id => { if (id && domain.claims[id] && !out.includes(id)) out.push(id); };
   if (turn.answering) add(store.open?.claim);
   if (turn.returned_from) add(turn.returned_from.claim);
-  const target = turn.target && { card_id: turn.target.card, part_id: turn.target.part_id, selected_object: turn.target.selected_object, concept_ids: turn.target.concepts };
-  targetClaims(target).forEach(add);
-  if (!out.length) claimsOfConcept(holeConcept(turn.canvas.dive?.record)).forEach(add);
+  // block_id: a journey's cards are its blocks (their stamped claims); the nanoGPT registry reads the card.
+  const target = turn.target && { block_id: turn.target.block_id, card_id: turn.target.card, part_id: turn.target.part_id, selected_object: turn.target.selected_object, concept_ids: turn.target.concepts };
+  domain.targetClaims(target).forEach(add);
+  if (!out.length) domain.defaultClaims(turn).forEach(add);
   return out.slice(0, 4);
 }
 
 // The turn's claims and their prerequisites' claims (at most 10): the ClaimStates the turn carries,
 // and the selector's candidates.
-function withPrerequisites(claims) {
+function withPrerequisites(claims, domain = NANOGPT) {
   const ids = [...claims];
-  for (const id of claims) for (const concept of CLAIMS[id].prerequisites) for (const other of claimsOfConcept(concept)) if (!ids.includes(other)) ids.push(other);
+  for (const id of claims) for (const concept of domain.claims[id].prerequisites) for (const other of claimsOfConceptIn(domain.claims, concept)) if (!ids.includes(other)) ids.push(other);
   return ids.slice(0, 10);
 }
-const turnEvidence = (claims, states) => withPrerequisites(claims).map(id => states[id]);
+const turnEvidence = (claims, states, domain) => withPrerequisites(claims, domain).map(id => states[id]);
 
 // inputModality: 'text' (typed) or 'voice' (Voice Mode, docs/features/voice-tutor-mvp.md §1);
 // turnId: the voice trace id minted at the utterance commit, else a fresh one.
-export function buildTurn({ raw, slash = null, opening = false, canvas, block, store, states, inputModality = 'text', turnId = null }) {
+export function buildTurn({ raw, slash = null, opening = false, canvas, block, store, states, inputModality = 'text', turnId = null, domain = NANOGPT }) {
   const here = { app: canvas.app, board: canvas.board || 'main' };
   const open = store.open && sameCanvas(store.open.canvas, here) && !slash ? store.open : null;
   const keep = store.keep && sameCanvas(store.keep.canvas, here) ? store.keep : null;
@@ -104,26 +107,26 @@ export function buildTurn({ raw, slash = null, opening = false, canvas, block, s
     card_state: cardState(block, store),
     evidence: [],
     constraints: [...store.constraints],
-    ...(back ? { returned_from: { dive_id: back.dive_id, concept: back.concept, claim: back.claim, states: claimsOfConcept(back.concept).map(id => states[id]) } } : {}),
+    ...(back ? { returned_from: { dive_id: back.dive_id, concept: back.concept, claim: back.claim, states: claimsOfConceptIn(domain.claims, back.concept).map(id => states[id]) } } : {}),
     recent_turns: store.turns.slice(-4),
     recent_actions: store.actions.slice(-3),
   };
-  const claims = turnClaims(turn, store);
-  turn.evidence = turnEvidence(claims, states);
+  const claims = turnClaims(turn, store, domain);
+  turn.evidence = turnEvidence(claims, states, domain);
   // Stage B: the claims the learner's words touch, out of the turn's claims and their prerequisites'.
   const selection = raw.trim() && !turn.slash && !opening ? selectClaims(raw, {
-    candidates: withPrerequisites(claims), fallback: claims,
+    candidates: withPrerequisites(claims, domain), fallback: claims,
     forced: [turn.answering ? store.open?.claim : null, turn.returned_from?.claim].filter(Boolean),
-  }) : null;
+  }, domain) : null;
   return { turn, claims, selection };
 }
 
 // What /api/learn/tutor/evaluate checks: the turn's claims, and gap checks for their prerequisites.
-export function evaluationSpec(turn, claims, store) {
+export function evaluationSpec(turn, claims, store, domain = NANOGPT) {
   const gaps = [];
-  for (const id of claims) for (const concept of CLAIMS[id].prerequisites) {
+  for (const id of claims) for (const concept of domain.claims[id].prerequisites) {
     let gap = gaps.find(entry => entry.concept === concept);
-    if (!gap) gaps.push(gap = { concept, statement: claimsOfConcept(concept).map(other => CLAIMS[other].statement).join(' '), claims: [] });
+    if (!gap) gaps.push(gap = { concept, statement: claimsOfConceptIn(domain.claims, concept).map(other => domain.claims[other].statement).join(' '), claims: [] });
     gap.claims.push(id);
   }
   return {
@@ -133,7 +136,8 @@ export function evaluationSpec(turn, claims, store) {
       // The named misconceptions this claim already has a settled event for: one more settled one
       // makes the claim `misconception`, so the escalation policy treats that check as important.
       const prior = [...new Set(store.events.filter(event => event.claim === id && event.settled && event.misconception_id).map(event => event.misconception_id))];
-      return { id, concept: CLAIMS[id].concept, statement: CLAIMS[id].statement, ideas: CLAIMS[id].ideas, misconceptions: CLAIMS[id].misconceptions, drawn: CLAIMS[id].drawn, ...(prior.length ? { prior_misconceptions: prior } : {}) };
+      const claim = domain.claims[id];
+      return { id, concept: claim.concept, statement: claim.statement, ideas: claim.ideas, misconceptions: claim.misconceptions, drawn: claim.drawn, ...(prior.length ? { prior_misconceptions: prior } : {}) };
     }),
     gaps,
   };
@@ -214,7 +218,9 @@ export function wantsCard(turn) {
   return (kind === 'request' || MAKE.test(raw)) && SEE.test(raw);
 }
 // The cards a turn can put on the canvas (the validator accepts no other): what its held place is sized from.
-export const showableCards = () => SLICE_CARDS.map(id => cardBlock(cardModule(id)));
+// A journey's cards are blocks already on the canvas (its showCard reveals, never inserts): their stand-ins have no
+// scene to size, so a place held there takes the plain card size (slotSize) and is only ever released.
+export const showableCards = (domain = NANOGPT) => domain.cards.map(id => cardBlock(domain.cardModule(id)));
 
 // ---------- Critical-path evaluation policy (v2 Stage C) ----------
 
@@ -243,25 +249,26 @@ export function criticalPath(intent, spec, priorRow = null) {
 
 // The cards that bear on this turn: the target, its ladder neighbours, and the cards that teach the
 // route's claim, the turn's claims or their prerequisite concepts.
-function relevantCards(target, concepts) {
-  const ids = new Set([target, ...(ATTENTION_LADDER.includes(target) ? [ladderStep(target, 'deeper'), ladderStep(target, 'shallower')] : [])].filter(id => id && SLICE_CARDS.includes(id)));
-  for (const id of SLICE_CARDS) if (targetClaims({ card_id: id }).some(claim => concepts.has(CLAIMS[claim].concept))) ids.add(id);
-  return catalogue().filter(card => ids.has(card.card));
+function relevantCards(target, concepts, domain) {
+  const ids = new Set([target, ...(domain.ladder.includes(target) ? [domain.ladderStep(target, 'deeper'), domain.ladderStep(target, 'shallower')] : [])].filter(id => id && domain.cards.includes(id)));
+  for (const id of domain.cards) if (domain.targetClaims({ card_id: id }).some(claim => concepts.has(domain.claims[claim].concept))) ids.add(id);
+  return domain.catalogue().filter(card => ids.has(card.card));
 }
 
 // The planner's whole input: the turn's intent, target, relevant evidence, route and allowed actions,
 // the authored content that bears on it, constraints, recent context and the hole - nothing else
-// (no unrelated cards, concepts or transcript).
-export function plannerContext({ turn, routed, block, states, claims = [], store = null }) {
-  const card = cardModule(turn.target?.card);
+// (no unrelated cards, concepts or transcript). On a journey turn, journey_context (architecture §3.3) is the tenth
+// key, after dive_context; a nanoGPT turn never has it.
+export function plannerContext({ turn, routed, block, states, claims = [], store = null, domain = NANOGPT }) {
+  const card = domain.cardModule(turn.target?.card);
   const labels = partLabels(card);
   const index = turn.target?.part_id ? partIndex(card, turn.target.part_id) : null;
   const sources = (block?.sources || card?.sources || []).slice(0, 3).map((source, i) => ({ source_index: i, path: source.path || source.url || null, lines: source.lines || null, note: String(source.note || '').slice(0, 400) }));
   const described = block?.type === 'animation' ? describeAnimation(block).text : block ? [block.title, block.body].filter(Boolean).join('\n') : null;
   const ids = [...new Set([routed.claim, ...claims].filter(Boolean))].slice(0, 4);
-  const concepts = new Set(ids.flatMap(id => [CLAIMS[id].concept, ...CLAIMS[id].prerequisites]));
+  const concepts = new Set(ids.flatMap(id => [domain.claims[id].concept, ...domain.claims[id].prerequisites]));
   const record = turn.canvas.dive?.record;
-  const evidence = id => { const { concept, claim, state, misconception_id, prerequisite } = states[id]; return { claim, concept, statement: CLAIMS[id].statement, state, ...(misconception_id ? { misconception_id } : {}), ...(prerequisite ? { prerequisite } : {}), misconceptions: CLAIMS[id].misconceptions.map(wrong => wrong.id) }; };
+  const evidence = id => { const { concept, claim, state, misconception_id, prerequisite } = states[id]; return { claim, concept, statement: domain.claims[id].statement, state, ...(misconception_id ? { misconception_id } : {}), ...(prerequisite ? { prerequisite } : {}), misconceptions: domain.claims[id].misconceptions.map(wrong => wrong.id) }; };
   return {
     learner_intent: learnerIntent(turn),
     target: card ? {
@@ -269,20 +276,21 @@ export function plannerContext({ turn, routed, block, states, claims = [], store
       learning_question: card.evidence.learningQuestion, concepts: turn.target.concepts, selected_object: turn.target.selected_object ?? null,
       part_id: turn.target.part_id ?? null, part_label: index != null ? labels[index] : null, description: described, sources,
     } : described ? { description: described } : null,
-    relevant_evidence: { claims: ids.map(evidence), concepts: Object.fromEntries([...concepts].map(concept => [concept, conceptState(states, concept)])) },
+    relevant_evidence: { claims: ids.map(evidence), concepts: Object.fromEntries([...concepts].map(concept => [concept, conceptState(states, concept, domain.claims)])) },
     route: { row: routed.row, strategy: routed.strategy, claim: routed.claim },
     allowed_actions: routed.allowed,
     ...(routed.avatar ? { avatar_moments: routed.avatar.moments } : {}),
-    relevant_authored_content: { cards: relevantCards(turn.target?.card, concepts), ...(turn.card_state ? { card_state: turn.card_state } : {}) },
+    relevant_authored_content: { cards: relevantCards(turn.target?.card, concepts, domain), ...(turn.card_state ? { card_state: turn.card_state } : {}) },
     learner_constraints: turn.constraints,
     recent_relevant_context: {
       turns: turn.recent_turns.slice(-2), actions: turn.recent_actions.slice(-2),
       ...(turn.answering && store?.open?.text ? { open_question: store.open.text } : {}),
     },
     dive_context: record || turn.returned_from ? {
-      ...(record ? { dive_id: record.dive_id, title: record.title, concept: holeConcept(record), created_by: record.created_by, origin_card: record.origin?.origin_card_id ?? null, origin_part: record.origin?.origin_part_id ?? null, pending_question: record.return_point?.pending_question ?? null } : {}),
+      ...(record ? { dive_id: record.dive_id, title: record.title, concept: holeConcept(record, domain), created_by: record.created_by, origin_card: record.origin?.origin_card_id ?? null, origin_part: record.origin?.origin_part_id ?? null, pending_question: record.return_point?.pending_question ?? null } : {}),
       ...(turn.returned_from ? { returned_from: { dive_id: turn.returned_from.dive_id, concept: turn.returned_from.concept, claim: turn.returned_from.claim } } : {}),
     } : null,
+    ...(domain.kind === 'journey' ? { journey_context: domain.context } : {}),
   };
 }
 
@@ -303,7 +311,10 @@ export const enforce = validateActions;
 // also uses for its telemetry and speech (LearnVoice, voice-session).
 // onTurn(turn): the built LearnerTurn, handed over before any model call (the canvas holds a card's place
 // for a turn that wantsCard).
-export async function runTurn({ raw, slash = null, opening = false, canvas, access, block, store, post, onSpeakable = null, inputModality = 'text', turnId = null, onTurn = null }) {
+// domain: the TutorDomain (NANOGPT by default). A journey domain's evidence is the server's (architecture §5):
+// /evaluate gets the journey id and claim ids, and the stored events it returns replace the store's.
+// plan: false (a diagnostic turn, §6.3) stops after the evidence - no router, planner or actions.
+export async function runTurn({ raw, slash = null, opening = false, canvas, access, block, store, post, onSpeakable = null, inputModality = 'text', turnId = null, onTurn = null, domain = NANOGPT, plan = true }) {
   const t = [now()];
   const id = turnId || crypto.randomUUID();
   const tracer = turnTrace(now, id); // v2: the turn trace (learn-tutor-trace.js), returned in bench.trace
@@ -313,12 +324,12 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   t.push(now());
   // 1. Deterministic rung: new attemptLog entries on the target card.
   if (block && target?.card) {
-    const practiced = tracer.step('practice_evaluation', () => practiceEvents(current, block, { card_id: target.card, scene_id: target.scene_id, part_id: target.part_id }, here), out => `${out.events.length} events`);
+    const practiced = tracer.step('practice_evaluation', () => practiceEvents(current, block, { card_id: target.card, scene_id: target.scene_id, part_id: target.part_id }, here, domain), out => `${out.events.length} events`);
     current = appendEvents(practiced.store, practiced.events.map(event => ({ ...event, ref: { ...event.ref, block_id: block.id } }))).store;
   }
   t.push(now());
-  let states = deriveClaimStates(current.events);
-  const built = tracer.step('claim_selection', () => buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id }),
+  let states = deriveClaimStates(current.events, domain.claims);
+  const built = tracer.step('claim_selection', () => buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id, domain }),
     out => out.selection ? `${out.selection.selected.length}/${out.selection.available}${out.selection.fallback ? ' fallback' : ''}` : 'none');
   const { turn, selection } = built;
   onTurn?.(turn);
@@ -335,22 +346,35 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
       if (telemetry?.called) tracer.add(rung, telemetry.ms, telemetry.outcome === 'timeout' || telemetry.outcome === 'error' ? telemetry.outcome : 'ok', telemetry.reason ? `${telemetry.outcome} (${telemetry.reason})` : telemetry.outcome);
     }
     const ref = { card: target?.card ?? null, scene_id: target?.scene_id ?? null, part_id: target?.part_id ?? null, turn_id: turn.turn_id, canvas: here };
-    ({ store: current, states, transitions } = tracer.step('evidence_reconciliation', () => reconcile(current, evaluation, ref), out => `${out.added} observations, ${out.transitions.length} state changes`));
-    turn.evidence = buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id }).turn.evidence;
+    ({ store: current, states, transitions } = tracer.step('evidence_reconciliation', () => (result.journey?.events ? adoptJourney(current, result, states, domain.claims) : reconcile(current, evaluation, ref, domain.claims)), out => `${out.added} observations, ${out.transitions.length} state changes`));
+    turn.evidence = buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id, domain }).turn.evidence;
   };
   if (raw.trim() && !turn.slash && !opening && claims.length) {
-    const spec = evaluationSpec(turn, claims, current);
+    const spec = evaluationSpec(turn, claims, current, domain);
     critical = criticalPath(learnerIntent(turn), spec, route({ turn, claims, states, evaluation: null, store: current }).row);
     const sent = now();
-    const evaluating = (async () => tracer.step('evaluate', () => post('/api/learn/tutor/evaluate', { ...access, message: raw, spec }), out => out.status))()
+    // A journey turn sends ids only: the worker rebuilds the spec from the journey registry and ignores claim content.
+    const body = domain.evidence.mode === 'journey'
+      ? { ...access, journey_id: domain.evidence.journey_id, message: raw, claims: spec.claims.map(claim => claim.id), answering: spec.answering, question: spec.question }
+      : { ...access, message: raw, spec };
+    const evaluating = (async () => tracer.step('evaluate', () => post('/api/learn/tutor/evaluate', body), out => out.status))()
       .catch(error => ({ status: 'error', evaluator: 'jev', events: [], error: error.message }))
       .then(result => { evidence = [sent, now()]; return result; });
     if (critical.blocking) settle(await evaluating);
     else pending = evaluating;
   }
+  if (!plan) {
+    if (pending) settle(await pending);
+    const bench = {
+      trace: tracer.trace, turn_id: turn.turn_id, input_modality: turn.input_modality, claims, evaluated: !!evidence,
+      evaluation: evaluation && { status: evaluation.status, evaluator: evaluation.evaluator, events: (evaluation.events || []).length, telemetry: evaluation.telemetry ?? null },
+      transitions: transitions.map(({ claim, from, to }) => `${claim}: ${from} -> ${to}`),
+    };
+    return { store: current, turn, evaluation, transitions, states, actions: [], text: '', bench };
+  }
   // 3. Router, planner, enforcement.
   const routed = tracer.step('router', () => route({ turn, claims, states, evaluation, store: current }), out => out.row);
-  const context = plannerContext({ turn, routed, block, states, claims, store: current });
+  const context = plannerContext({ turn, routed, block, states, claims, store: current, domain });
   const planned = now();
   let response;
   let spoken = null, spokenAction = null;
@@ -368,7 +392,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   try { response = await tracer.step('planner', () => (onSpeakable ? post('/api/learn/tutor/plan', { ...access, context, stream: true }, { onSentence }) : post('/api/learn/tutor/plan', { ...access, context })), out => out.telemetry?.outcome ?? 'ok'); }
   catch (error) { throw Object.assign(error, { trace: tracer.trace }); } // the failed turn's trace travels with its error
   const ready = now();
-  let { actions, log, decisions } = tracer.step('action_validation', () => enforce(response, routed, turn),
+  let { actions, log, decisions } = tracer.step('action_validation', () => enforce(response, routed, turn, domain),
     out => `${out.decisions.filter(decision => decision.accepted).length} accepted, ${out.decisions.filter(decision => !decision.accepted).length} rejected`);
   const enforced = now();
   // Off the critical path: the evaluation lands now. Its evidence is stored like any other; a route it
@@ -435,9 +459,19 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
       to_first_evidence_action: actions.some(action => EVIDENCE_ACTIONS.includes(action.type)) ? ms(t[0], released) : null,
     },
   };
-  return { store: current, turn, selection, evaluation, transitions, routed, response, actions, decisions, log, text, states: deriveClaimStates(current.events), bench, mark: tracer.mark };
+  return { store: current, turn, selection, evaluation, transitions, routed, response, actions, decisions, log, text, states: deriveClaimStates(current.events, domain.claims), bench, mark: tracer.mark };
 }
 const now = () => (globalThis.performance ?? Date).now();
+
+// A journey's evidence (architecture §5): /evaluate reconciled this turn's observations into the journey with its
+// registry and returned the stored events and seq, which replace the store's - never a second, local reconcile.
+// before: the states the turn started from, for the transitions.
+function adoptJourney(store, result, before, claims) {
+  const next = { ...store, events: result.journey.events, seq: result.journey.seq };
+  const states = deriveClaimStates(next.events, claims);
+  const transitions = Object.keys(states).filter(id => states[id].state !== before[id]?.state).map(id => ({ claim: id, from: before[id]?.state, to: states[id].state }));
+  return { store: next, states, transitions, added: (result.events || []).length };
+}
 
 // The browser side of a streamed plan (v2 checkpoint I): reads the NDJSON reply of
 // /api/learn/tutor/plan with { stream: true }, hands each sentence event ({ text, action,
@@ -498,7 +532,8 @@ export function arriveAt(store, here) {
 
 // ---------- Actions on the canvas ----------
 
-const findCard = (canvas, cardId) => (canvas.blocks?.() || []).find(block => resolveTarget(block).card_id === cardId) || null;
+// A journey's card id is its block id; an authored card is found by its evidence.card.
+const findCard = (canvas, cardId) => (canvas.blocks?.() || []).find(block => block.id === cardId || resolveTarget(block).card_id === cardId) || null;
 
 // Shows an authored card (added with cardBlock when it is not on the canvas) at a part. A new card takes
 // the slot `take()` hands it (the one held while the plan came), and comes with its part already set: an
@@ -520,30 +555,33 @@ function showCard(canvas, cardId, partId = null, take = () => null) {
   return true;
 }
 
-const partName = (cardId, partId) => {
-  const module = cardModule(cardId), index = partIndex(module, partId);
+const partName = (cardId, partId, domain) => {
+  const module = domain.cardModule(cardId), index = partIndex(module, partId);
   return index == null ? '' : ` · ${partLabels(module)[index]}`;
 };
-const titleOf = cardId => cardModule(cardId)?.scene.title || cardId;
+const titleOf = (cardId, domain) => domain.cardModule(cardId)?.scene.title || cardId;
 
 // Runs the enforced actions: navigations now, suggestions as chips the learner clicks.
 // deps: { canvas, suggestDive({ blockId, topic }), climb(), slot } - slot: the place held for a card while
 // the plan came (wantsCard); the first card this turn adds takes it, and the caller releases it otherwise.
-export function executeActions(actions, { canvas, suggestDive, climb, slot = null }) {
+// domain: whose cards these are (NANOGPT by default); a domain's own showCard (a journey's reveals its block, never
+// inserts) replaces the authored-module one.
+export function executeActions(actions, { canvas, suggestDive, climb, slot = null, domain = NANOGPT }) {
   const chips = [];
   let held = slot;
   const take = () => { const id = held; held = null; return id; };
   take.held = () => held;
+  const show = domain.showCard ?? showCard;
   for (const action of actions) {
-    if ((action.type === 'show_authored_card' || action.type === 'focus_part') && action.mode === 'navigate') showCard(canvas, action.card, action.part_id, take);
-    else if (action.type === 'show_authored_card' || action.type === 'focus_part') chips.push({ label: `Show ${titleOf(action.card)}${partName(action.card, action.part_id)}`, run: () => showCard(canvas, action.card, action.part_id) });
+    if ((action.type === 'show_authored_card' || action.type === 'focus_part') && action.mode === 'navigate') show(canvas, action.card, action.part_id, take);
+    else if (action.type === 'show_authored_card' || action.type === 'focus_part') chips.push({ label: `Show ${titleOf(action.card, domain)}${partName(action.card, action.part_id, domain)}`, run: () => show(canvas, action.card, action.part_id) });
     else if (action.type === 'suggest_depth') {
-      const next = ladderStep(action.card, action.direction || 'deeper');
-      if (next) chips.push({ label: `${action.direction === 'shallower' ? 'Step back' : 'Go deeper'}: ${titleOf(next)}`, run: () => showCard(canvas, next) });
+      const next = domain.ladderStep(action.card, action.direction || 'deeper');
+      if (next) chips.push({ label: `${action.direction === 'shallower' ? 'Step back' : 'Go deeper'}: ${titleOf(next, domain)}`, run: () => show(canvas, next) });
     } else if (action.type === 'suggest_practice') {
-      chips.push({ label: `Practise on ${titleOf(action.card)}`, run: () => {
+      chips.push({ label: `Practise on ${titleOf(action.card, domain)}`, run: () => {
         const block = findCard(canvas, action.card);
-        if (!block) return showCard(canvas, action.card);
+        if (!block) return show(canvas, action.card);
         canvas.updateBlock?.(block.id, enterPractice);
         canvas.revealBlock?.(block.id);
         return true;

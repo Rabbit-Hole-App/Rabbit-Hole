@@ -142,6 +142,8 @@ const PART_CLAIMS = {
   },
 };
 export const claimsOfConcept = concept => Object.keys(CLAIMS).filter(id => CLAIMS[id].concept === concept);
+// The same over any registry's claims (a TutorDomain's, learn-tutor-evidence.js).
+export const claimsOfConceptIn = (claims, concept) => Object.keys(claims).filter(id => claims[id].concept === concept);
 
 // The target's claims: a selected object's registry concept wins, then the part, then the card.
 export function targetClaims(target) {
@@ -190,6 +192,29 @@ export function ladderStep(cardId, direction) {
   if (at < 0) return direction === 'shallower' ? null : ATTENTION_LADDER[0];
   return ATTENTION_LADDER[at + (direction === 'deeper' ? 1 : -1)] || null;
 }
+
+// A hole's concept in a domain: its title ("Softmax"), else a registry concept among its origin concepts.
+export function holeConcept(dive, domain = NANOGPT) {
+  if (!dive) return null;
+  return domain.conceptOf(dive.title) || domain.conceptOf(dive.concept) || (dive.origin?.origin_concept_ids || []).find(concept => domain.concepts[concept]) || null;
+}
+
+// The TutorDomain (docs/features/adaptive-learning-path-v1-architecture.md §3): every slice-specific read of the
+// Tutor modules goes through one object. This one is the existing constants, unchanged, and is every Tutor
+// function's default, so nanoGPT callers change nothing; a journey canvas passes journeyDomain
+// (learn-journey-domain.js). ladder: the cards ladderStep walks (a target's ladder neighbours are relevant only on
+// it). No showCard here: the nanoGPT one inserts the authored module (learn-tutor.js) and is used when a domain
+// brings none.
+export const NANOGPT = {
+  kind: 'nanogpt', subject: 'nanoGPT attention',
+  concepts: CONCEPTS, claims: CLAIMS,
+  practice: practiceTask,
+  targetClaims,
+  defaultClaims: turn => claimsOfConcept(holeConcept(turn.canvas.dive?.record)),
+  conceptOf,
+  cards: SLICE_CARDS, cardModule, catalogue, ladder: ATTENTION_LADDER, ladderStep,
+  evidence: { mode: 'session' },
+};
 
 // The slice board (demo-scenes.js BOARDS[TUTOR_BOARD]): the Attention depth ladder, then the
 // "Self-attention" sequence, as unmodified card blocks. c21 is not seeded: the Tutor may show it

@@ -6,7 +6,7 @@
 // whether a touched claim was attempted (a question is not a failed explanation).
 // ponytail: substring cues over the 10 slice claims; a learned or JEV-side selector when the registry
 // grows past what hand-written cues can cover.
-import { CLAIMS, CONCEPTS } from './learn-tutor-claims.js';
+import { NANOGPT } from './learn-tutor-claims.js';
 
 // Claim-specific cues, lowercase. A claim with a cue match is selected; a concept name ("softmax")
 // only selects that concept's candidates when none of its claims matched a specific cue.
@@ -33,22 +33,23 @@ function hit(text, cue) {
 // candidates: claim ids, in priority order. forced: ids kept whatever the words (the open question's
 // claim when answering, the returned-from claim). fallback: the target's claims, kept when no cue at
 // all matched, so an explanation in unusual words is still evaluated (JEV's engaged check guards it).
-export function selectClaims(raw, { candidates, forced = [], fallback = [] }) {
+// domain (TutorDomain): a journey claim's cues are its registry `cues`; concept names are the domain's.
+export function selectClaims(raw, { candidates, forced = [], fallback = [] }, domain = NANOGPT) {
   const started = performance.now();
   const text = String(raw || '').toLowerCase();
-  const pool = [...new Set(candidates)].filter(id => CLAIMS[id]);
+  const pool = [...new Set(candidates)].filter(id => domain.claims[id]);
   const matched = {};
   for (const id of pool) {
-    const cues = (CUES[id] || []).filter(cue => hit(text, cue.toLowerCase()));
+    const cues = (CUES[id] ?? domain.claims[id].cues ?? []).filter(cue => hit(text, cue.toLowerCase()));
     if (cues.length) matched[id] = cues;
   }
-  const concepts = new Set(Object.keys(matched).map(id => CLAIMS[id].concept));
+  const concepts = new Set(Object.keys(matched).map(id => domain.claims[id].concept));
   // A concept name inside a matched cue ("after softmax") is that cue's, not a mention of the concept.
   const rest = Object.values(matched).flat().reduce((left, cue) => left.split(cue.toLowerCase()).join(' '), text);
   for (const id of pool) {
-    const concept = CLAIMS[id].concept;
+    const concept = domain.claims[id].concept;
     if (matched[id] || concepts.has(concept)) continue;
-    const name = (CONCEPTS[concept]?.names || []).find(entry => hit(rest, entry));
+    const name = (domain.concepts[concept]?.names || []).find(entry => hit(rest, entry.toLowerCase()));
     if (name) matched[id] = [`concept:${name}`];
   }
   let selected = pool.filter(id => forced.includes(id) || matched[id]);

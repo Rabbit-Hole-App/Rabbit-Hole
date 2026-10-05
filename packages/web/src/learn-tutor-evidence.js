@@ -3,7 +3,9 @@
 // the small session record the Tutor needs between turns. Session-scoped browser storage: the
 // caller passes sessionStorage, so it survives a reload and a same-tab /dive, and nothing else.
 // Pure apart from the injected storage.
-import { CLAIMS, claimsOfConcept, practiceTask } from './learn-tutor-claims.js';
+// Registry-scoped (TutorDomain, architecture §3.1): `claims` defaults to the nanoGPT CLAIMS, practice tasks come from
+// the domain; a journey derives over its own registry, with the same locked rules.
+import { CLAIMS, NANOGPT, claimsOfConceptIn } from './learn-tutor-claims.js';
 
 export const STATES = ['understood', 'uncertain', 'misconception', 'prerequisite_gap', 'not_yet_observed'];
 
@@ -44,20 +46,20 @@ export function appendEvents(store, events) {
 // Completeness exception (Decision 7): practice events are claim-level (no `idea`). The task grades
 // the whole answer, so an incomplete enumeration (c11 "0 to Q-1", leaving out the position itself)
 // is a fail. Conversational explanations never fail an idea they leave out (evaluationFrom).
-export function practiceEvents(store, block, target, canvas) {
+export function practiceEvents(store, block, target, canvas, domain = NANOGPT) {
   const log = block?.attemptLog || [];
   const seen = store.cursors[block?.id] || 0;
   if (!block?.activity || log.length <= seen) return { store, events: [] };
   const events = [];
   log.slice(seen).forEach((entry, offset) => {
     const index = seen + offset;
-    const task = practiceTask(target.card_id, block.activity.id, entry.taskVersion ?? 1);
+    const task = domain.practice(target.card_id, block.activity.id, entry.taskVersion ?? 1);
     if (!task) return;
     const first = log.findIndex(other => (other.taskVersion ?? 1) === (entry.taskVersion ?? 1)) === index;
     const passed = entry.result === 'passed';
     const misconception = passed ? null : task.wrong[entry.answer] || null;
     events.push({
-      concept: CLAIMS[task.claim].concept, claim: task.claim,
+      concept: domain.claims[task.claim].concept, claim: task.claim,
       result: passed ? 'pass' : 'fail',
       ...(misconception ? { misconception_id: misconception } : {}),
       kind: passed ? (task.transfer && first ? 'demonstrated_in_transfer' : 'demonstrated_here') : null,
@@ -71,16 +73,16 @@ export function practiceEvents(store, block, target, canvas) {
 const WORST = ['misconception', 'prerequisite_gap', 'uncertain', 'not_yet_observed'];
 const negative = event => event.result === 'fail' || event.result === 'misconception';
 
-function claimState(events, id, conceptOf) {
+function claimState(events, id, conceptOf, claims = CLAIMS) {
   const own = events.filter(event => event.claim === id).sort((a, b) => a.seq - b.seq);
-  if (!own.length) return { concept: CLAIMS[id].concept, claim: id, state: 'not_yet_observed', basis: [] };
+  if (!own.length) return { concept: claims[id].concept, claim: id, state: 'not_yet_observed', basis: [] };
   const settled = own.filter(event => event.settled);
-  const base = { concept: CLAIMS[id].concept, claim: id };
+  const base = { concept: claims[id].concept, claim: id };
   // understood: a settled transfer pass with no later settled fail or misconception, and coverage
   // (Decision 7): every idea has a settled pass, or a settled claim-level pass (no `idea`: practice).
   const transfer = settled.filter(event => event.result === 'pass' && event.kind === 'demonstrated_in_transfer').at(-1);
   const passes = settled.filter(event => event.result === 'pass');
-  const covered = passes.some(event => event.idea == null) || CLAIMS[id].ideas.every((_, i) => passes.some(event => event.idea === i));
+  const covered = passes.some(event => event.idea == null) || claims[id].ideas.every((_, i) => passes.some(event => event.idea === i));
   if (transfer && covered && !settled.some(event => event.seq > transfer.seq && negative(event))) return { ...base, state: 'understood', basis: [transfer.seq] };
   // misconception: at least 2 settled events naming the same misconception, no later transfer pass.
   const named = {};
@@ -97,16 +99,16 @@ function claimState(events, id, conceptOf) {
 }
 
 // Every registry claim's state, recomputed from all events (§2 "Derivation").
-export function deriveClaimStates(events) {
+export function deriveClaimStates(events, claims = CLAIMS) {
   const states = {};
-  const concept = name => conceptFrom(states, name, events);
-  for (const id of Object.keys(CLAIMS)) states[id] = claimState(events, id, concept);
+  const concept = name => conceptFrom(states, name, events, claims);
+  for (const id of Object.keys(claims)) states[id] = claimState(events, id, concept, claims);
   return states;
 }
-function conceptFrom(states, name, events) {
-  const claims = claimsOfConcept(name);
+function conceptFrom(states, name, events, registry = CLAIMS) {
+  const claims = claimsOfConceptIn(registry, name);
   // A prerequisite's claims have no prerequisites of their own in the slice, so no recursion loop.
-  const list = claims.map(id => states[id] || claimState(events, id, () => 'not_yet_observed'));
+  const list = claims.map(id => states[id] || claimState(events, id, () => 'not_yet_observed', registry));
   return conceptStateOf(list);
 }
 // understood only if every claim is; otherwise the worst claim state.
@@ -114,18 +116,18 @@ export function conceptStateOf(claimStates) {
   if (claimStates.length && claimStates.every(state => state.state === 'understood')) return 'understood';
   return WORST.find(state => claimStates.some(entry => entry.state === state)) || 'not_yet_observed';
 }
-export const conceptState = (states, concept) => conceptStateOf(claimsOfConcept(concept).map(id => states[id]));
+export const conceptState = (states, concept, claims = CLAIMS) => conceptStateOf(claimsOfConceptIn(claims, concept).map(id => states[id]));
 
 // Stage D, the evidence reconciler (docs/features/tutor-architecture-v2.md): evaluators return
 // observations; this is the only place they become store events, and the locked states come from
 // all events (deriveClaimStates: one fail is never a misconception, a later settled transfer pass
 // supersedes, conflicting evidence is uncertain). A failed evaluation (error, timeout) adds nothing.
 // Returns the claims whose state changed, for the turn trace.
-export function reconcile(store, evaluation, ref) {
-  const before = deriveClaimStates(store.events);
+export function reconcile(store, evaluation, ref, claims = CLAIMS) {
+  const before = deriveClaimStates(store.events, claims);
   const observations = !evaluation || evaluation.status === 'error' ? [] : evaluation.events || [];
   const { store: next } = appendEvents(store, observations.map(event => ({ ...event, ref })));
-  const states = deriveClaimStates(next.events);
+  const states = deriveClaimStates(next.events, claims);
   const transitions = Object.keys(states).filter(id => states[id].state !== before[id].state).map(id => ({ claim: id, from: before[id].state, to: states[id].state }));
   return { store: next, states, transitions, added: observations.length };
 }

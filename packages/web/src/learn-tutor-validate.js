@@ -8,7 +8,9 @@
 // and gets one decision { type, accepted, stage, reason }. Accepted actions are capped at 3, and the
 // words before a Rabbit Hole suggestion at two sentences (locked §4). The v1 rules (enforce) are
 // kept as they were; the new checks are marked "v2".
-import { CLAIMS, CONCEPTS, SLICE_CARDS, cardModule, conceptOf, ladderStep } from './learn-tutor-claims.js';
+// domain (TutorDomain, architecture §3.1): the cards, parts, ladder, claims and concepts the resource checks read;
+// nanoGPT by default. A journey's cards are its section blocks on the canvas, and it has no ladder.
+import { NANOGPT } from './learn-tutor-claims.js';
 import { partIndex } from './nanogpt/depth/board.js';
 import { ACTION_TYPES, AVATAR_ACTION, AVATAR_MOMENTS, PERSONALIZABLE_MOMENTS, VISUAL_VALUE_MAX, avatarSlotId, learningGoalProblem } from '../../control-plane/src/agents/learn-tutor.js';
 const CARD_ACTIONS = ['show_authored_card', 'focus_part', 'suggest_depth', 'suggest_practice'];
@@ -85,9 +87,9 @@ export function avatarMoments(row, turn) {
 // One suggestion per (canvas or hole, concept) per session: the key the session store counts.
 export const avatarSeenKey = (turn, concept) => `${turn.canvas?.app}|${turn.canvas?.board || 'main'}|${turn.canvas?.dive?.dive_id || ''}|${concept}`;
 
-function avatarSchema(action) {
+function avatarSchema(action, domain) {
   if (!AVATAR_MOMENTS.includes(action.moment)) return `${AVATAR_ACTION}: unknown moment ${action.moment}`;
-  if (!CONCEPTS[action.concept] || (action.to_concept != null && !CONCEPTS[action.to_concept])) return `${AVATAR_ACTION}: unknown concept`;
+  if (!domain.concepts[action.concept] || (action.to_concept != null && !domain.concepts[action.to_concept])) return `${AVATAR_ACTION}: unknown concept`;
   if (action.max_duration_seconds != null && !(Number.isInteger(action.max_duration_seconds) && action.max_duration_seconds >= 3 && action.max_duration_seconds <= 30)) return `${AVATAR_ACTION}: max_duration_seconds outside 3..30`;
   if (action.visual_value != null && (typeof action.visual_value !== 'string' || action.visual_value.length > VISUAL_VALUE_MAX)) return `${AVATAR_ACTION}: visual_value over ${VISUAL_VALUE_MAX} characters`;
   if (action.learning_goal != null && typeof action.learning_goal !== 'string') return `${AVATAR_ACTION}: learning_goal is not text`;
@@ -97,7 +99,7 @@ function avatarSchema(action) {
 // or { offer } to surface: 'play' a ready clip (free), or 'generate' (the deferred learner-paid path).
 // routed.avatar = { moments, seen: [avatarSeenKey], ready: Set<avatarSlotId>, on_canvas: Set<avatarSlotId> }.
 // navigated: the plan shows or focuses a card because the learner explicitly asked to see it.
-function avatarTrigger(action, routed, turn, accepted, navigated) {
+function avatarTrigger(action, routed, turn, accepted, navigated, domain) {
   const info = routed.avatar, slot = avatarSlotId(action);
   if (!info?.moments.includes(action.moment)) return ['route', `${action.moment} is not an approved moment in row ${routed.row}`]; // 1
   if (!String(action.visual_value || '').trim()) return ['route', 'no stated visual value']; // 2
@@ -105,15 +107,15 @@ function avatarTrigger(action, routed, turn, accepted, navigated) {
   if (accepted.some(other => other.type === AVATAR_ACTION)) return ['route', `a second ${AVATAR_ACTION}`]; // 4
   if (info.on_canvas?.has(slot)) return ['route', 'this clip is already on the canvas'];
   if (info.seen.includes(avatarSeenKey(turn, action.concept))) return ['route', 'already suggested for this concept here'];
-  if (action.moment === 'transition' && !ladderStep(turn.target?.card, 'deeper')) return ['resource', 'no next ladder card'];
+  if (action.moment === 'transition' && !domain.ladderStep(turn.target?.card, 'deeper')) return ['resource', 'no next ladder card'];
   if (info.ready?.has(slot)) return { offer: 'play' }; // 5
   if (PERSONALIZABLE_MOMENTS.includes(action.moment)) return { offer: 'generate' }; // 6: needs the learner's Generate
   return ['resource', 'no ready canonical clip']; // canonical clips are never learner-paid
 }
 
-function schema(action, extra = []) {
+function schema(action, extra = [], domain = NANOGPT) {
   if (!action || typeof action !== 'object' || ![...ACTION_TYPES, ...extra].includes(action.type)) return `unknown action type ${action?.type}`;
-  if (action.type === AVATAR_ACTION) return avatarSchema(action);
+  if (action.type === AVATAR_ACTION) return avatarSchema(action, domain);
   if (TEXT_ACTIONS.includes(action.type) && !String(action.text || '').trim()) return `empty ${action.type}`;
   if (CARD_ACTIONS.includes(action.type) && typeof action.card !== 'string') return `${action.type} without a card`;
   if (action.type === 'focus_part' && typeof action.part_id !== 'string') return 'focus_part without a part';
@@ -121,7 +123,7 @@ function schema(action, extra = []) {
   return null;
 }
 
-export function validateActions(response, routed, turn) {
+export function validateActions(response, routed, turn, domain = NANOGPT) {
   const log = [], decisions = [];
   const quoted = typeof response.explicit_request === 'string' ? response.explicit_request.trim() : '';
   const explicit = !!quoted && turn.raw_user_message.toLowerCase().includes(quoted.toLowerCase());
@@ -136,21 +138,21 @@ export function validateActions(response, routed, turn) {
   const reject = (action, stage, reason) => { decisions.push({ type: action?.type ?? null, accepted: false, stage, reason }); log.push(`dropped ${action?.type}: ${reason}`); };
   const avatar = routed.allowed.includes(AVATAR_ACTION) ? [AVATAR_ACTION] : [];
   for (const action of Array.isArray(response.actions) ? response.actions : []) {
-    const bad = schema(action, avatar);
+    const bad = schema(action, avatar, domain);
     if (bad) { reject(action, 'schema', bad); continue; }
     if (action.type === 'no_action') continue;
     if (action.type === 'open_dive') { reject(action, 'consent', 'only the learner opens a hole (/dive, Ctrl+K, Go down)'); continue; }
     if (!allowed.has(action.type)) { reject(action, 'route', `not allowed in row ${routed.row}`); continue; }
     if (action.type === 'ask_question' && noQuiz) { reject(action, 'route', 'no_quiz'); continue; }
     if (action.type === 'ask_question' && actions.some(other => other.type === 'ask_question')) { reject(action, 'route', 'a second ask_question'); continue; }
-    if (CARD_ACTIONS.includes(action.type) && !SLICE_CARDS.includes(action.card)) { reject(action, 'resource', `unknown card ${action.card}`); continue; }
-    if (action.type === 'focus_part' && partIndex(cardModule(action.card), action.part_id) == null) { reject(action, 'resource', `${action.card} has no part ${action.part_id}`); continue; }
-    if (action.type === 'suggest_depth' && !ladderStep(action.card, action.direction || 'deeper')) { reject(action, 'resource', `no ${action.direction || 'deeper'} card after ${action.card}`); continue; } // v2
-    if (action.type === 'suggest_practice' && !cardModule(action.card).activity) { reject(action, 'resource', `${action.card} has no practice`); continue; } // v2
+    if (CARD_ACTIONS.includes(action.type) && !domain.cards.includes(action.card)) { reject(action, 'resource', `unknown card ${action.card}`); continue; }
+    if (action.type === 'focus_part' && partIndex(domain.cardModule(action.card), action.part_id) == null) { reject(action, 'resource', `${action.card} has no part ${action.part_id}`); continue; }
+    if (action.type === 'suggest_depth' && !domain.ladderStep(action.card, action.direction || 'deeper')) { reject(action, 'resource', `no ${action.direction || 'deeper'} card after ${action.card}`); continue; } // v2
+    if (action.type === 'suggest_practice' && !domain.cardModule(action.card).activity) { reject(action, 'resource', `${action.card} has no practice`); continue; } // v2
     if (action.type === 'return_from_dive' && !turn.canvas.dive) { reject(action, 'resource', 'return_from_dive outside a hole'); continue; }
     if (action.type === AVATAR_ACTION) { // Avatar Teacher §4.1: a suggestion of learning material, never more
       const navigated = navigate && response.actions.some(other => (other?.type === 'show_authored_card' || other?.type === 'focus_part') && other.mode === 'navigate');
-      const trigger = avatarTrigger(action, routed, turn, actions, navigated);
+      const trigger = avatarTrigger(action, routed, turn, actions, navigated, domain);
       if (Array.isArray(trigger)) { reject(action, ...trigger); continue; }
       if (actions.length === 3) { reject(action, 'route', 'more than 3 actions'); continue; }
       // visual_value is consumed here and never passed on (§4.1); learning_goal goes on only when clean.
@@ -165,15 +167,15 @@ export function validateActions(response, routed, turn) {
     if ((next.type === 'show_authored_card' || next.type === 'focus_part') && next.mode === 'navigate' && !navigate) { next.mode = 'suggest'; log.push(`downgraded ${next.type} to a chip: no explicit request`); }
     if ((next.type === 'show_authored_card' || next.type === 'focus_part') && !next.mode) next.mode = 'suggest';
     if (Array.isArray(next.cites)) { // v2: a citation must point at a real source of a slice card
-      const cites = next.cites.filter(cite => SLICE_CARDS.includes(cite?.card) && Number.isInteger(cite.source_index) && cite.source_index >= 0 && cite.source_index < (cardModule(cite.card).sources || []).length);
+      const cites = next.cites.filter(cite => domain.cards.includes(cite?.card) && Number.isInteger(cite.source_index) && cite.source_index >= 0 && cite.source_index < (domain.cardModule(cite.card).sources || []).length);
       if (cites.length < next.cites.length) log.push(`removed ${next.cites.length - cites.length} citation(s) to no source`);
       next.cites = cites;
     }
-    if (next.type === 'ask_question') next = { ...next, action_id: crypto.randomUUID(), claim: CLAIMS[next.claim] ? next.claim : routed.claim };
+    if (next.type === 'ask_question') next = { ...next, action_id: crypto.randomUUID(), claim: domain.claims[next.claim] ? next.claim : routed.claim };
     if (next.type === 'suggest_dive') {
       // Exactly one originating card (R-10): the target card, else a topic anchor made on Go down.
-      const concept = CONCEPTS[next.concept] ? next.concept : conceptOf(next.title) || conceptOf(next.concept) || null;
-      const title = String(next.title || CONCEPTS[concept]?.label || next.concept || '').slice(0, 80);
+      const concept = domain.concepts[next.concept] ? next.concept : domain.conceptOf(next.title) || domain.conceptOf(next.concept) || null;
+      const title = String(next.title || domain.concepts[concept]?.label || next.concept || '').slice(0, 80);
       next = { type: 'suggest_dive', concept, title, from: turn.target?.block_id ? { block_id: turn.target.block_id } : { anchor: { topic: title } } };
     }
     if (actions.length === 3) { reject(action, 'route', 'more than 3 actions'); continue; }
