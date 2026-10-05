@@ -6,19 +6,19 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { motionOrchestrator, validateJobRequest } from './orchestrator.mjs';
+import { callEstimate, motionOrchestrator, responseCost, validateJobRequest } from './orchestrator.mjs';
 
 const TOKEN = 'o'.repeat(40);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-async function start(t, { run, busy = false, call = async () => new Response('{}'), maxCalls } = {}) {
+async function start(t, { run, busy = false, call = async () => new Response('{}'), maxCalls, budgetUsd } = {}) {
   const outDir = mkdtempSync(join(tmpdir(), 'motion-orch-'));
-  const o = motionOrchestrator({ token: TOKEN, service: { health: async () => ({ busy }) }, call, outDir, run, ...(maxCalls ? { maxCalls } : {}) });
+  const o = motionOrchestrator({ token: TOKEN, service: { health: async () => ({ busy }) }, call, outDir, run, ...(maxCalls ? { maxCalls } : {}), ...(budgetUsd ? { budgetUsd } : {}) });
   const server = createServer(o.handle);
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   t.after(() => server.close());
   const base = `http://127.0.0.1:${server.address().port}`;
   const req = (path, { method = 'GET', body, token = TOKEN } = {}) => fetch(base + path, { method, headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: body && JSON.stringify(body) });
-  return { o, req, outDir };
+  return { o, req, outDir, server };
 }
 const MOTION = { request: '/motion 15s explain me softmax func', location: { concept: 'Attention' } };
 
@@ -83,4 +83,24 @@ test('every job has a hard cap on paid calls, re-asks included', async t => {
   await req('/jobs', { method: 'POST', body: MOTION });
   await sleep(20);
   assert.deepEqual(seen, [200, 200, 429, 429]);
+});
+
+// M7A owner budget ($2.50 for the last two automatic runs): a ceiling over every job together.
+test('the spend ceiling: real cost read from each response (JSON or stream), and a call refused when it could pass the ceiling', async t => {
+  const usage = { input_tokens: 10000, output_tokens: 5000, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 };
+  assert.equal(await responseCost(new Response(JSON.stringify({ usage })), 'claude-opus-5-5'), (10000 * 4 + 5000 * 20) / 1e6);
+  const sse = ['event: message_start', `data: ${JSON.stringify({ type: 'message_start', message: { usage: { input_tokens: 10000, output_tokens: 1 } } })}`, '', 'event: message_delta', `data: ${JSON.stringify({ type: 'message_delta', usage: { output_tokens: 30000 } })}`, ''].join('\n');
+  assert.equal(await responseCost(new Response(sse), 'claude-opus-5-5'), (10000 * 4 + 30000 * 20) / 1e6);
+  assert.equal(await responseCost(new Response('not json'), 'claude-opus-5-5'), null);
+  assert.deepEqual([callEstimate({ max_tokens: 64000 }), callEstimate({ max_tokens: 16000 })], [0.7, 0.2]);
+
+  const seen = [];
+  const reply = () => new Response(JSON.stringify({ usage: { input_tokens: 0, output_tokens: 25000 } })); // $0.50 each
+  const run = async ({ call }) => { for (const max of [16000, 16000, 64000, 16000]) { const r = await call({}, { max_tokens: max }, 'claude-opus-5-5'); seen.push(r.status); await r.text(); await sleep(5); } return { status: 'failed', failure_reason: 'x' }; };
+  const { o, req } = await start(t, { run, call: async () => reply(), budgetUsd: 1.6 });
+  await req('/jobs', { method: 'POST', body: MOTION });
+  await sleep(60);
+  // $0.50 + $0.50 spent; the Author call (estimate $0.70) would pass $1.60 and is refused; a $0.20 call still fits.
+  assert.deepEqual(seen, [200, 200, 429, 200]);
+  assert.equal(+o.budget.spent_usd.toFixed(2), 1.5);
 });

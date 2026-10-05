@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { leakErrors } from './contracts.js';
 import { checkStoryboard } from './storyboard-check.js';
-import { STORYBOARD_TOOL, runStoryboard, storyboardContext } from './storyboard.js';
+import { HARD_LIMITS, STORYBOARD_SYSTEM, STORYBOARD_TOOL, runStoryboard, storyboardContext, storyboardRequest } from './storyboard.js';
 
 const read = f => JSON.parse(readFileSync(new URL(f, import.meta.url), 'utf8'));
 const brief = () => read('./fixtures/m2/softmax-15s-attention.brief.json');
@@ -280,4 +280,26 @@ test('a label carried unchanged from the previous beat is not re-checked against
   const e = errorsOf(s);
   assert.deepEqual(e.filter(x => /fallback_label\.label: names "torch\.exp"/.test(x)).map(x => x.split('.')[0]), ['B1'], e.join('\n')); // only where it first appears
   rejects(s2 => { beat(s2, 'B3').visible_objects.find(o => o.id === 'fallback_label').label = 'Fallback: math.log(att)'; }, /B3\.fallback_label\.label: names "math\.log"/);
+});
+
+// M7A: the first storyboards of the automatic /motion runs, each of which spent the job's one repair
+// round on a Director revision (motion/fixtures/m7a; run 1's was not kept). The checks are unchanged;
+// the prompt now states each limit with the number the checker applies.
+test('M7A regression: the recurring first-pass storyboard failures stay caught, and the prompt states each as a hard limit', () => {
+  const run = n => [read(`./fixtures/m7a/${n}.brief.json`), read(`./fixtures/m7a/${n}.storyboard.round-0.json`).storyboard];
+  const [brief2, board2] = run('run2');
+  assert.deepEqual(checkStoryboard(board2, brief2).errors, ['storyboard: teaches one side of K1 but none of its other side (C4)']);
+  const [brief3, board3] = run('run3');
+  assert.deepEqual(checkStoryboard(board3, brief3).errors, [
+    'B2.on_screen_text: "hold" is not in the brief\'s claims, must_show or evidence (a new claim?)',
+    'B4: 16 new words to read in 2s (at most 14)',
+    'storyboard: must_show "A visible check that the highlighted row sums to 1 after softmax" is not visibly covered (declared by B4, which do not show enough of it)',
+  ]);
+  assert.match(STORYBOARD_SYSTEM, /HARD LIMITS\. The harness checks each of these mechanically/);
+  assert.match(HARD_LIMITS, /1\. Vocabulary: .*Never substitute a synonym .*"hold"/);
+  assert.match(HARD_LIMITS, /2\. Reading rate: .*2 s -> 14,/, 'the number the checker reported for run 3 B4');
+  assert.match(HARD_LIMITS, /3\. must_show: .*at least 40% of the item's own content words/);
+  assert.match(HARD_LIMITS, /4\. Both sides of a condition: .*cites at least one claim from the other side/);
+  assert.ok(storyboardRequest(brief2).system[0].text.includes(HARD_LIMITS));
+  assert.deepEqual(checkStoryboard(read('./fixtures/m3/softmax-15s-attention.real.storyboard.json'), read('./fixtures/m2/softmax-15s-attention.brief.json')).errors, [], 'the accepted M3 storyboard still passes');
 });

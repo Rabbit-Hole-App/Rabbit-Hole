@@ -15,6 +15,7 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { TUTOR_BOARD } from '../../web/src/learn-tutor-claims.js';
 
 const PKG = dirname(dirname(fileURLToPath(import.meta.url)));
 const ROOT = resolve(PKG, '..', '..');
@@ -27,6 +28,10 @@ const shots = resolve(shotsArg || join(DIR, `m7a-${mode}`));
 mkdirSync(shots, { recursive: true });
 const vars = name => Object.fromEntries(readFileSync(join(DIR, name, '.dev.vars'), 'utf8').trim().split(/\r?\n/).map(l => l.split(/=(.*)/s).slice(0, 2)));
 const t0 = Date.now();
+// Orchestrator jobs finished during this run (out/motion/m7a-telemetry.jsonl): renders are counted there.
+const TELEMETRY = join(PKG, 'out', 'motion', 'm7a-telemetry.jsonl');
+const jobsSoFar = () => (existsSync(TELEMETRY) ? readFileSync(TELEMETRY, 'utf8').trim().split('\n').filter(Boolean).map(l => JSON.parse(l)) : []);
+const jobsBefore = jobsSoFar().length;
 const elapsed = () => Math.round((Date.now() - t0) / 1000);
 const log = line => console.log(`[${String(elapsed()).padStart(4)}s] ${line}`);
 
@@ -121,7 +126,7 @@ if (mode === 'full') {
   }
   await shot('4-canvas', page);
   const text = await same().innerText(), meta = await same().locator('[data-video-meta]').innerText();
-  const telemetry = existsSync(join(PKG, 'out', 'motion', 'm7a-telemetry.jsonl')) ? readFileSync(join(PKG, 'out', 'motion', 'm7a-telemetry.jsonl'), 'utf8').trim().split('\n').map(l => JSON.parse(l)).filter(l => !l.stub && l.request === REQUEST).at(-1) : null;
+  const telemetry = jobsSoFar().slice(jobsBefore).at(-1) ?? null;
   Object.assign(result, { video, card_text: text, meta, telemetry });
   Object.assign(result.checks, {
     same_card: (await page.locator('[data-block-id]', { has: page.locator('video[data-lesson-video]') }).count()) === 1,
@@ -136,20 +141,32 @@ if (mode === 'full') {
   await page.reload();
   await same().locator('video[data-lesson-video]').waitFor({ timeout: 60000 });
   result.checks.reload_keeps_video_no_restart = net.videoStarts === before;
-  // 5. Voice Mode: the typing field (and so /motion) is gone while voice is on; the video card stays and plays.
-  await page.goto(`${home}?voice=fake`);
-  await same().locator('video[data-lesson-video]').waitFor({ timeout: 60000 });
+  // 5. Voice Mode exists where the Tutor runs (the Tutor board; a plain canvas offers no voice). The
+  // same /motion there reuses the finished job (no new render); with voice on, the typing field (and
+  // so /motion) is gone, and the Motion card still plays; turning voice on starts nothing.
+  await page.goto(`${home}?board=${TUTOR_BOARD}&voice=fake`);
+  await input.waitFor({ timeout: 60000 });
+  await input.click();
+  await page.keyboard.type(REQUEST, { delay: 15 });
+  await page.keyboard.press('Enter');
+  await page.locator('[data-paid-generate]').click();
+  const tutorCard = page.locator('[data-block-id]', { has: page.locator('video[data-lesson-video]') }).first();
+  await tutorCard.waitFor({ timeout: 120000 });
+  result.checks.tutor_board_reuses_the_render = net.videoStarts === before + 1; // one confirmed start, served from the finished job
+  const starts = net.videoStarts;
   await page.getByRole('button', { name: 'Voice mode', exact: true }).click();
   await page.locator('[data-voice-field]').waitFor({ timeout: 15000 });
   result.checks.voice_no_typing_field = (await page.locator('[data-learn-dock] input:not([type="file"]), [data-learn-dock] textarea').count()) === 0;
-  result.checks.voice_card_plays = await same().locator('video[data-lesson-video]').evaluate(node => node.play().then(() => { node.pause(); return true; }, () => false));
+  result.checks.voice_card_plays = await tutorCard.locator('video[data-lesson-video]').evaluate(node => node.play().then(() => { node.pause(); return true; }, () => false));
   await shot('5-voice-mode', page);
   await page.getByRole('button', { name: 'Voice mode on - turn off' }).click();
-  result.checks.voice_started_nothing = net.videoStarts === before;
+  result.checks.voice_started_nothing = net.videoStarts === starts;
 }
 
 Object.assign(result.checks, {
-  one_start_per_generate: net.videoStarts === (mode === 'stop' ? 2 : 1),
+  one_start_per_generate: net.videoStarts === (mode === 'failure' ? 1 : 2),
+  // full: two Generates (the canvas, then the Tutor board) share ONE orchestrator job; stop: the stopped job and its retry.
+  one_render_job: jobsSoFar().slice(jobsBefore).filter(j => j.request === REQUEST).length === (mode === 'stop' ? 2 : 1),
   no_artifact_model_call: net.artifact === 0,
   no_rabbit_hole: net.dives === 0 && new URL(page.url()).pathname === `/apps/${canvas.name}`,
   no_page_errors: errors.length === 0,

@@ -1,7 +1,7 @@
 // M7A development orchestrator (motion/orchestrator.mjs) on the local Motion stack: HTTPS on
 // 127.0.0.1 with the stack's certificate (scripts/motion-local-check.mjs setup), the bearer token
 // from .small/motion-local/app/.dev.vars (MOTION_ORCHESTRATOR_TOKEN, never printed).
-//   node scripts/motion-orchestrator.mjs [--port 8856] [--service <url>] [--max-calls 16]
+//   node scripts/motion-orchestrator.mjs [--port 8856] [--service <url>] [--max-calls 16] [--budget-usd 2.50]
 //   node scripts/motion-orchestrator.mjs --stub <final.mp4> [--stub-fail authoring]   no model call, no render
 // Model calls use ANTHROPIC_API_KEY from the environment, else MOTION_ENV_FILE or <repo>/.env (names
 // only are read; values are never printed). Without --service the render service runs in this
@@ -62,16 +62,16 @@ if (url && !process.env.MOTION_RENDERER_TOKEN) { console.error('✗ --service ne
 const svc = url ? { client: serviceClient({ url: url.replace(/\/$/, ''), token: process.env.MOTION_RENDERER_TOKEN }), close: () => {} } : await localService();
 const outDir = join(PKG, 'out', 'motion', 'm7a');
 const orchestrator = motionOrchestrator({
-  token: vars.MOTION_ORCHESTRATOR_TOKEN, service: svc.client, call: anthropic, env, outDir, maxCalls: Number(opt('--max-calls') || 16),
+  token: vars.MOTION_ORCHESTRATOR_TOKEN, service: svc.client, call: anthropic, env, outDir, maxCalls: Number(opt('--max-calls') || 16), budgetUsd: Number(opt('--budget-usd')) || Infinity,
   ...(stub ? { run: stubRun } : {}),
   log: line => {
     console.log(`${new Date().toISOString()} ${line}`);
     const m = /^job ([0-9a-f]{32}): (ready|failed|cancelled|needs_clarification)/.exec(line);
     const job = m && orchestrator.jobs.get(m[1]);
-    if (job) appendFileSync(join(PKG, 'out', 'motion', 'm7a-telemetry.jsonl'), `${JSON.stringify({ at: new Date().toISOString(), job_id: job.id, stub: !!stub, request: job.request, status: job.status, stage: job.stage, repair_count: job.result?.job?.repair_count ?? null, cost_usd: job.result?.cost_usd ?? null, model_latency_s: job.result?.model_latency_s ?? null, timings: job.result?.timings ?? null, calls: (job.result?.calls || []).map(c => ({ stage: c.stage, round: c.round, latency_ms: c.latency_ms, output_tokens: c.usage?.output_tokens, cost_usd: c.cost_usd })) })}\n`);
+    if (job) appendFileSync(join(PKG, 'out', 'motion', 'm7a-telemetry.jsonl'), `${JSON.stringify({ at: new Date().toISOString(), job_id: job.id, stub: !!stub, request: job.request, status: job.status, stage: job.stage, budget: { ...orchestrator.budget }, repair_count: job.result?.job?.repair_count ?? null, cost_usd: job.result?.cost_usd ?? null, model_latency_s: job.result?.model_latency_s ?? null, timings: job.result?.timings ?? null, calls: (job.result?.calls || []).map(c => ({ stage: c.stage, round: c.round, latency_ms: c.latency_ms, output_tokens: c.usage?.output_tokens, cost_usd: c.cost_usd })) })}\n`);
   },
 });
 mkdirSync(outDir, { recursive: true });
 createServer({ key: readFileSync(join(LOCAL, 'certs', 'leaf.key')), cert: readFileSync(join(LOCAL, 'certs', 'leaf.pem')) }, orchestrator.handle)
-  .listen(port, '127.0.0.1', () => console.log(`✓ Motion orchestrator on https://localhost:${port} (${stub ? `stub: ${stub}` : `render service: ${url || 'local, sandbox none (authoring host)'}`})`));
+  .listen(port, '127.0.0.1', () => console.log(`✓ Motion orchestrator on https://localhost:${port} (${stub ? `stub: ${stub}` : `render service: ${url || 'local, sandbox none (authoring host)'}`}; budget ${orchestrator.budget.limit_usd === Infinity ? 'none' : `$${orchestrator.budget.limit_usd}`})`));
 process.on('SIGINT', () => { svc.close(); process.exit(0); });

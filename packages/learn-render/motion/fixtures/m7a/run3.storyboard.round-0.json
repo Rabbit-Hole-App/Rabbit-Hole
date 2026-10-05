@@ -1,0 +1,283 @@
+{
+  "status": "storyboard_invalid",
+  "errors": [
+    "B2.on_screen_text: \"hold\" is not in the brief's claims, must_show or evidence (a new claim?)",
+    "B4: 16 new words to read in 2s (at most 14)",
+    "storyboard: must_show \"A visible check that the highlighted row sums to 1 after softmax\" is not visibly covered (declared by B4, which do not show enough of it)"
+  ],
+  "storyboard": {
+    "id": "storyboard-164a57fa",
+    "brief_id": "brief-1c2129e2",
+    "version": 1,
+    "beats": [
+      {
+        "id": "B1",
+        "start_time": 0,
+        "end_time": 4,
+        "pedagogical_role": "hook",
+        "visible_objects": [
+          {
+            "id": "code_mask_softmax",
+            "description": "Code panel showing the masking line followed by the softmax line from the manual attention branch, in the order they run. The softmax line is the focus; the mask line above it is dimmer.",
+            "source": {
+              "source_ref_id": "S4",
+              "start_line": 68,
+              "end_line": 69
+            },
+            "change": "Enters; then the softmax line brightens and gains a highlight bar while the mask line dims."
+          },
+          {
+            "id": "manual_path_tag",
+            "description": "Branch tag attached to the code panel saying this code runs only on the manual path, when self.flash is false. Stays on screen for the whole video.",
+            "label": "manual path: self.flash false",
+            "change": "Snaps onto the code panel just after it appears."
+          },
+          {
+            "id": "flash_branch_label",
+            "description": "Small, dimmed side label naming the other branch, shown only as a label with no detail about its internals.",
+            "label": "self.flash true: scaled_dot_product_attention",
+            "change": "Fades in dimmed beside the tag, clearly secondary."
+          }
+        ],
+        "claim_ids": [
+          "C1",
+          "C4"
+        ],
+        "condition_ids": [
+          "K1"
+        ],
+        "must_show_covered": [
+          "The code line `att = F.softmax(att, dim=-1)`, labeled as the manual path (`self.flash` false)"
+        ],
+        "transition": "Opens on the code panel directly.",
+        "framing": "Code panel centred with the softmax line at eye level; the path tag sits beside it, and the flash label sits off to the side, smaller and dim.",
+        "on_screen_text": "Mask first, then softmax.",
+        "narration_line": "On the manual path, softmax turns score rows into weights."
+      },
+      {
+        "id": "B2",
+        "start_time": 4,
+        "end_time": 7,
+        "pedagogical_role": "mechanism",
+        "visible_objects": [
+          {
+            "id": "code_softmax_line",
+            "description": "Just the softmax line, shrunk to a small header anchor above the grid.",
+            "source": {
+              "source_ref_id": "S4",
+              "start_line": 69,
+              "end_line": 69
+            },
+            "change": "Shrinks out of the code panel and moves up to the top as a small header; the mask line leaves."
+          },
+          {
+            "id": "manual_path_tag",
+            "description": "Branch tag, still visible next to the header.",
+            "label": "manual path: self.flash false",
+            "change": "Moves up with the header line."
+          },
+          {
+            "id": "flash_branch_label",
+            "description": "Other-branch label.",
+            "label": "self.flash true: scaled_dot_product_attention",
+            "change": "Fades out."
+          },
+          {
+            "id": "score_grid",
+            "description": "A 4×4 T×T grid of attention scores: rows are queries, columns are keys. Lower-left cells, including the diagonal, are shaded by score size with no numbers. The 6 upper-right future cells read -inf.",
+            "label": "scaled, masked scores",
+            "change": "Builds in cell by cell, and then the six upper-right cells flip to -inf as the mask is applied."
+          },
+          {
+            "id": "axis_labels",
+            "description": "Row axis labelled queries, column axis labelled keys.",
+            "label": "queries / keys",
+            "change": "Fades in along the grid edges."
+          }
+        ],
+        "claim_ids": [
+          "C2"
+        ],
+        "condition_ids": [
+          "K1"
+        ],
+        "must_show_covered": [
+          "A small T×T score grid (e.g. 4×4) whose upper-right (future) cells read -inf before softmax"
+        ],
+        "transition": "The code panel shrinks to a header and the grid grows out of the space below it.",
+        "framing": "Grid centred and large; header line and path tag recede to the top.",
+        "on_screen_text": "Future cells hold -inf before softmax."
+      },
+      {
+        "id": "B3",
+        "start_time": 7,
+        "end_time": 10,
+        "pedagogical_role": "mechanism",
+        "visible_objects": [
+          {
+            "id": "code_softmax_line",
+            "description": "Header line.",
+            "source": {
+              "source_ref_id": "S4",
+              "start_line": 69,
+              "end_line": 69
+            },
+            "change": "Fades out to make room."
+          },
+          {
+            "id": "manual_path_tag",
+            "description": "Branch tag, kept visible at the top corner.",
+            "label": "manual path: self.flash false",
+            "change": "Slides to the top corner."
+          },
+          {
+            "id": "score_grid",
+            "description": "Same grid. The other rows dim, and row 3 (third query) is highlighted. That row's raw scores read 1.2, 0.4, 2.0, -inf.",
+            "label": "scaled, masked scores",
+            "change": "Dims everything except row 3, which brightens and lifts slightly."
+          },
+          {
+            "id": "axis_labels",
+            "description": "Queries/keys axis labels.",
+            "label": "queries / keys",
+            "change": "Dims along with the rest of the grid."
+          },
+          {
+            "id": "highlighted_row",
+            "description": "Row 3's cells, shown as bars in place. The raw values 1.2, 0.4, 2.0, -inf change in place to 0.27, 0.12, 0.61, 0. Bars resize to match the weights, the largest stays largest, and the -inf cell fades to an empty 0.",
+            "label": "1.2 0.4 2.0 -inf → 0.27 0.12 0.61 0",
+            "change": "Transforms in place from scores to weights; the -inf cell fades to 0."
+          },
+          {
+            "id": "row_direction_arrow",
+            "description": "Horizontal arrow running left to right along the highlighted row, showing that normalization runs across keys, not down a column.",
+            "label": "dim=-1: across keys",
+            "change": "Sweeps along the row just before the values transform."
+          }
+        ],
+        "claim_ids": [
+          "C1",
+          "C2"
+        ],
+        "condition_ids": [
+          "K1"
+        ],
+        "must_show_covered": [
+          "One row highlighted and transformed: raw scores become proportional weights, and the -inf cells become 0",
+          "The direction of normalization shown along the row (dim=-1, across keys), not down a column"
+        ],
+        "transition": "Focus narrows from the whole grid to one row while the rest dims.",
+        "framing": "Highlighted row centred and enlarged; the rest of the grid stays dimmed in the background; the path tag sits in a corner.",
+        "on_screen_text": "Each row normalizes across keys."
+      },
+      {
+        "id": "B4",
+        "start_time": 10,
+        "end_time": 12,
+        "pedagogical_role": "mechanism",
+        "visible_objects": [
+          {
+            "id": "manual_path_tag",
+            "description": "Branch tag in the corner.",
+            "label": "manual path: self.flash false",
+            "change": "Stays put."
+          },
+          {
+            "id": "highlighted_row",
+            "description": "Row 3 weights 0.27, 0.12, 0.61, 0.",
+            "label": "0.27 0.12 0.61 0",
+            "change": "Its three weights stack into a single tally beside the row."
+          },
+          {
+            "id": "row_sum_check",
+            "description": "Running tally beside the highlighted row that adds up the weights and settles at exactly 1.",
+            "label": "row sum = 1",
+            "change": "Counts up and settles at 1 with a brief confirm pulse."
+          },
+          {
+            "id": "score_grid",
+            "description": "The other rows each transform separately into weights. Their -inf future cells fade to empty zero-weight cells, leaving a lower-triangular weight pattern.",
+            "label": "weights",
+            "change": "The rows brighten one by one and normalize; the future cells empty out to 0; the label changes from scores to weights."
+          },
+          {
+            "id": "axis_labels",
+            "description": "Queries/keys axis labels.",
+            "label": "queries / keys",
+            "change": "Brightens slightly as the grid returns."
+          }
+        ],
+        "claim_ids": [
+          "C1",
+          "C2"
+        ],
+        "condition_ids": [
+          "K1"
+        ],
+        "must_show_covered": [
+          "A visible check that the highlighted row sums to 1 after softmax"
+        ],
+        "transition": "The tally grows straight out of the transformed row, then the rest of the grid wakes up.",
+        "framing": "Highlighted row and its tally stay central; the full grid comes back into view around it.",
+        "on_screen_text": "Each row separately; future positions get exactly 0."
+      },
+      {
+        "id": "B5",
+        "start_time": 12,
+        "end_time": 15,
+        "pedagogical_role": "takeaway",
+        "visible_objects": [
+          {
+            "id": "manual_path_tag",
+            "description": "Branch tag, still visible.",
+            "label": "manual path: self.flash false",
+            "change": "Stays put."
+          },
+          {
+            "id": "score_grid",
+            "description": "The lower-triangular weight grid.",
+            "label": "weights",
+            "change": "Recedes to the left."
+          },
+          {
+            "id": "highlighted_row",
+            "description": "Row 3 weights 0.27, 0.12, 0.61, 0.",
+            "label": "0.27 0.12 0.61 0",
+            "change": "Lifts off the grid and slides right toward the value vectors."
+          },
+          {
+            "id": "value_vectors",
+            "description": "Stack of 4 value vectors, one per key, lined up next to the weight row.",
+            "label": "v",
+            "change": "Enters from the right; each vector picks up the weight of its matching cell, and the zero-weight one stays dim."
+          },
+          {
+            "id": "att_v_label",
+            "description": "Label naming the next operation the weights feed into.",
+            "label": "att @ v",
+            "change": "Fades in between the row and the value vectors as they meet."
+          },
+          {
+            "id": "row_sum_check",
+            "description": "Sum tally.",
+            "label": "row sum = 1",
+            "change": "Fades out."
+          }
+        ],
+        "claim_ids": [
+          "C3",
+          "C1"
+        ],
+        "condition_ids": [
+          "K1"
+        ],
+        "must_show_covered": [
+          "A brief hand-off: the weight row then feeds `att @ v`"
+        ],
+        "transition": "The weight row detaches and carries the eye to the right.",
+        "framing": "Weight row and value vectors centred; the grid stays dimmed at the left; the path tag sits in a corner.",
+        "on_screen_text": "These weights then mix the value vectors in att @ v."
+      }
+    ]
+  }
+}

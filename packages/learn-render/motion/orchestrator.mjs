@@ -13,6 +13,7 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { PRICES } from './director.js';
 import { runMotionRequest } from './pipeline.mjs';
 import { MotionCancelled } from './review-job.mjs';
 
@@ -39,6 +40,29 @@ export function validateJobRequest(body) {
   return e;
 }
 
+// What one finished response cost, read from a copy of it (a stream's message_start and
+// message_delta usage, or a JSON message's usage). null when it cannot be read.
+export async function responseCost(response, model) {
+  const price = PRICES[model];
+  if (!price) return null;
+  try {
+    const text = await response.text();
+    let u = null;
+    if (/^\s*\{/.test(text)) u = JSON.parse(text).usage || null;
+    else for (const line of text.split(/\r?\n/)) {
+      if (!line.startsWith('data:')) continue;
+      const event = JSON.parse(line.slice(5).trim() || '{}');
+      if (event.type === 'message_start') u = { ...event.message?.usage };
+      if (event.type === 'message_delta' && u) Object.assign(u, event.usage);
+    }
+    if (!u) return null;
+    return ((u.input_tokens || 0) * price.input + (u.output_tokens || 0) * price.output + (u.cache_creation_input_tokens || 0) * price.cache_write + (u.cache_read_input_tokens || 0) * price.cache_read) / 1e6;
+  } catch { return null; }
+}
+// Before a call: what it may cost, from its output ceiling (the Author's 64000 tokens, every other
+// stage's 16000). These are the largest costs recorded per stage so far, rounded up, not worst cases.
+export const callEstimate = body => ((body?.max_tokens || 0) >= 64000 ? 0.7 : 0.2);
+
 // The job as the provider polls it: no prompt, no key, no source text beyond the block provenance.
 const view = j => ({
   job_id: j.id, status: j.status, stage: j.stage, created_at: j.created_at, finished_at: j.finished_at ?? null,
@@ -49,10 +73,14 @@ const view = j => ({
   } : {}),
 });
 
-export function motionOrchestrator({ token, service, call, env = {}, outDir, run = runMotionRequest, maxCalls = 16, log = () => {} }) {
+// budgetUsd: a hard ceiling on what every job together may spend (an owner budget). A call is refused
+// locally when the spend so far plus its estimate would pass it; the spend is the real cost of
+// every finished response, or its estimate when that cannot be read.
+export function motionOrchestrator({ token, service, call, env = {}, outDir, run = runMotionRequest, maxCalls = 16, budgetUsd = Infinity, log = () => {} }) {
   if (typeof token !== 'string' || token.length < 32) throw new Error('motionOrchestrator: a token of at least 32 characters is required');
   const jobs = new Map();
   let active = null;
+  const budget = { limit_usd: budgetUsd, spent_usd: 0 };
   const authorized = req => {
     const got = Buffer.from(String(req.headers.authorization || '')), want = Buffer.from(`Bearer ${token}`);
     return got.length === want.length && timingSafeEqual(got, want);
@@ -65,10 +93,18 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
     jobs.set(id, job);
     active = job;
     // Stop also abandons a model call in flight (its response is discarded) and every call is capped.
-    const guarded = (...args) => {
+    const guarded = (env2, body, model) => {
       if (controller.signal.aborted) return Promise.reject(new MotionCancelled());
       if (++job.calls > maxCalls) return Promise.resolve(new Response(`refused locally: the ${maxCalls}-call budget for this job is spent`, { status: 429 }));
-      return Promise.race([call(...args), new Promise((_, fail) => controller.signal.addEventListener('abort', () => fail(new MotionCancelled()), { once: true }))]);
+      const estimate = callEstimate(body);
+      if (budget.spent_usd + estimate > budget.limit_usd) return Promise.resolve(new Response(`refused locally: the $${budget.limit_usd} budget would be passed ($${budget.spent_usd.toFixed(2)} spent, this call may cost $${estimate})`, { status: 429 }));
+      const sent = Promise.resolve(call(env2, body, model)).then(response => {
+        // Count what it really cost once it has been read (a copy, so the stage still reads it).
+        if (response?.ok && typeof response.clone === 'function') responseCost(response.clone(), model).then(cost => { budget.spent_usd += cost ?? estimate; });
+        else if (response?.ok) budget.spent_usd += estimate;
+        return response;
+      });
+      return Promise.race([sent, new Promise((_, fail) => controller.signal.addEventListener('abort', () => fail(new MotionCancelled()), { once: true }))]);
     };
     log(`job ${id}: ${body.request}`);
     run({ message: body.request, location: job.location, call: guarded, env, service, dir: join(outDir, id), signal: controller.signal, onStage: stage => { job.stage = stage; } })
@@ -110,5 +146,5 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
       return send(res, error.status || 500, { error: error.status ? 'invalid_request' : 'orchestrator_failure', detail: error.message });
     }
   }
-  return { handle, jobs, get active() { return active; } };
+  return { handle, jobs, budget, get active() { return active; } };
 }
