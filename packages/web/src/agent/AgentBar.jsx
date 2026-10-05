@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Loader2, MessageSquare, Plus, SquareSlash, X } from 'lucide-react';
 import ChatComposer, { COMPOSER_ADD, COMPOSER_PILL, DOCK_PAD, DOCK_WIDTH } from '../ChatComposer.jsx';
 import { api, navigate } from '../api.js';
-import { START_PATHS, slugOf, titleFromQuestion } from '../start.js';
+import { START_PATHS, slugOf } from '../start.js';
 import { PATH_ICONS } from '../start-icons.js';
 import { Button, cn, Menu, MenuItem, toast } from '../ui.jsx';
 import { askBody, streamAsk } from './ask-stream.js';
@@ -13,6 +13,7 @@ import {
 import { kindLabel, titleOf } from './catalog.js';
 import { COMMANDS, ctxOf, executeCommand, prepareCommand } from './commands.js';
 import { learnAction } from './learn-hook.js';
+import { journeyMessage, teachPlan } from './teach-plan.js';
 import ResultSheet from './ResultSheet.jsx';
 import BarCommandsSheet from './BarCommandsSheet.jsx';
 import { placeOf } from './slash.js';
@@ -288,13 +289,24 @@ export default function AgentBar({ page }) {
   // §6.4 /teach through the Learn hook (§9). From the workspace a canvas comes
   // first. learnAction opens Learn itself, so the bar never navigates after it;
   // the bar is hidden on Learn, so its message is a toast.
+  // LP1 D4: from the workspace, a journey request is started on the server with the learner's exact words (learnAction
+  // is a no-op while learnHandoff is off, so those words were dropped) and Learn opens on its tray. No cards are generated.
   async function teach(text, raw, scope) {
     try {
       let app = scope.slug;
-      if (scope.kind === 'workspace') {
-        const made = await runCommand('create_canvas', { title: titleFromQuestion(text) }, raw, scope, true);
+      const plan = scope.kind === 'workspace' ? teachPlan(text) : null;
+      if (plan) {
+        const made = await runCommand('create_canvas', { title: plan.title }, raw, scope, true);
         app = slugOf(made?.href);
         if (!app) return;
+      }
+      if (plan?.journey) {
+        try {
+          await api('/api/learn/journey', { method: 'POST', body: JSON.stringify({ app, board: 'main', action: 'start', text, channel: 'text' }) });
+          clearDraft(scope, raw);
+        } catch (e) { toast(`✗ ${journeyMessage(e)}`, { tone: 'error' }); } // the draft stays; Learn still opens
+        navigate(`/apps/${app}?tab=learn`);
+        return;
       }
       const outcome = learnOutcome(await learnAction('teach', { app, prompt: text }, ctxOf(getSurface(), { scope })));
       if (outcome.done) clearDraft(scope, raw); // otherwise the prompt stays in this scope's draft

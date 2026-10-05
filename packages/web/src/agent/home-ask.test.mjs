@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { LEARN_INTENT, route } from './router.js';
+import { journeyMessage, teachPlan } from './teach-plan.js';
 
 const at = (text) => route(text, { mode: 'auto', catalog: [], scope: { kind: 'workspace' } });
 
@@ -34,4 +35,42 @@ test('the bar sends a Home question to /api/learn/home-ask, never the old apps a
   // The only way from an answer to a Rabbit Hole is its offer button, which the learner presses.
   assert.match(home, /offer: d\.offer_rabbit_hole \? \{ label: 'Start a Rabbit Hole', run: \(\) => teach\(text, '', scope\) \} : null/);
   assert.equal((home.match(/teach\(/g) || []).length, 1);
+});
+
+// LP1 D4: a learning request typed on Home starts the journey on the server with the learner's exact words; a
+// factual question never reaches teach(), and a teach with no journey reading keeps today's learnAction path.
+test('teachPlan: a journey request starts a journey and titles the canvas by its topic', () => {
+  assert.deepEqual(teachPlan('I want to learn logistic regression'), { journey: true, title: 'Logistic regression' });
+  assert.deepEqual(teachPlan('Give me a 10-minute visual overview of attention'), { journey: true, title: 'Attention' });
+  assert.deepEqual(teachPlan('Show me how to build a tokenizer'), { journey: true, title: 'Tokenizer' });
+});
+
+test('teachPlan: no topic, no journey reading, or a question keeps the raw sentence as the title and starts no journey', () => {
+  assert.deepEqual(teachPlan('teach me'), { journey: false, title: 'teach me' });
+  assert.deepEqual(teachPlan('What is softmax?'), { journey: false, title: 'What is softmax?' });
+  assert.deepEqual(teachPlan('Teach me this'), { journey: false, title: 'Teach me this' });
+  // The router's Start a Rabbit Hole offer re-teaches the question that was asked.
+  assert.deepEqual(teachPlan('Explain attention'), { journey: false, title: 'Explain attention' });
+});
+
+test('teachPlan: skip setup with no topic is a journey the server refuses (topic_required), titled by the sentence', () => {
+  assert.deepEqual(teachPlan('Skip setup and start'), { journey: true, title: 'Skip setup and start' });
+  assert.deepEqual(teachPlan('Teach me transformers, skip setup'), { journey: true, title: 'Transformers' });
+});
+
+test('journeyMessage turns a server code into a one-line fix', () => {
+  assert.match(journeyMessage({ message: 'topic_required' }), /what you want to learn/);
+  assert.match(journeyMessage({ message: 'live_journey' }), /already/);
+  assert.equal(journeyMessage({ message: 'Board not found' }), 'Board not found');
+});
+
+test('teach() starts the journey on the server with the exact typed text and never hands cards to Learn', () => {
+  const bar = readFileSync(new URL('./AgentBar.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const body = bar.slice(bar.indexOf('async function teach('), bar.indexOf('// Scope is frozen at Send'));
+  assert.match(body, /teachPlan\(text\)/);
+  assert.match(body, /api\('\/api\/learn\/journey', \{ method: 'POST', body: JSON\.stringify\(\{ app, board: 'main', action: 'start', text, channel: 'text' \}\) \}\)/);
+  // The journey path opens Learn itself, on the tray; only a non-journey teach goes through learnAction.
+  assert.match(body, /navigate\(`\/apps\/\$\{app\}\?tab=learn`\)/);
+  assert.equal((body.match(/learnAction\(/g) || []).length, 1);
+  assert.ok(body.indexOf("'/api/learn/journey'") < body.indexOf('learnAction('));
 });
