@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { learnDb } from './learn-grade-fixture.js';
 import { journeyRoute } from '../src/learn-journey.js';
 import { fixtureFor, fixtureModel } from '../src/learn-journey-fixtures.js';
-import { appendJourneyEvidence, loadJourney } from '../src/learn-journey-store.js';
+import { JourneyConflict, appendJourneyEvidence, archiveJourney, loadJourney } from '../src/learn-journey-store.js';
 
 const PEOPLE = { ana: { email: 'ana@test', org: 'team-ws' }, ben: { email: 'ben@test', org: 'team-ws' } };
 const APP = 'canvas-0a1b2c3d', REPO = 'repo-0a1b2c3d-nanogpt', BOARD = 'main';
@@ -362,6 +362,18 @@ test('archive retires the live journey, and a new one starts on the same board',
   assert.equal(r.status, 200);
   assert.equal(r.body.journey.request.topic, 'linear algebra');
   assert.deepEqual(rows().map(row => [row.id === first.body.journey.id, row.archived_at != null]), [[true, true], [false, false]]);
+});
+
+test('archive is revision-safe: a stale revision gets 409 and the journey stays live', async t => {
+  const { env, post, rows } = setup(t);
+  const first = await post('start', { text: LEARN }), revision = first.body.journey.revision;
+  const r = await post('archive', { revision: revision - 1 });
+  assert.deepEqual([r.status, r.body.error, r.body.journey.id], [409, 'revision', first.body.journey.id]);
+  // The store write itself is conditional, so a write landing between the route's read and the archive cannot be lost.
+  await assert.rejects(archiveJourney(env, first.body.journey, revision - 1), e => e instanceof JourneyConflict && e.code === 'revision');
+  assert.equal(rows()[0].archived_at, null);
+  await archiveJourney(env, first.body.journey, revision);
+  assert.notEqual(rows()[0].archived_at, null);
 });
 
 test('LP1 journeys run on canvases only', async t => {

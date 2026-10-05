@@ -5,13 +5,14 @@
 // ponytail: the tray path only. Task 12 moves the resolver to the top of useTutor.turn() (typed and voice turns), swaps
 // answerProbeText for a runTurn({ plan: false }) turn and speaks the prompt; Task 9 materializes the current section.
 import { useEffect, useRef, useState } from 'react';
-import { Loader2 } from 'lucide-react';
-import { api, apiFetch } from './api.js';
-import { interactionInterpretation, journeyIntent } from '../../control-plane/src/learner-intent-journey.js';
+import { Loader2, X } from 'lucide-react';
+import { apiFetch } from './api.js';
+import { STARTS, interactionInterpretation, journeyIntent } from '../../control-plane/src/learner-intent-journey.js';
 
-const STARTS = new Set(['learning_journey', 'focused_skill', 'quick_overview', 'fast_start']);
 // A start the route refuses as no journey (a question after all, a repository course): the normal responder answers.
 const NOT_HERE = new Set(['not_a_learning_journey', 'journeys_on_canvases_only']);
+const SETUP = new Set(['intake', 'diagnostic', 'path_review']);
+const JOURNEY = '/api/learn/journey';
 const BUSY = 'Working on it...';
 const CLARIFY = [{ id: 'answer', label: 'Answer the question' }, { id: 'edit', label: 'Change the path' }, { id: 'tutor', label: 'Ask the Tutor' }];
 // The composer's suggestion pills (ask.jsx), dimmed while the tray works.
@@ -26,32 +27,40 @@ export function routeJourneyTurn(raw, tray, resolveRules = interactionInterpreta
 // The Learn composer starts a journey (§6.1) only on a canvas with no live journey (no journeyStarter) and no Tutor.
 export const journeyStartsHere = (raw, { tutor = null, journeyStarter = null } = {}) => !tutor && !!journeyStarter && STARTS.has(journeyIntent(raw).kind);
 
+// Before the path is accepted the canvas gets no permanent card (controller ruling, LP1): a turn the Learn chat answers
+// on a journey in setup stays in the chat sheet. Task 12 hands those turns to the Tutor.
+export const inJourneySetup = journey => SETUP.has(journey?.state);
+
 // One POST with the journey's revision. A 409 `revision` (another tab moved it) carries the re-read journey: the same
-// action, answer text included, is replayed once on that revision; whatever the replay gets is final.
+// action, answer text included, is replayed once on that revision, and the re-read rides along (`reread`) so a replay
+// refused for a step that has moved still leaves the current tray on screen.
 export async function journeyRequest(body, revision, send) {
   const first = await send(revision == null ? body : { ...body, revision });
-  const reread = first.status === 409 && first.d?.error === 'revision' ? first.d.journey?.revision : null;
-  return reread == null ? first : send({ ...body, revision: reread });
+  const reread = first.status === 409 && first.d?.error === 'revision' && first.d.journey ? first.d : null;
+  return reread ? { ...(await send({ ...body, revision: reread.journey.revision })), reread } : first;
 }
 
 // What the tray slot shows: a local tray over the server's (recomputed by trayFor after every event and reload, so a
-// reload never asks twice), with the busy and error lines on top. A busy or failed action with no tray still shows.
+// reload never asks twice), with the busy and error lines on top. A busy or failed action with no tray still shows,
+// and that status tray can be dismissed.
 export function shownTray(server, local, busy, error) {
-  const tray = local || server || (busy || error ? { id: 'status', mode: null, options: [], free_text: false, dismissible: false } : null);
+  const tray = local || server || (busy || error ? { id: 'status', mode: null, options: [], free_text: false, dismissible: true } : null);
   return tray && (busy || error) ? { ...tray, ...(busy ? { busy } : {}), ...(error ? { error } : {}) } : tray;
 }
 
-// Rule 5's request: the open tray as the route bounds it (prompt 300, 6 options, id 40, label 120, text 1000) and no
-// other field.
+// Rule 5's request: the open tray as the route bounds it (prompt 300, 6 options, id 40, label 120, text 1000).
 export const resolveBody = (text, tray) => ({ action: 'resolve', text: String(text).slice(0, 1000), tray: {
   mode: tray?.mode ?? null, prompt: String(tray?.prompt ?? '').slice(0, 300),
-  options: (tray?.options || []).slice(0, 6).map(({ id, label }) => ({ id: String(id).slice(0, 40), label: String(label).slice(0, 120) })) } });
+  options: (tray?.options || []).slice(0, 6).map(({ id, label }) => ({ id: String(id).slice(0, 40), label: String(label).slice(0, 120) })),
+  free_text: !!tray?.free_text } });
 
-// §6.1: a broad intent on a board that already has a live journey asks first; the server never holds two (409).
-export function liveJourneyTray(journey, text) {
+// §6.1: a broad intent on a board that already has a live journey asks first; the server never holds two (409). `under`
+// is the tray it covers: Continue answers a free-text one with the same words, so an answer that reads like an intent
+// ("I want to understand the intuition" on the goal question) is not lost.
+export function liveJourneyTray(journey, text, under = null) {
   const topic = journey?.request?.topic || 'this path', next = journeyIntent(text).topic || 'a new path';
   return { id: 'clarification:live', mode: 'clarification', prompt: `Continue ${topic} or start ${next}?`,
-    options: [{ id: 'continue', label: `Continue ${topic}` }, { id: 'start_new', label: `Start ${next}` }], free_text: false, dismissible: true, text };
+    options: [{ id: 'continue', label: `Continue ${topic}` }, { id: 'start_new', label: `Start ${next}` }], free_text: false, dismissible: true, text, under };
 }
 
 // §7.1. Free text always comes from the composer below, so the tray never holds an input.
@@ -71,154 +80,188 @@ export function TutorPromptTray({ tray, onOption }) {
       {tray.error && !busy && <div data-tray-error role="alert" className="flex flex-wrap items-center gap-2 text-red-700">
         <span className="min-w-0">{tray.error.message}</span>
         <button type="button" data-tray-retry onClick={() => onOption('retry')} className={PILL}>Try again</button>
+        {/* Only the status tray (an error with nothing under it): a journey tray must stay to be answered. */}
+        {!tray.mode && tray.dismissible && <button type="button" data-tray-dismiss aria-label="Dismiss" onClick={() => onOption('dismiss')} className="shrink-0 rounded p-0.5 text-ink-3 hover:bg-hover hover:text-ink"><X size={12} /></button>}
       </div>}
     </div>
   );
 }
 
 const EMPTY = { journey: null, path: null, tray: null };
-const OFF = { ...EMPTY, trayProps: null, busy: false, start: null };
 
-// The board's journey. canvasApi (passed by LearnPage) is Task 9's, for the section materializer.
-export function useJourney({ app, board, access, enabled = true }) {
-  const [data, setData] = useState(EMPTY);
-  const latest = useRef(EMPTY); // the newest revision for a request sent after an await
-  const [local, setLocal] = useState(null); // a client-only tray: clarification, continue-or-start, the start's topic
-  const [dismissed, setDismissed] = useState(null); // a server tray cancelled where the journey has no step to skip
-  const [busy, setBusy] = useState(null);
-  const [error, setError] = useState(null); // { message, again }
-  const where = { app: access?.app || app?.name, board };
-  const take = d => { latest.current = { journey: d.journey ?? null, path: d.path ?? null, tray: d.tray ?? null }; setData(latest.current); };
-  const refresh = (live = () => true) => api(`/api/learn/journey?app=${encodeURIComponent(where.app)}&board=${encodeURIComponent(board)}`)
-    .then(d => live() && take(d)).catch(() => {}); // no journey here (a refused app, a pending hole): the Learn chat answers as before
+// The journey's behaviour, apart from React so node can drive it: fetchJson(path, body?) -> { status, d } (a GET without
+// a body; it throws only when the network does), onChange after every state change. Every action resolves to an outcome
+// whose `ok` is false when it failed; handleText and start report that as `failed`, and the composer gives the words back.
+export function journeyController({ where, fetchJson, onChange = () => {} }) {
+  const s = { data: EMPTY, local: null, dismissed: null, busy: null, error: null };
+  const set = patch => { Object.assign(s, patch); onChange(); };
+  const take = d => set({ data: { journey: d.journey ?? null, path: d.path ?? null, tray: d.tray ?? null } });
+  const server = () => (s.data.tray && s.data.tray.id !== s.dismissed ? s.data.tray : null);
+  const open = () => s.local || server();
 
-  useEffect(() => {
-    if (!enabled || !where.app) return;
-    let live = true;
-    take(EMPTY); setLocal(null); setDismissed(null); setError(null);
-    refresh(() => live);
-    return () => { live = false; };
-  }, [enabled, where.app, board]); // eslint-disable-line react-hooks/exhaustive-deps
-  // A planner call started elsewhere (another tab, or before a reload) shows the busy tray until the journey moves on.
-  // ponytail: a 5 s poll while pending; a push channel if journeys ever get many watchers.
-  const pending = enabled && data.journey?.pending;
-  useEffect(() => {
-    if (!pending) return;
-    const timer = setInterval(() => refresh(), 5000);
-    return () => clearInterval(timer);
-  }, [pending]); // eslint-disable-line react-hooks/exhaustive-deps
+  // No journey here (a refused app, a network error): the Learn chat answers as before.
+  const refresh = () => fetchJson(`${JOURNEY}?app=${encodeURIComponent(where.app)}&board=${encodeURIComponent(where.board)}`)
+    .then(({ status, d }) => { if (status === 200) take(d); }).catch(() => {});
 
-  const server = data.tray && data.tray.id !== dismissed ? data.tray : null;
-  const tray = shownTray(server, local, busy, error);
-
-  // Every action's body and reply. A reply that carries the journey (success, 409, a 502 planner failure) replaces it.
-  const run = async (body, { revision = latest.current.journey?.revision } = {}) => {
-    setBusy(BUSY); setError(null);
+  // Every action's body and reply. A reply that carries the journey (success, 409, a 502 planner failure) replaces it; a
+  // replay that carries none falls back to the re-read.
+  const run = async (body, revision = s.data.journey?.revision) => {
+    set({ busy: BUSY, error: null });
     try {
-      const out = await journeyRequest({ ...where, ...body }, revision, async payload => {
-        const r = await apiFetch('/api/learn/journey', { method: 'POST', body: JSON.stringify(payload) });
-        return { status: r.status, d: await r.json().catch(() => ({})) };
-      });
-      if (out.d && 'journey' in out.d) take(out.d);
+      const out = await journeyRequest({ ...where, ...body }, revision, payload => fetchJson(JOURNEY, payload));
+      const fresh = out.d && 'journey' in out.d ? out.d : out.reread;
+      if (fresh) take(fresh);
       return out;
-    } catch { return { status: 0, d: {} }; } finally { setBusy(null); }
+    } catch { return { status: 0, d: {} }; } finally { set({ busy: null }); }
   };
-  // The tray's error line with a retry that re-sends the same action. Not for a 409, whose reply already shows where
-  // the journey is now, nor for a planner failure, whose server tray has its own error and retry.
-  const failed = (out, again) => {
-    if (out.status !== 200 && out.status !== 409 && !out.d?.tray?.error) setError({ message: out.status ? 'That did not go through.' : 'Rabbit Hole could not be reached.', again });
-    return out;
+  // ok is a 200. A failure gets the tray's error line, whose retry re-sends the same action, unless the reply already
+  // shows where the journey is: a 409, a replay after a re-read, or a planner failure's own error tray.
+  const settle = (out, again) => {
+    const ok = out.status === 200;
+    if (!ok && out.status !== 409 && !out.reread && !out.d?.tray?.error) set({ error: { message: out.status ? 'That did not go through.' : 'Rabbit Hole could not be reached.', again } });
+    return { ...out, ok };
   };
-  const act = async (body, again = () => act(body)) => failed(await run(body), again);
+  const act = async (body, again = () => act(body)) => settle(await run(body), again);
 
   const start = async text => {
-    setLocal(null); setDismissed(null);
-    const out = await run({ action: 'start', text }, { revision: null });
+    set({ local: null, dismissed: null, error: null });
+    const out = await run({ action: 'start', text }, null);
     const why = out.d?.error;
     if (NOT_HERE.has(why)) return { handled: false };
-    if (why === 'live_journey') setLocal(liveJourneyTray(out.d.journey, text));
-    else if (why === 'topic_required') setLocal({ ...out.d.tray, text });
-    else failed(out, () => start(text));
+    if (why === 'live_journey') set({ local: liveJourneyTray(out.d.journey, text) });
+    else if (why === 'topic_required') set({ local: { ...out.d.tray, text } });
+    else if (!settle(out, () => start(text)).ok) return { handled: true, failed: true };
     return { handled: true };
   };
   const advance = probeId => act({ action: 'probe_advance', probe_id: probeId });
-  const edit = text => act({ action: 'path_edit', text });
+  const edit = text => act({ action: 'path_edit', text: String(text).slice(0, 300) });
   const accept = () => act({ action: 'accept' });
   const retry = () => act({ action: 'retry' });
   // §6.3: the evaluate route stores the probe's evidence, then the walker reads it. Until Task 7 that route refuses the
   // journey contract (400): an evaluator error, so the walker steps on with no evidence (the conservative path) and
   // nothing retries it.
   const evaluate = async (probeId, body) => {
-    setBusy(BUSY);
-    try { await api('/api/learn/tutor/evaluate', { method: 'POST', body: JSON.stringify({ ...where, journey_id: latest.current.journey?.id, ...body }) }); }
-    catch { /* evaluator error: no evidence */ }
+    set({ busy: BUSY, error: null });
+    try { await fetchJson('/api/learn/tutor/evaluate', { ...where, journey_id: s.data.journey?.id, ...body }); } catch { /* evaluator error: no evidence */ }
     return advance(probeId);
   };
   const answerProbeText = (probeId, text) => {
-    const probe = latest.current.journey?.diagnostic?.probes?.find(p => p.id === probeId);
+    const probe = s.data.journey?.diagnostic?.probes?.find(p => p.id === probeId);
     return evaluate(probeId, { claims: probe?.claims || [], answering: true, question: probe?.prompt || '', message: text });
   };
   // A free-text tray answer goes where the tray asks for it.
-  const answerText = (text, t = local || server) => {
-    // ponytail: the topic is joined to the setup-skip the learner typed so journeyIntent reads one fast start
-    // ("Teach me SQL. Skip setup and start"); a topic field on `start` if the stored request must stay verbatim.
-    if (t?.id === 'clarification:topic') return start(`Teach me ${text}. ${t.text}`);
-    if (t?.mode === 'intent_intake' && t.free_text) return act({ action: 'intake_answer', slot: t.slot, text });
+  const answerText = async (text, t = open()) => {
+    if (t?.id === 'clarification:topic') {
+      // ponytail: the topic is joined to the setup-skip the learner typed so journeyIntent reads one fast start
+      // ("Teach me SQL. Skip setup and start"); a topic field on `start` if the stored request must stay verbatim.
+      const it = journeyIntent(text), topic = STARTS.has(it.kind) && it.topic ? text : `Teach me ${text}`;
+      const out = await start(`${topic}. ${t.text}`);
+      return { ...out, ok: !out.failed };
+    }
+    if (t?.mode === 'intent_intake' && t.free_text) return act({ action: 'intake_answer', slot: t.slot, text: text.slice(0, 300) });
     if (t?.mode === 'diagnostic_probe') return answerProbeText(t.probe_id, text);
+    return { ok: true }; // an option-only question stays open for a pick
   };
   // §7.2 clarification_needed, over the tray it covers (`under`), which Answer the question answers with the same words.
-  const clarify = text => setLocal({ id: 'clarification:turn', mode: 'clarification', prompt: 'Is that an answer, a change to the path, or a question for the Tutor?', options: CLARIFY, free_text: false, dismissible: true, text, under: local || server });
+  const clarify = text => set({ local: { id: 'clarification:turn', mode: 'clarification', prompt: 'Is that an answer, a change to the path, or a question for the Tutor?', options: CLARIFY, free_text: false, dismissible: true, text, under: open() } });
 
   const answer = async optionId => {
-    if (optionId === 'retry') return error?.again ? error.again() : retry();
+    if (optionId === 'retry') return s.error?.again ? s.error.again() : retry();
+    if (optionId === 'dismiss') return set({ error: null });
+    const local = s.local;
     if (local?.id === 'clarification:live') {
-      if (optionId === 'continue') return setLocal(null);
-      // Start the new topic: the live journey is archived first, so the board still holds one.
+      if (optionId === 'continue') { set({ local: null }); return local.under?.free_text ? answerText(local.text, local.under) : { ok: true }; }
+      // Start the new topic: the live journey is archived first, so the board still holds one. no_journey: another tab
+      // archived it already.
       const out = await act({ action: 'archive' }, () => answer('start_new'));
-      return out.status === 200 || out.d?.error === 'no_journey' ? start(local.text) : out; // no_journey: another tab archived it
+      if (!out.ok && out.d?.error !== 'no_journey') return out;
+      const started = await start(local.text);
+      return { ...started, ok: !started.failed };
     }
     if (local?.id === 'clarification:turn') {
-      setLocal(null);
+      set({ local: null });
       if (optionId === 'edit') return edit(local.text);
       if (optionId === 'tutor') return { ask: local.text }; // the caller's responder answers the words
-      return answerText(local.text, local.under); // an option-only question shows again for a pick
+      return answerText(local.text, local.under);
     }
-    const t = server;
+    const t = server();
     if (t?.mode === 'intent_intake') return act({ action: 'intake_answer', slot: t.slot, option_id: optionId });
     if (t?.mode === 'diagnostic_probe') return optionId === 'skip' ? act({ action: 'diagnostic_skip' }) : evaluate(t.probe_id, { probe_id: t.probe_id, option_id: optionId });
     if (t?.mode === 'path_preview') return optionId === 'start' ? accept() : edit(t.options.find(o => o.id === optionId)?.label || optionId);
-    // ponytail: next_step and the LP2+ modes have no handler; the LP1 route sends none of them.
+    return { ok: true }; // ponytail: next_step and the LP2+ modes have no handler; the LP1 route sends none of them
   };
   // Skip the current step. path_review and active have none (409): the tray is dismissed here instead.
   const cancel = async () => {
-    if (local) return setLocal(null);
+    if (s.local) { set({ local: null }); return { ok: true }; }
     const out = await act({ action: 'cancel' });
-    if (out.status === 409) setDismissed(latest.current.tray?.id ?? null);
+    if (out.status !== 409) return out;
+    set({ dismissed: s.data.tray?.id ?? null });
+    return { ok: true };
   };
   // Rule 5. An unreachable model or a refused request (400) leaves the learner to say which they meant.
   const resolve = async text => {
-    setBusy(BUSY);
-    try { return await api('/api/learn/journey', { method: 'POST', body: JSON.stringify({ ...where, ...resolveBody(text, local || server) }) }); }
-    catch { return { kind: 'clarification_needed' }; } finally { setBusy(null); }
+    set({ busy: BUSY });
+    try {
+      const { status, d } = await fetchJson(JOURNEY, { ...where, ...resolveBody(text, open()) });
+      return status === 200 && d?.kind ? d : { kind: 'clarification_needed' };
+    } catch { return { kind: 'clarification_needed' }; } finally { set({ busy: null }); }
   };
-  // A composer turn while the tray is open. { handled: false } hands it to the composer's responder (with `text` when
-  // the learner chose Ask the Tutor for earlier words).
+  // Every composer turn on a board with a journey (or an open tray). { handled: false } hands it to the composer's
+  // responder (with `text` when the learner chose Ask the Tutor for earlier words); `failed` gives the words back.
   const handleText = async raw => {
-    const t = local || server;
-    if (!t?.mode) return { handled: false }; // a busy or failed tray asks nothing
-    let route = routeJourneyTurn(raw, t);
+    set({ error: null });
+    const t = open(), j = s.data.journey, it = journeyIntent(raw);
+    if (j && STARTS.has(it.kind) && it.topic) {
+      set({ local: liveJourneyTray(j, raw, t?.id === 'clarification:live' ? t.under : t) });
+      return { handled: true };
+    }
+    // A busy or failed tray asks nothing: like no tray, only a rule-4 path edit is the journey's.
+    let route = routeJourneyTurn(raw, t?.mode ? t : null);
     if (route.kind === 'needs_model') route = await resolve(raw);
     if (route.kind === 'unrelated_question') return { handled: false };
+    let out;
     if (route.kind === 'tray_answer') {
-      const out = await (route.option_id ? answer(route.option_id) : answerText(raw));
-      return out?.ask ? { handled: false, text: out.ask } : { handled: true };
-    }
-    if (route.kind === 'path_edit') await edit(route.edit || raw);
-    else if (route.kind === 'cancel') await cancel();
+      out = await (route.option_id ? answer(route.option_id) : answerText(raw));
+      if (out?.ask) return { handled: false, text: out.ask };
+    } else if (route.kind === 'path_edit') out = await edit(route.edit || raw);
+    else if (route.kind === 'cancel') out = await cancel();
     else clarify(raw);
-    return { handled: true };
+    return out?.ok === false ? { handled: true, failed: true } : { handled: true };
   };
 
-  if (!enabled) return OFF;
-  return { ...data, tray, trayProps: tray ? { tray, onOption: answer } : null, busy: !!busy, start, handleText, answer, answerProbeText, edit, cancel, clarify, resolve, advance, accept, retry, refresh };
+  const view = () => {
+    const tray = shownTray(server(), s.local, s.busy, s.error);
+    return { ...s.data, tray, trayProps: tray ? { tray, onOption: answer } : null, busy: !!s.busy,
+      start, handleText, answer, answerProbeText, edit, cancel, clarify, resolve, advance, accept, retry, refresh };
+  };
+  return { state: s, view, refresh };
+}
+
+const fetchJson = async (path, body) => {
+  const r = await apiFetch(path, body ? { method: 'POST', body: JSON.stringify(body) } : {});
+  return { status: r.status, d: await r.json().catch(() => ({})) };
+};
+const OFF = { ...EMPTY, trayProps: null, busy: false, start: null };
+
+// The board's journey: one controller per app and board. canvasApi (passed by LearnPage) is Task 9's, for the section
+// materializer.
+export function useJourney({ app, board, access, enabled = true }) {
+  const [, rerender] = useState(0);
+  const ref = useRef(null);
+  const where = { app: access?.app || app?.name, board }, key = `${where.app}\n${board}`;
+  if (enabled && where.app && ref.current?.key !== key) {
+    const fresh = Object.assign(journeyController({ where, fetchJson, onChange: () => { if (ref.current === fresh) rerender(n => n + 1); } }), { key });
+    ref.current = fresh;
+  }
+  const ctl = enabled && where.app ? ref.current : null;
+  useEffect(() => { ctl?.refresh(); }, [ctl]);
+  // A planner call started elsewhere (another tab, or before a reload) shows the busy tray until the journey moves on.
+  // ponytail: a 5 s poll while pending; a push channel if journeys ever get many watchers.
+  const pending = !!ctl?.state.data.journey?.pending;
+  useEffect(() => {
+    if (!pending) return;
+    const timer = setInterval(() => ctl.refresh(), 5000);
+    return () => clearInterval(timer);
+  }, [pending, ctl]);
+  return ctl ? ctl.view() : OFF;
 }

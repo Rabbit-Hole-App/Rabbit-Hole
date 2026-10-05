@@ -192,7 +192,7 @@ async function act(env, scope, body, callModel, now) {
   const refuse = step => reply(env, j, 409, { error: step.error });
   // The learner starts another topic on this board (§6.1 continue-or-start): the live journey is archived, read-only for
   // good, and the board has none until the next start.
-  if (body.action === 'archive') { await archiveJourney(env, j); return json({ journey: null, path: null, tray: null }); }
+  if (body.action === 'archive') { await archiveJourney(env, j, j.revision); return json({ journey: null, path: null, tray: null }); }
   if (body.action === 'accept') {
     // Section 1 becomes current in a new version with only that status change, then only it is planned.
     const path = await loadPath(env, j.id), step = journeyStep(j, { type: 'accept', path });

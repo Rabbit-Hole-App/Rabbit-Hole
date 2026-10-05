@@ -333,7 +333,7 @@ const rememberSheetThread = (app, id) => {
   catch { /* storage off: History stays empty */ }
 };
 
-export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, tutor = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, journey = null, journeyStarter = null, tray = null }) {
+export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, tutor = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, journey = null, journeyStarter = null, journeySetup = false, tray = null }) {
   const repository = appName?.startsWith('repo-');
   const [repositoryCommit, setRepositoryCommit] = useState(repositoryContext?.commit || null);
   const [codeSelection, setCodeSelection] = useState(null);
@@ -486,30 +486,40 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     // A typed /command replaces the pill rather than nesting inside it.
     if (slash && command && !raw.trim().startsWith('/')) { const line = `/${command} ${raw.trim()}`.trim(); setCommand(null); setInput(''); slashRef.current?.intercept(line); return; }
     if (slash && raw.trim().startsWith('/')) { setCommand(null); if (slashRef.current?.intercept(raw)) return; }
-    // Learning journeys (LearnJourney.jsx, adaptive-learning-path-v1-architecture.md §7.2): while the Tutor Prompt Tray
-    // is open, a turn goes through the shared resolver first. A tray answer, path edit, cancel or clarification is the
-    // journey's: no chat bubble, no card, no /api/learn/ask, no Tutor call. An unrelated question (or Ask the Tutor)
-    // goes on to the responder below.
+    // Learning journeys (LearnJourney.jsx, adaptive-learning-path-v1-architecture.md §6.1, §7.2): on a board with a
+    // journey (or an open Tutor Prompt Tray) a turn goes through the shared resolver first. A tray answer, path edit,
+    // cancel, clarification or a second broad intent (continue or start?) is the journey's: no chat bubble, no card, no
+    // /api/learn/ask, no Tutor call. An unrelated question (or Ask the Tutor) goes on to the responder below. A failed
+    // journey request gives the words back to the composer.
     let routed = null;
-    if (journey?.tray && !skipJourney && raw.trim() && !busy) {
+    if ((journey?.journey || journey?.tray) && !skipJourney && raw.trim() && !busy) {
       if (journey.busy) return; // the words stay in the composer while the tray works
       setInput('');
       routed = await journey.handleText(raw.trim());
-      if (routed.handled) return;
+      if (routed.handled) {
+        if (routed.failed) setInput(current => current || raw);
+        return;
+      }
       raw = routed.text ?? raw;
     }
     // A broad learning intent on a canvas with no journey and no Tutor starts one on the server (§6.1); the tray opens.
     if (!routed?.text && !skipJourney && !busy && journeyStartsHere(raw, { tutor, journeyStarter })) {
       setInput('');
-      if ((await journeyStarter(raw.trim())).handled) return;
+      const started = await journeyStarter(raw.trim());
+      if (started.handled) {
+        if (started.failed) setInput(current => current || raw);
+        return;
+      }
     }
     // @-chips ride at the front of the message text
     const message = [...mentions.map((m) => `@${m}`), raw.trim()].filter(Boolean).join(' ');
     if (!message || busy) return;
     // The main composer starts a new block; the sheet keeps its own thread.
-    const panelAsk = sheetMode && !canvasTarget;
+    // A journey in setup (intake, diagnostic, path review) gets no permanent card before its path is accepted: the
+    // answer stays in the sheet, even about a selected card, and opens no reader on the canvas. Task 12: the Tutor.
+    const panelAsk = sheetMode && (!canvasTarget || journeySetup);
     if (composerOnly && !canvasSeed) threadId.current = panelAsk ? sheetThread.current : null;
-    const exchange = panelAsk ? null : onExchange;
+    const exchange = panelAsk || journeySetup ? null : onExchange;
     if (panelAsk) { setSheetOpen(true); setSheetHistory(false); }
     const isDemo = demo && message.toLowerCase().replace(/[.!?]+$/, '') === demo.prompt.toLowerCase() && !file;
     if (isDemo && demo.disabled) return;
@@ -641,12 +651,12 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           if (!type || !data) continue;
           const d = JSON.parse(data);
           if (type === 'chunk') mirror(d.text);
-          else if (type === 'progress') { if (d.card && !slots[d.card]) slots[d.card] = boardContext?.reserveCard?.(d.card); exchange?.({ id: replyId, stage: d.stage }); setMsgs(messages => messages.map(item => item.id === replyId ? { ...item, status: d.stage } : item)); }
+          else if (type === 'progress') { if (d.card && !slots[d.card] && !journeySetup) slots[d.card] = boardContext?.reserveCard?.(d.card); exchange?.({ id: replyId, stage: d.stage }); setMsgs(messages => messages.map(item => item.id === replyId ? { ...item, status: d.stage } : item)); }
           else if (type === 'graph') { responseGraph=d; setMsgs(messages=>messages.map(item=>item.id===replyId?{...item,graph:d}:item)); }
           else if (type === 'outline') { boardContext?.onOutlineProposal?.(d.ops); }
-          else if (type === 'paper') { boardContext?.onShowPaper?.(d, slots.paper); }
-          else if (type === 'wiki') { boardContext?.onShowWiki?.(d, slots.wiki); }
-          else if (type === 'video') { boardContext?.onShowVideo?.(d, slots.video); }
+          else if (type === 'paper') { if (!journeySetup) boardContext?.onShowPaper?.(d, slots.paper); }
+          else if (type === 'wiki') { if (!journeySetup) boardContext?.onShowWiki?.(d, slots.wiki); }
+          else if (type === 'video') { if (!journeySetup) boardContext?.onShowVideo?.(d, slots.video); }
           else if (type === 'papers') setMsgs(messages => messages.map(item => item.id === replyId ? { ...item, papers: d.papers } : item));
           else if (type === 'proposal') setMsgs((m) => [...m, { role: 'proposal', proposal: d }]);
           else if (type === 'done' && d.threadId) {

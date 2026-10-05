@@ -96,10 +96,13 @@ export async function saveJourney(env, journey, expectedRevision) {
   return fromRow(row);
 }
 
-// Bumps the revision too, so a tab still holding the live journey gets a conflict, never a silent write.
-export async function archiveJourney(env, journey) {
-  const now = new Date().toISOString();
-  await env.LEARN_DB.prepare('UPDATE learning_journeys SET archived_at = ?, updated_at = ?, revision = revision + 1 WHERE id = ? AND archived_at IS NULL').bind(now, now, journey.id).run();
+// Bumps the revision too, so a tab still holding the live journey gets a conflict, never a silent write. With
+// expectedRevision the archive is conditional like every other write: a journey that moved throws JourneyConflict.
+export async function archiveJourney(env, journey, expectedRevision = null) {
+  const now = new Date().toISOString(), guarded = expectedRevision != null;
+  const row = await env.LEARN_DB.prepare(`UPDATE learning_journeys SET archived_at = ?, updated_at = ?, revision = revision + 1 WHERE id = ? AND archived_at IS NULL${guarded ? ' AND revision = ?' : ''} RETURNING id`)
+    .bind(now, now, journey.id, ...(guarded ? [expectedRevision] : [])).first();
+  if (!row && guarded) throw await conflict(env, journey.id, expectedRevision);
 }
 
 // One atomic batch: the immutable path row and the whole journey row (every other change the caller made, with
