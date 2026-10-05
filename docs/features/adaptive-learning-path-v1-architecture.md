@@ -523,7 +523,7 @@ SectionPlan {
 ```
 Probe { id, kind: mcq | prediction | explain_back | choice, prompt ≤300, options? [{ id, label }] ≤4 (+ "Not sure"),
         claims [ids] ≤3, purpose: diagnose | predict | explain_back | transfer | choose, transfer: boolean, trigger? }
-server-only key: options[].correct, options[].misconception_id
+server-only key: key { correct: option_id, misconceptions: { <option_id>: <misconception_id> } }  (probe-level; toClient strips `key`)
 ```
 
 ---
@@ -538,6 +538,7 @@ The migration is additive and re-runnable, and is mirrored into `repository-sche
 CREATE TABLE IF NOT EXISTS learning_journeys (
   id TEXT PRIMARY KEY, org TEXT NOT NULL, owner_email TEXT NOT NULL, app TEXT NOT NULL, board TEXT NOT NULL,
   state TEXT NOT NULL, topic TEXT NOT NULL, raw_request TEXT NOT NULL,
+  request_json TEXT NOT NULL, grounding_json TEXT NOT NULL DEFAULT '{"kind":"topic"}',
   intake_json TEXT NOT NULL, constraints_json TEXT NOT NULL DEFAULT '[]', pending_edits_json TEXT NOT NULL DEFAULT '[]',
   registry_json TEXT NOT NULL, diagnostic_json TEXT NOT NULL, evidence_json TEXT NOT NULL,
   path_version INTEGER NOT NULL DEFAULT 0, active_section_id TEXT, section_plan_json TEXT,
