@@ -4,7 +4,7 @@
 //   scope     an open question's claim, else the target block's stamped claims, else the current section's
 //             expected_evidence (at most 4); nothing in setup (intake, diagnostic, path_review), so a free question
 //             there routes off_slice and gets words only
-//   cards     the step blocks the materializer stamped (learn-journey-materialize.js) for the current and completed
+//   cards     this journey's step blocks (learn-journey-materialize.js stamps) for its current and completed
 //             sections - already on the canvas, so showCard reveals and never inserts; no depth ladder, no practice
 //             registry (suggest_depth is rejected at the resource stage)
 //   evidence  the server's (§5): runTurn sends the journey id and adopts the stored events /evaluate returns
@@ -18,7 +18,9 @@ export function journeyDomain({ journey, path, blocks = [] }) {
   const setup = SETUP.includes(journey.state);
   const section = setup ? null : sections.find(s => s.id === (journey.active_section_id ?? path?.current_section_id)) || null;
   const shown = new Set([section?.id, ...sections.filter(s => s.status === 'completed').map(s => s.id)].filter(Boolean));
-  const byId = new Map(blocks.filter(block => shown.has(block.journey?.section_id)).map(block => [block.id, block]));
+  // This journey's blocks only (LP1 Task 15 review round 3): section ids repeat across journeys, and an archived journey's
+  // stamped blocks stay on the board after Start new.
+  const byId = new Map(blocks.filter(block => shown.has(block.journey?.section_id) && block.journey.journey_id === journey.id).map(block => [block.id, block]));
   const cards = [...byId.keys()];
   const known = ids => (ids || []).filter(id => claims[id]);
   // A card is its block: the module fields the validator, the catalogue and the planner context read.

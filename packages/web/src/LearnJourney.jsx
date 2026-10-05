@@ -161,14 +161,15 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
     if (status !== 200) throw new Error(d?.error || `HTTP ${status}`);
     return d;
   };
-  // A 409 (another tab moved the journey) re-reads it and posts once more with the same heading, while that section is
-  // still current and unrecorded.
-  const materialized = async (section_id, heading_block_id) => {
-    const body = { action: 'section_materialized', section_id, heading_block_id };
+  // A 409 (another tab moved the journey) re-reads it and posts once more with the same heading, while that section of
+  // the same journey is still current and unrecorded. The post names its journey (review round 3): journey_changed means
+  // the journey that drew the heading is gone (archived, replaced in another tab) - not ours to record, never retried.
+  const materialized = async (section_id, heading_block_id, journey_id) => {
+    const body = { action: 'section_materialized', journey_id, section_id, heading_block_id };
     const out = await act(body);
-    if (out.status !== 409 || !(await read())) return out;
+    if (out.status !== 409 || out.d?.error === 'journey_changed' || !(await read())) return out;
     const j = s.data.journey;
-    return j?.state === 'active' && j.active_section_id === section_id && !j.section_plan?.heading_block_id ? act(body) : out;
+    return j?.id === journey_id && j.state === 'active' && j.active_section_id === section_id && !j.section_plan?.heading_block_id ? act(body) : out;
   };
   // §6.5.5 (LP1 Task 15): a section whose board did not save is drawn but unrecorded - s.waiting { target, id, heading }
   // until the server holds its heading, with `started` held. Its line cannot be dismissed or typed away (view() shows it
@@ -185,7 +186,7 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
     set({ waiting: null, busy: BUSY, error: null });
     let saved = null, out = { ok: false };
     try { saved = await w.target.persist(); } catch { /* not saved */ } finally { set({ busy: null }); }
-    if (saved?.ok) out = await materialized(w.id, w.heading);
+    if (saved?.ok) out = await materialized(w.id, w.heading, w.journey);
     if (stillDue(w)) set({ waiting: w });
     return out;
   };
@@ -198,7 +199,7 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
     try {
       if (load && (!(await read()) || (plan = due())?.section_id !== id || s.data.journey?.id !== jid)) return;
       set({ error: null });
-      const out = await materializeSection({ canvas: target, journey: { ...s.data.journey, path: s.data.path, materialized }, sectionPlan: plan, post: artifact,
+      const out = await materializeSection({ canvas: target, journey: { ...s.data.journey, path: s.data.path, materialized: (sid, heading) => materialized(sid, heading, jid) }, sectionPlan: plan, post: artifact,
         onProgress: ({ step, of }) => set({ busy: `Preparing step ${step} of ${of}...` }) });
       if (out.proposals.length) set({ proposals: out.proposals, local: proposalTray(out.proposals[0]) });
       if (out.failed_step) set({ error: { message: 'Part of this section could not be made.', again: () => materialize() } });

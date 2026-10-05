@@ -189,6 +189,10 @@ async function start(env, scope, body, callModel) {
 async function act(env, scope, body, callModel, now) {
   const j = await live(env, scope, now);
   if (!j) return json({ error: 'no_journey', journey: null }, 409);
+  // LP1 Task 15 review round 3: a heading belongs to the journey that drew it. A post for another journey (this one was
+  // archived and replaced, perhaps in another tab, between the board save and the post or its replay) is refused before
+  // the revision check, so no replay of it can record a stale heading on a new journey's section.
+  if (body.action === 'section_materialized' && body.journey_id !== j.id) return reply(env, j, 409, { error: 'journey_changed' });
   if (body.revision != null && body.revision !== j.revision) return reply(env, j, 409, { error: 'revision' });
   const refuse = step => reply(env, j, 409, { error: step.error });
   // The learner starts another topic on this board (§6.1 continue-or-start): the live journey is archived, read-only for

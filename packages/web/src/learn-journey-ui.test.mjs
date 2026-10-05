@@ -666,7 +666,7 @@ test('controller: accept materializes the current section once and posts section
   assert.equal(h.view().prevPath, null);
   await h.view().answer('start');
   assert.deepEqual(h.steps(), ['GET', 'accept', 'section_materialized']);
-  assert.deepEqual(h.calls[2].body, { app: APP, board: 'main', action: 'section_materialized', section_id: 's1', heading_block_id: 'b1', revision: 6 });
+  assert.deepEqual(h.calls[2].body, { app: APP, board: 'main', action: 'section_materialized', journey_id: 'j1', section_id: 's1', heading_block_id: 'b1', revision: 6 });
   assert.deepEqual(canvas.inserts().map(c => c[1].type), ['heading', 'explanation', 'explanation', 'explanation']);
   assert.deepEqual(canvas.calls.at(-1), ['show', 'b1'], 'the camera goes to the section start');
   assert.equal(h.view().tray.error.message, 'That did not go through.');
@@ -885,7 +885,7 @@ test('regression 3: a failed save posts nothing and shows the unsaved line; a lo
   await h.view().answer('retry');
   assert.equal(canvas.persisted.length, 3, 'Retry saves again');
   assert.deepEqual(h.steps(), ['GET', 'accept', '/api/learn/artifact', 'GET', 'section_materialized']);
-  assert.deepEqual(h.calls[4].body, { app: APP, board: 'main', action: 'section_materialized', section_id: 's1', heading_block_id: 'b1', revision: 6 });
+  assert.deepEqual(h.calls[4].body, { app: APP, board: 'main', action: 'section_materialized', journey_id: 'j1', section_id: 's1', heading_block_id: 'b1', revision: 6 });
   assert.equal(canvas.inserts().length, 3, 'nothing is drawn again');
   assert.equal(artifactPosts(h), 1, 'nothing is made again');
   assert.equal(h.view().journey.section_plan.heading_block_id, 'b1');
@@ -919,6 +919,28 @@ test('review round 1: the unsaved line cannot be dismissed or typed away; a late
   assert.equal(artifactPosts(h), 1, 'nothing is made again');
   assert.equal(h.view().journey.section_plan.heading_block_id, 'b1');
   assert.equal(h.view().tray, null, 'the line goes once the section is recorded');
+});
+
+// ---- Review round 3: section_materialized names its journey; a post for a journey that is gone records nothing ----
+test('review round 3: another tab archives and starts a new journey before the post - the replay is refused as journey_changed and nothing is recorded or retried', async () => {
+  const canvas = fakeCanvas();
+  const j2 = journeyOf({ id: 'j2', revision: 1, state: 'intake' }); // the new journey another tab started
+  const h = scripted(() => canvas, [
+    review(),
+    ok(activeJourney(), null, activePath),
+    { status: 409, d: { error: 'revision', journey: j2, path: null, tray: goalTray } }, // moved on: journeyRequest replays once
+    { status: 409, d: { error: 'journey_changed', journey: j2, path: null, tray: goalTray } }, // the replay names j1: refused
+    ok(j2, goalTray), // a read, if one were made
+  ]);
+  await h.ctl.refresh();
+  h.view().canvasReady();
+  await h.view().answer('start');
+  assert.deepEqual(h.steps(), ['GET', 'accept', 'section_materialized', 'section_materialized'], 'one replay, then nothing: no re-read, no third post');
+  assert.deepEqual(h.calls.slice(2).map(c => [c.body.journey_id, c.body.heading_block_id, c.body.revision]), [['j1', 'b1', 6], ['j1', 'b1', 1]]);
+  assert.equal(h.view().journey.id, 'j2');
+  assert.equal(h.view().journey.section_plan, undefined, 'nothing of j1 is recorded on j2');
+  assert.equal(h.view().tray.id, goalTray.id, 'the new journey asks its own question, with no error line');
+  assert.equal(h.view().tray.error, undefined);
 });
 
 // ---- Review round 2: the unsaved state and the run guard are keyed by journey and section ----

@@ -64,9 +64,10 @@ const JOURNEY = {
   intake: { slots: { goal: 'intuition', familiarity: 'new', depth: 'guided', minutes: 30 }, source: {} },
   registry, evidence: { seq: 0, events: [] }, path_version: 1, active_section_id: 's1',
 };
-const step = (id, section, title, claims) => ({ id, type: 'explanation', title, body: `${title} body.`, journey: { section_id: section, step_id: id, claims } });
+// Stamped as the materializer stamps them: journey_id, section_id, step_id, claims (LP1 Task 15 review round 3).
+const step = (id, section, title, claims, journey_id = 'lj_test') => ({ id, type: 'explanation', title, body: `${title} body.`, journey: { journey_id, section_id: section, step_id: id, claims } });
 const BLOCKS = [
-  { id: 'h1', type: 'heading', level: 1, text: 'Classification vs regression', journey_section_id: 's1' },
+  { id: 'h1', type: 'heading', level: 1, text: 'Classification vs regression', journey_section_id: 's1', journey_id: 'lj_test' },
   step('b1', 's1', 'Framing', [VOCAB, WHY]),
   step('b2', 's1', 'Explanation', [VOCAB, WHY]),
   step('b9', 's2', 'Not yet', [WHY]), // a later section's block is never the Tutor's card
@@ -256,6 +257,19 @@ test('journey cards: completed-section blocks are showable; suggest_practice nee
   assert.equal(decide({ type: 'show_authored_card', card: 'b1' }).accepted, true, 'a completed section block');
   assert.equal(decide({ type: 'suggest_practice', card: 'b4' }).accepted, true);
   assert.deepEqual(decide({ type: 'suggest_practice', card: 'b9' }), { type: 'suggest_practice', accepted: false, stage: 'resource', reason: 'b9 has no practice' });
+});
+
+test('journey cards: the blocks an archived journey left on the board are never cards of a new journey, even under the same section id (LP1 Task 15 review round 3)', () => {
+  // Start new archives the old journey server-side; its stamped blocks stay on the canvas, and section ids repeat.
+  const old = [step('o1', 's1', 'Old framing', [VOCAB], 'lj_old'), { ...step('o2', 's1', 'Old practice', [WHY], 'lj_old'), activity: { id: 'p0', kind: 'choice' } }];
+  const domain = journeyDomain({ journey: JOURNEY, path: PATH, blocks: [...old, ...BLOCKS] });
+  assert.deepEqual(domain.cards, ['b1', 'b2']);
+  assert.deepEqual(domain.catalogue().map(c => c.card), ['b1', 'b2']);
+  assert.equal(domain.cardModule('o1'), null);
+  const revealed = [];
+  assert.equal(domain.showCard({ revealBlock: id => revealed.push(id) }, 'o2'), false);
+  assert.equal(domain.showCard({ revealBlock: id => revealed.push(id) }, 'b1'), true);
+  assert.deepEqual(revealed, ['b1']);
 });
 
 // ---------- LP1 Task 12: the journey evaluate body ----------
