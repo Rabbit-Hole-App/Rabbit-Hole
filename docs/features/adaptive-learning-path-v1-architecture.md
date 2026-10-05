@@ -35,7 +35,7 @@ as written. It does not redesign: an open question goes back to the primary owne
 | D7 | **LP1 is not deployed** (the override above). |
 | R1 | **No routing on punctuation.** While a tray is active, every learner turn goes through the interaction resolver. Its categories are `tray_answer`, `path_edit`, `unrelated_question`, `cancel` and `clarification_needed`. It tries deterministic matching first, then a lightweight model call. Free text always comes from the existing composer. |
 | R2 | **The rail is a teaching plan.** It renders the LearningPath states: completed, current, upcoming, optional, needs_review and adapted/new. Clicking an upcoming section shows its purpose and never generates anything. |
-| R3 | **Identity.** A stable internal user id is preferred over email where the platform provides one, and no new identity system is created. See §10.2: the Learn worker only receives the account principal, so this needs an owner call (N1). |
+| R3 | **Identity (owner, 2026-10-05).** Journeys are keyed by the canonical stable internal user id: `users.id` (migration 0026), the session's `uid`. They are never keyed by email. The opaque id is plumbed through the server: control-plane `/api/me` adds `user_id` (taken from the session; null for CLI tokens), `devIdentity` forwards it, and canvas access carries it as `user_id`. Journey routes require it and fail closed without it. It is never returned in journey payloads. Migration 0006 carries it now. |
 | R4 | **Diagnostic evidence rule.** `understood` still requires settled transfer evidence. Diagnostic probes are designed so they can genuinely test transfer. A correct self-report is never mastery evidence. |
 | R5 | **One section at a time.** Sections contain no generated content. After acceptance, only the current section gets a SectionPlan and teaching artifacts. |
 | R6 | **Tutor-core collision pause** (owner, later on 2026-10-04). LP1 must not edit `learn-tutor-validate.js`, `learn-tutor.js`, `agents/learn-tutor.js`, `learn-tutor-routes.js`, `learn-models.js` or `learn-tutor-evidence.js` until Avatar/Media has landed its Tutor changes on main. After that: fetch main, rebase, and make the generalized Tutor changes once (plan Tasks 6, 7, 12). Everything else in LP1 goes ahead first. |
@@ -451,7 +451,7 @@ Results:
 ```
 LearningJourney {
   id                 "lj_<uuid>"
-  scope              { org, owner_email, app, board }   (§10.2, N1)
+  scope              { org, owner_user_id, app, board }   (§10.2; owner_user_id = users.id)
   state              intake | diagnostic | path_review | active | paused | completed
   pending            null | diagnostic | path | revise | section | adapt | resolve
   error              null | { op, message, retryable: true }
@@ -536,7 +536,7 @@ The migration is additive and re-runnable, and is mirrored into `repository-sche
 
 ```sql
 CREATE TABLE IF NOT EXISTS learning_journeys (
-  id TEXT PRIMARY KEY, org TEXT NOT NULL, owner_email TEXT NOT NULL, app TEXT NOT NULL, board TEXT NOT NULL,
+  id TEXT PRIMARY KEY, org TEXT NOT NULL, owner_user_id TEXT NOT NULL, app TEXT NOT NULL, board TEXT NOT NULL,
   state TEXT NOT NULL, topic TEXT NOT NULL, raw_request TEXT NOT NULL,
   request_json TEXT NOT NULL, grounding_json TEXT NOT NULL DEFAULT '{"kind":"topic"}',
   intake_json TEXT NOT NULL, constraints_json TEXT NOT NULL DEFAULT '[]', pending_edits_json TEXT NOT NULL DEFAULT '[]',
@@ -545,7 +545,7 @@ CREATE TABLE IF NOT EXISTS learning_journeys (
   pending TEXT, error_json TEXT, paused_json TEXT,
   revision INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, archived_at TEXT
 );
-CREATE UNIQUE INDEX IF NOT EXISTS learning_journeys_live ON learning_journeys (org, owner_email, app, board) WHERE archived_at IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS learning_journeys_live ON learning_journeys (org, owner_user_id, app, board) WHERE archived_at IS NULL;
 CREATE TABLE IF NOT EXISTS learning_path_versions (
   journey_id TEXT NOT NULL, version INTEGER NOT NULL, path_json TEXT NOT NULL,
   source TEXT NOT NULL, reason TEXT NOT NULL, evidence_refs TEXT NOT NULL, changes_json TEXT NOT NULL,
@@ -561,17 +561,13 @@ GO.
 **Canvas binding.** Section headings are ordinary heading blocks with a `journey_section_id`; generated blocks
 carry `journey`. Extra block fields already survive saves, so the canvas needs no new top-level key.
 
-### 10.2 Identity (R3) — new conflict N1
+### 10.2 Identity (R3), resolved by the owner on 2026-10-05
 
-- The Learn worker's identity is `{ email, org, orgName }` from `/api/me`.
-- `users.id` is not exposed to it.
-- The email it receives is the internal account principal (`users.email`, migration 0026): unique, never
-  rewritten by any code, and synthetic for provider-only users. Every LEARN_DB table (`canvases`, `learn_boards`,
-  `canvas_dives`, `repository_apps`) keys on `(org, owner_email)`.
-
-LP1 therefore scopes journeys by `(org, owner_email)`, the existing principal convention. Using `users.id`
-instead needs `/api/me` and `devIdentity` to return it: a control-plane change and deploy outside this agent's
-ownership. It is a one-column additive change later (`user_id`). Owner decision N1.
+- **The key.** Journeys are scoped by `(org, owner_user_id, app, board)`, where `owner_user_id` is `users.id`: the opaque, stable internal user id that sessions carry as `uid` (auth.js `sessionOf`).
+- **Where the id comes from.** Control-plane `/api/me` returns `user_id` beside `{ email, org, orgName }`. For a browser session it is the session `uid`; for a CLI token it is null. The dev and app worker's `devIdentity` forwards it as `userId`. `canvasAccess`, `canvasApp` and `pendingHoleApp` then expose it on the app object as `user_id`.
+- **Fail closed.** With no id — a CLI token, or the legacy small-cp fallback that answers `/api/me` with 404 — journey GET returns nulls and POST returns 401 `identity_unavailable`.
+- **Never shown.** The id never appears in a journey response, telemetry or logs.
+- **Canvas ownership is separate.** It stays on the canvas's own `owner_email` check through `authorizedBoardApp`. That is the canvas system's identity, not the journey's key.
 
 **Access.** Only the journey's owner reads or writes it. Viewers of a shared board see the canvas, not the tray
 or the path.
@@ -738,13 +734,13 @@ Screenshots of J1-J4, J7 and J8 go to the Figma review page for owner visual app
 
 ## 17. New conflicts and owner questions
 
-- **N1 Identity.** `users.id` does not reach the Learn worker. LP1 keys on the `(org, owner_email)` principal,
-  which is internal and immutable (§10.2). Moving to `user_id` needs `/api/me` to expose it, a control-plane
-  change owned by Home or Parallel.
-- **N2 Benchmark gate scope.** The free gates in §3.4 run always. The paid corpus benchmark is about $18-30 for
+- **N1 Identity:** resolved on 2026-10-05. Journeys are keyed by `users.id`, plumbed through the server (§10.2).
+- **N2 Benchmark gate scope:** resolved on 2026-10-05. There is no paid benchmark now. After Avatar's core lands and Tasks 6-7 generalize the Tutor, run the golden traces, J1-J8 and a small real-model journey corpus, for a total paid spend of at most $2.
+- *(superseded)* **N2 Benchmark gate scope.** The free gates in §3.4 run always. The paid corpus benchmark is about $18-30 for
   the full run, and about $3-5 for the routine group on one arm. Which scope, if any, is required before LP1 is
   accepted, given that the nanoGPT prompt and context are byte-identical by test?
-- **N3 Narrow layout.** The journey rail is `lg` and up in LP1. The Path sheet is required before production,
+- **N3 Narrow layout:** resolved on 2026-10-05. A Path sheet after LP2 is acceptable for LP1, and it is required before production.
+- *(superseded)* **N3 Narrow layout.** The journey rail is `lg` and up in LP1. The Path sheet is required before production,
   scheduled after LP2 unless the owner wants it sooner.
 - **N4 Tutor cannot generate cards on journey canvases** (unchanged policy). A learner who asks the Tutor to "show
   me a visual of the sigmoid" gets a pointer to the existing section card or to `/graph`. A Tutor

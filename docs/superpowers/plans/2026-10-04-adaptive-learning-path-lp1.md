@@ -700,3 +700,49 @@
 - [ ] **Step 3:** Implement.
 - [ ] **Step 4:** Run the tests, the golden traces and the corpus gate (Task 6 Step 6, against Task 6's baseline). Expect PASS.
 - [ ] **Step 5:** `make test-unit`, then commit: "feat(learn): Tutor v2 is the Tutor on journey canvases - one resolver for typed and voice turns, journey domain, plan:false probe turns (LP1)".
+
+---
+
+### Task 13: Journeys keyed by the stable internal user id (owner decision 2026-10-05)
+
+**Files:**
+- Modify: `packages/control-plane/src/index.js` — only the `/api/me` handler (≈ line 2361).
+  - It returns `{ email, org, orgName, user_id }`, where `user_id` is the session `uid` (users.id) for a browser session, and null for a CLI token.
+  - Keep `uid` on the `user` object built from `sessionOf` (`user = { email: s.email, uid: s.uid, ...workspace }`) so the handler can read it.
+  - Nothing else in index.js changes.
+- Modify: `packages/control-plane/src/dev-forwarding.js` `devIdentity`.
+  - Return `{ email, org, orgName, userId }`. `userId` is `me.user_id` when it is a non-empty string, otherwise null.
+  - The legacy fallback (small-cp answers `/api/me` with 404) returns `userId: null`.
+- Modify: `packages/control-plane/src/canvases.js`. `canvasApp(row, user)` and the pending-hole app (`pendingHoleApp`, dives.js, if it builds its own object) expose `user_id: user.userId ?? null`.
+  - Do not add `user_id` to any browser-visible canvas listing response. Check which responses spread the app object and strip `user_id` there, or attach it only on the access object authorizedBoardApp returns. Choose the narrower option and document it.
+- Modify: `packages/control-plane/learn-migrations/0006-learning-journeys.sql` and the `repository-schema.sql` mirror.
+  - Replace `owner_email TEXT NOT NULL` with `owner_user_id TEXT NOT NULL`.
+  - The live unique index becomes `(org, owner_user_id, app, board)`.
+  - The header keeps the "reset a local DB that applied an earlier draft" line.
+- Modify: `packages/control-plane/src/learn-journey-store.js`. The scope is `{ org, owner_user_id, app, board }` everywhere: create, load, loadById, save, archive and appendPathVersion predicates. Remove every `owner_email` use.
+- Modify: `packages/control-plane/src/learn-journey.js` (the route).
+  - The scope comes from `access.org`, `access.user_id`, the app name and the board.
+  - With no `user_id`: GET returns `{ journey: null, path: null, tray: null }` and POST returns 401 `identity_unavailable`.
+  - `user_id` never appears in any response; check `toClient` and the error bodies.
+- Tests:
+  - Update `test/learn-journey-store.test.js` and `test/learn-journey-route.test.js`.
+  - Update the shared test fixture that scripts `CONTROL_PLANE` `/api/me` so test people have stable user ids. Existing suites must stay green, so the added field is optional for them.
+  - Add `/api/me` and `devIdentity` tests where suites for them exist; otherwise add focused ones.
+- Docs: none. The controller updated architecture §0 R3 and §10.
+
+**Interfaces:**
+- Produces: `devIdentity → { email, org, orgName, userId }`, `access.user_id`, and the journey store scope `owner_user_id`.
+- Task 7 consumes these: `loadJourneyById(env, id, scope)` receives the same scope from the evaluate route.
+
+**Acceptance tests:**
+1. Two different user ids under the same email principal never see each other's journeys.
+2. A missing user id → GET nulls and POST 401 `identity_unavailable`, and no row is written.
+3. The migration applies twice cleanly, and the mirror matches.
+4. No response body (journey route, GET or error) contains the user id string.
+5. `devIdentity` returns `userId: null` on the legacy fallback.
+
+- [ ] **Step 1:** Write the failing tests.
+- [ ] **Step 2:** Run them and confirm they FAIL.
+- [ ] **Step 3:** Implement.
+- [ ] **Step 4:** Run the tests and confirm they PASS. Run `make test-unit` (green). Build the web bundle with `npx vite build --outDir dist-check` (it must succeed), then delete dist-check.
+- [ ] **Step 5:** `git commit --only <paths> -m "feat(learn): journeys keyed by the stable internal user id - /api/me and devIdentity carry the session uid, migration 0006 owner_user_id (LP1)"`.
