@@ -50,6 +50,11 @@ import { EDITS, RESOLVER_PROBES, RESOLVER_TOPIC, SUBJECTS, tutorQuestion } from 
 const args = process.argv.slice(2);
 const flag = (name, fallback) => { const at = args.indexOf(`--${name}`); return at >= 0 ? args[at + 1] : fallback; };
 const CEILING = 1.9; // the owner's hard total ceiling, USD (2026-10-05)
+// --subjects id,id: run only these SUBJECTS (owner rerun GO, 2026-10-05: the four domains, not the fast-start case).
+// Leakage is still checked against every subject's terms.
+const ONLY = flag('subjects', null)?.split(',').map(id => id.trim()).filter(Boolean) || null;
+const RUN_SUBJECTS = ONLY ? SUBJECTS.filter(subject => ONLY.includes(subject.id)) : SUBJECTS;
+if (ONLY && RUN_SUBJECTS.length !== ONLY.length) throw Error(`--subjects names an unknown subject: ${ONLY.filter(id => !SUBJECTS.some(subject => subject.id === id)).join(', ')}`);
 const LIVE = args.includes('--live'), RESUME = args.includes('--resume'), MODE = LIVE ? 'live' : 'stub';
 const OUT = flag('out', join(tmpdir(), 'journey-corpus')), BUDGET = Number(flag('budget', LIVE ? 'NaN' : String(CEILING)));
 if (LIVE && process.env.JOURNEY_CORPUS_PAID !== 'GO') throw Error('--live makes paid model calls: refused unless JOURNEY_CORPUS_PAID=GO (owner approval)');
@@ -434,7 +439,7 @@ async function runResolver() {
 // One pass; summary.json is written whatever happens (a crash is recorded in it, then the error goes on).
 let stoppedAt = null, crashed = null;
 try {
-  for (const item of [{ id: 'resolver', run: runResolver }, ...SUBJECTS.map(subject => ({ id: subject.id, run: () => runSubject(subject) }))]) {
+  for (const item of [{ id: 'resolver', run: runResolver }, ...RUN_SUBJECTS.map(subject => ({ id: subject.id, run: () => runSubject(subject) }))]) {
     if (done.has(item.id)) continue;
     try { await item.run(); } catch (error) {
       if (error instanceof BudgetStop) { stoppedAt = { ...at, reason: error.message }; break; }
@@ -478,7 +483,7 @@ function summarize() {
   }, 0);
   const worstTaken = callRows.reduce((n, row) => n + row.worst_usd, 0);
   return {
-    mode: MODE, file: FILE, budget: BUDGET, ceiling: CEILING, stopped_at_budget: stoppedAt, aborted: ABORTED, crashed,
+    mode: MODE, file: FILE, budget: BUDGET, ceiling: CEILING, subjects_run: RUN_SUBJECTS.map(subject => subject.id), stopped_at_budget: stoppedAt, aborted: ABORTED, crashed,
     subjects_done: rows.filter(row => row.kind === 'subject_done').map(row => row.subject),
     stages: steps.length, stages_passed: steps.filter(row => row.pass).length,
     failed_assertions: steps.filter(row => row.pass === false).flatMap(row => Object.entries(row.checks).filter(([, c]) => !c.pass).map(([assertion, c]) => ({ domain: row.subject, stage: row.step, assertion, reason: c.reason }))),
