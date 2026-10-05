@@ -396,8 +396,7 @@ mode: intent_intake | diagnostic_probe | path_preview | check_in | clarification
 
 `resolveTurn(text, tray, journey)` → `{ kind, option_id?, edit? }`. It runs at the top of `useTutor.turn()`, so
 typed and voice turns share it. The deterministic rules (`resolveTurnRules`) are part of the resolver extension
-`learner-intent-journey.js` (R7) and surface as `structured_interpretation.interaction`. Until the Tutor wiring
-(plan Task 12) lands, the tray-only path in `useJourney` calls the same function.
+`learner-intent-journey.js` (R7) and surface as `structured_interpretation.interaction`. Since plan Task 12, typed and spoken turns on a journey canvas enter `useTutor.turn()`, which runs it once per turn. The only other caller is the topic tray of a journey that is still being started.
 
 | Order | Rule | Result |
 |---|---|---|
