@@ -73,6 +73,7 @@ export const HARD_LIMITS = [
   `2. Reading rate: in each beat, the words of on_screen_text plus the words of every label that is new or changed in that beat number at most floor(${LIMITS.read_base_words} + ${LIMITS.read_words_per_second} x the beat's seconds): ${READ_TABLE}. A label carried unchanged from the previous beat does not count again. Count the words.`,
   `3. must_show: the beat that lists an item in must_show_covered shows at least ${LIMITS.coverage_ratio * 100}% of the item's own content words in its labels, on_screen_text, object descriptions, changes or shown code lines. Reuse the item's wording there.`,
   '4. Both sides of a condition: when any beat cites (claim_ids) a claim that runs on one side of an implementation condition, and the brief has claims on the other side, some beat also cites at least one claim from the other side, and names that condition as above.',
+  '5. Order words: a text that orders code steps (then, before, after, an arrow) names them in the order the code runs them, earlier step first, one relation at a time ("mask, then softmax, then dropout"). Never mix after and before in one sentence ("softmax runs after mask, before dropout" is read as dropout before softmax).',
 ].join('\n');
 
 export const STORYBOARD_SYSTEM = [

@@ -1,0 +1,197 @@
+{
+  "status": "storyboard_invalid",
+  "errors": [
+    "B4.on_screen_text: puts attn_dropout (model.py:70) before softmax (model.py:69)"
+  ],
+  "storyboard": {
+    "id": "storyboard-ea3e90e5",
+    "brief_id": "brief-82dc1421",
+    "version": 1,
+    "beats": [
+      {
+        "id": "B1",
+        "start_time": 0,
+        "end_time": 3,
+        "pedagogical_role": "implementation",
+        "visible_objects": [
+          {
+            "id": "softmax_code_line",
+            "description": "The single code line from model.py line 69, inside the manual attention branch, highlighted as the focus.",
+            "source": {
+              "source_ref_id": "S4",
+              "start_line": 69,
+              "end_line": 69
+            },
+            "change": "Enters centred and its highlight brightens."
+          },
+          {
+            "id": "branch_label",
+            "description": "Tag attached to the code line saying it sits in the else (manual, self.flash false) branch.",
+            "label": "else branch: manual, self.flash false",
+            "change": "Slides in beside the code line."
+          }
+        ],
+        "claim_ids": [
+          "C1"
+        ],
+        "condition_ids": [
+          "K1"
+        ],
+        "must_show_covered": [
+          "The code line `att = F.softmax(att, dim=-1)`, labeled as being in the `else` (manual, `self.flash` false) branch"
+        ],
+        "transition": "Opens directly on the highlighted code line.",
+        "framing": "Code line centred and large; the branch tag sits just above it.",
+        "on_screen_text": "Softmax turns attention scores into weights."
+      },
+      {
+        "id": "B2",
+        "start_time": 3,
+        "end_time": 7.5,
+        "pedagogical_role": "mechanism",
+        "visible_objects": [
+          {
+            "id": "softmax_code_line",
+            "description": "The softmax code line, shrunk to a corner as a reference.",
+            "source": {
+              "source_ref_id": "S4",
+              "start_line": 69,
+              "end_line": 69
+            },
+            "change": "Shrinks and moves to the top corner."
+          },
+          {
+            "id": "branch_label",
+            "description": "The same branch tag, still attached to the shrunk code line so the condition stays visible.",
+            "label": "else branch: manual, self.flash false",
+            "change": "Moves with the code line to the corner."
+          },
+          {
+            "id": "score_matrix",
+            "description": "A small 4x4 T×T matrix of scaled, causally masked scores with mixed raw values of very different sizes (e.g. 2.1, -0.4, 0.9); the upper-right (future) cells read -inf and are dimmed.",
+            "label": "scaled, masked scores",
+            "change": "Zooms in from the code line, then recedes as one row is lifted out."
+          },
+          {
+            "id": "query_row",
+            "description": "One query row (the third row) of the matrix: raw values such as 2.1, -0.4, 0.9, -inf, with the -inf cell dimmed.",
+            "label": "one query row",
+            "change": "Lifts out of the matrix and enlarges, then its cells reshape into weight bars."
+          },
+          {
+            "id": "weight_bars",
+            "description": "Proportional weight bars filling a single total bar marked 1: the largest score takes the largest share, smaller scores smaller but nonzero shares, the -inf cell shrinks to a 0 bar that stays in place. Values between 0 and 1, e.g. 0.6, 0.1, 0.3, 0; the sum is visibly 1.",
+            "label": "weights: sum = 1",
+            "change": "Grow out of the row cells; the -inf cell shrinks to 0 while staying in its slot."
+          }
+        ],
+        "claim_ids": [
+          "C1",
+          "C3"
+        ],
+        "condition_ids": [
+          "K1"
+        ],
+        "must_show_covered": [
+          "One row of a small T×T score matrix with mixed raw values, some of them -inf in the upper-right (future) cells",
+          "That row turning into weights between 0 and 1 whose sum is visibly 1, with the -inf cells becoming 0"
+        ],
+        "transition": "Camera zooms from the code line into the score matrix, then onto one query row.",
+        "framing": "The single query row is centred and large; the full matrix recedes behind it; code line small in a corner.",
+        "on_screen_text": "-inf cells become 0. Larger scores take larger shares.",
+        "narration_line": "Each row of scores becomes non-negative weights that sum to 1."
+      },
+      {
+        "id": "B3",
+        "start_time": 7.5,
+        "end_time": 10.5,
+        "pedagogical_role": "mechanism",
+        "visible_objects": [
+          {
+            "id": "branch_label",
+            "description": "Branch tag stays in the corner, keeping the condition visible.",
+            "label": "else branch: manual, self.flash false",
+            "change": "Stays in place, unchanged."
+          },
+          {
+            "id": "score_matrix",
+            "description": "The full 4x4 matrix again; every row converts to weights in turn, each row's -inf (future) cells become 0, and each row sums to 1. The masked cells remain in the matrix with weight 0.",
+            "label": "scaled, masked scores",
+            "change": "Returns to centre; rows normalize one after another, top to bottom, each sweeping left to right."
+          },
+          {
+            "id": "weight_bars",
+            "description": "The single-row weight bars from the previous beat, settling back into their row of the matrix.",
+            "label": "weights: sum = 1",
+            "change": "Shrinks back into its row in the matrix."
+          },
+          {
+            "id": "dim_arrow",
+            "description": "A horizontal arrow running along each row, showing normalization across the last dimension (dim=-1).",
+            "label": "dim=-1",
+            "change": "Sweeps left to right across each row as that row normalizes."
+          }
+        ],
+        "claim_ids": [
+          "C1",
+          "C3"
+        ],
+        "condition_ids": [
+          "K1"
+        ],
+        "must_show_covered": [
+          "Normalization happening across each row (the last dimension), not down columns or over the whole matrix"
+        ],
+        "transition": "The lifted row drops back into the matrix and the camera pulls back to show all rows.",
+        "framing": "Whole matrix centred; the horizontal arrow is the dominant motion; corner tag small.",
+        "on_screen_text": "Normalization runs along the last dimension, across each row."
+      },
+      {
+        "id": "B4",
+        "start_time": 10.5,
+        "end_time": 15,
+        "pedagogical_role": "takeaway",
+        "visible_objects": [
+          {
+            "id": "branch_label",
+            "description": "Branch tag now heads the step strip, naming the manual branch the strip belongs to.",
+            "label": "else branch: manual, self.flash false",
+            "change": "Moves to sit above the step strip."
+          },
+          {
+            "id": "score_matrix",
+            "description": "The normalized matrix, shrinking into the softmax step of the strip.",
+            "label": "scaled, masked scores",
+            "change": "Shrinks and exits into the softmax step."
+          },
+          {
+            "id": "step_strip",
+            "description": "Ordered strip of five steps left to right: scale, mask, softmax, dropout, att @ v; softmax is lit, sitting between mask and dropout.",
+            "label": "scale → mask → softmax → dropout → att @ v",
+            "change": "Steps appear left to right in order, then softmax lights up."
+          },
+          {
+            "id": "flash_tag",
+            "description": "Small side tag pointing off the strip to the alternative branch: when self.flash is true, scaled_dot_product_attention is used instead of the softmax line.",
+            "label": "self.flash true: scaled_dot_product_attention instead",
+            "change": "Pops in at the side after the strip completes."
+          }
+        ],
+        "claim_ids": [
+          "C2",
+          "C4"
+        ],
+        "condition_ids": [
+          "K1"
+        ],
+        "must_show_covered": [
+          "A short step strip in order: scale → mask → softmax → dropout → att @ v, with softmax highlighted",
+          "A brief tag noting that the flash branch uses `scaled_dot_product_attention` instead of this line"
+        ],
+        "transition": "Camera pulls back; the matrix collapses into the softmax step as the strip builds around it.",
+        "framing": "Step strip centred across the frame with softmax lit; flash tag small at the side.",
+        "on_screen_text": "Softmax runs after mask, before dropout."
+      }
+    ]
+  }
+}

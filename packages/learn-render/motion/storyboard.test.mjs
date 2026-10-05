@@ -301,5 +301,11 @@ test('M7A regression: the recurring first-pass storyboard failures stay caught, 
   assert.match(HARD_LIMITS, /3\. must_show: .*at least 40% of the item's own content words/);
   assert.match(HARD_LIMITS, /4\. Both sides of a condition: .*cites at least one claim from the other side/);
   assert.ok(storyboardRequest(brief2).system[0].text.includes(HARD_LIMITS));
+  // Run A: a correct sentence the lexical order check misreads (it spans "after mask, before dropout").
+  // The check is unchanged (owner: no validator change in M7A); the prompt now avoids the phrasing.
+  const [briefA, boardA] = run('run-a');
+  assert.deepEqual(checkStoryboard(boardA, briefA).errors, ['B4.on_screen_text: puts attn_dropout (model.py:70) before softmax (model.py:69)']);
+  assert.equal(boardA.beats.find(b => b.id === 'B4').on_screen_text, 'Softmax runs after mask, before dropout.');
+  assert.match(HARD_LIMITS, /5. Order words: .*Never mix after and before in one sentence/);
   assert.deepEqual(checkStoryboard(read('./fixtures/m3/softmax-15s-attention.real.storyboard.json'), read('./fixtures/m2/softmax-15s-attention.brief.json')).errors, [], 'the accepted M3 storyboard still passes');
 });
