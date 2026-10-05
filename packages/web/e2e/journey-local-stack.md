@@ -63,6 +63,16 @@ npx wrangler d1 execute rabbit-hole-learn-dev --local -c $C --persist-to $P --fi
 npx wrangler d1 execute rabbit-hole-byoc-dev --local -c $C --persist-to $P --file packages/byoc/schema.sql
 ```
 
+**Reset after a 0006 change.** A persisted LEARN DB that applied an earlier draft of 0006 (for example the
+`owner_email` key, now `owner_user_id` = users.id) keeps its old tables, because `CREATE TABLE IF NOT EXISTS` adds no
+columns. Drop the two journey tables (their index goes with them), then re-apply `repository-schema.sql`. Use `--local`
+only; never run this against a shared or remote database:
+
+```bash
+npx wrangler d1 execute rabbit-hole-learn-dev --local -c $C --persist-to $P --command "DROP TABLE IF EXISTS learning_path_versions; DROP TABLE IF EXISTS learning_journeys;"
+npx wrangler d1 execute rabbit-hole-learn-dev --local -c $C --persist-to $P --file packages/control-plane/repository-schema.sql
+```
+
 ## 3. Build, then start (restart after every rebuild: the worker bundles `dist-dev/index.html`)
 
 ```bash

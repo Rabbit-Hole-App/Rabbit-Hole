@@ -110,6 +110,25 @@ test('an archived journey is never written again, even through a stale object', 
   assert.deepEqual(pathRows(sqlite, journey.id), []);
 });
 
+// Defence in depth (§10.2): every write is also conditional on the journey's own scope, so a journey object whose scope
+// names another account (a misrouted write) fails closed as a 'not_owner' conflict and writes nothing.
+test('a save, archive or path version through a journey scoped to another user id throws and writes nothing', async t => {
+  const { LEARN_DB, sqlite } = learnDb(t);
+  const env = { LEARN_DB };
+  const journey = await createJourney(env, SCOPE, START), before = rawRow(sqlite, journey.id);
+  for (const scope of [{ ...SCOPE, owner_user_id: 'u-ben-9a2b' }, { ...SCOPE, org: 'ben-ws' }]) {
+    const misrouted = { ...journey, scope };
+    await assert.rejects(saveJourney(env, { ...misrouted, state: 'diagnostic' }, 0), conflict('not_owner'));
+    await assert.rejects(archiveJourney(env, misrouted, 0), conflict('not_owner'));
+    await archiveJourney(env, misrouted); // the unguarded form is a no-op here too
+    await assert.rejects(appendPathVersion(env, misrouted, path(1), 0), conflict('not_owner'));
+    await assert.rejects(appendJourneyEvidence(env, misrouted, jev(), { probe_id: 'p1' }), conflict('not_owner'));
+  }
+  assert.deepEqual(rawRow(sqlite, journey.id), before);
+  assert.deepEqual(pathRows(sqlite, journey.id), []);
+  assert.equal((await saveJourney(env, { ...journey, state: 'diagnostic' }, 0)).revision, 1, 'the owner still writes');
+});
+
 test('a save with a stale revision conflicts and changes nothing', async t => {
   const env = { LEARN_DB: learnDb(t).LEARN_DB };
   const journey = await createJourney(env, SCOPE, START);

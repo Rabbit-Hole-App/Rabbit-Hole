@@ -378,9 +378,12 @@ test('archive is revision-safe: a stale revision gets 409 and the journey stays 
   const r = await post('archive', { revision: revision - 1 });
   assert.deepEqual([r.status, r.body.error, r.body.journey.id], [409, 'revision', first.body.journey.id]);
   // The store write itself is conditional, so a write landing between the route's read and the archive cannot be lost.
-  await assert.rejects(archiveJourney(env, first.body.journey, revision - 1), e => e instanceof JourneyConflict && e.code === 'revision');
+  // It takes the server copy: the browser copy has no owner_user_id, so it could never be written (not_owner).
+  const stored = await loadJourney(env, SCOPE);
+  await assert.rejects(archiveJourney(env, first.body.journey, revision), e => e instanceof JourneyConflict && e.code === 'not_owner');
+  await assert.rejects(archiveJourney(env, stored, revision - 1), e => e instanceof JourneyConflict && e.code === 'revision');
   assert.equal(rows()[0].archived_at, null);
-  await archiveJourney(env, first.body.journey, revision);
+  await archiveJourney(env, stored, revision);
   assert.notEqual(rows()[0].archived_at, null);
 });
 

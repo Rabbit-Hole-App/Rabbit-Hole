@@ -78,12 +78,18 @@ export async function loadJourneyById(env, id, scope) {
   return row && fromRow(row);
 }
 
-// Every journey write: all columns, revision + 1, only while the row is live and still at the expected revision.
-const updateSql = (cols, where = '') => `UPDATE learning_journeys SET ${Object.keys(cols).map(k => `${k} = ?`).join(', ')}, revision = revision + 1, updated_at = ? WHERE id = ? AND revision = ? AND archived_at IS NULL${where}`;
-// Why a conditional write missed, read from the stored row: the journey was archived, its stored path_version is not
-// the one the new path follows (the revision matched), or its revision moved.
-async function conflict(env, id, revision) {
-  const row = await env.LEARN_DB.prepare('SELECT revision, archived_at FROM learning_journeys WHERE id = ?').bind(id).first();
+// Every journey write: all columns, revision + 1, only while the row is live, still at the expected revision, and still
+// the journey's own scope (OWNED: defence in depth, §10.2 - a journey object scoped to another account writes nothing).
+const OWNED = 'id = ? AND org = ? AND owner_user_id = ?';
+const owned = j => [j.id, j.scope?.org ?? null, j.scope?.owner_user_id ?? null];
+const updateSql = (cols, where = '') => `UPDATE learning_journeys SET ${Object.keys(cols).map(k => `${k} = ?`).join(', ')}, revision = revision + 1, updated_at = ? WHERE ${OWNED} AND revision = ? AND archived_at IS NULL${where}`;
+// Why a conditional write missed, read from the stored row: it is not this journey's scope ('not_owner', checked first so
+// nothing about another account's journey shows), the journey was archived, its stored path_version is not the one the
+// new path follows (the revision matched), or its revision moved.
+async function conflict(env, journey, revision) {
+  const row = await env.LEARN_DB.prepare('SELECT org, owner_user_id, revision, archived_at FROM learning_journeys WHERE id = ?').bind(journey.id).first();
+  const [, org, owner] = owned(journey);
+  if (row && (row.org !== org || row.owner_user_id !== owner)) return new JourneyConflict('not_owner');
   return new JourneyConflict(row?.archived_at ? 'archived' : row?.revision === revision ? 'path_version' : 'revision');
 }
 
@@ -91,9 +97,9 @@ export async function saveJourney(env, journey, expectedRevision) {
   const cols = columns(journey);
   const row = await env.LEARN_DB
     .prepare(`${updateSql(cols)} RETURNING *`)
-    .bind(...Object.values(cols), new Date().toISOString(), journey.id, expectedRevision)
+    .bind(...Object.values(cols), new Date().toISOString(), ...owned(journey), expectedRevision)
     .first();
-  if (!row) throw await conflict(env, journey.id, expectedRevision);
+  if (!row) throw await conflict(env, journey, expectedRevision);
   return fromRow(row);
 }
 
@@ -101,9 +107,9 @@ export async function saveJourney(env, journey, expectedRevision) {
 // expectedRevision the archive is conditional like every other write: a journey that moved throws JourneyConflict.
 export async function archiveJourney(env, journey, expectedRevision = null) {
   const now = new Date().toISOString(), guarded = expectedRevision != null;
-  const row = await env.LEARN_DB.prepare(`UPDATE learning_journeys SET archived_at = ?, updated_at = ?, revision = revision + 1 WHERE id = ? AND archived_at IS NULL${guarded ? ' AND revision = ?' : ''} RETURNING id`)
-    .bind(now, now, journey.id, ...(guarded ? [expectedRevision] : [])).first();
-  if (!row && guarded) throw await conflict(env, journey.id, expectedRevision);
+  const row = await env.LEARN_DB.prepare(`UPDATE learning_journeys SET archived_at = ?, updated_at = ?, revision = revision + 1 WHERE ${OWNED} AND archived_at IS NULL${guarded ? ' AND revision = ?' : ''} RETURNING id`)
+    .bind(now, now, ...owned(journey), ...(guarded ? [expectedRevision] : [])).first();
+  if (!row && guarded) throw await conflict(env, journey, expectedRevision);
 }
 
 // One atomic batch: the immutable path row and the whole journey row (every other change the caller made, with
@@ -118,14 +124,14 @@ export async function appendPathVersion(env, journey, path, expectedRevision) {
   const stored = { ...path, journey_id: journey.id, created_at: now };
   const { change } = path;
   const cols = columns({ ...journey, path_version: path.version });
-  const live = [journey.id, expectedRevision, path.version - 1];
+  const live = [...owned(journey), expectedRevision, path.version - 1];
   const [, updated] = await env.LEARN_DB.batch([
     env.LEARN_DB
-      .prepare('INSERT INTO learning_path_versions (journey_id, version, path_json, source, reason, evidence_refs, changes_json, created_at) SELECT ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM learning_journeys WHERE id = ? AND revision = ? AND path_version = ? AND archived_at IS NULL)')
+      .prepare(`INSERT INTO learning_path_versions (journey_id, version, path_json, source, reason, evidence_refs, changes_json, created_at) SELECT ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM learning_journeys WHERE ${OWNED} AND revision = ? AND path_version = ? AND archived_at IS NULL)`)
       .bind(journey.id, path.version, JSON.stringify(stored), change.source, change.reason ?? '', JSON.stringify(change.evidence_refs || []), JSON.stringify(change.sections_changed || []), now, ...live),
     env.LEARN_DB.prepare(updateSql(cols, ' AND path_version = ?')).bind(...Object.values(cols), now, ...live),
   ]);
-  if (!updated.meta.changes) throw await conflict(env, journey.id, expectedRevision);
+  if (!updated.meta.changes) throw await conflict(env, journey, expectedRevision);
   const row = await env.LEARN_DB.prepare('SELECT * FROM learning_journeys WHERE id = ?').bind(journey.id).first();
   return { journey: fromRow(row), path: stored };
 }
