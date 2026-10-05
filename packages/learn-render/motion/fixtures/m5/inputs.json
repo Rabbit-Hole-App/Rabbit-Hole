@@ -93,5 +93,87 @@
     "composition_origin": "handwritten",
     "note": "Hand-written control (M3 reference storyboard, M4 reference composition); never acceptance evidence.",
     "author_calls": []
+  },
+  "softmax-m6": {
+    "brief": "m2/softmax-15s-attention.brief.json",
+    "storyboard": "m3/softmax-15s-attention.real.storyboard.json",
+    "composition": "m6/softmax-15s-attention.repaired.composition.jsx",
+    "composition_id": "softmax-attention-weights",
+    "storyboard_origin": "model_generated",
+    "composition_origin": "model_generated",
+    "note": "The M6 repair of the M5 regeneration: one Author repair call on the harness blank_frame finding (frames 0-1 near-blank), same brief and real M3 storyboard. Ready after fresh reviews (motion/fixtures/m6/softmax.review-job.json).",
+    "author_calls": [
+      {
+        "role": "MOTION_AUTHOR_MODEL",
+        "resolved_model": "claude-opus-5-5",
+        "latency_ms": 406281,
+        "stop_reason": "tool_use",
+        "usage": {
+          "input_tokens": 5552,
+          "output_tokens": 40011,
+          "cache_creation_input_tokens": 2057,
+          "cache_read_input_tokens": 0
+        },
+        "cost_usd": 0.8327
+      },
+      {
+        "stage": "author",
+        "round": 1,
+        "role": "MOTION_AUTHOR_MODEL",
+        "resolved_model": "claude-opus-5-5",
+        "served_model": "claude-opus-5-5",
+        "latency_ms": 76895,
+        "stop_reason": "tool_use",
+        "usage": {
+          "input_tokens": 16288,
+          "output_tokens": 11350,
+          "cache_creation_input_tokens": 2097,
+          "cache_read_input_tokens": 0
+        },
+        "fell_back": false,
+        "cost_usd": 0.3026
+      }
+    ]
+  },
+  "generate-m6": {
+    "brief": "m3/generate-20s-selection.brief.json",
+    "storyboard": "m4/generate-20s-selection.storyboard.json",
+    "composition": "m6/generate-20s-selection.repaired.composition.jsx",
+    "composition_id": "gpt-generate-one-pass",
+    "storyboard_origin": "fixture_with_manual_semantic_fix",
+    "composition_origin": "model_generated",
+    "note": "The M6 repair of the M4 Author output: one Author repair call on the harness blank_frame and visual overlapping_text findings. Storyboard unchanged: the real M3 storyboard with ONE hand edit, so still fixture_with_manual_semantic_fix; renderer, review and repair proof only, not proof that the automatic Director/storyboard pipeline is reliable (motion/fixtures/m6/generate.review-job.json).",
+    "author_calls": [
+      {
+        "role": "MOTION_AUTHOR_MODEL",
+        "resolved_model": "claude-opus-5-5",
+        "latency_ms": 485994,
+        "stop_reason": "tool_use",
+        "usage": {
+          "input_tokens": 8554,
+          "output_tokens": 48619,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 1909
+        },
+        "cost_usd": 1.007
+      },
+      {
+        "stage": "author",
+        "round": 1,
+        "role": "MOTION_AUTHOR_MODEL",
+        "resolved_model": "claude-opus-5-5",
+        "served_model": "claude-opus-5-5",
+        "latency_ms": 100122,
+        "stop_reason": "tool_use",
+        "usage": {
+          "input_tokens": 21088,
+          "output_tokens": 14221,
+          "cache_creation_input_tokens": 2097,
+          "cache_read_input_tokens": 0
+        },
+        "fell_back": false,
+        "cost_usd": 0.3793
+      }
+    ]
   }
 }

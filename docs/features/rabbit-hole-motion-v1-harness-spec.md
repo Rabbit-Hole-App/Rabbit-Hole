@@ -2212,6 +2212,7 @@ Owner decisions at M5 acceptance: keep the blank-opening rule unchanged, make no
 - `remotion-renderer.mjs` shares `decodeFrames` and the nonblank check.
 - Service version `motion-renderer-1-a86e713ce9d6/remotion@4.0.521`; Home redeploys this checkpoint, which supersedes the M5 redeploy.
 - `service.linux.test.mjs` gains a sandboxed preview-job test.
+- Home's Fly proof needs no model call: `service.linux.test.mjs`; `node scripts/motion-render.mjs softmax-m6|generate-m6 --service <url>` renders the recorded repaired compositions (`motion/fixtures/m5/inputs.json`); `node scripts/motion-review.mjs softmax --service <url>` without `--call` runs the preview stage and its harness findings.
 
 **Real runs** (2026-10-04/05, local service on the Windows authoring host, unsandboxed child). The round-0 inputs are the saved Author outputs from M5: the softmax M5 regeneration, and Demo B's M4 output on the hand-corrected storyboard. No raw Author retry; the only Author calls were the two repair calls.
 

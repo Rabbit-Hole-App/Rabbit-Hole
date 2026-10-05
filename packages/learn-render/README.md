@@ -50,7 +50,7 @@ node scripts/motion-brief.mjs "15s explain me softmax func" --concept attention 
 node scripts/motion-brief.mjs --brief motion/fixtures/m2/softmax-15s-attention.brief.json --storyboard [--call]   # M3 from a saved brief
 node scripts/motion-brief.mjs --brief <brief.json> --storyboard-file <storyboard.json> --author [--proof] [--call]   # M4: Author, then local compile + probed beat frames
 node scripts/motion-brief.mjs --brief <brief.json> --storyboard-file <storyboard.json> --source-file <composition.jsx> --proof   # M4: check and prove a saved composition
-node scripts/motion-render.mjs softmax|softmax-m4|generate|reference [--service <url>]   # M5: a saved composition through the render service -> RenderResult (local service unless --service + MOTION_RENDERER_TOKEN)
+node scripts/motion-render.mjs softmax|softmax-m4|generate|reference|softmax-m6|generate-m6 [--service <url>]   # M5: a saved composition through the render service -> RenderResult (local service unless --service + MOTION_RENDERER_TOKEN)
 MOTION_RENDER_TESTS=1 node --test motion/render.test.mjs   # M5: real local renders of the generated compositions (minutes)
 node scripts/motion-review.mjs softmax|generate|reference [--service <url>] [--call --max-calls N]   # M6: preview -> blank check + fresh reviewers -> one repair round -> final (dry run without --call: the first preview and its harness findings only)
 node scripts/motion-local-check.mjs setup|run <final.mp4>   # local stack: Motion render API stand-in -> LearnVideos -> LEARN_MEDIA -> video block
