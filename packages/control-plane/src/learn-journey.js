@@ -6,8 +6,10 @@
 // and runs the planner effect the step asks for, synchronously. A step that waits on a planner is saved with `pending`
 // first (another tab gets 409, a reload shows busy), then the planner's result is stepped and saved. A planner failure is
 // stepped as planner_failed: same state, answers kept, a retryable error, 502 - never cards, never the artifact route.
-// Only the journey's owner reads or writes it: the scope is (org, owner_email, app, board) of the signed-in account on an
-// app it may open (§10.2). The learner's words are never logged; start stores them once, through createJourney.
+// Only the journey's owner reads or writes it: the scope is (org, owner_user_id, app, board), owner_user_id being the
+// signed-in account's users.id (access.user_id) on an app it may open (§10.2). Without one (a CLI token, the legacy
+// small-cp identity fallback) the route fails closed. The id is never logged or answered (toClient drops it). The learner's
+// words are never logged; start stores them once, through createJourney.
 import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { journeyIntent } from './learner-intent-journey.js';
@@ -240,7 +242,8 @@ export async function journeyRoute(path, req, env, deps = {}) {
   if (typeof body.board !== 'string' || !BOARD.test(body.board)) return json({ error: 'Board name must be 1-100 letters, digits, spaces, dots, dashes or underscores' }, 400);
   // LP1 journeys live on canvases only; repository-grounded journeys are LP-T.
   if (access.kind !== 'canvas') return req.method === 'GET' ? json({ journey: null, path: null, tray: null }) : json({ error: 'journeys_on_canvases_only' }, 400);
-  const scope = { org: access.org, owner_email: access.email, app: body.app, board: body.board };
+  if (!access.user_id) return req.method === 'GET' ? json({ journey: null, path: null, tray: null }) : json({ error: 'identity_unavailable' }, 401);
+  const scope = { org: access.org, owner_user_id: access.user_id, app: body.app, board: body.board };
   const callModel = deps.callModel || journeyCallModel(env), now = deps.now || Date.now;
   try {
     if (req.method === 'GET') return reply(env, await live(env, scope, now));

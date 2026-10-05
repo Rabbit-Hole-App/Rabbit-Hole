@@ -9,9 +9,15 @@ import { journeyRoute } from '../src/learn-journey.js';
 import { fixtureFor, fixtureModel } from '../src/learn-journey-fixtures.js';
 import { JourneyConflict, appendJourneyEvidence, archiveJourney, loadJourney } from '../src/learn-journey-store.js';
 
-const PEOPLE = { ana: { email: 'ana@test', org: 'team-ws' }, ben: { email: 'ben@test', org: 'team-ws' } };
+// /api/me as the control plane answers it (§10.2): user_id is users.id, the journey key. anaAlt is another account behind
+// ana's email principal; anaCli is ana with a null id (a CLI token), anaLegacy with none (the legacy small-cp fallback).
+const PEOPLE = {
+  ana: { email: 'ana@test', org: 'team-ws', user_id: 'u-ana-5d1e' }, ben: { email: 'ben@test', org: 'team-ws', user_id: 'u-ben-9a2b' },
+  anaAlt: { email: 'ana@test', org: 'team-ws', user_id: 'u-ana-other' }, anaCli: { email: 'ana@test', org: 'team-ws', user_id: null }, anaLegacy: { email: 'ana@test', org: 'team-ws' },
+};
+const IDS = Object.values(PEOPLE).map(p => p.user_id).filter(Boolean);
 const APP = 'canvas-0a1b2c3d', REPO = 'repo-0a1b2c3d-nanogpt', BOARD = 'main';
-const SCOPE = { org: 'team-ws', owner_email: 'ana@test', app: APP, board: BOARD };
+const SCOPE = { org: 'team-ws', owner_user_id: 'u-ana-5d1e', app: APP, board: BOARD };
 const LEARN = 'I want to learn logistic regression';
 
 function setup(t) {
@@ -43,6 +49,8 @@ function setup(t) {
     });
     const response = await journeyRoute('/api/learn/journey', req, env, { callModel, ...(now ? { now } : {}) });
     const text = await response.text();
+    // users.id never leaves the server (§10.2): no response in this file, journey, tray or error, carries one.
+    for (const id of IDS) assert.equal(text.includes(id), false, `${method} answered with a user id`);
     return { status: response.status, body: JSON.parse(text), text };
   };
   const post = (action, extra = {}, as = 'ana', app = APP) => call('POST', { as, body: { app, board: BOARD, action, ...extra } });
@@ -399,6 +407,37 @@ test('only the owner reads or writes; a stale revision is a conflict', async t =
   assert.equal(r.body.error, 'revision');
   assert.equal(r.body.journey.revision, started.body.journey.revision);
   assert.equal(r.body.journey.intake.slots.goal, undefined);
+});
+
+test('journeys key on the user id: two accounts behind one email never see each other\'s journeys', async t => {
+  const { call, post, rows } = setup(t);
+  const mine = await post('start', { text: LEARN });
+  assert.equal(mine.status, 200);
+  assert.deepEqual((await call('GET', { as: 'anaAlt' })).body, { journey: null, path: null, tray: null });
+  const r = await post('intake_skip', {}, 'anaAlt');
+  assert.deepEqual([r.status, r.body.error, r.body.journey], [409, 'no_journey', null]);
+  const theirs = await post('start', { text: 'I want to learn linear algebra' }, 'anaAlt');
+  assert.equal(theirs.status, 200);
+  assert.notEqual(theirs.body.journey.id, mine.body.journey.id);
+  assert.deepEqual(rows().map(row => row.owner_user_id).sort(), ['u-ana-5d1e', 'u-ana-other']);
+  assert.equal((await call('GET')).body.journey.request.topic, 'logistic regression');
+  assert.equal((await call('GET', { as: 'anaAlt' })).body.journey.request.topic, 'linear algebra');
+});
+
+test('no user id: GET answers nulls, POST 401 identity_unavailable, and no row is written', async t => {
+  const { call, post, rows } = setup(t);
+  for (const as of ['anaCli', 'anaLegacy']) {
+    assert.deepEqual((await call('GET', { as })).body, { journey: null, path: null, tray: null }, as);
+    const r = await post('start', { text: LEARN }, as);
+    assert.deepEqual([r.status, r.body], [401, { error: 'identity_unavailable' }], as);
+  }
+  assert.equal(rows().length, 0);
+  // Beside the email principal's own live journey, no id is still never a match.
+  await post('start', { text: LEARN });
+  assert.deepEqual((await call('GET', { as: 'anaCli' })).body, { journey: null, path: null, tray: null });
+  assert.deepEqual([(await post('intake_skip', {}, 'anaCli')).status, (await post('archive', {}, 'anaLegacy')).status], [401, 401]);
+  assert.equal(rows().length, 1);
+  assert.equal(rows()[0].archived_at, null);
 });
 
 test('a planner call that never reported back turns into a retryable error', async t => {

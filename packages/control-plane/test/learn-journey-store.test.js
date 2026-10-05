@@ -11,7 +11,8 @@ import {
   appendPathVersion, loadPath, appendJourneyEvidence, toClient,
 } from '../src/learn-journey-store.js';
 
-const SCOPE = { org: 'ana-ws', owner_email: 'ana@test', app: 'demo-app', board: 'board-1' };
+// owner_user_id is users.id (architecture §10.2), never an email.
+const SCOPE = { org: 'ana-ws', owner_user_id: 'u-ana-5d1e', app: 'demo-app', board: 'board-1' };
 const START = {
   request: { raw_user_message: 'I want to learn logistic regression', topic: 'logistic regression', intent: { kind: 'learn', topic: 'logistic regression' }, channel: 'text' },
   grounding: { kind: 'topic' },
@@ -62,7 +63,9 @@ test('create -> load round-trips every field; only the owner loads it by id', as
   assert.deepEqual(loaded, saved);
   for (const key of ['request', 'grounding', 'intake', 'constraints', 'pending_edits', 'registry', 'diagnostic', 'evidence', 'section_plan', 'error', 'paused_for']) assert.deepEqual(loaded[key], edited[key], key);
 
-  assert.equal(await loadJourneyById(env, created.id, { ...SCOPE, owner_email: 'ben@test' }), null);
+  assert.equal(await loadJourneyById(env, created.id, { ...SCOPE, owner_user_id: 'u-ben-9a2b' }), null);
+  assert.equal(await loadJourney(env, { ...SCOPE, owner_user_id: 'u-ben-9a2b' }), null);
+  assert.equal(rawRow(sqlite, created.id).owner_user_id, SCOPE.owner_user_id);
   assert.equal(await loadJourneyById(env, created.id, { ...SCOPE, org: 'ben-ws' }), null);
   assert.equal(await loadJourney(env, { ...SCOPE, board: 'board-2' }), null);
 });
@@ -80,6 +83,11 @@ test('one live journey per scope: a second create conflicts until the first is a
   const first = await createJourney(env, SCOPE, START);
   await assert.rejects(createJourney(env, SCOPE, START), conflict('live_journey'));
   await createJourney(env, { ...SCOPE, board: 'board-2' }, START); // another board is another scope
+  // Another user id on the same board is another scope: two accounts never share or block a journey.
+  const other = await createJourney(env, { ...SCOPE, owner_user_id: 'u-ana-other' }, START);
+  assert.equal((await loadJourney(env, SCOPE)).id, first.id);
+  assert.equal((await loadJourney(env, { ...SCOPE, owner_user_id: 'u-ana-other' })).id, other.id);
+  assert.equal(await loadJourneyById(env, first.id, { ...SCOPE, owner_user_id: 'u-ana-other' }), null);
   await archiveJourney(env, first);
   assert.equal(await loadJourney(env, SCOPE), null);
   assert.equal(await loadJourneyById(env, first.id, SCOPE), null);
@@ -202,6 +210,9 @@ test('toClient strips the probe answer key everywhere and the raw_request duplic
     assert.equal(probe.prompt, PROBE.prompt);
   }
   assert.equal('raw_request' in client, false);
+  // users.id never leaves the server (§10.2): the browser copy's scope has no owner_user_id.
+  assert.deepEqual(client.scope, { org: SCOPE.org, app: SCOPE.app, board: SCOPE.board });
+  assert.equal(JSON.stringify(client).includes(SCOPE.owner_user_id), false);
   assert.equal(client.request.raw_user_message, START.request.raw_user_message);
   assert.deepEqual(journey.diagnostic.probes[0].key, PROBE.key, 'the server copy keeps its key');
   assert.equal(toClient(created).section_plan, null);
@@ -213,6 +224,12 @@ test('migration 0006 is re-runnable and mirrored in repository-schema.sql', () =
   sqlite.exec(migration);
   sqlite.exec(migration);
   assert.deepEqual(sqlite.prepare("SELECT name FROM sqlite_master WHERE name LIKE 'learning_%' ORDER BY name").all().map(r => r.name), ['learning_journeys', 'learning_journeys_live', 'learning_path_versions']);
+  // Keyed by users.id, never by email (§10.2): the scope columns and the live index.
+  const columns = sqlite.prepare('PRAGMA table_info(learning_journeys)').all().map(c => c.name);
+  assert.deepEqual(columns.slice(0, 5), ['id', 'org', 'owner_user_id', 'app', 'board']);
+  assert.equal(columns.includes('owner_email'), false);
+  assert.deepEqual(sqlite.prepare('PRAGMA index_info(learning_journeys_live)').all().map(c => c.name), ['org', 'owner_user_id', 'app', 'board']);
+  assert.match(migration, /reset/i, 'the header keeps the reset note for a local DB that applied an earlier draft');
   sqlite.close();
   const statements = sql => sql.replace(/\r/g, '').replace(/--.*$/gm, '').split(';').map(s => s.replace(/\s+/g, ' ').trim()).filter(Boolean);
   const schema = statements(readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8'));

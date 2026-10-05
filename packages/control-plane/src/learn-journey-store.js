@@ -3,7 +3,8 @@
 // §9.1-§9.2, §10). A journey row maps to the §9.1 LearningJourney; JSON columns are parsed back on every load. Every
 // journey write is conditional on its revision (two tabs: one wins, the other gets JourneyConflict 'revision'), an
 // archived journey is never written again ('archived'), and the partial unique index allows one live journey per
-// (org, owner_email, app, board). The learner's exact words are stored once, in raw_request (request.raw_user_message);
+// (org, owner_user_id, app, board), owner_user_id being users.id (§10.2), never an email: it stays on the server (toClient
+// drops it). The learner's exact words are stored once, in raw_request (request.raw_user_message);
 // request_json holds the rest of the request.
 import { emptyStore, reconcile } from '../../web/src/learn-tutor-evidence.js';
 
@@ -31,7 +32,7 @@ function columns(j) {
 
 function fromRow(r) {
   return {
-    id: r.id, scope: { org: r.org, owner_email: r.owner_email, app: r.app, board: r.board },
+    id: r.id, scope: { org: r.org, owner_user_id: r.owner_user_id, app: r.app, board: r.board },
     state: r.state, pending: r.pending, error: parse(r.error_json),
     request: { raw_user_message: r.raw_request, topic: r.topic, ...JSON.parse(r.request_json) },
     grounding: JSON.parse(r.grounding_json), intake: JSON.parse(r.intake_json),
@@ -51,10 +52,10 @@ export async function createJourney(env, scope, { request, grounding, intake }) 
     registry: { concepts: {}, claims: {} }, diagnostic: { probes: [], asked: [], skipped: false }, evidence: { seq: 0, events: [] },
     path_version: 0,
   });
-  const keys = ['id', 'org', 'owner_email', 'app', 'board', ...Object.keys(cols), 'revision', 'created_at', 'updated_at'];
+  const keys = ['id', 'org', 'owner_user_id', 'app', 'board', ...Object.keys(cols), 'revision', 'created_at', 'updated_at'];
   const row = await env.LEARN_DB
     .prepare(`INSERT INTO learning_journeys (${keys.join(', ')}) VALUES (${keys.map(() => '?').join(', ')}) ON CONFLICT DO NOTHING RETURNING *`)
-    .bind(`lj_${crypto.randomUUID()}`, scope.org, scope.owner_email, scope.app, scope.board, ...Object.values(cols), 0, now, now)
+    .bind(`lj_${crypto.randomUUID()}`, scope.org, scope.owner_user_id, scope.app, scope.board, ...Object.values(cols), 0, now, now)
     .first();
   if (!row) throw new JourneyConflict('live_journey');
   return fromRow(row);
@@ -62,17 +63,17 @@ export async function createJourney(env, scope, { request, grounding, intake }) 
 
 export async function loadJourney(env, scope) {
   const row = await env.LEARN_DB
-    .prepare('SELECT * FROM learning_journeys WHERE org = ? AND owner_email = ? AND app = ? AND board = ? AND archived_at IS NULL')
-    .bind(scope.org, scope.owner_email, scope.app, scope.board)
+    .prepare('SELECT * FROM learning_journeys WHERE org = ? AND owner_user_id = ? AND app = ? AND board = ? AND archived_at IS NULL')
+    .bind(scope.org, scope.owner_user_id, scope.app, scope.board)
     .first();
   return row && fromRow(row);
 }
 
-// Only the owner's live journey: another account principal, or an archived journey, gets null.
+// Only the owner's live journey: another user id, or an archived journey, gets null.
 export async function loadJourneyById(env, id, scope) {
   const row = await env.LEARN_DB
-    .prepare('SELECT * FROM learning_journeys WHERE id = ? AND org = ? AND owner_email = ? AND archived_at IS NULL')
-    .bind(id, scope.org, scope.owner_email)
+    .prepare('SELECT * FROM learning_journeys WHERE id = ? AND org = ? AND owner_user_id = ? AND archived_at IS NULL')
+    .bind(id, scope.org, scope.owner_user_id)
     .first();
   return row && fromRow(row);
 }
@@ -161,12 +162,12 @@ export async function appendJourneyEvidence(env, journey, evaluation, ref) {
 }
 
 // The browser copy: no answer key on any probe (§9.4: the probe-level `key { correct, misconceptions }`; option-level
-// correct / misconception_id are stripped too), in the diagnostic or the section plan's checks, and no raw_request
-// duplicate (request.raw_user_message stays).
+// correct / misconception_id are stripped too), in the diagnostic or the section plan's checks, no raw_request
+// duplicate (request.raw_user_message stays), and no owner_user_id (users.id never leaves the server, §10.2).
 const scrub = probes => probes?.map(({ key, ...probe }) => (probe.options ? { ...probe, options: probe.options.map(({ correct, misconception_id, ...option }) => option) } : probe));
-export function toClient({ raw_request, ...journey }) {
+export function toClient({ raw_request, scope: { owner_user_id, ...scope }, ...journey }) {
   return {
-    ...journey,
+    ...journey, scope,
     diagnostic: { ...journey.diagnostic, probes: scrub(journey.diagnostic?.probes) },
     section_plan: journey.section_plan && { ...journey.section_plan, checks: scrub(journey.section_plan.checks) },
   };
