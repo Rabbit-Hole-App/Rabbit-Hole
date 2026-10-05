@@ -60,15 +60,15 @@ const PRICES = { 'claude-opus-5-5': [4, 20, 0.2], 'claude-sonnet-5-5': [2, 10, 0
 const CACHE_WRITE_X = 1.25;
 const usd = t => { const p = PRICES[t.model]; if (!p) return 0; return ((t.in || 0) * p[0] + (t.out || 0) * p[1] + (t.cw || 0) * p[0] * CACHE_WRITE_X + (t.cr || 0) * p[2]) / 1e6; };
 
-// The budget guard: a call's worst case is every request character / 3 as an input token at the cache-write rate (the
-// dearest input rate: the system block is cached) plus max_tokens at the output rate. It is refused when spent + worst
-// case > budget (never above the ceiling), and so is a model with no price. The stop is sticky: a caller that swallows
-// it (planTurn's fast tier) gets it again on its next call.
+// The budget guard: a call's worst case is every request character / 2 as an input token (a hard bound: English and JSON
+// run near 3-4 characters a token) at the cache-write rate (the dearest input rate: the system block is cached) plus
+// max_tokens at the output rate. It is refused when spent + worst case > budget (never above the ceiling), and so is a
+// model with no price. The stop is sticky: a caller that swallows it (planTurn's fast tier) gets it again on its next call.
 class BudgetStop extends Error {}
 class Refused extends Error {}
 const worstCase = (body, model) => {
   if (!PRICES[model]) throw new BudgetStop(`no price for ${model}`);
-  return usd({ model, cw: Math.ceil(JSON.stringify(body).length / 3), out: body.max_tokens });
+  return usd({ model, cw: Math.ceil(JSON.stringify(body).length / 2), out: body.max_tokens });
 };
 const guard = (spent, worst, budget) => { if (spent + worst > Math.min(budget, CEILING)) throw new BudgetStop(`worst case $${worst.toFixed(4)} with $${spent.toFixed(4)} spent exceeds the $${Math.min(budget, CEILING)} budget`); };
 // Start-up self-check: the guard refuses a call whose worst case exceeds what remains, admits one that fits, and holds
@@ -117,8 +117,9 @@ const inner = LIVE ? anthropic : (env, body) => (body.tools[0].name === TUTOR_TO
   ? Response.json({ model: 'fixture', stop_reason: 'tool_use', content: [{ type: 'tool_use', name: TUTOR_TOOL.name, input: STUB_PLAN }] }) : fixtureModel(env, body));
 
 // The callModel every planner gets: the model check, the budget guard, then the call; one row per call with the requested
-// and served model, latency, usage (input, output, cache write, cache read) and USD. calls: this stage's calls, with the
-// tool input as the model wrote it and the system prompt it was sent.
+// and served model, stop_reason, latency, usage (input, output, cache write, cache read) and USD. A call that throws
+// mid-response or whose 200 body does not parse may still be billed: its row costs the worst case, then the error goes
+// on. calls: this stage's calls, with the tool input as the model wrote it and the system prompt it was sent.
 let at = null, ABORTED = null, STOPPED = null;
 const calls = [];
 async function callModel(env, body, model, org) {
@@ -129,13 +130,20 @@ async function callModel(env, body, model, org) {
   if (!models.includes(model)) throw new Refused(ABORTED = `${role} asked for ${model}, not its LEARN_TASKS model`);
   let worst;
   try { worst = worstCase(body, model); guard(spent(), worst, BUDGET); } catch (error) { STOPPED = error.message; throw error; }
-  const started = Date.now();
-  const response = await inner(env, body, model, org);
-  const result = response.ok ? await response.clone().json().catch(() => null) : null;
+  const started = Date.now(), system = typeof body.system === 'string' ? body.system : body.system?.[0]?.text;
+  const row = { kind: 'call', ...at, role, requested_model: model, max_tokens: body.max_tokens, input_chars: JSON.stringify(body).length, worst_usd: +worst.toFixed(6) };
+  let response, result = null;
+  try {
+    response = await inner(env, body, model, org);
+    if (response.ok) result = await response.clone().json();
+  } catch (error) {
+    calls.push({ role, model, raw: null, system });
+    record({ ...row, served_model: null, status: response?.status ?? null, stop_reason: null, ms: Date.now() - started, in: 0, out: 0, cw: 0, cr: 0, cost_usd: row.worst_usd, billed_unknown: cut300(`${error.name}: ${error.message}`) });
+    throw error;
+  }
   const u = result?.usage || {}, tokens = { in: u.input_tokens ?? 0, out: u.output_tokens ?? 0, cw: u.cache_creation_input_tokens ?? 0, cr: u.cache_read_input_tokens ?? 0 };
-  calls.push({ role, model, raw: result?.content?.find(block => block?.type === 'tool_use' && block.name === tool)?.input ?? null, system: typeof body.system === 'string' ? body.system : body.system?.[0]?.text });
-  record({ kind: 'call', ...at, role, requested_model: model, served_model: result?.model ?? null, status: response.status, ms: Date.now() - started,
-    max_tokens: body.max_tokens, input_chars: JSON.stringify(body).length, worst_usd: +worst.toFixed(6), ...tokens, cost_usd: +usd({ model, ...tokens }).toFixed(6) });
+  calls.push({ role, model, raw: result?.content?.find(block => block?.type === 'tool_use' && block.name === tool)?.input ?? null, system });
+  record({ ...row, served_model: result?.model ?? null, status: response.status, stop_reason: result?.stop_reason ?? null, ms: Date.now() - started, ...tokens, cost_usd: +usd({ model, ...tokens }).toFixed(6) });
   if (response.status >= 400 && response.status < 500 && (response.status !== 429 || /rate limit of 0 /.test(await response.clone().text().catch(() => '')))) {
     throw new Refused(ABORTED = `${role}: model HTTP ${response.status}`);
   }
@@ -146,26 +154,32 @@ async function callModel(env, body, model, org) {
 const check = (pass, reason) => ({ pass: !!pass, reason });
 const cut300 = text => String(text).slice(0, 300);
 const why = e => cut300(e instanceof PlannerInvalid ? `PlannerInvalid (${e.role}): ${e.errors.join('; ')}` : `${e.name}: ${e.message}`);
-// No mastery, fixed learner level or permanent ability label. LEVEL_WORDS is agents/learn-journey.js's (not exported); the
-// percentage pattern applies to the learner-facing evidence wording only (change.reason, learner_note, adaptation_reason,
-// the Tutor's words), not to section content, where "halves the range, 50%" is teaching.
+// No mastery, fixed learner level or permanent ability label anywhere the learner reads. LEVEL_WORDS is
+// agents/learn-journey.js's (not exported). Percentages: any in change.reason and learner_note (the evidence wording); in
+// the Tutor's words only near "you" or "your" (about the learner), so teaching content ("98% of the population") passes;
+// none in adaptation_reason or section content, where "halves the range, 50%" is teaching.
 // ponytail: a short list of label patterns; extend it when a real plan slips a label past it.
 const LEVEL_WORDS = /\bmaster(?:ed|y)\b|\b(?:beginner|intermediate|advanced|expert)[ -](?:level|learner)\b/i;
 const LABELS = [LEVEL_WORDS, /\bmaster(ed|y)\b/i, /\b(?:novice|beginner|intermediate|advanced|expert) (?:student|learner|level)\b/i,
   /\byou(?:'re| are) (?:a |an )?(?:beginner|novice|intermediate|expert|natural)\b/i, /\byou(?:'re| are) (?:just )?(?:good|bad|great|terrible|hopeless) at\b/i,
   /\b(?:not an? (?:math|maths|science|coding|programming|history) person|naturally gifted|gifted learner|slow learner|fast learner|quick learner)\b/i];
-const PERCENT = /\d+\s*%/;
-const wording = (texts, percent = true) => {
-  const bad = texts.filter(t => typeof t === 'string' && (LABELS.some(re => re.test(t)) || (percent && PERCENT.test(t))));
-  return check(!bad.length, bad.length ? `mastery, level or ability label${percent ? ' or percentage' : ''}: ${bad.map(t => t.slice(0, 160)).join(' | ')}` : `${texts.filter(Boolean).length} texts clean`);
+const YOU = String.raw`\byou(?:r|rs|rself|'re|'ve|'ll)?\b`;
+const ANY_PERCENT = t => /\d+\s*%/.test(t), NO_PERCENT = () => false;
+// "you" and the percentage in one clause: "you got 80%", "75% of your answers"; not "1% of light; can you guess why?".
+const LEARNER_PERCENT = t => new RegExp(`${YOU}[^.!?;:,]{0,40}?\\d+\\s*%|\\d+\\s*%[^.!?;:,]{0,40}?${YOU}`, 'i').test(t);
+// items: [text, percentage rule] pairs.
+const wording = items => {
+  const bad = items.filter(([t, percent]) => typeof t === 'string' && (LABELS.some(re => re.test(t)) || percent(t))).map(([t]) => t);
+  return check(!bad.length, bad.length ? `mastery, level or ability label, or a percentage the rule forbids: ${bad.map(t => t.slice(0, 160)).join(' | ')}` : `${items.filter(([t]) => t).length} texts clean`);
 };
-const pathTexts = raw => [raw?.path?.change?.reason, raw?.path?.change?.learner_note, ...(raw?.path?.sections || []).map(s => s?.adaptation_reason)];
+const pathWording = raw => wording([[raw?.path?.change?.reason, ANY_PERCENT], [raw?.path?.change?.learner_note, ANY_PERCENT], ...(raw?.path?.sections || []).map(s => [s?.adaptation_reason, NO_PERCENT])]);
 // No topic leakage across domains: no tool input the model wrote in a subject's stage holds another subject's terms.
 const leakage = subject => {
   const text = calls.map(call => JSON.stringify(call.raw)).join(' ');
   const hits = SUBJECTS.filter(other => other.id !== subject.id).map(other => [other.id, text.match(other.terms)]).filter(([, hit]) => hit);
   return check(!hits.length, hits.length ? `output contains ${hits.map(([id, hit]) => `"${hit[0]}" (a ${id} term)`).join(', ')}` : 'no other subject\'s terms');
 };
+const DRAFT_STATUSES = ['upcoming', 'optional', 'skipped'];
 const SECTION_FIELDS = Object.keys(JOURNEY_TOOLS.journey_path.input_schema.properties.path.properties.sections.items.properties);
 const STEP_ROLES = JOURNEY_TOOLS.journey_section.input_schema.properties.teaching_sequence.items.properties.role.enum;
 // Future sections remain plans: no section key outside the schema (cards, blocks, steps, content...), as the model wrote it.
@@ -173,25 +187,30 @@ const plansOnly = raw => {
   const extra = [...new Set((raw?.path?.sections || []).flatMap(s => Object.keys(s || {}).filter(k => !SECTION_FIELDS.includes(k))))];
   return check(!extra.length, extra.length ? `section keys outside the schema: ${extra.join(', ')}` : 'sections hold plans only');
 };
-// Only the current section is generated or materialized: every other section not completed is not_generated, no heading.
+// Only the current section is generated or materialized: every other section not completed is not_generated, no heading
+// (an empty string is no heading).
 const onlyCurrent = path => {
-  const bad = path.sections.filter(s => s.status !== 'current' && s.status !== 'completed' && (s.generation_state !== 'not_generated' || s.heading_block_id != null));
+  const bad = path.sections.filter(s => s.status !== 'current' && s.status !== 'completed' && (s.generation_state !== 'not_generated' || !!s.heading_block_id));
   return check(!bad.length, bad.length ? `generated or materialized outside the current section: ${bad.map(s => `${s.id} ${s.status}/${s.generation_state}${s.heading_block_id ? ' with a heading' : ''}`).join(', ')}` : 'only the current section carries generation state');
 };
 const sorted = v => JSON.stringify(v, (_, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => a.localeCompare(b))) : x));
+// Completed content unchanged, key order aside (learn-journey.js same() is not exported: a sorted-key stringify).
 const unchanged = (was, now) => {
-  const same = JSON.stringify(was) === JSON.stringify(now);
-  return check(same, same ? `${was.id} byte-identical` : !now ? `completed ${was.id} is gone` : sorted(was) === sorted(now) ? `completed ${was.id}: same fields, other key order` : `completed ${was.id} changed: ${JSON.stringify(now).slice(0, 200)}`);
+  const bytes = JSON.stringify(was) === JSON.stringify(now), same = !!now && sorted(was) === sorted(now);
+  return check(same, bytes ? `${was.id} byte-identical` : same ? `completed ${was.id}: same content, other key order` : !now ? `completed ${was.id} is gone` : `completed ${was.id} changed: ${JSON.stringify(now).slice(0, 200)}`);
 };
 const live = sections => sections.filter(s => s.status !== 'skipped' && s.status !== 'optional');
 const minutes = sections => live(sections).reduce((n, s) => n + (s.estimated_minutes || 0), 0);
 const PRACTICE = /practi[cs]e|exercise|drill|hands-on/i;
 function respected(edit, prev, path, target) {
-  if (edit === 'skip') { const now = path.sections.find(s => s.id === target.id); return check(!now || now.status === 'skipped', `"${target.title}" ${now ? `is ${now.status}` : 'is gone'}`); }
+  if (edit === 'skip') {
+    const now = path.sections.find(s => s.id === target.id);
+    return check(!now || now.status === 'skipped' || now.status === 'optional', `"${target.title}" ${now ? `is ${now.status}` : 'is gone'}`);
+  }
   if (edit === 'practice') {
-    const was = new Map(prev.sections.map(s => [s.id, JSON.stringify(s)]));
-    const added = path.sections.filter(s => was.get(s.id) !== JSON.stringify(s) && PRACTICE.test(`${s.title} ${s.purpose}`));
-    return check(added.length, added.length ? `practice in ${added.map(s => `${s.id} "${s.title}"`).join(', ')}` : 'no new or changed section is about practice');
+    const was = new Map(prev.sections.map(s => [s.id, JSON.stringify(s)])), added = new Set(path.change.sections_changed.filter(c => c.op === 'added').map(c => c.id));
+    const found = path.sections.filter(s => was.get(s.id) !== JSON.stringify(s) && (PRACTICE.test(`${s.title} ${s.purpose} ${s.adaptation_reason || ''}`) || added.has(s.id)));
+    return check(found.length, found.length ? found.map(s => `${s.id} "${s.title}" (${PRACTICE.test(`${s.title} ${s.purpose} ${s.adaptation_reason || ''}`) ? 'about practice' : 'op added'})`).join(', ') : 'no new or changed section is about practice or listed as added');
   }
   return check(live(path.sections).length < live(prev.sections).length || minutes(path.sections) < minutes(prev.sections),
     `${live(prev.sections).length} -> ${live(path.sections).length} sections not skipped or optional, ${minutes(prev.sections)} -> ${minutes(path.sections)} minutes`);
@@ -201,25 +220,32 @@ function respected(edit, prev, path, target) {
 function adaptRepair(out, input) {
   if (!out.escalated) return null;
   const first = calls.find(call => call.role === 'journey_adapt');
-  const rejected = out.escalated !== 'validator' ? null : !first?.raw ? 'the reply has no tool call'
-    : (pathOutput(first.raw, { prev: input.prev, registry: input.registry, source: input.evidence ? 'evidence' : 'learner_edit', evidence_refs: input.evidence?.refs ?? [] }).errors || []).join('; ');
-  return { used: 'journey_path', model: LEARN_TASKS.journey_path.model, why: out.escalated, ...(rejected != null ? { rejected: cut300(rejected) } : {}) };
+  const errors = out.escalated !== 'validator' ? null : !first?.raw ? ['the reply has no tool call']
+    : pathOutput(first.raw, { prev: input.prev, registry: input.registry, source: input.evidence ? 'evidence' : 'learner_edit', evidence_refs: input.evidence?.refs ?? [] }).errors || [];
+  return { used: 'journey_path', model: LEARN_TASKS.journey_path.model, why: out.escalated, ...(errors ? { rejected: cut300(errors.join('; ')), rejected_errors: errors } : {}) };
 }
 const adaptValid = (out, repair) => check(out.escalated !== 'validator', !out.escalated ? 'journey_adapt answered' : out.escalated === 'validator' ? `journey_adapt rejected: ${repair.rejected}` : `journey_adapt said ${out.escalated}; journey_path answered`);
 
 // One stage: run it, judge it (only when it returned), record it with its latency and repair use. A budget stop or a
-// refusal ends the run; any other error (PlannerInvalid, a model 5xx) is the stage's failed `valid` check, verbatim.
-async function step(subject, name, run, { checks: judge = () => ({}), repair = () => null, output = out => out, note = null } = {}) {
+// refusal ends the run; any other error (PlannerInvalid, a model 5xx) is the stage's failed `valid` check, verbatim, with
+// PlannerInvalid's errors in full beside it. A throw inside a check, the repair or the output function is a failed check
+// with its message. A stage that fails, or that a repair answered, keeps every call's raw tool input.
+async function step(subject, name, run, { checks: judge = () => ({}), repair: repairOf = () => null, output = out => out, note = null } = {}) {
   at = { subject: subject.id, step: name };
   calls.length = 0;
   const started = Date.now();
   let out = null, error = null;
   try { out = await run(); } catch (e) { if (e instanceof BudgetStop || e instanceof Refused || STOPPED || ABORTED) throw e; error = e; }
   const ms = Date.now() - started;
-  const checks = error ? { valid: check(false, why(error)) } : { valid: check(true, 'passes its validator'), ...judge(out) };
-  if (subject.terms && calls.length) checks.no_topic_leakage = leakage(subject);
-  record({ kind: 'step', ...at, ms, calls: calls.length, models: calls.map(call => call.model), checks, pass: Object.values(checks).every(c => c.pass),
-    repair: error ? null : repair(out), ...(note ? { note } : {}), output: error ? null : output(out) });
+  const checks = error ? { valid: check(false, why(error)) } : { valid: check(true, 'passes its validator') };
+  const guarded = (label, fn, fallback) => { try { return fn(); } catch (e) { checks[label] = check(false, cut300(`${label} threw ${e.name}: ${e.message}`)); return fallback; } };
+  if (!error) Object.assign(checks, guarded('checks', () => judge(out), {}));
+  const repair = error ? null : guarded('repair', () => repairOf(out), null);
+  if (subject.terms && calls.length) { const leak = guarded('no_topic_leakage', () => leakage(subject), null); if (leak) checks.no_topic_leakage = leak; }
+  const shown = error ? null : guarded('output', () => output(out), null), pass = Object.values(checks).every(c => c.pass);
+  record({ kind: 'step', ...at, ms, calls: calls.length, models: calls.map(call => call.model), checks, pass, repair,
+    ...(error instanceof PlannerInvalid ? { errors: error.errors } : {}), ...(note ? { note } : {}),
+    ...(error || repair || !pass ? { raw: calls.map(call => ({ role: call.role, model: call.model, input: call.raw })) } : {}), output: shown });
   return error ? null : out;
 }
 const skip = (subject, names, reason) => names.forEach(name => record({ kind: 'step', subject: subject.id, step: name, skipped: reason, checks: {}, pass: null }));
@@ -271,8 +297,10 @@ async function runSubject(subject) {
     const { sections } = out.path, raw = calls.at(-1)?.raw;
     return {
       section_count: quick ? check(sections.length <= 3, `${sections.length} sections (quick overview: at most 3)`) : check(sections.length >= 4 && sections.length <= 10, `${sections.length} sections (default depth: 4-10)`),
-      all_upcoming: check(sections.every(s => s.status === 'upcoming' && s.generation_state === 'not_generated'), sections.map(s => `${s.id} ${s.status}/${s.generation_state}`).join(', ')),
-      only_current_generated: onlyCurrent(out.path), plans_only: plansOnly(raw), wording: wording(pathTexts(raw)),
+      // pathOutput's first-draft rule: upcoming, optional or skipped (no current, completed or needs_review), not generated.
+      all_upcoming: check(sections.every(s => DRAFT_STATUSES.includes(s.status) && s.generation_state === 'not_generated'),
+        `statuses seen: ${Object.entries(sections.reduce((n, s) => ({ ...n, [`${s.status}/${s.generation_state}`]: (n[`${s.status}/${s.generation_state}`] || 0) + 1 }), {})).map(([k, v]) => `${k} x${v}`).join(', ')}`),
+      only_current_generated: onlyCurrent(out.path), plans_only: plansOnly(raw), wording: pathWording(raw),
     };
   } });
   if (!drafted) return skip(subject, ['section', 'adapt_edit', 'adapt_evidence', 'tutor', 'dive'], 'the path failed');
@@ -290,7 +318,7 @@ async function runSubject(subject) {
     return {
       only_section_1: check(out.section_id === s1.id && !outside.length, outside.length ? `concepts outside section 1: ${outside.join(', ')}` : `${out.section_id}: ${out.teaching_sequence.length} steps, ${out.checks.length} checks`),
       step_roles: check(out.teaching_sequence.every(s => STEP_ROLES.includes(s.role)), out.teaching_sequence.map(s => s.role).join(', ')),
-      wording: wording([out.learning_objective, ...out.teaching_sequence.flatMap(s => [s.make.text, s.make.request])], false),
+      wording: wording([out.learning_objective, ...out.teaching_sequence.flatMap(s => [s.make.text, s.make.request])].map(t => [t, NO_PERCENT])),
     };
   } });
 
@@ -306,7 +334,7 @@ async function runSubject(subject) {
       adapt_valid: adaptValid(out, adaptRepair(out, input)),
       completed_unchanged: unchanged(prev.sections[0], out.path.sections.find(s => s.id === prev.sections[0].id)),
       edit_respected: respected(subject.edit, prev, out.path, target),
-      only_current_generated: onlyCurrent(out.path), plans_only: plansOnly(calls.at(-1)?.raw), wording: wording(pathTexts(calls.at(-1)?.raw)),
+      only_current_generated: onlyCurrent(out.path), plans_only: plansOnly(calls.at(-1)?.raw), wording: pathWording(calls.at(-1)?.raw),
     }) });
   }
   // (e) A settled misconception (two settled events naming it) on a section-2 claim.
@@ -327,7 +355,7 @@ async function runSubject(subject) {
         future_only: check(!rewritten.length && !touched.length, rewritten.length || touched.length
           ? [rewritten.length ? `history rewritten: ${rewritten.join(', ')}` : '', touched.length ? `change list touches history: ${touched.join(', ')}` : ''].filter(Boolean).join('; ')
           : out.path.change.sections_changed.map(c => `${c.id} ${c.op}`).join(', ') || 'no section changed'),
-        only_current_generated: onlyCurrent(out.path), plans_only: plansOnly(calls.at(-1)?.raw), wording: wording(pathTexts(calls.at(-1)?.raw)),
+        only_current_generated: onlyCurrent(out.path), plans_only: plansOnly(calls.at(-1)?.raw), wording: pathWording(calls.at(-1)?.raw),
       };
     } });
   }
@@ -351,7 +379,7 @@ async function runSubject(subject) {
       return {
         tutor_valid: check(!rejected.length && out.actions.some(a => a.type !== 'no_action'), rejected.length ? rejected.map(d => `${d.type}@${d.stage}: ${d.reason}`).join('; ') : `${out.routed.row}: ${out.actions.map(a => a.type).join(', ')}`),
         one_question: check(asked <= 1, `${asked} ask_question proposed`),
-        wording: wording(proposed.filter(a => a?.type === 'respond_text' || a?.type === 'ask_question').map(a => a.text)),
+        wording: wording(proposed.filter(a => a?.type === 'respond_text' || a?.type === 'ask_question').map(a => [a.text, LEARNER_PERCENT])),
         journey_domain: check(prompts.length && prompts.every(p => p === 'journey prompt') && !!context?.journey_context, `${prompts.join(', ') || 'no planner call'}; journey_context ${context?.journey_context ? 'present' : 'missing'}`),
         no_nanogpt_ids: check(!nanogpt.length, nanogpt.length ? `nanoGPT ids in the context or reply: ${nanogpt.join(', ')}` : 'none'),
       };
@@ -375,9 +403,11 @@ async function runSubject(subject) {
       JSON.stringify(record.journey) !== JSON.stringify(ctx) && 'the record does not carry it',
     ].filter(Boolean);
     const { journey: _, ...rest } = record, same = JSON.stringify(rest) === JSON.stringify(plain);
+    const anchored = record.origin.origin_block_id === block.id && record.return_point.block_id === block.id;
     return {
       dive_context: check(!bad.length, bad.length ? bad.join('; ') : `${ctx.section_id}: concepts ${ctx.concept_ids.join(', ')}; claims ${ctx.claim_ids.join(', ')}`),
-      dive_identity: check(same, same ? 'origin and return point as without a journey' : `origin differs: ${JSON.stringify(rest.origin)} vs ${JSON.stringify(plain.origin)}`.slice(0, 300)),
+      dive_identity: check(same && anchored, !anchored ? `origin_block_id ${record.origin.origin_block_id} / return_point.block_id ${record.return_point.block_id}, not ${block.id}`
+        : same ? `origin and return point on ${block.id}, as without a journey` : `origin differs: ${JSON.stringify(rest.origin)} vs ${JSON.stringify(plain.origin)}`.slice(0, 300)),
     };
   } });
 }
@@ -394,54 +424,68 @@ async function runResolver() {
   }
 }
 
-let stoppedAt = null;
-for (const item of [{ id: 'resolver', run: runResolver }, ...SUBJECTS.map(subject => ({ id: subject.id, run: () => runSubject(subject) }))]) {
-  if (done.has(item.id)) continue;
-  try { await item.run(); } catch (error) {
-    if (error instanceof BudgetStop) { stoppedAt = { ...at, reason: error.message }; break; }
-    if (error instanceof Refused) break;
-    throw error;
+// One pass; summary.json is written whatever happens (a crash is recorded in it, then the error goes on).
+let stoppedAt = null, crashed = null;
+try {
+  for (const item of [{ id: 'resolver', run: runResolver }, ...SUBJECTS.map(subject => ({ id: subject.id, run: () => runSubject(subject) }))]) {
+    if (done.has(item.id)) continue;
+    try { await item.run(); } catch (error) {
+      if (error instanceof BudgetStop) { stoppedAt = { ...at, reason: error.message }; break; }
+      if (error instanceof Refused) break;
+      throw error;
+    }
+    record({ kind: 'subject_done', subject: item.id });
+    if (LIVE) console.error(`${item.id}: done, all live runs $${spent().toFixed(3)}`);
   }
-  record({ kind: 'subject_done', subject: item.id });
-  if (LIVE) console.error(`${item.id}: done, all live runs $${spent().toFixed(3)}`);
+} catch (error) {
+  crashed = { ...at, error: cut300(`${error.name}: ${error.message}`) };
+  throw error;
+} finally {
+  let summary;
+  try { summary = summarize(); } catch (error) {
+    summary = { mode: MODE, file: FILE, stopped_at_budget: stoppedAt, aborted: ABORTED, crashed, summary_error: cut300(`${error.name}: ${error.message}`), all_live_runs_usd: spent() };
+  }
+  writeFileSync(join(OUT, 'summary.json'), `${JSON.stringify(summary, null, 2)}\n`);
+  console.log(JSON.stringify(summary, null, 2));
 }
 
 // The summary: the last row per subject/stage (a resumed subject ran again), every call row for the cost.
-const steps = [...new Map(rows.filter(row => row.kind === 'step').map(row => [`${row.subject}/${row.step}`, row])).values()];
-const callRows = rows.filter(row => row.kind === 'call');
-const tally = key => callRows.reduce((acc, row) => {
-  const t = acc[key(row)] ||= { calls: 0, ms: 0, in: 0, out: 0, cw: 0, cr: 0, usd: 0, worst_usd: 0 };
-  t.calls++;
-  for (const k of ['ms', 'in', 'out', 'cw', 'cr']) t[k] += row[k];
-  t.usd = +(t.usd + row.cost_usd).toFixed(6);
-  t.worst_usd = +(t.worst_usd + row.worst_usd).toFixed(6);
-  return acc;
-}, {});
-// The escalations this run did not take, priced at their worst case on the same input size: a journey_adapt reply that
-// stood (journey_path could have re-planned it) and a fast-tier Tutor plan that stood (Opus could have re-planned it).
-const byStep = Object.values(callRows.reduce((acc, row) => { (acc[`${row.subject}/${row.step}`] ||= []).push(row); return acc; }, {}));
-const untaken = byStep.reduce((n, list) => {
-  const [row] = list, escalate = { journey_adapt: 'journey_path', tutor: 'tutor' }[row.role];
-  if (list.length !== 1 || !escalate || (row.role === 'tutor' && row.requested_model === LEARN_TASKS.tutor.model)) return n;
-  return n + usd({ model: LEARN_TASKS[escalate].model, cw: Math.ceil(row.input_chars / 3), out: LEARN_TASKS[escalate].maxTokens });
-}, 0);
-const worstTaken = callRows.reduce((n, row) => n + row.worst_usd, 0);
-const summary = {
-  mode: MODE, file: FILE, budget: BUDGET, ceiling: CEILING, stopped_at_budget: stoppedAt, aborted: ABORTED,
-  subjects_done: rows.filter(row => row.kind === 'subject_done').map(row => row.subject),
-  stages: steps.length, stages_passed: steps.filter(row => row.pass).length,
-  failed_assertions: steps.filter(row => row.pass === false).flatMap(row => Object.entries(row.checks).filter(([, c]) => !c.pass).map(([assertion, c]) => ({ domain: row.subject, stage: row.step, assertion, reason: c.reason }))),
-  skipped: steps.filter(row => row.skipped).map(row => ({ domain: row.subject, stage: row.step, skipped: row.skipped })),
-  repairs: steps.filter(row => row.repair).map(row => ({ domain: row.subject, stage: row.step, ...row.repair })),
-  latency_ms: Object.fromEntries(steps.filter(row => row.ms != null).map(row => [`${row.subject}/${row.step}`, row.ms])),
-  checks: Object.fromEntries(steps.map(row => [`${row.subject}/${row.step}`, row.skipped ? `skipped: ${row.skipped}` : Object.fromEntries(Object.entries(row.checks).map(([name, c]) => [name, c.pass ? 'pass' : `FAIL: ${c.reason}`]))])),
-  cost: {
-    per_stage: tally(row => row.step), per_domain: tally(row => row.subject), per_role: tally(row => (row.role === 'tutor' ? `tutor ${row.requested_model}` : row.role)),
-    total_usd: +callRows.reduce((n, row) => n + row.cost_usd, 0).toFixed(6), all_live_runs_usd: +spent().toFixed(6),
-    worst_case_usd: { calls_made: +worstTaken.toFixed(4), plus_untaken_escalations: +(worstTaken + untaken).toFixed(4),
-      note: 'input characters / 3 at the cache-write rate plus max_tokens at the output rate; stub inputs are fixture-sized' },
-  },
-  served_model_mismatches: callRows.filter(row => LIVE && row.served_model && row.served_model !== row.requested_model).map(row => `${row.subject}/${row.step} ${row.requested_model} -> ${row.served_model}`),
-};
-writeFileSync(join(OUT, 'summary.json'), `${JSON.stringify(summary, null, 2)}\n`);
-console.log(JSON.stringify(summary, null, 2));
+function summarize() {
+  const steps = [...new Map(rows.filter(row => row.kind === 'step').map(row => [`${row.subject}/${row.step}`, row])).values()];
+  const callRows = rows.filter(row => row.kind === 'call');
+  const tally = key => callRows.reduce((acc, row) => {
+    const t = acc[key(row)] ||= { calls: 0, ms: 0, in: 0, out: 0, cw: 0, cr: 0, usd: 0, worst_usd: 0 };
+    t.calls++;
+    for (const k of ['ms', 'in', 'out', 'cw', 'cr']) t[k] += row[k];
+    t.usd = +(t.usd + row.cost_usd).toFixed(6);
+    t.worst_usd = +(t.worst_usd + row.worst_usd).toFixed(6);
+    return acc;
+  }, {});
+  // The escalations this run did not take, priced at their worst case on the same input size: a journey_adapt reply that
+  // stood (journey_path could have re-planned it) and a fast-tier Tutor plan that stood (Opus could have re-planned it).
+  const byStep = Object.values(callRows.reduce((acc, row) => { (acc[`${row.subject}/${row.step}`] ||= []).push(row); return acc; }, {}));
+  const untaken = byStep.reduce((n, list) => {
+    const [row] = list, escalate = { journey_adapt: 'journey_path', tutor: 'tutor' }[row.role];
+    if (list.length !== 1 || !escalate || (row.role === 'tutor' && row.requested_model === LEARN_TASKS.tutor.model)) return n;
+    return n + usd({ model: LEARN_TASKS[escalate].model, cw: Math.ceil(row.input_chars / 2), out: LEARN_TASKS[escalate].maxTokens });
+  }, 0);
+  const worstTaken = callRows.reduce((n, row) => n + row.worst_usd, 0);
+  return {
+    mode: MODE, file: FILE, budget: BUDGET, ceiling: CEILING, stopped_at_budget: stoppedAt, aborted: ABORTED, crashed,
+    subjects_done: rows.filter(row => row.kind === 'subject_done').map(row => row.subject),
+    stages: steps.length, stages_passed: steps.filter(row => row.pass).length,
+    failed_assertions: steps.filter(row => row.pass === false).flatMap(row => Object.entries(row.checks).filter(([, c]) => !c.pass).map(([assertion, c]) => ({ domain: row.subject, stage: row.step, assertion, reason: c.reason }))),
+    skipped: steps.filter(row => row.skipped).map(row => ({ domain: row.subject, stage: row.step, skipped: row.skipped })),
+    repairs: steps.filter(row => row.repair).map(row => ({ domain: row.subject, stage: row.step, ...row.repair })),
+    latency_ms: Object.fromEntries(steps.filter(row => row.ms != null).map(row => [`${row.subject}/${row.step}`, row.ms])),
+    checks: Object.fromEntries(steps.map(row => [`${row.subject}/${row.step}`, row.skipped ? `skipped: ${row.skipped}` : Object.fromEntries(Object.entries(row.checks).map(([name, c]) => [name, c.pass ? 'pass' : `FAIL: ${c.reason}`]))])),
+    cost: {
+      per_stage: tally(row => row.step), per_domain: tally(row => row.subject), per_role: tally(row => (row.role === 'tutor' ? `tutor ${row.requested_model}` : row.role)),
+      total_usd: +callRows.reduce((n, row) => n + row.cost_usd, 0).toFixed(6), all_live_runs_usd: +spent().toFixed(6),
+      worst_case_usd: { calls_made: +worstTaken.toFixed(4), plus_untaken_escalations: +(worstTaken + untaken).toFixed(4),
+        note: 'input characters / 2 at the cache-write rate plus max_tokens at the output rate; stub inputs are fixture-sized' },
+    },
+    served_model_mismatches: callRows.filter(row => LIVE && row.served_model && row.served_model !== row.requested_model).map(row => `${row.subject}/${row.step} ${row.requested_model} -> ${row.served_model}`),
+    billed_unknown: callRows.filter(row => row.billed_unknown).map(row => `${row.subject}/${row.step} ${row.role}: ${row.billed_unknown}`),
+  };
+}

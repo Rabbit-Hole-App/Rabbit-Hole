@@ -6,20 +6,21 @@
 //   intake         the intake answers, slot -> option id, applied with applyIntakeAnswer in the bank's order (goal,
 //                  familiarity, depth); a slot the request already stated is never asked
 //   slots          extra intake slots the brief fixes for the subject (coding = yes, no math), recorded as stated
-//   diagnostic     false for the quick overview: journeyStep skips the diagnostic for quick_overview and fast_start, so
-//                  its path is drafted from an empty registry, capped at 3 sections (AT-14)
+//   diagnostic     true for every subject (controller ruling, 2026-10-05): the quick overview runs one too, although
+//                  journeyStep skips it for quick_overview in the product; its path is still capped at 3 sections (AT-14)
 //   edit           the learner edit of step (d), or null (no edit step); skip names a later section of the drafted path
 //   terms          words specific to the subject: no other subject's output may contain them (no topic leakage across
-//                  domains, owner 2026-10-05; logistic regression's are the brief's hidden-template words)
+//                  domains, owner 2026-10-05; logistic regression's are the brief's hidden-template words). Whole words
+//                  where a generic word would match: logistics, bisects and Jacobian pass
 export const SUBJECTS = [
   { id: 'logistic-regression', shape: 'math/ML', text: 'I want to learn logistic regression', intake: { goal: 'intuition', familiarity: 'seen', depth: 'guided' }, slots: {}, diagnostic: true, edit: 'skip',
-    terms: /logistic|sigmoid|log-odds|spam|decision boundar/i },
+    terms: /\blogistic(?!s|al)|sigmoid|log-odds|\bspam\b|decision boundar/i },
   { id: 'photosynthesis', shape: 'conceptual science', text: 'Teach me photosynthesis', intake: { goal: 'intuition', familiarity: 'new', depth: 'guided' }, slots: { math: false }, diagnostic: true, edit: 'shorter',
     terms: /photosynth|chlorophyll|chloroplast|calvin cycle|stomata|thylakoid/i },
   { id: 'binary-search', shape: 'coding', text: 'I want to learn binary search in Python', intake: { goal: 'build', familiarity: 'parts', depth: 'guided' }, slots: { coding: true }, diagnostic: true, edit: 'practice',
-    terms: /binary search|bisect/i },
-  { id: 'french-revolution', shape: 'humanities', text: 'Give me a 10-minute overview of the French Revolution', intake: { goal: 'intuition' }, slots: {}, diagnostic: false, edit: null,
-    terms: /french revolution|bastille|robespierre|jacobin|guillotine|estates[- ]general|louis xvi|marie antoinette/i },
+    terms: /binary search|\bbisect(?:_left|_right)?\b/i },
+  { id: 'french-revolution', shape: 'humanities', text: 'Give me a 10-minute overview of the French Revolution', intake: { goal: 'intuition' }, slots: {}, diagnostic: true, edit: null,
+    terms: /french revolution|bastille|robespierre|\bjacobins?\b|guillotine|estates[- ]general|louis xvi|marie antoinette/i },
 ];
 
 export const EDITS = {
