@@ -36,7 +36,7 @@ stroke-dashoffset and a pen sprite rides the head of the active stroke.
 tldraw is the learner's canvas (pausing the lecture and scribbling on the board),
 not part of the renderer — deliberately not installed here.
 
-## Motion (V1 harness, M0–M6)
+## Motion (V1 harness, M0–M7A)
 
 Spec: `docs/features/rabbit-hole-motion-v1-harness-spec.md`. Model calls so far: the Motion Director (M2) and the storyboard (M3) under `MOTION_DIRECTOR_MODEL`, the Motion Author (M4) under `MOTION_AUTHOR_MODEL`, and the fresh reviewers (M6) under `MOTION_VISUAL_REVIEW_MODEL` and `MOTION_PEDAGOGICAL_REVIEW_MODEL`.
 
@@ -54,6 +54,9 @@ node scripts/motion-render.mjs softmax|softmax-m4|generate|reference|softmax-m6|
 MOTION_RENDER_TESTS=1 node --test motion/render.test.mjs   # M5: real local renders of the generated compositions (minutes)
 node scripts/motion-review.mjs softmax|generate|reference [--service <url>] [--call --max-calls N]   # M6: preview -> blank check + fresh reviewers -> one repair round -> final (dry run without --call: the first preview and its harness findings only)
 node scripts/motion-local-check.mjs setup|run <final.mp4>   # local stack: Motion render API stand-in -> LearnVideos -> LEARN_MEDIA -> video block
+node scripts/motion-orchestrator.mjs [--service <url>] [--max-calls 16]   # M7A: the development orchestrator for /motion on the local stack (HTTPS 8856)
+node scripts/motion-orchestrator.mjs --stub <final.mp4> [--stub-fail <stage>]   # the same, no model call and no render (UI checks)
+node scripts/motion-e2e.mjs full|stop|failure   # M7A browser proof: /motion typed in the Learn composer -> proposal -> Generate -> the same video card plays
 sh motion/service/context.sh   # deploy context for rabbit-hole-motion-renderer-dev (Home deploys)
 ```
 
@@ -120,6 +123,13 @@ sh motion/service/context.sh   # deploy context for rabbit-hole-motion-renderer-
   repair round (storyboard-level findings: a Director revision, then the Author; otherwise the
   Author alone, with the previous source, the findings and the nonblank rules); a second pass
   that still blocks fails the job. A clean pass goes to the final render (M5 render stage).
+- `motion/pipeline.mjs`, `motion/orchestrator.mjs`: M7A, development only. `runMotionRequest` takes a raw
+  `/motion` line through the Learner Intent Resolver, grounding, the Director (brief, storyboard), the
+  Author and the M6 review job; the one repair round is shared by the whole job (a storyboard that
+  fails its checks spends it on a Director revision). The orchestrator serves it over HTTPS to the
+  `motion_request` provider in `LearnVideos` (control-plane `motion-provider.js`), which starts the job
+  after the learner's Generate, polls it, stores the validated final MP4 in `LEARN_MEDIA` and can Stop
+  it. The web side is `/motion` in a `VITE_MOTION_DEV=true` build only, on the existing video card.
 - `motion/video-block.js`: the existing `type: "video"` block for a finished render
   (`operation: {op: "motion_render", render_id}` + Motion metadata); LearnVideos pulls the MP4
   through `MotionProvider` (packages/control-plane/src/motion-provider.js).

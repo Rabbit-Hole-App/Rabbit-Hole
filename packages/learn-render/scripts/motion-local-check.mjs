@@ -23,7 +23,7 @@ import { canvasKeys } from '../../web/src/home/canvas-local.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const DIR = join(ROOT, '.small', 'motion-local');
-const APP = 'http://127.0.0.1:8858', CP = 'http://127.0.0.1:8859', STANDIN_PORT = 8857;
+const APP = 'http://127.0.0.1:8858', CP = 'http://127.0.0.1:8859', STANDIN_PORT = 8857, ORCHESTRATOR_PORT = 8856;
 const abs = p => join(ROOT, p).replaceAll('\\', '/');
 // Wrangler configs are JSONC: drop comments and trailing commas outside strings.
 const jsonc = text => JSON.parse(text.replace(/("(?:\\.|[^"\\])*")|\/\/[^\n]*|\/\*[\s\S]*?\*\//g, (m, s) => s || '').replace(/,(\s*[}\]])/g, '$1'));
@@ -40,6 +40,7 @@ if (cmd === 'setup') {
   const web = jsonc(readFileSync(join(ROOT, 'packages/web/wrangler.dev.jsonc'), 'utf8'));
   const cp = jsonc(readFileSync(join(ROOT, 'packages/control-plane/wrangler.rabbit-hole-dev.jsonc'), 'utf8'));
   for (const c of [web, cp]) delete c.account_id;
+  // dist-dev (dev-worker.js imports its index.html): built with VITE_MOTION_DEV=true here for /motion (M7A).
   const app = { ...web, name: 'motion-local-app', main: abs('packages/web/dev-worker.js'), assets: { ...web.assets, directory: abs('packages/web/dist-dev') },
     services: [{ binding: 'CONTROL_PLANE', service: 'motion-local-cp' }], vars: { ...web.vars, SCENE_WORKER_URL: 'https://localhost:9/' } };
   const plane = name => ({ ...cp, name, main: abs('packages/control-plane/src/index.js'), assets: { ...cp.assets, directory: abs('packages/web/dist-dev') },
@@ -48,7 +49,8 @@ if (cmd === 'setup') {
   const cpVars = `SMALL_ENV=test\nMASTER_KEY=${secret()}\nTEST_BYPASS_SECRET=${secret()}\nOAUTH_MOCK=true\n`;
   const files = {
     'app/wrangler.jsonc': JSON.stringify(app, null, 2),
-    'app/.dev.vars': `MOTION_RENDERER_URL=https://localhost:${STANDIN_PORT}\nMOTION_RENDERER_TOKEN=${secret()}\n`,
+    // M7A: the development orchestrator (scripts/motion-orchestrator.mjs) for /motion requests.
+    'app/.dev.vars': `MOTION_RENDERER_URL=https://localhost:${STANDIN_PORT}\nMOTION_RENDERER_TOKEN=${secret()}\nMOTION_ORCHESTRATOR_URL=https://localhost:${ORCHESTRATOR_PORT}\nMOTION_ORCHESTRATOR_TOKEN=${secret()}\n`,
     'cp/wrangler.jsonc': JSON.stringify(plane('motion-local-cp'), null, 2), 'cp/.dev.vars': cpVars,
     'sessions/wrangler.jsonc': JSON.stringify(plane('motion-local-cp-sessions'), null, 2), 'sessions/.dev.vars': cpVars,
   };
@@ -59,7 +61,8 @@ if (cmd === 'setup') {
   npx wrangler d1 migrations apply rabbit-hole-dev --local ${c}
   npx wrangler d1 execute rabbit-hole-learn-dev --local ${c} --file packages/control-plane/repository-schema.sql
   npx wrangler d1 migrations apply rabbit-hole-learn-dev --local ${c}
-  (cd packages/web && npx vite build && VITE_COACHING_DEV=true VITE_BYOC_DEV=true npx vite build --outDir dist-dev)
+  (cd packages/web && npx vite build && VITE_COACHING_DEV=true VITE_BYOC_DEV=true VITE_MOTION_DEV=true npx vite build --outDir dist-dev)   (rebuild without VITE_MOTION_DEV before any dev deploy from this tree)
+  node packages/learn-render/scripts/motion-orchestrator.mjs   (M7A /motion; --stub <final.mp4> for a run with no model call)
   NODE_EXTRA_CA_CERTS=.small/motion-local/certs/ca.pem npx wrangler dev -c .small/motion-local/app/wrangler.jsonc -c .small/motion-local/cp/wrangler.jsonc --persist-to .small/motion-local/state --port 8858 --inspector-port 9299
   npx wrangler dev -c .small/motion-local/sessions/wrangler.jsonc --persist-to .small/motion-local/state --port 8859 --inspector-port 9300`);
   process.exit(0);

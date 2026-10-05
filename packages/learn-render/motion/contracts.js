@@ -32,6 +32,10 @@ export const BLOCKING_CATEGORIES = [
   'unsupported_claim', 'must_not_claim_violation', 'required_claim_contradicted', 'wrong_source_branch',
   'blank_frame', 'clipped_text', 'overlapping_text', 'missing_must_show', 'duration_over_max',
   'corrupt_output', 'renderer_failure', 'narration_contradicts_visuals',
+  // M7A, harness-owned: the render does not show the storyboard (an object missing from its beat's
+  // middle, a shared object vanishing at a boundary, an id rendered twice). Found by the coverage
+  // probe on the preview, where the repair round can still fix it; the final keeps the same check.
+  'storyboard_fidelity',
 ];
 export const ADVISORY_CATEGORIES = ['easing_preference', 'aesthetic_preference', 'minor_spacing', 'alternate_color'];
 

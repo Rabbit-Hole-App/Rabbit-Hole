@@ -76,7 +76,7 @@ test('the softmax brief: canonical, grounded, branch-aware, renderer-neutral, mo
   assert.deepEqual(b.source_refs.map(s => `${s.path}:${s.start_line}-${s.end_line}`), ['model.py:44-45', 'model.py:48-50', 'model.py:62-64', 'model.py:65-71']);
   assert.equal(b.implementation_conditions[0].id, 'K1');
   assert.deepEqual(b.output_requirements, { stage_width: 1920, stage_height: 1080, fps: 30, preview_scale: 0.45, poster: true });
-  assert.equal(b.qa_requirements.blocking_categories.length, 12);
+  assert.equal(b.qa_requirements.blocking_categories.length, 13); // the 12 of §13.1 + storyboard_fidelity (M7A)
   assert.equal(b.prompt_spec_version, 'motion-v1.0/director-1');
   assert.deepEqual(leakErrors(b, 'brief'), []); // no model id, no credential anywhere in the brief
   assert.ok(!/remotion|hyperframes/i.test(JSON.stringify(b)));

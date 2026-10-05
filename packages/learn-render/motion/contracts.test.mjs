@@ -109,7 +109,7 @@ test('findings: the harness classifies by category (§13)', () => {
   const { blocking, advisory } = classifyFindings([f('aesthetic_preference'), f('must_not_claim_violation', 'pedagogical'), f('minor_spacing')]);
   assert.deepEqual(blocking.map(x => x.category), ['must_not_claim_violation']);
   assert.equal(advisory.length, 2);
-  assert.equal(BLOCKING_CATEGORIES.length, 12);
+  assert.equal(BLOCKING_CATEGORIES.length, 13); // §13.1 + storyboard_fidelity (M7A, harness-owned)
   assert.equal(ADVISORY_CATEGORIES.length, 4);
 });
 

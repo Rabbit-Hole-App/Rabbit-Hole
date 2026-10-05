@@ -147,7 +147,9 @@ export async function runReviewer({ reviewer, brief, storyboard, frames, dir, ca
     const t0 = clock();
     const response = await call(env, { ...body, messages }, model);
     if (!response.ok) return fail('model_error', `HTTP ${response.status}: ${(await response.text().catch(() => '')).slice(0, 300)}`);
-    const message = await readMessage(response);
+    // A response that breaks off mid-read (a dropped stream) fails the stage; it is never retried.
+    let message;
+    try { message = await readMessage(response); } catch (error) { return fail('model_error', `the response broke off: ${error.message}`); }
     calls.push({ stage, round, ...callRecord(role, model, message, clock() - t0) });
     if (message.stop_reason === 'refusal') return fail('refused', message.stop_details?.category || 'refusal');
     const use = (message.content || []).find(b => b.type === 'tool_use' && b.name === 'motion_review');

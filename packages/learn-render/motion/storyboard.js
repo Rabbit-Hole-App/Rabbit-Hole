@@ -172,7 +172,9 @@ export async function runStoryboard({ brief, call, env = {}, effort = 'high', ro
     const response = await call(env, { ...body, messages }, model);
     const latency = clock() - t0;
     if (!response.ok) return fail('model_error', `HTTP ${response.status}: ${(await response.text().catch(() => '')).slice(0, 300)}`);
-    const message = await response.json();
+    // A response that breaks off mid-read (a dropped stream) fails the stage; it is never retried.
+    let message;
+    try { message = await response.json(); } catch (error) { return fail('model_error', `the response broke off: ${error.message}`); }
     calls.push({ stage: 'storyboard', round, ...callRecord(role, model, message, latency) });
     if (message.stop_reason === 'refusal') return fail('refused', message.stop_details?.category || 'refusal');
     const use = (message.content || []).find(b => b.type === 'tool_use' && b.name === STORYBOARD_TOOL.name);

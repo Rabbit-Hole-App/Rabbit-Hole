@@ -489,6 +489,8 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
       return runLearnCommand(text, {
         app: app.name,
         target: askTarget,
+        // The canvas is the learner's current location: its title names the concept (/motion's resolver).
+        location: { concept: app.title || null },
         canvas: {
           insertNotebook: () => canvasApi.current?.insertNotebook(),
           insertBlock: block => canvasApi.current?.insertBlock(block),

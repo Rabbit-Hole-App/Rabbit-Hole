@@ -55,6 +55,8 @@ export const SLASH = [
   { name: 'image', group: 'create', places: ['learn'], desc: 'Add an image', family: ['image', 'image_generate'] },
   { name: 'video', group: 'create', places: ['learn'], desc: 'Add a video', family: ['video', 'video_generate'] },
   { name: '3d', group: 'create', places: ['learn'], desc: 'Add a 3D model', family: ['3d_model', 'blender_scene'] },
+  // Development only (needs motion_dev): a paid proposal with no model call before Generate.
+  { name: 'motion', group: 'create', places: ['learn'], desc: 'Make a Motion explainer (dev)', action: 'motion', deterministic: true, needs: 'motion_dev' },
   { name: 'notebook', group: 'create', places: ['learn'], desc: 'Add a notebook', family: ['notebook'], action: 'insert_notebook', deterministic: true },
   { name: 'more', group: 'create', places: ['learn'], desc: 'More learning tools', action: 'open_tool_catalog', deterministic: true },
 ];
@@ -93,8 +95,11 @@ export function reviewOff(name, kind, { askLive = false } = {}) {
 export const descFor = (command, place) => (typeof command.desc === 'string' ? command.desc : command.desc[place]);
 
 // The commands a place can use right now. Unavailable ones are not shown.
-export const commandsFor = (place, { catalog = [] } = {}) =>
-  SLASH.filter((c) => c.places.includes(place) && !(c.needs === 'job' && !catalog.some((a) => a.kind === 'job')));
+// /motion (Motion V1 M7A) exists only in a development build made with VITE_MOTION_DEV=true (the
+// local Motion stack): production has no /motion. `?.` keeps this importable by node tests.
+const MOTION_DEV = import.meta.env?.VITE_MOTION_DEV === 'true';
+export const commandsFor = (place, { catalog = [], motionDev = MOTION_DEV } = {}) =>
+  SLASH.filter((c) => c.places.includes(place) && !(c.needs === 'job' && !catalog.some((a) => a.kind === 'job')) && !(c.needs === 'motion_dev' && !motionDev));
 
 const LABEL = { project: 'project', map_node: 'node', card: 'card', equation: 'equation', notebook_cell: 'notebook cell', notebook_file: 'file', canvas_object: 'object' };
 const targetOf = (selection) => {

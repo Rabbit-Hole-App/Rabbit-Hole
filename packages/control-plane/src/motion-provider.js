@@ -59,3 +59,72 @@ export class MotionProvider {
     return { bytes, provider: 'motion', generationId: ticket.id };
   }
 }
+
+// M7A, DEVELOPMENT ONLY: a /motion request that the development orchestrator
+// (packages/learn-render/motion/orchestrator.mjs) plans, reviews and renders. The orchestrator holds
+// the model key; this Worker only starts the job, polls it, fetches the validated final MP4 into
+// LEARN_MEDIA, and can stop it. The card carries the learner's /motion line and the canvas concept
+// it was typed on, nothing else. MOTION_ORCHESTRATOR_URL is set only on the local Motion stack.
+const MOTION_LINE = /^\/motion\s+\S/;
+// A refusal the orchestrator answered: nothing started, so the job stays retryable.
+const definite = message => Object.assign(new Error(message), { definite: true });
+
+export function validateMotionRequest(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('motion_request: an object is required');
+  const extra = Object.keys(value).find(key => !['op', 'request', 'location'].includes(key));
+  if (extra) throw new Error(`motion_request: unknown field ${extra}`);
+  if (value.op !== 'motion_request') throw new Error('motion_request: op must be motion_request');
+  if (typeof value.request !== 'string' || !MOTION_LINE.test(value.request.trim()) || value.request.length > 500) throw new Error('motion_request: request must be a /motion line of at most 500 characters');
+  const location = value.location ?? {};
+  if (!location || typeof location !== 'object' || Array.isArray(location) || Object.keys(location).some(key => key !== 'concept')) throw new Error('motion_request: location is {concept}');
+  const concept = location.concept ?? null;
+  if (concept !== null && (typeof concept !== 'string' || concept.length > 100)) throw new Error('motion_request: concept must be a string of at most 100 characters');
+  return { op: 'motion_request', request: value.request.trim(), location: { concept: concept?.trim() || null } };
+}
+
+export async function motionRequestCacheKey(input) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`motion-request|${input.request}|${input.location.concept ?? ''}`));
+  return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+export class MotionRequestProvider {
+  constructor(env, transport = fetch) {
+    this.url = env.MOTION_ORCHESTRATOR_URL;
+    this.token = env.MOTION_ORCHESTRATOR_TOKEN;
+    this.transport = transport;
+    this.version = 'motion-orchestrator';
+  }
+  async request(path, { method = 'GET', body } = {}) {
+    if (!this.url || !this.token) throw definite('Motion is not configured here (development only)');
+    const base = new URL(this.url);
+    if (base.protocol !== 'https:') throw definite('The Motion orchestrator requires HTTPS');
+    const transport = this.transport;
+    return transport(new URL(path, base), { method, headers: { Authorization: `Bearer ${this.token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}), redirect: 'manual', signal: AbortSignal.timeout(20000) });
+  }
+  async submit(input) {
+    const response = await this.request('/jobs', { method: 'POST', body: { request: input.request, location: input.location.concept ? { concept: input.location.concept } : {} } });
+    const body = await response.json().catch(() => ({}));
+    if (response.status === 202 && /^[0-9a-f]{32}$/.test(body.job_id || '')) return { id: body.job_id };
+    throw definite(`The Motion harness did not start the job${body.detail ? `: ${body.detail}` : body.error ? ` (${body.error})` : ` (HTTP ${response.status})`}`);
+  }
+  async poll(ticket) {
+    const response = await this.request(`/jobs/${ticket.id}`);
+    if (response.status === 404) throw final('The Motion job is gone (the development orchestrator restarted); generate it again');
+    if (!response.ok) throw new Error(`Motion orchestrator HTTP ${response.status}`);
+    const job = await response.json();
+    if (job.status === 'running') return null;
+    if (job.status === 'needs_clarification') throw final(`Motion needs one clarification: ${job.clarification?.question || 'name what to explain'}`);
+    if (job.status === 'cancelled') throw final('Stopped.');
+    if (job.status !== 'ready') throw final(`The Motion job failed: ${job.failure_reason || 'unknown reason'}`);
+    const asset = await this.request(`/jobs/${ticket.id}/final.mp4`);
+    if (!asset.ok || !asset.headers.get('content-type')?.startsWith('video/mp4')) throw new Error('The Motion render was unavailable');
+    const bytes = new Uint8Array(await asset.arrayBuffer());
+    if (bytes.byteLength > MAX_ASSET) throw final('The Motion render is too large');
+    // The provenance the card shows once ready: the brief's title and the block's motion record.
+    return { bytes, provider: 'motion', generationId: job.render_id, motion: { title: job.title, ...job.motion } };
+  }
+  async cancel(ticket) {
+    const response = await this.request(`/jobs/${ticket.id}/cancel`, { method: 'POST' });
+    if (!response.ok) throw new Error(`Motion orchestrator HTTP ${response.status}`);
+  }
+}

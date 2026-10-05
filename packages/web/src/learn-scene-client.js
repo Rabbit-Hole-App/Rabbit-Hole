@@ -22,4 +22,8 @@ export const videoList = app => api(videoEndpoint(app));
 export const startVideo = (app, operation, { confirmed = false, retry = false } = {}) =>
   api(videoEndpoint(app), { method: 'POST', body: JSON.stringify({ operation, lessonId: 'adaptive-canvas', page: 'canvas', confirmed, retry }) });
 
+// Stop a generating job whose provider can stop (a /motion request); free, so no confirmation.
+export const stopVideo = (app, placementId) =>
+  api(videoEndpoint(app), { method: 'POST', body: JSON.stringify({ action: 'cancel', id: placementId }) });
+
 export const videoAssetUrl = (app, key) => new URL(`${videoEndpoint(app)}&asset=${key}`, window.location.origin).href;

@@ -1503,6 +1503,7 @@ These consume the single repair round (§4.8):
 - corrupt or unplayable output
 - renderer failure
 - narration materially contradicts visuals
+- the render does not show the storyboard (M7A, `storyboard_fidelity`, harness-owned): an object missing from its beat's middle, a shared object vanishing at a boundary, an id rendered twice. The coverage probe judges it on the preview, so the repair round can fix it; the final keeps the same check.
 
 ## 13.2 Advisory (never repaired automatically)
 

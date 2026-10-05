@@ -60,7 +60,7 @@ test('reviewers are blind: brief and frames only, never the source, notes, story
 
 test('each reviewer has its own categories; the harness owns duration, corruption and render failures', () => {
   const all = [...REVIEWER_CATEGORIES.visual, ...REVIEWER_CATEGORIES.pedagogical];
-  assert.deepEqual(BLOCKING_CATEGORIES.filter(c => !all.includes(c)), ['duration_over_max', 'corrupt_output', 'renderer_failure']);
+  assert.deepEqual(BLOCKING_CATEGORIES.filter(c => !all.includes(c)), ['duration_over_max', 'corrupt_output', 'renderer_failure', 'storyboard_fidelity']);
   assert.ok(!REVIEWER_CATEGORIES.visual.some(c => REVIEWER_CATEGORIES.pedagogical.includes(c)));
   const beats = ['B1', 'B2'];
   assert.deepEqual(validateReviewOutput('visual', { findings: [] }, beats), []);
@@ -102,7 +102,14 @@ test('harness findings: blank or near-blank frames, a failed or refused render a
   assert.equal(harnessFindings({ submitted: true, result: { status: 'render_failed', failure: { category: 'compile_failed', detail: 'x is not defined' } } }, 1)[0].category, 'renderer_failure');
   assert.equal(harnessFindings({ submitted: false, reason: 'invalid_job', errors: ['static: fetch'] }, 0)[0].category, 'renderer_failure');
   assert.equal(harnessFindings({ submitted: true, result: { status: 'artifact_invalid', failure: { category: 'preview_invalid', detail: '10 frames' } } }, 0)[0].category, 'corrupt_output');
-  for (const c of ['blank_frame', 'renderer_failure', 'corrupt_output']) assert.ok(BLOCKING_CATEGORIES.includes(c));
+  for (const c of ['blank_frame', 'renderer_failure', 'corrupt_output', 'storyboard_fidelity']) assert.ok(BLOCKING_CATEGORIES.includes(c));
+  // M7A: the preview's coverage judgment (the first automatic run failed it only at final validation).
+  const missing = harnessFindings(blankPreview([], { coverage: { ok: false, errors: ['B3 #225: object masked_fill_code_line is not visible', 'B5 #420: object row_direction_arrow is not visible'] } }), 0);
+  assert.deepEqual(missing.map(f => [f.reviewer, f.category, f.beat_id]), [['harness', 'storyboard_fidelity', 'B3']]);
+  assert.match(missing[0].description, /B3 #225: object masked_fill_code_line is not visible; B5 #420/);
+  assert.deepEqual(validateFinding(missing[0]), []);
+  assert.deepEqual(harnessFindings(blankPreview([[0, 0]], { coverage: { ok: false, errors: ['B1 #45: object x is not visible'] } }), 1).map(f => f.category), ['storyboard_fidelity', 'blank_frame']);
+  assert.deepEqual(harnessFindings(blankPreview([], { coverage: { ok: true, errors: [] } }), 0), []);
 });
 
 test('the repair Author call: the previous source, the blocking findings and the four nonblank requirements, verbatim', () => {

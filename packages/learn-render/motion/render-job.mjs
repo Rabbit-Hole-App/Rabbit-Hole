@@ -9,7 +9,7 @@
 //   renderPreview(the same) -> the same shapes with a PreviewResult (M6: what a review pass sees)
 import { createHash, randomBytes } from 'node:crypto';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import { PNG } from 'pngjs';
 import { checkAuthorSource } from './author-check.js';
 import { RENDER_ARTIFACTS, RENDER_RESULT_SCHEMA, RENDER_SCHEMA, STAGE, validateRenderRequest, validateRenderResult } from './contracts.js';
@@ -171,8 +171,9 @@ async function download(service, id, dir, artifacts) {
 
 const POLLING = { pollMs: 2000, waitMs: 8 * 60 * 1000, sleep: ms => new Promise(r => setTimeout(r, ms)), now: () => Date.now() };
 
-export async function renderComposition({ brief, storyboard, author, service, dir, origin, ...options }) {
+export async function renderComposition({ brief, storyboard, author, service, dir: where, origin, ...options }) {
   const { pollMs, waitMs, sleep, now } = { ...POLLING, ...options };
+  const dir = resolve(where); // ffmpeg and ffprobe run from their own directory
   const g = gate(brief, storyboard, author);
   if (!g.request) return { submitted: false, reason: g.reason, ...(g.errors ? { errors: g.errors } : {}) };
   const { request, source, contract } = g;
@@ -247,10 +248,12 @@ const ARTIFACT_CATEGORY = { 'preview.mp4': 'preview_invalid', 'poster.png': 'pos
 // "preview": preview.mp4 and the contact sheet, validated here, then the preview decoded at every
 // nonblank frame (the final's frames, the same luma rule) before any final render. A blank frame
 // is a review finding (review-job.mjs), not a render failure, so the frames come back either way;
-// `frames` are the contact frames the reviewers see (§11.2), paths relative to dir.
+// `frames` are the contact frames the reviewers see (§11.2), paths relative to dir; `coverage` is
+// the M5 beat and transition judgment of the preview's probe (M7A).
 export const PREVIEW_ARTIFACTS = Object.freeze({ preview_mp4: 'preview.mp4', contact_sheet: 'contact-sheet.png' });
-export async function renderPreview({ brief, storyboard, author, service, dir, origin, ...options }) {
+export async function renderPreview({ brief, storyboard, author, service, dir: where, origin, ...options }) {
   const { pollMs, waitMs, sleep, now } = { ...POLLING, ...options };
+  const dir = resolve(where); // ffmpeg and ffprobe run from their own directory
   const g = gate(brief, storyboard, author);
   if (!g.request) return { submitted: false, reason: g.reason, ...(g.errors ? { errors: g.errors } : {}) };
   const t0 = now();
@@ -291,6 +294,8 @@ export async function renderPreview({ brief, storyboard, author, service, dir, o
   catch (error) { return fail('artifact_invalid', 'preview_invalid', `preview.mp4 frames: ${firstLine(error)}`); }
   const [, ok, detail] = nonblankCheck(decoded, sample);
   result.nonblank = { ok, threshold: NONBLANK_MIN_LUMA_STDDEV, detail, blank: decoded.filter(f => !(f.luma_stddev > NONBLANK_MIN_LUMA_STDDEV)).map(f => ({ frame: f.frame, beat: beatAt(storyboard, f.frame).id, luma_stddev: f.luma_stddev })) };
+  // M7A: the coverage probe ran on the preview too; the same judge as the final (judgeCoverage).
+  result.coverage = record.coverage ? judgeCoverage(record, brief, storyboard, g.contract.mapping.text) : null;
   result.frames = decoded.filter(f => contact.has(f.frame)).map(f => ({ frame: f.frame, time: +(f.frame / STAGE.fps).toFixed(2), beat: beatAt(storyboard, f.frame).id, file: `frames/${basename(f.file)}` }));
   result.timings.decode_s = secs(now() - t1);
   return done('ready');
