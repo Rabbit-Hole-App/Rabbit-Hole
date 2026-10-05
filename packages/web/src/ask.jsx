@@ -495,7 +495,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     // left for a canvas with no Tutor, whose only trays belong to a journey being started (What do you want to learn?).
     let routed = null;
     if ((journey?.journey || journey?.tray) && !skipJourney && raw.trim() && !busy) {
-      if (journey.busy) return; // the words stay in the composer while the tray works
+      if (journey.busy) { tutor?.slash?.(null); return; } // the words stay in the composer while the tray works
       if (!tutor) {
         setInput('');
         routed = await journey.handleText(raw.trim());
@@ -517,14 +517,14 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     }
     // @-chips ride at the front of the message text
     const message = [...mentions.map((m) => `@${m}`), raw.trim()].filter(Boolean).join(' ');
-    if (!message || busy) return;
+    // A refused turn leaves no /deeper or /simplify waiting for the next one (LearnTutor slash).
+    if (!message || busy) { tutor?.slash?.(null); return; }
     // The main composer starts a new block; the sheet keeps its own thread.
     // A journey in setup (intake, diagnostic, path review) gets no permanent card before its path is accepted: the
     // Tutor's answer stays in the sheet, even about a selected card, and opens no reader on the canvas.
     const panelAsk = sheetMode && (!canvasTarget || journeySetup);
     if (composerOnly && !canvasSeed) threadId.current = panelAsk ? sheetThread.current : null;
     const exchange = panelAsk || journeySetup ? null : onExchange;
-    if (panelAsk) { setSheetOpen(true); setSheetHistory(false); }
     const isDemo = demo && message.toLowerCase().replace(/[.!?]+$/, '') === demo.prompt.toLowerCase() && !file;
     if (isDemo && demo.disabled) return;
     if (!isDemo) { boardContext?.pause(); boardContext?.setAnswering(true); }
@@ -558,12 +558,13 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     const imageId = !target?.paper && !questionPaper ? target?.image || questionImage?.id : null;
     const replyId = crypto.randomUUID();
     const card = sheetMode && !panelAsk ? { card: true } : {}; // answered as a card, kept out of the sheet
-    // The turn's chat bubbles and canvas exchange, drawn once. The Tutor draws them itself (begin), only for a turn it
-    // answers: a turn its journey resolver takes (LearnTutor.jsx) has neither.
+    // The turn's chat bubbles and canvas exchange, drawn once, and the sheet opened for them. The Tutor draws them itself
+    // (begin), only for a turn it answers: a turn its journey resolver takes (LearnTutor.jsx) has neither.
     let begun = false;
     const begin = () => {
       if (begun) return;
       begun = true;
+      if (panelAsk) { setSheetOpen(true); setSheetHistory(false); }
       setMsgs((m) => [...m, { role: 'user', content: attached ? `${message} 📎 ${attached.name}` : message, ...card, ...(canvasImage ? { canvasImage } : {}), ...(sourceRange ? { passage: `${sourceRange.path}:${sourceRange.start}-${sourceRange.end}` } : {}) }, { role: 'assistant', content: '', id: replyId, demo: !!isDemo, ...card }]);
       if (!isDemo) exchange?.({ id: replyId, question: message, ...(target ? { linkFrom: target.id } : {}) });
     };
@@ -589,7 +590,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       // Learn chat - the learner's own words, and the card they armed or selected. On a journey canvas a turn the
       // journey takes comes back handled, with nothing drawn; a failed one gives the words back.
       if (tutor) {
-        const reply = await tutor.ask({ raw: raw.trim(), targetId: target?.id || null, opening, signal: flight.signal, skipJourney, begin }).catch(e => { if (e.name === 'AbortError') return 'Stopped.'; if (e.name === 'TimeoutError') throw new Error('The Tutor took too long to answer. Try again.'); throw e; });
+        // A block's follow-up composer (canvasSeed, a journey canvas) asks about that block.
+        const reply = await tutor.ask({ raw: raw.trim(), targetId: (target || canvasSeed?.target)?.id || null, opening, signal: flight.signal, skipJourney, begin }).catch(e => { if (e.name === 'AbortError') return 'Stopped.'; if (e.name === 'TimeoutError') throw new Error('The Tutor took too long to answer. Try again.'); throw e; });
         if (reply?.handled) { if (reply.failed) setInput(current => current || raw); return; }
         begin();
         mirror(reply);
@@ -1000,7 +1002,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           <button type="button" aria-label={boardContext.previewKind === 'paper' ? 'Remove paper selection' : 'Remove canvas image'} title="Remove image preview" onClick={boardContext.removeImage} className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border border-line bg-white text-ink-2 shadow-sm hover:bg-hover"><X size={12} /></button>
         </div>}
         {tray?.tray && <TutorPromptTray tray={tray.tray} onOption={async id => { const out = await tray.onOption(id); if (out?.ask) send(out.ask, undefined, { skipJourney: true }); }} />}
-        {slash && <div className="relative"><slash.Picker apiRef={slashRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFocusBlock={slash.focusBlock} onPrompt={prompt => send(prompt)} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
+        {slash && <div className="relative"><slash.Picker apiRef={slashRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFocusBlock={slash.focusBlock} onPrompt={prompt => send(prompt, undefined, { skipJourney: true })} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
         {dock && voice?.state === 'off' && voice.caption?.error && <div role="alert" data-voice-error className="mb-1.5 truncate text-xs text-fail">{voice.caption.error}</div>}
         <ChatComposer value={input} onChange={value => { boardContext?.pause(); setComposerInput(value); }} onSubmit={send} ready={!!command}
           onKeyDown={slash ? event => { if (command && event.key === 'Backspace' && !input) { event.preventDefault(); setCommand(null); return; } slashRef.current?.onKeyDown(event); } : undefined} inputRef={inputRef} autoFocus={autoFocus} placeholder={command ? 'Add details, or press Enter' : tray?.tray?.free_text ? 'Type your answer, or ask anything' : placeholder} busy={busy}

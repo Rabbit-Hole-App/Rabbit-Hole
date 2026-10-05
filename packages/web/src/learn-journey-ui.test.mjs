@@ -191,7 +191,7 @@ test('ask.jsx: on a journey canvas the Tutor is the one path; the composer calls
   // The Tutor draws the turn's bubbles and exchange itself (begin), only for a turn it answers: a turn the journey takes
   // has neither, and a failed one gives the words back. Ask the Tutor (skipJourney) goes straight to the planner.
   assert.match(ask, /if \(!tutor \|\| isDemo\) begin\(\);/);
-  assert.match(ask, /await tutor\.ask\(\{ raw: raw\.trim\(\), targetId: target\?\.id \|\| null, opening, signal: flight\.signal, skipJourney, begin \}\)/);
+  assert.match(ask, /await tutor\.ask\(\{ raw: raw\.trim\(\), targetId: \(target \|\| canvasSeed\?\.target\)\?\.id \|\| null, opening, signal: flight\.signal, skipJourney, begin \}\)/);
   assert.match(ask, /if \(reply\?\.handled\) \{ if \(reply\.failed\) setInput\(current => current \|\| raw\); return; \}/);
   assert.match(ask, /await journeyStarter\(/);
   assert.match(ask, /<TutorPromptTray tray=\{tray\.tray\}/);
@@ -808,8 +808,8 @@ const settled = (claim, seq) => ({ seq, concept: 'sigmoid', claim, result: 'pass
 const PLAN = { strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: 'A sigmoid squashes any number into 0 to 1.' }] };
 const diagnosing = (over = {}) => journeyOf({ state: 'diagnostic', diagnostic: { probes }, registry: SIGMOID, evidence: { seq: 0, events: [] }, ...over });
 // h: a harness (its journey already read). evaluate: the evaluate route's reply; by default an evaluator error, which
-// stores nothing.
-function tutorOn(h, { evaluate = { status: 'error', evaluator: 'jev', events: [] } } = {}) {
+// stores nothing. blocks: the canvas blocks (canvasApi.blocks and block(id)).
+function tutorOn(h, { evaluate = { status: 'error', evaluator: 'jev', events: [] }, blocks = [] } = {}) {
   const storage = new Map(), began = [];
   const globals = {
     window: { dispatchEvent: () => true },
@@ -823,7 +823,7 @@ function tutorOn(h, { evaluate = { status: 'error', evaluator: 'jev', events: []
   let tutor = null;
   const journey = h.view();
   const Page = () => {
-    tutor = useTutor({ app: { name: APP, org: 'o', email: 'e@x.com' }, board: 'main', access: { app: APP }, canvasApi: { current: { blocks: () => [], block: () => null } }, canvasState: { card: null }, dive: { tree: null, suggestionCard: null }, journey });
+    tutor = useTutor({ app: { name: APP, org: 'o', email: 'e@x.com' }, board: 'main', access: { app: APP }, canvasApi: { current: { blocks: () => blocks, block: id => blocks.find(block => block.id === id) || null } }, canvasState: { card: null }, dive: { tree: null, suggestionCard: null }, journey });
     return null;
   };
   renderToStaticMarkup(createElement(Page));
@@ -929,4 +929,72 @@ test('useTutor on a journey canvas: "Can we skip this?" with a tray open is the 
       assert.deepEqual(t.began, []);
     }
   }
+});
+
+// ---- Task 12 review round 1 ----
+
+test('useTutor on a journey canvas: a voice turn while an action is in flight is refused - one intake_answer, never two', async () => {
+  let land;
+  const h = harness(ok(journeyOf({ registry: SIGMOID }), familiarityTray), [() => new Promise(resolve => { land = () => resolve(ok(journeyOf({ revision: 5 }), depthTray)); })]);
+  await h.refresh();
+  const t = tutorOn(h);
+  const clicked = h.view().answer('seen'); // the option click, still posting
+  assert.equal(h.view().busy, true);
+  const spoken = await t.run(tutor => tutor.voiceTurn({ raw: 'Seen it before', turnId: 'turn-1' }));
+  assert.equal(spoken.speech, '', 'a refused spoken turn says nothing');
+  const typed = await t.run(tutor => tutor.ask({ raw: 'Seen it before', begin: t.begin }));
+  assert.deepEqual([typed.handled, typed.failed], [true, true], 'a typed one gets its words back');
+  land();
+  await clicked;
+  assert.deepEqual(h.actions(), ['intake_answer']);
+  assert.deepEqual(tutorRoutes(h), []);
+  assert.deepEqual(t.began, []);
+});
+
+test('useTutor: slash(null) drops a waiting /deeper, and a slash prompt is a Tutor turn even while the journey works', async () => {
+  let land;
+  const h = harness(ok(journeyOf({ registry: SIGMOID }), goalTray), [ok(journeyOf({ registry: SIGMOID, revision: 5 }), goalTray), () => new Promise(resolve => { land = () => resolve(ok(journeyOf({ revision: 6 }), goalTray)); })]);
+  await h.refresh();
+  const t = tutorOn(h);
+  // The composer refused the prompt (busy) and cleared the command: the next turn is the learner's own words, and goes
+  // through the journey's resolver like any other (a waiting slash would have skipped it).
+  t.tutor.slash('deeper', '/deeper the old question');
+  t.tutor.slash(null);
+  const out = await t.run(tutor => tutor.ask({ raw: 'Can we skip this?', begin: t.begin }));
+  assert.equal(out.handled, true);
+  assert.deepEqual(h.actions(), ['cancel']);
+  // While an action posts, the slash prompt (sent with skipJourney) still reaches the planner as /deeper.
+  const busy = h.view().retry();
+  t.tutor.slash('deeper', '/deeper the sigmoid');
+  await t.run(tutor => tutor.ask({ raw: 'Explain the sigmoid more deeply.', skipJourney: true, begin: t.begin }));
+  assert.deepEqual(h.actions(), ['cancel', 'retry', '/api/learn/tutor/plan']);
+  assert.equal(h.calls.at(-1).body.context.learner_intent.kind, 'slash');
+  assert.equal(h.calls.at(-1).body.context.learner_intent.slash, 'deeper');
+  land();
+  await busy;
+});
+
+test('useTutor on a journey canvas: a block follow-up asks about that block (its targetId)', async () => {
+  const h = harness(ok(journeyOf({ state: 'active', registry: SIGMOID }), null));
+  await h.refresh();
+  const t = tutorOn(h, { blocks: [{ id: 'x1', type: 'explanation', title: 'Odds and log-odds', body: 'The logit is the log of the odds.' }] });
+  await t.run(tutor => tutor.ask({ raw: 'Why take the log?', targetId: 'x1', begin: t.begin }));
+  assert.deepEqual(h.actions(), ['/api/learn/tutor/plan']);
+  assert.match(h.calls[1].body.context.target.description, /Odds and log-odds/);
+  assert.equal(h.calls[1].body.context.journey_context.phase, 'active');
+});
+
+test('ask.jsx and LearnPage.jsx: the sheet opens only for a Tutor reply; slash prompts skip the journey and a refused turn clears the slash; block follow-ups on a journey canvas go to the Tutor', () => {
+  const ask = read('ask.jsx'), page = read('LearnPage.jsx');
+  // The sheet opens inside begin(): a turn the journey takes never reopens it.
+  assert.equal(ask.split('if (panelAsk) { setSheetOpen(true); setSheetHistory(false); }').length, 2, 'once');
+  assert.match(ask, /const begin = \(\) => \{\n\s+if \(begun\) return;\n\s+begun = true;\n\s+if \(panelAsk\) \{ setSheetOpen\(true\); setSheetHistory\(false\); \}/);
+  assert.match(ask, /onPrompt=\{prompt => send\(prompt, undefined, \{ skipJourney: true \}\)\}/);
+  assert.match(ask, /if \(journey\.busy\) \{ tutor\?\.slash\?\.\(null\); return; \}/);
+  assert.match(ask, /if \(!message \|\| busy\) \{ tutor\?\.slash\?\.\(null\); return; \}/);
+  assert.match(read('LearnTutor.jsx'), /slash: \(name, raw\) => \{ slashNext\.current = name \? \{ name, raw \} : null; \}/);
+  // A block's composer gets the Tutor only on a canvas with a live journey (nanoGPT and blank canvases keep /api/learn/ask),
+  // and asks about the block it sits in.
+  assert.match(page, /renderBlockComposer=\{[^\n]*?canvasSeed=\{\{ question: exchange\.question, answer: exchange\.answer, target \}\} onExchange=\{onExchange\} tutor=\{journey\.journey \? tutor : null\}/);
+  assert.match(ask, /targetId: \(target \|\| canvasSeed\?\.target\)\?\.id \|\| null/);
 });

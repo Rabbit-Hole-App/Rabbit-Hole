@@ -148,8 +148,9 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, on 
     },
     opening,
     // /deeper and /simplify go to the Tutor as the turn's slash (§5): its prompt is sent through
-    // the composer as usual, and the Tutor reads the typed command in its place.
-    slash: (name, raw) => { slashNext.current = { name, raw }; },
+    // the composer as usual, and the Tutor reads the typed command in its place. slash(null): the composer refused that
+    // prompt (busy), so no stale command waits for the next turn.
+    slash: (name, raw) => { slashNext.current = name ? { name, raw } : null; },
     // Shown under the Tutor's reply in the chat (ask.jsx): the dive suggestion, whose "Keep it on
     // this canvas" also gives the next turn here dive_choice inline, and the suggestion chips.
     extras: (dive.suggestionCard || chips.length) ? <>

@@ -300,8 +300,11 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
   // Every turn on a board with a journey (or an open tray): the Tutor's typed and voice turns, and the composer's with no
   // Tutor. { handled: false } hands it to the responder (with `text` when the learner chose Ask the Tutor for earlier
   // words); `failed` gives the words back. answerProbe: the Tutor's probe turn, kept for the clarification a turn opens
-  // (its Answer the question and Continue answer the probe with the same words).
+  // (its Answer the question and Continue answer the probe with the same words). While an action or a materialization
+  // runs, a turn is refused (its words come back; a spoken one says nothing): a voice turn has no composer guard, and a
+  // second post would answer the same step twice.
   const handleText = async (raw, { answerProbe = null } = {}) => {
+    if (s.busy) return { handled: true, failed: true };
     set({ error: null });
     if (answerProbe) s.answerProbe = answerProbe;
     const t = open(), j = s.data.journey, it = journeyIntent(raw);
