@@ -762,3 +762,37 @@ then the journey route's rule 5. When Motion lands, the wiring is one line in `r
 `structured_interpretation.interaction = interactionInterpretation(text, tray)` when a `tray` input is given. At the
 same time the extension's minutes fallback (`OVERVIEW` and `IN_MINUTES` in `learner-intent-journey.js`, marked
 `ponytail:`) switches to Motion's `parseDuration`, with hyphen support ("a 10-minute overview") added there.
+
+**Browser acceptance J1-J8 (§16), 2026-10-05, code at ab77965f.** `e2e/journey-check.mjs` on the keyless local stack
+(`e2e/journey-local-stack.md`: `alp1-local-app` 8868, `alp1-local-cp` 8869, `JOURNEY_MODEL_STUB=fixtures`,
+`SMALL_ENV=test`, the LEARN DB reset for the current 0006), with the generalized Tutor live on journey canvases. Two full
+runs, 57/57 checks each, no page error. The page answers `/api/learn/ask`, `/api/learn/home-ask` and
+`/api/learn/tutor/plan` itself (canned) and refuses artifact, voice, assess and image; `/api/learn/tutor/evaluate`
+reaches the stack.
+
+| Check | Result | What was asserted |
+|---|---|---|
+| J1 | PASS | `intent_intake` tray; 0 blocks (storage and DOM); no ask or artifact request; tray clear of the composer. |
+| J2 | PASS | Goal, familiarity, depth → `diagnostic_probe`. The typed explain-back goes resolver → rule 5 (`tray_answer`) → the Tutor's plan:false probe turn: one evaluate with `journey_id`, `claims` and `probe_id`, no planner request, no ask; it answers status `error` (no JEV key, the conservative path) and the GET's stored events stay 0. The mcq and prediction options post evaluate with `journey_id` and `probe_id`, answer `settled`, and the GET shows one event tagged with each probe (2 stored, every one tagged). |
+| J3 | PASS | `path_preview`, 8 rail entries all `upcoming`, 0 blocks. A setup question is one Tutor plan request with `journey_context`, answered in the sheet, no card, the tray stays. The pinned list covers nothing at 1440 and 1720, panel open and closed (320 px wide at 1440 open). |
+| J4 | PASS | While `section_materialized` is in flight the board is already saved (4 blocks) and the GET reads section 1 `planning`; afterwards section 1 is `current` and `generated` with its heading, `section_plan.generation_state` is `generated`, sections 2-8 are `not_generated` with no heading (route or canvas), one heading and 3 explanations, one section plan, no artifact request, no ask in J1-J4. |
+| J5 | PASS | Blank canvas question: no tray, no journey, exactly one `/api/learn/ask` (canned). |
+| J6 | PASS | 1 intake question, then `path_preview` with 3 entries; no ask. |
+| J7 | PASS | No setup tray; the rail shows the path about 30 ms before the first block; section 1 drawn; no ask. |
+| J8 | PASS | Home Agent Bar → Learn on the intake tray; canvas titled "Logistic regression"; `raw_user_message` is the typed request; no home-ask or ask. |
+
+**Preservation gates.**
+- `make test-unit`: green, 1713 + 948 + 1 + 1 + 26, 0 failures.
+- Golden traces (`node --test src/learn-tutor.test.mjs`): 18/18 (the corpus counts 9/9 golden traces).
+- Free corpus (`node e2e/tutor-corpus-run.mjs --stage lp1-final`): 33 traces, 44 turns, 0 errored, pass rate 1,
+  `failed: []`; against the Task 6 baseline (`corpus-before`), with timings, stage and ids removed, 0 of 44 rows differ
+  and the summaries are equal.
+- `node e2e/tutor-slice-check.mjs` (stub mode, the Tutor routes scripted in the browser) runs keyless: pointed at the
+  stack with `TUTOR_BASE`/`SMALL_CP` and a temporary `packages/control-plane/.dev.vars` holding only the stack's
+  `TEST_BYPASS_SECRET` (the script reads that path; removed after), it passed: 9 planner turns, 11 evaluations.
+
+**What the stack lacked.** No model key of any kind (`ANTHROPIC_API_KEY`, `TYPESAFE_API_KEY`,
+`VERCEL_TYPESAFE_API_KEY`, `OPENAI_API_KEY`, `FISH_AUDIO_API_KEY`, `ELEVENLABS_*`: checked by name in the vars files and
+the binding tables; `/api/learn/home-ask` answered 503). So the journey planners ran their fixtures, no free-text answer
+was graded (JEV `error` every time), no Tutor plan came from a model (canned in the page), and nothing was spoken.
+Real-model journey corpus: pending (controller)

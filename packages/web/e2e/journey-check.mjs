@@ -1,19 +1,22 @@
 // Adaptive Learning Path LP1 acceptance J1-J8 (docs/features/adaptive-learning-path-v1-architecture.md §16), in a real
 // browser against the KEYLESS local stack only (e2e/journey-local-stack.md): no model key is bound, the journey planners
 // run their fixtures (JOURNEY_MODEL_STUB=fixtures), and every request that could reach a model from the page is answered
-// here (/api/learn/ask a canned SSE reply, /api/learn/home-ask a canned answer; artifact, voice, assess, image refused).
+// here (/api/learn/ask a canned SSE reply, /api/learn/home-ask a canned answer, the Tutor planner /api/learn/tutor/plan
+// a canned respond_text plan; artifact, voice, assess, image refused). /api/learn/tutor/evaluate reaches the stack: with
+// no JEV key its free-text rung answers status 'error' without a call, and a keyed probe option is graded server-side.
+// Since LP1 Task 12 every typed turn on a journey canvas is the Tutor's (useTutor.turn, resolver first): none may reach
+// /api/learn/ask.
 //   node e2e/journey-check.mjs --base http://127.0.0.1:8868 --cp http://127.0.0.1:8869 --vars <stack .dev.vars> --out <dir>
 // --vars is the stack's own vars file; only its TEST_BYPASS_SECRET is read, never printed. Sessions are minted on the
-// control plane's origin (the app's barrier refuses /test/session there).
-// Each check prints PASS, FAIL or BLOCKED-UNTIL-TASK-7 with its reason; <out>/journey-results.json holds the table and
-// <out>/journey-network.json the API requests per check (method, path, status, body keys - never learner text).
-// Blocked is decided by what the stack answers, not by a flag: while /api/learn/tutor/evaluate refuses the journey
-// contract (400, until Task 7), the checks that need stored evidence say so instead of failing.
+// control plane's origin (the app's barrier refuses /test/session there). --prefix starts every file name written to
+// <out> (default none).
+// Each check prints PASS or FAIL with its reason; <out>/journey-results.json holds the table and <out>/journey-network.json
+// the API requests per check (method, path, status, body keys, the evaluate result status - never learner text).
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
-const BASE = arg('base', 'http://127.0.0.1:8868'), CP = arg('cp', 'http://127.0.0.1:8869'), OUT = arg('out', 'journey-shots'), VARS = arg('vars', process.env.JOURNEY_VARS);
+const BASE = arg('base', 'http://127.0.0.1:8868'), CP = arg('cp', 'http://127.0.0.1:8869'), OUT = arg('out', 'journey-shots'), VARS = arg('vars', process.env.JOURNEY_VARS), PREFIX = arg('prefix', '');
 for (const origin of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(origin)) throw Error('journey-check runs against the local stack only');
 if (!VARS) throw Error('--vars <the local stack .dev.vars> is required (e2e/journey-local-stack.md)');
 mkdirSync(OUT, { recursive: true });
@@ -62,6 +65,8 @@ async function learnerPage(label) {
   // No model call leaves the page, even on a misconfigured stack.
   await context.route('**/api/learn/ask', route => route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream' }, body: SSE }));
   await context.route('**/api/learn/home-ask', route => route.fulfill({ json: { answer: CANNED, references: [], offer_rabbit_hole: false } }));
+  // The Tutor's planner: a keyless stack would still send the context to the provider unauthenticated, so it is answered here.
+  await context.route('**/api/learn/tutor/plan', route => route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', actions: [{ type: 'respond_text', text: CANNED }] } }));
   await context.route(/\/api\/(learn\/(artifact|voice\/|assess|transcribe|image)|chat)/, route => route.abort());
   const page = await context.newPage();
   const net = network[label] = [], errors = [];
@@ -70,15 +75,19 @@ async function learnerPage(label) {
     const { pathname } = new URL(request.url());
     if (!pathname.startsWith('/api/')) return;
     let body = null; try { body = request.postDataJSON(); } catch { /* not JSON */ }
-    const entry = { method: request.method(), path: pathname, status: null, body };
+    const entry = { method: request.method(), path: pathname, status: null, body, result: null };
     net.push(entry);
-    request.response().then(response => { entry.status = response?.status() ?? null; }).catch(() => {});
+    // An evaluate reply's result status (settled | uncertain | error | duplicate): the keyless conservative path is visible.
+    request.response().then(async response => {
+      entry.status = response?.status() ?? null;
+      if (pathname === '/api/learn/tutor/evaluate') entry.result = (await response.json().catch(() => null))?.status ?? null;
+    }).catch(() => {});
   });
   const calls = (path, method = 'POST') => net.filter(entry => entry.path === path && entry.method === method);
   return { page, net, errors, calls, close: () => context.close() };
 }
 
-const shot = async (page, name) => { await page.waitForTimeout(500); await page.screenshot({ path: `${OUT}/${name}.png` }); console.log('shot', `${OUT}/${name}.png`); };
+const shot = async (page, name) => { await page.waitForTimeout(500); await page.screenshot({ path: `${OUT}/${PREFIX}${name}.png` }); console.log('shot', `${OUT}/${PREFIX}${name}.png`); };
 // The dock composer is an <input> (ChatComposer without multiline); a textarea if that ever changes.
 const composer = page => page.locator('[data-learn-dock] [data-chat-composer] :is(textarea, input:not([type="file"]))').first();
 async function openCanvas(page, name) {
@@ -154,7 +163,6 @@ let current = null;
 // ---- J1-J4: one canvas, one journey, from the request to section 1 on the canvas ----
 const flow = current = await learnerPage('J1-J4');
 const lr = await newCanvas('Journey check J1-J4');
-let evaluateRefused = false;
 
 await group('J1', async () => {
   const { page, calls } = flow;
@@ -181,38 +189,53 @@ await group('J2', async () => {
   }
   check('J2 diagnostic tray', t?.mode === 'diagnostic_probe', 'goal, familiarity and depth lead to diagnostic_probe', `tray is ${t?.mode}`);
   // The walker starts mid-ladder (an explain-back), so the mcq comes second: every probe is answered in the order asked.
+  // Stored evidence is read back from GET /api/learn/journey after each answer (server evidence, LP1 Task 7/12).
+  const stored = async () => (await journeyOf(lr)).journey.evidence?.events ?? [];
+  const replied = (entry, timeout = 15000) => until(page, () => !!entry && entry.status != null && (entry.status !== 200 || entry.result != null), timeout);
   for (let i = 0; i < 4 && t?.mode === 'diagnostic_probe'; i++) {
     const { journey } = await journeyOf(lr);
     const probe = journey.diagnostic.probes.find(p => p.prompt === t.label);
     if (!probe) throw Error('the open tray matches no stored probe');
-    const before = calls('/api/learn/tutor/evaluate').length;
+    const before = calls('/api/learn/tutor/evaluate').length, eventsBefore = (await stored()).length;
     if (probe.kind === 'explain_back') {
-      const asks = calls('/api/learn/ask').length;
+      const asks = calls('/api/learn/ask').length, plans = calls('/api/learn/tutor/plan').length;
       await send(page, EXPLAIN);
       await until(page, () => calls('/api/learn/tutor/evaluate').length > before || calls('/api/learn/ask').length > asks);
-      await page.waitForTimeout(1500);
-      // The real routing: rules 1-4 leave a free-text answer to rule 5 (resolve), whose answer here is the fixture's.
-      const sent = calls('/api/learn/tutor/evaluate').slice(before), body = sent.at(-1)?.body;
-      check('J2 explain-back posts evaluate', !!body?.journey_id && Array.isArray(body?.claims) && body.claims.length > 0 && calls('/api/learn/ask').length === asks,
-        'the typed explain-back posts evaluate with journey_id and claims, and nothing goes to /api/learn/ask',
-        `${sent.length} evaluate request(s) (body keys ${keys(body).join(',') || 'none'}), ${calls('/api/learn/ask').length - asks} /api/learn/ask request(s) took the words`);
-      if (sent.at(-1)?.status === 400) { evaluateRefused = true; record('J2 explain-back JEV error', 'BLOCKED-UNTIL-TASK-7', 'evaluate answered 400: the journey evaluate path arrives in Task 7'); }
-      else if (sent.length) check('J2 explain-back JEV error', sent.at(-1).status === 200, 'evaluate answered (JEV error is the keyless conservative path)', `evaluate HTTP ${sent.at(-1).status}`);
+      const sent = calls('/api/learn/tutor/evaluate').slice(before), entry = sent.at(-1), body = entry?.body;
+      await replied(entry);
+      // The real routing: useTutor.turn runs the resolver first; rules 1-4 leave a free-text answer to rule 5 (resolve,
+      // the fixture's tray_answer), and the Tutor's plan:false probe turn posts evaluate with the probe it answers.
+      check('J2 explain-back posts evaluate', !!body?.journey_id && Array.isArray(body?.claims) && body.claims.length > 0 && body?.probe_id === probe.id
+        && calls('/api/learn/ask').length === asks && calls('/api/learn/tutor/plan').length === plans,
+        'the typed explain-back posts evaluate with journey_id, claims and probe_id (plan:false: no planner request), and nothing goes to /api/learn/ask',
+        `${sent.length} evaluate request(s) (body keys ${keys(body).join(',') || 'none'}, probe ${body?.probe_id === probe.id ? 'matches' : 'differs'}), ${calls('/api/learn/ask').length - asks} ask, ${calls('/api/learn/tutor/plan').length - plans} plan request(s)`);
+      // No JEV key: the free-text rung answers status 'error' without a call, and nothing settled is stored (§3.3).
+      const after = (await stored()).length;
+      check('J2 explain-back JEV error stores nothing', entry?.status === 200 && (entry.result === 'error' ? after === eventsBefore : after > eventsBefore),
+        entry?.result === 'error' ? `evaluate answered status error (no JEV key: the conservative path); stored events stay ${after}` : `evaluate answered ${entry?.result}; ${after} stored event(s)`,
+        `evaluate HTTP ${entry?.status}, result ${entry?.result}, stored events ${eventsBefore} -> ${after}`);
     } else {
       if (probe.kind === 'mcq') await shot(page, 'J2-mcq-probe');
       await page.locator('[data-tray-option="a"]').click();
-      await page.waitForTimeout(500);
-      const sent = calls('/api/learn/tutor/evaluate').slice(before), body = sent.at(-1)?.body;
+      await until(page, () => calls('/api/learn/tutor/evaluate').length > before);
+      const sent = calls('/api/learn/tutor/evaluate').slice(before), entry = sent.at(-1), body = entry?.body;
+      await replied(entry);
       check(`J2 ${probe.kind} posts evaluate`, !!body?.journey_id && body?.probe_id === probe.id, `the ${probe.kind} option posts evaluate with journey_id and probe_id`, `body keys ${keys(body).join(',') || 'none'}`);
-      if (sent.at(-1)?.status === 400) evaluateRefused = true;
+      // The option is graded from the probe's server-only key: settled, stored once, tagged with the probe.
+      const events = await stored(), own = events.filter(e => e.ref?.probe_id === probe.id);
+      check(`J2 ${probe.kind} stored evidence`, entry?.status === 200 && entry.result === 'settled' && own.length >= 1 && own.length === probe.claims.length && events.length === eventsBefore + own.length,
+        `evaluate settled; GET shows ${own.length} event(s) tagged ${probe.id} (${events.length} stored in all)`,
+        `evaluate HTTP ${entry?.status}, result ${entry?.result}; ${own.length} event(s) tagged ${probe.id} for ${probe.claims.length} claim(s); stored ${eventsBefore} -> ${events.length}`);
     }
     const was = t;
     t = await nextTray(page, was);
     check(`J2 ${probe.kind} advances`, t?.label !== was.label || t?.mode !== was.mode, `the UI moves on to ${t?.mode === 'diagnostic_probe' ? 'the next probe' : t?.mode}`, 'the tray did not move');
   }
-  const { journey } = await journeyOf(lr), events = journey.evidence?.events?.length ?? 0;
-  if (evaluateRefused) record('J2 stored event', 'BLOCKED-UNTIL-TASK-7', `evaluate answered 400 (journey contract arrives in Task 7); ${events} stored events`);
-  else check('J2 stored event', events >= 1, `${events} stored event(s)`, 'no stored event');
+  const events = await stored(), mcq = (await journeyOf(lr)).journey.diagnostic.probes.find(p => p.kind === 'mcq');
+  check('J2 stored event', events.length >= 1 && events.some(e => e.ref?.probe_id === mcq?.id) && events.every(e => !!e.ref?.probe_id),
+    `GET /api/learn/journey shows ${events.length} stored event(s), the mcq's among them, each tagged with its probe`,
+    `${events.length} stored event(s); mcq tagged ${events.some(e => e.ref?.probe_id === mcq?.id)}; untagged ${events.filter(e => !e.ref?.probe_id).length}`);
+  check('J2 no ask', calls('/api/learn/ask').length === 0, 'no /api/learn/ask request on the journey canvas', `${calls('/api/learn/ask').length} ask requests`);
 });
 
 await group('J3', async () => {
@@ -222,14 +245,17 @@ await group('J3', async () => {
   check('J3 path tray and rail', entries.length === 8 && entries.every(s => s === 'upcoming'), 'path_preview tray, 8 rail entries, all upcoming', `${entries.length} entries: ${entries.join(',')}`);
   const stored = await blocksOf(page, lr);
   check('J3 no blocks', stored.length === 0 && await domBlocks(page) === 0, '0 canvas blocks', `${stored.length} blocks`);
-  // A question during path review is answered in the chat sheet (no card before acceptance), so the sheet is open for
-  // the geometry below: the case where the pinned list once covered it.
-  const asks = calls('/api/learn/ask').length;
+  // A question during path review is the Tutor's (resolver: unrelated_question), answered in the chat sheet with no card
+  // before acceptance, so the sheet is open for the geometry below: the case where the pinned list once covered it.
+  const asks = calls('/api/learn/ask').length, plans = calls('/api/learn/tutor/plan').length;
   await send(page, 'What is a sigmoid?');
   await page.getByText(CANNED).first().waitFor({ timeout: 15000 });
   await page.waitForTimeout(800);
-  check('J3 setup question in the sheet', calls('/api/learn/ask').length === asks + 1 && await page.locator('[data-chat-sheet]').isVisible() && (await trayState(page))?.mode === 'path_preview',
-    'a question during path review is answered in the chat sheet; the path tray stays', 'the question did not land in the sheet beside the path tray');
+  const plan = calls('/api/learn/tutor/plan').at(-1)?.body;
+  check('J3 setup question to the Tutor, in the sheet', calls('/api/learn/ask').length === asks && calls('/api/learn/tutor/plan').length === plans + 1 && plan?.context?.journey_context != null
+    && await page.locator('[data-chat-sheet]').isVisible() && (await trayState(page))?.mode === 'path_preview' && (await blocksOf(page, lr)).length === 0,
+    'a question during path review is one Tutor plan request with journey_context, answered in the chat sheet; the path tray stays and no card is drawn',
+    `${calls('/api/learn/ask').length - asks} ask, ${calls('/api/learn/tutor/plan').length - plans} plan request(s) (journey_context ${plan?.context?.journey_context != null}); sheet, tray or canvas not as expected`);
   // The pinned list never meets the composer, the tray, the sheet, the Rabbit Hole navigator or the minimap: two
   // viewports, right panel open and closed. A list with no room stays closed (ContentsRail flyoutRect), which passes.
   // The navigator is what [data-dive-gutter] (or [data-gutter-top]) draws, its children: the gutter itself is an 84 px
@@ -254,9 +280,26 @@ await group('J3', async () => {
 
 await group('J4', async () => {
   const { page, calls } = flow;
+  // section_materialized is posted only after the board save (LP1 Task 15): hold that one POST, read the GET while it is
+  // held (section 1 still 'planning'), then let it through.
+  let held = null;
+  const hold = async route => {
+    const body = route.request().method() === 'POST' ? route.request().postDataJSON() : null;
+    if (body?.action === 'section_materialized' && !held) {
+      const { journey, path } = await journeyOf(lr);
+      held = { plan: journey.section_plan?.generation_state ?? null, s1: path.sections.find(s => s.id === 's1')?.generation_state, saved: (await blocksOf(page, lr)).length };
+    }
+    await route.continue();
+  };
+  await page.route('**/api/learn/journey', hold);
   await page.locator('[data-tray-option="start"]').click();
   const { blocks, headings, own } = await waitSection(page, lr, 's1');
-  await page.waitForTimeout(1500); // section_materialized
+  await until(page, () => !!held && calls('/api/learn/journey').some(e => e.body?.action === 'section_materialized' && e.status != null), 15000);
+  await page.unroute('**/api/learn/journey', hold);
+  await page.waitForTimeout(800);
+  check('J4 planning until saved', held?.s1 === 'planning' && held.plan !== 'generated' && held.saved >= 4,
+    `while section_materialized was in flight the board was saved (${held?.saved} blocks) and the GET read section 1 planning`,
+    held ? `in flight: s1 ${held.s1}, section_plan ${held.plan}, ${held.saved} saved blocks` : 'no section_materialized request');
   const explanations = own.filter(b => b.type === 'explanation');
   check('J4 one heading', headings.length === 1 && headings[0].journey_section_id === 's1', 'exactly one heading, journey_section_id s1', `headings for ${headings.map(h => h.journey_section_id).join(',') || 'none'}`);
   check('J4 three explanations', explanations.length === 3 && own.length === 3, "section 1's 3 explanation blocks", `${own.length} s1 blocks (${explanations.length} explanations) of ${blocks.length}`);
@@ -264,13 +307,16 @@ await group('J4', async () => {
   const s1 = path.sections.find(s => s.id === 's1'), rest = path.sections.filter(s => s.id !== 's1');
   check('J4 section 1 current', s1?.status === 'current' && journey.active_section_id === 's1' && await page.locator('[data-path-entry="s1"][data-status="current"]').count() === 1,
     'section 1 is current (route and rail)', `s1 ${s1?.status}, active ${journey.active_section_id}`);
-  check('J4 later sections not generated', rest.length === 7 && rest.every(s => s.generation_state === 'not_generated') && !blocks.some(b => b.journey_section_id && b.journey_section_id !== 's1'),
-    'sections 2-8 have no heading and are not_generated', rest.map(s => `${s.id}:${s.generation_state}`).join(','));
+  check('J4 section 1 generated', s1?.generation_state === 'generated' && journey.section_plan?.generation_state === 'generated' && s1?.heading_block_id === headings[0]?.id,
+    'after the save and section_materialized the GET reads section 1 generated, with its heading', `s1 ${s1?.generation_state}, section_plan ${journey.section_plan?.generation_state}, heading ${s1?.heading_block_id ? 'set' : 'none'}`);
+  check('J4 later sections not generated', rest.length === 7 && rest.every(s => s.generation_state === 'not_generated' && !s.heading_block_id) && !blocks.some(b => b.journey_section_id && b.journey_section_id !== 's1'),
+    'sections 2-8 have no heading (route or canvas) and are not_generated', rest.map(s => `${s.id}:${s.generation_state}${s.heading_block_id ? '+heading' : ''}`).join(','));
   check('J4 one section plan', journey.section_plan?.section_id === 's1', 'the one section plan is for s1', `section_plan ${journey.section_plan?.section_id}`);
   check('J4 heading recorded', journey.section_plan?.heading_block_id === headings[0]?.id, 'section_materialized recorded the heading', `recorded ${journey.section_plan?.heading_block_id ? 'another id' : 'nothing'}`);
   check('J4 no artifact', !calls('/api/learn/artifact').length, 'text steps make no artifact request', `${calls('/api/learn/artifact').length} artifact requests`);
   const hits = await covered(page, (await railBox(page)).box, ['[data-block-id]', '[data-tutor-prompt-tray]', '[data-learn-dock] [data-chat-composer]']);
   check('J4 rail clear of cards', !hits.length, 'the rail covers no card, tray or composer', `the rail covers ${hits.join(', ')}`);
+  check('J4 no ask on the journey canvas', !calls('/api/learn/ask').length, 'J1-J4 made no /api/learn/ask request', `${calls('/api/learn/ask').length} ask requests`);
   await shot(page, 'J4-section-1');
 });
 await flow.close();
@@ -300,6 +346,7 @@ await group('J6', async () => {
   const intake = new Set((await seen(page)).trays.filter(k => k.startsWith('intent_intake|'))).size;
   const entries = await page.locator('[data-contents-rail] [data-path-entry]').count();
   check('J6 at most one question', intake <= 1, `${intake} intake question(s)`);
+  check('J6 no ask', !current.calls('/api/learn/ask').length, 'no /api/learn/ask request', `${current.calls('/api/learn/ask').length} ask requests`);
   check('J6 at most 3 sections', t?.mode === 'path_preview' && entries >= 1 && entries <= 3, `path_preview with ${entries} rail entries`, `tray ${t?.mode}, ${entries} entries`);
 });
 await current.close();
@@ -317,6 +364,7 @@ await group('J7', async () => {
   check('J7 section 1 drawn', headings.length === 1 && headings[0].journey_section_id === 's1' && own.length === 3, 'section 1: one heading and 3 steps', `${headings.length} headings, ${own.length} s1 blocks`);
   const hits = await covered(page, (await railBox(page)).box, ['[data-block-id]', '[data-learn-dock] [data-chat-composer]']);
   check('J7 rail clear of cards', !hits.length, 'the rail covers no card or composer', `the rail covers ${hits.join(', ')}`);
+  check('J7 no ask', !current.calls('/api/learn/ask').length, 'no /api/learn/ask request', `${current.calls('/api/learn/ask').length} ask requests`);
   await shot(page, 'J7-fast-start');
 });
 await current.close();
@@ -339,7 +387,8 @@ await group('J8', async () => {
   check('J8 Learn with the tray', true, 'arrives on Learn with the intake tray open');
   check('J8 canvas title', title === 'Logistic regression', 'the canvas is titled Logistic regression', `title is ${JSON.stringify(title)}`);
   check('J8 exact request', journey?.request?.raw_user_message === REQUEST, 'journey.request.raw_user_message is the typed request', 'raw_user_message differs from the typed request');
-  check('J8 no home-ask', !calls('/api/learn/home-ask').length, 'Home asked no model (no /api/learn/home-ask)', `${calls('/api/learn/home-ask').length} home-ask requests`);
+  check('J8 no home-ask or ask', !calls('/api/learn/home-ask').length && !calls('/api/learn/ask').length, 'Home asked no model (no /api/learn/home-ask) and Learn no /api/learn/ask',
+    `${calls('/api/learn/home-ask').length} home-ask, ${calls('/api/learn/ask').length} ask requests`);
   await shot(page, 'J8-home-to-learn');
 });
 await current.close();
@@ -348,10 +397,10 @@ await browser.close();
 // ---- the table ----
 const groupStatus = id => {
   const mine = results.filter(r => r.id === id || r.id.startsWith(`${id} `));
-  return mine.some(r => r.status === 'FAIL') ? 'FAIL' : mine.find(r => r.status.startsWith('BLOCKED'))?.status || (mine.length ? 'PASS' : 'NOT RUN');
+  return mine.some(r => r.status === 'FAIL') ? 'FAIL' : mine.length ? 'PASS' : 'NOT RUN';
 };
 const table = ['J1', 'J2', 'J3', 'J4', 'J5', 'J6', 'J7', 'J8'].map(id => ({ id, status: groupStatus(id) }));
-writeFileSync(`${OUT}/journey-results.json`, JSON.stringify({ table, checks: results }, null, 2));
-writeFileSync(`${OUT}/journey-network.json`, JSON.stringify(Object.fromEntries(Object.entries(network).map(([label, list]) => [label, list.map(({ method, path, status, body }) => ({ method, path, status, keys: keys(body), action: body?.action }))])), null, 2));
+writeFileSync(`${OUT}/${PREFIX}journey-results.json`, JSON.stringify({ table, checks: results }, null, 2));
+writeFileSync(`${OUT}/${PREFIX}journey-network.json`, JSON.stringify(Object.fromEntries(Object.entries(network).map(([label, list]) => [label, list.map(({ method, path, status, body, result }) => ({ method, path, status, keys: keys(body), action: body?.action, ...(result ? { result } : {}) }))])), null, 2));
 console.log('\n' + table.map(row => `${row.id}  ${row.status}`).join('\n'));
 process.exitCode = table.some(row => row.status === 'FAIL') ? 1 : 0;

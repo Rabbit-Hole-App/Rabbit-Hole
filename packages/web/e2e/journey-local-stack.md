@@ -91,11 +91,17 @@ the startup binding table lists no `*_API_KEY` or `ELEVENLABS_*`; with a session
 
 ```bash
 cd packages/web
-node e2e/journey-check.mjs --base http://127.0.0.1:8868 --cp http://127.0.0.1:8869 --vars <ws>/alp1-config/cp/.dev.vars --out <ws>/screens
+node e2e/journey-check.mjs --base http://127.0.0.1:8868 --cp http://127.0.0.1:8869 --vars <ws>/alp1-config/cp/.dev.vars --out <ws>/screens [--prefix lp1-final-]
 ```
 
-The page also answers `/api/learn/ask` (canned SSE) and `/api/learn/home-ask` itself and refuses artifact, voice, assess
-and image requests, so even a misconfigured stack makes no model call from the browser.
+The page also answers `/api/learn/ask` (canned SSE), `/api/learn/home-ask` and the Tutor planner `/api/learn/tutor/plan`
+(a canned respond_text plan) itself and refuses artifact, voice, assess and image requests, so even a misconfigured stack
+makes no model call from the browser. `/api/learn/tutor/evaluate` reaches the stack: without a JEV key it answers status
+`error` with no call, and probe options are graded from the server-only key.
+
+The Tutor slice check runs on the same stack in stub mode. It reads `packages/control-plane/.dev.vars`, so put only the
+stack's `TEST_BYPASS_SECRET` line there for the run and delete it afterwards:
+`TUTOR_BASE=http://127.0.0.1:8868 SMALL_CP=http://127.0.0.1:8869 node e2e/tutor-slice-check.mjs <ws>/screens/slice`.
 
 ## 5. Stop
 
