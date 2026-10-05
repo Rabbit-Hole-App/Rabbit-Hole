@@ -224,7 +224,12 @@ test('AdaptiveCanvas.jsx: persist() saves the board read through refs (canvas-pe
 
 test('LearnPage.jsx: pushBoard has an awaitable immediate variant for persist() - ok, failed, or skipped when not shared; the debounced push stays (LP1 Task 15)', () => {
   const page = readFileSync(new URL('./LearnPage.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-  assert.match(page, /const pushBoard = useCallback\(\(_state, \{ now = false \} = \{\}\) => \{\n\s+if \(!sharingRef\.current\?\.shared\) return 'skipped';/);
+  assert.match(page, /const pushBoard = useCallback\(\(_state, \{ now = false \} = \{\}\) => \{/);
+  // Review round 1: an immediate push on a board whose sharing is unknown (its GET pending or failed) is not a save.
+  assert.match(page, /const how = sharingOf\(sharingRef\.current\);\n\s+if \(how !== 'shared'\) return now && how === 'unknown' \? 'failed' : 'skipped';/);
+  // C-15a: every PUT, immediate or debounced, goes through one serial queue and reads boardVersion inside it.
+  assert.match(page, /const \[pushQueue\] = useState\(serial\);/);
+  assert.match(page, /const put = \(\) => pushQueue\(async \(\) => \{\n\s+try \{\n\s+const data = await api\(boardPath, \{ method: 'PUT', body: JSON\.stringify\(\{ state: boardSnapshot\(\), version: boardVersion\.current \}\) \}\);/);
   assert.match(page, /return 'ok';\n\s+\} catch \(error\) \{\n\s+if \(error\.status === 409\) toast\(/);
   assert.match(page, /return 'failed';/);
   assert.match(page, /if \(now\) return put\(\);\n\s+pushTimer\.current = setTimeout\(put, 1500\);/);

@@ -86,7 +86,7 @@ export function TutorPromptTray({ tray, onOption }) {
         <span className="min-w-0">{tray.error.message}</span>
         <button type="button" data-tray-retry onClick={() => onOption('retry')} className={PILL}>Try again</button>
         {/* Only the status tray (an error with nothing under it): a journey tray must stay to be answered. */}
-        {!tray.mode && tray.dismissible && <button type="button" data-tray-dismiss aria-label="Dismiss" onClick={() => onOption('dismiss')} className="shrink-0 rounded p-0.5 text-ink-3 hover:bg-hover hover:text-ink"><X size={12} /></button>}
+        {!tray.mode && tray.dismissible && !tray.error.keep && <button type="button" data-tray-dismiss aria-label="Dismiss" onClick={() => onOption('dismiss')} className="shrink-0 rounded p-0.5 text-ink-3 hover:bg-hover hover:text-ink"><X size={12} /></button>}
       </div>}
     </div>
   );
@@ -100,7 +100,7 @@ const EMPTY = { journey: null, path: null, tray: null, prevPath: null };
 // canvas up). Every action resolves to an outcome whose `ok` is false when it failed; handleText and start report that as
 // `failed`, and the composer gives the words back.
 export function journeyController({ where, fetchJson, onChange = () => {}, canvas = () => null }) {
-  const s = { data: EMPTY, local: null, dismissed: null, busy: null, error: null, proposals: [], ready: false, answerProbe: null };
+  const s = { data: EMPTY, local: null, dismissed: null, busy: null, error: null, proposals: [], ready: false, answerProbe: null, waiting: null };
   const set = patch => { Object.assign(s, patch); onChange(); };
   // prevPath: the version of this journey's path shown before the current one, so the rail marks what the new version
   // changed (pathEntries) until the next version replaces it.
@@ -169,17 +169,25 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
     const j = s.data.journey;
     return j?.state === 'active' && j.active_section_id === section_id && !j.section_plan?.heading_block_id ? act(body) : out;
   };
-  // §6.5.5 (LP1 Task 15): a section whose board did not save is drawn but unrecorded. Its Retry saves the board again,
-  // then records it, drawing and requesting nothing; `started` stays held meanwhile, so no load runs the section again.
-  const unsaved = (target, id, heading) => set({ error: { message: UNSAVED, again: () => save(target, id, heading) } });
-  const save = async (target, id, heading) => {
-    set({ busy: BUSY, error: null });
-    let saved = null;
-    try { saved = await target.persist(); } catch { /* not saved */ } finally { set({ busy: null }); }
-    return saved?.ok ? materialized(id, heading) : unsaved(target, id, heading);
+  // §6.5.5 (LP1 Task 15): a section whose board did not save is drawn but unrecorded - s.waiting { target, id, heading }
+  // until the server holds its heading, with `started` held. Its line cannot be dismissed or typed away (view() shows it
+  // whenever no other error does). Retry, or any later run of materialize, is save(): the board saved again, then the
+  // section recorded, drawing and requesting nothing. save() takes `waiting` while it runs, so a run started meanwhile (a
+  // 409's re-read) finds nothing to do, and puts it back while the section is still unrecorded.
+  const waitingLine = () => (s.waiting ? { message: UNSAVED, again: save, keep: true } : null);
+  const save = async () => {
+    const w = s.waiting;
+    if (!w) return { ok: true }; // recorded meanwhile
+    set({ waiting: null, busy: BUSY, error: null });
+    let saved = null, out = { ok: false };
+    try { saved = await w.target.persist(); } catch { /* not saved */ } finally { set({ busy: null }); }
+    if (saved?.ok) out = await materialized(w.id, w.heading);
+    if (due()?.section_id === w.id) set({ waiting: w });
+    return out;
   };
   const materialize = async ({ load = false } = {}) => {
     let plan = due(), held = false;
+    if (plan && s.waiting?.id === plan.section_id) return save();
     const target = s.ready ? canvas() : null, id = plan?.section_id;
     if (!target || !plan || started.has(id)) return;
     started.add(id);
@@ -190,7 +198,7 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
         onProgress: ({ step, of }) => set({ busy: `Preparing step ${step} of ${of}...` }) });
       if (out.proposals.length) set({ proposals: out.proposals, local: proposalTray(out.proposals[0]) });
       if (out.failed_step) set({ error: { message: 'Part of this section could not be made.', again: () => materialize() } });
-      else if (out.unsaved) { held = true; unsaved(target, id, out.heading_block_id); }
+      else if (out.unsaved) { held = true; set({ waiting: { target, id, heading: out.heading_block_id } }); }
     } catch {
       set({ error: { message: 'This section could not be prepared.', again: () => materialize() } });
     } finally {
@@ -260,7 +268,8 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
   const clarify = text => set({ local: { id: 'clarification:turn', mode: 'clarification', prompt: 'Is that an answer, a change to the path, or a question for the Tutor?', options: CLARIFY, free_text: false, dismissible: true, text, under: open() } });
 
   const answer = async optionId => {
-    if (optionId === 'retry') return s.error?.again ? s.error.again() : retry();
+    const shown = s.error || waitingLine();
+    if (optionId === 'retry') return shown?.again ? shown.again() : retry();
     if (optionId === 'dismiss') return set({ error: null });
     const local = s.local;
     if (local?.id === 'clarification:live') {
@@ -341,7 +350,7 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
   };
 
   const view = () => {
-    const tray = shownTray(server(), s.local, s.busy, s.error);
+    const tray = shownTray(server(), s.local, s.busy, s.error || waitingLine());
     return { ...s.data, tray, trayProps: tray ? { tray, onOption: answer } : null, busy: !!s.busy,
       start, handleText, answer, edit, cancel, clarify, resolve, advance, accept, retry, refresh, canvasReady };
   };

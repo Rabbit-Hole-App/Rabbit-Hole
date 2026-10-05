@@ -46,6 +46,7 @@ import ForkButton from './ForkButton.jsx';
 import { ForkedFrom } from './home/Provenance.jsx';
 import { cardModel } from './home/provenance.js';
 import { hasLocalContent } from './home/canvas-local.js';
+import { serial, sharingOf } from './canvas-persist.js';
 
 const LearnNotes = lazy(() => import('./LearnNotes.jsx'));
 const boardSlug = name => String(name).toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32) || 'test';
@@ -663,11 +664,16 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
   useEffect(() => { if (restoredBoard === boardPath) journey.canvasReady?.(); }, [restoredBoard, boardPath, canvasState, journey.canvasReady]);
   const pushTimer = useRef(null);
   // A shared board's server copy, 1500 ms after the last change. `now` (the canvas's persist(), LP1 Task 15): the PUT at
-  // once, awaited, 'ok' or 'failed' - a journey section is recorded only once its board is saved. 'skipped': not shared.
+  // once, awaited, 'ok' or 'failed' - a journey section is recorded only once its board is saved. 'skipped': not shared;
+  // a board whose sharing is unknown (its GET has not answered, or failed) may be shared, so an immediate push fails.
+  // Every PUT goes through one serial queue (canvas-persist.js; review round 1, C-15a) and reads boardVersion only once
+  // the PUT before it wrote it, so a section save's PUT and the canvas's debounced one never 409 each other.
+  const [pushQueue] = useState(serial);
   const pushBoard = useCallback((_state, { now = false } = {}) => {
-    if (!sharingRef.current?.shared) return 'skipped';
+    const how = sharingOf(sharingRef.current);
+    if (how !== 'shared') return now && how === 'unknown' ? 'failed' : 'skipped';
     clearTimeout(pushTimer.current);
-    const put = async () => {
+    const put = () => pushQueue(async () => {
       try {
         const data = await api(boardPath, { method: 'PUT', body: JSON.stringify({ state: boardSnapshot(), version: boardVersion.current }) });
         boardVersion.current = data.version;
@@ -678,7 +684,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
         if (error.status === 409) toast('This board changed in another tab or on another device. Reload to see those changes; your newer edits here are not saved to the link yet.', { tone: 'error' });
         return 'failed';
       }
-    };
+    });
     if (now) return put();
     pushTimer.current = setTimeout(put, 1500);
   }, [boardPath]);

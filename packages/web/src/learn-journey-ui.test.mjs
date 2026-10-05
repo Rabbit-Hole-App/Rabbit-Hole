@@ -824,15 +824,18 @@ test('regression 1: leaving after the steps are drawn but before persist() resol
   assert.deepEqual([plan.heading_block_id, plan.generation_state], [undefined, undefined], 'the server holds no heading and no generated state');
   // The reload: a new controller over a canvas holding none of the blocks (nothing reached storage).
   const fresh = fakeCanvas();
-  const r = scripted(() => fresh, [ok(activeJourney(), null, activePath), ok(activeJourney(), null, activePath), recorded('b1')]);
+  // The third reply answers the later load (review round 1): it reads the journey, reaches due() and draws nothing.
+  const r = scripted(() => fresh, [ok(activeJourney(), null, activePath), ok(activeJourney(), null, activePath), recorded('b1'), recorded('b1')]);
   r.view().canvasReady();
   await r.ctl.refresh();
   assert.deepEqual(r.steps(), ['GET', 'GET', 'section_materialized']);
   assert.deepEqual(fresh.inserts().map(c => c[1].type), ['heading', 'explanation', 'explanation', 'explanation']);
   assert.deepEqual(fresh.persisted, [['b1', 'b2', 'b3', 'b4']], 'saved once, with every block, before the post');
   await r.view().canvasReady();
-  await r.ctl.refresh().catch(() => {});
+  await r.ctl.refresh();
+  assert.deepEqual(r.steps(), ['GET', 'GET', 'section_materialized', 'GET'], 'the later load read the journey');
   assert.equal(fresh.inserts().length, 4, 'materialized exactly once');
+  assert.equal(fresh.persisted.length, 1);
 });
 
 test('regression 2: blocks saved but section_materialized never posted - the reload reuses every stamped block, saves, then posts; nothing is made again', async () => {
@@ -856,9 +859,10 @@ test('regression 2: blocks saved but section_materialized never posted - the rel
   assert.equal(h.view().tray, null);
 });
 
-test('regression 3: a failed save posts nothing and shows the unsaved line; a load meanwhile draws nothing; Retry saves again and posts, making nothing again', async () => {
+test('regression 3: a failed save posts nothing and shows the unsaved line; a load meanwhile only saves again; Retry saves and posts, making nothing again', async () => {
   const plan = { ...sectionPlan, teaching_sequence: [textStep('frame'), graphStep] };
-  const canvas = fakeCanvas([], { saves: [{ ok: false, local: true, remote: 'failed' }] });
+  const failed = { ok: false, local: true, remote: 'failed' };
+  const canvas = fakeCanvas([], { saves: [failed, failed] });
   const h = scripted(() => canvas, [
     review(),
     ok(activeJourney({ section_plan: plan }), null, activePath),
@@ -875,14 +879,46 @@ test('regression 3: a failed save posts nothing and shows the unsaved line; a lo
   assert.equal(h.view().busy, false, 'the composer is free again');
   await h.ctl.refresh();
   assert.deepEqual(h.steps(), ['GET', 'accept', '/api/learn/artifact', 'GET'], 'a load does not run the section again');
+  assert.equal(canvas.persisted.length, 2, 'the load saves again (and fails again): nothing drawn, nothing posted');
+  assert.equal(canvas.inserts().length, 3);
+  assert.equal(h.view().tray.error.message, UNSAVED);
   await h.view().answer('retry');
-  assert.equal(canvas.persisted.length, 2, 'Retry saves again');
+  assert.equal(canvas.persisted.length, 3, 'Retry saves again');
   assert.deepEqual(h.steps(), ['GET', 'accept', '/api/learn/artifact', 'GET', 'section_materialized']);
   assert.deepEqual(h.calls[4].body, { app: APP, board: 'main', action: 'section_materialized', section_id: 's1', heading_block_id: 'b1', revision: 6 });
   assert.equal(canvas.inserts().length, 3, 'nothing is drawn again');
   assert.equal(artifactPosts(h), 1, 'nothing is made again');
   assert.equal(h.view().journey.section_plan.heading_block_id, 'b1');
   assert.equal(h.view().tray, null);
+});
+
+test('review round 1: the unsaved line cannot be dismissed or typed away; a later load still saves and posts, making nothing again', async () => {
+  const plan = { ...sectionPlan, teaching_sequence: [textStep('frame'), graphStep] };
+  const canvas = fakeCanvas([], { saves: [{ ok: false, local: false, remote: 'skipped' }] });
+  const h = scripted(() => canvas, [
+    review(),
+    ok(activeJourney({ section_plan: plan }), null, activePath),
+    { status: 200, d: { result: 'artifact', block: { type: 'graph', title: 'Sigmoid' } } },
+    ok(activeJourney({ section_plan: plan }), null, activePath), // the later load
+    recorded('b1', { section_plan: plan }),
+  ]);
+  await h.ctl.refresh();
+  h.view().canvasReady();
+  await h.view().answer('start');
+  const html = render({ tray: h.view().tray });
+  assert.match(html, /data-tray-retry/);
+  assert.doesNotMatch(html, /data-tray-dismiss/, 'no Dismiss on the unsaved line');
+  await h.view().answer('dismiss');
+  assert.equal(h.view().tray.error.message, UNSAVED, 'Dismiss leaves it');
+  assert.deepEqual(await h.view().handleText('What is a sigmoid?'), { handled: false }, 'a question still goes to the Tutor');
+  assert.equal(h.view().tray.error.message, UNSAVED, 'a typed turn leaves it');
+  await h.ctl.refresh();
+  assert.deepEqual(h.steps(), ['GET', 'accept', '/api/learn/artifact', 'GET', 'section_materialized'], 'the load saves, then posts');
+  assert.equal(canvas.persisted.length, 2);
+  assert.equal(canvas.inserts().length, 3, 'nothing is drawn again');
+  assert.equal(artifactPosts(h), 1, 'nothing is made again');
+  assert.equal(h.view().journey.section_plan.heading_block_id, 'b1');
+  assert.equal(h.view().tray, null, 'the line goes once the section is recorded');
 });
 
 // ---- useTutor on a journey canvas (LP1 Task 12; architecture §0 D1 and D6, §7.2, §12): the real hook, rendered once on
