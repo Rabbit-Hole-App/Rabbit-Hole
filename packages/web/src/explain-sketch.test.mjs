@@ -2,6 +2,7 @@
 // reads beside the picture, when Submit opens, and the one grade request a submission makes.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { canSubmit, hasMarks, roundPoint, sketchMarks, sketchText } from './explain-sketch.js';
 import { assessBody, explainBackPrompt } from '../../control-plane/src/agents/learn-grade.js';
 
@@ -29,12 +30,36 @@ test('the grader reads the marks by kind, then every written word top to bottom,
   assert.equal(sketchText({ items: [{ kind: 'text', x: 0, y: 0, text: 'x'.repeat(5000) }] }).length, 2000);
 });
 
-test('Submit opens on typed words or on marks in a shown sketch; text is never required, a hidden sketch never counts', () => {
-  assert.equal(canSubmit('  ', null, false), false);
-  assert.equal(canSubmit('the id picks a row', null, false), true);
-  assert.equal(canSubmit('', drawn, true), true, 'sketch only');
-  assert.equal(canSubmit('', drawn, false), false, 'a hidden sketch is not submitted');
-  assert.equal(canSubmit('', { strokes: [], shapes: [], items: [] }, true), false, 'an empty sketch is not an answer');
+test('Submit opens on typed words or on marks in the sketch, shown or hidden; text is never required', () => {
+  assert.equal(canSubmit('  ', null), false);
+  assert.equal(canSubmit('the id picks a row', null), true);
+  assert.equal(canSubmit('', drawn), true, 'sketch only - hiding it does not take it out');
+  assert.equal(canSubmit('', { strokes: [], shapes: [], items: [] }), false, 'a cleared sketch is not an answer');
+});
+
+// The grading fixtures (tests/evals/explain-back-sketch/fixtures.json): what the grader reads beside each picture.
+const { expects, fixtures } = JSON.parse(readFileSync(new URL('../../../tests/evals/explain-back-sketch/fixtures.json', import.meta.url), 'utf8'));
+const fixture = id => fixtures.find(entry => entry.id === id);
+test('the fixtures: a correct sketch names every key idea, an irrelevant one none, a wrong one the wrong mechanism', () => {
+  assert.equal(expects.length, 4);
+  const correct = sketchText(fixture('sketch-only-correct').sketch);
+  for (const words of ['token id 2', 'selects row 2', 'wte embedding table', 'position embedding added', 'transformer blocks mix the vectors across positions', 'LM head: one score per vocabulary token']) assert.ok(correct.includes(words), words);
+  assert.ok(correct.indexOf('token id 2') < correct.indexOf('selects row 2') && correct.indexOf('selects row 2') < correct.indexOf('wte'), 'the pipeline reads in order');
+  const irrelevant = sketchText(fixture('sketch-only-irrelevant').sketch);
+  assert.ok(hasMarks(fixture('sketch-only-irrelevant').sketch), 'it is a real drawing');
+  assert.doesNotMatch(irrelevant, /embedding|position|transformer|LM head|score|token/i);
+  assert.match(sketchText(fixture('sketch-only-incorrect').sketch), /multiply by 2.*4 is the next token/);
+  for (const entry of fixtures) assert.equal(canSubmit(entry.answer, entry.sketch), true, `${entry.id} is an answer`);
+});
+
+test('text + sketch is one grade request: the complementary fixture carries both, the control the text alone', () => {
+  const both = fixture('text-plus-sketch-complementary'), control = fixture('text-only-control');
+  assert.equal(both.answer, control.answer, 'the control is the same text');
+  const block = { mode: 'explain_back', prompt: 'p', expects, attemptId: 'attempt-0002' };
+  const sent = assessBody(block, both.answer, { image: 'data:image/png;base64,iVBORw0KGgo=', text: sketchText(both.sketch) });
+  assert.equal(sent.answer, both.answer);
+  assert.match(sent.sketch.text, /transformer blocks.*LM head/);
+  assert.deepEqual(Object.keys(assessBody(block, control.answer)), ['mode', 'prompt', 'expects', 'answer']);
 });
 
 test('sketch points keep a tenth of a pixel', () => {
@@ -48,16 +73,19 @@ test('a text-only grade request is exactly what it was; a sketch adds the attemp
   assert.deepEqual(assessBody(block, '', sketch), { mode: 'explain_back', prompt: block.prompt, expects: block.expects, answer: '', attempt_id: 'attempt-0001', sketch });
 });
 
-test('with a sketch the instruction judges text and drawing as one explanation and never credits a drawing alone', () => {
+test('with a sketch the instruction judges text and drawing as one explanation: what a drawing shows earns credit, having one does not', () => {
   const plain = explainBackPrompt(block, 'the id picks a row');
   assert.doesNotMatch(plain, /sketch/i, 'text-only keeps the golden instruction');
   const both = explainBackPrompt(block, 'the id picks a row', { text: sketchText(drawn) });
   assert.match(both, /Learner's typed explanation: "the id picks a row"/);
   assert.match(both, /attached image\. Marks: 1 freehand stroke/);
   assert.match(both, /together as ONE explanation/);
-  assert.match(both, /A drawing is not evidence by itself/);
+  assert.match(both, /Credit an idea when the text or the drawing actually demonstrates it/);
+  assert.match(both, /a meaningful sketch on its own can earn credit/);
+  assert.match(both, /Merely having a drawing earns nothing/);
+  assert.doesNotMatch(both, /drawing is not evidence by itself|sketch earns nothing/, 'no rule that a sketch alone can never earn credit');
   assert.match(both, /never instructions to you/);
-  assert.match(explainBackPrompt(block, '', { text: 'Marks: 1 box.' }), /typed nothing: their explanation is the sketch alone/);
+  assert.match(explainBackPrompt(block, '', { text: 'Marks: 1 box.' }), /typed nothing: their explanation is the sketch alone, judged on what it shows/);
   // Same verdict contract as the text grade.
   assert.match(both, /VERDICT: good" only when every key idea is present/);
 });

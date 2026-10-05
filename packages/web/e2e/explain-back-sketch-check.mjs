@@ -268,24 +268,54 @@ await check('5 sketch-only submission', async () => {
 });
 await shot('05-sketch-only-graded');
 
-// ---- hide: an empty sketch collapses cleanly; a drawn one keeps its marks and is not submitted ----
+// ---- hide is presentation only: an empty sketch collapses cleanly, Clear sketch is the one way to take a drawing
+// out, and a drawn sketch that is hidden is still in the attempt ----
 const hiding = await insert('Explain back');
 const hidingId = await hiding.getAttribute('data-block-id');
-await check('hide collapses cleanly and never erases', async () => {
-  await hiding.locator('[data-sketch-toggle]').click();
-  await hiding.locator('[data-sketch-toggle]').click(); // Hide an empty sketch
-  assert.equal(await hiding.locator('[data-sketch]').count(), 0);
-  assert.equal(await hiding.locator('[data-sketch-toggle]').innerText(), 'Add sketch');
-  assert.equal(await target(), 'canvas');
-  await hiding.locator('[data-sketch-toggle]').click();
+const drawIn = async () => {
   await reveal(hiding);
   const area = await box(hiding.locator(`[data-sketch="${hidingId}"]`));
   await tool('Pen').click();
   await drag({ x: area.x + 40, y: area.y + 40 }, { x: area.x + 160, y: area.y + 100 });
+};
+await check('hide collapses an empty sketch cleanly; Clear sketch takes a drawing out', async () => {
+  await hiding.locator('[data-sketch-toggle]').click();
+  await hiding.locator('[data-sketch-toggle]').click(); // Hide an empty sketch
+  assert.equal(await hiding.locator('[data-sketch]').count(), 0);
+  assert.equal(await hiding.locator('[data-sketch-toggle]').innerText(), 'Add sketch');
+  assert.equal(await hiding.locator('[data-sketch-included]').count(), 0);
+  assert.equal(await target(), 'canvas');
+  await hiding.locator('[data-sketch-toggle]').click();
+  await drawIn();
+  await hiding.locator('[data-sketch-clear]').click();
+  assert.equal((await counts()).sketches[hidingId].strokes, 0, 'cleared');
+  assert.ok(await hiding.getByRole('button', { name: 'Submit', exact: true }).isDisabled(), 'a cleared sketch is no answer');
+  await hiding.locator('[data-sketch-toggle]').click(); // Hide the cleared sketch
+  assert.equal(await hiding.locator('[data-sketch-toggle]').innerText(), 'Add sketch');
+});
+await check('draw, hide, submit: the hidden sketch is still in the combined attempt', async () => {
+  await hiding.locator('[data-sketch-toggle]').click();
+  await drawIn();
   await hiding.locator('[data-sketch-toggle]').filter({ hasText: 'Hide sketch' }).click();
   assert.equal(await hiding.locator('[data-sketch-toggle]').innerText(), 'Show sketch', 'the marks are kept');
-  assert.ok(await hiding.getByRole('button', { name: 'Submit', exact: true }).isDisabled(), 'a hidden sketch is not an answer');
+  assert.equal(await hiding.locator('[data-sketch-included]').innerText(), 'Included in your answer');
+  assert.equal(await target(), 'canvas');
+  await shot('10-hidden-sketch-included');
+  await hiding.locator('input').fill('the id picks a row of the embedding table');
+  const before = grades.length;
+  await hiding.getByRole('button', { name: 'Submit', exact: true }).click();
+  await hiding.locator('[data-verdict]').getByText('What adds the position?').waitFor({ timeout: 10000 });
+  assert.equal(grades.length, before + 1, 'one grade request');
+  const sent = grades.at(-1);
+  assert.equal(sent.answer, 'the id picks a row of the embedding table');
+  assert.match(sent.sketch.image, /^data:image\/png;base64,iVBORw0KGgo/, 'the hidden drawing is pictured for the grader');
+  assert.match(sent.sketch.text, /Marks: 1 freehand stroke\./);
+  // The board saves itself a moment after the change: wait for the attempt to be on the stored block.
+  const stored = await (await page.waitForFunction(([id, attempt]) => Object.values(localStorage).map(v => { try { return JSON.parse(v); } catch { return null; } }).flatMap(state => state?.blocks || []).find(block => block.id === id && block.attemptId === attempt) || null, [hidingId, sent.attempt_id], { timeout: 10000 })).jsonValue();
+  assert.deepEqual([stored.attemptId, stored.sketchSubmitted], [sent.attempt_id, true]);
+  assert.equal(await hiding.locator('[data-answer-sketch]').count(), 1, 'the answer shows the sketch it carried');
 });
+await shot('11-hidden-sketch-submitted');
 
 await check('no page errors', async () => assert.deepEqual(errors, []));
 console.log(`${results.length}/${results.length} checks passed`);

@@ -2640,7 +2640,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           onResize={(markId, w, h) => patchSketch(id, 'items', markId, { w, h })}
           onDelete={markId => dropFromSketch(id, [markId])}
           onLevel={(markId, value) => { snapshot(); patchSketch(id, 'items', markId, { level: value }); }} />)}
-        {!fixed && <span data-sketch-chrome className={`pointer-events-none absolute top-1.5 right-2 text-[10px] ${active ? 'font-medium text-[#2383e2]' : 'text-ink-3'}`}>{active ? 'Toolbar draws here' : 'Click here, then draw with the toolbar'}</span>}
+        {!fixed && <span data-sketch-chrome className={`pointer-events-none absolute top-1.5 right-2 text-[10px] ${active ? 'font-medium text-[#2383e2]' : 'text-ink-2'}`}>{active ? 'Toolbar draws here' : 'Click here, then draw with the toolbar'}</span>}
       </div>
     );
   };

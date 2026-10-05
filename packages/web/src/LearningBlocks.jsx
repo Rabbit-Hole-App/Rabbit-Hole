@@ -892,7 +892,10 @@ function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
   const sketchHost = useContext(SketchHost);
   const sketchable = block.mode === 'explain_back' && !!sketchHost && !sketchHost.readOnly;
   const sketchShown = sketchable && !!block.sketchOpen;
-  const ready = canSubmit(draft, block.sketch, sketchShown);
+  // Hide sketch is presentation only: marks in the card's sketch are part of the answer, shown or hidden. Only
+  // clearing the sketch takes them out.
+  const sketchMarked = sketchable && hasMarks(block.sketch);
+  const ready = canSubmit(draft, sketchable ? block.sketch : null);
   // One attempt id per committed answer (docs/features/jev-grading.md): it is
   // stored on the block, so re-sends, remounts and reloads reuse it, and the
   // side-by-side grader records each attempt once. The in-flight guard stops a
@@ -900,11 +903,12 @@ function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
   const inFlight = useRef(false);
   const commit = async () => {
     const answer = draft.trim();
-    // Text and the shown sketch are one response; either alone is enough.
-    const sketched = sketchShown && hasMarks(block.sketch);
+    // Text and the sketch are one response; either alone is enough.
+    const sketched = sketchMarked;
     if ((!answer && !sketched) || inFlight.current) return;
     inFlight.current = true;
-    // The picture is taken while the learner's sketch is still on screen, before the card turns to the answer.
+    // The picture is taken before the card turns to the answer, from the sketch on screen or, when hidden, from
+    // its unseen copy.
     const image = sketched ? await sketchHost.capture(block.id) : null;
     const sketch = sketched ? { image, text: sketchText(block.sketch) } : null;
     // Keep `latest` in step with every write: a stream that lands in one tick
@@ -940,8 +944,10 @@ function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
   // opens again, editable, as the start of the next attempt (a new attempt id on Submit).
   const retry = () => { inFlight.current = false; setDraft(block.answer || ''); onChange({ ...block, answer: null, attemptId: null, verdict: '', grading: false, ...(block.sketchSubmitted ? { sketchOpen: true, sketchSubmitted: false } : {}) }); };
   const showSketch = () => { onChange({ ...block, sketchOpen: true, sketch: block.sketch || { strokes: [], shapes: [], items: [] } }); sketchHost.hold(block.id); };
-  // Hidden, the marks stay on the block (Show sketch brings them back) but are not submitted.
+  // Hiding only folds the drawing away: the marks stay on the block and in the answer (Show sketch brings them back).
   const hideSketch = () => { sketchHost.release(block.id); onChange({ ...block, sketchOpen: false }); };
+  // The explicit way to take a drawing out of the answer (Ctrl+Z brings it back).
+  const clearSketch = () => onChange({ ...block, sketch: { strokes: [], shapes: [], items: [] } });
   // A sketch-only answer is '' with sketchSubmitted; a text answer is non-empty, as it always was.
   const answered = !!block.answer || !!block.sketchSubmitted;
   // The tutor opens with "VERDICT: good|partial"; it tints the answer and is
@@ -950,9 +956,9 @@ function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
   const verdictText = stripVerdict(block.verdict);
   const waiting = block.grading && !verdictText ? (gradingAttempts.has(block.attemptId) ? 'Reading your answer…' : 'Grading was interrupted. Answer again to retry.') : null;
   const tint = grade === 'good' ? 'border-green-700/30 bg-green-700/10 text-green-800' : grade === 'partial' ? 'border-amber-600/40 bg-amber-500/10 text-amber-800' : 'border-line bg-hover text-ink';
-  // A drawing tool leaves every card inert on the canvas; while its sketch is open this card's own controls stay
-  // live, so the learner can type, Submit or Hide sketch straight after drawing.
-  const live = sketchShown ? { pointerEvents: 'auto' } : undefined;
+  // A drawing tool leaves every card inert on the canvas; while this card has a sketch in play (open, or hidden with
+  // marks) its own controls stay live, so the learner can type, Submit or Hide sketch straight after drawing.
+  const live = sketchShown || sketchMarked ? { pointerEvents: 'auto' } : undefined;
   const submit = (
     <button type="button" disabled={!ready} onClick={commit}
       className="h-8 shrink-0 rounded-lg bg-ink px-3.5 text-sm font-medium text-white disabled:opacity-40">{block.mode === 'explain_back' ? 'Submit' : 'Commit'}</button>
@@ -972,19 +978,27 @@ function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
               {!sketchShown && submit}
             </div>
             {sketchable && !sketchShown && (
-              // Live under a drawing tool too: it is the way into drawing with the tool already picked.
-              <button type="button" data-sketch-toggle onClick={showSketch} style={{ pointerEvents: 'auto' }}
-                className="mt-1.5 flex items-center gap-1 rounded px-1.5 py-1 text-xs text-ink-2 hover:bg-hover hover:text-ink">
-                <PenLine size={12} />{hasMarks(block.sketch) ? 'Show sketch' : 'Add sketch'}
-              </button>
+              <div className="mt-1.5 flex items-center gap-1.5">
+                {/* Live under a drawing tool too: it is the way into drawing with the tool already picked. */}
+                <button type="button" data-sketch-toggle onClick={showSketch} style={{ pointerEvents: 'auto' }}
+                  className="flex items-center gap-1 rounded px-1.5 py-1 text-xs text-ink-2 hover:bg-hover hover:text-ink">
+                  <PenLine size={12} />{sketchMarked ? 'Show sketch' : 'Add sketch'}
+                </button>
+                {sketchMarked && <span data-sketch-included className="text-xs text-ink-2">Included in your answer</span>}
+              </div>
             )}
           </div>
+          {/* A hidden sketch with marks is still the answer's; this unseen copy is what Submit pictures for the grader. */}
+          {sketchMarked && !sketchShown && <div aria-hidden="true" className="pointer-events-none relative h-0 overflow-hidden">{sketchHost.render(block, { still: true })}</div>}
           {sketchShown && (
             <div data-sketch-panel>
               <p className="mt-3 mb-1 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">Sketch</p>
               {sketchHost.render(block)}
               <div style={live} className="mt-2 flex items-center justify-between" onPointerDown={e => e.stopPropagation()}>
-                <button type="button" data-sketch-toggle onClick={hideSketch} className="rounded px-1.5 py-1 text-xs text-ink-2 hover:bg-hover hover:text-ink">Hide sketch</button>
+                <span className="flex items-center gap-1">
+                  <button type="button" data-sketch-toggle onClick={hideSketch} className="rounded px-1.5 py-1 text-xs text-ink-2 hover:bg-hover hover:text-ink">Hide sketch</button>
+                  {sketchMarked && <button type="button" data-sketch-clear onClick={clearSketch} className="rounded px-1.5 py-1 text-xs text-ink-2 hover:bg-hover hover:text-ink">Clear sketch</button>}
+                </span>
                 {submit}
               </div>
             </div>

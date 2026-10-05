@@ -1,0 +1,85 @@
+{
+  "about": "Explain Back sketch grading fixtures (docs/features/explain-back-sketch.md). Sketches are block.sketch vector data in the card's pixels (350 x 240). expect is the visible grade's VERDICT. The unit tests read these without a model; tests/evals/explain-back-sketch.mjs grades them for real, by hand only.",
+  "prompt": "In your own words: what happens between token id `2` entering nanoGPT and the model producing next-token scores?",
+  "expects": [
+    "the id selects a row of the embedding table",
+    "a position embedding is added",
+    "transformer blocks mix the vectors across positions",
+    "the LM head turns the final vector into one score per vocabulary token"
+  ],
+  "fixtures": [
+    {
+      "id": "sketch-only-correct",
+      "why": "A labelled pipeline that demonstrates every key idea, with no typed text: it must earn concept credit.",
+      "expect": "good",
+      "answer": "",
+      "sketch": {
+        "strokes": [],
+        "shapes": [
+          { "id": "a1", "kind": "rect", "x1": 8, "y1": 8, "x2": 104, "y2": 44, "text": "token id 2" },
+          { "id": "a2", "kind": "arrow", "x1": 104, "y1": 26, "x2": 150, "y2": 26, "label": "selects row 2" },
+          { "id": "a3", "kind": "rect", "x1": 150, "y1": 8, "x2": 342, "y2": 44, "text": "wte embedding table" },
+          { "id": "a4", "kind": "arrow", "x1": 246, "y1": 44, "x2": 246, "y2": 66 },
+          { "id": "a5", "kind": "rect", "x1": 80, "y1": 66, "x2": 342, "y2": 100, "text": "+ wpe: position embedding added" },
+          { "id": "a6", "kind": "arrow", "x1": 210, "y1": 100, "x2": 210, "y2": 124 },
+          { "id": "a7", "kind": "rect", "x1": 20, "y1": 124, "x2": 342, "y2": 160, "text": "transformer blocks mix the vectors across positions" },
+          { "id": "a8", "kind": "arrow", "x1": 180, "y1": 160, "x2": 180, "y2": 186 },
+          { "id": "a9", "kind": "rect", "x1": 30, "y1": 186, "x2": 342, "y2": 230, "text": "LM head: one score per vocabulary token" }
+        ],
+        "items": []
+      }
+    },
+    {
+      "id": "sketch-only-irrelevant",
+      "why": "A drawing that shows none of the key ideas: having a drawing earns nothing.",
+      "expect": "partial",
+      "answer": "",
+      "sketch": {
+        "strokes": [{ "tool": "pen", "color": "#37352f", "width": 2, "points": [{ "x": 20, "y": 230 }, { "x": 120, "y": 228 }, { "x": 220, "y": 231 }, { "x": 330, "y": 229 }] }],
+        "shapes": [
+          { "id": "h1", "kind": "triangle", "x1": 80, "y1": 60, "x2": 240, "y2": 120 },
+          { "id": "h2", "kind": "rect", "x1": 100, "y1": 120, "x2": 220, "y2": 225 },
+          { "id": "h3", "kind": "ellipse", "x1": 270, "y1": 14, "x2": 330, "y2": 74 }
+        ],
+        "items": [{ "id": "h4", "kind": "text", "x": 20, "y": 20, "text": "my house" }]
+      }
+    },
+    {
+      "id": "sketch-only-incorrect",
+      "why": "A labelled sketch whose mechanism is wrong (the id is used as a number): wrong marks earn no credit.",
+      "expect": "partial",
+      "answer": "",
+      "sketch": {
+        "strokes": [],
+        "shapes": [
+          { "id": "w1", "kind": "rect", "x1": 10, "y1": 90, "x2": 110, "y2": 140, "text": "token id 2" },
+          { "id": "w2", "kind": "arrow", "x1": 110, "y1": 115, "x2": 220, "y2": 115, "label": "multiply by 2" },
+          { "id": "w3", "kind": "rect", "x1": 220, "y1": 90, "x2": 340, "y2": 140, "text": "4 is the next token" }
+        ],
+        "items": []
+      }
+    },
+    {
+      "id": "text-plus-sketch-complementary",
+      "why": "The text covers the first two ideas and the sketch the last two: only judged as ONE response does it cover all four.",
+      "expect": "good",
+      "answer": "Token id 2 picks row 2 of the embedding table, and a position embedding is added to that vector.",
+      "sketch": {
+        "strokes": [],
+        "shapes": [
+          { "id": "c1", "kind": "rect", "x1": 20, "y1": 40, "x2": 330, "y2": 90, "text": "transformer blocks mix the vectors across positions" },
+          { "id": "c2", "kind": "arrow", "x1": 175, "y1": 90, "x2": 175, "y2": 150 },
+          { "id": "c3", "kind": "rect", "x1": 30, "y1": 150, "x2": 320, "y2": 200, "text": "LM head: a score for every vocabulary token" }
+        ],
+        "items": []
+      }
+    },
+    {
+      "id": "text-only-control",
+      "why": "The same text without the sketch misses two ideas, so the complementary case is good only because of the sketch.",
+      "expect": "partial",
+      "answer": "Token id 2 picks row 2 of the embedding table, and a position embedding is added to that vector.",
+      "sketch": null
+    }
+  ]
+}

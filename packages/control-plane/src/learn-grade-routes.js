@@ -228,7 +228,9 @@ export const assessContent = (instruction, sketch = null) => (sketch?.image
   ? [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: sketch.image.slice(PNG_URL.length) } }, { type: 'text', text: instruction }]
   : instruction);
 
-async function assessText(env, instruction, callModel) {
+// Exported for the hand-run Explain Back sketch eval (tests/evals/explain-back-sketch.mjs), which grades exactly as
+// this route does.
+export async function assessText(env, instruction, callModel) {
   const messages = [{ role: 'user', content: instruction }];
   for (let turn = 0; ; turn += 1) {
     const response = await callModel(env, { max_tokens: LEARN_TASKS.grading.maxTokens, messages }, LEARN_TASKS.grading.model, null);

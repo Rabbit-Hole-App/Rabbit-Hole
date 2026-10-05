@@ -28,7 +28,8 @@ function card(block, onGrade, host = null) {
       const setDraft = next => { state.draft = typeof next === 'function' ? next(state.draft) : next; };
       const render = () => {
         const block = state.block, draft = state.draft;
-        const sketchShown = !!sketchHost && block.mode === 'explain_back' && !!block.sketchOpen;
+        const sketchable = !!sketchHost && block.mode === 'explain_back';
+        const sketchMarked = sketchable && hasMarks(block.sketch);
         latest.current = block;
         const verdictText = stripVerdict(block.verdict);
         ${piece('  const commit = async () => {')}
@@ -138,11 +139,28 @@ test('text and a sketch are one submission; Explain again keeps both and the res
   assert.notEqual(calls[1].id, calls[0].id);
 });
 
-test('a hidden sketch, an empty one, or a card with no sketch host submits text only, as before', async () => {
+test('draw, hide, submit: the hidden sketch is still in the one combined attempt (hiding is presentation only)', async () => {
+  const calls = [], h = host();
+  const hidden = { ...sketchCard, sketchOpen: false };
+  const c = card(hidden, async (committed, answer, onDelta, sketch) => { calls.push({ id: committed.attemptId, answer, sketch }); onDelta('VERDICT: partial\nCloser.'); }, h);
+  c.type('the id picks a row');
+  await c.render().commit();
+  assert.equal(calls.length, 1, 'one grade call');
+  assert.equal(calls[0].answer, 'the id picks a row');
+  assert.deepEqual(calls[0].sketch, { image: PNG, text: sketchText(sketchCard.sketch) }, 'the hidden drawing rides in the same attempt');
+  assert.deepEqual(h.captured, ['e1']);
+  assert.deepEqual([c.state.block.sketchSubmitted, c.state.block.attemptId], [true, calls[0].id]);
+  // A hidden sketch alone is an answer too.
+  const alone = card(hidden, async (committed, answer, onDelta, sketch) => { calls.push({ answer, sketch }); onDelta('VERDICT: good\nYes.'); }, host());
+  await alone.render().commit();
+  assert.deepEqual([calls[1].answer, !!calls[1].sketch, alone.state.block.sketchSubmitted], ['', true, true]);
+});
+
+test('a cleared (empty) sketch or a card with no sketch host submits text only, as before', async () => {
   const sent = [];
   const grade = async (committed, answer, onDelta, sketch) => { sent.push(sketch); onDelta('VERDICT: good\nYes.'); };
   const empty = { strokes: [], shapes: [], items: [] };
-  for (const [block, h] of [[{ ...sketchCard, sketchOpen: false }, host()], [{ ...sketchCard, sketch: empty }, host()], [sketchCard, null]]) {
+  for (const [block, h] of [[{ ...sketchCard, sketch: empty }, host()], [{ ...sketchCard, sketchOpen: false, sketch: empty }, host()], [sketchCard, null]]) {
     const c = card(block, grade, h);
     c.type('words');
     await c.render().commit();

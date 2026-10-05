@@ -43,5 +43,6 @@ export function sketchText(sketch) {
   ].join(' ').slice(0, 2000);
 }
 
-// Submit is open with words typed, or with marks in the sketch the learner can see; text is never required.
-export const canSubmit = (text, sketch, shown) => !!said(text) || (!!shown && hasMarks(sketch));
+// Submit is open with words typed, or with marks in the card's sketch - shown or hidden, since hiding is presentation
+// only; text is never required. Only clearing the sketch takes it out of the answer.
+export const canSubmit = (text, sketch) => !!said(text) || hasMarks(sketch);
