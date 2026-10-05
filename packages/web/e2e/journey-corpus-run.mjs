@@ -1,0 +1,447 @@
+// LP1 Task 17 (owner, 2026-10-05): the small real-model journey corpus runner, modelled on e2e/tutor-corpus-run.mjs. Runs
+// e2e/journey-corpus.mjs - four subjects (domains), each through the whole chain, and three resolver probes - through the
+// real planners (planDiagnostic, planPath, adaptPath, planSection, resolveWithModel) and one journey Tutor turn (runTurn
+// over journeyDomain, its plan from planTurn, enforced by the Tutor validator), building every input as the journey route
+// (control-plane/src/learn-journey.js) does; then, free, the journey Rabbit Hole record (diveRecord + journeyDiveContext)
+// from the drafted path and registry. Each check is recorded per stage as pass or fail with its exact reason; nothing is
+// averaged. The diagnostic answers and the evidence adaptation's misconception are scripted (probeEvents, stage
+// adapt_evidence); no evaluator runs (the Tutor turn's /evaluate post answers skipped), so every call is a planner call.
+// No retry anywhere: a failed stage is recorded with its reason and the chain goes on with what it has, or records the
+// stages that depend on it as skipped with the reason. The planners' own escalations (adaptPath to journey_path, the
+// Tutor's fast tier to Opus) and the resolver's fallback to clarification_needed are recorded as repair use.
+// Default (stub): free. fixtureModel answers every planner call and a scripted plan the Tutor's, so the script, the checks
+// and the budget logic run without a key. The fixtures are logistic-regression-shaped and never revise a path or return
+// path_edit, so some checks fail in stub mode by construction; they are listed in the summary, never hidden.
+// --live: PAID. Refused unless JOURNEY_CORPUS_PAID=GO (the controller sets it; owner approval, 2026-10-05) and --budget
+// USD within the owner's hard ceiling of 1.90. The key is the one ANTHROPIC_API_KEY= line of the main checkout's .env;
+// the models are LEARN_TASKS', never substituted. Before each call the budget guard prices its worst case and refuses a
+// call that does not fit; rows are appended per call, so a stop keeps every observation, and spent sums every live JSONL
+// in --out. A refused request (HTTP 4xx other than 429, or a 429 with a rate limit of 0) stops the run.
+// --resume continues the newest JSONL of this mode in --out; a subject cut midway is run again from its start.
+// Output: <out>/journey-corpus-<mode>-<stamp>.jsonl (call, step and subject_done rows) and <out>/summary.json.
+// Usage: node e2e/journey-corpus-run.mjs [--out dir] [--budget USD] [--resume]
+//        JOURNEY_CORPUS_PAID=GO node e2e/journey-corpus-run.mjs --live --budget 1.9 --out <dir>
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import * as esbuild from 'esbuild';
+import { anthropic } from '../../control-plane/src/ask.js';
+import { LEARN_TASKS } from '../../control-plane/src/learn-models.js';
+import { JOURNEY_TOOLS, pathOutput } from '../../control-plane/src/agents/learn-journey.js';
+import { PLANNER_SYSTEM, TUTOR_TOOL, plannerSystem } from '../../control-plane/src/agents/learn-tutor.js';
+import { PlannerInvalid, adaptPath, planDiagnostic, planPath, planSection, resolveWithModel } from '../../control-plane/src/learn-journey-planners.js';
+import { fixtureModel } from '../../control-plane/src/learn-journey-fixtures.js';
+import { PLANNER_DEFAULTS, planTurn } from '../../control-plane/src/learn-tutor-routes.js';
+import { journeyIntent } from '../../control-plane/src/learner-intent-journey.js';
+import { INTAKE_SLOTS, applyIntakeAnswer, slotsFromIntent, trayFor } from '../src/learn-journey.js';
+import { appendEvents, deriveClaimStates, emptyStore } from '../src/learn-tutor-evidence.js';
+import { journeyDomain } from '../src/learn-journey-domain.js';
+import { CLAIMS as NANOGPT_CLAIMS, SLICE_CARDS } from '../src/learn-tutor-claims.js';
+import { runTurn } from '../src/learn-tutor.js';
+import { diveRecord } from '../src/dive.js';
+import { resolveTarget } from '../src/learn-target.js';
+import { EDITS, RESOLVER_PROBES, RESOLVER_TOPIC, SUBJECTS, tutorQuestion } from './journey-corpus.mjs';
+
+const args = process.argv.slice(2);
+const flag = (name, fallback) => { const at = args.indexOf(`--${name}`); return at >= 0 ? args[at + 1] : fallback; };
+const CEILING = 1.9; // the owner's hard total ceiling, USD (2026-10-05)
+const LIVE = args.includes('--live'), RESUME = args.includes('--resume'), MODE = LIVE ? 'live' : 'stub';
+const OUT = flag('out', join(tmpdir(), 'journey-corpus')), BUDGET = Number(flag('budget', LIVE ? 'NaN' : String(CEILING)));
+if (LIVE && process.env.JOURNEY_CORPUS_PAID !== 'GO') throw Error('--live makes paid model calls: refused unless JOURNEY_CORPUS_PAID=GO (owner approval)');
+if (!(BUDGET > 0 && BUDGET <= CEILING)) throw Error(`--budget USD is required with --live and at most ${CEILING} (the owner's hard ceiling)`);
+
+// USD per MTok, as e2e/tutor-corpus-run.mjs (claude-api skill, cached 2026-09-25): input, output, cache read. A 5-minute
+// cache write is 1.25x input. A call is priced at its requested model (the wrapper refuses any other than LEARN_TASKS').
+const PRICES = { 'claude-opus-5-5': [4, 20, 0.2], 'claude-sonnet-5-5': [2, 10, 0.2], 'claude-haiku-4-5-20251001': [1, 5, 0.1] };
+const CACHE_WRITE_X = 1.25;
+const usd = t => { const p = PRICES[t.model]; if (!p) return 0; return ((t.in || 0) * p[0] + (t.out || 0) * p[1] + (t.cw || 0) * p[0] * CACHE_WRITE_X + (t.cr || 0) * p[2]) / 1e6; };
+
+// The budget guard: a call's worst case is every request character / 3 as an input token at the cache-write rate (the
+// dearest input rate: the system block is cached) plus max_tokens at the output rate. It is refused when spent + worst
+// case > budget (never above the ceiling), and so is a model with no price. The stop is sticky: a caller that swallows
+// it (planTurn's fast tier) gets it again on its next call.
+class BudgetStop extends Error {}
+class Refused extends Error {}
+const worstCase = (body, model) => {
+  if (!PRICES[model]) throw new BudgetStop(`no price for ${model}`);
+  return usd({ model, cw: Math.ceil(JSON.stringify(body).length / 3), out: body.max_tokens });
+};
+const guard = (spent, worst, budget) => { if (spent + worst > Math.min(budget, CEILING)) throw new BudgetStop(`worst case $${worst.toFixed(4)} with $${spent.toFixed(4)} spent exceeds the $${Math.min(budget, CEILING)} budget`); };
+// Start-up self-check: the guard refuses a call whose worst case exceeds what remains, admits one that fits, and holds
+// the ceiling whatever budget it is handed.
+{
+  const body = { max_tokens: LEARN_TASKS.journey_path.maxTokens, messages: [{ role: 'user', content: 'x'.repeat(3000) }] };
+  const worst = worstCase(body, LEARN_TASKS.journey_path.model);
+  assert.ok(worst > 0.08, 'the worst case prices max_tokens as output (4000 Opus tokens are $0.08)');
+  assert.throws(() => guard(1, worst, 1 + worst / 2), BudgetStop);
+  assert.doesNotThrow(() => guard(0, worst, worst));
+  assert.throws(() => guard(CEILING - worst / 2, worst, 100), BudgetStop);
+  assert.throws(() => worstCase(body, 'claude-unpriced'), BudgetStop);
+}
+
+mkdirSync(OUT, { recursive: true });
+const read = file => readFileSync(file, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line));
+const spent = () => (LIVE ? readdirSync(OUT).filter(name => /^journey-corpus-live-.*\.jsonl$/.test(name)).reduce((n, name) => n + read(join(OUT, name)).reduce((m, row) => m + (row.cost_usd || 0), 0), 0) : 0);
+const mine = readdirSync(OUT).filter(name => name.startsWith(`journey-corpus-${MODE}-`) && name.endsWith('.jsonl')).sort();
+const FILE = RESUME && mine.length ? join(OUT, mine.at(-1)) : join(OUT, `journey-corpus-${MODE}-${new Date().toISOString().replace(/[:.]/g, '-')}.jsonl`);
+const rows = existsSync(FILE) ? read(FILE) : [];
+const done = new Set(rows.filter(row => row.kind === 'subject_done').map(row => row.subject));
+const record = row => { const full = { mode: MODE, ...row }; rows.push(full); appendFileSync(FILE, `${JSON.stringify(full)}\n`); return full; };
+
+// Live only: the one ANTHROPIC_API_KEY= line of the main checkout's .env (the parent of git's common dir), never printed,
+// logged or written; no other line is kept. env is that key and nothing else (no JOURNEY_MODEL_STUB, no SMALL_ENV).
+function liveEnv() {
+  const common = resolve(execFileSync('git', ['rev-parse', '--git-common-dir'], { encoding: 'utf8' }).trim());
+  const line = readFileSync(join(dirname(common), '.env'), 'utf8').split(/\r?\n/).find(l => l.startsWith('ANTHROPIC_API_KEY='));
+  const key = line?.slice('ANTHROPIC_API_KEY='.length).trim().replace(/^(["'])(.*)\1$/, '$2');
+  if (!key) throw Error('the main checkout .env has no ANTHROPIC_API_KEY= line');
+  return { ANTHROPIC_API_KEY: key };
+}
+const ENV = LIVE ? liveEnv() : {};
+
+// journeyDiveContext lives in LearnJourney.jsx: bundled with esbuild, as learn-journey-ui.test.mjs does (local, free).
+const journeyDiveContext = await (async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'journey-corpus-')), outfile = join(dir, 'dive.cjs');
+  await esbuild.build({ stdin: { contents: "export { journeyDiveContext } from './LearnJourney.jsx';", resolveDir: fileURLToPath(new URL('../src/', import.meta.url)), loader: 'jsx' },
+    bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent' });
+  try { return createRequire(import.meta.url)(outfile).journeyDiveContext; } finally { rmSync(dir, { recursive: true, force: true }); }
+})();
+
+// Stub mode's Tutor plan (fixtureModel has no tutor_response): one sentence and one question on the route's claim.
+const STUB_PLAN = { strategy: 'feynman', actions: [{ type: 'respond_text', text: 'Here is that idea again, on the first worked example of this section.' }, { type: 'ask_question', text: 'What would you predict on a case you have not seen?' }] };
+const inner = LIVE ? anthropic : (env, body) => (body.tools[0].name === TUTOR_TOOL.name
+  ? Response.json({ model: 'fixture', stop_reason: 'tool_use', content: [{ type: 'tool_use', name: TUTOR_TOOL.name, input: STUB_PLAN }] }) : fixtureModel(env, body));
+
+// The callModel every planner gets: the model check, the budget guard, then the call; one row per call with the requested
+// and served model, latency, usage (input, output, cache write, cache read) and USD. calls: this stage's calls, with the
+// tool input as the model wrote it and the system prompt it was sent.
+let at = null, ABORTED = null, STOPPED = null;
+const calls = [];
+async function callModel(env, body, model, org) {
+  if (ABORTED) throw new Refused(ABORTED);
+  if (STOPPED) throw new BudgetStop(STOPPED);
+  const tool = body.tools?.[0]?.name, role = tool === TUTOR_TOOL.name ? 'tutor' : tool;
+  const models = role === 'tutor' ? [LEARN_TASKS.tutor.model, PLANNER_DEFAULTS.fast_model] : [LEARN_TASKS[role]?.model];
+  if (!models.includes(model)) throw new Refused(ABORTED = `${role} asked for ${model}, not its LEARN_TASKS model`);
+  let worst;
+  try { worst = worstCase(body, model); guard(spent(), worst, BUDGET); } catch (error) { STOPPED = error.message; throw error; }
+  const started = Date.now();
+  const response = await inner(env, body, model, org);
+  const result = response.ok ? await response.clone().json().catch(() => null) : null;
+  const u = result?.usage || {}, tokens = { in: u.input_tokens ?? 0, out: u.output_tokens ?? 0, cw: u.cache_creation_input_tokens ?? 0, cr: u.cache_read_input_tokens ?? 0 };
+  calls.push({ role, model, raw: result?.content?.find(block => block?.type === 'tool_use' && block.name === tool)?.input ?? null, system: typeof body.system === 'string' ? body.system : body.system?.[0]?.text });
+  record({ kind: 'call', ...at, role, requested_model: model, served_model: result?.model ?? null, status: response.status, ms: Date.now() - started,
+    max_tokens: body.max_tokens, input_chars: JSON.stringify(body).length, worst_usd: +worst.toFixed(6), ...tokens, cost_usd: +usd({ model, ...tokens }).toFixed(6) });
+  if (response.status >= 400 && response.status < 500 && (response.status !== 429 || /rate limit of 0 /.test(await response.clone().text().catch(() => '')))) {
+    throw new Refused(ABORTED = `${role}: model HTTP ${response.status}`);
+  }
+  return response;
+}
+
+// ---------- Checks ----------
+const check = (pass, reason) => ({ pass: !!pass, reason });
+const cut300 = text => String(text).slice(0, 300);
+const why = e => cut300(e instanceof PlannerInvalid ? `PlannerInvalid (${e.role}): ${e.errors.join('; ')}` : `${e.name}: ${e.message}`);
+// No mastery, fixed learner level or permanent ability label. LEVEL_WORDS is agents/learn-journey.js's (not exported); the
+// percentage pattern applies to the learner-facing evidence wording only (change.reason, learner_note, adaptation_reason,
+// the Tutor's words), not to section content, where "halves the range, 50%" is teaching.
+// ponytail: a short list of label patterns; extend it when a real plan slips a label past it.
+const LEVEL_WORDS = /\bmaster(?:ed|y)\b|\b(?:beginner|intermediate|advanced|expert)[ -](?:level|learner)\b/i;
+const LABELS = [LEVEL_WORDS, /\bmaster(ed|y)\b/i, /\b(?:novice|beginner|intermediate|advanced|expert) (?:student|learner|level)\b/i,
+  /\byou(?:'re| are) (?:a |an )?(?:beginner|novice|intermediate|expert|natural)\b/i, /\byou(?:'re| are) (?:just )?(?:good|bad|great|terrible|hopeless) at\b/i,
+  /\b(?:not an? (?:math|maths|science|coding|programming|history) person|naturally gifted|gifted learner|slow learner|fast learner|quick learner)\b/i];
+const PERCENT = /\d+\s*%/;
+const wording = (texts, percent = true) => {
+  const bad = texts.filter(t => typeof t === 'string' && (LABELS.some(re => re.test(t)) || (percent && PERCENT.test(t))));
+  return check(!bad.length, bad.length ? `mastery, level or ability label${percent ? ' or percentage' : ''}: ${bad.map(t => t.slice(0, 160)).join(' | ')}` : `${texts.filter(Boolean).length} texts clean`);
+};
+const pathTexts = raw => [raw?.path?.change?.reason, raw?.path?.change?.learner_note, ...(raw?.path?.sections || []).map(s => s?.adaptation_reason)];
+// No topic leakage across domains: no tool input the model wrote in a subject's stage holds another subject's terms.
+const leakage = subject => {
+  const text = calls.map(call => JSON.stringify(call.raw)).join(' ');
+  const hits = SUBJECTS.filter(other => other.id !== subject.id).map(other => [other.id, text.match(other.terms)]).filter(([, hit]) => hit);
+  return check(!hits.length, hits.length ? `output contains ${hits.map(([id, hit]) => `"${hit[0]}" (a ${id} term)`).join(', ')}` : 'no other subject\'s terms');
+};
+const SECTION_FIELDS = Object.keys(JOURNEY_TOOLS.journey_path.input_schema.properties.path.properties.sections.items.properties);
+const STEP_ROLES = JOURNEY_TOOLS.journey_section.input_schema.properties.teaching_sequence.items.properties.role.enum;
+// Future sections remain plans: no section key outside the schema (cards, blocks, steps, content...), as the model wrote it.
+const plansOnly = raw => {
+  const extra = [...new Set((raw?.path?.sections || []).flatMap(s => Object.keys(s || {}).filter(k => !SECTION_FIELDS.includes(k))))];
+  return check(!extra.length, extra.length ? `section keys outside the schema: ${extra.join(', ')}` : 'sections hold plans only');
+};
+// Only the current section is generated or materialized: every other section not completed is not_generated, no heading.
+const onlyCurrent = path => {
+  const bad = path.sections.filter(s => s.status !== 'current' && s.status !== 'completed' && (s.generation_state !== 'not_generated' || s.heading_block_id != null));
+  return check(!bad.length, bad.length ? `generated or materialized outside the current section: ${bad.map(s => `${s.id} ${s.status}/${s.generation_state}${s.heading_block_id ? ' with a heading' : ''}`).join(', ')}` : 'only the current section carries generation state');
+};
+const sorted = v => JSON.stringify(v, (_, x) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => a.localeCompare(b))) : x));
+const unchanged = (was, now) => {
+  const same = JSON.stringify(was) === JSON.stringify(now);
+  return check(same, same ? `${was.id} byte-identical` : !now ? `completed ${was.id} is gone` : sorted(was) === sorted(now) ? `completed ${was.id}: same fields, other key order` : `completed ${was.id} changed: ${JSON.stringify(now).slice(0, 200)}`);
+};
+const live = sections => sections.filter(s => s.status !== 'skipped' && s.status !== 'optional');
+const minutes = sections => live(sections).reduce((n, s) => n + (s.estimated_minutes || 0), 0);
+const PRACTICE = /practi[cs]e|exercise|drill|hands-on/i;
+function respected(edit, prev, path, target) {
+  if (edit === 'skip') { const now = path.sections.find(s => s.id === target.id); return check(!now || now.status === 'skipped', `"${target.title}" ${now ? `is ${now.status}` : 'is gone'}`); }
+  if (edit === 'practice') {
+    const was = new Map(prev.sections.map(s => [s.id, JSON.stringify(s)]));
+    const added = path.sections.filter(s => was.get(s.id) !== JSON.stringify(s) && PRACTICE.test(`${s.title} ${s.purpose}`));
+    return check(added.length, added.length ? `practice in ${added.map(s => `${s.id} "${s.title}"`).join(', ')}` : 'no new or changed section is about practice');
+  }
+  return check(live(path.sections).length < live(prev.sections).length || minutes(path.sections) < minutes(prev.sections),
+    `${live(prev.sections).length} -> ${live(path.sections).length} sections not skipped or optional, ${minutes(prev.sections)} -> ${minutes(path.sections)} minutes`);
+}
+// adaptPath's escalation as repair use: which planner answered and why; on a validator rejection, the rejected journey_adapt
+// reply's errors verbatim (re-validated here, free), which adaptPath does not return.
+function adaptRepair(out, input) {
+  if (!out.escalated) return null;
+  const first = calls.find(call => call.role === 'journey_adapt');
+  const rejected = out.escalated !== 'validator' ? null : !first?.raw ? 'the reply has no tool call'
+    : (pathOutput(first.raw, { prev: input.prev, registry: input.registry, source: input.evidence ? 'evidence' : 'learner_edit', evidence_refs: input.evidence?.refs ?? [] }).errors || []).join('; ');
+  return { used: 'journey_path', model: LEARN_TASKS.journey_path.model, why: out.escalated, ...(rejected != null ? { rejected: cut300(rejected) } : {}) };
+}
+const adaptValid = (out, repair) => check(out.escalated !== 'validator', !out.escalated ? 'journey_adapt answered' : out.escalated === 'validator' ? `journey_adapt rejected: ${repair.rejected}` : `journey_adapt said ${out.escalated}; journey_path answered`);
+
+// One stage: run it, judge it (only when it returned), record it with its latency and repair use. A budget stop or a
+// refusal ends the run; any other error (PlannerInvalid, a model 5xx) is the stage's failed `valid` check, verbatim.
+async function step(subject, name, run, { checks: judge = () => ({}), repair = () => null, output = out => out, note = null } = {}) {
+  at = { subject: subject.id, step: name };
+  calls.length = 0;
+  const started = Date.now();
+  let out = null, error = null;
+  try { out = await run(); } catch (e) { if (e instanceof BudgetStop || e instanceof Refused || STOPPED || ABORTED) throw e; error = e; }
+  const ms = Date.now() - started;
+  const checks = error ? { valid: check(false, why(error)) } : { valid: check(true, 'passes its validator'), ...judge(out) };
+  if (subject.terms && calls.length) checks.no_topic_leakage = leakage(subject);
+  record({ kind: 'step', ...at, ms, calls: calls.length, models: calls.map(call => call.model), checks, pass: Object.values(checks).every(c => c.pass),
+    repair: error ? null : repair(out), ...(note ? { note } : {}), output: error ? null : output(out) });
+  return error ? null : out;
+}
+const skip = (subject, names, reason) => names.forEach(name => record({ kind: 'step', subject: subject.id, step: name, skipped: reason, checks: {}, pass: null }));
+
+// Planner states, as the route's claimStates: the locked derivation plus settled counts, never a score.
+const negative = e => e.result === 'fail' || e.result === 'misconception';
+const claimStates = (events, registry) => {
+  const derived = deriveClaimStates(events, registry.claims);
+  return Object.fromEntries(Object.keys(derived).map(id => {
+    const settled = events.filter(e => e.claim === id && e.settled);
+    return [id, { state: derived[id].state, settled_passes: settled.filter(e => e.result === 'pass').length, settled_negatives: settled.filter(negative).length }];
+  }));
+};
+const event = (registry, claim, result, extra) => ({ concept: registry.claims[claim].concept, claim, result, kind: null, settled: true, ...extra });
+// The scripted diagnostic answers, graded as the evaluate route grades a probe (learn-tutor-routes.js probeEvaluation):
+// the first probe right on each of its claims; the second wrong with a named misconception on its first claim that has
+// one (a plain fail when none does). One misconception event leaves the claim uncertain: one fail is never a misconception.
+function probeEvents(registry, [right, wrong]) {
+  const tag = { evaluator: 'deterministic', source: 'journey_probe' };
+  const claim = wrong.claims.find(id => registry.claims[id].misconceptions.length) ?? wrong.claims[0], named = registry.claims[claim].misconceptions[0]?.id;
+  return [
+    ...right.claims.map(id => event(registry, id, 'pass', { ...tag, kind: right.transfer ? 'demonstrated_in_transfer' : 'demonstrated_here', ref: { probe_id: right.id } })),
+    event(registry, claim, named ? 'misconception' : 'fail', { ...tag, ...(named ? { misconception_id: named } : {}), ref: { probe_id: wrong.id } }),
+  ];
+}
+const claimsOf = (registry, section) => [...section.expected_evidence.map(e => e.claim), ...Object.keys(registry.claims).filter(id => section.target_concepts.includes(registry.claims[id].concept))];
+const NANOGPT_IDS = [...Object.keys(NANOGPT_CLAIMS), ...SLICE_CARDS];
+const JOURNEY_PROMPT = plannerSystem(false, 'journey');
+
+async function runSubject(subject) {
+  const intent = journeyIntent(subject.text), topic = intent.topic, quick = intent.kind === 'quick_overview', journeyId = `corpus-${subject.id}`;
+  let intake = slotsFromIntent(intent);
+  for (const { slot } of INTAKE_SLOTS) if (intake.slots[slot] === undefined && subject.intake[slot]) intake = applyIntakeAnswer(intake, slot, { option_id: subject.intake[slot] });
+  for (const [slot, value] of Object.entries(subject.slots)) intake = { ...intake, slots: { ...intake.slots, [slot]: value }, source: { ...intake.source, [slot]: 'stated' } };
+  let registry = { concepts: {}, claims: {} }, store = emptyStore(), note = null;
+
+  // (a) Diagnostic; its scripted answers become the journey's evidence. Failed, the path goes on as after a skipped one.
+  if (subject.diagnostic) {
+    const diagnostic = await step(subject, 'diagnostic', () => planDiagnostic(ENV, { topic, intake, grounding: { kind: 'topic' } }, { callModel }));
+    if (diagnostic) {
+      registry = diagnostic.registry;
+      ({ store } = appendEvents(store, probeEvents(registry, diagnostic.probes)));
+    } else note = 'the diagnostic failed: drafted as after a skipped diagnostic (empty registry, no evidence)';
+  }
+
+  // (b) Path: the first draft, its concepts_added merged into the registry (new ids only) as the route's drafted() does.
+  const drafted = await step(subject, 'path', () => planPath(ENV, { topic, intake, states: claimStates(store.events, registry), constraints: [], pending_edits: [], registry,
+    diagnostic_evidence_refs: store.events.map(e => e.seq), ...(quick ? { max_sections: 3 } : {}) }, { callModel }), { note, checks: out => {
+    const { sections } = out.path, raw = calls.at(-1)?.raw;
+    return {
+      section_count: quick ? check(sections.length <= 3, `${sections.length} sections (quick overview: at most 3)`) : check(sections.length >= 4 && sections.length <= 10, `${sections.length} sections (default depth: 4-10)`),
+      all_upcoming: check(sections.every(s => s.status === 'upcoming' && s.generation_state === 'not_generated'), sections.map(s => `${s.id} ${s.status}/${s.generation_state}`).join(', ')),
+      only_current_generated: onlyCurrent(out.path), plans_only: plansOnly(raw), wording: wording(pathTexts(raw)),
+    };
+  } });
+  if (!drafted) return skip(subject, ['section', 'adapt_edit', 'adapt_evidence', 'tutor', 'dive'], 'the path failed');
+  registry = { concepts: { ...drafted.concepts_added.concepts, ...registry.concepts }, claims: { ...drafted.concepts_added.claims, ...registry.claims } };
+  const states = () => claimStates(store.events, registry);
+  const [s1, s2] = drafted.path.sections;
+
+  // (c) Section 1's plan, on the accepted version (section 1 current), as the route's accept + plan_section.
+  const accepted = { ...drafted.path, version: 2, current_section_id: s1.id, sections: drafted.path.sections.map((s, i) => (i ? s : { ...s, status: 'current' })),
+    change: { source: 'learner_edit', reason: 'accepted', evidence_refs: [], sections_changed: [] } };
+  const plan = await step(subject, 'section', () => planSection(ENV, { path: accepted, section: accepted.sections[0], registry, states: states() }, { callModel }), { checks: out => {
+    const own = new Set([...s1.target_concepts, ...s1.prerequisites]);
+    const used = [...out.teaching_sequence.flatMap(s => s.claims), ...out.checks.flatMap(c => c.claims), ...out.completion_evidence.map(e => e.claim)];
+    const outside = [...new Set([...out.target_concepts, ...used.map(id => registry.claims[id].concept)].filter(c => !own.has(c)))];
+    return {
+      only_section_1: check(out.section_id === s1.id && !outside.length, outside.length ? `concepts outside section 1: ${outside.join(', ')}` : `${out.section_id}: ${out.teaching_sequence.length} steps, ${out.checks.length} checks`),
+      step_roles: check(out.teaching_sequence.every(s => STEP_ROLES.includes(s.role)), out.teaching_sequence.map(s => s.role).join(', ')),
+      wording: wording([out.learning_objective, ...out.teaching_sequence.flatMap(s => [s.make.text, s.make.request])], false),
+    };
+  } });
+
+  // (d), (e): both adapt the same input, section 1 completed and section 2 current.
+  const prev = s2 && { ...accepted, current_section_id: s2.id, change: { source: 'learner_edit', reason: 'section 1 completed', evidence_refs: [], sections_changed: [] },
+    sections: drafted.path.sections.map((s, i) => (i === 0 ? { ...s, status: 'completed', generation_state: 'generated', heading_block_id: 'corpus-s1-heading' } : i === 1 ? { ...s, status: 'current' } : s)) };
+  if (!prev) skip(subject, [...(subject.edit ? ['adapt_edit'] : []), 'adapt_evidence'], 'the drafted path has no section 2');
+  const later = prev ? prev.sections.slice(2) : [], target = later[1] ?? later[0];
+  if (prev && subject.edit && !target) skip(subject, ['adapt_edit'], 'the drafted path has no section after the current one to edit');
+  else if (prev && subject.edit) {
+    const input = { prev, edit: EDITS[subject.edit](target.title), registry, states: states() };
+    await step(subject, 'adapt_edit', () => adaptPath(ENV, input, { callModel }), { repair: out => adaptRepair(out, input), checks: out => ({
+      adapt_valid: adaptValid(out, adaptRepair(out, input)),
+      completed_unchanged: unchanged(prev.sections[0], out.path.sections.find(s => s.id === prev.sections[0].id)),
+      edit_respected: respected(subject.edit, prev, out.path, target),
+      only_current_generated: onlyCurrent(out.path), plans_only: plansOnly(calls.at(-1)?.raw), wording: wording(pathTexts(calls.at(-1)?.raw)),
+    }) });
+  }
+  // (e) A settled misconception (two settled events naming it) on a section-2 claim.
+  const claim = prev && claimsOf(registry, s2).find(id => registry.claims[id].misconceptions.length);
+  if (prev && !claim) skip(subject, ['adapt_evidence'], 'section 2 has no claim with a named misconception');
+  else if (prev) {
+    const named = registry.claims[claim].misconceptions[0].id, tag = { evaluator: 'jev', source: 'free_text', misconception_id: named };
+    const appended = appendEvents(store, [event(registry, claim, 'misconception', tag), event(registry, claim, 'misconception', tag)]);
+    const input = { prev, evidence: { claims: [claim], refs: appended.events.map(e => e.seq) }, registry, states: claimStates(appended.store.events, registry) };
+    await step(subject, 'adapt_evidence', () => adaptPath(ENV, input, { callModel }), { repair: out => adaptRepair(out, input), checks: out => {
+      // Evidence changes future planning only: completed and current history byte-identical, the change list on later sections.
+      const cut = prev.sections.findIndex(s => s.id === prev.current_section_id) + 1, history = prev.sections.slice(0, cut);
+      const rewritten = history.filter((s, i) => JSON.stringify(s) !== JSON.stringify(out.path.sections[i])).map(s => s.id);
+      const touched = out.path.change.sections_changed.filter(c => history.some(s => s.id === c.id)).map(c => `${c.id} ${c.op}`);
+      return {
+        adapt_valid: adaptValid(out, adaptRepair(out, input)),
+        completed_unchanged: unchanged(prev.sections[0], out.path.sections.find(s => s.id === prev.sections[0].id)),
+        future_only: check(!rewritten.length && !touched.length, rewritten.length || touched.length
+          ? [rewritten.length ? `history rewritten: ${rewritten.join(', ')}` : '', touched.length ? `change list touches history: ${touched.join(', ')}` : ''].filter(Boolean).join('; ')
+          : out.path.change.sections_changed.map(c => `${c.id} ${c.op}`).join(', ') || 'no section changed'),
+        only_current_generated: onlyCurrent(out.path), plans_only: plansOnly(calls.at(-1)?.raw), wording: wording(pathTexts(calls.at(-1)?.raw)),
+      };
+    } });
+  }
+
+  // (f) One journey Tutor turn in section 1: a question about its first claim, the store holding the journey's evidence.
+  const journey = { id: journeyId, state: 'active', active_section_id: s1.id, registry, request: { topic }, intake };
+  let context = null;
+  await step(subject, 'tutor', () => {
+    // ponytail: no evaluator in the corpus (the brief's chain is planners only); /evaluate answers skipped, no evidence.
+    const post = async (path, body) => { if (path !== '/api/learn/tutor/plan') return { status: 'skipped', evaluator: null, events: [] }; context = body.context; return planTurn(ENV, body.context, { callModel }); };
+    return runTurn({ raw: tutorQuestion(registry.claims[claimsOf(registry, s1)[0]].statement), canvas: { app: 'canvas-corpus', board: 'main' }, access: { app: 'canvas-corpus' }, block: null,
+      store: { ...emptyStore(), events: store.events, seq: store.seq }, post, domain: journeyDomain({ journey, path: accepted, blocks: [] }) });
+  }, {
+    output: out => ({ routed: out.routed.row, tier: out.response.telemetry?.tier ?? null, actions: out.actions, log: out.log }),
+    repair: out => (out.response.telemetry?.escalated ? { used: LEARN_TASKS.tutor.model, why: out.response.telemetry.escalated, tier_reason: out.response.telemetry.tier_reason } : null),
+    checks: out => {
+      const tutorCalls = calls.filter(call => call.role === 'tutor'), raw = tutorCalls.at(-1)?.raw, proposed = Array.isArray(raw?.actions) ? raw.actions : [];
+      const rejected = out.decisions.filter(d => !d.accepted), asked = proposed.filter(a => a?.type === 'ask_question').length;
+      const prompts = tutorCalls.map(call => (call.system === JOURNEY_PROMPT ? 'journey prompt' : call.system === PLANNER_SYSTEM ? 'PLANNER_SYSTEM (nanoGPT)' : 'an unknown prompt'));
+      const nanogpt = NANOGPT_IDS.filter(id => JSON.stringify(context).includes(id) || tutorCalls.some(call => JSON.stringify(call.raw).includes(id)));
+      return {
+        tutor_valid: check(!rejected.length && out.actions.some(a => a.type !== 'no_action'), rejected.length ? rejected.map(d => `${d.type}@${d.stage}: ${d.reason}`).join('; ') : `${out.routed.row}: ${out.actions.map(a => a.type).join(', ')}`),
+        one_question: check(asked <= 1, `${asked} ask_question proposed`),
+        wording: wording(proposed.filter(a => a?.type === 'respond_text' || a?.type === 'ask_question').map(a => a.text)),
+        journey_domain: check(prompts.length && prompts.every(p => p === 'journey prompt') && !!context?.journey_context, `${prompts.join(', ') || 'no planner call'}; journey_context ${context?.journey_context ? 'present' : 'missing'}`),
+        no_nanogpt_ids: check(!nanogpt.length, nanogpt.length ? `nanoGPT ids in the context or reply: ${nanogpt.join(', ')}` : 'none'),
+      };
+    },
+  });
+
+  // The journey Rabbit Hole (free, no model call): a hole opened from section 1's first step block that has claims (the
+  // section plan's; with no plan, a plain block, which takes the current section's expected evidence) keeps its journey
+  // context, and the record's origin identity is the same as without a journey.
+  const first = plan?.teaching_sequence.find(s => s.claims.length);
+  const block = first ? { id: `corpus-${first.step_id}`, type: 'explanation', title: first.step_id, journey: { journey_id: journeyId, section_id: s1.id, step_id: first.step_id, claims: first.claims } }
+    : { id: 'corpus-note', type: 'note', title: s1.title };
+  await step(subject, 'dive', () => {
+    const ctx = journeyDiveContext(journey, accepted, block), base = { name: 'canvas-corpus-dive', title: s1.title, via: 'learner_slash', parent: { app: 'canvas-corpus', board: 'main' }, target: resolveTarget(block), block };
+    return { context: ctx, record: diveRecord({ ...base, journey: ctx }), plain: diveRecord(base) };
+  }, { note: first ? 'from a stamped section-1 step block' : 'no section plan: from an unstamped block', checks: ({ context: ctx, record, plain }) => {
+    const bad = !ctx ? ['no journey context'] : [
+      ctx.journey_id !== journeyId && `journey_id ${ctx.journey_id}`, ctx.section_id !== s1.id && `section_id ${ctx.section_id} is not section 1 (${s1.id})`,
+      !ctx.concept_ids.length && 'no concept_ids', ...ctx.concept_ids.filter(id => !registry.concepts[id]).map(id => `unknown concept ${id}`),
+      !ctx.claim_ids.length && 'no claim_ids', ...ctx.claim_ids.filter(id => !registry.claims[id]).map(id => `unknown claim ${id}`),
+      JSON.stringify(record.journey) !== JSON.stringify(ctx) && 'the record does not carry it',
+    ].filter(Boolean);
+    const { journey: _, ...rest } = record, same = JSON.stringify(rest) === JSON.stringify(plain);
+    return {
+      dive_context: check(!bad.length, bad.length ? bad.join('; ') : `${ctx.section_id}: concepts ${ctx.concept_ids.join(', ')}; claims ${ctx.claim_ids.join(', ')}`),
+      dive_identity: check(same, same ? 'origin and return point as without a journey' : `origin differs: ${JSON.stringify(rest.origin)} vs ${JSON.stringify(plain.origin)}`.slice(0, 300)),
+    };
+  } });
+}
+
+// Resolver rule 5: each probe's tray as trayFor computes it for that journey state. A reply resolverOutput replaced
+// (no tool call, an unknown kind or option) is the resolver's fallback, recorded as repair use.
+async function runResolver() {
+  for (const probe of RESOLVER_PROBES) {
+    const tray = trayFor({ state: probe.tray.state, request: { topic: RESOLVER_TOPIC }, intake: { slots: probe.tray.slots || {}, source: {} }, path_version: 1 }, null);
+    await step({ id: 'resolver' }, probe.id, () => resolveWithModel(ENV, { text: probe.text, tray }, { callModel }), {
+      repair: out => { const raw = calls[0]?.raw; return raw?.kind === out.kind && (raw.option_id ?? null) === (out.option_id ?? null) ? null : { used: 'resolverOutput', why: raw ? `the model said ${raw.kind}${raw.option_id ? ` (${raw.option_id})` : ''}` : 'no tool call' }; },
+      checks: out => ({ resolver_kind: check(out.kind === probe.expect, `${out.kind}${out.option_id ? ` (${out.option_id})` : ''}, expected ${probe.expect}`) }),
+    });
+  }
+}
+
+let stoppedAt = null;
+for (const item of [{ id: 'resolver', run: runResolver }, ...SUBJECTS.map(subject => ({ id: subject.id, run: () => runSubject(subject) }))]) {
+  if (done.has(item.id)) continue;
+  try { await item.run(); } catch (error) {
+    if (error instanceof BudgetStop) { stoppedAt = { ...at, reason: error.message }; break; }
+    if (error instanceof Refused) break;
+    throw error;
+  }
+  record({ kind: 'subject_done', subject: item.id });
+  if (LIVE) console.error(`${item.id}: done, all live runs $${spent().toFixed(3)}`);
+}
+
+// The summary: the last row per subject/stage (a resumed subject ran again), every call row for the cost.
+const steps = [...new Map(rows.filter(row => row.kind === 'step').map(row => [`${row.subject}/${row.step}`, row])).values()];
+const callRows = rows.filter(row => row.kind === 'call');
+const tally = key => callRows.reduce((acc, row) => {
+  const t = acc[key(row)] ||= { calls: 0, ms: 0, in: 0, out: 0, cw: 0, cr: 0, usd: 0, worst_usd: 0 };
+  t.calls++;
+  for (const k of ['ms', 'in', 'out', 'cw', 'cr']) t[k] += row[k];
+  t.usd = +(t.usd + row.cost_usd).toFixed(6);
+  t.worst_usd = +(t.worst_usd + row.worst_usd).toFixed(6);
+  return acc;
+}, {});
+// The escalations this run did not take, priced at their worst case on the same input size: a journey_adapt reply that
+// stood (journey_path could have re-planned it) and a fast-tier Tutor plan that stood (Opus could have re-planned it).
+const byStep = Object.values(callRows.reduce((acc, row) => { (acc[`${row.subject}/${row.step}`] ||= []).push(row); return acc; }, {}));
+const untaken = byStep.reduce((n, list) => {
+  const [row] = list, escalate = { journey_adapt: 'journey_path', tutor: 'tutor' }[row.role];
+  if (list.length !== 1 || !escalate || (row.role === 'tutor' && row.requested_model === LEARN_TASKS.tutor.model)) return n;
+  return n + usd({ model: LEARN_TASKS[escalate].model, cw: Math.ceil(row.input_chars / 3), out: LEARN_TASKS[escalate].maxTokens });
+}, 0);
+const worstTaken = callRows.reduce((n, row) => n + row.worst_usd, 0);
+const summary = {
+  mode: MODE, file: FILE, budget: BUDGET, ceiling: CEILING, stopped_at_budget: stoppedAt, aborted: ABORTED,
+  subjects_done: rows.filter(row => row.kind === 'subject_done').map(row => row.subject),
+  stages: steps.length, stages_passed: steps.filter(row => row.pass).length,
+  failed_assertions: steps.filter(row => row.pass === false).flatMap(row => Object.entries(row.checks).filter(([, c]) => !c.pass).map(([assertion, c]) => ({ domain: row.subject, stage: row.step, assertion, reason: c.reason }))),
+  skipped: steps.filter(row => row.skipped).map(row => ({ domain: row.subject, stage: row.step, skipped: row.skipped })),
+  repairs: steps.filter(row => row.repair).map(row => ({ domain: row.subject, stage: row.step, ...row.repair })),
+  latency_ms: Object.fromEntries(steps.filter(row => row.ms != null).map(row => [`${row.subject}/${row.step}`, row.ms])),
+  checks: Object.fromEntries(steps.map(row => [`${row.subject}/${row.step}`, row.skipped ? `skipped: ${row.skipped}` : Object.fromEntries(Object.entries(row.checks).map(([name, c]) => [name, c.pass ? 'pass' : `FAIL: ${c.reason}`]))])),
+  cost: {
+    per_stage: tally(row => row.step), per_domain: tally(row => row.subject), per_role: tally(row => (row.role === 'tutor' ? `tutor ${row.requested_model}` : row.role)),
+    total_usd: +callRows.reduce((n, row) => n + row.cost_usd, 0).toFixed(6), all_live_runs_usd: +spent().toFixed(6),
+    worst_case_usd: { calls_made: +worstTaken.toFixed(4), plus_untaken_escalations: +(worstTaken + untaken).toFixed(4),
+      note: 'input characters / 3 at the cache-write rate plus max_tokens at the output rate; stub inputs are fixture-sized' },
+  },
+  served_model_mismatches: callRows.filter(row => LIVE && row.served_model && row.served_model !== row.requested_model).map(row => `${row.subject}/${row.step} ${row.requested_model} -> ${row.served_model}`),
+};
+writeFileSync(join(OUT, 'summary.json'), `${JSON.stringify(summary, null, 2)}\n`);
+console.log(JSON.stringify(summary, null, 2));
