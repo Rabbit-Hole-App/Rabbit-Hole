@@ -198,3 +198,33 @@ CREATE TABLE IF NOT EXISTS shared_ask_events (
 );
 CREATE INDEX IF NOT EXISTS shared_ask_events_viewer ON shared_ask_events(viewer_email, asked_at);
 CREATE INDEX IF NOT EXISTS shared_ask_events_share ON shared_ask_events(share_key, asked_at);
+
+-- learn-migrations/0006-learning-journeys.sql
+-- Learning journeys (docs/features/adaptive-learning-path-v1-architecture.md §9-§10): one row per adaptive learning
+-- journey - its state, the learner's exact request, intake answers, constraints, the journey's claim registry, the
+-- diagnostic with its server-only answer key, the evidence store and the current section's plan - and one immutable
+-- row per version of its learning path. Additive and re-runnable; LEARN_DB only. Applied locally only until an
+-- explicit GO: the shared dev and production LEARN_DB wait for it.
+--
+-- A journey is scoped to (org, owner_email, app, board), the existing account-principal convention (§10.2); only its
+-- owner reads or writes it. revision is the optimistic-write counter: every save is conditional on it, so two tabs
+-- never overwrite each other. Evidence is written only by appendJourneyEvidence (src/learn-journey-store.js).
+
+CREATE TABLE IF NOT EXISTS learning_journeys (
+  id TEXT PRIMARY KEY, org TEXT NOT NULL, owner_email TEXT NOT NULL, app TEXT NOT NULL, board TEXT NOT NULL,
+  state TEXT NOT NULL, topic TEXT NOT NULL, raw_request TEXT NOT NULL,
+  intake_json TEXT NOT NULL, constraints_json TEXT NOT NULL DEFAULT '[]', pending_edits_json TEXT NOT NULL DEFAULT '[]',
+  registry_json TEXT NOT NULL, diagnostic_json TEXT NOT NULL, evidence_json TEXT NOT NULL,
+  path_version INTEGER NOT NULL DEFAULT 0, active_section_id TEXT, section_plan_json TEXT,
+  pending TEXT, error_json TEXT, paused_json TEXT,
+  revision INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, archived_at TEXT
+);
+-- At most one live (not archived) journey per scope.
+CREATE UNIQUE INDEX IF NOT EXISTS learning_journeys_live ON learning_journeys (org, owner_email, app, board) WHERE archived_at IS NULL;
+
+-- A path version is written once and never changed; the journey's path_version names the latest.
+CREATE TABLE IF NOT EXISTS learning_path_versions (
+  journey_id TEXT NOT NULL, version INTEGER NOT NULL, path_json TEXT NOT NULL,
+  source TEXT NOT NULL, reason TEXT NOT NULL, evidence_refs TEXT NOT NULL, changes_json TEXT NOT NULL,
+  created_at TEXT NOT NULL, PRIMARY KEY (journey_id, version)
+);
