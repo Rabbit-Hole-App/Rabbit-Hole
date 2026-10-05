@@ -88,11 +88,12 @@ export async function planDiagnostic(env, input, { callModel = journeyCallModel(
   return valid('journey_diagnostic', diagnosticOutput(await callRole(env, 'journey_diagnostic', input, callModel)));
 }
 
-// input { topic, intake, states, constraints, pending_edits, registry, diagnostic_evidence_refs? } -> { path (version 1,
-// change.source draft, the input's diagnostic_evidence_refs), concepts_added }.
+// input { topic, intake, states, constraints, pending_edits, registry, diagnostic_evidence_refs?, max_sections? } -> { path
+// (version 1, change.source draft, the input's diagnostic_evidence_refs), concepts_added }. A draft longer than
+// max_sections (a quick overview: 3) is PlannerInvalid.
 export async function planPath(env, input, { callModel = journeyCallModel(env) } = {}) {
   const out = await callRole(env, 'journey_path', input, callModel);
-  return valid('journey_path', pathOutput(out, { registry: input.registry, source: 'draft', diagnostic_evidence_refs: input.diagnostic_evidence_refs ?? [] }));
+  return valid('journey_path', pathOutput(out, { registry: input.registry, source: 'draft', diagnostic_evidence_refs: input.diagnostic_evidence_refs ?? [], max_sections: input.max_sections ?? null }));
 }
 
 // input { prev, edit | evidence, registry, states } -> { path, concepts_added, ambiguous, escalated }. journey_adapt

@@ -27,7 +27,7 @@ const DIAGNOSTIC_SYSTEM = prompt(
 
 const PATH_SYSTEM = prompt(
   'You plan a learning path: an ordered teaching plan of 1-12 sections for one topic. Answer by calling the one tool you are given, exactly once.',
-  'Without `prev` in the input this is the first draft: read the topic, the intake, the constraints, the states and pending_edits (edits the learner made before the path existed: apply them). Every section is upcoming (optional or skipped when the learner asked), generation_state not_generated, and current_section_id is null.',
+  'Without `prev` in the input this is the first draft: read the topic, the intake, the constraints, the states and pending_edits (edits the learner made before the path existed: apply them). Every section is upcoming (optional or skipped when the learner asked), generation_state not_generated, and current_section_id is null. max_sections, when given, is the most sections the draft may have.',
   'With `prev` this is a revision of that version, for the learner\'s `edit` or for the new `evidence` ({ claims, refs }). Keep the ids of the sections that stay; a new section gets a new id. List every change in change.sections_changed.',
   'No content in sections. A section has only id, title (at most 80 characters), purpose (at most 240), kind, target_concepts, prerequisites, expected_evidence (at most 4 of { claim, kind }), estimated_minutes, depth, status, generation_state, heading_block_id, adaptation_reason and from: never blocks, cards, steps, examples or questions.',
   'Completed sections are immutable: keep their title, purpose, target_concepts, heading_block_id, status and their order among the completed sections. A shaky completed concept gets a new review section.',
@@ -176,7 +176,8 @@ export function diagnosticOutput(out) {
 const LEVEL_WORDS = /\bmaster(?:ed|y)\b|\b(?:beginner|intermediate|advanced|expert)[ -](?:level|learner)\b/i;
 const leveled = t => typeof t === 'string' && LEVEL_WORDS.test(t);
 const PROGRESS = ['status', 'generation_state', 'heading_block_id'];
-export function pathOutput(out, { prev = null, registry, source, evidence_refs = [], diagnostic_evidence_refs = [] }) {
+// max_sections (a quick overview's draft, AT-14) caps the section count: a longer path is invalid, never trimmed.
+export function pathOutput(out, { prev = null, registry, source, evidence_refs = [], diagnostic_evidence_refs = [], max_sections = null }) {
   const errors = [], added = { concepts: { ...out?.concepts_added?.concepts }, claims: { ...out?.concepts_added?.claims } };
   for (const kind of ['concepts', 'claims']) for (const id of Object.keys(added[kind])) if (has(registry?.[kind], id)) errors.push(`concepts_added: ${id} already exists; a changed concept or claim needs a new id`);
   const merged = { concepts: { ...registry?.concepts, ...added.concepts }, claims: { ...registry?.claims, ...added.claims } };
@@ -200,6 +201,7 @@ export function pathOutput(out, { prev = null, registry, source, evidence_refs =
   };
   errors.push(...(validatePath(path, prev, merged).errors || []));
   if (!prev) for (const s of list(path.sections)) if (['current', 'completed', 'needs_review'].includes(s?.status)) errors.push(`a first draft has no ${s.status} section (${s.id})`);
+  if (max_sections != null && list(path.sections).length > max_sections) errors.push(`this path has at most ${max_sections} sections (got ${path.sections.length})`);
   if (prev) {
     const was = id => list(prev.sections).find(s => s?.id === id), current = list(prev.sections).find(s => s?.status === 'current');
     for (const s of list(path.sections)) if (s?.status === 'completed' && was(s.id)?.status !== 'completed') errors.push(`section ${s.id}: a revision never completes a section`);

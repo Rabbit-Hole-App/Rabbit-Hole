@@ -6,11 +6,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { learnDb } from './learn-grade-fixture.js';
 import { journeyRoute } from '../src/learn-journey.js';
-import { fixtureModel } from '../src/learn-journey-fixtures.js';
+import { fixtureFor, fixtureModel } from '../src/learn-journey-fixtures.js';
 import { appendJourneyEvidence, loadJourney } from '../src/learn-journey-store.js';
 
 const PEOPLE = { ana: { email: 'ana@test', org: 'team-ws' }, ben: { email: 'ben@test', org: 'team-ws' } };
-const APP = 'canvas-0a1b2c3d', BOARD = 'main';
+const APP = 'canvas-0a1b2c3d', REPO = 'repo-0a1b2c3d-nanogpt', BOARD = 'main';
 const SCOPE = { org: 'team-ws', owner_email: 'ana@test', app: APP, board: BOARD };
 const LEARN = 'I want to learn logistic regression';
 
@@ -24,13 +24,18 @@ function setup(t) {
     },
   };
   sqlite.prepare('INSERT INTO canvases(org, name, owner_email, title) VALUES (?, ?, ?, ?)').run('team-ws', APP, 'ana@test', 'Logistic regression');
+  // A project of ana's beside the canvas: a repository app, where LP1 runs no journey.
+  sqlite.prepare("INSERT INTO repository_apps(id, org, name, owner_email, repo, branch, commit_sha, status) VALUES (7, 'team-ws', ?, 'ana@test', 'karpathy/nanoGPT', 'master', 'abc', 'ready')").run(REPO);
   const env = { LEARN_DB, CONTROL_PLANE };
-  // Every planner call by role, with its input; a role in `fail` answers HTTP 500.
-  const calls = [], fail = new Set();
+  // Every planner call by role, with its input; a role in `fail` answers HTTP 500, a role in `replies` answers
+  // replies[role](input) as its tool input.
+  const calls = [], fail = new Set(), replies = {};
   const callModel = async (e, body, model, org) => {
     const role = body.tools[0].name, text = body.messages[0].content;
     calls.push({ role, input: JSON.parse(text.slice(text.indexOf('input = ') + 8)) });
-    return fail.has(role) ? Response.json({ error: { message: 'overloaded' } }, { status: 500 }) : fixtureModel(e, body, model, org);
+    if (fail.has(role)) return Response.json({ error: { message: 'overloaded' } }, { status: 500 });
+    if (replies[role]) return Response.json({ content: [{ type: 'tool_use', name: role, input: replies[role](calls.at(-1).input) }] });
+    return fixtureModel(e, body, model, org);
   };
   const call = async (method, { as = 'ana', body, query = `app=${APP}&board=${BOARD}`, now } = {}) => {
     const req = new Request(`https://app.test/api/learn/journey${method === 'GET' ? `?${query}` : ''}`, {
@@ -40,15 +45,16 @@ function setup(t) {
     const text = await response.text();
     return { status: response.status, body: JSON.parse(text), text };
   };
-  const post = (action, extra = {}, as = 'ana') => call('POST', { as, body: { app: APP, board: BOARD, action, ...extra } });
+  const post = (action, extra = {}, as = 'ana', app = APP) => call('POST', { as, body: { app, board: BOARD, action, ...extra } });
   const roles = () => calls.map(c => c.role);
   const rows = () => sqlite.prepare('SELECT * FROM learning_journeys').all();
   // What the Tutor evaluate path (Task 7) stores for a probe answer: one deterministic claim-level event.
-  // tagged: false is a typed answer whose ref names no probe; the walker then reads the probe's claims after its ask point.
-  const answer = async (probeId, { result = 'pass', transfer = true, settled = true, tagged = true } = {}) => {
+  // ref defaults to the probe's own tag; a typed answer's ref names no probe, and the walker then reads the probe's claims
+  // after its ask point.
+  const answer = async (probeId, { result = 'pass', transfer = true, settled = true, ref = { probe_id: probeId } } = {}) => {
     const j = await loadJourney(env, SCOPE), probe = j.diagnostic.probes.find(p => p.id === probeId);
     const event = { concept: probe.claims[0].split('/')[0], claim: probe.claims[0], result, kind: result === 'pass' ? (transfer ? 'demonstrated_in_transfer' : 'demonstrated_here') : null, settled, evaluator: 'deterministic', source: 'journey_probe' };
-    await appendJourneyEvidence(env, j, { status: settled ? 'settled' : 'uncertain', evaluator: 'deterministic', events: [event] }, tagged ? { probe_id: probeId } : { turn: 1 });
+    await appendJourneyEvidence(env, j, { status: settled ? 'settled' : 'uncertain', evaluator: 'deterministic', events: [event] }, ref);
   };
   // Intake by clicking the first option of each question, then the walker on settled transfer answers until it stops.
   const throughIntake = async () => {
@@ -63,7 +69,7 @@ function setup(t) {
     }
     return r;
   };
-  return { sqlite, env, calls, fail, call, post, roles, rows, answer, throughIntake, throughDiagnostic };
+  return { sqlite, env, calls, fail, replies, call, post, roles, rows, answer, throughIntake, throughDiagnostic };
 }
 
 test('start -> intake -> diagnostic -> path -> accept -> one section plan', async t => {
@@ -108,6 +114,7 @@ test('start -> intake -> diagnostic -> path -> accept -> one section plan', asyn
   assert.deepEqual(roles(), ['journey_diagnostic', 'journey_path']);
   // Planner states: derived per claim with settled counts, never a score. Both probed claims were passed in transfer.
   const { states } = calls[1].input;
+  assert.equal('max_sections' in calls[1].input, false);
   const probed = r.body.journey.diagnostic.asked.map(a => r.body.journey.diagnostic.probes.find(p => p.id === a.probe_id).claims[0]);
   for (const id of probed) assert.deepEqual(states[id], { state: 'understood', settled_passes: 1, settled_negatives: 0 });
   const unprobed = Object.keys(states).find(id => !probed.includes(id));
@@ -138,6 +145,17 @@ test('a quick overview asks one question, runs no diagnostic and drafts at most 
   assert.equal(r.body.journey.state, 'path_review');
   assert.ok(r.body.path.sections.length <= 3);
   assert.deepEqual(roles(), ['journey_path']);
+});
+
+test('a quick overview caps the draft at 3 sections: a longer one is a retryable planner failure', async t => {
+  const { post, replies, calls } = setup(t);
+  await post('start', { text: 'Give me a 10-minute visual overview of logistic regression' });
+  replies.journey_path = input => fixtureFor('journey_path', { ...input, intake: { slots: { depth: 'guided' } } }); // 8 sections
+  const r = await post('intake_answer', { slot: 'goal', option_id: 'intuition' });
+  assert.equal(calls.at(-1).input.max_sections, 3);
+  assert.equal(r.status, 502);
+  assert.match(r.body.error, /invalid plan.*at most 3 sections/);
+  assert.deepEqual([r.body.journey.state, r.body.journey.path_version, r.body.journey.error.op, r.body.journey.error.retryable], ['path_review', 0, 'path', true]);
 });
 
 test('a fast start needs a topic; with one it drafts, accepts and plans section 1', async t => {
@@ -198,7 +216,7 @@ test('a path planner failure keeps the answers, sets a retryable error and never
 });
 
 test('path edits, cancel as skip, and the materialized heading', async t => {
-  const { post, roles, answer } = setup(t);
+  const { post, roles, calls, answer } = setup(t);
   await post('start', { text: LEARN });
   // Before a path exists an edit waits in pending_edits and reaches the draft.
   let r = await post('path_edit', { text: 'Do Python first' });
@@ -210,7 +228,7 @@ test('path edits, cancel as skip, and the materialized heading', async t => {
   // An untagged unsettled answer on the probe's claims reads as uncertain; no new evidence on the next probe as an
   // evaluator error (the earlier answer is before its ask point and on other claims).
   const first = r.body.tray.probe_id;
-  await answer(first, { settled: false, tagged: false });
+  await answer(first, { settled: false, ref: { turn: 1 } });
   r = await post('probe_advance', { probe_id: first });
   const second = r.body.tray.probe_id;
   assert.notEqual(second, first);
@@ -227,6 +245,7 @@ test('path edits, cancel as skip, and the materialized heading', async t => {
   assert.equal(r.status, 200);
   assert.deepEqual([r.body.journey.state, r.body.path.version, r.body.path.change.source], ['path_review', 2, 'learner_edit']);
   assert.deepEqual(roles(), ['journey_diagnostic', 'journey_path', 'journey_adapt']);
+  assert.deepEqual(calls.find(c => c.role === 'journey_path').input.pending_edits, ['Do Python first']);
 
   r = await post('accept');
   r = await post('section_materialized', { section_id: 's1', heading_block_id: 'h-s1' });
@@ -246,6 +265,99 @@ test('a settled misconception answer reads as fail and steps down the ladder', a
   r = await post('probe_advance', { probe_id: first });
   assert.deepEqual(r.body.journey.diagnostic.asked.map(a => a.result), ['fail']);
   assert.equal(r.body.tray.probe_id, ladder[ladder.indexOf(first) - 1]);
+});
+
+test('evidence tagged to another probe never counts for the open probe', async t => {
+  const { post, answer } = setup(t);
+  await post('start', { text: LEARN });
+  const r = await post('intake_skip'), first = r.body.tray.probe_id;
+  await answer(first, { ref: { probe_id: 'p-other' } }); // on the open probe's claims, but another probe's answer
+  const after = await post('probe_advance', { probe_id: first });
+  assert.deepEqual(after.body.journey.diagnostic.asked.map(a => a.result), ['error']);
+});
+
+test('a section planner failure after accept keeps section 1 current, path v2, and plans nothing else', async t => {
+  const { post, fail, calls, throughIntake, throughDiagnostic } = setup(t);
+  await post('start', { text: LEARN });
+  await throughDiagnostic(await throughIntake());
+  fail.add('journey_section');
+  let r = await post('accept');
+  assert.equal(r.status, 502);
+  const j = r.body.journey;
+  assert.deepEqual([j.state, j.pending, j.active_section_id, j.section_plan, j.error.op, j.error.retryable], ['active', null, 's1', null, 'section', true]);
+  assert.equal(r.body.path.version, 2);
+  assert.equal(r.body.path.sections[0].status, 'current');
+  assert.ok(r.body.path.sections.slice(1).every(s => s.status === 'upcoming' && s.generation_state === 'not_generated'));
+  assert.deepEqual(calls.filter(c => c.role === 'journey_section').map(c => c.input.section.id), ['s1']);
+  fail.clear();
+  r = await post('retry');
+  assert.deepEqual([r.status, r.body.journey.section_plan.section_id, r.body.path.version], [200, 's1', 2]);
+});
+
+test('an internal planner error is never shown: a generic message, and a log line with ids only', async t => {
+  const { post, replies } = setup(t);
+  const logged = [];
+  t.mock.method(console, 'error', (...args) => logged.push(args.join(' ')));
+  replies.journey_diagnostic = () => { throw new TypeError(`Cannot read properties of undefined: ${LEARN}`); };
+  await post('start', { text: LEARN });
+  const r = await post('intake_skip');
+  assert.equal(r.status, 502);
+  assert.equal(r.body.error, 'The planner failed. Try again.');
+  assert.equal(r.body.journey.error.message, 'The planner failed. Try again.');
+  assert.equal(logged.length, 1);
+  assert.equal(logged[0].includes('logistic'), false);
+  assert.deepEqual(JSON.parse(logged[0]), { event: 'learn_journey_planner_error', journey_id: r.body.journey.id, op: 'diagnostic', error: 'TypeError' });
+});
+
+test('an intake answer must name an option of the open question, or be goal text', async t => {
+  const { post, rows } = setup(t);
+  await post('start', { text: LEARN });
+  const before = rows()[0];
+  for (const body of [
+    { slot: 'goal', option_id: 'bogus' },           // not an option
+    { slot: 'goal' },                               // no answer
+    { slot: 'goal', option_id: 7 },                 // not a string
+    { slot: 'familiarity', option_id: 'seen' },     // not the open question
+    { slot: 'goal', text: {} },                     // text must be a string
+    { slot: 'goal', text: '   ' },                  // blank
+    { slot: 'goal', text: 'x'.repeat(301) },        // too long
+    { slot: 'goal', option_id: 'build', text: {} }, // a malformed text is refused even beside an option
+  ]) {
+    const r = await post('intake_answer', body);
+    assert.deepEqual([r.status, r.body.error], [400, 'invalid_answer'], JSON.stringify(body));
+  }
+  assert.deepEqual(rows()[0], before);
+  // Text on a non-goal slot is refused too.
+  let r = await post('intake_answer', { slot: 'goal', option_id: 'build' });
+  assert.equal(r.status, 200);
+  const mid = rows()[0];
+  r = await post('intake_answer', { slot: 'familiarity', text: 'pretty new' });
+  assert.deepEqual([r.status, r.body.error], [400, 'invalid_answer']);
+  assert.deepEqual(rows()[0], mid);
+});
+
+test('an intake answer without a slot answers the open question; goal text is goal other', async t => {
+  const { post } = setup(t);
+  await post('start', { text: LEARN });
+  const r = await post('intake_answer', { text: 'Pass my stats exam' });
+  assert.equal(r.status, 200);
+  assert.deepEqual([r.body.journey.intake.slots.goal, r.body.journey.intake.goal_text, r.body.tray.slot], ['other', 'Pass my stats exam', 'familiarity']);
+});
+
+test('a path edit is 1-300 characters of text', async t => {
+  const { post, rows } = setup(t);
+  await post('start', { text: LEARN });
+  const before = rows()[0];
+  for (const text of [{}, '', '  ', 'x'.repeat(301), undefined]) assert.equal((await post('path_edit', { text })).status, 400, JSON.stringify(text));
+  assert.deepEqual(rows()[0], before);
+});
+
+test('LP1 journeys run on canvases only', async t => {
+  const { call, post, rows } = setup(t);
+  assert.deepEqual((await call('GET', { query: `app=${REPO}&board=${BOARD}` })).body, { journey: null, path: null, tray: null });
+  const r = await post('start', { text: LEARN }, 'ana', REPO);
+  assert.deepEqual([r.status, r.body.error], [400, 'journeys_on_canvases_only']);
+  assert.equal(rows().length, 0);
 });
 
 test('only the owner reads or writes; a stale revision is a conflict', async t => {
@@ -280,5 +392,22 @@ test('resolve classifies through the resolver model (rule 5)', async t => {
   const r = await post('resolve', { text: 'Why is this section here?', tray });
   assert.deepEqual([r.status, r.body], [200, { kind: 'unrelated_question' }]);
   assert.deepEqual(roles(), ['journey_resolver']);
-  assert.equal((await post('resolve', { text: 'Why?', tray: { options: 'start' } })).status, 400);
+  const bad = [
+    { text: 'Why?', tray: { ...tray, options: 'start' } },
+    { text: 'Why?', tray: { ...tray, options: [null] } },
+    { text: 'Why?', tray: { ...tray, options: Array.from({ length: 7 }, (_, i) => ({ id: `o${i}`, label: `Option ${i}` })) } },
+    { text: 'Why?', tray: { ...tray, options: [{ id: 'x'.repeat(41), label: 'Start' }] } },
+    { text: 'Why?', tray: { ...tray, options: [{ id: 'start', label: 'x'.repeat(121) }] } },
+    { text: 'Why?', tray: { ...tray, options: [{ id: 'start' }] } },
+    { text: 'Why?', tray: { ...tray, prompt: 'x'.repeat(301) } },
+    { text: 'Why?', tray: { ...tray, prompt: 7 } },
+    { text: 'Why?', tray: { ...tray, mode: 'bogus' } },
+    { text: 'Why?', tray: null },
+    { text: 'x'.repeat(1001), tray },
+    { text: '', tray },
+    { text: {}, tray },
+  ];
+  for (const body of bad) assert.equal((await post('resolve', body)).status, 400, JSON.stringify(body).slice(0, 120));
+  assert.deepEqual(roles(), ['journey_resolver']);
+  assert.equal((await post('resolve', { text: 'Why?', tray: { ...tray, mode: null } })).status, 200);
 });

@@ -86,6 +86,13 @@ test('planPath: a first draft with a current section is PlannerInvalid', async (
   await assert.rejects(planPath(env, PATH_INPUT, { callModel: scripted(current).callModel }), PlannerInvalid);
 });
 
+test('planPath: max_sections (a quick overview) rejects a longer draft as PlannerInvalid and accepts one that fits', async () => {
+  await assert.rejects(planPath(env, { ...PATH_INPUT, max_sections: 3 }, { callModel: scripted(DRAFT).callModel }), error => error instanceof PlannerInvalid && /at most 3 sections/.test(error.message));
+  const short = { ...DRAFT, path: { ...DRAFT.path, sections: DRAFT.path.sections.slice(0, 3) } };
+  assert.equal((await planPath(env, { ...PATH_INPUT, max_sections: 3 }, { callModel: scripted(short).callModel })).path.sections.length, 3);
+  assert.equal((await planPath(env, PATH_INPUT, { callModel: scripted(DRAFT).callModel })).path.sections.length, 8);
+});
+
 test('adaptPath: a valid, unambiguous reply is one journey_adapt call, escalated null', async () => {
   const { calls, callModel } = scripted(REVISION);
   const out = await adaptPath(env, { prev: PREV, edit: 'make it shorter', registry: REG, states: CALM }, { callModel });

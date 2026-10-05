@@ -11,9 +11,9 @@
 import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { journeyIntent } from './learner-intent-journey.js';
-import { journeyStep, nextProbe, slotsFromIntent, trayFor, validateRegistry } from '../../web/src/learn-journey.js';
+import { TRAY_MODES, journeyStep, nextIntakeQuestion, nextProbe, slotsFromIntent, trayFor, validateRegistry } from '../../web/src/learn-journey.js';
 import { JourneyConflict, appendPathVersion, createJourney, loadJourney, loadPath, saveJourney, toClient } from './learn-journey-store.js';
-import { adaptPath, journeyCallModel, planDiagnostic, planPath, planSection, resolveWithModel } from './learn-journey-planners.js';
+import { PlannerInvalid, adaptPath, journeyCallModel, planDiagnostic, planPath, planSection, resolveWithModel } from './learn-journey-planners.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/; // learn-boards.js board names
@@ -23,14 +23,34 @@ const SKIP = { intake: 'intake_skip', diagnostic: 'diagnostic_skip' }; // cancel
 // A planner call this old that never reported back (the worker was cancelled mid-call, e.g. by a reload) counts as failed,
 // or `pending` would block the journey forever: only retry clears it.
 const STALE_MS = 3 * 60 * 1000;
+const QUICK_SECTIONS = 3; // AT-14: a quick overview's path
+const FAILED = 'The planner failed. Try again.';
 const EVENTS = {
-  intake_answer: b => ({ type: 'intake_answer', slot: b.slot, answer: { option_id: b.option_id, text: b.text } }),
   intake_skip: () => ({ type: 'intake_skip' }),
   diagnostic_skip: () => ({ type: 'diagnostic_skip' }),
   path_edit: b => ({ type: 'path_edit', text: b.text }),
   section_materialized: b => ({ type: 'section_materialized', section_id: b.section_id, heading_block_id: b.heading_block_id }),
   retry: () => ({ type: 'retry' }),
 };
+
+// The trust boundary: what the browser sends is checked here, before anything is stepped, saved or sent to a model.
+const sized = (v, max) => typeof v === 'string' && v.trim().length > 0 && v.length <= max;
+// An intake answer is an option of the open question q, or goal's free text; anything else would be saved as the slot's
+// default, so it is refused. The slot, when given, must be q's.
+const badAnswer = (q, b) => (b.slot ?? q.slot) !== q.slot || (b.option_id == null && b.text == null)
+  || (b.option_id != null && (typeof b.option_id !== 'string' || !q.options.some(o => o.id === b.option_id)))
+  || (b.text != null && (q.slot !== 'goal' || !sized(b.text, 300)));
+// resolve sends the tray to a paid model: only a §7.1-shaped tray, bounded.
+const goodTray = t => t != null && typeof t === 'object' && typeof t.prompt === 'string' && t.prompt.length <= 300 && (t.mode == null || TRAY_MODES.includes(t.mode))
+  && (t.options == null || (Array.isArray(t.options) && t.options.length <= 6 && t.options.every(o => sized(o?.id, 40) && sized(o?.label, 120))));
+
+// Only a planner's own verdicts reach the learner: a rejected plan, or the model's HTTP failure (modelFailure's message).
+// Anything else is internal: the generic message, and one log line with ids only (never learner text).
+function plannerMessage(error, journeyId, op) {
+  if (error instanceof PlannerInvalid || /\(model HTTP \d{3}/.test(error?.message)) return error.message;
+  console.error(JSON.stringify({ event: 'learn_journey_planner_error', journey_id: journeyId, op, error: error?.name || 'Error' }));
+  return FAILED;
+}
 
 // Planner `states`: per registry claim, a derived state plus settled counts, never a score. Conservative: understood only
 // for a settled transfer pass that covers the claim's ideas with no later settled negative; any other evidence is uncertain.
@@ -54,7 +74,7 @@ function claimStates(j) {
 function probeResult(j, probe) {
   const events = j.evidence?.events || [], tagged = events.filter(e => e.ref?.probe_id === probe.id);
   const from = j.diagnostic.asked?.at(-1)?.seq ?? 0;
-  const own = tagged.length ? tagged : events.filter(e => e.seq > from && probe.claims.includes(e.claim));
+  const own = tagged.length ? tagged : events.filter(e => !e.ref?.probe_id && e.seq > from && probe.claims.includes(e.claim));
   const settled = own.filter(e => e.settled), any = test => settled.some(test);
   if (!own.length) return 'error';
   if (any(e => e.result === 'non_attempt')) return 'non_attempt';
@@ -74,7 +94,7 @@ async function drafted(env, j, out, source, prev = null) {
   const added = out.concepts_added || {};
   const registry = { concepts: { ...added.concepts, ...j.registry.concepts }, claims: { ...added.claims, ...j.registry.claims } };
   const checked = validateRegistry(registry, { prev: j.registry, events: j.evidence.events });
-  if (!checked.ok) throw new Error(`The path planner's concepts do not fit the registry: ${checked.errors.slice(0, 3).join('; ')}`);
+  if (!checked.ok) throw new PlannerInvalid(prev ? 'journey_adapt' : 'journey_path', checked.errors);
   const version = (prev?.version ?? 0) + 1;
   const path = { ...out.path, version, grounding: j.grounding, intake_ref: { journey_revision: j.revision }, change: { ...out.path.change, source } };
   const step = must(journeyStep({ ...j, registry }, { type: 'path_drafted', version, path }));
@@ -95,10 +115,12 @@ const EFFECTS = {
     const diagnostic = { probes: out.probes, asked: [], skipped: false, ...(out.background ? { background: out.background } : {}) };
     return stepped(env, { ...j, registry: out.registry, diagnostic }, { type: 'diagnostic_ready' }, j.revision);
   },
-  // A draft rests on all the evidence so far: before a path exists, that is the diagnostic's.
+  // A draft rests on all the evidence so far: before a path exists, that is the diagnostic's. A quick overview's draft is
+  // capped (the planner rejects a longer one).
   async plan_path(env, j, callModel) {
+    const quick = (j.request.intent?.kind ?? j.request.intent) === 'quick_overview';
     const input = { topic: j.request.topic, intake: j.intake, states: claimStates(j), constraints: j.constraints, pending_edits: j.pending_edits, registry: j.registry,
-      diagnostic_evidence_refs: j.evidence.events.map(e => e.seq) };
+      diagnostic_evidence_refs: j.evidence.events.map(e => e.seq), ...(quick ? { max_sections: QUICK_SECTIONS } : {}) };
     return drafted(env, j, await planPath(env, input, { callModel }), 'draft');
   },
   async revise_path(env, j, callModel) {
@@ -131,8 +153,9 @@ async function run(env, j, effects, callModel) {
     try { next = await EFFECTS[effects[0]](env, j, callModel); }
     catch (error) {
       if (error instanceof JourneyConflict) throw error;
-      const failed = must(journeyStep(j, { type: 'planner_failed', message: error.message }));
-      return reply(env, await saveJourney(env, failed.journey, j.revision), 502, { error: error.message });
+      const message = plannerMessage(error, j.id, j.pending);
+      const failed = must(journeyStep(j, { type: 'planner_failed', message }));
+      return reply(env, await saveJourney(env, failed.journey, j.revision), 502, { error: message });
     }
     ({ journey: j, effects } = next);
   }
@@ -180,7 +203,12 @@ async function act(env, scope, body, callModel, now) {
     step = journeyStep(j, { type: 'probe_result', probe_id: body.probe_id, result: probe ? probeResult(j, probe) : 'error' });
     // The ask point of the next probe: evidence after this seq belongs to it.
     if (step.journey) step.journey.diagnostic.asked = step.journey.diagnostic.asked.map((a, i, all) => (i === all.length - 1 ? { ...a, seq: j.evidence.seq } : a));
+  } else if (body.action === 'intake_answer') {
+    const q = j.state === 'intake' ? nextIntakeQuestion(j.intake) : null; // outside intake, journeyStep refuses it (409)
+    if (q && badAnswer(q, body)) return json({ error: 'invalid_answer' }, 400);
+    step = journeyStep(j, { type: 'intake_answer', slot: body.slot ?? q?.slot, answer: { option_id: body.option_id, text: body.text } });
   } else {
+    if (body.action === 'path_edit' && !sized(body.text, 300)) return json({ error: 'text must be 1-300 characters' }, 400);
     const type = body.action === 'cancel' ? SKIP[j.state] ?? 'cancel' : null;
     step = journeyStep(j, type ? { type } : EVENTS[body.action](body));
   }
@@ -188,7 +216,7 @@ async function act(env, scope, body, callModel, now) {
   return run(env, await saveJourney(env, step.journey, j.revision), step.effects, callModel);
 }
 
-const ACTIONS = new Set(['start', 'resolve', 'accept', 'probe_advance', 'cancel', ...Object.keys(EVENTS)]);
+const ACTIONS = new Set(['start', 'resolve', 'accept', 'probe_advance', 'intake_answer', 'cancel', ...Object.keys(EVENTS)]);
 
 export async function journeyRoute(path, req, env, deps = {}) {
   if (path !== '/api/learn/journey') return null;
@@ -207,6 +235,8 @@ export async function journeyRoute(path, req, env, deps = {}) {
   const ownerRefused = subscriptionOwnerRefusal(env, access);
   if (ownerRefused) return ownerRefused;
   if (typeof body.board !== 'string' || !BOARD.test(body.board)) return json({ error: 'Board name must be 1-100 letters, digits, spaces, dots, dashes or underscores' }, 400);
+  // LP1 journeys live on canvases only; repository-grounded journeys are LP-T.
+  if (access.kind !== 'canvas') return req.method === 'GET' ? json({ journey: null, path: null, tray: null }) : json({ error: 'journeys_on_canvases_only' }, 400);
   const scope = { org: access.org, owner_email: access.email, app: body.app, board: body.board };
   const callModel = deps.callModel || journeyCallModel(env), now = deps.now || Date.now;
   try {
@@ -214,9 +244,9 @@ export async function journeyRoute(path, req, env, deps = {}) {
     if (!ACTIONS.has(body.action)) return json({ error: `Unknown action ${String(body.action).slice(0, 40)}` }, 400);
     if (body.action === 'start') return await start(env, scope, body, callModel);
     if (body.action === 'resolve') {
-      if (typeof body.text !== 'string' || !body.text.trim() || body.text.length > 4000) return json({ error: 'text must be 1-4000 characters' }, 400);
-      if (!body.tray || typeof body.tray !== 'object' || (body.tray.options != null && !Array.isArray(body.tray.options))) return json({ error: 'tray must be the open tray' }, 400);
-      try { return json(await resolveWithModel(env, { text: body.text, tray: body.tray }, { callModel })); } catch (error) { return json({ error: error.message }, 502); }
+      if (!sized(body.text, 1000)) return json({ error: 'text must be 1-1000 characters' }, 400);
+      if (!goodTray(body.tray)) return json({ error: 'tray must be the open tray: a prompt of at most 300 characters, at most 6 { id, label } options, a tray mode' }, 400);
+      try { return json(await resolveWithModel(env, { text: body.text, tray: body.tray }, { callModel })); } catch (error) { return json({ error: plannerMessage(error, null, 'resolve') }, 502); }
     }
     return await act(env, scope, body, callModel, now);
   } catch (error) {
