@@ -21,6 +21,7 @@ await esbuild.build({
   stdin: {
     contents: [
       "export { TutorPromptTray, routeJourneyTurn, journeyStartsHere, journeyRequest, shownTray, liveJourneyTray, resolveBody, journeyController, inJourneySetup } from './LearnJourney.jsx';",
+      "export { default as ContentsRail, PathList } from './ContentsRail.jsx';",
       "export { createElement } from 'react';",
       "export { renderToStaticMarkup } from 'react-dom/server';",
     ].join('\n'),
@@ -29,7 +30,7 @@ await esbuild.build({
   },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent',
 });
-const { TutorPromptTray, routeJourneyTurn, journeyStartsHere, journeyRequest, shownTray, liveJourneyTray, resolveBody, journeyController, inJourneySetup, createElement, renderToStaticMarkup } = createRequire(import.meta.url)(outfile);
+const { TutorPromptTray, routeJourneyTurn, journeyStartsHere, journeyRequest, shownTray, liveJourneyTray, resolveBody, journeyController, inJourneySetup, ContentsRail, PathList, createElement, renderToStaticMarkup } = createRequire(import.meta.url)(outfile);
 rmSync(dir, { recursive: true, force: true });
 
 const intake = (slots = {}) => ({ id: 'j1', state: 'intake', revision: 3, request: { topic: 'logistic regression', intent: { kind: 'learning_journey' } }, intake: { slots, source: {} }, pending: null, error: null });
@@ -399,4 +400,147 @@ test('ask.jsx: on a journey in setup, the Learn chat answers in the sheet only -
   assert.match(ask, /if \(started\.failed\) setInput\(current => current \|\| raw\);/);
   // One copy of the start kinds: the resolver extension's.
   assert.doesNotMatch(read('LearnJourney.jsx'), /new Set\(\['learning_journey'/);
+});
+
+// ---- Adaptive Contents Rail (§8, R2; LP1 Task 9): PathList and the rail's two shapes, as static markup ----
+// Today's heading rail, rendered before Task 9 touched ContentsRail.jsx: canvases without a journey keep it byte for byte.
+const OLD_ENTRIES = [{ n: 1, label: 'Intro', available: true, active: true }, { n: 2, label: 'Middle', available: true, active: false, section: 'h2' }, { n: 3, label: 'Later', available: false, active: false }];
+const OLD_TICKS = '<div aria-hidden="true" class="flex flex-col items-end gap-1.5 rounded-full border border-line bg-white px-2 py-3 shadow-sm"><span class="h-0.5 rounded-full transition-all duration-150 w-6 bg-ink"></span><span class="h-0.5 rounded-full transition-all duration-150 w-4 bg-ink-2"></span><span class="h-0.5 rounded-full transition-all duration-150 w-4 bg-ink-3/50"></span></div>';
+const OLD_LIST = '<ol class="space-y-1"><li><button type="button" aria-current="page" class="w-full rounded px-1 py-0.5 text-left text-sm hover:text-accent disabled:cursor-default disabled:text-ink-3 disabled:hover:text-ink-3 font-semibold text-accent">1. Intro</button></li><li><button type="button" class="w-full rounded px-1 py-0.5 text-left text-sm hover:text-accent disabled:cursor-default disabled:text-ink-3 disabled:hover:text-ink-3 text-ink">2. Middle</button></li><li><button type="button" disabled="" class="w-full rounded px-1 py-0.5 text-left text-sm hover:text-accent disabled:cursor-default disabled:text-ink-3 disabled:hover:text-ink-3 ">3. Later</button></li></ol>';
+const OLD_RAIL = `<div data-contents-rail="true" class="absolute top-1/2 right-0 z-30 -translate-y-1/2 pr-2 pl-6 max-lg:hidden">${OLD_TICKS}<nav aria-label="Table of contents" hidden="" class="absolute top-1/2 right-full max-h-[80vh] w-64 -translate-y-1/2 overflow-y-auto rounded-xl border border-line bg-white p-4 shadow-md"><h2 class="mb-2 text-xs font-semibold tracking-wider text-ink-2 uppercase">Contents</h2>${OLD_LIST}</nav></div>`;
+const entry = (id, n, status, over = {}) => ({ id, n, title: `Section ${n}`, purpose: `Why section ${n} matters.`, status, changed: null, heading_block_id: null, ...over });
+const PATH = [entry('s1', 1, 'current', { heading_block_id: 'h1' }), entry('s2', 2, 'upcoming', { changed: 'added' }), entry('s3', 3, 'optional')];
+const list = (entries, expanded = true) => renderToStaticMarkup(createElement(PathList, { entries, onOpen: () => {}, expanded }));
+const rail = props => renderToStaticMarkup(createElement(ContentsRail, { onOpen: () => {}, ...props }));
+const entryHtml = (html, id) => html.match(new RegExp(`<li data-path-entry="${id}"[\\s\\S]*?</li>`))?.[0] || '';
+
+test('PathList: an upcoming entry has its status and no way to generation; the current one is aria-current step', () => {
+  const html = list(PATH);
+  const upcoming = entryHtml(html, 's2');
+  assert.match(upcoming, /<li data-path-entry="s2" data-status="upcoming">/);
+  assert.doesNotMatch(upcoming, /href=|generat/i, 'an upcoming section never links to generation');
+  assert.doesNotMatch(upcoming, /aria-current/);
+  assert.match(entryHtml(html, 's1'), /aria-current="step"/);
+  assert.equal(count(html, /aria-current=/g), 1);
+  assert.match(upcoming, /data-path-changed="added"/);
+  assert.equal(count(html, /data-path-changed=/g), 1);
+  assert.equal(count(html, /data-path-entry="/g), 3, 'a 3-entry path renders 3 entries');
+  assert.match(entryHtml(html, 's3'), /data-status="optional"[\s\S]*border-dashed/, 'optional is a dashed ring');
+  // Glyphs: ✓ completed, ● current, ○ upcoming, ↺ needs review, a struck-through skipped section.
+  const all = list([entry('a', 1, 'completed'), entry('b', 2, 'needs_review'), entry('c', 3, 'skipped')]);
+  assert.match(entryHtml(all, 'a'), /✓/);
+  assert.match(entryHtml(all, 'b'), /↺/);
+  assert.match(entryHtml(all, 'c'), /line-through/);
+  assert.match(entryHtml(html, 's1'), /●/);
+  assert.match(upcoming, /○/);
+});
+
+test('PathList: a purpose shows inline only for the entry opened; collapsed it is a strip of glyphs, no titles', () => {
+  assert.doesNotMatch(list(PATH), /data-path-purpose/);
+  const open = list(PATH.map(e => (e.id === 's2' ? { ...e, open: true } : e)));
+  assert.match(entryHtml(open, 's2'), /<p data-path-purpose="true"[^>]*>Why section 2 matters\.<\/p>/);
+  assert.equal(count(open, /data-path-purpose/g), 1);
+  const strip = list(PATH, false);
+  assert.match(strip, /^<div aria-hidden="true" data-path-strip="true"/);
+  assert.doesNotMatch(strip, /Section 1|data-path-entry|<button/);
+  assert.equal(count(strip, /data-status="/g), 3);
+});
+
+test('ContentsRail: entries with no status (the heading rail) render exactly the markup of today', () => {
+  assert.equal(rail({ entries: OLD_ENTRIES }), OLD_RAIL);
+  assert.equal(list(OLD_ENTRIES, false), OLD_TICKS);
+  assert.equal(list(OLD_ENTRIES, true), OLD_LIST);
+  assert.equal(rail({ entries: [] }), '');
+});
+
+test('ContentsRail: a journey path in the canvas frame - glyph strip, a Path toggle for the keyboard, pinned open on review', () => {
+  const html = rail({ entries: PATH, placement: 'canvas' });
+  assert.match(html, /^<div data-contents-rail="true" data-placement="canvas" class="absolute top-1\/2 right-0 /);
+  assert.match(html, /<button type="button" data-path-toggle="true" aria-expanded="false"[^>]*>Path<\/button>/);
+  assert.match(html, /data-path-strip/);
+  assert.match(html, /<nav aria-label="Learning path" hidden=""/);
+  const pinned = rail({ entries: PATH, placement: 'canvas', pinned: true });
+  assert.match(pinned, /<nav aria-label="Learning path" class=/, 'pinned: the list is shown');
+  assert.match(pinned, /data-path-toggle="true" aria-expanded="true"/);
+  assert.equal(count(pinned, /data-path-entry="/g), 3);
+});
+
+test('LearnPage.jsx: the journey rail sits inside the canvas frame whatever the panel, the heading rail only without a path', () => {
+  const page = read('LearnPage.jsx');
+  const frame = page.indexOf('aria-label="Lesson canvas"'), at = page.indexOf('<ContentsRail placement="canvas"'), panel = page.indexOf('<ResizableSidePanel aria-label="Learn agent chat"');
+  assert.ok(frame > 0 && at > frame && at < panel, 'inside the canvas frame div, before the Learn agent chat panel');
+  assert.match(page, /\{journey\.path && <ContentsRail placement="canvas" entries=\{pathEntries\(journey\.path, journey\.prevPath\)/);
+  assert.match(page, /pinned=\{journey\.journey\?\.state === 'path_review'\}/);
+  assert.match(page, /edgeInset=\{journey\.path \? 52 : \(!panelOpen && canvasOutline\.length \? 52 : 0\)\}/);
+  assert.match(page, /\{!panelOpen && !journey\.path && <ContentsRail entries=\{canvasOutline\.map\(/);
+  // A materialized section frames its heading; any other entry opens its purpose, with no request.
+  assert.match(page, /entry\.heading_block_id \? canvasApi\.current\?\.showSection\(entry\.heading_block_id\) : setOpenEntry\(/);
+});
+
+// ---- The materialization trigger (§6.5, R5): after the action that planned the current section, once ----
+const fakeCanvas = () => {
+  const calls = [];
+  let n = 0;
+  return { calls, inserts: () => calls.filter(c => c[0] === 'insert'), reserve: () => 'slot:1', release: () => {},
+    insertBlock: (block, options) => { calls.push(['insert', block, options]); n += 1; return `b${n}`; } };
+};
+const reviewPath = { version: 1, sections: [
+  { id: 's1', title: 'Classification vs regression', purpose: 'p', status: 'upcoming' },
+  { id: 's2', title: 'From a linear score to probability', purpose: 'p', status: 'upcoming' }] };
+const activePath = { ...reviewPath, version: 2, current_section_id: 's1', sections: reviewPath.sections.map(s => (s.id === 's1' ? { ...s, status: 'current' } : s)) };
+const textStep = id => ({ step_id: id, role: 'explanation', make: { text: `${id} text` }, claims: [] });
+const sectionPlan = { section_id: 's1', path_version: 2, teaching_sequence: ['frame', 'explain', 'predict'].map(textStep) };
+const activeJourney = (over = {}) => journeyOf({ state: 'active', revision: 6, active_section_id: 's1', path_version: 2, section_plan: sectionPlan, ...over });
+const scripted = (canvas, replies) => {
+  const calls = [];
+  const ctl = journeyController({ where: { app: APP, board: 'main' }, canvas: () => canvas, fetchJson: async (path, body) => { calls.push({ path, body }); return replies.shift(); } });
+  return { ctl, calls, view: () => ctl.view() };
+};
+
+test('controller: accept materializes the current section once and posts section_materialized; a load or a second reply never does', async () => {
+  const canvas = fakeCanvas();
+  const h = scripted(canvas, [
+    ok(journeyOf({ state: 'path_review', path_version: 1 }), previewTray, reviewPath),
+    ok(activeJourney(), null, activePath),
+    { status: 500, d: { error: 'boom' } }, // section_materialized fails once: its retry re-posts it, nothing is drawn twice
+    ok(activeJourney({ revision: 7, section_plan: { ...sectionPlan, heading_block_id: 'b1' } }), null, activePath),
+  ]);
+  await h.ctl.refresh();
+  assert.equal(h.view().prevPath, null);
+  await h.view().answer('start');
+  assert.deepEqual(h.calls.slice(1).map(c => c.body.action), ['accept', 'section_materialized']);
+  assert.deepEqual(h.calls[2].body, { app: APP, board: 'main', action: 'section_materialized', section_id: 's1', heading_block_id: 'b1', revision: 6 });
+  assert.deepEqual(canvas.inserts().map(c => c[1].type), ['heading', 'explanation', 'explanation', 'explanation']);
+  assert.equal(h.view().tray.error.message, 'That did not go through.');
+  await h.view().answer('retry');
+  assert.deepEqual(h.calls.slice(1).map(c => c.body.action), ['accept', 'section_materialized', 'section_materialized']);
+  assert.equal(canvas.inserts().length, 4, 'the ref guard: no second materialization');
+  assert.equal(h.view().journey.section_plan.heading_block_id, 'b1');
+  assert.equal(h.view().prevPath, reviewPath, 'the rail diffs the accepted version with the one reviewed');
+  // A load (GET) of an active journey whose section has no heading draws nothing: a reload mid-way must not draw it twice.
+  const other = fakeCanvas();
+  const load = scripted(other, [ok(activeJourney(), null, activePath)]);
+  await load.ctl.refresh();
+  assert.deepEqual(other.calls, []);
+});
+
+test('controller: a failed step shows the error line, and Try again resumes at that step under the blocks kept', async () => {
+  const canvas = fakeCanvas();
+  const plan = { ...sectionPlan, teaching_sequence: [textStep('frame'), { step_id: 'graph', role: 'interactive_visual', make: { command: 'graph', request: 'the sigmoid' }, claims: [] }] };
+  const h = scripted(canvas, [
+    ok(journeyOf({ state: 'path_review', path_version: 1 }), previewTray, reviewPath),
+    ok(activeJourney({ section_plan: plan }), null, activePath),
+    { status: 502, d: { error: 'model down' } },
+    { status: 200, d: { result: 'artifact', block: { type: 'graph', title: 'Sigmoid' } } },
+    ok(activeJourney({ revision: 7, section_plan: { ...plan, heading_block_id: 'b1' } }), null, activePath),
+  ]);
+  await h.ctl.refresh();
+  await h.view().answer('start');
+  assert.deepEqual(h.calls[2], { path: '/api/learn/artifact', body: { app: APP, board: 'main', command: 'graph', args: 'the sigmoid', context: 'Journey section: Classification vs regression' } });
+  assert.equal(h.view().tray.error.message, 'Part of this section could not be made.');
+  assert.equal(canvas.inserts().length, 2);
+  await h.view().answer('retry');
+  assert.deepEqual(canvas.inserts().map(c => [c[1].type, c[2]]), [['heading', { into: 'slot:1' }], ['explanation', { after: 'b1' }], ['graph', { after: 'b2' }]]);
+  assert.equal(h.calls.at(-1).body.action, 'section_materialized');
+  assert.equal(h.view().tray, null);
 });

@@ -27,7 +27,7 @@ import { DOCK_PAD, DOCK_WIDTH } from './ChatComposer.jsx';
 import { PerfContext, perfMark, usePaintedMarks } from './learn-perf.js';
 import LaserPointer from './LaserPointer.jsx';
 import { DivePortals } from './Dive.jsx';
-import { columnEntries, fillSlot, freeArea, freeSlot, panInto, slotIndex, slotSize } from './canvas-slots.js';
+import { columnEntries, fillSlot, freeArea, freeSlot, indexAfter, panInto, slotIndex, slotSize } from './canvas-slots.js';
 import { waitingText } from './waiting-text.js';
 
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is
@@ -1491,9 +1491,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         onAddRef.current?.([{ id, question, answer, linkFrom: null, status: 'done', dx: 0, dy: 0 }]);
         return id;
       },
-      insertBlock: (block, { into = null } = {}) => {
+      // `after` (a block id): right after that block in the flow, ignoring the view - a journey section's steps
+      // under their heading (learn-journey-materialize.js). The updater reads `previous`, so inserts chained in one
+      // tick land in order.
+      insertBlock: (block, { into = null, after = null } = {}) => {
         snapshot();
-        return insertAtView({ ...block, id: crypto.randomUUID(), dx: 0, dy: 0 }, into);
+        const added = { ...block, id: crypto.randomUUID(), dx: 0, dy: 0 };
+        if (after == null) return insertAtView(added, into);
+        perfMark(added.id, 'insert');
+        setBlocks(previous => { const at = indexAfter(previous, after); return [...previous.slice(0, at), added, ...previous.slice(at)]; });
+        return revealAfter(added.id);
       },
       // A skeleton where a card on its way will land (docs/features/canvas-skeleton-cards.md): the slot
       // insertAtView would use now - or the nearest one nothing drawn covers (freeSlot: a dragged card keeps its

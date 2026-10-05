@@ -23,6 +23,13 @@ export function slotIndex(blocks, slot) {
   return at < 0 ? blocks.length : at;
 }
 
+// Where a card inserted right after block `id` goes (insertBlock's `after`: a journey section's steps under their
+// heading, whatever the view): the next index, or the end of the flow when that block has gone.
+export function indexAfter(blocks, id) {
+  const at = blocks.findIndex(block => block.id === id);
+  return at < 0 ? blocks.length : at + 1;
+}
+
 // The slots once card `cardId` has taken slot `id`: that slot goes, and the slots made before it in front
 // of the same block now stand in front of the new card, so nothing waiting jumps below it.
 export function fillSlot(slots, id, cardId) {

@@ -3,10 +3,12 @@
 // above the one composer, and routeJourneyTurn sends a typed turn through the shared resolver extension's rules 1-4
 // (learner-intent-journey.js, R7), then rule 5 (the route's `resolve`). Punctuation never decides (R1).
 // ponytail: the tray path only. Task 12 moves the resolver to the top of useTutor.turn() (typed and voice turns), swaps
-// answerProbeText for a runTurn({ plan: false }) turn and speaks the prompt; Task 9 materializes the current section.
+// answerProbeText for a runTurn({ plan: false }) turn and speaks the prompt. Task 9: after the action that planned the
+// current section (accept, a fast start, a retry), materializeSection draws it on the canvas, once (§6.5, R5).
 import { useEffect, useRef, useState } from 'react';
 import { Loader2, X } from 'lucide-react';
 import { apiFetch } from './api.js';
+import { materializeSection } from './learn-journey-materialize.js';
 import { STARTS, interactionInterpretation, journeyIntent } from '../../control-plane/src/learner-intent-journey.js';
 
 // A start the route refuses as no journey (a question after all, a repository course): the normal responder answers.
@@ -87,15 +89,22 @@ export function TutorPromptTray({ tray, onOption }) {
   );
 }
 
-const EMPTY = { journey: null, path: null, tray: null };
+const EMPTY = { journey: null, path: null, tray: null, prevPath: null };
 
 // The journey's behaviour, apart from React so node can drive it: fetchJson(path, body?) -> { status, d } (a GET without
-// a body; it throws only when the network does), onChange after every state change. Every action resolves to an outcome
-// whose `ok` is false when it failed; handleText and start report that as `failed`, and the composer gives the words back.
-export function journeyController({ where, fetchJson, onChange = () => {} }) {
-  const s = { data: EMPTY, local: null, dismissed: null, busy: null, error: null };
+// a body; it throws only when the network does), onChange after every state change, canvas() the board's canvasApi for
+// the section materializer (null until the canvas is up). Every action resolves to an outcome whose `ok` is false when it
+// failed; handleText and start report that as `failed`, and the composer gives the words back.
+export function journeyController({ where, fetchJson, onChange = () => {}, canvas = () => null }) {
+  const s = { data: EMPTY, local: null, dismissed: null, busy: null, error: null, proposals: [] };
   const set = patch => { Object.assign(s, patch); onChange(); };
-  const take = d => set({ data: { journey: d.journey ?? null, path: d.path ?? null, tray: d.tray ?? null } });
+  // prevPath: the version of this journey's path shown before the current one, so the rail marks what the new version
+  // changed (pathEntries) until the next version replaces it.
+  const take = d => {
+    const path = d.path ?? null, was = s.data.path, same = d.journey?.id != null && d.journey.id === s.data.journey?.id;
+    const prevPath = !path || !same ? null : was && was.version !== path.version ? was : s.data.prevPath;
+    set({ data: { journey: d.journey ?? null, path, tray: d.tray ?? null, prevPath } });
+  };
   const server = () => (s.data.tray && s.data.tray.id !== s.dismissed ? s.data.tray : null);
   const open = () => s.local || server();
 
@@ -121,7 +130,38 @@ export function journeyController({ where, fetchJson, onChange = () => {} }) {
     if (!ok && out.status !== 409 && !out.reread && !out.d?.tray?.error) set({ error: { message: out.status ? 'That did not go through.' : 'Rabbit Hole could not be reached.', again } });
     return { ...out, ok };
   };
-  const act = async (body, again = () => act(body)) => settle(await run(body), again);
+  const act = async (body, again = () => act(body)) => {
+    const out = settle(await run(body), again);
+    if (out.ok) await materialize();
+    return out;
+  };
+
+  // §6.5, R5: the current section's plan becomes canvas content once, after the action that planned it - never on a load
+  // (a reload mid-way must not draw the section twice), never for another section, never from the rail. Done is the
+  // server holding its heading (section_materialized); `started` is the ref guard, so a second reply or a re-render
+  // never runs it again. A failed step leaves the error line, whose Try again resumes at that step.
+  // ponytail: a paid step's proposal is only kept (s.proposals); the generation_proposal tray (Generate inserts it with
+  // confirmedStart after its step, learn-slash.js) comes with the LP2 tray modes.
+  const started = new Set();
+  const artifact = async (path, body) => {
+    const { status, d } = await fetchJson(path, { ...where, ...body });
+    if (status !== 200) throw new Error(d?.error || `HTTP ${status}`);
+    return d;
+  };
+  const materialized = (section_id, heading_block_id) => act({ action: 'section_materialized', section_id, heading_block_id });
+  const materialize = async (resume = null) => {
+    const j = s.data.journey, plan = j?.section_plan, target = canvas();
+    if (!target || !plan || j.state !== 'active' || plan.section_id !== j.active_section_id) return;
+    if (!resume && (plan.heading_block_id || plan.generation_state === 'generated' || started.has(plan.section_id))) return;
+    started.add(plan.section_id);
+    set({ error: null });
+    try {
+      const out = await materializeSection({ canvas: target, journey: { ...j, path: s.data.path, materialized }, sectionPlan: plan, post: artifact, resume,
+        onProgress: ({ step, of }) => set({ busy: `Preparing step ${step} of ${of}...` }) });
+      if (out.proposals.length) set({ proposals: [...s.proposals, ...out.proposals] });
+      if (out.failed_step) set({ error: { message: 'Part of this section could not be made.', again: () => materialize(out) } });
+    } finally { set({ busy: null }); }
+  };
 
   const start = async text => {
     set({ local: null, dismissed: null, error: null });
@@ -131,6 +171,7 @@ export function journeyController({ where, fetchJson, onChange = () => {} }) {
     if (why === 'live_journey') set({ local: liveJourneyTray(out.d.journey, text) });
     else if (why === 'topic_required') set({ local: { ...out.d.tray, text } });
     else if (!settle(out, () => start(text)).ok) return { handled: true, failed: true };
+    else await materialize(); // a fast start is accepted and planned at once
     return { handled: true };
   };
   const advance = probeId => act({ action: 'probe_advance', probe_id: probeId });
@@ -233,8 +274,8 @@ export function journeyController({ where, fetchJson, onChange = () => {} }) {
 
   const view = () => {
     const tray = shownTray(server(), s.local, s.busy, s.error);
-    return { ...s.data, tray, trayProps: tray ? { tray, onOption: answer } : null, busy: !!s.busy,
-      start, handleText, answer, answerProbeText, edit, cancel, clarify, resolve, advance, accept, retry, refresh };
+    return { ...s.data, tray, trayProps: tray ? { tray, onOption: answer } : null, busy: !!s.busy, proposals: s.proposals,
+      start, handleText, answer, answerProbeText, edit, cancel, clarify, resolve, advance, accept, retry, refresh, materialized };
   };
   return { state: s, view, refresh };
 }
@@ -245,14 +286,13 @@ const fetchJson = async (path, body) => {
 };
 const OFF = { ...EMPTY, trayProps: null, busy: false, start: null };
 
-// The board's journey: one controller per app and board. canvasApi (passed by LearnPage) is Task 9's, for the section
-// materializer.
-export function useJourney({ app, board, access, enabled = true }) {
+// The board's journey: one controller per app and board. canvasApi (LearnPage's) is the section materializer's canvas.
+export function useJourney({ app, board, access, canvasApi = null, enabled = true }) {
   const [, rerender] = useState(0);
   const ref = useRef(null);
   const where = { app: access?.app || app?.name, board }, key = `${where.app}\n${board}`;
   if (enabled && where.app && ref.current?.key !== key) {
-    const fresh = Object.assign(journeyController({ where, fetchJson, onChange: () => { if (ref.current === fresh) rerender(n => n + 1); } }), { key });
+    const fresh = Object.assign(journeyController({ where, fetchJson, canvas: () => canvasApi?.current ?? null, onChange: () => { if (ref.current === fresh) rerender(n => n + 1); } }), { key });
     ref.current = fresh;
   }
   const ctl = enabled && where.app ? ref.current : null;
