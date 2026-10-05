@@ -97,7 +97,10 @@ export function planDive({ card, args = '', children = [], pending = {}, parent,
 // The Dive record (docs/features/tutor-v1-locked-decisions.md §6) for a new hole. `target` is
 // learn-target.js resolveTarget(originating block): the block, runtime scene, authored card, part
 // and concepts stay five separate identities. An anchor card has no scene or card, so those are null.
-export function diveRecord({ name, title, via, parent, target, block = null, view = null, question = '', level = 1 }) {
+// journey (LP1 Task 14, adaptive-learning-path-v1-architecture.md §13): a hole opened from an active journey section
+// carries { journey_id, section_id, concept_ids, claim_ids } (LearnJourney.jsx journeyDiveContext, at most 4 ids each),
+// beside origin and never inside it, so the child Tutor knows what caused the dive; absent otherwise.
+export function diveRecord({ name, title, via, parent, target, block = null, view = null, question = '', level = 1, journey = null }) {
   return {
     dive_id: name, concept: title, title, created_by: via,
     origin: {
@@ -109,6 +112,7 @@ export function diveRecord({ name, title, via, parent, target, block = null, vie
       block_id: target.block_id, part_id: target.part_id, selected_object: target.selected_object, inputs: block?.inputs ?? null, input_revision: block?.inputRevision ?? null,
       practice_open: !!block?.practiceActive, pending_question: question || null, viewport: view ? { x: view.x, y: view.y, zoom: view.z } : null,
     },
+    ...(journey ? { journey } : {}),
   };
 }
 

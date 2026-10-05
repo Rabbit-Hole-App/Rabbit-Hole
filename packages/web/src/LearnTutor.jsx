@@ -5,11 +5,16 @@
 // LP1 Task 12 (docs/features/adaptive-learning-path-v1-architecture.md §0 D1 and D6, §2, §7.2): on a canvas with a live
 // learning journey Tutor v2 is the one Tutor, with the journey domain (learn-journey-domain.js), and the journey's
 // resolver runs at the top of turn(), which typed and voice turns share.
+// LP1 Task 14 (architecture §13): a Rabbit Hole opened from a journey section has no journey of its own; its dive record
+// names the parent's journey, section, concepts and claims. The parent journey is read once, read-only (diveJourney),
+// and the hole's turns run the journey domain in its dive form over it: the dive's claims, the hole's own blocks, and
+// evidence in this hole's session store. The parent's resolver and tray never run here, so the hole posts no journey
+// action; a refusal leaves the hole as it was. Reconciliation on return is LP5.
 import { cloneElement, useCallback, useEffect, useRef, useState } from 'react';
 import { api, apiFetch } from './api.js';
 import { NANOGPT, TUTOR_BOARD } from './learn-tutor-claims.js';
 import { loadStore, saveStore, storeKey } from './learn-tutor-evidence.js';
-import { journeyDomain } from './learn-journey-domain.js';
+import { diveJourney, journeyDomain } from './learn-journey-domain.js';
 import { arriveAt, enterHole, executeActions, keepHere, markOpened, openingQuestion, readPlanStream, runTurn, showableCards, wantsCard } from './learn-tutor.js';
 
 // A Tutor request that never answers ends as an error reply, not an endless spinner; Stop ends it too.
@@ -22,7 +27,16 @@ export const COURSE_REPO = 'karpathy/nanoGPT';
 export function useTutor({ app, board, access, canvasApi, canvasState, dive, on = false, journey = null }) {
   const record = dive.tree?.dive || null;
   const root = dive.tree?.path?.[0];
-  const active = on || board === TUTOR_BOARD || root?.board === TUTOR_BOARD || (root?.kind === 'repository' && root.title === COURSE_REPO) || !!journey?.journey;
+  // The parent journey of a hole whose record carries one (Task 14): { journey, path } once read, else null.
+  const [parentJourney, setParentJourney] = useState(null);
+  useEffect(() => {
+    setParentJourney(null);
+    if (!record?.journey) return;
+    let current = true;
+    diveJourney(record, path => api(path)).then(found => { if (current) setParentJourney(found); });
+    return () => { current = false; };
+  }, [record?.dive_id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const active = on || board === TUTOR_BOARD || root?.board === TUTOR_BOARD || (root?.kind === 'repository' && root.title === COURSE_REPO) || !!journey?.journey || !!parentJourney;
   const here = { app: app.name, board };
   // A journey's conversational store is its own (§5): open question, turns, Socratic counts. Its evidence is the server's.
   const journeyId = journey?.journey?.id ?? null;
@@ -68,8 +82,10 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, on 
       return api(path, { method: 'POST', body: JSON.stringify(body), signal: limit });
     };
     // A journey canvas (§3.2): the journey domain, built per turn from the journey, its path and the canvas blocks.
+    // A hole opened from a journey section (Task 14): the dive domain over the parent journey, session evidence.
     const live = journeyRef.current?.journey ? journeyRef.current : null;
-    const domain = live ? journeyDomain({ journey: live.journey, path: live.path, blocks: canvas?.blocks?.() || [] }) : NANOGPT;
+    const domain = live ? journeyDomain({ journey: live.journey, path: live.path, blocks: canvas?.blocks?.() || [] })
+      : parentJourney && record?.journey ? journeyDomain({ journey: parentJourney.journey, path: parentJourney.path, blocks: canvas?.blocks?.() || [], dive: record.journey }) : NANOGPT;
     const common = { canvas: { ...here, ...(record ? { dive: record } : {}) }, access, block, inputModality, turnId, domain, post };
     // §7.2, D6: the journey's resolver first (handleText: rules 1-4, then the model's rule 5; never punctuation). A tray
     // answer, path edit, cancel, clarification or second broad intent is the journey's and never reaches the planner. A
@@ -111,7 +127,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, on 
     const done = Math.round((performance.now() - started) * 10) / 10;
     bench({ ...result.bench, ms: { ...result.bench.ms, canvas_done: done, total_in_app: done } });
     return { ...result, bench: { ...result.bench, ms: { ...result.bench.ms, canvas_done: done } } };
-  }, [access, record, here.app, here.board, key]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [access, record, here.app, here.board, key, parentJourney]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A hole's opening turn (§6.4): once per hole, the pending question asked inside the hole. The
   // dock sends it like a typed message (ask.jsx), so it reads as the learner's question carried down

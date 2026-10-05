@@ -38,7 +38,7 @@ import { architectureLesson, sampleCourse } from './learn-preview.js';
 import { BOARDS, BOARD_SEED_VERSIONS } from './demo-scenes.js';
 import { DiveNavigator, DivePortals, holeApp, useDive, usePendingHole } from './Dive.jsx';
 import { useTutor } from './LearnTutor.jsx';
-import { inJourneySetup, useJourney } from './LearnJourney.jsx';
+import { inJourneySetup, journeyDiveContext, useJourney } from './LearnJourney.jsx';
 import { pathEntries } from './learn-journey.js';
 import { useVoiceSession } from './LearnVoice.jsx';
 import { TutorCaption } from './VoiceMode.jsx';
@@ -539,8 +539,9 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
   // server while it is shared, so its links show the latest version. A newer
   // copy saved through an edit link replaces this browser's copy on open.
   const boardName = board || 'main';
-  // /dive: nested Rabbit Holes from the selected card (docs/features/dive-v1.md).
-  const dive = useDive({ app, board: boardName, hole, canvasApi, canvasState, baseFor: name => `small.adaptive-canvas:${app.org}:${app.email || app.owner_email}:${name}`, onTitle: title => saveTitle(title), referent: () => exchangesRef.current.at(-1)?.question || '' });
+  // /dive: nested Rabbit Holes from the selected card (docs/features/dive-v1.md). A hole opened on an active journey
+  // carries its journey context (LP1 Task 14); `journey` (below) is read when the dive starts, not during render.
+  const dive = useDive({ app, board: boardName, hole, canvasApi, canvasState, baseFor: name => `small.adaptive-canvas:${app.org}:${app.email || app.owner_email}:${name}`, onTitle: title => saveTitle(title), referent: () => exchangesRef.current.at(-1)?.question || '', journeyContext: block => journeyDiveContext(journey.journey, journey.path, block) });
   // Learning journeys (LearnJourney.jsx) on Learn canvases: its tray sits in the dock composer, and a broad intent starts
   // one while the board has none. Not on repository apps (the route refuses them; the supplied nanoGPT course is one) nor
   // on a pending hole, which has no canvas row yet.

@@ -259,7 +259,8 @@ function relevantCards(target, concepts, domain) {
 // The planner's whole input: the turn's intent, target, relevant evidence, route and allowed actions,
 // the authored content that bears on it, constraints, recent context and the hole - nothing else
 // (no unrelated cards, concepts or transcript). On a journey turn, journey_context (architecture §3.3) is the tenth
-// key, after dive_context; a nanoGPT turn never has it.
+// key, after dive_context; a nanoGPT turn never has it. A hole opened from a journey section (LP1 Task 14, §13): its
+// dive_context names the section, claims and concepts that caused the dive; a record without `journey` adds nothing.
 export function plannerContext({ turn, routed, block, states, claims = [], store = null, domain = NANOGPT }) {
   const card = domain.cardModule(turn.target?.card);
   const labels = partLabels(card);
@@ -289,6 +290,7 @@ export function plannerContext({ turn, routed, block, states, claims = [], store
     },
     dive_context: record || turn.returned_from ? {
       ...(record ? { dive_id: record.dive_id, title: record.title, concept: holeConcept(record, domain), created_by: record.created_by, origin_card: record.origin?.origin_card_id ?? null, origin_part: record.origin?.origin_part_id ?? null, pending_question: record.return_point?.pending_question ?? null } : {}),
+      ...(record?.journey ? { journey: { section_id: record.journey.section_id, claim_ids: record.journey.claim_ids, concept_ids: record.journey.concept_ids } } : {}),
       ...(turn.returned_from ? { returned_from: { dive_id: turn.returned_from.dive_id, concept: turn.returned_from.concept, claim: turn.returned_from.claim } } : {}),
     } : null,
     ...(domain.kind === 'journey' ? { journey_context: domain.context } : {}),

@@ -58,7 +58,9 @@ function setDraft(text) {
   element.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
-export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onTitle, referent = () => '' }) {
+// journeyContext(block) (LP1 Task 14): the live journey's context for a hole from that block (LearnJourney.jsx
+// journeyDiveContext), or null; it rides in the dive record beside origin.
+export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onTitle, referent = () => '', journeyContext = () => null }) {
   const holeRef = useRef(hole);
   const [persisted, setPersisted] = useState(false);
   const pending = !!hole && !persisted;
@@ -88,7 +90,7 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
     const current = treeRef.current, name = newHoleName(), draft = composer()?.value || '';
     keepPending(sessionStorage, {
       name, title, parent: here, origin_block_id: card.id, base: baseFor(name),
-      dive: diveRecord({ name, title, via, parent: here, target: resolveTarget(block), block, view: canvasApi.current?.getView?.(), question: draft.startsWith('/') ? '' : draft, level: current.path.length }),
+      dive: diveRecord({ name, title, via, parent: here, target: resolveTarget(block), block, view: canvasApi.current?.getView?.(), question: draft.startsWith('/') ? '' : draft, level: current.path.length, journey: journeyContext(block) }),
     });
     // ponytail: the canvas saves 400ms after a change and an unmount drops the timer, so a new
     // anchor card waits for that save before the page leaves. Flush on unmount if this ever races.

@@ -11,7 +11,7 @@ import { appendEvents, emptyStore, deriveClaimStates } from './learn-tutor-evide
 import { buildTurn, executeActions, plannerContext, route, runTurn } from './learn-tutor.js';
 import { validateActions } from './learn-tutor-validate.js';
 import { selectClaims } from './learn-tutor-select.js';
-import { journeyDomain } from './learn-journey-domain.js';
+import { diveJourney, journeyDomain } from './learn-journey-domain.js';
 import { fixtureFor } from '../../control-plane/src/learn-journey-fixtures.js';
 
 // ---------- nanoGPT: byte-identical ----------
@@ -301,4 +301,69 @@ test('journey: a duplicate probe answer (status duplicate) adopts the stored jou
   assert.equal(result.store.seq, 2);
   assert.equal(result.store.open, null);
   assert.equal(result.bench.evaluation.status, 'duplicate');
+});
+
+// LP1 Task 15 re-review: a target's stamped claims count only when the stamp is this journey's.
+test('journey targetClaims: a targeted block an archived journey left on the board scopes no claims', () => {
+  assert.deepEqual(journeyDomain({ journey: JOURNEY, path: PATH, blocks: [step('o1', 's1', 'Old framing', [WHY], 'lj_old')] }).targetClaims({ block_id: 'o1' }), []);
+});
+
+// ---------- LP1 Task 14 (architecture §13): a Rabbit Hole opened from a journey section ----------
+// The hole has no journey of its own: its dive record carries the parent's journey id, section, concepts and claims, the
+// parent journey is read once (read-only) and lends its registry, and the hole's evidence stays in its session store.
+const DIVE = { journey_id: 'lj_test', section_id: 's1', concept_ids: ['logistic-regression-foundations'], claim_ids: [WHY] };
+const HOLE = { app: 'canvas-0000hole', board: 'main' };
+const RECORD = {
+  dive_id: 'canvas-0000hole', title: 'Spam or not', concept: 'Spam or not', created_by: 'learner_slash',
+  origin: { parent: HERE, origin_block_id: 'b2', origin_scene_id: null, origin_card_id: null, origin_part_id: null, origin_concept_ids: [], selected_object: null, depth: null, level: 1 },
+  return_point: { block_id: 'b2', pending_question: null }, journey: DIVE,
+};
+const HOLE_BLOCKS = [{ id: 'x1', type: 'explanation', title: 'Spam or not', body: 'A label, not a number.' }];
+const diveFor = (dive = DIVE) => journeyDomain({ journey: JOURNEY, path: PATH, blocks: HOLE_BLOCKS, dive });
+
+test('dive domain: default claims are the record claim_ids (registry ids only), cards are the hole blocks, session evidence, phase dive', () => {
+  const domain = diveFor({ ...DIVE, claim_ids: [WHY, 'gone/claim'] });
+  assert.deepEqual(domain.defaultClaims(), DIVE.claim_ids);
+  const states = deriveClaimStates([], domain.claims);
+  const { claims } = buildTurn({ raw: 'Why not predict a number?', canvas: { ...HOLE, dive: RECORD }, block: null, store: emptyStore(), states, domain });
+  assert.deepEqual(claims, DIVE.claim_ids);
+  assert.equal(domain.claims[WHY], registry.claims[WHY], 'claim content from the parent registry');
+  assert.deepEqual(domain.cards, ['x1']);
+  assert.deepEqual(domain.evidence, { mode: 'session' });
+  const jc = domain.context;
+  assert.equal(jc.phase, 'dive');
+  assert.equal(jc.section.title, PATH.sections.find(s => s.id === 's1').title);
+  assert.deepEqual(jc.section.target_concepts, [registry.concepts['logistic-regression-foundations'].label]);
+  assert.deepEqual(jc.section.expected_evidence, DIVE.claim_ids);
+});
+
+test('a hole turn: the planner context names the claim; the evaluation is the session spec, stored in the hole store; the parent journey is only read (one GET)', async () => {
+  const log = [];
+  const get = async path => { log.push({ method: 'GET', path }); return { journey: JOURNEY, path: PATH, tray: null }; };
+  const parent = await diveJourney(RECORD, get);
+  assert.deepEqual(log, [{ method: 'GET', path: '/api/learn/journey?app=a&board=b' }]);
+  const domain = journeyDomain({ journey: parent.journey, path: parent.path, blocks: HOLE_BLOCKS, dive: RECORD.journey });
+  const plan = { strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: 'A label, not a number.' }] };
+  const post = async (path, body) => { log.push({ method: 'POST', path, body }); return path.endsWith('/evaluate') ? { status: 'settled', evaluator: 'jev', events: [ev(1, WHY)] } : plan; };
+  const result = await runTurn({ raw: 'Why not predict a number?', canvas: { ...HOLE, dive: RECORD }, access: { app: HOLE.app }, block: null, store: emptyStore(), post, domain });
+  assert.deepEqual(log.map(entry => `${entry.method} ${entry.path}`), ['GET /api/learn/journey?app=a&board=b', 'POST /api/learn/tutor/evaluate', 'POST /api/learn/tutor/plan'], 'no journey write from the hole');
+  const evaluate = log[1].body;
+  assert.ok(!('journey_id' in evaluate), 'never the journey evidence path');
+  assert.deepEqual(evaluate.spec.claims.map(claim => [claim.id, claim.statement]), [[WHY, registry.claims[WHY].statement]]);
+  const context = log[2].body.context;
+  assert.deepEqual(context.dive_context.journey, { section_id: 's1', claim_ids: [WHY], concept_ids: ['logistic-regression-foundations'] });
+  assert.ok(context.relevant_evidence.claims.some(claim => claim.claim === WHY));
+  assert.equal(context.journey_context.phase, 'dive');
+  assert.deepEqual(result.store.events.map(event => event.claim), [WHY], 'the evidence is the hole session store\'s');
+});
+
+test('the parent journey read: another journey, no journey, a refusal or no dive journey leaves the hole Tutor as it was (null)', async () => {
+  const calls = [];
+  const get = reply => async path => { calls.push(path); if (reply instanceof Error) throw reply; return reply; };
+  assert.equal(await diveJourney(RECORD, get({ journey: { ...JOURNEY, id: 'lj_other' }, path: PATH })), null);
+  assert.equal(await diveJourney(RECORD, get({ journey: null, path: null, tray: null })), null);
+  assert.equal(await diveJourney(RECORD, get(Object.assign(new Error('Not found'), { status: 404 }))), null);
+  const { journey: _, ...plain } = RECORD;
+  assert.equal(await diveJourney(plain, get({ journey: JOURNEY, path: PATH })), null);
+  assert.equal(calls.length, 3, 'a record without a journey reads nothing');
 });

@@ -101,3 +101,23 @@ test('the navigator shows the path and immediate children; deep paths fold the m
   assert.equal(rows.at(-3).title, 'L8');
   assert.deepEqual(navigatorRows({ path: path.slice(0, 3), children: [] }).map(row => row.title), ['L0', 'L1', 'L2']);
 });
+
+// LP1 Task 14 (architecture §13): a hole opened from an active journey section carries its journey context beside
+// origin and return_point - never inside origin, whose identity fields stay exactly as they are; absent otherwise.
+test('a dive from a journey section carries journey { journey_id, section_id, concept_ids, claim_ids } beside origin; none without it', async () => {
+  const { resolveTarget } = await import('./learn-target.js');
+  const block = { id: 'b2', type: 'explanation', title: 'Odds', journey: { journey_id: 'lj_1', section_id: 's2', step_id: 'b2', claims: ['odds/ratio'] } };
+  const args = { name: 'canvas-66666666', title: 'Odds', via: 'learner_slash', parent, target: resolveTarget(block), block, level: 1 };
+  const journey = { journey_id: 'lj_1', section_id: 's2', concept_ids: ['odds'], claim_ids: ['odds/ratio'] };
+  const plain = diveRecord(args), carried = diveRecord({ ...args, journey });
+  assert.ok(!('journey' in plain), 'absent when null');
+  assert.deepEqual(carried.journey, journey);
+  assert.deepEqual(carried.origin, plain.origin, 'origin identity fields unchanged');
+  assert.deepEqual(carried.return_point, plain.return_point);
+  assert.ok(!('journey' in carried.origin));
+  assert.deepEqual(Object.keys(carried), [...Object.keys(plain), 'journey']);
+  // The largest context (4 concepts of 120, 4 claims of 120) keeps dive_json well under the server's 16000-character cap.
+  const long = n => `${'x'.repeat(115)}/${n}`.slice(0, 120);
+  const big = diveRecord({ ...args, journey: { journey_id: 'lj_1', section_id: 's2', concept_ids: [1, 2, 3, 4].map(long), claim_ids: [5, 6, 7, 8].map(long) } });
+  assert.ok(JSON.stringify(big).length < 16000);
+});

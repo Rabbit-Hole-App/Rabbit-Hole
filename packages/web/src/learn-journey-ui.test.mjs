@@ -21,7 +21,7 @@ const outfile = join(dir, 'journey.cjs');
 await esbuild.build({
   stdin: {
     contents: [
-      "export { TutorPromptTray, routeJourneyTurn, journeyStartsHere, journeyRequest, shownTray, liveJourneyTray, resolveBody, journeyController, inJourneySetup } from './LearnJourney.jsx';",
+      "export { TutorPromptTray, routeJourneyTurn, journeyStartsHere, journeyRequest, shownTray, liveJourneyTray, resolveBody, journeyController, inJourneySetup, journeyDiveContext } from './LearnJourney.jsx';",
       "export { default as ContentsRail, PathList, flyoutRect, canvasEmpty } from './ContentsRail.jsx';",
       "export { useTutor } from './LearnTutor.jsx';",
       "export { createElement } from 'react';",
@@ -32,7 +32,7 @@ await esbuild.build({
   },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent',
 });
-const { TutorPromptTray, routeJourneyTurn, journeyStartsHere, journeyRequest, shownTray, liveJourneyTray, resolveBody, journeyController, inJourneySetup, ContentsRail, PathList, flyoutRect, canvasEmpty, useTutor, createElement, renderToStaticMarkup } = createRequire(import.meta.url)(outfile);
+const { TutorPromptTray, routeJourneyTurn, journeyStartsHere, journeyRequest, shownTray, liveJourneyTray, resolveBody, journeyController, inJourneySetup, journeyDiveContext, ContentsRail, PathList, flyoutRect, canvasEmpty, useTutor, createElement, renderToStaticMarkup } = createRequire(import.meta.url)(outfile);
 rmSync(dir, { recursive: true, force: true });
 
 const intake = (slots = {}) => ({ id: 'j1', state: 'intake', revision: 3, request: { topic: 'logistic regression', intent: { kind: 'learning_journey' } }, intake: { slots, source: {} }, pending: null, error: null });
@@ -1184,4 +1184,51 @@ test('ask.jsx and LearnPage.jsx: the sheet opens only for a Tutor reply; slash p
   // and asks about the block it sits in.
   assert.match(page, /renderBlockComposer=\{[^\n]*?canvasSeed=\{\{ question: exchange\.question, answer: exchange\.answer, target \}\} onExchange=\{onExchange\} tutor=\{journey\.journey \? tutor : null\}/);
   assert.match(ask, /targetId: \(target \|\| canvasSeed\?\.target\)\?\.id \|\| null/);
+});
+
+// ---- LP1 Task 14 (architecture §13): the minimal journey context a Rabbit Hole opened from a journey section carries.
+// journeyDiveContext is pure; useDive, LearnPage and useTutor are pinned in source (effects never run here). ----
+const DIVE_REGISTRY = {
+  concepts: { odds: { label: 'Odds', names: ['odds'] }, sigmoid: { label: 'Sigmoid', names: ['sigmoid'] }, loss: { label: 'Loss', names: ['loss'] } },
+  claims: { 'odds/ratio': { concept: 'odds' }, 'odds/log': { concept: 'odds' }, 'sigmoid/range': { concept: 'sigmoid' }, 'sigmoid/shape': { concept: 'sigmoid' }, 'loss/log': { concept: 'loss' } },
+};
+const divePath = { current_section_id: 's2', sections: [
+  { id: 's1', status: 'completed', target_concepts: ['odds'], expected_evidence: [{ claim: 'odds/ratio' }] },
+  { id: 's2', status: 'current', target_concepts: ['sigmoid', 'loss'], expected_evidence: [{ claim: 'sigmoid/range' }, { claim: 'gone/claim' }, { claim: 'sigmoid/shape' }] },
+] };
+const activeDive = (over = {}) => journeyOf({ state: 'active', active_section_id: 's2', registry: DIVE_REGISTRY, ...over });
+const stampedBlock = (journey_id, section_id, claims) => ({ id: 'b7', type: 'explanation', title: 'Odds', journey: { journey_id, section_id, step_id: 'b7', claims } });
+
+test('journeyDiveContext: from a stamped section block - its claims (registry ids, at most 4) and its section; their concepts, then the section targets', () => {
+  assert.deepEqual(journeyDiveContext(activeDive(), divePath, stampedBlock('j1', 's1', ['odds/log', 'gone/claim'])),
+    { journey_id: 'j1', section_id: 's1', concept_ids: ['odds'], claim_ids: ['odds/log'] });
+  const all = journeyDiveContext(activeDive(), divePath, stampedBlock('j1', 's2', ['loss/log', 'odds/ratio', 'odds/log', 'sigmoid/range', 'sigmoid/shape']));
+  assert.deepEqual(all.claim_ids, ['loss/log', 'odds/ratio', 'odds/log', 'sigmoid/range']);
+  assert.deepEqual(all.concept_ids, ['loss', 'odds', 'sigmoid'], 'deduped, at most 4');
+});
+
+test('journeyDiveContext: no stamped block (an anchor, a note, another journey\'s block) -> the current section\'s expected_evidence', () => {
+  const section = { journey_id: 'j1', section_id: 's2', concept_ids: ['sigmoid', 'loss'], claim_ids: ['sigmoid/range', 'sigmoid/shape'] };
+  assert.deepEqual(journeyDiveContext(activeDive(), divePath, { id: 'n1', type: 'note', text: 'mine' }), section);
+  assert.deepEqual(journeyDiveContext(activeDive(), divePath, null), section);
+  assert.deepEqual(journeyDiveContext(activeDive(), divePath, stampedBlock('j0', 's1', ['odds/log'])), section, 'an archived journey\'s block is ignored');
+});
+
+test('journeyDiveContext: null unless the journey is active', () => {
+  for (const state of ['intake', 'diagnostic', 'path_review', 'paused', 'completed', 'archived']) assert.equal(journeyDiveContext(activeDive({ state }), divePath, stampedBlock('j1', 's2', ['odds/log'])), null, state);
+  assert.equal(journeyDiveContext(null, null, null), null);
+});
+
+test('Task 14 wiring: LearnPage hands the live journey to useDive, the dive record carries it, and the hole Tutor reads its parent journey once', () => {
+  assert.match(read('LearnPage.jsx'), /const dive = useDive\(\{[^\n]*journeyContext: block => journeyDiveContext\(journey\.journey, journey\.path, block\) \}\);/);
+  const diveSource = read('Dive.jsx');
+  assert.match(diveSource, /export function useDive\(\{[^}]*journeyContext = \(\) => null \}\)/);
+  assert.match(diveSource, /diveRecord\(\{[^\n]*journey: journeyContext\(block\) \}\)/);
+  const tutor = read('LearnTutor.jsx');
+  // Active in a hole whose record carries a journey once the parent journey is read; a refusal (null) leaves it as it was.
+  assert.match(tutor, /\|\| !!journey\?\.journey \|\| !!parentJourney;/);
+  assert.match(tutor, /diveJourney\(record, path => api\(path\)\)/);
+  assert.match(tutor, /journeyDomain\(\{ journey: parentJourney\.journey, path: parentJourney\.path, blocks: canvas\?\.blocks\?\.\(\) \|\| \[\], dive: record\.journey \}\)/);
+  // The parent's resolver and tray run only for a live journey on this board: the hole posts no journey action.
+  assert.match(tutor, /if \(live && !slash && !opening && !skipJourney\)/);
 });

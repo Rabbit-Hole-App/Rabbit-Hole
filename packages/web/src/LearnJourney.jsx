@@ -36,6 +36,21 @@ export const journeyStartsHere = (raw, { tutor = null, journeyStarter = null } =
 // journey in setup (off_slice, words only) stays in the chat sheet (ask.jsx).
 export const inJourneySetup = journey => SETUP.has(journey?.state);
 
+// LP1 Task 14 (architecture §13): what a Rabbit Hole opened on an active journey carries (dive.js diveRecord): the journey,
+// the section, and the claims and concepts that caused the dive. A step block stamped by this journey gives its own
+// claims and section; any other block (an anchor, a note, an archived journey's step) gives the current section's
+// expected_evidence. At most 4 registry claim ids; their concepts, then the section's target_concepts, deduped, at most 4.
+export function journeyDiveContext(journey, path, block) {
+  if (journey?.state !== 'active') return null;
+  const { concepts = {}, claims = {} } = journey.registry || {};
+  const stamp = block?.journey?.journey_id === journey.id ? block.journey : null;
+  const section = (path?.sections || []).find(s => s.id === (stamp?.section_id ?? journey.active_section_id));
+  if (!section) return null;
+  const claim_ids = (stamp ? stamp.claims || [] : (section.expected_evidence || []).map(entry => entry.claim)).filter(id => claims[id]).slice(0, 4);
+  const concept_ids = [...new Set([...claim_ids.map(id => claims[id].concept), ...(section.target_concepts || [])])].filter(id => concepts[id]).slice(0, 4);
+  return { journey_id: journey.id, section_id: section.id, concept_ids, claim_ids };
+}
+
 // One POST with the journey's revision. A 409 `revision` (another tab moved it) carries the re-read journey: the same
 // action, answer text included, is replayed once on that revision, and the re-read rides along (`reread`) so a replay
 // refused for a step that has moved still leaves the current tray on screen.
