@@ -214,7 +214,7 @@ test('acceptance 10 / §16: HeyGen receives the final script and the render conf
   const input = renderInputFor({ ...brief(), learning_goal: 'LEARNING-GOAL', visual_value: 'VISUAL-VALUE' }, PROFILES);
   const key = await renderKey(input, provider.version);
   const ticket = await provider.submit(input, key);
-  assert.deepEqual(stub.calls[0].body, { type: 'avatar', avatar_id: 'look_stock_1', script: TEXT, voice_id: 'voice_native_1', engine: { type: 'avatar_iv' }, output_format: 'webm', resolution: '720p', aspect_ratio: '16:9', title: `rh-avatar-${key.slice(0, 12)}` });
+  assert.deepEqual(stub.calls[0].body, { type: 'avatar', avatar_id: 'look_stock_1', script: TEXT, voice_id: 'voice_native_1', engine: { type: 'avatar_iv' }, output_format: 'webm', resolution: '720p', aspect_ratio: '16:9', title: `rh-avatar-${key.slice(0, 12)}`, caption: { file_format: 'srt' } });
   assert.deepEqual([stub.calls[0].url, stub.calls[0].init.method, stub.calls[0].init.redirect], ['https://api.heygen.com/v3/videos', 'POST', 'manual']);
   assert.equal(stub.calls[0].init.headers['Idempotency-Key'], key);
   assert.equal(stub.calls[0].init.headers['X-Api-Key'], KEY);
@@ -248,6 +248,8 @@ test('every HeyGen answer maps to one normalized category; no provider body reac
   assert.equal(await poll(() => Response.json({ data: { status: 'waiting' } })), null);
   assert.deepEqual(await poll(() => Response.json({ data: { status: 'completed', video_url: 'https://files2.heygen.ai/a.webm', subtitle_url: 'https://files2.heygen.ai/a.srt', duration: 8.4 } })),
     { videoUrl: 'https://files2.heygen.ai/a.webm', contentType: 'video/webm', durationSeconds: 8.4, captionsUrl: 'https://files2.heygen.ai/a.srt', provider: 'heygen', generationId: 'v_1', engine: 'avatar_iv' });
+  // The real WebM render's split: the video on resource2.heygen.ai, the SRT sidecar on files2.heygen.ai.
+  assert.deepEqual((await poll(() => Response.json({ data: { status: 'completed', video_url: 'https://resource2.heygen.ai/a.webm', subtitle_url: 'https://files2.heygen.ai/a.srt' } }))).videoUrl, 'https://resource2.heygen.ai/a.webm');
   await assert.rejects(poll(() => Response.json({ data: { status: 'completed', video_url: 'https://evil.example/a.webm?sig=SECRET' } })), error => error.category === 'download_failed' && error.final && error.code === 'unlisted_host:evil.example');
   await assert.rejects(poll(() => Response.json({ data: { status: 'completed', video_url: 'https://files2.heygen.ai:8443/a.webm' } })), error => error.code === 'unlisted_host:files2.heygen.ai');
   await assert.rejects(poll(() => Response.json({ data: { status: 'completed', video_url: 'http://files2.heygen.ai/a.webm' } })), error => error.category === 'download_failed');
@@ -274,7 +276,7 @@ test('script-slot key: the slot only - never learning_goal, visual_value, proven
   for (const change of [{ script_text: 'Other words.' }, { provider_voice_id: 'v2' }, { provider_avatar_id: 'l2' }, { engine: 'avatar_iii' }, { alpha: false }, { resolution: '1080p' }, { framing: 'half_body' }]) {
     assert.notEqual(await renderKey({ ...input, ...change }, HEYGEN_ADAPTER_VERSION), key, JSON.stringify(change));
   }
-  assert.notEqual(await renderKey(input, 'heygen-v3:adapter-2'), key);
+  assert.notEqual(await renderKey(input, 'heygen-v3:adapter-1'), key);
 });
 
 const WEBM = new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 1, 2, 3, 4, 5]);

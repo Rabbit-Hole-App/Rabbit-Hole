@@ -64,11 +64,13 @@ export function renderInputFor(brief, profiles = AVATAR_PROFILES) {
 
 const API = 'https://api.heygen.com';
 // Fail closed (owner, 2026-10-04): only these hosts are ever downloaded, over https on the default port, with no
-// redirect followed (downloadClip). files2.heygen.ai is the host the first real v3 render returned (video
-// 13bf1aa2..., 2026-10-04, failing closed as unlisted_host:files2.heygen.ai). files.heygen.ai, the docs' example
-// host, was never observed and is not listed. Any other host is download_failed carrying code
-// "unlisted_host:<hostname>", the evidence the list may change on - only with that evidence, never on expectation.
-export const HEYGEN_OUTPUT_HOSTS = ['files2.heygen.ai'];
+// redirect followed (downloadClip). Each listed host was returned by a real v3 render and first failed closed
+// as unlisted_host:<hostname> (2026-10-04): files2.heygen.ai for the MP4 (video 13bf1aa2...) and for the SRT
+// sidecar and thumbnail of the WebM render; resource2.heygen.ai for that WebM's video_url (video a61281ab...).
+// files.heygen.ai, the docs' example host, was never observed and is not listed. Any other host is
+// download_failed carrying code "unlisted_host:<hostname>", the evidence the list may change on - only with that
+// evidence, never on expectation.
+export const HEYGEN_OUTPUT_HOSTS = ['files2.heygen.ai', 'resource2.heygen.ai'];
 const PENDING = ['pending', 'processing', 'waiting']; // create answers "waiting", which the status enum lacks (§31)
 
 // HTTP status + HeyGen error code -> category (developers.heygen.com/docs/error-codes, re-read 2026-10-04: the
@@ -86,7 +88,8 @@ function categorize(status, code, phase) {
 }
 
 // Part of the render key (§14): bump it when the adapter changes what a render looks like.
-export const HEYGEN_ADAPTER_VERSION = 'heygen-v3:adapter-1';
+// adapter-2: requests the SRT sidecar (caption), which adapter-1 renders never had.
+export const HEYGEN_ADAPTER_VERSION = 'heygen-v3:adapter-2';
 
 export class HeyGenAvatarProvider {
   #key;
@@ -122,8 +125,10 @@ export class HeyGenAvatarProvider {
       engine: { type: input.engine }, output_format: input.alpha ? 'webm' : 'mp4', resolution: input.resolution, aspect_ratio: input.aspect_ratio,
       title: `rh-avatar-${renderKey.slice(0, 12)}`,
       // motion_prompt is rejected for video avatars on Avatar IV; expressiveness is for photo avatars only. A V1
-      // stock look sends neither. Captions need no field: "A sidecar subtitle file is always returned via
-      // subtitle_url" (create-video reference, re-read 2026-10-04).
+      // stock look sends neither. Captions are off unless asked: the first real render, sent without a caption
+      // field, returned no subtitle_url (2026-10-04). { file_format: 'srt' } with no style asks for the SRT sidecar
+      // only; style would also burn captions into a second video (create-video reference, re-read 2026-10-04).
+      ...(input.captions ? { caption: { file_format: 'srt' } } : {}),
       ...(input.engine === 'avatar_v' && input.motion_direction ? { motion_prompt: input.motion_direction } : {}),
     };
     const result = await this.#send('/v3/videos', 'submit', { method: 'POST', body: JSON.stringify(body), headers: { 'Idempotency-Key': renderKey } });
