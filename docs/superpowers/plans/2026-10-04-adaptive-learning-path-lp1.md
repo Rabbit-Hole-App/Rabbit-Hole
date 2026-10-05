@@ -357,6 +357,19 @@
 
 ### Task 6: TutorDomain generalization, browser side
 
+> **Revision (post-Avatar main a87b370a, controller):** read the merged code first. Avatar/Media changed `learn-tutor.js` and `learn-tutor-validate.js`:
+> - `route({ …, avatar = null })` and `finish()` may add `AVATAR_ACTION` plus `routed.avatar`;
+> - `plannerContext` adds `avatar_moments` only when `routed.avatar` is set;
+> - validateActions has `schema(action, extra)`, `avatarSchema` (reads `CONCEPTS`) and `avatarTrigger` (reads `ladderStep`).
+>
+> Rules for this task:
+> - Keep the `avatar` parameter. Pass `domain` alongside it.
+> - Generalize the avatar reads through `domain` too (`domain.concepts`, `domain.ladderStep`), with defaults that keep nanoGPT identical.
+> - `runTurn` still never passes `avatar` (Avatar's own ponytail, wired in their AV6). Journey canvases get no avatar in LP1, and `off_slice` already blocks avatar moments in setup.
+> - `journey_context` is the LAST key of the planner context, after `dive_context`. `avatar_moments` keeps its place.
+> - Capture the nanoGPT snapshot on the rebased tree before any edit.
+> - Pins that must stay green: `src/learn-tutor-avatar.test.mjs` "off (no avatar): route and planner context exactly as before" and `src/learn-tutor-context.test.mjs`.
+
 **Files:**
 - Modify: `packages/web/src/learn-tutor-claims.js`. Export `NANOGPT`, the domain over the existing constants, per architecture §3. Every existing export is unchanged.
 - Modify: `packages/web/src/learn-tutor-evidence.js`. Add the `claims = CLAIMS` parameters: `deriveClaimStates(events, claims)`, `reconcile(store, evaluation, ref, claims)`, `conceptState(states, concept, claims)`, and the internal `claimState`/`conceptFrom`, which use a `claimsOfConcept` over `claims`.
@@ -413,6 +426,17 @@
 ---
 
 ### Task 7: TutorDomain generalization, server side — journey system prompt and the `/evaluate` journey path
+
+> **Revision (post-Avatar main a87b370a, controller):** `agents/learn-tutor.js` already exports `plannerSystem(avatar)`, `tutorTool(avatar)` and an `avatar` option on `plannerRequest`.
+> - Do NOT rename them. Extend to `plannerSystem(avatar = false, kind = 'nanogpt')`:
+>   - `kind 'nanogpt'` gives exactly today's string: PLANNER_SYSTEM, plus AVATAR_SYSTEM when avatar is on.
+>   - `kind 'journey'` builds from the same lines with line 0 and line 4 replaced by index, plus the three journey lines, plus AVATAR_SYSTEM when avatar is on.
+>   - Restructuring PLANNER_SYSTEM as `LINES.join('
+')` must leave the string byte-identical.
+> - `plannerRequest` uses `plannerSystem(avatar, context?.journey_context ? 'journey' : 'nanogpt')`. `tutorTool` is unchanged.
+> - Pins that must stay green: control-plane `test/learn-avatar.test.js` "TUTOR_AVATAR off: the planner prefix and request are byte-identical to main 74d20468", which hashes PLANNER_SYSTEM and TUTOR_TOOL, and the Avatar Tutor tests.
+> - `LEARN_TASKS` already has `avatar_director` and `avatar_script_reviewer` right after `home_ask`. Append the five journey roles after them; keep both.
+> - The journey evaluate path scopes `loadJourneyById` with `{ org, owner_user_id: access.user_id, app, board }` (Task 13).
 
 > **Revision (R6):** this task runs after the controller's rebase onto main with Avatar/Media's Tutor changes. Two items arrive here from earlier tasks:
 >
