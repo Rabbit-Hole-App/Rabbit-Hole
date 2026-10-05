@@ -189,19 +189,59 @@ const LINES = [
 ];
 export const PLANNER_SYSTEM = LINES.join('\n');
 
-// The journey prompt (adaptive-learning-path-v1-architecture.md §3.1): the same lines with the subject line (0) and the
-// authored-content line (4) made generic, plus three journey lines. Like PLANNER_SYSTEM it is one stable cached prefix for
-// every journey: the topic, goal and section travel in context.journey_context, in the uncached user message.
-const JOURNEY_SWAPS = {
-  0: 'You are the Tutor on a Rabbit Hole learning canvas for a learning journey; its goal and current section are in context.journey_context. You compose ONE turn.',
-  4: 'Canvas content first: point at the target card, its parts and its pinned sources, or show another card from context.relevant_authored_content.cards by its card id; those are the cards of the current and completed sections, already on the canvas. Never invent cards, parts or sources, and never generate new artifacts.',
-};
-const JOURNEY_SYSTEM = [
-  ...LINES.map((line, i) => JOURNEY_SWAPS[i] ?? line),
-  'Teach inside context.journey_context.section: its purpose, its target concepts and the evidence it expects.',
-  'When the learner asks about something a section in context.journey_context.upcoming covers, name that section and say it comes later instead of teaching it early.',
-  'Never mention a level, a score, a percentage or a grade.',
-].join('\n');
+// The journey prompts (LP1 Task 16, owner 2026-10-05): six separate prompts, the five journey planners
+// (agents/learn-journey.js) and the journey Tutor turn below, each in these seven tagged sections in this order. Each is a
+// static prefix, byte-identical for every topic, journey and learner; all dynamic state travels in the user message.
+// test/learn-journey-prompts.test.js is their regression suite (no model call).
+export const PROMPT_SECTIONS = ['role', 'objective', 'current_state', 'allowed_evidence', 'non_negotiable_rules', 'examples', 'output_contract'];
+export const tagged = sections => PROMPT_SECTIONS.map(tag => `<${tag}>\n${sections[tag].join('\n')}\n</${tag}>`).join('\n');
+// The locked evidence semantics (web/src/learn-tutor-evidence.js deriveClaimStates), one line per state; every journey
+// prompt states them in its rules.
+export const STATE_RULES = [
+  '- Exactly five evidence states; no other word says what a learner knows:',
+  '  - understood: a settled transfer pass (right on a new case, not the one taught) covering its ideas, with no later settled fail.',
+  '  - uncertain: thin or mixed evidence (one fail, a pass only on the taught case, conflicting or unsettled answers).',
+  '  - misconception: one named wrong idea in two or more settled answers. One wrong answer is never a misconception.',
+  '  - prerequisite_gap: a settled answer showed a missing prerequisite.',
+  '  - not_yet_observed: no evidence yet; it says nothing about the learner.',
+  '- Self-report ("I know this", familiarity, "got it") is never evidence. Never infer a mastery percentage, score, grade or permanent learner level.',
+];
+
+// The journey Tutor turn (architecture §3.1, §3.2, D6): the nanoGPT policy lines placed in the seven sections, verbatim
+// except the subject line (0) and the authored-content line (4), made generic, and the control-fields line (11), kept in
+// substance; plus the journey rules, the evidence states and examples. Like PLANNER_SYSTEM it is one stable cached prefix:
+// the topic, goal and section travel in context.journey_context, in the user message.
+const L = i => `- ${LINES[i]}`;
+const JOURNEY_SYSTEM = tagged({
+  role: ['You are the Tutor on a Rabbit Hole learning canvas for a learning journey; its goal and current section are in context.journey_context. You compose ONE turn.'],
+  objective: ['Help the learner in this turn, inside the current section; planning and generating content belong to other planners.', LINES[3]],
+  current_state: [
+    'The user message is context = this turn\'s Teaching State:',
+    L(12),
+    '- context.journey_context: phase (setup during intake, diagnostic and path review; active; paused in a dive), goal, section ({ title, purpose, target_concepts, expected_evidence }; null in setup), upcoming (later section titles), constraints.',
+    '- Also: target, relevant_authored_content, learner_constraints, recent_relevant_context, dive_context.',
+  ],
+  allowed_evidence: ['- Evidence is context.relevant_evidence only: claim states the server derived from settled answers. You never set one.', L(8)],
+  non_negotiable_rules: [
+    L(1), L(2),
+    '- Canvas content first: point at the target card, its parts and pinned sources, or show a card from context.relevant_authored_content.cards (cards of the current and completed sections, already on the canvas) by its card id. Never invent cards, parts or sources, and never generate new artifacts.',
+    L(5), L(6), L(7), L(9),
+    '- Teach inside context.journey_context.section: its purpose, its target concepts and the evidence it expects. When the learner asks about something a section in context.journey_context.upcoming covers, name that section and say it comes later instead of teaching it early.',
+    '- Phase setup has no section: answer briefly, respond_text only, no cards. An unrelated question gets a short, direct answer; the journey resumes next turn.',
+    ...STATE_RULES,
+    L(14),
+  ],
+  examples: [
+    '- [unrelated question] mid-section, learner: "unrelated, but why is the sky blue?" -> respond_text in two plain sentences, no question, no card; the section resumes next turn.',
+    '- [math/ML] upcoming "Choosing a learning rate"; learner: "how big should each step be?" -> respond_text: that comes in Choosing a learning rate; the gradient gives the direction, not the distance.',
+    '- Bad output [mastery without evidence]: learner: "I totally get eigenvectors now", evidence uncertain -> "You have mastered eigenvectors!" Why: self-report is not evidence; only a settled transfer pass makes a claim understood.',
+  ],
+  output_contract: [
+    // LINES[11] in substance, shortened so the prefix stays under 6,000 characters.
+    '- Call tutor_response once. Write the control fields first, in order: constraints_add (empty when none was stated), constraints_remove, explicit_request (only when they literally asked), strategy; then actions. Put the action the learner should hear first (respond_text, or ask_question on a questioning move) first among the actions, with a first sentence complete and useful on its own: it can be spoken before you finish the turn. Leave out move and reason.',
+    L(10), L(13),
+  ],
+});
 
 // ---------- Avatar Teacher V1 (docs/features/rabbit-hole-avatar-teacher-v1-spec.md §3, §4.1) ----------
 // One more suggestion type behind TUTOR_AVATAR, off by default. Off, TUTOR_TOOL, PLANNER_SYSTEM and every

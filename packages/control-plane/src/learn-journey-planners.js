@@ -36,12 +36,15 @@ const LOGGED = journeyLogged(anthropic);
 // Fixtures only on a local test worker that asks for them (§11, like OAUTH_MOCK): never a paid call in tests or e2e.
 export const journeyCallModel = env => (env.SMALL_ENV === 'test' && env.JOURNEY_MODEL_STUB === 'fixtures' ? fixtureModel : LOGGED);
 
+// The role's system text is a static prefix (agents/learn-journey.js), so it goes as one cacheable block, as the Tutor
+// planner's does (learn-tutor-routes.js): render order is tools -> system -> messages, so the cache holds the tool schema
+// and the prompt, never the input. Never under SUBSCRIPTION_ONLY, whose bridge's handling of a cached block is unverified.
 async function callRole(env, role, input, callModel) {
-  const task = LEARN_TASKS[role];
+  const task = LEARN_TASKS[role], text = JOURNEY_SYSTEMS[role];
   const response = await callModel(env, {
     max_tokens: task.maxTokens,
     ...(task.effort ? { output_config: { effort: task.effort } } : {}),
-    system: JOURNEY_SYSTEMS[role],
+    system: env.SUBSCRIPTION_ONLY === 'true' ? text : [{ type: 'text', text, cache_control: { type: 'ephemeral' } }],
     tools: [JOURNEY_TOOLS[role]],
     tool_choice: { type: 'auto' },
     messages: [{ role: 'user', content: `input = ${JSON.stringify(input)}` }],
