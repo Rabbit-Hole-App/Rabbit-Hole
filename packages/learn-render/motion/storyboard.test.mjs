@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { leakErrors } from './contracts.js';
 import { checkStoryboard } from './storyboard-check.js';
-import { HARD_LIMITS, STORYBOARD_SYSTEM, STORYBOARD_TOOL, runStoryboard, storyboardContext, storyboardRequest } from './storyboard.js';
+import { HARD_LIMITS, STORYBOARD_EXAMPLES, STORYBOARD_SYSTEM, STORYBOARD_TOOL, runStoryboard, storyboardContext, storyboardRequest } from './storyboard.js';
 
 const read = f => JSON.parse(readFileSync(new URL(f, import.meta.url), 'utf8'));
 const brief = () => read('./fixtures/m2/softmax-15s-attention.brief.json');
@@ -295,8 +295,8 @@ test('M7A regression: the recurring first-pass storyboard failures stay caught, 
     'B4: 16 new words to read in 2s (at most 14)',
     'storyboard: must_show "A visible check that the highlighted row sums to 1 after softmax" is not visibly covered (declared by B4, which do not show enough of it)',
   ]);
-  assert.match(STORYBOARD_SYSTEM, /HARD LIMITS\. The harness checks each of these mechanically/);
-  assert.match(HARD_LIMITS, /1\. Vocabulary: .*Never substitute a synonym .*"hold"/);
+  assert.match(STORYBOARD_SYSTEM, /<validation_rules>\nThe harness checks each of these mechanically/);
+  assert.match(HARD_LIMITS, /1\. Vocabulary: .*Never substitute a synonym/);
   assert.match(HARD_LIMITS, /2\. Reading rate: .*2 s -> 14,/, 'the number the checker reported for run 3 B4');
   assert.match(HARD_LIMITS, /3\. must_show: .*at least 40% of the item's own content words/);
   assert.match(HARD_LIMITS, /4\. Both sides of a condition: .*cites at least one claim from the other side/);
@@ -308,4 +308,48 @@ test('M7A regression: the recurring first-pass storyboard failures stay caught, 
   assert.equal(boardA.beats.find(b => b.id === 'B4').on_screen_text, 'Softmax runs after mask, before dropout.');
   assert.match(HARD_LIMITS, /5. Order words: .*Never mix after and before in one sentence/);
   assert.deepEqual(checkStoryboard(read('./fixtures/m3/softmax-15s-attention.real.storyboard.json'), read('./fixtures/m2/softmax-15s-attention.brief.json')).errors, [], 'the accepted M3 storyboard still passes');
+});
+
+// M7A owner decision: topic-neutral rules in sections, worked examples across domains only in
+// <examples>, the validated brief (user message) authoritative, the tool schema the structure.
+const DOMAINS = [
+  ['softmax / attention', './fixtures/m2/softmax-15s-attention.brief.json', './fixtures/m3/softmax-15s-attention.real.storyboard.json'],
+  ['GPT.generate', './fixtures/m3/generate-20s-selection.brief.json', './fixtures/m4/generate-20s-selection.storyboard.json'],
+  ['MLP forward (no attention, no softmax)', './fixtures/m7a/mlp-forward.brief.json', './fixtures/m7a/mlp-forward.storyboard.json'],
+];
+const TOPIC = /softmax|attention|\battn|dropout|\bmask|generate|logits|temperature|multinomial|gelu|c_fc|c_proj|\bMLP\b|flash|top_k|squash/gi;
+const sectionOf = name => STORYBOARD_SYSTEM.match(new RegExp(`<${name}>\\n([\\s\\S]*?)\\n</${name}>`))?.[1] ?? null;
+
+test('the storyboard prompt: six sections in order; rules are topic-neutral; 3-5 examples across domains, only in <examples>', () => {
+  const tags = [...STORYBOARD_SYSTEM.matchAll(/^<([a-z_]+)>$/gm)].map(m => m[1]);
+  assert.deepEqual(tags, ['role', 'objective', 'non_negotiable_rules', 'validation_rules', 'examples', 'output_contract']);
+  for (const name of tags.filter(t => t !== 'examples')) assert.deepEqual(sectionOf(name).match(TOPIC) || [], [], `<${name}> names no topic`);
+  assert.equal(sectionOf('validation_rules'), HARD_LIMITS);
+  const examples = sectionOf('examples');
+  assert.equal(examples, STORYBOARD_EXAMPLES);
+  const count = (examples.match(/^Example \d+ - /gm) || []).length;
+  assert.ok(count >= 3 && count <= 5, `${count} examples`);
+  for (const kind of [/Example \d+ - execution order \(attention\)[\s\S]*Mask, then softmax, then dropout/, /Example \d+ - code flow \(a generation loop\)/, /Example \d+ - a mechanism with no attention/, /Example \d+ - a conditional branch/]) assert.match(examples, kind);
+  assert.match(examples, /^These examples show how the rules apply[\s\S]*never treat them as requirements\. Only the brief in the user message decides what to teach\./);
+  assert.match(sectionOf('output_contract'), /calling motion_storyboard exactly once; its schema is the structure.*Where an example and the brief differ, the brief wins\./);
+});
+
+test('one storyboard prompt for every domain: the brief is the only topic input, no brief fact is copied into the rules, and each domain\'s storyboard meets the same checks', () => {
+  for (const [domain, briefFile, boardFile] of DOMAINS) {
+    const brief = read(briefFile), board = read(boardFile);
+    const body = storyboardRequest(brief);
+    assert.equal(body.system[0].text, STORYBOARD_SYSTEM, `${domain}: the same system prompt`);
+    assert.ok(body.messages[0].content.includes(JSON.stringify(brief.title)), `${domain}: the brief travels in the user message`);
+    for (const claim of brief.claim_registry) assert.ok(!STORYBOARD_SYSTEM.includes(claim.text), `${domain}: claim ${claim.id} is not in the system prompt`);
+    for (const item of brief.must_show) if (item.length > 50) assert.ok(!STORYBOARD_SYSTEM.includes(item), `${domain}: must_show is not in the system prompt`);
+    assert.deepEqual(checkStoryboard(board, brief).errors, [], `${domain}: a valid storyboard passes the same checks`);
+  }
+  assert.ok(!read('./fixtures/m7a/mlp-forward.brief.json').claim_registry.some(c => /softmax|attention|mask/i.test(c.text)), 'the third domain shares no topic with the first');
+});
+
+test('the examples are honest: the order example breaks and follows rule 5 exactly as the checker reads it', () => {
+  const brief = read('./fixtures/m7a/run-a.brief.json'), board = read('./fixtures/m7a/run-a.storyboard.round-0.json').storyboard;
+  const orderErrors = text => checkStoryboard({ ...board, beats: board.beats.map(b => (b.id === 'B4' ? { ...b, on_screen_text: text } : b)) }, brief).errors.filter(e => /puts .* before /.test(e));
+  assert.equal(orderErrors('Softmax runs after mask, before dropout.').length, 1, 'breaks rule 5 as Example 1 says');
+  assert.deepEqual(orderErrors('Mask, then softmax, then dropout.'), [], 'follows rule 5 as Example 1 says');
 });

@@ -1,0 +1,102 @@
+{
+  "id": "storyboard-mlp-forward",
+  "brief_id": "brief-mlp-forward",
+  "version": 1,
+  "beats": [
+    {
+      "id": "B1",
+      "start_time": 0,
+      "end_time": 3.5,
+      "pedagogical_role": "mechanism",
+      "claim_ids": [
+        "C1",
+        "C2"
+      ],
+      "condition_ids": [],
+      "must_show_covered": [],
+      "on_screen_text": "x goes into c_fc, then gelu.",
+      "visible_objects": [
+        {
+          "id": "forward_code",
+          "description": "The forward lines of the MLP block, read top to bottom.",
+          "source": {
+            "source_ref_id": "S1",
+            "start_line": 88,
+            "end_line": 92
+          }
+        },
+        {
+          "id": "x_token",
+          "description": "x, the value each line passes on.",
+          "label": "x",
+          "change": "moves from c_fc to gelu"
+        }
+      ],
+      "transition": "x moves down one line at a time",
+      "framing": "code on the left, x beside the current line"
+    },
+    {
+      "id": "B2",
+      "start_time": 3.5,
+      "end_time": 7,
+      "pedagogical_role": "mechanism",
+      "claim_ids": [
+        "C1"
+      ],
+      "condition_ids": [],
+      "must_show_covered": [
+        "The four calls in code order: c_fc, gelu, c_proj, dropout"
+      ],
+      "on_screen_text": "Then c_proj, then dropout.",
+      "visible_objects": [
+        {
+          "id": "forward_code",
+          "description": "The same forward lines; c_fc and gelu are done, c_proj and dropout light up in code order.",
+          "source": {
+            "source_ref_id": "S1",
+            "start_line": 88,
+            "end_line": 92
+          }
+        },
+        {
+          "id": "x_token",
+          "description": "x, the value each line passes on.",
+          "label": "x",
+          "change": "moves from c_proj to dropout"
+        },
+        {
+          "id": "call_order",
+          "description": "The four calls in code order: c_fc, gelu, c_proj, dropout.",
+          "label": "c_fc, gelu, c_proj, dropout",
+          "change": "fills in as each call runs"
+        }
+      ],
+      "transition": "x keeps moving down",
+      "framing": "code on the left, the call order on the right"
+    },
+    {
+      "id": "B3",
+      "start_time": 7,
+      "end_time": 10,
+      "pedagogical_role": "takeaway",
+      "claim_ids": [
+        "C2"
+      ],
+      "condition_ids": [],
+      "must_show_covered": [
+        "x passed from each call to the next"
+      ],
+      "on_screen_text": "Each call takes the output of the call before it.",
+      "visible_objects": [
+        {
+          "id": "call_order",
+          "description": "The four calls in code order, with x passed from each call to the next.",
+          "label": "c_fc, gelu, c_proj, dropout",
+          "change": "arrows show x passed from each call to the next"
+        }
+      ],
+      "transition": "the code fades, the call order stays",
+      "framing": "the call order centered"
+    }
+  ]
+}

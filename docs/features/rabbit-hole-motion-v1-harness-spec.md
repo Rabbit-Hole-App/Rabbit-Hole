@@ -1865,7 +1865,7 @@ Do not attempt everything in one commit.
 | **M4** | Renderer selection + Motion Author → renderer-specific composition source (Remotion first) + static validation | Done (2026-10-04; see "M4 result") |
 | **M5** | Preview + contact sheet + determinism checks | Checkpoint (2026-10-04; see "M5 result"): render stage, RenderResult and checks done; no generated composition is `ready` yet (blank opening frames) |
 | **M6** | Fresh visual + pedagogical review + exactly one repair round | Checkpoint (2026-10-05; see "M6 result"): both generated demos `ready` after one repair round |
-| **M7A** | Remotion end to end: final render + final validation + LearnVideos / R2 + existing video-block insertion, in a development environment only | Authorized |
+| **M7A** | Remotion end to end: final render + final validation + LearnVideos / R2 + existing video-block insertion, in a development environment only | Checkpoint (2026-10-05; see "M7A result"): the pipeline, card, Stop, failure, Voice and reload are proven; no automatic run has produced a ready video yet |
 | **M7B** | HyperFrames adapter (§9.5) under the same sandbox, resource limits and determinism contract, through the same pipeline | Authorized (development) |
 | **M8** | Remotion vs HyperFrames benchmark (§9.6) on the same briefs and storyboards; §27 demos pass human review; choose the default routing; keep both adapters; required report (§36) | Authorized |
 | **M9** | Production `/motion` integration | **DEFERRED** pending explicit approval and the Usage & Credits payment architecture. Do not start M9 from this specification alone. |
@@ -2241,6 +2241,76 @@ Demo B stays `fixture_with_manual_semantic_fix` in every RenderResult. Its `read
 ## M7A — Remotion end to end (development only)
 
 Final render, final validation, `LEARN_MEDIA` storage and `insertBlock({type: 'video', …})` in a development environment. The Motion provider and the `motion_render` carrier already exist since M1 (§18); M7 connects them to the orchestrated pipeline. Narration may be enabled here only after silent runs pass.
+
+### M7A result (2026-10-05)
+
+**Where it runs (the §18 M7 decision).** A development-only Node orchestrator. The LearnVideos Durable Object stays a poller, and the Worker never holds a model key.
+- `scripts/motion-orchestrator.mjs` and `motion/orchestrator.mjs` run on the local Motion stack:
+  - HTTPS on 8856, bearer token;
+  - one job at a time, and none while the render service is busy;
+  - a per-job call cap and an owner spend ceiling (`--budget-usd`);
+  - Stop abandons a call in flight;
+  - `--stub <mp4>` runs the same routes with no model call and no render.
+
+**The request** (`motion/pipeline.mjs` `runMotionRequest`):
+1. A raw `/motion` line goes through the Learner Intent Resolver and grounding. An unresolved target asks one clarification before any paid call.
+2. The Director writes the MotionBrief, then the storyboard, then the Author writes the composition.
+3. The M6 review job runs: preview, harness checks, fresh reviewers, at most one repair, final render and validation.
+4. The finished render becomes the existing `type: "video"` block.
+
+The one repair round is shared by the whole job. A storyboard that fails its checks spends it on one Director revision. Every stage's artifact is kept in the job directory.
+
+**Product path, unchanged where it existed:**
+- **Dev-only command:** `/motion` exists only in a `VITE_MOTION_DEV=true` build. Without an orchestrator configured, LearnVideos refuses it. No checked-in Worker config sets `MOTION_ORCHESTRATOR_*` or `VITE_MOTION_DEV` (tested).
+- **Proposal:** the paid proposal comes back with no request made. Generate inserts the existing video card already confirmed (`operation: {op: "motion_request", request, location: {concept}}`); the canvas title is the concept.
+- **LearnVideos** starts the job with the existing paid gate and de-duplication, polls it, stores the validated final MP4 in `LEARN_MEDIA` and serves it from the same card. The card takes the brief's title and provenance: duration, Remotion, sources.
+- **Stop** (new): a cancel action stops providers that can stop. It is free, needs no confirmation, and leaves a retryable "Stopped." card.
+- **Fixed:** the card's poll wrote a stale copy back (with `confirmedStart`) and could restart the job; `useConfirmedStart` now starts once per card.
+
+**Harness additions found by the real runs.** None relaxes a check or adds a repair round.
+- The preview job also runs the coverage probe. A render that does not show the storyboard is a blocking harness finding (`storyboard_fidelity`, §13.1), found while the repair round can fix it.
+- The Author contract states that a leaving object fades after its beat's middle.
+- A response that breaks off mid-stream fails its stage and is never retried.
+- The storyboard system prompt is in sections (owner decision):
+  - `<role>`, `<objective>`, `<non_negotiable_rules>`, `<validation_rules>`, `<examples>`, `<output_contract>`;
+  - `<validation_rules>` states the checks the first storyboards broke, with the checker's own numbers;
+  - `<examples>` holds four worked examples: attention order, a generation loop, an MLP mechanism and a conditional branch. They demonstrate the rules and never add requirements.
+- Regressions cover three domains (softmax/attention, GPT.generate, an MLP forward pass): one system prompt, no brief fact in it, the same checks. The recorded failed storyboards are fixtures the unchanged checks still reject.
+
+**Browser proof** (`scripts/motion-e2e.mjs`, local stack, stub orchestrator):
+- `stop`: proposal → Generate → placeholder → Stop → "Stopped." with Retry → Retry → video in the same card.
+- `failure`: the reason on the card, Retry, no video.
+- `full`:
+  - the same card plays a 15 s 1920x1080 video served from `LEARN_MEDIA`, with title, meta and sources;
+  - reload keeps it with no restart;
+  - Voice Mode on the Tutor board removes the typing field (so no `/motion` by voice) while the card plays;
+  - one start per Generate, and two Generates of the same request share one render job;
+  - no model call for the proposal, no Rabbit Hole created or entered.
+
+**Automatic runs of `/motion 15s explain me softmax func`** (real orchestrator, local render service on the Windows authoring host):
+
+| Run | First storyboard | Author | Preview checks and fresh reviews | Recorded cost |
+|---|---|---|---|---|
+| 1 | failed its checks (2 errors, not kept then); repair spent on a revision | composition | 0 blocking at preview; final validation failed coverage (2 objects missing at their beat middles) | $1.01 |
+| 2 | failed: one side of K1 not taught; repair spent | the stream broke off (crashed the pipeline then; fixed) | — | $0.37 + a cut-off call |
+| 3 | failed: a word outside the brief vocabulary, 16 new words in a 2 s beat, a must_show item not covered; repair spent | composition | blocking: `storyboard_fidelity` (a shared object vanishing at a boundary) and `overlapping_text` | $1.13 |
+| A | failed: the lexical order check misread a correct sentence; repair spent | composition | blocking: `overlapping_text` (the chart over the matrix) and `narration_contradicts_visuals` (a masked cell drawn as a bar) | $1.11 |
+| B | **passed first time** | the stream broke off after 122 s (failed cleanly, not retried) | — | $0.26 + a cut-off call |
+
+Runs A and B were the two the owner authorized, under a $2.50 ceiling. The ceiling counted $2.06: $1.36 recorded plus run B's cut-off Author call at its $0.70 estimate. Both failed, so no further runs were made.
+
+**Failure distribution:**
+- **First-pass storyboard:** failed its checks in 4 of 5 runs, and each failure spent the job's only repair round. Run B, the first with all five validation rules, passed.
+- **Author response:** the stream broke off in 2 of 5 runs.
+- **Author drafts that reached review:** 3 of 3 had at least one blocking defect. All three opened nonblank first time.
+- **Validator:** one false positive. "Softmax runs after mask, before dropout." is correct, but the lexical order check reads it as dropout before softmax.
+
+**Known limitations.**
+- With one repair round per job, a storyboard repair leaves the Author with none. Every Author draft reviewed so far needed one. Whether the repair architecture changes is an owner decision.
+- A long Author stream that breaks off is never retried, because the call may already be charged.
+- The order check's false positive is unchanged (no validator change in M7A).
+- ponytail: the checker's stop list (`attn`, `torch`, …) was tuned on nanoGPT names.
+- Windows renders are authoring evidence (§10.3).
 
 ## M7B — HyperFrames adapter (development only)
 
