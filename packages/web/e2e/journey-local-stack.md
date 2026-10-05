@@ -7,7 +7,8 @@ no `--remote`, no deploy, no model key. `<ws>` is a scratch folder outside git (
 
 - **Unique Worker names.** `wrangler dev` keeps one machine-wide registry keyed by Worker name. A second stack that
   reuses `small-cp-dev` or `rabbit-hole-cp-dev` crashes the owner's stack on 8828/8829 when it stops. This stack is
-  `alp1-local-app` and `alp1-local-cp`, on ports 8868 (app) and 8869 (control plane), inspectors 9268 and 9269.
+  `alp1-local-app` and `alp1-local-cp`, on ports 8868 (app) and 8869 (control plane). Give no `--inspector-port`:
+  wrangler then picks a free one (an explicit 9269 was already held by the owner's 8828 process during the LP1 run).
 - **No keys.** The vars file holds only `SMALL_ENV=test`, `TEST_BYPASS_SECRET`, `MASTER_KEY` (both random, made for
   this stack), `OAUTH_MOCK=true` and `JOURNEY_MODEL_STUB=fixtures`. The journey planners then answer from
   `learn-journey-fixtures.js`, and every other model route has no key, so no paid call is possible.
@@ -67,8 +68,8 @@ npx wrangler d1 execute rabbit-hole-byoc-dev --local -c $C --persist-to $P --fil
 ```bash
 cd packages/web && npx vite build && VITE_COACHING_DEV=true VITE_BYOC_DEV=true npx vite build --outDir dist-dev && cd ../..
 # the app (app worker + control plane in one process), and the control plane on its own origin, where sessions are minted
-npx wrangler dev -c <ws>/alp1-config/app/wrangler.jsonc -c <ws>/alp1-config/cp/wrangler.jsonc --local --persist-to <ws>/alp1-local --ip 127.0.0.1 --port 8868 --inspector-port 9268
-npx wrangler dev -c <ws>/alp1-config/cp/wrangler.jsonc --local --persist-to <ws>/alp1-local --ip 127.0.0.1 --port 8869 --inspector-port 9269
+npx wrangler dev -c <ws>/alp1-config/app/wrangler.jsonc -c <ws>/alp1-config/cp/wrangler.jsonc --local --persist-to <ws>/alp1-local --ip 127.0.0.1 --port 8868
+npx wrangler dev -c <ws>/alp1-config/cp/wrangler.jsonc --local --persist-to <ws>/alp1-local --ip 127.0.0.1 --port 8869
 ```
 
 Check that no key reached the workers, by name and by behaviour (both answer "not configured" without a model call):
@@ -88,5 +89,7 @@ and image requests, so even a misconfigured stack makes no model call from the b
 
 ## 5. Stop
 
-Stop only this stack's processes: the `node`/`workerd` trees whose command line names `alp1-config` (the listeners on
-8868, 8869, 9268, 9269). Never touch 8828/8829. Then check that `http://127.0.0.1:8828` still answers, if it was up.
+Stop only this stack's processes: the `npx`/`node`/`workerd` trees whose command line names `alp1-config` (the
+listeners on 8868 and 8869). Never touch 8828/8829 or their processes. A forced stop leaves the stack's own entries in
+`%APPDATA%/xdg.config/.wrangler/registry/`: delete `alp1-local-app` and `alp1-local-cp` there, nothing else.
+Then check that `http://127.0.0.1:8828` still answers, if it was up.
