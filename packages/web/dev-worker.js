@@ -27,6 +27,7 @@ import { apiAsk } from '../control-plane/src/index.js';
 import { boardFetch, authorizedBoardApp, paperFetch, mediaFetch, momentFeedback, videoGone, canvasSearch, wikiArticle } from '../control-plane/src/learn-board.js';
 import { learnGradeRoute, assessAnswer } from '../control-plane/src/learn-grade-routes.js';
 import { tutorRoute } from '../control-plane/src/learn-tutor-routes.js';
+import { journeyRoute } from '../control-plane/src/learn-journey.js';
 import { homeAskFetch } from '../control-plane/src/learn-home-ask.js';
 import { voiceRoute } from '../control-plane/src/learn-voice-routes.js';
 import { learnBoardsRoute } from '../control-plane/src/learn-boards.js';
@@ -212,6 +213,7 @@ export default {
     // The visible grade (owner decision 3, docs/features/learn-cleanup.md): one model call, nothing stored.
     if (path === '/api/learn/assess') return assessAnswer(req, env);
     if (path.startsWith('/api/learn/tutor/')) { const tutored = await tutorRoute(path, req, env); if (tutored) return tutored; }
+    if (path.startsWith('/api/learn/journey')) { const routed = await journeyRoute(path, req, env); if (routed) return routed; }
     // Home answers, in place, from the signed-in user's own library (learn-home-ask.js); never the old apps agent.
     if (path === '/api/learn/home-ask') return homeAskFetch(req, env);
     // Jev side-by-side grading (docs/features/jev-grading.md).
