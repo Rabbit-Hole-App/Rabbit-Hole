@@ -287,8 +287,12 @@ await check('hide collapses an empty sketch cleanly; Clear sketch takes a drawin
   assert.equal(await target(), 'canvas');
   await hiding.locator('[data-sketch-toggle]').click();
   await drawIn();
+  assert.equal(await hiding.locator('[data-sketch-clear]').innerText(), 'Clear sketch');
+  await shot('12-clear-sketch-control');
   await hiding.locator('[data-sketch-clear]').click();
   assert.equal((await counts()).sketches[hidingId].strokes, 0, 'cleared');
+  assert.equal(await hiding.locator('[data-sketch-clear]').count(), 0, 'nothing left to clear');
+  await shot('13-clear-sketch-removed');
   assert.ok(await hiding.getByRole('button', { name: 'Submit', exact: true }).isDisabled(), 'a cleared sketch is no answer');
   await hiding.locator('[data-sketch-toggle]').click(); // Hide the cleared sketch
   assert.equal(await hiding.locator('[data-sketch-toggle]').innerText(), 'Add sketch');

@@ -1,0 +1,52 @@
+{
+  "ran": "2026-10-05T21:28:39.695Z",
+  "prompt": "In your own words: what happens between token id `2` entering nanoGPT and the model producing next-token scores?",
+  "expects": [
+    "the id selects a row of the embedding table",
+    "a position embedding is added",
+    "transformer blocks mix the vectors across positions",
+    "the LM head turns the final vector into one score per vocabulary token"
+  ],
+  "results": [
+    {
+      "id": "sketch-only-correct",
+      "expect": "good",
+      "verdict": "good",
+      "pass": true,
+      "ms": 4910,
+      "reply": "VERDICT: good\n\nYour chain shows all four steps: the id selecting row 2 of `wte`, the positional embedding added via `wpe`, transformer blocks mixing vectors across positions, and the LM head producing one score per vocabulary token. The arrows make the order explicit, so nothing key is missing or wrong. One probe to deepen it: which single vector does the LM head actually read when the model predicts the *next* token, and why that one?"
+    },
+    {
+      "id": "sketch-only-irrelevant",
+      "expect": "partial",
+      "verdict": "partial",
+      "pass": true,
+      "ms": 6120,
+      "reply": "VERDICT: partial\n\nYour submission is a drawing of a house with a sun and the label \"my house\" — it shows none of the asked-for ideas: no embedding table lookup for id `2`, no position embedding being added, no transformer blocks mixing information across positions, and no LM head producing one score per vocabulary token.\n\nTo get started: when token id `2` arrives, what exactly does that integer do to the embedding matrix, and what shape of thing comes out?"
+    },
+    {
+      "id": "sketch-only-incorrect",
+      "expect": "partial",
+      "verdict": "partial",
+      "pass": true,
+      "ms": 4155,
+      "reply": "VERDICT: partial\n\nYour sketch shows a token id going in and a next-token result coming out, but the middle step — \"multiply by 2\" — is wrong: nothing in the model multiplies the id arithmetically, and the output is scores over the whole vocabulary, not a single chosen number.\n\nMissing: the id indexing a row of the embedding table, the added position embedding, transformer blocks mixing information across positions, and the LM head producing one score per vocabulary token.\n\nQuestion: when the id `2` arrives, what does the model actually look up or compute with it first, and what shape is the thing that comes out at the very end?"
+    },
+    {
+      "id": "text-plus-sketch-complementary",
+      "expect": "good",
+      "verdict": "good",
+      "pass": true,
+      "ms": 4064,
+      "reply": "VERDICT: good\n\nYou've got all four: the id selecting row 2 of the embedding table, the position embedding being added, the transformer blocks mixing vectors across positions (sketch), and the LM head producing one score per vocabulary token (sketch). Nothing missing or wrong, though the link between the typed part and the first box is implicit rather than drawn. To push further: which position's final vector does the LM head use when you only want the next token?"
+    },
+    {
+      "id": "text-only-control",
+      "expect": "partial",
+      "verdict": "partial",
+      "pass": true,
+      "ms": 4364,
+      "reply": "VERDICT: partial\n\nYou correctly described the embedding lookup (id 2 selects row 2) and the addition of a position embedding. Missing: the transformer blocks, where attention mixes information across token positions, and the LM head, which projects the final vector into one score per vocabulary entry. After the embeddings are summed, what do the transformer blocks and the final output layer each do to that vector?"
+    }
+  ]
+}
