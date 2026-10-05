@@ -185,6 +185,25 @@ test('materializeSection: a save that fails records nothing and reports the sect
   }
 });
 
+// Review round 2: a section id is only unique within its journey (the fixtures use s1, s2 every time), so the stamps
+// carry the journey id, and an archived journey's blocks are never resumed as a new journey's section.
+test('materializeSection: blocks stamped for another journey with the same section id are not reused - a fresh section is drawn and stamped with this journey', async () => {
+  const old = [{ id: 'h-old', type: 'heading', level: 1, journey_section_id: 's1', journey_id: 'j-old' }, { ...tagged('f-old', 'frame'), journey: { ...tagged('f-old', 'frame').journey, journey_id: 'j-old' } }];
+  const canvas = fakeCanvas(old), done = [];
+  const out = await materializeSection({ canvas, journey: { ...journeyWith(done), id: 'j-new' }, sectionPlan: plan, post: async () => ({}) });
+  const inserts = canvas.inserts();
+  assert.equal(inserts.length, 4, 'a new heading and every step');
+  assert.deepEqual(inserts[0][1], { type: 'heading', level: 1, text: section1.title, done: false, journey_section_id: 's1', journey_id: 'j-new' });
+  assert.ok(inserts.slice(1).every(i => i[1].journey.journey_id === 'j-new' && i[1].journey.section_id === 's1'));
+  assert.deepEqual(done, [['s1', 'b1']], 'the new heading is recorded, never h-old');
+  assert.equal(out.heading_block_id, 'b1');
+  // The same journey's own stamps are resumed as before.
+  const again = fakeCanvas(canvas.flow), recorded = [];
+  await materializeSection({ canvas: again, journey: { ...journeyWith(recorded), id: 'j-new' }, sectionPlan: plan, post: async () => ({}) });
+  assert.deepEqual(again.inserts(), []);
+  assert.deepEqual(recorded, [['s1', 'b1']]);
+});
+
 test('materializeSection: an artifact request that hangs times out as a failed step', async () => {
   const hang = (_path, _body, { signal }) => new Promise((_, reject) => signal.addEventListener('abort', () => reject(signal.reason)));
   const out = await materializeSection({ canvas: fakeCanvas(), journey: journeyWith(), sectionPlan: planOf([command('graph', 'graph', 'x'), text('predict', 'y')]), post: hang, timeoutMs: 10 });
@@ -234,4 +253,8 @@ test('LearnPage.jsx: pushBoard has an awaitable immediate variant for persist() 
   assert.match(page, /return 'failed';/);
   assert.match(page, /if \(now\) return put\(\);\n\s+pushTimer\.current = setTimeout\(put, 1500\);/);
   assert.match(page, /onSave=\{pushBoard\}/);
+  // Review round 2: turning sharing on PUTs through the same queue, so it never races a queued board push; every board
+  // PUT in the page is one of these two.
+  assert.match(page, /await pushQueue\(async \(\) => \{\n\s+const saved = await api\(boardPath, \{ method: 'PUT', body: JSON\.stringify\(\{ state: boardSnapshot\(\), version: boardVersion\.current \}\) \}\);\n\s+boardVersion\.current = saved\.version;/);
+  assert.equal((page.match(/method: 'PUT', body: JSON\.stringify\(\{ state: boardSnapshot\(\)/g) || []).length, 2);
 });

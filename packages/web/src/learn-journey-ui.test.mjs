@@ -695,7 +695,7 @@ test('controller: a load with no recorded heading waits for the ready canvas, re
 });
 
 test('controller: on a load, a heading stamped by an earlier visit is reused and only the missing steps are drawn', async () => {
-  const canvas = fakeCanvas([{ id: 'h-old', type: 'heading', journey_section_id: 's1' }, { id: 'f-old', type: 'explanation', journey: { section_id: 's1', step_id: 'frame', claims: [] } }]);
+  const canvas = fakeCanvas([{ id: 'h-old', type: 'heading', journey_section_id: 's1', journey_id: 'j1' }, { id: 'f-old', type: 'explanation', journey: { journey_id: 'j1', section_id: 's1', step_id: 'frame', claims: [] } }]);
   const h = scripted(() => canvas, [ok(activeJourney(), null, activePath), ok(activeJourney(), null, activePath), recorded('h-old')]);
   h.view().canvasReady();
   await h.ctl.refresh();
@@ -780,7 +780,7 @@ test('controller: a paid step surfaces as a generation_proposal tray; Generate i
   const before = h.calls.length;
   await h.view().answer('generate');
   const [, block, options] = canvas.inserts().at(-1);
-  assert.deepEqual(block, { type: 'mathAnimation', title: 'Saturation', confirmedStart: true, journey: { section_id: 's1', step_id: 'animate', claims: ['c/x'] } });
+  assert.deepEqual(block, { type: 'mathAnimation', title: 'Saturation', confirmedStart: true, journey: { journey_id: 'j1', section_id: 's1', step_id: 'animate', claims: ['c/x'] } });
   assert.deepEqual(options, { after: 'b2' }, 'right after the step before it');
   assert.equal(h.view().tray.prompt, 'Generate this clip? It uses credits.', 'the next proposal');
   await h.view().answer('not_now');
@@ -840,8 +840,8 @@ test('regression 1: leaving after the steps are drawn but before persist() resol
 
 test('regression 2: blocks saved but section_materialized never posted - the reload reuses every stamped block, saves, then posts; nothing is made again', async () => {
   const plan = { ...sectionPlan, teaching_sequence: [textStep('frame'), graphStep, textStep('predict')] };
-  const stamp = (id, step_id, type = 'explanation') => ({ id, type, journey: { section_id: 's1', step_id, claims: [] } });
-  const canvas = fakeCanvas([{ id: 'h-old', type: 'heading', level: 1, journey_section_id: 's1' }, stamp('f-old', 'frame'), stamp('g-old', 'graph', 'graph'), stamp('p-old', 'predict')]);
+  const stamp = (id, step_id, type = 'explanation') => ({ id, type, journey: { journey_id: 'j1', section_id: 's1', step_id, claims: [] } });
+  const canvas = fakeCanvas([{ id: 'h-old', type: 'heading', level: 1, journey_section_id: 's1', journey_id: 'j1' }, stamp('f-old', 'frame'), stamp('g-old', 'graph', 'graph'), stamp('p-old', 'predict')]);
   let savesAtPost = null;
   const h = scripted(() => canvas, [
     ok(activeJourney({ section_plan: plan }), null, activePath),
@@ -919,6 +919,46 @@ test('review round 1: the unsaved line cannot be dismissed or typed away; a late
   assert.equal(artifactPosts(h), 1, 'nothing is made again');
   assert.equal(h.view().journey.section_plan.heading_block_id, 'b1');
   assert.equal(h.view().tray, null, 'the line goes once the section is recorded');
+});
+
+// ---- Review round 2: the unsaved state and the run guard are keyed by journey and section ----
+test('review round 2: a failed save, then Start new with a journey whose first section reuses the id - a fresh section is drawn, the old heading is never posted, the old line goes', async () => {
+  const canvas = fakeCanvas([], { saves: [{ ok: false, local: false, remote: 'skipped' }] });
+  const h = scripted(() => canvas, [
+    review(),
+    ok(activeJourney(), null, activePath), // accept: j1's s1 is drawn (b1-b4), its save fails
+    { status: 200, d: { journey: null, path: null, tray: null } }, // archive
+    ok(activeJourney({ id: 'j2', revision: 1 }), null, activePath), // a fast start: j2, its s1 current and planned
+    recorded('b5', { id: 'j2', revision: 2 }),
+  ]);
+  await h.ctl.refresh();
+  h.view().canvasReady();
+  await h.view().answer('start');
+  assert.equal(h.view().tray.error.message, UNSAVED);
+  await h.view().handleText('I want to learn transformers');
+  assert.equal(h.view().tray.id, 'clarification:live');
+  await h.view().answer('start_new');
+  assert.deepEqual(h.steps(), ['GET', 'accept', 'archive', 'start', 'section_materialized']);
+  assert.equal(h.calls[4].body.heading_block_id, 'b5', 'the new heading, never the b1 of j1');
+  const inserts = canvas.inserts();
+  assert.equal(inserts.length, 8, 'the section of j2 is drawn afresh: a heading and three steps');
+  assert.deepEqual(inserts.slice(4).map(c => [c[1].type, c[1].journey_id ?? c[1].journey.journey_id]), [['heading', 'j2'], ['explanation', 'j2'], ['explanation', 'j2'], ['explanation', 'j2']]);
+  assert.equal(canvas.persisted.length, 2, 'saved before the post');
+  assert.equal(h.view().journey.section_plan.heading_block_id, 'b5');
+  assert.equal(h.view().tray, null, 'the old unsaved line is gone');
+});
+
+test('review round 2: an unsaved section another tab records meanwhile drops the line, and nothing is posted again', async () => {
+  const canvas = fakeCanvas([], { saves: [{ ok: false, local: false, remote: 'skipped' }] });
+  const h = scripted(() => canvas, [review(), ok(activeJourney(), null, activePath), recorded('h-other-tab')]);
+  await h.ctl.refresh();
+  h.view().canvasReady();
+  await h.view().answer('start');
+  assert.equal(h.view().tray.error.message, UNSAVED);
+  await h.ctl.refresh();
+  assert.deepEqual(h.steps(), ['GET', 'accept', 'GET']);
+  assert.equal(h.view().tray, null, 'no unsaved line for a section the server holds');
+  assert.equal(canvas.persisted.length, 1);
 });
 
 // ---- useTutor on a journey canvas (LP1 Task 12; architecture §0 D1 and D6, §7.2, §12): the real hook, rendered once on

@@ -108,6 +108,7 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
     const path = d.path ?? null, was = s.data.path, same = d.journey?.id != null && d.journey.id === s.data.journey?.id;
     const prevPath = !path || !same ? null : was && was.version !== path.version ? was : s.data.prevPath;
     set({ data: { journey: d.journey ?? null, path, tray: d.tray ?? null, prevPath } });
+    if (s.waiting && !stillDue(s.waiting)) set({ waiting: null }); // archived, a new journey, or recorded elsewhere
   };
   const server = () => (s.data.tray && s.data.tray.id !== s.dismissed ? s.data.tray : null);
   const open = () => s.local || server();
@@ -150,7 +151,7 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
   // saved, §6.5.5). `started` is the ref guard while a run is on, and stays once the heading is recorded or while an
   // unsaved section waits for its Retry; a run that ends unrecorded otherwise (a failed step, a refused post, a throw)
   // lifts it, so Try again or the next load picks the section up from the canvas, which the materializer resumes.
-  const started = new Set();
+  const started = new Set(), keyOf = id => `${s.data.journey?.id}/${id}`; // review round 2: journey and section
   const due = () => {
     const j = s.data.journey, plan = j?.section_plan;
     return j?.state === 'active' && !j.pending && plan && plan.section_id === j.active_section_id && !plan.heading_block_id && plan.generation_state !== 'generated' ? plan : null;
@@ -174,35 +175,38 @@ export function journeyController({ where, fetchJson, onChange = () => {}, canva
   // whenever no other error does). Retry, or any later run of materialize, is save(): the board saved again, then the
   // section recorded, drawing and requesting nothing. save() takes `waiting` while it runs, so a run started meanwhile (a
   // 409's re-read) finds nothing to do, and puts it back while the section is still unrecorded.
-  const waitingLine = () => (s.waiting ? { message: UNSAVED, again: save, keep: true } : null);
+  // Review round 2: keyed by journey and section. It holds only while it is this journey's due section; an archive, a new
+  // journey reusing the section id, or another tab recording it drops it (take), and its stale heading is never posted.
+  const stillDue = w => !!w && w.journey === s.data.journey?.id && w.id === due()?.section_id;
+  const waitingLine = () => (stillDue(s.waiting) ? { message: UNSAVED, again: save, keep: true } : null);
   const save = async () => {
     const w = s.waiting;
-    if (!w) return { ok: true }; // recorded meanwhile
+    if (!stillDue(w)) return { ok: true }; // recorded or replaced meanwhile
     set({ waiting: null, busy: BUSY, error: null });
     let saved = null, out = { ok: false };
     try { saved = await w.target.persist(); } catch { /* not saved */ } finally { set({ busy: null }); }
     if (saved?.ok) out = await materialized(w.id, w.heading);
-    if (due()?.section_id === w.id) set({ waiting: w });
+    if (stillDue(w)) set({ waiting: w });
     return out;
   };
   const materialize = async ({ load = false } = {}) => {
     let plan = due(), held = false;
-    if (plan && s.waiting?.id === plan.section_id) return save();
-    const target = s.ready ? canvas() : null, id = plan?.section_id;
-    if (!target || !plan || started.has(id)) return;
-    started.add(id);
+    if (stillDue(s.waiting)) return save();
+    const target = s.ready ? canvas() : null, id = plan?.section_id, jid = s.data.journey?.id, key = keyOf(id);
+    if (!target || !plan || started.has(key)) return;
+    started.add(key);
     try {
-      if (load && (!(await read()) || (plan = due())?.section_id !== id)) return;
+      if (load && (!(await read()) || (plan = due())?.section_id !== id || s.data.journey?.id !== jid)) return;
       set({ error: null });
       const out = await materializeSection({ canvas: target, journey: { ...s.data.journey, path: s.data.path, materialized }, sectionPlan: plan, post: artifact,
         onProgress: ({ step, of }) => set({ busy: `Preparing step ${step} of ${of}...` }) });
       if (out.proposals.length) set({ proposals: out.proposals, local: proposalTray(out.proposals[0]) });
       if (out.failed_step) set({ error: { message: 'Part of this section could not be made.', again: () => materialize() } });
-      else if (out.unsaved) { held = true; set({ waiting: { target, id, heading: out.heading_block_id } }); }
+      else if (out.unsaved) { held = true; set({ waiting: { target, journey: jid, id, heading: out.heading_block_id } }); }
     } catch {
       set({ error: { message: 'This section could not be prepared.', again: () => materialize() } });
     } finally {
-      if (!held && !s.data.journey?.section_plan?.heading_block_id) started.delete(id);
+      if (!held && !s.data.journey?.section_plan?.heading_block_id) started.delete(key);
       set({ busy: null });
     }
   };

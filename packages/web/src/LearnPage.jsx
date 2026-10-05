@@ -696,11 +696,14 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
       const data = await api(`${boardPath}/share`, { method: 'POST', body: JSON.stringify({ ...next, state: boardSnapshot() }) });
       boardVersion.current = data.version;
       setSharing(data.sharing);
-      // Sharing on: the server gets this browser's board as it is now.
+      // Sharing on: the server gets this browser's board as it is now, through the board push queue (review round 2), so
+      // it never races a queued PUT: it reads the version the one before it wrote and writes its own before the next runs.
       if (data.sharing.shared) {
-        const saved = await api(boardPath, { method: 'PUT', body: JSON.stringify({ state: boardSnapshot(), version: boardVersion.current }) });
-        boardVersion.current = saved.version;
-        try { localStorage.setItem(versionKey, String(saved.version)); } catch { /* the next open re-checks */ }
+        await pushQueue(async () => {
+          const saved = await api(boardPath, { method: 'PUT', body: JSON.stringify({ state: boardSnapshot(), version: boardVersion.current }) });
+          boardVersion.current = saved.version;
+          try { localStorage.setItem(versionKey, String(saved.version)); } catch { /* the next open re-checks */ }
+        });
         await syncAssets(true);
         requestWorkspaceExports();
       }
