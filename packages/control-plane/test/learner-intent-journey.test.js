@@ -350,3 +350,29 @@ test('rule 3 vs 4: skip the next X names a path element, skip to the next X move
   for (const t of ['skip to the next step', 'move on to the next question', 'move on to the next section'])
     assert.deepEqual(resolveTurnRules(t, previewTray), { kind: 'cancel' }, t);
 });
+
+test('journeyIntent: an adverb or politeness word alone is no topic', () => {
+  for (const t of ['start teaching me now', 'Okay, start teaching me now', 'just teach me now', 'just teach me please', 'start teaching me please',
+    'start teaching me already', 'Teach me please', 'Teach me from scratch', 'I want to learn the', 'Just teach me the basics'])
+    assert.equal(journeyIntent(t).kind, 'none', t);
+  for (const [text, topic] of [['Teach me transformers now', 'transformers'], ['Start teaching me transformers', 'transformers'],
+    ['Just teach me transformers', 'transformers']])
+    assert.deepEqual([journeyIntent(text).kind, journeyIntent(text).topic], ['learning_journey', topic], text);
+});
+
+test('journeyIntent: a time frame or a topic-referring it stays a journey', () => {
+  const cases = [
+    ['I want to learn Python this weekend', 'python'], ['Teach me Spanish this summer', 'spanish'], ['I need to learn SQL this week', 'sql'],
+    ['I want to learn calculus this semester', 'calculus'], ['Teach me guitar this year', 'guitar'],
+    ['I need to learn SQL for an interview this Friday', 'sql for an interview'],
+    ['Teach me Python and how to use it', 'python and how to use it'], ['I want to learn Git and how to use it', 'git and how to use it'],
+    ['I want to learn Rust and why people love it', 'rust and why people love it'],
+    ['I want to understand attention and why it works', 'attention and why it works'],
+    ['Teach me what it takes to build a startup', 'what it takes to build a startup'],
+    ['Teach me Docker and how to deploy with it', 'docker and how to deploy with it'],
+  ];
+  for (const [text, topic] of cases) assert.deepEqual([journeyIntent(text).kind, journeyIntent(text).topic], ['learning_journey', topic], text);
+  for (const t of ['Teach me how to use it effectively', 'Walk me through how it all fits together', 'I want to understand what it does',
+    'I want to understand why it happens', 'Teach me what it is', 'Teach me how to do it', 'Teach me this week'])
+    assert.equal(journeyIntent(t).kind, 'none', t);
+});

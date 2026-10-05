@@ -38,19 +38,23 @@ const QUESTION = /^(?:what|why|how|when|who|where|which|is|are|does|do|can|expla
 // "about transformers", "all about attention", "the basics of attention", "how to code", "a transformer" name the topic
 // after the noise. "the basics of" before "the": the first alternative that matches wins.
 const TOPIC_NOISE = /^(?:(?:like|(?:more |all |everything )?about|the basics of|how to|an?|the) )+/;
-const TOPIC_TAIL = /(?: (?:from scratch|step by step|please|thanks|thank you))+$/;
+// A trailing adverb, politeness or time frame is not the topic ("SQL this week" is "sql"); it may be all there is ("start
+// teaching me now", "teach me please"), which leaves no topic and no journey.
+const TOPIC_TAIL = /(?:(?:^| )(?:from scratch|step by step|please|thanks|thank you|now|already|(?:this|next|by) (?:week(?:end)?|month|year|summer|winter|spring|fall|semester|term|quarter|morning|afternoon|evening|(?:mon|tues|wednes|thurs|fri|satur|sun)day)))+$/;
 // A deictic topic ("teach me this", "how this works", "this diagram", "it all") names what is on the canvas, not a
 // subject: that is target binding, the canonical resolver's job, so it is no journey here. "that" counts only first
-// ("models that scale" is a topic) and "it" only after a word ("IT security" is a topic). A contentless topic ("more",
-// "something new") is none too. A missed journey is cheap (the responder can offer the path); a false start is not.
-const DEICTIC = /(?:^|\s)(?:this|these|those)(?:\s|$)|^that(?:\s|$)|\sit(?:\s|$)|^it(?: (?:better|stuff|part|one|thing|more|all))?$|^(?:more|something|everything|anything)(?: new| else)?$/;
+// ("models that scale" is a topic) and "it" only in a short clause it heads ("how it works", "how to use it effectively")
+// or as "it all": after a named subject it refers to that subject ("Python and how to use it"), and "IT security" is a
+// topic. A contentless topic ("more", "something new", "the basics") is none too. A missed journey is cheap (the responder
+// can offer the path); a false start is not.
+const DEICTIC = /(?:^|\s)(?:this|these|those)(?:\s|$)|^that(?:\s|$)|^(?:\S+ ){1,2}it(?: \S+){0,2}$|\sit all(?:\s|$)|^it(?: (?:better|stuff|part|one|thing|more|all))?$|^(?:(?:more|something|everything|anything)(?: new| else)?|basics)$/;
 
 // The trailing space lets a lone noise word go too: "I want to learn the" has no topic.
 const cleanTopic = (t) => ((t ?? '') + ' ').replace(TOPIC_NOISE, '').trimEnd().replace(TOPIC_TAIL, '').trim() || null;
 const intent = (kind, topic = null, constraints = {}, skip_setup = false) => ({ kind, topic, constraints, skip_setup });
 const start = (kind, raw, constraints) => {
   const topic = cleanTopic(raw);
-  return DEICTIC.test(topic ?? '') ? intent('none') : intent(kind, topic, constraints);
+  return !topic || DEICTIC.test(topic) ? intent('none') : intent(kind, topic, constraints);
 };
 
 export function journeyIntent(text) {
