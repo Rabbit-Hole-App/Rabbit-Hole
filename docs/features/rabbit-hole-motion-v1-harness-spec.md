@@ -56,7 +56,7 @@ preview + contact sheet + determinism checks
     ↓
 fresh visual reviewer + fresh pedagogical reviewer
     ↓
-at most one repair round (only for blocking findings)
+at most one repair per stage: storyboard, Author (only for blocking findings)
     ↓
 final render + automatic final validation
     ↓
@@ -89,7 +89,7 @@ Do not build a general-purpose video editor. Do not build unrestricted text-to-v
 - sandboxed development rendering
 - preview and contact sheet
 - fresh visual and pedagogical QA
-- one repair round
+- one repair per stage (storyboard, Author), two at most
 - final local/development render
 - insertion through the existing video block in a development environment
 
@@ -568,7 +568,7 @@ Learner Intent Resolver
 
 - The Director owns the pedagogical and storyboard semantics.
 - The Author never invents or rewrites the storyboard.
-- The storyboard changes only through a Director revision inside the single repair round (§4.8).
+- The storyboard changes only through a Director revision, the storyboard's one repair (§4.8).
 
 Example 15-second storyboard for the softmax brief in §6:
 
@@ -627,10 +627,10 @@ No model autonomously controls `storyboard → render → inspect → rerender �
 7. Harness                 → classifies findings; any BLOCKING finding? (§13)
      no  → step 9
      yes → step 8
-8. Repair round (once per job)
+8. The Author repair (once per job; the storyboard's own repair is separate, below)
      - Author-level defect           → one Author call with the blocking findings
-     - brief/storyboard-level defect → one Director revision (revalidated),
-                                        then one Author call
+     - brief/storyboard-level defect → one Director revision (revalidated) if the
+                                        storyboard repair is unused, then one Author call
      → re-render preview, re-run both fresh reviewers
      → still blocking → job fails with diagnostics; no further repair
 9. Harness                 → final render + automatic final validation (§11.3)
@@ -640,17 +640,24 @@ No model autonomously controls `storyboard → render → inspect → rerender �
 
 Rules:
 
-- **Exactly one semantic repair round per job** (`repair_count` ≤ 1, owner decision 2026-10-04).
-  - Example: review finds a brief or storyboard problem → one Director revision → one Author regeneration → re-render → final review and checks. That consumes the round.
-  - An Author `needs_revision` (the brief or storyboard is unsupported or inconsistent) also consumes the round.
-  - A `needs_revision` from the repair round's own Author call fails the job.
-  - After the repaired render, any further blocking semantic or visual failure fails the job. There is no second repair loop.
-- Only **blocking** findings consume the repair round. Advisory findings are recorded, never repaired automatically.
+- **One semantic repair per artifact stage, at most two per job** (owner decision 2026-10-05; it replaces the single round the whole job shared, decided 2026-10-04). The job records `repairs: {storyboard: 0 | 1, author: 0 | 1}`, and `repair_count` is their sum.
+  - **Storyboard:** first pass → one Director revision when it fails its checks → final storyboard.
+  - **Author/preview:** first pass → preview and fresh reviews → one Author repair when anything blocks → preview and fresh reviews → final.
+  - Example: a storyboard that fails its checks spends the storyboard repair; the Author's own repair stays available for its output.
+  - Review findings at the storyboard level use a Director revision only while the storyboard repair is unused. Otherwise the Author repair runs alone.
+  - An Author `needs_revision` spends both repairs: a Director revision, then the Author's regeneration. With either already spent, it fails the job.
+  - After the Author repair, any further blocking failure fails the job. There is no third repair and no loop.
+- Only **blocking** findings spend a repair. Advisory findings are recorded, never repaired automatically.
+- **Transport retry** (Author, owner decision 2026-10-05). Every call records how it ended: `complete`, `transport_interrupted`, `gateway_timeout`, `max_tokens`, `malformed_tool_arguments`, `provider_error` or `refusal`.
+  - **When:** an Author invocation may send its request again ONCE, unchanged, and only when the transport broke: an interrupted stream (including a stream that ended before `message_stop`) or a gateway timeout.
+  - **Why it's safe:** no complete result was received, and nothing rendered from it (the stage has not returned).
+  - **Not a repair:** it never spends a semantic repair. It is recorded as `transport_retries` (`{stage, round, kind, detail}`), and the call that broke keeps its partial usage as its cost record.
+  - **Never retried:** a provider error or a refusal fails the stage. `max_tokens` and malformed tool arguments take the schema-only re-ask.
 - **Format retry** is separate from semantic repair. Every distinct structured model invocation may get at most ONE schema-only re-ask when its response is malformed or unparseable (owner decision 2026-10-04).
-  - **Invocation:** a stage in a round. Round 0 is the first pass; round 1 is the single repair round. The repair round's Director revision and its Author call are distinct invocations, so each gets its own re-ask.
+  - **Invocation:** a stage in a round. Round 0 is the first pass; round 1 is that stage's repair (the reviews follow the Author's). A Director revision and an Author repair are distinct invocations, so each gets its own re-ask.
   - **The prompt:** the re-ask carries the malformed output and the validation errors, and asks only to return the same intended response in the required structure. It adds no findings and no new instructions.
   - **What it may not change:** the MotionBrief, the storyboard semantics, the claims, the teaching mode, the source grounding or the composition intent.
-  - **The repair round:** the re-ask never consumes it and never starts another semantic repair.
+  - **Repairs:** the re-ask never spends one and never starts another semantic repair.
   - **A second malformed result** from the same invocation fails the job, naming the stage (and "repair round" when it happened there).
   - **Visibility:** every re-ask is recorded on the job as `format_retries` (`{stage, round, errors}`), separately from `repair_count`. Repeated failures are never hidden behind retries.
 - Reviewers are fresh for each review pass and never receive the Author's or Director's self-assessment, rationale or earlier reviewer output.
@@ -901,9 +908,12 @@ MotionJob {
   director_model_config          // {role: "MOTION_DIRECTOR_MODEL", resolved_model}
   author_model_config            // {role: "MOTION_AUTHOR_MODEL", resolved_model}
   review_model_config            // {visual: {...}, pedagogical: {...}}
-  repair_count                   // 0 or 1: the one semantic repair round (§4.8)
+  repairs                        // {storyboard: 0|1, author: 0|1}: one semantic repair per stage (§4.8)
+  repair_count                   // repairs.storyboard + repairs.author: 0, 1 or 2
   format_retries[]               // {stage, round, errors}: at most one per structured invocation
                                  // (stage x round 0|1); never counted in repair_count
+  transport_retries[]            // {stage: author, round, kind, detail}: at most one per Author
+                                 // invocation, only for a broken transport; never a repair
   findings[]                     // ReviewFinding (§5.4), per review pass
   preview_refs {video?, contact_sheet, keyframes[]}
   final_ref?                     // the LearnVideos job key / LEARN_MEDIA storage key
@@ -1420,7 +1430,7 @@ Preview QA does not prove the final output. After the final render, run cheap au
 - final keyframe hashes recorded in the job
 - final vs preview: render the contact-sheet frames at final scale, downscale them to preview size, and compare with the preview frames under a pixel-difference threshold (M5 keeps mean |RGB difference| ≤ 6: four Windows authoring renders measured 1.27–2.10; the Linux values come with the Fly proof) (exact hash equality is expected between two renders at the same scale, not across scales)
 
-If the final differs unexpectedly from the preview, **fail the job**. Do not launch another repair; the single repair round is only before the final render.
+If the final differs unexpectedly from the preview, **fail the job**. Do not launch another repair; repairs happen only before the final render.
 
 ---
 
@@ -1489,7 +1499,7 @@ can the learner map the major intuition elements to the real mechanism?
 
 ## 13.1 Blocking
 
-These consume the single repair round (§4.8):
+These spend a repair (§4.8): the Author repair, and a Director revision first while the storyboard repair is unused when the finding is at the storyboard level:
 
 - unsupported factual claim
 - `must_not_claim` violation
@@ -1517,7 +1527,7 @@ These consume the single repair round (§4.8):
 ```text
 preview → fresh reviews → blocking?
     no  → final render → final validation
-    yes → one repair round → re-render preview → fresh reviews
+    yes → the Author repair → re-render preview → fresh reviews
             still blocking → job failed, diagnostics kept
             clean          → final render → final validation
 ```
@@ -1821,7 +1831,7 @@ for a 10-second default. Narrow to one useful objective (with a `scope_note` and
 
 ### Author cannot implement the brief
 
-The Author returns `needs_revision`; the harness uses the single repair round for one Director revision and one Author call. If the round is already used, the job fails with the reason.
+The Author returns `needs_revision`; the harness spends both repairs: one Director revision and one Author call. If either is already spent, the job fails with the reason.
 
 ### Renderer or final-validation failure
 
@@ -2258,7 +2268,7 @@ Final render, final validation, `LEARN_MEDIA` storage and `insertBlock({type: 'v
 3. The M6 review job runs: preview, harness checks, fresh reviewers, at most one repair, final render and validation.
 4. The finished render becomes the existing `type: "video"` block.
 
-The one repair round is shared by the whole job. A storyboard that fails its checks spends it on one Director revision. Every stage's artifact is kept in the job directory.
+Repairs are per stage (owner decision 2026-10-05, below): a storyboard that fails its checks spends the storyboard's repair on one Director revision, and the Author keeps its own. Every stage's artifact is kept in the job directory.
 
 **Product path, unchanged where it existed:**
 - **Dev-only command:** `/motion` exists only in a `VITE_MOTION_DEV=true` build. Without an orchestrator configured, LearnVideos refuses it. No checked-in Worker config sets `MOTION_ORCHESTRATOR_*` or `VITE_MOTION_DEV` (tested).
@@ -2305,11 +2315,22 @@ Runs A and B were the two the owner authorized, under a $2.50 ceiling. The ceili
 - **Author drafts that reached review:** 3 of 3 had at least one blocking defect. All three opened nonblank first time.
 - **Validator:** one false positive. "Softmax runs after mask, before dropout." is correct, but the lexical order check reads it as dropout before softmax.
 
+**Owner decisions after these runs (2026-10-05), implemented with no further paid run.**
+- **Repair budget:** one semantic repair per artifact stage (storyboard, Author/preview), at most two per job, no loops (§4.8).
+- **Author transport retry:** every call is classified by how it ended, and a broken transport is retried once (§4.8).
+- **Order check precision** (owner-authorized):
+  - each order word relates the nearest step on each side within its sentence, so "Softmax runs after mask, before dropout." states mask, softmax, dropout and passes;
+  - genuinely reversed orders still fail;
+  - an underscore starts a step word (`c_proj` names `proj`);
+  - positive and negative cases in three domains.
+- **No topic word lists in the checker.** The global `OP_STOP` (`attn`, `torch`, `functional`, …) is gone. A step's identifying words come from the brief's own evidence:
+  - minus generic English;
+  - minus language-level code words (Python builtins and the array/container API every framework shares);
+  - minus any word two calls of one excerpt share.
+- **Prompt:** the storyboard rule 5 states the relation reading, not a phrasing workaround. The Director asks how the viewer's visual focus should move, never "attention".
+
 **Known limitations.**
-- With one repair round per job, a storyboard repair leaves the Author with none. Every Author draft reviewed so far needed one. Whether the repair architecture changes is an owner decision.
-- A long Author stream that breaks off is never retried, because the call may already be charged.
-- The order check's false positive is unchanged (no validator change in M7A).
-- ponytail: the checker's stop list (`attn`, `torch`, …) was tuned on nanoGPT names.
+- No automatic run has produced a ready video yet; the next paid runs need an owner GO.
 - Windows renders are authoring evidence (§10.3).
 
 ## M7B — HyperFrames adapter (development only)
@@ -2409,7 +2430,7 @@ A Motion V1 development candidate must demonstrate:
 14. Contact sheet is generated.
 15. Fresh visual review runs.
 16. Fresh pedagogical/source review runs.
-17. At most one repair round occurs.
+17. At most one repair per stage occurs (storyboard, Author), two at most.
 18. Final MP4 is generated and passes final validation (§11.3).
 19. Poster is generated.
 20. Provenance is retained in the existing video job/block metadata.
@@ -2436,7 +2457,7 @@ A Motion V1 development candidate must demonstrate:
 - storyboard schema validation (§5.2 rules)
 - composition static validation (§8.2)
 - blocking vs advisory classification (§13)
-- one repair round maximum; `needs_revision` consumes it
+- one repair per stage (storyboard, Author), two maximum; `needs_revision` spends both
 - one format retry maximum
 - prompt-template construction per stage
 - model IDs absent from contract objects
@@ -2567,7 +2588,7 @@ Do not build:
 - a renderer marketplace
 - more renderers than Remotion and HyperFrames (no Three.js, Manim or Blender adapters)
 - a new MotionArtifact store or a special Motion card system
-- iterative repair loops beyond one repair round
+- iterative repair loops beyond one repair per stage
 
 Get the Remotion baseline and one workflow reliable first, then HyperFrames; nothing else.
 

@@ -32,7 +32,7 @@ function doubles({ storyboard = ['storyboard'], author = 'composition', job = 'r
       },
       author: async a => { log.push(['author', a.round]); return author === 'composition' ? { status: 'composition', output: { status: 'composition', composition_id: 'softmax', source: 'SRC' }, check: { errors: [] }, ...rec('author', a) } : { status: 'failed', error: 'model_error', detail: 'HTTP 500', calls: [], format_retries: [] }; },
       job: async a => {
-        log.push(['job', a.prior.repair_count, a.origin.storyboard]);
+        log.push(['job', a.prior.repairs.storyboard, a.prior.repairs.author, a.origin.storyboard]);
         const ready = job === 'ready';
         return { job: { id: 'motion-job-t', status: ready ? 'ready' : 'failed', ...(ready ? {} : { failure_reason: 'still blocking after the repair round: blank_frame' }) }, passes: [], render: ready ? { render_id: 'a'.repeat(32), status: 'ready' } : null, calls: [{ stage: 'visual_review', round: 0, latency_ms: 500, cost_usd: 0.05 }], job_errors: [], repair: null, storyboard_revised: false };
       },
@@ -46,7 +46,7 @@ test('a raw /motion request reaches the existing type "video" block: resolver, g
   const stages = [];
   const r = await run(d, { onStage: s => stages.push(s) });
   assert.equal(r.status, 'ready');
-  assert.deepEqual(d.log, [['director', 'softmax in CausalSelfAttention.forward (model.py:69)'], ['storyboard', 0, null], ['author', 0], ['job', 0, 'model_generated']]);
+  assert.deepEqual(d.log, [['director', 'softmax in CausalSelfAttention.forward (model.py:69)'], ['storyboard', 0, null], ['author', 0], ['job', 0, 0, 'model_generated']]);
   assert.deepEqual(stages.filter(s => !s.startsWith('job:')), ['resolving', 'directing', 'storyboarding', 'authoring', 'review_and_render', 'ready']);
   assert.equal(r.block.type, 'video');
   assert.equal(r.block.mode, 'generate');
@@ -70,15 +70,17 @@ test('an unresolved target asks one clarification before any paid call', async (
   assert.deepEqual(r.calls, []);
 });
 
-test('a storyboard that fails its checks spends the ONE repair round on a Director revision; the Author then runs in round 1', async () => {
+test('a storyboard that fails its checks spends the STORYBOARD repair; the Author keeps its own (owner decision 2026-10-05)', async () => {
   const d = doubles({ storyboard: ['storyboard_invalid', 'storyboard'] });
   const r = await run(d);
   assert.equal(r.status, 'ready');
-  assert.deepEqual(d.log.slice(1), [['storyboard', 0, null], ['storyboard', 1, 1], ['author', 1], ['job', 1, 'model_generated']]);
+  // The revision is the storyboard's round 1; the Author's first pass is round 0 and its repair is unused.
+  assert.deepEqual(d.log.slice(1), [['storyboard', 0, null], ['storyboard', 1, 1], ['author', 0], ['job', 1, 0, 'model_generated']]);
+  assert.deepEqual(r.storyboard_repair, { findings: 1, errors: ['B9: unknown claim'], status: 'storyboard' });
   const d2 = doubles({ storyboard: ['storyboard_invalid', 'storyboard_invalid'] });
   const r2 = await run(d2);
   assert.equal(r2.status, 'failed');
-  assert.match(r2.failure_reason, /^storyboard \(repair round\): storyboard_invalid: B9: unknown claim/);
+  assert.match(r2.failure_reason, /^storyboard \(after its repair\): storyboard_invalid: B9: unknown claim/);
   assert.equal(d2.log.filter(l => l[0] === 'storyboard').length, 2, 'no second revision');
   assert.equal(d2.log.filter(l => l[0] === 'author').length, 0);
 });
@@ -104,17 +106,91 @@ test('Stop: nothing new starts after the signal; the stage it stopped in is repo
   assert.deepEqual(d.log, [], 'no storyboard, Author or render after Stop');
 });
 
-test('a response that breaks off mid-stream fails the stage (never a crash, never retried); anything else fails the request with the calls so far', async () => {
+const read = f => JSON.parse(readFileSync(new URL(f, import.meta.url), 'utf8'));
+// M7A (owner decision 2026-10-05): how an Author response ended, and the ONE transport retry.
+const SOFTMAX_SOURCE = readFileSync(join(FIX, 'm5/softmax-15s-attention.real.composition.jsx'), 'utf8');
+const ev = (type, data) => `event: ${type}\ndata: ${JSON.stringify({ type, ...data })}\n\n`;
+const sse = (events, { breakAfter = null } = {}) => {
+  const text = events.join('');
+  // The data arrives, then the connection breaks on the next read (as a real dropped stream does).
+  let sent = false;
+  return new Response(new ReadableStream({ pull(c) {
+    if (!sent) { sent = true; c.enqueue(new TextEncoder().encode(breakAfter === null ? text : text.slice(0, breakAfter))); return; }
+    if (breakAfter === null) c.close(); else c.error(new TypeError('terminated'));
+  } }), { headers: { 'content-type': 'text/event-stream' } });
+};
+const authorEvents = (input, stop = 'tool_use') => [
+  ev('message_start', { message: { model: 'claude-opus-5-5', usage: { input_tokens: 9000, output_tokens: 1 } } }),
+  ev('content_block_start', { index: 0, content_block: { type: 'tool_use', id: 'toolu_1', name: 'motion_composition', input: {} } }),
+  ev('content_block_delta', { index: 0, delta: { type: 'input_json_delta', partial_json: JSON.stringify(input) } }),
+  ev('content_block_stop', { index: 0 }),
+  ev('message_delta', { delta: { stop_reason: stop }, usage: { output_tokens: 30000 } }),
+  ev('message_stop', {}),
+];
+const composition = { status: 'composition', composition_id: 'softmax-attention-weights', source: SOFTMAX_SOURCE };
+
+test('how a response ended: transport interrupted, gateway timeout, max_tokens, malformed tool arguments, provider error, refusal, complete', async () => {
+  const { classifyEnd, readMessage, StreamEnded } = await import('./stream-message.js');
+  const ended = async response => { try { return classifyEnd({ message: await readMessage(response), tool: 'motion_composition' }); } catch (error) { return classifyEnd({ error }); } };
+  assert.deepEqual(await ended(sse(authorEvents(composition))), { kind: 'complete', detail: 'tool_use' });
+  assert.deepEqual(await ended(sse(authorEvents(composition), { breakAfter: 400 })), { kind: 'transport_interrupted', detail: 'terminated' });
+  assert.equal((await ended(sse(authorEvents(composition).slice(0, -1)))).detail, 'the stream ended before message_stop');
+  assert.equal((await ended(sse(authorEvents(composition, 'max_tokens')))).kind, 'max_tokens');
+  assert.equal((await ended(sse([...authorEvents(composition).slice(0, 2), ev('content_block_delta', { index: 0, delta: { type: 'input_json_delta', partial_json: '{"status": "comp' } }), ...authorEvents(composition).slice(3)]))).kind, 'malformed_tool_arguments');
+  assert.deepEqual(await ended(sse([authorEvents(composition)[0], ev('error', { error: { type: 'overloaded_error', message: 'busy' } })])), { kind: 'provider_error', detail: 'overloaded_error: busy' });
+  assert.deepEqual(classifyEnd({ message: { stop_reason: 'refusal', stop_details: { category: 'cyber' } } }), { kind: 'refusal', detail: 'cyber' });
+  for (const [status, kind] of [[504, 'gateway_timeout'], [524, 'gateway_timeout'], [408, 'gateway_timeout'], [502, 'transport_interrupted'], [500, 'provider_error'], [429, 'provider_error'], [529, 'provider_error']]) assert.equal(classifyEnd({ response: new Response('x', { status }) }).kind, kind, String(status));
+  assert.equal(classifyEnd({ error: Object.assign(new Error('Headers Timeout Error'), { code: 'UND_ERR_HEADERS_TIMEOUT' }) }).kind, 'gateway_timeout');
+  assert.equal(classifyEnd({ error: Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNRESET' } }) }).kind, 'transport_interrupted');
+  // What arrived before the break stays readable (its usage is the cost record).
+  try { await readMessage(sse(authorEvents(composition), { breakAfter: 400 })); assert.fail('should break'); }
+  catch (error) { assert.ok(error instanceof StreamEnded); assert.equal(error.partial.usage.input_tokens, 9000); }
+});
+
+test('the Author\'s ONE transport retry: only for a broken transport with no complete result, recorded, never a repair', async () => {
   const { runAuthor } = await import('./author.js');
-  let sent = 0;
-  const dropped = async () => { sent++; return { ok: true, status: 200, headers: new Headers({ 'content-type': 'text/event-stream' }), text: async () => { throw new TypeError('terminated'); } }; };
-  const a = await runAuthor({ brief: BRIEF, storyboard: STORYBOARD, call: dropped });
-  assert.deepEqual([a.status, a.error, sent], ['failed', 'model_error', 1]);
-  assert.match(a.detail, /the response broke off: terminated/);
+  const brief = read('./fixtures/m2/softmax-15s-attention.brief.json'), storyboard = read('./fixtures/m3/softmax-15s-attention.real.storyboard.json');
+  const runWith = async replies => { let sent = 0; const r = await runAuthor({ brief, storyboard, call: async () => { sent++; return replies.shift()(); } }); return { r, sent }; };
+  // Broken once, then complete: one retry, recorded with its kind; the result is the composition.
+  const once = await runWith([() => sse(authorEvents(composition), { breakAfter: 400 }), () => sse(authorEvents(composition))]);
+  assert.equal(once.r.status, 'composition');
+  assert.equal(once.sent, 2);
+  assert.deepEqual(once.r.transport_retries, [{ stage: 'author', round: 0, kind: 'transport_interrupted', detail: 'terminated' }]);
+  assert.deepEqual(once.r.calls.map(c => [c.end, c.partial ?? false]), [['transport_interrupted', true], ['complete', false]]);
+  assert.deepEqual(once.r.format_retries, [], 'a transport retry is not a format re-ask');
+  // Broken twice: no third send; the stage fails with the kind.
+  const twice = await runWith([() => sse(authorEvents(composition), { breakAfter: 400 }), () => new Response('gateway', { status: 504 })]);
+  assert.deepEqual([twice.r.status, twice.r.error, twice.r.end, twice.sent], ['failed', 'model_error', 'gateway_timeout', 2]);
+  assert.match(twice.r.detail, /^gateway_timeout: HTTP 504/);
+  // A gateway timeout first is retried too; a provider error or a refusal never is.
+  assert.equal((await runWith([() => new Response('x', { status: 504 }), () => sse(authorEvents(composition))])).r.status, 'composition');
+  for (const reply of [() => new Response('boom', { status: 500 }), () => sse([authorEvents(composition)[0], ev('error', { error: { type: 'overloaded_error', message: 'busy' } })])]) {
+    const r = await runWith([reply, () => sse(authorEvents(composition))]);
+    assert.deepEqual([r.r.status, r.r.end, r.sent, r.r.transport_retries.length], ['failed', 'provider_error', 1, 0]);
+  }
+  // Stop is never retried: it leaves the stage as it came.
+  const { MotionCancelled } = await import('./review-job.mjs');
+  let stopped = 0;
+  await assert.rejects(runAuthor({ brief, storyboard, call: async () => { stopped++; throw new MotionCancelled(); } }), /cancelled/);
+  assert.equal(stopped, 1);
+  // max_tokens and malformed tool arguments are the schema-only re-ask, not a transport retry.
+  const capped = await runWith([() => sse(authorEvents(composition, 'max_tokens')), () => sse(authorEvents(composition))]);
+  assert.deepEqual([capped.r.status, capped.r.format_retries.length, capped.r.transport_retries.length], ['composition', 1, 0]);
+});
+
+test('a transport retry reaches the job record and nothing renders from an incomplete result', async () => {
   const d = doubles();
-  d.stages.author = async () => { throw new Error('socket closed\nstack'); };
+  const rendered = [];
+  d.stages.author = async () => ({ status: 'composition', output: { status: 'composition', composition_id: 'softmax', source: 'SRC' }, check: { errors: [] }, calls: [{ stage: 'author', round: 0, end: 'transport_interrupted', latency_ms: 1, cost_usd: null }, { stage: 'author', round: 0, end: 'complete', latency_ms: 1, cost_usd: 0.6 }], format_retries: [], transport_retries: [{ stage: 'author', round: 0, kind: 'transport_interrupted', detail: 'terminated' }] });
+  d.stages.job = async a => { rendered.push(a.author.output.source); return { job: { id: 'j', status: 'ready', repairs: a.prior.repairs, transport_retries: a.prior.transport_retries }, passes: [], render: { render_id: 'a'.repeat(32) }, calls: [], job_errors: [], repair: null, storyboard_revised: false }; };
   const r = await run(d);
-  assert.equal(r.status, 'failed');
-  assert.equal(r.failure_reason, 'authoring: socket closed');
-  assert.deepEqual(r.calls.map(c => c.stage), ['brief', 'storyboard'], 'the calls already made stay recorded');
+  assert.equal(r.status, 'ready');
+  assert.deepEqual(r.transport_retries, [{ stage: 'author', round: 0, kind: 'transport_interrupted', detail: 'terminated' }]);
+  assert.deepEqual(rendered, ['SRC'], 'only the complete composition reaches the render job');
+  assert.deepEqual(r.repairs, { storyboard: 0, author: 0 }, 'a transport retry is not a repair');
+  const crash = doubles();
+  crash.stages.author = async () => { throw new Error('socket closed\nstack'); };
+  const c = await run(crash);
+  assert.equal(c.failure_reason, 'authoring: socket closed');
+  assert.deepEqual(c.calls.map(x => x.stage), ['brief', 'storyboard'], 'the calls already made stay recorded');
 });

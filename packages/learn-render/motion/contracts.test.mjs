@@ -121,25 +121,35 @@ const job = () => {
     director_model_config: { role: 'MOTION_DIRECTOR_MODEL', resolved_model: 'claude-opus-5-5' },
     author_model_config: { role: 'MOTION_AUTHOR_MODEL', resolved_model: 'claude-opus-5-5' },
     review_model_config: { visual: { role: 'MOTION_VISUAL_REVIEW_MODEL' }, pedagogical: { role: 'MOTION_PEDAGOGICAL_REVIEW_MODEL' } },
-    repair_count: 0, format_retries: [], findings: [], preview_refs: { contact_sheet: 'job/contact-sheet.png', keyframes: [] },
+    repairs: { storyboard: 0, author: 0 }, repair_count: 0, format_retries: [], findings: [], preview_refs: { contact_sheet: 'job/contact-sheet.png', keyframes: [] },
     source_refs: b.source_refs, created_at: '2026-10-04T00:00:00Z', updated_at: '2026-10-04T00:00:00Z',
   };
 };
 
-test('exactly one semantic repair round per job (§4.8)', () => {
-  const j = job();
+test('one semantic repair per artifact stage, two at most, never a loop (§4.8, owner decision 2026-10-05)', () => {
   const blank = [{ reviewer: 'visual', category: 'blank_frame', description: 'frame 0 is white' }];
+  // A storyboard that failed its checks spent the storyboard repair: the Author's is untouched.
+  const j = job();
+  startRepair(j, 'storyboard');
+  assert.deepEqual([j.repairs, j.repair_count], [{ storyboard: 1, author: 0 }, 1]);
   assert.equal(afterReview(j, [{ reviewer: 'visual', category: 'aesthetic_preference', description: 'x' }]), 'render_final'); // advisory never repairs
   assert.equal(afterReview(j, blank), 'repair');
-  startRepair(j);
-  assert.equal(j.repair_count, 1);
-  assert.equal(afterReview(j, blank), 'fail'); // still blocking after the repaired render: no second loop
-  assert.throws(() => startRepair(j), /already used/);
-  // an Author needs_revision consumes the round; one from the repair call fails the job
-  assert.equal(afterNeedsRevision(job()), 'repair');
-  assert.equal(afterNeedsRevision(j), 'fail');
+  startRepair(j, 'author');
+  assert.deepEqual([j.repairs, j.repair_count], [{ storyboard: 1, author: 1 }, 2]);
+  assert.equal(afterReview(j, blank), 'fail'); // still blocking after the Author repair: no third repair, no loop
+  assert.throws(() => startRepair(j, 'author'), /author repair is already used/);
+  assert.throws(() => startRepair(j, 'storyboard'), /storyboard repair is already used/);
+  assert.throws(() => startRepair(job(), 'brief'), /unknown repair stage/);
   assert.deepEqual(validateJob(j), []);
-  has(validateJob({ ...job(), repair_count: 2 }), /0 or 1/);
+  // An Author needs_revision needs both repairs (a revision, then the regeneration).
+  assert.equal(afterNeedsRevision(job()), 'repair');
+  const s = job(); startRepair(s, 'storyboard');
+  assert.equal(afterNeedsRevision(s), 'fail');
+  assert.equal(afterNeedsRevision(j), 'fail');
+  has(validateJob({ ...job(), repairs: { storyboard: 2, author: 0 }, repair_count: 2 }), /one semantic repair per artifact stage/);
+  has(validateJob({ ...job(), repairs: { storyboard: 1, author: 1 }, repair_count: 1 }), /storyboard and Author repairs together/);
+  has(validateJob({ ...job(), repairs: undefined }), /job\.repairs/);
+  has(validateJob({ ...job(), repairs: { storyboard: 0, author: 0, review: 1 } }), /job\.repairs/);
 });
 
 test('malformed output: one schema-only re-ask per structured invocation, never a repair (§4.8)', () => {
@@ -154,14 +164,16 @@ test('malformed output: one schema-only re-ask per structured invocation, never 
   assert.match(j.failure_reason, /^storyboard: output was malformed again/);
   has(validateJob({ ...job(), format_retries: [{ stage: 'brief', round: 0, errors: [] }, { stage: 'brief', round: 0, errors: [] }] }), /more than one re-ask for brief in round 0/);
   has(validateJob({ ...job(), format_retries: [{ stage: 'brief', errors: [] }] }), /round: 0 \| 1/);
-  has(validateJob({ ...job(), format_retries: [{ stage: 'author', round: 1, errors: [] }] }), /never past repair_count/);
+  has(validateJob({ ...job(), format_retries: [{ stage: 'author', round: 1, errors: [] }] }), /never past that stage's repair/);
+  has(validateJob({ ...job(), repairs: { storyboard: 1, author: 0 }, repair_count: 1, format_retries: [{ stage: 'author', round: 1, errors: [] }] }), /never past that stage's repair/);
+  assert.deepEqual(validateJob({ ...job(), repairs: { storyboard: 1, author: 0 }, repair_count: 1, format_retries: [{ stage: 'storyboard', round: 1, errors: [] }] }), []);
   assert.deepEqual(STRUCTURED_STAGES, ['brief', 'storyboard', 'author', 'visual_review', 'pedagogical_review']);
 });
 
-test('the repair round\'s Author call gets its own schema-only re-ask; repair_count stays 1 (owner decision 2026-10-04)', () => {
+test('the Author repair call gets its own schema-only re-ask; a re-ask is never a repair (owner decision 2026-10-04)', () => {
   const j = job();
   assert.equal(afterMalformed(j, 'author', ['unparseable JSON']), 'reask'); // round 0
-  startRepair(j);
+  startRepair(j, 'author');
   assert.equal(afterMalformed(j, 'author', ['missing composition_id']), 'reask'); // round 1: a distinct invocation
   assert.equal(j.repair_count, 1);
   assert.deepEqual(j.format_retries.map(r => [r.stage, r.round]), [['author', 0], ['author', 1]]);
@@ -169,6 +181,16 @@ test('the repair round\'s Author call gets its own schema-only re-ask; repair_co
   assert.equal(afterMalformed(j, 'author', ['still malformed']), 'fail'); // the same invocation twice
   assert.match(j.failure_reason, /^author \(repair round\): output was malformed again/);
   assert.equal(j.repair_count, 1);
+});
+
+test('transport retries: at most one per Author invocation, recorded with its kind, never a repair (M7A)', () => {
+  const ok = { ...job(), transport_retries: [{ stage: 'author', round: 0, kind: 'transport_interrupted', detail: 'terminated' }] };
+  assert.deepEqual(validateJob(ok), []);
+  assert.equal(ok.repair_count, 0);
+  has(validateJob({ ...ok, transport_retries: [...ok.transport_retries, { stage: 'author', round: 0, kind: 'gateway_timeout', detail: 'HTTP 504' }] }), /more than one transport retry for author in round 0/);
+  has(validateJob({ ...job(), transport_retries: [{ stage: 'author', round: 0, kind: 'max_tokens', detail: 'x' }] }), /transport_retries\[0\]/);
+  has(validateJob({ ...job(), transport_retries: [{ stage: 'visual_review', round: 0, kind: 'transport_interrupted', detail: 'x' }] }), /transport_retries\[0\]/);
+  has(validateJob({ ...job(), transport_retries: [{ stage: 'author', round: 1, kind: 'transport_interrupted', detail: 'x' }] }), /transport_retries\[0\]/);
 });
 
 test('render request: only an already-validated job, no paths, URLs or options (§10.2)', () => {

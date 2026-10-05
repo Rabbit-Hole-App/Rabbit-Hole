@@ -186,7 +186,7 @@ test('still blank after the repair: the job fails with diagnostics; no final ren
   const h = harness({ previews: [blankPreview([[0, 0]]), blankPreview([[0, 1.1]])], reviews: [[], [], [], []] });
   const r = await run('generate', h);
   assert.equal(r.job.status, 'failed');
-  assert.match(r.job.failure_reason, /still blocking after the repair round: blank_frame/);
+  assert.match(r.job.failure_reason, /still blocking after the Author repair: blank_frame/);
   assert.equal(h.log.filter(l => l[0] === 'author').length, 1);
   assert.equal(h.log.filter(l => l[0] === 'final').length, 0);
   assert.equal(r.job.repair_count, 1);
@@ -224,7 +224,7 @@ test('needs_revision: from the first Author it consumes the round; from the repa
   const h2 = harness({ previews: [blankPreview([[0, 0]])], reviews: [[], []], author: 'needs_revision' });
   const r2 = await run('softmax', h2);
   assert.equal(r2.job.status, 'failed');
-  assert.match(r2.job.failure_reason, /repair round's Author call returned needs_revision/);
+  assert.match(r2.job.failure_reason, /the Author returned needs_revision with a repair already spent/);
   assert.equal(x.author.status, 'composition');
 });
 
@@ -237,7 +237,7 @@ test('a reviewer that fails, or a revision that does not validate, fails the job
   assert.deepEqual(r.job_errors, []);
   const h2 = harness({ previews: [clean()], reviews: [[], [{ category: 'unsupported_claim', description: 'x' }]], revision: 'invalid' });
   const r2 = await run('softmax', h2);
-  assert.match(r2.job.failure_reason, /repair round Director revision: storyboard_invalid: B9: unknown claim/);
+  assert.match(r2.job.failure_reason, /storyboard repair \(Director revision\): storyboard_invalid: B9: unknown claim/);
   assert.equal(h2.log.filter(l => l[0] === 'author').length, 0);
 });
 
@@ -261,7 +261,8 @@ test('recorded M6 runs: blank opening found on the preview, ONE Author repair, c
     assert.equal(r.job.status, 'ready', name);
     assert.equal(r.job.repair_count, 1, name);
     assert.deepEqual(r.job.format_retries, [], name);
-    assert.deepEqual(validateJob(r.job), [], name);
+    // M6 records predate per-stage repairs (2026-10-05): their one repair was the Author's.
+    assert.deepEqual(validateJob({ ...r.job, repairs: { storyboard: 0, author: r.job.repair_count } }), [], name);
     assert.deepEqual(r.passes.map(p => [p.round, p.decision]), [[0, 'repair'], [1, 'render_final']], name);
     assert.deepEqual(r.passes[0].findings.filter(f => BLOCKING_CATEGORIES.includes(f.category)).map(f => `${f.reviewer}/${f.category}`), blocking0, name);
     assert.equal(r.passes[0].preview.nonblank.blank[0].frame, 0, name);
@@ -305,4 +306,31 @@ test('real final renders of the recorded repaired compositions: ready, determini
       assert.deepEqual(out.result.validation.determinism.frames.map(f => f.hashes[0]), r.render.validation.determinism.frames.map(f => f.hashes[0]), `${name}: the same pixels as the recorded run`);
     }
   } finally { svc.close(); }
+});
+
+// Owner decision 2026-10-05: one repair per artifact stage. The storyboard's never takes the Author's.
+test('the storyboard repair already spent (its checks failed): the Author repair is still there for a blank opening', async () => {
+  const h = harness({ previews: [blankPreview([[0, 0]]), clean()], reviews: [[], [], [], []] });
+  const r = await run('softmax', h, { prior: { repairs: { storyboard: 1, author: 0 }, format_retries: [{ stage: 'storyboard', round: 1, errors: ['x'] }] } });
+  assert.equal(r.job.status, 'ready');
+  assert.deepEqual([r.job.repairs, r.job.repair_count], [{ storyboard: 1, author: 1 }, 2]);
+  assert.deepEqual(h.log.filter(l => l[0] === 'author'), [['author', 1, ['blank_frame'], SRC('softmax')]]);
+  assert.deepEqual(r.job_errors, []);
+});
+
+test('storyboard-level findings: a Director revision only while the storyboard repair is unused; never a third repair', async () => {
+  const pedagogical = [{ category: 'missing_must_show', description: 'the row sum is never shown' }];
+  // Both unused: revision + Author repair (two repairs), then still blocking: failed, nothing more.
+  const h = harness({ previews: [clean(), clean()], reviews: [[], pedagogical, [], pedagogical] });
+  const r = await run('softmax', h);
+  assert.equal(r.job.status, 'failed');
+  assert.deepEqual([r.job.repairs, r.job.repair_count], [{ storyboard: 1, author: 1 }, 2]);
+  assert.deepEqual(h.log.filter(l => ['storyboard', 'author'].includes(l[0])).map(l => l[0]), ['storyboard', 'author'], 'one of each, no third');
+  assert.match(r.job.failure_reason, /still blocking after the Author repair: missing_must_show/);
+  // Storyboard repair already spent: the Author repair alone, recorded as such.
+  const h2 = harness({ previews: [clean(), clean()], reviews: [[], pedagogical, [], []] });
+  const r2 = await run('softmax', h2, { prior: { repairs: { storyboard: 1, author: 0 } } });
+  assert.equal(r2.job.status, 'ready');
+  assert.deepEqual(r2.repair, { route: 'author', findings: 1, storyboard_repair_already_spent: true, author: { status: 'composition' } });
+  assert.deepEqual(h2.log.filter(l => l[0] === 'storyboard'), []);
 });

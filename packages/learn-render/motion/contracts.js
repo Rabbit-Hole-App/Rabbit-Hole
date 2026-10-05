@@ -24,6 +24,10 @@ export const MODEL_ROLES = Object.freeze({
   visual_review: 'MOTION_VISUAL_REVIEW_MODEL',
   pedagogical_review: 'MOTION_PEDAGOGICAL_REVIEW_MODEL',
 });
+// How a model response ended without a complete result (stream-message.js classifyEnd). Only the
+// transport kinds may be retried, once, and only before anything renders: M7A, owner decision.
+export const RESPONSE_ENDS = ['complete', 'transport_interrupted', 'gateway_timeout', 'max_tokens', 'malformed_tool_arguments', 'provider_error', 'refusal'];
+export const TRANSPORT_KINDS = ['transport_interrupted', 'gateway_timeout'];
 // Structured model stages: each gets at most one schema-only re-ask (format_retries).
 export const STRUCTURED_STAGES = ['brief', 'storyboard', 'author', 'visual_review', 'pedagogical_review'];
 
@@ -351,30 +355,42 @@ export function classifyFindings(findings) {
   };
 }
 
-// The single semantic repair round (§4.8): `repair_count` is 0 or 1 for the whole job.
-// After a review pass: clean -> final render; blocking with the round unused -> repair; else fail.
+// Semantic repair budget (§4.8; owner decision 2026-10-05, replacing the one round the whole job
+// shared): one repair per artifact stage, never shared and never looped. The storyboard gets one
+// Director revision; the Author/preview gets one Author repair; at most two in a job. A storyboard
+// that fails its checks no longer spends the Author's repair. Schema-only re-asks (afterMalformed)
+// and transport retries (TRANSPORT_KINDS) are never semantic repairs.
+export const REPAIR_STAGES = ['storyboard', 'author'];
+export const noRepairs = () => ({ storyboard: 0, author: 0 });
+// After a review pass: clean -> final render; blocking with the Author repair unused -> repair; else fail.
 export function afterReview(job, findings) {
   if (!classifyFindings(findings).blocking.length) return 'render_final';
-  return job.repair_count < 1 ? 'repair' : 'fail';
+  return job.repairs.author < 1 ? 'repair' : 'fail';
 }
-// An Author needs_revision consumes the round; one from the repair call itself fails the job.
+// An Author needs_revision asks for a different storyboard: a Director revision and then the
+// Author's regeneration, so it spends both repairs; with either one spent, it fails the job.
 export function afterNeedsRevision(job) {
-  return job.repair_count < 1 ? 'repair' : 'fail';
+  return job.repairs.storyboard < 1 && job.repairs.author < 1 ? 'repair' : 'fail';
 }
-export function startRepair(job) {
-  if (job.repair_count >= 1) throw Error('the repair round is already used');
-  job.repair_count = 1;
+export function startRepair(job, stage) {
+  if (!REPAIR_STAGES.includes(stage)) throw Error(`unknown repair stage ${stage}`);
+  if (job.repairs[stage] >= 1) throw Error(`the ${stage} repair is already used`);
+  job.repairs[stage] = 1;
+  job.repair_count = job.repairs.storyboard + job.repairs.author;
   job.status = 'repairing';
 }
+// An invocation's round: its own stage's repair count (the reviews follow the Author's), or the
+// explicit round a stage function was called with.
+const roundOf = (job, stage) => (job.round !== undefined ? job.round : stage === 'brief' ? 0 : stage === 'storyboard' ? job.repairs.storyboard : job.repairs.author);
 // Malformed or unparseable stage output: one "same result, required schema" re-ask per
 // distinct structured invocation (owner decision 2026-10-04), recorded on the job and never
-// counted as repair. An invocation is a stage in a round: round 0 first, round 1 the single
-// repair round, so the repair round's Author call gets its own re-ask. The re-ask may not
-// change the brief, storyboard semantics, claims, mode, grounding or composition intent.
-// A second malformed result from the same invocation fails the job.
+// counted as repair. An invocation is a stage in a round: round 0 first, round 1 that stage's
+// repair, so a repair call gets its own re-ask. The re-ask may not change the brief, storyboard
+// semantics, claims, mode, grounding or composition intent. A second malformed result from the
+// same invocation fails the job.
 export function afterMalformed(job, stage, errors) {
   if (!STRUCTURED_STAGES.includes(stage)) throw Error(`unknown structured stage ${stage}`);
-  const round = job.repair_count;
+  const round = roundOf(job, stage);
   if (job.format_retries.some(r => r.stage === stage && r.round === round)) {
     job.status = 'failed';
     job.failure_reason = `${stage}${round ? ' (repair round)' : ''}: output was malformed again after its one format re-ask: ${errors.join('; ')}`;
@@ -392,11 +408,22 @@ export function validateJob(j) {
   if (!JOB_STATUSES.includes(j.status)) e.push(`job.status: one of ${JOB_STATUSES.join(' | ')}`);
   if (!str(j.owner?.org) || !str(j.owner?.app) || !str(j.owner?.learner)) e.push('job.owner: {org, app, learner}');
   if (j.renderer?.name !== 'remotion' || !str(j.renderer?.version)) e.push('job.renderer: {name: "remotion", version}');
-  if (j.repair_count !== 0 && j.repair_count !== 1) e.push('job.repair_count: 0 or 1 (exactly one semantic repair round per job)');
+  const rp = j.repairs;
+  const repairsOk = rp && typeof rp === 'object' && !Array.isArray(rp) && Object.keys(rp).every(k => REPAIR_STAGES.includes(k)) && REPAIR_STAGES.every(k => rp[k] === 0 || rp[k] === 1);
+  if (!repairsOk) e.push('job.repairs: {storyboard: 0 | 1, author: 0 | 1} (one semantic repair per artifact stage)');
+  else if (j.repair_count !== rp.storyboard + rp.author) e.push('job.repair_count: the storyboard and Author repairs together (0, 1 or 2)');
   if (!arr(j.format_retries)) e.push('job.format_retries: required array');
   else {
-    j.format_retries.forEach((r, i) => { if (!STRUCTURED_STAGES.includes(r?.stage) || ![0, 1].includes(r?.round) || r.round > j.repair_count || !arr(r?.errors)) e.push(`job.format_retries[${i}]: {stage, round: 0 | 1 (never past repair_count), errors[]}`); });
+    j.format_retries.forEach((r, i) => { if (!STRUCTURED_STAGES.includes(r?.stage) || ![0, 1].includes(r?.round) || (repairsOk && r.round > roundOf({ repairs: rp }, r.stage)) || !arr(r?.errors)) e.push(`job.format_retries[${i}]: {stage, round: 0 | 1 (never past that stage's repair), errors[]}`); });
     for (const d of dupes(j.format_retries.map(r => `${r?.stage} in round ${r?.round}`))) e.push(`job.format_retries: more than one re-ask for ${d}`);
+  }
+  // At most one transport retry per Author invocation, only for an incomplete response (M7A).
+  if (j.transport_retries !== undefined) {
+    if (!arr(j.transport_retries)) e.push('job.transport_retries: array');
+    else {
+      j.transport_retries.forEach((r, i) => { if (r?.stage !== 'author' || ![0, 1].includes(r?.round) || (repairsOk && r.round > rp.author) || !TRANSPORT_KINDS.includes(r?.kind) || !str(r?.detail)) e.push(`job.transport_retries[${i}]: {stage: "author", round: 0 | 1, kind: ${TRANSPORT_KINDS.join(' | ')}, detail}`); });
+      for (const d of dupes(j.transport_retries.map(r => `${r?.stage} in round ${r?.round}`))) e.push(`job.transport_retries: more than one transport retry for ${d}`);
+    }
   }
   const role = (cfg, want, at) => { if (cfg?.role !== want) e.push(`${at}.role: ${want}`); if (cfg?.resolved_model !== undefined && !str(cfg.resolved_model)) e.push(`${at}.resolved_model: string`); };
   role(j.director_model_config, MODEL_ROLES.director, 'job.director_model_config');

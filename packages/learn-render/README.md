@@ -61,7 +61,8 @@ sh motion/service/context.sh   # deploy context for rabbit-hole-motion-renderer-
 ```
 
 - `motion/contracts.js`: the canonical MotionBrief, storyboard, Author output, finding and
-  MotionJob validators, the model roles, the single repair round and the one format re-ask.
+  MotionJob validators, the model roles, the per-stage repairs (storyboard, Author: two at most), the
+  one format re-ask and the Author's one transport retry (`stream-message.js` classifies how a response ended).
   `motion/duration.js`: 5–30 s, default 10, rounded (.5 up) and clamped with a decision line.
 - `motion/static-check.js`: §8.2 rules for composition source (@babel/parser 7.24.1, MIT).
   Imports: `react` (useMemo, useRef, useLayoutEffect, Fragment) and `remotion` (AbsoluteFill,
@@ -125,8 +126,8 @@ sh motion/service/context.sh   # deploy context for rabbit-hole-motion-renderer-
   that still blocks fails the job. A clean pass goes to the final render (M5 render stage).
 - `motion/pipeline.mjs`, `motion/orchestrator.mjs`: M7A, development only. `runMotionRequest` takes a raw
   `/motion` line through the Learner Intent Resolver, grounding, the Director (brief, storyboard), the
-  Author and the M6 review job; the one repair round is shared by the whole job (a storyboard that
-  fails its checks spends it on a Director revision). The orchestrator serves it over HTTPS to the
+  Author and the M6 review job; one repair per stage (a storyboard that fails its checks spends its own
+  on a Director revision; the Author keeps its repair). The orchestrator serves it over HTTPS to the
   `motion_request` provider in `LearnVideos` (control-plane `motion-provider.js`), which starts the job
   after the learner's Generate, polls it, stores the validated final MP4 in `LEARN_MEDIA` and can Stop
   it. The web side is `/motion` in a `VITE_MOTION_DEV=true` build only, on the existing video card.

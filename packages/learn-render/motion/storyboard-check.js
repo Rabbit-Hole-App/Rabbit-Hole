@@ -41,8 +41,16 @@ left right top bottom side lane lanes appear appears grow grows shrink shrinks f
 path paths branch branches fallback true false example new old part whole full empty change changes changed
 whichever whatever whenever wherever however meet meets join joins split splits enter enters leave leaves reach reaches
 travel travels arrive arrives merge merges lead leads`.split(/\s+/));
-const OP_SKIP = new Set(['float', 'int', 'len', 'range', 'print', 'hasattr', 'isinstance', 'super', 'size', 'view']);
-const OP_STOP = new Set(['fill', 'attn', 'self', 'torch', 'size', 'view', 'item', 'data', 'functional']);
+// Code words a call can be named with that never identify one step: the language's own builtins and
+// receiver, and the array/container API every framework shares. Nothing here names a topic, a model
+// or a library; a step's identifying words come from the brief's own evidence (briefFacts).
+const CODE_GENERIC = new Set(['self', 'cls', 'super', 'print', 'len', 'range', 'int', 'float', 'str', 'bool', 'list', 'dict', 'tuple', 'isinstance', 'hasattr', 'getattr', 'setattr',
+  'size', 'shape', 'view', 'reshape', 'item', 'data', 'copy', 'append', 'extend', 'get', 'keys', 'values', 'items', 'format', 'join', 'split']);
+// A step named in learner text: its word at a word start, where an underscore also starts one
+// (c_proj names proj). Order words relate the nearest steps on each side, inside one sentence.
+const stepRe = t => `(?<![A-Za-z0-9])${t}\\w*`;
+const RELATION = '(?:\\bthen\\b|\\bbefore\\b|\\bafter\\b|\\bfollowed by\\b|→|->)';
+const GAP = `(?:(?!${RELATION})(?![.!?](?:\\s|$))[\\s\\S])*?`;
 
 const words = text => String(text || '').toLowerCase().match(/[a-z]+/g) || [];
 export function stem(w) {
@@ -105,10 +113,14 @@ export function briefFacts(brief) {
   // Operations each code excerpt performs, in line order: calls, named by their distinctive word parts.
   const ops = brief.evidence.filter(e => refs.get(e.source_ref_id)?.kind === 'code').map(e => {
     const r = refs.get(e.source_ref_id);
-    return e.excerpt.split('\n').flatMap((line, i) => line.trim().startsWith('#') ? [] : [...line.matchAll(/([A-Za-z_][\w.]*)\s*\(/g)].map(m => m[1].split('.').at(-1)).filter(n => !OP_SKIP.has(n)).map(name => ({
+    const calls = e.excerpt.split('\n').flatMap((line, i) => line.trim().startsWith('#') ? [] : [...line.matchAll(/([A-Za-z_][\w.]*)\s*\(/g)].map(m => m[1].split('.').at(-1)).filter(n => !CODE_GENERIC.has(n)).map(name => ({
       name, line: r.start_line + i, where: `${r.path}:${r.start_line + i}`,
-      terms: name.split('_').map(p => stem(p.toLowerCase())).filter(p => p.length >= 4 && !OP_STOP.has(p)),
-    })).filter(o => o.terms.length));
+      terms: [...new Set(name.split('_').map(p => stem(p.toLowerCase())).filter(p => p.length >= 4 && !GENERIC.has(p) && !CODE_GENERIC.has(p)))],
+    })));
+    // A word two calls of one excerpt share cannot tell them apart (attn in c_attn and attn_dropout).
+    const uses = new Map();
+    for (const c of calls) for (const t of c.terms) uses.set(t, (uses.get(t) || 0) + 1);
+    return calls.map(c => ({ ...c, terms: c.terms.filter(t => uses.get(t) === 1) })).filter(o => o.terms.length);
   });
   const positive = vocabulary([brief.title, brief.objective, brief.audience_context, brief.visual_direction, ...brief.must_show,
     ...brief.claim_registry.map(c => c.text), ...brief.evidence.map(e => e.excerpt),
@@ -209,11 +221,12 @@ export function checkStoryboard(storyboard, brief) {
     if (conditional.length) for (const [field, text] of learnerText(beat)) if (ABSOLUTE.test(text)) e.push(`${at}.${field}: "${text.match(ABSOLUTE)[0]}" on branch-dependent content (${conditional.join(', ')})`);
     for (const c of cited) for (const id of c.source_ref_ids) for (const b of f.branchOf.get(id) || []) taughtBranches.set(b.k, new Set([...(taughtBranches.get(b.k) || []), b.branch]));
 
-    // Steps stated in learner text keep the code's order ("X then Y", "Y after X").
+    // Steps stated in learner text keep the code's order ("X then Y", "Y after X"). Each order word
+    // relates the nearest step on each side within its sentence ("B after A, before C" is A, B, C).
     for (const [field, text] of learnerText(beat)) for (const seq of f.ops) for (const a of seq) for (const b of seq) {
       if (a.line >= b.line) continue;
-      const A = a.terms.map(t => `\\b${t}\\w*`).join('|'), B = b.terms.map(t => `\\b${t}\\w*`).join('|');
-      if (new RegExp(`(?:${B})[\\s\\S]*?(?:\\bthen\\b|\\bbefore\\b|\\bfollowed by\\b|→|->)[\\s\\S]*?(?:${A})|(?:${A})[\\s\\S]*?\\bafter\\b[\\s\\S]*?(?:${B})`, 'i').test(text)) e.push(`${at}.${field}: puts ${b.name} (${b.where}) before ${a.name} (${a.where})`);
+      const A = a.terms.map(stepRe).join('|'), B = b.terms.map(stepRe).join('|');
+      if (new RegExp(`(?:${B})${GAP}(?:\\bthen\\b|\\bbefore\\b|\\bfollowed by\\b|→|->)${GAP}(?:${A})|(?:${A})${GAP}\\bafter\\b${GAP}(?:${B})`, 'i').test(text)) e.push(`${at}.${field}: puts ${b.name} (${b.where}) before ${a.name} (${a.where})`);
     }
 
     // must_show: a declared item counts only if the beat visibly carries enough of its terms.
@@ -232,7 +245,7 @@ export function checkStoryboard(storyboard, brief) {
 
   // Steps animated across beats keep the code's order (hook and takeaway beats only point or recap).
   const animating = beats.filter(b => !NOT_TAUGHT.includes(b.pedagogical_role));
-  const firstChange = op => animating.findIndex(b => b.visible_objects.some(o => o.change && op.terms.some(t => new RegExp(`\\b${t}\\w*`, 'i').test(o.change))));
+  const firstChange = op => animating.findIndex(b => b.visible_objects.some(o => o.change && op.terms.some(t => new RegExp(stepRe(t), 'i').test(o.change))));
   for (const seq of f.ops) for (const a of seq) for (const b of seq) {
     if (a.line >= b.line) continue;
     const ia = firstChange(a), ib = firstChange(b);

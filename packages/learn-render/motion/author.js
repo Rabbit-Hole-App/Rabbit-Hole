@@ -13,12 +13,12 @@
 // Outcomes: composition (passes static safety + the Author contract), needs_revision (refs valid),
 // author_invalid (source or contract errors; surfaced, not repaired in M4), failed (malformed
 // twice, refused, model error). One schema-only re-ask; the repair round is never spent here.
-import { MODEL_ROLES, STAGE, afterMalformed, repairFindings, validateAuthorOutput } from './contracts.js';
+import { MODEL_ROLES, STAGE, TRANSPORT_KINDS, afterMalformed, repairFindings, validateAuthorOutput } from './contracts.js';
 import { callRecord } from './director.js';
 import { checkAuthorSource, requiredText, timelineFrames } from './author-check.js';
 import { resolveRole } from './model-config.js';
 import { FONT_FAMILIES, IMPORTS, SOURCE_MAX_BYTES, checkComposition } from './static-check.js';
-import { readMessage } from './stream-message.js';
+import { classifyEnd, readMessage } from './stream-message.js';
 
 export const AUTHOR_VERSION = 'author-remotion-1';
 
@@ -138,23 +138,41 @@ const reask = errors => `Your motion_composition call did not match its schema:\
 
 // round 1 with repair {source, findings} is the repair round's Author call (M6): its own
 // schema-only re-ask, recorded as round 1.
+//
+// M7A (owner decision 2026-10-05): every call records how it ended (stream-message.js classifyEnd).
+// A response that ended with no complete result because the transport broke (an interrupted stream
+// or a gateway timeout) is sent again ONCE per invocation, unchanged: recorded in transport_retries,
+// never a semantic repair, and nothing has rendered from it (this stage has not returned). Any
+// other end (provider error, refusal) fails the stage; max_tokens and malformed tool arguments take
+// the schema-only re-ask.
 export async function runAuthor({ brief, storyboard, call, env = {}, effort = 'high', round = 0, repair = null, clock = () => Date.now() }) {
   const role = MODEL_ROLES.author;
   const model = resolveRole(role, env);
   const body = authorRequest(brief, storyboard, { effort, repair });
-  const job = { repair_count: round, format_retries: [] };
+  const job = { round, format_retries: [] };
   const calls = [];
-  const fail = (error, detail, extra = {}) => ({ status: 'failed', error, detail, calls, format_retries: job.format_retries, ...extra });
+  const transport_retries = [];
+  const fail = (error, detail, extra = {}) => ({ status: 'failed', error, detail, calls, format_retries: job.format_retries, transport_retries, ...extra });
   const messages = [...body.messages];
   for (;;) {
     const t0 = clock();
-    const response = await call(env, { ...body, messages }, model);
-    if (!response.ok) return fail('model_error', `HTTP ${response.status}: ${(await response.text().catch(() => '')).slice(0, 300)}`);
-    // A response that breaks off mid-read (a dropped stream) fails the stage; it is never retried.
-    let message;
-    try { message = await readMessage(response); } catch (error) { return fail('model_error', `the response broke off: ${error.message}`); }
-    calls.push({ stage: 'author', round, ...callRecord(role, model, message, clock() - t0) });
-    if (message.stop_reason === 'refusal') return fail('refused', message.stop_details?.category || 'refusal');
+    let response = null, message = null, broke = null;
+    // Stop (the orchestrator's MotionCancelled) is never a broken transport: it ends the job.
+    try { response = await call(env, { ...body, messages }, model); } catch (error) { if (error?.name === 'MotionCancelled') throw error; broke = { error }; }
+    if (!broke && !response.ok) broke = { response };
+    if (!broke) { try { message = await readMessage(response); } catch (error) { broke = { error }; } }
+    if (broke) {
+      const end = classifyEnd(broke);
+      const partial = broke.error?.partial;
+      // What arrived before the break is the cost record; with nothing, the cost is unknown.
+      calls.push({ stage: 'author', round, end: end.kind, ...callRecord(role, model, partial || {}, clock() - t0), ...(partial ? { partial: true } : { cost_usd: null, cost_unknown: true }) });
+      if (TRANSPORT_KINDS.includes(end.kind) && !transport_retries.length) { transport_retries.push({ stage: 'author', round, kind: end.kind, detail: end.detail }); continue; }
+      const text = broke.response ? (await broke.response.text().catch(() => '')).slice(0, 300) : '';
+      return fail('model_error', `${end.kind}: ${end.detail}${text ? `: ${text}` : ''}`, { end: end.kind });
+    }
+    const end = classifyEnd({ message, tool: AUTHOR_TOOL.name });
+    calls.push({ stage: 'author', round, end: end.kind, ...callRecord(role, model, message, clock() - t0) });
+    if (end.kind === 'refusal') return fail('refused', end.detail);
     const use = (message.content || []).find(b => b.type === 'tool_use' && b.name === AUTHOR_TOOL.name);
     const errors = message.stop_reason === 'max_tokens' ? [`the response hit max_tokens before the ${AUTHOR_TOOL.name} call was complete`]
       : use ? validateAuthorToolOutput(use.input) : [`no ${AUTHOR_TOOL.name} call (stop_reason ${message.stop_reason})`];
@@ -163,7 +181,7 @@ export async function runAuthor({ brief, storyboard, call, env = {}, effort = 'h
       const check = checkAuthorOutput(output, brief, storyboard);
       // Source, contract and ref failures are surfaced, never re-asked or repaired here.
       const status = check.errors.length ? 'author_invalid' : output.status;
-      return { status, output, check, calls, format_retries: job.format_retries };
+      return { status, output, check, calls, format_retries: job.format_retries, transport_retries };
     }
     if (afterMalformed(job, 'author', errors) === 'fail') return fail('malformed', job.failure_reason, { errors });
     messages.push({ role: 'assistant', content: message.content });

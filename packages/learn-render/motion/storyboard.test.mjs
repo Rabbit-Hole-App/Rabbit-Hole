@@ -301,12 +301,12 @@ test('M7A regression: the recurring first-pass storyboard failures stay caught, 
   assert.match(HARD_LIMITS, /3\. must_show: .*at least 40% of the item's own content words/);
   assert.match(HARD_LIMITS, /4\. Both sides of a condition: .*cites at least one claim from the other side/);
   assert.ok(storyboardRequest(brief2).system[0].text.includes(HARD_LIMITS));
-  // Run A: a correct sentence the lexical order check misreads (it spans "after mask, before dropout").
-  // The check is unchanged (owner: no validator change in M7A); the prompt now avoids the phrasing.
+  // Run A: a correct sentence the old order check misread ("after mask, before dropout"). Since the
+  // owner-authorized precision fix the check reads it relation by relation: the storyboard passes.
   const [briefA, boardA] = run('run-a');
-  assert.deepEqual(checkStoryboard(boardA, briefA).errors, ['B4.on_screen_text: puts attn_dropout (model.py:70) before softmax (model.py:69)']);
+  assert.deepEqual(checkStoryboard(boardA, briefA).errors, []);
   assert.equal(boardA.beats.find(b => b.id === 'B4').on_screen_text, 'Softmax runs after mask, before dropout.');
-  assert.match(HARD_LIMITS, /5. Order words: .*Never mix after and before in one sentence/);
+  assert.match(HARD_LIMITS, /5\. Order words: .*Each order word relates the step on either side of it/);
   assert.deepEqual(checkStoryboard(read('./fixtures/m3/softmax-15s-attention.real.storyboard.json'), read('./fixtures/m2/softmax-15s-attention.brief.json')).errors, [], 'the accepted M3 storyboard still passes');
 });
 
@@ -350,6 +350,43 @@ test('one storyboard prompt for every domain: the brief is the only topic input,
 test('the examples are honest: the order example breaks and follows rule 5 exactly as the checker reads it', () => {
   const brief = read('./fixtures/m7a/run-a.brief.json'), board = read('./fixtures/m7a/run-a.storyboard.round-0.json').storyboard;
   const orderErrors = text => checkStoryboard({ ...board, beats: board.beats.map(b => (b.id === 'B4' ? { ...b, on_screen_text: text } : b)) }, brief).errors.filter(e => /puts .* before /.test(e));
-  assert.equal(orderErrors('Softmax runs after mask, before dropout.').length, 1, 'breaks rule 5 as Example 1 says');
-  assert.deepEqual(orderErrors('Mask, then softmax, then dropout.'), [], 'follows rule 5 as Example 1 says');
+  for (const text of ['Softmax runs after dropout.', 'Dropout, then softmax.']) assert.equal(orderErrors(text).length, 1, `breaks rule 5 as Example 1 says: ${text}`);
+  for (const text of ['Mask, then softmax, then dropout.', 'Softmax runs after mask, before dropout.']) assert.deepEqual(orderErrors(text), [], `follows rule 5 as Example 1 says: ${text}`);
+});
+
+// M7A precision (owner, 2026-10-05): stated order is read relation by relation, and the code steps
+// come from the brief's own evidence with no topic word lists (no nanoGPT or PyTorch assumptions).
+const orderErrorsFor = (briefFile, boardFile, text) => {
+  const brief = read(briefFile), raw = read(boardFile), board = raw.storyboard ?? raw;
+  const beat = board.beats[1];
+  return checkStoryboard({ ...board, beats: board.beats.map(b => (b === beat ? { ...b, on_screen_text: text } : b)) }, brief).errors.filter(e => /puts .* before /.test(e));
+};
+const SOFTMAX = ['./fixtures/m2/softmax-15s-attention.brief.json', './fixtures/m3/softmax-15s-attention.real.storyboard.json'];
+const GENERATE = ['./fixtures/m3/generate-20s-selection.brief.json', './fixtures/m4/generate-20s-selection.storyboard.json'];
+const MLP = ['./fixtures/m7a/mlp-forward.brief.json', './fixtures/m7a/mlp-forward.storyboard.json'];
+
+test('order precision: a correct order is accepted however it is phrased; a reversed order is rejected (three domains)', () => {
+  for (const [files, good, bad] of [
+    [SOFTMAX, ['Softmax runs after mask, before dropout.', 'Mask, then softmax, then dropout.', 'Dropout runs after softmax.', 'Softmax comes before dropout, after the mask.'],
+      ['Dropout, then softmax.', 'Softmax runs after dropout.', 'Softmax runs before mask.', 'Mask runs after softmax, before dropout.']],
+    [GENERATE, ['Multinomial runs after softmax.', 'Softmax, then multinomial.'], ['Softmax runs after multinomial.', 'Multinomial, then softmax.']],
+    [MLP, ['c_proj runs after gelu, before dropout.', 'gelu, then c_proj, then dropout.'], ['dropout, then gelu.', 'gelu runs after c_proj.', 'c_proj runs after dropout, before gelu.']],
+  ]) {
+    for (const text of good) assert.deepEqual(orderErrorsFor(...files, text), [], `accepted: ${text}`);
+    for (const text of bad) assert.ok(orderErrorsFor(...files, text).length >= 1, `rejected: ${text}`);
+  }
+});
+
+test('code steps come from the evidence alone: language words and shared parts never name a step, no topic list', async () => {
+  const { briefFacts } = await import('./storyboard-check.js');
+  const steps = file => briefFacts(read(file)).ops.filter(s => s.length).map(s => s.map(o => `${o.name}[${o.terms.join(',')}]`).join(' '));
+  assert.deepEqual(steps('./fixtures/m7a/mlp-forward.brief.json'), ['gelu[gelu] c_proj[proj] dropout[dropout]']);
+  assert.ok(steps(SOFTMAX[0]).includes('transpose[transpos] sqrt[sqrt] masked_fill[mask] softmax[softmax] attn_dropout[attn,dropout]'), steps(SOFTMAX[0]).join(' | '));
+  assert.ok(steps(GENERATE[0]).includes('softmax[softmax] multinomial[multinomial]'), steps(GENERATE[0]).join(' | '));
+  const source = readFileSync(new URL('./storyboard-check.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /'attn'|'torch'|'functional'|OP_STOP/, 'no topic or framework word list in the checker');
+  // A step word shared by two calls in one excerpt cannot tell them apart (any domain, not a list).
+  const shared = { ...read('./fixtures/m7a/mlp-forward.brief.json') };
+  shared.evidence = shared.evidence.map(e => ({ ...e, excerpt: 'x = self.proj_in(x)\nx = self.gelu(x)\nx = self.proj_out(x)' }));
+  assert.deepEqual(briefFacts(shared).ops.flatMap(s => s.map(o => `${o.name}[${o.terms.join(',')}]`)), ['gelu[gelu]'], 'proj names two calls, so neither is identified by it');
 });

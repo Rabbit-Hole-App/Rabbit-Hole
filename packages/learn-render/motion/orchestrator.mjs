@@ -69,7 +69,7 @@ const view = j => ({
   ...(j.result ? {
     failure_reason: j.result.failure_reason ?? null, clarification: j.result.clarification ?? null,
     title: j.result.brief?.title ?? null, motion: j.result.block?.motion ?? null, render_id: j.result.render?.render_id ?? null,
-    repair_count: j.result.job?.repair_count ?? null, cost_usd: j.result.cost_usd ?? null, model_latency_s: j.result.model_latency_s ?? null, timings: j.result.timings ?? null,
+    repair_count: j.result.job?.repair_count ?? null, repairs: j.result.repairs ?? null, transport_retries: j.result.transport_retries ?? [], cost_usd: j.result.cost_usd ?? null, model_latency_s: j.result.model_latency_s ?? null, timings: j.result.timings ?? null,
   } : {}),
 });
 

@@ -139,7 +139,7 @@ export async function runReviewer({ reviewer, brief, storyboard, frames, dir, ca
   const role = MODEL_ROLES[stage];
   const model = resolveRole(role, env);
   const body = reviewRequest(reviewer, brief, frames, dir, { effort });
-  const job = { repair_count: round, format_retries: [] };
+  const job = { round, format_retries: [] };
   const calls = [];
   const fail = (error, detail, extra = {}) => ({ status: 'failed', error, detail, calls, format_retries: job.format_retries, ...extra });
   const messages = [...body.messages];

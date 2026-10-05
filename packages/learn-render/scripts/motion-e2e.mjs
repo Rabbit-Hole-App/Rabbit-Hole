@@ -1,5 +1,5 @@
 // M7A browser proof on the LOCAL Motion stack (scripts/motion-local-check.mjs setup; the app built
-// into dist-motion with VITE_MOTION_DEV=true; the development orchestrator on 8856). A learner types
+// into dist-dev with VITE_MOTION_DEV=true; the development orchestrator on 8856). A learner types
 // /motion in the Learn composer of a canvas titled "Attention" and everything after is the product
 // path: the paid proposal, Generate, the existing video card as the placeholder, LearnVideos and the
 // orchestrator, then the playable video in the SAME card, served from LEARN_MEDIA.

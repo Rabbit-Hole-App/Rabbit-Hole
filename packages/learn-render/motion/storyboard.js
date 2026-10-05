@@ -76,15 +76,15 @@ export const HARD_LIMITS = [
   `2. Reading rate: in each beat, the words of on_screen_text plus the words of every label that is new or changed in that beat number at most floor(${LIMITS.read_base_words} + ${LIMITS.read_words_per_second} x the beat's seconds): ${READ_TABLE}. A label carried unchanged from the previous beat does not count again. Count the words.`,
   `3. must_show: the beat that lists an item in must_show_covered shows at least ${LIMITS.coverage_ratio * 100}% of the item's own content words in its labels, on_screen_text, object descriptions, changes or shown code lines. Reuse the item's wording there.`,
   '4. Both sides of a condition: when any beat cites (claim_ids) a claim that runs on one side of an implementation condition, and the brief has claims on the other side, some beat also cites at least one claim from the other side, and names that condition as the rules above require.',
-  '5. Order words: a text that orders code steps (then, before, after, an arrow) names them in the order the code runs them, earlier step first, one relation at a time. Never mix after and before in one sentence: the check reads every step named after "after" as coming later.',
+  '5. Order words: a text that orders code steps (then, before, after, an arrow) puts them in the order the code runs them. Each order word relates the step on either side of it, so "B after A, before C" states A, B, C.',
 ].join('\n');
 
 export const STORYBOARD_EXAMPLES = [
   'These examples show how the rules apply across different code. They are not part of any brief: never copy their topics, code names or wording into a storyboard, and never treat them as requirements. Only the brief in the user message decides what to teach.',
   [
     'Example 1 - execution order (attention). The evidence runs att.masked_fill(...), then F.softmax(att, dim=-1), then self.attn_dropout(att).',
-    '  Breaks validation rule 5: "Softmax runs after mask, before dropout." (one sentence mixes after and before).',
-    '  Follows it: "Mask, then softmax, then dropout." (mask -> softmax -> dropout, earlier step first).',
+    '  Breaks validation rule 5: "Softmax runs after dropout." or "Dropout, then softmax." (the code runs softmax first).',
+    '  Follows it: "Mask, then softmax, then dropout." or "Softmax runs after mask, before dropout." (both state mask -> softmax -> dropout).',
   ].join('\n'),
   [
     'Example 2 - code flow (a generation loop). The evidence crops idx to idx_cond, runs the model to get logits, divides by temperature, applies softmax to get probs, samples idx_next with multinomial, and appends it to idx.',
@@ -208,7 +208,7 @@ export async function runStoryboard({ brief, call, env = {}, effort = 'high', ro
   const role = MODEL_ROLES.director;
   const model = resolveRole(role, env);
   const body = storyboardRequest(brief, { effort, revision });
-  const job = { repair_count: round, format_retries: [] }; // the storyboard stage's one schema-only re-ask
+  const job = { round, format_retries: [] }; // the storyboard stage's one schema-only re-ask
   const calls = [];
   const fail = (error, detail, extra = {}) => ({ status: 'failed', error, detail, calls, format_retries: job.format_retries, ...extra });
   const messages = [...body.messages];

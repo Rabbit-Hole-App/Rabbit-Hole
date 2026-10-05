@@ -3,13 +3,15 @@
 //
 //   raw request -> Learner Intent Resolver (control-plane learner-intent.js) -> source grounding
 //   (source-grounding.js) -> Motion Director: MotionBrief -> storyboard -> Author -> review job
-//   (review-job.mjs: preview, harness checks, fresh reviewers, the ONE repair round, final render)
+//   (review-job.mjs: preview, harness checks, fresh reviewers, the Author repair, final render)
 //   -> the existing type "video" block (video-block.js), ready for LearnVideos to fetch.
 //
-// The one repair round is shared by the whole job. A storyboard that fails its checks spends it on
-// one Director revision; the Author's output then gets no repair. An unresolved target stops
-// before any paid call with one clarification. Stop (signal) takes effect at the next stage
-// boundary: a model call or render already in flight completes and is discarded.
+// Semantic repairs (owner decision 2026-10-05): one per artifact stage, never shared, never looped.
+//   storyboard: 1st pass -> (fails its checks) one Director revision -> final storyboard
+//   Author:     1st pass -> preview + review -> (blocking) one Author repair -> preview + review -> final
+// At most two in a job. Schema-only re-asks and the Author's one transport retry never count.
+// An unresolved target stops before any paid call with one clarification. Stop (signal) takes
+// effect at the next stage boundary: a model call or render already in flight is discarded.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { resolveLearnerTurn } from '../../control-plane/src/learner-intent.js';
@@ -30,8 +32,8 @@ export async function runMotionRequest({
 }) {
   const { director = runDirector, storyboarder = runStoryboard, author = runAuthor, job: reviewJob = runMotionJob } = stages;
   const t0 = now();
-  const out = { status: 'running', stage: 'resolving', calls: [], format_retries: [], timings: {}, repair: null };
-  const record = r => { out.calls.push(...(r.calls || [])); out.format_retries.push(...(r.format_retries || [])); };
+  const out = { status: 'running', stage: 'resolving', calls: [], format_retries: [], transport_retries: [], timings: {}, repairs: { storyboard: 0, author: 0 }, storyboard_repair: null, repair: null };
+  const record = r => { out.calls.push(...(r.calls || [])); out.format_retries.push(...(r.format_retries || [])); out.transport_retries.push(...(r.transport_retries || [])); };
   const enter = async (stage, fn) => {
     checkpoint(signal);
     out.stage = stage;
@@ -70,24 +72,24 @@ export async function runMotionRequest({
     const brief = out.brief = d.brief;
     keep('brief.json', brief);
 
-    let repairCount = 0;
     let s = await enter('storyboarding', () => storyboarder({ brief, call, env, effort }));
     record(s);
     if (s.storyboard) keep('storyboard.round-0.json', { status: s.status, errors: s.check?.errors ?? [], storyboard: s.storyboard });
     if (s.status === 'storyboard_invalid') {
-      // The job's one repair round: one Director revision against the failed checks.
-      repairCount = 1;
+      // The storyboard's one repair: one Director revision against the failed checks. The
+      // Author's repair stays available for its own output.
+      out.repairs.storyboard = 1;
       const findings = s.check.errors.map(e => ({ reviewer: 'harness', category: 'storyboard_check', description: e }));
-      out.repair = { stage: 'storyboard', findings: findings.length, errors: s.check.errors };
+      out.storyboard_repair = { findings: findings.length, errors: s.check.errors };
       s = await enter('storyboard_revision', () => storyboarder({ brief, call, env, effort, round: 1, revision: { storyboard: s.storyboard, findings } }));
       record(s);
-      out.repair.status = s.status;
+      out.storyboard_repair.status = s.status;
       if (s.storyboard) keep('storyboard.round-1.json', { status: s.status, errors: s.check?.errors ?? [], storyboard: s.storyboard });
     }
-    if (s.status !== 'storyboard') return fail(`storyboard${repairCount ? ' (repair round)' : ''}: ${s.status}${s.error ? `: ${s.error}: ${s.detail}` : `: ${s.check.errors.slice(0, 3).join('; ')}`}`);
+    if (s.status !== 'storyboard') return fail(`storyboard${out.repairs.storyboard ? ' (after its repair)' : ''}: ${s.status}${s.error ? `: ${s.error}: ${s.detail}` : `: ${s.check.errors.slice(0, 3).join('; ')}`}`);
     const storyboard = out.storyboard = s.storyboard;
 
-    const a = await enter('authoring', () => author({ brief, storyboard, call, env, effort, round: repairCount }));
+    const a = await enter('authoring', () => author({ brief, storyboard, call, env, effort, round: 0 }));
     record(a);
     if (a.output?.source) keep('composition.jsx', a.output.source);
     if (a.output?.status === 'needs_revision') keep('author.needs_revision.json', a.output);
@@ -95,11 +97,11 @@ export async function runMotionRequest({
 
     const job = await enter('review_and_render', () => reviewJob({
       brief, storyboard, author: a, origin: { storyboard: 'model_generated', composition: 'model_generated' },
-      service, call, env, dir, effort, signal, prior: { repair_count: repairCount, format_retries: out.format_retries },
+      service, call, env, dir, effort, signal, prior: { repairs: { ...out.repairs }, format_retries: out.format_retries, transport_retries: out.transport_retries },
       log: line => onStage(line.replace(/^job: /, 'job:'), out),
     }));
     out.calls.push(...job.calls);
-    Object.assign(out, { job: job.job, passes: job.passes, render: job.render, job_errors: job.job_errors, storyboard_revised: job.storyboard_revised });
+    Object.assign(out, { job: job.job, passes: job.passes, render: job.render, job_errors: job.job_errors, storyboard_revised: job.storyboard_revised, repairs: { ...job.job.repairs }, transport_retries: job.job.transport_retries });
     if (job.repair) out.repair = job.repair;
     if (job.job.status !== 'ready') return fail(job.job.failure_reason);
     out.block = motionVideoBlock({ brief, renderId: job.render.render_id, jobId: job.job.id });

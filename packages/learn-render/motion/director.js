@@ -50,7 +50,7 @@ export const DIRECTOR_TOOL = Object.freeze({
       },
       must_show: strings('Concrete things that must be visible in the video.'),
       must_not_claim: strings('Misconceptions the video must not state or imply.'),
-      visual_direction: str('Semantic visual direction: what the motion reveals and how attention moves. No renderer, library, React, HTML or CSS names.'),
+      visual_direction: str('Semantic visual direction: what the motion reveals and how the viewer\'s visual focus should move. No renderer, library, React, HTML or CSS names.'),
       narration_policy: str('Narration for this duration.', { enum: NARRATION_POLICIES }),
       keyframe_times: { type: 'array', items: { type: 'number' }, description: 'Optional seconds reviewers must see.' },
     },
@@ -65,7 +65,7 @@ export const DIRECTOR_SYSTEM = [
   'Branches: when the evidence shows that code runs only on one branch (implementation_conditions K1, ...), a claim about that code must list the condition id and say which branch it describes. Never describe branch-dependent behavior as unconditional ("always", "every time", "in all cases").',
   `teaching_mode is one of ${TEACHING_MODES.join(', ')}. When the learner asked for one (requested_mode), use it. intuition_first needs an analogy_map whose every element maps to a real concept and says where the analogy stops being exact.`,
   'must_show lists concrete visible things. must_not_claim lists misconceptions the video must not state or imply. Always include: the unconditional form of every branch-dependent claim; the reversed order of any steps the evidence shows in sequence; and the most common misconception about what each step does to the data.',
-  'visual_direction is semantic: what the motion reveals (transformation, sequence, cause) and how attention moves. Do not name renderers, libraries, React, HTML or CSS, and do not plan frames.',
+  'visual_direction is semantic: what the motion reveals (transformation, sequence, cause) and how the viewer\'s visual focus should move. Do not name renderers, libraries, React, HTML or CSS, and do not plan frames.',
   'narration_policy: none for 5-second videos; none or one_line up to 15 seconds; none, one_line or concise for 20 to 30 seconds.',
   'audience_context describes where the learner is (lesson, concept, what they have seen), never a judgement of the learner.',
   'Submit the contract by calling motion_brief exactly once.',
@@ -238,7 +238,7 @@ export async function runDirector({ turn, grounding, call, env = {}, effort = 'h
   const model = resolveRole(role, env);
   const decision = durationDecision(turn.structured_interpretation.request_text);
   const body = directorRequest(directorContext(turn, grounding, decision), { effort });
-  const job = { repair_count: 0, format_retries: [] }; // the brief stage's one schema-only re-ask (contracts.js afterMalformed)
+  const job = { round: 0, format_retries: [] }; // the brief stage's one schema-only re-ask (contracts.js afterMalformed)
   const calls = [];
   const fail = (error, detail, extra = {}) => ({ status: 'failed', error, detail, decision_line: decision.line, calls, format_retries: job.format_retries, ...extra });
   const messages = [...body.messages];

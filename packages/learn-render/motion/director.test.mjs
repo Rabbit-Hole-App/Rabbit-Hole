@@ -206,3 +206,11 @@ test('the recorded real Demo B brief: the if-without-else top_k is K1 with a no_
   const topK = b.claim_registry.filter(c => c.source_ref_ids.includes('S2'));
   assert.ok(topK.length && topK.every(c => c.condition_ids.includes('K1')));
 });
+
+test('the Director asks where the viewer\'s visual focus goes, never "attention" (a topic word in its own right)', async () => {
+  const { DIRECTOR_SYSTEM, DIRECTOR_TOOL } = await import('./director.js');
+  for (const text of [DIRECTOR_SYSTEM, DIRECTOR_TOOL.input_schema.properties.visual_direction.description]) {
+    assert.match(text, /how the viewer's visual focus should move/);
+    assert.doesNotMatch(text, /attention/i);
+  }
+});
