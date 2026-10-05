@@ -170,6 +170,13 @@ test('the journey Tutor keeps the shared policy lines, the voice and data-not-in
   assert.match(block(tutor, 'non_negotiable_rules'), /upcoming/);
 });
 
+// LP1 Task 14 review round 1 (C-14a): a Rabbit Hole opened from a journey section runs the journey Tutor with phase dive.
+test('the journey Tutor explains the dive phase: the claims that caused the hole, taught there, never deferred to upcoming', () => {
+  const tutor = PROMPTS.tutor;
+  assert.ok(block(tutor, 'current_state').includes('dive: a Rabbit Hole opened from that section; section\'s target_concepts/expected_evidence and dive_context.journey are the claims that caused it'));
+  assert.ok(block(tutor, 'non_negotiable_rules').includes('- Phase dive: teach the hole\'s topic through those claims; upcoming never defers it.'));
+});
+
 // ---------- 4. Counterexamples ----------
 
 test('each listed counterexample is present, labelled as a bad output and says why', () => {

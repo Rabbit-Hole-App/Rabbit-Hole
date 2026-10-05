@@ -180,13 +180,15 @@ These are surgical: every function gains an optional `domain = NANOGPT` paramete
 
 ```
 journey_context {
-  phase            setup | active | paused
+  phase            setup | active | paused | dive
   goal             one sentence
   section          { title, purpose, target_concepts: [labels], expected_evidence: [claim ids] } | null
   upcoming         [titles] ≤ 6
   constraints      { depth, minutes, coding, math }
 }
 ```
+
+`dive` (plan Task 14, §13) is a Rabbit Hole opened from a journey section. Its `section` is that section, with the dive's concepts as `target_concepts` and the dive's claims as `expected_evidence`, and `upcoming` is empty.
 
 The context is bounded to about 1.5 KB. It never carries the whole path, evidence history or raw intake answers.
 It is the tenth Teaching State key, present only on journey turns. The pinned nine-key test stays as it is for

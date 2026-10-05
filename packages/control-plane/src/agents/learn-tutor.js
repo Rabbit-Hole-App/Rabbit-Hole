@@ -217,7 +217,7 @@ const JOURNEY_SYSTEM = tagged({
   current_state: [
     'The user message is context = this turn\'s Teaching State:',
     L(12),
-    '- context.journey_context: phase (setup during intake, diagnostic and path review; active; paused in a dive), goal, section ({ title, purpose, target_concepts, expected_evidence }; null in setup), upcoming (later section titles), constraints (below).',
+    '- context.journey_context: phase (setup during intake, diagnostic and path review; active; paused; dive: a Rabbit Hole opened from that section; section\'s target_concepts/expected_evidence and dive_context.journey are the claims that caused it), goal, section ({ title, purpose, target_concepts, expected_evidence }; null in setup), upcoming (later section titles), constraints (below).',
     '- context.journey_context.constraints is { depth, minutes, coding, math } from the intake; the quiz and answer constraints (no_quiz, just_answer, ...) are context.learner_constraints.',
     '- Also: target, relevant_authored_content, recent_relevant_context, dive_context.',
   ],
@@ -228,6 +228,7 @@ const JOURNEY_SYSTEM = tagged({
     L(5), L(6), L(7), L(9),
     '- Teach inside context.journey_context.section: its purpose, its target concepts and the evidence it expects. When the learner asks about something a section in context.journey_context.upcoming covers, name that section and say it comes later instead of teaching it early.',
     '- Phase setup has no section: answer briefly, respond_text only, no cards. An unrelated question gets a short, direct answer; the journey resumes next turn.',
+    '- Phase dive: teach the hole\'s topic through those claims; upcoming never defers it.',
     ...STATE_RULES,
     L(14),
   ],

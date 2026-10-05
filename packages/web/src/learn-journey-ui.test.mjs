@@ -23,7 +23,7 @@ await esbuild.build({
     contents: [
       "export { TutorPromptTray, routeJourneyTurn, journeyStartsHere, journeyRequest, shownTray, liveJourneyTray, resolveBody, journeyController, inJourneySetup, journeyDiveContext } from './LearnJourney.jsx';",
       "export { default as ContentsRail, PathList, flyoutRect, canvasEmpty } from './ContentsRail.jsx';",
-      "export { useTutor } from './LearnTutor.jsx';",
+      "export { useTutor, tutorStoreKey } from './LearnTutor.jsx';",
       "export { createElement } from 'react';",
       "export { renderToStaticMarkup } from 'react-dom/server';",
     ].join('\n'),
@@ -32,7 +32,7 @@ await esbuild.build({
   },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent',
 });
-const { TutorPromptTray, routeJourneyTurn, journeyStartsHere, journeyRequest, shownTray, liveJourneyTray, resolveBody, journeyController, inJourneySetup, journeyDiveContext, ContentsRail, PathList, flyoutRect, canvasEmpty, useTutor, createElement, renderToStaticMarkup } = createRequire(import.meta.url)(outfile);
+const { TutorPromptTray, routeJourneyTurn, journeyStartsHere, journeyRequest, shownTray, liveJourneyTray, resolveBody, journeyController, inJourneySetup, journeyDiveContext, ContentsRail, PathList, flyoutRect, canvasEmpty, useTutor, tutorStoreKey, createElement, renderToStaticMarkup } = createRequire(import.meta.url)(outfile);
 rmSync(dir, { recursive: true, force: true });
 
 const intake = (slots = {}) => ({ id: 'j1', state: 'intake', revision: 3, request: { topic: 'logistic regression', intent: { kind: 'learning_journey' } }, intake: { slots, source: {} }, pending: null, error: null });
@@ -1180,9 +1180,10 @@ test('ask.jsx and LearnPage.jsx: the sheet opens only for a Tutor reply; slash p
   assert.match(ask, /if \(journey\.busy\) \{ tutor\?\.slash\?\.\(null\); return; \}/);
   assert.match(ask, /if \(!message \|\| busy\) \{ tutor\?\.slash\?\.\(null\); return; \}/);
   assert.match(read('LearnTutor.jsx'), /slash: \(name, raw\) => \{ slashNext\.current = name \? \{ name, raw \} : null; \}/);
-  // A block's composer gets the Tutor only on a canvas with a live journey (nanoGPT and blank canvases keep /api/learn/ask),
-  // and asks about the block it sits in.
-  assert.match(page, /renderBlockComposer=\{[^\n]*?canvasSeed=\{\{ question: exchange\.question, answer: exchange\.answer, target \}\} onExchange=\{onExchange\} tutor=\{journey\.journey \? tutor : null\}/);
+  // A block's composer gets the Tutor only on a canvas with a live journey, or in a hole opened from a journey section once
+  // its Tutor is active (LP1 Task 14 review round 1, D1); nanoGPT, blank canvases and other holes keep /api/learn/ask. It
+  // asks about the block it sits in.
+  assert.match(page, /renderBlockComposer=\{[^\n]*?canvasSeed=\{\{ question: exchange\.question, answer: exchange\.answer, target \}\} onExchange=\{onExchange\} tutor=\{journey\.journey \|\| \(tutor\.active && dive\.tree\?\.dive\?\.journey\) \? tutor : null\}/);
   assert.match(ask, /targetId: \(target \|\| canvasSeed\?\.target\)\?\.id \|\| null/);
 });
 
@@ -1231,4 +1232,32 @@ test('Task 14 wiring: LearnPage hands the live journey to useDive, the dive reco
   assert.match(tutor, /journeyDomain\(\{ journey: parentJourney\.journey, path: parentJourney\.path, blocks: canvas\?\.blocks\?\.\(\) \|\| \[\], dive: record\.journey \}\)/);
   // The parent's resolver and tray run only for a live journey on this board: the hole posts no journey action.
   assert.match(tutor, /if \(live && !slash && !opening && !skipJourney\)/);
+});
+
+// ---- LP1 Task 14 review round 1 ----
+test('journeyDiveContext: a stamped step with no registry claims falls back to its section\'s expected_evidence', () => {
+  const s1 = { journey_id: 'j1', section_id: 's1', concept_ids: ['odds'], claim_ids: ['odds/ratio'] };
+  assert.deepEqual(journeyDiveContext(activeDive(), divePath, stampedBlock('j1', 's1', [])), s1);
+  assert.deepEqual(journeyDiveContext(activeDive(), divePath, stampedBlock('j1', 's1', ['gone/claim'])), s1);
+});
+
+test('journeyDiveContext: a dive from this journey\'s section heading uses that heading\'s section; another journey\'s heading the current one', () => {
+  const heading = (journey_id, journey_section_id) => ({ id: 'h1', type: 'heading', text: 'Odds', journey_section_id, journey_id });
+  assert.deepEqual(journeyDiveContext(activeDive(), divePath, heading('j1', 's1')), { journey_id: 'j1', section_id: 's1', concept_ids: ['odds'], claim_ids: ['odds/ratio'] });
+  assert.equal(journeyDiveContext(activeDive(), divePath, heading('j0', 's1')).section_id, 's2');
+});
+
+test('tutorStoreKey: a journey hole has its own store; nanoGPT, holes without a journey and journey canvases keep their keys', () => {
+  const app = { name: 'canvas-0000hole', org: 'o', email: 'e@x.com' };
+  assert.equal(tutorStoreKey(app, null, null), 'small.tutor:o:e@x.com');
+  assert.equal(tutorStoreKey(app, null, { dive_id: 'canvas-0000hole', origin: {} }), 'small.tutor:o:e@x.com');
+  assert.equal(tutorStoreKey(app, 'j1', null), 'small.tutor:o:e@x.com:journey:j1');
+  assert.equal(tutorStoreKey(app, null, { dive_id: 'canvas-0000hole', journey: { journey_id: 'j1' } }), 'small.tutor:o:e@x.com:dive:j1');
+  assert.equal(tutorStoreKey(app, 'j2', { dive_id: 'canvas-0000hole', journey: { journey_id: 'j1' } }), 'small.tutor:o:e@x.com:journey:j2', 'a live journey here wins');
+  assert.match(read('LearnTutor.jsx'), /const key = tutorStoreKey\(app, journeyId, record\);/);
+});
+
+test('Task 14 known limits are marked: nested holes carry no journey; the hole Tutor waits for the parent read', () => {
+  assert.match(read('LearnPage.jsx'), /ponytail: a hole inside a journey hole carries no journey/);
+  assert.match(read('LearnTutor.jsx'), /ponytail: the hole Tutor is inactive until the parent journey GET returns/);
 });

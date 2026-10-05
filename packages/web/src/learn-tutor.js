@@ -122,11 +122,14 @@ export function buildTurn({ raw, slash = null, opening = false, canvas, block, s
 }
 
 // What /api/learn/tutor/evaluate checks: the turn's claims, and gap checks for their prerequisites.
+// Gaps are bounded as validateEvaluateBody bounds them (and the server's journeySpec builds them): at most 4, each
+// statement at most 600 characters, so a journey registry's longer prerequisite claims never 400 a hole's evaluation.
+// The nanoGPT registry is under both (one prerequisite concept, 225 characters), so its specs are unchanged.
 export function evaluationSpec(turn, claims, store, domain = NANOGPT) {
   const gaps = [];
   for (const id of claims) for (const concept of domain.claims[id].prerequisites) {
     let gap = gaps.find(entry => entry.concept === concept);
-    if (!gap) gaps.push(gap = { concept, statement: claimsOfConceptIn(domain.claims, concept).map(other => domain.claims[other].statement).join(' '), claims: [] });
+    if (!gap) gaps.push(gap = { concept, statement: claimsOfConceptIn(domain.claims, concept).map(other => domain.claims[other].statement).join(' ').slice(0, 600), claims: [] });
     gap.claims.push(id);
   }
   return {
@@ -139,7 +142,7 @@ export function evaluationSpec(turn, claims, store, domain = NANOGPT) {
       const claim = domain.claims[id];
       return { id, concept: claim.concept, statement: claim.statement, ideas: claim.ideas, misconceptions: claim.misconceptions, drawn: claim.drawn, ...(prior.length ? { prior_misconceptions: prior } : {}) };
     }),
-    gaps,
+    gaps: gaps.slice(0, 4),
   };
 }
 

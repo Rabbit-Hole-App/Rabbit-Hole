@@ -73,7 +73,8 @@ export function journeyDomain({ journey, path, blocks = [], dive = null }) {
         target_concepts: ((dive ? dive.concept_ids : section.target_concepts) || []).slice(0, 6).map(id => cap(concepts[id]?.label ?? id, 60)),
         expected_evidence: dive ? known(dive.claim_ids).slice(0, 4) : (section.expected_evidence || []).slice(0, 4).map(entry => entry.claim),
       },
-      upcoming: sections.filter(s => s.status === 'upcoming').slice(0, 6).map(s => cap(s.title, 80)),
+      // A hole teaches its own topic: no later section defers it (review round 1, C-14a).
+      upcoming: dive ? [] : sections.filter(s => s.status === 'upcoming').slice(0, 6).map(s => cap(s.title, 80)),
       constraints: { depth: slots.depth ?? null, minutes: slots.minutes ?? null, coding: slots.coding ?? null, math: slots.math ?? null },
     },
     evidence: dive ? { mode: 'session' } : { mode: 'journey', journey_id: journey.id },

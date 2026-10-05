@@ -24,10 +24,17 @@ const TURN_TIMEOUT_MS = 60000;
 // Tutor when its root is that course's repository (the server names a repository root by its repo) or the slice board.
 // journey: the board's journey (useJourney, LearnJourney.jsx); a live one makes the Tutor this canvas's responder.
 export const COURSE_REPO = 'karpathy/nanoGPT';
+// The Tutor's sessionStorage key. A journey's conversational store is its own (§5): open question, turns, Socratic counts;
+// its evidence is the server's. A hole opened from a journey section (Task 14 review round 1) keeps its session evidence
+// and turns apart from nanoGPT's tab-wide store and from other topics. Every other key is unchanged.
+export const tutorStoreKey = (app, journeyId, record) => (journeyId ? `${storeKey(app)}:journey:${journeyId}`
+  : record?.journey ? `${storeKey(app)}:dive:${record.journey.journey_id}` : storeKey(app));
 export function useTutor({ app, board, access, canvasApi, canvasState, dive, on = false, journey = null }) {
   const record = dive.tree?.dive || null;
   const root = dive.tree?.path?.[0];
   // The parent journey of a hole whose record carries one (Task 14): { journey, path } once read, else null.
+  // ponytail: the hole Tutor is inactive until the parent journey GET returns (the first instant is the plain hole); hold
+  // the composer on a pending state if learners type before it lands.
   const [parentJourney, setParentJourney] = useState(null);
   useEffect(() => {
     setParentJourney(null);
@@ -38,9 +45,8 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, on 
   }, [record?.dive_id]); // eslint-disable-line react-hooks/exhaustive-deps
   const active = on || board === TUTOR_BOARD || root?.board === TUTOR_BOARD || (root?.kind === 'repository' && root.title === COURSE_REPO) || !!journey?.journey || !!parentJourney;
   const here = { app: app.name, board };
-  // A journey's conversational store is its own (§5): open question, turns, Socratic counts. Its evidence is the server's.
   const journeyId = journey?.journey?.id ?? null;
-  const key = journeyId ? `${storeKey(app)}:journey:${journeyId}` : storeKey(app);
+  const key = tutorStoreKey(app, journeyId, record);
   const [chips, setChips] = useState([]);
   const slashNext = useRef(null);
   const stateRef = useRef(canvasState); stateRef.current = canvasState;

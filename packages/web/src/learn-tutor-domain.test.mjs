@@ -8,11 +8,12 @@ import { readFileSync } from 'node:fs';
 import { cardBlock } from './nanogpt/board.js';
 import { cardModule } from './learn-tutor-claims.js';
 import { appendEvents, emptyStore, deriveClaimStates } from './learn-tutor-evidence.js';
-import { buildTurn, executeActions, plannerContext, route, runTurn } from './learn-tutor.js';
+import { buildTurn, evaluationSpec, executeActions, plannerContext, route, runTurn } from './learn-tutor.js';
 import { validateActions } from './learn-tutor-validate.js';
 import { selectClaims } from './learn-tutor-select.js';
 import { diveJourney, journeyDomain } from './learn-journey-domain.js';
 import { fixtureFor } from '../../control-plane/src/learn-journey-fixtures.js';
+import { validateEvaluateBody } from '../../control-plane/src/learn-tutor-routes.js';
 
 // ---------- nanoGPT: byte-identical ----------
 
@@ -335,6 +336,7 @@ test('dive domain: default claims are the record claim_ids (registry ids only), 
   assert.equal(jc.section.title, PATH.sections.find(s => s.id === 's1').title);
   assert.deepEqual(jc.section.target_concepts, [registry.concepts['logistic-regression-foundations'].label]);
   assert.deepEqual(jc.section.expected_evidence, DIVE.claim_ids);
+  assert.deepEqual(jc.upcoming, [], 'review round 1: in a hole no later section defers the topic');
 });
 
 test('a hole turn: the planner context names the claim; the evaluation is the session spec, stored in the hole store; the parent journey is only read (one GET)', async () => {
@@ -349,6 +351,7 @@ test('a hole turn: the planner context names the claim; the evaluation is the se
   assert.deepEqual(log.map(entry => `${entry.method} ${entry.path}`), ['GET /api/learn/journey?app=a&board=b', 'POST /api/learn/tutor/evaluate', 'POST /api/learn/tutor/plan'], 'no journey write from the hole');
   const evaluate = log[1].body;
   assert.ok(!('journey_id' in evaluate), 'never the journey evidence path');
+  assert.deepEqual(validateEvaluateBody(evaluate).error, undefined, 'review round 1: the server accepts the session spec');
   assert.deepEqual(evaluate.spec.claims.map(claim => [claim.id, claim.statement]), [[WHY, registry.claims[WHY].statement]]);
   const context = log[2].body.context;
   assert.deepEqual(context.dive_context.journey, { section_id: 's1', claim_ids: [WHY], concept_ids: ['logistic-regression-foundations'] });
@@ -366,4 +369,21 @@ test('the parent journey read: another journey, no journey, a refusal or no dive
   const { journey: _, ...plain } = RECORD;
   assert.equal(await diveJourney(plain, get({ journey: JOURNEY, path: PATH })), null);
   assert.equal(calls.length, 3, 'a record without a journey reads nothing');
+});
+
+// LP1 Task 14 review round 1: a journey registry's prerequisites can exceed the evaluate route's limits (at most 4 gaps,
+// statements of at most 600 characters); the session spec a hole sends is bounded as the server's journeySpec bounds it.
+test('a hole evaluation on a realistic registry: at most 4 gaps of at most 600 characters, accepted by validateEvaluateBody', () => {
+  const long = n => `Prerequisite ${n} says ${'something long about it, '.repeat(12)}`.slice(0, 590);
+  const pre = [1, 2, 3, 4, 5].map(n => `pre-${n}`);
+  const claims = Object.fromEntries([
+    ['target/claim', { concept: 'target', statement: 'The target claim.', ideas: ['one idea'], misconceptions: [], prerequisites: pre, drawn: 'one case' }],
+    ...pre.flatMap(concept => [1, 2].map(k => [`${concept}/c${k}`, { concept, statement: long(`${concept}.${k}`), ideas: ['an idea'], misconceptions: [], prerequisites: [], drawn: 'a case' }])),
+  ]);
+  const concepts = Object.fromEntries(['target', ...pre].map(id => [id, { label: id, names: [id] }]));
+  const domain = journeyDomain({ journey: { ...JOURNEY, registry: { concepts, claims } }, path: PATH, blocks: [], dive: { ...DIVE, claim_ids: ['target/claim'] } });
+  const spec = evaluationSpec({ answering: false }, ['target/claim'], emptyStore(), domain);
+  assert.equal(spec.gaps.length, 4);
+  assert.ok(spec.gaps.every(gap => gap.statement.length <= 600));
+  assert.equal(validateEvaluateBody({ app: HOLE.app, message: 'Why not a number?', spec }).error, undefined);
 });
