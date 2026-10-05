@@ -135,6 +135,7 @@ async function covered(page, box, selectors) {
   }
   return [...new Set(hits)];
 }
+const panelOpen = page => page.locator('[aria-pressed][aria-label$="the right panel"]').getAttribute('aria-pressed').then(v => v === 'true');
 const keys = body => (body && typeof body === 'object' ? Object.keys(body) : []);
 
 // One check group; a throw is that group's FAIL, with a screenshot of where it stopped.
@@ -190,22 +191,11 @@ await group('J2', async () => {
       await send(page, EXPLAIN);
       await until(page, () => calls('/api/learn/tutor/evaluate').length > before || calls('/api/learn/ask').length > asks);
       await page.waitForTimeout(1500);
-      let sent = calls('/api/learn/tutor/evaluate').slice(before);
-      check('J2 explain-back reaches evaluate', sent.length > 0, 'the typed explain-back posts /api/learn/tutor/evaluate',
-        `no evaluate request: rule 5 sent ${calls('/api/learn/journey').filter(c => c.body?.action === 'resolve').length} resolve request(s), then ${calls('/api/learn/ask').length - asks} /api/learn/ask request(s) took the words (the journey_resolver fixture answers unrelated_question)`);
-      if (!sent.length) {
-        // Harness assist, logged: rule 5's answer for this free-text tray is faked as tray_answer so the walk reaches the mcq.
-        const assist = route => (route.request().postDataJSON()?.action === 'resolve' ? route.fulfill({ json: { kind: 'tray_answer' } }) : route.continue());
-        await page.route('**/api/learn/journey', assist);
-        await send(page, EXPLAIN);
-        await until(page, () => calls('/api/learn/tutor/evaluate').length > before);
-        await page.waitForTimeout(1000);
-        await page.unroute('**/api/learn/journey', assist);
-        sent = calls('/api/learn/tutor/evaluate').slice(before);
-        record('J2 explain-back (assisted)', sent.length ? 'PASS' : 'FAIL', sent.length ? 'with resolve faked as tray_answer, the answer posts evaluate' : 'no evaluate even with resolve faked');
-      }
-      const body = sent.at(-1)?.body;
-      if (body) check('J2 explain-back body', !!body.journey_id && Array.isArray(body.claims) && body.claims.length > 0, 'evaluate carries journey_id and claims', `body keys ${keys(body).join(',')}`);
+      // The real routing: rules 1-4 leave a free-text answer to rule 5 (resolve), whose answer here is the fixture's.
+      const sent = calls('/api/learn/tutor/evaluate').slice(before), body = sent.at(-1)?.body;
+      check('J2 explain-back posts evaluate', !!body?.journey_id && Array.isArray(body?.claims) && body.claims.length > 0 && calls('/api/learn/ask').length === asks,
+        'the typed explain-back posts evaluate with journey_id and claims, and nothing goes to /api/learn/ask',
+        `${sent.length} evaluate request(s) (body keys ${keys(body).join(',') || 'none'}), ${calls('/api/learn/ask').length - asks} /api/learn/ask request(s) took the words`);
       if (sent.at(-1)?.status === 400) { evaluateRefused = true; record('J2 explain-back JEV error', 'BLOCKED-UNTIL-TASK-7', 'evaluate answered 400: the journey evaluate path arrives in Task 7'); }
       else if (sent.length) check('J2 explain-back JEV error', sent.at(-1).status === 200, 'evaluate answered (JEV error is the keyless conservative path)', `evaluate HTTP ${sent.at(-1).status}`);
     } else {
@@ -226,22 +216,37 @@ await group('J2', async () => {
 });
 
 await group('J3', async () => {
-  const { page } = flow;
+  const { page, calls } = flow;
   await waitTray(page, 'path_preview');
   const entries = await page.locator('[data-contents-rail] [data-path-entry]').evaluateAll(list => list.map(li => li.dataset.status));
   check('J3 path tray and rail', entries.length === 8 && entries.every(s => s === 'upcoming'), 'path_preview tray, 8 rail entries, all upcoming', `${entries.length} entries: ${entries.join(',')}`);
   const stored = await blocksOf(page, lr);
   check('J3 no blocks', stored.length === 0 && await domBlocks(page) === 0, '0 canvas blocks', `${stored.length} blocks`);
-  await page.getByRole('button', { name: 'Show the right panel' }).click();
+  // A question during path review is answered in the chat sheet (no card before acceptance), so the sheet is open for
+  // the geometry below: the case where the pinned list once covered it.
+  const asks = calls('/api/learn/ask').length;
+  await send(page, 'What is a sigmoid?');
+  await page.getByText(CANNED).first().waitFor({ timeout: 15000 });
   await page.waitForTimeout(800);
-  const { box, inside } = await railBox(page);
-  const list = await page.locator('nav[aria-label="Learning path"]').boundingBox();
-  check('J3 rail with panel open', inside && !!list && list.width > 0, 'with the right panel open the rail and its pinned list are visible inside the viewport',
-    `rail box ${JSON.stringify(box)}, list box ${JSON.stringify(list)}`);
-  const hits = await covered(page, list, ['[data-tutor-prompt-tray]', '[data-learn-dock] [data-chat-composer]', '[data-chat-sheet]', '[data-block-id]']);
-  check('J3 rail covers nothing', !hits.length, 'the open path list covers no tray, composer, chat sheet or card', `the open path list covers ${hits.join(', ')}`);
-  await shot(page, 'J3-path-rail-panel-open');
-  await page.getByRole('button', { name: 'Hide the right panel' }).click();
+  check('J3 setup question in the sheet', calls('/api/learn/ask').length === asks + 1 && await page.locator('[data-chat-sheet]').isVisible() && (await trayState(page))?.mode === 'path_preview',
+    'a question during path review is answered in the chat sheet; the path tray stays', 'the question did not land in the sheet beside the path tray');
+  // The pinned list never meets the composer, the tray, the sheet, the Rabbit Hole navigator or the minimap: two
+  // viewports, right panel open and closed. A list with no room stays closed (ContentsRail flyoutRect), which passes.
+  // The navigator is what [data-dive-gutter] (or [data-gutter-top]) draws, its children: the gutter itself is an 84 px
+  // full-height layout column whose empty part also holds the rail strip.
+  for (const [width, height] of [[1440, 1000], [1720, 1100]]) for (const open of [true, false]) {
+    await page.setViewportSize({ width, height });
+    if (await panelOpen(page) !== open) await page.getByRole('button', { name: open ? 'Show the right panel' : 'Hide the right panel' }).click();
+    await page.waitForTimeout(900);
+    const { box, inside } = await railBox(page);
+    const nav = page.locator('nav[aria-label="Learning path"]'), list = await nav.isVisible() ? await nav.boundingBox() : null;
+    const hits = await covered(page, list, ['[data-learn-dock] [data-chat-composer]', '[data-tutor-prompt-tray]', '[data-chat-sheet]', '[data-dive-gutter] > *', '[data-gutter-top] > *', '[data-canvas-minimap]']);
+    const at = `${width}x${height} panel ${open ? 'open' : 'closed'}`, size = list ? `list ${Math.round(list.width)}x${Math.round(list.height)}` : 'list closed (no room)';
+    check(`J3 geometry ${at}`, inside && !hits.length, `rail inside the viewport, ${size}, covering nothing`, `rail ${inside ? 'inside' : 'outside'} the viewport, ${size}, covers ${hits.join(', ') || 'nothing'}`);
+    await shot(page, width === 1440 && open ? 'J3-path-rail-panel-open' : `J3-geometry-${width}-${open ? 'open' : 'closed'}`);
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.getByRole('button', { name: 'Collapse chat' }).click(); // the learner closes the sheet before starting
 });
 
 await group('J4', async () => {
