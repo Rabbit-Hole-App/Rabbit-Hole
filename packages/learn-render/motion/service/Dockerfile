@@ -32,6 +32,11 @@ RUN groupadd -g 10010 motion \
 COPY --from=build /src/package.json /app/package.json
 COPY --from=build /src/node_modules /app/node_modules
 COPY --from=build /src/packages/learn-render /app/packages/learn-render
+# The shared files the service imports from other packages (context.sh SHARED), at their own
+# paths, with their package.json for "type": "module": motion/duration.js reads a stated duration
+# with the Learner Intent Resolver's parser (one parser, never a copy).
+COPY --from=build /src/packages/control-plane/package.json /app/packages/control-plane/package.json
+COPY --from=build /src/packages/control-plane/src/request-duration.js /app/packages/control-plane/src/request-duration.js
 # The renderer is root-owned and read-only to both users; the launcher and its init are root's.
 RUN chown -R root:root /app && chmod -R a+rX,go-w /app \
  && install -m 0755 -o root -g root /app/packages/learn-render/motion/service/motion-sandbox /usr/local/sbin/motion-sandbox \
