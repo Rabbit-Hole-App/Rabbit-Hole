@@ -93,23 +93,32 @@ export function PathList({ entries, onOpen, expanded }) {
 // bottom strip (`floor`: its top; the composer, the tray and the minimap live there).
 // - Pinned (permanent: a path under review), it stays out of the composer column's horizontal span, so the chat sheet
 //   over that column can never be under it either; null when that leaves too little room, and the list is then not pinned.
+//   When that side room is narrow (under 220px: 1440 with the right panel open) and the canvas has no cards (`empty`),
+//   it takes the free canvas above the sheet, the tray and the composer instead (the column's top is the tray's when it
+//   shows): up to 320px wide, right-aligned to the rail, never left of the tools (`toolsRight`), while that is 160px tall.
 // - Opened by hover, focus or the toggle (temporary), it may lie over the canvas at full width, but ends above the sheet
 //   wherever the two would meet; else the pinned place; else nowhere. Placement, not z-order: the sheet's z-index lives
 //   inside the canvas, the rail outside it.
-export const FLYOUT = { width: 256, gap: 8, minWidth: 128, minHeight: 160 };
-export function flyoutRect({ gutter, column = null, sheet = null, ceiling = 0, floor, pinned }) {
-  const { width, gap, minWidth, minHeight } = FLYOUT;
+export const FLYOUT = { width: 256, wide: 320, sideRoom: 220, gap: 8, minWidth: 128, minHeight: 160 };
+export function flyoutRect({ gutter, column = null, sheet = null, ceiling = 0, floor, toolsRight = 0, empty = false, pinned }) {
+  const { width, wide, sideRoom, gap, minWidth, minHeight } = FLYOUT;
   const right = gutter.left - gap, top = ceiling + gap, bottom = floor - gap, left = right - width;
   const fits = r => r.right - r.left >= minWidth && r.bottom - r.top >= minHeight;
-  const beside = { left: Math.max(left, (column?.right ?? -Infinity) + gap), top, right, bottom };
+  const side = (column?.right ?? -Infinity) + gap;
+  const beside = { left: Math.max(left, side), top, right, bottom };
+  if (pinned && empty && right - side < sideRoom) {
+    const above = { left: Math.max(right - wide, toolsRight + gap), top, right, bottom: Math.min(bottom, (column?.top ?? floor) - gap, sheet ? sheet.top - gap : Infinity) };
+    if (fits(above)) return above;
+  }
   if (pinned) return fits(beside) ? beside : null;
   const over = { left, top, right, bottom: sheet && left < sheet.right && sheet.left < right ? Math.min(bottom, sheet.top - gap) : bottom };
   return fits(over) ? over : fits(beside) ? beside : null;
 }
 
 // The rail's places, measured from the live canvas in its frame and again whenever the frame, the bottom strip (the tray
-// comes and goes) or the sheet changes size: { wrap, pin, open }; undefined until measured (a server render).
-function useFlyout(wrapRef, pillRef, on, shown) {
+// comes and goes) or the sheet changes size, the list opens or a card lands: { wrap, pin, open }; undefined until measured
+// (a server render).
+function useFlyout(wrapRef, pillRef, on, shown, empty) {
   const [place, setPlace] = useState(undefined);
   useLayoutEffect(() => {
     const wrap = wrapRef.current, frame = wrap?.parentElement;
@@ -125,27 +134,29 @@ function useFlyout(wrapRef, pillRef, on, shown) {
       const gutter = { left: Math.min(pill.left, tools && column && tools.left > column.right ? tools.left : Infinity) };
       const ceiling = Math.max(0, ...[...frame.querySelectorAll('[data-dive-gutter] > *, [data-gutter-top] > *')].map(seen).filter(Boolean).map(r => r.bottom));
       const floor = seen(frame.querySelector('[data-canvas-bottom]'))?.top ?? f.height;
-      const near = { gutter, column, sheet: seen(frame.querySelector('[data-chat-sheet]')), ceiling, floor };
+      const toolsRight = tools && tools.right < f.width / 2 ? tools.right : 0; // the tools docked left
+      const near = { gutter, column, sheet: seen(frame.querySelector('[data-chat-sheet]')), ceiling, floor, toolsRight, empty };
       setPlace({ wrap: seen(wrap), pin: flyoutRect({ ...near, pinned: true }), open: flyoutRect({ ...near, pinned: false }) });
     };
     measure();
     const observer = new ResizeObserver(measure);
     for (const el of [frame, frame.querySelector('[data-canvas-bottom]'), frame.querySelector('[data-chat-sheet]')]) if (el) observer.observe(el);
     return () => observer.disconnect();
-  }, [on, shown, wrapRef, pillRef]);
+  }, [on, shown, empty, wrapRef, pillRef]);
   return place;
 }
 
 // pinned keeps the list open (a path under review) when there is room for it (flyoutRect). Hover, the Path button (a
 // toggle that keeps it open) and focus inside the path rail (§8: hover or focus) each hold it open on their own, so the
 // button never hides a list hover opened. Pinned open, the button can change nothing: disabled, and says it is expanded.
-export default function ContentsRail({ entries, onOpen, pinned = false, placement = 'page' }) {
+// empty: the canvas has no cards, so a pinned list may use the free canvas above the composer (flyoutRect).
+export default function ContentsRail({ entries, onOpen, pinned = false, placement = 'page', empty = false }) {
   const [hover, setHover] = useState(false);
   const [toggled, setToggled] = useState(false);
   const [focus, setFocus] = useState(false);
   const wrapRef = useRef(null), pillRef = useRef(null);
   const path = entries.some(entry => entry.status);
-  const place = useFlyout(wrapRef, pillRef, path, hover || toggled || focus);
+  const place = useFlyout(wrapRef, pillRef, path, hover || toggled || focus, empty);
   if (!entries.length) return null;
   // Before it is measured (a server render) a pinned list shows in the default place.
   const pinnedOpen = pinned && place?.pin !== null;

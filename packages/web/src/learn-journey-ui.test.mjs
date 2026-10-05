@@ -474,38 +474,52 @@ test('ContentsRail: a journey path in the canvas frame - glyph strip, a Path tog
 });
 
 // docs/features/learn-canvas-blocks.md, "Canvas utilities never cover authored content": the open path list, pinned or
-// opened, never meets the composer column, the tray, the chat sheet, the Rabbit Hole navigator or the minimap. Frame
-// coordinates as measured on the keyless stack (task-11a J3: panel open, the sheet at 231-743) and derived for the others
-// (DOCK_WIDTH 780 centred between the strip's side columns, the 84px dive gutter, the strip's top as its tallest column).
+// opened, never meets the composer column, the tray, the chat sheet, the Rabbit Hole navigator, the minimap or the tools.
+// Frame coordinates as measured on the keyless stack (task-11a J3: panel open, the sheet at 231-743) and derived for the
+// others (DOCK_WIDTH 780 centred between the strip's side columns, the 84px tool and dive gutters, the strip's top as its
+// tallest column: the composer with the tray).
 const VIEWPORTS = {
-  '1440x1000 panel open': { frame: { width: 960, height: 944 }, rail: { left: 903, top: 380, right: 947, bottom: 562 }, navigator: { left: 860, top: 2, right: 944, bottom: 46 },
+  '1440x1000 panel open': { frame: { width: 960, height: 944 }, rail: { left: 903, top: 380, right: 947, bottom: 562 }, navigator: { left: 860, top: 2, right: 944, bottom: 46 }, tools: { left: 0, top: 0, right: 84, bottom: 742 },
     strip: { left: 0, top: 742, right: 960, bottom: 944 }, column: { left: 231, top: 742, right: 743, bottom: 928 }, sheet: { left: 231, top: 510, right: 743, bottom: 726 }, minimap: { left: 757, top: 800, right: 940, bottom: 924 } },
-  '1440x1000 panel closed': { frame: { width: 1440, height: 944 }, rail: { left: 1383, top: 380, right: 1427, bottom: 562 }, navigator: { left: 1340, top: 2, right: 1424, bottom: 46 },
+  '1440x1000 panel closed': { frame: { width: 1440, height: 944 }, rail: { left: 1383, top: 380, right: 1427, bottom: 562 }, navigator: { left: 1340, top: 2, right: 1424, bottom: 46 }, tools: { left: 0, top: 0, right: 84, bottom: 742 },
     strip: { left: 0, top: 742, right: 1440, bottom: 944 }, column: { left: 330, top: 742, right: 1110, bottom: 928 }, sheet: { left: 330, top: 480, right: 1110, bottom: 726 }, minimap: { left: 1237, top: 800, right: 1420, bottom: 924 } },
-  '1720x1100': { frame: { width: 1720, height: 1044 }, rail: { left: 1663, top: 430, right: 1707, bottom: 612 }, navigator: { left: 1620, top: 2, right: 1704, bottom: 46 },
+  '1720x1100': { frame: { width: 1720, height: 1044 }, rail: { left: 1663, top: 430, right: 1707, bottom: 612 }, navigator: { left: 1620, top: 2, right: 1704, bottom: 46 }, tools: { left: 0, top: 0, right: 84, bottom: 842 },
     strip: { left: 0, top: 842, right: 1720, bottom: 1044 }, column: { left: 470, top: 842, right: 1250, bottom: 1028 }, sheet: { left: 470, top: 560, right: 1250, bottom: 826 }, minimap: { left: 1517, top: 900, right: 1700, bottom: 1024 } },
 };
 const meets = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+const inputOf = (v, over = {}) => ({ gutter: v.rail, column: v.column, sheet: v.sheet, ceiling: v.navigator.bottom, floor: v.strip.top, toolsRight: v.tools.right, ...over });
 
-test('flyoutRect: pinned or opened, the path list never meets the composer, tray, sheet, navigator or minimap, at 1440 (panel open and closed) and 1720', () => {
+test('flyoutRect: pinned or opened, the path list never meets the composer, tray, sheet, navigator, minimap or tools, at 1440 (panel open and closed) and 1720', () => {
   for (const [name, v] of Object.entries(VIEWPORTS)) {
-    const input = { gutter: v.rail, column: v.column, sheet: v.sheet, ceiling: v.navigator.bottom, floor: v.strip.top };
-    for (const pinned of [true, false]) {
-      const r = flyoutRect({ ...input, pinned }), at = `${name} ${pinned ? 'pinned' : 'opened'}`;
+    for (const [pinned, empty] of [[true, true], [true, false], [false, true]]) {
+      const r = flyoutRect(inputOf(v, { pinned, empty })), at = `${name} ${pinned ? 'pinned' : 'opened'}${empty ? ' on an empty canvas' : ''}`;
       assert.ok(r, at);
-      for (const [what, box] of Object.entries({ column: v.column, sheet: v.sheet, navigator: v.navigator, minimap: v.minimap, strip: v.strip, rail: v.rail })) assert.ok(!meets(r, box), `${at} meets the ${what}`);
+      for (const [what, box] of Object.entries({ column: v.column, sheet: v.sheet, navigator: v.navigator, minimap: v.minimap, strip: v.strip, rail: v.rail, tools: v.tools })) assert.ok(!meets(r, box), `${at} meets the ${what}`);
       assert.ok(r.left >= 0 && r.top >= 0 && r.right <= v.rail.left && r.bottom <= v.frame.height, `${at} inside the frame, left of the rail`);
       assert.ok(r.right - r.left >= 128 && r.bottom - r.top >= 160, `${at} big enough to read`);
-      if (pinned) assert.ok(r.left >= v.column.right, `${at} out of the composer column's span`);
+      if (pinned) assert.ok(r.left >= v.column.right || r.bottom <= Math.min(v.sheet.top, v.column.top), `${at} beside the composer column or above the sheet`);
     }
   }
-  // The panel-open canvas: pinned it narrows to the room beside the column; opened it takes its full width but ends above the sheet.
-  const v = VIEWPORTS['1440x1000 panel open'], input = { gutter: v.rail, column: v.column, sheet: v.sheet, ceiling: v.navigator.bottom, floor: v.strip.top };
-  assert.deepEqual(flyoutRect({ ...input, pinned: true }), { left: 751, top: 54, right: 895, bottom: 734 });
-  assert.deepEqual(flyoutRect({ ...input, pinned: false }), { left: 639, top: 54, right: 895, bottom: 502 });
-  assert.deepEqual(flyoutRect({ ...VIEWPORTS['1720x1100'], gutter: VIEWPORTS['1720x1100'].rail, ceiling: 46, floor: 842, pinned: true }), { left: 1399, top: 54, right: 1655, bottom: 834 });
-  // No room beside the column: nothing is pinned (the strip stays, hover opens it); opened, it still finds a place.
-  const tight = { ...input, column: { ...v.column, right: 820 } };
+  // 1440 with the panel open: the side room is 144px, so on the empty canvas of a path review the pinned list takes the free
+  // canvas above the sheet, tray and composer - 320px wide, right-aligned to the rail - instead of wrapping a word per line.
+  const v = VIEWPORTS['1440x1000 panel open'];
+  const above = flyoutRect(inputOf(v, { pinned: true, empty: true }));
+  assert.deepEqual(above, { left: 575, top: 54, right: 895, bottom: 502 });
+  assert.ok(above.right - above.left >= 240);
+  // No sheet open: it ends above the tray and composer instead.
+  assert.deepEqual(flyoutRect(inputOf(v, { sheet: null, pinned: true, empty: true })), { left: 575, top: 54, right: 895, bottom: 734 });
+  // Cards on the canvas, or too little height above a tall sheet: the side place, as before.
+  assert.deepEqual(flyoutRect(inputOf(v, { pinned: true, empty: false })), { left: 751, top: 54, right: 895, bottom: 734 });
+  assert.deepEqual(flyoutRect(inputOf(v, { sheet: { ...v.sheet, top: 200 }, pinned: true, empty: true })), { left: 751, top: 54, right: 895, bottom: 734 });
+  // Never left of the tools: a narrow canvas gives the list what is between them and the rail.
+  assert.deepEqual(flyoutRect(inputOf(v, { toolsRight: 640, pinned: true, empty: true })), { left: 648, top: 54, right: 895, bottom: 502 });
+  // Room beside the column (1440 panel closed, 1720): the side place, unchanged, even on an empty canvas.
+  assert.deepEqual(flyoutRect(inputOf(VIEWPORTS['1440x1000 panel closed'], { pinned: true, empty: true })), { left: 1119, top: 54, right: 1375, bottom: 734 });
+  assert.deepEqual(flyoutRect(inputOf(VIEWPORTS['1720x1100'], { pinned: true, empty: true })), { left: 1399, top: 54, right: 1655, bottom: 834 });
+  // Opened (hover, focus, the toggle) is unchanged: full width, ending above the sheet.
+  assert.deepEqual(flyoutRect(inputOf(v, { pinned: false, empty: true })), { left: 639, top: 54, right: 895, bottom: 502 });
+  // No room beside the column and cards on the canvas: nothing is pinned (the strip stays, hover opens it); opened, it still finds a place.
+  const tight = inputOf(v, { column: { ...v.column, right: 820 } });
   assert.equal(flyoutRect({ ...tight, pinned: true }), null);
   assert.ok(flyoutRect({ ...tight, pinned: false }));
   // A tall sheet and no room beside: nothing opens rather than covering it.
@@ -527,6 +541,8 @@ test('LearnPage.jsx: the journey rail sits inside the canvas frame whatever the 
   assert.ok(frame > 0 && at > frame && at < panel, 'inside the canvas frame div, before the Learn agent chat panel');
   assert.match(page, /\{journey\.path && <ContentsRail placement="canvas" entries=\{pathEntries\(journey\.path, journey\.prevPath\)/);
   assert.match(page, /pinned=\{journey\.journey\?\.state === 'path_review'\}/);
+  // A pinned list may use the free canvas above the composer only while the canvas has no cards (blocks or placed chats).
+  assert.match(page, /empty=\{!\(canvasState\.cards \|\| \[\]\)\.length && !exchanges\.length\}/);
   assert.match(page, /edgeInset=\{journey\.path \? 52 : \(!panelOpen && canvasOutline\.length \? 52 : 0\)\}/);
   assert.match(page, /\{!panelOpen && !journey\.path && <ContentsRail entries=\{canvasOutline\.map\(/);
   // A materialized section frames its heading; any other entry opens its purpose, with no request.
