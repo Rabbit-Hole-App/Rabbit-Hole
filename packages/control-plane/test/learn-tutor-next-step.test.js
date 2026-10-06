@@ -5,7 +5,8 @@
 // 516c06007f1bd4fd4dc95e8c8778d8171f3e4a3f59a6657ca834ddb643bd3b96 (re-pinned with review: .superpowers/sdd/2026-10-06-professor-next-steps/task-4-repin-review.md).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ACTION_TYPES, PLANNER_SYSTEM, REASON_CODES, TUTOR_TOOL, plannerSystem, tutorTool } from '../src/agents/learn-tutor.js';
+import { ACTION_TYPES, NEXT_STEP_SYSTEM, PLANNER_SYSTEM, REASON_CODES, TUTOR_TOOL, plannerRequest, plannerSystem, tutorTool } from '../src/agents/learn-tutor.js';
+import { plannerTier } from '../src/learn-tutor-routes.js';
 
 test('REASON_CODES are the owner taxonomy, generic, in order', () => {
   assert.deepEqual(REASON_CODES, ['advance_goal', 'deepen_mechanism', 'repair_misconception', 'fill_prerequisite_gap', 'check_understanding', 'test_transfer', 'consolidate', 'respond_to_question', 'follow_learner_interest', 'increase_interactivity', 'vary_modality', 'reduce_cognitive_load', 'resume_context']);
@@ -43,4 +44,22 @@ test('the shared lines: reason codes and reason last, generation only through cr
   assert.match(journey, /never generate new artifacts unless context\.allowed_actions lists create_material\./);
   // L(15) sits in the journey rules right after L(9).
   assert.ok(journey.includes(`- ${lines[9]}\n- ${lines[15]}\n`));
+});
+
+// Task 5: the hook-click lines, appended only on next_step turns so every other request stays byte-identical.
+test('NEXT_STEP_SYSTEM is appended only on next_step turns; every other request is unchanged', () => {
+  const base = { learner_intent: { kind: 'question', raw_user_message: 'q' }, route: { row: 'understood' }, allowed_actions: ['respond_text'] };
+  assert.equal(plannerRequest(base, 2000).system.includes(NEXT_STEP_SYSTEM), false);
+  const step = { ...base, learner_intent: { kind: 'next_step', raw_user_message: '', selected_next_step: { hook: 'h', learning_goal: 'g', concept_ids: [], claim_ids: [] } } };
+  assert.equal(plannerRequest(step, 2000).system, `${PLANNER_SYSTEM}\n${NEXT_STEP_SYSTEM}`);
+  assert.equal(plannerRequest({ ...step, journey_context: { phase: 'active' } }, 2000).system, `${plannerSystem(false, 'journey')}\n${NEXT_STEP_SYSTEM}`);
+  assert.equal(plannerRequest(step, 2000, [], { avatar: true, cache: true }).system[0].text, `${plannerSystem(true, 'nanogpt')}\n${NEXT_STEP_SYSTEM}`);
+  assert.deepEqual(plannerRequest(step, 2000).tools, plannerRequest(base, 2000).tools, 'the tool is unchanged');
+  assert.match(NEXT_STEP_SYSTEM, /never evidence and never an explicit_request/);
+  assert.match(NEXT_STEP_SYSTEM, /create_material/);
+  assert.match(NEXT_STEP_SYSTEM, /several are allowed/);
+  assert.match(NEXT_STEP_SYSTEM, /plain words: no backticks and no code/);
+  assert.doesNotMatch(NEXT_STEP_SYSTEM, /[`]|=>/, 'the prompt itself has no code characters');
+  assert.deepEqual(plannerTier({ route: { row: 'not_yet_observed' }, learner_intent: { kind: 'next_step' } }).tier, 'fast');
+  assert.deepEqual(plannerTier({ route: { row: 'misconception' }, learner_intent: { kind: 'next_step' } }).tier, 'opus');
 });

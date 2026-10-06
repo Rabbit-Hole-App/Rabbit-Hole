@@ -130,7 +130,8 @@ export function validateActions(response, routed, turn, domain = NANOGPT) {
   const explicit = !!quoted && turn.raw_user_message.toLowerCase().includes(quoted.toLowerCase());
   // The quote is the learner's words: the log (console, the bench's `rejected`) never carries them (Voice privacy).
   if (quoted && !explicit) log.push("explicit_request not in the learner's words");
-  const navigate = explicit || routed.row === 'slash' || routed.row === 'gap_inline';
+  // A hook click is the learner's consent for the direction it chose (Professor Next Steps §2.5); never true on a typed turn.
+  const navigate = explicit || routed.row === 'slash' || routed.row === 'gap_inline' || !!turn.next_step;
   const allowed = new Set([...routed.allowed, ...(explicit ? ['respond_text', 'show_authored_card', 'focus_part'] : [])]);
   // v2: a constraint the learner states in this very message ("Don't quiz me") already binds this turn.
   const constraints = [...turn.constraints, ...(response.constraints_add || [])].filter(item => !(response.constraints_remove || []).includes(item)).concat(statedConstraints(turn.raw_user_message));

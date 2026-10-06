@@ -20,6 +20,7 @@ import { selectClaims } from './learn-tutor-select.js';
 import { EVIDENCE_ACTIONS, EVIDENCE_ROWS, avatarMoments, speakable, statedConstraints, validateActions } from './learn-tutor-validate.js';
 import { AVATAR_ACTION } from '../../control-plane/src/agents/learn-tutor.js';
 import { turnTrace } from './learn-tutor-trace.js';
+import { actionContract, reasonCodes } from './learn-tutor-actions.js';
 
 const SLASHES = ['deeper', 'simplify', 'dive'];
 const canvasKey = canvas => `${canvas.app}|${canvas.board || 'main'}`;
@@ -64,13 +65,14 @@ export function cardState(block, store) {
 export { holeConcept };
 
 // The claims this turn is about: the one an open question asks about, the blocked claim after a
-// return, then the target card's (or part's, or selected object's), else the domain's default (nanoGPT: the hole's
-// concept; a journey: its current section's expected evidence, nothing in setup).
+// return, a clicked hook's claims, then the target card's (or part's, or selected object's), else the domain's default
+// (nanoGPT: the hole's concept; a journey: its current section's expected evidence, nothing in setup).
 export function turnClaims(turn, store, domain = NANOGPT) {
   const out = [];
   const add = id => { if (id && domain.claims[id] && !out.includes(id)) out.push(id); };
   if (turn.answering) add(store.open?.claim);
   if (turn.returned_from) add(turn.returned_from.claim);
+  if (turn.next_step) turn.next_step.claim_ids.forEach(add);
   // block_id: a journey's cards are its blocks (their stamped claims); the nanoGPT registry reads the card.
   const target = turn.target && { block_id: turn.target.block_id, card_id: turn.target.card, part_id: turn.target.part_id, selected_object: turn.target.selected_object, concept_ids: turn.target.concepts };
   domain.targetClaims(target).forEach(add);
@@ -89,11 +91,15 @@ const turnEvidence = (claims, states, domain) => withPrerequisites(claims, domai
 
 // inputModality: 'text' (typed) or 'voice' (Voice Mode, docs/features/voice-tutor-mvp.md §1);
 // turnId: the voice trace id minted at the utterance commit, else a fresh one.
-export function buildTurn({ raw, slash = null, opening = false, canvas, block, store, states, inputModality = 'text', turnId = null, domain = NANOGPT }) {
+// nextStep (Professor Next Steps §2.5): a clicked hook's selected_next_step. The turn carries it as structured data with
+// no learner words, answers no open question and consumes no dive choice or return; materials: the Learn commands it may
+// run as create_material (learn-slash.js materialCommands).
+export function buildTurn({ raw, slash = null, opening = false, canvas, block, store, states, inputModality = 'text', turnId = null, domain = NANOGPT, nextStep = null, materials = [] }) {
   const here = { app: canvas.app, board: canvas.board || 'main' };
-  const open = store.open && sameCanvas(store.open.canvas, here) && !slash ? store.open : null;
-  const keep = store.keep && sameCanvas(store.keep.canvas, here) ? store.keep : null;
-  const back = store.returned && sameCanvas(store.returned.parent, here) ? store.returned : null;
+  const open = store.open && sameCanvas(store.open.canvas, here) && !slash && !nextStep ? store.open : null;
+  const keep = store.keep && sameCanvas(store.keep.canvas, here) && !nextStep ? store.keep : null;
+  const back = store.returned && sameCanvas(store.returned.parent, here) && !nextStep ? store.returned : null;
+  if (nextStep) raw = '';
   const turn = {
     turn_id: turnId || crypto.randomUUID(),
     raw_user_message: raw,
@@ -110,6 +116,7 @@ export function buildTurn({ raw, slash = null, opening = false, canvas, block, s
     ...(back ? { returned_from: { dive_id: back.dive_id, concept: back.concept, claim: back.claim, states: claimsOfConceptIn(domain.claims, back.concept).map(id => states[id]) } } : {}),
     recent_turns: store.turns.slice(-4),
     recent_actions: store.actions.slice(-3),
+    ...(nextStep ? { next_step: { suggestion_id: nextStep.suggestion_id, hook: nextStep.hook, learning_goal: nextStep.learning_goal, concept_ids: [...(nextStep.concept_ids || [])], claim_ids: [...(nextStep.claim_ids || [])] }, available_materials: materials } : {}),
   };
   const claims = turnClaims(turn, store, domain);
   turn.evidence = turnEvidence(claims, states, domain);
@@ -197,16 +204,21 @@ export function route({ turn, claims, states, evaluation, store, avatar = null, 
 
 // ---------- Compact Teaching State (§9, v2 Stage E) ----------
 
-// What the learner is doing this turn, deterministically: a slash, a hole's opening, an answer to the
-// Tutor's open question, a request ("show me", "explain", "don't quiz me"), a question, else an
+// What the learner is doing this turn, deterministically: a clicked hook (next_step), a slash, a hole's opening, an answer
+// to the Tutor's open question, a request ("show me", "explain", "don't quiz me"), a question, else an
 // explanation. The planner reads it; JEV still decides whether words were an attempt.
 export function learnerIntent(turn) {
   const raw = turn.raw_user_message.trim();
-  const kind = turn.slash ? 'slash' : turn.opening ? 'opening' : turn.returned_from ? 'returned' : turn.answering ? 'answer'
+  const kind = turn.next_step ? 'next_step' : turn.slash ? 'slash' : turn.opening ? 'opening' : turn.returned_from ? 'returned' : turn.answering ? 'answer'
     : /^(please |can you |could you |just )?(show|take|give|explain|tell|walk|go|simplify|don'?t|do not|no more|stop)\b/i.test(raw) ? 'request'
     : /\?\s*$/.test(raw) || /^(why|how|what|when|where|which|who|is|are|does|do|can|could|should|would)\b/i.test(raw) ? 'question' : 'explanation';
   // input_modality only on voice turns, so a typed turn's planner context is unchanged.
-  return { kind, raw_user_message: turn.raw_user_message, ...(turn.input_modality === 'voice' ? { input_modality: 'voice' } : {}), ...(turn.slash ? { slash: turn.slash } : {}), ...(turn.dive_choice ? { dive_choice: turn.dive_choice } : {}) };
+  // A hook click: the hook the learner saw and the goal and claims behind it, never as learner words (contract §2.5).
+  return {
+    kind, raw_user_message: turn.raw_user_message, ...(turn.input_modality === 'voice' ? { input_modality: 'voice' } : {}),
+    ...(turn.next_step ? { selected_next_step: { hook: turn.next_step.hook, learning_goal: turn.next_step.learning_goal, concept_ids: turn.next_step.concept_ids, claim_ids: turn.next_step.claim_ids } } : {}),
+    ...(turn.slash ? { slash: turn.slash } : {}), ...(turn.dive_choice ? { dive_choice: turn.dive_choice } : {}),
+  };
 }
 
 // Does the learner clearly ask to see a card (docs/features/canvas-skeleton-cards.md)? Then its place on the
@@ -327,7 +339,12 @@ export const enforce = validateActions;
 // domain: the TutorDomain (NANOGPT by default). A journey domain's evidence is the server's (architecture §5):
 // /evaluate gets the journey id and claim ids, and the stored events it returns replace the store's.
 // plan: false (a diagnostic turn, §6.3) stops after the evidence - no router, planner or actions.
-export async function runTurn({ raw, slash = null, opening = false, canvas, access, block, store, post, onSpeakable = null, inputModality = 'text', turnId = null, onTurn = null, domain = NANOGPT, plan = true }) {
+// nextStep, materials (Professor Next Steps §2.5): a hook click - one structured next_step turn with no learner words, so
+// nothing is evaluated and no evidence is written; the planner may answer with create_material among materials.
+// The result also carries `contracts` (one actionContract per accepted action, learn-tutor-actions.js) and the turn's
+// `reason_codes`; the store keeps the contracted modalities of the last 8 actions (contract §2.6).
+export async function runTurn({ raw, slash = null, opening = false, canvas, access, block, store, post, onSpeakable = null, inputModality = 'text', turnId = null, onTurn = null, domain = NANOGPT, plan = true, nextStep = null, materials = [] }) {
+  if (nextStep) raw = '';
   const t = [now()];
   const id = turnId || crypto.randomUUID();
   const tracer = turnTrace(now, id); // v2: the turn trace (learn-tutor-trace.js), returned in bench.trace
@@ -342,7 +359,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   }
   t.push(now());
   let states = deriveClaimStates(current.events, domain.claims);
-  const built = tracer.step('claim_selection', () => buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id, domain }),
+  const built = tracer.step('claim_selection', () => buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id, domain, nextStep, materials }),
     out => out.selection ? `${out.selection.selected.length}/${out.selection.available}${out.selection.fallback ? ' fallback' : ''}` : 'none');
   const { turn, selection } = built;
   onTurn?.(turn);
@@ -364,7 +381,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
     const reconciled = () => (!journeyTurn ? reconcile(current, evaluation, ref, domain.claims)
       : result.journey?.events ? adoptJourney(current, result, states, domain.claims) : { store: current, states, transitions: [], added: 0 });
     ({ store: current, states, transitions } = tracer.step('evidence_reconciliation', reconciled, out => `${out.added} observations, ${out.transitions.length} state changes`));
-    turn.evidence = buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id, domain }).turn.evidence;
+    turn.evidence = buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id, domain, nextStep, materials }).turn.evidence;
   };
   if (raw.trim() && !turn.slash && !opening && claims.length) {
     const spec = evaluationSpec(turn, claims, current, domain);
@@ -443,6 +460,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   const socratic = routed.row === 'misconception' ? { ...current.socratic, [routed.claim]: (current.socratic[routed.claim] || 0) + 1 } : current.socratic;
   const text = actions.filter(action => action.type === 'respond_text' || action.type === 'ask_question').map(action => action.text.trim()).join('\n\n');
   const dive = actions.find(action => action.type === 'suggest_dive');
+  const contracts = actions.filter(action => action.type !== 'no_action').map(action => actionContract(action, { domain, materials, claims }));
   // A spoken question never becomes the hole's typed opening (openingQuestion): the dock would show it
   // as a user bubble, and Voice Mode never shows the learner's words.
   current = {
@@ -451,14 +469,17 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
     keep: turn.dive_choice ? null : current.keep,
     returned: turn.returned_from ? null : current.returned,
     suggested: dive ? { concept: dive.concept, title: dive.title, block_id: dive.from.block_id ?? null, question: turn.input_modality === 'voice' ? null : raw, claim: routed.claim, canvas: here } : current.suggested,
-    turns: [...current.turns, { learner: raw, tutor: text }].slice(-8),
+    turns: [...current.turns, { learner: raw, ...(turn.next_step ? { next_step: turn.next_step.suggestion_id } : {}), tutor: text }].slice(-8),
     actions: [...current.actions, ...actions.map(action => ({ type: action.type, strategy: response.strategy, claim: action.claim ?? routed.claim }))].slice(-6),
+    // What the learner got, oldest first: planner evidence next turn (contract §2.6), never a sequencing rule.
+    modalities: [...(current.modalities || []), ...contracts.map(contract => contract.modality)].filter(Boolean).slice(-8),
   };
   // The benchmark record: ids, types and timings only - never the learner's words or card content.
   const ms = (from, to) => Math.round((to - from) * 10) / 10;
   const end = now();
   const bench = {
     trace: tracer.trace, turn_id: turn.turn_id, input_modality: turn.input_modality, route: routed.row, strategy: response.strategy ?? null, claims, evaluated: !!evidence,
+    ...(turn.next_step ? { next_step: { suggestion_id: turn.next_step.suggestion_id, set_id: nextStep.set_id ?? null } } : {}),
     critical_path: critical && { ...critical, miss },
     // The spoken first sentence must open the validated reply (respond_text and ask_question texts in
     // order); a mismatch would mean speech the final plan contradicts, and is recorded, never hidden.
@@ -480,7 +501,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
       to_first_evidence_action: actions.some(action => EVIDENCE_ACTIONS.includes(action.type)) ? ms(t[0], released) : null,
     },
   };
-  return { store: current, turn, selection, evaluation, transitions, routed, response, actions, decisions, log, text, states: deriveClaimStates(current.events, domain.claims), bench, mark: tracer.mark };
+  return { store: current, turn, selection, evaluation, transitions, routed, response, actions, contracts, reason_codes: reasonCodes(response), decisions, log, text, states: deriveClaimStates(current.events, domain.claims), bench, mark: tracer.mark };
 }
 const now = () => (globalThis.performance ?? Date).now();
 

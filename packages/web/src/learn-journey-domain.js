@@ -15,6 +15,7 @@
 // evidence is the hole's session store ({ mode: 'session' }): evaluations use the client-built spec from the parent
 // registry, and the parent's path and evidence are never written (reconciliation on return is LP5).
 import { JOURNEY_LIMITS } from './learn-journey.js';
+import { blockModality } from './learn-tutor-actions.js';
 const SETUP = ['intake', 'diagnostic', 'path_review'];
 const cap = (text, max) => String(text ?? '').slice(0, max);
 
@@ -51,6 +52,8 @@ export function journeyDomain({ journey, path, blocks = [], dive = null }) {
       return Object.keys(concepts).sort((a, b) => b.length - a.length).find(id => (concepts[id].names || []).some(name => words.includes(String(name).toLowerCase()))) || null;
     },
     cards, cardModule,
+    // The modality of a card it shows (learn-tutor-actions.js): its block's type, an Explain Back challenge explain_back.
+    cardType: id => blockModality(byId.get(id)),
     catalogue: () => cards.map(id => {
       const card = cardModule(id);
       return { card: id, title: card.scene.title, depth: null, learning_question: card.evidence.learningQuestion, practice: !!card.activity };

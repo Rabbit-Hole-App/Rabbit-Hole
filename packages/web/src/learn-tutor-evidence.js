@@ -14,7 +14,7 @@ export const emptyStore = () => ({
   cursors: {},        // block id -> attemptLog entries already turned into events
   open: null,         // the Tutor's open ask_question: { action_id, claim, text, canvas }
   constraints: [],    // explicit, session-scoped (§7)
-  turns: [],          // { learner, tutor }, newest last
+  turns: [],          // { learner, next_step? (a clicked hook's suggestion_id), tutor }, newest last
   actions: [],        // { type, strategy, claim }, newest last
   socratic: {},       // claim -> Socratic turns spent on its misconception
   suggested: null,    // the last suggest_dive: { concept, title, block_id, question, claim, canvas }
@@ -22,6 +22,7 @@ export const emptyStore = () => ({
   dive: null,         // the hole this tab was last in: { dive_id, parent, concept, claim }
   returned: null,     // returned_from, waiting for the parent's next turn
   opened: [],         // holes whose opening turn already ran
+  modalities: [],     // the modalities of recent Tutor actions, oldest first (at most 8; contract §2.6)
 });
 
 export const storeKey = app => `small.tutor:${app.org}:${app.email || app.owner_email}`;

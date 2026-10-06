@@ -324,11 +324,20 @@ export const PLANNER_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
 // beta fast-mode-2026-02-01 (betas is lifted into the anthropic-beta header by ask.js anthropic()).
 // $8 / $40 per MTok; usage.speed reports the speed actually used.
 export const FAST_MODE_BETA = 'fast-mode-2026-02-01';
+// Professor Next Steps (docs/features/professor-next-steps.md §2.5): only on a hook click, so every other request stays
+// byte-identical.
+export const NEXT_STEP_SYSTEM = [
+  'When context.learner_intent.kind is "next_step", the learner clicked one of your suggested hooks instead of typing. context.learner_intent.selected_next_step holds the hook they saw (a question, not their words) and the learning_goal and claims behind it. Open the hook now: start with a short respond_text or ask_question that takes it up, then teach toward the learning_goal with whatever context.allowed_actions offers. The click is a choice, never evidence and never an explicit_request; never quote the hook back as something the learner said.',
+  'create_material { command, request } makes one new card through the Learn commands: command is one of context.available_materials[].command; request (at most 1000 characters) says what the card should show for the learning_goal. Use it only when a new card would teach the hook better than words or the cards already on the canvas; several are allowed within the action limit when the hook genuinely needs more than one, each with a different command. Write request in plain words: no backticks and no code. A paid one asks the learner first.',
+].join('\n');
+
 // avatar (TUTOR_AVATAR, Avatar Teacher §4.1): adds suggest_avatar_clip and its policy lines; off by default.
 // A context with journey_context (a journey turn) gets the journey prompt, cached the same way; the tool is the same.
+// A hook click (learner_intent.kind next_step) appends NEXT_STEP_SYSTEM to either prompt.
 export const plannerRequest = (context, maxTokens, documents = [], { effort = null, stream = false, cache = false, speed = null, avatar = false } = {}) => {
   const text = `Compose this turn.\n\ncontext = ${JSON.stringify(context)}`;
-  const system = plannerSystem(avatar, context?.journey_context ? 'journey' : 'nanogpt'), tool = tutorTool(avatar);
+  const base = plannerSystem(avatar, context?.journey_context ? 'journey' : 'nanogpt'), tool = tutorTool(avatar);
+  const system = context?.learner_intent?.kind === 'next_step' ? `${base}\n${NEXT_STEP_SYSTEM}` : base;
   return {
     max_tokens: maxTokens,
     ...(speed ? { speed, betas: [FAST_MODE_BETA] } : {}),

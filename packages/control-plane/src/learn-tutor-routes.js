@@ -331,11 +331,11 @@ export const FAST_PLANNER_MODELS = ['claude-haiku-4-5-20251001', 'claude-sonnet-
 // reproduction): TUTOR_PLANNER_FAST_MODEL=off (Opus only), TUTOR_PLANNER_CACHE=off,
 // TUTOR_PLANNER_FAST_EFFORT=default (the fast model's own default effort). Haiku 4.5 takes no effort.
 export const PLANNER_DEFAULTS = Object.freeze({ fast_model: 'claude-sonnet-5-5', fast_effort: 'low', cache: 'on' });
-// Routine: a question, request, slash or hole opening on a row whose move the router has already fixed.
+// Routine: a question, request, slash, hole opening or hook click on a row whose move the router has already fixed.
 // Everything else (misconceptions, unsettled or uncertain evidence, a return from a hole, any
 // explanation or answer) stays on Opus 5.5.
 const ROUTINE_ROWS = ['slash', 'off_slice', 'not_yet_observed', 'understood', 'gap', 'gap_inline'];
-const ROUTINE_INTENTS = ['question', 'request', 'slash', 'opening'];
+const ROUTINE_INTENTS = ['question', 'request', 'slash', 'opening', 'next_step'];
 export function plannerTier(context) {
   const row = context?.route?.row, kind = context?.learner_intent?.kind;
   if (!ROUTINE_ROWS.includes(row)) return { tier: 'opus', reason: `row ${row}` };
