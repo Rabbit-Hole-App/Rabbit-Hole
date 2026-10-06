@@ -22,7 +22,7 @@ evaluation corpora, never as hidden production logic.
 ## Files audited
 
 These are all LP1 production files, listed with
-`git diff --name-only origin/main...HEAD -- packages scripts | grep -v -E 'test|__fixtures__|/e2e/'` (38 files).
+`git diff --name-only origin/main...HEAD -- packages scripts | grep -v -E 'test|__fixtures__|/e2e/'` (37 files).
 
 - control-plane: `learn-migrations/0006-learning-journeys.sql`, `repository-schema.sql`, `src/agents/learn-journey.js`,
   `src/agents/learn-tutor.js`, `src/canvases.js`, `src/dev-forwarding.js`, `src/index.js`, `src/learn-journey-fixtures.js`,
@@ -161,6 +161,7 @@ semantic ids and enums only (tray option ids `start`, `retry`, `skip`, `continue
 | Value | Where | Decision |
 |---|---|---|
 | Count caps | `JOURNEY_LIMITS` (`web/src/learn-journey.js:106-114`) | Spec contract caps, named (F4). |
+| Count caps as prompt text | `control-plane/src/agents/learn-journey.js` planner prompts (e.g. 2-4 probes, 2-6 steps, at most 12 sections) | Prompts are an allowed place for the contract. The validators read `JOURNEY_LIMITS`, so a cap change must also update this prompt text; the prompt suite pins the change-text limits (300/300) against the schema, but not these counts. |
 | `QUICK_SECTIONS = 3` | `control-plane/src/learn-journey.js:29` | Named; AT-14 (a quick overview has at most 3 sections). |
 | `STALE_MS` (3 min), `TURN_TIMEOUT_MS` (60 s), `ARTIFACT_TIMEOUT_MS` (120 s) | `learn-journey.js:28`, `LearnTutor.jsx:21`, `learn-journey-materialize.js:14` | Named operational timeouts. |
 | 5 s poll | `LearnJourney.jsx:424` | A documented `ponytail:` poll while a planner call is pending. |
@@ -245,3 +246,10 @@ With the fixes, all pass.
 
 The one wiring pin that broke mid-audit (`learn-journey-ui.test.mjs` Task 14 pins the hole-domain expression) is kept
 as written: `domainOf(canvas)` builds that exact expression.
+
+
+## Review follow-ups (2026-10-06)
+
+- `learn-tutor.js` adds `journey_context` when the domain carries a `context`, not on `kind === 'journey'`. The source check now also bans `kind === 'journey'` dispatch in the shared Tutor code.
+- `learn-journey-domain.js` caps the scope claims with `JOURNEY_LIMITS.expected_evidence`, not a literal 4.
+- `learn-journey-ui.test.mjs` pins the F3 call site `enterHole(load(), record, domainOf(canvasApi.current))`.

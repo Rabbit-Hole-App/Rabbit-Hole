@@ -296,7 +296,7 @@ export function plannerContext({ turn, routed, block, states, claims = [], store
       ...(record?.journey ? { journey: { section_id: record.journey.section_id, claim_ids: record.journey.claim_ids, concept_ids: record.journey.concept_ids } } : {}),
       ...(turn.returned_from ? { returned_from: { dive_id: turn.returned_from.dive_id, concept: turn.returned_from.concept, claim: turn.returned_from.claim } } : {}),
     } : null,
-    ...(domain.kind === 'journey' ? { journey_context: domain.context } : {}),
+    ...(domain.context ? { journey_context: domain.context } : {}),
   };
 }
 

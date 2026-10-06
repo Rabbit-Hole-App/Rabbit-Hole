@@ -247,7 +247,7 @@ test('anti-hardcoding: no example topic or fixture id in journey runtime code, n
   const EXAMPLES = /\b(?:logistic|sigmoid|softmax|nanogpt|transformers?|attention|photosynthesis|chlorophyll|bastille|eigen\w*|aqueducts?|tidal|classification vs regression)\b|-foundations\b|-core\/|-practice\//i;
   for (const file of JOURNEY_ONLY) assert.equal(code(file).match(EXAMPLES)?.[0] ?? null, null, file);
   const TUTOR = ['./learn-tutor.js', './learn-tutor-select.js', './learn-tutor-validate.js', './learn-tutor-evidence.js', './LearnTutor.jsx', './ask.jsx', './LearnPage.jsx'];
-  const DISPATCH = /\bkind\s*[!=]==\s*'nanogpt'|[!=]==\s*NANOGPT\b|\bNANOGPT\s*[!=]==/;
+  const DISPATCH = /\bkind\s*[!=]==\s*'(?:nanogpt|journey)'|[!=]==\s*NANOGPT\b|\bNANOGPT\s*[!=]==/;
   for (const file of TUTOR) assert.equal(code(file).match(DISPATCH)?.[0] ?? null, null, file);
 });
 

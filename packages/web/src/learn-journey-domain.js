@@ -14,6 +14,7 @@
 // cards are the hole's own blocks, journey_context.phase is 'dive' with the dive's section, concepts and claims, and the
 // evidence is the hole's session store ({ mode: 'session' }): evaluations use the client-built spec from the parent
 // registry, and the parent's path and evidence are never written (reconciliation on return is LP5).
+import { JOURNEY_LIMITS } from './learn-journey.js';
 const SETUP = ['intake', 'diagnostic', 'path_review'];
 const cap = (text, max) => String(text ?? '').slice(0, max);
 
@@ -44,7 +45,7 @@ export function journeyDomain({ journey, path, blocks = [], dive = null }) {
       const stamp = setup ? null : blocks.find(block => block.id === (target?.block_id ?? target?.card_id))?.journey;
       return stamp?.journey_id === journey.id ? known(stamp.claims) : [];
     },
-    defaultClaims: () => (dive ? known(dive.claim_ids).slice(0, 4) : section ? known((section.expected_evidence || []).map(entry => entry.claim)).slice(0, 4) : []),
+    defaultClaims: () => (dive ? known(dive.claim_ids).slice(0, JOURNEY_LIMITS.expected_evidence) : section ? known((section.expected_evidence || []).map(entry => entry.claim)).slice(0, JOURNEY_LIMITS.expected_evidence) : []),
     conceptOf: text => {
       const words = String(text || '').toLowerCase();
       return Object.keys(concepts).sort((a, b) => b.length - a.length).find(id => (concepts[id].names || []).some(name => words.includes(String(name).toLowerCase()))) || null;
@@ -71,7 +72,7 @@ export function journeyDomain({ journey, path, blocks = [], dive = null }) {
       section: section && {
         title: cap(section.title, 80), purpose: cap(section.purpose, 240),
         target_concepts: ((dive ? dive.concept_ids : section.target_concepts) || []).slice(0, 6).map(id => cap(concepts[id]?.label ?? id, 60)),
-        expected_evidence: dive ? known(dive.claim_ids).slice(0, 4) : (section.expected_evidence || []).slice(0, 4).map(entry => entry.claim),
+        expected_evidence: dive ? known(dive.claim_ids).slice(0, JOURNEY_LIMITS.expected_evidence) : (section.expected_evidence || []).slice(0, JOURNEY_LIMITS.expected_evidence).map(entry => entry.claim),
       },
       // A hole teaches its own topic: no later section defers it (review round 1, C-14a).
       upcoming: dive ? [] : sections.filter(s => s.status === 'upcoming').slice(0, 6).map(s => cap(s.title, 80)),
