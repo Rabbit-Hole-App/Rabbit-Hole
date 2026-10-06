@@ -38,6 +38,17 @@ test('both production configs pin the rabbit-hole account and name no dev, legac
   }
 });
 
+// Final review A-m5: journey planner fixtures run only when SMALL_ENV is test AND JOURNEY_MODEL_STUB is fixtures
+// (learn-journey-planners.js journeyCallModel), so no production config names JOURNEY_MODEL_STUB at all, and the app
+// Worker sets no SMALL_ENV of its own.
+test('no production config names JOURNEY_MODEL_STUB, and the app Worker sets no SMALL_ENV', () => {
+  for (const path of [APP, CP, '../wrangler.jsonc', '../../web/wrangler.rabbit-hole-notebook-prod.jsonc', '../../web/wrangler.rabbit-hole-canvas-notebook-prod.jsonc']) {
+    assert.ok(!raw(path).includes('JOURNEY_MODEL_STUB'), `${path} names JOURNEY_MODEL_STUB`);
+  }
+  assert.ok(!raw(APP).includes('SMALL_ENV'), `${APP} names SMALL_ENV`);
+  assert.equal(config(CP).vars.SMALL_ENV, 'production');
+});
+
 test('the app Worker owns digrabbithole.com and binds its own control plane, with the dev worker Durable Objects', () => {
   const app = config(APP), dev = config('../../web/wrangler.dev.jsonc');
   assert.equal(app.name, 'rabbit-hole-app');

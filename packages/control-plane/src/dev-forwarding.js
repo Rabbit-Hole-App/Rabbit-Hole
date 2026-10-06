@@ -32,8 +32,9 @@ export function productionAllows(method, path) {
 }
 
 // Who is signed in, asked of production without side effects: GET /api/me (index.js). The dev worker
-// used GET /api/apps, whose sweepStaleRuns UPDATEs production runs. Returns {email, org, orgName}
-// or a JSON 401/403 Response.
+// used GET /api/apps, whose sweepStaleRuns UPDATEs production runs. Returns {email, org, orgName, userId}
+// or a JSON 401/403 Response. userId is users.id from /api/me (journeys key on it, adaptive-learning-path-v1-architecture.md
+// §10.2), else null: a CLI token, or the fallback below. Server-side only: never send it to the browser.
 // ponytail: /api/me reaches production only with its next approved deploy; until then small-cp
 // answers it 404 and the identity comes from two reads that write nothing, GET /api/workspaces
 // (the active workspace and its name) and GET /api/trash (the email). Delete the fallback after that deploy.
@@ -51,7 +52,7 @@ export async function devIdentity(req, env) {
   const refuse = (error, status) => Response.json({ error }, { status, headers: { 'Cache-Control': 'no-store' } });
   if (me instanceof Response) return refuse('Sign in to this workspace first', me.status === 403 ? 403 : 401);
   if (!me.org || !me.email) return refuse('Workspace membership required', 403);
-  return { email: me.email, org: me.org, orgName: me.orgName || null };
+  return { email: me.email, org: me.org, orgName: me.orgName || null, userId: typeof me.user_id === 'string' && me.user_id ? me.user_id : null };
 }
 
 // Every CONTROL_PLANE call on the dev worker, not only the fall-through: dev-worker.js wraps the

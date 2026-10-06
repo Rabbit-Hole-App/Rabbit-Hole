@@ -1,0 +1,614 @@
+[
+  {
+    "learner_intent": {
+      "kind": "question",
+      "raw_user_message": "Why is the mask applied before softmax?"
+    },
+    "target": {
+      "card": "c11-causal-mask",
+      "title": "Causal mask as a triangle",
+      "depth": null,
+      "learning_question": "Which positions may each position read, and why never its next character?",
+      "concepts": [
+        "causal-mask"
+      ],
+      "selected_object": null,
+      "part_id": null,
+      "part_label": null,
+      "description": "Interactive scene: Causal mask as a triangle (2s)\nPaused at: 2.0s\nExperiment inputs (revision 0): Causal mask (off = What-if) = On\nComputed locally from the declared example data: {\"maskLabel\":\"① causal mask: 1 = may read, 0 = blocked\",\"maskTable\":[[1,0,0,0,0,0],[1,1,0,0,0,0],[1,1,1,0,0,0],[1,1,1,1,0,0],[1,1,1,1,1,0],[1,1,1,1,1,1]],\"weightsLabel\":\"② weights: 0 → score −∞ → weight 0\",\"weights\":[[1,null,null,null,null,null],[0.5,0.5,null,null,null,null],[0.333,0.333,0.333,null,null,null],[0.25,0.25,0.25,0.25,null,null],[0.2,0.2,0.2,0.2,0.2,null],[0.167,0.167,0.167,0.167,0.167,0.167]],\"reads\":\"Each position reads itself and every earlier one, never a later one.\",\"target\":\"The highlighted cell is the next character, the one that row is trained to predict: always blocked.\"}\nExecution: local calculation - the values above are derived mechanically from the scene’s declared example data, not from a model run.\nPractice task: In shakespeare_char training every window is T = 256 characters long (block_size). Positions count from 0, as on the card. With the causal mask on, which positions may the query at position 99 read? Status: no answer yet (0 committed attempts).\nConcepts: causal-mask\nState at that moment: [{\"id\":\"question\",\"highlighted\":false},{\"id\":\"status\",\"highlighted\":false},{\"id\":\"equal-scores\",\"highlighted\":false},{\"id\":\"legend\",\"highlighted\":false},{\"id\":\"causal-mask-table\",\"highlighted\":false,\"values\":[1,0,0,0,0,0,1,1,0,0,0,0,1,1,1,0,0,0,1,1,1,1,0,0,\"+12 more\"],\"cellHighlight\":[1,8,15,22,29]},{\"id\":\"target-0-top\",\"highlighted\":false},{\"id\":\"target-0-bottom\",\"highlighted\":false},{\"id\":\"target-0-left\",\"highlighted\":false},{\"id\":\"target-0-right\",\"highlighted\":false},{\"id\":\"target-1-top\",\"highlighted\":false},{\"id\":\"target-1-bottom\",\"highlighted\":false},{\"id\":\"target-1-left\",\"highlighted\":false},{\"id\":\"target-1-right\",\"highlighted\":false},{\"id\":\"target-2-top\",\"highlighted\":false},{\"id\":\"target-2-bottom\",\"highlighted\":false},{\"id\":\"target-2-left\",\"highlighted\":false},{\"id\":\"target-2-right\",\"highlighted\":false},{\"id\":\"target-3-top\",\"highlighted\":false},{\"id\":\"target-3-bottom\",\"highlighted\":false},{\"id\":\"target-3-left\",\"highlighted\":false},{\"id\":\"target-3-right\",\"highlighted\":false},{\"id\":\"target-4-top\",\"highlighted\":false},{\"id\":\"target-4-bottom\",\"highlighted\":false},{\"id\":\"target-4-left\",\"highlighted\":false},{\"id\":\"target-4-right\",\"highlighted\":false},{\"id\":\"mask-to-weights\",\"highlighted\":false},{\"id\":\"attention-weights\",\"highlighted\":false,\"values\":[1,null,null,null,null,null,0.5,0.5,null,null,null,null,0.333333333,0.333333333,0.333333333,null,null,null,0.25,0.25,0.25,0.25,null,null,\"+12 more\"]},{\"id\":\"reads\",\"highlighted\":false},{\"id\":\"target\",\"highlighted\":false},{\"id\":\"footer\",\"highlighted\":false},{\"id\":\"rounding\",\"highlighted\":false}]",
+      "sources": [
+        {
+          "source_index": 0,
+          "path": "model.py",
+          "lines": [
+            46,
+            50
+          ],
+          "note": "The table ① draws, stored only on the manual path: \"if not self.flash:\" … \"# causal mask to ensure that attention is only applied to the left in the input sequence\", then a buffer holding \"torch.tril(torch.ones(config.block_size, config.block_size))\" - 1 on and below the diagonal, 0 above."
+        },
+        {
+          "source_index": 1,
+          "path": "model.py",
+          "lines": [
+            67,
+            69
+          ],
+          "note": "The three stages, in order: \"att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))\", then \"att = att.masked_fill(self.bias[:,:,:T,:T] == 0, float('-inf'))\" (the table cut to T × T; every 0 turns the score into −∞), then \"att = F.softmax(att, dim=-1)\" (per row, so −∞ becomes weight exactly 0)."
+        },
+        {
+          "source_index": 2,
+          "path": "model.py",
+          "lines": [
+            70,
+            70
+          ],
+          "note": "Dropout on the weights comes next in training and is not modelled here: \"att = self.attn_dropout(att)\"."
+        }
+      ]
+    },
+    "relevant_evidence": {
+      "claims": [
+        {
+          "claim": "causal-mask/applied-before-softmax",
+          "concept": "causal-mask",
+          "statement": "The mask sets every later score to −∞ before softmax, so those weights come out exactly 0.",
+          "state": "not_yet_observed",
+          "misconceptions": [
+            "mask-after-softmax"
+          ]
+        }
+      ],
+      "concepts": {
+        "causal-mask": "not_yet_observed",
+        "softmax": "not_yet_observed"
+      }
+    },
+    "route": {
+      "row": "not_yet_observed",
+      "strategy": "feynman",
+      "claim": "causal-mask/applied-before-softmax"
+    },
+    "allowed_actions": [
+      "respond_text",
+      "ask_question",
+      "show_authored_card",
+      "suggest_depth"
+    ],
+    "relevant_authored_content": {
+      "cards": [
+        {
+          "card": "c11-causal-mask",
+          "title": "Causal mask as a triangle",
+          "depth": null,
+          "learning_question": "Which positions may each position read, and why never its next character?",
+          "practice": true
+        },
+        {
+          "card": "c21-temperature",
+          "title": "Temperature: sharper or flatter sampling",
+          "depth": null,
+          "learning_question": "What does dividing the logits by a temperature do - and does a low temperature make it greedy?",
+          "practice": false
+        }
+      ],
+      "card_state": {
+        "inputs": {
+          "mask": true
+        },
+        "input_revision": 0,
+        "practice": {
+          "task_id": "c11-practice",
+          "status": "none",
+          "attempts": []
+        }
+      }
+    },
+    "learner_constraints": [],
+    "recent_relevant_context": {
+      "turns": [
+        {
+          "learner": "m4",
+          "tutor": "r4"
+        },
+        {
+          "learner": "m5",
+          "tutor": "r5"
+        }
+      ],
+      "actions": []
+    },
+    "dive_context": null
+  },
+  {
+    "learner_intent": {
+      "kind": "explanation",
+      "raw_user_message": "Each score is the dot product of the query with that key."
+    },
+    "target": {
+      "card": "depth-attention-deep",
+      "title": "Attention · Deep dive: heads, shapes and the 1/√hs factor",
+      "depth": "Deep dive",
+      "learning_question": "How does CausalSelfAttention run every head at once, and why the 1/√hs?",
+      "concepts": [
+        "shapes"
+      ],
+      "selected_object": null,
+      "part_id": "shapes",
+      "part_label": "Shapes: split, view, transpose",
+      "description": "Interactive scene: Attention · Deep dive: heads, shapes and the 1/√hs factor (2s)\nPaused at: 2.0s\nExperiment inputs (revision 0): Deep dive = Shapes: split, view, transpose (index 0); Head = head 0: previous character (index 0); Context length T = T = 9 (index 8); Path = manual (flash False); Scale by 1/√hs (off = What-if) = On\nShowing sub-card 1 of 4: Shapes: split, view, transpose\nComputed locally from the declared example data: {\"Tn\":9,\"manualLit\":1,\"scaleLabel\":\"× 1/√hs\",\"factorNote\":\"= × 0.5 at hs = 4\"}\nExecution: local calculation - the values above are derived mechanically from the scene’s declared example data, not from a model run.\nConcepts: attention, shapes, forward\nState at that moment: [{\"id\":\"question\",\"highlighted\":false},{\"id\":\"prerequisites\",\"highlighted\":false},{\"id\":\"status\",\"highlighted\":false},{\"id\":\"sizes\",\"highlighted\":false},{\"id\":\"step-split\",\"highlighted\":false},{\"id\":\"shape-split\",\"highlighted\":false},{\"id\":\"step-heads\",\"highlighted\":false},{\"id\":\"shape-heads\",\"highlighted\":false},{\"id\":\"step-scores\",\"highlighted\":false},{\"id\":\"shape-scores\",\"highlighted\":false},{\"id\":\"step-scale\",\"highlighted\":false},{\"id\":\"shape-scale\",\"highlighted\":false},{\"id\":\"step-mask\",\"highlighted\":false},{\"id\":\"shape-mask\",\"highlighted\":false},{\"id\":\"step-softmax\",\"highlighted\":false},{\"id\":\"shape-softmax\",\"highlighted\":false},{\"id\":\"step-mix\",\"highlighted\":false},{\"id\":\"shape-mix\",\"highlighted\":false},{\"id\":\"step-merge\",\"highlighted\":false},{\"id\":\"shape-merge\",\"highlighted\":false},{\"id\":\"guided-steps\",\"highlighted\":false},{\"id\":\"guided-steps-2\",\"highlighted\":false}]",
+      "sources": [
+        {
+          "source_index": 0,
+          "path": "model.py",
+          "lines": [
+            53,
+            53
+          ],
+          "note": "The input’s shape: “B, T, C = x.size() # batch size, sequence length, embedding dimensionality (n_embd)”."
+        },
+        {
+          "source_index": 1,
+          "path": "model.py",
+          "lines": [
+            56,
+            56
+          ],
+          "note": "Step c_attn(x).split: one linear layer makes q, k and v for all heads at once, cut along the last dimension: “q, k, v  = self.c_attn(x).split(self.n_embd, dim=2)”."
+        },
+        {
+          "source_index": 2,
+          "path": "model.py",
+          "lines": [
+            35,
+            37
+          ],
+          "note": "The two learned projections: “self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd, bias=config.bias)” (C → 3C) and “self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias)” (C → C)."
+        }
+      ]
+    },
+    "relevant_evidence": {
+      "claims": [
+        {
+          "claim": "attention/scores-from-dot-products",
+          "concept": "attention",
+          "statement": "Each key's score is the dot product of the query with that key, so the key the query points at scores highest.",
+          "state": "not_yet_observed",
+          "misconceptions": []
+        }
+      ],
+      "concepts": {
+        "attention": "not_yet_observed"
+      }
+    },
+    "route": {
+      "row": "not_yet_observed",
+      "strategy": "feynman",
+      "claim": "attention/scores-from-dot-products"
+    },
+    "allowed_actions": [
+      "respond_text",
+      "ask_question",
+      "show_authored_card",
+      "suggest_depth"
+    ],
+    "relevant_authored_content": {
+      "cards": [
+        {
+          "card": "depth-attention-overview",
+          "title": "Attention · Overview: looking back while reading",
+          "depth": "Overview",
+          "learning_question": "When the model reads one character, which earlier characters does it look at?",
+          "practice": false
+        },
+        {
+          "card": "depth-attention-guided",
+          "title": "Attention · Guided: from scores to weights for one reader",
+          "depth": "Guided",
+          "learning_question": "How do match scores become attention weights, and why does the future get exactly zero?",
+          "practice": false
+        },
+        {
+          "card": "depth-attention-deep",
+          "title": "Attention · Deep dive: heads, shapes and the 1/√hs factor",
+          "depth": "Deep dive",
+          "learning_question": "How does CausalSelfAttention run every head at once, and why the 1/√hs?",
+          "parts": [
+            {
+              "part_id": "shapes",
+              "label": "Shapes: split, view, transpose"
+            },
+            {
+              "part_id": "causal-mask",
+              "label": "The causal mask and att"
+            },
+            {
+              "part_id": "memory",
+              "label": "fp32 memory and the fused path"
+            },
+            {
+              "part_id": "scaling",
+              "label": "The 1/√hs experiment"
+            }
+          ],
+          "practice": false
+        }
+      ],
+      "card_state": {
+        "inputs": {
+          "part": 0,
+          "head": 0,
+          "Tidx": 8,
+          "path": "manual",
+          "scaleOn": true
+        },
+        "input_revision": 0,
+        "practice": null
+      }
+    },
+    "learner_constraints": [],
+    "recent_relevant_context": {
+      "turns": [
+        {
+          "learner": "m4",
+          "tutor": "r4"
+        },
+        {
+          "learner": "m5",
+          "tutor": "r5"
+        }
+      ],
+      "actions": []
+    },
+    "dive_context": null
+  },
+  {
+    "learner_intent": {
+      "kind": "explanation",
+      "raw_user_message": "The output is a weighted average of the values, so it lands between them."
+    },
+    "target": {
+      "card": "c10-weighted-values",
+      "title": "One head’s output: the weights mix the values",
+      "depth": null,
+      "learning_question": "Where does a head’s output land among the values its query can see?",
+      "concepts": [
+        "attention-output",
+        "softmax-attention-weights"
+      ],
+      "selected_object": null,
+      "part_id": null,
+      "part_label": null,
+      "description": "Interactive scene: One head’s output: the weights mix the values (2s)\nPaused at: 2.0s\nExperiment inputs (revision 0): Query character = o (index 3)\nComputed locally from the declared example data: {\"qword\":\"o\",\"w\":[0.539,0.131,0.266,0.065],\"outLabel\":\"this head’s output for “o”\",\"out\":[0.473,0.331],\"outPx\":[321.2,490.89],\"spokeOp\":[1,1,1,1],\"dotOp\":[1,1,1,1],\"nameOp\":[1,1,1,1],\"topWord\":\"B\"}\nExecution: local calculation - the values above are derived mechanically from the scene’s declared example data, not from a model run.\nPractice task: Suppose “o” put equal weight, 1/4, on each of the 4 characters it sees (on the card its weights differ). Using the value table, where would its output land? Status: no answer yet (0 committed attempts).\nConcepts: attention-output, softmax-attention-weights\nState at that moment: [{\"id\":\"question\",\"highlighted\":false},{\"id\":\"status\",\"highlighted\":false},{\"id\":\"builds-on\",\"highlighted\":false},{\"id\":\"weight-row\",\"highlighted\":false,\"values\":[0.53877607,0.130985479,0.265653612,0.064584839]},{\"id\":\"rule-1\",\"highlighted\":false},{\"id\":\"rule-2\",\"highlighted\":false},{\"id\":\"rule-3\",\"highlighted\":false},{\"id\":\"value-table\",\"highlighted\":false,\"values\":[1,0,-1,0,0,1,1,1]},{\"id\":\"colour-1\",\"highlighted\":false},{\"id\":\"colour-2\",\"highlighted\":false},{\"id\":\"head-output\",\"highlighted\":false,\"values\":[0.47237543,0.330238451]},{\"id\":\"axis-bottom\",\"highlighted\":false},{\"id\":\"axis-left\",\"highlighted\":false},{\"id\":\"tick-x0\",\"highlighted\":false},{\"id\":\"tick-x1\",\"highlighted\":false},{\"id\":\"tick-x2\",\"highlighted\":false},{\"id\":\"tick-y0\",\"highlighted\":false},{\"id\":\"tick-y1\",\"highlighted\":false},{\"id\":\"axis-x-name\",\"highlighted\":false},{\"id\":\"axis-y-name\",\"highlighted\":false},{\"id\":\"spoke-0\",\"highlighted\":false},{\"id\":\"spoke-1\",\"highlighted\":false},{\"id\":\"spoke-2\",\"highlighted\":false},{\"id\":\"spoke-3\",\"highlighted\":false},{\"id\":\"value-0\",\"highlighted\":false},{\"id\":\"value-1\",\"highlighted\":false},{\"id\":\"value-2\",\"highlighted\":false},{\"id\":\"value-3\",\"highlighted\":false},{\"id\":\"name-0\",\"highlighted\":false},{\"id\":\"name-1\",\"highlighted\":false},{\"id\":\"name-2\",\"highlighted\":false},{\"id\":\"name-3\",\"highlighted\":false},{\"id\":\"out-dot\",\"highlighted\":true},{\"id\":\"legend-values\",\"highlighted\":false},{\"id\":\"legend-output\",\"highlighted\":false},{\"id\":\"legend-faded\",\"highlighted\":false},{\"id\":\"caption\",\"highlighted\":false},{\"id\":\"size-note\",\"highlighted\":false},{\"id\":\"dropout-note\",\"highlighted\":false}]",
+      "sources": [
+        {
+          "source_index": 0,
+          "path": "model.py",
+          "lines": [
+            66,
+            71
+          ],
+          "note": "The manual attention path: \"att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))\", \"att = att.masked_fill(self.bias[:,:,:T,:T] == 0, float('-inf'))\" and \"att = F.softmax(att, dim=-1)\" make the weights this card takes as its input; \"y = att @ v\" is the mix it draws - one row of it, for one head."
+        },
+        {
+          "source_index": 1,
+          "path": "model.py",
+          "lines": [
+            56,
+            59
+          ],
+          "note": "Each head has its own value vectors: \"q, k, v  = self.c_attn(x).split(self.n_embd, dim=2)\", then \"v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)\" - hs numbers per value."
+        },
+        {
+          "source_index": 2,
+          "path": "model.py",
+          "lines": [
+            33,
+            33
+          ],
+          "note": "hs = n_embd / n_head exactly: \"assert config.n_embd % config.n_head == 0\"."
+        }
+      ]
+    },
+    "relevant_evidence": {
+      "claims": [
+        {
+          "claim": "attention-output/weighted-average",
+          "concept": "attention-output",
+          "statement": "A head's output for one query is the weighted average of the value vectors that query can see (Σ w·v), so it lands between those values.",
+          "state": "not_yet_observed",
+          "misconceptions": [
+            "picks-top-value",
+            "sums-values",
+            "own-value",
+            "weights-ignored"
+          ]
+        }
+      ],
+      "concepts": {
+        "attention-output": "not_yet_observed"
+      }
+    },
+    "route": {
+      "row": "not_yet_observed",
+      "strategy": "feynman",
+      "claim": "attention-output/weighted-average"
+    },
+    "allowed_actions": [
+      "respond_text",
+      "ask_question",
+      "show_authored_card",
+      "suggest_depth"
+    ],
+    "relevant_authored_content": {
+      "cards": [
+        {
+          "card": "c10-weighted-values",
+          "title": "One head’s output: the weights mix the values",
+          "depth": null,
+          "learning_question": "Where does a head’s output land among the values its query can see?",
+          "practice": true
+        }
+      ],
+      "card_state": {
+        "inputs": {
+          "query": 3
+        },
+        "input_revision": 0,
+        "practice": {
+          "task_id": "c10-practice",
+          "status": "none",
+          "attempts": []
+        }
+      }
+    },
+    "learner_constraints": [],
+    "recent_relevant_context": {
+      "turns": [
+        {
+          "learner": "m4",
+          "tutor": "r4"
+        },
+        {
+          "learner": "m5",
+          "tutor": "r5"
+        }
+      ],
+      "actions": []
+    },
+    "dive_context": null
+  },
+  {
+    "learner_intent": {
+      "kind": "request",
+      "raw_user_message": "Show me what a smaller multiplier does."
+    },
+    "target": {
+      "card": "c12-score-scaling",
+      "title": "Scaling scores by 1/√hs",
+      "depth": null,
+      "learning_question": "What does multiplying every score by one number do to the weights?",
+      "concepts": [
+        "score-scaling"
+      ],
+      "selected_object": null,
+      "part_id": null,
+      "part_label": null,
+      "description": "Interactive scene: Scaling scores by 1/√hs (2s)\nPaused at: 2.0s\nExperiment inputs (revision 0): Multiplier on the scores (preset) = × 1/2 = 1/√hs (index 1)\nComputed locally from the declared example data: {\"rawRow\":[-2,2,-2,2,8,2,-2,2,-2],\"mShort\":\"1/2\",\"maskedRow\":[-1,1,-1,1,4,1,null,null,null],\"w\":[0.006,0.043,0.006,0.043,0.86,0.043,null,null,null],\"tag\":\"The rule: × 1/√hs at this toy’s hs = 4\",\"tagRole\":\"output\",\"cap1\":\"× 1/√4 = × 1/2 halves every gap: ‘r’ leads by 3, not 6,\",\"cap2\":\"so the weights are flatter than with no factor\",\"wR\":0.86,\"wRule\":0.86,\"waitOpacity\":1}\nExecution: local calculation - the values above are derived mechanically from the scene’s declared example data, not from a model run.\nPractice task: What-if, not one of the presets: suppose the multiplier were × 0. What weight would this reader put on ‘r’? Status: no answer yet (0 committed attempts).\nConcepts: score-scaling\nState at that moment: [{\"id\":\"question\",\"highlighted\":false},{\"id\":\"status\",\"highlighted\":false},{\"id\":\"reader\",\"highlighted\":false},{\"id\":\"bridge\",\"highlighted\":false},{\"id\":\"raw\",\"highlighted\":false,\"values\":[-2,2.000002444,-2.00000005,2.00000005,8.000002544,2,-2.000002444,2.00000005,-2.00000005]},{\"id\":\"times-m\",\"highlighted\":false},{\"id\":\"masked\",\"highlighted\":false,\"values\":[-1,1.000001222,-1.000000025,1.000000025,4.000001272,1,null,null,null]},{\"id\":\"weights\",\"highlighted\":false,\"values\":[0.005794397,0.042815173,0.005794396,0.042815122,0.85996579,0.042815121,null,null,null]},{\"id\":\"weight-bars\",\"highlighted\":false,\"values\":[0.005794397,0.042815173,0.005794396,0.042815122,0.85996579,0.042815121,null,null,null]},{\"id\":\"weight-one\",\"highlighted\":false},{\"id\":\"raw-note\",\"highlighted\":false},{\"id\":\"tag\",\"highlighted\":false},{\"id\":\"cap-1\",\"highlighted\":false},{\"id\":\"cap-2\",\"highlighted\":false},{\"id\":\"readout\",\"highlighted\":false},{\"id\":\"order-1\",\"highlighted\":false},{\"id\":\"order-2\",\"highlighted\":false},{\"id\":\"order-3\",\"highlighted\":false},{\"id\":\"legend-1\",\"highlighted\":false},{\"id\":\"legend-2\",\"highlighted\":false},{\"id\":\"zero-wait\",\"highlighted\":false},{\"id\":\"rule\",\"highlighted\":false},{\"id\":\"real-hs\",\"highlighted\":false},{\"id\":\"fused\",\"highlighted\":false}]",
+      "sources": [
+        {
+          "source_index": 0,
+          "path": "model.py",
+          "lines": [
+            67,
+            67
+          ],
+          "note": "Scores and the multiplier in one line: \"att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))\" - every q·k score times one number, 1/√hs."
+        },
+        {
+          "source_index": 1,
+          "path": "model.py",
+          "lines": [
+            68,
+            68
+          ],
+          "note": "The mask runs after the multiply: \"att = att.masked_fill(self.bias[:,:,:T,:T] == 0, float('-inf'))\" - later positions become −∞ whatever the multiplier did to them."
+        },
+        {
+          "source_index": 2,
+          "path": "model.py",
+          "lines": [
+            69,
+            69
+          ],
+          "note": "Then \"att = F.softmax(att, dim=-1)\": −∞ gives weight exactly 0; the visible weights share 1."
+        }
+      ]
+    },
+    "relevant_evidence": {
+      "claims": [
+        {
+          "claim": "score-scaling/multiplier-changes-sharpness",
+          "concept": "score-scaling",
+          "statement": "Every score is multiplied by one positive number, 1/√hs, before the mask and softmax: a smaller multiplier gives flatter weights, a larger one sharper weights.",
+          "state": "misconception",
+          "misconception_id": "score-zero-weight-zero",
+          "misconceptions": [
+            "score-zero-weight-zero",
+            "mask-ignored",
+            "order-survives-zero"
+          ]
+        }
+      ],
+      "concepts": {
+        "score-scaling": "misconception",
+        "softmax": "not_yet_observed"
+      }
+    },
+    "route": {
+      "row": "misconception",
+      "strategy": "socrates",
+      "claim": "score-scaling/multiplier-changes-sharpness"
+    },
+    "allowed_actions": [
+      "ask_question",
+      "focus_part"
+    ],
+    "relevant_authored_content": {
+      "cards": [
+        {
+          "card": "c12-score-scaling",
+          "title": "Scaling scores by 1/√hs",
+          "depth": null,
+          "learning_question": "What does multiplying every score by one number do to the weights?",
+          "practice": true
+        },
+        {
+          "card": "c21-temperature",
+          "title": "Temperature: sharper or flatter sampling",
+          "depth": null,
+          "learning_question": "What does dividing the logits by a temperature do - and does a low temperature make it greedy?",
+          "practice": false
+        }
+      ],
+      "card_state": {
+        "inputs": {
+          "multiplier": 1
+        },
+        "input_revision": 0,
+        "practice": {
+          "task_id": "c12-practice",
+          "status": "none",
+          "attempts": []
+        }
+      }
+    },
+    "learner_constraints": [],
+    "recent_relevant_context": {
+      "turns": [
+        {
+          "learner": "m4",
+          "tutor": "r4"
+        },
+        {
+          "learner": "m5",
+          "tutor": "r5"
+        }
+      ],
+      "actions": []
+    },
+    "dive_context": null
+  },
+  {
+    "learner_intent": {
+      "kind": "question",
+      "raw_user_message": "What does softmax do to the scores?"
+    },
+    "target": null,
+    "relevant_evidence": {
+      "claims": [
+        {
+          "claim": "softmax/normalizes-to-one",
+          "concept": "softmax",
+          "statement": "Softmax exponentiates each score and divides by their sum, so every weight is positive and the weights add up to one.",
+          "state": "not_yet_observed",
+          "misconceptions": [
+            "divides-raw-scores"
+          ]
+        },
+        {
+          "claim": "softmax/gaps-set-sharpness",
+          "concept": "softmax",
+          "statement": "Only the gaps between scores matter: bigger gaps give sharper weights, and equal scores give equal weights.",
+          "state": "not_yet_observed",
+          "misconceptions": []
+        }
+      ],
+      "concepts": {
+        "softmax": "not_yet_observed"
+      }
+    },
+    "route": {
+      "row": "not_yet_observed",
+      "strategy": "feynman",
+      "claim": "softmax/normalizes-to-one"
+    },
+    "allowed_actions": [
+      "respond_text",
+      "ask_question",
+      "show_authored_card",
+      "suggest_depth",
+      "return_from_dive"
+    ],
+    "relevant_authored_content": {
+      "cards": [
+        {
+          "card": "c21-temperature",
+          "title": "Temperature: sharper or flatter sampling",
+          "depth": null,
+          "learning_question": "What does dividing the logits by a temperature do - and does a low temperature make it greedy?",
+          "practice": false
+        }
+      ]
+    },
+    "learner_constraints": [],
+    "recent_relevant_context": {
+      "turns": [
+        {
+          "learner": "m4",
+          "tutor": "r4"
+        },
+        {
+          "learner": "m5",
+          "tutor": "r5"
+        }
+      ],
+      "actions": []
+    },
+    "dive_context": {
+      "dive_id": "canvas-hole",
+      "title": "Softmax",
+      "concept": "softmax",
+      "created_by": "tutor_confirmed",
+      "origin_card": "depth-attention-guided",
+      "origin_part": null,
+      "pending_question": "Why add up to one?"
+    }
+  },
+  {
+    "learner_intent": {
+      "kind": "question",
+      "raw_user_message": "What is a transformer?"
+    },
+    "target": null,
+    "relevant_evidence": {
+      "claims": [],
+      "concepts": {}
+    },
+    "route": {
+      "row": "off_slice",
+      "strategy": "none",
+      "claim": null
+    },
+    "allowed_actions": [
+      "respond_text"
+    ],
+    "relevant_authored_content": {
+      "cards": []
+    },
+    "learner_constraints": [],
+    "recent_relevant_context": {
+      "turns": [
+        {
+          "learner": "m4",
+          "tutor": "r4"
+        },
+        {
+          "learner": "m5",
+          "tutor": "r5"
+        }
+      ],
+      "actions": []
+    },
+    "dive_context": null
+  }
+]

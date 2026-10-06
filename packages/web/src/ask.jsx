@@ -15,6 +15,7 @@ import { MathText, tokenizeMath } from './MathText.jsx';
 import { MODEL_CHOICES } from './model-choices.js';
 import { canvasTargetField } from './learn-ask-target.js';
 import { waitingText } from './waiting-text.js';
+import { TutorPromptTray, journeyStartsHere } from './LearnJourney.jsx';
 import { cn, CodeBlock, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
 
 // What the agent may read, per scope - the ⚙ picker mirrors Notion's "My sources".
@@ -332,7 +333,7 @@ const rememberSheetThread = (app, id) => {
   catch { /* storage off: History stays empty */ }
 };
 
-export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, tutor = null, dock = false, sheet = false, onAddToCanvas = null, voice = null }) {
+export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, tutor = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, journey = null, journeyStarter = null, journeySetup = false, tray = null }) {
   const repository = appName?.startsWith('repo-');
   const [repositoryCommit, setRepositoryCommit] = useState(repositoryContext?.commit || null);
   const [codeSelection, setCodeSelection] = useState(null);
@@ -480,19 +481,50 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   const slashRef = useRef(null);
   // Stop (the docked shell): aborts the answer being streamed.
   const answerFlight = useRef(null);
-  const send = async (raw, scopeOverride, { opening = false } = {}) => {
+  const send = async (raw, scopeOverride, { opening = false, skipJourney = false } = {}) => {
     // A chosen command pill sends exactly "/command text" (LearnSlash runs it); the pill goes back to Auto.
     // A typed /command replaces the pill rather than nesting inside it.
     if (slash && command && !raw.trim().startsWith('/')) { const line = `/${command} ${raw.trim()}`.trim(); setCommand(null); setInput(''); slashRef.current?.intercept(line); return; }
     if (slash && raw.trim().startsWith('/')) { setCommand(null); if (slashRef.current?.intercept(raw)) return; }
+    // Learning journeys (LearnJourney.jsx, adaptive-learning-path-v1-architecture.md §6.1, §7.2): on a board with a
+    // journey (or an open Tutor Prompt Tray) a turn goes through the shared resolver first. A tray answer, path edit,
+    // cancel, clarification or a second broad intent (continue or start?) is the journey's: no chat bubble, no card, no
+    // /api/learn/ask, no Tutor call. An unrelated question (or Ask the Tutor) goes on to the responder below. A failed
+    // journey request gives the words back to the composer. LP1 Task 12: a live journey makes the Tutor this canvas's
+    // responder, and its turn runs the resolver for typed and voice turns alike (LearnTutor.jsx), so the call here is
+    // left for a canvas with no Tutor, whose only trays belong to a journey being started (What do you want to learn?).
+    let routed = null;
+    if ((journey?.journey || journey?.tray) && !skipJourney && raw.trim() && !busy) {
+      if (journey.busy) { tutor?.slash?.(null); return; } // the words stay in the composer while the tray works
+      if (!tutor) {
+        setInput('');
+        routed = await journey.handleText(raw.trim());
+        if (routed.handled) {
+          if (routed.failed) setInput(current => current || raw);
+          return;
+        }
+        raw = routed.text ?? raw;
+      }
+    }
+    // A broad learning intent on a canvas with no journey and no Tutor starts one on the server (§6.1); the tray opens.
+    if (!routed?.text && !skipJourney && !busy && journeyStartsHere(raw, { tutor, journeyStarter })) {
+      setInput('');
+      const started = await journeyStarter(raw.trim());
+      if (started.handled) {
+        if (started.failed) setInput(current => current || raw);
+        return;
+      }
+    }
     // @-chips ride at the front of the message text
     const message = [...mentions.map((m) => `@${m}`), raw.trim()].filter(Boolean).join(' ');
-    if (!message || busy) return;
+    // A refused turn leaves no /deeper or /simplify waiting for the next one (LearnTutor slash).
+    if (!message || busy) { tutor?.slash?.(null); return; }
     // The main composer starts a new block; the sheet keeps its own thread.
-    const panelAsk = sheetMode && !canvasTarget;
+    // A journey in setup (intake, diagnostic, path review) gets no permanent card before its path is accepted: the
+    // Tutor's answer stays in the sheet, even about a selected card, and opens no reader on the canvas.
+    const panelAsk = sheetMode && (!canvasTarget || journeySetup);
     if (composerOnly && !canvasSeed) threadId.current = panelAsk ? sheetThread.current : null;
-    const exchange = panelAsk ? null : onExchange;
-    if (panelAsk) { setSheetOpen(true); setSheetHistory(false); }
+    const exchange = panelAsk || journeySetup ? null : onExchange;
     const isDemo = demo && message.toLowerCase().replace(/[.!?]+$/, '') === demo.prompt.toLowerCase() && !file;
     if (isDemo && demo.disabled) return;
     if (!isDemo) { boardContext?.pause(); boardContext?.setAnswering(true); }
@@ -526,8 +558,17 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     const imageId = !target?.paper && !questionPaper ? target?.image || questionImage?.id : null;
     const replyId = crypto.randomUUID();
     const card = sheetMode && !panelAsk ? { card: true } : {}; // answered as a card, kept out of the sheet
-    setMsgs((m) => [...m, { role: 'user', content: attached ? `${message} 📎 ${attached.name}` : message, ...card, ...(canvasImage ? { canvasImage } : {}), ...(sourceRange ? { passage: `${sourceRange.path}:${sourceRange.start}-${sourceRange.end}` } : {}) }, { role: 'assistant', content: '', id: replyId, demo: !!isDemo, ...card }]);
-    if (!isDemo) exchange?.({ id: replyId, question: message, ...(target ? { linkFrom: target.id } : {}) });
+    // The turn's chat bubbles and canvas exchange, drawn once, and the sheet opened for them. The Tutor draws them itself
+    // (begin), only for a turn it answers: a turn its journey resolver takes (LearnTutor.jsx) has neither.
+    let begun = false;
+    const begin = () => {
+      if (begun) return;
+      begun = true;
+      if (panelAsk) { setSheetOpen(true); setSheetHistory(false); }
+      setMsgs((m) => [...m, { role: 'user', content: attached ? `${message} 📎 ${attached.name}` : message, ...card, ...(canvasImage ? { canvasImage } : {}), ...(sourceRange ? { passage: `${sourceRange.path}:${sourceRange.start}-${sourceRange.end}` } : {}) }, { role: 'assistant', content: '', id: replyId, demo: !!isDemo, ...card }]);
+      if (!isDemo) exchange?.({ id: replyId, question: message, ...(target ? { linkFrom: target.id } : {}) });
+    };
+    if (!tutor || isDemo) begin();
     const append = (t) => setMsgs((m) => {
       const next = m.slice();
       next[next.length - 1] = { ...next[next.length - 1], content: next[next.length - 1].content + t };
@@ -546,8 +587,16 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         return;
       }
       // Tutor v1 (LearnTutor.jsx): on the NanoGPT Attention slice the Tutor answers instead of the
-      // Learn chat - the learner's own words, and the card they armed or selected.
-      if (tutor) { mirror(await tutor.ask({ raw: raw.trim(), targetId: target?.id || null, opening, signal: flight.signal }).catch(e => { if (e.name === 'AbortError') return 'Stopped.'; if (e.name === 'TimeoutError') throw new Error('The Tutor took too long to answer. Try again.'); throw e; })); return; }
+      // Learn chat - the learner's own words, and the card they armed or selected. On a journey canvas a turn the
+      // journey takes comes back handled, with nothing drawn; a failed one gives the words back.
+      if (tutor) {
+        // A block's follow-up composer (canvasSeed, a journey canvas) asks about that block.
+        const reply = await tutor.ask({ raw: raw.trim(), targetId: (target || canvasSeed?.target)?.id || null, opening, signal: flight.signal, skipJourney, begin }).catch(e => { if (e.name === 'AbortError') return 'Stopped.'; if (e.name === 'TimeoutError') throw new Error('The Tutor took too long to answer. Try again.'); throw e; });
+        if (reply?.handled) { if (reply.failed) setInput(current => current || raw); return; }
+        begin();
+        mirror(reply);
+        return;
+      }
       const payload = {
         // The lesson's table of contents. Separate from lesson_snapshot, which
         // is tldraw-shaped and would reject it.
@@ -623,12 +672,12 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           if (!type || !data) continue;
           const d = JSON.parse(data);
           if (type === 'chunk') mirror(d.text);
-          else if (type === 'progress') { if (d.card && !slots[d.card]) slots[d.card] = boardContext?.reserveCard?.(d.card); exchange?.({ id: replyId, stage: d.stage }); setMsgs(messages => messages.map(item => item.id === replyId ? { ...item, status: d.stage } : item)); }
+          else if (type === 'progress') { if (d.card && !slots[d.card] && !journeySetup) slots[d.card] = boardContext?.reserveCard?.(d.card); exchange?.({ id: replyId, stage: d.stage }); setMsgs(messages => messages.map(item => item.id === replyId ? { ...item, status: d.stage } : item)); }
           else if (type === 'graph') { responseGraph=d; setMsgs(messages=>messages.map(item=>item.id===replyId?{...item,graph:d}:item)); }
           else if (type === 'outline') { boardContext?.onOutlineProposal?.(d.ops); }
-          else if (type === 'paper') { boardContext?.onShowPaper?.(d, slots.paper); }
-          else if (type === 'wiki') { boardContext?.onShowWiki?.(d, slots.wiki); }
-          else if (type === 'video') { boardContext?.onShowVideo?.(d, slots.video); }
+          else if (type === 'paper') { if (!journeySetup) boardContext?.onShowPaper?.(d, slots.paper); }
+          else if (type === 'wiki') { if (!journeySetup) boardContext?.onShowWiki?.(d, slots.wiki); }
+          else if (type === 'video') { if (!journeySetup) boardContext?.onShowVideo?.(d, slots.video); }
           else if (type === 'papers') setMsgs(messages => messages.map(item => item.id === replyId ? { ...item, papers: d.papers } : item));
           else if (type === 'proposal') setMsgs((m) => [...m, { role: 'proposal', proposal: d }]);
           else if (type === 'done' && d.threadId) {
@@ -643,7 +692,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       }
     } catch (e) {
       // A stopped answer keeps what arrived; it is not an error.
-      if (e.name !== 'AbortError') mirror(`✗ ${e.message}`);
+      if (e.name !== 'AbortError') { begin(); mirror(`✗ ${e.message}`); }
     } finally {
       if (answerFlight.current === flight) answerFlight.current = null;
       for (const slot of Object.values(slots)) boardContext?.releaseCard?.(slot);
@@ -653,10 +702,11 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     }
   };
 
-  // Tutor v1: a hole's opening turn goes through send once, as the learner's carried-down question.
+  // Tutor v1: a hole's opening turn goes through send once, as the learner's carried-down question - from the dock only
+  // (final review C-I1: a journey hole's block composers get the same Tutor and would each send it again).
   const openedHole = useRef(null);
   useEffect(() => {
-    if (!tutor?.opening || openedHole.current === tutor.opening.key || busy) return;
+    if (!dock || !tutor?.opening || openedHole.current === tutor.opening.key || busy) return;
     openedHole.current = tutor.opening.key;
     // Voice Mode: the opening is a voice turn - spoken, in the Tutor caption only, never a chat bubble.
     if (dock && voice?.on && voice.say(tutor.opening.question, { opening: true })) return;
@@ -952,10 +1002,11 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           <img src={boardContext.preview} alt={boardContext.previewKind === 'paper' ? 'Selected paper region' : 'Selected canvas preview'} className="h-20 w-28 rounded-lg border border-line bg-white object-contain" />
           <button type="button" aria-label={boardContext.previewKind === 'paper' ? 'Remove paper selection' : 'Remove canvas image'} title="Remove image preview" onClick={boardContext.removeImage} className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border border-line bg-white text-ink-2 shadow-sm hover:bg-hover"><X size={12} /></button>
         </div>}
-        {slash && <div className="relative"><slash.Picker apiRef={slashRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFocusBlock={slash.focusBlock} onPrompt={prompt => send(prompt)} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
+        {tray?.tray && <TutorPromptTray tray={tray.tray} onOption={async id => { const out = await tray.onOption(id); if (out?.ask) send(out.ask, undefined, { skipJourney: true }); }} />}
+        {slash && <div className="relative"><slash.Picker apiRef={slashRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFocusBlock={slash.focusBlock} onPrompt={prompt => send(prompt, undefined, { skipJourney: true })} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
         {dock && voice?.state === 'off' && voice.caption?.error && <div role="alert" data-voice-error className="mb-1.5 truncate text-xs text-fail">{voice.caption.error}</div>}
         <ChatComposer value={input} onChange={value => { boardContext?.pause(); setComposerInput(value); }} onSubmit={send} ready={!!command}
-          onKeyDown={slash ? event => { if (command && event.key === 'Backspace' && !input) { event.preventDefault(); setCommand(null); return; } slashRef.current?.onKeyDown(event); } : undefined} inputRef={inputRef} autoFocus={autoFocus} placeholder={command ? 'Add details, or press Enter' : placeholder} busy={busy}
+          onKeyDown={slash ? event => { if (command && event.key === 'Backspace' && !input) { event.preventDefault(); setCommand(null); return; } slashRef.current?.onKeyDown(event); } : undefined} inputRef={inputRef} autoFocus={autoFocus} placeholder={command ? 'Add details, or press Enter' : tray?.tray?.free_text ? 'Type your answer, or ask anything' : placeholder} busy={busy}
           dock={dock} onStop={dock ? () => answerFlight.current?.abort() : undefined}
           leading={<>
           <div className="relative shrink-0">

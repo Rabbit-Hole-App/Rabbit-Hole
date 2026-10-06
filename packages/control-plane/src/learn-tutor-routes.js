@@ -3,7 +3,8 @@
 //                                   then the larger evaluator only when JEV is uncertain (8 s)
 //   POST /api/learn/tutor/plan      one forced-tool planner call -> TutorResponse
 // Both responses carry `telemetry` (per-rung ms, outcome, requested/served model, usage) for the bench.
-// Nothing is stored here: evidence is session-scoped in the browser (§2).
+// Nothing is stored here for a nanoGPT canvas: evidence is session-scoped in the browser (§2). A body with journey_id
+// takes the journey path (adaptive-learning-path-v1-architecture.md §5): its evidence is the journey's, on the server.
 import { authorizedBoardApp } from './learn-board.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
 import { JEV_TRANSPORTS, THRESHOLDS, askJev } from './learn-grade-jev.js';
@@ -12,7 +13,11 @@ import { modelFailure } from './learn-research.js';
 import { LEARN_TASKS, loggedModel } from './learn-models.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { escalation } from './agents/learn-tutor-escalation.js';
-import { evaluationFrom, firstSentence, largerInstruction, parseLarger, PLANNER_EFFORTS, plannerRequest, readTutorAnswers, tutorJevRequest, TUTOR_TOOL } from './agents/learn-tutor.js';
+import { evaluationFrom, firstSentence, largerInstruction, parseLarger, PLANNER_EFFORTS, plannerRequest, readTutorAnswers, tutorJevRequest, TUTOR_TOOL, tutorTool } from './agents/learn-tutor.js';
+import { normalizeToolInput } from './tool-input.js';
+import { JourneyConflict, appendJourneyEvidence, loadJourneyById } from './learn-journey-store.js';
+import { claimsOfConceptIn } from '../../web/src/learn-tutor-claims.js';
+import { JOURNEY_LIMITS } from '../../web/src/learn-journey.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 export const JEV_TIMEOUT_MS = 800;
@@ -100,6 +105,115 @@ export async function evaluateFreeText(env, spec, message, deps = {}) {
   return larger.status === 'error' ? { ...jev, larger_error: larger.error, telemetry } : { ...larger, escalation: jev.escalation, telemetry };
 }
 
+// ---------- The journey evidence path (adaptive-learning-path-v1-architecture.md §5, §9.4, §10.2) ----------
+
+const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/; // learn-boards.js board names
+
+// The free-text spec rebuilt from the journey registry, as the browser's evaluationSpec (web/src/learn-tutor.js) builds
+// it: claim content, a gap check per prerequisite concept, and the named misconceptions each claim already has a settled
+// event for. Only the claim ids, answering and question come from the body; any claim content it carries is ignored.
+function journeySpec(journey, body) {
+  const registry = journey.registry.claims;
+  if (typeof body.message !== 'string' || !body.message.trim() || body.message.length > 4000) return { error: 'message must be 1-4000 characters' };
+  if (!Array.isArray(body.claims) || !body.claims.length || body.claims.length > 6) return { error: 'claims must be 1-6 claim ids' };
+  if (body.claims.some(id => typeof id !== 'string' || !Object.hasOwn(registry, id))) return { error: 'unknown_claim' };
+  if (body.question != null && !text(body.question, 1200)) return { error: 'invalid question' };
+  const ids = [...new Set(body.claims)], gaps = [];
+  for (const id of ids) for (const concept of registry[id].prerequisites) {
+    let gap = gaps.find(entry => entry.concept === concept);
+    if (!gap) gaps.push(gap = { concept, statement: claimsOfConceptIn(registry, concept).map(other => registry[other].statement).join(' ').slice(0, 600), claims: [] });
+    gap.claims.push(id);
+  }
+  const claims = ids.map(id => {
+    const prior = [...new Set(journey.evidence.events.filter(event => event.claim === id && event.settled && event.misconception_id).map(event => event.misconception_id))];
+    const { concept, statement, ideas, misconceptions, drawn } = registry[id];
+    return { id, concept, statement, ideas, misconceptions, drawn, ...(prior.length ? { prior_misconceptions: prior } : {}) };
+  });
+  // Gaps are bounded as validateEvaluateBody bounds a browser spec: at most 4, each statement at most 600 characters.
+  return { value: { answering: !!body.answering, ...(body.question ? { question: body.question } : {}), claims, gaps: gaps.slice(0, 4) } };
+}
+
+// The probe a body answers, while it is open (§6.3, §9.3): a diagnostic probe only during the diagnostic (never after a
+// skip), a section check only while active and only in the current section's plan. The journey state decides which set
+// is searched, so a check id equal to a diagnostic id is never graded with the diagnostic key; check ids are unique only
+// within one plan, so a check's tag carries its section_id. null: no such probe; { closed: true }: it exists, not open.
+function openProbe(journey, id) {
+  const plan = journey.section_plan, diagnostic = journey.diagnostic.probes;
+  if (journey.state === 'diagnostic' && !journey.diagnostic.skipped) {
+    const probe = diagnostic.find(p => p.id === id);
+    if (probe) return { probe, tag: { probe_id: id } };
+  } else if (journey.state === 'active' && plan && plan.section_id === journey.active_section_id) {
+    const probe = plan.checks?.find(p => p.id === id);
+    if (probe) return { probe, tag: { probe_id: id, section_id: plan.section_id } };
+  }
+  return diagnostic.some(p => p.id === id) || plan?.checks?.some(p => p.id === id) ? { closed: true } : null;
+}
+// A probe's evidence is stored once: an answer to a probe already tagged on the journey (a reload between the answer and
+// probe_advance, a double click, a retry) appends nothing, calls no evaluator and returns the stored evidence.
+const answered = (journey, tag) => journey.evidence.events.some(e => e.ref?.probe_id === tag.probe_id && (e.ref.section_id ?? null) === (tag.section_id ?? null));
+const replay = journey => ({ status: 'duplicate', evaluator: null, events: [], journey: { events: journey.evidence.events, seq: journey.evidence.seq, revision: journey.revision } });
+const onCanvas = (journey, scope) => !!journey && journey.scope.app === scope.app && journey.scope.board === scope.board;
+const TURN_ID = /^[\w-]{1,80}$/;
+
+// A multiple-choice or prediction answer, graded from the probe's server-only key (§9.4), never by a model: the right
+// option is a pass on each of the probe's claims (demonstrated_in_transfer on a transfer probe), a keyed wrong option a
+// misconception on the claim that names it (a fail on the others), any other option a fail.
+function probeEvaluation(registry, probe, option) {
+  const pass = option === probe.key.correct, named = probe.key.misconceptions?.[option];
+  const events = probe.claims.map(claim => {
+    const own = !pass && !!named && registry.claims[claim].misconceptions.some(wrong => wrong.id === named);
+    return {
+      concept: registry.claims[claim].concept, claim, result: pass ? 'pass' : own ? 'misconception' : 'fail',
+      kind: pass ? (probe.transfer ? 'demonstrated_in_transfer' : 'demonstrated_here') : null,
+      settled: true, evaluator: 'deterministic', source: 'journey_probe', ...(own ? { misconception_id: named } : {}),
+    };
+  });
+  return { status: 'settled', evaluator: 'deterministic', events };
+}
+
+// Only the journey's owner (access.user_id, §10.2; no id fails closed), on the canvas and board it lives on. The
+// evaluation's events are stored only through appendJourneyEvidence; the response is the evaluation plus the journey's
+// stored events and seq, which the browser adopts. An evaluator error stores nothing and still returns them.
+// option_id set: a multiple-choice answer to a keyed probe. Otherwise free text, which may name the keyless probe it
+// answers (probe_id). turn_id (optional, the browser's turn id) is kept on the ref only when it is a plain id.
+async function journeyEvaluate(env, access, body, deps) {
+  if (!access.user_id) return json({ error: 'identity_unavailable' }, 401);
+  if (typeof body.journey_id !== 'string' || typeof body.board !== 'string' || !BOARD.test(body.board)) return json({ error: 'journey_id and board are required' }, 400);
+  const scope = { org: access.org, owner_user_id: access.user_id, app: body.app, board: body.board };
+  const journey = await loadJourneyById(env, body.journey_id, scope);
+  if (!onCanvas(journey, scope)) return json({ error: 'no_journey' }, 404);
+  const multiple = body.option_id != null, probing = multiple || body.probe_id != null;
+  const open = probing ? openProbe(journey, body.probe_id) : null;
+  if (probing && !open) return json({ error: 'unknown_probe' }, 400);
+  if (open?.closed) return json({ error: 'probe_closed' }, 409);
+  if (multiple && (!open.probe.key || !open.probe.options?.some(option => option.id === body.option_id))) return json({ error: 'unknown_option' }, 400);
+  if (!multiple && open?.probe.key) return json({ error: 'unknown_probe' }, 400); // free text answers a keyless probe only
+  // Final review A-m4 + C-m2 (ruling): an answer to an open probe is graded on the probe's own claims (all of them, at most
+  // JOURNEY_LIMITS.probe_claims, in probe order), never on the claims the browser sent.
+  const spec = multiple ? null : journeySpec(journey, open ? { ...body, claims: open.probe.claims.slice(0, JOURNEY_LIMITS.probe_claims) } : body);
+  if (spec?.error) return json({ error: spec.error }, 400);
+  if (open && answered(journey, open.tag)) return json(replay(journey));
+  const evaluation = multiple ? probeEvaluation(journey.registry, open.probe, body.option_id) : await evaluateFreeText(env, spec.value, body.message, deps);
+  const turnId = typeof body.turn_id === 'string' && TURN_ID.test(body.turn_id) ? body.turn_id : crypto.randomUUID();
+  const ref = { turn_id: turnId, ...open?.tag, canvas: { app: scope.app, board: scope.board } };
+  let j = journey;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      // Final review A-m6: with the revision the evidence was saved at, so the browser's probe_advance needs no 409 retry.
+      const { journey: saved, events, seq } = await appendJourneyEvidence(env, j, evaluation, ref);
+      return json({ ...evaluation, journey: { events, seq, revision: saved.revision } });
+    } catch (error) {
+      if (!(error instanceof JourneyConflict)) throw error;
+      // Another tab moved the journey during the evaluation: reload once and store on the fresh revision, so a (possibly
+      // paid) evaluation is not lost. A second conflict, or an archived or missing journey, stores nothing.
+      if (error.code !== 'revision' || attempt) return json({ error: error.code }, 409);
+      j = await loadJourneyById(env, j.id, scope);
+      if (!onCanvas(j, scope)) return json({ error: 'no_journey' }, 409);
+      if (open && answered(j, open.tag)) return json(replay(j));
+    }
+  }
+}
+
 // The TutorResponse at top level (the client reads it) plus `telemetry`. A failure throws with
 // `error.telemetry`: outcome 'invalid' when the reply has no usable tutor_response, else 'error'.
 // A streamed planner reply (Anthropic SSE) -> the same shape as a non-streamed one. The tutor_response
@@ -165,8 +279,11 @@ async function planOnce(env, context, model, effort, { callModel = loggedModel('
   Object.assign(telemetry, { served_model: result.model ?? null, input_tokens: result.usage?.input_tokens ?? null, output_tokens: result.usage?.output_tokens ?? null, stop_reason: result.stop_reason ?? null,
     ...(speed ? { speed: result.usage?.speed ?? null } : {}), ...(cache ? { cache_creation_input_tokens: result.usage?.cache_creation_input_tokens ?? null, cache_read_input_tokens: result.usage?.cache_read_input_tokens ?? null } : {}) });
   const call = result.content?.find(block => block.type === 'tool_use' && block.name === TUTOR_TOOL.name);
-  if (!call?.input || !Array.isArray(call.input.actions)) throw Object.assign(new Error('The tutor returned no turn'), { telemetry: done('invalid') });
-  return { ...call.input, telemetry: done('ok') };
+  // An array or object sent as a JSON string is parsed once by the tool's schema (tool-input.js); a native plan is
+  // returned as it came, so nanoGPT turns are unchanged.
+  const input = call?.input && normalizeToolInput(tutorTool(env.TUTOR_AVATAR === 'on').input_schema, call.input);
+  if (!input || !Array.isArray(input.actions)) throw Object.assign(new Error('The tutor returned no turn'), { telemetry: done('invalid') });
+  return { ...input, telemetry: done('ok') };
 }
 
 // v2 checkpoint H: the tiered planner, off unless TUTOR_PLANNER_FAST_MODEL names one of these exact ids
@@ -246,6 +363,7 @@ export async function tutorRoute(path, req, env, deps = {}) {
   const ownerRefused = subscriptionOwnerRefusal(env, access);
   if (ownerRefused) return ownerRefused;
   if (path === '/api/learn/tutor/evaluate') {
+    if (body.journey_id != null) return journeyEvaluate(env, access, body, deps);
     const input = validateEvaluateBody(body);
     if (input.error) return json({ error: input.error }, 400);
     return json(await evaluateFreeText(env, input.value.spec, input.value.message, deps));

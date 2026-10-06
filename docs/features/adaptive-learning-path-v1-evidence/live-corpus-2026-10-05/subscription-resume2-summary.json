@@ -1,0 +1,158 @@
+{
+  "mode": "subscription",
+  "file": "C:\\Users\\cyudhist\\Desktop\\workspace\\adaptive-learning-path-v1\\.superpowers\\sdd\\2026-10-04-adaptive-learning-path-lp1\\journey-corpus-subscription\\journey-corpus-subscription-2026-10-06T06-07-15-159Z.jsonl",
+  "budget": 1.9,
+  "ceiling": 1.9,
+  "transport": "subscription",
+  "evidence": "subscription functional evidence",
+  "note": "Claude subscription bridge: tool use is emulated in the system prompt; effort, max_tokens and caching are not applied; the exact model version is not reported. Not production-exact API evidence.",
+  "subjects_run": [
+    "photosynthesis",
+    "french-revolution"
+  ],
+  "plan": "photosynthesis:adapt_edit-dive,french-revolution:path-dive",
+  "seed": "C:/Users/cyudhist/Desktop/workspace/adaptive-learning-path-v1/.superpowers/sdd/2026-10-04-adaptive-learning-path-lp1/journey-corpus/journey-corpus-live-2026-10-05T23-57-34-206Z.jsonl,C:/Users/cyudhist/Desktop/workspace/adaptive-learning-path-v1/.superpowers/sdd/2026-10-04-adaptive-learning-path-lp1/journey-corpus-subscription/journey-corpus-subscription-2026-10-06T02-34-50-790Z.jsonl",
+  "stopped_at_budget": null,
+  "aborted": "tutor: subscription bridge HTTP 503: Invalid subscription tool choice (diagnostic bbe85eb3-3b12-4bbd-81f8-716cc0754e2d: unknown tool tool_use)",
+  "crashed": null,
+  "subjects_done": [],
+  "stages": 5,
+  "stages_passed": 2,
+  "failed_assertions": [],
+  "skipped": [],
+  "seeded": [
+    "photosynthesis/diagnostic",
+    "photosynthesis/path",
+    "photosynthesis/section"
+  ],
+  "repairs": [],
+  "latency_ms": {
+    "photosynthesis/adapt_edit": 76071,
+    "photosynthesis/adapt_evidence": 20502
+  },
+  "checks": {
+    "photosynthesis/diagnostic": "seeded: C:/Users/cyudhist/Desktop/workspace/adaptive-learning-path-v1/.superpowers/sdd/2026-10-04-adaptive-learning-path-lp1/journey-corpus/journey-corpus-live-2026-10-05T23-57-34-206Z.jsonl",
+    "photosynthesis/path": "seeded: C:/Users/cyudhist/Desktop/workspace/adaptive-learning-path-v1/.superpowers/sdd/2026-10-04-adaptive-learning-path-lp1/journey-corpus-subscription/journey-corpus-subscription-2026-10-06T02-34-50-790Z.jsonl",
+    "photosynthesis/section": "seeded: C:/Users/cyudhist/Desktop/workspace/adaptive-learning-path-v1/.superpowers/sdd/2026-10-04-adaptive-learning-path-lp1/journey-corpus-subscription/journey-corpus-subscription-2026-10-06T02-34-50-790Z.jsonl",
+    "photosynthesis/adapt_edit": {
+      "valid": "pass",
+      "adapt_valid": "pass",
+      "completed_unchanged": "pass",
+      "edit_respected": "pass",
+      "only_current_generated": "pass",
+      "plans_only": "pass",
+      "wording": "pass",
+      "prerequisites_are_concepts": "pass",
+      "no_topic_leakage": "pass"
+    },
+    "photosynthesis/adapt_evidence": {
+      "valid": "pass",
+      "adapt_valid": "pass",
+      "completed_unchanged": "pass",
+      "future_only": "pass",
+      "only_current_generated": "pass",
+      "plans_only": "pass",
+      "wording": "pass",
+      "prerequisites_are_concepts": "pass",
+      "no_topic_leakage": "pass"
+    }
+  },
+  "cost": {
+    "per_stage": {
+      "adapt_edit": {
+        "calls": 1,
+        "ms": 76064,
+        "in": 0,
+        "out": 0,
+        "cw": 0,
+        "cr": 0,
+        "usd": 0,
+        "worst_usd": 0.062882
+      },
+      "adapt_evidence": {
+        "calls": 1,
+        "ms": 20500,
+        "in": 0,
+        "out": 0,
+        "cw": 0,
+        "cr": 0,
+        "usd": 0,
+        "worst_usd": 0.062952
+      },
+      "tutor": {
+        "calls": 1,
+        "ms": 7341,
+        "in": 0,
+        "out": 0,
+        "cw": 0,
+        "cr": 0,
+        "usd": 0,
+        "worst_usd": 0.066125
+      }
+    },
+    "per_domain": {
+      "photosynthesis": {
+        "calls": 3,
+        "ms": 103905,
+        "in": 0,
+        "out": 0,
+        "cw": 0,
+        "cr": 0,
+        "usd": 0,
+        "worst_usd": 0.191959
+      }
+    },
+    "per_role": {
+      "journey_adapt": {
+        "calls": 2,
+        "ms": 96564,
+        "in": 0,
+        "out": 0,
+        "cw": 0,
+        "cr": 0,
+        "usd": 0,
+        "worst_usd": 0.125834
+      },
+      "tutor claude-opus-5-5": {
+        "calls": 1,
+        "ms": 7341,
+        "in": 0,
+        "out": 0,
+        "cw": 0,
+        "cr": 0,
+        "usd": 0,
+        "worst_usd": 0.066125
+      }
+    },
+    "total_usd": 0,
+    "all_live_runs_usd": 0,
+    "worst_case_usd": {
+      "calls_made": 0.192,
+      "plus_untaken_escalations": 0.7636,
+      "note": "input characters / 2 at the cache-write rate plus max_tokens at the output rate; stub inputs are fixture-sized"
+    }
+  },
+  "served_model_mismatches": [],
+  "bridge_diagnostics": [
+    {
+      "stage": "photosynthesis/tutor",
+      "role": "tutor",
+      "diagnostic": {
+        "id": "bbe85eb3-3b12-4bbd-81f8-716cc0754e2d",
+        "at": "2026-10-06T06:08:59.234Z",
+        "run_id": "2026-10-06T06-07-15-159Z",
+        "stage": "photosynthesis:tutor",
+        "role": "tutor",
+        "model_alias": "opus",
+        "termination": {
+          "subtype": "success",
+          "stop_reason": "end_turn",
+          "is_error": false
+        },
+        "raw_text": "{\"type\":\"tool_use\",\"name\":\"tool_use\",\"input\":{\"constraints_add\":[],\"strategy\":\"feynman\",\"actions\":[{\"type\":\"respond_text\",\"text\":\"Most of a plant's mass comes from the air, because the carbon in its sugar is pulled out of CO2. Here's a classic experiment: about 400 years ago, van Helmont grew a small willow in a weighed pot of soil and gave it only water. Five years later, the tree had gained about 74 kg, but the soil had lost only about 60 grams. So the soil couldn't be the main source. Instead, the leaves take in CO2 and the roots take in water, and light provides the energy to join their carbon, hydrogen and oxygen into sugar. That sugar then becomes wood, leaves and roots. The soil adds only small amounts of minerals, like nitrogen, which work more like vitamins than food.\"},{\"type\":\"ask_question\",\"text\":\"In your own words, if you burned that willow and the soil had barely changed, where did most of the stuff you burned originally come from?\",\"claim\":\"energy-and-matter/plant-food-source\",\"purpose\":\"explain_back\"}]}}",
+        "parser_error": "unknown tool tool_use"
+      }
+    }
+  ],
+  "billed_unknown": []
+}

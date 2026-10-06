@@ -84,6 +84,7 @@ npx wrangler d1 migrations apply rabbit-hole-dev --remote --config wrangler.rabb
 Learn and BYOC D1s: both schema files are additive and can be run again safely.
 
 ```bash
+# this file now includes learn migration 0006 (adaptive learning journeys) - apply only with the owner's GO for 0006
 npx wrangler d1 execute rabbit-hole-learn-dev --remote --config wrangler.rabbit-hole-dev.jsonc --file repository-schema.sql
 npx wrangler d1 execute rabbit-hole-byoc-dev --remote --config wrangler.rabbit-hole-dev.jsonc --file ../byoc/schema.sql
 ```

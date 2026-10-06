@@ -8,7 +8,8 @@ import { liveDb, liveRuns } from './live-storage-spy.js';
 import { canvasesFetch, canvasRoute } from '../src/canvases.js';
 import { learnBoardsRoute } from '../src/learn-boards.js';
 
-const PEOPLE = { ana: { email: 'ana@test', org: 'ana-ws' }, ben: { email: 'ben@test', org: 'ben-ws' }, cara: { email: 'cara@test', org: 'cara-ws' } };
+// user_id: users.id as /api/me answers it (architecture §10.2); no response below may carry one (checked in call).
+const PEOPLE = { ana: { email: 'ana@test', org: 'ana-ws', user_id: 'u-ana-5d1e' }, ben: { email: 'ben@test', org: 'ben-ws', user_id: 'u-ben-9a2b' }, cara: { email: 'cara@test', org: 'cara-ws', user_id: 'u-cara-71f0' } };
 export const SHA = '3adf61e0c1b2a3d4e5f60718293a4b5c6d7e8f90';
 export const SNAPSHOT = { repo: 'karpathy/nanoGPT', commit: SHA, version: 'graphify', skipped: [], files: { 'model.py': 'class CausalSelfAttention:\n    def forward(self, x):\n        return x' }, graph: { nodes: [{ id: 'attn', label: 'CausalSelfAttention', path: 'model.py', line: 1 }], edges: [] } };
 export const BOARD = {
@@ -61,6 +62,7 @@ export function setup(t, { visibility = 'public', vars = {} } = {}) {
     const response = canvasRoute(new URL(req.url)) ? await canvasesFetch(req, env) : await learnBoardsRoute(path, req, env);
     const type = response.headers.get('content-type') || '';
     const text = await response.text();
+    for (const { user_id } of Object.values(PEOPLE)) assert.equal(text.includes(user_id), false, `${method} ${path} answered with a user id`);
     return { status: response.status, type, text, body: type.includes('json') ? JSON.parse(text) : null };
   };
   // ana's project canvas, shared by a view link (public or not), and a private canvas of hers beside it.

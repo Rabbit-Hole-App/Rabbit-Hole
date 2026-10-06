@@ -15,7 +15,8 @@ if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(BASE)) throw Error('tutor
 const args = process.argv.slice(2), LIVE = args.includes('--live'), GAP_ONLY = args.includes('--gap'); // --live --gap: only the prerequisite-gap turn
 const OUT = args.find(arg => !arg.startsWith('--')) || 'tutor-shots';
 mkdirSync(OUT, { recursive: true });
-const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
+// TEST_BYPASS_SECRET in the environment (another local stack, e.g. e2e/journey-local-stack.md) wins over the file.
+const secret = process.env.TEST_BYPASS_SECRET || readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 // Sessions are minted on the control plane's own origin (the app origin's P0-B barrier refuses /test/session):
 // the standalone local control plane, SMALL_CP (default http://127.0.0.1:8790).
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8790';

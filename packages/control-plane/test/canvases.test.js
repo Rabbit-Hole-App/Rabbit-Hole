@@ -28,7 +28,7 @@ function fixture(t) {
   const db = { prepare: sql => { let args = []; const stmt = sqlite.prepare(sql); return { bind(...v) { args = v; return this; }, first: async () => stmt.get(...args) || null, all: async () => ({ results: stmt.all(...args) }), run: async () => ({ meta: stmt.run(...args) }) }; }, batch: async statements => Promise.all(statements.map(s => s.run())) };
   const seen = [];
   const env = { LEARN_DB: db, DB: { prepare() { throw Error('live D1 touched'); }, batch() { throw Error('live D1 touched'); } },
-    CONTROL_PLANE: { fetch: async req => { seen.push(`${req.method} ${new URL(req.url).pathname}`); return req.headers.get('cookie') === 'denied' ? new Response('', { status: 401 }) : Response.json({ org: req.headers.get('x-small-workspace') || 'team', email: req.headers.get('x-email') || 'owner@test', orgName: 'Team', apps: [] }); } } };
+    CONTROL_PLANE: { fetch: async req => { seen.push(`${req.method} ${new URL(req.url).pathname}`); return req.headers.get('cookie') === 'denied' ? new Response('', { status: 401 }) : Response.json({ org: req.headers.get('x-small-workspace') || 'team', email: req.headers.get('x-email') || 'owner@test', orgName: 'Team', user_id: req.headers.has('x-email') ? 'u-colleague-2e8d' : 'u-owner-1a2b', apps: [] }); } } };
   const send = (method, path, body, headers = {}) => canvasesFetch(new Request(`https://dev.test${path}`, { method, headers, ...(body ? { body: JSON.stringify(body) } : {}) }), env);
   return { sqlite, env, seen, send };
 }
@@ -113,6 +113,21 @@ test('canvas traffic routes to LEARN_DB, canvas attachments are refused, and Lea
   assert.deepEqual([app.kind, app.org, app.name, app.email], ['canvas', 'team', name, 'owner@test']);
   assert.equal((await board(colleague)).status, 403);
   assert.ok(f.seen.every(call => call === 'GET /api/me'), f.seen.join());
+});
+
+// Journeys key on users.id (architecture §10.2). It rides only on the access object authorizedBoardApp returns
+// (canvasAccess: an owned canvas or a pending hole); no canvas response the browser sees carries it.
+test('canvas access carries the session user id; no canvas response does', async t => {
+  const f = fixture(t);
+  const created = await f.send('POST', '/api/canvases', { title: 'Board' }), texts = [await created.text()];
+  const { name } = JSON.parse(texts[0]);
+  const access = await authorizedBoardApp(new Request('https://dev.test/api/learn/board'), f.env, name);
+  assert.deepEqual([access.name, access.user_id], [name, 'u-owner-1a2b']);
+  const noId = { ...f.env, CONTROL_PLANE: { fetch: async () => Response.json({ org: 'team', email: 'owner@test', orgName: 'Team' }) } };
+  assert.equal((await authorizedBoardApp(new Request('https://dev.test/api/learn/board'), noId, name)).user_id, null);
+  for (const [method, path, body] of [['GET', '/api/canvases'], ['GET', `/api/apps/${name}`], ['PATCH', `/api/apps/${name}`, { title: 'Renamed' }], ['POST', `/api/apps/${name}/archive`], ['GET', '/api/canvases?archived=1']])
+    texts.push(await (await f.send(method, path, body)).text());
+  for (const text of texts) assert.equal(text.includes('u-owner-1a2b'), false, text.slice(0, 80));
 });
 
 // ---- dev worker wiring (Task 6.4) ----

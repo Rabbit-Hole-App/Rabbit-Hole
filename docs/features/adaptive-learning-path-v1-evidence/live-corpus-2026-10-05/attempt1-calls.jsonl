@@ -1,0 +1,1 @@
+{"mode":"live","kind":"call","subject":"resolver","step":"free_text_answer","role":"journey_resolver","requested_model":"claude-sonnet-5-5","max_tokens":300,"input_chars":5244,"worst_usd":0.009555,"served_model":null,"status":400,"stop_reason":null,"ms":1627,"in":0,"out":0,"cw":0,"cr":0,"cost_usd":0}

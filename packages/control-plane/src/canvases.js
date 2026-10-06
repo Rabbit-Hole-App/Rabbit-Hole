@@ -35,12 +35,15 @@ async function ownedCanvas(env, user, name) {
 }
 // `pending` ({ parent: { app, board }, title }) lets a pending Rabbit Hole's chat and / commands run
 // before its canvas row exists (dives.js pendingHoleApp); an existing row always wins.
+// user_id (users.id, null without one) is the journey key (adaptive-learning-path-v1-architecture.md §10.2). It is set
+// here, on the access object authorizedBoardApp returns, and not in canvasApp, so no canvas listing or canvas response
+// the browser reads ever carries it.
 export async function canvasAccess(req, env, name, pending = null) {
   const user = await repositoryIdentity(req, env);
   if (user instanceof Response) return user;
-  const app = await ownedCanvas(env, user, name);
-  if (app instanceof Response && app.status === 404 && pending) return (await pendingHoleApp(env, user, name, pending)) || app;
-  return app;
+  let app = await ownedCanvas(env, user, name);
+  if (app instanceof Response && app.status === 404 && pending) app = (await pendingHoleApp(env, user, name, pending)) || app;
+  return app instanceof Response ? app : { ...app, user_id: user.userId ?? null };
 }
 // The caller's own canvases only (owner-only in phase 1, section 8.2). Nested Rabbit Holes are left
 // out: they belong to their root's tree and open through its navigator and portals (dives.js), never

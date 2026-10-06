@@ -21,7 +21,7 @@ function production() {
     fetch: async req => {
       const path = new URL(req.url).pathname;
       sent.push(`${req.method} ${path}`);
-      if (path === '/api/me') return Response.json({ org: 'team', email: 'owner@test', orgName: 'Team' });
+      if (path === '/api/me') return Response.json({ org: 'team', email: 'owner@test', orgName: 'Team', user_id: 'u-owner-3c9f' });
       return Response.json({ forwarded: path });
     },
   };
@@ -145,8 +145,11 @@ test('production GET /api/me answers who is signed in with reads only; GET /api/
   // a current session (auth.js): uid + epoch, checked against users with one SELECT
   const session = await sign({ t: 'sess', uid: 'u1', email: 'owner@team.test', ep: 0, exp: Math.floor(Date.now() / 1000) + 60 }, env.MASTER_KEY);
   const me = headers => production.fetch(new Request('https://small-cp.test/api/me', { headers }), env, {});
-  assert.deepEqual(await (await me({ 'X-Small-Session': session })).json(), { email: 'owner@team.test', org: 'team-test', orgName: null });
-  assert.deepEqual(await (await me({ 'X-Small-Session': session, 'X-Small-Workspace': 'w-lab' })).json(), { email: 'owner@team.test', org: 'w-lab', orgName: 'Lab' });
+  // user_id is the session's uid (users.id, the journey key: architecture §10.2); a CLI token carries none.
+  assert.deepEqual(await (await me({ 'X-Small-Session': session })).json(), { email: 'owner@team.test', org: 'team-test', orgName: null, user_id: 'u1' });
+  assert.deepEqual(await (await me({ 'X-Small-Session': session, 'X-Small-Workspace': 'w-lab' })).json(), { email: 'owner@team.test', org: 'w-lab', orgName: 'Lab', user_id: 'u1' });
+  const cli = await sign({ t: 'cli', email: 'owner@team.test', org: 'team-test' }, env.MASTER_KEY);
+  assert.deepEqual(await (await me({ Authorization: `Bearer ${cli}` })).json(), { email: 'owner@team.test', org: 'team-test', orgName: null, user_id: null });
   assert.equal((await me({})).status, 401);
   assert.ok(sql.length && sql.every(text => /^\s*SELECT/i.test(text)), sql.join(' | '));
   sql.length = 0;
@@ -160,10 +163,13 @@ test('dev identity asks GET /api/me, and falls back to two reads while productio
     const env = { CONTROL_PLANE: { fetch: async req => { const path = new URL(req.url).pathname; sent.push(`${req.method} ${path}`); return routes[path] ? Response.json(routes[path]) : Response.json({ error: 'no such endpoint' }, { status: 404 }); } } };
     return devIdentity(new Request('https://dev.test/api/canvases', { headers: { cookie: 'small_session=s' } }), env).then(user => ({ user, sent }));
   };
-  const deployed = await ask({ '/api/me': { email: 'a@b.c', org: 'b-c', orgName: null } });
-  assert.deepEqual(deployed, { user: { email: 'a@b.c', org: 'b-c', orgName: null }, sent: ['GET /api/me'] });
+  const deployed = await ask({ '/api/me': { email: 'a@b.c', org: 'b-c', orgName: null, user_id: 'u-a' } });
+  assert.deepEqual(deployed, { user: { email: 'a@b.c', org: 'b-c', orgName: null, userId: 'u-a' }, sent: ['GET /api/me'] });
+  // userId is users.id only when /api/me names one: a CLI token (null), an older /api/me (absent) or junk is null.
+  for (const user_id of [null, undefined, '', 7, { id: 'u-a' }]) assert.equal((await ask({ '/api/me': { email: 'a@b.c', org: 'b-c', user_id } })).user.userId, null, String(user_id));
+  // The legacy fallback has no id: userId null, so journeys fail closed there.
   const bridge = await ask({ '/api/workspaces': { active: 'w-lab', workspaces: [{ slug: 'b-c', name: null }, { slug: 'w-lab', name: 'Lab' }] }, '/api/trash': { trash: [], email: 'a@b.c' } });
-  assert.deepEqual(bridge, { user: { email: 'a@b.c', org: 'w-lab', orgName: 'Lab' }, sent: ['GET /api/me', 'GET /api/workspaces', 'GET /api/trash'] });
+  assert.deepEqual(bridge, { user: { email: 'a@b.c', org: 'w-lab', orgName: 'Lab', userId: null }, sent: ['GET /api/me', 'GET /api/workspaces', 'GET /api/trash'] });
   for (const call of bridge.sent.slice(1)) assert.ok(productionAllows(...call.split(' ')), call);
   const signedOut = await devIdentity(new Request('https://dev.test/'), { CONTROL_PLANE: { fetch: async () => Response.json({ error: 'run small login first' }, { status: 401 }) } });
   assert.equal(signedOut.status, 401);
@@ -171,8 +177,10 @@ test('dev identity asks GET /api/me, and falls back to two reads while productio
 
 test('the dev catalog lists dev apps only and asks production nothing but who is signed in', async t => {
   const f = fixture(t);
-  const catalog = await (await f.send('GET', '/api/apps')).json();
+  const text = await (await f.send('GET', '/api/apps')).text(), catalog = JSON.parse(text);
   assert.deepEqual([catalog.org, catalog.email, catalog.folders, catalog.apps.map(app => app.name)], ['team', 'owner@test', [], ['canvas-0a1b2c3d']]);
+  // users.id stays on the server (journeys key on it, architecture §10.2): not in the catalog, nor on any canvas in it.
+  assert.equal(text.includes('u-owner-3c9f'), false);
   assert.deepEqual(f.sent, ['GET /api/me']);
 });
 

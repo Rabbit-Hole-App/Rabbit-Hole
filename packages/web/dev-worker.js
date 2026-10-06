@@ -27,6 +27,7 @@ import { apiAsk } from '../control-plane/src/index.js';
 import { boardFetch, authorizedBoardApp, paperFetch, mediaFetch, momentFeedback, videoGone, canvasSearch, wikiArticle } from '../control-plane/src/learn-board.js';
 import { learnGradeRoute, assessAnswer } from '../control-plane/src/learn-grade-routes.js';
 import { tutorRoute } from '../control-plane/src/learn-tutor-routes.js';
+import { journeyRoute } from '../control-plane/src/learn-journey.js';
 import { homeAskFetch } from '../control-plane/src/learn-home-ask.js';
 import { voiceRoute } from '../control-plane/src/learn-voice-routes.js';
 import { learnBoardsRoute } from '../control-plane/src/learn-boards.js';
@@ -87,8 +88,9 @@ export default {
     // Canvas context documents (docs/features/canvas-context-docs.md): upload, list, toggle, delete.
     if (contextDocsRoute(new URL(req.url))) return contextDocsFetch(req, env);
     if (path === '/api/apps' && req.method === 'GET') {
-      const catalog = await repositoryIdentity(req, env);
-      if (catalog instanceof Response) return catalog;
+      const user = await repositoryIdentity(req, env);
+      if (user instanceof Response) return user;
+      const { userId, ...catalog } = user; // users.id stays server-side (journeys key on it, adaptive-learning-path-v1-architecture.md §10.2)
       // Dev apps only: listing live apps is production GET /api/apps, whose sweepStaleRuns writes
       // (docs/features/dev-prod-write-barrier.md). A live app still opens by name (GET /api/apps/<name>).
       return Response.json({ ...catalog, folders: [], apps: [...(await ownerRepositories(env, catalog)), ...(await ownerCanvases(env, catalog))] }, { headers: { 'Cache-Control': 'no-store' } });
@@ -212,6 +214,7 @@ export default {
     // The visible grade (owner decision 3, docs/features/learn-cleanup.md): one model call, nothing stored.
     if (path === '/api/learn/assess') return assessAnswer(req, env);
     if (path.startsWith('/api/learn/tutor/')) { const tutored = await tutorRoute(path, req, env); if (tutored) return tutored; }
+    if (path.startsWith('/api/learn/journey')) { const routed = await journeyRoute(path, req, env); if (routed) return routed; }
     // Home answers, in place, from the signed-in user's own library (learn-home-ask.js); never the old apps agent.
     if (path === '/api/learn/home-ask') return homeAskFetch(req, env);
     // Jev side-by-side grading (docs/features/jev-grading.md).

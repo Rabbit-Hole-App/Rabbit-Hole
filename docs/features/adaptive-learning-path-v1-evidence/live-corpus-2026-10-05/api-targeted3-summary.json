@@ -1,0 +1,201 @@
+{
+  "mode": "live",
+  "file": "C:\\Users\\cyudhist\\Desktop\\workspace\\adaptive-learning-path-v1\\.superpowers\\sdd\\2026-10-04-adaptive-learning-path-lp1\\journey-corpus\\journey-corpus-live-2026-10-06T15-31-11-885Z.jsonl",
+  "budget": 1.38,
+  "ceiling": 1.9,
+  "transport": "api",
+  "subjects_run": [
+    "photosynthesis",
+    "french-revolution"
+  ],
+  "plan": "photosynthesis:section+adapt_evidence,french-revolution:adapt_evidence-dive",
+  "seed": "C:/Users/cyudhist/Desktop/workspace/adaptive-learning-path-v1/.superpowers/sdd/2026-10-04-adaptive-learning-path-lp1/journey-corpus/journey-corpus-live-2026-10-05T23-57-34-206Z.jsonl,C:/Users/cyudhist/Desktop/workspace/adaptive-learning-path-v1/.superpowers/sdd/2026-10-04-adaptive-learning-path-lp1/journey-corpus/journey-corpus-live-2026-10-06T15-14-18-092Z.jsonl",
+  "stopped_at_budget": null,
+  "aborted": null,
+  "crashed": null,
+  "subjects_done": [
+    "photosynthesis",
+    "french-revolution"
+  ],
+  "stages": 12,
+  "stages_passed": 5,
+  "failed_assertions": [],
+  "skipped": [
+    {
+      "domain": "photosynthesis",
+      "stage": "adapt_edit",
+      "skipped": "not in the --plan stages; no named stage reads it"
+    },
+    {
+      "domain": "french-revolution",
+      "stage": "adapt_edit",
+      "skipped": "not in the --plan stages; no named stage reads it"
+    }
+  ],
+  "seeded": [
+    "photosynthesis/diagnostic",
+    "photosynthesis/path",
+    "french-revolution/diagnostic",
+    "french-revolution/path",
+    "french-revolution/section"
+  ],
+  "repairs": [],
+  "latency_ms": {
+    "photosynthesis/section": 8170,
+    "photosynthesis/adapt_evidence": 14221,
+    "french-revolution/adapt_evidence": 6563,
+    "french-revolution/tutor": 6945,
+    "french-revolution/dive": 0
+  },
+  "checks": {
+    "photosynthesis/diagnostic": "seeded: C:/Users/cyudhist/Desktop/workspace/adaptive-learning-path-v1/.superpowers/sdd/2026-10-04-adaptive-learning-path-lp1/journey-corpus/journey-corpus-live-2026-10-05T23-57-34-206Z.jsonl",
+    "photosynthesis/path": "seeded: C:/Users/cyudhist/Desktop/workspace/adaptive-learning-path-v1/.superpowers/sdd/2026-10-04-adaptive-learning-path-lp1/journey-corpus/journey-corpus-live-2026-10-06T15-14-18-092Z.jsonl",
+    "photosynthesis/section": {
+      "valid": "pass",
+      "only_section_1": "pass",
+      "step_roles": "pass",
+      "wording": "pass",
+      "key_ids_registered": "pass",
+      "no_topic_leakage": "pass"
+    },
+    "photosynthesis/adapt_edit": "skipped: not in the --plan stages; no named stage reads it",
+    "photosynthesis/adapt_evidence": {
+      "valid": "pass",
+      "adapt_valid": "pass",
+      "completed_unchanged": "pass",
+      "future_only": "pass",
+      "only_current_generated": "pass",
+      "plans_only": "pass",
+      "wording": "pass",
+      "prerequisites_are_concepts": "pass",
+      "no_topic_leakage": "pass"
+    },
+    "french-revolution/diagnostic": "seeded: C:/Users/cyudhist/Desktop/workspace/adaptive-learning-path-v1/.superpowers/sdd/2026-10-04-adaptive-learning-path-lp1/journey-corpus/journey-corpus-live-2026-10-05T23-57-34-206Z.jsonl",
+    "french-revolution/path": "seeded: C:/Users/cyudhist/Desktop/workspace/adaptive-learning-path-v1/.superpowers/sdd/2026-10-04-adaptive-learning-path-lp1/journey-corpus/journey-corpus-live-2026-10-06T15-14-18-092Z.jsonl",
+    "french-revolution/section": "seeded: C:/Users/cyudhist/Desktop/workspace/adaptive-learning-path-v1/.superpowers/sdd/2026-10-04-adaptive-learning-path-lp1/journey-corpus/journey-corpus-live-2026-10-06T15-14-18-092Z.jsonl",
+    "french-revolution/adapt_edit": "skipped: not in the --plan stages; no named stage reads it",
+    "french-revolution/adapt_evidence": {
+      "valid": "pass",
+      "adapt_valid": "pass",
+      "completed_unchanged": "pass",
+      "future_only": "pass",
+      "only_current_generated": "pass",
+      "plans_only": "pass",
+      "wording": "pass",
+      "prerequisites_are_concepts": "pass",
+      "no_topic_leakage": "pass"
+    },
+    "french-revolution/tutor": {
+      "valid": "pass",
+      "tutor_valid": "pass",
+      "one_question": "pass",
+      "wording": "pass",
+      "journey_domain": "pass",
+      "no_nanogpt_ids": "pass",
+      "no_topic_leakage": "pass"
+    },
+    "french-revolution/dive": {
+      "valid": "pass",
+      "dive_context": "pass",
+      "dive_identity": "pass"
+    }
+  },
+  "cost": {
+    "per_stage": {
+      "section": {
+        "calls": 1,
+        "ms": 8165,
+        "in": 3834,
+        "out": 1114,
+        "cw": 3370,
+        "cr": 0,
+        "usd": 0.027233,
+        "worst_usd": 0.053488
+      },
+      "adapt_evidence": {
+        "calls": 2,
+        "ms": 20750,
+        "in": 6538,
+        "out": 3941,
+        "cw": 3747,
+        "cr": 3747,
+        "usd": 0.062603,
+        "worst_usd": 0.125223
+      },
+      "tutor": {
+        "calls": 1,
+        "ms": 6836,
+        "in": 829,
+        "out": 589,
+        "cw": 3244,
+        "cr": 0,
+        "usd": 0.031316,
+        "worst_usd": 0.06709
+      }
+    },
+    "per_domain": {
+      "photosynthesis": {
+        "calls": 2,
+        "ms": 22373,
+        "in": 7447,
+        "out": 3758,
+        "cw": 7117,
+        "cr": 0,
+        "usd": 0.070267,
+        "worst_usd": 0.117091
+      },
+      "french-revolution": {
+        "calls": 2,
+        "ms": 13378,
+        "in": 3754,
+        "out": 1886,
+        "cw": 3244,
+        "cr": 3747,
+        "usd": 0.050885,
+        "worst_usd": 0.12871
+      }
+    },
+    "per_role": {
+      "journey_section": {
+        "calls": 1,
+        "ms": 8165,
+        "in": 3834,
+        "out": 1114,
+        "cw": 3370,
+        "cr": 0,
+        "usd": 0.027233,
+        "worst_usd": 0.053488
+      },
+      "journey_adapt": {
+        "calls": 2,
+        "ms": 20750,
+        "in": 6538,
+        "out": 3941,
+        "cw": 3747,
+        "cr": 3747,
+        "usd": 0.062603,
+        "worst_usd": 0.125223
+      },
+      "tutor claude-opus-5-5": {
+        "calls": 1,
+        "ms": 6836,
+        "in": 829,
+        "out": 589,
+        "cw": 3244,
+        "cr": 0,
+        "usd": 0.031316,
+        "worst_usd": 0.06709
+      }
+    },
+    "total_usd": 0.121152,
+    "all_live_runs_usd": 1.004209,
+    "worst_case_usd": {
+      "calls_made": 0.2458,
+      "plus_untaken_escalations": 0.8162,
+      "note": "input characters / 2 at the cache-write rate plus max_tokens at the output rate; stub inputs are fixture-sized"
+    }
+  },
+  "served_model_mismatches": [],
+  "bridge_diagnostics": [],
+  "billed_unknown": []
+}

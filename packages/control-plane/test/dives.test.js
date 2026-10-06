@@ -16,7 +16,7 @@ function fixture(t) {
   const db = { prepare: sql => { let args = []; const stmt = sqlite.prepare(sql); return { bind(...v) { args = v; return this; }, first: async () => stmt.get(...args) || null, all: async () => ({ results: stmt.all(...args) }), run: async () => ({ meta: stmt.run(...args) }) }; },
     batch: async statements => { sqlite.exec('BEGIN'); try { const out = []; for (const s of statements) out.push(await s.run()); sqlite.exec('COMMIT'); return out; } catch (error) { sqlite.exec('ROLLBACK'); throw error; } } };
   const env = { LEARN_DB: db, DB: { prepare() { throw Error('live D1 touched'); }, batch() { throw Error('live D1 touched'); } },
-    CONTROL_PLANE: { fetch: async req => Response.json({ org: 'team', email: req.headers.get('x-email') || 'owner@test', orgName: 'Team', apps: [] }) } };
+    CONTROL_PLANE: { fetch: async req => Response.json({ org: 'team', email: req.headers.get('x-email') || 'owner@test', orgName: 'Team', user_id: 'u-owner-1a2b', apps: [] }) } };
   const send = async (method, path, body, headers = {}) => {
     const res = await canvasesFetch(new Request(`https://dev.test${path}`, { method, headers, ...(body ? { body: JSON.stringify(body) } : {}) }), env);
     return { status: res.status, body: await res.json() };
@@ -121,7 +121,7 @@ test('a pending hole answers chat as a virtual canvas of its owner, writes no ca
   const ask = (headers, pending) => canvasAccess(new Request('https://dev.test/api/learn/ask', { headers }), f.env, 'canvas-0000beef', pending);
   const pending = { parent: ROOT, title: 'Softmax' };
   const app = await ask({}, pending);
-  assert.deepEqual([app.kind, app.name, app.title, app.pending, app.owner_email], ['canvas', 'canvas-0000beef', 'Softmax', true, 'owner@test']);
+  assert.deepEqual([app.kind, app.name, app.title, app.pending, app.owner_email, app.user_id], ['canvas', 'canvas-0000beef', 'Softmax', true, 'owner@test', 'u-owner-1a2b']);
   assert.equal(f.sqlite.prepare("SELECT count(*) AS n FROM canvases WHERE name='canvas-0000beef'").get().n, 0, 'chat alone never persists the hole');
   assert.equal((await ask({})).status, 404, 'without the pending identity it is still not found');
   assert.equal((await ask({}, { parent: { app: 'canvas-deadbeef' }, title: 'X' })).status, 404, 'only under a parent you own');

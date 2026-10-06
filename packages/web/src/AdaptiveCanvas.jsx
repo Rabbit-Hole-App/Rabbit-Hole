@@ -27,7 +27,8 @@ import { DOCK_PAD, DOCK_WIDTH } from './ChatComposer.jsx';
 import { PerfContext, perfMark, usePaintedMarks } from './learn-perf.js';
 import LaserPointer from './LaserPointer.jsx';
 import { DivePortals } from './Dive.jsx';
-import { columnEntries, fillSlot, freeArea, freeSlot, panInto, slotIndex, slotSize } from './canvas-slots.js';
+import { columnEntries, fillSlot, freeArea, freeSlot, indexAfter, panInto, slotIndex, slotSize } from './canvas-slots.js';
+import { lightBlocks, persistBoard } from './canvas-persist.js';
 import { waitingText } from './waiting-text.js';
 
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is
@@ -1265,12 +1266,18 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Every change also goes to onSave (a shared board's server copy), if given.
   const onSaveRef = useRef(onSave);
   onSaveRef.current = onSave;
+  // The board as last rendered, for persist(): a caller holding an older canvasApi still saves the latest.
+  const boardRef = useRef(null);
+  boardRef.current = { strokes, shapes, items, links, blocks, groups, areas };
+  // Final review B-C1: an unmounted canvas (Home, the sidebar, a Rabbit Hole remounting the page) neither inserts nor
+  // saves, so a run still holding its canvasApi never reports a block drawn or overwrites the new canvas's saved copy.
+  const alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   const firstSave = useRef(true);
   useEffect(() => {
     if (!storageKey && !onSaveRef.current) return;
-    // ponytail: generated images are large data URLs; keep the prompt, drop the
-    // bytes so one illustration cannot fill the browser's storage quota.
-    const light = blocks.map(block => block.src?.startsWith('data:') && block.src.length > 120000 ? { ...block, src: '' } : block);
+    // Oversized data URLs dropped (canvas-persist.js lightBlocks).
+    const light = lightBlocks(blocks);
     // The first run is the board as loaded, not a change.
     const loaded = firstSave.current;
     firstSave.current = false;
@@ -1493,9 +1500,17 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         onAddRef.current?.([{ id, question, answer, linkFrom: null, status: 'done', dx: 0, dy: 0 }]);
         return id;
       },
-      insertBlock: (block, { into = null } = {}) => {
+      // `after` (a block id): right after that block in the flow, ignoring the view - a journey section's steps
+      // under their heading (learn-journey-materialize.js). The updater reads `previous`, so inserts chained in one
+      // tick land in order.
+      insertBlock: (block, { into = null, after = null } = {}) => {
+        if (!alive.current) return null;
         snapshot();
-        return insertAtView({ ...block, id: crypto.randomUUID(), dx: 0, dy: 0 }, into);
+        const added = { ...block, id: crypto.randomUUID(), dx: 0, dy: 0 };
+        if (after == null) return insertAtView(added, into);
+        perfMark(added.id, 'insert');
+        setBlocks(previous => { const at = indexAfter(previous, after); return [...previous.slice(0, at), added, ...previous.slice(at)]; });
+        return revealAfter(added.id);
       },
       // A skeleton where a card on its way will land (docs/features/canvas-skeleton-cards.md): the slot
       // insertAtView would use now - or the nearest one nothing drawn covers (freeSlot: a dragged card keeps its
@@ -1606,6 +1621,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         const step = steps.find(entry => entry.ids[0] === id) || steps.find(entry => entry.ids.includes(id));
         if (step) frame(step.boxes, 64, 1.2);
       },
+      // The board saved now, a shared board's push awaited (canvas-persist.js; architecture §6.5.5, LP1 Task 15): a
+      // journey section is recorded only once this resolves ok. It reads boardRef, so a call after a paint that follows
+      // the inserts saves them, from any canvasApi of this canvas. The debounced save above is unchanged.
+      persist: () => (alive.current ? persistBoard({ state: boardRef.current, storageKey, storage: () => localStorage, onSave: onSaveRef.current }) : Promise.resolve({ ok: false })),
       toggleLock: () => setLock(previous => !previous),
     };
     if (apiRef) apiRef.current = commandsRef.current;
