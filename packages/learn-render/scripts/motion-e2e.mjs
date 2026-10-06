@@ -24,6 +24,8 @@ const DIR = join(ROOT, '.small', 'motion-local');
 const APP = 'http://127.0.0.1:8858', CP = 'http://127.0.0.1:8859';
 // MOTION_E2E_REQUEST: another grounded request for a different-domain proof (e.g. /motion 15s explain multinomial).
 const REQUEST = process.env.MOTION_E2E_REQUEST || '/motion 15s explain me softmax func';
+// MOTION_E2E_RENDERER=hyperframes: the orchestrator runs --renderer hyperframes; the ready card names it (M7B).
+const RENDERER_LABEL = process.env.MOTION_E2E_RENDERER === 'hyperframes' ? 'HyperFrames' : 'Remotion';
 const [mode = 'full', shotsArg] = process.argv.slice(2);
 if (!['full', 'stop', 'failure'].includes(mode)) { console.error('usage: node scripts/motion-e2e.mjs full|stop|failure [shotsDir]'); process.exit(2); }
 const shots = resolve(shotsArg || join(DIR, `m7a-${mode}`));
@@ -134,7 +136,7 @@ if (mode === 'full') {
   Object.assign(result.checks, {
     same_card: (await page.locator('[data-block-id]', { has: page.locator('video[data-lesson-video]') }).count()) === 1,
     title_from_brief: !text.includes(`Motion: ${REQUEST.slice(8)}`) && text.split('\n').some(l => l.trim().length > 10 && !/^Video$/.test(l.trim())),
-    meta: meta.includes('15s · Motion explainer · Remotion') && /model\.py:\d+/.test(meta),
+    meta: meta.includes(`15s · Motion explainer · ${RENDERER_LABEL}`) && /model\.py:\d+/.test(meta),
     duration: Math.abs(video.duration - 15) < 0.2,
     width: video.width === 1920 && video.height === 1080,
     served_from_learn_media: /\/api\/learn\/video\?app=.*asset=[a-f0-9]{64}/.test(video.src),

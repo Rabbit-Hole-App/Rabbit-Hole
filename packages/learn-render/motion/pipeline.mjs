@@ -12,6 +12,11 @@
 // At most two in a job. Schema-only re-asks and the Author's one transport retry never count.
 // An unresolved target stops before any paid call with one clarification. Stop (signal) takes
 // effect at the next stage boundary: a model call or render already in flight is discarded.
+//
+// M7B: renderer picks the Author target and the render backend ("remotion" by default). plan
+// ({brief, storyboard, from}) reuses an already-accepted brief and storyboard for the same request,
+// so a renderer proof tests the Author and render path, not a new Director run: the request is
+// still resolved and grounded, the plan is validated again, and the record says where it came from.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { resolveLearnerTurn } from '../../control-plane/src/learner-intent.js';
@@ -19,6 +24,7 @@ import { groundTarget } from '../../control-plane/src/source-grounding.js';
 import { runAuthor } from './author.js';
 import { runDirector } from './director.js';
 import { fixtureSource } from './fixture-source.js';
+import { DEFAULT_RENDERER, validateBrief, validateStoryboard } from './contracts.js';
 import { MotionCancelled, checkpoint, runMotionJob } from './review-job.mjs';
 import { runStoryboard } from './storyboard.js';
 import { motionVideoBlock } from './video-block.js';
@@ -28,11 +34,11 @@ const secs = ms => +(ms / 1000).toFixed(1);
 export async function runMotionRequest({
   message, location = {}, selection = null, repository_context = null, source = fixtureSource(),
   call, env = {}, service, dir, effort = 'high', signal = null, onStage = () => {},
-  stages = {}, now = () => Date.now(),
+  stages = {}, now = () => Date.now(), renderer = DEFAULT_RENDERER, plan = null,
 }) {
   const { director = runDirector, storyboarder = runStoryboard, author = runAuthor, job: reviewJob = runMotionJob } = stages;
   const t0 = now();
-  const out = { status: 'running', stage: 'resolving', calls: [], format_retries: [], transport_retries: [], timings: {}, repairs: { storyboard: 0, author: 0 }, storyboard_repair: null, repair: null };
+  const out = { status: 'running', stage: 'resolving', renderer, calls: [], format_retries: [], transport_retries: [], timings: {}, repairs: { storyboard: 0, author: 0 }, storyboard_repair: null, repair: null };
   const record = r => { out.calls.push(...(r.calls || [])); out.format_retries.push(...(r.format_retries || [])); out.transport_retries.push(...(r.transport_retries || [])); };
   const enter = async (stage, fn) => {
     checkpoint(signal);
@@ -64,6 +70,7 @@ export async function runMotionRequest({
     out.target = grounding.status === 'grounded' ? { label: grounding.resolved_target.label, resolution: grounding.resolution, source_refs: grounding.source_refs.map(r => `${r.path}:${r.start_line}-${r.end_line}`) } : null;
     if (grounding.status !== 'grounded') return end('needs_clarification', { clarification: grounding.clarification });
 
+    if (plan) return await fromPlan();
     const d = await enter('directing', () => director({ turn, grounding, call, env, effort }));
     record(d);
     out.decision_line = d.decision_line ?? null;
@@ -88,27 +95,42 @@ export async function runMotionRequest({
     }
     if (s.status !== 'storyboard') return fail(`storyboard${out.repairs.storyboard ? ' (after its repair)' : ''}: ${s.status}${s.error ? `: ${s.error}: ${s.detail}` : `: ${s.check.errors.slice(0, 3).join('; ')}`}`);
     const storyboard = out.storyboard = s.storyboard;
+    return await authorAndRender(brief, storyboard);
+  } catch (error) {
+    if (error instanceof MotionCancelled) return end('cancelled', { failure_reason: `stopped during ${out.stage}` });
+    // Anything else fails the request with the calls made so far (a call in flight is not recorded).
+    return fail(`${out.stage}: ${String(error?.message || error).split('\n')[0]}`);
+  }
 
-    const a = await enter('authoring', () => author({ brief, storyboard, call, env, effort, round: 0 }));
+  // A reused plan: validated again as the contract, never edited; its origin travels with the job.
+  async function fromPlan() {
+    const errors = [...validateBrief(plan.brief), ...validateStoryboard(plan.storyboard, plan.brief)];
+    if (errors.length) return fail(`plan: ${errors.slice(0, 3).join('; ')}`);
+    out.plan = { from: plan.from, storyboard_origin: 'model_generated', reused: true };
+    out.brief = plan.brief;
+    out.storyboard = plan.storyboard;
+    keep('brief.json', plan.brief);
+    keep('storyboard.plan.json', { from: plan.from, storyboard: plan.storyboard });
+    return authorAndRender(plan.brief, plan.storyboard);
+  }
+
+  async function authorAndRender(brief, storyboard) {
+    const a = await enter('authoring', () => author({ brief, storyboard, call, env, effort, round: 0, renderer }));
     record(a);
-    if (a.output?.source) keep('composition.jsx', a.output.source);
+    if (a.output?.source) keep(renderer === 'hyperframes' ? 'composition.html' : 'composition.jsx', a.output.source);
     if (a.output?.status === 'needs_revision') keep('author.needs_revision.json', a.output);
     if (a.status === 'failed') return fail(`author: ${a.error}: ${a.detail}`);
 
     const job = await enter('review_and_render', () => reviewJob({
       brief, storyboard, author: a, origin: { storyboard: 'model_generated', composition: 'model_generated' },
-      service, call, env, dir, effort, signal, prior: { repairs: { ...out.repairs }, format_retries: out.format_retries, transport_retries: out.transport_retries },
+      service, call, env, dir, effort, signal, renderer, prior: { repairs: { ...out.repairs }, format_retries: out.format_retries, transport_retries: out.transport_retries },
       log: line => onStage(line.replace(/^job: /, 'job:'), out),
     }));
     out.calls.push(...job.calls);
     Object.assign(out, { job: job.job, passes: job.passes, render: job.render, job_errors: job.job_errors, storyboard_revised: job.storyboard_revised, repairs: { ...job.job.repairs }, transport_retries: job.job.transport_retries });
     if (job.repair) out.repair = job.repair;
     if (job.job.status !== 'ready') return fail(job.job.failure_reason);
-    out.block = motionVideoBlock({ brief, renderId: job.render.render_id, jobId: job.job.id });
+    out.block = motionVideoBlock({ brief, renderId: job.render.render_id, jobId: job.job.id, renderer });
     return end('ready');
-  } catch (error) {
-    if (error instanceof MotionCancelled) return end('cancelled', { failure_reason: `stopped during ${out.stage}` });
-    // Anything else fails the request with the calls made so far (a call in flight is not recorded).
-    return fail(`${out.stage}: ${String(error?.message || error).split('\n')[0]}`);
   }
 }

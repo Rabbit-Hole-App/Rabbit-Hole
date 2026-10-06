@@ -5,6 +5,11 @@ const where = ref => (!ref.path ? ref.card_id || ref.url || ref.id
   : !ref.start_line ? ref.path
   : `${ref.path}:${ref.start_line}${ref.end_line > ref.start_line ? `–${ref.end_line}` : ''}`);
 
+// M7B: the backend that rendered a Motion video, from its provenance. A pending /motion request
+// does not know it yet (the orchestrator decides), so its card names none until the video arrives.
+const RENDERER_LABELS = { remotion: 'Remotion', hyperframes: 'HyperFrames' };
+const renderedBy = block => RENDERER_LABELS[block.motion?.renderer] ?? null;
+
 export function videoLabel(block) {
   const op = block.operation;
   if (op?.op === 'generate_math_animation') {
@@ -15,7 +20,7 @@ export function videoLabel(block) {
   if (op?.op === 'motion_request') {
     const seconds = block.motion?.duration_seconds;
     return {
-      detail: [seconds && `${seconds}s`, 'Motion explainer', 'Remotion'].filter(Boolean).join(' · '),
+      detail: [seconds && `${seconds}s`, 'Motion explainer', renderedBy(block)].filter(Boolean).join(' · '),
       button: 'Generate the explainer', progress: 'Planning, reviewing and rendering', expected: 900, stoppable: true,
       ...(block.motion ? { sources: (block.motion.source_refs || []).map(where) } : {}),
     };
@@ -23,7 +28,7 @@ export function videoLabel(block) {
   if (op?.op === 'motion_render') {
     const seconds = block.motion?.duration_seconds;
     return {
-      detail: [seconds && `${seconds}s`, 'Motion explainer', 'Remotion'].filter(Boolean).join(' · '),
+      detail: [seconds && `${seconds}s`, 'Motion explainer', renderedBy(block)].filter(Boolean).join(' · '),
       button: 'Add the rendered video', progress: 'Fetching the render', expected: 30,
       sources: (block.motion?.source_refs || []).map(where),
     };

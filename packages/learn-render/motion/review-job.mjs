@@ -21,7 +21,7 @@ import { randomUUID } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { runAuthor } from './author.js';
-import { JOB_STATUSES, MODEL_ROLES, STAGE, afterNeedsRevision, afterReview, classifyFindings, noRepairs, startRepair, validateJob } from './contracts.js';
+import { DEFAULT_RENDERER, JOB_STATUSES, MODEL_ROLES, STAGE, afterNeedsRevision, afterReview, classifyFindings, noRepairs, startRepair, validateJob } from './contracts.js';
 import { resolveRole } from './model-config.js';
 import { renderComposition, renderPreview } from './render-job.mjs';
 import { runReviewer } from './review.js';
@@ -72,13 +72,15 @@ export async function runMotionJob({
   // storyboard that failed its checks; the Author's repair is untouched), with their format re-asks
   // and transport retries; signal is Stop.
   prior = null, signal = null,
+  // M7B: the backend for every render and the Author repair; Remotion unless the caller says otherwise.
+  renderer = DEFAULT_RENDERER,
 }) {
   const stop = () => checkpoint(signal);
   const polling = signal ? { sleep: abortableSleep(signal) } : {};
   const at = () => new Date(now()).toISOString();
   const job = {
     id: prior?.id ?? `motion-job-${randomUUID().slice(0, 8)}`, status: 'rendering_preview', owner: { ...HARNESS_OWNER }, brief, storyboard,
-    renderer: { name: 'remotion', version: (await service.health().catch(() => null))?.version ?? 'unreachable' },
+    renderer: { name: renderer, version: (await service.health().catch(() => null))?.version ?? 'unreachable' },
     prompt_spec_version: brief.prompt_spec_version,
     director_model_config: { role: MODEL_ROLES.director, resolved_model: resolveRole(MODEL_ROLES.director, env) },
     author_model_config: { role: MODEL_ROLES.author, resolved_model: resolveRole(MODEL_ROLES.author, env) },
@@ -112,7 +114,7 @@ export async function runMotionJob({
       else {
         stop();
         set('rendering_preview');
-        const p = await preview({ brief, storyboard: current.storyboard, author: a, service, dir: roundDir, origin, ...polling });
+        const p = await preview({ brief, storyboard: current.storyboard, author: a, service, dir: roundDir, origin, renderer, ...polling });
         pass.preview = p.submitted ? p.result : { submitted: false, reason: p.reason, errors: p.errors };
         findings = harnessFindings(p, round);
         if (p.submitted && p.result.status === 'ready') {
@@ -136,7 +138,7 @@ export async function runMotionJob({
       if (decision === 'render_final') {
         stop();
         set('rendering_final');
-        const r = await final({ brief, storyboard: current.storyboard, author: a, service, dir: join(dir, 'final'), origin, ...polling });
+        const r = await final({ brief, storyboard: current.storyboard, author: a, service, dir: join(dir, 'final'), origin, renderer, ...polling });
         if (!r.submitted) return fail(`final render refused: ${r.reason}`);
         out.render = r.result;
         out.composition = { composition_id: a.output.composition_id, source: a.output.source };
@@ -174,9 +176,9 @@ export async function runMotionJob({
     stop();
     set('authoring');
     const source = a?.output?.source;
-    const fixed = await repairAuthor({ brief, storyboard: sb, call, env, effort, round: 1, repair: source ? { source, findings: blocking } : null });
+    const fixed = await repairAuthor({ brief, storyboard: sb, call, env, effort, round: 1, renderer, repair: source ? { source, findings: blocking } : null });
     record(fixed);
-    if (fixed.output?.source && dir) writeFileSync(join(dir, 'composition.repaired.jsx'), fixed.output.source); // diagnostics
+    if (fixed.output?.source && dir) writeFileSync(join(dir, `composition.repaired.${renderer === 'hyperframes' ? 'html' : 'jsx'}`), fixed.output.source); // diagnostics
     out.repair.author = { status: fixed.status, ...(fixed.check?.errors?.length ? { errors: fixed.check.errors } : {}), ...(fixed.error ? { error: fixed.error, detail: fixed.detail } : {}) };
     current = { storyboard: sb, author: fixed };
   }

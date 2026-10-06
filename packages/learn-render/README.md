@@ -57,6 +57,8 @@ node scripts/motion-local-check.mjs setup|run <final.mp4>   # local stack: Motio
 node scripts/motion-orchestrator.mjs [--service <url>] [--max-calls 16]   # M7A: the development orchestrator for /motion on the local stack (HTTPS 8856)
 node scripts/motion-orchestrator.mjs --stub <final.mp4> [--stub-fail <stage>]   # the same, no model call and no render (UI checks)
 node scripts/motion-orchestrator.mjs --subscription [--max-calls 16]   # every role through the owner's Claude subscription (native CLI); no API key, no API fallback
+node scripts/motion-orchestrator.mjs ... --renderer hyperframes [--plan motion/fixtures/m7b/plan-softmax.json]   # M7B: the HyperFrames Author and renderer (default remotion); a plan reuses an accepted brief and storyboard
+MOTION_RENDER_TESTS=1 node --test motion/hyperframes.test.mjs   # M7B fixtures A-J through real HyperFrames renders (minutes)
 node scripts/motion-e2e.mjs full|stop|failure   # M7A browser proof: /motion typed in the Learn composer -> proposal -> Generate -> the same video card plays
 sh motion/service/context.sh   # deploy context for rabbit-hole-motion-renderer-dev (Home deploys)
 ```
@@ -125,6 +127,10 @@ sh motion/service/context.sh   # deploy context for rabbit-hole-motion-renderer-
   repair round (storyboard-level findings: a Director revision, then the Author; otherwise the
   Author alone, with the previous source, the findings and the nonblank rules); a second pass
   that still blocks fails the job. A clean pass goes to the final render (M5 render stage).
+- `motion/hyperframes-renderer.mjs`, `motion/hf-static-check.js`, `motion/hf-author.js`, `motion/renderers.mjs`,
+  `motion/renderer-common.mjs`: M7B, HyperFrames (`@hyperframes/producer` 0.8.137, Apache-2.0) as a second
+  backend behind the same renderer boundary, its CSS-only index.html contract and Author prompt, the registry
+  that picks a renderer's gate and adapter, and what both adapters share. Remotion stays the default.
 - `motion/pipeline.mjs`, `motion/orchestrator.mjs`: M7A, development only. `runMotionRequest` takes a raw
   `/motion` line through the Learner Intent Resolver, grounding, the Director (brief, storyboard), the
   Author and the M6 review job; one repair per stage (a storyboard that fails its checks spends its own

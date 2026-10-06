@@ -12,9 +12,11 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { PNG } from 'pngjs';
 import { STAGE } from '../contracts.js';
-import { NET_PROBE, NET_PROBE_PREFIX } from '../probes.js';
-import { RemotionRenderer, chromeVersion, contactFrames, ffmpegVersion, probe } from '../remotion-renderer.mjs';
-import { PROBE_PREFIX, compactProbe, coverageFrames, determinismFrames } from '../render-coverage.js';
+import { HF_NET_PROBE, NET_PROBE, NET_PROBE_PREFIX } from '../probes.js';
+import { RemotionRenderer } from '../remotion-renderer.mjs';
+import { compactProbe, coverageFrames, determinismFrames } from '../render-coverage.js';
+import { chromeVersion, contactFrames, ffmpegVersion, probe } from '../renderer-common.mjs';
+import { rendererClass } from '../renderers.mjs';
 import { selfLimits, unlimited } from './resource-control.mjs';
 import { runPhaseProcess, runResourceProbe } from './stress-probe.mjs';
 
@@ -111,13 +113,30 @@ async function comparePreviewFinal(j, frames) {
 
 // Proof-only (Linux service tests): the network probe composition, with the page CSP off so
 // only the OS boundary is left. Reachable only by writing job.json directly, never over HTTP.
+// M7B: job.renderer "hyperframes" runs the same attempts from a HyperFrames page
+// (probes.js HF_NET_PROBE); job.csp true keeps the page CSP on (the authoring-host proof).
 async function networkProbe(sandbox) {
-  const r = new RemotionRenderer({ fresh: true, csp: false });
+  const csp = job.csp === true;
+  if (job.renderer === 'hyperframes') {
+    const { HyperFramesRenderer } = await import('../hyperframes-renderer.mjs');
+    const r = new HyperFramesRenderer({ fresh: true, csp });
+    let browser = null;
+    try {
+      await r.renderStills({ id: 'net-probe', dir: join(work, 'probe'), brief: { duration: { seconds: 5 } }, source: HF_NET_PROBE }, [0]);
+      for (let i = 0; i < 100 && !browser; i++) {
+        const line = r.browserLogs.find(l => l.includes(NET_PROBE_PREFIX));
+        if (line) browser = JSON.parse(line.slice(line.indexOf(NET_PROBE_PREFIX) + NET_PROBE_PREFIX.length));
+        else await new Promise(done => setTimeout(done, 200));
+      }
+    } finally { await r.close(); }
+    return write({ status: 'probe', probe: { browser, csp, renderer: 'hyperframes' }, sandbox });
+  }
+  const r = new RemotionRenderer({ fresh: true, csp });
   let browser = null;
   r.log = l => { if (l.text.startsWith(NET_PROBE_PREFIX)) browser = JSON.parse(l.text.slice(NET_PROBE_PREFIX.length)); };
   try { await r.renderStills({ id: 'net-probe', dir: join(work, 'probe'), brief: { duration: { seconds: 5 } }, source: NET_PROBE }, [0]); }
   finally { await r.close(); }
-  write({ status: 'probe', probe: { browser, csp: false }, sandbox });
+  write({ status: 'probe', probe: { browser, csp }, sandbox });
 }
 
 // Proof-only (Linux service tests): stress each kernel limit in its own subprocess, settling
@@ -136,19 +155,15 @@ async function resourceProbe(sandbox) {
   }
 }
 
-// Beat and transition coverage (render-coverage.js): the harness probe on the same bundle, at a
-// quarter scale. The orchestrator judges the observations against the storyboard.
-async function coverageProbe(j) {
+// Beat and transition coverage (render-coverage.js): the harness probe (src/motion/probe-dom.js) on
+// the same source through the job's own renderer, at a quarter scale. The orchestrator judges the
+// observations against the storyboard.
+async function coverageProbe(r, j) {
   const sample = coverageFrames(j.storyboard);
   const mids = new Set(sample.filter(s => s.roles.includes('mid')).map(s => s.frame));
-  const observations = [];
-  const prober = new RemotionRenderer({
-    cacheDir: join(work, 'cache'), inputProps: { probe: true },
-    log: l => { if (l.text?.startsWith(PROBE_PREFIX)) { const p = JSON.parse(l.text.slice(PROBE_PREFIX.length)); observations.push(compactProbe(p, mids.has(p.frame))); } },
-  });
-  try { await prober.renderStills({ ...j, dir: join(work, 'job-probe') }, sample.map(s => s.frame), { scale: 0.25, dir: join(work, 'probe') }); }
-  finally { await prober.close(); }
-  return { coverage: { method: 'harness probe (src/motion/probe.jsx) at each beat start, start + 1, middle and end - 1, a quarter scale; text kept at beat middles', frames: sample, observations }, timings: prober.timings };
+  const { observations, timings } = await r.probeFrames(j, sample.map(s => s.frame), { scale: 0.25, dir: join(work, 'probe') });
+  const how = r.name === 'hyperframes' ? 'probe-dom.js evaluated in the HyperFrames page after each seek' : 'harness probe (src/motion/probe.jsx)';
+  return { coverage: { method: `${how} at each beat start, start + 1, middle and end - 1, a quarter scale; text kept at beat middles`, frames: sample, observations: observations.map(p => compactProbe(p, mids.has(p.frame))) }, timings };
 }
 
 // M6 (spec §11.1): the preview and the contact sheet only, for the review pass. They are review
@@ -160,7 +175,7 @@ async function previewJob(r, j, sandbox, firstLine) {
   try {
     preview = await r.renderPreview(j);
     sheet = await r.contactSheet(j);
-    probed = await coverageProbe(j);
+    probed = await coverageProbe(r, j);
   } catch (error) {
     return write({ status: 'failed', error: 'runtime_error', detail: firstLine(error), sandbox });
   }
@@ -171,7 +186,7 @@ async function previewJob(r, j, sandbox, firstLine) {
     preview: { width: pv.width, height: pv.height, frame_count: Number(pv.nb_read_frames), bytes: psize, scale: j.brief.output_requirements.preview_scale },
     contact_sheet: sheet.manifest, coverage: probed.coverage, sandbox, fonts: r.browserLogs.find(l => l.includes('MOTION_FONTS')) || null,
     timings: { ...r.timings, coverage_probe: probed.timings, total: +((performance.now() - t0) / 1000).toFixed(2) },
-    renderer: { version: r.version, chrome: chromeVersion(), ffmpeg: await ffmpegVersion() },
+    renderer: { name: r.name, version: r.version, chrome: chromeVersion(), ffmpeg: await ffmpegVersion() },
   });
 }
 
@@ -182,8 +197,10 @@ async function main() {
   if (job.probe === 'resources') return resourceProbe(sandbox);
 
   const j = { id: job.render_id, dir: join(work, 'job'), brief: job.brief, storyboard: job.storyboard, source: job.composition.source };
-  const r = new RemotionRenderer({ cacheDir: join(work, 'cache') });
-  const errors = r.validateSource(j.brief, j.storyboard, j.source);
+  // M7B: the job names its renderer (server.mjs wrote it after validation); Remotion by default.
+  const Renderer = await rendererClass(job.renderer || 'remotion');
+  const r = new Renderer({ cacheDir: join(work, 'cache') });
+  const errors = r.validateSource(j.brief, j.storyboard, j.source, { compositionId: job.composition.composition_id });
   if (errors.length) return write({ status: 'failed', error: 'invalid_job', errors, sandbox });
   // M5 failure categories: compile_failed (the composition did not bundle or load), runtime_error
   // (a frame threw while rendering); anything after rendering is the renderer's own failure.
@@ -201,15 +218,15 @@ async function main() {
       await r.renderFinal(j);
       // §8.3: the same frames from a second fresh context (its own bundle and browser).
       a = await r.renderStills(j, frames, { scale: 1, dir: join(work, 'det-1') });
-      second = new RemotionRenderer({ fresh: true });
+      second = new Renderer({ fresh: true });
       b = await second.renderStills({ ...j, dir: join(work, 'job-2') }, frames, { scale: 1, dir: join(work, 'det-2') });
       await second.close();
-      probed = await coverageProbe(j);
+      probed = await coverageProbe(r, j);
     } catch (error) {
       return write({ status: 'failed', error: 'runtime_error', detail: firstLine(error), sandbox });
     }
     const validation = await r.validateFinal(j);
-    const determinism = { method: 'renderStill PNG, sha256 of decoded RGBA, two fresh contexts (separate bundle and browser)', identical: frames.every((_, i) => a[i].pixels_sha256 === b[i].pixels_sha256), frames: frames.map((f, i) => ({ frame: f, hashes: [a[i].pixels_sha256, b[i].pixels_sha256] })) };
+    const determinism = { method: r.name === 'hyperframes' ? 'HyperFrames capture PNG, sha256 of decoded RGBA, two fresh contexts (separate project, server and browser)' : 'renderStill PNG, sha256 of decoded RGBA, two fresh contexts (separate bundle and browser)', identical: frames.every((_, i) => a[i].pixels_sha256 === b[i].pixels_sha256), frames: frames.map((f, i) => ({ frame: f, hashes: [a[i].pixels_sha256, b[i].pixels_sha256] })) };
     const { coverage } = probed;
     const comparison = await comparePreviewFinal(j, contactFrames(j.brief, j.storyboard));
 
@@ -227,7 +244,7 @@ async function main() {
       // The stage logs which bundled faces loaded (src/motion); proof that no system font stood in.
       fonts: r.browserLogs.find(l => l.includes('MOTION_FONTS')) || null,
       timings: { ...r.timings, determinism_second_context: second.timings, coverage_probe: probed.timings, total: +((performance.now() - t0) / 1000).toFixed(2) },
-      renderer: { version: r.version, chrome: chromeVersion(), ffmpeg: await ffmpegVersion() },
+      renderer: { name: r.name, version: r.version, chrome: chromeVersion(), ffmpeg: await ffmpegVersion() },
     });
   } finally {
     await r.close();

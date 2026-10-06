@@ -194,3 +194,41 @@ test('a transport retry reaches the job record and nothing renders from an incom
   assert.equal(c.failure_reason, 'authoring: socket closed');
   assert.deepEqual(c.calls.map(x => x.stage), ['brief', 'storyboard'], 'the calls already made stay recorded');
 });
+
+// M7B: one request, either backend; a renderer proof may reuse an accepted plan instead of the Director.
+test('renderer hyperframes reaches the Author, the review job and the block; Remotion stays the default', async () => {
+  const seen = [];
+  const d = doubles();
+  const author = d.stages.author, job = d.stages.job;
+  d.stages.author = async a => { seen.push(['author', a.renderer]); return author(a); };
+  d.stages.job = async a => { seen.push(['job', a.renderer]); return job(a); };
+  const r = await run(d, { renderer: 'hyperframes' });
+  assert.equal(r.status, 'ready');
+  assert.deepEqual(seen, [['author', 'hyperframes'], ['job', 'hyperframes']]);
+  assert.equal(r.block.motion.renderer, 'hyperframes');
+  assert.equal(r.renderer, 'hyperframes');
+  seen.length = 0;
+  const d2 = doubles();
+  const author2 = d2.stages.author, job2 = d2.stages.job;
+  d2.stages.author = async a => { seen.push(['author', a.renderer]); return author2(a); };
+  d2.stages.job = async a => { seen.push(['job', a.renderer]); return job2(a); };
+  const r2 = await run(d2);
+  assert.deepEqual(seen, [['author', 'remotion'], ['job', 'remotion']]);
+  assert.equal(r2.block.motion.renderer, 'remotion');
+});
+
+test('a plan: the accepted brief and storyboard, validated again, no Director call; an invalid plan fails before any call', async () => {
+  const plan = json('m7b/plan-softmax.json');
+  const d = doubles();
+  const r = await run(d, { renderer: 'hyperframes', plan: { brief: plan.brief, storyboard: plan.storyboard, from: plan.from } });
+  assert.equal(r.status, 'ready', r.failure_reason);
+  assert.deepEqual(d.log.map(l => l[0]), ['author', 'job'], 'no director, no storyboarder');
+  assert.deepEqual(r.plan, { from: plan.from, storyboard_origin: 'model_generated', reused: true });
+  assert.equal(r.brief, plan.brief);
+  assert.equal(r.storyboard, plan.storyboard);
+  const bad = doubles();
+  const f = await run(bad, { plan: { brief: plan.brief, storyboard: { ...plan.storyboard, beats: plan.storyboard.beats.slice(1) }, from: 'x' } });
+  assert.equal(f.status, 'failed');
+  assert.match(f.failure_reason, /^plan: /);
+  assert.deepEqual(bad.log, []);
+});

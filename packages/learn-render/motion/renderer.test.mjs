@@ -8,9 +8,12 @@ import { CSP, FONT_PINS, RENDERER_METHODS, RemotionRenderer, contactFrames } fro
 
 const read = p => JSON.parse(readFileSync(new URL(p, import.meta.url), 'utf8'));
 
-test('RemotionRenderer implements the MotionRenderer boundary', () => {
-  assert.deepEqual(RENDERER_METHODS, ['validateSource', 'renderPreview', 'renderStills', 'renderFinal', 'validateFinal', 'collectDiagnostics']);
-  for (const m of RENDERER_METHODS) assert.equal(typeof RemotionRenderer.prototype[m], 'function', m);
+// M7B: both adapters implement one boundary (probeFrames moved into it from the service child).
+test('RemotionRenderer and HyperFramesRenderer implement the same MotionRenderer boundary', async () => {
+  assert.deepEqual(RENDERER_METHODS, ['validateSource', 'renderPreview', 'renderStills', 'probeFrames', 'renderFinal', 'validateFinal', 'collectDiagnostics']);
+  const { HyperFramesRenderer } = await import('./hyperframes-renderer.mjs');
+  for (const R of [RemotionRenderer, HyperFramesRenderer]) for (const m of [...RENDERER_METHODS, 'contactSheet', 'close']) assert.equal(typeof R.prototype[m], 'function', `${R.name}.${m}`);
+  assert.deepEqual([new RemotionRenderer().name, new HyperFramesRenderer().name], ['remotion', 'hyperframes']);
 });
 
 test('validateSource gates brief, storyboard and composition together', () => {

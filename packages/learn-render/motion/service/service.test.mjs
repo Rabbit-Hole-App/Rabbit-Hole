@@ -67,7 +67,9 @@ test('validation: malformed, unknown fields, unsafe paths, wrong renderer, banne
   await bad({ ...job(), command: 'rm -rf /' }, 400, /request\.command: unknown field/);
   await bad({ ...job(), composition: { ...job().composition, path: '/etc/passwd' } }, 400, /composition\.path: unknown field/);
   await bad({ ...job(), composition: { ...job().composition, composition_id: '../escape' } }, 400, /composition_id/);
-  await bad({ ...job(), renderer: 'hyperframes' }, 400, /only V1 renderer/);
+  // M7B: two renderers; each request is gated by its own renderer's contract.
+  await bad({ ...job(), renderer: 'manim' }, 400, /request.renderer: remotion | hyperframes/);
+  await bad({ ...job(), renderer: 'hyperframes' }, 400, /root: exactly one element with data-composition-id/);
   await bad({ ...job(), composition: { ...job().composition, source: job().composition.source.replace('export default', "fetch('https://example.com');\nexport default") } }, 400, /fetch/);
   await bad({ ...job(), composition: { ...job().composition, source: `${job().composition.source}\n// ${'x'.repeat(600 * 1024)}` } }, 413, /too_large/);
 });

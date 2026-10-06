@@ -87,13 +87,13 @@ const assertClean = resources => {
 // Proof-only jobs (never accepted over HTTP), prepared exactly as the service prepares a job:
 // motion-svc creates the 2770 directories and the 0640 job.json, then runs the launcher through
 // its sudo rule. `mode` lets a test break the job input on purpose.
-function probeJob(t, probe, { mode = 0o640 } = {}) {
+function probeJob(t, probe, { mode = 0o640, extra = {} } = {}) {
   const id = randomBytes(16).toString('hex'), dir = join(LINUX_JOBS_DIR, id);
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const prep = asSvc(process.execPath, ['-e', `const fs = require('fs'), [dir, body, mode] = process.argv.slice(1);
 fs.mkdirSync(dir + '/out', { recursive: true });
 for (const d of [dir, dir + '/out']) fs.chmodSync(d, 0o2770);
-fs.writeFileSync(dir + '/job.json', body, { mode: Number(mode) }); fs.chmodSync(dir + '/job.json', Number(mode));`, dir, JSON.stringify({ render_id: id, probe }), String(mode)]);
+fs.writeFileSync(dir + '/job.json', body, { mode: Number(mode) }); fs.chmodSync(dir + '/job.json', Number(mode));`, dir, JSON.stringify({ render_id: id, probe, ...extra }), String(mode)]);
   assert.equal(prep.status, 0, prep.stderr);
   const run = asSvc('sudo', ['-n', LAUNCHER, id]);
   const read = f => (existsSync(join(dir, 'out', f)) ? JSON.parse(readFileSync(join(dir, 'out', f), 'utf8')) : null);
@@ -263,4 +263,47 @@ test('timeout: the sandbox, Chromium and ffmpeg are gone, cleanup is clean (no f
   const health = await (await call('/health')).json();
   assert.equal(health.ok, true, JSON.stringify(health));
   assert.equal(health.degraded, undefined);
+});
+
+// M7B: the HyperFrames backend runs in the same sandbox, under the same rules.
+const hfControl = () => ({
+  schema: 'motion-render/1', renderer: 'hyperframes',
+  brief: JSON.parse(readFileSync(join(HERE, '..', 'fixtures', 'm2', 'softmax-15s-attention.brief.json'), 'utf8')),
+  storyboard: JSON.parse(readFileSync(join(HERE, '..', 'fixtures', 'm3', 'softmax-15s-attention.real.storyboard.json'), 'utf8')),
+  composition: { composition_id: 'softmax-hyperframes-control', source: readFileSync(join(HERE, '..', 'fixtures', 'm7b', 'softmax-control.hyperframes.html'), 'utf8') },
+});
+
+test('HyperFrames render child: no network for the page with its CSP off, the sandbox intact', { skip, timeout: 120000 }, async t => {
+  const { call } = await service(t);
+  const { run, result, exit, id } = probeJob(t, 'network', { extra: { renderer: 'hyperframes' } });
+  assert.equal(run.status, 0, run.stderr);
+  assert.equal(result.status, 'probe', JSON.stringify(result));
+  assertSandboxed(result.sandbox);
+  assert.deepEqual([result.probe.renderer, result.probe.csp], ['hyperframes', false]);
+  const page = result.probe.browser;
+  for (const k of ['fetchOut', 'xhr', 'websocket', 'image', 'loopbackOtherPort']) assert.match(page[k], /^(failed|timeout|threw)/, `${k}: ${page[k]}`);
+  assert.match(page.ownOrigin, /^reached 200/);
+  assertClean(exit);
+  assert.equal(groupsGone(id), true);
+  assert.equal((await (await call('/health')).json()).ok, true);
+});
+
+test('the HyperFrames control through the sandboxed service: 1920x1080, 30 fps, 450 frames, deterministic, covered, cleaned up', { skip, timeout: 10 * 60 * 1000 }, async t => {
+  const { call, until } = await service(t);
+  const res = await call('/render', { method: 'POST', body: JSON.stringify(hfControl()) });
+  assert.equal(res.status, 202);
+  const { render_id } = await res.json();
+  const r = await until(render_id);
+  console.log(JSON.stringify({ ...r, contact_sheet: `${r.contact_sheet?.length} tiles`, coverage: `${r.coverage?.observations?.length} observations` }, null, 2));
+  assert.equal(r.status, 'ready', `${r.error}: ${r.detail}`);
+  assert.equal(r.renderer.name, 'hyperframes');
+  assert.deepEqual([r.width, r.height, r.fps, r.frame_count], [1920, 1080, 30, 450]);
+  assert.equal(r.determinism.identical, true);
+  assert.equal(r.final_validation.ok, true);
+  assert.equal(r.preview_final_comparison.ok, true);
+  assertSandboxed(r.sandbox);
+  assertClean(r.resources);
+  assert.equal(r.resources.oom_kills, 0);
+  assert.equal(existsSync(join(LINUX_JOBS_DIR, render_id)), false);
+  assert.equal(groupsGone(render_id), true);
 });

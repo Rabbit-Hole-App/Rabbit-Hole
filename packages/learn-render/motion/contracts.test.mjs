@@ -201,7 +201,9 @@ test('render request: only an already-validated job, no paths, URLs or options (
   has(validateRenderRequest({ ...req(), output: '/app/x.mp4' }), /request\.output: unknown field/);
   has(validateRenderRequest({ ...req(), composition: { composition_id: 'demo-a1', source, path: '/etc/passwd' } }), /composition\.path: unknown field/);
   has(validateRenderRequest({ ...req(), composition: { composition_id: '../x', source } }), /composition_id: letters, digits and dashes/);
-  has(validateRenderRequest({ ...req(), renderer: 'hyperframes' }), /only V1 renderer/);
+  // M7B: two renderers, nothing else.
+  assert.deepEqual(validateRenderRequest({ ...req(), renderer: 'hyperframes' }), []);
+  has(validateRenderRequest({ ...req(), renderer: 'manim' }), /request.renderer: remotion | hyperframes/);
   has(validateRenderRequest({ ...req(), schema: 'motion-render/2' }), /request\.schema/);
   has(validateRenderRequest({ ...req(), storyboard: { ...storyboard(), beats: [] } }), /2-8 beats/);
   has(validateRenderRequest([]), /not an object/);

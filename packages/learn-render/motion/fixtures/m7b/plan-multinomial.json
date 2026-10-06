@@ -1,0 +1,401 @@
+{
+  "request": "/motion 15s explain multinomial",
+  "from": "M7A accepted run f2d91464 (e0c86877, Figma 165:222): its brief and final storyboard, model-generated, unedited",
+  "brief": {
+    "id": "brief-04ba54cc",
+    "prompt_spec_version": "motion-v1.0/director-1",
+    "raw_user_request": "/motion 15s explain multinomial",
+    "resolved_target": {
+      "kind": "code_span",
+      "label": "multinomial in GPT.generate (model.py:326)",
+      "resolution": "named",
+      "repository_context": {
+        "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+        "label": "GPT.generate",
+        "range": {
+          "path": "model.py",
+          "start": 312,
+          "end": 328
+        }
+      },
+      "candidates_considered": []
+    },
+    "title": "multinomial: rolling the weighted die for the next token",
+    "objective": "After watching, the learner can explain that torch.multinomial(probs, num_samples=1) draws one token index at random, weighted by the softmax probabilities, instead of always taking the most likely token, and that the drawn index is appended to the sequence.",
+    "audience_context": "The learner is in the Attention concept and is looking at the generation loop in GPT.generate (nanoGPT model.py:312-328), where the model's output becomes the next token.",
+    "scope_note": "15 seconds covers only the softmax, sample, append step around torch.multinomial. Left out: block_size cropping of the context, the forward pass, temperature scaling, and the details of optional top-k cropping (K1). These are mentioned only as an optional side claim, if at all.",
+    "source_refs": [
+      {
+        "id": "S1",
+        "kind": "code",
+        "repository": "karpathy/nanoGPT",
+        "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+        "path": "model.py",
+        "start_line": 312,
+        "end_line": 319
+      },
+      {
+        "id": "S2",
+        "kind": "code",
+        "repository": "karpathy/nanoGPT",
+        "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+        "path": "model.py",
+        "start_line": 320,
+        "end_line": 322
+      },
+      {
+        "id": "S3",
+        "kind": "code",
+        "repository": "karpathy/nanoGPT",
+        "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+        "path": "model.py",
+        "start_line": 323,
+        "end_line": 328
+      }
+    ],
+    "evidence": [
+      {
+        "source_ref_id": "S1",
+        "excerpt": "        for _ in range(max_new_tokens):\n            # if the sequence context is growing too long we must crop it at block_size\n            idx_cond = idx if idx.size(1) <= self.config.block_size else idx[:, -self.config.block_size:]\n            # forward the model to get the logits for the index in the sequence\n            logits, _ = self(idx_cond)\n            # pluck the logits at the final step and scale by desired temperature\n            logits = logits[:, -1, :] / temperature\n            # optionally crop the logits to only the top k options"
+      },
+      {
+        "source_ref_id": "S2",
+        "excerpt": "            if top_k is not None:\n                v, _ = torch.topk(logits, min(top_k, logits.size(-1)))\n                logits[logits < v[:, [-1]]] = -float('Inf')"
+      },
+      {
+        "source_ref_id": "S3",
+        "excerpt": "            # apply softmax to convert logits to (normalized) probabilities\n            probs = F.softmax(logits, dim=-1)\n            # sample from the distribution\n            idx_next = torch.multinomial(probs, num_samples=1)\n            # append sampled index to the running sequence and continue\n            idx = torch.cat((idx, idx_next), dim=1)"
+      }
+    ],
+    "implementation_conditions": [
+      {
+        "id": "K1",
+        "condition": "`top_k is not None` (model.py:320)",
+        "branches": [
+          {
+            "when": "`top_k is not None` is true",
+            "runs": "model.py:320-322: v, _ = torch.topk(logits, min(top_k, logits.size(-1)))",
+            "source_ref_ids": [
+              "S2"
+            ]
+          },
+          {
+            "when": "`top_k is not None` is false",
+            "runs": "nothing: model.py:320-322 is skipped (no else branch)",
+            "source_ref_ids": [],
+            "no_op": true
+          }
+        ],
+        "source_ref_ids": [
+          "S2"
+        ]
+      }
+    ],
+    "claim_registry": [
+      {
+        "id": "C1",
+        "text": "torch.multinomial(probs, num_samples=1) samples one index from the distribution probs. Each token's chance of being drawn is proportional to its probability, so a less likely token can still be chosen.",
+        "source_ref_ids": [
+          "S3"
+        ],
+        "condition_ids": [],
+        "required": true
+      },
+      {
+        "id": "C2",
+        "text": "probs comes from F.softmax(logits, dim=-1), which turns the final-step logits into normalized probabilities that sum to 1. This happens before sampling.",
+        "source_ref_ids": [
+          "S3"
+        ],
+        "condition_ids": [],
+        "required": true
+      },
+      {
+        "id": "C3",
+        "text": "The sampled index idx_next is appended to the running sequence with torch.cat((idx, idx_next), dim=1), and the loop continues to produce the next token.",
+        "source_ref_ids": [
+          "S3",
+          "S1"
+        ],
+        "condition_ids": [],
+        "required": true
+      },
+      {
+        "id": "C4",
+        "text": "Only on the branch where top_k is not None (K1 true), logits below the k-th largest are set to -float('Inf'), so those tokens get zero probability after softmax and cannot be sampled. When top_k is None (K1 false), this step is skipped and every token keeps a nonzero chance.",
+        "source_ref_ids": [
+          "S2"
+        ],
+        "condition_ids": [
+          "K1"
+        ],
+        "required": false
+      }
+    ],
+    "duration": {
+      "requested_text": "15s",
+      "requested_seconds": 15,
+      "seconds": 15
+    },
+    "aspect_ratio": "16:9",
+    "teaching_mode": "mechanism_first",
+    "must_show": [
+      "A row of logits for the final position becoming a bar chart of probabilities through softmax, with bars that visibly sum to 1",
+      "The exact call torch.multinomial(probs, num_samples=1) labeled at the moment of sampling",
+      "A weighted random draw that lands on one token, shown at least once landing on a bar that is not the tallest (or with alternate outcomes hinted), so the randomness is clear",
+      "Exactly one index (idx_next) coming out of the draw",
+      "idx_next being appended to the end of the sequence idx via torch.cat"
+    ],
+    "must_not_claim": [
+      "That multinomial always picks the highest-probability token (that would be argmax/greedy)",
+      "That multinomial returns a probability or a probability vector rather than a token index",
+      "That multinomial draws several tokens here (num_samples=1)",
+      "That sampling happens before softmax, or that the token is appended before it is sampled (the order is softmax, then multinomial, then torch.cat)",
+      "That multinomial modifies or renormalizes probs",
+      "That top-k cropping always happens or always removes tokens; it runs only when top_k is not None",
+      "That every token always has a nonzero chance; on the top_k branch, cropped tokens have zero probability"
+    ],
+    "visual_direction": "Reveal a cause-and-sequence chain left to right. First, focus on the final-position logits turning into probability bars (the transformation). Then focus moves to a weighted chance mechanism over those bars, where wider or taller bars get proportionally more chance, and it settles on one token. A brief ghosted replay can hint that a different bar could have been picked. Finally, the chosen index travels to the end of the token sequence and snaps on, and the eye follows it there to close the loop.",
+    "narration_policy": "one_line",
+    "output_requirements": {
+      "stage_width": 1920,
+      "stage_height": 1080,
+      "fps": 30,
+      "preview_scale": 0.45,
+      "poster": true
+    },
+    "qa_requirements": {
+      "blocking_categories": [
+        "unsupported_claim",
+        "must_not_claim_violation",
+        "required_claim_contradicted",
+        "wrong_source_branch",
+        "blank_frame",
+        "clipped_text",
+        "overlapping_text",
+        "missing_must_show",
+        "duration_over_max",
+        "corrupt_output",
+        "renderer_failure",
+        "narration_contradicts_visuals",
+        "storyboard_fidelity"
+      ],
+      "keyframe_times": [
+        3,
+        8,
+        13
+      ]
+    },
+    "provenance": {
+      "created_at": "2026-10-06T06:25:08.918Z"
+    }
+  },
+  "storyboard": {
+    "id": "storyboard-43e58a68",
+    "brief_id": "brief-04ba54cc",
+    "version": 1,
+    "beats": [
+      {
+        "id": "B1",
+        "start_time": 0,
+        "end_time": 2.5,
+        "pedagogical_role": "hook",
+        "visible_objects": [
+          {
+            "id": "code_block",
+            "description": "The softmax, sample and append lines of GPT.generate (model.py:323-328), shown verbatim and centred.",
+            "source": {
+              "source_ref_id": "S3",
+              "start_line": 323,
+              "end_line": 328
+            },
+            "change": "Fades in; then the torch.multinomial line (326) brightens while the other lines dim."
+          },
+          {
+            "id": "die_icon",
+            "description": "A small weighted die beside the highlighted multinomial line, signalling a weighted random draw.",
+            "label": "weighted die",
+            "change": "Drops in next to line 326 and gives one short tumble."
+          }
+        ],
+        "claim_ids": [
+          "C1"
+        ],
+        "condition_ids": [],
+        "must_show_covered": [],
+        "transition": "Opens on the code from a blank frame.",
+        "framing": "Code block centred; the die sits just to the right of the highlighted line.",
+        "on_screen_text": "multinomial: rolling the weighted die for the next token"
+      },
+      {
+        "id": "B2",
+        "start_time": 2.5,
+        "end_time": 6,
+        "pedagogical_role": "mechanism",
+        "visible_objects": [
+          {
+            "id": "code_block",
+            "description": "The code block, shrunk and moved to the left edge; line 324 (probs = F.softmax(logits, dim=-1)) is now highlighted.",
+            "source": {
+              "source_ref_id": "S3",
+              "start_line": 323,
+              "end_line": 328
+            },
+            "change": "Shrinks to the left; highlight moves from line 326 up to line 324."
+          },
+          {
+            "id": "logits_row",
+            "description": "A row of logits for the final position: a horizontal strip of raw score cells, one per token, for the last step of the sequence.",
+            "label": "final-step logits",
+            "change": "Enters at the left of centre, then flows rightward through the softmax line."
+          },
+          {
+            "id": "probs_bars",
+            "description": "A bar chart of probabilities produced from the logits row through softmax, one bar per token, with bars of different heights; a bracket stacks the bars to show they visibly sum to 1.",
+            "label": "probabilities sum to 1",
+            "change": "Grows bar by bar out of the logits row; the bars then briefly stack into one column reaching a mark of 1 and unstack back."
+          }
+        ],
+        "claim_ids": [
+          "C2"
+        ],
+        "condition_ids": [],
+        "must_show_covered": [
+          "A row of logits for the final position becoming a bar chart of probabilities through softmax, with bars that visibly sum to 1"
+        ],
+        "transition": "The die fades out and the code slides left as the logits row enters.",
+        "framing": "Left-to-right chain: code at left edge, logits row then bar chart across the centre.",
+        "on_screen_text": "Softmax turns the final-step logits into normalized probabilities that sum to 1."
+      },
+      {
+        "id": "B3",
+        "start_time": 6,
+        "end_time": 10,
+        "pedagogical_role": "mechanism",
+        "visible_objects": [
+          {
+            "id": "code_block",
+            "description": "Code block at the left edge; highlight moves to line 326, idx_next = torch.multinomial(probs, num_samples=1).",
+            "source": {
+              "source_ref_id": "S3",
+              "start_line": 323,
+              "end_line": 328
+            },
+            "change": "Highlight moves down from line 324 to line 326."
+          },
+          {
+            "id": "probs_bars",
+            "description": "The same probability bar chart, unchanged in values; each bar's base widens in proportion to its height to show its share of chance.",
+            "change": "Bar bases widen into chance slots proportional to bar height; values are not modified."
+          },
+          {
+            "id": "sample_marker",
+            "description": "The weighted random draw: a marker labelled with the exact multinomial call that sweeps across the chance slots, at the moment of sampling, and settles on one bar that is NOT the tallest; two faint ghost markers replay landing on other bars to hint at alternate outcomes.",
+            "label": "torch.multinomial(probs, num_samples=1)",
+            "change": "Enters above the bars, sweeps and lands on a shorter bar; ghost replays flicker on two other bars and fade."
+          }
+        ],
+        "claim_ids": [
+          "C1",
+          "C2"
+        ],
+        "condition_ids": [],
+        "must_show_covered": [
+          "The exact call torch.multinomial(probs, num_samples=1) labeled at the moment of sampling",
+          "A weighted random draw that lands on one token, shown at least once landing on a bar that is not the tallest (or with alternate outcomes hinted), so the randomness is clear"
+        ],
+        "transition": "Focus moves from the softmax output onto the bars as the multinomial marker enters.",
+        "framing": "Bar chart centred and enlarged; code stays small at the left.",
+        "on_screen_text": "Sample from the distribution: a less likely token can still be chosen.",
+        "narration_line": "multinomial draws one index, weighted by the softmax probabilities."
+      },
+      {
+        "id": "B4",
+        "start_time": 10,
+        "end_time": 13,
+        "pedagogical_role": "mechanism",
+        "visible_objects": [
+          {
+            "id": "code_block",
+            "description": "Code block at the left edge; highlight moves to line 328, idx = torch.cat((idx, idx_next), dim=1).",
+            "source": {
+              "source_ref_id": "S3",
+              "start_line": 323,
+              "end_line": 328
+            },
+            "change": "Highlight moves down from line 326 to line 328."
+          },
+          {
+            "id": "probs_bars",
+            "description": "The bar chart, with the drawn bar still marked.",
+            "change": "Recedes and dims."
+          },
+          {
+            "id": "idx_next_token",
+            "description": "Exactly one index, idx_next, a single token cell lifted out of the drawn bar.",
+            "label": "idx_next",
+            "change": "Rises out of the drawn bar, travels right to the end of the sequence and snaps on."
+          },
+          {
+            "id": "sequence_idx",
+            "description": "The running token sequence idx, a strip of token cells along the bottom right.",
+            "label": "idx",
+            "change": "Enters along the bottom; gains one cell at its end when idx_next snaps on."
+          },
+          {
+            "id": "cat_label",
+            "description": "Label naming the append call, attached at the join point at the end of idx.",
+            "label": "torch.cat((idx, idx_next), dim=1)",
+            "change": "Appears at the join as idx_next snaps on."
+          }
+        ],
+        "claim_ids": [
+          "C3",
+          "C1"
+        ],
+        "condition_ids": [],
+        "must_show_covered": [
+          "Exactly one index (idx_next) coming out of the draw",
+          "idx_next being appended to the end of the sequence idx via torch.cat"
+        ],
+        "transition": "The drawn bar releases one cell as the chart recedes.",
+        "framing": "Eye follows idx_next from the bars to the right end of the sequence strip.",
+        "on_screen_text": "One index, idx_next, is appended to the running sequence."
+      },
+      {
+        "id": "B5",
+        "start_time": 13,
+        "end_time": 15,
+        "pedagogical_role": "takeaway",
+        "visible_objects": [
+          {
+            "id": "sequence_idx",
+            "description": "The running sequence idx, now one cell longer, with a loop arrow curving back toward the start of the chain.",
+            "label": "idx",
+            "change": "A loop arrow grows from its end back toward the logits position."
+          },
+          {
+            "id": "code_block",
+            "description": "Code block at the left edge with lines 324, 326 and 328 lit in order.",
+            "source": {
+              "source_ref_id": "S3",
+              "start_line": 323,
+              "end_line": 328
+            },
+            "change": "Lines 324, 326, 328 light in sequence, top to bottom."
+          }
+        ],
+        "claim_ids": [
+          "C2",
+          "C1",
+          "C3"
+        ],
+        "condition_ids": [],
+        "must_show_covered": [],
+        "transition": "The join settles and the loop arrow begins.",
+        "framing": "Wide view of the whole left-to-right chain with the loop closing.",
+        "on_screen_text": "Softmax, then multinomial, then torch.cat; the loop continues."
+      }
+    ]
+  }
+}

@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="motion-timeline" content='{"B1":[0,120],"B2":[120,210],"B3":[210,300],"B4":[300,375],"B5":[375,450]}'>
+<style>
+  #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #0f1220; color: #f4f1ea; font-family: 'Inter'; }
+  .abs { position: absolute; }
+  .code { position: absolute; font-family: 'JetBrains Mono'; font-size: 40px; color: #f4f1ea; background: #1b2033; border: 2px solid #3a4160; border-radius: 12px; padding: 10px 22px; white-space: pre; }
+  .note { position: absolute; font-size: 28px; color: #a9b0c8; }
+  .tag { position: absolute; font-size: 30px; font-weight: 500; color: #0f1220; background: #ffb547; border-radius: 10px; padding: 8px 18px; }
+  .caption { position: absolute; left: 120px; top: 950px; font-size: 40px; font-weight: 500; color: #f4f1ea; opacity: 0; }
+  .cell { position: absolute; top: 0; width: 170px; height: 90px; border-radius: 12px; background: #263052; border: 2px solid #4b5786; font-size: 40px; display: flex; align-items: center; justify-content: center; }
+  .cell.neg { background: #3a1f2a; border-color: #b04a64; color: #ff8fa6; }
+  .bar { position: absolute; bottom: 0; width: 170px; border-radius: 10px 10px 0 0; background: #5ad1a5; transform-origin: 50% 100%; }
+  .wval { position: absolute; width: 170px; text-align: center; font-size: 30px; color: #5ad1a5; }
+  .small { font-size: 28px; color: #a9b0c8; }
+
+  /* B1 only: the flash branch recedes once the else line takes focus (0.3 s = 2% of 15 s). */
+  .recede { animation: recede 15s linear both; }
+  @keyframes recede { 0%, 26.667% { opacity: 1; } 29.667%, 100% { opacity: 0.28; } }
+  .softmax { animation: softmax 15s linear both; transform-origin: 0 50%; }
+  @keyframes softmax { 0%, 26.667% { transform: scale(1); border-color: #ffb547; } 30%, 100% { transform: scale(0.86); border-color: #ffb547; } }
+
+  .chain { animation: appear-b2 15s linear both; }
+  @keyframes appear-b2 { 0%, 26.667% { opacity: 0; } 28.667%, 100% { opacity: 1; } }
+  .chain-short { animation: chain-short 15s linear both; }
+  @keyframes chain-short { 0%, 81.333% { opacity: 1; } 83.333%, 100% { opacity: 0; } }
+  .chain-long { animation: chain-long 15s linear both; }
+  @keyframes chain-long { 0%, 83.333% { opacity: 0; } 85.333%, 100% { opacity: 1; } }
+
+  .row { animation: row 15s ease-in-out both; }
+  @keyframes row { 0%, 26.667% { opacity: 0; transform: translateX(0); } 28.667%, 83.333% { opacity: 1; transform: translateX(0); } 93.333%, 100% { opacity: 1; transform: translateX(120px); } }
+  .row-scores { animation: row-scores 15s linear both; }
+  @keyframes row-scores { 0%, 46.667% { opacity: 1; } 48.667%, 100% { opacity: 0; } }
+  .row-weights { animation: row-weights 15s linear both; }
+  @keyframes row-weights { 0%, 46.667% { opacity: 0; } 48.667%, 100% { opacity: 1; } }
+  .neg { animation: flip 15s linear both; }
+  @keyframes flip { 0%, 30% { background: #263052; border-color: #4b5786; color: #f4f1ea; } 33.333%, 100% { background: #3a1f2a; border-color: #b04a64; color: #ff8fa6; } }
+  .bar { animation: grow 15s ease-out both; }
+  @keyframes grow { 0%, 48.667% { transform: scaleY(0); } 58.667%, 100% { transform: scaleY(1); } }
+  .wval { animation: row-weights 15s linear both; }
+
+  .future { animation: future 15s linear both; }
+  @keyframes future { 0%, 28.667% { opacity: 0; } 30.667%, 46.667% { opacity: 1; } 48.667%, 100% { opacity: 0; } }
+  .zeros { animation: zeros 15s linear both; }
+  @keyframes zeros { 0%, 50% { opacity: 0; } 52%, 66.667% { opacity: 1; } 68.667%, 100% { opacity: 0.35; } }
+  .axis { animation: axis 15s linear both; }
+  @keyframes axis { 0%, 46.667% { opacity: 0; } 48.667%, 64.667% { opacity: 1; } 66.667%, 100% { opacity: 0; } }
+  .axis-line { animation: sweep 15s linear both; transform-origin: 0 50%; }
+  @keyframes sweep { 0%, 46.667% { transform: scaleX(0); } 53.333%, 100% { transform: scaleX(1); } }
+  .b4 { animation: b4 15s linear both; }
+  @keyframes b4 { 0%, 66.667% { opacity: 0; } 68.667%, 81.333% { opacity: 1; } 83.333%, 100% { opacity: 0; } }
+  .stack { animation: stack 15s ease-out both; transform-origin: 50% 100%; }
+  @keyframes stack { 0%, 68.667% { transform: scaleY(0); } 76%, 100% { transform: scaleY(1); } }
+  .matmul { animation: matmul 15s linear both; }
+  @keyframes matmul { 0%, 83.333% { opacity: 0; box-shadow: 0 0 0 0 #5ad1a5; } 85.333% { opacity: 1; box-shadow: 0 0 0 0 #5ad1a5; } 95%, 100% { opacity: 1; box-shadow: 0 0 48px 8px #5ad1a5; } }
+
+  .cap-b2 { animation: cap-b2 15s linear both; }
+  @keyframes cap-b2 { 0%, 26.667% { opacity: 0; } 28.667%, 44.667% { opacity: 1; } 46.667%, 100% { opacity: 0; } }
+  .cap-b3 { animation: cap-b3 15s linear both; }
+  @keyframes cap-b3 { 0%, 46.667% { opacity: 0; } 48.667%, 64.667% { opacity: 1; } 66.667%, 100% { opacity: 0; } }
+  .cap-b4 { animation: cap-b4 15s linear both; }
+  @keyframes cap-b4 { 0%, 66.667% { opacity: 0; } 68.667%, 81.333% { opacity: 1; } 83.333%, 100% { opacity: 0; } }
+  .cap-b5 { animation: cap-b5 15s linear both; }
+  @keyframes cap-b5 { 0%, 83.333% { opacity: 0; } 85.333%, 100% { opacity: 1; } }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="softmax-hyperframes-control" data-start="0" data-duration="15" data-width="1920" data-height="1080" data-no-timeline>
+  <div class="code recede" data-object="flash_if_line" style="left: 120px; top: 100px;">if self.flash:</div>
+  <div class="note recede" data-object="flash_path_note" style="left: 520px; top: 116px;">If true: scaled_dot_product_attention, is_causal=True</div>
+  <div class="code recede" data-object="else_line" style="left: 120px; top: 190px;">else:</div>
+  <div class="code softmax" data-object="softmax_line" style="left: 170px; top: 280px;">att = F.softmax(att, dim=-1)</div>
+  <div class="tag" data-object="branch_tag" style="left: 980px; top: 292px;">else branch: self.flash is false</div>
+
+  <div class="abs chain" data-object="order_chain" style="left: 120px; top: 410px; font-size: 34px; color: #c9d1ff;">
+    <div class="abs chain-short" style="left: 0; top: 0; white-space: nowrap;">scores → masked_fill → softmax</div>
+    <div class="abs chain-long" style="left: 0; top: 0; white-space: nowrap;">scores → masked_fill → softmax → attn_dropout → att @ v</div>
+  </div>
+
+  <div class="abs row" data-object="score_row" style="left: 360px; top: 560px; width: 990px; height: 330px;">
+    <div class="abs small row-scores" style="left: 0; top: -70px;">2.1 | 0.5 | 1.3 | -inf | -inf</div>
+    <div class="abs small row-weights" style="left: 0; top: -70px;">weights</div>
+    <div class="abs" style="left: 0; top: 200px; width: 990px; height: 90px;">
+      <div class="cell" style="left: 0px;">2.1</div>
+      <div class="cell" style="left: 205px;">0.5</div>
+      <div class="cell" style="left: 410px;">1.3</div>
+      <div class="cell neg" style="left: 615px;">-inf</div>
+      <div class="cell neg" style="left: 820px;">-inf</div>
+    </div>
+    <div class="abs" style="left: 0; top: 0; width: 990px; height: 196px;">
+      <div class="bar" style="left: 0px; height: 182px;"></div>
+      <div class="bar" style="left: 205px; height: 37px;"></div>
+      <div class="bar" style="left: 410px; height: 82px;"></div>
+    </div>
+    <div class="wval" style="left: 0px; top: -10px;">0.61</div>
+    <div class="wval" style="left: 205px; top: 120px;">0.12</div>
+    <div class="wval" style="left: 410px; top: 76px;">0.27</div>
+  </div>
+
+  <div class="abs future" data-object="future_marker" style="left: 975px; top: 610px; width: 375px; text-align: center; font-size: 28px; color: #ff8fa6; border-bottom: 3px solid #ff8fa6; padding-bottom: 6px;">future positions</div>
+  <div class="abs zeros" data-object="zero_labels" style="left: 975px; top: 860px; width: 375px; height: 40px; font-size: 32px; color: #ff8fa6;">
+    <div class="abs" style="left: 70px; top: 0;">0</div>
+    <div class="abs" style="left: 275px; top: 0;">0</div>
+  </div>
+  <div class="abs axis" data-object="row_axis_arrow" style="left: 360px; top: 905px; width: 990px; height: 40px;">
+    <div class="abs axis-line" style="left: 0; top: 0; width: 990px; height: 6px; background: #ffb547; border-radius: 3px;"></div>
+    <div class="abs" style="left: 0; top: 16px; font-size: 30px; color: #ffb547; white-space: nowrap;">dim=-1: along the row, over key positions</div>
+  </div>
+
+  <div class="abs b4" data-object="unit_bracket" style="left: 1500px; top: 500px; width: 120px; height: 300px;">
+    <div class="abs stack" style="left: 20px; top: 0; width: 80px; height: 300px;">
+      <div class="abs" style="left: 0; top: 0; width: 80px; height: 182px; background: #5ad1a5;"></div>
+      <div class="abs" style="left: 0; top: 182px; width: 80px; height: 37px; background: #3fae86;"></div>
+      <div class="abs" style="left: 0; top: 219px; width: 80px; height: 81px; background: #2c8a6a;"></div>
+    </div>
+    <div class="abs" style="left: 112px; top: 0; width: 18px; height: 300px; border: 4px solid #f4f1ea; border-left: none;"></div>
+    <div class="abs" style="left: 150px; top: 130px; font-size: 34px; white-space: nowrap;">sum = 1</div>
+  </div>
+  <div class="abs b4" data-object="length_marker" style="left: 360px; top: 905px; width: 990px;">
+    <div class="abs" style="left: 0; top: 0; width: 990px; height: 4px; background: #c9d1ff;"></div>
+    <div class="abs" style="left: 0; top: 14px; font-size: 28px; color: #c9d1ff;">Row length unchanged</div>
+  </div>
+  <div class="abs matmul" data-object="matmul_node" style="left: 1500px; top: 600px; padding: 22px 30px; border-radius: 16px; background: #1b2033; border: 3px solid #5ad1a5; font-size: 40px;">y = att @ v</div>
+
+  <div class="caption cap-b2">After masked_fill, future positions hold -inf.</div>
+  <div class="caption cap-b3">Larger scores get larger weights; -inf becomes exactly 0.</div>
+  <div class="caption cap-b4">Non-negative weights that sum to 1.</div>
+  <div class="caption cap-b5">Weights then flow into att @ v.</div>
+</div>
+</body>
+</html>

@@ -55,6 +55,37 @@ export function requiredText(brief, storyboard) {
   return { labels: [...labels], on_screen_text: [...screen], code_lines: [...code] };
 }
 
+// Every learner-visible string (TEXT: key -> string) against the storyboard: required text
+// verbatim, and anything the Author adds short and taught only by the contract. Shared by both
+// renderers' Authors (M7B), so the HyperFrames Author meets exactly the Remotion text rules.
+// label names the text in messages: 'TEXT' for Remotion's TEXT object, 'text' for HTML text.
+export function textContractErrors(TEXT, brief, storyboard, label = 'TEXT') {
+  const e = [];
+  const values = Object.values(TEXT).map(squash);
+  const valueLines = new Set(Object.values(TEXT).flatMap(v => v.split('\n').map(l => l.trim())));
+  const req = requiredText(brief, storyboard);
+  for (const s of [...req.labels, ...req.on_screen_text]) if (!values.includes(s)) e.push(`${label}: the storyboard text "${s}" must appear verbatim`);
+  for (const line of req.code_lines) if (!valueLines.has(line)) e.push(`${label}: the shown source line "${line}" must appear verbatim (one ${label} line)`);
+
+  // What the Author adds is short and teaches nothing the brief and storyboard do not. Its words
+  // come from the contract (claims, must_show, objective, direction, conditions, storyboard text),
+  // never from raw source: code is evidence to show verbatim, not a place to read new meaning
+  // (`dropout_p=self.dropout if self.training else 0` must not become "dropout only while training").
+  const f = briefFacts(brief);
+  const storyboardStems = vocabulary(storyboard.beats.flatMap(b => [b.on_screen_text, b.narration_line, ...b.visible_objects.map(o => o.label)]).filter(Boolean));
+  const contract = { ...f, positive: vocabulary([brief.title, brief.objective, brief.visual_direction, ...brief.must_show, ...brief.claim_registry.map(c => c.text), ...brief.implementation_conditions.flatMap(k => [k.condition, ...k.branches.map(b => b.when)]), ...(brief.analogy_map || []).flatMap(a => [a.analogy_element, a.real_concept])]) };
+  const evidence = brief.evidence.map(x => x.excerpt).join('\n') + '\n' + [...req.labels, ...req.on_screen_text].join('\n');
+  const verbatim = new Set([...req.labels, ...req.on_screen_text]);
+  for (const [k, v] of Object.entries(TEXT)) {
+    if (verbatim.has(squash(v)) || v.split('\n').every(l => !l.trim() || req.code_lines.includes(l.trim()) || f.excerpt && [...f.excerpt.values()].some(x => x.includes(l.trim())))) continue;
+    if (v.includes('\n') || v.length > LIMITS.label_chars || wordCount(v) > LIMITS.label_words || sentences(v) > 1) e.push(`${label}.${k}: Author text is one short line (at most ${LIMITS.label_chars} characters / ${LIMITS.label_words} words): "${v}"`);
+    e.push(...vocabularyErrors(`${label}.${k}`, v, contract, storyboardStems));
+    for (const name of codeNames(v)) if (!evidence.includes(name)) e.push(`${label}.${k}: names "${name}", which is not in the brief's evidence`);
+    if (brief.implementation_conditions.length && ABSOLUTE.test(v)) e.push(`${label}.${k}: "${v.match(ABSOLUTE)[0]}" in a brief with branch-dependent code`);
+  }
+  return e;
+}
+
 export function checkAuthorSource(source, brief, storyboard) {
   let ast;
   try { ast = parse(source, { sourceType: 'module', plugins: ['jsx'] }); }
@@ -93,28 +124,7 @@ export function checkAuthorSource(source, brief, storyboard) {
     if (v === null) at(p, `TEXT.${k}: a string literal`);
     else TEXT[k] = v;
   }
-  const values = Object.values(TEXT).map(squash);
-  const valueLines = new Set(Object.values(TEXT).flatMap(v => v.split('\n').map(l => l.trim())));
-  const req = requiredText(brief, storyboard);
-  for (const s of [...req.labels, ...req.on_screen_text]) if (!values.includes(s)) e.push(`TEXT: the storyboard text "${s}" must appear verbatim`);
-  for (const line of req.code_lines) if (!valueLines.has(line)) e.push(`TEXT: the shown source line "${line}" must appear verbatim (one TEXT line)`);
-
-  // What the Author adds is short and teaches nothing the brief and storyboard do not. Its words
-  // come from the contract (claims, must_show, objective, direction, conditions, storyboard text),
-  // never from raw source: code is evidence to show verbatim, not a place to read new meaning
-  // (`dropout_p=self.dropout if self.training else 0` must not become "dropout only while training").
-  const f = briefFacts(brief);
-  const storyboardStems = vocabulary(storyboard.beats.flatMap(b => [b.on_screen_text, b.narration_line, ...b.visible_objects.map(o => o.label)]).filter(Boolean));
-  const contract = { ...f, positive: vocabulary([brief.title, brief.objective, brief.visual_direction, ...brief.must_show, ...brief.claim_registry.map(c => c.text), ...brief.implementation_conditions.flatMap(k => [k.condition, ...k.branches.map(b => b.when)]), ...(brief.analogy_map || []).flatMap(a => [a.analogy_element, a.real_concept])]) };
-  const evidence = brief.evidence.map(x => x.excerpt).join('\n') + '\n' + [...req.labels, ...req.on_screen_text].join('\n');
-  const verbatim = new Set([...req.labels, ...req.on_screen_text]);
-  for (const [k, v] of Object.entries(TEXT)) {
-    if (verbatim.has(squash(v)) || v.split('\n').every(l => !l.trim() || req.code_lines.includes(l.trim()) || f.excerpt && [...f.excerpt.values()].some(x => x.includes(l.trim())))) continue;
-    if (v.includes('\n') || v.length > LIMITS.label_chars || wordCount(v) > LIMITS.label_words || sentences(v) > 1) e.push(`TEXT.${k}: Author text is one short line (at most ${LIMITS.label_chars} characters / ${LIMITS.label_words} words): "${v}"`);
-    e.push(...vocabularyErrors(`TEXT.${k}`, v, contract, storyboardStems));
-    for (const name of codeNames(v)) if (!evidence.includes(name)) e.push(`TEXT.${k}: names "${name}", which is not in the brief's evidence`);
-    if (brief.implementation_conditions.length && ABSOLUTE.test(v)) e.push(`TEXT.${k}: "${v.match(ABSOLUTE)[0]}" in a brief with branch-dependent code`);
-  }
+  e.push(...textContractErrors(TEXT, brief, storyboard));
 
   // One renderer element per storyboard object.
   const ids = new Set(storyboard.beats.flatMap(b => b.visible_objects.map(o => o.id)));

@@ -24,7 +24,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { RENDER_SCHEMA, validateRenderRequest } from '../contracts.js';
-import { checkComposition } from '../static-check.js';
+import { rendererGate } from '../renderers.mjs';
 import { detect } from './resource-control.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -44,14 +44,15 @@ const RESULT_FIELDS = ['duration_seconds', 'fps', 'width', 'height', 'frame_coun
 export function serviceVersion() {
   const h = createHash('sha256');
   const files = [
-    ...['service/server.mjs', 'service/child.mjs', 'service/resource-control.mjs', 'service/motion-sandbox', 'service/sandbox-init', 'remotion-renderer.mjs', 'render-coverage.js', 'static-check.js', 'contracts.js', 'duration.js', 'probes.js'].map(f => join('motion', f)),
+    ...['service/server.mjs', 'service/child.mjs', 'service/resource-control.mjs', 'service/motion-sandbox', 'service/sandbox-init', 'remotion-renderer.mjs', 'renderer-common.mjs', 'renderers.mjs', 'hyperframes-renderer.mjs', 'hf-static-check.js', 'author-check.js', 'render-coverage.js', 'static-check.js', 'contracts.js', 'duration.js', 'probes.js'].map(f => join('motion', f)),
     ...readdirSync(join(PKG, 'src', 'motion')).map(f => join('src', 'motion', f)),
   ];
   for (const f of files) if (existsSync(join(PKG, f))) h.update(f).update(readFileSync(join(PKG, f)));
-  let remotion = 'unknown';
+  let remotion = 'unknown', hyperframes = 'unknown';
   try { remotion = JSON.parse(readFileSync(join(PKG, '..', '..', 'node_modules', 'remotion', 'package.json'), 'utf8')).version; } catch { /* reported as unknown */ }
+  try { hyperframes = JSON.parse(readFileSync(join(PKG, '..', '..', 'node_modules', '@hyperframes', 'producer', 'package.json'), 'utf8')).version; } catch { /* reported as unknown */ }
   const build = process.env.MOTION_RENDERER_BUILD;
-  return `motion-renderer-1-${h.digest('hex').slice(0, 12)}/remotion@${remotion}${build && build !== 'unknown' ? `+${build.slice(0, 12)}` : ''}`;
+  return `motion-renderer-1-${h.digest('hex').slice(0, 12)}/remotion@${remotion}+hyperframes@${hyperframes}${build && build !== 'unknown' ? `+${build.slice(0, 12)}` : ''}`;
 }
 
 const send = (res, status, body) => {
@@ -195,19 +196,20 @@ export function motionRenderService({
     try { body = JSON.parse(await readBody(req, LIMITS.body_max_bytes)); }
     catch (error) { return send(res, error.status || 400, error.status ? { error: 'too_large', detail: `a render request must fit within ${LIMITS.body_max_bytes} bytes` } : { error: 'malformed', detail: 'the body is not JSON' }); }
     const errors = validateRenderRequest(body);
-    if (!errors.length) errors.push(...checkComposition(body.composition.source, { durationSeconds: body.brief.duration.seconds }));
+    // M7B: the request names its renderer; that renderer's static gate runs before anything is written.
+    if (!errors.length) errors.push(...rendererGate(body.renderer).staticErrors(body.composition.source, { durationSeconds: body.brief.duration.seconds, compositionId: body.composition.composition_id }));
     if (errors.length) return send(res, 400, { error: 'invalid_job', schema: RENDER_SCHEMA, errors: errors.slice(0, 50) });
     if (state.degraded) return send(res, 503, { error: 'degraded', detail: `${state.degraded}; the machine must be restarted` });
     if (state.active) return send(res, 429, { error: 'busy', detail: 'one render at a time; retry when the current render has finished', render_id: state.active.render_id });
     const id = randomBytes(16).toString('hex');
     const dir = join(jobsDir, id);
-    const record = { render_id: id, status: 'rendering', stage: body.stage || 'final', motion_job_id: body.brief.id, created_at: new Date().toISOString() };
+    const record = { render_id: id, status: 'rendering', stage: body.stage || 'final', renderer: body.renderer, motion_job_id: body.brief.id, created_at: new Date().toISOString() };
     state.active = record;
     try {
       // 2770 + the setgid parent: the render user writes here and the service can remove it afterwards.
       mkdirSync(join(dir, 'out'), { recursive: true });
       for (const d of [dir, join(dir, 'out')]) chmodSync(d, 0o2770);
-      writeFileSync(join(dir, 'job.json'), JSON.stringify({ render_id: id, stage: record.stage, brief: body.brief, storyboard: body.storyboard, composition: body.composition }), { mode: 0o640 });
+      writeFileSync(join(dir, 'job.json'), JSON.stringify({ render_id: id, stage: record.stage, renderer: body.renderer, brief: body.brief, storyboard: body.storyboard, composition: body.composition }), { mode: 0o640 });
     } catch (error) {
       state.active = null;
       rmSync(dir, { recursive: true, force: true });
@@ -215,7 +217,7 @@ export function motionRenderService({
     }
     renders.set(id, record);
     run(record, dir);
-    log(`render ${id} started (${record.stage}, ${body.brief.duration.seconds}s, ${body.composition.composition_id})`);
+    log(`render ${id} started (${body.renderer}, ${record.stage}, ${body.brief.duration.seconds}s, ${body.composition.composition_id})`);
     send(res, 202, { render_id: id, status: 'rendering', poll: `/render/${id}` });
   }
 

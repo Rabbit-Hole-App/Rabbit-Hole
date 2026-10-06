@@ -99,7 +99,7 @@ test('the spend ceiling: real cost read from each response (JSON or stream), and
   const run = async ({ call }) => { for (const max of [16000, 16000, 64000, 16000]) { const r = await call({}, { max_tokens: max }, 'claude-opus-5-5'); seen.push(r.status); await r.text(); await sleep(5); } return { status: 'failed', failure_reason: 'x' }; };
   const { o, req } = await start(t, { run, call: async () => reply(), budgetUsd: 1.6 });
   await req('/jobs', { method: 'POST', body: MOTION });
-  await sleep(60);
+  for (let i = 0; i < 300 && seen.length < 4; i++) await sleep(10); // the four calls, however busy the machine is
   // $0.50 + $0.50 spent; the Author call (estimate $0.70) would pass $1.60 and is refused; a $0.20 call still fits.
   assert.deepEqual(seen, [200, 200, 429, 200]);
   assert.equal(+o.budget.spent_usd.toFixed(2), 1.5);

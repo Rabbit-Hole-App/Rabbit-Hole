@@ -79,7 +79,9 @@ const view = j => ({
 // budgetUsd: a hard ceiling on what every job together may spend (an owner budget). A call is refused
 // locally when the spend so far plus its estimate would pass it; the spend is the real cost of
 // every finished response, or its estimate when that cannot be read.
-export function motionOrchestrator({ token, service, call, env = {}, outDir, run = runMotionRequest, maxCalls = 16, budgetUsd = Infinity, log = () => {} }) {
+// M7B: renderer is the backend for every job ("remotion" unless the operator says otherwise); plans
+// maps a request to an accepted {brief, storyboard, from} that the job reuses (pipeline.mjs).
+export function motionOrchestrator({ token, service, call, env = {}, outDir, run = runMotionRequest, maxCalls = 16, budgetUsd = Infinity, log = () => {}, renderer, plans = {} }) {
   if (typeof token !== 'string' || token.length < 32) throw new Error('motionOrchestrator: a token of at least 32 characters is required');
   const jobs = new Map();
   let active = null;
@@ -110,7 +112,7 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
       return Promise.race([sent, new Promise((_, fail) => controller.signal.addEventListener('abort', () => fail(new MotionCancelled()), { once: true }))]);
     };
     log(`job ${id}: ${body.request}`);
-    run({ message: body.request, location: job.location, call: guarded, env, service, dir: join(outDir, id), signal: controller.signal, onStage: stage => { job.stage = stage; } })
+    run({ message: body.request, location: job.location, call: guarded, env, service, dir: join(outDir, id), signal: controller.signal, onStage: stage => { job.stage = stage; }, ...(renderer ? { renderer } : {}), ...(plans[body.request] ? { plan: plans[body.request] } : {}) })
       .then(result => { job.result = result; job.status = result.status; })
       .catch(error => { job.result = { status: 'failed', failure_reason: `the pipeline crashed: ${String(error?.message || error).split('\n')[0]}` }; job.status = 'failed'; })
       .finally(() => { job.finished_at = new Date().toISOString(); if (active === job) active = null; log(`job ${id}: ${job.status}${job.result?.failure_reason ? ` (${job.result.failure_reason})` : ''}`); });

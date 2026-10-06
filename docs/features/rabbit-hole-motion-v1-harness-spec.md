@@ -2376,6 +2376,72 @@ Runs A and B were the two the owner authorized, under a $2.50 ceiling. The ceili
 
 `HyperFramesRenderer` behind the same `MotionRenderer` interface (§9.4–§9.5), its own Author contract and static validation, the same render service sandbox and resource limits, and the same determinism, preview/final and final-validation checks. GSAP is not required. Start it immediately after M7A.
 
+### M7B implementation (2026-10-06, branch feature/motion-hyperframes from e0c86877)
+
+M7A is closed functionally at e0c86877 (tag motion-m7a-complete). M7B adds HyperFrames as a second backend; Remotion stays the default (contracts.js DEFAULT_RENDERER) until M8.
+
+**Package.**
+- **Pinned:** `@hyperframes/producer@0.8.137` (exact). It brings `@hyperframes/{core,engine,lint,parsers,studio-server}@0.8.137`.
+- **Licence:** every HyperFrames package ships an Apache-2.0 LICENSE file; the package.json files carry no licence field.
+- **Requirements:** Node >= 22, FFmpeg, and Chrome Headless Shell. Verified 2026-10-06 from npm and https://hyperframes.heygen.com (llms.txt, concepts/determinism, concepts/frame-adapters, reference/html-schema, packages/engine and packages/producer).
+- **Why each dependency:**
+
+| Package | Role |
+|---|---|
+| producer | compile, seek-capture every frame, encode, and the file server and capture session the stills use |
+| engine | the capture sessions |
+| core | the browser runtime that seeks CSS animations |
+| studio-server | transitive (core and producer import it); not used by Motion |
+| puppeteer 25.12 | CDP client only; its own Chrome download is skipped (`.puppeteerrc.cjs` skipDownload) |
+| hono and @hono/node-server | the producer's loopback file server |
+| linkedom and postcss | already HyperFrames dependencies, now declared directly at the installed versions: the HTML and CSS parsers of the contract |
+
+- **No Studio or editor UI** and no GSAP.
+- **Binaries:** both renderers use Remotion's Chrome Headless Shell 149 and its FFmpeg (`HYPERFRAMES_FFMPEG_PATH` and `HYPERFRAMES_FFPROBE_PATH`), so both run on the same Chromium and are judged by the same ffprobe.
+
+**Renderer adapter.**
+- **Shared:** `renderer-common.mjs` holds the base class and helpers both adapters share (contact sheet, final validation, ffprobe, frame decoding, nonblank, font pins, CSP). `remotion-renderer.mjs` re-exports them unchanged.
+- **The boundary:** `RENDERER_METHODS` = validateSource, renderPreview, renderStills, probeFrames, renderFinal, validateFinal, collectDiagnostics. probeFrames moved from the service child into each adapter.
+- **Registry:** `renderers.mjs` picks a renderer's static gate, Author contract and adapter (loaded lazily).
+- **Selection:** the render request's `renderer` (contracts.js RENDERERS) selects it; the service gates it, writes it into job.json, and the child runs that adapter.
+- **One result shape:** `renderer.name` names the backend; artifacts, duration, size, fps, frame count, timings, logs, determinism hashes and failure categories are the same.
+- **HyperFrames stills and the coverage probe** use the producer's own file server and capture engine. They show the frames the final shows: mean |RGB| difference 0.69 against the decoded final in the feasibility check.
+- **The preview** is the producer's render, area-scaled to preview size.
+
+**Same brief and storyboard, a different Author.**
+- `runAuthor({renderer})` keeps one loop: the model role, the motion_composition tool shape, the schema-only re-ask, the transport retry and the repair section.
+- `hf-author.js` gives the HyperFrames system prompt in sections: role, objective, renderer_contract, determinism_rules, visual_rules, examples, output_contract.
+- The examples use placeholder names, and no topic fact appears (a test checks the words).
+- The Author input is the same brief and storyboard plus `renderer: {renderer_target: 'hyperframes', stage, timeline, required_text}`.
+- The storyboard is never regenerated for a renderer. The text rules are shared code (`author-check.js textContractErrors`).
+
+**The HyperFrames composition contract** (`hf-static-check.js`), checked before any render:
+- one self-contained index.html, with a `<meta name="motion-timeline">` holding the exact beat frames;
+- one root `data-composition-id` matching the output id, data-start 0, data-duration = the brief, 1920x1080, data-no-timeline;
+- an element allowlist (HTML text elements and inline SVG shapes), and no script, link, media, canvas, iframe, `<use>`, `<image>`, `<foreignObject>`, SMIL, comments, event handlers, href/src, timed clips or nested compositions;
+- no URL or URL scheme anywhere; url() only as url(#id); no @import or @font-face;
+- font-family only the bundled families, with no fallbacks and no font shorthand; CSS content only "" or none;
+- no transition, play-state or scroll/view timelines, and no infinite animation;
+- one element per storyboard object; required text verbatim as single text nodes and code lines as single elements; added text under the Remotion Author's rules.
+
+At run time, before anything renders, the page inspects itself (`inspectionErrors`): the root must be 1920x1080, every animation must end at or before the duration, and the used fonts must load. A failure there is compile_failed.
+
+**Security and determinism.** The same posture as Remotion:
+- **Motion source:** CSS keyframes only. The HyperFrames runtime seeks every animation; the producer's virtual-time shim stands in for timers and Date.
+- **Assets:** the bundled woff2 fonts only, staged into the job's project with the harness's @font-face, so the producer's compile step has no font to fetch.
+- **The page:** the same CSP as the Remotion page.
+- **Node side:** a fetch guard keeps everything on loopback (`guardNodeNetwork`).
+- **Linux:** the same `motion-sandbox` (network namespace, users, cgroups) around the child.
+- **Determinism:** two fresh contexts (separate project, file server and browser) must give identical decoded pixels at the determinism frames.
+- **ponytail:** Chrome's own sandbox is off (`--no-sandbox`, as on the Remotion path); the OS sandbox is the boundary.
+
+**Proof plans.** `--renderer hyperframes --plan <plan.json>` on the dev orchestrator runs a request through HyperFrames.
+- The plan is an accepted M7A run's brief and final storyboard, in `motion/fixtures/m7b/plan-*.json` and validated again.
+- So a proof tests the Author and render path, not a new Director run. The request is still resolved and grounded.
+- The record says where the plan came from.
+
+**Card.** The video card names the renderer from the block's provenance ("Remotion" or "HyperFrames"). A pending /motion request names none, because the orchestrator decides.
+
 ## M8 — benchmark and end-to-end development demonstration
 
 Run the §9.6 benchmark on the same briefs and storyboards for both renderers, then pass all §27 demos through the full pipeline with human review. Choose the default renderer and routing from the results; keep both adapters. Deliver the required report.

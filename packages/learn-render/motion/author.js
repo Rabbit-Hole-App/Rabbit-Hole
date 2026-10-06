@@ -13,7 +13,11 @@
 // Outcomes: composition (passes static safety + the Author contract), needs_revision (refs valid),
 // author_invalid (source or contract errors; surfaced, not repaired in M4), failed (malformed
 // twice, refused, model error). One schema-only re-ask; the repair round is never spent here.
-import { MODEL_ROLES, STAGE, TRANSPORT_KINDS, afterMalformed, repairFindings, validateAuthorOutput } from './contracts.js';
+//
+// M7B: renderer "hyperframes" (hf-author.js) takes the same brief and storyboard through the same
+// loop with its own system prompt, renderer facts and checks; "remotion" stays the default.
+import { DEFAULT_RENDERER, MODEL_ROLES, STAGE, TRANSPORT_KINDS, afterMalformed, repairFindings, validateAuthorOutput } from './contracts.js';
+import { HF_AUTHOR_SYSTEM, HF_AUTHOR_TOOL_DESCRIPTION, checkHfAuthorOutput, hfRendererFacts } from './hf-author.js';
 import { callRecord } from './director.js';
 import { checkAuthorSource, requiredText, timelineFrames } from './author-check.js';
 import { resolveRole } from './model-config.js';
@@ -39,6 +43,13 @@ export const AUTHOR_TOOL = Object.freeze({
       requested_changes: { type: 'array', items: { type: 'string' }, description: 'needs_revision: the concrete changes that would make it implementable.' },
     },
   },
+});
+
+// The same tool for the HyperFrames Author: one shape, its own wording.
+export const HF_AUTHOR_TOOL = Object.freeze({
+  ...AUTHOR_TOOL,
+  description: HF_AUTHOR_TOOL_DESCRIPTION,
+  input_schema: { ...AUTHOR_TOOL.input_schema, properties: { ...AUTHOR_TOOL.input_schema.properties, source: str('composition: the whole HTML document (index.html).') } },
 });
 
 export const AUTHOR_SYSTEM = [
@@ -76,8 +87,10 @@ export function authorContext(brief, storyboard) {
 
 // 64000: at effort high the first real softmax call spent 32000 tokens (mostly thinking) before
 // finishing its tool call (2026-10-04); streaming keeps a long generation safe.
-export function authorRequest(brief, storyboard, { effort = 'high', maxTokens = 64000, repair = null } = {}) {
-  const ask = `Implement this storyboard.\n\ninput = ${JSON.stringify(authorContext(brief, storyboard))}`;
+export function authorRequest(brief, storyboard, { effort = 'high', maxTokens = 64000, repair = null, renderer = DEFAULT_RENDERER } = {}) {
+  const base = authorContext(brief, storyboard);
+  const hf = renderer === 'hyperframes';
+  const ask = `Implement this storyboard${hf ? ' as a HyperFrames composition' : ''}.\n\ninput = ${JSON.stringify(hf ? { ...base, renderer: hfRendererFacts(base) } : base)}`;
   return {
     max_tokens: maxTokens,
     stream: true, // a long generation never waits on a silent connection (stream-message.js)
@@ -85,8 +98,8 @@ export function authorRequest(brief, storyboard, { effort = 'high', maxTokens = 
     output_config: { effort },
     fallbacks: 'default',
     betas: ['server-side-fallback-2026-07-01'],
-    system: [{ type: 'text', text: AUTHOR_SYSTEM, cache_control: { type: 'ephemeral' } }],
-    tools: [AUTHOR_TOOL],
+    system: [{ type: 'text', text: hf ? HF_AUTHOR_SYSTEM : AUTHOR_SYSTEM, cache_control: { type: 'ephemeral' } }],
+    tools: [hf ? HF_AUTHOR_TOOL : AUTHOR_TOOL],
     tool_choice: { type: 'auto' },
     messages: [{ role: 'user', content: repair ? `${ask}\n\n${repairSection(repair)}` : ask }],
   };
@@ -125,7 +138,8 @@ export function validateAuthorToolOutput(o) {
 }
 
 // Source and contract errors for a composition; ref errors for a needs_revision.
-export function checkAuthorOutput(output, brief, storyboard) {
+export function checkAuthorOutput(output, brief, storyboard, renderer = DEFAULT_RENDERER) {
+  if (renderer === 'hyperframes') return checkHfAuthorOutput(output, brief, storyboard);
   if (output.status === 'needs_revision') {
     const known = new Set([...storyboard.beats.map(b => b.id), ...brief.claim_registry.map(c => c.id), ...brief.implementation_conditions.map(k => k.id)]);
     return { errors: output.refs.filter(r => !known.has(r)).map(r => `needs_revision.refs: ${r} is not in the brief or storyboard`), mapping: null };
@@ -146,10 +160,10 @@ const reask = errors => `Your motion_composition call did not match its schema:\
 // never a semantic repair, and nothing has rendered from it (this stage has not returned). Any
 // other end (provider error, refusal) fails the stage; max_tokens and malformed tool arguments take
 // the schema-only re-ask.
-export async function runAuthor({ brief, storyboard, call, env = {}, effort = 'high', round = 0, repair = null, clock = () => Date.now() }) {
+export async function runAuthor({ brief, storyboard, call, env = {}, effort = 'high', round = 0, repair = null, renderer = DEFAULT_RENDERER, clock = () => Date.now() }) {
   const role = MODEL_ROLES.author;
   const model = resolveRole(role, env);
-  const body = authorRequest(brief, storyboard, { effort, repair });
+  const body = authorRequest(brief, storyboard, { effort, repair, renderer });
   const job = { round, format_retries: [] };
   const calls = [];
   const transport_retries = [];
@@ -179,7 +193,7 @@ export async function runAuthor({ brief, storyboard, call, env = {}, effort = 'h
       : use ? validateAuthorToolOutput(use.input) : [`no ${AUTHOR_TOOL.name} call (stop_reason ${message.stop_reason})`];
     if (!errors.length) {
       const output = use.input;
-      const check = checkAuthorOutput(output, brief, storyboard);
+      const check = checkAuthorOutput(output, brief, storyboard, renderer);
       // Source, contract and ref failures are surfaced, never re-asked or repaired here.
       const status = check.errors.length ? 'author_invalid' : output.status;
       return { status, output, check, calls, format_retries: job.format_retries, transport_retries };

@@ -7,16 +7,17 @@
 //     { submitted: false, reason, errors? }      needs_revision, author_invalid, failed, or a source the gate refuses
 //     { submitted: true, result: RenderResult }  ready | render_failed | artifact_invalid
 //   renderPreview(the same) -> the same shapes with a PreviewResult (M6: what a review pass sees)
+// M7B: renderer ("remotion", the default, or "hyperframes") picks the request's backend and the
+// gate's static and contract checks (renderers.mjs); everything after the gate is the same.
 import { createHash, randomBytes } from 'node:crypto';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { PNG } from 'pngjs';
-import { checkAuthorSource } from './author-check.js';
-import { RENDER_ARTIFACTS, RENDER_RESULT_SCHEMA, RENDER_SCHEMA, STAGE, validateRenderRequest, validateRenderResult } from './contracts.js';
-import { FONT_PINS, NONBLANK_MIN_LUMA_STDDEV, OUTPUT_MAX_BYTES, RemotionRenderer, beatAt, contactFrames, decodeFrames, lumaStddev, nonblankCheck, probe } from './remotion-renderer.mjs';
+import { DEFAULT_RENDERER, RENDER_ARTIFACTS, RENDER_RESULT_SCHEMA, RENDER_SCHEMA, STAGE, validateRenderRequest, validateRenderResult } from './contracts.js';
 import { coverageErrors, coverageFrames, determinismFrames, nonblankFrames } from './render-coverage.js';
+import { FONT_PINS, NONBLANK_MIN_LUMA_STDDEV, OUTPUT_MAX_BYTES, beatAt, contactFrames, decodeFrames, lumaStddev, nonblankCheck, probe, validateFinalVideo } from './renderer-common.mjs';
+import { rendererGate } from './renderers.mjs';
 import { motionRenderService } from './service/server.mjs';
-import { checkComposition } from './static-check.js';
 
 const sha256 = data => createHash('sha256').update(data).digest('hex');
 const secs = ms => +(ms / 1000).toFixed(2);
@@ -27,7 +28,7 @@ export const canonical = v => (Array.isArray(v) ? `[${v.map(canonical).join(',')
 // Service failures where rendering finished but the output broke the artifact contract.
 const ARTIFACT_FAILURES = new Set(['final_validation_failed', 'nondeterministic', 'preview_final_mismatch', 'output_too_large']);
 
-export const renderRequest = (brief, storyboard, output) => ({ schema: RENDER_SCHEMA, renderer: 'remotion', brief, storyboard, composition: { composition_id: output.composition_id, source: output.source } });
+export const renderRequest = (brief, storyboard, output, renderer = DEFAULT_RENDERER) => ({ schema: RENDER_SCHEMA, renderer, brief, storyboard, composition: { composition_id: output.composition_id, source: output.source } });
 
 export function renderProvenance({ brief, storyboard, source, origin }) {
   return {
@@ -80,7 +81,7 @@ export async function validateArtifacts({ dir, brief, storyboard, record }) {
   const row = (artifact, name, ok, detail) => rows.push({ artifact, name, ok: !!ok, detail: String(detail) });
   let final = null;
   try {
-    final = await new RemotionRenderer().validateFinal({ dir, brief, storyboard });
+    final = await validateFinalVideo({ dir, brief, storyboard });
     for (const c of final.checks) row('final.mp4', c.name, c.ok, c.detail);
   } catch (error) { row('final.mp4', 'decodes', false, firstLine(error)); }
   try { for (const [name, ok, detail] of previewChecks(await probe(join(dir, 'preview.mp4')), brief)) row('preview.mp4', name, ok, detail); }
@@ -130,12 +131,13 @@ export function judgeCoverage(record, brief, storyboard, TEXT) {
 
 // Every submission passes this gate: only a validated Author composition, then the service's
 // own checks and the Author contract.
-function gate(brief, storyboard, author) {
+function gate(brief, storyboard, author, renderer = DEFAULT_RENDERER) {
   if (author?.status !== 'composition') return { reason: `the Author result is ${author?.status ?? 'missing'}; only a validated composition is rendered` };
-  const request = renderRequest(brief, storyboard, author.output);
+  const request = renderRequest(brief, storyboard, author.output, renderer);
   const source = String(request.composition.source || '');
-  const contract = checkAuthorSource(source, brief, storyboard);
-  const errors = [...validateRenderRequest(request), ...checkComposition(source, { durationSeconds: brief.duration.seconds }), ...contract.errors];
+  const checks = rendererGate(renderer);
+  const contract = checks.contract(source, brief, storyboard);
+  const errors = [...validateRenderRequest(request), ...checks.staticErrors(source, { durationSeconds: brief.duration.seconds, compositionId: request.composition.composition_id }), ...contract.errors];
   return errors.length ? { reason: 'invalid_job', errors } : { request, source, contract };
 }
 
@@ -171,17 +173,17 @@ async function download(service, id, dir, artifacts) {
 
 const POLLING = { pollMs: 2000, waitMs: 8 * 60 * 1000, sleep: ms => new Promise(r => setTimeout(r, ms)), now: () => Date.now() };
 
-export async function renderComposition({ brief, storyboard, author, service, dir: where, origin, ...options }) {
+export async function renderComposition({ brief, storyboard, author, service, dir: where, origin, renderer = DEFAULT_RENDERER, ...options }) {
   const { pollMs, waitMs, sleep, now } = { ...POLLING, ...options };
   const dir = resolve(where); // ffmpeg and ffprobe run from their own directory
-  const g = gate(brief, storyboard, author);
+  const g = gate(brief, storyboard, author, renderer);
   if (!g.request) return { submitted: false, reason: g.reason, ...(g.errors ? { errors: g.errors } : {}) };
   const { request, source, contract } = g;
 
   const t0 = now();
   const result = {
     schema: RENDER_RESULT_SCHEMA, status: 'render_failed', render_id: null, composition_id: request.composition.composition_id,
-    renderer: { name: 'remotion', service_version: (await service.health().catch(() => null))?.version ?? 'unreachable' },
+    renderer: { name: renderer, service_version: (await service.health().catch(() => null))?.version ?? 'unreachable' },
     artifacts: {}, hashes: {}, validation: null, resources: null, timings: {}, provenance: renderProvenance({ brief, storyboard, source, origin }),
   };
   const done = (status, failure) => {
@@ -199,7 +201,7 @@ export async function renderComposition({ brief, storyboard, author, service, di
   const { record } = run;
   result.timings.submit_to_finished_s = secs(now() - t0);
   result.timings.service = record.timings ?? null;
-  Object.assign(result.renderer, { remotion: record.renderer?.version ?? null, chrome: record.renderer?.chrome ?? null, ffmpeg: record.renderer?.ffmpeg ?? null, sandbox: record.sandbox?.mode ?? null });
+  Object.assign(result.renderer, { [renderer]: record.renderer?.version ?? null, chrome: record.renderer?.chrome ?? null, ffmpeg: record.renderer?.ffmpeg ?? null, sandbox: record.sandbox?.mode ?? null });
   result.resources = { sandbox: record.sandbox ?? null, limits: record.resources ?? null };
   for (const k of ['duration_seconds', 'fps', 'width', 'height']) if (record[k] !== undefined) result[k] = record[k];
   if (record.status !== 'ready') {
@@ -251,15 +253,15 @@ const ARTIFACT_CATEGORY = { 'preview.mp4': 'preview_invalid', 'poster.png': 'pos
 // `frames` are the contact frames the reviewers see (§11.2), paths relative to dir; `coverage` is
 // the M5 beat and transition judgment of the preview's probe (M7A).
 export const PREVIEW_ARTIFACTS = Object.freeze({ preview_mp4: 'preview.mp4', contact_sheet: 'contact-sheet.png' });
-export async function renderPreview({ brief, storyboard, author, service, dir: where, origin, ...options }) {
+export async function renderPreview({ brief, storyboard, author, service, dir: where, origin, renderer = DEFAULT_RENDERER, ...options }) {
   const { pollMs, waitMs, sleep, now } = { ...POLLING, ...options };
   const dir = resolve(where); // ffmpeg and ffprobe run from their own directory
-  const g = gate(brief, storyboard, author);
+  const g = gate(brief, storyboard, author, renderer);
   if (!g.request) return { submitted: false, reason: g.reason, ...(g.errors ? { errors: g.errors } : {}) };
   const t0 = now();
   const result = {
     status: 'render_failed', render_id: null, composition_id: g.request.composition.composition_id,
-    renderer: { name: 'remotion', service_version: (await service.health().catch(() => null))?.version ?? 'unreachable' },
+    renderer: { name: renderer, service_version: (await service.health().catch(() => null))?.version ?? 'unreachable' },
     artifacts: {}, hashes: {}, checks: null, nonblank: null, frames: [], timings: {}, provenance: renderProvenance({ brief, storyboard, source: g.source, origin }),
   };
   const done = (status, failure) => { Object.assign(result, { status }, failure ? { failure } : {}); result.timings.total_s = secs(now() - t0); return { submitted: true, result }; };

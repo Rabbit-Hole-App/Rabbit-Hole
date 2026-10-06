@@ -15,12 +15,15 @@
   },
   "dependencies": {
     "@babel/parser": "7.24.1",
+    "@hyperframes/producer": "0.8.137",
     "@remotion/bundler": "^4.0.246",
     "@remotion/cli": "^4.0.246",
     "@remotion/media-utils": "^4.0.246",
     "@remotion/renderer": "^4.0.246",
+    "linkedom": "0.18.13",
     "music-metadata": "^11.0.0",
     "pngjs": "^7.0.0",
+    "postcss": "8.5.28",
     "remotion": "^4.0.246",
     "roughjs": "^4.6.6"
   },

@@ -5,6 +5,10 @@ import { DURATION, normalizeSeconds } from './duration.js';
 
 export const PROMPT_SPEC_VERSION = 'motion-v1.0';
 export const STAGE = Object.freeze({ width: 1920, height: 1080, fps: 30 });
+// M7B: two render backends behind one contract. The brief and storyboard never name one; the Author
+// gets an explicit target, and Remotion stays the default until M8 compares them.
+export const RENDERERS = Object.freeze(['remotion', 'hyperframes']);
+export const DEFAULT_RENDERER = 'remotion';
 export { DURATION };
 export const TEACHING_MODES = ['intuition_first', 'mechanism_first', 'code_walkthrough', 'system_flow'];
 export const TARGET_KINDS = ['concept', 'card', 'canvas_object', 'code_span', 'route', 'rabbit_hole'];
@@ -271,7 +275,7 @@ export function validateRenderRequest(r) {
   for (const k of Object.keys(r)) if (!['schema', 'renderer', 'stage', 'brief', 'storyboard', 'composition'].includes(k)) e.push(`request.${k}: unknown field`);
   if (r.schema !== RENDER_SCHEMA) e.push(`request.schema: "${RENDER_SCHEMA}"`);
   if (r.stage !== undefined && !RENDER_STAGES.includes(r.stage)) e.push(`request.stage: ${RENDER_STAGES.join(' | ')} (default final)`);
-  if (r.renderer !== 'remotion') e.push('request.renderer: "remotion" (the only V1 renderer)');
+  if (!RENDERERS.includes(r.renderer)) e.push(`request.renderer: ${RENDERERS.join(' | ')}`);
   const c = r.composition;
   if (!c || typeof c !== 'object' || Array.isArray(c)) e.push('request.composition: {composition_id, source}');
   else {
@@ -303,7 +307,7 @@ export function validateRenderResult(r) {
   if (!RENDER_RESULT_STATUSES.includes(r.status)) e.push(`render_result.status: ${RENDER_RESULT_STATUSES.join(' | ')}`);
   if (r.render_id !== null && !/^[0-9a-f]{32}$/.test(r.render_id || '')) e.push('render_result.render_id: the service id, or null when the job never started');
   if (!/^[A-Za-z0-9-]+$/.test(r.composition_id || '')) e.push('render_result.composition_id: letters, digits and dashes');
-  if (r.renderer?.name !== 'remotion') e.push('render_result.renderer: {name: "remotion", ...}');
+  if (!RENDERERS.includes(r.renderer?.name)) e.push(`render_result.renderer: {name: ${RENDERERS.join(' | ')}, ...}`);
   const p = r.provenance;
   if (!p || typeof p !== 'object') e.push('render_result.provenance: required');
   else {
@@ -407,7 +411,7 @@ export function validateJob(j) {
   for (const k of ['id', 'prompt_spec_version', 'created_at', 'updated_at']) if (!str(j[k])) e.push(`job.${k}: required string`);
   if (!JOB_STATUSES.includes(j.status)) e.push(`job.status: one of ${JOB_STATUSES.join(' | ')}`);
   if (!str(j.owner?.org) || !str(j.owner?.app) || !str(j.owner?.learner)) e.push('job.owner: {org, app, learner}');
-  if (j.renderer?.name !== 'remotion' || !str(j.renderer?.version)) e.push('job.renderer: {name: "remotion", version}');
+  if (!RENDERERS.includes(j.renderer?.name) || !str(j.renderer?.version)) e.push(`job.renderer: {name: ${RENDERERS.join(' | ')}, version}`);
   const rp = j.repairs;
   const repairsOk = rp && typeof rp === 'object' && !Array.isArray(rp) && Object.keys(rp).every(k => REPAIR_STAGES.includes(k)) && REPAIR_STAGES.every(k => rp[k] === 0 || rp[k] === 1);
   if (!repairsOk) e.push('job.repairs: {storyboard: 0 | 1, author: 0 | 1} (one semantic repair per artifact stage)');
