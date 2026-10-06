@@ -2452,6 +2452,41 @@ At run time, before anything renders, the page inspects itself (`inspectionError
 - **Same composition through the service:** ready (final, coverage and determinism pass; preview/final mean difference 1.70).
 - **ponytail:** the producer's own final render cannot take this hook. On Windows the final MP4's mid-animation frames may differ from the stills by this jitter; the preview/final comparison bounds it. Windows renders stay authoring evidence (§10.3), and the Linux BeginFrame path is the deterministic one.
 
+### M7B result (2026-10-06, Claude subscription, no API key, $0 API)
+
+**Free gates passed first, on this branch:**
+- fixtures A-J plus H (motion) through real HyperFrames renders (`hyperframes.test.mjs`, 12/12);
+- the Remotion render tests in isolation (37/37);
+- the Motion unit suites and `make test-unit`, all green;
+- the stand-in Stop/Retry, failure/Retry, and full flow with reload and Voice.
+
+**Linux:** the HyperFrames cases in `service.linux.test.mjs` (network namespace with the CSP off; the control through the sandboxed service) need Home's image run. This machine has no Docker or WSL.
+
+The plans reuse the accepted M7A brief and storyboard, unedited. Every call ran on `subscription/opus`; the renderer was `motion-renderer-1-6333c014af96`.
+
+| Run | Request | Result | Repairs | Calls (latency) | Render |
+|---|---|---|---|---|---|
+| A, attempt 1 (f364f204) | `/motion 15s explain me softmax func` | failed: final `nondeterministic` (frame 413). The harness capture defect above, fixed in 6f4c3100. | Author 1 (the first pass broke the contract: a shown code line not verbatim) | Author 266.9 s, repair 51.8 s, reviews 13.9 / 9.9 s (plus an 18.7 s visual review) | the preview reviewed clean; the final was refused |
+| A (6f4c3100) | `/motion 15s explain me softmax func` | **ready**, job 285d6a74, "Softmax: Scores Become Attention Weights" | none: first pass, no retry | Author 332.5 s, reviews 16.5 / 10.3 s | service 122 s (preview 38 s, final 38 s); total 551 s |
+| B (6f4c3100) | `/motion 15s explain multinomial` (GPT.generate) | failed: still blocking after the Author repair | storyboard 1, Author 1 | Author 374.6 s, reviews 23.5 / 15.0 s, Director revision 27.4 s, Author repair 95.3 s | preview only; total 582 s |
+
+**Run A details:**
+- **Card:** the same card plays the HyperFrames video (15.0 s, 1920x1080) from LEARN_MEDIA, byte-identical to the job's final.mp4, and names "HyperFrames".
+- **Checks:** reload and Voice pass, one render job, no Rabbit Hole, no page errors; determinism, coverage and final validation pass; preview/final 1.64.
+- **Advisory findings only:** a caption ahead of its object in B2; a running total next to "Sum = 1"; an emptied upper area in B4; a jump in B5.
+
+**Run B details:**
+- **Round 0 (first pass):** the teaching reviewer blocked `unsupported_claim`: a probability bar grows after softmax, so the distribution appears altered before sampling.
+- **The repairs:** the storyboard-level finding spent the Director revision, which added the object `chance_strip`, then the Author repair.
+- **Why it failed:** the repair kept its previous object set, so the contract refused it (`data-object "chance_strip": no element`). No third repair.
+- **Shared-path finding (not a HyperFrames-only issue):** the repair section tells the Author to keep "the same objects" and does not name objects a storyboard revision added; Remotion uses the same section.
+
+**Verdict:**
+- M7B's automatic criterion is met by Run A, on one real Motion request; the second-domain proof was attempted and failed, as above.
+- This is subscription functional evidence. It does not prove production-exact API or model-role behavior, nor Linux determinism (that needs Home's run).
+- Remotion stays the default; M8 chooses nothing yet.
+- Evidence: Figma ef9SfiemEsPQF2bd8B1os3, node 166:222.
+
 ## M8 — benchmark and end-to-end development demonstration
 
 Run the §9.6 benchmark on the same briefs and storyboards for both renderers, then pass all §27 demos through the full pipeline with human review. Choose the default renderer and routing from the results; keep both adapters. Deliver the required report.
