@@ -59,7 +59,13 @@ await cont.click();
 await viewerPage.locator('[data-handle-hint][role="alert"]').waitFor({ timeout: 15000 });
 check('a taken handle in another case is refused by the server, and the step stays', (await hint.innerText()).includes(`@${H.taken} is taken`) && await setup.count() === 1);
 await shot(viewerPage, '03-setup-taken');
-await field.fill(`@${H.viewer.replace('viewer', 'Viewer')}`);
+// Never "@@handle" (owner review of Figma 189:222): a pasted leading @ leaves the field, whose fixed prefix is the one @.
+const typed = H.viewer.replace('viewer', 'Viewer');
+await field.fill(`@${typed}`);
+const shown = `${await viewerPage.locator('[data-handle-setup] label span').first().innerText()}${await field.inputValue()}`;
+check('a pasted leading @ leaves the field: one visible @, the case kept as typed', await field.inputValue() === typed && shown === `@${typed}` && !shown.includes('@@'), shown);
+await field.fill(`@@${typed}`);
+check('even two pasted @ leave one visible @', await field.inputValue() === typed);
 check('a valid handle reads back in its canonical form', (await hint.innerText()).includes(`You will be @${H.viewer}`));
 await shot(viewerPage, '04-setup-valid');
 await cont.click();

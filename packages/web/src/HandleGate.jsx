@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { HANDLE_MAX, normalizeHandle } from '../../control-plane/src/handle.js';
+import { HANDLE_MAX, fieldHandle, normalizeHandle } from '../../control-plane/src/handle.js';
 import { gateFor, loadProfile, saveProfile } from './session-display.js';
 import { PRODUCT } from './flags.js';
 import { Button } from './ui.jsx';
@@ -41,7 +41,7 @@ export function ChooseHandle({ onDone }) {
         <label className="mt-5 flex h-10 items-center rounded-lg border border-line-strong bg-white px-3 focus-within:outline-2 focus-within:outline-accent/35">
           <span className="text-sm text-ink-3">@</span>
           <input autoFocus aria-label="Handle" value={value} maxLength={HANDLE_MAX + 1} spellCheck={false} autoCapitalize="none" autoComplete="off"
-            onChange={event => { setValue(event.target.value); setError(''); }} className="ml-0.5 min-w-0 flex-1 bg-transparent text-sm text-ink outline-none" placeholder="yourname" />
+            onChange={event => { setValue(fieldHandle(event.target.value)); setError(''); }} className="ml-0.5 min-w-0 flex-1 bg-transparent text-sm text-ink outline-none" placeholder="yourname" />
         </label>
         <p data-handle-hint role={error ? 'alert' : undefined} className={`mt-2 min-h-5 text-xs ${error || checked?.error ? 'text-red-700' : 'text-ink-3'}`}>
           {error || checked?.error || (checked?.handle ? `You will be @${checked.handle}` : '3-30 letters, numbers or _.')}

@@ -13,6 +13,11 @@ export const RESERVED_HANDLES = Object.freeze([
   'root', 'security', 'settings', 'signin', 'signup', 'staff', 'support', 'system', 'team', 'terms', 'undefined', 'www',
 ]);
 
+// What a handle field keeps of what was typed or pasted: its fixed "@" prefix is the one visible @, so a leading @
+// never stays in the editable value (owner, 2026-10-06: never "@@handle"). The value keeps its case as typed; it is
+// canonicalized only by normalizeHandle.
+export const fieldHandle = value => String(value).replace(/^@+/, '');
+
 // { handle } in canonical form, or { error } saying what to change.
 export function normalizeHandle(value) {
   if (typeof value !== 'string') return { error: 'Choose a handle.' };

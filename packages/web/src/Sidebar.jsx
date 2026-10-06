@@ -16,6 +16,7 @@ import { pageFor, sectionActive, sectionHref } from './routes.js';
 import FeedbackButton from './FeedbackButton.jsx';
 import { AppIcon, Avatar, Button, cn, ConfirmDialog, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, Select, SettingsRow, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
 import { isInternalPrincipal, personLabel, saveProfile, useProfile, useSessionDisplay, useShownIdentity } from './session-display.js';
+import { fieldHandle } from '../../control-plane/src/handle.js';
 import { MODEL_CHOICES, MODEL_SCOPE } from './model-choices.js';
 
 // Settings (workspace dropdown → Settings): Notion-style two-pane modal -
@@ -1572,7 +1573,7 @@ function HandleRow({ profile }) {
       <form className="flex flex-col items-end gap-1" onSubmit={save}>
         <div className="flex items-center gap-2">
           <span className="text-sm text-ink-3">@</span>
-          <Input value={value} maxLength={31} spellCheck={false} autoCapitalize="none" onChange={(e) => { setDraft(e.target.value); setError(''); }} className="w-48" aria-label="Handle" />
+          <Input value={value} maxLength={31} spellCheck={false} autoCapitalize="none" onChange={(e) => { setDraft(fieldHandle(e.target.value)); setError(''); }} className="w-48" aria-label="Handle" />
           <Button type="submit" size="sm" variant="secondary" disabled={busy || draft === null || value === (profile?.handle ?? '')}>Save</Button>
         </div>
         {error && <p data-handle-error role="alert" className="text-xs text-red-700">{error}</p>}

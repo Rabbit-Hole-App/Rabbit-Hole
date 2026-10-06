@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { gateFor } from './session-display.js';
+import { fieldHandle, normalizeHandle } from '../../control-plane/src/handle.js';
 
 const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
@@ -22,7 +23,7 @@ test('the step sits in front of every Rabbit Hole page, in place, and resumes th
   assert.match(gate, /return state === 'needed' \? <ChooseHandle onDone=\{\(\) => setState\('ok'\)\} \/> : children;/);
   assert.doesNotMatch(gate, /location\.|navigate\(|history\./);
   // The server decides; the browser's hint uses the same rules module, and sends only the canonical handle.
-  assert.match(gate, /import \{ HANDLE_MAX, normalizeHandle \} from '\.\.\/\.\.\/control-plane\/src\/handle\.js';/);
+  assert.match(gate, /import \{ HANDLE_MAX, fieldHandle, normalizeHandle \} from '\.\.\/\.\.\/control-plane\/src\/handle\.js';/);
   assert.match(gate, /await saveProfile\(\{ handle: checked\.handle \}\)/);
   assert.doesNotMatch(gate, /email/i, 'nothing here is made from an email');
 });
@@ -39,4 +40,15 @@ test('the shared header names the creator by @handle only when there is one', ()
   const page = read('./SharedBoardPage.jsx');
   assert.match(page, /\{shared\.creator && <span data-shared-creator[^>]*>Shared by \{creatorLabel\(shared\.creator\)\}<\/span>\}/);
   assert.doesNotMatch(page, /shared\.owner\b/, 'the owner email is gone from the page');
+});
+
+// Owner review of Figma 189:222: the field's @ prefix is the only @ ever shown - a typed or pasted leading @ leaves the
+// editable value, which keeps its case until the server canonicalizes it.
+test('a handle field never shows @@: a typed or pasted leading @ leaves the value, and the canonical form is unchanged', () => {
+  assert.deepEqual(['@Viewer_Mux9hucx', '@@Viewer_Mux9hucx', 'Viewer_Mux9hucx', 'a@b'].map(fieldHandle), ['Viewer_Mux9hucx', 'Viewer_Mux9hucx', 'Viewer_Mux9hucx', 'a@b']);
+  assert.deepEqual(normalizeHandle(fieldHandle('@Viewer_Mux9hucx')), { handle: 'viewer_mux9hucx' });
+  assert.deepEqual(normalizeHandle('@Viewer_Mux9hucx'), { handle: 'viewer_mux9hucx' }, 'the server still accepts one leading @');
+  const gate = read('./HandleGate.jsx'), sidebar = read('./Sidebar.jsx');
+  assert.ok(gate.includes('onChange={event => { setValue(fieldHandle(event.target.value));'), 'the setup field');
+  assert.ok(sidebar.includes('onChange={(e) => { setDraft(fieldHandle(e.target.value));'), 'the Settings field');
 });
