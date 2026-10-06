@@ -2521,6 +2521,65 @@ The plans reuse the accepted M7A brief and storyboard, unedited. Every call ran 
   - On Linux the engine captures with BeginFrame under `--deterministic-mode` when Chrome 149's probe passes; otherwise it falls back to screenshot capture with `settleAnimations`. The capture mode is in the service log.
   - A HyperFrames final job renders preview and final in full. Under the sandbox's 1.5 CPUs it must finish inside the 420 s service timeout; the timings are in each result.
 
+**3. Cross-domain proof (rerun of the failed case only, Claude subscription, $0 API, code 359d8c7a).**
+- `/motion 15s explain multinomial`, HyperFrames, reusing the accepted M7A brief and storyboard (job f2d91464), unedited: **ready on the first pass**, job f1686df9, "multinomial: rolling the weighted die for the next token".
+- **Repairs and retries:** none (round 0 had no blocking finding). This run did not exercise the repair path; repair-contract.test.mjs covers it, and Run B's earlier failure was the contract bug fixed in 359d8c7a.
+- **Calls:** Author 341.5 s; visual review 20.0 s and pedagogical review 10.6 s; review and render 200.8 s; total 542 s.
+- **Render (Windows authoring host, sandbox none):** preview 33.5 s, final 34.5 s, service 110 s.
+- **Final:** 15 s, 450 frames, 30 fps, 1920x1080, h264 yuv420p bt709. Determinism and coverage pass.
+- **Card:** all 16 browser checks pass, and the card names "HyperFrames". The LEARN_MEDIA blob is byte-identical to the job's final.mp4. Reload, Voice and the Tutor board reuse the render.
+- **Advisory findings only:** a code comment running past its panel edge, and the "probabilities sum to 1" label sitting far from its bars.
+- **Evidence:** Figma ef9SfiemEsPQF2bd8B1os3, frame 166:222. The rerun rows are 167:222 (proposal, skeleton, ready card at 0.5, 7 and 14 s, Voice) and 167:243 (final contact sheet).
+
+**4. Production-exact API smoke: held.** The owner's condition is that every M7B functional gate passes first, and the Linux proof (gate 2) is still with Home.
+- **Ready command:** `node scripts/motion-orchestrator.mjs --renderer remotion --budget-usd 2.00`, with no `--subscription` and no `--plan`.
+- **Model per role:** every role resolves from `model-config.js` (`MOTION_*_MODEL`, default claude-opus-5-5) with adaptive thinking and effort high.
+- **Output ceilings:** 64000 tokens for the Author, 16000 for every other role.
+- **Spend guard:** before each call, the orchestrator refuses it if the spend so far plus the call's estimate would pass the ceiling.
+
+### Anti-hardcoding audit (Rabbit Hole requirement, 2026-10-06)
+
+**Audited:**
+- the Motion production code: every non-test module in `motion/`, `motion/service/`, `src/motion/` and `scripts/motion-orchestrator.mjs`;
+- the shared code it calls: `control-plane/src/source-grounding.js`, `learner-intent.js` and `request-duration.js`, and `web/src/learn-video-label.js`.
+
+**Searched for:**
+- topic and fixture strings: softmax, multinomial, attention, nanoGPT, model.py, flash, logits, dropout, mask, torch, F.softmax, self.;
+- the fixture object ids (score_row, fallback_label, chance_);
+- other domains (photosynthesis, French Revolution, logistic regression, gradient);
+- magic counts, indexes and beat or claim ids;
+- every word list in the validators.
+
+**No topic-specific product logic found.** What remains, and why it stays:
+- **Comments:**
+  - `author-check.js:73` and `author.js:88` (dropout, softmax): an example in a comment;
+  - `contracts.js:55`: why the generic model-ID pattern needs a version after `gpt-`;
+  - `director.js:175` and `storyboard-check.js:67, 111, 120`: examples of the generic code-name parsing.
+- **Model-facing text:**
+  - `contracts.js:215` and `storyboard.js:40` show example ids in a validation message and a tool-schema description;
+  - `storyboard.js:85-95` (STORYBOARD_EXAMPLES) are few-shot prompt examples;
+  - `hf-author.js` examples are prompt examples, and a test already checks they carry no topic facts.
+- **Development harness:**
+  - `scripts/motion-orchestrator.mjs:75`: the `--stub` stand-in returns the softmax brief fixture for UI checks without a model call;
+  - `pipeline.mjs`: the default `source = fixtureSource()` is the pinned nanoGPT corpus the V1 spec authorizes. The source is a parameter, and `groundTarget` grounds any source;
+  - `--plan` reuses an accepted brief and storyboard keyed by request text, only when the flag is given.
+- **Word lists:** `GENERIC`, `CODE_GENERIC`, `CONDITION_WORDS` and `CSS_WORDS` hold function words, language builtins, container APIs and CSS keywords. None names a topic, model or library.
+- **Fixed numbers:**
+  - 2-8 beats, label limits and the fixed 1920x1080/30 fps stage are spec limits;
+  - B/C/S/K ids are schema formats, and 15 s in `stub-child.mjs` is a test double.
+- **Derived from the inputs:** branch conditions, step order, object inventories, labels and on-screen text all come from the brief and storyboard (`briefFacts`, `requiredText`, `storyboardObjects`).
+
+**Removed or generalized:** nothing; no hardcoding was found to remove.
+
+**Regression `anti-hardcoding.test.mjs`** runs on two topics per renderer:
+- **Topics:** Remotion with softmax in attention and GPT.generate; HyperFrames with softmax and multinomial. All are model-generated compositions under their own brief and storyboard, through the same gates with no code change.
+- **Each case passes unedited,** and passes after these changes:
+  - every object id renamed to an opaque `item_N` in reverse order;
+  - each beat's objects reordered;
+  - one label changed in both the storyboard and the composition.
+- **Inconsistent changes are refused,** by errors that name the new ids and the new label, because the gates read them from the inputs.
+- **repair-contract.test.mjs** covers changing the object count (one added, one removed) for both renderers.
+
 ## M8 — benchmark and end-to-end development demonstration
 
 Run the §9.6 benchmark on the same briefs and storyboards for both renderers, then pass all §27 demos through the full pipeline with human review. Choose the default renderer and routing from the results; keep both adapters. Deliver the required report.
