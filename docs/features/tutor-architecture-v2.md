@@ -120,11 +120,16 @@ Implemented with free/scripted tests only; no paid call. Checkpoints (pushed, no
 
 ### D2. Fast tier vs Opus replacement
 
-`planTurn` holds a fast-tier sentence until the fast plan is complete, strictly parsed and passes
-`fastPlanProblem`; only then is it released (telemetry `first_sentence_ms` = release, `sentence_written_ms`
-= when the fast model wrote it). An invalid or escalated fast plan speaks nothing; Opus re-plans and its
-own first sentence streams under the same rules. No speculative speech, no rollback. `bench.spoken` now
-carries `action` and `tier`, and `consistent` checks the whole validated reply (text actions in order).
+`planTurn` holds a fast-tier sentence until the fast plan's actions are complete in the stream and pass
+`fastPlanProblem` (Professor Next Steps: `move`, `reason` and `reason_codes` are written after the actions,
+so they never hold it; a plan with nothing after its actions releases at its end). Only then is it released
+(telemetry `first_sentence_ms` = release, `sentence_written_ms` = when the fast model wrote it). The released
+head stands: its actions and `explicit_request` are the plan's, whatever the remainder repeats; the
+remainder adds only its own fields, and if it is cut, unparsable or lost the plan keeps the spoken actions
+with `reason` and `reason_codes` null and telemetry `tail_lost`. An invalid or escalated fast plan speaks
+nothing; Opus re-plans and its own first sentence streams under the same rules. No speculative speech, no
+rollback. `bench.spoken` now carries `action` and `tier`, and `consistent` checks the whole validated reply
+(text actions in order).
 
 ### D3. Models
 

@@ -309,10 +309,15 @@ async function planOnce(env, context, model, effort, { callModel = loggedModel('
   // An array or object sent as a JSON string is parsed once by the tool's schema (tool-input.js); a native plan is
   // returned as it came, so nanoGPT turns are unchanged.
   const input = call?.input && normalizeToolInput(schema, call.input);
-  if (!input || !Array.isArray(input.actions)) {
-    if (spoke) return kept();
-    throw Object.assign(new Error('The tutor returned no turn'), { telemetry: done('invalid') });
+  // After a release the spoken head wins: its actions and explicit_request are the ones that were checked (JSON.parse
+  // keeps the last of a repeated key, so a later copy never replaces them); the full plan adds only its other fields
+  // (move, reason, reason_codes), and a remainder that did not parse adds nothing (kept).
+  if (spoke) {
+    if (!input || typeof input !== 'object') return kept();
+    const { actions, explicit_request, ...rest } = input;
+    return { ...rest, ...normalizeToolInput(schema, spoke), telemetry: done('ok') };
   }
+  if (!input || !Array.isArray(input.actions)) throw Object.assign(new Error('The tutor returned no turn'), { telemetry: done('invalid') });
   return { ...input, telemetry: done('ok') };
 }
 
@@ -378,7 +383,8 @@ export async function planTurn(env, context, deps = {}, documents = []) {
     deps.onSentence(held);
     return true;
   } } : deps;
-  try { first = await planOnce(env, context, fast, fastEffort, hold, documents); problem = fastPlanProblem(first, context); }
+  // A released sentence is never taken back: that plan stands (its head already passed the check).
+  try { first = await planOnce(env, context, fast, fastEffort, hold, documents); problem = releasedMs != null ? null : fastPlanProblem(first, context); }
   catch (error) { first = { telemetry: error.telemetry }; problem = error.message; }
   if (!problem) {
     if (held && releasedMs == null) deps.onSentence(held);

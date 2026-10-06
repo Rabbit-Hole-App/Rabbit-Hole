@@ -185,3 +185,25 @@ test('reason last (e): a fast plan without reason fields releases at its end, as
   assert.equal(turn.telemetry.first_sentence_ms, turn.telemetry.ms, 'released when the plan ended');
   assert.deepEqual(['reason' in turn, 'tail_lost' in turn.telemetry, turn.telemetry.escalated], [false, false, null]);
 });
+
+// Fix round 2: JSON.parse keeps the last of a repeated key. Once a sentence went out on the checked actions, the full plan
+// must not swap them (or explicit_request) for later ones: the spoken head wins, the remainder adds only its own fields.
+test('reason last (f): a key repeated after the release never replaces the spoken plan, never escalates', async () => {
+  const head = (extra = {}) => JSON.stringify({ constraints_add: [], ...extra, strategy: 'none', actions: [{ type: 'respond_text', text: 'Fast and fine. More.' }, { type: 'show_authored_card', card: 'c11-causal-mask' }] }).slice(0, -1);
+  const tail = `,"reason":${JSON.stringify(REASON)},"reason_codes":["respond_to_question"]`;
+  const cases = [
+    ['actions repeated', head(), `${tail},"actions":[{"type":"open_dive","concept":"softmax"}]}`, null],
+    ['explicit_request overwritten', head({ explicit_request: 'show me the mask' }), `${tail},"explicit_request":""}`, 'show me the mask'],
+  ];
+  for (const [name, start, rest, explicit] of cases) {
+    const spoken = [];
+    let calls = 0;
+    const context = explicit ? { ...ROUTINE, learner_intent: { kind: 'request', raw_user_message: 'show me the mask' } } : { ...ROUTINE, allowed_actions: ['respond_text', 'show_authored_card'] };
+    const turn = await planTurn(FAST, context, { onSentence: sentence => spoken.push(sentence.text), callModel: async () => { calls++; return paced(start + rest, HAIKU).response; } });
+    assert.deepEqual([calls, spoken, turn.telemetry.tier, turn.telemetry.escalated], [1, ['Fast and fine.'], 'fast', null], name);
+    assert.deepEqual(turn.actions, JSON.parse(`${start}}`).actions, `${name}: the spoken actions`);
+    assert.ok(turn.actions[0].text.startsWith(spoken[0]), `${name}: the sentence belongs to the returned plan`);
+    assert.equal(turn.explicit_request, explicit ?? undefined, name);
+    assert.deepEqual([turn.reason, turn.reason_codes, 'tail_lost' in turn.telemetry], [REASON, ['respond_to_question'], false], `${name}: the remainder adds its own fields`);
+  }
+});
