@@ -36,6 +36,11 @@ test('root start: a private hole of the viewer\'s, its parent the share link, wi
   assert.ok(!link.parent_app.includes(token));
   const record = JSON.parse(link.dive_json);
   assert.equal(record.created_by, 'shared_start');
+  // A hole from a shared canvas is not a learning journey just because journeys exist (LP1 diveRecord `journey`):
+  // no journey_id or section_id is made up for it, and no journey context rides in its record.
+  assert.equal('journey' in record, false);
+  assert.doesNotMatch(link.dive_json, /journey_id|section_id/);
+  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM learning_journeys').get().n, 0, 'starting a hole starts no journey');
   assert.deepEqual(record.origin.parent, { app: `share:${await shareKey(token)}`, board: 'main' });
   assert.equal(record.origin.origin_block_id, SHARED_ROOT);
   assert.deepEqual(record.source, {
