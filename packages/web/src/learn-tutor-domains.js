@@ -9,6 +9,9 @@ import { journeyDomain } from './learn-journey-domain.js';
 // capabilities: tutor - the Tutor answers there; evidence - where its evidence lives ('session': the browser's tab
 // store); suppliedCourse - the course's lesson ships with the product (LearnPage).
 // ponytail: one supplied lesson module (nanogpt-lesson.js); an entry names its lesson when a second supplied course ships.
+// Eligibility is not readiness: a second non-journey course would still get the nanoGPT planner prompt (agents/learn-tutor.js
+// PLANNER_SYSTEM, chosen when no journey context is sent) and share the tab-wide session store (storeKey(app)); an entry
+// names its prompt and its store key when that course ships.
 export const TUTOR_DOMAINS = [
   { id: 'nanogpt-attention', match: { repo: 'karpathy/nanoGPT', board: TUTOR_BOARD }, domain: NANOGPT, capabilities: { tutor: true, evidence: 'session', suppliedCourse: true } },
 ];

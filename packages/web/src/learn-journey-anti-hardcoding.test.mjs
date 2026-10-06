@@ -264,6 +264,8 @@ test('anti-hardcoding: no nanoGPT repository, board, domain or name comparison i
     /[!=]==\s*['"`][^'"`\n]*nano-?gpt/i, /['"`][^'"`\n]*nano-?gpt[^'"`\n]*['"`]\s*[!=]==/i, /\.(?:includes|startsWith|endsWith)\(\s*['"`][^'"`\n]*nano-?gpt/i, /\/[^/\n]*nano-?gpt[^/\n]*\/[a-z]*\.test\(/i];
   const hits = source => BRANCH.map(pattern => source.match(pattern)?.[0]).filter(Boolean);
   for (const file of SHARED) assert.deepEqual(hits(code(file)), [], file);
+  // Any other comparison form (==, case, includes) with the slice board: the name appears in no shared file except its definition.
+  for (const file of SHARED) assert.equal(code(file).replace(/^export const TUTOR_BOARD = .*$/m, '').match(/TUTOR_BOARD/)?.[0] ?? null, null, file);
   // The registry: its data array carries the entry; everything after it (the resolver) names no course, board or domain.
   const registry = code('./learn-tutor-domains.js');
   const start = registry.indexOf('export const TUTOR_DOMAINS = ['), end = registry.indexOf('\n];', start);

@@ -72,7 +72,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
   // The canonical NanoGPT course is product content, so it ships wherever Rabbit Hole does (VITE_RABBIT_HOLE in
   // production, VITE_COACHING_DEV in dev/review), not only in the dev build; the dev tools stay behind their own gates.
   // Which app is that course is registry data (learn-tutor-domains.js, capabilities.suppliedCourse), never a name here.
-  const suppliedCourse = learnPreview && !!registeredCourse({ app })?.capabilities.suppliedCourse;
+  const suppliedCourse = learnPreview && !!registeredCourse({ app })?.capabilities?.suppliedCourse;
   const nanoProgress = useNanoProgress(app, suppliedCourse);
   const canAuthor = canEditCourse(course.canAuthor, suppliedCourse);
   const [lessonSource, setLessonSource] = useState(null);
