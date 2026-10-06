@@ -2346,6 +2346,28 @@ Runs A and B were the two the owner authorized, under a $2.50 ceiling. The ceili
     - The call record and `transport_retries` carry the configured deadline, the elapsed time and the reason.
   - **Evidence scope:** a subscription proof closes M7A functionally if the automatic pipeline produces a ready video. It does not prove production-exact API or model-role behavior: the CLI's `opus` alias, no per-role effort or thinking settings, and JSON-in-text instead of native tool use.
 
+**M7A automatic proof (2026-10-06, 261c15a1, Claude subscription, no API key).**
+- **Setup:** the local renderer `motion-renderer-1-9ca6185405da`. Every call was served by `subscription/opus` at $0 API, with no transport retry and no schema re-ask.
+- **Free gates passed first:**
+  - Motion suite 147/0 (7 render-gated), `make test-unit` all green;
+  - the 7 `MOTION_RENDER_TESTS=1` tests in isolation (37/37 across both files);
+  - the stand-in Stop/Retry, failure/Retry and full flow with reload and Voice.
+
+| Run | Request | Result | Repairs | Calls (latency) | Total |
+|---|---|---|---|---|---|
+| A | `/motion 15s explain me softmax func` | ready, job 83868ee9, "Softmax: Scores Become Attention Weights" | storyboard 1 (a label echoed a must_not_claim), Author 1 (`storyboard_fidelity`: on_screen_text not visible at beat starts) | brief 25.9 s, storyboard 42.7 + revision 23.2 s, Author 257.8 s, reviews 18.9/11.9 s, Author repair 73.0 s, reviews 14.8/8.7 s | 661.5 s (review and render 311.7 s) |
+| B | `/motion 15s explain multinomial` (GPT.generate) | ready, job f2d91464, "multinomial: rolling the weighted die for the next token" | storyboard 0, Author 1 (visual `clipped_text` on the multinomial call) | brief 18.5 s, storyboard 40.6 s, Author 288.4 s, reviews 19.6/14.8 s, Author repair 73.4 s, reviews 18.3/12.4 s | 651.4 s (review and render 303.8 s) |
+
+- **Both runs:**
+  - the video came out in the same card at 15.06 s and 1920x1080, served from LEARN_MEDIA, and the stored blob is byte-identical to the job's `final.mp4`;
+  - the title came from the brief and the sources are the brief's lines;
+  - reload kept the video and started nothing;
+  - the Tutor board reused the render under Voice;
+  - one render job, no Rabbit Hole and no page errors.
+- **After repair:** only advisory findings remained (small or low-contrast code text after shrinking, a briefly contradicting running total, a ligature, a pointer crossing a label).
+- **Evidence:** Figma ef9SfiemEsPQF2bd8B1os3, node 165:222.
+- **Verdict:** the M7A automatic-success criterion is met functionally. It is not proven for production-exact API and model-role behavior (see the evidence scope above).
+
 **Known limitations.**
 - No automatic run has produced a ready video yet; the next paid runs need an owner GO.
 - Windows renders are authoring evidence (§10.3).

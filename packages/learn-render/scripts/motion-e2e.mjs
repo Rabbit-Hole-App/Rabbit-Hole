@@ -64,7 +64,8 @@ await input.waitFor({ timeout: 60000 });
 await input.click();
 await page.keyboard.type(REQUEST, { delay: 15 });
 await page.keyboard.press('Enter');
-await page.locator('[data-paid-generate]').waitFor({ timeout: 15000 });
+// No proposal: keep what the learner saw instead.
+await page.locator('[data-paid-generate]').waitFor({ timeout: 15000 }).catch(async error => { await shot('1-no-proposal', page); throw error; });
 assert.equal(net.videoStarts + net.artifact, 0, 'nothing starts before Generate');
 await shot('1-proposal', page.locator('[data-slash-result]'));
 await shot('1-proposal-page', page);
