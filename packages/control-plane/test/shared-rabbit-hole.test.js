@@ -44,7 +44,7 @@ test('root start: a private hole of the viewer\'s, its parent the share link, wi
   assert.deepEqual(record.origin.parent, { app: `share:${await shareKey(token)}`, board: 'main' });
   assert.equal(record.origin.origin_block_id, SHARED_ROOT);
   assert.deepEqual(record.source, {
-    resource_id: canvas.name, board: 'main', board_id: record.source.board_id, title: 'nanoGPT attention', creator: { name: 'ana@test', source_owner_verified: false },
+    resource_id: canvas.name, board: 'main', board_id: record.source.board_id, title: 'nanoGPT attention', creator: null,
     share_url: `/b/${token}`, share_key: await shareKey(token), version: 1, updated_at: record.source.updated_at, commit: SHA,
   });
   // The hole's board: one anchor card, nothing of the shared board.

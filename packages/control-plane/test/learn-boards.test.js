@@ -186,8 +186,10 @@ test('forking makes the viewer their own Canvas with a copy of the board, its fi
   const mine = await call('GET', `/api/learn/boards/${forked.body.name}/main`, { as: 'friend' });
   assert.equal(mine.status, 200);
   assert.equal(mine.body.forked_from.resource_id, 'demo-app');
-  assert.equal(mine.body.forked_from.creator.name, 'owner@test');
-  assert.equal(mine.body.forked_from.creator.source_owner_verified, false);
+  // The source's owner is never stored on the fork, least of all their email: the fork's canvas row reads their @handle
+  // by reference (docs/features/user-handles.md).
+  assert.equal(mine.body.forked_from.creator, null);
+  assert.ok(!JSON.stringify(mine.body).includes('owner@test'), 'no source owner email on the fork');
   assert.equal(mine.body.forked_from.share_url, `/b/${links.view}`);
   const notebook = mine.body.state.blocks.find(block => block.type === 'notebook');
   assert.notEqual(notebook.notebook_id, 'nb-original-id', 'a forked notebook gets its own id');

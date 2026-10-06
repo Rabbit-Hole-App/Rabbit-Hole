@@ -1547,9 +1547,37 @@ function ProfilePane({ session, shown, profile, Heading }) {
           <Button type="submit" size="sm" variant="secondary" disabled={busy || name === null || value === (profile?.name ?? '')}>Save</Button>
         </form>
       </SettingsRow>
+      <HandleRow profile={profile} />
       <SettingsRow title="Email" desc="Where sign-in links go"><span className="text-sm text-ink-2">{shown.email || 'Not shared'}</span></SettingsRow>
       <SettingsRow title="Signed in with"><span className="text-sm text-ink-2">{{ google: 'Google', github: 'GitHub', email: 'Email link' }[session?.provider] || 'Unknown'}</span></SettingsRow>
     </>
+  );
+}
+
+// Settings > Profile > Handle (docs/features/user-handles.md): the public @handle, changeable. The server checks the
+// rules and that nobody else has it; every canvas shows the new one at once, because canvases refer to the person.
+function HandleRow({ profile }) {
+  const [draft, setDraft] = useState(null); // null until edited: shows the saved handle
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const value = draft ?? profile?.handle ?? '';
+  const save = async (event) => {
+    event.preventDefault();
+    setBusy(true); setError('');
+    try { await saveProfile({ handle: value }); toast('Handle saved'); setDraft(null); } catch (e) { setError(e.message); }
+    setBusy(false);
+  };
+  return (
+    <SettingsRow title="Handle" desc="Your public name on canvases you share or publish">
+      <form className="flex flex-col items-end gap-1" onSubmit={save}>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-ink-3">@</span>
+          <Input value={value} maxLength={31} spellCheck={false} autoCapitalize="none" onChange={(e) => { setDraft(e.target.value); setError(''); }} className="w-48" aria-label="Handle" />
+          <Button type="submit" size="sm" variant="secondary" disabled={busy || draft === null || value === (profile?.handle ?? '')}>Save</Button>
+        </div>
+        {error && <p data-handle-error role="alert" className="text-xs text-red-700">{error}</p>}
+      </form>
+    </SettingsRow>
   );
 }
 
