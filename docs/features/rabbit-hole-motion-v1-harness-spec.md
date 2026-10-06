@@ -2442,6 +2442,16 @@ At run time, before anything renders, the page inspects itself (`inspectionError
 
 **Card.** The video card names the renderer from the block's provenance ("Remotion" or "HyperFrames"). A pending /motion request names none, because the orchestrator decides.
 
+**Defect found by the first automatic run, and fixed (2026-10-06).**
+- **What happened:** HyperFrames Run A (job 3c2d896c) reached the final stage, then failed `nondeterministic`. Determinism frame 413 differed between the two fresh contexts.
+- **Reproduction:** four fresh contexts showed frames 375 and 413 varying, and only where the composition was mid-animation.
+- **Cause, screenshot capture** (Windows; BeginFrame is Linux-only): Chrome animates transform and opacity on the compositor thread, and the runtime's seek pauses each animation with a pending pause. A capture before the pause settles can show a moment slightly off the frame.
+- **Why the control missed it:** its determinism timestamps fall on held states.
+- **Fix:** `settleAnimations` runs before every screenshot capture: every animation's pause has settled, then two frames. BeginFrame capture already runs with `--deterministic-mode` and no threaded animation.
+- **Regression:** fixture H (motion) uses that run's repaired composition, model-generated and unedited (`softmax-run-a.repaired.hyperframes.html`). Its mid-animation frames 375, 390 and 413 are identical in four fresh contexts.
+- **Same composition through the service:** ready (final, coverage and determinism pass; preview/final mean difference 1.70).
+- **ponytail:** the producer's own final render cannot take this hook. On Windows the final MP4's mid-animation frames may differ from the stills by this jitter; the preview/final comparison bounds it. Windows renders stay authoring evidence (§10.3), and the Linux BeginFrame path is the deterministic one.
+
 ## M8 — benchmark and end-to-end development demonstration
 
 Run the §9.6 benchmark on the same briefs and storyboards for both renderers, then pass all §27 demos through the full pipeline with human review. Choose the default renderer and routing from the results; keep both adapters. Deliver the required report.

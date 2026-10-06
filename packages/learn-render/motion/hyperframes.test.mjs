@@ -204,3 +204,20 @@ test('J (run time): an animation that ends after the duration fails before anyth
   assert.deepEqual(safety(late), [], 'statically valid');
   await assert.rejects(r.prepare({ id: 'late', dir: scratch(), brief, storyboard, source: late }), /animation matmul on matmul_node ends at 16\.00 s, after the 15 s duration/);
 });
+
+// H (motion), M7B Run A (2026-10-06): the control samples held states, so it missed this. A
+// model-generated composition (the first automatic HyperFrames run's repaired output, unedited) has
+// frames mid-animation at determinism timestamps; in screenshot capture they differed between
+// fresh contexts until each capture waited for the seek's pending pauses (settleAnimations).
+test('H (motion): mid-animation frames of a model-generated composition are identical in four fresh contexts', { skip: real, timeout: 10 * 60 * 1000 }, async t => {
+  const source = readFileSync(join(FIX, 'm7b/softmax-run-a.repaired.hyperframes.html'), 'utf8');
+  const plan = json('m7b/plan-softmax.json');
+  const frames = [375, 390, 413];
+  const runs = [];
+  for (let k = 0; k < 4; k++) {
+    const r = await withRenderer(t);
+    runs.push((await r.renderStills({ id: `h${k}`, dir: scratch(), brief: plan.brief, storyboard: plan.storyboard, source }, frames)).map(s => s.pixels_sha256));
+    await r.close();
+  }
+  frames.forEach((f, i) => assert.equal(new Set(runs.map(h => h[i])).size, 1, `#${f}: ${runs.map(h => h[i].slice(0, 8)).join(' ')}`));
+});

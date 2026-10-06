@@ -77,6 +77,14 @@ function inspectPage() {
   return { root: { width: r.width, height: r.height }, animations, faces, check: document.fonts.check('400 32px "JetBrains Mono"') };
 }
 
+// Before a screenshot capture: every animation's pending pause has taken effect, two frames later.
+export async function settleAnimations(page) {
+  await page.evaluate(async () => {
+    await Promise.all(document.getAnimations().map(a => a.ready.catch(() => {})));
+    await new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done)));
+  });
+}
+
 export function inspectionErrors(page, durationSeconds) {
   const e = [];
   if (page.root.width !== STAGE.width || page.root.height !== STAGE.height) e.push(`the root is ${page.root.width}x${page.root.height}; it must be ${STAGE.width}x${STAGE.height}`);
@@ -152,6 +160,13 @@ export class HyperFramesRenderer extends MotionRendererBase {
     const out = mkdtempSync(join(tmpdir(), 'motion-hf-capture-'));
     const s = await this.time(`session@${scale}`, () => createCaptureSession(this.server.url, out, { width: STAGE.width, height: STAGE.height, fps: FPS, format: 'png', deviceScaleFactor: scale }, null, this.config()));
     s.page.on('console', m => { this.browserLogs.push(`${m.type()}: ${m.text()}`.slice(0, 2000)); if (this.browserLogs.length > 200) this.browserLogs.shift(); });
+    // In screenshot capture (Windows, macOS, a Linux run without BeginFrame) Chrome animates transform
+    // and opacity on the compositor thread, and the runtime's seek pauses each animation with a
+    // pending pause: a capture before it settles can show a moment slightly off the frame (M7B Run A,
+    // frames 375 and 413 differed between fresh contexts). Each capture waits for every pause to
+    // settle and two frames. BeginFrame capture (Linux headless shell) drives frames itself under
+    // --deterministic-mode with no threaded animation, so it needs no wait.
+    if (s.captureMode !== 'beginframe') s.onBeforeCapture = settleAnimations;
     await initializeSession(s);
     this.sessions.set(scale, { session: s, out });
     if (!this.inspected) {
