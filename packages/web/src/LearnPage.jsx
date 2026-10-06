@@ -638,7 +638,9 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
         try { localStorage.setItem(boardStorageKey, JSON.stringify(state)); localStorage.setItem(versionKey, String(data.version)); } catch { /* keep the local copy */ }
         if (Array.isArray(chats)) setExchanges(chats);
         setCanvasEpoch(epoch => epoch + 1);
-        toast(data.forked_from ? `Your fork of ${data.forked_from.title} is ready. It is yours to edit.` : 'You are seeing the latest saved version of this board.');
+        // A Rabbit Hole just started from a shared canvas opens on its one anchor card (docs/features/shared-canvas-rabbit-hole.md).
+        const startedFromShare = data.version === 1 && data.state?.blocks?.[0]?.anchor?.source === 'shared';
+        toast(data.forked_from ? `Your fork of ${data.forked_from.title} is ready. It is yours to edit.` : startedFromShare ? 'Your Rabbit Hole is ready. It is private to you.' : 'You are seeing the latest saved version of this board.');
       }
     }).catch(error => { if (live) setSharing(error.status === 404 ? (error.data?.sharing || { shared: false }) : { unavailable: error.message }); });
     return () => { live = false; };

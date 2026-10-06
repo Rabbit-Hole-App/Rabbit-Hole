@@ -1220,7 +1220,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // move or delete together.
   const [selection, setSelection] = useState([]);
   const selected = selection.length === 1 ? selection[0] : null; // single-target affordances
-  const isSelected = id => selection.includes(id);
+  // A view-only board keeps a selection (the card a Rabbit Hole starts from) but no card chrome for it: no pills,
+  // handles or ports; one plain ring is drawn over the selected card instead (data-view-selection).
+  const isSelected = id => !readOnly && selection.includes(id);
   const setSelected = value => setSelection(value == null ? [] : [value]);
   // Selecting on the canvas takes the keyboard away from the composer so
   // Delete acts on the selection; editable notes keep their own focus.
@@ -2681,6 +2683,19 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       return;
     }
     if (event.button !== 0) return;
+    // A view-only board (a shared link) pans with the hand, and a click that does not pan selects the card under it,
+    // so a viewer can start a Rabbit Hole from that card (docs/features/shared-canvas-rabbit-hole.md). Nothing else
+    // of selection is offered there: no pills, no handles, no keys.
+    if (tool === 'hand' && readOnly) {
+      const at = local(event);
+      // ponytail: lesson cards only (what onState reports as the card); a chat card on a shared board is not an origin yet.
+      const hit = Object.entries(boundsRef.current).find(([id, box]) => blocksRef.current.some(block => block.id === id) && at.x >= box.x && at.x <= box.x + box.w && at.y >= box.y && at.y <= box.y + box.h)?.[0] || null;
+      let moved = false;
+      const apply = (x, y) => { moved = true; setView(v => ({ ...v, x, y })); };
+      apply.done = () => { if (!moved) setSelection(hit ? [hit] : []); };
+      startDrag(event, { x: view.x, y: view.y }, apply);
+      return;
+    }
     if (tool === 'hand') { pan(event); return; }
     if (event.target.closest('[data-block],[role="toolbar"],[data-zoom]')) return;
     if (drawGesture(event, canvasStore)) return;
@@ -3103,6 +3118,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             {columnEntries(blocks, slots).map(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} />)}
           </SketchHost.Provider>
         </div>
+        {readOnly && selected && bounds[selected] && (
+          <div data-view-selection={selected} aria-hidden="true" style={{ left: bounds[selected].x - 3, top: bounds[selected].y - 3, width: bounds[selected].w + 6, height: bounds[selected].h + 6 }}
+            className="pointer-events-none absolute z-20 rounded-[14px] ring-2 ring-[#2383e2]" />
+        )}
         {/* The gap near the pointer shows its dotted line and [-] [+] [...] at the far left. */}
         {presenting === null && !readOnly && gaps.filter(gap => gap.index === hoverGap).map(gap => (
           <GapRail key={gap.index} gap={gap} zoom={view.z} span={railSpan}
