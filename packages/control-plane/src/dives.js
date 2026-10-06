@@ -59,6 +59,13 @@ export async function divesFetch(req, env, user) {
     // No depth cap: the walk ends at the root; `seen` only guards a corrupted cycle.
     while (link && !seen.has(link.parent_app)) {
       seen.add(link.parent_app);
+      // A hole started from a shared canvas (learn-boards.js startRabbitHole): its parent is the share link, a
+      // view-only level named from the hole's own record. It is the root; the walk never reads the sharer's rows.
+      if (link.parent_app.startsWith('share:')) {
+        const source = JSON.parse(link.dive_json).source || {};
+        path.unshift({ app: link.parent_app, board: link.parent_board, title: source.title || 'Shared canvas', kind: 'shared', href: source.share_url || null, origin_block_id: link.origin_block_id });
+        break;
+      }
       const parent = await level(db, user, link.parent_app, link.parent_board);
       if (!parent) break;
       path.unshift({ ...parent, origin_block_id: link.origin_block_id });

@@ -44,9 +44,10 @@ export async function canvasAccess(req, env, name, pending = null) {
 }
 // The caller's own canvases only (owner-only in phase 1, section 8.2). Nested Rabbit Holes are left
 // out: they belong to their root's tree and open through its navigator and portals (dives.js), never
-// as top-level canvases in Home, Library or Search. They still open directly by their URL.
+// as top-level canvases in Home, Library or Search. They still open directly by their URL. A hole started
+// from someone's shared canvas (parent `share:...`) is a root of the viewer's own, so it is listed.
 export async function ownerCanvases(env, user, archived = false) {
-  const { results } = await env.LEARN_DB.prepare(`${CANVAS_ROW} WHERE c.org=? AND c.owner_email=? AND c.archived_at IS ${archived ? 'NOT ' : ''}NULL AND c.name NOT IN (SELECT child FROM canvas_dives WHERE org=? AND owner_email=?) ORDER BY c.created_at DESC, c.id DESC`).bind(user.org, user.email, user.org, user.email).all();
+  const { results } = await env.LEARN_DB.prepare(`${CANVAS_ROW} WHERE c.org=? AND c.owner_email=? AND c.archived_at IS ${archived ? 'NOT ' : ''}NULL AND c.name NOT IN (SELECT child FROM canvas_dives WHERE org=? AND owner_email=? AND parent_app NOT LIKE 'share:%') ORDER BY c.created_at DESC, c.id DESC`).bind(user.org, user.email, user.org, user.email).all();
   return results.map(row => canvasApp(row, user));
 }
 

@@ -1,0 +1,59 @@
+// Start Rabbit Hole on a shared canvas (docs/features/shared-canvas-rabbit-hole.md): the origin sent, the sign-in round
+// trip, the call - and a gate that the implementation names no particular board, lesson, card type or share.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { rabbitOrigin, requestRabbitHole, resumeHref, takeResume } from './shared-rabbit-hole.js';
+
+test('the origin is the selected card\'s identities, or null for the canvas itself', () => {
+  assert.equal(rabbitOrigin({ blocks: [] }, null), null);
+  const state = { blocks: [{ id: 'k1', type: 'quiz', question: 'Why does salt melt ice?' }], exchanges: [{ id: 'c1', question: 'Why?' }] };
+  assert.deepEqual(rabbitOrigin(state, 'k1'), { block_id: 'k1', scene_id: null, card_id: null, part_id: null, concept_ids: [], selected_object: null, depth: null });
+  assert.equal(rabbitOrigin(state, 'c1').block_id, 'c1', 'a chat card is a card too');
+  // An interactive card's runtime identities come from the same resolver /dive uses.
+  const scene = { id: 'any-scene', objects: [{ id: 'o1', conceptId: 'freezing-point' }] };
+  assert.deepEqual(rabbitOrigin({ blocks: [{ id: 's1', type: 'scene', scene, selectedObject: 'o1' }] }, 's1'), { block_id: 's1', scene_id: 'any-scene', card_id: null, part_id: null, concept_ids: ['freezing-point'], selected_object: 'o1', depth: null });
+  assert.equal(rabbitOrigin(state, 'gone').block_id, 'gone', 'an unknown card is still named; the server refuses it');
+  // The card is named as every canvas surface describes it, kind first; a card the describer cannot name is left to the server.
+  const describe = block => (block.type === 'quiz' ? { kind: 'Quiz', title: block.question } : null);
+  assert.equal(rabbitOrigin(state, 'k1', describe).title, 'Quiz: Why does salt melt ice?');
+  assert.equal('title' in rabbitOrigin(state, 'c1', describe), false);
+  assert.equal('title' in rabbitOrigin(state, 'k1', () => { throw new Error('unknown'); }), false);
+});
+
+test('signed out: the existing sign-in, back to this page with the origin, read once and dropped from the address', () => {
+  assert.equal(resumeHref('/b/abc', 'k1'), `/login?next=${encodeURIComponent('/b/abc?rabbit=k1')}`);
+  assert.equal(resumeHref('/b/abc', null), `/login?next=${encodeURIComponent('/b/abc?rabbit=root')}`);
+  const replaced = [];
+  const history = { replaceState: (_s, _t, url) => replaced.push(url) };
+  assert.equal(takeResume({ search: '?rabbit=k1', pathname: '/b/abc' }, history), 'k1');
+  assert.equal(takeResume({ search: '?rabbit=root', pathname: '/b/abc' }, history), null);
+  assert.equal(takeResume({ search: '', pathname: '/b/abc' }, history), undefined);
+  assert.deepEqual(replaced, ['/b/abc', '/b/abc']);
+});
+
+test('the call: one POST to the share\'s own route; sign-in, the hole to open, or the server\'s reason', async () => {
+  const sent = [];
+  const reply = (status, body) => async (url, init) => { sent.push({ url, init }); return Response.json(body, { status }); };
+  assert.deepEqual(await requestRabbitHole('t/k', null, { fetchImpl: reply(201, { url: '/apps/canvas-0000abcd' }) }), { url: '/apps/canvas-0000abcd', existing: false });
+  assert.equal(sent[0].url, '/api/learn/boards/shared/t%2Fk/rabbit-hole');
+  assert.equal(sent[0].init.method, 'POST');
+  assert.deepEqual(JSON.parse(sent[0].init.body), { origin: null });
+  assert.deepEqual(await requestRabbitHole('t', { block_id: 'k1' }, { fetchImpl: reply(200, { url: '/apps/canvas-0000abcd', existing: true }) }), { url: '/apps/canvas-0000abcd', existing: true });
+  assert.deepEqual(await requestRabbitHole('t', null, { fetchImpl: reply(401, { signIn: true }) }), { signIn: true });
+  await assert.rejects(requestRabbitHole('t', { block_id: 'x' }, { fetchImpl: reply(404, { error: 'That card is not on this shared canvas.' }) }), /not on this shared canvas/);
+});
+
+// Anti-hardcoding: the start is generic Shared Canvas behaviour. Its code names no lesson, topic, card type, board
+// or fixture, on either side.
+test('the implementation special-cases no board, lesson, topic, card type or share', () => {
+  const server = readFileSync(new URL('../../control-plane/src/learn-boards.js', import.meta.url), 'utf8');
+  const route = server.slice(server.indexOf('// Start Rabbit Hole'), server.indexOf('// The owner of a board'));
+  const client = readFileSync(new URL('./shared-rabbit-hole.js', import.meta.url), 'utf8');
+  const page = readFileSync(new URL('./SharedBoardPage.jsx', import.meta.url), 'utf8');
+  const button = page.slice(page.indexOf('function StartRabbitHole'), page.indexOf('const SOURCE_ICON'));
+  assert.ok(route.length > 1000 && button.length > 300, 'found the code under test');
+  for (const [name, code] of [['server route', route], ['client', client], ['button', button]]) {
+    assert.doesNotMatch(code, /nano ?gpt|karpathy|attention|softmax|token id|deep-dive|board=|\b(quiz|challenge|flashcards|scene|video|wiki|paper|notebook)\b'|['"](quiz|challenge|flashcards|video|wiki|paper)['"]/i, name);
+  }
+});

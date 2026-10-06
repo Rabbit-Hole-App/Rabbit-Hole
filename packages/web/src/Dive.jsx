@@ -159,13 +159,15 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
     return () => clearInterval(timer);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // A level of the tree: in this app, or - a shared canvas a hole began from - its share page, a page of its own.
+  const go = level => (level.href ? window.location.assign(level.href) : navigate(levelHref(level)));
   // Up to an ancestor: the level just above gets the exact return point, higher ones their card.
   const climb = index => {
     const { path, dive: record } = treeRef.current, target = path[index];
     setReturn(sessionStorage, index === path.length - 2 && record?.return_point
       ? { app: target.app, board: target.board, ...record.return_point }
       : { app: target.app, board: target.board, block_id: target.origin_block_id });
-    navigate(levelHref(target));
+    go(target);
   };
 
   const rename = async (level, value) => {
@@ -210,7 +212,7 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
       const { deleted } = await api(`/api/canvases/dives/${level.app}${descendants.length ? '?subtree=1' : ''}`, { method: 'DELETE' });
       for (const name of deleted) discardHole({ session: sessionStorage, local: localStorage, base: baseFor(name), name });
       const path = treeRef.current.path, at = path.findIndex(entry => deleted.includes(entry.app));
-      if (at > 0) navigate(levelHref(path[at - 1])); else load();
+      if (at > 0) go(path[at - 1]); else load();
     } catch (failure) {
       if (failure.status === 409 && failure.data?.descendants) setConfirm({ level, descendants: failure.data.descendants });
       else setError(`Not deleted: ${failure.message}`);
@@ -273,7 +275,7 @@ function Name({ level, className, onOpen, onRename, active = false }) {
     className="w-full rounded-sm border border-line bg-white px-1 py-0.5 text-center text-[11px] text-ink outline-none focus:border-[#b42318]/50" />;
   const renamable = level.kind === 'canvas';
   // One line, never wrapped: the full name is in the tooltip.
-  return <Tip label={level.title} info={renamable ? 'Double-click to rename' : null} align="end">
+  return <Tip label={level.title} info={renamable ? 'Double-click to rename' : level.kind === 'shared' ? 'Shared canvas this hole started from (view only)' : null} align="end">
     <button type="button" data-dive-level={level.app} onClick={onOpen} onDoubleClick={renamable ? () => setDraft(level.title) : undefined}
       className={`block max-w-full truncate rounded-sm py-0.5 ${active ? 'bg-[#b42318] px-1.5 text-white' : 'px-0.5 hover:bg-hover'} ${className}`}>{level.title}</button>
   </Tip>;

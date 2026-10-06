@@ -1,7 +1,11 @@
-import { Suspense, lazy, useEffect, useRef, useState } from 'react';
-import { BookOpen, Eye, FileText, FolderGit2, Loader2, Lock, Minus, Play } from 'lucide-react';
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
+import { ArrowDownToLine, BookOpen, Eye, FileText, FolderGit2, Loader2, Lock, Minus, Play } from 'lucide-react';
 import { setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
 import ForkButton from './ForkButton.jsx';
+import { Button, toast } from './ui.jsx';
+import { wsHeaders } from './api.js';
+import { rabbitOrigin, requestRabbitHole, resumeHref, takeResume } from './shared-rabbit-hole.js';
+import { describeBlock } from './LearningBlocks.jsx';
 import { forkLabel } from './home/provenance.js';
 import { Forks } from './home/Provenance.jsx';
 import { PRODUCT } from './flags.js';
@@ -33,6 +37,11 @@ export default function SharedBoardPage({ token }) {
     window.history.replaceState(null, '', window.location.pathname);
     return takeDraft(token);
   });
+  // Back from signing in to start a Rabbit Hole (?rabbit=<card | root>): it finishes from the same origin.
+  const [rabbitRequested] = useState(() => takeResume(window.location, window.history));
+  // The selected card (a click on a view-only board selects it): where Start Rabbit Hole begins.
+  const [card, setCard] = useState(null);
+  const onCanvasState = useCallback(state => setCard(state.card || null), []);
 
   // The board's files and notebook workspaces come through the same link;
   // notebooks open as the board's latest copy, in a workspace of their own.
@@ -83,15 +92,43 @@ export default function SharedBoardPage({ token }) {
         <span className="truncate text-xs text-ink-3">Shared by {shared.owner}</span>
         <span className="flex-1" />
         <Forks m={{ forks: forkLabel(shared.fork_count) }} />
+        <StartRabbitHole token={token} state={shared.state} card={card} resume={rabbitRequested} />
         <ForkButton source={{ token }} auto={forkRequested} onForked={fork => { window.location.href = fork.url; }} />
       </header>
       <div className="relative min-h-0 flex-1" aria-label="Lesson canvas">
         <Suspense fallback={null}>
-          <AdaptiveCanvas exchanges={exchanges} onMove={() => {}} appName={shared.app} boardState={board} readOnly
+          <AdaptiveCanvas exchanges={exchanges} onMove={() => {}} appName={shared.app} boardState={board} readOnly onState={onCanvasState}
             composer={<SharedAsk token={token} viewer={shared.viewer} context={shared.context} draft={askDraft} />} />
         </Suspense>
       </div>
     </main>
+  );
+}
+
+// Start Rabbit Hole (docs/features/shared-canvas-rabbit-hole.md): the viewer's own private Rabbit Hole from this
+// canvas - from the selected card, else from the canvas itself. Never a fork and never a change to this board; Fork
+// stays beside it. Signed out, it goes through the existing sign-in and finishes on return (`resume`).
+function StartRabbitHole({ token, state, card, resume }) {
+  const [busy, setBusy] = useState(false);
+  const flight = useRef(false);
+  const run = async cardId => {
+    if (flight.current) return; // a double click is one start
+    flight.current = true; setBusy(true);
+    try {
+      // The card names the hole as every canvas surface describes it (describeBlock), kind first: "Quiz: ...".
+      const made = await requestRabbitHole(token, rabbitOrigin(state, cardId, describeBlock), { headers: wsHeaders() });
+      window.location.href = made.signIn ? resumeHref(window.location.pathname, cardId) : made.url;
+    } catch (error) {
+      toast(error.message, { tone: 'error' });
+      flight.current = false; setBusy(false);
+    }
+  };
+  useEffect(() => { if (resume !== undefined) run(resume); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <Button type="button" variant="primary" data-start-rabbit-hole data-origin={card?.id || 'root'} aria-busy={busy} onClick={() => run(card?.id || null)}
+      title={card ? `Start your own private Rabbit Hole from "${card.title}". This canvas stays as it is.` : 'Start your own private Rabbit Hole from this canvas. This canvas stays as it is.'}>
+      {busy ? <Loader2 size={13} className="animate-spin" /> : <ArrowDownToLine size={13} strokeWidth={1.8} />}Start Rabbit Hole
+    </Button>
   );
 }
 

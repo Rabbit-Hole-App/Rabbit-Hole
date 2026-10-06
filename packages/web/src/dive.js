@@ -9,8 +9,10 @@ const RETURN = 'small.dive.return';
 // Same shape as the server's canvas slugs, so the hole's local keys never move when it persists.
 export const newHoleName = () => `canvas-${crypto.randomUUID().replace(/-/g, '').slice(0, 8)}`;
 
-// A level's URL: a canvas, or a repository project's Learn tab; a named board rides ?board=.
-export function levelHref({ app, board = 'main' }) {
+// A level's URL: a canvas, or a repository project's Learn tab; a named board rides ?board=. A shared canvas a hole
+// was started from (docs/features/shared-canvas-rabbit-hole.md) is its share link, view only.
+export function levelHref({ app, board = 'main', href = null }) {
+  if (href) return href;
   const query = new URLSearchParams(app.startsWith('repo-') ? { tab: 'learn' } : {});
   if (board !== 'main') query.set('board', board);
   const search = query.toString();
