@@ -338,8 +338,8 @@ export function pathOutput(out, { prev = null, registry, source, evidence_refs =
   if (!isObj(p)) return verdict([...errors, 'the reply has no path']);
   const change = isObj(p.change) ? p.change : {}, changed = change.sections_changed ?? [];
   if (!str(p.goal, 300) || !str(p.target_topic, 300)) errors.push('goal and target_topic must be 1-300 characters');
-  if (!str(change.reason, 300)) errors.push('change.reason must be 1-300 characters');
-  if (change.learner_note != null && !str(change.learner_note, 300)) errors.push('change.learner_note must be 1-300 characters');
+  if (!str(change.reason, REASON_MAX)) errors.push(`change.reason must be 1-${REASON_MAX} characters`);
+  if (change.learner_note != null && !str(change.learner_note, NOTE_MAX)) errors.push(`change.learner_note must be 1-${NOTE_MAX} characters`);
   if (!Array.isArray(changed) || changed.some(c => !str(c?.id, 120) || !CHANGE_OPS.includes(c?.op))) errors.push(`change.sections_changed must be a list of { id, op: ${CHANGE_OPS.join(' | ')} }`);
   const path = {
     version: (prev?.version ?? 0) + 1, goal: p.goal, target_topic: p.target_topic,
