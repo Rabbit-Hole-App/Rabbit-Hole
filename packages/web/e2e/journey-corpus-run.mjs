@@ -35,7 +35,7 @@ import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
 import { anthropic } from '../../control-plane/src/ask.js';
 import { LEARN_TASKS } from '../../control-plane/src/learn-models.js';
-import { JOURNEY_TOOLS, pathOutput } from '../../control-plane/src/agents/learn-journey.js';
+import { JOURNEY_TOOLS, LEARNER_LABELS, pathOutput } from '../../control-plane/src/agents/learn-journey.js';
 import { PLANNER_SYSTEM, TUTOR_TOOL, plannerSystem } from '../../control-plane/src/agents/learn-tutor.js';
 import { PlannerInvalid, adaptPath, planDiagnostic, planPath, planSection, resolveWithModel } from '../../control-plane/src/learn-journey-planners.js';
 import { fixtureModel } from '../../control-plane/src/learn-journey-fixtures.js';
@@ -271,22 +271,18 @@ async function callModel(env, body, model, org) {
 const check = (pass, reason) => ({ pass: !!pass, reason });
 const cut300 = text => String(text).slice(0, 300);
 const why = e => cut300(e instanceof PlannerInvalid ? `PlannerInvalid (${e.role}): ${e.errors.join('; ')}` : `${e.name}: ${e.message}`);
-// No mastery, fixed learner level or permanent ability label anywhere the learner reads. LEVEL_WORDS is
-// agents/learn-journey.js's (not exported). Percentages: any in change.reason and learner_note (the evidence wording); in
+// No mastery, fixed learner level or permanent ability label anywhere the learner reads. The list is
+// LEARNER_LABELS in agents/learn-journey.js (shared with the hook validator). Percentages: any in change.reason and learner_note (the evidence wording); in
 // the Tutor's words only near "you" or "your" (about the learner), so teaching content ("98% of the population") passes;
 // none in adaptation_reason or section content, where "halves the range, 50%" is teaching.
 // ponytail: a short list of label patterns; extend it when a real plan slips a label past it.
-const LEVEL_WORDS = /\bmaster(?:ed|y)\b|\b(?:beginner|intermediate|advanced|expert)[ -](?:level|learner)\b/i;
-const LABELS = [LEVEL_WORDS, /\bmaster(ed|y)\b/i, /\b(?:novice|beginner|intermediate|advanced|expert) (?:student|learner|level)\b/i,
-  /\byou(?:'re| are) (?:a |an )?(?:beginner|novice|intermediate|expert|natural)\b/i, /\byou(?:'re| are) (?:just )?(?:good|bad|great|terrible|hopeless) at\b/i,
-  /\b(?:not an? (?:math|maths|science|coding|programming|history) person|naturally gifted|gifted learner|slow learner|fast learner|quick learner)\b/i];
 const YOU = String.raw`\byou(?:r|rs|rself|'re|'ve|'ll)?\b`;
 const ANY_PERCENT = t => /\d+\s*%/.test(t), NO_PERCENT = () => false;
 // "you" and the percentage in one clause: "you got 80%", "75% of your answers"; not "1% of light; can you guess why?".
 const LEARNER_PERCENT = t => new RegExp(`${YOU}[^.!?;:,]{0,40}?\\d+\\s*%|\\d+\\s*%[^.!?;:,]{0,40}?${YOU}`, 'i').test(t);
 // items: [text, percentage rule] pairs.
 const wording = items => {
-  const bad = items.filter(([t, percent]) => typeof t === 'string' && (LABELS.some(re => re.test(t)) || percent(t))).map(([t]) => t);
+  const bad = items.filter(([t, percent]) => typeof t === 'string' && (LEARNER_LABELS.some(re => re.test(t)) || percent(t))).map(([t]) => t);
   return check(!bad.length, bad.length ? `mastery, level or ability label, or a percentage the rule forbids: ${bad.map(t => t.slice(0, 160)).join(' | ')}` : `${items.filter(([t]) => t).length} texts clean`);
 };
 const pathWording = raw => wording([[raw?.path?.change?.reason, ANY_PERCENT], [raw?.path?.change?.learner_note, ANY_PERCENT], ...(raw?.path?.sections || []).map(s => [s?.adaptation_reason, NO_PERCENT])]);
