@@ -19,3 +19,8 @@ The results and the two prompt fixes they led to (66005c2c) are summarized in `d
   - Passed: photosynthesis adapt_edit ("make it shorter": 6 -> 5 sections, 30 -> 26 minutes, s1 byte-identical) and adapt_evidence (s7 added, future only).
   - The photosynthesis Tutor turn (Opus via the CLI) returned valid JSON but named the tool "tool_use" instead of the Tutor tool. The bridge's existing tool-name check refused it (diagnostic bbe85eb3), so the run stopped as instructed, with no retry.
   - `subscription-bridge-diagnostics-all.jsonl` holds both preserved diagnostics.
+- `api-targeted2-*`: the API targeted run after the credit top-up (2026-10-06), on the production path with exact model ids. It was stopped by the controller after 10 calls ($0.3614) when newer owner instructions arrived.
+  - Two outputs failed product validators:
+    - photosynthesis section (claude-sonnet-5-5): `teaching_sequence` came back as a string, not an array. The check trigger then pointed at a step that did not exist.
+    - photosynthesis adapt_evidence: journey_adapt (claude-sonnet-5-5) returned `path` as a string; the validator rejected it and the route escalated to journey_path (claude-opus-5-5). The escalated output had a `change.reason` of 355 characters, over the 300 limit.
+  - Every other stage that ran passed.
