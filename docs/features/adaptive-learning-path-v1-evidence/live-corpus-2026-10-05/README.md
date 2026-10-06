@@ -12,3 +12,6 @@ The results and the two prompt fixes they led to (66005c2c) are summarized in `d
 - `subscription-targeted-*`: the same targeted plan through the owner's Claude Max subscription via `scripts/learn-subscription-bridge.mjs` (GO SUBSCRIPTION), at e9c13062.
   - The bridge emulates tool use in the system prompt. Effort, max_tokens and caching are not applied, and only the model alias (opus/sonnet) is reported. Not production-exact API evidence.
   - Results: logistic-regression section, photosynthesis path and photosynthesis section passed. The run stopped at photosynthesis adapt_edit, where the bridge returned HTTP 503 "Invalid subscription model response". It was not retried.
+- `subscription-resume-*`: the single resume through the subscription bridge at baca6935 (owner GO, 2026-10-06). It covered photosynthesis from adapt_edit and the French Revolution from path.
+  - Photosynthesis adapt_edit failed bridge parsing again, so the run stopped as instructed, with no retry.
+  - The preserved diagnostic (`subscription-resume-bridge-diagnostic.jsonl`) shows that Sonnet, through the CLI, answered with tool-call markup (`<invoke name="journey_adapt"><parameter ...>`) instead of the JSON object the bridge requires. Termination was success/end_turn.
