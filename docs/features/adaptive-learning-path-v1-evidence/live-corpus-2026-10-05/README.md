@@ -24,3 +24,4 @@ The results and the two prompt fixes they led to (66005c2c) are summarized in `d
     - photosynthesis section (claude-sonnet-5-5): `teaching_sequence` came back as a string, not an array. The check trigger then pointed at a step that did not exist.
     - photosynthesis adapt_evidence: journey_adapt (claude-sonnet-5-5) returned `path` as a string; the validator rejected it and the route escalated to journey_path (claude-opus-5-5). The escalated output had a `change.reason` of 355 characters, over the 300 limit.
   - Every other stage that ran passed.
+- `api-targeted3-*`: the final targeted API run at 89d39b66, after the tool-input boundary, the native-JSON prompt line and the stated length limits. It covered photosynthesis section 1 and evidence adaptation, and French Revolution evidence adaptation, Tutor turn and Rabbit Hole context. All 5 stages passed with no repair. Spend: $0.1212.
