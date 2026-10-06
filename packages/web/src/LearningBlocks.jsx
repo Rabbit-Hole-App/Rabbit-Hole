@@ -1,5 +1,5 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { Check, ChevronLeft, ChevronRight, Code, Loader2, Play, RotateCcw, Search, Sparkles, Volume2, X } from 'lucide-react';
+import { createContext, lazy, Suspense, useContext, useEffect, useRef, useState } from 'react';
+import { Check, ChevronLeft, ChevronRight, Code, Loader2, PenLine, Play, RotateCcw, Search, Sparkles, Volume2, X } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { api, wsHeaders } from './api.js';
 import { cacheAsset, cachedAsset } from './learn-asset-cache.js';
@@ -30,6 +30,11 @@ import PaidConfirm from './PaidConfirm.jsx';
 import { describeNotebook } from './learn-notebook.js';
 import { describeYouTube } from './learn-ask-target.js';
 import { afterPaint, usePerf } from './learn-perf.js';
+import { canSubmit, hasMarks, sketchText } from './explain-sketch.js';
+
+// The canvas's drawing surface for an Explain Back sketch (AdaptiveCanvas renderSketch): { render, hold, release,
+// capture, readOnly }. Null wherever a card renders outside a canvas, so no sketch is offered there.
+export const SketchHost = createContext(null);
 
 // Lesson component library for the adaptive canvas (spec: docs/
 // adaptive-learning-canvas-spec.md §12). Each entry renders inside the shared
@@ -59,6 +64,9 @@ export const BLOCK_TYPES = {
   challenge: {
     label: 'Challenge',
     typicalHeight: 220,
+    // An Explain Back sketch (docs/features/explain-back-sketch.md) grows the card to hold it, only while shown or
+    // submitted; every other challenge keeps the canvas's default height cap.
+    autoMaxFor: block => (block.sketchOpen || block.sketchSubmitted ? 760 : undefined),
     sample: () => ({
       id: crypto.randomUUID(),
       type: 'challenge',
@@ -880,6 +888,14 @@ function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
   const [draft, setDraft] = useState('');
   const latest = useRef(block);
   latest.current = block;
+  // Explain Back may carry a sketch (docs/features/explain-back-sketch.md), drawn with the canvas's own toolbar.
+  const sketchHost = useContext(SketchHost);
+  const sketchable = block.mode === 'explain_back' && !!sketchHost && !sketchHost.readOnly;
+  const sketchShown = sketchable && !!block.sketchOpen;
+  // Hide sketch is presentation only: marks in the card's sketch are part of the answer, shown or hidden. Only
+  // clearing the sketch takes them out.
+  const sketchMarked = sketchable && hasMarks(block.sketch);
+  const ready = canSubmit(draft, sketchable ? block.sketch : null);
   // One attempt id per committed answer (docs/features/jev-grading.md): it is
   // stored on the block, so re-sends, remounts and reloads reuse it, and the
   // side-by-side grader records each attempt once. The in-flight guard stops a
@@ -887,12 +903,18 @@ function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
   const inFlight = useRef(false);
   const commit = async () => {
     const answer = draft.trim();
-    if (!answer || inFlight.current) return;
+    // Text and the sketch are one response; either alone is enough.
+    const sketched = sketchMarked;
+    if ((!answer && !sketched) || inFlight.current) return;
     inFlight.current = true;
+    // The picture is taken before the card turns to the answer, from the sketch on screen or, when hidden, from
+    // its unseen copy.
+    const image = sketched ? await sketchHost.capture(block.id) : null;
+    const sketch = sketched ? { image, text: sketchText(block.sketch) } : null;
     // Keep `latest` in step with every write: a stream that lands in one tick
     // must not let the closing write replace the verdict with a stale block.
     const change = next => { latest.current = next; onChange(next); };
-    const committed = { ...block, answer, attemptId: crypto.randomUUID(), verdict: '', grading: !!onGrade };
+    const committed = { ...latest.current, answer, attemptId: crypto.randomUUID(), verdict: '', grading: !!onGrade, ...(block.mode === 'explain_back' ? { sketchSubmitted: sketched } : {}) };
     // Only the attempt still on the block writes to it: after Answer again, a
     // late reply from the old attempt is dropped.
     const current = () => latest.current.attemptId === committed.attemptId;
@@ -905,7 +927,7 @@ function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
       try {
         await onGrade(committed, answer, delta => {
           if (current()) change({ ...latest.current, verdict: (latest.current.verdict || '') + delta, grading: true });
-        });
+        }, sketch);
         if (current()) change({ ...latest.current, grading: false });
       } catch (error) {
         // A verdict that already arrived stays; the error fills only an empty one.
@@ -918,30 +940,80 @@ function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
       if (current() || !gradingAttempts.has(latest.current.attemptId)) inFlight.current = false;
     }
   };
-  const retry = () => { inFlight.current = false; setDraft(block.answer || ''); onChange({ ...block, answer: null, attemptId: null, verdict: '', grading: false }); };
+  // Explain again keeps everything the learner made: the text comes back to the field, and a submitted sketch
+  // opens again, editable, as the start of the next attempt (a new attempt id on Submit).
+  const retry = () => { inFlight.current = false; setDraft(block.answer || ''); onChange({ ...block, answer: null, attemptId: null, verdict: '', grading: false, ...(block.sketchSubmitted ? { sketchOpen: true, sketchSubmitted: false } : {}) }); };
+  const showSketch = () => { onChange({ ...block, sketchOpen: true, sketch: block.sketch || { strokes: [], shapes: [], items: [] } }); sketchHost.hold(block.id); };
+  // Hiding only folds the drawing away: the marks stay on the block and in the answer (Show sketch brings them back).
+  const hideSketch = () => { sketchHost.release(block.id); onChange({ ...block, sketchOpen: false }); };
+  // The explicit way to take a drawing out of the answer (Ctrl+Z brings it back).
+  const clearSketch = () => onChange({ ...block, sketch: { strokes: [], shapes: [], items: [] } });
+  // A sketch-only answer is '' with sketchSubmitted; a text answer is non-empty, as it always was.
+  const answered = !!block.answer || !!block.sketchSubmitted;
   // The tutor opens with "VERDICT: good|partial"; it tints the answer and is
   // stripped from what the learner reads.
   const grade = parseVerdict(block.verdict);
   const verdictText = stripVerdict(block.verdict);
   const waiting = block.grading && !verdictText ? (gradingAttempts.has(block.attemptId) ? 'Reading your answer…' : 'Grading was interrupted. Answer again to retry.') : null;
+  const tint = grade === 'good' ? 'border-green-700/30 bg-green-700/10 text-green-800' : grade === 'partial' ? 'border-amber-600/40 bg-amber-500/10 text-amber-800' : 'border-line bg-hover text-ink';
+  // A drawing tool leaves every card inert on the canvas; while this card has a sketch in play (open, or hidden with
+  // marks) its own controls stay live, so the learner can type, Submit or Hide sketch straight after drawing.
+  const live = sketchShown || sketchMarked ? { pointerEvents: 'auto' } : undefined;
+  const submit = (
+    <button type="button" disabled={!ready} onClick={commit}
+      className="h-8 shrink-0 rounded-lg bg-ink px-3.5 text-sm font-medium text-white disabled:opacity-40">{block.mode === 'explain_back' ? 'Submit' : 'Commit'}</button>
+  );
   return (
     <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
       <Kicker>{block.mode === 'explain_back' ? 'Explain back' : 'Challenge'}</Kicker>
       <div className="text-sm"><Md text={block.prompt} onFile={onFile} /></div>
-      {!block.answer ? (
-        <div onPointerDown={e => e.stopPropagation()}>
-          <p className="mt-1 text-xs text-ink-2 italic">{block.hint}</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <SpeakAnswer appName={appName} onText={text => setDraft(current => (current ? `${current} ${text}` : text))} />
-            <input value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') commit(); }}
-              placeholder={block.mode === 'explain_back' ? 'Explain it in your own words…' : 'Your guess in one sentence…'} className="h-8 min-w-0 flex-1 rounded-lg border border-line px-3 text-sm outline-none focus:border-ink-3" />
-            <button type="button" disabled={!draft.trim()} onClick={commit}
-              className="h-8 shrink-0 rounded-lg bg-ink px-3.5 text-sm font-medium text-white disabled:opacity-40">{block.mode === 'explain_back' ? 'Submit' : 'Commit'}</button>
+      {!answered ? (
+        <>
+          <div style={live} onPointerDown={e => e.stopPropagation()}>
+            <p className="mt-1 text-xs text-ink-2 italic">{block.hint}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <SpeakAnswer appName={appName} onText={text => setDraft(current => (current ? `${current} ${text}` : text))} />
+              <input value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') commit(); }}
+                placeholder={block.mode === 'explain_back' ? 'Explain it in your own words…' : 'Your guess in one sentence…'} className="h-8 min-w-0 flex-1 rounded-lg border border-line px-3 text-sm outline-none focus:border-ink-3" />
+              {!sketchShown && submit}
+            </div>
+            {sketchable && !sketchShown && (
+              <div className="mt-1.5 flex items-center gap-1.5">
+                {/* Live under a drawing tool too: it is the way into drawing with the tool already picked. */}
+                <button type="button" data-sketch-toggle onClick={showSketch} style={{ pointerEvents: 'auto' }}
+                  className="flex items-center gap-1 rounded px-1.5 py-1 text-xs text-ink-2 hover:bg-hover hover:text-ink">
+                  <PenLine size={12} />{sketchMarked ? 'Show sketch' : 'Add sketch'}
+                </button>
+                {sketchMarked && <span data-sketch-included className="text-xs text-ink-2">Included in your answer</span>}
+              </div>
+            )}
           </div>
-        </div>
+          {/* A hidden sketch with marks is still the answer's; this unseen copy is what Submit pictures for the grader. */}
+          {sketchMarked && !sketchShown && <div aria-hidden="true" className="pointer-events-none relative h-0 overflow-hidden">{sketchHost.render(block, { still: true })}</div>}
+          {sketchShown && (
+            <div data-sketch-panel>
+              <p className="mt-3 mb-1 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">Sketch</p>
+              {sketchHost.render(block)}
+              <div style={live} className="mt-2 flex items-center justify-between" onPointerDown={e => e.stopPropagation()}>
+                <span className="flex items-center gap-1">
+                  <button type="button" data-sketch-toggle onClick={hideSketch} className="rounded px-1.5 py-1 text-xs text-ink-2 hover:bg-hover hover:text-ink">Hide sketch</button>
+                  {sketchMarked && <button type="button" data-sketch-clear onClick={clearSketch} className="rounded px-1.5 py-1 text-xs text-ink-2 hover:bg-hover hover:text-ink">Clear sketch</button>}
+                </span>
+                {submit}
+              </div>
+            </div>
+          )}
+        </>
       ) : (
         <>
-          <div className="mt-2 flex justify-end"><span data-answer data-grade={grade || 'pending'} className={`max-w-[85%] rounded-xl border px-3 py-1.5 text-sm whitespace-pre-wrap ${grade === 'good' ? 'border-green-700/30 bg-green-700/10 text-green-800' : grade === 'partial' ? 'border-amber-600/40 bg-amber-500/10 text-amber-800' : 'border-line bg-hover text-ink'}`}>{block.answer}</span></div>
+          {block.answer && <div className="mt-2 flex justify-end"><span data-answer data-grade={grade || 'pending'} className={`max-w-[85%] rounded-xl border px-3 py-1.5 text-sm whitespace-pre-wrap ${tint}`}>{block.answer}</span></div>}
+          {/* The submitted sketch, read-only at three quarters size; it carries the grade's tint when it is the whole answer. */}
+          {block.sketchSubmitted && (sketchHost ? (
+            <div data-answer-sketch {...(!block.answer ? { 'data-answer': true, 'data-grade': grade || 'pending' } : {})}
+              className={`mt-2 overflow-hidden rounded-lg ${!block.answer && grade ? `border ${tint}` : ''}`} style={{ height: 180 }}>
+              <div style={{ width: '133.333%', transform: 'scale(0.75)', transformOrigin: 'top left' }}>{sketchHost.render(block, { still: true })}</div>
+            </div>
+          ) : <p className="mt-2 text-right text-xs text-ink-2">Sketch submitted with this answer</p>)}
           {(verdictText || block.grading) && (
             <div data-verdict className="mt-3 border-t border-line pt-3 text-sm">
               <p className="mb-1 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">{block.mode === 'explain_back' ? 'Understanding evidence' : 'Tutor'}</p>
@@ -1672,7 +1744,7 @@ export function describeBlock(block) {
   if (block.type === 'snippet') return { kind: 'Code sample', title: block.title, text: `Code sample: ${block.title}\n${block.brief || ''}\nCode:\n${block.code}\nOutput:\n${block.output || '(none shown)'}` };
   if (block.type === 'quiz') return { kind: 'Quiz', title: block.question, text: `Quiz question: ${block.question}\nOptions:\n${block.options.map(option => `${option.key}. ${option.text}${option.correct ? ' (correct answer)' : ''}`).join('\n')}\nLearner's current choice: ${block.choice || 'none yet'}` };
   if (block.type === 'flashcards') return { kind: 'Flashcards', title: `${block.cards.length} cards`, text: `Flashcards:\n${block.cards.map((card, index) => `- ${card.front} → ${card.back} (learner self-rated: ${(block.marks || {})[index] || 'unrated'})`).join('\n')}` };
-  if (block.type === 'challenge' && block.mode === 'explain_back') return { kind: 'Explain back', title: block.prompt, text: [`Explain-back prompt: ${block.prompt}`, `Key ideas expected: ${(block.expects || []).join('; ')}`, `Learner's explanation: ${block.answer || 'not given yet'}`, block.verdict ? `Understanding evidence: ${block.verdict}` : ''].join(NEWLINE) };
+  if (block.type === 'challenge' && block.mode === 'explain_back') return { kind: 'Explain back', title: block.prompt, text: [`Explain-back prompt: ${block.prompt}`, `Key ideas expected: ${(block.expects || []).join('; ')}`, `Learner's explanation: ${block.answer || (block.sketchSubmitted ? 'given as a sketch only' : 'not given yet')}`, block.sketchSubmitted ? `Learner's sketch (part of the same explanation): ${sketchText(block.sketch)}` : '', block.verdict ? `Understanding evidence: ${block.verdict}` : ''].join(NEWLINE) };
   if (block.type === 'slide') return { kind: 'Slide', title: `${block.label || 'PDF'}, slide ${block.number}`, text: `Slide ${block.number} of the PDF ${block.label || ''} on the canvas.` };
   if (block.type === 'challenge') return { kind: 'Challenge', title: block.prompt, text: [`Challenge: ${block.prompt}`, `Learner's committed answer: ${block.answer || 'none yet'}`, block.verdict ? `Tutor verdict: ${block.verdict}` : ''].join(NEWLINE) };
   return null;

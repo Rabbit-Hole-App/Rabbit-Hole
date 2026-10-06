@@ -4,7 +4,8 @@ import { Md } from './ask.jsx';
 import { IconBtn, toast } from './ui.jsx';
 import { boardAsk } from './board-ask.js';
 import { wsHeaders } from './api.js';
-import { BLOCK_TYPES, LearningBlockBody, describeBlock } from './LearningBlocks.jsx';
+import { BLOCK_TYPES, LearningBlockBody, SketchHost, describeBlock } from './LearningBlocks.jsx';
+import { SKETCH_HEIGHT, roundPoint } from './explain-sketch.js';
 import { gapsFrom, nearestGap, nudgeBy } from './learn-gap-rail.js';
 import { panelFor, textStyle, stickyTone, dashArray, dashStyle, reorder, TEXT_LEVELS, DASH_STYLES, OPACITIES, ARROW_KINDS } from './learn-style-panel.js';
 import CanvasMinimap from './CanvasMinimap.jsx';
@@ -640,7 +641,7 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
   if (block.type === 'heading') return <HeadingCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost={!!BLOCK_TYPES[block.type]?.ghost} space={block.space} connected={connected}
-      autoMax={BLOCK_TYPES[block.type]?.autoMax}
+      autoMax={BLOCK_TYPES[block.type]?.autoMaxFor?.(block) ?? BLOCK_TYPES[block.type]?.autoMax}
       width={BLOCK_TYPES[block.type]?.sizeFor?.(block)?.width ?? BLOCK_TYPES[block.type]?.width}
       height={BLOCK_TYPES[block.type]?.sizeFor?.(block)?.height ?? BLOCK_TYPES[block.type]?.height}
       extraHeight={sourcesHeight + practiceHeight + controlsHeight} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })}
@@ -863,6 +864,11 @@ function GapRail({ gap, zoom, edge, span, adding, onNudge, onAdding, onAddHeadin
 }
 
 const pathOf = points => points.map((p, i) => `${i ? 'L' : 'M'}${p.x} ${p.y}`).join(' ');
+
+// One pen or highlighter stroke, on the canvas and in an Explain Back sketch alike.
+const inkPath = (stroke, index) => (stroke.tool === 'pen'
+  ? <path key={index} d={pathOf(stroke.points)} fill="none" stroke={inkAware(stroke.color)} strokeWidth={stroke.width} opacity={stroke.opacity} strokeDasharray={dashArray(stroke.dash, stroke.width)} strokeLinecap="round" strokeLinejoin="round" />
+  : <path key={index} d={pathOf(stroke.points)} fill="none" stroke="#fde047" strokeWidth={stroke.width || 14} strokeOpacity=".5" strokeLinecap="round" strokeLinejoin="round" />);
 
 const arrowHead = (tip, from, stroke) => {
   const angle = Math.atan2(tip.y - from.y, tip.x - from.x), size = 8 + stroke.strokeWidth * 2;
@@ -1234,6 +1240,17 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     }
     setSelection(previous => previous.includes(id) ? previous.filter(other => other !== id) : [...previous, id]);
   };
+  // The one active draw target (docs/features/explain-back-sketch.md): null is this canvas, a block id is that
+  // Explain Back card's sketch. The toolbar's tool and style, Delete and the style panel act on it; the sketch
+  // keeps its own selection, live mark and text edit so nothing of the canvas's is ever touched from inside it.
+  const [drawTarget, setDrawTarget] = useState(null);
+  const drawTargetRef = useRef(drawTarget);
+  drawTargetRef.current = drawTarget;
+  const [sketchSel, setSketchSel] = useState([]);
+  const sketchSelRef = useRef(sketchSel);
+  sketchSelRef.current = sketchSel;
+  const [sketchLive, setSketchLive] = useState(null); // { id, stroke } or { id, shape } while one is being drawn
+  const [sketchEdit, setSketchEdit] = useState(null); // { id, kind: 'text' | 'label' }: a sketch shape being written in
   const [links, setLinks] = useState(stored.current.links || []);
   // Named groups. Membership lives on the members themselves (groupId), so
   // undo restores it with them; this list only carries each group's label.
@@ -1973,7 +1990,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // nothing half-done. A text box being typed in commits and lets go.
       if (event.key === 'Escape') {
         connectionCleanup.current?.(); setConnecting(null); setSelected(null);
-        setTool('select'); setMenuAt(null); setStyleOpen(null);
+        setTool('select'); setMenuAt(null); setStyleOpen(null); releaseSketchRef.current();
         const focused = document.activeElement;
         if (focused?.isContentEditable && focused.closest('[data-item-id],[data-block-id],[data-shape-id],[data-connection]')) focused.blur();
         return;
@@ -1994,6 +2011,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         return;
       }
       const mod = event.ctrlKey || event.metaKey;
+      // While a sketch is the draw target, the canvas's select-all, duplicate, group and copy stand down: they
+      // would reach the canvas's things from inside the sketch. Delete reaches the sketch's own selection only.
+      if (drawTargetRef.current) {
+        if (mod && ['a', 'd', 'g', 'c'].includes(event.key.toLowerCase())) return;
+        if ((event.key === 'Delete' || event.key === 'Backspace') && !typing) deleteSketchSelectionRef.current();
+        if (event.key === 'Delete' || event.key === 'Backspace') return;
+      }
       const commands = commandsRef.current;
       // The rest of the Edit and View menus, each standing down while typing
       // so text fields keep their own select-all and the browser keeps its
@@ -2461,7 +2485,187 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     apply.done = () => { setTool('select'); setAreaMarquee({ ...rect, busy: true }); requestAnimationFrame(() => askArea(rect).finally(() => setAreaMarquee(null))); };
     startDrag(event, start, apply, view.z);
   };
+  // The drawing tools' gestures, run against a store: the canvas's own lists, or an Explain Back sketch's
+  // (sketchStore). One tool system for both - only where the marks land differs. False: the tool draws nothing.
+  const drawGesture = (event, store) => {
+    if (tool === 'pen' || tool === 'highlighter') {
+      event.preventDefault();
+      // The width row scales both inks: pen uses it directly, highlighter 4x.
+      const ink = tool === 'pen' ? { tool, color, width, dash, opacity } : { tool, width: width * 4 };
+      const points = [store.local(event)];
+      store.setLive({ ...ink, points });
+      const move = e => { points.push(store.local(e)); store.setLive({ ...ink, points: [...points] }); };
+      const up = () => {
+        window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
+        store.setLive(null);
+        if (points.length > 1) { snapshot(); store.setStrokes(previous => [...previous, { ...ink, points }]); }
+      };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+    } else if (shapeTool) {
+      event.preventDefault();
+      const start = store.local(event);
+      const draft = { id: crypto.randomUUID(), kind: tool, x1: start.x, y1: start.y, x2: start.x, y2: start.y, color, width, dash, fill, opacity, round };
+      store.setLiveShape(draft);
+      const move = e => { const p = store.local(e); store.setLiveShape({ ...draft, x2: p.x, y2: p.y }); };
+      const up = e => {
+        window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
+        const p = store.local(e);
+        store.setLiveShape(null);
+        if (Math.hypot(p.x - start.x, p.y - start.y) > 4) { snapshot(); store.setShapes(previous => [...previous, { ...draft, x2: p.x, y2: p.y }]); }
+        if (!lock) setTool('select');
+      };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+    } else if (tool === 'eraser') {
+      event.preventDefault();
+      snapshot();
+      const radius = 12 / view.z;
+      const erase = e => {
+        const point = store.local(e);
+        store.setStrokes(previous => previous.filter(stroke => !stroke.points.some(q => Math.hypot(q.x - point.x, q.y - point.y) < radius)));
+        store.setShapes(previous => previous.filter(shape => {
+          const { points, closed } = outlineOf(shape);
+          const last = closed ? points.length : points.length - 1;
+          for (let index = 0; index < last; index++) if (segmentDistance(point, points[index], points[(index + 1) % points.length]) < radius) return false;
+          return true;
+        }));
+      };
+      erase(event);
+      const up = () => { window.removeEventListener('pointermove', erase); window.removeEventListener('pointerup', up); };
+      window.addEventListener('pointermove', erase);
+      window.addEventListener('pointerup', up);
+    } else if (tool === 'sticky' || tool === 'text') {
+      // preventDefault keeps the click from blurring the fresh editable note.
+      event.preventDefault();
+      snapshot();
+      const point = store.local(event);
+      // A fresh text box opens long - a full writing line, not a stamp-sized
+      // target - and the corner handle takes it anywhere from there.
+      store.setItems(previous => [...previous, { id: crypto.randomUUID(), kind: tool, x: point.x, y: point.y, text: '', color, opacity, ...(tool === 'text' ? { level, w: store.textWidth(point) } : {}), fresh: true }]);
+      if (!lock) setTool('select');
+    } else return false;
+    return true;
+  };
+  const canvasStore = { local, setStrokes, setShapes, setItems, setLive, setLiveShape, textWidth: () => 420 };
+  // ---------- Explain Back sketch (docs/features/explain-back-sketch.md) ----------
+  // A sketch's marks live on its block (block.sketch) in the card's own pixels, so they save, move, fork and undo
+  // with the card and are never canvas objects.
+  const editSketch = (id, key, change) => setBlocks(previous => previous.map(block => (block.id === id
+    ? { ...block, sketch: { strokes: [], shapes: [], items: [], ...block.sketch, [key]: change(block.sketch?.[key] || []) } } : block)));
+  const sketchStore = (id, element) => ({
+    local: event => { const box = element.getBoundingClientRect(); return roundPoint({ x: (event.clientX - box.left) / view.z, y: (event.clientY - box.top) / view.z }); },
+    setStrokes: change => editSketch(id, 'strokes', change),
+    setShapes: change => editSketch(id, 'shapes', change),
+    setItems: change => editSketch(id, 'items', change),
+    setLive: stroke => setSketchLive(stroke && { id, stroke }),
+    setLiveShape: shape => setSketchLive(shape && { id, shape }),
+    // A text box opens to the sketch's right edge, never past it.
+    textWidth: point => Math.max(96, Math.min(420, element.clientWidth - point.x - 8)),
+  });
+  // Where the style panel, the order buttons and Delete write: the active sketch, else the canvas.
+  const markLists = () => {
+    const id = drawTargetRef.current;
+    return id ? { setShapes: change => editSketch(id, 'shapes', change), setItems: change => editSketch(id, 'items', change) } : { setShapes, setItems };
+  };
+  // A press in a sketch makes it the target; the canvas's selection lets go, so nothing of the canvas's can be
+  // deleted or restyled from inside the sketch.
+  const holdSketch = id => {
+    if (drawTargetRef.current === id) return;
+    drawTargetRef.current = id;
+    setDrawTarget(id); setSketchSel([]); setSketchEdit(null); setSelection([]); setMenuAt(null);
+  };
+  const releaseSketch = () => { drawTargetRef.current = null; setDrawTarget(null); setSketchSel([]); setSketchEdit(null); };
+  const pressSketch = (event, id) => {
+    // Hand pans the canvas under the card, as it does over any card.
+    if (event.button !== 0 || tool === 'hand') return;
+    event.stopPropagation();
+    if (drawGesture(event, sketchStore(id, event.currentTarget))) return;
+    setSketchSel([]);
+  };
+  const selectInSketch = (markId, event = null) => setSketchSel(previous => (event && (event.ctrlKey || event.metaKey || event.shiftKey)
+    ? (previous.includes(markId) ? previous.filter(other => other !== markId) : [...previous, markId])
+    : [markId]));
+  const dropFromSketch = (id, ids) => {
+    snapshot();
+    editSketch(id, 'shapes', marks => marks.filter(mark => !ids.includes(mark.id)));
+    editSketch(id, 'items', marks => marks.filter(mark => !ids.includes(mark.id)));
+    setSketchSel(previous => previous.filter(other => !ids.includes(other)));
+  };
+  const deleteSketchSelectionRef = useRef(null);
+  deleteSketchSelectionRef.current = () => { const id = drawTargetRef.current, ids = sketchSelRef.current; if (id && ids.length) dropFromSketch(id, ids); };
+  const releaseSketchRef = useRef(releaseSketch);
+  releaseSketchRef.current = releaseSketch;
+  // ponytail: a press drags only the shape under it; a multi-mark drag inside a sketch can come later.
+  const moveSketchShape = (event, id, shape) => {
+    snapshot();
+    startDrag(event, { x: shape.x1, y: shape.y1 }, (x, y) => {
+      const dx = x - shape.x1, dy = y - shape.y1;
+      editSketch(id, 'shapes', marks => marks.map(mark => (mark.id === shape.id ? { ...mark, x1: shape.x1 + dx, y1: shape.y1 + dy, x2: shape.x2 + dx, y2: shape.y2 + dy } : mark)));
+    }, view.z);
+  };
+  const patchSketch = (id, key, markId, patch) => editSketch(id, key, marks => marks.map(mark => (mark.id === markId ? { ...mark, ...patch } : mark)));
+  // The drawing area an Explain Back card shows (ChallengeBody, through SketchHost): no tools of its own. A press
+  // in the capture phase makes it the target before any mark or gesture handles the press. `still` renders a
+  // submitted sketch read-only.
+  const renderSketch = (block, { still = false } = {}) => {
+    const { strokes = [], shapes = [], items = [] } = block.sketch || {};
+    const id = block.id, mine = sketchLive?.id === id ? sketchLive : null;
+    const fixed = still || readOnly;
+    const active = !fixed && drawTarget === id;
+    const markTool = fixed ? 'none' : tool;
+    const marked = markId => active && sketchSel.includes(markId);
+    return (
+      <div data-sketch={id} data-sketch-active={active ? '' : undefined}
+        style={{ height: SKETCH_HEIGHT, pointerEvents: fixed || tool === 'hand' ? 'none' : 'auto' }}
+        className={`relative w-full overflow-hidden rounded-lg border bg-white ${active ? 'border-[#2383e2] ring-2 ring-[#2383e2]/25' : 'border-line'} ${!fixed && (tool === 'pen' || tool === 'highlighter' || tool === 'eraser' || shapeTool) ? 'cursor-crosshair' : ''}`}
+        onPointerDownCapture={fixed ? undefined : event => { if (event.button === 0 && tool !== 'hand') holdSketch(id); }}
+        onPointerDown={fixed ? undefined : event => pressSketch(event, id)}
+        // A double-click edits a mark here; it must not open the card's Rabbit Hole.
+        onDoubleClick={event => event.stopPropagation()}>
+        <svg aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full overflow-visible">
+          {[...shapes, ...(mine?.shape ? [mine.shape] : [])].map(shape => <ShapeView key={shape.id} shape={shape} tool={markTool} zoom={view.z} selected={marked(shape.id)}
+            editing={sketchEdit?.kind === 'text' && sketchEdit.id === shape.id} labelEditing={sketchEdit?.kind === 'label' && sketchEdit.id === shape.id}
+            onSelect={selectInSketch} onMoveStart={(event, pressed) => moveSketchShape(event, id, pressed)} onGesture={snapshot}
+            onResize={(markId, patch) => patchSketch(id, 'shapes', markId, patch)} onDelete={markId => dropFromSketch(id, [markId])}
+            onEdit={markId => setSketchEdit({ id: markId, kind: 'text' })}
+            onText={(markId, text) => { setSketchEdit(null); snapshot(); patchSketch(id, 'shapes', markId, { text }); }}
+            onLabel={markId => setSketchEdit({ id: markId, kind: 'label' })}
+            onLabelDone={(markId, label) => { setSketchEdit(null); snapshot(); patchSketch(id, 'shapes', markId, { label }); }} />)}
+          {[...strokes, ...(mine?.stroke ? [mine.stroke] : [])].map(inkPath)}
+        </svg>
+        {items.map(item => <CanvasItem key={item.id} item={item} zoom={view.z} tool={markTool} selected={marked(item.id)} onSelect={selectInSketch} onGesture={snapshot}
+          onChange={(markId, text) => patchSketch(id, 'items', markId, { text, fresh: false })}
+          onMove={(markId, x, y) => patchSketch(id, 'items', markId, { x, y })}
+          onResize={(markId, w, h) => patchSketch(id, 'items', markId, { w, h })}
+          onDelete={markId => dropFromSketch(id, [markId])}
+          onLevel={(markId, value) => { snapshot(); patchSketch(id, 'items', markId, { level: value }); }} />)}
+        {!fixed && <span data-sketch-chrome className={`pointer-events-none absolute top-1.5 right-2 text-[10px] ${active ? 'font-medium text-[#2383e2]' : 'text-ink-2'}`}>{active ? 'Toolbar draws here' : 'Click here, then draw with the toolbar'}</span>}
+      </div>
+    );
+  };
+  // The sketch as the learner sees it, for the grader: a PNG at most 900 px on its long side and 600 KB, or null
+  // (the sketch's words still go with the attempt).
+  const captureSketch = async id => {
+    const node = surface.current?.querySelector(`[data-sketch="${CSS.escape(id)}"]`);
+    if (!node) return null;
+    try {
+      const { toPng } = await import('html-to-image');
+      for (const ratio of [2, 1]) {
+        const png = await toPng(node, { pixelRatio: Math.min(ratio, 900 / Math.max(node.offsetWidth, node.offsetHeight)), cacheBust: false, filter: el => !(el.nodeType === 1 && el.hasAttribute?.('data-sketch-chrome')) });
+        if (png.length <= 600000) return png;
+      }
+    } catch { /* no picture: the words still go */ }
+    return null;
+  };
+  const sketchHost = { render: renderSketch, hold: holdSketch, release: id => { if (drawTargetRef.current === id) releaseSketch(); }, capture: captureSketch, readOnly };
+  // A target whose sketch is gone - hidden, submitted, its card deleted or undone away - hands the toolbar back.
+  useEffect(() => {
+    if (drawTarget && !blocks.some(block => block.id === drawTarget && block.sketchOpen && !block.answer && !block.sketchSubmitted)) releaseSketch();
+  }, [blocks, drawTarget]);
   const down = event => {
+    // A press on the canvas makes it the drawing target again (an Explain Back sketch stops its own presses).
+    if (drawTargetRef.current) releaseSketch();
     // A press on the canvas dismisses the floating chrome - the style island
     // and the dev insert menu - the way it already dismisses a menubar menu.
     if (showStyle) setStyleOpen(false);
@@ -2479,66 +2683,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (event.button !== 0) return;
     if (tool === 'hand') { pan(event); return; }
     if (event.target.closest('[data-block],[role="toolbar"],[data-zoom]')) return;
-    if (tool === 'pen' || tool === 'highlighter') {
-      event.preventDefault();
-      // The width row scales both inks: pen uses it directly, highlighter 4x.
-      const ink = tool === 'pen' ? { tool, color, width, dash, opacity } : { tool, width: width * 4 };
-      const points = [local(event)];
-      setLive({ ...ink, points });
-      const move = e => { points.push(local(e)); setLive({ ...ink, points: [...points] }); };
-      const up = () => {
-        window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
-        setLive(null);
-        if (points.length > 1) { snapshot(); setStrokes(previous => [...previous, { ...ink, points }]); }
-      };
-      window.addEventListener('pointermove', move);
-      window.addEventListener('pointerup', up);
-    } else if (shapeTool) {
-      event.preventDefault();
-      const start = local(event);
-      const draft = { id: crypto.randomUUID(), kind: tool, x1: start.x, y1: start.y, x2: start.x, y2: start.y, color, width, dash, fill, opacity, round };
-      setLiveShape(draft);
-      const move = e => { const p = local(e); setLiveShape({ ...draft, x2: p.x, y2: p.y }); };
-      const up = e => {
-        window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
-        const p = local(e);
-        setLiveShape(null);
-        if (Math.hypot(p.x - start.x, p.y - start.y) > 4) { snapshot(); setShapes(previous => [...previous, { ...draft, x2: p.x, y2: p.y }]); }
-        if (!lock) setTool('select');
-      };
-      window.addEventListener('pointermove', move);
-      window.addEventListener('pointerup', up);
-    } else if (tool === 'eraser') {
-      event.preventDefault();
-      snapshot();
-      const radius = 12 / view.z;
-      const erase = e => {
-        const point = local(e);
-        setStrokes(previous => previous.filter(stroke => !stroke.points.some(q => Math.hypot(q.x - point.x, q.y - point.y) < radius)));
-        setShapes(previous => previous.filter(shape => {
-          const { points, closed } = outlineOf(shape);
-          const last = closed ? points.length : points.length - 1;
-          for (let index = 0; index < last; index++) if (segmentDistance(point, points[index], points[(index + 1) % points.length]) < radius) return false;
-          return true;
-        }));
-      };
-      erase(event);
-      const up = () => { window.removeEventListener('pointermove', erase); window.removeEventListener('pointerup', up); };
-      window.addEventListener('pointermove', erase);
-      window.addEventListener('pointerup', up);
-    } else if (tool === 'sticky' || tool === 'text') {
-      // preventDefault keeps the click from blurring the fresh editable note.
-      event.preventDefault();
-      snapshot();
-      const point = local(event);
-      // A fresh text box opens long - a full writing line, not a stamp-sized
-      // target - and the corner handle takes it anywhere from there.
-      setItems(previous => [...previous, { id: crypto.randomUUID(), kind: tool, x: point.x, y: point.y, text: '', color, opacity, ...(tool === 'text' ? { level, w: 420 } : {}), fresh: true }]);
-      if (!lock) setTool('select');
-    } else {
-      setSelected(null);
-      pan(event);
-    }
+    if (drawGesture(event, canvasStore)) return;
+    setSelected(null);
+    pan(event);
   };
   const moveItem = (id, x, y) => setItems(previous => previous.map(item => item.id === id ? { ...item, x, y } : item));
   const resizeItem = (id, w, h) => setItems(previous => previous.map(item => item.id === id ? { ...item, w, h } : item));
@@ -2581,8 +2728,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const applyStyle = (patch, targets) => {
     if (!targets.length) return;
     snapshot();
-    setShapes(previous => previous.map(shape => targets.includes(shape.id) ? { ...shape, ...patch } : shape));
-    setItems(previous => previous.map(item => targets.includes(item.id) ? { ...item, ...patch } : item));
+    const lists = markLists();
+    lists.setShapes(previous => previous.map(shape => targets.includes(shape.id) ? { ...shape, ...patch } : shape));
+    lists.setItems(previous => previous.map(item => targets.includes(item.id) ? { ...item, ...patch } : item));
     if (patch.color) setLinks(previous => previous.map(link => targets.includes(link.id) ? { ...link, color: patch.color } : link));
   };
   // Every box a drag can line itself up against, gathered once when the drag
@@ -2639,8 +2787,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const reorderSelection = (toFront, targets) => {
     if (!targets.length) return;
     snapshot();
-    setShapes(previous => reorder(previous, targets, toFront));
-    setItems(previous => reorder(previous, targets, toFront));
+    const lists = markLists();
+    lists.setShapes(previous => reorder(previous, targets, toFront));
+    lists.setItems(previous => reorder(previous, targets, toFront));
   };
   // Inserted into the column flow between two cards, so it needs no offset.
   const insertHeadingAt = (level, at) => {
@@ -2794,7 +2943,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // The rail answers to the blank canvas right of the column, where its buttons
   // live; over the cards themselves it would only be in the way. Held by index
   // rather than by value so the line keeps following the cards as they move.
-  const panel = panelFor({ tool, selection, shapes, links, items });
+  // With a sketch as the target, the style panel follows the sketch's selection and restyles its marks.
+  const sketchMarks = drawTarget ? blocks.find(block => block.id === drawTarget)?.sketch : null;
+  const panel = drawTarget
+    ? panelFor({ tool, selection: sketchSel, shapes: sketchMarks?.shapes || [], links: [], items: sketchMarks?.items || [] })
+    : panelFor({ tool, selection, shapes, links, items });
   const showStyle = styleOpen === null ? panel.open : styleOpen;
   // The separator spans the viewport, converted into world units, so it looks
   // the same width at any zoom instead of growing and shrinking with the column.
@@ -2925,9 +3078,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           {[...shapes, ...(liveShape ? [liveShape] : [])].map(shape => <ShapeView key={shape.id} shape={shape} tool={tool} zoom={view.z} selected={isSelected(shape.id)} editing={editingShape === shape.id} onSelect={select} onMoveStart={moveShapeStart} onResize={resizeShape} onGesture={snapshot} onDelete={deleteItem}
             onEdit={setEditingShape} onText={changeShapeText} onConnect={connect} showPorts={!!connecting}
             labelEditing={editingLabel === shape.id} onLabel={setEditingLabel} onLabelDone={changeLabel} />)}
-          {[...strokes, ...(live ? [live] : [])].map((stroke, index) => stroke.tool === 'pen'
-            ? <path key={index} d={pathOf(stroke.points)} fill="none" stroke={inkAware(stroke.color)} strokeWidth={stroke.width} opacity={stroke.opacity} strokeDasharray={dashArray(stroke.dash, stroke.width)} strokeLinecap="round" strokeLinejoin="round" />
-            : <path key={index} d={pathOf(stroke.points)} fill="none" stroke="#fde047" strokeWidth={stroke.width || 14} strokeOpacity=".5" strokeLinecap="round" strokeLinejoin="round" />)}
+          {[...strokes, ...(live ? [live] : [])].map(inkPath)}
         </svg>
         {/* The ends of a selected connector, above the shapes: its head sits on
             a shape's port, and a press there must move the head, not start a
@@ -2948,7 +3099,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           {exchanges.map(exchange => (String(exchange.linkFrom).startsWith('area:')
             ? <div key={exchange.id} className="-mb-5 h-0 overflow-visible"><ChatCard exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} /></div>
             : <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />))}
-          {columnEntries(blocks, slots).map(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} />)}
+          <SketchHost.Provider value={sketchHost}>
+            {columnEntries(blocks, slots).map(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} />)}
+          </SketchHost.Provider>
         </div>
         {/* The gap near the pointer shows its dotted line and [-] [+] [...] at the far left. */}
         {presenting === null && !readOnly && gaps.filter(gap => gap.index === hoverGap).map(gap => (
@@ -3188,7 +3341,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             {insertOpen && <BlockMenu className={`top-0 ${toolSide === 'left' ? 'left-10' : 'right-10'}`} filter={insertFilter} onFilter={setInsertFilter} onPick={type => (type === 'notebook' ? (snapshot(), insertAtView(newNotebookBlock()), setInsertOpen(false)) : type === 'youtube' ? (setInsertOpen(false), onSearch?.('youtube')) : insertBlock(type))} />}
           </div>
         )}
-        {!readOnly && <div ref={toolbarRef} role="toolbar" aria-label="Canvas tools"
+        {!readOnly && <div ref={toolbarRef} role="toolbar" aria-label="Canvas tools" data-draw-target={drawTarget ? 'sketch' : 'canvas'}
           style={toolDrag ? { position: 'absolute', left: toolDrag.x, top: toolDrag.y } : toolCap != null ? { maxHeight: toolCap } : undefined}
           className={`z-20 grid max-h-full shrink-0 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md @max-[640px]:col-start-2 @max-[640px]:mr-0 @max-[640px]:min-w-0 @max-[640px]:grid-flow-col @max-[640px]:grid-cols-none @max-[640px]:grid-rows-1 @max-[640px]:overflow-x-auto`}>
           {/* The handle: drag the palette and it parks on whichever edge you let
@@ -3216,6 +3369,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             }}>
             <GripHorizontal size={13} />
           </div>
+          {/* The same tools, drawing into an Explain Back sketch: one toolbar, and it says where it draws. */}
+          {drawTarget && <div data-sketch-badge title="These tools draw in the Explain Back sketch. Press the canvas or Esc to draw on the canvas again."
+            className="col-span-2 rounded-md bg-[#2383e2]/10 py-0.5 text-center text-[10px] font-semibold tracking-wide text-[#2383e2] uppercase @max-[640px]:col-span-1 @max-[640px]:px-1.5">Sketch</div>}
           {NAV_TOOLS.map(([value, Icon, label]) => <ToolButton key={value} value={value} Icon={Icon} label={label} active={tool === value} onPick={() => setTool(value)} />)}
           <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line @max-[640px]:col-span-1 @max-[640px]:mx-0.5 @max-[640px]:my-1.5 @max-[640px]:h-auto @max-[640px]:w-px" />
           {DRAW_TOOLS.map(([value, Icon, label]) => <ToolButton key={value} value={value} Icon={Icon} label={label} active={tool === value} onPick={() => setTool(value)} />)}
@@ -3261,7 +3417,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
               if (!panel.targets.length) return;
               snapshot();
               setLinks(previous => previous.map(link => panel.targets.includes(link.id) ? { ...link, route: value } : link));
-              setShapes(previous => previous.map(shape => panel.targets.includes(shape.id) && shape.kind !== 'line' ? { ...shape, kind: ARROW_KINDS[value] } : shape));
+              markLists().setShapes(previous => previous.map(shape => panel.targets.includes(shape.id) && shape.kind !== 'line' ? { ...shape, kind: ARROW_KINDS[value] } : shape));
             }}
             color={color} width={width} dash={dash} opacity={opacity} round={round} level={level}
             onColor={value => { setColor(value); applyStyle({ color: value }, panel.targets); }}
