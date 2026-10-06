@@ -1,0 +1,448 @@
+{
+  "mode": "live",
+  "file": "C:\\Users\\cyudhist\\Desktop\\workspace\\adaptive-learning-path-v1\\.superpowers\\sdd\\2026-10-04-adaptive-learning-path-lp1\\journey-corpus\\journey-corpus-live-2026-10-05T23-57-34-206Z.jsonl",
+  "budget": 1.9,
+  "ceiling": 1.9,
+  "subjects_run": [
+    "logistic-regression",
+    "photosynthesis",
+    "binary-search",
+    "french-revolution"
+  ],
+  "stopped_at_budget": null,
+  "aborted": "journey_path: model HTTP 400",
+  "crashed": null,
+  "subjects_done": [
+    "resolver",
+    "logistic-regression",
+    "photosynthesis",
+    "binary-search"
+  ],
+  "stages": 25,
+  "stages_passed": 18,
+  "failed_assertions": [
+    {
+      "domain": "logistic-regression",
+      "stage": "section",
+      "assertion": "valid",
+      "reason": "PlannerInvalid (journey_section): check c1: key needs correct (an option id) and misconceptions mapping wrong option ids to misconception ids of its claims"
+    },
+    {
+      "domain": "photosynthesis",
+      "stage": "path",
+      "assertion": "valid",
+      "reason": "PlannerInvalid (journey_path): invariant 5: section s2 names the unknown concept s1; invariant 5: section s3 names the unknown concept s2; invariant 5: section s4 names the unknown concept s3; invariant 5: section s5 names the unknown concept s4; invariant 5: section s6 names the unknown concept s5"
+    }
+  ],
+  "skipped": [
+    {
+      "domain": "photosynthesis",
+      "stage": "section",
+      "skipped": "the path failed"
+    },
+    {
+      "domain": "photosynthesis",
+      "stage": "adapt_edit",
+      "skipped": "the path failed"
+    },
+    {
+      "domain": "photosynthesis",
+      "stage": "adapt_evidence",
+      "skipped": "the path failed"
+    },
+    {
+      "domain": "photosynthesis",
+      "stage": "tutor",
+      "skipped": "the path failed"
+    },
+    {
+      "domain": "photosynthesis",
+      "stage": "dive",
+      "skipped": "the path failed"
+    }
+  ],
+  "repairs": [
+    {
+      "domain": "binary-search",
+      "stage": "adapt_edit",
+      "used": "journey_path",
+      "model": "claude-opus-5-5",
+      "why": "ambiguous"
+    }
+  ],
+  "latency_ms": {
+    "resolver/free_text_answer": 1732,
+    "resolver/unrelated_question": 1493,
+    "resolver/path_edit": 1531,
+    "logistic-regression/diagnostic": 11599,
+    "logistic-regression/path": 16610,
+    "logistic-regression/section": 6623,
+    "logistic-regression/adapt_edit": 8220,
+    "logistic-regression/adapt_evidence": 10176,
+    "logistic-regression/tutor": 7526,
+    "logistic-regression/dive": 1,
+    "photosynthesis/diagnostic": 13782,
+    "photosynthesis/path": 19124,
+    "binary-search/diagnostic": 13193,
+    "binary-search/path": 15857,
+    "binary-search/section": 8997,
+    "binary-search/adapt_edit": 29289,
+    "binary-search/adapt_evidence": 10446,
+    "binary-search/tutor": 5854,
+    "binary-search/dive": 0,
+    "french-revolution/diagnostic": 13977
+  },
+  "checks": {
+    "resolver/free_text_answer": {
+      "valid": "pass",
+      "resolver_kind": "pass"
+    },
+    "resolver/unrelated_question": {
+      "valid": "pass",
+      "resolver_kind": "pass"
+    },
+    "resolver/path_edit": {
+      "valid": "pass",
+      "resolver_kind": "pass"
+    },
+    "logistic-regression/diagnostic": {
+      "valid": "pass",
+      "no_topic_leakage": "pass"
+    },
+    "logistic-regression/path": {
+      "valid": "pass",
+      "section_count": "pass",
+      "all_upcoming": "pass",
+      "only_current_generated": "pass",
+      "plans_only": "pass",
+      "wording": "pass",
+      "no_topic_leakage": "pass"
+    },
+    "logistic-regression/section": {
+      "valid": "FAIL: PlannerInvalid (journey_section): check c1: key needs correct (an option id) and misconceptions mapping wrong option ids to misconception ids of its claims",
+      "no_topic_leakage": "pass"
+    },
+    "logistic-regression/adapt_edit": {
+      "valid": "pass",
+      "adapt_valid": "pass",
+      "completed_unchanged": "pass",
+      "edit_respected": "pass",
+      "only_current_generated": "pass",
+      "plans_only": "pass",
+      "wording": "pass",
+      "no_topic_leakage": "pass"
+    },
+    "logistic-regression/adapt_evidence": {
+      "valid": "pass",
+      "adapt_valid": "pass",
+      "completed_unchanged": "pass",
+      "future_only": "pass",
+      "only_current_generated": "pass",
+      "plans_only": "pass",
+      "wording": "pass",
+      "no_topic_leakage": "pass"
+    },
+    "logistic-regression/tutor": {
+      "valid": "pass",
+      "tutor_valid": "pass",
+      "one_question": "pass",
+      "wording": "pass",
+      "journey_domain": "pass",
+      "no_nanogpt_ids": "pass",
+      "no_topic_leakage": "pass"
+    },
+    "logistic-regression/dive": {
+      "valid": "pass",
+      "dive_context": "pass",
+      "dive_identity": "pass"
+    },
+    "photosynthesis/diagnostic": {
+      "valid": "pass",
+      "no_topic_leakage": "pass"
+    },
+    "photosynthesis/path": {
+      "valid": "FAIL: PlannerInvalid (journey_path): invariant 5: section s2 names the unknown concept s1; invariant 5: section s3 names the unknown concept s2; invariant 5: section s4 names the unknown concept s3; invariant 5: section s5 names the unknown concept s4; invariant 5: section s6 names the unknown concept s5",
+      "no_topic_leakage": "pass"
+    },
+    "photosynthesis/section": "skipped: the path failed",
+    "photosynthesis/adapt_edit": "skipped: the path failed",
+    "photosynthesis/adapt_evidence": "skipped: the path failed",
+    "photosynthesis/tutor": "skipped: the path failed",
+    "photosynthesis/dive": "skipped: the path failed",
+    "binary-search/diagnostic": {
+      "valid": "pass",
+      "no_topic_leakage": "pass"
+    },
+    "binary-search/path": {
+      "valid": "pass",
+      "section_count": "pass",
+      "all_upcoming": "pass",
+      "only_current_generated": "pass",
+      "plans_only": "pass",
+      "wording": "pass",
+      "no_topic_leakage": "pass"
+    },
+    "binary-search/section": {
+      "valid": "pass",
+      "only_section_1": "pass",
+      "step_roles": "pass",
+      "wording": "pass",
+      "no_topic_leakage": "pass"
+    },
+    "binary-search/adapt_edit": {
+      "valid": "pass",
+      "adapt_valid": "pass",
+      "completed_unchanged": "pass",
+      "edit_respected": "pass",
+      "only_current_generated": "pass",
+      "plans_only": "pass",
+      "wording": "pass",
+      "no_topic_leakage": "pass"
+    },
+    "binary-search/adapt_evidence": {
+      "valid": "pass",
+      "adapt_valid": "pass",
+      "completed_unchanged": "pass",
+      "future_only": "pass",
+      "only_current_generated": "pass",
+      "plans_only": "pass",
+      "wording": "pass",
+      "no_topic_leakage": "pass"
+    },
+    "binary-search/tutor": {
+      "valid": "pass",
+      "tutor_valid": "pass",
+      "one_question": "pass",
+      "wording": "pass",
+      "journey_domain": "pass",
+      "no_nanogpt_ids": "pass",
+      "no_topic_leakage": "pass"
+    },
+    "binary-search/dive": {
+      "valid": "pass",
+      "dive_context": "pass",
+      "dive_identity": "pass"
+    },
+    "french-revolution/diagnostic": {
+      "valid": "pass",
+      "no_topic_leakage": "pass"
+    }
+  },
+  "cost": {
+    "per_stage": {
+      "free_text_answer": {
+        "calls": 1,
+        "ms": 1728,
+        "in": 246,
+        "out": 79,
+        "cw": 1792,
+        "cr": 0,
+        "usd": 0.005762,
+        "worst_usd": 0.009555
+      },
+      "unrelated_question": {
+        "calls": 1,
+        "ms": 1489,
+        "in": 233,
+        "out": 56,
+        "cw": 0,
+        "cr": 1792,
+        "usd": 0.001384,
+        "worst_usd": 0.009432
+      },
+      "path_edit": {
+        "calls": 1,
+        "ms": 1529,
+        "in": 238,
+        "out": 54,
+        "cw": 0,
+        "cr": 1792,
+        "usd": 0.001374,
+        "worst_usd": 0.00948
+      },
+      "diagnostic": {
+        "calls": 4,
+        "ms": 52525,
+        "in": 754,
+        "out": 7695,
+        "cw": 3110,
+        "cr": 9330,
+        "usd": 0.088099,
+        "worst_usd": 0.359973
+      },
+      "path": {
+        "calls": 4,
+        "ms": 52160,
+        "in": 5141,
+        "out": 6258,
+        "cw": 3860,
+        "cr": 7720,
+        "usd": 0.166568,
+        "worst_usd": 1.102455
+      },
+      "section": {
+        "calls": 2,
+        "ms": 15597,
+        "in": 6502,
+        "out": 2246,
+        "cw": 3270,
+        "cr": 3270,
+        "usd": 0.044293,
+        "worst_usd": 0.102625
+      },
+      "adapt_edit": {
+        "calls": 3,
+        "ms": 37275,
+        "in": 9046,
+        "out": 5788,
+        "cw": 3683,
+        "cr": 7543,
+        "usd": 0.116386,
+        "worst_usd": 0.407559
+      },
+      "adapt_evidence": {
+        "calls": 2,
+        "ms": 20580,
+        "in": 6065,
+        "out": 3858,
+        "cw": 0,
+        "cr": 7366,
+        "usd": 0.052184,
+        "worst_usd": 0.123237
+      },
+      "tutor": {
+        "calls": 2,
+        "ms": 13330,
+        "in": 1491,
+        "out": 1152,
+        "cw": 3210,
+        "cr": 3210,
+        "usd": 0.045696,
+        "worst_usd": 0.13261
+      }
+    },
+    "per_domain": {
+      "resolver": {
+        "calls": 3,
+        "ms": 4746,
+        "in": 717,
+        "out": 189,
+        "cw": 1792,
+        "cr": 3584,
+        "usd": 0.00852,
+        "worst_usd": 0.028467
+      },
+      "logistic-regression": {
+        "calls": 6,
+        "ms": 60434,
+        "in": 11749,
+        "out": 9033,
+        "cw": 17133,
+        "cr": 3683,
+        "usd": 0.206348,
+        "worst_usd": 0.604474
+      },
+      "photosynthesis": {
+        "calls": 2,
+        "ms": 32894,
+        "in": 2056,
+        "out": 4392,
+        "cw": 0,
+        "cr": 6970,
+        "usd": 0.07658,
+        "worst_usd": 0.36602
+      },
+      "binary-search": {
+        "calls": 7,
+        "ms": 83585,
+        "in": 15011,
+        "out": 11508,
+        "cw": 0,
+        "cr": 24676,
+        "usd": 0.20867,
+        "worst_usd": 0.891057
+      },
+      "french-revolution": {
+        "calls": 2,
+        "ms": 14554,
+        "in": 183,
+        "out": 2064,
+        "cw": 0,
+        "cr": 3110,
+        "usd": 0.021628,
+        "worst_usd": 0.366908
+      }
+    },
+    "per_role": {
+      "journey_resolver": {
+        "calls": 3,
+        "ms": 4746,
+        "in": 717,
+        "out": 189,
+        "cw": 1792,
+        "cr": 3584,
+        "usd": 0.00852,
+        "worst_usd": 0.028467
+      },
+      "journey_diagnostic": {
+        "calls": 4,
+        "ms": 52525,
+        "in": 754,
+        "out": 7695,
+        "cw": 3110,
+        "cr": 9330,
+        "usd": 0.088099,
+        "worst_usd": 0.359973
+      },
+      "journey_path": {
+        "calls": 5,
+        "ms": 71142,
+        "in": 8155,
+        "out": 8625,
+        "cw": 3860,
+        "cr": 11580,
+        "usd": 0.226736,
+        "worst_usd": 1.38683
+      },
+      "journey_section": {
+        "calls": 2,
+        "ms": 15597,
+        "in": 6502,
+        "out": 2246,
+        "cw": 3270,
+        "cr": 3270,
+        "usd": 0.044293,
+        "worst_usd": 0.102625
+      },
+      "journey_adapt": {
+        "calls": 4,
+        "ms": 38873,
+        "in": 12097,
+        "out": 7279,
+        "cw": 3683,
+        "cr": 11049,
+        "usd": 0.108402,
+        "worst_usd": 0.246421
+      },
+      "tutor claude-opus-5-5": {
+        "calls": 2,
+        "ms": 13330,
+        "in": 1491,
+        "out": 1152,
+        "cw": 3210,
+        "cr": 3210,
+        "usd": 0.045696,
+        "worst_usd": 0.13261
+      }
+    },
+    "total_usd": 0.521746,
+    "all_live_runs_usd": 0.521746,
+    "worst_case_usd": {
+      "calls_made": 2.2569,
+      "plus_untaken_escalations": 3.1064,
+      "note": "input characters / 2 at the cache-write rate plus max_tokens at the output rate; stub inputs are fixture-sized"
+    }
+  },
+  "served_model_mismatches": [],
+  "billed_unknown": []
+}
