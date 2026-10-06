@@ -67,6 +67,8 @@ test('one failing case per rule; errors name the rule, never the hook text', () 
     [swap(0, { hook: 'Do you know why hot glass sags?' }), null],
     [swap(0, { hook: 'So why does my vase crack when it cools?' }), 'learner_words'],
     [swap(0, { learning_goal: 'x'.repeat(121) }), 'goal'],
+    [swap(0, { learning_goal: 'Reach mastery of how cooling rate sets stress' }), 'goal'],
+    [swap(0, { learning_goal: 'Show that you are a natural at annealing' }), 'goal'],
     [swap(0, { claim_ids: ['not.in-scope'] }), 'ids'],
     [swap(0, { concept_ids: [], claim_ids: [] }), 'ungrounded'],
     [swap(1, { hook: THREE[0].hook }), 'duplicate_hook'],
@@ -131,6 +133,15 @@ test('topic escape hatch: a format word passes only when the canvas is about it'
   assert.equal(nextStepsOutput({ options: [option({ hook }), ...THREE.slice(1)] }, about).ok, true);
 });
 
+test('topic escape hatch matches whole words: a longer word never lets a format word through', () => {
+  const card = 'Why does a card flip so fast?', clip = 'Why does a clip stutter on a phone?';
+  assert.equal(hookProblem(card, { topic: 'cardiac rhythm and the heart' }), 'format_word', 'cardiac is not card');
+  assert.equal(hookProblem(clip, { topic: 'how an eclipse is timed' }), 'format_word', 'eclipse is not clip');
+  assert.equal(hookProblem(card, { topic: 'card sorting methods' }), null, 'a topic that is about cards');
+  assert.equal(hookProblem(card, { topic: 'the art of CARD tricks' }), null, 'case does not matter');
+  assert.equal(hookProblem('Why does the next lesson plan matter?', { topic: 'planning the next lesson' }), null, 'a two-word format name');
+});
+
 test('nextStepsInputProblem refuses wrong shapes, forbidden keys and oversized input', () => {
   assert.equal(nextStepsInputProblem(INPUT), null);
   for (const bad of [null, [], { ...INPUT, mode: 'shared' }, { ...INPUT, basis: '' }, { ...INPUT, scope: { concepts: {}, claims: { a: { state: 'mastered' } } } },
@@ -148,6 +159,15 @@ test('nextStepsInputProblem: a concept or claim id may be named like a forbidden
   assert.equal(typeof nextStepsInputProblem({ ...INPUT, previous: { hooks: Array(7).fill('x'), goals: [] } }), 'string', 'more than 6 previous hooks');
   assert.equal(typeof nextStepsInputProblem({ ...INPUT, previous: { hooks: [], goals: Array(4).fill('x') } }), 'string', 'more than 3 previous goals');
   assert.equal(typeof nextStepsInputProblem({ ...INPUT, canvas: { blocks: Array(21).fill(INPUT.canvas.blocks[0]) } }), 'string', 'more than 20 blocks');
+});
+
+test('nextStepsInputProblem: a forbidden key is refused at any depth, under scope too; only the id keys are exempt', () => {
+  const claim = INPUT.scope.claims['viscosity.temperature'];
+  assert.match(nextStepsInputProblem({ ...INPUT, scope: { ...INPUT.scope, familiarity: 'new' } }), /forbidden key familiarity/);
+  assert.match(nextStepsInputProblem({ ...INPUT, scope: { ...INPUT.scope, intake: { a: 1 } } }), /forbidden key intake/);
+  assert.match(nextStepsInputProblem({ ...INPUT, scope: { concepts: {}, claims: { c: { ...claim, answer: 'x' } } } }), /forbidden key answer/, 'inside a claim');
+  assert.match(nextStepsInputProblem({ ...INPUT, scope: { concepts: { c: { level: 1 } }, claims: {} } }), /forbidden key level/, 'inside a concept value');
+  assert.equal(nextStepsInputProblem({ ...INPUT, scope: { concepts: { key: 'Key' }, claims: { key: { ...claim, concept: 'key' } } } }), null, 'a claim id literally named key');
 });
 
 test('mintSet: ns_ ids, 3 hooks, opaque selected_next_step, no reason_internal anywhere', () => {
@@ -173,7 +193,7 @@ test('selectedStepProblem: shape, bounds, wording, ids, version (409 stale_hook)
   assert.deepEqual(selectedStepProblem(step, { ...ctx, version: 5 }), { error: 'stale_hook', status: 409 });
   assert.equal(selectedStepProblem(step, { ...ctx, origin: ':root' }).status, 400);
   for (const bad of [{ ...step, v: 2 }, { ...step, set_id: 'x' }, { ...step, suggestion_id: 'ns_abcdef01.4' }, { ...step, hook: 'Explain annealing to me now' }, { ...step, learning_goal: '' },
-    { ...step, claim_ids: ['secret.claim'] }, { ...step, scope: 'owned' }, null]) {
+    { ...step, learning_goal: 'Reach mastery of how cooling rate sets stress' }, { ...step, claim_ids: ['secret.claim'] }, { ...step, scope: 'owned' }, null]) {
     assert.equal(selectedStepProblem(bad, ctx)?.status, 400, JSON.stringify(bad)?.slice(0, 80));
   }
 });

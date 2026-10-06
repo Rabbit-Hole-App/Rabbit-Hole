@@ -61,7 +61,8 @@ export function hookProblem(hook, { topic = '', texts = [], question = '' } = {}
   if (/\n/.test(hook)) return 'hook_line';
   if (CODE.test(hook) || learningGoalProblem(hook) === 'identifier') return 'hook_code';
   if (COMMAND.test(hook.trim())) return 'command';
-  if ((hook.match(FORMAT) || []).some(w => !topic.includes(w.toLowerCase()))) return 'format_word';
+  // Whole words only: FORMAT yields letters, spaces and hyphens, so a match is safe to use as a pattern.
+  if ((hook.match(FORMAT) || []).some(w => !new RegExp(`\\b${w}\\b`, 'i').test(topic))) return 'format_word';
   if (CLICKBAIT.test(hook)) return 'clickbait';
   if (labelled(hook)) return 'level_label';
   if (texts.some(text => copies(hook, text))) return 'answer_reveal';
@@ -108,14 +109,16 @@ export function nextStepsInputProblem(input) {
   if (!['journey', 'dive', 'canvas'].includes(input.mode)) return 'mode must be journey, dive or canvas';
   if (typeof input.basis !== 'string' || !input.basis || input.basis.length > LIMITS.basis) return `basis must be 1-${LIMITS.basis} characters`;
   if (JSON.stringify(input).length > LIMITS.input_refuse) return `input over ${LIMITS.input_refuse} characters`;
-  // A concept or claim id is data, not a field name: scan the scope's values, not its keys.
+  // A concept or claim id is data, not a field name: the id keys of scope.concepts and scope.claims are exempt (their
+  // values are scanned), every other key at any depth, scope's own included, is not.
   const { concepts = {}, claims = {} } = isObj(input.scope) ? input.scope : {};
   const scan = v => {
     if (!v || typeof v !== 'object') return null;
     for (const [k, x] of Object.entries(v)) { if (FORBIDDEN_KEYS.includes(k)) return k; const inner = scan(x); if (inner) return inner; }
     return null;
   };
-  const hit = scan({ ...input, scope: null }) || (isObj(concepts) && scan(Object.values(concepts))) || (isObj(claims) && scan(Object.values(claims)));
+  const rest = { ...input, scope: isObj(input.scope) ? { ...input.scope, concepts: null, claims: null } : input.scope };
+  const hit = scan(rest) || (isObj(concepts) && scan(Object.values(concepts))) || (isObj(claims) && scan(Object.values(claims)));
   if (hit) return `forbidden key ${hit}`;
   if (!isObj(concepts) || Object.keys(concepts).length > LIMITS.scope_concepts) return `scope.concepts must be an object of at most ${LIMITS.scope_concepts}`;
   if (!isObj(claims) || Object.keys(claims).length > LIMITS.scope_claims) return `scope.claims must be an object of at most ${LIMITS.scope_claims}`;

@@ -272,7 +272,8 @@ const check = (pass, reason) => ({ pass: !!pass, reason });
 const cut300 = text => String(text).slice(0, 300);
 const why = e => cut300(e instanceof PlannerInvalid ? `PlannerInvalid (${e.role}): ${e.errors.join('; ')}` : `${e.name}: ${e.message}`);
 // No mastery, fixed learner level or permanent ability label anywhere the learner reads. The list is
-// LEARNER_LABELS in agents/learn-journey.js (shared with the hook validator). Percentages: any in change.reason and learner_note (the evidence wording); in
+// LEARNER_LABELS in agents/learn-journey.js (shared with the hook validator).
+// Percentages: any in change.reason and learner_note (the evidence wording); in
 // the Tutor's words only near "you" or "your" (about the learner), so teaching content ("98% of the population") passes;
 // none in adaptation_reason or section content, where "halves the range, 50%" is teaching.
 // ponytail: a short list of label patterns; extend it when a real plan slips a label past it.
