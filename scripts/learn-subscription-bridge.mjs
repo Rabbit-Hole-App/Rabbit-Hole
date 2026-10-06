@@ -102,7 +102,7 @@ function invokeValue(name, text, type) {
 }
 export function decodeInvoke(text, tools) {
   const reply = text.trim();
-  if (!reply.startsWith('<invoke')) throw new Error('invoke: the reply does not start with <invoke> (prose, a fence or a wrapper before it)');
+  if (!/^<invoke[\s>]/.test(reply)) throw new Error('invoke: the reply does not start with <invoke> (prose, a fence or a wrapper before it)');
   if (!reply.endsWith('</invoke>')) throw new Error('invoke: the reply does not end with </invoke> (unclosed, or text after it)');
   const opens = reply.match(/<invoke\b/g).length, closes = reply.match(/<\/invoke>/g).length;
   if (opens > 1) throw new Error(reply.indexOf('<invoke', 1) < reply.indexOf('</invoke>') ? 'invoke: nested <invoke>' : 'invoke: more than one <invoke>');
@@ -120,7 +120,7 @@ export function decodeInvoke(text, tools) {
     tag.lastIndex = at;
     const param = tag.exec(inner);
     if (!param) throw new Error(inner.startsWith('<parameter', at) ? 'invoke: a <parameter> tag has no name' : 'invoke: text outside a <parameter>');
-    const key = param[1], end = inner.indexOf('</parameter>', tag.lastIndex);
+    const key = param[1].slice(0, 80), end = inner.indexOf('</parameter>', tag.lastIndex);
     if (end < 0) throw new Error(`invoke: parameter ${key} is not closed`);
     const value = inner.slice(tag.lastIndex, end);
     if (/<\/?parameter\b/.test(value)) throw new Error(`invoke: parameter ${key} holds another parameter tag`);

@@ -163,3 +163,12 @@ test('subscription mode refuses the course model actions, including revise_secti
   const gate = worker.slice(worker.indexOf('(await req.clone().json()).action'));
   assert.ok(gate.indexOf('subscriptionCourseRefusal(env, action)') > 0 && gate.indexOf('subscriptionCourseRefusal(env, action)') < gate.indexOf("['/api/learn/ask', '/api/learn/selection']"));
 });
+
+test('invoke decoding: a look-alike tag such as <invokes> is refused cleanly by the start rule, and a long parameter name is cut in the error', async () => {
+  const { decodeInvoke } = await import('../../../scripts/learn-subscription-bridge.mjs');
+  const tools = [{ name: 't', input_schema: { properties: { a: { type: 'string' } } } }];
+  assert.throws(() => decodeInvoke('<invokes>x</invoke>', tools), /does not start with <invoke>/);
+  const long = 'k'.repeat(200);
+  assert.throws(() => decodeInvoke(`<invoke name="t"><parameter name="${long}">x</parameter></invoke>`, tools),
+    e => e.message.includes('k'.repeat(80)) && !e.message.includes('k'.repeat(81)));
+});
