@@ -13,6 +13,7 @@ import { REPAIR_RULES, authorRequest, inventoryChange } from './author.js';
 import { BLOCKING_CATEGORIES, validateFinding, validateJob, validateRenderRequest, validateRenderResult } from './contracts.js';
 import { localService, renderComposition, renderPreview } from './render-job.mjs';
 import { harnessFindings, runMotionJob } from './review-job.mjs';
+import { frozenStoryboardJob } from './benchmark.mjs';
 import { REVIEWER_CATEGORIES, reviewRequest, runReviewer, validateReviewOutput } from './review.js';
 import { checkComposition } from './static-check.js';
 import { storyboardRequest } from './storyboard.js';
@@ -363,4 +364,21 @@ test('a Director revision that changes the object inventory: the Author repair g
   h.stages.repairAuthor = async a => { seen = a; return author(a); };
   await run('softmax', h);
   assert.equal(seen.repair.revision, undefined);
+});
+
+// M8: a pair's storyboard is frozen, so a storyboard-level finding goes to the Author repair and the
+// Director is never asked; the same production route as when the storyboard repair is already spent.
+test('M8 frozen storyboard: an unsupported_claim goes to the Author repair, never a Director revision', async () => {
+  for (const renderer of ['remotion', 'hyperframes']) {
+    const h = harness({ previews: [clean(), clean()], reviews: [[], [{ category: 'unsupported_claim', description: 'a bar grows after the step' }], [], []] });
+    h.stages.revise = async () => assert.fail('the Director must not revise a frozen storyboard');
+    const x = load('softmax');
+    const r = await frozenStoryboardJob(runMotionJob)({ ...x, ...h.stages, renderer, call: async () => assert.fail('no real model call'), dir: tmp(), prior: { repairs: { storyboard: 0, author: 0 }, format_retries: [], transport_retries: [] } });
+    assert.equal(r.job.status, 'ready', renderer);
+    assert.deepEqual(r.repair.route, 'author');
+    assert.equal(r.repair.storyboard_repair_already_spent, true);
+    assert.equal(r.job.repairs.author, 1);
+    assert.equal(r.storyboard_revised, false);
+    assert.equal(r.job.storyboard, x.storyboard, 'the same storyboard');
+  }
 });

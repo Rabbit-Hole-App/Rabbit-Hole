@@ -1,0 +1,11 @@
+{
+  "schema": "motion-benchmark-cases/1",
+  "note": "M8 benchmark cases (owner, 2026-10-06). A case is a /motion request, an optional selection in the pinned source (repository_context, at the source's own commit), and an optional frozen plan. Cases without a plan get one from the plan stage; both renderers then take the same frozen plan. Order is the run order: if the budget ends, the later cases are the ones not run.",
+  "renderers": ["remotion", "hyperframes"],
+  "cases": [
+    { "id": "A", "shape": "code + math + matrix/data visualization", "plan": "m7b/plan-softmax.json" },
+    { "id": "C", "shape": "mathematical mechanism with no attention structure", "request": "/motion 15s explain this", "repository_context": { "label": "MLP", "range": { "path": "model.py", "start": 78, "end": 92 } } },
+    { "id": "D", "shape": "non-model, non-attention system flow (data preparation)", "request": "/motion 15s explain this", "repository_context": { "label": "character-level data preparation", "range": { "path": "data/shakespeare_char/prepare.py", "start": 23, "end": 45 } } },
+    { "id": "B", "shape": "code walkthrough + sequential system flow", "plan": "m7b/plan-multinomial.json" }
+  ]
+}
