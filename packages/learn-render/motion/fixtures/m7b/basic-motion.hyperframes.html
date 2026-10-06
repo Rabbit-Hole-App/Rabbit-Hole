@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #0f1220; font-family: 'Inter'; }
+  #mover { position: absolute; left: 160px; top: 480px; font-size: 96px; font-weight: 500; color: #f4f1ea; animation: slide 5s linear both; }
+  @keyframes slide { 0% { transform: translateX(0); } 40%, 100% { transform: translateX(600px); } }
+  #fixed { position: absolute; left: 160px; top: 200px; font-size: 48px; color: #a9b0c8; }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="basic-motion" data-start="0" data-duration="5" data-width="1920" data-height="1080" data-no-timeline>
+  <div id="fixed">fixed line</div>
+  <div id="mover">moving line</div>
+</div>
+</body>
+</html>

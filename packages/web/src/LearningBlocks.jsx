@@ -25,8 +25,9 @@ import InteractiveScene, { sceneSummary } from './InteractiveScene.jsx';
 import SceneActivity from './SceneActivity.jsx';
 import { describeActivity } from './scene-activity.js';
 import MermaidDiagram, { MermaidSource } from './MermaidDiagram.jsx';
-import { sceneAssetUrl, sceneList, startScene, startVideo, videoAssetUrl, videoList } from './learn-scene-client.js';
+import { sceneAssetUrl, sceneList, startScene, startVideo, stopVideo, videoAssetUrl, videoList } from './learn-scene-client.js';
 import PaidConfirm from './PaidConfirm.jsx';
+import { videoLabel } from './learn-video-label.js';
 import { describeNotebook } from './learn-notebook.js';
 import { describeYouTube } from './learn-ask-target.js';
 import { afterPaint, usePerf } from './learn-perf.js';
@@ -847,9 +848,13 @@ function useElapsed(active) {
 
 // A / command's paid proposal arrives with confirmedStart: the learner already
 // pressed Generate in the composer, so the card starts once and drops the flag.
+// Once per mounted card: a stale copy of the block written back with the flag
+// (a poll started before the flag was dropped) must not start a second job.
 function useConfirmedStart(block, onChange, generate) {
+  const started = useRef(false);
   useEffect(() => {
-    if (!block.confirmedStart) return;
+    if (!block.confirmedStart || started.current) return;
+    started.current = true;
     const { confirmedStart: _started, ...rest } = block;
     onChange(rest);
     generate(rest);
@@ -1448,23 +1453,38 @@ function VideoBody({ block, appName, onChange, onFile }) {
   const elapsed = useElapsed(block.status === 'generating' || block.status === 'queued');
   const polling = useRef(null);
   useEffect(() => () => clearTimeout(polling.current), []);
+  // The poll writes onto the card as it is NOW: a copy captured when Generate ran would put back
+  // fields since dropped (confirmedStart, which would start a second job) or since edited.
+  const latest = useRef(block);
+  latest.current = block;
+  const [placement, setPlacement] = useState(null);
   // Follows the exact job this Generate started (see SceneBody).
   const follow = async placementId => {
+    setPlacement(placementId);
     try {
       const list = await videoList(appName);
       const mine = list.videos?.find(video => video.id === placementId);
       if (!mine) return;
+      const current = latest.current;
       if (mine.status === 'ready') {
         const src = videoAssetUrl(appName, mine.key);
-        const existing = block.variants?.length ? block.variants : (block.src ? [{ src: block.src }] : []);
-        const kept = existing.some(clip => clip.src === src) ? existing : [...existing, { src, prompt: block.operation?.prompt }];
-        onChange({ ...block, status: 'ready', src, variants: kept, variant: kept.findIndex(clip => clip.src === src) });
+        const existing = current.variants?.length ? current.variants : (current.src ? [{ src: current.src }] : []);
+        const kept = existing.some(clip => clip.src === src) ? existing : [...existing, { src, prompt: current.operation?.prompt }];
+        // A /motion video brings its title and provenance (the brief's title, duration, sources).
+        const { title, ...motion } = mine.motion || {};
+        onChange({ ...current, status: 'ready', src, variants: kept, variant: kept.findIndex(clip => clip.src === src), ...(mine.motion ? { title: title || current.title, motion } : {}) });
         return;
       }
-      if (mine.status === 'failed') { setError(mine.error || 'The provider could not generate this clip.'); onChange({ ...block, status: 'failed' }); return; }
-      onChange({ ...block, status: mine.status });
+      if (mine.status === 'failed') { setError(mine.error || 'The provider could not generate this clip.'); onChange({ ...current, status: 'failed' }); return; }
+      if (mine.status !== current.status) onChange({ ...current, status: mine.status });
       polling.current = setTimeout(() => follow(placementId), 5000);
     } catch (problem) { setError(problem.message); }
+  };
+  // Stop: only an operation whose provider can stop (label.stoppable, a /motion request).
+  const stop = async () => {
+    clearTimeout(polling.current);
+    try { await stopVideo(appName, placement); setError('Stopped.'); onChange({ ...latest.current, status: 'failed' }); }
+    catch (problem) { setError(problem.message); polling.current = setTimeout(() => follow(placement), 5000); }
   };
   const [confirming, setConfirming] = useState(false);
   const generate = async (current = block) => {
@@ -1480,6 +1500,7 @@ function VideoBody({ block, appName, onChange, onFile }) {
   const position = Math.max(0, Math.min(block.variant ?? clips.length - 1, clips.length - 1));
   const shown = clips[position]?.src || '';
   useEffect(() => { if (!shown) afterPaint(() => { report('content'); report('interactive'); }); }, [shown]);
+  const label = videoLabel(block);
   return (
     <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
       <Kicker>Video</Kicker>
@@ -1495,15 +1516,22 @@ function VideoBody({ block, appName, onChange, onFile }) {
                 <button type="button" aria-label="Next clip" onClick={() => onChange({ ...block, variant: (position + 1) % clips.length })} className="rounded p-1 text-ink-2 hover:bg-hover hover:text-ink"><ChevronRight size={15} /></button>
               </div>
             )}
+            {label.sources && (
+              <div data-video-meta className="mt-1.5 text-xs text-ink-2">
+                <p>{label.detail}</p>
+                {label.sources.length > 0 && <p className="mt-0.5">Sources: {label.sources.join(', ')}</p>}
+              </div>
+            )}
           </>
         : <div className="mt-2 flex min-h-32 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-line bg-hover p-4 text-center" onPointerDown={event => event.stopPropagation()}>
-            {block.operation?.op === 'generate_math_animation'
-              ? <p className="text-xs text-ink-2">{block.operation.scene.steps.length} steps · {block.operation.scene.steps.map(step => step.kind).join(', ')} · rendered by manim</p>
-              : <p className="text-xs text-ink-2">{block.operation?.duration || 4}s · {block.operation?.aspectRatio || '16:9'} · {block.operation?.purpose?.replace('_', ' ')}</p>}
+            <p className="text-xs text-ink-2">{label.detail}</p>
             {pending
-              ? <Progress seconds={elapsed} expected={block.operation?.op === 'generate_math_animation' ? 240 : 180} label={block.operation?.op === 'generate_math_animation' ? 'Rendering the animation' : 'Generating the clip'} />
+              ? <>
+                  <Progress seconds={elapsed} expected={label.expected} label={label.progress} />
+                  {label.stoppable && placement && <button type="button" data-stop-video onClick={stop} className="flex h-8 items-center rounded-lg border border-line px-3.5 text-sm font-medium text-ink hover:bg-white">Stop</button>}
+                </>
               : confirming ? <PaidConfirm onGenerate={() => generate()} onCancel={() => setConfirming(false)} />
-              : <button type="button" data-generate-video onClick={() => setConfirming(true)} className="flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3.5 text-sm font-medium text-white"><Play size={14} />{block.status === 'failed' ? 'Retry render' : block.operation?.op === 'generate_math_animation' ? 'Render the animation' : 'Generate the video'}</button>}
+              : <button type="button" data-generate-video onClick={() => setConfirming(true)} className="flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3.5 text-sm font-medium text-white"><Play size={14} />{block.status === 'failed' ? 'Retry render' : label.button}</button>}
             {error && <p className="text-xs text-red-700">{error}</p>}
           </div>}
       {block.caption && <div className="mt-1.5 text-xs text-ink-2"><Md text={block.caption} onFile={onFile} /></div>}

@@ -1,0 +1,480 @@
+{
+  "id": "storyboard-9b18b25f",
+  "brief_id": "brief-471627df",
+  "version": 1,
+  "beats": [
+    {
+      "id": "B1",
+      "start_time": 0,
+      "end_time": 3,
+      "pedagogical_role": "hook",
+      "visible_objects": [
+        {
+          "id": "idx_row",
+          "description": "A horizontal row of plain cells standing for the token indices of the conditioning prompt (no numbers in the cells). It sits along the top of the frame and is the running sequence for the whole video.",
+          "label": "idx",
+          "change": "Cells slide in one by one from the left to form the prompt row."
+        },
+        {
+          "id": "loop_counter",
+          "description": "A small counter set to the first pass, tied to max_new_tokens.",
+          "label": "pass 1 / max_new_tokens",
+          "change": "Fades in beside the right end of idx_row and pulses once to show a pass is starting."
+        }
+      ],
+      "claim_ids": [
+        "C1"
+      ],
+      "condition_ids": [],
+      "must_show_covered": [],
+      "transition": "Opens on an empty frame. The idx row builds from left to right, then the counter appears.",
+      "framing": "idx_row is centred across the upper third, with the loop counter at its right end. The lower two thirds stay empty, ready for the pipeline.",
+      "on_screen_text": "generate repeats one pass max_new_tokens times.",
+      "narration_line": "Each pass adds one index to idx."
+    },
+    {
+      "id": "B2",
+      "start_time": 3,
+      "end_time": 6,
+      "pedagogical_role": "mechanism",
+      "visible_objects": [
+        {
+          "id": "idx_row",
+          "description": "The prompt row. It stays whole and in place, keeping every cell even when the crop window is shown.",
+          "label": "idx",
+          "change": "Stays still. Its tail is framed by the crop window, and a copy of the framed cells flows down into the model."
+        },
+        {
+          "id": "loop_counter",
+          "description": "Counter on pass 1.",
+          "label": "pass 1 / max_new_tokens",
+          "change": "Holds steady, dimmed slightly."
+        },
+        {
+          "id": "chip_idx_cond",
+          "description": "First stage chip at the far left of a left-to-right stage track under idx_row. Names the model input.",
+          "label": "idx_cond",
+          "change": "Enters first and lights up while the input is formed."
+        },
+        {
+          "id": "crop_window",
+          "description": "A dashed bracket over the tail of idx_row that marks the last block_size cells. It is shown as a conditional case only: for a too-long sequence just the framed cells are copied down as idx_cond, and idx_row itself is not shortened.",
+          "label": "last block_size if too long",
+          "change": "Briefly snaps over the tail of idx_row, the framed copy drops down, then the window fades out while idx_row stays fully intact."
+        },
+        {
+          "id": "chip_model",
+          "description": "Second stage chip, a box that takes idx_cond and outputs a grid of logits.",
+          "label": "self(idx_cond)",
+          "change": "Lights up as the idx_cond copy enters it. A logits grid comes out on its right."
+        },
+        {
+          "id": "logits_grid",
+          "description": "A grid of logits with one row per position of idx_cond. The bottom row is the final position.",
+          "change": "Comes out of the model box. All rows except the final one slide aside and fade to the background."
+        },
+        {
+          "id": "last_logits_row",
+          "description": "The single row of logits for the final position, drawn as a row of bar-cells of different heights. It is the data that moves through the rest of the pipeline.",
+          "change": "Separates from the grid and moves right, then every bar shrinks by the same proportion as it passes the temperature chip, keeping the same order of heights."
+        },
+        {
+          "id": "chip_last",
+          "description": "Third stage chip, marking that only the final position's logits are kept.",
+          "label": "logits[:, -1, :]",
+          "change": "Lights up as the final row separates."
+        },
+        {
+          "id": "chip_temperature",
+          "description": "Fourth stage chip, marking division by temperature.",
+          "label": "/ temperature",
+          "change": "Lights up as the row passes through and is scaled."
+        }
+      ],
+      "claim_ids": [
+        "C2",
+        "C3"
+      ],
+      "condition_ids": [],
+      "must_show_covered": [
+        "A row of logits for the final position only, separated from the earlier positions, which are set aside"
+      ],
+      "transition": "The tail of idx is framed, and a copy drops down into the newly appearing stage track. Attention moves from the top row into the pipeline.",
+      "framing": "The stage track runs left to right across the middle of the frame, with idx_row still visible above. Focus follows the data: idx_cond, then the model, the grid, the final row and the temperature chip. Earlier grid rows move off to the side.",
+      "on_screen_text": "Only final-step logits continue.",
+      "narration_line": "Keep the final logits, divide by temperature."
+    },
+    {
+      "id": "B3",
+      "start_time": 6,
+      "end_time": 10,
+      "pedagogical_role": "mechanism",
+      "visible_objects": [
+        {
+          "id": "idx_row",
+          "description": "Prompt row, unchanged.",
+          "label": "idx",
+          "change": "Holds, dimmed."
+        },
+        {
+          "id": "loop_counter",
+          "description": "Counter on pass 1.",
+          "label": "pass 1 / max_new_tokens",
+          "change": "Holds, dimmed."
+        },
+        {
+          "id": "chip_idx_cond",
+          "description": "Earlier stage chip, done for this pass.",
+          "label": "idx_cond",
+          "change": "Dims."
+        },
+        {
+          "id": "chip_model",
+          "description": "Earlier stage chip, done for this pass.",
+          "label": "self(idx_cond)",
+          "change": "Dims."
+        },
+        {
+          "id": "chip_last",
+          "description": "Earlier stage chip, done for this pass.",
+          "label": "logits[:, -1, :]",
+          "change": "Dims."
+        },
+        {
+          "id": "chip_temperature",
+          "description": "Earlier stage chip, done for this pass.",
+          "label": "/ temperature",
+          "change": "Dims."
+        },
+        {
+          "id": "top_k_gate",
+          "description": "A fork in the stage track shaped like a gate, with the condition written on it. It splits into an upper true path and a lower false path that join again on the right.",
+          "label": "top_k is not None",
+          "change": "Enters and lights up as the scaled logits row reaches it."
+        },
+        {
+          "id": "true_path",
+          "description": "Upper branch of the gate. On this path the row keeps all of its cells, but every cell below the k-th largest is marked -Inf where it stands, and the k largest stay unchanged.",
+          "label": "true: below k-th largest → -Inf",
+          "change": "The row travels along it, and its low cells flip to -Inf markers in place. The number of cells stays the same."
+        },
+        {
+          "id": "false_path",
+          "description": "Lower bypass branch of the gate. On this path a ghost copy of the same row passes through with no change at all.",
+          "label": "false: unchanged",
+          "change": "A ghost copy of the row glides along it with untouched bars, then both paths rejoin."
+        },
+        {
+          "id": "last_logits_row",
+          "description": "The scaled final-position logits row.",
+          "change": "Reaches the gate and is shown on both paths at once: filtered on the true path, untouched on the false path."
+        }
+      ],
+      "claim_ids": [
+        "C4"
+      ],
+      "condition_ids": [
+        "K1"
+      ],
+      "must_show_covered": [
+        "The top-k step drawn as a gated branch labeled 'top_k is not None': on the true path, logits below the k-th largest become -Inf; on the false path, the logits pass by untouched"
+      ],
+      "transition": "The scaled row moves right from the temperature chip into a fork that opens in the track.",
+      "framing": "The gate and its two paths fill the centre of the frame. The earlier chips recede to the left and idx_row stays faint above. The condition label stays readable throughout.",
+      "on_screen_text": "Top-k runs only when top_k is set.",
+      "narration_line": "Only when top_k is set do low logits become -Inf."
+    },
+    {
+      "id": "B4",
+      "start_time": 10,
+      "end_time": 13,
+      "pedagogical_role": "mechanism",
+      "visible_objects": [
+        {
+          "id": "idx_row",
+          "description": "Prompt row, unchanged.",
+          "label": "idx",
+          "change": "Holds, dimmed."
+        },
+        {
+          "id": "loop_counter",
+          "description": "Counter on pass 1.",
+          "label": "pass 1 / max_new_tokens",
+          "change": "Holds, dimmed."
+        },
+        {
+          "id": "top_k_gate",
+          "description": "The top-k fork, already passed. Its condition label stays readable.",
+          "label": "top_k is not None",
+          "change": "Dims and recedes to the left, and its path labels fade out."
+        },
+        {
+          "id": "last_logits_row",
+          "description": "The logits row after the optional top-k step.",
+          "change": "Moves into the softmax chip and is replaced by probability bars."
+        },
+        {
+          "id": "chip_softmax",
+          "description": "Stage chip after the gate, turning logits into normalized probabilities.",
+          "label": "softmax",
+          "change": "Enters and lights up as the row passes through."
+        },
+        {
+          "id": "prob_bars",
+          "description": "A bar chart of normalized probabilities, one bar per index, with clearly different heights.",
+          "label": "probs",
+          "change": "The bars grow out of the softmax chip."
+        },
+        {
+          "id": "chip_multinomial",
+          "description": "Stage chip for the random draw from the probabilities.",
+          "label": "multinomial",
+          "change": "Lights up while the draw happens."
+        },
+        {
+          "id": "draw_marker",
+          "description": "A pointer that sweeps across the bars and lands on one bar at random. It deliberately lands on a bar that is not the tallest.",
+          "label": "idx_next",
+          "change": "Sweeps over the bars, settles on a shorter bar, and lifts that one index out as idx_next."
+        }
+      ],
+      "claim_ids": [
+        "C5"
+      ],
+      "condition_ids": [],
+      "must_show_covered": [
+        "Probabilities from softmax shown as bars, with multinomial drawing a random pick that is not necessarily the tallest bar"
+      ],
+      "transition": "The row leaves the rejoined paths, passes through softmax, and comes out as bars.",
+      "framing": "The probability bars sit at the centre right, with the softmax and multinomial chips beside them. The tallest bar stays visible so the learner sees the pick was not it.",
+      "on_screen_text": "A random draw, not always the tallest bar.",
+      "narration_line": "Softmax makes probabilities; multinomial picks at random."
+    },
+    {
+      "id": "B5",
+      "start_time": 13,
+      "end_time": 15,
+      "pedagogical_role": "mechanism",
+      "visible_objects": [
+        {
+          "id": "draw_marker",
+          "description": "The sampled index idx_next, now a single cell.",
+          "label": "idx_next",
+          "change": "Rises from the bars up to the right end of idx_row."
+        },
+        {
+          "id": "chip_cat",
+          "description": "Final stage chip, which appends idx_next to the running sequence.",
+          "label": "torch.cat",
+          "change": "Enters at the end of the track and lights up as the cell joins idx."
+        },
+        {
+          "id": "idx_row",
+          "description": "The running sequence: the prompt cells followed by the first new cell.",
+          "label": "idx",
+          "change": "Grows by one cell at its right end as idx_next snaps on."
+        },
+        {
+          "id": "chip_idx_cond",
+          "description": "Stage chip, shown in order on the full track.",
+          "label": "idx_cond",
+          "change": "Lights briefly as all the chips light in order from left to right."
+        },
+        {
+          "id": "chip_model",
+          "description": "Stage chip, shown in order on the full track.",
+          "label": "self(idx_cond)",
+          "change": "Lights briefly in the left-to-right sweep."
+        },
+        {
+          "id": "chip_last",
+          "description": "Stage chip, shown in order on the full track.",
+          "label": "logits[:, -1, :]",
+          "change": "Lights briefly in the left-to-right sweep."
+        },
+        {
+          "id": "chip_temperature",
+          "description": "Stage chip, shown in order on the full track.",
+          "label": "/ temperature",
+          "change": "Lights briefly in the left-to-right sweep."
+        },
+        {
+          "id": "top_k_gate",
+          "description": "The optional top-k fork in its place on the track, condition label visible.",
+          "label": "top_k is not None",
+          "change": "Lights briefly in the left-to-right sweep."
+        },
+        {
+          "id": "chip_softmax",
+          "description": "Stage chip, shown in order on the full track.",
+          "label": "softmax",
+          "change": "Lights briefly in the left-to-right sweep."
+        },
+        {
+          "id": "chip_multinomial",
+          "description": "Stage chip, shown in order on the full track.",
+          "label": "multinomial",
+          "change": "Lights briefly in the left-to-right sweep."
+        },
+        {
+          "id": "prob_bars",
+          "description": "Probability bars from this pass.",
+          "label": "probs",
+          "change": "Fade out."
+        },
+        {
+          "id": "loop_counter",
+          "description": "Counter still on pass 1, about to advance.",
+          "label": "pass 1 / max_new_tokens",
+          "change": "Brightens as the pass completes."
+        }
+      ],
+      "claim_ids": [
+        "C6",
+        "C1"
+      ],
+      "condition_ids": [
+        "K1"
+      ],
+      "must_show_covered": [
+        "Steps in source order: idx_cond (crop to block_size if too long) → self(idx_cond) gives logits → keep the last position logits[:, -1, :] → divide by temperature → optional top-k → softmax → multinomial sample → torch.cat append"
+      ],
+      "transition": "The sampled cell travels up from the bars and joins idx. The whole track then lights once in source order to close the pass.",
+      "framing": "idx_row and its new end cell are the focus. The full stage track sits below in source order, from idx_cond to torch.cat.",
+      "on_screen_text": "idx grows by one index.",
+      "narration_line": "torch.cat appends it to idx."
+    },
+    {
+      "id": "B6",
+      "start_time": 15,
+      "end_time": 18,
+      "pedagogical_role": "mechanism",
+      "visible_objects": [
+        {
+          "id": "loop_counter",
+          "description": "Counter advancing through the passes up to max_new_tokens.",
+          "label": "pass … / max_new_tokens",
+          "change": "Ticks forward quickly one pass at a time until it reaches max_new_tokens."
+        },
+        {
+          "id": "idx_row",
+          "description": "The running sequence, gaining exactly one cell per pass.",
+          "label": "idx",
+          "change": "Gains one new cell at its right end on each tick, in step with the counter."
+        },
+        {
+          "id": "top_k_gate",
+          "description": "The optional top-k fork. Its condition label stays readable during the fast passes.",
+          "label": "top_k is not None",
+          "change": "Flickers in order with the other chips on each pass."
+        },
+        {
+          "id": "chip_idx_cond",
+          "description": "Stage chip.",
+          "label": "idx_cond",
+          "change": "Flickers in sequence on each fast pass."
+        },
+        {
+          "id": "chip_model",
+          "description": "Stage chip. It is called once per pass.",
+          "label": "self(idx_cond)",
+          "change": "Flickers once per pass."
+        },
+        {
+          "id": "chip_last",
+          "description": "Stage chip.",
+          "label": "logits[:, -1, :]",
+          "change": "Flickers in sequence on each pass."
+        },
+        {
+          "id": "chip_temperature",
+          "description": "Stage chip.",
+          "label": "/ temperature",
+          "change": "Flickers in sequence on each pass."
+        },
+        {
+          "id": "chip_softmax",
+          "description": "Stage chip.",
+          "label": "softmax",
+          "change": "Flickers in sequence on each pass."
+        },
+        {
+          "id": "chip_multinomial",
+          "description": "Stage chip.",
+          "label": "multinomial",
+          "change": "Flickers in sequence on each pass."
+        },
+        {
+          "id": "chip_cat",
+          "description": "Stage chip.",
+          "label": "torch.cat",
+          "change": "Flickers at the end of each pass as one cell joins idx."
+        }
+      ],
+      "claim_ids": [
+        "C1"
+      ],
+      "condition_ids": [
+        "K1"
+      ],
+      "must_show_covered": [
+        "A row of token indices labeled idx that grows by one cell at the end of each loop pass",
+        "A loop counter tied to max_new_tokens that shows the pass repeating"
+      ],
+      "transition": "The counter advances, and the same left-to-right sweep repeats at a faster pace for each later pass.",
+      "framing": "idx_row and the counter are the focus as the row stretches to the right. The stage track below pulses in order, receding into a rhythm.",
+      "on_screen_text": "One new index per pass, max_new_tokens times.",
+      "narration_line": "Repeat until max_new_tokens indices are added."
+    },
+    {
+      "id": "B7",
+      "start_time": 18,
+      "end_time": 20,
+      "pedagogical_role": "takeaway",
+      "visible_objects": [
+        {
+          "id": "idx_row",
+          "description": "The returned sequence: the original prompt cells followed by all the generated cells.",
+          "label": "idx",
+          "change": "Moves to the centre and settles as the final result."
+        },
+        {
+          "id": "return_label",
+          "description": "A tag showing that this row is what generate returns.",
+          "label": "return idx",
+          "change": "Appears above the row."
+        },
+        {
+          "id": "prompt_bracket",
+          "description": "A bracket under the leading cells, which are the original prompt indices.",
+          "label": "prompt",
+          "change": "Draws in under the start of the row."
+        },
+        {
+          "id": "generated_bracket",
+          "description": "A bracket under the trailing cells, which are the new indices.",
+          "label": "generated",
+          "change": "Draws in under the rest of the row."
+        },
+        {
+          "id": "loop_counter",
+          "description": "Counter finished at max_new_tokens.",
+          "label": "max_new_tokens / max_new_tokens",
+          "change": "Fades out with the stage track."
+        }
+      ],
+      "claim_ids": [
+        "C6",
+        "C1"
+      ],
+      "condition_ids": [],
+      "must_show_covered": [
+        "The returned idx still beginning with the original prompt indices"
+      ],
+      "transition": "The stage track fades out, and the finished idx row slides to centre stage.",
+      "framing": "The full returned idx row is centred, with the prompt part and the generated part bracketed separately below it.",
+      "on_screen_text": "Returned idx still begins with the prompt indices.",
+      "narration_line": "idx keeps the prompt."
+    }
+  ]
+}

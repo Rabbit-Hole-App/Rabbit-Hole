@@ -1,0 +1,220 @@
+{
+  "id": "storyboard-demo-b",
+  "brief_id": "brief-demo-b",
+  "version": 1,
+  "beats": [
+    {
+      "id": "B1",
+      "start_time": 0,
+      "end_time": 3,
+      "pedagogical_role": "hook",
+      "visible_objects": [
+        {
+          "id": "generate_code",
+          "description": "the selected code: line 306 and lines 312-328 in JetBrains Mono, with line numbers",
+          "source": {
+            "source_ref_id": "S1",
+            "start_line": 306,
+            "end_line": 306
+          }
+        },
+        {
+          "id": "line_highlight",
+          "description": "highlight on 306 (signature), then on 312 (the loop)",
+          "change": "moves from 306 to 312"
+        },
+        {
+          "id": "loop_note",
+          "description": "note beside 312: runs max_new_tokens times",
+          "label": "runs max_new_tokens times"
+        }
+      ],
+      "claim_ids": [
+        "C1"
+      ],
+      "must_show_covered": [
+        "the generate loop's code"
+      ],
+      "transition": "highlight fades in on 306, then slides down to 312",
+      "framing": "title top-left, one code panel across the frame, caption at the bottom",
+      "on_screen_text": "Each pass through this loop adds one new token, max_new_tokens times."
+    },
+    {
+      "id": "B2",
+      "start_time": 3,
+      "end_time": 7,
+      "pedagogical_role": "mechanism",
+      "visible_objects": [
+        {
+          "id": "line_highlight",
+          "description": "highlight on 314 (crop to block_size), then on 316 (forward pass)",
+          "change": "moves from 314 to 316"
+        },
+        {
+          "id": "forward_note",
+          "description": "note beside 316: logits for every position",
+          "label": "logits for every position"
+        }
+      ],
+      "claim_ids": [
+        "C2"
+      ],
+      "must_show_covered": [],
+      "transition": "highlight slides line to line",
+      "framing": "the code panel stays put",
+      "on_screen_text": "Each step crops the context to the last block_size tokens and runs the model."
+    },
+    {
+      "id": "B3",
+      "start_time": 7,
+      "end_time": 10,
+      "pedagogical_role": "mechanism",
+      "visible_objects": [
+        {
+          "id": "line_highlight",
+          "description": "highlight on 318",
+          "change": "moves to 318"
+        },
+        {
+          "id": "temperature_note",
+          "description": "note beside 318: last position only, divided by temperature",
+          "label": "last position only, ÷ temperature"
+        }
+      ],
+      "claim_ids": [
+        "C3"
+      ],
+      "must_show_covered": [
+        "temperature division before softmax"
+      ],
+      "transition": "highlight slides to 318",
+      "framing": "the code panel stays put",
+      "on_screen_text": "Only the last position's logits are kept, divided by temperature before softmax."
+    },
+    {
+      "id": "B4",
+      "start_time": 10,
+      "end_time": 13,
+      "pedagogical_role": "implementation",
+      "visible_objects": [
+        {
+          "id": "line_highlight",
+          "description": "highlight grows over 320-322",
+          "change": "grows over 320-322"
+        },
+        {
+          "id": "top_k_box",
+          "description": "K1 box beside 320-322: top_k=None (default) skipped; top_k=k sets logits below the k-th largest to −inf"
+        }
+      ],
+      "claim_ids": [
+        "C4"
+      ],
+      "condition_ids": [
+        "K1"
+      ],
+      "must_show_covered": [
+        "the optional top-k branch"
+      ],
+      "transition": "highlight grows to three lines; the K1 box fades in beside them",
+      "framing": "K1 box right of the short top-k lines, clear of the comment lines above and below",
+      "on_screen_text": "Top-k runs only if top_k is set. With the default None, it is skipped."
+    },
+    {
+      "id": "B5",
+      "start_time": 13,
+      "end_time": 16,
+      "pedagogical_role": "mechanism",
+      "visible_objects": [
+        {
+          "id": "line_highlight",
+          "description": "highlight on 324 (softmax), then on 326 (multinomial)",
+          "change": "moves from 324 to 326"
+        },
+        {
+          "id": "sample_notes",
+          "description": "notes: logits → probabilities; weighted random draw"
+        }
+      ],
+      "claim_ids": [
+        "C5"
+      ],
+      "must_show_covered": [
+        "sampling from the probabilities"
+      ],
+      "transition": "highlight shrinks to 324, then slides to 326",
+      "framing": "the code panel stays put",
+      "on_screen_text": "Softmax turns the logits into probabilities; multinomial samples one token."
+    },
+    {
+      "id": "B6",
+      "start_time": 16,
+      "end_time": 18.5,
+      "pedagogical_role": "mechanism",
+      "visible_objects": [
+        {
+          "id": "line_highlight",
+          "description": "highlight on 328",
+          "change": "moves to 328"
+        },
+        {
+          "id": "append_note",
+          "description": "note beside 328: fed back in next step",
+          "label": "fed back in next step"
+        },
+        {
+          "id": "loop_arrow",
+          "description": "loop arrow from 328 back up to 312 in the left margin",
+          "change": "draws upward"
+        }
+      ],
+      "claim_ids": [
+        "C6",
+        "C1"
+      ],
+      "must_show_covered": [
+        "the sampled token appended to idx"
+      ],
+      "transition": "the loop arrow draws itself from 328 up to 312",
+      "framing": "arrow in the left margin, outside the code panel",
+      "on_screen_text": "The sampled token is appended to idx and the loop runs again."
+    },
+    {
+      "id": "B7",
+      "start_time": 18.5,
+      "end_time": 20,
+      "pedagogical_role": "takeaway",
+      "visible_objects": [
+        {
+          "id": "line_highlight",
+          "description": "highlight over the whole loop, 312-328",
+          "change": "spreads over 312-328"
+        },
+        {
+          "id": "loop_arrow",
+          "description": "loop arrow"
+        },
+        {
+          "id": "takeaway_line",
+          "description": "takeaway line"
+        }
+      ],
+      "claim_ids": [
+        "C1",
+        "C3",
+        "C4",
+        "C5",
+        "C6"
+      ],
+      "condition_ids": [
+        "K1"
+      ],
+      "must_show_covered": [
+        "the generate loop's code"
+      ],
+      "transition": "highlight grows over the loop body; takeaway fades in",
+      "framing": "the code panel stays put",
+      "on_screen_text": "Crop, forward, ÷ temperature, optional top-k, softmax, sample, append: repeat."
+    }
+  ]
+}

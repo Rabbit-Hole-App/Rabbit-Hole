@@ -182,3 +182,27 @@ test('a paid command holds no place until Generate; Generate holds it and the co
   out.proposal.generate();
   assert.deepEqual(did.slice(1), [['reserve', { label: 'Creating /animate…', card: 'mathAnimation' }], ['block', 'video', { into: 'slot:1' }]]);
 });
+
+// M7A: /motion exists only in a development build (VITE_MOTION_DEV) and costs nothing until Generate.
+test('/motion: development builds only; the proposal makes no request, Generate inserts the existing video card already confirmed', async () => {
+  const off = harness({});
+  assert.match((await off.run('/motion 15s explain me softmax func')).notice.text, /not a Learn command/);
+  assert.ok(!(pickerSections('/mo') || []).flatMap(section => section.items).some(item => item.name === 'motion'), 'no /motion in the picker of a normal build');
+  const did = [];
+  const canvas = { insertBlock: block => { did.push(block); return 'block-1'; }, dive: () => did.push('dive') };
+  const post = async () => { did.push('POST'); return {}; };
+  const run = text => runLearnCommand(text, { app: 'demo', canvas, post, openSearch: () => {}, location: { concept: 'Attention' }, motionDev: true });
+  const out = await run('/motion 15s explain me softmax func');
+  assert.equal(out.proposal.message, 'This uses paid generation.');
+  assert.deepEqual(did, [], 'no request, no card and no Rabbit Hole before Generate');
+  out.proposal.generate();
+  assert.deepEqual(did, [{
+    type: 'video', mode: 'generate', title: 'Motion: 15s explain me softmax func', src: '', caption: '', status: 'idle',
+    operation: { op: 'motion_request', request: '/motion 15s explain me softmax func', location: { concept: 'Attention' } }, confirmedStart: true,
+  }]);
+  assert.ok(!did.includes('dive') && !did.includes('POST'), 'Generate only inserts the card: no dive, no artifact call');
+  assert.match((await run('/motion')).notice.text, /Add what to explain/);
+  const long = await runLearnCommand(`/motion ${'x'.repeat(600)}`, { app: 'demo', canvas, post, openSearch: () => {}, location: { concept: 'y'.repeat(300) }, motionDev: true });
+  long.proposal.generate();
+  assert.deepEqual([did.at(-1).operation.request.length, did.at(-1).operation.location.concept.length], [500, 100], 'bounded to what LearnVideos accepts');
+});

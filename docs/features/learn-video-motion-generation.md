@@ -235,9 +235,12 @@ Suggested initial roles:
 Renderer selection should eventually depend on capability, not only on the
 user's wording. No generated code runs without a sandbox.
 
-Motion V1 uses one renderer: the existing Remotion stack in
-`packages/learn-render`. HyperFrames is a documented future renderer
-experiment, and the other rows above are future adapters (V1 spec §9).
+Motion V1 needs two renderers behind one `MotionRenderer` interface (owner
+decision 2026-10-04): Remotion (`packages/learn-render`) is the baseline and
+first implementation, and HyperFrames is the priority second renderer.
+Both are required before the M8 benchmark settles the default and the
+routing. Neither is deleted. The other rows above remain future adapters
+(V1 spec §9.4–§9.6).
 
 ## 9. Potential relationship with existing Artifact Generation
 

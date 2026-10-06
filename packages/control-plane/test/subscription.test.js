@@ -1,6 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { subscriptionEnvironment, subscriptionIdentity, subscriptionMessage, createSubscriptionBridge, prepareMessages } from '../../../scripts/learn-subscription-bridge.mjs';
+import { execFile } from 'node:child_process';
+import { mkdtempSync, readFileSync, existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { subscriptionEnvironment, subscriptionIdentity, subscriptionMessage, createSubscriptionBridge, prepareMessages, runWithDeadline } from '../../../scripts/learn-subscription-bridge.mjs';
 import { subscriptionTransport } from '../src/subscription-transport.js';
 import { readFileSync as readText } from 'node:fs';
 import { JOURNEY_TOOLS, pathOutput } from '../src/agents/learn-journey.js';
@@ -171,4 +175,52 @@ test('invoke decoding: a look-alike tag such as <invokes> is refused cleanly by 
   const long = 'k'.repeat(200);
   assert.throws(() => decodeInvoke(`<invoke name="t"><parameter name="${long}">x</parameter></invoke>`, tools),
     e => e.message.includes('k'.repeat(80)) && !e.message.includes('k'.repeat(81)));
+});
+
+test('inline image bytes reach the CLI as image blocks, never as text; long runs opt into a deadline and an output cap', async () => {
+  const png = Buffer.from('fake-png').toString('base64');
+  const blocks = await prepareMessages([{ role: 'user', content: [{ type: 'text', text: 'frame 0' }, { type: 'image', source: { type: 'base64', media_type: 'image/png', data: png } }] }]);
+  assert.equal(blocks[0].type, 'text');
+  assert.ok(!blocks[0].text.includes(png), 'the bytes are not inlined into the JSON text');
+  assert.deepEqual(blocks.slice(1), [{ type: 'text', text: 'Asset 1: inline image' }, { type: 'image', source: { type: 'base64', media_type: 'image/png', data: png } }]);
+  await assert.rejects(prepareMessages([{ type: 'image', source: { type: 'base64', media_type: 'text/html', data: png } }]), /Invalid inline asset/);
+  const seen = [];
+  const run = async (args, input, timeout, extraEnv) => { seen.push([timeout, extraEnv]); return { result: '{"type":"text","text":"ok"}' }; };
+  await subscriptionMessage({ messages: [{ role: 'user', content: 'x' }] }, { identify: async () => ({}), prepare: async () => [], run });
+  await subscriptionMessage({ messages: [{ role: 'user', content: 'x' }] }, { identify: async () => ({}), prepare: async () => [], run, timeout: 900000, maxOutputTokens: 64000 });
+  assert.deepEqual(seen, [[180000, {}], [900000, { CLAUDE_CODE_MAX_OUTPUT_TOKENS: '64000' }]], 'Learn keeps its defaults');
+  let prompt = '';
+  await subscriptionMessage({ system: [{ type: 'text', text: 'You are the Motion Director.', cache_control: { type: 'ephemeral' } }], messages: [{ role: 'user', content: 'x' }] }, { identify: async () => ({}), prepare: async () => [], run: async args => { prompt = args[args.indexOf('--system-prompt') + 1]; return { result: '{"type":"text","text":"ok"}' }; } });
+  assert.ok(prompt.startsWith('You are the Motion Director.'), 'block system prompts arrive as text, not [object Object]');
+});
+
+// Motion M7A Run A (2026-10-06): a 15 min CLI deadline returned after 61.5 min on Windows. A kill of
+// the parent alone leaves its descendants running (a detached one escapes Node's Windows job object; on
+// POSIX any child outlives a SIGTERM to its parent). The deadline kills the tree and returns at once.
+test('a deadline kills the whole process tree and returns at the deadline', { timeout: 60000 }, async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'deadline-tree-'));
+  const detached = process.platform === 'win32';
+  const tree = pidFile => ['-e', `const { spawn } = require('node:child_process'); const c = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 20000)'], { stdio: 'inherit', detached: ${detached} }); require('node:fs').writeFileSync(${JSON.stringify(pidFile)}, String(c.pid)); setTimeout(() => {}, 20000);`];
+  const alive = pid => { try { process.kill(pid, 0); return true; } catch { return false; } };
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const pidOf = async file => { for (let i = 0; i < 100 && !existsSync(file); i++) await sleep(50); return Number(readFileSync(file, 'utf8')); };
+
+  // The old mechanism: execFile's own timeout kills the parent only; the grandchild keeps running.
+  await new Promise(done => execFile(process.execPath, tree(join(dir, 'old.pid')), { timeout: 1000, windowsHide: true }, () => done()));
+  const orphan = await pidOf(join(dir, 'old.pid'));
+  await sleep(300);
+  assert.equal(alive(orphan), true, 'a parent-only kill leaves the grandchild running');
+  process.kill(orphan);
+
+  const t0 = Date.now();
+  const error = await runWithDeadline(process.execPath, tree(join(dir, 'new.pid')), { timeout: 1000 }).then(() => null, e => e);
+  const returned = Date.now() - t0;
+  assert.equal(error?.code, 'ETIMEDOUT');
+  assert.deepEqual([error.deadline_ms, error.reason], [1000, 'deadline: process tree killed']);
+  assert.ok(error.elapsed_ms >= 1000 && error.elapsed_ms < 1500, `terminated after ${error.elapsed_ms} ms`);
+  assert.ok(returned < 2000, `returned after ${returned} ms, near the 1000 ms deadline`);
+  assert.match(error.message, /deadline 1000 ms, process tree terminated after \d+ ms/);
+  const grandchild = await pidOf(join(dir, 'new.pid'));
+  for (let i = 0; i < 100 && alive(grandchild); i++) await sleep(50);
+  assert.equal(alive(grandchild), false, 'the grandchild died with the tree');
 });

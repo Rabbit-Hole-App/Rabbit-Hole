@@ -1,0 +1,256 @@
+{
+  "status": "storyboard_invalid",
+  "errors": [
+    "storyboard: teaches one side of K1 but none of its other side (C4)"
+  ],
+  "storyboard": {
+    "id": "storyboard-3f9ff801",
+    "brief_id": "brief-0bee7b4a",
+    "version": 1,
+    "beats": [
+      {
+        "id": "B1",
+        "start_time": 0,
+        "end_time": 3,
+        "pedagogical_role": "hook",
+        "visible_objects": [
+          {
+            "id": "code_softmax_line",
+            "description": "The single softmax line from the manual attention path, shown large and centred, highlighted as the focus.",
+            "source": {
+              "source_ref_id": "S4",
+              "start_line": 69,
+              "end_line": 69
+            },
+            "change": "Enters and its highlight pulses once."
+          },
+          {
+            "id": "branch_label",
+            "description": "A tag attached to the code saying this code runs only when self.flash is false. It stays on screen for the whole video.",
+            "label": "self.flash false: manual branch",
+            "change": "Slides in next to the code line just after it appears."
+          }
+        ],
+        "claim_ids": [
+          "C1"
+        ],
+        "condition_ids": [
+          "K1"
+        ],
+        "must_show_covered": [
+          "The code line `att = F.softmax(att, dim=-1)` with a label saying it belongs to the `self.flash`-false (manual) branch"
+        ],
+        "transition": "Opens directly on the highlighted code line.",
+        "framing": "Code line centred with the branch tag next to it. Nothing else on screen.",
+        "on_screen_text": "Softmax turns scores into weights."
+      },
+      {
+        "id": "B2",
+        "start_time": 3,
+        "end_time": 6,
+        "pedagogical_role": "mechanism",
+        "visible_objects": [
+          {
+            "id": "code_mask_line",
+            "description": "The masked_fill line, which runs just before softmax. It appears directly above the softmax line so the order reads top to bottom.",
+            "source": {
+              "source_ref_id": "S4",
+              "start_line": 68,
+              "end_line": 68
+            },
+            "change": "Enters above the softmax line, glows briefly, then dims as the grid appears."
+          },
+          {
+            "id": "code_softmax_line",
+            "description": "The softmax line, now below the mask line and not yet active.",
+            "change": "Shrinks and moves to the top-left alongside the mask line."
+          },
+          {
+            "id": "branch_label",
+            "description": "Branch tag, still attached to the code pair.",
+            "label": "self.flash false: manual branch",
+            "change": "Moves with the code to the top-left."
+          },
+          {
+            "id": "score_grid",
+            "description": "A small 4x4 square grid of scaled, masked scores. Each row is one query and each column is one key. The cells above the diagonal (future positions) read -inf and are clearly marked. The cells on and below the diagonal are shaded to show raw score values.",
+            "label": "masked scores: -inf above diagonal",
+            "change": "Builds in at centre stage. The -inf marks then stamp into the above-diagonal cells, coming from the mask line."
+          }
+        ],
+        "claim_ids": [
+          "C2",
+          "C3"
+        ],
+        "condition_ids": [
+          "K1"
+        ],
+        "must_show_covered": [
+          "A small square score grid with -inf in the cells above the diagonal (future positions)"
+        ],
+        "transition": "The code recedes to the top-left as the score grid builds in at the centre.",
+        "framing": "Score grid centred and dominant. The code pair and branch tag stay small at the top-left.",
+        "on_screen_text": "Future positions are -inf before softmax."
+      },
+      {
+        "id": "B3",
+        "start_time": 6,
+        "end_time": 10,
+        "pedagogical_role": "mechanism",
+        "visible_objects": [
+          {
+            "id": "score_grid",
+            "description": "The same 4x4 grid. One query row (a row with some -inf cells) is lifted out and highlighted. The other rows dim but stay in place.",
+            "label": "masked scores: -inf above diagonal",
+            "change": "The other rows dim while the chosen row lifts out and enlarges."
+          },
+          {
+            "id": "row_highlight",
+            "description": "A bracket around the chosen query row, showing that softmax works across this row's keys (the last dimension).",
+            "label": "one query row (dim=-1)",
+            "change": "Appears around the lifted row."
+          },
+          {
+            "id": "weight_bars",
+            "description": "Each cell of the chosen row turns into a vertical bar. The cells that had scores become non-negative bars of different heights. The -inf cells shrink to flat bars of height zero. The bars then resize together until they total 1.",
+            "label": "weights",
+            "change": "The raw score cells turn into bars. The -inf bars fade to zero and the rest settle to their final heights."
+          },
+          {
+            "id": "zero_marker",
+            "description": "A marker under the former -inf positions showing they now have exactly zero weight.",
+            "label": "-inf → 0 weight",
+            "change": "Appears as the -inf bars flatten to zero."
+          },
+          {
+            "id": "sum_readout",
+            "description": "A readout beside the bars that adds up the row's weights. It ticks while the bars resize and stops at 1.",
+            "label": "sum = 1",
+            "change": "Counts while the bars resize, then settles on 1."
+          },
+          {
+            "id": "code_softmax_line",
+            "description": "The softmax line at the top-left, now active.",
+            "change": "Lights up while the row is transformed."
+          },
+          {
+            "id": "branch_label",
+            "description": "Branch tag at the top-left.",
+            "label": "self.flash false: manual branch",
+            "change": "Stays in place, still visible."
+          }
+        ],
+        "claim_ids": [
+          "C1",
+          "C2"
+        ],
+        "condition_ids": [
+          "K1"
+        ],
+        "must_show_covered": [
+          "One row being changed by softmax: raw scores, including -inf, become bars of weights",
+          "The -inf cells turning into 0 weight",
+          "A readout showing that the row's weights add up to 1"
+        ],
+        "transition": "The camera pushes in on one row of the grid as the softmax line lights up.",
+        "framing": "The chosen row's bars and sum readout fill the centre. The dimmed grid sits behind, and the code and tag stay small at the top-left.",
+        "on_screen_text": "Masked -inf entries get exactly 0 weight.",
+        "narration_line": "Each row's scores become weights that add up to 1."
+      },
+      {
+        "id": "B4",
+        "start_time": 10,
+        "end_time": 12.6,
+        "pedagogical_role": "mechanism",
+        "visible_objects": [
+          {
+            "id": "score_grid",
+            "description": "The full 4x4 grid again. Rows are turned into weights one at a time from top to bottom. Each row's -inf cells become zero, and finished rows stay as weights.",
+            "label": "masked scores: -inf above diagonal",
+            "change": "The converted row drops back into place. The remaining rows then light up and turn into weights one after another, never all at once."
+          },
+          {
+            "id": "row_highlight",
+            "description": "The row bracket, which moves down the grid to whichever row is being normalized.",
+            "label": "one query row (dim=-1)",
+            "change": "Steps down one row at a time."
+          },
+          {
+            "id": "sum_readout",
+            "description": "A sum readout that appears at the end of each row as that row finishes, each settling on 1.",
+            "label": "sum = 1",
+            "change": "A copy appears beside each row as it finishes."
+          },
+          {
+            "id": "branch_label",
+            "description": "Branch tag at the top-left.",
+            "label": "self.flash false: manual branch",
+            "change": "Stays in place, still visible."
+          },
+          {
+            "id": "weight_bars",
+            "description": "The single-row bars from the previous beat.",
+            "label": "weights",
+            "change": "Fold back into the grid row as shaded weight cells, then exit as separate bars."
+          }
+        ],
+        "claim_ids": [
+          "C1",
+          "C2"
+        ],
+        "condition_ids": [
+          "K1"
+        ],
+        "must_show_covered": [
+          "The rest of the rows being normalized one row at a time (along dim=-1), not as one whole matrix"
+        ],
+        "transition": "The camera pulls back from the single row to the full grid, and the change sweeps down row by row.",
+        "framing": "Full grid centred, with a row-sum column on the right. The code is reduced to just the branch tag at the top-left.",
+        "on_screen_text": "Softmax runs along dim=-1, one row at a time."
+      },
+      {
+        "id": "B5",
+        "start_time": 12.6,
+        "end_time": 15,
+        "pedagogical_role": "takeaway",
+        "visible_objects": [
+          {
+            "id": "score_grid",
+            "description": "The finished 4x4 grid of weights. It is lower-triangular: cells above the diagonal are zero, and each row's weights add up to 1.",
+            "label": "masked scores: -inf above diagonal",
+            "change": "Settles. The zero cells above the diagonal fade back, so the lower triangle stands out."
+          },
+          {
+            "id": "next_step_note",
+            "description": "A small note with an arrow leading off the right edge of the grid, showing that this matrix goes next to dropout and then to att @ v.",
+            "label": "Next: self.attn_dropout(att), then att @ v",
+            "change": "Fades in beside the grid with its arrow pointing away."
+          },
+          {
+            "id": "branch_label",
+            "description": "Branch tag at the top-left.",
+            "label": "self.flash false: manual branch",
+            "change": "Stays in place, still visible."
+          },
+          {
+            "id": "sum_readout",
+            "description": "The per-row sum readouts.",
+            "label": "sum = 1",
+            "change": "Fade out as the note enters."
+          }
+        ],
+        "claim_ids": [
+          "C2",
+          "C3"
+        ],
+        "condition_ids": [
+          "K1"
+        ],
+        "must_show_covered": [],
+        "transition": "The row sweep finishes and the grid settles into its final weight pattern.",
+        "framing": "Weight grid centred, the next-step note small to its right, and the branch tag at the top-left.",
+        "on_screen_text": "Each position attends to itself and earlier positions."
+      }
+    ]
+  }
+}

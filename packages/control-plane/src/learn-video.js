@@ -2,6 +2,7 @@ import { authorizedBoardApp } from './learn-board.js';
 import { validateVideo, videoCacheKey } from './learn-video-schema.js';
 import { videoProvider } from './video-provider.js';
 import { ManimProvider, cacheKey as mathCacheKey } from './math-provider.js';
+import { MotionProvider, MotionRequestProvider, motionCacheKey, motionRequestCacheKey, validateMotionRender, validateMotionRequest } from './motion-provider.js';
 import { paidRefusal } from './learn-paid.js';
 import { validateMathAnimation } from './learn-math-schema.js';
 import { learnMedia } from './learn-storage.js';
@@ -9,6 +10,8 @@ import { learnMedia } from './learn-storage.js';
 const json = (value, status = 200) => Response.json(value, { status, headers: { 'Cache-Control': 'no-store' } });
 const POLL_MS = 10000; // Clips take minutes; background polling does not depend on an open browser.
 const MAX_WAIT_MS = 30 * 60 * 1000;
+// A /motion request (development only) plans, reviews, may repair once and renders twice: longer.
+const maxWait = job => (job.provider === 'motion_request' ? 60 * 60 * 1000 : MAX_WAIT_MS);
 export async function videoFetch(req, env) {
   return privateLessonAssetFetch(req, env, env.LEARN_VIDEOS);
 }
@@ -86,27 +89,46 @@ export class LearnVideos {
           await this.state.storage.put(`placement:${body.id}`, { ...p, position: body.position, hidden: body.hidden === true });
           return json({ saved: true });
         }
+        // Stop (M7A): only a job whose provider can stop it. Stopping is free, so it needs no
+        // confirmation; the job fails as "Stopped." and stays retryable (a new confirmed Generate).
+        if (body.action === 'cancel') {
+          const p = await this.state.storage.get(`placement:${body.id}`);
+          const job = p && await this.state.storage.get(`job:${p.key}`);
+          if (!job) return json({ error: 'Video placement not found' }, 404);
+          if (job.status !== 'generating') return json({ error: 'Nothing is generating here' }, 409);
+          if (job.provider !== 'motion_request') return json({ error: 'This video cannot be stopped once it has started' }, 409);
+          let unconfirmed = '';
+          try { if (job.ticket) await new MotionRequestProvider(this.env).cancel(job.ticket); }
+          catch (error) { unconfirmed = ` The Motion harness did not confirm the stop: ${error.message}`; }
+          Object.assign(job, { status: 'failed', error: `Stopped.${unconfirmed}`, stopped: true, uncertain: false });
+          await this.state.storage.put(`job:${p.key}`, job);
+          return json(await this.list());
+        }
         // A paid job starts only from the learner's explicit confirmation.
         const refused = paidRefusal(body); if (refused) return refused;
         const maths = body.operation?.op === 'generate_math_animation';
-        const provider = maths ? new ManimProvider(this.env) : videoProvider(this.env);
-        const input = maths ? { spec: validateMathAnimation(body.operation), id: body.operation.id, caption: body.operation.caption } : validateVideo(body.operation);
+        const motion = body.operation?.op === 'motion_render';
+        const motionRequest = body.operation?.op === 'motion_request';
+        const provider = maths ? new ManimProvider(this.env) : motion ? new MotionProvider(this.env) : motionRequest ? new MotionRequestProvider(this.env) : videoProvider(this.env);
+        const input = maths ? { spec: validateMathAnimation(body.operation), id: body.operation.id, caption: body.operation.caption } : motion ? validateMotionRender(body.operation) : motionRequest ? validateMotionRequest(body.operation) : validateVideo(body.operation);
         if (typeof body.lessonId !== 'string' || body.lessonId.length > 150 || typeof body.page !== 'string' || body.page.length > 150) throw new Error('Lesson and page are required');
         // The worker's compiler version is part of the key, so a rebuilt
         // compiler renders again instead of serving a stale animation.
         const version = maths ? await provider.workerVersion() : provider.version;
-        const key = maths ? await mathCacheKey(input.spec, version) : await videoCacheKey(input, version);
+        const key = maths ? await mathCacheKey(input.spec, version) : motion ? await motionCacheKey(input) : motionRequest ? await motionRequestCacheKey(input) : await videoCacheKey(input, version);
         let job = await this.state.storage.get(`job:${key}`);
         if (!job || (body.retry === true && job.status === 'failed' && !job.uncertain)) {
           const all = await this.state.storage.list({ prefix: 'job:' });
           if ([...all.values()].some(j => j.status === 'generating')) return json({ error: 'One video is already generating. Wait for it before requesting another.' }, 409);
           if (all.size >= 100 && !job) throw new Error('This preview has reached its saved video limit');
-          job = { key, input, status: 'generating', startedAt: Date.now(), version, provider: maths ? 'manim' : this.env.LEARN_VIDEO_PROVIDER };
+          job = { key, input, status: 'generating', startedAt: Date.now(), version, provider: maths ? 'manim' : motion ? 'motion' : motionRequest ? 'motion_request' : this.env.LEARN_VIDEO_PROVIDER };
           // Persist before submitting. Never automatically repeat a potentially charged POST.
           await this.state.storage.put(`job:${key}`, job);
           await this.state.storage.setAlarm(Date.now() + POLL_MS);
           try { job.ticket = maths ? await provider.submit(input, version) : await provider.submit(input); }
-          catch { job.status = 'failed'; job.uncertain = true; job.error = 'Submission could not be confirmed. Check the provider request history before generating again.'; }
+          // A Motion submit is a GET of a finished render (nothing charged), and a definite refusal
+          // started nothing: both stay retryable. Anything else may have started a paid job.
+          catch (error) { const known = motion || error.definite === true; job.status = 'failed'; job.uncertain = !known; job.error = known ? error.message : 'Submission could not be confirmed. Check the provider request history before generating again.'; }
           await this.state.storage.put(`job:${key}`, job);
         } else if (body.retry === true && job.uncertain) {
           return json({ error: job.error }, 409);
@@ -124,7 +146,7 @@ export class LearnVideos {
     const jobs = await this.state.storage.list({ prefix: 'job:' });
     return { videos: [...placements.values()].map(p => {
       const j = jobs.get(`job:${p.key}`);
-      return { ...p, status: j?.status || 'idle', error: j?.error, retryable: !j?.uncertain, duration: j?.input.duration, provider: j?.result?.provider, generationId: j?.result?.generationId };
+      return { ...p, status: j?.status || 'idle', error: j?.error, retryable: !j?.uncertain, duration: j?.input.duration, provider: j?.result?.provider, generationId: j?.result?.generationId, ...(j?.result?.motion ? { motion: j.result.motion } : {}) };
     }) };
   }
   async alarm() {
@@ -137,14 +159,15 @@ export class LearnVideos {
       if (!job.ticket) { job.status = 'failed'; job.uncertain = true; job.error = 'Submission status is unknown. Check provider history before generating again.'; }
       else {
         try {
-          const result = job.provider === 'manim'
-            ? await new ManimProvider(this.env).poll(job.ticket)
+          const result = job.provider === 'manim' ? await new ManimProvider(this.env).poll(job.ticket)
+            : job.provider === 'motion' ? await new MotionProvider(this.env).poll(job.ticket)
+            : job.provider === 'motion_request' ? await new MotionRequestProvider(this.env).poll(job.ticket)
             : await videoProvider({ ...this.env, LEARN_VIDEO_PROVIDER: job.provider }).poll(job.ticket);
           if (result?.bytes) {
             job.storageKey = `learn-video-dev/${this.state.id}/${job.key}.mp4`;
             await learnMedia(this.env).put(job.storageKey, result.bytes, { httpMetadata: { contentType: 'video/mp4' } });
             // Never persist the clip itself in the job record.
-            job.result = { provider: result.provider, generationId: result.generationId };
+            job.result = { provider: result.provider, generationId: result.generationId, ...(result.motion ? { motion: result.motion } : {}) };
             job.status = 'ready';
           } else if (result) {
             const bytes = await downloadClip(result.videoUrl);
@@ -153,10 +176,10 @@ export class LearnVideos {
             job.result = { ...result, videoUrl: undefined, duration: job.input.duration };
             job.status = 'ready';
           }
-          if (Date.now() - job.startedAt > MAX_WAIT_MS && job.status !== 'ready') { job.uncertain = true; throw new Error('Generation has not completed within 30 minutes. Check provider history before generating again.'); }
+          if (Date.now() - job.startedAt > maxWait(job) && job.status !== 'ready') { job.uncertain = true; throw new Error(`Generation has not completed within ${maxWait(job) / 60000} minutes. Check provider history before generating again.`); }
         } catch (error) {
           // Transient polling/storage errors keep the existing ticket: no paid resubmission.
-          if (error.final || Date.now() - job.startedAt > MAX_WAIT_MS || /could not generate|returned no video|Invalid generated/.test(error.message)) { job.status = 'failed'; job.error = error.message; }
+          if (error.final || Date.now() - job.startedAt > maxWait(job) || /could not generate|returned no video|Invalid generated/.test(error.message)) { job.status = 'failed'; job.error = error.message; }
         }
       }
       await this.state.storage.put(key, job);

@@ -1,0 +1,40 @@
+#!/bin/sh
+# Runs one Motion render child in a fresh sandbox (spec §10.2). Installed root-owned at
+# /usr/local/sbin/motion-sandbox; the service user may run it through sudo with ONE argument,
+# the 32-hex render id. Every path is built here from that id; nothing else is accepted.
+#
+# Resources: resource-control.mjs (ResourceController) puts this shell in the job's groups
+# BEFORE anything else starts: cgroup v2 when a complete delegated hierarchy exists, else the
+# cgroup v1 memory (+memsw), pids, cpu/cpuacct (and freezer) hierarchies, as on Fly. Memory
+# 3 GiB with no swap allowance, 1024 tasks, 1.5 CPUs. With neither backend complete the job
+# fails closed (out/sandbox-exit.json: resource_limits_unavailable and the exact reason).
+#
+# Namespaces: the child gets new network, PID, mount, IPC and UTS namespaces (unshare), so it
+# has only loopback, sees only its own processes and its own mounts; sandbox-init then hides
+# the service's files and drops to the motion-render user with no capabilities and no
+# environment. `timeout` is the hard backstop just above the service's 420 s limit; when it
+# fires, or when the service's SIGTERM arrives through sudo, unshare dies and --kill-child ends
+# the whole PID namespace. Afterwards resource-control.mjs stops anything still in the job's
+# groups, records limits and usage, and removes the groups.
+set -eu
+ID=${1:-}
+case "$ID" in ''|*[!0-9a-f]*) echo "motion-sandbox: render id must be 32 lowercase hex" >&2; exit 64 ;; esac
+[ "${#ID}" -eq 32 ] || { echo "motion-sandbox: render id must be 32 lowercase hex" >&2; exit 64; }
+JOB=/var/motion/jobs/$ID
+[ -d "$JOB" ] && [ ! -L "$JOB" ] || { echo "motion-sandbox: no job directory for $ID" >&2; exit 66; }
+RC="/usr/local/bin/node /app/packages/learn-render/motion/service/resource-control.mjs"
+
+$RC prepare "$ID" "$$" || exit 70
+
+timeout --kill-after=5s 425s \
+  unshare --net --pid --mount --ipc --uts --fork --kill-child --mount-proc \
+  /usr/local/lib/motion/sandbox-init "$ID" &
+CHILD=$!
+# The service's SIGTERM (relayed by sudo) goes to timeout, which stops unshare.
+trap 'kill -TERM "$CHILD" 2>/dev/null || true' TERM INT HUP
+STATUS=0
+wait "$CHILD" || STATUS=$?
+while kill -0 "$CHILD" 2>/dev/null; do wait "$CHILD" || STATUS=$?; done
+
+$RC finish "$ID" "$$" "$STATUS" || echo "motion-sandbox: cleanup could not be recorded" >&2
+exit "$STATUS"

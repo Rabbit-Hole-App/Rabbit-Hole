@@ -92,9 +92,9 @@ const NAMES = { explanation: 'an explanation', quiz: 'a quiz', challenge: 'a cha
 //   { notice }   a one-line result or reason ({ tone, text })
 //   { proposal } a paid artifact waiting for Cancel / Generate
 // Deterministic commands never reach the model.
-export async function runLearnCommand(text, { app, target = null, canvas, openSearch, post }) {
+export async function runLearnCommand(text, { app, target = null, location = null, canvas, openSearch, post, motionDev }) {
   const parsed = parseSlash(text);
-  const command = parsed && commandsFor('learn').find(entry => entry.name === parsed.name);
+  const command = parsed && commandsFor('learn', { motionDev }).find(entry => entry.name === parsed.name);
   if (!command) return { notice: { tone: 'error', text: `${parsed ? `/${parsed.name}` : 'That'} is not a Learn command. Type / to see them.` } };
   const { name, args } = parsed;
   const selection = target?.id ? { kind: 'card', id: target.id, title: String(target.title || '').slice(0, 200) } : null;
@@ -113,6 +113,17 @@ export async function runLearnCommand(text, { app, target = null, canvas, openSe
   // /dive: the page opens the hole from the selected card, or keeps the intent until one is selected.
   if (request.action === 'dive') return canvas.dive ? canvas.dive(args) : { notice: { tone: 'info', text: 'Rabbit Holes are not available here yet.' } };
   if (request.action === 'open_sources') { canvas.openSources?.(); return { notice: canvas.openSources ? null : { tone: 'info', text: 'The Source inspector is not available here yet.' } }; }
+  // /motion (M7A, development builds only): the paid proposal comes back without any model call.
+  // Generate inserts the existing video card already confirmed; LearnVideos hands the request to the
+  // development orchestrator (operation motion_request), which plans, reviews and renders it.
+  if (request.action === 'motion') {
+    if (!args) return { notice: { tone: 'info', text: 'Add what to explain after /motion, for example /motion 15s explain softmax.' } };
+    const block = {
+      type: 'video', mode: 'generate', title: `Motion: ${args}`.slice(0, 120), src: '', caption: '', status: 'idle',
+      operation: { op: 'motion_request', request: `/motion ${args}`.slice(0, 500), location: { concept: String(location?.concept || '').slice(0, 100) || null } },
+    };
+    return { proposal: { primitive: 'motion', message: 'This uses paid generation.', generate: () => canvas.insertBlock({ ...block, confirmedStart: true }) } };
+  }
   // /image finds a real picture: the card searches and the learner chooses.
   if (name === 'image') {
     canvas.insertBlock({ type: 'image', mode: 'search', title: args || 'Image', src: '', alt: '', caption: '', prompt: args, autoSearch: !!args });

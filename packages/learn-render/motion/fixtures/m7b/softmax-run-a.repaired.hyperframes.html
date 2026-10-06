@@ -1,0 +1,116 @@
+<!doctype html>
+<html><head><meta charset="UTF-8"><meta name="motion-timeline" content='{"B1":[0,90],"B2":[90,180],"B3":[180,300],"B4":[300,375],"B5":[375,450]}'>
+<style>
+#root{position:relative;width:1920px;height:1080px;overflow:hidden;background:#0b1020;font-family:'Inter';color:#e2e8f0}
+.a{position:absolute}
+.nw{white-space:nowrap}
+.ln{display:block;font-family:'JetBrains Mono';white-space:pre;font-size:28px;line-height:40px;padding:3px 14px;border-radius:6px;margin-bottom:8px;background-color:#1e293b;color:#f1f5f9}
+.hl{background-color:#5b4a0e}
+#sm{left:80px;top:180px;font-family:'JetBrains Mono';white-space:pre;font-size:30px;line-height:40px;padding:4px 16px;border-radius:8px;border:2px solid #facc15;color:#f8fafc;transform-origin:0 0;animation:kSm 15s linear both}
+@keyframes kSm{0%{transform:translate(180px,250px) scale(1.7);background-color:#1e293b;opacity:1}3.333%{transform:translate(180px,220px) scale(1.7)}10%,18.667%{transform:translate(180px,220px) scale(1.7);background-color:#5b4a0e}23.333%{transform:translate(0px,0px) scale(1);background-color:#1e293b}40%{background-color:#1e293b}43.333%{background-color:#5b4a0e}66.667%{opacity:1}69%,100%{opacity:0;transform:translate(0px,0px) scale(1);background-color:#5b4a0e}}
+#tag{right:40px;top:60px;font-size:26px;font-weight:600;padding:8px 18px;border-radius:22px;background:#14532d;color:#dcfce7;border:2px solid #4ade80;animation:kTag 15s linear both}
+@keyframes kTag{0%{transform:translate(-100px,358px)}5%,18.667%{transform:translate(-180px,358px)}23.333%,100%{transform:translate(0px,0px)}}
+#pre{left:80px;top:66px;animation:kPre 15s linear both}
+@keyframes kPre{0%,20%{opacity:0}21.333%,40%{opacity:1}42%,100%{opacity:0}}
+#l1{animation:kL1 15s linear both}
+@keyframes kL1{0%,21.333%{background-color:#1e293b}22.667%,28%{background-color:#5b4a0e}29.333%,100%{background-color:#1e293b}}
+#l2{animation:kL2 15s linear both}
+@keyframes kL2{0%,28%{background-color:#1e293b}29.333%,40%{background-color:#5b4a0e}41.333%,100%{background-color:#1e293b}}
+#post{left:80px;top:66px;animation:kPost 15s linear both}
+@keyframes kPost{0%,83.333%{opacity:0}85.333%,100%{opacity:1}}
+.lbl{position:absolute;left:0;top:-52px;font-size:30px;font-weight:600;white-space:nowrap}
+.cell{position:absolute;top:0;width:180px;height:100px;box-sizing:border-box;border:2px solid #60a5fa;border-radius:10px;background-color:#1e3a5f;display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:700;color:#f8fafc}
+.in{position:absolute;left:0;top:0;width:176px;height:96px;display:flex;align-items:center;justify-content:center}
+#row{left:470px;top:290px;width:580px;height:100px;animation:kRow 15s linear both}
+#msk{left:1070px;top:290px;width:380px;height:100px;animation:kRow 15s linear both}
+@keyframes kRow{0%,20%{opacity:0;transform:translateY(-40px)}23.333%,66.667%{opacity:1;transform:translateY(0px)}68.5%,100%{opacity:0;transform:translateY(0px)}}
+.mc{animation:kMc 15s linear both}
+@keyframes kMc{0%,28%{background-color:#1e3a5f;border-color:#60a5fa}29.333%,100%{background-color:#4c1d1d;border-color:#f87171}}
+.num{animation:kNum 15s linear both}
+@keyframes kNum{0%,28%{opacity:1}28.667%,100%{opacity:0}}
+.inf{color:#fecaca;animation:kInf 15s linear both}
+@keyframes kInf{0%,28.667%{opacity:0}29.333%,100%{opacity:1}}
+#ml{color:#fca5a5;animation:kMl 15s linear both}
+@keyframes kMl{0%,28%{opacity:0}29.333%,100%{opacity:1}}
+#sw{left:470px;top:285px;width:70px;height:110px;background:linear-gradient(90deg,rgba(250,204,21,0),rgba(250,204,21,0.55),rgba(250,204,21,0));animation:kSw 15s linear both}
+@keyframes kSw{0%,43.333%{opacity:0;transform:translateX(-35px)}44%,56.667%{opacity:1}57.333%{opacity:0;transform:translateX(945px)}100%{opacity:0;transform:translateX(945px)}}
+#wr{left:470px;top:400px;width:980px;height:440px;transform-origin:0 0;animation:kWr 15s linear both}
+@keyframes kWr{0%,40%{opacity:0;transform:translate(0px,0px) scale(1)}41.333%,83.333%{opacity:1;transform:translate(0px,0px) scale(1)}90%,100%{opacity:1;transform:translate(50px,60px) scale(0.65)}}
+.base{position:absolute;left:0;top:320px;width:980px;height:4px;background:#64748b}
+.bar{position:absolute;width:180px;border-radius:8px 8px 0 0;background-color:#38bdf8;transform-origin:50% 100%}
+#b1{left:0;top:81px;height:239px;animation:kB1 15s linear both}
+#b2{left:200px;top:232px;height:88px;animation:kB2 15s linear both}
+#b3{left:400px;top:267px;height:53px;animation:kB3 15s linear both}
+@keyframes kB1{0%,43.333%{transform:scaleY(0);background-color:#38bdf8;box-shadow:0 0 0 rgba(165,243,252,0)}46.667%,68%{transform:scaleY(1);background-color:#38bdf8;box-shadow:0 0 0 rgba(165,243,252,0)}70%{transform:scaleY(1);background-color:#cffafe;box-shadow:0 0 30px rgba(165,243,252,0.9)}72%,100%{transform:scaleY(1);background-color:#38bdf8;box-shadow:0 0 0 rgba(165,243,252,0)}}
+@keyframes kB2{0%,46.667%{transform:scaleY(0);background-color:#38bdf8;box-shadow:0 0 0 rgba(165,243,252,0)}50%,72%{transform:scaleY(1);background-color:#38bdf8;box-shadow:0 0 0 rgba(165,243,252,0)}74%{transform:scaleY(1);background-color:#cffafe;box-shadow:0 0 30px rgba(165,243,252,0.9)}76%,100%{transform:scaleY(1);background-color:#38bdf8;box-shadow:0 0 0 rgba(165,243,252,0)}}
+@keyframes kB3{0%,50%{transform:scaleY(0);background-color:#38bdf8;box-shadow:0 0 0 rgba(165,243,252,0)}53.333%,76%{transform:scaleY(1);background-color:#38bdf8;box-shadow:0 0 0 rgba(165,243,252,0)}78%{transform:scaleY(1);background-color:#cffafe;box-shadow:0 0 30px rgba(165,243,252,0.9)}80%,100%{transform:scaleY(1);background-color:#38bdf8;box-shadow:0 0 0 rgba(165,243,252,0)}}
+.val{position:absolute;width:180px;text-align:center;font-size:38px;font-weight:700;color:#f8fafc}
+#v1{left:0;top:25px;animation:kV1 15s linear both}
+#v2{left:200px;top:176px;animation:kV2 15s linear both}
+#v3{left:400px;top:211px;animation:kV3 15s linear both}
+@keyframes kV1{0%,46.667%{opacity:0}48%,100%{opacity:1}}
+@keyframes kV2{0%,50%{opacity:0}51.333%,100%{opacity:1}}
+@keyframes kV3{0%,53.333%{opacity:0}54.667%,100%{opacity:1}}
+.zm{position:absolute;top:312px;width:180px;height:8px;border-radius:4px;background:#f87171}
+.zt{color:#fca5a5;top:256px}
+.z4{animation:kZ4 15s linear both}
+.z5{animation:kZ5 15s linear both}
+@keyframes kZ4{0%,53.333%{opacity:0}55.333%,100%{opacity:1}}
+@keyframes kZ5{0%,55.333%{opacity:0}57.333%,100%{opacity:1}}
+#wl{position:absolute;left:0;top:390px;font-size:38px;font-weight:600;color:#7dd3fc;white-space:nowrap}
+#arr{left:470px;top:735px;width:1400px;height:50px;animation:kArr 15s linear both}
+@keyframes kArr{0%,40%{opacity:0}41.333%,66.667%{opacity:1}68.333%,100%{opacity:0}}
+#asv{position:absolute;left:0;top:0;animation:kArrC 15s linear both}
+@keyframes kArrC{0%,43.333%{clip-path:inset(0px 100% 0px 0px)}57.333%,100%{clip-path:inset(0px 0% 0px 0px)}}
+#al{position:absolute;left:1012px;top:4px;font-size:30px;font-weight:600;color:#fde68a;white-space:nowrap}
+#sum{left:1500px;top:340px;width:300px;height:380px;animation:kSum 15s linear both}
+@keyframes kSum{0%,66.667%{opacity:0}68%,83.333%{opacity:1}85%,100%{opacity:0}}
+.mt{position:absolute;left:0;top:0;width:60px;height:380px;box-sizing:border-box;border:3px solid #94a3b8;border-radius:6px}
+.sg{position:absolute;left:3px;width:54px;background:#38bdf8;border-top:2px solid #0b1020;box-sizing:border-box;transform-origin:50% 100%}
+#s1{top:141px;height:236px;animation:kS1 15s linear both}
+#s2{top:53px;height:88px;animation:kS2 15s linear both}
+#s3{top:3px;height:50px;animation:kS3 15s linear both}
+@keyframes kS1{0%,68%{transform:scaleY(0)}72%,100%{transform:scaleY(1)}}
+@keyframes kS2{0%,72%{transform:scaleY(0)}76%,100%{transform:scaleY(1)}}
+@keyframes kS3{0%,76%{transform:scaleY(0)}80%,100%{transform:scaleY(1)}}
+#st{position:absolute;left:84px;top:-6px;font-size:40px;font-weight:700;white-space:nowrap;animation:kSt 15s linear both}
+@keyframes kSt{0%,78%{color:#e2e8f0}80%,100%{color:#facc15}}
+#vt{left:1240px;top:450px;width:600px;height:320px;animation:kVt 15s linear both}
+@keyframes kVt{0%,85%{opacity:0}87%,100%{opacity:1}}
+.vr{position:absolute;left:0;width:240px;height:36px;box-sizing:border-box;background:#312e81;border:2px solid #818cf8;border-radius:6px}
+#yo{position:absolute;left:375px;top:85px;width:90px;height:70px;border-radius:8px;background:#a78bfa;transform-origin:0 50%;animation:kYo 15s linear both}
+@keyframes kYo{0%,90%{transform:scaleX(0)}95%,100%{transform:scaleX(1)}}
+#vl{position:absolute;left:0;top:250px;font-size:36px;font-weight:700;color:#c4b5fd;white-space:nowrap}
+#fl{left:60px;top:985px;font-size:26px;font-weight:600;padding:8px 16px;background:#1e293b;border:2px dashed #94a3b8;border-radius:10px;color:#e2e8f0;animation:kFl 15s linear both}
+@keyframes kFl{0%,85%{opacity:0}87.333%,100%{opacity:1}}
+.cap{position:absolute;left:0;top:868px;width:1920px;text-align:center;font-size:40px;font-weight:600;color:#f8fafc}
+#c1{animation:kC1 15s linear both}
+#c2{animation:kC2 15s linear both}
+#c3{animation:kC3 15s linear both}
+#c4{animation:kC4 15s linear both}
+#c5{animation:kC5 15s linear both}
+@keyframes kC1{0%,18.667%{opacity:1}20%,100%{opacity:0}}
+@keyframes kC2{0%,20%{opacity:0}21.333%,38.667%{opacity:1}40%,100%{opacity:0}}
+@keyframes kC3{0%,40%{opacity:0}41.333%,65.333%{opacity:1}66.667%,100%{opacity:0}}
+@keyframes kC4{0%,66.667%{opacity:0}68%,82%{opacity:1}83.333%,100%{opacity:0}}
+@keyframes kC5{0%,83.333%{opacity:0}84.667%,100%{opacity:1}}
+</style></head>
+<body><div id="root" data-composition-id="softmax-row-weights" data-start="0" data-duration="15" data-width="1920" data-height="1080" data-no-timeline>
+<div id="pre" class="a" data-object="code_steps_before"><div id="l1" class="ln">att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))</div><div id="l2" class="ln">att = att.masked_fill(self.bias[:,:,:T,:T] == 0, float('-inf'))</div></div>
+<div id="post" class="a" data-object="code_steps_after"><div class="ln">att = self.attn_dropout(att)</div><div class="ln hl">y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)</div></div>
+<div id="sm" class="a" data-object="code_softmax_line">att = F.softmax(att, dim=-1)</div>
+<div id="tag" class="a nw" data-object="branch_tag">Manual path: self.flash is false</div>
+<div id="row" class="a" data-object="score_row"><div class="lbl" style="color:#93c5fd">One row of scores</div><div class="cell" style="left:0px">2.0</div><div class="cell" style="left:200px">1.0</div><div class="cell" style="left:400px">0.5</div></div>
+<div id="msk" class="a" data-object="masked_cells"><div id="ml" class="lbl">-inf after masked_fill</div><div class="cell mc" style="left:0px"><span class="in num">1.5</span><span class="in inf">-inf</span></div><div class="cell mc" style="left:200px"><span class="in num">-0.3</span><span class="in inf">-inf</span></div></div>
+<div id="sw" class="a"></div>
+<div id="wr" class="a" data-object="weight_row"><div class="base"></div><div id="b1" class="bar"></div><div id="b2" class="bar"></div><div id="b3" class="bar"></div><div class="zm z4" style="left:600px"></div><div class="zm z5" style="left:800px"></div><div id="v1" class="val">0.63</div><div id="v2" class="val">0.23</div><div id="v3" class="val">0.14</div><div class="val zt z4" style="left:600px">0</div><div class="val zt z5" style="left:800px">0</div><div id="wl">Weights: masked positions 0, remaining positive</div></div>
+<div id="arr" class="a" data-object="direction_arrow"><svg id="asv" width="1000" height="50" viewBox="0 0 1000 50"><path d="M0 25 L972 25" stroke="#facc15" stroke-width="6" fill="none"></path><polygon points="968,8 1000,25 968,42" fill="#facc15"></polygon></svg><div id="al">Along each row (dim=-1)</div></div>
+<div id="sum" class="a" data-object="sum_total"><div class="mt"></div><div id="s1" class="sg"></div><div id="s2" class="sg"></div><div id="s3" class="sg"></div><div id="st">Sum = 1</div></div>
+<div id="vt" class="a" data-object="value_target"><div class="vr" style="top:10px"></div><div class="vr" style="top:56px"></div><div class="vr" style="top:102px"></div><div class="vr" style="top:148px"></div><div class="vr" style="top:194px"></div><svg class="a" style="left:255px;top:100px" width="110" height="40" viewBox="0 0 110 40"><path d="M0 20 L88 20" stroke="#e2e8f0" stroke-width="5" fill="none"></path><polygon points="85,8 108,20 85,32" fill="#e2e8f0"></polygon></svg><div id="yo"></div><div id="vl">y = att @ v</div></div>
+<div id="fl" class="a nw" data-object="flash_marker">Flash path: scaled_dot_product_attention instead</div>
+<div id="c1" class="cap">Softmax turns each row of scores into weights.</div>
+<div id="c2" class="cap">Scale, then mask: future positions become -inf.</div>
+<div id="c3" class="cap">Larger scores become larger weights.</div>
+<div id="c4" class="cap">Each row's weights sum to 1.</div>
+<div id="c5" class="cap">Weights then mix the value vectors.</div>
+</div></body></html>

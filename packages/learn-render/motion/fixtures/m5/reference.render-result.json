@@ -1,0 +1,345 @@
+{
+  "schema": "motion-render-result/1",
+  "status": "ready",
+  "render_id": "a2aa7166d935962fc0e5d600ff8be4d9",
+  "composition_id": "softmax-reference",
+  "renderer": {
+    "name": "remotion",
+    "service_version": "motion-renderer-1-105c32045a43/remotion@4.0.521",
+    "remotion": "remotion@4.0.521",
+    "chrome": "149.0.7790.0",
+    "ffmpeg": "ffmpeg version n7.1 Copyright (c) 2000-2024 the FFmpeg developers",
+    "sandbox": "none"
+  },
+  "artifacts": {
+    "final_mp4": "final.mp4",
+    "preview_mp4": "preview.mp4",
+    "poster": "poster.png",
+    "contact_sheet": "contact-sheet.png"
+  },
+  "hashes": {
+    "final_mp4": "06ae12b3bf88c9e4a228f69840398f6e65c46af4deda7919c83157ae7a955974",
+    "preview_mp4": "29a76bcd84d24ebe5d1f8615b3a9c7017d3fa2dc8d6c5805737aa9bacf19b361",
+    "poster": "450144ea1d0b7eb87decd51c6371217bb3e0089b1f2a82de0397f50821e4cd18",
+    "contact_sheet": "aa0d249e02f5fd177e93deb730db5ece7f5aaf46630fa4acb7e1bab4186f343a"
+  },
+  "validation": {
+    "ok": true,
+    "final": {
+      "ok": true,
+      "checks": [
+        {
+          "artifact": "final.mp4",
+          "name": "duration",
+          "ok": true,
+          "detail": "video 15s, container 15.061333s (want 15s within one frame, <= 30s)"
+        },
+        {
+          "artifact": "final.mp4",
+          "name": "frame count",
+          "ok": true,
+          "detail": "450 (want 450)"
+        },
+        {
+          "artifact": "final.mp4",
+          "name": "fps",
+          "ok": true,
+          "detail": "30/1"
+        },
+        {
+          "artifact": "final.mp4",
+          "name": "resolution",
+          "ok": true,
+          "detail": "1920x1080"
+        },
+        {
+          "artifact": "final.mp4",
+          "name": "codec",
+          "ok": true,
+          "detail": "h264 yuv420p bt709"
+        },
+        {
+          "artifact": "final.mp4",
+          "name": "size",
+          "ok": true,
+          "detail": "1375090 bytes (cap 26214400)"
+        },
+        {
+          "artifact": "final.mp4",
+          "name": "nonblank frames",
+          "ok": true,
+          "detail": "#0:8.78 #1:8.78 #38:10.69 #74:3.77 #75:3.75 #76:3.87 #120:16.99 #164:8.73 #165:8.71 #166:8.75 #218:23.57 #269:19.41 #270:19.42 #271:19.42 #300:22.95 #308:23.09 #344:19.41 #345:19.41 #346:19.41 #375:23.41 #404:3.81 #405:3.75 #406:3.86 #420:16.9 #428:16.9 #449:16.9"
+        }
+      ],
+      "keyframes": 26
+    },
+    "artifacts": {
+      "ok": true,
+      "checks": [
+        {
+          "artifact": "preview.mp4",
+          "name": "frame count",
+          "ok": true,
+          "detail": "450 (want 450)"
+        },
+        {
+          "artifact": "preview.mp4",
+          "name": "fps",
+          "ok": true,
+          "detail": "30/1"
+        },
+        {
+          "artifact": "preview.mp4",
+          "name": "resolution",
+          "ok": true,
+          "detail": "864x486 (want 864x486, scale 0.45)"
+        },
+        {
+          "artifact": "preview.mp4",
+          "name": "codec",
+          "ok": true,
+          "detail": "h264 yuv420p bt709"
+        },
+        {
+          "artifact": "preview.mp4",
+          "name": "size",
+          "ok": true,
+          "detail": "925046 bytes (cap 26214400)"
+        },
+        {
+          "artifact": "poster.png",
+          "name": "resolution",
+          "ok": true,
+          "detail": "1920x1080"
+        },
+        {
+          "artifact": "poster.png",
+          "name": "nonblank",
+          "ok": true,
+          "detail": "luma stddev 16.54"
+        },
+        {
+          "artifact": "poster.png",
+          "name": "last frame",
+          "ok": true,
+          "detail": "#449: pixels 2f100a28bf47 vs determinism 2f100a28bf47"
+        },
+        {
+          "artifact": "contact-sheet.png",
+          "name": "tiles",
+          "ok": true,
+          "detail": "3536x2200, 15 tiles (want 3536x2200, 15 tiles)"
+        },
+        {
+          "artifact": "contact-sheet.png",
+          "name": "nonblank",
+          "ok": true,
+          "detail": "luma stddev 22.07"
+        }
+      ]
+    },
+    "coverage": {
+      "ok": true,
+      "frames": 24,
+      "observed": 24,
+      "errors": []
+    },
+    "determinism": {
+      "ok": true,
+      "method": "renderStill PNG, sha256 of decoded RGBA, two fresh contexts (separate bundle and browser)",
+      "frames": [
+        {
+          "frame": 0,
+          "hashes": [
+            "f2388603b1ed2a724f97c651d960f2b3568542957b534de8b567256fdcfefe94",
+            "f2388603b1ed2a724f97c651d960f2b3568542957b534de8b567256fdcfefe94"
+          ]
+        },
+        {
+          "frame": 38,
+          "hashes": [
+            "2a8b204e6534edda8ae05f5349a4ef3aebe93581faea1ecf4ee73222d4f526f0",
+            "2a8b204e6534edda8ae05f5349a4ef3aebe93581faea1ecf4ee73222d4f526f0"
+          ]
+        },
+        {
+          "frame": 75,
+          "hashes": [
+            "6875c64a475fff9b08f94f5c6aa5731fde6190aa96b5d3eb73f3b31c6f5d7554",
+            "6875c64a475fff9b08f94f5c6aa5731fde6190aa96b5d3eb73f3b31c6f5d7554"
+          ]
+        },
+        {
+          "frame": 120,
+          "hashes": [
+            "c9462fae7b19c00070636c9878efd6c7056897cd1e12d91df23ff68f9c577a84",
+            "c9462fae7b19c00070636c9878efd6c7056897cd1e12d91df23ff68f9c577a84"
+          ]
+        },
+        {
+          "frame": 165,
+          "hashes": [
+            "26d77ae61eda589832c025b45078e7802dd557f11322047ca0c8f9da8437bd60",
+            "26d77ae61eda589832c025b45078e7802dd557f11322047ca0c8f9da8437bd60"
+          ]
+        },
+        {
+          "frame": 218,
+          "hashes": [
+            "aa072aab5ed5c691bffa8cff1b0a3ccabdda808e56d9d5c8adbc25ce1481d47c",
+            "aa072aab5ed5c691bffa8cff1b0a3ccabdda808e56d9d5c8adbc25ce1481d47c"
+          ]
+        },
+        {
+          "frame": 224,
+          "hashes": [
+            "f5ecca22bd8b7948305bc22ffcf1ed1408c9b4f9f3dd6325b0a649a051b1c409",
+            "f5ecca22bd8b7948305bc22ffcf1ed1408c9b4f9f3dd6325b0a649a051b1c409"
+          ]
+        },
+        {
+          "frame": 270,
+          "hashes": [
+            "31d8a51b9c309421d052e15c2415bac46cd47d213460488d13b29d7daa4513f2",
+            "31d8a51b9c309421d052e15c2415bac46cd47d213460488d13b29d7daa4513f2"
+          ]
+        },
+        {
+          "frame": 300,
+          "hashes": [
+            "27257291e8f794d7c78dcc973f9e4f47ccac6044cdae5183c84e2f91350560a5",
+            "27257291e8f794d7c78dcc973f9e4f47ccac6044cdae5183c84e2f91350560a5"
+          ]
+        },
+        {
+          "frame": 308,
+          "hashes": [
+            "bd3be785e7e8ca5cb64c284e1543384e41a3189e34604995ad8126411cc49058",
+            "bd3be785e7e8ca5cb64c284e1543384e41a3189e34604995ad8126411cc49058"
+          ]
+        },
+        {
+          "frame": 345,
+          "hashes": [
+            "31d8a51b9c309421d052e15c2415bac46cd47d213460488d13b29d7daa4513f2",
+            "31d8a51b9c309421d052e15c2415bac46cd47d213460488d13b29d7daa4513f2"
+          ]
+        },
+        {
+          "frame": 375,
+          "hashes": [
+            "fe905b270e8f7108e6dfc76da959d7625de8375212bfc05e22237f279bbed4ec",
+            "fe905b270e8f7108e6dfc76da959d7625de8375212bfc05e22237f279bbed4ec"
+          ]
+        },
+        {
+          "frame": 405,
+          "hashes": [
+            "6875c64a475fff9b08f94f5c6aa5731fde6190aa96b5d3eb73f3b31c6f5d7554",
+            "6875c64a475fff9b08f94f5c6aa5731fde6190aa96b5d3eb73f3b31c6f5d7554"
+          ]
+        },
+        {
+          "frame": 420,
+          "hashes": [
+            "2f100a28bf47f3d41b6aa17cba8235954b0b248b8159e5b014e2f3df37c3ecaf",
+            "2f100a28bf47f3d41b6aa17cba8235954b0b248b8159e5b014e2f3df37c3ecaf"
+          ]
+        },
+        {
+          "frame": 428,
+          "hashes": [
+            "2f100a28bf47f3d41b6aa17cba8235954b0b248b8159e5b014e2f3df37c3ecaf",
+            "2f100a28bf47f3d41b6aa17cba8235954b0b248b8159e5b014e2f3df37c3ecaf"
+          ]
+        },
+        {
+          "frame": 449,
+          "hashes": [
+            "2f100a28bf47f3d41b6aa17cba8235954b0b248b8159e5b014e2f3df37c3ecaf",
+            "2f100a28bf47f3d41b6aa17cba8235954b0b248b8159e5b014e2f3df37c3ecaf"
+          ]
+        }
+      ],
+      "errors": []
+    },
+    "preview_final": {
+      "ok": true,
+      "max": 1.272,
+      "threshold": 6
+    }
+  },
+  "resources": {
+    "sandbox": {
+      "mode": "none",
+      "env_keys": [
+        "APPDATA",
+        "COMSPEC",
+        "HOME",
+        "HOMEDRIVE",
+        "HOMEPATH",
+        "LOCALAPPDATA",
+        "LOGONSERVER",
+        "MOTION_SANDBOX",
+        "PATH",
+        "PATHEXT",
+        "SYSTEMDRIVE",
+        "SYSTEMROOT",
+        "TEMP",
+        "TMP",
+        "TMPDIR",
+        "USERDOMAIN",
+        "USERNAME",
+        "USERPROFILE",
+        "WINDIR"
+      ]
+    },
+    "limits": null
+  },
+  "timings": {
+    "submit_to_finished_s": 93.1,
+    "service": {
+      "bundle": 9,
+      "browser": 0.26,
+      "preview": 7.15,
+      "stills@0.45": 5.22,
+      "final": 14.62,
+      "stills@1": 7.35,
+      "determinism_second_context": {
+        "bundle": 11.11,
+        "browser": 0.18,
+        "stills@1": 7
+      },
+      "coverage_probe": {
+        "bundle": 0,
+        "browser": 0.15,
+        "stills@0.25": 8.03
+      },
+      "total": 88.63
+    },
+    "download_s": 0.05,
+    "client_validation_s": 9.4,
+    "total_s": 102.55
+  },
+  "provenance": {
+    "motion_job_id": "brief-9883207f",
+    "prompt_spec_version": "motion-v1.0/director-1",
+    "brief_sha256": "c9b2cd9dfc675c37fcba7d843d6a4591cf3315aae81207d0dc895d3b6bb88c76",
+    "storyboard_sha256": "64c14d14f78729ac55e6cfc614e757e3d7bda65788626bffbcff552a0febe319",
+    "composition_sha256": "c9db3dc1e48320e61e5454ea4eebca60935cd28cee8ec14783bb28ad8039d071",
+    "source_bytes": 6384,
+    "source_chars": 6384,
+    "storyboard_origin": "handwritten",
+    "composition_origin": "handwritten",
+    "fonts": {
+      "Inter-Regular.woff2": "e06f6b1bc553aaea4e4668023ed0ab0a147129c3107f511bc7d03d361b0ae085",
+      "Inter-Medium.woff2": "0ff3e94614e1493eb556314fd247ae6c4a85a7783b4cc86be539940cf83f2a48",
+      "Virgil.woff2": "9976295bfe709bdea64839a4d4e9a1d436dd6eb67538399a5a0e8b8fadbcf1cf",
+      "JetBrainsMono-Regular.woff2": "a9cb1cd82332b23a47e3a1239d25d13c86d16c4220695e34b243effa999f45f2"
+    }
+  },
+  "duration_seconds": 15,
+  "fps": 30,
+  "width": 1920,
+  "height": 1080
+}

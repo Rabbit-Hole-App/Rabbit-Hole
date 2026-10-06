@@ -1,0 +1,24 @@
+{
+  "note": "karpathy/nanoGPT at the commit the NanoGPT course and spec §27 pin: every .py file plus LICENSE, byte-exact (MIT, Copyright (c) 2022 Andrej Karpathy). The M2 source-grounding fixture; sha256 per file.",
+  "repository": "karpathy/nanoGPT",
+  "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+  "license": "MIT",
+  "files": {
+    "LICENSE": "a59ec5cdb1c1e447e5266a014b3e7ded511f8d6e5a08931e931c87490ff821fe",
+    "bench.py": "984f54a60df9d1aa844e7e0aef10000e7090a00109d13e43587ccb077ef340bb",
+    "config/eval_gpt2.py": "054665ef6b977e5a03fa94f4365206d5258305f8660589c5b534949d946418e8",
+    "config/eval_gpt2_large.py": "52f07f35a1c7a45c30f0c59a39ab3804fcefd505bcd69973ff06e19a57e079bc",
+    "config/eval_gpt2_medium.py": "7ced6fb2cbc2c16fbb9c6c256eac403f3e1a88d1317ef0f85a1688f8b7988a2b",
+    "config/eval_gpt2_xl.py": "8bb8d85b53f2daf35d11c403b0a0e0dfbe69cd1d052f38ea09b826fa3ed2ae65",
+    "config/finetune_shakespeare.py": "e78caf73a286e22df3ad069b39ed6162490b8e033ca1e2ceb8477eee159c7948",
+    "config/train_gpt2.py": "0add8a916edf704e001e87aaf63647eea9d6df964c10129ff60ad479bdbd55c4",
+    "config/train_shakespeare_char.py": "9b41cdfb2c917259d796a8184d835221a349c23cd18a0a63b46da431d95d9c05",
+    "configurator.py": "5cc23aca26b4ab3c0d9e5f82740f4781f9444f42718c15abcee70d93c5aabe8f",
+    "data/openwebtext/prepare.py": "77f3ef0cc8132d77f90c2bd5f9c3be86d1b3da7428e100559c58aee2bcb6eb12",
+    "data/shakespeare/prepare.py": "f8d47267f00963138314bb969e75071211bf1140c248bf31b9e60e7750027f06",
+    "data/shakespeare_char/prepare.py": "d5fbea0686d146748cf36017d6c34136a2fe9c41f065f1429529ad55a992c692",
+    "model.py": "7c01703240dbec5d554527dc666e35b3df8391d0b117fddc07afcf325a21d11c",
+    "sample.py": "1c4bb3716ec55395be2e6ad136693614b0b38de9defda889041efe2057a0c1f1",
+    "train.py": "413bd97b40bb400a2a0d01230e2946f056c263ebac1b7281c2367d964a123085"
+  }
+}

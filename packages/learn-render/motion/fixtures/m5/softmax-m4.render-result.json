@@ -1,0 +1,243 @@
+{
+  "schema": "motion-render-result/1",
+  "status": "artifact_invalid",
+  "render_id": "0ef917bcdc8ede86110736ce8cfbf28c",
+  "composition_id": "softmax-attention-weights",
+  "renderer": {
+    "name": "remotion",
+    "service_version": "motion-renderer-1-105c32045a43/remotion@4.0.521",
+    "remotion": "remotion@4.0.521",
+    "chrome": "149.0.7790.0",
+    "ffmpeg": "ffmpeg version n7.1 Copyright (c) 2000-2024 the FFmpeg developers",
+    "sandbox": "none"
+  },
+  "artifacts": {},
+  "hashes": {},
+  "validation": {
+    "ok": false,
+    "final": {
+      "ok": false,
+      "checks": [
+        {
+          "name": "duration",
+          "ok": true,
+          "detail": "video 15s, container 15.061333s (want 15s within one frame, <= 30s)"
+        },
+        {
+          "name": "frame count",
+          "ok": true,
+          "detail": "450 (want 450)"
+        },
+        {
+          "name": "fps",
+          "ok": true,
+          "detail": "30/1"
+        },
+        {
+          "name": "resolution",
+          "ok": true,
+          "detail": "1920x1080"
+        },
+        {
+          "name": "codec",
+          "ok": true,
+          "detail": "h264 yuv420p bt709"
+        },
+        {
+          "name": "size",
+          "ok": true,
+          "detail": "1544850 bytes (cap 26214400)"
+        },
+        {
+          "name": "nonblank frames",
+          "ok": false,
+          "detail": "#0:0 #1:0 #60:16.64 #119:16.52 #120:16.52 #121:16.56 #165:23.56 #209:18.6 #210:18.6 #211:18.54 #255:34.95 #299:31 #300:31 #301:31 #338:35.49 #374:33.08 #375:33.08 #376:33.06 #413:22.77 #420:22.56 #449:23.31"
+        }
+      ]
+    },
+    "coverage": {
+      "ok": true,
+      "frames": 20,
+      "observed": 20,
+      "errors": []
+    },
+    "determinism": {
+      "ok": true,
+      "method": "renderStill PNG, sha256 of decoded RGBA, two fresh contexts (separate bundle and browser)",
+      "frames": [
+        {
+          "frame": 0,
+          "hashes": [
+            "11425ffece04e8bf7aa523674f68c29435ebff21c5a8389a37afd2d6d21f9340",
+            "11425ffece04e8bf7aa523674f68c29435ebff21c5a8389a37afd2d6d21f9340"
+          ]
+        },
+        {
+          "frame": 60,
+          "hashes": [
+            "0521d447b43b41840328e0a4c189e0fa3f649c2118e0065b93b34b74ee8aa0ed",
+            "0521d447b43b41840328e0a4c189e0fa3f649c2118e0065b93b34b74ee8aa0ed"
+          ]
+        },
+        {
+          "frame": 120,
+          "hashes": [
+            "c47bb2874eafd97283bd70c79af662a8a8b1212b7dccd541b9b510aad70a1d83",
+            "c47bb2874eafd97283bd70c79af662a8a8b1212b7dccd541b9b510aad70a1d83"
+          ]
+        },
+        {
+          "frame": 165,
+          "hashes": [
+            "17be9aa04aa391a16340ca837dc0ba631256a38e476bd81247ce80fd643f861c",
+            "17be9aa04aa391a16340ca837dc0ba631256a38e476bd81247ce80fd643f861c"
+          ]
+        },
+        {
+          "frame": 210,
+          "hashes": [
+            "2ad9e1565a1c99d4a790c637e79995c5ee566a503d387b87759713988d8ff1b1",
+            "2ad9e1565a1c99d4a790c637e79995c5ee566a503d387b87759713988d8ff1b1"
+          ]
+        },
+        {
+          "frame": 224,
+          "hashes": [
+            "7cbdbb0e1ef57f6228c3d7586c2c88d26140684941bff2b7f5853fffb26cdb4a",
+            "7cbdbb0e1ef57f6228c3d7586c2c88d26140684941bff2b7f5853fffb26cdb4a"
+          ]
+        },
+        {
+          "frame": 255,
+          "hashes": [
+            "f6b3487e8dc4d66a6daf2df310b790b7a971581492857a3e042696e45f454260",
+            "f6b3487e8dc4d66a6daf2df310b790b7a971581492857a3e042696e45f454260"
+          ]
+        },
+        {
+          "frame": 300,
+          "hashes": [
+            "1ea557cfd8d2473cbd7d661975243fa1469e478e96ac21002b4afadf01c401eb",
+            "1ea557cfd8d2473cbd7d661975243fa1469e478e96ac21002b4afadf01c401eb"
+          ]
+        },
+        {
+          "frame": 338,
+          "hashes": [
+            "416274eb6b70ed2583c4e7ff606004e12755812f8a8abfe3da694c810cfb266b",
+            "416274eb6b70ed2583c4e7ff606004e12755812f8a8abfe3da694c810cfb266b"
+          ]
+        },
+        {
+          "frame": 375,
+          "hashes": [
+            "cd1e8514817ac9d247c8a424412c15b0cb4364d3015c52ffe0b15957ac2b3d95",
+            "cd1e8514817ac9d247c8a424412c15b0cb4364d3015c52ffe0b15957ac2b3d95"
+          ]
+        },
+        {
+          "frame": 413,
+          "hashes": [
+            "7685b3a7b5b5a57f938cafb58b1d92a282904bc56bdb70bfe8bc5e9ee6ecc588",
+            "7685b3a7b5b5a57f938cafb58b1d92a282904bc56bdb70bfe8bc5e9ee6ecc588"
+          ]
+        },
+        {
+          "frame": 420,
+          "hashes": [
+            "5c790047909f111d86cdfeee875a17d67917cc906cde7d7fb772e495c09d5e88",
+            "5c790047909f111d86cdfeee875a17d67917cc906cde7d7fb772e495c09d5e88"
+          ]
+        },
+        {
+          "frame": 449,
+          "hashes": [
+            "15f25882467e809385474daa582228a126678a26894c16df6f8c446fc7aa659f",
+            "15f25882467e809385474daa582228a126678a26894c16df6f8c446fc7aa659f"
+          ]
+        }
+      ],
+      "errors": []
+    },
+    "preview_final": {
+      "ok": true,
+      "max": 1.931,
+      "threshold": 6
+    }
+  },
+  "resources": {
+    "sandbox": {
+      "mode": "none",
+      "env_keys": [
+        "APPDATA",
+        "COMSPEC",
+        "HOME",
+        "HOMEDRIVE",
+        "HOMEPATH",
+        "LOCALAPPDATA",
+        "LOGONSERVER",
+        "MOTION_SANDBOX",
+        "PATH",
+        "PATHEXT",
+        "SYSTEMDRIVE",
+        "SYSTEMROOT",
+        "TEMP",
+        "TMP",
+        "TMPDIR",
+        "USERDOMAIN",
+        "USERNAME",
+        "USERPROFILE",
+        "WINDIR"
+      ]
+    },
+    "limits": null
+  },
+  "timings": {
+    "submit_to_finished_s": 143.85,
+    "service": {
+      "bundle": 16.86,
+      "browser": 0.42,
+      "preview": 9.66,
+      "stills@0.45": 7.53,
+      "final": 28.06,
+      "stills@1": 9.35,
+      "determinism_second_context": {
+        "bundle": 16.77,
+        "browser": 0.23,
+        "stills@1": 9.85
+      },
+      "coverage_probe": {
+        "bundle": 0,
+        "browser": 0.24,
+        "stills@0.25": 11.55
+      },
+      "total": 138.81
+    },
+    "total_s": 143.86
+  },
+  "provenance": {
+    "motion_job_id": "brief-9883207f",
+    "prompt_spec_version": "motion-v1.0/director-1",
+    "brief_sha256": "c9b2cd9dfc675c37fcba7d843d6a4591cf3315aae81207d0dc895d3b6bb88c76",
+    "storyboard_sha256": "774103d32bcc173932171d8819d6b1e61fd8f843121c2f254be77fa63e0b870f",
+    "composition_sha256": "20ab85edcc17bb8b1755ee567a3f848b0622c75e4523a52fa9d1bfe777186160",
+    "source_bytes": 17896,
+    "source_chars": 17884,
+    "storyboard_origin": "model_generated",
+    "composition_origin": "model_generated",
+    "fonts": {
+      "Inter-Regular.woff2": "e06f6b1bc553aaea4e4668023ed0ab0a147129c3107f511bc7d03d361b0ae085",
+      "Inter-Medium.woff2": "0ff3e94614e1493eb556314fd247ae6c4a85a7783b4cc86be539940cf83f2a48",
+      "Virgil.woff2": "9976295bfe709bdea64839a4d4e9a1d436dd6eb67538399a5a0e8b8fadbcf1cf",
+      "JetBrainsMono-Regular.woff2": "a9cb1cd82332b23a47e3a1239d25d13c86d16c4220695e34b243effa999f45f2"
+    }
+  },
+  "duration_seconds": 15,
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "failure": {
+    "category": "final_validation_failed",
+    "detail": "nonblank frames: #0:0 #1:0 #60:16.64 #119:16.52 #120:16.52 #121:16.56 #165:23.56 #209:18.6 #210:18.6 #211:18.54 #255:34.95 #299:31 #300:31 #301:31 #338:35.49 #374:33.08 #375:33.08 #376:33.06 #413:22.77 #420:22.56 #449:23.31"
+  }
+}

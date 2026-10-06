@@ -1,0 +1,237 @@
+{
+  "id": "storyboard-softmax-good",
+  "brief_id": "brief-9883207f",
+  "version": 1,
+  "beats": [
+    {
+      "id": "B1",
+      "start_time": 0,
+      "end_time": 2.5,
+      "pedagogical_role": "hook",
+      "visible_objects": [
+        {
+          "id": "softmax_line",
+          "description": "the line att = F.softmax(att, dim=-1) inside the else branch of the attention forward pass",
+          "source": {
+            "source_ref_id": "S4",
+            "start_line": 69,
+            "end_line": 69
+          },
+          "change": "fades in and is highlighted"
+        },
+        {
+          "id": "fallback_label",
+          "description": "badge naming the branch the shown code belongs to",
+          "label": "Fallback path: self.flash is False",
+          "change": "appears beside the line"
+        }
+      ],
+      "claim_ids": [
+        "C1"
+      ],
+      "condition_ids": [
+        "K1"
+      ],
+      "must_show_covered": [
+        "The code line `att = F.softmax(att, dim=-1)`, marked as part of the `else` branch (taken when `self.flash` is false)"
+      ],
+      "transition": "opens on the code",
+      "framing": "the code line centred, the badge to its right",
+      "on_screen_text": ""
+    },
+    {
+      "id": "B2",
+      "start_time": 2.5,
+      "end_time": 5.5,
+      "pedagogical_role": "mechanism",
+      "visible_objects": [
+        {
+          "id": "score_row",
+          "description": "one query row of scaled scores over key positions 1 to 6; positions 5 and 6 are future positions",
+          "change": "masked_fill sets the future positions to -inf"
+        },
+        {
+          "id": "mask_line",
+          "description": "the masked_fill line",
+          "source": {
+            "source_ref_id": "S4",
+            "start_line": 68,
+            "end_line": 68
+          },
+          "change": "is highlighted as the row updates"
+        },
+        {
+          "id": "fallback_label",
+          "description": "badge naming the branch the shown code belongs to",
+          "label": "Fallback path: self.flash is False"
+        }
+      ],
+      "claim_ids": [
+        "C2"
+      ],
+      "condition_ids": [
+        "K1"
+      ],
+      "must_show_covered": [
+        "One row of attention scores in which the future positions hold -inf after `masked_fill`"
+      ],
+      "transition": "the code moves up to a strip and the row appears below it",
+      "framing": "code strip on top, the row centred",
+      "on_screen_text": "Future positions become -inf before softmax."
+    },
+    {
+      "id": "B3",
+      "start_time": 5.5,
+      "end_time": 9,
+      "pedagogical_role": "mechanism",
+      "visible_objects": [
+        {
+          "id": "score_row",
+          "description": "the same row, now drawn as weight bars",
+          "change": "each score turns into a weight bar under softmax: larger scores get larger bars, the -inf positions shrink to exactly 0"
+        },
+        {
+          "id": "softmax_line",
+          "description": "the softmax line",
+          "source": {
+            "source_ref_id": "S4",
+            "start_line": 69,
+            "end_line": 69
+          },
+          "change": "is highlighted"
+        },
+        {
+          "id": "fallback_label",
+          "description": "badge naming the branch the shown code belongs to",
+          "label": "Fallback path: self.flash is False"
+        }
+      ],
+      "claim_ids": [
+        "C1",
+        "C3"
+      ],
+      "condition_ids": [
+        "K1"
+      ],
+      "must_show_covered": [
+        "That row turning into weights: larger scores get larger weights, -inf entries become exactly 0"
+      ],
+      "transition": "the highlight moves down one line",
+      "framing": "the row stays centred",
+      "on_screen_text": "Softmax turns each row of scores into weights.",
+      "narration_line": "Softmax turns each row into weights."
+    },
+    {
+      "id": "B4",
+      "start_time": 9,
+      "end_time": 11.5,
+      "pedagogical_role": "mechanism",
+      "visible_objects": [
+        {
+          "id": "score_row",
+          "description": "the row of weights"
+        },
+        {
+          "id": "sum_marker",
+          "description": "a running total of the row",
+          "label": "sum = 1",
+          "change": "fills to exactly 1"
+        },
+        {
+          "id": "row_arrow",
+          "description": "an arrow along the row over the key positions",
+          "label": "dim=-1: along each row",
+          "change": "draws left to right along the row"
+        },
+        {
+          "id": "fallback_label",
+          "description": "badge naming the branch the shown code belongs to",
+          "label": "Fallback path: self.flash is False"
+        }
+      ],
+      "claim_ids": [
+        "C1",
+        "C3"
+      ],
+      "condition_ids": [
+        "K1"
+      ],
+      "must_show_covered": [
+        "The resulting row of weights summing to 1, with the row's length unchanged",
+        "The arrow showing softmax works across the last dimension (along a row, over key positions)"
+      ],
+      "transition": "the code strip dims",
+      "framing": "the row centred, the total at its right end",
+      "on_screen_text": "Each row sums to 1; its length is unchanged."
+    },
+    {
+      "id": "B5",
+      "start_time": 11.5,
+      "end_time": 13.5,
+      "pedagogical_role": "implementation",
+      "visible_objects": [
+        {
+          "id": "score_row",
+          "description": "the row of weights",
+          "change": "the weights flow into y = att @ v"
+        },
+        {
+          "id": "value_line",
+          "description": "the line y = att @ v",
+          "source": {
+            "source_ref_id": "S4",
+            "start_line": 71,
+            "end_line": 71
+          },
+          "change": "is highlighted"
+        },
+        {
+          "id": "fallback_label",
+          "description": "badge naming the branch the shown code belongs to",
+          "label": "Fallback path: self.flash is False"
+        }
+      ],
+      "claim_ids": [
+        "C2"
+      ],
+      "condition_ids": [
+        "K1"
+      ],
+      "must_show_covered": [
+        "The weights then flowing into `y = att @ v`"
+      ],
+      "transition": "the highlight moves to the last line",
+      "framing": "code strip on top, the row below it",
+      "on_screen_text": "Then the weights are used in y = att @ v."
+    },
+    {
+      "id": "B6",
+      "start_time": 13.5,
+      "end_time": 15,
+      "pedagogical_role": "takeaway",
+      "visible_objects": [
+        {
+          "id": "flash_lane",
+          "description": "a second lane for the other branch of the same condition",
+          "label": "If self.flash: scaled_dot_product_attention(is_causal=True)",
+          "change": "slides in below the fallback path"
+        },
+        {
+          "id": "fallback_label",
+          "description": "badge naming the branch the shown code belongs to",
+          "label": "Fallback path: self.flash is False"
+        }
+      ],
+      "claim_ids": [
+        "C4"
+      ],
+      "condition_ids": [
+        "K1"
+      ],
+      "must_show_covered": [],
+      "transition": "the row fades back",
+      "framing": "two lanes, fallback on top",
+      "on_screen_text": "When self.flash is True, scaled_dot_product_attention runs instead."
+    }
+  ]
+}

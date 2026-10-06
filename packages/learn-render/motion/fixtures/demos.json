@@ -1,0 +1,100 @@
+{
+  "note": "Spec §27 demo fixtures: request, fixed context and expectations. Source text lives in sources/excerpts.json at the same pinned commits. No demo depends on unspecified repository or context state.",
+  "demos": [
+    {
+      "id": "A1",
+      "request": "/motion 15s explain me softmax func",
+      "teaching_mode": "mechanism_first",
+      "repository": "karpathy/nanoGPT",
+      "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+      "context": { "course": "nanogpt", "current_concept": "attention", "selection": null },
+      "expected": {
+        "duration_line": "✓ duration: 15s",
+        "target": { "path": "model.py", "line": 69, "symbol": "CausalSelfAttention.forward" },
+        "candidates_considered": [{ "path": "model.py", "line": 324, "symbol": "GPT.generate" }],
+        "conditions": { "K1": { "flag": "model.py:44-45", "true": "model.py:62-64", "false": "model.py:65-71", "mask_buffer": "model.py:48-50" } },
+        "claims": ["C1", "C2", "C3"],
+        "must_not_appear": ["nanoGPT always executes the explicit F.softmax path"],
+        "hand_written": { "brief": "demo-a/brief.json", "storyboard": "demo-a/storyboard.json", "composition": "demo-a/composition.jsx" }
+      }
+    },
+    {
+      "id": "A2",
+      "request": "/motion explain me softmax func",
+      "teaching_mode": null,
+      "repository": "karpathy/nanoGPT",
+      "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+      "context": { "course": null, "current_concept": null, "selection": null },
+      "expected": {
+        "duration_line": "✓ duration: 10s (default)",
+        "clarification": "Softmax in attention (model.py:69) or in sampling (model.py:324)?",
+        "render": false
+      }
+    },
+    {
+      "id": "B",
+      "request": "/motion 20s show what happens here",
+      "teaching_mode": "code_walkthrough",
+      "repository": "karpathy/nanoGPT",
+      "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+      "context": {
+        "course": "nanogpt",
+        "current_concept": null,
+        "selection": { "repository_context": { "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291", "label": "GPT.generate", "range": { "path": "model.py", "start": 305, "end": 330 } } }
+      },
+      "expected": {
+        "duration_line": "✓ duration: 20s",
+        "target": { "resolution": "deictic", "symbol": "GPT.generate" },
+        "source_refs": {
+          "model.py:306": "signature: temperature=1.0, top_k=None",
+          "model.py:312": "loop over max_new_tokens",
+          "model.py:314": "crop the context to block_size",
+          "model.py:316": "forward pass",
+          "model.py:318": "last-position logits divided by temperature",
+          "model.py:320-322": "optional top-k sets the rest to -inf",
+          "model.py:324": "F.softmax -> probabilities",
+          "model.py:326": "torch.multinomial sample",
+          "model.py:328": "append and continue"
+        },
+        "must_not_appear": ["generate always picks the highest-probability token", "temperature is applied after softmax", "top-k is always applied"],
+        "hand_written": { "brief": "demo-b/brief.json", "storyboard": "demo-b/storyboard.json", "composition": "demo-b/composition.jsx" }
+      }
+    },
+    {
+      "id": "C1",
+      "request": "/motion 30s show how this request moves through the app",
+      "teaching_mode": "system_flow",
+      "repository": "rabbit-hole (this repository)",
+      "commit": "e9d6dbe7f088a8a2d99e138c0b08a4c7a2dfcc25",
+      "context": {
+        "course": null,
+        "current_concept": null,
+        "selection": { "repository_context": { "commit": "e9d6dbe7f088a8a2d99e138c0b08a4c7a2dfcc25", "label": "LearnVideos asset GET", "range": { "path": "packages/control-plane/src/learn-video.js", "start": 34, "end": 46 } } }
+      },
+      "expected": {
+        "duration_line": "✓ duration: 30s",
+        "request_path": "GET /api/learn/video?app=…&asset=<64-hex>",
+        "source_refs": {
+          "packages/web/dev-worker.js:135": "route -> videoFetch",
+          "packages/control-plane/src/learn-video.js:12-14": "videoFetch -> privateLessonAssetFetch(LEARN_VIDEOS)",
+          "packages/control-plane/src/learn-video.js:21-23": "app authorization + sign-in check",
+          "packages/control-plane/src/learn-video.js:27-28": "per-learner Durable Object id from org, app and email",
+          "packages/control-plane/src/learn-video.js:37-39": "64-hex key check and ready-job check",
+          "packages/control-plane/src/learn-video.js:40": "R2 read with the request's Range header",
+          "packages/control-plane/src/learn-video.js:42-45": "headers and 206/200",
+          "packages/control-plane/src/learn-storage.js:10": "learnMedia = LEARN_MEDIA or RUNS"
+        },
+        "must_not_appear": ["the Worker generating the video on request", "the browser reading R2 directly", "public video URLs", "any service not in the refs (no CDN, no invented queue)"]
+      }
+    },
+    {
+      "id": "C2",
+      "request": "/motion 30s show how this request moves through the app",
+      "teaching_mode": null,
+      "repository": "rabbit-hole (this repository)",
+      "commit": "e9d6dbe7f088a8a2d99e138c0b08a4c7a2dfcc25",
+      "context": { "course": null, "current_concept": null, "selection": null },
+      "expected": { "duration_line": "✓ duration: 30s", "clarification": "Which request or route should the animation follow?", "render": false }
+    }
+  ]
+}

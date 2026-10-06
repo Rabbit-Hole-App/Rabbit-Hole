@@ -1,0 +1,106 @@
+<!doctype html>
+<html><head><meta charset='UTF-8'><meta name='motion-timeline' content='{"B1":[0,75],"B2":[75,180],"B3":[180,300],"B4":[300,390],"B5":[390,450]}'>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+#root{position:relative;width:1920px;height:1080px;overflow:hidden;background:#0d1117;font-family:'Inter';color:#e6edf3}
+.abs{position:absolute}
+.cap{position:absolute;left:80px;top:36px;width:1760px;text-align:center;font-size:36px;font-weight:600;color:#f8fafc}
+.cap1{font-size:48px;font-weight:700;animation:cap1 15s linear both}
+.cap2{animation:cap2 15s linear both}
+.cap3{animation:cap3 15s linear both}
+.cap4{animation:cap4 15s linear both}
+.cap5{animation:cap5 15s linear both}
+@keyframes cap1{0%,16%{opacity:1}16.667%,100%{opacity:0}}
+@keyframes cap2{0%,16.667%{opacity:0}17.333%,39.333%{opacity:1}40%,100%{opacity:0}}
+@keyframes cap3{0%,40%{opacity:0}40.667%,66%{opacity:1}66.667%,100%{opacity:0}}
+@keyframes cap4{0%,66.667%{opacity:0}67.333%,86%{opacity:1}86.667%,100%{opacity:0}}
+@keyframes cap5{0%,86.667%{opacity:0}87.333%,100%{opacity:1}}
+.code{position:absolute;left:352px;top:330px;width:1220px;padding:32px;background:#161b26;border:2px solid #2b3445;border-radius:16px;transform-origin:0 0;animation:codemv 15s ease-in-out both}
+@keyframes codemv{0%{transform:translate(0px,24px) scale(1)}4%,16.667%{transform:translate(0px,0px) scale(1)}20%,100%{transform:translate(-312px,-180px) scale(0.75)}}
+.ln{font-family:'JetBrains Mono';font-size:32px;line-height:48px;white-space:pre;border-radius:6px}
+.lc{animation:lc 15s linear both}
+.l324{animation:l324 15s linear both}
+.l326{animation:l326 15s linear both}
+.l328{animation:l328 15s linear both}
+@keyframes lc{0%,4%{color:#e6edf3;background-color:rgba(250,204,21,0)}8%,100%{color:#7d8799;background-color:rgba(250,204,21,0)}}
+@keyframes l324{0%,4%{color:#e6edf3;background-color:rgba(250,204,21,0)}8%,16.667%{color:#7d8799;background-color:rgba(250,204,21,0)}20%,40%{color:#ffffff;background-color:rgba(250,204,21,0.22)}42.667%,86.667%{color:#7d8799;background-color:rgba(250,204,21,0)}88.667%,100%{color:#ffffff;background-color:rgba(250,204,21,0.22)}}
+@keyframes l326{0%,4%{color:#e6edf3;background-color:rgba(250,204,21,0)}8%,16.667%{color:#ffffff;background-color:rgba(250,204,21,0.22)}20%,40%{color:#7d8799;background-color:rgba(250,204,21,0)}42.667%,66.667%{color:#ffffff;background-color:rgba(250,204,21,0.22)}69.333%,90.667%{color:#7d8799;background-color:rgba(250,204,21,0)}92.667%,100%{color:#ffffff;background-color:rgba(250,204,21,0.22)}}
+@keyframes l328{0%,4%{color:#e6edf3;background-color:rgba(250,204,21,0)}8%,66.667%{color:#7d8799;background-color:rgba(250,204,21,0)}69.333%,86.667%{color:#ffffff;background-color:rgba(250,204,21,0.22)}88.667%,94.667%{color:#7d8799;background-color:rgba(250,204,21,0)}96.667%,100%{color:#ffffff;background-color:rgba(250,204,21,0.22)}}
+.die{position:absolute;left:1580px;top:470px;width:200px;animation:diedrop 15s ease-out both}
+@keyframes diedrop{0%{transform:translateY(-140px);opacity:1}4%,16.667%{transform:translateY(0px);opacity:1}20%,100%{transform:translateY(0px);opacity:0}}
+.diesvg{display:block;margin-left:55px;width:90px;height:90px;animation:tumble 15s ease-in-out both}
+@keyframes tumble{0%,4%{transform:translateY(0px) rotate(0deg)}6%{transform:translateY(-30px) rotate(180deg)}8%,100%{transform:translateY(0px) rotate(360deg)}}
+.dielab{margin-top:14px;text-align:center;font-size:28px;font-weight:600;color:#f8fafc}
+.logits{position:absolute;left:120px;top:465px;width:920px;height:160px;animation:lgop 15s linear both,lgmv 15s ease-out both}
+@keyframes lgop{0%,20%{opacity:0}22.667%,40%{opacity:1}43%,94%{opacity:0.5}97.333%,100%{opacity:1}}
+@keyframes lgmv{0%,20%{transform:translateX(-160px)}22.667%,100%{transform:translateX(0px)}}
+.lglab{position:absolute;left:0;top:0;font-size:30px;font-weight:700;color:#e2e8f0;white-space:nowrap}
+.cell{position:absolute;top:55px;width:110px;height:80px;border-radius:10px;border:3px solid #0d1117}
+.larr{position:absolute;left:750px;top:75px;width:170px;height:40px;transform-origin:0 50%;animation:la 15s ease-out both}
+@keyframes la{0%,22.667%{transform:scaleX(0)}24%,100%{transform:scaleX(1)}}
+.chart{position:absolute;left:1060px;top:260px;width:800px;height:680px;transform-origin:50% 0;animation:chop 15s linear both,chsc 15s ease-in-out both}
+@keyframes chop{0%,22%{opacity:0}24%,66.667%{opacity:1}68.667%,100%{opacity:0.55}}
+@keyframes chsc{0%,66.667%{transform:scale(1)}68.667%,100%{transform:scale(0.8)}}
+.chlab{position:absolute;left:0;top:0;font-size:30px;font-weight:700;color:#f8fafc;white-space:nowrap}
+.base{position:absolute;left:20px;top:620px;width:760px;height:3px;background:#94a3b8}
+.bar{position:absolute;bottom:60px;width:90px;transform-origin:50% 100%;border:2px solid #0d1117;border-radius:6px 6px 0 0}
+.b0{left:30px;height:56px;background:#60a5fa;animation:b0 15s ease-in-out both}
+.b1{left:160px;height:157px;background:#34d399;animation:b1 15s ease-in-out both,glow 15s linear both}
+.b2{left:290px;height:78px;background:#a78bfa;animation:b2 15s ease-in-out both}
+.b3{left:420px;height:190px;background:#f472b6;animation:b3 15s ease-in-out both}
+.b4{left:550px;height:45px;background:#fbbf24;animation:b4 15s ease-in-out both}
+.b5{left:680px;height:34px;background:#22d3ee;animation:b5 15s ease-in-out both}
+@keyframes b0{0%,24%{transform:translate(0px,0px) scaleY(0)}26.333%,30.667%{transform:translate(0px,0px) scaleY(1)}33.333%,35.333%{transform:translate(325px,0px) scaleY(1)}38%,100%{transform:translate(0px,0px) scaleY(1)}}
+@keyframes b1{0%,24.8%{transform:translate(0px,0px) scaleY(0)}27.133%,30.667%{transform:translate(0px,0px) scaleY(1)}33.333%,35.333%{transform:translate(195px,-56px) scaleY(1)}38%,100%{transform:translate(0px,0px) scaleY(1)}}
+@keyframes b2{0%,25.6%{transform:translate(0px,0px) scaleY(0)}27.933%,30.667%{transform:translate(0px,0px) scaleY(1)}33.333%,35.333%{transform:translate(65px,-213px) scaleY(1)}38%,100%{transform:translate(0px,0px) scaleY(1)}}
+@keyframes b3{0%,26.4%{transform:translate(0px,0px) scaleY(0)}28.733%,30.667%{transform:translate(0px,0px) scaleY(1)}33.333%,35.333%{transform:translate(-65px,-291px) scaleY(1)}38%,100%{transform:translate(0px,0px) scaleY(1)}}
+@keyframes b4{0%,27.2%{transform:translate(0px,0px) scaleY(0)}29.533%,30.667%{transform:translate(0px,0px) scaleY(1)}33.333%,35.333%{transform:translate(-195px,-481px) scaleY(1)}38%,100%{transform:translate(0px,0px) scaleY(1)}}
+@keyframes b5{0%,28%{transform:translate(0px,0px) scaleY(0)}30.333%,30.667%{transform:translate(0px,0px) scaleY(1)}33.333%,35.333%{transform:translate(-325px,-526px) scaleY(1)}38%,100%{transform:translate(0px,0px) scaleY(1)}}
+@keyframes glow{0%,55.333%{box-shadow:0 0 0 0 rgba(255,255,255,0)}56.667%,100%{box-shadow:0 0 0 5px #ffffff}}
+.mark{position:absolute;left:300px;top:58px;width:200px;border-top:4px dashed #f8fafc;animation:mk 15s linear both}
+.one{position:absolute;left:515px;top:38px;font-size:32px;font-weight:700;color:#f8fafc;animation:mk 15s linear both}
+@keyframes mk{0%,30.667%{opacity:0}32.667%,35.333%{opacity:1}37.333%,100%{opacity:0}}
+.slots{position:absolute;left:30px;top:640px;width:740px;height:30px;display:flex;transform-origin:0 50%;animation:sl 15s ease-out both}
+.slots div{height:30px;border-right:2px solid #0d1117}
+@keyframes sl{0%,40%{transform:scaleX(0)}45.333%,100%{transform:scaleX(1)}}
+.marker{position:absolute;left:1060px;top:580px;width:800px;height:110px;animation:mkr 15s linear both}
+@keyframes mkr{0%,44%{opacity:0}46%,66.667%{opacity:1}68%,100%{opacity:0}}
+.mlab{position:absolute;left:0;top:0;width:800px;text-align:center;font-family:'JetBrains Mono';font-size:28px;font-weight:700;color:#fde68a;white-space:nowrap}
+.tri{position:absolute;left:0;top:66px;width:40px;height:30px}
+.tmain{animation:sweep 15s ease-in-out both}
+@keyframes sweep{0%,46%{transform:translateX(55px)}50%{transform:translateX(705px)}53.333%{transform:translateX(315px)}55.333%,100%{transform:translateX(185px)}}
+.gA{left:445px;animation:gA 15s ease-out both}
+.gB{left:705px;animation:gB 15s ease-out both}
+@keyframes gA{0%,57.333%{opacity:0;transform:translateY(-30px)}58.667%{opacity:0.5;transform:translateY(0px)}61.333%,100%{opacity:0;transform:translateY(0px)}}
+@keyframes gB{0%,59.333%{opacity:0;transform:translateY(-30px)}60.667%{opacity:0.5;transform:translateY(0px)}63.333%,100%{opacity:0;transform:translateY(0px)}}
+.seq{position:absolute;left:0;top:0;width:1920px;height:1080px;animation:sqop 15s linear both,sqmv 15s ease-out both}
+@keyframes sqop{0%,66.667%{opacity:0}70%,100%{opacity:1}}
+@keyframes sqmv{0%,66.667%{transform:translateY(60px)}70.667%,100%{transform:translateY(0px)}}
+.seqlab{position:absolute;left:985px;top:962px;font-family:'JetBrains Mono';font-size:32px;font-weight:700;color:#f8fafc}
+.sc{position:absolute;top:950px;width:90px;height:70px;background:#334155;border:3px solid #64748b;border-radius:10px}
+.loop{position:absolute;left:0;top:0;width:1920px;height:1080px}
+.lpath{animation:lp 15s ease-in-out both}
+@keyframes lp{0%,88%{stroke-dashoffset:100}95.333%,100%{stroke-dashoffset:0}}
+.lhead{animation:lh 15s linear both}
+@keyframes lh{0%,95.333%{opacity:0}96.667%,100%{opacity:1}}
+.tok{position:absolute;left:1560px;top:950px;width:160px;height:70px;background:#34d399;color:#0d1117;border-radius:10px;font-family:'JetBrains Mono';font-size:28px;font-weight:700;text-align:center;line-height:70px;animation:tkop 15s linear both,tkmv 15s ease-in-out both}
+@keyframes tkop{0%,66.667%{opacity:0}68%,100%{opacity:1}}
+@keyframes tkmv{0%,66.667%{transform:translate(-336px,-320px)}70%{transform:translate(-336px,-400px)}74.667%{transform:translate(10px,-6px)}75.667%,100%{transform:translate(0px,0px)}}
+.cat{position:absolute;left:1240px;top:866px;width:620px;text-align:right;font-family:'JetBrains Mono';font-size:28px;font-weight:700;color:#fde68a;white-space:nowrap;animation:catop 15s linear both}
+@keyframes catop{0%,75.333%{opacity:0}76.333%,86.667%{opacity:1}88.667%,100%{opacity:0}}
+</style></head>
+<body><div id='root' data-composition-id='multinomial-weighted-die' data-start='0' data-duration='15' data-width='1920' data-height='1080' data-no-timeline style='position:relative;width:1920px;height:1080px;overflow:hidden;background:#0d1117;'>
+<div class='cap cap1'>multinomial: rolling the weighted die for the next token</div>
+<div class='cap cap2'>Softmax turns the final-step logits into normalized probabilities that sum to 1.</div>
+<div class='cap cap3'>Sample from the distribution: a less likely token can still be chosen.</div>
+<div class='cap cap4'>One index, idx_next, is appended to the running sequence.</div>
+<div class='cap cap5'>Softmax, then multinomial, then torch.cat; the loop continues.</div>
+<div class='code' data-object='code_block'><div class='ln lc'># apply softmax to convert logits to (normalized) probabilities</div><div class='ln l324'>probs = F.softmax(logits, dim=-1)</div><div class='ln lc'># sample from the distribution</div><div class='ln l326'>idx_next = torch.multinomial(probs, num_samples=1)</div><div class='ln lc'># append sampled index to the running sequence and continue</div><div class='ln l328'>idx = torch.cat((idx, idx_next), dim=1)</div></div>
+<div class='die' data-object='die_icon'><svg class='diesvg' width='90' height='90' viewBox='0 0 90 90'><rect x='5' y='5' width='80' height='80' rx='14' fill='#f8fafc' stroke='#fbbf24' stroke-width='4'/><circle cx='27' cy='27' r='8' fill='#0d1117'/><circle cx='45' cy='45' r='8' fill='#0d1117'/><circle cx='63' cy='63' r='8' fill='#0d1117'/></svg><div class='dielab'>weighted die</div></div>
+<div class='logits' data-object='logits_row'><div class='lglab'>final-step logits</div><div class='cell' style='left:0px;background:#60a5fa'></div><div class='cell' style='left:124px;background:#34d399'></div><div class='cell' style='left:248px;background:#a78bfa'></div><div class='cell' style='left:372px;background:#f472b6'></div><div class='cell' style='left:496px;background:#fbbf24'></div><div class='cell' style='left:620px;background:#22d3ee'></div><svg class='larr' width='170' height='40' viewBox='0 0 170 40'><line x1='0' y1='20' x2='150' y2='20' stroke='#94a3b8' stroke-width='5'/><polygon points='148,6 170,20 148,34' fill='#94a3b8'/></svg></div>
+<div class='chart' data-object='probs_bars'><div class='chlab'>probabilities sum to 1</div><div class='base'></div><div class='bar b0'></div><div class='bar b1'></div><div class='bar b2'></div><div class='bar b3'></div><div class='bar b4'></div><div class='bar b5'></div><div class='mark'></div><div class='one'>1</div><div class='slots'><div style='width:74px;background:#60a5fa'></div><div style='width:207px;background:#34d399'></div><div style='width:104px;background:#a78bfa'></div><div style='width:252px;background:#f472b6'></div><div style='width:59px;background:#fbbf24'></div><div style='width:44px;background:#22d3ee'></div></div></div>
+<div class='marker' data-object='sample_marker'><div class='mlab'>torch.multinomial(probs, num_samples=1)</div><svg class='tri tmain' width='40' height='30' viewBox='0 0 40 30'><polygon points='0,0 40,0 20,30' fill='#fde68a'/></svg><svg class='tri gA' width='40' height='30' viewBox='0 0 40 30'><polygon points='2,2 38,2 20,28' fill='none' stroke='#fde68a' stroke-width='3' stroke-dasharray='4 3'/></svg><svg class='tri gB' width='40' height='30' viewBox='0 0 40 30'><polygon points='2,2 38,2 20,28' fill='none' stroke='#fde68a' stroke-width='3' stroke-dasharray='4 3'/></svg></div>
+<div class='seq' data-object='sequence_idx'><div class='seqlab'>idx</div><div class='sc' style='left:1060px'></div><div class='sc' style='left:1160px'></div><div class='sc' style='left:1260px'></div><div class='sc' style='left:1360px'></div><div class='sc' style='left:1460px'></div><svg class='loop' width='1920' height='1080' viewBox='0 0 1920 1080'><path class='lpath' d='M1730 985 C1860 985 1870 840 1600 835 L700 835 C520 835 500 760 500 672' pathLength='100' fill='none' stroke='#fde68a' stroke-width='5' stroke-dasharray='100'/><polygon class='lhead' points='484,674 516,674 500,648' fill='#fde68a'/></svg></div>
+<div class='tok' data-object='idx_next_token'>idx_next</div>
+<div class='cat' data-object='cat_label'>torch.cat((idx, idx_next), dim=1)</div>
+</div></body></html>

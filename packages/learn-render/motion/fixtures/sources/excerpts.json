@@ -1,0 +1,59 @@
+{
+  "note": "Verbatim excerpts at pinned full commit SHAs (spec §27). file_sha256 is the whole file at that commit, so any excerpt can be re-verified. nanoGPT is MIT, Copyright (c) 2022 Andrej Karpathy; the attribution travels in provenance (spec §34).",
+  "excerpts": {
+    "nanogpt/model.py:44-50": {
+      "repository": "karpathy/nanoGPT",
+      "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+      "path": "model.py",
+      "start_line": 44,
+      "end_line": 50,
+      "file_sha256": "7c01703240dbec5d554527dc666e35b3df8391d0b117fddc07afcf325a21d11c",
+      "text": "        # flash attention make GPU go brrrrr but support is only in PyTorch >= 2.0\n        self.flash = hasattr(torch.nn.functional, 'scaled_dot_product_attention')\n        if not self.flash:\n            print(\"WARNING: using slow attention. Flash Attention requires PyTorch >= 2.0\")\n            # causal mask to ensure that attention is only applied to the left in the input sequence\n            self.register_buffer(\"bias\", torch.tril(torch.ones(config.block_size, config.block_size))\n                                        .view(1, 1, config.block_size, config.block_size))"
+    },
+    "nanogpt/model.py:62-71": {
+      "repository": "karpathy/nanoGPT",
+      "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+      "path": "model.py",
+      "start_line": 62,
+      "end_line": 71,
+      "file_sha256": "7c01703240dbec5d554527dc666e35b3df8391d0b117fddc07afcf325a21d11c",
+      "text": "        if self.flash:\n            # efficient attention using Flash Attention CUDA kernels\n            y = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=self.dropout if self.training else 0, is_causal=True)\n        else:\n            # manual implementation of attention\n            att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))\n            att = att.masked_fill(self.bias[:,:,:T,:T] == 0, float('-inf'))\n            att = F.softmax(att, dim=-1)\n            att = self.attn_dropout(att)\n            y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)"
+    },
+    "nanogpt/model.py:305-330": {
+      "repository": "karpathy/nanoGPT",
+      "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+      "path": "model.py",
+      "start_line": 305,
+      "end_line": 330,
+      "file_sha256": "7c01703240dbec5d554527dc666e35b3df8391d0b117fddc07afcf325a21d11c",
+      "text": "    @torch.no_grad()\n    def generate(self, idx, max_new_tokens, temperature=1.0, top_k=None):\n        \"\"\"\n        Take a conditioning sequence of indices idx (LongTensor of shape (b,t)) and complete\n        the sequence max_new_tokens times, feeding the predictions back into the model each time.\n        Most likely you'll want to make sure to be in model.eval() mode of operation for this.\n        \"\"\"\n        for _ in range(max_new_tokens):\n            # if the sequence context is growing too long we must crop it at block_size\n            idx_cond = idx if idx.size(1) <= self.config.block_size else idx[:, -self.config.block_size:]\n            # forward the model to get the logits for the index in the sequence\n            logits, _ = self(idx_cond)\n            # pluck the logits at the final step and scale by desired temperature\n            logits = logits[:, -1, :] / temperature\n            # optionally crop the logits to only the top k options\n            if top_k is not None:\n                v, _ = torch.topk(logits, min(top_k, logits.size(-1)))\n                logits[logits < v[:, [-1]]] = -float('Inf')\n            # apply softmax to convert logits to (normalized) probabilities\n            probs = F.softmax(logits, dim=-1)\n            # sample from the distribution\n            idx_next = torch.multinomial(probs, num_samples=1)\n            # append sampled index to the running sequence and continue\n            idx = torch.cat((idx, idx_next), dim=1)\n\n        return idx"
+    },
+    "rabbit-hole/learn-video.js:10-46": {
+      "repository": "rabbit-hole (this repository)",
+      "commit": "e9d6dbe7f088a8a2d99e138c0b08a4c7a2dfcc25",
+      "path": "packages/control-plane/src/learn-video.js",
+      "start_line": 10,
+      "end_line": 46,
+      "file_sha256": "b99d3d3233585be260db69b7d48ebccba73088559a1dd4090fae95d06142fd97",
+      "text": "const POLL_MS = 10000; // Clips take minutes; background polling does not depend on an open browser.\nconst MAX_WAIT_MS = 30 * 60 * 1000;\nexport async function videoFetch(req, env) {\n  return privateLessonAssetFetch(req, env, env.LEARN_VIDEOS);\n}\nexport async function privateLessonAssetFetch(req, env, binding) {\n  const url = new URL(req.url);\n  if (url.searchParams.has('workspace')) {\n    const headers = new Headers(req.headers); headers.set('x-small-workspace', url.searchParams.get('workspace'));\n    req = new Request(req, { headers });\n  }\n  const app = await authorizedBoardApp(req, env, url.searchParams.get('app'));\n  if (app instanceof Response) return app;\n  if (!app.email || !app.org) return json({ error: 'Sign in first' }, 401);\n  if (!['GET', 'POST'].includes(req.method)) return json({ error: 'GET or POST required' }, 405);\n  if (req.method === 'POST' && req.headers.has('origin') && req.headers.get('origin') !== url.origin) return json({ error: 'Invalid origin' }, 403);\n  // Cache and placements are private to this learner in this app/workspace.\n  const id = binding.idFromName(JSON.stringify([app.org, app.name, app.email]));\n  return binding.get(id).fetch(req);\n}\n\nexport class LearnVideos {\n  constructor(state, env) { this.state = state; this.env = env; }\n  async fetch(req) {\n    if (req.method === 'GET') {\n      const key = new URL(req.url).searchParams.get('asset');\n      if (key) {\n        if (!/^[a-f0-9]{64}$/.test(key)) return json({ error: 'Invalid asset' }, 400);\n        const job = await this.state.storage.get(`job:${key}`);\n        if (job?.status !== 'ready') return json({ error: 'Video not ready' }, 404);\n        const object = await learnMedia(this.env).get(job.storageKey, { range: req.headers });\n        if (!object) return json({ error: 'Video unavailable' }, 404);\n        const headers = new Headers({ 'Content-Type': 'video/mp4', 'Cache-Control': 'private, max-age=3600', 'Accept-Ranges': 'bytes', 'X-Content-Type-Options': 'nosniff' });\n        headers.set('Content-Length', String(object.range?.length ?? object.size));\n        if (object.range) headers.set('Content-Range', `bytes ${object.range.offset}-${object.range.offset + object.range.length - 1}/${object.size}`);\n        return new Response(object.body, { status: object.range ? 206 : 200, headers });\n      }"
+    },
+    "rabbit-hole/dev-worker.js:135": {
+      "repository": "rabbit-hole (this repository)",
+      "commit": "e9d6dbe7f088a8a2d99e138c0b08a4c7a2dfcc25",
+      "path": "packages/web/dev-worker.js",
+      "start_line": 135,
+      "end_line": 135,
+      "file_sha256": "ae8b984e8d16ab8429a00ba970cb77441cbb88778a17a847121eb27605ce8ee6",
+      "text": "    if (path === '/api/learn/video') return videoFetch(req, env);"
+    },
+    "rabbit-hole/learn-storage.js:10": {
+      "repository": "rabbit-hole (this repository)",
+      "commit": "e9d6dbe7f088a8a2d99e138c0b08a4c7a2dfcc25",
+      "path": "packages/control-plane/src/learn-storage.js",
+      "start_line": 10,
+      "end_line": 10,
+      "file_sha256": "ed8a274cf2b573c36da68f230efd863c6792e6ed1094d33a1bc8b4b59aa83d0b",
+      "text": "export const learnMedia = env => env?.LEARN_MEDIA || env?.RUNS;"
+    }
+  }
+}

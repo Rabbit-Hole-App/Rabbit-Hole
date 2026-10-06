@@ -1,0 +1,130 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="motion-timeline" content='{"B1":[0,90],"B2":[90,180],"B3":[180,300],"B4":[300,375],"B5":[375,450]}'>
+<style>
+body{margin:0;background:#0b1220;}
+#root{position:relative;width:1920px;height:1080px;overflow:hidden;background:#0b1220;font-family:'Inter';color:#e8eef6;}
+.abs{position:absolute;}
+.code{position:absolute;font-family:'JetBrains Mono';font-size:28px;line-height:36px;color:#e6edf3;white-space:pre;}
+.cl{position:absolute;left:0;padding:4px 14px;border-radius:8px;white-space:pre;font-family:'JetBrains Mono';font-size:28px;line-height:36px;color:#e6edf3;}
+#csl{left:80px;top:146px;padding:4px 14px;border-radius:8px;transform-origin:0 0;animation:csl-t 15s linear both, csl-bg 15s linear both;}
+#csb{left:80px;top:50px;width:1140px;height:92px;animation:csb 15s linear both;}
+#csb .l1{top:0;animation:csb1 15s linear both;}
+#csb .l2{top:46px;animation:csb2 15s linear both;}
+#csa{left:80px;top:50px;width:1140px;height:92px;animation:csa 15s linear both;}
+#csa .l1{top:0;}
+#csa .l2{top:46px;animation:csa2 15s linear both;}
+#bt{left:1320px;top:56px;width:560px;box-sizing:border-box;padding:10px 20px;text-align:center;white-space:nowrap;font-size:28px;font-weight:600;color:#bbf7d0;background:#12321f;border:2px solid #4ade80;border-radius:12px;animation:bt 15s linear both;}
+.lab{position:absolute;font-size:28px;font-weight:600;color:#9fb3c8;white-space:nowrap;}
+#sr{left:470px;top:250px;width:980px;height:140px;animation:sr 15s ease-out both;}
+#sr .lab0{left:0;top:0;}
+.cell{position:absolute;top:45px;width:150px;height:90px;box-sizing:border-box;border:2px solid #64748b;border-radius:10px;background:#1e293b;font-family:'JetBrains Mono';font-size:36px;color:#f1f5f9;}
+.cell span{position:absolute;left:0;top:0;width:100%;line-height:86px;text-align:center;font-family:'JetBrains Mono';}
+#mc{position:absolute;left:664px;top:0;width:316px;height:140px;}
+#mc .cell{animation:mcell 15s linear both;}
+#mc .mlab{left:0;top:0;color:#fca5a5;animation:mlab 15s linear both;}
+.mnum{animation:mnum 15s linear both;}
+.minf{color:#fca5a5;animation:minf 15s linear both;}
+.sweep{position:absolute;left:0;top:45px;width:150px;height:90px;box-sizing:border-box;border:4px solid #facc15;border-radius:10px;background:rgba(250,204,21,0.18);z-index:3;animation:sweep 15s linear both;}
+#wr{left:470px;top:400px;width:980px;height:420px;transform-origin:0 0;animation:wr 15s ease-in-out both;}
+#wr .wlab{left:0;top:0;font-size:34px;color:#e2e8f0;}
+.base{position:absolute;left:0;top:360px;width:980px;height:3px;background:#64748b;}
+.bar{position:absolute;bottom:60px;width:100px;border-radius:8px 8px 0 0;transform-origin:50% 100%;}
+.stub{position:absolute;bottom:60px;width:100px;height:8px;background:#f87171;border-radius:3px;}
+.wv{position:absolute;top:372px;width:150px;text-align:center;font-family:'JetBrains Mono';font-size:34px;color:#f8fafc;}
+.wv.z{color:#fca5a5;}
+#b0{left:25px;height:124px;background:#60a5fa;animation:b0 15s ease-out both, g0 15s linear both;}
+#b1{left:191px;height:36px;background:#a78bfa;animation:b1 15s ease-out both, g1 15s linear both;}
+#b2{left:357px;height:280px;background:#34d399;animation:b2 15s ease-out both, g2 15s linear both;}
+#b3{left:523px;height:78px;background:#f472b6;animation:b3 15s ease-out both, g3 15s linear both;}
+#b4{left:689px;animation:m4 15s linear both;}
+#b5{left:855px;animation:m5 15s linear both;}
+#v0{left:0;animation:m0v 15s linear both;}
+#v1{left:166px;animation:m1v 15s linear both;}
+#v2{left:332px;animation:m2v 15s linear both;}
+#v3{left:498px;animation:m3v 15s linear both;}
+#v4{left:664px;animation:m4 15s linear both;}
+#v5{left:830px;animation:m5 15s linear both;}
+#st{left:1500px;top:190px;width:220px;height:570px;animation:st 15s linear both;}
+#st .slab{left:0;top:0;font-size:34px;color:#fde68a;}
+.gauge{position:absolute;left:40px;top:52px;width:64px;height:518px;outline:2px dashed #fde68a;}
+.seg{position:absolute;left:6px;width:52px;transform-origin:50% 100%;}
+#s0{bottom:0;height:124px;background:#60a5fa;animation:s0 15s ease-out both;}
+#s1{bottom:124px;height:36px;background:#a78bfa;animation:s1 15s ease-out both;}
+#s2{bottom:160px;height:280px;background:#34d399;animation:s2 15s ease-out both;}
+#s3{bottom:440px;height:78px;background:#f472b6;animation:s3 15s ease-out both;}
+#da{left:470px;top:820px;width:980px;height:80px;animation:da 15s linear both;}
+.aclip{position:absolute;left:0;top:0;width:980px;height:30px;animation:aclip 15s linear both;}
+#da .dlab{left:0;top:38px;width:980px;text-align:center;color:#fde68a;animation:dlab 15s linear both;}
+#vt{left:1310px;top:300px;width:560px;height:480px;animation:vt 15s linear both;}
+.vrow{position:absolute;left:100px;width:200px;height:28px;}
+.vrow div{position:absolute;top:0;width:44px;height:28px;border-radius:4px;}
+.vrow .q0{left:0;} .vrow .q1{left:52px;} .vrow .q2{left:104px;} .vrow .q3{left:156px;}
+#r0{top:150px;animation:r0 15s linear both;} #r0 div{background:#60a5fa;}
+#r1{top:190px;animation:r1 15s linear both;} #r1 div{background:#a78bfa;}
+#r2{top:230px;animation:r2 15s linear both;} #r2 div{background:#34d399;}
+#r3{top:270px;animation:r3 15s linear both;} #r3 div{background:#f472b6;}
+#r4{top:310px;animation:r4 15s linear both;} #r4 div{background:#94a3b8;}
+#r5{top:350px;animation:r5 15s linear both;} #r5 div{background:#94a3b8;}
+.yout{position:absolute;left:400px;top:246px;width:140px;height:36px;border-radius:6px;background:linear-gradient(90deg,#34d399,#60a5fa,#f472b6);transform-origin:0 50%;animation:yout 15s ease-out both;}
+#vt .vlab{left:80px;top:420px;font-size:32px;color:#f8fafc;}
+#fm{left:60px;top:878px;padding:10px 18px;white-space:nowrap;font-size:26px;font-weight:600;color:#e2e8f0;background:#111827;border:2px dashed #94a3b8;border-radius:10px;animation:fm 15s linear both;}
+.cap{position:absolute;left:0;top:950px;width:1920px;text-align:center;font-size:40px;font-weight:700;color:#f8fafc;white-space:nowrap;}
+#c1{animation:c1 15s linear both;} #c2{animation:c2 15s linear both;} #c3{animation:c3 15s linear both;} #c4{animation:c4 15s linear both;} #c5{animation:c5 15s linear both;}
+@keyframes csl-t{0%{transform:translate(458px,277px) scale(1.75);opacity:1}4%{transform:translate(422px,274px) scale(1.9);opacity:1}20%{transform:translate(422px,274px) scale(1.9);opacity:1}22.667%{transform:translate(0px,0px) scale(1);opacity:1}66.667%{transform:translate(0px,0px) scale(1);opacity:1}69.333%,100%{transform:translate(0px,0px) scale(1);opacity:0}}
+@keyframes csl-bg{0%{background-color:rgba(250,204,21,0.14)}6.667%{background-color:rgba(250,204,21,0.42)}20%{background-color:rgba(250,204,21,0.42)}21.333%{background-color:rgba(250,204,21,0.06)}40%{background-color:rgba(250,204,21,0.06)}41.333%,100%{background-color:rgba(250,204,21,0.42)}}
+@keyframes csb{0%,20%{opacity:0;transform:translateY(-12px)}22.667%{opacity:1;transform:translateY(0px)}40%{opacity:1;transform:translateY(0px)}42.667%{opacity:0.4;transform:translateY(0px)}66.667%{opacity:0.4;transform:translateY(0px)}69.333%,100%{opacity:0;transform:translateY(0px)}}
+@keyframes csb1{0%,20%{background-color:rgba(250,204,21,0)}21.333%{background-color:rgba(250,204,21,0.42)}26%{background-color:rgba(250,204,21,0.42)}27.333%,100%{background-color:rgba(250,204,21,0.06)}}
+@keyframes csb2{0%,26%{background-color:rgba(250,204,21,0)}27.333%{background-color:rgba(250,204,21,0.42)}40%{background-color:rgba(250,204,21,0.42)}41.333%,100%{background-color:rgba(250,204,21,0.06)}}
+@keyframes csa{0%,84%{opacity:0;transform:translateY(-12px)}86.667%,100%{opacity:1;transform:translateY(0px)}}
+@keyframes csa2{0%,86.667%{background-color:rgba(250,204,21,0)}88.667%,100%{background-color:rgba(250,204,21,0.42)}}
+@keyframes bt{0%{transform:translate(-560px,474px);opacity:0}4%{transform:translate(-640px,474px);opacity:1}20%{transform:translate(-640px,474px);opacity:1}22.667%,100%{transform:translate(0px,0px);opacity:1}}
+@keyframes sr{0%,22.667%{opacity:0;transform:translateY(-30px)}25.333%{opacity:1;transform:translateY(0px)}66.667%{opacity:1;transform:translateY(0px)}70%,100%{opacity:0;transform:translateY(0px)}}
+@keyframes mnum{0%,28.517%{opacity:1}28.617%,100%{opacity:0}}
+@keyframes minf{0%,28.617%{opacity:0}28.667%,100%{opacity:1}}
+@keyframes mcell{0%,28.617%{background-color:#1e293b;border-color:#64748b}29.333%,100%{background-color:#3b1520;border-color:#f87171}}
+@keyframes mlab{0%,28.667%{opacity:0}29.667%,100%{opacity:1}}
+@keyframes sweep{0%,42.4%{opacity:0;transform:translateX(0px)}42.667%{opacity:1;transform:translateX(0px)}60%{opacity:1;transform:translateX(830px)}62%,100%{opacity:0;transform:translateX(830px)}}
+@keyframes wr{0%,40%{opacity:0;transform:translate(0px,0px) scale(1)}42%{opacity:1;transform:translate(0px,0px) scale(1)}83.333%{opacity:1;transform:translate(0px,0px) scale(1)}88.667%,100%{opacity:1;transform:translate(75px,-20px) scale(0.75)}}
+@keyframes b0{0%,43.333%{transform:scaleY(0)}46%,100%{transform:scaleY(1)}}
+@keyframes b1{0%,46.8%{transform:scaleY(0)}49.467%,100%{transform:scaleY(1)}}
+@keyframes b2{0%,50.267%{transform:scaleY(0)}52.933%,100%{transform:scaleY(1)}}
+@keyframes b3{0%,53.733%{transform:scaleY(0)}56.4%,100%{transform:scaleY(1)}}
+@keyframes m0v{0%,43.333%{opacity:0}46%,100%{opacity:1}}
+@keyframes m1v{0%,46.8%{opacity:0}49.467%,100%{opacity:1}}
+@keyframes m2v{0%,50.267%{opacity:0}52.933%,100%{opacity:1}}
+@keyframes m3v{0%,53.733%{opacity:0}56.4%,100%{opacity:1}}
+@keyframes m4{0%,57.2%{opacity:0}59.867%,100%{opacity:1}}
+@keyframes m5{0%,60.667%{opacity:0}63.333%,100%{opacity:1}}
+@keyframes g0{0%,68%{filter:brightness(1);box-shadow:0 0 0 0 rgba(253,230,138,0)}68.667%{filter:brightness(1.5);box-shadow:0 0 30px 8px rgba(253,230,138,0.8)}71.333%{filter:brightness(1.5);box-shadow:0 0 30px 8px rgba(253,230,138,0.8)}72.667%,100%{filter:brightness(1.1);box-shadow:0 0 0 0 rgba(253,230,138,0)}}
+@keyframes g1{0%,71.333%{filter:brightness(1);box-shadow:0 0 0 0 rgba(253,230,138,0)}72%{filter:brightness(1.5);box-shadow:0 0 30px 8px rgba(253,230,138,0.8)}74.667%{filter:brightness(1.5);box-shadow:0 0 30px 8px rgba(253,230,138,0.8)}76%,100%{filter:brightness(1.1);box-shadow:0 0 0 0 rgba(253,230,138,0)}}
+@keyframes g2{0%,74.667%{filter:brightness(1);box-shadow:0 0 0 0 rgba(253,230,138,0)}75.333%{filter:brightness(1.5);box-shadow:0 0 30px 8px rgba(253,230,138,0.8)}78%{filter:brightness(1.5);box-shadow:0 0 30px 8px rgba(253,230,138,0.8)}79.333%,100%{filter:brightness(1.1);box-shadow:0 0 0 0 rgba(253,230,138,0)}}
+@keyframes g3{0%,78%{filter:brightness(1);box-shadow:0 0 0 0 rgba(253,230,138,0)}78.667%{filter:brightness(1.5);box-shadow:0 0 30px 8px rgba(253,230,138,0.8)}81.333%{filter:brightness(1.5);box-shadow:0 0 30px 8px rgba(253,230,138,0.8)}82.667%,100%{filter:brightness(1.1);box-shadow:0 0 0 0 rgba(253,230,138,0)}}
+@keyframes s0{0%,68%{transform:scaleY(0)}70%,100%{transform:scaleY(1)}}
+@keyframes s1{0%,71.333%{transform:scaleY(0)}73.333%,100%{transform:scaleY(1)}}
+@keyframes s2{0%,74.667%{transform:scaleY(0)}76.667%,100%{transform:scaleY(1)}}
+@keyframes s3{0%,78%{transform:scaleY(0)}80%,100%{transform:scaleY(1)}}
+@keyframes st{0%,66.667%{opacity:0}68.667%{opacity:1}83.333%{opacity:1}86%,100%{opacity:0}}
+@keyframes da{0%,66.667%{opacity:1}69.333%,100%{opacity:0}}
+@keyframes aclip{0%,42.667%{clip-path:inset(0px 100% 0px 0px)}60%,100%{clip-path:inset(0px 0% 0px 0px)}}
+@keyframes dlab{0%,42.667%{opacity:0}44.667%,100%{opacity:1}}
+@keyframes vt{0%,86%{opacity:0}88.667%,100%{opacity:1}}
+@keyframes r0{0%,88.667%{opacity:0.55}93.333%,100%{opacity:0.8}}
+@keyframes r1{0%,88.667%{opacity:0.55}93.333%,100%{opacity:0.45}}
+@keyframes r2{0%,88.667%{opacity:0.55}93.333%,100%{opacity:1}}
+@keyframes r3{0%,88.667%{opacity:0.55}93.333%,100%{opacity:0.65}}
+@keyframes r4{0%,88.667%{opacity:0.55}93.333%,100%{opacity:0.15}}
+@keyframes r5{0%,88.667%{opacity:0.55}93.333%,100%{opacity:0.15}}
+@keyframes yout{0%,92.667%{transform:scaleX(0)}96.667%,100%{transform:scaleX(1)}}
+@keyframes fm{0%,86%{opacity:0;transform:translateX(-24px)}88.667%,100%{opacity:1;transform:translateX(0px)}}
+@keyframes c1{0%,19.85%{opacity:1}19.95%,100%{opacity:0}}
+@keyframes c2{0%,19.95%{opacity:0}20%,39.85%{opacity:1}39.95%,100%{opacity:0}}
+@keyframes c3{0%,39.95%{opacity:0}40%,66.517%{opacity:1}66.617%,100%{opacity:0}}
+@keyframes c4{0%,66.617%{opacity:0}66.667%,83.183%{opacity:1}83.283%,100%{opacity:0}}
+@keyframes c5{0%,83.283%{opacity:0}83.333%,100%{opacity:1}}
+</style>
+</head>
+<body><div id="root" data-composition-id="softmax-attention-weights" data-start="0" data-duration="15" data-width="1920" data-height="1080" data-no-timeline><div class="code" id="csb" data-object="code_steps_before"><div class="cl l1">att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))</div><div class="cl l2">att = att.masked_fill(self.bias[:,:,:T,:T] == 0, float('-inf'))</div></div><div class="code" id="csa" data-object="code_steps_after"><div class="cl l1">att = self.attn_dropout(att)</div><div class="cl l2">y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)</div></div><div class="code" id="csl" data-object="code_softmax_line">att = F.softmax(att, dim=-1)</div><div class="abs" id="bt" data-object="branch_tag">Manual path: self.flash is false</div><div class="abs" id="sr" data-object="score_row"><div class="lab lab0">One row of scores</div><div class="cell" style="left:0px;"><span>0.8</span></div><div class="cell" style="left:166px;"><span>-0.5</span></div><div class="cell" style="left:332px;"><span>1.6</span></div><div class="cell" style="left:498px;"><span>0.3</span></div><div id="mc" data-object="masked_cells"><div class="lab mlab">-inf after masked_fill</div><div class="cell" style="left:0px;"><span class="mnum">1.1</span><span class="minf">-inf</span></div><div class="cell" style="left:166px;"><span class="mnum">-0.2</span><span class="minf">-inf</span></div></div><div class="sweep"></div></div><div class="abs" id="wr" data-object="weight_row"><div class="lab wlab">Weights: masked positions 0, remaining positive</div><div class="base"></div><div class="bar" id="b0"></div><div class="bar" id="b1"></div><div class="bar" id="b2"></div><div class="bar" id="b3"></div><div class="stub" id="b4"></div><div class="stub" id="b5"></div><div class="wv" id="v0">0.24</div><div class="wv" id="v1">0.07</div><div class="wv" id="v2">0.54</div><div class="wv" id="v3">0.15</div><div class="wv z" id="v4">0</div><div class="wv z" id="v5">0</div></div><div class="abs" id="st" data-object="sum_total"><div class="lab slab">Sum = 1</div><div class="gauge"><div class="seg" id="s0"></div><div class="seg" id="s1"></div><div class="seg" id="s2"></div><div class="seg" id="s3"></div></div></div><div class="abs" id="da" data-object="direction_arrow"><div class="aclip"><svg width="980" height="30" viewBox="0 0 980 30"><line x1="0" y1="15" x2="952" y2="15" stroke="#facc15" stroke-width="5"></line><polygon points="948,2 980,15 948,28" fill="#facc15"></polygon></svg></div><div class="lab dlab">Along each row (dim=-1)</div></div><div class="abs" id="vt" data-object="value_target"><svg class="abs" style="left:0px;top:244px;" width="80" height="40" viewBox="0 0 80 40"><line x1="0" y1="20" x2="58" y2="20" stroke="#e2e8f0" stroke-width="4"></line><polygon points="56,8 80,20 56,32" fill="#e2e8f0"></polygon></svg><div class="vrow" id="r0"><div class="q0"></div><div class="q1"></div><div class="q2"></div><div class="q3"></div></div><div class="vrow" id="r1"><div class="q0"></div><div class="q1"></div><div class="q2"></div><div class="q3"></div></div><div class="vrow" id="r2"><div class="q0"></div><div class="q1"></div><div class="q2"></div><div class="q3"></div></div><div class="vrow" id="r3"><div class="q0"></div><div class="q1"></div><div class="q2"></div><div class="q3"></div></div><div class="vrow" id="r4"><div class="q0"></div><div class="q1"></div><div class="q2"></div><div class="q3"></div></div><div class="vrow" id="r5"><div class="q0"></div><div class="q1"></div><div class="q2"></div><div class="q3"></div></div><svg class="abs" style="left:318px;top:244px;" width="72" height="40" viewBox="0 0 72 40"><line x1="0" y1="20" x2="50" y2="20" stroke="#e2e8f0" stroke-width="4"></line><polygon points="48,8 72,20 48,32" fill="#e2e8f0"></polygon></svg><div class="yout"></div><div class="lab vlab">y = att @ v</div></div><div class="abs" id="fm" data-object="flash_marker">Flash path: scaled_dot_product_attention instead</div><div class="cap" id="c1">Softmax turns each row of scores into weights.</div><div class="cap" id="c2">Scale, then mask: future positions become -inf.</div><div class="cap" id="c3">Larger scores become larger weights.</div><div class="cap" id="c4">Each row's weights sum to 1.</div><div class="cap" id="c5">Weights then mix the value vectors.</div></div></body>
+</html>
