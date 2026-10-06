@@ -292,3 +292,15 @@ test('section examples are written as role: make with real step roles and comman
     if (/key\.misconceptions/.test(ex)) assert.match(ex, /key\.misconceptions maps option \w+ \("[^"]+"\) to [a-z-]+/, name);
   }
 });
+
+// Real-model corpus, 2026-10-05: a section check keyed two wrong options to free-text descriptions, and a path named
+// section ids as a section's prerequisites. Both prompts now say what the validators already enforce.
+test('probe keys map only wrong options that match a registered misconception id; section prerequisites are concept ids', () => {
+  for (const role of ['journey_diagnostic', 'journey_section']) {
+    const rules = block(JOURNEY_SYSTEMS[role], 'non_negotiable_rules');
+    assert.match(rules, /misconceptions maps a wrong option id to a misconception id of that probe's claims, only for a wrong option that matches one; leave every other wrong option out, never invent an id or write a description/, role);
+  }
+  for (const role of ['journey_path', 'journey_adapt']) {
+    assert.match(JOURNEY_SYSTEMS[role], /target_concepts \(concept ids\), prerequisites \(concept ids, never section ids\)/, role);
+  }
+});
