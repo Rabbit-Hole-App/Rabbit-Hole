@@ -3,7 +3,7 @@
 // reaches them only through journeyCallModel (learn-journey-planners.js), which hands out fixtureModel when
 // env.SMALL_ENV === 'test' && env.JOURNEY_MODEL_STUB === 'fixtures'; tests inject it directly. No paid call either way.
 // Every output passes the planners' validators. Section plans use only make: { text } steps, so no artifact model runs.
-import { hookProblem, topicOf as topicOfHooks } from './agents/learn-next-steps.js';
+import { hookProblem, needsRepair, topicOf as topicOfHooks } from './agents/learn-next-steps.js';
 
 // The spec's own path for logistic regression (rabbit-hole-adaptive-learning-path-v1.md, "Build and reason about a binary
 // logistic regression classifier"); any other topic gets generic titles.
@@ -97,11 +97,11 @@ function sectionFor(input) {
 const QUESTION = /^\s*(what|why|how|when|where|who|which|can|could|should|is|are|do|does)\b/i;
 
 // Hooks from the input alone (ruling F6): claims ranked by repair need (misconception, gap, uncertain, unseen,
-// understood), never a completed-section claim unless it needs repair; no eligible claim falls back to the concepts, an
+// understood), never a completed-section claim unless it needs repair (the validator's rule: needsRepair, or the concept a
+// prerequisite_gap claim in scope names), and the repair frame only where needsRepair holds; no eligible claim falls back to the concepts, an
 // empty scope to the block titles, then the goal. Frames are generic, labels come from the input; a frame whose hook
 // fails hookProblem for this input, or repeats a previous or chosen hook, is skipped, so a repeat set never comes back.
 const RANK = { misconception: 0, prerequisite_gap: 1, uncertain: 2, not_yet_observed: 3, understood: 4 };
-const REPAIR = ['misconception', 'prerequisite_gap', 'uncertain'];
 const FRAMES = [
   ['What goes wrong when %s is misread?', 'Rework the idea behind %s where the answers went wrong', 'repair'],
   ['Could %s still hold on a brand new case?', 'Apply %s to a fresh case it was not taught on', 'transfer'],
@@ -114,10 +114,11 @@ function nextStepsFor(input) {
   const concepts = input?.scope?.concepts || {}, question = input?.recent?.question || '', topic = topicOfHooks(input);
   const completed = new Set((input?.path?.completed || []).flatMap(s => s?.claim_ids || [])), current = new Set(input?.path?.current?.claim_ids || []);
   const label = text => String(text || 'this idea').split(/\s+/).slice(0, 4).join(' ');
-  const claims = Object.entries(input?.scope?.claims || {}).filter(([id, c]) => REPAIR.includes(c?.state) || !completed.has(id) || current.has(id))
+  const missing = new Set(Object.values(input?.scope?.claims || {}).filter(c => c?.state === 'prerequisite_gap' && c.prerequisite).map(c => c.prerequisite));
+  const claims = Object.entries(input?.scope?.claims || {}).filter(([id, c]) => needsRepair(c) || missing.has(c?.concept) || !completed.has(id) || current.has(id))
     .sort(([, a], [, b]) => (RANK[a.state] ?? 3) - (RANK[b.state] ?? 3));
   const topics = claims.length
-    ? claims.map(([id, c]) => ({ label: label(concepts[c.concept]), concept_ids: Object.hasOwn(concepts, c.concept) ? [c.concept] : [], claim_ids: [id], state: c.state, texts: [c.statement, ...(c.ideas || []), c.drawn] }))
+    ? claims.map(([id, c]) => ({ label: label(concepts[c.concept]), concept_ids: Object.hasOwn(concepts, c.concept) ? [c.concept] : [], claim_ids: [id], repair: needsRepair(c), texts: [c.statement, ...(c.ideas || []), c.drawn] }))
     : Object.keys(concepts).length ? Object.entries(concepts).map(([id, name]) => ({ label: label(name), concept_ids: [id], claim_ids: [] }))
       : (input?.canvas?.blocks?.length ? input.canvas.blocks.map(b => b?.title) : [input?.goal]).map(t => ({ label: label(t), concept_ids: [], claim_ids: [] }));
   const seen = new Set((input?.previous?.hooks || []).map(h => String(h).toLowerCase()));
@@ -125,7 +126,7 @@ function nextStepsFor(input) {
   for (let f = 0; options.length < 3 && f < FRAMES.length * 3; f++) {
     // A topic whose label fails every frame gives way to the next one after a full pass.
     const [hook, goal, kind] = FRAMES[f % FRAMES.length], t = topics[(options.length + Math.floor(f / FRAMES.length)) % topics.length];
-    if (kind === 'repair' && !REPAIR.includes(t.state)) continue;
+    if (kind === 'repair' && !t.repair) continue;
     const text = hook.replace('%s', t.label), learning_goal = goal.replace('%s', t.label);
     if (seen.has(text.toLowerCase()) || hookProblem(text, { topic, texts: [...(t.texts || []), learning_goal].filter(x => typeof x === 'string'), question })) continue;
     seen.add(text.toLowerCase());

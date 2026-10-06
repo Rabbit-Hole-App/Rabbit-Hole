@@ -68,6 +68,27 @@ test('the fixture is generic: any domain, any ids, completed-only claims only fo
   pass(allDone, 'every claim completed: concepts carry the hooks');
 });
 
+// Task 7 re-review (coordinator ruling): the fixture repairs exactly what the validator calls repair (needsRepair), so in
+// fixture mode a refusal can never loop to a 502.
+test('the fixture follows needsRepair: a completed uncertain claim with only demonstrated_here passes is not offered; with a settled negative it is repaired', () => {
+  const completedUncertain = negatives => {
+    const input = INPUT({ water: 'uncertain' });
+    input.scope.claims['clay.water'] = { ...input.scope.claims['clay.water'], settled_passes: 2 - negatives, settled_negatives: negatives };
+    input.path.completed = [{ id: 'p1', title: 'Clay', claim_ids: ['clay.water'] }];
+    return input;
+  };
+  const passesOnly = completedUncertain(0), passesOut = fixtureFor('suggest_next_steps', passesOnly);
+  assert.deepEqual(nextStepsOutput(passesOut, passesOnly).errors, undefined);
+  assert.equal(passesOut.options.some(o => o.claim_ids.includes('clay.water')), false, 'no repair need: never offered');
+  const negative = completedUncertain(1), repairOut = fixtureFor('suggest_next_steps', negative);
+  assert.equal(nextStepsOutput(repairOut, negative).ok, true, JSON.stringify(nextStepsOutput(repairOut, negative).errors));
+  assert.deepEqual([repairOut.options[0].claim_ids, repairOut.options[0].reason_internal], [['clay.water'], 'fixture repair']);
+  // A current-section uncertain claim with only passes gets no repair framing either.
+  const fresh = INPUT({ ramp: 'uncertain' });
+  fresh.scope.claims['kiln.ramp'] = { ...fresh.scope.claims['kiln.ramp'], settled_passes: 1 };
+  assert.equal(fixtureFor('suggest_next_steps', fresh).options.some(o => o.reason_internal === 'fixture repair'), false);
+});
+
 test('planNextSteps: Sonnet first; a missing tool call, a validator failure or ambiguity escalates once to Opus', async () => {
   const good = fixtureFor('suggest_next_steps', INPUT());
   for (const [first, why, errors] of [[() => Response.json({ content: [{ type: 'text', text: 'no tool' }] }), 'no_tool', []],
