@@ -19,7 +19,7 @@
 // call that does not fit; rows are appended per call, so a stop keeps every observation, and spent sums every live JSONL
 // in --out. Any HTTP 4xx (insufficient credit included) aborts the run at once, recorded as aborted with the API's message.
 // --resume continues the newest JSONL of this mode in --out; a subject cut midway is run again from its start.
-// --seed <jsonl>[,<jsonl>...] --plan <subject>:<from>-<to>[,...] (owner, 2026-10-05): run only the unresolved cases; see PLAN below.
+// --seed <jsonl>[,<jsonl>...] --plan <subject>:<from>-<to> or <subject>:<stage>+<stage>[,...] (owner, 2026-10-05): run only the unresolved cases; see PLAN below.
 // --transport subscription (owner GO SUBSCRIPTION): that targeted plan through the local Claude subscription bridge; see TRANSPORT.
 // Output: <out>/journey-corpus-<mode>-<stamp>.jsonl (call, step and subject_done rows) and <out>/summary.json.
 // Usage: node e2e/journey-corpus-run.mjs [--out dir] [--budget USD] [--resume] [--seed jsonl --plan subject:from-to,...]
@@ -61,14 +61,21 @@ const ONLY = flag('subjects', null)?.split(',').map(id => id.trim()).filter(Bool
 // stage reads: the diagnostic, the path, and the section plan when the dive runs), exactly as the chained run passed them
 // on, and recorded as seeded, never as passes; stages after <to> do not run; unplanned subjects and the resolver probes do
 // not run. A needed seed that is missing or failed refuses the whole run before any call. Without --plan nothing changes.
+// A subject may name an explicit stage set instead of a range, <subject>:<stage>+<stage>... (owner, 2026-10-06): only
+// those stages run; a stage not named is seeded when a named stage reads its output, recorded as not run when it lies
+// before the last named stage, and absent after it. A seed must precede every named stage (a stage that runs fresh would
+// otherwise feed a later seeded one that was built from something else), or the run is refused.
 const STAGES = ['diagnostic', 'path', 'section', 'adapt_edit', 'adapt_evidence', 'tutor', 'dive'];
 const SEED_FILE = flag('seed', null), PLAN_ARG = flag('plan', null);
 if (!SEED_FILE !== !PLAN_ARG) throw Error('--seed and --plan go together');
 if (PLAN_ARG && (ONLY || args.includes('--resume'))) throw Error('--plan names its own subjects and runs once: no --subjects, no --resume');
 const PLAN = PLAN_ARG && Object.fromEntries(PLAN_ARG.split(',').map(item => {
-  const m = item.trim().match(/^([a-z0-9-]+):([a-z_]+)-([a-z_]+)$/), order = name => STAGES.indexOf(name);
-  if (!m || !SUBJECTS.some(subject => subject.id === m[1]) || order(m[2]) < 0 || order(m[3]) < order(m[2])) throw Error(`--plan ${item}: expected <subject>:<from>-<to>, a known subject and two stages in order (${STAGES.join(', ')})`);
-  return [m[1], { from: m[2], to: m[3] }];
+  const m = item.trim().match(/^([a-z0-9-]+):([a-z_+-]+)$/), order = name => STAGES.indexOf(name);
+  const range = m?.[2].match(/^([a-z_]+)-([a-z_]+)$/), names = range ? null : m?.[2].split('+');
+  const stages = range ? (order(range[1]) >= 0 && order(range[2]) >= order(range[1]) ? STAGES.slice(order(range[1]), order(range[2]) + 1) : null)
+    : names && names.every(name => order(name) >= 0) && new Set(names).size === names.length ? STAGES.filter(name => names.includes(name)) : null;
+  if (!m || !SUBJECTS.some(subject => subject.id === m[1]) || !stages) throw Error(`--plan ${item}: expected <subject>:<from>-<to> (two stages in order) or <subject>:<stage>+<stage>... (distinct stages), a known subject, stages of ${STAGES.join(', ')}`);
+  return [m[1], { stages }];
 }));
 const RUN_SUBJECTS = PLAN ? SUBJECTS.filter(subject => PLAN[subject.id]) : ONLY ? SUBJECTS.filter(subject => ONLY.includes(subject.id)) : SUBJECTS;
 if (ONLY && RUN_SUBJECTS.length !== ONLY.length) throw Error(`--subjects names an unknown subject: ${ONLY.filter(id => !SUBJECTS.some(subject => subject.id === id)).join(', ')}`);
@@ -131,10 +138,15 @@ const SEEDS = PLAN ? (() => {
     last.set(key, row);
     if (ok(row)) best.set(key, { output: row.output, file });
   }
-  const seeds = {}, missing = [], before = (name, from) => STAGES.indexOf(name) < STAGES.indexOf(from);
-  for (const [id, { from, to }] of Object.entries(PLAN)) {
-    const subject = SUBJECTS.find(s => s.id === id);
-    const needed = [subject.diagnostic && before('diagnostic', from) && 'diagnostic', before('path', from) && 'path', before('section', from) && to === 'dive' && 'section'].filter(Boolean);
+  const seeds = {}, missing = [], order = name => STAGES.indexOf(name);
+  for (const [id, { stages }] of Object.entries(PLAN)) {
+    const subject = SUBJECTS.find(s => s.id === id), first = order(stages[0]);
+    // What a named stage reads: every later stage the diagnostic's registry and evidence, every stage after the path the
+    // drafted path, the dive the section plan.
+    const reads = { diagnostic: subject.diagnostic && stages.some(name => name !== 'diagnostic'), path: stages.some(name => order(name) > order('path')), section: stages.includes('dive') };
+    const needed = Object.keys(reads).filter(name => reads[name] && !stages.includes(name));
+    const late = needed.filter(name => order(name) > first);
+    if (late.length) throw Error(`--plan ${id}: ${late.join(', ')} would be seeded after ${stages[0]}, which runs fresh; name ${late.length > 1 ? 'them' : 'it'} too. Nothing was run.`);
     seeds[id] = {};
     for (const name of needed) {
       const row = last.get(`${id}/${name}`), seed = best.get(`${id}/${name}`);
@@ -412,15 +424,15 @@ async function runSubject(subject) {
   for (const { slot } of INTAKE_SLOTS) if (intake.slots[slot] === undefined && subject.intake[slot]) intake = applyIntakeAnswer(intake, slot, { option_id: subject.intake[slot] });
   for (const [slot, value] of Object.entries(subject.slots)) intake = { ...intake, slots: { ...intake.slots, [slot]: value }, source: { ...intake.source, [slot]: 'stated' } };
   let registry = { concepts: {}, claims: {} }, store = emptyStore(), note = null;
-  // --plan: a stage before the window is seeded (or, when no later stage reads it, recorded as not run); a stage after it
-  // does not run. Without --plan every stage runs.
+  // --plan: a named stage runs; another one is seeded (or, when no named stage reads it, recorded as not run) up to the last
+  // named stage, and absent after it. Without --plan every stage runs.
   const span = PLAN?.[subject.id], order = name => STAGES.indexOf(name);
-  const beyond = name => !!span && order(name) > order(span.to), early = name => !!span && order(name) < order(span.from);
+  const beyond = name => !!span && order(name) > order(span.stages.at(-1));
   const stage = async (name, run, options) => {
+    if (!span || span.stages.includes(name)) return step(subject, name, run, options);
     if (beyond(name)) return null;
-    if (!early(name)) return step(subject, name, run, options);
     const seed = SEEDS[subject.id][name];
-    record({ kind: 'step', subject: subject.id, step: name, checks: {}, pass: null, ...(seed ? { seeded: seed.file } : { skipped: 'before the --plan window; no later stage reads it' }) });
+    record({ kind: 'step', subject: subject.id, step: name, checks: {}, pass: null, ...(seed ? { seeded: seed.file } : { skipped: 'not in the --plan stages; no named stage reads it' }) });
     return seed ? seed.output : null;
   };
   const skipHere = (names, reason) => skip(subject, names.filter(name => !beyond(name)), reason);
