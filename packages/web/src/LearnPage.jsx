@@ -604,15 +604,15 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
     return { ...state, exchanges: exchangesRef.current };
   };
   // Board files follow the board: this page's cards read the server copy when
-  // this browser has none, and while shared, any file not yet uploaded goes up.
+  // this browser has none, and while shared or published to Explore, any file not yet uploaded goes up.
   useEffect(() => {
     setRemoteAssets(key => fetch(`${boardPath}/assets/${encodeURIComponent(key)}`, { headers: wsHeaders() }));
-    // Notebook workspaces: saved while shared; loaded only into an empty
+    // Notebook workspaces: saved while shared or published; loaded only into an empty
     // workspace (this owner on another browser), never over local files.
     const workspaceUrl = id => `${boardPath}/assets/${encodeURIComponent(`notebook:${id}`)}`;
     setWorkspaceStore({
       load: id => fetch(workspaceUrl(id), { headers: wsHeaders() }).then(response => (response.ok ? response.json() : null)).catch(() => null),
-      save: (id, files) => (sharingRef.current?.shared
+      save: (id, files) => (sharingOf(sharingRef.current) === 'shared'
         ? fetch(workspaceUrl(id), { method: 'PUT', body: JSON.stringify(files), headers: { 'Content-Type': 'text/x-cached-string', 'X-Asset-Kind': 'string', ...wsHeaders() } }).catch(() => null)
         : null),
       fresh: false,
@@ -623,7 +623,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
   useEffect(() => { uploadedAssets.current = null; }, [boardPath]);
   // `sharingNow`: the caller already knows it is shared (the state has not caught up).
   const syncAssets = async (sharingNow = false) => {
-    if (!sharingNow && !sharingRef.current?.shared) return;
+    if (!sharingNow && sharingOf(sharingRef.current) !== 'shared') return; // shared, or published to Explore
     try {
       if (!uploadedAssets.current) uploadedAssets.current = new Set((await api(`${boardPath}/assets`)).keys);
       for (const key of assetKeysOf(boardSnapshot())) {
