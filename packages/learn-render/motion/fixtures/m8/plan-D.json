@@ -1,0 +1,521 @@
+{
+  "request": "/motion 15s explain this",
+  "repository_context": {
+    "label": "character-level data preparation",
+    "range": {
+      "path": "data/shakespeare_char/prepare.py",
+      "start": 23,
+      "end": 45
+    },
+    "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291"
+  },
+  "from": "M8 plan stage, code 34c56d23: model-generated brief and storyboard, frozen before either renderer",
+  "brief": {
+    "id": "brief-1c954c08",
+    "prompt_spec_version": "motion-v1.0/director-1",
+    "raw_user_request": "/motion 15s explain this",
+    "resolved_target": {
+      "kind": "code_span",
+      "label": "character-level data preparation (<module>, data/shakespeare_char/prepare.py:23-45)",
+      "resolution": "deictic",
+      "repository_context": {
+        "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+        "label": "character-level data preparation",
+        "range": {
+          "path": "data/shakespeare_char/prepare.py",
+          "start": 23,
+          "end": 45
+        }
+      },
+      "candidates_considered": []
+    },
+    "title": "From Shakespeare text to integer ids",
+    "objective": "Follow how prepare.py turns raw text into integer ids. It collects the sorted unique characters as the vocabulary, gives each character its index in that list, splits the text 90/10 by position, and then encodes each split one character at a time.",
+    "audience_context": "The learner pointed at lines 23-45 of data/shakespeare_char/prepare.py in nanoGPT, the character-level data preparation step, and asked for a 15-second explanation. No earlier concept or lesson is recorded.",
+    "scope_note": "To fit 15 seconds, the video leaves out the print statements and treats decode/itos as optional, at most a brief reverse arrow. It also skips anything outside lines 23-45, such as downloading the text and saving the ids to files.",
+    "source_refs": [
+      {
+        "id": "S1",
+        "kind": "code",
+        "repository": "karpathy/nanoGPT",
+        "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+        "path": "data/shakespeare_char/prepare.py",
+        "start_line": 23,
+        "end_line": 45
+      }
+    ],
+    "evidence": [
+      {
+        "source_ref_id": "S1",
+        "excerpt": "# get all the unique characters that occur in this text\nchars = sorted(list(set(data)))\nvocab_size = len(chars)\nprint(\"all the unique characters:\", ''.join(chars))\nprint(f\"vocab size: {vocab_size:,}\")\n\n# create a mapping from characters to integers\nstoi = { ch:i for i,ch in enumerate(chars) }\nitos = { i:ch for i,ch in enumerate(chars) }\ndef encode(s):\n    return [stoi[c] for c in s] # encoder: take a string, output a list of integers\ndef decode(l):\n    return ''.join([itos[i] for i in l]) # decoder: take a list of integers, output a string\n\n# create the train and test splits\nn = len(data)\ntrain_data = data[:int(n*0.9)]\nval_data = data[int(n*0.9):]\n\n# encode both to integers\ntrain_ids = encode(train_data)\nval_ids = encode(val_data)\nprint(f\"train has {len(train_ids):,} tokens\")"
+      }
+    ],
+    "implementation_conditions": [],
+    "claim_registry": [
+      {
+        "id": "C1",
+        "text": "chars = sorted(list(set(data))) collects every unique character in the whole text, in sorted order, and vocab_size = len(chars) is the number of those characters.",
+        "source_ref_ids": [
+          "S1"
+        ],
+        "condition_ids": [],
+        "required": true
+      },
+      {
+        "id": "C2",
+        "text": "stoi maps each character to its index in chars (via enumerate(chars)), and encode(s) returns [stoi[c] for c in s]: one integer per character of the string.",
+        "source_ref_ids": [
+          "S1"
+        ],
+        "condition_ids": [],
+        "required": true
+      },
+      {
+        "id": "C3",
+        "text": "itos is the reverse mapping from index to character, and decode(l) joins the looked-up characters back into a string.",
+        "source_ref_ids": [
+          "S1"
+        ],
+        "condition_ids": [],
+        "required": false
+      },
+      {
+        "id": "C4",
+        "text": "The text is split by position: train_data = data[:int(n*0.9)] is the first 90% and val_data = data[int(n*0.9):] is the remaining 10%.",
+        "source_ref_ids": [
+          "S1"
+        ],
+        "condition_ids": [],
+        "required": true
+      },
+      {
+        "id": "C5",
+        "text": "After the split, both parts go through encode, which produces train_ids and val_ids.",
+        "source_ref_ids": [
+          "S1"
+        ],
+        "condition_ids": [],
+        "required": true
+      }
+    ],
+    "duration": {
+      "requested_text": "15s",
+      "requested_seconds": 15,
+      "seconds": 15
+    },
+    "aspect_ratio": "16:9",
+    "teaching_mode": "mechanism_first",
+    "must_show": [
+      "A short sample of raw text collapsing into a sorted row of unique characters (chars), with its length labelled vocab_size",
+      "Each character in that sorted row tagged with its index number, labelled stoi",
+      "A short string passing through encode and coming out as a list of integers, one per character, each looked up from the stoi row",
+      "The full text bar cut at the 90% mark into a front train_data part and a back val_data part",
+      "Both parts then passing through encode to become train_ids and val_ids"
+    ],
+    "must_not_claim": [
+      "That the integer ids are ASCII or Unicode code points (they are positions in the sorted chars list)",
+      "That set(data) alone gives a fixed order (the order comes from sorted)",
+      "That the vocabulary is built from the training split only (it is built from the whole text before splitting)",
+      "That the train/val split is random or shuffled (it is a contiguous cut: first 90% and last 10%)",
+      "That encoding happens before splitting (the code splits first, then encodes each part)",
+      "That tokens are words or subwords, or that encode merges characters (each character becomes exactly one integer)",
+      "That encode compresses or changes the content of the text (it is a reversible lookup; decode recovers the string)"
+    ],
+    "visual_direction": "Let the viewer's eye move left to right through one pipeline. First the raw text breaks into characters, duplicates merge, and the survivors line up in sorted order. A number appears under each one, and that numbered row stays on screen as the lookup table. Next a short word slides under the table and each letter drops its matching number, so the viewer sees a one-character-to-one-integer swap. Then pull back to the whole text as one long bar. Cut it at the 90% mark without shuffling, then send each piece through the same lookup so it comes out as a stream of integers. Keep the lookup table visible the whole time, so the viewer can tell that one shared vocabulary encodes both splits.",
+    "narration_policy": "one_line",
+    "output_requirements": {
+      "stage_width": 1920,
+      "stage_height": 1080,
+      "fps": 30,
+      "preview_scale": 0.45,
+      "poster": true
+    },
+    "qa_requirements": {
+      "blocking_categories": [
+        "unsupported_claim",
+        "must_not_claim_violation",
+        "required_claim_contradicted",
+        "wrong_source_branch",
+        "blank_frame",
+        "clipped_text",
+        "overlapping_text",
+        "missing_must_show",
+        "duration_over_max",
+        "corrupt_output",
+        "renderer_failure",
+        "narration_contradicts_visuals",
+        "storyboard_fidelity"
+      ],
+      "keyframe_times": [
+        4,
+        8,
+        13
+      ]
+    },
+    "provenance": {
+      "created_at": "2026-10-06T16:45:36.000Z"
+    }
+  },
+  "storyboard": {
+    "id": "storyboard-b51a7916",
+    "brief_id": "brief-1c954c08",
+    "version": 1,
+    "beats": [
+      {
+        "id": "B1",
+        "start_time": 0,
+        "end_time": 3.5,
+        "pedagogical_role": "mechanism",
+        "claim_ids": [
+          "C1"
+        ],
+        "condition_ids": [],
+        "must_show_covered": [
+          "A short sample of raw text collapsing into a sorted row of unique characters (chars), with its length labelled vocab_size"
+        ],
+        "transition": "Opens directly on the raw text sample at the left, with no preamble.",
+        "framing": "The raw text sample sits at the left. The sorted chars row forms across the upper middle and stays there as the lookup table. A small code panel sits faintly at the side.",
+        "on_screen_text": "Unique characters, in sorted order, become chars.",
+        "visible_objects": [
+          {
+            "id": "raw_text",
+            "description": "A short sample of raw Shakespeare text shown as a line of characters.",
+            "label": "raw text",
+            "change": "Enters, then breaks into separate characters that float rightward. Duplicate characters merge into one."
+          },
+          {
+            "id": "chars_row",
+            "description": "The sorted row of unique characters (chars). Each character appears once, in sorted order.",
+            "label": "chars",
+            "change": "The surviving unique characters slide into one row and settle in sorted order."
+          },
+          {
+            "id": "vocab_size_label",
+            "description": "A brace under the chars row that marks its length.",
+            "label": "vocab_size",
+            "change": "Grows under the row once it settles, labelling its length."
+          },
+          {
+            "id": "code_panel",
+            "description": "Code panel showing the chars and vocab_size lines, highlighted in sync with the row forming.",
+            "source": {
+              "source_ref_id": "S1",
+              "start_line": 23,
+              "end_line": 25
+            },
+            "change": "Fades in and highlights the chars line, then the vocab_size line."
+          }
+        ]
+      },
+      {
+        "id": "B2",
+        "start_time": 3.5,
+        "end_time": 6,
+        "pedagogical_role": "mechanism",
+        "claim_ids": [
+          "C2"
+        ],
+        "condition_ids": [],
+        "must_show_covered": [
+          "Each character in that sorted row tagged with its index number, labelled stoi"
+        ],
+        "transition": "The chars row stays where it is, and index numbers drop in beneath it.",
+        "framing": "The chars row with its index tags is centred as the lookup table. The raw text has receded and the code panel stays at the side.",
+        "on_screen_text": "stoi gives each character its index in chars.",
+        "visible_objects": [
+          {
+            "id": "chars_row",
+            "description": "The sorted row of unique characters, still on screen.",
+            "label": "chars",
+            "change": "Stays in place. Each character briefly pulses as its index tag arrives."
+          },
+          {
+            "id": "index_tags",
+            "description": "An index number under each character in the chars row, counting up from 0 in row order. Together with the row it forms the lookup table.",
+            "change": "Index numbers appear one by one, left to right, under each character."
+          },
+          {
+            "id": "stoi_label",
+            "description": "A bracket around the numbered row that names it as the character-to-index mapping.",
+            "label": "stoi",
+            "change": "Appears around the numbered row once every tag is in place."
+          },
+          {
+            "id": "vocab_size_label",
+            "description": "The length brace from the previous beat.",
+            "label": "vocab_size",
+            "change": "Fades back slightly to make room."
+          },
+          {
+            "id": "code_panel",
+            "description": "Code panel showing the stoi line built with enumerate(chars).",
+            "source": {
+              "source_ref_id": "S1",
+              "start_line": 29,
+              "end_line": 30
+            },
+            "change": "Its highlight moves to the stoi line."
+          }
+        ]
+      },
+      {
+        "id": "B3",
+        "start_time": 6,
+        "end_time": 9,
+        "pedagogical_role": "mechanism",
+        "claim_ids": [
+          "C2"
+        ],
+        "condition_ids": [],
+        "must_show_covered": [
+          "A short string passing through encode and coming out as a list of integers, one per character, each looked up from the stoi row"
+        ],
+        "transition": "A short string slides in under the numbered lookup table, which stays fixed above it.",
+        "framing": "The lookup table stays at the top. Below it, the short string moves left to right through an encode box, and integers come out on the right.",
+        "on_screen_text": "encode looks up each character in stoi: one integer per character.",
+        "visible_objects": [
+          {
+            "id": "chars_row",
+            "description": "The sorted chars row, still serving as the lookup table.",
+            "label": "chars",
+            "change": "Stays in place. Matching characters light up as each one is looked up."
+          },
+          {
+            "id": "index_tags",
+            "description": "Index numbers under the chars row.",
+            "change": "The matching index briefly lights up for each looked-up character."
+          },
+          {
+            "id": "stoi_label",
+            "description": "Bracket naming the numbered row as stoi.",
+            "label": "stoi",
+            "change": "Stays visible unchanged."
+          },
+          {
+            "id": "short_string",
+            "description": "A short word made of characters from the raw text sample: the string passed to encode.",
+            "label": "s",
+            "change": "Slides under the table into the encode box. Each character drops out its matching number from the stoi row, one at a time."
+          },
+          {
+            "id": "encode_box",
+            "description": "A box representing the encode function, placed in the middle of the pipeline.",
+            "label": "encode",
+            "change": "Enters and glows as each character passes through."
+          },
+          {
+            "id": "int_list",
+            "description": "The output list of integers, one integer for each character of the short string, in the same order.",
+            "label": "list of integers",
+            "change": "Integers appear one at a time on the right, one for each input character."
+          },
+          {
+            "id": "code_panel",
+            "description": "Code panel showing the encode definition and its list comprehension over stoi.",
+            "source": {
+              "source_ref_id": "S1",
+              "start_line": 32,
+              "end_line": 33
+            },
+            "change": "Its highlight moves to the encode lines."
+          }
+        ]
+      },
+      {
+        "id": "B4",
+        "start_time": 9,
+        "end_time": 11.5,
+        "pedagogical_role": "mechanism",
+        "claim_ids": [
+          "C4"
+        ],
+        "condition_ids": [],
+        "must_show_covered": [
+          "The full text bar cut at the 90% mark into a front train_data part and a back val_data part"
+        ],
+        "transition": "The view pulls back. The short string and its integers clear away, and the full text appears as one long bar below the table.",
+        "framing": "The lookup table stays small at the top. The long text bar spans the lower width and gets a single contiguous cut at the 90% mark, so both pieces keep their original order.",
+        "on_screen_text": "Split by position: first 90% and remaining 10%.",
+        "visible_objects": [
+          {
+            "id": "short_string",
+            "description": "The short encoded string from the previous beat.",
+            "label": "s",
+            "change": "Exits."
+          },
+          {
+            "id": "int_list",
+            "description": "The integer output from the previous beat.",
+            "label": "list of integers",
+            "change": "Exits."
+          },
+          {
+            "id": "chars_row",
+            "description": "Lookup table row, kept visible.",
+            "label": "chars",
+            "change": "Shrinks slightly toward the top but stays visible."
+          },
+          {
+            "id": "index_tags",
+            "description": "Index numbers under the chars row.",
+            "change": "Shrink along with the row."
+          },
+          {
+            "id": "stoi_label",
+            "description": "Bracket naming the lookup table.",
+            "label": "stoi",
+            "change": "Stays visible, slightly smaller."
+          },
+          {
+            "id": "encode_box",
+            "description": "The encode box.",
+            "label": "encode",
+            "change": "Moves aside to the right and waits."
+          },
+          {
+            "id": "text_bar",
+            "description": "The full text shown as one long bar.",
+            "label": "data",
+            "change": "Stretches across the screen as one long bar."
+          },
+          {
+            "id": "cut_mark",
+            "description": "A vertical cut line at the 90% mark of the text bar.",
+            "label": "90%",
+            "change": "Slices down at the 90% mark. The front and back parts separate slightly and keep their order."
+          },
+          {
+            "id": "train_part",
+            "description": "The front 90% of the text bar after the cut.",
+            "label": "train_data",
+            "change": "Appears as the front piece and gets its label."
+          },
+          {
+            "id": "val_part",
+            "description": "The back 10% of the text bar after the cut.",
+            "label": "val_data",
+            "change": "Appears as the back piece and gets its label."
+          },
+          {
+            "id": "code_panel",
+            "description": "Code panel showing n and the two slicing lines for train_data and val_data.",
+            "source": {
+              "source_ref_id": "S1",
+              "start_line": 38,
+              "end_line": 40
+            },
+            "change": "Its highlight moves to the split lines."
+          }
+        ]
+      },
+      {
+        "id": "B5",
+        "start_time": 11.5,
+        "end_time": 15,
+        "pedagogical_role": "mechanism",
+        "claim_ids": [
+          "C5"
+        ],
+        "condition_ids": [],
+        "must_show_covered": [
+          "Both parts then passing through encode to become train_ids and val_ids"
+        ],
+        "transition": "The two cut pieces slide right toward the same encode box under the shared lookup table.",
+        "framing": "The shared lookup table stays visible at the top, the encode box sits in the middle, and two integer streams come out on the right, front piece above, back piece below.",
+        "on_screen_text": "After the split, both parts go through encode.",
+        "visible_objects": [
+          {
+            "id": "chars_row",
+            "description": "Shared lookup table row, still visible.",
+            "label": "chars",
+            "change": "Characters flicker as they are looked up for both parts."
+          },
+          {
+            "id": "index_tags",
+            "description": "Index numbers under the chars row.",
+            "change": "Light up in step with the lookups."
+          },
+          {
+            "id": "stoi_label",
+            "description": "Bracket naming the shared lookup table.",
+            "label": "stoi",
+            "change": "Stays visible unchanged."
+          },
+          {
+            "id": "text_bar",
+            "description": "The original bar outline, now cut in two.",
+            "label": "data",
+            "change": "Fades out as its pieces move away."
+          },
+          {
+            "id": "cut_mark",
+            "description": "The 90% cut line.",
+            "label": "90%",
+            "change": "Fades out."
+          },
+          {
+            "id": "encode_box",
+            "description": "The same encode box, used for both pieces.",
+            "label": "encode",
+            "change": "Moves to the centre and glows as each piece passes through."
+          },
+          {
+            "id": "train_part",
+            "description": "The front 90% piece.",
+            "label": "train_data",
+            "change": "Slides into encode and comes out on the right as integers."
+          },
+          {
+            "id": "val_part",
+            "description": "The back 10% piece.",
+            "label": "val_data",
+            "change": "Slides into encode after the front piece and comes out on the right as integers."
+          },
+          {
+            "id": "train_ids_stream",
+            "description": "A stream of integers produced from train_data, one integer per character.",
+            "label": "train_ids",
+            "change": "Flows out of encode on the right, upper lane."
+          },
+          {
+            "id": "val_ids_stream",
+            "description": "A stream of integers produced from val_data, one integer per character.",
+            "label": "val_ids",
+            "change": "Flows out of encode on the right, lower lane."
+          },
+          {
+            "id": "code_panel",
+            "description": "Code panel showing the two encode calls that produce train_ids and val_ids.",
+            "source": {
+              "source_ref_id": "S1",
+              "start_line": 42,
+              "end_line": 44
+            },
+            "change": "Its highlight moves to the train_ids line, then to the val_ids line."
+          }
+        ],
+        "narration_line": "One shared vocabulary encodes both splits into integers."
+      }
+    ]
+  },
+  "plan": {
+    "storyboard_repair": 0,
+    "cost_usd": 0.1908,
+    "calls": [
+      {
+        "stage": "brief",
+        "round": 0,
+        "model": "claude-opus-5-5",
+        "cost_usd": 0.0462,
+        "latency_s": 21.5
+      },
+      {
+        "stage": "storyboard",
+        "round": 0,
+        "model": "claude-opus-5-5",
+        "cost_usd": 0.1446,
+        "latency_s": 61.6
+      }
+    ]
+  }
+}
