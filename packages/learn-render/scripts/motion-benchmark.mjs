@@ -11,6 +11,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { anthropic } from '../../control-plane/src/ask.js';
+import { resolveLearnerTurn } from '../../control-plane/src/learner-intent.js';
+import { groundTarget } from '../../control-plane/src/source-grounding.js';
 import { budgetLedger, freezeAtAuthor, frozenPlan, frozenStoryboardJob, runMetrics } from '../motion/benchmark.mjs';
 import { RENDERERS, STAGE } from '../motion/contracts.js';
 import { fixtureSource } from '../motion/fixture-source.js';
@@ -64,7 +66,7 @@ if (phase === 'plan') {
     const repository_context = c.repository_context ? { ...c.repository_context, commit: source.commit } : null;
     const dir = join(OUT, `plan-${c.id}`);
     if (existsSync(join(dir, 'pipeline.json'))) { console.log(`✗ plan ${c.id}: already attempted (${dir}); not run again`); continue; }
-    const out = await runMotionRequest({ message: c.request, repository_context, source, call: ledger.guard(anthropic, { case: c.id, phase: 'plan' }), env, dir, stages: { author: freezeAtAuthor } });
+    const out = await runMotionRequest({ message: c.request, location: c.location ?? {}, repository_context, source, call: ledger.guard(anthropic, { case: c.id, phase: 'plan' }), env, dir, stages: { author: freezeAtAuthor } });
     await ledger.idle();
     const f = frozenPlan(out);
     if (f.errors.length) { console.log(`✗ plan ${c.id}: ${f.errors.slice(0, 3).join('; ')} (${money(out.cost_usd || 0)})`); if (refusedBudget(out)) break; continue; }
@@ -81,15 +83,22 @@ if (phase === 'pairs') {
       if (!plan) { console.log(`✗ pair ${c.id}: no frozen plan; run the plan phase first`); continue; }
       const todo = spec.renderers.filter(r => !existsSync(join(runDir(c, r), 'pipeline.json')));
       if (!todo.length) { console.log(`✓ pair ${c.id}: already run`); continue; }
+      // Same source grounding: the request, its location and selection must ground to the plan's own target
+      // before anything is spent (a canvas concept or a selection is part of the request, as in the product).
+      const location = c.location ?? {};
+      const g = groundTarget(resolveLearnerTurn({ message: plan.request, location, repository_context: plan.repository_context ?? null }), source);
+      const want = plan.brief.resolved_target?.label;
+      if (g.status !== 'grounded' || g.resolved_target.label !== want) { console.log(`✗ pair ${c.id}: grounds to ${g.status === 'grounded' ? `"${g.resolved_target.label}"` : g.status}, not the plan's "${want}"; nothing spent`); continue; }
       // A pair starts only when what is left covers what a pair has cost so far (or $1.70 before any),
       // so the budget never ends between a pair's two halves; each call is still guarded by its worst case.
       const runs = ledger.state.calls.filter(x => x.renderer && !x.refused);
       const runCount = new Set(runs.map(x => `${x.case}-${x.renderer}`)).size;
-      const perRun = runCount ? runs.reduce((s, x) => s + x.cost_usd, 0) / runCount : 0.85;
+      // ponytail: never below $0.85 a run, so runs that ended before the Author (no network, no grounding) do not shrink it
+      const perRun = Math.max(0.85, runCount ? runs.reduce((s, x) => s + x.cost_usd, 0) / runCount : 0);
       if (ledger.remaining() < perRun * todo.length) { console.log(`✗ pair ${c.id} not started: ${money(ledger.remaining())} left, the pair projects ${money(perRun * todo.length)}`); break; }
       for (const renderer of todo) {
         const out = await runMotionRequest({
-          message: plan.request, repository_context: plan.repository_context ?? null, source, plan: { brief: plan.brief, storyboard: plan.storyboard, from: plan.from },
+          message: plan.request, location, repository_context: plan.repository_context ?? null, source, plan: { brief: plan.brief, storyboard: plan.storyboard, from: plan.from },
           renderer, call: ledger.guard(anthropic, { case: c.id, renderer }), env, service: svc.client, dir: runDir(c, renderer), stages: { job: frozenStoryboardJob() },
         });
         await ledger.idle();

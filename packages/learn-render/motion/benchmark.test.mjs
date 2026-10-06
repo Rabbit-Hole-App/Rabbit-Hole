@@ -89,7 +89,7 @@ test('anti-hardcoding: the benchmark code holds no case: no request, label, path
   const cases = json('m8/cases.json');
   const values = new Set();
   for (const c of cases.cases) {
-    for (const v of [c.request, c.shape, c.plan, c.repository_context?.label, c.repository_context?.range.path]) if (v) values.add(v);
+    for (const v of [c.request, c.shape, c.plan, c.location?.concept, c.repository_context?.label, c.repository_context?.range.path]) if (v) values.add(v);
     if (!c.plan) continue;
     const p = json(c.plan);
     values.add(p.request); values.add(p.brief.title);
