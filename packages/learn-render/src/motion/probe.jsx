@@ -35,7 +35,10 @@ export const Probe = () => {
         range.selectNodeContents(n);
         const op = opacity(el);
         if (op <= 0.05 || !onStage(range.getBoundingClientRect())) continue;
-        text.push({ value: value.slice(0, 300), opacity: +op.toFixed(3), font: getComputedStyle(el).fontFamily, object: el.closest('[data-object]')?.getAttribute('data-object') ?? null });
+        // within: every enclosing object, nearest first (a label nested in a code panel is inside that panel)
+        const within = [];
+        for (let x = el.closest('[data-object]'); x; x = x.parentElement?.closest('[data-object]')) within.push(x.getAttribute('data-object'));
+        text.push({ value: value.slice(0, 300), opacity: +op.toFixed(3), font: getComputedStyle(el).fontFamily, object: within[0] ?? null, within });
       }
       console.log('MOTION_PROBE ' + JSON.stringify({ frame, objects, text }));
       continueRender(handle);

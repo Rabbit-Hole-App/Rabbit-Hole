@@ -7,6 +7,7 @@
 //   node scripts/motion-e2e.mjs full [shotsDir]      the real automatic run (orchestrator with model calls)
 //   node scripts/motion-e2e.mjs stop [shotsDir]      orchestrator --stub <mp4>: Stop, then Retry to a video
 //   node scripts/motion-e2e.mjs failure [shotsDir]   orchestrator --stub <mp4> --stub-fail authoring
+//   MOTION_E2E_REQUEST='/motion 15s explain multinomial' node scripts/motion-e2e.mjs full [shotsDir]   another request
 //
 // Every mode also checks: no request before Generate, one start per Generate (no duplicate render), no
 // Rabbit Hole created or entered, no artifact (model) call for /motion.
@@ -21,7 +22,8 @@ const PKG = dirname(dirname(fileURLToPath(import.meta.url)));
 const ROOT = resolve(PKG, '..', '..');
 const DIR = join(ROOT, '.small', 'motion-local');
 const APP = 'http://127.0.0.1:8858', CP = 'http://127.0.0.1:8859';
-const REQUEST = '/motion 15s explain me softmax func';
+// MOTION_E2E_REQUEST: another grounded request for a different-domain proof (e.g. /motion 15s explain multinomial).
+const REQUEST = process.env.MOTION_E2E_REQUEST || '/motion 15s explain me softmax func';
 const [mode = 'full', shotsArg] = process.argv.slice(2);
 if (!['full', 'stop', 'failure'].includes(mode)) { console.error('usage: node scripts/motion-e2e.mjs full|stop|failure [shotsDir]'); process.exit(2); }
 const shots = resolve(shotsArg || join(DIR, `m7a-${mode}`));

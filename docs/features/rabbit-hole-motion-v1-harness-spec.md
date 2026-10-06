@@ -2334,6 +2334,17 @@ Runs A and B were the two the owner authorized, under a $2.50 ceiling. The ceili
   - API cost is $0, and the budget ceiling charges nothing for a subscription answer;
   - outcomes map onto the same end kinds: a CLI deadline is `gateway_timeout` (the Author may resend once), an answer outside the JSON/tool contract takes the schema-only re-ask, and anything else is `provider_error`;
   - the bridge now passes rendered frames as real image blocks and block system prompts as text. The Learn defaults are unchanged.
+- **Subscription Run A (2026-10-06, job 3faac0c3) failed, and fixes followed (owner GO).**
+  - The run failed on `storyboard_fidelity` twice.
+  - **Font contract:** the Author's code panels carried an Inter label, which its prompt allowed ("Inter for labels"). The strict check rejects any non-mono text inside a code panel, and the finding never named the text.
+    - The check stays strict.
+    - The Author contract now says every text node inside a code panel's element (nested elements included) is JetBrains Mono, and Inter labels sit in their own element outside it.
+    - The probe records every enclosing object, so a label in its own object nested in the panel is still inside.
+    - The finding names the text, its element's object, the panel, the actual font and the expected font.
+  - **Deadline:** the first Author CLI call reached its 15 min deadline but returned after 61.5 min, because only the parent process was killed.
+    - The bridge now kills the whole process tree at the deadline (`taskkill /T /F` on Windows, the process group elsewhere) and returns at once.
+    - The call record and `transport_retries` carry the configured deadline, the elapsed time and the reason.
+  - **Evidence scope:** a subscription proof closes M7A functionally if the automatic pipeline produces a ready video. It does not prove production-exact API or model-role behavior: the CLI's `opus` alias, no per-role effort or thinking settings, and JSON-in-text instead of native tool use.
 
 **Known limitations.**
 - No automatic run has produced a ready video yet; the next paid runs need an owner GO.

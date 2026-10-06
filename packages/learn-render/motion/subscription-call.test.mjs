@@ -22,7 +22,8 @@ test('subscription outcomes: answer, deadline, off-contract answer, anything els
   assert.equal(sent[0][0].model, 'claude-opus-5-5');
   assert.deepEqual(sent[0][1], { timeout: 900000, maxOutputTokens: 64000 });
   const fail = error => subscriptionCall({ generate: async () => { throw error; } })({}, body, 'claude-opus-5-5');
-  assert.equal(await ended(await fail(Object.assign(new Error('Claude Code timed out after 900000 ms'), { code: 'ETIMEDOUT' }))), 'gateway_timeout');
+  const deadline = await fail(Object.assign(new Error('Claude Code timed out: deadline 900000 ms, process tree terminated after 900004 ms'), { code: 'ETIMEDOUT', deadline_ms: 900000, elapsed_ms: 900004, reason: 'deadline: process tree killed' }));
+  assert.deepEqual(classifyEnd({ response: deadline }), { kind: 'gateway_timeout', detail: 'HTTP 504: deadline 900000 ms, terminated after 900004 ms, deadline: process tree killed' });
   assert.equal(await ended(await fail(new Error('Invalid subscription model response'))), 'malformed_tool_arguments');
   assert.equal(await ended(await fail(new Error('Invalid subscription tool choice'))), 'malformed_tool_arguments');
   assert.equal(await ended(await fail(new Error('Sign in to a Claude Pro/Max subscription. API credentials are not accepted.'))), 'provider_error');

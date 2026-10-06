@@ -19,7 +19,8 @@ export function subscriptionCall({ generate = subscriptionMessage, timeoutMs = 1
       const message = await generate({ ...rest, model }, { timeout: timeoutMs, maxOutputTokens: body.max_tokens || null });
       return Response.json({ ...message, model: `subscription/${message.model}` });
     } catch (error) {
-      if (error?.code === 'ETIMEDOUT') return new Response(error.message, { status: 504 });
+      // The deadline killed the CLI's process tree: record the configured deadline, the elapsed time and why.
+      if (error?.code === 'ETIMEDOUT') return new Response(error.message, { status: 504, headers: { 'x-termination': `deadline ${error.deadline_ms ?? timeoutMs} ms, terminated after ${error.elapsed_ms ?? '?'} ms, ${error.reason ?? 'deadline'}` } });
       if (/^Invalid subscription (model response|tool choice|answer)/.test(error?.message || '')) return Response.json({ content: [], stop_reason: 'end_turn', model: 'subscription', billing: SUBSCRIPTION, note: error.message });
       return new Response(String(error?.message || error).slice(0, 500), { status: 503 });
     }

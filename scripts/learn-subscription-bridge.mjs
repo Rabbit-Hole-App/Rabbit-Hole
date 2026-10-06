@@ -10,19 +10,41 @@ export function subscriptionEnvironment(source = process.env) {
   return env;
 }
 const baseArgs = ['--safe-mode', '--setting-sources', ''];
-function cli(args, input = '', timeout = 180000, extraEnv = {}) {
+// The whole tree: killing only the parent leaves descendants holding stdout open, and the run then
+// waits on them (Motion M7A Run A: a 15 min deadline returned after 61.5 min on Windows).
+export function killTree(pid) {
+  if (process.platform === 'win32') execFile('taskkill', ['/pid', String(pid), '/T', '/F'], { windowsHide: true }, () => {});
+  else try { process.kill(-pid, 'SIGKILL'); } catch { try { process.kill(pid, 'SIGKILL'); } catch { /* already gone */ } }
+}
+// A command with a hard deadline. At the deadline the process tree is killed and the run returns at
+// once (code ETIMEDOUT, with the configured deadline and the elapsed time), never waiting for pipes.
+export function runWithDeadline(command, args, { input = '', timeout = 180000, env = process.env, maxBuffer = 4 * 1024 * 1024 } = {}) {
   return new Promise((resolve, reject) => {
-    const child = execFile('claude', [...baseArgs, ...args], { env: { ...subscriptionEnvironment(), ...extraEnv }, windowsHide: true, timeout, maxBuffer: 4 * 1024 * 1024 }, (error, stdout, stderr) => {
-      // A run killed at its deadline is a timeout, not a bad answer.
-      if (error?.killed) return reject(Object.assign(new Error(`Claude Code timed out after ${timeout} ms`), { code: 'ETIMEDOUT' }));
-      let result;
-      try { result = args.includes('stream-json') ? stdout.trim().split('\n').map(line => JSON.parse(line)).findLast(event => event.type === 'result') : JSON.parse(stdout); if (!result) throw new Error('Missing result'); } catch { return reject(new Error(`Claude Code did not return JSON: ${stderr.slice(0, 400)}`)); }
-      if (error || result.is_error) return reject(new Error(typeof result.result === 'string' ? result.result.slice(0, 500) : 'Claude subscription unavailable. No API fallback.'));
-      resolve(result);
+    const started = Date.now();
+    let done = false;
+    const child = execFile(command, args, { env, windowsHide: true, maxBuffer, detached: process.platform !== 'win32' }, (error, stdout, stderr) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      resolve({ error, stdout, stderr });
     });
+    const timer = setTimeout(() => {
+      if (done) return;
+      done = true;
+      const elapsed = Date.now() - started;
+      killTree(child.pid);
+      reject(Object.assign(new Error(`Claude Code timed out: deadline ${timeout} ms, process tree terminated after ${elapsed} ms`), { code: 'ETIMEDOUT', deadline_ms: timeout, elapsed_ms: elapsed, reason: 'deadline: process tree killed' }));
+    }, timeout);
     child.stdin.on('error', () => {});
     child.stdin.end(input);
   });
+}
+async function cli(args, input = '', timeout = 180000, extraEnv = {}) {
+  const { error, stdout, stderr } = await runWithDeadline('claude', [...baseArgs, ...args], { input, timeout, env: { ...subscriptionEnvironment(), ...extraEnv } });
+  let result;
+  try { result = args.includes('stream-json') ? stdout.trim().split('\n').map(line => JSON.parse(line)).findLast(event => event.type === 'result') : JSON.parse(stdout); if (!result) throw new Error('Missing result'); } catch { throw new Error(`Claude Code did not return JSON: ${stderr.slice(0, 400)}`); }
+  if (error || result.is_error) throw new Error(typeof result.result === 'string' ? result.result.slice(0, 500) : 'Claude subscription unavailable. No API fallback.');
+  return result;
 }
 export async function subscriptionIdentity(run = cli) {
   const auth = await run(['auth', 'status'], '', 15000);

@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { RENDER_ARTIFACTS, validateRenderRequest, validateRenderResult } from './contracts.js';
 import { finalChecks } from './remotion-renderer.mjs';
-import { coverageErrors, coverageFrames, determinismFrames } from './render-coverage.js';
+import { coverageErrors, coverageFrames, determinismFrames, probeErrors } from './render-coverage.js';
 import { canonical, judgeDeterminism, localService, previewChecks, renderComposition, renderProvenance, renderRequest, serviceClient, validateArtifacts } from './render-job.mjs';
 import { motionRenderService } from './service/server.mjs';
 
@@ -157,6 +157,28 @@ test('beat coverage: each beat\'s start, start + 1, middle and end - 1; the midd
   assert.ok(errs.some(e => /^B2 #165: object future_marker is not visible/.test(e)), errs.join('\n'));
   assert.ok(coverageErrors(all.filter(o => o.frame !== 300), brief, storyboard, {}).some(e => /#300 \(boundary\): no observation/.test(e)));
   assert.ok(source.length > 0);
+});
+
+// M7A Run A (2026-10-06): a code panel's own Inter label failed the check twice, unlocatable. The check
+// stays strict; the finding now names the exact node, and the Author contract says where labels go.
+test('code panels: every text inside renders in JetBrains Mono; an Inter label outside is fine; the finding locates the node', () => {
+  const { brief, storyboard } = load('softmax');
+  const beat = storyboard.beats.find(b => b.id === 'B1'), panel = 'softmax_line';
+  const frame = coverageFrames(storyboard).find(x => x.beat === 'B1' && x.roles.includes('mid')).frame;
+  const fontErrors = text => probeErrors(new Map([[frame, { frame, objects: beat.visible_objects.map(o => ({ id: o.id, opacity: 1, on_stage: true, text: '' })), text }]]), brief, storyboard, {}).filter(e => /code panel/.test(e));
+  const MONO = "'JetBrains Mono', monospace", INTER = 'Inter, sans-serif';
+  // JetBrains Mono inside the panel: allowed.
+  assert.deepEqual(fontErrors([{ value: 'att = F.softmax(att, dim=-1)', font: MONO, object: panel, within: [panel] }]), []);
+  // The Inter label outside the panel (no object, or its own object beside the panel): allowed.
+  assert.deepEqual(fontErrors([{ value: 'self.flash false', font: INTER, object: null, within: [] }]), []);
+  assert.deepEqual(fontErrors([{ value: 'self.flash false', font: INTER, object: 'flash_if_line', within: ['flash_if_line'] }]).filter(e => e.includes(panel)), []);
+  // The same label inside the panel: rejected, with the text, element, panel and both fonts.
+  const inside = fontErrors([{ value: 'self.flash false', font: INTER, object: panel, within: [panel] }]);
+  assert.deepEqual(inside, [`B1 #${frame}: text "self.flash false" (element in ${panel}) is inside code panel ${panel} and renders in "Inter"; expected "JetBrains Mono". Every text inside a code panel is code; an Inter label belongs in an element outside the panel`]);
+  // Nested in its own data-object inside the panel is still inside the panel.
+  assert.match(fontErrors([{ value: 'self.flash false', font: INTER, object: 'manual_tag', within: ['manual_tag', panel] }])[0], /"self\.flash false" \(element in manual_tag\) is inside code panel softmax_line and renders in "Inter"/);
+  // A probe line from before `within` still checks its nearest object.
+  assert.equal(fontErrors([{ value: 'self.flash false', font: INTER, object: panel }]).length, 1);
 });
 
 test('transition sampling: objects in both beats stay visible at boundary - 1, boundary, boundary + 1; leaving and arriving objects may fade', () => {

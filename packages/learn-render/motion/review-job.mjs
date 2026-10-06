@@ -55,7 +55,7 @@ export function harnessFindings(preview, round) {
   // M7A: the storyboard as rendered, judged on the preview (an object missing from its beat, a shared
   // object vanishing at a boundary): the Author fixes it in the repair round.
   if (r.coverage && !r.coverage.ok) findings.push(harness(round, 'storyboard_fidelity',
-    `The render does not show the storyboard: ${r.coverage.errors.slice(0, 8).join('; ')}. An object listed in a beat is visible (opacity above 0.05, on stage) at that beat's middle, and an object in two consecutive beats stays visible across the boundary between them.`,
+    `The render does not show the storyboard: ${r.coverage.errors.slice(0, 8).join('; ')}. An object listed in a beat is visible (opacity above 0.05, on stage) at that beat's middle, an object in two consecutive beats stays visible across the boundary between them, and every text inside a code panel renders in JetBrains Mono.`,
     /^B\d+/.test(r.coverage.errors[0]) ? { beat_id: r.coverage.errors[0].match(/^B\d+/)[0] } : {}));
   if (r.nonblank.ok) return findings;
   const blank = r.nonblank.blank;

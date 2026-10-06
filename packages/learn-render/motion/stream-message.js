@@ -88,7 +88,9 @@ export function classifyEnd({ error = null, response = null, message = null, too
     const text = `${error.name || ''} ${error.code || ''} ${error.cause?.code || ''} ${error.message || ''}`;
     return /timeout|TIMEOUT|timed out/i.test(text) ? { kind: 'gateway_timeout', detail: String(error.message || error).split('\n')[0] } : { kind: 'transport_interrupted', detail: String(error.message || error).split('\n')[0] };
   }
-  if (response && !response.ok) return { kind: GATEWAY_TIMEOUT.has(response.status) ? 'gateway_timeout' : BROKEN.has(response.status) ? 'transport_interrupted' : 'provider_error', detail: `HTTP ${response.status}` };
+  // x-termination: how a local transport ended the call (subscription-call.mjs: deadline, elapsed, reason).
+  const termination = response?.headers?.get?.('x-termination');
+  if (response && !response.ok) return { kind: GATEWAY_TIMEOUT.has(response.status) ? 'gateway_timeout' : BROKEN.has(response.status) ? 'transport_interrupted' : 'provider_error', detail: `HTTP ${response.status}${termination ? `: ${termination}` : ''}` };
   if (message?.stop_reason === 'max_tokens') return { kind: 'max_tokens', detail: 'the response hit max_tokens' };
   if (message?.stop_reason === 'refusal') return { kind: 'refusal', detail: message.stop_details?.category || 'refusal' };
   const use = tool && (message?.content || []).find(b => b.type === 'tool_use' && b.name === tool);

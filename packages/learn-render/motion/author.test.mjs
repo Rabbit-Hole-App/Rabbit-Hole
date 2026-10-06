@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { leakErrors } from './contracts.js';
-import { AUTHOR_TOOL, authorContext, checkAuthorOutput, runAuthor, validateAuthorToolOutput } from './author.js';
+import { AUTHOR_SYSTEM, AUTHOR_TOOL, authorContext, checkAuthorOutput, runAuthor, validateAuthorToolOutput } from './author.js';
 import { checkAuthorSource, timelineFrames } from './author-check.js';
 import { probeErrors, probeFrames } from './author-proof.mjs';
 import { readMessage } from './stream-message.js';
@@ -182,7 +182,7 @@ test('frame probe rules: visible objects, labels, code lines and fonts, conditio
   const only = p => probeErrors(new Map([[frame, p]]), brief, { ...storyboard, beats: storyboard.beats.filter(b => b.id === 'B3') }, TEXT);
   assert.deepEqual(only(good), []);
   assert.ok(only({ ...good, objects: good.objects.map(o => o.id === 'softmax_line' ? { ...o, opacity: 0 } : o) }).some(e => /object softmax_line is not visible/.test(e)));
-  assert.ok(only({ ...good, text: good.text.map(t => t.object === 'softmax_line' ? { ...t, font: 'Inter' } : t) }).some(e => /code in softmax_line renders in "Inter", not JetBrains Mono/.test(e)));
+  assert.ok(only({ ...good, text: good.text.map(t => t.object === 'softmax_line' ? { ...t, font: 'Inter' } : t) }).some(e => e.includes('text "att = F.softmax(att, dim=-1)" (element in softmax_line) is inside code panel softmax_line and renders in "Inter"; expected "JetBrains Mono"')));
   assert.ok(only({ ...good, text: [...good.text, { value: 'weights', font: 'Times New Roman', object: null }] }).some(e => /not a bundled font/.test(e)));
   assert.ok(only({ ...good, text: [...good.text, { value: 'calibrated probabilities', font: 'Inter', object: null }] }).some(e => /words not in TEXT \(calibrated, probabilities\)/.test(e)));
   const noCondition = { ...good, objects: good.objects.filter(o => o.id !== 'fallback_label'), text: good.text.filter(t => t.object !== 'fallback_label') };
@@ -232,4 +232,11 @@ test('valid source compiles and its probed frames match the storyboard; a disall
   const bad = await proveAuthor({ brief, storyboard, source: source.replace("import { AbsoluteFill,", "import 'node:fs';\nimport { AbsoluteFill,"), TEXT, dir: mkdtempSync(join(tmpdir(), 'author-proof-')) });
   assert.equal(bad.compiled, false);
   assert.match(bad.errors[0], /^compile: /);
+});
+
+// M7A Run A (2026-10-06): the Author contract says where Inter labels go, matching the strict probe.
+test('the Author contract: every text inside a code panel is JetBrains Mono; Inter labels sit outside the panel', () => {
+  const system = [AUTHOR_SYSTEM].flat().join(' ');
+  assert.ok(system.includes("every text node physically inside a code panel (the element carrying a code object's data-object, and every element nested in it) renders in 'JetBrains Mono'"));
+  assert.ok(system.includes("in 'Inter' sits in its own element outside the code panel's element"));
 });

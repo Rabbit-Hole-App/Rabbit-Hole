@@ -87,7 +87,9 @@ export function probeErrors(probes, brief, storyboard, TEXT) {
       if (o.source) for (const line of f.lineText(o.source.source_ref_id, o.source.start_line, o.source.end_line).split('\n').map(l => l.trim()).filter(Boolean)) {
         if (!squash(seen.text).includes(squash(line))) e.push(`${id} #${frame}: ${o.id} does not show the source line "${line}"`);
       }
-      if (o.source) for (const t of p.text.filter(t => t.object === o.id)) if (firstFont(t.font) !== 'JetBrains Mono') e.push(`${id} #${frame}: code in ${o.id} renders in "${firstFont(t.font)}", not JetBrains Mono`);
+      // Every text inside a code panel's element is code. The finding names the text, its element's
+      // object, the panel and both fonts, so a repair can find the exact node.
+      if (o.source) for (const t of p.text.filter(t => (t.within ?? [t.object]).includes(o.id))) if (firstFont(t.font) !== 'JetBrains Mono') e.push(`${id} #${frame}: text "${t.value.slice(0, 60)}" (element in ${t.object}) is inside code panel ${o.id} and renders in "${firstFont(t.font)}"; expected "JetBrains Mono". Every text inside a code panel is code; an Inter label belongs in an element outside the panel`);
     }
     if (beat.on_screen_text?.trim() && !screen.includes(squash(beat.on_screen_text))) e.push(`${id} #${frame}: on_screen_text "${beat.on_screen_text}" is not visible`);
     for (const k of beat.condition_ids || []) {
