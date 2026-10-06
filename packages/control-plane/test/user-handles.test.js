@@ -53,6 +53,9 @@ test('the shared canvas names its creator by @handle (and display name), never b
     assert.ok(!JSON.stringify(seen.body).includes('alice@test'), 'the owner email never reaches a viewer');
     assert.equal('owner' in seen.body, false);
   }
+  // Someone else's display name never stands in for the creator's: Cara's named profile is the first row, which a lookup
+  // that matched any profile once returned.
+  await f.call('PUT', '/api/profile', { as: 'cara', body: { name: 'Cara Someone' } });
   await f.claim('alice', 'alice');
   assert.deepEqual((await f.call('GET', `/api/learn/boards/shared/${a.link}`)).body.creator, { handle: 'alice', name: null });
   await f.call('PUT', '/api/profile', { as: 'alice', body: { name: 'Alice Liddell' } });

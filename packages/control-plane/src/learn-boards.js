@@ -422,7 +422,7 @@ async function openShared(req, env, token) {
   const state = JSON.parse(row.state_json);
   // Who made it (docs/features/user-handles.md): the owner's @handle and display name, read by reference; no handle,
   // no creator. Never the owner's email: a link may be opened by anyone it reaches.
-  const made = await env.LEARN_DB.prepare(`SELECT handle, ${NAME_OF('email')} AS name FROM user_handles WHERE email = ?`).bind(row.owner_email).first();
+  const made = await env.LEARN_DB.prepare(`SELECT h.handle, ${NAME_OF('h.email')} AS name FROM user_handles h WHERE h.email = ?`).bind(row.owner_email).first();
   const creator = made ? { handle: made.handle, name: made.name ?? null } : null;
   return json({ role, app: hidden ? null : row.app, board: row.board, title: sharedTitle(row, canvas?.title, source), creator, fork_count: canvas ? canvas.fork_count : null, version: row.version, updated_at: row.updated_at,
     viewer: viewer instanceof Response ? null : viewer.email, context: { repository: source?.allowed ? { repo: source.repo, commit: source.commit } : null, sources: boardSources(state) }, state });

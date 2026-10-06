@@ -22,8 +22,10 @@ function canvasTitle(value) {
 export const FORK_COUNT = '(SELECT count(*) FROM canvas_forks k JOIN canvases kc ON kc.org = k.org AND kc.name = k.canvas WHERE k.forked_from_org = c.org AND k.forked_from_canvas_id = c.name)';
 // A person's public handle and display name, by reference (docs/features/user-handles.md): read at the moment, never
 // copied onto a canvas, so a changed handle shows everywhere at once. No handle row, no handle: never an email.
-export const HANDLE_OF = email => `(SELECT handle FROM user_handles WHERE email = ${email})`;
-export const NAME_OF = email => `(SELECT name FROM user_profiles WHERE email = ${email})`;
+// `email` must be a qualified column of the outer row (c.owner_email): the inner tables carry their own aliases so a
+// bare name can never bind to them and match every row.
+export const HANDLE_OF = email => `(SELECT uh.handle FROM user_handles uh WHERE uh.email = ${email})`;
+export const NAME_OF = email => `(SELECT up.name FROM user_profiles up WHERE up.email = ${email})`;
 // The owner's handle and name (Home/Library cards, nested holes included), and the handle of whoever owned the source
 // of a fork ("Forked from ... · @alice"); the fork itself is the forker's.
 const CANVAS_ROW = `SELECT c.*, f.forked_from_title, CASE
