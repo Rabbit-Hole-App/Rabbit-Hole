@@ -61,3 +61,19 @@ test('subscription mode refuses the course model actions, including revise_secti
   const gate = worker.slice(worker.indexOf('(await req.clone().json()).action'));
   assert.ok(gate.indexOf('subscriptionCourseRefusal(env, action)') > 0 && gate.indexOf('subscriptionCourseRefusal(env, action)') < gate.indexOf("['/api/learn/ask', '/api/learn/selection']"));
 });
+test('inline image bytes reach the CLI as image blocks, never as text; long runs opt into a deadline and an output cap', async () => {
+  const png = Buffer.from('fake-png').toString('base64');
+  const blocks = await prepareMessages([{ role: 'user', content: [{ type: 'text', text: 'frame 0' }, { type: 'image', source: { type: 'base64', media_type: 'image/png', data: png } }] }]);
+  assert.equal(blocks[0].type, 'text');
+  assert.ok(!blocks[0].text.includes(png), 'the bytes are not inlined into the JSON text');
+  assert.deepEqual(blocks.slice(1), [{ type: 'text', text: 'Asset 1: inline image' }, { type: 'image', source: { type: 'base64', media_type: 'image/png', data: png } }]);
+  await assert.rejects(prepareMessages([{ type: 'image', source: { type: 'base64', media_type: 'text/html', data: png } }]), /Invalid inline asset/);
+  const seen = [];
+  const run = async (args, input, timeout, extraEnv) => { seen.push([timeout, extraEnv]); return { result: '{"type":"text","text":"ok"}' }; };
+  await subscriptionMessage({ messages: [{ role: 'user', content: 'x' }] }, { identify: async () => ({}), prepare: async () => [], run });
+  await subscriptionMessage({ messages: [{ role: 'user', content: 'x' }] }, { identify: async () => ({}), prepare: async () => [], run, timeout: 900000, maxOutputTokens: 64000 });
+  assert.deepEqual(seen, [[180000, {}], [900000, { CLAUDE_CODE_MAX_OUTPUT_TOKENS: '64000' }]], 'Learn keeps its defaults');
+  let prompt = '';
+  await subscriptionMessage({ system: [{ type: 'text', text: 'You are the Motion Director.', cache_control: { type: 'ephemeral' } }], messages: [{ role: 'user', content: 'x' }] }, { identify: async () => ({}), prepare: async () => [], run: async args => { prompt = args[args.indexOf('--system-prompt') + 1]; return { result: '{"type":"text","text":"ok"}' }; } });
+  assert.ok(prompt.startsWith('You are the Motion Director.'), 'block system prompts arrive as text, not [object Object]');
+});

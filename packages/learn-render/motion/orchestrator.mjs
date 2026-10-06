@@ -48,8 +48,11 @@ export async function responseCost(response, model) {
   try {
     const text = await response.text();
     let u = null;
-    if (/^\s*\{/.test(text)) u = JSON.parse(text).usage || null;
-    else for (const line of text.split(/\r?\n/)) {
+    if (/^\s*\{/.test(text)) {
+      const j = JSON.parse(text);
+      if (j.billing === 'claude-subscription') return 0; // the owner's subscription: no API spend
+      u = j.usage || null;
+    } else for (const line of text.split(/\r?\n/)) {
       if (!line.startsWith('data:')) continue;
       const event = JSON.parse(line.slice(5).trim() || '{}');
       if (event.type === 'message_start') u = { ...event.message?.usage };

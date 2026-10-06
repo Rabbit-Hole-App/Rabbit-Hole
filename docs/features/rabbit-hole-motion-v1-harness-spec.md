@@ -2328,6 +2328,12 @@ Runs A and B were the two the owner authorized, under a $2.50 ceiling. The ceili
   - minus language-level code words (Python builtins and the array/container API every framework shares);
   - minus any word two calls of one excerpt share.
 - **Prompt:** the storyboard rule 5 states the relation reading, not a phrasing workaround. The Director asks how the viewer's visual focus should move, never "attention".
+- **Model transport for the paid proof (owner decision 2026-10-06).** The API account ran out of credit on the first call ($0 spent), so the owner chose the Claude subscription. `motion-orchestrator.mjs --subscription` sends every role through the owner's Claude subscription (the native Claude Code CLI, `scripts/learn-subscription-bridge.mjs`, in process):
+  - it reads no API key and never falls back to the API;
+  - the CLI's `opus` alias serves each role, recorded as `served_model: subscription/opus`;
+  - API cost is $0, and the budget ceiling charges nothing for a subscription answer;
+  - outcomes map onto the same end kinds: a CLI deadline is `gateway_timeout` (the Author may resend once), an answer outside the JSON/tool contract takes the schema-only re-ask, and anything else is `provider_error`;
+  - the bridge now passes rendered frames as real image blocks and block system prompts as text. The Learn defaults are unchanged.
 
 **Known limitations.**
 - No automatic run has produced a ready video yet; the next paid runs need an owner GO.

@@ -3,6 +3,8 @@
 // from .small/motion-local/app/.dev.vars (MOTION_ORCHESTRATOR_TOKEN, never printed).
 //   node scripts/motion-orchestrator.mjs [--port 8856] [--service <url>] [--max-calls 16] [--budget-usd 2.50]
 //   node scripts/motion-orchestrator.mjs --stub <final.mp4> [--stub-fail authoring]   no model call, no render
+//   node scripts/motion-orchestrator.mjs --subscription [...]   every model call through the owner's Claude
+//     subscription (the native Claude Code CLI, motion/subscription-call.mjs); no API key, no API fallback
 // Model calls use ANTHROPIC_API_KEY from the environment, else MOTION_ENV_FILE or <repo>/.env (names
 // only are read; values are never printed). Without --service the render service runs in this
 // process with the unsandboxed child (the authoring host); with --service, MOTION_RENDERER_TOKEN.
@@ -13,6 +15,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { anthropic } from '../../control-plane/src/ask.js';
 import { motionOrchestrator } from '../motion/orchestrator.mjs';
+import { subscriptionCall } from '../motion/subscription-call.mjs';
 import { abortableSleep } from '../motion/review-job.mjs';
 import { localService, serviceClient } from '../motion/render-job.mjs';
 
@@ -24,6 +27,7 @@ const opt = name => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] 
 const port = Number(opt('--port') || 8856);
 const url = opt('--service');
 const stub = opt('--stub');
+const subscription = argv.includes('--subscription');
 const vars = Object.fromEntries(readFileSync(join(LOCAL, 'app', '.dev.vars'), 'utf8').trim().split(/\r?\n/).map(l => l.split(/=(.*)/s).slice(0, 2)));
 if (!vars.MOTION_ORCHESTRATOR_TOKEN) { console.error('✗ no MOTION_ORCHESTRATOR_TOKEN in .small/motion-local/app/.dev.vars: run scripts/motion-local-check.mjs setup'); process.exit(2); }
 
@@ -56,13 +60,14 @@ const stubRun = ({ dir, signal, onStage }) => (async () => {
   return { status: 'ready', brief, block: { motion: { job_id: 'stub', duration_seconds: 15, renderer: 'remotion', teaching_mode: brief.teaching_mode, prompt_spec_version: brief.prompt_spec_version, source_refs: brief.source_refs.map(({ id, kind, repository, commit, path, start_line, end_line }) => ({ id, kind, repository, commit, path, start_line, end_line })), claim_ids: [] } }, render: { render_id: '0'.repeat(32) }, job: { repair_count: 0 }, cost_usd: 0, timings: { total: +((Date.now() - t0) / 1000).toFixed(1) } };
 })();
 
-const env = credentials();
-if (!stub && !env.ANTHROPIC_API_KEY) { console.error(`✗ no ANTHROPIC_API_KEY in the environment or ${process.env.MOTION_ENV_FILE || join(ROOT, '.env')}`); process.exit(2); }
+// Subscription mode never reads an API key, so nothing can fall back to the API.
+const env = subscription ? Object.fromEntries(['MOTION_DIRECTOR_MODEL', 'MOTION_AUTHOR_MODEL', 'MOTION_VISUAL_REVIEW_MODEL', 'MOTION_PEDAGOGICAL_REVIEW_MODEL'].map(k => [k, process.env[k]])) : credentials();
+if (!stub && !subscription && !env.ANTHROPIC_API_KEY) { console.error(`✗ no ANTHROPIC_API_KEY in the environment or ${process.env.MOTION_ENV_FILE || join(ROOT, '.env')}`); process.exit(2); }
 if (url && !process.env.MOTION_RENDERER_TOKEN) { console.error('✗ --service needs MOTION_RENDERER_TOKEN in the environment'); process.exit(2); }
 const svc = url ? { client: serviceClient({ url: url.replace(/\/$/, ''), token: process.env.MOTION_RENDERER_TOKEN }), close: () => {} } : await localService();
 const outDir = join(PKG, 'out', 'motion', 'm7a');
 const orchestrator = motionOrchestrator({
-  token: vars.MOTION_ORCHESTRATOR_TOKEN, service: svc.client, call: anthropic, env, outDir, maxCalls: Number(opt('--max-calls') || 16), budgetUsd: Number(opt('--budget-usd')) || Infinity,
+  token: vars.MOTION_ORCHESTRATOR_TOKEN, service: svc.client, call: subscription ? subscriptionCall() : anthropic, env, outDir, maxCalls: Number(opt('--max-calls') || 16), budgetUsd: Number(opt('--budget-usd')) || Infinity,
   ...(stub ? { run: stubRun } : {}),
   log: line => {
     console.log(`${new Date().toISOString()} ${line}`);
@@ -73,5 +78,5 @@ const orchestrator = motionOrchestrator({
 });
 mkdirSync(outDir, { recursive: true });
 createServer({ key: readFileSync(join(LOCAL, 'certs', 'leaf.key')), cert: readFileSync(join(LOCAL, 'certs', 'leaf.pem')) }, orchestrator.handle)
-  .listen(port, '127.0.0.1', () => console.log(`✓ Motion orchestrator on https://localhost:${port} (${stub ? `stub: ${stub}` : `render service: ${url || 'local, sandbox none (authoring host)'}`}; budget ${orchestrator.budget.limit_usd === Infinity ? 'none' : `$${orchestrator.budget.limit_usd}`})`));
+  .listen(port, '127.0.0.1', () => console.log(`✓ Motion orchestrator on https://localhost:${port} (${subscription ? 'models: Claude subscription (native CLI), no API fallback; ' : ''}${stub ? `stub: ${stub}` : `render service: ${url || 'local, sandbox none (authoring host)'}`}; budget ${orchestrator.budget.limit_usd === Infinity ? 'none' : `$${orchestrator.budget.limit_usd}`})`));
 process.on('SIGINT', () => { svc.close(); process.exit(0); });

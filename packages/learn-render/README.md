@@ -56,6 +56,7 @@ node scripts/motion-review.mjs softmax|generate|reference [--service <url>] [--c
 node scripts/motion-local-check.mjs setup|run <final.mp4>   # local stack: Motion render API stand-in -> LearnVideos -> LEARN_MEDIA -> video block
 node scripts/motion-orchestrator.mjs [--service <url>] [--max-calls 16]   # M7A: the development orchestrator for /motion on the local stack (HTTPS 8856)
 node scripts/motion-orchestrator.mjs --stub <final.mp4> [--stub-fail <stage>]   # the same, no model call and no render (UI checks)
+node scripts/motion-orchestrator.mjs --subscription [--max-calls 16]   # every role through the owner's Claude subscription (native CLI); no API key, no API fallback
 node scripts/motion-e2e.mjs full|stop|failure   # M7A browser proof: /motion typed in the Learn composer -> proposal -> Generate -> the same video card plays
 sh motion/service/context.sh   # deploy context for rabbit-hole-motion-renderer-dev (Home deploys)
 ```
