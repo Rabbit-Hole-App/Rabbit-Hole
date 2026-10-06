@@ -15,7 +15,7 @@ import { modelFailure } from './learn-research.js';
 import { LEARN_TASKS, loggedModel } from './learn-models.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { escalation } from './agents/learn-tutor-escalation.js';
-import { evaluationFrom, firstSentence, largerInstruction, parseLarger, PLANNER_EFFORTS, plannerRequest, readTutorAnswers, tutorJevRequest, TUTOR_TOOL, tutorTool } from './agents/learn-tutor.js';
+import { evaluationFrom, firstSentence, largerInstruction, parseLarger, parsePartial, PLANNER_EFFORTS, plannerRequest, readTutorAnswers, tutorJevRequest, TUTOR_TOOL, tutorTool } from './agents/learn-tutor.js';
 import { normalizeToolInput } from './tool-input.js';
 import { JourneyConflict, appendJourneyEvidence, loadJourneyById } from './learn-journey-store.js';
 import { claimsOfConceptIn } from '../../web/src/learn-tutor-claims.js';
@@ -252,6 +252,16 @@ export async function readPlannerStream(response, onInput, onDelta = null) {
   return message;
 }
 
+// The streamed plan as written up to the end of its actions, once the actions array has closed (parsePartial keeps a key
+// after `actions` only once the array has ended), else null. Everything fastPlanProblem reads is in it: an
+// explicit_request written after the actions is left out, which only makes the check stricter.
+function streamedActions(input) {
+  const { value } = parsePartial(input);
+  const keys = value && typeof value === 'object' ? Object.keys(value) : [];
+  const at = keys.indexOf('actions');
+  return at >= 0 && at < keys.length - 1 && Array.isArray(value.actions) ? Object.fromEntries(keys.slice(0, at + 1).map(key => [key, value[key]])) : null;
+}
+
 // One planner call on `model`. effort: output_config.effort, or null for the model default.
 // onSentence (v2 checkpoint I): stream the reply and hand over the plan's first sentence as soon as
 // firstSentence finds it. Not under SUBSCRIPTION_ONLY, whose bridge replays text only.
@@ -261,31 +271,48 @@ export async function readPlannerStream(response, onInput, onDelta = null) {
 // Decision 5B: TUTOR_PLANNER_SPEED=fast runs the Opus 5.5 planner in fast mode (benchmark arm C only;
 // off by default). Opus only - a fast-tier model never gets it - and never under SUBSCRIPTION_ONLY.
 // telemetry.speed is the API's usage.speed, so a request served at standard speed is visible.
-async function planOnce(env, context, model, effort, { callModel = loggedModel('tutor', anthropic), onSentence = null } = {}, documents = []) {
+// onActions(head, ms) (the fast tier, Decision 2): called once, when the streamed actions are complete (streamedActions);
+// it returns true when the turn has spoken on them. From then on that plan is kept: a remainder (move, reason and
+// reason_codes, written last) that is cut, unparsable or lost keeps those actions, with reason and reason_codes null and
+// telemetry.tail_lost (no rollback).
+async function planOnce(env, context, model, effort, { callModel = loggedModel('tutor', anthropic), onSentence = null, onActions = null } = {}, documents = []) {
   const started = Date.now();
   const stream = !!onSentence && env.SUBSCRIPTION_ONLY !== 'true';
   const cache = env.TUTOR_PLANNER_CACHE !== 'off' && env.SUBSCRIPTION_ONLY !== 'true'; // F default: on
   const speed = env.TUTOR_PLANNER_SPEED === 'fast' && model === LEARN_TASKS.tutor.model && env.SUBSCRIPTION_ONLY !== 'true' ? 'fast' : null;
   const telemetry = { ms: null, requested_model: model, effort, served_model: null, input_tokens: null, output_tokens: null, ...(cache ? { cache: true, cache_creation_input_tokens: null, cache_read_input_tokens: null } : {}), ...(speed ? { requested_speed: speed, speed: null } : {}), stop_reason: null, outcome: null, ...(stream ? { streamed: true, first_output_ms: null, first_sentence_ms: null } : {}) };
   const done = outcome => ({ ...telemetry, ms: Date.now() - started, outcome });
-  let result;
+  const schema = tutorTool(env.TUTOR_AVATAR === 'on').input_schema;
+  let result, actionsSeen = false, spoke = null;
+  const kept = () => ({ ...normalizeToolInput(schema, spoke), reason: null, reason_codes: null, telemetry: { ...done('ok'), tail_lost: true } });
   try {
     // TUTOR_AVATAR=on adds suggest_avatar_clip (Avatar Teacher §4.1); unset or anything else, the request is unchanged.
     const response = await callModel(env, plannerRequest(context, LEARN_TASKS.tutor.maxTokens, documents, { effort, stream, cache, speed, avatar: env.TUTOR_AVATAR === 'on' }), model, null);
     if (!response.ok) throw await modelFailure(response, 'The tutor is unavailable');
     result = stream ? await readPlannerStream(response, input => {
-      if (telemetry.first_sentence_ms != null) return;
-      const sentence = firstSentence(input);
-      if (sentence) { telemetry.first_sentence_ms = Date.now() - started; telemetry.first_sentence_action = sentence.action; onSentence(sentence); }
+      if (telemetry.first_sentence_ms == null) {
+        const sentence = firstSentence(input);
+        if (sentence) { telemetry.first_sentence_ms = Date.now() - started; telemetry.first_sentence_action = sentence.action; onSentence(sentence); }
+      }
+      if (onActions && !actionsSeen) {
+        const head = streamedActions(input);
+        if (head) { actionsSeen = true; if (onActions(head, Date.now() - started)) spoke = head; }
+      }
     }, () => { telemetry.first_output_ms ??= Date.now() - started; }) : await response.json();
-  } catch (error) { throw Object.assign(error, { telemetry: done('error') }); }
+  } catch (error) {
+    if (spoke) return kept();
+    throw Object.assign(error, { telemetry: done('error') });
+  }
   Object.assign(telemetry, { served_model: result.model ?? null, input_tokens: result.usage?.input_tokens ?? null, output_tokens: result.usage?.output_tokens ?? null, stop_reason: result.stop_reason ?? null,
     ...(speed ? { speed: result.usage?.speed ?? null } : {}), ...(cache ? { cache_creation_input_tokens: result.usage?.cache_creation_input_tokens ?? null, cache_read_input_tokens: result.usage?.cache_read_input_tokens ?? null } : {}) });
   const call = result.content?.find(block => block.type === 'tool_use' && block.name === TUTOR_TOOL.name);
   // An array or object sent as a JSON string is parsed once by the tool's schema (tool-input.js); a native plan is
   // returned as it came, so nanoGPT turns are unchanged.
-  const input = call?.input && normalizeToolInput(tutorTool(env.TUTOR_AVATAR === 'on').input_schema, call.input);
-  if (!input || !Array.isArray(input.actions)) throw Object.assign(new Error('The tutor returned no turn'), { telemetry: done('invalid') });
+  const input = call?.input && normalizeToolInput(schema, call.input);
+  if (!input || !Array.isArray(input.actions)) {
+    if (spoke) return kept();
+    throw Object.assign(new Error('The tutor returned no turn'), { telemetry: done('invalid') });
+  }
   return { ...input, telemetry: done('ok') };
 }
 
@@ -323,10 +350,13 @@ export function fastPlanProblem(plan, context) {
 // the model default (Baseline A). H: TUTOR_PLANNER_FAST_MODEL (+ TUTOR_PLANNER_FAST_EFFORT) tiers it.
 // The fast model gets the same system prompt, Teaching State, route and allowed actions: it never
 // sets policy. A failed or unusable fast plan is re-planned on Opus 5.5 (telemetry.escalated).
-// Decision 2: a fast-tier sentence is HELD until the fast plan is complete, parsed and passes
+// Decision 2: a fast-tier sentence is HELD until the fast plan's actions are complete and pass
 // fastPlanProblem; an invalid or escalated fast plan speaks nothing, and Opus's re-plan streams its own
-// sentence. No speculative speech, no rollback. first_sentence_ms on a fast plan is the release time;
-// sentence_written_ms is when the fast model had written it.
+// sentence. No speculative speech, no rollback. Professor Next Steps Task 4: move, reason and reason_codes
+// are written after the actions, so the sentence goes out when the actions are complete (planOnce
+// onActions), not when the whole plan is; a plan without anything after its actions releases at its end,
+// as before. first_sentence_ms on a fast plan is the release time; sentence_written_ms is when the fast
+// model had written it.
 export async function planTurn(env, context, deps = {}, documents = []) {
   // One first sentence per turn, even when a fast plan is re-planned on Opus.
   if (deps.onSentence) { let sent = false; const hand = deps.onSentence; deps = { ...deps, onSentence: text => { if (!sent) { sent = true; hand(text); } } }; }
@@ -341,13 +371,18 @@ export async function planTurn(env, context, deps = {}, documents = []) {
   if (tier.tier === 'opus') {
     try { return tagged(await opus()); } catch (error) { throw Object.assign(error, { telemetry: { ...error.telemetry, tier: 'opus', tier_reason: tier.reason } }); }
   }
-  let first, problem, held = null;
-  const hold = deps.onSentence ? { ...deps, onSentence: sentence => { held ??= sentence; } } : deps;
+  let first, problem, held = null, releasedMs = null;
+  const hold = deps.onSentence ? { ...deps, onSentence: sentence => { held ??= sentence; }, onActions: (head, ms) => {
+    if (!held || fastPlanProblem(head, context)) return false;
+    releasedMs = ms;
+    deps.onSentence(held);
+    return true;
+  } } : deps;
   try { first = await planOnce(env, context, fast, fastEffort, hold, documents); problem = fastPlanProblem(first, context); }
   catch (error) { first = { telemetry: error.telemetry }; problem = error.message; }
   if (!problem) {
-    if (held) deps.onSentence(held);
-    return tagged(first, { escalated: null, ...(held ? { sentence_written_ms: first.telemetry.first_sentence_ms, first_sentence_ms: first.telemetry.ms } : {}) });
+    if (held && releasedMs == null) deps.onSentence(held);
+    return tagged(first, { escalated: null, ...(held ? { sentence_written_ms: first.telemetry.first_sentence_ms, first_sentence_ms: releasedMs ?? first.telemetry.ms } : {}) });
   }
   const escalated = { tier: 'opus', tier_reason: tier.reason, escalated: problem, fast: first.telemetry ?? null };
   let plan;

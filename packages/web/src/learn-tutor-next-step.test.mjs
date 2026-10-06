@@ -44,6 +44,8 @@ test('recent_modalities: carried verbatim, at most 8, never read by the router',
   const onStep = plannerContext({ turn: step, routed: route({ turn: step, claims: [ID], states, evaluation: null, store }), block: null, states, claims: [ID], store, domain });
   assert.deepEqual(onStep.available_materials, MATERIALS);
   assert.equal(Object.keys(onStep).at(-1), 'available_materials');
+  const empty = { ...step, available_materials: [] };
+  assert.equal('available_materials' in plannerContext({ turn: empty, routed: route({ turn: empty, claims: [ID], states, evaluation: null, store }), block: null, states, claims: [ID], store, domain }), false, 'a hook turn with no materials: no key');
   assert.deepEqual(plannerContext({ turn: turnOf(), routed: b, block: null, states, claims: [ID], store: null, domain }).recent_relevant_context.recent_modalities, [], 'no store: an empty history');
 });
 
@@ -65,7 +67,9 @@ test('validator: create_material needs an offered command, a request and the rou
   assert.equal(plan([{ type: 'create_material', command: 'video', request: 'x' }]).decisions[0].stage, 'resource');
   assert.equal(plan([{ type: 'create_material', command: 'flashcards', request: '' }]).decisions[0].stage, 'schema');
   assert.equal(plan([{ type: 'create_material', command: 'flashcards', request: 'x'.repeat(1001) }]).decisions[0].stage, 'schema');
-  assert.equal(plan([{ type: 'create_material', command: 'flashcards', request: 'run {code}' }]).decisions[0].stage, 'schema');
+  assert.deepEqual(plan([{ type: 'create_material', command: 'flashcards', request: 'cases where p > 0.5, q < 1 and the set {a, b}' }]).actions, [{ type: 'create_material', command: 'flashcards', request: 'cases where p > 0.5, q < 1 and the set {a, b}' }], 'maths in a request is fine');
+  assert.equal(plan([{ type: 'create_material', command: 'flashcards', request: 'run `rm -rf`' }]).decisions[0].stage, 'schema');
+  assert.equal(plan([{ type: 'create_material', command: 'flashcards', request: 'x => y' }]).decisions[0].stage, 'schema');
   assert.equal(plan([{ type: 'create_material', request: 'x' }]).decisions[0].stage, 'schema');
   assert.equal(validateActions({ actions: [{ type: 'create_material', command: 'flashcards', request: 'x' }] }, { ...routed, allowed: ['respond_text'] }, turnOf()).decisions[0].stage, 'route', 'typed turns: never');
 });

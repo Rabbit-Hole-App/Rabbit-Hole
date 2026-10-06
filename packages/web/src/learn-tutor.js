@@ -303,7 +303,7 @@ export function plannerContext({ turn, routed, block, states, claims = [], store
       ...(turn.returned_from ? { returned_from: { dive_id: turn.returned_from.dive_id, concept: turn.returned_from.concept, claim: turn.returned_from.claim } } : {}),
     } : null,
     ...(domain.context ? { journey_context: domain.context } : {}),
-    ...(turn.next_step && turn.available_materials ? { available_materials: turn.available_materials } : {}),
+    ...(turn.next_step && turn.available_materials?.length ? { available_materials: turn.available_materials } : {}),
   };
 }
 

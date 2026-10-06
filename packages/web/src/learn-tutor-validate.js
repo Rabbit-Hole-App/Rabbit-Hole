@@ -120,7 +120,7 @@ function schema(action, extra = [], domain = NANOGPT) {
   if (CARD_ACTIONS.includes(action.type) && typeof action.card !== 'string') return `${action.type} without a card`;
   if (action.type === 'focus_part' && typeof action.part_id !== 'string') return 'focus_part without a part';
   if (action.type === 'suggest_dive' && !action.title && !action.concept) return 'suggest_dive: no topic';
-  if (action.type === 'create_material' && (typeof action.command !== 'string' || typeof action.request !== 'string' || !action.request.trim() || action.request.length > 1000 || /[`{}<>]|=>/.test(action.request))) return 'create_material: command and a 1-1000 character request';
+  if (action.type === 'create_material' && (typeof action.command !== 'string' || typeof action.request !== 'string' || !action.request.trim() || action.request.length > 1000 || /`|=>/.test(action.request))) return 'create_material: command and a 1-1000 character request';
   return null;
 }
 
