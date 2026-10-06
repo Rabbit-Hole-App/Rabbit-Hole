@@ -97,7 +97,13 @@ const shared = await api(owner, `/api/learn/boards/${source.name}/main/share`, {
 const viewerPage = await pageFor(viewer);
 await viewerPage.goto(`${BASE}/b/${shared.sharing.view}`);
 await viewerPage.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 60000 });
-check('the shared board shows its title, its direct fork count and Fork', await viewerPage.getByText(TITLE).count() >= 1 && (await viewerPage.locator('[data-fork-count]').innerText()).trim() === '1 fork' && await viewerPage.locator('[data-fork-button]').count() === 1);
+// The header's one Fork control carries the count (owner, 2026-10-06): [fork icon  Fork  N], no separate label.
+const headerCount = async page => ({ value: (await page.locator('header [data-fork-button] [data-fork-count-value]').innerText()).trim(), label: await page.locator('header [data-fork-button]').getAttribute('aria-label') });
+const ownerCount = async () => (await canvases(owner)).find(c => c.name === source.name)?.fork_count;
+let seen = await headerCount(viewerPage);
+check('the shared board shows its title and one Fork control carrying its direct fork count', await viewerPage.getByText(TITLE).count() >= 1 && await viewerPage.locator('[data-fork-button]').count() === 1
+  && seen.value === '1' && seen.label === 'Fork, 1 fork' && await viewerPage.locator('header [data-fork-count]').count() === 0, JSON.stringify(seen));
+check('the header count is the owner\'s Library card count', Number(seen.value) === await ownerCount());
 await shot(viewerPage, '05-shared-board');
 await viewerPage.locator('[data-fork-button]').click();
 await viewerPage.waitForURL(/\/apps\/canvas-[a-f0-9]{8}\?tab=learn$/, { timeout: 20000 });
@@ -109,11 +115,34 @@ check('the viewer\'s fork is in the viewer\'s Library, owned by them', (await ca
 check('the source now counts two direct forks', (await canvases(owner)).find(c => c.name === source.name)?.fork_count === 2);
 await shot(viewerPage, '06-viewer-fork');
 
+// ---- after the fork: a reload of the link reads the canonical count, and so does the owner's Library card; an
+// unrelated shared canvas with no forks reads 0 in its header and shows no count on its card ----
+const zero = await api(owner, '/api/canvases', { method: 'POST', body: JSON.stringify({ title: 'Bridge loads (fork check)' }) });
+const zeroShare = await api(owner, `/api/learn/boards/${zero.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, state: { ...SEED, shapes: [{ ...SEED.shapes[0], id: 'zero-rect', text: 'Truss' }] } }) });
+const linkPage = await pageFor(viewer);
+await linkPage.goto(`${BASE}/b/${shared.sharing.view}`);
+await linkPage.locator('header [data-fork-button] [data-fork-count-value]').waitFor({ timeout: 60000 });
+seen = await headerCount(linkPage);
+check('a reload of the link reads the canonical count, 2', seen.value === '2' && seen.label === 'Fork, 2 forks' && await ownerCount() === 2, JSON.stringify(seen));
+await shot(linkPage, '06b-shared-header-2-forks');
+await linkPage.goto(`${BASE}/b/${zeroShare.sharing.view}`);
+await linkPage.locator('[data-shape-id="zero-rect"]').waitFor({ timeout: 60000 });
+seen = await headerCount(linkPage);
+check('an unrelated shared canvas with no forks shows Fork 0', seen.value === '0' && seen.label === 'Fork, 0 forks' && (await canvases(owner)).find(c => c.name === zero.name)?.fork_count === 0, JSON.stringify(seen));
+await shot(linkPage, '06c-shared-header-0-forks');
+await ownerPage.goto(`${BASE}/library?type=canvases`);
+await card('Bridge loads (fork check)').waitFor({ timeout: 30000 });
+check('the owner\'s Library cards read the same counts: 2 forks, and none shown at 0', (await card(TITLE).locator('[data-fork-count]').innerText()).trim() === '2 forks'
+  && await card('Bridge loads (fork check)').locator('[data-fork-count]').count() === 0);
+await shot(ownerPage, '06d-library-cards-counts');
+
 // ---- the owner stops sharing: the viewer's fork keeps its attribution and says the original is unavailable ----
 await api(owner, `/api/learn/boards/${source.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: false }) });
 await viewerPage.reload();
 await viewerPage.locator('[data-forked-from-unavailable]').waitFor({ timeout: 30000 });
 check('with the link off, the attribution stays and the original reads unavailable', (await viewerPage.locator('[data-forked-from]').innerText()).includes(`“${TITLE}”`) && await viewerPage.locator('[data-forked-from-link]').count() === 0);
+// The attribution can arrive before the canvas paints: wait for the shape, not a fixed moment.
+await viewerPage.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 30000 }).catch(() => {});
 check('the fork still opens with its content', await viewerPage.locator('[data-shape-id="seed-rect"]').count() === 1);
 await shot(viewerPage, '07-original-unavailable');
 // A private canvas cannot be forked by someone else, by name.

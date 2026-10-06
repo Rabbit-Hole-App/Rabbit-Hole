@@ -230,6 +230,9 @@ async function forkSource(req, env, user, body) {
 }
 
 const forkReply = (name, title, extra = {}) => ({ name, title, url: `/apps/${name}?tab=learn`, ...extra });
+// The source canvas's canonical direct-fork count after this action (the shared header's Fork button shows it); null
+// when the source is not a canvas. Read from the rows, so a replay reports the same count and a failure reports none.
+const sourceForkCount = async (db, org, canvas) => (canvas ? (await db.prepare(`SELECT ${FORK_COUNT} AS n FROM canvases c WHERE org = ? AND name = ?`).bind(org, canvas).first())?.n ?? null : null);
 
 async function fork(req, env, body) {
   const user = await repositoryIdentity(req, env);
@@ -240,8 +243,8 @@ async function fork(req, env, body) {
   const db = env.LEARN_DB;
   // The same action again (double click, a retried request): the fork it already made.
   const replay = async () => {
-    const made = await db.prepare('SELECT c.name, c.title FROM canvas_forks f JOIN canvases c ON c.org = f.org AND c.name = f.canvas WHERE f.owner_email = ? AND f.fork_key = ?').bind(user.email, key).first();
-    return made && json(forkReply(made.name, made.title, { replayed: true }));
+    const made = await db.prepare('SELECT c.name, c.title, f.forked_from_org, f.forked_from_canvas_id FROM canvas_forks f JOIN canvases c ON c.org = f.org AND c.name = f.canvas WHERE f.owner_email = ? AND f.fork_key = ?').bind(user.email, key).first();
+    return made && json(forkReply(made.name, made.title, { replayed: true, source_fork_count: await sourceForkCount(db, made.forked_from_org, made.forked_from_canvas_id) }));
   };
   const earlier = await replay();
   if (earlier) return earlier;
@@ -298,7 +301,7 @@ async function fork(req, env, body) {
       cursor = page.truncated ? page.cursor : undefined;
     } while (cursor);
   }
-  return json(forkReply(name, title, { files, forked_from: forkedFrom }), 201);
+  return json(forkReply(name, title, { files, forked_from: forkedFrom, source_fork_count: await sourceForkCount(db, source.org, source.canvas) }), 201);
 }
 
 // Start Rabbit Hole (docs/features/shared-canvas-rabbit-hole.md): a viewer's own private Rabbit Hole from a
@@ -406,7 +409,8 @@ async function openShared(req, env, token) {
   const found = await sharedAccess(req, env, token);
   if (found instanceof Response) return found;
   const { row, role } = found;
-  // A canvas's link shows the canvas's own title and its direct fork count (docs/features/canvas-forking.md).
+  // A canvas's link shows the canvas's own title and its direct fork count (docs/features/canvas-forking.md); a link
+  // to a board that is not a canvas (a project's) has no canvas to count, so its count is null, never a stale 0.
   const canvas = CANVAS.test(row.app) ? await env.LEARN_DB.prepare(`SELECT title, ${FORK_COUNT} AS fork_count FROM canvases c WHERE org = ? AND name = ?`).bind(row.org, row.app).first() : null;
   // The composer (docs/features/shared-canvas-ask.md): who is viewing (their own email, or null signed out),
   // and the context pills - the repository at the share's pinned commit, and the sources on the board. A private
@@ -416,7 +420,7 @@ async function openShared(req, env, token) {
   const source = await shareSource(env.LEARN_DB, row);
   const hidden = row.app.startsWith('repo-') && !source?.allowed;
   const state = JSON.parse(row.state_json);
-  return json({ role, app: hidden ? null : row.app, board: row.board, title: sharedTitle(row, canvas?.title, source), owner: row.owner_email, fork_count: canvas?.fork_count || 0, version: row.version, updated_at: row.updated_at,
+  return json({ role, app: hidden ? null : row.app, board: row.board, title: sharedTitle(row, canvas?.title, source), owner: row.owner_email, fork_count: canvas ? canvas.fork_count : null, version: row.version, updated_at: row.updated_at,
     viewer: viewer instanceof Response ? null : viewer.email, context: { repository: source?.allowed ? { repo: source.repo, commit: source.commit } : null, sources: boardSources(state) }, state });
 }
 

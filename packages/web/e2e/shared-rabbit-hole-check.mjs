@@ -66,7 +66,8 @@ await check('1 the shared viewer shows Start Rabbit Hole, then Fork', async () =
   const order = await page.locator('header button').evaluateAll(buttons => buttons.map(button => (button.hasAttribute('data-start-rabbit-hole') ? 'start' : button.hasAttribute('data-fork-button') ? 'fork' : null)).filter(Boolean));
   assert.deepEqual(order, ['start', 'fork']);
   assert.equal(await page.locator('[data-start-rabbit-hole]').innerText(), 'Start Rabbit Hole');
-  assert.equal(await page.locator('[data-fork-button]').innerText(), 'Fork', 'Fork is still there, as it was');
+  // Fork is still there, now carrying the canvas's direct fork count (canvas-forking.md): none yet.
+  assert.equal(await page.locator('[data-fork-button]').getAttribute('aria-label'), 'Fork, 0 forks', 'Fork is still there, with its count');
   assert.equal(await page.locator('[data-start-rabbit-hole]').getAttribute('data-origin'), 'root', 'nothing selected: the canvas root');
 });
 await shot('01-shared-header-root');

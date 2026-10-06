@@ -61,7 +61,8 @@ test('back from sign-in: the draft is restored and focused, ?ask=1 leaves the ad
 // Shared canvas v1, the owner's locked decisions (docs/features/shared-canvas-ask.md).
 test('A: the viewer\'s chat stays private - the heading says so, and Fork sends only the link, never the chat', () => {
   assert.match(composer, /<Lock size=\{11\} \/>Only you see this chat\. Fork to make your own editable copy\.<\/span>/);
-  assert.match(page, /<ForkButton source=\{\{ token \}\} auto=\{forkRequested\} onForked=\{[^}]*\}[^}]*\} \/>/);
+  // count is the canvas's canonical fork count from the server, shown on the button (canvas-forking.md).
+  assert.match(page, /<ForkButton source=\{\{ token \}\} auto=\{forkRequested\} onForked=\{[^}]*\}[^}]*\}( count=\{shared\.fork_count\})? \/>/);
   assert.doesNotMatch(page, /<ForkButton[^>]*snapshot=/, 'no browser state rides with a shared fork');
   // The chat goes to this tab's sessionStorage (saveChat) and, as history, only with this viewer's own questions.
   assert.deepEqual(composer.match(/saveChat\([^)]*\)|askHistory\([^)]*\)/g), ['saveChat(token, viewer, turns)', 'askHistory(turns)']);

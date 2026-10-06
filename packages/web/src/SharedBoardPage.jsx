@@ -6,8 +6,6 @@ import { Button, toast } from './ui.jsx';
 import { wsHeaders } from './api.js';
 import { rabbitOrigin, requestRabbitHole, resumeHref, takeResume } from './shared-rabbit-hole.js';
 import { describeBlock } from './LearningBlocks.jsx';
-import { forkLabel } from './home/provenance.js';
-import { Forks } from './home/Provenance.jsx';
 import { PRODUCT } from './flags.js';
 import ChatComposer from './ChatComposer.jsx';
 import { Md } from './ask.jsx';
@@ -91,9 +89,8 @@ export default function SharedBoardPage({ token }) {
         <span className="flex items-center gap-1 rounded-full bg-hover px-2 py-0.5 text-xs text-ink-2"><Eye size={11} />View only</span>
         <span className="truncate text-xs text-ink-3">Shared by {shared.owner}</span>
         <span className="flex-1" />
-        <Forks m={{ forks: forkLabel(shared.fork_count) }} />
         <StartRabbitHole token={token} state={shared.state} card={card} resume={rabbitRequested} />
-        <ForkButton source={{ token }} auto={forkRequested} onForked={fork => { window.location.href = fork.url; }} />
+        <ForkButton source={{ token }} auto={forkRequested} onForked={fork => { window.location.href = fork.url; }} count={shared.fork_count} />
       </header>
       <div className="relative min-h-0 flex-1" aria-label="Lesson canvas">
         <Suspense fallback={null}>

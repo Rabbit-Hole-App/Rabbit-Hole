@@ -237,6 +237,49 @@ test('fork counts are direct forks only: A with forks B and C, and D forked from
   assert.equal(await count('ana', a.name), 1);
 });
 
+// The shared header's Fork button (owner, 2026-10-06): the canonical direct-fork count, the very number the owner's Library
+// card reads, moved only by a successful fork. Two unrelated canvases of two owners, one implementation.
+test('the shared header count: 0, 1 and many; only a successful fork moves it; header and Library card agree', async t => {
+  const f = setup(t);
+  const a = await f.canvas('ana', 'Kitchen chemistry');
+  await f.save('ana', a.name, BOARD);
+  const z = await f.canvas('ben', 'Bridge loads');
+  await f.save('ben', z.name, { ...BOARD, blocks: [{ id: 'k1', type: 'quiz', question: 'Why do trusses use triangles?' }] });
+  const linkA = (await f.share('ana', a.name)).view, linkZ = (await f.share('ben', z.name)).view;
+  const header = async link => (await f.call('GET', `/api/learn/boards/shared/${link}`, { as: 'cara' })).body.fork_count;
+  const card = async (as, name) => (await f.library(as)).find(c => c.name === name).fork_count;
+  const agree = async (n, m) => assert.deepEqual([await header(linkA), await card('ana', a.name), await header(linkZ), await card('ben', z.name)], [n, n, m, m]);
+  await agree(0, 0);
+  // No fork, no count: signed out (the sign-in redirect), a bad key, a link that never was, an oversized copy - and Start
+  // Rabbit Hole, which makes the viewer a private hole, never a fork.
+  assert.equal((await f.call('POST', '/api/learn/boards/fork', { body: { source: { token: linkA }, key: 'fork-key-anon' } })).status, 401);
+  assert.equal((await f.call('POST', '/api/learn/boards/fork', { as: 'cara', body: { source: { token: linkA }, key: 'bad key!' } })).status, 400);
+  assert.equal((await f.fork('cara', { token: 'x'.repeat(32) })).status, 404);
+  assert.equal((await f.fork('ana', { canvas: a.name }, { state: { blob: 'x'.repeat(2_000_000) } })).status, 413);
+  assert.equal((await f.call('POST', `/api/learn/boards/shared/${linkA}/rabbit-hole`, { as: 'cara', body: { origin: null } })).status, 201);
+  await agree(0, 0);
+  // One fork: its reply carries the new canonical count. The same action again is the same fork and the same count.
+  const body = { source: { token: linkA }, key: 'fork-count-0001' };
+  const first = await f.call('POST', '/api/learn/boards/fork', { as: 'cara', body });
+  assert.deepEqual([first.status, first.body.source_fork_count], [201, 1]);
+  const again = await f.call('POST', '/api/learn/boards/fork', { as: 'cara', body });
+  assert.deepEqual([again.status, again.body.replayed, again.body.name, again.body.source_fork_count], [200, true, first.body.name, 1]);
+  await agree(1, 0);
+  // Many: another person, the same person with a new action, the owner through her own link; the other canvas apart.
+  for (const [as, key] of [['ben', 'fork-count-0002'], ['cara', 'fork-count-0003'], ['ana', 'fork-count-0004']]) {
+    assert.equal((await f.call('POST', '/api/learn/boards/fork', { as, body: { source: { token: linkA }, key } })).status, 201);
+  }
+  assert.equal((await f.fork('cara', { token: linkZ })).body.source_fork_count, 1);
+  await agree(4, 1);
+  // A reload reads the same number, and nothing on the shared board names who forked.
+  const seen = JSON.stringify((await f.call('GET', `/api/learn/boards/shared/${linkA}`, { as: 'ana' })).body);
+  assert.match(seen, /"fork_count":4/);
+  for (const who of ['ben@test', 'cara@test', 'ben-ws', 'cara-ws', 'fork-count-000']) assert.ok(!seen.includes(who), who);
+  // A link to a board that is not a canvas has no canvas to count: null, never a stale 0.
+  f.sqlite.prepare("INSERT INTO learn_boards (id, org, owner_email, app, board, state_json, updated_at, shared, view_token) VALUES ('rb1', 'ana-ws', 'ana@test', 'repo-0000aaaa', 'main', '{}', '2026-10-06', 1, ?)").run('r'.repeat(32));
+  assert.equal(await header('r'.repeat(32)), null);
+});
+
 test('permissions follow the existing sharing rules: no fork of a private canvas, a dead link or a pending hole', async t => {
   const f = setup(t);
   const a = await f.canvas('ana', 'Private');
