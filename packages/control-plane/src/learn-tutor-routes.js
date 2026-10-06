@@ -2,6 +2,7 @@
 //   POST /api/learn/tutor/evaluate  free text -> evidence events: JEV (800 ms, one batched request),
 //                                   then the larger evaluator only when JEV is uncertain (8 s)
 //   POST /api/learn/tutor/plan      one forced-tool planner call -> TutorResponse
+//   POST /api/learn/tutor/next-steps  the hook planner -> HookSet (learn-next-steps-routes.js)
 // Both responses carry `telemetry` (per-rung ms, outcome, requested/served model, usage) for the bench.
 // Nothing is stored here for a nanoGPT canvas: evidence is session-scoped in the browser (§2). A body with journey_id
 // takes the journey path (adaptive-learning-path-v1-architecture.md §5): its evidence is the journey's, on the server.
@@ -18,6 +19,7 @@ import { normalizeToolInput } from './tool-input.js';
 import { JourneyConflict, appendJourneyEvidence, loadJourneyById } from './learn-journey-store.js';
 import { claimsOfConceptIn } from '../../web/src/learn-tutor-claims.js';
 import { JOURNEY_LIMITS } from '../../web/src/learn-journey.js';
+import { ownedNextSteps } from './learn-next-steps-routes.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 export const JEV_TIMEOUT_MS = 800;
@@ -353,7 +355,7 @@ export async function planTurn(env, context, deps = {}, documents = []) {
 }
 
 export async function tutorRoute(path, req, env, deps = {}) {
-  if (path !== '/api/learn/tutor/evaluate' && path !== '/api/learn/tutor/plan') return null;
+  if (path !== '/api/learn/tutor/evaluate' && path !== '/api/learn/tutor/plan' && path !== '/api/learn/tutor/next-steps') return null;
   if (req.method !== 'POST') return json({ error: 'POST required' }, 405);
   let body;
   try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
@@ -362,6 +364,8 @@ export async function tutorRoute(path, req, env, deps = {}) {
   if (req.headers.has('origin') && req.headers.get('origin') !== new URL(req.url).origin) return json({ error: 'Invalid origin' }, 403);
   const ownerRefused = subscriptionOwnerRefusal(env, access);
   if (ownerRefused) return ownerRefused;
+  // Professor Next Steps (learn-next-steps-routes.js): the same gates, a separate call, never part of a Tutor turn.
+  if (path === '/api/learn/tutor/next-steps') return ownedNextSteps(env, access, body, deps);
   if (path === '/api/learn/tutor/evaluate') {
     if (body.journey_id != null) return journeyEvaluate(env, access, body, deps);
     const input = validateEvaluateBody(body);

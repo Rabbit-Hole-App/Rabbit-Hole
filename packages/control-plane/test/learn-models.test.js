@@ -11,7 +11,7 @@ import { askStream, planModel } from '../src/ask.js';
 import { generateArtifact } from '../src/learn-artifact.js';
 import { generateBoardPlan } from '../src/learn-board.js';
 import { assessAnswer } from '../src/learn-grade-routes.js';
-import { LEARN_TASKS, askModel, MESSAGE_LIMIT, MENTION_LIMIT, HISTORY_TURNS, PAPERS_PER_ANSWER, RESEARCH_STEPS, ARTIFACT_REPAIRS, BOARD_DRAFT_TURNS, BOARD_REVIEW_PASSES } from '../src/learn-models.js';
+import { LEARN_TASKS, MODEL_PRICES, costUsd, askModel, MESSAGE_LIMIT, MENTION_LIMIT, HISTORY_TURNS, PAPERS_PER_ANSWER, RESEARCH_STEPS, ARTIFACT_REPAIRS, BOARD_DRAFT_TURNS, BOARD_REVIEW_PASSES } from '../src/learn-models.js';
 
 const object = { objectId: 'equation', lessonId: 'sigmoid-demo', runId: 'test-run', author: 'script', kind: 'equation', originalText: 'σ(x) = 1 / (1 + exp(-x))', relatedObjectIds: [], shapeIds: ['shape:eq'], renderStatus: 'complete', shapes: [{ shapeId: 'shape:eq', pageBounds: { x: 0, y: 0, w: 300, h: 30 } }] };
 const snapshot = { lessonId: 'sigmoid-demo', runId: 'test-run', method: 'lesson', target: null, relatedObjects: [object], lessonContext: { topic: 'Sigmoid', currentStage: 'sigmoid', recentExplanations: ['The midpoint is 0.5.'] } };
@@ -177,8 +177,20 @@ test('the journey roles: exactly five LEARN_TASKS entries, one tool each, no fal
     journey_adapt: role('claude-sonnet-5-5', 'low', 4000),
   });
   assert.ok(Object.values(journey).every(Object.isFrozen));
-  // Appended after the Avatar roles, which stay.
-  assert.deepEqual(Object.keys(LEARN_TASKS).slice(Object.keys(LEARN_TASKS).indexOf('home_ask'), -2), ['home_ask', 'avatar_director', 'avatar_script_reviewer', ...Object.keys(journey)]);
+  // Appended after the Avatar roles, which stay; the hook planner roles follow the journey block.
+  assert.deepEqual(Object.keys(LEARN_TASKS).slice(Object.keys(LEARN_TASKS).indexOf('home_ask'), -2), ['home_ask', 'avatar_director', 'avatar_script_reviewer', ...Object.keys(journey), 'tutor_next_steps', 'tutor_next_steps_escalation']);
+});
+
+// Professor Next Steps (docs/features/professor-next-steps.md §2.4): Sonnet low first, Opus once as the escalation; the
+// one price map the decision telemetry's cost_usd reads.
+test('the hook planner roles and the model price map', () => {
+  assert.deepEqual(LEARN_TASKS.tutor_next_steps, { provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 1500 });
+  assert.deepEqual(LEARN_TASKS.tutor_next_steps_escalation, { provider: 'anthropic', model: 'claude-opus-5-5', effort: null, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 4000 });
+  assert.ok(Object.isFrozen(LEARN_TASKS.tutor_next_steps) && Object.isFrozen(LEARN_TASKS.tutor_next_steps_escalation));
+  assert.deepEqual(MODEL_PRICES, { 'claude-opus-5-5': [4, 20, 0.2], 'claude-sonnet-5-5': [2, 10, 0.2], 'claude-haiku-4-5-20251001': [1, 5, 0.1] });
+  assert.equal(costUsd({ model: 'claude-opus-5-5', input_tokens: 1000, output_tokens: 100, cache_creation_input_tokens: 400, cache_read_input_tokens: 2000 }), (1000 * 4 + 100 * 20 + 400 * 4 * 1.25 + 2000 * 0.2) / 1e6);
+  assert.equal(costUsd({ model: 'claude-opus-5-5', input_tokens: 1000, speed: 'fast' }), 2 * 1000 * 4 / 1e6);
+  assert.equal(costUsd({ model: 'fixture', input_tokens: 10 }), null);
 });
 
 test('askModel maps a picker key to its id and anything else to the fallback', () => {
