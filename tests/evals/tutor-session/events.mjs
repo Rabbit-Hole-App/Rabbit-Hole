@@ -234,8 +234,11 @@ export function foldSession(input) {
     current = null;
   };
   const material = event => {
-    if (!materials.has(event.material_id)) materials.set(event.material_id, { material_id: event.material_id, decision_id: event.decision_id ?? null, status: 'started', learner_events: [] });
-    return materials.get(event.material_id);
+    if (!materials.has(event.material_id)) materials.set(event.material_id, { material_id: event.material_id, decision_id: null, status: 'started', learner_events: [] });
+    const record = materials.get(event.material_id);
+    // Learner events carry only material_id and may come first in time order; the decision comes from any event that names it.
+    record.decision_id ??= event.decision_id ?? null;
+    return record;
   };
   for (const event of events) {
     for (const [key, list] of [['journey_id', meta.journey_ids], ['section_id', meta.section_ids]]) if (event[key] && !list.includes(event[key])) list.push(event[key]);

@@ -323,22 +323,35 @@ export async function runSession({ topic, profile, profiles, hooks, hookStart = 
       };
       const material = await materialize({ decision: decided.decision, material_id: materialId }, marks, meter(tag, at));
       now = at();
-      const generated = material && !material.error_code && material.timing_source !== 'not_run';
-      if (material?.error_code) emit('material_failed', { ...tag, error_code: material.error_code });
-      else if (generated) {
-        emit('material_complete', { ...tag, timing_source: material.timing_source, cache_status: material.cache_status ?? 'not_applicable', cache_origin: material.cache_origin ?? null, asset_applicable: !!material.asset_applicable, durations: material.durations ?? null, ...Object.fromEntries(MATERIAL_EVENT_FIELDS.filter(key => material[key] != null).map(key => [key, material[key]])) });
-        const nodeId = material.node_id ?? materialId;
-        emit('material_node_created', { node_id: nodeId, ...tag, material_type: material.material_type ?? null, modality: material.modality ?? decided.decision?.modality ?? null, concept_ids: material.concept_ids ?? [], claim_ids: material.claim_ids ?? [], planner_version: decided.planner_version ?? null, ...(context.dive_id ? { rabbit_hole_id: context.dive_id } : {}) });
+      // One decision may produce one material or several related ones ({ materials: [...] }): each keeps its own id,
+      // events, node and links; the cardinality is the product's, never assumed here. A material's subcards stay its
+      // structure. The adapter attributes a generation call to another material by passing material_id to meter.call.
+      const items = Array.isArray(material?.materials)
+        ? material.materials.map((item, i) => ({ timing_source: material.timing_source, cache_status: material.cache_status, ...item, material_id: item.material_id ?? `${decisionId}:m${i + 1}` }))
+        : material ? [{ ...material, material_id: materialId }] : [];
+      const made = items.filter(item => !item.error_code && item.timing_source !== 'not_run');
+      let firstNode = true;
+      for (const item of items) {
+        const own = { decision_id: decisionId, material_id: item.material_id };
+        if (item.error_code) { emit('material_failed', { ...own, error_code: item.error_code }); continue; }
+        if (item.timing_source === 'not_run') continue;
+        emit('material_complete', { ...own, timing_source: item.timing_source, cache_status: item.cache_status ?? 'not_applicable', cache_origin: item.cache_origin ?? null, asset_applicable: !!item.asset_applicable, durations: item.durations ?? null, ...Object.fromEntries(MATERIAL_EVENT_FIELDS.filter(key => item[key] != null).map(key => [key, item[key]])) });
+        const nodeId = item.node_id ?? item.material_id;
+        emit('material_node_created', { node_id: nodeId, ...own, material_type: item.material_type ?? null, modality: item.modality ?? decided.decision?.modality ?? null, concept_ids: item.concept_ids ?? [], claim_ids: item.claim_ids ?? [], planner_version: decided.planner_version ?? null, ...(context.dive_id ? { rabbit_hole_id: context.dive_id } : {}) });
         let edges = 0;
         const link = fields => emit('material_link_created', { edge_id: `${nodeId}:e${++edges}`, to_node_id: nodeId, decision_id: decisionId, ...fields });
-        if (selected && lastNode) link({ from_node_id: lastNode, relation_type: 'next_step_selection', created_by: 'learner' });
-        for (const edge of material.links || []) link({ reason_codes: [], ...edge });
+        // The learner's selection leads to the decision's first material; the product links the rest.
+        if (firstNode && selected && lastNode) link({ from_node_id: lastNode, relation_type: 'next_step_selection', created_by: 'learner' });
+        for (const edge of item.links || []) link({ reason_codes: [], ...edge });
+        firstNode = false;
         lastNode = nodeId;
       }
+      const generated = made.length > 0;
       // 3. The learner reads or attempts it; the next hook set may already be generating in the background.
       const consumeFrom = material?.timing_source === 'measured' ? firstReady ?? now : now;
       emit('learner_consumption_started', { decision_id: decisionId, timing_source: 'estimated' }, consumeFrom);
-      if (generated) emit('material_visibility', { material_id: materialId, visible: true, timing_source: 'estimated' }, consumeFrom);
+      // The first material is visible from its first ready payload; the others once they are complete.
+      made.forEach((item, i) => emit('material_visibility', { material_id: item.material_id, visible: true, timing_source: 'estimated' }, i ? now : consumeFrom));
       // ponytail: the last decision's background hooks are skipped; nobody would see them.
       const background = !last && hookStart({ decision: decided.decision }) === 'with_material' ? await hookSet(consumeFrom) : null;
       const { response } = await learner.respond({ view: learnerView({ material: decided.material_summary ?? null }, history) }, meter({ decision_id: decisionId }));
@@ -347,11 +360,13 @@ export async function runSession({ topic, profile, profiles, hooks, hookStart = 
       emit('learner_consumption_finished', { decision_id: decisionId, timing_source: 'estimated' }, done);
       emit('learner_message', { decision_id: decisionId, kind: response.kind, input: response.kind === 'activity' ? 'activity' : 'typed', chars: response.text.length, ...(response.choice_id != null ? { choice_id: response.choice_id } : {}), ...debug({ text: response.text }) }, done);
       if (generated) {
+        // ponytail: the simulated reply is attributed to the decision's last material (the one that asks for it).
+        const target = made.at(-1).material_id;
         const interaction = LEARNER_INTERACTION[response.kind] ?? 'message';
-        emit('material_interaction', { material_id: materialId, interaction, meaningful: true, timing_source: 'estimated' }, done);
+        emit('material_interaction', { material_id: target, interaction, meaningful: true, timing_source: 'estimated' }, done);
         // Only an attempt completes a material; reading time alone is exposure, never completion.
-        if (interaction === 'attempt') emit('material_completed', { material_id: materialId, timing_source: 'estimated' }, done);
-        emit('material_visibility', { material_id: materialId, visible: false, timing_source: 'estimated' }, done);
+        if (interaction === 'attempt') emit('material_completed', { material_id: target, timing_source: 'estimated' }, done);
+        for (const item of made) emit('material_visibility', { material_id: item.material_id, visible: false, timing_source: 'estimated' }, done);
       }
       // 4. The real evidence path reads what they did.
       const [observed, observeMs] = await timed(() => tutor.observe({ response }, meter({ decision_id: decisionId }, () => done)));

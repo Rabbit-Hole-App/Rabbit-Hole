@@ -377,8 +377,8 @@ test('cost is attributed once per call: decision, hook set, material, session; t
   const bundle = await session();
   const c = groupMetrics([bundle.steps], taxonomy, roles).cost;
   const [planner, hooks, author, sim] = [PLANNER, HOOKER, AUTHOR, SIM].map(price);
-  assert.deepEqual([c.decision_costs[0].decision_model_cost_usd, c.decision_costs[0].decision_material_cost_usd, c.decision_costs[0].unknown_cost_calls], [planner, author, 1]); // JEV: unknown, counted
-  assert.equal(c.decision_costs[1].decision_model_cost_usd, round6(planner + hooks)); // a hook set belongs to the decision that used it
+  assert.deepEqual([c.decision_costs[0].decision_shared_cost_usd, c.decision_costs[0].decision_material_cost_usd, c.decision_costs[0].unknown_cost_calls], [planner, author, 1]); // JEV: unknown, counted
+  assert.equal(c.decision_costs[1].decision_shared_cost_usd, round6(planner + hooks)); // a hook set belongs to the decision that used it
   assert.equal(c.total_usd, round6(7 * planner + 6 * hooks + 5 * author));
   assert.deepEqual([c.unknown_cost_calls, c.lower_bound, c.cost_status], [7, true, 'partial']);
   assert.deepEqual([c.by_model['jev-1.13.0'].usd, c.by_model['jev-1.13.0'].unknown_cost_calls], [null, 7]);
@@ -404,7 +404,13 @@ test('material records keep authored, generation, dwell, active and completion t
   assert.equal(records.length, 6); // one per generated material; the not_run one is counted, not recorded
   const [first] = records;
   assert.deepEqual([first.authored_duration_basis, first.generation_seconds, first.dwell_seconds, first.active_engagement_seconds, first.completion_seconds, first.engagement_source], ['estimated_reading', 2, 120, null, 120, 'estimated']);
-  assert.equal(first.cost.total_cost_usd, round6(price(PLANNER) + price(AUTHOR)));
+  // The decision's shared cost (planning) is reported apart; the per-card number is labelled as an allocation.
+  assert.deepEqual([first.cost.direct_material_cost_usd, first.cost.decision_shared_cost_usd, first.cost.allocated_shared_cost_usd, first.cost.allocation_method, first.cost.material_attributed_total_cost_usd],
+    [price(AUTHOR), price(PLANNER), price(PLANNER), 'equal_split', round6(price(PLANNER) + price(AUTHOR))]);
+  // Reading time is a versioned estimate, never learner truth.
+  assert.deepEqual([first.authored_duration_source, first.structure.reading_estimate_versions, first.structure.subcards[0].reading_estimate], ['estimated', ['reading-v1'], { words_per_minute: 230, estimate_version: 'reading-v1', source: 'evaluation_default' }]);
+  const slower = describeText(text(0), { words_per_minute: 115, estimate_version: 'reading-test', source: 'test' });
+  assert.deepEqual([slower.estimated_reading_seconds, slower.reading_estimate.estimate_version], [Math.round((slower.word_count / 115) * 600) / 10, 'reading-test']);
   const repair = records.find(record => record.decision_id.endsWith(':d5'));
   assert.deepEqual([repair.cost.generation_model_cost_usd, repair.cost.wasted_cost_usd], [round6(2 * price(AUTHOR)), price(AUTHOR)]); // $0.45 invalid + $0.28 repair = $0.73, not $0.28
   const motion = records.find(record => record.decision_id.endsWith(':d6'));
@@ -443,9 +449,19 @@ test('real-user material events: playback, attempts, hints and dwell, measured',
   at(470000, 'material_interaction', { material_id: 'm-quiz', interaction: 'attempt', result: 'correct', active_ms: 8000 });
   at(470000, 'material_completed', { material_id: 'm-quiz' });
   emit('evidence_updated', { claims: [claim('k1', 'c1', 'understood')], cause: 'learner_message' });
+  const line = (call_id, fields) => emit('model_call_completed', { call_id, decision_id: 'd1', provider: 'anthropic', cost_status: 'provider_reported', ...fields });
+  line('c1', { model_id: 'claude-opus-5-5', model_role: 'tutor', cost_usd: 0.04 });
+  line('c2', { model_id: 'claude-opus-5-5', model_role: 'material_generation', material_id: 'm-video', cost_usd: 0.3 });
+  line('c3', { model_id: 'claude-sonnet-5-5', model_role: 'material_generation', material_id: 'm-quiz', cost_usd: 0.02 });
   emit('session_ended', { reason: 'dropped' });
   const [real] = foldSessions(events);
   const [video, quiz] = materialRecords([real.steps], { roles, taxonomy });
+  // One decision, two related materials: still one decision. Its shared $0.04 stays the decision's; each card shows
+  // its direct cost and a labelled equal-split share; totals sum the cost lines, never the allocations.
+  assert.deepEqual([real.steps.length, real.steps[0].materials.length], [1, 2]);
+  assert.deepEqual([video.cost.direct_material_cost_usd, video.cost.decision_shared_cost_usd, video.cost.allocated_shared_cost_usd, video.cost.material_attributed_total_cost_usd], [0.3, 0.04, 0.02, 0.32]);
+  assert.equal(round6(video.cost.material_attributed_total_cost_usd + quiz.cost.material_attributed_total_cost_usd), 0.36);
+  assert.equal(groupMetrics([real.steps], taxonomy, roles).cost.total_usd, 0.36);
   // A 15 s video watched once and then 12 s again: still 15 s long, 27 s played. It took 420 s to make: 28x.
   assert.deepEqual([video.authored_duration_seconds, video.total_playback_seconds, video.playback_completion_percent, video.watched_to_end, video.replay_count, video.pause_count], [15, 27, 100, true, 1, 1]);
   assert.deepEqual([video.generation_seconds, video.generation_time_to_content_time_ratio, video.dwell_seconds, video.first_play_delay_seconds, video.engagement_source], [420, 28, 30, 1, 'measured']);
@@ -470,6 +486,27 @@ test('content shape: subcards are structure, not decisions; reading load before 
   assert.deepEqual(kinds, ['explanation_subcard_run', 'repeated_content', 'very_long_explanation_card']);
   assert.ok(s.review_flags.every(flag => flag.justified === null)); // for review, never failures
   assert.ok(!JSON.stringify(bundle.events).includes('the score becomes a probability')); // counts and hashes, no card text
+});
+
+test('the runner takes several materials from one decision without a schema change', async () => {
+  const w = world({ script: REPAIR, start: START });
+  const base = w.args.materialize;
+  let calls = 0;
+  w.args.materialize = async (input, marks, meter) => {
+    const one = await base(input, marks, meter);
+    if (calls++) return one;
+    return { ...one, materials: [{ ...one }, { material_type: 'quiz', modality: 'quiz', structure: { subcards: [{ subcard_type: 'quiz', index: 0, character_count: 50 }] } }] };
+  };
+  const bundle = await runSession(w.args);
+  assert.equal(bundle.session.decisions, 7); // one decision, however many materials
+  const [first, second] = bundle.steps;
+  assert.deepEqual(first.materials.map(material => material.material_id.split(':').at(-1)), ['m1', 'm2']);
+  assert.equal(bundle.learning_graph.nodes.length, 7);
+  // The next selection leads from the decision's last material; each material keeps its own subcards.
+  const selection = bundle.learning_graph.edges.find(edge => edge.relation_type === 'next_step_selection' && edge.decision_id === second.decision_id);
+  assert.ok(selection.from_node_id.endsWith(':d1:m2'));
+  const records = materialRecords([bundle.steps], { roles, taxonomy });
+  assert.deepEqual(records.filter(record => record.decision_id === first.decision_id).map(record => [record.material_type, record.structure.subcard_count, record.cost.allocation_method]), [['explanation', 1, 'equal_split'], ['quiz', 1, 'equal_split']]);
 });
 
 // ---------- Graph ----------

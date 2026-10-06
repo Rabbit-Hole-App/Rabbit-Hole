@@ -148,7 +148,7 @@ export function graphMetrics(graph, { steps = [], records = [], taxonomy = {}, s
     if (new Set(keys).size < keys.length) flag('repeated_branch_to_equivalent_concepts', keys.length - new Set(keys).size, null, { node_id: node.node_id });
   }
   for (const record of records) if (record.status === 'generated' && !record.was_seen && record.engagement_source) flag('branch_never_visited', record.material_id, null);
-  for (const edge of graph.edges.filter(entry => taxonomy.relations?.[entry.relation_type]?.remediation)) if (!out[edge.to_node_id]?.length && !onMain.has(edge.to_node_id)) flag('remediation_branch_never_returns', edge.edge_id, null, { node_id: edge.to_node_id });
+  for (const edge of graph.edges.filter(entry => taxonomy.relations?.[entry.relation_type]?.remediation)) if (!out[edge.to_node_id]?.length && !onMain.has(edge.to_node_id)) flag('remediation_branch_never_returns', edge.edge_id, null, { node_id: edge.to_node_id, method: 'heuristic: the remediation target is a leaf off the main path; no explicit return signal yet' });
   if (learning && sum(inHoles.map(step => step.estimated_learning_seconds || 0)) / learning >= (limits.side_exploration_share ?? 0.5)) flag('side_exploration_dominates', round(sum(inHoles.map(step => step.estimated_learning_seconds || 0)) / learning, 3), limits.side_exploration_share ?? 0.5);
   return {
     node_count: n, edge_count: graph.edges.length, structural_edge_count: structural.length,
@@ -174,6 +174,8 @@ export function graphMetrics(graph, { steps = [], records = [], taxonomy = {}, s
       return_rate: graph.rabbit_holes.length ? round(graph.rabbit_holes.filter(hole => hole.returned_at != null).length / graph.rabbit_holes.length, 3) : null,
       unfinished_rate: graph.rabbit_holes.length ? round(graph.rabbit_holes.filter(hole => hole.returned_at == null).length / graph.rabbit_holes.length, 3) : null,
       time_spent_seconds: round(sum(graph.rabbit_holes.map(hole => ((hole.returned_at ?? end) - hole.opened_at) / 1000)), 1),
+      time_spent_method: 'heuristic: opened -> returned, else -> the last recorded activity',
+      return_method: 'rabbit_hole_returned events; heuristic until the production contract has a stronger return signal',
       learning_share: learning ? round(sum(inHoles.map(step => step.estimated_learning_seconds || 0)) / learning, 3) : null,
       evidence_transitions_in_holes: sum(inHoles.map(step => { const d = evidenceDelta(step.evidence_before, step.evidence_after); return d.improved.length + d.regressed.length; })),
     },

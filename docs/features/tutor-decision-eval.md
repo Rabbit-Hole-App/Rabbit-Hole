@@ -120,14 +120,14 @@ All files are in `tests/evals/tutor-session/`. Everything is generic and tested 
 | File | What it holds |
 |---|---|
 | `events.mjs` | The event stream, its validation, the fold into one record per decision (with its provider calls and materials), timing (backend vs perceived), grouping, and the shared helpers. |
-| `cost.mjs` + `pricing.json` | Versioned prices, one priced cost line per provider call, and cost metrics with attribution (§12). |
+| `cost.mjs` + `pricing.json` (+ `reading-estimate.json`) | Versioned prices (and the versioned reading-time estimate), one priced cost line per provider call, and cost metrics with attribution (§12). |
 | `materials.mjs` | Material / card records, the five durations, per-type telemetry and content shape (subcards) (§13). |
 | `graph.mjs` | The learning graph, topology, Rabbit Holes and Next Steps as candidate edges (§14). |
 | `harness.mjs` | Fixtures, the hidden-profile guard, the session loop on the session timeline (with a cost meter per stage), learner and reviewer views, prompts, reply schemas and strict parsers, the cost ledger, and `freshLearnDb`. Every product dependency is injected. |
 | `metrics.mjs` | Every metric as a pure function over segments (lists of folded steps). One implementation serves a session, canvas, board, user×canvas, journey, section, source resource, planner version and the global aggregate. Also `aggregate.json`, the terminal table and the steps CSV. |
 | `run.mjs` | Free CLI. `aggregate <dir>` writes `aggregate.json`, `steps.csv` and the table; `events <file.jsonl>` prints grouped metrics for any event stream. |
 | `fixtures/` | Topic fixtures (`logistic-regression`, `photosynthesis`), simulator-only profiles, `taxonomy.provisional.json` (modalities, reason codes, relations, review thresholds) and `cost-roles.provisional.json`. |
-| `tutor-session.test.mjs` | 34 tests, run by `make test-unit`. |
+| `tutor-session.test.mjs` | 35 tests, run by `make test-unit`. |
 
 There is no topic or profile branch in the code, and a test enforces it:
 - No harness source names a topic id, a topic title word or a profile id.
@@ -242,14 +242,15 @@ without a schema change.
   - evidence outcome per modality (improved, regressed, unchanged).
   - Normalized entropy divides by log(K), where K is the modalities available in those steps. An unavailable Avatar or Motion is never a diversity failure.
 - **Repetition:**
-  - longest identical card-type run, near-duplicate activities, explanation-only and quiz-only sequences;
+  - longest identical card-type run, explanation-only and quiz-only sequences;
+  - near-duplicate activities, labelled `duplicate_method`: a heuristic (same `material_signature`, else token Jaccard of summaries), structural or lexical, never semantic;
   - longest passive run and longest high-effort run.
   - Flagged sequences carry `justified: null` until the reviewer decides.
 - **Hooks:**
   - distinctness, repeated from the previous set, repeated `learning_goal`, generic commands, curiosity questions, answer-revealing hooks;
   - selection rate, position bias, overrides by a typed request;
   - stale-set rate, sets unchanged after an evidence change, sets generated before the evidence changed, hooks repeatedly ignored.
-  - These are lexical heuristics; the reviewer scores quality.
+  - Distinctness and the hook flags are lexical heuristics, labelled `distinctness_method` / `flags_method`, never semantic. The reviewer scores quality.
 - **Reason codes:** deterministic checks.
   - `repair_misconception` needs a misconception on a target.
   - `fill_prerequisite_gap` needs a gap on, or for, a target.
@@ -315,7 +316,10 @@ Each injected function also gets a `meter`:
 - **A7.** `trace_schema_version` becomes the Learning agent's TutorDecisionTrace version.
 - **A8.** Cost roles: `next_steps`, `material_generation`, `material_repair`, `material_review`, `provider_asset` and `render_compute` are placeholders. The `LEARN_TASKS` names (`tutor`, `tutor_evaluator`, `journey_*`, `avatar_*`) and `jev` are the product's.
 - **A9.** Link relations: the product reuses card-plan `RELATIONSHIPS` and the depth-card links, plus the owner's generic list. Hook selections are recorded as `next_step_selection`, `created_by: learner`.
-- **A10.** One material per decision in the simulator (`<decision_id>:m1`). Real streams may carry several per decision, and the schema supports them.
+- **A10.** Cardinality is NOT fixed. One decision may give one material (with subcards) or several related materials.
+  - The schema, the fold and the runner support `decision → materials[] → subcards[]`; `materialize` may return `{ materials: [...] }`.
+  - The fake world in the tests uses one material for most decisions and two for one.
+  - The real cardinality waits for the Learning contract.
 - **A11.** Material descriptors and subcard field names (`content_duration_seconds`, `question_count`, `option_count`, …) follow the owner's lists until the product's payloads are mapped.
 - **A12.** `rabbit_hole_opened.opened_by` maps from the Dive record's `created_by` (`taxonomy.rabbit_hole_opened_by`): `tutor_confirmed` → `tutor_suggestion`, `learner_*` → `learner`, `shared_start` → `shared_canvas_hook`. An unknown value is recorded as `unknown`, never guessed.
 
@@ -351,11 +355,15 @@ No paid simulation is wired.
 - A hook set's calls belong to the decision that consumed it.
 - A material's calls belong to its decision.
 - Calls with no decision (journey creation) are session-level.
-- `decision_model_cost_usd` covers planning, hooks and evidence. `decision_material_cost_usd` covers the decision's materials. `decision_total_cost_usd` is their sum.
-- A material's cost is its own lines plus an even share of its decision's planning:
-  - planning, generation, review, downstream provider and compute;
-  - total, wasted;
-  - fresh vs actual cost, and the estimated saving on a cache hit.
+- `decision_shared_cost_usd` covers planning, hooks and evidence. It is shared by the decision and is never part of a material's direct cost.
+- `decision_material_cost_usd` covers the decision's materials. `decision_total_cost_usd` is their sum.
+- A material's cost:
+  - **direct:** `direct_material_cost_usd`, split into generation, review, downstream provider and compute;
+  - **shared:** the decision's `decision_shared_cost_usd`, plus a labelled `allocated_shared_cost_usd` with `allocation_method: "equal_split"`;
+  - **attributed:** `material_attributed_total_cost_usd` = direct + allocated, which answers "roughly what did this card cost?";
+  - wasted cost, fresh vs actual cost, and the estimated saving on a cache hit.
+- Session, canvas, user×canvas and global totals always sum cost lines, never allocations, so shared cost is never counted twice.
+- Across one decision's materials, the attributed totals add up to the decision's total.
 
 **Failures count.**
 - A failed call, a rejected draft (`output_accepted: false`) and the calls of a failed material are all wasted, and they still count in `attempted_cost_usd`.
@@ -368,7 +376,7 @@ No paid simulation is wired.
 **Metrics** (every grouping level):
 - the total and its split: model, evaluator, material generation, downstream provider, compute;
 - by category, model (calls, tokens, escalations, materials influenced, cost per material), role, provider, session, canvas, user×canvas, journey, section, action type, modality and material type (count, successful, mean/p50/p95 per material, cost per successful material);
-- cost per decision, per material, per successful and per completed material;
+- cost per decision, plus per material, per successful and per completed material (these use the attributed totals, labelled `per_material_allocation_method: equal_split`, beside `mean_direct_cost_per_material`);
 - cost per learning minute and per active-learning minute;
 - attempted, wasted and successful spend;
 - material and prompt-cache savings;
@@ -386,7 +394,7 @@ The ledger never infers a remaining account balance. A provider balance API, if 
 - Each record holds: ids (user, canvas, session, decision, journey, section, concepts, claims), `material_type`, `modality`, status (generated / failed), cache status and cost.
 
 **Five durations, never interchanged:**
-- **authored:** media `content_duration_seconds`, else the card's reading estimate, else the Tutor's estimate, with its basis;
+- **authored:** media `content_duration_seconds` (source `authored`), else the card's reading estimate, else the Tutor's estimate (source `estimated`), with its basis;
 - **generation:** with its own source;
 - **dwell:** visible intervals;
 - **active:** only from client-reported `active_ms`; never guessed, so `null` in the simulator;
@@ -414,6 +422,10 @@ The ledger never infers a remaining account balance. A provider balance API, if 
 
 **Content shape.**
 - Subcards carry counts and hashes only, never text. `describeText` and `contentHash` run on the producer side.
+- Reading time is an estimate.
+  - `reading-estimate.json` holds the rate: `words_per_minute: 230`, `estimate_version: reading-v1`, `source: evaluation_default`. It is configurable and versioned.
+  - Every subcard records the `reading_estimate` it used, and each material lists its `reading_estimate_versions`.
+  - It is not learner truth or production behaviour. Measured dwell and engagement supersede it wherever they exist.
 - Per material:
   - subcard count, ids, sequence and split reason (`unknown` unless the product states it);
   - character, word and sentence totals and per-subcard mean/median/max/min;
@@ -457,6 +469,7 @@ The ledger never infers a remaining account balance. A provider balance API, if 
 
 **Rabbit Holes.**
 - Recorded: count, per session, per decision, depth (as recorded, else nesting), nodes per hole, opened_by, return and unfinished rates, time in holes, learning share in holes, and evidence transitions in holes.
+- `time_spent_method` and `return_method` mark the time and return figures as heuristic until the production contract gives a stronger return signal.
 - Next Steps: selection rate, unselected-option rate, repeated-unselected-goal rate.
 
 **Review flags** (`justified: null`):
@@ -466,7 +479,7 @@ The ledger never infers a remaining account balance. A provider balance API, if 
 - a node without a relation;
 - branches to equivalent concepts;
 - a branch never visited;
-- a remediation branch that never returns;
+- a remediation branch that never returns (`method: heuristic`: the target is a leaf off the main path; there is no explicit return signal yet);
 - side explorations dominating the session.
 
 ## 15. Architecture review in Figma (pending)

@@ -139,6 +139,7 @@ export function repetitionMetrics(segments, taxonomy) {
   }
   return {
     max_identical_card_type_run: maxCard, repeated_modality_within_previous_3: within3, duplicate_activities: duplicates,
+    duplicate_method: 'heuristic: same material_signature, else token Jaccard of summaries (structural / lexical, not semantic)',
     explanation_only_sequences: explanationRuns, quiz_only_sequences: quizRuns,
     max_consecutive_passive: maxPassive, max_consecutive_high_effort: maxHigh, flagged_sequences: flagged,
   };
@@ -197,6 +198,8 @@ export function hookMetrics(segments, taxonomy = {}) {
     overridden_by_typed_request: perSet.filter(set => set.overridden).length,
     selected_position: tally(perSet.filter(set => set.selected_position != null).map(set => String(set.selected_position))),
     mean_distinctness: stats(perSet.map(set => set.distinctness).filter(x => x != null)).mean,
+    distinctness_method: 'heuristic: mean pairwise 1 - token Jaccard (lexical, not semantic)',
+    flags_method: 'heuristic: lexical patterns for generic commands, curiosity questions and answer-revealing hooks',
     repeated_from_previous: total('repeated_from_previous'), repeated_learning_goal: total('repeated_learning_goal'),
     generic_command_rate: round(total('generic_commands') / hooks), curiosity_rate: round(total('curiosity') / hooks), reveals_answer_rate: round(total('reveals_answer') / hooks),
     stale_suggestion_rate: withPrevious.length ? round(withPrevious.filter(set => set.repeated_from_previous > 0).length / withPrevious.length) : null,

@@ -10,21 +10,25 @@
 //   completion  first visible -> the learning action finished
 // No raw text is needed: subcards carry counts (describeText) and content hashes (contentHash).
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { evidenceDelta, round, stateMap, stats, sum, tally } from './events.mjs';
 import { materialCost } from './cost.mjs';
 
 // ---------- Producer-side helpers (counts instead of text) ----------
 
-// ponytail: one reading rate for every learner and language; a per-locale rate when the product has one.
-export const READING_WPM = 230;
-export function describeText(text, wpm = READING_WPM) {
+// Reading time is an ESTIMATE from a versioned, configurable rate (reading-estimate.json: evaluation default, 230 wpm,
+// reading-v1), never learner truth. Measured dwell and engagement supersede it wherever they exist.
+// ponytail: one rate for every learner and language; a per-locale or per-learner estimate version when there is one.
+export const READING_ESTIMATE = JSON.parse(readFileSync(new URL('reading-estimate.json', import.meta.url), 'utf8'));
+export function describeText(text, estimate = READING_ESTIMATE) {
   const value = String(text ?? '');
   const words = value.match(/\S+/g)?.length ?? 0;
   return {
     character_count: value.length, word_count: words,
     sentence_count: value.split(/[.!?]+(?=\s|$)/).filter(part => part.trim()).length,
     paragraph_count: value.split(/\n\s*\n/).filter(part => part.trim()).length,
-    estimated_reading_seconds: round((words / wpm) * 60, 1),
+    estimated_reading_seconds: round((words / estimate.words_per_minute) * 60, 1),
+    reading_estimate: { words_per_minute: estimate.words_per_minute, estimate_version: estimate.estimate_version, source: estimate.source },
   };
 }
 // A normalized hash, so repeated headings or content are detectable without storing the text.
@@ -78,6 +82,8 @@ function structureOf(material, taxonomy) {
     split_reason: material.structure.split_reason ?? 'unknown', parent_material_id: material.parent_material_id ?? material.structure.parent_material_id ?? null, material_group_id: material.material_group_id ?? material.structure.material_group_id ?? null,
     total_character_count: sum(chars), total_word_count: sum(words), total_sentence_count: sum(subcards.map(sub => sub.sentence_count || 0)),
     total_estimated_reading_seconds: round(sum(subcards.map(sub => sub.estimated_reading_seconds || 0)), 1),
+    // Which reading estimates the totals rest on (estimated, versioned): never mixed silently with measurements.
+    reading_estimate_versions: [...new Set(subcards.map(sub => sub.reading_estimate?.estimate_version).filter(Boolean))],
     mean_characters_per_subcard: charStats.mean, median_characters_per_subcard: charStats.p50, max_characters_in_subcard: charStats.max, min_characters_in_subcard: chars.length ? Math.min(...chars) : null,
     mean_words_per_subcard: stats(words).mean, max_words_in_subcard: stats(words).max,
     explanation_subcard_count: subcards.filter(sub => cls(sub)?.family === 'explanation').length,
@@ -144,6 +150,7 @@ export function materialRecord(step, material, { roles, taxonomy }) {
     completed_at: completedAt, abandoned_at: abandonedAt,
     // The five durations, never interchanged; engagement_source says whether the learner side was measured or simulated.
     authored_duration_seconds: authoredSeconds, authored_duration_basis: authoredBasis,
+    authored_duration_source: authoredBasis === 'estimated_reading' || authoredBasis === 'tutor_estimate' ? 'estimated' : authoredBasis ? 'authored' : null,
     generation_seconds: generation, generation_source: source,
     time_to_first_playable_seconds: source === 'measured' ? since(material.started_at, material.first_ready_at ?? material.complete_at) : null,
     asset_generation_seconds: source === 'measured' ? since(material.started_at, material.asset_at) : null,
@@ -182,10 +189,10 @@ export function materialRecord(step, material, { roles, taxonomy }) {
   Object.assign(record, {
     engagement_ratio: ratio(active, elapsed),
     completion_ratio: record.playback_completion_percent != null ? round(record.playback_completion_percent / 100, 3) : record.was_completed ? 1 : abandonedAt != null ? 0 : null,
-    cost_per_engaged_minute: active ? round(cost.total_cost_usd / (active / 60), 6) : null,
+    cost_per_engaged_minute: active ? round(cost.material_attributed_total_cost_usd / (active / 60), 6) : null,
     generation_time_to_content_time_ratio: ratio(generation, authoredSeconds),
     learning_value_per_second: ratio(record.claims_improved, elapsed),
-    learning_value_per_dollar: cost.total_cost_usd ? round(record.claims_improved / cost.total_cost_usd, 3) : null,
+    learning_value_per_dollar: cost.material_attributed_total_cost_usd ? round(record.claims_improved / cost.material_attributed_total_cost_usd, 3) : null,
   });
   return record;
 }
@@ -199,7 +206,7 @@ export const materialRecords = (segments, context) => segments.flat().flatMap(st
 export function summarize(records) {
   const numbers = {}, booleans = {};
   for (const record of records) {
-    const flat = { ...record, cost_usd: record.cost?.total_cost_usd, ...Object.fromEntries(Object.entries(record.descriptors || {}).map(([key, value]) => [`descriptor.${key}`, value])) };
+    const flat = { ...record, direct_cost_usd: record.cost?.direct_material_cost_usd, attributed_cost_usd: record.cost?.material_attributed_total_cost_usd, ...Object.fromEntries(Object.entries(record.descriptors || {}).map(([key, value]) => [`descriptor.${key}`, value])) };
     for (const [key, value] of Object.entries(flat)) {
       if (key.endsWith('_at')) continue;
       if (typeof value === 'number' && Number.isFinite(value)) (numbers[key] ||= []).push(value);

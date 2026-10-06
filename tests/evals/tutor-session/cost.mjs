@@ -66,32 +66,38 @@ const by = (calls, keyOf) => Object.fromEntries(Object.entries(Object.groupBy(ca
 // the material it was for failed. Its cost still counts in the attempted total.
 export const isWasted = (call, failedMaterials = new Set()) => call.outcome !== 'ok' || call.output_accepted === false || failedMaterials.has(call.material_id);
 
-// The decision's own cost: model calls not tied to a material (planning, hooks, evidence), and its materials' calls.
+// The decision's own cost: its SHARED cost (calls not tied to one material: planning, hooks, evidence) and the
+// direct cost of its materials. Shared cost belongs to the decision; it is never part of a material's direct cost.
 export function decisionCost(step, roles) {
   const calls = (step.calls || []).filter(call => categoryOf(roles, call) !== 'eval_only');
-  const model = calls.filter(call => !call.material_id), material = calls.filter(call => call.material_id);
+  const shared = calls.filter(call => !call.material_id), material = calls.filter(call => call.material_id);
   return {
-    decision_model_cost_usd: known(money(model).usd), decision_evaluation_cost_usd: money(model.filter(call => categoryOf(roles, call) === 'evidence_evaluation')).usd,
+    decision_shared_cost_usd: known(money(shared).usd), decision_evaluation_cost_usd: money(shared.filter(call => categoryOf(roles, call) === 'evidence_evaluation')).usd,
     decision_material_cost_usd: known(money(material).usd), decision_total_cost_usd: known(money(calls).usd), unknown_cost_calls: money(calls).unknown_cost_calls,
   };
 }
 
-// A material's cost: its own calls by category, plus an even share of its decision's planning (so planning is never
-// counted twice across the decision's materials).
+// A material's cost. Direct: its own calls by category. The decision's shared cost (planning, hooks, evidence) stays the
+// decision's; for "roughly what did this card cost?" an ALLOCATED share is reported beside it, labelled with its method.
+//   material_attributed_total_cost_usd = direct_material_cost_usd + allocated_shared_cost_usd
+// Totals (session, canvas, user x canvas, global) always sum cost lines, never these allocations, so nothing is
+// counted twice; across one decision's materials the attributed totals add up to the decision's total.
 export function materialCost(step, material, roles) {
   const calls = (step.calls || []).filter(call => categoryOf(roles, call) !== 'eval_only');
   const own = calls.filter(call => call.material_id === material.material_id);
-  const planning = known(money(calls.filter(call => !call.material_id && categoryOf(roles, call) === 'planning')).usd) / Math.max(1, (step.materials || []).length);
+  const materials = Math.max(1, (step.materials || []).length);
+  const shared = known(money(calls.filter(call => !call.material_id)).usd);
   const of = cats => known(money(own.filter(call => cats.includes(categoryOf(roles, call)))).usd);
   const generation = of(['material_generation']), review = of(['material_review']), downstream = of(['downstream_provider']), compute = of(['compute']);
-  const actual = generation + review + downstream + compute;
+  const direct = known(money(own).usd);
   const fresh = material.fresh_generation_cost_usd ?? null;
   return {
-    planning_cost_usd: usd6(planning), generation_model_cost_usd: generation, evaluation_cost_usd: review, downstream_provider_cost_usd: downstream, compute_cost_usd: compute,
-    total_cost_usd: usd6(planning + actual), unknown_cost_calls: money(own).unknown_cost_calls,
+    direct_material_cost_usd: usd6(direct), generation_model_cost_usd: generation, evaluation_cost_usd: review, downstream_provider_cost_usd: downstream, compute_cost_usd: compute,
+    decision_shared_cost_usd: usd6(shared), allocated_shared_cost_usd: usd6(shared / materials), allocation_method: 'equal_split', materials_in_decision: materials,
+    material_attributed_total_cost_usd: usd6(direct + shared / materials), unknown_cost_calls: money(own).unknown_cost_calls,
     wasted_cost_usd: known(money(own.filter(call => isWasted(call) || material.status === 'failed')).usd),
-    fresh_generation_cost_usd: fresh, actual_generation_cost_usd: usd6(actual),
-    estimated_cost_saved_usd: material.cache_status === 'hit' && fresh != null ? usd6(Math.max(0, fresh - actual)) : null,
+    fresh_generation_cost_usd: fresh, actual_generation_cost_usd: usd6(direct),
+    estimated_cost_saved_usd: material.cache_status === 'hit' && fresh != null ? usd6(Math.max(0, fresh - direct)) : null,
   };
 }
 
@@ -111,9 +117,14 @@ export function costMetrics(segments, roles, records = [], active = () => false)
   const activeLearning = sum(steps.filter(active).map(step => step.estimated_learning_seconds || 0));
   const decisions = steps.map(step => ({ session_id: step.session_id, step: step.step, decision_id: step.decision_id, action_type: step.tutor_decision?.action_type ?? 'unknown', ...decisionCost(step, roles) }));
   const perMaterial = list => {
-    const totals = list.map(record => record.cost.total_cost_usd);
+    // Direct cost is the material's own; attributed adds its equal-split share of the decision's shared cost.
+    const direct = list.map(record => record.cost.direct_material_cost_usd), attributed = list.map(record => record.cost.material_attributed_total_cost_usd);
     const successful = list.filter(record => record.successful);
-    return { count: list.length, successful_count: successful.length, total_cost_usd: usd6(sum(totals)), cost_per_material: stats(totals), cost_per_successful_material: successful.length ? usd6(sum(totals) / successful.length) : null };
+    return {
+      count: list.length, successful_count: successful.length, direct_cost_usd: usd6(sum(direct)), attributed_total_cost_usd: usd6(sum(attributed)), allocation_method: 'equal_split',
+      direct_cost_per_material: stats(direct), attributed_cost_per_material: stats(attributed),
+      cost_per_successful_material: successful.length ? usd6(sum(attributed) / successful.length) : null,
+    };
   };
   const per = (value, n) => (n ? usd6(value / n) : null);
   const byModel = Object.fromEntries(Object.entries(Object.groupBy(calls, call => call.model_id)).map(([model, list]) => {
@@ -142,9 +153,12 @@ export function costMetrics(segments, roles, records = [], active = () => false)
     by_material_type: Object.fromEntries(Object.entries(Object.groupBy(records, record => record.material_type ?? 'unknown')).map(([key, list]) => [key, perMaterial(list)])),
     decisions: steps.length, materials: records.length,
     mean_cost_per_decision: per(total.usd, steps.length), cost_per_tutor_decision: per(total.usd, steps.length),
-    mean_cost_per_material: records.length ? usd6(sum(records.map(record => record.cost.total_cost_usd)) / records.length) : null,
-    cost_per_successful_material: per(sum(records.map(record => record.cost.total_cost_usd)), records.filter(record => record.successful).length),
-    cost_per_completed_material: per(sum(records.map(record => record.cost.total_cost_usd)), records.filter(record => record.was_completed).length),
+    // Per-material figures use the attributed totals (direct + equal-split shared), labelled; totals above never do.
+    mean_cost_per_material: records.length ? usd6(sum(records.map(record => record.cost.material_attributed_total_cost_usd)) / records.length) : null,
+    mean_direct_cost_per_material: records.length ? usd6(sum(records.map(record => record.cost.direct_material_cost_usd)) / records.length) : null,
+    per_material_allocation_method: 'equal_split',
+    cost_per_successful_material: per(sum(records.map(record => record.cost.material_attributed_total_cost_usd)), records.filter(record => record.successful).length),
+    cost_per_completed_material: per(sum(records.map(record => record.cost.material_attributed_total_cost_usd)), records.filter(record => record.was_completed).length),
     cost_per_learning_minute: per(total.usd, learning / 60), cost_per_active_learning_minute: per(total.usd, activeLearning / 60),
     attempted_cost_usd: total.usd, wasted_cost_usd: known(money(wasted).usd), successful_output_cost_usd: usd6(known(total.usd) - known(money(wasted).usd)),
     cache_savings_usd: {
@@ -154,7 +168,7 @@ export function costMetrics(segments, roles, records = [], active = () => false)
     },
     decision_costs: decisions,
     highest_cost_decision: top(decisions, 'decision_total_cost_usd'),
-    highest_cost_material: top(records.map(record => ({ material_id: record.material_id, decision_id: record.decision_id, modality: record.modality, material_type: record.material_type, total_cost_usd: record.cost.total_cost_usd })), 'total_cost_usd'),
+    highest_cost_material: top(records.map(record => ({ material_id: record.material_id, decision_id: record.decision_id, modality: record.modality, material_type: record.material_type, direct_material_cost_usd: record.cost.direct_material_cost_usd, material_attributed_total_cost_usd: record.cost.material_attributed_total_cost_usd, allocation_method: 'equal_split' })), 'material_attributed_total_cost_usd'),
     // Descriptive only, never causal: dollars per observed outcome.
     descriptive: {
       cost_per_evidence_improvement: per(total.usd, improved),
