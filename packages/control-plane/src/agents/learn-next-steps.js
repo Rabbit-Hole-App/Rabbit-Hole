@@ -81,6 +81,8 @@ export const NEXT_STEPS_SYSTEM = tagged({
 // "Do ..." and "Does ..." open good questions, so do is not a command verb here.
 const COMMAND = /^(?:let'?s\s+)?(?:learn|explain|study|review|revise|continue|proceed|generate|open|add|create|make|show|start|begin|read|watch|play|practi[cs]e|take|go|move on|next)\b/i;
 const FORMAT = /\b(?:next (?:lesson|section|chapter|step|topic)|lessons?|chapters?|tutorials?|quiz(?:zes)?|flash ?cards?|worksheets?|animations?|videos?|clips?|avatars?|explain[- ]back|diagrams?|slides?|cards?)\b/gi;
+// Motion is the product's animation format; capitalised only, so ordinary "in motion" stays plain English.
+const PRODUCT_FORMAT = /\bMotion\b/g;
 const CLICKBAIT = /\b(?:you won'?t believe|mind[- ]?blowing|shocking|secrets?|one (?:weird )?trick|hacks?)\b/i;
 // "Do you know why ...?" is a question to the learner, not a claim about them.
 const MASTERY = /(?<!\b(?:do|did|can|could|would|will|should) )\byou(?:'ve| have)? (?:now )?(?:fully )?(?:got|mastered|understand|know)\b|\byou can now\b/i;
@@ -97,8 +99,9 @@ const norm = text => String(text).toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '')
 const content = text => new Set(norm(text).split(' ').filter(w => w.length >= 4));
 const jaccard = (a, b) => { const x = content(a), y = content(b); const inter = [...x].filter(w => y.has(w)).length; return inter / (new Set([...x, ...y]).size || 1); };
 
-// The escape hatch for a format word: the lowercased goal, scope labels and visible block titles.
-export const topicOf = input => [input?.goal, ...Object.values(input?.scope?.concepts || {}), ...(input?.canvas?.blocks || []).map(b => b?.title)]
+// The escape hatch for a format word: the lowercased goal, scope labels and visible block titles. A chat card's title is the
+// learner's own words: grounding, never topic authority, so a "quiz me" never opens the word quiz.
+export const topicOf = input => [input?.goal, ...Object.values(input?.scope?.concepts || {}), ...(input?.canvas?.blocks || []).filter(b => b?.kind !== 'chat').map(b => b?.title)]
   .filter(t => typeof t === 'string').join(' ').toLowerCase();
 
 // topic: topicOf's string; texts: claim statements, ideas, drawn and the option's own goal (the deterministic
@@ -113,7 +116,7 @@ export function hookProblem(hook, { topic = '', texts = [], question = '' } = {}
   if (COMMAND.test(hook.trim())) return 'command';
   // Whole words only, plural-tolerant both ways (topic videos, hook video, and the reverse; quiz and quizzes). FORMAT yields
   // letters, spaces and hyphens, so a match is safe to use as a pattern.
-  if ((hook.match(FORMAT) || []).some(w => !new RegExp(`\\b${w.replace(/(?:zes|s)$/i, '')}(?:zes|s)?\\b`, 'i').test(topic))) return 'format_word';
+  if ([...(hook.match(FORMAT) || []), ...(hook.match(PRODUCT_FORMAT) || [])].some(w => !new RegExp(`\\b${w.replace(/(?:zes|s)$/i, '')}(?:zes|s)?\\b`, 'i').test(topic))) return 'format_word';
   if (CLICKBAIT.test(hook)) return 'clickbait';
   if (labelled(hook)) return 'level_label';
   if (texts.some(text => copies(hook, text))) return 'answer_reveal';
@@ -128,6 +131,8 @@ export function nextStepsOutput(out, input) {
   if (!Array.isArray(raw) || raw.length !== LIMITS.options || !raw.every(isObj)) return { ok: false, errors: ['shape'] };
   const concepts = input?.scope?.concepts || {}, claims = input?.scope?.claims || {}, question = input?.recent?.question || '', topic = topicOf(input);
   const completed = new Set((input?.path?.completed || []).flatMap(s => s?.claim_ids || [])), current = new Set(input?.path?.current?.claim_ids || []);
+  // A missing prerequisite counts as repair: the concepts that prerequisite_gap claims in scope name.
+  const missing = new Set(Object.values(claims).filter(c => c?.state === 'prerequisite_gap' && c.prerequisite).map(c => c.prerequisite));
   const idsOk = (list, known) => Array.isArray(list) && list.length <= LIMITS.ids && new Set(list).size === list.length && list.every(id => typeof id === 'string' && Object.hasOwn(known, id));
   const errors = [], value = [];
   raw.forEach((o, i) => {
@@ -140,8 +145,9 @@ export function nextStepsOutput(out, input) {
     if (learningGoalProblem(goal, question) !== null || labelled(goal)) bad('goal');
     if (!conceptIds || !claimIds) bad('ids');
     else if ((Object.keys(claims).length || Object.keys(concepts).length) && !o.concept_ids.length && !o.claim_ids.length) bad('ungrounded');
-    // Ruling F6: refused only when every claim is completed-only (a completed section, not the current one) and none needs repair.
-    else if (o.claim_ids.length && o.claim_ids.every(id => completed.has(id) && !current.has(id)) && !own.some(c => REPAIR.includes(c?.state))) bad('completed_only');
+    // Ruling F6: refused only when every claim is completed-only (a completed section, not the current one) and none needs repair
+    // (a repair state, or the prerequisite concept a gap in scope names).
+    else if (o.claim_ids.length && o.claim_ids.every(id => completed.has(id) && !current.has(id)) && !own.some(c => REPAIR.includes(c?.state) || missing.has(c?.concept))) bad('completed_only');
     const reason = o.reason_internal;
     // Rule name reason, never the field name: errors reach telemetry and a 502, where reason_internal must not appear.
     if (typeof reason !== 'string' || !reason.trim() || reason.length > LIMITS.reason || CODE.test(reason)) bad('reason');
@@ -210,7 +216,7 @@ export function nextStepsScope({ claims = {}, concepts = {}, order = [], states 
   return scope;
 }
 
-const randomHex = () =>[...crypto.getRandomValues(new Uint8Array(4))].map(b => b.toString(16).padStart(2, '0')).join('');
+const randomHex = () => [...crypto.getRandomValues(new Uint8Array(4))].map(b => b.toString(16).padStart(2, '0')).join('');
 // §1.1: the shown HookSet. The server mints every id; reason_internal never leaves the planner. source ({ share_version,
 // origin_block_id }) travels only in a shared canvas's steps.
 export function mintSet(options, input, { source = null, now = () => new Date(), hex = randomHex } = {}) {

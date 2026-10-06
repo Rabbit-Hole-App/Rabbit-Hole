@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { NEXT_STEPS_LIMITS, NEXT_STEPS_SYSTEM, NEXT_STEPS_TOOL, capText, hookProblem, mintSet, nextStepsInputProblem, nextStepsOutput, nextStepsScope, selectedStepProblem } from '../src/agents/learn-next-steps.js';
+import { NEXT_STEPS_LIMITS, NEXT_STEPS_SYSTEM, NEXT_STEPS_TOOL, capText, hookProblem, mintSet, nextStepsInputProblem, nextStepsOutput, nextStepsScope, selectedStepProblem, topicOf } from '../src/agents/learn-next-steps.js';
 import { LEARNER_LABELS } from '../src/agents/learn-journey.js';
 
 // A generic input on an invented subject (glass making); ids in their own naming style.
@@ -285,4 +285,32 @@ test('nextStepsScope: priority order kept, unknown and repeated ids skipped, at 
   assert.deepEqual(nextStepsScope({ claims, concepts, order: [] }), { concepts: {}, claims: {} });
   assert.equal(capText('  a\n  b  ', 3), 'a b');
   assert.equal(capText(null, 5), '');
+});
+
+// Task 7 review: a missing prerequisite counts as repair - a completed-section claim whose concept a prerequisite_gap claim in
+// scope names is a valid hook target on its own (the standard gap hook); without the gap the same option stays completed_only.
+test('completed_only: the prerequisite of a prerequisite_gap claim in scope is a repair target, even from a completed section', () => {
+  const gapped = { ...INPUT.scope.claims['annealing.slow-cool'], state: 'prerequisite_gap', prerequisite: 'viscosity' };
+  const path = { current: { id: 's2', title: 'Annealing', purpose: 'p', claim_ids: ['annealing.slow-cool'] }, completed: [{ id: 's1', title: 'Viscosity', claim_ids: ['viscosity.temperature'] }], upcoming: [] };
+  const done = { ...INPUT, mode: 'journey', path };
+  const gap = { ...done, scope: { ...done.scope, claims: { ...done.scope.claims, 'annealing.slow-cool': gapped } } };
+  const only = [THREE[1], THREE[2], { ...THREE[0], concept_ids: ['annealing'], claim_ids: ['annealing.slow-cool'] }];
+  assert.equal(nextStepsOutput({ options: only }, gap).ok, true, 'the gap names viscosity, so the viscosity claim is repair');
+  assert.deepEqual(nextStepsOutput({ options: only }, done).errors, ['option 1: completed_only', 'option 2: completed_only']);
+  const elsewhere = { ...gap, scope: { ...gap.scope, claims: { ...gap.scope.claims, 'annealing.slow-cool': { ...gapped, prerequisite: 'kiln-design' } } } };
+  assert.deepEqual(nextStepsOutput({ options: only }, elsewhere).errors, ['option 1: completed_only', 'option 2: completed_only'], 'a gap on another concept does not open it');
+});
+
+// Task 7 review and owner sixth message (3): a chat card is grounding, never topic authority.
+test('topicOf skips chat blocks, so a learner message never opens a format word; Motion is a format name', () => {
+  const asks = ['quiz me', 'make flashcards', 'show me a video', 'explain this with motion'];
+  const input = { ...INPUT, canvas: { blocks: [...INPUT.canvas.blocks, ...asks.map((title, i) => ({ id: `q${i}`, kind: 'chat', title, concept_ids: [], claim_ids: [], practice: null }))] } };
+  const topic = topicOf(input);
+  assert.equal(topic, topicOf(INPUT));
+  assert.doesNotMatch(topic, /quiz|flashcard|video|motion/);
+  for (const hook of ['Could a quiz reveal why the vase cracked?', 'Would flashcards show how the glass cools?', 'Can a video show the stress building?', 'What would a Motion of the kiln reveal?']) {
+    assert.equal(hookProblem(hook, { topic }), 'format_word', hook);
+  }
+  assert.equal(hookProblem('What would a Motion of the kiln reveal?', { topic: 'motion graphics for glass' }), null, 'a topic about it opens it');
+  assert.equal(hookProblem('What keeps molten glass in motion so long?', { topic }), null, 'lowercase motion is ordinary English');
 });

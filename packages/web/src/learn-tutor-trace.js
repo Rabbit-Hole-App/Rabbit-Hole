@@ -147,6 +147,7 @@ export const decisionEvent = safe(({ result, domain, identity = {}, blocks = [],
       usage: usageOf(telemetry),
       validation: { ok: !dropped && !repairs.length, dropped_actions: dropped, repairs,
         fallback: telemetry?.escalated ? escalation(telemetry.escalated) : telemetry?.tail_lost ? 'tail_lost' : reason_source === 'router' ? 'router_reason' : null },
+      planner_input: null,
     },
     flags,
   };
@@ -162,9 +163,15 @@ export function inputSummary(input) {
   };
 }
 
+// The hook planner input's trim (nextStepsInput's trim, owner sixth message 4): structured counts only, picked field by field so
+// nothing of the input itself can ride along.
+const counted = c => ({ block_count: c?.block_count ?? null, claim_count: c?.claim_count ?? null });
+const plannerInput = t => (t ? { before: counted(t.before), after: counted(t.after), trimmed: counted(t.trimmed), current_section_claims_kept: t.current_section_claims_kept ?? null, repair_claims_kept: t.repair_claims_kept ?? null } : null);
+
 // A next_steps_computed from a HookSet and the input it was planned from. identity: the viewer's ids (shared: user_id null for
 // an anonymous viewer, source the one-way share key); a cached reply keeps the producing call's versions with zero usage.
-export const hooksEvent = safe((set, { input = null, identity = {}, scope = 'owned', mode = 'canvas' } = {}) => {
+// trim: nextStepsInput's counts beside that input (runtime.planner_input), null when none were given.
+export const hooksEvent = safe((set, { input = null, identity = {}, scope = 'owned', mode = 'canvas', trim = null } = {}) => {
   const t = set?.telemetry || {}, s = inputSummary(input), ran = t.cached ? null : t.ms ?? null;
   return {
     ...head('next_steps_computed', set?.set_id ?? null, {
@@ -181,6 +188,7 @@ export const hooksEvent = safe((set, { input = null, identity = {}, scope = 'own
       timing: { total_ms: ran, planner_ms: ran, first_text_ms: null }, model: { tier: t.tier ?? null, escalated: !!t.escalated, calls: t.calls ?? 0 },
       usage: { ...Object.fromEntries(USAGE.map(k => [k, t.usage?.[k] ?? null])), cost_usd: t.cost_usd ?? null },
       validation: { ok: !(t.errors || []).length, dropped_actions: 0, repairs: [...(t.errors || [])], fallback: t.escalated ? escalation(t.escalated) : null },
+      planner_input: plannerInput(trim),
     },
     flags: t.cached ? ['cached'] : [],
   };

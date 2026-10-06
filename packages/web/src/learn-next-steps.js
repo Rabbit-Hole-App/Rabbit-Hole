@@ -14,32 +14,43 @@ const claimIdsOf = section => (section?.expected_evidence || []).map(e => e?.cla
 // titles as grounding). store: the canvas's Tutor session store. journey: useJourney's view. record/parent: a hole's dive
 // record and its parent journey (read only). previous: { hooks, goals } already shown and chosen. describe: LearningBlocks'
 // describeBlock when the page passes it; only its title is read.
+// Returns { input, trim } - trim is structured counts beside the input, never inside it (owner sixth message 4) - or
+// { problem: 'input_too_large' } when the 9000-character cap would leave a registry canvas with no claim, or nothing fits.
 export function nextStepsInput({ context = null, store = null, journey = null, blocks = [], record = null, parent = null, title = '', lastTurn = null, previous = {}, basis, describe = null }) {
   const domain = context?.domain ?? null, claims = domain?.claims || {}, concepts = domain?.concepts || {}, events = store?.events || [];
   const known = id => typeof id === 'string' && Object.hasOwn(claims, id);
   const states = domain ? deriveClaimStates(events, claims) : {};
-  // kind is the block type, as TutorDecisionEvent's canvas_summary.kinds.
+  // kind is the block type, as TutorDecisionEvent's canvas_summary.kinds. A chat card ({ id, question, answer }, no type) is
+  // kind chat titled by the learner's own question - grounding only: topicOf skips it - and never its answer.
   const shown = blocks.slice(-L.blocks).map(block => {
+    const chat = !block.type;
     let named = null;
-    try { named = describe?.(block) ?? null; } catch { /* the block's own title */ }
+    try { named = chat ? null : describe?.(block) ?? null; } catch { /* the block's own title */ }
     const t = resolveTarget(block);
     return {
-      id: block.id, kind: cap(block.type, 40), title: cap(named?.title ?? block.title ?? block.question ?? block.prompt ?? block.text, L.block_title),
+      id: block.id, kind: chat ? 'chat' : cap(block.type, 40), title: cap(chat ? block.question : named?.title ?? block.title ?? block.question ?? block.prompt ?? block.text, L.block_title),
       concept_ids: t.concept_ids.filter(c => Object.hasOwn(concepts, c)).slice(0, L.ids),
       claim_ids: (domain?.targetClaims?.({ block_id: block.id, card_id: t.card_id, part_id: t.part_id, selected_object: t.selected_object, concept_ids: t.concept_ids }) || []).filter(known).slice(0, L.ids),
       practice: block.activity ? block.attemptLog?.at(-1)?.result ?? 'open' : null,
     };
   });
-  // Scope priority (§2.1): the section's or hole's claims, the newest blocks' claims, claims with evidence (newest first),
-  // the prerequisites of those, then completed-section claims in a repair state.
-  const first = (domain?.defaultClaims?.({ canvas: { dive: record ? { record } : null } }) || []).filter(known);
-  const lead = [...first, ...shown.slice(-6).reverse().flatMap(b => b.claim_ids), ...events.map(e => e.claim).reverse().filter(known)];
-  const prerequisites = lead.flatMap(id => [states[id]?.prerequisite, ...(claims[id].prerequisites || [])]).filter(Boolean).flatMap(c => claimsOfConceptIn(claims, c));
+  const mode = context?.source === 'journey' ? 'journey' : record ? 'dive' : 'canvas';
   const sections = journey?.path?.sections || [], completed = sections.filter(s => s.status === 'completed').slice(-6);
-  const repair = completed.flatMap(claimIdsOf).filter(id => known(id) && REPAIR.includes(states[id]?.state));
+  const current = mode === 'journey' ? sections.find(s => s.id === domain.sectionId) : null;
+  // Completed-section claims (owner sixth message 2): a claim only in path.completed takes a scope place only for repair - a
+  // repair state, or the concept a prerequisite_gap names (a missing prerequisite). Understood or unseen ones stay out.
+  const done = new Set(completed.flatMap(claimIdsOf)), now = new Set(claimIdsOf(current));
+  const missing = new Set(Object.values(states).filter(s => s.state === 'prerequisite_gap' && s.prerequisite).map(s => s.prerequisite));
+  const repairing = id => REPAIR.includes(states[id]?.state) || missing.has(claims[id]?.concept);
+  const active = id => !done.has(id) || now.has(id) || repairing(id);
+  // Scope priority (§2.1): the section's or hole's claims, the newest blocks' claims, claims with evidence (newest first),
+  // the prerequisites of those, then completed-section claims that need repair.
+  const first = (domain?.defaultClaims?.({ canvas: { dive: record ? { record } : null } }) || []).filter(known);
+  const lead = [...first, ...[...shown.slice(-6).reverse().flatMap(b => b.claim_ids), ...events.map(e => e.claim).reverse().filter(known)].filter(active)];
+  const prerequisites = lead.flatMap(id => [states[id]?.prerequisite, ...(claims[id].prerequisites || [])]).filter(Boolean).flatMap(c => claimsOfConceptIn(claims, c)).filter(active);
+  const repair = [...done].filter(id => known(id) && !now.has(id) && repairing(id));
   const scope = nextStepsScope({ claims, concepts, order: [...lead, ...prerequisites, ...repair], states, events, presented: shown.flatMap(b => b.claim_ids) });
 
-  const mode = context?.source === 'journey' ? 'journey' : record ? 'dive' : 'canvas';
   // Ruling T7: structured sources only - the journey goal; a hole's hook goal, else its parent's goal (a journey's, or the
   // course subject) and its title; else the course subject or canvas title. The learner's words travel as recent.question.
   const parentGoal = !record ? null : context?.source === 'dive' ? domain.context?.goal : context?.source === 'registry' ? domain.subject : null;
@@ -47,7 +58,6 @@ export function nextStepsInput({ context = null, store = null, journey = null, b
     : record ? record.learning_goal || (parentGoal ? `${cap(parentGoal, 120)} - ${cap(record.title, 80)}` : record.title)
     : domain?.subject || title;
   const asked = ['question', 'request'].includes(lastTurn?.kind) && lastTurn.question ? cap(lastTurn.question, L.question) : null;
-  const current = mode === 'journey' ? sections.find(s => s.id === domain.sectionId) : null;
   const parentStates = record?.journey && parent?.journey ? deriveClaimStates(parent.journey.evidence?.events || [], parent.journey.registry?.claims || {}) : {};
   const input = {
     mode, basis, goal: cap(goal, L.goal_text),
@@ -71,17 +81,42 @@ export function nextStepsInput({ context = null, store = null, journey = null, b
     } } : {}),
     constraints: { learner: [...(store?.constraints || [])], ...(domain?.context?.constraints || {}) },
   };
-  // The 9000-character cap: drop the lowest-priority claim, then the oldest block, until it fits.
-  while (JSON.stringify(input).length > L.input_chars) {
-    const last = Object.keys(input.scope.claims).at(-1);
-    if (last) {
-      const { concept } = input.scope.claims[last];
-      delete input.scope.claims[last];
-      if (!Object.values(input.scope.claims).some(c => c.concept === concept)) delete input.scope.concepts[concept];
-    } else if (input.canvas.blocks.length) input.canvas.blocks.shift();
+  // The 9000-character cap (owner sixth message 1), by structured priority only, never titles or text: first the least relevant,
+  // oldest cards down to the 6 that feed the scope (a card naming no kept claim, then one naming a kept claim, then one naming
+  // the section's or hole's claims), then the lowest-priority claims, the section's or hole's claims only after every card.
+  // Every card names only ids still in scope.
+  const lead1 = new Set(first), count = () => ({ block_count: input.canvas.blocks.length, claim_count: Object.keys(input.scope.claims).length });
+  const fits = () => {
+    for (const b of input.canvas.blocks) {
+      b.claim_ids = b.claim_ids.filter(id => Object.hasOwn(input.scope.claims, id));
+      b.concept_ids = b.concept_ids.filter(c => Object.hasOwn(input.scope.concepts, c));
+    }
+    return JSON.stringify(input).length <= L.input_chars;
+  };
+  const rank = b => (b.claim_ids.some(id => lead1.has(id)) ? 2 : b.claim_ids.length ? 1 : 0);
+  const dropBlock = () => { const list = input.canvas.blocks; list.splice(list.reduce((low, b, i) => (rank(b) < rank(list[low]) ? i : low), 0), 1); };
+  const dropClaim = id => {
+    const { concept } = input.scope.claims[id];
+    delete input.scope.claims[id];
+    if (!Object.values(input.scope.claims).some(c => c.concept === concept)) delete input.scope.concepts[concept];
+  };
+  const before = count(), had = Object.keys(input.scope.claims);
+  while (!fits()) {
+    const ids = Object.keys(input.scope.claims), optional = ids.filter(id => !lead1.has(id));
+    if (input.canvas.blocks.length > 6) dropBlock();
+    else if (optional.length) dropClaim(optional.at(-1));
+    else if (input.canvas.blocks.length) dropBlock();
+    else if (ids.length) dropClaim(ids.at(-1));
     else break;
   }
-  return input;
+  const after = count();
+  // Never a planner input with zero usable claims where the registry offered some, and never one over the cap.
+  if (!fits() || (before.claim_count && !after.claim_count)) return { problem: 'input_too_large' };
+  const kept = ids => (ids.length ? ids.every(id => Object.hasOwn(input.scope.claims, id)) : null);
+  return { input, trim: {
+    before, after, trimmed: { block_count: before.block_count - after.block_count, claim_count: before.claim_count - after.claim_count },
+    current_section_claims_kept: kept(had.filter(id => lead1.has(id))), repair_claims_kept: kept(had.filter(repairing)),
+  } };
 }
 
 // FNV-1a over the trigger state: a short opaque key (the server caps a basis at 400 characters).

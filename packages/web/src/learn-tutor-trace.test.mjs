@@ -31,7 +31,7 @@ const KEYS = ['trace_schema_version', 'event', 'decision_id', 'step_id', 'genera
 const IDENTITY = ['user_id', 'session_id', 'canvas_id', 'board_id', 'canvas_version', 'journey_id', 'section_id', 'dive_id', 'source', 'scope', 'mode'];
 const VERSIONS = ['planner_version', 'prompt_version', 'model_role', 'model_id'];
 const DECISION = ['current_goal', 'current_section_id', 'target_concept_ids', 'target_claim_ids', 'evidence_summary', 'canvas_summary', 'recent_modality_history', 'next_step_options', 'selected_next_step_id', 'route', 'chosen_action', 'actions', 'reason_codes', 'reason_source', 'rationale_summary', 'expected_evidence', 'estimated_learning_seconds'];
-const RUNTIME = ['timing', 'model', 'usage', 'validation'];
+const RUNTIME = ['timing', 'model', 'usage', 'validation', 'planner_input'];
 const ACTION = ['action_type', 'command', 'modality', 'target_concept_ids', 'target_claim_ids'];
 const EVIDENCE = ['understood', 'uncertain', 'misconception', 'prerequisite_gap', 'not_yet_observed'];
 const QUESTION = 'why would a narrow estuary make the tide so much bigger';
@@ -74,6 +74,7 @@ test('tutor_decision: exactly the contract keys, the chosen action from the cont
   assert.deepEqual(Object.keys(e), KEYS);
   assert.deepEqual([Object.keys(e.identity), Object.keys(e.versions), Object.keys(e.decision), Object.keys(e.runtime)], [IDENTITY, VERSIONS, DECISION, RUNTIME]);
   assert.deepEqual(Object.keys(e.decision.evidence_summary), EVIDENCE);
+  assert.equal(e.runtime.planner_input, null, 'trim counts belong to hook recomputes only');
   assert.deepEqual(e.decision.actions.map(a => Object.keys(a)), [ACTION, ACTION]);
   assert.deepEqual(Object.keys(e.decision.chosen_action), ACTION);
   assert.deepEqual([e.trace_schema_version, TRACE_SCHEMA_VERSION, TUTOR_PLANNER_VERSION], [1, 1, 'tutor-planner-1']);
@@ -281,7 +282,7 @@ test('hooksEvent: all three hooks with goals and ids, the same keys, no reason_i
   assert.deepEqual(e.decision.recent_modality_history, ['text']);
   assert.deepEqual(e.versions, { planner_version: 'next-steps-planner-1', prompt_version: '0123456789ab', model_role: 'tutor_next_steps', model_id: 'claude-sonnet-5-5' });
   assert.deepEqual(e.runtime, { timing: { total_ms: 900, planner_ms: 900, first_text_ms: null }, model: { tier: 'routine', escalated: false, calls: 1 },
-    usage: { input_tokens: 2000, output_tokens: 400, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, cost_usd: 0.008 }, validation: { ok: true, dropped_actions: 0, repairs: [], fallback: null } });
+    usage: { input_tokens: 2000, output_tokens: 400, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, cost_usd: 0.008 }, validation: { ok: true, dropped_actions: 0, repairs: [], fallback: null }, planner_input: null });
   assert.deepEqual(e.flags, []);
   assert.deepEqual(inputSummary(INPUT).target_claim_ids, IDS);
   const text = JSON.stringify(e);
@@ -342,4 +343,15 @@ test('a hook click: the selected id and goal, the shown options, a made card wit
   assert.deepEqual(e.decision.chosen_action, { action_type: 'create_material', command: 'animate', modality: 'video', target_concept_ids: [C[STEP.claim_ids[0]].concept], target_claim_ids: STEP.claim_ids });
   assert.deepEqual([e.decision.reason_codes, e.decision.reason_source, e.flags], [['follow_learner_interest', 'increase_interactivity'], 'planner', []]);
   assert.equal(JSON.stringify(e).includes('a basin filling'), false, 'a create_material request is never in the event');
+});
+
+// Owner sixth message (4): the input trim as structured counts only, at runtime.planner_input, never the planner input itself.
+test('hooksEvent: the trim counts at runtime.planner_input, picked field by field, never the input', () => {
+  const trim = { before: { block_count: 20, claim_count: 12 }, after: { block_count: 6, claim_count: 7 }, trimmed: { block_count: 14, claim_count: 5 }, current_section_claims_kept: true, repair_claims_kept: false };
+  const e = hooksEvent(SET, { input: INPUT, trim: { ...trim, input: INPUT, before: { ...trim.before, titles: ['x'] } } });
+  assert.deepEqual(e.runtime.planner_input, trim);
+  assert.deepEqual(Object.keys(e.runtime), RUNTIME);
+  assert.equal(JSON.stringify(e.runtime).includes(QUESTION), false, 'no raw planner input');
+  assert.deepEqual(hooksEvent(SET, { input: INPUT, trim: { before: { block_count: 1, claim_count: 1 } } }).runtime.planner_input,
+    { before: { block_count: 1, claim_count: 1 }, after: { block_count: null, claim_count: null }, trimmed: { block_count: null, claim_count: null }, current_section_claims_kept: null, repair_claims_kept: null });
 });
