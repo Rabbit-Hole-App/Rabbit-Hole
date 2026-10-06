@@ -2580,6 +2580,80 @@ The plans reuse the accepted M7A brief and storyboard, unedited. Every call ran 
 - **Inconsistent changes are refused,** by errors that name the new ids and the new label, because the gates read them from the inputs.
 - **repair-contract.test.mjs** covers changing the object count (one added, one removed) for both renderers.
 
+### M7B Linux proof (Home, 2026-10-06, checkpoint 9083840e): PASSED
+
+**Accepted by the owner:**
+- **HyperFrames determinism:** repeated capture is deterministic, and so is the final render.
+- **Sandbox isolation:** non-local network is denied, and host files and secrets are unavailable.
+- **Output:** exactly 15 s, 1920x1080, 30 fps, 450 frames.
+- **Refusals:** a malformed composition is refused before rendering, and so is one that only fails at run time.
+- **Remotion:** the existing Linux sandbox passes 10/10.
+- **No leaks:** no resource or cgroup leaks.
+- **Timing:** the HyperFrames final render takes about 39 s, well under the 420 s timeout.
+- **No new sandbox:** the existing architecture is reused unchanged.
+
+### M7B production-exact API smoke (2026-10-06, code 9083840e): READY
+
+**Setup:**
+- `/motion 15s explain me softmax func` on Remotion, with the full pipeline: no `--plan`, the Director grounds a new brief.
+- The real Anthropic API, with native tool calls. No subscription bridge, so there is nothing to fall back to.
+- `node scripts/motion-orchestrator.mjs --renderer remotion --max-calls 16 --budget-usd 2.00`, with the key read from the workspace .env through `MOTION_ENV_FILE`.
+- Every role resolved from `model-config.js` defaults with no override: production sends every request with `thinking: {type: "adaptive"}` and `output_config.effort: "high"`.
+- Output ceilings: 64000 tokens for the Author, 16000 for the others.
+
+| Call | Role (model config) | Model (resolved / served) | Input | Output | Cache write / read | Cost | Latency | End |
+|---|---|---|---|---|---|---|---|---|
+| Director (brief) | MOTION_DIRECTOR_MODEL | claude-opus-5-5 / claude-opus-5-5 | 1381 | 2336 | 2073 / 0 | $0.0626 | 22.8 s | tool_use |
+| Storyboard, round 0 | MOTION_DIRECTOR_MODEL | claude-opus-5-5 / claude-opus-5-5 | 2977 | 6527 | 4108 / 0 | $0.1630 | 59.3 s | tool_use |
+| Author, round 0 | MOTION_AUTHOR_MODEL | claude-opus-5-5 / claude-opus-5-5 | 5837 | 27389 | 2234 / 0 | $0.5823 | 247.7 s | complete, tool_use |
+| Visual review, round 0 | MOTION_VISUAL_REVIEW_MODEL | claude-opus-5-5 / claude-opus-5-5 | 8303 | 1479 | 1182 / 0 | $0.0687 | 18.0 s | tool_use |
+| Teaching review, round 0 | MOTION_PEDAGOGICAL_REVIEW_MODEL | claude-opus-5-5 / claude-opus-5-5 | 9709 | 527 | 1273 / 0 | $0.0557 | 8.0 s | tool_use |
+| **Total** | | | 28207 | 38258 | 10870 / 0 | **$0.9323** | 355.8 s of model time | |
+
+**Costs:**
+- **How computed:** from each response's usage at the list prices in `director.js` PRICES ($4 / $20 per million input / output tokens, cache writes $5, reads $0.20). This is not a console invoice.
+- **Ceiling:** the $2.00 ceiling recorded $0.93 spent. No call was refused, none fell back (`fell_back` false on every call), and the served model matched the configured one on every call.
+
+**Job:**
+- **Repairs:** storyboard 0, Author 0, transport retries 0, schema re-asks 0.
+- **Validators and reviewers:** the storyboard passed its validator on the first pass, and the Author output passed the static gate and contract.
+- **Findings before repair** (none was needed, so there is no after-repair set): 0 blocking. The visual reviewer's 4 advisories:
+  - B2: the matrix reaches behind a caption;
+  - B5: the code panel runs past the frame edge;
+  - B5: the row highlight sits shifted from its row;
+  - B4: the caption is briefly missing at beat starts.
+- **Teaching review:** 0 findings.
+
+**Timings:**
+- **Stage time:** directing 22.8 s, storyboarding 59.3 s, authoring 247.8 s, review and render 317.9 s; request to ready **647.9 s**.
+- **Preview:** 111.5 s in total, including bundle 37.3 s, render 22.7 s and stills 9.0 s.
+- **Final:** 188.3 s in total, including bundle 26.7 s, final render 23.9 s, the determinism second context and the coverage probe.
+
+**Final:**
+- **Video:** ready; 15 s, 450 frames, 30 fps, 1920x1080, h264 yuv420p bt709.
+- **Checks:** determinism, coverage, preview/final and final validation pass. All 16 browser checks pass, and the card shows "15s · Motion explainer · Remotion" with model.py sources.
+- **Stored copy:** the LEARN_MEDIA blob is byte-identical to the job's final.mp4.
+- **Evidence:** Figma ef9SfiemEsPQF2bd8B1os3, frame 166:222. Row 177:222 has the proposal, skeleton, ready card at 0.5, 7 and 14 s, and Voice; 177:243 is the final contact sheet.
+
+### M7B acceptance matrix (CLOSED 2026-10-06)
+
+| Gate | Evidence | Result |
+|---|---|---|
+| HyperFrames verified and pinned | @hyperframes/producer 0.8.137 (Apache-2.0); shared Chrome Headless Shell 149 and FFmpeg | pass |
+| One renderer boundary, same normalized result | renderers.mjs registry; both adapters implement RENDERER_METHODS | pass |
+| Same brief and storyboard, renderer-specific Author | `renderer_target`; the seven-section HyperFrames prompt; plans reused unedited | pass |
+| Security and determinism, Windows | fixtures A-J and H (motion), 12/12 | pass |
+| Security and determinism, Linux sandbox | Home at 9083840e (above) | pass |
+| Strict Author contract before render | hf-static-check; run-time inspection; malformed refused | pass |
+| Same review pipeline and budgets | review-job shared; one storyboard and one Author repair | pass |
+| Shared repair contract | 359d8c7a; repair-contract.test.mjs A-E for both renderers | pass |
+| HyperFrames proof, first domain (softmax) | job 285d6a74, ready first pass | pass |
+| HyperFrames proof, second domain (multinomial) | job f1686df9, ready first pass | pass |
+| Remotion regression | Remotion render tests 37/37 (Windows); Linux sandbox 10/10 (Home) | pass |
+| Anti-hardcoding audit | no topic logic; anti-hardcoding.test.mjs | pass |
+| Production-exact API smoke | job 8a2015a4, ready, $0.93 | pass |
+| Default renderer | Remotion, unchanged; no M8 winner | unchanged |
+
 ## M8 — benchmark and end-to-end development demonstration
 
 Run the §9.6 benchmark on the same briefs and storyboards for both renderers, then pass all §27 demos through the full pipeline with human review. Choose the default renderer and routing from the results; keep both adapters. Deliver the required report.
