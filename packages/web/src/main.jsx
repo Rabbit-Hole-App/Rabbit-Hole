@@ -19,6 +19,7 @@ import { applyTheme, getTheme, navigate, setWs, workspaceLabel } from './api.js'
 import { ExpandedPageFrame, Toasts } from './ui.jsx';
 import { isPrivateByoc } from './private-auth.js';
 import PrivateAuthGate from './PrivateAuthGate.jsx';
+import HandleGate from './HandleGate.jsx';
 import { getSurface, setSurface } from './agent/surface.js';
 import { sidebarEdge } from './home/pinned.js';
 import { learnPreview, PRODUCT } from './flags.js';
@@ -95,8 +96,10 @@ const SHARED_BOARD = /^\/b\/([A-Za-z0-9_-]{20,64})$/;
 
 function Root() {
   const sharedBoard = window.location.pathname.match(SHARED_BOARD);
-  if (sharedBoard) return <Suspense fallback={null}><SharedBoardPage token={sharedBoard[1]} /><Toasts /></Suspense>;
-  return <AppRoot />;
+  const page = sharedBoard ? <Suspense fallback={null}><SharedBoardPage token={sharedBoard[1]} /><Toasts /></Suspense> : <AppRoot />;
+  // Rabbit Hole: a signed-in person without a public @handle chooses one first, in place (HandleGate,
+  // docs/features/user-handles.md), and then this same URL carries on.
+  return learnPreview ? <HandleGate>{page}</HandleGate> : page;
 }
 
 function AppRoot() {

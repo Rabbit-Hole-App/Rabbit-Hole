@@ -1,11 +1,22 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cardModel, forkLabel, forkNumber } from './provenance.js';
+import { cardModel, creatorLabel, forkLabel, forkNumber } from './provenance.js';
 import { fixturesOn, FIXTURES_KEY } from './review-fixtures.js';
 import { FIXTURES } from './review-fixtures-data.js';
 
 const store = (entries = {}) => { const m = new Map(Object.entries(entries)); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) }; };
 const byName = (name) => FIXTURES.find((a) => a.name === name);
+
+// docs/features/user-handles.md: the server sends owner_handle / forked_from_handle by reference.
+test('creator attribution is @handle, the display name first when set, and never an email', () => {
+  assert.equal(creatorLabel({ handle: 'ada' }), '@ada');
+  assert.equal(creatorLabel({ handle: 'ada', name: 'Ada Lovelace' }), 'Ada Lovelace · @ada');
+  assert.equal(creatorLabel(null), null);
+  assert.equal(cardModel({ kind: 'canvas', name: 'canvas-0000000e', title: 'Mine', owner_email: 'ada@test', owner_handle: 'ada', owner_name: null }).creator.name, '@ada');
+  assert.equal(cardModel({ kind: 'canvas', name: 'canvas-0000000f', title: 'Before a handle', owner_email: 'ada@test', owner_handle: null }).creator, null, 'no handle, no creator: never the email');
+  const fork = cardModel({ kind: 'canvas', name: 'canvas-00000010', title: 'Transformers', owner_email: 'bob@test', owner_handle: 'bob', forked_from_title: 'Transformers', forked_from_url: null, forked_from_handle: 'alice' });
+  assert.deepEqual([fork.creator.name, fork.forkedFrom.creator], ['@bob', '@alice'], 'the fork is the forker\'s; its provenance credits the original owner');
+});
 
 test('fork counts read naturally: none is omitted, one is singular, large ones are compact', () => {
   assert.deepEqual([0, undefined, 1, 24, 999, 1000, 1240, 12500].map(forkLabel), [null, null, '1 fork', '24 forks', '999 forks', '1k forks', '1.2k forks', '12.5k forks']);

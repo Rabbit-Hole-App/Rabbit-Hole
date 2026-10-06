@@ -146,7 +146,9 @@ await check('9 the source version and provenance survive the source changing', a
   assert.equal(changed.status, 200, JSON.stringify(changed.body).slice(0, 120));
   const source = (await tree(viewer, cardHole)).body.dive.source;
   assert.deepEqual([source.version, source.title, source.share_url, source.resource_id, source.board], [1, 'Bridge loads', `/b/${bridges.token}`, bridges.canvas.name, 'main']);
-  assert.equal(source.creator.name.startsWith('rh-owner-'), true);
+  // The hole's source names no owner email (docs/features/user-handles.md): the creator is read by @handle, by reference.
+  assert.equal(source.creator, null);
+  assert.ok(!JSON.stringify(source).includes('rh-owner-'), 'no owner email in the hole');
   before.bridges = await ownerBoard(bridges); // the owner's own edit, not the viewer's
 });
 
@@ -175,6 +177,13 @@ let resumedHole;
       await page.locator('input[name=sub]').fill(`rh-viewer-${run}`);
       await page.locator('input[name=email]').fill(`rh-viewer-${run}@example.org`);
       await page.locator('form button, form input[type=submit]').first().click();
+      // Someone new to Rabbit Hole chooses their public handle first (docs/features/user-handles.md), in place: the
+      // address keeps ?rabbit=, so the start resumes from the same card once the handle is claimed.
+      await page.locator('[data-handle-setup]').waitFor({ timeout: 30000 });
+      assert.match(page.url(), /\?rabbit=k-quiz$/, 'the handle step keeps the origin in the address');
+      await shot('06b-choose-handle-then-resume');
+      await page.getByRole('textbox', { name: 'Handle' }).fill(`rh_${run}`.slice(0, 30));
+      await page.getByRole('button', { name: 'Continue' }).click();
     } else {
       // The dev worker refuses /login (the P0-B barrier); the session the sign-in would end with, then `next`.
       await anon.context.addCookies([{ name: 'small_session', value: viewer.session, url: BASE }]);

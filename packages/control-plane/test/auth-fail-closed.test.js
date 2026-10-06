@@ -368,3 +368,32 @@ test('strict email: a plain address is trimmed and lowercased before it reaches 
   assert.equal(web.res.status, 200);
   assert.deepEqual(sent[0].to, ['a.b+tag@corp.example.test']);
 });
+
+// Public handles (docs/features/user-handles.md): a test session lands past "Choose your handle" with a random test
+// handle, or the one it names; handle: null keeps none, to test that step itself. Test mode only, like the route.
+test('/test/session gives a test person a handle (random, named, or none with null); production still 404s', async (t) => {
+  const learn = new DatabaseSync(':memory:');
+  t.after(() => learn.close());
+  learn.exec(readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8'));
+  const LEARN_DB = { prepare: (sql) => ({ bind: (...params) => ({
+    first: async () => learn.prepare(sql).get(...params) || null,
+    run: async () => { const r = learn.prepare(sql).run(...params); return { meta: { changes: Number(r.changes) } }; },
+  }) }) };
+  const env = withDb(t, { ...BASE, SMALL_ENV: 'test', TEST_BYPASS_SECRET: SECRET, LEARN_DB });
+  const handleOf = (email) => learn.prepare('SELECT handle FROM user_handles WHERE email = ?').get(email)?.handle ?? null;
+  assert.equal((await call(post('/test/session', { email: 'one@example.test', secret: SECRET }), env)).res.status, 200);
+  assert.match(handleOf('one@example.test'), /^t_[0-9a-f]{12}$/);
+  const kept = handleOf('one@example.test');
+  await call(post('/test/session', { email: 'one@example.test', secret: SECRET }), env);
+  assert.equal(handleOf('one@example.test'), kept, 'a second session keeps the handle');
+  await call(post('/test/session', { email: 'two@example.test', secret: SECRET, handle: '@Ada_L' }), env);
+  assert.equal(handleOf('two@example.test'), 'ada_l');
+  assert.equal((await call(post('/test/session', { email: 'three@example.test', secret: SECRET, handle: null }), env)).res.status, 200);
+  assert.equal(handleOf('three@example.test'), null, 'null: no handle, for the setup step');
+  // A taken name still mints the session, just without that handle.
+  assert.equal((await call(post('/test/session', { email: 'four@example.test', secret: SECRET, handle: 'ada_l' }), env)).res.status, 200);
+  assert.equal(handleOf('four@example.test'), null);
+  const prod = withDb(t, { ...BASE, SMALL_ENV: 'production', TEST_BYPASS_SECRET: SECRET, LEARN_DB });
+  assert.equal((await call(post('/test/session', { email: 'five@example.test', secret: SECRET }), prod)).res.status, 404);
+  assert.equal(handleOf('five@example.test'), null);
+});

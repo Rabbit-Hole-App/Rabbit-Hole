@@ -9,7 +9,7 @@ import { authorizedBoardApp } from './learn-board.js';
 import { repositoryIdentity } from './repositories.js';
 import { sha256Hex } from './learn-grade-jev.js';
 import { learnMedia } from './learn-storage.js';
-import { FORK_COUNT } from './canvases.js';
+import { FORK_COUNT, HANDLE_OF, NAME_OF } from './canvases.js';
 import { askShared, boardRevision, boardSources, shareKey, sharePin, shareSource, sharedTitle } from './learn-shared-ask.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -264,7 +264,7 @@ async function fork(req, env, body) {
     return { ...block, notebook_id: fresh };
   });
   const id = crypto.randomUUID(), now = new Date().toISOString();
-  const forkedFrom = { resource_id: source.resource, board: source.row?.board || 'main', board_id: source.row?.id || null, title, creator: { name: source.owner, source_owner_verified: false }, share_url: source.share ? `/b/${source.share}` : null };
+  const forkedFrom = { resource_id: source.resource, board: source.row?.board || 'main', board_id: source.row?.id || null, title, creator: null, share_url: source.share ? `/b/${source.share}` : null };
   // One batch: a fork is its canvas, board and link together, or nothing. The UNIQUE key refuses a
   // concurrent duplicate of the same action, which then answers with the fork that won.
   try {
@@ -357,7 +357,7 @@ async function startRabbitHole(req, env, token, body) {
   const sharedName = sharedTitle(row, canvas?.title, pinned);
   const source = {
     resource_id: canvas ? row.app : (row.app.startsWith('repo-') && !pinned?.allowed ? null : row.app), board: row.board, board_id: row.id,
-    title: sharedName, creator: { name: row.owner_email, source_owner_verified: false }, share_url: `/b/${token}`, share_key: parent.app.slice('share:'.length),
+    title: sharedName, creator: null, share_url: `/b/${token}`, share_key: parent.app.slice('share:'.length),
     version: row.version, updated_at: row.updated_at, commit: pinned?.allowed ? pinned.commit : null,
   };
   const from = origin.root ? null : origin.title || cardName(origin.entry);
@@ -420,7 +420,11 @@ async function openShared(req, env, token) {
   const source = await shareSource(env.LEARN_DB, row);
   const hidden = row.app.startsWith('repo-') && !source?.allowed;
   const state = JSON.parse(row.state_json);
-  return json({ role, app: hidden ? null : row.app, board: row.board, title: sharedTitle(row, canvas?.title, source), owner: row.owner_email, fork_count: canvas ? canvas.fork_count : null, version: row.version, updated_at: row.updated_at,
+  // Who made it (docs/features/user-handles.md): the owner's @handle and display name, read by reference; no handle,
+  // no creator. Never the owner's email: a link may be opened by anyone it reaches.
+  const made = await env.LEARN_DB.prepare(`SELECT h.handle, ${NAME_OF('h.email')} AS name FROM user_handles h WHERE h.email = ?`).bind(row.owner_email).first();
+  const creator = made ? { handle: made.handle, name: made.name ?? null } : null;
+  return json({ role, app: hidden ? null : row.app, board: row.board, title: sharedTitle(row, canvas?.title, source), creator, fork_count: canvas ? canvas.fork_count : null, version: row.version, updated_at: row.updated_at,
     viewer: viewer instanceof Response ? null : viewer.email, context: { repository: source?.allowed ? { repo: source.repo, commit: source.commit } : null, sources: boardSources(state) }, state });
 }
 

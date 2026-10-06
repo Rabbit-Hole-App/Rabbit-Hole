@@ -1,7 +1,9 @@
 // A person's own profile (Settings > Profile, user 2026-09-30): the display name and PNG picture they
-// chose, kept in LEARN_DB user_profiles by account principal. Served by the dev worker (the app's
-// origin), like canvases; only the signed-in owner reads or writes their row.
+// chose, kept in LEARN_DB user_profiles by account principal, and their public handle (user_handles, migration 0008,
+// docs/features/user-handles.md). Served by the dev worker (the app's origin), like canvases; only the signed-in
+// owner reads or writes their row. The browser sees one profile: { name, avatar, handle }.
 import { repositoryIdentity } from './repositories.js';
+import { normalizeHandle } from './handle.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 export const NAME_MAX = 60;
@@ -22,6 +24,11 @@ export function validateProfile(body) {
     if (body.avatar && body.avatar.length > AVATAR_MAX) return { error: 'avatar is too large' };
     out.avatar = body.avatar;
   }
+  if (Object.hasOwn(body || {}, 'handle')) {
+    const checked = normalizeHandle(body.handle);
+    if (checked.error) return checked;
+    out.handle = checked.handle;
+  }
   if (!Object.keys(out).length) return { error: 'nothing to update' };
   return { value: out };
 }
@@ -33,8 +40,8 @@ export async function profileFetch(req, env) {
   if (user instanceof Response) return user;
   const db = env.LEARN_DB;
   if (req.method === 'GET') {
-    const row = await db.prepare('SELECT name, avatar FROM user_profiles WHERE email=?').bind(user.email).first();
-    return json({ name: row?.name ?? null, avatar: row?.avatar ?? null });
+    const row = await db.prepare('SELECT p.name, p.avatar, h.handle FROM user_profiles p LEFT JOIN user_handles h ON h.email = p.email WHERE p.email=?').bind(user.email).first();
+    return json({ name: row?.name ?? null, avatar: row?.avatar ?? null, handle: row?.handle ?? null });
   }
   if (req.method !== 'PUT') return json({ error: 'Method not allowed' }, 405);
   if (req.headers.has('origin') && req.headers.get('origin') !== new URL(req.url).origin) return json({ error: 'Invalid origin' }, 403);
@@ -42,9 +49,23 @@ export async function profileFetch(req, env) {
   try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
   const input = validateProfile(body);
   if (input.error) return json({ error: input.error }, 400);
-  const current = await db.prepare('SELECT name, avatar FROM user_profiles WHERE email=?').bind(user.email).first();
-  const next = { name: current?.name ?? null, avatar: current?.avatar ?? null, ...input.value };
-  await db.prepare("INSERT INTO user_profiles (email, name, avatar, updated_at) VALUES (?, ?, ?, datetime('now')) ON CONFLICT(email) DO UPDATE SET name=excluded.name, avatar=excluded.avatar, updated_at=excluded.updated_at")
-    .bind(user.email, next.name, next.avatar).run();
+  const current = await db.prepare('SELECT p.name, p.avatar, h.handle FROM user_profiles p LEFT JOIN user_handles h ON h.email = p.email WHERE p.email=?').bind(user.email).first();
+  const { handle, ...fields } = input.value;
+  const next = { name: current?.name ?? null, avatar: current?.avatar ?? null, handle: current?.handle ?? null, ...fields };
+  if (handle !== undefined && handle !== next.handle) {
+    // The handle first, so a taken one changes nothing. One statement claims or changes it; the UNIQUE (NOCASE) index
+    // is the authority, so of two people claiming the same handle at once exactly one gets it.
+    await db.prepare('INSERT INTO user_profiles (email) VALUES (?) ON CONFLICT(email) DO NOTHING').bind(user.email).run();
+    try { await db.prepare('INSERT INTO user_handles (email, handle) VALUES (?, ?) ON CONFLICT(email) DO UPDATE SET handle=excluded.handle').bind(user.email, handle).run(); }
+    catch (error) {
+      if (/UNIQUE/i.test(error.message)) return json({ error: `@${handle} is taken. Choose another.`, taken: true }, 409);
+      throw error;
+    }
+    next.handle = handle;
+  }
+  if (Object.keys(fields).length) {
+    await db.prepare("INSERT INTO user_profiles (email, name, avatar, updated_at) VALUES (?, ?, ?, datetime('now')) ON CONFLICT(email) DO UPDATE SET name=excluded.name, avatar=excluded.avatar, updated_at=excluded.updated_at")
+      .bind(user.email, next.name, next.avatar).run();
+  }
   return json(next);
 }

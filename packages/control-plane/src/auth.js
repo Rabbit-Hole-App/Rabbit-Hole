@@ -4,6 +4,7 @@
 // The CLI keeps its own code flow in index.js; for one email address both reach the same principal.
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { sign, verify, randomHex, sha256 } from './token.js';
+import { normalizeHandle } from './handle.js';
 
 export const SESSION_COOKIE = 'small_session';
 const SESSION_TTL = 7 * 24 * 3600;
@@ -402,10 +403,22 @@ export async function handleWebAuth(req, env, path, { baseUrl, html, sendEmail }
   // Test bypass: mint a session without email. Enabled only in testMode with TEST_BYPASS_SECRET set.
   if (path === '/test/session' && req.method === 'POST') {
     if (!testMode(env) || !env.TEST_BYPASS_SECRET) return json({ error: 'not enabled' }, 404);
-    const { email, secret } = await req.json();
+    const { email, secret, handle } = await req.json();
     if (secret !== env.TEST_BYPASS_SECRET) return json({ error: 'bad secret' }, 401);
     const address = String(email).toLowerCase();
-    return json({ session: await sessionFor(env, await userFor(env, 'email', address, { email: address })) });
+    const user = await userFor(env, 'email', address, { email: address });
+    // A test person gets a public handle (docs/features/user-handles.md), so a browser check lands on the page it asked
+    // for rather than on "Choose your handle": the one it names, else a random test handle; handle: null keeps none, to
+    // test that step itself. An existing handle is kept. Test mode only, like this route; best effort on a LEARN_DB
+    // without migration 0008.
+    if (handle !== null && env.LEARN_DB) {
+      const chosen = typeof handle === 'string' ? normalizeHandle(handle).handle : `t_${randomHex(6)}`;
+      try {
+        await env.LEARN_DB.prepare('INSERT INTO user_profiles (email) VALUES (?) ON CONFLICT(email) DO NOTHING').bind(address).run();
+        if (chosen) await env.LEARN_DB.prepare('INSERT INTO user_handles (email, handle) VALUES (?, ?) ON CONFLICT(email) DO NOTHING').bind(address, chosen).run();
+      } catch { /* no 0008 here, or the named handle is taken: the session still mints */ }
+    }
+    return json({ session: await sessionFor(env, user) });
   }
   if (path === '/test/oauth/authorize' && req.method === 'GET') return mockAuthorize(req, env, baseUrl, html);
   return null;

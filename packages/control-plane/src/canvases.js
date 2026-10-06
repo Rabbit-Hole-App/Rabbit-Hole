@@ -20,11 +20,20 @@ function canvasTitle(value) {
 // live share link they forked through; never a newer link or anything else about a source they lost - and
 // the canvas's direct fork count.
 export const FORK_COUNT = '(SELECT count(*) FROM canvas_forks k JOIN canvases kc ON kc.org = k.org AND kc.name = k.canvas WHERE k.forked_from_org = c.org AND k.forked_from_canvas_id = c.name)';
+// A person's public handle and display name, by reference (docs/features/user-handles.md): read at the moment, never
+// copied onto a canvas, so a changed handle shows everywhere at once. No handle row, no handle: never an email.
+// `email` must be a qualified column of the outer row (c.owner_email): the inner tables carry their own aliases so a
+// bare name can never bind to them and match every row.
+export const HANDLE_OF = email => `(SELECT uh.handle FROM user_handles uh WHERE uh.email = ${email})`;
+export const NAME_OF = email => `(SELECT up.name FROM user_profiles up WHERE up.email = ${email})`;
+// The owner's handle and name (Home/Library cards, nested holes included), and the handle of whoever owned the source
+// of a fork ("Forked from ... · @alice"); the fork itself is the forker's.
 const CANVAS_ROW = `SELECT c.*, f.forked_from_title, CASE
     WHEN src.org = c.org AND src.owner_email = c.owner_email THEN '/apps/' || src.name
     WHEN f.forked_from_share IS NOT NULL AND (f.forked_from_canvas_id IS NULL OR src.name IS NOT NULL)
       AND EXISTS (SELECT 1 FROM learn_boards b WHERE b.shared = 1 AND b.view_token = f.forked_from_share) THEN '/b/' || f.forked_from_share
-  END AS forked_from_url, ${FORK_COUNT} AS fork_count
+  END AS forked_from_url, ${FORK_COUNT} AS fork_count,
+  ${HANDLE_OF('c.owner_email')} AS owner_handle, ${NAME_OF('c.owner_email')} AS owner_name, ${HANDLE_OF('f.forked_from_owner_id')} AS forked_from_handle
   FROM canvases c LEFT JOIN canvas_forks f ON f.org = c.org AND f.canvas = c.name
   LEFT JOIN canvases src ON src.org = f.forked_from_org AND src.name = f.forked_from_canvas_id`;
 async function ownedCanvas(env, user, name) {

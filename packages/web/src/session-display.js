@@ -26,8 +26,10 @@ export function useSessionDisplay() {
   return display;
 }
 
-// The person's own Profile (GET /api/profile, served by the app's origin): { name, avatar } or null.
+// The person's own Profile (GET /api/profile, served by the app's origin): { name, avatar, handle } or null.
 let profile = null;
+// HandleGate (docs/features/user-handles.md): a signed-in profile without a public handle chooses one first.
+export const gateFor = profile => (profile && !profile.handle ? 'needed' : 'ok');
 export const loadProfile = () => (profile ||= fetch('/api/profile', { credentials: 'same-origin' })
   .then(response => (response.ok ? response.json() : null)).catch(() => null));
 // Saves a { name } or { avatar } change and tells every mounted identity to re-read it.

@@ -50,7 +50,8 @@ export function repositoryApp(row,user) {
 // The caller's own projects (usage-credits.md §14, privacy P0): a shared email domain is not a
 // shared Library. Nothing is shared explicitly yet, so owned is the whole personal Library.
 export async function ownerRepositories(env,user){
-  const {results}=await env.LEARN_DB.prepare('SELECT * FROM repository_apps WHERE org=? AND owner_email=? ORDER BY created_at DESC').bind(user.org,user.email).all();
+  // The owner's @handle and display name by reference (docs/features/user-handles.md), as on canvas cards; never an email.
+  const {results}=await env.LEARN_DB.prepare('SELECT r.*,(SELECT handle FROM user_handles WHERE email=r.owner_email) AS owner_handle,(SELECT name FROM user_profiles WHERE email=r.owner_email) AS owner_name FROM repository_apps r WHERE r.org=? AND r.owner_email=? ORDER BY r.created_at DESC').bind(user.org,user.email).all();
   return results.map(row=>repositoryApp(row,user));
 }
 // D1 occasionally throws a transient internal error ("object to be reset");
