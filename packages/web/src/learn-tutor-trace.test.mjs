@@ -1,7 +1,13 @@
-// Tutor v2 turn trace: one trace_id, per-stage timing, status and result category.
+// Tutor v2 turn trace: one trace_id, per-stage timing, status and result category. TutorDecisionEvent v1 below.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { turnTrace } from './learn-tutor-trace.js';
+import { turnTrace, decisionEvent, hooksEvent, emitDecision, addSink, tracing, harnessSink, newSessionId, inputSummary, ROW_REASON } from './learn-tutor-trace.js';
+import { runTurn } from './learn-tutor.js';
+import { emptyStore } from './learn-tutor-evidence.js';
+import { journeyDomain } from './learn-journey-domain.js';
+import { NANOGPT } from './learn-tutor-claims.js';
+import { TIDES } from './__fixtures__/journey-synthetic-domains.mjs';
+import { REASON_CODES, TRACE_SCHEMA_VERSION, TUTOR_PLANNER_VERSION } from '../../control-plane/src/agents/learn-tutor.js';
 
 test('stages record ok, error and timeout; errors are rethrown; marks are offsets', async () => {
   let clock = 0;
@@ -17,4 +23,235 @@ test('stages record ok, error and timeout; errors are rethrown; marks are offset
     ['router', 'ok', 'gap', 2], ['planner', 'timeout', 'The tutor timed out', 5], ['evaluate', 'error', '500', 0], ['jev', 'ok', 'settled', 120],
   ]);
   assert.equal(trace.marks.first_visible_response, 7);
+});
+
+// ---------- TutorDecisionEvent v1 (docs/features/professor-next-steps.md §3; owner 2026-10-06, third message) ----------
+
+const KEYS = ['trace_schema_version', 'event', 'decision_id', 'step_id', 'generated_at', 'identity', 'versions', 'decision', 'runtime', 'flags'];
+const IDENTITY = ['user_id', 'session_id', 'canvas_id', 'board_id', 'canvas_version', 'journey_id', 'section_id', 'dive_id', 'source', 'scope', 'mode'];
+const VERSIONS = ['planner_version', 'prompt_version', 'model_role', 'model_id'];
+const DECISION = ['current_goal', 'current_section_id', 'target_concept_ids', 'target_claim_ids', 'evidence_summary', 'canvas_summary', 'recent_modality_history', 'next_step_options', 'selected_next_step_id', 'route', 'chosen_action', 'actions', 'reason_codes', 'reason_source', 'rationale_summary', 'expected_evidence', 'estimated_learning_seconds'];
+const RUNTIME = ['timing', 'model', 'usage', 'validation'];
+const ACTION = ['action_type', 'command', 'modality', 'target_concept_ids', 'target_claim_ids'];
+const EVIDENCE = ['understood', 'uncertain', 'misconception', 'prerequisite_gap', 'not_yet_observed'];
+const QUESTION = 'why would a narrow estuary make the tide so much bigger';
+const C = TIDES.diagnostic.registry.claims, IDS = Object.keys(C).slice(0, 2);
+const J = { id: 'lj_t', state: 'active', registry: TIDES.diagnostic.registry, evidence: { seq: 0, events: [] }, active_section_id: 's1', request: { topic: TIDES.topic }, intake: { slots: {} } };
+const PATH = { version: 1, goal: 'Understand tidal power', sections: [{ id: 's1', title: 'Ranges', purpose: 'p', status: 'current', expected_evidence: IDS.map(claim => ({ claim, kind: 'explain' })) }] };
+const domain = journeyDomain({ journey: J, path: PATH, blocks: [] });
+const PLAN = { strategy: 'feynman', constraints_add: [], actions: [{ type: 'respond_text', text: 'The bay funnels the water.' }, { type: 'ask_question', text: 'What would a wider bay do?', claim: IDS[0], purpose: 'explain_back' }],
+  reason_codes: ['vary_modality'], reason: 'An explain-back makes the funnel idea observable. It follows two explanations. A third sentence is cut.',
+  telemetry: { tier: 'fast', escalated: null, served_model: 'claude-sonnet-5-5', input_tokens: 900, output_tokens: 80, cost_usd: 0.0026, prompt_version: 'abcdef012345' } };
+const worker = (plan = PLAN) => {
+  const sent = [];
+  const post = async (path, body) => { sent.push({ path, body }); return path === '/api/learn/tutor/plan' ? structuredClone(plan) : { status: 'error', evaluator: 'jev', events: [] }; };
+  return { sent, post };
+};
+const turn = (extra = {}, plan = PLAN) => {
+  const w = worker(plan);
+  return runTurn({ raw: QUESTION, canvas: { app: 'canvas-1', board: 'main' }, access: { app: 'canvas-1' }, block: null, store: { ...emptyStore(), session_id: 'ts_00000000000000aa', modalities: ['text', 'text'] }, post: w.post, domain, turnId: 'turn-1', ...extra }).then(r => ({ ...r, sent: w.sent }));
+};
+// Two runs differ only in timings, fresh uuids (ask_question action ids) and the timing trace; everything else must match.
+const VOLATILE = new Set(['trace', 'mark', 'ms', 'action_id', 'started_at', 'trace_id']);
+const strip = r => JSON.parse(JSON.stringify(r, (key, value) => (VOLATILE.has(key) ? undefined : value)));
+const errors = () => globalThis.__smallTutorTraceErrors || 0;
+
+// Owner extra test 12c and the coordinator regression: tracing on or off, the same requests and results.
+test('trace on or off: identical planner requests and identical results; no trace key when off', async () => {
+  const off = await turn(), on = await turn({ trace: { identity: { user_id: 'u-7' } } }), bare = await turn({ trace: true });
+  assert.deepEqual(on.sent, off.sent, 'byte-identical requests (the turn id is fixed)');
+  assert.deepEqual(strip(on), strip(off));
+  assert.deepEqual(strip(bare), strip(off));
+  assert.equal('trace' in off, false);
+  assert.equal(on.trace.event, 'tutor_decision');
+});
+
+// Owner extra test 12e: the event captures the chosen action, modality and reason codes, from the production contract.
+test('tutor_decision: exactly the contract keys, the chosen action from the contracts, reason codes with the vary_modality guard', async () => {
+  const blocks = [{ id: 'x', type: 'explanation', title: 'Range', journey: { journey_id: 'lj_t', section_id: 's1', step_id: 'x', claims: [IDS[1]] } }, { id: 'y', type: 'heading', text: 'h' }];
+  const r = await turn({ domain: journeyDomain({ journey: J, path: PATH, blocks }), trace: { identity: { user_id: 'u-7', canvas_version: 12 }, blocks } }), e = r.trace;
+  assert.deepEqual(Object.keys(e), KEYS);
+  assert.deepEqual([Object.keys(e.identity), Object.keys(e.versions), Object.keys(e.decision), Object.keys(e.runtime)], [IDENTITY, VERSIONS, DECISION, RUNTIME]);
+  assert.deepEqual(Object.keys(e.decision.evidence_summary), EVIDENCE);
+  assert.deepEqual(e.decision.actions.map(a => Object.keys(a)), [ACTION, ACTION]);
+  assert.deepEqual(Object.keys(e.decision.chosen_action), ACTION);
+  assert.deepEqual([e.trace_schema_version, TRACE_SCHEMA_VERSION, TUTOR_PLANNER_VERSION], [1, 1, 'tutor-planner-1']);
+  assert.match(e.decision_id, /^td_[0-9a-f]{16}$/);
+  assert.ok(!Number.isNaN(Date.parse(e.generated_at)));
+  assert.deepEqual(e.identity, { user_id: 'u-7', session_id: 'ts_00000000000000aa', canvas_id: 'canvas-1', board_id: 'main', canvas_version: 12, journey_id: 'lj_t', section_id: 's1', dive_id: null, source: null, scope: 'owned', mode: 'journey' });
+  assert.equal(e.step_id, 'turn-1');
+  // Consumed, never recomputed: the actions are the turn's contracts minus their per-action evidence and time.
+  assert.deepEqual(e.decision.actions, r.contracts.map(({ action_type, command, modality, target_concept_ids, target_claim_ids }) => ({ action_type, command, modality, target_concept_ids, target_claim_ids })));
+  assert.deepEqual(e.decision.chosen_action, { action_type: 'ask_question', command: null, modality: 'explain_back', target_concept_ids: [C[IDS[0]].concept], target_claim_ids: [IDS[0]] });
+  assert.deepEqual(e.decision.actions.map(a => [a.action_type, a.modality]), [['respond_text', 'text'], ['ask_question', 'explain_back']]);
+  assert.deepEqual([e.decision.reason_codes, e.decision.reason_source, e.flags], [['advance_goal', 'vary_modality'], 'planner', ['vary_modality_alone']]);
+  assert.ok(e.decision.reason_codes.every(code => REASON_CODES.includes(code)));
+  assert.equal(e.decision.rationale_summary, 'An explain-back makes the funnel idea observable. It follows two explanations.');
+  assert.deepEqual(e.decision.route, { row: 'not_yet_observed', strategy: 'feynman', intent: 'question' });
+  assert.deepEqual(e.decision.recent_modality_history, ['text', 'text']);
+  assert.deepEqual(e.decision.expected_evidence, [{ claim_id: IDS[0], via: 'explain_back' }]);
+  assert.equal(e.decision.estimated_learning_seconds, 125, 'the contracts summed: a 5-word reply (5 s) and an Explain Back (120 s)');
+  assert.deepEqual([e.decision.target_claim_ids, e.decision.target_concept_ids], [r.bench.claims, [...new Set(r.bench.claims.map(id => C[id].concept))]]);
+  assert.deepEqual(e.decision.evidence_summary, { understood: [], uncertain: [], misconception: [], prerequisite_gap: [], not_yet_observed: r.turn.evidence.map(state => state.claim) });
+  assert.deepEqual(e.decision.canvas_summary, { blocks: 2, kinds: { explanation: 1, heading: 1 }, presented_claim_ids: [IDS[1]] });
+  assert.deepEqual([e.decision.current_goal, e.decision.current_section_id, e.decision.next_step_options, e.decision.selected_next_step_id], [{ id: null, summary: 'Understand tidal power' }, 's1', [], null]);
+  assert.deepEqual(e.versions, { planner_version: TUTOR_PLANNER_VERSION, prompt_version: 'abcdef012345', model_role: 'tutor', model_id: 'claude-sonnet-5-5' });
+  assert.deepEqual(e.runtime.usage, { input_tokens: 900, output_tokens: 80, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, cost_usd: 0.0026 });
+  assert.deepEqual(e.runtime.model, { tier: 'fast', escalated: false, calls: 1 });
+  assert.deepEqual(e.runtime.validation, { ok: true, dropped_actions: 0, repairs: [], fallback: null });
+  assert.deepEqual([typeof e.runtime.timing.total_ms, typeof e.runtime.timing.planner_ms, typeof e.runtime.timing.first_text_ms], ['number', 'number', 'number']);
+});
+
+test('reason codes: the planner codes as given; none -> the route row code (reason_source router, fallback router_reason)', async () => {
+  const two = await turn({ trace: true }, { ...PLAN, reason_codes: ['increase_interactivity', 'vary_modality'] });
+  assert.deepEqual([two.trace.decision.reason_codes, two.trace.decision.reason_source, two.trace.flags], [['increase_interactivity', 'vary_modality'], 'planner', []]);
+  const none = await turn({ trace: true }, { strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: 'ok' }] });
+  assert.deepEqual([none.trace.decision.reason_codes, none.trace.decision.reason_source, none.trace.runtime.validation.fallback], [['advance_goal'], 'router', 'router_reason']);
+  assert.deepEqual([none.trace.versions.prompt_version, none.trace.versions.model_id, none.trace.runtime.usage.cost_usd, none.trace.decision.rationale_summary], [null, null, null, null], 'no telemetry: unknown, never 0');
+  assert.deepEqual(Object.keys(ROW_REASON).filter(row => !REASON_CODES.includes(ROW_REASON[row])), [], 'every row code is a generic reason code');
+  assert.equal(Object.values(ROW_REASON).includes('vary_modality'), false);
+});
+
+test('validation: dropped actions, repairs by rule name, and fallback from an escalation or a lost tail', async () => {
+  const plan = { ...PLAN, actions: [{ type: 'respond_text', text: 'Look.' }, { type: 'show_authored_card', card: 'nope', mode: 'suggest' }, { type: 'open_dive', concept: 'x' }],
+    telemetry: { tier: 'opus', escalated: 'an action outside the allowed types', served_model: 'claude-opus-5-5', input_tokens: 2000, output_tokens: 100, cost_usd: 0.01, prompt_version: 'abcdef012345', fast: { input_tokens: 900, output_tokens: 40, cost_usd: 0.0022 } } };
+  const e = (await turn({ trace: true }, plan)).trace;
+  assert.equal(e.runtime.validation.dropped_actions, 2);
+  assert.deepEqual([e.runtime.validation.ok, e.runtime.validation.fallback], [false, 'an action outside the allowed types']);
+  assert.deepEqual(e.runtime.model, { tier: 'opus', escalated: true, calls: 2 });
+  assert.deepEqual(e.runtime.usage, { input_tokens: 2900, output_tokens: 140, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, cost_usd: 0.0122 }, 'both calls counted');
+  const lost = (await turn({ trace: true }, { ...PLAN, reason: null, reason_codes: null, telemetry: { ...PLAN.telemetry, tail_lost: true } })).trace;
+  assert.deepEqual([lost.runtime.validation.fallback, lost.decision.reason_source, lost.decision.rationale_summary], ['tail_lost', 'router', null]);
+});
+
+// Coordinator item 5: no learner words, prompts or chat history in an event.
+test('an event never carries the learner question, the store turns or a prompt; a quoting rationale is dropped as a repair', async () => {
+  const store = { ...emptyStore(), turns: [{ learner: 'an earlier private question about my notes', tutor: 'an earlier reply' }] };
+  const { trace: e } = await turn({ trace: true, store });
+  const text = JSON.stringify(e);
+  for (const forbidden of [QUESTION, 'earlier private question', 'an earlier reply', 'Compose this turn', 'The bay funnels the water', 'What would a wider bay do']) assert.equal(text.includes(forbidden), false, forbidden);
+  assert.equal(/raw_user_message|learner_intent|recent_turns|reason_internal|statement|misconceptions/.test(text), false);
+  const quoting = (await turn({ trace: true }, { ...PLAN, reason: `They asked ${QUESTION}.` })).trace;
+  assert.equal(quoting.decision.rationale_summary, null);
+  assert.deepEqual(quoting.runtime.validation.repairs, ['rationale_dropped']);
+  assert.equal(JSON.stringify(quoting).includes(QUESTION), false);
+});
+
+// Coordinator item 1: telemetry failure never fails or changes a turn or a recompute.
+test('a builder that throws: the turn succeeds unchanged, trace null, the error counted', async () => {
+  const before = errors();
+  const boom = { identity: { get user_id() { throw new Error('boom'); } } };
+  const off = await turn(), broken = await turn({ trace: boom }), worse = await turn({ trace: { get identity() { throw new Error('boom'); } } });
+  assert.deepEqual([broken.trace, worse.trace], [null, null]);
+  assert.deepEqual(strip(broken), strip(off));
+  assert.deepEqual(strip(worse), strip(off));
+  assert.equal(errors(), before + 2);
+  assert.equal(hooksEvent(null, { identity: boom.identity }), null, 'the hook builder never throws either');
+  assert.equal(errors(), before + 3);
+});
+
+test('emitDecision: sinks run after the fact; a throwing or rejecting sink is swallowed and counted; null is ignored', async () => {
+  const before = errors(), got = [];
+  const removes = [addSink(() => { throw new Error('sync'); }), addSink(async () => { throw new Error('async'); }), addSink(event => { got.push(event); })];
+  assert.equal(tracing(), true);
+  assert.doesNotThrow(() => emitDecision({ event: 'tutor_decision' }));
+  assert.doesNotThrow(() => emitDecision(null));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(got, [{ event: 'tutor_decision' }]);
+  assert.equal(errors(), before + 2);
+  removes.forEach(remove => remove());
+  assert.equal(tracing(), false);
+});
+
+test('harnessSink: the newest 500, a small:tutor-trace event, user_id from /api/me, never the email', async () => {
+  const target = { dispatchEvent: e => { target.last = e; return true; } };
+  const sink = harnessSink({ target, me: async () => ({ user_id: 'u-42', email: 'learner@example.org' }) });
+  for (let i = 0; i < 502; i++) await sink({ event: 'tutor_decision', step_id: String(i), identity: { user_id: null } });
+  assert.equal(target.__smallTutorTraces.length, 500);
+  assert.equal(target.__smallTutorTraces[0].step_id, '2');
+  assert.equal(target.__smallTutorTraces.at(-1).identity.user_id, 'u-42');
+  assert.equal(JSON.stringify(target.__smallTutorTraces).includes('learner@example.org'), false);
+  assert.deepEqual([target.last.type, target.last.detail.step_id], ['small:tutor-trace', '501']);
+  const signedOut = {};
+  await harnessSink({ target: signedOut, me: async () => null })({ event: 'x', identity: { user_id: null } });
+  assert.equal(signedOut.__smallTutorTraces[0].identity.user_id, null);
+});
+
+const SET = { set_id: 'ns_01020304', generated_at: '2026-10-06T10:00:00.000Z', basis: 'b', options: [1, 2, 3].map(n => ({ id: `ns_01020304.${n}`, hook: `Hook number ${n} for tides?`, selected_next_step: { v: 1, set_id: 'ns_01020304', suggestion_id: `ns_01020304.${n}`, basis: 'b', hook: `Hook number ${n} for tides?`, learning_goal: `goal ${n}`, concept_ids: [], claim_ids: [IDS[n % 2]], scope: 'owned' } })),
+  telemetry: { tier: 'routine', escalated: null, calls: 1, ms: 900, planner_version: 'next-steps-planner-1', model_role: 'tutor_next_steps', model_id: 'claude-sonnet-5-5', prompt_version: '0123456789ab', usage: { input_tokens: 2000, output_tokens: 400, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }, cost_usd: 0.008, reasons: 3, errors: [], cached: false } };
+const INPUT = { mode: 'journey', goal: 'Understand tidal power', path: { current: { id: 's1' } }, scope: { concepts: {}, claims: { [IDS[0]]: { concept: 'x', state: 'uncertain' }, [IDS[1]]: { concept: 'y', state: 'not_yet_observed' } } },
+  canvas: { blocks: [{ id: 'k', kind: 'Explanation', claim_ids: [IDS[0]] }] }, recent: { kind: 'question', question: QUESTION, modalities: ['text'] } };
+
+// Owner second message: all 3 hooks at every recomputation, each with its goal and ids.
+test('hooksEvent: all three hooks with goals and ids, the same keys, no reason_internal, no learner question', () => {
+  const e = hooksEvent(SET, { input: INPUT, identity: { session_id: 'ts_1', canvas_id: 'c', user_id: 'u-1' }, scope: 'owned', mode: 'journey' });
+  assert.deepEqual(Object.keys(e), KEYS);
+  assert.deepEqual([Object.keys(e.identity), Object.keys(e.versions), Object.keys(e.decision), Object.keys(e.runtime)], [IDENTITY, VERSIONS, DECISION, RUNTIME]);
+  assert.deepEqual([e.event, e.step_id, e.identity.scope, e.identity.mode, e.identity.section_id], ['next_steps_computed', 'ns_01020304', 'owned', 'journey', null]);
+  assert.deepEqual(e.decision.next_step_options, SET.options.map(o => ({ id: o.id, hook: o.hook, learning_goal: o.selected_next_step.learning_goal, concept_ids: [], claim_ids: o.selected_next_step.claim_ids })));
+  assert.deepEqual([e.decision.chosen_action, e.decision.route, e.decision.actions, e.decision.reason_codes, e.decision.expected_evidence, e.decision.selected_next_step_id], [null, null, [], [], [], null]);
+  assert.deepEqual([e.decision.current_goal, e.decision.current_section_id], [{ id: null, summary: 'Understand tidal power' }, 's1']);
+  assert.deepEqual(e.decision.evidence_summary, { understood: [], uncertain: [IDS[0]], misconception: [], prerequisite_gap: [], not_yet_observed: [IDS[1]] });
+  assert.deepEqual(e.decision.canvas_summary, { blocks: 1, kinds: { Explanation: 1 }, presented_claim_ids: [IDS[0]] });
+  assert.deepEqual(e.decision.recent_modality_history, ['text']);
+  assert.deepEqual(e.versions, { planner_version: 'next-steps-planner-1', prompt_version: '0123456789ab', model_role: 'tutor_next_steps', model_id: 'claude-sonnet-5-5' });
+  assert.deepEqual(e.runtime, { timing: { total_ms: 900, planner_ms: 900, first_text_ms: null }, model: { tier: 'routine', escalated: false, calls: 1 },
+    usage: { input_tokens: 2000, output_tokens: 400, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, cost_usd: 0.008 }, validation: { ok: true, dropped_actions: 0, repairs: [], fallback: null } });
+  assert.deepEqual(e.flags, []);
+  assert.deepEqual(inputSummary(INPUT).target_claim_ids, IDS);
+  const text = JSON.stringify(e);
+  assert.equal(text.includes(QUESTION) || /reason_internal|reasons/.test(text), false);
+});
+
+test('hooksEvent: escalation rule names and reason, a cached reply (zero usage, its producing call kept), shared provenance only as the one-way key', () => {
+  const escalated = hooksEvent({ ...SET, telemetry: { ...SET.telemetry, tier: 'escalation', escalated: 'validator', calls: 2, errors: ['answer_reveal', 'distinct'], model_role: 'tutor_next_steps_escalation', model_id: 'claude-opus-5-5' } }, { input: INPUT });
+  assert.deepEqual(escalated.runtime.validation, { ok: false, dropped_actions: 0, repairs: ['answer_reveal', 'distinct'], fallback: 'validator' });
+  assert.deepEqual([escalated.runtime.model, escalated.identity.mode, escalated.identity.scope], [{ tier: 'escalation', escalated: true, calls: 2 }, 'canvas', 'owned']);
+  const cached = hooksEvent({ ...SET, telemetry: { ...SET.telemetry, cached: true, calls: 0, usage: { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }, cost_usd: 0 } }, { input: INPUT });
+  assert.deepEqual([cached.flags, cached.runtime.usage.cost_usd, cached.runtime.usage.input_tokens, cached.runtime.model.calls], [['cached'], 0, 0, 0]);
+  assert.deepEqual([cached.versions.prompt_version, cached.versions.model_id, cached.runtime.timing.planner_ms], ['0123456789ab', 'claude-sonnet-5-5', null], 'the producing call is named; no planner ran now');
+  const shared = hooksEvent(SET, { input: { ...INPUT, mode: 'shared', goal: undefined }, scope: 'shared', mode: 'shared', identity: { source: { share_key: 'a1b2c3', share_version: 4, origin_block_id: ':root', token: 'raw-token', owner: 'sharer@example.org' } } });
+  assert.deepEqual([shared.identity.source, shared.identity.scope, shared.identity.mode, shared.identity.user_id, shared.decision.current_goal], [{ share_key: 'a1b2c3', share_version: 4, origin_block_id: ':root' }, 'shared', 'shared', null, { id: null, summary: null }]);
+  assert.equal(/raw-token|sharer@example/.test(JSON.stringify(shared)), false);
+});
+
+test('newSessionId: ts_ and 16 hex, never sent to the planner', async () => {
+  assert.match(newSessionId(), /^ts_[0-9a-f]{16}$/);
+  assert.notEqual(newSessionId(), newSessionId());
+  assert.equal(emptyStore().session_id, null);
+  const r = await turn();
+  assert.equal(JSON.stringify(r.sent).includes('ts_00000000000000aa'), false);
+  assert.equal(r.store.session_id, 'ts_00000000000000aa', 'the store keeps it');
+});
+
+// Event mode follows the contract (Ruling F12): registry course course, plain canvas canvas, journey journey, hole dive.
+test('identity and mode: a course, a hole from a shared canvas (provenance as the one-way key only), a plain canvas, a diagnostic turn', async () => {
+  const words = text => ({ strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text }] });
+  const course = (await runTurn({ raw: 'what does softmax do?', canvas: { app: 'repo-x', board: 'main' }, access: { app: 'repo-x' }, block: null, store: emptyStore(), post: worker(words('It normalises.')).post, domain: NANOGPT, trace: true })).trace;
+  assert.deepEqual([course.identity.mode, course.identity.journey_id, course.identity.section_id, course.decision.current_goal], ['course', null, null, { id: null, summary: null }]);
+  const record = { dive_id: 'canvas-hole1', title: 'Exploring from Pottery', concept: 'Exploring from Pottery', created_by: 'shared_start', origin: { parent: { app: 'share:a1b2c3', board: 'main' }, origin_block_id: 'blk-9' },
+    source: { share_key: 'a1b2c3', version: 4, share_url: '/b/RAW-SHARE-TOKEN', creator: { name: 'sharer@example.org', source_owner_verified: false }, title: 'Pottery' } };
+  const hole = (await runTurn({ raw: 'why does clay crack?', canvas: { app: 'canvas-hole1', board: 'main', dive: record }, access: { app: 'canvas-hole1' }, block: null, store: emptyStore(), post: worker(words('Drying.')).post, domain: NANOGPT, trace: true })).trace;
+  assert.deepEqual([hole.identity.mode, hole.identity.dive_id, hole.identity.canvas_id, hole.identity.scope, hole.identity.source], ['dive', 'canvas-hole1', 'canvas-hole1', 'owned', { share_key: 'a1b2c3', share_version: 4, origin_block_id: 'blk-9' }]);
+  assert.equal(/RAW-SHARE-TOKEN|sharer@example/.test(JSON.stringify(hole)), false, 'never the token or the sharer');
+  const canvasTurn = { turn_id: 't9', raw_user_message: '', canvas: { app: 'canvas-9', board: 'main' }, evidence: [], next_step: { suggestion_id: 'ns_1.1', learning_goal: 'See why bread rises', claim_ids: [], concept_ids: [] } };
+  const plain = decisionEvent({ result: { turn: canvasTurn, store: emptyStore(), contracts: [], bench: {} }, domain: { claims: {}, contextKey: 'canvas_context', context: { goal: 'Baking', origin: null } } });
+  assert.deepEqual([plain.identity.mode, plain.decision.current_goal, plain.decision.selected_next_step_id, plain.decision.actions, plain.decision.chosen_action, plain.decision.route, plain.decision.reason_codes, plain.decision.estimated_learning_seconds],
+    ['canvas', { id: 'ns_1.1', summary: 'See why bread rises' }, 'ns_1.1', [], null, null, [], null]);
+  // A diagnostic answer (plan: false) plans nothing: no contracts, so [] and null, never a throw.
+  const diag = (await turn({ plan: false, trace: true })).trace;
+  assert.deepEqual(Object.keys(diag), KEYS);
+  assert.deepEqual([diag.decision.actions, diag.decision.chosen_action, diag.decision.route, diag.decision.reason_codes, diag.decision.reason_source, diag.runtime.model.calls, diag.versions.prompt_version], [[], null, null, [], null, 0, null]);
+});
+
+test('a hook click: the selected id and goal, the shown options, a made card with its command as the chosen action', async () => {
+  const STEP = SET.options[1].selected_next_step;
+  const plan = { strategy: 'feynman', constraints_add: [], reason_codes: ['follow_learner_interest', 'increase_interactivity'], reason: 'A moving basin shows the range change.', actions: [{ type: 'respond_text', text: 'Watch the basin.' }, { type: 'create_material', command: 'animate', request: 'a basin filling' }] };
+  const r = await runTurn({ raw: '', nextStep: STEP, materials: [{ command: 'animate', cards: ['mathAnimation'], paid: true }], canvas: { app: 'canvas-1', board: 'main' }, access: { app: 'canvas-1' }, block: null, store: emptyStore(), post: worker(plan).post, domain, trace: { next_step_options: SET.options } });
+  const e = r.trace;
+  assert.deepEqual([e.decision.selected_next_step_id, e.decision.current_goal, e.decision.route.intent], [STEP.suggestion_id, { id: STEP.suggestion_id, summary: 'goal 2' }, 'next_step']);
+  assert.deepEqual(e.decision.next_step_options.map(o => o.id), SET.options.map(o => o.id));
+  assert.deepEqual(e.decision.chosen_action, { action_type: 'create_material', command: 'animate', modality: 'video', target_concept_ids: [C[STEP.claim_ids[0]].concept], target_claim_ids: STEP.claim_ids });
+  assert.deepEqual([e.decision.reason_codes, e.decision.reason_source, e.flags], [['follow_learner_interest', 'increase_interactivity'], 'planner', []]);
+  assert.equal(JSON.stringify(e).includes('a basin filling'), false, 'a create_material request is never in the event');
 });

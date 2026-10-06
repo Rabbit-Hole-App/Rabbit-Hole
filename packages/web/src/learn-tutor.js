@@ -19,7 +19,7 @@ import { appendEvents, conceptState, deriveClaimStates, practiceEvents, reconcil
 import { selectClaims } from './learn-tutor-select.js';
 import { EVIDENCE_ACTIONS, EVIDENCE_ROWS, avatarMoments, speakable, statedConstraints, validateActions } from './learn-tutor-validate.js';
 import { AVATAR_ACTION } from '../../control-plane/src/agents/learn-tutor.js';
-import { turnTrace } from './learn-tutor-trace.js';
+import { decisionEvent, safely, turnTrace } from './learn-tutor-trace.js';
 import { actionContract, reasonCodes } from './learn-tutor-actions.js';
 
 const SLASHES = ['deeper', 'simplify', 'dive'];
@@ -343,9 +343,16 @@ export const enforce = validateActions;
 // nothing is evaluated and no evidence is written; the planner may answer with create_material among materials.
 // The result also carries `contracts` (one actionContract per accepted action, learn-tutor-actions.js) and the turn's
 // `reason_codes`; the store keeps the contracted modalities of the last 8 actions (contract §2.6).
-export async function runTurn({ raw, slash = null, opening = false, canvas, access, block, store, post, onSpeakable = null, inputModality = 'text', turnId = null, onTurn = null, domain = NANOGPT, plan = true, nextStep = null, materials = [] }) {
+// trace (contract §3.3): true, or { identity, blocks, next_step_options }, adds `trace` - a TutorDecisionEvent built from the
+// finished result (learn-tutor-trace.js), or null when building failed; false (the default) leaves the result as it was.
+export async function runTurn({ raw, slash = null, opening = false, canvas, access, block, store, post, onSpeakable = null, inputModality = 'text', turnId = null, onTurn = null, domain = NANOGPT, plan = true, nextStep = null, materials = [], trace = false }) {
   if (nextStep) raw = '';
   const t = [now()];
+  // After the result is final; the event never changes it, and any telemetry error only leaves trace null (counted).
+  const traced = result => (!trace ? result : { ...result, trace: safely(() => {
+    const { identity, blocks, next_step_options } = trace === true ? {} : trace;
+    return decisionEvent({ result, domain, identity, blocks, options: next_step_options, seen: store.modalities || [], intent: learnerIntent(result.turn).kind, totalMs: Math.round((now() - t[0]) * 10) / 10 });
+  }) });
   const id = turnId || crypto.randomUUID();
   const tracer = turnTrace(now, id); // v2: the turn trace (learn-tutor-trace.js), returned in bench.trace
   let current = store;
@@ -408,7 +415,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
       transitions: transitions.map(({ claim, from, to }) => `${claim}: ${from} -> ${to}`),
     };
     // The probe this turn answered is closed, so the next free-text turn is not read as answering it again.
-    return { store: turn.answering ? { ...current, open: null } : current, turn, evaluation, transitions, states, actions: [], text: '', bench };
+    return traced({ store: turn.answering ? { ...current, open: null } : current, turn, evaluation, transitions, states, actions: [], text: '', bench });
   }
   // 3. Router, planner, enforcement.
   const routed = tracer.step('router', () => route({ turn, claims, states, evaluation, store: current }), out => out.row);
@@ -501,7 +508,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
       to_first_evidence_action: actions.some(action => EVIDENCE_ACTIONS.includes(action.type)) ? ms(t[0], released) : null,
     },
   };
-  return { store: current, turn, selection, evaluation, transitions, routed, response, actions, contracts, reason_codes: reasonCodes(response), decisions, log, text, states: deriveClaimStates(current.events, domain.claims), bench, mark: tracer.mark };
+  return traced({ store: current, turn, selection, evaluation, transitions, routed, response, actions, contracts, reason_codes: reasonCodes(response), decisions, log, text, states: deriveClaimStates(current.events, domain.claims), bench, mark: tracer.mark });
 }
 const now = () => (globalThis.performance ?? Date).now();
 

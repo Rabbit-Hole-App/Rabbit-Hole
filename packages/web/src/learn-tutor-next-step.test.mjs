@@ -286,6 +286,11 @@ test('expected_evidence: a shown and a made card of the same block type expect t
     assert.deepEqual(made.expected_evidence, via ? [{ claim_id: IDS[1], via }] : [], card);
   }
   assert.deepEqual(actionContract({ type: 'respond_text', text: 'x' }, ctx).expected_evidence, []);
+  // Task 5 re-review: a plain challenge (the practice command's first card, as materialCommands lists it) expects interaction too.
+  const plain = { domain: journeyDomain({ journey: J, path: PATH, blocks: [{ id: 'c1', type: 'challenge', prompt: 'Guess', journey: stamp('c1') }] }), materials: [{ command: 'practice', cards: ['challenge', 'explainBack', 'quiz'], paid: false }], claims: [IDS[1]] };
+  const shown = actionContract({ type: 'show_authored_card', card: 'c1', mode: 'suggest' }, plain), made = actionContract({ type: 'create_material', command: 'practice', request: 'x' }, plain);
+  assert.deepEqual([shown.modality, made.modality], ['challenge', 'challenge']);
+  assert.deepEqual([shown.expected_evidence, made.expected_evidence], [[{ claim_id: IDS[1], via: 'interaction' }], [{ claim_id: IDS[1], via: 'interaction' }]]);
 });
 
 // Review fix 3: contract metadata never fails a turn - a domain without its optional members gives null or [] for that field.
@@ -340,4 +345,21 @@ test('the next_step turn, its contracts and its history are the same on nanoGPT,
   }));
   assert.deepEqual(seen[0].modalities, ['text', 'question', 'flashcards']);
   seen.slice(1).forEach((world, i) => assert.deepEqual(world, seen[0], WORLDS[i + 1].name));
+});
+
+// Task 6 (owner anti-hardcoding): the TutorDecisionEvent is built the same way on every domain; only the mode follows it.
+test('the decision event is the same on nanoGPT, TIDES, AQUEDUCTS and renamed ids (mode course or journey)', async () => {
+  const seen = await Promise.all(WORLDS.map(async ({ domain: d, claim }) => {
+    const plan = { strategy: 'feynman', constraints_add: [], reason_codes: ['vary_modality'], reason: 'A prediction makes the idea observable.', actions: [{ type: 'respond_text', text: 'Here is one way in.' }, { type: 'ask_question', text: 'What would change?', claim, purpose: 'predict' }, { type: 'create_material', command: 'flashcards', request: 'the terms' }] };
+    const { trace: e } = await turnWith(emptyStore(), plan, { domain: d, nextStep: { ...STEP, claim_ids: [claim] }, trace: true });
+    const own = ids => ids.map(id => id === claim);
+    return {
+      mode: e.identity.mode, keys: [e, e.identity, e.versions, e.decision, e.runtime].map(Object.keys), route: e.decision.route, selected: e.decision.selected_next_step_id, goal: e.decision.current_goal,
+      actions: e.decision.actions.map(a => ({ ...a, target_concept_ids: a.target_concept_ids.length, target_claim_ids: own(a.target_claim_ids) })), chosen: e.decision.chosen_action.action_type,
+      reason: [e.decision.reason_codes, e.decision.reason_source, e.flags, e.decision.rationale_summary], expected: e.decision.expected_evidence.map(x => [x.claim_id === claim, x.via]), seconds: e.decision.estimated_learning_seconds,
+    };
+  }));
+  assert.deepEqual(seen.map(world => world.mode), ['course', 'journey', 'journey', 'journey', 'journey']);
+  assert.deepEqual([seen[0].chosen, seen[0].reason[2], seen[0].goal], ['ask_question', ['vary_modality_alone'], { id: STEP.suggestion_id, summary: STEP.learning_goal }]);
+  seen.slice(1).forEach((world, i) => assert.deepEqual({ ...world, mode: 'course' }, seen[0], WORLDS[i + 1].name));
 });

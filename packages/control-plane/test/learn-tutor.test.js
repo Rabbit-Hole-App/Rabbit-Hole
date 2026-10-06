@@ -6,8 +6,9 @@ import assert from 'node:assert/strict';
 import { learnDb } from './learn-grade-fixture.js';
 import { liveDb, liveRuns, readOnlyControlPlane } from './live-storage-spy.js';
 import { tutorRoute, JEV_TIMEOUT_MS, fastPlanProblem, plannerTier } from '../src/learn-tutor-routes.js';
-import { tutorQuestions, evaluationFrom, TUTOR_TOOL } from '../src/agents/learn-tutor.js';
+import { tutorQuestions, evaluationFrom, TUTOR_TOOL, NEXT_STEP_SYSTEM, PLANNER_SYSTEM, plannerRequest } from '../src/agents/learn-tutor.js';
 import { protocolFingerprint, GRADER_PROTOCOL_FINGERPRINT, JevError } from '../src/learn-grade-jev.js';
+import { promptVersion } from '../src/learn-models.js';
 
 const SPEC = {
   answering: false,
@@ -181,7 +182,12 @@ test('plan: one forced tutor_response call on Opus 5.5 (no fallback); its input 
   const response = await w.post('/api/learn/tutor/plan', { app: 'canvas-0a1b2c3d', context: { turn: { raw_user_message: 'hi' } } });
   const { telemetry, ...body } = await response.json();
   assert.deepEqual(body, turn);
-  assert.deepEqual({ ...telemetry, ms: typeof telemetry.ms }, { ms: 'number', requested_model: 'claude-opus-5-5', effort: null, served_model: 'claude-opus-5-5', input_tokens: 3100, output_tokens: 120, stop_reason: 'tool_use', outcome: 'ok' });
+  // Before Professor Next Steps Task 6: { ms: 'number', requested_model: 'claude-opus-5-5', effort: null, served_model: 'claude-opus-5-5',
+  // input_tokens: 3100, output_tokens: 120, stop_reason: 'tool_use', outcome: 'ok' }. Task 6 (TutorDecisionEvent versions) adds
+  // prompt_version (the system and tool sent) and cost_usd (Opus 5.5, 3100 in and 120 out: $0.0148).
+  assert.match(telemetry.prompt_version, /^[0-9a-f]{12}$/);
+  assert.equal(telemetry.prompt_version, await promptVersion(calls[0].body.system, calls[0].body.tools));
+  assert.deepEqual({ ...telemetry, ms: typeof telemetry.ms }, { ms: 'number', requested_model: 'claude-opus-5-5', effort: null, served_model: 'claude-opus-5-5', input_tokens: 3100, output_tokens: 120, stop_reason: 'tool_use', outcome: 'ok', prompt_version: telemetry.prompt_version, cost_usd: 0.0148 });
   assert.equal(calls[0].body.model, 'claude-opus-5-5');
   assert.equal('fallbacks' in calls[0].body, false, 'no silent fallback');
   assert.deepEqual(calls[0].body.tool_choice, { type: 'auto' });
@@ -223,7 +229,26 @@ test('plan: no usable tutor_response is a 502 with telemetry outcome invalid; a 
   assert.equal(response.status, 502);
   const { error, telemetry } = await response.json();
   assert.match(error, /no turn/);
-  assert.deepEqual({ ...telemetry, ms: typeof telemetry.ms }, { ms: 'number', requested_model: 'claude-opus-5-5', effort: null, served_model: 'claude-opus-5', input_tokens: 3000, output_tokens: 9, stop_reason: 'max_tokens', outcome: 'invalid' });
+  // Before Task 6: { ms: 'number', requested_model: 'claude-opus-5-5', effort: null, served_model: 'claude-opus-5', input_tokens: 3000,
+  // output_tokens: 9, stop_reason: 'max_tokens', outcome: 'invalid' }. Task 6 adds prompt_version and cost_usd, priced at the
+  // requested claude-opus-5-5 (3000 in, 9 out: $0.01218); a failed call's telemetry carries both too.
+  assert.match(telemetry.prompt_version, /^[0-9a-f]{12}$/);
+  assert.deepEqual({ ...telemetry, ms: typeof telemetry.ms }, { ms: 'number', requested_model: 'claude-opus-5-5', effort: null, served_model: 'claude-opus-5', input_tokens: 3000, output_tokens: 9, stop_reason: 'max_tokens', outcome: 'invalid', prompt_version: telemetry.prompt_version, cost_usd: 0.01218 });
+});
+
+// TutorDecisionEvent versions (contract §3.1, Ruling T6): prompt_version hashes every system block and the tool actually sent.
+test('plan: prompt_version - a hook turn counts its uncached NEXT_STEP_SYSTEM block; cache and stream settings never change it', async t => {
+  const turn = { strategy: 'none', actions: [{ type: 'respond_text', text: 'Hi.' }] };
+  const calls = recordFetch(t, { model: 'claude-opus-5-5', usage: { input_tokens: 10, output_tokens: 2 }, content: [{ type: 'tool_use', name: 'tutor_response', input: turn }], stop_reason: 'tool_use' });
+  const version = async (env, context) => (await (await world(t, { TUTOR_PLANNER_FAST_MODEL: 'off', ...env }).post('/api/learn/tutor/plan', { app: 'canvas-0a1b2c3d', context })).json()).telemetry.prompt_version;
+  const typed = { learner_intent: { kind: 'question' } }, hook = { learner_intent: { kind: 'next_step' } };
+  const cachedTyped = await version({}, typed), cachedHook = await version({}, hook), plainHook = await version({ TUTOR_PLANNER_CACHE: 'off' }, hook);
+  assert.deepEqual(calls[1].body.system.map(block => block.text), [PLANNER_SYSTEM, NEXT_STEP_SYSTEM], 'the hook turn sent two system blocks');
+  assert.equal(cachedHook, await promptVersion(calls[1].body.system, calls[1].body.tools));
+  assert.notEqual(cachedHook, cachedTyped);
+  assert.equal(plainHook, cachedHook, 'one string or two blocks of the same text: the same version');
+  const streamed = plannerRequest(hook, 100, [], { stream: true, cache: true });
+  assert.equal(await promptVersion(streamed.system, streamed.tools), cachedHook);
 });
 
 test('the routes refuse bad input and apps the learner cannot reach', async t => {

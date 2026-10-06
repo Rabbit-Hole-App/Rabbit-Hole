@@ -131,6 +131,10 @@ export const ACTION_TYPES = ['respond_text', 'ask_question', 'show_authored_card
 // Generic reason codes (Professor Next Steps contract §3.2, owner 2026-10-06): no topic codes. vary_modality is never the
 // only code (the decision event adds the route row's code and flags it).
 export const REASON_CODES = ['advance_goal', 'deepen_mechanism', 'repair_misconception', 'fill_prerequisite_gap', 'check_understanding', 'test_transfer', 'consolidate', 'respond_to_question', 'follow_learner_interest', 'increase_interactivity', 'vary_modality', 'reduce_cognitive_load', 'resume_context'];
+// TutorDecisionEvent (docs/features/professor-next-steps.md §3): the contract version, and the Tutor planner code's version
+// (bump by hand with any routing or planning change). A future server-side store validates the same contract.
+export const TRACE_SCHEMA_VERSION = 1;
+export const TUTOR_PLANNER_VERSION = 'tutor-planner-1';
 export const CONSTRAINTS = ['no_quiz', 'no_analogy', 'no_simplify', 'just_answer', 'formal', 'implementation'];
 // v2 checkpoint G (minimal structured output) + Decision 4 (option B, constraint-first): the control
 // fields that can cancel a question (constraints_add, constraints_remove, explicit_request) and the
@@ -296,15 +300,19 @@ export const avatarSlotId = ({ moment, concept, to_concept = null }) => `${momen
 const GOAL_CODE = /[`{}<>]|=>/;
 const GOAL_IDENTIFIER = /@|https?:\/\/|www\.|\d{5,}/i;
 const goalWords = text => String(text || '').toLowerCase().match(/[\p{L}\p{N}']+/gu) || [];
+// Five consecutive words of the learner's message in `text` (the decision event's rationale reuses the rule).
+export function repeatsLearnerWords(text, learnerMessage = '') {
+  const learner = goalWords(learnerMessage), mine = goalWords(text), runs = new Set();
+  for (let i = 0; i + 5 <= learner.length; i++) runs.add(learner.slice(i, i + 5).join(' '));
+  for (let i = 0; i + 5 <= mine.length; i++) if (runs.has(mine.slice(i, i + 5).join(' '))) return true;
+  return false;
+}
 export function learningGoalProblem(goal, learnerMessage = '') {
   if (typeof goal !== 'string' || !goal.trim()) return 'empty';
   if (goal.length > LEARNING_GOAL_MAX) return 'too long';
   if (GOAL_CODE.test(goal)) return 'code';
   if (GOAL_IDENTIFIER.test(goal)) return 'identifier';
-  const learner = goalWords(learnerMessage), mine = goalWords(goal), runs = new Set();
-  for (let i = 0; i + 5 <= learner.length; i++) runs.add(learner.slice(i, i + 5).join(' '));
-  for (let i = 0; i + 5 <= mine.length; i++) if (runs.has(mine.slice(i, i + 5).join(' '))) return 'learner words';
-  return null;
+  return repeatsLearnerWords(goal, learnerMessage) ? 'learner words' : null;
 }
 
 // Effort levels the planner may be given (claude-api skill, Opus 5.5: low..max, default medium).

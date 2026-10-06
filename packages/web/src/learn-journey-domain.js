@@ -38,6 +38,7 @@ export function journeyDomain({ journey, path, blocks = [], dive = null }) {
   const slots = journey.intake?.slots || {};
   return {
     kind: 'journey', subject: journey.request?.topic,
+    sectionId: section?.id ?? null, // decision telemetry only (learn-tutor-trace.js); never in the planner context
     concepts, claims,
     practice: () => null,
     // The target block (by block id; a journey card id is a block id too): the claims stamped at materialization, and only

@@ -23,6 +23,7 @@ export const emptyStore = () => ({
   returned: null,     // returned_from, waiting for the parent's next turn
   opened: [],         // holes whose opening turn already ran
   modalities: [],     // the modalities of recent Tutor actions, oldest first (at most 8; contract §2.6)
+  session_id: null,   // the Tutor session (newSessionId, minted once per store): decision telemetry only, never sent to a planner
 });
 
 export const storeKey = app => `small.tutor:${app.org}:${app.email || app.owner_email}`;

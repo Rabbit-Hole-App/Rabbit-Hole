@@ -108,8 +108,9 @@ export function costUsd({ model, input_tokens = 0, output_tokens = 0, cache_crea
 }
 // The decision telemetry's prompt_version: the system text and the tool schemas actually sent (transport flags such as
 // cache_control or eager_input_streaming left out), so a prompt or tool change shows and a cache or stream setting does not.
+// System blocks join with a newline, as the uncached prompt joins the same texts (plannerRequest), so both hash alike.
 export async function promptVersion(system, tools) {
-  const text = Array.isArray(system) ? system.map(block => block.text).join('') : String(system ?? '');
+  const text = Array.isArray(system) ? system.map(block => block.text).join('\n') : String(system ?? '');
   return (await sha256Hex(JSON.stringify([text, (tools || []).map(({ name, description, input_schema }) => ({ name, description, input_schema }))]))).slice(0, 12);
 }
 

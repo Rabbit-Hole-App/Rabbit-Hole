@@ -12,7 +12,7 @@ import { contextDocumentBlocks } from './learn-context-docs.js';
 import { JEV_TRANSPORTS, THRESHOLDS, askJev } from './learn-grade-jev.js';
 import { anthropic } from './ask.js';
 import { modelFailure } from './learn-research.js';
-import { LEARN_TASKS, loggedModel } from './learn-models.js';
+import { LEARN_TASKS, costUsd, loggedModel, promptVersion } from './learn-models.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { escalation } from './agents/learn-tutor-escalation.js';
 import { evaluationFrom, firstSentence, largerInstruction, parseLarger, parsePartial, PLANNER_EFFORTS, plannerRequest, readTutorAnswers, tutorJevRequest, TUTOR_TOOL, tutorTool } from './agents/learn-tutor.js';
@@ -280,14 +280,18 @@ async function planOnce(env, context, model, effort, { callModel = loggedModel('
   const stream = !!onSentence && env.SUBSCRIPTION_ONLY !== 'true';
   const cache = env.TUTOR_PLANNER_CACHE !== 'off' && env.SUBSCRIPTION_ONLY !== 'true'; // F default: on
   const speed = env.TUTOR_PLANNER_SPEED === 'fast' && model === LEARN_TASKS.tutor.model && env.SUBSCRIPTION_ONLY !== 'true' ? 'fast' : null;
-  const telemetry = { ms: null, requested_model: model, effort, served_model: null, input_tokens: null, output_tokens: null, ...(cache ? { cache: true, cache_creation_input_tokens: null, cache_read_input_tokens: null } : {}), ...(speed ? { requested_speed: speed, speed: null } : {}), stop_reason: null, outcome: null, ...(stream ? { streamed: true, first_output_ms: null, first_sentence_ms: null } : {}) };
+  // TUTOR_AVATAR=on adds suggest_avatar_clip (Avatar Teacher §4.1); unset or anything else, the request is unchanged.
+  const request = plannerRequest(context, LEARN_TASKS.tutor.maxTokens, documents, { effort, stream, cache, speed, avatar: env.TUTOR_AVATAR === 'on' });
+  // TutorDecisionEvent versions (professor-next-steps.md §3.1): prompt_version is every system block and the tool sent (a hook
+  // turn's NEXT_STEP_SYSTEM included); cost_usd prices the reported usage at the requested model, null without usage.
+  const telemetry = { ms: null, requested_model: model, effort, served_model: null, input_tokens: null, output_tokens: null, ...(cache ? { cache: true, cache_creation_input_tokens: null, cache_read_input_tokens: null } : {}), ...(speed ? { requested_speed: speed, speed: null } : {}), stop_reason: null, outcome: null, ...(stream ? { streamed: true, first_output_ms: null, first_sentence_ms: null } : {}),
+    prompt_version: await promptVersion(request.system, request.tools), cost_usd: null };
   const done = outcome => ({ ...telemetry, ms: Date.now() - started, outcome });
   const schema = tutorTool(env.TUTOR_AVATAR === 'on').input_schema;
   let result, actionsSeen = false, spoke = null;
   const kept = () => ({ ...normalizeToolInput(schema, spoke), reason: null, reason_codes: null, telemetry: { ...done('ok'), tail_lost: true } });
   try {
-    // TUTOR_AVATAR=on adds suggest_avatar_clip (Avatar Teacher §4.1); unset or anything else, the request is unchanged.
-    const response = await callModel(env, plannerRequest(context, LEARN_TASKS.tutor.maxTokens, documents, { effort, stream, cache, speed, avatar: env.TUTOR_AVATAR === 'on' }), model, null);
+    const response = await callModel(env, request, model, null);
     if (!response.ok) throw await modelFailure(response, 'The tutor is unavailable');
     result = stream ? await readPlannerStream(response, input => {
       if (telemetry.first_sentence_ms == null) {
@@ -304,7 +308,8 @@ async function planOnce(env, context, model, effort, { callModel = loggedModel('
     throw Object.assign(error, { telemetry: done('error') });
   }
   Object.assign(telemetry, { served_model: result.model ?? null, input_tokens: result.usage?.input_tokens ?? null, output_tokens: result.usage?.output_tokens ?? null, stop_reason: result.stop_reason ?? null,
-    ...(speed ? { speed: result.usage?.speed ?? null } : {}), ...(cache ? { cache_creation_input_tokens: result.usage?.cache_creation_input_tokens ?? null, cache_read_input_tokens: result.usage?.cache_read_input_tokens ?? null } : {}) });
+    ...(speed ? { speed: result.usage?.speed ?? null } : {}), ...(cache ? { cache_creation_input_tokens: result.usage?.cache_creation_input_tokens ?? null, cache_read_input_tokens: result.usage?.cache_read_input_tokens ?? null } : {}),
+    cost_usd: result.usage ? costUsd({ model, ...result.usage }) : null });
   const call = result.content?.find(block => block.type === 'tool_use' && block.name === TUTOR_TOOL.name);
   // An array or object sent as a JSON string is parsed once by the tool's schema (tool-input.js); a native plan is
   // returned as it came, so nanoGPT turns are unchanged.
