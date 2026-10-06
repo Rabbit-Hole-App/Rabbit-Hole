@@ -2487,6 +2487,40 @@ The plans reuse the accepted M7A brief and storyboard, unedited. Every call ran 
 - Remotion stays the default; M8 chooses nothing yet.
 - Evidence: Figma ef9SfiemEsPQF2bd8B1os3, node 166:222.
 
+### M7B gates after the first report (owner, 2026-10-06)
+
+**1. The shared repair contract (fixed, both renderers).**
+- **Bug:** a Director revision may add or remove storyboard objects, but the Author repair was told to keep "the same timeline, TEXT, objects and layout". That is an impossible contract after a revision; Run B failed on it.
+- **Fix (`author.js` repairSection, `review-job.mjs`):** the current validated storyboard is the only semantic truth.
+  - Every repair states the current `object_inventory`. Every listed id gets exactly one element; an unlisted id gets none, even if round 0 had it; nothing outside the inventory is added; kept ids stay on their elements.
+  - After a Director revision, the repair also gets `storyboard_revision` (added, removed, kept). It takes the timeline, labels, text and objects from the revised storyboard and keeps only the layout and styling of kept objects.
+  - The review job computes the change (`inventoryChange`), passes it to the Author repair for either renderer, and records it on the job.
+- **Tests:**
+  - `repair-contract.test.mjs` covers, for Remotion and HyperFrames alike: A, an added object is required; B, a removed object may not survive; C, kept ids keep one element; D, an invented object is refused; E, both prompts state the inventory and the change.
+  - `review.test.mjs` checks the revision reaches the repair under both renderers.
+
+**2. Linux proof (Home, the same checkpoint).**
+- **Image:** the existing image and sandbox. There is no separate HyperFrames sandbox: HyperFrames runs in the same render child under `motion-sandbox`.
+- **Deploy:** from the branch head, `sh packages/learn-render/motion/service/context.sh <dir>`, then the printed `fly deploy` to rabbit-hole-motion-renderer-dev (Home owns every Fly mutation).
+- **Run inside the image,** as for the M6 proof (one at a time, nothing else rendering):
+  - `node --test --test-concurrency=1 motion/service/service.linux.test.mjs`: the Remotion cases (must still pass) and the HyperFrames cases;
+  - `MOTION_RENDER_TESTS=1 node --test --test-concurrency=1 motion/hyperframes.test.mjs`: fixtures A-J and H (motion) on Linux Chrome.
+- **Required proof, and the test that shows it:**
+
+| Required | Test |
+|---|---|
+| deterministic repeated capture | "HyperFrames determinism under Linux" (model-generated, mid-animation frames, two fresh contexts) and hyperframes.test.mjs H (motion) |
+| final render determinism under Linux | "HyperFrames final render determinism under Linux" (two separate renders, identical decoded keyframes) |
+| non-local network denied | "HyperFrames render child: no network" (CSP off; the network namespace alone) |
+| host filesystem and secrets unavailable | `assertSandboxed` in every HyperFrames case (hidden paths, no service environment, renderer read-only, not root) |
+| exact duration, resolution and fps | the control case and the final-determinism case: 15 s, 1920x1080, 30 fps, 450 frames |
+| malformed composition refused | "HyperFrames malformed compositions are refused" (static 400 invalid_job; run-time compile_failed) |
+| existing Remotion sandbox still passes | every earlier case in service.linux.test.mjs |
+
+- **Watch for:**
+  - On Linux the engine captures with BeginFrame under `--deterministic-mode` when Chrome 149's probe passes; otherwise it falls back to screenshot capture with `settleAnimations`. The capture mode is in the service log.
+  - A HyperFrames final job renders preview and final in full. Under the sandbox's 1.5 CPUs it must finish inside the 420 s service timeout; the timings are in each result.
+
 ## M8 — benchmark and end-to-end development demonstration
 
 Run the §9.6 benchmark on the same briefs and storyboards for both renderers, then pass all §27 demos through the full pipeline with human review. Choose the default renderer and routing from the results; keep both adapters. Deliver the required report.

@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkAuthorSource } from './author-check.js';
-import { REPAIR_RULES, authorRequest } from './author.js';
+import { REPAIR_RULES, authorRequest, inventoryChange } from './author.js';
 import { BLOCKING_CATEGORIES, validateFinding, validateJob, validateRenderRequest, validateRenderResult } from './contracts.js';
 import { localService, renderComposition, renderPreview } from './render-job.mjs';
 import { harnessFindings, runMotionJob } from './review-job.mjs';
@@ -333,4 +333,34 @@ test('storyboard-level findings: a Director revision only while the storyboard r
   assert.equal(r2.job.status, 'ready');
   assert.deepEqual(r2.repair, { route: 'author', findings: 1, storyboard_repair_already_spent: true, author: { status: 'composition' } });
   assert.deepEqual(h2.log.filter(l => l[0] === 'storyboard'), []);
+});
+
+// M7B (owner decision 2026-10-06): after a Director revision the Author repair reconciles to the revised
+// storyboard's inventory, whichever renderer the job uses.
+test('a Director revision that changes the object inventory: the Author repair gets the revised storyboard and the change (both renderers)', async () => {
+  for (const renderer of ['remotion', 'hyperframes']) {
+    const x = load('softmax');
+    const ids = [...new Set(x.storyboard.beats.flatMap(b => b.visible_objects.map(o => o.id)))];
+    const removed = ids.at(-1);
+    const revised = { ...x.storyboard, beats: x.storyboard.beats.map((b, i, all) => ({ ...b, visible_objects: [...b.visible_objects.filter(o => o.id !== removed), ...(i === all.length - 1 ? [{ id: 'chance_marker', description: 'a marker' }] : [])] })) };
+    const h = harness({ previews: [clean(), clean()], reviews: [[], [{ category: 'missing_must_show', description: 'the row sum is never shown' }], [], []] });
+    h.stages.revise = async () => ({ status: 'storyboard', storyboard: revised, check: { errors: [] }, calls: [], format_retries: [] });
+    let seen = null;
+    const author = h.stages.repairAuthor;
+    h.stages.repairAuthor = async a => { seen = a; return author(a); };
+    const r = await run('softmax', h, { renderer });
+    assert.equal(r.job.status, 'ready', renderer);
+    assert.equal(seen.renderer, renderer);
+    assert.equal(seen.storyboard, revised, 'the repair is asked for the revised storyboard');
+    assert.deepEqual(seen.repair.revision, inventoryChange(x.storyboard, revised));
+    assert.deepEqual([seen.repair.revision.added, seen.repair.revision.removed], [['chance_marker'], [removed]]);
+    assert.deepEqual(r.repair.storyboard.inventory, seen.repair.revision, 'the job record says what the revision changed');
+  }
+  // An Author-only repair (no revision) gets no revision.
+  const h = harness({ previews: [blankPreview([[0, 1.34]]), clean()], reviews: [[], [], [], []] });
+  let seen = null;
+  const author = h.stages.repairAuthor;
+  h.stages.repairAuthor = async a => { seen = a; return author(a); };
+  await run('softmax', h);
+  assert.equal(seen.repair.revision, undefined);
 });

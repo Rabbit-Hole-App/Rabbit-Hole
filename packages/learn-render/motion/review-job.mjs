@@ -20,7 +20,7 @@
 import { randomUUID } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { runAuthor } from './author.js';
+import { inventoryChange, runAuthor } from './author.js';
 import { DEFAULT_RENDERER, JOB_STATUSES, MODEL_ROLES, STAGE, afterNeedsRevision, afterReview, classifyFindings, noRepairs, startRepair, validateJob } from './contracts.js';
 import { resolveRole } from './model-config.js';
 import { renderComposition, renderPreview } from './render-job.mjs';
@@ -176,7 +176,10 @@ export async function runMotionJob({
     stop();
     set('authoring');
     const source = a?.output?.source;
-    const fixed = await repairAuthor({ brief, storyboard: sb, call, env, effort, round: 1, renderer, repair: source ? { source, findings: blocking } : null });
+    // After a Director revision the Author reconciles to the revised storyboard's object inventory.
+    const revised = toStoryboard ? inventoryChange(current.storyboard, sb) : null;
+    if (revised) out.repair.storyboard.inventory = revised;
+    const fixed = await repairAuthor({ brief, storyboard: sb, call, env, effort, round: 1, renderer, repair: source ? { source, findings: blocking, ...(revised ? { revision: revised } : {}) } : null });
     record(fixed);
     if (fixed.output?.source && dir) writeFileSync(join(dir, `composition.repaired.${renderer === 'hyperframes' ? 'html' : 'jsx'}`), fixed.output.source); // diagnostics
     out.repair.author = { status: fixed.status, ...(fixed.check?.errors?.length ? { errors: fixed.check.errors } : {}), ...(fixed.error ? { error: fixed.error, detail: fixed.detail } : {}) };

@@ -101,7 +101,7 @@ export function authorRequest(brief, storyboard, { effort = 'high', maxTokens = 
     system: [{ type: 'text', text: hf ? HF_AUTHOR_SYSTEM : AUTHOR_SYSTEM, cache_control: { type: 'ephemeral' } }],
     tools: [hf ? HF_AUTHOR_TOOL : AUTHOR_TOOL],
     tool_choice: { type: 'auto' },
-    messages: [{ role: 'user', content: repair ? `${ask}\n\n${repairSection(repair)}` : ask }],
+    messages: [{ role: 'user', content: repair ? `${ask}\n\n${repairSection({ ...repair, storyboard })}` : ask }],
   };
 }
 
@@ -115,10 +115,29 @@ export const REPAIR_RULES = Object.freeze([
   'No fade-in leaves the first sampled frames (0, 1 and the next few) blank or near-blank: an entrance may slide, scale or highlight, never fade up from empty or from dim.',
   'The final frame also remains nonblank: the last beat stays on screen at full opacity through the last frame (no fade to empty).',
 ]);
-export function repairSection({ source, findings }) {
+// The storyboard's object inventory, and what a Director revision changed in it.
+export const storyboardObjects = storyboard => [...new Set(storyboard.beats.flatMap(b => b.visible_objects.map(o => o.id)))];
+export function inventoryChange(before, after) {
+  const was = storyboardObjects(before), now = storyboardObjects(after);
+  return { added: now.filter(id => !was.includes(id)), removed: was.filter(id => !now.includes(id)), kept: now.filter(id => was.includes(id)) };
+}
+
+// M7B (owner decision 2026-10-06), both renderers: the CURRENT validated storyboard is the only
+// semantic truth. Its object inventory is stated every time; after a Director revision the repair
+// reconciles the composition to the revised storyboard: added objects are built, removed ones
+// deleted (never kept because the previous composition had them), kept ones stay on their ids, and
+// nothing outside the inventory is invented. The contract checks enforce the same inventory.
+export function repairSection({ source, findings, storyboard, revision = null }) {
   return [
     'REPAIR ROUND',
-    'Your previous composition for this storyboard (below) was rendered and reviewed. Return a corrected composition that fixes every blocking finding. Keep everything the findings do not implicate: the same timeline, TEXT, objects and layout where they are fine. The findings come from the rendered frames; fix the cause in the source.',
+    revision
+      ? 'The Director revised the storyboard after your previous composition (below) was rendered and reviewed. The storyboard in the input is the CURRENT validated storyboard and the only semantic truth. Return a composition of that storyboard that also fixes every blocking finding.'
+      : 'Your previous composition for this storyboard (below) was rendered and reviewed. Return a corrected composition that fixes every blocking finding.',
+    `object_inventory = ${JSON.stringify(storyboardObjects(storyboard))}\nEvery id in the current storyboard's inventory gets exactly one element. An id not in it gets no element, even if the previous composition had one. Never add an object the current storyboard does not list. Each id still listed keeps its element and id (stable identity).`,
+    ...(revision ? [`storyboard_revision = ${JSON.stringify(revision)}\nadded: build each one as its beats describe. removed: delete its element. kept: keep its id and element.`] : []),
+    revision
+      ? 'Take the timeline, labels, on-screen text and objects from the current storyboard. Keep the layout and styling of kept objects where the findings do not implicate them. The findings come from the rendered frames; fix the cause in the source.'
+      : 'Keep everything the findings do not implicate: the same timeline, text, objects and layout where they are fine. The findings come from the rendered frames; fix the cause in the source.',
     `blocking_findings = ${JSON.stringify(repairFindings(findings))}`,
     `Repair requirements (always):\n${REPAIR_RULES.map(r => `- ${r}`).join('\n')}`,
     `previous_source =\n${source}`,

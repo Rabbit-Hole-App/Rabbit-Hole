@@ -307,3 +307,55 @@ test('the HyperFrames control through the sandboxed service: 1920x1080, 30 fps, 
   assert.equal(existsSync(join(LINUX_JOBS_DIR, render_id)), false);
   assert.equal(groupsGone(render_id), true);
 });
+
+test('HyperFrames malformed compositions are refused: statically before any job, and at run time before anything renders', { skip, timeout: 5 * 60 * 1000 }, async t => {
+  const { call, until } = await service(t);
+  const bad = hfControl();
+  bad.composition.source = bad.composition.source.replace('<div class="caption cap-b2">', '<script>fetch("/x")</script><div class="caption cap-b2">');
+  const refused = await call('/render', { method: 'POST', body: JSON.stringify(bad) });
+  assert.equal(refused.status, 400);
+  const body = await refused.json();
+  assert.equal(body.error, 'invalid_job');
+  assert.ok(body.errors.some(e => /<script>: not allowed/.test(e)), body.errors.join('; '));
+  // Statically valid, but an animation ends after the duration: compile_failed in the sandbox, no artifacts.
+  const late = hfControl();
+  late.composition.source = late.composition.source.replace('.matmul { animation: matmul 15s linear both; }', '.matmul { animation: matmul 15s linear 1s both; }');
+  const res = await call('/render', { method: 'POST', body: JSON.stringify(late) });
+  assert.equal(res.status, 202);
+  const r = await until((await res.json()).render_id);
+  assert.equal(r.status, 'failed');
+  assert.equal(r.error, 'compile_failed');
+  assert.match(r.detail, /animation matmul on matmul_node ends at 16.00 s, after the 15 s duration/);
+});
+
+// A model-generated composition (M7B Run A's repaired output, unedited) whose determinism frames fall
+// mid-animation: the Linux capture must give identical pixels in two fresh contexts.
+test('HyperFrames determinism under Linux: mid-animation frames identical in two fresh contexts (model-generated composition)', { skip, timeout: 10 * 60 * 1000 }, async t => {
+  const { call, until } = await service(t);
+  const plan = JSON.parse(readFileSync(join(HERE, '..', 'fixtures', 'm7b', 'plan-softmax.json'), 'utf8'));
+  const source = readFileSync(join(HERE, '..', 'fixtures', 'm7b', 'softmax-run-a.repaired.hyperframes.html'), 'utf8');
+  const request = { schema: 'motion-render/1', renderer: 'hyperframes', brief: plan.brief, storyboard: plan.storyboard, composition: { composition_id: source.match(/data-composition-id="([^"]+)"/)[1], source } };
+  const res = await call('/render', { method: 'POST', body: JSON.stringify(request) });
+  assert.equal(res.status, 202);
+  const r = await until((await res.json()).render_id);
+  console.log(JSON.stringify({ status: r.status, error: r.error, detail: r.detail, determinism: r.determinism, timings: r.timings }, null, 2));
+  assert.equal(r.status, 'ready', `${r.error}: ${r.detail}`);
+  assert.equal(r.determinism.identical, true);
+  assertSandboxed(r.sandbox);
+});
+
+// The final MP4 itself: two separate sandboxed renders of the same job decode to the same pixels.
+test('HyperFrames final render determinism under Linux: two separate renders, identical decoded keyframes, exactly 15 s / 1920x1080 / 30 fps', { skip, timeout: 15 * 60 * 1000 }, async t => {
+  const { call, until } = await service(t);
+  const finals = [];
+  for (let i = 0; i < 2; i++) {
+    const res = await call('/render', { method: 'POST', body: JSON.stringify(hfControl()) });
+    assert.equal(res.status, 202);
+    const r = await until((await res.json()).render_id);
+    assert.equal(r.status, 'ready', `${r.error}: ${r.detail}`);
+    assert.deepEqual([r.duration_seconds, r.width, r.height, r.fps, r.frame_count], [15, 1920, 1080, 30, 450]);
+    finals.push(r.final_validation.keyframe_hashes);
+  }
+  assert.deepEqual(finals[0].map(k => k.frame), finals[1].map(k => k.frame));
+  for (const [i, k] of finals[0].entries()) assert.equal(k.pixels_sha256, finals[1][i].pixels_sha256, `#${k.frame} differs between the two renders`);
+});
