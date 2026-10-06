@@ -41,9 +41,9 @@ export const journeyCallModel = env => (env.SMALL_ENV === 'test' && env.JOURNEY_
 // The role's system text is a static prefix (agents/learn-journey.js), so it goes as one cacheable block, as the Tutor
 // planner's does (learn-tutor-routes.js): render order is tools -> system -> messages, so the cache holds the tool schema
 // and the prompt, never the input. Never under SUBSCRIPTION_ONLY, whose bridge's handling of a cached block is unverified.
-// A role whose tool is not named after it (the hook planner) passes its tool and system; onReply sees every parsed reply
-// body ({ model, usage }), one without the tool call included, for telemetry.
-async function callRole(env, role, input, callModel, { tool = JOURNEY_TOOLS[role], system = JOURNEY_SYSTEMS[role], onReply = null } = {}) {
+// A role whose tool is not named after it (the hook planner) passes its tool, system and HTTP failure label; onReply sees
+// every parsed reply body ({ model, usage }), one without the tool call included, for telemetry.
+async function callRole(env, role, input, callModel, { tool = JOURNEY_TOOLS[role], system = JOURNEY_SYSTEMS[role], failure = 'The journey planner is unavailable', onReply = null } = {}) {
   const task = LEARN_TASKS[role], text = system;
   const response = await callModel(env, {
     max_tokens: task.maxTokens,
@@ -53,7 +53,7 @@ async function callRole(env, role, input, callModel, { tool = JOURNEY_TOOLS[role
     tool_choice: { type: 'auto' },
     messages: [{ role: 'user', content: `input = ${JSON.stringify(input)}` }],
   }, task.model, null, role);
-  if (!response.ok) throw await modelFailure(response, 'The journey planner is unavailable');
+  if (!response.ok) throw await modelFailure(response, failure);
   // A body that is not JSON, or has no content list, is a reply with no tool call.
   const result = await response.json().catch(() => null);
   onReply?.(result);
@@ -127,10 +127,10 @@ export async function planNextSteps(env, input, { callModel = journeyCallModel(e
   const onReply = (role, result) => {
     calls += 1; served = result?.model ?? null;
     for (const k of Object.keys(usage)) usage[k] += result?.usage?.[k] || 0;
-    const c = costUsd({ model: LEARN_TASKS[role].model, ...result?.usage });
+    const c = result?.usage ? costUsd({ model: LEARN_TASKS[role].model, ...result.usage }) : null; // no usage, no known cost
     cost = c == null ? cost : +((cost || 0) + c).toFixed(6);
   };
-  const ask = role => callRole(env, role, input, callModel, { tool: NEXT_STEPS_TOOL, system: NEXT_STEPS_SYSTEM, onReply: result => onReply(role, result) });
+  const ask = role => callRole(env, role, input, callModel, { tool: NEXT_STEPS_TOOL, system: NEXT_STEPS_SYSTEM, failure: 'The next steps planner is unavailable', onReply: result => onReply(role, result) });
   const done = async (options, role, escalated, errors = []) => ({ options, telemetry: {
     tier: escalated ? 'escalation' : 'routine', escalated, calls, ms: Date.now() - started, planner_version: NEXT_STEPS_PLANNER_VERSION, model_role: role, model_id: served,
     prompt_version: await promptVersion(NEXT_STEPS_SYSTEM, [NEXT_STEPS_TOOL]), usage, cost_usd: cost, reasons: options.filter(o => o.reason_internal).length, errors } });

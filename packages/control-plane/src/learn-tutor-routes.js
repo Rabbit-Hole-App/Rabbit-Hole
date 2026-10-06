@@ -3,7 +3,8 @@
 //                                   then the larger evaluator only when JEV is uncertain (8 s)
 //   POST /api/learn/tutor/plan      one forced-tool planner call -> TutorResponse
 //   POST /api/learn/tutor/next-steps  the hook planner -> HookSet (learn-next-steps-routes.js)
-// Both responses carry `telemetry` (per-rung ms, outcome, requested/served model, usage) for the bench.
+// evaluate and plan carry `telemetry` (per-rung ms, outcome, requested/served model, usage) for the bench; next-steps
+// carries the hook planner's (tier, escalation, model, prompt version, usage, cost) for the decision trace.
 // Nothing is stored here for a nanoGPT canvas: evidence is session-scoped in the browser (§2). A body with journey_id
 // takes the journey path (adaptive-learning-path-v1-architecture.md §5): its evidence is the journey's, on the server.
 import { authorizedBoardApp } from './learn-board.js';
@@ -19,7 +20,7 @@ import { normalizeToolInput } from './tool-input.js';
 import { JourneyConflict, appendJourneyEvidence, loadJourneyById } from './learn-journey-store.js';
 import { claimsOfConceptIn } from '../../web/src/learn-tutor-claims.js';
 import { JOURNEY_LIMITS } from '../../web/src/learn-journey.js';
-import { ownedNextSteps } from './learn-next-steps-routes.js';
+import { NEXT_STEPS_BODY_CHARS, ownedNextSteps } from './learn-next-steps-routes.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 export const JEV_TIMEOUT_MS = 800;
@@ -358,7 +359,14 @@ export async function tutorRoute(path, req, env, deps = {}) {
   if (path !== '/api/learn/tutor/evaluate' && path !== '/api/learn/tutor/plan' && path !== '/api/learn/tutor/next-steps') return null;
   if (req.method !== 'POST') return json({ error: 'POST required' }, 405);
   let body;
-  try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
+  if (path === '/api/learn/tutor/next-steps') {
+    // The raw body is bounded before parsing, so padding outside input is refused too (input itself: 12000, checked later).
+    const raw = await req.text();
+    if (raw.length > NEXT_STEPS_BODY_CHARS) return json({ error: `the request body must be at most ${NEXT_STEPS_BODY_CHARS} characters` }, 400);
+    try { body = JSON.parse(raw); } catch { return json({ error: 'Invalid JSON' }, 400); }
+  } else {
+    try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
+  }
   const access = await (deps.authorize || authorizedBoardApp)(req, env, body?.app, body?.pending || null);
   if (access instanceof Response) return access;
   if (req.headers.has('origin') && req.headers.get('origin') !== new URL(req.url).origin) return json({ error: 'Invalid origin' }, 403);

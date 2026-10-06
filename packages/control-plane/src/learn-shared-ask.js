@@ -143,9 +143,12 @@ export const sharedAskLimits = env => limitsFrom(SHARED_ASK_LIMITS, env);
 // asked - never to owner_email, which only says whose share it was: someone opening a share never costs its owner.
 // ponytail: rows are never pruned (the caps read one day); prune or roll up when Usage & Credits takes them over.
 // Every count reads only its own category (shared_canvas_ask, tutor_next_steps, shared_canvas_hooks), so one feature's
-// usage never spends another's budget. A cap left out is not applied: an owned call has no share bucket (shareKey ''),
-// an anonymous shared one no viewer bucket (viewer ''). null when admitted, else the viewer's own { hour, day } counts.
-export async function admitUsage(db, { category, viewer, shareKey, boardId, owner, repository = 0, viewerHour = 1e9, viewerDay = 1e9, shareHour = 1e9, shareDay = 1e9 }) {
+// usage never spends another's budget. Every cap is required: a skipped bucket passes NO_CAP explicitly (an owned call
+// has no share bucket, shareKey ''; an anonymous shared one no viewer bucket, viewer ''), and a cap left out throws, so
+// a forgotten cap never means no limit. null when admitted, else the viewer's own { hour, day } counts.
+export const NO_CAP = 1e9;
+export async function admitUsage(db, { category, viewer, shareKey, boardId, owner, repository = 0, viewerHour, viewerDay, shareHour, shareDay }) {
+  if (![viewerHour, viewerDay, shareHour, shareDay].every(Number.isFinite)) throw new TypeError('admitUsage needs all four caps; pass NO_CAP to skip a bucket');
   const now = Math.floor(Date.now() / 1000);
   const admitted = await db.prepare(`INSERT INTO shared_ask_events (category, asked_at, viewer_email, share_key, board_id, owner_email, repository)
     SELECT ?11, ?1, ?2, ?3, ?4, ?5, ?6

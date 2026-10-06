@@ -2,13 +2,14 @@
 // a reply reused per one-way hash of (user, canvas, basis), capped per user (category tutor_next_steps, never the
 // shared-ask budget). The browser builds the input from the learner's own state; it is checked, never trusted for limits.
 import { sha256Hex } from './learn-grade-jev.js';
-import { admitUsage, limitsFrom } from './learn-shared-ask.js';
+import { NO_CAP, admitUsage, limitsFrom } from './learn-shared-ask.js';
 import { planNextSteps } from './learn-journey-planners.js';
 import { mintSet, nextStepsInputProblem } from './agents/learn-next-steps.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 // Per signed-in user, an hour and a day; a worker var of the same name overrides one (limitsFrom, as the shared ask).
 export const NEXT_STEPS_CAPS = { TUTOR_NEXT_STEPS_HOUR: 60, TUTOR_NEXT_STEPS_DAY: 300 };
+export const NEXT_STEPS_BODY_CHARS = 16000; // the raw request body, checked before parsing (learn-tutor-routes.js)
 const ORIGIN = 'https://next-steps.small.internal';
 const NO_USAGE = { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 };
 
@@ -26,7 +27,7 @@ export async function ownedNextSteps(env, access, body, { callModel, cache = glo
   const hit = await nextStepsReply(cache, key);
   if (hit) return json({ ...hit, telemetry: { ...hit.telemetry, cached: true, calls: 0, usage: NO_USAGE, cost_usd: 0 } });
   const limit = limitsFrom(NEXT_STEPS_CAPS, env);
-  const refused = await admitUsage(env.LEARN_DB, { category: 'tutor_next_steps', viewer: access.email, shareKey: '', boardId: body.app, owner: access.email, viewerHour: limit.TUTOR_NEXT_STEPS_HOUR, viewerDay: limit.TUTOR_NEXT_STEPS_DAY });
+  const refused = await admitUsage(env.LEARN_DB, { category: 'tutor_next_steps', viewer: access.email, shareKey: '', boardId: body.app, owner: access.email, viewerHour: limit.TUTOR_NEXT_STEPS_HOUR, viewerDay: limit.TUTOR_NEXT_STEPS_DAY, shareHour: NO_CAP, shareDay: NO_CAP });
   if (refused) return json({ error: 'Next steps are paused for now; try again later.', limited: true }, 429);
   let planned;
   try { planned = await planNextSteps(env, body.input, callModel ? { callModel } : {}); } catch (error) { return json({ error: error.message }, 502); }

@@ -74,7 +74,7 @@ test('one failing case per rule; errors name the rule, never the hook text', () 
     [swap(1, { hook: THREE[0].hook }), 'duplicate_hook'],
     [swap(1, { learning_goal: THREE[0].learning_goal }), 'duplicate_goal'],
     [swap(0, { hook: INPUT.previous.hooks[0] }), 'repeat'],
-    [swap(0, { reason_internal: '' }), 'reason_internal'],
+    [swap(0, { reason_internal: '' }), 'reason'], // the rule name; reason_internal never reaches a client
   ];
   for (const [out, rule] of cases) {
     const errors = errorsOf(out);

@@ -4,10 +4,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { learnDb } from './learn-grade-fixture.js';
 import { tutorRoute } from '../src/learn-tutor-routes.js';
-import { planNextSteps } from '../src/learn-journey-planners.js';
-import { fixtureFor } from '../src/learn-journey-fixtures.js';
+import { planNextSteps, planSection } from '../src/learn-journey-planners.js';
+import { fixtureFor, fixtureModel } from '../src/learn-journey-fixtures.js';
 import { LEARN_TASKS, costUsd } from '../src/learn-models.js';
-import { admitUsage } from '../src/learn-shared-ask.js';
+import { NO_CAP, admitUsage } from '../src/learn-shared-ask.js';
 import { nextStepsOutput } from '../src/agents/learn-next-steps.js';
 
 const claim = (concept, statement, state, over = {}) => ({ concept, statement, ideas: [`names ${concept}`], drawn: `the first ${concept} case`, state, settled_passes: 0, settled_negatives: 0, presented: false, ...over });
@@ -31,12 +31,13 @@ test('owner test 1: the fixture gives 3 distinct, valid hooks for a journey', as
   assert.equal(new Set(out.options.map(o => o.hook)).size, 3);
 });
 
-test('owner tests 2-4: the state-aware fixture leads with repair, gap and frontier as the evidence says', () => {
+test('owner tests 2-4: the state-aware fixture leads with a misconception or a gap; strong evidence gets a frontier hook and no repair', () => {
   const lead = states => fixtureFor('suggest_next_steps', INPUT(states)).options[0];
   assert.deepEqual(lead({ soak: 'misconception' }).claim_ids, ['kiln.soak'], 'a misconception leads');
   assert.deepEqual(lead({ ramp: 'prerequisite_gap' }).claim_ids, ['kiln.ramp'], 'a gap leads');
   const advanced = fixtureFor('suggest_next_steps', INPUT({ ramp: 'understood', soak: 'understood', water: 'understood' }));
   assert.equal(advanced.options.some(o => /repair/i.test(o.reason_internal)), false, 'strong evidence gets no repair hook');
+  assert.equal(advanced.options.some(o => /frontier/i.test(o.reason_internal)), true, 'strong evidence moves on to the frontier');
 });
 
 // Ruling F6: built from input.scope alone, so renamed ids, another order, a smaller registry, an empty scope, previous
@@ -97,6 +98,13 @@ test('planNextSteps: a self-contradicting claim goes straight to Opus; an Opus f
   await assert.rejects(planNextSteps({}, INPUT(), { callModel: bad.callModel }), { name: 'PlannerInvalid' });
 });
 
+test('planNextSteps: no usage in a reply means cost_usd null; an HTTP failure names the hook planner, the journey ones keep theirs', async () => {
+  assert.equal((await planNextSteps({}, INPUT(), { callModel: fixtureModel })).telemetry.cost_usd, null, 'a fixture reply has no usage');
+  const down = async () => new Response('{}', { status: 503 });
+  await assert.rejects(planNextSteps({}, INPUT(), { callModel: down }), { message: /^The next steps planner is unavailable \(model HTTP 503\)/ });
+  await assert.rejects(planSection({}, {}, { callModel: down }), { message: /^The journey planner is unavailable \(model HTTP 503\)/ });
+});
+
 test('the hook planner request: static cached system, one tool on auto, input only in the user message, never JEV', async () => {
   const s = scripted([() => reply(fixtureFor('suggest_next_steps', INPUT()))]);
   await planNextSteps({}, INPUT(), { callModel: s.callModel });
@@ -129,6 +137,7 @@ test('owned route: a HookSet without reason_internal, dedup per user, canvas and
   assert.equal(set.options.length, 3);
   assert.equal(JSON.stringify(set).includes('reason_internal'), false);
   assert.equal(JSON.stringify(set).includes('fixture '), false, 'no reason text either');
+  assert.equal(set.telemetry.cost_usd, null, 'the fixture reports no usage, so no cost');
   const again = await (await w.post({ app: 'canvas-0a1b2c3d', input: INPUT() })).json();
   assert.equal(again.set_id, set.set_id, 'the same user, canvas and basis reuse the reply');
   const other = await (await w.post({ app: 'canvas-0a1b2c3d', input: INPUT() }, { org: 'team', email: 'other@test', user_id: 'u-other-2' })).json();
@@ -167,11 +176,18 @@ test('owned route: shared-ask usage never spends the hook budget', async t => {
   assert.equal((await w.post({ app: 'canvas-0a1b2c3d', input: { ...INPUT(), basis: 'b' } })).status, 429, 'its own cap still holds');
 });
 
+test('admitUsage: a cap left out fails loudly, never admits without a limit; NO_CAP skips a bucket explicitly', async t => {
+  const { sqlite, LEARN_DB } = learnDb(t);
+  await assert.rejects(admitUsage(LEARN_DB, { category: 'tutor_next_steps', viewer: 'a@test', shareKey: '', boardId: 'b', owner: 'a@test', viewerDay: 5, shareHour: NO_CAP, shareDay: NO_CAP }), TypeError);
+  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM shared_ask_events').get().n, 0, 'nothing admitted');
+  assert.equal(NO_CAP, 1e9);
+});
+
 test('admitUsage: an anonymous shared planner call is capped per share key under its own category', async t => {
   const { sqlite, LEARN_DB } = learnDb(t);
   const now = Math.floor(Date.now() / 1000);
   sqlite.prepare("INSERT INTO shared_ask_events (category, asked_at, viewer_email, share_key, board_id, owner_email, repository) VALUES ('shared_canvas_ask', ?, 'ben@test', 'share-1', 'b', 'o@test', 0)").run(now);
-  const call = shareKey => admitUsage(LEARN_DB, { category: 'shared_canvas_hooks', viewer: '', shareKey, boardId: 'b', owner: 'o@test', shareHour: 2, shareDay: 5 });
+  const call = shareKey => admitUsage(LEARN_DB, { category: 'shared_canvas_hooks', viewer: '', shareKey, boardId: 'b', owner: 'o@test', viewerHour: NO_CAP, viewerDay: NO_CAP, shareHour: 2, shareDay: 5 });
   assert.deepEqual([await call('share-1'), await call('share-1')], [null, null], 'the shared ask row on that key is not counted');
   assert.notEqual(await call('share-1'), null, 'the third call on one key is refused');
   assert.equal(await call('share-2'), null, 'another share key has its own budget');
@@ -186,4 +202,29 @@ test('owned route: 400 on bad input or more than 12000 characters, 502 when the 
   assert.equal(failing.status, 502);
   const bare = await tutorRoute('/api/learn/tutor/next-steps', new Request('https://dev.test/x', { method: 'POST', body: JSON.stringify({ app: 'a', input: INPUT() }) }), {}, { authorize: async () => ({ org: 'o', email: 'e@x', app: 'a' }) });
   assert.equal(bare.status, 503);
+});
+
+test('owned route: a raw body over 16000 characters is refused before parsing, even when input itself is small', async t => {
+  const w = world(t);
+  const big = await w.post({ app: 'canvas-0a1b2c3d', input: INPUT(), pad: 'x'.repeat(16000) });
+  assert.equal(big.status, 400);
+  assert.match((await big.json()).error, /16000/);
+  assert.equal(w.sqlite.prepare('SELECT COUNT(*) AS n FROM shared_ask_events').get().n, 0, 'no usage event');
+});
+
+test('owned route: the rule name reason_internal reaches no client, in an escalated reply or a 502', async t => {
+  const w = world(t), good = fixtureFor('suggest_next_steps', INPUT());
+  const bad = { ...good, options: good.options.map((o, i) => (i ? o : { ...o, reason_internal: '' })) };
+  const escalated = scripted([() => reply(bad), () => reply(good)]);
+  const ok = await w.post({ app: 'canvas-0a1b2c3d', input: { ...INPUT(), basis: 'r1' } }, undefined, { callModel: escalated.callModel });
+  const set = await ok.text();
+  assert.equal(ok.status, 200);
+  assert.deepEqual([JSON.parse(set).telemetry.escalated, JSON.parse(set).telemetry.errors], ['validator', ['reason']]);
+  assert.equal(set.includes('reason_internal'), false);
+  const failing = scripted([() => reply(bad), () => reply(bad)]);
+  const failed = await w.post({ app: 'canvas-0a1b2c3d', input: { ...INPUT(), basis: 'r2' } }, undefined, { callModel: failing.callModel });
+  const text = await failed.text();
+  assert.equal(failed.status, 502);
+  assert.match(text, /option 1: reason/);
+  assert.equal(text.includes('reason_internal'), false);
 });

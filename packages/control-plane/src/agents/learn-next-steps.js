@@ -143,7 +143,8 @@ export function nextStepsOutput(out, input) {
     // Ruling F6: refused only when every claim is completed-only (a completed section, not the current one) and none needs repair.
     else if (o.claim_ids.length && o.claim_ids.every(id => completed.has(id) && !current.has(id)) && !own.some(c => REPAIR.includes(c?.state))) bad('completed_only');
     const reason = o.reason_internal;
-    if (typeof reason !== 'string' || !reason.trim() || reason.length > LIMITS.reason || CODE.test(reason)) bad('reason_internal');
+    // Rule name reason, never the field name: errors reach telemetry and a 502, where reason_internal must not appear.
+    if (typeof reason !== 'string' || !reason.trim() || reason.length > LIMITS.reason || CODE.test(reason)) bad('reason');
     value.push({ hook, learning_goal: goal, concept_ids: conceptIds ? [...o.concept_ids] : [], claim_ids: claimIds ? [...o.claim_ids] : [], reason_internal: reason });
   });
   const hooks = value.map(o => norm(o.hook)), before = (input?.previous?.hooks || []).map(norm), goals = input?.previous?.goals || [];
