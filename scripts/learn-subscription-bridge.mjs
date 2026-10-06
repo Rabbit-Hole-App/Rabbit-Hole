@@ -78,6 +78,61 @@ function replyError(message, parser_error, { result, model, meta = {}, diagFile 
   if (diagFile) { try { appendFileSync(diagFile, `${JSON.stringify(diagnostic)}\n`); } catch { /* a diagnostic never breaks the reply */ } }
   return Object.assign(new Error(message), { diagnostic });
 }
+// A native-style tool call (owner Option 1, 2026-10-06), tried only when the reply is not JSON: exactly one
+// <invoke name="tool"><parameter name="x">value</parameter>...</invoke>, nothing but whitespace around it, decoded by the
+// named tool's input_schema into the same { type: 'tool_use', name, input } the JSON path yields. The checks below then
+// run unchanged, and the caller's validators still decide whether the input is a valid plan. Generic: no tool or topic is
+// named here. Any deviation throws the rule that failed; nothing is repaired or guessed.
+const NUMBER = /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/;
+function invokeValue(name, text, type) {
+  const value = text.trim(), json = () => { try { return JSON.parse(value); } catch (error) { throw new Error(`parameter ${name}: malformed JSON (${error.message})`); } };
+  if (type === 'object' || type === 'array') {
+    const parsed = json();
+    if (type === 'object' ? !parsed || typeof parsed !== 'object' || Array.isArray(parsed) : !Array.isArray(parsed)) throw new Error(`parameter ${name}: not a JSON ${type}`);
+    return parsed;
+  }
+  if (type === 'boolean') { if (value !== 'true' && value !== 'false') throw new Error(`parameter ${name}: not true or false`); return value === 'true'; }
+  if (type === 'number' || type === 'integer') {
+    if (!NUMBER.test(value) || !Number.isFinite(Number(value)) || (type === 'integer' && !Number.isInteger(Number(value)))) throw new Error(`parameter ${name}: not ${type === 'integer' ? 'an integer' : 'a finite number'}`);
+    return Number(value);
+  }
+  if (type === 'string') return value;
+  // ponytail: no single type (absent, or a union such as ['string', 'null']) takes JSON when it parses, else the text.
+  try { return JSON.parse(value); } catch { return value; }
+}
+export function decodeInvoke(text, tools) {
+  const reply = text.trim();
+  if (!reply.startsWith('<invoke')) throw new Error('invoke: the reply does not start with <invoke> (prose, a fence or a wrapper before it)');
+  if (!reply.endsWith('</invoke>')) throw new Error('invoke: the reply does not end with </invoke> (unclosed, or text after it)');
+  const opens = reply.match(/<invoke\b/g).length, closes = reply.match(/<\/invoke>/g).length;
+  if (opens > 1) throw new Error(reply.indexOf('<invoke', 1) < reply.indexOf('</invoke>') ? 'invoke: nested <invoke>' : 'invoke: more than one <invoke>');
+  if (closes > 1) throw new Error('invoke: more than one </invoke>');
+  const open = /^<invoke\s+name="([^"<>]+)"\s*>/.exec(reply);
+  if (!open) throw new Error('invoke: the <invoke> tag has no name');
+  const name = open[1], tool = tools.find(t => t?.name === name);
+  if (!tool) throw new Error(`invoke: unknown tool ${name.slice(0, 80)}`);
+  const properties = tool.input_schema?.properties || {}, required = tool.input_schema?.required || [];
+  const inner = reply.slice(open[0].length, -'</invoke>'.length), input = {}, tag = /<parameter\s+name="([^"<>]+)"\s*>/y;
+  let at = 0;
+  for (;;) {
+    while (at < inner.length && /\s/.test(inner[at])) at++;
+    if (at >= inner.length) break;
+    tag.lastIndex = at;
+    const param = tag.exec(inner);
+    if (!param) throw new Error(inner.startsWith('<parameter', at) ? 'invoke: a <parameter> tag has no name' : 'invoke: text outside a <parameter>');
+    const key = param[1], end = inner.indexOf('</parameter>', tag.lastIndex);
+    if (end < 0) throw new Error(`invoke: parameter ${key} is not closed`);
+    const value = inner.slice(tag.lastIndex, end);
+    if (/<\/?parameter\b/.test(value)) throw new Error(`invoke: parameter ${key} holds another parameter tag`);
+    if (Object.hasOwn(input, key)) throw new Error(`invoke: duplicate parameter ${key}`);
+    if (!Object.hasOwn(properties, key)) throw new Error(`invoke: parameter ${key} is not in the ${name} input_schema`);
+    input[key] = invokeValue(key, value, properties[key]?.type);
+    at = end + '</parameter>'.length;
+  }
+  const missing = required.filter(key => !Object.hasOwn(input, key));
+  if (missing.length) throw new Error(`invoke: missing required parameter ${missing.join(', ')}`);
+  return { type: 'tool_use', name, input };
+}
 export async function subscriptionMessage(body, { run = cli, identify = subscriptionIdentity, prepare = prepareMessages, meta = {}, diagFile = process.env.SMALL_SUBSCRIPTION_DIAG_FILE } = {}) {
   await identify(run);
   const tools = body.tools || [];
@@ -90,7 +145,9 @@ export async function subscriptionMessage(body, { run = cli, identify = subscrip
   let answer;
   try {
     if (typeof result?.result !== 'string') throw new Error('the CLI result has no text');
-    answer = JSON.parse(result.result.replace(/^\s*```(?:json)?\s*/, '').replace(/\s*```\s*$/, ''));
+    try { answer = JSON.parse(result.result.replace(/^\s*```(?:json)?\s*/, '').replace(/\s*```\s*$/, '')); } catch (notJson) {
+      try { answer = decodeInvoke(result.result, tools); } catch (error) { throw new Error(`not JSON (${notJson.message}); ${error.message}`); }
+    }
     if (!answer || typeof answer !== 'object' || Array.isArray(answer)) throw new Error('the reply is JSON but not an object');
   } catch (error) { throw replyError('Invalid subscription model response', error.message, evidence); }
   if (answer.type === 'tool_use') {
