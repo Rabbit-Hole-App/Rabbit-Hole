@@ -13,7 +13,8 @@ import { modelFailure } from './learn-research.js';
 import { LEARN_TASKS, loggedModel } from './learn-models.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { escalation } from './agents/learn-tutor-escalation.js';
-import { evaluationFrom, firstSentence, largerInstruction, parseLarger, PLANNER_EFFORTS, plannerRequest, readTutorAnswers, tutorJevRequest, TUTOR_TOOL } from './agents/learn-tutor.js';
+import { evaluationFrom, firstSentence, largerInstruction, parseLarger, PLANNER_EFFORTS, plannerRequest, readTutorAnswers, tutorJevRequest, TUTOR_TOOL, tutorTool } from './agents/learn-tutor.js';
+import { normalizeToolInput } from './tool-input.js';
 import { JourneyConflict, appendJourneyEvidence, loadJourneyById } from './learn-journey-store.js';
 import { claimsOfConceptIn } from '../../web/src/learn-tutor-claims.js';
 
@@ -277,8 +278,11 @@ async function planOnce(env, context, model, effort, { callModel = loggedModel('
   Object.assign(telemetry, { served_model: result.model ?? null, input_tokens: result.usage?.input_tokens ?? null, output_tokens: result.usage?.output_tokens ?? null, stop_reason: result.stop_reason ?? null,
     ...(speed ? { speed: result.usage?.speed ?? null } : {}), ...(cache ? { cache_creation_input_tokens: result.usage?.cache_creation_input_tokens ?? null, cache_read_input_tokens: result.usage?.cache_read_input_tokens ?? null } : {}) });
   const call = result.content?.find(block => block.type === 'tool_use' && block.name === TUTOR_TOOL.name);
-  if (!call?.input || !Array.isArray(call.input.actions)) throw Object.assign(new Error('The tutor returned no turn'), { telemetry: done('invalid') });
-  return { ...call.input, telemetry: done('ok') };
+  // An array or object sent as a JSON string is parsed once by the tool's schema (tool-input.js); a native plan is
+  // returned as it came, so nanoGPT turns are unchanged.
+  const input = call?.input && normalizeToolInput(tutorTool(env.TUTOR_AVATAR === 'on').input_schema, call.input);
+  if (!input || !Array.isArray(input.actions)) throw Object.assign(new Error('The tutor returned no turn'), { telemetry: done('invalid') });
+  return { ...input, telemetry: done('ok') };
 }
 
 // v2 checkpoint H: the tiered planner, off unless TUTOR_PLANNER_FAST_MODEL names one of these exact ids

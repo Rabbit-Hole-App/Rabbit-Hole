@@ -14,6 +14,7 @@ import { modelFailure } from './learn-research.js';
 import { LEARN_TASKS, loggedModel } from './learn-models.js';
 import { JOURNEY_SYSTEMS, JOURNEY_TOOLS, diagnosticOutput, pathOutput, resolverOutput, sectionOutput } from './agents/learn-journey.js';
 import { fixtureModel } from './learn-journey-fixtures.js';
+import { normalizeToolInput } from './tool-input.js';
 
 // The five journey roles are LEARN_TASKS entries (learn-models.js): journey_resolver, journey_diagnostic, journey_path,
 // journey_section and journey_adapt, each with effort (output_config.effort; null is the model default).
@@ -54,7 +55,9 @@ async function callRole(env, role, input, callModel) {
   const content = (await response.json().catch(() => null))?.content;
   const call = Array.isArray(content) ? content.find(block => block?.type === 'tool_use' && block.name === role) : null;
   if (call?.input == null || typeof call.input !== 'object' || Array.isArray(call.input)) throw new PlannerInvalid(role, ['the reply has no tool call']);
-  return call.input;
+  // An array or object the model sent as a JSON string is parsed once, by the tool's schema (tool-input.js); the
+  // validators then judge the result unchanged.
+  return normalizeToolInput(JOURNEY_TOOLS[role].input_schema, call.input);
 }
 const valid = (role, checked) => { if (!checked.ok) throw new PlannerInvalid(role, checked.errors); return checked.value; };
 const invalidAs = fallback => error => { if (error instanceof PlannerInvalid) return fallback; throw error; };

@@ -240,6 +240,7 @@ const JOURNEY_SYSTEM = tagged({
   output_contract: [
     'Call tutor_response once.',
     L(11), L(10), L(13),
+    '- Use the native JSON types required by the tool schema. Never serialize an array or object into a JSON string.',
   ],
 });
 

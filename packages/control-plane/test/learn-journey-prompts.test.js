@@ -304,3 +304,20 @@ test('probe keys map only wrong options that match a registered misconception id
     assert.match(JOURNEY_SYSTEMS[role], /target_concepts \(concept ids\), prerequisites \(concept ids, never section ids\)/, role);
   }
 });
+
+// ---------- 10. Native JSON types and the change text limits (live API run, 2026-10-05) ----------
+
+test('every journey output contract asks for native JSON types; the nanoGPT prompt does not change', () => {
+  const NATIVE = 'Use the native JSON types required by the tool schema. Never serialize an array or object into a JSON string.';
+  for (const [name, text] of Object.entries({ ...PROMPTS, tutor_avatar: plannerSystem(true, 'journey') })) assert.ok(block(text, 'output_contract').includes(NATIVE), name);
+  assert.equal(PLANNER_SYSTEM.includes('serialize'), false);
+});
+
+test('path and adapt output contracts state the change.reason and learner_note limits the tool schema has', () => {
+  for (const role of ['journey_path', 'journey_adapt']) {
+    const change = JOURNEY_TOOLS[role].input_schema.properties.path.properties.change.properties, contract = block(PROMPTS[role], 'output_contract');
+    assert.ok(Number.isInteger(change.reason.maxLength) && Number.isInteger(change.learner_note.maxLength), role);
+    assert.ok(contract.includes(`reason (at most ${change.reason.maxLength} characters)`), `${role}: reason limit`);
+    assert.ok(contract.includes(`learner_note? (at most ${change.learner_note.maxLength} characters)`), `${role}: learner_note limit`);
+  }
+});
