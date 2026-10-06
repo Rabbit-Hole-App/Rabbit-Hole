@@ -119,12 +119,15 @@ All files are in `tests/evals/tutor-session/`. Everything is generic and tested 
 
 | File | What it holds |
 |---|---|
-| `events.mjs` | The event stream, its validation, the fold into one record per decision, timing (backend vs perceived), and grouping. |
-| `harness.mjs` | Fixtures, the hidden-profile guard, the session loop on the session timeline, learner and reviewer views, prompts, reply schemas and strict parsers, the cost ledger with its separate external log, and `freshLearnDb`. Every product dependency is injected. |
+| `events.mjs` | The event stream, its validation, the fold into one record per decision (with its provider calls and materials), timing (backend vs perceived), grouping, and the shared helpers. |
+| `cost.mjs` + `pricing.json` | Versioned prices, one priced cost line per provider call, and cost metrics with attribution (§12). |
+| `materials.mjs` | Material / card records, the five durations, per-type telemetry and content shape (subcards) (§13). |
+| `graph.mjs` | The learning graph, topology, Rabbit Holes and Next Steps as candidate edges (§14). |
+| `harness.mjs` | Fixtures, the hidden-profile guard, the session loop on the session timeline (with a cost meter per stage), learner and reviewer views, prompts, reply schemas and strict parsers, the cost ledger, and `freshLearnDb`. Every product dependency is injected. |
 | `metrics.mjs` | Every metric as a pure function over segments (lists of folded steps). One implementation serves a session, canvas, board, user×canvas, journey, section, source resource, planner version and the global aggregate. Also `aggregate.json`, the terminal table and the steps CSV. |
 | `run.mjs` | Free CLI. `aggregate <dir>` writes `aggregate.json`, `steps.csv` and the table; `events <file.jsonl>` prints grouped metrics for any event stream. |
-| `fixtures/` | Topic fixtures (`logistic-regression`, `photosynthesis`), simulator-only profiles, and `taxonomy.provisional.json`. |
-| `tutor-session.test.mjs` | 28 tests, run by `make test-unit`. |
+| `fixtures/` | Topic fixtures (`logistic-regression`, `photosynthesis`), simulator-only profiles, `taxonomy.provisional.json` (modalities, reason codes, relations, review thresholds) and `cost-roles.provisional.json`. |
+| `tutor-session.test.mjs` | 34 tests, run by `make test-unit`. |
 
 There is no topic or profile branch in the code, and a test enforces it:
 - No harness source names a topic id, a topic title word or a profile id.
@@ -147,7 +150,7 @@ reading. `aggregate.json` is always recomputed from the events.
 
 **Types:**
 - Session: `session_started`, `session_ended {reason}`.
-- Canvas and holes: `canvas_context_changed`, `rabbit_hole_entered/left {dive_id}`.
+- Canvas: `canvas_context_changed`.
 - Hooks: `next_steps_generation_started {hook_set_id}`, `next_steps_ready {hook_set_id, options}`, `next_step_selected {hook_set_id, option_id, position}`.
 - Learner:
   - `learner_consumption_started/finished {decision_id, timing_source}`: `estimated` when the reading time is the Tutor's estimate, `measured` for real users.
@@ -156,8 +159,11 @@ reading. `aggregate.json` is always recomputed from the events.
 - Decision: `tutor_decision_started {decision_id, trigger: opening|hook|typed}`, `tutor_action_ready {decision_id, decision, estimated_learning_seconds, available_modalities, planner, planner_version}`.
 - Material:
   - `material_generation_started`, `material_first_ready`;
-  - `material_complete {timing_source, cache_status, cache_origin, asset_applicable, durations?, material_signature?}`;
-  - `material_failed`, `asset_ready`.
+  - `material_complete {material_id, timing_source, cache_status, cache_origin, asset_applicable, durations?, material_type, modality, concept_ids, claim_ids, expected_evidence, descriptors, structure, fresh_generation_cost_usd?}`;
+  - `material_failed`, `provider_asset_generated` (t9);
+  - learner side: `material_visibility {visible}`, `material_interaction {interaction, meaningful, control_id?, result?, active_ms?, position_seconds?, played_seconds?}`, `material_completed`, `material_abandoned`.
+- Cost: `model_call_started`, `model_call_completed`, `model_call_failed` (§12).
+- Graph: `material_node_created`, `material_link_created`, `material_link_removed`, `rabbit_hole_opened`, `rabbit_hole_returned` (§14).
 
 **Concurrency:**
 - Events are appended in the order they are written but are not serial. Background hook generation is appended with its own earlier `t_ms`.
@@ -281,16 +287,22 @@ input. A hit ends the session (`profile_leak`).
 
 ## 8. Interfaces this eval expects to consume (from the Learning checkpoint)
 
+Each injected function also gets a `meter`:
+- `meter.guard()` checks the ceiling before a call.
+- `meter.call()` records the call after it.
+- The meter stamps the attribution (decision, hook set or material) and writes the cost event.
+
 | Injected | Needs from the product |
 |---|---|
-| `tutor.start()` | A fresh LP1 journey for the topic in this session's own `LEARN_DB`, through the real intake/path flow. Its starting claim states (`deriveClaimStates` shape) and context: journey, section, board and canvas version. |
-| `tutor.decide(input)` | One real `runTurn` / `planTurn` decision on learner-visible input. Fields: action type, modality, card type, generic `reason_codes`, rationale summary, target concepts, `expected_evidence`, `recent_modality_history`, `estimated_learning_seconds`, available modalities, planner version. Also the exact planner input, for the leak check. |
-| `tutor.observe(response)` | The real evidence path (deterministic → JEV → larger evaluator) and the resulting claim states. The next `decide` must not re-evaluate it. JEV calls go to `recordExternal`. |
-| `hooks()` | The validated HookSet: 3 options (id, position, hook text, `learning_goal`) and a set id. |
+| `tutor.start(meter)` | A fresh LP1 journey for the topic in this session's own `LEARN_DB`, through the real intake/path flow. The journey-creation calls are session-level cost. Its starting claim states (`deriveClaimStates` shape) and context: journey, section, board and canvas version. |
+| `tutor.decide(input, meter)` | One real `runTurn` / `planTurn` decision on learner-visible input. Fields: action type, modality, card type, generic `reason_codes`, rationale summary, target concepts, `expected_evidence`, `recent_modality_history`, `estimated_learning_seconds`, available modalities, planner version. Also the exact planner input (for the leak check) and any Dive record it opened (`rabbit_hole`). |
+| `tutor.observe(response, meter)` | The real evidence path (deterministic → JEV → larger evaluator) and the resulting claim states. The next `decide` must not re-evaluate it. JEV calls are metered with `provider: typesafe`. |
+| `hooks(…, meter)` | The validated HookSet: 3 options (id, position, hook text, `learning_goal`) and a set id. |
 | `hookStart()` | The product's recompute policy for when a hook set starts. |
 | `selected_next_step` | How a picked hook reaches the next decision. |
-| `materialize()` | The production material generator, up to a validated learner-facing payload, with `timing_source` and `cache_status`. |
-| Taxonomy | The product's modality list (active/passive, effort, family) and reason codes, replacing `taxonomy.provisional.json`. |
+| `materialize(…, marks, meter)` | The production material generator, up to a validated learner-facing payload. It returns `timing_source`, `cache_status`, `material_type`, `modality`, concept/claim ids, `descriptors`, subcard `structure` (counts only), `links` (the product's own edges) and `node_id`. |
+| Taxonomy | The product's modality list, reason codes and link relation vocabulary, replacing `taxonomy.provisional.json`. |
+| Cost roles | The product's task names for hooks, material generation and Motion/Avatar stages, replacing `cost-roles.provisional.json`. |
 
 ## 9. Provisional assumptions to reconcile
 
@@ -301,13 +313,15 @@ input. A hit ends the session (`profile_leak`).
 - **A5.** The first decision has no hooks; the opening message leads.
 - **A6.** `evidence_updated` carries a full claim-state snapshot.
 - **A7.** `trace_schema_version` becomes the Learning agent's TutorDecisionTrace version.
+- **A8.** Cost roles: `next_steps`, `material_generation`, `material_repair`, `material_review`, `provider_asset` and `render_compute` are placeholders. The `LEARN_TASKS` names (`tutor`, `tutor_evaluator`, `journey_*`, `avatar_*`) and `jev` are the product's.
+- **A9.** Link relations: the product reuses card-plan `RELATIONSHIPS` and the depth-card links, plus the owner's generic list. Hook selections are recorded as `next_step_selection`, `created_by: learner`.
+- **A10.** One material per decision in the simulator (`<decision_id>:m1`). Real streams may carry several per decision, and the schema supports them.
+- **A11.** Material descriptors and subcard field names (`content_duration_seconds`, `question_count`, `option_count`, …) follow the owner's lists until the product's payloads are mapped.
+- **A12.** `rabbit_hole_opened.opened_by` maps from the Dive record's `created_by` (`taxonomy.rabbit_hole_opened_by`): `tutor_confirmed` → `tutor_suggestion`, `learner_*` → `learner`, `shared_start` → `shared_canvas_hook`. An unknown value is recorded as `unknown`, never guessed.
 
 ## 10. Cost and models
 
-- **Ledger.** `createLedger(4.00)` guards every Anthropic call against its worst case (input characters / 3 + `max_tokens`) before the call, and records the real usage after.
-- **Prices.** USD per MTok: Opus 5.5 $4 / $20, Sonnet 5.5 $2 / $10, cache read $0.20, cache write 1.25x input (claude-api skill, cached 2026-09-25).
-- **Unpriced models.** An Anthropic model with no price is refused.
-- **JEV.** Logged separately (O2).
+See §12. The ceiling applies to Anthropic spend only, with the learner simulator and reviewer included, since they are API spend. JEV and other providers are logged apart (O2).
 
 ## 11. Commands
 
@@ -318,3 +332,145 @@ node tests/evals/tutor-session/run.mjs events <jsonl>   # any event stream -> gr
 ```
 
 No paid simulation is wired.
+
+## 12. Cost / API usage
+
+**One cost line per provider call** (`model_call_completed` / `model_call_failed`). It carries:
+- `call_id`, `provider`, `model_id`, `model_role` (a product task name), and the attribution (`decision_id`, `hook_set_id` or `material_id`) plus the envelope ids;
+- `usage` (input, output, cache read and cache write tokens, and thinking tokens when a provider exposes them);
+- `provider_reported_cost_usd`, `computed_cost_usd`, `cost_usd`, `cost_status` (`provider_reported`, `computed`, `partial` or `unknown`);
+- `pricing_version`, `pricing_effective_date`, `prompt_cache_saved_usd`;
+- `latency_ms`, `retry_number`, `escalation`, `fallback`, `output_accepted` and a `request_id` when safe.
+
+**Pricing.**
+- `pricing.json` is versioned. A cost is computed with the version in force on the call's date, so historical costs never change.
+- A model with no price has no computed cost.
+- Thinking is billed inside output tokens and is never added twice.
+
+**Attribution: each call counts once.**
+- A hook set's calls belong to the decision that consumed it.
+- A material's calls belong to its decision.
+- Calls with no decision (journey creation) are session-level.
+- `decision_model_cost_usd` covers planning, hooks and evidence. `decision_material_cost_usd` covers the decision's materials. `decision_total_cost_usd` is their sum.
+- A material's cost is its own lines plus an even share of its decision's planning:
+  - planning, generation, review, downstream provider and compute;
+  - total, wasted;
+  - fresh vs actual cost, and the estimated saving on a cache hit.
+
+**Failures count.**
+- A failed call, a rejected draft (`output_accepted: false`) and the calls of a failed material are all wasted, and they still count in `attempted_cost_usd`.
+- Example: an invalid $0.45 draft plus a $0.28 repair gives a $0.73 material.
+
+**Unknown is never $0.**
+- A group whose calls all have unknown cost has `usd: null`, with `unknown_cost_calls` and `lower_bound: true`.
+- JEV stays `unknown` unless the provider reports a cost.
+
+**Metrics** (every grouping level):
+- the total and its split: model, evaluator, material generation, downstream provider, compute;
+- by category, model (calls, tokens, escalations, materials influenced, cost per material), role, provider, session, canvas, user×canvas, journey, section, action type, modality and material type (count, successful, mean/p50/p95 per material, cost per successful material);
+- cost per decision, per material, per successful and per completed material;
+- cost per learning minute and per active-learning minute;
+- attempted, wasted and successful spend;
+- material and prompt-cache savings;
+- the highest-cost decision and material;
+- descriptive (never causal): cost per evidence improvement, per misconception repaired and per active-learning event.
+
+The learner simulator and reviewer calls are `eval_only`. They are reported apart and never counted as product cost.
+
+The ledger never infers a remaining account balance. A provider balance API, if one ever exists, would be stored as separate billing telemetry.
+
+## 13. Materials, cards and content shape
+
+**Records.**
+- One record per logical material (`material_id`). Subcards are its structure, never extra materials or decisions.
+- Each record holds: ids (user, canvas, session, decision, journey, section, concepts, claims), `material_type`, `modality`, status (generated / failed), cache status and cost.
+
+**Five durations, never interchanged:**
+- **authored:** media `content_duration_seconds`, else the card's reading estimate, else the Tutor's estimate, with its basis;
+- **generation:** with its own source;
+- **dwell:** visible intervals;
+- **active:** only from client-reported `active_ms`; never guessed, so `null` in the simulator;
+- **completion:** first visible → completed.
+
+**Learner signals.** These come from generic `material_interaction` kinds. One record shape covers every type:
+- attempts, correctness, hints and retries;
+- runs and successes;
+- edits;
+- playback (a 15 s video watched twice stays 15 s long, with 27 s played; replays, pauses, seeks, `watched_to_end`);
+- flips and known/missed;
+- ask-about-this;
+- voice paused/resumed;
+- meaningful vs raw state changes.
+- Visibility is exposure, never "read": only an attempt completes a material.
+- Simulator learner signals are tagged `estimated`.
+
+**Derived** (descriptive proxies, never causal):
+- engagement ratio, completion ratio, cost per engaged minute;
+- `generation_time_to_content_time_ratio` (420 s to make a 15 s video = 28x);
+- learning value per second and per dollar (value = claims improved).
+
+**Per-type summaries** are generic, so a new type needs no code:
+- stats of every numeric field and a rate for every boolean, by modality and by material type.
+
+**Content shape.**
+- Subcards carry counts and hashes only, never text. `describeText` and `contentHash` run on the producer side.
+- Per material:
+  - subcard count, ids, sequence and split reason (`unknown` unless the product states it);
+  - character, word and sentence totals and per-subcard mean/median/max/min;
+  - explanation subcards, longest text-only and text-heavy runs, modality transitions;
+  - subcards and reading load before the first active element.
+- Aggregate:
+  - card-size distributions per subcard type (stats of every numeric field plus a character histogram);
+  - average subcards and explanation subcards per decision;
+  - characters per learning minute and per engaged minute;
+  - reading seconds per active interaction, text-to-interaction ratio;
+  - reading load before the first active element per session.
+- Review flags carry `justified: null`:
+  - a very long explanation card;
+  - an explanation subcard run;
+  - excessive fragmentation;
+  - repeated content;
+  - a high reading load before anything active.
+
+## 14. Learning graph and topology
+
+**Nodes and edges.**
+- One node per logical material.
+- Edges are explicit events (`relation_type`, `created_by` tutor / learner / system, `reason_codes`, a concise `rationale_summary`), never inferred from canvas positions.
+- `learningGraph(events, { until })` rebuilds the graph at any point of a session, and the session bundle includes its `learning_graph` snapshot.
+
+**Next steps.**
+- Offered hooks are candidate options, never nodes.
+- A selection becomes a committed `next_step_selection` edge from the previous node to the node the Tutor then created (`selection_to_material_node_id`).
+- A selection whose decision produced no material commits to nothing.
+
+**Topology.**
+- Counts: nodes, edges, roots, leaves; depth (max, mean, median) and breadth by depth.
+- Branching: mean branching factor, branch nodes and rate, longest linear run, main-path length.
+- Connectivity: orphans, components, cross-links, `linear_edge_ratio`, `breadth_depth_ratio`.
+- Descriptive shape: linear, mostly_linear, branching or highly_branching.
+- Edges by relation and by creator, and branching by creator (Tutor vs learner).
+- Position share: main path, side branch, Rabbit Hole.
+- Cards before the first branch and before the first learner choice.
+- Modality by depth, and evidence outcome by position.
+- Topology grouped by material type, modality, reason code, concept, section and planner version.
+
+**Rabbit Holes.**
+- Recorded: count, per session, per decision, depth (as recorded, else nesting), nodes per hole, opened_by, return and unfinished rates, time in holes, learning share in holes, and evidence transitions in holes.
+- Next Steps: selection rate, unselected-option rate, repeated-unselected-goal rate.
+
+**Review flags** (`justified: null`):
+- a deep linear chain without a learner choice;
+- a very wide branch;
+- repeated nested holes;
+- a node without a relation;
+- branches to equivalent concepts;
+- a branch never visited;
+- a remediation branch that never returns;
+- side explorations dominating the session.
+
+## 15. Architecture review in Figma (pending)
+
+The owner's 15-frame review section, "Tutor Evaluation + Telemetry — Architecture Review" in Figma file
+`ef9SfiemEsPQF2bd8B1os3`, is built only after the rebase onto the real Professor Next Steps + TutorDecisionTrace
+checkpoint and the reconciliation of A1–A12. It uses synthetic sample traces and no paid run.

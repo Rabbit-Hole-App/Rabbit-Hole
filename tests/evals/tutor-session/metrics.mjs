@@ -5,14 +5,16 @@
 // Observational: nothing here judges a repetition wrong; flagged sequences carry justified: null until a reviewer
 // decides. The taxonomy is data (fixtures/taxonomy.provisional.json until the Learning checkpoint supplies the
 // product's own).
-import { GROUP_KEYS, foldSessions, segmentsBy } from './events.mjs';
+import { GROUP_KEYS, claimsIn, foldSessions, round, segmentsBy, stateMap, stats, sum, tally, wholeSession } from './events.mjs';
+import { costMetrics } from './cost.mjs';
+import { graphMetrics, learningGraph, mergeGraphs, subgraph } from './graph.mjs';
+import { materialMetrics, materialRecords, structureMetrics } from './materials.mjs';
+
+export { claimsIn, stats };
 
 // ---------- Small helpers ----------
 
-const tally = list => list.reduce((acc, key) => { acc[key] = (acc[key] || 0) + 1; return acc; }, {});
 const pct = (part, whole) => (whole ? Math.round((part / whole) * 1000) / 10 : null);
-const round = (x, digits = 3) => (x == null || !Number.isFinite(x) ? null : Math.round(x * 10 ** digits) / 10 ** digits);
-const sum = list => list.reduce((a, b) => a + b, 0);
 function runsOf(list) {
   const runs = [];
   list.forEach((value, i) => { if (i && runs.at(-1).value === value) runs.at(-1).length++; else runs.push({ value, start: i, length: 1 }); });
@@ -28,10 +30,6 @@ export function jaccard(a, b) {
   for (const word of x) if (y.has(word)) both++;
   return both / (x.size + y.size - both);
 }
-// Claim states as deriveClaimStates writes them ({ [claim]: { concept, state, misconception_id?, prerequisite? } }),
-// or the same objects in an array.
-export const claimsIn = evidence => (Array.isArray(evidence) ? evidence : Object.entries(evidence || {}).map(([claim, state]) => ({ claim, ...state })));
-const stateMap = evidence => Object.fromEntries(claimsIn(evidence).map(entry => [entry.claim, entry.state]));
 const decisionOf = step => step.tutor_decision || {};
 const modalityOf = step => decisionOf(step).modality ?? 'unknown';
 const classOf = (taxonomy, modality) => taxonomy.modalities?.[modality] || null;
@@ -39,12 +37,6 @@ const isActive = (taxonomy, step) => classOf(taxonomy, modalityOf(step))?.mode =
 const targetsOf = step => new Set(decisionOf(step).target_concepts || []);
 const ref = step => ({ session_id: step.session_id, step: step.step });
 
-export function stats(values) {
-  const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
-  if (!sorted.length) return { n: 0, mean: null, p50: null, p95: null, max: null };
-  const rank = p => sorted[Math.min(sorted.length - 1, Math.ceil(p * sorted.length) - 1)]; // nearest rank
-  return { n: sorted.length, mean: round(sum(sorted) / sorted.length, 1), p50: rank(0.5), p95: rank(0.95), max: sorted.at(-1) };
-}
 // Latency statistics are never pooled across sources: one stats block per timing source; not_run is only counted.
 function bySource(steps, valueOf, sourceOf) {
   const out = {};
@@ -361,8 +353,22 @@ export function latencyMetrics(segments, taxonomy) {
 
 // ---------- One group of segments ----------
 
-export function groupMetrics(segments, taxonomy) {
+// A segment's learning graph: the whole session's graph for a session-level segment, else the nodes of its decisions.
+const graphs = new WeakMap();
+const sessionGraph = meta => { if (!graphs.has(meta)) graphs.set(meta, learningGraph(meta.events)); return graphs.get(meta); };
+export function segmentGraph(segments) {
+  return mergeGraphs(segments.map(segment => {
+    if (segment.meta) return sessionGraph(segment.meta);
+    const meta = segment[0]?.session;
+    return meta ? subgraph(sessionGraph(meta), new Set(segment.map(step => step.decision_id))) : mergeGraphs([]);
+  }));
+}
+
+// taxonomy: modality / reason-code / relation / threshold tables; roles: cost categories per model_role (both data).
+export function groupMetrics(segments, taxonomy, roles = {}) {
   const steps = segments.flat();
+  const records = materialRecords(segments, { roles, taxonomy });
+  const sessions = new Set(segments.map(segment => segment.meta?.session_id ?? segment[0]?.session_id).filter(Boolean)).size;
   return {
     segments: segments.length, decisions: steps.length,
     modality: modalityMetrics(segments, taxonomy),
@@ -374,6 +380,10 @@ export function groupMetrics(segments, taxonomy) {
     evidence: evidenceMetrics(segments, taxonomy),
     engagement: engagementMetrics(segments, taxonomy),
     latency: latencyMetrics(segments, taxonomy),
+    materials: materialMetrics(records, segments),
+    structure: structureMetrics(records, segments, taxonomy),
+    cost: costMetrics(segments, roles, records, step => isActive(taxonomy, step)),
+    graph: graphMetrics(segmentGraph(segments), { steps, records, taxonomy, sessions }),
   };
 }
 
@@ -387,14 +397,14 @@ export function completionMetrics(sessions) {
 }
 
 // event[] -> sessions -> every requested grouping -> global. The same groupMetrics at every level.
-export function aggregateEvents(events, taxonomy, { by = ['session', 'canvas', 'board', 'user_canvas', 'user', 'journey', 'section', 'source_resource', 'planner'] } = {}) {
+export function aggregateEvents(events, taxonomy, { roles = {}, by = ['session', 'canvas', 'board', 'user_canvas', 'user', 'journey', 'section', 'source_resource', 'planner'] } = {}) {
   const sessions = foldSessions(events);
   const groups = {};
   for (const key of by) {
     if (!GROUP_KEYS[key]) throw Error(`unknown grouping ${key}`);
-    groups[key] = Object.fromEntries(Object.entries(segmentsBy(sessions, GROUP_KEYS[key])).map(([value, segments]) => [value, groupMetrics(segments, taxonomy)]));
+    groups[key] = Object.fromEntries(Object.entries(segmentsBy(sessions, key)).map(([value, segments]) => [value, groupMetrics(segments, taxonomy, roles)]));
   }
-  return { sessions: sessions.length, global: groupMetrics(sessions.map(session => session.steps), taxonomy), completion: completionMetrics(sessions), groups };
+  return { sessions: sessions.length, global: groupMetrics(sessions.map(wholeSession), taxonomy, roles), completion: completionMetrics(sessions), groups };
 }
 
 // ---------- Variety with purpose ----------
@@ -418,10 +428,17 @@ export function varietyWithPurpose(metrics, review) {
 // simulator block; every metric comes from the events through groupMetrics, exactly as for real sessions.
 const merge = maps => maps.reduce((acc, map) => { for (const [key, n] of Object.entries(map)) acc[key] = (acc[key] || 0) + n; return acc; }, {});
 const omit = (object, ...keys) => Object.fromEntries(Object.entries(object).filter(([key]) => !keys.includes(key)));
-export function aggregate(bundles, taxonomy, { cost = null } = {}) {
+export function aggregate(bundles, taxonomy, { cost = null, roles = {} } = {}) {
   const rows = bundles.map(bundle => {
     const [session] = foldSessions(bundle.events);
-    return { profile: bundle.simulator.profile, topic: bundle.simulator.topic, session, metrics: groupMetrics([session.steps], taxonomy), review: bundle.review ?? null };
+    return { profile: bundle.simulator.profile, topic: bundle.simulator.topic, session, metrics: groupMetrics([wholeSession(session)], taxonomy, roles), review: bundle.review ?? null };
+  });
+  const global = groupMetrics(rows.map(row => wholeSession(row.session)), taxonomy, roles);
+  const graphSummary = graph => ({
+    total_nodes: graph.node_count, main_path_length: graph.main_path_length, branch_count: graph.branch_node_count, max_breadth: graph.max_breadth, max_depth: graph.max_depth,
+    shape: graph.shape, rabbit_hole_count: graph.rabbit_holes.count, rabbit_hole_max_depth: graph.rabbit_holes.max_depth,
+    edges_by_created_by: graph.edges_by_created_by, branching_by_created_by: graph.branching_by_created_by,
+    modality_by_depth: graph.modality_by_depth, evidence_outcome_by_position: graph.evidence_outcome_by_position,
   });
   const by = fn => Object.fromEntries(rows.map(row => [row.profile, fn(row)]));
   const reasonByModality = {};
@@ -451,7 +468,12 @@ export function aggregate(bundles, taxonomy, { cost = null } = {}) {
     variety_with_purpose: by(({ metrics, review }) => varietyWithPurpose(metrics, review)),
     notable_sequences: rows.flatMap(({ profile, metrics, review }) => metrics.repetition.flagged_sequences.map(entry => ({ profile, ...entry, justified: review?.flagged_sequences.find(judged => judged.id === entry.id)?.justified ?? null }))),
     completion: completionMetrics(rows.map(row => row.session)),
-    cost,
+    // Product cost from the events (eval-only calls apart); `ledger` is the run's actual API spend under the ceiling.
+    cost_metrics: { ...omit(global.cost, 'decision_costs'), by_profile: by(({ metrics }) => omit(metrics.cost, 'decision_costs', 'by_session', 'by_canvas', 'by_user_canvas')), ledger: cost },
+    material_metrics: { all: global.materials, by_profile: by(({ metrics }) => metrics.materials) },
+    structure_metrics: { all: omit(global.structure, 'reading_load_before_first_active'), by_profile: by(({ metrics }) => metrics.structure) },
+    graph_metrics_by_profile: by(({ metrics }) => metrics.graph),
+    graph_comparison: by(({ metrics }) => graphSummary(metrics.graph)),
   };
 }
 

@@ -1,7 +1,7 @@
 // The Tutor session event stream (docs/features/tutor-decision-eval.md): append-only events shaped like the
 // production telemetry the product will later collect from real users, the fold that turns them into one record
-// per Tutor decision, and the timing derived from them. The simulator writes these events; real sessions will too,
-// and the metrics read only folded events, never the simulator.
+// per Tutor decision (with its provider calls and its materials), and the timing derived from them. The simulator
+// writes these events; real sessions will too, and the metrics read only folded events, never the simulator.
 // Events are append-only but NOT serial: background work (hooks generated while the learner reads) overlaps
 // learner activity, so an event may be appended after one with a later t_ms. The fold orders by (t_ms, seq).
 // PROVISIONAL: the payloads of next_steps_ready (hook options) and tutor_action_ready (decision) are the eval's
@@ -9,6 +9,38 @@
 // the owner's.
 
 export const TRACE_SCHEMA_VERSION = 'tutor-trace-eval-0';
+
+// ---------- Shared helpers (every module imports these from here) ----------
+
+export const sum = list => list.reduce((a, b) => a + b, 0);
+export const round = (x, digits = 3) => (x == null || !Number.isFinite(x) ? null : Math.round(x * 10 ** digits) / 10 ** digits);
+export const tally = list => list.reduce((acc, key) => { acc[key] = (acc[key] || 0) + 1; return acc; }, {});
+export function stats(values) {
+  const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
+  if (!sorted.length) return { n: 0, mean: null, p50: null, p95: null, max: null };
+  const rank = p => sorted[Math.min(sorted.length - 1, Math.ceil(p * sorted.length) - 1)]; // nearest rank
+  return { n: sorted.length, mean: round(sum(sorted) / sorted.length, 4), p50: rank(0.5), p95: rank(0.95), max: sorted.at(-1) };
+}
+// Claim states as deriveClaimStates writes them ({ [claim]: { concept, state, ... } }), or the same objects in an array.
+export const claimsIn = evidence => (Array.isArray(evidence) ? evidence : Object.entries(evidence || {}).map(([claim, state]) => ({ claim, ...state })));
+export const stateMap = evidence => Object.fromEntries(claimsIn(evidence).map(entry => [entry.claim, entry.state]));
+// What a step (or a material, restricted to `claims`) did to the evidence. improved: a claim reached understood or
+// left misconception / gap; regressed: a claim entered misconception or gap. Descriptive, never causal.
+export function evidenceDelta(before, after, claims = null) {
+  const a = stateMap(before), b = stateMap(after);
+  const ids = Object.keys({ ...a, ...b }).filter(id => !claims?.length || claims.includes(id));
+  const moved = ids.filter(id => a[id] !== b[id]);
+  const bad = ['misconception', 'prerequisite_gap'];
+  return {
+    changed: moved.length > 0,
+    improved: moved.filter(id => !bad.includes(b[id]) && (b[id] === 'understood' || bad.includes(a[id]))),
+    regressed: moved.filter(id => bad.includes(b[id])),
+    misconception_repaired: moved.filter(id => a[id] === 'misconception'),
+    prerequisite_gap_repaired: moved.filter(id => a[id] === 'prerequisite_gap'),
+  };
+}
+
+// ---------- Event types ----------
 
 // Fields an event must carry besides the envelope. Learner words, material text and other free text live only
 // under `debug`, which analytics never need.
@@ -23,14 +55,28 @@ export const EVENT_TYPES = {
   learner_consumption_finished: ['decision_id', 'timing_source'],
   tutor_decision_started: ['decision_id', 'trigger'],
   tutor_action_ready: ['decision_id', 'decision'],
-  material_generation_started: ['decision_id'],
-  material_first_ready: ['decision_id'],
-  material_complete: ['decision_id', 'timing_source', 'cache_status'],
-  material_failed: ['decision_id'],
-  asset_ready: ['decision_id'],
+  // One logical material per material_id (a composite card's subcards are its structure, never separate materials).
+  material_generation_started: ['decision_id', 'material_id'],
+  material_first_ready: ['decision_id', 'material_id'],
+  material_complete: ['decision_id', 'material_id', 'timing_source', 'cache_status'],
+  material_failed: ['decision_id', 'material_id'],
+  provider_asset_generated: ['decision_id', 'material_id'],
+  // What the learner did with a material (real users: measured by the client; the simulator: estimated).
+  material_visibility: ['material_id', 'visible'],
+  material_interaction: ['material_id', 'interaction'],
+  material_completed: ['material_id'],
+  material_abandoned: ['material_id'],
+  // One cost line per provider call (model, JEV, avatar/video provider, render compute).
+  model_call_started: ['call_id', 'provider', 'model_id', 'model_role'],
+  model_call_completed: ['call_id', 'provider', 'model_id', 'model_role', 'cost_status'],
+  model_call_failed: ['call_id', 'provider', 'model_id', 'model_role', 'cost_status'],
   evidence_updated: ['claims'],
-  rabbit_hole_entered: ['dive_id'],
-  rabbit_hole_left: ['dive_id'],
+  // The learning graph (graph.mjs): explicit nodes and edges, never inferred from canvas positions.
+  material_node_created: ['node_id', 'material_id'],
+  material_link_created: ['edge_id', 'from_node_id', 'to_node_id', 'relation_type', 'created_by'],
+  material_link_removed: ['edge_id'],
+  rabbit_hole_opened: ['rabbit_hole_id', 'opened_by'],
+  rabbit_hole_returned: ['rabbit_hole_id'],
   session_ended: ['reason'],
 };
 const ENVELOPE = ['trace_schema_version', 'event_id', 'seq', 'type', 't_ms', 'session_id', 'user_id', 'canvas_id'];
@@ -38,7 +84,7 @@ const CONTEXT = ['board_id', 'canvas_version', 'journey_id', 'section_id', 'dive
 const IDS = ['session_id', 'user_id', 'canvas_id', 'board_id'];
 // Never in an event, at any depth: credentials, hidden model reasoning, and email (never an analytics identity).
 const FORBIDDEN_KEY = /token|api_?key|secret|password|authorization|cookie|thinking|chain_of_thought|e_?mail/i;
-const ALLOWED_TOKEN_KEYS = new Set(['input_tokens', 'output_tokens', 'cache_creation_input_tokens', 'cache_read_input_tokens']);
+const ALLOWED_TOKEN_KEYS = new Set(['input_tokens', 'output_tokens', 'cache_read_tokens', 'cache_write_tokens', 'thinking_tokens']);
 
 export function validateEvent(event) {
   const problems = [];
@@ -164,20 +210,20 @@ export function foldSessions(events) {
   return Object.values(Object.groupBy(events, event => event.session_id)).map(foldSession);
 }
 
-const claimKey = claims => JSON.stringify((Array.isArray(claims) ? claims : Object.entries(claims || {}).map(([claim, s]) => ({ claim, ...s }))).map(entry => [entry.claim, entry.state]).sort());
+const claimKey = claims => JSON.stringify(claimsIn(claims).map(entry => [entry.claim, entry.state]).sort());
+const CALL_FIELDS = ['call_id', 'provider', 'model_id', 'model_role', 'decision_id', 'hook_set_id', 'material_id', 'usage', 'provider_reported_cost_usd', 'computed_cost_usd', 'cost_usd', 'cost_status', 'pricing_version', 'pricing_effective_date', 'prompt_cache_saved_usd', 'latency_ms', 'retry_number', 'escalation', 'fallback', 'output_accepted', 'speed', 'request_id', 'error_code', 'session_id', 'user_id', 'canvas_id', 'journey_id', 'section_id', 't_ms'];
+const MATERIAL_FIELDS = ['material_type', 'modality', 'concept_ids', 'claim_ids', 'expected_evidence', 'estimated_learning_seconds', 'cache_status', 'cache_origin', 'timing_source', 'durations', 'fresh_generation_cost_usd', 'descriptors', 'structure', 'parent_material_id', 'material_group_id', 'asset_applicable'];
 
+// One session's events -> { meta, steps }. A step carries its provider calls (step.calls: decision_id, a hook set it
+// consumed, or a material of its) and its materials (step.materials: the raw lifecycle and learner events, which
+// materials.mjs turns into material records). Calls with no decision (journey creation) land in meta.session_calls.
 export function foldSession(input) {
   const events = input.toSorted((a, b) => a.t_ms - b.t_ms || a.seq - b.seq);
   const first = events[0];
-  const meta = { session_id: first.session_id, user_id: first.user_id, canvas_id: first.canvas_id, board_id: first.board_id ?? null, started_t_ms: first.t_ms, end: null, journey_ids: [], section_ids: [], incomplete_decisions: [] };
-  const steps = [], open = {}; // open: decision_id -> its step, until its evidence and consumption are in
+  const meta = { session_id: first.session_id, user_id: first.user_id, canvas_id: first.canvas_id, board_id: first.board_id ?? null, started_t_ms: first.t_ms, end: null, journey_ids: [], section_ids: [], incomplete_decisions: [], session_calls: [] };
+  const steps = [], open = {}, calls = new Map(), materials = new Map();
   let evidence = null, ready = first.t_ms, hooks = null, current = null, elapsed = 0;
   let learnerReady = null, consumptionStart = null, consumptionSource = null;
-  const finish = step => {
-    step.timing = deriveTiming(step.timeline, step.material);
-    step.waits = stepWaits(step.timing, step.timeline);
-    delete step.material;
-  };
   const close = () => {
     if (!current) return;
     // A decision that never produced a validated action (planner error, cost stop) is not a step: it is listed apart.
@@ -186,6 +232,10 @@ export function foldSession(input) {
     elapsed += current.estimated_learning_seconds || 0;
     steps.push(current);
     current = null;
+  };
+  const material = event => {
+    if (!materials.has(event.material_id)) materials.set(event.material_id, { material_id: event.material_id, decision_id: event.decision_id ?? null, status: 'started', learner_events: [] });
+    return materials.get(event.material_id);
   };
   for (const event of events) {
     for (const [key, list] of [['journey_id', meta.journey_ids], ['section_id', meta.section_ids]]) if (event[key] && !list.includes(event[key])) list.push(event[key]);
@@ -235,46 +285,84 @@ export function foldSession(input) {
       case 'tutor_action_ready':
         if (!step) break;
         step.timeline.t5_tutor_action_ready = event.t_ms;
+        // The decision may move the learner (a new section, into or out of a Rabbit Hole): its context is the one it ends in.
+        Object.assign(step, Object.fromEntries(['journey_id', 'section_id', 'dive_id', 'canvas_version', 'source_resource_id'].map(key => [key, event[key] ?? null])));
         Object.assign(step, { tutor_decision: event.decision, estimated_learning_seconds: event.estimated_learning_seconds ?? null, available_modalities: event.available_modalities ?? null, planner: event.planner ?? null, planner_version: event.planner_version ?? null, canvas_summary: event.debug?.material_summary ?? null });
         break;
-      case 'material_generation_started': if (step) step.timeline.t6_material_generation_start = event.t_ms; break;
-      case 'material_first_ready': if (step) step.timeline.t7_first_material_ready = event.t_ms; break;
-      case 'material_complete':
-        if (!step) break;
-        step.timeline.t8_material_complete = event.t_ms;
-        step.material = { timing_source: event.timing_source, cache_status: event.cache_status, cache_origin: event.cache_origin ?? null, asset_applicable: !!event.asset_applicable, durations: event.durations ?? null };
-        if (event.material_signature) step.material_signature = event.material_signature;
+      // A decision's timing follows its first material; every material keeps its own lifecycle.
+      case 'material_generation_started': material(event).started_at = event.t_ms; if (step) step.timeline.t6_material_generation_start ??= event.t_ms; break;
+      case 'material_first_ready': material(event).first_ready_at = event.t_ms; if (step) step.timeline.t7_first_material_ready ??= event.t_ms; break;
+      case 'material_complete': {
+        const record = Object.assign(material(event), { status: 'generated', complete_at: event.t_ms }, Object.fromEntries(MATERIAL_FIELDS.filter(key => event[key] != null).map(key => [key, event[key]])));
+        if (step && step.timeline.t8_material_complete == null) {
+          step.timeline.t8_material_complete = event.t_ms;
+          step.material = { timing_source: record.timing_source, cache_status: record.cache_status, cache_origin: record.cache_origin ?? null, asset_applicable: !!record.asset_applicable, durations: record.durations ?? null };
+          if (event.material_signature) step.material_signature = event.material_signature;
+        }
         break;
-      case 'material_failed': if (step) step.material_failed = event.error_code ?? true; break;
-      case 'asset_ready': if (step) step.timeline.t9_asset_ready = event.t_ms; break;
+      }
+      case 'material_failed': Object.assign(material(event), { status: 'failed', failed_at: event.t_ms, error_code: event.error_code ?? null }); if (step) step.material_failed = event.error_code ?? true; break;
+      case 'provider_asset_generated': material(event).asset_at = event.t_ms; if (step) step.timeline.t9_asset_ready ??= event.t_ms; break;
+      case 'material_visibility': case 'material_interaction': case 'material_completed': case 'material_abandoned': {
+        const { type, t_ms, visible, interaction, meaningful, control_id, result, active_ms, position_seconds, played_seconds, timing_source } = event;
+        material(event).learner_events.push(Object.fromEntries(Object.entries({ type, t_ms, visible, interaction, meaningful, control_id, result, active_ms, position_seconds, played_seconds, timing_source }).filter(([, value]) => value !== undefined)));
+        break;
+      }
+      case 'model_call_completed': case 'model_call_failed':
+        calls.set(event.call_id, { ...Object.fromEntries(CALL_FIELDS.filter(key => event[key] !== undefined).map(key => [key, event[key]])), outcome: event.type === 'model_call_failed' ? 'failed' : 'ok' });
+        break;
       case 'session_ended': meta.end = { reason: event.reason, t_ms: event.t_ms }; break;
       default: break;
     }
   }
   close();
-  for (const step of steps) { finish(step); delete step.response_t; }
+  // Attribution: a call names its decision, or a hook set the next decision consumed, or a material of a decision.
+  const byDecision = Object.fromEntries(steps.map(step => [step.decision_id, step]));
+  const byHookSet = Object.fromEntries(steps.filter(step => step.hook_set_id).map(step => [step.hook_set_id, step]));
+  for (const step of steps) Object.assign(step, { calls: [], materials: [] });
+  for (const record of materials.values()) byDecision[record.decision_id]?.materials.push(record);
+  for (const call of calls.values()) {
+    const owner = byDecision[call.decision_id] ?? byHookSet[call.hook_set_id] ?? byDecision[materials.get(call.material_id)?.decision_id];
+    (owner ? owner.calls : meta.session_calls).push(owner && !call.decision_id ? { ...call, decision_id: owner.decision_id } : call);
+  }
+  for (const step of steps) {
+    step.timing = deriveTiming(step.timeline, step.material);
+    step.waits = stepWaits(step.timing, step.timeline);
+    delete step.material; delete step.response_t;
+  }
   meta.decisions = steps.length;
   meta.learning_seconds = elapsed;
+  // Back references for the graph and grouping, kept out of JSON: the session's events, and each step's session.
+  Object.defineProperty(meta, 'events', { value: events, enumerable: false });
+  for (const step of steps) Object.defineProperty(step, 'session', { value: meta, enumerable: false });
   return { meta, steps };
 }
 
 // ---------- Grouping (sessions -> segments per key) ----------
 
-// Session-level keys are constant within a session; step-level keys (journey, section, resource, planner) split a
-// session into contiguous segments, so a run or a switch never spans two segments.
+// Session-level keys are constant within a session: their segment is the whole session and carries its calls outside
+// any decision (journey creation). Step-level keys (journey, section, resource, planner) split a session into
+// contiguous segments, so a run or a switch never spans two segments.
 export const GROUP_KEYS = {
   session: step => step.session_id,
   user: step => step.user_id,
   canvas: step => step.canvas_id,
-  board: step => (step.board_id ? `${step.canvas_id}|${step.board_id}` : null),
   user_canvas: step => `${step.user_id}|${step.canvas_id}`,
+  board: step => (step.board_id ? `${step.canvas_id}|${step.board_id}` : null),
   journey: step => step.journey_id,
   section: step => (step.section_id ? `${step.journey_id ?? ''}|${step.section_id}` : null),
   source_resource: step => step.source_resource_id,
   planner: step => step.planner_version,
 };
-export function segmentsBy(sessions, keyOf) {
+const SESSION_KEYS = { session: meta => meta.session_id, user: meta => meta.user_id, canvas: meta => meta.canvas_id, user_canvas: meta => `${meta.user_id}|${meta.canvas_id}` };
+export const wholeSession = ({ meta, steps }) => Object.assign([...steps], { session_calls: meta.session_calls, meta });
+export function segmentsBy(sessions, name) {
   const groups = {};
+  if (SESSION_KEYS[name]) {
+    for (const session of sessions) (groups[SESSION_KEYS[name](session.meta)] ||= []).push(wholeSession(session));
+    return groups;
+  }
+  const keyOf = GROUP_KEYS[name];
   for (const { steps } of sessions) {
     let previous, segment = null;
     for (const step of steps) {

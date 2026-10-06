@@ -2,24 +2,174 @@
   "provisional": true,
   "source": "Owner brief 2026-10-06 examples only. Replace with the modality and reason-code taxonomy of the Learning agent's TutorDecisionTrace checkpoint before any paid run.",
   "modalities": {
-    "explanation": { "mode": "passive", "effort": "low", "family": "explanation" },
-    "video": { "mode": "passive", "effort": "low", "family": "media", "expensive": true },
-    "avatar": { "mode": "passive", "effort": "low", "family": "media", "expensive": true },
-    "motion": { "mode": "passive", "effort": "low", "family": "media", "expensive": true },
-    "quiz": { "mode": "active", "effort": "medium", "family": "quiz" },
-    "challenge": { "mode": "active", "effort": "high", "family": "quiz" },
-    "explain_back": { "mode": "active", "effort": "high", "family": "explain_back" },
-    "interactive": { "mode": "active", "effort": "medium", "family": "interactive" },
-    "code_activity": { "mode": "active", "effort": "high", "family": "code" }
+    "explanation": {
+      "mode": "passive",
+      "effort": "low",
+      "family": "explanation"
+    },
+    "video": {
+      "mode": "passive",
+      "effort": "low",
+      "family": "media",
+      "expensive": true
+    },
+    "avatar": {
+      "mode": "passive",
+      "effort": "low",
+      "family": "media",
+      "expensive": true
+    },
+    "motion": {
+      "mode": "passive",
+      "effort": "low",
+      "family": "media",
+      "expensive": true
+    },
+    "quiz": {
+      "mode": "active",
+      "effort": "medium",
+      "family": "quiz"
+    },
+    "challenge": {
+      "mode": "active",
+      "effort": "high",
+      "family": "quiz"
+    },
+    "explain_back": {
+      "mode": "active",
+      "effort": "high",
+      "family": "explain_back"
+    },
+    "interactive": {
+      "mode": "active",
+      "effort": "medium",
+      "family": "interactive"
+    },
+    "code_activity": {
+      "mode": "active",
+      "effort": "high",
+      "family": "code"
+    }
   },
   "reason_codes": {
-    "repair_misconception": { "kind": "remediation", "requires": "misconception_on_target" },
-    "fill_prerequisite_gap": { "kind": "remediation", "requires": "prerequisite_gap" },
-    "vary_modality": { "kind": "other", "requires": "recent_modality_repetition" },
-    "advance_goal": { "kind": "progression", "requires": "unfinished_target" }
+    "repair_misconception": {
+      "kind": "remediation",
+      "requires": "misconception_on_target"
+    },
+    "fill_prerequisite_gap": {
+      "kind": "remediation",
+      "requires": "prerequisite_gap"
+    },
+    "vary_modality": {
+      "kind": "other",
+      "requires": "recent_modality_repetition"
+    },
+    "advance_goal": {
+      "kind": "progression",
+      "requires": "unfinished_target"
+    }
   },
-  "meaningful_response_kinds": ["answer", "explanation", "question", "activity"],
+  "meaningful_response_kinds": [
+    "answer",
+    "explanation",
+    "question",
+    "activity"
+  ],
   "boring_run_length": 4,
   "duplicate_threshold": 0.6,
-  "hook_repeat_threshold": 0.8
+  "hook_repeat_threshold": 0.8,
+  "relations_source": "Generic relations from the owner brief; product vocabularies reused as-is: card-plan.js RELATIONSHIPS (prerequisite, deepens, alternative_explanation, practice_for) and the nanoGPT depth-card links (deepens_to, simplifies_to, prerequisite, related). Replace with the Learning checkpoint's link vocabulary when it has one.",
+  "relations": {
+    "continues": {
+      "category": "pedagogical"
+    },
+    "elaborates": {
+      "category": "pedagogical"
+    },
+    "prerequisite": {
+      "category": "pedagogical"
+    },
+    "deepens": {
+      "category": "pedagogical"
+    },
+    "deepens_to": {
+      "category": "pedagogical"
+    },
+    "simplifies_to": {
+      "category": "pedagogical"
+    },
+    "alternative_explanation": {
+      "category": "pedagogical"
+    },
+    "practice_for": {
+      "category": "pedagogical"
+    },
+    "applies": {
+      "category": "pedagogical"
+    },
+    "tests": {
+      "category": "pedagogical"
+    },
+    "explains": {
+      "category": "pedagogical"
+    },
+    "example_of": {
+      "category": "pedagogical"
+    },
+    "contrasts": {
+      "category": "pedagogical"
+    },
+    "remediates": {
+      "category": "pedagogical",
+      "remediation": true
+    },
+    "follows_evidence": {
+      "category": "pedagogical"
+    },
+    "user_question": {
+      "category": "pedagogical"
+    },
+    "next_step_selection": {
+      "category": "pedagogical"
+    },
+    "opens_rabbit_hole": {
+      "category": "navigation"
+    },
+    "returns_from_rabbit_hole": {
+      "category": "navigation"
+    },
+    "related": {
+      "category": "reference"
+    },
+    "references": {
+      "category": "reference"
+    },
+    "provenance": {
+      "category": "provenance"
+    }
+  },
+  "rabbit_hole_opened_by": {
+    "tutor_confirmed": "tutor_suggestion",
+    "learner_slash": "learner",
+    "learner_ctrl_k": "learner",
+    "learner_dblclick": "learner",
+    "shared_start": "shared_canvas_hook"
+  },
+  "structure_review": {
+    "text_heavy_min_words": 40,
+    "long_card_characters": 1200,
+    "explanation_run_length": 3,
+    "fragment_min_subcards": 5,
+    "fragment_max_median_characters": 120,
+    "reading_before_active_seconds": 180
+  },
+  "graph_review": {
+    "mostly_linear_edge_ratio": 0.8,
+    "highly_branching_factor": 3,
+    "highly_branching_rate": 0.5,
+    "linear_chain_length": 6,
+    "wide_branch": 4,
+    "nested_holes": 2,
+    "side_exploration_share": 0.5
+  }
 }

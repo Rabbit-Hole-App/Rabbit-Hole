@@ -1,0 +1,24 @@
+{
+  "provisional": true,
+  "source": "model_role = the product's LEARN_TASKS key (control-plane/src/learn-models.js) or a provider role. The Professor Next Steps, material and Motion roles are placeholders until the Learning checkpoint names them. An unlisted role is counted as unclassified, never dropped.",
+  "roles": {
+    "tutor": "planning",
+    "next_steps": "hooks",
+    "jev": "evidence_evaluation",
+    "tutor_evaluator": "evidence_evaluation",
+    "journey_resolver": "journey",
+    "journey_diagnostic": "journey",
+    "journey_path": "journey",
+    "journey_adapt": "journey",
+    "journey_section": "material_generation",
+    "material_generation": "material_generation",
+    "material_repair": "material_generation",
+    "material_review": "material_review",
+    "avatar_director": "material_generation",
+    "avatar_script_reviewer": "material_review",
+    "provider_asset": "downstream_provider",
+    "render_compute": "compute",
+    "learner_simulator": "eval_only",
+    "session_reviewer": "eval_only"
+  }
+}
