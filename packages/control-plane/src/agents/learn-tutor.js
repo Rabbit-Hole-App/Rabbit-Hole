@@ -333,17 +333,19 @@ export const NEXT_STEP_SYSTEM = [
 
 // avatar (TUTOR_AVATAR, Avatar Teacher §4.1): adds suggest_avatar_clip and its policy lines; off by default.
 // A context with journey_context (a journey turn) gets the journey prompt, cached the same way; the tool is the same.
-// A hook click (learner_intent.kind next_step) appends NEXT_STEP_SYSTEM to either prompt.
+// A hook click (learner_intent.kind next_step) appends NEXT_STEP_SYSTEM to either prompt; cached, it is a second, uncached
+// system block after the cached one, so hook turns read the typed turns' cached prefix and never write their own.
 export const plannerRequest = (context, maxTokens, documents = [], { effort = null, stream = false, cache = false, speed = null, avatar = false } = {}) => {
   const text = `Compose this turn.\n\ncontext = ${JSON.stringify(context)}`;
-  const base = plannerSystem(avatar, context?.journey_context ? 'journey' : 'nanogpt'), tool = tutorTool(avatar);
-  const system = context?.learner_intent?.kind === 'next_step' ? `${base}\n${NEXT_STEP_SYSTEM}` : base;
+  const system = plannerSystem(avatar, context?.journey_context ? 'journey' : 'nanogpt'), tool = tutorTool(avatar);
+  const hook = context?.learner_intent?.kind === 'next_step';
   return {
     max_tokens: maxTokens,
     ...(speed ? { speed, betas: [FAST_MODE_BETA] } : {}),
     ...(effort ? { output_config: { effort } } : {}),
     ...(stream ? { stream: true } : {}),
-    system: cache ? [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }] : system,
+    system: cache ? [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }, ...(hook ? [{ type: 'text', text: NEXT_STEP_SYSTEM }] : [])]
+      : hook ? `${system}\n${NEXT_STEP_SYSTEM}` : system,
     tools: [stream ? { ...tool, eager_input_streaming: true } : tool],
     // auto, not forced: claude-opus-5-5 refuses tool_choice tool/any (HTTP 400). A reply without the
     // tutor_response call stays invalid (planTurn), so free text is never a plan.

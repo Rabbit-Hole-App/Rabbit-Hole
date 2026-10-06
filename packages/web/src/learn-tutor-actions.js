@@ -31,21 +31,30 @@ const secondsOf = (action, modality) => {
   if (modality === 'text') return Math.max(5, Math.round(String(action.text || '').split(/\s+/).filter(Boolean).length / 3));
   return action.max_duration_seconds ?? SECONDS[modality] ?? 90;
 };
-const VIA = { question: 'answer', quiz: 'answer', challenge: 'answer', explain_back: 'explain_back' };
+// What a card asks of the learner, by its block type alone, so a shown card and a made one of the same type expect the same:
+// an Explain Back challenge an explanation; interaction where the learner acts on the card itself (LearningBlocks.jsx: a
+// challenge or quiz answer, flashcards flipped, a code exercise or notebook run, a graph's sliders, a scene's steps or orbit,
+// an authored animation's inputs and practice, a whiteboard drawn on, a 3D model turned); every other type is read or
+// watched (explanation, table, snippet, flow, mermaid, image, video, paper, audio, knowledge) and expects nothing.
+const INTERACTIVE = ['challenge', 'quiz', 'flashcards', 'code', 'notebook', 'graph', 'scene', 'animation', 'whiteboard', 'model3d'];
+const cardVia = modality => (modality === 'explain_back' ? 'explain_back' : INTERACTIVE.includes(modality) ? 'interaction' : null);
 const CARD_ACTIONS = ['show_authored_card', 'focus_part', 'suggest_practice'];
 
 // ctx: { domain, materials, claims } - claims are the turn's claims (runTurn's bench.claims), which an action without a
-// target of its own (a reply, a made card) teaches.
-export function actionContract(action, { domain, materials = [], claims = [] }) {
+// target of its own (a reply, a made card) teaches. command: the Learn command of a made card (a Motion and a generated
+// video are both video blocks; animate and video tell them apart), null for every other action. Never throws: a domain
+// without an optional member (cardType, ladderStep, targetClaims, claims, concepts) leaves that field null or [].
+export function actionContract(action, { domain = null, materials = [], claims = [] } = {}) {
   const modality = modalityOf(action, { domain, materials });
-  const card = action.type === 'suggest_depth' ? domain.ladderStep(action.card, action.direction || 'deeper') : CARD_ACTIONS.includes(action.type) ? action.card : null;
-  const target_claim_ids = action.claim && domain.claims[action.claim] ? [action.claim]
-    : card ? domain.targetClaims({ block_id: card, card_id: card, part_id: action.part_id ?? null })
+  const card = action.type === 'suggest_depth' ? domain?.ladderStep?.(action.card, action.direction || 'deeper') ?? null : CARD_ACTIONS.includes(action.type) ? action.card : null;
+  const target_claim_ids = action.claim && domain?.claims?.[action.claim] ? [action.claim]
+    : card ? domain?.targetClaims?.({ block_id: card, card_id: card, part_id: action.part_id ?? null }) || []
     : action.type === 'respond_text' || action.type === 'create_material' ? claims.slice(0, 3) : [];
-  const concepts = [...target_claim_ids.map(id => domain.claims[id].concept), action.concept, action.to_concept].filter(id => id && domain.concepts[id]);
-  const via = action.type === 'ask_question' ? VIA[modality] : action.type === 'suggest_practice' ? 'practice' : action.type === 'create_material' ? VIA[modality] ?? 'interaction' : null;
+  const concepts = [...target_claim_ids.map(id => domain?.claims?.[id]?.concept), ...[action.concept, action.to_concept].filter(id => id && domain?.concepts?.[id])].filter(Boolean);
+  const via = action.type === 'ask_question' ? (modality === 'explain_back' ? 'explain_back' : 'answer') : action.type === 'suggest_practice' ? 'practice'
+    : ['show_authored_card', 'focus_part', 'create_material'].includes(action.type) ? cardVia(modality) : null;
   return {
-    action_type: action.type, modality, target_concept_ids: [...new Set(concepts)], target_claim_ids,
+    action_type: action.type, command: action.type === 'create_material' ? action.command ?? null : null, modality, target_concept_ids: [...new Set(concepts)], target_claim_ids,
     expected_evidence: via ? target_claim_ids.map(claim_id => ({ claim_id, via })) : [],
     estimated_learning_seconds: secondsOf(action, modality),
   };

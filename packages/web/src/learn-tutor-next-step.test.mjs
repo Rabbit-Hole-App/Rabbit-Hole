@@ -147,8 +147,8 @@ function worker(plan) {
 }
 const turnWith = (store, plan, extra = {}) => { const w = worker(plan); return runTurn({ raw: '', nextStep: STEP, materials: MATERIALS, canvas: { app: 'a', board: 'main' }, access: { app: 'a' }, block: null, store, post: w.post, domain, ...extra }).then(r => ({ ...r, sent: w.sent })); };
 const TEXT_ONLY = { strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: 'Basin shape matters.' }] };
-const misreadStore = () => {
-  const wrong = { concept: CLAIMS[IDS[1]].concept, claim: IDS[1], result: 'misconception', misconception_id: CLAIMS[IDS[1]].misconceptions[0]?.id ?? 'm', kind: null, settled: true, evaluator: 'jev', source: 'free_text' };
+const misreadStore = (claim = IDS[1]) => {
+  const wrong = { concept: CLAIMS[claim].concept, claim, result: 'misconception', misconception_id: CLAIMS[claim].misconceptions[0]?.id ?? 'm', kind: null, settled: true, evaluator: 'jev', source: 'free_text' };
   return appendEvents(emptyStore(), [wrong, { ...wrong }]).store;
 };
 
@@ -197,6 +197,11 @@ test('next_step: the same hook makes different material under different evidence
   assert.deepEqual([a.routed.row, b.routed.row], ['misconception', 'not_yet_observed']);
   assert.deepEqual([a.actions.at(-1).command, b.actions.at(-1).command], ['animate', 'flashcards']);
   assert.deepEqual([a.store.modalities, b.store.modalities], [['question', 'video'], ['text', 'flashcards']]);
+  // Only the selected claims decide: a misconception on a claim the hook does not select leaves the row on the step claim.
+  const elsewhere = misreadStore(IDS[0]);
+  assert.equal(deriveClaimStates(elsewhere.events, CLAIMS)[IDS[0]].state, 'misconception');
+  const c = await turnWith(elsewhere, byRoute);
+  assert.deepEqual([c.routed.row, c.routed.claim, c.actions.at(-1).command, c.store.modalities], ['not_yet_observed', IDS[1], 'flashcards', ['text', 'flashcards']]);
 });
 
 test('next_step: navigation is the click consent; typed turns keep the explicit-request rule', async () => {
@@ -242,17 +247,60 @@ test('actionContract: action_type, modality, targets, expected evidence and a ro
   const ctx = { domain: journeyDomain({ journey: J, path: PATH, blocks }), materials: MATERIALS, claims: [IDS[1]] };
   const c = id => CLAIMS[id].concept;
   assert.deepEqual(actionContract({ type: 'ask_question', text: 'Say it back?', claim: IDS[0], purpose: 'explain_back' }, ctx),
-    { action_type: 'ask_question', modality: 'explain_back', target_concept_ids: [c(IDS[0])], target_claim_ids: [IDS[0]], expected_evidence: [{ claim_id: IDS[0], via: 'explain_back' }], estimated_learning_seconds: 120 });
+    { action_type: 'ask_question', command: null, modality: 'explain_back', target_concept_ids: [c(IDS[0])], target_claim_ids: [IDS[0]], expected_evidence: [{ claim_id: IDS[0], via: 'explain_back' }], estimated_learning_seconds: 120 });
   assert.deepEqual(actionContract({ type: 'ask_question', text: 'What next?', claim: IDS[1], purpose: 'predict' }, ctx).expected_evidence, [{ claim_id: IDS[1], via: 'answer' }]);
   assert.deepEqual(actionContract({ type: 'show_authored_card', card: 'b7', mode: 'suggest' }, ctx),
-    { action_type: 'show_authored_card', modality: 'explanation', target_concept_ids: [c(IDS[0])], target_claim_ids: [IDS[0]], expected_evidence: [], estimated_learning_seconds: 90 });
+    { action_type: 'show_authored_card', command: null, modality: 'explanation', target_concept_ids: [c(IDS[0])], target_claim_ids: [IDS[0]], expected_evidence: [], estimated_learning_seconds: 90 });
   assert.deepEqual(actionContract({ type: 'respond_text', text: 'One two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen.' }, ctx),
-    { action_type: 'respond_text', modality: 'text', target_concept_ids: [c(IDS[1])], target_claim_ids: [IDS[1]], expected_evidence: [], estimated_learning_seconds: 6 });
+    { action_type: 'respond_text', command: null, modality: 'text', target_concept_ids: [c(IDS[1])], target_claim_ids: [IDS[1]], expected_evidence: [], estimated_learning_seconds: 6 });
   assert.deepEqual(actionContract({ type: 'create_material', command: 'animate', request: 'x' }, ctx),
-    { action_type: 'create_material', modality: 'video', target_concept_ids: [c(IDS[1])], target_claim_ids: [IDS[1]], expected_evidence: [{ claim_id: IDS[1], via: 'interaction' }], estimated_learning_seconds: 90 });
+    { action_type: 'create_material', command: 'animate', modality: 'video', target_concept_ids: [c(IDS[1])], target_claim_ids: [IDS[1]], expected_evidence: [], estimated_learning_seconds: 90 });
   assert.deepEqual(actionContract({ type: 'suggest_dive', concept: concepts[1], title: 'Turbines', from: { anchor: { topic: 'Turbines' } } }, ctx),
-    { action_type: 'suggest_dive', modality: 'rabbit_hole', target_concept_ids: [concepts[1]], target_claim_ids: [], expected_evidence: [], estimated_learning_seconds: null });
+    { action_type: 'suggest_dive', command: null, modality: 'rabbit_hole', target_concept_ids: [concepts[1]], target_claim_ids: [], expected_evidence: [], estimated_learning_seconds: null });
   assert.equal(actionContract({ type: 'suggest_avatar_clip', moment: 'orientation', concept: concepts[0], max_duration_seconds: 12, offer: 'play' }, ctx).estimated_learning_seconds, 12);
+});
+
+// Review fix 1: a Motion (maths animation) and a generated video are both video blocks; the contract tells them apart by command.
+test('actionContract: command names the Learn command of a made card, null for every other action', () => {
+  const materials = [...MATERIALS, { command: 'video', cards: ['videoGenerate'], paid: true }, { command: 'walkthrough', cards: ['walkthrough'], paid: false }, { command: '3d', cards: ['scene'], paid: true }];
+  const ctx = { domain, materials, claims: [IDS[1]] };
+  const made = command => actionContract({ type: 'create_material', command, request: 'x' }, ctx);
+  assert.deepEqual(['animate', 'video', 'walkthrough', '3d'].map(command => [made(command).modality, made(command).command]), [['video', 'animate'], ['video', 'video'], ['scene', 'walkthrough'], ['scene', '3d']]);
+  for (const action of [{ type: 'respond_text', text: 'x' }, { type: 'ask_question', text: 'x?', claim: IDS[1], purpose: 'predict' }, { type: 'suggest_dive', concept: null, title: 't', from: {} }, { type: 'return_from_dive' }]) assert.equal(actionContract(action, ctx).command, null, action.type);
+  assert.deepEqual(Object.keys(made('animate')), ['action_type', 'command', 'modality', 'target_concept_ids', 'target_claim_ids', 'expected_evidence', 'estimated_learning_seconds']);
+});
+
+// Review fix 2: one rule for shown and made cards - the block type decides the expected evidence, never how the card arrived.
+test('expected_evidence: a shown and a made card of the same block type expect the same; passive types expect nothing', () => {
+  const stamp = id => ({ journey_id: 'lj_t', section_id: 's1', step_id: id, claims: [IDS[1]] });
+  const blocks = [{ id: 'f1', type: 'flashcards', cards: [], journey: stamp('f1') }, { id: 'x1', type: 'explanation', title: 'Range', journey: stamp('x1') }, { id: 'v1', type: 'video', mode: 'generate', title: 'Basin', journey: stamp('v1') },
+    { id: 'e1', type: 'challenge', mode: 'explain_back', prompt: 'Say it back', journey: stamp('e1') }, { id: 'g1', type: 'graph', title: 'Range', journey: stamp('g1') }, { id: 'q1', type: 'quiz', question: 'q', journey: stamp('q1') }];
+  const materials = [{ command: 'flashcards', cards: ['flashcards'], paid: false }, { command: 'explain', cards: ['explanation', 'table'], paid: false }, { command: 'animate', cards: ['mathAnimation'], paid: true },
+    { command: 'practice', cards: ['explainBack'], paid: false }, { command: 'graph', cards: ['graph', 'plot'], paid: false }, { command: 'quiz', cards: ['quiz'], paid: false }];
+  const ctx = { domain: journeyDomain({ journey: J, path: PATH, blocks }), materials, claims: [IDS[1]] };
+  const pairs = [['f1', 'flashcards', 'interaction'], ['x1', 'explain', null], ['v1', 'animate', null], ['e1', 'practice', 'explain_back'], ['g1', 'graph', 'interaction'], ['q1', 'quiz', 'interaction']];
+  for (const [card, command, via] of pairs) {
+    const shown = actionContract({ type: 'show_authored_card', card, mode: 'suggest' }, ctx), made = actionContract({ type: 'create_material', command, request: 'x' }, ctx);
+    assert.equal(shown.modality, made.modality, card);
+    assert.deepEqual(shown.expected_evidence, made.expected_evidence, card);
+    assert.deepEqual(made.expected_evidence, via ? [{ claim_id: IDS[1], via }] : [], card);
+  }
+  assert.deepEqual(actionContract({ type: 'respond_text', text: 'x' }, ctx).expected_evidence, []);
+});
+
+// Review fix 3: contract metadata never fails a turn - a domain without its optional members gives null or [] for that field.
+test('actionContract and modalityOf never throw on a domain missing cardType, ladderStep, targetClaims, concepts or claims', () => {
+  const actions = [{ type: 'respond_text', text: 'x' }, { type: 'ask_question', text: 'x?', claim: IDS[1], purpose: 'explain_back' }, { type: 'show_authored_card', card: 'b7', mode: 'suggest' }, { type: 'focus_part', card: 'b7', part_id: 'p' },
+    { type: 'suggest_depth', card: 'b7', direction: 'deeper' }, { type: 'suggest_practice', card: 'b7' }, { type: 'suggest_dive', concept: 'k', title: 't', from: {} }, { type: 'return_from_dive' },
+    { type: 'suggest_avatar_clip', moment: 'orientation', concept: 'k', to_concept: 'k2', offer: 'play' }, { type: 'create_material', command: 'flashcards', request: 'x' }];
+  for (const minimal of [{}, { claims: CLAIMS }, null]) for (const action of actions) {
+    const contract = actionContract(action, { domain: minimal, materials: MATERIALS, claims: [IDS[1]] });
+    assert.equal(contract.action_type, action.type);
+    if (action.type === 'show_authored_card' || action.type === 'focus_part') assert.deepEqual([contract.modality, contract.target_claim_ids, contract.expected_evidence, contract.estimated_learning_seconds], [null, [], [], null], action.type);
+    if (action.type === 'suggest_depth' || action.type === 'suggest_dive' || action.type === 'suggest_avatar_clip') assert.deepEqual([contract.target_claim_ids, contract.target_concept_ids], [[], []], action.type);
+    assert.doesNotThrow(() => modalityOf(action, { domain: minimal, materials: MATERIALS }));
+  }
+  assert.deepEqual(actionContract({ type: 'ask_question', text: 'x?', claim: IDS[1], purpose: 'predict' }, { domain: { claims: CLAIMS }, claims: [] }).target_concept_ids, [CLAIMS[IDS[1]].concept], 'claims alone still name their concepts');
 });
 
 test('runTurn: one contract per accepted action (never collapsed), the turn reason codes, and the history from the contracts', async () => {

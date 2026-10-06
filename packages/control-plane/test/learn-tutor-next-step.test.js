@@ -53,7 +53,16 @@ test('NEXT_STEP_SYSTEM is appended only on next_step turns; every other request 
   const step = { ...base, learner_intent: { kind: 'next_step', raw_user_message: '', selected_next_step: { hook: 'h', learning_goal: 'g', concept_ids: [], claim_ids: [] } } };
   assert.equal(plannerRequest(step, 2000).system, `${PLANNER_SYSTEM}\n${NEXT_STEP_SYSTEM}`);
   assert.equal(plannerRequest({ ...step, journey_context: { phase: 'active' } }, 2000).system, `${plannerSystem(false, 'journey')}\n${NEXT_STEP_SYSTEM}`);
-  assert.equal(plannerRequest(step, 2000, [], { avatar: true, cache: true }).system[0].text, `${plannerSystem(true, 'nanogpt')}\n${NEXT_STEP_SYSTEM}`);
+  // Review fix 5: cached, the hook lines are a second, uncached system block after the shared cached one, so a hook turn reads
+  // the same cached prefix as a typed turn (the typed request is unchanged) and never writes one of its own.
+  for (const options of [{ cache: true }, { avatar: true, cache: true, stream: true }]) {
+    const typed = plannerRequest(base, 2000, [], options), hook = plannerRequest(step, 2000, [], options);
+    assert.deepEqual(hook.system, [typed.system[0], { type: 'text', text: NEXT_STEP_SYSTEM }]);
+    assert.equal(typed.system.length, 1);
+    assert.deepEqual(typed.system[0].cache_control, { type: 'ephemeral' });
+    assert.deepEqual([hook.tools, hook.tool_choice], [typed.tools, typed.tool_choice]);
+  }
+  assert.equal(plannerRequest(base, 2000, [], { cache: true }).system[0].text, PLANNER_SYSTEM);
   assert.deepEqual(plannerRequest(step, 2000).tools, plannerRequest(base, 2000).tools, 'the tool is unchanged');
   assert.match(NEXT_STEP_SYSTEM, /never evidence and never an explicit_request/);
   assert.match(NEXT_STEP_SYSTEM, /create_material/);
