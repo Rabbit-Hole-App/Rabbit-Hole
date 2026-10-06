@@ -1,12 +1,13 @@
 // Tutor decision evaluation harness (docs/features/tutor-decision-eval.md): the generic, interface-independent half.
 // Fixtures, the hidden-profile guard, the session loop that writes the event stream (events.mjs), the learner and
-// reviewer views and prompts, and the cost ledger. Everything that talks to the product - the Tutor turn, the
-// hooks, the material generator, the evidence path - is injected, so the loop never knows a topic, a profile or a
-// model. No model is called from this file.
+// reviewer views, prompts and reply schemas, the cost ledger, and the throwaway per-session LEARN_DB. Everything
+// that talks to the product - the Tutor turn, the hooks, the material generator, the evidence path - is injected, so
+// the loop never knows a topic, a profile or a model. No model is called from this file.
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { TRACE_SCHEMA_VERSION, createEmitter, foldSession } from './events.mjs';
+import { stats } from './metrics.mjs';
 
 const HERE = new URL('.', import.meta.url);
 export const HARNESS_VERSION = 'tutor-session-eval-0';
@@ -48,7 +49,7 @@ export const simulatedIds = ({ runId, topic, profile }) => ({
 
 // The Tutor never receives a profile label. Learner-originated text and whatever the Tutor adapter reports it sent
 // to the planner are scanned for every profile's id and hidden terms (word-bounded); a hit stops the session.
-// ponytail: the Tutor's own words may legitimately say "advanced", so only learner-originated payload is scanned
+// ponytail: the Tutor's own words may legitimately use a level word, so only learner-originated payload is scanned
 // for the generic terms; the adapter's tutor_input is checked the same way and must not echo Tutor text back.
 export const profileTerms = profiles => [...new Set(profiles.flatMap(profile => [profile.id, ...(profile.hidden_terms || [])]))];
 export function assertNoProfileLeak(payload, terms) {
@@ -78,12 +79,34 @@ export function reviewerView({ topic, steps, flagged = [] }) {
   };
 }
 
-// ---------- Prompts and strict parsers ----------
+// ---------- Prompts, reply schemas and strict parsers ----------
 
 export const REVIEW_DIMENSIONS = ['pedagogical_coherence', 'responsiveness_to_evidence', 'modality_appropriateness', 'modality_variety', 'pacing', 'cognitive_load_balance', 'engagement', 'hook_quality', 'progress_toward_goal', 'unnecessary_repetition'];
 export const RESPONSE_KINDS = ['answer', 'explanation', 'question', 'activity', 'confusion', 'acknowledge'];
 
-export function learnerPrompt({ topic, profile, view }) {
+// Structured-output schemas (output_config.format = { type: 'json_schema', schema }) for the two simulator calls; the
+// strict parsers below re-check every reply anyway.
+export const LEARNER_REPLY_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['selected_option_id', 'response'],
+  properties: {
+    selected_option_id: { type: ['string', 'null'] },
+    response: {
+      type: 'object', additionalProperties: false, required: ['kind', 'text', 'choice_id'],
+      properties: { kind: { type: 'string', enum: RESPONSE_KINDS }, text: { type: 'string' }, choice_id: { type: ['string', 'null'] } },
+    },
+  },
+};
+export const REVIEW_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['scores', 'findings', 'flagged_sequences'],
+  properties: {
+    scores: { type: 'object', additionalProperties: false, required: REVIEW_DIMENSIONS, properties: Object.fromEntries(REVIEW_DIMENSIONS.map(key => [key, { type: 'integer', enum: [1, 2, 3, 4, 5] }])) },
+    findings: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['steps', 'text'], properties: { steps: { type: 'array', items: { type: 'integer' } }, text: { type: 'string' } } } },
+    flagged_sequences: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['id', 'justified', 'note'], properties: { id: { type: 'string' }, justified: { type: 'boolean' }, note: { type: 'string' } } } },
+  },
+};
+
+// terms: every hidden profile label (profileTerms), so the prompt forbids them without the code naming any.
+export function learnerPrompt({ topic, profile, view, terms }) {
   const system = [
     'You are role-playing one learner in a tutoring session, for an offline evaluation. Stay in character.',
     `Topic: ${topic.title}. Your goal, in your own words: ${topic.learner_goal}`,
@@ -92,9 +115,9 @@ export function learnerPrompt({ topic, profile, view }) {
     `How you ask questions: ${profile.question_style}`,
     `How you pick what to explore next: ${profile.hook_preference}`,
     ...(topic.simulator_misconceptions?.length ? [`Mistakes a learner like you may make, only if they fit what you know: ${topic.simulator_misconceptions.join('; ')}`] : []),
-    'Never describe yourself with a skill-level label (beginner, novice, intermediate, advanced, expert). Show your level only through what you say.',
+    `Never describe yourself with a skill-level label (for example ${terms.join(', ')}). Show your level only through what you say.`,
     'You do not know the answers to the tutor\'s questions unless your knowledge above covers them. Never grade yourself.',
-    `Reply with one JSON object only: {"selected_option_id": <one of the option ids, or null when there are no options>, "response": {"kind": one of ${RESPONSE_KINDS.join('|')}, "text": what you type, "choice_id": the option you choose in a multiple-choice activity, or null}}`,
+    'Reply with one JSON object: selected_option_id is one of the offered option ids, or null when there are none; response.kind is what you are doing; response.text is what you type; response.choice_id is the option you choose in a multiple-choice activity, or null.',
   ].join('\n');
   return { system, user: JSON.stringify(view) };
 }
@@ -121,7 +144,7 @@ export function reviewerPrompt(view) {
     'You review one recorded tutoring session for an offline evaluation of the Tutor\'s decisions. You do not rewrite the session.',
     `Score each dimension 1 (poor) to 5 (excellent): ${REVIEW_DIMENSIONS.join(', ')}. For unnecessary_repetition, 5 means no unnecessary repetition.`,
     'Give concise findings, each citing the step numbers it is about. For every flagged sequence say whether the repetition was pedagogically justified.',
-    `Reply with one JSON object only: {"scores": {${REVIEW_DIMENSIONS.map(key => `"${key}": 1-5`).join(', ')}}, "findings": [{"steps": [step numbers], "text": "..."}], "flagged_sequences": [{"id": "...", "justified": true|false, "note": "..."}]}`,
+    'Reply with one JSON object: scores (every dimension, an integer 1-5), findings (each with the step numbers it cites and its text), flagged_sequences (each flagged id with justified true or false and a short note).',
   ].join('\n');
   return { system, user: JSON.stringify(view) };
 }
@@ -157,13 +180,17 @@ export function usd(model, usage = {}) {
 }
 
 // guard() before a call with its worst case; record() after with the real usage. A call whose worst case would cross
-// the ceiling is refused before it is made.
+// the ceiling is refused before it is made. The ceiling is the Anthropic model spend only.
+// recordExternal(): a non-Anthropic provider (JEV / Typesafe AI), logged apart from the ceiling. Its cost is the
+// provider's own billing metadata when it returns one, else cost_usd null and cost_status "unknown" - never a guess.
 // ponytail: input tokens estimated as chars / 3 (an over-count for English); use count_tokens if the ceiling gets tight.
 export function createLedger(ceilingUsd) {
-  const calls = [];
+  const calls = [], external = [];
   const spent = () => calls.reduce((total, call) => total + call.usd, 0);
+  const cents = x => Math.round(x * 1e4) / 1e4;
   return {
     calls,
+    external,
     spent,
     worstCase: ({ model, inputChars = 0, maxOutputTokens = 0 }) => usd(model, { input_tokens: Math.ceil(inputChars / 3), output_tokens: maxOutputTokens }),
     guard(role, estimateUsd) {
@@ -174,11 +201,39 @@ export function createLedger(ceilingUsd) {
       calls.push(call);
       return call;
     },
+    recordExternal({ role, provider, model = null, version = null, ms = null, outcome = 'ok', billing = null }) {
+      const cost = billing?.cost_usd;
+      const call = { role, provider, model, version, ms, outcome, cost_usd: Number.isFinite(cost) ? cost : null, cost_status: Number.isFinite(cost) ? 'reported' : 'unknown', billing };
+      external.push(call);
+      return call;
+    },
     summary: () => ({
-      total_usd: Math.round(spent() * 1e4) / 1e4, ceiling_usd: ceilingUsd, calls: calls.length,
-      by_role: Object.fromEntries(Object.entries(Object.groupBy(calls, call => call.role)).map(([role, list]) => [role, { calls: list.length, usd: Math.round(list.reduce((n, call) => n + call.usd, 0) * 1e4) / 1e4, models: [...new Set(list.map(call => call.model))] }])),
+      anthropic: {
+        total_usd: cents(spent()), ceiling_usd: ceilingUsd, calls: calls.length,
+        by_role: Object.fromEntries(Object.entries(Object.groupBy(calls, call => call.role)).map(([role, list]) => [role, { calls: list.length, usd: cents(list.reduce((n, call) => n + call.usd, 0)), models: [...new Set(list.map(call => call.model))], latency_ms: stats(list.map(call => call.ms)) }])),
+      },
+      external: Object.fromEntries(Object.entries(Object.groupBy(external, call => call.role)).map(([role, list]) => {
+        const reported = list.filter(call => call.cost_status === 'reported');
+        return [role, {
+          calls: list.length, ok: list.filter(call => call.outcome === 'ok').length, failed: list.filter(call => call.outcome !== 'ok').length,
+          providers: [...new Set(list.map(call => call.provider))], models: [...new Set(list.map(call => call.model).filter(Boolean))], versions: [...new Set(list.map(call => call.version).filter(Boolean))],
+          latency_ms: stats(list.map(call => call.ms)),
+          cost_usd: reported.length && reported.length === list.length ? cents(reported.reduce((n, call) => n + call.cost_usd, 0)) : null,
+          cost_status: !reported.length ? 'unknown' : reported.length === list.length ? 'reported' : 'partial',
+          ...(reported.length && reported.length < list.length ? { reported_cost_usd: cents(reported.reduce((n, call) => n + call.cost_usd, 0)), reported_calls: reported.length } : {}),
+        }];
+      })),
     }),
   };
+}
+
+// O1: one throwaway LEARN_DB per simulated session - the same in-memory node:sqlite database the LP1 tests build from
+// repository-schema.sql (control-plane test/learn-grade-fixture.js learnDb). Never shared, closed after the session.
+export async function freshLearnDb() {
+  const { learnDb } = await import('../../../packages/control-plane/test/learn-grade-fixture.js');
+  const closers = [];
+  const { LEARN_DB, sqlite } = learnDb({ after: close => closers.push(close) });
+  return { LEARN_DB, sqlite, close: () => closers.splice(0).forEach(close => close()) };
 }
 
 // ---------- The session loop ----------
@@ -186,23 +241,33 @@ export function createLedger(ceilingUsd) {
 // Injected (each one a product adapter, or a fake in tests):
 //   tutor.start() -> { evidence, context }                       the learner's starting evidence and canvas context
 //   tutor.decide({ message, selected_option, history }) -> { decision, estimated_learning_seconds, available_modalities,
-//     planner, material_summary, context, tutor_input }        tutor_input: what the planner was actually sent
+//     planner, planner_version, material_summary, context, tutor_input }   tutor_input: what the planner was sent
 //   tutor.observe({ response }) -> { evidence }                  the real evidence path on the learner's response
 //   hooks({ decisions, history }) -> { options: [{ id, position, text, learning_goal }] }
+//   hookStart({ decision }) -> 'with_material' | 'after_evidence'   when the product starts the next hook set: in the
+//     background as soon as the material is ready, or once the learner's answer is committed. The product's own
+//     recompute policy decides; the default assumes every hook set waits for evidence.
 //   learner.choose({ view }) -> { selected_option_id }           learner.respond({ view }) -> { response }
 //   materialize({ decision }, marks) -> { timing_source, cache_status, cache_origin, asset_applicable, durations,
-//     material_signature }  marks.started() / first() / asset() stamp t6 / t7 / t9 while it runs; never called when
-//     the material is not run. It resolves at t8.
-// Stops when the Tutor's own estimated learning time reaches the budget, or at max_decisions (the safety cap). A
-// thrown error (cost ceiling, profile leak, adapter failure) ends the session with what was recorded so far.
-export async function runSession({ topic, profile, profiles, hooks, learner, tutor, materialize, runId = 'run', clock = () => performance.now(), debugText = true, budgetSeconds = topic.session_budget_seconds, maxDecisions = topic.max_decisions }) {
+//     material_signature, error_code }  marks.started() / first() / asset() stamp t6 / t7 / t9 while it runs; never
+//     called when the material is not run. It resolves at t8.
+// The session timeline: backend calls advance it by their measured duration; the learner's reading or attempt advances
+// it by the Tutor's estimated learning time (learner_consumption_* events say `estimated`); the learner simulator's own
+// latency never enters it, and a selection is instant once options are visible and the learner is done. Background
+// hooks run while the learner reads: their backend time is real, their place on the timeline starts at material ready.
+// Stops when the Tutor's estimated learning time reaches the budget, or at max_decisions (the safety cap). A thrown
+// error (cost ceiling, profile leak, adapter failure) ends the session with what was recorded so far.
+export async function runSession({ topic, profile, profiles, hooks, hookStart = () => 'after_evidence', learner, tutor, materialize, runId = 'run', clock = () => performance.now(), debugText = true, budgetSeconds = topic.session_budget_seconds, maxDecisions = topic.max_decisions }) {
   const terms = profileTerms(profiles);
   const ids = simulatedIds({ runId, topic, profile });
   const context = {};
-  const { events, emit } = createEmitter({ ...ids, clock, context: () => context });
+  let now = 0; // the session timeline (ms)
+  const { events, emit } = createEmitter({ ...ids, clock: () => now, context: () => context });
   const debug = fields => (debugText ? { debug: fields } : {});
+  // A backend call: real duration, measured; returns [result, duration].
+  const timed = async fn => { const start = clock(); const result = await fn(); return [result, clock() - start]; };
   const history = [];
-  let elapsed = 0, decisions = 0, stop = 'max_decisions', error = null;
+  let elapsed = 0, decisions = 0, stop = 'max_decisions', error = null, message = topic.opening_message, selected = null;
   const applyContext = (next = {}) => {
     const changed = Object.entries(next).filter(([key, value]) => context[key] !== value);
     if (!changed.length) return;
@@ -212,54 +277,78 @@ export async function runSession({ topic, profile, profiles, hooks, learner, tut
     emit('canvas_context_changed', { changed: changed.map(([key]) => key) });
     if (dive?.[1]) emit('rabbit_hole_entered', { dive_id: dive[1] });
   };
+  // One hook set generated from `at` on the timeline: its options and when they were ready.
+  const hookSet = async at => {
+    const hookSetId = `${ids.session_id}:h${decisions + 1}`;
+    emit('next_steps_generation_started', { hook_set_id: hookSetId }, at);
+    const [set, ms] = await timed(() => hooks({ decisions, history }));
+    const options = set?.options || [];
+    emit('next_steps_ready', { hook_set_id: hookSetId, options }, at + ms);
+    return { hookSetId, options, ready: at + ms };
+  };
   try {
     emit('session_started', debug({ goal: topic.learner_goal }));
     const started = await tutor.start();
     applyContext(started.context);
     emit('evidence_updated', { claims: started.evidence ?? [], cause: 'session_start' });
-    let message = topic.opening_message, selected = null;
     assertNoProfileLeak(message, terms);
     emit('learner_message', { kind: 'opening', input: 'typed', chars: message.length, ...debug({ text: message }) });
     while (decisions < maxDecisions) {
-      // 1. Professor Next Steps, and the learner's pick (none before the first decision: the opening message leads).
-      selected = null;
-      if (decisions) {
-        const hookSetId = `${ids.session_id}:h${decisions + 1}`;
-        emit('next_steps_generation_started', { hook_set_id: hookSetId });
-        const options = (await hooks({ decisions, history }))?.options || [];
-        emit('next_steps_ready', { hook_set_id: hookSetId, options });
-        if (options.length) {
-          const { selected_option_id } = await learner.choose({ view: learnerView({ material: history.at(-1)?.material, options }, history) });
-          selected = options.find(option => option.id === selected_option_id);
-          if (!selected) throw Error(`the learner chose ${selected_option_id}, not an offered option`);
-          emit('next_step_selected', { hook_set_id: hookSetId, option_id: selected.id, position: selected.position });
-        }
-      }
-      // 2. The Tutor's validated decision (the real planner behind the adapter), on learner-visible input only.
+      // 1. The Tutor's validated decision (the real planner behind the adapter), on learner-visible input only.
       const decisionId = `${ids.session_id}:d${decisions + 1}`;
       const input = { message, selected_option: selected && { id: selected.id, text: selected.text }, history: history.map(({ material, learner: said }) => ({ material, learner: said })) };
       assertNoProfileLeak({ message: input.message, history: input.history.map(entry => entry.learner) }, terms);
       emit('tutor_decision_started', { decision_id: decisionId, trigger: selected ? 'hook' : decisions ? 'typed' : 'opening' });
-      const decided = await tutor.decide(input);
+      const [decided, decideMs] = await timed(() => tutor.decide(input));
+      now += decideMs;
       assertNoProfileLeak(decided.tutor_input ?? '', terms);
       applyContext(decided.context);
-      emit('tutor_action_ready', { decision_id: decisionId, decision: decided.decision, estimated_learning_seconds: decided.estimated_learning_seconds ?? null, available_modalities: decided.available_modalities ?? null, planner: decided.planner ?? null, ...debug({ material_summary: decided.material_summary ?? null }) });
+      emit('tutor_action_ready', { decision_id: decisionId, decision: decided.decision, estimated_learning_seconds: decided.estimated_learning_seconds ?? null, available_modalities: decided.available_modalities ?? null, planner: decided.planner ?? null, planner_version: decided.planner_version ?? null, ...debug({ material_summary: decided.material_summary ?? null }) });
       decisions++;
-      // 3. The learner-facing material, up to a validated payload; never rendered.
-      const marks = { started: () => emit('material_generation_started', { decision_id: decisionId }), first: () => emit('material_first_ready', { decision_id: decisionId }), asset: () => emit('asset_ready', { decision_id: decisionId }) };
+      elapsed += decided.estimated_learning_seconds || 0;
+      const last = elapsed >= budgetSeconds || decisions >= maxDecisions;
+      // 2. The learner-facing material, up to a validated payload; never rendered.
+      const base = now, realStart = clock();
+      let firstReady = null;
+      const at = () => base + (clock() - realStart);
+      const marks = {
+        started: () => emit('material_generation_started', { decision_id: decisionId }, at()),
+        first: () => { firstReady ??= at(); emit('material_first_ready', { decision_id: decisionId }, firstReady); },
+        asset: () => emit('asset_ready', { decision_id: decisionId }, at()),
+      };
       const material = await materialize({ decision: decided.decision }, marks);
+      now = at();
       if (material?.error_code) emit('material_failed', { decision_id: decisionId, error_code: material.error_code });
       else if (material && material.timing_source !== 'not_run') emit('material_complete', { decision_id: decisionId, timing_source: material.timing_source, cache_status: material.cache_status ?? 'not_applicable', cache_origin: material.cache_origin ?? null, asset_applicable: !!material.asset_applicable, durations: material.durations ?? null, material_signature: material.material_signature ?? null });
-      // 4. The learner works on it; the real evidence path reads what they did.
+      // 3. The learner reads or attempts it; the next hook set may already be generating in the background.
+      const consumeFrom = material?.timing_source === 'measured' ? firstReady ?? now : now;
+      emit('learner_consumption_started', { decision_id: decisionId, timing_source: 'estimated' }, consumeFrom);
+      // ponytail: the last decision's background hooks are skipped; nobody would see them.
+      const background = !last && hookStart({ decision: decided.decision }) === 'with_material' ? await hookSet(consumeFrom) : null;
       const { response } = await learner.respond({ view: learnerView({ material: decided.material_summary ?? null }, history) });
       assertNoProfileLeak(response.text, terms);
-      emit('learner_message', { kind: response.kind, input: response.kind === 'activity' ? 'activity' : 'typed', chars: response.text.length, ...(response.choice_id != null ? { choice_id: response.choice_id } : {}), ...debug({ text: response.text }) });
-      const observed = await tutor.observe({ response });
-      emit('evidence_updated', { claims: observed.evidence ?? [], cause: 'learner_message', ...(observed.evaluators ? { evaluators: observed.evaluators } : {}) });
+      const done = consumeFrom + (decided.estimated_learning_seconds || 0) * 1000;
+      emit('learner_consumption_finished', { decision_id: decisionId, timing_source: 'estimated' }, done);
+      emit('learner_message', { decision_id: decisionId, kind: response.kind, input: response.kind === 'activity' ? 'activity' : 'typed', chars: response.text.length, ...(response.choice_id != null ? { choice_id: response.choice_id } : {}), ...debug({ text: response.text }) }, done);
+      // 4. The real evidence path reads what they did.
+      const [observed, observeMs] = await timed(() => tutor.observe({ response }));
+      emit('evidence_updated', { claims: observed.evidence ?? [], cause: 'learner_message', ...(observed.evaluators ? { evaluators: observed.evaluators } : {}) }, done + observeMs);
+      now = Math.max(now, done + observeMs);
       history.push({ material: decided.material_summary ?? null, learner: response.text });
       message = response.text;
-      elapsed += decided.estimated_learning_seconds || 0;
+      selected = null;
       if (elapsed >= budgetSeconds) { stop = 'learning_budget'; break; }
+      if (decisions >= maxDecisions) break;
+      // 5. Professor Next Steps for the next decision, and the learner's pick (instant once visible and done reading).
+      const set = background ?? await hookSet(now);
+      if (set.options.length) {
+        const { selected_option_id } = await learner.choose({ view: learnerView({ material: decided.material_summary ?? null, options: set.options }, history) });
+        selected = set.options.find(option => option.id === selected_option_id);
+        if (!selected) throw Error(`the learner chose ${selected_option_id}, not an offered option`);
+        const click = Math.max(set.ready, done);
+        emit('next_step_selected', { hook_set_id: set.hookSetId, option_id: selected.id, position: selected.position }, click);
+        now = Math.max(now, click);
+      } else now = Math.max(now, set.ready);
     }
   } catch (thrown) {
     stop = thrown.code === 'COST_CEILING' ? 'cost_ceiling' : thrown.code === 'PROFILE_LEAK' ? 'profile_leak' : 'error';

@@ -3,14 +3,14 @@
 // not care what the topic is.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { aggregateEvents, aggregate, groupMetrics, hookFlags, stepsCsv, terminalTable, varietyWithPurpose } from './metrics.mjs';
 import { createEmitter, deriveTiming, foldSession, foldSessions, validateEvent } from './events.mjs';
 import {
-  assertNoProfileLeak, createLedger, learnerView, loadProfiles, loadTaxonomy, loadTopic, parseLearnerReply, parseReview,
-  profileTerms, readSessions, reviewerPrompt, reviewerView, runSession, usd, writeSession,
+  LEARNER_REPLY_SCHEMA, REVIEW_SCHEMA, assertNoProfileLeak, createLedger, freshLearnDb, learnerPrompt, learnerView, loadProfiles,
+  loadTaxonomy, loadTopic, parseLearnerReply, parseReview, profileTerms, readSessions, reviewerPrompt, reviewerView, runSession, usd, writeSession,
 } from './harness.mjs';
 
 const profiles = loadProfiles();
@@ -40,7 +40,7 @@ function world({ script, start = [], hookSets = HOOKS, chooseId = 'h1', leakAt =
       seen.push(input);
       advance(4000);
       const row = script[index];
-      return { decision: row.decision, estimated_learning_seconds: row.seconds, available_modalities: Object.keys(taxonomy.modalities).filter(m => !taxonomy.modalities[m].expensive), planner: { model: 'planner-x', version: 'v1' }, material_summary: `material ${index + 1} ${row.decision.modality}`, context: index === 2 ? { section_id: 's2' } : {}, tutor_input: { message: input.message } };
+      return { decision: row.decision, estimated_learning_seconds: row.seconds, available_modalities: Object.keys(taxonomy.modalities).filter(m => !taxonomy.modalities[m].expensive), planner: { model: 'planner-x', version: 'v1' }, planner_version: 'planner-x@v1', material_summary: `material ${index + 1} ${row.decision.modality}`, context: index === 2 ? { section_id: 's2' } : {}, tutor_input: { message: input.message } };
     },
     observe: async () => { advance(500); evidence = script[index].after; index++; return { evidence }; },
   };
@@ -145,7 +145,7 @@ test('timeline and derived latencies on a measured material', async () => {
   const { args } = world({ script: REPAIR, start: START });
   const { steps } = await runSession(args);
   const [one, two] = steps;
-  assert.equal(one.timing.hooks_ms, null);
+  assert.equal(one.timing.hook_backend_generation_ms, null);
   assert.equal(one.timing.tutor_decision_ms, 4000);
   assert.equal(one.timing.material_first_ready_ms, 800);
   assert.equal(one.timing.material_complete_ms, 2000);
@@ -155,10 +155,10 @@ test('timeline and derived latencies on a measured material', async () => {
   assert.equal(one.timing.timing_source, 'measured');
   assert.equal(one.timing.asset_generation_ms, null);
   assert.ok(!('asset' in one.timing.sources)); // no expensive asset: no t9 invented
-  assert.equal(two.timing.hooks_ms, 1500);
+  assert.equal(two.timing.hook_backend_generation_ms, 1500);
   assert.equal(two.timing.hook_to_tutor_start_ms, 0);
   assert.equal(two.timing.click_to_first_material_ms, 4800); // the learner's 5 s of reading is not a wait
-  assert.deepEqual(two.waits.map(wait => [wait.kind, wait.ms]), [['before_hooks', 2000], ['for_material', 4800]]);
+  assert.deepEqual(two.waits.map(wait => [wait.kind, wait.ms]), [['before_options', 2000], ['after_click', 4800]]);
 });
 
 test('not_run and estimated material are never reported as measured', async () => {
@@ -168,7 +168,7 @@ test('not_run and estimated material are never reported as measured', async () =
   assert.equal(notRun.timing_source, 'not_run');
   assert.equal(notRun.material_complete_ms, null);
   assert.equal(notRun.click_to_complete_material_ms, null);
-  assert.deepEqual(steps[2].waits.at(-1), { kind: 'for_material', ms: 4000, lower_bound: true, source: 'not_run' });
+  assert.deepEqual(steps[2].waits.at(-1), { kind: 'after_click', ms: 4000, lower_bound: true, source: 'not_run' });
   assert.equal(estimated.timing_source, 'estimated');
   assert.equal(estimated.material_complete_ms, 600000);
   assert.equal(estimated.click_to_complete_material_ms, 604000);
@@ -305,6 +305,8 @@ test('privacy: no credentials or hidden reasoning in an event; learner words onl
   assert.match(validateEvent({ ...base, type: 'tutor_action_ready', decision_id: 'd', decision: { thinking: '...' } }).join(), /forbidden field decision.thinking/);
   assert.match(validateEvent({ ...base, type: 'session_started', api_key: 'k' }).join(), /forbidden field api_key/);
   assert.match(validateEvent({ ...base, type: 'learner_message', kind: 'answer', input: 'typed', text: 'raw' }).join(), /under debug/);
+  assert.match(validateEvent({ ...base, user_id: 'ana@example.com', type: 'session_started' }).join(), /user_id looks like an email/);
+  assert.match(validateEvent({ ...base, type: 'session_started', owner_email: 'x' }).join(), /forbidden field owner_email/);
   const { args } = world({ script: REPAIR, start: START, debugText: false });
   const bundle = await runSession(args);
   assert.ok(bundle.events.every(event => !('debug' in event)));
@@ -357,7 +359,114 @@ test('the ledger refuses a call whose worst case crosses the ceiling, and prices
   ledger.guard('learner_sim', ledger.worstCase({ model: 'claude-sonnet-5-5', inputChars: 3000, maxOutputTokens: 1000 }));
   // $3 spent + (600000 / 3 input tokens at $4 + 16000 output at $20) = $4.12 > $4.
   assert.throws(() => ledger.guard('reviewer', ledger.worstCase({ model: 'claude-opus-5-5', inputChars: 600000, maxOutputTokens: 16000 })), err => err.code === 'COST_CEILING');
-  assert.equal(ledger.summary().by_role.tutor_planner.usd, 3);
+  assert.equal(ledger.summary().anthropic.by_role.tutor_planner.usd, 3);
+});
+
+test('JEV is logged apart from the Anthropic ceiling, with a cost only when the provider reports one', () => {
+  const ledger = createLedger(4);
+  ledger.recordExternal({ role: 'jev', provider: 'typesafe', model: 'jev-1.13.0', ms: 180 });
+  ledger.recordExternal({ role: 'jev', provider: 'typesafe', model: 'jev-1.13.0', ms: 3000, outcome: 'timeout' });
+  let jev = ledger.summary().external.jev;
+  assert.deepEqual([jev.calls, jev.ok, jev.failed, jev.cost_usd, jev.cost_status], [2, 1, 1, null, 'unknown']);
+  assert.equal(ledger.spent(), 0); // never counted against the $4 Anthropic ceiling
+  ledger.recordExternal({ role: 'jev', provider: 'typesafe', model: 'typesafe-ai/jev', ms: 200, billing: { cost_usd: 0.0000126, generation_id: 'gen_x' } });
+  jev = ledger.summary().external.jev;
+  assert.deepEqual([jev.cost_usd, jev.cost_status, jev.reported_cost_usd, jev.reported_calls], [null, 'partial', 0, 1]);
+  const only = createLedger(4);
+  only.recordExternal({ role: 'jev', provider: 'typesafe', ms: 200, billing: { cost_usd: 0.25 } });
+  assert.deepEqual([only.summary().external.jev.cost_usd, only.summary().external.jev.cost_status], [0.25, 'reported']);
+});
+
+// ---------- Background work: backend time is not learner waiting ----------
+
+// Hooks start with the material when it is passive (the learner only reads), after evidence when it is active.
+const byMode = ({ decision }) => (taxonomy.modalities[decision.modality]?.mode === 'passive' ? 'with_material' : 'after_evidence');
+
+test('hooks generated while the learner reads cost backend time but no wait', async () => {
+  const { args } = world({ script: REPAIR, start: START });
+  const { steps, events } = await runSession({ ...args, hookStart: byMode });
+  const two = steps[1].timing; // hooks for decision 2, generated during decision 1's passive explanation
+  assert.equal(two.hook_backend_generation_ms, 1500);
+  assert.equal(two.hook_perceived_wait_ms, 0);
+  assert.equal(two.hook_background_overlap_ms, 1500);
+  assert.equal(two.options_blocking_ms, 0);
+  assert.equal(two.sources.hook_wait, 'estimated'); // it depends on the simulated reading time
+  assert.equal(two.hook_to_tutor_start_ms, 500); // the click came before the answer was committed
+  assert.equal(steps[1].hook_state_changed_after_start, true); // the answer then changed the evidence
+  const three = steps[2].timing; // hooks after decision 2's active quiz: after the evidence, fully blocking
+  assert.deepEqual([three.hook_backend_generation_ms, three.hook_perceived_wait_ms, three.state_wait_before_options_ms, three.options_blocking_ms, three.sources.hook_wait], [1500, 1500, 500, 2000, 'measured']);
+  // Appended out of time order (background), folded in time order.
+  assert.ok(events.some((event, i) => i && event.t_ms < events[i - 1].t_ms));
+  const l = groupMetrics([steps], taxonomy).latency;
+  assert.equal(l.hook_perceived_wait.estimated.max, 0);
+  assert.equal(l.hooks.measured.n, 6);
+  // Every background set was ready before the learner was; the estimated blocking left is the estimated material (step 6).
+  assert.deepEqual(steps.flatMap(step => step.waits).filter(wait => wait.kind === 'before_options' && wait.source === 'estimated').map(wait => wait.ms), [0, 0, 0, 0, 0]);
+  assert.equal(l.blocking_wait_seconds_by_source.estimated, 64.5);
+  // Hook sets 2, 5, 6 and 7 were generated before the learner's answer changed the evidence.
+  assert.equal(groupMetrics([steps], taxonomy).hooks.generated_before_evidence_changed, 4);
+  // Same backend work as when every hook set waits for evidence; less of it is waiting.
+  const serial = groupMetrics([(await runSession(world({ script: REPAIR, start: START }).args)).steps], taxonomy).latency;
+  assert.equal(l.total_backend_generation_seconds, serial.total_backend_generation_seconds);
+  assert.ok(l.total_learner_blocking_wait_seconds < serial.total_learner_blocking_wait_seconds);
+});
+
+test('session totals keep backend generation and learner blocking apart', async () => {
+  const { args } = world({ script: REPAIR, start: START });
+  const { steps } = await runSession(args);
+  const l = groupMetrics([steps], taxonomy).latency;
+  // Backend: 7 decisions x 4 s, 6 hook sets x 1.5 s, 7 evaluations x 0.5 s, 5 measured materials x 2 s = 50.5 s.
+  assert.equal(l.total_backend_generation_seconds, 50.5);
+  assert.equal(l.total_learner_blocking_wait_seconds, l.waiting_time_seconds);
+  assert.notEqual(l.total_learner_blocking_wait_seconds, l.total_backend_generation_seconds);
+});
+
+// ---------- O1: a throwaway LEARN_DB per session ----------
+
+test('each simulated session gets its own LEARN_DB; nothing is shared', async () => {
+  const a = await freshLearnDb(), b = await freshLearnDb();
+  try {
+    a.sqlite.prepare('INSERT INTO canvases(org, name, owner_email, title) VALUES (?, ?, ?, ?)').run('ws', 'canvas-a', 'sim-user-a', 'A');
+    assert.equal(a.sqlite.prepare('SELECT COUNT(*) AS n FROM canvases').get().n, 1);
+    assert.equal(b.sqlite.prepare('SELECT COUNT(*) AS n FROM canvases').get().n, 0);
+    assert.ok(b.sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'learning_journeys'").get()); // the LP1 tables are there
+    assert.equal((await a.LEARN_DB.prepare('SELECT COUNT(*) AS n FROM canvases').first()).n, 1); // the D1-shaped binding the product uses
+  } finally { a.close(); b.close(); }
+  assert.throws(() => a.sqlite.prepare('SELECT 1').get()); // thrown away
+});
+
+// ---------- Anti-hardcoding ----------
+
+test('no harness source names a topic or a profile; renamed profiles and a new topic run unchanged', async () => {
+  const sources = readdirSync(new URL('.', import.meta.url)).filter(name => name.endsWith('.mjs') && !name.endsWith('.test.mjs'));
+  const topics = readdirSync(new URL('fixtures/topics/', import.meta.url)).map(name => loadTopic(name.replace(/\.json$/, '')));
+  const words = [...profiles.map(profile => profile.id), ...topics.flatMap(entry => [entry.id, ...entry.title.toLowerCase().split(/\s+/)])];
+  for (const name of sources) {
+    const code = readFileSync(new URL(name, import.meta.url), 'utf8').toLowerCase();
+    for (const word of words) assert.ok(!new RegExp(`\\b${word}\\b`).test(code), `${name} names ${word}`);
+  }
+  const dir = mkdtempSync(join(tmpdir(), 'tutor-topic-'));
+  writeFileSync(join(dir, 'binary-search.json'), JSON.stringify({ id: 'binary-search', title: 'Binary search', learner_goal: 'Find things fast in sorted lists.', opening_message: 'Teach me binary search.', session_budget_seconds: 600, max_decisions: 15 }));
+  const renamed = profiles.map((profile, i) => ({ ...profile, id: `p${i}` })).toReversed();
+  const { args } = world({ script: REPAIR, start: START });
+  const bundle = await runSession({ ...args, topic: loadTopic('binary-search', new URL(`file:///${dir.replace(/\\/g, '/')}/`)), profile: renamed[0], profiles: renamed });
+  assert.equal(bundle.simulator.stop_reason, 'learning_budget'); // the topic's own 600 s budget: 120+90+150+150+120 = 630
+  assert.equal(bundle.session.decisions, 5);
+  assert.match(learnerPrompt({ topic, profile: renamed[0], view: learnerView({}, []), terms: profileTerms(renamed) }).system, /p0, p1, p2|p2, p1, p0/);
+});
+
+// ---------- Reply schemas ----------
+
+test('the simulator reply schemas are strict and match what the parsers accept', async () => {
+  const strict = schema => {
+    if (schema.type !== 'object') return schema.type === 'array' ? strict(schema.items) : true;
+    return schema.additionalProperties === false && JSON.stringify([...schema.required].sort()) === JSON.stringify(Object.keys(schema.properties).sort()) && Object.values(schema.properties).every(strict);
+  };
+  assert.ok(strict(LEARNER_REPLY_SCHEMA));
+  assert.ok(strict(REVIEW_SCHEMA));
+  const view = learnerView({ options: HOOKS[0] }, []);
+  const reply = { selected_option_id: 'h3', response: { kind: 'activity', text: 'B', choice_id: 'b' } };
+  assert.deepEqual(parseLearnerReply(JSON.stringify(reply), view, profileTerms(profiles)), reply);
 });
 
 test('a cost-ceiling stop keeps every event recorded before it', async () => {

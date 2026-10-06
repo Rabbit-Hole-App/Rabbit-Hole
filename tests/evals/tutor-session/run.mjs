@@ -13,7 +13,11 @@ const [command, target] = process.argv.slice(2);
 const taxonomy = loadTaxonomy();
 if (command === 'aggregate' && target) {
   const bundles = readSessions(target);
-  const cost = bundles.some(bundle => bundle.cost) ? { sessions: Object.fromEntries(bundles.map(bundle => [bundle.simulator.profile, bundle.cost ?? null])), total_usd: Math.round(bundles.reduce((n, bundle) => n + (bundle.cost?.total_usd || 0), 0) * 1e4) / 1e4 } : null;
+  // bundle.cost: the ledger summary - Anthropic spend under the ceiling, external providers (JEV) apart.
+  const cost = bundles.some(bundle => bundle.cost) ? {
+    sessions: Object.fromEntries(bundles.map(bundle => [bundle.simulator.profile, bundle.cost ?? null])),
+    anthropic_total_usd: Math.round(bundles.reduce((n, bundle) => n + (bundle.cost?.anthropic?.total_usd || 0), 0) * 1e4) / 1e4,
+  } : null;
   const agg = aggregate(bundles, taxonomy, { cost });
   writeFileSync(join(target, 'aggregate.json'), `${JSON.stringify(agg, null, 2)}\n`);
   writeFileSync(join(target, 'steps.csv'), stepsCsv(foldSessions(bundles.flatMap(bundle => bundle.events))));

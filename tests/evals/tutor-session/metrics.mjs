@@ -190,7 +190,7 @@ export function hookMetrics(segments, taxonomy = {}) {
         repeated_from_previous: repeated,
         repeated_learning_goal: previous ? options.filter(option => option.learning_goal && previous.some(old => old.learning_goal === option.learning_goal)).length : 0,
         generic_commands: flags.filter(flag => flag.generic_command).length, curiosity: flags.filter(flag => flag.curiosity).length, reveals_answer: flags.filter(flag => flag.reveals_answer).length,
-        selected_position: step.learner_selected_option?.position ?? null, overridden: !!step.hooks_overridden,
+        selected_position: step.learner_selected_option?.position ?? null, overridden: !!step.hooks_overridden, state_changed_after_start: !!step.hook_state_changed_after_start,
         unchanged_after_evidence_change: !!previous && changed && repeated === options.length,
       });
       previous = options; previousIndex = index;
@@ -209,6 +209,8 @@ export function hookMetrics(segments, taxonomy = {}) {
     generic_command_rate: round(total('generic_commands') / hooks), curiosity_rate: round(total('curiosity') / hooks), reveals_answer_rate: round(total('reveals_answer') / hooks),
     stale_suggestion_rate: withPrevious.length ? round(withPrevious.filter(set => set.repeated_from_previous > 0).length / withPrevious.length) : null,
     unchanged_after_evidence_change: perSet.filter(set => set.unchanged_after_evidence_change).length,
+    // Generated in the background, then the learner's answer changed the evidence before the pick.
+    generated_before_evidence_changed: perSet.filter(set => set.state_changed_after_start).length,
     repeatedly_ignored: Object.keys(shownCount).filter(key => shownCount[key] >= 2 && !pickedCount[key]).length,
     per_set: perSet,
   };
@@ -313,6 +315,7 @@ export function latencyMetrics(segments, taxonomy) {
   const waits = steps.flatMap(step => step.waits || []);
   const waitSeconds = sum(waits.map(wait => wait.ms)) / 1000;
   const learning = sum(steps.map(step => step.estimated_learning_seconds || 0));
+  const bySourceSeconds = Object.fromEntries(Object.entries(Object.groupBy(waits, wait => wait.source ?? 'measured')).map(([source, list]) => [source, round(sum(list.map(wait => wait.ms)) / 1000, 1)]));
   // Session start -> the first material that asks the learner to DO something: every earlier wait and learning time,
   // plus that step's own waits. Mixes measured waits with the Tutor's estimated learning time, so both parts are kept.
   const toActive = segments.map(segment => {
@@ -326,14 +329,24 @@ export function latencyMetrics(segments, taxonomy) {
   }).filter(Boolean);
   return {
     tutor_decision: bySource(steps, s => t(s).tutor_decision_ms, s => t(s).sources?.tutor_decision),
-    hooks: bySource(steps, s => t(s).hooks_ms, s => t(s).sources?.hooks),
+    // Backend generation time and what the learner perceived are different numbers: hooks generated while the
+    // learner reads cost backend time, not waiting.
+    hooks: bySource(steps, s => t(s).hook_backend_generation_ms, s => t(s).sources?.hooks),
+    hook_perceived_wait: bySource(steps, s => t(s).hook_perceived_wait_ms, s => t(s).sources?.hook_wait),
+    hook_background_overlap_ms: stats(steps.map(s => t(s).hook_background_overlap_ms).filter(x => x != null)),
+    options_blocking: bySource(steps, s => t(s).options_blocking_ms, s => t(s).sources?.hook_wait),
+    evaluation: stats(steps.map(s => t(s).evaluation_ms).filter(x => x != null)),
     first_material: bySource(steps, s => t(s).click_to_first_material_ms, s => t(s).timing_source),
     complete_material: bySource(steps, s => t(s).click_to_complete_material_ms, s => t(s).timing_source),
     asset: bySource(steps.filter(s => t(s).sources?.asset), s => t(s).asset_generation_ms, s => t(s).sources.asset),
     by_modality: group(modalityOf),
     by_action_type: group(step => decisionOf(step).action_type ?? 'unknown'),
     by_cache_status: Object.fromEntries(Object.entries(Object.groupBy(steps, step => t(step).cache_status ?? 'not_applicable')).map(([key, list]) => [key, bySource(list, s => t(s).material_complete_ms, s => t(s).timing_source)])),
+    total_backend_generation_seconds: round(sum(steps.map(s => t(s).backend_generation_ms || 0)) / 1000, 1),
+    total_learner_blocking_wait_seconds: round(waitSeconds, 1),
     waiting_time_seconds: round(waitSeconds, 1),
+    // The blocking total split by where its numbers came from (estimated = depends on simulated reading time).
+    blocking_wait_seconds_by_source: bySourceSeconds,
     lower_bound_waits: waits.filter(wait => wait.lower_bound).length,
     estimated_learning_seconds: learning,
     wait_to_learning_ratio: learning ? round(waitSeconds / learning) : null,
@@ -374,7 +387,7 @@ export function completionMetrics(sessions) {
 }
 
 // event[] -> sessions -> every requested grouping -> global. The same groupMetrics at every level.
-export function aggregateEvents(events, taxonomy, { by = ['session', 'canvas', 'user_canvas', 'user', 'journey', 'section', 'planner'] } = {}) {
+export function aggregateEvents(events, taxonomy, { by = ['session', 'canvas', 'board', 'user_canvas', 'user', 'journey', 'section', 'source_resource', 'planner'] } = {}) {
   const sessions = foldSessions(events);
   const groups = {};
   for (const key of by) {
