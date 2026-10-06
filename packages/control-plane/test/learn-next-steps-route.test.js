@@ -85,7 +85,9 @@ test('planNextSteps: Sonnet first; a missing tool call, a validator failure or a
   assert.match(plain.telemetry.prompt_version, /^[0-9a-f]{12}$/);
   assert.equal(plain.telemetry.cost_usd, costUsd({ model: 'claude-sonnet-5-5', input_tokens: 2000, output_tokens: 400 }));
   assert.deepEqual([plain.telemetry.model_role, plain.telemetry.model_id, plain.telemetry.planner_version], ['tutor_next_steps', 'claude-sonnet-5-5', 'next-steps-planner-1']);
-  assert.deepEqual(plain.telemetry.usage, { input_tokens: 2000, output_tokens: 400, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 });
+  // Before Task 6 fix round 2: { input_tokens: 2000, output_tokens: 400, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }. A count
+  // no reply reported is unknown (null), not 0: this reply reports no cache counts.
+  assert.deepEqual(plain.telemetry.usage, { input_tokens: 2000, output_tokens: 400, cache_creation_input_tokens: null, cache_read_input_tokens: null });
 });
 
 test('planNextSteps: a self-contradicting claim goes straight to Opus; an Opus failure throws PlannerInvalid', async () => {
@@ -99,7 +101,9 @@ test('planNextSteps: a self-contradicting claim goes straight to Opus; an Opus f
 });
 
 test('planNextSteps: no usage in a reply means cost_usd null; an HTTP failure names the hook planner, the journey ones keep theirs', async () => {
-  assert.equal((await planNextSteps({}, INPUT(), { callModel: fixtureModel })).telemetry.cost_usd, null, 'a fixture reply has no usage');
+  const unreported = (await planNextSteps({}, INPUT(), { callModel: fixtureModel })).telemetry;
+  assert.equal(unreported.cost_usd, null, 'a fixture reply has no usage');
+  assert.deepEqual(unreported.usage, { input_tokens: null, output_tokens: null, cache_creation_input_tokens: null, cache_read_input_tokens: null }, 'and no token counts: null, never 0');
   const down = async () => new Response('{}', { status: 503 });
   await assert.rejects(planNextSteps({}, INPUT(), { callModel: down }), { message: /^The next steps planner is unavailable \(model HTTP 503\)/ });
   await assert.rejects(planSection({}, {}, { callModel: down }), { message: /^The journey planner is unavailable \(model HTTP 503\)/ });

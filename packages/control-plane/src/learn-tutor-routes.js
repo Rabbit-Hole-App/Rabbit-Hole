@@ -285,7 +285,7 @@ async function planOnce(env, context, model, effort, { callModel = loggedModel('
   // TutorDecisionEvent versions (professor-next-steps.md §3.1): prompt_version is every system block and the tool sent (a hook
   // turn's NEXT_STEP_SYSTEM included), hashed beside the model call and awaited after it, never in front of it; cost_usd prices
   // the reported usage at the requested model, null without usage.
-  const version = promptVersion(request.system, request.tools);
+  const version = promptVersion(request.system, request.tools).catch(() => null); // a failed hash is unknown, never the turn's error
   const telemetry = { ms: null, requested_model: model, effort, served_model: null, input_tokens: null, output_tokens: null, ...(cache ? { cache: true, cache_creation_input_tokens: null, cache_read_input_tokens: null } : {}), ...(speed ? { requested_speed: speed, speed: null } : {}), stop_reason: null, outcome: null, ...(stream ? { streamed: true, first_output_ms: null, first_sentence_ms: null } : {}),
     prompt_version: null, cost_usd: null };
   const done = outcome => ({ ...telemetry, ms: Date.now() - started, outcome });

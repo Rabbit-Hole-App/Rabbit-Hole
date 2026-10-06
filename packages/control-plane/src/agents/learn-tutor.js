@@ -299,7 +299,8 @@ export const avatarSlotId = ({ moment, concept, to_concept = null }) => `${momen
 // reason (never the text) or null.
 const GOAL_CODE = /[`{}<>]|=>/;
 const GOAL_IDENTIFIER = /@|https?:\/\/|www\.|\d{5,}/i;
-const goalWords = text => String(text || '').toLowerCase().match(/[\p{L}\p{N}']+/gu) || [];
+// Lowercased words, punctuation and spacing dropped (the decision event's rationale check reuses it).
+export const goalWords = text => String(text || '').toLowerCase().match(/[\p{L}\p{N}']+/gu) || [];
 // Five consecutive words of the learner's message in `text` (the decision event's rationale reuses the rule).
 export function repeatsLearnerWords(text, learnerMessage = '') {
   const learner = goalWords(learnerMessage), mine = goalWords(text), runs = new Set();

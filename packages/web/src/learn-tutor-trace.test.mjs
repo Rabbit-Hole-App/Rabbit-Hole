@@ -139,16 +139,21 @@ test('validation.fallback: escalated:<category> for every planner escalation rea
   assert.equal(hooksEvent({ ...SET, telemetry: { ...SET.telemetry, escalated: 'The next steps planner is unavailable (model HTTP 500: upstream-detail-7f3a)' } }, { input: INPUT }).runtime.validation.fallback, 'escalated:model_error');
 });
 
-// Review fix 1: a message of four words or fewer is not covered by the five-word rule; its start is checked as well.
+// Review fixes 1 (rounds 1 and 2): a message of two to four words is not covered by the five-word rule, so the whole
+// message is checked too, word by word (the learning-goal normalization): punctuation, case and spacing never hide it, and a
+// one-word reply is never treated as quotable.
 const built = (turnOver = {}, extra = {}) => decisionEvent({ result: { turn: { turn_id: 't', raw_user_message: '', canvas: { app: 'c', board: 'main' }, evidence: [], ...turnOver }, store: emptyStore(), contracts: [], bench: {}, ...extra }, domain });
-test('a short learner message quoted in the rationale is dropped as rationale_dropped; an unrelated rationale is kept', () => {
-  for (const [raw, reason] of [['quiz me on softmax', 'The learner said quiz me on softmax.'], ['Show me the basin', 'They wrote show me the basin, so a card helps.']]) {
+test('a short learner message quoted in the rationale is dropped as rationale_dropped, whatever its punctuation or spacing; one-word replies and unrelated rationales are kept', () => {
+  const quoted = [['quiz me on softmax', 'The learner said quiz me on softmax.'], ['Show me the basin', 'They wrote show me the basin, so a card helps.'], ['Quiz me on softmax?', 'The learner said quiz me on softmax.'],
+    ['what is softmax?', 'They asked what is softmax, so a definition comes first.'], ['show  me   the basin', 'They wrote show me the basin.']];
+  for (const [raw, reason] of quoted) {
     const e = built({ raw_user_message: raw }, { response: { reason } });
     assert.deepEqual([e.decision.rationale_summary, e.runtime.validation.repairs], [null, ['rationale_dropped']], raw);
-    assert.equal(JSON.stringify(e).toLowerCase().includes(raw.toLowerCase()), false, raw);
   }
-  const kept = built({ raw_user_message: 'quiz me on softmax' }, { response: { reason: 'A short check makes the idea observable.' } });
-  assert.deepEqual([kept.decision.rationale_summary, kept.runtime.validation.repairs], ['A short check makes the idea observable.', []]);
+  for (const [raw, reason] of [['no', 'This helps the learner now.'], ['ok', 'A short look makes the idea observable.'], ['quiz me on softmax', 'A short check makes the idea observable.'], ['what is softmax?', 'Softmax is what the next card shows.']]) {
+    const kept = built({ raw_user_message: raw }, { response: { reason } });
+    assert.deepEqual([kept.decision.rationale_summary, kept.runtime.validation.repairs], [reason, []], raw);
+  }
 });
 
 // Review fix 2: with no planner codes, a hook click is the learner following an interest; a slash names its own move.
@@ -175,23 +180,33 @@ test('events are deep copies: a sink that mutates an event never changes the con
   const step = SET.options[1].selected_next_step;
   const plan = { strategy: 'feynman', constraints_add: [], reason_codes: ['advance_goal'], actions: [{ type: 'respond_text', text: 'Try this.' }, { type: 'ask_question', text: 'Say it back?', claim: step.claim_ids[0], purpose: 'explain_back' }, { type: 'create_material', command: 'animate', request: 'a basin filling' }] };
   const r = await runTurn({ raw: '', nextStep: step, materials: [{ command: 'animate', cards: ['mathAnimation'], paid: true }], canvas: { app: 'canvas-1', board: 'main' }, access: { app: 'canvas-1' }, block: null, store: emptyStore(), post: worker(plan).post, domain, trace: { next_step_options: SET.options } });
-  const contracts = structuredClone(r.contracts), claims = [...r.bench.claims], options = structuredClone(SET.options), set = structuredClone(SET);
+  const contracts = structuredClone(r.contracts), claims = [...r.bench.claims], options = structuredClone(SET.options), set = structuredClone(SET), input = structuredClone(INPUT);
   assert.ok(r.trace.decision.expected_evidence.length && r.trace.decision.next_step_options.length);
+  const before = errors(), mutated = [];
   const remove = addSink(e => {
-    for (const a of [...e.decision.actions, e.decision.chosen_action]) { a.target_claim_ids.push('x'); a.target_concept_ids.push('x'); }
-    for (const x of e.decision.expected_evidence) x.via = 'mutated';
-    for (const o of e.decision.next_step_options) { o.id = 'z'; o.claim_ids.push('z'); o.concept_ids.push('z'); }
+    if (e.event === 'tutor_decision') {
+      for (const a of [...e.decision.actions, e.decision.chosen_action]) { a.target_claim_ids.push('x'); a.target_concept_ids.push('x'); }
+      for (const x of e.decision.expected_evidence) x.via = 'mutated';
+    }
+    // Both events: the hooks they carry, the goal and the targets.
+    for (const o of e.decision.next_step_options) { o.id = 'z'; o.hook = 'z'; o.learning_goal = 'z'; o.claim_ids.push('z'); o.concept_ids.push('z'); }
+    e.decision.current_goal.summary = 'mutated';
     e.decision.target_claim_ids.push('w');
+    e.decision.target_concept_ids.push('w');
+    e.decision.recent_modality_history.push('w');
+    e.decision.canvas_summary.presented_claim_ids.push('w');
+    mutated.push(e.event);
   });
   emitDecision(r.trace);
   emitDecision(hooksEvent(SET, { input: INPUT }));
   await new Promise(resolve => setImmediate(resolve));
   remove();
+  assert.deepEqual([mutated, errors()], [['tutor_decision', 'next_steps_computed'], before], 'the sink mutated both events and never threw');
   assert.deepEqual(r.contracts, contracts);
   assert.deepEqual(r.bench.claims, claims);
   assert.deepEqual(SET.options, options);
   assert.deepEqual(SET, set);
-  assert.deepEqual(inputSummary(INPUT).target_claim_ids, IDS);
+  assert.deepEqual(INPUT, input);
 });
 
 // Coordinator item 5: no learner words, prompts or chat history in an event.

@@ -122,11 +122,11 @@ export async function resolveWithModel(env, { text, tray }, { callModel = journe
 // failure throws PlannerInvalid. -> { options (with reason_internal: the route strips it), telemetry }; telemetry.errors
 // are the first reply's validator rule names, never its text; cost_usd prices each call at its role's model.
 export async function planNextSteps(env, input, { callModel = journeyCallModel(env) } = {}) {
-  const started = Date.now(), usage = { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 };
+  const started = Date.now(), usage = { input_tokens: null, output_tokens: null, cache_creation_input_tokens: null, cache_read_input_tokens: null };
   let calls = 0, served = null, cost = null;
   const onReply = (role, result) => {
     calls += 1; served = result?.model ?? null;
-    for (const k of Object.keys(usage)) usage[k] += result?.usage?.[k] || 0;
+    for (const k of Object.keys(usage)) if (typeof result?.usage?.[k] === 'number') usage[k] = (usage[k] ?? 0) + result.usage[k]; // never reported: null, not 0
     const c = result?.usage ? costUsd({ model: LEARN_TASKS[role].model, ...result.usage }) : null; // no usage, no known cost
     cost = c == null ? cost : +((cost || 0) + c).toFixed(6);
   };

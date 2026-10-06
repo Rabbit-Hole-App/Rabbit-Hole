@@ -4,7 +4,7 @@
 // Stages: target_resolution, practice_evaluation, claim_selection, evaluate (with the worker's own
 // jev / larger timings), evidence_reconciliation, router, planner, action_validation; the UI adds
 // reply_ready and canvas_action_complete marks.
-import { TRACE_SCHEMA_VERSION, TUTOR_PLANNER_VERSION, repeatsLearnerWords } from '../../control-plane/src/agents/learn-tutor.js';
+import { TRACE_SCHEMA_VERSION, TUTOR_PLANNER_VERSION, goalWords, repeatsLearnerWords } from '../../control-plane/src/agents/learn-tutor.js';
 import { STATES } from './learn-tutor-evidence.js';
 import { resolveTarget } from './learn-target.js';
 
@@ -76,14 +76,16 @@ const routerCodes = (turn, routed) => {
 };
 // The validator's repairs by rule name (learn-tutor-validate.js log lines; never their text).
 const REPAIRS = [[/^downgraded /, 'downgraded_navigation'], [/^removed /, 'citations_removed'], [/^shortened /, 'shortened_before_dive'], [/^explicit_request /, 'explicit_request_unquoted'], [/^dropped \S+ learning_goal/, 'learning_goal_dropped']];
-// At most 2 sentences and 300 characters; dropped (a repair) when it repeats five words of this turn's message, or contains
-// the message's start (its first 40 characters, so a message of four words or fewer is caught too).
+// At most 2 sentences and 300 characters; dropped (a repair) when it repeats five words of this turn's message, or holds the
+// whole message (two words or more) as whole words in order - normalized as goalWords, so punctuation, case and spacing never
+// hide it; a one-word reply ("no", "ok") is not quotable.
 // ponytail: only this turn's words are checked; earlier turns rely on the prompt rule (never the learner's words).
 const rationale = (reason, raw) => {
   const text = String(reason ?? '').trim().split(/(?<=[.!?])\s+/).slice(0, 2).join(' ').slice(0, 300);
   if (!text) return { summary: null, repair: null };
-  const start = String(raw ?? '').trim().toLowerCase().slice(0, 40);
-  return repeatsLearnerWords(text, raw) || (start && text.toLowerCase().includes(start)) ? { summary: null, repair: 'rationale_dropped' } : { summary: text, repair: null };
+  const said = goalWords(raw), mine = goalWords(text);
+  const quotes = said.length >= 2 && mine.some((_, i) => said.every((word, j) => mine[i + j] === word));
+  return repeatsLearnerWords(text, raw) || quotes ? { summary: null, repair: 'rationale_dropped' } : { summary: text, repair: null };
 };
 // The planner calls behind a turn: the one that answered and, after an escalation, the fast attempt. A count or cost no call
 // reported is null (unknown), never 0.

@@ -272,6 +272,23 @@ test('plan: the prompt_version hash never sits in front of the model call, on th
   assert.deepEqual([failed.message, failed.telemetry.outcome, /^[0-9a-f]{12}$/.test(failed.telemetry.prompt_version)], ['network down', 'error', true], 'a failed call still names its prompt');
 });
 
+// Review fix round 2: a failing hash is telemetry only - prompt_version null, never an unhandled rejection or the turn's error.
+test('plan: a rejecting prompt_version hash leaves the plan and the model error intact', async t => {
+  const subtle = globalThis.crypto.subtle, unhandled = [], onUnhandled = reason => unhandled.push(reason);
+  process.on('unhandledRejection', onUnhandled);
+  t.after(() => { delete subtle.digest; process.off('unhandledRejection', onUnhandled); });
+  subtle.digest = async () => { throw new Error('digest down'); };
+  const turn = { strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: 'Hi.' }] };
+  const callModel = async (_env, _request, model) => { await new Promise(resolve => setTimeout(resolve, 20)); return Response.json({ model, usage: { input_tokens: 10, output_tokens: 2 }, content: [{ type: 'tool_use', name: 'tutor_response', input: turn }], stop_reason: 'tool_use' }); };
+  const plan = await planTurn({ ANTHROPIC_API_KEY: 'k', TUTOR_PLANNER_FAST_MODEL: 'off' }, { learner_intent: { kind: 'explanation' } }, { callModel }).catch(error => error);
+  assert.deepEqual([plan.actions, plan.telemetry?.outcome, plan.telemetry?.prompt_version], [turn.actions, 'ok', null], plan.message);
+  const down = async () => { await new Promise(resolve => setTimeout(resolve, 20)); throw new Error('network down'); };
+  const failed = await planTurn({ ANTHROPIC_API_KEY: 'k', TUTOR_PLANNER_FAST_MODEL: 'off' }, { learner_intent: { kind: 'explanation' } }, { callModel: down }).catch(error => error);
+  assert.deepEqual([failed.message, failed.telemetry?.outcome, failed.telemetry?.prompt_version], ['network down', 'error', null], 'the model error stands');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(unhandled, []);
+});
+
 test('the routes refuse bad input and apps the learner cannot reach', async t => {
   recordFetch(t, {});
   const w = world(t);
