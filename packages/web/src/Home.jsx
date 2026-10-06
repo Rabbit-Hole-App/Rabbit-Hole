@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowRight, ArrowUpRight, Compass } from 'lucide-react';
 import { navigate } from './api.js';
 import { reviewTools } from './flags.js';
 import { openHref, readContinue, readRecent, recentCard, recentItems } from './home/continue.js';
 import { Creator, ForkedFrom, Forks, SourceLink } from './home/Provenance.jsx';
-import { cardModel } from './home/provenance.js';
+import { cardModel, creatorLabel, forkLabel } from './home/provenance.js';
 import { fixturesOn, useFixtures } from './home/review-fixtures.js';
 import Shell from './Shell.jsx';
 import { Button, EmptyState, KindIcon, Pill, SkeletonRows, toast } from './ui.jsx';
@@ -135,13 +135,35 @@ export function ExplorePreview() {
   return <Shell>{() => <Explore />}</Shell>;
 }
 
+// Explore (docs/features/explore-publish.md): only canvases their owners published, newest first - no ranking. A card is
+// its title, the creator's @handle (display name first when set; never an email) and the canonical direct-fork count,
+// the same Forks the Library cards show; it opens the read-only published canvas at /e/<token>.
 function Explore() {
+  const [cards, setCards] = useState(null);
+  useEffect(() => {
+    let live = true;
+    fetch('/api/learn/boards/published', { credentials: 'same-origin' }).then(r => (r.ok ? r.json() : { canvases: [] }))
+      .then(data => { if (live) setCards(data.canvases || []); }).catch(() => { if (live) setCards([]); });
+    return () => { live = false; };
+  }, []);
   return (
     <main className="flex-1 overflow-y-auto">
       <div className="max-w-[900px] px-24 pb-12 pt-12 max-lg:px-8 max-md:px-4 max-md:pt-6">
         <h1 className="text-[40px] font-bold leading-[1.2] tracking-[-0.01em]">Explore</h1>
         <p className="pb-8 pt-1 text-sm text-ink-2">Discover rabbit holes, projects, and learning resources shared beyond your library.</p>
-        <div data-explore-empty><EmptyState icon={Compass}>Nothing has been shared here yet. Rabbit holes and projects people share will appear here.</EmptyState></div>
+        {cards === null && <SkeletonRows rows={3} />}
+        {cards?.length === 0 && <div data-explore-empty><EmptyState icon={Compass}>Nothing has been published yet. Canvases people publish to Explore will appear here.</EmptyState></div>}
+        {cards?.length > 0 && (
+          <div data-explore-list className="grid grid-cols-2 gap-3 max-md:grid-cols-1">
+            {cards.map(card => (
+              <a key={card.url} data-explore-card href={card.url} className="flex flex-col gap-1.5 rounded-md border border-line bg-white p-4 text-ink no-underline transition-colors hover:bg-hover">
+                <span data-card-title className="line-clamp-2 text-sm font-semibold">{card.title}</span>
+                <span data-creator className="truncate text-xs text-ink-2">{creatorLabel(card.creator)}</span>
+                <Forks m={{ forks: forkLabel(card.fork_count) }} />
+              </a>
+            ))}
+          </div>
+        )}
       </div>
     </main>
   );

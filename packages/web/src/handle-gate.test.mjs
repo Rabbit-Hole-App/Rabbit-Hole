@@ -38,7 +38,8 @@ test('Settings > Profile can change the handle; the server is the authority', ()
 
 test('the shared header names the creator by @handle only when there is one', () => {
   const page = read('./SharedBoardPage.jsx');
-  assert.match(page, /\{shared\.creator && <span data-shared-creator[^>]*>Shared by \{creatorLabel\(shared\.creator\)\}<\/span>\}/);
+  // A share says "Shared by", an Explore publication "Published by" (docs/features/explore-publish.md); both by @handle.
+  assert.ok(page.includes("{shared.creator && <span data-shared-creator className=\"truncate text-xs text-ink-3\">{shared.published ? 'Published by' : 'Shared by'} {creatorLabel(shared.creator)}</span>}"));
   assert.doesNotMatch(page, /shared\.owner\b/, 'the owner email is gone from the page');
 });
 

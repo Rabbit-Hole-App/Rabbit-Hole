@@ -128,7 +128,11 @@ async function share(env, owner, app, board, body) {
 // theirs to open up). private: not confirmed public, so the panel offers repository code for this link.
 async function ownerSharing(env, row) {
   const source = row?.shared && row.view_token ? await shareSource(env.LEARN_DB, row) : null;
-  return { ...sharingOf(row), ...(source?.owned ? { repository: { repo: source.repo, commit: source.commit, private: !source.public, repo_access: source.repo_access } } : {}) };
+  // A canvas published to Explore (docs/features/explore-publish.md): its own /e token, for the owner's Share panel. Its
+  // main board is public and live, so the browser keeps the server copy current as for a shared board.
+  const published = row?.board === 'main' && /^canvas-[a-f0-9]{8}$/.test(row.app) ? await env.LEARN_DB.prepare('SELECT token FROM canvas_publications WHERE org = ? AND canvas = ?').bind(row.org, row.app).first() : null;
+  return { ...sharingOf(row), ...(source?.owned ? { repository: { repo: source.repo, commit: source.commit, private: !source.public, repo_access: source.repo_access } } : {}),
+    ...(published ? { published: true, publication: published.token } : {}) };
 }
 
 // The owner's repository-code permission for this link (owner-only; the server decides, never a client flag): a

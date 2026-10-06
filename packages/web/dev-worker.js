@@ -232,8 +232,9 @@ export default {
     if (path === '/api/learn/board') return boardFetch(req, env);
     if (path === '/aws') return Response.redirect(new URL('/apps', req.url), 302);
     if (path.startsWith('/api/byoc/')) return byocFetch(req, env, { apiCode, signerCode, permissionsCode, grantsCode });
-    // /b/<token> is a shared board: served to anyone, the page decides what they may see.
-    if (path === '/apps' || path === '/dash' || path === '/chat' || path === '/members' || path === '/library' || path === '/explore' || path.startsWith('/apps/') || /^\/b\/[A-Za-z0-9_-]{20,64}$/.test(path)) {
+    // /b/<token> is a shared board, /e/<token> a canvas published to Explore (docs/features/explore-publish.md): served to
+    // anyone, the page decides what they may see.
+    if (path === '/apps' || path === '/dash' || path === '/chat' || path === '/members' || path === '/library' || path === '/explore' || path.startsWith('/apps/') || /^\/[be]\/[A-Za-z0-9_-]{20,64}$/.test(path)) {
       return new Response(SHELL, {
         headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store' },
       });

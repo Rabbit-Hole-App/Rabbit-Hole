@@ -90,9 +90,10 @@ if (switched) {
   setWs(switched.ws);
   window.history.replaceState(null, '', window.location.pathname + switched.search);
 }
-// /b/<token>: a shared Learn board, open to anyone the link allows.
+// /b/<token>: a shared Learn board, open to anyone the link allows; /e/<token>: a canvas published to Explore,
+// open to anyone, read-only (docs/features/explore-publish.md). The same page and the same shared routes.
 const SharedBoardPage = lazy(() => import('./SharedBoardPage.jsx'));
-const SHARED_BOARD = /^\/b\/([A-Za-z0-9_-]{20,64})$/;
+const SHARED_BOARD = /^\/[be]\/([A-Za-z0-9_-]{20,64})$/;
 
 function Root() {
   const sharedBoard = window.location.pathname.match(SHARED_BOARD);

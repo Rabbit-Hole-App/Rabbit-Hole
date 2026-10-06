@@ -29,5 +29,6 @@ export const serial = () => {
 };
 
 // A board's sharing for its server push: unknown while the page has no answer for it (the board GET has not answered,
-// or failed), when the board may be shared.
-export const sharingOf = sharing => (!sharing || sharing.unavailable ? 'unknown' : sharing.shared ? 'shared' : 'private');
+// or failed), when the board may be shared. A board published to Explore is live for everyone, so it pushes like a
+// shared one (docs/features/explore-publish.md).
+export const sharingOf = sharing => (!sharing || sharing.unavailable ? 'unknown' : sharing.shared || sharing.published ? 'shared' : 'private');
