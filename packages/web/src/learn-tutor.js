@@ -24,7 +24,7 @@ import { actionContract, reasonCodes } from './learn-tutor-actions.js';
 
 const SLASHES = ['deeper', 'simplify', 'dive'];
 const canvasKey = canvas => `${canvas.app}|${canvas.board || 'main'}`;
-const sameCanvas = (a, b) => !!a && !!b && canvasKey(a) === canvasKey(b);
+export const sameCanvas = (a, b) => !!a && !!b && canvasKey(a) === canvasKey(b);
 
 // ---------- LearnerTurn (§1) ----------
 

@@ -185,7 +185,32 @@ export function nextStepsInputProblem(input) {
   return null;
 }
 
-const randomHex = () => [...crypto.getRandomValues(new Uint8Array(4))].map(b => b.toString(16).padStart(2, '0')).join('');
+// One line, at most max characters: every text the planner input carries.
+export const capText = (text, max) => String(text ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
+
+// The one scope builder (§2.1, Ruling F15): the owned input (web learn-next-steps.js) and the shared route pass the candidate
+// claim ids highest priority first (order); the first scope_claims the registry knows are kept, each with its statement,
+// ideas, drawn case, evidence state (states: deriveClaimStates' shape, a missing id not_yet_observed), misconception id,
+// prerequisite, settled counts from events (as the journey route's claimStates) and whether it is presented on the canvas.
+// scope.concepts labels the kept claims' concepts. Never a misconception check, an answer or a level.
+export function nextStepsScope({ claims = {}, concepts = {}, order = [], states = {}, events = [], presented = [] }) {
+  const shown = new Set(presented), scope = { concepts: {}, claims: {} };
+  for (const id of new Set(order)) {
+    if (Object.keys(scope.claims).length >= LIMITS.scope_claims) break;
+    if (typeof id !== 'string' || !Object.hasOwn(claims, id)) continue;
+    const c = claims[id], s = states[id] || {}, settled = events.filter(e => e?.claim === id && e.settled);
+    scope.claims[id] = {
+      concept: c.concept, statement: capText(c.statement, LIMITS.statement), ideas: (c.ideas || []).slice(0, LIMITS.ideas).map(i => capText(i, LIMITS.idea)), drawn: capText(c.drawn, LIMITS.drawn),
+      state: STATES.includes(s.state) ? s.state : 'not_yet_observed', ...(s.misconception_id ? { misconception_id: s.misconception_id } : {}), ...(s.prerequisite ? { prerequisite: s.prerequisite } : {}),
+      settled_passes: settled.filter(e => e.result === 'pass').length, settled_negatives: settled.filter(e => e.result === 'fail' || e.result === 'misconception').length,
+      presented: shown.has(id),
+    };
+    scope.concepts[c.concept] ??= capText(concepts[c.concept]?.label ?? c.concept, 60);
+  }
+  return scope;
+}
+
+const randomHex = () =>[...crypto.getRandomValues(new Uint8Array(4))].map(b => b.toString(16).padStart(2, '0')).join('');
 // §1.1: the shown HookSet. The server mints every id; reason_internal never leaves the planner. source ({ share_version,
 // origin_block_id }) travels only in a shared canvas's steps.
 export function mintSet(options, input, { source = null, now = () => new Date(), hex = randomHex } = {}) {

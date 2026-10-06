@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { NEXT_STEPS_LIMITS, NEXT_STEPS_SYSTEM, NEXT_STEPS_TOOL, hookProblem, mintSet, nextStepsInputProblem, nextStepsOutput, selectedStepProblem } from '../src/agents/learn-next-steps.js';
+import { NEXT_STEPS_LIMITS, NEXT_STEPS_SYSTEM, NEXT_STEPS_TOOL, capText, hookProblem, mintSet, nextStepsInputProblem, nextStepsOutput, nextStepsScope, selectedStepProblem } from '../src/agents/learn-next-steps.js';
 import { LEARNER_LABELS } from '../src/agents/learn-journey.js';
 
 // A generic input on an invented subject (glass making); ids in their own naming style.
@@ -263,4 +263,26 @@ test('NEXT_STEPS_SYSTEM: every quoted good hook in a labelled example passes hoo
 test('NEXT_STEPS_SYSTEM carries no arrow or angle bracket in its text, only in its section tags (reason_internal rejects < and >)', () => {
   const body = NEXT_STEPS_SYSTEM.split('\n').filter(l => !/^<\/?[a-z_]+>$/.test(l)).join('\n');
   assert.doesNotMatch(body, /[<>]/);
+});
+
+// Ruling F15: the one scope builder, used by the owned input (web learn-next-steps.js) and the shared route.
+test('nextStepsScope: priority order kept, unknown and repeated ids skipped, at most 12, each claim shaped with its state and settled counts', () => {
+  const claims = {}, concepts = {};
+  for (let i = 0; i < 14; i++) {
+    concepts[`g${i}`] = { label: `  Glass   topic ${i} `, names: [] };
+    claims[`g${i}.c`] = { concept: `g${i}`, statement: `Statement ${i}`, ideas: ['a', 'b', 'c', 'd', 'e'], drawn: 'x'.repeat(200), misconceptions: [{ id: 'm', check: 'never sent' }], prerequisites: [] };
+  }
+  const events = [{ claim: 'g3.c', result: 'pass', settled: true }, { claim: 'g3.c', result: 'fail', settled: true }, { claim: 'g3.c', result: 'misconception', misconception_id: 'm', settled: true }, { claim: 'g3.c', result: 'pass', settled: false }];
+  const states = { 'g3.c': { concept: 'g3', claim: 'g3.c', state: 'misconception', misconception_id: 'm', basis: [2, 3] }, 'g0.c': { concept: 'g0', claim: 'g0.c', state: 'prerequisite_gap', prerequisite: 'g9', basis: [1] } };
+  const scope = nextStepsScope({ claims, concepts, order: ['g3.c', 'nope', 'g3.c', ...Object.keys(claims)], states, events, presented: ['g0.c'] });
+  assert.deepEqual(Object.keys(scope.claims), ['g3.c', 'g0.c', 'g1.c', 'g2.c', 'g4.c', 'g5.c', 'g6.c', 'g7.c', 'g8.c', 'g9.c', 'g10.c', 'g11.c']);
+  assert.deepEqual(scope.claims['g3.c'], { concept: 'g3', statement: 'Statement 3', ideas: ['a', 'b', 'c', 'd'], drawn: 'x'.repeat(160), state: 'misconception', misconception_id: 'm', settled_passes: 1, settled_negatives: 2, presented: false });
+  assert.deepEqual(scope.claims['g0.c'], { concept: 'g0', statement: 'Statement 0', ideas: ['a', 'b', 'c', 'd'], drawn: 'x'.repeat(160), state: 'prerequisite_gap', prerequisite: 'g9', settled_passes: 0, settled_negatives: 0, presented: true });
+  assert.deepEqual(scope.claims['g1.c'], { concept: 'g1', statement: 'Statement 1', ideas: ['a', 'b', 'c', 'd'], drawn: 'x'.repeat(160), state: 'not_yet_observed', settled_passes: 0, settled_negatives: 0, presented: false });
+  assert.deepEqual(Object.keys(scope.concepts), ['g3', 'g0', 'g1', 'g2', 'g4', 'g5', 'g6', 'g7', 'g8', 'g9', 'g10', 'g11']);
+  assert.equal(scope.concepts.g3, 'Glass topic 3');
+  assert.equal(nextStepsInputProblem({ ...INPUT, scope }), null);
+  assert.deepEqual(nextStepsScope({ claims, concepts, order: [] }), { concepts: {}, claims: {} });
+  assert.equal(capText('  a\n  b  ', 3), 'a b');
+  assert.equal(capText(null, 5), '');
 });
