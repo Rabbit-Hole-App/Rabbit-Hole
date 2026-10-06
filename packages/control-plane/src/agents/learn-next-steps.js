@@ -49,7 +49,7 @@ export const NEXT_STEPS_SYSTEM = tagged({
   ],
   non_negotiable_rules: [
     '- hook: 4-12 words and at most 90 characters, on one line, ideally a question or provocation a curious person would click, grounded in this canvas. It never states or reveals the answer in any wording: not the claim, its drawn case or your learning_goal, not even paraphrased.',
-    '- Never a command or a course label (learn, explain, study, review, continue, next lesson or section); never name a format (quiz, flashcards, animation, video, diagram, card, Explain Back) unless the topic itself is that thing; no clickbait.',
+    '- Never a command or a course label (learn, explain, study, review, continue, next lesson or section); never name a format (quiz, flashcards, animation, Motion, video, diagram, card, Explain Back) unless the topic itself is that thing; no clickbait.',
     '- learning_goal: the precise pedagogical target in at most 120 characters, never shown to the learner.',
     '- concept_ids and claim_ids only from scope, at most 3 each, no duplicates; at least one id when the scope has any concept or claim; both empty only when the scope is empty.',
     '- Completed-section claims only to repair a misconception, a prerequisite gap or an uncertain claim. Upcoming sections come later: never a hook into their content.',
@@ -80,18 +80,22 @@ export const NEXT_STEPS_SYSTEM = tagged({
 // Generic lexicon, never topic words (ponytail: short lists; extend when a paid run slips one past).
 // "Do ..." and "Does ..." open good questions, so do is not a command verb here.
 const COMMAND = /^(?:let'?s\s+)?(?:learn|explain|study|review|revise|continue|proceed|generate|open|add|create|make|show|start|begin|read|watch|play|practi[cs]e|take|go|move on|next)\b/i;
-const FORMAT = /\b(?:next (?:lesson|section|chapter|step|topic)|lessons?|chapters?|tutorials?|quiz(?:zes)?|flash ?cards?|worksheets?|animations?|videos?|clips?|avatars?|explain[- ]back|diagrams?|slides?|cards?)\b/gi;
-// Motion is the product's animation format; capitalised only, so ordinary "in motion" stays plain English.
+const FORMAT = /\b(?:next (?:lesson|section|chapter|step|topic)|lessons?|chapters?|tutorials?|quiz(?:zes)?|flash ?cards?|worksheets?|with motion|motion (?:graphic|clip|video)s?|animations?|videos?|clips?|avatars?|explain[- ]back|diagrams?|slides?|cards?)\b/gi;
+// Motion is the product's animation format: the capitalised name, plus the lowercase phrases above; a plain lowercase motion
+// (a pendulum losing its motion) stays a physics word.
 const PRODUCT_FORMAT = /\bMotion\b/g;
 const CLICKBAIT = /\b(?:you won'?t believe|mind[- ]?blowing|shocking|secrets?|one (?:weird )?trick|hacks?)\b/i;
 // "Do you know why ...?" is a question to the learner, not a claim about them.
 const MASTERY = /(?<!\b(?:do|did|can|could|would|will|should) )\byou(?:'ve| have)? (?:now )?(?:fully )?(?:got|mastered|understand|know)\b|\byou can now\b/i;
 const CODE = /[`{}<>]|=>/;
-const REPAIR = ['misconception', 'prerequisite_gap', 'uncertain'];
 const SAME_GOAL = 0.6; // Jaccard overlap of content words at which two goals count as the same
 const FORBIDDEN_KEYS = ['familiarity', 'background', 'intake', 'answer', 'key', 'expected', 'level', 'score', 'mastery'];
 
 const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
+// Explicit evidence requiring repair (owner sixth message 2), read from a scope claim's own fields: a misconception, a
+// prerequisite gap, or uncertain with at least one settled fail or misconception. Uncertain from demonstrated_here passes or
+// unsettled evidence alone is not repair. The browser scope filter (web learn-next-steps.js) applies the same rule.
+export const needsRepair = c => c?.state === 'misconception' || c?.state === 'prerequisite_gap' || (c?.state === 'uncertain' && c.settled_negatives > 0);
 const labelled = text => LEARNER_LABELS.some(re => re.test(text)) || MASTERY.test(text);
 const copies = (text, source) => learningGoalProblem(String(text).slice(0, LEARNING_GOAL_MAX), source) === 'learner words';
 const words = text => String(text).trim().split(/\s+/).filter(Boolean);
@@ -146,8 +150,8 @@ export function nextStepsOutput(out, input) {
     if (!conceptIds || !claimIds) bad('ids');
     else if ((Object.keys(claims).length || Object.keys(concepts).length) && !o.concept_ids.length && !o.claim_ids.length) bad('ungrounded');
     // Ruling F6: refused only when every claim is completed-only (a completed section, not the current one) and none needs repair
-    // (a repair state, or the prerequisite concept a gap in scope names).
-    else if (o.claim_ids.length && o.claim_ids.every(id => completed.has(id) && !current.has(id)) && !own.some(c => REPAIR.includes(c?.state) || missing.has(c?.concept))) bad('completed_only');
+    // (needsRepair, or the prerequisite concept a gap in scope names).
+    else if (o.claim_ids.length && o.claim_ids.every(id => completed.has(id) && !current.has(id)) && !own.some(c => needsRepair(c) || missing.has(c?.concept))) bad('completed_only');
     const reason = o.reason_internal;
     // Rule name reason, never the field name: errors reach telemetry and a 502, where reason_internal must not appear.
     if (typeof reason !== 'string' || !reason.trim() || reason.length > LIMITS.reason || CODE.test(reason)) bad('reason');

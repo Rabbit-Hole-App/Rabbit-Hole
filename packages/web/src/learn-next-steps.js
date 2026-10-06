@@ -1,12 +1,11 @@
 // Professor Next Steps, browser side (docs/features/professor-next-steps.md §2.1, §2.3): the hook planner's input, built from
 // structured state only (never a chat dump, never intake self-report), its staleness basis and the stopping points. Pure.
-import { NEXT_STEPS_LIMITS as L, capText as cap, nextStepsScope } from '../../control-plane/src/agents/learn-next-steps.js';
+import { NEXT_STEPS_LIMITS as L, capText as cap, needsRepair, nextStepsScope } from '../../control-plane/src/agents/learn-next-steps.js';
 import { deriveClaimStates } from './learn-tutor-evidence.js';
 import { claimsOfConceptIn, holeConcept } from './learn-tutor-claims.js';
 import { resolveTarget } from './learn-target.js';
 import { sameCanvas } from './learn-tutor.js';
 
-const REPAIR = ['misconception', 'prerequisite_gap', 'uncertain'];
 const SETUP = ['intake', 'diagnostic', 'path_review'];
 const claimIdsOf = section => (section?.expected_evidence || []).map(e => e?.claim).filter(id => typeof id === 'string');
 
@@ -35,21 +34,33 @@ export function nextStepsInput({ context = null, store = null, journey = null, b
     };
   });
   const mode = context?.source === 'journey' ? 'journey' : record ? 'dive' : 'canvas';
-  const sections = journey?.path?.sections || [], completed = sections.filter(s => s.status === 'completed').slice(-6);
+  const sections = journey?.path?.sections || [], completed = sections.filter(s => s.status === 'completed');
   const current = mode === 'journey' ? sections.find(s => s.id === domain.sectionId) : null;
-  // Completed-section claims (owner sixth message 2): a claim only in path.completed takes a scope place only for repair - a
-  // repair state, or the concept a prerequisite_gap names (a missing prerequisite). Understood or unseen ones stay out.
+  // Completed-section claims (owner sixth message 2), from every completed section: a claim only in a completed section takes a
+  // scope place only for repair - needsRepair (the validator's rule, on settled counts), or the concept a prerequisite_gap
+  // claim names (a missing prerequisite), and then only while that gap claim is in the kept scope. Understood or unseen stay out.
   const done = new Set(completed.flatMap(claimIdsOf)), now = new Set(claimIdsOf(current));
+  const negatives = id => events.filter(e => e.claim === id && e.settled && (e.result === 'fail' || e.result === 'misconception')).length;
+  const repairState = id => needsRepair({ state: states[id]?.state, settled_negatives: negatives(id) });
   const missing = new Set(Object.values(states).filter(s => s.state === 'prerequisite_gap' && s.prerequisite).map(s => s.prerequisite));
-  const repairing = id => REPAIR.includes(states[id]?.state) || missing.has(claims[id]?.concept);
-  const active = id => !done.has(id) || now.has(id) || repairing(id);
+  const repairing = id => repairState(id) || missing.has(claims[id]?.concept);
+  const completedOnly = id => done.has(id) && !now.has(id);
+  const active = id => !completedOnly(id) || repairing(id);
+  // A completed-only claim kept only as a missing prerequisite, with no gap claim naming its concept left in this scope.
+  const orphans = kept => Object.keys(kept).filter(id => completedOnly(id) && !repairState(id) && !Object.values(kept).some(c => c.state === 'prerequisite_gap' && c.prerequisite === kept[id].concept));
   // Scope priority (§2.1): the section's or hole's claims, the newest blocks' claims, claims with evidence (newest first),
   // the prerequisites of those, then completed-section claims that need repair.
   const first = (domain?.defaultClaims?.({ canvas: { dive: record ? { record } : null } }) || []).filter(known);
   const lead = [...first, ...[...shown.slice(-6).reverse().flatMap(b => b.claim_ids), ...events.map(e => e.claim).reverse().filter(known)].filter(active)];
   const prerequisites = lead.flatMap(id => [states[id]?.prerequisite, ...(claims[id].prerequisites || [])]).filter(Boolean).flatMap(c => claimsOfConceptIn(claims, c)).filter(active);
   const repair = [...done].filter(id => known(id) && !now.has(id) && repairing(id));
-  const scope = nextStepsScope({ claims, concepts, order: [...lead, ...prerequisites, ...repair], states, events, presented: shown.flatMap(b => b.claim_ids) });
+  let order = [...lead, ...prerequisites, ...repair], scope;
+  for (;;) { // the 12 cap can cut a gap claim and keep its prerequisite: drop the orphan and fill the place again
+    scope = nextStepsScope({ claims, concepts, order, states, events, presented: shown.flatMap(b => b.claim_ids) });
+    const lost = new Set(orphans(scope.claims));
+    if (!lost.size) break;
+    order = order.filter(id => !lost.has(id));
+  }
 
   // Ruling T7: structured sources only - the journey goal; a hole's hook goal, else its parent's goal (a journey's, or the
   // course subject) and its title; else the course subject or canvas title. The learner's words travel as recent.question.
@@ -58,20 +69,21 @@ export function nextStepsInput({ context = null, store = null, journey = null, b
     : record ? record.learning_goal || (parentGoal ? `${cap(parentGoal, 120)} - ${cap(record.title, 80)}` : record.title)
     : domain?.subject || title;
   const asked = ['question', 'request'].includes(lastTurn?.kind) && lastTurn.question ? cap(lastTurn.question, L.question) : null;
+  // recent names only claims and cards still in the kept input (set by fits below, after every trim step).
+  const transitions = (lastTurn?.transitions || []).map(({ claim, from, to }) => ({ claim, from, to }));
+  const practice = shown.filter(b => b.practice && b.practice !== 'open').map(b => ({ block_id: b.id, result: b.practice }));
   const parentStates = record?.journey && parent?.journey ? deriveClaimStates(parent.journey.evidence?.events || [], parent.journey.registry?.claims || {}) : {};
   const input = {
     mode, basis, goal: cap(goal, L.goal_text),
     ...(mode === 'journey' ? { path: {
       current: current ? { id: current.id, title: cap(current.title, 80), purpose: cap(current.purpose, 240), claim_ids: claimIdsOf(current) } : null,
-      completed: completed.map(s => ({ id: s.id, title: cap(s.title, 80), claim_ids: claimIdsOf(s) })),
+      completed: completed.slice(-6).map(s => ({ id: s.id, title: cap(s.title, 80), claim_ids: claimIdsOf(s) })),
       upcoming: sections.filter(s => s.status === 'upcoming').slice(0, 4).map(s => cap(s.title, 80)),
     } } : {}),
     canvas: { blocks: shown }, scope,
     recent: {
       intent: lastTurn?.kind ?? null, ...(asked ? { question: asked } : {}),
-      transitions: (lastTurn?.transitions || []).slice(-L.transitions).map(({ claim, from, to }) => ({ claim, from, to })),
-      modalities: (store?.modalities || []).slice(-L.modalities),
-      practice: shown.filter(b => b.practice && b.practice !== 'open').slice(-L.practice).map(b => ({ block_id: b.id, result: b.practice })),
+      transitions: [], modalities: (store?.modalities || []).slice(-L.modalities), practice: [],
     },
     previous: { hooks: (previous?.hooks || []).slice(-L.previous_hooks), goals: (previous?.goals || []).slice(-L.previous_goals) },
     ...(record ? { dive: {
@@ -82,27 +94,35 @@ export function nextStepsInput({ context = null, store = null, journey = null, b
     constraints: { learner: [...(store?.constraints || [])], ...(domain?.context?.constraints || {}) },
   };
   // The 9000-character cap (owner sixth message 1), by structured priority only, never titles or text: first the least relevant,
-  // oldest cards down to the 6 that feed the scope (a card naming no kept claim, then one naming a kept claim, then one naming
-  // the section's or hole's claims), then the lowest-priority claims, the section's or hole's claims only after every card.
-  // Every card names only ids still in scope.
-  const lead1 = new Set(first), count = () => ({ block_count: input.canvas.blocks.length, claim_count: Object.keys(input.scope.claims).length });
+  // oldest cards down to the 6 that feed the scope (a card naming no kept claim, then one naming a kept claim or the newest card,
+  // then one naming an essential claim or the current section heading), then the lowest-priority claims, the essential claims
+  // only after every card. Essential: the section's or hole's claims, else the first claim. Every card and recent names only
+  // what is still kept; a missing prerequisite leaves with its gap claim.
+  const lead1 = new Set(first), had = Object.keys(input.scope.claims), core = new Set(first.length ? first : had.slice(0, 1));
+  const heading = journey?.journey?.section_plan?.heading_block_id ?? null, newest = shown.at(-1)?.id;
+  const count = () => ({ block_count: input.canvas.blocks.length, claim_count: Object.keys(input.scope.claims).length });
   const fits = () => {
+    const keep = input.scope.claims;
     for (const b of input.canvas.blocks) {
-      b.claim_ids = b.claim_ids.filter(id => Object.hasOwn(input.scope.claims, id));
+      b.claim_ids = b.claim_ids.filter(id => Object.hasOwn(keep, id));
       b.concept_ids = b.concept_ids.filter(c => Object.hasOwn(input.scope.concepts, c));
     }
+    input.recent.transitions = transitions.filter(t => Object.hasOwn(keep, t.claim)).slice(-L.transitions);
+    input.recent.practice = practice.filter(p => input.canvas.blocks.some(b => b.id === p.block_id)).slice(-L.practice);
     return JSON.stringify(input).length <= L.input_chars;
   };
-  const rank = b => (b.claim_ids.some(id => lead1.has(id)) ? 2 : b.claim_ids.length ? 1 : 0);
+  const rank = b => (b.id === heading || b.claim_ids.some(id => core.has(id)) ? 2 : b.claim_ids.length || b.id === newest ? 1 : 0);
   const dropBlock = () => { const list = input.canvas.blocks; list.splice(list.reduce((low, b, i) => (rank(b) < rank(list[low]) ? i : low), 0), 1); };
   const dropClaim = id => {
-    const { concept } = input.scope.claims[id];
-    delete input.scope.claims[id];
-    if (!Object.values(input.scope.claims).some(c => c.concept === concept)) delete input.scope.concepts[concept];
+    for (const gone of [id, ...orphans(Object.fromEntries(Object.entries(input.scope.claims).filter(([k]) => k !== id)))]) {
+      const { concept } = input.scope.claims[gone];
+      delete input.scope.claims[gone];
+      if (!Object.values(input.scope.claims).some(c => c.concept === concept)) delete input.scope.concepts[concept];
+    }
   };
-  const before = count(), had = Object.keys(input.scope.claims);
+  const before = count();
   while (!fits()) {
-    const ids = Object.keys(input.scope.claims), optional = ids.filter(id => !lead1.has(id));
+    const ids = Object.keys(input.scope.claims), optional = ids.filter(id => !core.has(id));
     if (input.canvas.blocks.length > 6) dropBlock();
     else if (optional.length) dropClaim(optional.at(-1));
     else if (input.canvas.blocks.length) dropBlock();

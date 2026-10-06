@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { NEXT_STEPS_LIMITS, NEXT_STEPS_SYSTEM, NEXT_STEPS_TOOL, capText, hookProblem, mintSet, nextStepsInputProblem, nextStepsOutput, nextStepsScope, selectedStepProblem, topicOf } from '../src/agents/learn-next-steps.js';
+import { NEXT_STEPS_LIMITS, NEXT_STEPS_SYSTEM, NEXT_STEPS_TOOL, capText, hookProblem, mintSet, nextStepsInputProblem, nextStepsOutput, needsRepair, nextStepsScope, selectedStepProblem, topicOf } from '../src/agents/learn-next-steps.js';
 import { LEARNER_LABELS } from '../src/agents/learn-journey.js';
 
 // A generic input on an invented subject (glass making); ids in their own naming style.
@@ -313,4 +313,28 @@ test('topicOf skips chat blocks, so a learner message never opens a format word;
   }
   assert.equal(hookProblem('What would a Motion of the kiln reveal?', { topic: 'motion graphics for glass' }), null, 'a topic about it opens it');
   assert.equal(hookProblem('What keeps molten glass in motion so long?', { topic }), null, 'lowercase motion is ordinary English');
+});
+
+// Review round 2, item 6 (owner: explicit evidence requiring repair): uncertain needs a settled negative to count as repair.
+test('completed_only: an uncertain completed claim is repair only with a settled negative', () => {
+  const path = { current: null, completed: [{ id: 's1', title: 'Viscosity', claim_ids: ['viscosity.temperature'] }], upcoming: [] };
+  const withState = over => ({ ...INPUT, mode: 'journey', path, scope: { ...INPUT.scope, claims: { ...INPUT.scope.claims, 'viscosity.temperature': { ...INPUT.scope.claims['viscosity.temperature'], ...over } } } });
+  const refused = input => nextStepsOutput({ options: THREE }, input).errors?.filter(e => e.endsWith('completed_only')) ?? [];
+  assert.deepEqual(refused(withState({ state: 'uncertain', settled_passes: 0, settled_negatives: 1 })), [], 'a settled fail: repair');
+  assert.deepEqual(refused(withState({ state: 'uncertain', settled_passes: 2, settled_negatives: 0 })), ['option 2: completed_only', 'option 3: completed_only'], 'demonstrated_here passes only: not repair');
+  assert.deepEqual(refused(withState({ state: 'misconception', settled_negatives: 2 })), []);
+  assert.deepEqual(refused(withState({ state: 'prerequisite_gap', prerequisite: 'annealing' })), []);
+  assert.deepEqual([needsRepair({ state: 'uncertain', settled_negatives: 1 }), needsRepair({ state: 'uncertain', settled_negatives: 0 }), needsRepair({ state: 'understood', settled_negatives: 3 }), needsRepair(null)], [true, false, false, false]);
+});
+
+// Review round 2, item 5: Motion phrases in lowercase are format words too; motion as plain physics is not.
+test('format words: with motion, motion graphics, clips and videos are refused unless the topic is that; physics motion passes', () => {
+  for (const hook of ['Could you show the cooling with motion instead?', 'Would a motion graphic reveal the stress lines?', 'What would motion clips of the kiln show?', 'Can a motion video catch the crack forming?']) {
+    assert.equal(hookProblem(hook, { topic: 'glass annealing' }), 'format_word', hook);
+  }
+  assert.equal(hookProblem('Would a motion graphic reveal the stress lines?', { topic: 'designing motion graphics for glass' }), null, 'a topic about it opens it');
+  for (const hook of ['Why does a pendulum slowly lose its motion?', 'What keeps a spinning top in motion so long?', 'Does motion near light speed change time?']) {
+    assert.equal(hookProblem(hook, { topic: 'classical mechanics' }), null, hook);
+  }
+  assert.match(block(NEXT_STEPS_SYSTEM, 'non_negotiable_rules'), /never name a format \([^)]*\bMotion\b[^)]*\)/);
 });

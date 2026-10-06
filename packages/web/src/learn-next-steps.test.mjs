@@ -111,6 +111,90 @@ test('D: a hook aimed only at an irrelevant completed or understood claim is nev
   assert.deepEqual(nextStepsOutput({ options: hooksOn([IDS[5]]) }, forced).errors, ['option 1: completed_only']);
 });
 
+// Review round 2, item 6 (owner: explicit evidence requiring repair): uncertain is repair only with a settled negative.
+test('a completed uncertain claim: eligible with a settled negative, excluded with only demonstrated_here passes', () => {
+  const negative = done5(appendEvents(emptyStore(), [ev(IDS[5])]).store).input;
+  assert.deepEqual([Object.keys(negative.scope.claims), negative.scope.claims[IDS[5]].state, negative.scope.claims[IDS[5]].settled_negatives], [[IDS[2], IDS[5], IDS[0], IDS[1]], 'uncertain', 1]);
+  assert.equal(nextStepsOutput({ options: hooksOn([IDS[5]]) }, negative).ok, true);
+  const here = done5(appendEvents(emptyStore(), [ev(IDS[5], { result: 'pass', kind: 'demonstrated_here' }), ev(IDS[5], { result: 'pass', kind: 'demonstrated_here', settled: false })]).store);
+  assert.deepEqual(Object.keys(here.input.scope.claims), [IDS[2], IDS[0]], 'uncertain from demonstrated_here passes only: no repair need');
+  assert.equal(here.trim.repair_claims_kept, null);
+});
+
+// Review round 2, item 1: every completed section counts, not only the newest 6 the input lists.
+test('A and D with 8 completed sections: understood claims from older completed sections stay out and a hook on one is refused', () => {
+  const concepts = {}, claims = {};
+  for (let i = 0; i < 10; i++) { concepts[`m${i}`] = { label: `Mill part ${i}`, names: [], prerequisites: [] }; claims[`m${i}/k${i}`] = { concept: `m${i}`, statement: `Statement about part ${i}.`, drawn: `drawn case ${i}`, ideas: [`idea ${i}`], misconceptions: [], prerequisites: [] }; }
+  const k = i => `m${i}/k${i}`, journey = { ...J, id: 'lj_mill', registry: { concepts, claims }, active_section_id: 'w9' };
+  const path = { version: 9, goal: 'Run a water mill', current_section_id: 'w9', sections: [
+    ...Array.from({ length: 8 }, (_, i) => ({ id: `w${i + 1}`, title: `Part ${i + 1}`, purpose: 'p', status: 'completed', expected_evidence: [{ claim: k(i + 1), kind: 'explain' }] })),
+    { id: 'w9', title: 'Part 9', purpose: 'p', status: 'current', expected_evidence: [{ claim: k(9), kind: 'explain' }] }] };
+  const understood = id => ({ concept: claims[id].concept, claim: id, result: 'pass', kind: 'demonstrated_in_transfer', settled: true, evaluator: 'jev', source: 'free_text' });
+  const card = { id: 'old1', type: 'explanation', title: 'Part one', journey: { journey_id: 'lj_mill', section_id: 'w1', step_id: 'old1', claims: [k(1)] } };
+  const store = appendEvents(emptyStore(), [understood(k(1)), understood(k(2)), understood(k(5))]).store;
+  const { input } = nextStepsInput(snap({ context: { domain: journeyDomain({ journey, path, blocks: [card] }), source: 'journey' }, journey: { ...journeyView, journey, path }, blocks: [card], store }));
+  assert.deepEqual(input.path.completed.map(s => s.id), ['w3', 'w4', 'w5', 'w6', 'w7', 'w8'], 'the input still lists the newest 6');
+  assert.deepEqual(Object.keys(input.scope.claims), [k(9)], 'k1 and k2 (older sections) and k5 (a listed one) stay out');
+  const hooks = [
+    { hook: 'Why did the first wheel turn so slowly?', learning_goal: 'Revisit the first part of the mill', concept_ids: ['m1'], claim_ids: [k(1)], reason_internal: 'old part' },
+    { hook: 'What makes the ninth part matter most?', learning_goal: 'Explain why part nine drives the mill', concept_ids: ['m9'], claim_ids: [k(9)], reason_internal: 'current' },
+    { hook: 'Could the mill run without part nine at all?', learning_goal: 'Predict the mill without its ninth part', concept_ids: ['m9'], claim_ids: [k(9)], reason_internal: 'current' },
+  ];
+  assert.ok(nextStepsOutput({ options: hooks }, input).errors.includes('option 1: ids'), 'never offered, so a hook on it is refused');
+});
+
+// Review round 2, item 3: a completed-only prerequisite stays only while its gap claim is in the kept scope.
+test('a missing prerequisite leaves the scope with its gap claim: pushed out by the 12 cap, or dropped by the trim', () => {
+  const concepts = { pre: { label: 'Prerequisite idea', names: [], prerequisites: [] }, gap: { label: 'Gapped idea', names: [], prerequisites: ['pre'] }, cur: { label: 'Current idea', names: [], prerequisites: [] } };
+  const claims = { 'pre/one': { concept: 'pre', statement: 'Pre statement.', drawn: 'pre drawn', ideas: ['pre idea'], misconceptions: [], prerequisites: [] }, 'gap/one': { concept: 'gap', statement: 'Gap statement.', drawn: 'gap drawn', ideas: ['gap idea'], misconceptions: [], prerequisites: ['pre'] }, 'cur/one': { concept: 'cur', statement: 'Cur statement.', drawn: 'cur drawn', ideas: ['cur idea'], misconceptions: [], prerequisites: [] } };
+  for (let i = 0; i < 12; i++) { concepts[`x${i}`] = { label: `Extra ${i}`, names: [], prerequisites: [] }; claims[`x${i}/one`] = { concept: `x${i}`, statement: `Extra statement ${i}.`, drawn: 'x', ideas: ['x'], misconceptions: [], prerequisites: [] }; }
+  const journey = { ...J, id: 'lj_gap', registry: { concepts, claims } };
+  const path = { version: 1, goal: 'Gap goal', current_section_id: 's2', sections: [
+    { id: 's1', title: 'Before', purpose: 'p', status: 'completed', expected_evidence: [{ claim: 'pre/one', kind: 'explain' }] },
+    { id: 's2', title: 'Now', purpose: 'p', status: 'current', expected_evidence: [{ claim: 'cur/one', kind: 'explain' }] }] };
+  const card = { id: 'pre-card', type: 'explanation', title: 'Before', journey: { journey_id: 'lj_gap', section_id: 's1', step_id: 'pre-card', claims: ['pre/one'] } };
+  const at = (claim, over) => ({ concept: claims[claim].concept, claim, result: 'fail', kind: null, settled: true, evaluator: 'jev', source: 'free_text', ...over });
+  const gapEvent = at('gap/one', { result: 'gap', prerequisite: 'pre' });
+  const build = (events, constraints = []) => nextStepsInput(snap({ context: { domain: journeyDomain({ journey, path, blocks: [card] }), source: 'journey' }, journey: { ...journeyView, journey, path }, blocks: [card], store: { ...appendEvents(emptyStore(), events).store, constraints } }));
+  assert.deepEqual(Object.keys(build([gapEvent]).input.scope.claims), ['cur/one', 'pre/one', 'gap/one'], 'with its gap claim, the prerequisite is repair');
+  // Twelve newer evidenced claims push the gap claim past the 12 cap; its prerequisite goes with it.
+  const crowded = build([gapEvent, ...Array.from({ length: 12 }, (_, i) => at(`x${i}/one`))]).input;
+  assert.deepEqual(Object.keys(crowded.scope.claims), ['cur/one', ...Array.from({ length: 11 }, (_, i) => `x${11 - i}/one`)]);
+  assert.deepEqual(crowded.canvas.blocks[0].claim_ids, []);
+  // The trim: sized so dropping the gap claim alone would fit; the prerequisite is dropped with it.
+  const { input } = build([gapEvent]);
+  const withoutGap = JSON.stringify({ ...input, scope: { concepts: { cur: 'Current idea', pre: 'Prerequisite idea' }, claims: { 'cur/one': input.scope.claims['cur/one'], 'pre/one': input.scope.claims['pre/one'] } } }).length;
+  const trimmed = build([gapEvent], ['z'.repeat(9000 - withoutGap - 2)]);
+  assert.deepEqual(Object.keys(trimmed.input.scope.claims), ['cur/one']);
+  assert.equal(trimmed.trim.repair_claims_kept, false);
+  for (const out of [crowded, trimmed.input]) assert.equal(nextStepsOutput({ options: [{ hook: 'What did the earlier idea quietly set up?', learning_goal: 'Repair the earlier idea', concept_ids: ['pre'], claim_ids: ['pre/one'], reason_internal: 'x' }, { hook: 'Why does the current idea hold up?', learning_goal: 'Explain the current idea', concept_ids: ['cur'], claim_ids: ['cur/one'], reason_internal: 'x' }, { hook: 'Could the current idea fail on a new case?', learning_goal: 'Apply the current idea to a fresh case', concept_ids: ['cur'], claim_ids: ['cur/one'], reason_internal: 'x' }] }, out).errors.includes('option 1: ids'), true);
+});
+
+// Review round 2, item 2: a canvas with no section or hole claims keeps its first claim as essential.
+test('a course canvas with no tier-1 claims keeps its first claim and drops the cards before it, instead of failing', () => {
+  const context = tutorContext({ board: TUTOR_BOARD }), card = { ...cardBlock(cardModule('c11-causal-mask')), id: 'k11' };
+  const { input } = nextStepsInput(snap({ context, journey: null, blocks: [card], title: 'Board' }));
+  const [firstId] = Object.keys(input.scope.claims), c = input.scope.claims[firstId];
+  const minimal = JSON.stringify({ ...input, canvas: { blocks: [] }, scope: { concepts: { [c.concept]: input.scope.concepts[c.concept] }, claims: { [firstId]: { ...c, presented: c.presented } } } }).length;
+  const out = nextStepsInput(snap({ context, journey: null, blocks: [card], title: 'Board', store: { ...emptyStore(), constraints: ['z'.repeat(9000 - minimal - 2)] } }));
+  assert.ok(out.input, `got ${JSON.stringify(out).slice(0, 60)}`);
+  assert.deepEqual([Object.keys(out.input.scope.claims), out.input.canvas.blocks.length], [['causal-mask/reads-self-and-earlier'], 0]);
+  assert.deepEqual([out.trim.after, out.trim.current_section_claims_kept], [{ block_count: 0, claim_count: 1 }, null]);
+});
+
+// Review round 2, item 4: the current section heading ranks with the section claims; the newest card at least with claim cards.
+test('card trim: the section heading and the newest card outlast older claim cards; claimless old cards go first', () => {
+  const jv = { ...journeyView, journey: { ...J, section_plan: { section_id: 's2', heading_block_id: 'h2' } } };
+  const stamp = id => ({ id, type: 'explanation', title: `Card ${id}`, journey: { journey_id: 'lj_a', section_id: 's2', step_id: id, claims: [IDS[3]] } });
+  const all = [{ id: 'h2', type: 'heading', text: 'Falls' }, { id: 'o1', type: 'explanation', title: 'Card o1' }, ...['c1', 'c2', 'c3', 'c4', 'c5', 'c6'].map(stamp), { id: 'chat1', question: 'why is it so steep here', answer: 'x' }];
+  const kept = ['h2', 'c3', 'c4', 'c5', 'c6', 'chat1'];
+  const run = (blocks, constraints = []) => nextStepsInput(snap({ context: { domain: journeyDomain({ journey: jv.journey, path: PATH, blocks }), source: 'journey' }, journey: jv, blocks, store: { ...emptyStore(), constraints } }));
+  const six = JSON.stringify(run(all.filter(b => kept.includes(b.id))).input).length;
+  const { input, trim } = run(all, ['z'.repeat(9000 - six - 2)]);
+  assert.deepEqual(input.canvas.blocks.map(b => b.id), kept);
+  assert.deepEqual([trim.trimmed, Object.keys(input.scope.claims)], [{ block_count: 3, claim_count: 0 }, [IDS[2], IDS[3], IDS[1]]]);
+});
+
 test('basis: turns, evidence, path, section, cards added or removed, attempts, grading and holes; never camera or selection', () => {
   const b = (over = {}) => nextStepsBasis({ lastTurn: { turn_id: 't1' }, store: emptyStore(), journey: journeyView, canvasState: { cards: [['k1'], ['k2']], card: { id: 'k1' }, selected: 1 }, graded: 0, record: null, ...over });
   const ref = b();
@@ -237,13 +321,14 @@ test('recent.question is bounded to 300 characters and only for a question or re
   for (const kind of ['explanation', 'answer', 'next_step', 'opening']) assert.equal('question' in inputOf({ lastTurn: { turn_id: 't', kind, question: long, transitions: [] } }).recent, false, kind);
 });
 
-test('recent: transitions (6), the session modality history (8), practice results (4) and previous hooks (6) and goals (3)', () => {
-  const transitions = Array.from({ length: 8 }, (_, i) => ({ claim: IDS[i % IDS.length], from: 'not_yet_observed', to: 'uncertain', note: 'dropped' }));
+test('recent: transitions (6, kept claims only), the session modality history (8), practice results (4) and previous hooks (6) and goals (3)', () => {
+  // IDS[2] is the only scope claim here; transitions of claims outside the input are not named (review round 2, item 7).
+  const transitions = Array.from({ length: 10 }, (_, i) => ({ claim: i % 5 === 4 ? IDS[5] : IDS[2], from: `f${i}`, to: 'uncertain', note: 'dropped' }));
   const modalities = ['text', 'text', 'question', 'flashcards', 'text', 'video', 'text', 'explain_back', 'scene', 'text'];
   const blocks = Array.from({ length: 6 }, (_, i) => ({ id: `p${i}`, type: 'scene', title: `Try ${i}`, activity: { id: 'a', expected: [1] }, attemptLog: i === 5 ? [] : [{ answer: 2, result: i % 2 ? 'passed' : 'failed' }] }));
   const input = inputOf({ store: { ...emptyStore(), modalities }, blocks, lastTurn: { turn_id: 't', kind: 'answer', transitions }, previous: { hooks: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'h7'], goals: ['g1', 'g2', 'g3', 'g4'] } });
   assert.deepEqual(input.recent, {
-    intent: 'answer', transitions: transitions.slice(-6).map(({ claim, from, to }) => ({ claim, from, to })), modalities: modalities.slice(-8),
+    intent: 'answer', transitions: ['f2', 'f3', 'f5', 'f6', 'f7', 'f8'].map(from => ({ claim: IDS[2], from, to: 'uncertain' })), modalities: modalities.slice(-8),
     practice: [{ block_id: 'p1', result: 'passed' }, { block_id: 'p2', result: 'failed' }, { block_id: 'p3', result: 'passed' }, { block_id: 'p4', result: 'failed' }],
   });
   assert.deepEqual(input.canvas.blocks.map(b => b.practice), ['failed', 'passed', 'failed', 'passed', 'failed', 'open']);
@@ -260,10 +345,13 @@ test('fits 9000: a huge registry and canvas - blocks to 6 first, then the lowest
   for (let i = 0; i < 40; i++) { concepts[`c${i}`] = { label: `Concept ${i} ${'l'.repeat(50)}`, names: [], prerequisites: [] }; claims[`c${i}/x`] = { concept: `c${i}`, statement: 's'.repeat(600), drawn: 'd'.repeat(300), ideas: ['i'.repeat(300), 'j'.repeat(300), 'k'.repeat(300), 'm'.repeat(300)], misconceptions: [], prerequisites: [] }; }
   const big = { ...J, registry: { concepts, claims } };
   const path = { ...PATH, sections: PATH.sections.map(s => ({ ...s, expected_evidence: [{ claim: 'c7/x', kind: 'explain' }] })) };
-  const blocks = Array.from({ length: 200 }, (_, i) => ({ id: `b${i}`, type: 'explanation', title: 't'.repeat(300) }));
+  // Two practised cards: b185 is trimmed away, b199 stays (review round 2, item 7: recent names only kept blocks and claims).
+  const practised = { b185: 'failed', b199: 'passed' };
+  const blocks = Array.from({ length: 200 }, (_, i) => ({ id: `b${i}`, type: 'explanation', title: 't'.repeat(300), ...(practised[`b${i}`] ? { activity: { id: 'a' }, attemptLog: [{ answer: 1, result: practised[`b${i}`] }] } : {}) }));
   // Evidence on every claim, oldest first, so the scope has more candidates than it can hold.
   const store = appendEvents(emptyStore(), Object.keys(claims).map(claim => ({ concept: claims[claim].concept, claim, result: 'pass', kind: 'demonstrated_here', settled: false, evaluator: 'jev', source: 'free_text' }))).store;
-  const { input, trim } = nextStepsInput(snap({ context: { domain: journeyDomain({ journey: big, path, blocks }), source: 'journey' }, journey: { ...journeyView, journey: big, path }, blocks, store }));
+  const lastTurn = { turn_id: 't', kind: 'answer', transitions: [{ claim: 'c30/x', from: 'not_yet_observed', to: 'uncertain' }, { claim: 'c7/x', from: 'not_yet_observed', to: 'uncertain' }] };
+  const { input, trim } = nextStepsInput(snap({ context: { domain: journeyDomain({ journey: big, path, blocks }), source: 'journey' }, journey: { ...journeyView, journey: big, path }, blocks, store, lastTurn }));
   const size = JSON.stringify(input).length;
   assert.ok(size <= 9000, `${size}`);
   assert.equal(nextStepsInputProblem(input), null);
@@ -271,7 +359,10 @@ test('fits 9000: a huge registry and canvas - blocks to 6 first, then the lowest
   const order = ['c7/x', ...Object.keys(claims).reverse().filter(id => id !== 'c7/x')];
   assert.deepEqual(Object.keys(input.scope.claims), order.slice(0, 6));
   assert.deepEqual(input.canvas.blocks.map(b => b.id), ['b194', 'b195', 'b196', 'b197', 'b198', 'b199']);
-  assert.deepEqual(trim, { before: { block_count: 20, claim_count: 12 }, after: { block_count: 6, claim_count: 6 }, trimmed: { block_count: 14, claim_count: 6 }, current_section_claims_kept: true, repair_claims_kept: false });
+  // Unsettled demonstrated_here passes make claims uncertain but not in need of repair (review round 2, item 6): null.
+  assert.deepEqual(trim, { before: { block_count: 20, claim_count: 12 }, after: { block_count: 6, claim_count: 6 }, trimmed: { block_count: 14, claim_count: 6 }, current_section_claims_kept: true, repair_claims_kept: null });
+  assert.deepEqual(input.recent.transitions, [{ claim: 'c7/x', from: 'not_yet_observed', to: 'uncertain' }], 'c30/x was trimmed');
+  assert.deepEqual(input.recent.practice, [{ block_id: 'b199', result: 'passed' }], 'b185 was trimmed');
 });
 
 // Owner sixth message 1: a dense valid journey - trimming happens, the current-section claims and some other useful claims
