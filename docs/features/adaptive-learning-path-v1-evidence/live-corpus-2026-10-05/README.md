@@ -15,3 +15,7 @@ The results and the two prompt fixes they led to (66005c2c) are summarized in `d
 - `subscription-resume-*`: the single resume through the subscription bridge at baca6935 (owner GO, 2026-10-06). It covered photosynthesis from adapt_edit and the French Revolution from path.
   - Photosynthesis adapt_edit failed bridge parsing again, so the run stopped as instructed, with no retry.
   - The preserved diagnostic (`subscription-resume-bridge-diagnostic.jsonl`) shows that Sonnet, through the CLI, answered with tool-call markup (`<invoke name="journey_adapt"><parameter ...>`) instead of the JSON object the bridge requires. Termination was success/end_turn.
+- `subscription-resume2-*`: the single resume after the generic invoke decoder (owner GO Option 1, bridge at 4f288786).
+  - Passed: photosynthesis adapt_edit ("make it shorter": 6 -> 5 sections, 30 -> 26 minutes, s1 byte-identical) and adapt_evidence (s7 added, future only).
+  - The photosynthesis Tutor turn (Opus via the CLI) returned valid JSON but named the tool "tool_use" instead of the Tutor tool. The bridge's existing tool-name check refused it (diagnostic bbe85eb3), so the run stopped as instructed, with no retry.
+  - `subscription-bridge-diagnostics-all.jsonl` holds both preserved diagnostics.
