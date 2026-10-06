@@ -22,6 +22,16 @@ test('CLI output becomes only an allowed application tool; no native tools enabl
   assert.equal(result.billing, 'claude-subscription');
   await assert.rejects(subscriptionMessage(body, { identify: async () => ({}), prepare: async () => [], run: async () => ({ result: '{"type":"tool_use","name":"Bash","input":{}}' }) }), /Invalid subscription tool/);
 });
+test('the 5.5 model ids reach the CLI as their own family alias: opus and sonnet', async () => {
+  const seen = [];
+  for (const model of ['claude-opus-5-5', 'claude-sonnet-5-5']) {
+    await subscriptionMessage({ model, messages: [{ role: 'user', content: 'x' }], tools: [{ name: 'journey_path' }] }, { identify: async () => ({}), prepare: async () => [], run: async args => {
+      seen.push(args[args.indexOf('--model') + 1]);
+      return { result: JSON.stringify({ type: 'tool_use', name: 'journey_path', input: {} }) };
+    } });
+  }
+  assert.deepEqual(seen, ['opus', 'sonnet']);
+});
 test('offline or unverified subscription transport never reaches an API endpoint', async () => {
   let calls = 0; const original = globalThis.fetch;
   globalThis.fetch = async url => { calls++; assert.equal(url.hostname, 'bridge.example'); return Response.json({ content: [] }); };

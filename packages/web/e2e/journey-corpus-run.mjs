@@ -20,9 +20,11 @@
 // in --out. Any HTTP 4xx (insufficient credit included) aborts the run at once, recorded as aborted with the API's message.
 // --resume continues the newest JSONL of this mode in --out; a subject cut midway is run again from its start.
 // --seed <jsonl> --plan <subject>:<from>-<to>[,...] (owner, 2026-10-05): run only the unresolved cases; see PLAN below.
+// --transport subscription (owner GO SUBSCRIPTION): that targeted plan through the local Claude subscription bridge; see TRANSPORT.
 // Output: <out>/journey-corpus-<mode>-<stamp>.jsonl (call, step and subject_done rows) and <out>/summary.json.
 // Usage: node e2e/journey-corpus-run.mjs [--out dir] [--budget USD] [--resume] [--seed jsonl --plan subject:from-to,...]
 //        JOURNEY_CORPUS_PAID=GO node e2e/journey-corpus-run.mjs --live --budget 1.9 --out <dir>
+//        JOURNEY_CORPUS_SUBSCRIPTION=GO SMALL_SUBSCRIPTION_TOKEN=... node e2e/journey-corpus-run.mjs --transport subscription --seed <jsonl> --plan ... --out <dir>
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -70,7 +72,19 @@ const PLAN = PLAN_ARG && Object.fromEntries(PLAN_ARG.split(',').map(item => {
 }));
 const RUN_SUBJECTS = PLAN ? SUBJECTS.filter(subject => PLAN[subject.id]) : ONLY ? SUBJECTS.filter(subject => ONLY.includes(subject.id)) : SUBJECTS;
 if (ONLY && RUN_SUBJECTS.length !== ONLY.length) throw Error(`--subjects names an unknown subject: ${ONLY.filter(id => !SUBJECTS.some(subject => subject.id === id)).join(', ')}`);
-const LIVE = args.includes('--live'), RESUME = args.includes('--resume'), MODE = LIVE ? 'live' : 'stub';
+// --transport subscription (owner GO SUBSCRIPTION, 2026-10-05): the targeted plan through the owner's Claude subscription
+// via the local bridge (scripts/learn-subscription-bridge.mjs, started by the controller), never the API. Refused unless
+// JOURNEY_CORPUS_SUBSCRIPTION=GO, and only with --plan and --seed; no .env is read and no Anthropic key is needed. env is
+// { SUBSCRIPTION_ONLY: 'true' } alone, so the planners send a plain-string system with no cache_control
+// (learn-journey-planners.js callRole) and planTurn neither streams, caches nor asks for fast speed (learn-tutor-routes.js
+// planOnce). Calls cost $0 (the guard stays and never trips); any non-200 or unverified bridge reply aborts.
+const TRANSPORT = flag('transport', 'api'), SUB = TRANSPORT === 'subscription';
+if (!['api', 'subscription'].includes(TRANSPORT)) throw Error('--transport is api or subscription');
+const SUBSCRIPTION_NOTE = 'Claude subscription bridge: tool use is emulated in the system prompt; effort, max_tokens and caching are not applied; the exact model version is not reported. Not production-exact API evidence.';
+if (SUB && process.env.JOURNEY_CORPUS_SUBSCRIPTION !== 'GO') throw Error('--transport subscription makes real model calls on the owner subscription: refused unless JOURNEY_CORPUS_SUBSCRIPTION=GO');
+if (SUB && (!PLAN_ARG || args.includes('--live'))) throw Error('--transport subscription runs a targeted --plan with --seed, and never with --live (the API)');
+if (SUB && !process.env.SMALL_SUBSCRIPTION_TOKEN) throw Error('--transport subscription needs SMALL_SUBSCRIPTION_TOKEN (the bridge token) in the environment');
+const LIVE = args.includes('--live'), RESUME = args.includes('--resume'), MODE = LIVE ? 'live' : SUB ? 'subscription' : 'stub';
 const OUT = flag('out', join(tmpdir(), 'journey-corpus')), BUDGET = Number(flag('budget', LIVE ? 'NaN' : String(CEILING)));
 if (LIVE && process.env.JOURNEY_CORPUS_PAID !== 'GO') throw Error('--live makes paid model calls: refused unless JOURNEY_CORPUS_PAID=GO (owner approval)');
 if (!(BUDGET > 0 && BUDGET <= CEILING)) throw Error(`--budget USD is required with --live and at most ${CEILING} (the owner's hard ceiling)`);
@@ -143,7 +157,7 @@ function liveEnv() {
   if (!workspace) throw Error('the main checkout .env has no ANTHROPIC_WORKSPACE_ID= line');
   return { ANTHROPIC_API_KEY: key, ANTHROPIC_WORKSPACE_ID: workspace };
 }
-const ENV = LIVE ? liveEnv() : {};
+const ENV = SUB ? { SUBSCRIPTION_ONLY: 'true' } : LIVE ? liveEnv() : {};
 
 // journeyDiveContext lives in LearnJourney.jsx: bundled with esbuild, as learn-journey-ui.test.mjs does (local, free).
 const journeyDiveContext = await (async () => {
@@ -155,8 +169,19 @@ const journeyDiveContext = await (async () => {
 
 // Stub mode's Tutor plan (fixtureModel has no tutor_response): one sentence and one question on the route's claim.
 const STUB_PLAN = { strategy: 'feynman', actions: [{ type: 'respond_text', text: 'Here is that idea again, on the first worked example of this section.' }, { type: 'ask_question', text: 'What would you predict on a case you have not seen?' }] };
-const inner = LIVE ? anthropic : (env, body) => (body.tools[0].name === TUTOR_TOOL.name
+const inner = SUB ? bridge : LIVE ? anthropic : (env, body) => (body.tools[0].name === TUTOR_TOOL.name
   ? Response.json({ model: 'fixture', stop_reason: 'tool_use', content: [{ type: 'tool_use', name: TUTOR_TOOL.name, input: STUB_PLAN }] }) : fixtureModel(env, body));
+// The subscription bridge's POST /messages, as subscription-transport.js sends it, but over the local http bridge (anthropic()
+// insists on https there). Its fetch Response is what the planners read, as they read anthropic()'s. The token goes only
+// in this header: never logged or written. The port defaults to the bridge's own (8789).
+function bridge(env, body, model) {
+  return fetch(`http://127.0.0.1:${process.env.SMALL_SUBSCRIPTION_PORT || 8789}/messages`, { method: 'POST', redirect: 'manual', signal: AbortSignal.timeout(300000),
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.SMALL_SUBSCRIPTION_TOKEN}` }, body: JSON.stringify({ ...body, model, stream: false }) });
+}
+// The bridge answers a family alias, never a version: claude-opus-5-5 must come back opus, claude-sonnet-5-5 sonnet.
+const familyOf = model => (/opus/.test(model) ? 'opus' : /sonnet/.test(model) ? 'sonnet' : /haiku/.test(model) ? 'haiku' : null);
+// An error body's message: the API's { error: { message } } or the bridge's { error: '...' }.
+const errorMessage = text => { try { const e = JSON.parse(text)?.error; return (typeof e === 'string' ? e : e?.message) ?? text; } catch { return text; } };
 
 // The callModel every planner gets: the model check, the budget guard, then the call; one row per call with the requested
 // and served model, stop_reason, latency, usage (input, output, cache write, cache read) and USD. A call that throws
@@ -180,8 +205,23 @@ async function callModel(env, body, model, org) {
     if (response.ok) result = await response.clone().json();
   } catch (error) {
     calls.push({ role, model, raw: null, system });
+    if (SUB) { // an unreachable bridge or an unparseable reply: nothing billed, the run stops
+      record({ ...row, served_model: null, billing: null, status: response?.status ?? null, stop_reason: null, ms: Date.now() - started, in: null, out: null, cw: null, cr: null, cost_usd: 0 });
+      throw new Refused(ABORTED = cut300(`${role}: subscription bridge unavailable: ${error.name}: ${error.message}`));
+    }
     record({ ...row, served_model: null, status: response?.status ?? null, stop_reason: null, ms: Date.now() - started, in: 0, out: 0, cw: 0, cr: 0, cost_usd: row.worst_usd, billed_unknown: cut300(`${error.name}: ${error.message}`) });
     throw error;
+  }
+  if (SUB) {
+    // No usage from the bridge: tokens null, cost $0. Any non-200 (401 unauthorized, 503 unavailable or invalid response,
+    // 429 busy) or a 200 that is not a verified subscription reply aborts the run with its message; nothing is retried.
+    const served = result?.model ?? null, family = familyOf(model);
+    calls.push({ role, model, raw: result?.content?.find(block => block?.type === 'tool_use' && block.name === tool)?.input ?? null, system });
+    record({ ...row, served_model: served, billing: result?.billing ?? null, status: response.status, stop_reason: result?.stop_reason ?? null, ms: Date.now() - started,
+      in: null, out: null, cw: null, cr: null, cost_usd: 0, ...(response.ok && served !== family ? { served_mismatch: `${model} asked, ${served} served (expected ${family})` } : {}) });
+    if (!response.ok) throw new Refused(ABORTED = cut300(`${role}: subscription bridge HTTP ${response.status}: ${errorMessage(await response.clone().text().catch(() => ''))}`));
+    if (result?.billing !== 'claude-subscription' || !Array.isArray(result?.content)) throw new Refused(ABORTED = `${role}: unverified subscription reply (billing ${result?.billing ?? 'missing'})`);
+    return response;
   }
   const u = result?.usage || {}, tokens = { in: u.input_tokens ?? 0, out: u.output_tokens ?? 0, cw: u.cache_creation_input_tokens ?? 0, cr: u.cache_read_input_tokens ?? 0 };
   calls.push({ role, model, raw: result?.content?.find(block => block?.type === 'tool_use' && block.name === tool)?.input ?? null, system });
@@ -189,9 +229,7 @@ async function callModel(env, body, model, org) {
   // Any 4xx aborts (owner, 2026-10-05: insufficient credit included; nothing is retried), with the API's own message.
   if (response.status >= 400 && response.status < 500) {
     const text = await response.clone().text().catch(() => '');
-    let message = text;
-    try { message = JSON.parse(text)?.error?.message ?? text; } catch { /* not JSON: the text as it came */ }
-    throw new Refused(ABORTED = cut300(`${role}: model HTTP ${response.status}: ${message}`));
+    throw new Refused(ABORTED = cut300(`${role}: model HTTP ${response.status}: ${errorMessage(text)}`));
   }
   return response;
 }
@@ -559,7 +597,7 @@ function summarize() {
   }, 0);
   const worstTaken = callRows.reduce((n, row) => n + row.worst_usd, 0);
   return {
-    mode: MODE, file: FILE, budget: BUDGET, ceiling: CEILING, subjects_run: RUN_SUBJECTS.map(subject => subject.id), ...(PLAN ? { plan: PLAN_ARG, seed: SEED_FILE } : {}), stopped_at_budget: stoppedAt, aborted: ABORTED, crashed,
+    mode: MODE, file: FILE, budget: BUDGET, ceiling: CEILING, transport: TRANSPORT, ...(SUB ? { note: SUBSCRIPTION_NOTE } : {}), subjects_run: RUN_SUBJECTS.map(subject => subject.id), ...(PLAN ? { plan: PLAN_ARG, seed: SEED_FILE } : {}), stopped_at_budget: stoppedAt, aborted: ABORTED, crashed,
     subjects_done: rows.filter(row => row.kind === 'subject_done').map(row => row.subject),
     stages: steps.length, stages_passed: steps.filter(row => row.pass).length,
     failed_assertions: steps.filter(row => row.pass === false).flatMap(row => Object.entries(row.checks).filter(([, c]) => !c.pass).map(([assertion, c]) => ({ domain: row.subject, stage: row.step, assertion, reason: c.reason }))),
@@ -574,7 +612,7 @@ function summarize() {
       worst_case_usd: { calls_made: +worstTaken.toFixed(4), plus_untaken_escalations: +(worstTaken + untaken).toFixed(4),
         note: 'input characters / 2 at the cache-write rate plus max_tokens at the output rate; stub inputs are fixture-sized' },
     },
-    served_model_mismatches: callRows.filter(row => LIVE && row.served_model && row.served_model !== row.requested_model).map(row => `${row.subject}/${row.step} ${row.requested_model} -> ${row.served_model}`),
+    served_model_mismatches: callRows.filter(row => row.served_mismatch || (LIVE && row.served_model && row.served_model !== row.requested_model)).map(row => `${row.subject}/${row.step} ${row.served_mismatch || `${row.requested_model} -> ${row.served_model}`}`),
     billed_unknown: callRows.filter(row => row.billed_unknown).map(row => `${row.subject}/${row.step} ${row.role}: ${row.billed_unknown}`),
   };
 }
