@@ -201,11 +201,13 @@ test('each listed counterexample is present, labelled as a bad output and says w
 
 // ---------- 5. nanoGPT pins ----------
 
-test('the nanoGPT Tutor is untouched: PLANNER_SYSTEM, TUTOR_TOOL and the avatar-on system keep their pinned hashes', () => {
+test('the nanoGPT Tutor: PLANNER_SYSTEM, TUTOR_TOOL and the avatar-on system keep their pinned hashes (re-pinned by Professor Next Steps Task 4)', () => {
   assert.equal(plannerSystem(false, 'nanogpt'), PLANNER_SYSTEM);
   assert.equal(plannerSystem(), PLANNER_SYSTEM);
-  assert.equal(sha(JSON.stringify([TUTOR_TOOL, PLANNER_SYSTEM])), '6b3ba28db7f6d5c54e97bac07c27d607db78a77095dcc5ee95209231f783ee75'); // learn-avatar.test.js
-  assert.equal(sha(plannerSystem(true, 'nanogpt')), '5414c2a6ff03cad1cc18019688f14032088b7b2408d7db9d9c74b17a14a19b52'); // learn-tutor-journey.test.js
+  // Before Professor Next Steps Task 4: 6b3ba28db7f6d5c54e97bac07c27d607db78a77095dcc5ee95209231f783ee75 /
+  // 5414c2a6ff03cad1cc18019688f14032088b7b2408d7db9d9c74b17a14a19b52; re-pinned with review (task-4-repin-review.md, entry 7).
+  assert.equal(sha(JSON.stringify([TUTOR_TOOL, PLANNER_SYSTEM])), '57a2a9cea4fc27c69585db49dbbba4d05cd72e98654caf6c191efd4300dc2347'); // learn-avatar.test.js
+  assert.equal(sha(plannerSystem(true, 'nanogpt')), 'cbe76410fb126852fdf2eb5ea308956c150727d4c70be6c623501f0b57490dd0'); // learn-tutor-journey.test.js
 });
 
 // ---------- 6. Caching ----------

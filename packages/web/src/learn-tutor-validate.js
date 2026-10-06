@@ -2,7 +2,7 @@
 // Every proposed TutorAction passes, in order:
 //   schema   -> a known type with the fields it needs
 //   route    -> the router's allowed types (+ the explicit-request row), no_quiz, one question
-//   resource -> the card, part, ladder step, practice task or source exists
+//   resource -> the card, part, ladder step, practice task, source or offered material command exists
 //   consent  -> navigation only on the learner's own words, a slash or "Keep it on this canvas";
 //               a Rabbit Hole is only ever suggested (the learner opens it: /dive, Ctrl+K, Go down)
 // and gets one decision { type, accepted, stage, reason }. Accepted actions are capped at 3, and the
@@ -120,6 +120,7 @@ function schema(action, extra = [], domain = NANOGPT) {
   if (CARD_ACTIONS.includes(action.type) && typeof action.card !== 'string') return `${action.type} without a card`;
   if (action.type === 'focus_part' && typeof action.part_id !== 'string') return 'focus_part without a part';
   if (action.type === 'suggest_dive' && !action.title && !action.concept) return 'suggest_dive: no topic';
+  if (action.type === 'create_material' && (typeof action.command !== 'string' || typeof action.request !== 'string' || !action.request.trim() || action.request.length > 1000 || /[`{}<>]|=>/.test(action.request))) return 'create_material: command and a 1-1000 character request';
   return null;
 }
 
@@ -150,6 +151,10 @@ export function validateActions(response, routed, turn, domain = NANOGPT) {
     if (action.type === 'suggest_depth' && !domain.ladderStep(action.card, action.direction || 'deeper')) { reject(action, 'resource', `no ${action.direction || 'deeper'} card after ${action.card}`); continue; } // v2
     if (action.type === 'suggest_practice' && !domain.cardModule(action.card).activity) { reject(action, 'resource', `${action.card} has no practice`); continue; } // v2
     if (action.type === 'return_from_dive' && !turn.canvas.dive) { reject(action, 'resource', 'return_from_dive outside a hole'); continue; }
+    // Professor Next Steps §2.5: a command the turn offered (context.available_materials); several materials per turn
+    // (owner 2026-10-06), each command once, inside the 3-action cap below.
+    if (action.type === 'create_material' && !(turn.available_materials || []).some(m => m.command === action.command)) { reject(action, 'resource', `no material command ${action.command}`); continue; }
+    if (action.type === 'create_material' && actions.some(other => other.type === 'create_material' && other.command === action.command)) { reject(action, 'route', `a second create_material for ${action.command}`); continue; }
     if (action.type === AVATAR_ACTION) { // Avatar Teacher §4.1: a suggestion of learning material, never more
       const navigated = navigate && response.actions.some(other => (other?.type === 'show_authored_card' || other?.type === 'focus_part') && other.mode === 'navigate');
       const trigger = avatarTrigger(action, routed, turn, actions, navigated, domain);
@@ -172,6 +177,7 @@ export function validateActions(response, routed, turn, domain = NANOGPT) {
       next.cites = cites;
     }
     if (next.type === 'ask_question') next = { ...next, action_id: crypto.randomUUID(), claim: domain.claims[next.claim] ? next.claim : routed.claim };
+    if (next.type === 'create_material') next = { type: 'create_material', command: next.command, request: next.request.trim() };
     if (next.type === 'suggest_dive') {
       // Exactly one originating card (R-10): the target card, else a topic anchor made on Go down.
       const concept = domain.concepts[next.concept] ? next.concept : domain.conceptOf(next.title) || domain.conceptOf(next.concept) || null;

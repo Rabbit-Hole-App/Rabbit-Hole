@@ -162,6 +162,9 @@ export function route({ turn, claims, states, evaluation, store, avatar = null, 
     let list = noQuiz ? allowed.filter(type => type !== 'ask_question') : allowed;
     if (!list.some(type => type === 'respond_text' || type === 'ask_question')) list = ['respond_text', ...list];
     if (inHole && !list.includes('return_from_dive')) list = [...list, 'return_from_dive'];
+    // Professor Next Steps (contract §2.5): a hook click may make material through the existing Learn commands; typed
+    // turns never can (LP1 N4).
+    if (turn.next_step && turn.available_materials?.length && !list.includes('create_material')) list = [...list, 'create_material'];
     const moments = avatar ? avatarMoments(row, turn) : [];
     if (moments.length) return { row, strategy, allowed: [...list, AVATAR_ACTION], claim, avatar: { moments, seen: store?.avatar_seen || [], ready: avatar.ready || new Set(), on_canvas: avatar.on_canvas || new Set() } };
     return { row, strategy, allowed: list, claim };
@@ -264,6 +267,8 @@ function relevantCards(target, concepts, domain) {
 // (no unrelated cards, concepts or transcript). On a journey turn, journey_context (architecture §3.3) is the tenth
 // key, after dive_context; a nanoGPT turn never has it. A hole opened from a journey section (LP1 Task 14, §13): its
 // dive_context names the section, claims and concepts that caused the dive; a record without `journey` adds nothing.
+// Professor Next Steps (§2.5, §2.6): recent_relevant_context.recent_modalities is the store's last 8 modalities, evidence
+// for the planner only (nothing here or in route() reads it); a hook-click turn adds available_materials as the last key.
 export function plannerContext({ turn, routed, block, states, claims = [], store = null, domain = NANOGPT }) {
   const card = domain.cardModule(turn.target?.card);
   const labels = partLabels(card);
@@ -290,6 +295,7 @@ export function plannerContext({ turn, routed, block, states, claims = [], store
     recent_relevant_context: {
       turns: turn.recent_turns.slice(-2), actions: turn.recent_actions.slice(-2),
       ...(turn.answering && store?.open?.text ? { open_question: store.open.text } : {}),
+      recent_modalities: (store?.modalities || []).slice(-8),
     },
     dive_context: record || turn.returned_from ? {
       ...(record ? { dive_id: record.dive_id, title: record.title, concept: holeConcept(record, domain), created_by: record.created_by, origin_card: record.origin?.origin_card_id ?? null, origin_part: record.origin?.origin_part_id ?? null, pending_question: record.return_point?.pending_question ?? null } : {}),
@@ -297,6 +303,7 @@ export function plannerContext({ turn, routed, block, states, claims = [], store
       ...(turn.returned_from ? { returned_from: { dive_id: turn.returned_from.dive_id, concept: turn.returned_from.concept, claim: turn.returned_from.claim } } : {}),
     } : null,
     ...(domain.context ? { journey_context: domain.context } : {}),
+    ...(turn.next_step && turn.available_materials ? { available_materials: turn.available_materials } : {}),
   };
 }
 
