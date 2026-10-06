@@ -19,7 +19,7 @@
 // call that does not fit; rows are appended per call, so a stop keeps every observation, and spent sums every live JSONL
 // in --out. Any HTTP 4xx (insufficient credit included) aborts the run at once, recorded as aborted with the API's message.
 // --resume continues the newest JSONL of this mode in --out; a subject cut midway is run again from its start.
-// --seed <jsonl> --plan <subject>:<from>-<to>[,...] (owner, 2026-10-05): run only the unresolved cases; see PLAN below.
+// --seed <jsonl>[,<jsonl>...] --plan <subject>:<from>-<to>[,...] (owner, 2026-10-05): run only the unresolved cases; see PLAN below.
 // --transport subscription (owner GO SUBSCRIPTION): that targeted plan through the local Claude subscription bridge; see TRANSPORT.
 // Output: <out>/journey-corpus-<mode>-<stamp>.jsonl (call, step and subject_done rows) and <out>/summary.json.
 // Usage: node e2e/journey-corpus-run.mjs [--out dir] [--budget USD] [--resume] [--seed jsonl --plan subject:from-to,...]
@@ -56,7 +56,7 @@ const CEILING = 1.9; // the owner's hard total ceiling, USD (2026-10-05)
 // --subjects id,id: run only these SUBJECTS (owner rerun GO, 2026-10-05: the four domains, not the fast-start case).
 // Leakage is still checked against every subject's terms.
 const ONLY = flag('subjects', null)?.split(',').map(id => id.trim()).filter(Boolean) || null;
-// --seed <jsonl> --plan <subject>:<from>-<to>[,...] (owner, 2026-10-05): only the unresolved live cases. Per planned subject,
+// --seed <jsonl>[,...] --plan <subject>:<from>-<to>[,...] (owner, 2026-10-05): only the unresolved live cases. Per planned subject,
 // the stages before <from> are seeded from that subject's last successful step output in the seed log (the ones a later
 // stage reads: the diagnostic, the path, and the section plan when the dive runs), exactly as the chained run passed them
 // on, and recorded as seeded, never as passes; stages after <to> do not run; unplanned subjects and the resolver probes do
@@ -120,17 +120,25 @@ const guard = (spent, worst, budget) => { if (spent + worst > Math.min(budget, C
 
 mkdirSync(OUT, { recursive: true });
 const read = file => readFileSync(file, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line));
-// The --plan seeds, checked before anything runs: subject -> stage -> the seed log's validated output.
+// The --plan seeds, checked before anything runs: subject -> stage -> { output, file }, the validated output of that stage.
+// --seed takes a comma-separated list of logs: for each stage, a later file's successful output wins over an earlier one;
+// a failed or seeded row never replaces a success. The last row seen explains a missing seed.
+const SEED_FILES = SEED_FILE ? SEED_FILE.split(',').map(file => file.trim()).filter(Boolean) : [];
 const SEEDS = PLAN ? (() => {
-  const last = new Map(read(SEED_FILE).filter(row => row.kind === 'step').map(row => [`${row.subject}/${row.step}`, row]));
+  const ok = row => row?.checks?.valid?.pass === true && row.output != null, best = new Map(), last = new Map();
+  for (const file of SEED_FILES) for (const row of read(file).filter(r => r.kind === 'step')) {
+    const key = `${row.subject}/${row.step}`;
+    last.set(key, row);
+    if (ok(row)) best.set(key, { output: row.output, file });
+  }
   const seeds = {}, missing = [], before = (name, from) => STAGES.indexOf(name) < STAGES.indexOf(from);
   for (const [id, { from, to }] of Object.entries(PLAN)) {
     const subject = SUBJECTS.find(s => s.id === id);
     const needed = [subject.diagnostic && before('diagnostic', from) && 'diagnostic', before('path', from) && 'path', before('section', from) && to === 'dive' && 'section'].filter(Boolean);
     seeds[id] = {};
     for (const name of needed) {
-      const row = last.get(`${id}/${name}`);
-      if (row?.checks?.valid?.pass === true && row.output != null) seeds[id][name] = row.output;
+      const row = last.get(`${id}/${name}`), seed = best.get(`${id}/${name}`);
+      if (seed) seeds[id][name] = seed;
       else missing.push(`${id}/${name} (${!row ? 'not in the seed log' : row.skipped ? `skipped: ${row.skipped}` : row.seeded ? 'seeded there too, no output' : `failed: ${row.checks?.valid?.reason ?? 'no output'}`})`);
     }
   }
@@ -142,7 +150,14 @@ const mine = readdirSync(OUT).filter(name => name.startsWith(`journey-corpus-${M
 const FILE = RESUME && mine.length ? join(OUT, mine.at(-1)) : join(OUT, `journey-corpus-${MODE}-${new Date().toISOString().replace(/[:.]/g, '-')}.jsonl`);
 const rows = existsSync(FILE) ? read(FILE) : [];
 const done = new Set(rows.filter(row => row.kind === 'subject_done').map(row => row.subject));
-const record = row => { const full = { mode: MODE, ...row }; rows.push(full); appendFileSync(FILE, `${JSON.stringify(full)}\n`); return full; };
+// The run id the bridge's diagnostics carry: this file's stamp.
+const RUN_ID = FILE.match(/journey-corpus-[a-z]+-(.+)\.jsonl$/)?.[1] ?? null;
+// Subscription calls and the stages they ran are labelled (owner, 2026-10-06): functional evidence, not API evidence.
+const EVIDENCE = 'subscription functional evidence';
+const record = row => {
+  const full = { mode: MODE, ...(SUB && (row.kind === 'call' || (row.kind === 'step' && !row.seeded)) ? { evidence: EVIDENCE } : {}), ...row };
+  rows.push(full); appendFileSync(FILE, `${JSON.stringify(full)}\n`); return full;
+};
 
 // Live only: the ANTHROPIC_API_KEY= and ANTHROPIC_WORKSPACE_ID= lines of the main checkout's .env (the parent of git's
 // common dir), never printed, logged or written; no other line is kept. The key is not scoped to a workspace, so
@@ -176,7 +191,10 @@ const inner = SUB ? bridge : LIVE ? anthropic : (env, body) => (body.tools[0].na
 // in this header: never logged or written. The port defaults to the bridge's own (8789).
 function bridge(env, body, model) {
   return fetch(`http://127.0.0.1:${process.env.SMALL_SUBSCRIPTION_PORT || 8789}/messages`, { method: 'POST', redirect: 'manual', signal: AbortSignal.timeout(300000),
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.SMALL_SUBSCRIPTION_TOKEN}` }, body: JSON.stringify({ ...body, model, stream: false }) });
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.SMALL_SUBSCRIPTION_TOKEN}`,
+      // the bridge's diagnostic names the run, stage and role of a reply it could not parse
+      'X-Corpus-Run': RUN_ID, 'X-Corpus-Stage': `${at.subject}:${at.step}`, 'X-Corpus-Role': body.tools?.[0]?.name === TUTOR_TOOL.name ? 'tutor' : body.tools?.[0]?.name ?? '' },
+    body: JSON.stringify({ ...body, model, stream: false }) });
 }
 // The bridge answers a family alias, never a version: claude-opus-5-5 must come back opus, claude-sonnet-5-5 sonnet.
 const familyOf = model => (/opus/.test(model) ? 'opus' : /sonnet/.test(model) ? 'sonnet' : /haiku/.test(model) ? 'haiku' : null);
@@ -215,11 +233,14 @@ async function callModel(env, body, model, org) {
   if (SUB) {
     // No usage from the bridge: tokens null, cost $0. Any non-200 (401 unauthorized, 503 unavailable or invalid response,
     // 429 busy) or a 200 that is not a verified subscription reply aborts the run with its message; nothing is retried.
-    const served = result?.model ?? null, family = familyOf(model);
+    const served = result?.model ?? null, family = familyOf(model), failure = response.ok ? null : await response.clone().text().catch(() => '');
+    let diagnostic = null; // a bridge 503 on a reply it could not parse carries { error, diagnostic }: kept whole
+    if (failure) { try { diagnostic = JSON.parse(failure)?.diagnostic ?? null; } catch { /* not JSON */ } }
     calls.push({ role, model, raw: result?.content?.find(block => block?.type === 'tool_use' && block.name === tool)?.input ?? null, system });
     record({ ...row, served_model: served, billing: result?.billing ?? null, status: response.status, stop_reason: result?.stop_reason ?? null, ms: Date.now() - started,
-      in: null, out: null, cw: null, cr: null, cost_usd: 0, ...(response.ok && served !== family ? { served_mismatch: `${model} asked, ${served} served (expected ${family})` } : {}) });
-    if (!response.ok) throw new Refused(ABORTED = cut300(`${role}: subscription bridge HTTP ${response.status}: ${errorMessage(await response.clone().text().catch(() => ''))}`));
+      in: null, out: null, cw: null, cr: null, cost_usd: 0, ...(response.ok && served !== family ? { served_mismatch: `${model} asked, ${served} served (expected ${family})` } : {}),
+      ...(diagnostic ? { bridge_diagnostic: diagnostic } : {}) });
+    if (!response.ok) throw new Refused(ABORTED = cut300(`${role}: subscription bridge HTTP ${response.status}: ${errorMessage(failure)}${diagnostic ? ` (diagnostic ${diagnostic.id}: ${diagnostic.parser_error})` : ''}`));
     if (result?.billing !== 'claude-subscription' || !Array.isArray(result?.content)) throw new Refused(ABORTED = `${role}: unverified subscription reply (billing ${result?.billing ?? 'missing'})`);
     return response;
   }
@@ -398,9 +419,9 @@ async function runSubject(subject) {
   const stage = async (name, run, options) => {
     if (beyond(name)) return null;
     if (!early(name)) return step(subject, name, run, options);
-    const seeded = Object.hasOwn(SEEDS[subject.id], name);
-    record({ kind: 'step', subject: subject.id, step: name, checks: {}, pass: null, ...(seeded ? { seeded: SEED_FILE } : { skipped: 'before the --plan window; no later stage reads it' }) });
-    return seeded ? SEEDS[subject.id][name] : null;
+    const seed = SEEDS[subject.id][name];
+    record({ kind: 'step', subject: subject.id, step: name, checks: {}, pass: null, ...(seed ? { seeded: seed.file } : { skipped: 'before the --plan window; no later stage reads it' }) });
+    return seed ? seed.output : null;
   };
   const skipHere = (names, reason) => skip(subject, names.filter(name => !beyond(name)), reason);
 
@@ -597,7 +618,7 @@ function summarize() {
   }, 0);
   const worstTaken = callRows.reduce((n, row) => n + row.worst_usd, 0);
   return {
-    mode: MODE, file: FILE, budget: BUDGET, ceiling: CEILING, transport: TRANSPORT, ...(SUB ? { note: SUBSCRIPTION_NOTE } : {}), subjects_run: RUN_SUBJECTS.map(subject => subject.id), ...(PLAN ? { plan: PLAN_ARG, seed: SEED_FILE } : {}), stopped_at_budget: stoppedAt, aborted: ABORTED, crashed,
+    mode: MODE, file: FILE, budget: BUDGET, ceiling: CEILING, transport: TRANSPORT, ...(SUB ? { evidence: EVIDENCE, note: SUBSCRIPTION_NOTE } : {}), subjects_run: RUN_SUBJECTS.map(subject => subject.id), ...(PLAN ? { plan: PLAN_ARG, seed: SEED_FILE } : {}), stopped_at_budget: stoppedAt, aborted: ABORTED, crashed,
     subjects_done: rows.filter(row => row.kind === 'subject_done').map(row => row.subject),
     stages: steps.length, stages_passed: steps.filter(row => row.pass).length,
     failed_assertions: steps.filter(row => row.pass === false).flatMap(row => Object.entries(row.checks).filter(([, c]) => !c.pass).map(([assertion, c]) => ({ domain: row.subject, stage: row.step, assertion, reason: c.reason }))),
@@ -613,6 +634,7 @@ function summarize() {
         note: 'input characters / 2 at the cache-write rate plus max_tokens at the output rate; stub inputs are fixture-sized' },
     },
     served_model_mismatches: callRows.filter(row => row.served_mismatch || (LIVE && row.served_model && row.served_model !== row.requested_model)).map(row => `${row.subject}/${row.step} ${row.served_mismatch || `${row.requested_model} -> ${row.served_model}`}`),
+    bridge_diagnostics: callRows.filter(row => row.bridge_diagnostic).map(row => ({ stage: `${row.subject}/${row.step}`, role: row.role, diagnostic: row.bridge_diagnostic })),
     billed_unknown: callRows.filter(row => row.billed_unknown).map(row => `${row.subject}/${row.step} ${row.role}: ${row.billed_unknown}`),
   };
 }

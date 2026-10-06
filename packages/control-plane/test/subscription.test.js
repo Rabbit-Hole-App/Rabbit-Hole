@@ -55,6 +55,35 @@ test('bridge rejects unauthenticated requests without invoking Claude', async t 
   const response = await fetch(`http://127.0.0.1:${server.address().port}/messages`, { method: 'POST', body: '{}' });
   assert.equal(response.status, 401); assert.equal(calls, 0);
 });
+// A CLI reply that does not parse keeps its evidence: the 503 carries the diagnostic (raw text, parser error, the caller's
+// stage), never the token; SMALL_SUBSCRIPTION_DIAG_FILE also gets the line.
+test('an unparseable CLI reply answers 503 with a diagnostic and no credential; the diagnostic file gets one line', async t => {
+  const token = 'k'.repeat(40), text = 'Here is the revised path you asked for, s3 is now skipped.';
+  const run = async () => ({ type: 'result', subtype: 'success', is_error: false, stop_reason: 'end_turn', result: text });
+  const stub = { identify: async () => ({}), prepare: async () => [], run };
+  const server = createSubscriptionBridge({ token, generate: (body, options) => subscriptionMessage(body, { ...options, ...stub, diagFile: null }) });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => server.close());
+  const response = await fetch(`http://127.0.0.1:${server.address().port}/messages`, { method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'X-Corpus-Run': '2026-10-06T02-34-50-790Z', 'X-Corpus-Stage': 'adapt_edit', 'X-Corpus-Role': 'journey_adapt<script>' },
+    body: JSON.stringify({ model: 'claude-sonnet-5-5', system: 'SYSTEM PROMPT', messages: [{ role: 'user', content: 'input = {}' }], tools: [{ name: 'journey_adapt' }] }) });
+  const raw = await response.text(), body = JSON.parse(raw);
+  assert.equal(response.status, 503);
+  assert.equal(body.error, 'Invalid subscription model response');
+  assert.equal(body.diagnostic.raw_text, text);
+  assert.match(body.diagnostic.parser_error, /JSON/);
+  assert.deepEqual([body.diagnostic.run_id, body.diagnostic.stage, body.diagnostic.role, body.diagnostic.model_alias], ['2026-10-06T02-34-50-790Z', 'adapt_edit', 'journey_adaptscript', 'sonnet']);
+  assert.deepEqual(body.diagnostic.termination, { subtype: 'success', stop_reason: 'end_turn', is_error: false });
+  assert.ok(!raw.includes(token) && !raw.includes('SYSTEM PROMPT') && !raw.includes('input = {}'), 'no token, system prompt or request body in the reply');
+  const { mkdtempSync, readFileSync, rmSync } = await import('node:fs'), { tmpdir } = await import('node:os'), { join } = await import('node:path');
+  const dir = mkdtempSync(join(tmpdir(), 'bridge-diag-')), file = join(dir, 'diag.jsonl'), saved = process.env.SMALL_SUBSCRIPTION_DIAG_FILE;
+  t.after(() => { if (saved === undefined) delete process.env.SMALL_SUBSCRIPTION_DIAG_FILE; else process.env.SMALL_SUBSCRIPTION_DIAG_FILE = saved; rmSync(dir, { recursive: true, force: true }); });
+  process.env.SMALL_SUBSCRIPTION_DIAG_FILE = file;
+  await assert.rejects(subscriptionMessage({ messages: [{ role: 'user', content: 'x' }], tools: [{ name: 'journey_adapt' }] }, stub), /Invalid subscription model response/);
+  const lines = readFileSync(file, 'utf8').trim().split('\n').map(line => JSON.parse(line));
+  assert.equal(lines.length, 1);
+  assert.equal(lines[0].raw_text, text);
+});
 
 // models-3: every course action that calls a model is refused in subscription
 // mode; revise_section used to fall through to live small-cp's paid API.
