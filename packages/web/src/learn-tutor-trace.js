@@ -46,7 +46,8 @@ const hex = n => [...crypto.getRandomValues(new Uint8Array(n))].map(b => b.toStr
 export const newSessionId = () => `ts_${hex(8)}`;
 const count = () => { globalThis.__smallTutorTraceErrors = (globalThis.__smallTutorTraceErrors || 0) + 1; };
 export const safely = build => { try { return build(); } catch { count(); return null; } };
-const safe = build => (...args) => safely(() => build(...args));
+// One deep copy per event: a sink that mutates it never reaches the result, its contracts or the live HookSet.
+const safe = build => (...args) => safely(() => structuredClone(build(...args)));
 const byState = pairs => Object.fromEntries(STATES.map(state => [state, pairs.filter(([, s]) => s === state).map(([id]) => id)]));
 const tally = names => { const out = {}; for (const name of names) out[name] = (out[name] || 0) + 1; return out; };
 const canvasSummary = (kinds, claimIds) => ({ blocks: kinds.length, kinds: tally(kinds), presented_claim_ids: [...new Set(claimIds)] });
@@ -64,20 +65,37 @@ export const ROW_REASON = {
   misconception: 'repair_misconception', misconception_explain: 'repair_misconception', uncertain_unsettled: 'check_understanding', uncertain: 'consolidate',
   not_yet_observed: 'advance_goal', understood: 'test_transfer',
 };
+// No planner codes: a hook click is the learner following an interest (respond_to_question never stands beside it), and
+// /deeper or /simplify names its own move; every other turn takes its row's code.
+const SLASH_REASON = { deeper: 'deepen_mechanism', simplify: 'reduce_cognitive_load' };
+const routerCodes = (turn, routed) => {
+  if (!routed) return [];
+  const code = SLASH_REASON[turn.slash] ?? ROW_REASON[routed.row] ?? null;
+  if (!turn.next_step) return code ? [code] : [];
+  return ['follow_learner_interest', ...(code && code !== 'respond_to_question' && code !== 'follow_learner_interest' ? [code] : [])];
+};
 // The validator's repairs by rule name (learn-tutor-validate.js log lines; never their text).
 const REPAIRS = [[/^downgraded /, 'downgraded_navigation'], [/^removed /, 'citations_removed'], [/^shortened /, 'shortened_before_dive'], [/^explicit_request /, 'explicit_request_unquoted'], [/^dropped \S+ learning_goal/, 'learning_goal_dropped']];
-// At most 2 sentences and 300 characters; dropped (a repair) when it repeats five words of this turn's message.
+// At most 2 sentences and 300 characters; dropped (a repair) when it repeats five words of this turn's message, or contains
+// the message's start (its first 40 characters, so a message of four words or fewer is caught too).
 // ponytail: only this turn's words are checked; earlier turns rely on the prompt rule (never the learner's words).
 const rationale = (reason, raw) => {
   const text = String(reason ?? '').trim().split(/(?<=[.!?])\s+/).slice(0, 2).join(' ').slice(0, 300);
   if (!text) return { summary: null, repair: null };
-  return repeatsLearnerWords(text, raw) ? { summary: null, repair: 'rationale_dropped' } : { summary: text, repair: null };
+  const start = String(raw ?? '').trim().toLowerCase().slice(0, 40);
+  return repeatsLearnerWords(text, raw) || (start && text.toLowerCase().includes(start)) ? { summary: null, repair: 'rationale_dropped' } : { summary: text, repair: null };
 };
-// The planner calls behind a turn: the one that answered and, after an escalation, the fast attempt. Unknown cost is null.
+// The planner calls behind a turn: the one that answered and, after an escalation, the fast attempt. A count or cost no call
+// reported is null (unknown), never 0.
+const sumKnown = values => { const known = values.filter(n => typeof n === 'number'); return known.length ? known.reduce((a, b) => a + b, 0) : null; };
 const usageOf = telemetry => {
-  const calls = [telemetry, telemetry?.fast].filter(Boolean), costs = calls.map(t => t.cost_usd).filter(c => c != null);
-  return { ...Object.fromEntries(USAGE.map(k => [k, calls.reduce((n, t) => n + (t[k] || 0), 0)])), cost_usd: costs.length ? +costs.reduce((a, b) => a + b, 0).toFixed(6) : null };
+  const calls = [telemetry, telemetry?.fast].filter(Boolean), cost = sumKnown(calls.map(t => t.cost_usd));
+  return { ...Object.fromEntries(USAGE.map(k => [k, sumKnown(calls.map(t => t[k]))])), cost_usd: cost == null ? null : +cost.toFixed(6) };
 };
+// validation.fallback: a low-cardinality category, never upstream error text. The hook planner already names its reason;
+// the Tutor's are fastPlanProblem's two problems, planOnce's no-turn error, and anything else from the model call.
+const ESCALATIONS = ['no_tool', 'validator', 'ambiguous', 'contradictory', 'invalid_plan', 'no_words', 'model_error'];
+const escalation = reason => `escalated:${ESCALATIONS.includes(reason) ? reason : reason === 'no words' ? 'no_words' : reason === 'an action outside the allowed types' ? 'invalid_plan' : reason === 'The tutor returned no turn' ? 'no_tool' : 'model_error'}`;
 
 // A tutor_decision from runTurn's finished result. The actions are the turn's production contracts (result.contracts,
 // learn-tutor-actions.js), never recomputed; a turn without contracts (plan: false) gives [] and null.
@@ -88,10 +106,10 @@ export const decisionEvent = safe(({ result, domain, identity = {}, blocks = [],
   const contracts = result.contracts ?? [], record = turn.canvas.dive?.record ?? null, telemetry = response?.telemetry ?? null, claims = bench.claims || [];
   const conceptsOf = ids => [...new Set(ids.map(id => domain?.claims?.[id]?.concept).filter(Boolean))];
   const actions = contracts.map(({ action_type, command, modality, target_concept_ids, target_claim_ids }) => ({ action_type, command, modality, target_concept_ids, target_claim_ids }));
-  const planned = result.reason_codes ?? [], row = ROW_REASON[routed?.row] ?? null, flags = [];
+  const planned = result.reason_codes ?? [], router = routerCodes(turn, routed), flags = [];
   let reason_codes = planned, reason_source = planned.length ? 'planner' : null;
-  if (!planned.length && row) { reason_codes = [row]; reason_source = 'router'; }
-  if (planned.length === 1 && planned[0] === 'vary_modality') { reason_codes = [...(row ? [row] : []), 'vary_modality']; flags.push('vary_modality_alone'); }
+  if (!planned.length && router.length) { reason_codes = router; reason_source = 'router'; }
+  if (planned.length === 1 && planned[0] === 'vary_modality') { reason_codes = [...router.slice(0, 2), 'vary_modality']; flags.push('vary_modality_alone'); }
   const why = rationale(response?.reason, turn.raw_user_message);
   const presented = blocks.flatMap(block => {
     const t = resolveTarget(block);
@@ -126,7 +144,7 @@ export const decisionEvent = safe(({ result, domain, identity = {}, blocks = [],
       model: { tier: telemetry?.tier ?? null, escalated: !!telemetry?.escalated, calls: telemetry ? (telemetry.escalated ? 2 : 1) : 0 },
       usage: usageOf(telemetry),
       validation: { ok: !dropped && !repairs.length, dropped_actions: dropped, repairs,
-        fallback: telemetry?.escalated ? String(telemetry.escalated).slice(0, 160) : telemetry?.tail_lost ? 'tail_lost' : reason_source === 'router' ? 'router_reason' : null },
+        fallback: telemetry?.escalated ? escalation(telemetry.escalated) : telemetry?.tail_lost ? 'tail_lost' : reason_source === 'router' ? 'router_reason' : null },
     },
     flags,
   };
@@ -159,8 +177,8 @@ export const hooksEvent = safe((set, { input = null, identity = {}, scope = 'own
     },
     runtime: {
       timing: { total_ms: ran, planner_ms: ran, first_text_ms: null }, model: { tier: t.tier ?? null, escalated: !!t.escalated, calls: t.calls ?? 0 },
-      usage: { ...Object.fromEntries(USAGE.map(k => [k, t.usage?.[k] || 0])), cost_usd: t.cost_usd ?? null },
-      validation: { ok: !(t.errors || []).length, dropped_actions: 0, repairs: [...(t.errors || [])], fallback: t.escalated ?? null },
+      usage: { ...Object.fromEntries(USAGE.map(k => [k, t.usage?.[k] ?? null])), cost_usd: t.cost_usd ?? null },
+      validation: { ok: !(t.errors || []).length, dropped_actions: 0, repairs: [...(t.errors || [])], fallback: t.escalated ? escalation(t.escalated) : null },
     },
     flags: t.cached ? ['cached'] : [],
   };

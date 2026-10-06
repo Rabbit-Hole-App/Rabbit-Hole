@@ -59,7 +59,8 @@ const errors = () => globalThis.__smallTutorTraceErrors || 0;
 // Owner extra test 12c and the coordinator regression: tracing on or off, the same requests and results.
 test('trace on or off: identical planner requests and identical results; no trace key when off', async () => {
   const off = await turn(), on = await turn({ trace: { identity: { user_id: 'u-7' } } }), bare = await turn({ trace: true });
-  assert.deepEqual(on.sent, off.sent, 'byte-identical requests (the turn id is fixed)');
+  assert.equal(JSON.stringify(on.sent), JSON.stringify(off.sent), 'byte-identical requests (the turn id is fixed)');
+  assert.equal(JSON.stringify(bare.sent), JSON.stringify(off.sent));
   assert.deepEqual(strip(on), strip(off));
   assert.deepEqual(strip(bare), strip(off));
   assert.equal('trace' in off, false);
@@ -96,7 +97,7 @@ test('tutor_decision: exactly the contract keys, the chosen action from the cont
   assert.deepEqual(e.decision.canvas_summary, { blocks: 2, kinds: { explanation: 1, heading: 1 }, presented_claim_ids: [IDS[1]] });
   assert.deepEqual([e.decision.current_goal, e.decision.current_section_id, e.decision.next_step_options, e.decision.selected_next_step_id], [{ id: null, summary: 'Understand tidal power' }, 's1', [], null]);
   assert.deepEqual(e.versions, { planner_version: TUTOR_PLANNER_VERSION, prompt_version: 'abcdef012345', model_role: 'tutor', model_id: 'claude-sonnet-5-5' });
-  assert.deepEqual(e.runtime.usage, { input_tokens: 900, output_tokens: 80, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, cost_usd: 0.0026 });
+  assert.deepEqual(e.runtime.usage, { input_tokens: 900, output_tokens: 80, cache_creation_input_tokens: null, cache_read_input_tokens: null, cost_usd: 0.0026 }, 'cache counts not reported: null');
   assert.deepEqual(e.runtime.model, { tier: 'fast', escalated: false, calls: 1 });
   assert.deepEqual(e.runtime.validation, { ok: true, dropped_actions: 0, repairs: [], fallback: null });
   assert.deepEqual([typeof e.runtime.timing.total_ms, typeof e.runtime.timing.planner_ms, typeof e.runtime.timing.first_text_ms], ['number', 'number', 'number']);
@@ -108,6 +109,7 @@ test('reason codes: the planner codes as given; none -> the route row code (reas
   const none = await turn({ trace: true }, { strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: 'ok' }] });
   assert.deepEqual([none.trace.decision.reason_codes, none.trace.decision.reason_source, none.trace.runtime.validation.fallback], [['advance_goal'], 'router', 'router_reason']);
   assert.deepEqual([none.trace.versions.prompt_version, none.trace.versions.model_id, none.trace.runtime.usage.cost_usd, none.trace.decision.rationale_summary], [null, null, null, null], 'no telemetry: unknown, never 0');
+  assert.deepEqual(none.trace.runtime.usage, { input_tokens: null, output_tokens: null, cache_creation_input_tokens: null, cache_read_input_tokens: null, cost_usd: null }, 'no usage reported: null token counts, never 0');
   assert.deepEqual(Object.keys(ROW_REASON).filter(row => !REASON_CODES.includes(ROW_REASON[row])), [], 'every row code is a generic reason code');
   assert.equal(Object.values(ROW_REASON).includes('vary_modality'), false);
 });
@@ -117,11 +119,79 @@ test('validation: dropped actions, repairs by rule name, and fallback from an es
     telemetry: { tier: 'opus', escalated: 'an action outside the allowed types', served_model: 'claude-opus-5-5', input_tokens: 2000, output_tokens: 100, cost_usd: 0.01, prompt_version: 'abcdef012345', fast: { input_tokens: 900, output_tokens: 40, cost_usd: 0.0022 } } };
   const e = (await turn({ trace: true }, plan)).trace;
   assert.equal(e.runtime.validation.dropped_actions, 2);
-  assert.deepEqual([e.runtime.validation.ok, e.runtime.validation.fallback], [false, 'an action outside the allowed types']);
+  assert.deepEqual([e.runtime.validation.ok, e.runtime.validation.fallback], [false, 'escalated:invalid_plan']);
   assert.deepEqual(e.runtime.model, { tier: 'opus', escalated: true, calls: 2 });
-  assert.deepEqual(e.runtime.usage, { input_tokens: 2900, output_tokens: 140, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, cost_usd: 0.0122 }, 'both calls counted');
+  assert.deepEqual(e.runtime.usage, { input_tokens: 2900, output_tokens: 140, cache_creation_input_tokens: null, cache_read_input_tokens: null, cost_usd: 0.0122 }, 'both calls counted');
   const lost = (await turn({ trace: true }, { ...PLAN, reason: null, reason_codes: null, telemetry: { ...PLAN.telemetry, tail_lost: true } })).trace;
   assert.deepEqual([lost.runtime.validation.fallback, lost.decision.reason_source, lost.decision.rationale_summary], ['tail_lost', 'router', null]);
+});
+
+// Review fix 7: the fallback is a low-cardinality category, never upstream error text.
+test('validation.fallback: escalated:<category> for every planner escalation reason; an API error message never reaches the event', async () => {
+  const reasons = [['an action outside the allowed types', 'invalid_plan'], ['no words', 'no_words'], ['The tutor returned no turn', 'no_tool'],
+    ['The tutor is unavailable (model HTTP 529: Overloaded upstream-detail-7f3a for org acme)', 'model_error'], ['fetch failed: socket hang up upstream-detail-7f3a', 'model_error']];
+  for (const [escalated, category] of reasons) {
+    const e = (await turn({ trace: true }, { ...PLAN, telemetry: { ...PLAN.telemetry, tier: 'opus', escalated } })).trace;
+    assert.equal(e.runtime.validation.fallback, `escalated:${category}`, escalated);
+    assert.equal(/upstream-detail|socket|HTTP 529|acme/.test(JSON.stringify(e)), false, escalated);
+  }
+  for (const escalated of ['no_tool', 'validator', 'ambiguous', 'contradictory']) assert.equal(hooksEvent({ ...SET, telemetry: { ...SET.telemetry, escalated } }, { input: INPUT }).runtime.validation.fallback, `escalated:${escalated}`);
+  assert.equal(hooksEvent({ ...SET, telemetry: { ...SET.telemetry, escalated: 'The next steps planner is unavailable (model HTTP 500: upstream-detail-7f3a)' } }, { input: INPUT }).runtime.validation.fallback, 'escalated:model_error');
+});
+
+// Review fix 1: a message of four words or fewer is not covered by the five-word rule; its start is checked as well.
+const built = (turnOver = {}, extra = {}) => decisionEvent({ result: { turn: { turn_id: 't', raw_user_message: '', canvas: { app: 'c', board: 'main' }, evidence: [], ...turnOver }, store: emptyStore(), contracts: [], bench: {}, ...extra }, domain });
+test('a short learner message quoted in the rationale is dropped as rationale_dropped; an unrelated rationale is kept', () => {
+  for (const [raw, reason] of [['quiz me on softmax', 'The learner said quiz me on softmax.'], ['Show me the basin', 'They wrote show me the basin, so a card helps.']]) {
+    const e = built({ raw_user_message: raw }, { response: { reason } });
+    assert.deepEqual([e.decision.rationale_summary, e.runtime.validation.repairs], [null, ['rationale_dropped']], raw);
+    assert.equal(JSON.stringify(e).toLowerCase().includes(raw.toLowerCase()), false, raw);
+  }
+  const kept = built({ raw_user_message: 'quiz me on softmax' }, { response: { reason: 'A short check makes the idea observable.' } });
+  assert.deepEqual([kept.decision.rationale_summary, kept.runtime.validation.repairs], ['A short check makes the idea observable.', []]);
+});
+
+// Review fix 2: with no planner codes, a hook click is the learner following an interest; a slash names its own move.
+test('router codes: a hook click leads with follow_learner_interest (never beside respond_to_question); deeper and simplify name their move', async () => {
+  const step = SET.options[1].selected_next_step, words = { strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: 'Here is a way in.' }] };
+  const click = (plan, d = domain, nextStep = step) => runTurn({ raw: '', nextStep, materials: [], canvas: { app: 'canvas-1', board: 'main' }, access: { app: 'canvas-1' }, block: null, store: emptyStore(), post: worker(plan).post, domain: d, trace: true });
+  const onRow = await click(words);
+  assert.deepEqual([onRow.routed.row, onRow.trace.decision.reason_codes, onRow.trace.decision.reason_source, onRow.trace.runtime.validation.fallback], ['not_yet_observed', ['follow_learner_interest', 'advance_goal'], 'router', 'router_reason']);
+  const offSlice = await click(words, NANOGPT, { ...step, claim_ids: [] });
+  assert.deepEqual([offSlice.routed.row, offSlice.trace.decision.reason_codes], ['off_slice', ['follow_learner_interest']]);
+  const vary = await click({ ...words, reason_codes: ['vary_modality'] });
+  assert.deepEqual([vary.trace.decision.reason_codes, vary.trace.decision.reason_source, vary.trace.flags], [['follow_learner_interest', 'advance_goal', 'vary_modality'], 'planner', ['vary_modality_alone']]);
+  const planned = await click({ ...words, reason_codes: ['test_transfer'] });
+  assert.deepEqual([planned.trace.decision.reason_codes, planned.trace.decision.reason_source], [['test_transfer'], 'planner'], 'planner codes stand as given');
+  for (const [slash, code] of [['deeper', 'deepen_mechanism'], ['simplify', 'reduce_cognitive_load']]) {
+    const e = built({ slash }, { routed: { row: 'slash', strategy: 'none' } });
+    assert.deepEqual([e.decision.reason_codes, e.decision.reason_source], [[code], 'router'], slash);
+  }
+  assert.deepEqual(built({}, { routed: { row: 'off_slice', strategy: 'none' } }).decision.reason_codes, ['respond_to_question'], 'a typed off-slice question keeps its code');
+});
+
+// Review fix 3: an event shares no object with the result or the HookSet it was built from.
+test('events are deep copies: a sink that mutates an event never changes the contracts, the claims or the live HookSet', async () => {
+  const step = SET.options[1].selected_next_step;
+  const plan = { strategy: 'feynman', constraints_add: [], reason_codes: ['advance_goal'], actions: [{ type: 'respond_text', text: 'Try this.' }, { type: 'ask_question', text: 'Say it back?', claim: step.claim_ids[0], purpose: 'explain_back' }, { type: 'create_material', command: 'animate', request: 'a basin filling' }] };
+  const r = await runTurn({ raw: '', nextStep: step, materials: [{ command: 'animate', cards: ['mathAnimation'], paid: true }], canvas: { app: 'canvas-1', board: 'main' }, access: { app: 'canvas-1' }, block: null, store: emptyStore(), post: worker(plan).post, domain, trace: { next_step_options: SET.options } });
+  const contracts = structuredClone(r.contracts), claims = [...r.bench.claims], options = structuredClone(SET.options), set = structuredClone(SET);
+  assert.ok(r.trace.decision.expected_evidence.length && r.trace.decision.next_step_options.length);
+  const remove = addSink(e => {
+    for (const a of [...e.decision.actions, e.decision.chosen_action]) { a.target_claim_ids.push('x'); a.target_concept_ids.push('x'); }
+    for (const x of e.decision.expected_evidence) x.via = 'mutated';
+    for (const o of e.decision.next_step_options) { o.id = 'z'; o.claim_ids.push('z'); o.concept_ids.push('z'); }
+    e.decision.target_claim_ids.push('w');
+  });
+  emitDecision(r.trace);
+  emitDecision(hooksEvent(SET, { input: INPUT }));
+  await new Promise(resolve => setImmediate(resolve));
+  remove();
+  assert.deepEqual(r.contracts, contracts);
+  assert.deepEqual(r.bench.claims, claims);
+  assert.deepEqual(SET.options, options);
+  assert.deepEqual(SET, set);
+  assert.deepEqual(inputSummary(INPUT).target_claim_ids, IDS);
 });
 
 // Coordinator item 5: no learner words, prompts or chat history in an event.
@@ -205,10 +275,13 @@ test('hooksEvent: all three hooks with goals and ids, the same keys, no reason_i
 
 test('hooksEvent: escalation rule names and reason, a cached reply (zero usage, its producing call kept), shared provenance only as the one-way key', () => {
   const escalated = hooksEvent({ ...SET, telemetry: { ...SET.telemetry, tier: 'escalation', escalated: 'validator', calls: 2, errors: ['answer_reveal', 'distinct'], model_role: 'tutor_next_steps_escalation', model_id: 'claude-opus-5-5' } }, { input: INPUT });
-  assert.deepEqual(escalated.runtime.validation, { ok: false, dropped_actions: 0, repairs: ['answer_reveal', 'distinct'], fallback: 'validator' });
+  assert.deepEqual(escalated.runtime.validation, { ok: false, dropped_actions: 0, repairs: ['answer_reveal', 'distinct'], fallback: 'escalated:validator' });
   assert.deepEqual([escalated.runtime.model, escalated.identity.mode, escalated.identity.scope], [{ tier: 'escalation', escalated: true, calls: 2 }, 'canvas', 'owned']);
   const cached = hooksEvent({ ...SET, telemetry: { ...SET.telemetry, cached: true, calls: 0, usage: { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }, cost_usd: 0 } }, { input: INPUT });
-  assert.deepEqual([cached.flags, cached.runtime.usage.cost_usd, cached.runtime.usage.input_tokens, cached.runtime.model.calls], [['cached'], 0, 0, 0]);
+  assert.deepEqual([cached.flags, cached.runtime.usage, cached.runtime.model.calls], [['cached'], { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, cost_usd: 0 }, 0], 'a cached reply genuinely used nothing');
+  const { usage, cost_usd, ...unreported } = SET.telemetry;
+  assert.deepEqual(hooksEvent({ ...SET, telemetry: unreported }, { input: INPUT }).runtime.usage, { input_tokens: null, output_tokens: null, cache_creation_input_tokens: null, cache_read_input_tokens: null, cost_usd: null }, 'no usage reported: null, never 0');
+  assert.deepEqual([usage.input_tokens, cost_usd], [2000, 0.008]);
   assert.deepEqual([cached.versions.prompt_version, cached.versions.model_id, cached.runtime.timing.planner_ms], ['0123456789ab', 'claude-sonnet-5-5', null], 'the producing call is named; no planner ran now');
   const shared = hooksEvent(SET, { input: { ...INPUT, mode: 'shared', goal: undefined }, scope: 'shared', mode: 'shared', identity: { source: { share_key: 'a1b2c3', share_version: 4, origin_block_id: ':root', token: 'raw-token', owner: 'sharer@example.org' } } });
   assert.deepEqual([shared.identity.source, shared.identity.scope, shared.identity.mode, shared.identity.user_id, shared.decision.current_goal], [{ share_key: 'a1b2c3', share_version: 4, origin_block_id: ':root' }, 'shared', 'shared', null, { id: null, summary: null }]);

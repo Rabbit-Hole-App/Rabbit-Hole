@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { learnDb } from './learn-grade-fixture.js';
 import { liveDb, liveRuns, readOnlyControlPlane } from './live-storage-spy.js';
-import { tutorRoute, JEV_TIMEOUT_MS, fastPlanProblem, plannerTier } from '../src/learn-tutor-routes.js';
+import { tutorRoute, JEV_TIMEOUT_MS, fastPlanProblem, plannerTier, planTurn } from '../src/learn-tutor-routes.js';
 import { tutorQuestions, evaluationFrom, TUTOR_TOOL, NEXT_STEP_SYSTEM, PLANNER_SYSTEM, plannerRequest } from '../src/agents/learn-tutor.js';
 import { protocolFingerprint, GRADER_PROTOCOL_FINGERPRINT, JevError } from '../src/learn-grade-jev.js';
 import { promptVersion } from '../src/learn-models.js';
@@ -249,6 +249,27 @@ test('plan: prompt_version - a hook turn counts its uncached NEXT_STEP_SYSTEM bl
   assert.equal(plainHook, cachedHook, 'one string or two blocks of the same text: the same version');
   const streamed = plannerRequest(hook, 100, [], { stream: true, cache: true });
   assert.equal(await promptVersion(streamed.system, streamed.tools), cachedHook);
+});
+
+// Review fix 5: the hash runs beside the model call, never in front of it (fast tier included). The digest is held until
+// the model is called; hashing first would wait for the gate's timeout and log it before the call.
+test('plan: the prompt_version hash never sits in front of the model call, on the fast tier and on Opus', async t => {
+  const subtle = globalThis.crypto.subtle, digest = subtle.digest.bind(subtle);
+  t.after(() => { delete subtle.digest; });
+  const turn = { strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: 'Hi.' }] };
+  for (const [env, context] of [[{}, { route: { row: 'off_slice' }, learner_intent: { kind: 'question' }, allowed_actions: ['respond_text'] }], [{ TUTOR_PLANNER_FAST_MODEL: 'off' }, { learner_intent: { kind: 'explanation' } }]]) {
+    const events = [];
+    let open;
+    const gate = new Promise(resolve => { const timer = setTimeout(() => { events.push('gate timeout'); resolve(); }, 100); open = () => { clearTimeout(timer); resolve(); }; });
+    subtle.digest = async (...args) => { events.push('hash'); await gate; events.push('hashed'); return digest(...args); };
+    const callModel = async (_env, _request, model) => { events.push('call'); open(); return Response.json({ model, usage: { input_tokens: 10, output_tokens: 2 }, content: [{ type: 'tool_use', name: 'tutor_response', input: turn }], stop_reason: 'tool_use' }); };
+    const plan = await planTurn({ ANTHROPIC_API_KEY: 'k', ...env }, context, { callModel });
+    assert.deepEqual(events, ['hash', 'call', 'hashed'], JSON.stringify(env));
+    assert.deepEqual([plan.telemetry.tier ?? 'opus-only', /^[0-9a-f]{12}$/.test(plan.telemetry.prompt_version)], [env.TUTOR_PLANNER_FAST_MODEL ? 'opus-only' : 'fast', true]);
+  }
+  delete subtle.digest;
+  const failed = await planTurn({ ANTHROPIC_API_KEY: 'k', TUTOR_PLANNER_FAST_MODEL: 'off' }, { learner_intent: { kind: 'explanation' } }, { callModel: async () => { throw new Error('network down'); } }).catch(error => error);
+  assert.deepEqual([failed.message, failed.telemetry.outcome, /^[0-9a-f]{12}$/.test(failed.telemetry.prompt_version)], ['network down', 'error', true], 'a failed call still names its prompt');
 });
 
 test('the routes refuse bad input and apps the learner cannot reach', async t => {

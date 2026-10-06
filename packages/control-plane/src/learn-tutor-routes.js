@@ -283,9 +283,11 @@ async function planOnce(env, context, model, effort, { callModel = loggedModel('
   // TUTOR_AVATAR=on adds suggest_avatar_clip (Avatar Teacher §4.1); unset or anything else, the request is unchanged.
   const request = plannerRequest(context, LEARN_TASKS.tutor.maxTokens, documents, { effort, stream, cache, speed, avatar: env.TUTOR_AVATAR === 'on' });
   // TutorDecisionEvent versions (professor-next-steps.md §3.1): prompt_version is every system block and the tool sent (a hook
-  // turn's NEXT_STEP_SYSTEM included); cost_usd prices the reported usage at the requested model, null without usage.
+  // turn's NEXT_STEP_SYSTEM included), hashed beside the model call and awaited after it, never in front of it; cost_usd prices
+  // the reported usage at the requested model, null without usage.
+  const version = promptVersion(request.system, request.tools);
   const telemetry = { ms: null, requested_model: model, effort, served_model: null, input_tokens: null, output_tokens: null, ...(cache ? { cache: true, cache_creation_input_tokens: null, cache_read_input_tokens: null } : {}), ...(speed ? { requested_speed: speed, speed: null } : {}), stop_reason: null, outcome: null, ...(stream ? { streamed: true, first_output_ms: null, first_sentence_ms: null } : {}),
-    prompt_version: await promptVersion(request.system, request.tools), cost_usd: null };
+    prompt_version: null, cost_usd: null };
   const done = outcome => ({ ...telemetry, ms: Date.now() - started, outcome });
   const schema = tutorTool(env.TUTOR_AVATAR === 'on').input_schema;
   let result, actionsSeen = false, spoke = null;
@@ -304,9 +306,11 @@ async function planOnce(env, context, model, effort, { callModel = loggedModel('
       }
     }, () => { telemetry.first_output_ms ??= Date.now() - started; }) : await response.json();
   } catch (error) {
+    telemetry.prompt_version = await version;
     if (spoke) return kept();
     throw Object.assign(error, { telemetry: done('error') });
   }
+  telemetry.prompt_version = await version;
   Object.assign(telemetry, { served_model: result.model ?? null, input_tokens: result.usage?.input_tokens ?? null, output_tokens: result.usage?.output_tokens ?? null, stop_reason: result.stop_reason ?? null,
     ...(speed ? { speed: result.usage?.speed ?? null } : {}), ...(cache ? { cache_creation_input_tokens: result.usage?.cache_creation_input_tokens ?? null, cache_read_input_tokens: result.usage?.cache_read_input_tokens ?? null } : {}),
     cost_usd: result.usage ? costUsd({ model, ...result.usage }) : null });
