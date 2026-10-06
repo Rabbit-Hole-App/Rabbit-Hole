@@ -3,11 +3,13 @@
 // The check means "created by the source repository's owner", never identity verification, and it
 // comes only from an explicit source_owner_verified relationship - never from matching names.
 
+// The number alone, as the shared header's Fork button shows it: 0, 12, 1.2k.
+export const forkNumber = n => (n < 1000 ? String(n) : `${+(n / 1000).toFixed(1)}k`);
+
 // 0 is omitted; 1 fork; 24 forks; 1.2k forks.
 export function forkLabel(n) {
   if (!n) return null;
-  if (n < 1000) return `${n} fork${n === 1 ? '' : 's'}`;
-  return `${+(n / 1000).toFixed(1)}k forks`;
+  return `${forkNumber(n)} fork${n === 1 ? '' : 's'}`;
 }
 
 export function cardModel(a) {

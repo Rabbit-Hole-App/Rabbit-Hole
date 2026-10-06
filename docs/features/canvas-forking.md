@@ -21,6 +21,22 @@ Fork used everywhere.
   original is unavailable, revealing nothing else about it.
 - Counts: canvas cards show the direct fork count only ("1 fork", "24 forks"). A with forks B and
   C, and D forked from B: A = 2, B = 1.
+  - One number everywhere: `FORK_COUNT` in `canvases.js`. It counts the `canvas_forks` rows whose
+    fork canvas still exists, so a deleted fork stops counting.
+  - Only a successful fork moves it. A sign-in redirect, a refused or failed request, a replay of the
+    same action (`fork_key`) and Start Rabbit Hole add nothing.
+  - Library and Home cards show the fork icon and "N forks", and show nothing at 0.
+  - The shared header has one GitHub-style control (owner, 2026-10-06): `[GitFork  Fork  N]`. It is the
+    same lucide `GitFork` icon the cards use, and the count shows even at 0. The accessible name is
+    "Fork, N forks", and there is no separate "N forks" label beside it.
+  - The number comes from the server: `fork_count` on the shared board. After a fork, the button shows
+    the fork reply's `source_fork_count` (also on a replay), never a local +1, so a failed fork leaves the
+    number alone.
+  - A link to a board that is not a canvas (a project's board) has no canvas to count. Its `fork_count`
+    is null, and its Fork button shows no number.
+  - Explore: a fork count on Explore cards is blocked on a separate product decision about which shared
+    canvases are publicly discoverable. When Explore cards exist, they reuse this same count and the
+    cards' fork icon and count component (`Forks` in `home/Provenance.jsx`).
 - Permissions: the existing rules. Your own canvas, or a canvas whose share link you can open.
   Never a private canvas of someone else.
 - Never copied: another user's session, chat transcripts, voice transcripts, pending Rabbit Holes,

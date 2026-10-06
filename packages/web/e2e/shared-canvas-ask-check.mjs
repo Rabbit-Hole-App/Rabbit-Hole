@@ -177,7 +177,7 @@ const forked = JSON.stringify(await api(viewer, `/api/learn/boards/${forkName}/m
 check('A: the fork holds the canvas, never the viewer\'s private chat', forked.includes('Why exponentiate?') && !forked.includes('softmax stays out of saturation') && !forked.includes(DRAFT) && !forked.includes(LIMITED));
 await page.goto(`${BASE}/b/${token}`);
 await composer.waitFor({ timeout: 60000 });
-check('the shared page then counts the fork beside Fork, the composer still at the bottom', (await page.locator('[data-fork-count]').innerText()).trim() === '1 fork' && await composer.count() === 1);
+check('the shared page then counts the fork on Fork itself, the composer still at the bottom', (await page.locator('[data-fork-button] [data-fork-count-value]').innerText()).trim() === '1' && await page.locator('header [data-fork-count]').count() === 0 && await composer.count() === 1);
 
 // ---- C: a private repository's canvas: no repository pill until the owner opens it up for this link ----
 const lab = await api(owner, '/api/canvases', { method: 'POST', body: JSON.stringify({ title: 'Lab notes (private repo)', project: PRIVATE_REPO }) });

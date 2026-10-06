@@ -42,6 +42,25 @@ test('the shared canvas page shows the product top left: the aperture mark and t
   assert.match(page, /<header[^>]*>\n\s+\{\/\* The product, top left[^\n]*\n\s+<a href="\/" data-shared-brand[^>]*>\n\s+<img src="\/landing\/favicon-32-v1\.png"[^>]*\/>\n\s+<span[^>]*>\{PRODUCT\}<\/span>/);
 });
 
+// The shared header (owner, 2026-10-06): one GitHub-style control, [fork icon  Fork  N], with the same lucide GitFork the
+// Library/Home cards draw; no separate "N forks" label beside it. The number is the server's: shared.fork_count, and after a
+// fork the reply's source_fork_count - never a local +1, so a failed fork leaves it untouched.
+test('the shared header shows one Fork control carrying the canonical count, zero included', async () => {
+  const { readFileSync } = await import('node:fs');
+  const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const page = read('./SharedBoardPage.jsx'), button = read('./ForkButton.jsx'), cards = read('./home/Provenance.jsx');
+  assert.match(page, /<ForkButton source=\{\{ token \}\}[^\n]* count=\{shared\.fork_count\} \/>/);
+  assert.doesNotMatch(page, /<Forks\b|forkLabel/, 'no second fork-count label in the header');
+  assert.match(button, /import \{ Check, GitFork, Loader2 \} from 'lucide-react';/);
+  assert.match(cards, /<GitFork size=\{12\}[^>]*\/>\{m\.forks\}/, 'the cards draw the same icon');
+  assert.match(button, /if \(typeof made\.source_fork_count === 'number'\) setCounted\(made\.source_fork_count\);/);
+  assert.doesNotMatch(button, /\+ ?1\b|\+\+|setCounted\([^)]*\+/, 'never an optimistic count');
+  assert.match(button, /\{counts && <span data-fork-count-value[^>]*>\{forkNumber\(n\)\}<\/span>\}/);
+  assert.match(button, /aria-label=\{counts \? `\$\{label\}, \$\{forkLabel\(n\) \|\| '0 forks'\}` : undefined\}/);
+  // The canvas top bar's icon-only Fork and the Library cards' Fork are unchanged: no count prop there.
+  assert.doesNotMatch(read('./LearnPage.jsx'), /<ForkButton[^>]*count=/);
+});
+
 test('the canvas top bar opens the new fork with navigate, which LearnPage imports (lost once in a rebase onto goBack)', async () => {
   const { readFileSync } = await import('node:fs');
   const learn = readFileSync(new URL('./LearnPage.jsx', import.meta.url), 'utf8');

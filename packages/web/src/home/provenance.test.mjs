@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cardModel, forkLabel } from './provenance.js';
+import { cardModel, forkLabel, forkNumber } from './provenance.js';
 import { fixturesOn, FIXTURES_KEY } from './review-fixtures.js';
 import { FIXTURES } from './review-fixtures-data.js';
 
@@ -9,6 +9,8 @@ const byName = (name) => FIXTURES.find((a) => a.name === name);
 
 test('fork counts read naturally: none is omitted, one is singular, large ones are compact', () => {
   assert.deepEqual([0, undefined, 1, 24, 999, 1000, 1240, 12500].map(forkLabel), [null, null, '1 fork', '24 forks', '999 forks', '1k forks', '1.2k forks', '12.5k forks']);
+  // The shared header's Fork button shows the number alone, zero included, compacted the same way.
+  assert.deepEqual([0, 1, 12, 999, 1000, 1240, 12500].map(forkNumber), ['0', '1', '12', '999', '1k', '1.2k', '12.5k']);
 });
 
 test('the source-owner check comes only from source_owner_verified, never from a matching name', () => {
