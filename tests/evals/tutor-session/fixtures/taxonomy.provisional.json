@@ -1,0 +1,25 @@
+{
+  "provisional": true,
+  "source": "Owner brief 2026-10-06 examples only. Replace with the modality and reason-code taxonomy of the Learning agent's TutorDecisionTrace checkpoint before any paid run.",
+  "modalities": {
+    "explanation": { "mode": "passive", "effort": "low", "family": "explanation" },
+    "video": { "mode": "passive", "effort": "low", "family": "media", "expensive": true },
+    "avatar": { "mode": "passive", "effort": "low", "family": "media", "expensive": true },
+    "motion": { "mode": "passive", "effort": "low", "family": "media", "expensive": true },
+    "quiz": { "mode": "active", "effort": "medium", "family": "quiz" },
+    "challenge": { "mode": "active", "effort": "high", "family": "quiz" },
+    "explain_back": { "mode": "active", "effort": "high", "family": "explain_back" },
+    "interactive": { "mode": "active", "effort": "medium", "family": "interactive" },
+    "code_activity": { "mode": "active", "effort": "high", "family": "code" }
+  },
+  "reason_codes": {
+    "repair_misconception": { "kind": "remediation", "requires": "misconception_on_target" },
+    "fill_prerequisite_gap": { "kind": "remediation", "requires": "prerequisite_gap" },
+    "vary_modality": { "kind": "other", "requires": "recent_modality_repetition" },
+    "advance_goal": { "kind": "progression", "requires": "unfinished_target" }
+  },
+  "meaningful_response_kinds": ["answer", "explanation", "question", "activity"],
+  "boring_run_length": 4,
+  "duplicate_threshold": 0.6,
+  "hook_repeat_threshold": 0.8
+}
