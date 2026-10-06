@@ -17,10 +17,11 @@
 // USD within the owner's hard ceiling of 1.90. The key and workspace id are the ANTHROPIC_API_KEY= and ANTHROPIC_WORKSPACE_ID= lines of the main checkout .env;
 // the models are LEARN_TASKS', never substituted. Before each call the budget guard prices its worst case and refuses a
 // call that does not fit; rows are appended per call, so a stop keeps every observation, and spent sums every live JSONL
-// in --out. A refused request (HTTP 4xx other than 429, or a 429 with a rate limit of 0) stops the run.
+// in --out. Any HTTP 4xx (insufficient credit included) aborts the run at once, recorded as aborted with the API's message.
 // --resume continues the newest JSONL of this mode in --out; a subject cut midway is run again from its start.
+// --seed <jsonl> --plan <subject>:<from>-<to>[,...] (owner, 2026-10-05): run only the unresolved cases; see PLAN below.
 // Output: <out>/journey-corpus-<mode>-<stamp>.jsonl (call, step and subject_done rows) and <out>/summary.json.
-// Usage: node e2e/journey-corpus-run.mjs [--out dir] [--budget USD] [--resume]
+// Usage: node e2e/journey-corpus-run.mjs [--out dir] [--budget USD] [--resume] [--seed jsonl --plan subject:from-to,...]
 //        JOURNEY_CORPUS_PAID=GO node e2e/journey-corpus-run.mjs --live --budget 1.9 --out <dir>
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
@@ -53,7 +54,21 @@ const CEILING = 1.9; // the owner's hard total ceiling, USD (2026-10-05)
 // --subjects id,id: run only these SUBJECTS (owner rerun GO, 2026-10-05: the four domains, not the fast-start case).
 // Leakage is still checked against every subject's terms.
 const ONLY = flag('subjects', null)?.split(',').map(id => id.trim()).filter(Boolean) || null;
-const RUN_SUBJECTS = ONLY ? SUBJECTS.filter(subject => ONLY.includes(subject.id)) : SUBJECTS;
+// --seed <jsonl> --plan <subject>:<from>-<to>[,...] (owner, 2026-10-05): only the unresolved live cases. Per planned subject,
+// the stages before <from> are seeded from that subject's last successful step output in the seed log (the ones a later
+// stage reads: the diagnostic, the path, and the section plan when the dive runs), exactly as the chained run passed them
+// on, and recorded as seeded, never as passes; stages after <to> do not run; unplanned subjects and the resolver probes do
+// not run. A needed seed that is missing or failed refuses the whole run before any call. Without --plan nothing changes.
+const STAGES = ['diagnostic', 'path', 'section', 'adapt_edit', 'adapt_evidence', 'tutor', 'dive'];
+const SEED_FILE = flag('seed', null), PLAN_ARG = flag('plan', null);
+if (!SEED_FILE !== !PLAN_ARG) throw Error('--seed and --plan go together');
+if (PLAN_ARG && (ONLY || args.includes('--resume'))) throw Error('--plan names its own subjects and runs once: no --subjects, no --resume');
+const PLAN = PLAN_ARG && Object.fromEntries(PLAN_ARG.split(',').map(item => {
+  const m = item.trim().match(/^([a-z0-9-]+):([a-z_]+)-([a-z_]+)$/), order = name => STAGES.indexOf(name);
+  if (!m || !SUBJECTS.some(subject => subject.id === m[1]) || order(m[2]) < 0 || order(m[3]) < order(m[2])) throw Error(`--plan ${item}: expected <subject>:<from>-<to>, a known subject and two stages in order (${STAGES.join(', ')})`);
+  return [m[1], { from: m[2], to: m[3] }];
+}));
+const RUN_SUBJECTS = PLAN ? SUBJECTS.filter(subject => PLAN[subject.id]) : ONLY ? SUBJECTS.filter(subject => ONLY.includes(subject.id)) : SUBJECTS;
 if (ONLY && RUN_SUBJECTS.length !== ONLY.length) throw Error(`--subjects names an unknown subject: ${ONLY.filter(id => !SUBJECTS.some(subject => subject.id === id)).join(', ')}`);
 const LIVE = args.includes('--live'), RESUME = args.includes('--resume'), MODE = LIVE ? 'live' : 'stub';
 const OUT = flag('out', join(tmpdir(), 'journey-corpus')), BUDGET = Number(flag('budget', LIVE ? 'NaN' : String(CEILING)));
@@ -91,6 +106,23 @@ const guard = (spent, worst, budget) => { if (spent + worst > Math.min(budget, C
 
 mkdirSync(OUT, { recursive: true });
 const read = file => readFileSync(file, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line));
+// The --plan seeds, checked before anything runs: subject -> stage -> the seed log's validated output.
+const SEEDS = PLAN ? (() => {
+  const last = new Map(read(SEED_FILE).filter(row => row.kind === 'step').map(row => [`${row.subject}/${row.step}`, row]));
+  const seeds = {}, missing = [], before = (name, from) => STAGES.indexOf(name) < STAGES.indexOf(from);
+  for (const [id, { from, to }] of Object.entries(PLAN)) {
+    const subject = SUBJECTS.find(s => s.id === id);
+    const needed = [subject.diagnostic && before('diagnostic', from) && 'diagnostic', before('path', from) && 'path', before('section', from) && to === 'dive' && 'section'].filter(Boolean);
+    seeds[id] = {};
+    for (const name of needed) {
+      const row = last.get(`${id}/${name}`);
+      if (row?.checks?.valid?.pass === true && row.output != null) seeds[id][name] = row.output;
+      else missing.push(`${id}/${name} (${!row ? 'not in the seed log' : row.skipped ? `skipped: ${row.skipped}` : row.seeded ? 'seeded there too, no output' : `failed: ${row.checks?.valid?.reason ?? 'no output'}`})`);
+    }
+  }
+  if (missing.length) throw Error(`--seed ${SEED_FILE} has no successful output for ${missing.join('; ')}. Nothing was run.`);
+  return seeds;
+})() : null;
 const spent = () => (LIVE ? readdirSync(OUT).filter(name => /^journey-corpus-live-.*\.jsonl$/.test(name)).reduce((n, name) => n + read(join(OUT, name)).reduce((m, row) => m + (row.cost_usd || 0), 0), 0) : 0);
 const mine = readdirSync(OUT).filter(name => name.startsWith(`journey-corpus-${MODE}-`) && name.endsWith('.jsonl')).sort();
 const FILE = RESUME && mine.length ? join(OUT, mine.at(-1)) : join(OUT, `journey-corpus-${MODE}-${new Date().toISOString().replace(/[:.]/g, '-')}.jsonl`);
@@ -154,8 +186,12 @@ async function callModel(env, body, model, org) {
   const u = result?.usage || {}, tokens = { in: u.input_tokens ?? 0, out: u.output_tokens ?? 0, cw: u.cache_creation_input_tokens ?? 0, cr: u.cache_read_input_tokens ?? 0 };
   calls.push({ role, model, raw: result?.content?.find(block => block?.type === 'tool_use' && block.name === tool)?.input ?? null, system });
   record({ ...row, served_model: result?.model ?? null, status: response.status, stop_reason: result?.stop_reason ?? null, ms: Date.now() - started, ...tokens, cost_usd: +usd({ model, ...tokens }).toFixed(6) });
-  if (response.status >= 400 && response.status < 500 && (response.status !== 429 || /rate limit of 0 /.test(await response.clone().text().catch(() => '')))) {
-    throw new Refused(ABORTED = `${role}: model HTTP ${response.status}`);
+  // Any 4xx aborts (owner, 2026-10-05: insufficient credit included; nothing is retried), with the API's own message.
+  if (response.status >= 400 && response.status < 500) {
+    const text = await response.clone().text().catch(() => '');
+    let message = text;
+    try { message = JSON.parse(text)?.error?.message ?? text; } catch { /* not JSON: the text as it came */ }
+    throw new Refused(ABORTED = cut300(`${role}: model HTTP ${response.status}: ${message}`));
   }
   return response;
 }
@@ -234,13 +270,38 @@ function adaptRepair(out, input) {
     : pathOutput(first.raw, { prev: input.prev, registry: input.registry, source: input.evidence ? 'evidence' : 'learner_edit', evidence_refs: input.evidence?.refs ?? [] }).errors || [];
   return { used: 'journey_path', model: LEARN_TASKS.journey_path.model, why: out.escalated, ...(errors ? { rejected: cut300(errors.join('; ')), rejected_errors: errors } : {}) };
 }
+// Owner, 2026-10-05, the two gaps the live run found, asserted on the reply as written (they run when the validator
+// rejected it too). key_ids_registered: every key.misconceptions value of every check is a misconception id of that
+// check's claims; a wrong option with none stays out of the key (counted as omitted).
+const isObj = v => v != null && typeof v === 'object' && !Array.isArray(v);
+const list = v => (Array.isArray(v) ? v : []);
+function keyIds(raw, registry) {
+  let mapped = 0, omitted = 0;
+  const bad = [];
+  for (const c of list(raw?.checks).filter(c => c?.key != null)) {
+    const known = list(c.claims).flatMap(id => list(registry.claims[id]?.misconceptions).map(m => m?.id)), wrong = isObj(c.key.misconceptions) ? c.key.misconceptions : {};
+    for (const [option, id] of Object.entries(wrong)) if (known.includes(id)) mapped++; else bad.push(`${c.id}: option ${option} -> ${id} is not a misconception id of ${list(c.claims).join(', ')}`);
+    omitted += list(c.options).filter(o => o?.id !== c.key.correct && !Object.hasOwn(wrong, o?.id)).length;
+  }
+  return { key_ids_registered: check(!bad.length, bad.length ? cut300(bad.join('; ')) : `${mapped} wrong options mapped to a registered misconception, ${omitted} omitted`) };
+}
+// prerequisites_are_concepts: every section's prerequisites and target_concepts are concept ids of the registry or the
+// reply's concepts_added, and none is a section id.
+function conceptRefs(raw, registry) {
+  const sections = list(raw?.path?.sections), concepts = { ...registry.concepts, ...(isObj(raw?.concepts_added?.concepts) ? raw.concepts_added.concepts : {}) };
+  const ids = new Set(sections.map(s => s?.id));
+  const bad = sections.flatMap(s => ['prerequisites', 'target_concepts'].flatMap(k => list(s?.[k]).filter(c => ids.has(c) || !Object.hasOwn(concepts, c))
+    .map(c => `${s.id} ${k}: ${c} (${ids.has(c) ? 'a section id' : 'not a concept id'})`)));
+  return { prerequisites_are_concepts: check(sections.length && !bad.length, !sections.length ? 'the reply has no sections' : bad.length ? cut300(bad.join('; ')) : `${sections.length} sections: every prerequisite and target is a concept id`) };
+}
 const adaptValid = (out, repair) => check(out.escalated !== 'validator', !out.escalated ? 'journey_adapt answered' : out.escalated === 'validator' ? `journey_adapt rejected: ${repair.rejected}` : `journey_adapt said ${out.escalated}; journey_path answered`);
 
 // One stage: run it, judge it (only when it returned), record it with its latency and repair use. A budget stop or a
 // refusal ends the run; any other error (PlannerInvalid, a model 5xx) is the stage's failed `valid` check, verbatim, with
 // PlannerInvalid's errors in full beside it. A throw inside a check, the repair or the output function is a failed check
 // with its message. A stage that fails, or that a repair answered, keeps every call's raw tool input.
-async function step(subject, name, run, { checks: judge = () => ({}), repair: repairOf = () => null, output = out => out, note = null } = {}) {
+// rawChecks(raw): assertions on the last call's tool input as the model wrote it, run whether or not it validated.
+async function step(subject, name, run, { checks: judge = () => ({}), rawChecks = null, repair: repairOf = () => null, output = out => out, note = null } = {}) {
   at = { subject: subject.id, step: name };
   calls.length = 0;
   const started = Date.now();
@@ -250,6 +311,7 @@ async function step(subject, name, run, { checks: judge = () => ({}), repair: re
   const checks = error ? { valid: check(false, why(error)) } : { valid: check(true, 'passes its validator') };
   const guarded = (label, fn, fallback) => { try { return fn(); } catch (e) { checks[label] = check(false, cut300(`${label} threw ${e.name}: ${e.message}`)); return fallback; } };
   if (!error) Object.assign(checks, guarded('checks', () => judge(out), {}));
+  if (rawChecks && calls.length) Object.assign(checks, guarded('raw_checks', () => rawChecks(calls.at(-1).raw), {}));
   const repair = error ? null : guarded('repair', () => repairOf(out), null);
   if (subject.terms && calls.length) { const leak = guarded('no_topic_leakage', () => leakage(subject), null); if (leak) checks.no_topic_leakage = leak; }
   const shown = error ? null : guarded('output', () => output(out), null), pass = Object.values(checks).every(c => c.pass);
@@ -291,19 +353,31 @@ async function runSubject(subject) {
   for (const { slot } of INTAKE_SLOTS) if (intake.slots[slot] === undefined && subject.intake[slot]) intake = applyIntakeAnswer(intake, slot, { option_id: subject.intake[slot] });
   for (const [slot, value] of Object.entries(subject.slots)) intake = { ...intake, slots: { ...intake.slots, [slot]: value }, source: { ...intake.source, [slot]: 'stated' } };
   let registry = { concepts: {}, claims: {} }, store = emptyStore(), note = null;
+  // --plan: a stage before the window is seeded (or, when no later stage reads it, recorded as not run); a stage after it
+  // does not run. Without --plan every stage runs.
+  const span = PLAN?.[subject.id], order = name => STAGES.indexOf(name);
+  const beyond = name => !!span && order(name) > order(span.to), early = name => !!span && order(name) < order(span.from);
+  const stage = async (name, run, options) => {
+    if (beyond(name)) return null;
+    if (!early(name)) return step(subject, name, run, options);
+    const seeded = Object.hasOwn(SEEDS[subject.id], name);
+    record({ kind: 'step', subject: subject.id, step: name, checks: {}, pass: null, ...(seeded ? { seeded: SEED_FILE } : { skipped: 'before the --plan window; no later stage reads it' }) });
+    return seeded ? SEEDS[subject.id][name] : null;
+  };
+  const skipHere = (names, reason) => skip(subject, names.filter(name => !beyond(name)), reason);
 
   // (a) Diagnostic; its scripted answers become the journey's evidence. Failed, the path goes on as after a skipped one.
   if (subject.diagnostic) {
-    const diagnostic = await step(subject, 'diagnostic', () => planDiagnostic(ENV, { topic, intake, grounding: { kind: 'topic' } }, { callModel }));
+    const diagnostic = await stage('diagnostic', () => planDiagnostic(ENV, { topic, intake, grounding: { kind: 'topic' } }, { callModel }));
     if (diagnostic) {
       registry = diagnostic.registry;
       ({ store } = appendEvents(store, probeEvents(registry, diagnostic.probes)));
     } else note = 'the diagnostic failed: drafted as after a skipped diagnostic (empty registry, no evidence)';
-  } else skip(subject, ['diagnostic'], 'a fast start has none: the path draft starts from an empty registry');
+  } else skipHere(['diagnostic'], 'a fast start has none: the path draft starts from an empty registry');
 
   // (b) Path: the first draft, its concepts_added merged into the registry (new ids only) as the route's drafted() does.
-  const drafted = await step(subject, 'path', () => planPath(ENV, { topic, intake, states: claimStates(store.events, registry), constraints: [], pending_edits: [], registry,
-    diagnostic_evidence_refs: store.events.map(e => e.seq), ...(quick ? { max_sections: 3 } : {}) }, { callModel }), { note, checks: out => {
+  const drafted = await stage('path', () => planPath(ENV, { topic, intake, states: claimStates(store.events, registry), constraints: [], pending_edits: [], registry,
+    diagnostic_evidence_refs: store.events.map(e => e.seq), ...(quick ? { max_sections: 3 } : {}) }, { callModel }), { note, rawChecks: raw => conceptRefs(raw, registry), checks: out => {
     const { sections } = out.path, raw = calls.at(-1)?.raw;
     return {
       section_count: quick ? check(sections.length <= 3, `${sections.length} sections (quick overview: at most 3)`) : check(sections.length >= 4 && sections.length <= 10, `${sections.length} sections (default depth: 4-10)`),
@@ -313,7 +387,7 @@ async function runSubject(subject) {
       only_current_generated: onlyCurrent(out.path), plans_only: plansOnly(raw), wording: pathWording(raw),
     };
   } });
-  if (!drafted) return skip(subject, ['section', 'adapt_edit', 'adapt_evidence', 'tutor', 'dive'], 'the path failed');
+  if (!drafted) return skipHere(['section', 'adapt_edit', 'adapt_evidence', 'tutor', 'dive'], 'the path failed');
   registry = { concepts: { ...drafted.concepts_added.concepts, ...registry.concepts }, claims: { ...drafted.concepts_added.claims, ...registry.claims } };
   const states = () => claimStates(store.events, registry);
   const [s1, s2] = drafted.path.sections;
@@ -321,7 +395,7 @@ async function runSubject(subject) {
   // (c) Section 1's plan, on the accepted version (section 1 current), as the route's accept + plan_section.
   const accepted = { ...drafted.path, version: 2, current_section_id: s1.id, sections: drafted.path.sections.map((s, i) => (i ? s : { ...s, status: 'current' })),
     change: { source: 'learner_edit', reason: 'accepted', evidence_refs: [], sections_changed: [] } };
-  const plan = await step(subject, 'section', () => planSection(ENV, { path: accepted, section: accepted.sections[0], registry, states: states() }, { callModel }), { checks: out => {
+  const plan = await stage('section', () => planSection(ENV, { path: accepted, section: accepted.sections[0], registry, states: states() }, { callModel }), { rawChecks: raw => keyIds(raw, registry), checks: out => {
     const own = new Set([...s1.target_concepts, ...s1.prerequisites]);
     const used = [...out.teaching_sequence.flatMap(s => s.claims), ...out.checks.flatMap(c => c.claims), ...out.completion_evidence.map(e => e.claim)];
     const outside = [...new Set([...out.target_concepts, ...used.map(id => registry.claims[id].concept)].filter(c => !own.has(c)))];
@@ -334,15 +408,15 @@ async function runSubject(subject) {
 
   // (d), (e): both adapt the same input, section 1 completed and section 2 current. The fast start runs neither (spend).
   const adapting = subject.adapt !== false;
-  if (!adapting) skip(subject, ['adapt_evidence'], 'the fast-start case runs no adapt stage (spend)');
+  if (!adapting) skipHere(['adapt_evidence'], 'the fast-start case runs no adapt stage (spend)');
   const prev = adapting && s2 && { ...accepted, current_section_id: s2.id, change: { source: 'learner_edit', reason: 'section 1 completed', evidence_refs: [], sections_changed: [] },
     sections: drafted.path.sections.map((s, i) => (i === 0 ? { ...s, status: 'completed', generation_state: 'generated', heading_block_id: 'corpus-s1-heading' } : i === 1 ? { ...s, status: 'current' } : s)) };
-  if (adapting && !prev) skip(subject, [...(subject.edit ? ['adapt_edit'] : []), 'adapt_evidence'], 'the drafted path has no section 2');
+  if (adapting && !prev) skipHere([...(subject.edit ? ['adapt_edit'] : []), 'adapt_evidence'], 'the drafted path has no section 2');
   const later = prev ? prev.sections.slice(2) : [], target = later[1] ?? later[0];
-  if (prev && subject.edit && !target) skip(subject, ['adapt_edit'], 'the drafted path has no section after the current one to edit');
+  if (prev && subject.edit && !target) skipHere(['adapt_edit'], 'the drafted path has no section after the current one to edit');
   else if (prev && subject.edit) {
     const input = { prev, edit: EDITS[subject.edit](target.title), registry, states: states() };
-    await step(subject, 'adapt_edit', () => adaptPath(ENV, input, { callModel }), { repair: out => adaptRepair(out, input), checks: out => ({
+    await stage('adapt_edit', () => adaptPath(ENV, input, { callModel }), { repair: out => adaptRepair(out, input), rawChecks: raw => conceptRefs(raw, input.registry), checks: out => ({
       adapt_valid: adaptValid(out, adaptRepair(out, input)),
       completed_unchanged: unchanged(prev.sections[0], out.path.sections.find(s => s.id === prev.sections[0].id)),
       edit_respected: respected(subject.edit, prev, out.path, target),
@@ -351,12 +425,12 @@ async function runSubject(subject) {
   }
   // (e) A settled misconception (two settled events naming it) on a section-2 claim.
   const claim = prev && claimsOf(registry, s2).find(id => registry.claims[id].misconceptions.length);
-  if (prev && !claim) skip(subject, ['adapt_evidence'], 'section 2 has no claim with a named misconception');
+  if (prev && !claim) skipHere(['adapt_evidence'], 'section 2 has no claim with a named misconception');
   else if (prev) {
     const named = registry.claims[claim].misconceptions[0].id, tag = { evaluator: 'jev', source: 'free_text', misconception_id: named };
     const appended = appendEvents(store, [event(registry, claim, 'misconception', tag), event(registry, claim, 'misconception', tag)]);
     const input = { prev, evidence: { claims: [claim], refs: appended.events.map(e => e.seq) }, registry, states: claimStates(appended.store.events, registry) };
-    await step(subject, 'adapt_evidence', () => adaptPath(ENV, input, { callModel }), { repair: out => adaptRepair(out, input), checks: out => {
+    await stage('adapt_evidence', () => adaptPath(ENV, input, { callModel }), { repair: out => adaptRepair(out, input), rawChecks: raw => conceptRefs(raw, input.registry), checks: out => {
       // Evidence changes future planning only: completed and current history byte-identical, the change list on later sections.
       const cut = prev.sections.findIndex(s => s.id === prev.current_section_id) + 1, history = prev.sections.slice(0, cut);
       const rewritten = history.filter((s, i) => JSON.stringify(s) !== JSON.stringify(out.path.sections[i])).map(s => s.id);
@@ -375,7 +449,7 @@ async function runSubject(subject) {
   // (f) One journey Tutor turn in section 1: a question about its first claim, the store holding the journey's evidence.
   const journey = { id: journeyId, state: 'active', active_section_id: s1.id, registry, request: { topic }, intake };
   let context = null;
-  await step(subject, 'tutor', () => {
+  await stage('tutor', () => {
     // ponytail: no evaluator in the corpus (the brief's chain is planners only); /evaluate answers skipped, no evidence.
     const post = async (path, body) => { if (path !== '/api/learn/tutor/plan') return { status: 'skipped', evaluator: null, events: [] }; context = body.context; return planTurn(ENV, body.context, { callModel }); };
     return runTurn({ raw: tutorQuestion(registry.claims[claimsOf(registry, s1)[0]].statement), canvas: { app: 'canvas-corpus', board: 'main' }, access: { app: 'canvas-corpus' }, block: null,
@@ -404,7 +478,7 @@ async function runSubject(subject) {
   const first = plan?.teaching_sequence.find(s => s.claims.length);
   const block = first ? { id: `corpus-${first.step_id}`, type: 'explanation', title: first.step_id, journey: { journey_id: journeyId, section_id: s1.id, step_id: first.step_id, claims: first.claims } }
     : { id: 'corpus-note', type: 'note', title: s1.title };
-  await step(subject, 'dive', () => {
+  await stage('dive', () => {
     const ctx = journeyDiveContext(journey, accepted, block), base = { name: 'canvas-corpus-dive', title: s1.title, via: 'learner_slash', parent: { app: 'canvas-corpus', board: 'main' }, target: resolveTarget(block), block };
     return { context: ctx, record: diveRecord({ ...base, journey: ctx }), plain: diveRecord(base) };
   }, { note: first ? 'from a stamped section-1 step block' : 'no section plan: from an unstamped block', checks: ({ context: ctx, record, plain }) => {
@@ -439,7 +513,7 @@ async function runResolver() {
 // One pass; summary.json is written whatever happens (a crash is recorded in it, then the error goes on).
 let stoppedAt = null, crashed = null;
 try {
-  for (const item of [{ id: 'resolver', run: runResolver }, ...RUN_SUBJECTS.map(subject => ({ id: subject.id, run: () => runSubject(subject) }))]) {
+  for (const item of [...(PLAN ? [] : [{ id: 'resolver', run: runResolver }]), ...RUN_SUBJECTS.map(subject => ({ id: subject.id, run: () => runSubject(subject) }))]) {
     if (done.has(item.id)) continue;
     try { await item.run(); } catch (error) {
       if (error instanceof BudgetStop) { stoppedAt = { ...at, reason: error.message }; break; }
@@ -459,6 +533,8 @@ try {
   }
   writeFileSync(join(OUT, 'summary.json'), `${JSON.stringify(summary, null, 2)}\n`);
   console.log(JSON.stringify(summary, null, 2));
+  const worst = summary.cost?.worst_case_usd;
+  if (worst) console.error(`projected worst case${PLAN ? ` for --plan ${PLAN_ARG}` : ''}: $${worst.calls_made} for the calls made, $${worst.plus_untaken_escalations} with every escalation they could take`);
 }
 
 // The summary: the last row per subject/stage (a resumed subject ran again), every call row for the cost.
@@ -483,14 +559,15 @@ function summarize() {
   }, 0);
   const worstTaken = callRows.reduce((n, row) => n + row.worst_usd, 0);
   return {
-    mode: MODE, file: FILE, budget: BUDGET, ceiling: CEILING, subjects_run: RUN_SUBJECTS.map(subject => subject.id), stopped_at_budget: stoppedAt, aborted: ABORTED, crashed,
+    mode: MODE, file: FILE, budget: BUDGET, ceiling: CEILING, subjects_run: RUN_SUBJECTS.map(subject => subject.id), ...(PLAN ? { plan: PLAN_ARG, seed: SEED_FILE } : {}), stopped_at_budget: stoppedAt, aborted: ABORTED, crashed,
     subjects_done: rows.filter(row => row.kind === 'subject_done').map(row => row.subject),
     stages: steps.length, stages_passed: steps.filter(row => row.pass).length,
     failed_assertions: steps.filter(row => row.pass === false).flatMap(row => Object.entries(row.checks).filter(([, c]) => !c.pass).map(([assertion, c]) => ({ domain: row.subject, stage: row.step, assertion, reason: c.reason }))),
     skipped: steps.filter(row => row.skipped).map(row => ({ domain: row.subject, stage: row.step, skipped: row.skipped })),
+    seeded: steps.filter(row => row.seeded).map(row => `${row.subject}/${row.step}`),
     repairs: steps.filter(row => row.repair).map(row => ({ domain: row.subject, stage: row.step, ...row.repair })),
     latency_ms: Object.fromEntries(steps.filter(row => row.ms != null).map(row => [`${row.subject}/${row.step}`, row.ms])),
-    checks: Object.fromEntries(steps.map(row => [`${row.subject}/${row.step}`, row.skipped ? `skipped: ${row.skipped}` : Object.fromEntries(Object.entries(row.checks).map(([name, c]) => [name, c.pass ? 'pass' : `FAIL: ${c.reason}`]))])),
+    checks: Object.fromEntries(steps.map(row => [`${row.subject}/${row.step}`, row.seeded ? `seeded: ${row.seeded}` : row.skipped ? `skipped: ${row.skipped}` : Object.fromEntries(Object.entries(row.checks).map(([name, c]) => [name, c.pass ? 'pass' : `FAIL: ${c.reason}`]))])),
     cost: {
       per_stage: tally(row => row.step), per_domain: tally(row => row.subject), per_role: tally(row => (row.role === 'tutor' ? `tutor ${row.requested_model}` : row.role)),
       total_usd: +callRows.reduce((n, row) => n + row.cost_usd, 0).toFixed(6), all_live_runs_usd: +spent().toFixed(6),

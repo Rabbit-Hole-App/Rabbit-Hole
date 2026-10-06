@@ -13,7 +13,9 @@
 //                  too, although journeyStep skips it for quick_overview in the product; its path is still capped at 3
 //                  sections (AT-14). The fast start has none, as in the product.
 //   adapt          false: no adapt_edit or adapt_evidence stage (the fast start); absent, both run as the subject says
-//   edit           the learner edit of step (d), or null (no edit step); skip names a later section of the drafted path
+//   edit           the learner edit of step (d), or null (no edit step); skip names a later section of the drafted path.
+//                  The French Revolution skips one too (owner, 2026-10-05): its quick overview keeps the at-most-3 check,
+//                  and it runs the diagnostic only by the controller ruling above
 //   terms          words specific to the subject: no other subject's output may contain them (no topic leakage across
 //                  domains, owner 2026-10-05; logistic regression's are the brief's hidden-template words). Whole words
 //                  where a generic word would match: logistics, bisects and Jacobian pass
@@ -24,7 +26,7 @@ export const SUBJECTS = [
     terms: /photosynth|chlorophyll|chloroplast|calvin cycle|stomata|thylakoid/i },
   { id: 'binary-search', shape: 'coding', text: 'I want to learn binary search in Python', intake: { goal: 'build', familiarity: 'parts', depth: 'guided' }, slots: { coding: true }, diagnostic: true, edit: 'practice',
     terms: /binary search|\bbisect(?:_left|_right)?\b/i },
-  { id: 'french-revolution', shape: 'humanities', text: 'Give me a 10-minute overview of the French Revolution', intake: { goal: 'intuition' }, slots: {}, diagnostic: true, edit: null,
+  { id: 'french-revolution', shape: 'humanities', text: 'Give me a 10-minute overview of the French Revolution', intake: { goal: 'intuition' }, slots: {}, diagnostic: true, edit: 'skip',
     terms: /french revolution|bastille|robespierre|\bjacobins?\b|guillotine|estates[- ]general|louis xvi|marie antoinette/i },
   { id: 'vaccines-fast-start', shape: 'fast start (empty registry)', text: 'Teach me how vaccines train the immune system, skip setup and just start', intake: {}, slots: {}, diagnostic: false, edit: null, adapt: false,
     terms: /vaccin|antibod|antigen|immune system|lymphocyte|\b[bt][ -]cells?\b/i },
