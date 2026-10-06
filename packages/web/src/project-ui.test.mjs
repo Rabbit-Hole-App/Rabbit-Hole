@@ -28,11 +28,14 @@ test('a project is Map or Learn: no Overview, and the canvas has no Overview/Lea
 test('the canvas has no Tutor or Practice button: the composer is the Tutor on the NanoGPT course and its Rabbit Holes', () => {
   assert.doesNotMatch(learn, /data-learn-tutor|data-learn-practice|experience/);
   // A live learning journey also makes the composer the Tutor (LP1 Task 12).
-  assert.match(learn, /useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, on: suppliedCourse && !board, journey \}\)/);
-  assert.match(learn, /const suppliedCourse = learnPreview && app\.repo === 'karpathy\/nanoGPT';/);
-  // A hole opened from a journey section, once its parent journey is read (LP1 Task 14), too.
-  assert.match(tutor, /const active = on \|\| board === TUTOR_BOARD \|\| root\?\.board === TUTOR_BOARD \|\| \(root\?\.kind === 'repository' && root\.title === COURSE_REPO\) \|\| !!journey\?\.journey \|\| !!parentJourney;/);
-  assert.match(tutor, /export const COURSE_REPO = 'karpathy\/nanoGPT';/);
+  // Task 0 (owner, 2026-10-06): the NanoGPT course, its slice board and their holes are one registry entry
+  // (learn-tutor-domains.js); LearnPage and useTutor ask the resolver, never the course name.
+  assert.match(learn, /useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey \}\)/);
+  assert.match(learn, /const suppliedCourse = learnPreview && !!registeredCourse\(\{ app \}\)\?\.capabilities\.suppliedCourse;/);
+  assert.match(read('learn-tutor-domains.js'), /\{ id: 'nanogpt-attention', match: \{ repo: 'karpathy\/nanoGPT', board: TUTOR_BOARD \}, domain: NANOGPT, capabilities: \{ tutor: true, evidence: 'session', suppliedCourse: true \} \},/);
+  // A hole opened from a journey section, once its parent journey is read (LP1 Task 14), too: the resolver's order.
+  assert.match(tutor, /const active = !!tutorContext\(\{ \.\.\.where, journey \}\);/);
+  assert.match(read('learn-tutor-domains.js'), /if \(journey\?\.journey\) return[^\n]*\n  if \(parentJourney && record\?\.journey\) \{[\s\S]*?const entry = registeredCourse\(\{ app, board, root \}, registry\);/);
   // ?board= stays review-only.
   assert.match(learn, /const named = hole \|\| !reviewTools \? null : new URLSearchParams\(window\.location\.search\)\.get\('board'\);/);
 });

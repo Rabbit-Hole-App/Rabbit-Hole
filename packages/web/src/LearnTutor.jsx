@@ -1,5 +1,5 @@
-// Tutor v1 on the Learn page (docs/features/tutor-v1-implementation-map.md §5). Active only on the
-// NanoGPT Attention slice board and the Rabbit Holes under it. The dock composer hands learner
+// Tutor v1 on the Learn page (docs/features/tutor-v1-implementation-map.md §5). Active where the Tutor domain registry
+// (learn-tutor-domains.js) or a journey resolves a domain, and the Rabbit Holes under it. The dock composer hands learner
 // messages here instead of /api/learn/ask; /dive stays /dive's (Dive.jsx), and the Tutor only
 // proposes a dive through it.
 // LP1 Task 12 (docs/features/adaptive-learning-path-v1-architecture.md §0 D1 and D6, §2, §7.2): on a canvas with a live
@@ -12,24 +12,24 @@
 // action; a refusal leaves the hole as it was. Reconciliation on return is LP5.
 import { cloneElement, useCallback, useEffect, useRef, useState } from 'react';
 import { api, apiFetch } from './api.js';
-import { NANOGPT, TUTOR_BOARD } from './learn-tutor-claims.js';
+import { tutorContext } from './learn-tutor-domains.js';
 import { loadStore, saveStore, storeKey } from './learn-tutor-evidence.js';
-import { diveJourney, journeyDomain } from './learn-journey-domain.js';
+import { diveJourney } from './learn-journey-domain.js';
 import { arriveAt, enterHole, executeActions, keepHere, markOpened, openingQuestion, readPlanStream, runTurn, showableCards, wantsCard } from './learn-tutor.js';
 
 // A Tutor request that never answers ends as an error reply, not an endless spinner; Stop ends it too.
 const TURN_TIMEOUT_MS = 60000;
 
-// on: this canvas is the supplied NanoGPT course, whose composer is the Tutor (LearnPage.jsx). A Rabbit Hole keeps the
-// Tutor when its root is that course's repository (the server names a repository root by its repo) or the slice board.
-// journey: the board's journey (useJourney, LearnJourney.jsx); a live one makes the Tutor this canvas's responder.
-export const COURSE_REPO = 'karpathy/nanoGPT';
+// courseCanvas: this surface is its app's own canvas (LearnPage.jsx: the Rabbit Hole product, no review board), so the app's
+// course is looked up in the Tutor domain registry (learn-tutor-domains.js); a registered course with a Tutor makes the
+// composer the Tutor, and a Rabbit Hole keeps it when its root is that course's repository or board (Task 0: no course
+// is named here). journey: the board's journey (useJourney, LearnJourney.jsx); a live one makes the Tutor this canvas's responder.
 // The Tutor's sessionStorage key. A journey's conversational store is its own (§5): open question, turns, Socratic counts;
 // its evidence is the server's. A hole opened from a journey section (Task 14 review round 1) keeps its session evidence
 // and turns apart from nanoGPT's tab-wide store and from other topics. Every other key is unchanged.
 export const tutorStoreKey = (app, journeyId, record) => (journeyId ? `${storeKey(app)}:journey:${journeyId}`
   : record?.journey ? `${storeKey(app)}:dive:${record.journey.journey_id}` : storeKey(app));
-export function useTutor({ app, board, access, canvasApi, canvasState, dive, on = false, journey = null }) {
+export function useTutor({ app, board, access, canvasApi, canvasState, dive, courseCanvas = false, journey = null }) {
   const record = dive.tree?.dive || null;
   const root = dive.tree?.path?.[0];
   // The parent journey of a hole whose record carries one (Task 14): { journey, path } once read, else null.
@@ -43,7 +43,10 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, on 
     diveJourney(record, path => api(path)).then(found => { if (current) setParentJourney(found); });
     return () => { current = false; };
   }, [record?.dive_id]); // eslint-disable-line react-hooks/exhaustive-deps
-  const active = on || board === TUTOR_BOARD || root?.board === TUTOR_BOARD || (root?.kind === 'repository' && root.title === COURSE_REPO) || !!journey?.journey || !!parentJourney;
+  // Whether the Tutor runs here, and its domain, is the registry resolver's (learn-tutor-domains.js tutorContext): a live
+  // journey, a hole's read parent journey, then a registered course by its repository, board or a hole's root.
+  const where = { app: courseCanvas ? app : null, board, root, parentJourney, record };
+  const active = !!tutorContext({ ...where, journey });
   const here = { app: app.name, board };
   const journeyId = journey?.journey?.id ?? null;
   const key = tutorStoreKey(app, journeyId, record);
@@ -58,14 +61,10 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, on 
     return evidence && evidence.seq > store.seq ? { ...store, events: evidence.events, seq: evidence.seq } : store;
   };
   const save = store => saveStore(sessionStorage, key, store);
-  // The Tutor's domain on this canvas: a journey canvas's (§3.2), built per turn from the journey, its path and the canvas
+  // The Tutor's domain on this canvas, built per turn: a journey canvas's (§3.2) from the journey, its path and the canvas
   // blocks; a hole opened from a journey section (Task 14) the dive domain over the parent journey, session evidence; else
-  // the nanoGPT course's.
-  const domainOf = canvas => {
-    const live = journeyRef.current?.journey ? journeyRef.current : null;
-    return live ? journeyDomain({ journey: live.journey, path: live.path, blocks: canvas?.blocks?.() || [] })
-      : parentJourney && record?.journey ? journeyDomain({ journey: parentJourney.journey, path: parentJourney.path, blocks: canvas?.blocks?.() || [], dive: record.journey }) : NANOGPT;
-  };
+  // the registered course's.
+  const domainOf = canvas => tutorContext({ ...where, journey: journeyRef.current, blocks: canvas?.blocks?.() || [] })?.domain;
 
   // Back on a parent after a hole: its next turn carries returned_from (§6.4).
   useEffect(() => { if (active) save(arriveAt(load(), here)); }, [active, here.app, here.board]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -139,7 +138,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, on 
     const done = Math.round((performance.now() - started) * 10) / 10;
     bench({ ...result.bench, ms: { ...result.bench.ms, canvas_done: done, total_in_app: done } });
     return { ...result, bench: { ...result.bench, ms: { ...result.bench.ms, canvas_done: done } } };
-  }, [access, record, here.app, here.board, key, parentJourney]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [access, record, here.app, here.board, key, parentJourney, courseCanvas, root]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A hole's opening turn (§6.4): once per hole, the pending question asked inside the hole. The
   // dock sends it like a typed message (ask.jsx), so it reads as the learner's question carried down

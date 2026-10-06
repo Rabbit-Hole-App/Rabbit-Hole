@@ -127,12 +127,17 @@ Declared nanoGPT course domain (allowed: the course is a declared domain; nothin
 - `web/src/learn-tutor.js:11-12`, `learn-tutor-validate.js:14`: the nanoGPT board imports, used through the domain
   default and the authored-module `showCard`.
 - The `domain = NANOGPT` parameter defaults across `learn-tutor*.js`.
-- `web/src/LearnTutor.jsx:26` `COURSE_REPO` and `:46` activation on the course board or repo (on main; LP1 only appended
-  `|| !!journey?.journey || !!parentJourney`). `:64-68` `domainOf`: the nanoGPT domain only when no journey applies.
+- Removed by Professor Next Steps Task 0 (owner, 2026-10-06): `LearnTutor.jsx` `COURSE_REPO`, its course-board/repo
+  activation and the `domainOf` nanoGPT fallback, and `LearnPage.jsx` `app.repo === 'karpathy/nanoGPT'`. Tutor
+  availability now comes from `web/src/learn-tutor-domains.js`: the `TUTOR_DOMAINS` registry data (nanoGPT is its one
+  entry: repo, board, domain, capabilities) and the generic `tutorContext` resolver (live journey, a hole's parent
+  journey, then a registered entry with `capabilities.tutor`). `learn-journey-anti-hardcoding.test.mjs` fails on any
+  nanoGPT repository, board, domain or name comparison in the shared Tutor code.
 - `control-plane/src/agents/learn-tutor.js:171-180`: `PLANNER_SYSTEM`, the nanoGPT prompt, byte-identical to main and
   pinned, including `e.g. "Softmax"`. `:275-276, 321`: prompt choice by the presence of `journey_context`.
 - `web/src/LearnPage.jsx:10, 29, 71-73, 892-981, 1337, 1345`: the sigmoid demo and the nanoGPT course, both on main and
-  untouched by LP1. LP1 changed only the comments at 548-552.
+  untouched by LP1. LP1 changed only the comments at 548-552. Task 0 reads `suppliedCourse` from the registry entry's
+  `capabilities.suppliedCourse`; the lesson content it gates is unchanged.
 
 Comments and UI copy that cite an example (allowed: no logic reads them):
 - `learner-intent-journey.js:12, 27, 38, 41`, `LearnJourney.jsx:295`, `dive.js:59, 68, 75` (on main),

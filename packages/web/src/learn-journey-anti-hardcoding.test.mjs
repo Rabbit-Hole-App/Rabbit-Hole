@@ -8,7 +8,7 @@
 // Hole's journeyDiveContext + diveRecord + enterHole. No model, no network.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -246,9 +246,32 @@ test('anti-hardcoding: no example topic or fixture id in journey runtime code, n
     '../../control-plane/src/learn-journey.js', '../../control-plane/src/learn-journey-planners.js', '../../control-plane/src/learn-journey-store.js'];
   const EXAMPLES = /\b(?:logistic|sigmoid|softmax|nanogpt|transformers?|attention|photosynthesis|chlorophyll|bastille|eigen\w*|aqueducts?|tidal|classification vs regression)\b|-foundations\b|-core\/|-practice\//i;
   for (const file of JOURNEY_ONLY) assert.equal(code(file).match(EXAMPLES)?.[0] ?? null, null, file);
-  const TUTOR = ['./learn-tutor.js', './learn-tutor-select.js', './learn-tutor-validate.js', './learn-tutor-evidence.js', './LearnTutor.jsx', './ask.jsx', './LearnPage.jsx'];
+  const TUTOR = ['./learn-tutor.js', './learn-tutor-select.js', './learn-tutor-validate.js', './learn-tutor-evidence.js', './LearnTutor.jsx', './ask.jsx', './LearnPage.jsx',
+    './learn-tutor-claims.js', './learn-tutor-domains.js', '../../control-plane/src/learn-tutor-routes.js'];
   const DISPATCH = /\bkind\s*[!=]==\s*'(?:nanogpt|journey)'|[!=]==\s*NANOGPT\b|\bNANOGPT\s*[!=]==/;
   for (const file of TUTOR) assert.equal(code(file).match(DISPATCH)?.[0] ?? null, null, file);
+});
+
+// Professor Next Steps Task 0 (owner, 2026-10-06): Tutor availability is the registry's (learn-tutor-domains.js). No
+// shared Tutor module compares against the nanoGPT repository, its board, its domain or any nanoGPT-named string; the
+// registry's TUTOR_DOMAINS data is the one place the nanoGPT entry lives, and its resolver code names no course either.
+test('anti-hardcoding: no nanoGPT repository, board, domain or name comparison in shared Tutor code; the registry data holds the one entry', () => {
+  const code = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/(^|\s)\/\/.*$/gm, '$1');
+  const SHARED = ['./LearnTutor.jsx', './LearnPage.jsx', './ask.jsx', './learn-journey-domain.js', '../../control-plane/src/learn-tutor-routes.js',
+    ...readdirSync(new URL('.', import.meta.url)).filter(f => /^learn-tutor[\w-]*\.js$/.test(f) && f !== 'learn-tutor-domains.js').map(f => `./${f}`)];
+  assert.ok(['./learn-tutor.js', './learn-tutor-claims.js', './learn-tutor-select.js', './learn-tutor-validate.js', './learn-tutor-evidence.js'].every(f => SHARED.includes(f)));
+  const BRANCH = [/['"]karpathy\/nanoGPT['"]/i, /\bCOURSE_REPO\b/, /[!=]==\s*(?:TUTOR_BOARD|NANOGPT)\b/, /\b(?:TUTOR_BOARD|NANOGPT)\s*[!=]==/,
+    /[!=]==\s*['"`][^'"`\n]*nano-?gpt/i, /['"`][^'"`\n]*nano-?gpt[^'"`\n]*['"`]\s*[!=]==/i, /\.(?:includes|startsWith|endsWith)\(\s*['"`][^'"`\n]*nano-?gpt/i, /\/[^/\n]*nano-?gpt[^/\n]*\/[a-z]*\.test\(/i];
+  const hits = source => BRANCH.map(pattern => source.match(pattern)?.[0]).filter(Boolean);
+  for (const file of SHARED) assert.deepEqual(hits(code(file)), [], file);
+  // The registry: its data array carries the entry; everything after it (the resolver) names no course, board or domain.
+  const registry = code('./learn-tutor-domains.js');
+  const start = registry.indexOf('export const TUTOR_DOMAINS = ['), end = registry.indexOf('\n];', start);
+  assert.ok(start > 0 && end > start);
+  assert.equal(registry.slice(start, end).match(/'karpathy\/nanoGPT'/g)?.length, 1);
+  const resolver = registry.slice(end);
+  assert.deepEqual(hits(resolver), []);
+  assert.equal(resolver.match(/\b(?:NANOGPT|TUTOR_BOARD)\b|nano-?gpt/i)?.[0] ?? null, null);
 });
 
 test('anti-hardcoding: the two domains differ in every count the shipped fixture fixes, and both stay inside the contract caps', () => {
