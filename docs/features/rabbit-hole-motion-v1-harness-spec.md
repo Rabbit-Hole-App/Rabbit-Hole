@@ -2654,6 +2654,111 @@ The plans reuse the accepted M7A brief and storyboard, unedited. Every call ran 
 | Production-exact API smoke | job 8a2015a4, ready, $0.93 | pass |
 | Default renderer | Remotion, unchanged; no M8 winner | unchanged |
 
+### M8 Remotion vs HyperFrames: paired benchmark (2026-10-06)
+
+**Protocol (owner, 2026-10-06).**
+- **Same inputs:** each pair takes one frozen MotionBrief and Storyboard, the same grounding, duration and assets, the same review rules and repair budget, and the same 1920x1080 / 30 fps output. Only the renderer-specific Author and renderer differ.
+- **Plans:** A and B reuse the accepted M7A plans. C and D were planned by the production pipeline (grounding, Director, storyboard, with its one revision available) and frozen before either renderer ran: `motion/fixtures/m8/plan-C.json` and `plan-D.json`, commit 5b3476f6.
+- **One attempt per renderer:** Author, preview, fresh visual and teaching reviews, one Author repair if blocking, fresh reviews, final.
+- **The storyboard stays frozen:** the pair runs the production review job with its storyboard revision unavailable, so a storyboard-level finding goes to the Author repair. Both renderers are tested on the same storyboard. There are no manual edits.
+- **Model path:** production-exact Anthropic API. Every role is claude-opus-5-5 from `model-config.js`, with adaptive thinking and effort high; the Author's output ceiling is 64000 tokens, the others' 16000.
+- **Ceiling:** a hard $6.00 on one ledger (`motion/benchmark.mjs`). Each call reserves its worst case and is refused if that could pass the ceiling. A pair starts only when its last Author call would still be admitted.
+
+**Harness:**
+- `scripts/motion-benchmark.mjs` has phases plan, pairs, pairs --dry-run, determinism and report; the cases are data (`motion/fixtures/m8/cases.json`).
+- The harness at 78b36ddb drove the paired runs on the 9083840e runtime. No renderer or runtime change was made.
+- Before anything is spent, a pair runs only if its request, canvas location and selection ground to the plan's own target.
+
+**Completed pairs (1 of 4):**
+
+| Pair A: softmax in attention (code + math + matrix) | Remotion | HyperFrames |
+|---|---|---|
+| Result | READY after 1 Author repair | READY, first pass |
+| First-pass success | no (preview blocked) | yes |
+| Author repairs | 1 | 0 |
+| Blocking findings | 1: harness storyboard_fidelity, `flash_marker` not visible at B5 #413; fixed by the repair | 0 |
+| Cosmetic findings | 6 (2 in round 0, 4 in round 1) | 5 |
+| Teaching pass / visual pass | pass / pass | pass / pass |
+| Author latency | 269.7 s (repair 71.4 s) | 327.0 s |
+| Preview render | 48.0 s and 46.4 s | 97.5 s |
+| Reviews (parallel) | 14.4 s and 16.7 s | 16.8 s |
+| Final render job | 138.8 s | 388.1 s |
+| Author to ready | 605.6 s | 830.0 s |
+| API cost | $1.1599 (Author 0.6279, repair 0.2817, reviews 0.2503) | $0.8826 (Author 0.7439, reviews 0.1387) |
+| Output tokens | 29705, then 10438 in the repair | 35197 |
+| Determinism | stills identical in two fresh contexts; a second full final render is identical at 31 decoded frames | the same |
+| Generated source | 18856 B, 605 lines, 65 elements | 16789 B, 130 lines, 107 elements |
+
+Neither attempt used a transport retry or schema re-ask, and every call returned the configured model. The final compositions are kept as `m8/A-remotion.final.jsx` and `m8/A-hyperframes.final.html`; the full metrics are in `m8/result.json`.
+
+**Not run (recorded, not renderer failures):**
+
+| Case | not_run_reason | Estimated additional cost |
+|---|---|---|
+| C, MLP (model.py:78-92), frozen plan kept | budget_ceiling | $2.34 |
+| D, character-level data preparation (prepare.py:23-45), frozen plan kept | budget_ceiling | $2.34 |
+| B, GPT.generate / multinomial, frozen plan (M7A) | budget_ceiling | $2.34 |
+
+The estimate is one run at the $1.02 mean ready-run cost, plus the last Author call's $1.32 worst case. `pairs --dry-run` computed it with no model call; the remaining budget was $2.25. Each entry is kept in `m8/<case>.not-run.json`.
+
+**Spend: $3.7468 of $6.00:**
+- **Plans C and D:** $0.3915.
+- **Pair A:** $2.0426.
+- **Voided attempts: $1.3127.** One Author stream broke when the machine went into standby; its cost could not be read, so the ledger charged its worst case. The real billed amount is unknown, and is at most this.
+
+**Voided attempts (never scored, kept in `out/motion/m8/void`):**
+- **A, both renderers:** needs_clarification. The harness passed no canvas location, so no model call was made and nothing was spent. Fixed in 78b36ddb: case A carries its canvas concept, and the grounding is checked first.
+- **C and D, all four runs:** transport_interrupted. The machine went into standby (Kernel-Power 506 at 17:05:15Z, resume 507 at 17:31:51Z). No Author output reached a render.
+- **Fix:** a keep-awake execution state held the machine up for the rerun.
+
+**Aggregate over the completed pairs (n = 1):**
+
+| | Remotion | HyperFrames |
+|---|---|---|
+| Ready rate | 1/1 | 1/1 |
+| First-pass rate | 0/1 | 1/1 |
+| Repair rate | 1/1 | 0/1 |
+| Blocking findings | 1 | 0 |
+| Cosmetic findings | 6 | 5 |
+| Average Author latency | 269.7 s | 327.0 s |
+| Average render latency (preview / final job) | 48.0 s / 138.8 s | 97.5 s / 388.1 s |
+| Average Author to ready | 605.6 s | 830.0 s |
+| Average API cost per ready video | $1.16 | $0.88 |
+| Determinism (two-context stills / final re-render) | 1/1 / 1/1 | 1/1 / 1/1 |
+
+**Capability gaps (M8 frames plus the M7A/M7B observations, which are not paired):**
+- **Both renderers:** code walkthrough with verbatim lines, bar and matrix data, multi-beat transitions, system flow (B ran on both earlier), and object animation.
+- **HyperFrames:** CSS keyframes only (no JS-computed text or values, no GSAP), so a changing number is a cross-fade.
+- **Remotion:** computes values per frame (running totals, interpolated numbers).
+
+**Engineering burden:**
+- **Remotion:** no workaround in M8. A bundle step (26-37 s a job) is its main fixed cost, and its failure was stated clearly by the harness (object, beat, frame).
+- **HyperFrames needs harness workarounds:**
+  - capture settling for Windows screenshot capture (the M7B attempt-1 nondeterminism was hard to diagnose);
+  - injected fonts plus a Node network guard, because the producer fetches Google Fonts;
+  - FFmpeg environment variables and `data-no-timeline`;
+  - its own HTML/CSS gate (postcss, linkedom) and a run-time page inspection;
+  - a final job that renders a full-size draft as well, for the preview comparison.
+- **HyperFrames package:** pinned at a pre-1.0 version, 0.8.137.
+- **Render cost:** in this pair, HyperFrames' preview was about 2x and its final job about 2.8x Remotion's.
+
+**Reading:** one pair is a tradeoff, not a winner. Here HyperFrames was cheaper and needed no repair; Remotion was faster overall (606 s against 830 s, despite its repair), with faster renders.
+
+**Recommendation: C. Keep Remotion as the default; the evidence is not strong enough to switch.**
+- Remotion is the current default, so the burden of proof is on a change, and one pair cannot carry it.
+- HyperFrames stays experimental behind `--renderer hyperframes`.
+- Completing the benchmark needs C, D and B, about $2.34 each at current costs, under a new ceiling.
+- No default switch, merge or deploy without approval.
+
+**Anti-hardcoding:** the suite passes:
+- `anti-hardcoding.test.mjs`: two topics per renderer, four cases; renamed ids, reordered objects and relabelled text get the same verdicts;
+- `repair-contract.test.mjs`;
+- `benchmark.test.mjs`: no request, label, path, object id, title, canvas concept or topic word from any case or plan appears in the benchmark code.
+
+The production planning stages handled two new topics (MLP, data preparation) with no code change.
+
+**Evidence:** Figma ef9SfiemEsPQF2bd8B1os3, frame 179:222. It holds the completed-pair table, the not-run and voided entries, both pair A final contact sheets, and Remotion's round-0 preview.
+
 ## M8 — benchmark and end-to-end development demonstration
 
 Run the §9.6 benchmark on the same briefs and storyboards for both renderers, then pass all §27 demos through the full pipeline with human review. Choose the default renderer and routing from the results; keep both adapters. Deliver the required report.

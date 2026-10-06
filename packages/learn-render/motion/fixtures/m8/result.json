@@ -1,0 +1,517 @@
+{
+  "at": "2026-10-06T18:06:46.309Z",
+  "code": "78b36ddb",
+  "ledger": {
+    "limit_usd": 6,
+    "spent_usd": 3.746772,
+    "calls": 21,
+    "refused": 0,
+    "plans_usd": 0.3915,
+    "completed_pairs_usd": 2.0426,
+    "voided_attempts_usd": 1.3127
+  },
+  "cases": [
+    {
+      "id": "A",
+      "shape": "code + math + matrix/data visualization",
+      "title": "Softmax: Scores Become Attention Weights",
+      "request": "/motion 15s explain me softmax func",
+      "plan_from": "M7A accepted run 83868ee9 (e0c86877, Figma 165:222): its brief and final storyboard, model-generated, unedited",
+      "remotion": {
+        "status": "ready",
+        "failure_reason": null,
+        "generation": {
+          "author_first_pass_contract": true,
+          "first_pass_status": "composition",
+          "ready": true,
+          "author_repair": 1,
+          "transport_retries": 0,
+          "schema_reasks": 0
+        },
+        "pedagogy": {
+          "missing_must_show": 0,
+          "unsupported_claims": 0,
+          "teaching_blocking": [
+            0,
+            0
+          ],
+          "final_pedagogical_pass": true
+        },
+        "visual": {
+          "visual_blocking": [
+            0,
+            0
+          ],
+          "harness_blocking": [
+            1,
+            0
+          ],
+          "overlap_clipping": 0,
+          "blank_frames": 0,
+          "continuity": 1,
+          "cosmetic": 6,
+          "findings": [
+            {
+              "round": 0,
+              "reviewer": "harness",
+              "category": "storyboard_fidelity",
+              "beat_id": "B5",
+              "description": "The render does not show the storyboard: B5 #413: object flash_marker is not visible. An object listed in a beat is visible (opacity above 0.05, on stage) at that beat's middle, an object in two consecutive beats stays visible across the boundary between them, and every text inside a code panel renders in JetBrains Mono."
+            },
+            {
+              "round": 0,
+              "reviewer": "visual",
+              "category": "aesthetic_preference",
+              "beat_id": "B3",
+              "description": "The glowing orange sweep bar passes over the first masked '-inf' cell and covers part of its text while the cell fades. The word can still be made out."
+            },
+            {
+              "round": 0,
+              "reviewer": "visual",
+              "category": "aesthetic_preference",
+              "beat_id": "B5",
+              "description": "In the final beat the weight chart shrinks to make room for the att @ v visual. This makes the caption 'Weights: masked positions 0, remaining positive' and the bar value labels noticeably small, though they still read at full size."
+            },
+            {
+              "round": 1,
+              "reviewer": "visual",
+              "category": "easing_preference",
+              "beat_id": "B2",
+              "description": "At the start of B2, the caption already says \"Scale, then mask: future positions become -inf.\" The screen still shows only the softmax code line, and the score row with -inf cells doesn't appear until about 4.5 s. The narration runs ahead of the visuals."
+            },
+            {
+              "round": 1,
+              "reviewer": "visual",
+              "category": "aesthetic_preference",
+              "beat_id": "B3",
+              "description": "The bright orange sweep line crosses the \"-inf\" text in the fifth masked cell while the cell fades out. The label is partly covered during the transition but can still be read."
+            },
+            {
+              "round": 1,
+              "reviewer": "visual",
+              "category": "easing_preference",
+              "beat_id": "B4",
+              "description": "The sum counter shows a large \"0.90\" directly above the \"Sum = 1\" label while it counts up. For a moment the total on screen contradicts its own label."
+            },
+            {
+              "round": 1,
+              "reviewer": "visual",
+              "category": "aesthetic_preference",
+              "beat_id": "B5",
+              "description": "In B5, the weight-bar row shrinks and moves off-centre to make room for the code and att @ v graphics. Its caption, \"Weights: masked positions 0, remaining positive\", and the bar value labels become noticeably small next to the rest of the frame."
+            }
+          ]
+        },
+        "determinism": {
+          "stills_two_contexts": true,
+          "final_rerender": {
+            "identical": true,
+            "frames": 31,
+            "differing": [],
+            "method": "a second full final render of the same source; decoded frames every 0.5 s and the last, sha256 of RGBA"
+          }
+        },
+        "latency": {
+          "author_s": 269.7,
+          "preview_render_s": [
+            48,
+            46.4
+          ],
+          "review_s": [
+            14.4,
+            16.7
+          ],
+          "repair_s": 71.4,
+          "final_render_s": 138.8,
+          "author_to_ready_s": 605.6,
+          "total_s": 605.6
+        },
+        "cost": {
+          "input_tokens": 59719,
+          "output_tokens": 44296,
+          "cache_write_tokens": 6923,
+          "cache_read_tokens": 2455,
+          "api_usd": 1.1599,
+          "render_compute_s": 233.2,
+          "calls": [
+            {
+              "stage": "author",
+              "round": 0,
+              "role": "MOTION_AUTHOR_MODEL",
+              "model": "claude-opus-5-5",
+              "end": "complete",
+              "input": 5660,
+              "output": 29705,
+              "cache_write": 2234,
+              "cache_read": 0,
+              "cost_usd": 0.6279,
+              "latency_s": 269.7
+            },
+            {
+              "stage": "visual_review",
+              "round": 0,
+              "role": "MOTION_VISUAL_REVIEW_MODEL",
+              "model": "claude-opus-5-5",
+              "end": "tool_use",
+              "input": 8933,
+              "output": 1198,
+              "cache_write": 1182,
+              "cache_read": 0,
+              "cost_usd": 0.0656,
+              "latency_s": 14.4
+            },
+            {
+              "stage": "pedagogical_review",
+              "round": 0,
+              "role": "MOTION_PEDAGOGICAL_REVIEW_MODEL",
+              "model": "claude-opus-5-5",
+              "end": "tool_use",
+              "input": 10376,
+              "output": 761,
+              "cache_write": 1273,
+              "cache_read": 0,
+              "cost_usd": 0.0631,
+              "latency_s": 8.7
+            },
+            {
+              "stage": "author",
+              "round": 1,
+              "role": "MOTION_AUTHOR_MODEL",
+              "model": "claude-opus-5-5",
+              "end": "complete",
+              "input": 15441,
+              "output": 10438,
+              "cache_write": 2234,
+              "cache_read": 0,
+              "cost_usd": 0.2817,
+              "latency_s": 71.4
+            },
+            {
+              "stage": "visual_review",
+              "round": 1,
+              "role": "MOTION_VISUAL_REVIEW_MODEL",
+              "model": "claude-opus-5-5",
+              "end": "tool_use",
+              "input": 8933,
+              "output": 1566,
+              "cache_write": 0,
+              "cache_read": 1182,
+              "cost_usd": 0.0673,
+              "latency_s": 16.7
+            },
+            {
+              "stage": "pedagogical_review",
+              "round": 1,
+              "role": "MOTION_PEDAGOGICAL_REVIEW_MODEL",
+              "model": "claude-opus-5-5",
+              "end": "tool_use",
+              "input": 10376,
+              "output": 628,
+              "cache_write": 0,
+              "cache_read": 1273,
+              "cost_usd": 0.0543,
+              "latency_s": 7.1
+            }
+          ]
+        },
+        "engineering": {
+          "source_bytes": 18856,
+          "source_lines": 605,
+          "elements": 65,
+          "object_elements": 11,
+          "gate_errors_first_pass": 0
+        }
+      },
+      "hyperframes": {
+        "status": "ready",
+        "failure_reason": null,
+        "generation": {
+          "author_first_pass_contract": true,
+          "first_pass_status": "composition",
+          "ready": true,
+          "author_repair": 0,
+          "transport_retries": 0,
+          "schema_reasks": 0
+        },
+        "pedagogy": {
+          "missing_must_show": 0,
+          "unsupported_claims": 0,
+          "teaching_blocking": [
+            0
+          ],
+          "final_pedagogical_pass": true
+        },
+        "visual": {
+          "visual_blocking": [
+            0
+          ],
+          "harness_blocking": [
+            0
+          ],
+          "overlap_clipping": 0,
+          "blank_frames": 0,
+          "continuity": 0,
+          "cosmetic": 5,
+          "findings": [
+            {
+              "round": 0,
+              "reviewer": "visual",
+              "category": "easing_preference",
+              "beat_id": "B2",
+              "description": "The B2 caption 'Scale, then mask: future positions become -inf.' is already showing, but the screen still has only the single code line and manual-path badge. The score row with -inf cells doesn't appear until later in the beat."
+            },
+            {
+              "round": 0,
+              "reviewer": "visual",
+              "category": "easing_preference",
+              "beat_id": "B3",
+              "description": "The caption 'Larger scores become larger weights.' appears while the frame still shows only the score row, with no weight bars. The visual lags behind the narration line."
+            },
+            {
+              "round": 0,
+              "reviewer": "visual",
+              "category": "minor_spacing",
+              "beat_id": "B3",
+              "description": "The yellow highlight box on the 0.3 score cell sits off-centre to the right of the cell. A sliver of the original cell border shows on its left edge and it crowds the adjacent -inf cell."
+            },
+            {
+              "round": 0,
+              "reviewer": "visual",
+              "category": "aesthetic_preference",
+              "beat_id": "B4",
+              "description": "Between 10.0 s and 11.27 s, the code lines and the source score row (with its -inf cells) drop out completely. The weights are no longer shown next to the scores they came from."
+            },
+            {
+              "round": 0,
+              "reviewer": "visual",
+              "category": "aesthetic_preference",
+              "beat_id": "B5",
+              "description": "The 'Flash path: scaled_dot_product_attention instead' marker is small and tucked into the bottom-left corner, just above the caption, and only appears in the last ~1.2 s. The shrunken weight-chart title and value labels are also small next to the rest of the frame."
+            }
+          ]
+        },
+        "determinism": {
+          "stills_two_contexts": true,
+          "final_rerender": {
+            "identical": true,
+            "frames": 31,
+            "differing": [],
+            "method": "a second full final render of the same source; decoded frames every 0.5 s and the last, sha256 of RGBA"
+          }
+        },
+        "latency": {
+          "author_s": 327,
+          "preview_render_s": [
+            97.5
+          ],
+          "review_s": [
+            16.8
+          ],
+          "repair_s": 0,
+          "final_render_s": 388.1,
+          "author_to_ready_s": 830,
+          "total_s": 830.1
+        },
+        "cost": {
+          "input_tokens": 24992,
+          "output_tokens": 37660,
+          "cache_write_tokens": 5908,
+          "cache_read_tokens": 0,
+          "api_usd": 0.8826,
+          "render_compute_s": 485.6,
+          "calls": [
+            {
+              "stage": "author",
+              "round": 0,
+              "role": "MOTION_AUTHOR_MODEL",
+              "model": "claude-opus-5-5",
+              "end": "complete",
+              "input": 5683,
+              "output": 35197,
+              "cache_write": 3453,
+              "cache_read": 0,
+              "cost_usd": 0.7439,
+              "latency_s": 327
+            },
+            {
+              "stage": "visual_review",
+              "round": 0,
+              "role": "MOTION_VISUAL_REVIEW_MODEL",
+              "model": "claude-opus-5-5",
+              "end": "tool_use",
+              "input": 8933,
+              "output": 1594,
+              "cache_write": 1182,
+              "cache_read": 0,
+              "cost_usd": 0.0735,
+              "latency_s": 16.8
+            },
+            {
+              "stage": "pedagogical_review",
+              "round": 0,
+              "role": "MOTION_PEDAGOGICAL_REVIEW_MODEL",
+              "model": "claude-opus-5-5",
+              "end": "tool_use",
+              "input": 10376,
+              "output": 869,
+              "cache_write": 1273,
+              "cache_read": 0,
+              "cost_usd": 0.0652,
+              "latency_s": 10.6
+            }
+          ]
+        },
+        "engineering": {
+          "source_bytes": 16789,
+          "source_lines": 130,
+          "elements": 107,
+          "object_elements": 11,
+          "gate_errors_first_pass": 0
+        }
+      }
+    },
+    {
+      "id": "C",
+      "shape": "mathematical mechanism with no attention structure",
+      "title": "nanoGPT MLP: Widen, GELU, Narrow Back",
+      "request": "/motion 15s explain this",
+      "plan_from": "M8 plan stage, code 34c56d23: model-generated brief and storyboard, frozen before either renderer",
+      "remotion": null,
+      "hyperframes": null,
+      "not_run": {
+        "case": "C",
+        "not_run_reason": "budget_ceiling",
+        "remaining_usd": 2.2532,
+        "estimated_additional_usd": 2.34,
+        "estimate": "1 run(s) at $1.0212 (the mean ready run), then the last Author's $1.3183 worst case",
+        "at": "2026-10-06T18:06:24.742Z"
+      }
+    },
+    {
+      "id": "D",
+      "shape": "non-model, non-attention system flow (data preparation)",
+      "title": "From Shakespeare text to integer ids",
+      "request": "/motion 15s explain this",
+      "plan_from": "M8 plan stage, code 34c56d23: model-generated brief and storyboard, frozen before either renderer",
+      "remotion": null,
+      "hyperframes": null,
+      "not_run": {
+        "case": "D",
+        "not_run_reason": "budget_ceiling",
+        "remaining_usd": 2.2532,
+        "estimated_additional_usd": 2.34,
+        "estimate": "1 run(s) at $1.0212 (the mean ready run), then the last Author's $1.3237 worst case",
+        "at": "2026-10-06T18:06:24.765Z"
+      }
+    },
+    {
+      "id": "B",
+      "shape": "code walkthrough + sequential system flow",
+      "title": "multinomial: rolling the weighted die for the next token",
+      "request": "/motion 15s explain multinomial",
+      "plan_from": "M7A accepted run f2d91464 (e0c86877, Figma 165:222): its brief and final storyboard, model-generated, unedited",
+      "remotion": null,
+      "hyperframes": null,
+      "not_run": {
+        "case": "B",
+        "not_run_reason": "budget_ceiling",
+        "remaining_usd": 2.2532,
+        "estimated_additional_usd": 2.34,
+        "estimate": "1 run(s) at $1.0212 (the mean ready run), then the last Author's $1.3188 worst case",
+        "at": "2026-10-06T18:06:24.883Z"
+      }
+    }
+  ],
+  "aggregate": {
+    "remotion": {
+      "pairs": 1,
+      "ready": 1,
+      "ready_rate": 1,
+      "first_pass_ready": 0,
+      "author_first_pass_contract": 1,
+      "repairs": 1,
+      "transport_retries": 0,
+      "schema_reasks": 0,
+      "blocking_findings": 1,
+      "cosmetic_findings": 6,
+      "final_pedagogical_pass": 1,
+      "avg_author_s": 269.7,
+      "avg_final_render_s": 138.8,
+      "avg_preview_render_s": 48,
+      "avg_author_to_ready_s": 605.6,
+      "api_usd": 1.1599,
+      "api_usd_per_ready": 1.1599,
+      "ready_per_dollar": 0.86,
+      "ready_per_hour": 5.94,
+      "determinism_stills": 1,
+      "determinism_final_rerender": 1,
+      "determinism_final_rerender_measured": 1,
+      "avg_source_bytes": 18856,
+      "avg_elements": 65
+    },
+    "hyperframes": {
+      "pairs": 1,
+      "ready": 1,
+      "ready_rate": 1,
+      "first_pass_ready": 1,
+      "author_first_pass_contract": 1,
+      "repairs": 0,
+      "transport_retries": 0,
+      "schema_reasks": 0,
+      "blocking_findings": 0,
+      "cosmetic_findings": 5,
+      "final_pedagogical_pass": 1,
+      "avg_author_s": 327,
+      "avg_final_render_s": 388.1,
+      "avg_preview_render_s": 97.5,
+      "avg_author_to_ready_s": 830,
+      "api_usd": 0.8826,
+      "api_usd_per_ready": 0.8826,
+      "ready_per_dollar": 1.13,
+      "ready_per_hour": 4.34,
+      "determinism_stills": 1,
+      "determinism_final_rerender": 1,
+      "determinism_final_rerender_measured": 1,
+      "avg_source_bytes": 16789,
+      "avg_elements": 107
+    }
+  },
+  "voided": [
+    {
+      "attempt": "A-hyperframes.no-location",
+      "status": "needs_clarification",
+      "failure_reason": "Softmax in CausalSelfAttention.forward (model.py:69) or in GPT.generate (model.py:324)?",
+      "recorded_cost_usd": 0
+    },
+    {
+      "attempt": "A-remotion.no-location",
+      "status": "needs_clarification",
+      "failure_reason": "Softmax in CausalSelfAttention.forward (model.py:69) or in GPT.generate (model.py:324)?",
+      "recorded_cost_usd": 0
+    },
+    {
+      "attempt": "C-hyperframes.standby",
+      "status": "failed",
+      "failure_reason": "author: model_error: transport_interrupted: fetch failed",
+      "recorded_cost_usd": 0
+    },
+    {
+      "attempt": "C-remotion.standby",
+      "status": "failed",
+      "failure_reason": "author: model_error: transport_interrupted: fetch failed",
+      "recorded_cost_usd": 0.0308
+    },
+    {
+      "attempt": "D-hyperframes.standby",
+      "status": "failed",
+      "failure_reason": "author: model_error: transport_interrupted: fetch failed",
+      "recorded_cost_usd": 0
+    },
+    {
+      "attempt": "D-remotion.standby",
+      "status": "failed",
+      "failure_reason": "author: model_error: transport_interrupted: fetch failed",
+      "recorded_cost_usd": 0
+    }
+  ]
+}

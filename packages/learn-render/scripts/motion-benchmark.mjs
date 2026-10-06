@@ -1,21 +1,24 @@
 // M8: Remotion vs HyperFrames, paired on frozen plans (motion/benchmark.mjs; cases in motion/fixtures/m8/cases.json).
 //   node scripts/motion-benchmark.mjs plan        [--case C,D]  freeze a brief + storyboard for each case without a plan (paid)
 //   node scripts/motion-benchmark.mjs pairs       [--case A]    one attempt per renderer per frozen case (paid)
+//   node scripts/motion-benchmark.mjs pairs --dry-run           only the grounding and budget checks: records why a pair would not start (free)
 //   node scripts/motion-benchmark.mjs determinism [--case A]    render each ready final again and compare frames (free)
 //   node scripts/motion-benchmark.mjs report                    metrics.json and the comparison table (free)
 // Every paid call goes through one ledger (out/motion/m8/ledger.json) with a hard ceiling (--budget-usd, default 6.00).
 // A case/renderer that already has a job record is never run again. The API key comes from the environment or
 // MOTION_ENV_FILE (default <repo>/.env), read the same way as the orchestrator; models resolve from model-config.js.
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { anthropic } from '../../control-plane/src/ask.js';
 import { resolveLearnerTurn } from '../../control-plane/src/learner-intent.js';
 import { groundTarget } from '../../control-plane/src/source-grounding.js';
-import { budgetLedger, freezeAtAuthor, frozenPlan, frozenStoryboardJob, runMetrics } from '../motion/benchmark.mjs';
+import { authorRequest } from '../motion/author.js';
+import { budgetLedger, freezeAtAuthor, frozenPlan, frozenStoryboardJob, runMetrics, worstCase } from '../motion/benchmark.mjs';
 import { RENDERERS, STAGE } from '../motion/contracts.js';
 import { fixtureSource } from '../motion/fixture-source.js';
+import { resolveRole } from '../motion/model-config.js';
 import { runMotionRequest } from '../motion/pipeline.mjs';
 import { localService, renderComposition } from '../motion/render-job.mjs';
 import { decodeFrames } from '../motion/renderer-common.mjs';
@@ -53,7 +56,8 @@ function credentials() {
   }
   return env;
 }
-const paid = phase === 'plan' || phase === 'pairs';
+const dry = argv.includes('--dry-run');
+const paid = (phase === 'plan' || phase === 'pairs') && !dry;
 const env = paid ? credentials() : {};
 if (paid && !env.ANTHROPIC_API_KEY) { console.error(`✗ no ANTHROPIC_API_KEY in the environment or ${process.env.MOTION_ENV_FILE || join(ROOT, '.env')}`); process.exit(2); }
 const ledger = budgetLedger(join(OUT, 'ledger.json'), Number(opt('--budget-usd') || 6));
@@ -76,7 +80,7 @@ if (phase === 'plan') {
 }
 
 if (phase === 'pairs') {
-  const svc = await localService();
+  const svc = dry ? { close() {} } : await localService();
   try {
     for (const c of cases) {
       const plan = planOf(c);
@@ -89,13 +93,21 @@ if (phase === 'pairs') {
       const g = groundTarget(resolveLearnerTurn({ message: plan.request, location, repository_context: plan.repository_context ?? null }), source);
       const want = plan.brief.resolved_target?.label;
       if (g.status !== 'grounded' || g.resolved_target.label !== want) { console.log(`✗ pair ${c.id}: grounds to ${g.status === 'grounded' ? `"${g.resolved_target.label}"` : g.status}, not the plan's "${want}"; nothing spent`); continue; }
-      // A pair starts only when what is left covers what a pair has cost so far (or $1.70 before any),
-      // so the budget never ends between a pair's two halves; each call is still guarded by its worst case.
-      const runs = ledger.state.calls.filter(x => x.renderer && !x.refused);
-      const runCount = new Set(runs.map(x => `${x.case}-${x.renderer}`)).size;
-      // ponytail: never below $0.85 a run, so runs that ended before the Author (no network, no grounding) do not shrink it
-      const perRun = Math.max(0.85, runCount ? runs.reduce((s, x) => s + x.cost_usd, 0) / runCount : 0);
-      if (ledger.remaining() < perRun * todo.length) { console.log(`✗ pair ${c.id} not started: ${money(ledger.remaining())} left, the pair projects ${money(perRun * todo.length)}`); break; }
+      // A pair starts only when its last Author call will still pass the hard guard: the runs before it at the
+      // cost of a ready run so far (at least $0.85), then that Author's worst case. The budget then never ends
+      // between a pair's two halves; each call is still guarded by its own worst case.
+      const ready = spec.cases.flatMap(x => spec.renderers.map(r => join(runDir(x, r), 'pipeline.json'))).filter(existsSync).map(json).filter(p => p.status === 'ready');
+      const perRun = Math.max(0.85, ready.length ? ready.reduce((s, p) => s + p.cost_usd, 0) / ready.length : 0);
+      const lastAuthor = worstCase(authorRequest(plan.brief, plan.storyboard, { renderer: todo.at(-1) }), resolveRole('MOTION_AUTHOR_MODEL', env));
+      const need = perRun * (todo.length - 1) + lastAuthor;
+      if (ledger.remaining() < need) {
+        // Recorded, never silent: the pair stays in the design with what it would have needed.
+        write(join(OUT, `${c.id}.not-run.json`), { case: c.id, not_run_reason: 'budget_ceiling', remaining_usd: ledger.remaining(), estimated_additional_usd: +need.toFixed(2), estimate: `${todo.length - 1} run(s) at ${money(perRun)} (the mean ready run), then the last Author's ${money(lastAuthor)} worst case`, at: new Date().toISOString() });
+        console.log(`✗ pair ${c.id} not started: ${money(ledger.remaining())} left; its last Author call needs ${money(need)} (${todo.length - 1} run(s) at ${money(perRun)}, then a ${money(lastAuthor)} worst case)`);
+        if (dry) continue;
+        break;
+      }
+      if (dry) { console.log(`✓ pair ${c.id} would start: ${money(ledger.remaining())} left, needs ${money(need)}`); continue; }
       for (const renderer of todo) {
         const out = await runMotionRequest({
           message: plan.request, location, repository_context: plan.repository_context ?? null, source, plan: { brief: plan.brief, storyboard: plan.storyboard, from: plan.from },
@@ -150,8 +162,20 @@ if (phase === 'report') {
       const src = p.status === 'ready' ? finalSource(dir, renderer, p) : (existsSync(join(dir, `composition.${ext(renderer)}`)) ? readFileSync(join(dir, `composition.${ext(renderer)}`), 'utf8') : '');
       row[renderer] = runMetrics(p, { source: src, determinism: det });
     }
+    const notRun = join(OUT, `${c.id}.not-run.json`);
+    if (spec.renderers.every(x => !row[x]) && existsSync(notRun)) row.not_run = json(notRun);
     rows.push(row);
   }
+  // Attempts set aside (no model output reached a render: a missing canvas location, a machine standby),
+  // with what the ledger charged for them; they are never scored.
+  const voidDir = join(OUT, 'void');
+  const voided = existsSync(voidDir) ? readdirSync(voidDir).map(d => { const p = json(join(voidDir, d, 'pipeline.json')); return { attempt: d, status: p.status, failure_reason: p.failure_reason ?? p.clarification?.question ?? null, recorded_cost_usd: p.cost_usd ?? 0 }; }) : [];
+  const charged = ledger.state.calls.filter(x => !x.refused);
+  const spend = {
+    plans_usd: +charged.filter(x => x.phase === 'plan').reduce((t, x) => t + x.cost_usd, 0).toFixed(4),
+    completed_pairs_usd: +charged.filter(x => x.renderer && existsSync(join(runDir({ id: x.case }, x.renderer), 'pipeline.json'))).reduce((t, x) => t + x.cost_usd, 0).toFixed(4),
+    voided_attempts_usd: +charged.filter(x => x.renderer && !existsSync(join(runDir({ id: x.case }, x.renderer), 'pipeline.json'))).reduce((t, x) => t + x.cost_usd, 0).toFixed(4),
+  };
   const paired = rows.filter(r => spec.renderers.every(x => r[x]));
   const agg = Object.fromEntries(spec.renderers.map(renderer => {
     const m = paired.map(r => r[renderer]), ready = m.filter(x => x.generation.ready), avg = (xs, f) => (xs.length ? +(xs.reduce((s, x) => s + (f(x) || 0), 0) / xs.length).toFixed(1) : null);
@@ -172,10 +196,11 @@ if (phase === 'report') {
       avg_source_bytes: avg(m, x => x.engineering.source_bytes), avg_elements: avg(m, x => x.engineering.elements),
     }];
   }));
-  write(join(OUT, 'metrics.json'), { at: new Date().toISOString(), code: commit, ledger: { limit_usd: ledger.state.limit_usd, spent_usd: ledger.state.spent_usd, calls: ledger.state.calls.length, refused: ledger.state.calls.filter(x => x.refused).length }, cases: rows, aggregate: agg });
-  const cell = m => (!m ? 'not run' : `${m.status}${m.generation.author_repair ? ' after Author repair' : m.status === 'ready' ? ' first pass' : ''}; $${m.cost.api_usd}; Author ${m.latency.author_s} s; ready ${m.latency.author_to_ready_s ?? '-'} s`);
+  write(join(OUT, 'metrics.json'), { at: new Date().toISOString(), code: commit, ledger: { limit_usd: ledger.state.limit_usd, spent_usd: ledger.state.spent_usd, calls: ledger.state.calls.length, refused: ledger.state.calls.filter(x => x.refused).length, ...spend }, cases: rows, aggregate: agg, voided });
+  const cell = (m, r) => (!m ? (r.not_run ? `not run: ${r.not_run.not_run_reason} (estimated additional $${r.not_run.estimated_additional_usd})` : 'not run') : `${m.status}${m.generation.author_repair ? ' after Author repair' : m.status === 'ready' ? ' first pass' : ''}; $${m.cost.api_usd}; Author ${m.latency.author_s} s; ready ${m.latency.author_to_ready_s ?? '-'} s`);
   console.log(`Case | ${spec.renderers.join(' | ')}`);
-  for (const r of rows) console.log(`${r.id} ${r.title ?? ''} | ${spec.renderers.map(x => cell(r[x])).join(' | ')}`);
+  for (const r of rows) console.log(`${r.id} ${r.title ?? ''} | ${spec.renderers.map(x => cell(r[x], r)).join(' | ')}`);
   console.log(JSON.stringify(agg, null, 2));
-  console.log(`ledger: $${ledger.state.spent_usd.toFixed(4)} of $${ledger.state.limit_usd}`);
+  for (const v of voided) console.log(`void ${v.attempt}: ${v.status} (${v.failure_reason})`);
+  console.log(`ledger: $${ledger.state.spent_usd.toFixed(4)} of $${ledger.state.limit_usd} (plans $${spend.plans_usd}, completed pairs $${spend.completed_pairs_usd}, voided attempts $${spend.voided_attempts_usd})`);
 }

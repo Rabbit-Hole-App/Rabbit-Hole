@@ -1,0 +1,8 @@
+{
+  "case": "B",
+  "not_run_reason": "budget_ceiling",
+  "remaining_usd": 2.2532,
+  "estimated_additional_usd": 2.34,
+  "estimate": "1 run(s) at $1.0212 (the mean ready run), then the last Author's $1.3188 worst case",
+  "at": "2026-10-06T18:06:24.883Z"
+}
