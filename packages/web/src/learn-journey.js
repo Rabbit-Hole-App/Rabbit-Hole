@@ -103,6 +103,16 @@ export function trayFor(journey, path, signals = {}) {
   }
 }
 
+// ---- Contract caps: limits on any journey, never the size of an example ----
+// architecture §4 (registry caps, cues), §6.3 (the walker asks at most 3), §6.6 (pending edits), §9.2 (path sections,
+// expected_evidence), §9.3 (teaching steps, checks), §9.4 (probes, probe claims, options). One copy, shared by the
+// browser, the worker and the planners' validators (agents/learn-journey.js).
+export const JOURNEY_LIMITS = Object.freeze({
+  concepts: 16, claims: 40, cues: 12, sections: 12, expected_evidence: 4, asked: 3, pending_edits: 5,
+  probes_min: 2, probes_max: 4, probe_claims: 3, options_max: 4, steps_min: 2, steps_max: 6, checks: 3,
+});
+const L = JOURNEY_LIMITS;
+
 // ---- Shared helpers for part B ----
 const isObj = (v) => v != null && typeof v === 'object' && !Array.isArray(v);
 const str = (v, max) => typeof v === 'string' && v.length > 0 && v.length <= max;
@@ -122,8 +132,8 @@ export function validateRegistry(registry, { prev = null, events = [] } = {}) {
   const { concepts, claims } = registry || {};
   if (!isObj(concepts) || !isObj(claims)) return verdict(['the registry needs concepts and claims objects']);
   const errors = [], cids = Object.keys(concepts), ids = Object.keys(claims);
-  if (cids.length > 16) errors.push(`at most 16 concepts (got ${cids.length})`);
-  if (ids.length > 40) errors.push(`at most 40 claims (got ${ids.length})`);
+  if (cids.length > L.concepts) errors.push(`at most ${L.concepts} concepts (got ${cids.length})`);
+  if (ids.length > L.claims) errors.push(`at most ${L.claims} claims (got ${ids.length})`);
   const prereqs = (at, p) => { if (!Array.isArray(p) || p.some((c) => !has(concepts, c))) errors.push(`${at}: prerequisites must be concept ids`); };
   for (const id of cids) {
     if (!/^[a-z0-9-]+$/.test(id) || id.length > 60) errors.push(`concept ${id}: the id must be a lowercase slug of at most 60 characters`);
@@ -139,7 +149,7 @@ export function validateRegistry(registry, { prev = null, events = [] } = {}) {
     if (!Array.isArray(c.ideas) || c.ideas.length < 1 || c.ideas.length > 4 || c.ideas.some((x) => !str(x, 300))) errors.push(`${at}: ideas must be 1-4 strings of at most 300 characters`);
     if (!Array.isArray(c.misconceptions) || c.misconceptions.length > 5 || c.misconceptions.some((m) => !str(m?.id, 80) || !str(m?.check, 300))) errors.push(`${at}: misconceptions must be at most 5 of { id ≤ 80, check ≤ 300 }`);
     prereqs(at, c.prerequisites);
-    if (c.cues !== undefined && (!Array.isArray(c.cues) || c.cues.length > 12 || c.cues.some((q) => !str(q, Infinity) || q !== q.toLowerCase()))) errors.push(`${at}: cues must be at most 12 lowercase strings`);
+    if (c.cues !== undefined && (!Array.isArray(c.cues) || c.cues.length > L.cues || c.cues.some((q) => !str(q, Infinity) || q !== q.toLowerCase()))) errors.push(`${at}: cues must be at most ${L.cues} lowercase strings`);
   }
   for (const id of Object.keys(prev?.claims || {})) {
     if (list(events).some((e) => e?.claim === id) && !same(claims[id], prev.claims[id])) errors.push(`claim ${id} has evidence, so it cannot change or be removed`);
@@ -159,7 +169,7 @@ const KEPT_WHEN_COMPLETED = ['title', 'purpose', 'target_concepts', 'heading_blo
 
 export function validatePath(next, prev, registry) {
   const sections = next?.sections;
-  if (!Array.isArray(sections) || sections.length < 1 || sections.length > 12) return verdict(['a path has 1-12 sections']);
+  if (!Array.isArray(sections) || sections.length < 1 || sections.length > L.sections) return verdict([`a path has 1-${L.sections} sections`]);
   const errors = [], ids = new Set();
   sections.forEach((s, i) => {
     const at = `section ${s?.id ?? i + 1}`;
@@ -172,7 +182,7 @@ export function validatePath(next, prev, registry) {
     for (const [k, allowed] of Object.entries(SECTION_ENUMS)) if (!allowed.includes(s[k])) errors.push(`${at}: ${k} must be one of ${allowed.join(', ')}`);
     if (!Array.isArray(s.target_concepts) || !Array.isArray(s.prerequisites)) errors.push(`${at}: target_concepts and prerequisites must be lists`);
     for (const c of [...list(s.target_concepts), ...list(s.prerequisites)]) if (!has(registry?.concepts, c)) errors.push(`invariant 5: ${at} names the unknown concept ${c}`);
-    if (!Array.isArray(s.expected_evidence) || s.expected_evidence.length > 4) errors.push(`${at}: expected_evidence must be a list of at most 4`);
+    if (!Array.isArray(s.expected_evidence) || s.expected_evidence.length > L.expected_evidence) errors.push(`${at}: expected_evidence must be a list of at most ${L.expected_evidence}`);
     for (const e of list(s.expected_evidence)) {
       if (!has(registry?.claims, e?.claim)) errors.push(`invariant 5: ${at} names the unknown claim ${e?.claim}`);
       if (!EVIDENCE_KINDS.includes(e?.kind)) errors.push(`${at}: expected_evidence kind must be one of ${EVIDENCE_KINDS.join(', ')}`);
@@ -215,7 +225,7 @@ export function nextProbe(diagnostic) {
   if (diagnostic?.skipped || !probes.length) return null;
   if (!asked.length) return probes[Math.floor((probes.length - 1) / 2)];
   const dirs = asked.map((a) => direction(a.result)), d = dirs.at(-1);
-  if (asked.length >= 3 || (d && d === dirs.at(-2))) return null;
+  if (asked.length >= L.asked || (d && d === dirs.at(-2))) return null;
   const from = probes.findIndex((p) => p.id === asked.at(-1).probe_id);
   const open = probes.map((_, i) => i).filter((i) => !asked.some((a) => a.probe_id === probes[i].id));
   const pick = d > 0 ? open.find((i) => i > from)
@@ -290,7 +300,7 @@ export function journeyStep(journey, event) {
       // Edits wait in pending_edits (at most 5) until a path version includes them, so a retry can re-send them.
       const text = String(event.text ?? '').trim().slice(0, 300), pending_edits = [...(j.pending_edits || []), text];
       if (!text) return no('needs text');
-      if (pending_edits.length > 5) return no('already has 5 edits waiting');
+      if (pending_edits.length > L.pending_edits) return no(`already has ${L.pending_edits} edits waiting`);
       if (j.state === 'intake' || j.state === 'diagnostic') return go({ pending_edits });
       return j.state === 'path_review' ? wait('path_review', 'revise', { pending_edits }) : no();
     }

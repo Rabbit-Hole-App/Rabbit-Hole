@@ -17,6 +17,7 @@ import { evaluationFrom, firstSentence, largerInstruction, parseLarger, PLANNER_
 import { normalizeToolInput } from './tool-input.js';
 import { JourneyConflict, appendJourneyEvidence, loadJourneyById } from './learn-journey-store.js';
 import { claimsOfConceptIn } from '../../web/src/learn-tutor-claims.js';
+import { JOURNEY_LIMITS } from '../../web/src/learn-journey.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 export const JEV_TIMEOUT_MS = 800;
@@ -188,8 +189,8 @@ async function journeyEvaluate(env, access, body, deps) {
   if (multiple && (!open.probe.key || !open.probe.options?.some(option => option.id === body.option_id))) return json({ error: 'unknown_option' }, 400);
   if (!multiple && open?.probe.key) return json({ error: 'unknown_probe' }, 400); // free text answers a keyless probe only
   // Final review A-m4 + C-m2 (ruling): an answer to an open probe is graded on the probe's own claims (all of them, at most
-  // 3, in probe order), never on the claims the browser sent.
-  const spec = multiple ? null : journeySpec(journey, open ? { ...body, claims: open.probe.claims.slice(0, 3) } : body);
+  // JOURNEY_LIMITS.probe_claims, in probe order), never on the claims the browser sent.
+  const spec = multiple ? null : journeySpec(journey, open ? { ...body, claims: open.probe.claims.slice(0, JOURNEY_LIMITS.probe_claims) } : body);
   if (spec?.error) return json({ error: spec.error }, 400);
   if (open && answered(journey, open.tag)) return json(replay(journey));
   const evaluation = multiple ? probeEvaluation(journey.registry, open.probe, body.option_id) : await evaluateFreeText(env, spec.value, body.message, deps);

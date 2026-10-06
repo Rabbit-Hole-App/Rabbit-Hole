@@ -58,6 +58,14 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, on 
     return evidence && evidence.seq > store.seq ? { ...store, events: evidence.events, seq: evidence.seq } : store;
   };
   const save = store => saveStore(sessionStorage, key, store);
+  // The Tutor's domain on this canvas: a journey canvas's (§3.2), built per turn from the journey, its path and the canvas
+  // blocks; a hole opened from a journey section (Task 14) the dive domain over the parent journey, session evidence; else
+  // the nanoGPT course's.
+  const domainOf = canvas => {
+    const live = journeyRef.current?.journey ? journeyRef.current : null;
+    return live ? journeyDomain({ journey: live.journey, path: live.path, blocks: canvas?.blocks?.() || [] })
+      : parentJourney && record?.journey ? journeyDomain({ journey: parentJourney.journey, path: parentJourney.path, blocks: canvas?.blocks?.() || [], dive: record.journey }) : NANOGPT;
+  };
 
   // Back on a parent after a hole: its next turn carries returned_from (§6.4).
   useEffect(() => { if (active) save(arriveAt(load(), here)); }, [active, here.app, here.board]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -87,11 +95,8 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, on 
       if (stream?.onSentence) return apiFetch(path, { method: 'POST', body: JSON.stringify(body), signal: limit }).then(response => readPlanStream(response, stream.onSentence));
       return api(path, { method: 'POST', body: JSON.stringify(body), signal: limit });
     };
-    // A journey canvas (§3.2): the journey domain, built per turn from the journey, its path and the canvas blocks.
-    // A hole opened from a journey section (Task 14): the dive domain over the parent journey, session evidence.
     const live = journeyRef.current?.journey ? journeyRef.current : null;
-    const domain = live ? journeyDomain({ journey: live.journey, path: live.path, blocks: canvas?.blocks?.() || [] })
-      : parentJourney && record?.journey ? journeyDomain({ journey: parentJourney.journey, path: parentJourney.path, blocks: canvas?.blocks?.() || [], dive: record.journey }) : NANOGPT;
+    const domain = domainOf(canvas);
     const common = { canvas: { ...here, ...(record ? { dive: record } : {}) }, access, block, inputModality, turnId, domain, post };
     // §7.2, D6: the journey's resolver first (handleText: rules 1-4, then the model's rule 5; never punctuation). A tray
     // answer, path edit, cancel, clarification or second broad intent is the journey's and never reaches the planner. A
@@ -110,9 +115,10 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, on 
     try {
       result = await runTurn({
         ...common, raw: slash?.raw || raw, slash: slash?.name || null, opening, store: load(), onSpeakable,
-        // A journey's cards are blocks already on the canvas (its showCard reveals, never inserts), so a held place would
-        // never be taken; and before the path is accepted the canvas gets no card at all.
-        onTurn: built => { if (domain === NANOGPT && wantsCard(built)) slot = canvas?.reserve?.({ label: 'Creating a card…', card: 'animation', samples: showableCards() }) ?? null; },
+        // Only a domain whose cards are inserted (no showCard of its own: the authored-module one) holds a place. A journey's
+        // cards are blocks already on the canvas (its showCard reveals, never inserts), so a held place would never be
+        // taken; and before the path is accepted the canvas gets no card at all.
+        onTurn: built => { if (!domain.showCard && wantsCard(built)) slot = canvas?.reserve?.({ label: 'Creating a card…', card: 'animation', samples: showableCards(domain) }) ?? null; },
       });
     } catch (error) {
       release();
@@ -141,7 +147,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, on 
   const [opening, setOpening] = useState(null);
   useEffect(() => {
     if (!active || !record?.dive_id) return;
-    const store = enterHole(load(), record);
+    const store = enterHole(load(), record, domainOf(canvasApi.current));
     const question = openingQuestion(store, record);
     save(question ? markOpened(store, record) : store);
     if (question) setOpening({ key: record.dive_id, question });

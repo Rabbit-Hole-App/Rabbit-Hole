@@ -3,7 +3,7 @@
 // model call lives in learn-journey-planners.js. Each validator wraps Task 2's validateRegistry / validatePath and
 // returns { ok: true, value } with the output rebuilt from known fields, or { ok: false, errors }. Each tool is named
 // after its role (LEARN_TASKS key), so the log line and the fixture model can tell the calls apart.
-import { validatePath, validateRegistry } from '../../../web/src/learn-journey.js';
+import { JOURNEY_LIMITS as LIMIT, validatePath, validateRegistry } from '../../../web/src/learn-journey.js';
 import { STATES } from '../../../web/src/learn-tutor-evidence.js';
 import { STATE_RULES, tagged } from './learn-tutor.js';
 
@@ -273,7 +273,7 @@ const has = (o, k) => isObj(o) && typeof k === 'string' && Object.hasOwn(o, k);
 const list = v => (Array.isArray(v) ? v : []);
 const verdict = (errors, value) => (errors.length ? { ok: false, errors } : { ok: true, value });
 const options = v => list(v).map(o => ({ id: o?.id, label: o?.label }));
-const badOptions = (v, min) => !Array.isArray(v) || v.length < min || v.length > 4 || v.some(o => !str(o?.id, 80) || !str(o?.label, 200)) || new Set(v.map(o => o?.id)).size !== v.length;
+const badOptions = (v, min) => !Array.isArray(v) || v.length < min || v.length > LIMIT.options_max || v.some(o => !str(o?.id, 80) || !str(o?.label, 200)) || new Set(v.map(o => o?.id)).size !== v.length;
 
 // A Probe (§9.4) with its server-only key { correct, misconceptions } (toClient strips it). The key's misconception ids
 // belong to the probe's claims, so the evaluate route can attach each one to a claim.
@@ -284,7 +284,7 @@ function probe(p, registry, seen, at, errors) {
   seen.add(p.id);
   if (!PROBE_KINDS.includes(p.kind)) errors.push(`${at}: kind must be one of ${PROBE_KINDS.join(', ')}`);
   if (!str(p.prompt, 300)) errors.push(`${at}: prompt must be 1-300 characters`);
-  if (!Array.isArray(p.claims) || p.claims.length < 1 || p.claims.length > 3 || p.claims.some(c => !has(registry?.claims, c))) errors.push(`${at}: claims must be 1-3 registry claim ids`);
+  if (!Array.isArray(p.claims) || p.claims.length < 1 || p.claims.length > LIMIT.probe_claims || p.claims.some(c => !has(registry?.claims, c))) errors.push(`${at}: claims must be 1-${LIMIT.probe_claims} registry claim ids`);
   if (!PURPOSES.includes(p.purpose)) errors.push(`${at}: purpose must be one of ${PURPOSES.join(', ')}`);
   if (typeof p.transfer !== 'boolean') errors.push(`${at}: transfer must be true or false`);
   const base = { id: p.id, kind: p.kind, prompt: p.prompt, claims: p.claims, purpose: p.purpose, transfer: p.transfer };
@@ -292,7 +292,7 @@ function probe(p, registry, seen, at, errors) {
     if (p.options?.length || p.key != null) errors.push(`${at}: an explain_back probe is free text, with no options and no key`);
     return base;
   }
-  if (badOptions(p.options, 2)) errors.push(`${at}: options must be 2-4 of { id, label } with unique ids`);
+  if (badOptions(p.options, 2)) errors.push(`${at}: options must be 2-${LIMIT.options_max} of { id, label } with unique ids`);
   const ids = options(p.options).map(o => o.id), wrong = p.key?.misconceptions ?? {};
   const known = list(p.claims).flatMap(c => (has(registry?.claims, c) ? list(registry.claims[c]?.misconceptions).map(m => m?.id) : []));
   if (!isObj(p.key) || !ids.includes(p.key.correct) || !isObj(wrong)
@@ -305,11 +305,11 @@ function probe(p, registry, seen, at, errors) {
 // planDiagnostic: { registry, probes (2-4), background? }.
 export function diagnosticOutput(out) {
   const registry = out?.registry, errors = [...(validateRegistry(registry).errors || [])], seen = new Set();
-  if (!Array.isArray(out?.probes) || out.probes.length < 2 || out.probes.length > 4) errors.push('the diagnostic needs 2-4 probes');
+  if (!Array.isArray(out?.probes) || out.probes.length < LIMIT.probes_min || out.probes.length > LIMIT.probes_max) errors.push(`the diagnostic needs ${LIMIT.probes_min}-${LIMIT.probes_max} probes`);
   const value = { registry, probes: list(out?.probes).map((p, i) => probe(p, registry, seen, `probe ${p?.id ?? i + 1}`, errors)) };
   const bg = out?.background;
   if (bg != null) {
-    if (!isObj(bg) || !str(bg.prompt, 300) || (bg.options != null && badOptions(bg.options, 0))) errors.push('background must be { prompt of at most 300 characters, options: at most 4 of { id, label } }');
+    if (!isObj(bg) || !str(bg.prompt, 300) || (bg.options != null && badOptions(bg.options, 0))) errors.push(`background must be { prompt of at most 300 characters, options: at most ${LIMIT.options_max} of { id, label } }`);
     else value.background = { prompt: bg.prompt, options: options(bg.options) };
   }
   return verdict(errors, value);
@@ -374,8 +374,8 @@ export function sectionOutput(out, { path, section, registry }) {
   if (!Array.isArray(out?.prerequisite_evidence) || out.prerequisite_evidence.some(p => !has(registry?.concepts, p?.concept) || !STATES.includes(p?.state))) errors.push('prerequisite_evidence must be { concept, state } with a registry concept and an evidence state');
   // A sequence that is not 2-6 steps has no step ids to check a trigger against: its one structural error is the whole
   // story, so an after_step trigger is then checked for shape only (no cascading "unknown step" error).
-  const steps = list(out?.teaching_sequence), stepIds = new Set(), unstructured = steps.length < 2 || steps.length > 6;
-  if (unstructured) errors.push('teaching_sequence needs 2-6 steps');
+  const steps = list(out?.teaching_sequence), stepIds = new Set(), unstructured = steps.length < LIMIT.steps_min || steps.length > LIMIT.steps_max;
+  if (unstructured) errors.push(`teaching_sequence needs ${LIMIT.steps_min}-${LIMIT.steps_max} steps`);
   steps.forEach((s, i) => {
     const at = `step ${s?.step_id ?? i + 1}`, make = s?.make, keys = isObj(make) ? Object.keys(make).sort().join() : '';
     if (!str(s?.step_id, 80) || stepIds.has(s.step_id)) errors.push(`${at}: step_id must be a unique string`);
@@ -387,7 +387,7 @@ export function sectionOutput(out, { path, section, registry }) {
     claimIds(s?.claims, at);
   });
   const checks = out?.checks ?? [], seen = new Set();
-  if (!Array.isArray(checks) || checks.length > 3) errors.push('checks must be a list of at most 3 probes');
+  if (!Array.isArray(checks) || checks.length > LIMIT.checks) errors.push(`checks must be a list of at most ${LIMIT.checks} probes`);
   const picked = list(checks).map((c, i) => {
     const at = `check ${c?.id ?? i + 1}`, p = probe(c, registry, seen, at, errors), t = c?.trigger;
     if (t !== 'before_transition' && !(isObj(t) && str(t.after_step, 80) && (unstructured || stepIds.has(t.after_step)))) errors.push(`${at}: trigger must be { after_step: <step_id> } or before_transition`);

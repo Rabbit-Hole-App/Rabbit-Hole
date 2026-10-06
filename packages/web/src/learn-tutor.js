@@ -523,9 +523,11 @@ export function keepHere(store, here) {
 
 // Inside a hole: remember it, so the parent's next turn after climbing back carries returned_from.
 // The blocked claim is the one the Tutor's suggestion came from, when this hole answers it.
-export function enterHole(store, record) {
+// domain: the hole's TutorDomain (NANOGPT by default); a hole opened from a journey section reads its concept from the
+// journey registry, never the nanoGPT one.
+export function enterHole(store, record, domain = NANOGPT) {
   if (!record?.dive_id) return store;
-  const concept = holeConcept(record);
+  const concept = holeConcept(record, domain);
   const suggested = store.suggested && store.suggested.concept && store.suggested.concept === concept ? store.suggested : null;
   if (store.dive?.dive_id === record.dive_id) return store;
   return { ...store, dive: { dive_id: record.dive_id, parent: record.origin?.parent || null, concept, claim: suggested?.claim ?? null, question: suggested?.question ?? null } };

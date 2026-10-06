@@ -199,15 +199,30 @@ export function holeConcept(dive, domain = NANOGPT) {
   return domain.conceptOf(dive.title) || domain.conceptOf(dive.concept) || (dive.origin?.origin_concept_ids || []).find(concept => domain.concepts[concept]) || null;
 }
 
+// Claim-specific cues, lowercase (learn-tutor-select.js selectClaims, through NANOGPT.cues). A claim with a cue match is
+// selected; a concept name ("softmax") only selects that concept's candidates when none of its claims matched a specific cue.
+export const CUES = {
+  'attention/looks-back-never-ahead': ['look back', 'looks back', 'looking back', 'look ahead', 'looks ahead', 'ahead', 'future', 'come later', 'comes later', 'later character', 'earlier character', 'previous character', 'itself'],
+  'attention/scores-from-dot-products': ['dot product', 'dot-product', 'q·k', 'q.k', 'q · k', 'qk', 'query', 'queries', 'key', 'scores highest', 'highest score'],
+  'attention/weights-from-scores': ['weight', 'add up to one', 'adds up to one', 'add to one', 'sum to one', 'sums to one', 'sum to 1', 'add up to 1', 'score is the weight', 'score just the weight'],
+  'causal-mask/reads-self-and-earlier': ['itself', 'earlier position', 'every earlier', 'next character', 'next position', 'next token', 'read', 'row', 'column', 'predict', 'cheat', 'see the future', 'every position'],
+  'causal-mask/applied-before-softmax': ['before softmax', 'after softmax', 'before the softmax', 'after the softmax', '-inf', '−∞', '-∞', 'infinity', 'zero', 'weight 0', 'weight of 0', 'masked_fill'],
+  'score-scaling/multiplier-changes-sharpness': ['multipl', 'scale', 'scaling', '√', 'sqrt', 'square root', 'sharp', 'flat', 'peak', '1/4', '1/2', 'hs'],
+  'score-scaling/order-preserved': ['order', 'highest', 'top key', 'stays on top', 'rank', 'biggest'],
+  'softmax/normalizes-to-one': ['exponent', 'exp(', 'e^', 'e²', 'sum to one', 'sums to one', 'add up to one', 'adds up to one', 'add to one', 'sum to 1', 'add up to 1', 'normali', 'divide', 'dividing', 'divided', 'positive'],
+  'softmax/gaps-set-sharpness': ['gap', 'sharp', 'equal score', 'same score', 'temperature', 'flatter', 'uneven', 'uniform'],
+  'attention-output/weighted-average': ['average', 'weighted sum', 'weighted values', 'middle', 'between', 'value', 'Σ', 'mix', 'output'],
+};
+
 // The TutorDomain (docs/features/adaptive-learning-path-v1-architecture.md §3): every slice-specific read of the
 // Tutor modules goes through one object. This one is the existing constants, unchanged, and is every Tutor
 // function's default, so nanoGPT callers change nothing; a journey canvas passes journeyDomain
 // (learn-journey-domain.js). ladder: the cards ladderStep walks (a target's ladder neighbours are relevant only on
-// it). No showCard here: the nanoGPT one inserts the authored module (learn-tutor.js) and is used when a domain
-// brings none.
+// it). cues: the hand-written cue map selectClaims reads before a claim's own `cues`. No showCard here: the nanoGPT one
+// inserts the authored module (learn-tutor.js) and is used when a domain brings none.
 export const NANOGPT = {
   kind: 'nanogpt', subject: 'nanoGPT attention',
-  concepts: CONCEPTS, claims: CLAIMS,
+  concepts: CONCEPTS, claims: CLAIMS, cues: CUES,
   practice: practiceTask,
   targetClaims,
   defaultClaims: turn => claimsOfConcept(holeConcept(turn.canvas.dive?.record)),
