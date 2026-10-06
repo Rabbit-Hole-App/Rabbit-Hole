@@ -1,0 +1,164 @@
+{
+  "mode": "subscription",
+  "file": "C:\\Users\\cyudhist\\Desktop\\workspace\\adaptive-learning-path-v1\\.superpowers\\sdd\\2026-10-04-adaptive-learning-path-lp1\\journey-corpus-subscription\\journey-corpus-subscription-2026-10-06T02-34-50-790Z.jsonl",
+  "budget": 1.9,
+  "ceiling": 1.9,
+  "transport": "subscription",
+  "note": "Claude subscription bridge: tool use is emulated in the system prompt; effort, max_tokens and caching are not applied; the exact model version is not reported. Not production-exact API evidence.",
+  "subjects_run": [
+    "logistic-regression",
+    "photosynthesis",
+    "french-revolution"
+  ],
+  "plan": "logistic-regression:section-section,photosynthesis:path-dive,french-revolution:path-dive",
+  "seed": "C:/Users/cyudhist/Desktop/workspace/adaptive-learning-path-v1/.superpowers/sdd/2026-10-04-adaptive-learning-path-lp1/journey-corpus/journey-corpus-live-2026-10-05T23-57-34-206Z.jsonl",
+  "stopped_at_budget": null,
+  "aborted": "journey_adapt: subscription bridge HTTP 503: Invalid subscription model response",
+  "crashed": null,
+  "subjects_done": [
+    "logistic-regression"
+  ],
+  "stages": 6,
+  "stages_passed": 3,
+  "failed_assertions": [],
+  "skipped": [],
+  "seeded": [
+    "logistic-regression/diagnostic",
+    "logistic-regression/path",
+    "photosynthesis/diagnostic"
+  ],
+  "repairs": [],
+  "latency_ms": {
+    "logistic-regression/section": 10453,
+    "photosynthesis/path": 27974,
+    "photosynthesis/section": 12184
+  },
+  "checks": {
+    "logistic-regression/diagnostic": "seeded: C:/Users/cyudhist/Desktop/workspace/adaptive-learning-path-v1/.superpowers/sdd/2026-10-04-adaptive-learning-path-lp1/journey-corpus/journey-corpus-live-2026-10-05T23-57-34-206Z.jsonl",
+    "logistic-regression/path": "seeded: C:/Users/cyudhist/Desktop/workspace/adaptive-learning-path-v1/.superpowers/sdd/2026-10-04-adaptive-learning-path-lp1/journey-corpus/journey-corpus-live-2026-10-05T23-57-34-206Z.jsonl",
+    "logistic-regression/section": {
+      "valid": "pass",
+      "only_section_1": "pass",
+      "step_roles": "pass",
+      "wording": "pass",
+      "key_ids_registered": "pass",
+      "no_topic_leakage": "pass"
+    },
+    "photosynthesis/diagnostic": "seeded: C:/Users/cyudhist/Desktop/workspace/adaptive-learning-path-v1/.superpowers/sdd/2026-10-04-adaptive-learning-path-lp1/journey-corpus/journey-corpus-live-2026-10-05T23-57-34-206Z.jsonl",
+    "photosynthesis/path": {
+      "valid": "pass",
+      "section_count": "pass",
+      "all_upcoming": "pass",
+      "only_current_generated": "pass",
+      "plans_only": "pass",
+      "wording": "pass",
+      "prerequisites_are_concepts": "pass",
+      "no_topic_leakage": "pass"
+    },
+    "photosynthesis/section": {
+      "valid": "pass",
+      "only_section_1": "pass",
+      "step_roles": "pass",
+      "wording": "pass",
+      "key_ids_registered": "pass",
+      "no_topic_leakage": "pass"
+    }
+  },
+  "cost": {
+    "per_stage": {
+      "section": {
+        "calls": 2,
+        "ms": 22631,
+        "in": 0,
+        "out": 0,
+        "cw": 0,
+        "cr": 0,
+        "usd": 0,
+        "worst_usd": 0.104199
+      },
+      "path": {
+        "calls": 1,
+        "ms": 27970,
+        "in": 0,
+        "out": 0,
+        "cw": 0,
+        "cr": 0,
+        "usd": 0,
+        "worst_usd": 0.275975
+      },
+      "adapt_edit": {
+        "calls": 1,
+        "ms": 14905,
+        "in": 0,
+        "out": 0,
+        "cw": 0,
+        "cr": 0,
+        "usd": 0,
+        "worst_usd": 0.062882
+      }
+    },
+    "per_domain": {
+      "logistic-regression": {
+        "calls": 1,
+        "ms": 10448,
+        "in": 0,
+        "out": 0,
+        "cw": 0,
+        "cr": 0,
+        "usd": 0,
+        "worst_usd": 0.051347
+      },
+      "photosynthesis": {
+        "calls": 3,
+        "ms": 55058,
+        "in": 0,
+        "out": 0,
+        "cw": 0,
+        "cr": 0,
+        "usd": 0,
+        "worst_usd": 0.391709
+      }
+    },
+    "per_role": {
+      "journey_section": {
+        "calls": 2,
+        "ms": 22631,
+        "in": 0,
+        "out": 0,
+        "cw": 0,
+        "cr": 0,
+        "usd": 0,
+        "worst_usd": 0.104199
+      },
+      "journey_path": {
+        "calls": 1,
+        "ms": 27970,
+        "in": 0,
+        "out": 0,
+        "cw": 0,
+        "cr": 0,
+        "usd": 0,
+        "worst_usd": 0.275975
+      },
+      "journey_adapt": {
+        "calls": 1,
+        "ms": 14905,
+        "in": 0,
+        "out": 0,
+        "cw": 0,
+        "cr": 0,
+        "usd": 0,
+        "worst_usd": 0.062882
+      }
+    },
+    "total_usd": 0,
+    "all_live_runs_usd": 0,
+    "worst_case_usd": {
+      "calls_made": 0.4431,
+      "plus_untaken_escalations": 0.7288,
+      "note": "input characters / 2 at the cache-write rate plus max_tokens at the output rate; stub inputs are fixture-sized"
+    }
+  },
+  "served_model_mismatches": [],
+  "billed_unknown": []
+}

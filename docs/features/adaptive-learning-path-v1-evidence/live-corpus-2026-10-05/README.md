@@ -8,3 +8,7 @@ These are the raw outputs of `packages/web/e2e/journey-corpus-run.mjs --live`. N
   - Each `kind: step` row is one stage: checks with their reasons, repair use, validator errors and the raw tool input.
 
 The results and the two prompt fixes they led to (66005c2c) are summarized in `docs/features/adaptive-learning-path-v1-architecture.md` §18.
+- `api-targeted-attempt-*`: the targeted API validation at 55cb64e5. Anthropic refused its first call (logistic-regression section) because the credit balance was too low. $0.00 was billed.
+- `subscription-targeted-*`: the same targeted plan through the owner's Claude Max subscription via `scripts/learn-subscription-bridge.mjs` (GO SUBSCRIPTION), at e9c13062.
+  - The bridge emulates tool use in the system prompt. Effort, max_tokens and caching are not applied, and only the model alias (opus/sonnet) is reported. Not production-exact API evidence.
+  - Results: logistic-regression section, photosynthesis path and photosynthesis section passed. The run stopped at photosynthesis adapt_edit, where the bridge returned HTTP 503 "Invalid subscription model response". It was not retried.
