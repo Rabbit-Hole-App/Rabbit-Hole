@@ -80,10 +80,13 @@ export const NEXT_STEPS_SYSTEM = tagged({
 // Generic lexicon, never topic words (ponytail: short lists; extend when a paid run slips one past).
 // "Do ..." and "Does ..." open good questions, so do is not a command verb here.
 const COMMAND = /^(?:let'?s\s+)?(?:learn|explain|study|review|revise|continue|proceed|generate|open|add|create|make|show|start|begin|read|watch|play|practi[cs]e|take|go|move on|next)\b/i;
-const FORMAT = /\b(?:next (?:lesson|section|chapter|step|topic)|lessons?|chapters?|tutorials?|quiz(?:zes)?|flash ?cards?|worksheets?|with motion|motion (?:graphic|clip|video)s?|animations?|videos?|clips?|avatars?|explain[- ]back|diagrams?|slides?|cards?)\b/gi;
-// Motion is the product's animation format: the capitalised name, plus the lowercase phrases above; a plain lowercase motion
-// (a pendulum losing its motion) stays a physics word.
+const FORMAT = /\b(?:next (?:lesson|section|chapter|step|topic)|lessons?|chapters?|tutorials?|quiz(?:zes)?|flash ?cards?|worksheets?|motion (?:graphic|clip|video)s?|animations?|videos?|clips?|avatars?|explain[- ]back|diagrams?|slides?|cards?)\b/gi;
+// Motion is the product's animation format: the capitalised name, the motion graphic, clip and video phrases above, and with
+// motion only within three words after a show, explain, see, watch or animate verb (group 1 is the format words). A plain
+// lowercase motion (friction interferes with motion, a pendulum losing its motion) stays a physics word.
 const PRODUCT_FORMAT = /\bMotion\b/g;
+const ANY_WORD = String.raw`(?:\s+[\w'-]+)?`; // written out three times below: the module keeps no bare number outside the limits
+const MOTION_AFTER_VERB = new RegExp(String.raw`\b(?:show|explain|see|watch|animate|illustrate|demonstrate|visuali[sz]e)(?:s|es|ed|d|ing)?\b${ANY_WORD}${ANY_WORD}${ANY_WORD}\s+(with motion)\b`, 'gi');
 const CLICKBAIT = /\b(?:you won'?t believe|mind[- ]?blowing|shocking|secrets?|one (?:weird )?trick|hacks?)\b/i;
 // "Do you know why ...?" is a question to the learner, not a claim about them.
 const MASTERY = /(?<!\b(?:do|did|can|could|would|will|should) )\byou(?:'ve| have)? (?:now )?(?:fully )?(?:got|mastered|understand|know)\b|\byou can now\b/i;
@@ -120,7 +123,7 @@ export function hookProblem(hook, { topic = '', texts = [], question = '' } = {}
   if (COMMAND.test(hook.trim())) return 'command';
   // Whole words only, plural-tolerant both ways (topic videos, hook video, and the reverse; quiz and quizzes). FORMAT yields
   // letters, spaces and hyphens, so a match is safe to use as a pattern.
-  if ([...(hook.match(FORMAT) || []), ...(hook.match(PRODUCT_FORMAT) || [])].some(w => !new RegExp(`\\b${w.replace(/(?:zes|s)$/i, '')}(?:zes|s)?\\b`, 'i').test(topic))) return 'format_word';
+  if ([...(hook.match(FORMAT) || []), ...(hook.match(PRODUCT_FORMAT) || []), ...[...hook.matchAll(MOTION_AFTER_VERB)].map(m => m[1])].some(w => !new RegExp(`\\b${w.replace(/(?:zes|s)$/i, '')}(?:zes|s)?\\b`, 'i').test(topic))) return 'format_word';
   if (CLICKBAIT.test(hook)) return 'clickbait';
   if (labelled(hook)) return 'level_label';
   if (texts.some(text => copies(hook, text))) return 'answer_reveal';

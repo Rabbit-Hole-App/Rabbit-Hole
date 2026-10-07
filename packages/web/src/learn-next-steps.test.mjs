@@ -161,6 +161,13 @@ test('a missing prerequisite leaves the scope with its gap claim: pushed out by 
   const crowded = build([gapEvent, ...Array.from({ length: 12 }, (_, i) => at(`x${i}/one`))]).input;
   assert.deepEqual(Object.keys(crowded.scope.claims), ['cur/one', ...Array.from({ length: 11 }, (_, i) => `x${11 - i}/one`)]);
   assert.deepEqual(crowded.canvas.blocks[0].claim_ids, []);
+  // Review round 3, item 2: the cap pass starts from the full priority order each time. Nine newer claims leave room for both;
+  // with ten, leaving the prerequisite out lets its gap claim in, so it comes back ahead of the lowest claim (x0); eleven drop both.
+  const extras = n => Object.keys(build([gapEvent, ...Array.from({ length: n }, (_, i) => at(`x${i}/one`))]).input.scope.claims);
+  const down = (from, to) => Array.from({ length: from - to + 1 }, (_, i) => `x${from - i}/one`);
+  assert.deepEqual(extras(9), ['cur/one', 'pre/one', ...down(8, 0), 'gap/one']);
+  assert.deepEqual(extras(10), ['cur/one', 'pre/one', ...down(9, 1), 'gap/one']);
+  assert.deepEqual(extras(11), ['cur/one', ...down(10, 0)]);
   // The trim: sized so dropping the gap claim alone would fit; the prerequisite is dropped with it.
   const { input } = build([gapEvent]);
   const withoutGap = JSON.stringify({ ...input, scope: { concepts: { cur: 'Current idea', pre: 'Prerequisite idea' }, claims: { 'cur/one': input.scope.claims['cur/one'], 'pre/one': input.scope.claims['pre/one'] } } }).length;

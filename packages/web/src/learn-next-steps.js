@@ -54,12 +54,20 @@ export function nextStepsInput({ context = null, store = null, journey = null, b
   const lead = [...first, ...[...shown.slice(-6).reverse().flatMap(b => b.claim_ids), ...events.map(e => e.claim).reverse().filter(known)].filter(active)];
   const prerequisites = lead.flatMap(id => [states[id]?.prerequisite, ...(claims[id].prerequisites || [])]).filter(Boolean).flatMap(c => claimsOfConceptIn(claims, c)).filter(active);
   const repair = [...done].filter(id => known(id) && !now.has(id) && repairing(id));
-  let order = [...lead, ...prerequisites, ...repair], scope;
-  for (;;) { // the 12 cap can cut a gap claim and keep its prerequisite: drop the orphan and fill the place again
-    scope = nextStepsScope({ claims, concepts, order, states, events, presented: shown.flatMap(b => b.claim_ids) });
-    const lost = new Set(orphans(scope.claims));
-    if (!lost.size) break;
-    order = order.filter(id => !lost.has(id));
+  // The 12 cap, from the full priority order on every pass: a missing prerequisite whose gap claim the cap cut is excluded; once
+  // leaving it out lets that gap claim in, the gap claim keeps its place (pinned) and the prerequisite comes back ahead of the
+  // lowest claim. A claim is excluded at most once and readmitted at most once, so the passes end.
+  const order = [...new Set([...lead, ...prerequisites, ...repair])], excluded = new Set(), pinned = new Set();
+  const gapsOf = (kept, id) => Object.keys(kept).filter(g => kept[g].state === 'prerequisite_gap' && kept[g].prerequisite === claims[id].concept);
+  let scope;
+  for (;;) {
+    const pool = order.filter(id => !excluded.has(id));
+    let room = L.scope_claims - pool.filter(id => pinned.has(id)).length;
+    scope = nextStepsScope({ claims, concepts, order: pool.filter(id => pinned.has(id) || room-- > 0), states, events, presented: shown.flatMap(b => b.claim_ids) });
+    const lost = orphans(scope.claims), back = [...excluded].filter(id => gapsOf(scope.claims, id).length);
+    if (!lost.length && !back.length) break;
+    for (const id of lost) excluded.add(id);
+    for (const id of back) { excluded.delete(id); for (const g of gapsOf(scope.claims, id)) pinned.add(g); }
   }
 
   // Ruling T7: structured sources only - the journey goal; a hole's hook goal, else its parent's goal (a journey's, or the

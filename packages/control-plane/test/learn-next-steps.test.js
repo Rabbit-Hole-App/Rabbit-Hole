@@ -338,3 +338,13 @@ test('format words: with motion, motion graphics, clips and videos are refused u
   }
   assert.match(block(NEXT_STEPS_SYSTEM, 'non_negotiable_rules'), /never name a format \([^)]*\bMotion\b[^)]*\)/);
 });
+
+// Review round 3, item 1: with motion is a format phrase only after a format verb; physics motion stays plain English.
+test('with motion: refused after a show, explain, see, watch or animate verb; physics hooks with motion pass', () => {
+  const topic = 'friction and inclined planes';
+  for (const hook of ['How does friction interfere with motion on a ramp?', 'Why does drag grow with motion through water?', 'What keeps a sled in motion on ice?']) assert.equal(hookProblem(hook, { topic }), null, hook);
+  assert.equal(hookProblem('Show it with motion on the ramp', { topic }), 'command');
+  assert.equal(hookProblem('Explain this with motion on a steep ramp', { topic }), 'command');
+  for (const hook of ['Could you show the cooling with motion instead?', 'Can we watch the block drop with motion?', 'Would it help to animate it with motion?']) assert.equal(hookProblem(hook, { topic }), 'format_word', hook);
+  assert.equal(hookProblem('Can we watch the block drop with motion?', { topic: 'explaining physics with motion' }), null, 'a topic about it opens it');
+});
