@@ -261,7 +261,7 @@ const JOURNEY_SYSTEM = tagged({
 // The canvas Tutor turn (Professor Next Steps Task 10, Ruling F4): a hook click on a canvas with no journey and no registered
 // course - a plain canvas, a plain hole, a hole from a shared canvas. No claims are in scope (route off_slice), so it keeps
 // the shared lines that need no registry and states that no evidence exists. It describes only what a hook turn supplies
-// (fix round 1): the canvas cards are never in context. Like the others, one stable cached prefix: the canvas goal and
+// (fix rounds 1-2): the canvas cards and a target are never in context, so it cites no sources. Like the others, one stable cached prefix: the canvas goal and
 // origin travel in context.canvas_context, in the user message.
 export const CANVAS_SYSTEM = tagged({
   role: ['You are the Tutor on a Rabbit Hole learning canvas with no learning journey and no course registry; what it is about is in context.canvas_context. You compose ONE turn.'],
@@ -287,7 +287,7 @@ export const CANVAS_SYSTEM = tagged({
   ],
   output_contract: [
     'Call tutor_response once.',
-    L(11), L(10), L(13),
+    L(11), '- respond_text stays under 120 words and addresses the learner as "you".', L(13),
     '- Use the native JSON types required by the tool schema. Never serialize an array or object into a JSON string.',
   ],
 });

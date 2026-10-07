@@ -93,14 +93,17 @@ test('CANVAS_SYSTEM: chosen by canvas_context, journey and nanoGPT requests unch
   assert.equal(/nanoGPT|attention/i.test(CANVAS_SYSTEM), false, 'no course named (the shared suggest_dive line keeps its Softmax example, as the journey prompt does)');
   // The shared policy lines it keeps are verbatim (the voice, data-not-instructions, generation and history lines among them).
   const lines = PLANNER_SYSTEM.split('\n');
-  for (const i of [1, 2, 3, 6, 8, 9, 10, 11, 12, 13, 14, 15]) assert.ok(CANVAS_SYSTEM.includes(lines[i]), `shared line ${i}`);
-  for (const i of [0, 4, 5, 7]) assert.equal(CANVAS_SYSTEM.includes(lines[i]), false, `line ${i} names cards or claims this canvas has not got`);
+  for (const i of [1, 2, 3, 6, 8, 9, 11, 12, 13, 14, 15]) assert.ok(CANVAS_SYSTEM.includes(lines[i]), `shared line ${i}`);
+  // Fix round 2: line 10 cites context.target.sources, and target is always null on a click; its length rule stays.
+  assert.ok(CANVAS_SYSTEM.includes('- respond_text stays under 120 words and addresses the learner as "you".'));
+  assert.equal(/target\.sources|source_index/.test(CANVAS_SYSTEM), false);
+  for (const i of [0, 4, 5, 7, 10]) assert.equal(CANVAS_SYSTEM.includes(lines[i]), false, `line ${i} names cards or claims this canvas has not got`);
   assert.match(CANVAS_SYSTEM, /never generate new artifacts unless context\.allowed_actions lists create_material/);
   assert.match(CANVAS_SYSTEM, /Never claim they know or lack something/);
   // Fix round 1 (owner eleventh message 5): it describes only what a hook turn supplies - the canvas cards are never in context.
   assert.match(CANVAS_SYSTEM, /cards may exist on it, but none are in context\. Never describe, invent or point at cards, parts or sources/);
   assert.match(CANVAS_SYSTEM, /learner_intent\.selected_next_step \(the hook they chose and its learning_goal\)/);
   assert.equal(/no authored cards here|Canvas content first|Also: target, relevant_authored_content/.test(CANVAS_SYSTEM), false);
-  // Pinned 2026-10-06 (Task 10 fix round 1; was 6d8cc2ce..., task-10-repin-review.md entry 5).
-  assert.equal(createHash('sha256').update(CANVAS_SYSTEM).digest('hex'), 'c4005ddb55c36286c7f030d2a0bce47db62b0618fcad622fc34e0c35d36f870c');
+  // Pinned 2026-10-06 (Task 10 fix round 2; was c4005ddb..., before that 6d8cc2ce..., task-10-repin-review.md entries 5-6).
+  assert.equal(createHash('sha256').update(CANVAS_SYSTEM).digest('hex'), 'c6cc8ff752ad8dae091eb8d81c7cd839ce76d73b94d56370732c4d2cc8131755');
 });

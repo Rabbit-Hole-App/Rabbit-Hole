@@ -838,14 +838,23 @@ test('basis: a context kind change, another parent journey or section, and a ren
   assert.equal(b(plain('Sourdough')), b(plain('Sourdough')));
   const course = title => ({ context: tutorContext({ board: TUTOR_BOARD }), title });
   assert.equal(b(course('A')), b(course('B')));
+  // A canvas-domain hole without a learning_goal (fix round 2): its live title grounds the goal, so a rename re-asks and the
+  // hook input carries the new title; a learning_goal leads and a rename leaves it.
+  const hole = { dive_id: 'canvas-0000hole', title: 'Hole as created', origin: {} };
+  const holeAt = (title, r = hole) => ({ record: r, context: tutorContext({ record: r, title }), title });
+  assert.notEqual(b(holeAt('Hole as created')), b(holeAt('Renamed hole')));
+  assert.equal(nextStepsInput({ ...holeAt('Renamed hole'), store: emptyStore(), blocks: [], basis: 'b' }).input.goal, 'Renamed hole');
+  const goaled = { ...hole, learning_goal: 'Explain a starter culture' };
+  assert.equal(b(holeAt('Hole as created', goaled)), b(holeAt('Renamed hole', goaled)));
+  assert.equal(nextStepsInput({ ...holeAt('Renamed hole', goaled), store: emptyStore(), blocks: [], basis: 'b' }).input.goal, 'Explain a starter culture');
 });
 
-// Owner eleventh message 8: hooks on a plain canvas only with trustworthy grounding - a card or a chat card on it; its title
-// alone is never enough, and no goal is invented because no journey exists.
-test('stoppingPoint: a plain canvas with no card or chat card gives no hooks; a course, journey or hole goal still grounds them', () => {
+// Owner eleventh message 8: hooks on a plain canvas only with trustworthy grounding - a lesson card on it (canvasApi.blocks();
+// chat exchanges are not canvas blocks, so a canvas with only chat gets no hooks in v1); its title alone is never enough, and no
+// goal is invented because no journey exists.
+test('stoppingPoint: a plain canvas with no lesson card gives no hooks, whatever its title; a course, journey or hole goal still grounds them', () => {
   const here = { app: 'a', board: 'main' }, store = emptyStore();
-  assert.equal(stoppingPoint({ store, here, blocks: [], goal: 'Sourdough', plain: true }), 'not_now');
-  assert.equal(stoppingPoint({ store, here, blocks: [{ id: 'c1', question: 'Why does dough rise?', answer: 'Gas.' }], goal: '', plain: true }), null, 'a chat card');
+  assert.equal(stoppingPoint({ store, here, blocks: [], goal: 'Sourdough', plain: true }), 'not_now', 'a title alone, or chat only (no canvas block)');
   assert.equal(stoppingPoint({ store, here, blocks: [{ id: 'k1', type: 'explanation', title: 'Starter' }], goal: 'Sourdough', plain: true }), null, 'a lesson card');
   assert.equal(stoppingPoint({ store, here, blocks: [], goal: 'Tidal power' }), null);
   assert.equal(stoppingPoint({ store, here, blocks: [], goal: '' }), 'not_now');

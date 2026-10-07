@@ -414,7 +414,8 @@ test('canvasDomain: the members the router, contract and trace read; goal and or
 test('old hole records: no learning_goal, no source, a deleted shared source - the hole title is the goal and a hook turn still runs', async () => {
   const record = { dive_id: 'canvas-0000old1', title: 'Exploring from Somewhere', concept: 'Exploring from Somewhere', origin: { parent: { app: 'share:0f0f', board: 'main' }, origin_block_id: ':root' } };
   const root = { app: 'share:0f0f', board: 'main', title: 'Shared canvas', kind: 'shared' };
-  const context = tutorContext({ board: 'main', root, record, title: 'Something else' });
+  // No live title known: the record title (fix round 2: a live title, once the page passes it, wins - below).
+  const context = tutorContext({ board: 'main', root, record });
   assert.deepEqual([context.source, context.capabilities, context.domain.context], ['canvas', { tutor: false, hook_turns: true }, { goal: 'Exploring from Somewhere', origin: null }]);
   const { input } = nextStepsInput({ context, store: emptyStore(), journey: null, blocks: [], record, parent: null, title: '', lastTurn: null, previous: { hooks: [], goals: [] }, basis: 'b' });
   assert.deepEqual([input.mode, input.goal, input.dive.title, input.dive.parent_states, input.scope.claims], ['dive', 'Exploring from Somewhere', 'Exploring from Somewhere', {}, {}]);
@@ -434,4 +435,6 @@ test('old hole records: no learning_goal, no source, a deleted shared source - t
   // A newer hole: its learning_goal leads, and the shared canvas it came from is its origin.
   const newer = { ...record, learning_goal: 'Understand why rising dough traps gas', source: { title: 'Bread science' } };
   assert.deepEqual(tutorContext({ board: 'main', root, record: newer, title: 'x' }).domain.context, { goal: 'Understand why rising dough traps gas', origin: 'Bread science' });
+  // A renamed hole without a learning_goal: the live title, never the creation-time record title.
+  assert.equal(tutorContext({ board: 'main', root, record, title: 'Renamed hole' }).domain.context.goal, 'Renamed hole');
 });

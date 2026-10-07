@@ -17,6 +17,9 @@ function goalOf({ context = null, record = null, title = '' }) {
   const domain = context?.domain ?? null;
   const parentGoal = !record ? null : context?.source === 'dive' ? domain.context?.goal : context?.source === 'registry' ? domain.subject : null;
   const goal = context?.source === 'journey' ? domain.context?.goal || title
+    // A plain canvas or a canvas-domain hole (fix round 2): the goal tutorContext built from the live title (a hole's
+    // learning_goal first), so a rename reaches the input and the basis.
+    : context?.source === 'canvas' ? domain.subject || title
     : record ? record.learning_goal || (parentGoal ? `${cap(parentGoal, 120)} - ${cap(record.title, 80)}` : record.title)
     : domain?.subject || title;
   return { goal, parentGoal };
@@ -178,7 +181,8 @@ export function nextStepsBasis({ lastTurn = null, store = null, journey = null, 
 // Not a stopping point (contract §1.2): the Tutor answering, journey work (a pending action, a section being built) or
 // setup, an open tray, an open Tutor question or a pending return on this canvas, or nothing to suggest from. Voice Mode is
 // deliberately not an input: hooks stay visible and clickable while it is on. plain: a canvas-domain canvas that is not a
-// hole (owner eleventh message 8) - only a card or a chat card on it grounds hooks, never its title alone.
+// hole (owner eleventh message 8) - only a lesson card on it grounds hooks, never its title alone. blocks are the canvas
+// blocks (canvasApi.blocks()); chat exchanges are not among them, so a canvas with only chat gets no hooks in v1.
 export function stoppingPoint({ busy = false, journey = null, store = null, here = null, blocks = [], goal = '', plain = false }) {
   const j = journey?.journey;
   if (busy || journey?.busy || j?.pending || (j && SETUP.includes(j.state)) || journey?.trayProps) return 'not_now';

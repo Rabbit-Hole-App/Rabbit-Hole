@@ -10,14 +10,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
-import { canvasDomain, journeyDomain } from './learn-journey-domain.js';
+import { journeyDomain } from './learn-journey-domain.js';
 import { emptyStore } from './learn-tutor-evidence.js';
 import { TIDES } from './__fixtures__/journey-synthetic-domains.mjs';
 
 const read = name => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const dir = mkdtempSync(join(tmpdir(), 'next-steps-ui-')), outfile = join(dir, 'ui.cjs');
 await esbuild.build({
-  stdin: { contents: ["export { useTutor } from './LearnTutor.jsx';", "export { useNextSteps, ownedSteps } from './LearnNextSteps.jsx';", "export { TUTOR_DOMAINS } from './learn-tutor-domains.js';",
+  stdin: { contents: ["export { useTutor, hookContext } from './LearnTutor.jsx';", "export { useNextSteps, ownedSteps } from './LearnNextSteps.jsx';", "export { TUTOR_DOMAINS } from './learn-tutor-domains.js';",
     "export { materialCommands } from './learn-slash.js';", "export { addSink } from './learn-tutor-trace.js';", "export { createElement } from 'react';", "export { renderToStaticMarkup } from 'react-dom/server';"].join('\n'),
     resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent',
@@ -295,23 +295,66 @@ test('ownedSteps: off where snapshot().context is null or there is no askStep; n
   }
 });
 
-// Task 10 fix round 1 (owner eleventh message 3, 8): a plain canvas with no card asks nothing - its title alone never grounds
-// hooks - and once it has one, a rename (the goal its title grounds) re-asks.
-test('ownedSteps on a plain canvas: no card, no hooks and nothing posted; with a card it asks; a rename changes the basis', async () => {
-  const plain = title => ({ domain: canvasDomain({ goal: title }), capabilities: { tutor: false, hook_turns: true }, source: 'canvas' });
-  const r = stepsRig({ tutor: tutorStub({ context: plain('Sourdough') }), props: { title: 'Sourdough', canvasApi: { current: { blocks: () => [] } }, canvasState: { cards: [] } } });
+// Task 10 fix rounds 1-2 (owner eleventh message 3, 8; probe E): a plain canvas with no lesson card asks nothing - its title
+// alone never grounds hooks - and a rename re-asks with the new goal. Modelled as the page wires it: a rename re-renders
+// useTutor with the live title param and useNextSteps with the same title; app.title never changes.
+const withSession = async fn => {
+  const saved = Object.getOwnPropertyDescriptor(globalThis, 'sessionStorage'), storage = new Map();
+  Object.defineProperty(globalThis, 'sessionStorage', { value: { getItem: k => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, String(v)) }, configurable: true, writable: true });
+  try { return await fn(); } finally { if (saved) Object.defineProperty(globalThis, 'sessionStorage', saved); else delete globalThis.sessionStorage; }
+};
+const plainTutor = (title, blocks) => {
+  let t;
+  const Page = () => { t = B.useTutor({ app: { name: 'canvas-0000abcd', org: 'o', email: 'e@x.com', title: 'Created as' }, board: 'main', access: { app: 'canvas-0000abcd' }, canvasApi: { current: { blocks: () => blocks, block: () => null } }, canvasState: { card: null },
+    dive: { tree: { path: [{ app: 'canvas-0000abcd', board: 'main', kind: 'canvas' }], children: [], dive: null }, suggestionCard: null }, courseCanvas: true, journey: null, title }); return null; };
+  B.renderToStaticMarkup(B.createElement(Page));
+  return t;
+};
+test('ownedSteps on a plain canvas: no lesson card, no hooks and nothing posted; with one it asks; a rename re-asks with the new goal', () => withSession(async () => {
+  const card = [{ id: 'k1', type: 'explanation', title: 'Starter culture' }];
+  const r = stepsRig({ tutor: plainTutor('Sourdough', []), replies: [setFor(1), setFor(2)], props: { title: 'Sourdough', canvasApi: { current: { blocks: () => [] } }, canvasState: { cards: [] }, access: { app: 'canvas-0000abcd' } } });
   assert.equal(r.steps.state().stop, 'not_now');
   r.step(); await r.c.fire();
   assert.deepEqual([r.steps.view().status, r.bodies.length], ['unavailable', 0]);
-  r.live.canvasApi = { current: { blocks: () => [{ id: 'k1', type: 'explanation', title: 'Starter culture' }] } };
+  r.live.canvasApi = { current: { blocks: () => card } };
   r.live.canvasState = { cards: [['k1']] };
+  r.live.tutor = plainTutor('Sourdough', card);
   const { basis, stop } = r.steps.state();
   assert.equal(stop, null);
   r.step(); await r.c.fire();
   assert.deepEqual([r.bodies.length, r.bodies[0].mode, r.bodies[0].goal], [1, 'canvas', 'Sourdough']);
-  r.tutor.context = plain('Sourdough, renamed');
+  // The rename: the page re-renders with the live title; app.title stays 'Created as'.
+  r.live.tutor = plainTutor('Sourdough, renamed', card);
   r.live.title = 'Sourdough, renamed';
   assert.notEqual(r.steps.state().basis, basis, 'the renamed title grounds the goal');
+  r.step(); await r.c.fire();
+  assert.deepEqual([r.bodies.length, r.bodies[1].goal], [2, 'Sourdough, renamed']);
+}));
+
+// Probe D (review fix round 2): the dives record and then the parent journey load after the debounce. Nothing is posted and no
+// set is shown until both settle; the first set is the hole's (mode dive), never a temporary plain one. snapshot() as useTutor
+// builds it, through hookContext, at each stage (useTutor's own read state is an effect, which a server render never runs).
+test('probe D: a hole whose record and parent journey land late - no post and no set until both settle, never a temporary plain set', async () => {
+  const record = { dive_id: 'canvas-0000d0d0', title: 'Falls up close', journey: { journey_id: 'lj_ui', section_id: 's1', concept_ids: [], claim_ids: IDS } };
+  const stage = { tree: null, read: null, parent: null };
+  const tutor = tutorStub();
+  tutor.snapshot = () => {
+    const rec = stage.tree?.dive ?? null;
+    return { context: B.hookContext({ record: rec, root: stage.tree?.path?.[0], parentJourney: stage.parent, title: 'Falls up close' }, stage.read, !stage.tree), store: tutor.store, parent: stage.parent, record: rec };
+  };
+  const r = stepsRig({ tutor, replies: [setFor(1)] });
+  const seen = [];
+  r.steps.subscribe(() => seen.push(r.steps.view().status));
+  r.step(); await r.c.fire();                                       // 1. the dives GET has not answered
+  stage.tree = { path: [{ app: 'canvas-0000aaaa', board: 'main', kind: 'canvas' }, { app: record.dive_id }], children: [], dive: record };
+  r.live.record = record;
+  r.step(); await r.c.fire();                                       // 2. the record landed, the parent read pending
+  assert.deepEqual([r.bodies.length, r.steps.view().status, r.steps.view().reason], [0, 'unavailable', 'off']);
+  stage.parent = { journey: J, path: PATH }; stage.read = record.dive_id;
+  r.step(); await r.c.fire();                                       // 3. the parent journey arrived
+  assert.deepEqual([r.bodies.length, r.bodies[0].mode, r.steps.view().status], [1, 'dive', 'ready']);
+  assert.equal(seen.slice(0, seen.indexOf('ready')).every(status => status !== 'ready' && status !== 'stale'), true, JSON.stringify(seen));
+  assert.equal(r.bodies.some(body => body.mode === 'canvas'), false, 'never a temporary plain set');
 });
 
 test('ownedSteps: the trigger state, the input from the live snapshot at send time, ready with exactly the contract keys, and select', async () => {
