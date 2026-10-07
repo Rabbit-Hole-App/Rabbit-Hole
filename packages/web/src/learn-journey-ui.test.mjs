@@ -1402,7 +1402,8 @@ test('tutorStoreKey: a journey hole has its own store; nanoGPT, holes without a 
 
 test('Task 14 known limits are marked: nested holes carry no journey; the hole Tutor waits for the parent read', () => {
   assert.match(read('LearnPage.jsx'), /ponytail: a hole inside a journey hole carries no journey/);
-  assert.match(read('LearnTutor.jsx'), /ponytail: the hole Tutor is inactive until the parent journey GET returns/);
+  // Professor Next Steps Task 14 C-M5: reworded - the hole is not inactive meanwhile, its typed turns run the canvas domain.
+  assert.match(read('LearnTutor.jsx'), /ponytail: until the parent journey GET settles, a typed turn in a journey hole runs the canvas domain/);
 });
 
 // Task 11b fix round 2 item 1 (owner fourteenth message: routing is never keyword-based): on a live journey, a Tutor turn whose
