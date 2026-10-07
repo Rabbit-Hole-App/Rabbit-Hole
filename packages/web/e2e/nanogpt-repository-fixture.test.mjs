@@ -19,6 +19,10 @@ test('a page closed before fetch or fulfill: dropped too', async () => {
   const handler = await handlerFor();
   await handler({ request: () => request('/api/apps'), fetch: () => closed('route.fetch') });
   await handler({ request: () => request('/api/repositories/repo-3adf61e1-nanogpt/snapshot'), fulfill: () => closed('route.fulfill') });
+  // Seen on the integration stack, 2026-10-07: a context closed while its fetch was in flight.
+  const disposed = Object.assign(new Error('route.fetch: Request context disposed.'), { name: 'TargetClosedError' });
+  await handler({ request: () => request('/api/apps'), fetch: () => Promise.reject(disposed) });
+  await handler({ request: () => request('/api/apps'), fetch: () => Promise.reject(new Error('route.fetch: Request context disposed.')) });
 });
 
 test('any other error still fails the check', async () => {

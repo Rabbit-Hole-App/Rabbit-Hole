@@ -38,10 +38,11 @@ export const repoRow = (real, status = 'ready') => ({ name: REPO, org: real.org,
 // Stubs the project on a browser context: /api/apps gains its row; the project, its snapshot and its file reads answer from
 // the fixture. status() is read on every request (a refresh can start mid-check). Every other request goes on to the stack;
 // a route registered later (an /api/learn/ask stub) runs first.
-// A check that closes its page mid-request makes Playwright reject fetch, json and fulfill with a closed/disposed error
-// (an unhandled one crashed the harness and left its browser running, 2026-10-07). Only that error is dropped: nothing is
-// left to answer. Any other error still fails the check.
-export const pageGone = (error) => /has been (closed|disposed)/.test(String(error?.message));
+// A check that closes its page mid-request makes Playwright reject fetch, json and fulfill with a teardown error: a
+// TargetClosedError ("has been closed", "Request context disposed.") or "Response has been disposed". Unhandled, one
+// crashed the harness and left its browser running (2026-10-07). Only that error is dropped: nothing is left to answer.
+// Any other error still fails the check.
+export const pageGone = (error) => String(error?.name).startsWith('TargetClosedError') || /has been (closed|disposed)|context disposed/.test(String(error?.message));
 export const routeRepository = (context, status = () => 'ready') => {
   let row;
   return context.route('**/api/**', (route) => serve(route).catch((error) => { if (!pageGone(error)) throw error; }));
