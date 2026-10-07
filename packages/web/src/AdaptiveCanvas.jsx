@@ -1179,7 +1179,7 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
 
 const CARDS_COPIED = 'rabbit-hole:copied-cards';
 
-export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, gutterTop = null, leftRail = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, gutterTop = null, leftRail = null, onStartRabbitHole = null }) {
   // A view-only board pans and zooms with the hand and edits nothing.
   const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
   const readOnlyRef = useRef(readOnly);
@@ -1188,6 +1188,31 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const [dropHover, setDropHover] = useState(false);
   const [marquee, setMarquee] = useState(null);
   const [menuAt, setMenuAt] = useState(null); // right-click canvas actions
+  // Where the menu actually goes (owner, 2026-10-07): measured after it renders, so it opens beside the cursor and stays
+  // inside both the window and the canvas surface (which clips it) at the right and bottom edges - flipped to the
+  // cursor's other side, then clamped. Hidden for that one measuring pass, before paint.
+  const menuBox = useRef(null);
+  const [menuPos, setMenuPos] = useState(null);
+  useLayoutEffect(() => {
+    setMenuPos(null);
+    if (!menuAt) return;
+    const box = menuBox.current, area = surface.current;
+    if (!box || !area) return;
+    const s = area.getBoundingClientRect(), pad = 8;
+    const lim = { left: Math.max(s.left, 0) + pad, top: Math.max(s.top, 0) + pad, right: Math.min(s.right, window.innerWidth) - pad, bottom: Math.min(s.bottom, window.innerHeight) - pad };
+    const w = box.offsetWidth, h = box.offsetHeight, cx = s.left + menuAt.x, cy = s.top + menuAt.y;
+    const place = (at, size, lo, hi) => Math.max(lo, Math.min(at + size > hi ? at - size : at, hi - size));
+    // The surface clips (overflow hidden) but can still be scrolled by focus or scroll-into-view; its absolute children
+    // move with that scroll, so the screen position is turned back into the surface's own coordinates with it.
+    setMenuPos({ x: place(cx, w, lim.left, lim.right) - s.left + area.scrollLeft, y: Math.max(lim.top, place(cy, h, lim.top, lim.bottom)) - s.top + area.scrollTop, maxH: Math.max(lim.bottom - lim.top, 120) });
+  }, [menuAt]);
+  // A press anywhere outside the menu closes it - on the canvas (its own handlers) and off it (the header, a rail).
+  useEffect(() => {
+    if (!menuAt) return;
+    const close = event => { if (!menuBox.current?.contains(event.target)) setMenuAt(null); };
+    document.addEventListener('pointerdown', close, true);
+    return () => document.removeEventListener('pointerdown', close, true);
+  }, [menuAt]);
   const [chipEdit, setChipEdit] = useState(null); // group id whose chip should open for renaming
   // The tool palette hangs on the right by default; a drag on its handle can
   // park it on either edge. While dragging it follows the pointer.
@@ -3143,7 +3168,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           event.preventDefault();
           if (event.ctrlKey || marqueeRef.current || presenting !== null) return;
           const hit = event.target.closest('[data-block-id],[data-item-id],[data-shape-id]');
-          const id = hit?.dataset.blockId || hit?.dataset.itemId || hit?.dataset.shapeId || null;
+          let id = hit?.dataset.blockId || hit?.dataset.itemId || hit?.dataset.shapeId || null;
+          // A view-only board presses through the hand, so a card is found by its bounds - as its click selection does.
+          if (!id && readOnlyRef.current) {
+            const at = local(event);
+            id = Object.entries(boundsRef.current).find(([key, box]) => blocksRef.current.some(block => block.id === key) && at.x >= box.x && at.x <= box.x + box.w && at.y >= box.y && at.y <= box.y + box.h)?.[0] || null;
+          }
+          if (readOnlyRef.current && (!onStartRabbitHole || !blocksRef.current.some(block => block.id === id))) { setMenuAt(null); return; } // view-only: a card's menu, or none
           if (id && !selectedRef.current.includes(id)) select(id);
           const groupHit = !id && event.target.closest('[data-group-box]');
           if (groupHit) setSelection(membersOf(groupHit.dataset.groupBox));
@@ -3409,10 +3440,21 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             typed.push(<button key="ct" type="button" role="menuitem" onClick={act(() => navigator.clipboard?.writeText([chat.question, chat.answer].filter(Boolean).join('\n\n')))} className={row}>Copy text</button>);
           }
           const described = block ? describeBlock(block) : null;
+          // Start Rabbit Hole (owner, 2026-10-07): from the right-clicked card, even when other cards are selected,
+          // through the flow that already owns it - your canvas: the card's Rabbit Hole, entered when it has one and made
+          // first otherwise (Dive.jsx, as opening it does); a view-only board: the viewer's own private Rabbit Hole
+          // (shared-canvas-rabbit-hole.md). Only the click starts anything; opening or dismissing the menu does not.
+          const portal = block && divePortals?.portals?.[block.id];
+          const startHole = !block ? null
+            : divePortals?.open && !readOnly ? () => (portal ? divePortals.enter(portal.name) : divePortals.open(block.id, undefined, 'learner_menu'))
+            : readOnly && onStartRabbitHole ? () => onStartRabbitHole(block.id) : null;
           return (
-            <div role="menu" aria-label="Canvas actions" style={{ left: menuAt.x, top: menuAt.y }}
-              className="absolute z-40 w-52 rounded-md border border-line bg-white p-1 shadow-pop"
+            <div ref={menuBox} role="menu" aria-label="Canvas actions" data-canvas-menu style={{ left: menuPos?.x ?? menuAt.x, top: menuPos?.y ?? menuAt.y, maxHeight: menuPos?.maxH, visibility: menuPos ? undefined : 'hidden' }}
+              className="absolute z-40 w-52 overflow-y-auto rounded-md border border-line bg-white p-1 shadow-pop"
               onPointerDown={event => event.stopPropagation()} onContextMenu={event => { event.preventDefault(); event.stopPropagation(); }}>
+              {startHole && <button type="button" role="menuitem" data-menu-start-rabbit-hole data-origin={block.id} onClick={act(startHole)} className={row}>Start Rabbit Hole</button>}
+              {/* A view-only board edits nothing: Start Rabbit Hole is its only card action here. */}
+              {!readOnly && <>
               {described && <button type="button" role="menuitem" onClick={act(() => askBlock(block))} className={row}>Ask about this</button>}
               {typed}
               {(described || typed.length > 0) && <div className="my-1 h-px bg-line" />}
@@ -3425,6 +3467,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
               <div className="my-1 h-px bg-line" />
               <button type="button" role="menuitem" onClick={act(selectAll)} className={row}>Select all</button>
               <button type="button" role="menuitem" disabled={!selection.length} onClick={act(deleteSelection)} className={row}>Delete</button>
+              </>}
             </div>
           );
         })()}
