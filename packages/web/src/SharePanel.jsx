@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, CircleAlert, Copy, Eye, FolderLock, Globe } from 'lucide-react';
+import { Check, CircleAlert, Compass, Copy, Eye, FolderLock, Globe } from 'lucide-react';
 
 // The Share popover for a Learn board (docs/features/canvas-sharing.md): one
 // switch shares or stops sharing; the view link can be public (no sign-in).
@@ -42,8 +42,46 @@ function LinkRow({ Icon, title, detail, token, on, disabled, onToggle, children 
   );
 }
 
+// Publish to Explore (docs/features/explore-publish.md): a separate, explicit owner action from sharing. Published, the
+// canvas is public and live - anyone finds it in Explore and opens it read-only, later edits included - until it is
+// removed, which never touches the share links above. Its own /e/ link, not a share link.
+function ExploreRow({ published, token, busy, onPublish }) {
+  const [copied, setCopied] = useState(false);
+  const url = token ? `${window.location.origin}/e/${token}` : '';
+  const copy = () => navigator.clipboard?.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1400); });
+  return (
+    <div data-explore-publish={published ? 'published' : 'private'} className="mt-3 rounded-lg border border-line p-2.5">
+      <div className="flex items-start gap-2">
+        <Compass size={14} className="mt-0.5 shrink-0 text-ink-2" />
+        <div className="min-w-0 flex-1">
+          <div className="text-sm text-ink">{published ? 'Published to Explore' : 'Publish to Explore'}</div>
+          <div className="text-xs text-ink-3">{published
+            ? 'Anyone can find it in Explore and open it read-only, signed in or not - including the edits you make now.'
+            : 'Anyone will be able to find it in Explore and open it read-only - as it is now and with your later edits - until you remove it.'}</div>
+        </div>
+      </div>
+      {published && token && (
+        <div className="mt-2 flex items-center gap-1.5">
+          <input readOnly value={url} aria-label="Explore link URL" onFocus={event => event.target.select()}
+            className="min-w-0 flex-1 rounded-md border border-line bg-hover/50 px-2 py-1 text-xs text-ink-2" />
+          <button type="button" onClick={copy} aria-label="Copy Explore link"
+            className={`flex h-7 items-center gap-1 rounded-md px-2 text-xs ${copied ? 'text-green-700' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}>
+            {copied ? <Check size={13} /> : <Copy size={13} />}{copied ? 'Copied' : 'Copy'}
+          </button>
+        </div>
+      )}
+      <div className="mt-2 flex justify-end">
+        {published
+          ? <button type="button" data-unpublish disabled={busy} onClick={() => onPublish(false)} className="h-7 rounded-md border border-line px-2.5 text-xs text-ink hover:bg-hover disabled:opacity-40">Remove from Explore</button>
+          : <button type="button" data-publish disabled={busy} onClick={() => onPublish(true)} className="h-7 rounded-md bg-[#2383e2] px-2.5 text-xs font-medium text-white hover:bg-[#1f74c9] disabled:opacity-40">Publish to Explore</button>}
+      </div>
+    </div>
+  );
+}
+
 // onRepository(allow): the owner's switch for a private repository's code on this link (docs/features/shared-canvas-ask.md).
-export default function SharePanel({ sharing, busy, error, onChange, onRepository, onClose }) {
+// onPublish(publish): Publish to Explore / Remove from Explore - only for a top-level canvas.
+export default function SharePanel({ sharing, busy, error, onChange, onRepository, onPublish = null, onClose }) {
   const panel = useRef(null);
   useEffect(() => {
     const away = event => { if (!panel.current?.contains(event.target) && !event.target.closest?.('[data-share-button]')) onClose(); };
@@ -72,7 +110,7 @@ export default function SharePanel({ sharing, busy, error, onChange, onRepositor
               </span>
             </span>
           </div>
-          <div className="text-xs text-ink-3">{current.shared ? 'People with a link below can open it.' : 'Only you can see this board.'}</div>
+          <div className="text-xs text-ink-3">{current.shared ? 'People with a link below can open it.' : current.published ? 'No share link. It is published to Explore below.' : 'Only you can see this board.'}</div>
         </div>
         <Switch on={current.shared} label="Share this board" disabled={busy}
           onChange={on => set(on ? { shared: true, view: true } : { shared: false })} />
@@ -103,6 +141,7 @@ export default function SharePanel({ sharing, busy, error, onChange, onRepositor
           </LinkRow>
         </div>
       )}
+      {onPublish && <ExploreRow published={!!current.published} token={current.publication} busy={busy} onPublish={onPublish} />}
       {error && <p role="alert" className="mt-2 text-xs text-red-700">{error}</p>}
     </div>
   );

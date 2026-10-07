@@ -7,9 +7,10 @@ const chatKey = (token, viewer) => `small.shared-ask:${token}:${viewer}`;
 
 // Signed out, Send keeps the draft for this link and goes through sign-in, back here with ?ask=1 - as Fork
 // does with ?fork=1 (ForkButton.jsx). Returns where to go.
-export function signInForAsk(token, draft, storage = globalThis.sessionStorage) {
+// `page` is where the link opened: /b/<token> for a share, /e/<token> for an Explore publication.
+export function signInForAsk(token, draft, storage = globalThis.sessionStorage, page = `/b/${token}`) {
   try { storage.setItem(draftKey(token), draft); } catch { /* the draft is lost, sign-in still works */ }
-  return `/login?next=${encodeURIComponent(`/b/${token}?ask=1`)}`;
+  return `/login?next=${encodeURIComponent(`${page}?ask=1`)}`;
 }
 
 // Back from sign-in: the kept draft, once. It goes into the composer; the viewer presses Send.

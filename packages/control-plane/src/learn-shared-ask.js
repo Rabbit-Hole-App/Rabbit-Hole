@@ -40,6 +40,8 @@ export async function boardRevision(db, row) {
 // The raw token stays on learn_boards (the share record) and is never stored, logged or returned anywhere else. A link
 // switched off and on is a new token, so a new key.
 export const shareKey = token => sha256Hex(`shared-canvas-link:${token}`);
+// An Explore publication's per-link key: the same one-way shape under its own prefix (docs/features/explore-publish.md).
+export const publicationKey = token => sha256Hex(`explore-publication:${token}`);
 
 // A share's pin (share -> canvas -> repository -> commit): taken when its link is made, and for a link from before
 // pinning, at its first open or ask. The same link keeps it whatever the owner refreshes; a new link pins again,
@@ -140,7 +142,7 @@ export const sharedAskLimits = env => Object.fromEntries(Object.entries(SHARED_A
 // Billing (owner, 2026-10-04): Usage & Credits will meter shared_canvas_ask to viewer_email, the signed-in account that
 // asked - never to owner_email, which only says whose share it was: someone opening a share never costs its owner.
 // ponytail: rows are never pruned (the caps read one day); prune or roll up when Usage & Credits takes them over.
-async function admitAsk(env, row, viewer, repository) {
+async function admitAsk(env, row, viewer, repository, key = null) {
   const db = env.LEARN_DB, limits = sharedAskLimits(env), now = Math.floor(Date.now() / 1000);
   const admitted = await db.prepare(`INSERT INTO shared_ask_events (category, asked_at, viewer_email, share_key, board_id, owner_email, repository)
     SELECT 'shared_canvas_ask', ?1, ?2, ?3, ?4, ?5, ?6
@@ -148,7 +150,7 @@ async function admitAsk(env, row, viewer, repository) {
       AND (SELECT COUNT(*) FROM shared_ask_events WHERE viewer_email = ?2 AND asked_at > ?1 - 86400) < ?8
       AND (SELECT COUNT(*) FROM shared_ask_events WHERE share_key = ?3 AND asked_at > ?1 - 3600) < ?9
       AND (SELECT COUNT(*) FROM shared_ask_events WHERE share_key = ?3 AND asked_at > ?1 - 86400) < ?10`)
-    .bind(now, viewer.email, await shareKey(row.view_token), row.id, row.owner_email, repository ? 1 : 0, limits.SHARED_ASK_VIEWER_HOUR, limits.SHARED_ASK_VIEWER_DAY, limits.SHARED_ASK_SHARE_HOUR, limits.SHARED_ASK_SHARE_DAY).run();
+    .bind(now, viewer.email, key ?? await shareKey(row.view_token), row.id, row.owner_email, repository ? 1 : 0, limits.SHARED_ASK_VIEWER_HOUR, limits.SHARED_ASK_VIEWER_DAY, limits.SHARED_ASK_SHARE_HOUR, limits.SHARED_ASK_SHARE_DAY).run();
   if (admitted.meta.changes === 1) return null;
   const mine = await db.prepare('SELECT COUNT(*) AS day, COALESCE(SUM(asked_at > ?2 - 3600), 0) AS hour FROM shared_ask_events WHERE viewer_email = ?1 AND asked_at > ?2 - 86400').bind(viewer.email, now).first();
   const error = mine.hour >= limits.SHARED_ASK_VIEWER_HOUR ? `You have asked ${limits.SHARED_ASK_VIEWER_HOUR} questions about shared canvases in the last hour, the limit for now. Try again later.`
@@ -162,7 +164,8 @@ async function admitAsk(env, row, viewer, repository) {
 // commit through the read-only repository tools. No video tools: a shown video writes a moment row. Only `message`
 // and `history` come from the request: a model, a command or a file in it is ignored, and a message starting with
 // / is a plain question (nothing here dispatches commands).
-export async function askShared(env, row, viewer, body) {
+// link: an Explore publication's { source, key } - its own repository boundary and limit; a share reads its own.
+export async function askShared(env, row, viewer, body, link = null) {
   if (typeof body?.message !== 'string' || !body.message.trim() || body.message.length > MESSAGE_LIMIT) return json({ error: `Ask a question of 1-${MESSAGE_LIMIT} characters.` }, 400);
   const history = viewerHistory(body.history);
   if (!history) return json({ error: 'history must be a list of { role, content } turns' }, 400);
@@ -171,9 +174,9 @@ export async function askShared(env, row, viewer, body) {
   if (refused) return refused;
   const db = env.LEARN_DB, state = JSON.parse(row.state_json);
   const canvas = CANVAS.test(row.app) ? await db.prepare('SELECT title FROM canvases WHERE org = ? AND name = ?').bind(row.org, row.app).first() : null;
-  const source = await shareSource(db, row);
+  const source = link ? link.source : await shareSource(db, row);
   const repository = source?.allowed ? source : null;
-  const limited = await admitAsk(env, row, viewer, !!repository);
+  const limited = await admitAsk(env, row, viewer, !!repository, link?.key);
   if (limited) return limited;
   let snapshot = null;
   if (repository) {

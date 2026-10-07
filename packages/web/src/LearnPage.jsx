@@ -6,6 +6,7 @@ import { canEditCourse, learnPreview, reviewTools } from './flags.js';
 import { AskPanel } from './ask.jsx';
 import { Button, IconBtn, ConfirmDialog, toast } from './ui.jsx';
 import SharePanel from './SharePanel.jsx';
+import { ChooseHandle } from './HandleGate.jsx';
 import { assetKeysOf, requestWorkspaceExports, setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
 import { captureSelection, selectionSnapshot } from './sigmoid-context.js';
 import { CourseInterview, CoursePanel, useLearnCourse } from './LearnCourse.jsx';
@@ -603,15 +604,15 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
     return { ...state, exchanges: exchangesRef.current };
   };
   // Board files follow the board: this page's cards read the server copy when
-  // this browser has none, and while shared, any file not yet uploaded goes up.
+  // this browser has none, and while shared or published to Explore, any file not yet uploaded goes up.
   useEffect(() => {
     setRemoteAssets(key => fetch(`${boardPath}/assets/${encodeURIComponent(key)}`, { headers: wsHeaders() }));
-    // Notebook workspaces: saved while shared; loaded only into an empty
+    // Notebook workspaces: saved while shared or published; loaded only into an empty
     // workspace (this owner on another browser), never over local files.
     const workspaceUrl = id => `${boardPath}/assets/${encodeURIComponent(`notebook:${id}`)}`;
     setWorkspaceStore({
       load: id => fetch(workspaceUrl(id), { headers: wsHeaders() }).then(response => (response.ok ? response.json() : null)).catch(() => null),
-      save: (id, files) => (sharingRef.current?.shared
+      save: (id, files) => (sharingOf(sharingRef.current) === 'shared'
         ? fetch(workspaceUrl(id), { method: 'PUT', body: JSON.stringify(files), headers: { 'Content-Type': 'text/x-cached-string', 'X-Asset-Kind': 'string', ...wsHeaders() } }).catch(() => null)
         : null),
       fresh: false,
@@ -622,7 +623,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
   useEffect(() => { uploadedAssets.current = null; }, [boardPath]);
   // `sharingNow`: the caller already knows it is shared (the state has not caught up).
   const syncAssets = async (sharingNow = false) => {
-    if (!sharingNow && !sharingRef.current?.shared) return;
+    if (!sharingNow && sharingOf(sharingRef.current) !== 'shared') return; // shared, or published to Explore
     try {
       if (!uploadedAssets.current) uploadedAssets.current = new Set((await api(`${boardPath}/assets`)).keys);
       for (const key of assetKeysOf(boardSnapshot())) {
@@ -716,6 +717,29 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
       }
     } catch (error) { setShareError(error.message); }
     finally { setShareBusy(false); }
+  };
+  // Publish to Explore / Remove from Explore (docs/features/explore-publish.md). A publication shows the live board, so the
+  // server first gets this browser's board as it is now, through the push queue, as sharing does. With no @handle yet
+  // the server refuses (409 needsHandle): the person chooses one in place and the same Publish carries on.
+  const [choosingHandle, setChoosingHandle] = useState(false);
+  const changePublication = async publish => {
+    setShareBusy(true);
+    setShareError(null);
+    try {
+      if (publish) {
+        await pushQueue(async () => {
+          const saved = await api(boardPath, { method: 'PUT', body: JSON.stringify({ state: boardSnapshot(), version: boardVersion.current }) });
+          boardVersion.current = saved.version;
+          try { localStorage.setItem(versionKey, String(saved.version)); } catch { /* the next open re-checks */ }
+        });
+        await syncAssets(true);
+      }
+      const made = await api(`/api/apps/${app.name}/${publish ? 'publish' : 'unpublish'}`, { method: 'POST', body: '{}' });
+      setSharing(current => ({ ...current, published: made.published || undefined, publication: made.publication_token || undefined }));
+    } catch (error) {
+      if (error.status === 409 && error.data?.needsHandle) setChoosingHandle(true);
+      else setShareError(error.message);
+    } finally { setShareBusy(false); }
   };
   // A private repository's code for this link's viewers: the owner's switch, decided and kept on the server
   // (docs/features/shared-canvas-ask.md).
@@ -1308,7 +1332,8 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
                 disabled={!!sharing?.unavailable} onClick={() => setShareOpen(open => !open)}
                 className={`flex h-8 w-8 items-center justify-center rounded-lg disabled:opacity-40 ${sharing?.shared ? 'text-[#2383e2]' : 'text-ink-2'} ${shareOpen ? 'bg-hover' : 'hover:bg-hover hover:text-ink'}`}>
                 <Share2 size={15} strokeWidth={1.8} /></button>
-              {shareOpen && <SharePanel sharing={sharing} busy={shareBusy} error={shareError} onChange={changeSharing} onRepository={changeRepositoryAccess} onClose={() => setShareOpen(false)} />}
+              {shareOpen && <SharePanel sharing={sharing} busy={shareBusy} error={shareError} onChange={changeSharing} onRepository={changeRepositoryAccess} onPublish={isCanvas && !hole && !board ? changePublication : null} onClose={() => setShareOpen(false)} />}
+              {choosingHandle && <div className="fixed inset-0 z-[70] overflow-y-auto bg-white"><ChooseHandle onDone={() => { setChoosingHandle(false); changePublication(true); }} /></div>}
             </span>
             <button type="button" title={panelOpen ? 'Hide the right panel' : 'Show the right panel'}
               aria-label={panelOpen ? 'Hide the right panel' : 'Show the right panel'} aria-pressed={panelOpen}

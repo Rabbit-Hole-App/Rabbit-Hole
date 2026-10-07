@@ -10,7 +10,7 @@ import { repositoryIdentity } from './repositories.js';
 import { sha256Hex } from './learn-grade-jev.js';
 import { learnMedia } from './learn-storage.js';
 import { FORK_COUNT, HANDLE_OF, NAME_OF } from './canvases.js';
-import { askShared, boardRevision, boardSources, shareKey, sharePin, shareSource, sharedTitle } from './learn-shared-ask.js';
+import { askShared, boardRevision, boardSources, publicationKey, shareKey, sharePin, shareSource, sharedTitle } from './learn-shared-ask.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/;
@@ -128,7 +128,11 @@ async function share(env, owner, app, board, body) {
 // theirs to open up). private: not confirmed public, so the panel offers repository code for this link.
 async function ownerSharing(env, row) {
   const source = row?.shared && row.view_token ? await shareSource(env.LEARN_DB, row) : null;
-  return { ...sharingOf(row), ...(source?.owned ? { repository: { repo: source.repo, commit: source.commit, private: !source.public, repo_access: source.repo_access } } : {}) };
+  // A canvas published to Explore (docs/features/explore-publish.md): its own /e token, for the owner's Share panel. Its
+  // main board is public and live, so the browser keeps the server copy current as for a shared board.
+  const published = row?.board === 'main' && /^canvas-[a-f0-9]{8}$/.test(row.app) ? await env.LEARN_DB.prepare('SELECT token FROM canvas_publications WHERE org = ? AND canvas = ?').bind(row.org, row.app).first() : null;
+  return { ...sharingOf(row), ...(source?.owned ? { repository: { repo: source.repo, commit: source.commit, private: !source.public, repo_access: source.repo_access } } : {}),
+    ...(published ? { published: true, publication: published.token } : {}) };
 }
 
 // The owner's repository-code permission for this link (owner-only; the server decides, never a client flag): a
@@ -144,19 +148,41 @@ async function shareRepository(env, owner, app, board, body) {
   return json({ version: row.version, sharing: await ownerSharing(env, row) });
 }
 
+// A link token is a share's view token, or an Explore publication's own token (docs/features/explore-publish.md): it
+// opens its canvas's main board read-only while the canvas is published, live and top-level, and dies when it is
+// removed from Explore or archived. A publication is `publication: true`, with its own repository boundary
+// (linkSource) and its own rate-limit key; the shared routes are otherwise one code path.
 async function sharedRow(env, token) {
   if (!TOKEN.test(token)) return null;
   const row = await env.LEARN_DB.prepare('SELECT * FROM learn_boards WHERE shared = 1 AND view_token = ?').bind(token).first();
-  return row ? { row, role: 'view' } : null;
+  if (row) return { row, role: 'view' };
+  const published = await env.LEARN_DB.prepare(`SELECT b.* FROM canvas_publications p JOIN canvases c ON c.org = p.org AND c.name = p.canvas AND c.archived_at IS NULL
+    JOIN learn_boards b ON b.org = c.org AND b.owner_email = c.owner_email AND b.app = c.name AND b.board = 'main' WHERE p.token = ?`).bind(token).first();
+  return published ? { row: published, role: 'view', publication: true } : null;
+}
+// Where a link opens in the browser: /e/ for a publication, /b/ for a share.
+const linkPath = (found, token) => `${found.publication ? '/e/' : '/b/'}${token}`;
+
+// What a link may show and read of its board's repository. A share: its pin and the owner's per-link permission
+// (shareSource). A publication: the board's current revision, and a repository's name, commit and code only when the
+// repository is confirmed public - never private code, whatever a share link of the same board allows (an explicit
+// publication permission for private code is not part of V1; default off). Same shape as shareSource.
+async function linkSource(db, found) {
+  if (!found.publication) return shareSource(db, found.row);
+  const revision = await boardRevision(db, found.row);
+  const repo = revision && await db.prepare('SELECT r.repo, r.owner_email, v.visibility FROM repository_apps r LEFT JOIN repository_visibility v ON v.app_id = r.id WHERE r.id = ?').bind(revision.id).first();
+  if (!repo) return null;
+  const open = repo.visibility === 'public';
+  return { id: revision.id, repo: repo.repo, commit: revision.commit, public: open, owned: repo.owner_email === found.row.owner_email, repo_access: false, allowed: open };
 }
 
-// Who may open a shared link: anyone for a public view link, otherwise any
+// Who may open a shared link: anyone for a public view link or an Explore publication, otherwise any
 // signed-in account. Returns the row and role (and the viewer, when it had to
 // ask), or the refusal.
 async function sharedAccess(req, env, token) {
   const found = await sharedRow(env, token);
   if (!found) return json({ error: 'This link is not shared any more, or never was.' }, 404);
-  if (!(found.role === 'view' && found.row.public_view)) {
+  if (!(found.role === 'view' && (found.row.public_view || found.publication))) {
     const viewer = await repositoryIdentity(req, env);
     if (viewer instanceof Response) return json({ error: 'Sign in to open this board.', signIn: true }, 401);
     found.viewer = viewer;
@@ -176,7 +202,8 @@ async function askAboutShared(req, env, token) {
   if (raw.length > MAX_ASK_BODY) return json({ error: 'This question and its history are too long.' }, 413);
   let body = null;
   try { body = JSON.parse(raw); } catch { /* askShared refuses a missing message */ }
-  return askShared(env, found.row, viewer, body);
+  // A publication asks within its own boundary (no private code) and its own per-link limit.
+  return askShared(env, found.row, viewer, body, found.publication ? { source: await linkSource(env.LEARN_DB, found), key: await publicationKey(token) } : null);
 }
 
 // Forking (docs/features/canvas-forking.md): the signed-in user gets their own
@@ -209,8 +236,8 @@ async function forkSource(req, env, user, body) {
     const canvas = CANVAS.test(row.app) ? await env.LEARN_DB.prepare('SELECT name, title FROM canvases WHERE org = ? AND name = ?').bind(row.org, row.app).first() : null;
     // The fork inherits the share's pinned revision (never the current HEAD); a repository the share may not show
     // stays unnamed in the fork's title and provenance.
-    const pinned = await shareSource(env.LEARN_DB, row);
-    return { row, state: JSON.parse(row.state_json), org: row.org, canvas: canvas?.name ?? null, owner: row.owner_email, title: sharedTitle(row, canvas?.title, pinned), share: source.token,
+    const pinned = await linkSource(env.LEARN_DB, found);
+    return { row, state: JSON.parse(row.state_json), org: row.org, canvas: canvas?.name ?? null, owner: row.owner_email, title: sharedTitle(row, canvas?.title, pinned), share: source.token, sharePath: linkPath(found, source.token),
       revision: pinned && { id: pinned.id, commit: pinned.commit }, resource: canvas?.name || (row.app.startsWith('repo-') && !pinned?.allowed ? null : row.app) };
   }
   if (typeof source?.canvas !== 'string' || !CANVAS.test(source.canvas)) return json({ error: 'Choose a canvas or a share link to fork.' }, 400);
@@ -264,7 +291,7 @@ async function fork(req, env, body) {
     return { ...block, notebook_id: fresh };
   });
   const id = crypto.randomUUID(), now = new Date().toISOString();
-  const forkedFrom = { resource_id: source.resource, board: source.row?.board || 'main', board_id: source.row?.id || null, title, creator: null, share_url: source.share ? `/b/${source.share}` : null };
+  const forkedFrom = { resource_id: source.resource, board: source.row?.board || 'main', board_id: source.row?.id || null, title, creator: null, share_url: source.share ? source.sharePath : null };
   // One batch: a fork is its canvas, board and link together, or nothing. The UNIQUE key refuses a
   // concurrent duplicate of the same action, which then answers with the fork that won.
   try {
@@ -353,11 +380,11 @@ async function startRabbitHole(req, env, token, body) {
   if (earlier) return reply(earlier, 200, { existing: true });
   // What the hole came from: the fork's provenance fields, so "which shared canvas, card and version?" has one shape.
   const canvas = CANVAS.test(row.app) ? await db.prepare('SELECT title FROM canvases WHERE org = ? AND name = ?').bind(row.org, row.app).first() : null;
-  const pinned = await shareSource(db, row);
+  const pinned = await linkSource(db, found);
   const sharedName = sharedTitle(row, canvas?.title, pinned);
   const source = {
     resource_id: canvas ? row.app : (row.app.startsWith('repo-') && !pinned?.allowed ? null : row.app), board: row.board, board_id: row.id,
-    title: sharedName, creator: null, share_url: `/b/${token}`, share_key: parent.app.slice('share:'.length),
+    title: sharedName, creator: null, share_url: linkPath(found, token), share_key: parent.app.slice('share:'.length),
     version: row.version, updated_at: row.updated_at, commit: pinned?.allowed ? pinned.commit : null,
   };
   const from = origin.root ? null : origin.title || cardName(origin.entry);
@@ -417,15 +444,29 @@ async function openShared(req, env, token) {
   // repository the owner did not open up for this link shows nothing of itself: no name, commit or pill, and a
   // project board's app name (which names it) is withheld too.
   const viewer = found.viewer || await repositoryIdentity(req, env);
-  const source = await shareSource(env.LEARN_DB, row);
+  const source = await linkSource(env.LEARN_DB, found);
   const hidden = row.app.startsWith('repo-') && !source?.allowed;
   const state = JSON.parse(row.state_json);
   // Who made it (docs/features/user-handles.md): the owner's @handle and display name, read by reference; no handle,
   // no creator. Never the owner's email: a link may be opened by anyone it reaches.
   const made = await env.LEARN_DB.prepare(`SELECT h.handle, ${NAME_OF('h.email')} AS name FROM user_handles h WHERE h.email = ?`).bind(row.owner_email).first();
   const creator = made ? { handle: made.handle, name: made.name ?? null } : null;
-  return json({ role, app: hidden ? null : row.app, board: row.board, title: sharedTitle(row, canvas?.title, source), creator, fork_count: canvas ? canvas.fork_count : null, version: row.version, updated_at: row.updated_at,
+  return json({ role, published: !!found.publication, app: hidden ? null : row.app, board: row.board, title: sharedTitle(row, canvas?.title, source), creator, fork_count: canvas ? canvas.fork_count : null, version: row.version, updated_at: row.updated_at,
     viewer: viewer instanceof Response ? null : viewer.email, context: { repository: source?.allowed ? { repo: source.repo, commit: source.commit } : null, sources: boardSources(state) }, state });
+}
+
+// Explore (docs/features/explore-publish.md): the published canvases, newest first (published_at, then publication
+// order - no ranking). Each is its title, the creator's @handle (and display name), the canonical direct-fork count and
+// the publication's own link. Public data, readable signed out: only live, top-level canvases whose owner has a handle,
+// never an email, an id, or anything of a canvas that is private or only shared by link.
+export const EXPLORE_LIMIT = 100;
+async function explore(env) {
+  const { results } = await env.LEARN_DB.prepare(`SELECT p.token, p.published_at, c.title, h.handle, ${NAME_OF('c.owner_email')} AS name, ${FORK_COUNT} AS fork_count
+    FROM canvas_publications p JOIN canvases c ON c.org = p.org AND c.name = p.canvas AND c.archived_at IS NULL
+    JOIN user_handles h ON h.email = c.owner_email
+    WHERE NOT EXISTS (SELECT 1 FROM canvas_dives d WHERE d.org = c.org AND d.child = c.name)
+    ORDER BY p.published_at DESC, p.rowid DESC LIMIT ?`).bind(EXPLORE_LIMIT).all();
+  return json({ canvases: results.map(r => ({ title: r.title, creator: { handle: r.handle, name: r.name ?? null }, fork_count: r.fork_count, url: `/e/${r.token}`, published_at: r.published_at })) });
 }
 
 export async function learnBoardsRoute(path, req, env) {
@@ -456,6 +497,8 @@ export async function learnBoardsRoute(path, req, env) {
     if (req.method === 'PUT') return json({ error: 'Shared links are view-only. Fork the board to edit your own copy.' }, 403);
     return json({ error: 'Method not allowed' }, 405);
   }
+  // Explore: the published canvases (docs/features/explore-publish.md).
+  if (path === '/api/learn/boards/published') return req.method === 'GET' ? explore(env) : json({ error: 'Method not allowed' }, 405);
   const own = path.match(/^\/api\/learn\/boards\/([a-z0-9-]{1,100})\/([^/]+)(\/share(?:\/repository)?|\/assets(?:\/([^/]+))?)?$/);
   if (!own) return null;
   const [, app, rawBoard, suffix, rawKey] = own;

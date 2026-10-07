@@ -277,8 +277,8 @@ test('LearnPage.jsx: pushBoard has an awaitable immediate variant for persist() 
   assert.match(page, /return 'failed';/);
   assert.match(page, /if \(now\) return put\(\);\n\s+pushTimer\.current = setTimeout\(put, 1500\);/);
   assert.match(page, /onSave=\{pushBoard\}/);
-  // Review round 2: turning sharing on PUTs through the same queue, so it never races a queued board push; every board
-  // PUT in the page is one of these two.
+  // Review round 2: turning sharing on PUTs through the same queue, so it never races a queued board push; so does
+  // Publish to Explore (docs/features/explore-publish.md). Every board PUT in the page is one of these.
   assert.match(page, /await pushQueue\(async \(\) => \{\n\s+const saved = await api\(boardPath, \{ method: 'PUT', body: JSON\.stringify\(\{ state: boardSnapshot\(\), version: boardVersion\.current \}\) \}\);\n\s+boardVersion\.current = saved\.version;/);
-  assert.equal((page.match(/method: 'PUT', body: JSON\.stringify\(\{ state: boardSnapshot\(\)/g) || []).length, 2);
+  assert.equal((page.match(/method: 'PUT', body: JSON\.stringify\(\{ state: boardSnapshot\(\)/g) || []).length, 3);
 });
