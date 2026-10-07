@@ -471,19 +471,28 @@ async function openShared(req, env, token) {
     viewer: viewer instanceof Response ? null : viewer.email, context: { repository: source?.allowed ? { repo: source.repo, commit: source.commit } : null, sources: boardSources(state) }, state });
 }
 
-// Explore (docs/features/explore-publish.md): the published canvases, newest first (published_at, then publication
+// Explore (docs/features/explore-publish.md): the published canvases, newest first by default (published_at, then publication
 // order - no ranking). Each is its title, the creator's @handle (and display name), the canonical direct-fork count and
 // the publication's own link. Public data, readable signed out: only live, top-level canvases whose owner has a handle,
 // never an email, an id, or anything of a canvas that is private or only shared by link.
 export const EXPLORE_LIMIT = 100;
-async function explore(env) {
+// Explore's sort control (card redesign, owner 2026-10-06 §17): one plain column each, never a ranking - newest
+// published (the default), recently updated (0009 updated_at, else created_at), most forked (FORK_COUNT). Each ends on
+// the publication's own order, so the order is deterministic over the whole published set before the limit applies.
+const EXPLORE_SORTS = {
+  newest: 'p.published_at DESC',
+  updated: 'updated_at DESC, p.published_at DESC',
+  forks: 'fork_count DESC, p.published_at DESC',
+};
+async function explore(env, sort) {
+  if (!Object.hasOwn(EXPLORE_SORTS, sort)) return json({ error: 'Sort Explore by newest, updated or forks' }, 400);
   const { results } = await env.LEARN_DB.prepare(`SELECT p.token, p.published_at, c.title, h.handle, ${NAME_OF('c.owner_email')} AS name, ${FORK_COUNT} AS fork_count,
     m.description, COALESCE(m.updated_at, c.created_at) AS updated_at
     FROM canvas_publications p JOIN canvases c ON c.org = p.org AND c.name = p.canvas AND c.archived_at IS NULL
     LEFT JOIN canvas_metadata m ON m.org = c.org AND m.canvas = c.name
     JOIN user_handles h ON h.email = c.owner_email
     WHERE NOT EXISTS (SELECT 1 FROM canvas_dives d WHERE d.org = c.org AND d.child = c.name) AND ${NOT_TRASHED('c.org', 'c.name')}
-    ORDER BY p.published_at DESC, p.rowid DESC LIMIT ?`).bind(EXPLORE_LIMIT).all();
+    ORDER BY ${EXPLORE_SORTS[sort]}, p.rowid DESC LIMIT ?`).bind(EXPLORE_LIMIT).all();
   return json({ canvases: results.map(r => ({ title: r.title, description: r.description ?? null, creator: { handle: r.handle, name: r.name ?? null }, fork_count: r.fork_count, url: `/e/${r.token}`, published_at: r.published_at, updated_at: r.updated_at })) });
 }
 
@@ -518,7 +527,7 @@ export async function learnBoardsRoute(path, req, env) {
     return json({ error: 'Method not allowed' }, 405);
   }
   // Explore: the published canvases (docs/features/explore-publish.md).
-  if (path === '/api/learn/boards/published') return req.method === 'GET' ? explore(env) : json({ error: 'Method not allowed' }, 405);
+  if (path === '/api/learn/boards/published') return req.method === 'GET' ? explore(env, new URL(req.url).searchParams.get('sort') || 'newest') : json({ error: 'Method not allowed' }, 405);
   const own = path.match(/^\/api\/learn\/boards\/([a-z0-9-]{1,100})\/([^/]+)(\/share(?:\/repository)?|\/assets(?:\/([^/]+))?)?$/);
   if (!own) return null;
   const [, app, rawBoard, suffix, rawKey] = own;

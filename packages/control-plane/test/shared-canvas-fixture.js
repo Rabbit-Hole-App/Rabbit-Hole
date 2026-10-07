@@ -59,7 +59,7 @@ export function setup(t, { visibility = 'public', vars = {} } = {}) {
   };
   const call = async (method, path, { as, body, raw, headers = {} } = {}) => {
     const req = new Request(`https://app.test${path}`, { method, headers: { 'Content-Type': 'application/json', ...(as ? { cookie: `small_session=${as}` } : {}), ...headers }, ...(raw !== undefined ? { body: raw } : body ? { body: JSON.stringify(body) } : {}) });
-    const response = canvasRoute(new URL(req.url)) ? await canvasesFetch(req, env) : await learnBoardsRoute(path, req, env);
+    const response = canvasRoute(new URL(req.url)) ? await canvasesFetch(req, env) : await learnBoardsRoute(new URL(req.url).pathname, req, env); // the pathname, as dev-worker.js passes it
     const type = response.headers.get('content-type') || '';
     const text = await response.text();
     for (const { user_id } of Object.values(PEOPLE)) assert.equal(text.includes(user_id), false, `${method} ${path} answered with a user id`);

@@ -175,3 +175,39 @@ test('Explore lists newest first with a stable order, only live top-level canvas
   assert.deepEqual((await explore(f)).map(c => c.fork_count), [1, 0]);
   assert.equal((await open(f, volcanoes.url.slice(3))).body.title, 'Volcanoes');
 });
+
+// The card redesign's Explore sort (owner 2026-10-06 §17): Newest (default), Recently updated, Most forked - one plain
+// column each, ties broken by publication, ordered on the server over every publication before the limit.
+test('Explore sorts on the server: newest, recently updated, most forked; each tie broken by publication; never a client slice', async t => {
+  const f = setup(t);
+  handle(f, 'ana@test', 'ana'); handle(f, 'cara@test', 'cara');
+  const [tides, bridges, volcanoes] = [await canvasOf(f, 'ana', 'Tides'), await canvasOf(f, 'cara', 'Bridges'), await canvasOf(f, 'ana', 'Volcanoes')];
+  for (const [as, c] of [['ana', tides], ['cara', bridges], ['ana', volcanoes]]) await publish(f, as, c.name);
+  const set = (sql, ...args) => f.sqlite.prepare(sql).run(...args);
+  for (const [c, created, published] of [[tides, '2026-09-01 00:00:00', '2026-10-01 00:00:00'], [bridges, '2026-09-02 00:00:00', '2026-10-02 00:00:00'], [volcanoes, '2026-09-03 00:00:00', '2026-10-03 00:00:00']]) {
+    set('UPDATE canvases SET created_at = ? WHERE name = ?', created, c.name);
+    set('UPDATE canvas_publications SET published_at = ? WHERE canvas = ?', published, c.name);
+  }
+  // Tides and Volcanoes (ana's) were edited at the same moment; Bridges never was, so its updated_at is its created_at.
+  for (const c of [tides, volcanoes]) set("INSERT INTO canvas_metadata (org, canvas, updated_at) VALUES ('ana-ws', ?, '2026-10-04 00:00:00.000') ON CONFLICT (org, canvas) DO UPDATE SET updated_at = excluded.updated_at", c.name);
+  set('DELETE FROM canvas_metadata WHERE canvas = ?', bridges.name);
+  const tokenOfTitle = async title => (await explore(f)).find(c => c.title === title).url.slice(3);
+  let key = 0;
+  const forkIt = async (as, title) => f.call('POST', '/api/learn/boards/fork', { as, body: { source: { token: await tokenOfTitle(title) }, key: `sort-fork-${++key}` } });
+  await forkIt('ana', 'Bridges'); await forkIt('ben', 'Bridges'); await forkIt('cara', 'Tides'); await forkIt('cara', 'Volcanoes');
+  const sorted = async sort => (await f.call('GET', `/api/learn/boards/published${sort ? `?sort=${sort}` : ''}`)).body.canvases.map(c => c.title);
+  assert.deepEqual(await sorted(''), ['Volcanoes', 'Bridges', 'Tides'], 'Newest is the default');
+  assert.deepEqual(await sorted('newest'), ['Volcanoes', 'Bridges', 'Tides']);
+  assert.deepEqual(await sorted('updated'), ['Volcanoes', 'Tides', 'Bridges'], 'a tie in updated_at goes to the newer publication; no 0009 row falls back to created_at');
+  assert.deepEqual(await sorted('forks'), ['Bridges', 'Volcanoes', 'Tides'], 'a tie in forks goes to the newer publication');
+  for (const bad of ['trending', 'constructor', 'published_at; DROP TABLE canvases']) assert.equal((await f.call('GET', `/api/learn/boards/published?sort=${encodeURIComponent(bad)}`)).status, 400, bad);
+  // Over the whole published set: a hundred newer, unforked publications push Bridges out of Newest, never out of Most forked.
+  set("UPDATE canvas_publications SET published_at = '2020-01-01 00:00:00' WHERE canvas = ?", bridges.name);
+  const add = f.sqlite.prepare("INSERT INTO canvases (org, name, owner_email, title) VALUES ('ana-ws', ?, 'ana@test', ?)");
+  const pub = f.sqlite.prepare("INSERT INTO canvas_publications (org, canvas, token, published_at) VALUES ('ana-ws', ?, ?, '2026-10-05 00:00:00')");
+  for (let i = 0; i < 100; i++) { const name = `canvas-${(0xf000 + i).toString(16).padStart(8, '0')}`; add.run(name, `Filler ${i}`); pub.run(name, `filler${String(i).padStart(26, '0')}`); }
+  const newest = await sorted('newest');
+  assert.equal(newest.length, 100);
+  assert.ok(!newest.includes('Bridges'), 'the oldest publication falls past the limit in Newest');
+  assert.equal((await sorted('forks'))[0], 'Bridges', 'and still leads Most forked');
+});

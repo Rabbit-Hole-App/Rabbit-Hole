@@ -30,5 +30,10 @@ export function cardModel(a) {
   const forkedFrom = a.forked_from_title || a.forked_from_resource_id
     ? { id: a.forked_from_resource_id || null, url: a.forked_from_url || null, title: a.forked_from_title, creator: a.forked_from_handle ? `@${a.forked_from_handle}` : a.forked_from_creator?.name, sourceOwner: a.forked_from_creator?.source_owner_verified === true }
     : null;
-  return { title, creator, source, sourceUrl, summary: a.summary || null, forkedFrom, forks: forkLabel(a.fork_count) };
+  // The card redesign (docs/features/card-redesign.md): the owner's own description (canvas-metadata.md), never generated -
+  // a project's server `description` is a placeholder ("Learn from <repo>"), so a project shows only a fixture's summary;
+  // the canonical fork count as a number (null where the row has none: projects); updated_at, else created_at (0009).
+  const description = (a.kind === 'repository' ? a.summary : a.description || a.summary) || null;
+  const forkCount = typeof a.fork_count === 'number' ? a.fork_count : null;
+  return { title, creator, source, sourceUrl, description, forkedFrom, forks: forkLabel(a.fork_count), forkCount, updated: a.updated_at || a.created_at || null };
 }

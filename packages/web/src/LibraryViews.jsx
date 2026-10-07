@@ -1,23 +1,22 @@
 import { useState } from 'react';
-import { AlignLeft, AppWindow, Archive, ArrowRight, ArrowUpRight, BookOpen, Check, ChevronRight, CopyPlus, Eye, FolderGit2, Link2, Trash2, GitFork, ListFilter, Loader2, MoreHorizontal, Network, PenLine, Pin, PinOff, Play, UserRound, X } from 'lucide-react';
+import { AlignLeft, AppWindow, Archive, ArrowRight, ArrowUpRight, BookOpen, Check, ChevronRight, CopyPlus, Eye, FolderGit2, GitFork, Link2, Trash2, ListFilter, Loader2, Network, PenLine, Pin, PinOff, Play, UserRound, X } from 'lucide-react';
 import { titleOf } from './agent/catalog.js';
 import { ago, api, navigate } from './api.js';
-import { learnProgress, onAnotherDevice, readRecent } from './home/continue.js';
+import { onAnotherDevice, readRecent } from './home/continue.js';
 import { canvasKeys, localBoard } from './home/canvas-local.js';
 import ForkButton from './ForkButton.jsx';
 import { postFork } from './canvas-fork.js';
 import { readPinned, togglePin } from './home/pinned.js';
-import { Creator, ForkedFrom, Forks, SourceLink } from './home/Provenance.jsx';
 import { cardModel } from './home/provenance.js';
-import { byRecent, chipHref, libraryHref, librarySections, ofType, SCOPES, TYPES } from './library-filter.js';
-import { Button, ConfirmDialog, IconBtn, Input, KindIcon, Menu, MenuItem, Pill, toast } from './ui.jsx';
+import LearningCard, { CARD_GRID, IN_THIS_BROWSER, ON_ANOTHER_DEVICE, SortMenu, menuAt } from './home/LearningCard.jsx';
+import { LIBRARY_SORTS, readLibrarySort, saveLibrarySort, sortCards } from './home/card-sort.js';
+import { chipHref, isMine, libraryHref, librarySections, ofType, SCOPES, SECTION_LIMIT, TYPES } from './library-filter.js';
+import { Button, ConfirmDialog, Input, KindIcon, Menu, MenuItem, Pill, toast } from './ui.jsx';
 import { ACCESS, PRIVATE_CONFIRM, confirmsPrivate, setAccess } from './canvas-visibility.js';
 
 // The preview Library (T02 §4, user correction 2026-09-28): what you can return to, learn from
 // or build from. Projects and Canvases are cards; Apps are compact operational rows here and the
 // table in their own view (App.jsx). Running is a job's capability, never the organizing principle.
-const CARD = 'rounded-lg border border-line bg-white';
-const GRID = 'grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3';
 const stop = (fn) => (e) => { e.stopPropagation(); fn(e); };
 // Review fixtures (home/review-fixtures.js) have no page and are never sent to an API.
 const fixtureNote = () => toast('Review fixture: there is nothing behind this card.');
@@ -25,13 +24,18 @@ const guard = (a, fn) => () => (a.fixture ? fixtureNote() : fn());
 const open = (a) => guard(a, () => navigate(`/apps/${a.name}`))();
 
 export default function LibraryViews({ apps, type, data, onType, onArchive, onRun, runningOf, onForked }) {
-  const [menu, setMenu] = useState(null); // { a, top, left }
+  const [menu, setMenu] = useState(null); // { a, top | bottom, left }
   const [accessOpen, setAccessOpen] = useState(false); // the Visibility submenu, inside the same menu
   const [dialog, setDialog] = useState(null); // { kind: rename | describe | private | trash, a, value?, to? }
   const ctx = { org: data?.org, email: data?.email, storage: localStorage, catalog: data?.apps || [], onForked };
-  const more = (a) => stop((e) => { const r = e.currentTarget.getBoundingClientRect(); setAccessOpen(false); setMenu({ a, top: r.bottom + 4, left: r.right - 224 }); });
-  const card = (a) => (a.kind === 'repository' ? <ProjectCard key={a.name} a={a} ctx={ctx} onMore={more(a)} /> : <CanvasCard key={a.name} a={a} ctx={ctx} onMore={more(a)} />);
+  const more = (a) => stop((e) => { setAccessOpen(false); setMenu({ a, ...menuAt(e.currentTarget, 224) }); });
+  const card = (a) => <LibraryCard key={a.name} a={a} ctx={ctx} onMore={more(a)} />;
   const recent = readRecent(localStorage);
+  // Library sort (owner 2026-10-06 §18): Last updated by default, over the owner's whole list; the choice is this
+  // viewer's, kept in this browser. Apps keep their own order.
+  const [sort, setSort] = useState(() => readLibrarySort(localStorage, ctx.org, ctx.email));
+  const chooseSort = (id) => { setSort(id); saveLibrarySort(localStorage, ctx.org, ctx.email, id); };
+  const sections = librarySections(apps, recent).map((s) => (s.key === 'apps' ? s : { ...s, items: sortCards(ofType(apps, s.key), sort).slice(0, SECTION_LIMIT) }));
   const pick = (fn) => { const a = menu.a; setMenu(null); guard(a, () => fn(a))(); };
   // Duplicate (docs/features/canvas-naming.md): a private copy of your own canvas, titled "Title (2)", "(3)"... by the
   // server; never a fork. This browser's copy of the content travels, as Fork's does, until the server owns content.
@@ -58,9 +62,10 @@ export default function LibraryViews({ apps, type, data, onType, onArchive, onRu
   const pinnedNow = menu && ctx.email && readPinned(localStorage, ctx.org, ctx.email).includes(menu.a.name);
   return (
     <>
-      {type ? <ul className={GRID}>{byRecent(ofType(apps, type), recent).map(card)}</ul> : (
+      <div className="flex justify-end pb-4"><SortMenu options={LIBRARY_SORTS} value={sort} onChange={chooseSort} /></div>
+      {type ? <ul className={CARD_GRID}>{sortCards(ofType(apps, type), sort).map(card)}</ul> : (
         <div className="space-y-10">
-          {librarySections(apps, recent).filter((s) => s.items.length).map((s) => (
+          {sections.filter((s) => s.items.length).map((s) => (
             <section key={s.key} aria-label={s.label}>
               <div className="flex h-8 items-center justify-between pb-1">
                 <h2 className="text-sm font-medium">{s.label} <span className="font-normal text-ink-3">{s.items.length + s.more}</span></h2>
@@ -68,12 +73,12 @@ export default function LibraryViews({ apps, type, data, onType, onArchive, onRu
               </div>
               {s.key === 'apps'
                 ? <ul>{s.items.map((a) => <AppRow key={a.name} a={a} running={runningOf(a)} onRun={(x) => guard(x, () => onRun(x))()} />)}</ul>
-                : <ul className={GRID}>{s.items.map(card)}</ul>}
+                : <ul className={CARD_GRID}>{s.items.map(card)}</ul>}
             </section>
           ))}
         </div>
       )}
-      <Menu portal open={!!menu} onClose={() => setMenu(null)} style={{ top: menu?.top, left: menu?.left }} className="w-56">
+      <Menu portal open={!!menu} onClose={() => setMenu(null)} style={{ top: menu?.top, bottom: menu?.bottom, left: menu?.left }} className="w-56">
         {menu?.a.kind === 'repository' ? (
           <>
             {ctx.email && <MenuItem icon={pinnedNow ? PinOff : Pin} onClick={() => pick((a) => togglePin(localStorage, ctx.org, ctx.email, a.name))}>{pinnedNow ? 'Unpin' : 'Pin'}</MenuItem>}
@@ -185,85 +190,25 @@ export function ActiveFilters({ type, section, archived }) {
   );
 }
 
-// Card hierarchy (user, 2026-09-28): title; creator and the source-owner check; source and a
-// short context; provenance when forked; then light metadata, the fork count and one action (canvases add Fork).
-// Title and footer are the card's controls; a click anywhere else on it opens it too.
-function Card({ kind, a, m, badge, action, fork = null, onMore, source, context, meta }) {
-  return (
-    <li data-library-card={kind} onClick={() => open(a)} className={`${CARD} lift-card group flex min-h-[156px] min-w-0 cursor-pointer flex-col gap-1 p-4`}>
-      <div className="flex min-w-0 items-start gap-2">
-        <span className="pt-0.5"><KindIcon kind={a.kind} /></span>
-        <button type="button" data-card-title onClick={stop(() => open(a))} className="line-clamp-2 min-w-0 flex-1 cursor-pointer text-left text-[15px] font-semibold leading-snug">{m.title}</button>
-        {badge}
-      </div>
-      <Creator m={m} />
-      {source}
-      <ForkedFrom m={m} onOpen={(id) => open({ name: id, fixture: a.fixture })} />
-      {context}
-      {meta}
-      <div className="mt-auto flex items-center gap-2 pt-3">
-        <Button size="sm" variant="secondary" onClick={stop(() => open(a))}>{action} <ArrowRight size={13} className="nudge-arrow" /></Button>
-        {fork}
-        <span className="flex-1" />
-        <Forks m={m} />
-        <IconBtn title="More" className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100" onClick={onMore}><MoreHorizontal size={16} strokeWidth={1.5} /></IconBtn>
-      </div>
-    </li>
-  );
-}
-
-// The strongest object: the repository's short name, where it comes from, and where the learner
-// left off in this browser (Learn's own chat and outline, never an inference).
-function ProjectCard({ a, ctx, onMore }) {
-  const m = cardModel(a);
-  const p = !a.fixture && learnProgress(a, ctx);
-  const canvases = ctx.catalog.filter((c) => c.kind === 'canvas' && c.project === a.name).length;
+// The Library's card (docs/features/card-redesign.md): the canonical LearningCard with the owner's ⋮, and this browser's
+// truthful content state until server persistence makes it cross-device (owner §5: never hidden before then).
+// The whole card and its title open it (no Open button, §13); its own canvases carry the blue Owned-by-you badge beside
+// the @handle. A canvas keeps Fork (docs/features/canvas-forking.md) as the neutral secondary action §13 names: your own
+// canvas forks from what this browser holds, else its server copy, and the new canvas joins this Library at once.
+function LibraryCard({ a, ctx, onMore }) {
+  const away = a.kind === 'canvas' && !a.fixture && onAnotherDevice(a, ctx.email, ctx.storage);
   // No 'Map ready' label (owner, 2026-10-04): only a Map still indexing or failed says so.
-  const source = [a.commit_sha?.slice(0, 7), a.status !== 'ready' && `Map ${a.status}`, canvases && `${canvases} canvas${canvases > 1 ? 'es' : ''}`].filter(Boolean).join(' · ');
-  return (
-    <Card kind="project" a={a} m={m} onMore={onMore} action={p?.lastExplored || p?.next ? 'Continue' : 'Open'} badge={<Pill kind="repository">Project</Pill>}
-      source={<SourceLink m={m} suffix={a.branch && a.branch !== 'main' && a.branch !== 'master' ? ` · ${a.branch}` : ''} />}
-      context={(
-        <>
-          {m.summary && <p className="line-clamp-2 pt-1 text-xs text-ink">{m.summary}</p>}
-          {!a.fixture && (
-            <div className="space-y-0.5 pt-1 text-xs">
-              {p?.lastExplored && <p className="truncate text-ink-2">Last explored: <span className="text-ink">{p.lastExplored}</span></p>}
-              {p?.next && <p className="truncate text-ink-2">Continue: <span className="text-ink">{p.next}</span></p>}
-              {!p?.lastExplored && !p?.next && <p className="text-ink-3">Not explored in this browser yet</p>}
-            </div>
-          )}
-        </>
-      )}
-      meta={<span className="truncate pt-1 text-xs text-ink-3">{source}</span>} />
-  );
-}
-
-function CanvasCard({ a, ctx, onMore }) {
-  const m = cardModel(a);
-  const project = ctx.catalog.find((p) => p.name === a.project);
-  const away = !a.fixture && onAnotherDevice(a, ctx.email, ctx.storage);
-  const last = !a.fixture && !away && learnProgress(a, ctx)?.lastExplored;
-  // ponytail: canvases record created_at only (content lives in the browser), so no 'last edited' yet.
-  // [Open] [Fork] (docs/features/canvas-forking.md): your own canvas forks from what this browser holds,
-  // else its server copy; the new canvas joins this Library at once.
-  const fork = a.fixture
-    ? <Button size="sm" variant="secondary" onClick={stop(fixtureNote)}><GitFork size={13} strokeWidth={1.8} />Fork</Button>
+  const note = a.fixture ? null
+    : a.kind === 'canvas' ? (away ? ON_ANOTHER_DEVICE : IN_THIS_BROWSER)
+    : a.status !== 'ready' ? `Map ${a.status}` : null;
+  const fork = a.kind !== 'canvas' ? null
+    : a.fixture ? <Button size="sm" variant="secondary" onClick={stop(fixtureNote)}><GitFork size={13} strokeWidth={1.8} />Fork</Button>
     : <ForkButton size="sm" source={{ canvas: a.name }} snapshot={() => localBoard(ctx.storage, canvasKeys({ org: a.org || ctx.org, email: a.email || ctx.email, slug: a.name }))} onForked={() => ctx.onForked?.()} />;
   return (
-    <Card kind="canvas" a={a} m={m} onMore={onMore} action={last ? 'Continue' : 'Open'} fork={fork} badge={<Pill kind="canvas">Canvas</Pill>} meta={(
-      <span className="flex min-w-0 items-center gap-1.5 pt-1 text-xs text-ink-3">
-        <span className="truncate">Created {ago(a.created_at)}</span>
-        {!a.fixture && (away ? <Pill>On another device</Pill> : <span className="truncate">· Content in this browser</span>)}
-      </span>
-    )}
-      source={m.source ? <SourceLink m={m} /> : !m.forkedFrom && <span className="truncate text-xs text-ink-2">{project ? `In ${titleOf(project)}` : 'Standalone'}</span>}
-      context={(
-        <>
-          {m.summary && <p className="line-clamp-2 pt-1 text-xs text-ink">{m.summary}</p>}
-          {last && <p className="truncate pt-1 text-xs text-ink-2">Last explored: <span className="text-ink">{last}</span></p>}
-        </>
-      )} />
+    <LearningCard kind={a.kind} m={cardModel(a)} attrs={{ 'data-library-card': a.kind === 'repository' ? 'project' : 'canvas' }}
+      href={a.fixture ? null : `/apps/${a.name}`} onOpen={() => open(a)} mine={!a.fixture && isMine(a, ctx.email)}
+      access={a.kind === 'canvas' && !a.fixture ? a.access : null} onMore={onMore} note={note} actions={fork}
+      onForkedFromOpen={(id) => open({ name: id, fixture: a.fixture })} />
   );
 }
 
