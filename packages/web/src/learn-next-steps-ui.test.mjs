@@ -540,10 +540,15 @@ test('sharedSteps telemetry: next_steps_computed and next_steps_shown with scope
   const events = [];
   const remove = B.addSink(e => events.push(e));
   try {
-    const r = sharedRig();
+    // Merge fix d (owner sixth message 4): the route's trim counts, beside the set in its reply telemetry, reach planner_input.
+    const trim = { before: { chars: 10700, block_count: 20, claim_count: 12 }, after: { chars: 8900, block_count: 14, claim_count: 12 }, trimmed: { block_count: 6, claim_count: 0 } };
+    const reply = sharedSet(1);
+    const r = sharedRig({ replies: [{ ...reply, telemetry: { ...reply.telemetry, trim } }] });
     r.step(); await r.c.fire();
     await ticks(() => events.length >= 2);
     assert.deepEqual(events.map(e => e.event), ['next_steps_computed', 'next_steps_shown']);
+    assert.deepEqual(events[0].runtime.planner_input, { before: { block_count: 20, claim_count: 12 }, after: { block_count: 14, claim_count: 12 }, trimmed: { block_count: 6, claim_count: 0 },
+      current_section_claims_kept: null, repair_claims_kept: null });
     for (const e of events) {
       assert.deepEqual([e.identity.scope, e.identity.mode, e.identity.user_id, e.identity.canvas_id], ['shared', 'shared', null, null]);
       assert.deepEqual(e.identity.source, { share_key: 'f00d'.repeat(16), share_version: 4, origin_block_id: 'k1' });
@@ -614,6 +619,8 @@ test('LearnNextSteps.jsx: one controller lifecycle shared by ownedSteps and shar
   assert.equal(source.match(/ctl\?\.dispose\(\)/g).length, 1, 'one dispose');
   assert.doesNotMatch(source, /viewerOnce|let me\b/, 'no module-level identity cache');
   const tutor = read('LearnTutor.jsx');
-  assert.match(tutor, /holeOpening\(\{ storage: sessionStorage, load, record, title: liveTitle, hookTurns, active, domain: \(\) => domainOf\(canvasApi\.current\) \}\)/);
-  assert.match(tutor, /\}, \[active, hookTurns, record\?\.dive_id\]\);/);
+  assert.match(tutor, /holeOpening\(\{ storage: sessionStorage, load, record, title: liveTitle, hookTurns, settled, active, domain: \(\) => domainOf\(canvasApi\.current\) \}\)/);
+  assert.match(tutor, /\}, \[active, hookTurns, settled, record\?\.dive_id\]\);/);
+  // Merge fix a: settled is Task 10's hook context (the dives record and a journey hole's parent read), the one snapshot uses.
+  assert.match(tutor, /const settled = hookContext\(\{ \.\.\.where, journey \}, parentRead, recordPending\) !== null;/);
 });

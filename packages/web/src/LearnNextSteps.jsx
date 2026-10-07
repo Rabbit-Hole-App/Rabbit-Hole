@@ -114,10 +114,11 @@ const sharedPost = read => async body => {
 // React, its lifecycle held's. read(): the hook's latest props. The board is the server's to read: a request names only the
 // origin card or root (and the viewer's own claim states). Triggers (contract §2.3, shared): the selected card or root, the board version and
 // the signed-in state, nothing else. Telemetry only while a sink is registered, each event from the set itself: the source
-// the server minted into its steps (share version, origin) with the one-way share key, and the server's input summary;
-// user_id is the harness sink's (the viewer's own session), never the sharer's. Nothing is persisted.
+// the server minted into its steps (share version, origin) with the one-way share key, the server's input summary and its
+// trim counts (runtime.planner_input); user_id is the harness sink's (the viewer's own session), never the sharer's. Nothing
+// is persisted.
 export function sharedSteps(read, { post = sharedPost(read), ...timers } = {}) {
-  const ids = set => ({ scope: 'shared', mode: 'shared', summary: set.telemetry?.summary ?? null,
+  const ids = set => ({ scope: 'shared', mode: 'shared', summary: set.telemetry?.summary ?? null, trim: set.telemetry?.trim ?? null,
     identity: { source: { share_key: set.telemetry?.share_key ?? null, ...set.options?.[0]?.selected_next_step?.source } } });
   const life = held(() => nextStepsController({
     post,

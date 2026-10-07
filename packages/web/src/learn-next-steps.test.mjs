@@ -937,7 +937,7 @@ test('holeOpening: a carried step opens the hole once as a next_step with no que
   const step = { suggestion_id: 'ns_01010101.2', learning_goal: 'g' };
   let saved = emptyStore(), loads = 0;
   const load = () => { loads += 1; return saved; };
-  const open = over => holeOpening({ storage: s, load, record, hookTurns: true, active: true, domain: () => NANOGPT, ...over });
+  const open = over => holeOpening({ storage: s, load, record, hookTurns: true, settled: true, active: true, domain: () => NANOGPT, ...over });
   carryStep(s, record.dive_id, step);
   // Hook turns do not run here yet (the hole's Tutor context is not resolved): the step is kept and nothing is read.
   assert.deepEqual(open({ hookTurns: false }), { store: null, opening: null });
@@ -957,4 +957,23 @@ test('holeOpening: a carried step opens the hole once as a next_step with no que
   saved = emptyStore();
   assert.deepEqual(open({ title: 'Mask notes' }).opening, { key: record.dive_id, question: 'Take me into Mask notes.' });
   assert.deepEqual(open({ record: null }), { store: null, opening: null });
+});
+
+// Merge fix a: the opening waits for Task 10's hook context (LearnTutor passes settled: hookContext is not null) - never while
+// the record or a journey hole's parent journey read is unresolved, so a carried step never runs on the canvas domain inside a
+// journey hole. Once settled it runs: on the dive domain, or on the canvas domain after a refusal (hook turns only, askStep).
+test('holeOpening: nothing is taken or asked until the hook context settles; then the carried step opens the hole once', () => {
+  const s = memory(), record = { dive_id: 'canvas-0000feed', title: 'Falls', journey: { journey_id: 'lj_a', section_id: 's2', concept_ids: [], claim_ids: [] } };
+  const step = { suggestion_id: 'ns_02020202.1', learning_goal: 'g' };
+  let loads = 0;
+  const load = () => { loads += 1; return emptyStore(); };
+  const open = over => holeOpening({ storage: s, load, record, hookTurns: true, active: false, domain: () => NANOGPT, ...over });
+  carryStep(s, record.dive_id, step);
+  // The parent read pending: the canvas domain (hook turns, no typed Tutor), or a typed Tutor that is not the hole's yet.
+  for (const active of [false, true]) assert.deepEqual(open({ settled: false, active }), { store: null, opening: null });
+  assert.deepEqual([loads, [...s.m.values()]], [0, [JSON.stringify(step)]], 'nothing read; the step kept as it was');
+  // Settled with a refusal: the canvas-domain hole takes it once (the dock sends it with askStep).
+  assert.deepEqual(open({ settled: true }).opening, { key: record.dive_id, next_step: step });
+  // Taken once; a settled typed Tutor asks its opening question as before (this load never saves, so the hole is not marked).
+  assert.deepEqual([s.m.size, open({ settled: true, active: true }).opening], [0, { key: record.dive_id, question: 'Take me into Falls.' }]);
 });

@@ -302,11 +302,13 @@ export function viewerStates(store, registry = TUTOR_DOMAINS) {
 // A hole's opening (LearnTutor.jsx's effect; contract §1.4, §6.4): where hook turns run, a hook carried from a shared canvas
 // opens the hole once as a next_step (marked opened, so the usual opening question never follows); otherwise, where the
 // Tutor is active, the pending question once (title is the live title, Task 10 fix round 4). Nothing is read or taken where
-// hook turns do not run (Ruling F4), so a carried step waits for them. load and domain are thunks (load mints a session id).
-// Returns { store: to save or null, opening: for setOpening or null }.
-export function holeOpening({ storage, load, record, title = null, hookTurns, active, domain }) {
+// hook turns do not run (Ruling F4), so a carried step waits for them, nor until settled: the hook context is resolved (the
+// dives record and a journey hole's parent read), so a carried step never runs on the canvas domain a parent journey
+// replaces. load and domain are thunks (load mints a session id). Returns { store: to save or null, opening: for setOpening
+// or null }.
+export function holeOpening({ storage, load, record, title = null, hookTurns, settled, active, domain }) {
   const none = { store: null, opening: null };
-  if (!hookTurns || !record?.dive_id) return none;
+  if (!hookTurns || !settled || !record?.dive_id) return none;
   const carried = takeCarriedStep(storage, record.dive_id);
   if (carried) return { store: markOpened(load(), record), opening: { key: record.dive_id, next_step: carried } };
   if (!active) return none;

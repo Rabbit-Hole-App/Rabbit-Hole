@@ -225,12 +225,12 @@ const BIG_CLAIMS = [...new Set(BIG.blocks.flatMap(claimsOf))];
 const size = input => JSON.stringify(input).length;
 
 // A public course registered only for one test (removed after it): count claims on every authored card (every block with
-// everywhere), each claim at its caps, ids of idLength characters.
-function syntheticCourse(t, { count = 12, idLength = 64, everywhere = false } = {}) {
+// everywhere), each claim at its caps, ids of idLength characters; lead registers it first, so its claims lead the scope.
+function syntheticCourse(t, { count = 12, idLength = 64, everywhere = false, lead = false } = {}) {
   const ids = Array.from({ length: count }, (_, i) => `synthetic-claim-${i}-`.padEnd(idLength, 'q'));
   const text = n => 'w'.repeat(n);
   const claims = Object.fromEntries(ids.map(id => [id, { concept: 'synthetic', statement: text(240), ideas: [text(120), text(120), text(120), text(120)], drawn: text(160), misconceptions: [], prerequisites: [] }]));
-  TUTOR_DOMAINS.push({ id: 'synthetic-public', match: {}, domain: { claims, concepts: { synthetic: { label: 'Synthetic', names: [] } }, targetClaims: target => (everywhere || target.card_id ? ids : []) }, capabilities: { tutor: true, suppliedCourse: true } });
+  TUTOR_DOMAINS[lead ? 'unshift' : 'push']({ id: 'synthetic-public', match: {}, domain: { claims, concepts: { synthetic: { label: 'Synthetic', names: [] } }, targetClaims: target => (everywhere || target.card_id ? ids : []) }, capabilities: { tutor: true, suppliedCourse: true } });
   t.after(() => { TUTOR_DOMAINS.splice(TUTOR_DOMAINS.findIndex(entry => entry.id === 'synthetic-public'), 1); });
   return ids;
 }
@@ -377,4 +377,44 @@ test('a shared step without title_fingerprint answers 409 stale_hook; a start wi
   const before = f.statements.length;
   assert.equal((await start(f, token, 'ben', null, step)).status, 201);
   assert.equal(f.statements.slice(before).filter(sql => sql === 'SELECT title FROM canvases WHERE org = ? AND name = ?').length, 1);
+});
+
+// ---- Merge fix (Tasks 10 and 11): the selected card in the shared trim, essential claims without one, trim telemetry. ----
+// Item b: the selected card ranks above every other card. Here every card names the same essential claims and the selected
+// card sits in the oldest place, so ranking it with them made it the first card dropped.
+test('the selected card is never the first card trimmed: it stays in canvas.blocks while other cards go', t => {
+  syntheticCourse(t, { count: 3, everywhere: true });
+  const board = { blocks: [{ id: 'old', type: 'explanation', title: 'The oldest card' }, ...Array.from({ length: 24 }, (_, i) => ({ id: `n${String(i).padStart(2, '0')}-0123456789abcdef0123`, type: 'explanation', title: LONG(i) }))] };
+  const { input, trim } = sharedInput(board, { origin: { id: 'old' }, key: 'k', version: 1, title: 't' });
+  assert.ok(trim.after.block_count < trim.before.block_count && trim.after.block_count > NEXT_STEPS_LIMITS.block_floor, `cards were trimmed: ${JSON.stringify(trim)}`);
+  assert.ok(size(input) <= NEXT_STEPS_LIMITS.input_chars);
+  assert.deepEqual([input.canvas.blocks[0].id, input.canvas.selected.id], ['old', 'old'], 'the selected card stays');
+});
+
+// Item c: a selected card with no claims keeps the first scope claim essential, as the owned input does (its first claim),
+// so it is never refused while one claim fits. The leading claim fits alone but not with a card naming it.
+test('a selected card with no claims is never refused while one claim fits: the first scope claim is essential', t => {
+  const [id] = syntheticCourse(t, { count: 1, idLength: 4500, lead: true });
+  const board = { blocks: [{ id: 'note', type: 'explanation', title: 'A note' }, REG_BLOCK] };
+  const got = sharedInput(board, { origin: { id: 'note' }, key: 'k', version: 1, title: 't' });
+  assert.equal(got.problem, undefined, 'never input_too_large while one claim fits');
+  assert.deepEqual([Object.keys(got.input.scope.claims), got.input.canvas.blocks.map(b => b.id), got.input.canvas.selected.id], [[id], ['note'], 'note']);
+  assert.ok(size(got.input) <= NEXT_STEPS_LIMITS.input_chars);
+});
+
+// Item d (owner sixth message 4): the route returns the trim counts in its reply telemetry, beside the set (the hook hands
+// them to next_steps_computed as runtime.planner_input); never inside the model input or a step.
+test('the shared reply telemetry carries the server trim counts; the model input and the steps never do', async t => {
+  const f = world(t, { JOURNEY_MODEL_STUB: '' });
+  const inputs = plannerInputs(t);
+  const { token } = await f.shareProject({ state: BIG });
+  const got = await hooks(f, token, null);
+  assert.equal(got.status, 200, got.text);
+  const { trim } = sharedInput(BIG, { origin: { root: true }, key: 'f'.repeat(64), version: 1, title: 'nanoGPT attention' });
+  const counts = c => ({ block_count: c.block_count, claim_count: c.claim_count });
+  const sent = got.body.telemetry.trim;
+  assert.deepEqual([counts(sent.before), counts(sent.after), sent.trimmed], [counts(trim.before), counts(trim.after), { block_count: trim.before.block_count - trim.after.block_count, claim_count: trim.before.claim_count - trim.after.claim_count }]);
+  assert.ok(sent.trimmed.block_count > 0, 'cards were trimmed');
+  assert.equal(JSON.stringify(inputs[0]).includes('block_count'), false, 'never inside the model input');
+  assert.equal(JSON.stringify(got.body.options).includes('block_count'), false, 'never in a step');
 });

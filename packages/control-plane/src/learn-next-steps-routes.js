@@ -48,10 +48,11 @@ export async function ownedNextSteps(env, access, body, { callModel, cache = glo
 // builder, selected card first. No goal is inferred. A chat card origin reads as the root (it is not content): one input and
 // one cache entry. key and version make the basis. The blocks are the 20 newest, the selected card kept in the oldest place
 // when it is older. The input_chars cap is Task 7's (trimToFit) on the board alone: essential are the selected card's claims
-// (at the root, the first claim) and the selected card ranks with the cards naming them. A signed-in viewer's own states
-// (already filtered) are laid on the kept scope after it, so generation and Start Rabbit Hole read the same trimmed scope,
-// and a state is never longer than not_yet_observed, so the cap holds. { input, trim: { before, after } } with { chars,
-// block_count, claim_count } each (beside the input, never in it), or { problem: 'input_too_large' }.
+// (at the root, or for a card naming none, the first claim, as the owned input) and the selected card ranks above every other
+// card, the cards naming an essential claim next. A signed-in viewer's own states (already filtered) are laid on the kept
+// scope after it, so generation and Start Rabbit Hole read the same trimmed scope, and a state is never longer than
+// not_yet_observed, so the cap holds. { input, trim: { before, after, trimmed } } with { chars, block_count, claim_count } in
+// before and after and the counts trimmed (beside the input, never in it), or { problem: 'input_too_large' }.
 const PUBLIC = () => TUTOR_DOMAINS.filter(entry => entry.domain && entry.capabilities?.suppliedCourse === true);
 const ROOT = ':root';
 const contentOrigin = (state, origin) => (!origin?.root && (state?.blocks || []).some(block => block?.id === origin.id) ? origin.id : ROOT);
@@ -75,13 +76,14 @@ export function sharedInput(state, { origin, key = '', version = null, title = '
     },
     scope, recent: { intent: null, transitions: [], modalities: [], practice: [] }, previous: { hooks: [], goals: [] }, constraints: { learner: [] },
   };
-  const essential = new Set(selected ? first : Object.keys(scope.claims).slice(0, 1)), last = window.at(-1)?.id;
+  const essential = new Set(first.length ? first : Object.keys(scope.claims).slice(0, 1)), last = window.at(-1)?.id;
   const count = () => ({ chars: JSON.stringify(input).length, block_count: input.canvas.blocks.length, claim_count: Object.keys(scope.claims).length });
   const before = count();
-  const problem = trimToFit(input, { essential, rank: b => ((selected && b.id === selected.id) || b.claim_ids.some(id => essential.has(id)) ? 2 : b.claim_ids.length || b.id === last ? 1 : 0) });
+  const problem = trimToFit(input, { essential, rank: b => (selected && b.id === selected.id ? 3 : b.claim_ids.some(id => essential.has(id)) ? 2 : b.claim_ids.length || b.id === last ? 1 : 0) });
   if (problem) return { problem };
   for (const [id, s] of Object.entries(viewerStates || {})) if (Object.hasOwn(scope.claims, id)) scope.claims[id].state = s;
-  return { input, trim: { before, after: count() } };
+  const after = count();
+  return { input, trim: { before, after, trimmed: { block_count: before.block_count - after.block_count, claim_count: before.claim_count - after.claim_count } } };
 }
 // The one-way fingerprint of a shared board's title: in the content cache key and in each shared step's source, so a rename
 // without a version bump is a new cache entry and a stale hook (409), as a version change is. Never the title itself.
@@ -106,7 +108,7 @@ export function sharedStepIds(state, options) {
 // null; origin: originOf's.
 export async function sharedNextSteps(env, { row, state, title, key, viewer, origin, body }, { callModel, cache = globalThis.caches?.default } = {}) {
   const options = { origin, key, version: row.version, title };
-  const { input: content, problem: tooLarge } = sharedInput(state, options);
+  const { input: content, trim: contentTrim, problem: tooLarge } = sharedInput(state, options);
   // The cap's own refusal, then the hard 12000 check as a backstop; neither reaches the cache, the limiter or the planner.
   const problem = tooLarge || nextStepsInputProblem({ ...content, mode: 'canvas' });
   if (problem) return json({ error: problem }, 400);
@@ -125,7 +127,8 @@ export async function sharedNextSteps(env, { row, state, title, key, viewer, ori
   if (refused) return json({ error: 'Next steps are paused for now; try again later.', limited: true }, 429);
   let planned;
   try { planned = await planNextSteps(env, input, callModel ? { callModel } : {}); } catch (error) { return json({ error: error.message }, 502); }
-  const set = { ...mintSet(planned.options, input, { source: { share_version: row.version, origin_block_id: contentOrigin(state, origin), title_fingerprint: fingerprint } }), telemetry: { ...planned.telemetry, cached: false, share_key: key, summary: inputSummary(input) } };
+  // The reply telemetry (Ruling F11) carries the trim counts beside the set (owner sixth message 4), never in the model input.
+  const set = { ...mintSet(planned.options, input, { source: { share_version: row.version, origin_block_id: contentOrigin(state, origin), title_fingerprint: fingerprint } }), telemetry: { ...planned.telemetry, cached: false, share_key: key, summary: inputSummary(input), trim: contentTrim } };
   if (!personal) await keepReply(cache, cacheKey, set);
   return json(set);
 }

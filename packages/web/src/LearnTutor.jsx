@@ -219,13 +219,19 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   // dock sends it like a typed message (ask.jsx), so it reads as the learner's question carried down
   // and never lands on the empty hole's canvas. A hook carried from a shared canvas (Professor Next Steps contract §1.4)
   // opens the hole once instead, as a next_step turn the dock sends with askStep (no evaluate call); it is taken only where
-  // hook turns run (Ruling F4), so a hole whose Tutor is not resolved yet keeps it until it is.
+  // hook turns run (Ruling F4), so a hole whose Tutor is not resolved yet keeps it until it is. settled (merge of Tasks 10 and
+  // 11): the opening also waits for the hook context hooks are built in, so a carried step never runs on the canvas domain of
+  // a journey hole whose parent read is pending; a settled refusal keeps the canvas domain and takes it there.
+  // recordPending (fix round 2, probe D): a canvas - structurally a possible hole, by its name - whose dives record (useDive's
+  // tree) has not landed; a repository or project app is never a hole.
+  const recordPending = /^canvas-[a-f0-9]{8}$/.test(app.name) && !dive.tree;
+  const settled = hookContext({ ...where, journey }, parentRead, recordPending) !== null;
   const [opening, setOpening] = useState(null);
   useEffect(() => {
-    const { store, opening: next } = holeOpening({ storage: sessionStorage, load, record, title: liveTitle, hookTurns, active, domain: () => domainOf(canvasApi.current) });
+    const { store, opening: next } = holeOpening({ storage: sessionStorage, load, record, title: liveTitle, hookTurns, settled, active, domain: () => domainOf(canvasApi.current) });
     if (store) save(store);
     if (next) setOpening(next);
-  }, [active, hookTurns, record?.dive_id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [active, hookTurns, settled, record?.dive_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The typed path (ask) and a hook click (askStep) share one turn and one return contract: the reply text, or
   // { handled } for a turn the journey took. An empty reply is drawn as the spinner (ask.jsx), so a turn that only acts on
@@ -243,9 +249,6 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   // snapshot(): what useNextSteps builds the hook input from - the Tutor context here (null: no hooks), the merged store, a
   // hole's parent journey and record, and the live title. showing(options): the hooks on screen, named in the next turn's
   // decision trace.
-  // recordPending (fix round 2, probe D): a canvas - structurally a possible hole, by its name - whose dives record (useDive's
-  // tree) has not landed; a repository or project app is never a hole.
-  const recordPending = /^canvas-[a-f0-9]{8}$/.test(app.name) && !dive.tree;
   const steps = {
     askStep, lastTurn, busy,
     snapshot: () => ({ context: hookContext({ ...where, journey: journeyRef.current, blocks: canvasApi.current?.blocks?.() || [] }, parentRead, recordPending), store: load(), parent: parentJourney, record, liveTitle }),
