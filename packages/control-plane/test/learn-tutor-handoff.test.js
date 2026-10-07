@@ -119,6 +119,14 @@ test('model_error: an HTTP failure or a thrown transport error, never its text',
   await failed(await f.post(ask(), { callModel: thrown.callModel }), 'model_error');
 });
 
+// Task 11c-B dispatch note: a thrown null or undefined from the model transport is model_error, never a 500.
+test('model_error: a thrown null or undefined from the model transport answers model_error, not 500', async t => {
+  for (const value of [null, undefined]) {
+    const f = setup(t), thrown = scripted([() => { throw value; }]);
+    await failed(await f.post(ask(), { callModel: thrown.callModel }), 'model_error');
+  }
+});
+
 test('timeout: the deadline answers timeout and stops the reader loop at its next model call', async t => {
   const f = setup(t);
   const hang = scripted([() => new Promise(() => {})]);

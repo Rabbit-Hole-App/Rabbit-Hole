@@ -140,7 +140,7 @@ export async function handoff(env, access, body, { callModel = loggedModel('chat
     answer = await Promise.race([work, new Promise((_, reject) => { timer = setTimeout(() => { deadline.passed = true; reject(failure('timeout')); }, timeoutMs); })]);
     if (meter.seen.stop_reason === 'refusal') category = 'refused';
   } catch (error) {
-    category = error.category || (meter.seen.stop_reason === 'refusal' ? 'refused' : meter.seen.stop_reason === 'max_tokens' ? 'too_large' : 'model_error');
+    category = error?.category || (meter.seen.stop_reason === 'refusal' ? 'refused' : meter.seen.stop_reason === 'max_tokens' ? 'too_large' : 'model_error');
   } finally { clearTimeout(timer); }
   return category === 'limited' ? reply(category, null, { error: 'This lookup is paused for now; try again later.', limited: true }, 429) : reply(category, answer);
 }
