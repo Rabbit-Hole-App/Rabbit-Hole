@@ -53,9 +53,9 @@ test('new preview users start with the APPS sections collapsed; a stored choice 
 });
 
 test('the Agent Bar edge: live collapsed is 0, preview collapsed is the icon rail, expanded is the width', () => {
-  assert.equal(RAIL_W, 52);
+  assert.equal(RAIL_W, 64);
   assert.equal(sidebarEdge(true, 260, false), 0);
-  assert.equal(sidebarEdge(true, 260, true), 52);
+  assert.equal(sidebarEdge(true, 260, true), 64);
   assert.equal(sidebarEdge(false, 300, true), 300);
   assert.equal(sidebarEdge(false, 300, false), 300);
 });

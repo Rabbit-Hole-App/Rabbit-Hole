@@ -7,13 +7,14 @@ import { patchSurface } from './agent/surface.js';
 import { learnPreview } from './flags.js';
 import { sidebarEdge } from './home/pinned.js';
 import { immersiveAt } from './routes.js';
+import { readSidebar, saveSidebar } from './sidebar-nav.js';
 
 // flow.md §1: the sidebar is always present. One shell owns it everywhere -
 // the /api/apps fetch it needs, the persisted collapse, the » reopen button,
 // and the Ctrl/⌘+\ shortcut. Pages render inside via children(data, reload).
 // The sidebar as stored. main.jsx publishes its edge (--sidebar-w) before the first paint, so the
 // Agent Bar (mounted in Root, before any Shell) starts in place instead of sliding in from the left.
-export const storedSidebar = () => ({ collapsed: localStorage.getItem('small.sidebar') === 'closed', width: +localStorage.getItem('small.sidebarW') || 260 });
+export const storedSidebar = () => readSidebar();
 
 export default function Shell({ children }) {
   const [data, setData] = useState(null); // { org, email, apps, folders } | { error }
@@ -25,7 +26,7 @@ export default function Shell({ children }) {
   const resize = (w) => {
     setResizing(true);
     setWidth(w);
-    localStorage.setItem('small.sidebarW', w);
+    saveSidebar('small.sidebarW', w);
     clearTimeout(resizeTimer.current);
     resizeTimer.current = setTimeout(() => setResizing(false), 150);
   };
@@ -40,7 +41,7 @@ export default function Shell({ children }) {
 
   const toggle = (c) => {
     setCollapsed(c);
-    localStorage.setItem('small.sidebar', c ? 'closed' : 'open');
+    saveSidebar('small.sidebar', c ? 'closed' : 'open');
   };
   // Rabbit Hole dev: Learn is immersive (routes.js immersiveAt), with no sidebar, icon rail or sidebar button; its top-left
   // corner is the canvas home (LearnPage, owner 2026-09-30). Visiting Learn no longer collapses the sidebar elsewhere.
@@ -71,7 +72,7 @@ export default function Shell({ children }) {
       if ((e.ctrlKey || e.metaKey) && e.key === '\\') {
         e.preventDefault();
         setCollapsed((c) => {
-          localStorage.setItem('small.sidebar', c ? 'open' : 'closed');
+          saveSidebar('small.sidebar', c ? 'open' : 'closed');
           return !c;
         });
       }
@@ -107,7 +108,7 @@ export default function Shell({ children }) {
       <div
         data-shell-sidebar
         style={{ width: edge, transition: resizing ? 'none' : 'width 200ms cubic-bezier(0.25,1,0.35,1)' }}
-        className={`shrink-0 overflow-hidden ${drawer ? 'max-md:w-0!' : immersive ? 'hidden' : 'max-md:hidden'}`}
+        className={`shrink-0 overflow-hidden motion-reduce:transition-none! ${drawer ? 'max-md:w-0!' : immersive ? 'hidden' : 'max-md:hidden'}`}
       >
         <div
           style={{ width: learnPreview ? (drawer ? width : edge) : width, transform: collapsed && !learnPreview ? `translateX(-${width}px)` : 'none', transition: resizing ? 'none' : 'transform 200ms cubic-bezier(0.25,1,0.35,1)' }}

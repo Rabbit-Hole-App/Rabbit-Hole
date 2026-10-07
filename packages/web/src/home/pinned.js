@@ -27,6 +27,6 @@ export const pinnedApps = (slugs, catalog) => slugs.map((slug) => catalog.find((
 export const secClosedInit = (stored, preview) => JSON.parse(stored || (preview ? '{"apps":true,"shared":true,"private":true}' : '{}'));
 
 // The Agent Bar's left edge (--sidebar-w). A collapsed preview sidebar keeps its icon rail;
-// the live build collapses to nothing, as today.
-export const RAIL_W = 52;
+// the live build collapses to nothing, as today. 64px: a rail with 44px targets, not a squeezed sidebar (owner, 2026-10-06).
+export const RAIL_W = 64;
 export const sidebarEdge = (collapsed, width, preview) => (collapsed ? (preview ? RAIL_W : 0) : width);

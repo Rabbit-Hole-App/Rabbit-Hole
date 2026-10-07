@@ -7,7 +7,9 @@ import { api } from './api.js';
 // rail on Home, Library and Explore (no app, placement 'right': the panel
 // opens beside the button, bottom-aligned). The report carries where it was
 // sent from; the confirmation stays on the button, never a corner toast.
-export default function FeedbackButton({ app = null, board = null, placement = 'up' }) {
+// trigger: the sidebar draws its own row in place of the square button (docs/features/sidebar-polish.md),
+// given the open state, the icon (a check once sent) and the toggle.
+export default function FeedbackButton({ app = null, board = null, placement = 'up', trigger = null }) {
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState('bug');
   const [text, setText] = useState('');
@@ -37,11 +39,11 @@ export default function FeedbackButton({ app = null, board = null, placement = '
   const Icon = state === 'sent' ? Check : MessageSquareWarning;
   return (
     <div ref={box} className="relative shrink-0">
-      <button type="button" data-feedback aria-label="Report a bug or suggest a feature" title={state === 'sent' ? 'Sent, thank you' : 'Report a bug or suggest a feature'}
+      {trigger ? trigger({ open, sent: state === 'sent', icon: Icon, toggle: () => setOpen(value => !value) }) : <button type="button" data-feedback aria-label="Report a bug or suggest a feature" title={state === 'sent' ? 'Sent, thank you' : 'Report a bug or suggest a feature'}
         aria-expanded={open} onClick={() => setOpen(value => !value)}
         className={`flex h-8 w-8 items-center justify-center rounded-lg border border-line bg-white shadow-sm hover:bg-hover ${state === 'sent' ? 'text-green-700' : 'text-ink-2 hover:text-ink'}`}>
         <Icon size={15} />
-      </button>
+      </button>}
       {open && (
         <form data-feedback-panel onSubmit={submit} aria-label="Feedback"
           className={`absolute z-40 w-80 max-w-[calc(100vw-1.5rem)] rounded-xl border border-line bg-white p-3 shadow-pop ${placement === 'right' ? 'bottom-0 left-full ml-2' : 'bottom-full left-0 mb-2'}`}>

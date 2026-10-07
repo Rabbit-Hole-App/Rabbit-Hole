@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, BadgeCheck, Bell, Braces, Check, CircleUser, Compass, ChevronDown, ChevronUp, ChevronRight, ChevronsLeft, ChevronsRight, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, House, LayoutGrid, LayoutPanelLeft, Library, Link, LogOut, Mail, MoreHorizontal, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, Bell, Braces, Check, CircleUser, Compass, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, ChevronsLeft, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, House, LayoutGrid, LayoutPanelLeft, Library, Link, LogOut, Mail, MoreHorizontal, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
 import { ago, api, getTheme, navigate, sectionOf, setTheme, setWs, wsName, workspaceLabel } from './api.js';
 import AwsConnection from './AwsConnection.jsx';
 import ByocDevBadge from './ByocDevBadge.jsx';
@@ -9,9 +9,9 @@ import { isPrivateByoc } from './private-auth.js';
 import { titleOf } from './agent/catalog.js';
 import { learnPreview, PRODUCT } from './flags.js';
 import { pinnedApps, RAIL_W, readPinned, secClosedInit, togglePin } from './home/pinned.js';
-import { readRecent, recentItems } from './home/continue.js';
-import { isMine } from './library-filter.js';
+import { readRecent } from './home/continue.js';
 import { isLearnResource } from './library-filter.js';
+import { recentLaunch } from './sidebar-nav.js';
 import { pageFor, sectionActive, sectionHref } from './routes.js';
 import FeedbackButton from './FeedbackButton.jsx';
 import { AppIcon, Avatar, Button, cn, ConfirmDialog, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, Select, SettingsRow, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
@@ -486,14 +486,27 @@ function AiModelSettings() {
 
 // Rabbit Hole dev: the main destinations, in the expanded nav and in the collapsed icon rail. Explore is listed even
 // while nothing is shared yet (owner, 2026-10-04): its page says so instead of showing demo cards.
-const NAV = [['Home', '/apps', 'home', House], ['Library', '/library', 'library', Library], ['Explore', '/explore', 'explore', Compass]];
-const RAIL_BTN = 'grid h-8 w-8 shrink-0 place-items-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink';
-// Report a bug or suggest a feature, below Trash (user, 2026-09-29): Learn's FeedbackButton, app-less. The sidebar
-// clips its overflow, so the button is fixed over a footer slot and its panel opens beside the strip, unclipped.
-// The footer is sticky, so the slot stays at the bottom however long the sidebar gets; sticky makes it a stacking
-// context, so it sits at z-30 to keep the panel above the Agent Bar (z-20).
-function FeedbackSlot({ left }) {
-  return <><div className="h-9 shrink-0" aria-hidden="true" /><div className="fixed bottom-2 z-40" style={{ left }}><FeedbackButton placement="right" /></div></>;
+// Each has one recognition tone (sidebar brief §8): Home neutral, Library violet, Explore teal; everything else neutral.
+const NAV = [['Home', '/apps', 'home', House, 'ink'], ['Library', '/library', 'library', Library, 'violet'], ['Explore', '/explore', 'explore', Compass, 'teal']];
+// You are here (brief §7): a tinted surface, stronger text and a 3px bar on the left, never a blue block (blue is for actions).
+const TONE = {
+  ink: { icon: '', here: 'bg-ink/7', bar: 'bg-ink' },
+  violet: { icon: 'text-violet-600 dark:text-violet-300', here: 'bg-violet-500/10', bar: 'bg-violet-500' },
+  teal: { icon: 'text-teal-600 dark:text-teal-300', here: 'bg-teal-500/10', bar: 'bg-teal-500' },
+};
+// One row for both states (brief §2, §5): 40px tall, the 18px icon 32px from the edge, so on the 64px rail (RAIL_W) the
+// same row is a centred 44px target, its label faded out. Collapsing changes the width and nothing else moves.
+const ROW = 'relative flex h-10 w-full shrink-0 cursor-pointer items-center gap-3 overflow-hidden rounded-lg px-[13px] text-left text-sm whitespace-nowrap transition-colors';
+// The width change, in step with the Shell's 200ms slide; none with reduced motion or while dragging the edge.
+const SLIDE = 'transition-[width] duration-200 ease-[cubic-bezier(0.25,1,0.35,1)] motion-reduce:transition-none';
+const LABEL = 'flex h-7 items-center px-3.5 text-[11px] font-semibold tracking-wide text-ink-2 uppercase';
+const SECTION = 'flex flex-col gap-0.5 pt-5 animate-[fade-in_200ms_ease-out] motion-reduce:animate-none';
+// Report a bug or suggest a feature, below Trash (user, 2026-09-29): Learn's FeedbackButton, app-less, drawn as a
+// sidebar row. The sidebar clips its overflow, so the row is fixed over a footer slot, as wide as the sidebar, and its
+// panel opens beside the strip, unclipped. The footer is sticky, so the slot stays at the bottom however long the
+// sidebar gets; sticky makes it a stacking context, so it sits at z-30 to keep the panel above the Agent Bar (z-20).
+function FeedbackSlot({ width, className, row }) {
+  return <><div className="h-10 shrink-0" aria-hidden="true" /><div className={cn('fixed bottom-2 left-0 z-40 px-2.5', className)} style={{ width }}><FeedbackButton placement="right" trigger={row} /></div></>;
 }
 // Rabbit Hole dev: the product mark. The chrome names the product, never a letter from the email domain.
 // The website's mark (the Landing favicon, white aperture on black), not a drawn rabbit.
@@ -627,15 +640,14 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
   }, []);
   const pins = learnPreview && email ? readPinned(localStorage, org, email) : [];
   const pinned = pinnedApps(pins, apps);
-  // Recent (user, 2026-09-30): the last three opened on this device, the same list Home's Recent reads.
-  const recentOpened = learnPreview && email ? recentItems(readRecent(localStorage), apps).slice(0, 3) : [];
-  // Private (user, 2026-09-30): Rabbit Hole v1 is solo, so what you own is private - newest first, five, then View all.
-  const mine = learnPreview && email ? apps.filter((a) => isMine(a, email)).sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || ''))) : [];
+  // Recent (user, 2026-09-30; owner, 2026-10-06): a small launcher of the last five opened on this device, the same
+  // list Home's Recent reads. The Private list that repeated them is gone: managing what you own is the Library's job.
+  const recentOpened = learnPreview && email ? recentLaunch(readRecent(localStorage), apps, pins) : [];
 
   // Rabbit Hole's Trash is the Library's (docs/features/library-trash.md): your canvases and projects, restored as they
   // were; nothing in it is deleted. Elsewhere it is the deployed apps' trash.
   const loadTrash = () => (learnPreview
-    ? api('/api/library/trash').then(({ items }) => ({ email, library: true, trash: items.map((i) => ({ name: i.name, kind: i.kind, title: i.title, deleted_at: i.trashed_at, owner_email: email })) }))
+    ? api('/api/library/trash').then(({ items }) => ({ email, trash: items.map((i) => ({ name: i.name, kind: i.kind, title: i.title, deleted_at: i.trashed_at, owner_email: email })) }))
     : api('/api/trash'));
   const openTrash = () => {
     setTrashOpen(true);
@@ -652,13 +664,38 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
     }
   };
 
+  const [resizing, setResizing] = useState(false); // dragging the edge must not lag behind the width transition
   const startResize = (e) => {
     e.preventDefault();
+    setResizing(true);
     const move = (ev) => onResize(Math.min(400, Math.max(200, ev.clientX)));
-    const up = () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+    const up = () => { setResizing(false); window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
     window.addEventListener('mousemove', move);
     window.addEventListener('mouseup', up);
   };
+
+  // Tooltips for icon-only controls (brief §6): 400ms after hover or keyboard focus, just past the sidebar's edge level
+  // with the control, portaled so the sidebar's overflow cannot clip them. A press, leaving, blur or Esc hides one;
+  // collapsing or expanding too.
+  const [tip, setTip] = useState(null); // { label, left, top }
+  const tipTimer = useRef();
+  const hideTip = () => { clearTimeout(tipTimer.current); setTip(null); };
+  const showTip = (el, label) => {
+    clearTimeout(tipTimer.current);
+    tipTimer.current = setTimeout(() => { const r = el.getBoundingClientRect(); setTip({ label, left: el.closest('aside').getBoundingClientRect().right + 8, top: r.top + r.height / 2 }); }, 400);
+  };
+  const tipFor = (label) => (label ? {
+    onMouseEnter: (e) => showTip(e.currentTarget, label),
+    onFocus: (e) => { if (e.currentTarget.matches(':focus-visible')) showTip(e.currentTarget, label); },
+    onMouseLeave: hideTip, onBlur: hideTip, onPointerDown: hideTip,
+  } : {});
+  useEffect(() => hideTip, [rail]);
+  useEffect(() => {
+    if (!tip) return;
+    const esc = (e) => { if (e.key === 'Escape') hideTip(); };
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, [tip]);
 
   const deleteApp = async (name) => {
     setConfirmDel(null);
@@ -723,31 +760,39 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         onDragStart={menu && a.hosting !== 'aws' && !isLearnResource(a) ? (e) => { setDragging(a.name); e.dataTransfer.setData('text/plain', a.name); e.dataTransfer.effectAllowed = 'move'; } : undefined}
         onDragEnd={menu ? () => { setDragging(null); setDropTarget(null); } : undefined}
         onClick={() => navigate(`/apps/${a.name}`)}
+        // A link for the keyboard too (brief §16); the ⋯ is its sibling, not nested inside it.
+        role="link"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/apps/${a.name}`); }}
         aria-current={path === `/apps/${a.name}` ? 'page' : undefined}
+        // Rabbit Hole: one line, truncated; the full title on hover or focus (brief §4).
+        {...tipFor(learnPreview && titleOf(a))}
         className={cn(
           'flex h-7 cursor-pointer items-center gap-2 rounded-sm px-2 text-sm hover:bg-hover',
-          path === `/apps/${a.name}` && 'bg-active font-medium', // you are here
+          learnPreview && 'relative h-8 gap-3 rounded-lg pl-3.5 text-ink-2 hover:text-ink',
+          path === `/apps/${a.name}` && (learnPreview ? 'bg-ink/7 font-medium text-ink' : 'bg-active font-medium'), // you are here
         )}
       >
+        {learnPreview && path === `/apps/${a.name}` && <span aria-hidden="true" className="absolute top-1/2 left-0 h-4 w-[3px] -translate-y-1/2 rounded-r-full bg-ink" />}
         <KindIcon kind={a.kind} schedule={a.schedule} />
         <span className="min-w-0 flex-1 truncate">{titleOf(a)}</span>
         {a.hosting === 'aws' && <span className="text-[10px] text-ink-3">AWS</span>}
         {!learnPreview && ((a.members?.length || 0) > 0 || (a.team_count || 0) > 0) && (
           <Users size={11} className="shrink-0 text-ink-3" title="shared" />
         )}
-        {menu ? (
-          <IconBtn
-            title="More"
-            onClick={(e) => { e.stopPropagation(); setMenuFor(menuFor === a.name ? null : a.name); }}
-            className={cn('-mr-1 opacity-0 group-hover/r:opacity-100', menuFor === a.name && 'bg-active text-ink opacity-100')}
-          >
-            <MoreHorizontal size={16} strokeWidth={1.5} />
-          </IconBtn>
-        ) : (
-          // rows without a ⋯ (Recent) reserve its slot so the shared icon lines up across sections
-          <span className="-mr-1 h-7 w-7 shrink-0" />
-        )}
+        {/* the ⋯ slot, reserved on every row so the shared icon lines up across sections */}
+        <span className="-mr-1 h-7 w-7 shrink-0" />
       </div>
+      )}
+      {menu && renamingApp?.from !== a.name && (
+        <IconBtn
+          title="More"
+          aria-label={`More for ${titleOf(a)}`}
+          onClick={() => setMenuFor(menuFor === a.name ? null : a.name)}
+          className={cn('absolute inset-y-0 right-1 my-auto opacity-0 group-hover/r:opacity-100 focus-visible:opacity-100', menuFor === a.name && 'bg-active text-ink opacity-100')}
+        >
+          <MoreHorizontal size={16} strokeWidth={1.5} />
+        </IconBtn>
       )}
       {menu && (
         <Menu open={menuFor === a.name} onClose={() => setMenuFor(null)} className="top-8 right-0 w-52">
@@ -849,10 +894,20 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
     );
   };
 
-  const badge = (unread.length > 0 || pendingGrant) && (
-    <span role="status" aria-label="Pending notifications" className="pointer-events-none absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-warn px-1 text-[10px] font-semibold text-white">
+  const badge = (where) => (unread.length > 0 || pendingGrant) && (
+    <span role="status" aria-label="Pending notifications" className={cn('pointer-events-none inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-warn px-1 text-[10px] font-semibold text-white', where)}>
       {unread.length + (pendingGrant ? 1 : 0)}
     </span>
+  );
+  // A Rabbit Hole nav row (ROW): the same button expanded and on the rail, where its label fades and a tooltip names it.
+  const navRow = ({ label, icon: Icon, tone = 'ink', current = false, open = false, onClick, extra = null, className, ...rest }) => (
+    <button key={label} type="button" aria-label={label} aria-current={current ? 'page' : undefined} onClick={onClick} {...tipFor(rail && label)} {...rest}
+      className={cn(ROW, current ? cn(TONE[tone].here, 'font-medium text-ink') : open ? 'bg-active text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink', className)}>
+      {current && <span aria-hidden="true" data-here-bar className={cn('absolute top-1/2 left-0 h-5 w-[3px] -translate-y-1/2 rounded-r-full', TONE[tone].bar)} />}
+      <Icon size={18} strokeWidth={1.5} className={cn('shrink-0', TONE[tone].icon, TONE[tone].icon && !current && 'opacity-75')} />
+      <span className={cn('min-w-0 flex-1 truncate transition-opacity duration-150 motion-reduce:transition-none', rail && 'opacity-0')}>{label}</span>
+      {extra}
+    </button>
   );
 
   return (
@@ -860,7 +915,8 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => { e.preventDefault(); setDragging(null); setDropTarget(null); }} // outside a real target = cancel
       style={{ width: rail ? RAIL_W : width }}
-      className={cn('group/sb relative flex shrink-0 flex-col overflow-x-hidden overflow-y-auto border-r border-line bg-side px-2 py-2', !learnPreview && 'max-md:hidden')}
+      data-sidebar={learnPreview ? (rail ? 'rail' : 'expanded') : undefined}
+      className={cn('group/sb relative flex shrink-0 flex-col overflow-x-hidden overflow-y-auto border-r border-line bg-side', learnPreview ? cn('px-2.5 pb-2', !resizing && SLIDE) : 'px-2 py-2 max-md:hidden')}
     >
       {!rail && (
       <div
@@ -902,39 +958,25 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         />
       )}
       <div className="relative shrink-0">
-        {rail ? (
-          <div className="flex flex-col items-center gap-1">
-            <button title={`${PRODUCT} · ${wsLabel}`} aria-label={`${PRODUCT} · ${wsLabel}`} onClick={() => setWsMenu(!wsMenu)} className={cn(RAIL_BTN, wsMenu && 'bg-active')}>
-              <ProductMark />
-              <span className="sr-only">{wsLabel}</span>
+        {learnPreview ? (
+          // The person is the only top anchor, with no product row above it (owner, 2026-10-06; user, 2026-09-30): their
+          // avatar and name open the account menu (workspace, Settings, Log out), never the internal principal
+          // (session-display.js). The panel control sits at the row's right edge, or under the avatar on the rail.
+          <div className={cn('flex items-center', rail ? 'flex-col gap-1 pt-1.5' : 'h-14 gap-1')}>
+            <button onClick={() => setWsMenu(!wsMenu)} aria-label="Account menu" aria-haspopup="menu" aria-expanded={wsMenu} data-account-menu {...tipFor(rail && 'Account menu')}
+              className={cn('flex h-11 min-w-0 shrink-0 cursor-pointer items-center gap-2.5 overflow-hidden rounded-lg px-1.5 text-left', rail ? 'w-11' : 'flex-1', wsMenu ? 'bg-active ring-1 ring-line-strong' : 'hover:bg-hover')}>
+              {/* The avatar's tag pastels stay light in the dark theme, so its initial keeps the light theme's ink. */}
+              {shownId.label ? <Avatar email={shownId.email || shownId.label} src={shownId.avatar} className="h-8! w-8! text-xs! text-[#37352f]!" /> : <span className="grid h-8 w-8 shrink-0 place-items-center"><ProductMark /></span>}
+              <span className={cn('flex min-w-0 items-center gap-1.5 transition-opacity duration-150 motion-reduce:transition-none', rail && 'opacity-0')}>
+                <span className="min-w-0 truncate text-sm font-semibold">{shownId.label || wsLabel}</span>
+                <ChevronDown size={14} className="shrink-0 text-ink-3" />
+              </span>
             </button>
-            <button title="Open sidebar" aria-label="Open sidebar" onClick={onExpand} className={RAIL_BTN}>
-              <ChevronsRight size={16} strokeWidth={1.5} />
+            {!rail && <ByocDevBadge />}
+            <button type="button" aria-label={rail ? 'Expand sidebar' : 'Collapse sidebar'} onClick={rail ? onExpand : onCollapse} {...tipFor(rail ? 'Expand sidebar' : 'Collapse sidebar')}
+              className="grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded-md text-ink-3 hover:bg-hover hover:text-ink">
+              {rail ? <ChevronRight size={16} strokeWidth={1.75} /> : <ChevronLeft size={16} strokeWidth={1.75} />}
             </button>
-            <button title="Search (Ctrl + K)" aria-label="Search" onClick={() => { setWatchOpen(false); window.dispatchEvent(new CustomEvent('small:search')); }} className={cn(RAIL_BTN, searchOpen && 'bg-active text-ink')}>
-              <Search size={16} strokeWidth={1.5} />
-            </button>
-            <div className="relative">
-              <button title="Notifications" aria-label="Notifications" onClick={() => { window.dispatchEvent(new CustomEvent('small:search-close')); setWatchOpen(true); loadWatch(); markRead(); }} className={cn(RAIL_BTN, watchOpen && 'bg-active text-ink')}>
-                <Bell size={16} strokeWidth={1.5} />
-              </button>
-              {badge}
-            </div>
-          </div>
-        ) : learnPreview ? (
-          // The person, top left (user, 2026-09-30): their avatar and name open the account menu
-          // (workspace, Settings, Log out). Never the internal principal (session-display.js).
-          <div className="flex h-9 items-center gap-1 px-1">
-            <button onClick={() => setWsMenu(!wsMenu)} title="Account" aria-haspopup="menu" aria-expanded={wsMenu} data-account-menu
-              className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-sm px-1.5 py-1 text-left hover:bg-hover">
-              {shownId.label ? <Avatar email={shownId.email || shownId.label} src={shownId.avatar} /> : <ProductMark />}
-              <span className="min-w-0 truncate text-sm font-medium">{shownId.label || wsLabel}</span>
-              <ChevronDown size={12} className="shrink-0 text-ink-3" />
-            </button>
-            <ByocDevBadge />
-            <IconBtn title="Close sidebar" onClick={onCollapse} className="opacity-0 group-hover/sb:opacity-100 max-md:opacity-100">
-              <ChevronsLeft size={15} />
-            </IconBtn>
           </div>
         ) : (
         <div className="flex h-9 items-center gap-2 px-2">
@@ -954,7 +996,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         )}
         {/* fixed!: the sidebar is a scroll container and clips anything wider than
             itself - pinning to the viewport lets the menu fit the full email */}
-        <Menu open={wsMenu} onClose={() => setWsMenu(false)} className={rail ? 'fixed! top-2 left-14 w-auto! min-w-60 max-w-[340px]' : learnPreview ? 'fixed! top-[44px] left-3 w-auto! min-w-60 max-w-[340px]' : 'fixed! top-11 left-3 w-auto! min-w-60 max-w-[340px]'}>
+        <Menu open={wsMenu} onClose={() => setWsMenu(false)} className={rail ? 'fixed! top-1.5 left-[72px] w-auto! min-w-60 max-w-[340px]' : learnPreview ? 'fixed! top-[54px] left-2.5 w-auto! min-w-60 max-w-[340px]' : 'fixed! top-11 left-3 w-auto! min-w-60 max-w-[340px]'}>
           {!learnPreview && <>
           <div className="flex items-center gap-2 px-2 py-1.5">
             {shownId.label && <Avatar email={shownId.email || shownId.label} />}
@@ -1118,20 +1160,37 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         </>
       )}
 
-      {rail ? (
+      {learnPreview ? (
         <>
-          <nav aria-label="Main" className="flex flex-col items-center gap-1 pt-2">
-            {NAV.map(([label, to, page, Icon]) => (
-              <button key={page} title={label} aria-label={label} aria-current={current === page ? 'page' : undefined} onClick={() => navigate(to)} className={cn(RAIL_BTN, current === page && 'bg-active text-ink')}>
-                <Icon size={16} strokeWidth={1.5} />
-              </button>
-            ))}
+          <div className="flex flex-col gap-0.5 pt-3">
+            {navRow({ label: 'Search', icon: Search, open: searchOpen, onClick: () => { setWatchOpen(false); window.dispatchEvent(new CustomEvent('small:search')); } })}
+            {navRow({ label: 'Notifications', icon: Bell, open: watchOpen, onClick: () => { window.dispatchEvent(new CustomEvent('small:search-close')); setWatchOpen(true); loadWatch(); markRead(); }, extra: badge(rail ? 'absolute top-1 right-1' : 'shrink-0') })}
+          </div>
+          <nav aria-label="Main" className="flex flex-col gap-0.5 pt-4">
+            {NAV.map(([label, to, page, Icon, tone]) => navRow({ label, icon: Icon, tone, current: current === page, onClick: () => navigate(to) }))}
           </nav>
-          <div className="sticky bottom-0 z-30 mt-auto flex shrink-0 flex-col items-center gap-1 border-t border-line bg-side pt-2">
-            <button title="Trash" aria-label="Trash" onClick={openTrash} className={cn(RAIL_BTN, trashOpen && 'bg-active text-ink')}>
-              <Trash2 size={16} strokeWidth={1.5} />
-            </button>
-            <FeedbackSlot left={10} />
+          {/* Collapsed = navigation only (brief §5): Pinned and Recent live in the expanded sidebar. */}
+          {!rail && pinned.length > 0 && (
+            <section aria-label="Pinned" className={SECTION}>
+              <div className={LABEL}>Pinned</div>
+              {pinned.map((a) => appRow(a))}
+            </section>
+          )}
+          {!rail && recentOpened.length > 0 && (
+            <section aria-label="Recent" className={SECTION}>
+              <SectionHead label="Recent" open={!secClosed.recent} onToggle={() => toggleSec('recent')} />
+              {!secClosed.recent && <>
+                {recentOpened.map((a) => appRow(a))}
+                <button type="button" onClick={() => navigate('/library')} className="flex h-8 w-full shrink-0 cursor-pointer items-center rounded-lg px-3.5 text-left text-xs text-ink-2 hover:bg-hover hover:text-ink">View all</button>
+              </>}
+            </section>
+          )}
+          <div className="sticky bottom-0 z-30 mt-auto flex shrink-0 flex-col gap-0.5 border-t border-line bg-side pt-2">
+            {navRow({ label: 'Trash', icon: Trash2, open: trashOpen, onClick: openTrash })}
+            <FeedbackSlot width={rail ? RAIL_W : width} className={cn(!resizing && SLIDE)} row={({ open, sent, icon, toggle }) => navRow({
+              label: 'Feedback', icon, open, onClick: toggle, 'data-feedback': true, 'aria-expanded': open,
+              title: sent ? 'Sent, thank you' : undefined, className: sent ? 'text-green-700!' : undefined,
+            })} />
           </div>
         </>
       ) : (
@@ -1157,45 +1216,9 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
             <Bell size={16} strokeWidth={1.5} className="shrink-0" />
             <span className={cn('overflow-hidden whitespace-nowrap transition-[max-width] duration-200 ease-out', watchOpen ? 'max-w-[110px] pl-1.5' : 'max-w-0')}>Notifications</span>
           </button>
-          {badge}
+          {badge('absolute -top-0.5 -right-0.5')}
         </div>
       </div>
-      {learnPreview && (
-        <nav aria-label="Main" className="pt-2">
-          {NAV.map(([label, to, page, Icon]) => (
-            <button
-              key={page}
-              aria-current={current === page ? 'page' : undefined}
-              onClick={() => navigate(to)}
-              className={cn('flex h-7 w-full cursor-pointer items-center gap-2 rounded-sm px-2 text-left text-sm hover:bg-hover', current === page && 'bg-active font-medium')}
-            >
-              <Icon size={16} strokeWidth={1.5} className="shrink-0 text-ink-2" />
-              {label}
-            </button>
-          ))}
-        </nav>
-      )}
-      {recentOpened.length > 0 && (
-        <section aria-label="Recent">
-          <SectionHead label="Recent" open={!secClosed.recent} onToggle={() => toggleSec('recent')} />
-          {!secClosed.recent && recentOpened.map((a) => appRow(a))}
-        </section>
-      )}
-      {mine.length > 0 && (
-        <section aria-label="Private">
-          <SectionHead label="Private" open={!secClosed.mine} onToggle={() => toggleSec('mine')} />
-          {!secClosed.mine && <>
-            {mine.slice(0, 5).map((a) => appRow(a))}
-            {mine.length > 5 && <button type="button" onClick={() => navigate('/library?s=private')} className="flex h-7 w-full cursor-pointer items-center rounded-sm px-2 text-left text-xs text-ink-2 hover:bg-hover hover:text-ink">View all {mine.length}</button>}
-          </>}
-        </section>
-      )}
-      {pinned.length > 0 && (
-        <section aria-label="Pinned">
-          <div className="px-2 pt-3 pb-1 text-xs text-ink-2">Pinned</div>
-          {pinned.map((a) => appRow(a))}
-        </section>
-      )}
       {/* ponytail: the preview has no Apps tree, Shared or Private (Library Filters -> Apps and Mine,
           and the app Share popover, replace them), so folder create, rename and delete have no preview
           UI. Folder management moves to the Library's ... actions later; the folder API and data stay. */}
@@ -1336,7 +1359,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
         </>
       )}
 
-      <div className={cn('mt-auto shrink-0 pt-3', learnPreview && 'sticky bottom-0 z-30 border-t border-line bg-side')}>
+      <div className="mt-auto shrink-0 pt-3">
         {!learnPreview && <button
           onClick={() => navigate('/members')}
           className={cn(
@@ -1354,7 +1377,6 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
           <Trash2 size={16} strokeWidth={1.5} className="shrink-0 text-ink-2" />
           Trash
         </button>
-        {learnPreview && <FeedbackSlot left={12} />}
         {!learnPreview && (
         <div className="mt-3 mb-3 flex items-center gap-2">
           <button
@@ -1463,6 +1485,13 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
       )}
 
       {trashOpen && <TrashDialog trash={trash} onRestore={restore} onClose={() => setTrashOpen(false)} />}
+      {tip && createPortal(
+        <div role="tooltip" data-sidebar-tip style={{ left: tip.left, top: tip.top }}
+          className="pointer-events-none fixed z-50 max-w-72 -translate-y-1/2 rounded-md bg-ink px-2 py-1 text-xs font-medium break-words text-white shadow-pop animate-[fade-in_100ms_ease-out]">
+          {tip.label}
+        </div>,
+        document.body,
+      )}
     </aside>
   );
 }
@@ -1498,7 +1527,8 @@ function TrashDialog({ trash, onRestore, onClose }) {
             </div>
           ))}
         </div>
-        <div className="shrink-0 border-t border-line px-5 py-3 text-xs text-ink-3">{trash?.library ? 'Items stay in Trash until you restore them. Nothing here is deleted.' : 'Items in Trash are deleted forever after 30 days.'}</div>
+        {/* By build, not by the loaded list: the live 30-day line must not flash while the Library's Trash loads. */}
+        <div className="shrink-0 border-t border-line px-5 py-3 text-xs text-ink-3">{learnPreview ? 'Items stay in Trash until you restore them. Nothing here is deleted.' : 'Items in Trash are deleted forever after 30 days.'}</div>
       </div>
     </div>,
     document.body,
@@ -1587,13 +1617,14 @@ function HandleRow({ profile }) {
   );
 }
 
-// A Rabbit Hole sidebar section header (Recent, Private): its label and a ^ / v toggle.
+// A Rabbit Hole sidebar section header (Recent): a quiet small-caps label (brief §11) and a ^ / v toggle that shows on
+// hover or focus while the section is open.
 function SectionHead({ label, open, onToggle }) {
   return (
     <button type="button" onClick={onToggle} aria-expanded={open} aria-label={open ? `Collapse ${label}` : `Expand ${label}`}
-      className="group/sh flex w-full cursor-pointer items-center justify-between rounded-sm px-2 pt-3 pb-1 text-left text-xs text-ink-2 hover:text-ink">
+      className={cn(LABEL, 'group/sh w-full cursor-pointer justify-between rounded-md text-left hover:text-ink')}>
       <span>{label}</span>
-      {open ? <ChevronUp size={13} className="shrink-0" /> : <ChevronDown size={13} className="shrink-0" />}
+      {open ? <ChevronUp size={13} className="shrink-0 opacity-0 group-hover/sh:opacity-100 group-focus-visible/sh:opacity-100" /> : <ChevronDown size={13} className="shrink-0" />}
     </button>
   );
 }
