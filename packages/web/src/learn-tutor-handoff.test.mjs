@@ -258,11 +258,11 @@ test('stop: an AbortError during the handoff rejects the turn like a planner Sto
     assert.equal(error?.name, 'AbortError', 'the turn rejects, as on a planner Stop');
     assert.deepEqual(sent, ['/api/learn/tutor/plan', HANDOFF_PATH], 'no request after the handoff abort');
     assert.deepEqual([error.handoff.outcome, error.handoff.failure, error.handoff.ms, error.handoff.model_id], ['failed', 'stopped', 900, null], 'handoff_ms is the time until the stop');
-    assert.ok(error.trace.stages.some(s => s.stage === 'handoff'), 'the turn trace travels with the error, as on a planner Stop');
+    assert.deepEqual(error.trace.stages.filter(s => s.stage === 'handoff').map(s => s.status), ['stopped'], 'the turn trace travels with the error; fix round 2 (R1-M3): handoff:stopped');
     // The planner-stop path it mirrors: the same rejection, the same trace on the error, and no decision event either way.
     const plannerStop = new AbortController();
     const planner = await run(async () => { plannerStop.abort(); throw plannerStop.signal.reason; }).then(() => null, e => e);
-    assert.deepEqual([planner.name, Array.isArray(planner.trace?.stages)], ['AbortError', true]);
+    assert.deepEqual([planner.name, planner.trace.stages.filter(s => s.stage === 'planner').map(s => s.status)], ['AbortError', ['stopped']], 'fix round 2 (R1-M3): planner:stopped');
   } finally { if (saved) Object.defineProperty(globalThis, 'performance', saved); else delete globalThis.performance; }
 });
 
@@ -317,17 +317,36 @@ test('cap: the handoff is never the action the 3-action cap drops; with only tex
 });
 
 // Minor (Part B M1): the handoff does not wait for an evaluation running beside the planner (it never depends on evidence).
-test('the handoff starts without waiting for a pending evaluation', async () => {
-  const order = [];
-  let release;
-  const post = async path => {
-    if (path === '/api/learn/tutor/evaluate') { order.push('evaluate start'); await new Promise(done => { release = done; setTimeout(done, 50); }); order.push('evaluate end'); return { status: 'settled', evaluator: 'jev', events: [] }; }
-    if (path === '/api/learn/tutor/plan') return { strategy: 'none', constraints_add: [], actions: [SAY, HANDOFF] };
-    order.push('handoff'); release?.(); return OK;
-  };
-  const r = await runTurn({ raw: 'Show me where this is implemented', block: cardBlock(cardModule('depth-attention-overview')), store: emptyStore(), post, canvas: REPO.canvas, access: REPO.access, domain: NANOGPT, repository: true });
-  assert.deepEqual([r.bench.critical_path.blocking, order], [false, ['evaluate start', 'handoff', 'evaluate end']]);
-  assert.ok(r.text.endsWith(ANSWER));
+// Fix round 2 (R1-I1): the reply still waits for that evaluation, so blocking_wait_ms runs until the reply appears - never shorter
+// than the time the evaluation holds it. Stubbed clock, the reviewer's probe shape: evaluate 700, plan 100, handoff 150.
+test('the handoff starts without waiting for a pending evaluation; blocking_wait_ms still runs until the reply appears', async () => {
+  const saved = Object.getOwnPropertyDescriptor(globalThis, 'performance');
+  let clock = 0;
+  Object.defineProperty(globalThis, 'performance', { value: { now: () => clock }, configurable: true, writable: true });
+  try {
+    const run = async (reply, handoffEnd, evaluateEnd) => {
+      clock = 0;
+      const order = [];
+      let release;
+      const held = new Promise(done => { release = done; });
+      const post = async path => {
+        if (path === '/api/learn/tutor/evaluate') { order.push('evaluate start'); await held; clock = evaluateEnd; order.push('evaluate end'); return { status: 'settled', evaluator: 'jev', events: [] }; }
+        if (path === '/api/learn/tutor/plan') { clock = 100; return { strategy: 'none', constraints_add: [], actions: [SAY, HANDOFF] }; }
+        order.push('handoff'); clock = handoffEnd; setTimeout(release, 0); return reply;
+      };
+      const r = await runTurn({ raw: 'Show me where this is implemented', block: cardBlock(cardModule('depth-attention-overview')), store: emptyStore(), post, canvas: REPO.canvas, access: REPO.access, domain: NANOGPT, repository: true, trace: true });
+      return { r, order, t: r.trace.runtime.timing };
+    };
+    const { r, order, t } = await run(OK, 250, 700);
+    assert.deepEqual([r.bench.critical_path.blocking, order], [false, ['evaluate start', 'handoff', 'evaluate end']]);
+    assert.ok(r.text.endsWith(ANSWER));
+    assert.deepEqual([t.planner_ms, t.handoff_ms, t.first_text_ms, t.blocking_wait_ms], [100, 150, 700, 700], 'the evaluation holds the reply until 700');
+    assert.ok(t.blocking_wait_ms >= t.first_text_ms);
+    // A fast handoff failure beside a long evaluation (a larger evaluator can take seconds): the wait is the evaluation's.
+    const fast = await run(failedReply('no_repository_context'), 130, 8000);
+    assert.ok(fast.r.text.endsWith(HANDOFF_FAILED));
+    assert.deepEqual([fast.t.planner_ms, fast.t.handoff_ms, fast.t.first_text_ms, fast.t.blocking_wait_ms], [100, 30, 8000, 8000]);
+  } finally { if (saved) Object.defineProperty(globalThis, 'performance', saved); else delete globalThis.performance; }
 });
 
 // Minor (Part B M2): a code or snippet card sends its own text (brief and code) as context.card, grounding and never intent.
@@ -336,9 +355,14 @@ test('a snippet or code card sends its brief and code as context.card, within th
   const r = await turnWith({ actions: [HANDOFF] }, { block: snippet });
   assert.deepEqual(r.posted.context, { card: { id: 'blk-snip', title: 'merge', text: 'merge\nMerges two sorted lists.\ndef merge(a, b):\n    ...' } });
   assert.equal('selection' in r.posted, false, 'no code source: no selection');
-  const exercise = await turnWith({ actions: [HANDOFF] }, { block: { id: 'blk-ex', type: 'code', title: 'split', brief: 'Split the list.', code: 'x'.repeat(9000) } });
-  assert.equal(exercise.posted.context.card.text.length, CANVAS_TARGET_LIMIT);
-  assert.ok(exercise.posted.context.card.text.startsWith('split\nSplit the list.\nxxx'));
+  // Fix round 2 (R1-M2): a real code exercise (LearningBlocks.jsx code sample shape) sends title, brief, setup and starter -
+  // never draft (the learner's own work), checks or hint.
+  const exercise = { id: 'blk-ex', type: 'code', title: 'Finish the encoder', brief: 'Complete encode.', setup: 'stoi = {}', starter: 'def encode(s):\n    ...', checks: 'assert encode(1)', hint: 'look up each character', draft: 'def encode(s): return MY_WORK' };
+  const ex = await turnWith({ actions: [HANDOFF] }, { block: exercise });
+  assert.deepEqual(ex.posted.context.card, { id: 'blk-ex', title: 'Finish the encoder', text: 'Finish the encoder\nComplete encode.\nstoi = {}\ndef encode(s):\n    ...' });
+  assert.equal(JSON.stringify(ex.posted).includes('MY_WORK'), false, 'never the learner draft');
+  const long = await turnWith({ actions: [HANDOFF] }, { block: { ...exercise, starter: 'x'.repeat(9000) } });
+  assert.equal(long.posted.context.card.text.length, CANVAS_TARGET_LIMIT);
 });
 
 // Coordinator ruling (fix round 1, concern 3): runtime.handoff.tool_errors is the route telemetry's count of source reads that

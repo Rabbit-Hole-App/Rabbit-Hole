@@ -491,7 +491,13 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   // be retrieved, never an answer of its own.
   const handoff = actions.find(action => action.type === HANDOFF_ACTION);
   let answered = null;
-  const handing = handoff ? tracer.step('handoff', () => runHandoff(handoff, { post, access, block }).then(out => { answered = now(); return out; }), out => out.record.failure ?? out.record.outcome) : null;
+  // A stopped handoff rejects inside the stage, so the turn trace reads handoff:stopped (fix round 2, R1-M3), and is rethrown below.
+  const handing = handoff ? tracer.step('handoff', () => runHandoff(handoff, { post, access, block }).then(out => {
+    answered = now();
+    if (out.record.failure === 'stopped') throw Object.assign(out.error, { handoff: out.record });
+    return out;
+  }), out => out.record.failure ?? out.record.outcome) : null;
+  handing?.catch(() => {}); // awaited below, after any pending evaluation; never an unhandled rejection meanwhile
   // Off the critical path: the evaluation lands now. Its evidence is stored like any other; a route it
   // would have changed is a critical-path miss (the reply was planned on the prior evidence).
   // Decision 1: evidence actions (EVIDENCE_ACTIONS) are released only now; after a miss they were chosen
@@ -516,12 +522,11 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   // Fix round 1 (A-I1, B-I4): a handoff the turn offered and the plan proposed, but the validator dropped, is a failed handoff
   // (invalid_action): the reply says the source context could not be retrieved and the trace records retrieval_failed.
   const dropped = !handoff && routed.allowed.includes(HANDOFF_ACTION) && (Array.isArray(response.actions) ? response.actions : []).some(action => action?.type === HANDOFF_ACTION);
-  const handed = handing ? await handing : dropped ? invalidHandoff() : null;
-  if (dropped) answered = now();
   // Fix round 1 (B-I1, B-I2): a Stop or Voice barge-in during the handoff ends the turn exactly as one during the planner does -
   // the AbortError rejects the turn with its trace (the page then saves nothing, runs no canvas action or material and emits no
   // decision event), and the stopped handoff record rides on the error.
-  if (handed?.record.failure === 'stopped') throw Object.assign(handed.error, { trace: tracer.trace, handoff: handed.record });
+  const handed = handing ? await handing.catch(error => { throw Object.assign(error, { trace: tracer.trace }); }) : dropped ? invalidHandoff() : null;
+  if (dropped) answered = now();
   // 4. The session record.
   const constraints = [...new Set([...current.constraints, ...(response.constraints_add || [])].filter(item => !(response.constraints_remove || []).includes(item)).concat(statedConstraints(raw)))];
   const asked = actions.find(action => action.type === 'ask_question');
@@ -572,7 +577,8 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
       // Task 11c-B, apart from the planner: the handoff round trip, and the learner's blocking wait - turn start to the answer
       // they wait for (the handoff's, when one ran; else the first safe sentence).
       handoff: handed ? handed.record.ms : null,
-      to_answer: handed ? ms(t[0], answered) : spoken ? tracer.trace.marks.first_sentence : text ? ms(t[0], end) : null,
+      // Fix round 2 (R1-I1): the reply appears only once a pending evaluation has landed too (released), never earlier.
+      to_answer: handed ? ms(t[0], Math.max(answered, released)) : spoken ? tracer.trace.marks.first_sentence : text ? ms(t[0], end) : null,
     },
   };
   return traced({ store: current, turn, selection, evaluation, transitions, routed, response, actions, contracts, reason_codes: reasonCodes(response), reading, decisions, log, text, states: deriveClaimStates(current.events, domain.claims), bench, mark: tracer.mark });
@@ -593,7 +599,9 @@ const HANDOFF_ROUTE = '/api/learn/tutor/handoff'; // learn-tutor-handoff.js HAND
 function handoffGrounding(block) {
   if (!block) return {};
   const code = validSources(block.sources).find(source => source.kind === 'code');
-  const text = (block.type === 'animation' ? cardText(block) : [block.title, block.body, block.brief, block.code].filter(Boolean).join('\n')).slice(0, 8000);
+  // Fix round 2 (R1-M2): a code exercise sends its title, brief, setup and starter - never draft, the learner's own work.
+  const parts = block.type === 'code' ? [block.title, block.brief, block.setup, block.starter] : [block.title, block.body, block.brief, block.code];
+  const text = (block.type === 'animation' ? cardText(block) : parts.filter(Boolean).join('\n')).slice(0, 8000);
   return {
     ...(code ? { selection: { repository: code.repo, revision: code.revision, file: code.path, line_range: { start: code.lines[0], end: code.lines[1] } } } : {}),
     ...(text.trim() ? { context: { card: { id: block.id, ...(block.title ? { title: String(block.title).slice(0, 300) } : {}), text } } } : {}),

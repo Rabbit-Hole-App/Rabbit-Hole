@@ -9,6 +9,15 @@ import { NANOGPT } from './learn-tutor-claims.js';
 import { TIDES } from './__fixtures__/journey-synthetic-domains.mjs';
 import { REASON_CODES, TRACE_SCHEMA_VERSION, TUTOR_PLANNER_VERSION } from '../../control-plane/src/agents/learn-tutor.js';
 
+// Fix round 2 (R1-M3): a Stop or barge-in (AbortError) is its own stage status, stopped; a TimeoutError stays timeout.
+test('stages: an AbortError records stopped, a TimeoutError timeout', async () => {
+  const tracer = turnTrace(() => 0);
+  const stop = new AbortController(); stop.abort();
+  await assert.rejects(tracer.step('planner', async () => { throw stop.signal.reason; }));
+  await assert.rejects(tracer.step('handoff', async () => { throw AbortSignal.abort(new DOMException('The operation timed out.', 'TimeoutError')).reason; }));
+  assert.deepEqual(tracer.trace.stages.map(stage => [stage.stage, stage.status]), [['planner', 'stopped'], ['handoff', 'timeout']]);
+});
+
 test('stages record ok, error and timeout; errors are rethrown; marks are offsets', async () => {
   let clock = 0;
   const tracer = turnTrace(() => clock);

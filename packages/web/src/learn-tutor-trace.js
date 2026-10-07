@@ -8,7 +8,8 @@ import { HANDOFF_ACTION, MODE_SLASHES, TRACE_SCHEMA_VERSION, TUTOR_PLANNER_VERSI
 import { STATES } from './learn-tutor-evidence.js';
 import { resolveTarget } from './learn-target.js';
 
-const statusOf = error => /timed? ?out|timeout|abort/i.test(`${error?.name || ''} ${error?.message || ''}`) ? 'timeout' : 'error';
+// Fix round 2 (R1-M3): a Stop or barge-in (AbortError) is stopped, never timeout; a TimeoutError or a timed-out message is timeout.
+const statusOf = error => (error?.name === 'AbortError' ? 'stopped' : /timed? ?out|timeout|abort/i.test(`${error?.name || ''} ${error?.message || ''}`) ? 'timeout' : 'error');
 
 // id: the canonical turn id (runTurn's turnId, shared with Voice); a fresh one when none is given.
 export function turnTrace(now = () => performance.now(), id = null) {

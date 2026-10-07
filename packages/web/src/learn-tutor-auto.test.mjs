@@ -721,3 +721,22 @@ test('fix round 1: Stop or barge-in mid-handoff ends the turn like a planner Sto
     assert.deepEqual([bench?.error, bench?.handoff?.failure], ['AbortError', 'stopped']);
   }
 });
+
+// Fix round 2 (R1-M1): a Stop pressed after the plan or the handoff resolved, while the turn was still finishing, ends the turn
+// exactly as a Stop does - it rejects, runs no canvas action or material and saves nothing - on the planner path and the handoff
+// path alike.
+test('fix round 2: a Stop after the plan or the handoff resolved still stops the turn - nothing made, inserted or saved', async () => {
+  const repo = { name: REPO_APP, title: 'example/sorting' };
+  const lead = say('Callers are the places in the code that use it.'), card = make('explain', 'how merge sort splits the list');
+  for (const path of ['planner', 'handoff']) {
+    const stop = new AbortController();
+    const plan = () => { if (path === 'planner') stop.abort(); return { actions: path === 'planner' ? [lead, card] : [lead, card, { type: 'handoff', capability: 'repository_context', request: 'which functions call merge_sort' }] }; };
+    const handoff = () => { stop.abort(); return HANDOFF_OK; };
+    const { out, calls, events, inserted, storage } = await plainTutor(plan, t => t.ask({ raw: 'Who calls this?', signal: stop.signal }).then(() => null, e => e), { app: repo, handoff });
+    assert.equal(out?.name, 'AbortError', `${path}: the turn ends as a Stop`);
+    assert.equal(calls.some(c => c.path === '/api/learn/artifact'), false, `${path}: no material`);
+    assert.deepEqual(inserted, [], `${path}: no card insert`);
+    assert.equal([...storage.values()].some(v => v.includes('Callers are the places')), false, `${path}: nothing saved`);
+    assert.equal(events.find(e => e.type === 'small:tutor-bench')?.detail.error, 'AbortError');
+  }
+});

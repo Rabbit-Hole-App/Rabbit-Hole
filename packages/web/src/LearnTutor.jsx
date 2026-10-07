@@ -187,6 +187,9 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
         // taken; and before the path is accepted the canvas gets no card at all.
         onTurn: built => { if (!domain.showCard && wantsCard(built)) slot = canvas?.reserve?.({ label: 'Creating a card…', card: 'animation', samples: showableCards(domain) }) ?? null; },
       });
+      // Fix round 2 (R1-M1): a Stop pressed after the plan or the handoff resolved, while the turn was still finishing (an
+      // evaluation pending), ends the turn exactly as a Stop does: no canvas action, no material, nothing saved.
+      if (signal?.aborted) throw Object.assign(signal.reason instanceof Error ? signal.reason : new DOMException('The operation was aborted.', 'AbortError'), { trace: result.bench.trace, handoff: result.bench.handoff });
     } catch (error) {
       release();
       bench({ error: error?.name || 'Error', trace: error?.trace ?? null, handoff: error?.handoff ?? null, ms: { total_in_app: Math.round((performance.now() - started) * 10) / 10 } });
