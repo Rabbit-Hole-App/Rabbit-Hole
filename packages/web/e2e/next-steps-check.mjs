@@ -1,8 +1,8 @@
 // Professor Next Steps acceptance N1-N7 (docs/features/professor-next-steps.md), then the Auto Tutor N8-N13 (Task 11b) and the
-// Tutor handoff route N14-N16 (Task 11c-A) and the Tutor-side handoff N17-N19 (Task 11c-B), against the KEYLESS local stack only
-// (e2e/journey-local-stack.md §6): no model key is bound and the hook planner answers from its fixtures
+// Tutor handoff route N14-N16 (Task 11c-A) and the Tutor-side handoff N17-N22 (Task 11c-B and its fix round 1), against the
+// KEYLESS local stack only (e2e/journey-local-stack.md §6): no model key is bound and the hook planner answers from its fixtures
 // (JOURNEY_MODEL_STUB=fixtures). Node + HTTP for everything but N7, which uses the browser. The Tutor planner is never reached:
-// the turns of N2 and N8-N13 and N17-N19 run in Node, their /api/learn/tutor/plan answered in process (as journey-check.mjs
+// the turns of N2, N8-N13 and N17-N22 run in Node, their /api/learn/tutor/plan answered in process (as journey-check.mjs
 // answers it in the page), every other request they make goes to the stack. The handoff checks use only paths that call no
 // model: a successful handoff needs one, and the stack has none.
 //   node e2e/next-steps-check.mjs --base http://127.0.0.1:8868 --cp http://127.0.0.1:8869 --vars <stack .dev.vars> --out <dir>
@@ -314,16 +314,27 @@ const planOf = (...actions) => ({ ...PLAN, actions });
 const AUTO_RAW = 'Why does the dough need time to rise?', BROAD = 'Teach me backpropagation from scratch.';
 // LearnJourney.jsx startRequest (a JSX file, not importable in Node): a start request as it is, a bare topic as Teach me <topic>.
 const startRequest = text => { const it = journeyIntent(text); return STARTS.has(it.kind) && it.topic ? text : `Teach me ${text}`; };
-async function autoTurn(where, { raw, plan = PLAN, slash = null, research = false, journeyOffer = true, repository = false, block = null }) {
+// plan: the canned plan, or a function of the plan request body that returns or awaits one. signal: a real AbortSignal that every
+// request to the stack carries (as the page's post carries the turn's Stop signal). stops: the turn may reject (a Stop); the
+// rejection comes back as error, with the requests made so far in sent. Each entry of sent keeps the stack's reply.
+async function autoTurn(where, { raw, plan = PLAN, slash = null, research = false, journeyOffer = true, repository = false, block = null, signal = null, stops = false }) {
   const sent = [];
   const post = async (route, body) => {
-    sent.push({ route, body });
-    if (route === '/api/learn/tutor/plan') { log({ method: 'POST', path: route, status: 'in-process', keys: keys(body) }); return plan; }
-    return ok(owner, 'POST', route, body);
+    const entry = { route, body, reply: null }; sent.push(entry);
+    if (route === '/api/learn/tutor/plan') { log({ method: 'POST', path: route, status: 'in-process', keys: keys(body) }); return typeof plan === 'function' ? plan(body) : plan; }
+    if (!signal) return (entry.reply = await ok(owner, 'POST', route, body));
+    try {
+      const r = await fetch(`${BASE}${route}`, { method: 'POST', headers: { cookie: `small_session=${owner.session}`, 'content-type': 'application/json' }, body: JSON.stringify(body), signal });
+      log({ method: 'POST', path: route, status: r.status, keys: keys(body) });
+      if (!r.ok) throw Error(`POST ${route}: HTTP ${r.status}`);
+      return (entry.reply = await r.json());
+    } catch (error) { if (error.name === 'AbortError') log({ method: 'POST', path: route, status: 'aborted', keys: keys(body) }); throw error; }
   };
   const { domain } = tutorContext({ app: where.name, board: 'main', title: where.title, blocks: where.blocks });
-  const result = await runTurn({ raw, slash, canvas: { app: where.name, board: 'main' }, access: { app: where.name }, block, store: emptyStore(), post, domain, materials: materialCommands(), research, journeyOffer, repository, trace: true });
-  return { result, post, domain, sent, routes: sent.map(s => s.route), context: sent.find(s => s.route === '/api/learn/tutor/plan')?.body.context, decision: result.trace?.decision };
+  let result = null, error = null;
+  try { result = await runTurn({ raw, slash, canvas: { app: where.name, board: 'main' }, access: { app: where.name }, block, store: emptyStore(), post, domain, materials: materialCommands(), research, journeyOffer, repository, trace: true }); }
+  catch (thrown) { if (!stops) throw thrown; error = thrown; }
+  return { result, error, post, domain, sent, routes: sent.map(s => s.route), context: sent.find(s => s.route === '/api/learn/tutor/plan')?.body.context, decision: result?.trace?.decision };
 }
 const journeyAt = name => ok(owner, 'GET', `/api/learn/journey?app=${name}&board=main`);
 const noCanvas = id => { if (state.canvas) return false; record(id, 'FAIL', 'no canvas from N1'); return true; };
@@ -505,8 +516,18 @@ async function n18() {
   const chosen = decision?.chosen_action, listed = decision?.actions?.map(a => `${a.action_type}/${a.capability}`).join();
   check('N18 trace action', chosen?.action_type === 'handoff' && chosen.capability === 'repository_context' && listed === 'respond_text/null,handoff/repository_context',
     'chosen_action and actions: action_type handoff with capability repository_context, after the respond_text lead-in', `chosen ${chosen?.action_type}/${chosen?.capability}; actions ${listed}`);
-  check('N18 runtime.handoff', Object.keys(h || {}).join() === 'started_at,completed_at,ms,outcome,failure,model_id,usage' && h.outcome === 'failed' && h.failure === 'no_repository_context' && h.model_id === null,
-    'runtime.handoff: outcome failed, failure no_repository_context, no model served', `runtime.handoff ${JSON.stringify(h && { keys: Object.keys(h), outcome: h.outcome, failure: h.failure, model_id: h.model_id })}`);
+  // tool_errors (fix round 1, coordinator ruling): the route's own count of failed source reads, null when it reports none.
+  const reported = sent.find(s => s.route === HANDOFF)?.reply?.telemetry?.tool_errors ?? null;
+  check('N18 runtime.handoff', Object.keys(h || {}).join() === 'started_at,completed_at,ms,outcome,failure,model_id,usage,tool_errors' && h.outcome === 'failed' && h.failure === 'no_repository_context' && h.model_id === null
+    && [0, null].includes(h.tool_errors) && h.tool_errors === reported,
+    `runtime.handoff: outcome failed, failure no_repository_context, no model served, tool_errors ${h?.tool_errors} as the route reported it`, `runtime.handoff ${JSON.stringify(h && { keys: Object.keys(h), outcome: h.outcome, failure: h.failure, model_id: h.model_id, tool_errors: h.tool_errors })}; route reported ${reported}`);
+  // The handoff is the chosen action whenever one ran, even beside material or a learning-path offer (fix round 1, B-I3).
+  const beside = [['create_material', { type: 'create_material', command: 'whiteboard', request: 'how bread dough rises' }], ['suggest_journey', { type: 'suggest_journey', request: 'logistic regression' }]], misses = [];
+  for (const [type, extra] of beside) {
+    const turn = await autoTurn(c, { raw: CODE_WORDS, repository: true, plan: handoffPlan(say(LEAD), extra) }), pick = turn.decision?.chosen_action;
+    if (pick?.action_type !== 'handoff' || pick.capability !== 'repository_context' || !turn.decision.actions.some(a => a.action_type === type)) misses.push(`${type}: chosen ${pick?.action_type}/${pick?.capability}; actions ${turn.decision?.actions?.map(a => a.action_type).join(',')}`);
+  }
+  check('N18 chosen_action beside other actions', !misses.length, 'with a create_material or a suggest_journey in the same plan, chosen_action is still the handoff (and the other action is listed)', misses.join(' | '));
   check('N18 grounding', decision?.grounding_status === 'retrieval_failed' && decision.source_types_used?.join() === 'canvas',
     'grounding_status retrieval_failed, source_types_used canvas: the planner declared grounded and repository, and the failure overrode both', `grounding_status ${decision?.grounding_status}, source_types_used ${decision?.source_types_used?.join()}`);
   const numbers = ['planner_ms', 'handoff_ms', 'blocking_wait_ms'].map(k => timing?.[k]);
@@ -530,9 +551,65 @@ async function n19() {
     'a card with a code source sends that source as the selection (bubble.py 5-9), not the file and lines the message names', `selection ${JSON.stringify(coded?.selection)}`);
 }
 
+// ---- N20-N22: the handoff after 11c-B fix round 1 (Stop, invalid_action, code in the request), no model ----
+const planWith = (handoff, ...before) => ({ ...PLAN, grounding_status: 'grounded', source_types_used: ['canvas', 'repository'], actions: [...before, { type: 'handoff', ...handoff }] });
+const SOON = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+// N20: a Stop during the handoff ends the turn as a Stop during the planner does: the turn rejects (so the page saves nothing, runs
+// no canvas action or material and emits no decision event), the stopped handoff record rides on the error, and nothing more is
+// requested. The abort is a real AbortController whose signal the request to the stack carries, fired 4 ms after the plan: the
+// route takes tens of milliseconds, so the abort lands in flight.
+async function n20() {
+  if (noCanvas('N20')) return;
+  const c = state.canvas, stop = new AbortController();
+  const plan = () => { setTimeout(() => stop.abort(), 4); return planWith({ capability: 'repository_context', request: ASK }, say(LEAD), { type: 'create_material', command: 'explain', request: 'how bread dough rises' }); };
+  const h = await autoTurn(c, { raw: CODE_WORDS, repository: true, plan, signal: stop.signal, stops: true });
+  const settled = h.sent.length;
+  await SOON(300);
+  const rec = h.error?.handoff, ran = h.sent.map(s => s.route);
+  check('N20 stop in the handoff', !h.result && h.error?.name === 'AbortError' && rec?.outcome === 'failed' && rec.failure === 'stopped' && rec.model_id === null && rec.usage === null && !!h.error.trace && h.error.trace.event === undefined
+    && ran.join() === `/api/learn/tutor/plan,${HANDOFF}` && h.sent.length === settled,
+    'the turn rejected with AbortError and no result; the error carries the handoff record (failed, stopped) and the turn trace, not a decision event; only the plan and the handoff were requested (no artifact call) and nothing after the abort',
+    `${h.result ? 'the turn resolved (the route answered before the abort)' : `rejected ${h.error?.name}`}; handoff ${JSON.stringify(rec && { outcome: rec.outcome, failure: rec.failure })}; requests ${ran.join(', ')}; after the abort ${h.sent.length - settled}`);
+  // Control: a Stop while the planner works ends the turn the same way (a real AbortController again), with no handoff.
+  const plannerStop = new AbortController();
+  const waiting = () => new Promise((_, reject) => { plannerStop.signal.addEventListener('abort', () => reject(plannerStop.signal.reason)); setTimeout(() => plannerStop.abort(), 4); });
+  const p = await autoTurn(c, { raw: CODE_WORDS, repository: true, plan: waiting, signal: plannerStop.signal, stops: true });
+  check('N20 planner Stop control', !p.result && p.error?.name === 'AbortError' && !!p.error.trace && p.error.trace.event === undefined && p.error.handoff === undefined && ONLY_PLAN(p.routes),
+    'control: a Stop during the planner rejects the same way (AbortError, a turn trace, no decision event) and makes no handoff request', `${p.result ? 'resolved' : `rejected ${p.error?.name}`}; requests ${p.routes.join(', ')}`);
+}
+
+// N21: the canvas offers the handoff and the plan proposes one the validator drops: the turn records failure invalid_action, says the
+// source context could not be retrieved, records retrieval_failed, and makes no handoff request.
+async function n21() {
+  if (noCanvas('N21')) return;
+  const c = state.canvas, bad = [];
+  const shapes = [['a blank request', { capability: 'repository_context', request: '   ' }], ['an unknown capability', { capability: 'research', request: ASK }], ['a request over 1000 characters', { capability: 'repository_context', request: 'x'.repeat(1001) }]];
+  for (const [name, handoff] of shapes) {
+    const { result, routes, context, decision } = await autoTurn(c, { raw: CODE_WORDS, repository: true, plan: planWith(handoff, say(LEAD)) });
+    const h = result.trace?.runtime?.handoff;
+    const fine = context?.allowed_actions?.includes('handoff') && ONLY_PLAN(routes) && result.text === `${LEAD}\n\n${HANDOFF_FAILED}` && !result.actions.some(a => a.type === 'handoff')
+      && JSON.stringify(h && { ms: h.ms, outcome: h.outcome, failure: h.failure, model_id: h.model_id, usage: h.usage, tool_errors: h.tool_errors }) === JSON.stringify({ ms: 0, outcome: 'failed', failure: 'invalid_action', model_id: null, usage: null, tool_errors: null })
+      && decision.grounding_status === 'retrieval_failed' && decision.source_types_used?.join() === 'canvas';
+    if (!fine) bad.push(`${name}: requests ${routes.join(',')}; failure ${h?.failure}; grounding ${decision?.grounding_status}; reply ${result.text === `${LEAD}\n\n${HANDOFF_FAILED}`}`);
+  }
+  check('N21 invalid_action', !bad.length, 'a blank request, an unknown capability and a 1001-character request each: handoff offered, dropped by the validator; runtime.handoff failed/invalid_action (ms 0, no model, no usage, tool_errors null); the failure line follows the plan words; retrieval_failed, no repository source; no handoff request', bad.join(' | '));
+}
+
+// N22: code is a valid request. Backticks and => reach the route unchanged (a question for the source reader, not a command).
+async function n22() {
+  if (noCanvas('N22')) return;
+  const c = state.canvas, CODE = 'What does `sort(items)` do, and is `(a, b) => a - b` its comparator?';
+  const { result, routes, sent } = await autoTurn(c, { raw: AUTO_RAW, repository: true, plan: planWith({ capability: 'repository_context', request: CODE }, say(LEAD)) });
+  const reply = sent.find(s => s.route === HANDOFF)?.reply, h = result.trace?.runtime?.handoff;
+  check('N22 code in the request', routes.join() === `/api/learn/tutor/plan,${HANDOFF}` && sent.at(-1).body.request === CODE && result.decisions.every(d => d.accepted) && reply?.telemetry?.failure === 'no_repository_context' && h?.failure === 'no_repository_context',
+    'a handoff request with backticks and => is valid: accepted by the validator, sent to the route unchanged, and answered by the route itself (no_repository_context here), not dropped (invalid_action) and not refused (400)',
+    `requests ${routes.join(', ')}; accepted ${result.decisions.every(d => d.accepted)}; route failure ${reply?.telemetry?.failure}; runtime.handoff failure ${h?.failure}`);
+}
+
 // ---- run ----
 // The checks run in this order, one entry per group. A group's rows are the results whose id starts with its id.
-const CHECKS = [['N1', n1], ['N2', n2], ['N3', n3], ['N4', n4], ['N5', n5], ['N6', n6], ['N7', n7], ['N8', n8], ['N9', n9], ['N10', n10], ['N11', n11], ['N12', n12], ['N13', n13], ['N14', n14], ['N15', n15], ['N16', n16], ['N17', n17], ['N18', n18], ['N19', n19]];
+const CHECKS = [['N1', n1], ['N2', n2], ['N3', n3], ['N4', n4], ['N5', n5], ['N6', n6], ['N7', n7], ['N8', n8], ['N9', n9], ['N10', n10], ['N11', n11], ['N12', n12], ['N13', n13], ['N14', n14], ['N15', n15], ['N16', n16], ['N17', n17], ['N18', n18], ['N19', n19], ['N20', n20], ['N21', n21], ['N22', n22]];
 for (const [id, fn] of CHECKS) {
   label = id;
   try { await fn(); } catch (error) { record(id, 'FAIL', `stopped: ${error.message.split('\n')[0]}`); }

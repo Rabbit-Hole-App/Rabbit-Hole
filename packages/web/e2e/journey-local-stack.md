@@ -121,7 +121,8 @@ configs in `<ws>/pns-config/{app,cp}`, D1s in `<ws>/pns-local`. §1-§3 and §5 
 It covers N1-N7 (hooks, docs/features/professor-next-steps.md), N8-N13 (the Auto Tutor on a plain canvas: the plan request, a
 broad request, the learning-path chip, the Research gate, /ask and /teach, insert-only material) and N14-N16 (the Tutor
 handoff route, only the paths that call no model) and N17-N19 (the Tutor-side handoff: the offer, the failure path through the
-real route, and no selection from the words). The stack is keyless, so a successful handoff is never checked. A route missing
+real route, and no selection from the words) and N20-N22 (fix round 1: a Stop during the handoff, a dropped handoff recorded as
+invalid_action, code in the request). The stack is keyless, so a successful handoff is never checked. A route missing
 from an older base reports SKIP, never PASS.
 
 Give a second stack a private wrangler registry, so stopping it never touches another stack's entries: set
