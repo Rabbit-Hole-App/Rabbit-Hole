@@ -2,10 +2,13 @@
 // browser against the KEYLESS local stack only (e2e/journey-local-stack.md): no model key is bound, the journey planners
 // run their fixtures (JOURNEY_MODEL_STUB=fixtures), and every request that could reach a model from the page is answered
 // here (/api/learn/ask a canned SSE reply, /api/learn/home-ask a canned answer, the Tutor planner /api/learn/tutor/plan
-// a canned respond_text plan; artifact, voice, assess, image refused). /api/learn/tutor/evaluate reaches the stack: with
+// a canned respond_text plan, plus a suggest_journey offer for the one typed learning request that starts a path;
+// artifact, voice, assess, image refused). /api/learn/tutor/evaluate reaches the stack: with
 // no JEV key its free-text rung answers status 'error' without a call, and a keyed probe option is graded server-side.
 // Since LP1 Task 12 every typed turn on a journey canvas is the Tutor's (useTutor.turn, resolver first): none may reach
-// /api/learn/ask.
+// /api/learn/ask. Since Task 11b (owner fourteenth message, fix B1: routing is never keyword-based) so is every typed turn on a
+// plain canvas, and a learning path starts only from the Tutor-offered Start a learning path chip (startViaTutor below) or from
+// Home's Agent Bar (J8); the old keyword start from the composer, and the Learn chat answering a plain canvas, are gone.
 //   node e2e/journey-check.mjs --base http://127.0.0.1:8868 --cp http://127.0.0.1:8869 --vars <stack .dev.vars> --out <dir>
 // --vars is the stack's own vars file; only its TEST_BYPASS_SECRET is read, never printed. Sessions are minted on the
 // control plane's origin (the app's barrier refuses /test/session there). --prefix starts every file name written to
@@ -69,7 +72,14 @@ async function learnerPage(label) {
   await context.route('**/api/learn/ask', route => route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream' }, body: SSE }));
   await context.route('**/api/learn/home-ask', route => route.fulfill({ json: { answer: CANNED, references: [], offer_rabbit_hole: false } }));
   // The Tutor's planner: a keyless stack would still send the context to the provider unauthenticated, so it is answered here.
-  await context.route('**/api/learn/tutor/plan', route => route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', actions: [{ type: 'respond_text', text: CANNED }] } }));
+  // Every plan is a respond_text; a plain-canvas turn (no journey_context) whose words were registered with offer() also carries
+  // suggest_journey with that request, as the real Tutor offers a learning path for a request to be taught a subject.
+  const offers = new Map();
+  await context.route('**/api/learn/tutor/plan', route => {
+    let body = null; try { body = route.request().postDataJSON(); } catch { /* not JSON */ }
+    const subject = !body?.context?.journey_context && offers.get(body?.context?.learner_intent?.raw_user_message);
+    return route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', actions: [{ type: 'respond_text', text: CANNED }, ...(subject ? [{ type: 'suggest_journey', request: subject }] : [])] } });
+  });
   await context.route(/\/api\/(learn\/(artifact|voice\/|assess|transcribe|image)|chat)/, route => route.abort());
   const page = await context.newPage();
   const net = network[label] = [], errors = [];
@@ -87,7 +97,7 @@ async function learnerPage(label) {
     }).catch(() => {});
   });
   const calls = (path, method = 'POST') => net.filter(entry => entry.path === path && entry.method === method);
-  return { page, net, errors, calls, close: () => context.close() };
+  return { page, net, errors, calls, offer: (typed, subject = typed) => offers.set(typed, subject), close: () => context.close() };
 }
 
 const shot = async (page, name) => { await page.waitForTimeout(500); await page.screenshot({ path: `${OUT}/${PREFIX}${name}.png` }); console.log('shot', `${OUT}/${PREFIX}${name}.png`); };
@@ -100,6 +110,27 @@ async function openCanvas(page, name) {
   await page.waitForTimeout(1500); // the board GET settles, canvasReady runs
 }
 const send = async (page, text) => { await composer(page).fill(text); await composer(page).press('Enter'); };
+// The one way a journey starts from a canvas (Task 11b fix B1, owner fourteenth message): type the learning request, which is an
+// Auto Tutor turn answered in the page by a plan with a suggest_journey offer, and click the Start a learning path chip it shows;
+// the chip calls the existing journey start with the request, and the intake tray runs as before. The id's two checks pin the
+// contract that replaced the keyword start: the typed words reached /api/learn/tutor/plan exactly once, as a plain-canvas turn
+// that allows suggest_journey, with no journey POST and no Learn chat ask before the click; the click made exactly one journey
+// start carrying the request.
+async function startViaTutor(ctx, page, id, request) {
+  ctx.offer(request);
+  const plans = ctx.calls('/api/learn/tutor/plan').length, journeys = ctx.calls('/api/learn/journey').length, asks = ctx.calls('/api/learn/ask').length;
+  await send(page, request);
+  const chip = page.getByRole('button', { name: 'Start a learning path' }).first();
+  await chip.waitFor({ timeout: 30000 });
+  const turn = ctx.calls('/api/learn/tutor/plan').slice(plans), context = turn[0]?.body?.context, before = { journeys: ctx.calls('/api/learn/journey').length - journeys, asks: ctx.calls('/api/learn/ask').length - asks };
+  check(`${id} typed request is a Tutor turn`, turn.length === 1 && context?.learner_intent?.raw_user_message === request && !context.journey_context && context.canvas_context != null && context.allowed_actions?.includes('suggest_journey') && !before.journeys && !before.asks,
+    'the typed request is one /api/learn/tutor/plan request (a plain-canvas turn that allows suggest_journey); no journey POST and no Learn chat ask before the chip',
+    `${turn.length} plan request(s); words ${context?.learner_intent?.raw_user_message === request ? 'match' : 'differ'}; journey_context ${context?.journey_context != null}; suggest_journey allowed ${!!context?.allowed_actions?.includes('suggest_journey')}; ${before.journeys} journey POST(s), ${before.asks} ask(s) before the chip`);
+  await chip.click();
+  await until(page, () => ctx.calls('/api/learn/journey').length > journeys + before.journeys);
+  const starts = ctx.calls('/api/learn/journey').slice(journeys).filter(entry => entry.body?.action === 'start');
+  check(`${id} the chip starts the journey`, starts.length === 1 && starts[0].body?.text === request, 'clicking Start a learning path made exactly one journey start, carrying the request', `${starts.length} journey start(s), text ${starts[0]?.body?.text === request ? 'matches' : 'differs'}`);
+}
 // The canvas as Learn saves it (AdaptiveCanvas, 400 ms after a change), by the main board's storage key.
 const blocksOf = (page, name) => page.evaluate(key => { try { return JSON.parse(localStorage.getItem(key) || '{}').blocks || []; } catch { return []; } },
   `small.adaptive-canvas:${who.org}:${who.email}:${name}:ink`);
@@ -170,7 +201,7 @@ const lr = await newCanvas('Journey check J1-J4');
 await group('J1', async () => {
   const { page, calls } = flow;
   await openCanvas(page, lr);
-  await send(page, REQUEST);
+  await startViaTutor(flow, page, 'J1', REQUEST);
   await waitTray(page, 'intent_intake');
   await page.waitForTimeout(900);
   check('J1 intake tray', true, 'the tray opens in intent_intake');
@@ -330,17 +361,22 @@ await group('J4', async () => {
 });
 await flow.close();
 
-// ---- J5: a question on a blank canvas is the Learn chat's: no tray, one ask ----
+// ---- J5: a question on a blank canvas is the Auto Tutor's (Task 11b): no tray, one Tutor plan request, no ask ----
+// Before 11b a plain canvas answered typed text from the Learn chat (exactly one /api/learn/ask). Now it is a Tutor turn: one
+// /api/learn/tutor/plan request carrying the words and the canvas context, and the Learn chat is never asked.
 current = await learnerPage('J5');
 await group('J5', async () => {
-  const { page, calls } = current, name = await newCanvas('Journey check J5');
+  const { page, calls } = current, name = await newCanvas('Journey check J5'), question = 'What is logistic regression?';
   await openCanvas(page, name);
-  await send(page, 'What is logistic regression?');
+  await send(page, question);
   await page.getByText(CANNED).first().waitFor({ timeout: 15000 });
   await page.waitForTimeout(1500);
   const { journey } = await journeyOf(name);
   check('J5 no tray', await page.locator('[data-tutor-prompt-tray]').count() === 0 && !journey, 'no tray and no journey', `tray ${await page.locator('[data-tutor-prompt-tray]').count()}, journey ${!!journey}`);
-  check('J5 one ask', calls('/api/learn/ask').length === 1, 'exactly one /api/learn/ask (canned reply)', `${calls('/api/learn/ask').length} ask requests`);
+  const plans = calls('/api/learn/tutor/plan'), context = plans[0]?.body?.context;
+  check('J5 one Tutor plan, no ask', plans.length === 1 && context?.learner_intent?.raw_user_message === question && !context.journey_context && context.canvas_context != null && calls('/api/learn/ask').length === 0 && !calls('/api/learn/journey').length,
+    'exactly one /api/learn/tutor/plan request with the words and the canvas context (canned reply), no /api/learn/ask and no journey POST',
+    `${plans.length} plan request(s), words ${context?.learner_intent?.raw_user_message === question ? 'match' : 'differ'}, canvas_context ${context?.canvas_context != null}; ${calls('/api/learn/ask').length} ask, ${calls('/api/learn/journey').length} journey requests`);
 });
 await current.close();
 
@@ -349,7 +385,7 @@ current = await learnerPage('J6');
 await group('J6', async () => {
   const { page } = current, name = await newCanvas('Journey check J6');
   await openCanvas(page, name);
-  await send(page, 'Give me a 10-minute visual overview of logistic regression');
+  await startViaTutor(current, page, 'J6', 'Give me a 10-minute visual overview of logistic regression');
   let t = await nextTray(page, null);
   for (let i = 0; i < 4 && t?.mode === 'intent_intake'; i++) { await page.locator(`[data-tray-option="${t.options[0]}"]`).click(); t = await nextTray(page, t); }
   const intake = new Set((await seen(page)).trays.filter(k => k.startsWith('intent_intake|'))).size;
@@ -365,7 +401,7 @@ current = await learnerPage('J7');
 await group('J7', async () => {
   const { page } = current, name = await newCanvas('Journey check J7');
   await openCanvas(page, name);
-  await send(page, 'Teach me logistic regression, skip setup and just start');
+  await startViaTutor(current, page, 'J7', 'Teach me logistic regression, skip setup and just start');
   const { headings, own } = await waitSection(page, name, 's1');
   const s = await seen(page);
   check('J7 no setup trays', !s.trays.some(k => /^(intent_intake|diagnostic_probe|path_preview)\|/.test(k)), 'no intake, diagnostic or path tray', `trays: ${s.trays.map(k => k.split('|')[0]).join(',')}`);
