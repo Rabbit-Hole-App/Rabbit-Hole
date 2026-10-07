@@ -12,7 +12,7 @@
 // nanoGPT by default. A journey's cards are its section blocks on the canvas, and it has no ladder.
 import { NANOGPT } from './learn-tutor-claims.js';
 import { partIndex } from './nanogpt/depth/board.js';
-import { ACTION_TYPES, AVATAR_ACTION, AVATAR_MOMENTS, GROUNDING_STATUSES, HANDOFF_ACTION, HANDOFF_CAPABILITY_NAMES, INTENTS, MODALITY_OVERRIDES, PERSONALIZABLE_MOMENTS, SOURCE_TYPES, VISUAL_VALUE_MAX, avatarSlotId, learningGoalProblem } from '../../control-plane/src/agents/learn-tutor.js';
+import { ACTION_TYPES, AVATAR_ACTION, AVATAR_MOMENTS, GROUNDING_STATUSES, HANDOFF_ACTION, INTENTS, MODALITY_OVERRIDES, PERSONALIZABLE_MOMENTS, SOURCE_TYPES, VISUAL_VALUE_MAX, avatarSlotId, handoffProblem, learningGoalProblem } from '../../control-plane/src/agents/learn-tutor.js';
 const CARD_ACTIONS = ['show_authored_card', 'focus_part', 'suggest_depth', 'suggest_practice'];
 const TEXT_ACTIONS = ['respond_text', 'ask_question'];
 
@@ -123,10 +123,10 @@ function schema(action, extra = [], domain = NANOGPT) {
   if (action.type === 'create_material' && (typeof action.command !== 'string' || !plainRequest(action.request))) return 'create_material: command and a 1-1000 character request';
   if (action.type === 'suggest_research' && !plainRequest(action.request)) return 'suggest_research: a 1-1000 character request';
   if (action.type === 'suggest_journey' && !plainRequest(action.request)) return 'suggest_journey: a 1-1000 character request';
-  if (action.type === HANDOFF_ACTION && (!HANDOFF_CAPABILITY_NAMES.includes(action.capability) || !plainRequest(action.request))) return 'handoff: a known capability and a 1-1000 character request';
+  if (action.type === HANDOFF_ACTION) return handoffProblem(action); // the shared rule (fix round 1): fastPlanProblem uses it too
   return null;
 }
-// A create_material, suggest_research, suggest_journey or handoff request: plain words, 1-1000 characters, no backticks or arrows (maths is fine).
+// A create_material, suggest_research or suggest_journey request: plain words, 1-1000 characters, no backticks or arrows (maths is fine).
 const plainRequest = request => typeof request === 'string' && !!request.trim() && request.length <= 1000 && !/`|=>/.test(request);
 
 // Task 11b: the planner's reading fields (inferred_intent, modality_override, clarification_requested, grounding_status,

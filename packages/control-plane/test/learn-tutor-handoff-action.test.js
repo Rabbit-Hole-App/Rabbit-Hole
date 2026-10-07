@@ -5,7 +5,7 @@
 // cached prefix and every other request stay byte-identical. Pure; no model call.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ACTION_TYPES, CANVAS_SYSTEM, EXPLICIT_MODE, HANDOFF_ACTION, HANDOFF_CAPABILITY_NAMES, HANDOFF_SYSTEM, NEXT_STEP_SYSTEM, PLANNER_SYSTEM, TUTOR_TOOL, plannerRequest, plannerSystem, tutorTool } from '../src/agents/learn-tutor.js';
+import { ACTION_TYPES, CANVAS_SYSTEM, EXPLICIT_MODE, HANDOFF_ACTION, HANDOFF_CAPABILITY_NAMES, HANDOFF_SYSTEM, handoffProblem, NEXT_STEP_SYSTEM, PLANNER_SYSTEM, TUTOR_TOOL, plannerRequest, plannerSystem, tutorTool } from '../src/agents/learn-tutor.js';
 import { HANDOFF_CAPABILITIES } from '../src/learn-tutor-handoff.js';
 import { fastPlanProblem } from '../src/learn-tutor-routes.js';
 
@@ -60,7 +60,9 @@ test('plannerRequest: the extra blocks are an ordered list - the hook line, the 
 test('HANDOFF_SYSTEM: when to hand off, never from words, one per turn with an optional lead-in, and the retrieval honesty rule', () => {
   assert.match(HANDOFF_SYSTEM, /^handoff \{ capability, request \}/);
   assert.match(HANDOFF_SYSTEM, /repository_context/);
-  assert.match(HANDOFF_SYSTEM, /request is the question for it in plain words, with no backticks and no code/);
+  // Fix round 1 (A-M4): the request may name the functions, files and symbols it is about; only the plan's own words never claim retrieval.
+  assert.match(HANDOFF_SYSTEM, /request is the question for it in plain words, and it may name the functions, files and symbols it is about/);
+  assert.doesNotMatch(HANDOFF_SYSTEM, /no backticks|no code/);
   assert.match(HANDOFF_SYSTEM, /only when answering correctly needs the repository's source \(what code does, where something is defined or called, how a value flows, why the code is written a certain way\) and the supplied context does not already contain it/);
   assert.match(HANDOFF_SYSTEM, /never because words like code, function or repository appear; when the supplied context suffices, respond normally/);
   assert.match(HANDOFF_SYSTEM, /At most one handoff per turn/);
@@ -80,4 +82,15 @@ test('fastPlanProblem: an allowed handoff answers the turn, so a fast plan with 
   assert.equal(fastPlanProblem({ actions: [{ type: 'respond_text', text: 'Here is what I can say.' }, handoff] }, OFFERED), null);
   assert.equal(fastPlanProblem({ actions: [handoff] }, PLAIN), 'an action outside the allowed types');
   assert.equal(fastPlanProblem({ actions: [{ type: 'no_action' }] }, OFFERED), 'no words');
+  // Fix round 1 (A-I1): only a valid handoff is the reply - the same rule as the browser validator (handoffProblem); an invalid
+  // one escalates like a plan with no words. Code, identifiers, file names and => are fine in a question for the source reader.
+  for (const request of ['Who calls `sort_items` in sort.py?', 'Where does merge(a, b) => list get its b?', 'x'.repeat(1000)]) assert.equal(fastPlanProblem({ actions: [{ ...handoff, request }] }, OFFERED), null, request.slice(0, 30));
+  for (const bad of [{ capability: 'research' }, { capability: undefined }, { request: '   ' }, { request: undefined }, { request: 'x'.repeat(1001) }]) assert.equal(fastPlanProblem({ actions: [{ ...handoff, ...bad }] }, OFFERED), 'no words', JSON.stringify(bad).slice(0, 40));
+});
+
+test('handoffProblem: one shared rule - a known capability and a non-blank request of at most 1000 characters, code allowed', () => {
+  assert.equal(handoffProblem({ type: 'handoff', capability: 'repository_context', request: 'What does `forward` return in model.py?' }), null);
+  assert.equal(handoffProblem({ type: 'handoff', capability: 'repository_context', request: 'x'.repeat(1000) }), null);
+  for (const bad of [{ capability: 'research', request: 'q' }, { capability: 'Repository_Context', request: 'q' }, { request: 'q' }, { capability: 'repository_context', request: '' }, { capability: 'repository_context', request: '  ' }, { capability: 'repository_context', request: 7 }, { capability: 'repository_context', request: 'x'.repeat(1001) }, null])
+    assert.equal(typeof handoffProblem(bad && { type: 'handoff', ...bad }), 'string', JSON.stringify(bad)?.slice(0, 40));
 });

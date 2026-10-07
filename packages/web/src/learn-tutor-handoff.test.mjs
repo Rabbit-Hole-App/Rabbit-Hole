@@ -61,13 +61,15 @@ test('buildTurn: the offer is the structured repository flag; the words never ma
     assert.equal('handoff_offer' in buildTurn({ raw, canvas, block: null, store, states: {}, domain }).turn, false, raw);
 });
 
-test('validator: one handoff, a known capability and a plain 1-1000 character request; never on a turn that does not offer it', () => {
+test('validator: one handoff, a known capability and a non-blank 1-1000 character request (code allowed); never on a turn that does not offer it', () => {
   const offered = { row: 'off_slice', strategy: 'none', allowed: ['respond_text', 'handoff'], claim: null };
   const run = (actions, routed = offered) => validateActions({ actions }, routed, turnOf({ handoff_offer: true }), canvasDomain({ goal: 'g' }));
   assert.deepEqual(run([SAY, { ...HANDOFF, request: '  Where is this function called?  ', title: 'extra' }]).actions, [SAY, HANDOFF], 'normalized to capability and request');
   assert.deepEqual(run([HANDOFF]).actions, [HANDOFF], 'a handoff alone is a whole turn');
   for (const capability of ['research', 'do', 'Repository_Context', undefined]) assert.equal(run([{ ...HANDOFF, capability }]).decisions[0].stage, 'schema', String(capability));
-  for (const request of ['', '   ', 'x'.repeat(1001), 'what does `f` do', 'a => b', undefined]) assert.equal(run([{ ...HANDOFF, request }]).decisions[0].stage, 'schema', String(request));
+  for (const request of ['', '   ', 'x'.repeat(1001), undefined, 7]) assert.equal(run([{ ...HANDOFF, request }]).decisions[0].stage, 'schema', String(request));
+  // Fix round 1 (A-I1, B-I4): a question for the source reader may hold code, identifiers, file names and => (handoffProblem).
+  for (const request of ['what does `merge_sort` do in sort.py?', 'where does merge(a, b) => list get b?']) assert.deepEqual(run([{ ...HANDOFF, request }]).actions, [{ ...HANDOFF, request }], request);
   assert.equal(run([HANDOFF, { ...HANDOFF, request: 'And the other one?' }]).decisions[1].reason, 'a second handoff');
   const refused = run([SAY, HANDOFF], { ...offered, allowed: ['respond_text'] });
   assert.deepEqual([refused.actions, refused.decisions[1].accepted], [[SAY], false], 'not offered: dropped');

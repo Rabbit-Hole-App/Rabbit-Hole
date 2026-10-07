@@ -56,8 +56,12 @@ function contextProblem(c) {
 
 // repositorySnapshot's own message for a commit with no indexed version (repositories.js); pinned by the handoff tests.
 const NOT_INDEXED = 'This repository version is not indexed yet';
+// Fix round 1 (A-I2; owner nineteenth message): the reader writes the handoff answer, so the retrieval honesty rule is its own;
+// LEARN_RESEARCH_SYSTEM carried one, and arxiv: false leaves that system out. Learn chat's own system is unaffected.
+export const HANDOFF_READER_RULE = 'If a repository read fails or the source does not contain the answer, say so plainly; never answer from memory as if you had read the code.';
 
-async function readRepository(env, access, { app, request, selection, card }, callModel) {
+// onToolError: called once per repository tool call that failed inside the reader loop (telemetry tool_errors).
+async function readRepository(env, access, { app, request, selection, card }, callModel, onToolError = () => {}) {
   if (!env.LEARN_DB) throw failure('no_repository_context'); // a worker without the Learn database has no repository to read
   // No repository, or a commit never indexed: no_repository_context. A thrown storage error (D1, R2, a stored snapshot gone)
   // is retrieval_error, so a transient failure never reads as a canvas without source.
@@ -80,8 +84,8 @@ async function readRepository(env, access, { app, request, selection, card }, ca
   if (selection?.symbol && !selected) grounding.push(`Selected symbol: ${selection.symbol}`);
   const context = appendCanvasTarget(JSON.stringify({ repo: snapshot.repo, commit, selected, selectedCode }), card);
   const question = [request.trim(), ...grounding].join('\n\n');
-  const result = await researchAnswer(env, [{ role: 'user', content: `${context}\n\n---\n\n${question}` }], `${LEARN_SYSTEM}\n${REPOSITORY_SYSTEM}`, null,
-    { callModel, arxiv: false, tools: REPOSITORY_TOOLS, runTool: async (name, input) => repositoryTool(snapshot, name, input) });
+  const result = await researchAnswer(env, [{ role: 'user', content: `${context}\n\n---\n\n${question}` }], `${LEARN_SYSTEM}\n${REPOSITORY_SYSTEM}\n${HANDOFF_READER_RULE}`, null,
+    { callModel, arxiv: false, tools: REPOSITORY_TOOLS, runTool: async (name, input) => { try { return repositoryTool(snapshot, name, input); } catch (error) { onToolError(); throw error; } } });
   return result.answer;
 }
 
@@ -93,9 +97,10 @@ export const HANDOFF_CAPABILITIES = Object.freeze({
 // usage or no price), and the last stop_reason, which names a refusal or a cut answer. A non-ok reply adds a call and no
 // usage, so what the turn already billed stays counted. The first call is admitted under the usage cap (admit), so a turn
 // that never reaches the model (no repository) spends no budget. After the deadline the next call throws, ending the loop.
+// toolError (fix round 1): counts the capability tool calls that failed inside its loop (tool_errors; the reply keeps going).
 function metered(callModel, deadline, admit) {
-  const seen = { calls: 0, served_model: null, ...Object.fromEntries(TOKENS.map(key => [key, 0])), cost_usd: 0, stop_reason: null };
-  return { seen, callModel: async (env, body, model, org) => {
+  const seen = { calls: 0, served_model: null, ...Object.fromEntries(TOKENS.map(key => [key, 0])), cost_usd: 0, tool_errors: 0, stop_reason: null };
+  return { seen, toolError: () => { seen.tool_errors++; }, callModel: async (env, body, model, org) => {
     if (deadline.passed) throw failure('timeout');
     if (!seen.calls && await admit()) throw failure('limited');
     if (deadline.passed) throw failure('timeout'); // an admission that outlasted the deadline never becomes a paid call
@@ -135,7 +140,7 @@ export async function handoff(env, access, body, { callModel = loggedModel('chat
   };
   let answer = null, category = null, timer;
   try {
-    const work = capability.run(env, access, { app: body.app, request: body.request, selection, card: body.context?.card ?? null }, meter.callModel);
+    const work = capability.run(env, access, { app: body.app, request: body.request, selection, card: body.context?.card ?? null }, meter.callModel, meter.toolError);
     work.catch(() => {}); // after a timeout the loop ends at its next model call; its rejection is expected
     answer = await Promise.race([work, new Promise((_, reject) => { timer = setTimeout(() => { deadline.passed = true; reject(failure('timeout')); }, timeoutMs); })]);
     if (meter.seen.stop_reason === 'refusal') category = 'refused';

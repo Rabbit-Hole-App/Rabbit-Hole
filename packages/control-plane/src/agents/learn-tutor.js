@@ -344,9 +344,15 @@ const AVATAR_TOOL = { ...TUTOR_TOOL, input_schema: { ...TUTOR_TOOL.input_schema,
 // handoff { capability, request }, the handoff route's body (learn-tutor-handoff.js) without what the browser adds from
 // structured state (app, selection, context). HANDOFF_CAPABILITY_NAMES is that route's dispatch table (a test keeps them
 // equal): a future capability adds a name there and here, never a new action. Like the avatar action, the tool carries it only
-// on a turn whose route allows it (plannerRequest), so every other request and the cached prefix stay byte-identical.
+// on a turn whose route allows it (plannerRequest), so every other request stays byte-identical; a handoff-allowed turn caches
+// under its own tool schema (the tool renders before the cached system block), a separate cache entry.
 export const HANDOFF_ACTION = 'handoff';
 export const HANDOFF_CAPABILITY_NAMES = ['repository_context'];
+// The one rule for a valid handoff (fix round 1, A-I1 and B-I4), shared by the browser validator and fastPlanProblem: a known
+// capability and a non-blank request of at most 1000 characters (the route's bound). The request is a question for the source
+// reader, so backticks, code, identifiers, file names and => are allowed. The problem, or null.
+export const handoffProblem = action => (!HANDOFF_CAPABILITY_NAMES.includes(action?.capability) ? 'handoff: an unknown capability'
+  : typeof action.request !== 'string' || !action.request.trim() || action.request.length > 1000 ? 'handoff: a 1-1000 character request' : null);
 const withHandoff = tool => {
   const actions = tool.input_schema.properties.actions, items = actions.items.properties;
   return { ...tool, input_schema: { ...tool.input_schema, properties: { ...tool.input_schema.properties, actions: { ...actions, items: { ...actions.items, properties: {
@@ -423,10 +429,10 @@ export const EXPLICIT_MODE = [
   '- teach: actively teach it; you still choose the pedagogy, the modality and whether material helps.',
 ].join('\n');
 // Task 11c-B (owner thirteenth, fifteenth and nineteenth messages): the handoff block, sent only on a turn whose route allows
-// the handoff (context.allowed_actions), like EXPLICIT_MODE, so the shared cached prefix never grows for it. Its last line
+// the handoff (context.allowed_actions), like EXPLICIT_MODE, so the shared prompt lines never grow for it. Its last line
 // settles L(19)'s conditional: an allowed handoff is a retrieval action, yet the plan's own words still never claim retrieval.
 export const HANDOFF_SYSTEM = [
-  'handoff { capability, request } hands this turn to a capability that answers the learner after your turn. repository_context reads the canvas repository\'s source and answers from it; request is the question for it in plain words, with no backticks and no code (the selected card travels with it).',
+  'handoff { capability, request } hands this turn to a capability that answers the learner after your turn. repository_context reads the canvas repository\'s source and answers from it; request is the question for it in plain words, and it may name the functions, files and symbols it is about (the selected card travels with it).',
   'Hand off only when answering correctly needs the repository\'s source (what code does, where something is defined or called, how a value flows, why the code is written a certain way) and the supplied context does not already contain it; never because words like code, function or repository appear; when the supplied context suffices, respond normally.',
   'At most one handoff per turn. It may follow a short respond_text lead-in that frames the question; the lead-in never guesses the answer.',
   'An allowed handoff changes nothing for your own words: your own words never claim retrieval or inspection (never "I found", "I looked at the code" or "the source shows"); only the handoff answer reports what the source says. When retrieval fails, the learner is told the source context could not be retrieved.',
@@ -436,7 +442,8 @@ export const HANDOFF_SYSTEM = [
 // A context with journey_context (a journey turn) gets the journey prompt, one with canvas_context (Task 10: a hook click on
 // a plain canvas or hole) the canvas prompt, both cached the same way; the tool is the same. The context key alone chooses.
 // A hook click (learner_intent.kind next_step) appends NEXT_STEP_SYSTEM to either prompt; cached, it is a second, uncached
-// system block after the cached one, so hook turns read the typed turns' cached prefix and never write their own. An explicit
+// system block after the cached one, so hook turns read the typed turns' cached prefix (with the same tool: on a handoff-allowed
+// turn, the handoff tool's) and never write their own. An explicit
 // /ask or /teach (the learner_intent.slash marker in MODE_SLASHES, beside the kind the words gave: fix A3) appends
 // EXPLICIT_MODE the same way. Task 11c-B: the extra blocks are an ordered list - NEXT_STEP_SYSTEM, EXPLICIT_MODE, then
 // HANDOFF_SYSTEM with the handoff tool when context.allowed_actions lists the handoff - so they coexist, and a request with one

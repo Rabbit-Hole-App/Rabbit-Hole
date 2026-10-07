@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { learnDb } from './learn-grade-fixture.js';
 import { tutorRoute } from '../src/learn-tutor-routes.js';
-import { HANDOFF_BODY_CHARS, HANDOFF_CAPABILITIES, HANDOFF_CAPS } from '../src/learn-tutor-handoff.js';
+import { HANDOFF_BODY_CHARS, HANDOFF_CAPABILITIES, HANDOFF_CAPS, HANDOFF_READER_RULE } from '../src/learn-tutor-handoff.js';
 import { CANVAS_TARGET_HEADER, LEARN_RESEARCH_SYSTEM } from '../src/agents/learn-chat.js';
 import { REPOSITORY_SYSTEM, REPOSITORY_TOOLS } from '../src/repository-context.js';
 import { repositoryApp } from '../src/repositories.js';
@@ -74,7 +74,7 @@ test('success: the reader reads the canvas repository and the answer comes back 
   const perCall = costUsd({ model: 'claude-opus-5-5', ...USAGE });
   assert.deepEqual(body.telemetry, {
     started_at: new Date(1000).toISOString(), completed_at: new Date(1450).toISOString(), ms: 450, outcome: 'ok', failure: null,
-    served_model: 'claude-opus-5-5', calls: 2, input_tokens: 2400, output_tokens: 160, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, cost_usd: +(2 * perCall).toFixed(6),
+    served_model: 'claude-opus-5-5', calls: 2, input_tokens: 2400, output_tokens: 160, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, cost_usd: +(2 * perCall).toFixed(6), tool_errors: 0,
   });
   assert.equal(model.calls.length, 2);
   const first = model.calls[0];
@@ -339,4 +339,17 @@ test('a thrown null or undefined while resolving is retrieval_error, not a TypeE
     f.env.LEARN_DB = { prepare: () => { throw thrown; } };
     await failed(await f.post(ask(), { callModel: scripted([]).callModel }), 'retrieval_error');
   }
+});
+
+// Task 11c-B fix round 1 (A-I2; owner nineteenth message): the reader writes the handoff answer, so it carries the retrieval
+// honesty rule itself; a failed repository read inside its loop is counted as tool_errors, and the answer still comes back.
+test('the reader carries the retrieval honesty rule on every model call; a failed read inside the loop is counted as tool_errors', async t => {
+  assert.equal(HANDOFF_READER_RULE, 'If a repository read fails or the source does not contain the answer, say so plainly; never answer from memory as if you had read the code.');
+  const f = setup(t), model = scripted([toolUse('read_source', { path: 'missing.py', start: 1, end: 3 }), answer('The source does not contain missing.py, so I cannot say what it does.')]);
+  const body = await (await f.post(ask(), { callModel: model.callModel })).json();
+  assert.deepEqual([body.telemetry.outcome, body.telemetry.tool_errors, body.telemetry.calls], ['ok', 1, 2]);
+  for (const call of model.calls) assert.ok(call.body.system.endsWith(`
+${HANDOFF_READER_RULE}`), 'the rule rides last in the reader system');
+  assert.match(JSON.stringify(model.calls[1].body.messages.at(-1).content), /File is not in the indexed snapshot/);
+  assert.equal(JSON.stringify(body).includes('File is not in the indexed snapshot'), false, 'the tool error text never reaches the reply');
 });

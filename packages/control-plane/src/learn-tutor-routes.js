@@ -16,7 +16,7 @@ import { modelFailure } from './learn-research.js';
 import { LEARN_TASKS, costUsd, loggedModel, promptVersion } from './learn-models.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { escalation } from './agents/learn-tutor-escalation.js';
-import { evaluationFrom, firstSentence, HANDOFF_ACTION, largerInstruction, parseLarger, parsePartial, PLANNER_EFFORTS, plannerRequest, readTutorAnswers, tutorJevRequest, TUTOR_TOOL, tutorTool } from './agents/learn-tutor.js';
+import { evaluationFrom, firstSentence, HANDOFF_ACTION, handoffProblem, largerInstruction, parseLarger, parsePartial, PLANNER_EFFORTS, plannerRequest, readTutorAnswers, tutorJevRequest, TUTOR_TOOL, tutorTool } from './agents/learn-tutor.js';
 import { normalizeToolInput } from './tool-input.js';
 import { JourneyConflict, appendJourneyEvidence, loadJourneyById } from './learn-journey-store.js';
 import { claimsOfConceptIn } from '../../web/src/learn-tutor-claims.js';
@@ -356,11 +356,12 @@ export function plannerTier(context) {
 }
 // The fast plan's confidence check: any action outside the allowed types, or no words to say, sends
 // the turn to Opus 5.5. The browser's validator still gates whichever plan comes back. Task 11c-B: an allowed handoff answers
-// the turn (its answer is the reply), so a plan whose only action is the handoff has words.
+// the turn (its answer is the reply), so a plan whose only action is a valid handoff (handoffProblem, the validator's own rule)
+// has words; an invalid one escalates like a plan with no words.
 export function fastPlanProblem(plan, context) {
   const allowed = new Set([...(context?.allowed_actions || []), 'no_action', ...(plan.explicit_request ? ['respond_text', 'show_authored_card', 'focus_part'] : [])]);
   if (plan.actions.some(action => !allowed.has(action?.type))) return 'an action outside the allowed types';
-  if (!plan.actions.some(action => ((action?.type === 'respond_text' || action?.type === 'ask_question') && String(action.text || '').trim()) || action?.type === HANDOFF_ACTION)) return 'no words';
+  if (!plan.actions.some(action => ((action?.type === 'respond_text' || action?.type === 'ask_question') && String(action.text || '').trim()) || (action?.type === HANDOFF_ACTION && !handoffProblem(action)))) return 'no words';
   return null;
 }
 
