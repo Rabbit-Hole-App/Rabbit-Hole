@@ -77,11 +77,13 @@ await ownerPage.waitForURL(new RegExp(`/apps/${source.name}$`), { timeout: 20000
 await ownerPage.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 30000 });
 check('↗ opens the original, untouched by the fork\'s edits', await ownerPage.locator('[data-shape-id="seed-rect"]').count() === 1);
 
-// ---- Library: [Open] [Fork] on canvas cards, attribution and direct counts; a fork lands at once ----
+// ---- Library: the title opens and Fork stays on canvas cards, attribution and direct counts; a fork lands at once ----
+// (card redesign, docs/features/card-redesign.md: the card and its title open it, so there is no Open button)
 await ownerPage.goto(`${BASE}/library?type=canvases`);
 await ownerPage.locator('[data-library-card="canvas"]').first().waitFor({ timeout: 30000 });
 const card = title => ownerPage.locator('[data-library-card="canvas"]').filter({ has: ownerPage.locator('[data-card-title]', { hasText: title }) });
-check('Library canvas cards offer Open and Fork', await card('My attention notes').getByRole('button', { name: 'Fork' }).count() === 1 && await card(TITLE).getByRole('button', { name: /Open|Continue/ }).count() === 1);
+check('Library canvas cards: the title opens, and Fork', await card('My attention notes').getByRole('button', { name: 'Fork' }).count() === 1
+  && (await card(TITLE).locator('[data-card-title]').getAttribute('href')) === `/apps/${source.name}`);
 check('the fork\'s card shows Forked from the source', (await card('My attention notes').locator('[data-forked-from]').innerText()).includes(`“${TITLE}”`));
 check('the source card shows 1 fork', (await card(TITLE).locator('[data-fork-count]').innerText()).trim() === '1 fork');
 await shot(ownerPage, '03-library-cards');
@@ -132,8 +134,9 @@ check('an unrelated shared canvas with no forks shows Fork 0', seen.value === '0
 await shot(linkPage, '06c-shared-header-0-forks');
 await ownerPage.goto(`${BASE}/library?type=canvases`);
 await card('Bridge loads (fork check)').waitFor({ timeout: 30000 });
-check('the owner\'s Library cards read the same counts: 2 forks, and none shown at 0', (await card(TITLE).locator('[data-fork-count]').innerText()).trim() === '2 forks'
-  && await card('Bridge loads (fork check)').locator('[data-fork-count]').count() === 0);
+// The card redesign shows 0 as "0 forks" (owner 2026-10-06 §12).
+check('the owner\'s Library cards read the same counts: 2 forks, and 0 forks', (await card(TITLE).locator('[data-fork-count]').innerText()).trim() === '2 forks'
+  && (await card('Bridge loads (fork check)').locator('[data-fork-count]').innerText()).trim() === '0 forks');
 await shot(ownerPage, '06d-library-cards-counts');
 
 // ---- the owner stops sharing: the viewer's fork keeps its attribution and says the original is unavailable ----
