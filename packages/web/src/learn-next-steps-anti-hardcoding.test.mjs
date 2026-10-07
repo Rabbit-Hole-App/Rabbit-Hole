@@ -270,6 +270,8 @@ test('no product module decides an offer or an action from the learner words', (
   for (const line of linesOf(route, /\blist\s*=(?!=)/)) assert.deepEqual(outside(line, LIST_OK), [], `route() builds the allowed list from more than the row: ${line.trim()}`);
 
   // The page: turnOffers reads page state only, runTurn's call takes its offers from it alone, and no other code names an offer field.
+  // Unscanned boundary (R8): LearnPage.jsx, Parallel's file, is where useTutor's repository and openResearch props are passed in. It
+  // is neither scanned nor edited here, so this scan holds from those props onward; what the page hands them is Parallel's to review.
   const page = strip(source('./LearnTutor.jsx')), offers = functionOf('./LearnTutor.jsx', 'export function turnOffers\\(');
   const PAGE_OK = new Set(['export', 'function', 'turnOffers', 'journey', 'null', 'record', 'opening', 'false', 'nextStep', 'openResearch', 'const', 'setup', 'inJourneySetup', 'materials', 'materialCommands', 'research', 'journeyOffer', 'repository', 'start', 'return']);
   assert.deepEqual(outside(offers, PAGE_OK), [], 'turnOffers reads more than the page state');
