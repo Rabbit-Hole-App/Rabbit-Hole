@@ -1,0 +1,3 @@
+# Motion render fixtures are hashed byte-for-byte into recorded provenance (learn-render motion tests). A Windows
+# checkout with core.autocrlf=true wrote them as CRLF and broke those hashes on every fresh worktree; keep them LF.
+packages/learn-render/motion/fixtures/** text eol=lf
