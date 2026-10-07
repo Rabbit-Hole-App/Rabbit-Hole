@@ -32,8 +32,8 @@ one-line description; modes read differently per place.
 |---|---|---|---|
 | /ask | mode | home, project, learn | Home/Project: the bar's ask. Learn: `{ mode: 'ask', prompt }` through the existing Learn ask |
 | /teach | mode | home, project, learn | Home: the Learn handoff (resolve or create a canvas, open Learn, prefill, never send). Learn: continue teaching |
-| /research | mode | home, project, learn | Home, Library, Project: find papers, docs, repositories and resources and return them in the Mothership with Open, Add to project, Add to canvas. Learn: the same, with the current concept and canvas as context; bring evidence onto the canvas without cluttering it with every result |
-| /do | mode | home, project, learn | Imperative actions under the confirmation policy |
+| /research | mode | home, project (not on canvases, owner 2026-10-06) | Home, Library, Project: find papers, docs, repositories and resources and return them in the Mothership with Open, Add to project, Add to canvas. Learn: the same, with the current concept and canvas as context; bring evidence onto the canvas without cluttering it with every result |
+| /do | mode | home, project (not on canvases, owner 2026-10-06) | Imperative actions under the confirmation policy |
 | /find /open /new /connect /run | shortcut | home, project (/new: home) | The same request as the sentence (`router.js` rule 1b). No /share: v1 is solo (see rabbit-hole-checklist.md, Solo v1) |
 | /deeper /simplify /example /practice /quiz /compare | learn | learn | A prompt through the existing Learn ask, about the selection or the current concept |
 | /dive | learn | learn | `action: 'dive'`: open a nested Rabbit Hole from the selected card; with no card it makes a topic anchor card from the request and dives from that; bare /dive with no card and no referent asks what to go deeper into (docs/features/dive-v1.md). No model call |
@@ -83,18 +83,19 @@ no family: `allowedPrimitives` is `null` (Auto).
   /practice leaves the whole family to the tutor.
 - Picker (`LEARN_MENU`), in order. LEARN: /deeper Go deeper, /dive Go down a Rabbit Hole, /simplify Explain more
   simply, /example Show a concrete example, /practice Let me try it, /quiz Test me,
-  /compare Compare ideas, /research Find supporting sources. CREATE: /explain Add an
+  /compare Compare ideas. CREATE: /explain Add an
   explanation, /code Add code, /graph Add a graph or plot, /diagram Add a diagram,
   /animate Add an animation, /flashcards Add flashcards, /notebook Add a notebook, /more
-  More learning tools. /ask, /teach and /do stay available but uncrowded; everything
+  More learning tools. /ask and /teach stay available but uncrowded; everything
   else is reached through /more or by name. challenge, explain_back, data_plot,
   mermaid, vector_explorer, reference_attention, maths_animation and blender_scene are
   never in the primary menu.
 
 ## Product availability vs review-copy limits
 
-The command list (`places`, `needs`) is what Rabbit Hole offers: `/ask` and
-`/research` are valid in every place. The review copy adds safety limits of its
+The command list (`places`, `needs`) is what Rabbit Hole offers: `/ask` is valid
+in every place; `/research` and `/do` on Home, Library and projects only - never on a
+canvas (owner, 2026-10-06), where natural typing with a selected card is the way in. The review copy adds safety limits of its
 own through `reviewOff(name, kind)`, never through the product list:
 
 - `/ask` on the workspace or an app would write live chat history, so it is off

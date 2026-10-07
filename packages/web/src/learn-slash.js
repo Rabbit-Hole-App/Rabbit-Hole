@@ -41,12 +41,12 @@ export function pickerSections(text, { catalog = false } = {}) {
 // exactly the card or answer the sheet previews beside it, and works as typed.
 export const EXAMPLES = {
   deeper: '/deeper into the maths', dive: '/dive softmax', simplify: '/simplify', example: '/example with real numbers',
-  practice: '/practice explain it back', quiz: '/quiz the derivative of the sigmoid', compare: '/compare sigmoid vs tanh', research: '/research attention mechanisms',
+  practice: '/practice explain it back', quiz: '/quiz the derivative of the sigmoid', compare: '/compare sigmoid vs tanh',
   explain: '/explain why a token id is only an index', code: '/code build a character vocabulary', graph: '/graph sigmoid',
   diagram: '/diagram where a token goes in nanoGPT', animate: '/animate why the sigmoid saturates', flashcards: "/flashcards nanoGPT's embeddings and parameters",
   notebook: '/notebook', walkthrough: '/walkthrough a token through the model', whiteboard: '/whiteboard the sigmoid', paper: '/paper 1706.03762',
   image: '/image a sigmoid curve', video: '/video light through a prism', '3d': '/3d a camera frustum', source: '/source',
-  ask: '/ask what does wte do?', teach: '/teach causal masking', do: '/do add a section on attention',
+  ask: '/ask what does wte do?', teach: '/teach causal masking',
 };
 // The canvas card each primitive becomes: its + palette sample in
 // LearningBlocks' BLOCK_TYPES (the notebook is its own card).

@@ -25,9 +25,6 @@ const CHAT_EXAMPLES = {
     answer: '`wte` is the token embedding table (`model.py`): one learned row of 384 numbers per vocabulary id. Each input id is looked up there before anything else runs.' },
   teach: { about: 'karpathy/nanoGPT', ask: '/teach causal masking',
     answer: 'Causal masking stops a position from looking ahead: attention scores for later positions are set to $-\\infty$ before softmax, so each token mixes information only from itself and earlier tokens. Next, the mask drawn as a triangle.' },
-  research: { about: 'Attention', ask: '/research attention mechanisms',
-    answer: 'Two places to start: "Attention Is All You Need" (Vaswani et al., arXiv:1706.03762), and "Neural Machine Translation by Jointly Learning to Align and Translate" (Bahdanau et al., arXiv:1409.0473), where attention first appears.' },
-  do: { about: 'this canvas', ask: '/do add a section on attention', answer: 'Added a section heading, **Attention**, below the current card.' },
   source: { about: 'a card', ask: '/source', answer: 'Opens the Source inspector for the selected card. (Not reachable from a command yet.)' },
 };
 

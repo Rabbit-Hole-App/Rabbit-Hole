@@ -5,10 +5,10 @@ import { commandsFor, descFor, LEARN_MENU, learnRequest, placeOf, primitive, rev
 const names = (list) => list.map((c) => c.name);
 const JOB = [{ name: 's3-log', kind: 'job' }];
 
-test('one command list: the four modes everywhere, Home shortcuts on Home and projects, learning shortcuts only in Learn', () => {
+test('one command list: the four modes on Home and projects, /ask and /teach on canvases (never /research or /do), Home shortcuts on Home and projects, learning shortcuts only in Learn', () => {
   assert.deepEqual(names(commandsFor('home', { catalog: JOB })), ['ask', 'teach', 'research', 'do', 'find', 'open', 'new', 'connect', 'run']); // solo v1: no /share
   assert.deepEqual(names(commandsFor('project', { catalog: JOB })), ['ask', 'teach', 'research', 'do', 'find', 'open', 'connect', 'run']);
-  assert.deepEqual(names(commandsFor('learn', { catalog: JOB })), ['ask', 'teach', 'research', 'do', 'deeper', 'dive', 'simplify', 'example', 'practice', 'quiz', 'compare', 'source',
+  assert.deepEqual(names(commandsFor('learn', { catalog: JOB })), ['ask', 'teach', 'deeper', 'dive', 'simplify', 'example', 'practice', 'quiz', 'compare', 'source',
     'explain', 'flashcards', 'code', 'graph', 'diagram', 'walkthrough', 'animate', 'whiteboard', 'paper', 'image', 'video', '3d', 'notebook', 'more']);
   assert.deepEqual(names(commandsFor('home', { catalog: [] })).includes('run'), false); // /run needs a runnable job
   assert.equal(new Set(names(SLASH)).size, SLASH.length);
@@ -46,8 +46,10 @@ test('the selection contract names what exists today and what owning branches ad
   assert.throws(() => learnRequest('quiz', { selection: { kind: 'widget' } }), /unknown selection/);
 });
 
-test('product availability is not the review copy: /ask and /research are valid everywhere, and only this preview turns some off', () => {
-  for (const name of ['ask', 'research']) assert.deepEqual(SLASH.find((c) => c.name === name).places, ['home', 'project', 'learn']);
+test('product availability is not the review copy: /ask is valid everywhere, /research on Home and projects, and only this preview turns some off', () => {
+  assert.deepEqual(SLASH.find((c) => c.name === 'ask').places, ['home', 'project', 'learn']);
+  // /research and /do are Home, Library and Project workflows, not Canvas commands (owner, 2026-10-06).
+  for (const name of ['research', 'do']) assert.deepEqual(SLASH.find((c) => c.name === name).places, ['home', 'project']);
   assert.match(reviewOff('ask', 'workspace', { askLive: false }).reason, /live chat history/);
   assert.equal(reviewOff('ask', 'workspace', { askLive: true }), null);
   assert.equal(reviewOff('ask', 'project', { askLive: false }), null); // project asks use LEARN_DB
@@ -73,7 +75,8 @@ test('each tool or narrowed intent names exactly its allowed primitives; open in
     assert.equal(r.family, name, name);
     assert.deepEqual(r.allowedPrimitives, family, name);
   }
-  for (const name of ['ask', 'teach', 'research', 'do', 'deeper', 'simplify', 'example', 'source', 'more']) assert.equal(learnRequest(name).allowedPrimitives, null, name);
+  for (const name of ['ask', 'teach', 'deeper', 'simplify', 'example', 'source', 'more']) assert.equal(learnRequest(name).allowedPrimitives, null, name);
+  for (const name of ['research', 'do']) assert.throws(() => learnRequest(name), /not a Learn command/, name);
 });
 
 test('paid primitives always confirm and carry no guessed cost', () => {
@@ -107,12 +110,12 @@ test('/practice subtype words narrow the family; plain /practice leaves the whol
 });
 
 test('the Learn picker stays short: LEARN then CREATE; the rest only through /more or by name', () => {
-  assert.deepEqual(LEARN_MENU.learn, ['deeper', 'dive', 'simplify', 'example', 'practice', 'quiz', 'compare', 'research']);
+  assert.deepEqual(LEARN_MENU.learn, ['deeper', 'dive', 'simplify', 'example', 'practice', 'quiz', 'compare']);
   assert.deepEqual(LEARN_MENU.create, ['explain', 'code', 'graph', 'diagram', 'animate', 'flashcards', 'notebook', 'more']);
   const desc = (name) => descFor(SLASH.find((c) => c.name === name), 'learn');
-  assert.deepEqual(LEARN_MENU.learn.map(desc), ['Go deeper', 'Go down a Rabbit Hole', 'Explain more simply', 'Show a concrete example', 'Let me try it', 'Test me', 'Compare ideas', 'Find supporting sources']);
+  assert.deepEqual(LEARN_MENU.learn.map(desc), ['Go deeper', 'Go down a Rabbit Hole', 'Explain more simply', 'Show a concrete example', 'Let me try it', 'Test me', 'Compare ideas']);
   assert.deepEqual(LEARN_MENU.create.map(desc), ['Add an explanation', 'Add code', 'Add a graph or plot', 'Add a diagram', 'Add an animation', 'Add flashcards', 'Add a notebook', 'More learning tools']);
-  for (const hidden of ['walkthrough', 'whiteboard', 'paper', 'image', 'video', '3d', 'source']) assert.ok(![...LEARN_MENU.learn, ...LEARN_MENU.create].includes(hidden), hidden);
+  for (const hidden of ['walkthrough', 'whiteboard', 'paper', 'image', 'video', '3d', 'source', 'research', 'do']) assert.ok(![...LEARN_MENU.learn, ...LEARN_MENU.create].includes(hidden), hidden);
 });
 
 test('/teach on an app is off on this preview: Learn is off for apps there (D7); projects and canvases teach', () => {

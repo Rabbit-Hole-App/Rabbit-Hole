@@ -6,8 +6,8 @@ Owner rule, 2026-10-06. This is UI only: Tutor routing and Learning behaviour do
 |---|---|---|
 | `/ask` | cyan | CircleHelp |
 | `/teach` | violet | Sparkles |
-| `/research` | amber / gold | Telescope |
-| `/do` | green | Play |
+| `/research` | amber / gold (Home/Library and project surfaces; not a Canvas command) | Telescope |
+| `/do` | green (Home/Library and project surfaces; not a Canvas command) | Play |
 | `/motion` | magenta | Clapperboard |
 | Auto, every other command | neutral | none |
 
