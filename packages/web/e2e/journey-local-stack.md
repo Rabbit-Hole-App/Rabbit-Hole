@@ -18,8 +18,11 @@ STACK=alp1     # or: STACK=pns
 - **No keys.** The vars file holds only `SMALL_ENV=test`, `TEST_BYPASS_SECRET`, `MASTER_KEY` (both random, made for
   this stack), `OAUTH_MOCK=true` and `JOURNEY_MODEL_STUB=fixtures`. The journey planners then answer from
   `learn-journey-fixtures.js`, and every other model route has no key, so no paid call is possible.
-  `next-steps-check.mjs` enforces it: it reads the key names of every vars file the stack loads (both configs' `.dev.vars`
-  and any `.env`) and refuses to run if one binds a model, voice or subscription key, or any name outside those five.
+  `next-steps-check.mjs` enforces it and refuses to run before any request if: any line of a vars file the stack loads (both
+  configs' `.dev.vars*` and any `.env*`) is not blank, a `#` comment, or one of those five names with a value that has no quote
+  character (wrangler parses these with dotenv, which also takes `KEY: value`, quoted multi-line values and bare CR line breaks);
+  a config's `vars` declare a `*_API_KEY`, `ELEVENLABS_*` or `SUBSCRIPTION_BRIDGE_*` name, or `SUBSCRIPTION_ONLY` other than
+  `"false"`; or the shell running it carries such a name. A refusal prints the file and line numbers, never text from a vars file.
 - `.dev.vars` is read from the directory of each config, so the configs live in their own folders under `<ws>`. Nothing
   reads `packages/*/.dev.vars` or any `.env`.
 - Never print a vars file. Check it by key name only: `grep -o '^[A-Z0-9_]*=' <file>`.
@@ -58,6 +61,10 @@ grep -o '^[A-Z0-9_]*=' <ws>/$STACK-config/*/.dev.vars   # key names only
 ```
 
 ## 2. Local D1s (`--local --persist-to` only)
+
+Keep `<ws>` short on Windows: the sqlite files under `<ws>/$STACK-local` (plus their `-wal` and `-shm` companions) must stay
+under 260 characters, and `wrangler d1 execute --local` fails with `internal error; reference = ...` on a deep workspace path
+(a persist path of about 140 characters failed; a 3-character folder under the same base worked).
 
 `bootstrap.sql` then every migration builds the main D1 (`test/migrations-bootstrap.test.js` proves the result equals
 `schema.sql`; `schema.sql` followed by the migrations would fail on columns that already exist). `repository-schema.sql`

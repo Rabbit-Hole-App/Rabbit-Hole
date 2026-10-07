@@ -8,8 +8,9 @@
 // stack has none.
 //   node e2e/next-steps-check.mjs --base http://127.0.0.1:8868 --cp http://127.0.0.1:8869 --vars <stack cp/.dev.vars> [--app-vars <stack app/.dev.vars>] [--out <dir>]
 // --vars is the control plane's vars file and --app-vars the app worker's (default: app/.dev.vars beside the control plane's folder).
-// Every vars file the stack loads is read by key NAME and the run is refused if one binds a model, voice or subscription key, or any
-// name outside the five the stack uses; only TEST_BYPASS_SECRET is read as a value, never printed. Sessions are minted on the
+// The run is refused before any request unless every line of every vars file the stack loads is one of the five stack names (a strict
+// per-line allowlist), the configs' vars declare no model, voice or subscription name, and the environment carries none (a refusal
+// prints file and line numbers, never text from a vars file); only TEST_BYPASS_SECRET is read as a value, never printed. Sessions are minted on the
 // control plane's origin (the app's barrier refuses /test/session there). --out defaults to e2e/shots/next-steps (gitignored).
 // Each check prints PASS, FAIL or SKIP with its reason; <out>/next-steps-results.json holds the table and
 // <out>/next-steps-network.json the requests per check (method, path, status, request body keys - never learner text; a
@@ -43,20 +44,59 @@ if (!VARS) throw Error('--vars <the local stack .dev.vars> is required (e2e/jour
 
 // ---- keyless only: every vars file the stack loads ----
 // wrangler dev reads .dev.vars (and .env) from the folder of each config it is started with, so the stack's control plane (--vars) and
-// its app worker (--app-vars; by default the app/ folder beside the control plane's) both bind what the workers can reach. All of
-// those files are read, key NAMES only: one that binds a model, voice or subscription-bridge key is refused before any request,
-// and so is any name outside the five this stack uses. A refusal names the key, never a value, and no file is ever printed.
+// its app worker (--app-vars; by default the app/ folder beside the control plane's) both bind what the workers can reach. Three
+// sources are checked, and any one of them refuses the run before a request is made:
+//  1. every vars file the stack loads, with a STRICT per-line allowlist (not a name reader): wrangler parses these with dotenv, which
+//     also takes `KEY: value`, `export KEY=...`, quoted multi-line values and bare CR line breaks, so every line, split on CRLF, CR,
+//     LF and the Unicode separators, must be blank, a # comment, or one of the five stack names with a value that holds no quote
+//     character (so no value can run over several lines). Anything else - including any denied key in any dotenv form - refuses.
+//  2. the `vars` of the wrangler config beside each vars file (and of its env blocks): no *_API_KEY, ELEVENLABS_ or SUBSCRIPTION_BRIDGE_
+//     name, and SUBSCRIPTION_ONLY only as "false".
+//  3. the harness's own process environment, which wrangler dev started from the same shell would pass on: no denied name in it.
+// A refusal reports the file and LINE NUMBERS only, never text from a vars file (a continuation line of a quoted value is part of a
+// secret); the only names it prints are denied names from a config's `vars` and from the environment, which are structured keys.
 const APP_VARS = arg('app-vars', join(dirname(dirname(VARS)), 'app', '.dev.vars'));
 const STACK_KEYS = ['SMALL_ENV', 'TEST_BYPASS_SECRET', 'MASTER_KEY', 'OAUTH_MOCK', 'JOURNEY_MODEL_STUB'];
-const MODEL_KEY = /_API_KEY|^ELEVENLABS_|^SUBSCRIPTION_/; // *_API_KEY (model, voice, search, image), ELEVENLABS_*, SUBSCRIPTION_ONLY / SUBSCRIPTION_BRIDGE_*
+const MODEL_KEY = /_API_KEY|^ELEVENLABS_|^SUBSCRIPTION_/i; // *_API_KEY (model, voice, search, image), ELEVENLABS_*, SUBSCRIPTION_ONLY / SUBSCRIPTION_BRIDGE_*
+const CONFIG_KEY = /_API_KEY|^ELEVENLABS_|^SUBSCRIPTION_BRIDGE_/i; // SUBSCRIPTION_ONLY "false" and SUBSCRIPTION_OWNER_EMAIL are allowed in a config
 if (!existsSync(dirname(APP_VARS))) throw Error(`cannot find the app worker's vars folder ${dirname(APP_VARS)}: pass --app-vars <the app worker .dev.vars> (e2e/journey-local-stack.md)`);
 const loadedBy = dir => readdirSync(dir).filter(file => /^\.(dev\.vars|env)(\.|$)/.test(file)).map(file => join(dir, file));
-const keyNames = text => text.split(/\r?\n/).map(line => line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/)?.[1]).filter(Boolean);
+const LINE_BREAK = new RegExp(`\r\n?|\n|${String.fromCharCode(0x2028)}|${String.fromCharCode(0x2029)}`); // CRLF, CR, LF, and the Unicode separators
+const ALLOWED_LINE = new RegExp(`^\\s*(?:export\\s+)?(?:${STACK_KEYS.join('|')})\\s*[=:][^"'\`]*$`);
+const LEADING_NAME = /^\s*(?:export\s+)?([\w.-]+)\s*[=:]/;
+const refusals = [];
 for (const file of new Set([VARS, APP_VARS, ...loadedBy(dirname(VARS)), ...loadedBy(dirname(APP_VARS))].filter(existsSync))) {
-  const names = keyNames(readFileSync(file, 'utf8')), model = names.filter(name => MODEL_KEY.test(name)), unknown = names.filter(name => !STACK_KEYS.includes(name));
-  if (model.length) throw Error(`${file} binds a model, voice or subscription key (${[...new Set(model)].join(', ')}): next-steps-check runs only against the keyless stack (e2e/journey-local-stack.md)`);
-  if (unknown.length) throw Error(`${file} binds ${[...new Set(unknown)].join(', ')}, which the keyless stack does not use (it binds only ${STACK_KEYS.join(', ')}; e2e/journey-local-stack.md)`);
+  const bad = [], denied = [];
+  readFileSync(file, 'utf8').split(LINE_BREAK).forEach((line, index) => {
+    if (!line.trim() || line.trim().startsWith('#') || ALLOWED_LINE.test(line)) return;
+    bad.push(index + 1);
+    if (MODEL_KEY.test(line.match(LEADING_NAME)?.[1] ?? '')) denied.push(index + 1);
+  });
+  if (bad.length) refusals.push(`${file}: line${bad.length > 1 ? 's' : ''} ${bad.slice(0, 20).join(', ')} ${bad.length > 1 ? 'are' : 'is'} not one of the stack's allowed lines${denied.length ? ` (line${denied.length > 1 ? 's' : ''} ${denied.slice(0, 20).join(', ')} bind${denied.length > 1 ? '' : 's'} a model, voice or subscription key)` : ''}`);
 }
+const jsonc = text => { // comments and trailing commas out, string-aware (the recipe's own reader)
+  let out = '', quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (quoted) { out += c; if (c === '\\') out += text[++i]; else if (c === '"') quoted = false; continue; }
+    if (c === '"') { quoted = true; out += c; continue; }
+    if (c === '/' && text[i + 1] === '/') { while (i < text.length && text[i] !== '\n') i++; out += '\n'; continue; }
+    if (c === '/' && text[i + 1] === '*') { i += 2; while (i < text.length && !(text[i] === '*' && text[i + 1] === '/')) i++; i++; continue; }
+    out += c;
+  }
+  return out.replace(/,(\s*[}\]])/g, '$1');
+};
+for (const folder of new Set([dirname(VARS), dirname(APP_VARS)])) {
+  const file = ['wrangler.jsonc', 'wrangler.json'].map(name => join(folder, name)).find(existsSync);
+  if (!file) { refusals.push(`${folder}: no wrangler.jsonc or wrangler.json beside the vars file, so its vars cannot be checked`); continue; }
+  let config; try { config = JSON.parse(jsonc(readFileSync(file, 'utf8'))); } catch { refusals.push(`${file}: cannot be read as JSON, so its vars cannot be checked`); continue; }
+  const declared = [config.vars, ...Object.values(config.env || {}).map(env => env?.vars)].filter(Boolean).flatMap(vars => Object.entries(vars));
+  const bad = [...new Set(declared.filter(([name, value]) => CONFIG_KEY.test(name) || (/^SUBSCRIPTION_ONLY$/i.test(name) && value !== 'false')).map(([name]) => name))];
+  if (bad.length) refusals.push(`${file}: vars declare ${bad.join(', ')}, a model, voice or subscription name (SUBSCRIPTION_ONLY is allowed only as "false")`);
+}
+const inEnvironment = Object.keys(process.env).filter(name => MODEL_KEY.test(name));
+if (inEnvironment.length) refusals.push(`the environment of this run carries ${inEnvironment.join(', ')}: unset ${inEnvironment.length > 1 ? 'them' : 'it'} before running (a wrangler dev started from the same shell would bind ${inEnvironment.length > 1 ? 'them' : 'it'})`);
+if (refusals.length) throw Error(`next-steps-check runs only against the keyless stack (e2e/journey-local-stack.md); refused:\n  ${refusals.join('\n  ')}`);
 mkdirSync(OUT, { recursive: true });
 const secret = readFileSync(VARS, 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)?.[1].trim();
 if (!secret) throw Error(`no TEST_BYPASS_SECRET in ${VARS}`);
@@ -316,7 +356,9 @@ async function n6() {
 // The keyless stack's own resource errors on every page load, with or without the flag, and nothing else: the dev worker
 // refuses /auth/session (the P0-B barrier) and BYOC is not configured. Any other console error fails N7.
 const STACK_NOISE = [['/auth/session', 403], ['/api/byoc/connection', 503]];
-const LOCAL_WRITES = /^\/api\/(canvases|learn\/(boards\/|journey$|dives|tutor\/(evaluate|next-steps)$))/;
+// Owned board saves (boards/<app>/<board>, never boards/shared/..., whose ask is a model route), canvases and their dives, the
+// journey route, the evaluator and the hook planner. Everything else non-GET is aborted.
+const LOCAL_WRITES = /^\/api\/(canvases|learn\/(boards\/(?!shared\/)[^/]+\/[^/]+$|journey$|tutor\/(evaluate|next-steps)$))/;
 async function pageFor(browser, { traced = false } = {}) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
   await context.addCookies([{ name: 'small_session', value: owner.session, url: BASE }]);
@@ -640,10 +682,11 @@ async function n18() {
   check('N18 grounding', decision?.grounding_status === 'retrieval_failed' && decision.source_types_used?.join() === 'canvas',
     'grounding_status retrieval_failed, source_types_used canvas: the planner declared grounded and repository, and the failure overrode both', `grounding_status ${decision?.grounding_status}, source_types_used ${decision?.source_types_used?.join()}`);
   const numbers = ['planner_ms', 'handoff_ms', 'blocking_wait_ms', 'first_text_ms'].map(k => timing?.[k]);
-  // Fix round 3 (R2-M1): first_text_ms and blocking_wait_ms are the one answer-moment read at the end of the turn (a typed reply is
-  // both), so the wait is never below first_text_ms - exactly, on a real clock, with no tolerance - and covers the handoff.
-  check('N18 timing', Object.keys(timing || {}).join() === 'total_ms,planner_ms,first_text_ms,handoff_ms,blocking_wait_ms' && numbers.every(Number.isFinite) && timing.blocking_wait_ms >= timing.handoff_ms && timing.blocking_wait_ms >= timing.first_text_ms,
-    `planner_ms ${numbers[0]}, handoff_ms ${numbers[1]}, first_text_ms ${numbers[3]} and blocking_wait_ms ${numbers[2]} are separate numbers: the wait covers the handoff and is at least first_text_ms`, `timing ${JSON.stringify(timing)}`);
+  // Fix round 3 (R2-M1): first_text_ms and blocking_wait_ms are the one answer-moment read at the end of the turn. This turn is typed
+  // (no onSpeakable, so no spoken first sentence), where they are the same moment: equal, exactly, on a real clock. A turn with a
+  // spoken lead-in would have first_text_ms below the wait (>=). The wait also covers the handoff.
+  check('N18 timing', Object.keys(timing || {}).join() === 'total_ms,planner_ms,first_text_ms,handoff_ms,blocking_wait_ms' && numbers.every(Number.isFinite) && timing.blocking_wait_ms >= timing.handoff_ms && timing.blocking_wait_ms === timing.first_text_ms,
+    `planner_ms ${numbers[0]}, handoff_ms ${numbers[1]}, first_text_ms ${numbers[3]} and blocking_wait_ms ${numbers[2]} are separate numbers: the wait covers the handoff and, on a typed turn, equals first_text_ms`, `timing ${JSON.stringify(timing)}`);
   // A route failure is not a timeout: the handoff stage keeps status ok and carries the failure category as its result.
   const handoffStage = result.bench?.trace?.stages?.find(s => s.stage === 'handoff');
   check('N18 handoff stage', handoffStage?.status === 'ok' && handoffStage.result === 'no_repository_context', 'the handoff stage reads ok with result no_repository_context (only a timeout reads timeout)', `handoff stage ${handoffStage?.status}/${handoffStage?.result}`);
