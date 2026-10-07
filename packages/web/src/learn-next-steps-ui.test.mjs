@@ -638,8 +638,10 @@ function hookTimeouts(t) {
   const made = [], had = AbortSignal.timeout, fetched = globalThis.fetch, store = Object.getOwnPropertyDescriptor(globalThis, 'localStorage'), calls = [];
   AbortSignal.timeout = ms => { const c = new AbortController(); made.push({ ms, signal: c.signal, fire: () => c.abort(new DOMException('The operation timed out.', 'TimeoutError')) }); return c.signal; };
   Object.defineProperty(globalThis, 'localStorage', { configurable: true, writable: true, value: { getItem: () => null } });
+  // As the real fetch: an already aborted signal rejects at once and sends nothing; a GET (/api/me) has no body.
   globalThis.fetch = (url, init = {}) => new Promise((resolve, reject) => {
-    calls.push({ url, body: JSON.parse(init.body), signal: init.signal, answer: data => resolve(Response.json(data)) });
+    if (init.signal?.aborted) return reject(init.signal.reason);
+    calls.push({ url, body: init.body ? JSON.parse(init.body) : null, signal: init.signal, answer: data => resolve(Response.json(data)) });
     init.signal?.addEventListener('abort', () => reject(init.signal.reason), { once: true });
   });
   t.after(() => { AbortSignal.timeout = had; globalThis.fetch = fetched; if (store) Object.defineProperty(globalThis, 'localStorage', store); else delete globalThis.localStorage; });
@@ -696,6 +698,31 @@ test('A-M1 shared: the shared hook post carries the 60 s timeout; a timeout is f
   assert.deepEqual([shared.view().status, shared.view().set_id], ['ready', 'ns_00000002']);
   live.card = null; step(); await c.fire();
   assert.deepEqual([shared.view().status, shared.view().reason, calls.length], ['unavailable', 'failed', 2], 'the timed-out basis records failed');
+  shared.dispose();
+});
+
+// Task 14 fix-pass re-review C-R1: a signed-in viewer's post first reads /api/me; one 60 s signal covers that read and the
+// hook request, so a hung identity read also records its basis failed and lets the next basis post.
+test('C-R1 shared, signed in: a hung /api/me times out with the hook request; that basis is failed and the next basis is posted', async t => {
+  const { made, calls } = hookTimeouts(t);
+  const c = clock(), live = { token: 'tok-abc', card: null, version: 4, signedIn: true };
+  const shared = B.sharedSteps(() => live, { setTimer: c.setTimer, clearTimer: c.clearTimer });
+  const step = () => shared.update(shared.state());
+  step(); c.fire(); await settle(); // /api/me hangs
+  assert.deepEqual([calls.map(call => call.url), made.map(m => m.ms)], [['/api/me'], [60000]], 'one timeout, made before the identity read');
+  assert.equal(calls[0].signal, made[0].signal, 'the identity read carries it');
+  live.card = 'k1'; step();
+  assert.equal(c.pending(), 0, 'the next basis waits behind the request in flight');
+  made[0].fire(); await settle();
+  assert.equal(c.pending(), 1, 'the timeout released the request slot: the next basis is scheduled');
+  c.fire(); await settle();
+  assert.deepEqual(calls.map(call => call.url), ['/api/me', '/api/me'], 'the timed-out hook request was never sent; the next basis reads /api/me');
+  calls[1].answer({}); await settle();
+  assert.deepEqual([calls.length, calls[2].url, calls[2].body, calls[2].signal === calls[1].signal], [3, '/api/learn/boards/shared/tok-abc/next-steps', { origin: { block_id: 'k1' } }, true], 'the next basis is posted under its own one signal');
+  calls[2].answer(sharedSet(2)); await settle();
+  assert.deepEqual([shared.view().status, shared.view().set_id], ['ready', 'ns_00000002']);
+  live.card = null; step(); await c.fire();
+  assert.deepEqual([shared.view().status, shared.view().reason, calls.length], ['unavailable', 'failed', 3], 'the timed-out basis records failed');
   shared.dispose();
 });
 

@@ -100,17 +100,19 @@ export function useNextSteps({ tutor, journey = null, canvasApi, canvasState, re
 
 // The signed-in viewer's own { org, email } (/api/me), only to find their own tab store. Read on each request, never kept: a
 // failed read or another account signing in never sticks (requests are rare: only on a trigger change).
-const whoIsSignedIn = () => fetch('/api/me', { credentials: 'same-origin' }).then(r => (r.ok ? r.json() : null)).catch(() => null);
+const whoIsSignedIn = signal => fetch('/api/me', { credentials: 'same-origin', signal }).then(r => (r.ok ? r.json() : null)).catch(() => null);
 // The shared route (contract §1.5) by plain fetch, as SharedBoardPage calls its routes: a background call never sends an
 // anonymous viewer to sign in. viewer_states only for a signed-in viewer, from their own tab store, never anyone else's; the
-// server filters them again. A refusal throws with its status (429 is limited).
+// server filters them again. A refusal throws with its status (429 is limited). Task 14 C-R1: one 60 s signal, made before
+// the identity read, covers it and the hook request, so a hang in either records the basis failed.
 const sharedPost = read => async body => {
   const { token, signedIn } = read();
-  const who = signedIn ? await whoIsSignedIn() : null;
+  const signal = AbortSignal.timeout(HOOK_TIMEOUT_MS);
+  const who = signedIn ? await whoIsSignedIn(signal) : null;
   const states = who?.email ? viewerStates(loadStore(globalThis.sessionStorage, storeKey(who))) : {};
   const response = await fetch(`/api/learn/boards/shared/${encodeURIComponent(token)}/next-steps`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, ...(Object.keys(states).length ? { viewer_states: states } : {}) }),
-    signal: AbortSignal.timeout(HOOK_TIMEOUT_MS),
+    signal,
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw Object.assign(new Error(data.error || `HTTP ${response.status}`), { status: response.status });
