@@ -1499,7 +1499,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
 
 {
   // ── agent-ui on the project page (WP4 slice of Task 47): project scope, and the Map
-  // with one composer. Sends only in project scope (LEARN_DB): 1 LLM call (History). ──
+  // with one composer. Every ask is held, aborted or stubbed: no LLM call. ──
   const ready = apps.find((a) => a.kind === 'repository' && a.status === 'ready' && a.commit_sha);
   const barOpen = async (path) => {
     const page = await open();
@@ -1546,22 +1546,29 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  if (ready) await check('bar-page: History lists this project threads and reopens one; New chat clears the results', async () => {
+  // The window over the bar is just a window (owner, 2026-10-04, project-map-learn.md "The composers"): its label, a clear
+  // icon and minimize, no History or New chat; closed or minimized, the chat icon beside + reopens it.
+  if (ready) await check('bar-page: the answer window has its label, clear and minimize, and no History or New chat; minimized, the chat icon beside + reopens it; clear empties the conversation and closes it, leaving nothing to reopen', async () => {
     const page = await barOpen(`/apps/${ready.name}`);
     await chip(page).waitFor({ timeout: 15000 });
+    const sse = [['chunk', { text: 'model.py defines the model.' }], ['done', {}]].map(([t, d]) => `event: ${t}\ndata: ${JSON.stringify(d)}\n\n`).join('');
+    await page.route('**/api/learn/ask', (r) => r.fulfill({ status: 200, contentType: 'text/event-stream', body: sse })); // stubbed: no model call
     await barInput(page).fill('Which file defines the model?');
     await barInput(page).press('Enter');
     const sheet = page.locator('[data-result-sheet]');
-    await sheet.waitFor({ timeout: 10000 }).catch(() => { throw new Error('no sheet after the ask'); });
-    await barOf(page).getByText(/^Answering in /).waitFor({ state: 'detached', timeout: 120000 });
+    await sheet.getByText('model.py defines the model.').waitFor({ timeout: 10000 }).catch(() => { throw new Error('no answer in the window after the ask'); });
     await page.screenshot({ path: 'e2e/shots/agent-bar-sheet.png' });
-    await sheet.getByRole('button', { name: 'New chat' }).click();
-    must(await sheet.getByText('Which file defines the model?').count() === 0, 'New chat kept the results');
-    await sheet.getByRole('button', { name: 'History' }).click();
-    const row = sheet.getByRole('button', { name: /Which file defines the model\?/ }).first();
-    await row.waitFor({ timeout: 10000 }).catch(async () => { throw new Error(`no History row: ${await sheet.innerText()}`); });
-    await row.click();
-    await sheet.getByText('Which file defines the model?').first().waitFor({ timeout: 10000 }).catch(async () => { throw new Error(`thread did not reopen: ${await sheet.innerText()}`); });
+    must(await sheet.getByText(ready.repo, { exact: true }).count() === 1, 'the window does not name the project');
+    for (const name of ['History', 'New chat']) must(await sheet.getByRole('button', { name }).count() === 0, `the window offers ${name}`);
+    const minimize = sheet.getByRole('button', { name: 'Collapse results' });
+    must(await sheet.locator('[data-result-clear]').count() === 1 && await minimize.count() === 1, 'the window lacks clear or minimize');
+    await minimize.click();
+    await sheet.waitFor({ state: 'detached', timeout: 5000 });
+    await barOf(page).locator('[data-result-open]').click();
+    await sheet.getByText('Which file defines the model?').waitFor({ timeout: 5000 });
+    await sheet.locator('[data-result-clear]').click();
+    await sheet.waitFor({ state: 'detached', timeout: 5000 });
+    must(await barOf(page).locator('[data-result-open]').count() === 0, 'clear left a conversation to reopen');
     await page.context().close();
   });
 
@@ -1787,29 +1794,31 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     } finally { for (const c of [solo, owned, away].filter(Boolean)) await drop6(page, c.name); await page.context().close(); }
   });
 
-  if (ready) await check('wp6-project: bare /apps/<project> is Overview without the Map; map, code, graph and agent open Map; Learn keeps the project tabs above one composer, below the phone top strip', async () => {
+  // No Overview (owner, 2026-10-04, project-map-learn.md Layout): a project is Map or Learn. /apps/<repo>, its old aliases and
+  // an old ?tab=overview link land on the Map; only ?tab=learn opens Learn, which has no project pill, and its Map icon goes back.
+  if (ready) await check('wp6-project: bare /apps/<project> is the Map, with a Map | Learn switch and no Overview; map, code, graph, agent and an old ?tab=overview open the Map; Learn has one composer and no project tabs, its Map icon returns to the Map, and on a phone ?tab=learn opens Learn below the top strip', async () => {
     const page = await open();
     await loaded(page, `/apps/${ready.name}`);
-    await ptab(page, 'Overview').waitFor({ timeout: 20000 });
-    must(await isSelected(ptab(page, 'Overview')), 'Overview is not the default');
-    must(await page.getByRole('textbox', { name: 'Search repository' }).count() === 0 && await page.getByText(/excluded files/).count() === 0, 'Overview shows the Map');
-    for (const t of ['map', 'code', 'graph', 'agent']) {
+    await page.getByRole('textbox', { name: 'Search repository' }).waitFor({ timeout: 20000 });
+    const tabs = (await page.locator('[data-project-tabs]').getByRole('tab').allInnerTexts()).map((t) => t.trim()).join(' | ');
+    must(tabs === 'Map | Learn' && await isSelected(ptab(page, 'Map')), `bare /apps/<project> shows ${tabs}, not the Map of Map | Learn`);
+    for (const t of ['map', 'code', 'graph', 'agent', 'overview']) {
       await spa(page, `/apps/${ready.name}?tab=${t}`);
       await page.getByRole('textbox', { name: 'Search repository' }).waitFor({ timeout: 20000 });
       must(await isSelected(ptab(page, 'Map')), `?tab=${t} is not Map`);
     }
-    await ptab(page, 'Overview').click();
-    await page.waitForURL(`**/apps/${ready.name}`);
     await ptab(page, 'Learn').click();
+    await page.waitForURL(/[?]tab=learn$/);
     await page.locator('[data-chat-composer]').first().waitFor({ timeout: 30000 });
-    must(await isSelected(ptab(page, 'Learn')) && await composers(page) === 1 && await barOf(page).count() === 0, 'Learn lost the project tabs, or has two composers');
-    await ptab(page, 'Map').click();
+    must(await page.locator('[data-project-tabs]').count() === 0 && await composers(page) === 1 && await barOf(page).count() === 0, 'Learn shows project tabs, or has two composers');
+    await page.locator('[data-learn-map]').click();
     await page.waitForURL(/[?]tab=map$/);
     await page.context().close();
     const phone = await open({ width: 390, height: 844 });
     await loaded(phone, `/apps/${ready.name}?tab=learn`);
     await phone.locator('[data-chat-composer]').first().waitFor({ timeout: 30000 });
-    must((await phone.locator('[data-project-tabs]').boundingBox()).y >= 40, 'the project tabs sit under the phone top strip');
+    must(await phone.locator('[data-project-tabs]').count() === 0, '?tab=learn did not open Learn');
+    must((await phone.locator('[data-learn-map]').boundingBox()).y >= 40, 'Learn starts under the phone top strip');
     await phone.context().close();
   });
 
@@ -1896,37 +1905,28 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  if (ready) await check('wp6-overview: identity and GitHub source; Continue learning from this browser; learning canvases with one not in this browser; recent activity; no Map or operational clutter; a canvas opens in the project frame; nothing written', async () => {
+  // No Overview (owner, 2026-10-04, project-map-learn.md Layout): an old ?tab=overview link lands on the Map, which names the
+  // repository and keeps its details behind one info icon. Overview's Continue learning, canvas list and recent activity went
+  // with it; the project's canvases are Learn's picker (wp6-learn).
+  if (ready) await check('wp6-overview: an old ?tab=overview link lands on the Map, which names the repository; its GitHub source, branch, commit and status sit behind one info icon, with no operational clutter at rest; nothing written', async () => {
     const page = await open();
     await noAsks(page);
-    await loaded(page, `/apps/${ready.name}`);
-    const here = await canvas6(page, { title: 'wp6 overview here', project: ready.name });
-    const away = await canvas6(page, { title: 'wp6 overview away', project: ready.name, device_id: 'rabbit-hole-check-device' });
-    try {
-      const key = canvasKeys({ org: ready.org, email, slug: ready.name });
-      await page.evaluate(([chat, ink]) => { // as sh-home seeds it
-        localStorage.setItem(chat, JSON.stringify([{ id: '1', question: 'why sqrt(dk)?' }]));
-        localStorage.setItem(ink, JSON.stringify({ strokes: [], shapes: [], items: [], links: [], blocks: [
-          { id: 'a', type: 'heading', level: 1, text: 'Tokens', done: true }, { id: 'b', type: 'heading', level: 1, text: 'Masked self-attention' }] }));
-      }, [key.chat, key.ink]);
-      await page.route('**/api/repositories/*/threads', (r) => r.fulfill({ json: { threads: [{ id: 't1', title: 'Where should I start reading?', created_at: '2026-09-28 10:00:00' }] } }));
-      await page.reload();
-      const writes = writes6(page);
-      const cont = page.getByRole('region', { name: 'Continue learning' });
-      await cont.getByText('Last explored: why sqrt(dk)?').waitFor({ timeout: 20000 });
-      await cont.getByText('Next: Masked self-attention').waitFor();
-      const list = page.getByRole('region', { name: 'Learning canvases' });
-      for (const t of ['Project canvas', 'wp6 overview here', 'wp6 overview away']) await list.getByText(t, { exact: true }).waitFor();
-      const text = await list.innerText();
-      must(text.includes('Not in this browser') && !/device/i.test(text), `canvas copy: ${text}`);
-      await page.getByRole('region', { name: 'Recent activity' }).getByText('You asked: Where should I start reading?').waitFor();
-      must(await page.locator('a[data-source-link]').getAttribute('href') === `https://github.com/${ready.repo}`, 'no GitHub source link');
-      must(await page.getByRole('textbox', { name: 'Search repository' }).count() === 0, 'the Map search on Overview');
-      for (const clutter of ['Refresh branch', 'Last run', 'excluded files']) must(await page.locator('main').getByText(clutter).count() === 0, `${clutter} on Overview`);
-      must(!writes.length, `Overview wrote: ${writes.join(', ')}`);
-      await list.getByRole('button', { name: 'wp6 overview here' }).click();
-      await page.waitForURL(new RegExp(`[?]tab=learn&canvas=${here.name}$`));
-    } finally { await drop6(page, here.name); await drop6(page, away.name); await page.context().close(); }
+    const writes = writes6(page);
+    await loaded(page, `/apps/${ready.name}?tab=overview`);
+    await page.getByRole('textbox', { name: 'Search repository' }).waitFor({ timeout: 20000 });
+    must(await isSelected(ptab(page, 'Map')), '?tab=overview is not the Map');
+    await page.getByRole('heading', { level: 1, name: ready.repo, exact: true }).waitFor({ timeout: 10000 });
+    for (const clutter of ['Refresh branch', 'Last run']) must(await page.locator('main').getByText(clutter).count() === 0, `${clutter} on the Map at rest`);
+    must(await page.locator('[data-repo-details]').count() === 0, 'the repository details show before the info icon');
+    await page.locator('[data-repo-info]').click();
+    const details = page.locator('[data-repo-details]');
+    await details.waitFor({ timeout: 5000 });
+    must(await details.locator('a[data-source-link]').getAttribute('href') === `https://github.com/${ready.repo}`, 'no GitHub source link');
+    const text = await details.innerText();
+    for (const want of [ready.branch, `Commit ${ready.commit_sha.slice(0, 7)}`, `Status: ${ready.status}`]) must(text.includes(want), `the details lack ${want}: ${text}`);
+    await page.keyboard.press('Escape');
+    must(!writes.length, `the Map wrote: ${writes.join(', ')}`);
+    await page.context().close();
   });
 
   if (job) await check('wp6-app-ops: a job shows its last run with status, runtime and an Outputs link to that run (or Never run); a server shows neither', async () => {
