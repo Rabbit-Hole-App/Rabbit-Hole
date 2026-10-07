@@ -168,6 +168,8 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     runMaterials(result.actions, {
       app: app.name, openSearch: () => {}, offer,
       // What could not be made says so (an error, a clarification, an unsupported command); a made card is its own notice.
+      // ponytail: a slow command's notice can land after the next turn began, under that reply (informative, accepted for
+      // v1); tag notices with their turn id and drop stale ones if that ever confuses.
       onNotice: notice => { if (notice.tone !== 'done') put({ notices: [...desk.notices, notice] }); },
       canvas: { insertNotebook: () => canvasApi.current?.insertNotebook(), insertBlock: (b, o) => canvasApi.current?.insertBlock(b, o), reserve: s => canvasApi.current?.reserve(s), release: id => canvasApi.current?.release(id) },
       post: (path, body, options) => api(path, { ...options, method: 'POST', body: JSON.stringify({ ...body, ...(access.pending ? { pending: access.pending } : {}) }) }),

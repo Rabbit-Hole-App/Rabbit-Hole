@@ -283,18 +283,23 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now 
         Promise.resolve(stt.resume()).catch(() => sttFailed('resume'));
         set('listening');
         emit('voice_listening_resumed', { after: 'hold' });
+        // A hook click that waited for the clip (or arrived while Voice was starting) runs now, once.
+        if (pendingSay?.options.nextStep) { const { text, options } = pendingSay; pendingSay = null; commit(text, options); }
       };
     },
     get starting() { return starting; },
     // A Tutor turn Voice Mode runs without the learner speaking - a Rabbit Hole's opening, or a hook click with no words
     // (options.nextStep) (ask.jsx): spoken and captioned like any voice reply, never a chat bubble. Waits for listening if
     // Voice Mode is still starting; false when Voice Mode is off or busy (never a second turn while one runs), so the caller
-    // can fall back to the typed path.
+    // can fall back to the typed path. A hook click is never sent down the typed path while Voice is on: speaking, it takes
+    // the floor like a barge-in; held by a clip, it waits for the hold to end (the newest click); false only off or thinking.
     say(text, options = {}) {
       const words = String(text || '').trim();
       if (!words && !options.nextStep) return false;
       if (state === 'listening' && !current) { commit(words, options); return true; }
       if (starting) { pendingSay = { text: words, options }; return true; }
+      if (options.nextStep && state === 'speaking' && current) { interrupt(); commit(words, options); return true; }
+      if (options.nextStep && state === 'held') { pendingSay = { text: words, options }; return true; }
       return false;
     },
     subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },

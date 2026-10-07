@@ -699,3 +699,75 @@ test('say with a next step while Voice Mode is still starting waits for listenin
   assert.deepEqual(tutor.calls.map(c => c.nextStep), [STEP]);
   r.session.exit();
 });
+
+// Task 9 review round 2 (coordinator ruling): while Voice is on a hook click is never sent down the typed path. Speaking:
+// it takes the floor like a barge-in. Held by a clip: it waits for the hold to end, then runs once. Thinking: refused.
+const CLICK = { suggestion_id: 'ns_0a0b0c0d.3', hook: 'What if the basin had no outlet at all?', learning_goal: 'Explain why a closed basin has no tidal flow' };
+test('a hook click while the Tutor speaks interrupts it like a barge-in, then the click turn runs and is spoken; one turn at a time', async () => {
+  const tutor = scriptedTutor('The tide rises twice a day because the moon pulls the water.', 'A closed basin never fills or drains.');
+  const r = rig(tutor, { ttsMs: 10000 });
+  await r.session.enter();
+  r.stt.say('why are there two tides');
+  await until(r.session, 'speaking');
+  r.ttsOptions.ms = 5;
+  assert.equal(r.session.say('', { nextStep: CLICK }), true);
+  assert.equal(r.session.state, 'thinking', 'the click turn has the floor');
+  assert.equal(r.session.say('', { nextStep: CLICK }), false, 'thinking: a second click is refused');
+  assert.ok(r.names().includes('voice_interrupted') && r.calls.includes('tts.stop'), 'the old audio stopped');
+  await until(r.session, 'speaking');
+  await until(r.session, 'listening');
+  assert.equal(tutor.calls.length, 2);
+  assert.deepEqual([tutor.calls[0].aborted(), tutor.calls[1].nextStep, tutor.calls[1].raw], [true, CLICK, '']);
+  assert.equal(r.session.caption.current, 'A closed basin never fills or drains.');
+  r.session.exit();
+});
+
+test('a hook click while a clip holds Voice waits for the hold to end, then runs exactly once', async () => {
+  const tutor = scriptedTutor('A closed basin never fills or drains.');
+  const r = rig(tutor, { ttsMs: 5 });
+  await r.session.enter();
+  const release = r.session.hold();
+  assert.equal(r.session.state, 'held');
+  assert.equal(r.session.say('', { nextStep: CLICK }), true, 'queued');
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.equal(tutor.calls.length, 0, 'never while the clip plays');
+  release();
+  await until(r.session, 'speaking');
+  await until(r.session, 'listening');
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.deepEqual(tutor.calls.map(c => c.nextStep), [CLICK]);
+  r.session.exit();
+});
+
+test('a hook click queued while Voice starts survives a hold that arrives before listening, and runs once the hold ends', async () => {
+  const tutor = scriptedTutor('Here it is.');
+  const r = rig(tutor, { ttsMs: 5 });
+  const entering = r.session.enter();
+  assert.equal(r.session.say('', { nextStep: CLICK }), true);
+  const release = r.session.hold();
+  await entering;
+  assert.equal(r.session.state, 'held');
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.equal(tutor.calls.length, 0);
+  release();
+  await until(r.session, 'listening');
+  await new Promise(resolve => setTimeout(resolve, 30));
+  assert.deepEqual(tutor.calls.map(c => c.nextStep), [CLICK]);
+  r.session.exit();
+});
+
+test('a hook click is refused while the Tutor thinks, and when Voice is off or has been turned off', async () => {
+  let answer;
+  const tutor = scriptedTutor(args => new Promise(resolve => { answer = () => resolve({ speech: 'Done.', turnId: args.turnId, ms: MS }); }));
+  const r = rig(tutor, { ttsMs: 5 });
+  assert.equal(r.session.say('', { nextStep: CLICK }), false, 'off');
+  await r.session.enter();
+  r.stt.say('a question');
+  await until(r.session, 'thinking');
+  assert.equal(r.session.say('', { nextStep: CLICK }), false, 'thinking');
+  answer();
+  await until(r.session, 'listening');
+  assert.equal(tutor.calls.length, 1);
+  r.session.exit();
+  assert.equal(r.session.say('', { nextStep: CLICK }), false, 'turned off');
+});
