@@ -1,5 +1,6 @@
 // Start Rabbit Hole from a shared canvas (docs/features/shared-canvas-rabbit-hole.md), the owner's fourteen cases, against
-// the LOCAL stack only: it writes to local D1 and fresh browser profiles. No model is called. Two unrelated shared
+// the LOCAL stack only: it writes to local D1 and fresh browser profiles. No model is called: the Tutor's planner request is
+// answered in the browser, and the stack's provider tripwire (e2e/provider-tripwire.js) must count no provider request. Two unrelated shared
 // canvases prove the behaviour is generic: a root start on one, a selected-card start on the other (a different card
 // type), through the same code.
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/shared-rabbit-hole-check.mjs [shotsDir]
@@ -42,11 +43,22 @@ const ownerThreads = async source => ((await api(owner, `/api/ask/threads?scope=
 const ownerCanvases = async () => JSON.stringify((await api(owner, '/api/canvases')).body.canvases.map(({ updated_at, ...canvas }) => canvas));
 const before = { kitchen: await ownerBoard(kitchen), bridges: await ownerBoard(bridges), threads: await ownerThreads(kitchen), canvases: await ownerCanvases() };
 
+// The proof that nothing reached a model provider: a missing API key is not isolation (a keyless worker still calls the
+// provider, unauthenticated), so the stack must run behind the provider tripwire, and this check reads its count.
+const providerCalls = async () => {
+  const response = await fetch(`${BASE}/__provider-tripwire`);
+  if (!response.ok || !(response.headers.get('content-type') || '').includes('json')) throw Error('the stack runs without the provider tripwire: start its workers through e2e/tripwire-*-worker.js (e2e/provider-tripwire.js)');
+  return (await response.json()).hits;
+};
+const providerBefore = (await providerCalls()).length;
+const plans = [];
 const browser = await chromium.launch();
 const errors = [];
 const contextFor = async who => {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   if (who) await context.addCookies([{ name: 'small_session', value: who.session, url: BASE }]);
+  // A new hole's opening question is a Tutor turn; its plan is answered here, as next-steps-check and journey-check do.
+  await context.route('**/api/learn/tutor/plan', route => { plans.push(route.request().url()); return route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', actions: [{ type: 'respond_text', text: 'What would you like to explore first?' }] } }); });
   const page = await context.newPage();
   page.on('pageerror', error => errors.push(error.message));
   return { context, page };
@@ -232,6 +244,11 @@ await check('2 Fork is unchanged: a copy in the viewer\'s Library, counted on th
   assert.notEqual(new URL(page.url()).pathname, `/apps/${cardHole}`, 'the fork is its own canvas, not the hole');
 });
 
+await check('no request reached a model provider: the provider tripwire counted none during this check', async () => {
+  const during = (await providerCalls()).slice(providerBefore);
+  console.log(`tutor plans answered in the browser: ${plans.length}; provider requests: ${during.length}`);
+  assert.deepEqual(during, []);
+});
 await check('no page errors', async () => assert.deepEqual(errors, []));
 console.log(`${results.length}/${results.length} checks passed`);
 await browser.close();
