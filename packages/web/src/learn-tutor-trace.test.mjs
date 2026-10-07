@@ -86,6 +86,9 @@ test('tutor_decision: exactly the contract keys, the chosen action from the cont
   const r = await turn({ domain: journeyDomain({ journey: J, path: PATH, blocks }), trace: { identity: { user_id: 'u-7', canvas_version: 12 }, blocks } }), e = r.trace;
   assert.deepEqual(Object.keys(e), KEYS);
   assert.deepEqual([Object.keys(e.identity), Object.keys(e.versions), Object.keys(e.decision), Object.keys(e.runtime)], [IDENTITY, VERSIONS, DECISION, RUNTIME]);
+  // Coordinator ruling (Task 14): v1 is the key set at the integration checkpoint - decision 30 keys with offered_actions,
+  // runtime.handoff 9 with prompt_version (learn-tutor-handoff.test.mjs); any later key change bumps trace_schema_version.
+  assert.deepEqual([KEYS.length, IDENTITY.length, VERSIONS.length, DECISION.length, RUNTIME.length, e.trace_schema_version], [10, 11, 4, 30, 6, 1]);
   assert.deepEqual(Object.keys(e.decision.evidence_summary), EVIDENCE);
   assert.equal(e.runtime.planner_input, null, 'trim counts belong to hook recomputes only');
   assert.deepEqual(e.decision.actions.map(a => Object.keys(a)), [ACTION, ACTION]);
