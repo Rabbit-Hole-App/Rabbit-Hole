@@ -41,6 +41,9 @@ export default function SharedBoardPage({ token }) {
   // The selected card (a click on a view-only board selects it): where Start Rabbit Hole begins.
   const [card, setCard] = useState(null);
   const onCanvasState = useCallback(state => setCard(state.card || null), []);
+  // The card right-click menu starts the same flow from the card it was opened on (owner, 2026-10-07).
+  const rabbitStart = useRef(null);
+  const startFromCard = useCallback(cardId => rabbitStart.current?.(cardId), []);
 
   // The board's files and notebook workspaces come through the same link;
   // notebooks open as the board's latest copy, in a workspace of their own.
@@ -93,12 +96,12 @@ export default function SharedBoardPage({ token }) {
         {shared.creator && <span data-shared-creator className="truncate text-xs text-ink-3">{shared.published ? 'Published by' : 'Shared by'} {shared.published
           ? <a data-creator-link href={`/@${shared.creator.handle}`} className="rounded-sm text-ink-2 hover:text-ink hover:underline">{creatorLabel(shared.creator)}</a> : creatorLabel(shared.creator)}</span>}
         <span className="flex-1" />
-        <StartRabbitHole token={token} state={shared.state} card={card} resume={rabbitRequested} />
+        <StartRabbitHole token={token} state={shared.state} card={card} resume={rabbitRequested} startRef={rabbitStart} />
         <ForkButton source={{ token }} auto={forkRequested} onForked={fork => { window.location.href = fork.url; }} count={shared.fork_count} />
       </header>
       <div className="relative min-h-0 flex-1" aria-label="Lesson canvas">
         <Suspense fallback={null}>
-          <AdaptiveCanvas exchanges={exchanges} onMove={() => {}} appName={shared.app} boardState={board} readOnly onState={onCanvasState}
+          <AdaptiveCanvas exchanges={exchanges} onMove={() => {}} appName={shared.app} boardState={board} readOnly onState={onCanvasState} onStartRabbitHole={startFromCard}
             composer={<SharedAsk token={token} viewer={shared.viewer} context={shared.context} draft={askDraft} />} />
         </Suspense>
       </div>
@@ -109,7 +112,7 @@ export default function SharedBoardPage({ token }) {
 // Start Rabbit Hole (docs/features/shared-canvas-rabbit-hole.md): the viewer's own private Rabbit Hole from this
 // canvas - from the selected card, else from the canvas itself. Never a fork and never a change to this board; Fork
 // stays beside it. Signed out, it goes through the existing sign-in and finishes on return (`resume`).
-function StartRabbitHole({ token, state, card, resume }) {
+function StartRabbitHole({ token, state, card, resume, startRef }) {
   const [busy, setBusy] = useState(false);
   const flight = useRef(false);
   const run = async cardId => {
@@ -125,6 +128,7 @@ function StartRabbitHole({ token, state, card, resume }) {
     }
   };
   useEffect(() => { if (resume !== undefined) run(resume); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  if (startRef) startRef.current = run; // the card menu's way in: the same run, the same one-start guard
   return (
     <Button type="button" variant="primary" data-start-rabbit-hole data-origin={card?.id || 'root'} aria-busy={busy} onClick={() => run(card?.id || null)}
       title={card ? `Start your own private Rabbit Hole from "${card.title}". This canvas stays as it is.` : 'Start your own private Rabbit Hole from this canvas. This canvas stays as it is.'}>

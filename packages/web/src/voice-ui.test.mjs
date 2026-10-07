@@ -116,7 +116,7 @@ test('VOICE-08: a small lower-left window shows only the reply being spoken now,
   assert.ok(html.includes('aria-expanded="true" aria-label="Hide the Tutor caption"'));
   assert.ok(mode.includes('if (!open) return <aside aria-label="Tutor caption" data-tutor-caption className={`${place} rounded-lg border border-line bg-white shadow-pop`}>{toggle}</aside>;'));
   // The anchor is a zero-width slot right before the surface; the tools gutter docks order-first, left of it.
-  assert.ok(canvas.includes('gutterTop = null, leftRail = null }) {'));
+  assert.ok(canvas.includes('gutterTop = null, leftRail = null, onStartRabbitHole = null }) {'));
   assert.match(canvas, /\{leftRail && presenting === null && <div data-voice-rail className="relative z-20 w-0 shrink-0 @max-\[640px\]:w-full"\n\s+onDragOver=\{event => event\.preventDefault\(\)\} onDrop=\{event => event\.preventDefault\(\)\}>\{leftRail\}<\/div>\}\n\s+<div ref=\{surface\} data-canvas-surface/);
   assert.match(canvas, /data-tool-gutter[\s\S]*?toolSide === 'left' \? `order-first /);
   // While voice is on, tutor.extras live in the caption, not the chat sheet.
