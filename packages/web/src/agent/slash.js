@@ -18,8 +18,10 @@ export const SLASH = [
   // The four modes: global intents whose meaning adapts to the place.
   { name: 'ask', group: 'mode', places: ALL, desc: { home: 'Ask about this workspace', project: 'Ask about this project', learn: 'Explain what you are looking at' } },
   { name: 'teach', group: 'mode', places: ALL, desc: { home: 'Start or extend learning', project: 'Learn this in a canvas', learn: 'Continue teaching' } },
-  { name: 'research', group: 'mode', places: ALL, desc: { home: 'Find sources', project: 'Find sources', learn: 'Find supporting sources' } },
-  { name: 'do', group: 'mode', places: ALL, desc: { home: 'Take an action', project: 'Take an action', learn: 'Act on the canvas' } },
+  // /research and /do are Home, Library and Project workflows, never Canvas commands (owner, 2026-10-06): the Canvas
+  // composer does not offer them; their own entry points stay.
+  { name: 'research', group: 'mode', places: WORKSPACE, desc: { home: 'Find sources', project: 'Find sources' } },
+  { name: 'do', group: 'mode', places: WORKSPACE, desc: { home: 'Take an action', project: 'Take an action' } },
   // Home, Library and Project shortcuts: each routes as its sentence (router.js rule 1b).
   { name: 'find', group: 'shortcut', places: WORKSPACE, desc: 'Search your library' },
   { name: 'open', group: 'shortcut', places: WORKSPACE, desc: 'Go to a resource' },
@@ -62,9 +64,9 @@ export const SLASH = [
 ];
 
 // The Learn picker's primary menu, in order. Every other Learn command is reached through /more or by
-// name; /ask, /teach and /do stay available but uncrowded.
+// name; /ask and /teach stay available but uncrowded.
 export const LEARN_MENU = {
-  learn: ['deeper', 'dive', 'simplify', 'example', 'practice', 'quiz', 'compare', 'research'],
+  learn: ['deeper', 'dive', 'simplify', 'example', 'practice', 'quiz', 'compare'],
   create: ['explain', 'code', 'graph', 'diagram', 'animate', 'flashcards', 'notebook', 'more'],
 };
 

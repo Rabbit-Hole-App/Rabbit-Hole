@@ -14,7 +14,7 @@ const harness = reply => {
 test('/ opens the grouped picker: LEARN, then CREATE, in the contract order', () => {
   const sections = pickerSections('/');
   assert.deepEqual(sections.map(section => section.title), ['Learn', 'Create', 'More learning tools']);
-  assert.deepEqual(sections[0].items.map(item => item.name), ['deeper', 'dive', 'simplify', 'example', 'practice', 'quiz', 'compare', 'research']);
+  assert.deepEqual(sections[0].items.map(item => item.name), ['deeper', 'dive', 'simplify', 'example', 'practice', 'quiz', 'compare']);
   // /more is how to reach the rest, not a tool: it is the collapsible section, never a row.
   assert.deepEqual(sections[1].items.map(item => item.name), ['explain', 'code', 'graph', 'diagram', 'animate', 'flashcards', 'notebook']);
   assert.equal(sections[2].collapsible, true);
