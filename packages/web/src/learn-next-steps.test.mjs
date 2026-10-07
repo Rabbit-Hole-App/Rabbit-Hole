@@ -490,7 +490,7 @@ test('no runtime branch on a course, topic, fixture id or card title in the modu
 });
 
 // nextStepsController (contract §1.2, §1.3, §2.3; owner section 10): the browser recompute policy, with fake timers.
-function clock() { const timers = []; return { setTimer: (fn, ms) => { timers.push({ fn, ms }); return timers.length; }, clearTimer: id => { if (timers[id - 1]) timers[id - 1].fn = null; }, fire: async () => { const t = timers.filter(x => x.fn).at(-1); const fn = t?.fn; if (t) t.fn = null; await fn?.(); await new Promise(r => setImmediate(r)); }, pending: () => timers.filter(x => x.fn).length, last: () => timers.at(-1)?.ms }; }
+function clock() { const timers = []; return { setTimer: (fn, ms) => { timers.push({ fn, ms }); return timers.length; }, clearTimer: id => { if (timers[id - 1]) timers[id - 1].fn = null; }, fire: async () => { const t = timers.filter(x => x.fn).at(-1); const fn = t?.fn; if (t) t.fn = null; await fn?.(); await new Promise(r => setImmediate(r)); }, pending: () => timers.filter(x => x.fn).length, last: () => timers.at(-1)?.ms, count: () => timers.length }; }
 const setFor = (n = 1) => ({ set_id: `ns_0000000${n}`, generated_at: 'g', options: [1, 2, 3].map(i => ({ id: `ns_0000000${n}.${i}`, hook: `Hook ${n}.${i} about rivers?`, selected_next_step: { v: 1, suggestion_id: `ns_0000000${n}.${i}`, learning_goal: `goal ${n}.${i}` } })) });
 const TRIM = { before: { block_count: 9, claim_count: 14 }, after: { block_count: 6, claim_count: 12 }, trimmed: { block_count: 3, claim_count: 2 }, current_section_claims_kept: true, repair_claims_kept: null };
 // The input builder has the nextStepsInput shape: { input, trim } or { problem }.
@@ -588,6 +588,8 @@ test('input_too_large: unavailable failed and nothing posted; trim counts reach 
   assert.deepEqual([ctl.view().status, bodies.length], ['ready', 1]);
   assert.deepEqual(landed, [{ body: { previous: { hooks: [], goals: [] } }, trim: TRIM }]);
   assert.equal('trim' in bodies[0], false);
+  ctl.update({ basis: 'a', stop: null, input });
+  assert.deepEqual([ctl.view().status, ctl.view().reason, c.pending(), bodies.length], ['unavailable', 'failed', 0, 1], 'back to the failed build: shown again, never rebuilt');
 });
 
 // Owner: telemetry never fails or changes a recompute - errors are swallowed and counted like the trace sink errors.
@@ -621,4 +623,93 @@ test('a planner failure shows nothing (failed); no timers after dispose', async 
   assert.deepEqual([ctl.view().status, ctl.view().reason, ctl.view().options], ['unavailable', 'failed', []]);
   ctl.dispose(); ctl.update({ basis: 'z', stop: null, input });
   assert.equal(c.pending(), 0);
+});
+
+// Fix round 1: one outcome per basis, so returning to a basis already asked shows its outcome and never sticks.
+test('P1: a reply discarded while its basis was left is shown, with onSet and its hooks, when that basis returns', async () => {
+  let release; const slow = new Promise(r => { release = r; });
+  const { c, ctl, bodies, sets } = rig([slow]);
+  ctl.update({ basis: 'a', stop: null, input });
+  const first = c.fire();
+  ctl.update({ basis: 'b', stop: null, input });
+  release(setFor(1)); await first;
+  assert.deepEqual([ctl.view().status, sets, ctl.previous().hooks, c.pending()], ['loading', [], [], 1], 'stored, not shown');
+  ctl.update({ basis: 'a', stop: null, input });
+  assert.deepEqual([ctl.view().status, ctl.view().set_id, sets, c.pending(), bodies.length], ['ready', 'ns_00000001', ['ns_00000001'], 0, 1]);
+  assert.deepEqual(ctl.previous().hooks, setFor(1).options.map(o => o.hook));
+});
+
+test('P2: back to a ready basis while another flies, then forward again: each shows its own set, never stuck stale', async () => {
+  let release; const slow = new Promise(r => { release = r; });
+  const { c, ctl, bodies, sets } = rig([setFor(1), slow]);
+  ctl.update({ basis: 'a', stop: null, input }); await c.fire();
+  ctl.update({ basis: 'b', stop: null, input });
+  const second = c.fire();
+  ctl.update({ basis: 'a', stop: null, input });
+  assert.deepEqual([ctl.view().status, ctl.view().set_id, ctl.select('ns_00000001.1').ok], ['ready', 'ns_00000001', true]);
+  release(setFor(2)); await second;
+  assert.deepEqual([ctl.view().set_id, sets, c.pending()], ['ns_00000001', ['ns_00000001'], 0]);
+  ctl.update({ basis: 'b', stop: null, input });
+  assert.deepEqual([ctl.view().status, ctl.view().set_id, sets, c.pending(), bodies.length], ['ready', 'ns_00000002', ['ns_00000001', 'ns_00000002'], 0, 2]);
+});
+
+test('P3: a limited basis stays limited when it returns and is never asked again; the next change asks', async () => {
+  const { c, ctl, bodies } = rig([Object.assign(new Error('limited'), { status: 429 }), setFor(2)]);
+  ctl.update({ basis: 'a', stop: null, input }); await c.fire();
+  ctl.update({ basis: 'b', stop: null, input });
+  ctl.update({ basis: 'a', stop: null, input });
+  assert.deepEqual([ctl.view().status, ctl.view().reason, c.pending(), bodies.length], ['unavailable', 'limited', 0, 1]);
+  ctl.update({ basis: 'b', stop: null, input }); await c.fire();
+  assert.deepEqual([ctl.view().status, bodies.length], ['ready', 2]);
+});
+
+test('an identical update keeps the debounce running and only refreshes the input builder', async () => {
+  const { c, ctl, bodies } = rig([setFor(1)]);
+  ctl.update({ basis: 'a', stop: null, input });
+  ctl.update({ basis: 'a', stop: null, input: previous => ({ input: { previous, fresh: true }, trim: TRIM }) });
+  assert.equal(c.count(), 1, 'one timer, not restarted');
+  await c.fire();
+  assert.equal(bodies[0].fresh, true);
+});
+
+test('a malformed 2xx reply is failed, never ready', async () => {
+  for (const reply of [null, { ...setFor(1), options: setFor(1).options.slice(0, 2) }, { set_id: 'ns_00000001', generated_at: 'g' }]) {
+    const { c, ctl } = rig([reply]);
+    ctl.update({ basis: 'a', stop: null, input }); await c.fire();
+    assert.deepEqual([ctl.view().status, ctl.view().reason], ['unavailable', 'failed']);
+  }
+});
+
+test('select during any stop is busy, not stale: a tray or setup owns the choices', async () => {
+  const { c, ctl } = rig([setFor(1)]);
+  ctl.update({ basis: 'a', stop: null, input }); await c.fire();
+  ctl.update({ basis: 'a', stop: 'not_now', input });
+  assert.deepEqual(ctl.select('ns_00000001.1'), { ok: false, reason: 'busy' });
+  ctl.update({ basis: 'a', stop: 'off', input });
+  assert.deepEqual(ctl.select('ns_00000001.1'), { ok: false, reason: 'busy' });
+  ctl.update({ basis: 'a', stop: null, input });
+  assert.equal(ctl.select('ns_00000001.1').ok, true);
+});
+
+test('after a discarded reply the debounce runs from the last change, not from the reply', async () => {
+  let release, t = 0; const slow = new Promise(r => { release = r; });
+  const { c, ctl } = rig([slow, setFor(2)], { now: () => t });
+  ctl.update({ basis: 'a', stop: null, input });
+  const first = c.fire();
+  t = 500; ctl.update({ basis: 'b', stop: null, input });
+  t = 1500; release(setFor(1)); await first;
+  assert.equal(c.last(), 200, '1200 ms after the change at 500');
+  t = 1700; await c.fire();
+  assert.equal(ctl.view().set_id, 'ns_00000002');
+});
+
+test('a reply after dispose does nothing: no onSet, no notify, no timer', async () => {
+  let release; const slow = new Promise(r => { release = r; });
+  const { c, ctl, sets } = rig([slow]), heard = [];
+  ctl.update({ basis: 'a', stop: null, input });
+  ctl.subscribe(() => heard.push(ctl.view().status));
+  const first = c.fire();
+  ctl.dispose();
+  release(setFor(1)); await first;
+  assert.deepEqual([sets, heard, c.pending()], [[], [], 0]);
 });

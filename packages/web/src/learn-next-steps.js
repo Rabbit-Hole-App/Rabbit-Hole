@@ -176,59 +176,82 @@ export function stoppingPoint({ busy = false, journey = null, store = null, here
 }
 
 // The recompute policy (contract §2.3, owner section 10), pure and testable with fake timers like journeyController: a debounce
-// after the last basis change (an implementation default), one request in flight, a reply for an old basis discarded (then the
-// current basis is asked), never two requests for one basis, nothing while stopped (a Tutor turn waits until it ends), and a
-// per-tab safety ceiling, not a target: the server limits stay authoritative (a 429 is limited until the basis changes).
+// after the last change (an implementation default), one request in flight, never two requests for one basis, nothing while
+// stopped (a Tutor turn waits until it ends), and a per-tab safety ceiling, not a target: the server limits stay authoritative.
+// Each basis keeps its one outcome ({ set } or { failed: 'failed' | 'limited' }), so returning to a basis shows its outcome
+// again: a reply that landed after its basis was left is shown, with onSet and its hooks, only when that basis returns.
 // input(previous) has nextStepsInput's shape: { input, trim } posts input and hands trim to onSet beside it, never inside it;
 // { problem } is failed and posts nothing. Hooks are kept as opaque strings for previous, never read. A throwing onSet or
 // subscriber is swallowed and counted like a trace sink error.
-export function nextStepsController({ post, onSet = () => {}, setTimer = setTimeout, clearTimer = clearTimeout, debounce = L.debounce_ms, cap = L.tab_cap }) {
-  let basis = null, stop = 'off', build = null, set = null, failed = null, timer = null, flying = false, requests = 0, disposed = false;
-  const asked = new Set(), listeners = new Set(), previous = { hooks: [], goals: [] };
+// cap here is the tab ceiling: it shadows the capText import (also cap), which this function must not call.
+export function nextStepsController({ post, onSet = () => {}, setTimer = setTimeout, clearTimer = clearTimeout, now = Date.now, debounce = L.debounce_ms, cap = L.tab_cap }) {
+  let basis = null, stop = 'off', build = null, shown = null, timer = null, flying = null, requests = 0, changedAt = 0, disposed = false;
+  const outcomes = new Map(), listeners = new Set(), previous = { hooks: [], goals: [] };
   // Ruling F3: the builder and callers get copies, never the live record.
   const copy = () => ({ hooks: [...previous.hooks], goals: [...previous.goals] });
   const empty = { set_id: null, generated_at: null, options: [] };
-  const view = () => (stop ? { status: 'unavailable', reason: stop, ...empty }
-    : set && set.basis === basis ? { status: 'ready', reason: null, set_id: set.set_id, generated_at: set.generated_at, options: set.options }
-    : failed ? { status: 'unavailable', reason: failed, ...empty }
-    : set ? { status: 'stale', reason: null, set_id: set.set_id, generated_at: set.generated_at, options: set.options }
-    : { status: 'loading', reason: null, ...empty });
-  let shown = JSON.stringify(view());
-  const changed = () => { const now = JSON.stringify(view()); if (now !== shown) { shown = now; listeners.forEach(fn => safely(fn)); } };
-  const schedule = () => {
+  const unavailable = reason => ({ status: 'unavailable', reason, ...empty });
+  const showing = (status, s) => ({ status, reason: null, set_id: s.set_id, generated_at: s.generated_at, options: s.options });
+  // The current basis first; else limited once the ceiling leaves it unasked; else the last shown set, stale; else loading.
+  const view = () => {
+    const entry = outcomes.get(basis);
+    return stop ? unavailable(stop) : entry?.set ? showing('ready', entry.set) : entry ? unavailable(entry.failed)
+      : requests >= cap && flying !== basis ? unavailable('limited') : shown ? showing('stale', shown) : { status: 'loading', reason: null, ...empty };
+  };
+  let told = JSON.stringify(view());
+  // A set is shown the first time it is ready: then it becomes the stale fallback, its hooks join previous and onSet runs.
+  const sync = () => {
+    const entry = outcomes.get(basis);
+    if (!stop && entry?.set && !entry.shown) {
+      entry.shown = true; shown = entry.set;
+      previous.hooks = [...previous.hooks, ...entry.set.options.map(o => o.hook)].slice(-L.previous_hooks);
+      safely(() => onSet(entry.set, entry.input, entry.trim));
+    }
+    const text = JSON.stringify(view());
+    if (text !== told) { told = text; listeners.forEach(fn => safely(fn)); }
+  };
+  const schedule = delay => {
     clearTimer(timer); timer = null;
-    if (disposed || stop || !basis || flying || asked.has(basis) || (set && set.basis === basis)) return;
-    if (requests >= cap) { failed = 'limited'; return; }
-    timer = setTimer(fire, debounce);
+    if (disposed || stop || !basis || flying !== null || outcomes.has(basis) || requests >= cap) return;
+    timer = setTimer(fire, delay);
   };
   async function fire() {
     timer = null;
-    if (disposed || stop || flying || asked.has(basis) || (set && set.basis === basis)) return;
-    const sent = basis; asked.add(sent);
+    if (disposed || stop || !basis || flying !== null || outcomes.has(basis)) return;
+    const sent = basis;
+    let outcome;
     try {
       const { input, trim, problem } = build(copy());
-      if (problem) failed = 'failed';
+      if (problem) outcome = { failed: 'failed' };
       else {
-        flying = true; requests += 1;
+        flying = sent; requests += 1;
         const got = await post(input);
-        if (!disposed && sent === basis) {
-          set = { ...got, basis: sent }; failed = null;
-          previous.hooks = [...previous.hooks, ...got.options.map(o => o.hook)].slice(-L.previous_hooks);
-          safely(() => onSet(got, input, trim));
-        }
+        outcome = Array.isArray(got?.options) && got.options.length === L.options ? { set: got, input, trim } : { failed: 'failed' };
       }
-    } catch (error) { if (sent === basis) failed = error?.status === 429 ? 'limited' : 'failed'; }
-    finally { flying = false; }
-    if (!disposed) { changed(); schedule(); }
+    } catch (error) { outcome = { failed: error?.status === 429 ? 'limited' : 'failed' }; }
+    flying = null;
+    if (disposed) return;
+    outcomes.set(sent, outcome);
+    // Settled requests never pass the cap, so only failed builds (no request) can; then the oldest other basis goes.
+    // ponytail: a basis that old could be built again if it returned; keep failed builds apart if that ever matters.
+    if (outcomes.size > cap) outcomes.delete([...outcomes.keys()].find(k => k !== basis));
+    sync();
+    schedule(Math.max(0, changedAt + debounce - now()));
   }
   return {
-    update(next) { if (disposed) return; if (next.basis !== basis) failed = null; basis = next.basis; stop = next.stop ?? null; build = next.input; schedule(); changed(); },
+    update(next) {
+      if (disposed) return;
+      build = next.input;
+      if (next.basis === basis && (next.stop ?? null) === stop) return;
+      basis = next.basis; stop = next.stop ?? null; changedAt = now();
+      schedule(debounce); sync();
+    },
     view,
-    // An id from a replaced set is unknown; one from the stale set still shown is stale. Both refuse.
+    // An id from a replaced set is unknown; any stop is busy; one from the stale set still shown is stale. All refuse.
     select(id, { busy = false } = {}) {
-      const option = set?.options.find(o => o.id === id);
+      const option = (outcomes.get(basis)?.set ?? shown)?.options.find(o => o.id === id);
       if (!option) return { ok: false, reason: 'unknown' };
-      if (busy) return { ok: false, reason: 'busy' };
+      if (busy || stop) return { ok: false, reason: 'busy' };
       if (view().status !== 'ready') return { ok: false, reason: 'stale' };
       previous.goals = [...previous.goals, option.selected_next_step.learning_goal].slice(-L.previous_goals);
       return { ok: true, selected_next_step: option.selected_next_step };
