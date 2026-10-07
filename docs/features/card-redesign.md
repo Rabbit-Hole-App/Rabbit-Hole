@@ -10,7 +10,7 @@ Owner rules, 2026-10-06 (card decisions §11-20). Library, Home and Explore rend
         Forked from "Title" ↗ · @alice
 github.com/owner/repository ↗        (a repository project only)
 Optional description, at most three lines
-Content in this browser               (this browser's state, until server persistence)
+Content in this browser               (only when its content is not on the server; canvas-persistence.md step 8)
 [fork] 14 forks                              Updated 2h ago
 [Start Rabbit Hole] [Fork]            (actions, where the surface has them)
 ```
@@ -48,10 +48,9 @@ Content in this browser               (this browser's state, until server persis
   Every sort ends on `published_at DESC, rowid DESC`, so ties are deterministic. Any other value is a 400. There is no ranking, Trending or personalisation, and the page never reorders what the server sends.
 - **Library** (§18) sorts in the browser, over the owner's whole list: Last updated (the default), Created, Name, Most forked. Every order ends on the canonical name. The choice is the viewer's, kept in this browser (`small.library-sort:<org>:<email>`, try/catch). Apps keep their own order.
 
-## The truthful browser state (kept until persistence)
+## The truthful browser state (only where content is not on the server)
 
-Canvas content still lives in the browser (canvas-storage-audit), so the cards keep saying so (owner §5). None of this is hidden before server persistence and the cross-device proof:
-- "Continue — on this device" (Home's heading);
+Server persistence and the cross-device proof retired these for every canvas whose board is on the server (canvas-persistence.md, step 8). Home's heading is now "Continue learning". A canvas whose content is not on the server keeps the existing copy:
 - "Content in this browser";
 - "On another device", with "Its content is stored only in the browser that created it." A Home card in that state does not open.
 

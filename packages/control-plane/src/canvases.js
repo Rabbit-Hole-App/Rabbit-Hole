@@ -13,8 +13,9 @@ const publicationToken = () => btoa(String.fromCharCode(...crypto.getRandomValue
 // Shape mirrors repositoryApp (repositories.js:33-36) so Learn and the catalog read it unchanged.
 export function canvasApp(row, user) {
   // access: what the owner's Visibility menu shows - public (published to Explore), unlisted (a share link), private.
+  // board_saved: its main board is on the server, so no card calls its content browser-only (canvas-persistence.md, step 8).
   return { ...row, kind: 'canvas', hosting: 'canvas', email: user.email, orgName: user.orgName, visibility: 'private', members: [], published: !!row.publication_token,
-    shared: !!row.shared, access: row.publication_token ? 'public' : row.shared ? 'unlisted' : 'private',
+    shared: !!row.shared, board_saved: !!row.board_saved, access: row.publication_token ? 'public' : row.shared ? 'unlisted' : 'private',
     canView: true, canEdit: row.owner_email === user.email, url: `/apps/${row.name}`, inputs: {}, outputs: {} };
 }
 // The canvas's last meaningful change (docs/features/canvas-metadata.md): a rename, a description edit, a change to its
@@ -59,6 +60,7 @@ const CANVAS_ROW = `SELECT c.*, f.forked_from_title, CASE
   (SELECT p.token FROM canvas_publications p WHERE p.org = c.org AND p.canvas = c.name) AS publication_token,
   m.description, COALESCE(m.updated_at, c.created_at) AS updated_at,
   (SELECT b.shared FROM learn_boards b WHERE b.org = c.org AND b.owner_email = c.owner_email AND b.app = c.name AND b.board = 'main') AS shared,
+  EXISTS (SELECT 1 FROM learn_boards b WHERE b.org = c.org AND b.owner_email = c.owner_email AND b.app = c.name AND b.board = 'main') AS board_saved,
   (SELECT t.trashed_at FROM library_trash t WHERE t.org = c.org AND t.name = c.name) AS trashed_at
   FROM canvases c LEFT JOIN canvas_forks f ON f.org = c.org AND f.canvas = c.name
   LEFT JOIN canvas_metadata m ON m.org = c.org AND m.canvas = c.name

@@ -216,21 +216,23 @@ await check('10 Library sort: Last updated by default, then Created, Name and Mo
   assert.equal(await lib.locator('[data-sort-control]').getAttribute('data-sort-control'), 'forks');
   assert.deepEqual(await titlesIn(lib, '[data-library-card]', ours), order('forks'));
 });
-await check('11 the title opens the canvas', async () => {
+await check('11 the title opens the canvas, and its first open saves its board to the server', async () => {
   await titled(lib, '[data-library-card="canvas"]', T.tides).locator('[data-card-title]').click();
   await lib.waitForURL(new RegExp(`/apps/${tides.name}`), { timeout: 30000 });
+  for (let i = 0; !(await api(owner, `/api/learn/boards/${tides.name}/main`)).version; i++) { assert.ok(i < 50, 'the board reached the server'); await lib.waitForTimeout(400); }
 });
 
 // ---- Home ----
 const home = await contextFor(owner);
 await home.goto(`${BASE}/apps`); // Home: bare /apps (routes.js pageFor)
-await check('12 Home Continue: the canonical card, "Continue — on this device", where it left off, a small Continue → and no big button', async () => {
+await check('12 Home Continue: the canonical card, "Continue learning", where it left off, no browser note once saved, a small Continue → and no big button', async () => {
   const section = home.getByRole('region', { name: 'Continue' });
   await section.locator('[data-continue-card]').waitFor({ timeout: 60000 });
-  assert.ok((await section.innerText()).includes('Continue — on this device'));
+  assert.equal((await section.locator('h2').innerText()).trim(), 'Continue learning');
   const card = section.locator('[data-continue-card]');
   const text = await card.innerText();
-  for (const want of [T.tides, 'Last explored: why two bulges and not one?', 'Next: Spring and neap tides', 'Content in this browser', `@${H.owner}`]) assert.ok(text.includes(want), want);
+  for (const want of [T.tides, 'Last explored: why two bulges and not one?', 'Next: Spring and neap tides', `@${H.owner}`]) assert.ok(text.includes(want), want);
+  assert.ok(!text.includes('Content in this browser'), 'its board is on the server (persistence step 8)');
   for (const t of await home.locator('[data-continue-card], [data-recent-card]').allInnerTexts()) assert.ok(!t.includes('@example.'), `an email on a Home card: ${t}`);
   assert.equal(await card.getByRole('button', { name: /Continue learning/ }).count(), 0);
   const link = card.locator('[data-continue-link]');
@@ -240,12 +242,12 @@ await check('12 Home Continue: the canonical card, "Continue — on this device"
   assert.ok(b.w >= 420 && b.w <= 500 && b.h >= 210 && b.h <= 260, JSON.stringify(b));
   assert.deepEqual(await typeWords(home.locator('[data-continue-card], [data-recent-card]')), []);
 });
-await check('13 Home Recent: the same card; the away canvas keeps On another device and the stored-only line, and does not open', async () => {
+await check('13 Home Recent: the same card; the away canvas keeps On another device and the stored-only line, and does not open; a saved board has no note', async () => {
   const card = titled(home, '[data-recent-card]', T.away);
   const note = (await card.locator('[data-card-note]').innerText()).trim();
   assert.ok(note.startsWith('On another device') && note.includes('stored only in the browser that created it'), note);
   assert.equal(await card.locator('a[data-card-title], button[data-card-title]').count(), 0);
-  assert.equal((await titled(home, '[data-recent-card]', T.bridges).locator('[data-card-note]').innerText()).trim(), 'Content in this browser');
+  assert.equal(await titled(home, '[data-recent-card]', T.bridges).locator('[data-card-note]').count(), 0, 'published, so its board is on the server');
 });
 await shot(home, '11-home');
 await check('14 the Continue title opens where it left off', async () => {

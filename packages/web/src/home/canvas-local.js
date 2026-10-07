@@ -49,10 +49,17 @@ export function deviceId(storage) {
 
 // Learn, or the NOT_HERE state below (T02 §8.3). A record with no
 // device id predates device ids and opens as before. The canvas route (CanvasPage.jsx) also opens a canvas whose
-// board is on the server (docs/features/canvas-persistence.md); Home and the Library still read this alone, so their
-// browser warnings stay until the cross-device proof retires them.
+// board is on the server (docs/features/canvas-persistence.md); Home and the Library read the row's board_saved first
+// (continue.js browserOnly), so only a canvas whose content is not on the server reaches this.
 export const opensHere = ({ storage, keys, record }) =>
   hasLocalContent(storage, keys) || record.device_id == null || record.device_id === deviceId(storage);
+
+// The server refused this browser's newest copy of the main board as over 1.9 MB (LearnPage `refused`), so that copy is
+// only here even when an older one is on the server. Cleared by the next save that lands.
+export const unsavedKey = (keys) => `${keys.ink}:unsaved`;
+export function unsavedHere(storage, keys) {
+  try { return storage.getItem(unsavedKey(keys)) !== null; } catch { return false; }
+}
 
 // The canvas gate's copy (checklist WP6, user 2026-09-28): content is browser-local, so it never says "device".
 // One place for the gate and the harness.

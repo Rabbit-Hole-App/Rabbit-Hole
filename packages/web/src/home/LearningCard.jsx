@@ -13,7 +13,7 @@ import { forkLabel } from './provenance.js';
 //           Forked from "…" · @alice
 //   github.com/owner/repo ↗          (a project only)
 //   Description, clamped to three lines
-//   this browser's content state     (truthful until server persistence; never hidden before it)
+//   this browser's content state     (a canvas whose board is not on the server; a project in Home's Continue)
 //   [fork] N forks                                 Updated 2h ago
 //   actions                          (Start Rabbit Hole and Fork on others' cards, Continue → on Home)
 // Blue is navigation and the primary action only (§13): the title, the repository link, the owner badge, Start Rabbit
@@ -50,8 +50,9 @@ function Visibility({ access }) {
   );
 }
 
-// This browser's content state, one wording for every surface (owner §5): truthful until server persistence makes
-// content cross-device, and never hidden before then.
+// This browser's content state, one wording for every surface (owner §5): only for a canvas whose board is not on the
+// server - never synced, or refused as over 1.9 MB (continue.js browserOnly; canvas-persistence.md, step 8) - and a
+// project's Learn in Home's Continue, whose row does not say yet.
 export const IN_THIS_BROWSER = <span className="inline-flex items-center gap-1"><HardDrive size={12} strokeWidth={1.75} className="shrink-0" />Content in this browser</span>;
 export const ON_ANOTHER_DEVICE = (
   <>

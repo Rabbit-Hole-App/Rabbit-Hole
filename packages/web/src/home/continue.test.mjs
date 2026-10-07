@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { learnProgress, onAnotherDevice, openHref, readContinue, readRecent, recentCard, recentItems } from './continue.js';
+import { browserOnly, learnProgress, onAnotherDevice, openHref, readContinue, readRecent, recentCard, recentItems } from './continue.js';
 
 const store = (entries = {}) => { const m = new Map(Object.entries(entries)); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) }; };
 const EMAIL = 'a@gmail.com';
@@ -83,6 +83,21 @@ test('a canvas made in another browser is flagged, never opened as empty (T02 §
   assert.equal(onAnotherDevice(canvas, EMAIL, store({ 'small.device': 'dev-b', [`${key(canvas)}:chat`]: '[{"id":"1","question":"q"}]' })), false);
   assert.equal(onAnotherDevice({ ...canvas, device_id: null }, EMAIL, store({ 'small.device': 'dev-b' })), false);
   assert.equal(onAnotherDevice(repo, EMAIL, store({ 'small.device': 'dev-b' })), false);
+});
+
+test('a canvas whose board is on the server is never browser-only, unless this browser holds a copy refused as over 1.9 MB (step 8)', () => {
+  const saved = { ...canvas, board_saved: true };
+  const elsewhere = store({ 'small.device': 'dev-b' });
+  assert.equal(browserOnly(canvas, EMAIL, elsewhere), true, 'never synced');
+  assert.equal(browserOnly(saved, EMAIL, elsewhere), false);
+  assert.equal(onAnotherDevice(saved, EMAIL, elsewhere), false, 'opens on any browser');
+  const refused = store({ 'small.device': 'dev-a', [`${key(canvas)}:ink`]: ink([h('a', 'Big')]), [`${key(canvas)}:ink:unsaved`]: '1' });
+  assert.equal(browserOnly(saved, EMAIL, refused), true);
+  assert.equal(onAnotherDevice(saved, EMAIL, refused), false);
+  assert.equal(browserOnly(repo, EMAIL, elsewhere), false, 'canvases only');
+  const ctx = { catalog, email: EMAIL, storage: store({ 'small.device': 'dev-a' }) };
+  assert.deepEqual(recentCard(saved, ctx).meta, ['In karpathy/nanoGPT']);
+  assert.deepEqual(recentCard(saved, { ...ctx, storage: elsewhere }).action, { label: 'Continue learning', to: '/apps/canvas-1a2b3c4d' });
 });
 
 test('recent cards carry per-kind metadata and a next action (T02 §3.2)', () => {

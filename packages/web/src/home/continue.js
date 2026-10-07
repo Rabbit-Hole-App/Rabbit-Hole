@@ -3,7 +3,7 @@
 import { titleOf } from '../agent/catalog.js';
 import { ago, cronHuman, cronList } from '../api.js';
 import { outlineFrom } from '../learn-outline-model.js';
-import { canvasKeys, hasLocalContent, opensHere } from './canvas-local.js';
+import { canvasKeys, hasLocalContent, opensHere, unsavedHere } from './canvas-local.js';
 
 const json = (storage, key) => { try { return JSON.parse(storage.getItem(key)); } catch { return null; } };
 
@@ -19,9 +19,15 @@ export const recentItems = (recent, catalog) => recent.map((slug) => (catalog ||
 // viewer's email (live rows carry none; repository and canvas rows carry the viewer's).
 const keysOf = (a, email, org) => canvasKeys({ org: a.org || org, email: a.email || email, slug: a.name });
 
-// T02 §8.3: the record exists, but its content was made in another browser.
+// Step 8 (docs/features/canvas-persistence.md): a canvas whose main board is on the server (canvases.js board_saved)
+// is cross-device, so no card calls its content browser-only - unless the server refused this browser's newest copy as
+// over 1.9 MB. Only these keep "Content in this browser" or "On another device".
+export const browserOnly = (a, email, storage) =>
+  a.kind === 'canvas' && (!a.board_saved || unsavedHere(storage, keysOf(a, email)));
+
+// T02 §8.3: the record exists, but its content was made in another browser and never reached the server.
 export const onAnotherDevice = (a, email, storage) =>
-  a.kind === 'canvas' && !opensHere({ storage, keys: keysOf(a, email), record: a });
+  browserOnly(a, email, storage) && !opensHere({ storage, keys: keysOf(a, email), record: a });
 
 const lastQuestion = (chat) => {
   if (!Array.isArray(chat)) return null;
@@ -74,7 +80,7 @@ export function recentCard(a, { catalog = [], email, storage }) {
     const project = catalog.find((p) => p.name === a.project);
     const last = lastQuestion(json(storage, keysOf(a, email).chat));
     return {
-      meta: [project ? `In ${titleOf(project)}` : 'Standalone', last && `Last explored: ${last}`, 'Content in this browser'].filter(Boolean),
+      meta: [project ? `In ${titleOf(project)}` : 'Standalone', last && `Last explored: ${last}`, browserOnly(a, email, storage) && 'Content in this browser'].filter(Boolean),
       action: { label: 'Continue learning', to: `/apps/${a.name}` },
     };
   }

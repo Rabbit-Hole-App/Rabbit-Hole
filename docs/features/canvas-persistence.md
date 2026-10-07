@@ -1,6 +1,6 @@
 # Canvas persistence: the server is the source of truth
 
-Status: proposal for #60, 2026-10-06 (owner rules "Persistence option C" and "Overnight execution rule"). Steps 1-7 built on `feature/canvas-persistence` (see "Built" below); the cross-device proof passes, `e2e/cross-device-check.mjs` 10/10. Step 8 waits for the rebase onto the #54 card redesign.
+Status: proposal for #60, 2026-10-06 (owner rules "Persistence option C" and "Overnight execution rule"). Steps 1-7 built on `feature/canvas-persistence` (see "Built" below); the cross-device proof passes, `e2e/cross-device-check.mjs` 10/10. Step 8 (the warnings retired, below) is built on `feature/persistence-warnings`, on top of the #54 card redesign; the check is now 13/13.
 
 The canvas becomes canonical on the server. The browser keeps only transient state plus a cache and a recovery copy. There is no second canvas model: the existing `learn_boards` row (`state_json`, `version`, `updated_by`, `updated_at`), its R2 board assets and its notebook workspace assets become canonical for every owned board. Today they are canonical only while a board is shared, published or forked.
 
@@ -118,7 +118,7 @@ Two fresh browser profiles, one account, on the local stack:
 - **Offline.** A failed PUT with no HTTP status waits; the `online` event pushes the latest copy. Two limits:
   - A board whose GET failed offline waits for its next open.
   - A lazy chunk that fails offline reloads the page (main.jsx). The edit is already in localStorage and goes up on the next online open (Load: same version, local differs).
-- **The gate** (CanvasPage) asks the server only when `opensHere` says no, and NOT_HERE shows only when neither copy exists. `opensHere` itself is unchanged: its device clause still opens an empty canvas made in this browser, and Home and the Library read it alone until step 8.
+- **The gate** (CanvasPage) asks the server only when `opensHere` says no, and NOT_HERE shows only when neither copy exists. `opensHere` itself is unchanged: its device clause still opens an empty canvas made in this browser. Since step 8, Home and the Library read the row's `board_saved` first.
 - **Server.** `saveOwn` already made the first copy version 1 without an `updated_at` bump; only the over-cap message changed. It still accepts a PUT without a version (older pages and API tests); every page PUT now sends one.
 - **Tests.**
   - `control-plane/test/canvas-persistence.test.js`: the first copy is version 1 without a bump; a write on a stale or unseen version (0) is a 409; the over-cap refusal. Permissions: same-workspace 403, another workspace 404, signed-out 401, no state in any answer; no share or `/e` token reaches a private board; Trash suspends and Restore returns links.
@@ -129,8 +129,38 @@ Two fresh browser profiles, one account, on the local stack:
   - 1a-1c: items 1, including the real notebook's workspace and a double-clicked Rabbit Hole kept by a stroke.
   - 2-7: items 2-7 as listed above.
 
-## Retiring the warnings (step 8, only after the proof)
+## Retiring the warnings (step 8, built)
 
-"Content in this browser", "On another device", "Continue — on this device" and "Its content is stored only in the browser that created it." live in continue.js, Home.jsx, LibraryViews.jsx and App.jsx.
-- They change only after step 7 passes, and only after rebasing onto main with the #54 card redesign.
-- Only boards that are actually on the server lose them. An over-cap board, or a not-yet-migrated canvas from another browser, keeps its truthful state.
+Built after step 7 passed, on top of the #54 card redesign (owner §5 D, §19). Only canvases whose content is actually on the server lose the warnings.
+
+- **Server.** Every canvas row the Library and Home read (`CANVAS_ROW` and `canvasApp`, canvases.js) carries `board_saved`: whether the owner's main board has its `learn_boards` row. It is an `EXISTS` subquery; there is no migration.
+- **The rule** (`browserOnly`, continue.js) makes a canvas browser-only when either holds:
+  - its main board is not on the server;
+  - this browser holds a copy the server refused as over 1.9 MB. LearnPage sets `<ink key>:unsaved` on a 413, and the next save that lands clears it (`unsavedHere`, canvas-local.js).
+- **Only a browser-only canvas carries a note,** with the existing copy:
+  - "Content in this browser" where its content is;
+  - "On another device" with "Its content is stored only in the browser that created it." elsewhere. `onAnotherDevice` is now `browserOnly` and not `opensHere`. Such a card does not open from Home, and the canvas route shows NOT_HERE.
+- **Every other canvas shows no browser note.** That is every canvas saved since steps 1-7, in the Library, Home's Continue and Recent, and App.jsx's "On another device" pill, which reads `onAnotherDevice`.
+- **Home's heading** is "Continue learning" (§19). Its list is still `small.recent`, and `updated_at` is unchanged (see the audit below).
+- **Kept truthful:**
+  - a canvas made in another browser before this release and never opened since;
+  - a board over 1.9 MB, where it was refused, whether or not an older copy is on the server.
+- **Limits:**
+  - Another browser cannot know about a refused over-cap copy, because the server keeps no record of a refusal. There the card shows no note and opens the last saved copy. The refusing browser said so when it happened.
+  - An empty canvas has no board row until its first content, so another browser still shows "On another device" and NOT_HERE for it, as before.
+  - A project's Learn on Home's Continue keeps "Content in this browser". Repository rows (repositories.js) carry no `board_saved`; that is outside this step.
+  - A file over 25 MB keeps its own notice and stays in its browser; the card does not say so.
+- **Tests:**
+  - `control-plane/test/canvas-persistence.test.js`: `board_saved` is false for a new canvas, after an over-cap refusal and for a board other than main, and true after the first save, in the list and the single row.
+  - `web/src/home/continue.test.mjs`: `browserOnly`, `onAnotherDevice` and `recentCard` with a saved board and with the unsaved marker.
+  - `e2e/cross-device-check.mjs` 13/13. Check 8: on a fresh profile and on B, A's canvases show no warning in the Library or Home, and they open. Check 9: a never-synced canvas keeps "Content in this browser" on A and "On another device" on B, where it shows NOT_HERE. Check 10: a refused first copy and a board grown past the cap keep "Content in this browser" until a save lands.
+  - `e2e/card-redesign-check.mjs`: "Continue learning", and no note on a published canvas or on a canvas once opened.
+
+### Continue ordering (audit only, not changed)
+
+Home's Continue and Recent come from `small.recent`, in this browser. SharePage.jsx and Search.jsx write it on every app page open. That makes three things true:
+- Any open counts, including a passive view.
+- A new browser shows no Continue until something is opened there.
+- The order is not the learner's last meaningful learning activity (§7).
+
+There is no canonical learner-activity timestamp (canvas-metadata.md). The nearest server fact is `learn_boards.updated_at`, the owner's last saved content change on a board. A board's first sync also sets it. Choosing a source is a separate decision.

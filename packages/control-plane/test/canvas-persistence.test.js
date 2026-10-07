@@ -65,6 +65,19 @@ test('a private board is saved: its first copy is version 1 and moves no updated
   assert.equal((await f.call('GET', f.board(c.name), { as: 'ana' })).body.version, 2, 'nothing written');
 });
 
+test('a canvas row says whether its main board is on the server: not before the first save, after an over-cap refusal or for another board', async t => {
+  const f = setup(t);
+  const c = await f.create('ana', 'Saved notes'), big = await f.create('ana', 'Huge notes');
+  const listed = async () => Object.fromEntries((await f.call('GET', '/api/canvases', { as: 'ana' })).body.canvases.map(row => [row.name, row.board_saved]));
+  assert.equal(c.board_saved, false, 'a new canvas');
+  assert.deepEqual(await listed(), { [c.name]: false, [big.name]: false });
+  await f.call('PUT', f.board(c.name), { as: 'ana', body: { state: BOARD, version: 0 } });
+  assert.equal((await f.call('PUT', f.board(big.name), { as: 'ana', body: { state: { blocks: [{ id: 'x', body: 'x'.repeat(2_000_000) }] }, version: 0 } })).status, 413);
+  assert.equal((await f.call('PUT', `/api/learn/boards/${big.name}/review`, { as: 'ana', body: { state: BOARD, version: 0 } })).status, 200);
+  assert.deepEqual(await listed(), { [c.name]: true, [big.name]: false }, 'only a saved main board counts');
+  assert.equal((await f.call('GET', `/api/apps/${c.name}`, { as: 'ana' })).body.board_saved, true);
+});
+
 test('nobody but the owner reads a private board, no link reaches it, and Trash still suspends links', async t => {
   const f = setup(t);
   const c = await f.create('ana', 'SECRET-TITLE');
