@@ -82,6 +82,20 @@ test('selected code uses stored source, survives chat history and rejects mismat
   for(const range of [{path:'../secret',start:1,end:2},{path:'model.py',start:0,end:3},{path:'model.py',start:1,end:122}])assert.equal((await f.send('ask',{message:'Explain',repository_context:{commit:sha,range}})).status,400);
 });
 
+// workspace-dock.md: a whole file in the composer's context reaches the model as selectedFile, read from the stored
+// snapshot, and the stored question carries no line-selection suffix.
+test('a whole-file context is read from stored source and stored as the plain question',async t=>{
+  const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});let prompt;
+  globalThis.fetch=async(_,options)=>{prompt=JSON.parse(options.body);return Response.json({content:[{type:'text',text:'It defines the model.'}],stop_reason:'end_turn'});};
+  const response=await f.send('ask',{message:'Why does this exist?',repository_context:{commit:sha,path:'model.py',label:'model.py'}});
+  assert.equal(response.status,200);await response.text();
+  assert.match(JSON.stringify(prompt.messages),/selectedFile[\s\S]*model\.py[\s\S]*return x \+ 1/);
+  assert.equal(f.sqlite.prepare("SELECT content FROM messages WHERE role='user'").get().content,'Why does this exist?');
+  assert.equal((await f.send('ask',{message:'Why?',repository_context:{commit:sha,path:'../secret'}})).status,400);
+  const thread=f.sqlite.prepare('SELECT id FROM threads').get();
+  assert.equal((await f.send('ask',{message:'Why?',thread_id:thread.id,repository_context:{commit:newer,path:'model.py'}})).status,409);
+});
+
 // C4 models-1, repository row: same resolution as apiAsk; Auto keeps the server-side fallback.
 test('repository chat runs Auto as claude-opus-5 with fallback, and a picked key as that id alone',async t=>{
   const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});const sent=[];

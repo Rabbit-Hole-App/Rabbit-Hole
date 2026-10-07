@@ -69,6 +69,11 @@ test('a project question carries the selected node and the commit it was selecte
   assert.deepEqual(askBody({ scope: NANOGPT, message: 'What is this?' }), { scope: { app: 'repo-1a2b3c4d-nanogpt' }, message: 'What is this?', thread_id: null });
 });
 
+test('a whole file in context travels by path, never as a node id (workspace-dock.md)', () => {
+  const selected = { id: 'file:train.py', label: 'train.py', kind: 'file', path: 'train.py', line: 1, commit: '3f2a1c9' };
+  assert.deepEqual(askBody({ scope: { ...NANOGPT, selected }, message: 'Why does this exist?' }).repository_context, { commit: '3f2a1c9', path: 'train.py', label: 'train.py' });
+});
+
 test('workspace and app questions carry no repository context, and Auto sends no model', () => {
   assert.deepEqual(askBody({ scope: { org: 'gmail-com', kind: 'workspace', slug: null, title: null, selected: null }, message: 'What failed today?', model: 'opus-5' }),
     { scope: {}, message: 'What failed today?', thread_id: null, model: 'opus-5' });
