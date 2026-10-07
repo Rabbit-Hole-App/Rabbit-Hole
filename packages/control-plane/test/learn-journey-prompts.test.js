@@ -206,8 +206,8 @@ test('the nanoGPT Tutor: PLANNER_SYSTEM, TUTOR_TOOL and the avatar-on system kee
   assert.equal(plannerSystem(), PLANNER_SYSTEM);
   // Before Professor Next Steps Task 4: 6b3ba28db7f6d5c54e97bac07c27d607db78a77095dcc5ee95209231f783ee75 /
   // 5414c2a6ff03cad1cc18019688f14032088b7b2408d7db9d9c74b17a14a19b52; re-pinned with review (task-4-repin-review.md, entry 7).
-  assert.equal(sha(JSON.stringify([TUTOR_TOOL, PLANNER_SYSTEM])), '57a2a9cea4fc27c69585db49dbbba4d05cd72e98654caf6c191efd4300dc2347'); // learn-avatar.test.js
-  assert.equal(sha(plannerSystem(true, 'nanogpt')), 'cbe76410fb126852fdf2eb5ea308956c150727d4c70be6c623501f0b57490dd0'); // learn-tutor-journey.test.js
+  assert.equal(sha(JSON.stringify([TUTOR_TOOL, PLANNER_SYSTEM])), 'e6953b414277d7c5e8de4afeb0ab208d51188552611ab687cdbb550e556acec3'); // learn-avatar.test.js (Task 11b re-pin)
+  assert.equal(sha(plannerSystem(true, 'nanogpt')), '6fcb1fbddeb35eb8a794fb96fc38da0cdd7fcd595d7c967c96b8a88c7372bfc2'); // learn-tutor-journey.test.js (Task 11b re-pin)
 });
 
 // ---------- 6. Caching ----------
@@ -236,8 +236,10 @@ test('fixtures for the four subjects pass validateRegistry and validatePath; a q
 
 // ---------- 8. Size ----------
 
-test('each prompt stays under 8,000 characters, a cache-friendly static prefix', () => {
-  for (const [name, text] of Object.entries(PROMPTS)) assert.ok(text.length < 8000, `${name}: ${text.length} characters`);
+// Task 11b raised the cap from 8,000 (journey Tutor 7176 -> 9142 with the owner's shared Auto, grounding and reading-field
+// lines; task-11b-repin-review.md entry 8): still one static prefix, byte-identical for every subject (section 2 above).
+test('each prompt stays under 9,500 characters, a cache-friendly static prefix', () => {
+  for (const [name, text] of Object.entries(PROMPTS)) assert.ok(text.length < 9500, `${name}: ${text.length} characters`);
 });
 
 // ---------- 9. Contract drift ----------

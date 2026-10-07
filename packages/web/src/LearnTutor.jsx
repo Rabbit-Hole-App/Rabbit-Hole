@@ -15,9 +15,10 @@ import { api, apiFetch } from './api.js';
 import { tutorContext } from './learn-tutor-domains.js';
 import { loadStore, saveStore, storeKey } from './learn-tutor-evidence.js';
 import { diveJourney } from './learn-journey-domain.js';
-import { arriveAt, executeActions, keepHere, learnerIntent, readPlanStream, runTurn, showableCards, wantsCard } from './learn-tutor.js';
+import { SLASHES, arriveAt, executeActions, keepHere, learnerIntent, readPlanStream, runTurn, showableCards, wantsCard } from './learn-tutor.js';
 import { materialCommands, runMaterials } from './learn-slash.js';
 import { holeOpening } from './learn-next-steps.js';
+import { inJourneySetup } from './LearnJourney.jsx';
 import { emitDecision, newSessionId, tracing } from './learn-tutor-trace.js';
 import PaidConfirm from './PaidConfirm.jsx';
 
@@ -42,7 +43,10 @@ export const hookContext = (where, read, recordPending = false) => (recordPendin
 // canvasVersion: the board revision when the page passes it (decision telemetry only).
 // Professor Next Steps (docs/features/professor-next-steps.md §1.3, §1.4): the returned object always carries askStep, snapshot,
 // lastTurn, busy and showing, also where the Tutor is not active, so useNextSteps can ask whether hooks belong here.
-export function useTutor({ app, board, access, canvasApi, canvasState, dive, courseCanvas = false, journey = null, canvasVersion = null }) {
+// openResearch(request) (Task 11b, owner nineteenth message): the page's way into its existing Home/Library Research workflow.
+// Given, the Tutor may offer suggest_research (a Research this chip that calls it); absent, it never offers one. Nothing is
+// researched inside a Tutor turn.
+export function useTutor({ app, board, access, canvasApi, canvasState, dive, courseCanvas = false, journey = null, canvasVersion = null, openResearch = null }) {
   const record = dive.tree?.dive || null;
   const root = dive.tree?.path?.[0];
   // The parent journey of a hole whose record carries one (Task 14): { journey, path } once read, else null.
@@ -65,8 +69,8 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   // hole record's creation-time title, so neither is read for a title while the path has one; no copied name cache.
   const liveTitle = dive.tree?.path?.at(-1)?.title ?? app.title ?? null;
   const where = { app: courseCanvas ? app : null, board, root, parentJourney, record, title: liveTitle };
-  // Ruling F4: typed and voice turns need capabilities.tutor; a hook turn (askStep), a carried opening and the paid
-  // proposals it raises also run where only capabilities.hook_turns holds (Task 10: plain canvases).
+  // Ruling F4, amended by Task 11b: typed and voice turns need capabilities.tutor (plain canvases have it since 11b); a hook
+  // turn (askStep), a carried opening and its paid proposals also run where only capabilities.hook_turns holds.
   const context = tutorContext({ ...where, journey }), capabilities = context?.capabilities;
   const active = capabilities?.tutor === true, hookTurns = active || capabilities?.hook_turns === true;
   const here = { app: app.name, board };
@@ -98,7 +102,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   const save = store => saveStore(sessionStorage, key, store);
   // The Tutor's domain on this canvas, built per turn: a journey canvas's (§3.2) from the journey, its path and the canvas
   // blocks; a hole opened from a journey section (Task 14) the dive domain over the parent journey, session evidence; else
-  // the registered course's; else the canvas domain, reached only by hook clicks (Task 10: typed turns need active).
+  // the registered course's; else the canvas domain (Task 10; typed and voice turns too since Task 11b).
   const domainOf = canvas => tutorContext({ ...where, journey: journeyRef.current, blocks: canvas?.blocks?.() || [] })?.domain;
 
   // Back on a parent after a hole: its next turn carries returned_from (§6.4).
@@ -153,7 +157,9 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     try {
       result = await runTurn({
         ...common, raw: nextStep ? '' : (slash?.raw || raw), slash: slash?.name || null, opening, store: load(), onSpeakable,
-        nextStep, materials: nextStep ? materialCommands() : [],
+        // Task 11b (owner ninth message): every turn may make material through the Learn commands - typed, voice or a hook click -
+        // except while a journey is in setup, when the canvas gets no card before the path is accepted (LP1 controller ruling).
+        nextStep, materials: inJourneySetup(journeyRef.current?.journey) ? [] : materialCommands(), research: !!openResearch,
         // Decision telemetry only while a sink is registered (contract §3.3); the planner request is the same either way.
         trace: tracing() && { identity: { canvas_version: canvasVersion }, blocks: canvas?.blocks?.() || [], next_step_options: shown.current, selected_at: selectedAt },
         // Only a domain whose cards are inserted (no showCard of its own: the authored-module one) holds a place. A journey's
@@ -172,7 +178,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
       canvas: canvasApi.current || {},
       suggestDive: detail => window.dispatchEvent(new CustomEvent('small:dive-suggest', { detail })),
       climb: () => dive.navigator.climb(dive.navigator.tree.path.length - 2),
-      slot, domain,
+      slot, domain, openResearch,
     }) });
     release();
     // create_material (contract §2.5): the existing Learn command path (runMaterials -> runLearnCommand), never a second
@@ -198,7 +204,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     // After the canvas actions, so the result is final; a sink error is swallowed and counted (emitDecision).
     if (result.trace) emitDecision(result.trace);
     return { ...result, bench: { ...result.bench, ms: { ...result.bench.ms, canvas_done: done } } };
-  }, [access, record, here.app, here.board, key, parentJourney, courseCanvas, root, canvasVersion, liveTitle]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [access, record, here.app, here.board, key, parentJourney, courseCanvas, root, canvasVersion, liveTitle, openResearch]); // eslint-disable-line react-hooks/exhaustive-deps
   // Paid proposals from create_material, one at a time: each waits until the one before it is answered (PaidConfirm).
   const offer = next => (asking.current = asking.current.then(() => new Promise(done => put({ proposal: { ...next, done } }))));
   // Generate or Not now: the offer always clears and the next one shows, even when generate throws.
@@ -291,10 +297,14 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
       return { speech: result.text, turnId: result.turn.turn_id, ms: result.bench.ms };
     },
     opening,
+    // A plain canvas's Tutor (the canvas domain): a broad learning request may still start a journey there (LearnJourney.jsx
+    // journeyStartsHere), which a registered course's Tutor never allows.
+    plain: context?.source === 'canvas',
     // /deeper and /simplify go to the Tutor as the turn's slash (§5): its prompt is sent through
     // the composer as usual, and the Tutor reads the typed command in its place. slash(null): the composer refused that
-    // prompt (busy), so no stale command waits for the next turn.
-    slash: (name, raw) => { slashNext.current = name ? { name, raw } : null; },
+    // prompt (busy), so no stale command waits for the next turn. Task 11b: /ask and /teach too, as explicit intent overrides
+    // (learn-tutor.js SLASHES); any other name (/research, /do: not Canvas commands) leaves the turn an Auto turn.
+    slash: (name, raw) => { slashNext.current = SLASHES.includes(name) ? { name, raw } : null; },
     // Shown under the Tutor's reply in the chat (ask.jsx): the dive suggestion, whose "Keep it on
     // this canvas" also gives the next turn here dive_choice inline, the suggestion chips, and Tutor-made material's notices
     // and Generate / Not now (read when drawn).

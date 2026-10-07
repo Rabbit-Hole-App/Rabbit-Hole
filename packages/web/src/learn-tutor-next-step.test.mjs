@@ -23,14 +23,15 @@ const turnOf = (over = {}) => ({ turn_id: 't', raw_user_message: '', input_modal
 const NEXT = { suggestion_id: 'ns_00000000.1', hook: 'h', learning_goal: 'g', concept_ids: [], claim_ids: [] };
 const states = deriveClaimStates([], CLAIMS);
 
-test('route: create_material only on a next_step turn with materials, on any row', () => {
+// Task 11b (owner ninth message) replaces "typed turns never" (LP1 N4): any turn offered materials may make material.
+test('route: create_material on any turn offered materials - a hook click on any row, and since 11b a typed turn too', () => {
   const typed = route({ turn: turnOf(), claims: [ID], states, evaluation: null, store: emptyStore() });
   assert.equal(typed.allowed.includes('create_material'), false);
   const step = turnOf({ next_step: { ...NEXT, claim_ids: [ID] }, available_materials: MATERIALS });
   assert.ok(route({ turn: step, claims: [ID], states, evaluation: null, store: emptyStore() }).allowed.includes('create_material'));
   assert.ok(route({ turn: step, claims: [], states, evaluation: null, store: emptyStore() }).allowed.includes('create_material'), 'off_slice too');
   assert.equal(route({ turn: { ...step, available_materials: [] }, claims: [ID], states, evaluation: null, store: emptyStore() }).allowed.includes('create_material'), false);
-  assert.equal(route({ turn: { ...turnOf(), available_materials: MATERIALS }, claims: [ID], states, evaluation: null, store: emptyStore() }).allowed.includes('create_material'), false, 'materials without a hook click: never');
+  assert.equal(route({ turn: { ...turnOf(), available_materials: MATERIALS }, claims: [ID], states, evaluation: null, store: emptyStore() }).allowed.includes('create_material'), true, 'Task 11b: a typed turn offered materials may make one');
 });
 
 // Owner test 12d: recent modality history is generic input, evidence only.
@@ -75,7 +76,7 @@ test('validator: create_material needs an offered command, a request and the rou
   assert.equal(plan([{ type: 'create_material', command: 'flashcards', request: 'run `rm -rf`' }]).decisions[0].stage, 'schema');
   assert.equal(plan([{ type: 'create_material', command: 'flashcards', request: 'x => y' }]).decisions[0].stage, 'schema');
   assert.equal(plan([{ type: 'create_material', request: 'x' }]).decisions[0].stage, 'schema');
-  assert.equal(validateActions({ actions: [{ type: 'create_material', command: 'flashcards', request: 'x' }] }, { ...routed, allowed: ['respond_text'] }, turnOf()).decisions[0].stage, 'route', 'typed turns: never');
+  assert.equal(validateActions({ actions: [{ type: 'create_material', command: 'flashcards', request: 'x' }] }, { ...routed, allowed: ['respond_text'] }, turnOf()).decisions[0].stage, 'route', 'not on the route: refused');
 });
 
 // ---------- Unrelated domains (owner 2026-10-06, anti-hardcoding) ----------
@@ -113,8 +114,14 @@ test('router, planner context, validator and tool behave the same on nanoGPT, TI
     const typedTurn = turnOf(), stepTurn = turnOf({ next_step: { ...NEXT, claim_ids: [claim] }, available_materials: MATERIALS });
     const typed = route({ turn: typedTurn, claims: [claim], states: st, evaluation: null, store, domain: d });
     const step = route({ turn: stepTurn, claims: [claim], states: st, evaluation: null, store, domain: d });
-    assert.deepEqual(step, { ...typed, allowed: [...typed.allowed, 'create_material'] }, `${name}: a hook click only adds create_material`);
+    assert.deepEqual(step, { ...typed, allowed: [...typed.allowed, 'create_material'] }, `${name}: materials offered (here on a hook click) only add create_material`);
     const offSlice = route({ turn: stepTurn, claims: [], states: st, evaluation: null, store, domain: d });
+    // Task 11b: a typed turn offered materials and the Research offer adds exactly create_material and suggest_research; the
+    // planner's reading fields are bounded the same way and the cost tiers come from the material registry alone.
+    const autoTurn = turnOf({ available_materials: MATERIALS, research_offer: true });
+    const auto = route({ turn: autoTurn, claims: [claim], states: st, evaluation: null, store, domain: d });
+    assert.deepEqual(auto, { ...typed, allowed: [...typed.allowed, 'create_material', 'suggest_research'] }, `${name}: a typed turn offered materials and Research`);
+    const autoPlan = validateActions({ actions: [...PLAN, { type: 'suggest_research', request: 'newer results' }], inferred_intent: 'teach', modality_override: 'motion', grounding_status: 'nope' }, auto, autoTurn, d);
     const typedContext = plannerContext({ turn: typedTurn, routed: typed, block: null, states: st, claims: [claim], store, domain: d });
     const stepContext = plannerContext({ turn: stepTurn, routed: step, block: null, states: st, claims: [claim], store, domain: d });
     for (const context of [typedContext, stepContext]) {
@@ -128,6 +135,8 @@ test('router, planner context, validator and tool behave the same on nanoGPT, TI
       history: typedContext.recent_relevant_context.recent_modalities, typedKeys: Object.keys(typedContext).filter(k => k !== 'journey_context'),
       stepKeys: Object.keys(stepContext).filter(k => k !== 'journey_context'), materials: stepContext.available_materials,
       typedPlan: typedPlan.decisions, stepPlan: stepPlan.actions,
+      auto: auto.allowed, autoPlan: autoPlan.actions, reading: autoPlan.reading, autoLog: autoPlan.log,
+      tiers: PLAN.map(action => actionContract(action, { domain: d, materials: MATERIALS, claims: [claim] }).cost_tier),
     };
   });
   const [nano, ...others] = seen;
@@ -135,7 +144,8 @@ test('router, planner context, validator and tool behave the same on nanoGPT, TI
   assert.ok(nano.step.includes('create_material') && nano.offSlice.includes('create_material'));
   assert.deepEqual(nano.history, history.slice(-8));
   assert.deepEqual(nano.stepPlan, PLAN);
-  assert.deepEqual(nano.typedPlan.filter(d => !d.accepted).map(d => d.stage), ['route', 'route'], 'typed turns: create_material refused at the route');
+  assert.deepEqual([nano.autoPlan.map(a => a.type), nano.reading.inferred_intent, nano.reading.grounding_status, nano.tiers], [['respond_text', 'create_material', 'create_material'], 'teach', null, ['none', 'model', 'paid']]);
+  assert.deepEqual(nano.typedPlan.filter(d => !d.accepted).map(d => d.stage), ['route', 'route'], 'a turn offered no materials: create_material refused at the route');
   others.forEach((world, i) => assert.deepEqual(world, nano, WORLDS[i + 1].name));
 });
 
@@ -249,16 +259,16 @@ test('actionContract: action_type, modality, targets, expected evidence and a ro
   const ctx = { domain: journeyDomain({ journey: J, path: PATH, blocks }), materials: MATERIALS, claims: [IDS[1]] };
   const c = id => CLAIMS[id].concept;
   assert.deepEqual(actionContract({ type: 'ask_question', text: 'Say it back?', claim: IDS[0], purpose: 'explain_back' }, ctx),
-    { action_type: 'ask_question', command: null, modality: 'explain_back', target_concept_ids: [c(IDS[0])], target_claim_ids: [IDS[0]], expected_evidence: [{ claim_id: IDS[0], via: 'explain_back' }], estimated_learning_seconds: 120 });
+    { action_type: 'ask_question', command: null, modality: 'explain_back', cost_tier: 'none', target_concept_ids: [c(IDS[0])], target_claim_ids: [IDS[0]], expected_evidence: [{ claim_id: IDS[0], via: 'explain_back' }], estimated_learning_seconds: 120 });
   assert.deepEqual(actionContract({ type: 'ask_question', text: 'What next?', claim: IDS[1], purpose: 'predict' }, ctx).expected_evidence, [{ claim_id: IDS[1], via: 'answer' }]);
   assert.deepEqual(actionContract({ type: 'show_authored_card', card: 'b7', mode: 'suggest' }, ctx),
-    { action_type: 'show_authored_card', command: null, modality: 'explanation', target_concept_ids: [c(IDS[0])], target_claim_ids: [IDS[0]], expected_evidence: [], estimated_learning_seconds: 90 });
+    { action_type: 'show_authored_card', command: null, modality: 'explanation', cost_tier: 'none', target_concept_ids: [c(IDS[0])], target_claim_ids: [IDS[0]], expected_evidence: [], estimated_learning_seconds: 90 });
   assert.deepEqual(actionContract({ type: 'respond_text', text: 'One two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen.' }, ctx),
-    { action_type: 'respond_text', command: null, modality: 'text', target_concept_ids: [c(IDS[1])], target_claim_ids: [IDS[1]], expected_evidence: [], estimated_learning_seconds: 6 });
+    { action_type: 'respond_text', command: null, modality: 'text', cost_tier: 'none', target_concept_ids: [c(IDS[1])], target_claim_ids: [IDS[1]], expected_evidence: [], estimated_learning_seconds: 6 });
   assert.deepEqual(actionContract({ type: 'create_material', command: 'animate', request: 'x' }, ctx),
-    { action_type: 'create_material', command: 'animate', modality: 'video', target_concept_ids: [c(IDS[1])], target_claim_ids: [IDS[1]], expected_evidence: [], estimated_learning_seconds: 90 });
+    { action_type: 'create_material', command: 'animate', modality: 'video', cost_tier: 'paid', target_concept_ids: [c(IDS[1])], target_claim_ids: [IDS[1]], expected_evidence: [], estimated_learning_seconds: 90 });
   assert.deepEqual(actionContract({ type: 'suggest_dive', concept: concepts[1], title: 'Turbines', from: { anchor: { topic: 'Turbines' } } }, ctx),
-    { action_type: 'suggest_dive', command: null, modality: 'rabbit_hole', target_concept_ids: [concepts[1]], target_claim_ids: [], expected_evidence: [], estimated_learning_seconds: null });
+    { action_type: 'suggest_dive', command: null, modality: 'rabbit_hole', cost_tier: 'none', target_concept_ids: [concepts[1]], target_claim_ids: [], expected_evidence: [], estimated_learning_seconds: null });
   assert.equal(actionContract({ type: 'suggest_avatar_clip', moment: 'orientation', concept: concepts[0], max_duration_seconds: 12, offer: 'play' }, ctx).estimated_learning_seconds, 12);
 });
 
@@ -269,7 +279,7 @@ test('actionContract: command names the Learn command of a made card, null for e
   const made = command => actionContract({ type: 'create_material', command, request: 'x' }, ctx);
   assert.deepEqual(['animate', 'video', 'walkthrough', '3d'].map(command => [made(command).modality, made(command).command]), [['video', 'animate'], ['video', 'video'], ['scene', 'walkthrough'], ['scene', '3d']]);
   for (const action of [{ type: 'respond_text', text: 'x' }, { type: 'ask_question', text: 'x?', claim: IDS[1], purpose: 'predict' }, { type: 'suggest_dive', concept: null, title: 't', from: {} }, { type: 'return_from_dive' }]) assert.equal(actionContract(action, ctx).command, null, action.type);
-  assert.deepEqual(Object.keys(made('animate')), ['action_type', 'command', 'modality', 'target_concept_ids', 'target_claim_ids', 'expected_evidence', 'estimated_learning_seconds']);
+  assert.deepEqual(Object.keys(made('animate')), ['action_type', 'command', 'modality', 'cost_tier', 'target_concept_ids', 'target_claim_ids', 'expected_evidence', 'estimated_learning_seconds']);
 });
 
 // Review fix 2: one rule for shown and made cards - the block type decides the expected evidence, never how the card arrived.
@@ -416,7 +426,7 @@ test('old hole records: no learning_goal, no source, a deleted shared source - t
   const root = { app: 'share:0f0f', board: 'main', title: 'Shared canvas', kind: 'shared' };
   // No live title known: the record title (fix round 2: a live title, once the page passes it, wins - below).
   const context = tutorContext({ board: 'main', root, record });
-  assert.deepEqual([context.source, context.capabilities, context.domain.context], ['canvas', { tutor: false, hook_turns: true }, { goal: 'Exploring from Somewhere', origin: null }]);
+  assert.deepEqual([context.source, context.capabilities, context.domain.context], ['canvas', { tutor: true, hook_turns: true }, { goal: 'Exploring from Somewhere', origin: null }]);
   const { input } = nextStepsInput({ context, store: emptyStore(), journey: null, blocks: [], record, parent: null, title: '', lastTurn: null, previous: { hooks: [], goals: [] }, basis: 'b' });
   assert.deepEqual([input.mode, input.goal, input.dive.title, input.dive.parent_states, input.scope.claims], ['dive', 'Exploring from Somewhere', 'Exploring from Somewhere', {}, {}]);
   const w = worker({ strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: 'Start with the basics.' }, { type: 'return_from_dive' }] });

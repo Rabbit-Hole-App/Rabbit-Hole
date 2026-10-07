@@ -39,8 +39,10 @@ const mainActive = ({ courseCanvas, app, board, root, journey, parentJourney }) 
 };
 const mainDomain = ({ journey, parentJourney, record }) => (journey?.journey ? 'journey' : parentJourney && record?.journey ? 'dive' : NANOGPT);
 // useTutor's call (pinned below): the app is looked up only on its own course canvas. The Tutor these regressions compare
-// is the typed one (capabilities.tutor); Ruling F4's canvas domain answers hook clicks only and is tested on its own below.
-const typedTutor = context => (context?.capabilities?.tutor === true ? context : null);
+// is the course or journey one. Task 11b (owner eleventh message 6) gave every other canvas a typed Tutor too - the canvas
+// domain, capabilities.tutor true - which the old helper read as "no Tutor here"; it is set aside here and tested on its own
+// below and in learn-tutor-auto.test.mjs (tests A-K), so these regressions keep proving where the course Tutor runs.
+const typedTutor = context => (context?.capabilities?.tutor === true && context.source !== 'canvas' ? context : null);
 const resolve = ({ courseCanvas, app, ...rest }, registry) => typedTutor(tutorContext({ ...rest, app: courseCanvas ? app : null }, registry));
 const domainName = context => (context.domain.kind === 'journey' ? (context.domain.context.phase === 'dive' ? 'dive' : 'journey') : context.domain);
 const kindOf = context => (typeof domainName(context) === 'string' ? domainName(context) : 'course');
@@ -109,11 +111,12 @@ test('regression 3: an unsupported context stays unsupported through capability 
   assert.equal(typedTutor(tutorContext({ app: {}, root: { kind: 'repository' } }, [{ id: 'blank', match: {}, domain: TIDES_DOMAIN, capabilities: { tutor: true } }])), null);
 });
 
-// Ruling F4 (Task 10): where no journey, hole journey or registered entry resolves, the canvas gets the canvas domain for hook
-// clicks only - capabilities { tutor: false, hook_turns: true }, so typed text stays the Learn chat. A registered entry that
-// refuses the Tutor stays off for hooks too. goal: a hole's learning_goal or title, else the canvas title; origin: the shared
-// canvas a hole came from.
-test('F4: a plain canvas or a plain hole gets the canvas domain for hook clicks only; a registered entry that refuses stays off', () => {
+// Ruling F4 (Task 10), amended by Task 11b: where no journey, hole journey or registered entry resolves, the canvas gets the
+// canvas domain - capabilities { tutor: true, hook_turns: true } since 11b (owner eleventh message 6: plain-canvas typing and
+// Voice are Auto Tutor input; until 11b it was { tutor: false, hook_turns: true }, typed text staying the Learn chat). A
+// registered entry that refuses the Tutor still refuses it, hooks too. goal: a hole's learning_goal or title, else the canvas
+// title; origin: the shared canvas a hole came from.
+test('F4 + 11b: a plain canvas or a plain hole gets the canvas domain, typed and hook turns alike; a registered entry that refuses stays off', () => {
   const entry = TUTOR_DOMAINS.find(e => e.domain === NANOGPT);
   let canvas = 0, refused = 0;
   for (const registry of [TUTOR_DOMAINS, [{ ...entry, capabilities: { ...entry.capabilities, tutor: false } }], [{ ...entry, domain: null }], []]) {
@@ -123,7 +126,7 @@ test('F4: a plain canvas or a plain hole gets the canvas domain for hook clicks 
       if (typed) { assert.deepEqual([context.source, context.capabilities, context.domain.kind], [typed.source, typed.capabilities, typed.domain.kind], JSON.stringify(c)); continue; }
       if (registeredCourse(where, registry)) { refused++; assert.equal(context, null, JSON.stringify(c)); continue; }
       canvas++;
-      assert.deepEqual([context.source, context.capabilities, context.domain.kind, context.domain.contextKey], ['canvas', { tutor: false, hook_turns: true }, 'canvas', 'canvas_context'], JSON.stringify(c));
+      assert.deepEqual([context.source, context.capabilities, context.domain.kind, context.domain.contextKey], ['canvas', { tutor: true, hook_turns: true }, 'canvas', 'canvas_context'], JSON.stringify(c));
       // The live canvas title (fix round 2): a hole without a learning_goal takes it too, never its creation-time title.
       assert.deepEqual(context.domain.context, { goal: 'My canvas', origin: null }, JSON.stringify(c));
     }
@@ -180,25 +183,28 @@ function hook({ app, board = 'main', courseCanvas = false, root = null, record =
   return tutor;
 }
 
-test('regressions 1-3 through useTutor: nanoGPT canvases and holes get the Tutor; a course added to the registry data does too; tutor:false does not', async () => {
+// Task 11b: every canvas with no course or journey Tutor now has the plain-canvas Auto Tutor (active, plain); which Tutor
+// answers is what these regressions compare: the course one exactly where it ran before, a refusing entry still none.
+const who = t => (!t.active ? 'none' : t.plain ? 'canvas' : 'course');
+test('regressions 1-3 through useTutor: nanoGPT canvases and holes get the course Tutor; a course added to the registry data does too; tutor:false gets none', async () => {
   const nano = { repo: REPO, kind: 'repository' };
-  assert.equal(hook({ app: nano, courseCanvas: true }).active, true, 'the supplied course canvas');
-  assert.equal(hook({ app: nano, courseCanvas: false, board: 'scratch' }).active, false, 'a review board on the course');
-  assert.equal(hook({ app: {}, board: BOARD }).active, true, 'the slice board');
-  assert.equal(hook({ app: {}, root: { kind: 'repository', title: REPO } }).active, true, 'a hole under the course');
-  assert.equal(hook({ app: {}, root: { kind: 'canvas', board: BOARD } }).active, true, 'a hole under the slice board');
-  assert.equal(hook({ app: { repo: 'karpathy/minGPT', kind: 'repository' }, courseCanvas: true }).active, false, 'another repository');
-  assert.equal(hook({ app: {}, root: { kind: 'repository', title: 'karpathy/minGPT' } }).active, false);
+  assert.equal(who(hook({ app: nano, courseCanvas: true })), 'course', 'the supplied course canvas');
+  assert.equal(who(hook({ app: nano, courseCanvas: false, board: 'scratch' })), 'canvas', 'a review board on the course: the plain-canvas Tutor');
+  assert.equal(who(hook({ app: {}, board: BOARD })), 'course', 'the slice board');
+  assert.equal(who(hook({ app: {}, root: { kind: 'repository', title: REPO } })), 'course', 'a hole under the course');
+  assert.equal(who(hook({ app: {}, root: { kind: 'canvas', board: BOARD } })), 'course', 'a hole under the slice board');
+  assert.equal(who(hook({ app: { repo: 'karpathy/minGPT', kind: 'repository' }, courseCanvas: true })), 'canvas', 'another repository');
+  assert.equal(who(hook({ app: {}, root: { kind: 'repository', title: 'karpathy/minGPT' } })), 'canvas');
 
   // The registry data is the only change: the same hook now serves the new course, and stops when the entry goes.
   bundled.TUTOR_DOMAINS.push(OTHER, { ...OTHER, id: 'closed', match: { repo: 'example/closed' }, capabilities: { tutor: false } });
   try {
-    assert.equal(hook({ app: { repo: 'example/tides', kind: 'repository' }, courseCanvas: true }).active, true);
-    assert.equal(hook({ app: {}, root: { kind: 'repository', title: 'example/tides' } }).active, true);
-    assert.equal(hook({ app: { repo: 'example/closed', kind: 'repository' }, courseCanvas: true }).active, false, 'registered with tutor: false');
-    assert.equal(hook({ app: nano, courseCanvas: true }).active, true);
+    assert.equal(who(hook({ app: { repo: 'example/tides', kind: 'repository' }, courseCanvas: true })), 'course');
+    assert.equal(who(hook({ app: {}, root: { kind: 'repository', title: 'example/tides' } })), 'course');
+    assert.equal(who(hook({ app: { repo: 'example/closed', kind: 'repository' }, courseCanvas: true })), 'none', 'registered with tutor: false still refuses');
+    assert.equal(who(hook({ app: nano, courseCanvas: true })), 'course');
   } finally { bundled.TUTOR_DOMAINS.splice(-2); }
-  assert.equal(hook({ app: { repo: 'example/tides', kind: 'repository' }, courseCanvas: true }).active, false);
+  assert.equal(who(hook({ app: { repo: 'example/tides', kind: 'repository' }, courseCanvas: true })), 'canvas', 'unregistered: the plain-canvas Tutor');
 });
 
 test('regression 1 through useTutor: on the nanoGPT course the composer is the Tutor - its routes, its store key, no journey context', async () => {
@@ -227,9 +233,10 @@ test('regression 1 through useTutor: on the nanoGPT course the composer is the T
   assert.deepEqual([...storage.keys()], ['small.tutor:o:e@x.com']);
 });
 
-// Ruling F4 through useTutor (Task 10): on a plain canvas and a hole from a shared canvas the composer stays the Learn chat
-// (no ask, no voiceTurn), and a hook click is a next_step Tutor turn with canvas_context, in the canvas's own store.
-test('F4 through useTutor: a plain canvas and a shared-canvas hole run hook clicks only, with canvas_context and their own store', async () => {
+// Ruling F4 through useTutor (Task 10), amended by Task 11b: on a plain canvas and a hole from a shared canvas the composer is
+// the Auto Tutor (ask, voiceTurn; until 11b it stayed the Learn chat), and a hook click is a next_step Tutor turn with
+// canvas_context, in the canvas's own store.
+test('F4 + 11b through useTutor: a plain canvas and a shared-canvas hole run hook clicks with canvas_context and their own store', async () => {
   const STEP = { v: 1, set_id: 'ns_0d0d0d0d', suggestion_id: 'ns_0d0d0d0d.3', basis: 'b', hook: 'Why does dough rise overnight?', learning_goal: 'Explain how yeast gas lifts dough', concept_ids: [], claim_ids: [], scope: 'owned' };
   const shared = { kind: 'shared', title: 'Bread science', app: 'share:0f0f', board: 'main' };
   const cases = [
@@ -254,7 +261,9 @@ test('F4 through useTutor: a plain canvas and a shared-canvas hole run hook clic
     let tutor;
     try {
       tutor = hook({ ...where, app: { ...where.app } });
-      assert.deepEqual([tutor.active, tutor.ask, tutor.voiceTurn, typeof tutor.askStep, 'extras' in tutor], [false, undefined, undefined, 'function', true], 'typed text stays the Learn chat');
+      // Task 11b (owner eleventh message 6) replaces "typed text stays the Learn chat": typed and voice turns are Auto Tutor
+      // input here too (learn-tutor-auto.test.mjs A-K); hook clicks keep working as before.
+      assert.deepEqual([tutor.active, typeof tutor.ask, typeof tutor.voiceTurn, typeof tutor.askStep, 'extras' in tutor], [true, 'function', 'function', 'function', true]);
       assert.equal(await tutor.askStep({ selected_next_step: STEP }), 'Yeast makes gas.');
       assert.deepEqual([tutor.snapshot().context.source, tutor.snapshot().store.turns.at(-1).next_step], ['canvas', STEP.suggestion_id]);
     } finally {
@@ -303,7 +312,7 @@ test('a canvas-domain hole: a hook turn that returns from the dive shows Back up
   let tutor;
   try {
     tutor = hook({ app: { name: 'canvas-0000cccc', title: 'Exploring from Bread science' }, root: { kind: 'shared', title: 'Bread science', app: 'share:0f0f', board: 'main' }, record: { dive_id: 'canvas-0000cccc', title: 'Exploring from Bread science', origin: { parent: { app: 'share:0f0f', board: 'main' } } }, navigator });
-    assert.equal(tutor.active, false);
+    assert.equal(tutor.active, true, 'Task 11b: the plain-canvas Tutor is active (until 11b this hole was hook-only)');
     assert.equal(await tutor.askStep({ selected_next_step: STEP }), 'Back to the bigger picture.');
   } finally {
     for (const [name, descriptor] of Object.entries(saved)) { if (descriptor) Object.defineProperty(globalThis, name, descriptor); else delete globalThis[name]; }
@@ -376,7 +385,7 @@ test('the live title: canvas_context.goal and dive_context.title follow the dive
 
 test('wiring: useTutor and LearnPage decide the Tutor only through the resolver; the registry holds the one nanoGPT entry', () => {
   const tutor = read('LearnTutor.jsx'), page = read('LearnPage.jsx'), registry = read('learn-tutor-domains.js');
-  assert.match(tutor, /export function useTutor\(\{ app, board, access, canvasApi, canvasState, dive, courseCanvas = false, journey = null, canvasVersion = null \}\)/);
+  assert.match(tutor, /export function useTutor\(\{ app, board, access, canvasApi, canvasState, dive, courseCanvas = false, journey = null, canvasVersion = null, openResearch = null \}\)/);
   assert.match(tutor, /const where = \{ app: courseCanvas \? app : null, board, root, parentJourney, record, title: liveTitle \};/);
   assert.match(tutor, /const liveTitle = dive\.tree\?\.path\?\.at\(-1\)\?\.title \?\? app\.title \?\? null;/);
   // Merge of Tasks 10 and 11: the opening lives in holeOpening (learn-next-steps.js), handed the live title.
@@ -388,7 +397,7 @@ test('wiring: useTutor and LearnPage decide the Tutor only through the resolver;
   assert.match(tutor, /diveJourney\(record, path => api\(path\)\)\.then\(found => \{ if \(current\) \{ setParentJourney\(found\); setParentRead\(record\.dive_id\); \} \}\);/);
   assert.match(tutor, /snapshot: \(\) => \(\{ context: hookContext\(\{ \.\.\.where, journey: journeyRef\.current, blocks: canvasApi\.current\?\.blocks\?\.\(\) \|\| \[\] \}, parentRead, recordPending\), store: load\(\), parent: parentJourney, record, liveTitle \}\),/);
   assert.match(tutor, /const recordPending = \/\^canvas-\[a-f0-9\]\{8\}\$\/\.test\(app\.name\) && !dive\.tree;/);
-  assert.match(tutor, /\}, \[access, record, here\.app, here\.board, key, parentJourney, courseCanvas, root, canvasVersion, liveTitle\]\);/);
+  assert.match(tutor, /\}, \[access, record, here\.app, here\.board, key, parentJourney, courseCanvas, root, canvasVersion, liveTitle, openResearch\]\);/);
   assert.match(page, /const tutor = useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey \}\);/);
   assert.match(page, /const suppliedCourse = learnPreview && !!registeredCourse\(\{ app \}\)\?\.capabilities\?\.suppliedCourse;/);
   assert.equal(TUTOR_DOMAINS.filter(e => e.domain === NANOGPT).length, 1);

@@ -39,9 +39,11 @@ test('TUTOR_AVATAR off: the planner prefix and request keep their pinned hashes 
   const context = { learner_intent: { kind: 'question', raw_user_message: 'why softmax?' }, route: { row: 'understood' }, allowed_actions: ['respond_text'] };
   // Hashes of the cached prefix and a streamed, cached request. Before Professor Next Steps Task 4 (main 74d20468):
   // 6b3ba28db7f6d5c54e97bac07c27d607db78a77095dcc5ee95209231f783ee75 / 516c06007f1bd4fd4dc95e8c8778d8171f3e4a3f59a6657ca834ddb643bd3b96;
-  // re-pinned with review (.superpowers/sdd/2026-10-06-professor-next-steps/task-4-repin-review.md, entries 1-2).
-  assert.equal(sha(JSON.stringify([TUTOR_TOOL, PLANNER_SYSTEM])), '57a2a9cea4fc27c69585db49dbbba4d05cd72e98654caf6c191efd4300dc2347');
-  assert.equal(sha(JSON.stringify(plannerRequest(context, 2000, [], { cache: true, stream: true }))), '068ee7b7fd7b4b4e408f21a155ec1de0da27d14745dc5067e1e21782c8ab2442');
+  // re-pinned with review (.superpowers/sdd/2026-10-06-professor-next-steps/task-4-repin-review.md, entries 1-2). Before Task 11b
+  // (f6919b51): 57a2a9cea4fc27c69585db49dbbba4d05cd72e98654caf6c191efd4300dc2347 / 068ee7b7fd7b4b4e408f21a155ec1de0da27d14745dc5067e1e21782c8ab2442;
+  // re-pinned with review (.superpowers/sdd/2026-10-06-professor-next-steps/task-11b-repin-review.md, part A pins 1-2).
+  assert.equal(sha(JSON.stringify([TUTOR_TOOL, PLANNER_SYSTEM])), 'e6953b414277d7c5e8de4afeb0ab208d51188552611ab687cdbb550e556acec3');
+  assert.equal(sha(JSON.stringify(plannerRequest(context, 2000, [], { cache: true, stream: true }))), '32b97373eda31270727b7e6c7470fdb085b41d7ffd90c9d9d715f7739b25ca2c');
   assert.deepEqual(plannerRequest(context, 2000, [], { avatar: false }), plannerRequest(context, 2000));
   assert.ok(!ACTION_TYPES.includes(AVATAR_ACTION));
 });

@@ -15,23 +15,24 @@ test('REASON_CODES are the owner taxonomy, generic, in order', () => {
 
 test('TUTOR_TOOL: reason_codes after reason (written last), create_material with command and request', () => {
   const props = Object.keys(TUTOR_TOOL.input_schema.properties);
-  assert.deepEqual(props.slice(-3), ['move', 'reason', 'reason_codes']);
+  // Task 11b: the reading fields follow, last (learn-tutor-auto.test.js).
+  assert.deepEqual(props.slice(-8, -5), ['move', 'reason', 'reason_codes']);
   assert.deepEqual(TUTOR_TOOL.input_schema.properties.reason_codes, { type: 'array', maxItems: 3, items: { type: 'string', enum: REASON_CODES } });
   assert.ok(ACTION_TYPES.includes('create_material'));
   const item = TUTOR_TOOL.input_schema.properties.actions.items.properties;
   assert.deepEqual([item.command, item.request], [{ type: 'string' }, { type: 'string', maxLength: 1000 }]);
   assert.deepEqual(TUTOR_TOOL.input_schema.required, ['constraints_add', 'strategy', 'actions'], 'reason codes stay optional: a missing code falls back to the route row');
-  assert.match(TUTOR_TOOL.description, /then reason_codes and reason last\.$/);
+  assert.match(TUTOR_TOOL.description, /then reason_codes and reason, then the reading fields last\.$/);
   // The avatar tool is built from TUTOR_TOOL, so it carries the same additions in the same order.
   const avatar = tutorTool(true).input_schema;
-  assert.deepEqual(Object.keys(avatar.properties).slice(-3), ['move', 'reason', 'reason_codes']);
+  assert.deepEqual(Object.keys(avatar.properties).slice(-8, -5), ['move', 'reason', 'reason_codes']);
   assert.deepEqual([avatar.properties.actions.items.properties.command, avatar.properties.actions.items.properties.request], [item.command, item.request]);
   assert.ok(avatar.properties.actions.items.properties.type.enum.includes('create_material'));
 });
 
 test('the shared lines: reason codes and reason last, generation only through create_material, modality history as evidence', () => {
   const lines = PLANNER_SYSTEM.split('\n');
-  assert.equal(lines.length, 16, 'one line appended; lines 12-14 keep their indices');
+  assert.equal(lines.length, 21, 'line 15 appended, then Task 11b lines 16-20; lines 12-14 keep their indices');
   assert.match(lines[4], /never generate new artifacts unless context\.allowed_actions lists create_material\.$/);
   assert.match(lines[11], /Last, after the actions: reason_codes .* and reason /);
   assert.match(lines[11], /never vary_modality alone/);
@@ -66,9 +67,10 @@ test('NEXT_STEP_SYSTEM is appended only on next_step turns; every other request 
   assert.equal(plannerRequest(base, 2000, [], { cache: true }).system[0].text, PLANNER_SYSTEM);
   assert.deepEqual(plannerRequest(step, 2000).tools, plannerRequest(base, 2000).tools, 'the tool is unchanged');
   assert.match(NEXT_STEP_SYSTEM, /never evidence and never an explicit_request/);
-  assert.match(NEXT_STEP_SYSTEM, /create_material/);
-  assert.match(NEXT_STEP_SYSTEM, /several are allowed/);
-  assert.match(NEXT_STEP_SYSTEM, /plain words: no backticks and no code/);
+  // Task 11b (task-11b-repin-review.md change 5): the create_material meaning moved to the shared prefix, so typed turns read it too.
+  assert.doesNotMatch(NEXT_STEP_SYSTEM, /create_material/);
+  assert.match(PLANNER_SYSTEM, /Several are allowed within the action limit, each with a different command/);
+  assert.match(PLANNER_SYSTEM, /request says in plain words, with no code/);
   assert.doesNotMatch(NEXT_STEP_SYSTEM, /[`]|=>/, 'the prompt itself has no code characters');
   assert.deepEqual(plannerTier({ route: { row: 'not_yet_observed' }, learner_intent: { kind: 'next_step' } }).tier, 'fast');
   assert.deepEqual(plannerTier({ route: { row: 'misconception' }, learner_intent: { kind: 'next_step' } }).tier, 'opus');
@@ -93,17 +95,19 @@ test('CANVAS_SYSTEM: chosen by canvas_context, journey and nanoGPT requests unch
   assert.equal(/nanoGPT|attention/i.test(CANVAS_SYSTEM), false, 'no course named (the shared suggest_dive line keeps its Softmax example, as the journey prompt does)');
   // The shared policy lines it keeps are verbatim (the voice, data-not-instructions, generation and history lines among them).
   const lines = PLANNER_SYSTEM.split('\n');
-  for (const i of [1, 2, 3, 6, 8, 9, 11, 12, 13, 14, 15]) assert.ok(CANVAS_SYSTEM.includes(lines[i]), `shared line ${i}`);
+  for (const i of [1, 2, 3, 6, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]) assert.ok(CANVAS_SYSTEM.includes(lines[i]), `shared line ${i}`);
   // Fix round 2: line 10 cites context.target.sources, and target is always null on a click; its length rule stays.
   assert.ok(CANVAS_SYSTEM.includes('- respond_text stays under 120 words and addresses the learner as "you".'));
   assert.equal(/target\.sources|source_index/.test(CANVAS_SYSTEM), false);
   for (const i of [0, 4, 5, 7, 10]) assert.equal(CANVAS_SYSTEM.includes(lines[i]), false, `line ${i} names cards or claims this canvas has not got`);
   assert.match(CANVAS_SYSTEM, /never generate new artifacts unless context\.allowed_actions lists create_material/);
   assert.match(CANVAS_SYSTEM, /Never claim they know or lack something/);
-  // Fix round 1 (owner eleventh message 5): it describes only what a hook turn supplies - the canvas cards are never in context.
-  assert.match(CANVAS_SYSTEM, /cards may exist on it, but none are in context\. Never describe, invent or point at cards, parts or sources/);
-  assert.match(CANVAS_SYSTEM, /learner_intent\.selected_next_step \(the hook they chose and its learning_goal\)/);
+  // Fix round 1 (owner eleventh message 5): it describes only what a turn supplies. Task 11b: typed and voice turns too, so the
+  // card the learner selected is context.target (title and text); no other card is in context.
+  assert.match(CANVAS_SYSTEM, /other cards may exist on the canvas, but none are in context\. Never describe, invent or point at other cards, parts or sources/);
+  assert.match(CANVAS_SYSTEM, /learner_intent\.selected_next_step \(on a hook click: the hook they chose and its learning_goal\)/);
   assert.equal(/no authored cards here|Canvas content first|Also: target, relevant_authored_content/.test(CANVAS_SYSTEM), false);
   // Pinned 2026-10-06 (Task 10 fix round 2; was c4005ddb..., before that 6d8cc2ce..., task-10-repin-review.md entries 5-6).
-  assert.equal(createHash('sha256').update(CANVAS_SYSTEM).digest('hex'), 'c6cc8ff752ad8dae091eb8d81c7cd839ce76d73b94d56370732c4d2cc8131755');
+  // Re-pinned by Task 11b (was c6cc8ff752ad8dae091eb8d81c7cd839ce76d73b94d56370732c4d2cc8131755; task-11b-repin-review.md part A, pin 6).
+  assert.equal(createHash('sha256').update(CANVAS_SYSTEM).digest('hex'), '2c02686dd4bc05d1d647fb6808b59a5d8db3448e4867e4a680d8b1b69bb2155e');
 });

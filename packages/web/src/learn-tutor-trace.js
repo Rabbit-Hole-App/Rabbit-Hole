@@ -4,7 +4,7 @@
 // Stages: target_resolution, practice_evaluation, claim_selection, evaluate (with the worker's own
 // jev / larger timings), evidence_reconciliation, router, planner, action_validation; the UI adds
 // reply_ready and canvas_action_complete marks.
-import { TRACE_SCHEMA_VERSION, TUTOR_PLANNER_VERSION, goalWords, repeatsLearnerWords } from '../../control-plane/src/agents/learn-tutor.js';
+import { MODE_SLASHES, TRACE_SCHEMA_VERSION, TUTOR_PLANNER_VERSION, goalWords, repeatsLearnerWords } from '../../control-plane/src/agents/learn-tutor.js';
 import { STATES } from './learn-tutor-evidence.js';
 import { resolveTarget } from './learn-target.js';
 
@@ -78,7 +78,23 @@ const routerCodes = (turn, routed) => {
   return ['follow_learner_interest', ...(code && code !== 'respond_to_question' && code !== 'follow_learner_interest' ? [code] : [])];
 };
 // The validator's repairs by rule name (learn-tutor-validate.js log lines; never their text).
-const REPAIRS = [[/^downgraded /, 'downgraded_navigation'], [/^removed /, 'citations_removed'], [/^shortened /, 'shortened_before_dive'], [/^explicit_request /, 'explicit_request_unquoted'], [/^dropped \S+ learning_goal/, 'learning_goal_dropped']];
+const REPAIRS = [[/^downgraded /, 'downgraded_navigation'], [/^removed /, 'citations_removed'], [/^shortened /, 'shortened_before_dive'], [/^explicit_request /, 'explicit_request_unquoted'], [/^dropped \S+ learning_goal/, 'learning_goal_dropped'], [/^dropped reading field /, 'reading_value_dropped']];
+// Task 11b (owner eighth, ninth, fourteenth and nineteenth messages): what the learner wanted, kept apart from what the Tutor
+// did. An explicit /ask or /teach is its own reading (intent_status explicit; the planner's field never overwrites it); any
+// other slash is explicit_slash with the planner's reading; an Auto turn takes the planner's declared reading (the validator's
+// bounded copy, result.reading), and a missing, cut or unknown field is null with intent_status missing - never guessed from
+// words. research_offered: the accepted plan offers Research; research_executed: nothing is researched in a Tutor turn (v1).
+// A hook set (no plan) records auto with nothing declared.
+const NO_READING = { inferred_intent: null, modality_override: null, clarification_requested: null, grounding_status: null, source_types_used: null };
+const intentOf = (slash, reading = NO_READING, offered = false) => {
+  const explicit = MODE_SLASHES.includes(slash);
+  return {
+    intent_mode: slash ? 'explicit_slash' : 'auto', inferred_intent: explicit ? slash : reading.inferred_intent,
+    explicit_modality_override: reading.modality_override, intent_status: explicit ? 'explicit' : reading.inferred_intent ? 'declared' : 'missing',
+    clarification_requested: reading.clarification_requested, grounding_status: reading.grounding_status, source_types_used: reading.source_types_used,
+    research_offered: offered, research_executed: false,
+  };
+};
 // At most 2 sentences and 300 characters; dropped (a repair) when it repeats five words of this turn's message, or holds the
 // whole message (two words or more) as whole words in order - normalized as goalWords, so punctuation, case and spacing never
 // hide it; a one-word reply ("no", "ok") is not quotable.
@@ -111,7 +127,7 @@ export const decisionEvent = safe(({ result, domain, identity = {}, blocks = [],
   const { turn, routed = null, response = {}, decisions = [], log = [], bench = {} } = result;
   const contracts = result.contracts ?? [], record = turn.canvas.dive?.record ?? null, telemetry = response?.telemetry ?? null, claims = bench.claims || [];
   const conceptsOf = ids => [...new Set(ids.map(id => domain?.claims?.[id]?.concept).filter(Boolean))];
-  const actions = contracts.map(({ action_type, command, modality, target_concept_ids, target_claim_ids }) => ({ action_type, command, modality, target_concept_ids, target_claim_ids }));
+  const actions = contracts.map(({ action_type, command, modality, cost_tier, target_concept_ids, target_claim_ids }) => ({ action_type, command, modality, cost_tier, target_concept_ids, target_claim_ids }));
   const planned = result.reason_codes ?? [], router = routerCodes(turn, routed), flags = [];
   let reason_codes = planned, reason_source = planned.length ? 'planner' : null;
   if (!planned.length && router.length) { reason_codes = router; reason_source = 'router'; }
@@ -146,6 +162,7 @@ export const decisionEvent = safe(({ result, domain, identity = {}, blocks = [],
       reason_codes, reason_source, rationale_summary: why.summary,
       expected_evidence: [...new Map(contracts.flatMap(c => c.expected_evidence || []).map(e => [`${e.claim_id}|${e.via}`, e])).values()],
       estimated_learning_seconds: seconds.length ? seconds.reduce((a, b) => a + b, 0) : null,
+      ...intentOf(turn.slash, result.reading ?? NO_READING, actions.some(a => a.action_type === 'suggest_research')),
     },
     runtime: {
       timing: { total_ms: totalMs, planner_ms: bench.ms?.planner ?? null, first_text_ms: bench.ms?.to_first_safe_sentence ?? null },
@@ -191,6 +208,7 @@ const hooks = (set, { input = null, summary = null, identity = {}, scope = 'owne
       target_concept_ids: s.target_concept_ids, target_claim_ids: s.target_claim_ids, evidence_summary: s.evidence_summary, evidence_transitions: [], canvas_summary: s.canvas_summary,
       recent_modality_history: (input?.recent?.modalities || []).slice(-8), next_step_options: optionsOf(set?.options, set?.set_id ?? null), shown_at: null, selected_next_step_id: null, selected_at: null,
       route: null, chosen_action: null, actions: [], reason_codes: [], reason_source: null, rationale_summary: null, expected_evidence: [], estimated_learning_seconds: null,
+      ...intentOf(null),
     },
     runtime: {
       timing: { total_ms: ran, planner_ms: ran, first_text_ms: null }, model: { tier: t.tier ?? null, escalated: !!t.escalated, calls: t.calls ?? 0 },

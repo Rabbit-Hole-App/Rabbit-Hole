@@ -18,11 +18,13 @@ import { NANOGPT, cardModule, claimsOfConceptIn, holeConcept, partLabels } from 
 import { appendEvents, conceptState, deriveClaimStates, practiceEvents, reconcile } from './learn-tutor-evidence.js';
 import { selectClaims } from './learn-tutor-select.js';
 import { EVIDENCE_ACTIONS, EVIDENCE_ROWS, avatarMoments, speakable, statedConstraints, validateActions } from './learn-tutor-validate.js';
-import { AVATAR_ACTION } from '../../control-plane/src/agents/learn-tutor.js';
+import { AVATAR_ACTION, MODE_SLASHES } from '../../control-plane/src/agents/learn-tutor.js';
 import { decisionEvent, safely, turnTrace } from './learn-tutor-trace.js';
 import { actionContract, reasonCodes } from './learn-tutor-actions.js';
 
-const SLASHES = ['deeper', 'simplify', 'dive'];
+// The slashes a Tutor turn carries: /deeper and /simplify route themselves (row slash); /ask and /teach (Task 11b, owner
+// thirteenth message) are explicit intent overrides on the ordinary rows. /research and /do are not Canvas commands.
+export const SLASHES = ['deeper', 'simplify', 'dive', ...MODE_SLASHES];
 const canvasKey = canvas => `${canvas.app}|${canvas.board || 'main'}`;
 export const sameCanvas = (a, b) => !!a && !!b && canvasKey(a) === canvasKey(b);
 
@@ -92,9 +94,11 @@ const turnEvidence = (claims, states, domain) => withPrerequisites(claims, domai
 // inputModality: 'text' (typed) or 'voice' (Voice Mode, docs/features/voice-tutor-mvp.md §1);
 // turnId: the voice trace id minted at the utterance commit, else a fresh one.
 // nextStep (Professor Next Steps §2.5): a clicked hook's selected_next_step. The turn carries it as structured data with
-// no learner words, answers no open question and consumes no dive choice or return; materials: the Learn commands it may
-// run as create_material (learn-slash.js materialCommands). canvas.liveTitle: a hole's live title (Task 10 fix round 3).
-export function buildTurn({ raw, slash = null, opening = false, canvas, block, store, states, inputModality = 'text', turnId = null, domain = NANOGPT, nextStep = null, materials = [] }) {
+// no learner words, answers no open question and consumes no dive choice or return. materials: the Learn commands the turn may
+// run as create_material (learn-slash.js materialCommands) - on any turn since Task 11b (owner ninth message), typed, voice or
+// hook. research (Task 11b): the page can open its Research workflow, so the turn may offer suggest_research (research_offer).
+// canvas.liveTitle: a hole's live title (Task 10 fix round 3).
+export function buildTurn({ raw, slash = null, opening = false, canvas, block, store, states, inputModality = 'text', turnId = null, domain = NANOGPT, nextStep = null, materials = [], research = false }) {
   const here = { app: canvas.app, board: canvas.board || 'main' };
   const open = store.open && sameCanvas(store.open.canvas, here) && !slash && !nextStep ? store.open : null;
   const keep = store.keep && sameCanvas(store.keep.canvas, here) && !nextStep ? store.keep : null;
@@ -116,7 +120,9 @@ export function buildTurn({ raw, slash = null, opening = false, canvas, block, s
     ...(back ? { returned_from: { dive_id: back.dive_id, concept: back.concept, claim: back.claim, states: claimsOfConceptIn(domain.claims, back.concept).map(id => states[id]) } } : {}),
     recent_turns: store.turns.slice(-4),
     recent_actions: store.actions.slice(-3),
-    ...(nextStep ? { next_step: { suggestion_id: nextStep.suggestion_id, hook: nextStep.hook, learning_goal: nextStep.learning_goal, concept_ids: [...(nextStep.concept_ids || [])], claim_ids: [...(nextStep.claim_ids || [])] }, available_materials: materials } : {}),
+    ...(nextStep ? { next_step: { suggestion_id: nextStep.suggestion_id, hook: nextStep.hook, learning_goal: nextStep.learning_goal, concept_ids: [...(nextStep.concept_ids || [])], claim_ids: [...(nextStep.claim_ids || [])] } } : {}),
+    ...(nextStep || materials.length ? { available_materials: materials } : {}),
+    ...(research ? { research_offer: true } : {}),
   };
   const claims = turnClaims(turn, store, domain);
   turn.evidence = turnEvidence(claims, states, domain);
@@ -162,6 +168,10 @@ export function evaluationSpec(turn, claims, store, domain = NANOGPT) {
 // ponytail: runTurn never passes avatar yet; AV6 wires the knob, the ready-clip lookup (LearnAvatarClips
 // ?ready), the canvas's clips and the session's avatar_seen record.
 // domain: accepted for parity with the other stages; route reads nothing domain-specific (claims and states arrive scoped).
+// MATERIAL_FIXED (Task 11b): rows whose existing rule fixes the move, so they never make material - a return from a hole
+// re-asks its question, an explanation JEV could not settle gets one clarifying question, /deeper and /simplify navigate
+// authored cards. None of them is reachable on a hook click (no slash, no return, no evaluation), so hook turns are unchanged.
+const MATERIAL_FIXED = ['returned', 'uncertain_unsettled', 'slash'];
 export function route({ turn, claims, states, evaluation, store, avatar = null, domain = NANOGPT }) {
   const noQuiz = turn.constraints.includes('no_quiz') || turn.constraints.includes('just_answer');
   const inHole = !!turn.canvas.dive;
@@ -169,9 +179,12 @@ export function route({ turn, claims, states, evaluation, store, avatar = null, 
     let list = noQuiz ? allowed.filter(type => type !== 'ask_question') : allowed;
     if (!list.some(type => type === 'respond_text' || type === 'ask_question')) list = ['respond_text', ...list];
     if (inHole && !list.includes('return_from_dive')) list = [...list, 'return_from_dive'];
-    // Professor Next Steps (contract §2.5): a hook click may make material through the existing Learn commands; typed
-    // turns never can (LP1 N4).
-    if (turn.next_step && turn.available_materials?.length && !list.includes('create_material')) list = [...list, 'create_material'];
+    // Professor Next Steps (contract §2.5) and Task 11b (owner ninth message): any turn offered materials - a hook click, a
+    // typed or a voice turn - may make material through the existing Learn commands, except on a row whose rule fixes the
+    // move (MATERIAL_FIXED). suggest_research (owner nineteenth message) is an offer on every row where the page can open
+    // Research. Nothing here reads the learner's words.
+    if (turn.available_materials?.length && !MATERIAL_FIXED.includes(row) && !list.includes('create_material')) list = [...list, 'create_material'];
+    if (turn.research_offer && !list.includes('suggest_research')) list = [...list, 'suggest_research'];
     const moments = avatar ? avatarMoments(row, turn) : [];
     if (moments.length) return { row, strategy, allowed: [...list, AVATAR_ACTION], claim, avatar: { moments, seen: store?.avatar_seen || [], ready: avatar.ready || new Set(), on_canvas: avatar.on_canvas || new Set() } };
     return { row, strategy, allowed: list, claim };
@@ -283,7 +296,8 @@ function relevantCards(target, concepts, domain) {
 // record without `journey` adds nothing. dive_context.title is the hole's live title when the page passes one (Task 10 fix
 // round 3: canvas.liveTitle; record.title is the creation title); its concept still comes from the record.
 // Professor Next Steps (§2.5, §2.6): recent_relevant_context.recent_modalities is the store's last 8 modalities, evidence
-// for the planner only (nothing here or in route() reads it); a hook-click turn adds available_materials as the last key.
+// for the planner only (nothing here or in route() reads it); a turn whose route allows create_material (Task 11b: typed and
+// voice turns too) adds available_materials as the last key.
 export function plannerContext({ turn, routed, block, states, claims = [], store = null, domain = NANOGPT }) {
   const card = domain.cardModule(turn.target?.card);
   const labels = partLabels(card);
@@ -318,7 +332,7 @@ export function plannerContext({ turn, routed, block, states, claims = [], store
       ...(turn.returned_from ? { returned_from: { dive_id: turn.returned_from.dive_id, concept: turn.returned_from.concept, claim: turn.returned_from.claim } } : {}),
     } : null,
     ...(domain.context ? { [domain.contextKey ?? 'journey_context']: domain.context } : {}),
-    ...(turn.next_step && turn.available_materials?.length ? { available_materials: turn.available_materials } : {}),
+    ...(routed.allowed.includes('create_material') && turn.available_materials?.length ? { available_materials: turn.available_materials } : {}),
   };
 }
 
@@ -343,12 +357,14 @@ export const enforce = validateActions;
 // /evaluate gets the journey id and claim ids, and the stored events it returns replace the store's.
 // plan: false (a diagnostic turn, §6.3) stops after the evidence - no router, planner or actions.
 // nextStep, materials (Professor Next Steps §2.5): a hook click - one structured next_step turn with no learner words, so
-// nothing is evaluated and no evidence is written; the planner may answer with create_material among materials.
+// nothing is evaluated and no evidence is written; the planner may answer with create_material among materials. Task 11b:
+// typed and voice turns take materials too, and research (the page can open Research) lets the plan offer suggest_research.
+// The result carries `reading`, the validator's bounded copy of the planner's reading fields: telemetry for the trace only.
 // The result also carries `contracts` (one actionContract per accepted action, learn-tutor-actions.js) and the turn's
 // `reason_codes`; the store keeps the contracted modalities of the last 8 actions (contract §2.6).
 // trace (contract §3.3): true, or { identity, blocks, next_step_options, selected_at }, adds `trace` - a TutorDecisionEvent built from the
 // finished result (learn-tutor-trace.js), or null when building failed; false (the default) leaves the result as it was.
-export async function runTurn({ raw, slash = null, opening = false, canvas, access, block, store, post, onSpeakable = null, inputModality = 'text', turnId = null, onTurn = null, domain = NANOGPT, plan = true, nextStep = null, materials = [], trace = false }) {
+export async function runTurn({ raw, slash = null, opening = false, canvas, access, block, store, post, onSpeakable = null, inputModality = 'text', turnId = null, onTurn = null, domain = NANOGPT, plan = true, nextStep = null, materials = [], research = false, trace = false }) {
   if (nextStep) raw = '';
   const t = [now()];
   // The hook click's time for the event (selected_at): the page's click time when it passes one, else this turn's start.
@@ -371,7 +387,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   }
   t.push(now());
   let states = deriveClaimStates(current.events, domain.claims);
-  const built = tracer.step('claim_selection', () => buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id, domain, nextStep, materials }),
+  const built = tracer.step('claim_selection', () => buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id, domain, nextStep, materials, research }),
     out => out.selection ? `${out.selection.selected.length}/${out.selection.available}${out.selection.fallback ? ' fallback' : ''}` : 'none');
   const { turn, selection } = built;
   onTurn?.(turn);
@@ -393,7 +409,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
     const reconciled = () => (!journeyTurn ? reconcile(current, evaluation, ref, domain.claims)
       : result.journey?.events ? adoptJourney(current, result, states, domain.claims) : { store: current, states, transitions: [], added: 0 });
     ({ store: current, states, transitions } = tracer.step('evidence_reconciliation', reconciled, out => `${out.added} observations, ${out.transitions.length} state changes`));
-    turn.evidence = buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id, domain, nextStep, materials }).turn.evidence;
+    turn.evidence = buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id, domain, nextStep, materials, research }).turn.evidence;
   };
   if (raw.trim() && !turn.slash && !opening && claims.length) {
     const spec = evaluationSpec(turn, claims, current, domain);
@@ -442,7 +458,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   try { response = await tracer.step('planner', () => (onSpeakable ? post('/api/learn/tutor/plan', { ...access, context, stream: true }, { onSentence }) : post('/api/learn/tutor/plan', { ...access, context })), out => out.telemetry?.outcome ?? 'ok'); }
   catch (error) { throw Object.assign(error, { trace: tracer.trace }); } // the failed turn's trace travels with its error
   const ready = now();
-  let { actions, log, decisions } = tracer.step('action_validation', () => enforce(response, routed, turn, domain),
+  let { actions, log, decisions, reading } = tracer.step('action_validation', () => enforce(response, routed, turn, domain),
     out => `${out.decisions.filter(decision => decision.accepted).length} accepted, ${out.decisions.filter(decision => !decision.accepted).length} rejected`);
   const enforced = now();
   // Off the critical path: the evaluation lands now. Its evidence is stored like any other; a route it
@@ -513,7 +529,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
       to_first_evidence_action: actions.some(action => EVIDENCE_ACTIONS.includes(action.type)) ? ms(t[0], released) : null,
     },
   };
-  return traced({ store: current, turn, selection, evaluation, transitions, routed, response, actions, contracts, reason_codes: reasonCodes(response), decisions, log, text, states: deriveClaimStates(current.events, domain.claims), bench, mark: tracer.mark });
+  return traced({ store: current, turn, selection, evaluation, transitions, routed, response, actions, contracts, reason_codes: reasonCodes(response), reading, decisions, log, text, states: deriveClaimStates(current.events, domain.claims), bench, mark: tracer.mark });
 }
 const now = () => (globalThis.performance ?? Date).now();
 
@@ -618,11 +634,13 @@ const partName = (cardId, partId, domain) => {
 const titleOf = (cardId, domain) => domain.cardModule(cardId)?.scene.title || cardId;
 
 // Runs the enforced actions: navigations now, suggestions as chips the learner clicks.
-// deps: { canvas, suggestDive({ blockId, topic }), climb(), slot } - slot: the place held for a card while
-// the plan came (wantsCard); the first card this turn adds takes it, and the caller releases it otherwise.
+// deps: { canvas, suggestDive({ blockId, topic }), climb(), slot, openResearch(request) } - slot: the place held for a card
+// while the plan came (wantsCard); the first card this turn adds takes it, and the caller releases it otherwise. openResearch
+// (Task 11b): the page's way into its Home/Library Research workflow; suggest_research becomes a Research this chip that
+// calls it, and nothing is researched inside the turn.
 // domain: whose cards these are (NANOGPT by default); a domain's own showCard (a journey's reveals its block, never
 // inserts) replaces the authored-module one.
-export function executeActions(actions, { canvas, suggestDive, climb, slot = null, domain = NANOGPT }) {
+export function executeActions(actions, { canvas, suggestDive, climb, slot = null, domain = NANOGPT, openResearch = null }) {
   const chips = [];
   let held = slot;
   const take = () => { const id = held; held = null; return id; };
@@ -644,6 +662,7 @@ export function executeActions(actions, { canvas, suggestDive, climb, slot = nul
       } });
     } else if (action.type === 'suggest_dive') suggestDive({ blockId: action.from.block_id ?? null, topic: action.title });
     else if (action.type === 'return_from_dive') chips.push({ label: 'Back up the Rabbit Hole', run: () => climb?.() });
+    else if (action.type === 'suggest_research' && openResearch) chips.push({ label: 'Research this', run: () => openResearch(action.request) });
   }
   return chips;
 }

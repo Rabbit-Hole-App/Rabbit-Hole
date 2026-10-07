@@ -12,7 +12,7 @@
 // nanoGPT by default. A journey's cards are its section blocks on the canvas, and it has no ladder.
 import { NANOGPT } from './learn-tutor-claims.js';
 import { partIndex } from './nanogpt/depth/board.js';
-import { ACTION_TYPES, AVATAR_ACTION, AVATAR_MOMENTS, PERSONALIZABLE_MOMENTS, VISUAL_VALUE_MAX, avatarSlotId, learningGoalProblem } from '../../control-plane/src/agents/learn-tutor.js';
+import { ACTION_TYPES, AVATAR_ACTION, AVATAR_MOMENTS, GROUNDING_STATUSES, INTENTS, MODALITY_OVERRIDES, PERSONALIZABLE_MOMENTS, SOURCE_TYPES, VISUAL_VALUE_MAX, avatarSlotId, learningGoalProblem } from '../../control-plane/src/agents/learn-tutor.js';
 const CARD_ACTIONS = ['show_authored_card', 'focus_part', 'suggest_depth', 'suggest_practice'];
 const TEXT_ACTIONS = ['respond_text', 'ask_question'];
 
@@ -120,8 +120,36 @@ function schema(action, extra = [], domain = NANOGPT) {
   if (CARD_ACTIONS.includes(action.type) && typeof action.card !== 'string') return `${action.type} without a card`;
   if (action.type === 'focus_part' && typeof action.part_id !== 'string') return 'focus_part without a part';
   if (action.type === 'suggest_dive' && !action.title && !action.concept) return 'suggest_dive: no topic';
-  if (action.type === 'create_material' && (typeof action.command !== 'string' || typeof action.request !== 'string' || !action.request.trim() || action.request.length > 1000 || /`|=>/.test(action.request))) return 'create_material: command and a 1-1000 character request';
+  if (action.type === 'create_material' && (typeof action.command !== 'string' || !plainRequest(action.request))) return 'create_material: command and a 1-1000 character request';
+  if (action.type === 'suggest_research' && !plainRequest(action.request)) return 'suggest_research: a 1-1000 character request';
   return null;
+}
+// A create_material or suggest_research request: plain words, 1-1000 characters, no backticks or arrows (maths is fine).
+const plainRequest = request => typeof request === 'string' && !!request.trim() && request.length <= 1000 && !/`|=>/.test(request);
+
+// Task 11b: the planner's reading fields (inferred_intent, modality_override, clarification_requested, grounding_status,
+// source_types_used), bounded. A value outside its enum or type becomes null (a list keeps its known entries) and logs the
+// field's name, never its value; the turn itself never fails or changes. Telemetry only: no code chooses anything from them.
+function readingOf(response, log) {
+  const pick = (field, ok) => {
+    const value = response[field] ?? null;
+    if (value === null || ok(value)) return value;
+    log.push(`dropped reading field ${field}`);
+    return null;
+  };
+  const reading = {
+    inferred_intent: pick('inferred_intent', value => INTENTS.includes(value)),
+    modality_override: pick('modality_override', value => MODALITY_OVERRIDES.includes(value)),
+    clarification_requested: pick('clarification_requested', value => typeof value === 'boolean'),
+    grounding_status: pick('grounding_status', value => GROUNDING_STATUSES.includes(value)),
+    source_types_used: pick('source_types_used', Array.isArray),
+  };
+  const used = reading.source_types_used;
+  if (used) {
+    reading.source_types_used = [...new Set(used.filter(type => SOURCE_TYPES.includes(type)))];
+    if (reading.source_types_used.length !== used.length) log.push('dropped reading field source_types_used');
+  }
+  return reading;
 }
 
 export function validateActions(response, routed, turn, domain = NANOGPT) {
@@ -138,6 +166,7 @@ export function validateActions(response, routed, turn, domain = NANOGPT) {
   const noQuiz = constraints.includes('no_quiz') || constraints.includes('just_answer');
   const actions = [];
   const reject = (action, stage, reason) => { decisions.push({ type: action?.type ?? null, accepted: false, stage, reason }); log.push(`dropped ${action?.type}: ${reason}`); };
+  const reading = readingOf(response, log); // Task 11b: telemetry, never read by the checks below
   const avatar = routed.allowed.includes(AVATAR_ACTION) ? [AVATAR_ACTION] : [];
   for (const action of Array.isArray(response.actions) ? response.actions : []) {
     const bad = schema(action, avatar, domain);
@@ -156,6 +185,7 @@ export function validateActions(response, routed, turn, domain = NANOGPT) {
     // (owner 2026-10-06), each command once, inside the 3-action cap below.
     if (action.type === 'create_material' && !(turn.available_materials || []).some(m => m.command === action.command)) { reject(action, 'resource', `no material command ${action.command}`); continue; }
     if (action.type === 'create_material' && actions.some(other => other.type === 'create_material' && other.command === action.command)) { reject(action, 'route', `a second create_material for ${action.command}`); continue; }
+    if (action.type === 'suggest_research' && actions.some(other => other.type === 'suggest_research')) { reject(action, 'route', 'a second suggest_research'); continue; }
     if (action.type === AVATAR_ACTION) { // Avatar Teacher §4.1: a suggestion of learning material, never more
       const navigated = navigate && response.actions.some(other => (other?.type === 'show_authored_card' || other?.type === 'focus_part') && other.mode === 'navigate');
       const trigger = avatarTrigger(action, routed, turn, actions, navigated, domain);
@@ -179,6 +209,7 @@ export function validateActions(response, routed, turn, domain = NANOGPT) {
     }
     if (next.type === 'ask_question') next = { ...next, action_id: crypto.randomUUID(), claim: domain.claims[next.claim] ? next.claim : routed.claim };
     if (next.type === 'create_material') next = { type: 'create_material', command: next.command, request: next.request.trim() };
+    if (next.type === 'suggest_research') next = { type: 'suggest_research', request: next.request.trim() };
     if (next.type === 'suggest_dive') {
       // Exactly one originating card (R-10): the target card, else a topic anchor made on Go down.
       const concept = domain.concepts[next.concept] ? next.concept : domain.conceptOf(next.title) || domain.conceptOf(next.concept) || null;
@@ -202,8 +233,8 @@ export function validateActions(response, routed, turn, domain = NANOGPT) {
       capped.push({ ...action, text: sentences.slice(0, budget).join(' ') });
       budget -= Math.min(budget, sentences.length);
     }
-    return { actions: capped, log, decisions };
+    return { actions: capped, log, decisions, reading };
   }
   if (!actions.length) actions.push({ type: 'no_action' });
-  return { actions, log, decisions };
+  return { actions, log, decisions, reading };
 }

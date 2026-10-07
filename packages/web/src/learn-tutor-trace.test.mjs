@@ -30,9 +30,11 @@ test('stages record ok, error and timeout; errors are rethrown; marks are offset
 const KEYS = ['trace_schema_version', 'event', 'decision_id', 'step_id', 'generated_at', 'identity', 'versions', 'decision', 'runtime', 'flags'];
 const IDENTITY = ['user_id', 'session_id', 'canvas_id', 'board_id', 'canvas_version', 'journey_id', 'section_id', 'dive_id', 'source', 'scope', 'mode'];
 const VERSIONS = ['planner_version', 'prompt_version', 'model_role', 'model_id'];
-const DECISION = ['current_goal', 'current_section_id', 'target_concept_ids', 'target_claim_ids', 'evidence_summary', 'evidence_transitions', 'canvas_summary', 'recent_modality_history', 'next_step_options', 'shown_at', 'selected_next_step_id', 'selected_at', 'route', 'chosen_action', 'actions', 'reason_codes', 'reason_source', 'rationale_summary', 'expected_evidence', 'estimated_learning_seconds'];
+const DECISION = ['current_goal', 'current_section_id', 'target_concept_ids', 'target_claim_ids', 'evidence_summary', 'evidence_transitions', 'canvas_summary', 'recent_modality_history', 'next_step_options', 'shown_at', 'selected_next_step_id', 'selected_at', 'route', 'chosen_action', 'actions', 'reason_codes', 'reason_source', 'rationale_summary', 'expected_evidence', 'estimated_learning_seconds',
+  // Task 11b: learner intent (as read, or as the explicit command said) apart from the actions; grounding; research offered, never run.
+  'intent_mode', 'inferred_intent', 'explicit_modality_override', 'intent_status', 'clarification_requested', 'grounding_status', 'source_types_used', 'research_offered', 'research_executed'];
 const RUNTIME = ['timing', 'model', 'usage', 'validation', 'planner_input'];
-const ACTION = ['action_type', 'command', 'modality', 'target_concept_ids', 'target_claim_ids'];
+const ACTION = ['action_type', 'command', 'modality', 'cost_tier', 'target_concept_ids', 'target_claim_ids'];
 const EVIDENCE = ['understood', 'uncertain', 'misconception', 'prerequisite_gap', 'not_yet_observed'];
 const QUESTION = 'why would a narrow estuary make the tide so much bigger';
 const C = TIDES.diagnostic.registry.claims, IDS = Object.keys(C).slice(0, 2);
@@ -83,8 +85,8 @@ test('tutor_decision: exactly the contract keys, the chosen action from the cont
   assert.deepEqual(e.identity, { user_id: 'u-7', session_id: 'ts_00000000000000aa', canvas_id: 'canvas-1', board_id: 'main', canvas_version: 12, journey_id: 'lj_t', section_id: 's1', dive_id: null, source: null, scope: 'owned', mode: 'journey' });
   assert.equal(e.step_id, 'turn-1');
   // Consumed, never recomputed: the actions are the turn's contracts minus their per-action evidence and time.
-  assert.deepEqual(e.decision.actions, r.contracts.map(({ action_type, command, modality, target_concept_ids, target_claim_ids }) => ({ action_type, command, modality, target_concept_ids, target_claim_ids })));
-  assert.deepEqual(e.decision.chosen_action, { action_type: 'ask_question', command: null, modality: 'explain_back', target_concept_ids: [C[IDS[0]].concept], target_claim_ids: [IDS[0]] });
+  assert.deepEqual(e.decision.actions, r.contracts.map(({ action_type, command, modality, cost_tier, target_concept_ids, target_claim_ids }) => ({ action_type, command, modality, cost_tier, target_concept_ids, target_claim_ids })));
+  assert.deepEqual(e.decision.chosen_action, { action_type: 'ask_question', command: null, modality: 'explain_back', cost_tier: 'none', target_concept_ids: [C[IDS[0]].concept], target_claim_ids: [IDS[0]] });
   assert.deepEqual(e.decision.actions.map(a => [a.action_type, a.modality]), [['respond_text', 'text'], ['ask_question', 'explain_back']]);
   assert.deepEqual([e.decision.reason_codes, e.decision.reason_source, e.flags], [['advance_goal', 'vary_modality'], 'planner', ['vary_modality_alone']]);
   assert.ok(e.decision.reason_codes.every(code => REASON_CODES.includes(code)));
@@ -348,7 +350,7 @@ test('a hook click: the selected id and goal, the shown options, a made card wit
   assert.deepEqual([e.decision.shown_at, e.decision.evidence_transitions], [null, []], 'a click is never evidence');
   const clicked = await runTurn({ raw: '', nextStep: STEP, canvas: { app: 'canvas-1', board: 'main' }, access: { app: 'canvas-1' }, block: null, store: emptyStore(), post: worker(plan).post, domain, trace: { next_step_options: SET.options, selected_at: '2026-10-06T10:00:05.000Z' } });
   assert.equal(clicked.trace.decision.selected_at, '2026-10-06T10:00:05.000Z', 'the click time the page passed');
-  assert.deepEqual(e.decision.chosen_action, { action_type: 'create_material', command: 'animate', modality: 'video', target_concept_ids: [C[STEP.claim_ids[0]].concept], target_claim_ids: STEP.claim_ids });
+  assert.deepEqual(e.decision.chosen_action, { action_type: 'create_material', command: 'animate', modality: 'video', cost_tier: 'paid', target_concept_ids: [C[STEP.claim_ids[0]].concept], target_claim_ids: STEP.claim_ids });
   assert.deepEqual([e.decision.reason_codes, e.decision.reason_source, e.flags], [['follow_learner_interest', 'increase_interactivity'], 'planner', []]);
   assert.equal(JSON.stringify(e).includes('a basin filling'), false, 'a create_material request is never in the event');
 });

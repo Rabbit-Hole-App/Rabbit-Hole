@@ -1141,13 +1141,15 @@ function tutorOn(h, { evaluate = { status: 'error', evaluator: 'jev', events: []
 }
 const tutorRoutes = h => h.calls.filter(c => c.path.startsWith('/api/learn/tutor/'));
 
-test('useTutor on a journey canvas: the Tutor is active there, and only there', async () => {
+// Task 11b (owner eleventh message 6-7): a blank canvas no longer keeps the Learn chat - natural typing there is Auto Tutor
+// input with the plain-canvas Tutor (plain), and a journey is never a prerequisite; the journey Tutor runs only on a journey.
+test('useTutor on a journey canvas: the journey Tutor is active there; a blank canvas gets the plain-canvas Auto Tutor', async () => {
   const h = harness(ok(journeyOf({ state: 'active', registry: SIGMOID }), null));
   await h.refresh();
-  assert.equal(tutorOn(h).tutor.active, true);
+  assert.deepEqual([tutorOn(h).tutor.active, tutorOn(h).tutor.plain], [true, false]);
   const blank = harness(none);
   await blank.refresh();
-  assert.equal(tutorOn(blank).tutor.active, false, 'a blank canvas keeps the Learn chat');
+  assert.deepEqual([tutorOn(blank).tutor.active, tutorOn(blank).tutor.plain], [true, true], 'a blank canvas: the Auto Tutor, not the journey one');
 });
 
 test('useTutor on a journey canvas: a free-text probe answer is runTurn({ plan: false }) - the evaluate body names the journey, board, probe and turn; no planner call - then the walker steps on', async () => {
@@ -1290,7 +1292,7 @@ test('ask.jsx and LearnPage.jsx: the sheet opens only for a Tutor reply; slash p
   assert.match(ask, /onPrompt=\{prompt => send\(prompt, undefined, \{ skipJourney: true \}\)\}/);
   assert.match(ask, /if \(journey\.busy\) \{ tutor\?\.slash\?\.\(null\); return; \}/);
   assert.match(ask, /if \(!message \|\| busy\) \{ tutor\?\.slash\?\.\(null\); return; \}/);
-  assert.match(read('LearnTutor.jsx'), /slash: \(name, raw\) => \{ slashNext\.current = name \? \{ name, raw \} : null; \}/);
+  assert.match(read('LearnTutor.jsx'), /slash: \(name, raw\) => \{ slashNext\.current = SLASHES\.includes\(name\) \? \{ name, raw \} : null; \}/);
   // A block's composer gets the Tutor only on a canvas with a live journey, or in a hole opened from a journey section once
   // its Tutor is active (LP1 Task 14 review round 1, D1); nanoGPT, blank canvases and other holes keep /api/learn/ask. It
   // asks about the block it sits in.

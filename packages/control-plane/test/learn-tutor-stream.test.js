@@ -207,3 +207,18 @@ test('reason last (f): a key repeated after the release never replaces the spoke
     assert.deepEqual([turn.reason, turn.reason_codes, 'tail_lost' in turn.telemetry], [REASON, ['respond_to_question'], false], `${name}: the remainder adds its own fields`);
   }
 });
+
+// Task 11b: the reading fields (inferred_intent, modality_override, clarification_requested, grounding_status,
+// source_types_used) are written after reason, so the fast tier still releases at actions-complete; a stream cut inside them
+// keeps the plan that spoke, with those fields simply missing (the trace records them as missing, never guessed).
+test('reason last (g): the reading fields after reason never delay the release; a cut inside them leaves them missing', async () => {
+  const read = { ...reasoned, inferred_intent: 'ask', modality_override: 'motion', clarification_requested: false, grounding_status: 'grounded', source_types_used: ['canvas'] };
+  const json = JSON.stringify(read), stream = paced(json, HAIKU);
+  let at = null;
+  const turn = await planTurn(FAST, ROUTINE, { onSentence: () => { at = stream.arrived(); }, callModel: async () => stream.response });
+  assert.ok(at != null && at < json.indexOf(REASON) + 28, `released at ${at}; the reason starts at ${json.indexOf(REASON)}`);
+  assert.deepEqual([turn.inferred_intent, turn.modality_override, turn.clarification_requested, turn.grounding_status, turn.source_types_used], ['ask', 'motion', false, 'grounded', ['canvas']]);
+  const cut = paced(json.slice(0, json.indexOf('"grounding_status"') + 10), HAIKU, { stop: 'max_tokens' });
+  const kept = await planTurn(FAST, ROUTINE, { onSentence: () => {}, callModel: async () => cut.response });
+  assert.deepEqual([kept.actions, kept.reason, 'inferred_intent' in kept, 'grounding_status' in kept, kept.telemetry.tail_lost], [reasoned.actions, null, false, false, true]);
+});

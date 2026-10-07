@@ -86,9 +86,9 @@ export function journeyDomain({ journey, path, blocks = [], dive = null }) {
   };
 }
 
-// A canvas with no journey and no registered course (Professor Next Steps Task 10, Ruling F4): only hook clicks run the
-// Tutor here, with no claims in scope (route off_slice: words, plus create_material on a click), and nothing it says is
-// evidence. goal: the canvas title, or a hole's learning_goal or title; origin: the shared canvas a hole was started from.
+// A canvas with no journey and no registered course (Professor Next Steps Task 10; Task 11b): typed, voice and hook turns run
+// the Tutor here, with no claims in scope (route off_slice: words, plus create_material when materials are offered), and
+// nothing it says is evidence. goal: the canvas title, or a hole's learning_goal or title; origin: the shared canvas a hole was started from.
 // context travels as context.canvas_context (contextKey), which picks the canvas planner prompt. Pure.
 export function canvasDomain({ goal = null, origin = null } = {}) {
   return {
