@@ -67,7 +67,7 @@ async function readRepository(env, access, { app, request, selection, card }, ca
     revision = await boardRevision(env.LEARN_DB, { org: access.org, app, owner_email: access.owner_email });
     commit = selection?.revision ?? revision?.commit;
     snapshot = revision && await repositorySnapshot(env, { id: revision.id }, commit);
-  } catch (error) { throw failure(error.message === NOT_INDEXED ? 'no_repository_context' : 'retrieval_error'); }
+  } catch (error) { throw failure(error?.message === NOT_INDEXED ? 'no_repository_context' : 'retrieval_error'); }
   if (!snapshot || (selection && selection.repository !== snapshot.repo)) throw failure('no_repository_context');
   const read = (name, input) => { try { return repositoryTool(snapshot, name, input); } catch { return null; } };
   const selected = selection?.symbol ? read('get_relationships', { nodeId: selection.symbol }) : null;
@@ -98,6 +98,7 @@ function metered(callModel, deadline, admit) {
   return { seen, callModel: async (env, body, model, org) => {
     if (deadline.passed) throw failure('timeout');
     if (!seen.calls && await admit()) throw failure('limited');
+    if (deadline.passed) throw failure('timeout'); // an admission that outlasted the deadline never becomes a paid call
     const response = await callModel(env, body, model, org);
     seen.calls++;
     seen.stop_reason = null;

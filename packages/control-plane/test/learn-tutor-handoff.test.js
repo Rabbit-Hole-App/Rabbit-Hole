@@ -311,3 +311,24 @@ test('a limiter error at admission is retrieval_error, never model_error, and no
   await failed(await f.post(ask(), { callModel: model.callModel }), 'retrieval_error');
   assert.equal(model.calls.length, 0);
 });
+
+// Review fix round 3.
+test('an admission that stalls past the deadline answers timeout and never makes the model call', async t => {
+  const f = setup(t), model = scripted([answer(`${SECRET} orphaned`)]), base = f.env.LEARN_DB;
+  f.env.LEARN_DB = { prepare: sql => {
+    const statement = base.prepare(sql);
+    if (/^\s*INSERT INTO shared_ask_events/.test(sql)) { const run = statement.run; statement.run = async () => { await new Promise(resolve => setTimeout(resolve, 30)); return run(); }; }
+    return statement;
+  } };
+  await failed(await f.post(ask(), { callModel: model.callModel, timeoutMs: 5 }), 'timeout');
+  await new Promise(resolve => setTimeout(resolve, 60));
+  assert.equal(model.calls.length, 0, 'no paid call after the deadline');
+});
+
+test('a thrown null or undefined while resolving is retrieval_error, not a TypeError', async t => {
+  for (const thrown of [null, undefined]) {
+    const f = setup(t);
+    f.env.LEARN_DB = { prepare: () => { throw thrown; } };
+    await failed(await f.post(ask(), { callModel: scripted([]).callModel }), 'retrieval_error');
+  }
+});
