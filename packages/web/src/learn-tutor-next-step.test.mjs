@@ -438,3 +438,17 @@ test('old hole records: no learning_goal, no source, a deleted shared source - t
   // A renamed hole without a learning_goal: the live title, never the creation-time record title.
   assert.equal(tutorContext({ board: 'main', root, record, title: 'Renamed hole' }).domain.context.goal, 'Renamed hole');
 });
+
+// Fix round 3: dive_context.title is the live title (the turn's canvas.liveTitle; record.title is the creation title), and
+// the hole keeps its concept and claims after a rename (holeConcept reads the record).
+test('a renamed hole: dive_context.title is the live title; its concept and default claims stay the hole record ones', async () => {
+  const hole = { dive_id: 'canvas-0000bbbb', title: 'Softmax', concept: 'Softmax', origin: { parent: { app: 'a', board: 'nanogpt-attention-tutor' } } };
+  const plan = { strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: 'Here is the idea again.' }] };
+  const run = async canvas => { const w = worker(plan); await runTurn({ raw: '', nextStep: { ...STEP, claim_ids: [] }, materials: [], canvas, access: { app: hole.dive_id }, block: null, store: emptyStore(), post: w.post, domain: NANOGPT }); return w.sent[0].body.context; };
+  const renamed = await run({ app: hole.dive_id, board: 'main', dive: hole, liveTitle: 'My notes' });
+  const before = await run({ app: hole.dive_id, board: 'main', dive: hole });
+  assert.deepEqual([renamed.dive_context.title, renamed.dive_context.concept], ['My notes', 'softmax']);
+  assert.deepEqual([before.dive_context.title, before.dive_context.concept], ['Softmax', 'softmax'], 'no live title: the record title');
+  assert.deepEqual(renamed.relevant_evidence.claims.map(c => c.claim), before.relevant_evidence.claims.map(c => c.claim), 'the same claims after the rename');
+  assert.ok(renamed.relevant_evidence.claims.length > 0);
+});

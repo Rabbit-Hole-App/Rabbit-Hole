@@ -38,11 +38,10 @@ export const tutorStoreKey = (app, journeyId, record, canvas = null) => (journey
 // read (read: the dive id it settled for), so no hook set stands on a canvas domain the record or the parent journey
 // replaces; then tutorContext's - the dive domain, or the canvas domain after a refusal.
 export const hookContext = (where, read, recordPending = false) => (recordPending || (where.record?.journey && read !== where.record.dive_id) ? null : tutorContext(where));
-// canvasVersion: the board revision when the page passes it (decision telemetry only). title: the live canvas title (the
-// page passes canvasTitle || app.title; a rename never changes app.title), else app.title.
+// canvasVersion: the board revision when the page passes it (decision telemetry only).
 // Professor Next Steps (docs/features/professor-next-steps.md §1.3, §1.4): the returned object always carries askStep, snapshot,
 // lastTurn, busy and showing, also where the Tutor is not active, so useNextSteps can ask whether hooks belong here.
-export function useTutor({ app, board, access, canvasApi, canvasState, dive, courseCanvas = false, journey = null, canvasVersion = null, title = null }) {
+export function useTutor({ app, board, access, canvasApi, canvasState, dive, courseCanvas = false, journey = null, canvasVersion = null }) {
   const record = dive.tree?.dive || null;
   const root = dive.tree?.path?.[0];
   // The parent journey of a hole whose record carries one (Task 14): { journey, path } once read, else null.
@@ -60,7 +59,10 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   }, [record?.dive_id]); // eslint-disable-line react-hooks/exhaustive-deps
   // Whether the Tutor runs here, and its domain, is the registry resolver's (learn-tutor-domains.js tutorContext): a live
   // journey, a hole's read parent journey, then a registered course by its repository, board or a hole's root.
-  const liveTitle = title ?? app.title ?? null;
+  // The live title (Task 10 fix round 3): the server title of this level on the dives path (dives.js level(), reloaded by
+  // Dive on a rename; a pending hole's renamed title in session), app.title last. A rename never changes app.title or a
+  // hole record's creation-time title, so neither is read for a title while the path has one; no copied name cache.
+  const liveTitle = dive.tree?.path?.at(-1)?.title ?? app.title ?? null;
   const where = { app: courseCanvas ? app : null, board, root, parentJourney, record, title: liveTitle };
   // Ruling F4: typed and voice turns need capabilities.tutor; a hook turn (askStep), a carried opening and the paid
   // proposals it raises also run where only capabilities.hook_turns holds (Task 10: plain canvases).
@@ -132,7 +134,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
       return api(path, { method: 'POST', body: JSON.stringify(body), signal: limit });
     };
     const live = journeyRef.current?.journey ? journeyRef.current : null;
-    const common = { canvas: { ...here, ...(record ? { dive: record } : {}) }, access, block, inputModality, turnId, domain, post };
+    const common = { canvas: { ...here, ...(record ? { dive: record, liveTitle } : {}) }, access, block, inputModality, turnId, domain, post };
     // §7.2, D6: the journey's resolver first (handleText: rules 1-4, then the model's rule 5; never punctuation). A tray
     // answer, path edit, cancel, clarification or second broad intent is the journey's and never reaches the planner. A
     // free-text answer to the open diagnostic probe is a Tutor turn without a plan (§6.3): runTurn({ plan: false }) with
@@ -238,13 +240,14 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   // follows the existing voice behaviour (onSpeakable).
   const askStep = ({ selected_next_step, signal, begin = null, inputModality = 'text', turnId = null, onSpeakable = null }) => answer({ raw: '', nextStep: selected_next_step, selectedAt: new Date().toISOString(), signal, inputModality, turnId, onSpeakable, onAnswer: begin });
   // snapshot(): what useNextSteps builds the hook input from - the Tutor context here (null: no hooks), the merged store, a
-  // hole's parent journey and record. showing(options): the hooks on screen, named in the next turn's decision trace.
+  // hole's parent journey and record, and the live title. showing(options): the hooks on screen, named in the next turn's
+  // decision trace.
   // recordPending (fix round 2, probe D): a canvas - structurally a possible hole, by its name - whose dives record (useDive's
   // tree) has not landed; a repository or project app is never a hole.
   const recordPending = /^canvas-[a-f0-9]{8}$/.test(app.name) && !dive.tree;
   const steps = {
     askStep, lastTurn, busy,
-    snapshot: () => ({ context: hookContext({ ...where, journey: journeyRef.current, blocks: canvasApi.current?.blocks?.() || [] }, parentRead, recordPending), store: load(), parent: parentJourney, record }),
+    snapshot: () => ({ context: hookContext({ ...where, journey: journeyRef.current, blocks: canvasApi.current?.blocks?.() || [] }, parentRead, recordPending), store: load(), parent: parentJourney, record, liveTitle }),
     showing: options => { shown.current = options; },
   };
   // Read when drawn (extras is a getter): the desk as it is now.

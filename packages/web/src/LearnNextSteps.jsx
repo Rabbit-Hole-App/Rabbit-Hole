@@ -47,7 +47,7 @@ export function ownedSteps(read, { post = input => api('/api/learn/tutor/next-st
       const { p, s, blocks } = now();
       if (!s?.context) return { basis: null, stop: 'off' };
       return {
-        basis: nextStepsBasis({ lastTurn: p.tutor.lastTurn, store: s.store, journey: p.journey, canvasState: p.canvasState, graded: p.graded, record: p.record, context: s.context, parent: s.parent, title: p.title }),
+        basis: nextStepsBasis({ lastTurn: p.tutor.lastTurn, store: s.store, journey: p.journey, canvasState: p.canvasState, graded: p.graded, record: p.record, context: s.context, parent: s.parent, title: p.title, liveTitle: s.liveTitle }),
         stop: stoppingPoint({ busy: p.tutor.busy, journey: p.journey, store: s.store, here: { app: p.access?.app, board: p.board }, blocks, goal: p.title, plain: s.context.source === 'canvas' && !s.record }),
       };
     },

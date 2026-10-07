@@ -169,11 +169,11 @@ await esbuild.build({
 const bundled = createRequire(import.meta.url)(outfile);
 rmSync(dir, { recursive: true, force: true });
 
-function hook({ app, board = 'main', courseCanvas = false, root = null, record = { dive_id: 'canvas-0000hole', origin: {} }, navigator = null, tree, title }) {
+function hook({ app, board = 'main', courseCanvas = false, root = null, record = { dive_id: 'canvas-0000hole', origin: {} }, navigator = null, tree }) {
   let tutor = null;
-  const dive = { tree: tree !== undefined ? tree : root ? { dive: record, path: [root, { title: 'hole' }] } : null, suggestionCard: null, navigator };
+  const dive = { tree: tree !== undefined ? tree : root ? { dive: record, path: [root, { app: app.name, title: app.title }] } : null, suggestionCard: null, navigator };
   const Page = () => {
-    tutor = bundled.useTutor({ app: { name: 'app', org: 'o', email: 'e@x.com', ...app }, board, access: { app: 'app' }, canvasApi: { current: { blocks: () => [], block: () => null } }, canvasState: { card: null }, dive, courseCanvas, journey: null, ...(title !== undefined ? { title } : {}) });
+    tutor = bundled.useTutor({ app: { name: 'app', org: 'o', email: 'e@x.com', ...app }, board, access: { app: 'app' }, canvasApi: { current: { blocks: () => [], block: () => null } }, canvasState: { card: null }, dive, courseCanvas, journey: null });
     return null;
   };
   bundled.renderToStaticMarkup(bundled.createElement(Page));
@@ -335,19 +335,23 @@ test('hookContext: a canvas whose dives record has not landed has no hook contex
   });
 });
 
-// Review item 2 (probe E): a rename changes the page title, never app.title - the live title (useTutor's title, Parallel
-// passes canvasTitle || app.title) wins for plain canvases and canvas-domain holes; a hole without a learning_goal takes it too.
-test('the live title: canvas_context.goal follows useTutor title, over app.title and a hole record title', async () => {
+// Fix round 3 (coordinator ruling): the canonical live title is the server title useTutor already has - the dives path's last
+// level (Dive reloads it on a rename; a pending hole's renamed title in session), app.title last. It grounds canvas_context
+// and dive_context.title; a learning_goal leads the goal; the record title (creation time) is never read for them.
+test('the live title: canvas_context.goal and dive_context.title follow the dives path title, over app.title and the record title', async () => {
   const STEP = { v: 1, set_id: 'ns_0f0f0f0f', suggestion_id: 'ns_0f0f0f0f.2', basis: 'b', hook: 'Why does a wet dough rise faster?', learning_goal: 'Explain hydration and gas', concept_ids: [], claim_ids: [], scope: 'owned' };
   const shared = { kind: 'shared', title: 'Bread science', app: 'share:0f0f', board: 'main' };
-  const plainTree = { path: [{ app: 'canvas-0000aaaa', board: 'main', kind: 'canvas' }], children: [], dive: null };
+  const level = (app, title, extra = {}) => ({ app, board: 'main', kind: 'canvas', ...(title ? { title } : {}), ...extra });
+  const created = { dive_id: 'canvas-0000bbbb', title: 'Hole as created', concept: 'Hole as created', source: { title: 'Bread science' } };
   const cases = [
-    [{ app: { name: 'canvas-0000aaaa', title: 'Created as' }, tree: plainTree, title: 'Renamed canvas' }, 'Renamed canvas'],
-    [{ app: { name: 'canvas-0000aaaa', title: 'Created as' }, tree: plainTree }, 'Created as'],
-    [{ app: { name: 'canvas-0000bbbb', title: 'Hole as created' }, root: shared, record: { dive_id: 'canvas-0000bbbb', title: 'Hole as created', source: { title: 'Bread science' } }, title: 'Renamed hole' }, 'Renamed hole'],
-    [{ app: { name: 'canvas-0000bbbb', title: 'Hole as created' }, root: shared, record: { dive_id: 'canvas-0000bbbb', title: 'Hole as created', learning_goal: 'Explain why dough traps gas', source: { title: 'Bread science' } }, title: 'Renamed hole' }, 'Explain why dough traps gas'],
+    ['a persisted plain canvas, renamed', { app: { name: 'canvas-0000aaaa', title: 'Created as' }, tree: { path: [level('canvas-0000aaaa', 'Renamed canvas')], children: [], dive: null } }, 'Renamed canvas', null],
+    ['no path title: app.title', { app: { name: 'canvas-0000aaaa', title: 'Created as' }, tree: { path: [level('canvas-0000aaaa')], children: [], dive: null } }, 'Created as', null],
+    ['a canvas-domain hole, renamed', { app: { name: 'canvas-0000bbbb', title: 'Hole as created' }, tree: { path: [shared, level('canvas-0000bbbb', 'Renamed hole')], children: [], dive: created } }, 'Renamed hole', 'Renamed hole'],
+    ['a hole with a learning_goal keeps its goal', { app: { name: 'canvas-0000bbbb', title: 'Hole as created' }, tree: { path: [shared, level('canvas-0000bbbb', 'Renamed hole')], children: [], dive: { ...created, learning_goal: 'Explain why dough traps gas' } } }, 'Explain why dough traps gas', 'Renamed hole'],
+    // Dive.jsx rename of a pending hole: holeRef title, dive.title and dive.concept, then the tree reloads from it.
+    ['a pending hole renamed in session', { app: { name: 'canvas-0000cccc', title: 'Pending as created' }, tree: { path: [level('canvas-0000aaaa', 'Parent'), level('canvas-0000cccc', 'Renamed pending', { pending: true })], children: [], dive: { dive_id: 'canvas-0000cccc', title: 'Renamed pending', concept: 'Renamed pending', origin: {} } } }, 'Renamed pending', 'Renamed pending'],
   ];
-  for (const [where, goal] of cases) {
+  for (const [name, where, goal, diveTitle] of cases) {
     const storage = new Map(), calls = [];
     const globals = {
       window: { dispatchEvent: () => true },
@@ -355,29 +359,32 @@ test('the live title: canvas_context.goal follows useTutor title, over app.title
       localStorage: { getItem: () => null },
       fetch: async (path, options) => { calls.push({ path, body: JSON.parse(options.body) }); return new Response(JSON.stringify({ strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: 'Water speeds the yeast.' }] }), { status: 200, headers: { 'Content-Type': 'application/json' } }); },
     };
-    const saved = Object.fromEntries(Object.keys(globals).map(name => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));
-    for (const [name, value] of Object.entries(globals)) Object.defineProperty(globalThis, name, { value, configurable: true, writable: true });
+    const saved = Object.fromEntries(Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+    for (const [key, value] of Object.entries(globals)) Object.defineProperty(globalThis, key, { value, configurable: true, writable: true });
     try {
       const tutor = hook(where);
-      assert.equal(tutor.snapshot().context.domain.context.goal, goal, String(where.title));
+      assert.equal(tutor.snapshot().context.domain.context.goal, goal, name);
       await tutor.askStep({ selected_next_step: STEP });
     } finally {
-      for (const [name, descriptor] of Object.entries(saved)) { if (descriptor) Object.defineProperty(globalThis, name, descriptor); else delete globalThis[name]; }
+      for (const [key, descriptor] of Object.entries(saved)) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else delete globalThis[key]; }
     }
-    assert.equal(calls[0].body.context.canvas_context.goal, goal);
+    const { context } = calls[0].body;
+    assert.equal(context.canvas_context.goal, goal, name);
+    assert.equal(context.dive_context?.title ?? null, diveTitle, name);
   }
 });
 
 test('wiring: useTutor and LearnPage decide the Tutor only through the resolver; the registry holds the one nanoGPT entry', () => {
   const tutor = read('LearnTutor.jsx'), page = read('LearnPage.jsx'), registry = read('learn-tutor-domains.js');
-  assert.match(tutor, /export function useTutor\(\{ app, board, access, canvasApi, canvasState, dive, courseCanvas = false, journey = null, canvasVersion = null, title = null \}\)/);
+  assert.match(tutor, /export function useTutor\(\{ app, board, access, canvasApi, canvasState, dive, courseCanvas = false, journey = null, canvasVersion = null \}\)/);
   assert.match(tutor, /const where = \{ app: courseCanvas \? app : null, board, root, parentJourney, record, title: liveTitle \};/);
-  assert.match(tutor, /const liveTitle = title \?\? app\.title \?\? null;/);
+  assert.match(tutor, /const liveTitle = dive\.tree\?\.path\?\.at\(-1\)\?\.title \?\? app\.title \?\? null;/);
+  assert.match(tutor, /const common = \{ canvas: \{ \.\.\.here, \.\.\.\(record \? \{ dive: record, liveTitle \} : \{\}\) \},/);
   assert.match(tutor, /const context = tutorContext\(\{ \.\.\.where, journey \}\), capabilities = context\?\.capabilities;\n  const active = capabilities\?\.tutor === true, hookTurns = active \|\| capabilities\?\.hook_turns === true;/);
   assert.match(tutor, /const domainOf = canvas => tutorContext\(\{ \.\.\.where, journey: journeyRef\.current, blocks: canvas\?\.blocks\?\.\(\) \|\| \[\] \}\)\?\.domain;/);
   // Task 10 fix round 1: the parent read records the hole it settled for, snapshot() waits on it, and a rename rebuilds turn().
   assert.match(tutor, /diveJourney\(record, path => api\(path\)\)\.then\(found => \{ if \(current\) \{ setParentJourney\(found\); setParentRead\(record\.dive_id\); \} \}\);/);
-  assert.match(tutor, /snapshot: \(\) => \(\{ context: hookContext\(\{ \.\.\.where, journey: journeyRef\.current, blocks: canvasApi\.current\?\.blocks\?\.\(\) \|\| \[\] \}, parentRead, recordPending\),/);
+  assert.match(tutor, /snapshot: \(\) => \(\{ context: hookContext\(\{ \.\.\.where, journey: journeyRef\.current, blocks: canvasApi\.current\?\.blocks\?\.\(\) \|\| \[\] \}, parentRead, recordPending\), store: load\(\), parent: parentJourney, record, liveTitle \}\),/);
   assert.match(tutor, /const recordPending = \/\^canvas-\[a-f0-9\]\{8\}\$\/\.test\(app\.name\) && !dive\.tree;/);
   assert.match(tutor, /\}, \[access, record, here\.app, here\.board, key, parentJourney, courseCanvas, root, canvasVersion, liveTitle\]\);/);
   assert.match(page, /const tutor = useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey \}\);/);

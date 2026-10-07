@@ -13,25 +13,27 @@ const claimIdsOf = section => (section?.expected_evidence || []).map(e => e?.cla
 // Ruling T7: structured sources only - the journey goal; a hole's hook goal, else its parent's goal (a journey's, or the
 // course subject) and its title; else the course subject or canvas title. The learner's words travel as recent.question.
 // Shared by the input and its basis (owner eleventh message 3): a rename that changes the goal changes the basis.
-function goalOf({ context = null, record = null, title = '' }) {
-  const domain = context?.domain ?? null;
+// liveTitle (fix round 3): a hole's live title (useTutor's, from the dives path); record.title is its creation-time title.
+function goalOf({ context = null, record = null, title = '', liveTitle = null }) {
+  const domain = context?.domain ?? null, holeTitle = liveTitle || record?.title;
   const parentGoal = !record ? null : context?.source === 'dive' ? domain.context?.goal : context?.source === 'registry' ? domain.subject : null;
   const goal = context?.source === 'journey' ? domain.context?.goal || title
     // A plain canvas or a canvas-domain hole (fix round 2): the goal tutorContext built from the live title (a hole's
     // learning_goal first), so a rename reaches the input and the basis.
     : context?.source === 'canvas' ? domain.subject || title
-    : record ? record.learning_goal || (parentGoal ? `${cap(parentGoal, 120)} - ${cap(record.title, 80)}` : record.title)
+    : record ? record.learning_goal || (parentGoal ? `${cap(parentGoal, 120)} - ${cap(holeTitle, 80)}` : holeTitle)
     : domain?.subject || title;
   return { goal, parentGoal };
 }
 
 // context: tutorContext's (or a hook turn's) { domain, source }, null where none resolves; a plain canvas or hole has the
 // canvas domain (Task 10: empty scope, block titles as grounding). store: the canvas's Tutor session store. journey:
-// useJourney's view. record/parent: a hole's dive record and its parent journey (read only). previous: { hooks, goals } already shown and chosen. describe: LearningBlocks'
-// describeBlock when the page passes it; only its title is read.
+// useJourney's view. record/parent: a hole's dive record and its parent journey (read only). liveTitle: the hole's live
+// title (fix round 3; the record title is its creation title). previous: { hooks, goals } already shown and chosen.
+// describe: LearningBlocks' describeBlock when the page passes it; only its title is read.
 // Returns { input, trim } - trim is structured counts beside the input, never inside it (owner sixth message 4) - or
 // { problem: 'input_too_large' } when the 9000-character cap would leave a registry canvas with no claim, or nothing fits.
-export function nextStepsInput({ context = null, store = null, journey = null, blocks = [], record = null, parent = null, title = '', lastTurn = null, previous = {}, basis, describe = null }) {
+export function nextStepsInput({ context = null, store = null, journey = null, blocks = [], record = null, parent = null, title = '', liveTitle = null, lastTurn = null, previous = {}, basis, describe = null }) {
   const domain = context?.domain ?? null, claims = domain?.claims || {}, concepts = domain?.concepts || {}, events = store?.events || [];
   const known = id => typeof id === 'string' && Object.hasOwn(claims, id);
   const states = domain ? deriveClaimStates(events, claims) : {};
@@ -86,7 +88,7 @@ export function nextStepsInput({ context = null, store = null, journey = null, b
     for (const id of back) { excluded.delete(id); for (const g of gapsOf(scope.claims, id)) pinned.add(g); }
   }
 
-  const { goal, parentGoal } = goalOf({ context, record, title });
+  const { goal, parentGoal } = goalOf({ context, record, title, liveTitle });
   const asked = ['question', 'request'].includes(lastTurn?.kind) && lastTurn.question ? cap(lastTurn.question, L.question) : null;
   // recent names only claims and cards still in the kept input (set by fits below, after every trim step).
   const transitions = (lastTurn?.transitions || []).map(({ claim, from, to }) => ({ claim, from, to }));
@@ -106,7 +108,7 @@ export function nextStepsInput({ context = null, store = null, journey = null, b
     },
     previous: { hooks: (previous?.hooks || []).slice(-L.previous_hooks), goals: (previous?.goals || []).slice(-L.previous_goals) },
     ...(record ? { dive: {
-      title: cap(record.title, 80), concept: domain?.conceptOf ? holeConcept(record, domain) : null, claim_ids: first,
+      title: cap(liveTitle || record.title, 80), concept: domain?.conceptOf ? holeConcept(record, domain) : null, claim_ids: first,
       parent_goal: parentGoal ? cap(parentGoal, 200) : null, parent_section: record.journey?.section_id ?? null,
       parent_states: Object.fromEntries((record.journey?.claim_ids || []).filter(id => parentStates[id]).map(id => [id, parentStates[id].state])),
     } } : {}),
@@ -171,11 +173,11 @@ const fnv = text => {
 // eleventh message 2, 3): also the effective Tutor context (context, parent: the snapshot's) - its kind (journey, dive,
 // registry, canvas), the journey it stands on (a live one, or a hole's read parent), its section - and the goal the input
 // is grounded on (goalOf, so a rename that changes it re-asks). Nothing else is read.
-export function nextStepsBasis({ lastTurn = null, store = null, journey = null, canvasState = null, graded = 0, record = null, context = null, parent = null, title = '' }) {
+export function nextStepsBasis({ lastTurn = null, store = null, journey = null, canvasState = null, graded = 0, record = null, context = null, parent = null, title = '', liveTitle = null }) {
   const j = journey?.journey;
   return `nb_${fnv(JSON.stringify([lastTurn?.turn_id ?? null, store?.seq ?? 0, j?.evidence?.seq ?? null, journey?.path?.version ?? null, j?.active_section_id ?? null,
     j?.section_plan?.heading_block_id ?? null, (canvasState?.cards || []).map(entry => entry[0]).sort(), canvasState?.attempts ?? 0, graded, record?.dive_id ?? null, !!store?.returned,
-    context?.source ?? null, j?.id ?? parent?.journey?.id ?? null, context?.domain?.sectionId ?? null, goalOf({ context, record, title }).goal ?? null]))}`;
+    context?.source ?? null, j?.id ?? parent?.journey?.id ?? null, context?.domain?.sectionId ?? null, goalOf({ context, record, title, liveTitle }).goal ?? null]))}`;
 }
 
 // Not a stopping point (contract §1.2): the Tutor answering, journey work (a pending action, a section being built) or

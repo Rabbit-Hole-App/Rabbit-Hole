@@ -849,6 +849,26 @@ test('basis: a context kind change, another parent journey or section, and a ren
   assert.equal(nextStepsInput({ ...holeAt('Renamed hole', goaled), store: emptyStore(), blocks: [], basis: 'b' }).input.goal, 'Explain a starter culture');
 });
 
+// Fix round 3: a renamed hole (record.title is the creation title; dives.js serves the live one, liveTitle in the snapshot).
+// The hook goal, dive.title and the basis follow the live title wherever it grounds the goal; the concept stays the hole's.
+test('a renamed journey hole and a renamed course hole: goal, dive title and basis follow liveTitle; the concept is kept; a learning_goal leads', () => {
+  const record = { dive_id: 'canvas-0000aaaa', title: 'Inverted siphon', journey: { journey_id: 'lj_a', section_id: 's2', concept_ids: [R.claims[IDS[4]].concept], claim_ids: [IDS[4]] } };
+  const parent = { journey: J, path: PATH };
+  const context = tutorContext({ record, parentJourney: parent });
+  const at = (liveTitle, r = record) => nextStepsInput(snap({ context, journey: null, record: r, parent, liveTitle })).input;
+  const renamed = at('Siphon notes');
+  assert.deepEqual([renamed.goal, renamed.dive.title, renamed.dive.concept], ['Design a working aqueduct section - Siphon notes', 'Siphon notes', 'inverted-siphon']);
+  assert.deepEqual([at(null).goal, at(null).dive.title], ['Design a working aqueduct section - Inverted siphon', 'Inverted siphon'], 'no live title: the record title');
+  const b = (liveTitle, r = record) => nextStepsBasis({ store: emptyStore(), canvasState: { cards: [] }, record: r, context, parent, title: 'Water', liveTitle });
+  assert.notEqual(b('Siphon notes'), b('Inverted siphon'), 'the rename re-asks');
+  const goaled = { ...record, learning_goal: 'Explain why a siphon climbs' };
+  assert.deepEqual([at('Siphon notes', goaled).goal, b('Siphon notes', goaled) === b('Inverted siphon', goaled)], ['Explain why a siphon climbs', true], 'a learning_goal leads; a rename leaves its basis');
+  // A hole under a registered course: the subject and the live title; the hole concept (and its claims) from the record.
+  const course = tutorContext({ board: TUTOR_BOARD }), hole = { dive_id: 'canvas-0000bbbb', title: 'Softmax' };
+  const courseHole = nextStepsInput(snap({ context: course, journey: null, record: hole, liveTitle: 'My notes' })).input;
+  assert.deepEqual([courseHole.goal, courseHole.dive.title, courseHole.dive.concept, Object.keys(courseHole.scope.claims)], ['nanoGPT attention - My notes', 'My notes', 'softmax', ['softmax/normalizes-to-one', 'softmax/gaps-set-sharpness']]);
+});
+
 // Owner eleventh message 8: hooks on a plain canvas only with trustworthy grounding - a lesson card on it (canvasApi.blocks();
 // chat exchanges are not canvas blocks, so a canvas with only chat gets no hooks in v1); its title alone is never enough, and no
 // goal is invented because no journey exists.

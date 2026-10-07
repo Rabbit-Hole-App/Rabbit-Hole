@@ -93,7 +93,7 @@ const turnEvidence = (claims, states, domain) => withPrerequisites(claims, domai
 // turnId: the voice trace id minted at the utterance commit, else a fresh one.
 // nextStep (Professor Next Steps §2.5): a clicked hook's selected_next_step. The turn carries it as structured data with
 // no learner words, answers no open question and consumes no dive choice or return; materials: the Learn commands it may
-// run as create_material (learn-slash.js materialCommands).
+// run as create_material (learn-slash.js materialCommands). canvas.liveTitle: a hole's live title (Task 10 fix round 3).
 export function buildTurn({ raw, slash = null, opening = false, canvas, block, store, states, inputModality = 'text', turnId = null, domain = NANOGPT, nextStep = null, materials = [] }) {
   const here = { app: canvas.app, board: canvas.board || 'main' };
   const open = store.open && sameCanvas(store.open.canvas, here) && !slash && !nextStep ? store.open : null;
@@ -108,7 +108,7 @@ export function buildTurn({ raw, slash = null, opening = false, canvas, block, s
     ...(open ? { answering: open.action_id } : {}),
     ...(keep ? { dive_choice: { concept: keep.concept, choice: 'inline' } } : {}),
     ...(opening ? { opening: true } : {}),
-    canvas: { ...here, ...(canvas.dive ? { dive: { dive_id: canvas.dive.dive_id, parent: canvas.dive.origin?.parent, origin: canvas.dive.origin, record: canvas.dive } } : {}) },
+    canvas: { ...here, ...(canvas.dive ? { dive: { dive_id: canvas.dive.dive_id, parent: canvas.dive.origin?.parent, origin: canvas.dive.origin, record: canvas.dive, ...(canvas.liveTitle ? { title: canvas.liveTitle } : {}) } } : {}) },
     target: targetOf(block),
     card_state: cardState(block, store),
     evidence: [],
@@ -280,7 +280,8 @@ function relevantCards(target, concepts, domain) {
 // key, after dive_context; a nanoGPT turn never has it. A domain naming its contextKey sends its context under that key
 // instead (Task 10: the canvas domain's canvas_context, which picks the canvas planner prompt). A hole opened from a
 // journey section (LP1 Task 14, §13): its dive_context names the section, claims and concepts that caused the dive; a
-// record without `journey` adds nothing.
+// record without `journey` adds nothing. dive_context.title is the hole's live title when the page passes one (Task 10 fix
+// round 3: canvas.liveTitle; record.title is the creation title); its concept still comes from the record.
 // Professor Next Steps (§2.5, §2.6): recent_relevant_context.recent_modalities is the store's last 8 modalities, evidence
 // for the planner only (nothing here or in route() reads it); a hook-click turn adds available_materials as the last key.
 export function plannerContext({ turn, routed, block, states, claims = [], store = null, domain = NANOGPT }) {
@@ -312,7 +313,7 @@ export function plannerContext({ turn, routed, block, states, claims = [], store
       recent_modalities: (store?.modalities || []).slice(-8),
     },
     dive_context: record || turn.returned_from ? {
-      ...(record ? { dive_id: record.dive_id, title: record.title, concept: holeConcept(record, domain), created_by: record.created_by, origin_card: record.origin?.origin_card_id ?? null, origin_part: record.origin?.origin_part_id ?? null, pending_question: record.return_point?.pending_question ?? null } : {}),
+      ...(record ? { dive_id: record.dive_id, title: turn.canvas.dive.title ?? record.title, concept: holeConcept(record, domain), created_by: record.created_by, origin_card: record.origin?.origin_card_id ?? null, origin_part: record.origin?.origin_part_id ?? null, pending_question: record.return_point?.pending_question ?? null } : {}),
       ...(record?.journey ? { journey: { section_id: record.journey.section_id, claim_ids: record.journey.claim_ids, concept_ids: record.journey.concept_ids } } : {}),
       ...(turn.returned_from ? { returned_from: { dive_id: turn.returned_from.dive_id, concept: turn.returned_from.concept, claim: turn.returned_from.claim } } : {}),
     } : null,

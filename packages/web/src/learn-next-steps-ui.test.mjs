@@ -295,9 +295,9 @@ test('ownedSteps: off where snapshot().context is null or there is no askStep; n
   }
 });
 
-// Task 10 fix rounds 1-2 (owner eleventh message 3, 8; probe E): a plain canvas with no lesson card asks nothing - its title
-// alone never grounds hooks - and a rename re-asks with the new goal. Modelled as the page wires it: a rename re-renders
-// useTutor with the live title param and useNextSteps with the same title; app.title never changes.
+// Task 10 fix rounds 1-3 (owner eleventh message 3, 8; probe E): a plain canvas with no lesson card asks nothing - its title
+// alone never grounds hooks - and a rename re-asks with the new goal. Modelled as it happens: Dive reloads the dives path
+// with the server title and useTutor re-renders; app.title and the page title prop never change.
 const withSession = async fn => {
   const saved = Object.getOwnPropertyDescriptor(globalThis, 'sessionStorage'), storage = new Map();
   Object.defineProperty(globalThis, 'sessionStorage', { value: { getItem: k => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, String(v)) }, configurable: true, writable: true });
@@ -306,7 +306,7 @@ const withSession = async fn => {
 const plainTutor = (title, blocks) => {
   let t;
   const Page = () => { t = B.useTutor({ app: { name: 'canvas-0000abcd', org: 'o', email: 'e@x.com', title: 'Created as' }, board: 'main', access: { app: 'canvas-0000abcd' }, canvasApi: { current: { blocks: () => blocks, block: () => null } }, canvasState: { card: null },
-    dive: { tree: { path: [{ app: 'canvas-0000abcd', board: 'main', kind: 'canvas' }], children: [], dive: null }, suggestionCard: null }, courseCanvas: true, journey: null, title }); return null; };
+    dive: { tree: { path: [{ app: 'canvas-0000abcd', board: 'main', kind: 'canvas', title }], children: [], dive: null }, suggestionCard: null }, courseCanvas: true, journey: null }); return null; };
   B.renderToStaticMarkup(B.createElement(Page));
   return t;
 };
@@ -323,9 +323,8 @@ test('ownedSteps on a plain canvas: no lesson card, no hooks and nothing posted;
   assert.equal(stop, null);
   r.step(); await r.c.fire();
   assert.deepEqual([r.bodies.length, r.bodies[0].mode, r.bodies[0].goal], [1, 'canvas', 'Sourdough']);
-  // The rename: the page re-renders with the live title; app.title stays 'Created as'.
+  // The rename: the dives path reloads with the server title; app.title stays 'Created as' and the page title prop stays stale.
   r.live.tutor = plainTutor('Sourdough, renamed', card);
-  r.live.title = 'Sourdough, renamed';
   assert.notEqual(r.steps.state().basis, basis, 'the renamed title grounds the goal');
   r.step(); await r.c.fire();
   assert.deepEqual([r.bodies.length, r.bodies[1].goal], [2, 'Sourdough, renamed']);
