@@ -8,6 +8,7 @@ import { liveDb, liveRuns } from './live-storage-spy.js';
 import { canvasesFetch, canvasRoute } from '../src/canvases.js';
 import { learnBoardsRoute } from '../src/learn-boards.js';
 import { libraryTrashFetch, libraryTrashRoute } from '../src/library-trash.js';
+import { ownerRepositories } from '../src/repositories.js';
 
 const PEOPLE = { ana: { email: 'ana@test', org: 'ana-ws' }, ann: { email: 'ann@test', org: 'ana-ws' }, ben: { email: 'ben@test', org: 'ben-ws' } };
 const BOARD = { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [{ id: 'q1', question: 'Why exp?', answer: 'Positive.', status: 'done' }], sources: [], blocks: [{ id: 'b1', type: 'explanation', title: 'SECRET-CONTENT' }] };
@@ -36,7 +37,7 @@ function setup(t) {
   const create = async (as, title) => (await call('POST', '/api/canvases', { as, body: { title } })).body;
   const board = name => `/api/learn/boards/${name}/main`;
   const updatedAt = async name => (await call('GET', `/api/apps/${name}`, { as: 'ana' })).body.updated_at;
-  return { sqlite, call, create, board, updatedAt };
+  return { sqlite, env, call, create, board, updatedAt };
 }
 
 test('a private board is saved: its first copy is version 1 and moves no updated_at; a write on a stale or unseen version is refused', async t => {
@@ -63,6 +64,29 @@ test('a private board is saved: its first copy is version 1 and moves no updated
   assert.equal(big.status, 413);
   assert.match(big.body.error, /not saved to your account and stays only in this browser/);
   assert.equal((await f.call('GET', f.board(c.name), { as: 'ana' })).body.version, 2, 'nothing written');
+});
+
+test('a canvas row says whether its main board is on the server: not before the first save, after an over-cap refusal or for another board', async t => {
+  const f = setup(t);
+  const c = await f.create('ana', 'Saved notes'), big = await f.create('ana', 'Huge notes');
+  const listed = async () => Object.fromEntries((await f.call('GET', '/api/canvases', { as: 'ana' })).body.canvases.map(row => [row.name, row.board_saved]));
+  assert.equal(c.board_saved, false, 'a new canvas');
+  assert.deepEqual(await listed(), { [c.name]: false, [big.name]: false });
+  await f.call('PUT', f.board(c.name), { as: 'ana', body: { state: BOARD, version: 0 } });
+  assert.equal((await f.call('PUT', f.board(big.name), { as: 'ana', body: { state: { blocks: [{ id: 'x', body: 'x'.repeat(2_000_000) }] }, version: 0 } })).status, 413);
+  assert.equal((await f.call('PUT', `/api/learn/boards/${big.name}/review`, { as: 'ana', body: { state: BOARD, version: 0 } })).status, 200);
+  assert.deepEqual(await listed(), { [c.name]: true, [big.name]: false }, 'only a saved main board counts');
+  assert.equal((await f.call('GET', `/api/apps/${c.name}`, { as: 'ana' })).body.board_saved, true);
+});
+
+test('a project row says whether its Learn main board (LearnPage /api/learn/boards/<repo>/main) is on the server', async t => {
+  const f = setup(t);
+  for (const name of ['repo-0a0a0a0a', 'repo-0b0b0b0b']) f.sqlite.prepare("INSERT INTO repository_apps (org, name, owner_email, repo, branch, status) VALUES ('ana-ws', ?, 'ana@test', 'karpathy/nanoGPT', 'master', 'ready')").run(name);
+  const listed = async () => Object.fromEntries((await ownerRepositories(f.env, PEOPLE.ana)).map(row => [row.name, row.board_saved]));
+  assert.deepEqual(await listed(), { 'repo-0a0a0a0a': false, 'repo-0b0b0b0b': false });
+  assert.equal((await f.call('PUT', f.board('repo-0a0a0a0a'), { as: 'ana', body: { state: BOARD, version: 0 } })).status, 200);
+  assert.equal((await f.call('PUT', '/api/learn/boards/repo-0b0b0b0b/review', { as: 'ana', body: { state: BOARD, version: 0 } })).status, 200);
+  assert.deepEqual(await listed(), { 'repo-0a0a0a0a': true, 'repo-0b0b0b0b': false }, 'only the main board counts');
 });
 
 test('nobody but the owner reads a private board, no link reaches it, and Trash still suspends links', async t => {

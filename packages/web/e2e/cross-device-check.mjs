@@ -1,6 +1,6 @@
-// Canvas persistence, the cross-device proof (docs/features/canvas-persistence.md, Proof items 1-7): two fresh browser
-// profiles (A and B) on one account, against the LOCAL stack only - local D1, no model calls (/api/learn/ask is aborted
-// as a guard; no composer is ever sent). Prints no secrets.
+// Canvas persistence, the cross-device proof (docs/features/canvas-persistence.md, Proof items 1-7) and the retired
+// browser warnings (step 8, checks 8-10): fresh browser profiles (A, B, and F for 8) on one account, against the LOCAL
+// stack only - local D1, no model calls (/api/learn/ask is aborted as a guard; no composer is ever sent). Prints no secrets.
 // Usage: BASE=http://127.0.0.1:8848 SMALL_CP=http://127.0.0.1:8849 node e2e/cross-device-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
@@ -245,9 +245,96 @@ await check('7 another account cannot read the private board; Trash still suspen
   assert.equal((await api(stranger, `/api/learn/boards/shared/${token}`)).status, 404, 'private again');
 });
 
+// ---- Step 8: the browser warnings go only where the board is on the server ----
+const WARNING = /Content in this browser|On another device|stored only in the browser that created it/;
+const cardOf = (page, sel, title) => page.locator(sel).filter({ has: page.locator('[data-card-title]', { hasText: new RegExp(`^${title}$`) }) });
+const library = async page => { await page.goto(`${BASE}/library?type=canvases`); await cardOf(page, '[data-library-card="canvas"]', `Softmax ${run}`).waitFor({ timeout: 60000 }); };
+const home = async page => { await page.goto(`${BASE}/apps`); await page.locator('[data-continue-card]').waitFor({ timeout: 60000 }); };
+const noteOf = async (page, sel, title) => { const note = cardOf(page, sel, title).locator('[data-card-note]'); return (await note.count()) ? (await note.innerText()).trim() : ''; };
+const away = note => note.startsWith('On another device') && note.includes('Its content is stored only in the browser that created it.');
+
+await check('8 A\'s canvas on other profiles: Library and Home carry no browser warning, and its content opens', async () => {
+  const F = await profile(`device-f-${run}`); // has opened nothing: before step 8 its Library said On another device
+  await library(F.page);
+  for (const title of [`Softmax ${run}`, `Old notes ${run}`]) assert.equal(await noteOf(F.page, '[data-library-card="canvas"]', title), '', title);
+  assert.doesNotMatch(await cardOf(F.page, '[data-library-card="canvas"]', `Softmax ${run}`).innerText(), WARNING);
+  await shot(F.page, '05-F-library-no-warning');
+  await cardOf(F.page, '[data-library-card="canvas"]', `Softmax ${run}`).locator('[data-card-title]').click();
+  await F.page.locator('[data-block-id="e1"]').first().waitFor({ timeout: 60000 });
+  assert.equal(await F.page.locator('[data-canvas-gate]').count(), 0);
+  await home(F.page);
+  const section = F.page.getByRole('region', { name: 'Continue' });
+  assert.equal((await section.locator('h2').innerText()).trim(), 'Continue learning');
+  assert.ok((await section.innerText()).includes(`Softmax ${run}`));
+  assert.doesNotMatch(await F.page.locator('main').innerText(), WARNING, 'nothing on Home says browser-only');
+  assert.doesNotMatch(await F.page.locator('main').innerText(), /on this device/);
+  await shot(F.page, '06-F-home-continue-learning');
+  // B opened them before: before step 8 its cards said Content in this browser.
+  await library(B.page);
+  for (const title of [`Softmax ${run}`, `Old notes ${run}`]) assert.equal(await noteOf(B.page, '[data-library-card="canvas"]', title), '', title);
+  await shot(B.page, '07-B-library-no-warning');
+  await home(B.page);
+  const continued = B.page.getByRole('region', { name: 'Continue' });
+  assert.equal((await continued.locator('h2').innerText()).trim(), 'Continue learning');
+  assert.doesNotMatch(await continued.innerText(), WARNING);
+  for (const title of [`Softmax ${run}`, `Old notes ${run}`]) assert.equal(await noteOf(B.page, '[data-recent-card]', title), '', title);
+  await shot(B.page, '08-B-home-no-warning');
+  await F.context.close();
+});
+
+await check('9 a never-synced canvas keeps its truthful state: Content in this browser where it was made, On another device elsewhere, and it does not open there', async () => {
+  // Made on A before this release and never opened since: its content is only in A's localStorage.
+  const C4 = await newCanvas(`Never synced ${run}`);
+  await A.page.evaluate(([keys, ink, chat, name]) => {
+    localStorage.setItem(keys.ink, JSON.stringify(ink)); localStorage.setItem(keys.chat, JSON.stringify(chat));
+    localStorage.setItem('small.recent', JSON.stringify([name, ...JSON.parse(localStorage.getItem('small.recent') || '[]')]));
+  }, [keysOf(C4.name), { ...INK, blocks: INK.blocks.slice(0, 1) }, CHAT, C4.name]);
+  await library(A.page);
+  assert.equal(await noteOf(A.page, '[data-library-card="canvas"]', `Never synced ${run}`), 'Content in this browser');
+  assert.equal(await noteOf(A.page, '[data-library-card="canvas"]', `Softmax ${run}`), '', 'a saved board beside it');
+  await shot(A.page, '09-A-library-never-synced');
+  await home(A.page);
+  const section = A.page.getByRole('region', { name: 'Continue' });
+  assert.equal((await section.locator('h2').innerText()).trim(), 'Continue learning');
+  const text = await section.innerText();
+  assert.ok(text.includes(`Never synced ${run}`) && text.includes('Content in this browser'), text);
+  assert.equal(await noteOf(A.page, '[data-recent-card]', `Never synced ${run}`), 'Content in this browser');
+  await shot(A.page, '10-A-home-never-synced');
+  await library(B.page);
+  assert.ok(away(await noteOf(B.page, '[data-library-card="canvas"]', `Never synced ${run}`)));
+  await shot(B.page, '11-B-library-never-synced-away');
+  await B.page.goto(`${BASE}/apps/${C4.name}`);
+  await B.page.locator('[data-canvas-gate]').getByRole('heading', { name: "This canvas's content isn't available in this browser." }).waitFor({ timeout: 30000 });
+  assert.equal((await boardOf(C4.name)).exists, false, 'Library and Home saved nothing');
+});
+
+await check('10 a board over 1.9 MB keeps Content in this browser where it was refused, saved before or not, until a save lands', async () => {
+  // C3 (check 6) was refused on its first copy; C5 was saved, then grew past the cap.
+  const C5 = await newCanvas(`Grew huge ${run}`);
+  await A.page.evaluate(([keys, ink]) => localStorage.setItem(keys.ink, JSON.stringify(ink)), [keysOf(C5.name), { ...INK, blocks: INK.blocks.slice(0, 1) }]);
+  await open(A.page, C5.name, '[data-block-id="e1"]');
+  await until('C5 on the server', async () => (await boardOf(C5.name)).version === 1);
+  const huge = { ...INK, blocks: [{ ...INK.blocks[0], notes: 'x'.repeat(1_950_000) }] };
+  await A.page.evaluate(([keys, ink]) => localStorage.setItem(keys.ink, JSON.stringify(ink)), [keysOf(C5.name), huge]);
+  await open(A.page, C5.name, '[data-block-id="e1"]');
+  await A.page.locator('[data-toast-error]').filter({ hasText: 'over 1.9 MB' }).waitFor({ timeout: 15000 });
+  assert.equal((await boardOf(C5.name)).version, 1, 'refused');
+  await library(A.page);
+  for (const title of [`Huge ${run}`, `Grew huge ${run}`]) assert.equal(await noteOf(A.page, '[data-library-card="canvas"]', title), 'Content in this browser', title);
+  await shot(A.page, '12-A-library-over-cap');
+  await library(B.page);
+  assert.ok(away(await noteOf(B.page, '[data-library-card="canvas"]', `Huge ${run}`)), 'never on the server');
+  // Back under the cap: the next save lands and the note goes.
+  await A.page.evaluate(([keys, ink]) => localStorage.setItem(keys.ink, JSON.stringify(ink)), [keysOf(C5.name), { ...INK, blocks: INK.blocks.slice(0, 2) }]);
+  await open(A.page, C5.name, '[data-block-id="e2"]');
+  await until('the smaller copy on the server', async () => (await boardOf(C5.name)).version === 2);
+  await library(A.page);
+  assert.equal(await noteOf(A.page, '[data-library-card="canvas"]', `Grew huge ${run}`), '');
+});
+
 const unexpected = errors.filter(message => !/Failed to fetch|NetworkError|ERR_INTERNET_DISCONNECTED|ResizeObserver/.test(message));
 if (unexpected.length) console.log('page errors:', unexpected);
 await browser.close();
-const total = 10;
+const total = 13;
 console.log(`${results.length}/${total} checks passed`);
 process.exitCode = results.length === total && !unexpected.length ? 0 : 1;
