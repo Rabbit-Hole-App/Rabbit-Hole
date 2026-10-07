@@ -379,7 +379,8 @@ test('wiring: useTutor and LearnPage decide the Tutor only through the resolver;
   assert.match(tutor, /export function useTutor\(\{ app, board, access, canvasApi, canvasState, dive, courseCanvas = false, journey = null, canvasVersion = null \}\)/);
   assert.match(tutor, /const where = \{ app: courseCanvas \? app : null, board, root, parentJourney, record, title: liveTitle \};/);
   assert.match(tutor, /const liveTitle = dive\.tree\?\.path\?\.at\(-1\)\?\.title \?\? app\.title \?\? null;/);
-  assert.match(tutor, /const question = openingQuestion\(store, record, liveTitle\);/);
+  // Merge of Tasks 10 and 11: the opening lives in holeOpening (learn-next-steps.js), handed the live title.
+  assert.match(tutor, /holeOpening\(\{ storage: sessionStorage, load, record, title: liveTitle, hookTurns, active, /);
   assert.match(tutor, /const common = \{ canvas: \{ \.\.\.here, \.\.\.\(record \? \{ dive: record, liveTitle \} : \{\}\) \},/);
   assert.match(tutor, /const context = tutorContext\(\{ \.\.\.where, journey \}\), capabilities = context\?\.capabilities;\n  const active = capabilities\?\.tutor === true, hookTurns = active \|\| capabilities\?\.hook_turns === true;/);
   assert.match(tutor, /const domainOf = canvas => tutorContext\(\{ \.\.\.where, journey: journeyRef\.current, blocks: canvas\?\.blocks\?\.\(\) \|\| \[\] \}\)\?\.domain;/);

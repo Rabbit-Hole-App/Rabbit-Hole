@@ -11,7 +11,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
 import { journeyDomain } from './learn-journey-domain.js';
-import { emptyStore } from './learn-tutor-evidence.js';
+import { appendEvents, emptyStore } from './learn-tutor-evidence.js';
 import { TIDES } from './__fixtures__/journey-synthetic-domains.mjs';
 
 const read = name => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -480,7 +480,7 @@ test('LearnTutor.jsx source pins: block null and no journey resolver on a click,
 });
 
 // ---- Shared canvases (Task 11): useSharedNextSteps and its logic (sharedSteps) through the real controller. ----
-test('useSharedNextSteps: off without a token; posts the origin; viewer_states only when signed in; a carried step opens a hole first', () => {
+test('useSharedNextSteps: off without a token; posts the origin; viewer_states only when signed in', () => {
   let steps = null;
   const Page = () => { steps = B.useSharedNextSteps({ token: null, card: null, version: 1, signedIn: false }); return null; };
   B.renderToStaticMarkup(B.createElement(Page));
@@ -491,8 +491,6 @@ test('useSharedNextSteps: off without a token; posts the origin; viewer_states o
   assert.match(source, /origin: card \? \{ block_id: card \} : null/);
   assert.match(source, /viewer_states/);
   assert.match(source, /useEffect\(\(\) => \{ shared\.update\(\{ basis, stop \}\); \}, \[basis, stop\]\);/, 'the update effect reads the trigger state alone');
-  const tutor = read('LearnTutor.jsx');
-  assert.match(tutor, /const carried = takeCarriedStep\(sessionStorage, record\.dive_id\);[\s\S]*?if \(!active\) return;[\s\S]*?openingQuestion\(/);
 });
 
 const sharedSet = n => ({ ...setFor(n), basis: 'k:1::root', telemetry: { ...setFor(n).telemetry, share_key: 'f00d'.repeat(16), cached: false,
@@ -554,4 +552,68 @@ test('sharedSteps telemetry: next_steps_computed and next_steps_shown with scope
       assert.equal(JSON.stringify(e).includes('tok-abc'), false, 'never the raw token');
     }
   } finally { remove(); }
+});
+
+// Fix round 1 items 4 and 7: the real request (sharedSteps' default post) with fetch and sessionStorage stubbed.
+function wire(t, { me = [] } = {}) {
+  const calls = [], m = new Map(), had = { fetch: globalThis.fetch, storage: Object.getOwnPropertyDescriptor(globalThis, 'sessionStorage') }, w = { calls, status: 200 };
+  Object.defineProperty(globalThis, 'sessionStorage', { configurable: true, writable: true, value: { getItem: k => m.get(k) ?? null, setItem: (k, v) => m.set(k, String(v)), removeItem: k => m.delete(k) } });
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({ url, body: init.body ? JSON.parse(init.body) : null });
+    if (url === '/api/me') { const who = me.shift(); return who ? Response.json(who) : new Response('no', { status: 503 }); }
+    return Response.json(w.status === 200 ? sharedSet(calls.length) : { error: 'paused', limited: true }, { status: w.status });
+  };
+  t.after(() => { globalThis.fetch = had.fetch; if (had.storage) Object.defineProperty(globalThis, 'sessionStorage', had.storage); else delete globalThis.sessionStorage; });
+  return Object.assign(w, { store: (who, events) => m.set(`small.tutor:${who.org}:${who.email}`, JSON.stringify(appendEvents(emptyStore(), events).store)) });
+}
+// One registered claim of the supplied course (registry data, read from the bundle) and a claim of no public course.
+const REAL = Object.keys(B.TUTOR_DOMAINS.find(entry => entry.capabilities?.suppliedCourse === true).domain.claims)[0];
+const failOn = (claim, concept = 'x') => ({ concept, claim, result: 'fail', kind: null, settled: true, evaluator: 'jev', source: 'free_text' });
+function realRig(props) {
+  const c = clock(), live = { token: 'tok/abc', card: null, version: 4, signedIn: false, ...props };
+  const shared = B.sharedSteps(() => live, { setTimer: c.setTimer, clearTimer: c.clearTimer });
+  return { c, live, shared, step: () => shared.update(shared.state()) };
+}
+
+test('sharedPost: signed out asks no /api/me and sends no states; signed in sends only public registry evidence; a 429 is limited', async t => {
+  const w = wire(t, { me: [{ org: 'ben-ws', email: 'ben@test' }] });
+  const out = realRig();
+  out.step(); await out.c.fire();
+  assert.deepEqual(w.calls, [{ url: '/api/learn/boards/shared/tok%2Fabc/next-steps', body: { origin: null } }]);
+  assert.equal(out.shared.view().status, 'ready');
+  w.store({ org: 'ben-ws', email: 'ben@test' }, [failOn(REAL, B.TUTOR_DOMAINS[0].domain.claims[REAL].concept), failOn('not.a/public-claim')]);
+  const signed = realRig({ signedIn: true, card: 'k1' });
+  signed.step(); await signed.c.fire();
+  assert.deepEqual(w.calls.slice(1).map(call => call.url), ['/api/me', '/api/learn/boards/shared/tok%2Fabc/next-steps']);
+  assert.deepEqual(w.calls.at(-1).body, { origin: { block_id: 'k1' }, viewer_states: { [REAL]: 'uncertain' } });
+  w.status = 429;
+  const limited = realRig();
+  limited.step(); await limited.c.fire();
+  assert.deepEqual([w.calls.length, limited.shared.view().status, limited.shared.view().reason], [4, 'unavailable', 'limited']);
+});
+
+test('sharedPost: a failed /api/me is never cached, and each request reads the identity signed in now', async t => {
+  const ben = { org: 'ben-ws', email: 'ben@test' }, cara = { org: 'cara-ws', email: 'cara@test' };
+  const w = wire(t, { me: [null, ben, cara] });
+  const concept = B.TUTOR_DOMAINS[0].domain.claims[REAL].concept;
+  w.store(ben, [failOn(REAL, concept)]);
+  const r = realRig({ signedIn: true });
+  r.step(); await r.c.fire();
+  assert.equal('viewer_states' in w.calls.at(-1).body, false, '/api/me failed: no states');
+  r.live.card = 'k1'; r.step(); await r.c.fire();
+  assert.deepEqual(w.calls.at(-1).body.viewer_states, { [REAL]: 'uncertain' }, 'the failure was not kept: ben is read');
+  r.live.card = 'k2'; r.step(); await r.c.fire();
+  assert.equal('viewer_states' in w.calls.at(-1).body, false, 'cara signed in: her own (empty) store, never ben');
+  assert.equal(w.calls.filter(call => call.url === '/api/me').length, 3);
+});
+
+test('LearnNextSteps.jsx: one controller lifecycle shared by ownedSteps and sharedSteps; LearnTutor opens a hole through holeOpening', () => {
+  const source = read('LearnNextSteps.jsx');
+  assert.equal(source.match(/nextStepsController\(/g).length, 2, 'each hook configures its controller');
+  assert.equal(source.match(/ctl\.subscribe\(/g).length, 1, 'the view cache and listeners live in one helper');
+  assert.equal(source.match(/ctl\?\.dispose\(\)/g).length, 1, 'one dispose');
+  assert.doesNotMatch(source, /viewerOnce|let me\b/, 'no module-level identity cache');
+  const tutor = read('LearnTutor.jsx');
+  assert.match(tutor, /holeOpening\(\{ storage: sessionStorage, load, record, title: liveTitle, hookTurns, active, domain: \(\) => domainOf\(canvasApi\.current\) \}\)/);
+  assert.match(tutor, /\}, \[active, hookTurns, record\?\.dive_id\]\);/);
 });

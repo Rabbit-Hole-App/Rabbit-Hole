@@ -15,9 +15,9 @@ import { api, apiFetch } from './api.js';
 import { tutorContext } from './learn-tutor-domains.js';
 import { loadStore, saveStore, storeKey } from './learn-tutor-evidence.js';
 import { diveJourney } from './learn-journey-domain.js';
-import { arriveAt, enterHole, executeActions, keepHere, learnerIntent, markOpened, openingQuestion, readPlanStream, runTurn, showableCards, wantsCard } from './learn-tutor.js';
+import { arriveAt, executeActions, keepHere, learnerIntent, readPlanStream, runTurn, showableCards, wantsCard } from './learn-tutor.js';
 import { materialCommands, runMaterials } from './learn-slash.js';
-import { takeCarriedStep } from './learn-next-steps.js';
+import { holeOpening } from './learn-next-steps.js';
 import { emitDecision, newSessionId, tracing } from './learn-tutor-trace.js';
 import PaidConfirm from './PaidConfirm.jsx';
 
@@ -222,14 +222,9 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   // hook turns run (Ruling F4), so a hole whose Tutor is not resolved yet keeps it until it is.
   const [opening, setOpening] = useState(null);
   useEffect(() => {
-    if (!hookTurns || !record?.dive_id) return;
-    const carried = takeCarriedStep(sessionStorage, record.dive_id);
-    if (carried) { save(markOpened(load(), record)); setOpening({ key: record.dive_id, next_step: carried }); return; }
-    if (!active) return;
-    const store = enterHole(load(), record, domainOf(canvasApi.current));
-    const question = openingQuestion(store, record, liveTitle);
-    save(question ? markOpened(store, record) : store);
-    if (question) setOpening({ key: record.dive_id, question });
+    const { store, opening: next } = holeOpening({ storage: sessionStorage, load, record, title: liveTitle, hookTurns, active, domain: () => domainOf(canvasApi.current) });
+    if (store) save(store);
+    if (next) setOpening(next);
   }, [active, hookTurns, record?.dive_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The typed path (ask) and a hook click (askStep) share one turn and one return contract: the reply text, or

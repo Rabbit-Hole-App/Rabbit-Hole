@@ -4,7 +4,7 @@ import { NEXT_STEPS_LIMITS as L, capText as cap, needsRepair, nextStepsScope } f
 import { deriveClaimStates } from './learn-tutor-evidence.js';
 import { claimsOfConceptIn, holeConcept } from './learn-tutor-claims.js';
 import { resolveTarget } from './learn-target.js';
-import { sameCanvas } from './learn-tutor.js';
+import { enterHole, markOpened, openingQuestion, sameCanvas } from './learn-tutor.js';
 import { safely } from './learn-tutor-trace.js';
 import { TUTOR_DOMAINS } from './learn-tutor-domains.js';
 
@@ -307,12 +307,30 @@ export function takePendingStep(storage, token, suggestionId) {
 }
 
 // The signed-in viewer's own evidence (their tab's Tutor store), only on claims of public registered courses and only claims
-// with evidence, newest first, at most 12 (the scope cap). The server filters it again to the board's own scope.
+// with evidence, newest evidence first across every such course, at most 12 (the scope cap). The server filters it again to
+// the board's own scope.
 export function viewerStates(store, registry = TUTOR_DOMAINS) {
-  const out = {}, seen = [...new Set((store?.events || []).map(e => e?.claim).reverse())];
-  for (const entry of registry.filter(e => e.domain && e.capabilities?.suppliedCourse === true)) {
-    const states = deriveClaimStates(store.events, entry.domain.claims);
-    for (const id of seen) if (Object.keys(out).length < L.scope_claims && states[id] && states[id].state !== 'not_yet_observed') out[id] ??= states[id].state;
+  const events = store?.events || [], out = {};
+  const states = Object.assign({}, ...registry.filter(e => e.domain && e.capabilities?.suppliedCourse === true).map(e => deriveClaimStates(events, e.domain.claims)));
+  for (const id of new Set(events.map(e => e?.claim).reverse())) {
+    if (Object.keys(out).length >= L.scope_claims) break;
+    if (states[id] && states[id].state !== 'not_yet_observed') out[id] = states[id].state;
   }
   return out;
+}
+
+// A hole's opening (LearnTutor.jsx's effect; contract §1.4, §6.4): where hook turns run, a hook carried from a shared canvas
+// opens the hole once as a next_step (marked opened, so the usual opening question never follows); otherwise, where the
+// Tutor is active, the pending question once (title is the live title, Task 10 fix round 4). Nothing is read or taken where
+// hook turns do not run (Ruling F4), so a carried step waits for them. load and domain are thunks (load mints a session id).
+// Returns { store: to save or null, opening: for setOpening or null }.
+export function holeOpening({ storage, load, record, title = null, hookTurns, active, domain }) {
+  const none = { store: null, opening: null };
+  if (!hookTurns || !record?.dive_id) return none;
+  const carried = takeCarriedStep(storage, record.dive_id);
+  if (carried) return { store: markOpened(load(), record), opening: { key: record.dive_id, next_step: carried } };
+  if (!active) return none;
+  const store = enterHole(load(), record, domain());
+  const question = openingQuestion(store, record, title);
+  return { store: question ? markOpened(store, record) : store, opening: question ? { key: record.dive_id, question } : null };
 }

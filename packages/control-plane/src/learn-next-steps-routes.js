@@ -5,7 +5,7 @@
 import { sha256Hex } from './learn-grade-jev.js';
 import { NO_CAP, admitUsage, limitsFrom, sharedAskLimits } from './learn-shared-ask.js';
 import { planNextSteps } from './learn-journey-planners.js';
-import { NEXT_STEPS_LIMITS as L, capText, mintSet, nextStepsInputProblem, nextStepsScope, topicOf } from './agents/learn-next-steps.js';
+import { NEXT_STEPS_LIMITS as L, capText, fitInput, mintSet, nextStepsInputProblem, nextStepsScope, topicOf } from './agents/learn-next-steps.js';
 import { TUTOR_DOMAINS } from '../../web/src/learn-tutor-domains.js';
 import { resolveTarget } from '../../web/src/learn-target.js';
 import { STATES } from '../../web/src/learn-tutor-evidence.js';
@@ -41,53 +41,67 @@ export async function ownedNextSteps(env, access, body, { callModel, cache = glo
   return json(set);
 }
 
-// The shared input (contract §2.1, owner correction 1, rulings F14, F15): the shared board's lesson blocks only (chat cards
-// live in state.exchanges and are never read; a journey stamp on a block is never read), the board title and version and the
-// selected card as data, and the claims of public registered courses those blocks show, through the one scope builder,
-// selected card first. No goal is inferred. viewerStates: a signed-in viewer's own { claim: state }, already filtered.
-// ponytail: no 9000-character trim; the public registry fits far below it (blocks capped at 20, claims at 12). Trim the
-// lowest-priority claims as nextStepsInput does when a larger public course ships.
+
+// The shared input (contract §2.1, owner correction 1 and the twelfth message, rulings F14, F15): the shared board's lesson
+// blocks only (chat cards live in state.exchanges and are never read; a journey stamp on a block is never read), the board
+// title and the selected card as data, and the claims of public registered courses those blocks show, through the one scope
+// builder, selected card first. No goal is inferred. A chat card origin reads as the root (it is not content): one input and
+// one cache entry. key and version make the basis. The input_chars cap (fitInput) runs on the board alone, never dropping
+// the selected card and its claims (at the root, the first claim); a signed-in viewer's own states (already filtered) are
+// laid on the kept scope after it, so generation and Start Rabbit Hole read the same trimmed scope, and a state is never
+// longer than not_yet_observed, so the cap holds.
 const PUBLIC = () => TUTOR_DOMAINS.filter(entry => entry.domain && entry.capabilities?.suppliedCourse === true);
-export function sharedInput(state, { origin, version, viewerStates = null, basis, title = '' }) {
-  const lessons = state?.blocks || [], courses = PUBLIC();
+const ROOT = ':root';
+const contentOrigin = (state, origin) => (!origin?.root && (state?.blocks || []).some(block => block?.id === origin.id) ? origin.id : ROOT);
+export function sharedInput(state, { origin, key = '', version = null, title = '', viewerStates = null }) {
+  const lessons = state?.blocks || [], courses = PUBLIC(), at = contentOrigin(state, origin);
   const claims = Object.assign({}, ...courses.map(entry => entry.domain.claims)), concepts = Object.assign({}, ...courses.map(entry => entry.domain.concepts));
   const claimsAt = t => [...new Set(courses.flatMap(entry => entry.domain.targetClaims({ card_id: t.card_id, part_id: t.part_id, selected_object: t.selected_object, concept_ids: t.concept_ids })))];
   const nameOf = block => capText(block.title || block.question || block.prompt || block.text, L.block_title);
-  const selected = origin.root ? null : lessons.find(block => block?.id === origin.id) ?? null;
+  const selected = at === ROOT ? null : lessons.find(block => block?.id === at);
   const shown = lessons.slice(-L.blocks).map(block => { const t = resolveTarget(block); return { block, t, ids: claimsAt(t) }; });
-  const order = [...(selected ? claimsAt(resolveTarget(selected)) : []), ...shown.flatMap(b => b.ids)];
-  const states = Object.fromEntries(Object.entries(viewerStates || {}).map(([id, s]) => [id, { state: s }]));
-  const scope = nextStepsScope({ claims, concepts, order, states, presented: order });
-  return {
-    mode: 'shared', basis,
+  const first = selected ? claimsAt(resolveTarget(selected)) : [];
+  const order = [...first, ...shown.flatMap(b => b.ids)];
+  const scope = nextStepsScope({ claims, concepts, order, presented: order });
+  const input = {
+    mode: 'shared', basis: `${key}:${version}:${at}`,
     canvas: {
-      title: capText(title, L.block_title), version, selected: selected ? { id: selected.id, title: nameOf(selected) } : null,
+      title: capText(title, L.block_title), selected: selected ? { id: selected.id, title: nameOf(selected) } : null,
       blocks: shown.map(({ block, ids, t }) => ({ id: block.id, kind: capText(block.type, 40), title: nameOf(block),
         concept_ids: t.concept_ids.filter(c => Object.hasOwn(scope.concepts, c)).slice(0, L.ids), claim_ids: ids.filter(id => Object.hasOwn(scope.claims, id)).slice(0, L.ids), practice: null })),
     },
     scope, recent: { intent: null, transitions: [], modalities: [], practice: [] }, previous: { hooks: [], goals: [] }, constraints: { learner: [] },
   };
+  fitInput(input, { claims: selected ? first : Object.keys(scope.claims).slice(0, 1), block: selected?.id ?? null });
+  for (const [id, s] of Object.entries(viewerStates || {})) if (Object.hasOwn(scope.claims, id)) scope.claims[id].state = s;
+  return input;
 }
-// What a shared step may carry, and the topic its wording was checked against (ruling F2), rebuilt from the board as it is.
-export function sharedStepIds(state, origin) {
-  const input = sharedInput(state, { origin, version: null, basis: '' });
-  return { claims: new Set(Object.keys(input.scope.claims)), concepts: new Set(Object.keys(input.scope.concepts)), topic: topicOf(input) };
+// What a returned shared step may carry (twelfth message): the ids and topic (ruling F2) of the same trimmed input that
+// generation read, rebuilt from the board as it is (another version is already 409 stale_hook), and its origin as the
+// steps name it. options: sharedInput's (origin, key, version, title).
+export function sharedStepIds(state, options) {
+  const input = sharedInput(state, options);
+  return { claims: new Set(Object.keys(input.scope.claims)), concepts: new Set(Object.keys(input.scope.concepts)), topic: topicOf(input), origin: contentOrigin(state, options.origin) };
 }
 
 // Shared canvases (contract §1.5, §2.3; owner correction 9; ruling F7). Anonymous, or signed in without evidence: one
-// content-only reply per (one-way share key, board version, origin card or :root) from the edge cache, a miss admitted under
-// the share link's caps with no viewer (viewer_email ''). Signed in with evidence (body.viewer_states, filtered to the server
-// scope; not_yet_observed is no evidence): never cached, never served to anyone else, capped per viewer and per share link
-// and billed to the viewer. All under shared_canvas_hooks, never the shared-ask budget. row: the shared learn_boards row;
-// state: its parsed board; title: sharedTitle's; viewer: the signed-in { email } or null; origin: originOf's.
+// content-only reply per (one-way share key, board version, origin card or :root, one-way hash of the board title) from the
+// edge cache, a miss admitted under the share link's caps with no viewer (viewer_email ''). Signed in with evidence
+// (body.viewer_states, filtered to the server scope; not_yet_observed is no evidence): never cached, never served to anyone
+// else, capped per viewer and per share link and billed to the viewer. All under shared_canvas_hooks, never the shared-ask
+// budget. An input over input_refuse even after the cap is refused before the cache, the limiter or the planner. row: the
+// shared learn_boards row; state: its parsed board; title: sharedTitle's; viewer: the signed-in { email } or null; origin:
+// originOf's.
 export async function sharedNextSteps(env, { row, state, title, key, viewer, origin, body }, { callModel, cache = globalThis.caches?.default } = {}) {
-  const originId = origin.root ? ':root' : origin.id, basis = `${key}:${row.version}:${originId}`;
-  const content = sharedInput(state, { origin, version: row.version, basis, title });
+  const options = { origin, key, version: row.version, title };
+  const content = sharedInput(state, options);
+  const problem = nextStepsInputProblem({ ...content, mode: 'canvas' });
+  if (problem) return json({ error: problem }, 400);
   const asked = viewer && body?.viewer_states && typeof body.viewer_states === 'object' && !Array.isArray(body.viewer_states) ? body.viewer_states : {};
   const own = Object.entries(asked).filter(([id, s]) => Object.hasOwn(content.scope.claims, id) && STATES.includes(s) && s !== 'not_yet_observed').slice(0, L.scope_claims);
   const personal = own.length ? Object.fromEntries(own) : null;
-  const input = personal ? sharedInput(state, { origin, version: row.version, viewerStates: personal, basis, title }) : content;
-  const cacheKey = `${ORIGIN}/shared/${key}/${row.version}/${encodeURIComponent(originId)}`;
+  const input = personal ? sharedInput(state, { ...options, viewerStates: personal }) : content;
+  const cacheKey = `${ORIGIN}/shared/${encodeURIComponent(content.basis)}/${await sha256Hex(title)}`;
   if (!personal) {
     const hit = await nextStepsReply(cache, cacheKey);
     if (hit) return json({ ...hit, telemetry: { ...hit.telemetry, cached: true, calls: 0, usage: NO_USAGE, cost_usd: 0 } });
@@ -98,7 +112,7 @@ export async function sharedNextSteps(env, { row, state, title, key, viewer, ori
   if (refused) return json({ error: 'Next steps are paused for now; try again later.', limited: true }, 429);
   let planned;
   try { planned = await planNextSteps(env, input, callModel ? { callModel } : {}); } catch (error) { return json({ error: error.message }, 502); }
-  const set = { ...mintSet(planned.options, input, { source: { share_version: row.version, origin_block_id: originId } }), telemetry: { ...planned.telemetry, cached: false, share_key: key, summary: inputSummary(input) } };
+  const set = { ...mintSet(planned.options, input, { source: { share_version: row.version, origin_block_id: contentOrigin(state, origin) } }), telemetry: { ...planned.telemetry, cached: false, share_key: key, summary: inputSummary(input) } };
   if (!personal) await keepReply(cache, cacheKey, set);
   return json(set);
 }

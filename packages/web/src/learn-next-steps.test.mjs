@@ -2,11 +2,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { carryStep, keepPendingStep, nextStepsBasis, nextStepsController, nextStepsInput, stoppingPoint, takeCarriedStep, takePendingStep, viewerStates } from './learn-next-steps.js';
+import { carryStep, holeOpening, keepPendingStep, nextStepsBasis, nextStepsController, nextStepsInput, stoppingPoint, takeCarriedStep, takePendingStep, viewerStates } from './learn-next-steps.js';
 import { emptyStore, appendEvents } from './learn-tutor-evidence.js';
 import { journeyDomain } from './learn-journey-domain.js';
 import { NANOGPT, TUTOR_BOARD, cardModule } from './learn-tutor-claims.js';
 import { tutorContext } from './learn-tutor-domains.js';
+import { openingQuestion } from './learn-tutor.js';
 import { cardBlock } from './nanogpt/board.js';
 import { hookProblem, nextStepsInputProblem, nextStepsOutput, topicOf } from '../../control-plane/src/agents/learn-next-steps.js';
 import { fixtureFor } from '../../control-plane/src/learn-journey-fixtures.js';
@@ -912,5 +913,48 @@ test('viewerStates: the viewer own session evidence on public registry claims on
   assert.deepEqual(viewerStates(store, [open]), { 'k.one': 'misconception' });
   assert.deepEqual(viewerStates(store, [closed]), {}, 'only a public registered course');
   assert.deepEqual(viewerStates(emptyStore(), [open]), {});
-  assert.deepEqual(Object.keys(viewerStates(store)).length <= 12, true, 'the default registry');
+});
+// Fix round 1 item 8: real registry claims (the supplied course and two synthetic public registries, 20 claims): at most 12,
+// the newest evidence first across every registry, never a claim without evidence.
+test('viewerStates: at most 12 claims, newest evidence first across real registries', () => {
+  const entries = [{ id: 'course', domain: NANOGPT }, { id: 'aq', domain: AQUEDUCTS.diagnostic.registry }, { id: 'tides', domain: TIDES.diagnostic.registry }]
+    .map(entry => ({ ...entry, match: {}, capabilities: { tutor: true, suppliedCourse: true } }));
+  const ids = entries.flatMap(entry => Object.keys(entry.domain.claims));
+  assert.ok(ids.length > 12, `${ids.length} registry claims`);
+  const fail = id => ({ concept: entries.find(e => Object.hasOwn(e.domain.claims, id)).domain.claims[id].concept, claim: id, result: 'fail', kind: null, settled: true, evaluator: 'jev', source: 'free_text' });
+  // Oldest first: every claim of the supplied course, then the two synthetic registries' claims.
+  const store = appendEvents(emptyStore(), ids.map(fail)).store;
+  const got = viewerStates(store, entries);
+  assert.deepEqual(Object.keys(got), [...ids].reverse().slice(0, 12), 'the 12 newest, newest first');
+  assert.deepEqual(new Set(Object.values(got)), new Set(['uncertain']));
+  const one = appendEvents(emptyStore(), [fail(ids[0])]).store;
+  assert.deepEqual(viewerStates(one, entries), { [ids[0]]: 'uncertain' }, 'only claims with evidence');
+});
+
+// Fix round 1 item 3: a hole's opening (LearnTutor.jsx calls holeOpening in its effect), behaviourally.
+test('holeOpening: a carried step opens the hole once as a next_step with no question, and the opening question never follows', () => {
+  const s = memory(), record = { dive_id: 'canvas-0000beef', title: 'Masks', origin: { parent: { app: 'share:k', board: 'main' } } };
+  const step = { suggestion_id: 'ns_01010101.2', learning_goal: 'g' };
+  let saved = emptyStore(), loads = 0;
+  const load = () => { loads += 1; return saved; };
+  const open = over => holeOpening({ storage: s, load, record, hookTurns: true, active: true, domain: () => NANOGPT, ...over });
+  carryStep(s, record.dive_id, step);
+  // Hook turns do not run here yet (the hole's Tutor context is not resolved): the step is kept and nothing is read.
+  assert.deepEqual(open({ hookTurns: false }), { store: null, opening: null });
+  assert.deepEqual([loads, takeCarriedStep(memory(), record.dive_id), s.m.size], [0, null, 1]);
+  const first = open({ active: false });
+  assert.deepEqual(first.opening, { key: record.dive_id, next_step: step });
+  assert.equal('question' in first.opening, false);
+  saved = first.store;
+  assert.equal(openingQuestion(saved, record), null, 'marked opened: no opening question later');
+  assert.deepEqual([s.m.size, open().opening], [0, null], 'taken once; the hole was opened by the step');
+  // Without a carried step: the usual opening question, only where the Tutor is active.
+  saved = emptyStore();
+  assert.deepEqual(open({ active: false }), { store: null, opening: null });
+  const asked = open();
+  assert.deepEqual([asked.opening, openingQuestion(asked.store, record)], [{ key: record.dive_id, question: 'Take me into Masks.' }, null]);
+  // Merge of Tasks 10 and 11 (Task 10 fix round 4): the opening question uses the live title, the record title only as a fallback.
+  saved = emptyStore();
+  assert.deepEqual(open({ title: 'Mask notes' }).opening, { key: record.dive_id, question: 'Take me into Mask notes.' });
+  assert.deepEqual(open({ record: null }), { store: null, opening: null });
 });

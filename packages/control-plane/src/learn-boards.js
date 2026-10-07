@@ -195,9 +195,12 @@ async function nextStepsAboutShared(req, env, token) {
   const origin = originOf(body?.origin, state);
   if (origin.error) return json({ error: origin.error }, origin.status || 400);
   const viewer = found.viewer || await repositoryIdentity(req, env);
+  return sharedNextSteps(env, { row, state, title: await sharedBoardTitle(env, row), key: await shareKey(token), viewer: viewer instanceof Response ? null : viewer, origin, body });
+}
+// A shared board's name as its viewers see it (sharedTitle: a private repository's name withheld), for the hook input.
+async function sharedBoardTitle(env, row) {
   const canvas = CANVAS.test(row.app) ? await env.LEARN_DB.prepare('SELECT title FROM canvases WHERE org = ? AND name = ?').bind(row.org, row.app).first() : null;
-  const title = sharedTitle(row, canvas?.title, await shareSource(env.LEARN_DB, row));
-  return sharedNextSteps(env, { row, state, title, key: await shareKey(token), viewer: viewer instanceof Response ? null : viewer, origin, body });
+  return sharedTitle(row, canvas?.title, await shareSource(env.LEARN_DB, row));
 }
 
 // Forking (docs/features/canvas-forking.md): the signed-in user gets their own
@@ -364,12 +367,14 @@ async function startRabbitHole(req, env, token, body) {
   if (origin.error) return json({ error: origin.error }, origin.status || 400);
   const parent = { app: `share:${await shareKey(token)}`, board: row.board };
   const originId = origin.root ? SHARED_ROOT : origin.id;
-  // A clicked hook (docs/features/professor-next-steps.md §1.4): checked against the board as it is now - its ids and wording
-  // against what this board allows, its version (a stale one is 409 stale_hook) and origin - before anything is read or
-  // written for the viewer. Only the checked fields come back as next_step; its learning_goal starts a new hole's goal.
+  // A clicked hook (docs/features/professor-next-steps.md §1.4): checked against the board as it is now - its version (a
+  // stale one is 409 stale_hook), then its ids and wording against the same trimmed input generation read, and its origin
+  // (a chat card reads as the root) - before anything is written for the viewer. Only the checked fields come back as
+  // next_step; its learning_goal starts a new hole's goal.
   const picked = body?.selected_next_step;
   if (picked != null) {
-    const problem = selectedStepProblem(picked, { ...sharedStepIds(state, origin), version: row.version, origin: originId });
+    const allowed = sharedStepIds(state, { origin, key: parent.app.slice('share:'.length), version: row.version, title: await sharedBoardTitle(env, row) });
+    const problem = selectedStepProblem(picked, { ...allowed, version: row.version });
     if (problem) return json({ error: problem.error }, problem.status);
   }
   const step = picked == null ? null : { v: 1, set_id: picked.set_id, suggestion_id: picked.suggestion_id, basis: picked.basis, hook: picked.hook, learning_goal: picked.learning_goal,

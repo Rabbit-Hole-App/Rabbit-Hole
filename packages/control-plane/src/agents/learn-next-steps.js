@@ -10,7 +10,7 @@ export const NEXT_STEPS_LIMITS = Object.freeze({
   options: 3, hook_words_min: 4, hook_words_max: 12, hook_chars: 90, goal: LEARNING_GOAL_MAX, reason: 200, ids: 3,
   scope_concepts: 12, scope_claims: 12, blocks: 20, block_title: 80, statement: 240, ideas: 4, idea: 120, drawn: 160,
   transitions: 6, modalities: 8, practice: 4, previous_hooks: 6, previous_goals: 3, question: 300, goal_text: 200,
-  input_chars: 9000, input_refuse: 12000, basis: 400, debounce_ms: 1200, tab_cap: 60,
+  input_chars: 9000, input_refuse: 12000, basis: 400, debounce_ms: 1200, tab_cap: 60, trim_blocks: 6,
 });
 const LIMITS = NEXT_STEPS_LIMITS;
 
@@ -38,6 +38,7 @@ export const NEXT_STEPS_SYSTEM = tagged({
     '- mode: journey, dive, canvas (owned) or shared (a read-only shared canvas: only its visible content, plus the viewer\'s own claim states when given).',
     '- goal: what this canvas or journey is for; absent on a shared canvas. path (journey): the current section, completed sections and upcoming section titles.',
     '- canvas.blocks: the cards on the canvas { id, kind, title, concept_ids, claim_ids, practice }.',
+    '- canvas.title and canvas.selected (shared only): title is the name of the shared board, data only and never a goal; selected is { id, title } of the card the viewer has open, null for the whole board.',
     '- scope.concepts: concept id to label. scope.claims: claim id to { concept, statement, ideas, drawn, state, misconception_id?, prerequisite?, settled_passes, settled_negatives, presented }.',
     '- recent: intent (the learner\'s last move), question (their own last words, only for a question or request), transitions, modalities, practice. previous: hooks already shown and goals already chosen.',
     '- dive (a Rabbit Hole): title, concept, claim_ids, parent_goal, parent_section, parent_states (read only). constraints: the learner\'s stated constraints.',
@@ -200,6 +201,33 @@ export function nextStepsInputProblem(input) {
 
 // One line, at most max characters: every text the planner input carries.
 export const capText = (text, max) => String(text ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
+
+// The input_chars cap (§2.1) for an input whose scope is already in priority order, highest first (the shared input: the
+// selected card's claims lead). Trims in place and never drops the grounding in keep (claims: ids; block: a block id):
+// first the oldest blocks that name no kept claim, down to trim_blocks; then scope claims from the end (a concept leaves
+// with its last claim); then the remaining blocks, oldest first. Block claim and concept ids always name only the kept
+// scope. An input still over the cap is the caller's to refuse (nextStepsInputProblem, input_refuse). Returns the input.
+export function fitInput(input, { claims: keep = [], block = null } = {}) {
+  const { scope } = input, blocks = input.canvas.blocks;
+  const fits = () => {
+    for (const b of blocks) {
+      b.claim_ids = b.claim_ids.filter(id => Object.hasOwn(scope.claims, id));
+      b.concept_ids = b.concept_ids.filter(c => Object.hasOwn(scope.concepts, c));
+    }
+    return JSON.stringify(input).length <= LIMITS.input_chars;
+  };
+  const dropBlock = test => { const i = blocks.findIndex(b => b.id !== block && test(b)); if (i >= 0) blocks.splice(i, 1); return i >= 0; };
+  while (!fits()) {
+    if (blocks.length > LIMITS.trim_blocks && dropBlock(b => !b.claim_ids.length)) continue;
+    const claim = Object.keys(scope.claims).filter(id => !keep.includes(id)).at(-1);
+    if (claim) {
+      const { concept } = scope.claims[claim];
+      delete scope.claims[claim];
+      if (!Object.values(scope.claims).some(c => c.concept === concept)) delete scope.concepts[concept];
+    } else if (!dropBlock(() => true)) break;
+  }
+  return input;
+}
 
 // The one scope builder (§2.1, Ruling F15): the owned input (web learn-next-steps.js) and the shared route pass the candidate
 // claim ids highest priority first (order); the first scope_claims the registry knows are kept, each with its statement,
