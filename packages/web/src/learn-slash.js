@@ -62,9 +62,11 @@ export const CARD_OF = {
 // can only propose a generated clip, never an existing one.
 export const cardsFor = name => {
   const command = commandsFor('learn').find(entry => entry.name === name);
-  const inserts = !!command?.deterministic || name === 'image';
-  return (command?.family || []).filter(id => CARD_OF[id] && (isReady(id) || (inserts && PRIMITIVES[id]?.direct))).map(id => ({ primitive: id, card: CARD_OF[id] }));
+  return (command?.family || []).filter(id => CARD_OF[id] && (isReady(id) || (insertsWithoutModel(name) && PRIMITIVES[id]?.direct))).map(id => ({ primitive: id, card: CARD_OF[id] }));
 };
+// A command that inserts its card without the model: the deterministic ones, and /image's photo search (Task 11b fix B3: the
+// Tutor's cost_tier for such a create_material is none).
+export const insertsWithoutModel = name => !!commandsFor('learn').find(entry => entry.name === name)?.deterministic || name === 'image';
 
 // Whether running this command can end in a paid generation (it always asks first).
 export const mayConfirmPaid = name => learnRequest(name).paid.some(isReady);

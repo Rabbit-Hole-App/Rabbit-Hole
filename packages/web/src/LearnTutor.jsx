@@ -19,6 +19,7 @@ import { SLASHES, arriveAt, executeActions, keepHere, learnerIntent, readPlanStr
 import { materialCommands, runMaterials } from './learn-slash.js';
 import { holeOpening } from './learn-next-steps.js';
 import { inJourneySetup } from './LearnJourney.jsx';
+import { MODE_SLASHES } from '../../control-plane/src/agents/learn-tutor.js';
 import { emitDecision, newSessionId, tracing } from './learn-tutor-trace.js';
 import PaidConfirm from './PaidConfirm.jsx';
 
@@ -39,6 +40,15 @@ export const tutorStoreKey = (app, journeyId, record, canvas = null) => (journey
 // hole whose dives record has not landed (recordPending), nor while a record naming a journey waits for its parent journey
 // read (read: the dive id it settled for), so no hook set stands on a canvas domain the record or the parent journey
 // replaces; then tutorContext's - the dive domain, or the canvas domain after a refusal.
+// What a turn may offer beyond words (Task 11b), from structural page state only, never the learner's words: materials - the
+// Learn commands create_material may run (owner ninth message) - on every turn except a hole's automatic opening (the learner
+// has not asked yet: fix B4; a carried hook is a next_step turn and keeps them) and a journey in setup (no card before the
+// path is accepted, LP1); research - the Research this offer, only where the page wired openResearch and never in setup (fix
+// A1: the journey prompt's setup line allows words only).
+export function turnOffers({ journey = null, opening = false, nextStep = null, openResearch = null }) {
+  const setup = inJourneySetup(journey?.journey);
+  return { materials: setup || (opening && !nextStep) ? [] : materialCommands(), research: !!openResearch && !setup };
+}
 export const hookContext = (where, read, recordPending = false) => (recordPending || (where.record?.journey && read !== where.record.dive_id) ? null : tutorContext(where));
 // canvasVersion: the board revision when the page passes it (decision telemetry only).
 // Professor Next Steps (docs/features/professor-next-steps.md §1.3, §1.4): the returned object always carries askStep, snapshot,
@@ -156,10 +166,10 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     let result;
     try {
       result = await runTurn({
-        ...common, raw: nextStep ? '' : (slash?.raw || raw), slash: slash?.name || null, opening, store: load(), onSpeakable,
-        // Task 11b (owner ninth message): every turn may make material through the Learn commands - typed, voice or a hook click -
-        // except while a journey is in setup, when the canvas gets no card before the path is accepted (LP1 controller ruling).
-        nextStep, materials: inJourneySetup(journeyRef.current?.journey) ? [] : materialCommands(), research: !!openResearch,
+        // The typed command is read in place of the composer's words only where it fixes the move (/deeper or /simplify on a
+        // depth ladder); /ask, /teach (fix A3) and a ladderless /deeper or /simplify (fix B5) keep the composer's words.
+        ...common, raw: nextStep ? '' : (slash && !MODE_SLASHES.includes(slash.name) && domain.ladder?.length ? slash.raw : raw), slash: slash?.name || null, opening, store: load(), onSpeakable,
+        nextStep, ...turnOffers({ journey: journeyRef.current, opening, nextStep, openResearch }),
         // Decision telemetry only while a sink is registered (contract §3.3); the planner request is the same either way.
         trace: tracing() && { identity: { canvas_version: canvasVersion }, blocks: canvas?.blocks?.() || [], next_step_options: shown.current, selected_at: selectedAt },
         // Only a domain whose cards are inserted (no showCard of its own: the authored-module one) holds a place. A journey's

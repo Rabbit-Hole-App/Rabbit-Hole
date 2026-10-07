@@ -206,8 +206,8 @@ test('the nanoGPT Tutor: PLANNER_SYSTEM, TUTOR_TOOL and the avatar-on system kee
   assert.equal(plannerSystem(), PLANNER_SYSTEM);
   // Before Professor Next Steps Task 4: 6b3ba28db7f6d5c54e97bac07c27d607db78a77095dcc5ee95209231f783ee75 /
   // 5414c2a6ff03cad1cc18019688f14032088b7b2408d7db9d9c74b17a14a19b52; re-pinned with review (task-4-repin-review.md, entry 7).
-  assert.equal(sha(JSON.stringify([TUTOR_TOOL, PLANNER_SYSTEM])), 'e6953b414277d7c5e8de4afeb0ab208d51188552611ab687cdbb550e556acec3'); // learn-avatar.test.js (Task 11b re-pin)
-  assert.equal(sha(plannerSystem(true, 'nanogpt')), '6fcb1fbddeb35eb8a794fb96fc38da0cdd7fcd595d7c967c96b8a88c7372bfc2'); // learn-tutor-journey.test.js (Task 11b re-pin)
+  assert.equal(sha(JSON.stringify([TUTOR_TOOL, PLANNER_SYSTEM])), '54577c573a0ba3e0b2f7dbe7a7955adf5e0b0df2342b8252037a23e58bdbefaf'); // learn-avatar.test.js (Task 11b re-pin) // fix round 1 (task-11b-repin-review.md part C): was e6953b414277d7c5
+  assert.equal(sha(plannerSystem(true, 'nanogpt')), '6e8e6af04beef3ac556a052482591d2ed7869fd7281df709f5f443057a33c40f'); // learn-tutor-journey.test.js (Task 11b re-pin) // fix round 1 (task-11b-repin-review.md part C): was 6fcb1fbddeb35eb8
 });
 
 // ---------- 6. Caching ----------

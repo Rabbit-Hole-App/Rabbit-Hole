@@ -1263,13 +1263,14 @@ test('useTutor: slash(null) drops a waiting /deeper, and a slash prompt is a Tut
   const out = await t.run(tutor => tutor.ask({ raw: 'Can we skip this?', begin: t.begin }));
   assert.equal(out.handled, true);
   assert.deepEqual(h.actions(), ['cancel']);
-  // While an action posts, the slash prompt (sent with skipJourney) still reaches the planner as /deeper.
+  // While an action posts, the slash prompt (sent with skipJourney) still reaches the planner. Task 11b fix B5: a journey has no
+  // depth ladder, so /deeper is an ordinary turn from the composer's words (until 11b it reached the planner as kind slash).
   const busy = h.view().retry();
   t.tutor.slash('deeper', '/deeper the sigmoid');
   await t.run(tutor => tutor.ask({ raw: 'Explain the sigmoid more deeply.', skipJourney: true, begin: t.begin }));
-  assert.deepEqual(h.actions(), ['cancel', 'retry', '/api/learn/tutor/plan']);
-  assert.equal(h.calls.at(-1).body.context.learner_intent.kind, 'slash');
-  assert.equal(h.calls.at(-1).body.context.learner_intent.slash, 'deeper');
+  assert.deepEqual(h.actions().filter(a => a !== '/api/learn/tutor/evaluate'), ['cancel', 'retry', '/api/learn/tutor/plan']);
+  const intent = h.calls.at(-1).body.context.learner_intent;
+  assert.deepEqual([intent.kind, intent.raw_user_message, 'slash' in intent], ['request', 'Explain the sigmoid more deeply.', false]);
   land();
   await busy;
 });

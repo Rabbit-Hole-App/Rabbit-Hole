@@ -162,7 +162,7 @@ export const decisionEvent = safe(({ result, domain, identity = {}, blocks = [],
       reason_codes, reason_source, rationale_summary: why.summary,
       expected_evidence: [...new Map(contracts.flatMap(c => c.expected_evidence || []).map(e => [`${e.claim_id}|${e.via}`, e])).values()],
       estimated_learning_seconds: seconds.length ? seconds.reduce((a, b) => a + b, 0) : null,
-      ...intentOf(turn.slash, result.reading ?? NO_READING, actions.some(a => a.action_type === 'suggest_research')),
+      ...intentOf(turn.slash || turn.mode, result.reading ?? NO_READING, actions.some(a => a.action_type === 'suggest_research')),
     },
     runtime: {
       timing: { total_ms: totalMs, planner_ms: bench.ms?.planner ?? null, first_text_ms: bench.ms?.to_first_safe_sentence ?? null },

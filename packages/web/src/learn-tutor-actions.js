@@ -2,6 +2,7 @@
 // TutorAction is, in the product's own names. runTurn returns one contract per accepted action; the session's modality
 // history and the decision trace both read these fields and never recompute them. Pure; it imports no course module.
 import { REASON_CODES } from '../../control-plane/src/agents/learn-tutor.js';
+import { insertsWithoutModel } from './learn-slash.js';
 
 // A card's modality is its block type; an Explain Back challenge is explain_back (describeBlock names it the same way).
 export const blockModality = block => (!block ? null : block.type === 'challenge' && block.mode === 'explain_back' ? 'explain_back' : block.type ?? null);
@@ -45,12 +46,13 @@ const CARD_ACTIONS = ['show_authored_card', 'focus_part', 'suggest_practice'];
 // video are both video blocks; animate and video tell them apart), null for every other action. Never throws: a domain
 // without an optional member (cardType, ladderStep, targetClaims, claims, concepts) leaves that field null or [].
 // cost_tier (Task 11b, owner fourteenth message, for the unnecessary-expensive-routing measure): none for what the turn does
-// itself (words, a question, a card shown or focused, any suggestion or offer); model for a made card whose command is free
-// (one more model call); paid for one whose command can end in a paid proposal (the registry's paid flag, learn-slash.js
-// mayConfirmPaid) - it still spends only after Generate. Task 11c adds the handoff (model).
+// itself (words, a question, a card shown or focused, any suggestion or offer) and for a made card whose command inserts
+// without the model (learn-slash.js insertsWithoutModel: the deterministic ones and /image's photo search; fix B3); model for
+// a made card whose command is free (one more model call); paid for one whose command can end in a paid proposal (the
+// registry's paid flag, learn-slash.js mayConfirmPaid) - it still spends only after Generate. Task 11c adds the handoff (model).
 export function actionContract(action, { domain = null, materials = [], claims = [] } = {}) {
   const modality = modalityOf(action, { domain, materials });
-  const cost_tier = action.type !== 'create_material' ? 'none' : materials.find(material => material.command === action.command)?.paid ? 'paid' : 'model';
+  const cost_tier = action.type !== 'create_material' || insertsWithoutModel(action.command) ? 'none' : materials.find(material => material.command === action.command)?.paid ? 'paid' : 'model';
   const card = action.type === 'suggest_depth' ? domain?.ladderStep?.(action.card, action.direction || 'deeper') ?? null : CARD_ACTIONS.includes(action.type) ? action.card : null;
   const target_claim_ids = action.claim && domain?.claims?.[action.claim] ? [action.claim]
     : card ? domain?.targetClaims?.({ block_id: card, card_id: card, part_id: action.part_id ?? null }) || []

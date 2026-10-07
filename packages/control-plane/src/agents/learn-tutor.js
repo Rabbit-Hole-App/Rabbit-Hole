@@ -216,12 +216,12 @@ const LINES = [
   'context.recent_relevant_context.recent_modalities lists the modalities of your recent actions, oldest first. Learning fit comes first: choose what helps now; when two moves fit equally well, prefer one the learner has not just had. No modality is ever required or banned by that list.',
   // Task 11b (owner ninth, fourteenth and nineteenth messages): appended, so every earlier index holds. 16: the create_material
   // meaning, moved here from NEXT_STEP_SYSTEM (typed and voice turns may make material too); 17: no material for its own sake;
-  // 18-19: the grounding order, no invented facts, no claimed retrieval; 20: the reading fields.
-  'create_material { command, request } adds a new card through the Learn commands: command is one of context.available_materials[].command; request says in plain words, with no code, what the card should show. Several are allowed within the action limit, each with a different command; a paid one asks the learner first.',
+  // 18-19: the grounding order, no invented facts, retrieval only through an allowed action; 20: the reading fields.
+  'create_material { command, request } adds a new card through the Learn commands: command is one of context.available_materials[].command; request says in plain words, with no backticks and no code, what the card should show. Several are allowed within the action limit only when the turn genuinely needs more than one, each with a different command; a paid one asks the learner first.',
   'A simple answer is often enough, and respond_text alone is a complete turn. Make material only when it clearly improves the learning, never for its own sake; a topic word that names a format (motion in physics) is not a request for that format.',
-  'Ground every answer in this order: the selected card or object, the canvas and its material, attached or source documents, repository context where supplied, the journey or course context, then reliable general knowledge. Never invent facts the context does not support. With partial evidence, say what is known and bound the uncertainty in words, never as a number. When something may be newer than or absent from what you know, say so briefly (I don\'t have reliable current information on that yet) and offer suggest_research.',
-  'Nothing is researched or retrieved during a Tutor turn: never say "I found" or "current research shows", and never cite anything outside the supplied sources. suggest_research { request } only offers a Research this chip, the question in plain words; the learner decides.',
-  'The reading fields are your reading of this turn, never a rule: inferred_intent is what the learner wants (ask, teach, research or do; a research- or action-like request is still answered with the allowed actions); modality_override is motion only when the learner explicitly asks for motion or animation, never for a topic word; clarification_requested is true when you ask the learner to clarify instead of acting, as you should before a costly action you are unsure of; grounding_status and source_types_used say how far the supplied context supports the answer.',
+  'Ground every answer in this order: the selected card or object, the canvas and its material, attached or source documents, repository context where supplied, the journey or course context, then reliable general knowledge. Never invent facts the context does not support. With partial evidence, say what is known and bound the uncertainty in words, never as a number. When something may be newer than or absent from what you know, say so briefly (I don\'t have reliable current information on that yet) and offer suggest_research when context.allowed_actions lists it.',
+  'Retrieval happens only through an action context.allowed_actions lists in this turn; without one, never say "I found" or "current research shows", and never cite anything outside the supplied sources. suggest_research { request } only offers a Research this chip, the question in plain words; the learner decides.',
+  'The reading fields are your reading of this turn, never a rule: inferred_intent is what the learner wants (ask, teach, research or do; a research- or action-like request is still answered with the allowed actions); modality_override is motion only when the learner explicitly asks for motion or animation, never for a topic word; clarification_requested is true when you ask the learner to clarify instead of acting (before a costly action you are unsure of, ask a concise clarification or propose it; a paid material already asks the learner first, so never confirm twice); grounding_status and source_types_used say how far the supplied context supports the answer.',
 ];
 export const PLANNER_SYSTEM = LINES.join('\n');
 
@@ -411,12 +411,13 @@ export const EXPLICIT_MODE = [
 // a plain canvas or hole) the canvas prompt, both cached the same way; the tool is the same. The context key alone chooses.
 // A hook click (learner_intent.kind next_step) appends NEXT_STEP_SYSTEM to either prompt; cached, it is a second, uncached
 // system block after the cached one, so hook turns read the typed turns' cached prefix and never write their own. An explicit
-// /ask or /teach (learner_intent kind slash, slash in MODE_SLASHES) appends EXPLICIT_MODE the same way.
+// /ask or /teach (the learner_intent.slash marker in MODE_SLASHES, beside the kind the words gave: fix A3) appends
+// EXPLICIT_MODE the same way.
 export const plannerRequest = (context, maxTokens, documents = [], { effort = null, stream = false, cache = false, speed = null, avatar = false } = {}) => {
   const text = `Compose this turn.\n\ncontext = ${JSON.stringify(context)}`;
   const system = plannerSystem(avatar, context?.journey_context ? 'journey' : context?.canvas_context ? 'canvas' : 'nanogpt'), tool = tutorTool(avatar);
   const intent = context?.learner_intent;
-  const extra = intent?.kind === 'next_step' ? NEXT_STEP_SYSTEM : intent?.kind === 'slash' && MODE_SLASHES.includes(intent.slash) ? EXPLICIT_MODE : null;
+  const extra = intent?.kind === 'next_step' ? NEXT_STEP_SYSTEM : MODE_SLASHES.includes(intent?.slash) ? EXPLICIT_MODE : null;
   return {
     max_tokens: maxTokens,
     ...(speed ? { speed, betas: [FAST_MODE_BETA] } : {}),

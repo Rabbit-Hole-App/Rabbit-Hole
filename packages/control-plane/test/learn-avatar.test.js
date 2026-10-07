@@ -42,8 +42,8 @@ test('TUTOR_AVATAR off: the planner prefix and request keep their pinned hashes 
   // re-pinned with review (.superpowers/sdd/2026-10-06-professor-next-steps/task-4-repin-review.md, entries 1-2). Before Task 11b
   // (f6919b51): 57a2a9cea4fc27c69585db49dbbba4d05cd72e98654caf6c191efd4300dc2347 / 068ee7b7fd7b4b4e408f21a155ec1de0da27d14745dc5067e1e21782c8ab2442;
   // re-pinned with review (.superpowers/sdd/2026-10-06-professor-next-steps/task-11b-repin-review.md, part A pins 1-2).
-  assert.equal(sha(JSON.stringify([TUTOR_TOOL, PLANNER_SYSTEM])), 'e6953b414277d7c5e8de4afeb0ab208d51188552611ab687cdbb550e556acec3');
-  assert.equal(sha(JSON.stringify(plannerRequest(context, 2000, [], { cache: true, stream: true }))), '32b97373eda31270727b7e6c7470fdb085b41d7ffd90c9d9d715f7739b25ca2c');
+  assert.equal(sha(JSON.stringify([TUTOR_TOOL, PLANNER_SYSTEM])), '54577c573a0ba3e0b2f7dbe7a7955adf5e0b0df2342b8252037a23e58bdbefaf'); // fix round 1 (task-11b-repin-review.md part C): was e6953b414277d7c5
+  assert.equal(sha(JSON.stringify(plannerRequest(context, 2000, [], { cache: true, stream: true }))), '4779aa239047a943d05c47e6a40bf08d641e3a6cffb6cb33c64c06b4a4261fb5'); // fix round 1 (task-11b-repin-review.md part C): was 32b97373eda31270
   assert.deepEqual(plannerRequest(context, 2000, [], { avatar: false }), plannerRequest(context, 2000));
   assert.ok(!ACTION_TYPES.includes(AVATAR_ACTION));
 });

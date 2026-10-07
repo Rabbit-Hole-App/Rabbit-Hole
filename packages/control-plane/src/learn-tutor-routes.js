@@ -273,8 +273,9 @@ function streamedActions(input) {
 // telemetry.speed is the API's usage.speed, so a request served at standard speed is visible.
 // onActions(head, ms) (the fast tier, Decision 2): called once, when the streamed actions are complete (streamedActions);
 // it returns true when the turn has spoken on them. From then on that plan is kept: a remainder (move, reason and
-// reason_codes, written last) that is cut, unparsable or lost keeps those actions, with reason and reason_codes null and
-// telemetry.tail_lost (no rollback).
+// reason_codes, then the Task 11b reading fields, all written after the actions) that is cut, unparsable or lost keeps those
+// actions, with reason and reason_codes null, the reading fields absent (traced as missing) and telemetry.tail_lost (no
+// rollback). A cut inside the reading fields alone therefore also drops reason and reason_codes.
 async function planOnce(env, context, model, effort, { callModel = loggedModel('tutor', anthropic), onSentence = null, onActions = null } = {}, documents = []) {
   const started = Date.now();
   const stream = !!onSentence && env.SUBSCRIPTION_ONLY !== 'true';

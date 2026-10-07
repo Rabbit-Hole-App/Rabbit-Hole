@@ -468,8 +468,8 @@ test('LearnTutor.jsx source pins: block null and no journey resolver on a click,
   const source = read('LearnTutor.jsx');
   assert.match(source, /const block = nextStep \? null :/);
   assert.match(source, /if \(live && !slash && !opening && !skipJourney && !nextStep\)/);
-  // Task 11b: every turn is offered the materials (none while a journey is in setup), and the Research offer when wired.
-  assert.match(source, /materials: inJourneySetup\(journeyRef\.current\?\.journey\) \? \[\] : materialCommands\(\), research: !!openResearch,/);
+  // Task 11b: every turn is offered what turnOffers gives (materials, none on a hole opening or in journey setup; Research when wired).
+  assert.match(source, /nextStep, \.\.\.turnOffers\(\{ journey: journeyRef\.current, opening, nextStep, openResearch \}\),/);
   assert.match(source, /trace: tracing\(\) && \{ identity: \{ canvas_version: canvasVersion \}, blocks: canvas\?\.blocks\?\.\(\) \|\| \[\], next_step_options: shown\.current, selected_at: selectedAt \}/);
   assert.match(source, /runMaterials\(result\.actions, \{/);
   assert.doesNotMatch(source, /runLearnCommand\(/, 'no second command path: runMaterials runs each create_material');

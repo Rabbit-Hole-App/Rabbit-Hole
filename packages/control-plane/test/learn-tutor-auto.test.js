@@ -33,8 +33,8 @@ test('the shared lines: material meaning, simple-answer principle, grounding and
   const [material, simple, grounding, retrieval, reading] = lines.slice(16);
   assert.match(material, /^create_material \{ command, request \}/);
   assert.match(material, /context\.available_materials/);
-  assert.match(material, /plain words, with no code/);
-  assert.match(material, /Several are allowed within the action limit, each with a different command/);
+  assert.match(material, /plain words, with no backticks and no code/);
+  assert.match(material, /Several are allowed within the action limit only when the turn genuinely needs more than one, each with a different command/);
   assert.match(material, /a paid one asks the learner first/);
   assert.match(simple, /^A simple answer is often enough/);
   assert.match(simple, /never for its own sake/);
@@ -91,4 +91,22 @@ test('EXPLICIT_MODE: only on an explicit /ask or /teach, an uncached block after
   assert.ok(lines.some(l => /^- teach: actively teach/.test(l) && /you still choose the pedagogy, the modality and whether material helps/.test(l)));
   assert.doesNotMatch(EXPLICIT_MODE, /research|- do:/, 'research and do are not Canvas commands');
   assert.doesNotMatch(EXPLICIT_MODE, /[`]|=>/);
+});
+
+// ---------- Fix round 1 (task-11b-fix1.md A1-A4) ----------
+test('fix A1, A2, A4: research offered only when allowed, retrieval only through an allowed action, several materials only when needed, no double confirmation', () => {
+  const [material, , grounding, retrieval, reading] = PLANNER_SYSTEM.split('\n').slice(16);
+  assert.match(grounding, /offer suggest_research when context\.allowed_actions lists it\.$/);
+  assert.match(retrieval, /^Retrieval happens only through an action context\.allowed_actions lists in this turn; without one, never say "I found" or "current research shows"/);
+  assert.match(material, /Several are allowed within the action limit only when the turn genuinely needs more than one, each with a different command/);
+  assert.match(material, /plain words, with no backticks and no code/);
+  assert.match(reading, /before a costly action you are unsure of, ask a concise clarification or propose it; a paid material already asks the learner first, so never confirm twice/);
+});
+
+test('fix A3: EXPLICIT_MODE follows the slash marker, whatever kind the words gave; /deeper keeps kind slash and gets none', () => {
+  const words = { learner_intent: { kind: 'question', raw_user_message: 'why?' }, route: { row: 'off_slice' }, allowed_actions: ['respond_text'] };
+  for (const name of MODE_SLASHES) for (const kind of ['question', 'request', 'explanation'])
+    assert.equal(plannerRequest({ ...words, learner_intent: { kind, raw_user_message: 'why?', slash: name } }, 2000).system, `${PLANNER_SYSTEM}\n${EXPLICIT_MODE}`, `${name} ${kind}`);
+  assert.equal(plannerRequest({ ...words, learner_intent: { kind: 'slash', raw_user_message: '/deeper', slash: 'deeper' } }, 2000).system, PLANNER_SYSTEM);
+  assert.equal(plannerRequest(words, 2000).system, PLANNER_SYSTEM);
 });

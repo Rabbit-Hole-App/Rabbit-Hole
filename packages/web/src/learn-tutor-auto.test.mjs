@@ -21,7 +21,8 @@ import { tutorContext } from './learn-tutor-domains.js';
 import { NANOGPT, cardModule } from './learn-tutor-claims.js';
 import { cardBlock } from './nanogpt/board.js';
 import { emptyStore, deriveClaimStates } from './learn-tutor-evidence.js';
-import { materialCommands, runMaterials } from './learn-slash.js';
+import { insertsWithoutModel, materialCommands, runMaterials } from './learn-slash.js';
+import { plannerTier } from '../../control-plane/src/learn-tutor-routes.js';
 import { commandsFor } from './agent/slash.js';
 import { CANVAS_SYSTEM, EXPLICIT_MODE, MODE_SLASHES, PLANNER_SYSTEM, plannerRequest, plannerSystem } from '../../control-plane/src/agents/learn-tutor.js';
 
@@ -91,8 +92,11 @@ test('buildTurn: a typed turn carries the materials it is offered; /ask and /tea
   assert.equal(buildTurn({ raw: 'why?', canvas, block: null, store, states, domain, research: true }).turn.research_offer, true);
   assert.deepEqual(MODE_SLASHES, ['ask', 'teach']);
   for (const name of MODE_SLASHES) assert.ok(SLASHES.includes(name));
-  for (const name of ['ask', 'teach', 'deeper', 'simplify']) assert.equal(buildTurn({ raw: `/${name} x`, slash: name, canvas, block: null, store, states, domain }).turn.slash, name);
-  for (const name of ['research', 'do', 'motion', 'quiz']) assert.equal(buildTurn({ raw: `/${name} x`, slash: name, canvas, block: null, store, states, domain }).turn.slash, null, name);
+  // Fix A3: /ask and /teach are a marker (turn.mode) on an ordinary turn; fix B5: /deeper and /simplify keep the turn slash
+  // only on a domain with a depth ladder (nanoGPT here), so on this plain canvas they are ordinary turns too.
+  for (const name of ['ask', 'teach']) assert.deepEqual([buildTurn({ raw: 'x', slash: name, canvas, block: null, store, states, domain }).turn.slash, buildTurn({ raw: 'x', slash: name, canvas, block: null, store, states, domain }).turn.mode], [null, name]);
+  for (const name of ['deeper', 'simplify']) assert.deepEqual([buildTurn({ raw: 'x', slash: name, canvas, block: null, store, states, domain: NANOGPT }).turn.slash, buildTurn({ raw: 'x', slash: name, canvas, block: null, store, states, domain }).turn.slash], [name, null]);
+  for (const name of ['research', 'do', 'motion', 'quiz']) assert.deepEqual([buildTurn({ raw: `/${name} x`, slash: name, canvas, block: null, store, states, domain }).turn.slash, buildTurn({ raw: `/${name} x`, slash: name, canvas, block: null, store, states, domain }).turn.mode ?? null], [null, null], name);
 });
 
 test('validator: suggest_research needs the route and a plain 1-1000 character request; it only ever offers', () => {
@@ -224,7 +228,7 @@ async function runCards(actions) {
 async function matrixRow([, prompt, where, plan, modality = 'text'], slash = null) {
   const at = CONTEXTS[where];
   const w = worker({ strategy: 'none', constraints_add: [], ...plan });
-  const r = await runTurn({ raw: slash ? `/${slash} ${prompt}` : prompt, slash, block: at.block, store: { ...emptyStore(), modalities: HISTORY }, post: w.post, materials: MATERIALS, research: true, trace: true, inputModality: modality, canvas: at.canvas, access: at.access, domain: at.domain });
+  const r = await runTurn({ raw: prompt, slash, block: at.block, store: { ...emptyStore(), modalities: HISTORY }, post: w.post, materials: MATERIALS, research: true, trace: true, inputModality: modality, canvas: at.canvas, access: at.access, domain: at.domain });
   return { r, context: w.sent.find(s => s.path === '/api/learn/tutor/plan').body.context, at };
 }
 async function checkRow(entry, i) {
@@ -257,7 +261,9 @@ async function checkRow(entry, i) {
   else assert.equal(context.target, null);
   // The same prompt as an explicit override: the same Tutor path, recorded as the command.
   const name = MODE_SLASHES[i % 2], explicit = await matrixRow(entry, name), e = explicit.r.trace.decision;
-  assert.deepEqual([e.intent_mode, e.inferred_intent, e.intent_status, explicit.context.learner_intent.kind, explicit.context.learner_intent.slash], ['explicit_slash', name, 'explicit', 'slash', name]);
+  assert.deepEqual([e.intent_mode, e.inferred_intent, e.intent_status, explicit.context.learner_intent.kind, explicit.context.learner_intent.slash], ['explicit_slash', name, 'explicit', context.learner_intent.kind, name]);
+  const { slash: marker, ...words } = explicit.context.learner_intent;
+  assert.deepEqual({ ...explicit.context, learner_intent: words }, context, 'fix A3: the slash marker is the only context difference');
   assert.ok(plannerRequest(explicit.context, 2000).system.endsWith(`\n${EXPLICIT_MODE}`));
   assert.equal(plannerRequest(context, 2000).system.includes(EXPLICIT_MODE), false, 'an Auto turn gets no explicit block');
   return { context: at.label + (modality === 'voice' ? ' (Voice)' : ''), d };
@@ -285,7 +291,7 @@ test('Auto matrix: intent is exactly what the stand-in declared, pedagogy exactl
 const dir = mkdtempSync(join(tmpdir(), 'tutor-auto-'));
 const outfile = join(dir, 'tutor.cjs');
 await esbuild.build({
-  stdin: { contents: ["export { useTutor } from './LearnTutor.jsx';", "export { journeyStartsHere } from './LearnJourney.jsx';", "export { createElement } from 'react';", "export { renderToStaticMarkup } from 'react-dom/server';"].join('\n'), resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
+  stdin: { contents: ["export { useTutor, turnOffers } from './LearnTutor.jsx';", "export { journeyStartsHere } from './LearnJourney.jsx';", "export { createElement } from 'react';", "export { renderToStaticMarkup } from 'react-dom/server';"].join('\n'), resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent',
 });
 const bundled = createRequire(import.meta.url)(outfile);
@@ -349,7 +355,7 @@ test('C + D: /ask and /teach are explicit overrides through the same Tutor turn;
   for (const name of MODE_SLASHES) {
     const { calls } = await plainTutor(RESPOND, t => { t.slash(name, `/${name} why does it overshoot?`); return t.ask({ raw: 'why does it overshoot?' }); });
     const context = planOf(calls);
-    assert.deepEqual([context.learner_intent.kind, context.learner_intent.slash, context.learner_intent.raw_user_message], ['slash', name, `/${name} why does it overshoot?`]);
+    assert.deepEqual([context.learner_intent.kind, context.learner_intent.slash, context.learner_intent.raw_user_message], ['question', name, 'why does it overshoot?'], 'fix A3: the words keep their own kind');
     assert.ok(plannerRequest(context, 2000, [], { cache: true }).system.some(block => block.text === EXPLICIT_MODE));
   }
 });
@@ -459,4 +465,71 @@ test('grounding: supported -> grounded; unknown or newer -> insufficient_evidenc
     assert.match(text, /Never invent facts the context does not support/);
     assert.match(text, /never say "I found" or "current research shows"/);
   }
+});
+
+// ---------- Fix round 1 (task-11b-fix1.md), step 1 ----------
+
+// A3: an explicit /ask or /teach is the same turn as its words typed without the slash - learner_intent kind, claim selection,
+// evaluation and planner tier - plus the slash marker, EXPLICIT_MODE and intent_mode explicit_slash. Only /deeper, /simplify
+// and /dive keep the no-words gates.
+test('fix A3: /teach on a registry card evaluates, selects claims and takes the Auto tier, exactly as the same words without the slash', async () => {
+  const words = 'The mask stops each token from looking at later tokens.';
+  const run = async slash => {
+    const w = worker({ strategy: 'none', constraints_add: [], actions: [SAY] });
+    const r = await runTurn({ raw: words, slash, block: NANO_CARD, store: emptyStore(), post: w.post, materials: MATERIALS, trace: true, ...NANO });
+    return { r, w, context: w.sent.find(s => s.path === '/api/learn/tutor/plan').body.context };
+  };
+  const plain = await run(null);
+  for (const name of MODE_SLASHES) {
+    const explicit = await run(name);
+    assert.ok(explicit.w.sent.some(s => s.path === '/api/learn/tutor/evaluate'), `${name}: evaluated`);
+    assert.deepEqual([!!explicit.r.selection, explicit.r.selection?.selected], [true, plain.r.selection.selected], `${name}: claims selected as typed`);
+    assert.deepEqual(plannerTier(explicit.context), plannerTier(plain.context));
+    const { slash, ...intent } = explicit.context.learner_intent;
+    assert.deepEqual([slash, intent], [name, plain.context.learner_intent]);
+    assert.deepEqual({ ...explicit.context, learner_intent: intent }, plain.context, `${name}: the slash marker is the only context difference`);
+    assert.ok(plannerRequest(explicit.context, 2000).system.endsWith(`\n${EXPLICIT_MODE}`));
+    assert.deepEqual([explicit.r.trace.decision.intent_mode, explicit.r.trace.decision.inferred_intent, explicit.r.trace.decision.intent_status], ['explicit_slash', name, 'explicit']);
+  }
+  assert.equal(plannerRequest(plain.context, 2000).system.includes(EXPLICIT_MODE), false);
+  // /deeper on a ladder keeps its no-words gates: no evaluation, no claim selection, row slash.
+  const deeper = await run('deeper');
+  assert.deepEqual([deeper.r.routed.row, deeper.r.selection, deeper.w.sent.some(s => s.path === '/api/learn/tutor/evaluate')], ['slash', null, false]);
+});
+
+// B5: /deeper and /simplify fix the move only where the domain has a depth ladder; elsewhere they are ordinary turns from
+// their words (the composer sends the command's prompt), never weaker than natural language.
+test('fix B5: /deeper and /simplify fix the move only on a depth ladder; on a plain canvas they run as ordinary turns from their words', async () => {
+  for (const name of ['deeper', 'simplify']) {
+    const nano = await turnWith({ strategy: 'none', constraints_add: [], actions: [SAY] }, { raw: `/${name}`, slash: name, ...NANO });
+    assert.equal(nano.routed.row, 'slash', `${name} on nanoGPT`);
+    const plain = await turnWith({ strategy: 'none', constraints_add: [], actions: [SAY] }, { raw: 'Go one level deeper on the current concept.', slash: name });
+    assert.deepEqual([plain.routed.row, plain.turn.slash, 'slash' in plain.sent[0].body.context.learner_intent, plain.trace.decision.intent_mode], ['off_slice', null, false, 'auto'], `${name} on a plain canvas`);
+    assert.ok(plain.routed.allowed.includes('create_material'), 'an ordinary row may make material');
+  }
+  const { calls } = await plainTutor(RESPOND, t => { t.slash('deeper', '/deeper into the maths'); return t.ask({ raw: 'Go one level deeper on the current concept. Focus: into the maths.' }); });
+  assert.deepEqual([planOf(calls).learner_intent.kind, planOf(calls).learner_intent.raw_user_message], ['request', 'Go one level deeper on the current concept. Focus: into the maths.'], 'the composer words, not the bare command');
+});
+
+// B3: a command that inserts without the model (deterministic, or /image's photo search) costs nothing; one registry helper.
+test('fix B3: cost_tier none for a command that inserts without the model, from the one registry helper', () => {
+  assert.deepEqual(['notebook', 'whiteboard', 'image', 'explain', 'animate'].map(insertsWithoutModel), [true, true, true, false, false]);
+  const ctx = { domain: NANOGPT, materials: MATERIALS, claims: [ID] };
+  assert.deepEqual(['notebook', 'whiteboard', 'image', 'explain', 'animate'].map(command => actionContract({ type: 'create_material', command, request: 'x' }, ctx).cost_tier), ['none', 'none', 'none', 'model', 'paid']);
+});
+
+// B4 and A1: what a turn is offered beyond words is structural page state (turnOffers): a hole's automatic opening gets no
+// material (the learner has not asked yet), a carried hook keeps it; a journey in setup gets neither material nor Research,
+// so the journey prompt's "setup: respond_text only" matches the router.
+test('fix B4 and A1: no material on a hole opening, kept on a carried hook; nothing beyond words while a journey is in setup', async () => {
+  const open = () => {};
+  assert.deepEqual(bundled.turnOffers({ opening: true }).materials, []);
+  assert.deepEqual(bundled.turnOffers({ nextStep: { suggestion_id: 's' } }).materials, materialCommands());
+  assert.deepEqual(bundled.turnOffers({}).materials, materialCommands());
+  const setup = bundled.turnOffers({ journey: { journey: { state: 'intake' } }, openResearch: open });
+  assert.deepEqual([setup.materials, setup.research], [[], false]);
+  const active = bundled.turnOffers({ journey: { journey: { state: 'active' } }, openResearch: open });
+  assert.deepEqual([active.materials, active.research], [materialCommands(), true]);
+  const opening = await plainTutor(RESPOND, t => t.ask({ raw: 'Take me into Gradients.', opening: true }));
+  assert.deepEqual(['available_materials' in planOf(opening.calls), planOf(opening.calls).allowed_actions.includes('create_material')], [false, false]);
 });

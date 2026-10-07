@@ -22,9 +22,12 @@ import { AVATAR_ACTION, MODE_SLASHES } from '../../control-plane/src/agents/lear
 import { decisionEvent, safely, turnTrace } from './learn-tutor-trace.js';
 import { actionContract, reasonCodes } from './learn-tutor-actions.js';
 
-// The slashes a Tutor turn carries: /deeper and /simplify route themselves (row slash); /ask and /teach (Task 11b, owner
-// thirteenth message) are explicit intent overrides on the ordinary rows. /research and /do are not Canvas commands.
+// The slashes the Tutor accepts (LearnTutor slash()). /deeper and /simplify fix the move (row slash, no words read) only on a
+// domain with a depth ladder; elsewhere they are ordinary turns from the composer's words (Task 11b fix B5). /ask and /teach
+// (owner thirteenth message) are a marker on an ordinary turn - its words keep their kind, claim selection, evaluation and
+// tier (fix A3) - read as turn.mode and learner_intent.slash. /research and /do are not Canvas commands.
 export const SLASHES = ['deeper', 'simplify', 'dive', ...MODE_SLASHES];
+const fixedSlash = (slash, domain) => (slash === 'dive' || ((slash === 'deeper' || slash === 'simplify') && domain.ladder?.length) ? slash : null);
 const canvasKey = canvas => `${canvas.app}|${canvas.board || 'main'}`;
 export const sameCanvas = (a, b) => !!a && !!b && canvasKey(a) === canvasKey(b);
 
@@ -99,6 +102,8 @@ const turnEvidence = (claims, states, domain) => withPrerequisites(claims, domai
 // hook. research (Task 11b): the page can open its Research workflow, so the turn may offer suggest_research (research_offer).
 // canvas.liveTitle: a hole's live title (Task 10 fix round 3).
 export function buildTurn({ raw, slash = null, opening = false, canvas, block, store, states, inputModality = 'text', turnId = null, domain = NANOGPT, nextStep = null, materials = [], research = false }) {
+  const mode = MODE_SLASHES.includes(slash) ? slash : null;
+  slash = fixedSlash(slash, domain);
   const here = { app: canvas.app, board: canvas.board || 'main' };
   const open = store.open && sameCanvas(store.open.canvas, here) && !slash && !nextStep ? store.open : null;
   const keep = store.keep && sameCanvas(store.keep.canvas, here) && !nextStep ? store.keep : null;
@@ -108,7 +113,8 @@ export function buildTurn({ raw, slash = null, opening = false, canvas, block, s
     turn_id: turnId || crypto.randomUUID(),
     raw_user_message: raw,
     input_modality: inputModality === 'voice' ? 'voice' : 'text',
-    slash: SLASHES.includes(slash) ? slash : null,
+    slash,
+    ...(mode ? { mode } : {}),
     ...(open ? { answering: open.action_id } : {}),
     ...(keep ? { dive_choice: { concept: keep.concept, choice: 'inline' } } : {}),
     ...(opening ? { opening: true } : {}),
@@ -225,12 +231,13 @@ export function learnerIntent(turn) {
   const kind = turn.next_step ? 'next_step' : turn.slash ? 'slash' : turn.opening ? 'opening' : turn.returned_from ? 'returned' : turn.answering ? 'answer'
     : /^(please |can you |could you |just )?(show|take|give|explain|tell|walk|go|simplify|don'?t|do not|no more|stop)\b/i.test(raw) ? 'request'
     : /\?\s*$/.test(raw) || /^(why|how|what|when|where|which|who|is|are|does|do|can|could|should|would)\b/i.test(raw) ? 'question' : 'explanation';
-  // input_modality only on voice turns, so a typed turn's planner context is unchanged.
+  // input_modality only on voice turns, so a typed turn's planner context is unchanged. slash: a fixed slash (kind slash), or
+  // the /ask or /teach marker beside the kind the words gave (Task 11b fix A3).
   // A hook click: the hook the learner saw and the goal and claims behind it, never as learner words (contract §2.5).
   return {
     kind, raw_user_message: turn.raw_user_message, ...(turn.input_modality === 'voice' ? { input_modality: 'voice' } : {}),
     ...(turn.next_step ? { selected_next_step: { hook: turn.next_step.hook, learning_goal: turn.next_step.learning_goal, concept_ids: turn.next_step.concept_ids, claim_ids: turn.next_step.claim_ids } } : {}),
-    ...(turn.slash ? { slash: turn.slash } : {}), ...(turn.dive_choice ? { dive_choice: turn.dive_choice } : {}),
+    ...(turn.slash || turn.mode ? { slash: turn.slash || turn.mode } : {}), ...(turn.dive_choice ? { dive_choice: turn.dive_choice } : {}),
   };
 }
 
