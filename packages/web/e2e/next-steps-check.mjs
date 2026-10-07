@@ -640,13 +640,13 @@ async function n18() {
   check('N18 grounding', decision?.grounding_status === 'retrieval_failed' && decision.source_types_used?.join() === 'canvas',
     'grounding_status retrieval_failed, source_types_used canvas: the planner declared grounded and repository, and the failure overrode both', `grounding_status ${decision?.grounding_status}, source_types_used ${decision?.source_types_used?.join()}`);
   const numbers = ['planner_ms', 'handoff_ms', 'blocking_wait_ms', 'first_text_ms'].map(k => timing?.[k]);
-  // Fix round 2 (R1-I1): blocking_wait_ms = max(answered, released) covers the handoff and any pending evaluation, so it is never
-  // below first_text_ms. On a stubbed clock that is exact (11c-B's unit test); on a real clock first_text_ms is read at the end of
-  // runTurn, a few hundred microseconds after the handoff settled, so the wait may trail it by less than a millisecond.
-  // Tolerance 5 ms (review M5): a GC pause between the two reads would break 1 ms. Tightens to exact once the product reads the clock once.
-  const trail = Math.round((timing?.first_text_ms - timing?.blocking_wait_ms) * 10) / 10;
-  check('N18 timing', Object.keys(timing || {}).join() === 'total_ms,planner_ms,first_text_ms,handoff_ms,blocking_wait_ms' && numbers.every(Number.isFinite) && timing.blocking_wait_ms >= timing.handoff_ms && trail < 5,
-    `planner_ms ${numbers[0]}, handoff_ms ${numbers[1]} and blocking_wait_ms ${numbers[2]} are separate numbers (the wait includes the handoff, and trails first_text_ms ${numbers[3]} by ${trail} ms at most: the end-of-turn read)`, `timing ${JSON.stringify(timing)}`);
+  // Fix round 3 (R2-M1): first_text_ms and blocking_wait_ms are the one answer-moment read at the end of the turn (a typed reply is
+  // both), so the wait is never below first_text_ms - exactly, on a real clock, with no tolerance - and covers the handoff.
+  check('N18 timing', Object.keys(timing || {}).join() === 'total_ms,planner_ms,first_text_ms,handoff_ms,blocking_wait_ms' && numbers.every(Number.isFinite) && timing.blocking_wait_ms >= timing.handoff_ms && timing.blocking_wait_ms >= timing.first_text_ms,
+    `planner_ms ${numbers[0]}, handoff_ms ${numbers[1]}, first_text_ms ${numbers[3]} and blocking_wait_ms ${numbers[2]} are separate numbers: the wait covers the handoff and is at least first_text_ms`, `timing ${JSON.stringify(timing)}`);
+  // A route failure is not a timeout: the handoff stage keeps status ok and carries the failure category as its result.
+  const handoffStage = result.bench?.trace?.stages?.find(s => s.stage === 'handoff');
+  check('N18 handoff stage', handoffStage?.status === 'ok' && handoffStage.result === 'no_repository_context', 'the handoff stage reads ok with result no_repository_context (only a timeout reads timeout)', `handoff stage ${handoffStage?.status}/${handoffStage?.result}`);
   const text = JSON.stringify(t);
   check('N18 no text in the trace', !!t && [CODE_WORDS, ASK, LEAD, HANDOFF_FAILED].every(s => !text.includes(s)), 'neither the learner words, the handoff request, the plan words nor the failure line is in the event', 'the event carries learner, request or reply text');
 }
@@ -726,8 +726,8 @@ async function n20() {
     'a planner that times out rejects with TimeoutError and the stage reads planner:timeout, not stopped', `${slowPlan.result ? 'resolved' : `rejected ${slowPlan.error?.name}`}; planner stage ${stageStatuses(slowPlan.error, 'planner') || 'none'}`);
   const slowHandoff = await autoTurn(c, { raw: CODE_WORDS, repository: true, plan: planWith({ capability: 'repository_context', request: ASK }, say(LEAD)), stops: true, answer: { [HANDOFF]: () => held(lapse(10)) } });
   const rec = slowHandoff.result?.trace?.runtime?.handoff, stage = slowHandoff.result?.bench?.trace?.stages?.find(s => s.stage === 'handoff');
-  check('N20 handoff timeout stays timeout', !slowHandoff.error && rec?.outcome === 'failed' && rec.failure === 'timeout' && slowHandoff.result.text === `${LEAD}\n\n${HANDOFF_FAILED}` && stage?.result === 'timeout',
-    'a handoff that times out resolves the turn: runtime.handoff failed/timeout, the failure line after the plan words, the handoff stage result timeout (not stopped)', `${slowHandoff.error ? `rejected ${slowHandoff.error.name}` : 'resolved'}; handoff ${JSON.stringify(rec && { outcome: rec.outcome, failure: rec.failure })}; stage ${stage?.status}/${stage?.result}`);
+  check('N20 handoff timeout stays timeout', !slowHandoff.error && rec?.outcome === 'failed' && rec.failure === 'timeout' && slowHandoff.result.text === `${LEAD}\n\n${HANDOFF_FAILED}` && stage?.status === 'timeout' && stage.result === 'timeout',
+    'a handoff that times out resolves the turn: runtime.handoff failed/timeout, the failure line after the plan words, and the turn trace reads handoff:timeout (status and result), not stopped', `${slowHandoff.error ? `rejected ${slowHandoff.error.name}` : 'resolved'}; handoff ${JSON.stringify(rec && { outcome: rec.outcome, failure: rec.failure })}; stage ${stage?.status}/${stage?.result}`);
 }
 
 // N21: the canvas offers the handoff and the plan proposes one the validator drops: the turn records failure invalid_action, says the
