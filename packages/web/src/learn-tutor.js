@@ -100,8 +100,8 @@ const turnEvidence = (claims, states, domain) => withPrerequisites(claims, domai
 // no learner words, answers no open question and consumes no dive choice or return. materials: the Learn commands the turn may
 // run as create_material (learn-slash.js materialCommands) - on any turn since Task 11b (owner ninth message), typed, voice or
 // hook. research (Task 11b): the page can open its Research workflow, so the turn may offer suggest_research (research_offer).
-// journeyOffer (fix B1): a journey can start here (no journey yet, not in a hole, not in setup), so the turn may offer
-// suggest_journey (journey_offer).
+// journeyOffer (fix B1): a journey can start here (no journey yet or a live one, fix round 2; not in a hole, not in setup), so
+// the turn may offer suggest_journey (journey_offer).
 // canvas.liveTitle: a hole's live title (Task 10 fix round 3).
 export function buildTurn({ raw, slash = null, opening = false, canvas, block, store, states, inputModality = 'text', turnId = null, domain = NANOGPT, nextStep = null, materials = [], research = false, journeyOffer = false }) {
   // A typed slash is a command, never an answer to the Tutor's open question (fix round 2), wherever it fixes the move or not.

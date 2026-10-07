@@ -153,7 +153,8 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     const live = journeyRef.current?.journey ? journeyRef.current : null;
     const common = { canvas: { ...here, ...(record ? { dive: record, liveTitle } : {}) }, access, block, inputModality, turnId, domain, post };
     // §7.2, D6: the journey's resolver first (handleText: rules 1-4, then the model's rule 5; never punctuation). A tray
-    // answer, path edit, cancel, clarification or second broad intent is the journey's and never reaches the planner. A
+    // answer, a setup path edit, a cancel or a clarification is the journey's and never reaches the planner; a second broad
+    // intent is a Tutor turn here (tutor: true below), which may offer suggest_journey. A
     // free-text answer to the open diagnostic probe is a Tutor turn without a plan (§6.3): runTurn({ plan: false }) with
     // the probe as the open question, so buildTurn reads it as answering and the evaluate route stores the probe's
     // evidence; the walker steps on after. Anything else (an unrelated question, Ask the Tutor's words) is answered below,
@@ -196,7 +197,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
       // a learning request, or no journeys on this canvas) says so rather than doing nothing.
       startJourney: async request => {
         const out = await journeyRef.current?.start?.(startRequest(request));
-        if (out && !out.handled) put({ notices: [...desk.notices, { tone: 'info', text: 'A learning path cannot start on this canvas.' }] });
+        if (out && !out.handled) put({ notices: [...desk.notices, { tone: 'info', text: 'That request cannot start a learning path here.' }] });
       },
     }) });
     release();

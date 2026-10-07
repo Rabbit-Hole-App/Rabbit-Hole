@@ -640,6 +640,6 @@ test('fix round 2 item 4: the learning-path chip wraps only a bare topic, and a 
     await new Promise(done => setTimeout(done, 0));
     assert.deepEqual(started, ['I want to learn backpropagation'], 'already a start request: unwrapped');
     const text = nodes(tutor.extras).filter(n => n.type === 'p').map(n => n.props.children).join(' ');
-    assert.equal(/A learning path cannot start on this canvas/.test(text), notice, `handled ${handled}`);
+    assert.equal(/That request cannot start a learning path here/.test(text), notice, `handled ${handled}`);
   }
 });
