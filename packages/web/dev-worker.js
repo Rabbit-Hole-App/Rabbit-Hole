@@ -3,6 +3,7 @@ import { repositoriesFetch, repositoryIdentity, ownerRepositories } from '../con
 import { profileFetch, profileRoute } from '../control-plane/src/profile.js';
 import { contextDocsFetch, contextDocsRoute } from '../control-plane/src/learn-context-docs.js';
 import { canvasesFetch, canvasRoute, ownerCanvases, refuseCanvasAsk, refuseLiveLearnAsk, canvasAskSeam } from '../control-plane/src/canvases.js';
+import { libraryTrashFetch, libraryTrashRoute } from '../control-plane/src/library-trash.js';
 export { RepositoryImports } from '../control-plane/src/repositories.js';
 export { LearnScenes } from '../control-plane/src/learn-scene.js';
 import SHELL from './dist-dev/index.html';
@@ -95,6 +96,8 @@ export default {
       // (docs/features/dev-prod-write-barrier.md). A live app still opens by name (GET /api/apps/<name>).
       return Response.json({ ...catalog, folders: [], apps: [...(await ownerRepositories(env, catalog)), ...(await ownerCanvases(env, catalog))] }, { headers: { 'Cache-Control': 'no-store' } });
     }
+    // Library trash (docs/features/library-trash.md): the Trash list, and a project's Move to Trash / Restore.
+    if (libraryTrashRoute(path)) return libraryTrashFetch(req, env);
     const repositoryRoute = path.match(/^\/api\/apps\/(repo-[a-z0-9-]+)(\/learn-course)?$/);
     if (repositoryRoute) {
       const target = new URL(req.url); target.pathname = `/api/repositories/${repositoryRoute[1]}${repositoryRoute[2] || ''}`;
