@@ -18,7 +18,7 @@ import { diveJourney } from './learn-journey-domain.js';
 import { SLASHES, arriveAt, executeActions, keepHere, learnerIntent, readPlanStream, runTurn, showableCards, wantsCard } from './learn-tutor.js';
 import { materialCommands, runMaterials } from './learn-slash.js';
 import { holeOpening } from './learn-next-steps.js';
-import { inJourneySetup } from './LearnJourney.jsx';
+import { inJourneySetup, startRequest } from './LearnJourney.jsx';
 import { MODE_SLASHES } from '../../control-plane/src/agents/learn-tutor.js';
 import { emitDecision, newSessionId, tracing } from './learn-tutor-trace.js';
 import PaidConfirm from './PaidConfirm.jsx';
@@ -44,11 +44,12 @@ export const tutorStoreKey = (app, journeyId, record, canvas = null) => (journey
 // Learn commands create_material may run (owner ninth message) - on every turn except a hole's automatic opening (the learner
 // has not asked yet: fix B4; a carried hook is a next_step turn and keeps them) and a journey in setup (no card before the
 // path is accepted, LP1); research - the Research this offer, only where the page wired openResearch and never in setup (fix
-// A1: the journey prompt's setup line allows words only); journeyOffer - suggest_journey, only where a journey can start: no
-// journey yet (so never in setup), journeys supported here (journey.start), not inside a hole (fix B1).
+// A1: the journey prompt's setup line allows words only); journeyOffer - suggest_journey, where journeys are supported here
+// (journey.start), never in setup and never inside a hole (fix B1); on a live journey too (fix round 2), where the click meets
+// LP1's own continue-or-start.
 export function turnOffers({ journey = null, record = null, opening = false, nextStep = null, openResearch = null }) {
   const setup = inJourneySetup(journey?.journey);
-  return { materials: setup || (opening && !nextStep) ? [] : materialCommands(), research: !!openResearch && !setup, journeyOffer: !!journey?.start && !journey?.journey && !record };
+  return { materials: setup || (opening && !nextStep) ? [] : materialCommands(), research: !!openResearch && !setup, journeyOffer: !!journey?.start && !setup && !record };
 }
 export const hookContext = (where, read, recordPending = false) => (recordPending || (where.record?.journey && read !== where.record.dive_id) ? null : tutorContext(where));
 // canvasVersion: the board revision when the page passes it (decision telemetry only).
@@ -159,7 +160,8 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     // in the journey domain. A slash, a hole's opening or a hook click is a Tutor turn as it is.
     if (live && !slash && !opening && !skipJourney && !nextStep) {
       const answerProbe = async (probe, text) => save((await runTurn({ ...common, raw: text, plan: false, store: { ...load(), open: { action_id: probe.id, claim: probe.claims[0], text: probe.prompt, canvas: here } } })).store);
-      const routed = await live.handleText(raw, { answerProbe });
+      // tutor: this is a Tutor turn, so no word rule turns it into continue-or-start (Task 11b fix round 2); tray answers stay.
+      const routed = await live.handleText(raw, { answerProbe, tutor: true });
       if (routed.handled) return { text: '', handled: true, failed: !!routed.failed };
       raw = routed.text ?? raw;
     }
@@ -190,8 +192,12 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
       suggestDive: detail => window.dispatchEvent(new CustomEvent('small:dive-suggest', { detail })),
       climb: () => dive.navigator.climb(dive.navigator.tree.path.length - 2),
       slot, domain, openResearch,
-      // Fix B1: the existing journey start, which reads a learning request (as LearnJourney.jsx asks it for a bare topic).
-      startJourney: request => journeyRef.current?.start?.(`Teach me ${request}`),
+      // Fix B1: the existing journey start, through LP1's start-wrapping rule (fix round 2); a start the server refuses here (not
+      // a learning request, or no journeys on this canvas) says so rather than doing nothing.
+      startJourney: async request => {
+        const out = await journeyRef.current?.start?.(startRequest(request));
+        if (out && !out.handled) put({ notices: [...desk.notices, { tone: 'info', text: 'A learning path cannot start on this canvas.' }] });
+      },
     }) });
     release();
     // create_material (contract §2.5): the existing Learn command path (runMaterials -> runLearnCommand), never a second

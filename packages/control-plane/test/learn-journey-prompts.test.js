@@ -160,7 +160,7 @@ test('the journey Tutor keeps the shared policy lines, the voice and data-not-in
   const tutor = PROMPTS.tutor;
   assert.equal(tutor.includes('nanoGPT'), false);
   // Every shared line except 0 (subject) and 4 (authored content), which are made generic, is verbatim.
-  for (let i = 0; i < NANO.length; i++) assert.equal(tutor.includes(NANO[i]), ![0, 4, 21].includes(i), `nanoGPT line ${i}`); // 21: suggest_journey, never offered on a journey (task-11b-repin-review.md part D)
+  for (let i = 0; i < NANO.length; i++) assert.equal(tutor.includes(NANO[i]), ![0, 4].includes(i), `nanoGPT line ${i}`); // line 21 included since Task 11b fix round 2 (task-11b-repin-review.md part E)
   assert.ok(block(tutor, 'output_contract').includes(NANO[11]));
   assert.match(block(tutor, 'current_state'), /journey_context\.constraints/);
   assert.match(block(tutor, 'current_state'), /learner_constraints/);
@@ -237,9 +237,10 @@ test('fixtures for the four subjects pass validateRegistry and validatePath; a q
 // ---------- 8. Size ----------
 
 // Task 11b raised the cap from 8,000 (journey Tutor 7176 -> 9142 with the owner's shared Auto, grounding and reading-field
-// lines; task-11b-repin-review.md entry 8): still one static prefix, byte-identical for every subject (section 2 above).
-test('each prompt stays under 9,500 characters, a cache-friendly static prefix', () => {
-  for (const [name, text] of Object.entries(PROMPTS)) assert.ok(text.length < 9500, `${name}: ${text.length} characters`);
+// lines; task-11b-repin-review.md entry 8), then to 10,000 in fix round 2 (journey 9651 with suggest_journey; part E): still one
+// static prefix, byte-identical for every subject (section 2 above).
+test('each prompt stays under 10,000 characters, a cache-friendly static prefix', () => {
+  for (const [name, text] of Object.entries(PROMPTS)) assert.ok(text.length < 10000, `${name}: ${text.length} characters`);
 });
 
 // ---------- 9. Contract drift ----------

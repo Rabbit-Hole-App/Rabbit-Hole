@@ -292,7 +292,7 @@ test('Auto matrix: intent is exactly what the stand-in declared, pedagogy exactl
 const dir = mkdtempSync(join(tmpdir(), 'tutor-auto-'));
 const outfile = join(dir, 'tutor.cjs');
 await esbuild.build({
-  stdin: { contents: ["export { useTutor, turnOffers } from './LearnTutor.jsx';", "export { journeyStartsHere } from './LearnJourney.jsx';", "export { createElement } from 'react';", "export { renderToStaticMarkup } from 'react-dom/server';"].join('\n'), resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
+  stdin: { contents: ["export { useTutor, turnOffers } from './LearnTutor.jsx';", "export { journeyStartsHere, startRequest } from './LearnJourney.jsx';", "export { createElement } from 'react';", "export { renderToStaticMarkup } from 'react-dom/server';"].join('\n'), resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent',
 });
 const bundled = createRequire(import.meta.url)(outfile);
@@ -434,12 +434,17 @@ test('J: no keyword router - intent and format words change nothing but the word
   const WORDS = /\b(motion|research|teach|quiz|flashcards?)\b/i;
   // learn-tutor-validate.js STATED_NO_QUIZ binds the explicit "don't quiz me" constraint (Tutor v1, locked): it removes
   // questions and never reads intent or modality, so it is the one allowed match.
-  // Fix B1: the LP1 journey gate's files are in the grep too. Its word rules (learner-intent-journey.js BROAD, FOCUSED) are
-  // reached only where no Tutor is active - journeyStartsHere opens with !tutor, pinned here - which is none of the canvases
-  // the Tutor answers on, so they never route a Tutor turn; the Tutor offers a learning path instead (suggest_journey).
-  assert.match(readFileSync(new URL('LearnJourney.jsx', import.meta.url), 'utf8'), /export const journeyStartsHere = \(raw, \{ tutor = null, journeyStarter = null \} = \{\}\) => !tutor && /);
-  // CANCEL is LP1's open-tray rule (rules 1-4 of the interaction resolver: skip or cancel the tray's own step, like skip the
-  // quiz); it runs only on a live journey with a tray open and never sets intent, modality or a Tutor action.
+  // Fix B1 and fix round 2: the LP1 journey files are in the grep too. Their word rules (learner-intent-journey.js BROAD and
+  // FOCUSED, read through journeyIntent) never take a Tutor turn: journeyStartsHere opens with !tutor, and handleText skips its
+  // second-broad-intent check when the Tutor calls it (tutor: true) - all three pinned here. They still read a topic typed into
+  // an open topic tray, the Tutor's Start a learning path request after the learner's click (startRequest, then the server's
+  // start route), and the composer's words on a canvas with no Tutor; the Tutor offers a learning path (suggest_journey).
+  const journeyCode = readFileSync(new URL('LearnJourney.jsx', import.meta.url), 'utf8'), tutorCode = readFileSync(new URL('LearnTutor.jsx', import.meta.url), 'utf8');
+  assert.match(journeyCode, /export const journeyStartsHere = \(raw, \{ tutor = null, journeyStarter = null \} = \{\}\) => !tutor && /);
+  assert.match(journeyCode, /const t = open\(\), j = s\.data\.journey, it = tutor \? null : journeyIntent\(raw\);/);
+  assert.match(tutorCode, /const routed = await live\.handleText\(raw, \{ answerProbe, tutor: true \}\);/);
+  // CANCEL is LP1's open-tray rule (rules 1-4 of the interaction resolver: skip or cancel the step the open tray asks, like skip
+  // the quiz): with no tray it matches nothing, and it never sets intent, modality or a Tutor action.
   const allowed = ['STATED_NO_QUIZ', 'const BROAD', 'const FOCUSED', 'const CANCEL'];
   for (const file of ['LearnJourney.jsx', '../../control-plane/src/learner-intent-journey.js', 'learn-tutor.js', 'learn-tutor-validate.js', 'learn-tutor-actions.js', 'learn-tutor-trace.js', 'learn-tutor-domains.js', 'learn-journey-domain.js', 'LearnTutor.jsx', '../../control-plane/src/learn-tutor-routes.js']) {
     const code = readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`])\/\/.*$/gm, '$1');
@@ -561,10 +566,10 @@ test('fix B1: suggest_journey is offered only where a journey can start, on ever
   assert.deepEqual(executeActions([{ type: 'suggest_journey', request: 'x' }], { canvas: {} }), [], 'no starter: no chip');
 });
 
-test('fix B1: turnOffers offers a learning path only where one can start - no journey yet, not in a hole, not in setup', () => {
+test('fix B1: turnOffers offers a learning path only where one can start - not in a hole, not in setup', () => {
   const start = () => {};
   assert.equal(bundled.turnOffers({ journey: { journey: null, start } }).journeyOffer, true);
-  assert.equal(bundled.turnOffers({ journey: { journey: { state: 'active' }, start } }).journeyOffer, false, 'a live journey');
+  assert.equal(bundled.turnOffers({ journey: { journey: { state: 'active' }, start } }).journeyOffer, true, 'fix round 2: a live journey too (the click meets LP1 continue-or-start)');
   assert.equal(bundled.turnOffers({ journey: { journey: { state: 'intake' }, start } }).journeyOffer, false, 'setup');
   assert.equal(bundled.turnOffers({ journey: { journey: null, start }, record: { dive_id: 'canvas-0000hole' } }).journeyOffer, false, 'a hole');
   assert.equal(bundled.turnOffers({ journey: { journey: null, start: null } }).journeyOffer, false, 'no journey support');
@@ -605,4 +610,36 @@ test('fix B2: a plain canvas sends up to six of its newest other cards as canvas
   const OTHER = { id: 'blk-other', type: 'explanation', title: 'Learning rate', body: 'The step size.' };
   const { calls } = await plainTutor(RESPOND, t => t.ask({ raw: 'This part confuses me.', targetId: CARD.id }), { blocks: [OTHER, CARD] });
   assert.deepEqual([planOf(calls).target.description, planOf(calls).canvas_context.cards], [`${CARD.title}\n${CARD.body}`, [{ id: OTHER.id, kind: 'explanation', title: OTHER.title, text: OTHER.body }]]);
+});
+
+const PLAIN_AT = plainCanvas();
+// ---------- Fix round 2 (coordinator rulings after the re-review) ----------
+
+// Item 3: a typed slash is a command, never an answer to the Tutor's open question - on a depth ladder or not, explicit or not.
+test('fix round 2 item 3: a typed /deeper, /simplify, /ask or /teach while a Tutor question is open does not answer it', async () => {
+  const open = store => ({ ...store, open: { action_id: 'q1', claim: ID, text: 'Why look back only?', canvas: { app: 'nano', board: 'main' } } });
+  const words = await turnWith({ strategy: 'none', constraints_add: [], actions: [SAY] }, { raw: 'Because later tokens are unknown.', store: open(emptyStore()), ...NANO });
+  assert.equal(words.turn.answering, 'q1', 'the same words typed without a slash answer it');
+  for (const [slash, at] of [['deeper', NANO], ['simplify', NANO], ['deeper', PLAIN_AT], ['simplify', PLAIN_AT], ['ask', NANO], ['teach', NANO]]) {
+    const r = await turnWith({ strategy: 'none', constraints_add: [], actions: [SAY] }, { raw: 'Because later tokens are unknown.', slash, store: open(emptyStore()), ...at, canvas: { ...at.canvas, app: 'nano' } });
+    assert.equal('answering' in r.turn, false, `${slash} on ${at === NANO ? 'nanoGPT' : 'a plain canvas'}`);
+  }
+});
+
+// Item 4: the chip's request reaches the existing journey start through LP1's own start-wrapping rule (startRequest: wrapped
+// only when it is not already a start request), and a start the server refuses here says so.
+test('fix round 2 item 4: the learning-path chip wraps only a bare topic, and a refused start shows a notice', async () => {
+  assert.deepEqual(['backpropagation', 'I want to learn backpropagation', 'Teach me how softmax works'].map(bundled.startRequest), ['Teach me backpropagation', 'I want to learn backpropagation', 'Teach me how softmax works']);
+  for (const [handled, notice] of [[true, false], [false, true]]) {
+    const started = [];
+    const journey = { journey: null, busy: false, start: async text => { started.push(text); return { handled }; } };
+    const plan = () => ({ actions: [say('Here is the idea.'), { type: 'suggest_journey', request: 'I want to learn backpropagation' }] });
+    const { tutor } = await plainTutor(plan, t => t.ask({ raw: 'Teach me backpropagation from scratch.' }), { journey });
+    const nodes = node => (!node || typeof node !== 'object' ? [] : Array.isArray(node) ? node.flatMap(nodes) : [node, ...nodes(node.props?.children)]);
+    await nodes(tutor.extras).find(n => n.type === 'button' && n.props.children === 'Start a learning path').props.onClick();
+    await new Promise(done => setTimeout(done, 0));
+    assert.deepEqual(started, ['I want to learn backpropagation'], 'already a start request: unwrapped');
+    const text = nodes(tutor.extras).filter(n => n.type === 'p').map(n => n.props.children).join(' ');
+    assert.equal(/A learning path cannot start on this canvas/.test(text), notice, `handled ${handled}`);
+  }
 });

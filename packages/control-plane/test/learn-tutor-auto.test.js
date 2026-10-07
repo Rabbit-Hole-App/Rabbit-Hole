@@ -114,7 +114,7 @@ test('fix A3: EXPLICIT_MODE follows the slash marker, whatever kind the words ga
 
 // ---------- Fix round 1, step 2 (task-11b-fix1.md B1, B2) ----------
 // B1: a learning path is offered by the Tutor (suggest_journey, a chip the learner clicks), never started by a word rule ahead
-// of it. The line is shared (nanoGPT and canvas prompts); the journey prompt leaves it out - a journey canvas never offers one.
+// of it. The line is shared by every Tutor prompt (fix round 2: the journey prompt too - a live journey may offer one).
 test('fix B1: suggest_journey is an action; its shared line offers a learning path only when allowed, never starting one', () => {
   assert.ok(ACTION_TYPES.includes('suggest_journey'));
   assert.equal(ACTION_TYPES.at(-1), 'no_action');
@@ -125,7 +125,7 @@ test('fix B1: suggest_journey is an action; its shared line offers a learning pa
   assert.match(lines[21], /when context\.allowed_actions lists it/);
   assert.match(lines[21], /nothing starts until they do/);
   assert.ok(CANVAS_SYSTEM.includes(lines[21]));
-  assert.equal(plannerSystem(false, 'journey').includes(lines[21]), false, 'never offered on a journey canvas');
+  assert.ok(plannerSystem(false, 'journey').includes(lines[21]), 'fix round 2: a live journey may offer one too (its click meets LP1 continue-or-start)');
 });
 
 // B2: the canvas prompt describes exactly what a plain-canvas turn supplies: the selected card as target, up to six of the

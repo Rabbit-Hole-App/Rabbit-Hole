@@ -1404,3 +1404,38 @@ test('Task 14 known limits are marked: nested holes carry no journey; the hole T
   assert.match(read('LearnPage.jsx'), /ponytail: a hole inside a journey hole carries no journey/);
   assert.match(read('LearnTutor.jsx'), /ponytail: the hole Tutor is inactive until the parent journey GET returns/);
 });
+
+// Task 11b fix round 2 item 1 (owner fourteenth message: routing is never keyword-based): on a live journey, a Tutor turn whose
+// words read like a new learning intent is an Auto Tutor turn; the second-broad-intent word check (continue or start?) no
+// longer intercepts it. Inside an open tray the v1 tray parsing still answers the question the interface just asked.
+test('fix round 2: on a live journey with no tray, broad learning requests reach the planner, typed or spoken; with a tray open, a tray answer still resolves it', async () => {
+  const REQUESTS = ['Walk me through the attention mask computation.', 'I want to understand why the mask is lower triangular.', 'Teach me how softmax works.', 'Help me learn the residual stream.'];
+  for (const raw of REQUESTS) for (const voice of [false, true]) {
+    const h = harness(ok(journeyOf({ state: 'active', registry: SIGMOID }), null));
+    await h.refresh();
+    const t = tutorOn(h);
+    await t.run(tutor => (voice ? tutor.voiceTurn({ raw, turnId: 'turn-1' }) : tutor.ask({ raw, begin: t.begin })));
+    const plan = h.calls.find(c => c.path === '/api/learn/tutor/plan');
+    assert.ok(plan, `${raw}: reaches the planner`);
+    assert.equal(plan.body.context.learner_intent.raw_user_message, raw, `${raw}: its words, never dropped`);
+    assert.equal(h.view().tray?.id ?? null, null, `${raw}: no continue-or-start tray`);
+    assert.equal(h.calls.some(c => c.body?.action === 'start'), false, `${raw}: nothing starts`);
+  }
+  // A tray open: a tray answer still resolves it (an option label, rules 1-4), and a broad request over it goes through the
+  // tray parsing (rule 5, the model), never the continue-or-start check.
+  const picked = harness(ok(journeyOf({ registry: SIGMOID }), familiarityTray), [ok(journeyOf({ revision: 5 }), depthTray)]);
+  await picked.refresh();
+  const p = tutorOn(picked);
+  await p.run(tutor => tutor.ask({ raw: 'Seen it before', begin: p.begin }));
+  assert.deepEqual(picked.actions(), ['intake_answer']);
+  const over = harness(ok(journeyOf({ registry: SIGMOID }), goalTray), [{ status: 200, d: { kind: 'unrelated_question' } }]);
+  await over.refresh();
+  const o = tutorOn(over);
+  await o.run(tutor => tutor.ask({ raw: 'Teach me how softmax works.', begin: o.begin }));
+  assert.deepEqual(over.actions(), ['resolve', '/api/learn/tutor/plan']);
+  // The controller called with no Tutor (the composer on a canvas with no Tutor) keeps LP1's check.
+  const bare = harness(ok(journeyOf({ state: 'active' }), null));
+  await bare.refresh();
+  assert.deepEqual(await bare.view().handleText('Teach me transformers'), { handled: true });
+  assert.equal(bare.view().tray.id, 'clarification:live');
+});

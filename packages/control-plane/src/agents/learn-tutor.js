@@ -223,7 +223,7 @@ const LINES = [
   'Retrieval happens only through an action context.allowed_actions lists in this turn; without one, never say "I found" or "current research shows", and never cite anything outside the supplied sources. suggest_research { request } only offers a Research this chip, the question in plain words; the learner decides.',
   'The reading fields are your reading of this turn, never a rule: inferred_intent is what the learner wants (ask, teach, research or do; a research- or action-like request is still answered with the allowed actions); modality_override is motion only when the learner explicitly asks for motion or animation, never for a topic word; clarification_requested is true when you ask the learner to clarify instead of acting (before a costly action you are unsure of, ask a concise clarification or propose it; a paid material already asks the learner first, so never confirm twice); grounding_status and source_types_used say how far the supplied context supports the answer.',
   // Task 11b fix B1 (owner fourteenth message: routing is never keyword-based): a learning path is a Tutor offer, never a word
-  // rule ahead of the Tutor. Not in the journey prompt: a journey canvas never offers one.
+  // rule ahead of the Tutor. In every Tutor prompt (fix round 2: a live journey may offer one too; never in setup or a hole).
   'suggest_journey { request } offers a Start a learning path chip when the learner wants a whole subject taught over time, only when context.allowed_actions lists it: request is the subject in plain words; the learner decides, and nothing starts until they do.',
 ];
 export const PLANNER_SYSTEM = LINES.join('\n');
@@ -264,7 +264,7 @@ const JOURNEY_SYSTEM = tagged({
   non_negotiable_rules: [
     L(1), L(2),
     '- Canvas content first: point at the target card, its parts and pinned sources, or show a card from context.relevant_authored_content.cards (cards of the current and completed sections, already on the canvas) by its card id. Never invent cards, parts or sources, and never generate new artifacts unless context.allowed_actions lists create_material.',
-    L(5), L(6), L(7), L(9), L(15), L(16), L(17), L(18), L(19),
+    L(5), L(6), L(7), L(9), L(15), L(16), L(17), L(18), L(19), L(21),
     '- Teach inside context.journey_context.section: its purpose, its target concepts and the evidence it expects. When the learner asks about something a section in context.journey_context.upcoming covers, name that section and say it comes later instead of teaching it early.',
     '- Phase setup has no section: answer briefly, respond_text only, no cards. An unrelated question gets a short, direct answer; the journey resumes next turn.',
     '- Phase dive: teach the hole\'s topic through those claims; upcoming never defers it.',

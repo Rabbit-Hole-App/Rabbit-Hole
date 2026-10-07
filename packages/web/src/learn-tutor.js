@@ -104,10 +104,11 @@ const turnEvidence = (claims, states, domain) => withPrerequisites(claims, domai
 // suggest_journey (journey_offer).
 // canvas.liveTitle: a hole's live title (Task 10 fix round 3).
 export function buildTurn({ raw, slash = null, opening = false, canvas, block, store, states, inputModality = 'text', turnId = null, domain = NANOGPT, nextStep = null, materials = [], research = false, journeyOffer = false }) {
-  const mode = MODE_SLASHES.includes(slash) ? slash : null;
+  // A typed slash is a command, never an answer to the Tutor's open question (fix round 2), wherever it fixes the move or not.
+  const typed = !!slash, mode = MODE_SLASHES.includes(slash) ? slash : null;
   slash = fixedSlash(slash, domain);
   const here = { app: canvas.app, board: canvas.board || 'main' };
-  const open = store.open && sameCanvas(store.open.canvas, here) && !slash && !nextStep ? store.open : null;
+  const open = store.open && sameCanvas(store.open.canvas, here) && !typed && !nextStep ? store.open : null;
   const keep = store.keep && sameCanvas(store.keep.canvas, here) && !nextStep ? store.keep : null;
   const back = store.returned && sameCanvas(store.returned.parent, here) && !nextStep ? store.returned : null;
   if (nextStep) raw = '';
