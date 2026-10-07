@@ -47,6 +47,10 @@ Card dragging, editing and controls are unchanged: the menu only adds a row and 
 - Up returns;
 - a kept hole entered, not duplicated;
 - dragging still works;
+- a sticky note still edits, and its menu has no Start Rabbit Hole;
+- a quiz option still answers;
+- the keyboard menu (Shift+F10) opens on the focused card inside the window, and focus stays after Escape;
+- the Library ⋮ still opens with Enter and shows Rename;
 - the view-only board: the viewer's own Rabbit Hole from the right-clicked card, the only item;
 - no page errors.
 
