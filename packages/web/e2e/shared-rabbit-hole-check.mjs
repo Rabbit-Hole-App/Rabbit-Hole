@@ -36,7 +36,10 @@ const bridges = await shareCanvas('Bridge loads', [
 const ownerBoard = async source => JSON.stringify((await api(owner, `/api/learn/boards/${source.canvas.name}/main`)).body);
 const sharedView = async source => (await api(null, `/api/learn/boards/shared/${source.token}`)).body;
 const ownerThreads = async source => ((await api(owner, `/api/ask/threads?scope=learn&ref=${source.canvas.name}`)).body?.threads || []).length;
-const before = { kitchen: await ownerBoard(kitchen), bridges: await ownerBoard(bridges), threads: await ownerThreads(kitchen), canvases: JSON.stringify((await api(owner, '/api/canvases')).body) };
+// The owner's canvases as a viewer could affect them: updated_at is left out, because the owner's own board edit below
+// ("Later addition") is a meaningful change that moves it (docs/features/canvas-metadata.md).
+const ownerCanvases = async () => JSON.stringify((await api(owner, '/api/canvases')).body.canvases.map(({ updated_at, ...canvas }) => canvas));
+const before = { kitchen: await ownerBoard(kitchen), bridges: await ownerBoard(bridges), threads: await ownerThreads(kitchen), canvases: await ownerCanvases() };
 
 const browser = await chromium.launch();
 const errors = [];
@@ -215,7 +218,7 @@ await check('12 no fork is made by starting a Rabbit Hole', async () => {
   assert.deepEqual([(await sharedView(kitchen)).fork_count, (await sharedView(bridges)).fork_count], [0, 0]);
 });
 await check('13 the sharer\'s own data is never mutated', async () => {
-  assert.equal(JSON.stringify((await api(owner, '/api/canvases')).body), before.canvases);
+  assert.equal(await ownerCanvases(), before.canvases);
 });
 
 // ---- 2: Fork still does exactly what it did ----
