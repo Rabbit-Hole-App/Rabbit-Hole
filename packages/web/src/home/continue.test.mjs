@@ -94,7 +94,10 @@ test('a canvas whose board is on the server is never browser-only, unless this b
   const refused = store({ 'small.device': 'dev-a', [`${key(canvas)}:ink`]: ink([h('a', 'Big')]), [`${key(canvas)}:ink:unsaved`]: '1' });
   assert.equal(browserOnly(saved, EMAIL, refused), true);
   assert.equal(onAnotherDevice(saved, EMAIL, refused), false);
-  assert.equal(browserOnly(repo, EMAIL, elsewhere), false, 'canvases only');
+  assert.equal(browserOnly(repo, EMAIL, elsewhere), true, 'a project whose Learn board never reached the server');
+  assert.equal(browserOnly({ ...repo, board_saved: true }, EMAIL, elsewhere), false);
+  assert.equal(onAnotherDevice(repo, EMAIL, elsewhere), false, 'a project is never on another device');
+  assert.equal(browserOnly(job, EMAIL, elsewhere), false);
   const ctx = { catalog, email: EMAIL, storage: store({ 'small.device': 'dev-a' }) };
   assert.deepEqual(recentCard(saved, ctx).meta, ['In karpathy/nanoGPT']);
   assert.deepEqual(recentCard(saved, { ...ctx, storage: elsewhere }).action, { label: 'Continue learning', to: '/apps/canvas-1a2b3c4d' });

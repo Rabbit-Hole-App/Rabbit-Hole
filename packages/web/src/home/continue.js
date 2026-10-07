@@ -19,11 +19,11 @@ export const recentItems = (recent, catalog) => recent.map((slug) => (catalog ||
 // viewer's email (live rows carry none; repository and canvas rows carry the viewer's).
 const keysOf = (a, email, org) => canvasKeys({ org: a.org || org, email: a.email || email, slug: a.name });
 
-// Step 8 (docs/features/canvas-persistence.md): a canvas whose main board is on the server (canvases.js board_saved)
-// is cross-device, so no card calls its content browser-only - unless the server refused this browser's newest copy as
-// over 1.9 MB. Only these keep "Content in this browser" or "On another device".
+// Step 8 (docs/features/canvas-persistence.md): a canvas or project whose Learn main board is on the server (board_saved,
+// canvases.js and repositories.js) is cross-device, so no card calls its content browser-only - unless the server refused
+// this browser's newest copy as over 1.9 MB. Only these keep "Content in this browser" or "On another device".
 export const browserOnly = (a, email, storage) =>
-  a.kind === 'canvas' && (!a.board_saved || unsavedHere(storage, keysOf(a, email)));
+  (a.kind === 'canvas' || a.kind === 'repository') && (!a.board_saved || unsavedHere(storage, keysOf(a, email)));
 
 // T02 §8.3: the record exists, but its content was made in another browser and never reached the server.
 export const onAnotherDevice = (a, email, storage) =>

@@ -90,7 +90,7 @@ function Continue({ item, app, email }) {
             <>
               <span className="truncate">{item.lastExplored ? <>Last explored: <span className="text-ink-2">{item.lastExplored}</span></> : 'Pick up where you left off'}</span>
               {item.next && <span className="truncate">Next: <span className="text-ink-2">{item.next}</span></span>}
-              {item.canvas && (a.kind !== 'canvas' || browserOnly(a, email, localStorage)) && HERE}
+              {item.canvas && browserOnly(a, email, localStorage) && HERE}
             </>
           )}
           cta={<button type="button" data-continue-link onClick={stop(go)} className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-sm text-[13px] font-medium text-accent hover:underline">Continue <ArrowRight size={13} className="nudge-arrow" /></button>} />

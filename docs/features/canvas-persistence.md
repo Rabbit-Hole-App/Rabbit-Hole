@@ -134,6 +134,7 @@ Two fresh browser profiles, one account, on the local stack:
 Built after step 7 passed, on top of the #54 card redesign (owner §5 D, §19). Only canvases whose content is actually on the server lose the warnings.
 
 - **Server.** Every canvas row the Library and Home read (`CANVAS_ROW` and `canvasApp`, canvases.js) carries `board_saved`: whether the owner's main board has its `learn_boards` row. It is an `EXISTS` subquery; there is no migration.
+  - Project rows carry the same field (`ownerRepositories` and `repositoryApp`, repositories.js). It reads the board a project's Learn saves to, LearnPage's `boardPath` `/api/learn/boards/<repo>/main` (Parallel, option A).
 - **The rule** (`browserOnly`, continue.js) makes a canvas browser-only when either holds:
   - its main board is not on the server;
   - this browser holds a copy the server refused as over 1.9 MB. LearnPage sets `<ink key>:unsaved` on a 413, and the next save that lands clears it (`unsavedHere`, canvas-local.js).
@@ -148,13 +149,13 @@ Built after step 7 passed, on top of the #54 card redesign (owner §5 D, §19). 
 - **Limits:**
   - Another browser cannot know about a refused over-cap copy, because the server keeps no record of a refusal. There the card shows no note and opens the last saved copy. The refusing browser said so when it happened.
   - An empty canvas has no board row until its first content, so another browser still shows "On another device" and NOT_HERE for it, as before.
-  - A project's Learn on Home's Continue keeps "Content in this browser". Repository rows (repositories.js) carry no `board_saved`; that is outside this step.
+  - A project's Learn says "Content in this browser" only on Home's Continue, and only while its main board is not on the server (`browserOnly` covers projects). A project is never "On another device".
   - A file over 25 MB keeps its own notice and stays in its browser; the card does not say so.
 - **Tests:**
-  - `control-plane/test/canvas-persistence.test.js`: `board_saved` is false for a new canvas, after an over-cap refusal and for a board other than main, and true after the first save, in the list and the single row.
+  - `control-plane/test/canvas-persistence.test.js`: `board_saved` is false for a new canvas, after an over-cap refusal and for a board other than main, and true after the first save, in the list and the single row. A project's row is the same, for its main board only.
   - `web/src/home/continue.test.mjs`: `browserOnly`, `onAnotherDevice` and `recentCard` with a saved board and with the unsaved marker.
   - `e2e/cross-device-check.mjs` 13/13. Check 8: on a fresh profile and on B, A's canvases show no warning in the Library or Home, and they open. Check 9: a never-synced canvas keeps "Content in this browser" on A and "On another device" on B, where it shows NOT_HERE. Check 10: a refused first copy and a board grown past the cap keep "Content in this browser" until a save lands.
-  - `e2e/card-redesign-check.mjs`: "Continue learning", and no note on a published canvas or on a canvas once opened.
+  - `e2e/card-redesign-check.mjs` 20/20: "Continue learning", and no note on a published canvas or on a canvas once opened. Check 14b: a project on Home's Continue says "Content in this browser" until its row has `board_saved`.
 
 ### Continue ordering (audit only, not changed)
 

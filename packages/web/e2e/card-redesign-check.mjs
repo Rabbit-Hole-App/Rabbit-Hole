@@ -254,6 +254,22 @@ await check('14 the Continue title opens where it left off', async () => {
   await home.locator('[data-continue-card] [data-card-title]').click();
   await home.waitForURL(new RegExp(`/apps/${tides.name}`), { timeout: 30000 });
 });
+await check('14b Home Continue on a project: Content in this browser until its Learn board is on the server (board_saved), then none', async () => {
+  const page = await contextFor(owner, { project: true }); // the project row is the browser-side one above; the server field is unit-tested
+  await page.context().addInitScript(([name, chat]) => { localStorage.setItem('small.recent', JSON.stringify([name])); localStorage.setItem(chat, JSON.stringify([{ id: 'p1', question: 'how does the training loop batch?' }])); }, [PROJECT.name, `${keyOf(PROJECT.name)}:chat`]);
+  const continued = async () => {
+    await page.goto(`${BASE}/apps`);
+    const card = titled(page, '[data-continue-card]', 'nanoGPT');
+    await card.waitFor({ timeout: 60000 });
+    const text = await card.innerText();
+    assert.ok(text.includes('Last explored: how does the training loop batch?'), text);
+    return text;
+  };
+  assert.ok((await continued()).includes('Content in this browser'), 'its Learn board is not on the server');
+  PROJECT.board_saved = true;
+  assert.ok(!(await continued()).includes('Content in this browser'), 'its Learn board is on the server');
+  await page.context().close();
+});
 
 // ---- Explore ----
 const ours = [T.bridges, T.orbits, T.prisms];
@@ -317,5 +333,5 @@ await check('19 no page errors, and no email on any card', async () => {
 });
 
 await browser.close();
-console.log(`\n${results.length}/19 checks passed`);
-process.exit(results.length === 19 ? 0 : 1);
+console.log(`\n${results.length}/20 checks passed`);
+process.exit(results.length === 20 ? 0 : 1);
