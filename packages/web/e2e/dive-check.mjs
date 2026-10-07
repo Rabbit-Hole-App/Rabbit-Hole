@@ -227,7 +227,7 @@ await page.waitForFunction(() => location.search.includes('hole=')); await page.
 await nav().locator('[aria-current="location"]').hover();
 await nav().getByRole('button', { name: 'Delete Logits' }).click(); // "Leave this empty hole"
 await page.waitForFunction(() => !location.search.includes('hole=')); await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1200);
-const logits = await page.$$eval('[data-block-id]:not([data-chat-block])', nodes => nodes.find(node => node.innerText.replace('Ask in chat', '').trim() === 'Logits')?.dataset.blockId || null); // the card's own hover button aside
+const logits = await page.$$eval('[data-block-id]:not([data-chat-block])', nodes => nodes.find(node => node.innerText.replace('Ask in chat', '').replace(/^Open\s*/, '').trim() === 'Logits')?.dataset.blockId || null); // the selected card's own Ask in chat and Open pills aside
 assert.ok(logits, 'the anchor reads just "Logits": no duplicate body, no kicker');
 assert.equal(await page.locator(`[data-block-id="${logits}"] [data-dive-portal]`).count(), 0, 'an abandoned pending child leaves no portal');
 await page.locator(`[data-block-id="${logits}"]`).scrollIntoViewIfNeeded();

@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Map as MapIcon, Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, BringToFront, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Minus, MousePointer2, Pencil, Plus, SendToBack, Slash, Spline, Square, Squircle, Star, StickyNote, Triangle, Type } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { IconBtn, toast } from './ui.jsx';
@@ -27,6 +27,7 @@ import { DOCK_PAD, DOCK_WIDTH } from './ChatComposer.jsx';
 import { PerfContext, perfMark, usePaintedMarks } from './learn-perf.js';
 import LaserPointer from './LaserPointer.jsx';
 import { DivePortals } from './Dive.jsx';
+import { openTarget, opensFrom, selectedCardContext } from './card-open.js';
 import { columnEntries, fillSlot, freeArea, freeSlot, indexAfter, panInto, slotIndex, slotSize } from './canvas-slots.js';
 import { lightBlocks, persistBoard } from './canvas-persist.js';
 import { waitingText } from './waiting-text.js';
@@ -152,6 +153,9 @@ function outlineOf(shape) {
   return { points: relative.map(([u, v]) => ({ x: x + u * w, y: y + v * h })), closed: true };
 }
 
+// Opening a card (card-open.js): { single, can(id), open(id, via) }, provided by the canvas around its blocks.
+const CardOpen = createContext(null);
+
 // Shared node chrome for everything card-shaped on the canvas: drag with
 // lift, corner resize, selection ring, top/bottom connection ports, and the
 // layout observer that keeps connector geometry fresh. Content is children.
@@ -159,6 +163,12 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
   const [lifted, setLifted] = useState(false);
   // A card with a Rabbit Hole under it (docs/features/dive-v1.md): derived from the dive link, never stored on the card.
   const dive = useContext(DivePortals), portal = dive?.portals?.[id];
+  // Open (card-open.js): double-click, Enter, or the Open pill on the one selected card. A chat card never opens.
+  const opener = useContext(CardOpen);
+  const opens = !chat && opener ? opener.can(id) : null;
+  // Whether the card was already selected when this double-click's first press landed: a selected PDF, video or
+  // article body keeps its own pointer (data-pointer-body), so a double-click there is the reader's, not Open.
+  const selectedAtPress = useRef(false), lastPress = useRef(-Infinity);
   // A resized node keeps its size in its own data, so a reload restores it.
   const [size, setSize] = useState({ w: saved?.w || null, h: saved?.h || null });
   const card = useRef(null);
@@ -185,12 +195,30 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
     startDrag(event, { x: element.offsetWidth, y: element.offsetHeight }, apply, zoom);
   };
   return (
+    // A card is reachable with Tab (Space selects it, Enter opens it: the canvas's key handler); its selection is
+    // exposed as aria-current, and the keyboard focus ring sits outside the selection ring.
     <div ref={card} data-block data-block-id={id} {...(chat ? { 'data-chat-block': true } : {})}
+      tabIndex={0} role="group" aria-roledescription="card" aria-current={selected ? 'true' : undefined}
+      // Read before this press selects the card (the selection re-renders before mousedown); a press within a
+      // double-click's interval of the last one is that double-click's second press.
+      onPointerDownCapture={event => { if (event.timeStamp - lastPress.current > 500) selectedAtPress.current = selected; lastPress.current = event.timeStamp; }}
       onPointerDown={event => { if (event.button !== 0) return; if (event.target.closest('[data-drag-zone]')) drag(event); else onSelect(id, event); }}
-      // Double-click goes down this card's Rabbit Hole, making it when there is none yet; a single click still selects.
-      onDoubleClick={dive && !chat ? event => { if (event.target.closest('input, textarea, select, button, a, iframe, [contenteditable="true"]')) return; if (portal) dive.enter(portal.name); else dive.open?.(id); } : undefined}
+      // A single click only selects; a double-click opens - the card's reader, else its Rabbit Hole (made when there is
+      // none yet). Never from one of the card's own controls (opensFrom).
+      onDoubleClick={opens ? event => {
+        if (!opensFrom(event.target) || (selectedAtPress.current && event.target.closest('[data-pointer-body]'))) return;
+        opener.open(id, 'learner_dblclick');
+      } : undefined}
       style={{ transform: `translate(${dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, marginTop: space || undefined, width: size.w || width, height: size.h || height ? (size.h || height) + extraHeight : undefined, maxHeight: size.h || height ? undefined : autoMax }}
-      className={`group relative ${wide ? 'self-center' : 'mx-auto'} flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-[#2383e2]' : ''} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-[#e5484d]/40' : 'outline-8 outline-offset-1 outline-[#b42318]/80') : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
+      className={`group relative ${wide ? 'self-center' : 'mx-auto'} flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text focus-visible:ring-[3px] focus-visible:ring-[#2383e2]/40 focus-visible:ring-offset-4 ${portal ? '' : 'outline-none'} ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-[#2383e2]' : ''} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-[#e5484d]/40' : 'outline-8 outline-offset-1 outline-[#b42318]/80') : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
+      {/* The one selected card says how it opens: a small Open, never a big button on every card (touch has no double-click). */}
+      {selected && opens && opener.single === id && (
+        <button type="button" data-card-open={opens.kind} title={opens.label} aria-label={opens.label}
+          onPointerDown={event => event.stopPropagation()} onClick={() => opener.open(id, 'learner_open')}
+          className="absolute -top-10 left-0 z-30 flex items-center gap-1 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium whitespace-nowrap text-ink shadow-md hover:bg-hover">
+          Open<ArrowUpRight size={13} />
+        </button>
+      )}
       {/* Only this strip drags; the body keeps a normal cursor so text can be
           selected and links inside the block stay clickable. */}
       <div data-drag-handle data-drag-zone title="Drag to move this block"
@@ -409,7 +437,7 @@ function PdfCard({ block, zoom, selected, connected, onSelect, onMove, onChange,
           press selects the card and keeps focus in this document. A focused
           iframe receives keydown in its own document, where the canvas never
           sees it - copy, paste, undo and delete would all be dead on this card. */}
-      <div className="min-h-0 flex-1 overflow-hidden rounded-b-xl border-t border-line"
+      <div data-pointer-body className="min-h-0 flex-1 overflow-hidden rounded-b-xl border-t border-line"
         onPointerDown={event => { if (selected) event.stopPropagation(); }}>
         {url
           ? <iframe src={url} title={block.label || 'PDF'} className={`h-full w-full ${selected ? '' : 'pointer-events-none'}`} />
@@ -444,7 +472,7 @@ function FileCard({ block, zoom, selected, connected, onSelect, onMove, onChange
       <div className="flex shrink-0 items-center gap-2 px-4 pb-2 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">
         <span className="h-1.5 w-1.5 rounded-full bg-ink" />{clip ? 'Video' : 'Image'}<span className="truncate normal-case tracking-normal text-ink-3">{block.label}</span>
       </div>
-      <div className="min-h-0 px-3 pb-3" onPointerDown={event => { if (clip && selected) event.stopPropagation(); }}>
+      <div data-pointer-body className="min-h-0 px-3 pb-3" onPointerDown={event => { if (clip && selected) event.stopPropagation(); }}>
         {url
           ? clip
             ? <video src={url} controls className="w-full rounded-lg border border-line bg-black" />
@@ -500,7 +528,7 @@ function VideoCard({ block, zoom, selected, connected, appName, onSelect, onMove
       </div>
       {/* Same bargain as PdfCard: the player ignores the pointer until the
           card is selected, so canvas keys and drags stay alive. */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-b-xl border-t border-line"
+      <div data-pointer-body className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-b-xl border-t border-line"
         onPointerDown={event => { if (selected) event.stopPropagation(); }}>
         {embedUrl(block.videoId, start, playEnd) && (
           <img src={`https://i.ytimg.com/vi/${block.videoId}/mqdefault.jpg`} alt="" aria-hidden="true"
@@ -583,7 +611,7 @@ function WikiCard({ block, zoom, selected, connected, appName, onSelect, onMove,
       </div>
       {/* Once selected - or while highlighting - the card keeps the pointer,
           so a drag inside it selects text instead of moving the card. */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-b-xl border-t border-line"
+      <div data-pointer-body className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-b-xl border-t border-line"
         onPointerDown={event => { if (selected || highlighting) event.stopPropagation(); }}>
         <LearnWiki app={appName} compact article={{ title: block.title, section: block.section || 0 }} openAt={block.openNonce || 0}
           paintKey={block.id} highlights={block.highlights || []} onHighlights={next => onChange({ ...block, highlights: next })}
@@ -1243,6 +1271,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     }
     setSelection(previous => previous.includes(id) ? previous.filter(other => other !== id) : [...previous, id]);
   };
+  const selectRef = useRef(select);
+  selectRef.current = select;
   // The one active draw target (docs/features/explain-back-sketch.md): null is this canvas, a block id is that
   // Explain Back card's sketch. The toolbar's tool and style, Delete and the style panel act on it; the sketch
   // keeps its own selection, live mark and text edit so nothing of the canvas's is ever touched from inside it.
@@ -1998,6 +2028,20 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // undoes the last canvas gesture — both stand down while typing.
   useEffect(() => {
     const key = event => {
+      // Cards take the keyboard on any board (docs/features/canvas-card-selection.md): Space selects the focused card;
+      // Enter opens it - or the one selected card while nothing else holds the focus. Presenting keeps both keys.
+      const focusedCard = document.activeElement?.matches?.('[data-block-id]') ? document.activeElement.dataset.blockId : null;
+      if (presentingRef.current === null && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+        if (event.key === ' ' && focusedCard) { event.preventDefault(); if (!selectedRef.current.includes(focusedCard)) selectRef.current(focusedCard); return; }
+        const idle = !document.activeElement || document.activeElement === document.body;
+        const target = event.key === 'Enter' && (focusedCard || (idle && selectedRef.current.length === 1 ? selectedRef.current[0] : null));
+        if (target && openCardRef.current.can(target)) {
+          event.preventDefault();
+          if (!selectedRef.current.includes(target)) selectRef.current(target);
+          openCardRef.current.open(target, 'learner_enter');
+          return;
+        }
+      }
       if (readOnlyRef.current) return;
       // Presenting owns the keyboard: a walk, not an editing surface.
       if (presentingRef.current !== null) {
@@ -2010,9 +2054,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // Esc is the way home from anywhere: back to the pointer, nothing armed,
       // nothing half-done. A text box being typed in commits and lets go.
       if (event.key === 'Escape') {
-        connectionCleanup.current?.(); setConnecting(null); setSelected(null);
-        setTool('select'); setMenuAt(null); setStyleOpen(null); releaseSketchRef.current();
         const focused = document.activeElement;
+        // Esc in the composer (or any field off the canvas) is that field's - closing its / menu, say: the selected
+        // card, which is the question's context, stays.
+        const offCanvasField = focused && (focused.tagName === 'INPUT' || focused.tagName === 'TEXTAREA') && !focused.closest('[data-item-id],[data-block-id],[data-shape-id]');
+        connectionCleanup.current?.(); setConnecting(null); if (!offCanvasField) setSelected(null);
+        setTool('select'); setMenuAt(null); setStyleOpen(null); releaseSketchRef.current();
         if (focused?.isContentEditable && focused.closest('[data-item-id],[data-block-id],[data-shape-id],[data-connection]')) focused.blur();
         return;
       }
@@ -2103,14 +2150,19 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // The block armed through armTarget; region and group targets clear it, so
   // the re-arm below never swaps them for a plain card description.
   const armedId = useRef(null);
+  // The card the learner explicitly asked about (Ask in chat): its answer lands as a card linked to it, as before.
+  // A card only selected rides as context and its answer lands where any question's does (ask.jsx panelAsk).
+  const askedId = useRef(null);
   const armTarget = block => {
     const described = describeBlock(block);
     if (!described) return false;
     armedId.current = block.id;
+    // card: a selected card's context (the strip above the composer), kept after a send; context: its identities.
+    const card = { card: true, asked: askedId.current === block.id, context: selectedCardContext(block, described.title) };
     // A slide sends the slide itself: its page of the uploaded PDF, read by the model as the
     // reader's pages are (paper_context). The thumbnail only shows on the chip.
     if (block.type === 'slide') {
-      const target = { id: block.id, ...described, paper: { id: String(block.pdf || '').slice('pdf:'.length), page: block.number } };
+      const target = { id: block.id, ...described, ...card, paper: { id: String(block.pdf || '').slice('pdf:'.length), page: block.number } };
       onAskTargetRef.current?.(target);
       loadAsset(block.assetKey).then(blob => {
         if (!blob || armedId.current !== block.id) return;
@@ -2123,12 +2175,41 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // A getter, not a function value: every reader (canvas_target, / commands)
     // still gets a string, resolved when it is read at send.
     const live = liveAskText(block.id, described);
-    onAskTargetRef.current?.({ id: block.id, ...described, get text() { return live(); } });
+    onAskTargetRef.current?.({ id: block.id, ...described, ...card, get text() { return live(); } });
     return true;
   };
   const askBlock = block => {
+    askedId.current = block.id;
     if (armTarget(block)) window.dispatchEvent(new Event('small:ask-focus'));
   };
+  // Selecting a card is choosing what the next question is about (docs/features/canvas-card-selection.md): the one
+  // selected card sets the composer's context strip - the same target Ask in chat arms, never a second chip - and a
+  // selection that moves off it (blank canvas, Esc, another object) takes the strip with it. A region, area or group
+  // target is left alone: it was armed on purpose and has its own way out.
+  const selectionArmed = useRef(null);
+  useEffect(() => {
+    if (readOnly) return;
+    if (askedId.current !== selected) askedId.current = null;
+    const block = selected ? blocksRef.current.find(entry => entry.id === selected) : null;
+    if (block && armTarget(block)) { selectionArmed.current = block.id; return; }
+    const was = selectionArmed.current;
+    selectionArmed.current = null;
+    if (was && askTargetId === was && armedId.current === was) { armedId.current = null; onAskTargetRef.current?.(null); }
+  }, [selected, readOnly]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Open (card-open.js): the card's reader, else its Rabbit Hole - entered, or made first.
+  const opensFor = id => openTarget(blocksRef.current.find(entry => entry.id === id), { portal: divePortals?.portals?.[id], dive: !!divePortals?.open, readers: !!onCardActionRef.current });
+  const openCard = (id, via) => {
+    const target = opensFor(id);
+    if (!target) return false;
+    if (target.kind === 'reader') onCardActionRef.current(target.action, target.payload);
+    else if (target.kind === 'external') window.open(target.url, '_blank', 'noopener');
+    else if (target.kind === 'enter') divePortals.enter(target.name);
+    else divePortals.open(id, undefined, via);
+    return true;
+  };
+  const cardOpen = { single: readOnly ? null : selected, can: opensFor, open: openCard };
+  const openCardRef = useRef(cardOpen);
+  openCardRef.current = cardOpen;
   // Keep the armed chip's label honest while the learner keeps experimenting:
   // a changed input re-arms the same target with its fresh description, and a
   // deleted target flips to a visible warning rather than being dropped.
@@ -3133,9 +3214,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           {exchanges.map(exchange => (String(exchange.linkFrom).startsWith('area:')
             ? <div key={exchange.id} className="-mb-5 h-0 overflow-visible"><ChatCard exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} /></div>
             : <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />))}
-          <SketchHost.Provider value={sketchHost}>
+          <SketchHost.Provider value={sketchHost}><CardOpen.Provider value={cardOpen}>
             {columnEntries(blocks, slots).map(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onAsk={askBlock} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} />)}
-          </SketchHost.Provider>
+          </CardOpen.Provider></SketchHost.Provider>
         </div>
         {readOnly && selected && bounds[selected] && (
           <div data-view-selection={selected} aria-hidden="true" style={{ left: bounds[selected].x - 3, top: bounds[selected].y - 3, width: bounds[selected].w + 6, height: bounds[selected].h + 6 }}

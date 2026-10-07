@@ -7,6 +7,7 @@ import { BLOCK_TYPES, LearningBlockBody } from './LearningBlocks.jsx';
 import NotebookBody from './NotebookCard.jsx';
 import { newNotebookBlock } from './learn-notebook.js';
 import { Md } from './ask.jsx';
+import { CommandMark } from './CommandTone.jsx';
 
 // What a chat command's answer looks like, for the sheet only: the command as
 // typed about a card on the canvas, and an illustrative tutor answer. The
@@ -74,7 +75,7 @@ export default function SlashCommandsSheet({ appName, onClose }) {
                   <button key={item.name} type="button" data-slash-help={item.name} aria-current={item.name === name}
                     onClick={() => { setName(item.name); setCardIndex(exampleCard(item.name)); }}
                     className={`flex w-full items-baseline gap-2 rounded-lg px-2 py-1 text-left text-sm ${item.name === name ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}>
-                    <span className="shrink-0 font-medium">/{item.name}</span>
+                    <CommandMark name={item.name} />
                     <span className="truncate text-xs text-ink-3">{item.desc}</span>
                   </button>
                 ))}
@@ -83,7 +84,7 @@ export default function SlashCommandsSheet({ appName, onClose }) {
           </nav>
           <section aria-label={`/${name} preview`} className="flex min-h-0 min-w-0 flex-1 flex-col rounded-xl border border-line bg-hover/40 p-4">
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <span className="text-base font-semibold text-ink">/{name}</span>
+              <CommandMark name={name} className="text-base font-semibold text-ink" />
               <span className="text-sm text-ink-2">{command?.desc}</span>
               {mayConfirmPaid(name) && <span className="rounded-full border border-line bg-white px-1.5 py-px text-[10px] text-ink-3" title="On the canvas it asks before generating. Here, Generate is off.">confirms paid</span>}
             </div>

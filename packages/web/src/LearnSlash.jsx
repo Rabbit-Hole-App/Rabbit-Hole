@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, ChevronRight, CircleHelp, Loader2, SquareSlash, X } from 'lucide-react';
 import { parseSlash, pickerSections } from './learn-slash.js';
 import PaidConfirm from './PaidConfirm.jsx';
+import { CommandMark } from './CommandTone.jsx';
 
 // The Learn composer's / picker and its results (docs/features/
 // learn-artifact-generation.md). The composer owns the text; this reads it,
@@ -111,7 +112,7 @@ export default function LearnSlash({ apiRef, input, setInput, target, run, onPro
                   <button key={item.name} type="button" role="option" aria-selected={mine === active} data-slash-command={item.name}
                     onMouseEnter={() => setActive(mine)} onMouseDown={event => event.preventDefault()} onClick={() => choose(item.name)}
                     className={`flex w-full items-baseline gap-2 rounded-lg px-2 py-1.5 text-left text-sm ${mine === active ? 'bg-hover' : ''}`}>
-                    <span className="shrink-0 font-medium text-ink">/{item.name}</span>
+                    <CommandMark name={item.name} className="text-ink" />
                     <span className="truncate text-xs text-ink-2">{item.desc}</span>
                   </button>
                 );

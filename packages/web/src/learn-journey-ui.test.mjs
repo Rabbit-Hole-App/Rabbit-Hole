@@ -450,7 +450,8 @@ test('inJourneySetup: intake, diagnostic and path review are setup (no permanent
 test('ask.jsx: on a journey in setup, the Learn chat answers in the sheet only - no placed card, no reserved slot, no auto-inserted reader', () => {
   const ask = read('ask.jsx');
   assert.match(ask, /journeySetup = false/);
-  assert.match(ask, /const panelAsk = sheetMode && \(!canvasTarget \|\| journeySetup\);/);
+  // A card only selected (canvas-card-selection.md) is context, not an Ask in chat: it never moves the answer out of the sheet.
+  assert.match(ask, /const panelAsk = sheetMode && \(!canvasTarget \|\| \(canvasTarget\.card && !canvasTarget\.asked\) \|\| journeySetup\);/);
   assert.match(ask, /const exchange = panelAsk \|\| journeySetup \? null : onExchange;/);
   assert.match(ask, /if \(d\.card && !slots\[d\.card\] && !journeySetup\)/);
   for (const kind of ['Paper', 'Wiki', 'Video']) assert.match(ask, new RegExp(`if \\(!journeySetup\\) boardContext\\?\\.onShow${kind}\\?\\.`));
