@@ -1,6 +1,6 @@
 # Canvas persistence: the server is the source of truth
 
-Status: proposal for #60, 2026-10-06 (owner rules "Persistence option C" and "Overnight execution rule").
+Status: proposal for #60, 2026-10-06 (owner rules "Persistence option C" and "Overnight execution rule"). Steps 1-7 built on `feature/canvas-persistence` (see "Built" below); the cross-device proof passes, `e2e/cross-device-check.mjs` 10/10. Step 8 waits for the rebase onto the #54 card redesign.
 
 The canvas becomes canonical on the server. The browser keeps only transient state plus a cache and a recovery copy. There is no second canvas model: the existing `learn_boards` row (`state_json`, `version`, `updated_by`, `updated_at`), its R2 board assets and its notebook workspace assets become canonical for every owned board. Today they are canonical only while a board is shared, published or forked.
 
@@ -102,6 +102,32 @@ Two fresh browser profiles, one account, on the local stack:
 5. A browser-only canvas from before this release is migrated on its first open, and `updated_at` does not move.
 6. A board over 1.9 MB is refused visibly; its local copy is kept.
 7. A second account cannot read the private board; Trash still suspends links.
+
+## Built (steps 1-7)
+
+- **Save** (LearnPage `pushBoard`, `saveBoard`). Every owned board is PUT through the serial queue, 1500 ms after the last change or at once for `persist()`, which now answers `ok` or `failed`. A review board (`?board=`, dev tooling) still saves only while shared.
+  - Each PUT carries the version it is based on, or `0` when this browser saw no server copy, so a row made meanwhile elsewhere is a 409, never overwritten.
+  - No PUT at all when the server already holds this content. `boardText` (canvas-persist.js) compares the content keys, with a missing key read as empty, so opening a board never re-saves it or moves `updated_at`.
+  - The sources list rides as `state_json.sources` on the main board.
+- **Files** (`syncAssets`) go up after every PUT. Notebook workspaces are saved once the board has its server row, and the first server copy asks loaded notebooks for theirs.
+- **Over 1.9 MB.** `stateText` now says "This board is over 1.9 MB, so it was not saved to your account and stays only in this browser." It is shown once per open (the next edit retries quietly). The 25 MB file notice says the same.
+- **Load** is the table above, in the board GET.
+  - A pending Rabbit Hole asks again once its first object keeps it.
+  - When the server copy replaces local content that differs from it, the replaced copy is kept under `<ink key>:replaced`, with no UI, so content that never reached the server is recoverable by hand. A restore action would be a product choice.
+- **Conflicts.** A 409 shows the message above, then stops board PUTs and notebook workspace saves until reload.
+- **Offline.** A failed PUT with no HTTP status waits; the `online` event pushes the latest copy. Two limits:
+  - A board whose GET failed offline waits for its next open.
+  - A lazy chunk that fails offline reloads the page (main.jsx). The edit is already in localStorage and goes up on the next online open (Load: same version, local differs).
+- **The gate** (CanvasPage) asks the server only when `opensHere` says no, and NOT_HERE shows only when neither copy exists. `opensHere` itself is unchanged: its device clause still opens an empty canvas made in this browser, and Home and the Library read it alone until step 8.
+- **Server.** `saveOwn` already made the first copy version 1 without an `updated_at` bump; only the over-cap message changed. It still accepts a PUT without a version (older pages and API tests); every page PUT now sends one.
+- **Tests.**
+  - `control-plane/test/canvas-persistence.test.js`: the first copy is version 1 without a bump; a write on a stale or unseen version (0) is a 409; the over-cap refusal. Permissions: same-workspace 403, another workspace 404, signed-out 401, no state in any answer; no share or `/e` token reaches a private board; Trash suspends and Restore returns links.
+  - `web/src/canvas-persist.test.mjs`: `boardText`.
+  - The source-pinning tests in explore-publish and learn-journey-materialize follow the new push contract.
+- **Proof.** `e2e/cross-device-check.mjs` (local stack only, two fresh profiles, one account) passes 10/10:
+  - 0: NOT_HERE when neither copy exists.
+  - 1a-1c: items 1, including the real notebook's workspace and a double-clicked Rabbit Hole kept by a stroke.
+  - 2-7: items 2-7 as listed above.
 
 ## Retiring the warnings (step 8, only after the proof)
 

@@ -1,0 +1,253 @@
+// Canvas persistence, the cross-device proof (docs/features/canvas-persistence.md, Proof items 1-7): two fresh browser
+// profiles (A and B) on one account, against the LOCAL stack only - local D1, no model calls (/api/learn/ask is aborted
+// as a guard; no composer is ever sent). Prints no secrets.
+// Usage: BASE=http://127.0.0.1:8848 SMALL_CP=http://127.0.0.1:8849 node e2e/cross-device-check.mjs [shotsDir]
+import { chromium } from '@playwright/test';
+import { mkdirSync, readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+
+const BASE = process.env.BASE || 'http://127.0.0.1:8848';
+const CP = process.env.SMALL_CP || 'http://127.0.0.1:8849';
+for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('cross-device-check runs against the local stack only');
+const SHOTS = process.argv[2] || 'cross-device-shots';
+mkdirSync(SHOTS, { recursive: true });
+const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
+const run = Date.now().toString(36);
+const sessionFor = async (email, handle) => (await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, secret, handle }) })).json()).session;
+const owner = { session: await sessionFor(`xd-owner-${run}@example.com`, `xd_${run}`) };
+const colleague = { session: await sessionFor(`xd-colleague-${run}@example.com`, `xdc_${run}`) }; // same workspace
+const stranger = { session: await sessionFor(`xd-stranger-${run}@example.org`, `xds_${run}`) }; // another workspace
+const api = async (who, path, init = {}) => { const r = await fetch(`${BASE}${path}`, { ...init, headers: { cookie: `small_session=${who.session}`, 'content-type': 'application/json' } }); const text = await r.text(); let body = null; try { body = JSON.parse(text); } catch { /* not JSON */ } return { status: r.status, text, body }; };
+const boardOf = async name => (await api(owner, `/api/learn/boards/${name}/main`)).body;
+const until = async (what, fn, timeout = 20000) => { const end = Date.now() + timeout; let last; while (Date.now() < end) { last = await fn(); if (last) return last; await new Promise(r => setTimeout(r, 400)); } throw Error(`timed out: ${what}`); };
+
+const catalog = (await api(owner, '/api/apps')).body;
+const DEVICE_A = `device-a-${run}`, DEVICE_B = `device-b-${run}`;
+const keysOf = name => { const base = `small.adaptive-canvas:${catalog.org}:${catalog.email}:${name}`; return { ink: `${base}:ink`, chat: `${base}:chat` }; };
+const newCanvas = async title => (await api(owner, '/api/canvases', { method: 'POST', body: JSON.stringify({ title, device_id: DEVICE_A }) })).body;
+
+// What browser A holds: cards, an image, a PDF, a notebook and a chat card (the shapes Learn writes; canvas-sharing-files).
+const NOTEBOOK_ID = crypto.randomUUID();
+const IPYNB = { cells: [{ cell_type: 'code', id: 'c1', metadata: {}, outputs: [], execution_count: null, source: 'from helper import triple\ntriple(3)' }], metadata: { kernelspec: { name: 'python', display_name: 'Python (Pyodide)', language: 'python' } }, nbformat: 4, nbformat_minor: 5 };
+const INK = {
+  strokes: [], shapes: [], items: [], links: [], groups: [], areas: [],
+  blocks: [
+    { id: 'e1', type: 'explanation', dx: 0, dy: 0, title: 'Why softmax uses exp', body: 'Exponentials are positive and keep the order of the logits.' },
+    { id: 'e2', type: 'explanation', dx: 0, dy: 0, title: 'The max trick', body: 'Subtract the largest logit first so nothing overflows.' },
+    { id: 'img1', type: 'file', kind: 'image', dx: 0, dy: 0, assetKey: 'drop:xd-image', label: 'red.png' },
+    { id: 'pdf1', type: 'pdf', dx: 0, dy: 0, assetKey: 'pdf:xd-pdf', label: 'tiny.pdf', h: 420 },
+    { id: 'nb1', type: 'notebook', notebook_id: NOTEBOOK_ID, language: 'python', dx: 0, dy: 0, h: 520, active_path: 'experiment.ipynb', ipynb_path: 'experiment.ipynb', ipynb: IPYNB,
+      files: ['experiment.ipynb', 'helper.py'], seed_files: { 'helper.py': 'def triple(x):\n    return 3 * x\n' } },
+  ],
+};
+const CHAT = [{ id: 'q1', question: 'Why does softmax use exp?', answer: 'Positive weights that sum to one.', status: 'done' }];
+const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+const PDF = '%PDF-1.1\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 100]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF';
+
+const browser = await chromium.launch();
+const errors = [];
+const profile = async (device, who = owner) => {
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  await context.addCookies([{ name: 'small_session', value: who.session, url: BASE }]);
+  await context.addInitScript(id => {
+    if (!localStorage.getItem('small.device')) localStorage.setItem('small.device', id);
+    window.__toasts = []; window.addEventListener('small:toast', event => window.__toasts.push(event.detail?.message ?? event.detail)); // a 3 s toast, caught when it fires
+  }, device);
+  await context.route('**/api/learn/ask**', route => route.abort()); // no model call can leave this check
+  const page = await context.newPage();
+  page.on('pageerror', error => errors.push(`${device}: ${error.message}`));
+  return { context, page };
+};
+const A = await profile(DEVICE_A), B = await profile(DEVICE_B);
+const results = [];
+const check = async (label, fn) => { await fn(); results.push(label); console.log(`ok ${label}`); };
+const shot = async (page, name) => { await page.waitForTimeout(400); await page.screenshot({ path: `${SHOTS}/${name}.png` }); console.log('shot', name); };
+const open = async (page, name, ready = '[data-tool-gutter]') => { await page.goto(`${BASE}/apps/${name}`); await page.locator(ready).first().waitFor({ timeout: 60000 }); await page.waitForTimeout(1500); };
+const local = (page, key) => page.evaluate(k => JSON.parse(localStorage.getItem(k) || 'null'), key);
+const canvasBox = page => page.locator('[aria-label="Lesson canvas"]').boundingBox();
+// One pen stroke on an empty part of the canvas: an edit through the canvas UI.
+const draw = async (page, at = 0) => {
+  await page.getByRole('button', { name: 'Pen', exact: true }).click();
+  const box = await canvasBox(page);
+  const x = box.x + box.width - 260, y = box.y + 140 + at * 40;
+  await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 120, y + 20, { steps: 8 }); await page.mouse.up();
+  await page.keyboard.press('Escape');
+};
+
+const C1 = await newCanvas(`Softmax ${run}`);
+
+await check('0 neither copy exists: another browser shows the truthful NOT_HERE state', async () => {
+  await B.page.goto(`${BASE}/apps/${C1.name}`);
+  await B.page.locator('[data-canvas-gate]').getByRole('heading', { name: "This canvas's content isn't available in this browser." }).waitFor({ timeout: 30000 });
+  assert.equal((await boardOf(C1.name)).exists, false);
+});
+await shot(B.page, '00-B-not-here-neither-copy');
+
+let hole;
+await check('1a on A: cards, an image, a PDF, a notebook, a chat card, edits and a Rabbit Hole reach the server', async () => {
+  await open(A.page, C1.name);
+  await A.page.evaluate(async ([keys, ink, chat, png, pdf]) => {
+    localStorage.setItem(keys.ink, JSON.stringify(ink)); localStorage.setItem(keys.chat, JSON.stringify(chat));
+    const bytes = base64 => Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+    const db = await new Promise((resolve, reject) => { const r = indexedDB.open('small-learn-assets', 1); r.onupgradeneeded = () => r.result.createObjectStore('assets'); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error); });
+    const put = (key, value) => new Promise((resolve, reject) => { const r = db.transaction('assets', 'readwrite').objectStore('assets').put(value, key); r.onsuccess = resolve; r.onerror = () => reject(r.error); });
+    await put('drop:xd-image', new File([bytes(png)], 'red.png', { type: 'image/png' }));
+    await put('pdf:xd-pdf', new File([pdf], 'tiny.pdf', { type: 'application/pdf' }));
+  }, [keysOf(C1.name), INK, CHAT, PNG, PDF]);
+  await open(A.page, C1.name, '[data-block-id="e1"]');
+  await until('the first server copy', async () => (await boardOf(C1.name)).version >= 1);
+  // Edits through the canvas: a duplicated card and a pen stroke.
+  await A.page.locator('[data-block-id="e2"]').first().click({ position: { x: 40, y: 14 } });
+  await A.page.keyboard.press('Control+d');
+  await draw(A.page);
+  const saved = await until('the edits on the server', async () => { const b = await boardOf(C1.name); return b.state?.blocks?.length === 6 && b.state.strokes?.length === 1 && b; });
+  assert.deepEqual(saved.state.exchanges.map(e => e.question), [CHAT[0].question]);
+  assert.equal(saved.sharing.shared, false, 'private: saved, not shared');
+  const keys = await until('the image and PDF on the server', async () => { const k = (await api(owner, `/api/learn/boards/${C1.name}/main/assets`)).body.keys; return k.includes('drop:xd-image') && k.includes('pdf:xd-pdf') && k; });
+  assert.ok(keys);
+  await shot(A.page, '01-A-made-here');
+  // A Rabbit Hole: double-click a card, then its first object (a stroke) keeps it.
+  await A.page.locator('[data-block-id="e1"]').first().dblclick({ position: { x: 40, y: 14 } });
+  await A.page.waitForURL(/[?&]hole=canvas-[a-f0-9]{8}/, { timeout: 20000 });
+  await A.page.locator('[data-tool-gutter]').waitFor(); await A.page.waitForTimeout(800);
+  await draw(A.page);
+  await A.page.waitForURL(/\/apps\/canvas-[a-f0-9]{8}$/, { timeout: 20000 });
+  hole = new URL(A.page.url()).pathname.split('/').pop();
+  await until('the hole\'s board on the server', async () => (await boardOf(hole)).state?.strokes?.length === 1);
+  // The notebook's workspace follows once the notebook has started (the real notebook, in this browser).
+  await open(A.page, C1.name, '[data-block-id="nb1"]');
+  const files = await until('the notebook workspace on the server', async () => {
+    const r = await api(owner, `/api/learn/boards/${C1.name}/main/assets/${encodeURIComponent(`notebook:${NOTEBOOK_ID}`)}`);
+    return r.status === 200 && r.body && Object.keys(r.body).includes('helper.py') && Object.keys(r.body);
+  }, 240000);
+  assert.ok(files.includes('experiment.ipynb'), files.join(','));
+});
+
+await check('1b on B (a fresh profile): everything A made is there', async () => {
+  await open(B.page, C1.name, '[data-block-id="e1"]');
+  for (const id of ['e1', 'e2', 'img1', 'pdf1', 'nb1']) assert.equal(await B.page.locator(`[data-block-id="${id}"]`).count() >= 1, true, id);
+  const ink = await local(B.page, keysOf(C1.name).ink);
+  assert.equal(ink.blocks.length, 6, 'the duplicated card too');
+  assert.equal(ink.strokes.length, 1, 'the stroke');
+  const image = B.page.locator('[data-block-id="img1"] img');
+  await image.waitFor({ timeout: 30000 });
+  assert.equal(await image.evaluate(node => node.complete && node.naturalWidth === 1), true, 'the image, loaded from the server');
+  await B.page.locator('[data-block-id="pdf1"] iframe').waitFor({ timeout: 30000 });
+  assert.equal(await B.page.getByText('This PDF is not in this browser', { exact: false }).count(), 0);
+  await B.page.getByText(CHAT[0].question).first().waitFor({ timeout: 10000 });
+  // The notebook workspace B's notebook loads into its empty workspace (NotebookCard load: the same request).
+  const workspace = await B.page.evaluate(async ([name, id]) => (await (await fetch(`/api/learn/boards/${name}/main/assets/${encodeURIComponent(`notebook:${id}`)}`)).json()), [C1.name, NOTEBOOK_ID]);
+  assert.match(workspace['helper.py']?.content || '', /def triple/);
+  assert.equal(await B.page.locator(`[data-dive-portal="${hole}"]`).count(), 1, 'the hole\'s portal on its card');
+  await shot(B.page, '02-B-everything-there');
+});
+await check('1c on B: the Rabbit Hole opens with its content', async () => {
+  await open(B.page, hole);
+  assert.equal((await local(B.page, keysOf(hole).ink)).strokes.length, 1);
+});
+
+await check('2 edit on B, then reopen A: B\'s edit is there', async () => {
+  await open(B.page, C1.name, '[data-block-id="e1"]');
+  const before = (await boardOf(C1.name)).version;
+  await draw(B.page, 1);
+  await until('B\'s stroke on the server', async () => (await boardOf(C1.name)).state.strokes.length === 2);
+  assert.equal((await boardOf(C1.name)).version, before + 1);
+  await open(A.page, C1.name, '[data-block-id="e1"]');
+  await until('the server copy replaces the copy on A', () => A.page.evaluate(() => window.__toasts.includes('You are seeing the latest saved version of this board.')));
+  assert.equal((await local(A.page, keysOf(C1.name).ink)).strokes.length, 2);
+});
+
+await check('3 concurrent edits on A and B: the second gets the 409 message, overwrites nothing and stops pushing', async () => {
+  await open(B.page, C1.name, '[data-block-id="e1"]'); // both on the same version now
+  await draw(A.page, 2);
+  const afterA = await until('A\'s stroke on the server', async () => { const b = await boardOf(C1.name); return b.state.strokes.length === 3 && b; });
+  const puts = [];
+  B.page.on('request', request => { if (request.method() === 'PUT' && new URL(request.url()).pathname === `/api/learn/boards/${C1.name}/main`) puts.push(Date.now()); }); // the board, not its files
+  await draw(B.page, 3);
+  await B.page.locator('[data-toast-error]').filter({ hasText: 'This board changed in another tab or on another device. Reload to see those changes; your newer edits here are not saved.' }).waitFor({ timeout: 15000 });
+  const now = await boardOf(C1.name);
+  assert.deepEqual([now.version, now.state.strokes.length], [afterA.version, 3], 'A\'s save stands; B\'s stale save is not written');
+  assert.equal(puts.length, 1, 'one refused PUT');
+  await shot(B.page, '03-B-conflict-409');
+  await draw(B.page, 4);
+  await B.page.waitForTimeout(3000);
+  assert.equal(puts.length, 1, 'no PUT after the 409 until reload');
+  await open(B.page, C1.name, '[data-block-id="e1"]');
+  assert.equal((await local(B.page, keysOf(C1.name).ink)).strokes.length, 3, 'reload loads the server copy');
+});
+
+await check('4 an edit on A while offline lands on reconnect', async () => {
+  await open(A.page, C1.name, '[data-block-id="e1"]');
+  // One stroke online first: the pen's lazy chunks load now, since a chunk that fails offline reloads the page (main.jsx).
+  const warm = (await boardOf(C1.name)).state.strokes.length;
+  await draw(A.page, 6);
+  const before = await until('the online stroke on the server', async () => { const b = await boardOf(C1.name); return b.state.strokes.length === warm + 1 && b; });
+  // ...and the idle warm-up's chunks (learn-warmup.js) are in before the network goes.
+  await until('the idle warm-up', () => A.page.evaluate(() => performance.getEntriesByName('rh:warmup:done').length > 0), 120000);
+  await A.context.setOffline(true);
+  await draw(A.page, 5);
+  await A.page.waitForTimeout(3500);
+  assert.equal((await boardOf(C1.name)).version, before.version, 'nothing reached the server offline');
+  assert.equal((await local(A.page, keysOf(C1.name).ink)).strokes.length, before.state.strokes.length + 1, 'kept in this browser');
+  await A.context.setOffline(false);
+  const after = await until('the offline edit on the server', async () => { const b = await boardOf(C1.name); return b.state.strokes.length === before.state.strokes.length + 1 && b; });
+  assert.equal(after.version, before.version + 1);
+});
+
+await check('5 a browser-only canvas from before this release migrates on its first open; updated_at does not move', async () => {
+  const C2 = await newCanvas(`Old notes ${run}`);
+  const created = (await api(owner, `/api/apps/${C2.name}`)).body.updated_at;
+  const ink = { ...INK, blocks: INK.blocks.slice(0, 2) };
+  await A.page.evaluate(([keys, ink, chat]) => { localStorage.setItem(keys.ink, JSON.stringify(ink)); localStorage.setItem(keys.chat, JSON.stringify(chat)); }, [keysOf(C2.name), ink, CHAT]);
+  assert.equal((await boardOf(C2.name)).exists, false, 'only in this browser');
+  await new Promise(r => setTimeout(r, 1100)); // a bump would now show as a later second
+  await open(A.page, C2.name, '[data-block-id="e1"]');
+  const migrated = await until('the migrated copy', async () => { const b = await boardOf(C2.name); return b.version && b; });
+  assert.equal(migrated.version, 1);
+  assert.deepEqual(migrated.state.blocks.map(b => b.id), ['e1', 'e2']);
+  assert.deepEqual(migrated.state.exchanges.map(e => e.id), ['q1']);
+  assert.equal((await api(owner, `/api/apps/${C2.name}`)).body.updated_at, created, 'a sync, not a meaningful change');
+  await open(A.page, C2.name, '[data-block-id="e1"]');
+  await A.page.waitForTimeout(2500);
+  assert.equal((await boardOf(C2.name)).version, 1, 'opening again saves nothing');
+  await open(B.page, C2.name, '[data-block-id="e1"]');
+});
+
+await check('6 a board over 1.9 MB is refused visibly and its local copy is kept', async () => {
+  const C3 = await newCanvas(`Huge ${run}`);
+  const ink = { ...INK, blocks: [{ ...INK.blocks[0], notes: 'x'.repeat(1_950_000) }] };
+  await A.page.evaluate(([keys, ink]) => localStorage.setItem(keys.ink, JSON.stringify(ink)), [keysOf(C3.name), ink]);
+  await open(A.page, C3.name, '[data-block-id="e1"]');
+  await A.page.locator('[data-toast-error]').filter({ hasText: 'This board is over 1.9 MB, so it was not saved to your account and stays only in this browser.' }).waitFor({ timeout: 15000 });
+  await shot(A.page, '04-A-over-cap-refused');
+  assert.equal((await boardOf(C3.name)).exists, false, 'not on the server');
+  assert.equal((await local(A.page, keysOf(C3.name).ink)).blocks[0].notes.length, 1_950_000, 'kept in this browser');
+  await draw(A.page);
+  await A.page.waitForTimeout(3000);
+  assert.equal((await A.page.locator('[data-toast-error]').filter({ hasText: 'over 1.9 MB' }).count()), 1, 'said once, not on every edit');
+});
+
+await check('7 another account cannot read the private board; Trash still suspends links', async () => {
+  for (const [who, status] of [[colleague, 403], [stranger, 404]]) {
+    for (const path of [`/api/learn/boards/${C1.name}/main`, `/api/learn/boards/${C1.name}/main/assets`, `/api/learn/boards/${C1.name}/main/assets/${encodeURIComponent('drop:xd-image')}`, `/api/learn/boards/${hole}/main`]) {
+      const read = await api(who, path);
+      assert.equal(read.status, status, path);
+      assert.ok(!read.text.includes('softmax') && !read.text.includes('Softmax'), `${path}: no content`);
+    }
+  }
+  const token = (await api(owner, `/api/learn/boards/${C1.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true }) })).body.sharing.view;
+  assert.equal((await api(stranger, `/api/learn/boards/shared/${token}`)).status, 200);
+  await api(owner, `/api/apps/${C1.name}/trash`, { method: 'POST', body: '{}' });
+  assert.equal((await api(stranger, `/api/learn/boards/shared/${token}`)).status, 404, 'Trash suspends the link');
+  await api(owner, `/api/apps/${C1.name}/untrash`, { method: 'POST', body: '{}' });
+  assert.equal((await api(stranger, `/api/learn/boards/shared/${token}`)).status, 200);
+  await api(owner, `/api/learn/boards/${C1.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: false }) });
+  assert.equal((await api(stranger, `/api/learn/boards/shared/${token}`)).status, 404, 'private again');
+});
+
+const unexpected = errors.filter(message => !/Failed to fetch|NetworkError|ERR_INTERNET_DISCONNECTED|ResizeObserver/.test(message));
+if (unexpected.length) console.log('page errors:', unexpected);
+await browser.close();
+const total = 10;
+console.log(`${results.length}/${total} checks passed`);
+process.exitCode = results.length === total && !unexpected.length ? 0 : 1;
