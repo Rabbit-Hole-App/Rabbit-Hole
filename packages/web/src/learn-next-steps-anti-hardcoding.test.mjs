@@ -180,8 +180,8 @@ const named = (code, word) => new RegExp(`(^|[^a-z0-9])${String(word).toLowerCas
 // reasoned, and pinned to the number of matches it has today. A new match (a runtime use of the course, another course import) fails,
 // and so does a strip nothing needs any more (delete it), so none of them can grow into a blind spot.
 const escaped = text => text.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
-// One named import line per module path listed (the registered course board and registry), nothing else.
-const courseImports = (...paths) => [new RegExp(`^import \\{[^}\\n]*\\} from '(?:${paths.map(escaped).join('|')})';$`, 'gm'), `the registered course imports (${paths.join(', ')})`, paths.length];
+// The registered course board and registry imports, each pinned as its exact full line: a new name, an alias or another line fails.
+const courseImports = (...lines) => [new RegExp(`^(?:${lines.map(escaped).join('|')})$`, 'gm'), `the registered course imports (${lines.map(line => line.match(/from '([^']*)'/)[1]).join(', ')})`, lines.length];
 // The default domain parameter only (in a parameter list or a destructuring), never a runtime assignment.
 const courseDefault = count => [/(?<=[({,]\s*)domain = NANOGPT(?=\s*[,})])/g, 'the default domain parameter is the registered course', count];
 // Scanned: the modules Professor Next Steps and the Auto Tutor added or changed. Not scanned, on purpose: the course registry files
@@ -192,9 +192,10 @@ const SCANNED = [
   ['../../control-plane/src/learn-tutor-handoff.js'], ['./learn-tutor-actions.js'], ['../../control-plane/src/agents/learn-labels.js'],
   ['./LearnTutor.jsx'], ['../../control-plane/src/learn-journey-planners.js'], ['../../control-plane/src/learn-tutor-routes.js'], ['./learn-journey-domain.js'],
   ['../../control-plane/src/learn-boards.js'], ['../../control-plane/src/learn-shared-ask.js'], ['./voice-session.js'], ['./LearnVoice.jsx'], ['../../control-plane/src/learn-models.js'],
-  ['./learn-tutor.js', courseImports('./nanogpt/board.js', './nanogpt/depth/board.js', './learn-tutor-claims.js'), courseDefault(10)],
-  ['./learn-tutor-validate.js', courseImports('./nanogpt/depth/board.js', './learn-tutor-claims.js'), courseDefault(2)],
-  ['./learn-tutor-evidence.js', courseImports('./learn-tutor-claims.js'), courseDefault(1)],
+  ['./learn-tutor.js', courseImports("import { cardBlock } from './nanogpt/board.js';", "import { partIndex } from './nanogpt/depth/board.js';",
+    "import { NANOGPT, cardModule, claimsOfConceptIn, holeConcept, partLabels } from './learn-tutor-claims.js';"), courseDefault(10)],
+  ['./learn-tutor-validate.js', courseImports("import { NANOGPT } from './learn-tutor-claims.js';", "import { partIndex } from './nanogpt/depth/board.js';"), courseDefault(2)],
+  ['./learn-tutor-evidence.js', courseImports("import { CLAIMS, NANOGPT, claimsOfConceptIn } from './learn-tutor-claims.js';"), courseDefault(1)],
   ['../../control-plane/src/agents/learn-tutor.js',
     [/^\s*'You are the Tutor on a Rabbit Hole learning canvas about nanoGPT attention\. You compose ONE turn\.',$/gm, 'LINES[0], the registered course subject line; the journey and canvas prompts leave it out', 1],
     [/(?<=[(,]\s*)kind = 'nanogpt'(?=\s*[,)])/g, 'the default prompt kind parameter is the registered course', 1],
@@ -212,7 +213,7 @@ test('no registry labels, card ids or titles, claim ids, topic words, fixture id
     let code = strip(source(file));
     for (const [pattern, reason, count] of strips) {
       const found = (code.match(pattern) || []).length;
-      assert.equal(found, count, `${file}: the strip for ${reason} matches ${found} time(s), pinned at ${count} (0: delete the strip; more: review the new use of the course)`);
+      assert.equal(found, count, `${file}: the strip for ${reason} matches ${found} time(s), pinned at ${count} (more: a new use of the course; fewer: an exact line changed, so a new name or alias; either way review it; 0: delete the strip)`);
       code = code.replace(pattern, '');
     }
     code = code.toLowerCase();
