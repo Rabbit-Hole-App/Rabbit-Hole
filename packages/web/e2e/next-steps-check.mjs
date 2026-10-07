@@ -243,15 +243,21 @@ const TRACE = {
   identity: ['user_id', 'session_id', 'canvas_id', 'board_id', 'canvas_version', 'journey_id', 'section_id', 'dive_id', 'source', 'scope', 'mode'],
   versions: ['planner_version', 'prompt_version', 'model_role', 'model_id'],
   decision: ['current_goal', 'current_section_id', 'target_concept_ids', 'target_claim_ids', 'evidence_summary', 'evidence_transitions', 'canvas_summary', 'recent_modality_history', 'next_step_options', 'shown_at', 'selected_next_step_id', 'selected_at', 'route', 'chosen_action', 'actions', 'reason_codes', 'reason_source', 'rationale_summary', 'expected_evidence', 'estimated_learning_seconds',
-    'intent_mode', 'inferred_intent', 'explicit_modality_override', 'intent_status', 'clarification_requested', 'grounding_status', 'source_types_used', 'research_offered', 'research_executed'],
+    'intent_mode', 'inferred_intent', 'explicit_modality_override', 'intent_status', 'clarification_requested', 'grounding_status', 'source_types_used', 'research_offered', 'research_executed', 'offered_actions'],
   runtime: ['timing', 'model', 'usage', 'validation', 'planner_input', 'handoff'],
 };
+// Task 14 fix pass, trace_schema_version stays 1 (coordinator ruling): v1 is the key set at the integration checkpoint - decision has
+// 30 keys, offered_actions last (the actions whose offer the router decided this turn, in a fixed order; [] on hook events and
+// plan:false turns), and runtime.handoff has 9 keys, prompt_version last (the reader prompt version; null for invalid_action and
+// when the route reports none). Any later key change bumps the version.
+const DECISION_KEYS = 30, HANDOFF_KEYS = 'started_at,completed_at,ms,outcome,failure,model_id,usage,tool_errors,prompt_version';
 async function n3() {
   const e = state.turn?.trace;
   if (!e) return record('N3 trace', 'FAIL', state.turn ? 'runTurn returned no trace' : 'no turn from N2');
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   const wrong = Object.entries(TRACE).filter(([part, list]) => !same(Object.keys(part === 'top' ? e : e[part] || {}), list)).map(([part]) => part);
-  check('N3 event keys', !wrong.length && e.trace_schema_version === 1 && e.event === 'tutor_decision', 'tutor_decision v1 with exactly the contract keys at every level', `keys differ at ${wrong.join(', ') || 'none'}; version ${e.trace_schema_version}, event ${e.event}`);
+  check('N3 event keys', !wrong.length && e.trace_schema_version === 1 && e.event === 'tutor_decision' && Object.keys(e.decision).length === DECISION_KEYS, `tutor_decision v1 with exactly the contract keys at every level (decision ${DECISION_KEYS} keys, offered_actions last)`,
+    `keys differ at ${wrong.join(', ') || 'none'}; version ${e.trace_schema_version}, event ${e.event}, decision ${Object.keys(e.decision || {}).length} keys`);
   const text = JSON.stringify(e);
   check('N3 no learner text', !text.includes(REQUEST) && !text.includes(CANNED) && !/reason_internal|"fixture /.test(text), 'neither the learner words the turn carried, the reply nor reason_internal (or its fixture value) is in the event', 'the event carries learner or reply text');
   check('N3 journey identity', e.identity?.journey_id === state.journey.id && e.decision?.selected_next_step_id === state.journey.step.suggestion_id,
@@ -541,12 +547,12 @@ async function n11() {
   const c = state.canvas, request = 'the latest approaches to long-context attention', plan = planOf(say(CANNED), { type: 'suggest_research', request });
   const off = await autoTurn(c, { raw: AUTO_RAW, plan, openResearch: null });
   check('N11 not allowed without openResearch', !off.context?.allowed_actions?.includes('suggest_research') && off.result.actions.every(a => a.type !== 'suggest_research') && off.decision?.research_offered === false
-    && !chipsOf([{ type: 'suggest_research', request }], off.domain, { openResearch: null }).length,
+    && !off.decision?.offered_actions?.includes('suggest_research') && !chipsOf([{ type: 'suggest_research', request }], off.domain, { openResearch: null }).length,
     'with no openResearch suggest_research is not in allowed_actions, a plan offering it is cut, and it makes no chip', `allowed ${off.context?.allowed_actions?.join(',')}; actions ${off.result.actions.map(a => a.type).join(',')}; research_offered ${off.decision?.research_offered}`);
   const opened = [], openResearch = text => opened.push(text), on = await autoTurn(c, { raw: AUTO_RAW, plan, openResearch });
   const chips = chipsOf(on.result.actions, on.domain, { openResearch });
   chips[0]?.run();
-  check('N11 allowed with openResearch', on.context?.allowed_actions?.includes('suggest_research') && on.decision?.research_offered === true && on.decision.research_executed === false && ONLY_PLAN(on.routes)
+  check('N11 allowed with openResearch', on.context?.allowed_actions?.includes('suggest_research') && on.decision?.research_offered === true && on.decision.research_executed === false && ONLY_PLAN(on.routes) && on.decision.offered_actions?.includes('suggest_research')
     && chips.length === 1 && chips[0].label === 'Research this' && opened.length === 1 && opened[0] === request,
     'control: with openResearch it is allowed, one Research this chip calls openResearch(request), and the turn itself researched nothing', `allowed ${on.context?.allowed_actions?.join(',')}; chips ${chips.map(x => x.label).join(' | ') || 'none'}; opened ${opened.length}; requests ${on.routes.join(', ')}`);
 }
@@ -636,6 +642,9 @@ const handoffPlan = (...before) => ({ ...PLAN, grounding_status: 'grounded', sou
 const plannerReq = context => plannerRequest(context, 2000);
 const toolTypes = context => plannerReq(context).tools[0].input_schema.properties.actions.items.properties.type.enum;
 const bodyOf = (sent, route) => sent.find(s => s.route === route)?.body;
+// decision.offered_actions (Task 14 D-M3): the conditional actions the router offered this turn, in the fixed order handoff,
+// suggest_journey, suggest_research, create_material - structural, so the evaluator can compute missed-offer rates from events.
+const offeredOf = turn => turn.decision?.offered_actions?.join();
 
 // N17: the handoff is offered from the canvas's repository state, never from the words.
 async function n17() {
@@ -647,10 +656,10 @@ async function n17() {
     // A plain canvas: not offered, so not in the tool or the prompt, and a plan that carries one has it cut; the route is never called.
     const none = await autoTurn(plain, { raw, plan: handoffPlan(say(LEAD)) }), c = none.context;
     if (!c || c.allowed_actions.includes('handoff') || toolTypes(c).includes('handoff') || plannerReq(c).system.includes(HANDOFF_SYSTEM)
-      || none.result.actions.some(a => a.type === 'handoff') || !ONLY_PLAN(none.routes) || none.result.trace?.runtime?.handoff !== null) problems.plain.push(`${words}: allowed ${c?.allowed_actions?.join(',')}; requests ${none.routes.join(',')}`);
+      || none.result.actions.some(a => a.type === 'handoff') || !ONLY_PLAN(none.routes) || none.result.trace?.runtime?.handoff !== null || offeredOf(none) !== 'suggest_journey,create_material') problems.plain.push(`${words}: allowed ${c?.allowed_actions?.join(',')}; offered_actions ${offeredOf(none)}; requests ${none.routes.join(',')}`);
     // A repository canvas: offered, in the tool and the prompt; a plan that does not choose it hands nothing off.
     const some = await autoTurn(repo, { raw, plan: PLAN }), d = some.context;
-    if (!d || !d.allowed_actions.includes('handoff') || !toolTypes(d).includes('handoff') || !plannerReq(d).system.includes(HANDOFF_SYSTEM) || !ONLY_PLAN(some.routes) || some.result.trace?.runtime?.handoff !== null) problems.repository.push(`${words}: allowed ${d?.allowed_actions?.join(',')}; requests ${some.routes.join(',')}`);
+    if (!d || !d.allowed_actions.includes('handoff') || !toolTypes(d).includes('handoff') || !plannerReq(d).system.includes(HANDOFF_SYSTEM) || !ONLY_PLAN(some.routes) || some.result.trace?.runtime?.handoff !== null || offeredOf(some) !== 'handoff,suggest_journey,create_material') problems.repository.push(`${words}: allowed ${d?.allowed_actions?.join(',')}; offered_actions ${offeredOf(some)}; requests ${some.routes.join(',')}`);
   }
   check('N17 plain canvas, code words', !problems.plain.length, 'a canvas with no repository context: handoff is not in allowed_actions, the derived tool or the prompt, with or without code words in the message; a plan carrying one is cut and no handoff request is made', problems.plain.join(' | '));
   check('N17 repository canvas', !problems.repository.length, 'a repo-* canvas: handoff is in allowed_actions, the derived tool and the prompt, with or without code words; a plan that does not choose it makes no handoff request', problems.repository.join(' | '));
@@ -671,17 +680,26 @@ async function n18() {
   check('N18 trace action', chosen?.action_type === 'handoff' && chosen.capability === 'repository_context' && listed === 'respond_text/null,handoff/repository_context',
     'chosen_action and actions: action_type handoff with capability repository_context, after the respond_text lead-in', `chosen ${chosen?.action_type}/${chosen?.capability}; actions ${listed}`);
   // tool_errors (fix round 1, coordinator ruling): the route's own count of failed source reads, null when it reports none.
-  const reported = sent.find(s => s.route === HANDOFF)?.reply?.telemetry?.tool_errors ?? null;
-  check('N18 runtime.handoff', Object.keys(h || {}).join() === 'started_at,completed_at,ms,outcome,failure,model_id,usage,tool_errors' && h.outcome === 'failed' && h.failure === 'no_repository_context' && h.model_id === null
-    && [0, null].includes(h.tool_errors) && h.tool_errors === reported,
-    `runtime.handoff: outcome failed, failure no_repository_context, no model served, tool_errors ${h?.tool_errors} as the route reported it`, `runtime.handoff ${JSON.stringify(h && { keys: Object.keys(h), outcome: h.outcome, failure: h.failure, model_id: h.model_id, tool_errors: h.tool_errors })}; route reported ${reported}`);
-  // The handoff is the chosen action whenever one ran, even beside material or a learning-path offer (fix round 1, B-I3).
-  const beside = [['create_material', { type: 'create_material', command: 'whiteboard', request: 'how bread dough rises' }], ['suggest_journey', { type: 'suggest_journey', request: 'logistic regression' }]], misses = [];
-  for (const [type, extra] of beside) {
-    const turn = await autoTurn(c, { raw: CODE_WORDS, repository: true, plan: handoffPlan(say(LEAD), extra) }), pick = turn.decision?.chosen_action;
-    if (pick?.action_type !== 'handoff' || pick.capability !== 'repository_context' || !turn.decision.actions.some(a => a.action_type === type)) misses.push(`${type}: chosen ${pick?.action_type}/${pick?.capability}; actions ${turn.decision?.actions?.map(a => a.action_type).join(',')}`);
-  }
-  check('N18 chosen_action beside other actions', !misses.length, 'with a create_material or a suggest_journey in the same plan, chosen_action is still the handoff (and the other action is listed)', misses.join(' | '));
+  // prompt_version (Task 14 A-M4): the reader prompt version the route reports, null when it reports none.
+  const telemetry = sent.find(s => s.route === HANDOFF)?.reply?.telemetry, reported = telemetry?.tool_errors ?? null, promptVersion = telemetry?.prompt_version ?? null;
+  check('N18 runtime.handoff', Object.keys(h || {}).join() === HANDOFF_KEYS && h.outcome === 'failed' && h.failure === 'no_repository_context' && h.model_id === null
+    && [0, null].includes(h.tool_errors) && h.tool_errors === reported && h.prompt_version === promptVersion && (promptVersion === null || typeof promptVersion === 'string'),
+    `runtime.handoff (9 keys, prompt_version last): outcome failed, failure no_repository_context, no model served, tool_errors ${h?.tool_errors} and prompt_version ${h?.prompt_version === null ? 'null' : 'set'} as the route reported them`,
+    `runtime.handoff ${JSON.stringify(h && { keys: Object.keys(h), outcome: h.outcome, failure: h.failure, model_id: h.model_id, tool_errors: h.tool_errors, prompt_version: h.prompt_version })}; route reported tool_errors ${reported}, prompt_version ${promptVersion}`);
+  // The handoff is the chosen action whenever one ran, even beside a learning-path offer (fix round 1, B-I3), which stays listed.
+  const offer = await autoTurn(c, { raw: CODE_WORDS, repository: true, plan: handoffPlan(say(LEAD), { type: 'suggest_journey', request: 'logistic regression' }) }), offerPick = offer.decision?.chosen_action;
+  check('N18 chosen_action beside an offer', offerPick?.action_type === 'handoff' && offerPick.capability === 'repository_context' && offer.decision.actions.some(a => a.action_type === 'suggest_journey'),
+    'with a suggest_journey in the same plan, chosen_action is still the handoff and the offer is still listed', `chosen ${offerPick?.action_type}/${offerPick?.capability}; actions ${offer.decision?.actions?.map(a => a.action_type).join(',')}`);
+  // Task 14 B-I2: a handoff with no answer (failed, refused, limited, invalid_action) drops the create_material planned beside it, so a
+  // reply saying the source could not be retrieved never comes with a card made from the request alone. The handoff stays the chosen
+  // action; the drop is recorded as a decision at stage handoff, counted in validation.dropped_actions, and runMaterials has nothing
+  // to run. (With an answered handoff the material is kept: that needs a model and is not checked here.)
+  const material = await autoTurn(c, { raw: CODE_WORDS, repository: true, plan: handoffPlan(say(LEAD), { type: 'create_material', command: 'whiteboard', request: 'how bread dough rises' }) }), materialPick = material.decision?.chosen_action;
+  const dropped = material.result.decisions.filter(d => !d.accepted && d.type === 'create_material');
+  check('N18 failed handoff drops its material', materialPick?.action_type === 'handoff' && !material.result.actions.some(a => a.type === 'create_material') && !material.decision.actions.some(a => a.action_type === 'create_material')
+    && dropped.length === 1 && dropped[0].stage === 'handoff' && dropped[0].reason === 'the handoff returned no source' && material.result.trace.runtime.validation.dropped_actions >= 1 && material.routes.every(route => route !== '/api/learn/artifact'),
+    'with a create_material beside a handoff that returned no source, the material is dropped (stage handoff, counted in validation.dropped_actions), the handoff is still the chosen action, and no artifact request is made',
+    `chosen ${materialPick?.action_type}; actions ${material.decision?.actions?.map(a => a.action_type).join(',')}; dropped ${JSON.stringify(dropped.map(d => [d.stage, d.reason]))}; dropped_actions ${material.result.trace?.runtime?.validation?.dropped_actions}`);
   check('N18 grounding', decision?.grounding_status === 'retrieval_failed' && decision.source_types_used?.join() === 'canvas',
     'grounding_status retrieval_failed, source_types_used canvas: the planner declared grounded and repository, and the failure overrode both', `grounding_status ${decision?.grounding_status}, source_types_used ${decision?.source_types_used?.join()}`);
   const numbers = ['planner_ms', 'handoff_ms', 'blocking_wait_ms', 'first_text_ms'].map(k => timing?.[k]);
@@ -786,7 +804,8 @@ async function n21() {
     const { result, routes, context, decision } = await autoTurn(c, { raw: CODE_WORDS, repository: true, plan: planWith(handoff, say(LEAD)) });
     const h = result.trace?.runtime?.handoff;
     const fine = context?.allowed_actions?.includes('handoff') && ONLY_PLAN(routes) && result.text === `${LEAD}\n\n${HANDOFF_FAILED}` && !result.actions.some(a => a.type === 'handoff')
-      && JSON.stringify(h && { ms: h.ms, outcome: h.outcome, failure: h.failure, model_id: h.model_id, usage: h.usage, tool_errors: h.tool_errors }) === JSON.stringify({ ms: 0, outcome: 'failed', failure: 'invalid_action', model_id: null, usage: null, tool_errors: null })
+      && Object.keys(h || {}).join() === HANDOFF_KEYS
+      && JSON.stringify(h && { ms: h.ms, outcome: h.outcome, failure: h.failure, model_id: h.model_id, usage: h.usage, tool_errors: h.tool_errors, prompt_version: h.prompt_version }) === JSON.stringify({ ms: 0, outcome: 'failed', failure: 'invalid_action', model_id: null, usage: null, tool_errors: null, prompt_version: null })
       && decision.grounding_status === 'retrieval_failed' && decision.source_types_used?.join() === 'canvas';
     if (!fine) bad.push(`${name}: requests ${routes.join(',')}; failure ${h?.failure}; grounding ${decision?.grounding_status}; reply ${result.text === `${LEAD}\n\n${HANDOFF_FAILED}`}`);
   }
