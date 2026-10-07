@@ -48,7 +48,9 @@ export function deviceId(storage) {
 }
 
 // Learn, or the NOT_HERE state below (T02 §8.3). A record with no
-// device id predates device ids and opens as before.
+// device id predates device ids and opens as before. The canvas route (CanvasPage.jsx) also opens a canvas whose
+// board is on the server (docs/features/canvas-persistence.md); Home and the Library still read this alone, so their
+// browser warnings stay until the cross-device proof retires them.
 export const opensHere = ({ storage, keys, record }) =>
   hasLocalContent(storage, keys) || record.device_id == null || record.device_id === deviceId(storage);
 

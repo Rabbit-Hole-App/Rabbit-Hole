@@ -1,8 +1,8 @@
 // CANVAS destination (WP6): /apps/canvas-<id> opens Learn directly under one light row. The gate is decided once,
 // before Learn mounts: Learn writes empty keys on mount (canvas-local.js), and an empty editable copy of content
 // made elsewhere would look like lost work (T02 §8.3).
-import { useState } from 'react';
-import { navigate } from './api.js';
+import { useEffect, useState } from 'react';
+import { api, navigate } from './api.js';
 import { Button } from './ui.jsx';
 import LearnPage from './LearnPage.jsx';
 import { titleOf } from './agent/catalog.js';
@@ -10,7 +10,16 @@ import { canvasKeys, NOT_HERE, NOT_HERE_WHY, opensHere } from './home/canvas-loc
 
 // ponytail: T02 §8.3 [New canvas here] and [About local-only storage] are left out; add them when asked.
 export function CanvasLearn({ app, project, onMap = null }) { // callers key it by canvas: the decision is made once per mount
-  const [here] = useState(() => opensHere({ storage: localStorage, keys: canvasKeys({ org: app.org, email: app.email || app.owner_email, slug: app.name }), record: app })); // LearnPage.jsx:143's key
+  // The canvas opens when this browser has its content (or made it), or when the server has its board
+  // (docs/features/canvas-persistence.md): NOT_HERE only when neither copy exists. The server is asked only when needed.
+  const [here, setHere] = useState(() => opensHere({ storage: localStorage, keys: canvasKeys({ org: app.org, email: app.email || app.owner_email, slug: app.name }), record: app }) || null); // LearnPage.jsx:143's key
+  useEffect(() => {
+    if (here !== null) return undefined;
+    let live = true;
+    api(`/api/learn/boards/${encodeURIComponent(app.name)}/main`).then(data => data.exists !== false, () => false).then(found => { if (live) setHere(found); });
+    return () => { live = false; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  if (here === null) return <main className="min-w-0 flex-1" />;
   if (here) return <LearnPage app={app} onMap={onMap} />;
   return <main data-canvas-gate className="min-w-0 flex-1 overflow-auto"><div className="mx-auto max-w-md px-6 pt-[18vh] text-center">
     <h1 className="text-lg font-semibold">{NOT_HERE}</h1>

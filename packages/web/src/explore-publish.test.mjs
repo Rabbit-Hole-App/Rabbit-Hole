@@ -38,7 +38,7 @@ test('the Share panel: Publish to Explore is its own action, says it is public a
 test('Publish pushes the board first, only for a top-level canvas, and a missing handle asks for one and carries on', () => {
   const learn = read('./LearnPage.jsx');
   const fn = learn.slice(learn.indexOf('const changePublication = async publish => {'), learn.indexOf('const changeRepositoryAccess'));
-  assert.match(fn, /if \(publish\) \{\n\s+await pushQueue\(async \(\) => \{\n\s+const saved = await api\(boardPath, \{ method: 'PUT'/);
+  assert.match(fn, /if \(publish\) \{\n\s+await pushQueue\(saveBoard\);\n\s+await syncAssets\(\);/, 'the board PUT, through the push queue, then its files');
   assert.match(fn, /api\(`\/api\/apps\/\$\{app\.name\}\/\$\{publish \? 'publish' : 'unpublish'\}`, \{ method: 'POST', body: '\{\}' \}\)/);
   assert.match(fn, /if \(error\.status === 409 && error\.data\?\.needsHandle\) setChoosingHandle\(true\);/);
   assert.match(learn, /onPublish=\{isCanvas && !hole && !board \? changePublication : null\}/);
@@ -55,9 +55,11 @@ test('Explore lists the published canvases: title, the creator @handle, the cano
   assert.doesNotMatch(explore, /email|ranking|sort\(/i, 'no email; the server\'s order, no client ranking');
 });
 
+// Every owned board is on the server now (docs/features/canvas-persistence.md), so its files and notebook workspaces are
+// too; only a review board (?board=) still waits for sharing, where a publication counts as shared.
 test('a published board keeps its files and notebook workspaces live too, not only its board', () => {
   const learn = read('./LearnPage.jsx');
-  assert.match(learn, /save: \(id, files\) => \(sharingOf\(sharingRef\.current\) === 'shared'/);
-  assert.match(learn, /if \(!sharingNow && sharingOf\(sharingRef\.current\) !== 'shared'\) return; \/\/ shared, or published to Explore/);
+  assert.match(learn, /save: \(id, files\) => \(\(!board \|\| sharingOf\(sharingRef\.current\) === 'shared'\) && boardVersion\.current != null && !boardStopped\.current/);
+  assert.match(learn, /\/\/ Runs after a board PUT, so the board has its server row\.\n\s+const syncAssets = async \(\) => \{\n\s+try \{/);
   assert.doesNotMatch(learn, /sharingRef\.current\?\.shared/, 'no gate that forgets a publication');
 });

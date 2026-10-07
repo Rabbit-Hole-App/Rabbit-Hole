@@ -47,7 +47,7 @@ import ForkButton from './ForkButton.jsx';
 import { ForkedFrom } from './home/Provenance.jsx';
 import { cardModel } from './home/provenance.js';
 import { hasLocalContent } from './home/canvas-local.js';
-import { serial, sharingOf } from './canvas-persist.js';
+import { boardText, serial, sharingOf } from './canvas-persist.js';
 
 const LearnNotes = lazy(() => import('./LearnNotes.jsx'));
 const boardSlug = name => String(name).toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 32) || 'test';
@@ -538,9 +538,9 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
   // A pending Rabbit Hole's asks carry its parent and title: it has no canvas row until its first object (Dive.jsx).
   const askScope = hole ? { app: app.name, pending: { parent: hole.parent, title: app.title } } : { app: app.name };
   const canvasApi = useRef(null);
-  // Sharing (docs/features/canvas-sharing.md): the board is saved on the
-  // server while it is shared, so its links show the latest version. A newer
-  // copy saved through an edit link replaces this browser's copy on open.
+  // The server is the source of truth for every owned board (docs/features/canvas-persistence.md): each is saved there,
+  // and a newer server copy replaces this browser's on open. This browser keeps the instant copy, the offline queue and
+  // the cache. Review boards (?board=, dev tooling) are saved there only while shared (canvas-sharing.md).
   const boardName = board || 'main';
   // /dive: nested Rabbit Holes from the selected card (docs/features/dive-v1.md). A hole opened on an active journey
   // carries its journey context (LP1 Task 14); `journey` (below) is read when the dive starts, not during render.
@@ -603,24 +603,31 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
   const sharingRef = useRef(null);
   sharingRef.current = sharing;
   const boardVersion = useRef(null);
+  // The board's server state (docs/features/canvas-persistence.md): its GET answered, so a PUT knows the version it is
+  // based on; the boardText the server holds at boardVersion; an edit not on the server yet (offline, or refused); a 409,
+  // which stops pushing until reload; and the last refusal shown, so an over-cap board says so once, not on every edit.
+  const boardLoaded = useRef(false), boardSynced = useRef(null), boardUnsynced = useRef(false), boardStopped = useRef(false), boardRefused = useRef(null);
   const exchangesRef = useRef(exchanges);
   exchangesRef.current = exchanges;
+  const sourcesRef = useRef(sources);
+  sourcesRef.current = sources;
   const versionKey = `${boardStorageKey}:v`;
+  // The sources list rides with the main board (canvas-persistence.md); a review board has none of its own.
   const boardSnapshot = () => {
     let state = {};
     try { state = JSON.parse(localStorage.getItem(boardStorageKey) || '{}'); } catch { /* an unreadable copy shares as empty */ }
-    return { ...state, exchanges: exchangesRef.current };
+    return { ...state, exchanges: exchangesRef.current, ...(board ? {} : { sources: sourcesRef.current }) };
   };
   // Board files follow the board: this page's cards read the server copy when
-  // this browser has none, and while shared or published to Explore, any file not yet uploaded goes up.
+  // this browser has none, and once the board is on the server, any file not yet uploaded goes up.
   useEffect(() => {
     setRemoteAssets(key => fetch(`${boardPath}/assets/${encodeURIComponent(key)}`, { headers: wsHeaders() }));
-    // Notebook workspaces: saved while shared or published; loaded only into an empty
-    // workspace (this owner on another browser), never over local files.
+    // Notebook workspaces: saved once the board has its server row (a review board: while shared or published), and
+    // not after a 409; loaded only into an empty workspace (this owner on another browser), never over local files.
     const workspaceUrl = id => `${boardPath}/assets/${encodeURIComponent(`notebook:${id}`)}`;
     setWorkspaceStore({
       load: id => fetch(workspaceUrl(id), { headers: wsHeaders() }).then(response => (response.ok ? response.json() : null)).catch(() => null),
-      save: (id, files) => (sharingOf(sharingRef.current) === 'shared'
+      save: (id, files) => ((!board || sharingOf(sharingRef.current) === 'shared') && boardVersion.current != null && !boardStopped.current
         ? fetch(workspaceUrl(id), { method: 'PUT', body: JSON.stringify(files), headers: { 'Content-Type': 'text/x-cached-string', 'X-Asset-Kind': 'string', ...wsHeaders() } }).catch(() => null)
         : null),
       fresh: false,
@@ -629,9 +636,8 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
   }, [boardPath]);
   const uploadedAssets = useRef(null);
   useEffect(() => { uploadedAssets.current = null; }, [boardPath]);
-  // `sharingNow`: the caller already knows it is shared (the state has not caught up).
-  const syncAssets = async (sharingNow = false) => {
-    if (!sharingNow && sharingOf(sharingRef.current) !== 'shared') return; // shared, or published to Explore
+  // Runs after a board PUT, so the board has its server row.
+  const syncAssets = async () => {
     try {
       if (!uploadedAssets.current) uploadedAssets.current = new Set((await api(`${boardPath}/assets`)).keys);
       for (const key of assetKeysOf(boardSnapshot())) {
@@ -640,7 +646,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
         if (value == null) continue;
         const blob = typeof value === 'string' ? new Blob([value], { type: 'text/x-cached-string' }) : value;
         uploadedAssets.current.add(key);
-        if (blob.size > 25 * 1024 * 1024) { toast(`${blob.name || 'A file'} is over 25 MB, so it stays in your browser and others will not see it.`); continue; }
+        if (blob.size > 25 * 1024 * 1024) { toast(`${blob.name || 'A file'} is over 25 MB, so it was not saved to your account and stays only in this browser.`); continue; }
         const response = await fetch(`${boardPath}/assets/${encodeURIComponent(key)}`, {
           method: 'PUT', body: blob,
           headers: { 'Content-Type': blob.type || 'application/octet-stream', ...(typeof value === 'string' ? { 'X-Asset-Kind': 'string' } : {}), ...wsHeaders() },
@@ -649,62 +655,110 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
       }
     } catch { /* tried again after the next save */ }
   };
+  // A pending Rabbit Hole has no canvas row, so its board GET is refused; once its first object keeps it, ask again.
+  const [boardLoad, setBoardLoad] = useState(0);
+  useEffect(() => { if (hole && !dive.pending) setBoardLoad(load => load + 1); }, [dive.pending]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Hydration (docs/features/canvas-persistence.md, Load): the canvas has rendered this browser's copy; the server's answer
+  // decides. None: this browser's content becomes its first server copy (version 1; saveOwn moves no updated_at). Newer
+  // than this browser's base: it replaces this browser's copy. The same version: edits made here since (offline) go up.
   useEffect(() => {
     let live = true;
+    boardLoaded.current = false; boardSynced.current = null; boardStopped.current = false;
     api(boardPath).then(data => {
       if (!live) return;
       setSharing(data.sharing);
-      if (data.exists === false) return; // never saved on the server
-      boardVersion.current = data.version;
-      const mine = Number(localStorage.getItem(versionKey) || 0);
-      // A newer server copy wins when this browser has none (a fork, or this
-      // board on another device) or someone else saved it. Empty keys are not
-      // a copy: the canvas writes them on mount, before a slow reply lands.
+      boardLoaded.current = true;
+      // Empty keys are not a copy: the canvas writes them on mount, before a slow reply lands.
       const hasLocal = hasLocalContent(localStorage, { ink: boardStorageKey, chat: chatKey });
-      if (data.version > mine && (!hasLocal || (data.sharing.shared && data.updated_by !== (app.email || app.owner_email)))) {
-        const { exchanges: chats, ...state } = data.state || {};
-        try { localStorage.setItem(boardStorageKey, JSON.stringify(state)); localStorage.setItem(versionKey, String(data.version)); } catch { /* keep the local copy */ }
-        if (Array.isArray(chats)) setExchanges(chats);
-        setCanvasEpoch(epoch => epoch + 1);
-        // A Rabbit Hole just started from a shared canvas opens on its one anchor card (docs/features/shared-canvas-rabbit-hole.md).
-        const startedFromShare = data.version === 1 && data.state?.blocks?.[0]?.anchor?.source === 'shared';
-        toast(data.forked_from ? `Your fork of ${data.forked_from.title} is ready. It is yours to edit.` : startedFromShare ? 'Your Rabbit Hole is ready. It is private to you.' : 'You are seeing the latest saved version of this board.');
+      if (data.exists === false) {
+        boardVersion.current = null;
+        if (hasLocal) pushBoard(null, { now: true });
+        return;
       }
+      boardVersion.current = data.version;
+      boardSynced.current = boardText(data.state);
+      const mine = Number(localStorage.getItem(versionKey) || 0);
+      if (data.version <= mine) {
+        if (boardText(boardSnapshot()) !== boardSynced.current) pushBoard();
+        return;
+      }
+      const { exchanges: chats, sources: list, ...state } = data.state || {};
+      try {
+        // ponytail: what the server copy replaces is kept under :replaced (no UI) when it held other content, so content
+        // that never reached the server is recoverable by hand; a restore action is a product choice, not made here.
+        if (hasLocal && boardText(boardSnapshot()) !== boardSynced.current) localStorage.setItem(`${boardStorageKey}:replaced`, JSON.stringify(boardSnapshot()));
+        localStorage.setItem(boardStorageKey, JSON.stringify(state)); localStorage.setItem(versionKey, String(data.version));
+      } catch { /* keep the local copy */ }
+      if (Array.isArray(chats)) setExchanges(chats);
+      if (!board && Array.isArray(list)) setSources(list);
+      setCanvasEpoch(epoch => epoch + 1);
+      // A Rabbit Hole just started from a shared canvas opens on its one anchor card (docs/features/shared-canvas-rabbit-hole.md).
+      const startedFromShare = data.version === 1 && data.state?.blocks?.[0]?.anchor?.source === 'shared';
+      toast(data.forked_from ? `Your fork of ${data.forked_from.title} is ready. It is yours to edit.` : startedFromShare ? 'Your Rabbit Hole is ready. It is private to you.' : 'You are seeing the latest saved version of this board.');
     }).catch(error => { if (live) setSharing(error.status === 404 ? (error.data?.sharing || { shared: false }) : { unavailable: error.message }); })
       .finally(() => { if (live) setRestoredBoard(boardPath); });
     return () => { live = false; };
-  }, [boardPath]);
+  }, [boardPath, boardLoad]);
   // The journey's section materializer reads the canvas for a section an earlier visit drew (ruling C-3): only once the
   // board is restored and the canvas has reported (onCanvasState runs after it published canvasApi), never an empty
   // canvas before the restore, which would get a second heading. canvasReady acts once per board.
   useEffect(() => { if (restoredBoard === boardPath) journey.canvasReady?.(); }, [restoredBoard, boardPath, canvasState, journey.canvasReady]);
   const pushTimer = useRef(null);
-  // A shared board's server copy, 1500 ms after the last change. `now` (the canvas's persist(), LP1 Task 15): the PUT at
-  // once, awaited, 'ok' or 'failed' - a journey section is recorded only once its board is saved. 'skipped': not shared;
-  // a board whose sharing is unknown (its GET has not answered, or failed) may be shared, so an immediate push fails.
+  // One PUT of this browser's board, run inside pushQueue: based on the version the server last answered, or 0 when it
+  // had none (so a row made meanwhile elsewhere is a 409, never overwritten); none at all when the server already holds
+  // this content. The board's first server copy asks the notebook cards for their workspaces, as sharing does.
+  const saveBoard = async () => {
+    const state = boardSnapshot(), text = boardText(state), first = boardVersion.current == null;
+    if (text !== boardSynced.current) {
+      const saved = await api(boardPath, { method: 'PUT', body: JSON.stringify({ state, version: boardVersion.current ?? 0 }) });
+      boardVersion.current = saved.version;
+      boardSynced.current = text;
+      try { localStorage.setItem(versionKey, String(saved.version)); } catch { /* the next open re-checks */ }
+      if (first) requestWorkspaceExports();
+    }
+    boardUnsynced.current = false;
+    boardRefused.current = null;
+  };
+  // A refused PUT keeps this browser's copy and says why (canvas-persistence.md). No status: offline, so it waits for the
+  // reconnect. 409: another tab or device saved since, so pushing stops until reload. Anything else (over 1.9 MB): the
+  // server's own words, once, and the next edit tries again.
+  const refused = error => {
+    boardUnsynced.current = true;
+    if (!error.status) return;
+    if (error.status === 409) {
+      boardStopped.current = true;
+      toast('This board changed in another tab or on another device. Reload to see those changes; your newer edits here are not saved.', { tone: 'error' });
+    } else if (boardRefused.current !== error.message) toast(error.message, { tone: 'error' });
+    boardRefused.current = error.message;
+  };
+  // The board's server copy, 1500 ms after the last change. `now` (the canvas's persist(), LP1 Task 15): the PUT at once,
+  // awaited, 'ok' or 'failed' - a journey section is recorded only once the server has its board. Until the board GET has
+  // answered (or after a 409) the edit waits in this browser and an immediate push fails.
   // Every PUT goes through one serial queue (canvas-persist.js; review round 1, C-15a) and reads boardVersion only once
   // the PUT before it wrote it, so a section save's PUT and the canvas's debounced one never 409 each other.
   const [pushQueue] = useState(serial);
   const pushBoard = useCallback((_state, { now = false } = {}) => {
     const how = sharingOf(sharingRef.current);
-    if (how !== 'shared') return now && how === 'unknown' ? 'failed' : 'skipped';
+    if (board && how !== 'shared') return now && how === 'unknown' ? 'failed' : 'skipped';
+    if (!boardLoaded.current || boardStopped.current) { boardUnsynced.current = true; return now ? 'failed' : undefined; }
     clearTimeout(pushTimer.current);
     const put = () => pushQueue(async () => {
-      try {
-        const data = await api(boardPath, { method: 'PUT', body: JSON.stringify({ state: boardSnapshot(), version: boardVersion.current }) });
-        boardVersion.current = data.version;
-        try { localStorage.setItem(versionKey, String(data.version)); } catch { /* the next open re-checks */ }
-        syncAssets();
-        return 'ok';
-      } catch (error) {
-        if (error.status === 409) toast('This board changed in another tab or on another device. Reload to see those changes; your newer edits here are not saved to the link yet.', { tone: 'error' });
-        return 'failed';
-      }
+      if (boardStopped.current) return 'failed';
+      try { await saveBoard(); } catch (error) { refused(error); return 'failed'; }
+      syncAssets();
+      return 'ok';
     });
     if (now) return put();
     pushTimer.current = setTimeout(put, 1500);
   }, [boardPath]);
   useEffect(() => { pushBoard(); }, [exchanges, pushBoard]);
+  // Offline queue: edits keep going to this browser; on reconnect the latest copy goes up through the same queue.
+  // ponytail: a board whose GET failed offline waits for its next open (Load, above); re-ask on reconnect if that matters.
+  useEffect(() => {
+    const online = () => { if (boardUnsynced.current) pushBoard(); };
+    window.addEventListener('online', online);
+    return () => window.removeEventListener('online', online);
+  }, [pushBoard]);
   const changeSharing = async next => {
     setShareBusy(true);
     setShareError(null);
@@ -715,12 +769,8 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
       // Sharing on: the server gets this browser's board as it is now, through the board push queue (review round 2), so
       // it never races a queued PUT: it reads the version the one before it wrote and writes its own before the next runs.
       if (data.sharing.shared) {
-        await pushQueue(async () => {
-          const saved = await api(boardPath, { method: 'PUT', body: JSON.stringify({ state: boardSnapshot(), version: boardVersion.current }) });
-          boardVersion.current = saved.version;
-          try { localStorage.setItem(versionKey, String(saved.version)); } catch { /* the next open re-checks */ }
-        });
-        await syncAssets(true);
+        await pushQueue(saveBoard);
+        await syncAssets();
         requestWorkspaceExports();
       }
     } catch (error) { setShareError(error.message); }
@@ -735,12 +785,8 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
     setShareError(null);
     try {
       if (publish) {
-        await pushQueue(async () => {
-          const saved = await api(boardPath, { method: 'PUT', body: JSON.stringify({ state: boardSnapshot(), version: boardVersion.current }) });
-          boardVersion.current = saved.version;
-          try { localStorage.setItem(versionKey, String(saved.version)); } catch { /* the next open re-checks */ }
-        });
-        await syncAssets(true);
+        await pushQueue(saveBoard);
+        await syncAssets();
       }
       const made = await api(`/api/apps/${app.name}/${publish ? 'publish' : 'unpublish'}`, { method: 'POST', body: '{}' });
       setSharing(current => ({ ...current, published: made.published || undefined, publication: made.publication_token || undefined }));

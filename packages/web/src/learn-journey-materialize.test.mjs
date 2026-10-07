@@ -265,20 +265,21 @@ test('AdaptiveCanvas.jsx: persist() saves the board read through refs (canvas-pe
   assert.match(src, /const state = \{ strokes, shapes, items, links, blocks: light, groups, areas \};\n\s+if \(storageKey\) \{ try \{ localStorage\.setItem\(storageKey, JSON\.stringify\(state\)\); \} catch \{ \/\* full or blocked storage loses drawings only \*\/ \} \}\n\s+if \(!loaded\) onSaveRef\.current\?\.\(state\);\n\s+\}, 400\);/);
 });
 
-test('LearnPage.jsx: pushBoard has an awaitable immediate variant for persist() - ok, failed, or skipped when not shared; the debounced push stays (LP1 Task 15)', () => {
+test('LearnPage.jsx: pushBoard has an awaitable immediate variant for persist() - ok or failed for every owned board; the debounced push stays (LP1 Task 15)', () => {
   const page = readFileSync(new URL('./LearnPage.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   assert.match(page, /const pushBoard = useCallback\(\(_state, \{ now = false \} = \{\}\) => \{/);
-  // Review round 1: an immediate push on a board whose sharing is unknown (its GET pending or failed) is not a save.
-  assert.match(page, /const how = sharingOf\(sharingRef\.current\);\n\s+if \(how !== 'shared'\) return now && how === 'unknown' \? 'failed' : 'skipped';/);
+  // Review round 1: an immediate push before the board GET has answered (or failed) is not a save. Every owned board
+  // pushes (docs/features/canvas-persistence.md); only a review board that is not shared is skipped.
+  assert.match(page, /const how = sharingOf\(sharingRef\.current\);\n\s+if \(board && how !== 'shared'\) return now && how === 'unknown' \? 'failed' : 'skipped';\n\s+if \(!boardLoaded\.current \|\| boardStopped\.current\) \{ boardUnsynced\.current = true; return now \? 'failed' : undefined; \}/);
   // C-15a: every PUT, immediate or debounced, goes through one serial queue and reads boardVersion inside it.
   assert.match(page, /const \[pushQueue\] = useState\(serial\);/);
-  assert.match(page, /const put = \(\) => pushQueue\(async \(\) => \{\n\s+try \{\n\s+const data = await api\(boardPath, \{ method: 'PUT', body: JSON\.stringify\(\{ state: boardSnapshot\(\), version: boardVersion\.current \}\) \}\);/);
-  assert.match(page, /return 'ok';\n\s+\} catch \(error\) \{\n\s+if \(error\.status === 409\) toast\(/);
-  assert.match(page, /return 'failed';/);
+  assert.match(page, /const put = \(\) => pushQueue\(async \(\) => \{\n\s+if \(boardStopped\.current\) return 'failed';\n\s+try \{ await saveBoard\(\); \} catch \(error\) \{ refused\(error\); return 'failed'; \}\n\s+syncAssets\(\);\n\s+return 'ok';/);
+  assert.match(page, /const saved = await api\(boardPath, \{ method: 'PUT', body: JSON\.stringify\(\{ state, version: boardVersion\.current \?\? 0 \}\) \}\);\n\s+boardVersion\.current = saved\.version;/);
+  assert.match(page, /if \(error\.status === 409\) \{\n\s+boardStopped\.current = true;\n\s+toast\(/);
   assert.match(page, /if \(now\) return put\(\);\n\s+pushTimer\.current = setTimeout\(put, 1500\);/);
   assert.match(page, /onSave=\{pushBoard\}/);
   // Review round 2: turning sharing on PUTs through the same queue, so it never races a queued board push; so does
   // Publish to Explore (docs/features/explore-publish.md). Every board PUT in the page is one of these.
-  assert.match(page, /await pushQueue\(async \(\) => \{\n\s+const saved = await api\(boardPath, \{ method: 'PUT', body: JSON\.stringify\(\{ state: boardSnapshot\(\), version: boardVersion\.current \}\) \}\);\n\s+boardVersion\.current = saved\.version;/);
-  assert.equal((page.match(/method: 'PUT', body: JSON\.stringify\(\{ state: boardSnapshot\(\)/g) || []).length, 3);
+  assert.equal((page.match(/await pushQueue\(saveBoard\);/g) || []).length, 2);
+  assert.equal((page.match(/method: 'PUT', body: JSON\.stringify\(\{ state/g) || []).length, 1, 'saveBoard is the one board PUT');
 });
