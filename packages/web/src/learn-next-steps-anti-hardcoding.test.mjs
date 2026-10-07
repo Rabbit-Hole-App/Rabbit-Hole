@@ -12,22 +12,22 @@ import { cardBlock } from './nanogpt/board.js';
 import { AQUEDUCTS, TIDES, reordered } from './__fixtures__/journey-synthetic-domains.mjs';
 import { planNextSteps } from '../../control-plane/src/learn-journey-planners.js';
 import { fixtureModel } from '../../control-plane/src/learn-journey-fixtures.js';
-import { NEXT_STEPS_LIMITS as L, mintSet, nextStepsOutput } from '../../control-plane/src/agents/learn-next-steps.js';
-import { sharedInput } from '../../control-plane/src/learn-next-steps-routes.js';
+import { NEXT_STEPS_LIMITS as L, mintSet, nextStepsInputProblem, nextStepsOutput, selectedStepProblem } from '../../control-plane/src/agents/learn-next-steps.js';
+import { sharedInput, sharedStepIds, titleFingerprint } from '../../control-plane/src/learn-next-steps-routes.js';
 
 const rename = (registry, prefix) => {
   const map = new Map(Object.keys(registry.concepts).map((id, i) => [id, `${prefix}-k${i}`]));
-  const claims = Object.fromEntries(Object.entries(registry.claims).reverse().map(([id, c], i) => [`${map.get(c.concept)}/q${i}`, { ...c, concept: map.get(c.concept), prerequisites: c.prerequisites.map(p => map.get(p)) }]));
-  const concepts = Object.fromEntries([...map].reverse().map(([old, id]) => [id, { ...registry.concepts[old], ...(registry.concepts[old].prerequisites ? { prerequisites: registry.concepts[old].prerequisites.map(p => map.get(p)) } : {}) }]));
+  const claims = Object.fromEntries(Object.entries(registry.claims).reverse().map(([id, c], i) => [`${map.get(c.concept)}/q${i}`, { ...c, concept: map.get(c.concept), prerequisites: (c.prerequisites || []).map(p => map.get(p)) }]));
+  const concepts = Object.fromEntries([...map].reverse().map(([old, id]) => [id, { ...registry.concepts[old], prerequisites: (registry.concepts[old].prerequisites || []).map(p => map.get(p)) }]));
   return { concepts, claims };
 };
 const cut = (registry, n) => ({ concepts: registry.concepts, claims: Object.fromEntries(Object.entries(registry.claims).slice(0, n)) });
-// A journey over any registry: a completed section on its last claim, the current one on its first two.
-const journeyCase = registry => {
+// A journey over any registry: a completed section on its last claim, the current one on its first `size` claims.
+const journeyCase = (registry, size = 2) => {
   const ids = Object.keys(registry.claims);
   const journey = { id: 'lj_x', state: 'active', registry, evidence: { seq: 0, events: [] }, active_section_id: 'sB', request: { topic: 'x' }, intake: { slots: {} } };
   const path = { version: 1, goal: 'A goal', current_section_id: 'sB', sections: [{ id: 'sA', title: 'First', purpose: 'p', status: 'completed', expected_evidence: [{ claim: ids.at(-1), kind: 'explain' }] },
-    { id: 'sB', title: 'Second', purpose: 'p', status: 'current', expected_evidence: ids.slice(0, 2).map(claim => ({ claim, kind: 'explain' })) }] };
+    { id: 'sB', title: 'Second', purpose: 'p', status: 'current', expected_evidence: ids.slice(0, size).map(claim => ({ claim, kind: 'explain' })) }] };
   return { domain: journeyDomain({ journey, path, blocks: [] }), journey: { journey, path, busy: false, trayProps: null }, source: 'journey' };
 };
 const ML_BLOCKS = NANOGPT.cards.slice(0, 2).map((id, i) => ({ ...cardBlock(cardModule(id)), id: `n${i}` }));
@@ -41,6 +41,7 @@ async function chain({ domain, journey = null, source = 'registry', blocks = [] 
   const built = nextStepsInput({ context: { domain, source }, store: emptyStore(), journey, blocks, record: null, parent: null, title: 'A canvas', lastTurn: null, previous: { hooks: [], goals: [] }, basis: 'b1' });
   assert.equal(built.problem, undefined, 'the case fits the input cap');
   const { input } = built;
+  assert.equal(nextStepsInputProblem(input), null, 'the route accepts this input');
   const planned = await planNextSteps({}, input, { callModel: fixtureModel });
   const set = mintSet(planned.options, input);
   const known = new Set([...Object.keys(domain.claims), ...Object.keys(domain.concepts)]);
@@ -58,11 +59,13 @@ async function chain({ domain, journey = null, source = 'registry', blocks = [] 
   for (const offer of OFFERS) assert.ok(r.routed.allowed.includes(offer), `${offer} is offered on row ${r.routed.row}`);
   return { input, set };
 }
+// Ceiling: renamed ids run through the journey branch only. The registered-course branch (card blocks, targetClaims) and the shared
+// course path run on the original course ids; the vocabulary scan below backs that side. Section sizes 3, 4, 1 and 2 differ on purpose.
 const CASES = [
   ['ML owned: the registered course domain, its cards on the canvas', () => ({ domain: NANOGPT, blocks: ML_BLOCKS })],
-  ['ML owned: the same registry renamed, reordered and cut to 5 claims, as a journey', () => journeyCase(rename(cut({ concepts: NANOGPT.concepts, claims: NANOGPT.claims }, 5), 'mlx'))],
-  ['non-ML owned: the aqueducts journey', () => journeyCase(AQUEDUCTS.diagnostic.registry)],
-  ['non-ML owned: the tides journey, reordered', () => journeyCase(reordered(TIDES).diagnostic.registry)],
+  ['ML owned: the same registry renamed, reordered and cut to 5 claims, as a journey', () => journeyCase(rename(cut({ concepts: NANOGPT.concepts, claims: NANOGPT.claims }, 5), 'mlx'), 3)],
+  ['non-ML owned: the aqueducts journey', () => journeyCase(AQUEDUCTS.diagnostic.registry, 4)],
+  ['non-ML owned: the tides journey, reordered', () => journeyCase(reordered(TIDES).diagnostic.registry, 1)],
   ['non-ML owned: renamed with 2 claims', () => journeyCase(rename(cut(TIDES.diagnostic.registry, 2), 'tz'))],
   ['plain canvas, no registry', () => {
     const blocks = [{ id: 'w1', type: 'explanation', title: 'Warp tension' }];
@@ -86,16 +89,21 @@ test('a renamed registry reaches the input under its new ids only', async () => 
 // A shared canvas has no registry of its own: the same sharedInput, planner and mint on any blocks. Block ids are renamed,
 // reordered and counted differently across the cases.
 async function sharedChain(state, { origin = { root: true }, title = 'A shared board' } = {}) {
-  const built = sharedInput(state, { origin, key: 'k', version: 3, title });
+  const options = { origin, key: 'k', version: 3, title };
+  const built = sharedInput(state, options);
   assert.equal(built.problem, undefined, 'the board fits the input cap');
   const { input } = built;
   assert.equal(input.mode, 'shared');
+  assert.equal(nextStepsInputProblem({ ...input, mode: 'canvas' }), null, 'the route accepts this input');
   const planned = await planNextSteps({}, input, { callModel: fixtureModel });
   assert.equal(nextStepsOutput({ options: planned.options }, input).ok, true);
-  const set = mintSet(planned.options, input, { source: { share_version: 3, origin_block_id: ':root' } });
+  const fingerprint = await titleFingerprint(title);
+  const set = mintSet(planned.options, input, { source: { share_version: 3, origin_block_id: ':root', title_fingerprint: fingerprint } });
   assert.equal(set.options.length, L.options);
   for (const { selected_next_step: step } of set.options) {
     assert.equal(step.scope, 'shared');
+    // Start Rabbit Hole: the server's check of the returned step, on the same board, is as free of any domain as the mint.
+    assert.equal(selectedStepProblem(step, { ...sharedStepIds(state, options), fingerprint, version: 3 }), null, 'the click path accepts this step');
     for (const id of step.claim_ids) assert.ok(Object.hasOwn(input.scope.claims, id), `${id} is outside the shared scope`);
     for (const id of step.concept_ids) assert.ok(Object.hasOwn(input.scope.concepts, id), `${id} is outside the shared scope`);
   }
@@ -126,50 +134,121 @@ test('the cases differ in their scope counts', async () => {
   for (const [, make] of CASES) counts.push(Object.keys((await chain(make())).input.scope.claims).length);
   for (const [, state] of SHARED) counts.push(Object.keys((await sharedChain(state)).input.scope.claims).length);
   assert.ok(new Set(counts).size >= 3, counts.join(','));
+  // The four journey cases (ML renamed, aqueducts, tides, tides renamed) plan on sections of 3, 4, 1 and 2 claims.
+  assert.ok(new Set(counts.slice(1, 5)).size >= 3, `journey scope counts: ${counts.slice(1, 5).join(',')}`);
 });
 
-test('no registry labels, topic words, fixture ids or modality sequences in the new product modules', () => {
-  const strip = s => s.replace(/(^|\s)\/\/.*$/gm, '$1');
-  // Scanned: the product modules Professor Next Steps and the Tutor handoff added. Left out on purpose: the course registry
-  // files, where a course is legitimately registered and named (learn-tutor-domains.js, learn-tutor-claims.js, nanogpt/*), and
-  // learn-tutor.js, whose default domain parameter names the registered course (its router is scanned by source below).
-  const FILES = ['../../control-plane/src/agents/learn-next-steps.js', '../../control-plane/src/learn-next-steps-routes.js', './learn-next-steps.js', './LearnNextSteps.jsx', './learn-tutor-trace.js',
-    '../../control-plane/src/learn-tutor-handoff.js', './learn-tutor-actions.js', '../../control-plane/src/agents/learn-labels.js'];
-  const vocab = [NANOGPT, AQUEDUCTS.diagnostic.registry, TIDES.diagnostic.registry].flatMap(r => Object.entries(r.concepts).flatMap(([id, c]) => [id, c.label, ...(c.names || [])]))
-    .concat([AQUEDUCTS, TIDES].flatMap(d => d.topic.split(' ')), ['aqueduct', 'softmax', 'logistic regression', 'photosynthesis', 'binary search', 'french revolution', 'nanogpt', 'kitchen chemistry', 'bridge loads', 'karpathy', '-foundations', '-core/', '-practice/', 'c11-', 'depth-attention'])
-    .filter(word => String(word).length >= 4);
-  for (const file of FILES) {
-    const code = strip(readFileSync(new URL(file, import.meta.url), 'utf8')).toLowerCase();
-    for (const word of vocab) assert.equal(new RegExp(`(^|[^a-z0-9])${String(word).toLowerCase().replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}([^a-z0-9]|$)`).test(code), false, `${file} names ${word}`);
+// ---------- Scans over product source (read only) ----------
+const source = file => readFileSync(new URL(file, import.meta.url), 'utf8');
+// Comments only; a // inside a quoted string is code.
+const strip = text => text.replace(/('(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|`(?:[^`\\]|\\.)*`)|(?<!\S)\/\/.*$/gm, (match, quoted) => quoted ?? '');
+// The identifiers of a piece of code, string literals blanked. An allowlist over these catches an indirection through any new name.
+const idents = code => code.replace(/'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|`(?:[^`\\]|\\.)*`/g, "''").match(/[A-Za-z_$][\w$]*/g) || [];
+const outside = (code, allowed) => [...new Set(idents(code).filter(id => !allowed.has(id)))];
+const functionOf = (file, head) => strip(source(file)).match(new RegExp(`${head}[\\s\\S]*?\\n\\}`))[0];
+
+// What a registry-free product module may never name. Card ids and titles come from the card registry helpers, claim ids from all
+// three registries (whole slug and the slug after the slash). The 4 character floor stays: nothing here is ever shortened.
+const REGISTRIES = [NANOGPT, AQUEDUCTS.diagnostic.registry, TIDES.diagnostic.registry];
+const VOCAB = [...new Set([
+  ...REGISTRIES.flatMap(r => Object.entries(r.concepts).flatMap(([id, c]) => [id, c.label, ...(c.names || [])])),
+  ...REGISTRIES.flatMap(r => Object.keys(r.claims).flatMap(id => [id, id.split('/').at(-1)])),
+  ...NANOGPT.cards, ...NANOGPT.cards.map(id => cardBlock(cardModule(id)).title),
+  ...[AQUEDUCTS, TIDES].flatMap(d => d.topic.split(' ')), 'aqueduct',
+  'softmax', 'logistic regression', 'photosynthesis', 'binary search', 'french revolution', 'nanogpt', 'kitchen chemistry', 'bridge loads', 'karpathy', '-foundations', '-core/', '-practice/', 'c11-', 'depth-attention',
+].filter(word => String(word).length >= 4))];
+const named = (code, word) => new RegExp(`(^|[^a-z0-9])${String(word).toLowerCase().replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}([^a-z0-9]|$)`).test(code);
+
+// Registered-course references that are legitimate in an otherwise registry-free module. Each strip is exact, carries its reason, and
+// must still match (a strip nothing needs any more is a failure: delete it), so none of them can grow into a blind spot.
+const COURSE_IMPORT = [/^import [^\n]*(?:\/nanogpt\/|\bNANOGPT\b)[^\n]*$/gm, 'an import that brings in the registered course (its board or its registry)'];
+const COURSE_DEFAULT = [/\bdomain = NANOGPT\b/g, 'the default domain parameter is the registered course'];
+// Scanned: the modules Professor Next Steps and the Auto Tutor added or changed. Not scanned, on purpose: the course registry files
+// where a course is legitimately registered and named (learn-tutor-domains.js, learn-tutor-claims.js, nanogpt/*), learn-slash.js
+// (command placeholder copy) and learn-journey-fixtures.js (test-only fixture topics).
+const SCANNED = [
+  ['../../control-plane/src/agents/learn-next-steps.js'], ['../../control-plane/src/learn-next-steps-routes.js'], ['./learn-next-steps.js'], ['./LearnNextSteps.jsx'], ['./learn-tutor-trace.js'],
+  ['../../control-plane/src/learn-tutor-handoff.js'], ['./learn-tutor-actions.js'], ['../../control-plane/src/agents/learn-labels.js'],
+  ['./LearnTutor.jsx'], ['../../control-plane/src/learn-journey-planners.js'], ['../../control-plane/src/learn-tutor-routes.js'], ['./learn-journey-domain.js'],
+  ['../../control-plane/src/learn-boards.js'], ['../../control-plane/src/learn-shared-ask.js'], ['./voice-session.js'], ['./LearnVoice.jsx'], ['../../control-plane/src/learn-models.js'],
+  ['./learn-tutor.js', COURSE_IMPORT, COURSE_DEFAULT], ['./learn-tutor-validate.js', COURSE_IMPORT, COURSE_DEFAULT], ['./learn-tutor-evidence.js', COURSE_IMPORT, COURSE_DEFAULT],
+  ['../../control-plane/src/agents/learn-tutor.js',
+    [/^\s*'You are the Tutor on a Rabbit Hole learning canvas about nanoGPT attention\. You compose ONE turn\.',$/gm, 'LINES[0], the registered course subject line; the journey and canvas prompts leave it out'],
+    [/\bkind = 'nanogpt'/g, 'the default prompt kind is the registered course'],
+    [/: 'nanogpt'\)/g, 'the prompt kind a registered course turn is selected with'],
+    // FINDING T12-F1, reported and not fixed (Task 11c-B edits this file): LINES[6] gives a registered-course topic as its example, and the
+    // journey and canvas prompts reuse that line through L(6), so an unrelated canvas reads a course topic. Delete this entry with the example.
+    [/ \(the topic, e\.g\. "Softmax"\)/g, 'KNOWN FINDING T12-F1: a course topic in the shared suggest_dive line']],
+];
+// A comparison of a hook, claim, concept, block or id list length with 2 to 4 (a word length filter is not one of them).
+const COUNT = /\b(?:options|hooks|claims|concepts|blocks|goals|ids)\.length\s*(?:[!=]=?=|[<>]=?)\s*[2-4]\b|\blength\s*===\s*3\b/;
+test('no registry labels, card ids or titles, claim ids, topic words, fixture ids or modality sequences in the product modules', () => {
+  for (const [file, ...strips] of SCANNED) {
+    let code = strip(source(file));
+    for (const [pattern, reason] of strips) {
+      assert.notEqual(code.search(pattern), -1, `${file}: this strip matches nothing now, delete it (${reason})`);
+      code = code.replace(pattern, '');
+    }
+    code = code.toLowerCase();
+    for (const word of VOCAB) assert.equal(named(code, word), false, `${file} names ${word}`);
   }
   // Modality history is read in exactly these places, and the router never reads it.
-  const source = file => readFileSync(new URL(file, import.meta.url), 'utf8');
-  const route = source('./learn-tutor.js').match(/export function route\([\s\S]*?\n\}/)[0];
-  assert.equal(/modalit/i.test(strip(route)), false);
+  assert.equal(/modalit/i.test(functionOf('./learn-tutor.js', 'export function route\\(')), false);
   for (const file of ['./learn-tutor-validate.js', './learn-next-steps.js']) assert.equal(/\bmodalities\b[^\n]*(?:===|includes|\[\d\])/.test(source(file)), false, `${file} branches on modality history`);
-  // No literal count of hooks, claims or concepts other than the contract constant.
-  assert.equal(/options\.length\s*[!=]==\s*3|length\s*===\s*3\b/.test(strip(source('../../control-plane/src/agents/learn-next-steps.js'))), false, 'use NEXT_STEPS_LIMITS.options');
+  // No literal count of hooks, claims or concepts other than the contract constant, in any Next Steps module.
+  for (const file of ['../../control-plane/src/agents/learn-next-steps.js', '../../control-plane/src/learn-next-steps-routes.js', './learn-next-steps.js', './LearnNextSteps.jsx'])
+    assert.equal(COUNT.test(strip(source(file))), false, `${file}: use NEXT_STEPS_LIMITS.options`);
 });
 
+// No module decides an offer or an action from the learner words. Allowlists, not word lists: an offer line may read only the
+// structural identifiers below, so a variable derived from the words, however it is named, fails here.
+// ponytail: line-based, and a string built by concatenation ('suggest_' + x) would escape; the page's offer function is checked whole.
 test('no product module decides an offer or an action from the learner words', () => {
-  const strip = s => s.replace(/(^|\s)\/\/.*$/gm, '$1');
-  const source = file => strip(readFileSync(new URL(file, import.meta.url), 'utf8'));
-  // The words: the raw message, and the readers of it that decide an intent, a skeleton or claims.
-  const WORDS = /raw_user_message|\braw\b|learnerIntent|wantsCard|selectClaims|statedConstraints/;
-  const body = (file, start) => source(file).match(new RegExp(`${start}[\\s\\S]*?\\n\\}`))[0];
-  // The router decides the allowed actions, offers included (create_material, suggest_research, suggest_journey), from the
-  // row, the constraints and the turn's structural offer flags only.
-  assert.equal(WORDS.test(body('./learn-tutor.js', 'export function route\\(')), false, 'route() reads the learner words');
-  // The turn's offer fields come from buildTurn's parameters (what the page offers), never from the words.
-  const offerLines = body('./learn-tutor.js', 'export function buildTurn\\(').split('\n').filter(line => /available_materials|research_offer|journey_offer/.test(line));
-  assert.ok(offerLines.length >= 3, 'buildTurn sets all three offer fields');
-  for (const line of offerLines) assert.equal(WORDS.test(line), false, `an offer line reads the learner words: ${line.trim()}`);
-  // The page's offer function reads structural page state only.
-  assert.equal(/\b(raw|text|message|question|input|words?|utterance)\b/i.test(body('./LearnTutor.jsx', 'export function turnOffers\\(')), false, 'turnOffers reads the learner words');
-  // Anywhere the four are named (an action type, an offer flag, the handoff), the same line never reads the words. On the
-  // worker side raw is the HTTP body, so only the turn's own field names the learner's message there.
-  const FOUR = /suggest_journey|suggest_research|create_material|handoff|journey_offer|research_offer|available_materials/i;
+  // The words: the raw message, and the readers of it that decide an intent, a skeleton or constraints.
+  const WORDS = /raw_user_message|\braw\b|learnerIntent|learner_intent|wantsCard|selectClaims|statedConstraints/;
+  const linesOf = (code, pattern) => code.split('\n').filter(line => pattern.test(line));
+  const reassigned = (code, names) => code.split('\n').slice(1).filter(line => new RegExp(`\\b(?:${names})\\s*(?:=(?!=)|\\|\\|=|\\?\\?=|&&=)`).test(line));
+
+  // buildTurn: the turn's three offer fields read only what the page offered (its parameters), and those are never reassigned.
+  const build = functionOf('./learn-tutor.js', 'export function buildTurn\\(');
+  const buildLines = linesOf(build, /available_materials|research_offer|journey_offer/);
+  assert.ok(buildLines.length >= 3, 'buildTurn sets all three offer fields');
+  const BUILD_OK = new Set(['nextStep', 'materials', 'research', 'journeyOffer', 'length', 'available_materials', 'research_offer', 'journey_offer', 'true']);
+  for (const line of buildLines) assert.deepEqual(outside(line, BUILD_OK), [], `an offer line in buildTurn reads more than the page offered: ${line.trim()}`);
+  // The signatures take the three offer parameters with literal defaults, and neither function reassigns them.
+  for (const [name, body] of [['buildTurn', build], ['runTurn', functionOf('./learn-tutor.js', 'export async function runTurn\\(')]]) {
+    assert.ok(/\bmaterials = \[\]/.test(body) && /\bresearch = false\b/.test(body) && /\bjourneyOffer = false\b/.test(body), `${name} defaults the offer parameters to literals`);
+    assert.deepEqual(reassigned(body, 'nextStep|materials|research|journeyOffer'), [], `${name} reassigns an offer parameter`);
+  }
+
+  // route(): every line that names an offer action or flag, or assigns the allowed list, reads only the row, the list and the turn's
+  // three offer fields. Never the words, the constraints (statedConstraints feeds them) or the learner intent.
+  const route = functionOf('./learn-tutor.js', 'export function route\\(');
+  assert.equal(WORDS.test(route), false, 'route() reads the learner words');
+  const OFFER_OK = new Set(['if', 'turn', 'available_materials', 'length', 'MATERIAL_FIXED', 'includes', 'row', 'list', 'research_offer', 'journey_offer']);
+  const offerLines = linesOf(route, /create_material|suggest_research|suggest_journey|available_materials|research_offer|journey_offer|handoff/i);
+  assert.ok(offerLines.length >= 3, 'route() adds all three offers');
+  for (const line of offerLines) assert.deepEqual(outside(line, OFFER_OK), [], `an offer line in route() reads more than the row and the turn's offer fields: ${line.trim()}`);
+  // The list is otherwise built from the strategy row alone; noQuiz only removes ask_question there.
+  const LIST_OK = new Set([...OFFER_OK, 'let', 'some', 'type', 'inHole', 'noQuiz', 'allowed', 'filter']);
+  for (const line of linesOf(route, /\blist\s*=(?!=)/)) assert.deepEqual(outside(line, LIST_OK), [], `route() builds the allowed list from more than the row: ${line.trim()}`);
+
+  // The page: turnOffers reads page state only, runTurn's call takes its offers from it alone, and no other code names an offer field.
+  const page = strip(source('./LearnTutor.jsx')), offers = functionOf('./LearnTutor.jsx', 'export function turnOffers\\(');
+  const PAGE_OK = new Set(['export', 'function', 'turnOffers', 'journey', 'null', 'record', 'opening', 'false', 'nextStep', 'openResearch', 'const', 'setup', 'inJourneySetup', 'materials', 'materialCommands', 'research', 'journeyOffer', 'start', 'return']);
+  assert.deepEqual(outside(offers, PAGE_OK), [], 'turnOffers reads more than the page state');
+  const call = page.match(/result = await runTurn\(\{[\s\S]*?\n\s*\}\);/)[0], at = call.match(/\.\.\.turnOffers\(\{[^\n]*\}\)/)[0];
+  assert.deepEqual([...call.matchAll(/\.\.\.\s*([A-Za-z_$][\w$]*)/g)].map(m => m[1]).filter(name => !['common', 'turnOffers'].includes(name)), [], 'the runTurn call spreads something besides common and turnOffers');
+  assert.deepEqual(outside(at, new Set(['turnOffers', 'journey', 'journeyRef', 'current', 'record', 'opening', 'nextStep', 'openResearch'])), [], 'the turnOffers call reads more than the page state');
+  const rest = page.replace(offers, '').replace(at, '');
+  assert.deepEqual(idents(rest).filter(id => ['journeyOffer', 'materials', 'research'].includes(id)), [], 'an offer field is named outside turnOffers');
+
+  // Anywhere else the offers, the actions or the handoff are named, the same line never reads the words. On the worker side raw is
+  // the HTTP body, so only the turn's own field names the learner's message there.
+  const FOUR = /suggest_journey|suggest_research|create_material|handoff|journey_offer|research_offer|available_materials|journeyOffer|openResearch|\bresearch\s*:|\bmaterials\s*:/i;
+  // Not a decision: a signature that declares the parameters, and runTurn handing the three offers on to buildTurn unchanged (shorthand).
+  const PASSED = /^export (?:async )?function |\bbuildTurn\(\{[^\n]*\bnextStep, materials, research, journeyOffer\b/;
   const scanned = [['./learn-tutor.js', WORDS], ['./learn-tutor-validate.js', WORDS], ['./learn-tutor-actions.js', WORDS], ['./LearnTutor.jsx', WORDS],
     ...['agents/learn-tutor.js', 'learn-tutor-routes.js', 'learn-tutor-handoff.js'].map(file => [`../../control-plane/src/${file}`, /raw_user_message/])];
-  for (const [file, words] of scanned) for (const line of source(file).split('\n')) if (FOUR.test(line)) assert.equal(words.test(line), false, `${file}: ${line.trim()}`);
+  for (const [file, words] of scanned) for (const line of linesOf(strip(source(file)), FOUR).filter(line => !PASSED.test(line))) assert.equal(words.test(line), false, `${file}: ${line.trim()}`);
 });
