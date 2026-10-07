@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { emptyStore, deriveClaimStates, appendEvents } from './learn-tutor-evidence.js';
-import { executeActions, learnerIntent, plannerContext, route, runTurn } from './learn-tutor.js';
+import { executeActions, learnerIntent, openingQuestion, plannerContext, route, runTurn } from './learn-tutor.js';
 import { actionContract, modalityOf } from './learn-tutor-actions.js';
 import { validateActions } from './learn-tutor-validate.js';
 import { canvasDomain, journeyDomain } from './learn-journey-domain.js';
@@ -451,4 +451,13 @@ test('a renamed hole: dive_context.title is the live title; its concept and defa
   assert.deepEqual([before.dive_context.title, before.dive_context.concept], ['Softmax', 'softmax'], 'no live title: the record title');
   assert.deepEqual(renamed.relevant_evidence.claims.map(c => c.claim), before.relevant_evidence.claims.map(c => c.claim), 'the same claims after the rename');
   assert.ok(renamed.relevant_evidence.claims.length > 0);
+});
+
+// Fix round 4: a renamed persisted hole opened in a new tab asks with its live title, never the creation title; a pending
+// question still leads.
+test('openingQuestion: the live title, else the record title; the pending question first', () => {
+  const store = emptyStore(), record = { dive_id: 'canvas-0000bbbb', title: 'Softmax', origin: {} };
+  assert.equal(openingQuestion(store, record, 'My notes'), 'Take me into My notes.');
+  assert.equal(openingQuestion(store, record), 'Take me into Softmax.');
+  assert.equal(openingQuestion(store, { ...record, return_point: { pending_question: 'Why exponentials?' } }, 'My notes'), 'Why exponentials?');
 });

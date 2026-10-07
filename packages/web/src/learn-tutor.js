@@ -573,10 +573,10 @@ export function enterHole(store, record, domain = NANOGPT) {
   return { ...store, dive: { dive_id: record.dive_id, parent: record.origin?.parent || null, concept, claim: suggested?.claim ?? null, question: suggested?.question ?? null } };
 }
 // The hole's opening turn runs once per hole; its question is the learner's pending question, or
-// the one that led to the Tutor's suggestion.
-export function openingQuestion(store, record) {
+// the one that led to the Tutor's suggestion. title: the hole's live title (Task 10 fix round 4), else its record title.
+export function openingQuestion(store, record, title = null) {
   if (!record?.dive_id || store.opened.includes(record.dive_id)) return null;
-  return String(record.return_point?.pending_question || store.dive?.question || `Take me into ${record.title}.`);
+  return String(record.return_point?.pending_question || store.dive?.question || `Take me into ${title || record.title}.`);
 }
 export const markOpened = (store, record) => ({ ...store, opened: [...store.opened, record.dive_id].slice(-20) });
 

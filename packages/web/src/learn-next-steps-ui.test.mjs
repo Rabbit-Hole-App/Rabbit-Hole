@@ -330,6 +330,29 @@ test('ownedSteps on a plain canvas: no lesson card, no hooks and nothing posted;
   assert.deepEqual([r.bodies.length, r.bodies[1].goal], [2, 'Sourdough, renamed']);
 }));
 
+// Fix round 4 (owner eleventh message 3): a hole's dive title is in its hook input, so renaming a hole with a learning_goal
+// re-asks too - its goal stays the learning_goal and the new set carries the new dive title. Renamed as it happens: Dive
+// reloads the dives path with the server title; the record keeps its creation title.
+test('ownedSteps on a renamed learning_goal hole: the basis changes, the goal stays, the next input carries the new dive title', () => withSession(async () => {
+  const card = [{ id: 'k1', type: 'explanation', title: 'Starter culture' }];
+  const record = { dive_id: 'canvas-0000abce', title: 'Hole as created', learning_goal: 'Explain why a starter needs feeding', origin: { parent: { app: 'share:0f0f', board: 'main' } }, source: { title: 'Bread science' } };
+  const holeTutor = title => {
+    let t;
+    const Page = () => { t = B.useTutor({ app: { name: 'canvas-0000abce', org: 'o', email: 'e@x.com', title: 'Hole as created' }, board: 'main', access: { app: 'canvas-0000abce' }, canvasApi: { current: { blocks: () => card, block: () => null } }, canvasState: { card: null },
+      dive: { tree: { path: [{ app: 'share:0f0f', board: 'main', title: 'Bread science', kind: 'shared' }, { app: 'canvas-0000abce', board: 'main', kind: 'canvas', title }], children: [], dive: record }, suggestionCard: null }, courseCanvas: true, journey: null }); return null; };
+    B.renderToStaticMarkup(B.createElement(Page));
+    return t;
+  };
+  const r = stepsRig({ tutor: holeTutor('Hole as created'), replies: [setFor(1), setFor(2)], props: { record, title: 'Hole as created', canvasApi: { current: { blocks: () => card } }, canvasState: { cards: [['k1']] }, access: { app: 'canvas-0000abce' } } });
+  const { basis } = r.steps.state();
+  r.step(); await r.c.fire();
+  assert.deepEqual([r.bodies[0].goal, r.bodies[0].dive.title], ['Explain why a starter needs feeding', 'Hole as created']);
+  r.live.tutor = holeTutor('Starter notes');
+  assert.notEqual(r.steps.state().basis, basis, 'the dive title grounds the input');
+  r.step(); await r.c.fire();
+  assert.deepEqual([r.bodies.length, r.bodies[1].goal, r.bodies[1].dive.title], [2, 'Explain why a starter needs feeding', 'Starter notes']);
+}));
+
 // Probe D (review fix round 2): the dives record and then the parent journey load after the debounce. Nothing is posted and no
 // set is shown until both settle; the first set is the hole's (mode dive), never a temporary plain one. snapshot() as useTutor
 // builds it, through hookContext, at each stage (useTutor's own read state is an effect, which a server render never runs).

@@ -221,7 +221,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   useEffect(() => {
     if (!active || !record?.dive_id) return;
     const store = enterHole(load(), record, domainOf(canvasApi.current));
-    const question = openingQuestion(store, record);
+    const question = openingQuestion(store, record, liveTitle);
     save(question ? markOpened(store, record) : store);
     if (question) setOpening({ key: record.dive_id, question });
   }, [active, record?.dive_id]); // eslint-disable-line react-hooks/exhaustive-deps

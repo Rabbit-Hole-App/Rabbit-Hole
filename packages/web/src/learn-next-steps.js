@@ -172,12 +172,13 @@ const fnv = text => {
 // moved, selected or zoomed), a practice attempt, a graded answer, entering or leaving a hole. Task 10 fix round 1 (owner
 // eleventh message 2, 3): also the effective Tutor context (context, parent: the snapshot's) - its kind (journey, dive,
 // registry, canvas), the journey it stands on (a live one, or a hole's read parent), its section - and the goal the input
-// is grounded on (goalOf, so a rename that changes it re-asks). Nothing else is read.
+// is grounded on (goalOf, so a rename that changes it re-asks), and a hole's live dive title, which every hole's input carries
+// (fix round 4: a renamed learning_goal hole re-asks too). Nothing else is read.
 export function nextStepsBasis({ lastTurn = null, store = null, journey = null, canvasState = null, graded = 0, record = null, context = null, parent = null, title = '', liveTitle = null }) {
   const j = journey?.journey;
   return `nb_${fnv(JSON.stringify([lastTurn?.turn_id ?? null, store?.seq ?? 0, j?.evidence?.seq ?? null, journey?.path?.version ?? null, j?.active_section_id ?? null,
     j?.section_plan?.heading_block_id ?? null, (canvasState?.cards || []).map(entry => entry[0]).sort(), canvasState?.attempts ?? 0, graded, record?.dive_id ?? null, !!store?.returned,
-    context?.source ?? null, j?.id ?? parent?.journey?.id ?? null, context?.domain?.sectionId ?? null, goalOf({ context, record, title, liveTitle }).goal ?? null]))}`;
+    context?.source ?? null, j?.id ?? parent?.journey?.id ?? null, context?.domain?.sectionId ?? null, goalOf({ context, record, title, liveTitle }).goal ?? null, record ? liveTitle || record.title : null]))}`;
 }
 
 // Not a stopping point (contract §1.2): the Tutor answering, journey work (a pending action, a section being built) or

@@ -839,14 +839,15 @@ test('basis: a context kind change, another parent journey or section, and a ren
   const course = title => ({ context: tutorContext({ board: TUTOR_BOARD }), title });
   assert.equal(b(course('A')), b(course('B')));
   // A canvas-domain hole without a learning_goal (fix round 2): its live title grounds the goal, so a rename re-asks and the
-  // hook input carries the new title; a learning_goal leads and a rename leaves it.
+  // hook input carries the new title; a learning_goal leads and a rename leaves it. Fix round 4: the hole's dive title is in
+  // every hole's hook input, so a rename re-asks a learning_goal hole too.
   const hole = { dive_id: 'canvas-0000hole', title: 'Hole as created', origin: {} };
-  const holeAt = (title, r = hole) => ({ record: r, context: tutorContext({ record: r, title }), title });
+  const holeAt = (title, r = hole) => ({ record: r, context: tutorContext({ record: r, title }), title, liveTitle: title });
   assert.notEqual(b(holeAt('Hole as created')), b(holeAt('Renamed hole')));
   assert.equal(nextStepsInput({ ...holeAt('Renamed hole'), store: emptyStore(), blocks: [], basis: 'b' }).input.goal, 'Renamed hole');
   const goaled = { ...hole, learning_goal: 'Explain a starter culture' };
-  assert.equal(b(holeAt('Hole as created', goaled)), b(holeAt('Renamed hole', goaled)));
-  assert.equal(nextStepsInput({ ...holeAt('Renamed hole', goaled), store: emptyStore(), blocks: [], basis: 'b' }).input.goal, 'Explain a starter culture');
+  assert.notEqual(b(holeAt('Hole as created', goaled)), b(holeAt('Renamed hole', goaled)), 'its dive title changed');
+  assert.deepEqual(['goal', 'dive'].map(k => nextStepsInput({ ...holeAt('Renamed hole', goaled), store: emptyStore(), blocks: [], basis: 'b' }).input[k]).map(v => v.title ?? v), ['Explain a starter culture', 'Renamed hole']);
 });
 
 // Fix round 3: a renamed hole (record.title is the creation title; dives.js serves the live one, liveTitle in the snapshot).
@@ -862,7 +863,8 @@ test('a renamed journey hole and a renamed course hole: goal, dive title and bas
   const b = (liveTitle, r = record) => nextStepsBasis({ store: emptyStore(), canvasState: { cards: [] }, record: r, context, parent, title: 'Water', liveTitle });
   assert.notEqual(b('Siphon notes'), b('Inverted siphon'), 'the rename re-asks');
   const goaled = { ...record, learning_goal: 'Explain why a siphon climbs' };
-  assert.deepEqual([at('Siphon notes', goaled).goal, b('Siphon notes', goaled) === b('Inverted siphon', goaled)], ['Explain why a siphon climbs', true], 'a learning_goal leads; a rename leaves its basis');
+  // Fix round 4: a learning_goal leads the goal, and the rename still re-asks, since the dive title grounds every hole input.
+  assert.deepEqual([at('Siphon notes', goaled).goal, at('Siphon notes', goaled).dive.title, b('Siphon notes', goaled) === b('Inverted siphon', goaled)], ['Explain why a siphon climbs', 'Siphon notes', false]);
   // A hole under a registered course: the subject and the live title; the hole concept (and its claims) from the record.
   const course = tutorContext({ board: TUTOR_BOARD }), hole = { dive_id: 'canvas-0000bbbb', title: 'Softmax' };
   const courseHole = nextStepsInput(snap({ context: course, journey: null, record: hole, liveTitle: 'My notes' })).input;
