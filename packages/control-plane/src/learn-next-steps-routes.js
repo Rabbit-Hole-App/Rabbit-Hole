@@ -76,6 +76,9 @@ export function sharedInput(state, { origin, key = '', version = null, title = '
   for (const [id, s] of Object.entries(viewerStates || {})) if (Object.hasOwn(scope.claims, id)) scope.claims[id].state = s;
   return input;
 }
+// The one-way fingerprint of a shared board's title: in the content cache key and in each shared step's source, so a rename
+// without a version bump is a new cache entry and a stale hook (409), as a version change is. Never the title itself.
+export const titleFingerprint = title => sha256Hex(title);
 // What a returned shared step may carry (twelfth message): the ids and topic (ruling F2) of the same trimmed input that
 // generation read, rebuilt from the board as it is (another version is already 409 stale_hook), and its origin as the
 // steps name it. options: sharedInput's (origin, key, version, title).
@@ -101,7 +104,7 @@ export async function sharedNextSteps(env, { row, state, title, key, viewer, ori
   const own = Object.entries(asked).filter(([id, s]) => Object.hasOwn(content.scope.claims, id) && STATES.includes(s) && s !== 'not_yet_observed').slice(0, L.scope_claims);
   const personal = own.length ? Object.fromEntries(own) : null;
   const input = personal ? sharedInput(state, { ...options, viewerStates: personal }) : content;
-  const cacheKey = `${ORIGIN}/shared/${encodeURIComponent(content.basis)}/${await sha256Hex(title)}`;
+  const fingerprint = await titleFingerprint(title), cacheKey = `${ORIGIN}/shared/${encodeURIComponent(content.basis)}/${fingerprint}`;
   if (!personal) {
     const hit = await nextStepsReply(cache, cacheKey);
     if (hit) return json({ ...hit, telemetry: { ...hit.telemetry, cached: true, calls: 0, usage: NO_USAGE, cost_usd: 0 } });
@@ -112,7 +115,7 @@ export async function sharedNextSteps(env, { row, state, title, key, viewer, ori
   if (refused) return json({ error: 'Next steps are paused for now; try again later.', limited: true }, 429);
   let planned;
   try { planned = await planNextSteps(env, input, callModel ? { callModel } : {}); } catch (error) { return json({ error: error.message }, 502); }
-  const set = { ...mintSet(planned.options, input, { source: { share_version: row.version, origin_block_id: contentOrigin(state, origin) } }), telemetry: { ...planned.telemetry, cached: false, share_key: key, summary: inputSummary(input) } };
+  const set = { ...mintSet(planned.options, input, { source: { share_version: row.version, origin_block_id: contentOrigin(state, origin), title_fingerprint: fingerprint } }), telemetry: { ...planned.telemetry, cached: false, share_key: key, summary: inputSummary(input) } };
   if (!personal) await keepReply(cache, cacheKey, set);
   return json(set);
 }

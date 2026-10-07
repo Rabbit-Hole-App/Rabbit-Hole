@@ -6,6 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setup, BOARD, scriptModel } from './shared-canvas-fixture.js';
 import { shareKey } from '../src/learn-shared-ask.js';
+import { sha256Hex } from '../src/learn-grade-jev.js';
 import { sharedInput } from '../src/learn-next-steps-routes.js';
 import { fixtureModel } from '../src/learn-journey-fixtures.js';
 import { NEXT_STEPS_LIMITS, NEXT_STEPS_SYSTEM } from '../src/agents/learn-next-steps.js';
@@ -50,7 +51,9 @@ test('privacy 1-2: 3 hooks from the visible lesson blocks; chat cards and a goal
   const got = await hooks(f, token, null);
   assert.equal(got.status, 200, got.text);
   assert.equal(got.body.options.length, 3);
-  for (const o of got.body.options) assert.deepEqual([o.selected_next_step.scope, o.selected_next_step.source], ['shared', { share_version: 1, origin_block_id: ':root' }]);
+  const fingerprint = await sha256Hex('nanoGPT attention');
+  for (const o of got.body.options) assert.deepEqual([o.selected_next_step.scope, o.selected_next_step.source], ['shared', { share_version: 1, origin_block_id: ':root', title_fingerprint: fingerprint }]);
+  assert.equal(got.text.includes('nanoGPT attention'), false, 'the step carries a one-way fingerprint of the title, never the title');
   assert.equal(JSON.stringify(got.body.options).includes('reason_internal'), false);
   const input = sharedInput(STATE, { origin: { root: true }, key: 'k', version: 1 });
   assert.equal('goal' in input, false, 'no goal is inferred on a shared canvas');
@@ -309,4 +312,20 @@ test('no raw share token appears in any cache key: root, card and chat origins, 
   assert.equal(entries, 2, 'root and b1; the chat card reads as the root');
   const key = await shareKey(token);
   for (const cacheKey of f.store.keys()) assert.ok(cacheKey.includes(key) && !cacheKey.includes(token) && !cacheKey.includes(encodeURIComponent(token)), cacheKey);
+});
+
+// Fix round 1b (coordinator ruling): the board title is part of what a hook was built on, as the version is.
+test('a rename between generation and click answers 409 stale_hook, never 400; the same title passes', async t => {
+  const f = world(t);
+  const { canvas, token } = await f.shareProject({ state: STATE });
+  const step = (await hooks(f, token, 'ben')).body.options[0].selected_next_step;
+  assert.equal(step.source.title_fingerprint, await sha256Hex('nanoGPT attention'));
+  f.sqlite.prepare('UPDATE canvases SET title = ? WHERE name = ?').run('Renamed board', canvas.name);
+  const renamed = await start(f, token, 'ben', null, step);
+  assert.deepEqual([renamed.status, renamed.body.error], [409, 'stale_hook']);
+  assert.equal(f.sqlite.prepare("SELECT COUNT(*) AS n FROM canvases WHERE owner_email = 'ben@test'").get().n, 0, 'nothing written');
+  assert.equal((await start(f, token, 'ben', null, { ...step, source: { ...step.source, title_fingerprint: 'f'.repeat(64) } })).status, 409, 'any other fingerprint is stale too');
+  f.sqlite.prepare('UPDATE canvases SET title = ? WHERE name = ?').run('nanoGPT attention', canvas.name);
+  const made = await start(f, token, 'ben', null, step);
+  assert.deepEqual([made.status, made.body.next_step], [201, step], 'the same title passes');
 });

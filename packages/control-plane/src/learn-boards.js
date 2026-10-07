@@ -11,7 +11,7 @@ import { sha256Hex } from './learn-grade-jev.js';
 import { learnMedia } from './learn-storage.js';
 import { FORK_COUNT } from './canvases.js';
 import { askShared, boardRevision, boardSources, shareKey, sharePin, shareSource, sharedTitle } from './learn-shared-ask.js';
-import { NEXT_STEPS_BODY_CHARS, sharedNextSteps, sharedStepIds } from './learn-next-steps-routes.js';
+import { NEXT_STEPS_BODY_CHARS, sharedNextSteps, sharedStepIds, titleFingerprint } from './learn-next-steps-routes.js';
 import { selectedStepProblem } from './agents/learn-next-steps.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -367,18 +367,20 @@ async function startRabbitHole(req, env, token, body) {
   if (origin.error) return json({ error: origin.error }, origin.status || 400);
   const parent = { app: `share:${await shareKey(token)}`, board: row.board };
   const originId = origin.root ? SHARED_ROOT : origin.id;
-  // A clicked hook (docs/features/professor-next-steps.md §1.4): checked against the board as it is now - its version (a
-  // stale one is 409 stale_hook), then its ids and wording against the same trimmed input generation read, and its origin
-  // (a chat card reads as the root) - before anything is written for the viewer. Only the checked fields come back as
+  // A clicked hook (docs/features/professor-next-steps.md §1.4): checked against the board as it is now - its version and
+  // title fingerprint (a stale version or a rename is 409 stale_hook), then its ids and wording against the same trimmed
+  // input generation read, and its origin (a chat card reads as the root) - before anything is written for the viewer. Only the checked fields come back as
   // next_step; its learning_goal starts a new hole's goal.
   const picked = body?.selected_next_step;
   if (picked != null) {
-    const allowed = sharedStepIds(state, { origin, key: parent.app.slice('share:'.length), version: row.version, title: await sharedBoardTitle(env, row) });
-    const problem = selectedStepProblem(picked, { ...allowed, version: row.version });
+    const title = await sharedBoardTitle(env, row);
+    const allowed = sharedStepIds(state, { origin, key: parent.app.slice('share:'.length), version: row.version, title });
+    const problem = selectedStepProblem(picked, { ...allowed, version: row.version, fingerprint: await titleFingerprint(title) });
     if (problem) return json({ error: problem.error }, problem.status);
   }
   const step = picked == null ? null : { v: 1, set_id: picked.set_id, suggestion_id: picked.suggestion_id, basis: picked.basis, hook: picked.hook, learning_goal: picked.learning_goal,
-    concept_ids: [...picked.concept_ids], claim_ids: [...picked.claim_ids], scope: picked.scope, source: { share_version: picked.source.share_version, origin_block_id: picked.source.origin_block_id } };
+    concept_ids: [...picked.concept_ids], claim_ids: [...picked.claim_ids], scope: picked.scope,
+    source: { share_version: picked.source.share_version, origin_block_id: picked.source.origin_block_id, title_fingerprint: picked.source.title_fingerprint } };
   const echo = step ? { next_step: step } : {};
   const existing = () => db.prepare('SELECT d.child, c.title FROM canvas_dives d JOIN canvases c ON c.org = d.org AND c.name = d.child WHERE d.org = ? AND d.owner_email = ? AND d.parent_app = ? AND d.parent_board = ? AND d.origin_block_id = ?')
     .bind(user.org, user.email, parent.app, parent.board, originId).first();
