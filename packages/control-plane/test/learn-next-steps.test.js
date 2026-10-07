@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { NEXT_STEPS_LIMITS, NEXT_STEPS_SYSTEM, NEXT_STEPS_TOOL, capText, hookProblem, mintSet, nextStepsInputProblem, nextStepsOutput, needsRepair, nextStepsScope, selectedStepProblem, topicOf } from '../src/agents/learn-next-steps.js';
-import { LEARNER_LABELS } from '../src/agents/learn-journey.js';
+import { LEARNER_LABELS } from '../src/agents/learn-labels.js';
 
 // A generic input on an invented subject (glass making); ids in their own naming style.
 const INPUT = {
@@ -221,11 +221,15 @@ test('selectedStepProblem takes the topic: a format word is allowed only when th
   assert.equal(selectedStepProblem(step, ctx).status, 400, 'no topic given: no escape hatch');
 });
 
-test('LEARNER_LABELS is the one list: the journey corpus imports it', async () => {
+test('LEARNER_LABELS is the one list, in a leaf module: the journey agent, the hook validator and the journey corpus import it', async () => {
+  const src = name => readFileSync(new URL(`../src/agents/${name}`, import.meta.url), 'utf8');
+  assert.match(src('learn-journey.js'), /import \{ LEVEL_WORDS \} from '\.\/learn-labels\.js';/);
+  assert.match(src('learn-next-steps.js'), /import \{ LEARNER_LABELS \} from '\.\/learn-labels\.js';/);
+  assert.doesNotMatch(src('learn-labels.js'), /^import /m, 'a leaf: the web bundle never pulls the journey agent for it');
   assert.ok(LEARNER_LABELS.length >= 6 && LEARNER_LABELS.every(re => re instanceof RegExp));
   assert.ok(LEARNER_LABELS.some(re => re.test('You are a natural at this')));
   const corpus = readFileSync(new URL('../../web/e2e/journey-corpus-run.mjs', import.meta.url), 'utf8');
-  assert.match(corpus, /LEARNER_LABELS/);
+  assert.match(corpus, /import \{ LEARNER_LABELS \} from '\.\.\/\.\.\/control-plane\/src\/agents\/learn-labels\.js';/);
   assert.doesNotMatch(corpus, /const LABELS = \[/);
 });
 

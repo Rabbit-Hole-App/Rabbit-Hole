@@ -244,3 +244,15 @@ test('runMaterials: a failed command is reported and the next one still runs; no
   assert.deepEqual(await runMaterials([{ type: 'respond_text', text: 'x' }], { app: 'demo', canvas, post, openSearch: () => {}, offer: async () => {} }), []);
   assert.equal(posts.length, 2);
 });
+
+// Task 9 review fix 4: a notice is handed over as soon as its command answers, never held behind a paid proposal.
+test('runMaterials: each notice reaches onNotice as its command answers, before an unanswered proposal ahead of it is decided', async () => {
+  const notices = [];
+  const replies = { animate: { result: 'paid_proposal', primitive: 'maths_animation', message: 'paid', block: { type: 'video', mode: 'generate', title: 'a' } }, quiz: { result: 'unsupported', message: 'Not here yet.' } };
+  const canvas = { insertBlock: () => 'id', reserve: () => 'slot', release: () => {} };
+  const post = async (path, body) => replies[body.command];
+  const actions = ['animate', 'quiz'].map(command => ({ type: 'create_material', command, request: 'r' }));
+  runMaterials(actions, { app: 'demo', canvas, post, openSearch: () => {}, offer: () => new Promise(() => {}), onNotice: notice => notices.push(notice) });
+  await ticks(() => notices.length === 1);
+  assert.deepEqual(notices, [{ tone: 'info', text: 'Not here yet.' }], 'the unsupported notice, while the paid proposal still waits');
+});

@@ -5,27 +5,38 @@ import { api } from './api.js';
 import { nextStepsBasis, nextStepsController, nextStepsInput, stoppingPoint } from './learn-next-steps.js';
 import { emitDecision, hooksEvent, shownEvent, tracing } from './learn-tutor-trace.js';
 
-// useNextSteps' logic outside React, so node tests run it through the real controller. read(): the hook's latest props.
-// A trigger state comes from state(); update() hands it to the controller with an input builder that reads the props when the
-// request is sent. The view is cached per controller change: view() returns fresh copies, which useSyncExternalStore must
-// not get on every read. Telemetry (contract §3) only while a sink is registered: next_steps_computed as each set lands and
-// next_steps_shown the first time a set is on screen, each with the identity of the input that set was planned from.
+// ownedSteps is internal to this module, exported only for its node tests: not part of contract §1.3 (the contract is
+// useNextSteps). It is useNextSteps' logic outside React, so those tests run it through the real controller. read(): the
+// hook's latest props. A trigger state comes from state(); update() hands it to the controller with an input builder that
+// reads the props when the request is sent. The view is cached per controller change: view() returns fresh copies, which
+// useSyncExternalStore must not get on every read. Telemetry (contract §3) only while a sink is registered:
+// next_steps_computed as each set lands and next_steps_shown the first time a set is on screen, each with the identity of
+// the input that set was planned from. dispose() ends the controller; the next subscribe, update or select builds a fresh one
+// (an effect re-run under StrictMode or Fast Refresh disposes, then uses it again). Subscribers live here, so they survive it.
 export function ownedSteps(read, { post = input => api('/api/learn/tutor/next-steps', { method: 'POST', body: JSON.stringify({ ...read().access, input }) }), ...timers } = {}) {
-  const sent = new WeakMap(), planned = new Map();
-  const ctl = nextStepsController({
-    post,
-    onSet: (set, input, trim, { discarded }) => {
-      if (!tracing()) return;
-      const ids = { input, trim, scope: 'owned', ...sent.get(input) };
-      planned.set(set.set_id, ids);
-      emitDecision(hooksEvent(set, { ...ids, discarded }));
-    },
-    onShown: set => { if (tracing()) emitDecision(shownEvent(set, planned.get(set.set_id))); },
-    ...timers,
-  });
-  let view = ctl.view();
-  // The first listener: the cached view is fresh before React reads it; the Tutor learns which hooks are on screen.
-  ctl.subscribe(() => { view = ctl.view(); read().tutor?.showing?.(view.status === 'ready' ? view.options : []); });
+  const sent = new WeakMap(), planned = new Map(), listeners = new Set();
+  let ctl = null, view = null;
+  const controller = () => {
+    if (ctl) return ctl;
+    ctl = nextStepsController({
+      post,
+      onSet: (set, input, trim, { discarded }) => {
+        if (!tracing()) return;
+        const ids = { input, trim, scope: 'owned', ...sent.get(input) };
+        planned.set(set.set_id, ids);
+        emitDecision(hooksEvent(set, { ...ids, discarded }));
+      },
+      onShown: set => { if (tracing()) emitDecision(shownEvent(set, planned.get(set.set_id))); },
+      ...timers,
+    });
+    view = ctl.view();
+    // The cached view is fresh before React reads it; the Tutor learns which hooks are on screen; then the subscribers.
+    ctl.subscribe(() => { view = ctl.view(); read().tutor?.showing?.(view.status === 'ready' ? view.options : []); listeners.forEach(fn => fn()); });
+    return ctl;
+  };
+  controller();
+  // ponytail: snapshot() on every render (a sessionStorage parse and a Tutor context build); cache it by store seq if
+  // LearnPage renders hot.
   const now = () => {
     const p = read();
     return { p, s: p.tutor?.askStep ? p.tutor.snapshot() : null, blocks: p.canvasApi?.current?.blocks?.() || [] };
@@ -40,7 +51,7 @@ export function ownedSteps(read, { post = input => api('/api/learn/tutor/next-st
         stop: stoppingPoint({ busy: p.tutor.busy, journey: p.journey, store: s.store, here: { app: p.access?.app, board: p.board }, blocks, goal: p.title }),
       };
     },
-    update: ({ basis, stop }) => ctl.update({ basis, stop, input: previous => {
+    update: ({ basis, stop }) => controller().update({ basis, stop, input: previous => {
       const { p, s, blocks } = now();
       const built = nextStepsInput({ ...s, journey: p.journey, blocks, title: p.title, lastTurn: p.tutor?.lastTurn, previous, basis, describe: p.describe });
       // The trace identity as this input is sent, so a set that lands after the canvas moved on keeps its own ids.
@@ -52,9 +63,9 @@ export function ownedSteps(read, { post = input => api('/api/learn/tutor/next-st
       return built;
     } }),
     view: () => view,
-    subscribe: ctl.subscribe,
-    select: id => ctl.select(id, { busy: !!read().tutor?.busy }),
-    dispose: ctl.dispose,
+    subscribe: fn => { listeners.add(fn); controller(); return () => listeners.delete(fn); },
+    select: id => controller().select(id, { busy: !!read().tutor?.busy }),
+    dispose: () => { ctl?.dispose(); ctl = null; },
   };
 }
 

@@ -2,7 +2,7 @@
 // Professor Next Steps hook contract (docs/features/professor-next-steps.md §1.1, §2.2): the planner's tool, its limits,
 // the server validator, minted HookSets and the check of an incoming selected_next_step. Pure: no model call, no storage.
 import { LEARNING_GOAL_MAX, STATE_RULES, learningGoalProblem, tagged } from './learn-tutor.js';
-import { LEARNER_LABELS } from './learn-journey.js';
+import { LEARNER_LABELS } from './learn-labels.js';
 import { STATES } from '../../../web/src/learn-tutor-evidence.js';
 
 export const NEXT_STEPS_PLANNER_VERSION = 'next-steps-planner-1';

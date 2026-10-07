@@ -56,6 +56,8 @@ export function useVoiceSession({ tutor, app, access, targetId, onTargetUsed = n
     voice = createVoiceSession({
       stt, tts, telemetry: voiceEvent,
       tutor: { voiceTurn: args => {
+        // A hook click (say with nextStep) is about the hook, never the armed card: the card stays for the next turn.
+        if (args.nextStep) return live.current.tutor.voiceTurn(args);
         const used = live.current.targetId ?? null;
         if (used) live.current.onTargetUsed?.();
         return live.current.tutor.voiceTurn({ ...args, targetId: used });

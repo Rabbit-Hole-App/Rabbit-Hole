@@ -663,3 +663,39 @@ test('hold: two clips release in turn, a hold while Voice is starting keeps the 
   assert.equal(r.session.state, 'off');
   assert.deepEqual(r.calls, [], 'a release after exit never reopens the mic');
 });
+
+// Professor Next Steps (contract §1.2, owner eighth message): a hook clicked while Voice is on is the same voice turn - the
+// step goes to voiceTurn with no learner words, no speech marks, and the reply is spoken; never a second turn meanwhile.
+test('say with a next step: one voice turn with the step and no words, spoken and captioned; busy refuses a second; no step, no words refused', async () => {
+  const STEP = { suggestion_id: 'ns_01020304.2', hook: 'Why do some coasts barely see a tide?', learning_goal: 'Explain how basin shape changes tidal range' };
+  const tutor = scriptedTutor('A wide basin spreads the water out.');
+  const r = rig(tutor, { ttsMs: 20 });
+  await r.session.enter();
+  assert.equal(r.session.say('', {}), false, 'no words and no step');
+  assert.equal(r.session.say('', { nextStep: STEP, selectedAt: '2026-10-06T10:00:05.000Z' }), true);
+  assert.equal(r.session.say('', { nextStep: STEP }), false, 'the click turn is running: never a second turn');
+  assert.equal(r.session.say('Another opening.', { opening: true }), false);
+  await until(r.session, 'speaking');
+  await until(r.session, 'listening');
+  assert.equal(tutor.calls.length, 1);
+  const [call] = tutor.calls;
+  assert.deepEqual([call.raw, call.nextStep, call.selectedAt, call.opening], ['', STEP, '2026-10-06T10:00:05.000Z', undefined]);
+  assert.equal(r.session.caption.current, 'A wide basin spreads the water out.');
+  assert.ok(!r.names().includes('stt_commit') && !r.names().includes('speech_end'), 'not learner speech');
+  assert.ok(r.calls.includes('tts.speak'), 'spoken');
+  noWords(r, STEP.hook, STEP.learning_goal);
+  r.session.exit();
+});
+
+test('say with a next step while Voice Mode is still starting waits for listening, then runs once', async () => {
+  const STEP = { suggestion_id: 'ns_01020304.1', hook: 'h', learning_goal: 'g' };
+  const tutor = scriptedTutor('Here it is.');
+  const r = rig(tutor, { ttsMs: 5 });
+  const entering = r.session.enter();
+  assert.equal(r.session.say('', { nextStep: STEP }), true, 'queued');
+  await entering;
+  await until(r.session, 'listening');
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.deepEqual(tutor.calls.map(c => c.nextStep), [STEP]);
+  r.session.exit();
+});

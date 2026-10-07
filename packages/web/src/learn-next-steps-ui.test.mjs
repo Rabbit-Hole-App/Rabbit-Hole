@@ -38,7 +38,7 @@ const ticks = async (done, n = 50) => { for (let i = 0; i < n && !done(); i++) a
 const KEY = 'small.tutor:o:e@x.com';
 
 // course: the registry entry for this canvas (null: none). journey: a journey view on the board. card/blocks: the selection.
-function rig({ plan = TEXT, artifact = null, course = COURSE, journey = null, card = null, blocks = [] } = {}) {
+function rig({ plan = TEXT, artifact = null, course = COURSE, journey = null, card = null, blocks = [], reserve = () => 'slot' } = {}) {
   const storage = new Map(), calls = [], inserted = [];
   const globals = {
     window: { dispatchEvent: () => true },
@@ -46,12 +46,13 @@ function rig({ plan = TEXT, artifact = null, course = COURSE, journey = null, ca
     localStorage: { getItem: () => null },
     fetch: async (path, options) => {
       calls.push({ path, body: JSON.parse(options.body) });
-      const reply = path === '/api/learn/tutor/plan' ? plan : path === '/api/learn/artifact' ? artifact : { status: 'error', evaluator: 'jev', events: [] };
+      const n = calls.filter(c => c.path === path).length - 1, of = x => (typeof x === 'function' ? x(n) : x);
+      const reply = path === '/api/learn/tutor/plan' ? of(plan) : path === '/api/learn/artifact' ? of(artifact) : { status: 'error', evaluator: 'jev', events: [] };
       return new Response(JSON.stringify(reply), { status: 200, headers: { 'Content-Type': 'application/json' } });
     },
   };
   let tutor = null;
-  const canvasApi = { current: { blocks: () => blocks, block: id => blocks.find(b => b.id === id) || null, insertBlock: block => { inserted.push(block); return 'new-id'; }, reserve: () => 'slot', release: () => {} } };
+  const canvasApi = { current: { blocks: () => blocks, block: id => blocks.find(b => b.id === id) || null, insertBlock: block => { inserted.push(block); return 'new-id'; }, reserve: () => reserve(), release: () => {} } };
   const registered = fn => { if (course) B.TUTOR_DOMAINS.push(course); try { return fn(); } finally { if (course) B.TUTOR_DOMAINS.splice(B.TUTOR_DOMAINS.indexOf(course), 1); } };
   const Page = () => { tutor = B.useTutor({ app: { name: 'canvas-0000test', org: 'o', email: 'e@x.com', repo: 'example/tides-ui' }, board: 'main', access: { app: 'canvas-0000test' }, canvasApi, canvasState: { card }, dive: { tree: null, suggestionCard: null }, courseCanvas: true, journey }); return null; };
   registered(() => B.renderToStaticMarkup(B.createElement(Page)));
@@ -81,10 +82,77 @@ test('askStep: one next_step turn, no evaluate call, the reply text; create_mate
   assert.equal(r.inserted.length, 1);
 });
 
-test('askStep with a paid material: the proposal waits for Generate, nothing is inserted on its own', async () => {
-  const r = rig({ plan: withMaterial, artifact: { result: 'paid_proposal', primitive: 'x', message: 'This uses paid generation.', block: { type: 'explanation', title: 't' } } });
-  await r.run(async tutor => { await tutor.askStep({ selected_next_step: STEP }); await ticks(() => r.calls.some(c => c.path === '/api/learn/artifact')); await ticks(() => false, 5); });
+// The tutor's extras are read when drawn, so this server-rendered hook shows a proposal or notice that arrived after its render.
+const elements = node => (!node || typeof node !== 'object' ? [] : Array.isArray(node) ? node.flatMap(elements) : [node, ...elements(node.props?.children)]);
+const paidIn = tutor => elements(tutor.extras).find(e => typeof e.props?.onGenerate === 'function') || null;
+const drawn = tutor => (tutor.extras ? B.renderToStaticMarkup(tutor.extras) : '');
+const paidMaterial = { strategy: 'feynman', constraints_add: [], actions: [{ type: 'respond_text', text: 'Here is something to try.' }, { type: 'create_material', command: 'animate', request: 'tidal range by basin shape' }] };
+const proposal = message => ({ result: 'paid_proposal', primitive: 'maths_animation', message, block: { type: 'mathAnimation', title: 't' } });
+
+test('askStep with a paid material: the offer is shown with Generate and Cancel in extras, nothing is inserted on its own; Generate inserts it', async () => {
+  const r = rig({ plan: paidMaterial, artifact: proposal('This uses paid generation.') });
+  await r.run(async tutor => { await tutor.askStep({ selected_next_step: STEP }); await ticks(() => !!paidIn(r.tutor())); });
   assert.equal(r.inserted.length, 0);
+  assert.equal(r.calls.find(c => c.path === '/api/learn/artifact').body.command, 'animate');
+  assert.match(drawn(r.tutor()), /This uses paid generation\.[\s\S]*data-paid-cancel[\s\S]*data-paid-generate/);
+  paidIn(r.tutor()).props.onGenerate();
+  await ticks(() => r.inserted.length === 1);
+  assert.deepEqual([r.inserted.length, r.inserted[0].confirmedStart, r.tutor().extras], [1, true, null], 'generated once, the offer gone');
+});
+
+test('paid offers come one at a time across turns; a Generate that throws still clears it and shows the next one', async () => {
+  let reserves = 0;
+  const r = rig({ plan: paidMaterial, artifact: n => proposal(`Paid card ${n + 1}.`), reserve: () => { if (++reserves === 1) throw new Error('no room'); return 'slot'; } });
+  await r.run(async tutor => {
+    await tutor.askStep({ selected_next_step: STEP });
+    await tutor.askStep({ selected_next_step: STEP });
+    await ticks(() => r.calls.filter(c => c.path === '/api/learn/artifact').length === 2 && !!paidIn(r.tutor()));
+  });
+  assert.match(drawn(r.tutor()), /Paid card 1\./);
+  assert.doesNotMatch(drawn(r.tutor()), /Paid card 2\./, 'the second waits for the first');
+  assert.throws(() => paidIn(r.tutor()).props.onGenerate(), /no room/);
+  await ticks(() => /Paid card 2/.test(drawn(r.tutor())));
+  assert.match(drawn(r.tutor()), /Paid card 2\./, 'never jammed by the throw');
+  paidIn(r.tutor()).props.onCancel();
+  await ticks(() => r.tutor().extras === null);
+  assert.deepEqual([r.tutor().extras, r.inserted.length], [null, 0]);
+});
+
+test('a Tutor-made material that cannot be made says so in extras: an error, a clarification, an unsupported command; a made card says nothing; the next turn clears it', async () => {
+  const cases = [[{ error: 'The artifact service failed.' }, 'The artifact service failed.'], [{ result: 'clarification', question: 'Which basin do you mean?' }, 'Which basin do you mean?'], [{ result: 'unsupported', message: 'That card cannot be made here yet.' }, 'That card cannot be made here yet.']];
+  for (const [artifact, text] of cases) {
+    const r = rig({ plan: n => (n === 0 ? withMaterial : TEXT), artifact });
+    await r.run(async tutor => { await tutor.askStep({ selected_next_step: STEP }); await ticks(() => !!r.tutor().extras); });
+    assert.ok(drawn(r.tutor()).includes(text), text);
+    assert.match(drawn(r.tutor()), /data-tutor-notices/);
+    await r.run(tutor => tutor.askStep({ selected_next_step: STEP }));
+    assert.equal(r.tutor().extras, null, 'a new turn clears the old notice');
+  }
+  const made = rig({ plan: withMaterial, artifact: { result: 'artifact', primitive: 'explanation', block: { type: 'explanation', title: 't', body: 'b' } } });
+  await made.run(async tutor => { await tutor.askStep({ selected_next_step: STEP }); await ticks(() => made.inserted.length === 1); });
+  assert.equal(made.tutor().extras, null, 'the card on the canvas is its own notice');
+});
+
+// Review fix 1: a hook clicked in Voice Mode is a voice turn (voice-session say with nextStep -> voiceTurn), spoken as usual.
+test('voiceTurn with a next step: the next_step turn in voice, no learner words, the voice contract back', async () => {
+  const r = rig({ plan: { ...TEXT, actions: [{ type: 'respond_text', text: 'A wide basin spreads the water out.' }] } });
+  const reply = await r.run(tutor => tutor.voiceTurn({ raw: '', nextStep: STEP, turnId: 'voice-turn-1' }));
+  assert.deepEqual([reply.speech, reply.turnId, typeof reply.ms], ['A wide basin spreads the water out.', 'voice-turn-1', 'object']);
+  const intent = r.planBody().context.learner_intent;
+  assert.deepEqual([intent.kind, intent.input_modality, intent.raw_user_message, intent.selected_next_step.hook], ['next_step', 'voice', '', STEP.hook]);
+  assert.deepEqual(r.paths(), ['/api/learn/tutor/plan'], 'no evaluate: a click is never evidence');
+  assert.equal(JSON.parse(r.storage.get(KEY)).turns.at(-1).next_step, STEP.suggestion_id);
+  const voice = read('LearnVoice.jsx');
+  assert.match(voice, /tutor: \{ voiceTurn: args => \{\n\s+\/\/ [^\n]*\n\s+if \(args\.nextStep\) return live\.current\.tutor\.voiceTurn\(args\);\n\s+const used = /, 'a hook click never takes the armed card');
+});
+
+// Review fix 2: the web bundle never pulls the journey agent for the hook validator's label list.
+test('useNextSteps graph: the label list comes from a leaf module, never agents/learn-journey.js', async () => {
+  const built = await esbuild.build({ stdin: { contents: "export { useNextSteps } from './LearnNextSteps.jsx';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
+    bundle: true, write: false, format: 'esm', platform: 'browser', jsx: 'automatic', external: ['react', 'react-dom'], metafile: true, logLevel: 'silent' });
+  const inputs = Object.keys(built.metafile.inputs);
+  assert.ok(inputs.some(i => i.endsWith('agents/learn-labels.js')), 'the leaf label module');
+  assert.equal(inputs.some(i => i.endsWith('agents/learn-journey.js')), false);
 });
 
 // Owner extra test 12f: Voice Mode keeps hooks clickable; the click enters the same Tutor path as a voice turn.
@@ -186,6 +254,7 @@ test('useNextSteps: exactly the steps shape, unavailable/off without a Tutor; th
   assert.doesNotMatch(source, /from '\.\/LearningBlocks/, 'LearningBlocks.jsx cannot load under node; describe is a parameter');
   assert.match(source, /nextStepsController\(/);
   assert.match(source, /'\/api\/learn\/tutor\/next-steps'/);
+  assert.match(source, /internal[^\n]*not part of contract §1\.3/, 'ownedSteps is documented as internal');
   assert.match(source, /emitDecision\(hooksEvent\(/);
   assert.match(source, /emitDecision\(shownEvent\(/);
   // The update effect depends on the trigger state alone: never on a click, pan, zoom, hover or pointer movement.
@@ -250,6 +319,22 @@ test('ownedSteps: the trigger state, the input from the live snapshot at send ti
   r.step();
   assert.deepEqual([r.steps.view().status, r.steps.view().reason, r.tutor.shown.at(-1)], ['unavailable', 'not_now', []], 'a turn in flight hides them');
   assert.notEqual(r.steps.view(), v);
+});
+
+// Review fix 3: an effect re-run (StrictMode, Fast Refresh) disposes the controller and uses it again; it must come back.
+test('ownedSteps survives dispose: subscribe and update again build a fresh controller that asks, lands and notifies', async () => {
+  const r = stepsRig({ replies: [setFor(1), setFor(2)] });
+  const seen = [];
+  const off = r.steps.subscribe(() => seen.push(r.steps.view().status));
+  r.step(); await r.c.fire();
+  assert.equal(r.steps.view().status, 'ready');
+  off(); r.steps.dispose();
+  assert.equal(r.c.pending(), 0, 'disposed: no timer left');
+  r.steps.subscribe(() => seen.push(`again ${r.steps.view().status}`));
+  r.step(); await r.c.fire();
+  assert.deepEqual([r.steps.view().status, r.steps.view().set_id, r.bodies.length], ['ready', 'ns_00000002', 2]);
+  assert.ok(seen.includes('again ready'), JSON.stringify(seen));
+  assert.deepEqual(r.steps.select('ns_00000002.1').ok, true);
 });
 
 test('ownedSteps: a finished turn changes the basis and the shown set turns stale until the new one lands', async () => {

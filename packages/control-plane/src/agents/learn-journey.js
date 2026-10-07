@@ -6,6 +6,7 @@
 import { JOURNEY_LIMITS as LIMIT, validatePath, validateRegistry } from '../../../web/src/learn-journey.js';
 import { STATES } from '../../../web/src/learn-tutor-evidence.js';
 import { STATE_RULES, tagged } from './learn-tutor.js';
+import { LEVEL_WORDS } from './learn-labels.js';
 
 // ---------- Prompts ----------
 
@@ -322,16 +323,8 @@ export function diagnosticOutput(out) {
 // draft). concepts_added only adds ids, so no claim with evidence can change through it (§4). A revision never makes
 // progress: completing a section, moving current_section_id or changing the current section's status, generation or
 // heading is journeyStep's alone, so such a reply is invalid (adaptPath then escalates).
-// Level words are scrubbed, never fatal: a learner_note or adaptation_reason that says "mastered" is dropped and such a
-// reason is blanked. A bare percentage is not a level word ("95%" can quote an answer).
-// ponytail: a short word list; extend it when real plans slip a level past it.
-const LEVEL_WORDS = /\bmaster(?:ed|y)\b|\b(?:beginner|intermediate|advanced|expert)[ -](?:level|learner)\b/i;
+// Level words (agents/learn-labels.js, a leaf shared with the hook validator) are scrubbed, never fatal.
 const leveled = t => typeof t === 'string' && LEVEL_WORDS.test(t);
-// No mastery, fixed learner level or permanent ability label anywhere the learner reads: the one list for the repo
-// (the journey corpus and the hook validator import it). pathOutput's scrub still reads LEVEL_WORDS alone.
-export const LEARNER_LABELS = [LEVEL_WORDS, /\bmaster(ed|y)\b/i, /\b(?:novice|beginner|intermediate|advanced|expert) (?:student|learner|level)\b/i,
-  /\byou(?:'re| are) (?:a |an )?(?:beginner|novice|intermediate|expert|natural)\b/i, /\byou(?:'re| are) (?:just )?(?:good|bad|great|terrible|hopeless) at\b/i,
-  /\b(?:not an? (?:math|maths|science|coding|programming|history) person|naturally gifted|gifted learner|slow learner|fast learner|quick learner)\b/i];
 const PROGRESS = ['status', 'generation_state', 'heading_block_id'];
 // max_sections (a quick overview's draft, AT-14) caps the section count: a longer path is invalid, never trimmed.
 export function pathOutput(out, { prev = null, registry, source, evidence_refs = [], diagnostic_evidence_refs = [], max_sections = null }) {

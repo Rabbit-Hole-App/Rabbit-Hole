@@ -10,7 +10,7 @@
 // and the hole's turns run the journey domain in its dive form over it: the dive's claims, the hole's own blocks, and
 // evidence in this hole's session store. The parent's resolver and tray never run here, so the hole posts no journey
 // action; a refusal leaves the hole as it was. Reconciliation on return is LP5.
-import { cloneElement, useCallback, useEffect, useRef, useState } from 'react';
+import { cloneElement, useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { api, apiFetch } from './api.js';
 import { tutorContext } from './learn-tutor-domains.js';
 import { loadStore, saveStore, storeKey } from './learn-tutor-evidence.js';
@@ -62,10 +62,14 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   const [chips, setChips] = useState([]);
   const slashNext = useRef(null);
   // busy: a turn is in flight (a stopping point for the hooks); lastTurn: the last finished turn, a hook basis trigger;
-  // proposal: the paid card waiting for Generate / Not now. shown: the hooks on screen (useNextSteps), for the decision trace.
+  // shown: the hooks on screen (useNextSteps), for the decision trace. desk: what Tutor-made material shows in extras - the
+  // paid card waiting for Generate / Not now, and the notices of material that could not be made. It is plain state read
+  // when extras is drawn (redraw re-renders), so a proposal or notice that lands after a render is never lost.
   const [busy, setBusy] = useState(false);
   const [lastTurn, setLastTurn] = useState(null);
-  const [proposal, setProposal] = useState(null);
+  const [, redraw] = useReducer(n => n + 1, 0);
+  const desk = useRef({ proposal: null, notices: [] }).current;
+  const put = next => { Object.assign(desk, next); redraw(); };
   const seq = useRef(0), shown = useRef([]), flying = useRef(0), asking = useRef(Promise.resolve());
   const stateRef = useRef(canvasState); stateRef.current = canvasState;
   const journeyRef = useRef(journey); journeyRef.current = journey;
@@ -163,6 +167,8 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     // The reply does not wait for the cards.
     runMaterials(result.actions, {
       app: app.name, openSearch: () => {}, offer,
+      // What could not be made says so (an error, a clarification, an unsupported command); a made card is its own notice.
+      onNotice: notice => { if (notice.tone !== 'done') put({ notices: [...desk.notices, notice] }); },
       canvas: { insertNotebook: () => canvasApi.current?.insertNotebook(), insertBlock: (b, o) => canvasApi.current?.insertBlock(b, o), reserve: s => canvasApi.current?.reserve(s), release: id => canvasApi.current?.release(id) },
       post: (path, body, options) => api(path, { ...options, method: 'POST', body: JSON.stringify({ ...body, ...(access.pending ? { pending: access.pending } : {}) }) }),
     }).catch(error => console.info('[tutor] create_material', error.message));
@@ -179,7 +185,14 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     return { ...result, bench: { ...result.bench, ms: { ...result.bench.ms, canvas_done: done } } };
   }, [access, record, here.app, here.board, key, parentJourney, courseCanvas, root, canvasVersion]); // eslint-disable-line react-hooks/exhaustive-deps
   // Paid proposals from create_material, one at a time: each waits until the one before it is answered (PaidConfirm).
-  const offer = next => (asking.current = asking.current.then(() => new Promise(done => setProposal({ ...next, done }))));
+  const offer = next => (asking.current = asking.current.then(() => new Promise(done => put({ proposal: { ...next, done } }))));
+  // Generate or Not now: the offer always clears and the next one shows, even when generate throws.
+  const decide = generate => {
+    const { proposal } = desk;
+    try { if (generate) proposal.generate(); } finally { put({ proposal: null }); proposal.done(); }
+  };
+  // A new turn starts clean: the chips and the notices of the turn before (a waiting paid card stays until answered).
+  const fresh = () => { setChips([]); if (desk.notices.length) put({ notices: [] }); };
   // Any turn in flight is busy: a stopping point for the hooks (stoppingPoint), until the last one ends.
   const tracked = async args => {
     flying.current += 1;
@@ -203,7 +216,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   // { handled } for a turn the journey took. An empty reply is drawn as the spinner (ask.jsx), so a turn that only acts on
   // the canvas says so.
   const answer = async args => {
-    setChips([]);
+    fresh();
     const result = await tracked(args);
     if (result.handled) return result;
     return result.text || (result.actions.some(action => action.type !== 'no_action') ? 'See the canvas.' : 'Nothing to add here yet.');
@@ -219,9 +232,16 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     snapshot: () => ({ context: tutorContext({ ...where, journey: journeyRef.current, blocks: canvasApi.current?.blocks?.() || [] }), store: load(), parent: parentJourney, record }),
     showing: options => { shown.current = options; },
   };
-  const paid = proposal && <PaidConfirm message={proposal.message} onGenerate={() => { proposal.generate(); setProposal(null); proposal.done(); }} onCancel={() => { setProposal(null); proposal.done(); }} />;
+  // Read when drawn (extras is a getter): the desk as it is now.
+  const made = () => <>
+    {desk.notices.length > 0 && <div data-tutor-notices role="status" className="flex flex-col gap-1 text-xs">
+      {desk.notices.map((notice, i) => <p key={i} className={notice.tone === 'error' ? 'text-red-700' : 'text-ink-2'}>{notice.text}</p>)}
+    </div>}
+    {desk.proposal && <PaidConfirm message={desk.proposal.message} onGenerate={() => decide(true)} onCancel={() => decide(false)} />}
+  </>;
+  const hasMade = () => !!desk.proposal || desk.notices.length > 0;
   if (!hookTurns) return { active: false, ...steps };
-  if (!active) return { active: false, ...steps, opening, extras: paid || null };
+  if (!active) return { active: false, ...steps, opening, get extras() { return hasMade() ? made() : null; } };
   return {
     active: true,
     ...steps,
@@ -231,9 +251,10 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     // Voice Mode (docs/features/voice-tutor-mvp.md §1): the same turn, spoken. `speech` is the Tutor's
     // own words or '' - never a fallback; `ms` are the turn's timings for the voice telemetry. A turn the journey took
     // says nothing: the tray shows where the journey is.
-    voiceTurn: async ({ raw, targetId, signal, turnId, onSpeakable = null, opening = false }) => {
-      setChips([]);
-      const result = await tracked({ raw, targetId, opening, signal, inputModality: 'voice', turnId, onSpeakable });
+    // nextStep: a hook clicked while Voice is on (voice-session say with nextStep) - the same next_step turn as askStep.
+    voiceTurn: async ({ raw, targetId, signal, turnId, onSpeakable = null, opening = false, nextStep = null, selectedAt = null }) => {
+      fresh();
+      const result = await tracked({ raw, targetId, opening, signal, inputModality: 'voice', turnId, onSpeakable, nextStep, selectedAt: nextStep ? selectedAt ?? new Date().toISOString() : null });
       if (result.handled) return { speech: '', turnId, ms: {} };
       return { speech: result.text, turnId: result.turn.turn_id, ms: result.bench.ms };
     },
@@ -243,8 +264,9 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     // prompt (busy), so no stale command waits for the next turn.
     slash: (name, raw) => { slashNext.current = name ? { name, raw } : null; },
     // Shown under the Tutor's reply in the chat (ask.jsx): the dive suggestion, whose "Keep it on
-    // this canvas" also gives the next turn here dive_choice inline, the suggestion chips, and a paid card's Generate / Not now.
-    extras: (dive.suggestionCard || chips.length || paid) ? <>
+    // this canvas" also gives the next turn here dive_choice inline, the suggestion chips, and Tutor-made material's notices
+    // and Generate / Not now (read when drawn).
+    get extras() { return (dive.suggestionCard || chips.length || hasMade()) ? <>
       {dive.suggestionCard && cloneElement(dive.suggestionCard, { onKeep: () => { save(keepHere(load(), here)); dive.suggestionCard.props.onKeep(); } })}
       {chips.length > 0 && <div data-tutor-chips role="group" aria-label="Tutor suggestions" className="flex flex-wrap gap-2">
         {chips.map(chip => (
@@ -254,7 +276,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
           </button>
         ))}
       </div>}
-      {paid}
-    </> : null,
+      {made()}
+    </> : null; },
   };
 }

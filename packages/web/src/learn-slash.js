@@ -152,16 +152,18 @@ export async function runLearnCommand(text, { app, target = null, canvas, openSe
 // A Tutor hook turn's create_material actions (contract §2.5), in the plan's order, each run by runLearnCommand exactly as
 // if typed: no second generator. A paid card answers with its Generate / Not now proposal; offer(proposal) shows it and
 // resolves once the learner has answered, and the next proposal waits for that, so proposals come one at a time while
-// free cards keep arriving. deps: runLearnCommand's { app, canvas, post, openSearch }. Resolves to each command's answer
-// once every proposal is answered; a command that throws answers an error notice and the next one still runs.
+// free cards keep arriving. deps: runLearnCommand's { app, canvas, post, openSearch }. onNotice(notice) gets each command's
+// notice as soon as it answers, never held behind a proposal. Resolves to each command's answer once every proposal is
+// answered; a command that throws answers an error notice and the next one still runs.
 // ponytail: one command at a time (each waits for its card); post them together with ordered inserts if latency matters.
-export async function runMaterials(actions, { offer, ...deps }) {
+export async function runMaterials(actions, { offer, onNotice = () => {}, ...deps }) {
   const results = [];
   let asked = Promise.resolve();
   for (const action of actions.filter(entry => entry.type === 'create_material')) {
     const result = await runLearnCommand(`/${action.command} ${action.request}`, { target: null, ...deps })
       .catch(() => ({ notice: { tone: 'error', text: `/${action.command} could not be made. Try again.` } }));
     results.push(result);
+    if (result.notice) onNotice(result.notice);
     if (result.proposal) asked = asked.then(() => offer(result.proposal));
   }
   await asked;

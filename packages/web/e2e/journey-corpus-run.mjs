@@ -35,7 +35,8 @@ import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
 import { anthropic } from '../../control-plane/src/ask.js';
 import { LEARN_TASKS } from '../../control-plane/src/learn-models.js';
-import { JOURNEY_TOOLS, LEARNER_LABELS, pathOutput } from '../../control-plane/src/agents/learn-journey.js';
+import { JOURNEY_TOOLS, pathOutput } from '../../control-plane/src/agents/learn-journey.js';
+import { LEARNER_LABELS } from '../../control-plane/src/agents/learn-labels.js';
 import { PLANNER_SYSTEM, TUTOR_TOOL, plannerSystem } from '../../control-plane/src/agents/learn-tutor.js';
 import { PlannerInvalid, adaptPath, planDiagnostic, planPath, planSection, resolveWithModel } from '../../control-plane/src/learn-journey-planners.js';
 import { fixtureModel } from '../../control-plane/src/learn-journey-fixtures.js';
@@ -272,7 +273,7 @@ const check = (pass, reason) => ({ pass: !!pass, reason });
 const cut300 = text => String(text).slice(0, 300);
 const why = e => cut300(e instanceof PlannerInvalid ? `PlannerInvalid (${e.role}): ${e.errors.join('; ')}` : `${e.name}: ${e.message}`);
 // No mastery, fixed learner level or permanent ability label anywhere the learner reads. The list is
-// LEARNER_LABELS in agents/learn-journey.js (shared with the hook validator).
+// LEARNER_LABELS in agents/learn-labels.js (shared with the hook validator).
 // Percentages: any in change.reason and learner_note (the evidence wording); in
 // the Tutor's words only near "you" or "your" (about the learner), so teaching content ("98% of the population") passes;
 // none in adaptation_reason or section content, where "halves the range, 50%" is teaching.
