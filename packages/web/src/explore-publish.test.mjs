@@ -45,14 +45,17 @@ test('Publish pushes the board first, only for a top-level canvas, and a missing
   assert.match(learn, /<ChooseHandle onDone=\{\(\) => \{ setChoosingHandle\(false\); changePublication\(true\); \}\} \/>/);
 });
 
-test('Explore lists the published canvases: title, the creator @handle, the canonical fork count, and the /e link', () => {
+// The card redesign (docs/features/card-redesign.md): Explore renders the canonical LearningCard the Library and Home use.
+test('Explore lists the published canvases on the canonical card: title, the creator @handle, the fork count, and the /e link', () => {
   const home = read('./Home.jsx');
   const explore = home.slice(home.indexOf('function Explore()'));
-  assert.match(explore, /fetch\('\/api\/learn\/boards\/published'/);
-  assert.match(explore, /<a key=\{card\.url\} data-explore-card href=\{card\.url\}/);
-  assert.match(explore, /\{creatorLabel\(card\.creator\)\}/);
-  assert.match(explore, /<Forks m=\{\{ forks: forkLabel\(card\.fork_count\) \}\} \/>/, 'the same Forks the Library cards show');
-  assert.doesNotMatch(explore, /email|ranking|sort\(/i, 'no email; the server\'s order, no client ranking');
+  assert.match(explore, /fetch\(`\/api\/learn\/boards\/published\?sort=\$\{order\}`/, 'the server sorts');
+  assert.match(explore, /<LearningCard key=\{card\.url\} kind="canvas" m=\{m\} attrs=\{\{ 'data-explore-card': '' \}\} href=\{card\.url\}/);
+  assert.match(explore, /owner_handle: card\.creator\?\.handle, owner_name: card\.creator\?\.name/, 'cardModel\'s @handle attribution, as on every card');
+  assert.match(explore, /fork_count: card\.fork_count/, 'the same Forks the Library cards show');
+  assert.doesNotMatch(explore, /email|ranking|\.sort\(/i, 'no email; the server\'s order, no client reordering');
+  const card = read('./home/LearningCard.jsx');
+  assert.match(card, /\{m\.forkCount !== null && <Forks m=\{\{ forks: forkLabel\(m\.forkCount\) \|\| '0 forks' \}\} \/>\}/);
 });
 
 test('a published board keeps its files and notebook workspaces live too, not only its board', () => {

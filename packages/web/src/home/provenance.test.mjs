@@ -49,7 +49,7 @@ test('a standalone canvas has no provenance, no check and no fork count; real ro
   assert.equal(plain.creator.sourceOwner, false);
   assert.equal(plain.forks, null);
   const real = cardModel({ kind: 'repository', name: 'repo-1', repo: 'karpathy/nanoGPT' });
-  assert.deepEqual(real, { title: 'nanoGPT', creator: null, source: 'github.com/karpathy/nanoGPT', sourceUrl: 'https://github.com/karpathy/nanoGPT', summary: null, forkedFrom: null, forks: null });
+  assert.deepEqual(real, { title: 'nanoGPT', creator: null, source: 'github.com/karpathy/nanoGPT', sourceUrl: 'https://github.com/karpathy/nanoGPT', description: null, forkedFrom: null, forks: null, forkCount: null, updated: null });
   assert.equal(plain.sourceUrl, null);
 });
 
@@ -82,4 +82,14 @@ test('a real fork keeps its source title, links the original only while it opens
   const gone = cardModel({ kind: 'canvas', name: 'canvas-0000000c', title: 'Attention', forked_from_title: 'Attention', forked_from_url: null, fork_count: 0 });
   assert.deepEqual([gone.forkedFrom.title, gone.forkedFrom.url, gone.forkedFrom.id, gone.forks], ['Attention', null, null, null]);
   assert.equal(cardModel({ kind: 'canvas', name: 'canvas-0000000d', title: 'Mine', forked_from_title: null, forked_from_url: null, fork_count: 24 }).forkedFrom, null);
+});
+
+// The card redesign (docs/features/card-redesign.md): the owner's description, never a project's placeholder; the fork
+// count as a number, 0 included, where the row has one; updated_at, else created_at.
+test('the card model carries the description, the fork count and the last update', () => {
+  const canvas = cardModel({ kind: 'canvas', name: 'canvas-0000000e', title: 'Tides', description: 'Why the moon pulls twice a day.', fork_count: 0, created_at: '2026-10-01 09:00:00', updated_at: '2026-10-05 10:00:00.120' });
+  assert.deepEqual([canvas.description, canvas.forkCount, canvas.forks, canvas.updated], ['Why the moon pulls twice a day.', 0, null, '2026-10-05 10:00:00.120']);
+  const project = cardModel({ kind: 'repository', name: 'repo-1', repo: 'karpathy/nanoGPT', description: 'Learn from karpathy/nanoGPT', created_at: '2026-10-01 09:00:00' });
+  assert.deepEqual([project.description, project.forkCount, project.updated], [null, null, '2026-10-01 09:00:00'], 'the server placeholder is never shown as a description');
+  assert.equal(cardModel(byName('fixture-canvas-fourier')).description, 'What each frequency bin is telling you.', 'a fixture keeps its summary');
 });

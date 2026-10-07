@@ -6,10 +6,12 @@ import { Tip } from '../ui.jsx';
 
 // Created by the owner of the source repository - never identity verification, quality,
 // endorsement or popularity. A solid scalloped badge with a white check, our own drawing.
-export function OwnerCheck({ size = 15 }) {
+// `owned` (card redesign, owner 2026-10-06 §20): the same drawing beside your own @handle on your own cards - "Owned by
+// you", which says whose card it is and never verifies anyone's identity.
+export function OwnerCheck({ size = 15, owned = false }) {
   return (
-    <Tip label="Source owner" info="Created by the owner of the source repository">
-      <svg data-owner-badge role="img" aria-label="Created by repository owner" width={size} height={size} viewBox="0 0 24 24" className="shrink-0">
+    <Tip label={owned ? 'Owned by you' : 'Source owner'} info={owned ? 'This is yours. It does not verify identity.' : 'Created by the owner of the source repository'}>
+      <svg data-owner-badge data-owned-badge={owned || undefined} role="img" aria-label={owned ? 'Owned by you' : 'Created by repository owner'} width={size} height={size} viewBox="0 0 24 24" className="shrink-0">
         <path className="fill-accent" d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z" />
         <path d="m8.5 12.2 2.4 2.4 4.6-4.9" fill="none" stroke="white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
@@ -50,7 +52,8 @@ export function SourceLink({ m, suffix = '' }) {
 export function ForkedFrom({ m, onOpen, className = '' }) {
   if (!m.forkedFrom) return null;
   const f = m.forkedFrom;
-  const title = <>&ldquo;{f.title}&rdquo; <ArrowUpRight size={11} strokeWidth={1.8} className="inline align-[-1px]" /></>;
+  // A no-break space: the ↗ wraps with the title, never alone on the next line.
+  const title = <>&ldquo;{f.title}&rdquo;&nbsp;<ArrowUpRight size={11} strokeWidth={1.8} className="inline align-[-1px]" /></>;
   const gone = !f.url && !f.id;
   return (
     <span data-forked-from title={gone ? `Forked from “${f.title}”. The original was deleted, or is private or no longer shared with you.` : undefined} className={`flex min-w-0 items-start gap-1 text-xs text-ink-2 ${className}`}>
