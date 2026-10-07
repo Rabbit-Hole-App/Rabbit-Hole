@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { askBody, streamAsk } from './ask-stream.js';
+import { rangeContext } from './scope.js';
 
 globalThis.localStorage = { getItem: (key) => (key === 'small.ws' ? 'w-reading-group' : null) };
 let request;
@@ -72,6 +73,14 @@ test('a project question carries the selected node and the commit it was selecte
 test('a whole file in context travels by path, never as a node id (workspace-dock.md)', () => {
   const selected = { id: 'file:train.py', label: 'train.py', kind: 'file', path: 'train.py', line: 1, commit: '3f2a1c9' };
   assert.deepEqual(askBody({ scope: { ...NANOGPT, selected }, message: 'Why does this exist?' }).repository_context, { commit: '3f2a1c9', path: 'train.py', label: 'train.py' });
+});
+
+test('a line range travels as identity, {path, start, end} as the Learn chat sends it, never as source text; a large one keeps its whole range', () => {
+  assert.deepEqual(askBody({ scope: { ...NANOGPT, selected: rangeContext('model.py', 115, 122, '3f2a1c9') }, message: 'Why?' }).repository_context,
+    { commit: '3f2a1c9', range: { path: 'model.py', start: 115, end: 122 }, label: 'model.py:115–122' });
+  const body = askBody({ scope: { ...NANOGPT, selected: rangeContext('train.py', 1, 337, '3f2a1c9') }, message: 'Show me the data flow.' });
+  assert.deepEqual(body.repository_context.range, { path: 'train.py', start: 1, end: 337 });
+  assert.ok(JSON.stringify(body).length < 300, 'no source text rides along');
 });
 
 test('workspace and app questions carry no repository context, and Auto sends no model', () => {

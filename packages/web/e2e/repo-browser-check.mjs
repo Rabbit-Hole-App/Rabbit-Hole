@@ -1,0 +1,312 @@
+// The repository browser (docs/features/repository-browser.md; owner brief, 2026-10-07): Files · Graph · Learn, one search,
+// Layers, one canonical selection, the code reader's [Ask] [Learn]. LOCAL stack only: a real session and Shell from the lane's
+// local D1; the repository project is the shared nanoGPT stub (e2e/nanogpt-repository-fixture.mjs, no indexer on a keyless
+// stack). /api/learn/ask is stubbed: no model call, ever. Cases 1-12 are the brief's §16 list, in order; 13+ back §1-§3, §13.
+// Usage: BASE=http://127.0.0.1:8848 SMALL_CP=http://127.0.0.1:8849 node e2e/repo-browser-check.mjs [shotsDir]
+import { chromium } from '@playwright/test';
+import { mkdirSync, readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+import { COMMIT, REPO, SNAPSHOT, content, repoRow, routeRepository } from './nanogpt-repository-fixture.mjs';
+
+const BASE = process.env.BASE || 'http://127.0.0.1:8848';
+const CP = process.env.SMALL_CP || 'http://127.0.0.1:8849';
+for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('repo-browser-check runs against the local stack only');
+const SHOTS = process.argv[2] || 'repo-browser-shots';
+mkdirSync(SHOTS, { recursive: true });
+const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
+const run = Date.now().toString(36);
+const session = (await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `browse-${run}@example.com`, secret, handle: `browse_${run}` }) })).json()).session;
+const api = async (path, init = {}) => (await fetch(`${BASE}${path}`, { ...init, headers: { cookie: `small_session=${session}`, 'content-type': 'application/json' } })).json();
+const canvas = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Attention ${run}` }) });
+
+// A second project of the same repository: another resource, which must start with no selection (case 9).
+const REPO2 = 'repo-3adf61e2-nanogpt';
+const asks = [], learnRequests = [];
+const ANSWER = 'Stubbed answer: no model was called.';
+
+const browser = await chromium.launch();
+let page;
+const crash = async (error) => { console.error(error); await page?.screenshot({ path: `${SHOTS}/failure.png` }).catch(() => {}); await browser.close().catch(() => {}); process.exit(1); };
+process.once('uncaughtException', crash);
+process.once('unhandledRejection', crash);
+const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
+await routeRepository(context);
+const real = await api('/api/apps');
+await context.route(`**/api/{apps,repositories}/${REPO2}{,/snapshot,/file}`, (route) => {
+  const p = new URL(route.request().url()).pathname;
+  if (p.endsWith('/snapshot')) return route.fulfill({ json: SNAPSHOT });
+  if (p.endsWith('/file')) { const { path } = JSON.parse(route.request().postData()); return route.fulfill({ json: { path, commit: COMMIT, content: content[path] } }); }
+  return route.fulfill({ json: { ...repoRow(real), name: REPO2 } });
+});
+await context.route('**/api/learn/ask', (route) => {
+  asks.push(JSON.parse(route.request().postData()));
+  return route.fulfill({ status: 200, contentType: 'text/event-stream', body: `event: chunk\ndata: ${JSON.stringify({ text: `${ANSWER} #${asks.length}` })}\n\nevent: done\ndata: {}\n\n` });
+});
+page = await context.newPage();
+const errors = [];
+page.on('pageerror', (error) => errors.push(error.message));
+page.on('request', (r) => { const p = new URL(r.url()).pathname; if (r.method() !== 'GET' && /^\/api\/(ask|learn\/(tutor|journey|teach))/.test(p)) learnRequests.push(p); });
+const results = [];
+const check = async (label, fn) => { await fn(); results.push(label); console.log(`ok ${label}`); };
+const shot = async (name) => { await page.waitForTimeout(400); await page.mouse.move(0, 0); await page.screenshot({ path: `${SHOTS}/${name}.png` }); console.log('shot', name); };
+
+const bar = page.locator('[data-agent-bar]'), input = bar.locator('textarea'), panel = page.locator('[data-map-panel]');
+const reader = page.getByRole('region', { name: 'Repository source' }), tree = page.locator('[data-file-tree]');
+const actions = page.locator('[data-range-actions]');
+const chips = async () => (await bar.locator('[data-scope-chip]').allInnerTexts()).map((t) => t.trim());
+const title = () => panel.locator('[data-inspector-title]').innerText();
+const tab = (name) => page.locator('[data-project-tabs]').getByRole('tab', { name, exact: true });
+const search = page.getByRole('textbox', { name: 'Search repository' });
+const open = async (path = `/apps/${REPO}`) => { await page.goto(`${BASE}${path}`); await page.locator('[data-graph-node]').first().waitFor({ timeout: 60000 }); await page.waitForTimeout(500); };
+const files = async () => { await tab('Files').click(); await tree.waitFor(); };
+const graph = async () => { await tab('Graph').click(); await page.locator('[data-graph-node]').first().waitFor(); await page.waitForTimeout(400); };
+const fileRow = (path) => tree.locator(`[data-file-row="${path}"]`);
+const symbolRow = (id) => tree.locator(`[data-symbol-row="${id}"]`);
+const line = (n) => reader.locator(`[data-source-line="${n}"]`);
+const lit = () => reader.locator('[data-highlighted]').evaluateAll((all) => all.map((n) => Number(n.dataset.sourceLine)));
+const graphNode = async (id) => { await page.locator(`[data-graph-node="${id}"]`).focus(); await page.keyboard.press('Enter'); await panel.locator('[data-inspector-title]').waitFor(); };
+// Each stubbed answer is numbered, so a send waits for its own answer, never an earlier one still in the window.
+const send = async (text) => { const n = asks.length; await input.fill(text); await input.press('Enter'); await page.locator('[data-result-sheet]').getByText(`${ANSWER} #${n + 1}`).waitFor({ timeout: 10000 }); assert.equal(asks.length, n + 1, 'one stubbed ask'); await page.getByRole('button', { name: 'Collapse results' }).click(); return asks.at(-1); };
+const inView = (n) => line(n).evaluate((row) => { const r = row.getBoundingClientRect(), box = row.closest('.overflow-auto').getBoundingClientRect(); return r.top >= box.top && r.bottom <= box.bottom; });
+// A real mouse drag over the text of lines a..b, as a learner selects code (never a scripted selection).
+const drag = async (a, b) => {
+  await page.evaluate(() => window.getSelection().removeAllRanges()); // as a click elsewhere would: a press inside a selection drags it
+  await line(Math.round((a + b) / 2)).evaluate((n) => n.scrollIntoView({ block: 'center' }));
+  const from = await line(a).locator('[data-source-text]').boundingBox(), to = await line(b).locator('[data-source-text]').boundingBox();
+  await page.mouse.move(from.x + 1, from.y + from.height / 2); await page.mouse.down();
+  await page.mouse.move(to.x + to.width - 1, to.y + to.height / 2, { steps: 8 }); await page.mouse.up();
+  await page.waitForTimeout(200);
+};
+const selected = () => page.evaluate(() => window.getSelection().toString());
+
+await open();
+await check('13 §1: one navigation - Files · Graph · Learn as restrained underline tabs; /apps/<repo> lands on Graph; no Map | Learn pill, no Files | Graph buttons', async () => {
+  assert.deepEqual((await page.locator('[data-project-tabs]').getByRole('tab').allInnerTexts()).map((t) => t.trim()), ['Files', 'Graph', 'Learn']);
+  assert.equal(await tab('Graph').getAttribute('aria-selected'), 'true');
+  const s = await tab('Graph').evaluate((n) => { const c = getComputedStyle(n); return { bg: c.backgroundColor, color: c.color, border: c.borderBottomColor, width: c.borderBottomWidth }; });
+  assert.ok(['rgba(0, 0, 0, 0)', 'rgb(255, 255, 255)'].includes(s.bg), `a tab is not a filled button: ${s.bg}`);
+  assert.notEqual(s.border, 'rgb(35, 131, 226)', 'the active underline is not the primary blue'); assert.equal(s.width, '2px');
+  assert.equal(await page.locator('main button[aria-pressed]').count(), 0, 'no Files | Graph toggle buttons');
+  for (const legacy of ['map', 'overview']) { await open(`/apps/${REPO}?tab=${legacy}`); assert.equal(await tab('Graph').getAttribute('aria-selected'), 'true', `?tab=${legacy}`); }
+});
+await shot('A-files-graph-learn-tabs');
+await check('14 §3: Layers is a labelled popover - Code checked; Decisions, Questions and Sessions off as none recorded yet, never on without records', async () => {
+  const button = page.locator('[data-map-layers-open]');
+  assert.equal((await button.innerText()).trim(), 'Layers');
+  await button.click();
+  const layers = page.locator('[data-map-layers]');
+  assert.ok(await layers.getByRole('checkbox', { name: 'Code' }).isChecked());
+  for (const name of ['Decisions', 'Questions', 'Sessions']) {
+    const box = layers.getByRole('checkbox', { name: new RegExp(`^${name}`) });
+    assert.ok(await box.isDisabled(), `${name} can be switched on with no records`); assert.equal(await box.isChecked(), false);
+  }
+  assert.equal((await layers.innerText()).match(/none recorded yet/g).length, 3);
+  assert.doesNotMatch(await layers.innerText(), /Fixture/);
+});
+await shot('C-layers-popover');
+await page.keyboard.press('Escape');
+
+await files();
+await check('1 file click attaches file context: the reader opens train.py, the inspector shows it, the composer reads karpathy/nanoGPT › train.py', async () => {
+  await fileRow('train.py').click();
+  await line(1).waitFor();
+  assert.deepEqual(await chips(), ['karpathy/nanoGPT', 'train.py']);
+  assert.equal(await title(), 'train.py');
+  assert.equal(await reader.locator('[data-source-title]').innerText(), 'karpathy/nanoGPT › train.py');
+  assert.equal(await input.getAttribute('placeholder'), 'Ask about train.py…');
+  assert.deepEqual(await lit(), [], 'a whole file highlights no line');
+  const sent = await send('What does this file do?');
+  assert.deepEqual(sent.repository_context, { commit: COMMIT, path: 'train.py', label: 'train.py' });
+  assert.equal(sent.message, 'What does this file do?', 'typed naturally: no slash command');
+});
+await shot('D-file-selected');
+
+await check('2 symbol click attaches symbol context: model.py lists its symbols; GPT selects the canonical node, jumps the reader to its line and the composer reads model.py › GPT', async () => {
+  await fileRow('model.py').click();
+  await symbolRow('model_gpt').click();
+  assert.deepEqual(await chips(), ['karpathy/nanoGPT', 'model.py', 'GPT']);
+  assert.equal(await title(), 'GPT');
+  assert.equal(await reader.locator('[data-source-title]').innerText(), 'karpathy/nanoGPT › model.py › GPT');
+  assert.deepEqual(await lit(), [118]);
+  assert.ok(await inView(118), 'the reader jumped to the symbol');
+  assert.equal(await symbolRow('model_gpt').getAttribute('aria-current'), 'true');
+  const sent = await send('Why is this structured this way?');
+  assert.deepEqual(sent.repository_context, { commit: COMMIT, nodeId: 'model_gpt', label: 'GPT' });
+});
+await shot('E-symbol-selected');
+
+let fromGraph;
+await check('3 Graph selection and Files selection resolve to the same canonical object, in both directions', async () => {
+  await graph();
+  await graphNode('model_causalselfattention');
+  fromGraph = { chips: await chips(), crumb: await panel.locator('[data-inspector-crumb]').innerText() };
+  assert.deepEqual(fromGraph.chips, ['karpathy/nanoGPT', 'model.py', 'CausalSelfAttention']);
+  await files(); // Graph → Files: the reader opens the node's file at its line, the tree marks it
+  assert.deepEqual(await lit(), [29]);
+  assert.equal(await symbolRow('model_causalselfattention').getAttribute('aria-current'), 'true');
+  await shot('H-graph-node-to-files');
+  await symbolRow('model_gpt').click(); await symbolRow('model_causalselfattention').click(); // Files picks the same object
+  assert.deepEqual({ chips: await chips(), crumb: await panel.locator('[data-inspector-crumb]').innerText() }, fromGraph);
+  await symbolRow('model_mlp').click(); // Files → Graph: the node is lit when the Graph opens
+  await graph();
+  assert.deepEqual(await page.locator('[data-graph-node][data-selected]').evaluateAll((all) => all.map((n) => n.dataset.graphNode)), ['model_mlp']);
+  await files(); // a symbol outside the bounded overview joins it, lit
+  await symbolRow('model_gpt_crop_block_size').click();
+  await graph();
+  assert.deepEqual(await page.locator('[data-graph-node][data-selected]').evaluateAll((all) => all.map((n) => n.dataset.graphNode)), ['model_gpt_crop_block_size']);
+});
+
+await files();
+await symbolRow('model_gpt_forward').click();
+const before = { chips: await chips(), asks: asks.length };
+await check('4 highlighted code does NOT auto-attach: a drag over lines 177-179 only highlights them and offers [Ask] [Learn]', async () => {
+  await drag(177, 179);
+  assert.match(await selected(), /tok_emb = self\.transformer\.wte/);
+  assert.equal(await actions.count(), 1);
+  assert.equal((await actions.innerText()).replace(/\s+/g, ' ').trim(), 'model.py:177–179 Ask Learn');
+  assert.deepEqual(await lit(), [177, 178, 179]);
+  assert.deepEqual(await chips(), before.chips, 'the composer context did not move');
+  assert.equal(asks.length, before.asks, 'nothing was sent');
+  await page.keyboard.press('Escape'); // Esc drops the offer, the selection stays the learner's
+  assert.equal(await actions.count(), 0);
+  assert.deepEqual(await lit(), [170]);
+});
+
+await check('5 Ask attaches the exact range and focuses the composer: karpathy/nanoGPT › model.py › lines 177–179', async () => {
+  await drag(177, 179);
+  await shot('F-highlighted-code-ask-learn');
+  await actions.getByRole('button', { name: 'Ask', exact: true }).click();
+  assert.deepEqual(await chips(), ['karpathy/nanoGPT', 'model.py', 'lines 177–179']);
+  assert.equal(await page.evaluate(() => document.activeElement?.closest('[data-agent-bar]') !== null && document.activeElement.tagName), 'TEXTAREA');
+  assert.equal(await input.getAttribute('placeholder'), 'Ask about lines 177–179…');
+  assert.equal(await actions.count(), 0);
+  assert.deepEqual(await lit(), [177, 178, 179], 'the attached range stays highlighted');
+  assert.equal(await title(), 'model.py:177–179');
+});
+await shot('G-composer-repo-file-range');
+await check('I §13: the inspector shows the selected range - title, breadcrumb, path:lines, Open source at the range, Ask about this and Learn this', async () => {
+  assert.equal(await panel.locator('[data-inspector-crumb]').innerText(), 'karpathy/nanoGPT › model.py › lines 177–179');
+  assert.match(await panel.locator('[data-inspector-header]').innerText(), /model\.py:177–179\s*·\s*3 selected lines/);
+  assert.equal(await panel.locator('[data-inspector-open-source]').getAttribute('href'), `https://github.com/karpathy/nanoGPT/blob/${COMMIT}/model.py#L177-L179`);
+  assert.ok(await panel.locator('[data-in-context]').isVisible());
+  assert.deepEqual((await panel.locator('[data-inspector-actions] button').allInnerTexts()).map((t) => t.trim()), ['Ask about this', 'Learn this']);
+  assert.equal(await panel.locator('[data-inspector-section="relationships"]').count(), 0, 'a range shows no relationships, never its file\'s');
+  assert.match((await panel.locator('[data-inspector-preview] > div').allInnerTexts())[0], /^177\s+tok_emb/);
+});
+await shot('I-inspector-selected-range');
+
+await check('7 context survives follow-up prompts: four questions in a row each carry the same range, never reselected', async () => {
+  for (const text of ['Why are token and positional embeddings added here?', 'Why?', 'What calls this?', 'What happens next?']) {
+    const sent = await send(text);
+    assert.deepEqual(sent.repository_context, { commit: COMMIT, range: { path: 'model.py', start: 177, end: 179 }, label: 'model.py:177–179' });
+    assert.deepEqual(await chips(), ['karpathy/nanoGPT', 'model.py', 'lines 177–179']);
+  }
+});
+
+await check('12 the selected source reaches the existing repository handoff: /api/learn/ask in project scope with identity and range, no source text', async () => {
+  const sent = asks.at(-1);
+  assert.equal(sent.scope.app, REPO);
+  assert.doesNotMatch(JSON.stringify(sent), /tok_emb|transformer\.wte/, 'no code text rides along');
+});
+
+await check('8 clearing the range falls back one level: to model.py, then to the repository', async () => {
+  await bar.getByRole('button', { name: 'Remove lines 177–179' }).click();
+  assert.deepEqual(await chips(), ['karpathy/nanoGPT', 'model.py']);
+  assert.deepEqual((await send('And this file?')).repository_context, { commit: COMMIT, path: 'model.py', label: 'model.py' });
+  await bar.getByRole('button', { name: 'Remove model.py' }).click();
+  assert.deepEqual(await chips(), ['karpathy/nanoGPT']);
+  assert.equal((await send('And the repository?')).repository_context, undefined);
+  assert.equal(await reader.locator('[data-source-title]').innerText(), 'karpathy/nanoGPT › model.py', 'the reader keeps the file it shows');
+});
+
+await check('10 a large selection keeps its whole range and stays bounded: 1-330 is one range identity, no text on the wire', async () => {
+  await line(1).evaluate((n) => n.scrollIntoView({ block: 'center' }));
+  await line(1).getByRole('button', { name: 'Select line 1' }).click();
+  await line(330).getByRole('button', { name: 'Select line 330' }).click({ modifiers: ['Shift'] });
+  assert.match(await actions.innerText(), /model\.py:1–330/);
+  await actions.getByRole('button', { name: 'Ask', exact: true }).click();
+  assert.deepEqual(await chips(), ['karpathy/nanoGPT', 'model.py', 'lines 1–330']);
+  const sent = await send('How does data flow through this?'); // Auto routes 'Show me <x>' to open and 'Walk me through' to teach (router.js)
+  assert.deepEqual(sent.repository_context.range, { path: 'model.py', start: 1, end: 330 });
+  assert.ok(JSON.stringify(sent).length < 400, `the request stays small: ${JSON.stringify(sent).length} bytes`);
+  assert.equal(await title(), 'model.py:1–330');
+});
+
+await check('11 internal code controls and copy never navigate or change context: a line number, Ctrl+C, a folder toggle', async () => {
+  const url = page.url(), length = await page.evaluate(() => history.length), was = await chips();
+  await drag(52, 54);
+  await page.keyboard.press('Control+C');
+  await line(60).getByRole('button', { name: 'Select line 60' }).click();
+  await tree.locator('summary', { hasText: 'config' }).click();
+  await fileRow('config/train_gpt2.py').waitFor();
+  await tree.locator('summary', { hasText: 'config' }).click();
+  assert.equal(page.url(), url); assert.equal(await page.evaluate(() => history.length), length);
+  assert.deepEqual(await chips(), was);
+  assert.equal(await reader.locator('[data-source-title]').innerText(), 'karpathy/nanoGPT › model.py › lines 1–330');
+  assert.match(await actions.innerText(), /model\.py:60/, 'a line number only offers the line');
+  await page.keyboard.press('Escape');
+});
+
+await check('6 Learn attaches the exact range and carries it into Learn, sending nothing; the Tutor chooses the pedagogy', async () => {
+  const n = asks.length;
+  await drag(177, 179);
+  await actions.getByRole('button', { name: 'Learn', exact: true }).click();
+  await page.waitForURL(/[?]tab=learn$/);
+  await page.getByText(/^Asking about: model\.py:177–179 · 3adf61e/).first().waitFor({ timeout: 30000 });
+  await page.waitForTimeout(800);
+  assert.equal(asks.length, n, 'Learn sent no question');
+  assert.equal(await page.evaluate(() => sessionStorage.getItem('small.learn.request')), null, 'no Learn request (learnHandoff is off)');
+  await page.locator('[data-learn-map]').click();
+  await page.waitForURL(/[?]tab=map$/);
+  await reader.waitFor();
+  assert.deepEqual(await chips(), ['karpathy/nanoGPT', 'model.py', 'lines 177–179']);
+  assert.equal(await tab('Files').getAttribute('aria-selected'), 'true', 'back to the view it left');
+});
+
+await check('9 another repository or canvas never inherits the context: a canvas shows no repository context, another project starts at its root', async () => {
+  await page.evaluate((to) => { history.pushState(null, '', to); dispatchEvent(new PopStateEvent('popstate')); }, `/apps/${canvas.name}`);
+  await page.locator('[data-chat-composer]').first().waitFor({ timeout: 30000 });
+  assert.equal(await page.getByText(/^Asking about:/).count(), 0);
+  assert.equal(await bar.count(), 0, 'the canvas has its own composer');
+  await page.evaluate((to) => { history.pushState(null, '', to); dispatchEvent(new PopStateEvent('popstate')); }, `/apps/${REPO2}`);
+  await page.locator('[data-graph-node]').first().waitFor({ timeout: 30000 });
+  await bar.locator('[data-scope-chip="resource"]').waitFor();
+  assert.deepEqual(await chips(), ['karpathy/nanoGPT']);
+  assert.equal(await page.locator('[data-graph-node][data-selected]').count(), 0);
+  await files();
+  assert.equal(await reader.count(), 0, 'no file is open');
+  await open(); // and the first project, opened afresh, starts at its root too
+  assert.deepEqual(await chips(), ['karpathy/nanoGPT']);
+});
+
+await check('15 §2: one search field - in Files it finds files and symbols, in Graph it focuses the matching nodes', async () => {
+  await files();
+  await fileRow('model.py').click();
+  assert.equal(await search.getAttribute('placeholder'), 'Search files or symbols…');
+  await search.fill('forward');
+  const groups = await tree.locator('p').allInnerTexts();
+  assert.deepEqual(groups.map((t) => t.trim()), ['Symbols']);
+  assert.ok((await tree.locator('[data-symbol-row]').count()) >= 5);
+  await search.fill('prepare');
+  assert.deepEqual(await tree.locator('[data-file-row]').evaluateAll((all) => all.map((n) => n.dataset.fileRow)), ['data/openwebtext/prepare.py', 'data/shakespeare/prepare.py', 'data/shakespeare_char/prepare.py']);
+  assert.equal(await tree.locator('[data-symbol-row]').count(), 0, 'prepare names files, no symbol');
+  await search.fill('Block');
+  await shot('B-contextual-search-files');
+  await tree.locator('[data-symbol-row="model_block"]').click();
+  assert.deepEqual(await chips(), ['karpathy/nanoGPT', 'model.py', 'Block']);
+  await graph();
+  const shown = await page.locator('[data-graph-node]').evaluateAll((all) => all.map((n) => n.getAttribute('aria-label')));
+  assert.ok(shown.length && shown.every((l) => /block/i.test(l)), `Graph focuses the matches: ${shown.join(', ')}`);
+});
+await shot('B2-contextual-search-graph');
+await search.fill('');
+
+await check('no page errors, no model call, nothing but stubbed asks', async () => {
+  assert.deepEqual(errors, []);
+  assert.deepEqual(learnRequests, []);
+  assert.ok(asks.length >= 9, `${asks.length} stubbed asks`);
+});
+
+await browser.close();
+console.log(`${results.length}/${results.length} checks passed`);

@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { ArrowLeft, ArrowUpRight, Box, Braces, ChevronRight, FileCode, Package, PanelRightClose } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, Box, Braces, ChevronRight, FileCode, Package, PanelRightClose, TextQuote } from 'lucide-react';
 import { api } from './api.js';
 import { Button, IconBtn, Pill, Tabs, TabsContent, TabsList, TabsTrigger } from './ui.jsx';
 import RepositorySource from './RepositorySource.jsx';
@@ -9,11 +9,12 @@ import { Turn } from './agent/ResultSheet.jsx';
 import { memoryFor } from './map-memory.js';
 import { askBar, FIXTURE, MemoryEntity, Starters } from './MapMemory.jsx';
 import { relationshipGroups, symbolsIn, turnsAbout, typeOf } from './inspector.js';
+import { rangeTitle } from './agent/scope.js';
 
 // The Map's learning inspector (owner, 2026-10-06, docs/features/inspector.md): a sticky object header, Overview | Source,
 // then Purpose, Why it matters, Relationships, Conversation and two actions. Canonical data only: a field nothing stores
 // shows its one-line "not yet" with an ask, never a guess.
-const ICONS = { file: FileCode, symbol: Braces, external: Package };
+const ICONS = { file: FileCode, symbol: Braces, external: Package, range: TextQuote };
 const HEAD = 'text-xs font-medium text-ink-2';
 const ROW = 'flex w-full cursor-pointer items-center gap-2 rounded-sm px-1.5 py-1 text-left text-sm hover:bg-hover';
 const LINK = 'cursor-pointer text-accent hover:underline';
@@ -53,7 +54,10 @@ export default function MapInspector({ app, snapshot, memory, object, inContext,
   </>;
   const record = object.record, graph = snapshot.graph, Icon = ICONS[object.kind] || Box;
   const file = object.path, source = !record && !!file;
-  const href = source && repositoryUrl({ repo: app.repo, commit: snapshot.commit, path: file, line: object.kind === 'file' ? null : object.line });
+  // A line range from the code reader (repository-browser.md): titled model.py:115–122, its whole range in the link and the
+  // Source tab; it has no graph node, so no relationships are shown for it, never its file's.
+  const range = object.kind === 'range', title = range ? rangeTitle(object) : object.label;
+  const href = source && repositoryUrl({ repo: app.repo, commit: snapshot.commit, path: file, line: object.kind === 'file' ? null : object.line, lineEnd: object.end });
   const crumbs = [app.repo, file, object.kind !== 'file' && file ? object.label : null].filter(Boolean);
   const groups = record ? [] : relationshipGroups(graph, object.nodeId), linked = groups.reduce((n, g) => n + g.items.length, 0);
   const symbols = object.kind === 'file' ? symbolsIn(graph, file) : [];
@@ -62,13 +66,13 @@ export default function MapInspector({ app, snapshot, memory, object, inContext,
     <div className="flex items-center gap-1.5">
       {onBack && <IconBtn data-inspector-back aria-label="Back" title={`Back to ${backLabel}`} onClick={onBack} className="-ml-1.5"><ArrowLeft size={15} /></IconBtn>}
       <Icon size={16} strokeWidth={1.75} className="shrink-0 text-ink-2" aria-hidden="true" />
-      <h2 data-inspector-title className="min-w-0 flex-1 truncate text-[15px] font-semibold" title={object.label}>{object.label}</h2>
+      <h2 data-inspector-title className="min-w-0 flex-1 truncate text-[15px] font-semibold" title={title}>{title}</h2>
       {href && <a data-inspector-open-source href={href} target="_blank" rel="noreferrer" title="Open this source on GitHub at the indexed commit" className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-xs text-ink-2 hover:bg-hover hover:text-ink">Open source<ArrowUpRight size={13} /></a>}
       {close}
     </div>
     {!record && <p data-inspector-crumb className="truncate pt-0.5 text-xs text-ink-2" title={crumbs.join(' › ')}>{crumbs.join(' › ')}</p>}
     <p className="flex items-center gap-1.5 pt-0.5 text-xs text-ink-3">
-      {file && <span className="truncate font-mono">{file}:{object.line || 1}</span>}{file && <span aria-hidden="true">·</span>}<span className="shrink-0">{record ? 'Fixture record' : typeOf(object)}</span>
+      {file && <span className="truncate font-mono">{file}:{range && object.end > object.start ? `${object.start}–${object.end}` : object.line || 1}</span>}{file && <span aria-hidden="true">·</span>}<span className="shrink-0">{record ? 'Fixture record' : range ? `${object.end - object.start + 1} selected line${object.end > object.start ? 's' : ''}` : typeOf(object)}</span>
       {inContext && <span data-in-context title="The composer below asks about this" className="ml-auto inline-flex shrink-0 items-center gap-1 text-ink-2"><span className="h-1.5 w-1.5 rounded-full bg-accent" />In context</span>}
     </p>
     {source && <TabsList className="-mx-4 mt-2 px-4"><TabsTrigger value="overview" className={TAB}>Overview</TabsTrigger><TabsTrigger value="source" className={TAB}>Source</TabsTrigger></TabsList>}
@@ -96,7 +100,7 @@ export default function MapInspector({ app, snapshot, memory, object, inContext,
   return <Tabs value={source ? view : 'overview'} onValueChange={onView} className="flex min-h-0 flex-1 flex-col">
     {header}
     <TabsContent value="overview" className="min-h-0 flex-1 overflow-y-auto px-4 pt-3 pb-2">{overview}</TabsContent>
-    {source && <TabsContent value="source" className="flex min-h-0 flex-1 flex-col px-4 pt-2"><RepositorySource appName={app.name} path={file} line={object.line || 1} commit={snapshot.commit} repo={app.repo} /></TabsContent>}
+    {source && <TabsContent value="source" className="flex min-h-0 flex-1 flex-col px-4 pt-2"><RepositorySource appName={app.name} path={file} line={object.line || 1} lineEnd={object.end} commit={snapshot.commit} repo={app.repo} /></TabsContent>}
     {/* Two actions, one of them primary (inspector brief §11-12); the Tutor picks the pedagogy once the learner says what they want. */}
     {!record && <footer data-inspector-actions className="flex shrink-0 gap-2 border-t border-line px-4 py-3">
       <Button size="sm" variant="secondary" onClick={onAsk}>Ask about this</Button>

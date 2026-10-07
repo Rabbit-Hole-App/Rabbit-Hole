@@ -11,9 +11,15 @@ import { SLASH } from './agent/slash.js';
 const read = name => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const page = read('RepositoryPage.jsx'), inspector = read('MapInspector.jsx'), learn = read('LearnPage.jsx'), tutor = read('LearnTutor.jsx'), bar = read('agent/AgentBar.jsx'), md = read('ask.jsx');
 
-test('a project is Map or Learn: no Overview, and the canvas has no Overview/Learn/Map pill', () => {
+// repository-browser.md (owner, 2026-10-07): one navigation, Files · Graph · Learn, as restrained underline tabs, replacing
+// both the Map | Learn pill and the Files | Graph buttons. Files and Graph are views of the page; Learn is the canvas.
+test('a project is Files · Graph · Learn: no Overview, one restrained tab row, and the canvas has no Overview/Learn/Map pill', () => {
   assert.doesNotMatch(page, /Overview|value="overview"/);
-  assert.match(page, /<TabsTrigger pill value="map">[\s\S]*<TabsTrigger pill value="learn"/);
+  assert.match(page, /<TabsList data-project-tabs className="border-b-0!">\s*<TabsTrigger value="files">Files<\/TabsTrigger><TabsTrigger value="graph">Graph<\/TabsTrigger><TabsTrigger value="learn" disabled=\{!app\.commit_sha\}>Learn<\/TabsTrigger>/);
+  assert.doesNotMatch(page, /TabsList pill|TabsTrigger pill|aria-pressed=\{mode===value\}|variant=\{mode===value\?'primary'/);
+  // /apps/<repo> (and ?tab=map, ?tab=overview) lands on Graph, as the Map did; Learn keeps whichever view was open.
+  assert.match(page, /\[mode,setMode\]=useState\('graph'\)/);
+  assert.match(page, /<Tabs value=\{tab==='learn'\?'learn':mode\} onValueChange=\{v=>v==='learn'\?go\('learn'\):setMode\(v\)\}>/);
   // The Learn view renders no tabs: only the canvas picker, and only when there are canvases.
   const learnView = page.slice(page.indexOf("if(tab==='learn')return"), page.indexOf('// A fixture record is only looked at'));
   assert.doesNotMatch(learnView, /\{tabs\}/);
@@ -40,7 +46,10 @@ test('the canvas has no Tutor or Practice button: the composer is the Tutor on t
 test('the Map: details and layers behind icons; the inspector closed until used, underline tabs only for a source, no outline (owner, 2026-10-06)', () => {
   assert.match(page, /data-repo-info aria-label="Repository details"/);
   assert.match(page, /<Menu open=\{infoOpen\}[\s\S]*?<SourceLink m=\{cardModel\(app\)\}\/>[\s\S]*?Refresh branch[\s\S]*?<\/Menu>/);
-  assert.match(page, /data-map-layers-open aria-label="Layers"[\s\S]*?<Menu open=\{layersOpen\}[\s\S]*?className="[^"]*"><LayersRow /);
+  // Layers is a labelled popover button in Graph (owner brief §3): icon, Layers, chevron; one search field for both views (§2).
+  assert.match(page, /\{mode==='graph'&&<div className="relative"><Button size="sm" data-map-layers-open[\s\S]*?><Layers size=\{15\}\/>Layers<ChevronDown[\s\S]*?<Menu open=\{layersOpen\}[\s\S]*?className="[^"]*"><LayersRow /);
+  assert.equal(page.match(/aria-label="Search repository"/g).length, 1);
+  assert.match(page, /placeholder="Search files or symbols…"/);
   assert.equal(page.match(/<LayersRow /g).length, 1, 'the layers row lives only in its menu');
   assert.match(page, /const \[panelOpen,setPanelOpen\]=useState\(false\)/);
   assert.match(page, /collapsed=\{!panelOpen\}/);
@@ -111,4 +120,19 @@ test('the canvas corner button goes Back: to the previous in-app page, or Home w
   assert.match(api, /window\.history\.pushState\(\{ depth: \(window\.history\.state\?\.depth \|\| 0\) \+ 1 \}, '', to\);/);
   assert.match(api, /if \(window\.history\.state\?\.depth > 0\) window\.history\.back\(\); else navigate\(fallback\);/);
   assert.match(learn, /data-learn-home aria-label="Back" title="Back"\s+onClick=\{\(\) => goBack\('\/apps'\)\}/);
+});
+
+// repository-browser.md: one canonical selection. Files, Graph, the inspector, the dock chips and Learn read one context;
+// the code reader's Ask and Learn go through the same attach as a file or a symbol click, and Learn carries the wire shape.
+test('one selection: Files, Graph, the inspector and Learn read the same context; Ask and Learn on a range attach it like any pick', () => {
+  const reader = read('CodeReader.jsx');
+  assert.match(page, /<RepositoryGraph graph=\{shown\} selected=\{lit\}/);
+  assert.match(page, /const lit=inspected\?\.record\?\{id:inspected\.id\}:context&&\(context\.nodeId\|\|context\.path\)\?\{id:context\.nodeId\|\|fileObject\(snapshot\.graph,context\.path\)\.nodeId\}:null;/);
+  assert.match(page, /<CodeReader app=\{app\} snapshot=\{snapshot\} open=\{opened\} context=\{context\}[^>]*onFile=\{p=>attach\(fileObject\(snapshot\.graph,p\)\)\} onSymbol=\{n=>attach\(objectOf\(snapshot\.graph,n\)\)\}/);
+  assert.match(page, /onRange=\{\(kind,range\)=>\{attach\(range\);if\(kind==='learn'\)learnThis\(range\);else window\.dispatchEvent\(new CustomEvent\('small:ask-focus'\)\);\}\}/);
+  assert.match(page, /repositoryContext=\{context\?wireContext\(context\):\{commit:app\.commit_sha\}\}/);
+  assert.match(page, /onLearn=\{\(\)=>learnThis\(inspected\)\}/);
+  // Selecting text only offers [Ask] [Learn]; the context changes on a click, never on a selection.
+  assert.match(reader, /<SourceSelectionContext\.Provider value=\{\{ value: pending, set: setPending \}\}>/);
+  assert.doesNotMatch(reader, /setContext|small:ask-focus|learnAction/);
 });

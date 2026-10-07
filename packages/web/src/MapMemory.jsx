@@ -14,16 +14,20 @@ const LAYERS = [['decisions', 'Decisions'], ['questions', 'Questions'], ['sessio
 const KIND = { decision: 'Decision', question: 'Question', session: 'Session' };
 const strength = (link) => (link?.confidence === 'INFERRED' ? `Inferred · ${link.score}` : 'Recorded');
 
+// The Layers popover (owner brief §3, repo-graph clarification): node types to show, as checkboxes, several at once. Code is
+// always on. Decisions, Questions and Sessions are first-class types with no canonical record yet (repository-graph-data-audit.md),
+// so they say so and stay off; only the labelled review fixtures (?fixtures=1) can turn them on.
 export function LayersRow({ memory, layers, onToggle }) {
-  return <div data-map-layers role="group" aria-label="Layers" className="mb-3 flex flex-wrap items-center gap-1.5 text-xs">
-    <Layers size={14} className="text-ink-3" aria-hidden="true" />
-    <button type="button" aria-pressed="true" disabled className="h-7 rounded-md border border-line bg-active px-2 text-ink">Code</button>
+  const row = 'flex h-8 items-center gap-2 rounded-sm px-1.5 text-sm';
+  return <div data-map-layers role="group" aria-label="Layers">
+    <p className="flex items-center gap-2 px-1.5 pt-0.5 pb-1 text-xs font-medium text-ink-2"><Layers size={14} className="text-ink-3" aria-hidden="true" />Layers{memory && <Pill className="ml-auto">{FIXTURE}</Pill>}</p>
+    <label className={row}><input type="checkbox" checked readOnly disabled className="accent-ink" />Code</label>
     {LAYERS.map(([key, name]) => {
       const n = memory?.[key].length || 0;
-      return <button key={key} type="button" aria-pressed={layers.has(key)} disabled={!n} title={n ? undefined : 'None recorded yet'} onClick={() => onToggle(key)}
-        className={cn('h-7 rounded-md border px-2', !n ? 'border-line text-ink-3' : layers.has(key) ? 'cursor-pointer border-accent bg-accent/10 text-ink' : 'cursor-pointer border-line text-ink-2 hover:bg-hover')}>{name}{n ? ` ${n}` : ''}</button>;
+      return <label key={key} className={cn(row, n ? 'cursor-pointer hover:bg-hover' : 'text-ink-3')}>
+        <input type="checkbox" checked={layers.has(key)} disabled={!n} onChange={() => onToggle(key)} className="accent-ink" />{name}
+        <span className="ml-auto text-xs text-ink-3">{n ? n : 'none recorded yet'}</span></label>;
     })}
-    {memory && <Pill>{FIXTURE}</Pill>}
   </div>;
 }
 
