@@ -87,14 +87,19 @@ export default function LibraryViews({ apps, type, data, onType, onArchive, onRu
           <MenuItem icon={AlignLeft} data-menu-describe onClick={() => pick((a) => setDialog({ kind: 'describe', a, value: a.description || '' }))}>Edit description</MenuItem>
           <MenuItem icon={CopyPlus} onClick={() => pick(duplicate)}>Duplicate</MenuItem>
           <div className="my-1 border-t border-line" />
-          <MenuItem icon={Eye} data-menu-visibility aria-expanded={accessOpen} onClick={() => setAccessOpen((on) => !on)}>
-            Visibility<ChevronRight size={14} strokeWidth={1.5} className={`ml-auto text-ink-3 transition-transform ${accessOpen ? 'rotate-90' : ''}`} />
-          </MenuItem>
+          {/* Plain buttons, not MenuItem: MenuItem truncates its children into one line, and these carry a chevron or a hint. */}
+          <button type="button" data-menu-visibility aria-expanded={accessOpen} onClick={() => setAccessOpen((on) => !on)}
+            className="flex h-7 w-full items-center gap-2 rounded-sm px-2 text-left text-sm text-ink hover:bg-hover">
+            <Eye size={16} strokeWidth={1.5} className="shrink-0 text-ink-2" />
+            <span className="min-w-0 flex-1">Visibility</span>
+            <ChevronRight size={14} strokeWidth={1.5} className={`shrink-0 text-ink-3 transition-transform ${accessOpen ? 'rotate-90' : ''}`} />
+          </button>
           {accessOpen && ACCESS.map(({ id, label, hint }) => (
-            <MenuItem key={id} role="menuitemradio" aria-checked={menu.a.access === id} data-access={id} className="h-auto py-1 pl-3" onClick={() => chooseAccess(id)}>
-              <span className="flex w-4 shrink-0 justify-center">{menu.a.access === id && <Check size={14} strokeWidth={2} />}</span>
+            <button key={id} type="button" role="menuitemradio" aria-checked={menu.a.access === id} data-access={id} onClick={() => chooseAccess(id)}
+              className="flex w-full items-start gap-2 rounded-sm py-1 pr-2 pl-2 text-left text-sm text-ink hover:bg-hover">
+              <span className="flex h-5 w-4 shrink-0 items-center justify-center">{menu.a.access === id && <Check size={14} strokeWidth={2} />}</span>
               <span className="flex min-w-0 flex-col"><span>{label}</span><span className="text-xs text-ink-3">{hint}</span></span>
-            </MenuItem>
+            </button>
           ))}
           <MenuItem icon={Link2} onClick={() => pick((a) => navigate(`/apps/${a.name}?share=1`))}>Share / Manage link</MenuItem>
           <div className="my-1 border-t border-line" />
