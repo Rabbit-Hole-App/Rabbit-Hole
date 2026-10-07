@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { learnDb } from './learn-grade-fixture.js';
 import { tutorRoute } from '../src/learn-tutor-routes.js';
 import { HANDOFF_BODY_CHARS, HANDOFF_CAPABILITIES, HANDOFF_CAPS, HANDOFF_READER_RULE } from '../src/learn-tutor-handoff.js';
+import { HANDOFF_REQUEST_MAX, handoffProblem } from '../src/agents/learn-tutor.js';
 import { CANVAS_TARGET_HEADER, LEARN_RESEARCH_SYSTEM } from '../src/agents/learn-chat.js';
 import { REPOSITORY_SYSTEM, REPOSITORY_TOOLS } from '../src/repository-context.js';
 import { repositoryApp } from '../src/repositories.js';
@@ -352,4 +353,12 @@ test('the reader carries the retrieval honesty rule on every model call; a faile
 ${HANDOFF_READER_RULE}`), 'the rule rides last in the reader system');
   assert.match(JSON.stringify(model.calls[1].body.messages.at(-1).content), /File is not in the indexed snapshot/);
   assert.equal(JSON.stringify(body).includes('File is not in the indexed snapshot'), false, 'the tool error text never reaches the reply');
+});
+
+// Fix round 2 (A R1-M2): the route's request bound is the protocol's HANDOFF_REQUEST_MAX, the bound handoffProblem uses.
+test('the route request bound is HANDOFF_REQUEST_MAX, the same bound as handoffProblem', async t => {
+  const f = setup(t), model = scripted([answer('ok')]);
+  assert.equal((await f.post(ask({ request: 'x'.repeat(HANDOFF_REQUEST_MAX + 1) }), { callModel: model.callModel })).status, 400);
+  assert.equal((await f.post(ask({ request: 'x'.repeat(HANDOFF_REQUEST_MAX) }), { callModel: model.callModel })).status, 200);
+  assert.equal(handoffProblem({ capability: 'repository_context', request: 'x'.repeat(HANDOFF_REQUEST_MAX + 1) }) !== null, true);
 });

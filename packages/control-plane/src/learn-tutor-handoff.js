@@ -13,6 +13,7 @@
 // text: outcome failed | refused and a category. cost_usd stays null when the served model has no MODEL_PRICES entry
 // (Auto serves claude-opus-5, which has none): a price is never guessed; tokens are still recorded.
 import { LEARN_SYSTEM } from './learn-context.js';
+import { HANDOFF_REQUEST_MAX } from './agents/learn-tutor.js';
 import { CANVAS_TARGET_LIMIT, appendCanvasTarget } from './learn-ask-context.js';
 import { anthropic } from './ask.js';
 import { researchAnswer } from './learn-research.js';
@@ -24,7 +25,7 @@ import { REPOSITORY_SYSTEM, REPOSITORY_TOOLS, repositoryTool } from './repositor
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 export const HANDOFF_PATH = '/api/learn/tutor/handoff';
 export const HANDOFF_BODY_CHARS = 64000; // the raw body, checked before parsing: the Learn chat repository ask's own JSON limit (repositoriesFetch)
-const REQUEST_CHARS = 1000; // the question for the capability, bounded as create_material's request
+const REQUEST_CHARS = HANDOFF_REQUEST_MAX; // the question for the capability: the protocol's one bound (handoffProblem reads it too)
 // No timeout exists on the Learn chat path; this one keeps the learner's wait under the browser's 60 s Tutor turn
 // (LearnTutor.jsx TURN_TIMEOUT_MS), so a slow read answers timeout instead of an aborted turn.
 export const HANDOFF_TIMEOUT_MS = 45000;
@@ -97,7 +98,8 @@ export const HANDOFF_CAPABILITIES = Object.freeze({
 // usage or no price), and the last stop_reason, which names a refusal or a cut answer. A non-ok reply adds a call and no
 // usage, so what the turn already billed stays counted. The first call is admitted under the usage cap (admit), so a turn
 // that never reaches the model (no repository) spends no budget. After the deadline the next call throws, ending the loop.
-// toolError (fix round 1): counts the capability tool calls that failed inside its loop (tool_errors; the reply keeps going).
+// toolError (fix round 1): counts the repository tool calls that throw inside runTool (tool_errors; the reply keeps going). A
+// tool that returns a not-found status, or a tool name the reader was not given, is not counted.
 function metered(callModel, deadline, admit) {
   const seen = { calls: 0, served_model: null, ...Object.fromEntries(TOKENS.map(key => [key, 0])), cost_usd: 0, tool_errors: 0, stop_reason: null };
   return { seen, toolError: () => { seen.tool_errors++; }, callModel: async (env, body, model, org) => {

@@ -351,8 +351,10 @@ export const HANDOFF_CAPABILITY_NAMES = ['repository_context'];
 // The one rule for a valid handoff (fix round 1, A-I1 and B-I4), shared by the browser validator and fastPlanProblem: a known
 // capability and a non-blank request of at most 1000 characters (the route's bound). The request is a question for the source
 // reader, so backticks, code, identifiers, file names and => are allowed. The problem, or null.
+// HANDOFF_REQUEST_MAX (fix round 2): the one request bound - handoffProblem here and the route (learn-tutor-handoff.js) both read it.
+export const HANDOFF_REQUEST_MAX = 1000;
 export const handoffProblem = action => (!HANDOFF_CAPABILITY_NAMES.includes(action?.capability) ? 'handoff: an unknown capability'
-  : typeof action.request !== 'string' || !action.request.trim() || action.request.length > 1000 ? 'handoff: a 1-1000 character request' : null);
+  : typeof action.request !== 'string' || !action.request.trim() || action.request.length > HANDOFF_REQUEST_MAX ? `handoff: a 1-${HANDOFF_REQUEST_MAX} character request` : null);
 const withHandoff = tool => {
   const actions = tool.input_schema.properties.actions, items = actions.items.properties;
   return { ...tool, input_schema: { ...tool.input_schema, properties: { ...tool.input_schema.properties, actions: { ...actions, items: { ...actions.items, properties: {

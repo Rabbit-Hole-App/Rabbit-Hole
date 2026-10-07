@@ -1,11 +1,11 @@
 // Task 11c-B: the Tutor's handoff action (task-11c-brief.md; owner thirteenth, fifteenth, sixteenth and nineteenth messages).
 // One capability-generic action, handoff { capability, request }, whose capability enum is exactly the handoff route's dispatch
 // table. The action and one uncached system block (its meaning, when to use it, the retrieval-failure honesty rule) are sent
-// only on a turn whose route allows the handoff (context.allowed_actions), after any hook or explicit-mode block, so the shared
-// cached prefix and every other request stay byte-identical. Pure; no model call.
+// only on a turn whose route allows the handoff (context.allowed_actions), after any hook or explicit-mode block, so every other
+// request stays byte-identical (a handoff-allowed turn caches under its own tool schema). Pure; no model call.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ACTION_TYPES, CANVAS_SYSTEM, EXPLICIT_MODE, HANDOFF_ACTION, HANDOFF_CAPABILITY_NAMES, HANDOFF_SYSTEM, handoffProblem, NEXT_STEP_SYSTEM, PLANNER_SYSTEM, TUTOR_TOOL, plannerRequest, plannerSystem, tutorTool } from '../src/agents/learn-tutor.js';
+import { ACTION_TYPES, CANVAS_SYSTEM, EXPLICIT_MODE, HANDOFF_ACTION, HANDOFF_CAPABILITY_NAMES, HANDOFF_REQUEST_MAX, HANDOFF_SYSTEM, handoffProblem, NEXT_STEP_SYSTEM, PLANNER_SYSTEM, TUTOR_TOOL, plannerRequest, plannerSystem, tutorTool } from '../src/agents/learn-tutor.js';
 import { HANDOFF_CAPABILITIES } from '../src/learn-tutor-handoff.js';
 import { fastPlanProblem } from '../src/learn-tutor-routes.js';
 
@@ -22,7 +22,9 @@ test('the handoff action: one type, its capability enum exactly the route dispat
     const items = tutorTool(avatar, true).input_schema.properties.actions.items.properties;
     assert.deepEqual(items.type.enum, [...tutorTool(avatar).input_schema.properties.actions.items.properties.type.enum, 'handoff'], `avatar ${avatar}`);
     assert.deepEqual(items.capability, { type: 'string', enum: ['repository_context'] });
-    assert.deepEqual(items.request, { type: 'string', maxLength: 1000 }, 'the route takes a 1-1000 character request');
+    // Fix round 2 (A R1-M2): one request bound, used by handoffProblem and the route; the schema maxLength stays tied to it.
+    assert.deepEqual(items.request, { type: 'string', maxLength: HANDOFF_REQUEST_MAX }, 'the route takes a 1-HANDOFF_REQUEST_MAX character request');
+    assert.equal(HANDOFF_REQUEST_MAX, 1000);
   }
   assert.equal(ACTION_TYPES.includes('handoff'), false, 'never in the base tool: only on a turn that allows it');
   assert.equal('capability' in TUTOR_TOOL.input_schema.properties.actions.items.properties, false);
