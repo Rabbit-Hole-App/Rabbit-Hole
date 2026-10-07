@@ -146,6 +146,23 @@ const strip = text => text.replace(/('(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|`(?
 const idents = code => code.replace(/'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|`(?:[^`\\]|\\.)*`/g, "''").match(/[A-Za-z_$][\w$]*/g) || [];
 const outside = (code, allowed) => [...new Set(idents(code).filter(id => !allowed.has(id)))];
 const functionOf = (file, head) => strip(source(file)).match(new RegExp(`${head}[\\s\\S]*?\\n\\}`))[0];
+// The buildTurn({ ... }) calls in a module (the signature excluded): where each starts and ends, and the text between the braces.
+const handovers = code => [...code.matchAll(/(?<!function )\bbuildTurn\(\{/g)].map(({ index }) => {
+  const open = index + 'buildTurn('.length;
+  let depth = 0, end = open;
+  for (; end < code.length; end++) { if ('{(['.includes(code[end])) depth++; else if ('})]'.includes(code[end]) && --depth === 0) break; }
+  return { start: index, end: end + 2, text: code.slice(open + 1, end) }; // end + 2: past the closing brace and the closing parenthesis
+});
+const withoutHandovers = code => handovers(code).reduceRight((rest, { start, end }) => `${rest.slice(0, start)}buildTurn(HANDOVER)${rest.slice(end)}`, code);
+// The top-level, comma separated parts of an object literal's text.
+const entries = text => {
+  const parts = [];
+  let depth = 0, from = 0;
+  for (let i = 0; i < text.length; i++) {
+    if ('{(['.includes(text[i])) depth++; else if ('})]'.includes(text[i])) depth--; else if (text[i] === ',' && depth === 0) { parts.push(text.slice(from, i).trim()); from = i + 1; }
+  }
+  return [...parts, text.slice(from).trim()].filter(Boolean);
+};
 
 // What a registry-free product module may never name. Card ids and titles come from the card registry helpers, claim ids from all
 // three registries (whole slug and the slug after the slash). The 4 character floor stays: nothing here is ever shortened.
@@ -159,10 +176,14 @@ const VOCAB = [...new Set([
 ].filter(word => String(word).length >= 4))];
 const named = (code, word) => new RegExp(`(^|[^a-z0-9])${String(word).toLowerCase().replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}([^a-z0-9]|$)`).test(code);
 
-// Registered-course references that are legitimate in an otherwise registry-free module. Each strip is exact, carries its reason, and
-// must still match (a strip nothing needs any more is a failure: delete it), so none of them can grow into a blind spot.
-const COURSE_IMPORT = [/^import [^\n]*(?:\/nanogpt\/|\bNANOGPT\b)[^\n]*$/gm, 'an import that brings in the registered course (its board or its registry)'];
-const COURSE_DEFAULT = [/\bdomain = NANOGPT\b/g, 'the default domain parameter is the registered course'];
+// Registered-course references that are legitimate in an otherwise registry-free module. A strip is [pattern, reason, count]: exact,
+// reasoned, and pinned to the number of matches it has today. A new match (a runtime use of the course, another course import) fails,
+// and so does a strip nothing needs any more (delete it), so none of them can grow into a blind spot.
+const escaped = text => text.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+// One named import line per module path listed (the registered course board and registry), nothing else.
+const courseImports = (...paths) => [new RegExp(`^import \\{[^}\\n]*\\} from '(?:${paths.map(escaped).join('|')})';$`, 'gm'), `the registered course imports (${paths.join(', ')})`, paths.length];
+// The default domain parameter only (in a parameter list or a destructuring), never a runtime assignment.
+const courseDefault = count => [/(?<=[({,]\s*)domain = NANOGPT(?=\s*[,})])/g, 'the default domain parameter is the registered course', count];
 // Scanned: the modules Professor Next Steps and the Auto Tutor added or changed. Not scanned, on purpose: the course registry files
 // where a course is legitimately registered and named (learn-tutor-domains.js, learn-tutor-claims.js, nanogpt/*), learn-slash.js
 // (command placeholder copy) and learn-journey-fixtures.js (test-only fixture topics).
@@ -171,22 +192,27 @@ const SCANNED = [
   ['../../control-plane/src/learn-tutor-handoff.js'], ['./learn-tutor-actions.js'], ['../../control-plane/src/agents/learn-labels.js'],
   ['./LearnTutor.jsx'], ['../../control-plane/src/learn-journey-planners.js'], ['../../control-plane/src/learn-tutor-routes.js'], ['./learn-journey-domain.js'],
   ['../../control-plane/src/learn-boards.js'], ['../../control-plane/src/learn-shared-ask.js'], ['./voice-session.js'], ['./LearnVoice.jsx'], ['../../control-plane/src/learn-models.js'],
-  ['./learn-tutor.js', COURSE_IMPORT, COURSE_DEFAULT], ['./learn-tutor-validate.js', COURSE_IMPORT, COURSE_DEFAULT], ['./learn-tutor-evidence.js', COURSE_IMPORT, COURSE_DEFAULT],
+  ['./learn-tutor.js', courseImports('./nanogpt/board.js', './nanogpt/depth/board.js', './learn-tutor-claims.js'), courseDefault(10)],
+  ['./learn-tutor-validate.js', courseImports('./nanogpt/depth/board.js', './learn-tutor-claims.js'), courseDefault(2)],
+  ['./learn-tutor-evidence.js', courseImports('./learn-tutor-claims.js'), courseDefault(1)],
   ['../../control-plane/src/agents/learn-tutor.js',
-    [/^\s*'You are the Tutor on a Rabbit Hole learning canvas about nanoGPT attention\. You compose ONE turn\.',$/gm, 'LINES[0], the registered course subject line; the journey and canvas prompts leave it out'],
-    [/\bkind = 'nanogpt'/g, 'the default prompt kind is the registered course'],
-    [/: 'nanogpt'\)/g, 'the prompt kind a registered course turn is selected with'],
-    // FINDING T12-F1, reported and not fixed (Task 11c-B edits this file): LINES[6] gives a registered-course topic as its example, and the
-    // journey and canvas prompts reuse that line through L(6), so an unrelated canvas reads a course topic. Delete this entry with the example.
-    [/ \(the topic, e\.g\. "Softmax"\)/g, 'KNOWN FINDING T12-F1: a course topic in the shared suggest_dive line']],
+    [/^\s*'You are the Tutor on a Rabbit Hole learning canvas about nanoGPT attention\. You compose ONE turn\.',$/gm, 'LINES[0], the registered course subject line; the journey and canvas prompts leave it out', 1],
+    [/(?<=[(,]\s*)kind = 'nanogpt'(?=\s*[,)])/g, 'the default prompt kind parameter is the registered course', 1],
+    [/: 'nanogpt'\)/g, 'the prompt kind a registered course turn is selected with', 1],
+    // FINDING T12-F1, a REQUIRED CHANGE owned by Task 11c-B (recorded in the ledger and the 11c-B brief), not fixed here: LINES[6] gives a
+    // registered-course topic as its example, and the journey and canvas prompts reuse that line through L(6), so an unrelated canvas
+    // reads a course topic. 11c-B makes the example topic-free and re-pins the prompt with review, then deletes this entry (it fails
+    // once the text is gone). If it lands without that change, the Task 14 result lists T12-F1 as an open real hit.
+    [/ \(the topic, e\.g\. "Softmax"\)/g, 'KNOWN FINDING T12-F1: a course topic in the shared suggest_dive line', 1]],
 ];
 // A comparison of a hook, claim, concept, block or id list length with 2 to 4 (a word length filter is not one of them).
 const COUNT = /\b(?:options|hooks|claims|concepts|blocks|goals|ids)\.length\s*(?:[!=]=?=|[<>]=?)\s*[2-4]\b|\blength\s*===\s*3\b/;
 test('no registry labels, card ids or titles, claim ids, topic words, fixture ids or modality sequences in the product modules', () => {
   for (const [file, ...strips] of SCANNED) {
     let code = strip(source(file));
-    for (const [pattern, reason] of strips) {
-      assert.notEqual(code.search(pattern), -1, `${file}: this strip matches nothing now, delete it (${reason})`);
+    for (const [pattern, reason, count] of strips) {
+      const found = (code.match(pattern) || []).length;
+      assert.equal(found, count, `${file}: the strip for ${reason} matches ${found} time(s), pinned at ${count} (0: delete the strip; more: review the new use of the course)`);
       code = code.replace(pattern, '');
     }
     code = code.toLowerCase();
@@ -202,6 +228,8 @@ test('no registry labels, card ids or titles, claim ids, topic words, fixture id
 
 // No module decides an offer or an action from the learner words. Allowlists, not word lists: an offer line may read only the
 // structural identifiers below, so a variable derived from the words, however it is named, fails here.
+// Extending an allowlist: add a structural identifier (page state, the row, a structural flag such as the handoff offer) after
+// review. A reader of the learner words, of the constraints (statedConstraints feeds them) or of learner_intent never belongs in one.
 // ponytail: line-based, and a string built by concatenation ('suggest_' + x) would escape; the page's offer function is checked whole.
 test('no product module decides an offer or an action from the learner words', () => {
   // The words: the raw message, and the readers of it that decide an intent, a skeleton or constraints.
@@ -219,6 +247,16 @@ test('no product module decides an offer or an action from the learner words', (
   for (const [name, body] of [['buildTurn', build], ['runTurn', functionOf('./learn-tutor.js', 'export async function runTurn\\(')]]) {
     assert.ok(/\bmaterials = \[\]/.test(body) && /\bresearch = false\b/.test(body) && /\bjourneyOffer = false\b/.test(body), `${name} defaults the offer parameters to literals`);
     assert.deepEqual(reassigned(body, 'nextStep|materials|research|journeyOffer'), [], `${name} reassigns an offer parameter`);
+  }
+  // runTurn hands the offers to buildTurn at exactly two calls, and every argument of both is on this list (no spread, no computed
+  // value, no key: value besides the two renames).
+  const HANDOVER_OK = new Set(['raw', 'slash', 'opening', 'canvas', 'block', 'store: current', 'states', 'inputModality', 'turnId: id', 'domain', 'nextStep', 'materials', 'research', 'journeyOffer']);
+  const calls = handovers(strip(source('./learn-tutor.js')));
+  assert.equal(calls.length, 2, 'buildTurn is called twice in the Tutor, both from runTurn');
+  for (const { text } of calls) {
+    const given = entries(text).map(entry => entry.replace(/\s+/g, ' '));
+    for (const entry of given) assert.ok(HANDOVER_OK.has(entry), `runTurn hands buildTurn an argument that is not on the allowlist: ${entry}`);
+    for (const name of ['nextStep', 'materials', 'research', 'journeyOffer']) assert.ok(given.includes(name), `runTurn hands buildTurn ${name} unchanged`);
   }
 
   // route(): every line that names an offer action or flag, or assigns the allowed list, reads only the row, the list and the turn's
@@ -240,15 +278,18 @@ test('no product module decides an offer or an action from the learner words', (
   const call = page.match(/result = await runTurn\(\{[\s\S]*?\n\s*\}\);/)[0], at = call.match(/\.\.\.turnOffers\(\{[^\n]*\}\)/)[0];
   assert.deepEqual([...call.matchAll(/\.\.\.\s*([A-Za-z_$][\w$]*)/g)].map(m => m[1]).filter(name => !['common', 'turnOffers'].includes(name)), [], 'the runTurn call spreads something besides common and turnOffers');
   assert.deepEqual(outside(at, new Set(['turnOffers', 'journey', 'journeyRef', 'current', 'record', 'opening', 'nextStep', 'openResearch'])), [], 'the turnOffers call reads more than the page state');
-  const rest = page.replace(offers, '').replace(at, '');
-  assert.deepEqual(idents(rest).filter(id => ['journeyOffer', 'materials', 'research'].includes(id)), [], 'an offer field is named outside turnOffers');
+  // An offer field is never a key anywhere on the page outside turnOffers, nor named in the runTurn call or in common (shorthand).
+  const rest = page.replace(offers, '').replace(at, ''), common = page.match(/const common = \{[^;]*\};/)[0];
+  assert.equal(/\b(?:journeyOffer|materials|research)\s*:/.test(rest), false, 'an offer field is a key outside turnOffers');
+  assert.deepEqual(idents(call.replace(at, '') + common).filter(id => ['journeyOffer', 'materials', 'research'].includes(id)), [], 'an offer field is named in the runTurn call or in common');
 
   // Anywhere else the offers, the actions or the handoff are named, the same line never reads the words. On the worker side raw is
   // the HTTP body, so only the turn's own field names the learner's message there.
   const FOUR = /suggest_journey|suggest_research|create_material|handoff|journey_offer|research_offer|available_materials|journeyOffer|openResearch|\bresearch\s*:|\bmaterials\s*:/i;
-  // Not a decision: a signature that declares the parameters, and runTurn handing the three offers on to buildTurn unchanged (shorthand).
-  const PASSED = /^export (?:async )?function |\bbuildTurn\(\{[^\n]*\bnextStep, materials, research, journeyOffer\b/;
+  // Exempt: the two signatures, by exact name (their defaults are literals, asserted above), and the two buildTurn calls, whose
+  // arguments are on the allowlist above (the rest of their lines is scanned). Nothing else.
+  const SIGNATURE = /^export function buildTurn\(\{|^export async function runTurn\(\{/;
   const scanned = [['./learn-tutor.js', WORDS], ['./learn-tutor-validate.js', WORDS], ['./learn-tutor-actions.js', WORDS], ['./LearnTutor.jsx', WORDS],
     ...['agents/learn-tutor.js', 'learn-tutor-routes.js', 'learn-tutor-handoff.js'].map(file => [`../../control-plane/src/${file}`, /raw_user_message/])];
-  for (const [file, words] of scanned) for (const line of linesOf(strip(source(file)), FOUR).filter(line => !PASSED.test(line))) assert.equal(words.test(line), false, `${file}: ${line.trim()}`);
+  for (const [file, words] of scanned) for (const line of linesOf(withoutHandovers(strip(source(file))), FOUR).filter(line => !SIGNATURE.test(line))) assert.equal(words.test(line), false, `${file}: ${line.trim()}`);
 });
