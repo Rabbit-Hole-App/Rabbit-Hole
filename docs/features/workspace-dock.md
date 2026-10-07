@@ -115,3 +115,7 @@ Unchanged: the Start paths (Repository, Blank canvas). No other actions were add
 - Browser: `packages/web/e2e/workspace-check.mjs` on the local stack, both briefs point by point, with every Figma shot.
   The repository endpoints are stubbed with a Graphify-shaped snapshot read off the real nanoGPT files pinned in
   `packages/learn-render` (the keyless stack has no indexer); `/api/learn/ask` is stubbed, so no model is called.
+- Browser, clone harness: the Map cases in `e2e/rabbit-hole-check.mjs` (`bar-page`, `wp6-map`, `wp6-learn-this`,
+  `wp6-show-on-graph`, `wp6-kg-`) assert this behaviour. `LOCAL=1 BASE=http://127.0.0.1:<app> SMALL_CP=http://127.0.0.1:<cp>`
+  runs them on the local stack, for verification only, with the same nanoGPT fixture (`e2e/nanogpt-repository-fixture.mjs`)
+  and every unrouted `/api/learn/ask` aborted.

@@ -6,6 +6,7 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
+import { COMMIT, REPO, routeRepository } from './nanogpt-repository-fixture.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8868';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8869';
@@ -18,57 +19,22 @@ const session = (await (await fetch(`${CP}/test/session`, { method: 'POST', head
 const api = async (path, init = {}) => (await fetch(`${BASE}${path}`, { ...init, headers: { cookie: `small_session=${session}`, 'content-type': 'application/json' } })).json();
 for (const title of ['Attention', 'Tokenization', 'Backprop', 'Softmax', 'Layer norm', 'Positional encoding']) await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `${title} ${run}` }) });
 
-// ── The repository snapshot: real files, a graph in the indexer's shape (file nodes named after the file, classes, functions,
-// methods, externals; contains / method / imports / imports_from, all EXTRACTED). Not product data: it stands in for the indexer.
-const SRC = new URL('../../learn-render/motion/fixtures/sources/nanogpt-3adf61e/', import.meta.url);
-const manifest = JSON.parse(readFileSync(new URL('MANIFEST.json', SRC), 'utf8'));
-const COMMIT = manifest.commit, paths = Object.keys(manifest.files).filter((p) => p.endsWith('.py'));
-const content = Object.fromEntries(paths.map((p) => [p, readFileSync(new URL(p, SRC), 'utf8').replace(/\r\n/g, '\n')]));
-const idOf = (p) => p.replace(/\.py$/, '').replace(/\//g, '_');
-const nodes = [], edges = [], seen = new Set();
-const edge = (source, target, relation) => { const k = `${source}>${target}>${relation}`; if (!seen.has(k)) { seen.add(k); edges.push({ source, target, relation, confidence: 'EXTRACTED' }); } };
-for (const p of paths) {
-  const f = idOf(p); let cls = null;
-  nodes.push({ id: f, label: p.split('/').pop(), path: p, line: 1, kind: 'code' });
-  content[p].split('\n').forEach((text, i) => {
-    let m;
-    if ((m = text.match(/^class (\w+)/))) { cls = `${f}_${m[1].toLowerCase()}`; nodes.push({ id: cls, label: m[1], path: p, line: i + 1, kind: 'code' }); edge(f, cls, 'contains'); return; }
-    if (/^[^\s#@)\]}]/.test(text)) cls = null;
-    if ((m = text.match(/^def (\w+)/))) { nodes.push({ id: `${f}_${m[1]}`, label: `${m[1]}()`, path: p, line: i + 1, kind: 'symbol' }); edge(f, `${f}_${m[1]}`, 'contains'); }
-    else if (cls && (m = text.match(/^ {4}def (\w+)/))) { nodes.push({ id: `${cls}_${m[1]}`, label: `.${m[1]}()`, path: p, line: i + 1, kind: 'symbol' }); edge(cls, `${cls}_${m[1]}`, 'method'); }
-    if ((m = text.match(/^import (\w+)/) || text.match(/^from (\w+)[\w.]* import/))) {
-      const local = paths.includes(`${m[1]}.py`), target = local ? idOf(`${m[1]}.py`) : m[1];
-      if (!local && !nodes.some((n) => n.id === target)) nodes.push({ id: target, label: target, path: null, line: 1, kind: 'external' });
-      edge(f, target, text.startsWith('from') ? 'imports_from' : 'imports');
-    }
-  });
-}
-const SNAPSHOT = { repo: 'karpathy/nanoGPT', commit: COMMIT, version: 'graphify', skipped: [], files: paths.map((p) => ({ path: p, lines: content[p].split('\n').length })), graph: { nodes, edges } };
-const REPO = 'repo-3adf61e1-nanogpt';
 let repoStatus = 'ready';
 const asks = [];
 const ANSWER = 'train.py is the training loop: it builds GPT from model.py and optimises it.';
 
 const browser = await chromium.launch();
+// A crash (an unhandled error in a check, the harness or the shared fixture) still closes the browser, then fails the run:
+// the error is printed and the exit code is 1. A crashed run once left 4 headless browsers behind (2026-10-07).
+const crash = async (error) => { console.error(error); await browser.close().catch(() => {}); process.exit(1); };
+process.once('uncaughtException', crash);
+process.once('unhandledRejection', crash);
 const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
-let row;
-await context.route('**/api/**', async (route) => {
-  const url = new URL(route.request().url()), p = url.pathname;
-  if (p === '/api/apps' && route.request().method() === 'GET') {
-    const response = await route.fetch(), real = await response.json();
-    row = { name: REPO, org: real.org, orgName: real.orgName, kind: 'repository', repo: 'karpathy/nanoGPT', branch: 'master', description: '', owner_email: real.email, email: real.email, deployed_at: '2026-10-06T09:00:00Z', created_at: '2026-10-06T09:00:00Z', visibility: 'private', members: [], teams: [], observations: [], canEdit: true, schedule: null, commit_sha: COMMIT, status: repoStatus };
-    return route.fulfill({ json: { ...real, apps: [row, ...real.apps] } });
-  }
-  if (p === `/api/apps/${REPO}`) return route.fulfill({ json: { ...row, status: repoStatus } });
-  if (p === `/api/repositories/${REPO}`) return route.fulfill({ json: { ...row, status: repoStatus } });
-  if (p === `/api/repositories/${REPO}/snapshot`) return route.fulfill({ json: SNAPSHOT });
-  if (p === `/api/repositories/${REPO}/file`) { const { path } = JSON.parse(route.request().postData()); return route.fulfill({ json: { path, commit: COMMIT, content: content[path] } }); }
-  if (p === '/api/learn/ask') {
-    asks.push(JSON.parse(route.request().postData()));
-    return route.fulfill({ status: 200, contentType: 'text/event-stream', body: `event: chunk\ndata: ${JSON.stringify({ text: ANSWER })}\n\nevent: done\ndata: {}\n\n` });
-  }
-  return route.continue();
+await routeRepository(context, () => repoStatus);
+await context.route('**/api/learn/ask', (route) => {
+  asks.push(JSON.parse(route.request().postData()));
+  return route.fulfill({ status: 200, contentType: 'text/event-stream', body: `event: chunk\ndata: ${JSON.stringify({ text: ANSWER })}\n\nevent: done\ndata: {}\n\n` });
 });
 const page = await context.newPage();
 const errors = [];

@@ -176,6 +176,19 @@ await check('3 concurrent edits on A and B: the second gets the 409 message, ove
   assert.equal((await local(B.page, keysOf(C1.name).ink)).strokes.length, 3, 'reload loads the server copy');
 });
 
+// A notebook card's kernel downloads Pyodide packages while it starts; going offline mid-start leaves that kernel dead for
+// the page load (docs/features/notebook-kernel-startup.md, a product issue tracked on its own). So the offline step waits
+// until every notebook frame on the page has a ready (idle) kernel, or was torn down while being read. Nothing is removed.
+const NOTEBOOK_FRAME = /\/lab\/\?mode=single-document&workspace=(?!warmup)/;
+const kernelsSettled = async (page) => {
+  const frames = page.frames().filter(frame => NOTEBOOK_FRAME.test(frame.url()));
+  if (!frames.length) return null; // not mounted yet: a notebook that mounts later would start offline
+  const states = await Promise.all(frames.map(frame => frame.isDetached() ? 'torn down'
+    : frame.evaluate(() => document.querySelector('.jp-Notebook-ExecutionIndicator')?.getAttribute('data-status') || 'starting').catch(() => (frame.isDetached() ? 'torn down' : 'unreadable'))));
+  return states.every(state => state === 'idle' || state === 'torn down') ? states : null;
+};
+const stamp = what => console.log(`${what} ${new Date().toISOString()}`);
+
 await check('4 an edit on A while offline lands on reconnect', async () => {
   await open(A.page, C1.name, '[data-block-id="e1"]');
   // One stroke online first: the pen's lazy chunks load now, since a chunk that fails offline reloads the page (main.jsx).
@@ -184,11 +197,15 @@ await check('4 an edit on A while offline lands on reconnect', async () => {
   const before = await until('the online stroke on the server', async () => { const b = await boardOf(C1.name); return b.state.strokes.length === warm + 1 && b; });
   // ...and the idle warm-up's chunks (learn-warmup.js) are in before the network goes.
   await until('the idle warm-up', () => A.page.evaluate(() => performance.getEntriesByName('rh:warmup:done').length > 0), 120000);
+  const kernels = await until('the notebook kernels on A ready or torn down', () => kernelsSettled(A.page), 120000);
+  stamp(`notebook kernels on A ${JSON.stringify(kernels)} at`);
+  stamp('offline A');
   await A.context.setOffline(true);
   await draw(A.page, 5);
   await A.page.waitForTimeout(3500);
   assert.equal((await boardOf(C1.name)).version, before.version, 'nothing reached the server offline');
   assert.equal((await local(A.page, keysOf(C1.name).ink)).strokes.length, before.state.strokes.length + 1, 'kept in this browser');
+  stamp('online A');
   await A.context.setOffline(false);
   const after = await until('the offline edit on the server', async () => { const b = await boardOf(C1.name); return b.state.strokes.length === before.state.strokes.length + 1 && b; });
   assert.equal(after.version, before.version + 1);

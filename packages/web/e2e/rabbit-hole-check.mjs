@@ -6,6 +6,10 @@
 // renames, trashes or runs an app; a check that creates a canvas deletes it again. From packages/web:
 //   SMALL_BASE=https://rabbit-hole-web-dev-smart-home.tryrabbithole.workers.dev SMALL_ENV_FILE=C:/Users/cyudhist/Desktop/workspace/small-deploy/.env node e2e/rabbit-hole-check.mjs
 // ONLY=build,J15 runs only labels that start with those prefixes. SHOTS=1 also saves screenshots.
+// LOCAL=1 (verification only) runs against the lane's local stack instead: a /test/session from the local control plane,
+// the nanoGPT repository stubbed from nanogpt-repository-fixture.mjs, and every /api/learn/ask a check does not route
+// itself aborted, so nothing reaches a model. It reads no .env and prints no secret. From packages/web:
+//   LOCAL=1 BASE=http://127.0.0.1:8848 SMALL_CP=http://127.0.0.1:8849 ONLY=bar-page,wp6-map node e2e/rabbit-hole-check.mjs
 // STATUS (2026-09-30): signed-in execution is pending P0-B Phase 2B. /test/session is gone from live
 // small-cp (P0-A containment) and the isolated Rabbit Hole dev environment is not ready yet; never
 // work around that through production. Read-only mocked checks: e2e/mvp-surface-shots.mjs.
@@ -13,22 +17,43 @@ import { chromium } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { parseEnv } from 'node:util';
 import { DEV_CP } from './dev-cp.mjs';
+import { repoRow, routeRepository } from './nanogpt-repository-fixture.mjs';
 
-const base = process.env.SMALL_BASE || '';
-// A per-session clone only, never the shared small-cp-dev (docs/features/parallel-dev-deploys.md). Legacy
-// small-cp-dev-<name> clones still pass until retired; new clones are rabbit-hole-web-dev-<name>.
-if (!/^https:[/][/](rabbit-hole-web-dev|small-cp-dev)-[a-z0-9-]+[.]tryrabbithole[.]workers[.]dev$/.test(base)) throw new Error('SMALL_BASE must be your clone, e.g. https://rabbit-hole-web-dev-smart-home.tryrabbithole.workers.dev');
-const env = parseEnv(readFileSync(process.env.SMALL_ENV_FILE || new URL('../../../.env', import.meta.url), 'utf8'));
-if (!env.RABBIT_HOLE_DEV_TEST_BYPASS) throw new Error('RABBIT_HOLE_DEV_TEST_BYPASS missing from the env file');
+const LOCAL = process.env.LOCAL === '1';
+const base = (LOCAL ? process.env.BASE : process.env.SMALL_BASE) || '';
 const UA = { 'User-Agent': 'small-rabbit-hole-check' }; // Cloudflare 1010 refuses default script agents
-const email = 'yudhisteer.chin@gmail.com';
-const login = await fetch(`${DEV_CP}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...UA }, body: JSON.stringify({ email, secret: env.RABBIT_HOLE_DEV_TEST_BYPASS }) });
-if (!login.ok) throw new Error(`test session: HTTP ${login.status}`);
-const { session } = await login.json();
+let email, session;
+if (LOCAL) {
+  const cp = process.env.SMALL_CP || '';
+  for (const url of [base, cp]) if (!/^http:[/][/](127[.]0[.]0[.]1|localhost)(:\d+)?$/.test(url)) throw new Error('LOCAL=1 runs against the local stack only: BASE and SMALL_CP must be http://127.0.0.1:<port>');
+  const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
+  const run = Date.now().toString(36);
+  email = `rh-check-${run}@example.com`;
+  const login = await fetch(`${cp}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, secret, handle: `rhc_${run}` }) });
+  if (!login.ok) throw new Error(`local test session: HTTP ${login.status}`);
+  ({ session } = await login.json());
+} else {
+  // A per-session clone only, never the shared small-cp-dev (docs/features/parallel-dev-deploys.md). Legacy
+  // small-cp-dev-<name> clones still pass until retired; new clones are rabbit-hole-web-dev-<name>.
+  if (!/^https:[/][/](rabbit-hole-web-dev|small-cp-dev)-[a-z0-9-]+[.]tryrabbithole[.]workers[.]dev$/.test(base)) throw new Error('SMALL_BASE must be your clone, e.g. https://rabbit-hole-web-dev-smart-home.tryrabbithole.workers.dev');
+  const env = parseEnv(readFileSync(process.env.SMALL_ENV_FILE || new URL('../../../.env', import.meta.url), 'utf8'));
+  if (!env.RABBIT_HOLE_DEV_TEST_BYPASS) throw new Error('RABBIT_HOLE_DEV_TEST_BYPASS missing from the env file');
+  email = 'yudhisteer.chin@gmail.com';
+  const login = await fetch(`${DEV_CP}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...UA }, body: JSON.stringify({ email, secret: env.RABBIT_HOLE_DEV_TEST_BYPASS }) });
+  if (!login.ok) throw new Error(`test session: HTTP ${login.status}`);
+  ({ session } = await login.json());
+}
+// Locally, every context gets the stubbed project and then a blanket guard: a check's own page.route on /api/learn/ask
+// runs before the context's, so an ask the check does not route itself is aborted and never reaches a model.
+const localGuard = async (context) => {
+  if (!LOCAL) return;
+  await routeRepository(context);
+  await context.route('**/api/learn/ask', (route) => route.abort());
+};
 const catalogResponse = await fetch(`${base}/api/apps`, { headers: { ...UA, Cookie: `small_session=${session}` } });
 if (!catalogResponse.ok) throw new Error(`/api/apps: HTTP ${catalogResponse.status}`);
 const data = await catalogResponse.json(); // { org, orgName, email, apps }
-const apps = data.apps || [];
+const apps = [...(LOCAL ? [repoRow(data)] : []), ...(data.apps || [])]; // locally, the stubbed project as every context sees it
 // nanoGPT is the journeys' project; a newer test repository (octocat/Hello-World) must not displace it.
 const repo = apps.find((a) => a.kind === 'repository' && /^karpathy\/nanogpt$/i.test(a.repo || '')) || apps.find((a) => a.kind === 'repository');
 const plain = apps.find((a) => a.kind === 'job' || a.kind === 'server');
@@ -50,19 +75,25 @@ const check = async (label, fn) => {
 const must = (cond, message) => { if (!cond) throw new Error(message); };
 
 const browser = await chromium.launch();
+// A crash (an unhandled error in a check, the harness or the shared fixture) still closes the browser, then fails the run:
+// the error is printed and the exit code is 1. A crashed run once left 4 headless browsers behind (2026-10-07).
+const crash = async (error) => { console.error(error); await browser.close().catch(() => {}); process.exit(1); };
+process.once('uncaughtException', crash);
+process.once('unhandledRejection', crash);
 // A fresh context per check: clean storage, nothing leaks between checks.
 const open = async (viewport = { width: 1500, height: 950 }) => {
   const context = await browser.newContext({ viewport });
-  await context.addCookies([{ name: 'small_session', value: session, domain: new URL(base).hostname, path: '/' }]);
+  await context.addCookies([{ name: 'small_session', value: session, domain: new URL(base).hostname, path: '/' }]); await localGuard(context);
   const page = await context.newPage();
   page.on('pageerror', (e) => console.log('PAGEERROR:', e.message));
   return page;
 };
 // Loaded = the sidebar names this workspace (sr-only in the collapsed rail), so Shell has the catalog.
-// 'attached' because the sidebar is display:none below md unless its drawer is open.
+// 'attached' because the sidebar is display:none below md unless its drawer is open. The local test user has no display
+// name, so its sidebar names the person by email instead (session-display.js shownIdentity).
 const loaded = async (page, path = '/apps') => {
   await page.goto(`${base}${path}`);
-  await page.locator('aside').getByText(wsLabel, { exact: true }).first().waitFor({ state: 'attached', timeout: 20000 });
+  await page.locator('aside').getByText(LOCAL ? email : wsLabel, { exact: true }).first().waitFor({ state: 'attached', timeout: 20000 });
 };
 // In-app navigation exactly as navigate() does it (api.js:31-34).
 const spa = (page, to) => page.evaluate((url) => { history.pushState(null, '', url); dispatchEvent(new PopStateEvent('popstate')); }, to);
@@ -543,7 +574,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
 
   await check('library: on a touch tablet (no hover) the card menu and the Recent action are visible', async () => {
     const context = await browser.newContext({ viewport: { width: 1024, height: 768 }, isMobile: true, hasTouch: true });
-    await context.addCookies([{ name: 'small_session', value: session, domain: new URL(base).hostname, path: '/' }]);
+    await context.addCookies([{ name: 'small_session', value: session, domain: new URL(base).hostname, path: '/' }]); await localGuard(context);
     const page = await context.newPage();
     await loaded(page, '/library?type=canvases');
     const c = await shCanvas(page, 'rabbit-hole-check touch');
@@ -1473,7 +1504,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
 
 {
   // ── agent-ui on the project page (WP4 slice of Task 47): project scope, and the Map
-  // with one composer. Sends only in project scope (LEARN_DB): 2 LLM calls. ──
+  // with one composer. Every ask is held, aborted or stubbed: no LLM call. ──
   const ready = apps.find((a) => a.kind === 'repository' && a.status === 'ready' && a.commit_sha);
   const barOpen = async (path) => {
     const page = await open();
@@ -1494,16 +1525,19 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  if (ready) await check('bar-page: the Map has one composer, the bar; a Map ask lands in the Context panel, names its scope while streaming across navigation, and Stop ends it', async () => {
+  // Since the dock (workspace-dock.md, project-map-learn.md "The Map's side panel"), a Map answer opens in the bar's window as
+  // everywhere else, never in the inspector; minimized, the chat icon beside + names it (data-result-open, no result line).
+  if (ready) await check('bar-page: the Map has one composer, the bar; a Map ask opens in the answer window, never the inspector, names its scope while streaming across navigation, and Stop ends it', async () => {
     const page = await barOpen(`/apps/${ready.name}?tab=map`);
     await chip(page).waitFor({ timeout: 15000 }); // project scope (LEARN_DB) is proven before anything is sent
     must(await page.locator('[data-chat-composer]').count() === 1, 'a second composer on the Map');
     must(await page.getByRole('heading', { name: 'Graph Agent' }).count() === 0, 'the Graph Agent is still shown');
+    await page.route('**/api/learn/ask', () => {}); // held: never answered, never sent on (no model call)
     const question = 'Where should I start reading?';
     await barInput(page).fill(question);
     await barInput(page).press('Enter');
-    await page.locator('[data-map-panel]').getByText(question).waitFor({ timeout: 10000 });
-    must(await page.locator('[data-result-sheet]').count() === 0, 'the Map opened the sheet');
+    await page.locator('[data-result-sheet]').getByText(question).waitFor({ timeout: 10000 });
+    must(await page.locator('[data-map-panel]').getByText(question).count() === 0, 'the Map ask landed in the inspector');
     const status = barOf(page).getByText(/^Answering in /);
     await status.waitFor({ timeout: 10000 });
     await spa(page, '/library');
@@ -1512,31 +1546,38 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       await status.waitFor({ state: 'detached', timeout: 5000 });
     }
     if (await page.locator('[data-result-sheet]').count()) await barOf(page).getByRole('button', { name: 'Collapse results' }).click();
-    const line = await page.locator('[data-result-line]').textContent();
-    must(line.startsWith(`${ready.repo} · `), `the collapsed line ${line} does not name the project`);
+    const line = await barOf(page).locator('[data-result-open]').getAttribute('title');
+    must(line.startsWith(`${ready.repo} · `), `the collapsed window ${line} does not name the project`);
     await page.context().close();
   });
 
-  if (ready) await check('bar-page: History lists this project threads and reopens one; New chat clears the results', async () => {
+  // The window over the bar is just a window (owner, 2026-10-04, project-map-learn.md "The composers"): its label, a clear
+  // icon and minimize, no History or New chat; closed or minimized, the chat icon beside + reopens it.
+  if (ready) await check('bar-page: the answer window has its label, clear and minimize, and no History or New chat; minimized, the chat icon beside + reopens it; clear empties the conversation and closes it, leaving nothing to reopen', async () => {
     const page = await barOpen(`/apps/${ready.name}`);
     await chip(page).waitFor({ timeout: 15000 });
+    const sse = [['chunk', { text: 'model.py defines the model.' }], ['done', {}]].map(([t, d]) => `event: ${t}\ndata: ${JSON.stringify(d)}\n\n`).join('');
+    await page.route('**/api/learn/ask', (r) => r.fulfill({ status: 200, contentType: 'text/event-stream', body: sse })); // stubbed: no model call
     await barInput(page).fill('Which file defines the model?');
     await barInput(page).press('Enter');
     const sheet = page.locator('[data-result-sheet]');
-    await sheet.waitFor({ timeout: 10000 }).catch(() => { throw new Error('no sheet after the ask'); });
-    await barOf(page).getByText(/^Answering in /).waitFor({ state: 'detached', timeout: 120000 });
+    await sheet.getByText('model.py defines the model.').waitFor({ timeout: 10000 }).catch(() => { throw new Error('no answer in the window after the ask'); });
     await page.screenshot({ path: 'e2e/shots/agent-bar-sheet.png' });
-    await sheet.getByRole('button', { name: 'New chat' }).click();
-    must(await sheet.getByText('Which file defines the model?').count() === 0, 'New chat kept the results');
-    await sheet.getByRole('button', { name: 'History' }).click();
-    const row = sheet.getByRole('button', { name: /Which file defines the model\?/ }).first();
-    await row.waitFor({ timeout: 10000 }).catch(async () => { throw new Error(`no History row: ${await sheet.innerText()}`); });
-    await row.click();
-    await sheet.getByText('Which file defines the model?').first().waitFor({ timeout: 10000 }).catch(async () => { throw new Error(`thread did not reopen: ${await sheet.innerText()}`); });
+    must(await sheet.getByText(ready.repo, { exact: true }).count() === 1, 'the window does not name the project');
+    for (const name of ['History', 'New chat']) must(await sheet.getByRole('button', { name }).count() === 0, `the window offers ${name}`);
+    const minimize = sheet.getByRole('button', { name: 'Collapse results' });
+    must(await sheet.locator('[data-result-clear]').count() === 1 && await minimize.count() === 1, 'the window lacks clear or minimize');
+    await minimize.click();
+    await sheet.waitFor({ state: 'detached', timeout: 5000 });
+    await barOf(page).locator('[data-result-open]').click();
+    await sheet.getByText('Which file defines the model?').waitFor({ timeout: 5000 });
+    await sheet.locator('[data-result-clear]').click();
+    await sheet.waitFor({ state: 'detached', timeout: 5000 });
+    must(await barOf(page).locator('[data-result-open]').count() === 0, 'clear left a conversation to reopen');
     await page.context().close();
   });
 
-  if (ready) await check('bar-page: a Map question naming an unconnected repository is asked, and Connect is offered in the Context panel', async () => {
+  if (ready) await check('bar-page: a Map question naming an unconnected repository is asked, and Connect is offered in the answer window', async () => {
     const page = await barOpen(`/apps/${ready.name}?tab=map`);
     await chip(page).waitFor({ timeout: 15000 });
     let asks = 0;
@@ -1544,7 +1585,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.route('**/api/learn/ask', (route) => { asks++; return route.abort(); });
     await barInput(page).fill('How does this compare to https://github.com/rabbit-hole-e2e/demo?');
     await barInput(page).press('Enter');
-    const sheet = page.locator('[data-map-panel]');
+    const sheet = page.locator('[data-result-sheet]');
     await sheet.getByRole('button', { name: 'Connect rabbit-hole-e2e/demo' }).waitFor({ timeout: 10000 });
     await page.waitForTimeout(1000);
     must(asks === 1, `${asks} asks sent for the question`);
@@ -1758,29 +1799,31 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     } finally { for (const c of [solo, owned, away].filter(Boolean)) await drop6(page, c.name); await page.context().close(); }
   });
 
-  if (ready) await check('wp6-project: bare /apps/<project> is Overview without the Map; map, code, graph and agent open Map; Learn keeps the project tabs above one composer, below the phone top strip', async () => {
+  // No Overview (owner, 2026-10-04, project-map-learn.md Layout): a project is Map or Learn. /apps/<repo>, its old aliases and
+  // an old ?tab=overview link land on the Map; only ?tab=learn opens Learn, which has no project pill, and its Map icon goes back.
+  if (ready) await check('wp6-project: bare /apps/<project> is the Map, with a Map | Learn switch and no Overview; map, code, graph, agent and an old ?tab=overview open the Map; Learn has one composer and no project tabs, its Map icon returns to the Map, and on a phone ?tab=learn opens Learn below the top strip', async () => {
     const page = await open();
     await loaded(page, `/apps/${ready.name}`);
-    await ptab(page, 'Overview').waitFor({ timeout: 20000 });
-    must(await isSelected(ptab(page, 'Overview')), 'Overview is not the default');
-    must(await page.getByRole('textbox', { name: 'Search repository' }).count() === 0 && await page.getByText(/excluded files/).count() === 0, 'Overview shows the Map');
-    for (const t of ['map', 'code', 'graph', 'agent']) {
+    await page.getByRole('textbox', { name: 'Search repository' }).waitFor({ timeout: 20000 });
+    const tabs = (await page.locator('[data-project-tabs]').getByRole('tab').allInnerTexts()).map((t) => t.trim()).join(' | ');
+    must(tabs === 'Map | Learn' && await isSelected(ptab(page, 'Map')), `bare /apps/<project> shows ${tabs}, not the Map of Map | Learn`);
+    for (const t of ['map', 'code', 'graph', 'agent', 'overview']) {
       await spa(page, `/apps/${ready.name}?tab=${t}`);
       await page.getByRole('textbox', { name: 'Search repository' }).waitFor({ timeout: 20000 });
       must(await isSelected(ptab(page, 'Map')), `?tab=${t} is not Map`);
     }
-    await ptab(page, 'Overview').click();
-    await page.waitForURL(`**/apps/${ready.name}`);
     await ptab(page, 'Learn').click();
+    await page.waitForURL(/[?]tab=learn$/);
     await page.locator('[data-chat-composer]').first().waitFor({ timeout: 30000 });
-    must(await isSelected(ptab(page, 'Learn')) && await composers(page) === 1 && await barOf(page).count() === 0, 'Learn lost the project tabs, or has two composers');
-    await ptab(page, 'Map').click();
+    must(await page.locator('[data-project-tabs]').count() === 0 && await composers(page) === 1 && await barOf(page).count() === 0, 'Learn shows project tabs, or has two composers');
+    await page.locator('[data-learn-map]').click();
     await page.waitForURL(/[?]tab=map$/);
     await page.context().close();
     const phone = await open({ width: 390, height: 844 });
     await loaded(phone, `/apps/${ready.name}?tab=learn`);
     await phone.locator('[data-chat-composer]').first().waitFor({ timeout: 30000 });
-    must((await phone.locator('[data-project-tabs]').boundingBox()).y >= 40, 'the project tabs sit under the phone top strip');
+    must(await phone.locator('[data-project-tabs]').count() === 0, '?tab=learn did not open Learn');
+    must((await phone.locator('[data-learn-map]').boundingBox()).y >= 40, 'Learn starts under the phone top strip');
     await phone.context().close();
   });
 
@@ -1807,37 +1850,44 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     } finally { await drop6(page, owned.name); await drop6(page, away.name); await page.context().close(); }
   });
 
-  if (ready) await check('wp6-map: the Map keeps a Context panel (Selected, Conversation, Source) with no input; an Overview sheet gives way to it; Map answers land in it, never a sheet or a result line; a node opens Selected with path:line; one composer', async () => {
+  // Since the dock (inspector.md, workspace-dock.md, project-map-learn.md): a project opens on the Map (no Overview); the side
+  // panel is the Inspector, closed until something is selected; answers open in the bar's window, which sits over the
+  // workspace beside an open inspector, and the inspector keeps the conversation about its object.
+  if (ready) await check('wp6-map: a project opens on the Map; its side panel is the Inspector, closed until a selection, with no input; a Map ask opens in the answer window, never the inspector; a node opens the inspector on Overview | Source with path:line, in context; its ask opens in the window beside the inspector, which counts it in Conversation; one composer', async () => {
     const page = await open(), writes = writes6(page);
     let asks = 0;
     await page.route('**/api/learn/ask', (r) => { asks++; return r.abort(); }); // no model call, no LEARN_DB thread
     await loaded(page, `/apps/${ready.name}`);
     await barOf(page).locator('[data-scope-chip="resource"]').waitFor({ timeout: 20000 }); // the project scope is registered before anything is sent
+    must(await isSelected(ptab(page, 'Map')), 'the project does not open on the Map');
+    const panel = page.locator('[data-map-panel]'), sheet = page.locator('[data-result-sheet]');
+    must(await panel.getAttribute('aria-label') === 'Inspector', 'the panel is not the Inspector');
+    await page.locator('[data-map-panel-open]').waitFor({ timeout: 10000 }); // closed until something is selected
     await barInput(page).fill('Which file defines the model?');
     await barInput(page).press('Enter');
-    await page.locator('[data-result-sheet]').getByText('Which file defines the model?').waitFor({ timeout: 10000 });
-    await ptab(page, 'Map').click();
-    const panel = page.locator('[data-map-panel]');
-    await panel.getByText('Which file defines the model?').waitFor({ timeout: 10000 });
-    must(await panel.getAttribute('aria-label') === 'Context', 'the panel is not named Context');
-    for (const name of ['Selected', 'Conversation', 'Source']) must(await panel.getByRole('tab', { name, exact: true }).count() === 1, `no ${name} tab`);
-    must(await page.locator('[data-result-sheet], [data-result-line]').count() === 0, 'the sheet or the result line shows on the Map');
+    await sheet.getByText('Which file defines the model?').waitFor({ timeout: 10000 });
+    must(await panel.getByText('Which file defines the model?').count() === 0, 'a Map ask landed in the inspector');
     must(await panel.locator('input, textarea, [contenteditable="true"]').count() === 0 && await composers(page) === 1, 'a second input');
     await barInput(page).fill(''); // the aborted ask kept its draft, and a waiting draft would offer Use selection instead of retargeting
     await pickNode(page);
-    await panel.getByText(/\S+\.py:\d+/).first().waitFor({ timeout: 10000 });
-    must(await isSelected(panel.getByRole('tab', { name: 'Selected', exact: true })), 'a node does not open Selected');
+    await panel.locator('[data-inspector-header]').getByText(/^model\.py:\d+$/).waitFor({ timeout: 10000 });
+    const tabs = (await panel.getByRole('tab').allInnerTexts()).map((t) => t.trim()).join(' | ');
+    must(tabs === 'Overview | Source' && await isSelected(panel.getByRole('tab', { name: 'Overview', exact: true })), `a node opens ${tabs}, not Overview | Source on Overview`);
+    must(await panel.locator('[data-in-context]').count() === 1, 'the node is not in context');
     must(await barInput(page).getAttribute('placeholder') === 'Ask about CausalSelfAttention…', 'the bar is not scoped to the node');
     await barInput(page).fill('Why does this exist?');
     await barInput(page).press('Enter');
-    await panel.getByText('Why does this exist?').waitFor({ timeout: 10000 });
-    must(await page.locator('[data-result-sheet]').count() === 0, 'a Map answer opened the sheet');
+    await sheet.getByText('Why does this exist?').waitFor({ timeout: 10000 });
+    const win = await page.locator('[data-result-sheet] > div').boundingBox(), side = await panel.boundingBox();
+    must(win.x + win.width <= side.x + 1, `the answer window covers the inspector: ${win.x + win.width} > ${side.x}`);
+    await panel.locator('[data-inspector-section="conversation"] summary').getByText('2 messages').waitFor({ timeout: 10000 });
     await page.waitForTimeout(1000);
     must(asks === 2 && !writes.length, `${asks} asks; writes: ${writes.join(', ')}`);
     await page.context().close();
   });
 
-  if (ready) await check('wp6-learn-this: Learn this and /teach this open the project Learn tab carrying the node and send nothing; Overview drops the node chip and Map brings it back', async () => {
+  // A project is Map or Learn, and Learn has no project pill; its strip's Map icon goes back (project-map-learn.md).
+  if (ready) await check('wp6-learn-this: Learn this and /teach this open the project Learn carrying the node and send nothing; Learn shows no project tabs, and its Map icon returns to the Map with the node still in context', async () => {
     const page = await open();
     let asks = 0;
     page.on('request', (r) => { if (new URL(r.url()).pathname === '/api/learn/ask') asks++; });
@@ -1848,12 +1898,10 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.getByText(/^Asking about: CausalSelfAttention/).first().waitFor({ timeout: 30000 }); // Learn's own pill: it shows only what Learn sends (LearnPage.jsx:310,897)
     await page.locator('[data-chat-composer]').first().waitFor({ timeout: 30000 }); // Learn's composer mounts just after the frame
     must(await page.locator('[data-learn-context]').count() === 0, 'a second context label beside Learn');
-    must(await isSelected(ptab(page, 'Learn')) && await composers(page) === 1 && await barOf(page).count() === 0, 'not the project Learn frame');
-    await ptab(page, 'Overview').click();
-    await barOf(page).locator('[data-scope-chip="resource"]').waitFor({ timeout: 10000 });
-    must(await barOf(page).locator('[data-scope-chip="selected"]').count() === 0, 'Overview keeps the node chip');
-    await ptab(page, 'Map').click();
-    await barOf(page).locator('[data-scope-chip="selected"]').waitFor({ timeout: 10000 });
+    must(await page.locator('[data-project-tabs]').count() === 0 && await composers(page) === 1 && await barOf(page).count() === 0, 'not the project Learn frame');
+    await page.locator('[data-learn-map]').click();
+    await page.waitForURL(/[?]tab=map$/);
+    await barOf(page).locator('[data-scope-chip="selected"]', { hasText: 'CausalSelfAttention' }).waitFor({ timeout: 10000 });
     await barInput(page).fill('/teach this');
     await barInput(page).press('Enter');
     await page.waitForURL(/[?]tab=learn$/);
@@ -1862,37 +1910,28 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  if (ready) await check('wp6-overview: identity and GitHub source; Continue learning from this browser; learning canvases with one not in this browser; recent activity; no Map or operational clutter; a canvas opens in the project frame; nothing written', async () => {
+  // No Overview (owner, 2026-10-04, project-map-learn.md Layout): an old ?tab=overview link lands on the Map, which names the
+  // repository and keeps its details behind one info icon. Overview's Continue learning, canvas list and recent activity went
+  // with it; the project's canvases are Learn's picker (wp6-learn).
+  if (ready) await check('wp6-overview: an old ?tab=overview link lands on the Map, which names the repository; its GitHub source, branch, commit and status sit behind one info icon, with no operational clutter at rest; nothing written', async () => {
     const page = await open();
     await noAsks(page);
-    await loaded(page, `/apps/${ready.name}`);
-    const here = await canvas6(page, { title: 'wp6 overview here', project: ready.name });
-    const away = await canvas6(page, { title: 'wp6 overview away', project: ready.name, device_id: 'rabbit-hole-check-device' });
-    try {
-      const key = canvasKeys({ org: ready.org, email, slug: ready.name });
-      await page.evaluate(([chat, ink]) => { // as sh-home seeds it
-        localStorage.setItem(chat, JSON.stringify([{ id: '1', question: 'why sqrt(dk)?' }]));
-        localStorage.setItem(ink, JSON.stringify({ strokes: [], shapes: [], items: [], links: [], blocks: [
-          { id: 'a', type: 'heading', level: 1, text: 'Tokens', done: true }, { id: 'b', type: 'heading', level: 1, text: 'Masked self-attention' }] }));
-      }, [key.chat, key.ink]);
-      await page.route('**/api/repositories/*/threads', (r) => r.fulfill({ json: { threads: [{ id: 't1', title: 'Where should I start reading?', created_at: '2026-09-28 10:00:00' }] } }));
-      await page.reload();
-      const writes = writes6(page);
-      const cont = page.getByRole('region', { name: 'Continue learning' });
-      await cont.getByText('Last explored: why sqrt(dk)?').waitFor({ timeout: 20000 });
-      await cont.getByText('Next: Masked self-attention').waitFor();
-      const list = page.getByRole('region', { name: 'Learning canvases' });
-      for (const t of ['Project canvas', 'wp6 overview here', 'wp6 overview away']) await list.getByText(t, { exact: true }).waitFor();
-      const text = await list.innerText();
-      must(text.includes('Not in this browser') && !/device/i.test(text), `canvas copy: ${text}`);
-      await page.getByRole('region', { name: 'Recent activity' }).getByText('You asked: Where should I start reading?').waitFor();
-      must(await page.locator('a[data-source-link]').getAttribute('href') === `https://github.com/${ready.repo}`, 'no GitHub source link');
-      must(await page.getByRole('textbox', { name: 'Search repository' }).count() === 0, 'the Map search on Overview');
-      for (const clutter of ['Refresh branch', 'Last run', 'excluded files']) must(await page.locator('main').getByText(clutter).count() === 0, `${clutter} on Overview`);
-      must(!writes.length, `Overview wrote: ${writes.join(', ')}`);
-      await list.getByRole('button', { name: 'wp6 overview here' }).click();
-      await page.waitForURL(new RegExp(`[?]tab=learn&canvas=${here.name}$`));
-    } finally { await drop6(page, here.name); await drop6(page, away.name); await page.context().close(); }
+    const writes = writes6(page);
+    await loaded(page, `/apps/${ready.name}?tab=overview`);
+    await page.getByRole('textbox', { name: 'Search repository' }).waitFor({ timeout: 20000 });
+    must(await isSelected(ptab(page, 'Map')), '?tab=overview is not the Map');
+    await page.getByRole('heading', { level: 1, name: ready.repo, exact: true }).waitFor({ timeout: 10000 });
+    for (const clutter of ['Refresh branch', 'Last run']) must(await page.locator('main').getByText(clutter).count() === 0, `${clutter} on the Map at rest`);
+    must(await page.locator('[data-repo-details]').count() === 0, 'the repository details show before the info icon');
+    await page.locator('[data-repo-info]').click();
+    const details = page.locator('[data-repo-details]');
+    await details.waitFor({ timeout: 5000 });
+    must(await details.locator('a[data-source-link]').getAttribute('href') === `https://github.com/${ready.repo}`, 'no GitHub source link');
+    const text = await details.innerText();
+    for (const want of [ready.branch, `Commit ${ready.commit_sha.slice(0, 7)}`, `Status: ${ready.status}`]) must(text.includes(want), `the details lack ${want}: ${text}`);
+    await page.keyboard.press('Escape');
+    must(!writes.length, `the Map wrote: ${writes.join(', ')}`);
+    await page.context().close();
   });
 
   if (job) await check('wp6-app-ops: a job shows its last run with status, runtime and an Outputs link to that run (or Never run); a server shows neither', async () => {
@@ -1972,7 +2011,9 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  if (ready) await check('wp6-show-on-graph: a graph answer on Overview stays on Overview; Show on graph opens the Map with that answer', async () => {
+  // No Overview (project-map-learn.md): a project opens on the Map, so a graph answer shows on the graph it was asked beside,
+  // and stays in the bar's window, never the inspector (inspector.md §6).
+  if (ready) await check('wp6-show-on-graph: a graph answer on the Map opens in the answer window and shows its nodes on the graph; once a search moves the graph on, Show on graph brings the answer back; the answer never lands in the inspector', async () => {
     const page = await open();
     await loaded(page, `/apps/${ready.name}`);
     await barOf(page).locator('[data-scope-chip="resource"]').waitFor({ timeout: 20000 });
@@ -1985,11 +2026,16 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await barInput(page).press('Enter');
     const sheet = page.locator('[data-result-sheet]');
     await sheet.getByText('It is defined in model.py.').waitFor({ timeout: 10000 });
-    await page.waitForTimeout(800);
-    must(await isSelected(ptab(page, 'Overview')), 'a graph answer left Overview on its own');
+    const shown = () => page.locator('[data-graph-node]').evaluateAll((all) => all.map((n) => n.dataset.graphNode).join());
+    await page.locator(`[data-graph-node="${node.id}"]`).waitFor({ timeout: 10000 });
+    must(await shown() === node.id, `the graph shows ${await shown()}, not the answer's ${node.id}`);
+    await page.getByRole('textbox', { name: 'Search repository' }).fill('train');
+    await page.waitForTimeout(500);
+    must(await shown() !== node.id, 'the search did not move the graph on');
     await sheet.getByRole('button', { name: 'Show on graph' }).click();
-    await page.waitForURL(/[?]tab=map$/, { timeout: 10000 });
-    await page.locator('[data-map-panel]').getByText('It is defined in model.py.').waitFor({ timeout: 10000 });
+    await page.waitForTimeout(500);
+    must(await shown() === node.id, `Show on graph shows ${await shown()}, not the answer's ${node.id}`);
+    must(await page.locator('[data-map-panel]').getByText('It is defined in model.py.').count() === 0, 'the answer landed in the inspector');
     await page.context().close();
   });
 
@@ -2132,15 +2178,18 @@ await check('build: the browser runs the dist-dev entry script', async () => {
   const held = (page) => { const asks = []; page.route('**/api/learn/ask', (r) => { asks.push(r.request().postDataJSON()); }); return asks; }; // never answered: no model call
   const mapAt = async (page, fixtures = false) => {
     await loaded(page, `/apps/${ready.name}?tab=map${fixtures ? '&fixtures=1' : ''}`);
-    await page.locator('[data-map-layers]').waitFor({ timeout: 30000 });
+    await page.locator('[data-graph-node]').first().waitFor({ timeout: 30000 });
   };
+  // The layers sit behind one icon (project-map-learn.md); a click outside closes them, so open them before each use.
+  const openLayers = async (page) => { if (!(await page.locator('[data-map-layers]').count())) await page.locator('[data-map-layers-open]').click(); };
   const layer = (page, name) => page.locator('[data-map-layers]').getByRole('button', { name: new RegExp(`^${name}`) });
 
-  if (ready) await check('wp6-kg-layers: the Map shows Code only; without fixtures Decisions, Questions and Sessions are off as none recorded and nothing says Fixture; with ?fixtures=1 on nanoGPT, Decisions adds its 6 decision nodes, recorded links solid and inferred dashed, and the layer row says Fixture · UI preview', async () => {
+  if (ready) await check('wp6-kg-layers: the Map shows Code only; behind the layers icon, without fixtures Decisions, Questions and Sessions are off as none recorded and nothing says Fixture; with ?fixtures=1 on nanoGPT, Decisions adds its 6 decision nodes, recorded links solid and inferred dashed, and the layer row says Fixture · UI preview', async () => {
     const page = await open();
     await noAsks(page);
     await mapAt(page);
     must(await page.locator('[data-memory-node]').count() === 0, 'the default Map shows work-memory nodes');
+    await openLayers(page);
     for (const name of ['Decisions', 'Questions', 'Sessions']) must(await layer(page, name).isDisabled(), `${name} is on offer with nothing recorded`);
     must(!(await page.locator('main').innerText()).includes('Fixture'), 'the real Map says Fixture');
     await page.context().close();
@@ -2148,6 +2197,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     const fx = await open();
     await noAsks(fx);
     await mapAt(fx, true);
+    await openLayers(fx);
     await layer(fx, 'Decisions').click();
     await fx.locator('[data-memory-node="decision"]').first().waitFor({ timeout: 10000 });
     must(await fx.locator('[data-memory-node="decision"]').count() === 6, `${await fx.locator('[data-memory-node="decision"]').count()} decision nodes, not 6`);
@@ -2158,66 +2208,74 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await fx.context().close();
   });
 
-  if (ready) await check('wp6-kg-selected: a selected code node shows Why, Questions and Sessions; without fixtures, the honest line that no project decision is recorded and nothing says Fixture; on nanoGPT fixtures CausalSelfAttention has 2 decisions, 2 questions and 1 session, labelled Fixture', async () => {
+  // The inspector (inspector.md §3, Data gaps): Why it matters says "No explanation yet" with an ask, and lists the code's
+  // fixture decisions on review builds; empty sections are omitted; fixture questions and sessions sit in Conversation.
+  const insp = (page) => page.locator('[data-map-panel]');
+  const openFold = async (fold) => { if (!(await fold.evaluate((n) => n.open))) await fold.locator('summary').click(); };
+  if (ready) await check('wp6-kg-selected: a selected code node opens the inspector; without fixtures Why it matters says No explanation yet with an ask, and nothing says Fixture; on nanoGPT fixtures CausalSelfAttention lists 2 decisions under Why it matters and 2 questions and 1 session under Conversation, labelled Fixture', async () => {
     const page = await open();
     await noAsks(page);
     await mapAt(page);
     await pickNode(page);
-    const panel = page.locator('[data-map-selected]');
-    await panel.getByText('No recorded project decision explains this code yet.').waitFor({ timeout: 10000 });
-    must(!(await panel.innerText()).includes('Fixture'), 'the real Selected panel says Fixture');
+    await insp(page).locator('[data-inspector-section="why"]').getByText('No explanation yet.').waitFor({ timeout: 10000 });
+    must(!(await insp(page).innerText()).includes('Fixture'), 'the real inspector says Fixture');
     await page.context().close();
     if (!nano) return;
     const fx = await open();
     await noAsks(fx);
     await mapAt(fx, true);
     await pickNode(fx);
-    const p = fx.locator('[data-map-selected]');
-    await p.locator('[data-memory-section="why"][data-count="2"]').waitFor({ timeout: 10000 });
-    must(await p.locator('[data-memory-section="questions"]').getAttribute('data-count') === '2' && await p.locator('[data-memory-section="sessions"]').getAttribute('data-count') === '1', 'CausalSelfAttention should list 2 questions and 1 session');
-    must(await p.getByText(FX).first().isVisible(), 'the fixture sections are not labelled');
+    const why = insp(fx).locator('[data-inspector-section="why"]'), convo = insp(fx).locator('[data-inspector-section="conversation"]');
+    await why.getByText(FX).waitFor({ timeout: 10000 });
+    must(await why.locator('button').count() === 2, `${await why.locator('button').count()} decisions under Why it matters, not 2`);
+    await openFold(convo);
+    const rows = (await convo.locator('button').allInnerTexts()).map((t) => t.trim());
+    must(rows.length === 3 && rows.filter((t) => t.endsWith('?')).length === 2 && rows.filter((t) => t.startsWith('Attention internals walkthrough')).length === 1, `Conversation should list 2 questions and 1 session: ${rows.join(' | ')}`);
+    must(await convo.getByText(FX).isVisible(), 'the fixture questions and sessions are not labelled');
     await fx.context().close();
   });
 
-  if (nano) await check('wp6-kg-entity: with fixtures, a decision node opens its record (rationale, alternatives, session, provenance, Fixture label); the bar keeps naming code, never the fixture; its code chip selects the code node', async () => {
+  if (nano) await check('wp6-kg-entity: with fixtures, a decision node opens its record in the inspector (rationale, alternatives, session, provenance, Fixture label); the bar keeps naming code, never the fixture; its code chip selects the code node, shown at model.py:29', async () => {
     const fx = await open();
     await noAsks(fx);
     await mapAt(fx, true);
     await pickNode(fx, 'LayerNorm');
     await fx.getByRole('textbox', { name: 'Search repository' }).fill(''); // pickNode's search would filter the decision out
+    await openLayers(fx);
     await layer(fx, 'Decisions').click();
     await fx.locator('[data-graph-node="fx-d-fused-qkv"]').click();
-    const card = fx.locator('[data-memory-entity="decision"]');
+    const card = insp(fx).locator('[data-memory-entity="decision"]');
     await card.waitFor({ timeout: 10000 });
     const text = await card.innerText();
     for (const want of ['Project Q, K and V with one Linear layer', 'One matmul instead of three', 'Three separate Linear layers', 'Attention internals walkthrough', FX]) must(text.includes(want), `the decision record lacks ${want}`);
     must((await barOf(fx).locator('[data-scope-chip="selected"]').innerText()).includes('LayerNorm'), 'selecting a fixture moved the bar off the code');
     await card.getByRole('button', { name: 'CausalSelfAttention', exact: true }).click();
     await barOf(fx).locator('[data-scope-chip="selected"]', { hasText: 'CausalSelfAttention' }).waitFor({ timeout: 10000 });
-    await fx.locator('[data-map-selected]').getByText('model.py:29').waitFor({ timeout: 10000 });
+    await insp(fx).locator('[data-inspector-header]').getByText('model.py:29').waitFor({ timeout: 10000 });
     await fx.context().close();
   });
 
-  if (ready) await check('wp6-kg-starters: an empty Map conversation offers 5 starter prompts; one click asks it through the Mothership (one held request, the question in the conversation), and no text input appears in the panel', async () => {
+  if (ready) await check('wp6-kg-starters: the empty inspector offers 5 starter prompts; one click asks it through the Mothership (one held request) and the question opens in the answer window; no text input appears in the inspector', async () => {
     const page = await open();
     const asks = held(page);
     await mapAt(page);
+    await page.locator('[data-map-panel-open]').click(); // the inspector starts closed (project-map-learn.md)
     const starters = page.locator('[data-map-starters] button');
     must(await starters.count() === 5, `${await starters.count()} starter prompts, not 5`);
     await starters.filter({ hasText: 'Give me an architecture tour' }).click();
-    await page.locator('[data-map-panel]').getByText('Give me an architecture tour').first().waitFor({ timeout: 10000 });
+    await page.locator('[data-result-sheet]').getByText('Give me an architecture tour').first().waitFor({ timeout: 10000 });
     await page.waitForTimeout(800);
     must(asks.length === 1 && asks[0].message === 'Give me an architecture tour', `asks: ${JSON.stringify(asks)}`);
     must(await page.locator('[data-map-panel] textarea, [data-map-panel] input[type="text"]').count() === 0, 'the panel grew a text input');
     await page.context().close();
   });
 
-  if (ready) await check('wp6-kg-why: Why does this exist? goes to the model without fixtures (one held request); with nanoGPT fixtures it answers in the panel with no request, labelled Fixture, evidence in hierarchy order; a prior question answers from its record; a private session of another user never shows', async () => {
+  if (ready) await check('wp6-kg-why: Ask why in the inspector sends Why does this exist? to the model without fixtures (one held request); with nanoGPT fixtures the same question answers in the answer window with no request, labelled Fixture, evidence in hierarchy order; a prior question in the inspector answers from its record; a private session of another user never shows', async () => {
     const page = await open();
     const asks = held(page);
     await mapAt(page);
     await pickNode(page);
-    await page.locator('[data-map-selected]').getByRole('button', { name: 'Why does this exist?' }).click();
+    await insp(page).locator('[data-inspector-section="why"]').getByRole('button', { name: 'Ask why →' }).click();
     await page.waitForTimeout(1200);
     must(asks.length === 1 && asks[0].message === 'Why does this exist?', `asks without fixtures: ${JSON.stringify(asks)}`);
     await page.context().close();
@@ -2226,16 +2284,20 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     const none = held(fx);
     await mapAt(fx, true);
     await pickNode(fx);
-    await fx.locator('[data-map-selected]').getByRole('button', { name: 'Why does this exist?' }).click();
-    const convo = fx.locator('[data-map-panel]');
-    await convo.getByText('2 recorded decisions explain why CausalSelfAttention looks like this.').waitFor({ timeout: 10000 });
-    must(await convo.getByText(FX).first().isVisible(), 'the fixture answer is not labelled');
-    const kinds = await convo.locator('[data-evidence] [data-evidence-kind]').evaluateAll((l) => l.map((n) => n.dataset.evidenceKind));
+    // With fixture decisions, Why it matters lists them instead of an ask, so the learner asks in the bar, the only input.
+    await barInput(fx).fill('Why does this exist?');
+    await barInput(fx).press('Enter');
+    const answer = fx.locator('[data-result-sheet]');
+    await answer.getByText('2 recorded decisions explain why CausalSelfAttention looks like this.').waitFor({ timeout: 10000 });
+    must(await answer.getByText(FX).first().isVisible(), 'the fixture answer is not labelled');
+    const kinds = await answer.locator('[data-evidence] [data-evidence-kind]').evaluateAll((l) => l.map((n) => n.dataset.evidenceKind));
     const RANK = ['decision', 'question', 'session', 'code', 'inferred', 'model'];
     must(kinds.length && kinds[0] === 'decision' && kinds.every((k, i) => !i || RANK.indexOf(kinds[i - 1]) <= RANK.indexOf(k)), `evidence out of order: ${kinds}`);
-    await pickNode(fx);
-    await fx.locator('[data-memory-section="questions"]').getByRole('button', { name: /square root of the head size/ }).click();
-    await convo.getByText('It keeps the scores near unit variance').first().waitFor({ timeout: 10000 });
+    const convo = insp(fx).locator('[data-inspector-section="conversation"]');
+    await openFold(convo);
+    await convo.getByRole('button', { name: /square root of the head size/ }).click();
+    await answer.getByText('It keeps the scores near unit variance').first().waitFor({ timeout: 10000 });
+    await openLayers(fx);
     for (const name of ['Decisions', 'Questions', 'Sessions']) if ((await layer(fx, name).getAttribute('aria-pressed')) !== 'true') await layer(fx, name).click();
     await fx.waitForTimeout(800);
     const all = await fx.locator('body').innerText();
