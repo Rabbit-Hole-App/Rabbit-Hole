@@ -146,3 +146,15 @@ test('the Trash list: your own canvases and projects, newest first; nobody else\
   assert.deepEqual(items.map(i => [i.kind, i.name, i.title]), [['repository', 'repo-optics', 'ana/optics'], ['canvas', c.name, 'Old notes']]);
   assert.equal((await f.call('GET', '/api/library/trash')).status, 401);
 });
+
+test('a stale card cannot copy a canvas in Trash: Duplicate and Fork wait for Restore', async t => {
+  const f = setup(t);
+  const c = await f.create('ana', 'Stale');
+  await f.call('POST', `/api/apps/${c.name}/trash`, { as: 'ana', body: {} });
+  const dup = await f.call('POST', '/api/learn/boards/duplicate', { as: 'ana', body: { source: { canvas: c.name }, state: BOARD } });
+  assert.equal(dup.status, 409);
+  assert.match(dup.body.error, /Restore this canvas from Trash first/);
+  assert.equal((await f.call('POST', '/api/learn/boards/fork', { as: 'ana', body: { source: { canvas: c.name }, key: 'trash-fork-3', state: BOARD } })).status, 409);
+  await f.call('POST', `/api/apps/${c.name}/untrash`, { as: 'ana', body: {} });
+  assert.equal((await f.call('POST', '/api/learn/boards/duplicate', { as: 'ana', body: { source: { canvas: c.name }, state: BOARD } })).status, 201);
+});

@@ -19,7 +19,9 @@ test('Duplicate posts the same copy call as Fork to its own route, and fork stay
 
 test('the Library ⋮ offers Duplicate on your own canvases only, with this browser\'s content, and reloads the list', () => {
   const library = read('./LibraryViews.jsx');
-  assert.match(library, /\{menu\?\.a\.canEdit && <MenuItem icon=\{CopyPlus\} onClick=\{\(\) => pick\(duplicate\)\}>Duplicate<\/MenuItem>\}/);
+  // Inside the owned-canvas menu only (visibility-menu.md): `menu?.a.canEdit ? <> ... </> : null`.
+  const owned = library.slice(library.indexOf(') : menu?.a.canEdit ? <>'), library.indexOf('</> : null}'));
+  assert.match(owned, /<MenuItem icon=\{CopyPlus\} onClick=\{\(\) => pick\(duplicate\)\}>Duplicate<\/MenuItem>/);
   const fn = library.slice(library.indexOf('const duplicate = async (a) => {'), library.indexOf('const pinnedNow'));
   assert.match(fn, /postFork\(\{ source: \{ canvas: a\.name \}, state: localBoard\(ctx\.storage, canvasKeys\(/);
   assert.match(fn, /'\/api\/learn\/boards\/duplicate'\)/);

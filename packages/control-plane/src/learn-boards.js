@@ -246,9 +246,11 @@ async function forkSource(req, env, user, body, verb = 'fork') {
       revision: pinned && { id: pinned.id, commit: pinned.commit }, resource: canvas?.name || (row.app.startsWith('repo-') && !pinned?.allowed ? null : row.app) };
   }
   if (typeof source?.canvas !== 'string' || !CANVAS.test(source.canvas)) return json({ error: 'Choose a canvas or a share link to fork.' }, 400);
-  const canvas = await env.LEARN_DB.prepare('SELECT name, title, owner_email, project FROM canvases WHERE org = ? AND name = ?').bind(user.org, source.canvas).first();
+  const canvas = await env.LEARN_DB.prepare(`SELECT c.name, c.title, c.owner_email, c.project, NOT ${NOT_TRASHED('c.org', 'c.name')} AS trashed FROM canvases c WHERE c.org = ? AND c.name = ?`).bind(user.org, source.canvas).first();
   if (!canvas) return json({ error: 'Canvas not found in this workspace' }, 404);
   if (canvas.owner_email !== user.email) return json({ error: 'This canvas is private to its owner' }, 403);
+  // A canvas in Trash (library-trash.md) is copied by nothing - a stale card's Duplicate or Fork included - until restored.
+  if (canvas.trashed) return json({ error: 'Restore this canvas from Trash first.' }, 409);
   if (body.state !== undefined) {
     const checked = stateText(body.state);
     if (checked.error) return json({ error: checked.error }, checked.status || 400);
