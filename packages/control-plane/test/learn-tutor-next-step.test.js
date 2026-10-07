@@ -110,5 +110,5 @@ test('CANVAS_SYSTEM: chosen by canvas_context, journey and nanoGPT requests unch
   assert.equal(/no authored cards here|Canvas content first|Also: target, relevant_authored_content/.test(CANVAS_SYSTEM), false);
   // Pinned 2026-10-06 (Task 10 fix round 2; was c4005ddb..., before that 6d8cc2ce..., task-10-repin-review.md entries 5-6).
   // Re-pinned by Task 11b (was c6cc8ff752ad8dae091eb8d81c7cd839ce76d73b94d56370732c4d2cc8131755; task-11b-repin-review.md part A, pin 6).
-  assert.equal(createHash('sha256').update(CANVAS_SYSTEM).digest('hex'), '83ca2aab4d451244d85fccc9991b9c5792af1c54ae87a50720b5a669dc25b9c5') // fix round 1 (task-11b-repin-review.md parts C-D): was 9b074709a974c9cf; // fix round 1 (task-11b-repin-review.md part C): was 2c02686dd4bc05d1
+  assert.equal(createHash('sha256').update(CANVAS_SYSTEM).digest('hex'), '8728fd7fb2e6d7168eb06b0c05c62be7e2201e99e215ec1d8fb996d7b2905fd7') // Task 11c-B part E (T12-F1, topic-free LINES[6], task-11c-repin-review.md): was 83ca2aab4d451244; // fix round 1 (task-11b-repin-review.md parts C-D): was 9b074709a974c9cf; // fix round 1 (task-11b-repin-review.md part C): was 2c02686dd4bc05d1
 });
