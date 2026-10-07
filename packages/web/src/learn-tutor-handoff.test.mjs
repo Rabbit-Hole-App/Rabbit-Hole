@@ -379,3 +379,38 @@ test('trace: runtime.handoff.tool_errors is the route count, null when unreporte
   assert.equal((await turnWith(plan, { handoff: () => { throw new TypeError('Failed to fetch'); } })).trace.runtime.handoff.tool_errors, null, 'no route telemetry: null');
   assert.equal((await turnWith({ actions: [SAY, { ...HANDOFF, request: ' ' }] })).trace.runtime.handoff.tool_errors, null, 'invalid_action: no route call');
 });
+
+// ---------- Round 3 ----------
+
+// R2-M1: one clock read is the answer moment for both first_text_ms and blocking_wait_ms. A clock that advances on every read
+// would tell two separate reads apart; with one read, blocking_wait_ms >= first_text_ms holds exactly, typed and Voice alike,
+// and the two are equal where they are the same moment (a typed reply).
+test('round 3: one clock read for the answer moment - blocking_wait_ms >= first_text_ms on a clock that advances on every read', async () => {
+  const saved = Object.getOwnPropertyDescriptor(globalThis, 'performance');
+  let clock = 0;
+  Object.defineProperty(globalThis, 'performance', { value: { now: () => (clock += 1) }, configurable: true, writable: true });
+  try {
+    const post = async (path, body, stream) => {
+      if (path === '/api/learn/tutor/plan') { stream?.onSentence?.({ text: SAY.text, action: 'respond_text', constraints_add: [], explicit_request: null }); return { strategy: 'none', constraints_add: [], actions: [SAY, HANDOFF] }; }
+      return OK;
+    };
+    for (const voice of [false, true]) {
+      for (const handoff of [true, false]) {
+        const r = await runTurn({ raw: 'Who calls this?', block: CODE_CARD, store: emptyStore(), post: handoff ? post : async () => ({ strategy: 'none', constraints_add: [], actions: [SAY] }), repository: true, trace: true, ...REPO, ...(voice ? { inputModality: 'voice', onSpeakable: () => {} } : {}) });
+        const t = r.trace.runtime.timing, name = `${voice ? 'voice' : 'typed'} ${handoff ? 'handoff' : 'reply'}`;
+        assert.ok(t.blocking_wait_ms >= t.first_text_ms, `${name}: ${t.blocking_wait_ms} >= ${t.first_text_ms}`);
+        if (!voice || !handoff) assert.equal(t.blocking_wait_ms, t.first_text_ms, `${name}: the same moment, the same value`);
+      }
+    }
+  } finally { if (saved) Object.defineProperty(globalThis, 'performance', saved); else delete globalThis.performance; }
+});
+
+// A handoff that times out (the route's own timeout or the browser's) leaves the turn trace stage status timeout, as the planner
+// does; a Stop stays stopped; any other route failure category stays status ok with the category as its result.
+test('round 3: a timed-out handoff reads handoff:timeout in the turn trace; other failures keep status ok with their category', async () => {
+  const stage = r => r.bench.trace.stages.filter(s => s.stage === 'handoff').map(s => [s.status, s.result]);
+  assert.deepEqual(stage(await turnWith({ actions: [SAY, HANDOFF] }, { handoff: failedReply('timeout') })), [['timeout', 'timeout']], 'the route timeout');
+  assert.deepEqual(stage(await turnWith({ actions: [SAY, HANDOFF] }, { handoff: () => { throw AbortSignal.abort(new DOMException('The operation timed out.', 'TimeoutError')).reason; } })), [['timeout', 'timeout']], 'the browser timeout');
+  assert.deepEqual(stage(await turnWith({ actions: [SAY, HANDOFF] }, { handoff: failedReply('model_error') })), [['ok', 'model_error']]);
+  assert.deepEqual(stage(await turnWith({ actions: [SAY, HANDOFF] })), [['ok', 'ok']]);
+});

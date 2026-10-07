@@ -19,15 +19,15 @@ export function turnTrace(now = () => performance.now(), id = null) {
   const record = (stage, start, status, result) => trace.stages.push({ stage, start_ms: start, ms: +(offset() - start).toFixed(1), status, result });
   return {
     trace,
-    // Runs one stage, sync or async; `category` turns its value into the recorded result. Errors
-    // are recorded and rethrown.
-    step(stage, run, category = () => null) {
+    // Runs one stage, sync or async; `category` turns its value into the recorded result, `status` (Task 11c-B round 3) into
+    // its status when a value can still be a timeout (the handoff's). Errors are recorded and rethrown.
+    step(stage, run, category = () => null, status = () => 'ok') {
       const start = offset();
       const fail = error => { record(stage, start, statusOf(error), String(error?.message || error).slice(0, 160)); throw error; };
       let value;
       try { value = run(); } catch (error) { fail(error); }
-      if (typeof value?.then === 'function') return value.then(done => { record(stage, start, 'ok', category(done)); return done; }, fail);
-      record(stage, start, 'ok', category(value));
+      if (typeof value?.then === 'function') return value.then(done => { record(stage, start, status(done), category(done)); return done; }, fail);
+      record(stage, start, status(value), category(value));
       return value;
     },
     // A stage timed elsewhere (the worker's JEV and larger evaluator).

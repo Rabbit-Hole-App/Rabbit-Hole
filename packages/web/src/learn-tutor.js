@@ -490,13 +490,13 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   // learner-facing result after the plan's own words; a failure keeps only those words and says the source context could not
   // be retrieved, never an answer of its own.
   const handoff = actions.find(action => action.type === HANDOFF_ACTION);
-  let answered = null;
   // A stopped handoff rejects inside the stage, so the turn trace reads handoff:stopped (fix round 2, R1-M3), and is rethrown below.
   const handing = handoff ? tracer.step('handoff', () => runHandoff(handoff, { post, access, block }).then(out => {
-    answered = now();
     if (out.record.failure === 'stopped') throw Object.assign(out.error, { handoff: out.record });
     return out;
-  }), out => out.record.failure ?? out.record.outcome) : null;
+  // Round 3: a timed-out handoff (the route's timeout or the browser's) is stage status timeout, as the planner's is; any other
+  // route failure keeps status ok with its category as the result.
+  }), out => out.record.failure ?? out.record.outcome, out => (out.record.failure === 'timeout' ? 'timeout' : 'ok')) : null;
   handing?.catch(() => {}); // awaited below, after any pending evaluation; never an unhandled rejection meanwhile
   // Off the critical path: the evaluation lands now. Its evidence is stored like any other; a route it
   // would have changed is a critical-path miss (the reply was planned on the prior evidence).
@@ -526,7 +526,6 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   // the AbortError rejects the turn with its trace (the page then saves nothing, runs no canvas action or material and emits no
   // decision event), and the stopped handoff record rides on the error.
   const handed = handing ? await handing.catch(error => { throw Object.assign(error, { trace: tracer.trace }); }) : dropped ? invalidHandoff() : null;
-  if (dropped) answered = now();
   // 4. The session record.
   const constraints = [...new Set([...current.constraints, ...(response.constraints_add || [])].filter(item => !(response.constraints_remove || []).includes(item)).concat(statedConstraints(raw)))];
   const asked = actions.find(action => action.type === 'ask_question');
@@ -550,7 +549,8 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   };
   // The benchmark record: ids, types and timings only - never the learner's words or card content.
   const ms = (from, to) => Math.round((to - from) * 10) / 10;
-  const end = now();
+  const end = now(); // round 3: the one answer-moment read (first_text_ms and blocking_wait_ms both use it)
+  const firstText = spoken ? tracer.trace.marks.first_sentence : text ? ms(t[0], end) : null;
   const bench = {
     trace: tracer.trace, turn_id: turn.turn_id, input_modality: turn.input_modality, route: routed.row, strategy: response.strategy ?? null, claims, evaluated: !!evidence,
     ...(turn.next_step ? { next_step: { suggestion_id: turn.next_step.suggestion_id, set_id: nextStep.set_id ?? null } } : {}),
@@ -572,13 +572,15 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
       to_evidence_ready: evidence && ms(t[0], evidence[1]), to_planner_ready: ms(t[0], ready),
       // Decision 1, measured separately: the first safe sentence (spoken early, else the validated reply
       // when the turn returns), evidence ready (above), and the first evidence-dependent action.
-      to_first_safe_sentence: spoken ? tracer.trace.marks.first_sentence : text ? ms(t[0], end) : null,
+      to_first_safe_sentence: firstText,
       to_first_evidence_action: actions.some(action => EVIDENCE_ACTIONS.includes(action.type)) ? ms(t[0], released) : null,
       // Task 11c-B, apart from the planner: the handoff round trip, and the learner's blocking wait - turn start to the answer
       // they wait for (the handoff's, when one ran; else the first safe sentence).
       handoff: handed ? handed.record.ms : null,
-      // Fix round 2 (R1-I1): the reply appears only once a pending evaluation has landed too (released), never earlier.
-      to_answer: handed ? ms(t[0], Math.max(answered, released)) : spoken ? tracer.trace.marks.first_sentence : text ? ms(t[0], end) : null,
+      // Fix round 2 (R1-I1) and round 3 (R2-M1): the handoff answer appears when the turn returns - after any pending evaluation
+      // has landed - so it is the one answer-moment read (end) that first_text_ms uses too: never below first_text_ms, and equal to
+      // it where they are the same moment (a typed reply).
+      to_answer: handed ? ms(t[0], end) : firstText,
     },
   };
   return traced({ store: current, turn, selection, evaluation, transitions, routed, response, actions, contracts, reason_codes: reasonCodes(response), reading, decisions, log, text, states: deriveClaimStates(current.events, domain.claims), bench, mark: tracer.mark });
