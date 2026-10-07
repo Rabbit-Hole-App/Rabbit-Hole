@@ -3,6 +3,7 @@
 //                                   then the larger evaluator only when JEV is uncertain (8 s)
 //   POST /api/learn/tutor/plan      one forced-tool planner call -> TutorResponse
 //   POST /api/learn/tutor/next-steps  the hook planner -> HookSet (learn-next-steps-routes.js)
+//   POST /api/learn/tutor/handoff   one Tutor turn handed to an existing capability (learn-tutor-handoff.js)
 // evaluate and plan carry `telemetry` (per-rung ms, outcome, requested/served model, usage) for the bench; next-steps
 // carries the hook planner's (tier, escalation, model, prompt version, usage, cost) for the decision trace.
 // Nothing is stored here for a nanoGPT canvas: evidence is session-scoped in the browser (§2). A body with journey_id
@@ -21,6 +22,7 @@ import { JourneyConflict, appendJourneyEvidence, loadJourneyById } from './learn
 import { claimsOfConceptIn } from '../../web/src/learn-tutor-claims.js';
 import { JOURNEY_LIMITS } from '../../web/src/learn-journey.js';
 import { NEXT_STEPS_BODY_CHARS, ownedNextSteps } from './learn-next-steps-routes.js';
+import { HANDOFF_BODY_CHARS, HANDOFF_PATH, handoff } from './learn-tutor-handoff.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 export const JEV_TIMEOUT_MS = 800;
@@ -407,13 +409,13 @@ export async function planTurn(env, context, deps = {}, documents = []) {
 }
 
 export async function tutorRoute(path, req, env, deps = {}) {
-  if (path !== '/api/learn/tutor/evaluate' && path !== '/api/learn/tutor/plan' && path !== '/api/learn/tutor/next-steps') return null;
+  if (path !== '/api/learn/tutor/evaluate' && path !== '/api/learn/tutor/plan' && path !== '/api/learn/tutor/next-steps' && path !== HANDOFF_PATH) return null;
   if (req.method !== 'POST') return json({ error: 'POST required' }, 405);
   let body;
-  if (path === '/api/learn/tutor/next-steps') {
+  if (path === '/api/learn/tutor/next-steps' || path === HANDOFF_PATH) {
     // The raw body is bounded before parsing, so padding outside input is refused too (input itself: 12000, checked later).
-    const raw = await req.text();
-    if (raw.length > NEXT_STEPS_BODY_CHARS) return json({ error: `the request body must be at most ${NEXT_STEPS_BODY_CHARS} characters` }, 400);
+    const raw = await req.text(), limit = path === HANDOFF_PATH ? HANDOFF_BODY_CHARS : NEXT_STEPS_BODY_CHARS;
+    if (raw.length > limit) return json({ error: `the request body must be at most ${limit} characters`, ...(path === HANDOFF_PATH ? { failure: 'too_large' } : {}) }, 400);
     try { body = JSON.parse(raw); } catch { return json({ error: 'Invalid JSON' }, 400); }
   } else {
     try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
@@ -425,6 +427,7 @@ export async function tutorRoute(path, req, env, deps = {}) {
   if (ownerRefused) return ownerRefused;
   // Professor Next Steps (learn-next-steps-routes.js): the same gates, a separate call, never part of a Tutor turn.
   if (path === '/api/learn/tutor/next-steps') return ownedNextSteps(env, access, body, deps);
+  if (path === HANDOFF_PATH) return handoff(env, access, body, deps);
   if (path === '/api/learn/tutor/evaluate') {
     if (body.journey_id != null) return journeyEvaluate(env, access, body, deps);
     const input = validateEvaluateBody(body);
