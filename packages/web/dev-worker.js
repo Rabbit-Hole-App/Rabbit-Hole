@@ -32,6 +32,7 @@ import { journeyRoute } from '../control-plane/src/learn-journey.js';
 import { homeAskFetch } from '../control-plane/src/learn-home-ask.js';
 import { voiceRoute } from '../control-plane/src/learn-voice-routes.js';
 import { learnBoardsRoute } from '../control-plane/src/learn-boards.js';
+import { creatorsRoute } from '../control-plane/src/creators.js';
 import { artifactFetch } from '../control-plane/src/learn-artifact.js';
 import { paidRefusal } from '../control-plane/src/learn-paid.js';
 import { feedbackFetch } from '../control-plane/src/learn-feedback.js';
@@ -225,6 +226,8 @@ export default {
     // Saved and shared canvas boards (docs/features/canvas-sharing.md). Before
     // the exact /api/learn/board route, which generates explanations.
     if (path.startsWith('/api/learn/boards/')) { const boards = await learnBoardsRoute(path, req, env); if (boards) return boards; }
+    // Public creator profiles, Explore's creator row and creator search (docs/features/creator-profile.md).
+    if (path.startsWith('/api/learn/creators')) { const creators = await creatorsRoute(path, req, env); if (creators) return creators; }
     if (path === '/api/learn/search') return canvasSearch(req, env);
     // The Learn canvas's bug / idea button (docs/features/learn-feedback.md).
     if (path === '/api/learn/feedback') return feedbackFetch(req, env);
@@ -236,8 +239,8 @@ export default {
     if (path === '/aws') return Response.redirect(new URL('/apps', req.url), 302);
     if (path.startsWith('/api/byoc/')) return byocFetch(req, env, { apiCode, signerCode, permissionsCode, grantsCode });
     // /b/<token> is a shared board, /e/<token> a canvas published to Explore (docs/features/explore-publish.md): served to
-    // anyone, the page decides what they may see.
-    if (path === '/apps' || path === '/dash' || path === '/chat' || path === '/members' || path === '/library' || path === '/explore' || path.startsWith('/apps/') || /^\/[be]\/[A-Za-z0-9_-]{20,64}$/.test(path)) {
+    // anyone, the page decides what they may see. /@<handle> is a creator's public profile (docs/features/creator-profile.md).
+    if (path === '/apps' || path === '/dash' || path === '/chat' || path === '/members' || path === '/library' || path === '/explore' || path.startsWith('/apps/') || /^\/[be]\/[A-Za-z0-9_-]{20,64}$/.test(path) || /^\/@[A-Za-z0-9_]{1,40}$/.test(path)) {
       return new Response(SHELL, {
         headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store' },
       });

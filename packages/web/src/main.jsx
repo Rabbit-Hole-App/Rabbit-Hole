@@ -14,6 +14,7 @@ import SharePage from './SharePage.jsx';
 const previewBuild = (import.meta.env.VITE_RABBIT_HOLE === 'true' || import.meta.env.VITE_COACHING_DEV === 'true') && learnPreview;
 const Home = previewBuild ? lazy(() => import('./Home.jsx')) : null;
 const ExplorePreview = previewBuild ? lazy(() => import('./Home.jsx').then((m) => ({ default: m.ExplorePreview }))) : null;
+const CreatorProfilePage = previewBuild ? lazy(() => import('./CreatorProfile.jsx')) : null;
 import Shell, { storedSidebar } from './Shell.jsx';
 import { applyTheme, getTheme, navigate, setWs, workspaceLabel } from './api.js';
 import { ExpandedPageFrame, Toasts } from './ui.jsx';
@@ -95,9 +96,14 @@ if (switched) {
 const SharedBoardPage = lazy(() => import('./SharedBoardPage.jsx'));
 const SHARED_BOARD = /^\/[be]\/([A-Za-z0-9_-]{20,64})$/;
 
+// /@<handle>: a creator's public profile, open to anyone (docs/features/creator-profile.md); Rabbit Hole only.
+const CREATOR = /^\/@([A-Za-z0-9_]{1,40})$/;
+
 function Root() {
   const sharedBoard = window.location.pathname.match(SHARED_BOARD);
-  const page = sharedBoard ? <Suspense fallback={null}><SharedBoardPage token={sharedBoard[1]} /><Toasts /></Suspense> : <AppRoot />;
+  const creator = CreatorProfilePage && window.location.pathname.match(CREATOR);
+  const page = sharedBoard ? <Suspense fallback={null}><SharedBoardPage token={sharedBoard[1]} /><Toasts /></Suspense>
+    : creator ? <Suspense fallback={null}><CreatorProfilePage handle={creator[1]} /></Suspense> : <AppRoot />;
   // Rabbit Hole: a signed-in person without a public @handle chooses one first, in place (HandleGate,
   // docs/features/user-handles.md), and then this same URL carries on.
   return learnPreview ? <HandleGate>{page}</HandleGate> : page;

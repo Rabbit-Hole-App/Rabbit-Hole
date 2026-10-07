@@ -30,6 +30,8 @@ export function pageFor(pathname, search, preview) {
   if ((pathname === '/members' && !preview) || pathname === '/chat') return { page: pathname.slice(1) }; // solo v1: the preview's /members is Home
   if (!preview) return { page: 'library' };
   if (PREVIEW_ONLY.test(pathname)) return { page: pathname.slice(1) };
+  // A creator's profile (/@handle, main.jsx Root) is where Explore's @handle leads, so the sidebar lights Explore.
+  if (/^\/@[A-Za-z0-9_]{1,40}$/.test(pathname)) return { page: 'explore' };
   // Bare /apps (and /dash) is Home; the sidebar's ?s= and ?f= links keep the Library.
   const params = new URLSearchParams(search);
   return { page: params.has('s') || params.has('f') ? 'library' : 'home' };
