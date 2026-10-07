@@ -765,3 +765,55 @@ test('view hands out copies: mutating a view never reaches the stored set or wha
   stale.options[2].selected_next_step.v = 9;
   assert.deepEqual([ctl.view().status, ctl.view().options], ['stale', setFor(1).options]);
 });
+
+// Task 8 re-review round 2, folded into Task 9: copies out, never the stored set.
+test('select hands out a copy of the step: mutating it never reaches the stored set or a later select', async () => {
+  const { c, ctl } = rig([setFor(1)]);
+  ctl.update({ basis: 'a', stop: null, input }); await c.fire();
+  const first = ctl.select('ns_00000001.2');
+  first.selected_next_step.learning_goal = 'changed'; first.selected_next_step.suggestion_id = 'x';
+  assert.deepEqual(ctl.select('ns_00000001.2').selected_next_step, setFor(1).options[1].selected_next_step);
+  assert.deepEqual(ctl.view().options, setFor(1).options);
+});
+
+test('onSet receives a copy: mutating it never reaches the view, a select or the stale fallback', async () => {
+  const { c, ctl } = rig([setFor(1)], { onSet: s => { s.options[0].hook = 'x'; s.options[1].selected_next_step.learning_goal = 'y'; s.options.pop(); s.set_id = 'z'; } });
+  ctl.update({ basis: 'a', stop: null, input }); await c.fire();
+  assert.deepEqual([ctl.view().set_id, ctl.view().options], ['ns_00000001', setFor(1).options]);
+  assert.deepEqual(ctl.select('ns_00000001.2').selected_next_step, setFor(1).options[1].selected_next_step);
+  ctl.update({ basis: 'b', stop: null, input });
+  assert.deepEqual([ctl.view().status, ctl.view().options], ['stale', setFor(1).options]);
+});
+
+test('a reply whose selected_next_step is an array, or whose option ids repeat, is failed with no onSet', async () => {
+  const arrayStep = { ...setFor(1), options: setFor(1).options.map((o, i) => (i === 1 ? { ...o, selected_next_step: [o.selected_next_step] } : o)) };
+  const repeated = { ...setFor(1), options: setFor(1).options.map((o, i) => (i === 2 ? { ...o, id: setFor(1).options[0].id } : o)) };
+  for (const reply of [arrayStep, repeated]) {
+    const { c, ctl, sets } = rig([reply]);
+    ctl.update({ basis: 'a', stop: null, input }); await c.fire();
+    assert.deepEqual([ctl.view().status, ctl.view().reason, sets], ['unavailable', 'failed', []]);
+  }
+});
+
+// Owner tenth message: one impression per set, when it is first on screen.
+test('onShown fires once per set at its first show, with a copy; a discarded set only if its basis returns; a throwing onShown is counted', async () => {
+  let release; const slow = new Promise(r => { release = r; });
+  const shown = [];
+  const { c, ctl } = rig([setFor(1), slow, setFor(3)], { onShown: s => { shown.push(s.set_id); s.options.pop(); } });
+  ctl.update({ basis: 'a', stop: null, input }); await c.fire();
+  assert.deepEqual([shown, ctl.view().options], [['ns_00000001'], setFor(1).options], 'shown once, a copy');
+  ctl.update({ basis: 'a', stop: 'not_now', input }); ctl.update({ basis: 'a', stop: null, input });
+  ctl.update({ basis: 'b', stop: null, input });
+  const second = c.fire();
+  ctl.update({ basis: 'c', stop: null, input });
+  release(setFor(2)); await second;
+  assert.deepEqual(shown, ['ns_00000001'], 'hidden, stale and back again: still one; the discarded set never shown');
+  await c.fire();
+  assert.deepEqual(shown, ['ns_00000001', 'ns_00000003']);
+  ctl.update({ basis: 'b', stop: null, input });
+  assert.deepEqual(shown, ['ns_00000001', 'ns_00000003', 'ns_00000002'], 'its basis returned: now it is on screen');
+  const before = globalThis.__smallTutorTraceErrors || 0;
+  const broken = rig([setFor(1)], { onShown: () => { throw new Error('shown'); } });
+  broken.ctl.update({ basis: 'a', stop: null, input }); await broken.c.fire();
+  assert.deepEqual([broken.ctl.view().status, globalThis.__smallTutorTraceErrors], ['ready', before + 1]);
+});

@@ -15,7 +15,10 @@ import { api, apiFetch } from './api.js';
 import { tutorContext } from './learn-tutor-domains.js';
 import { loadStore, saveStore, storeKey } from './learn-tutor-evidence.js';
 import { diveJourney } from './learn-journey-domain.js';
-import { arriveAt, enterHole, executeActions, keepHere, markOpened, openingQuestion, readPlanStream, runTurn, showableCards, wantsCard } from './learn-tutor.js';
+import { arriveAt, enterHole, executeActions, keepHere, learnerIntent, markOpened, openingQuestion, readPlanStream, runTurn, showableCards, wantsCard } from './learn-tutor.js';
+import { materialCommands, runMaterials } from './learn-slash.js';
+import { emitDecision, newSessionId, tracing } from './learn-tutor-trace.js';
+import PaidConfirm from './PaidConfirm.jsx';
 
 // A Tutor request that never answers ends as an error reply, not an endless spinner; Stop ends it too.
 const TURN_TIMEOUT_MS = 60000;
@@ -29,7 +32,10 @@ const TURN_TIMEOUT_MS = 60000;
 // and turns apart from nanoGPT's tab-wide store and from other topics. Every other key is unchanged.
 export const tutorStoreKey = (app, journeyId, record) => (journeyId ? `${storeKey(app)}:journey:${journeyId}`
   : record?.journey ? `${storeKey(app)}:dive:${record.journey.journey_id}` : storeKey(app));
-export function useTutor({ app, board, access, canvasApi, canvasState, dive, courseCanvas = false, journey = null }) {
+// canvasVersion: the board revision when the page passes it (decision telemetry only).
+// Professor Next Steps (docs/features/professor-next-steps.md §1.3, §1.4): the returned object always carries askStep, snapshot,
+// lastTurn, busy and showing, also where the Tutor is not active, so useNextSteps can ask whether hooks belong here.
+export function useTutor({ app, board, access, canvasApi, canvasState, dive, courseCanvas = false, journey = null, canvasVersion = null }) {
   const record = dive.tree?.dive || null;
   const root = dive.tree?.path?.[0];
   // The parent journey of a hole whose record carries one (Task 14): { journey, path } once read, else null.
@@ -46,18 +52,30 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   // Whether the Tutor runs here, and its domain, is the registry resolver's (learn-tutor-domains.js tutorContext): a live
   // journey, a hole's read parent journey, then a registered course by its repository, board or a hole's root.
   const where = { app: courseCanvas ? app : null, board, root, parentJourney, record };
-  const active = !!tutorContext({ ...where, journey });
+  // Ruling F4: typed and voice turns need capabilities.tutor; a hook turn (askStep), a carried opening and the paid
+  // proposals it raises also run where only capabilities.hook_turns holds (Task 10: plain canvases).
+  const capabilities = tutorContext({ ...where, journey })?.capabilities;
+  const active = capabilities?.tutor === true, hookTurns = active || capabilities?.hook_turns === true;
   const here = { app: app.name, board };
   const journeyId = journey?.journey?.id ?? null;
   const key = tutorStoreKey(app, journeyId, record);
   const [chips, setChips] = useState([]);
   const slashNext = useRef(null);
+  // busy: a turn is in flight (a stopping point for the hooks); lastTurn: the last finished turn, a hook basis trigger;
+  // proposal: the paid card waiting for Generate / Not now. shown: the hooks on screen (useNextSteps), for the decision trace.
+  const [busy, setBusy] = useState(false);
+  const [lastTurn, setLastTurn] = useState(null);
+  const [proposal, setProposal] = useState(null);
+  const seq = useRef(0), shown = useRef([]), flying = useRef(0), asking = useRef(Promise.resolve());
   const stateRef = useRef(canvasState); stateRef.current = canvasState;
   const journeyRef = useRef(journey); journeyRef.current = journey;
   // The journey's server events replace the stored copy when they are newer: the last turn here adopted them, so the two
   // agree until an option click or another tab stores more.
+  // The Tutor session id (contract §3.1 identity) is minted once per store: decision telemetry only, never sent to a planner.
   const load = () => {
-    const store = loadStore(sessionStorage, key), evidence = journeyRef.current?.journey?.evidence;
+    let store = loadStore(sessionStorage, key);
+    if (!store.session_id) { store = { ...store, session_id: newSessionId() }; saveStore(sessionStorage, key, store); }
+    const evidence = journeyRef.current?.journey?.evidence;
     return evidence && evidence.seq > store.seq ? { ...store, events: evidence.events, seq: evidence.seq } : store;
   };
   const save = store => saveStore(sessionStorage, key, store);
@@ -75,11 +93,16 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   // skipJourney: the learner chose Ask the Tutor for these words, so the journey's resolver has had them. onAnswer: called
   // once the turn is the Tutor's to answer (the composer draws its exchange then); a turn the journey takes never calls
   // it and resolves to { text: '', handled: true, failed }.
-  const turn = useCallback(async ({ raw, targetId = null, opening = false, signal, inputModality = 'text', turnId = null, onSpeakable = null, skipJourney = false, onAnswer = null }) => {
+  // nextStep (contract §1.4): a clicked hook's selected_next_step, never evidence - no target block (so no practice rung), no
+  // journey resolver, no learner words (so no evaluate), and a waiting /deeper stays for the next typed turn. selectedAt: the
+  // click's time, for the decision trace.
+  const turn = useCallback(async ({ raw, targetId = null, opening = false, signal, inputModality = 'text', turnId = null, onSpeakable = null, skipJourney = false, onAnswer = null, nextStep = null, selectedAt = null }) => {
     const canvas = canvasApi.current;
-    const block = canvas?.block?.(targetId) || canvas?.block?.(stateRef.current.card?.id) || null;
-    const slash = slashNext.current;
-    slashNext.current = null;
+    const domain = domainOf(canvas);
+    if (!domain) return { text: '', handled: true, failed: true };
+    const block = nextStep ? null : canvas?.block?.(targetId) || canvas?.block?.(stateRef.current.card?.id) || null;
+    const slash = nextStep ? null : slashNext.current;
+    if (!nextStep) slashNext.current = null;
     // The per-turn benchmark record (e2e/tutor-bench.mjs listens); a failed turn reports its error name.
     const started = performance.now();
     const bench = detail => window.dispatchEvent(new CustomEvent('small:tutor-bench', { detail }));
@@ -95,15 +118,14 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
       return api(path, { method: 'POST', body: JSON.stringify(body), signal: limit });
     };
     const live = journeyRef.current?.journey ? journeyRef.current : null;
-    const domain = domainOf(canvas);
     const common = { canvas: { ...here, ...(record ? { dive: record } : {}) }, access, block, inputModality, turnId, domain, post };
     // §7.2, D6: the journey's resolver first (handleText: rules 1-4, then the model's rule 5; never punctuation). A tray
     // answer, path edit, cancel, clarification or second broad intent is the journey's and never reaches the planner. A
     // free-text answer to the open diagnostic probe is a Tutor turn without a plan (§6.3): runTurn({ plan: false }) with
     // the probe as the open question, so buildTurn reads it as answering and the evaluate route stores the probe's
     // evidence; the walker steps on after. Anything else (an unrelated question, Ask the Tutor's words) is answered below,
-    // in the journey domain. A slash or a hole's opening is a Tutor turn as it is.
-    if (live && !slash && !opening && !skipJourney) {
+    // in the journey domain. A slash, a hole's opening or a hook click is a Tutor turn as it is.
+    if (live && !slash && !opening && !skipJourney && !nextStep) {
       const answerProbe = async (probe, text) => save((await runTurn({ ...common, raw: text, plan: false, store: { ...load(), open: { action_id: probe.id, claim: probe.claims[0], text: probe.prompt, canvas: here } } })).store);
       const routed = await live.handleText(raw, { answerProbe });
       if (routed.handled) return { text: '', handled: true, failed: !!routed.failed };
@@ -113,7 +135,10 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     let result;
     try {
       result = await runTurn({
-        ...common, raw: slash?.raw || raw, slash: slash?.name || null, opening, store: load(), onSpeakable,
+        ...common, raw: nextStep ? '' : (slash?.raw || raw), slash: slash?.name || null, opening, store: load(), onSpeakable,
+        nextStep, materials: nextStep ? materialCommands() : [],
+        // Decision telemetry only while a sink is registered (contract §3.3); the planner request is the same either way.
+        trace: tracing() && { identity: { canvas_version: canvasVersion }, blocks: canvas?.blocks?.() || [], next_step_options: shown.current, selected_at: selectedAt },
         // Only a domain whose cards are inserted (no showCard of its own: the authored-module one) holds a place. A journey's
         // cards are blocks already on the canvas (its showCard reveals, never inserts), so a held place would never be
         // taken; and before the path is accepted the canvas gets no card at all.
@@ -133,12 +158,34 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
       slot, domain,
     }));
     release();
+    // create_material (contract §2.5): the existing Learn command path (runMaterials -> runLearnCommand), never a second
+    // generator, in the plan's order; a paid card waits for Generate / Not now (offer), one proposal at a time across turns.
+    // The reply does not wait for the cards.
+    runMaterials(result.actions, {
+      app: app.name, openSearch: () => {}, offer,
+      canvas: { insertNotebook: () => canvasApi.current?.insertNotebook(), insertBlock: (b, o) => canvasApi.current?.insertBlock(b, o), reserve: s => canvasApi.current?.reserve(s), release: id => canvasApi.current?.release(id) },
+      post: (path, body, options) => api(path, { ...options, method: 'POST', body: JSON.stringify({ ...body, ...(access.pending ? { pending: access.pending } : {}) }) }),
+    }).catch(error => console.info('[tutor] create_material', error.message));
     result.mark('canvas_action_complete');
     result.mark('reply_ready'); // the reply text goes to the chat now; tutor-bench measures when it is drawn
     const done = Math.round((performance.now() - started) * 10) / 10;
     bench({ ...result.bench, ms: { ...result.bench.ms, canvas_done: done, total_in_app: done } });
+    // A hook basis trigger (contract §2.3): every finished turn, with its own turn id; the learner's words only for a
+    // question or request (the hook input's recent.question), and the claim state changes.
+    const intent = learnerIntent(result.turn);
+    setLastTurn({ seq: ++seq.current, turn_id: result.turn.turn_id, kind: intent.kind, ...(['question', 'request'].includes(intent.kind) ? { question: result.turn.raw_user_message.slice(0, 300) } : {}), transitions: result.transitions.map(({ claim, from, to }) => ({ claim, from, to })) });
+    // After the canvas actions, so the result is final; a sink error is swallowed and counted (emitDecision).
+    if (result.trace) emitDecision(result.trace);
     return { ...result, bench: { ...result.bench, ms: { ...result.bench.ms, canvas_done: done } } };
-  }, [access, record, here.app, here.board, key, parentJourney, courseCanvas, root]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [access, record, here.app, here.board, key, parentJourney, courseCanvas, root, canvasVersion]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Paid proposals from create_material, one at a time: each waits until the one before it is answered (PaidConfirm).
+  const offer = next => (asking.current = asking.current.then(() => new Promise(done => setProposal({ ...next, done }))));
+  // Any turn in flight is busy: a stopping point for the hooks (stoppingPoint), until the last one ends.
+  const tracked = async args => {
+    flying.current += 1;
+    setBusy(true);
+    try { return await turn(args); } finally { flying.current -= 1; if (!flying.current) setBusy(false); }
+  };
 
   // A hole's opening turn (§6.4): once per hole, the pending question asked inside the hole. The
   // dock sends it like a typed message (ask.jsx), so it reads as the learner's question carried down
@@ -152,24 +199,41 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     if (question) setOpening({ key: record.dive_id, question });
   }, [active, record?.dive_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!active) return { active: false };
+  // The typed path (ask) and a hook click (askStep) share one turn and one return contract: the reply text, or
+  // { handled } for a turn the journey took. An empty reply is drawn as the spinner (ask.jsx), so a turn that only acts on
+  // the canvas says so.
+  const answer = async args => {
+    setChips([]);
+    const result = await tracked(args);
+    if (result.handled) return result;
+    return result.text || (result.actions.some(action => action.type !== 'no_action') ? 'See the canvas.' : 'Nothing to add here yet.');
+  };
+  // A hook click (contract §1.4): one next_step turn with the step as structured data and no learner words; its
+  // create_material actions run through runMaterials. inputModality 'voice' in Voice Mode: the same turn, and the reply
+  // follows the existing voice behaviour (onSpeakable).
+  const askStep = ({ selected_next_step, signal, begin = null, inputModality = 'text', turnId = null, onSpeakable = null }) => answer({ raw: '', nextStep: selected_next_step, selectedAt: new Date().toISOString(), signal, inputModality, turnId, onSpeakable, onAnswer: begin });
+  // snapshot(): what useNextSteps builds the hook input from - the Tutor context here (null: no hooks), the merged store, a
+  // hole's parent journey and record. showing(options): the hooks on screen, named in the next turn's decision trace.
+  const steps = {
+    askStep, lastTurn, busy,
+    snapshot: () => ({ context: tutorContext({ ...where, journey: journeyRef.current, blocks: canvasApi.current?.blocks?.() || [] }), store: load(), parent: parentJourney, record }),
+    showing: options => { shown.current = options; },
+  };
+  const paid = proposal && <PaidConfirm message={proposal.message} onGenerate={() => { proposal.generate(); setProposal(null); proposal.done(); }} onCancel={() => { setProposal(null); proposal.done(); }} />;
+  if (!hookTurns) return { active: false, ...steps };
+  if (!active) return { active: false, ...steps, opening, extras: paid || null };
   return {
     active: true,
+    ...steps,
     // begin (ask.jsx): draws the turn's chat bubbles and exchange, once the turn is the Tutor's. A turn the journey took
     // resolves to { handled: true, failed } and draws nothing.
-    ask: async ({ raw, targetId, opening: first = false, signal, inputModality = 'text', turnId, skipJourney = false, begin = null }) => {
-      setChips([]);
-      const result = await turn({ raw, targetId, opening: first, signal, inputModality, turnId, skipJourney, onAnswer: begin });
-      if (result.handled) return result;
-      // An empty reply is drawn as the spinner (ask.jsx), so a turn that only acts on the canvas says so.
-      return result.text || (result.actions.some(action => action.type !== 'no_action') ? 'See the canvas.' : 'Nothing to add here yet.');
-    },
+    ask: ({ raw, targetId, opening: first = false, signal, inputModality = 'text', turnId, skipJourney = false, begin = null }) => answer({ raw, targetId, opening: first, signal, inputModality, turnId, skipJourney, onAnswer: begin }),
     // Voice Mode (docs/features/voice-tutor-mvp.md §1): the same turn, spoken. `speech` is the Tutor's
     // own words or '' - never a fallback; `ms` are the turn's timings for the voice telemetry. A turn the journey took
     // says nothing: the tray shows where the journey is.
     voiceTurn: async ({ raw, targetId, signal, turnId, onSpeakable = null, opening = false }) => {
       setChips([]);
-      const result = await turn({ raw, targetId, opening, signal, inputModality: 'voice', turnId, onSpeakable });
+      const result = await tracked({ raw, targetId, opening, signal, inputModality: 'voice', turnId, onSpeakable });
       if (result.handled) return { speech: '', turnId, ms: {} };
       return { speech: result.text, turnId: result.turn.turn_id, ms: result.bench.ms };
     },
@@ -179,8 +243,8 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     // prompt (busy), so no stale command waits for the next turn.
     slash: (name, raw) => { slashNext.current = name ? { name, raw } : null; },
     // Shown under the Tutor's reply in the chat (ask.jsx): the dive suggestion, whose "Keep it on
-    // this canvas" also gives the next turn here dive_choice inline, and the suggestion chips.
-    extras: (dive.suggestionCard || chips.length) ? <>
+    // this canvas" also gives the next turn here dive_choice inline, the suggestion chips, and a paid card's Generate / Not now.
+    extras: (dive.suggestionCard || chips.length || paid) ? <>
       {dive.suggestionCard && cloneElement(dive.suggestionCard, { onKeep: () => { save(keepHere(load(), here)); dive.suggestionCard.props.onKeep(); } })}
       {chips.length > 0 && <div data-tutor-chips role="group" aria-label="Tutor suggestions" className="flex flex-wrap gap-2">
         {chips.map(chip => (
@@ -190,6 +254,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
           </button>
         ))}
       </div>}
+      {paid}
     </> : null,
   };
 }

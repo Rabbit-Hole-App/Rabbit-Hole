@@ -55,7 +55,10 @@ const cap = (text, max = 200) => (text == null ? null : String(text).slice(0, ma
 const USAGE = ['input_tokens', 'output_tokens', 'cache_creation_input_tokens', 'cache_read_input_tokens'];
 // Shared provenance: the share's one-way key, its board version and the origin card; never the token, sharer or their state.
 const sourceOf = s => (s?.share_key ? { share_key: s.share_key, share_version: s.share_version ?? null, origin_block_id: s.origin_block_id ?? null } : null);
-const optionsOf = options => (options || []).map(o => ({ id: o.id ?? null, hook: o.hook ?? null, learning_goal: o.selected_next_step?.learning_goal ?? null, concept_ids: o.selected_next_step?.concept_ids ?? [], claim_ids: o.selected_next_step?.claim_ids ?? [] }));
+// Each option as its structured identity (owner tenth message): the hook id, its set, its position on screen (1-3, in order),
+// the hook, and the goal and ids behind it - so selections can be read by position and aggregated by goal and ids.
+const optionsOf = (options, setId = null) => (options || []).map((o, i) => ({ suggestion_id: o.id ?? null, set_id: setId ?? o.selected_next_step?.set_id ?? null, position: i + 1,
+  hook: o.hook ?? null, learning_goal: o.selected_next_step?.learning_goal ?? null, concept_ids: o.selected_next_step?.concept_ids ?? [], claim_ids: o.selected_next_step?.claim_ids ?? [] }));
 const head = (event, step_id, identity, versions) => ({ trace_schema_version: TRACE_SCHEMA_VERSION, event, decision_id: `td_${hex(8)}`, step_id, generated_at: new Date().toISOString(), identity, versions });
 
 // The route row's generic code: the reason when the planner gives none (reason_source router), and the one added beside a
@@ -102,8 +105,9 @@ const escalation = reason => `escalated:${ESCALATIONS.includes(reason) ? reason 
 // A tutor_decision from runTurn's finished result. The actions are the turn's production contracts (result.contracts,
 // learn-tutor-actions.js), never recomputed; a turn without contracts (plan: false) gives [] and null.
 // identity: { user_id, canvas_version } from the caller; blocks: the canvas blocks; options: the hooks shown with the turn;
-// seen: the modality history the planner saw; intent: learnerIntent(turn).kind.
-export const decisionEvent = safe(({ result, domain, identity = {}, blocks = [], options = [], seen = [], intent = null, totalMs = null }) => {
+// seen: the modality history the planner saw; intent: learnerIntent(turn).kind; selectedAt: the hook click's ISO time (kept
+// only on a hook click). evidence_transitions: the turn's claim state changes, ids and states only.
+export const decisionEvent = safe(({ result, domain, identity = {}, blocks = [], options = [], seen = [], intent = null, totalMs = null, selectedAt = null }) => {
   const { turn, routed = null, response = {}, decisions = [], log = [], bench = {} } = result;
   const contracts = result.contracts ?? [], record = turn.canvas.dive?.record ?? null, telemetry = response?.telemetry ?? null, claims = bench.claims || [];
   const conceptsOf = ids => [...new Set(ids.map(id => domain?.claims?.[id]?.concept).filter(Boolean))];
@@ -133,8 +137,10 @@ export const decisionEvent = safe(({ result, domain, identity = {}, blocks = [],
       current_goal: { id: turn.next_step?.suggestion_id ?? null, summary: cap(turn.next_step?.learning_goal ?? domain?.context?.goal) },
       current_section_id: sectionId, target_concept_ids: conceptsOf(claims), target_claim_ids: [...claims],
       evidence_summary: byState((turn.evidence || []).filter(Boolean).map(state => [state.claim, state.state])),
+      evidence_transitions: (result.transitions || []).map(({ claim, from, to }) => ({ claim_id: claim, from: from ?? null, to: to ?? null })),
       canvas_summary: canvasSummary(blocks.map(block => block.type), presented),
-      recent_modality_history: seen.slice(-8), next_step_options: optionsOf(options), selected_next_step_id: turn.next_step?.suggestion_id ?? null,
+      recent_modality_history: seen.slice(-8), next_step_options: optionsOf(options), shown_at: null,
+      selected_next_step_id: turn.next_step?.suggestion_id ?? null, selected_at: turn.next_step ? selectedAt : null,
       route: routed ? { row: routed.row, strategy: response?.strategy ?? routed.strategy ?? null, intent } : null,
       chosen_action: actions.find(a => a.action_type !== 'respond_text') ?? actions[0] ?? null, actions,
       reason_codes, reason_source, rationale_summary: why.summary,
@@ -172,7 +178,7 @@ const plannerInput = t => (t ? { before: counted(t.before), after: counted(t.aft
 // an anonymous viewer, source the one-way share key); a cached reply keeps the producing call's versions with zero usage.
 // trim: nextStepsInput's counts beside that input (runtime.planner_input), null when none were given.
 // discarded: the set landed after its basis moved on (recorded anyway: every recomputation is traced), flagged discarded.
-export const hooksEvent = safe((set, { input = null, identity = {}, scope = 'owned', mode = 'canvas', trim = null, discarded = false } = {}) => {
+const hooks = (set, { input = null, identity = {}, scope = 'owned', mode = 'canvas', trim = null, discarded = false } = {}) => {
   const t = set?.telemetry || {}, s = inputSummary(input), ran = t.cached ? null : t.ms ?? null;
   return {
     ...head('next_steps_computed', set?.set_id ?? null, {
@@ -181,8 +187,8 @@ export const hooksEvent = safe((set, { input = null, identity = {}, scope = 'own
     }, { planner_version: t.planner_version ?? null, prompt_version: t.prompt_version ?? null, model_role: t.model_role ?? null, model_id: t.model_id ?? null }),
     decision: {
       current_goal: { id: null, summary: cap(input?.goal) }, current_section_id: input?.path?.current?.id ?? identity.section_id ?? null,
-      target_concept_ids: s.target_concept_ids, target_claim_ids: s.target_claim_ids, evidence_summary: s.evidence_summary, canvas_summary: s.canvas_summary,
-      recent_modality_history: (input?.recent?.modalities || []).slice(-8), next_step_options: optionsOf(set?.options), selected_next_step_id: null,
+      target_concept_ids: s.target_concept_ids, target_claim_ids: s.target_claim_ids, evidence_summary: s.evidence_summary, evidence_transitions: [], canvas_summary: s.canvas_summary,
+      recent_modality_history: (input?.recent?.modalities || []).slice(-8), next_step_options: optionsOf(set?.options, set?.set_id ?? null), shown_at: null, selected_next_step_id: null, selected_at: null,
       route: null, chosen_action: null, actions: [], reason_codes: [], reason_source: null, rationale_summary: null, expected_evidence: [], estimated_learning_seconds: null,
     },
     runtime: {
@@ -192,6 +198,19 @@ export const hooksEvent = safe((set, { input = null, identity = {}, scope = 'own
       planner_input: plannerInput(trim),
     },
     flags: [...(t.cached ? ['cached'] : []), ...(discarded ? ['discarded'] : [])],
+  };
+};
+export const hooksEvent = safe(hooks);
+// A next_steps_shown (owner tenth message): the impression of a set the first time it is on screen, beside its
+// next_steps_computed, so selections can be read against what was shown and where. Same keys; the set's versions (the
+// planner that wrote the hooks) but no model call of its own, so zero usage and cost: never a double count.
+export const shownEvent = safe((set, options = {}) => {
+  const e = hooks(set, { ...options, discarded: false });
+  return {
+    ...e, event: 'next_steps_shown', decision: { ...e.decision, shown_at: new Date().toISOString() },
+    runtime: { timing: { total_ms: null, planner_ms: null, first_text_ms: null }, model: { tier: null, escalated: false, calls: 0 },
+      usage: { ...Object.fromEntries(USAGE.map(k => [k, 0])), cost_usd: 0 }, validation: { ok: true, dropped_actions: 0, repairs: [], fallback: null }, planner_input: null },
+    flags: [],
   };
 });
 

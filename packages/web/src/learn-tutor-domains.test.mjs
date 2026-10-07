@@ -197,9 +197,9 @@ test('regression 1 through useTutor: on the nanoGPT course the composer is the T
 
 test('wiring: useTutor and LearnPage decide the Tutor only through the resolver; the registry holds the one nanoGPT entry', () => {
   const tutor = read('LearnTutor.jsx'), page = read('LearnPage.jsx'), registry = read('learn-tutor-domains.js');
-  assert.match(tutor, /export function useTutor\(\{ app, board, access, canvasApi, canvasState, dive, courseCanvas = false, journey = null \}\)/);
+  assert.match(tutor, /export function useTutor\(\{ app, board, access, canvasApi, canvasState, dive, courseCanvas = false, journey = null, canvasVersion = null \}\)/);
   assert.match(tutor, /const where = \{ app: courseCanvas \? app : null, board, root, parentJourney, record \};/);
-  assert.match(tutor, /const active = !!tutorContext\(\{ \.\.\.where, journey \}\);/);
+  assert.match(tutor, /const capabilities = tutorContext\(\{ \.\.\.where, journey \}\)\?\.capabilities;\n  const active = capabilities\?\.tutor === true, hookTurns = active \|\| capabilities\?\.hook_turns === true;/);
   assert.match(tutor, /const domainOf = canvas => tutorContext\(\{ \.\.\.where, journey: journeyRef\.current, blocks: canvas\?\.blocks\?\.\(\) \|\| \[\] \}\)\?\.domain;/);
   assert.match(page, /const tutor = useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey \}\);/);
   assert.match(page, /const suppliedCourse = learnPreview && !!registeredCourse\(\{ app \}\)\?\.capabilities\?\.suppliedCourse;/);

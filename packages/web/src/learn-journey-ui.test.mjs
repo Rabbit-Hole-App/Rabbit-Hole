@@ -1357,14 +1357,14 @@ test('Task 14 wiring: LearnPage hands the live journey to useDive, the dive reco
   const tutor = read('LearnTutor.jsx'), domains = read('learn-tutor-domains.js');
   // Active in a hole whose record carries a journey once the parent journey is read; a refusal (null) leaves it as it was.
   // Task 0: the resolver (learn-tutor-domains.js tutorContext) decides, over the parent journey and the record.
-  assert.match(tutor, /const where = \{ app: courseCanvas \? app : null, board, root, parentJourney, record \};\n  const active = !!tutorContext\(\{ \.\.\.where, journey \}\);/);
+  assert.match(tutor, /const where = \{ app: courseCanvas \? app : null, board, root, parentJourney, record \};\n  \/\/ Ruling F4[^\n]*\n  \/\/ [^\n]*\n  const capabilities = tutorContext\(\{ \.\.\.where, journey \}\)\?\.capabilities;\n  const active = capabilities\?\.tutor === true, hookTurns = active \|\| capabilities\?\.hook_turns === true;/);
   assert.match(tutor, /diveJourney\(record, path => api\(path\)\)/);
   // A hole reads its concept from the domain it runs in (anti-hardcoding audit F3), never the nanoGPT one by default.
   assert.match(tutor, /enterHole\(load\(\), record, domainOf\(canvasApi\.current\)\)/);
   assert.match(tutor, /const domainOf = canvas => tutorContext\(\{ \.\.\.where, journey: journeyRef\.current, blocks: canvas\?\.blocks\?\.\(\) \|\| \[\] \}\)\?\.domain;/);
   assert.match(domains, /if \(parentJourney && record\?\.journey\) \{\n    return \{ domain: journeyDomain\(\{ journey: parentJourney\.journey, path: parentJourney\.path, blocks, dive: record\.journey \}\)/);
   // The parent's resolver and tray run only for a live journey on this board: the hole posts no journey action.
-  assert.match(tutor, /if \(live && !slash && !opening && !skipJourney\)/);
+  assert.match(tutor, /if \(live && !slash && !opening && !skipJourney && !nextStep\)/);
 });
 
 // ---- LP1 Task 14 review round 1 ----

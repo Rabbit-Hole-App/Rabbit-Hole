@@ -1,7 +1,7 @@
 // Tutor v2 turn trace: one trace_id, per-stage timing, status and result category. TutorDecisionEvent v1 below.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { turnTrace, decisionEvent, hooksEvent, emitDecision, addSink, tracing, harnessSink, newSessionId, inputSummary, ROW_REASON } from './learn-tutor-trace.js';
+import { turnTrace, decisionEvent, hooksEvent, shownEvent, emitDecision, addSink, tracing, harnessSink, newSessionId, inputSummary, ROW_REASON } from './learn-tutor-trace.js';
 import { runTurn } from './learn-tutor.js';
 import { emptyStore } from './learn-tutor-evidence.js';
 import { journeyDomain } from './learn-journey-domain.js';
@@ -30,7 +30,7 @@ test('stages record ok, error and timeout; errors are rethrown; marks are offset
 const KEYS = ['trace_schema_version', 'event', 'decision_id', 'step_id', 'generated_at', 'identity', 'versions', 'decision', 'runtime', 'flags'];
 const IDENTITY = ['user_id', 'session_id', 'canvas_id', 'board_id', 'canvas_version', 'journey_id', 'section_id', 'dive_id', 'source', 'scope', 'mode'];
 const VERSIONS = ['planner_version', 'prompt_version', 'model_role', 'model_id'];
-const DECISION = ['current_goal', 'current_section_id', 'target_concept_ids', 'target_claim_ids', 'evidence_summary', 'canvas_summary', 'recent_modality_history', 'next_step_options', 'selected_next_step_id', 'route', 'chosen_action', 'actions', 'reason_codes', 'reason_source', 'rationale_summary', 'expected_evidence', 'estimated_learning_seconds'];
+const DECISION = ['current_goal', 'current_section_id', 'target_concept_ids', 'target_claim_ids', 'evidence_summary', 'evidence_transitions', 'canvas_summary', 'recent_modality_history', 'next_step_options', 'shown_at', 'selected_next_step_id', 'selected_at', 'route', 'chosen_action', 'actions', 'reason_codes', 'reason_source', 'rationale_summary', 'expected_evidence', 'estimated_learning_seconds'];
 const RUNTIME = ['timing', 'model', 'usage', 'validation', 'planner_input'];
 const ACTION = ['action_type', 'command', 'modality', 'target_concept_ids', 'target_claim_ids'];
 const EVIDENCE = ['understood', 'uncertain', 'misconception', 'prerequisite_gap', 'not_yet_observed'];
@@ -97,6 +97,7 @@ test('tutor_decision: exactly the contract keys, the chosen action from the cont
   assert.deepEqual(e.decision.evidence_summary, { understood: [], uncertain: [], misconception: [], prerequisite_gap: [], not_yet_observed: r.turn.evidence.map(state => state.claim) });
   assert.deepEqual(e.decision.canvas_summary, { blocks: 2, kinds: { explanation: 1, heading: 1 }, presented_claim_ids: [IDS[1]] });
   assert.deepEqual([e.decision.current_goal, e.decision.current_section_id, e.decision.next_step_options, e.decision.selected_next_step_id], [{ id: null, summary: 'Understand tidal power' }, 's1', [], null]);
+  assert.deepEqual([e.decision.selected_at, e.decision.shown_at, e.decision.evidence_transitions], [null, null, []], 'a typed turn: no click, no impression, no state change here');
   assert.deepEqual(e.versions, { planner_version: TUTOR_PLANNER_VERSION, prompt_version: 'abcdef012345', model_role: 'tutor', model_id: 'claude-sonnet-5-5' });
   assert.deepEqual(e.runtime.usage, { input_tokens: 900, output_tokens: 80, cache_creation_input_tokens: null, cache_read_input_tokens: null, cost_usd: 0.0026 }, 'cache counts not reported: null');
   assert.deepEqual(e.runtime.model, { tier: 'fast', escalated: false, calls: 1 });
@@ -190,7 +191,7 @@ test('events are deep copies: a sink that mutates an event never changes the con
       for (const x of e.decision.expected_evidence) x.via = 'mutated';
     }
     // Both events: the hooks they carry, the goal and the targets.
-    for (const o of e.decision.next_step_options) { o.id = 'z'; o.hook = 'z'; o.learning_goal = 'z'; o.claim_ids.push('z'); o.concept_ids.push('z'); }
+    for (const o of e.decision.next_step_options) { o.suggestion_id = 'z'; o.set_id = 'z'; o.position = 9; o.hook = 'z'; o.learning_goal = 'z'; o.claim_ids.push('z'); o.concept_ids.push('z'); }
     e.decision.current_goal.summary = 'mutated';
     e.decision.target_claim_ids.push('w');
     e.decision.target_concept_ids.push('w');
@@ -265,6 +266,8 @@ test('harnessSink: the newest 500, a small:tutor-trace event, user_id from /api/
 
 const SET = { set_id: 'ns_01020304', generated_at: '2026-10-06T10:00:00.000Z', basis: 'b', options: [1, 2, 3].map(n => ({ id: `ns_01020304.${n}`, hook: `Hook number ${n} for tides?`, selected_next_step: { v: 1, set_id: 'ns_01020304', suggestion_id: `ns_01020304.${n}`, basis: 'b', hook: `Hook number ${n} for tides?`, learning_goal: `goal ${n}`, concept_ids: [], claim_ids: [IDS[n % 2]], scope: 'owned' } })),
   telemetry: { tier: 'routine', escalated: null, calls: 1, ms: 900, planner_version: 'next-steps-planner-1', model_role: 'tutor_next_steps', model_id: 'claude-sonnet-5-5', prompt_version: '0123456789ab', usage: { input_tokens: 2000, output_tokens: 400, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }, cost_usd: 0.008, reasons: 3, errors: [], cached: false } };
+// Owner tenth message: every option as its structured identity, its set and its position on screen (1-3, in order).
+const OPTIONS = SET.options.map((o, i) => ({ suggestion_id: o.id, set_id: 'ns_01020304', position: i + 1, hook: o.hook, learning_goal: o.selected_next_step.learning_goal, concept_ids: [], claim_ids: o.selected_next_step.claim_ids }));
 const INPUT = { mode: 'journey', goal: 'Understand tidal power', path: { current: { id: 's1' } }, scope: { concepts: {}, claims: { [IDS[0]]: { concept: 'x', state: 'uncertain' }, [IDS[1]]: { concept: 'y', state: 'not_yet_observed' } } },
   canvas: { blocks: [{ id: 'k', kind: 'Explanation', claim_ids: [IDS[0]] }] }, recent: { kind: 'question', question: QUESTION, modalities: ['text'] } };
 
@@ -274,8 +277,9 @@ test('hooksEvent: all three hooks with goals and ids, the same keys, no reason_i
   assert.deepEqual(Object.keys(e), KEYS);
   assert.deepEqual([Object.keys(e.identity), Object.keys(e.versions), Object.keys(e.decision), Object.keys(e.runtime)], [IDENTITY, VERSIONS, DECISION, RUNTIME]);
   assert.deepEqual([e.event, e.step_id, e.identity.scope, e.identity.mode, e.identity.section_id], ['next_steps_computed', 'ns_01020304', 'owned', 'journey', null]);
-  assert.deepEqual(e.decision.next_step_options, SET.options.map(o => ({ id: o.id, hook: o.hook, learning_goal: o.selected_next_step.learning_goal, concept_ids: [], claim_ids: o.selected_next_step.claim_ids })));
+  assert.deepEqual(e.decision.next_step_options, OPTIONS);
   assert.deepEqual([e.decision.chosen_action, e.decision.route, e.decision.actions, e.decision.reason_codes, e.decision.expected_evidence, e.decision.selected_next_step_id], [null, null, [], [], [], null]);
+  assert.deepEqual([e.decision.shown_at, e.decision.selected_at, e.decision.evidence_transitions], [null, null, []]);
   assert.deepEqual([e.decision.current_goal, e.decision.current_section_id], [{ id: null, summary: 'Understand tidal power' }, 's1']);
   assert.deepEqual(e.decision.evidence_summary, { understood: [], uncertain: [IDS[0]], misconception: [], prerequisite_gap: [], not_yet_observed: [IDS[1]] });
   assert.deepEqual(e.decision.canvas_summary, { blocks: 1, kinds: { Explanation: 1 }, presented_claim_ids: [IDS[0]] });
@@ -339,7 +343,11 @@ test('a hook click: the selected id and goal, the shown options, a made card wit
   const r = await runTurn({ raw: '', nextStep: STEP, materials: [{ command: 'animate', cards: ['mathAnimation'], paid: true }], canvas: { app: 'canvas-1', board: 'main' }, access: { app: 'canvas-1' }, block: null, store: emptyStore(), post: worker(plan).post, domain, trace: { next_step_options: SET.options } });
   const e = r.trace;
   assert.deepEqual([e.decision.selected_next_step_id, e.decision.current_goal, e.decision.route.intent], [STEP.suggestion_id, { id: STEP.suggestion_id, summary: 'goal 2' }, 'next_step']);
-  assert.deepEqual(e.decision.next_step_options.map(o => o.id), SET.options.map(o => o.id));
+  assert.deepEqual(e.decision.next_step_options, OPTIONS, 'the shown options with their set and positions');
+  assert.match(e.decision.selected_at, /^\d{4}-\d\d-\d\dT/, 'a hook click without a click time: the turn start');
+  assert.deepEqual([e.decision.shown_at, e.decision.evidence_transitions], [null, []], 'a click is never evidence');
+  const clicked = await runTurn({ raw: '', nextStep: STEP, canvas: { app: 'canvas-1', board: 'main' }, access: { app: 'canvas-1' }, block: null, store: emptyStore(), post: worker(plan).post, domain, trace: { next_step_options: SET.options, selected_at: '2026-10-06T10:00:05.000Z' } });
+  assert.equal(clicked.trace.decision.selected_at, '2026-10-06T10:00:05.000Z', 'the click time the page passed');
   assert.deepEqual(e.decision.chosen_action, { action_type: 'create_material', command: 'animate', modality: 'video', target_concept_ids: [C[STEP.claim_ids[0]].concept], target_claim_ids: STEP.claim_ids });
   assert.deepEqual([e.decision.reason_codes, e.decision.reason_source, e.flags], [['follow_learner_interest', 'increase_interactivity'], 'planner', []]);
   assert.equal(JSON.stringify(e).includes('a basin filling'), false, 'a create_material request is never in the event');
@@ -362,4 +370,35 @@ test('hooksEvent: a discarded set keeps the same keys, all three hooks, and the 
   assert.deepEqual([Object.keys(e), e.flags, e.decision.next_step_options.length], [KEYS, ['discarded'], 3]);
   assert.deepEqual(hooksEvent({ ...SET, telemetry: { ...SET.telemetry, cached: true } }, { input: INPUT, discarded: true }).flags, ['cached', 'discarded']);
   assert.deepEqual(hooksEvent(SET, { input: INPUT, discarded: false }).flags, []);
+});
+
+// Owner tenth message: the structured state changes of a turn, never words.
+test('tutor_decision: evidence_transitions are the turn transitions as { claim_id, from, to }, nothing else', async () => {
+  const pass = { seq: 1, concept: C[IDS[0]].concept, claim: IDS[0], result: 'pass', kind: 'demonstrated_in_transfer', settled: true, evaluator: 'jev', source: 'free_text', ref: {} };
+  const post = async (path, body) => (path === '/api/learn/tutor/plan' ? structuredClone(PLAN) : { status: 'settled', evaluator: 'jev', events: [pass], journey: { events: [pass], seq: 1 } });
+  const r = await runTurn({ raw: QUESTION, canvas: { app: 'canvas-1', board: 'main' }, access: { app: 'canvas-1' }, block: null, store: emptyStore(), post, domain, turnId: 'turn-2', trace: true });
+  assert.ok(r.transitions.length > 0, 'the evaluation moved a claim');
+  assert.deepEqual(r.trace.decision.evidence_transitions, r.transitions.map(({ claim, from, to }) => ({ claim_id: claim, from, to })));
+  assert.deepEqual(r.trace.decision.evidence_transitions.map(Object.keys), r.transitions.map(() => ['claim_id', 'from', 'to']));
+  assert.equal(r.trace.decision.selected_at, null);
+});
+
+// Owner tenth message: an impression, so selections can be read against what was shown and where.
+test('shownEvent: next_steps_shown with the same keys, the set id as step, positions, shown_at, no decision and no cost', () => {
+  const e = shownEvent(SET, { input: INPUT, identity: { session_id: 'ts_1', canvas_id: 'c' }, scope: 'owned', mode: 'journey', trim: { before: { block_count: 1, claim_count: 1 } } });
+  assert.deepEqual(Object.keys(e), KEYS);
+  assert.deepEqual([Object.keys(e.identity), Object.keys(e.versions), Object.keys(e.decision), Object.keys(e.runtime)], [IDENTITY, VERSIONS, DECISION, RUNTIME]);
+  assert.deepEqual([e.event, e.step_id, e.identity.session_id, e.identity.mode, e.identity.section_id], ['next_steps_shown', 'ns_01020304', 'ts_1', 'journey', null]);
+  assert.match(e.decision.shown_at, /^\d{4}-\d\d-\d\dT/);
+  assert.deepEqual(e.decision.next_step_options, OPTIONS);
+  assert.deepEqual([e.decision.chosen_action, e.decision.actions, e.decision.reason_codes, e.decision.route, e.decision.selected_next_step_id, e.decision.selected_at, e.decision.evidence_transitions], [null, [], [], null, null, null, []]);
+  assert.deepEqual(e.versions, hooksEvent(SET, { input: INPUT }).versions, 'the planner that produced the hooks shown');
+  assert.deepEqual(e.runtime, { timing: { total_ms: null, planner_ms: null, first_text_ms: null }, model: { tier: null, escalated: false, calls: 0 },
+    usage: { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, cost_usd: 0 }, validation: { ok: true, dropped_actions: 0, repairs: [], fallback: null }, planner_input: null }, 'an impression costs nothing: never a double count');
+  assert.deepEqual(e.flags, []);
+  assert.notEqual(e.decision_id, shownEvent(SET, { input: INPUT }).decision_id);
+  assert.equal(JSON.stringify(e).includes(QUESTION) || /reason_internal/.test(JSON.stringify(e)), false);
+  const before = errors();
+  assert.equal(shownEvent(SET, { get input() { throw new Error('boom'); } }), null, 'never throws');
+  assert.equal(errors(), before + 1);
 });

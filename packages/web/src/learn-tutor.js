@@ -343,15 +343,17 @@ export const enforce = validateActions;
 // nothing is evaluated and no evidence is written; the planner may answer with create_material among materials.
 // The result also carries `contracts` (one actionContract per accepted action, learn-tutor-actions.js) and the turn's
 // `reason_codes`; the store keeps the contracted modalities of the last 8 actions (contract §2.6).
-// trace (contract §3.3): true, or { identity, blocks, next_step_options }, adds `trace` - a TutorDecisionEvent built from the
+// trace (contract §3.3): true, or { identity, blocks, next_step_options, selected_at }, adds `trace` - a TutorDecisionEvent built from the
 // finished result (learn-tutor-trace.js), or null when building failed; false (the default) leaves the result as it was.
 export async function runTurn({ raw, slash = null, opening = false, canvas, access, block, store, post, onSpeakable = null, inputModality = 'text', turnId = null, onTurn = null, domain = NANOGPT, plan = true, nextStep = null, materials = [], trace = false }) {
   if (nextStep) raw = '';
   const t = [now()];
+  // The hook click's time for the event (selected_at): the page's click time when it passes one, else this turn's start.
+  const clickedAt = trace && nextStep ? new Date().toISOString() : null;
   // After the result is final; the event never changes it, and any telemetry error only leaves trace null (counted).
   const traced = result => (!trace ? result : { ...result, trace: safely(() => {
-    const { identity, blocks, next_step_options } = trace === true ? {} : trace;
-    return decisionEvent({ result, domain, identity, blocks, options: next_step_options, seen: store.modalities || [], intent: learnerIntent(result.turn).kind, totalMs: Math.round((now() - t[0]) * 10) / 10 });
+    const { identity, blocks, next_step_options, selected_at } = trace === true ? {} : trace;
+    return decisionEvent({ result, domain, identity, blocks, options: next_step_options, seen: store.modalities || [], intent: learnerIntent(result.turn).kind, totalMs: Math.round((now() - t[0]) * 10) / 10, selectedAt: selected_at ?? clickedAt });
   }) });
   const id = turnId || crypto.randomUUID();
   const tracer = turnTrace(now, id); // v2: the turn trace (learn-tutor-trace.js), returned in bench.trace

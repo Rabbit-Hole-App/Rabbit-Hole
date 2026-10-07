@@ -182,11 +182,13 @@ export function stoppingPoint({ busy = false, journey = null, store = null, here
 // again. Two roles: onSet(set, input, trim, { discarded }) records every set once as it lands, for any basis (discarded when
 // its basis moved on first), so the trace sees each recomputation; previous.hooks, the no-repeat memory, grows only when a set
 // is actually shown (ready for the current basis with no stop), which for a discarded set means when its basis returns.
-// input(previous) has nextStepsInput's shape: { input, trim } posts input and hands trim to onSet beside it, never inside it;
-// { problem } is failed and posts nothing. Hooks are kept as opaque strings for previous, never read. A throwing onSet or
-// subscriber is swallowed and counted like a trace sink error.
+// onShown(set) records the impression (owner tenth message): once per set, the first time it is on screen, so a discarded set
+// only if its basis returns. input(previous) has nextStepsInput's shape: { input, trim } posts input and hands trim to onSet
+// beside it, never inside it; { problem } is failed and posts nothing. Hooks are kept as opaque strings for previous, never
+// read. Callbacks get copies of the stored set. A throwing onSet, onShown or subscriber is swallowed and counted like a trace
+// sink error.
 // cap here is the tab ceiling: it shadows the capText import (also cap), which this function must not call.
-export function nextStepsController({ post, onSet = () => {}, setTimer = setTimeout, clearTimer = clearTimeout, now = Date.now, debounce = L.debounce_ms, cap = L.tab_cap }) {
+export function nextStepsController({ post, onSet = () => {}, onShown = () => {}, setTimer = setTimeout, clearTimer = clearTimeout, now = Date.now, debounce = L.debounce_ms, cap = L.tab_cap }) {
   let basis = null, stop = 'off', build = null, shown = null, timer = null, flying = null, requests = 0, changedAt = 0, disposed = false;
   const outcomes = new Map(), listeners = new Set(), previous = { hooks: [], goals: [] };
   // Ruling F3: the builder and callers get copies, never the live record.
@@ -207,7 +209,10 @@ export function nextStepsController({ post, onSet = () => {}, setTimer = setTime
     const entry = outcomes.get(basis);
     if (!stop && entry?.set) {
       shown = entry.set;
-      if (!entry.shown) { entry.shown = true; previous.hooks = [...previous.hooks, ...entry.set.options.map(o => o.hook)].slice(-L.previous_hooks); }
+      if (!entry.shown) {
+        entry.shown = true; previous.hooks = [...previous.hooks, ...entry.set.options.map(o => o.hook)].slice(-L.previous_hooks);
+        safely(() => onShown(structuredClone(entry.set)));
+      }
     }
     const text = JSON.stringify(view());
     if (text !== told) { told = text; listeners.forEach(fn => safely(fn)); }
@@ -228,8 +233,8 @@ export function nextStepsController({ post, onSet = () => {}, setTimer = setTime
       else {
         flying = sent; requests += 1;
         const got = await post(built.input);
-        const usable = o => typeof o?.id === 'string' && typeof o.hook === 'string' && !!o.selected_next_step && typeof o.selected_next_step === 'object';
-        outcome = Array.isArray(got?.options) && got.options.length === L.options && got.options.every(usable) ? { set: got } : { failed: 'failed' };
+        const usable = o => typeof o?.id === 'string' && typeof o.hook === 'string' && !!o.selected_next_step && typeof o.selected_next_step === 'object' && !Array.isArray(o.selected_next_step);
+        outcome = Array.isArray(got?.options) && got.options.length === L.options && got.options.every(usable) && new Set(got.options.map(o => o.id)).size === L.options ? { set: got } : { failed: 'failed' };
       }
     } catch (error) { outcome = { failed: error?.status === 429 ? 'limited' : 'failed' }; }
     flying = null;
@@ -237,7 +242,7 @@ export function nextStepsController({ post, onSet = () => {}, setTimer = setTime
     // ponytail: never evicted (eviction would allow a second request for a basis), so the map grows with the distinct bases
     // visited in the tab; entries are tiny ({ set } of 3 options or { failed }). Bound it by age if a tab ever lives that long.
     outcomes.set(sent, outcome);
-    if (outcome.set) safely(() => onSet(outcome.set, built.input, built.trim, { discarded: sent !== basis }));
+    if (outcome.set) safely(() => onSet(structuredClone(outcome.set), built.input, built.trim, { discarded: sent !== basis }));
     sync();
     schedule(Math.max(0, changedAt + debounce - now()));
   }
@@ -257,7 +262,7 @@ export function nextStepsController({ post, onSet = () => {}, setTimer = setTime
       if (busy || stop) return { ok: false, reason: 'busy' };
       if (view().status !== 'ready') return { ok: false, reason: 'stale' };
       previous.goals = [...previous.goals, option.selected_next_step.learning_goal].slice(-L.previous_goals);
-      return { ok: true, selected_next_step: option.selected_next_step };
+      return { ok: true, selected_next_step: structuredClone(option.selected_next_step) };
     },
     previous: copy,
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },

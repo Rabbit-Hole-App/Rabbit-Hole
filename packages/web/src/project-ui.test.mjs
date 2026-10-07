@@ -34,7 +34,7 @@ test('the canvas has no Tutor or Practice button: the composer is the Tutor on t
   assert.match(learn, /const suppliedCourse = learnPreview && !!registeredCourse\(\{ app \}\)\?\.capabilities\?\.suppliedCourse;/);
   assert.match(read('learn-tutor-domains.js'), /\{ id: 'nanogpt-attention', match: \{ repo: 'karpathy\/nanoGPT', board: TUTOR_BOARD \}, domain: NANOGPT, capabilities: \{ tutor: true, evidence: 'session', suppliedCourse: true \} \},/);
   // A hole opened from a journey section, once its parent journey is read (LP1 Task 14), too: the resolver's order.
-  assert.match(tutor, /const active = !!tutorContext\(\{ \.\.\.where, journey \}\);/);
+  assert.match(tutor, /const capabilities = tutorContext\(\{ \.\.\.where, journey \}\)\?\.capabilities;\n  const active = capabilities\?\.tutor === true, hookTurns = active \|\| capabilities\?\.hook_turns === true;/);
   assert.match(read('learn-tutor-domains.js'), /if \(journey\?\.journey\) return[^\n]*\n  if \(parentJourney && record\?\.journey\) \{[\s\S]*?const entry = registeredCourse\(\{ app, board, root \}, registry\);/);
   // ?board= stays review-only.
   assert.match(learn, /const named = hole \|\| !reviewTools \? null : new URLSearchParams\(window\.location\.search\)\.get\('board'\);/);

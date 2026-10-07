@@ -25,13 +25,14 @@ export function registeredCourse({ app = null, board = null, root = null }, regi
 
 // { domain, capabilities, source } or null (no Tutor: the Learn chat stays). Precedence: a live journey on this board, a
 // hole whose dive record carries a journey once its parent journey is read (LP1 Task 14), then a registered entry with
-// a domain and capabilities.tutor. app: the course app, only on its own canvas (LearnPage). blocks: the canvas blocks a
-// journey domain is built over (per turn).
+// a domain and capabilities.tutor, or capabilities.hook_turns (Ruling F4: hook clicks only; useTutor keeps typed turns
+// on capabilities.tutor). app: the course app, only on its own canvas (LearnPage). blocks: the canvas blocks a journey
+// domain is built over (per turn).
 export function tutorContext({ app = null, board = null, root = null, journey = null, parentJourney = null, record = null, blocks = [] }, registry = TUTOR_DOMAINS) {
   if (journey?.journey) return { domain: journeyDomain({ journey: journey.journey, path: journey.path, blocks }), capabilities: { tutor: true, evidence: 'journey' }, source: 'journey' };
   if (parentJourney && record?.journey) {
     return { domain: journeyDomain({ journey: parentJourney.journey, path: parentJourney.path, blocks, dive: record.journey }), capabilities: { tutor: true, evidence: 'session' }, source: 'dive' };
   }
   const entry = registeredCourse({ app, board, root }, registry);
-  return entry?.domain && entry.capabilities?.tutor === true ? { domain: entry.domain, capabilities: entry.capabilities, source: 'registry' } : null;
+  return entry?.domain && (entry.capabilities?.tutor === true || entry.capabilities?.hook_turns === true) ? { domain: entry.domain, capabilities: entry.capabilities, source: 'registry' } : null;
 }
