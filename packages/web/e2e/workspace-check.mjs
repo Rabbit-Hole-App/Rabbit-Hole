@@ -24,6 +24,11 @@ const asks = [];
 const ANSWER = 'train.py is the training loop: it builds GPT from model.py and optimises it.';
 
 const browser = await chromium.launch();
+// A crash (an unhandled error in a check, the harness or the shared fixture) still closes the browser, then fails the run:
+// the error is printed and the exit code is 1. A crashed run once left 4 headless browsers behind (2026-10-07).
+const crash = async (error) => { console.error(error); await browser.close().catch(() => {}); process.exit(1); };
+process.once('uncaughtException', crash);
+process.once('unhandledRejection', crash);
 const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
 await routeRepository(context, () => repoStatus);

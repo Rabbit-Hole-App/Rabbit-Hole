@@ -38,14 +38,17 @@ export const repoRow = (real, status = 'ready') => ({ name: REPO, org: real.org,
 // Stubs the project on a browser context: /api/apps gains its row; the project, its snapshot and its file reads answer from
 // the fixture. status() is read on every request (a refresh can start mid-check). Every other request goes on to the stack;
 // a route registered later (an /api/learn/ask stub) runs first.
+// A check that closes its page mid-request makes Playwright reject fetch, json and fulfill with a closed/disposed error
+// (an unhandled one crashed the harness and left its browser running, 2026-10-07). Only that error is dropped: nothing is
+// left to answer. Any other error still fails the check.
+export const pageGone = (error) => /has been (closed|disposed)/.test(String(error?.message));
 export const routeRepository = (context, status = () => 'ready') => {
   let row;
-  return context.route('**/api/**', async (route) => {
+  return context.route('**/api/**', (route) => serve(route).catch((error) => { if (!pageGone(error)) throw error; }));
+  async function serve(route) {
     const p = new URL(route.request().url()).pathname;
     if (p === '/api/apps' && route.request().method() === 'GET') {
-      const response = await route.fetch().catch(() => null); // a check closed its page mid-request: nothing to answer
-      if (!response) return;
-      const real = await response.json();
+      const real = await (await route.fetch()).json();
       row = repoRow(real, status());
       return route.fulfill({ json: { ...real, apps: [row, ...real.apps] } });
     }
@@ -54,5 +57,5 @@ export const routeRepository = (context, status = () => 'ready') => {
     if (p === `/api/repositories/${REPO}/snapshot`) return route.fulfill({ json: SNAPSHOT });
     if (p === `/api/repositories/${REPO}/file`) { const { path } = JSON.parse(route.request().postData()); return route.fulfill({ json: { path, commit: COMMIT, content: content[path] } }); }
     return route.continue();
-  });
+  }
 };

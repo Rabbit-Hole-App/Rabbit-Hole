@@ -75,6 +75,11 @@ const check = async (label, fn) => {
 const must = (cond, message) => { if (!cond) throw new Error(message); };
 
 const browser = await chromium.launch();
+// A crash (an unhandled error in a check, the harness or the shared fixture) still closes the browser, then fails the run:
+// the error is printed and the exit code is 1. A crashed run once left 4 headless browsers behind (2026-10-07).
+const crash = async (error) => { console.error(error); await browser.close().catch(() => {}); process.exit(1); };
+process.once('uncaughtException', crash);
+process.once('unhandledRejection', crash);
 // A fresh context per check: clean storage, nothing leaks between checks.
 const open = async (viewport = { width: 1500, height: 950 }) => {
   const context = await browser.newContext({ viewport });
