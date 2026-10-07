@@ -65,7 +65,8 @@ export function ForkedFrom({ m, onOpen, className = '' }) {
           : <><span className="text-ink">&ldquo;{f.title}&rdquo;</span> <span data-forked-from-unavailable className="text-ink-3">· original unavailable</span></>}
         {f.creator && ' · '}
         {/* the creator and their badge wrap together */}
-        {f.creator && <span className="whitespace-nowrap">{f.creator}{f.sourceOwner && <span className="ml-0.5 inline-flex align-[-3px]"><OwnerCheck /></span>}</span>}
+        {f.creator && <span className="whitespace-nowrap">{f.creatorUrl
+          ? <a data-forked-from-creator href={f.creatorUrl} title="Open the creator's profile" onClick={(e) => e.stopPropagation()} className={LINK}>{f.creator}</a> : f.creator}{f.sourceOwner && <span className="ml-0.5 inline-flex align-[-3px]"><OwnerCheck /></span>}</span>}
       </span>
     </span>
   );

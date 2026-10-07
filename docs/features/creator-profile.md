@@ -52,6 +52,7 @@ Public explainers                                        Sort: Newest | Most for
 | Creator profile card | the same |
 | `/e/<token>` header | "Published by Name · @handle" |
 | `/b/<token>` share-link header | text only: a share link is not public content |
+| Fork provenance ("Forked from … · @alice", Library cards and the canvas top bar) | the original creator's @handle, only while the fork credits a live publication (`forked_from_url` is `/e/…`); a share-link, own or unavailable original keeps it as text (`provenance.js` `creatorUrl`) |
 | Library and Home cards | text only (private views) |
 
 ## Explore: creator discovery and search
@@ -113,7 +114,6 @@ CREATE TABLE IF NOT EXISTS user_profile_bios (
 
 - **Bio and category:** waiting on 0011.
 - **Learners, and Rabbit Hole starts on the profile:** waiting on #62 storage. No number is estimated.
-- **The fork-provenance link** ("Forked from … · @alice" linking to `/@alice` when the original is public): `ForkedFrom` lives in `home/Provenance.jsx`, a card-lane file outside this lane. Public content shows no fork provenance today, since Explore and `/e` carry none, so only private Library cards are affected.
 - **The Agent Bar and ⌘K search** are not on the profile page. It renders from `main.jsx` Root, as `/e` does, so it works signed out. The bar is mounted only by `AppRoot`.
 - **`creator_profile_opened`** (creator-analytics-contract.md) is not emitted: no event is collected yet.
 

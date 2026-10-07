@@ -28,7 +28,10 @@ export function cardModel(a) {
   // A real fork (docs/features/canvas-forking.md) carries the source's title as it was when forked and a
   // url only while the original still opens for this person; review fixtures carry a resource id instead.
   const forkedFrom = a.forked_from_title || a.forked_from_resource_id
-    ? { id: a.forked_from_resource_id || null, url: a.forked_from_url || null, title: a.forked_from_title, creator: a.forked_from_handle ? `@${a.forked_from_handle}` : a.forked_from_creator?.name, sourceOwner: a.forked_from_creator?.source_owner_verified === true }
+    ? { id: a.forked_from_resource_id || null, url: a.forked_from_url || null, title: a.forked_from_title, creator: a.forked_from_handle ? `@${a.forked_from_handle}` : a.forked_from_creator?.name, sourceOwner: a.forked_from_creator?.source_owner_verified === true,
+      // The original creator's public profile (docs/features/creator-profile.md), only while the original is published
+      // (the fork credits a live /e/ publication); otherwise the @handle stays text.
+      creatorUrl: a.forked_from_handle && a.forked_from_url?.startsWith('/e/') ? `/@${a.forked_from_handle}` : null }
     : null;
   // The card redesign (docs/features/card-redesign.md): the owner's own description (canvas-metadata.md), never generated -
   // a project's server `description` is a placeholder ("Learn from <repo>"), so a project shows only a fixture's summary;

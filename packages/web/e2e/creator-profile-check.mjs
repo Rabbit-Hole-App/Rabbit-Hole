@@ -220,6 +220,16 @@ await check('12 signed out, /@handle opens on its own, with the cards and no ema
   await noEmail(anon);
 });
 await shot(anon, 'A-full-creator-signed-out');
+await check('14 fork provenance: a fork made through the publication credits @handle as a link to /@handle', async () => {
+  await viewer.goto(`${BASE}/library?type=canvases`);
+  const fork = viewer.locator('[data-library-card="canvas"]').filter({ has: viewer.locator(`[data-forked-from-creator][href="/@${H.full}"]`) });
+  await fork.first().waitFor({ timeout: 60000 });
+  assert.equal(await fork.count(), 2, 'both forks the viewer made through /e (KV Cache, Flash Attention)');
+  assert.equal((await fork.first().locator('[data-forked-from-creator]').innerText()).trim(), `@${H.full}`);
+  await fork.first().locator('[data-forked-from-creator]').click();
+  await viewer.waitForURL(`${BASE}/@${H.full}`);
+  await noEmail(viewer, EMAIL.viewer);
+});
 await check('13 a changed handle moves the profile and every attribution at once; the old one is a 404', async () => {
   const next = `mayank_r_${run}`;
   assert.equal((await api(who.full, '/api/profile', { method: 'PUT', body: JSON.stringify({ handle: next }) })).status, 200);
@@ -232,5 +242,5 @@ await check('13 a changed handle moves the profile and every attribution at once
 });
 await check('no page errors', async () => assert.deepEqual(errors, []));
 await browser.close();
-console.log(`${results.length}/14 checks passed`);
-process.exit(results.length === 14 ? 0 : 1);
+console.log(`${results.length}/15 checks passed`);
+process.exit(results.length === 15 ? 0 : 1);

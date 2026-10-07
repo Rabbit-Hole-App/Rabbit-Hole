@@ -64,6 +64,7 @@ test('@handle links to the profile on public content only: Explore and profile c
   assert.match(card, /\? <a data-creator-link href=\{creatorHref\} title="Open the creator's profile" onClick=\{\(e\) => e\.stopPropagation\(\)\}/);
   assert.match(read('./home/PublicCards.jsx'), /creatorHref=\{card\.creator\?\.handle \? `\/@\$\{card\.creator\.handle\}` : null\}/);
   assert.doesNotMatch(read('./LibraryViews.jsx') + read('./Home.jsx').slice(0, read('./Home.jsx').indexOf('function Explore()')), /creatorHref/, 'private views keep the @handle as text');
+  assert.match(read('./home/Provenance.jsx'), /\{f\.creatorUrl\n\s+\? <a data-forked-from-creator href=\{f\.creatorUrl\}/, 'fork provenance: only a published original links');
   const shared = read('./SharedBoardPage.jsx');
   assert.match(shared, /\{shared\.published\n\s+\? <a data-creator-link href=\{`\/@\$\{shared\.creator\.handle\}`\}/, 'a publication links; a share link stays text');
 });

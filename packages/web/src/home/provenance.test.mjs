@@ -16,6 +16,10 @@ test('creator attribution is @handle, the display name first when set, and never
   assert.equal(cardModel({ kind: 'canvas', name: 'canvas-0000000f', title: 'Before a handle', owner_email: 'ada@test', owner_handle: null }).creator, null, 'no handle, no creator: never the email');
   const fork = cardModel({ kind: 'canvas', name: 'canvas-00000010', title: 'Transformers', owner_email: 'bob@test', owner_handle: 'bob', forked_from_title: 'Transformers', forked_from_url: null, forked_from_handle: 'alice' });
   assert.deepEqual([fork.creator.name, fork.forkedFrom.creator], ['@bob', '@alice'], 'the fork is the forker\'s; its provenance credits the original owner');
+  // The original creator links to /@handle only while the original is published (docs/features/creator-profile.md).
+  assert.equal(fork.forkedFrom.creatorUrl, null, 'an unavailable original keeps the @handle as text');
+  const via = url => cardModel({ kind: 'canvas', name: 'canvas-00000011', forked_from_title: 'T', forked_from_url: url, forked_from_handle: 'alice' }).forkedFrom.creatorUrl;
+  assert.deepEqual([via('/b/tok'), via('/apps/canvas-00000012'), via('/e/tok')], [null, null, '/@alice'], 'a share link or your own canvas is not public');
 });
 
 test('fork counts read naturally: none is omitted, one is singular, large ones are compact', () => {
@@ -38,7 +42,7 @@ test('the source-owner check comes only from source_owner_verified, never from a
 test('a fork shows where it came from; the check stays with the original creator', () => {
   const fork = cardModel(byName('fixture-canvas-attention-deep-dive'));
   assert.deepEqual(fork.creator, { name: 'Maya', sourceOwner: false });
-  assert.deepEqual(fork.forkedFrom, { id: 'fixture-proj-nanogpt-lab', url: null, title: 'nanoGPT from First Principles', creator: 'Yudhisteer', sourceOwner: true });
+  assert.deepEqual(fork.forkedFrom, { id: 'fixture-proj-nanogpt-lab', url: null, title: 'nanoGPT from First Principles', creator: 'Yudhisteer', sourceOwner: true, creatorUrl: null });
   assert.equal(fork.forks, '12 forks');
 });
 
@@ -76,7 +80,7 @@ test('the source line links to the repository on GitHub; a canvas made from a re
 // only while the original still opens for this person, and the direct fork count.
 test('a real fork keeps its source title, links the original only while it opens, and counts direct forks', () => {
   const open = cardModel({ kind: 'canvas', name: 'canvas-0000000b', title: 'My notes', forked_from_title: 'Attention', forked_from_url: '/apps/canvas-0000000a', fork_count: 1 });
-  assert.deepEqual(open.forkedFrom, { id: null, url: '/apps/canvas-0000000a', title: 'Attention', creator: undefined, sourceOwner: false });
+  assert.deepEqual(open.forkedFrom, { id: null, url: '/apps/canvas-0000000a', title: 'Attention', creator: undefined, sourceOwner: false, creatorUrl: null });
   assert.equal(open.title, 'My notes', 'renaming the fork leaves the attribution alone');
   assert.equal(open.forks, '1 fork');
   const gone = cardModel({ kind: 'canvas', name: 'canvas-0000000c', title: 'Attention', forked_from_title: 'Attention', forked_from_url: null, fork_count: 0 });
