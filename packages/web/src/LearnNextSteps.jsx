@@ -1,10 +1,15 @@
 // Professor Next Steps integration hooks (docs/features/professor-next-steps.md §1.3). No UI here: Parallel renders the
-// card. select() only validates a click; the page sends it with tutor.askStep.
+// card. select() only validates a click; the page sends it with tutor.askStep, or with the spoken session's
+// say('', { nextStep, selectedAt }) while that mode is on (contract §1.4).
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { api } from './api.js';
-import { nextStepsBasis, nextStepsController, nextStepsInput, stoppingPoint, viewerStates } from './learn-next-steps.js';
+import { goalOf, nextStepsBasis, nextStepsController, nextStepsInput, stoppingPoint, viewerStates } from './learn-next-steps.js';
 import { emitDecision, hooksEvent, shownEvent, tracing } from './learn-tutor-trace.js';
 import { loadStore, storeKey } from './learn-tutor-evidence.js';
+
+// Task 14 A-M1: each hook post gives up after 60 s (the Tutor turn's own browser bound, LearnTutor.jsx TURN_TIMEOUT_MS), so a
+// hung call records its basis as failed and frees the one request in flight for newer bases.
+const HOOK_TIMEOUT_MS = 60000;
 
 // The controller lifecycle both hooks share (internal). make() builds a controller; it is built at once and again on the first
 // use after dispose() (an effect re-run under StrictMode or Fast Refresh disposes, then uses it again). The view is cached per
@@ -30,7 +35,7 @@ function held(make, onView = () => {}) {
 // an input builder that reads the props when the request is sent. Telemetry (contract §3) only while a sink is registered:
 // next_steps_computed as each set lands and next_steps_shown the first time a set is on screen, each with the identity of
 // the input that set was planned from.
-export function ownedSteps(read, { post = input => api('/api/learn/tutor/next-steps', { method: 'POST', body: JSON.stringify({ ...read().access, input }) }), ...timers } = {}) {
+export function ownedSteps(read, { post = input => api('/api/learn/tutor/next-steps', { method: 'POST', body: JSON.stringify({ ...read().access, input }), signal: AbortSignal.timeout(HOOK_TIMEOUT_MS) }), ...timers } = {}) {
   const sent = new WeakMap(), planned = new Map();
   const life = held(() => nextStepsController({
     post,
@@ -56,7 +61,8 @@ export function ownedSteps(read, { post = input => api('/api/learn/tutor/next-st
       if (!s?.context) return { basis: null, stop: 'off' };
       return {
         basis: nextStepsBasis({ lastTurn: p.tutor.lastTurn, store: s.store, journey: p.journey, canvasState: p.canvasState, graded: p.graded, record: p.record, context: s.context, parent: s.parent, title: p.title, liveTitle: s.liveTitle }),
-        stop: stoppingPoint({ busy: p.tutor.busy, journey: p.journey, store: s.store, here: { app: p.access?.app, board: p.board }, blocks, goal: p.title, plain: s.context.source === 'canvas' && !s.record }),
+        // Task 14 C-M2: the goal the input is built from (goalOf over the snapshot), never the title fallback prop alone.
+        stop: stoppingPoint({ busy: p.tutor.busy, journey: p.journey, store: s.store, here: { app: p.access?.app, board: p.board }, blocks, goal: goalOf({ context: s.context, record: s.record, title: p.title, liveTitle: s.liveTitle }).goal, plain: s.context.source === 'canvas' && !s.record }),
       };
     },
     update: ({ basis, stop }) => life.controller().update({ basis, stop, input: previous => {
@@ -104,6 +110,7 @@ const sharedPost = read => async body => {
   const states = who?.email ? viewerStates(loadStore(globalThis.sessionStorage, storeKey(who))) : {};
   const response = await fetch(`/api/learn/boards/shared/${encodeURIComponent(token)}/next-steps`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, ...(Object.keys(states).length ? { viewer_states: states } : {}) }),
+    signal: AbortSignal.timeout(HOOK_TIMEOUT_MS),
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw Object.assign(new Error(data.error || `HTTP ${response.status}`), { status: response.status });

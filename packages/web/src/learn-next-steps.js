@@ -15,7 +15,7 @@ const claimIdsOf = section => (section?.expected_evidence || []).map(e => e?.cla
 // course subject) and its title; else the course subject or canvas title. The learner's words travel as recent.question.
 // Shared by the input and its basis (owner eleventh message 3): a rename that changes the goal changes the basis.
 // liveTitle (fix round 3): a hole's live title (useTutor's, from the dives path); record.title is its creation-time title.
-function goalOf({ context = null, record = null, title = '', liveTitle = null }) {
+export function goalOf({ context = null, record = null, title = '', liveTitle = null }) {
   const domain = context?.domain ?? null, holeTitle = liveTitle || record?.title;
   const parentGoal = !record ? null : context?.source === 'dive' ? domain.context?.goal : context?.source === 'registry' ? domain.subject : null;
   const goal = context?.source === 'journey' ? domain.context?.goal || title

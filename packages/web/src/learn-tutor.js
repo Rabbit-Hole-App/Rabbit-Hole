@@ -1,7 +1,7 @@
 // Tutor v1 for the NanoGPT Attention slice (docs/features/tutor-v1-locked-decisions.md,
 // docs/features/tutor-v1-implementation-map.md). Per learner message:
 //   LearnerTurn -> evaluator -> evidence store -> router -> planner -> TutorAction[] -> canvas
-// Pure apart from what is injected: `post` (the two /api/learn/tutor routes) and, for actions,
+// Pure apart from what is injected: `post` (the three /api/learn/tutor routes: evaluate, plan and handoff) and, for actions,
 // the canvas commands. The target identities come from the shared resolver (learn-target.js),
 // which /dive uses too; frozen card modules are only read.
 // TutorDomain (docs/features/adaptive-learning-path-v1-architecture.md §3): every slice-specific read goes through

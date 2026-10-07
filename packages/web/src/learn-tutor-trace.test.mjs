@@ -41,7 +41,9 @@ const IDENTITY = ['user_id', 'session_id', 'canvas_id', 'board_id', 'canvas_vers
 const VERSIONS = ['planner_version', 'prompt_version', 'model_role', 'model_id'];
 const DECISION = ['current_goal', 'current_section_id', 'target_concept_ids', 'target_claim_ids', 'evidence_summary', 'evidence_transitions', 'canvas_summary', 'recent_modality_history', 'next_step_options', 'shown_at', 'selected_next_step_id', 'selected_at', 'route', 'chosen_action', 'actions', 'reason_codes', 'reason_source', 'rationale_summary', 'expected_evidence', 'estimated_learning_seconds',
   // Task 11b: learner intent (as read, or as the explicit command said) apart from the actions; grounding; research offered, never run.
-  'intent_mode', 'inferred_intent', 'explicit_modality_override', 'intent_status', 'clarification_requested', 'grounding_status', 'source_types_used', 'research_offered', 'research_executed'];
+  'intent_mode', 'inferred_intent', 'explicit_modality_override', 'intent_status', 'clarification_requested', 'grounding_status', 'source_types_used', 'research_offered', 'research_executed',
+  // Task 14 D-M3: the conditional actions the router offered this turn.
+  'offered_actions'];
 const RUNTIME = ['timing', 'model', 'usage', 'validation', 'planner_input', 'handoff']; // Task 11c-B: handoff
 const ACTION = ['action_type', 'command', 'capability', 'modality', 'cost_tier', 'target_concept_ids', 'target_claim_ids']; // Task 11c-B: capability
 const EVIDENCE = ['understood', 'uncertain', 'misconception', 'prerequisite_gap', 'not_yet_observed'];
@@ -412,4 +414,26 @@ test('shownEvent: next_steps_shown with the same keys, the set id as step, posit
   const before = errors();
   assert.equal(shownEvent(SET, { get input() { throw new Error('boom'); } }), null, 'never throws');
   assert.equal(errors(), before + 1);
+});
+
+// Task 14 D-M3 (owner messages 3 and 14): decision.offered_actions names the conditional actions the router offered this turn
+// (its allowed_actions), limited to handoff, suggest_journey, suggest_research and create_material, in that order, so the
+// evaluator can compute missed-handoff and missed-offer rates from events. Structural only, never text; [] without offers, on a
+// plan: false turn and on hook events.
+test('D-M3: offered_actions is the router offer set for the conditional actions; [] without offers, without a plan and on hook events', async () => {
+  const { canvasDomain } = await import('./learn-journey-domain.js');
+  const say = { ...PLAN, actions: [{ type: 'respond_text', text: 'The bay funnels the water.' }] };
+  const base = { raw: QUESTION, canvas: { app: 'repo-0000aaaa-tides', board: 'main' }, access: { app: 'repo-0000aaaa-tides' }, block: null, store: emptyStore(), domain: canvasDomain({ goal: 'tides' }), trace: true };
+  const w = worker(say);
+  const offered = await runTurn({ ...base, post: w.post, materials: [{ command: 'explain', cards: ['explanation'], paid: false }], research: true, journeyOffer: true, repository: true });
+  const allowed = w.sent.find(s => s.path === '/api/learn/tutor/plan').body.context.allowed_actions;
+  assert.deepEqual(offered.trace.decision.offered_actions, ['handoff', 'suggest_journey', 'suggest_research', 'create_material']);
+  assert.ok(offered.trace.decision.offered_actions.every(type => allowed.includes(type)), 'exactly what the router allowed');
+  const repoOnly = await runTurn({ ...base, post: worker(say).post, repository: true });
+  assert.deepEqual(repoOnly.trace.decision.offered_actions, ['handoff']);
+  const none = await runTurn({ ...base, post: worker(say).post });
+  assert.deepEqual(none.trace.decision.offered_actions, []);
+  const probe = await runTurn({ ...base, post: worker(say).post, plan: false, repository: true });
+  assert.deepEqual(probe.trace.decision.offered_actions, [], 'plan: false has no route');
+  for (const e of [hooksEvent(SET, { input: INPUT }), shownEvent(SET, { input: INPUT })]) assert.deepEqual(e.decision.offered_actions, [], e.event);
 });

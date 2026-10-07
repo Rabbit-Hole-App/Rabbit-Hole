@@ -471,7 +471,10 @@ test('LearnTutor.jsx source pins: block null and no journey resolver on a click,
   // Task 11b: every turn is offered what turnOffers gives (materials, none on a hole opening or in journey setup; Research when wired).
   // Task 11c-B: and the repository_context handoff where the canvas reads a repository (reads: the page's flag or the app's).
   assert.match(source, /nextStep, \.\.\.turnOffers\(\{ journey: journeyRef\.current, record, opening, nextStep, openResearch, repository: reads \}\),/);
-  assert.match(source, /trace: tracing\(\) && \{ identity: \{ canvas_version: canvasVersion \}, blocks: canvas\?\.blocks\?\.\(\) \|\| \[\], next_step_options: shown\.current, selected_at: selectedAt \}/);
+  assert.match(source, /trace: tracing\(\) && \{ identity: \{ canvas_version: canvasVersion \}, blocks: canvas\?\.blocks\?\.\(\) \|\| \[\], next_step_options: onScreen, selected_at: selectedAt \}/);
+  // Task 14 C-M1: the hooks on screen are read at the top of turn(), before any await.
+  const top = source.slice(source.indexOf('const turn = useCallback('), source.indexOf('const onScreen = shown.current;'));
+  assert.ok(top.length > 0 && !/await /.test(top.replace(/\/\/.*$/gm, '')), 'onScreen is read before the first await of turn()');
   assert.match(source, /runMaterials\(result\.actions, \{/);
   assert.doesNotMatch(source, /runLearnCommand\(/, 'no second command path: runMaterials runs each create_material');
   // lastTurn and busy are React state (no re-render under renderToStaticMarkup): pinned in source; ownedSteps tests cover their use.
@@ -625,4 +628,109 @@ test('LearnNextSteps.jsx: one controller lifecycle shared by ownedSteps and shar
   assert.match(tutor, /\}, \[active, hookTurns, settled, record\?\.dive_id\]\);/);
   // Merge fix a: settled is Task 10's hook context (the dives record and a journey hole's parent read), the one snapshot uses.
   assert.match(tutor, /const settled = hookContext\(\{ \.\.\.where, journey \}, parentRead, recordPending\) !== null;/);
+});
+
+// ---- Task 14 A-M1 (owner addition 3): both hook posts carry a 60 s AbortSignal.timeout. Driven through the real default
+// posts and a fetch that honours its signal: the timeout records that basis failed and releases the one request in flight, so
+// the next basis is posted; a response for the timed-out basis that arrives later never replaces the newer basis's hooks,
+// whether that set is loading, ready or shown (and later stale). ----
+function hookTimeouts(t) {
+  const made = [], had = AbortSignal.timeout, fetched = globalThis.fetch, store = Object.getOwnPropertyDescriptor(globalThis, 'localStorage'), calls = [];
+  AbortSignal.timeout = ms => { const c = new AbortController(); made.push({ ms, signal: c.signal, fire: () => c.abort(new DOMException('The operation timed out.', 'TimeoutError')) }); return c.signal; };
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, writable: true, value: { getItem: () => null } });
+  globalThis.fetch = (url, init = {}) => new Promise((resolve, reject) => {
+    calls.push({ url, body: JSON.parse(init.body), signal: init.signal, answer: data => resolve(Response.json(data)) });
+    init.signal?.addEventListener('abort', () => reject(init.signal.reason), { once: true });
+  });
+  t.after(() => { AbortSignal.timeout = had; globalThis.fetch = fetched; if (store) Object.defineProperty(globalThis, 'localStorage', store); else delete globalThis.localStorage; });
+  return { made, calls };
+}
+const settle = () => ticks(() => false, 10);
+
+test('A-M1 owned: a hung post times out at 60 s, its basis records failed, the next basis is posted, and its late reply never replaces newer hooks', async t => {
+  const { made, calls } = hookTimeouts(t);
+  const c = clock(), tutor = tutorStub();
+  const live = { tutor, journey: null, canvasApi: { current: { blocks: () => [{ id: 'k1', type: 'explanation', title: 'Basins' }] } }, canvasState: { cards: [['k1']] }, record: null, access: { app: 'canvas-0000test' }, title: 'Tidal power', graded: 0, canvasVersion: 7, board: 'main', describe: null };
+  const steps = B.ownedSteps(() => live, { setTimer: c.setTimer, clearTimer: c.clearTimer });
+  const step = () => steps.update(steps.state());
+  step(); c.fire(); await settle(); // not awaited: this request hangs until its timeout fires
+  assert.deepEqual([calls.length, calls[0]?.url, made.map(m => m.ms), calls[0]?.signal === made[0]?.signal], [1, '/api/learn/tutor/next-steps', [60000], true], 'the post carries the 60 s timeout signal');
+  tutor.lastTurn = { seq: 1, turn_id: 't-1', kind: 'question', transitions: [] };
+  step();
+  assert.deepEqual([c.pending(), steps.view().status], [0, 'loading'], 'basis B waits behind the request in flight');
+  made[0].fire(); await settle();
+  assert.equal(c.pending(), 1, 'the timeout released the request slot: basis B is scheduled');
+  c.fire(); await settle(); // B is answered below
+  assert.deepEqual([calls.length, steps.view().status], [2, 'loading'], 'basis B is posted');
+  calls[0].answer(setFor(9)); await settle();
+  assert.deepEqual([steps.view().status, steps.view().set_id, tutor.shown.flat().some(id => id.startsWith('ns_00000009'))], ['loading', null, false], 'loading: the late reply is ignored');
+  calls[1].answer(setFor(2)); await settle();
+  assert.deepEqual([steps.view().status, steps.view().set_id, tutor.shown.at(-1)], ['ready', 'ns_00000002', setFor(2).options.map(o => o.id)], 'ready and shown: basis B');
+  calls[0].answer(setFor(9)); await settle();
+  assert.deepEqual([steps.view().status, steps.view().set_id], ['ready', 'ns_00000002'], 'ready and shown: still basis B');
+  tutor.lastTurn = { seq: 2, turn_id: 't-2', kind: 'question', transitions: [] };
+  step();
+  calls[0].answer(setFor(9)); await settle();
+  assert.deepEqual([steps.view().status, steps.view().set_id], ['stale', 'ns_00000002'], 'the shown set stays the stale fallback');
+  tutor.lastTurn = null;
+  step(); await c.fire();
+  assert.deepEqual([steps.view().status, steps.view().reason, calls.length], ['unavailable', 'failed', 2], 'the timed-out basis records failed and is never asked again');
+  assert.equal(tutor.shown.flat().some(id => id.startsWith('ns_00000009')), false, 'the timed-out set never reached the screen');
+  steps.dispose();
+});
+
+test('A-M1 shared: the shared hook post carries the 60 s timeout; a timeout is failed for that basis and the next basis is posted', async t => {
+  const { made, calls } = hookTimeouts(t);
+  const c = clock(), live = { token: 'tok-abc', card: null, version: 4, signedIn: false };
+  const shared = B.sharedSteps(() => live, { setTimer: c.setTimer, clearTimer: c.clearTimer });
+  const step = () => shared.update(shared.state());
+  step(); c.fire(); await settle(); // not awaited: this request hangs until its timeout fires
+  assert.deepEqual([calls.length, made.map(m => m.ms), calls[0]?.signal === made[0]?.signal], [1, [60000], true]);
+  live.card = 'k1'; step();
+  assert.equal(c.pending(), 0, 'the next basis waits behind the request in flight');
+  made[0].fire(); await settle();
+  c.fire(); await settle(); // answered below
+  assert.deepEqual([calls.length, calls[1].body], [2, { origin: { block_id: 'k1' } }], 'the next basis is posted');
+  calls[1].answer(sharedSet(2)); await settle();
+  calls[0].answer(sharedSet(9)); await settle();
+  assert.deepEqual([shared.view().status, shared.view().set_id], ['ready', 'ns_00000002']);
+  live.card = null; step(); await c.fire();
+  assert.deepEqual([shared.view().status, shared.view().reason, calls.length], ['unavailable', 'failed', 2], 'the timed-out basis records failed');
+  shared.dispose();
+});
+
+// Task 14 C-M2: the not-a-stopping-point goal check reads the live goal the hook input is built from (goalOf over the Tutor
+// snapshot), never the page's title fallback prop: an empty learning_goal hole asks for hooks whatever that prop holds.
+test('C-M2 ownedSteps: an empty learning_goal hole is not a stopping point whatever the title prop holds; the goal is the live one', async () => {
+  const { canvasDomain } = await import('./learn-journey-domain.js');
+  const goal = 'Explain why a starter needs feeding';
+  for (const title of ['', 'Sourdough notes']) {
+    const t = { askStep: async () => 'ok', lastTurn: null, busy: false, store: { ...emptyStore(), session_id: 'ts_00000000000000cc' }, showing: () => {} };
+    const record = { dive_id: 'dv_1', learning_goal: goal, title: 'Starter' };
+    t.snapshot = () => ({ context: { domain: canvasDomain({ goal }), capabilities: { tutor: true, hook_turns: true }, source: 'canvas' }, store: t.store, parent: null, record, liveTitle: 'Starter' });
+    const r = stepsRig({ tutor: t, props: { title, record, canvasApi: { current: { blocks: () => [] } }, canvasState: { cards: [] } } });
+    assert.equal(r.steps.state().stop, null, `title prop ${JSON.stringify(title)}: the live goal grounds the hooks`);
+    r.step(); await r.c.fire();
+    assert.equal(r.bodies[0]?.goal, goal, 'the input goal is the same live goal');
+  }
+});
+
+// Task 14 C-M1: a typed turn traces the hooks that were on screen when it was sent. On a live journey the resolver is awaited
+// first, and the busy re-render clears the hooks (showing([])) before it lands; the turn read them at its start.
+test('C-M1: a typed turn on a live journey traces the hooks on screen at send, even when they are cleared while the resolver runs', async () => {
+  const events = [], off = B.addSink(event => events.push(event));
+  try {
+    const journey = { journey: J, path: PATH, handleText: async raw => ({ handled: false, text: raw }) };
+    const r = rig({ course: null, journey });
+    const options = setFor(1).options.map(o => ({ id: o.id, hook: o.hook, selected_next_step: o.selected_next_step }));
+    await r.run(async tutor => {
+      tutor.showing(options);
+      const sent = tutor.ask({ raw: 'what is a barrage?' });
+      tutor.showing([]); // the busy re-render, before the resolver's answer lands
+      return sent;
+    });
+    await ticks(() => events.length > 0);
+    const decision = events.find(e => e.event === 'tutor_decision')?.decision;
+    assert.deepEqual(decision?.next_step_options.map(o => o.suggestion_id), options.map(o => o.id));
+  } finally { off(); }
 });

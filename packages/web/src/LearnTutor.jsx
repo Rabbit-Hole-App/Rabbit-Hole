@@ -67,8 +67,8 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   const record = dive.tree?.dive || null;
   const root = dive.tree?.path?.[0];
   // The parent journey of a hole whose record carries one (Task 14): { journey, path } once read, else null.
-  // ponytail: the hole Tutor is inactive until the parent journey GET returns (the first instant is the plain hole); hold
-  // the composer on a pending state if learners type before it lands.
+  // ponytail: until the parent journey GET settles, a typed turn in a journey hole runs the canvas domain (hooks and the opening
+  // wait for it: hookContext, settled); hold the composer on a pending state if learners type before it lands.
   // parentRead: the dive id whose parent read has settled, found or refused (hookContext waits for it).
   const [parentJourney, setParentJourney] = useState(null);
   const [parentRead, setParentRead] = useState(null);
@@ -137,6 +137,9 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   // click's time, for the decision trace.
   const turn = useCallback(async ({ raw, targetId = null, opening = false, signal, inputModality = 'text', turnId = null, onSpeakable = null, skipJourney = false, onAnswer = null, nextStep = null, selectedAt = null }) => {
     const canvas = canvasApi.current;
+    // Task 14 C-M1: the hooks on screen as the turn is sent, read before any await (the journey resolver's), so a busy re-render
+    // that clears them meanwhile never empties the trace.
+    const onScreen = shown.current;
     const block = nextStep ? null : canvas?.block?.(targetId) || canvas?.block?.(stateRef.current.card?.id) || null;
     const domain = domainOf(canvas, block?.id ?? null); // fix B2: the selected block is the target, not one of the canvas cards
     if (!domain) return { text: '', handled: true, failed: true };
@@ -181,7 +184,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
         ...common, raw: nextStep ? '' : (slash && !MODE_SLASHES.includes(slash.name) && domain.ladder?.length ? slash.raw : raw), slash: slash?.name || null, opening, store: load(), onSpeakable,
         nextStep, ...turnOffers({ journey: journeyRef.current, record, opening, nextStep, openResearch, repository: reads }),
         // Decision telemetry only while a sink is registered (contract §3.3); the planner request is the same either way.
-        trace: tracing() && { identity: { canvas_version: canvasVersion }, blocks: canvas?.blocks?.() || [], next_step_options: shown.current, selected_at: selectedAt },
+        trace: tracing() && { identity: { canvas_version: canvasVersion }, blocks: canvas?.blocks?.() || [], next_step_options: onScreen, selected_at: selectedAt },
         // Only a domain whose cards are inserted (no showCard of its own: the authored-module one) holds a place. A journey's
         // cards are blocks already on the canvas (its showCard reveals, never inserts), so a held place would never be
         // taken; and before the path is accepted the canvas gets no card at all.

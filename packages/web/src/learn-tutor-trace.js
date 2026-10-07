@@ -2,8 +2,8 @@
 // Tutor turn: a trace_id, and per stage its start offset, duration, status (ok / error / timeout)
 // and a short result category. No secrets, no learner text: stages record categories and counts.
 // Stages: target_resolution, practice_evaluation, claim_selection, evaluate (with the worker's own
-// jev / larger timings), evidence_reconciliation, router, planner, action_validation; the UI adds
-// reply_ready and canvas_action_complete marks.
+// jev / larger timings), evidence_reconciliation, router, planner, action_validation, handoff (Task 11c-B, when the
+// turn hands off); the UI adds reply_ready and canvas_action_complete marks.
 import { HANDOFF_ACTION, MODE_SLASHES, TRACE_SCHEMA_VERSION, TUTOR_PLANNER_VERSION, goalWords, repeatsLearnerWords } from '../../control-plane/src/agents/learn-tutor.js';
 import { STATES } from './learn-tutor-evidence.js';
 import { resolveTarget } from './learn-target.js';
@@ -105,7 +105,8 @@ const intentOf = (slash, reading = NO_READING, offered = false, handoff = null) 
 // At most 2 sentences and 300 characters; dropped (a repair) when it repeats five words of this turn's message, or holds the
 // whole message (two words or more) as whole words in order - normalized as goalWords, so punctuation, case and spacing never
 // hide it; a one-word reply ("no", "ok") is not quotable.
-// ponytail: only this turn's words are checked; earlier turns rely on the prompt rule (never the learner's words).
+// ponytail: only this turn's words are checked; earlier turns rely on the prompt rule (never the learner's words). Check the
+// store's last few turns' words too if the evaluator finds rationales quoting older messages.
 const rationale = (reason, raw) => {
   const text = String(reason ?? '').trim().split(/(?<=[.!?])\s+/).slice(0, 2).join(' ').slice(0, 300);
   if (!text) return { summary: null, repair: null };
@@ -125,6 +126,10 @@ const usageOf = telemetry => {
 const ESCALATIONS = ['no_tool', 'validator', 'ambiguous', 'contradictory', 'invalid_plan', 'no_words', 'model_error'];
 const escalation = reason => `escalated:${ESCALATIONS.includes(reason) ? reason : reason === 'no words' ? 'no_words' : reason === 'an action outside the allowed types' ? 'invalid_plan' : reason === 'The tutor returned no turn' ? 'no_tool' : 'model_error'}`;
 
+// Task 14 D-M3 (owner messages 3 and 14): the conditional actions whose offer the router decides per turn, in this order;
+// decision.offered_actions names those this turn's route allowed (routed.allowed), so the evaluator can compute missed-handoff
+// and missed-offer rates from events. Structural only: action types, never text.
+const OFFERS = [HANDOFF_ACTION, 'suggest_journey', 'suggest_research', 'create_material'];
 // A tutor_decision from runTurn's finished result. The actions are the turn's production contracts (result.contracts,
 // learn-tutor-actions.js), never recomputed; a turn without contracts (plan: false) gives [] and null.
 // identity: { user_id, canvas_version } from the caller; blocks: the canvas blocks; options: the hooks shown with the turn;
@@ -171,6 +176,7 @@ export const decisionEvent = safe(({ result, domain, identity = {}, blocks = [],
       expected_evidence: [...new Map(contracts.flatMap(c => c.expected_evidence || []).map(e => [`${e.claim_id}|${e.via}`, e])).values()],
       estimated_learning_seconds: seconds.length ? seconds.reduce((a, b) => a + b, 0) : null,
       ...intentOf(turn.slash || turn.mode, result.reading ?? NO_READING, actions.some(a => a.action_type === 'suggest_research'), bench.handoff ?? null),
+      offered_actions: OFFERS.filter(type => (routed?.allowed || []).includes(type)),
     },
     runtime: {
       // Task 11c-B: the handoff round trip and the learner's blocking wait (turn start to the answer they wait for) apart from
@@ -219,7 +225,7 @@ const hooks = (set, { input = null, summary = null, identity = {}, scope = 'owne
       target_concept_ids: s.target_concept_ids, target_claim_ids: s.target_claim_ids, evidence_summary: s.evidence_summary, evidence_transitions: [], canvas_summary: s.canvas_summary,
       recent_modality_history: (input?.recent?.modalities || []).slice(-8), next_step_options: optionsOf(set?.options, set?.set_id ?? null), shown_at: null, selected_next_step_id: null, selected_at: null,
       route: null, chosen_action: null, actions: [], reason_codes: [], reason_source: null, rationale_summary: null, expected_evidence: [], estimated_learning_seconds: null,
-      ...intentOf(null),
+      ...intentOf(null), offered_actions: [],
     },
     runtime: {
       timing: { total_ms: ran, planner_ms: ran, first_text_ms: null, handoff_ms: null, blocking_wait_ms: null }, model: { tier: t.tier ?? null, escalated: !!t.escalated, calls: t.calls ?? 0 },
