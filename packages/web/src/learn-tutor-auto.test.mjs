@@ -415,6 +415,24 @@ test('G + H: a simple question can stay respond-only (no card); Auto can choose 
   assert.deepEqual([artifact.body.command, artifact.body.args], ['explain', 'why the step overshoots']);
 });
 
+// Task 14 final review B-I1 (probe P7): Tutor-made material gets the turn's selected card as its target, the grounding a typed
+// command gets from the same selection (LearnPage learnSlash.run passes the armed card to runLearnCommand): the card is the
+// artifact selection and its text the context. A hook click has no selected card, so its material has none.
+test('B-I1: Tutor-made material on a typed or spoken turn carries the selected card as the artifact selection and context; a hook click carries none', async () => {
+  const CODE_CARD = { id: 'blk-code', type: 'snippet', title: 'merge_sort', body: 'def merge_sort(xs): ...' };
+  const plan = () => ({ actions: [say('Here is a starting point.'), make('code', 'implement the merge step')] });
+  for (const [name, run] of [['typed', t => t.ask({ raw: 'Help me implement this function.', targetId: CODE_CARD.id })], ['voice', t => t.voiceTurn({ raw: 'Help me implement this function.', targetId: CODE_CARD.id, turnId: 'v7' })]]) {
+    const { calls } = await plainTutor(plan, run, { blocks: [CODE_CARD] });
+    const body = calls.find(c => c.path === '/api/learn/artifact').body;
+    assert.deepEqual([body.command, body.args, body.selection], ['code', 'implement the merge step', { kind: 'card', id: 'blk-code', title: 'merge_sort' }], name);
+    assert.match(body.context ?? '', /def merge_sort\(xs\): \.\.\./, `${name}: the card text is the context`);
+  }
+  const STEP = { suggestion_id: 'ns_01010101.1', set_id: 'ns_01010101', hook: 'How is the merge step built?', learning_goal: 'Build the merge step', concept_ids: [], claim_ids: [] };
+  const clicked = await plainTutor(plan, t => t.askStep({ selected_next_step: STEP }), { blocks: [CODE_CARD] });
+  const body = clicked.calls.find(c => c.path === '/api/learn/artifact').body;
+  assert.deepEqual([body.selection, body.context], [null, null], 'a hook click: no selected card');
+});
+
 test('suggest_research: offered only when the page wires openResearch; the chip calls it with the request and nothing else runs', async () => {
   const opened = [];
   const offered = await plainTutor(() => ({ actions: [say("I don't have reliable current information on that yet."), offerResearch('the newest optimizer results')] }), t => t.ask({ raw: 'What did the newest optimizer paper find?' }), { openResearch: request => opened.push(request) });

@@ -598,12 +598,16 @@ const HANDOFF_ROUTE = '/api/learn/tutor/handoff'; // learn-tutor-handoff.js HAND
 // text as context.card, bounded as the route bounds a card (title 300, text 8000: CANVAS_TARGET_LIMIT). Never from the
 // learner's words; no block, no grounding.
 // A code or snippet card's own text rides too (fix round 1: brief and code, not only its title); the planner's cardText is unchanged.
+// Fix round 2 (R1-M2): a code exercise sends its title, brief, setup and starter - never draft, the learner's own work.
+// Task 14 B-I1: the same card text grounds Tutor-made material (LearnTutor.jsx runMaterials target), as a typed command's card.
+export const cardContext = block => {
+  const parts = block.type === 'code' ? [block.title, block.brief, block.setup, block.starter] : [block.title, block.body, block.brief, block.code];
+  return (block.type === 'animation' ? cardText(block) : parts.filter(Boolean).join('\n')).slice(0, 8000);
+};
 function handoffGrounding(block) {
   if (!block) return {};
   const code = validSources(block.sources).find(source => source.kind === 'code');
-  // Fix round 2 (R1-M2): a code exercise sends its title, brief, setup and starter - never draft, the learner's own work.
-  const parts = block.type === 'code' ? [block.title, block.brief, block.setup, block.starter] : [block.title, block.body, block.brief, block.code];
-  const text = (block.type === 'animation' ? cardText(block) : parts.filter(Boolean).join('\n')).slice(0, 8000);
+  const text = cardContext(block);
   return {
     ...(code ? { selection: { repository: code.repo, revision: code.revision, file: code.path, line_range: { start: code.lines[0], end: code.lines[1] } } } : {}),
     ...(text.trim() ? { context: { card: { id: block.id, ...(block.title ? { title: String(block.title).slice(0, 300) } : {}), text } } } : {}),

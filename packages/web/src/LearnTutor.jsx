@@ -15,7 +15,7 @@ import { api, apiFetch } from './api.js';
 import { tutorContext } from './learn-tutor-domains.js';
 import { loadStore, saveStore, storeKey } from './learn-tutor-evidence.js';
 import { diveJourney } from './learn-journey-domain.js';
-import { SLASHES, arriveAt, executeActions, keepHere, learnerIntent, readPlanStream, runTurn, showableCards, wantsCard } from './learn-tutor.js';
+import { SLASHES, arriveAt, cardContext, executeActions, keepHere, learnerIntent, readPlanStream, runTurn, showableCards, wantsCard } from './learn-tutor.js';
 import { materialCommands, runMaterials } from './learn-slash.js';
 import { holeOpening } from './learn-next-steps.js';
 import { inJourneySetup, startRequest } from './LearnJourney.jsx';
@@ -212,9 +212,10 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     release();
     // create_material (contract §2.5): the existing Learn command path (runMaterials -> runLearnCommand), never a second
     // generator, in the plan's order; a paid card waits for Generate / Not now (offer), one proposal at a time across turns.
-    // The reply does not wait for the cards.
+    // The reply does not wait for the cards. Task 14 B-I1: the turn's selected card is the target, as a typed command's armed
+    // card is (its selection, and its text as context); a hook click has none (block null).
     runMaterials(result.actions, {
-      app: app.name, openSearch: () => {}, offer,
+      app: app.name, openSearch: () => {}, offer, target: block ? { id: block.id, title: block.title, text: cardContext(block) } : null,
       // What could not be made says so (an error, a clarification, an unsupported command); a made card is its own notice.
       // ponytail: a slow command's notice can land after the next turn began, under that reply (informative, accepted for
       // v1); tag notices with their turn id and drop stale ones if that ever confuses.
