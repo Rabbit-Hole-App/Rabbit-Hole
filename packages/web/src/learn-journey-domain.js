@@ -86,6 +86,20 @@ export function journeyDomain({ journey, path, blocks = [], dive = null }) {
   };
 }
 
+// A canvas with no journey and no registered course (Professor Next Steps Task 10, Ruling F4): only hook clicks run the
+// Tutor here, with no claims in scope (route off_slice: words, plus create_material on a click), and nothing it says is
+// evidence. goal: the canvas title, or a hole's learning_goal or title; origin: the shared canvas a hole was started from.
+// context travels as context.canvas_context (contextKey), which picks the canvas planner prompt. Pure.
+export function canvasDomain({ goal = null, origin = null } = {}) {
+  return {
+    kind: 'canvas', subject: goal, concepts: {}, claims: {}, practice: () => null,
+    targetClaims: () => [], defaultClaims: () => [], conceptOf: () => null,
+    cards: [], cardModule: () => null, cardType: () => null, catalogue: () => [], ladder: [], ladderStep: () => null, showCard: () => false,
+    context: { goal: goal == null ? null : cap(goal, 200), origin: origin == null ? null : cap(origin, 200) }, contextKey: 'canvas_context',
+    sectionId: null, evidence: { mode: 'session' },
+  };
+}
+
 // LP1 Task 14 (§13): the parent journey a Rabbit Hole was opened from, read once and read-only - one GET of the parent
 // board's journey, owner-scoped on the server. Only that same journey lends its registry; anything else (a refusal, no
 // journey, a journey started there since) is null, and the hole's Tutor stays as it was. The hole never posts to it.

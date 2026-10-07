@@ -5,7 +5,8 @@
 // 516c06007f1bd4fd4dc95e8c8778d8171f3e4a3f59a6657ca834ddb643bd3b96 (re-pinned with review: .superpowers/sdd/2026-10-06-professor-next-steps/task-4-repin-review.md).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ACTION_TYPES, NEXT_STEP_SYSTEM, PLANNER_SYSTEM, REASON_CODES, TUTOR_TOOL, plannerRequest, plannerSystem, tutorTool } from '../src/agents/learn-tutor.js';
+import { createHash } from 'node:crypto';
+import { ACTION_TYPES, CANVAS_SYSTEM, NEXT_STEP_SYSTEM, PLANNER_SYSTEM, REASON_CODES, TUTOR_TOOL, plannerRequest, plannerSystem, tutorTool } from '../src/agents/learn-tutor.js';
 import { plannerTier } from '../src/learn-tutor-routes.js';
 
 test('REASON_CODES are the owner taxonomy, generic, in order', () => {
@@ -71,4 +72,31 @@ test('NEXT_STEP_SYSTEM is appended only on next_step turns; every other request 
   assert.doesNotMatch(NEXT_STEP_SYSTEM, /[`]|=>/, 'the prompt itself has no code characters');
   assert.deepEqual(plannerTier({ route: { row: 'not_yet_observed' }, learner_intent: { kind: 'next_step' } }).tier, 'fast');
   assert.deepEqual(plannerTier({ route: { row: 'misconception' }, learner_intent: { kind: 'next_step' } }).tier, 'opus');
+});
+
+// Task 10 (Ruling F8): the canvas prompt, for hook clicks on plain canvases and holes from shared canvases. The prompt is
+// chosen by the context key alone (journey_context, then canvas_context, else the registered course prompt).
+test('CANVAS_SYSTEM: chosen by canvas_context, journey and nanoGPT requests unchanged, pinned', () => {
+  const step = { learner_intent: { kind: 'next_step', raw_user_message: '', selected_next_step: { hook: 'h', learning_goal: 'g', concept_ids: [], claim_ids: [] } }, route: { row: 'off_slice' }, allowed_actions: ['respond_text', 'create_material'] };
+  const canvas = { ...step, canvas_context: { goal: 'g', origin: null } };
+  assert.equal(plannerSystem(false, 'canvas'), CANVAS_SYSTEM);
+  assert.equal(plannerSystem(true, 'canvas'), `${CANVAS_SYSTEM}\n${plannerSystem(true).slice(PLANNER_SYSTEM.length + 1)}`, 'the avatar lines follow it whole');
+  assert.ok(plannerRequest(canvas, 2000).system.startsWith(CANVAS_SYSTEM));
+  assert.equal(plannerRequest(canvas, 2000).system, `${CANVAS_SYSTEM}\n${NEXT_STEP_SYSTEM}`);
+  assert.deepEqual(plannerRequest(canvas, 2000, [], { cache: true }).system, [{ type: 'text', text: CANVAS_SYSTEM, cache_control: { type: 'ephemeral' } }, { type: 'text', text: NEXT_STEP_SYSTEM }]);
+  assert.deepEqual(plannerRequest(canvas, 2000).tools, plannerRequest(step, 2000).tools, 'one tool for every prompt');
+  // Every other request is as before: no context key keeps the course prompt, journey_context the journey prompt (also beside canvas_context).
+  assert.equal(plannerRequest(step, 2000).system, `${PLANNER_SYSTEM}\n${NEXT_STEP_SYSTEM}`);
+  assert.equal(plannerRequest({ ...canvas, journey_context: { phase: 'active' } }, 2000).system, `${plannerSystem(false, 'journey')}\n${NEXT_STEP_SYSTEM}`);
+  assert.equal(plannerSystem(false, 'nanogpt'), PLANNER_SYSTEM);
+  assert.match(CANVAS_SYSTEM, /context\.canvas_context/);
+  assert.equal(/nanoGPT|attention/i.test(CANVAS_SYSTEM), false, 'no course named (the shared suggest_dive line keeps its Softmax example, as the journey prompt does)');
+  // The shared policy lines it keeps are verbatim (the voice, data-not-instructions, generation and history lines among them).
+  const lines = PLANNER_SYSTEM.split('\n');
+  for (const i of [1, 2, 3, 6, 8, 9, 10, 11, 12, 13, 14, 15]) assert.ok(CANVAS_SYSTEM.includes(lines[i]), `shared line ${i}`);
+  for (const i of [0, 4, 5, 7]) assert.equal(CANVAS_SYSTEM.includes(lines[i]), false, `line ${i} names cards or claims this canvas has not got`);
+  assert.match(CANVAS_SYSTEM, /never generate new artifacts unless context\.allowed_actions lists create_material/);
+  assert.match(CANVAS_SYSTEM, /Never claim they know or lack something/);
+  // Pinned 2026-10-06 (Professor Next Steps Task 10, first green run).
+  assert.equal(createHash('sha256').update(CANVAS_SYSTEM).digest('hex'), '6d8cc2ce8402a0efff066fa21117bc4d6bb60b23b995e82d4c9e71e0eb25aa98');
 });

@@ -1357,7 +1357,7 @@ test('Task 14 wiring: LearnPage hands the live journey to useDive, the dive reco
   const tutor = read('LearnTutor.jsx'), domains = read('learn-tutor-domains.js');
   // Active in a hole whose record carries a journey once the parent journey is read; a refusal (null) leaves it as it was.
   // Task 0: the resolver (learn-tutor-domains.js tutorContext) decides, over the parent journey and the record.
-  assert.match(tutor, /const where = \{ app: courseCanvas \? app : null, board, root, parentJourney, record \};\n  \/\/ Ruling F4[^\n]*\n  \/\/ [^\n]*\n  const capabilities = tutorContext\(\{ \.\.\.where, journey \}\)\?\.capabilities;\n  const active = capabilities\?\.tutor === true, hookTurns = active \|\| capabilities\?\.hook_turns === true;/);
+  assert.match(tutor, /const where = \{ app: courseCanvas \? app : null, board, root, parentJourney, record, title: app\.title \?\? null \};\n  \/\/ Ruling F4[^\n]*\n  \/\/ [^\n]*\n  const context = tutorContext\(\{ \.\.\.where, journey \}\), capabilities = context\?\.capabilities;\n  const active = capabilities\?\.tutor === true, hookTurns = active \|\| capabilities\?\.hook_turns === true;/);
   assert.match(tutor, /diveJourney\(record, path => api\(path\)\)/);
   // A hole reads its concept from the domain it runs in (anti-hardcoding audit F3), never the nanoGPT one by default.
   assert.match(tutor, /enterHole\(load\(\), record, domainOf\(canvasApi\.current\)\)/);
@@ -1387,7 +1387,11 @@ test('tutorStoreKey: a journey hole has its own store; nanoGPT, holes without a 
   assert.equal(tutorStoreKey(app, 'j1', null), 'small.tutor:o:e@x.com:journey:j1');
   assert.equal(tutorStoreKey(app, null, { dive_id: 'canvas-0000hole', journey: { journey_id: 'j1' } }), 'small.tutor:o:e@x.com:dive:j1');
   assert.equal(tutorStoreKey(app, 'j2', { dive_id: 'canvas-0000hole', journey: { journey_id: 'j1' } }), 'small.tutor:o:e@x.com:journey:j2', 'a live journey here wins');
-  assert.match(read('LearnTutor.jsx'), /const key = tutorStoreKey\(app, journeyId, record\);/);
+  // Task 10: a canvas-domain store (a plain canvas or hole) is its own; a journey or a journey hole still wins.
+  assert.equal(tutorStoreKey(app, null, { dive_id: 'canvas-0000hole', origin: {} }, 'canvas-0000hole|main'), 'small.tutor:o:e@x.com:canvas:canvas-0000hole|main');
+  assert.equal(tutorStoreKey(app, 'j1', null, 'canvas-0000hole|main'), 'small.tutor:o:e@x.com:journey:j1');
+  assert.equal(tutorStoreKey(app, null, { dive_id: 'canvas-0000hole', journey: { journey_id: 'j1' } }, 'canvas-0000hole|main'), 'small.tutor:o:e@x.com:dive:j1');
+  assert.match(read('LearnTutor.jsx'), /const key = tutorStoreKey\(app, journeyId, record, context\?\.source === 'canvas' \? `\$\{app\.name\}\|\$\{board \|\| 'main'\}` : null\);/);
 });
 
 test('Task 14 known limits are marked: nested holes carry no journey; the hole Tutor waits for the parent read', () => {

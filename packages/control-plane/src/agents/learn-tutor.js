@@ -258,6 +258,39 @@ const JOURNEY_SYSTEM = tagged({
   ],
 });
 
+// The canvas Tutor turn (Professor Next Steps Task 10, Ruling F4): a hook click on a canvas with no journey and no registered
+// course - a plain canvas, a plain hole, a hole from a shared canvas. No claims are in scope (route off_slice), so it keeps
+// the shared lines that need no registry and states that no evidence exists. Like the others, one stable cached prefix: the
+// canvas goal and origin travel in context.canvas_context, in the user message.
+export const CANVAS_SYSTEM = tagged({
+  role: ['You are the Tutor on a Rabbit Hole learning canvas with no learning journey and no course registry; what it is about is in context.canvas_context. You compose ONE turn.'],
+  objective: ['Help the learner in this turn with what is on this canvas and the hook they chose.', LINES[3]],
+  current_state: [
+    'The user message is context = this turn\'s Teaching State:',
+    L(12),
+    '- context.canvas_context: goal (what the canvas or the chosen hook is about) and origin (where this canvas was started from, when it was).',
+    '- Also: target, relevant_authored_content, recent_relevant_context, dive_context.',
+  ],
+  allowed_evidence: ['- No registry claims exist here: context.relevant_evidence is empty, so nothing says what the learner knows. Never claim they know or lack something.', L(8)],
+  non_negotiable_rules: [
+    L(1), L(2),
+    '- Canvas content first: there are no authored cards here. Never invent cards, parts or sources, and never generate new artifacts unless context.allowed_actions lists create_material.',
+    L(6), L(9), L(15),
+    ...STATE_RULES,
+    L(14),
+  ],
+  examples: [
+    '- [conceptual science] canvas goal "how volcanoes form", next_step hook "Why do some volcanoes explode while others ooze?" -> respond_text in two sentences on trapped gas and runny or sticky rock, then create_material { command diagram, request: two vents side by side } when context.available_materials lists diagram.',
+    '- [coding] canvas goal "recursion in Python", next_step hook "What stops a function that keeps calling itself?" -> respond_text on the base case, no card when words are enough.',
+    '- Bad output [mastery without evidence]: "You clearly understand recursion now!" Why: no evidence exists on this canvas; never label the learner.',
+  ],
+  output_contract: [
+    'Call tutor_response once.',
+    L(11), L(10), L(13),
+    '- Use the native JSON types required by the tool schema. Never serialize an array or object into a JSON string.',
+  ],
+});
+
 // ---------- Avatar Teacher V1 (docs/features/rabbit-hole-avatar-teacher-v1-spec.md §3, §4.1) ----------
 // One more suggestion type behind TUTOR_AVATAR, off by default. Off, TUTOR_TOOL, PLANNER_SYSTEM and every
 // planner request stay byte-identical (test/learn-avatar-tutor.test.js pins the hashes). The action only
@@ -285,9 +318,10 @@ const AVATAR_SYSTEM = [
   'Use suggest_avatar_clip at most once, only when context.allowed_actions lists it: moment from context.avatar_moments; concept (plus to_concept for transition or rabbit_hole_return) as registry concept ids; visual_value, required, why seeing a human teacher helps here; learning_goal, optional, at most 120 characters, in your own words: never the learner\'s words, a name, a link or code.',
   'In Voice Mode you may still suggest it: say in one short sentence that you can show a short professor explanation on the canvas. It plays only when the learner presses Play.',
 ].join('\n');
-// kind 'journey' (a turn with context.journey_context) takes the journey prompt; the avatar lines follow either one.
+// kind 'journey' (a turn with context.journey_context) takes the journey prompt, kind 'canvas' (context.canvas_context) the
+// canvas prompt, anything else the registered course prompt; the avatar lines follow any of them.
 export const plannerSystem = (avatar = false, kind = 'nanogpt') => {
-  const system = kind === 'journey' ? JOURNEY_SYSTEM : PLANNER_SYSTEM;
+  const system = kind === 'journey' ? JOURNEY_SYSTEM : kind === 'canvas' ? CANVAS_SYSTEM : PLANNER_SYSTEM;
   return avatar ? `${system}\n${AVATAR_SYSTEM}` : system;
 };
 // The canonical clip a suggestion points at: moment x concept (x where the learner goes next). The course is
@@ -341,12 +375,13 @@ export const NEXT_STEP_SYSTEM = [
 ].join('\n');
 
 // avatar (TUTOR_AVATAR, Avatar Teacher §4.1): adds suggest_avatar_clip and its policy lines; off by default.
-// A context with journey_context (a journey turn) gets the journey prompt, cached the same way; the tool is the same.
+// A context with journey_context (a journey turn) gets the journey prompt, one with canvas_context (Task 10: a hook click on
+// a plain canvas or hole) the canvas prompt, both cached the same way; the tool is the same. The context key alone chooses.
 // A hook click (learner_intent.kind next_step) appends NEXT_STEP_SYSTEM to either prompt; cached, it is a second, uncached
 // system block after the cached one, so hook turns read the typed turns' cached prefix and never write their own.
 export const plannerRequest = (context, maxTokens, documents = [], { effort = null, stream = false, cache = false, speed = null, avatar = false } = {}) => {
   const text = `Compose this turn.\n\ncontext = ${JSON.stringify(context)}`;
-  const system = plannerSystem(avatar, context?.journey_context ? 'journey' : 'nanogpt'), tool = tutorTool(avatar);
+  const system = plannerSystem(avatar, context?.journey_context ? 'journey' : context?.canvas_context ? 'canvas' : 'nanogpt'), tool = tutorTool(avatar);
   const hook = context?.learner_intent?.kind === 'next_step';
   return {
     max_tokens: maxTokens,

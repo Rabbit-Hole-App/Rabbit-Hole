@@ -4,13 +4,13 @@
 // root), its TutorDomain (docs/features/adaptive-learning-path-v1-architecture.md §3) and its capabilities - and
 // tutorContext resolves any canvas from that data and the journey state. nanoGPT is one entry.
 import { NANOGPT, TUTOR_BOARD } from './learn-tutor-claims.js';
-import { journeyDomain } from './learn-journey-domain.js';
+import { canvasDomain, journeyDomain } from './learn-journey-domain.js';
 
-// capabilities: tutor - the Tutor answers there; evidence - where its evidence lives ('session': the browser's tab
-// store); suppliedCourse - the course's lesson ships with the product (LearnPage).
+// capabilities: tutor - the Tutor answers there; hook_turns - hook clicks only (Ruling F4); evidence - where its evidence
+// lives ('session': the browser's tab store); suppliedCourse - the course's lesson ships with the product (LearnPage).
 // ponytail: one supplied lesson module (nanogpt-lesson.js); an entry names its lesson when a second supplied course ships.
 // Eligibility is not readiness: a second non-journey course would still get the nanoGPT planner prompt (agents/learn-tutor.js
-// PLANNER_SYSTEM, chosen when no journey context is sent) and share the tab-wide session store (storeKey(app)); an entry
+// PLANNER_SYSTEM, chosen when no journey or canvas context is sent) and share the tab-wide session store (storeKey(app)); an entry
 // names its prompt and its store key when that course ships.
 export const TUTOR_DOMAINS = [
   { id: 'nanogpt-attention', match: { repo: 'karpathy/nanoGPT', board: TUTOR_BOARD }, domain: NANOGPT, capabilities: { tutor: true, evidence: 'session', suppliedCourse: true } },
@@ -26,13 +26,16 @@ export function registeredCourse({ app = null, board = null, root = null }, regi
 // { domain, capabilities, source } or null (no Tutor: the Learn chat stays). Precedence: a live journey on this board, a
 // hole whose dive record carries a journey once its parent journey is read (LP1 Task 14), then a registered entry with
 // a domain and capabilities.tutor, or capabilities.hook_turns (Ruling F4: hook clicks only; useTutor keeps typed turns
-// on capabilities.tutor). app: the course app, only on its own canvas (LearnPage). blocks: the canvas blocks a journey
-// domain is built over (per turn).
-export function tutorContext({ app = null, board = null, root = null, journey = null, parentJourney = null, record = null, blocks = [] }, registry = TUTOR_DOMAINS) {
+// on capabilities.tutor); a registered entry that refuses both is null. Anywhere else - a plain canvas, a plain hole, a
+// hole from a shared canvas - the canvas domain for hook clicks only (Task 10, Ruling F4): goal the hole's learning_goal
+// or title, else the canvas title; origin the shared canvas a hole came from. app: the course app, only on its own canvas
+// (LearnPage). blocks: the canvas blocks a journey domain is built over (per turn). title: the canvas title.
+export function tutorContext({ app = null, board = null, root = null, journey = null, parentJourney = null, record = null, blocks = [], title = null }, registry = TUTOR_DOMAINS) {
   if (journey?.journey) return { domain: journeyDomain({ journey: journey.journey, path: journey.path, blocks }), capabilities: { tutor: true, evidence: 'journey' }, source: 'journey' };
   if (parentJourney && record?.journey) {
     return { domain: journeyDomain({ journey: parentJourney.journey, path: parentJourney.path, blocks, dive: record.journey }), capabilities: { tutor: true, evidence: 'session' }, source: 'dive' };
   }
   const entry = registeredCourse({ app, board, root }, registry);
-  return entry?.domain && (entry.capabilities?.tutor === true || entry.capabilities?.hook_turns === true) ? { domain: entry.domain, capabilities: entry.capabilities, source: 'registry' } : null;
+  if (!entry) return { domain: canvasDomain({ goal: record ? record.learning_goal || record.title : title, origin: record?.source?.title }), capabilities: { tutor: false, hook_turns: true }, source: 'canvas' };
+  return entry.domain && (entry.capabilities?.tutor === true || entry.capabilities?.hook_turns === true) ? { domain: entry.domain, capabilities: entry.capabilities, source: 'registry' } : null;
 }

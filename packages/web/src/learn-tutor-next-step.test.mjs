@@ -6,10 +6,12 @@ import { emptyStore, deriveClaimStates, appendEvents } from './learn-tutor-evide
 import { learnerIntent, plannerContext, route, runTurn } from './learn-tutor.js';
 import { actionContract, modalityOf } from './learn-tutor-actions.js';
 import { validateActions } from './learn-tutor-validate.js';
-import { journeyDomain } from './learn-journey-domain.js';
+import { canvasDomain, journeyDomain } from './learn-journey-domain.js';
+import { tutorContext } from './learn-tutor-domains.js';
+import { nextStepsInput } from './learn-next-steps.js';
 import { NANOGPT } from './learn-tutor-claims.js';
 import { AQUEDUCTS, TIDES } from './__fixtures__/journey-synthetic-domains.mjs';
-import { TUTOR_TOOL, plannerRequest } from '../../control-plane/src/agents/learn-tutor.js';
+import { CANVAS_SYSTEM, NEXT_STEP_SYSTEM, TUTOR_TOOL, plannerRequest } from '../../control-plane/src/agents/learn-tutor.js';
 
 const CLAIMS = TIDES.diagnostic.registry.claims, ID = Object.keys(CLAIMS)[0], IDS = Object.keys(CLAIMS).slice(0, 2);
 const MATERIALS = [{ command: 'flashcards', cards: ['flashcards'], paid: false }, { command: 'animate', cards: ['mathAnimation'], paid: true }];
@@ -362,4 +364,68 @@ test('the decision event is the same on nanoGPT, TIDES, AQUEDUCTS and renamed id
   assert.deepEqual(seen.map(world => world.mode), ['course', 'journey', 'journey', 'journey', 'journey']);
   assert.deepEqual([seen[0].chosen, seen[0].reason[2], seen[0].goal], ['ask_question', ['vary_modality_alone'], { id: STEP.suggestion_id, summary: STEP.learning_goal }]);
   seen.slice(1).forEach((world, i) => assert.deepEqual({ ...world, mode: 'course' }, seen[0], WORLDS[i + 1].name));
+});
+
+// ---------- Task 10: the canvas domain (plain canvases and holes from shared canvases) ----------
+
+// Ruling F4: a canvas with no journey and no registered course gets the canvas domain, for hook clicks only.
+test('plain canvas: a hook click runs a Tutor turn with no registry - off_slice words plus create_material, canvas_context, no evidence', async () => {
+  const d = canvasDomain({ goal: 'How sourdough rises', origin: null });
+  const plan = { strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: 'Wild yeast makes gas.' }, { type: 'create_material', command: MATERIALS[0].command, request: 'yeast lifecycle' }], reason_codes: ['follow_learner_interest'] };
+  const w = worker(plan), store = emptyStore();
+  const r = await runTurn({ raw: '', nextStep: { ...STEP, claim_ids: [] }, materials: MATERIALS, canvas: { app: 'canvas-9', board: 'main' }, access: { app: 'canvas-9' }, block: null, store, post: w.post, domain: d, trace: true });
+  const context = w.sent[0].body.context;
+  assert.deepEqual(w.sent.map(s => s.path), ['/api/learn/tutor/plan'], 'no evaluate: a click writes no evidence');
+  assert.deepEqual([r.store.events, r.store.seq], [store.events, store.seq]);
+  assert.equal(r.routed.row, 'off_slice');
+  assert.deepEqual(r.routed.allowed, ['respond_text', 'create_material']);
+  assert.deepEqual(context.canvas_context, { goal: 'How sourdough rises', origin: null });
+  assert.equal('journey_context' in context, false);
+  assert.deepEqual([context.relevant_evidence, context.relevant_authored_content.cards], [{ claims: [], concepts: {} }, []], 'an empty registry: empty scope');
+  assert.deepEqual(r.actions.map(a => a.type), ['respond_text', 'create_material']);
+  assert.deepEqual(r.contracts.map(c => [c.action_type, c.command, c.target_claim_ids, c.target_concept_ids]), [['respond_text', null, [], []], ['create_material', MATERIALS[0].command, [], []]]);
+  assert.deepEqual(r.store.modalities, ['text', 'flashcards']);
+  assert.equal(r.trace.identity.mode, 'canvas', 'TutorDecisionEvent mode canvas');
+  assert.deepEqual(r.trace.decision.current_goal, { id: STEP.suggestion_id, summary: STEP.learning_goal });
+  // The planner request takes the canvas prompt, chosen by the context key alone.
+  const request = plannerRequest(context, 2000, [], { cache: true });
+  assert.deepEqual(request.system.map(b => b.text), [CANVAS_SYSTEM, NEXT_STEP_SYSTEM]);
+});
+
+test('canvasDomain: the members the router, contract and trace read; goal and origin capped; one prompt for any subject', () => {
+  const d = canvasDomain({ goal: 'g'.repeat(300), origin: 'o'.repeat(300) });
+  assert.deepEqual([d.claims, d.concepts, d.cards, d.ladder, d.targetClaims({ card_id: 'x' }), d.defaultClaims({}), d.conceptOf('anything'), d.cardType('x'), d.ladderStep('x', 'deeper'), d.catalogue(), d.cardModule('x'), d.practice()],
+    [{}, {}, [], [], [], [], null, null, null, [], null, null]);
+  assert.deepEqual([d.contextKey, d.evidence, d.sectionId, d.context.goal.length, d.context.origin.length], ['canvas_context', { mode: 'session' }, null, 200, 200]);
+  assert.deepEqual(canvasDomain().context, { goal: null, origin: null });
+  // Anti-hardcoding: the system prefix is byte-identical for unrelated subjects; only the user message carries them.
+  const seen = new Set(), turn = turnOf({ next_step: NEXT, available_materials: MATERIALS });
+  for (const goal of ['Weaving on a backstrap loom', 'Causal self-attention in nanoGPT', 'Tidal power']) {
+    const routed = route({ turn, claims: [], states: {}, evaluation: null, store: emptyStore() });
+    const context = plannerContext({ turn, routed, block: null, states: {}, claims: [], store: emptyStore(), domain: canvasDomain({ goal, origin: 'A shared canvas' }) });
+    const request = plannerRequest(context, 2000, [], { cache: true });
+    seen.add(request.system[0].text);
+    assert.ok(request.messages[0].content.includes(goal));
+  }
+  assert.deepEqual([...seen], [CANVAS_SYSTEM]);
+});
+
+// Review Focus: holes and records from before this feature - no learning_goal, no source, a deleted shared source.
+test('old hole records: no learning_goal, no source, a deleted shared source - the hole title is the goal and a hook turn still runs', async () => {
+  const record = { dive_id: 'canvas-0000old1', title: 'Exploring from Somewhere', concept: 'Exploring from Somewhere', origin: { parent: { app: 'share:0f0f', board: 'main' }, origin_block_id: ':root' } };
+  const root = { app: 'share:0f0f', board: 'main', title: 'Shared canvas', kind: 'shared' };
+  const context = tutorContext({ board: 'main', root, record, title: 'Something else' });
+  assert.deepEqual([context.source, context.capabilities, context.domain.context], ['canvas', { tutor: false, hook_turns: true }, { goal: 'Exploring from Somewhere', origin: null }]);
+  const { input } = nextStepsInput({ context, store: emptyStore(), journey: null, blocks: [], record, parent: null, title: '', lastTurn: null, previous: { hooks: [], goals: [] }, basis: 'b' });
+  assert.deepEqual([input.mode, input.goal, input.dive.title, input.dive.parent_states, input.scope.claims], ['dive', 'Exploring from Somewhere', 'Exploring from Somewhere', {}, {}]);
+  const w = worker({ strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: 'Start with the basics.' }] });
+  const r = await runTurn({ raw: '', nextStep: { ...STEP, claim_ids: [] }, materials: [], canvas: { app: record.dive_id, board: 'main', dive: record }, access: { app: record.dive_id }, block: null, store: emptyStore(), post: w.post, domain: context.domain, trace: true });
+  assert.equal(r.routed.row, 'off_slice');
+  assert.ok(r.routed.allowed.includes('return_from_dive'), 'a hole can still climb back');
+  assert.equal(r.text, 'Start with the basics.');
+  assert.deepEqual([w.sent[0].body.context.canvas_context, w.sent[0].body.context.dive_context.dive_id], [{ goal: 'Exploring from Somewhere', origin: null }, record.dive_id]);
+  assert.equal(r.trace.identity.mode, 'dive');
+  // A newer hole: its learning_goal leads, and the shared canvas it came from is its origin.
+  const newer = { ...record, learning_goal: 'Understand why rising dough traps gas', source: { title: 'Bread science' } };
+  assert.deepEqual(tutorContext({ board: 'main', root, record: newer, title: 'x' }).domain.context, { goal: 'Understand why rising dough traps gas', origin: 'Bread science' });
 });

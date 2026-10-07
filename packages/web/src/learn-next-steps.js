@@ -10,9 +10,9 @@ import { safely } from './learn-tutor-trace.js';
 const SETUP = ['intake', 'diagnostic', 'path_review'];
 const claimIdsOf = section => (section?.expected_evidence || []).map(e => e?.claim).filter(id => typeof id === 'string');
 
-// context: tutorContext's (or a hook turn's) { domain, source }, null where none resolves (a plain canvas: empty scope, block
-// titles as grounding). store: the canvas's Tutor session store. journey: useJourney's view. record/parent: a hole's dive
-// record and its parent journey (read only). previous: { hooks, goals } already shown and chosen. describe: LearningBlocks'
+// context: tutorContext's (or a hook turn's) { domain, source }, null where none resolves; a plain canvas or hole has the
+// canvas domain (Task 10: empty scope, block titles as grounding). store: the canvas's Tutor session store. journey:
+// useJourney's view. record/parent: a hole's dive record and its parent journey (read only). previous: { hooks, goals } already shown and chosen. describe: LearningBlocks'
 // describeBlock when the page passes it; only its title is read.
 // Returns { input, trim } - trim is structured counts beside the input, never inside it (owner sixth message 4) - or
 // { problem: 'input_too_large' } when the 9000-character cap would leave a registry canvas with no claim, or nothing fits.

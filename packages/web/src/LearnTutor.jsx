@@ -29,9 +29,10 @@ const TURN_TIMEOUT_MS = 60000;
 // is named here). journey: the board's journey (useJourney, LearnJourney.jsx); a live one makes the Tutor this canvas's responder.
 // The Tutor's sessionStorage key. A journey's conversational store is its own (§5): open question, turns, Socratic counts;
 // its evidence is the server's. A hole opened from a journey section (Task 14 review round 1) keeps its session evidence
-// and turns apart from nanoGPT's tab-wide store and from other topics. Every other key is unchanged.
-export const tutorStoreKey = (app, journeyId, record) => (journeyId ? `${storeKey(app)}:journey:${journeyId}`
-  : record?.journey ? `${storeKey(app)}:dive:${record.journey.journey_id}` : storeKey(app));
+// and turns apart from nanoGPT's tab-wide store and from other topics. A canvas-domain canvas or hole (Task 10; canvas:
+// `<app>|<board>`) keeps its hook turns in its own store. Every other key is unchanged.
+export const tutorStoreKey = (app, journeyId, record, canvas = null) => (journeyId ? `${storeKey(app)}:journey:${journeyId}`
+  : record?.journey ? `${storeKey(app)}:dive:${record.journey.journey_id}` : canvas ? `${storeKey(app)}:canvas:${canvas}` : storeKey(app));
 // canvasVersion: the board revision when the page passes it (decision telemetry only).
 // Professor Next Steps (docs/features/professor-next-steps.md §1.3, §1.4): the returned object always carries askStep, snapshot,
 // lastTurn, busy and showing, also where the Tutor is not active, so useNextSteps can ask whether hooks belong here.
@@ -51,14 +52,14 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   }, [record?.dive_id]); // eslint-disable-line react-hooks/exhaustive-deps
   // Whether the Tutor runs here, and its domain, is the registry resolver's (learn-tutor-domains.js tutorContext): a live
   // journey, a hole's read parent journey, then a registered course by its repository, board or a hole's root.
-  const where = { app: courseCanvas ? app : null, board, root, parentJourney, record };
+  const where = { app: courseCanvas ? app : null, board, root, parentJourney, record, title: app.title ?? null };
   // Ruling F4: typed and voice turns need capabilities.tutor; a hook turn (askStep), a carried opening and the paid
   // proposals it raises also run where only capabilities.hook_turns holds (Task 10: plain canvases).
-  const capabilities = tutorContext({ ...where, journey })?.capabilities;
+  const context = tutorContext({ ...where, journey }), capabilities = context?.capabilities;
   const active = capabilities?.tutor === true, hookTurns = active || capabilities?.hook_turns === true;
   const here = { app: app.name, board };
   const journeyId = journey?.journey?.id ?? null;
-  const key = tutorStoreKey(app, journeyId, record);
+  const key = tutorStoreKey(app, journeyId, record, context?.source === 'canvas' ? `${app.name}|${board || 'main'}` : null);
   const [chips, setChips] = useState([]);
   const slashNext = useRef(null);
   // busy: a turn is in flight (a stopping point for the hooks); lastTurn: the last finished turn, a hook basis trigger;
@@ -85,7 +86,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   const save = store => saveStore(sessionStorage, key, store);
   // The Tutor's domain on this canvas, built per turn: a journey canvas's (§3.2) from the journey, its path and the canvas
   // blocks; a hole opened from a journey section (Task 14) the dive domain over the parent journey, session evidence; else
-  // the registered course's.
+  // the registered course's; else the canvas domain, reached only by hook clicks (Task 10: typed turns need active).
   const domainOf = canvas => tutorContext({ ...where, journey: journeyRef.current, blocks: canvas?.blocks?.() || [] })?.domain;
 
   // Back on a parent after a hole: its next turn carries returned_from (§6.4).

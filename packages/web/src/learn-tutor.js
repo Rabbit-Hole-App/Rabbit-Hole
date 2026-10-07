@@ -277,8 +277,10 @@ function relevantCards(target, concepts, domain) {
 // The planner's whole input: the turn's intent, target, relevant evidence, route and allowed actions,
 // the authored content that bears on it, constraints, recent context and the hole - nothing else
 // (no unrelated cards, concepts or transcript). On a journey turn, journey_context (architecture §3.3) is the tenth
-// key, after dive_context; a nanoGPT turn never has it. A hole opened from a journey section (LP1 Task 14, §13): its
-// dive_context names the section, claims and concepts that caused the dive; a record without `journey` adds nothing.
+// key, after dive_context; a nanoGPT turn never has it. A domain naming its contextKey sends its context under that key
+// instead (Task 10: the canvas domain's canvas_context, which picks the canvas planner prompt). A hole opened from a
+// journey section (LP1 Task 14, §13): its dive_context names the section, claims and concepts that caused the dive; a
+// record without `journey` adds nothing.
 // Professor Next Steps (§2.5, §2.6): recent_relevant_context.recent_modalities is the store's last 8 modalities, evidence
 // for the planner only (nothing here or in route() reads it); a hook-click turn adds available_materials as the last key.
 export function plannerContext({ turn, routed, block, states, claims = [], store = null, domain = NANOGPT }) {
@@ -314,7 +316,7 @@ export function plannerContext({ turn, routed, block, states, claims = [], store
       ...(record?.journey ? { journey: { section_id: record.journey.section_id, claim_ids: record.journey.claim_ids, concept_ids: record.journey.concept_ids } } : {}),
       ...(turn.returned_from ? { returned_from: { dive_id: turn.returned_from.dive_id, concept: turn.returned_from.concept, claim: turn.returned_from.claim } } : {}),
     } : null,
-    ...(domain.context ? { journey_context: domain.context } : {}),
+    ...(domain.context ? { [domain.contextKey ?? 'journey_context']: domain.context } : {}),
     ...(turn.next_step && turn.available_materials?.length ? { available_materials: turn.available_materials } : {}),
   };
 }
