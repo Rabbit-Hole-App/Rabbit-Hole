@@ -91,7 +91,7 @@ const SHA = 'c'.repeat(40);
 const CODE_CARD = { id: 'blk-code', type: 'snippet', title: 'merge_sort', body: 'def merge_sort(xs): ...', sources: [{ kind: 'code', repo: 'example/sorting', revision: SHA, path: 'sort.py', lines: [10, 24] }] };
 const REPO = { canvas: { app: 'repo-0000aaaa-sorting', board: 'main' }, access: { app: 'repo-0000aaaa-sorting' }, domain: canvasDomain({ goal: 'example/sorting' }) };
 const ANSWER = 'merge_sort is called by sort_file in cli.py, once per input file.';
-const OK = { capability: 'repository_context', answer: ANSWER, telemetry: { started_at: '2026-10-07T10:00:00.000Z', completed_at: '2026-10-07T10:00:01.200Z', ms: 1200, outcome: 'ok', failure: null, served_model: 'claude-opus-5', calls: 2, input_tokens: 2400, output_tokens: 160, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, cost_usd: null } };
+const OK = { capability: 'repository_context', answer: ANSWER, telemetry: { started_at: '2026-10-07T10:00:00.000Z', completed_at: '2026-10-07T10:00:01.200Z', ms: 1200, outcome: 'ok', failure: null, served_model: 'claude-opus-5', calls: 2, input_tokens: 2400, output_tokens: 160, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, cost_usd: null, tool_errors: 0 } };
 const failedReply = (failure, outcome = 'failed') => ({ capability: 'repository_context', answer: null, telemetry: { ...OK.telemetry, outcome, failure, calls: 0, input_tokens: 0, output_tokens: 0 } });
 function worker(plan, handoff = OK) {
   const sent = [];
@@ -122,7 +122,7 @@ test('success: the route gets the action and structured grounding; its answer is
   assert.deepEqual(d.actions.map(a => [a.action_type, a.command, a.capability, a.modality, a.cost_tier]), [['respond_text', null, null, 'text', 'none'], ['handoff', null, 'repository_context', 'text', 'model']]);
   assert.deepEqual([d.chosen_action.action_type, d.chosen_action.capability], ['handoff', 'repository_context']);
   assert.deepEqual([d.grounding_status, d.source_types_used], ['grounded', ['selected_material', 'repository']], 'a successful handoff adds repository');
-  assert.deepEqual(r.trace.runtime.handoff, { started_at: r.trace.runtime.handoff.started_at, completed_at: r.trace.runtime.handoff.completed_at, ms: r.trace.runtime.handoff.ms, outcome: 'ok', failure: null, model_id: 'claude-opus-5', usage: { input_tokens: 2400, output_tokens: 160, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, cost_usd: null } });
+  assert.deepEqual(r.trace.runtime.handoff, { started_at: r.trace.runtime.handoff.started_at, completed_at: r.trace.runtime.handoff.completed_at, ms: r.trace.runtime.handoff.ms, outcome: 'ok', failure: null, model_id: 'claude-opus-5', usage: { input_tokens: 2400, output_tokens: 160, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, cost_usd: null }, tool_errors: 0 });
   assert.match(r.trace.runtime.handoff.started_at, /^\d{4}-\d\d-\d\dT/);
   const event = JSON.stringify(r.trace);
   for (const secret of [ANSWER, HANDOFF.request, 'merge_sort is called']) assert.equal(event.includes(secret), false, 'the event never carries the answer or the request');
@@ -339,4 +339,19 @@ test('a snippet or code card sends its brief and code as context.card, within th
   const exercise = await turnWith({ actions: [HANDOFF] }, { block: { id: 'blk-ex', type: 'code', title: 'split', brief: 'Split the list.', code: 'x'.repeat(9000) } });
   assert.equal(exercise.posted.context.card.text.length, CANVAS_TARGET_LIMIT);
   assert.ok(exercise.posted.context.card.text.startsWith('split\nSplit the list.\nxxx'));
+});
+
+// Coordinator ruling (fix round 1, concern 3): runtime.handoff.tool_errors is the route telemetry's count of source reads that
+// failed inside the reader loop - visible when the handoff still answered ok - or null when the route did not report it.
+// Nothing else in the trace changes.
+test('trace: runtime.handoff.tool_errors is the route count, null when unreported; grounding and sources unchanged', async () => {
+  const plan = { actions: [SAY, HANDOFF], grounding_status: 'grounded', source_types_used: ['selected_material'] };
+  const partial = await turnWith(plan, { handoff: { ...OK, telemetry: { ...OK.telemetry, tool_errors: 2 } } });
+  assert.deepEqual([partial.trace.runtime.handoff.outcome, partial.trace.runtime.handoff.tool_errors], ['ok', 2]);
+  assert.deepEqual(Object.keys(partial.trace.runtime.handoff), ['started_at', 'completed_at', 'ms', 'outcome', 'failure', 'model_id', 'usage', 'tool_errors']);
+  assert.deepEqual([partial.trace.decision.grounding_status, partial.trace.decision.source_types_used], ['grounded', ['selected_material', 'repository']], 'the count changes nothing else');
+  const { tool_errors, ...older } = OK.telemetry;
+  assert.equal((await turnWith(plan, { handoff: { ...OK, telemetry: older } })).trace.runtime.handoff.tool_errors, null, 'not reported: null');
+  assert.equal((await turnWith(plan, { handoff: () => { throw new TypeError('Failed to fetch'); } })).trace.runtime.handoff.tool_errors, null, 'no route telemetry: null');
+  assert.equal((await turnWith({ actions: [SAY, { ...HANDOFF, request: ' ' }] })).trace.runtime.handoff.tool_errors, null, 'invalid_action: no route call');
 });

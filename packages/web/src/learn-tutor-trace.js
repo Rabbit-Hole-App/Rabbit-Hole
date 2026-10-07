@@ -173,7 +173,7 @@ export const decisionEvent = safe(({ result, domain, identity = {}, blocks = [],
     },
     runtime: {
       // Task 11c-B: the handoff round trip and the learner's blocking wait (turn start to the answer they wait for) apart from
-      // the planner's time; runtime.handoff is bench.handoff (timing, outcome, failure, model, usage; never request or answer).
+      // the planner's time; runtime.handoff is bench.handoff (timing, outcome, failure, model, usage, tool_errors; never request or answer).
       timing: { total_ms: totalMs, planner_ms: bench.ms?.planner ?? null, first_text_ms: bench.ms?.to_first_safe_sentence ?? null, handoff_ms: bench.ms?.handoff ?? null, blocking_wait_ms: bench.ms?.to_answer ?? null },
       model: { tier: telemetry?.tier ?? null, escalated: !!telemetry?.escalated, calls: telemetry ? (telemetry.escalated ? 2 : 1) : 0 },
       usage: usageOf(telemetry),

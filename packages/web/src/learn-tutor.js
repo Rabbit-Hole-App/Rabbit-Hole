@@ -602,10 +602,11 @@ function handoffGrounding(block) {
 // The record of a handoff the validator dropped on a turn that offered it (fix round 1): no route call, no answer.
 const invalidHandoff = () => {
   const at = new Date().toISOString();
-  return { answer: null, record: { started_at: at, completed_at: at, ms: 0, outcome: 'failed', failure: 'invalid_action', model_id: null, usage: null } };
+  return { answer: null, record: { started_at: at, completed_at: at, ms: 0, outcome: 'failed', failure: 'invalid_action', model_id: null, usage: null, tool_errors: null } };
 };
 // One handoff through the route: { answer (null unless ok), record } - record is the decision event's runtime.handoff: the
-// learner's wait on the turn clock, outcome ok | failed | refused, the route's failure category, served model and usage; never
+// learner's wait on the turn clock, outcome ok | failed | refused, the route's failure category, served model, usage and the
+// route's tool_errors (failed source reads inside the reader loop; null when unreported: coordinator ruling); never
 // the request or the answer. It never throws: a 429 (limited), an HTTP error, a network error (request_error) or the
 // browser's timeout (TimeoutError: timeout) is a failed or refused record, so the reply can say so; a Stop or barge-in
 // (AbortError) is failure stopped, and runTurn then rethrows its error (fix round 1).
@@ -618,7 +619,7 @@ async function runHandoff(action, { post, access, block }) {
   const failure = answer ? null : telemetry?.failure ?? error?.data?.failure ?? (!error ? 'model_error' : error.name === 'AbortError' ? 'stopped' : error.name === 'TimeoutError' ? 'timeout' : 'request_error');
   return { answer, error, record: {
     started_at: startedAt, completed_at: new Date().toISOString(), ms: Math.round((now() - started) * 10) / 10,
-    outcome: answer ? 'ok' : telemetry?.outcome === 'refused' ? 'refused' : 'failed', failure, model_id: telemetry?.served_model ?? null, usage: handoffUsage(telemetry),
+    outcome: answer ? 'ok' : telemetry?.outcome === 'refused' ? 'refused' : 'failed', failure, model_id: telemetry?.served_model ?? null, usage: handoffUsage(telemetry), tool_errors: telemetry?.tool_errors ?? null,
   } };
 }
 
