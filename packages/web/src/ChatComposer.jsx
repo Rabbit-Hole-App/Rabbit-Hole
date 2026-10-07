@@ -9,6 +9,8 @@ import { composerKey } from './composer-keys.js';
 // (about 66px, 58px on phones), a stronger surface, a larger send button. Other chats keep the compact size.
 // The dock floats: the popover shadow lifts it off the page (user, 2026-09-28).
 // onStop: while busy, the send button becomes Stop. Callers without it keep the spinner.
+// flat (the Agent Bar's workspace dock, workspace-dock.md §2): the dock is chrome, so the input keeps a hairline shadow
+// instead of the popover lift; the Learn composer keeps its float.
 // The shared composer shell (user, 2026-09-29): the Mothership and the Learn composer are one system - same dock frame,
 // same controls around it, same footprint - with each caller keeping its own behaviour. Pass `dock` (and `onStop`),
 // style the leading and trailing controls with these tokens, put context pills (scope chips, "Asking about: ...") above
@@ -23,14 +25,14 @@ export const DOCK_PAD = 'px-4 pt-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))
 // ready: the caller can send an empty line (Learn, with a command chosen: a bare /dive).
 // voice (Learn Voice Mode, docs/features/voice-tutor-mvp.md): a node that stands in for the field and the Send/Stop
 // control while voice is on; the frame, leading and trailing stay. Callers without it render exactly as before.
-export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inputRef, autoFocus, placeholder, busy, disabled, maxLength, leading, trailing, multiline, dock, onStop, ready = false, voice = null }) {
+export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inputRef, autoFocus, placeholder, busy, disabled, maxLength, leading, trailing, multiline, dock, flat = false, onStop, ready = false, voice = null }) {
   const submit = () => { if (!busy && !disabled && (ready || value.trim())) onSubmit(value); };
   // ponytail: [field-sizing:content] grows the textarea in Chromium; other engines keep one row and scroll. Add a JS auto-grow if reviewers on Safari or Firefox need it.
   const field = multiline
-    ? <textarea ref={inputRef} autoFocus={autoFocus} rows={1} value={value} onChange={event => onChange(event.target.value)} onKeyDown={event => { onKeyDown?.(event); if (!event.defaultPrevented && composerKey(event.nativeEvent) === 'send') { event.preventDefault(); submit(); } }} placeholder={placeholder} maxLength={maxLength} disabled={disabled} className={`max-h-36 min-w-0 flex-1 resize-none bg-transparent outline-none [field-sizing:content] placeholder:text-ink-3 ${dock ? 'min-h-9 py-1.5 text-[15px] leading-6 max-md:text-sm max-md:placeholder:truncate' : 'min-h-7 py-1 text-sm leading-5'}`} />
+    ? <textarea ref={inputRef} autoFocus={autoFocus} rows={1} value={value} onChange={event => onChange(event.target.value)} onKeyDown={event => { onKeyDown?.(event); if (!event.defaultPrevented && composerKey(event.nativeEvent) === 'send') { event.preventDefault(); submit(); } }} placeholder={placeholder} maxLength={maxLength} disabled={disabled} className={`max-h-33 min-w-0 flex-1 resize-none bg-transparent outline-none [field-sizing:content] placeholder:text-ink-3 ${dock ? 'min-h-9 py-1.5 text-[15px] leading-6 max-md:text-sm max-md:placeholder:truncate' : 'min-h-7 py-1 text-sm leading-5'}`} />
     : <input ref={inputRef} autoFocus={autoFocus} value={value} onChange={event => onChange(event.target.value)} onKeyDown={onKeyDown} placeholder={placeholder} maxLength={maxLength} disabled={disabled} className={`min-w-0 flex-1 bg-transparent outline-none placeholder:text-ink-3 ${dock ? 'h-9 text-[15px] leading-6 max-md:text-sm max-md:placeholder:truncate' : 'h-7 text-sm'}`} />;
   const frame = dock
-    ? `gap-2.5 rounded-xl border border-line-strong bg-white px-3 py-3.5 max-md:gap-1.5 max-md:px-2.5 max-md:py-2.5 shadow-pop`
+    ? `gap-2.5 rounded-xl border border-line-strong bg-white px-3 py-3.5 max-md:gap-1.5 max-md:px-2.5 max-md:py-2.5 ${flat ? 'shadow-[0_1px_2px_rgba(15,15,15,0.05)]' : 'shadow-pop'}`
     : 'gap-2 rounded-lg border border-line px-2.5 py-1.5';
   return <form data-chat-composer className={`flex ${multiline ? 'items-end' : 'items-center'} ${frame} focus-within:border-line-strong focus-within:shadow-[0_0_0_2px_rgba(35,131,226,0.2)]`} onSubmit={event => { event.preventDefault(); submit(); }}>
     {leading}
