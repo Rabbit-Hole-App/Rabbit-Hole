@@ -60,6 +60,24 @@ export async function canvasAccess(req, env, name, pending = null) {
   if (app instanceof Response && app.status === 404 && pending) app = (await pendingHoleApp(env, user, name, pending)) || app;
   return app instanceof Response ? app : { ...app, user_id: user.userId ?? null };
 }
+// Titles are labels, never identities (docs/features/canvas-naming.md): different people may share one, and an owner
+// may give two canvases the same title by hand - a typed title is kept exactly. Only a copy the system makes for its
+// owner - a Duplicate, a fork - steps to the next free " (n)" when that owner's top-level Library (archived included)
+// already has the title: "Example", "Example (2)", "Example (3)", skipping numbers in use. Nested Rabbit Holes, other
+// owners and projects never count.
+export async function freeTitle(db, org, owner, title) {
+  const base = title.replace(/ \(\d+\)$/, '') || title;
+  const like = `${base.replace(/[\\%_]/g, char => `\\${char}`)} (%)`;
+  const { results } = await db.prepare(`SELECT c.title FROM canvases c WHERE c.org=? AND c.owner_email=? AND (c.title=? OR c.title=? OR c.title LIKE ? ESCAPE '\\') AND c.name NOT IN (SELECT child FROM canvas_dives WHERE org=? AND owner_email=? AND parent_app NOT LIKE 'share:%')`)
+    .bind(org, owner, title, base, like, org, owner).all();
+  const taken = new Set(results.map(row => row.title));
+  if (!taken.has(title)) return title;
+  for (let n = 2; ; n += 1) {
+    const suffix = ` (${n})`, next = `${base.slice(0, TITLE - suffix.length)}${suffix}`;
+    if (!taken.has(next)) return next;
+  }
+}
+
 // The caller's own canvases only (owner-only in phase 1, section 8.2). Nested Rabbit Holes are left
 // out: they belong to their root's tree and open through its navigator and portals (dives.js), never
 // as top-level canvases in Home, Library or Search. They still open directly by their URL. A hole started

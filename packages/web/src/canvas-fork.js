@@ -3,9 +3,10 @@
 import { wsHeaders } from './api.js';
 
 // POST /api/learn/boards/fork. `source` is { canvas } (your own) or { token } (a share link); `state` is
-// your browser's copy of your own canvas, where its content lives.
-export async function postFork(body) {
-  const response = await fetch('/api/learn/boards/fork', { method: 'POST', headers: { 'Content-Type': 'application/json', ...wsHeaders() }, body: JSON.stringify(body) });
+// your browser's copy of your own canvas, where its content lives. Duplicate (docs/features/canvas-naming.md) is the
+// same copy of your own canvas without the lineage: path /api/learn/boards/duplicate.
+export async function postFork(body, path = '/api/learn/boards/fork') {
+  const response = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', ...wsHeaders() }, body: JSON.stringify(body) });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw Object.assign(new Error(data.error || 'The fork could not be made.'), { status: response.status, data });
   return data;

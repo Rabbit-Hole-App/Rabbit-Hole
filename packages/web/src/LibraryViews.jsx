@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { AppWindow, Archive, ArrowRight, ArrowUpRight, BookOpen, Check, FolderGit2, GitFork, ListFilter, Loader2, MoreHorizontal, Network, PenLine, Pin, PinOff, Play, UserRound, X } from 'lucide-react';
+import { AppWindow, Archive, ArrowRight, ArrowUpRight, BookOpen, Check, CopyPlus, FolderGit2, GitFork, ListFilter, Loader2, MoreHorizontal, Network, PenLine, Pin, PinOff, Play, UserRound, X } from 'lucide-react';
 import { titleOf } from './agent/catalog.js';
 import { ago, navigate } from './api.js';
 import { learnProgress, onAnotherDevice, readRecent } from './home/continue.js';
 import { canvasKeys, localBoard } from './home/canvas-local.js';
 import ForkButton from './ForkButton.jsx';
+import { postFork } from './canvas-fork.js';
 import { readPinned, togglePin } from './home/pinned.js';
 import { Creator, ForkedFrom, Forks, SourceLink } from './home/Provenance.jsx';
 import { cardModel } from './home/provenance.js';
@@ -29,6 +30,15 @@ export default function LibraryViews({ apps, type, data, onType, onArchive, onRu
   const card = (a) => (a.kind === 'repository' ? <ProjectCard key={a.name} a={a} ctx={ctx} onMore={more(a)} /> : <CanvasCard key={a.name} a={a} ctx={ctx} onMore={more(a)} />);
   const recent = readRecent(localStorage);
   const pick = (fn) => { const a = menu.a; setMenu(null); guard(a, () => fn(a))(); };
+  // Duplicate (docs/features/canvas-naming.md): a private copy of your own canvas, titled "Title (2)", "(3)"... by the
+  // server; never a fork. This browser's copy of the content travels, as Fork's does, until the server owns content.
+  const duplicate = async (a) => {
+    try {
+      const made = await postFork({ source: { canvas: a.name }, state: localBoard(ctx.storage, canvasKeys({ org: a.org || ctx.org, email: a.email || ctx.email, slug: a.name })) }, '/api/learn/boards/duplicate');
+      toast(`Duplicated as "${made.title}"`);
+      ctx.onForked?.();
+    } catch (error) { toast(error.message, { tone: 'error' }); }
+  };
   // The sidebar has no Apps tree in the preview, so projects and canvases are pinned from here.
   const pinnedNow = menu && ctx.email && readPinned(localStorage, ctx.org, ctx.email).includes(menu.a.name);
   return (
@@ -55,7 +65,10 @@ export default function LibraryViews({ apps, type, data, onType, onArchive, onRu
             <MenuItem icon={BookOpen} onClick={() => pick((a) => navigate(`/apps/${a.name}?tab=learn`))}>Learn</MenuItem>
             <MenuItem icon={Network} onClick={() => pick((a) => navigate(`/apps/${a.name}?tab=map`))}>Map</MenuItem>
           </>
-        ) : <MenuItem icon={Archive} onClick={() => pick(onArchive)}>Archive…</MenuItem>}
+        ) : <>
+          {menu?.a.canEdit && <MenuItem icon={CopyPlus} onClick={() => pick(duplicate)}>Duplicate</MenuItem>}
+          <MenuItem icon={Archive} onClick={() => pick(onArchive)}>Archive…</MenuItem>
+        </>}
       </Menu>
     </>
   );

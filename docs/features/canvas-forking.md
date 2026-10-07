@@ -16,6 +16,8 @@ Fork used everywhere.
 - Provenance: `forked_from_canvas_id` (immediate parent), `root_canvas_id` (first canvas of the
   lineage), `forked_from_owner_id`, `forked_from_title` (snapshot at fork time) and `forked_at`.
   For A → B → C, C stores parent B and root A.
+- Title (canvas-naming.md): the fork keeps the source's title, stepping to the next free ` (n)` only when the forker's
+  own Library already has it ("Transformer Playground (2)"); `forked_from_title` keeps the source's own title.
 - Attribution: a fork shows `Forked from "<source title>" ↗`, and keeps it after a rename. ↗ opens
   the source while this person may still open it; otherwise the attribution stays and says the
   original is unavailable, revealing nothing else about it.

@@ -77,7 +77,8 @@ test('forking your own canvas copies this browser\'s board into a new canvas of 
   const listed = await f.library('ana');
   assert.deepEqual(listed.map(c => c.name), [made.body.name, a.name].sort((x, y) => (x === made.body.name ? -1 : y === made.body.name ? 1 : 0)));
   const copy = listed.find(c => c.name === made.body.name);
-  assert.deepEqual([copy.owner_email, copy.org, copy.project, copy.title, copy.forked_from_title, copy.forked_from_url], ['ana@test', 'ana-ws', null, 'Attention', 'Attention', `/apps/${a.name}`]);
+  // Ana already owns "Attention", so her fork steps to "Attention (2)"; the provenance keeps the source's title (canvas-naming.md).
+  assert.deepEqual([copy.owner_email, copy.org, copy.project, copy.title, copy.forked_from_title, copy.forked_from_url], ['ana@test', 'ana-ws', null, 'Attention (2)', 'Attention', `/apps/${a.name}`]);
   assert.equal(listed.find(c => c.name === a.name).fork_count, 1);
   assert.deepEqual((await f.board('ana', made.body.name)).state, BOARD, 'the clone is the persisted board');
   // The source never had a server copy; forking does not make one.
