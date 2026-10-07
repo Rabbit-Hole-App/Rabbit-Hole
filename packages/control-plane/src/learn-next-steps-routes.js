@@ -5,6 +5,7 @@
 import { sha256Hex } from './learn-grade-jev.js';
 import { NO_CAP, admitUsage, limitsFrom, sharedAskLimits } from './learn-shared-ask.js';
 import { planNextSteps } from './learn-journey-planners.js';
+import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { NEXT_STEPS_LIMITS as L, capText, mintSet, nextStepsInputProblem, nextStepsScope, topicOf, trimToFit } from './agents/learn-next-steps.js';
 import { TUTOR_DOMAINS } from '../../web/src/learn-tutor-domains.js';
 import { resolveTarget } from '../../web/src/learn-target.js';
@@ -112,6 +113,10 @@ export async function sharedNextSteps(env, { row, state, title, key, viewer, ori
   // The cap's own refusal, then the hard 12000 check as a backstop; neither reaches the cache, the limiter or the planner.
   const problem = tooLarge || nextStepsInputProblem({ ...content, mode: 'canvas' });
   if (problem) return json({ error: problem }, 400);
+  // Task 14 A-I1: the personal subscription serves its owner alone, as on the shared ask (askShared): its 403 after the request
+  // checks and before the cache, the limiter and the planner. An anonymous viewer is never the owner.
+  const ownerRefused = subscriptionOwnerRefusal(env, viewer || {});
+  if (ownerRefused) return ownerRefused;
   const asked = viewer && body?.viewer_states && typeof body.viewer_states === 'object' && !Array.isArray(body.viewer_states) ? body.viewer_states : {};
   const own = Object.entries(asked).filter(([id, s]) => Object.hasOwn(content.scope.claims, id) && STATES.includes(s) && s !== 'not_yet_observed').slice(0, L.scope_claims);
   const personal = own.length ? Object.fromEntries(own) : null;

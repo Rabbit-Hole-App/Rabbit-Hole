@@ -418,3 +418,42 @@ test('the shared reply telemetry carries the server trim counts; the model input
   assert.equal(JSON.stringify(inputs[0]).includes('block_count'), false, 'never inside the model input');
   assert.equal(JSON.stringify(got.body.options).includes('block_count'), false, 'never in a step');
 });
+
+// Task 14 final review A-I1: on a SUBSCRIPTION_ONLY worker the personal subscription serves its owner alone, on the shared
+// hooks route exactly as on the shared ask (learn-shared-ask.js askShared): anyone else gets that ask's 403 and body before the
+// cache, the limiter and the planner, so no bridge call and no usage row; the owner is served through the bridge. A normal
+// worker is unchanged.
+function bridge(t) {
+  const original = globalThis.fetch, hits = [];
+  globalThis.fetch = async (url, options) => {
+    assert.equal(new URL(url).host, 'bridge.test', `unexpected fetch ${url}`);
+    hits.push(new URL(url).host);
+    const reply = await (await fixtureModel(null, JSON.parse(options.body))).json();
+    return Response.json({ ...reply, billing: 'claude-subscription' });
+  };
+  t.after(() => { globalThis.fetch = original; });
+  return hits;
+}
+test('A-I1: a SUBSCRIPTION_ONLY worker refuses shared hooks to an anonymous viewer and a non-owner as the shared ask does, with no bridge call; the owner is served', async t => {
+  t.mock.method(console, 'log', () => {});
+  const f = world(t, { JOURNEY_MODEL_STUB: '', SUBSCRIPTION_ONLY: 'true', SUBSCRIPTION_OWNER_EMAIL: 'ana@test', SUBSCRIPTION_BRIDGE_URL: 'https://bridge.test', SUBSCRIPTION_BRIDGE_TOKEN: 'bridge-token' });
+  const hits = bridge(t);
+  const { token } = await f.shareProject({ state: STATE });
+  const asked = await f.ask(token, 'ben', { message: 'Why scale by sqrt(d)?' });
+  assert.equal(asked.status, 403, 'the shared ask refuses a non-owner');
+  for (const as of [null, 'ben']) {
+    const got = await hooks(f, token, as);
+    assert.deepEqual([got.status, got.body], [asked.status, asked.body], `${as ?? 'anonymous'}: the shared ask's status and body`);
+  }
+  assert.deepEqual([hits, usage(f)], [[], []], 'no bridge call and no usage row before the owner asks');
+  const owner = await hooks(f, token, 'ana');
+  assert.equal(owner.status, 200, owner.text);
+  assert.equal(owner.body.options.length, 3);
+  assert.ok(hits.length >= 1, 'the owner is served through the bridge');
+  const after = hits.length;
+  assert.equal((await hooks(f, token, null)).status, 403, 'refused before the cache: the owner set is never served to anyone else');
+  assert.deepEqual([hits.length, usage(f).length], [after, 1]);
+  const normal = world(t);
+  const open = await normal.shareProject({ state: STATE });
+  assert.equal((await hooks(normal, open.token, null)).status, 200, 'a normal worker is unchanged');
+});
