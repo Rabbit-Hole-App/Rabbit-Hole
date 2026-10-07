@@ -1327,7 +1327,10 @@ test('journey-check.mjs refuses a vars file with a model, voice or subscription 
   const GOOD = 'SMALL_ENV=test\nTEST_BYPASS_SECRET=local\nMASTER_KEY=local\nOAUTH_MOCK=true\nJOURNEY_MODEL_STUB=fixtures\n';
   try {
     for (const folder of ['cp', 'app']) { mkdirSync(join(tmp, folder)); writeFileSync(join(tmp, folder, 'wrangler.jsonc'), '{ "name": "x", "vars": { "SMALL_ENV": "test" } }'); }
-    const run = () => spawnSync(process.execPath, [fileURLToPath(new URL('../e2e/journey-check.mjs', import.meta.url)), '--base', 'http://127.0.0.1:9', '--cp', 'http://127.0.0.1:9', '--vars', join(tmp, 'cp', '.dev.vars'), '--out', join(tmp, 'out')], { encoding: 'utf8' });
+    const run = () => spawnSync(process.execPath, [fileURLToPath(new URL('../e2e/journey-check.mjs', import.meta.url)), '--base', 'http://127.0.0.1:9', '--cp', 'http://127.0.0.1:9', '--vars', join(tmp, 'cp', '.dev.vars'), '--out', join(tmp, 'out')], {
+      // A key in the test runner's own shell is the guard's business, not this test's: hand the child a filtered env.
+      encoding: 'utf8', env: Object.fromEntries(Object.entries(process.env).filter(([name]) => !/_API_KEY|^ELEVENLABS_|^SUBSCRIPTION_/.test(name))),
+    });
     for (const folder of ['cp', 'app']) for (const line of ['ANTHROPIC_API_KEY=not-a-key', 'ANTHROPIC_API_KEY: not-a-key', 'export ELEVENLABS_VOICE=not-a-voice', 'SUBSCRIPTION_BRIDGE_TOKEN=not-a-token']) {
       for (const other of ['cp', 'app']) writeFileSync(join(tmp, other, '.dev.vars'), other === folder ? `${GOOD}${line}\n` : GOOD);
       const result = run();
