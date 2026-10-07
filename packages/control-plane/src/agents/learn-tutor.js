@@ -134,7 +134,7 @@ export const REASON_CODES = ['advance_goal', 'deepen_mechanism', 'repair_misconc
 // TutorDecisionEvent (docs/features/professor-next-steps.md §3): the contract version, and the Tutor planner code's version
 // (bump by hand with any routing or planning change). A future server-side store validates the same contract.
 export const TRACE_SCHEMA_VERSION = 1;
-export const TUTOR_PLANNER_VERSION = 'tutor-planner-1';
+export const TUTOR_PLANNER_VERSION = 'tutor-planner-2';
 export const CONSTRAINTS = ['no_quiz', 'no_analogy', 'no_simplify', 'just_answer', 'formal', 'implementation'];
 // Task 11b (owner eighth, fourteenth and nineteenth messages): the reading fields, the planner's own reading of the turn,
 // written last. Telemetry only: no code reads them to choose, allow or run an action. SOURCE_TYPES has no research: nothing

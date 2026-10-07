@@ -79,7 +79,7 @@ test('tutor_decision: exactly the contract keys, the chosen action from the cont
   assert.equal(e.runtime.planner_input, null, 'trim counts belong to hook recomputes only');
   assert.deepEqual(e.decision.actions.map(a => Object.keys(a)), [ACTION, ACTION]);
   assert.deepEqual(Object.keys(e.decision.chosen_action), ACTION);
-  assert.deepEqual([e.trace_schema_version, TRACE_SCHEMA_VERSION, TUTOR_PLANNER_VERSION], [1, 1, 'tutor-planner-1']);
+  assert.deepEqual([e.trace_schema_version, TRACE_SCHEMA_VERSION, TUTOR_PLANNER_VERSION], [1, 1, 'tutor-planner-2']); // coordinator ruling 2026-10-07: Tasks 11b and 11c-B change routing and prompts (task-11c-repin-review.md part D)
   assert.match(e.decision_id, /^td_[0-9a-f]{16}$/);
   assert.ok(!Number.isNaN(Date.parse(e.generated_at)));
   assert.deepEqual(e.identity, { user_id: 'u-7', session_id: 'ts_00000000000000aa', canvas_id: 'canvas-1', board_id: 'main', canvas_version: 12, journey_id: 'lj_t', section_id: 's1', dive_id: null, source: null, scope: 'owned', mode: 'journey' });
