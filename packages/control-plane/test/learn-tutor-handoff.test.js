@@ -159,7 +159,7 @@ test('capability: the dispatch table holds exactly repository_context; anything 
 test('request and selection shapes: bounded request, structured selection only', async t => {
   const f = setup(t), model = scripted([]);
   for (const request of ['', '   ', 'x'.repeat(1001), 42, undefined]) assert.equal((await f.post(ask({ request }), { callModel: model.callModel })).status, 400, `request ${JSON.stringify(request)?.slice(0, 20)}`);
-  for (const selection of ['model.py', [], { repository: 'karpathy/nanoGPT' }, { ...SELECTION, extra: 1 }, { ...SELECTION, line_range: { start: 3, end: 2 } }, { ...SELECTION, line_range: { start: 0, end: 2 } },
+  for (const selection of [false, 0, '', 'model.py', [], { repository: 'karpathy/nanoGPT' }, { ...SELECTION, extra: 1 }, { ...SELECTION, line_range: { start: 3, end: 2 } }, { ...SELECTION, line_range: { start: 0, end: 2 } },
     { ...SELECTION, line_range: { start: 1, end: 2, x: 1 } }, { ...SELECTION, line_range: { start: 1.5, end: 2 } }, { ...SELECTION, symbol: '' }, { ...SELECTION, file: 'x'.repeat(501) }]) {
     assert.equal((await f.post(ask({ selection }), { callModel: model.callModel })).status, 400, `selection ${JSON.stringify(selection).slice(0, 60)}`);
   }
@@ -237,7 +237,7 @@ test('usage cap: under the cap ok; over it 429 refused before the reader; the ro
   assert.equal(over.status, 429);
   const body = await over.json();
   assert.deepEqual([body.answer, body.telemetry.outcome, body.telemetry.failure, body.telemetry.calls], [null, 'refused', 'limited', 0]);
-  assert.deepEqual([model.calls.length, f.snapshotReads.length], [2, 2], 'the over-cap turn never reached the reader');
+  assert.deepEqual([model.calls.length, f.snapshotReads.length], [2, 3], 'the over-cap turn resolved the repository and made no model call');
   assert.deepEqual(f.sqlite.prepare('SELECT category, viewer_email, share_key, board_id, owner_email FROM shared_ask_events').all().map(row => ({ ...row })),
     [1, 2].map(() => ({ category: 'tutor_handoff', viewer_email: 'ana@test', share_key: '', board_id: REPO, owner_email: 'ana@test' })), 'a refusal writes nothing');
   assert.deepEqual(f.statements.filter(sql => !/^SELECT /i.test(sql) && !/^INSERT INTO shared_ask_events /.test(sql)), []);
@@ -268,4 +268,46 @@ test('cost_usd stays null when the served model has no price entry; tokens are s
   const f = setup(t), model = scripted([reply([{ type: 'text', text: 'It returns x.' }], 'end_turn', 'claude-opus-5')]);
   const { telemetry } = await (await f.post(ask(), { callModel: model.callModel })).json();
   assert.deepEqual([telemetry.served_model, telemetry.cost_usd, telemetry.input_tokens, telemetry.output_tokens], ['claude-opus-5', null, 1200, 80]);
+});
+
+// Review fix round 2: the evaluator's routing and cost metrics.
+test('a non-ok model response keeps the usage already billed in the turn', async t => {
+  const f = setup(t), model = scripted([toolUse('read_source', { path: 'model.py', start: 1, end: 3 }), new Response(JSON.stringify({ error: { message: `${SECRET} overloaded` } }), { status: 529 })]);
+  const { telemetry } = await failed(await f.post(ask(), { callModel: model.callModel }), 'model_error');
+  assert.deepEqual([telemetry.calls, telemetry.input_tokens, telemetry.output_tokens, telemetry.cost_usd], [2, 1200, 80, costUsd({ model: 'claude-opus-5-5', ...USAGE })]);
+});
+
+test('retrieval_error: a thrown storage error while resolving; no_repository_context stays for no repository or an unindexed commit', async t => {
+  const model = scripted([]);
+  const d1 = setup(t);
+  d1.env.LEARN_DB = { prepare: () => { throw new Error(`${SECRET} D1_ERROR object to be reset`); } };
+  await failed(await d1.post(ask(), { callModel: model.callModel }), 'retrieval_error');
+  const r2 = setup(t);
+  r2.env.REPOSITORY_SNAPSHOTS = { get: async () => { throw new Error(`${SECRET} R2 unavailable`); } };
+  await failed(await r2.post(ask(), { callModel: model.callModel }), 'retrieval_error');
+  const gone = setup(t);
+  gone.sqlite.exec("UPDATE repository_versions SET storage_key = 'snap-missing'");
+  await failed(await gone.post(ask(), { callModel: model.callModel }), 'retrieval_error');
+  const f = setup(t);
+  await failed(await f.post(ask({ app: PLAIN_CANVAS }), { callModel: model.callModel }), 'no_repository_context');
+  await failed(await f.post(ask({ selection: { ...SELECTION, revision: 'c'.repeat(40) } }), { callModel: model.callModel }), 'no_repository_context');
+  assert.equal(model.calls.length, 0);
+});
+
+test('the usage row is admitted after the repository resolves, before the first model call', async t => {
+  const f = setup(t, { TUTOR_HANDOFF_HOUR: '1' }), model = scripted([answer('It returns x.'), answer(`${SECRET} over`)]);
+  await failed(await f.post(ask({ app: PLAIN_CANVAS }), { callModel: model.callModel }), 'no_repository_context');
+  assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS n FROM shared_ask_events').get().n, 0, 'no model call, no budget spent');
+  const ok = await (await f.post(ask(), { callModel: model.callModel })).json();
+  assert.deepEqual([ok.telemetry.outcome, ok.answer], ['ok', 'It returns x.']);
+  const over = await f.post(ask(), { callModel: model.callModel });
+  assert.equal(over.status, 429);
+  assert.deepEqual([(await over.json()).telemetry.failure, model.calls.length, f.sqlite.prepare('SELECT COUNT(*) AS n FROM shared_ask_events').get().n], ['limited', 1, 1]);
+});
+
+test('a limiter error at admission is retrieval_error, never model_error, and no model call is made', async t => {
+  const f = setup(t), model = scripted([answer(`${SECRET} unreached`)]), base = f.env.LEARN_DB;
+  f.env.LEARN_DB = { prepare: sql => { if (/^\s*INSERT INTO shared_ask_events/.test(sql)) throw new Error(`${SECRET} D1_ERROR`); return base.prepare(sql); } };
+  await failed(await f.post(ask(), { callModel: model.callModel }), 'retrieval_error');
+  assert.equal(model.calls.length, 0);
 });

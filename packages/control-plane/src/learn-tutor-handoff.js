@@ -54,11 +54,20 @@ function contextProblem(c) {
   return null;
 }
 
+// repositorySnapshot's own message for a commit with no indexed version (repositories.js); pinned by the handoff tests.
+const NOT_INDEXED = 'This repository version is not indexed yet';
+
 async function readRepository(env, access, { app, request, selection, card }, callModel) {
+  if (!env.LEARN_DB) throw failure('no_repository_context'); // a worker without the Learn database has no repository to read
+  // No repository, or a commit never indexed: no_repository_context. A thrown storage error (D1, R2, a stored snapshot gone)
+  // is retrieval_error, so a transient failure never reads as a canvas without source.
   // ponytail: a fork's inherited pin (board_repository_pins, keyed by its learn_boards row) is not read; owned Learn chat does not read it either.
-  const revision = await boardRevision(env.LEARN_DB, { org: access.org, app, owner_email: access.owner_email }).catch(() => null);
-  const commit = selection?.revision ?? revision?.commit;
-  const snapshot = revision && await repositorySnapshot(env, { id: revision.id }, commit).catch(() => null);
+  let revision, commit, snapshot;
+  try {
+    revision = await boardRevision(env.LEARN_DB, { org: access.org, app, owner_email: access.owner_email });
+    commit = selection?.revision ?? revision?.commit;
+    snapshot = revision && await repositorySnapshot(env, { id: revision.id }, commit);
+  } catch (error) { throw failure(error.message === NOT_INDEXED ? 'no_repository_context' : 'retrieval_error'); }
   if (!snapshot || (selection && selection.repository !== snapshot.repo)) throw failure('no_repository_context');
   const read = (name, input) => { try { return repositoryTool(snapshot, name, input); } catch { return null; } };
   const selected = selection?.symbol ? read('get_relationships', { nodeId: selection.symbol }) : null;
@@ -80,15 +89,20 @@ export const HANDOFF_CAPABILITIES = Object.freeze({
   repository_context: Object.freeze({ selectionProblem: repositorySelectionProblem, run: readRepository }),
 });
 
-// Every model call the capability makes, summed: served model (the last), tokens, cost (null once any is unknown), and the
-// last stop_reason, which names a refusal or a cut answer. After the deadline the next call throws, ending the loop.
-function metered(callModel, deadline) {
+// Every model call the capability makes, summed: served model (the last), tokens, cost (null once an ok reply carries no
+// usage or no price), and the last stop_reason, which names a refusal or a cut answer. A non-ok reply adds a call and no
+// usage, so what the turn already billed stays counted. The first call is admitted under the usage cap (admit), so a turn
+// that never reaches the model (no repository) spends no budget. After the deadline the next call throws, ending the loop.
+function metered(callModel, deadline, admit) {
   const seen = { calls: 0, served_model: null, ...Object.fromEntries(TOKENS.map(key => [key, 0])), cost_usd: 0, stop_reason: null };
   return { seen, callModel: async (env, body, model, org) => {
     if (deadline.passed) throw failure('timeout');
+    if (!seen.calls && await admit()) throw failure('limited');
     const response = await callModel(env, body, model, org);
     seen.calls++;
-    const result = response.ok ? await response.clone().json().catch(() => null) : null;
+    seen.stop_reason = null;
+    if (!response.ok) return response;
+    const result = await response.clone().json().catch(() => null);
     seen.stop_reason = result?.stop_reason ?? null;
     if (result?.model) seen.served_model = result.model;
     const cost = result?.usage ? costUsd({ model: result.model, ...result.usage }) : null;
@@ -103,9 +117,14 @@ export async function handoff(env, access, body, { callModel = loggedModel('chat
   if (!capability) return json({ error: `capability must be one of: ${Object.keys(HANDOFF_CAPABILITIES).join(', ')}` }, 400);
   if (!text(body.request, REQUEST_CHARS)) return json({ error: `request must be 1-${REQUEST_CHARS} characters` }, 400);
   const selection = body.selection ?? null;
-  const problem = (selection && capability.selectionProblem(selection)) || (body.context != null && contextProblem(body.context));
+  const problem = (selection != null && capability.selectionProblem(selection)) || (body.context != null && contextProblem(body.context));
   if (problem) return json({ error: problem }, 400);
-  const started = now(), deadline = { passed: false }, meter = metered(callModel, deadline);
+  // The usage row (never the request, answer or any source) is admitted at the first model call. A limiter error there is a
+  // transient D1 error like the resolution's, so it reads as retrieval_error, never as model_error.
+  const limit = limitsFrom(HANDOFF_CAPS, env);
+  const admit = () => admitUsage(env.LEARN_DB, { category: 'tutor_handoff', viewer: access.email, shareKey: '', boardId: body.app, owner: access.email,
+    viewerHour: limit.TUTOR_HANDOFF_HOUR, viewerDay: limit.TUTOR_HANDOFF_DAY, shareHour: NO_CAP, shareDay: NO_CAP }).catch(() => { throw failure('retrieval_error'); });
+  const started = now(), deadline = { passed: false }, meter = metered(callModel, deadline, admit);
   const reply = (category, answer, extra = {}, status = 200) => {
     const completed = now(), { stop_reason, ...usage } = meter.seen;
     return json({ ...extra, capability: body.capability, answer: category ? null : answer, telemetry: {
@@ -113,11 +132,6 @@ export async function handoff(env, access, body, { callModel = loggedModel('chat
       outcome: category === 'refused' || category === 'limited' ? 'refused' : category ? 'failed' : 'ok', failure: category, ...usage,
     } }, status);
   };
-  // Checked before the reader runs; the admitted row is the usage event (never the request, answer or any source). Without
-  // LEARN_DB there is no snapshot to read, so no model call either.
-  const limit = limitsFrom(HANDOFF_CAPS, env);
-  if (env.LEARN_DB && await admitUsage(env.LEARN_DB, { category: 'tutor_handoff', viewer: access.email, shareKey: '', boardId: body.app, owner: access.email,
-    viewerHour: limit.TUTOR_HANDOFF_HOUR, viewerDay: limit.TUTOR_HANDOFF_DAY, shareHour: NO_CAP, shareDay: NO_CAP })) return reply('limited', null, { error: 'This lookup is paused for now; try again later.', limited: true }, 429);
   let answer = null, category = null, timer;
   try {
     const work = capability.run(env, access, { app: body.app, request: body.request, selection, card: body.context?.card ?? null }, meter.callModel);
@@ -127,5 +141,5 @@ export async function handoff(env, access, body, { callModel = loggedModel('chat
   } catch (error) {
     category = error.category || (meter.seen.stop_reason === 'refusal' ? 'refused' : meter.seen.stop_reason === 'max_tokens' ? 'too_large' : 'model_error');
   } finally { clearTimeout(timer); }
-  return reply(category, answer);
+  return category === 'limited' ? reply(category, null, { error: 'This lookup is paused for now; try again later.', limited: true }, 429) : reply(category, answer);
 }
