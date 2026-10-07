@@ -113,3 +113,17 @@ Stop only this stack's processes: the `npx`/`node`/`workerd` trees whose command
 listeners on 8868 and 8869). Never touch 8828/8829 or their processes. A forced stop leaves the stack's own entries in
 `%APPDATA%/xdg.config/.wrangler/registry/`: delete `alp1-local-app` and `alp1-local-cp` there, nothing else.
 Then check that `http://127.0.0.1:8828` still answers, if it was up.
+
+## 6. Professor Next Steps
+
+`e2e/next-steps-check.mjs` (N1-N7, docs/features/professor-next-steps.md) runs on this recipe under its own names:
+`pns-local-app` and `pns-local-cp` on 8868 and 8869, configs in `<ws>/pns-config/{app,cp}`, D1s in `<ws>/pns-local`.
+§1-§3 and §5 apply with those names in place of `alp1-*`. While the shared hooks route is missing, N4-N6 report SKIP.
+
+```bash
+cd packages/web
+node e2e/next-steps-check.mjs --base http://127.0.0.1:8868 --cp http://127.0.0.1:8869 --vars <ws>/pns-config/cp/.dev.vars --out <ws>/next-steps-shots
+```
+
+`e2e/shared-rabbit-hole-check.mjs` takes `TEST_BYPASS_SECRET` from the environment, as the Tutor slice check does
+(`BASE` and `SMALL_CP` name the stack), and then never reads `packages/control-plane/.dev.vars`.

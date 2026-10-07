@@ -12,7 +12,8 @@ const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('shared-rabbit-hole-check runs against a local stack only');
 const SHOTS = process.argv[2] || 'shared-rabbit-hole-shots';
 mkdirSync(SHOTS, { recursive: true });
-const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
+// TEST_BYPASS_SECRET in the environment (another local stack, e.g. e2e/journey-local-stack.md) wins over the file.
+const secret = process.env.TEST_BYPASS_SECRET || readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const sessionFor = async email => (await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, secret }) })).json()).session;
 const run = Date.now().toString(36);
 const owner = { session: await sessionFor(`rh-owner-${run}@example.com`) }, viewer = { session: await sessionFor(`rh-viewer-${run}@example.org`) };
