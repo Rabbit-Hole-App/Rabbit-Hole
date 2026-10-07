@@ -190,9 +190,11 @@ async function start(env, scope, body, callModel) {
   const intent = journeyIntent(text);
   if (!STARTS.has(intent.kind)) return json({ error: 'not_a_learning_journey' }, 400);
   if (!intent.topic) return json({ error: 'topic_required', tray: ASK_TOPIC }, 400);
+  // replace: the journey continue-or-start confirmed replacing (createJourney archives it in the insert's transaction).
+  if (body.replace != null && (typeof body.replace !== 'string' || !body.replace || body.replace.length > 64)) return json({ error: 'replace must be a journey id' }, 400);
   const request = { raw_user_message: text, topic: intent.topic, intent, channel: body.channel === 'voice' ? 'voice' : 'text' };
   let j;
-  try { j = await createJourney(env, scope, { request, grounding: { kind: 'topic' }, intake: slotsFromIntent(intent) }); }
+  try { j = await createJourney(env, scope, { request, grounding: { kind: 'topic' }, intake: slotsFromIntent(intent) }, body.replace ?? null); }
   catch (error) { if (error instanceof JourneyConflict) return reply(env, await loadJourney(env, scope), 409, { error: 'live_journey' }); throw error; }
   if (intent.kind !== 'fast_start') return reply(env, j);
   // A fast start skips the intake at once: defaults, then the path draft, auto-accept and section 1's plan.

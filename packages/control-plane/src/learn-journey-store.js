@@ -45,18 +45,30 @@ function fromRow(r) {
 }
 
 // A new journey starts in intake. DO NOTHING covers the live index: no row back means this scope already has one.
-export async function createJourney(env, scope, { request, grounding, intake }) {
-  const now = new Date().toISOString();
+// replace (continue-or-start, owner 2026-10-07): the id of the live journey the learner chose to replace. It is archived in
+// the same batch (one transaction) as the insert, so a start that fails leaves it live; an id that is not this scope's live
+// journey archives nothing, and the insert then meets whatever journey is live (live_journey).
+export async function createJourney(env, scope, { request, grounding, intake }, replace = null) {
+  const now = new Date().toISOString(), id = `lj_${crypto.randomUUID()}`;
   const cols = columns({
     request, grounding, intake, state: 'intake', constraints: [], pending_edits: [],
     registry: { concepts: {}, claims: {} }, diagnostic: { probes: [], asked: [], skipped: false }, evidence: { seq: 0, events: [] },
     path_version: 0,
   });
   const keys = ['id', 'org', 'owner_user_id', 'app', 'board', ...Object.keys(cols), 'revision', 'created_at', 'updated_at'];
-  const row = await env.LEARN_DB
+  const insert = env.LEARN_DB
     .prepare(`INSERT INTO learning_journeys (${keys.join(', ')}) VALUES (${keys.map(() => '?').join(', ')}) ON CONFLICT DO NOTHING RETURNING *`)
-    .bind(`lj_${crypto.randomUUID()}`, scope.org, scope.owner_user_id, scope.app, scope.board, ...Object.values(cols), 0, now, now)
-    .first();
+    .bind(id, scope.org, scope.owner_user_id, scope.app, scope.board, ...Object.values(cols), 0, now, now);
+  let row;
+  if (!replace) row = await insert.first();
+  else {
+    const [, made] = await env.LEARN_DB.batch([
+      env.LEARN_DB.prepare('UPDATE learning_journeys SET archived_at = ?, updated_at = ?, revision = revision + 1 WHERE id = ? AND org = ? AND owner_user_id = ? AND app = ? AND board = ? AND archived_at IS NULL')
+        .bind(now, now, replace, scope.org, scope.owner_user_id, scope.app, scope.board),
+      insert,
+    ]);
+    row = made.meta.changes ? await env.LEARN_DB.prepare('SELECT * FROM learning_journeys WHERE id = ?').bind(id).first() : null;
+  }
   if (!row) throw new JourneyConflict('live_journey');
   return fromRow(row);
 }

@@ -541,3 +541,75 @@ test('planner states: two settled named misconceptions reach the path planner as
   const { states } = calls.find(c => c.role === 'journey_path').input;
   assert.deepEqual(states[claim], { state: 'misconception', settled_passes: 0, settled_negatives: 2 });
 });
+
+// ---- Owner decisions 2026-10-07 (docs/features/professor-next-steps.md §4.5): switching subject during setup ----
+// The Start a learning path chip calls the journey start. During setup (intake, diagnostic, path review) the board already
+// holds a live journey, so the start is 409 live_journey, which opens LP1's continue-or-start (the confirmation naming both
+// subjects). Its Start sends one start with replace: the setup is archived in the insert's transaction.
+test('owner 2026-10-07 (c): a start in intake, diagnostic or path review is 409 live_journey; a replace start archives the setup and starts the new subject', async t => {
+  const { post, rows, throughIntake, throughDiagnostic } = setup(t);
+  const first = (await post('start', { text: LEARN })).body.journey;
+  const states = [];
+  const refused = async () => {
+    const r = await post('start', { text: 'Teach me SQL' });
+    assert.deepEqual([r.status, r.body.error, r.body.journey.id], [409, 'live_journey', first.id]);
+    states.push(r.body.journey.state);
+  };
+  await refused();
+  const diagnostic = await throughIntake();
+  await refused();
+  await throughDiagnostic(diagnostic);
+  await refused();
+  assert.deepEqual(states, ['intake', 'diagnostic', 'path_review']);
+  assert.equal(rows().length, 1, 'no refused start wrote a row');
+  const r = await post('start', { text: 'Teach me SQL', replace: first.id });
+  assert.equal(r.status, 200);
+  assert.deepEqual([r.body.journey.state, r.body.journey.request.topic, r.body.tray.slot], ['intake', 'sql', 'goal']);
+  assert.notEqual(r.body.journey.id, first.id);
+  assert.deepEqual(rows().map(row => [row.id === first.id, row.archived_at != null]), [[true, true], [false, false]]);
+});
+
+test('owner 2026-10-07 (e): a replace start that fails keeps the current setup live', async t => {
+  const { env, post, rows } = setup(t);
+  const first = (await post('start', { text: LEARN })).body.journey;
+  const live = () => rows().filter(row => row.archived_at == null).map(row => row.id);
+  // Refused before any write: not a learning request, no topic, a malformed replace.
+  for (const [body, error] of [[{ text: 'What is SQL?', replace: first.id }, 'not_a_learning_journey'], [{ text: 'Skip setup and start', replace: first.id }, 'topic_required'], [{ text: 'Teach me SQL', replace: 7 }, 'replace must be a journey id']]) {
+    const r = await post('start', body);
+    assert.deepEqual([r.status, r.body.error], [400, error]);
+    assert.deepEqual(live(), [first.id], error);
+  }
+  // A database failure on the insert rolls the archive back: one transaction (the fixture's D1 batch, BEGIN/ROLLBACK).
+  const batch = env.LEARN_DB.batch;
+  env.LEARN_DB.batch = statements => batch(statements.map((s, i) => (i === 1 ? { runNow: () => { throw new Error('D1_ERROR: insert failed'); } } : s)));
+  await assert.rejects(post('start', { text: 'Teach me SQL', replace: first.id }), /insert failed/);
+  env.LEARN_DB.batch = batch;
+  assert.deepEqual(live(), [first.id]);
+  assert.deepEqual(rows().map(row => [row.id, row.archived_at, row.revision]), [[first.id, null, first.revision]], 'the setup is untouched');
+  // A replace naming no live journey of this board (an id another tab archived, or a made-up one) archives nothing; the live
+  // journey answers 409, so the browser asks again naming it.
+  const r = await post('start', { text: 'Teach me SQL', replace: 'lj_not-this-one' });
+  assert.deepEqual([r.status, r.body.error, r.body.journey.id], [409, 'live_journey', first.id]);
+  assert.deepEqual(live(), [first.id]);
+});
+
+// Decision 3 (owner 2026-10-07): the Auto Tutor stays on dev/review boards, isolated from the learner's own board. A review
+// board is its own board name (LearnPage ?board=), and every journey row, read and write is keyed by (owner, app, board).
+test('owner 2026-10-07 (g): a review board journey is its own; start, replace and answers there never touch the main board journey', async t => {
+  const { call, post, rows } = setup(t);
+  const review = (action, extra = {}) => call('POST', { body: { app: APP, board: 'pnsreview', action, ...extra } });
+  const main = (await post('start', { text: LEARN })).body.journey;
+  let r = await review('start', { text: 'Teach me SQL' });
+  assert.equal(r.status, 200, 'no live_journey across boards');
+  const other = r.body.journey;
+  assert.notEqual(other.id, main.id);
+  // A replace on the review board naming the main board journey archives nothing there: the scope includes the board.
+  r = await review('start', { text: 'Teach me graphs', replace: main.id });
+  assert.deepEqual([r.status, r.body.error, r.body.journey.id], [409, 'live_journey', other.id]);
+  r = await review('intake_answer', { slot: 'goal', option_id: 'intuition' });
+  assert.equal(r.status, 200);
+  assert.equal((await call('GET', { query: `app=${APP}&board=pnsreview` })).body.journey.id, other.id);
+  const mainNow = (await call('GET')).body.journey;
+  assert.deepEqual([mainNow.id, mainNow.revision, mainNow.intake.slots.goal ?? null], [main.id, main.revision, null], 'the main board journey is untouched');
+  assert.deepEqual(rows().map(row => [row.board, row.archived_at]), [['main', null], ['pnsreview', null]]);
+});

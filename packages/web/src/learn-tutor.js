@@ -101,7 +101,7 @@ const turnEvidence = (claims, states, domain) => withPrerequisites(claims, domai
 // no learner words, answers no open question and consumes no dive choice or return. materials: the Learn commands the turn may
 // run as create_material (learn-slash.js materialCommands) - on any turn since Task 11b (owner ninth message), typed, voice or
 // hook. research (Task 11b): the page can open its Research workflow, so the turn may offer suggest_research (research_offer).
-// journeyOffer (fix B1): a journey can start here (no journey yet or a live one, fix round 2; not in a hole, not in setup), so
+// journeyOffer (fix B1): a journey can start here (no journey yet or a live one, fix round 2; in setup too, owner 2026-10-07; not in a hole), so
 // the turn may offer suggest_journey (journey_offer). repository (Task 11c-B): the canvas reads a repository (structured page
 // state, LearnTutor.jsx canvasRepository), so the turn may hand off to repository_context (handoff_offer); words never set it.
 // canvas.liveTitle: a hole's live title (Task 10 fix round 3).

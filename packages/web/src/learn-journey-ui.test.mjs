@@ -220,7 +220,7 @@ const depthTray = trayFor(intake({ goal: 'intuition', familiarity: 'seen' }), nu
 const ok = (journey, tray, path = null) => ({ status: 200, d: { journey, path, tray } });
 const none = { status: 200, d: { journey: null, path: null, tray: null } };
 // One reply per request, in order (a function gets (path, body)); a request with no reply left fails the test.
-function harness(first, replies = []) {
+function harness(first, replies = [], board = 'main') {
   const calls = [], queue = [first, ...replies];
   const fetchJson = async (path, body) => {
     calls.push({ path, body });
@@ -228,7 +228,7 @@ function harness(first, replies = []) {
     const r = queue.shift();
     return typeof r === 'function' ? r(path, body) : r;
   };
-  const ctl = journeyController({ where: { app: APP, board: 'main' }, fetchJson });
+  const ctl = journeyController({ where: { app: APP, board }, fetchJson });
   return { ctl, calls, actions: () => calls.filter(c => c.body).map(c => c.body.action ?? c.path), refresh: () => ctl.refresh(), view: () => ctl.view() };
 }
 
@@ -318,11 +318,12 @@ test('final review B-I2: a cancel at path review hides the tray only until the n
   }
 });
 
-test('controller: live_journey offers continue or start; Start archives the live one, then starts the new topic', async () => {
+// Owner 2026-10-07: Start is one start naming the journey it replaces (the route archives it in the insert's transaction),
+// never an archive and then a start, so a start that fails keeps the current journey.
+test('controller: live_journey offers continue or start; Start replaces the live one in one start', async () => {
   const old = journeyOf({ revision: 6 });
   const h = harness(none, [
     { status: 409, d: { error: 'live_journey', journey: old, path: null, tray: familiarityTray } },
-    none,
     ok(journeyOf({ id: 'j2', revision: 1, request: { topic: 'transformers' } }), goalTray),
   ]);
   await h.refresh();
@@ -330,25 +331,22 @@ test('controller: live_journey offers continue or start; Start archives the live
   assert.equal(h.view().tray.id, 'clarification:live');
   assert.deepEqual(h.view().tray.options.map(o => o.label), ['Continue logistic regression', 'Start transformers']);
   await h.view().answer('start_new');
-  assert.deepEqual(h.actions(), ['start', 'archive', 'start']);
-  assert.equal(h.calls[2].body.revision, 6, 'archive is revision-checked');
-  assert.equal('revision' in h.calls[3].body, false);
-  assert.equal(h.calls[3].body.text, 'I want to learn transformers');
+  assert.deepEqual(h.actions(), ['start', 'start']);
+  assert.deepEqual(h.calls[2].body, { app: APP, board: 'main', action: 'start', text: 'I want to learn transformers', replace: 'j1' }, 'no revision, the replaced journey named');
   assert.equal(h.view().journey.id, 'j2');
 });
 
-test('controller: Start after another tab archived first (409 archived) still starts the new topic', async () => {
+test('controller: Start after another tab replaced the journey meanwhile asks again, naming the journey now live', async () => {
   const h = harness(none, [
     { status: 409, d: { error: 'live_journey', journey: journeyOf({ revision: 6 }), path: null, tray: familiarityTray } },
-    { status: 409, d: { error: 'archived', journey: null, path: null, tray: null } },
-    ok(journeyOf({ id: 'j2', revision: 1, request: { topic: 'transformers' } }), goalTray),
+    { status: 409, d: { error: 'live_journey', journey: journeyOf({ id: 'j3', revision: 1, request: { topic: 'graphs' } }), path: null, tray: goalTray } },
   ]);
   await h.refresh();
   await h.view().start('I want to learn transformers');
   await h.view().answer('start_new');
-  assert.deepEqual(h.actions(), ['start', 'archive', 'start']);
-  assert.equal(h.view().journey.id, 'j2');
-  assert.equal(h.view().tray.id, goalTray.id);
+  assert.deepEqual(h.actions(), ['start', 'start']);
+  assert.equal(h.view().journey.id, 'j3');
+  assert.deepEqual([h.view().tray.id, h.view().tray.prompt, h.view().tray.replace], ['clarification:live', 'Continue graphs or start transformers?', 'j3']);
 });
 
 test('controller: a broad intent typed on a live journey opens continue-or-start; Continue keeps a free-text answer', async () => {
@@ -1014,8 +1012,7 @@ test('review round 2: a failed save, then Start new with a journey whose first s
   const h = scripted(() => canvas, [
     review(),
     ok(activeJourney(), null, activePath), // accept: j1's s1 is drawn (b1-b4), its save fails
-    { status: 200, d: { journey: null, path: null, tray: null } }, // archive
-    ok(activeJourney({ id: 'j2', revision: 1 }), null, activePath), // a fast start: j2, its s1 current and planned
+    ok(activeJourney({ id: 'j2', revision: 1 }), null, activePath), // a fast start replacing j1: j2, its s1 current and planned
     recorded('b5', { id: 'j2', revision: 2 }),
   ]);
   await h.ctl.refresh();
@@ -1025,8 +1022,8 @@ test('review round 2: a failed save, then Start new with a journey whose first s
   await h.view().handleText('I want to learn transformers');
   assert.equal(h.view().tray.id, 'clarification:live');
   await h.view().answer('start_new');
-  assert.deepEqual(h.steps(), ['GET', 'accept', 'archive', 'start', 'section_materialized']);
-  assert.equal(h.calls[4].body.heading_block_id, 'b5', 'the new heading, never the b1 of j1');
+  assert.deepEqual(h.steps(), ['GET', 'accept', 'start', 'section_materialized']);
+  assert.equal(h.calls[3].body.heading_block_id, 'b5', 'the new heading, never the b1 of j1');
   const inserts = canvas.inserts();
   assert.equal(inserts.length, 8, 'the section of j2 is drawn afresh: a heading and three steps');
   assert.deepEqual(inserts.slice(4).map(c => [c[1].type, c[1].journey_id ?? c[1].journey.journey_id]), [['heading', 'j2'], ['explanation', 'j2'], ['explanation', 'j2'], ['explanation', 'j2']]);
@@ -1108,7 +1105,7 @@ const PLAN = { strategy: 'none', constraints_add: [], actions: [{ type: 'respond
 const diagnosing = (over = {}) => journeyOf({ state: 'diagnostic', diagnostic: { probes }, registry: SIGMOID, evidence: { seq: 0, events: [] }, ...over });
 // h: a harness (its journey already read). evaluate: the evaluate route's reply; by default an evaluator error, which
 // stores nothing. blocks: the canvas blocks (canvasApi.blocks and block(id)).
-function tutorOn(h, { evaluate = { status: 'error', evaluator: 'jev', events: [] }, blocks = [] } = {}) {
+function tutorOn(h, { evaluate = { status: 'error', evaluator: 'jev', events: [] }, blocks = [], plan = PLAN, board = 'main' } = {}) {
   const storage = new Map(), began = [];
   const globals = {
     window: { dispatchEvent: () => true },
@@ -1116,13 +1113,13 @@ function tutorOn(h, { evaluate = { status: 'error', evaluator: 'jev', events: []
     localStorage: { getItem: () => null },
     fetch: async (path, options) => {
       h.calls.push({ path, body: JSON.parse(options.body) });
-      return new Response(JSON.stringify(path === '/api/learn/tutor/evaluate' ? evaluate : PLAN), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify(path === '/api/learn/tutor/evaluate' ? evaluate : plan), { status: 200, headers: { 'Content-Type': 'application/json' } });
     },
   };
   let tutor = null;
   const journey = h.view();
   const Page = () => {
-    tutor = useTutor({ app: { name: APP, org: 'o', email: 'e@x.com' }, board: 'main', access: { app: APP }, canvasApi: { current: { blocks: () => blocks, block: id => blocks.find(block => block.id === id) || null } }, canvasState: { card: null }, dive: { tree: null, suggestionCard: null }, journey });
+    tutor = useTutor({ app: { name: APP, org: 'o', email: 'e@x.com' }, board, access: { app: APP }, canvasApi: { current: { blocks: () => blocks, block: id => blocks.find(block => block.id === id) || null } }, canvasState: { card: null }, dive: { tree: null, suggestionCard: null }, journey });
     return null;
   };
   renderToStaticMarkup(createElement(Page));
@@ -1138,6 +1135,7 @@ function tutorOn(h, { evaluate = { status: 'error', evaluator: 'jev', events: []
       }
     },
     stored: () => JSON.parse(storage.get('small.tutor:o:e@x.com:journey:j1') ?? 'null'),
+    storage,
   };
 }
 const tutorRoutes = h => h.calls.filter(c => c.path.startsWith('/api/learn/tutor/'));
@@ -1188,7 +1186,7 @@ test('useTutor on a journey canvas: with no tray, an unrelated question is a Tut
   await s.run(tutor => tutor.ask({ raw: 'What is a sigmoid?', skipJourney: true, begin: s.begin }));
   assert.deepEqual(setup.actions(), ['/api/learn/tutor/plan']);
   assert.equal(setup.calls[1].body.context.journey_context.phase, 'setup');
-  assert.deepEqual(setup.calls[1].body.context.allowed_actions, ['respond_text'], 'off_slice in setup: words only, no card');
+  assert.deepEqual(setup.calls[1].body.context.allowed_actions, ['respond_text', 'suggest_journey'], 'off_slice in setup: words only, no card; and the learning-path offer (owner 2026-10-07)');
 });
 
 test('useTutor on a journey canvas: a typed and a voice turn with the same words take the same route (D6, one resolver)', async () => {
@@ -1454,4 +1452,162 @@ test('fix round 2: on a live journey with no tray, broad learning requests reach
   await bare.refresh();
   assert.deepEqual(await bare.view().handleText('Teach me transformers'), { handled: true });
   assert.equal(bare.view().tray.id, 'clarification:live');
+});
+
+// ---- Owner decisions 2026-10-07 (docs/features/professor-next-steps.md §4.5), through the Tutor's turn as the page runs it ----
+// (a) a real answer to the open tray still advances it; (b) a side question gets a Tutor answer while the tray stays open,
+// unchanged and answerable; (c)-(e) the Tutor-offered Start a learning path chip switches subject during setup, only through
+// continue-or-start, which names both subjects; (f) typing alone never replaces the journey; (g) a review board is its own.
+const OFFER = { strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: 'SQL is how you ask a database for rows.' }, { type: 'suggest_journey', request: 'SQL' }] };
+const buttonsOf = node => (!node || typeof node !== 'object' ? [] : Array.isArray(node) ? node.flatMap(buttonsOf) : [...(node.type === 'button' ? [node] : []), ...buttonsOf(node.props?.children)]);
+const tick = () => new Promise(done => setTimeout(done, 5));
+const HANDLED = { text: '', handled: true, failed: false };
+
+test('owner 2026-10-07 (a): an answer to the open tray still advances it - an option label (rules 1-4), or words the model reads as the answer (rule 5)', async () => {
+  const picked = harness(ok(journeyOf({ registry: SIGMOID }), familiarityTray), [ok(journeyOf({ revision: 5 }), depthTray)]);
+  await picked.refresh();
+  const p = tutorOn(picked);
+  assert.deepEqual(await p.run(tutor => tutor.ask({ raw: 'Seen it before', begin: p.begin })), HANDLED);
+  assert.deepEqual(picked.actions(), ['intake_answer'], 'rule 1: no resolver, no planner');
+  assert.deepEqual([picked.calls[1].body.slot, picked.calls[1].body.option_id], ['familiarity', 'seen']);
+  assert.equal(picked.view().tray.id, depthTray.id, 'the tray moved on');
+  assert.deepEqual(p.began, [], 'no Tutor exchange is drawn for a tray answer');
+  const typed = harness(ok(journeyOf({ registry: SIGMOID }), goalTray), [{ status: 200, d: { kind: 'tray_answer' } }, ok(journeyOf({ revision: 5 }), familiarityTray)]);
+  await typed.refresh();
+  const t = tutorOn(typed);
+  assert.deepEqual(await t.run(tutor => tutor.ask({ raw: 'the intuition, for an exam next week', begin: t.begin })), HANDLED);
+  assert.deepEqual(typed.actions(), ['resolve', 'intake_answer'], 'rule 5 read the words as the answer');
+  assert.deepEqual([typed.calls[2].body.slot, typed.calls[2].body.text], ['goal', 'the intuition, for an exam next week']);
+  assert.equal(typed.view().tray.id, familiarityTray.id);
+});
+
+test('owner 2026-10-07 (b): a side question in an open setup tray gets a Tutor answer; the tray stays open, unchanged and answerable', async () => {
+  const cases = [['intake', journeyOf({ registry: SIGMOID }), goalTray], ['diagnostic', diagnosing(), probeTray], ['path review', journeyOf({ state: 'path_review', path_version: 1, registry: SIGMOID }), previewTray]];
+  for (const [name, j, tray] of cases) {
+    const h = harness(ok(j, tray), [{ status: 200, d: { kind: 'unrelated_question' } }]);
+    await h.refresh();
+    const before = h.view().tray, t = tutorOn(h);
+    assert.equal(await t.run(tutor => tutor.ask({ raw: 'What is a sigmoid?', begin: t.begin })), PLAN.actions[0].text, `${name}: the Tutor answers`);
+    assert.deepEqual(h.actions(), ['resolve', '/api/learn/tutor/plan'], `${name}: rule 5, then the Tutor; no journey write`);
+    assert.deepEqual(t.began, [2], `${name}: the exchange is drawn once, after the resolver`);
+    assert.deepEqual([h.view().tray, h.view().journey.revision], [before, j.revision], `${name}: the same tray, unadvanced`);
+  }
+  // Still answerable: the next pick answers the tray the question was asked over.
+  const h = harness(ok(journeyOf({ registry: SIGMOID }), goalTray), [{ status: 200, d: { kind: 'unrelated_question' } }, ok(journeyOf({ revision: 5 }), familiarityTray)]);
+  await h.refresh();
+  const t = tutorOn(h);
+  await t.run(tutor => tutor.ask({ raw: 'What is a sigmoid?', begin: t.begin }));
+  await h.view().answer('intuition');
+  assert.deepEqual(h.actions(), ['resolve', '/api/learn/tutor/plan', 'intake_answer']);
+  assert.equal(h.view().tray.id, familiarityTray.id);
+  // Only when the model finds the words ambiguous (or cannot be reached) does the chooser ask; its Ask the Tutor hands the
+  // same words to the Tutor and the tray is back, unadvanced.
+  const unsure = harness(ok(journeyOf({ registry: SIGMOID }), goalTray), [{ status: 200, d: { kind: 'clarification_needed' } }]);
+  await unsure.refresh();
+  const u = tutorOn(unsure);
+  assert.deepEqual(await u.run(tutor => tutor.ask({ raw: 'odds maybe', begin: u.begin })), HANDLED);
+  assert.equal(unsure.view().tray.id, 'clarification:turn');
+  assert.deepEqual(await unsure.view().answer('tutor'), { ask: 'odds maybe' });
+  assert.deepEqual([unsure.view().tray.id, unsure.actions()], [goalTray.id, ['resolve']]);
+});
+
+// The chip in setup: the typed words are a side question (rule 5), the Tutor answers and offers the path, and the chip's click
+// is the journey start, which meets the setup journey (409 live_journey) and opens continue-or-start.
+async function setupChip(replies, state = 'intake', tray = goalTray) {
+  const j = journeyOf({ state, registry: SIGMOID, ...(state === 'diagnostic' ? { diagnostic: { probes } } : {}) });
+  const h = harness(ok(j, tray), [{ status: 200, d: { kind: 'unrelated_question' } }, { status: 409, d: { error: 'live_journey', journey: j, path: null, tray } }, ...replies]);
+  await h.refresh();
+  const t = tutorOn(h, { plan: OFFER });
+  assert.equal(await t.run(tutor => tutor.ask({ raw: 'Teach me SQL instead', begin: t.begin })), OFFER.actions[0].text);
+  const context = h.calls.find(c => c.path === '/api/learn/tutor/plan').body.context;
+  assert.deepEqual([context.journey_context.phase, context.allowed_actions], ['setup', ['respond_text', 'suggest_journey']], state);
+  const chip = buttonsOf(t.tutor.extras).find(button => button.props.children === 'Start a learning path');
+  assert.ok(chip, `${state}: the chip shows`);
+  assert.deepEqual(h.actions(), ['resolve', '/api/learn/tutor/plan'], `${state}: nothing starts before the click`);
+  chip.props.onClick();
+  for (let i = 0; i < 20 && h.view().tray?.id !== 'clarification:live'; i++) await tick();
+  assert.deepEqual(h.calls[3].body, { app: APP, board: 'main', action: 'start', text: 'Teach me SQL' }, `${state}: the existing journey start`);
+  const confirm = h.view().tray;
+  assert.deepEqual([confirm.id, confirm.prompt, confirm.options.map(o => o.label)], ['clarification:live', 'Continue logistic regression or start sql?', ['Continue logistic regression', 'Start sql']], `${state}: both subjects named`);
+  return { h, j, tray };
+}
+
+test('owner 2026-10-07 (c): Start in the confirmation replaces the setup in one start; the new subject is set up', async () => {
+  for (const [state, tray] of [['intake', goalTray], ['diagnostic', probeTray], ['path_review', previewTray]]) {
+    const { h } = await setupChip([ok(journeyOf({ id: 'j2', revision: 0, request: { topic: 'sql' } }), goalTray)], state, tray);
+    await h.view().answer('start_new');
+    assert.deepEqual(h.calls[4].body, { app: APP, board: 'main', action: 'start', text: 'Teach me SQL', replace: 'j1' }, state);
+    assert.deepEqual(h.actions(), ['resolve', '/api/learn/tutor/plan', 'start', 'start'], `${state}: no archive call, no other write`);
+    assert.deepEqual([h.view().journey.id, h.view().journey.request.topic, h.view().tray.id], ['j2', 'sql', goalTray.id], `${state}: the new setup`);
+  }
+});
+
+test('owner 2026-10-07 (d): Continue in the confirmation keeps the current setup and sends nothing', async () => {
+  const { h, j, tray } = await setupChip([]);
+  await h.view().answer('continue');
+  assert.deepEqual([h.view().journey.id, h.view().journey.revision, h.view().tray.id], [j.id, j.revision, tray.id]);
+  assert.deepEqual(h.actions(), ['resolve', '/api/learn/tutor/plan', 'start']);
+});
+
+test('owner 2026-10-07 (e): a replacement start that fails keeps the current setup and says so; Try again sends the same start', async () => {
+  for (const failure of [{ status: 500, d: { error: 'D1_ERROR' } }, () => { throw new TypeError('Failed to fetch'); }]) {
+    const { h, j, tray } = await setupChip([failure, ok(journeyOf({ id: 'j2', revision: 0, request: { topic: 'sql' } }), goalTray)]);
+    assert.deepEqual(await h.view().answer('start_new'), { handled: true, failed: true, ok: false });
+    const shown = h.view().tray;
+    assert.deepEqual([h.view().journey.id, h.view().journey.revision, shown.id, shown.error.message], [j.id, j.revision, tray.id, 'Could not start sql, so logistic regression stays as it was.']);
+    assert.deepEqual(shown.options, tray.options, 'the setup tray is still answerable');
+    await h.view().answer('retry');
+    assert.deepEqual(h.calls[5].body, h.calls[4].body, 'Try again: the same replace start');
+    assert.equal(h.view().journey.id, 'j2');
+  }
+});
+
+test('owner 2026-10-07 (f): typing a new subject during setup never replaces the journey, Tutor or no Tutor', async () => {
+  const WORDS = ['Teach me SQL', 'I want to learn SQL instead', 'Start a rabbit hole on SQL', 'Teach me SQL, skip setup and just start'];
+  const trays = [[journeyOf({ registry: SIGMOID }), goalTray], [journeyOf({ registry: SIGMOID }), familiarityTray], [diagnosing(), probeTray], [journeyOf({ state: 'path_review', path_version: 1, registry: SIGMOID }), previewTray]];
+  let turns = 0;
+  for (const raw of WORDS) for (const [j, tray] of trays) {
+    // The model reads the words as a side question here; the Tutor answers and may offer the chip, which only a click starts.
+    const h = harness(ok(j, tray), [{ status: 200, d: { kind: 'unrelated_question' } }]);
+    await h.refresh();
+    const t = tutorOn(h, { plan: OFFER });
+    await t.run(tutor => tutor.ask({ raw, begin: t.begin }));
+    assert.deepEqual(h.actions(), ['resolve', '/api/learn/tutor/plan'], `${raw} over ${tray.mode}`);
+    assert.deepEqual([h.view().journey.id, h.view().tray.id], [j.id, tray.id], `${raw} over ${tray.mode}`);
+    turns++;
+  }
+  // With no Tutor (the composer on a canvas with no Tutor), LP1's check opens continue-or-start: still only a click replaces.
+  const bare = harness(ok(journeyOf(), goalTray));
+  await bare.refresh();
+  assert.deepEqual(await bare.view().handleText('Teach me SQL'), { handled: true });
+  assert.deepEqual([bare.view().tray.id, bare.calls.length], ['clarification:live', 1]);
+  assert.equal(turns, 16);
+});
+
+// Decision 3: on a review board (LearnPage ?board=<name>, dev/review builds only) the Auto Tutor stays, and every journey
+// request, evaluate write and Tutor session store is keyed to that board, never to the learner's main board.
+test('owner 2026-10-07 (g): a review board keys every journey request, evaluate write and Tutor store to itself', async () => {
+  const BOARD = 'pnsreview';
+  const h = harness(ok(diagnosing(), explainTray), [{ status: 200, d: { kind: 'tray_answer' } }, ok(diagnosing({ revision: 5 }), previewTray)], BOARD);
+  await h.refresh();
+  const t = tutorOn(h, { board: BOARD });
+  await t.run(tutor => tutor.ask({ raw: 'It squashes any number into 0 to 1', begin: t.begin }));
+  assert.deepEqual(h.actions(), ['resolve', '/api/learn/tutor/evaluate', 'probe_advance']);
+  assert.equal(h.calls[0].path, `/api/learn/journey?app=${APP}&board=${BOARD}`);
+  assert.deepEqual(h.calls.slice(1).map(c => c.body.board), [BOARD, BOARD, BOARD], 'resolve, evaluate and probe_advance name the review board');
+  assert.deepEqual([...t.storage.keys()], ['small.tutor:o:e@x.com:journey:j1'], 'the journey store: keyed by the review board journey');
+  // A plain review board (no journey): the canvas-domain store is the review board's, never the main board's.
+  const plain = harness(none, [], BOARD);
+  await plain.refresh();
+  const p = tutorOn(plain, { board: BOARD });
+  await p.run(tutor => tutor.ask({ raw: 'What is a sigmoid?', begin: p.begin }));
+  assert.deepEqual(plain.actions(), ['/api/learn/tutor/plan']);
+  assert.deepEqual([...p.storage.keys()], [`small.tutor:o:e@x.com:canvas:${APP}|${BOARD}`]);
+  // LearnPage (read only, lane W's file): ?board= becomes the board both hooks key on, a review board never resolves the
+  // course, and review boards exist only in the dev/review build.
+  const page = read('LearnPage.jsx');
+  assert.match(page, /const named = hole \|\| !reviewTools \? null : new URLSearchParams\(window\.location\.search\)\.get\('board'\);/);
+  assert.match(page, /const boardName = board \|\| 'main';/);
+  assert.match(page, /useJourney\(\{ app, board: boardName,/);
+  assert.match(page, /useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey \}\)/);
 });

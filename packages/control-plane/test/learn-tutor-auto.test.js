@@ -126,6 +126,9 @@ test('fix B1: suggest_journey is an action; its shared line offers a learning pa
   assert.match(lines[21], /nothing starts until they do/);
   assert.ok(CANVAS_SYSTEM.includes(lines[21]));
   assert.ok(plannerSystem(false, 'journey').includes(lines[21]), 'fix round 2: a live journey may offer one too (its click meets LP1 continue-or-start)');
+  // Owner 2026-10-07: setup too - the setup line allows that one offer beside the words (the chip is how a learner switches
+  // subject mid-setup); still no cards. The only journey prompt change; 9729 characters, under the 10,000 cap.
+  assert.ok(plannerSystem(false, 'journey').includes('- Phase setup has no section: answer briefly, respond_text only (plus suggest_journey when allowed), no cards. An unrelated question gets a short, direct answer; the journey resumes next turn.'));
 });
 
 // B2: the canvas prompt describes exactly what a plain-canvas turn supplies: the selected card as target, up to six of the

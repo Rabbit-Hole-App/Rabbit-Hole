@@ -606,11 +606,16 @@ test('fix B1: suggest_journey is offered only where a journey can start, on ever
   assert.deepEqual(executeActions([{ type: 'suggest_journey', request: 'x' }], { canvas: {} }), [], 'no starter: no chip');
 });
 
-test('fix B1: turnOffers offers a learning path only where one can start - not in a hole, not in setup', () => {
+// Owner 2026-10-07: setup too - the chip is how a learner switches subject mid-setup; its click meets continue-or-start, the
+// confirmation naming both subjects. Materials, Research and the handoff stay off in setup (the test above, and 11c-B).
+test('fix B1: turnOffers offers a learning path only where one can start - not in a hole; in setup too (owner 2026-10-07)', () => {
   const start = () => {};
   assert.equal(bundled.turnOffers({ journey: { journey: null, start } }).journeyOffer, true);
   assert.equal(bundled.turnOffers({ journey: { journey: { state: 'active' }, start } }).journeyOffer, true, 'fix round 2: a live journey too (the click meets LP1 continue-or-start)');
-  assert.equal(bundled.turnOffers({ journey: { journey: { state: 'intake' }, start } }).journeyOffer, false, 'setup');
+  for (const state of ['intake', 'diagnostic', 'path_review']) {
+    const setup = bundled.turnOffers({ journey: { journey: { state }, start }, openResearch: () => {}, repository: true });
+    assert.deepEqual([setup.journeyOffer, setup.materials, setup.research, setup.repository], [true, [], false, false], state);
+  }
   assert.equal(bundled.turnOffers({ journey: { journey: null, start }, record: { dive_id: 'canvas-0000hole' } }).journeyOffer, false, 'a hole');
   assert.equal(bundled.turnOffers({ journey: { journey: null, start: null } }).journeyOffer, false, 'no journey support');
   assert.equal(bundled.turnOffers({}).journeyOffer, false);

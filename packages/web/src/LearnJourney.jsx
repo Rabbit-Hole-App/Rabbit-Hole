@@ -92,11 +92,14 @@ export const resolveBody = (text, tray) => ({ action: 'resolve', text: String(te
 
 // §6.1: a broad intent on a board that already has a live journey asks first; the server never holds two (409). `under`
 // is the tray it covers: Continue answers a free-text one with the same words, so an answer that reads like an intent
-// ("I want to understand the intuition" on the goal question) is not lost.
+// ("I want to understand the intuition" on the goal question) is not lost. It is also the confirmation a Start a learning
+// path chip meets on a live journey or one in setup (owner 2026-10-07): it names both subjects, and `replace` is the journey
+// Start replaces.
 export function liveJourneyTray(journey, text, under = null) {
   const topic = journey?.request?.topic || 'this path', next = journeyIntent(text).topic || 'a new path';
   return { id: 'clarification:live', mode: 'clarification', prompt: `Continue ${topic} or start ${next}?`,
-    options: [{ id: 'continue', label: `Continue ${topic}` }, { id: 'start_new', label: `Start ${next}` }], free_text: false, dismissible: true, text, under };
+    options: [{ id: 'continue', label: `Continue ${topic}` }, { id: 'start_new', label: `Start ${next}` }], free_text: false, dismissible: true, text, under,
+    replace: journey?.id ?? null, failed: `Could not start ${next}, so ${topic} stays as it was.` };
 }
 
 // §7.1. Free text always comes from the composer below, so the tray never holds an input.
@@ -170,9 +173,9 @@ export function journeyController({ where, fetchJson: send, onChange = () => {},
   };
   // ok is a 200. A failure gets the tray's error line, whose retry re-sends the same action, unless the reply already
   // shows where the journey is: a 409, a replay after a re-read, or a planner failure's own error tray.
-  const settle = (out, again) => {
+  const settle = (out, again, message = null) => {
     const ok = out.status === 200;
-    if (!ok && out.status !== 409 && !out.reread && !out.d?.tray?.error) set({ error: { message: out.status ? 'That did not go through.' : 'Rabbit Hole could not be reached.', again } });
+    if (!ok && out.status !== 409 && !out.reread && !out.d?.tray?.error) set({ error: { message: message || (out.status ? 'That did not go through.' : 'Rabbit Hole could not be reached.'), again } });
     return { ...out, ok };
   };
   const act = async (body, again = () => act(body)) => {
@@ -260,15 +263,17 @@ export function journeyController({ where, fetchJson: send, onChange = () => {},
   const proposalTray = p => (p ? { id: `generation_proposal:${p.step_id}`, mode: 'generation_proposal', prompt: p.message,
     options: [{ id: 'generate', label: 'Generate' }, { id: 'not_now', label: 'Not now' }], free_text: false, dismissible: true } : null);
 
-  const start = async text => {
+  // confirmed: continue-or-start's Start (its tray): the start names the journey it replaces, which the route archives in the
+  // insert's transaction, so a failed start keeps that journey and says so (owner 2026-10-07).
+  const start = async (text, confirmed = null) => {
     set({ local: null, dismissed: null, error: null });
-    const out = await run({ action: 'start', text }, null);
+    const out = await run({ action: 'start', text, ...(confirmed?.replace ? { replace: confirmed.replace } : {}) }, null);
     if (out.status === 409) await materialize({ load: true });
     const why = out.d?.error;
     if (NOT_HERE.has(why)) return { handled: false };
     if (why === 'live_journey') set({ local: liveJourneyTray(out.d.journey, text) });
     else if (why === 'topic_required') set({ local: { ...out.d.tray, text } });
-    else if (!settle(out, () => start(text)).ok) return { handled: true, failed: true };
+    else if (!settle(out, () => start(text, confirmed), confirmed?.failed).ok) return { handled: true, failed: true };
     else await materialize(); // a fast start is accepted and planned at once
     return { handled: true };
   };
@@ -321,11 +326,9 @@ export function journeyController({ where, fetchJson: send, onChange = () => {},
     const local = s.local;
     if (local?.id === 'clarification:live') {
       if (optionId === 'continue') { set({ local: null }); return local.under?.free_text ? answerText(local.text, local.under) : { ok: true }; }
-      // Start the new topic: the live journey is archived first, so the board still holds one. no_journey or archived:
-      // another tab archived it already.
-      const out = await act({ action: 'archive' }, () => answer('start_new'));
-      if (!out.ok && out.d?.error !== 'no_journey' && out.d?.error !== 'archived') return out;
-      const started = await start(local.text);
+      // Start the new topic in one start that replaces the live journey (owner 2026-10-07: a start that fails keeps the
+      // current journey, setup included). Another tab that archived it already leaves nothing to replace.
+      const started = await start(local.text, local);
       return { ...started, ok: !started.failed };
     }
     if (local?.id === 'clarification:turn') {
