@@ -38,14 +38,28 @@ export const repoRow = (real, status = 'ready') => ({ name: REPO, org: real.org,
 // Stubs the project on a browser context: /api/apps gains its row; the project, its snapshot and its file reads answer from
 // the fixture. status() is read on every request (a refresh can start mid-check). Every other request goes on to the stack;
 // a route registered later (an /api/learn/ask stub) runs first.
-// A check that closes its page mid-request makes Playwright reject fetch, json and fulfill with a teardown error: a
-// TargetClosedError ("has been closed", "Request context disposed.") or "Response has been disposed". Unhandled, one
-// crashed the harness and left its browser running (2026-10-07). Only that error is dropped: nothing is left to answer.
-// Any other error still fails the check.
-export const pageGone = (error) => String(error?.name).startsWith('TargetClosedError') || /has been (closed|disposed)|context disposed/.test(String(error?.message));
+// A check that closes its page mid-request makes Playwright reject fetch, json and fulfill with a teardown error (a
+// TargetClosedError, or "Response has been disposed"). Unhandled, one crashed the harness and left its browser running
+// (2026-10-07). Such an error is dropped only once the request's page or the context is confirmed closed: nothing is left
+// to answer. The same wording from a page that is still open, or any other error, still fails the check.
+const teardownWording = (error) => String(error?.name).startsWith('TargetClosedError') || /has been (closed|disposed)|context disposed/.test(String(error?.message));
+// The rejection can arrive just before the close event, so an open page or context gets this long for its close event.
+export const CLOSE_WAIT_MS = 2000;
 export const routeRepository = (context, status = () => 'ready') => {
-  let row;
-  return context.route('**/api/**', (route) => serve(route).catch((error) => { if (!pageGone(error)) throw error; }));
+  let row, contextClosed = false;
+  context.once('close', () => { contextClosed = true; });
+  const closed = (route) => {
+    let page = null;
+    try { page = route.request().frame().page(); } catch {} // a worker's request has no frame
+    if (contextClosed || page?.isClosed()) return true;
+    return new Promise((resolve) => {
+      const done = (value) => { clearTimeout(timer); resolve(value); };
+      const timer = setTimeout(() => done(contextClosed || !!page?.isClosed()), CLOSE_WAIT_MS);
+      context.once('close', () => done(true));
+      page?.once('close', () => done(true));
+    });
+  };
+  return context.route('**/api/**', (route) => serve(route).catch(async (error) => { if (!(teardownWording(error) && await closed(route))) throw error; }));
   async function serve(route) {
     const p = new URL(route.request().url()).pathname;
     if (p === '/api/apps' && route.request().method() === 'GET') {
