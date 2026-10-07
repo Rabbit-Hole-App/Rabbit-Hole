@@ -195,12 +195,14 @@ async function nextStepsAboutShared(req, env, token) {
   const origin = originOf(body?.origin, state);
   if (origin.error) return json({ error: origin.error }, origin.status || 400);
   const viewer = found.viewer || await repositoryIdentity(req, env);
-  return sharedNextSteps(env, { row, state, title: await sharedBoardTitle(env, row), key: await shareKey(token), viewer: viewer instanceof Response ? null : viewer, origin, body });
+  return sharedNextSteps(env, { row, state, title: (await sharedBoard(env, row)).title, key: await shareKey(token), viewer: viewer instanceof Response ? null : viewer, origin, body });
 }
-// A shared board's name as its viewers see it (sharedTitle: a private repository's name withheld), for the hook input.
-async function sharedBoardTitle(env, row) {
+// A shared board's name as its viewers see it (sharedTitle: a private repository's name withheld), with the canvas row and
+// the share's pinned source it was read from.
+async function sharedBoard(env, row) {
   const canvas = CANVAS.test(row.app) ? await env.LEARN_DB.prepare('SELECT title FROM canvases WHERE org = ? AND name = ?').bind(row.org, row.app).first() : null;
-  return sharedTitle(row, canvas?.title, await shareSource(env.LEARN_DB, row));
+  const pinned = await shareSource(env.LEARN_DB, row);
+  return { canvas, pinned, title: sharedTitle(row, canvas?.title, pinned) };
 }
 
 // Forking (docs/features/canvas-forking.md): the signed-in user gets their own
@@ -367,13 +369,16 @@ async function startRabbitHole(req, env, token, body) {
   if (origin.error) return json({ error: origin.error }, origin.status || 400);
   const parent = { app: `share:${await shareKey(token)}`, board: row.board };
   const originId = origin.root ? SHARED_ROOT : origin.id;
+  // The board's name, read once for the step check and the hole's provenance.
+  let named = null;
+  const board = () => (named ??= sharedBoard(env, row));
   // A clicked hook (docs/features/professor-next-steps.md §1.4): checked against the board as it is now - its version and
   // title fingerprint (a stale version or a rename is 409 stale_hook), then its ids and wording against the same trimmed
-  // input generation read, and its origin (a chat card reads as the root) - before anything is written for the viewer. Only the checked fields come back as
-  // next_step; its learning_goal starts a new hole's goal.
+  // input generation read, and its origin (a chat card reads as the root) - before anything is written for the viewer.
+  // Only the checked fields come back as next_step; its learning_goal starts a new hole's goal.
   const picked = body?.selected_next_step;
   if (picked != null) {
-    const title = await sharedBoardTitle(env, row);
+    const { title } = await board();
     const allowed = sharedStepIds(state, { origin, key: parent.app.slice('share:'.length), version: row.version, title });
     const problem = selectedStepProblem(picked, { ...allowed, version: row.version, fingerprint: await titleFingerprint(title) });
     if (problem) return json({ error: problem.error }, problem.status);
@@ -388,9 +393,7 @@ async function startRabbitHole(req, env, token, body) {
   const earlier = await existing();
   if (earlier) return reply(earlier, 200, { existing: true, ...echo });
   // What the hole came from: the fork's provenance fields, so "which shared canvas, card and version?" has one shape.
-  const canvas = CANVAS.test(row.app) ? await db.prepare('SELECT title FROM canvases WHERE org = ? AND name = ?').bind(row.org, row.app).first() : null;
-  const pinned = await shareSource(db, row);
-  const sharedName = sharedTitle(row, canvas?.title, pinned);
+  const { canvas, pinned, title: sharedName } = await board();
   const source = {
     resource_id: canvas ? row.app : (row.app.startsWith('repo-') && !pinned?.allowed ? null : row.app), board: row.board, board_id: row.id,
     title: sharedName, creator: { name: row.owner_email, source_owner_verified: false }, share_url: `/b/${token}`, share_key: parent.app.slice('share:'.length),

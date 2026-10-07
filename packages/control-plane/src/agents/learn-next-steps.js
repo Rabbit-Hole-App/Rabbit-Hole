@@ -10,7 +10,7 @@ export const NEXT_STEPS_LIMITS = Object.freeze({
   options: 3, hook_words_min: 4, hook_words_max: 12, hook_chars: 90, goal: LEARNING_GOAL_MAX, reason: 200, ids: 3,
   scope_concepts: 12, scope_claims: 12, blocks: 20, block_title: 80, statement: 240, ideas: 4, idea: 120, drawn: 160,
   transitions: 6, modalities: 8, practice: 4, previous_hooks: 6, previous_goals: 3, question: 300, goal_text: 200,
-  input_chars: 9000, input_refuse: 12000, basis: 400, debounce_ms: 1200, tab_cap: 60, trim_blocks: 6,
+  input_chars: 9000, input_refuse: 12000, basis: 400, debounce_ms: 1200, tab_cap: 60, block_floor: 6,
 });
 const LIMITS = NEXT_STEPS_LIMITS;
 
@@ -202,31 +202,41 @@ export function nextStepsInputProblem(input) {
 // One line, at most max characters: every text the planner input carries.
 export const capText = (text, max) => String(text ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
 
-// The input_chars cap (§2.1) for an input whose scope is already in priority order, highest first (the shared input: the
-// selected card's claims lead). Trims in place and never drops the grounding in keep (claims: ids; block: a block id):
-// first the oldest blocks that name no kept claim, down to trim_blocks; then scope claims from the end (a concept leaves
-// with its last claim); then the remaining blocks, oldest first. Block claim and concept ids always name only the kept
-// scope. An input still over the cap is the caller's to refuse (nextStepsInputProblem, input_refuse). Returns the input.
-export function fitInput(input, { claims: keep = [], block = null } = {}) {
-  const { scope } = input, blocks = input.canvas.blocks;
+// The one input_chars trim (§2.1; Task 7's order, owner sixth message 1), shared by the owned input (web nextStepsInput) and
+// the shared route (sharedInput). In place, by structured priority only, never titles or text. While over the cap: the
+// lowest-rank card, the oldest among equals, down to block_floor cards; then the lowest-priority claim outside essential (the
+// last such scope claim: the scope is in priority order); then the remaining cards the same way; then the essential claims
+// from the end, keeping at least one. The caller supplies rank(block) (read on the block as kept: its claim_ids name only kept
+// claims), essential (a Set of claim ids), leaving(id, rest) (the claims that leave with id; rest is the scope without it)
+// and sync() (what it keeps beside the scope, filtered to what is kept). Returns 'input_too_large' when the input still does
+// not fit, or a scope that had claims would keep none; else null.
+export function trimToFit(input, { rank = () => 0, essential = new Set(), leaving = () => [], sync = () => {} } = {}) {
+  const { scope } = input, blocks = input.canvas.blocks, had = Object.keys(scope.claims).length;
   const fits = () => {
     for (const b of blocks) {
       b.claim_ids = b.claim_ids.filter(id => Object.hasOwn(scope.claims, id));
       b.concept_ids = b.concept_ids.filter(c => Object.hasOwn(scope.concepts, c));
     }
+    sync();
     return JSON.stringify(input).length <= LIMITS.input_chars;
   };
-  const dropBlock = test => { const i = blocks.findIndex(b => b.id !== block && test(b)); if (i >= 0) blocks.splice(i, 1); return i >= 0; };
-  while (!fits()) {
-    if (blocks.length > LIMITS.trim_blocks && dropBlock(b => !b.claim_ids.length)) continue;
-    const claim = Object.keys(scope.claims).filter(id => !keep.includes(id)).at(-1);
-    if (claim) {
-      const { concept } = scope.claims[claim];
-      delete scope.claims[claim];
+  const dropBlock = () => blocks.splice(blocks.reduce((low, b, i) => (rank(b) < rank(blocks[low]) ? i : low), 0), 1);
+  const dropClaim = id => {
+    for (const gone of [id, ...leaving(id, Object.fromEntries(Object.entries(scope.claims).filter(([k]) => k !== id)))]) {
+      const { concept } = scope.claims[gone];
+      delete scope.claims[gone];
       if (!Object.values(scope.claims).some(c => c.concept === concept)) delete scope.concepts[concept];
-    } else if (!dropBlock(() => true)) break;
+    }
+  };
+  while (!fits()) {
+    const ids = Object.keys(scope.claims), optional = ids.filter(id => !essential.has(id));
+    if (blocks.length > LIMITS.block_floor) dropBlock();
+    else if (optional.length) dropClaim(optional.at(-1));
+    else if (blocks.length) dropBlock();
+    else if (ids.length > 1) dropClaim(ids.at(-1));
+    else break;
   }
-  return input;
+  return !fits() || (had && !Object.keys(scope.claims).length) ? 'input_too_large' : null;
 }
 
 // The one scope builder (§2.1, Ruling F15): the owned input (web learn-next-steps.js) and the shared route pass the candidate
@@ -265,17 +275,17 @@ export function mintSet(options, input, { source = null, now = () => new Date(),
 
 // The server's check of an incoming shared selected_next_step: concepts and claims are Sets of the ids the shared board
 // allows, topic is topicOf's string for that board (ruling F2: a hook valid at generation stays valid), version the board's
-// current share_version, fingerprint the one-way fingerprint of its current title (when given) and origin the card id or
-// ':root'. null, or { error, status }; a stale version or a renamed board is 409 stale_hook.
+// current share_version, fingerprint the one-way fingerprint of its current title (required: a step without it is stale)
+// and origin the card id or ':root'. null, or { error, status }; a stale version or a renamed board is 409 stale_hook.
 const SET = /^(ns_[0-9a-f]{8})\.([1-9])$/;
-export function selectedStepProblem(step, { concepts, claims, version, origin, topic = '', fingerprint = null }) {
+export function selectedStepProblem(step, { concepts, claims, version, origin, fingerprint, topic = '' }) {
   const bad = error => ({ error, status: 400 });
   const suggestion = SET.exec(step?.suggestion_id);
   if (!isObj(step) || step.v !== 1 || !suggestion || suggestion[1] !== step.set_id || +suggestion[2] > LIMITS.options || typeof step.basis !== 'string' || step.basis.length > LIMITS.basis) return bad('selected_next_step is malformed');
   if (step.scope !== 'shared' || !isObj(step.source)) return bad('selected_next_step scope');
   // Before the board checks: a step from an earlier version, or from before a rename (no version bump), is stale even where
   // the board's ids or topic have moved on.
-  if (step.source.share_version !== version || (fingerprint != null && step.source.title_fingerprint !== fingerprint)) return { error: 'stale_hook', status: 409 };
+  if (step.source.share_version !== version || typeof step.source.title_fingerprint !== 'string' || step.source.title_fingerprint !== fingerprint) return { error: 'stale_hook', status: 409 };
   if (hookProblem(step.hook, { topic }) || learningGoalProblem(step.learning_goal) || labelled(step.learning_goal)) return bad('selected_next_step wording');
   const ids = (list, allowed) => Array.isArray(list) && list.length <= LIMITS.ids && list.every(id => typeof id === 'string' && allowed.has(id));
   if (!ids(step.concept_ids, concepts) || !ids(step.claim_ids, claims)) return bad('selected_next_step ids');

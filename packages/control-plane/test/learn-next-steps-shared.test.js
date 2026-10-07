@@ -11,6 +11,8 @@ import { sharedInput } from '../src/learn-next-steps-routes.js';
 import { fixtureModel } from '../src/learn-journey-fixtures.js';
 import { NEXT_STEPS_LIMITS, NEXT_STEPS_SYSTEM } from '../src/agents/learn-next-steps.js';
 import { TUTOR_DOMAINS } from '../../web/src/learn-tutor-domains.js';
+import { nextStepsInput } from '../../web/src/learn-next-steps.js';
+import { emptyStore } from '../../web/src/learn-tutor-evidence.js';
 import { cardBlock } from '../../web/src/nanogpt/board.js';
 import { NANOGPT, cardModule } from '../../web/src/learn-tutor-claims.js';
 import { resolveTarget } from '../../web/src/learn-target.js';
@@ -55,7 +57,7 @@ test('privacy 1-2: 3 hooks from the visible lesson blocks; chat cards and a goal
   for (const o of got.body.options) assert.deepEqual([o.selected_next_step.scope, o.selected_next_step.source], ['shared', { share_version: 1, origin_block_id: ':root', title_fingerprint: fingerprint }]);
   assert.equal(got.text.includes('nanoGPT attention'), false, 'the step carries a one-way fingerprint of the title, never the title');
   assert.equal(JSON.stringify(got.body.options).includes('reason_internal'), false);
-  const input = sharedInput(STATE, { origin: { root: true }, key: 'k', version: 1 });
+  const { input } = sharedInput(STATE, { origin: { root: true }, key: 'k', version: 1 });
   assert.equal('goal' in input, false, 'no goal is inferred on a shared canvas');
   assert.deepEqual(input.canvas.blocks.map(b => b.id), STATE.blocks.map(b => b.id));
   assert.equal(JSON.stringify(input).includes('Why exp?'), false, 'chat cards are not content for hooks');
@@ -90,7 +92,7 @@ test('sharer evidence never influences viewer hooks; signed-in viewer_states rea
   assert.equal(got.status, 200, got.text);
   assert.deepEqual(got.body.telemetry.summary.evidence_summary.uncertain, [REG[0]]);
   assert.equal(/made\.up\/claim|not-a-state|lj_secret|sec-secret|ana@test/.test(got.text), false);
-  assert.deepEqual(sharedInput(stamped, { origin: { root: true }, key: 'k', version: 1 }).canvas.blocks.find(b => b.id === 'js1').claim_ids, [], 'a journey stamp is never read');
+  assert.deepEqual(sharedInput(stamped, { origin: { root: true }, key: 'k', version: 1 }).input.canvas.blocks.find(b => b.id === 'js1').claim_ids, [], 'a journey stamp is never read');
   // Without the viewer's own states, nothing of the sharer's moves a claim off not_yet_observed, and the route reads no
   // journey, evidence or Tutor row of anyone's.
   const plain = await hooks(f, token, null);
@@ -222,7 +224,26 @@ const claimsOf = block => NANOGPT.targetClaims(resolveTarget(block));
 const BIG_CLAIMS = [...new Set(BIG.blocks.flatMap(claimsOf))];
 const size = input => JSON.stringify(input).length;
 
-test('real-size about 10-11k shared boards are trimmed to at most 9000, and trimming preserves useful grounding: the selected card and its claims survive', async t => {
+// A public course registered only for one test (removed after it): count claims on every authored card (every block with
+// everywhere), each claim at its caps, ids of idLength characters.
+function syntheticCourse(t, { count = 12, idLength = 64, everywhere = false } = {}) {
+  const ids = Array.from({ length: count }, (_, i) => `synthetic-claim-${i}-`.padEnd(idLength, 'q'));
+  const text = n => 'w'.repeat(n);
+  const claims = Object.fromEntries(ids.map(id => [id, { concept: 'synthetic', statement: text(240), ideas: [text(120), text(120), text(120), text(120)], drawn: text(160), misconceptions: [], prerequisites: [] }]));
+  TUTOR_DOMAINS.push({ id: 'synthetic-public', match: {}, domain: { claims, concepts: { synthetic: { label: 'Synthetic', names: [] } }, targetClaims: target => (everywhere || target.card_id ? ids : []) }, capabilities: { tutor: true, suppliedCourse: true } });
+  t.after(() => { TUTOR_DOMAINS.splice(TUTOR_DOMAINS.findIndex(entry => entry.id === 'synthetic-public'), 1); });
+  return ids;
+}
+
+test('real-size about 10-11k shared boards are trimmed to at most 9000 with Task 7 order: every registry claim Task 7 keeps survives, and so do the selected card and its claims', async t => {
+  const options = { origin: { root: true }, key: 'f'.repeat(64), version: 1, title: 'nanoGPT attention' };
+  const { trim } = sharedInput(BIG, options);
+  assert.ok(trim.before.chars > 10000 && trim.before.chars < 11500, `untrimmed ${trim.before.chars} characters`);
+  assert.ok(trim.after.chars <= NEXT_STEPS_LIMITS.input_chars && trim.after.block_count < trim.before.block_count, 'over the cap: cards were trimmed');
+  // What Task 7 keeps of the same board (the owned input on the course domain).
+  const owned = nextStepsInput({ context: { domain: NANOGPT, source: 'registry' }, store: emptyStore(), blocks: BIG.blocks, title: 'nanoGPT attention', basis: 'b' });
+  const ownedClaims = Object.keys(owned.input.scope.claims);
+  assert.deepEqual(new Set(ownedClaims), new Set(BIG_CLAIMS), 'Task 7 keeps every registry claim of this board');
   const f = world(t, { JOURNEY_MODEL_STUB: '' });
   const inputs = plannerInputs(t);
   const { token } = await f.shareProject({ state: BIG });
@@ -231,40 +252,55 @@ test('real-size about 10-11k shared boards are trimmed to at most 9000, and trim
   const [card, root] = inputs;
   for (const input of [card, root]) {
     assert.ok(size(input) <= NEXT_STEPS_LIMITS.input_chars, `${size(input)} characters`);
-    assert.ok(input.canvas.blocks.length < BIG.blocks.length || Object.keys(input.scope.claims).length < BIG_CLAIMS.length, 'the board was over the cap: something was trimmed');
+    for (const id of ownedClaims) assert.ok(Object.hasOwn(input.scope.claims, id), `the claim ${id} Task 7 keeps survives`);
     for (const b of input.canvas.blocks) assert.ok(b.claim_ids.every(id => Object.hasOwn(input.scope.claims, id)), 'block ids name only the kept scope');
   }
   assert.deepEqual(card.canvas.selected, { id: selected.id, title: LONG(BIG.blocks.indexOf(selected)).slice(0, NEXT_STEPS_LIMITS.block_title) });
-  assert.deepEqual(card.canvas.blocks.find(b => b.id === selected.id)?.claim_ids, claimsOf(selected).slice(0, 3));
-  for (const id of claimsOf(selected)) assert.ok(Object.hasOwn(card.scope.claims, id), `the selected card claim ${id} survives`);
-  assert.equal(Object.keys(root.scope.claims)[0], BIG_CLAIMS[0], 'the root keeps its highest-priority claim');
+  assert.deepEqual(card.canvas.blocks.find(b => b.id === selected.id)?.claim_ids, claimsOf(selected).slice(0, 3), 'the selected card survives the card trim');
+  assert.equal(Object.keys(root.scope.claims)[0], BIG_CLAIMS[0], 'the root keeps its highest-priority claim first');
 });
 
-test('an input over 12000 after trimming is refused with no planner call (a selected card whose grounding alone exceeds the cap)', async t => {
-  // A public course registered only for this test: twelve long claims on every authored card.
-  const ids = Array.from({ length: 12 }, (_, i) => `synthetic-course-claim-${i}-${'q'.repeat(40)}`);
-  const text = n => 'w'.repeat(n);
-  const claims = Object.fromEntries(ids.map(id => [id, { concept: 'synthetic', statement: text(240), ideas: [text(120), text(120), text(120), text(120)], drawn: text(160), misconceptions: [], prerequisites: [] }]));
-  TUTOR_DOMAINS.push({ id: 'synthetic-public', match: {}, domain: { claims, concepts: { synthetic: { label: 'Synthetic', names: [] } }, targetClaims: target => (target.card_id ? ids : []) }, capabilities: { tutor: true, suppliedCourse: true } });
-  t.after(() => { TUTOR_DOMAINS.splice(TUTOR_DOMAINS.findIndex(entry => entry.id === 'synthetic-public'), 1); });
+test('a selected card older than the 20 newest blocks still appears in canvas.blocks, and the blocks stay at 20', () => {
+  const board = { blocks: [{ id: 'old', type: 'explanation', title: 'The oldest card' }, ...Array.from({ length: 24 }, (_, i) => ({ id: `n${i}`, type: 'explanation', title: `Card ${i}` }))] };
+  const { input } = sharedInput(board, { origin: { id: 'old' }, key: 'k', version: 1, title: 't' });
+  assert.equal(input.canvas.blocks.length, NEXT_STEPS_LIMITS.blocks);
+  assert.deepEqual([input.canvas.blocks[0].id, input.canvas.selected], ['old', { id: 'old', title: 'The oldest card' }]);
+  assert.deepEqual(input.canvas.blocks.slice(1).map(b => b.id), board.blocks.slice(-(NEXT_STEPS_LIMITS.blocks - 1)).map(b => b.id), 'then the newest');
+});
+
+test('an essential-heavy input is trimmed to at most 9000 and sent, never above it: the selected card claims go last and at least one is kept', async t => {
+  const ids = syntheticCourse(t);
   const f = world(t, { JOURNEY_MODEL_STUB: '' });
   const inputs = plannerInputs(t);
   const { token } = await f.shareProject({ state: STATE });
-  const refused = await hooks(f, token, 'ben', { origin: { block_id: 'reg1' } });
-  assert.equal(refused.status, 400, refused.text);
-  assert.match(refused.body.error, new RegExp(String(NEXT_STEPS_LIMITS.input_refuse)));
+  assert.equal((await hooks(f, token, 'ben', { origin: { block_id: 'reg1' } })).status, 200);
+  const [input] = inputs;
+  assert.ok(size(input) <= NEXT_STEPS_LIMITS.input_chars, `${size(input)} characters`);
+  const kept = Object.keys(input.scope.claims);
+  assert.ok(kept.length >= 1 && kept.length < REG.length + ids.length, `kept ${kept.length} claims`);
+  assert.equal(kept[0], [...REG, ...ids][0], 'the first essential claim stays');
+  assert.deepEqual([input.canvas.blocks, input.canvas.selected.id], [[], 'reg1'], 'Task 7 order: every card leaves before an essential claim; the selection is still named');
+});
+
+test('an input over 12000 after trimming is refused with no planner call (an essential claim whose id alone exceeds every cap)', async t => {
+  syntheticCourse(t, { count: 1, idLength: NEXT_STEPS_LIMITS.input_refuse + 1000, everywhere: true });
+  const f = world(t, { JOURNEY_MODEL_STUB: '' });
+  const inputs = plannerInputs(t);
+  const { token } = await f.shareProject({ state: STATE });
+  for (const [as, origin] of [['ben', { block_id: 'b1' }], [null, null]]) {
+    const refused = await hooks(f, token, as, { origin });
+    assert.deepEqual([refused.status, refused.body.error], [400, 'input_too_large'], refused.text);
+  }
   assert.deepEqual([inputs.length, usage(f), f.store.size], [0, [], 0], 'no planner call, no usage, nothing cached');
-  // The root keeps only its first claim as grounding, so it trims under the cap.
-  assert.equal((await hooks(f, token, null)).status, 200);
-  assert.ok(size(inputs[0]) <= NEXT_STEPS_LIMITS.input_chars);
 });
 
 test('returned-hook validation uses the same trimmed scope as generation: a hook naming a claim trimmed away is refused at start; a hook on a kept claim is accepted', async t => {
+  const ids = syntheticCourse(t);
   const f = world(t, { JOURNEY_MODEL_STUB: '' });
   const inputs = plannerInputs(t);
-  const { token } = await f.shareProject({ state: BIG });
+  const { token } = await f.shareProject({ state: STATE });
   const kept = (await hooks(f, token, 'ben')).body.options[0].selected_next_step;
-  const scope = Object.keys(inputs[0].scope.claims), trimmed = BIG_CLAIMS.filter(id => !scope.includes(id));
+  const scope = Object.keys(inputs[0].scope.claims), trimmed = ids.filter(id => !scope.includes(id));
   assert.ok(trimmed.length > 0 && kept.claim_ids.every(id => scope.includes(id)), 'the cap trimmed a claim; the hook names kept ones');
   const away = await start(f, token, 'ben', null, { ...kept, concept_ids: [], claim_ids: [trimmed[0]] });
   assert.deepEqual([away.status, away.body.error], [400, 'selected_next_step ids']);
@@ -328,4 +364,17 @@ test('a rename between generation and click answers 409 stale_hook, never 400; t
   f.sqlite.prepare('UPDATE canvases SET title = ? WHERE name = ?').run('nanoGPT attention', canvas.name);
   const made = await start(f, token, 'ben', null, step);
   assert.deepEqual([made.status, made.body.next_step], [201, step], 'the same title passes');
+});
+
+// Fix round 2: a shared step must carry the fingerprint (no opt-out), and Start Rabbit Hole reads the board name once.
+test('a shared step without title_fingerprint answers 409 stale_hook; a start with a step reads the board name once', async t => {
+  const f = world(t);
+  const { token } = await f.shareProject({ state: STATE });
+  const step = (await hooks(f, token, 'ben')).body.options[0].selected_next_step;
+  const { title_fingerprint: _, ...bare } = step.source;
+  const missing = await start(f, token, 'ben', null, { ...step, source: bare });
+  assert.deepEqual([missing.status, missing.body.error], [409, 'stale_hook']);
+  const before = f.statements.length;
+  assert.equal((await start(f, token, 'ben', null, step)).status, 201);
+  assert.equal(f.statements.slice(before).filter(sql => sql === 'SELECT title FROM canvases WHERE org = ? AND name = ?').length, 1);
 });

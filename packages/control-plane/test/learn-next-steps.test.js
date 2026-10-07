@@ -199,10 +199,12 @@ test('mintSet default hex is 8 lowercase hex characters', () => {
 });
 
 test('selectedStepProblem: shape, bounds, wording, ids, version (409 stale_hook) and origin', () => {
-  const step = mintSet(THREE, { ...INPUT, mode: 'shared' }, { source: { share_version: 4, origin_block_id: 'k1' }, hex: () => 'abcdef01' }).options[0].selected_next_step;
-  const ctx = { concepts: new Set(['annealing', 'viscosity']), claims: new Set(['annealing.slow-cool', 'viscosity.temperature']), version: 4, origin: 'k1' };
+  const step = mintSet(THREE, { ...INPUT, mode: 'shared' }, { source: { share_version: 4, origin_block_id: 'k1', title_fingerprint: 'fp1' }, hex: () => 'abcdef01' }).options[0].selected_next_step;
+  const ctx = { concepts: new Set(['annealing', 'viscosity']), claims: new Set(['annealing.slow-cool', 'viscosity.temperature']), version: 4, origin: 'k1', fingerprint: 'fp1' };
   assert.equal(selectedStepProblem(step, ctx), null);
   assert.deepEqual(selectedStepProblem(step, { ...ctx, version: 5 }), { error: 'stale_hook', status: 409 });
+  // Task 11 round 2: a renamed board, a step without the fingerprint, or a check without one is stale too (no opt-out).
+  for (const [s, c] of [[step, { ...ctx, fingerprint: 'fp2' }], [{ ...step, source: { share_version: 4, origin_block_id: 'k1' } }, ctx], [step, { ...ctx, fingerprint: undefined }]]) assert.deepEqual(selectedStepProblem(s, c), { error: 'stale_hook', status: 409 });
   assert.equal(selectedStepProblem(step, { ...ctx, origin: ':root' }).status, 400);
   for (const bad of [{ ...step, v: 2 }, { ...step, set_id: 'x' }, { ...step, suggestion_id: 'ns_abcdef01.4' }, { ...step, hook: 'Explain annealing to me now' }, { ...step, learning_goal: '' },
     { ...step, learning_goal: 'Reach mastery of how cooling rate sets stress' }, { ...step, claim_ids: ['secret.claim'] }, { ...step, scope: 'owned' }, null]) {
@@ -213,8 +215,8 @@ test('selectedStepProblem: shape, bounds, wording, ids, version (409 stale_hook)
 // Ruling F2: a hook that was valid at generation because a format word is the canvas topic stays valid when it comes back.
 test('selectedStepProblem takes the topic: a format word is allowed only when the canvas is about it', () => {
   const hook = 'Why does a video stutter when the network slows?';
-  const step = mintSet([option({ hook }), ...THREE.slice(1)], { ...INPUT, mode: 'shared' }, { source: { share_version: 4, origin_block_id: 'k1' }, hex: () => 'abcdef01' }).options[0].selected_next_step;
-  const ctx = { concepts: new Set(['annealing', 'viscosity']), claims: new Set(['annealing.slow-cool', 'viscosity.temperature']), version: 4, origin: 'k1' };
+  const step = mintSet([option({ hook }), ...THREE.slice(1)], { ...INPUT, mode: 'shared' }, { source: { share_version: 4, origin_block_id: 'k1', title_fingerprint: 'fp1' }, hex: () => 'abcdef01' }).options[0].selected_next_step;
+  const ctx = { concepts: new Set(['annealing', 'viscosity']), claims: new Set(['annealing.slow-cool', 'viscosity.temperature']), version: 4, origin: 'k1', fingerprint: 'fp1' };
   const topic = 'how video codecs buffer frames annealing viscosity of molten glass';
   assert.equal(selectedStepProblem(step, { ...ctx, topic }), null, 'the canvas is about video');
   assert.equal(selectedStepProblem(step, { ...ctx, topic: 'glass annealing' }).status, 400, 'a format word the canvas is not about');

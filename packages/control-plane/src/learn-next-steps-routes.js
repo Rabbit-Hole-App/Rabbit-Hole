@@ -5,7 +5,7 @@
 import { sha256Hex } from './learn-grade-jev.js';
 import { NO_CAP, admitUsage, limitsFrom, sharedAskLimits } from './learn-shared-ask.js';
 import { planNextSteps } from './learn-journey-planners.js';
-import { NEXT_STEPS_LIMITS as L, capText, fitInput, mintSet, nextStepsInputProblem, nextStepsScope, topicOf } from './agents/learn-next-steps.js';
+import { NEXT_STEPS_LIMITS as L, capText, mintSet, nextStepsInputProblem, nextStepsScope, topicOf, trimToFit } from './agents/learn-next-steps.js';
 import { TUTOR_DOMAINS } from '../../web/src/learn-tutor-domains.js';
 import { resolveTarget } from '../../web/src/learn-target.js';
 import { STATES } from '../../web/src/learn-tutor-evidence.js';
@@ -46,10 +46,12 @@ export async function ownedNextSteps(env, access, body, { callModel, cache = glo
 // blocks only (chat cards live in state.exchanges and are never read; a journey stamp on a block is never read), the board
 // title and the selected card as data, and the claims of public registered courses those blocks show, through the one scope
 // builder, selected card first. No goal is inferred. A chat card origin reads as the root (it is not content): one input and
-// one cache entry. key and version make the basis. The input_chars cap (fitInput) runs on the board alone, never dropping
-// the selected card and its claims (at the root, the first claim); a signed-in viewer's own states (already filtered) are
-// laid on the kept scope after it, so generation and Start Rabbit Hole read the same trimmed scope, and a state is never
-// longer than not_yet_observed, so the cap holds.
+// one cache entry. key and version make the basis. The blocks are the 20 newest, the selected card kept in the oldest place
+// when it is older. The input_chars cap is Task 7's (trimToFit) on the board alone: essential are the selected card's claims
+// (at the root, the first claim) and the selected card ranks with the cards naming them. A signed-in viewer's own states
+// (already filtered) are laid on the kept scope after it, so generation and Start Rabbit Hole read the same trimmed scope,
+// and a state is never longer than not_yet_observed, so the cap holds. { input, trim: { before, after } } with { chars,
+// block_count, claim_count } each (beside the input, never in it), or { problem: 'input_too_large' }.
 const PUBLIC = () => TUTOR_DOMAINS.filter(entry => entry.domain && entry.capabilities?.suppliedCourse === true);
 const ROOT = ':root';
 const contentOrigin = (state, origin) => (!origin?.root && (state?.blocks || []).some(block => block?.id === origin.id) ? origin.id : ROOT);
@@ -59,7 +61,8 @@ export function sharedInput(state, { origin, key = '', version = null, title = '
   const claimsAt = t => [...new Set(courses.flatMap(entry => entry.domain.targetClaims({ card_id: t.card_id, part_id: t.part_id, selected_object: t.selected_object, concept_ids: t.concept_ids })))];
   const nameOf = block => capText(block.title || block.question || block.prompt || block.text, L.block_title);
   const selected = at === ROOT ? null : lessons.find(block => block?.id === at);
-  const shown = lessons.slice(-L.blocks).map(block => { const t = resolveTarget(block); return { block, t, ids: claimsAt(t) }; });
+  const newest = lessons.slice(-L.blocks), window = selected && !newest.includes(selected) ? [selected, ...newest.slice(1)] : newest;
+  const shown = window.map(block => { const t = resolveTarget(block); return { block, t, ids: claimsAt(t) }; });
   const first = selected ? claimsAt(resolveTarget(selected)) : [];
   const order = [...first, ...shown.flatMap(b => b.ids)];
   const scope = nextStepsScope({ claims, concepts, order, presented: order });
@@ -72,19 +75,25 @@ export function sharedInput(state, { origin, key = '', version = null, title = '
     },
     scope, recent: { intent: null, transitions: [], modalities: [], practice: [] }, previous: { hooks: [], goals: [] }, constraints: { learner: [] },
   };
-  fitInput(input, { claims: selected ? first : Object.keys(scope.claims).slice(0, 1), block: selected?.id ?? null });
+  const essential = new Set(selected ? first : Object.keys(scope.claims).slice(0, 1)), last = window.at(-1)?.id;
+  const count = () => ({ chars: JSON.stringify(input).length, block_count: input.canvas.blocks.length, claim_count: Object.keys(scope.claims).length });
+  const before = count();
+  const problem = trimToFit(input, { essential, rank: b => ((selected && b.id === selected.id) || b.claim_ids.some(id => essential.has(id)) ? 2 : b.claim_ids.length || b.id === last ? 1 : 0) });
+  if (problem) return { problem };
   for (const [id, s] of Object.entries(viewerStates || {})) if (Object.hasOwn(scope.claims, id)) scope.claims[id].state = s;
-  return input;
+  return { input, trim: { before, after: count() } };
 }
 // The one-way fingerprint of a shared board's title: in the content cache key and in each shared step's source, so a rename
 // without a version bump is a new cache entry and a stale hook (409), as a version change is. Never the title itself.
 export const titleFingerprint = title => sha256Hex(title);
 // What a returned shared step may carry (twelfth message): the ids and topic (ruling F2) of the same trimmed input that
 // generation read, rebuilt from the board as it is (another version is already 409 stale_hook), and its origin as the
-// steps name it. options: sharedInput's (origin, key, version, title).
+// steps name it. options: sharedInput's (origin, key, version, title). A board too large for any input never minted a step:
+// its empty ids refuse every step that names one.
 export function sharedStepIds(state, options) {
-  const input = sharedInput(state, options);
-  return { claims: new Set(Object.keys(input.scope.claims)), concepts: new Set(Object.keys(input.scope.concepts)), topic: topicOf(input), origin: contentOrigin(state, options.origin) };
+  const { input } = sharedInput(state, options), origin = contentOrigin(state, options.origin);
+  if (!input) return { claims: new Set(), concepts: new Set(), topic: '', origin };
+  return { claims: new Set(Object.keys(input.scope.claims)), concepts: new Set(Object.keys(input.scope.concepts)), topic: topicOf(input), origin };
 }
 
 // Shared canvases (contract §1.5, §2.3; owner correction 9; ruling F7). Anonymous, or signed in without evidence: one
@@ -92,18 +101,19 @@ export function sharedStepIds(state, options) {
 // edge cache, a miss admitted under the share link's caps with no viewer (viewer_email ''). Signed in with evidence
 // (body.viewer_states, filtered to the server scope; not_yet_observed is no evidence): never cached, never served to anyone
 // else, capped per viewer and per share link and billed to the viewer. All under shared_canvas_hooks, never the shared-ask
-// budget. An input over input_refuse even after the cap is refused before the cache, the limiter or the planner. row: the
-// shared learn_boards row; state: its parsed board; title: sharedTitle's; viewer: the signed-in { email } or null; origin:
-// originOf's.
+// budget. An input the cap cannot fit (input_too_large), or over input_refuse, is refused before the cache, the limiter or the
+// planner. row: the shared learn_boards row; state: its parsed board; title: sharedTitle's; viewer: the signed-in { email } or
+// null; origin: originOf's.
 export async function sharedNextSteps(env, { row, state, title, key, viewer, origin, body }, { callModel, cache = globalThis.caches?.default } = {}) {
   const options = { origin, key, version: row.version, title };
-  const content = sharedInput(state, options);
-  const problem = nextStepsInputProblem({ ...content, mode: 'canvas' });
+  const { input: content, problem: tooLarge } = sharedInput(state, options);
+  // The cap's own refusal, then the hard 12000 check as a backstop; neither reaches the cache, the limiter or the planner.
+  const problem = tooLarge || nextStepsInputProblem({ ...content, mode: 'canvas' });
   if (problem) return json({ error: problem }, 400);
   const asked = viewer && body?.viewer_states && typeof body.viewer_states === 'object' && !Array.isArray(body.viewer_states) ? body.viewer_states : {};
   const own = Object.entries(asked).filter(([id, s]) => Object.hasOwn(content.scope.claims, id) && STATES.includes(s) && s !== 'not_yet_observed').slice(0, L.scope_claims);
   const personal = own.length ? Object.fromEntries(own) : null;
-  const input = personal ? sharedInput(state, { ...options, viewerStates: personal }) : content;
+  const input = personal ? sharedInput(state, { ...options, viewerStates: personal }).input : content;
   const fingerprint = await titleFingerprint(title), cacheKey = `${ORIGIN}/shared/${encodeURIComponent(content.basis)}/${fingerprint}`;
   if (!personal) {
     const hit = await nextStepsReply(cache, cacheKey);

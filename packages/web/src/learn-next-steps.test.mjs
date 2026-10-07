@@ -941,7 +941,7 @@ test('holeOpening: a carried step opens the hole once as a next_step with no que
   carryStep(s, record.dive_id, step);
   // Hook turns do not run here yet (the hole's Tutor context is not resolved): the step is kept and nothing is read.
   assert.deepEqual(open({ hookTurns: false }), { store: null, opening: null });
-  assert.deepEqual([loads, takeCarriedStep(memory(), record.dive_id), s.m.size], [0, null, 1]);
+  assert.deepEqual([loads, [...s.m.values()].map(v => JSON.parse(v))], [0, [step]], 'still stored, untouched');
   const first = open({ active: false });
   assert.deepEqual(first.opening, { key: record.dive_id, next_step: step });
   assert.equal('question' in first.opening, false);

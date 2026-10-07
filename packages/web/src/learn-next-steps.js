@@ -1,6 +1,6 @@
 // Professor Next Steps, browser side (docs/features/professor-next-steps.md §2.1, §2.3): the hook planner's input, built from
 // structured state only (never a chat dump, never intake self-report), its staleness basis and the stopping points. Pure.
-import { NEXT_STEPS_LIMITS as L, capText as cap, needsRepair, nextStepsScope } from '../../control-plane/src/agents/learn-next-steps.js';
+import { NEXT_STEPS_LIMITS as L, capText as cap, needsRepair, nextStepsScope, trimToFit } from '../../control-plane/src/agents/learn-next-steps.js';
 import { deriveClaimStates } from './learn-tutor-evidence.js';
 import { claimsOfConceptIn, holeConcept } from './learn-tutor-claims.js';
 import { resolveTarget } from './learn-target.js';
@@ -115,45 +115,25 @@ export function nextStepsInput({ context = null, store = null, journey = null, b
     } } : {}),
     constraints: { learner: [...(store?.constraints || [])], ...(domain?.context?.constraints || {}) },
   };
-  // The 9000-character cap (owner sixth message 1), by structured priority only, never titles or text: first the least relevant,
-  // oldest cards down to the 6 that feed the scope (a card naming no kept claim, then one naming a kept claim or the newest card,
-  // then one naming an essential claim or the current section heading), then the lowest-priority claims, the essential claims
-  // only after every card. Essential: the section's or hole's claims, else the first claim. Every card and recent names only
-  // what is still kept; a missing prerequisite leaves with its gap claim.
+  // The 9000-character cap (owner sixth message 1), by structured priority only, never titles or text (trimToFit, shared with the
+  // shared route): first the least relevant, oldest cards down to the block floor that feeds the scope (a card naming no kept
+  // claim, then one naming a kept claim or the newest card, then one naming an essential claim or the current section heading),
+  // then the lowest-priority claims, the essential claims only after every card. Essential: the section's or hole's claims, else
+  // the first claim. Every card and recent names only what is still kept; a missing prerequisite leaves with its gap claim.
   const lead1 = new Set(first), had = Object.keys(input.scope.claims), core = new Set(first.length ? first : had.slice(0, 1));
   const heading = journey?.journey?.section_plan?.heading_block_id ?? null, newest = shown.at(-1)?.id;
   const count = () => ({ block_count: input.canvas.blocks.length, claim_count: Object.keys(input.scope.claims).length });
-  const fits = () => {
+  const sync = () => {
     const keep = input.scope.claims;
-    for (const b of input.canvas.blocks) {
-      b.claim_ids = b.claim_ids.filter(id => Object.hasOwn(keep, id));
-      b.concept_ids = b.concept_ids.filter(c => Object.hasOwn(input.scope.concepts, c));
-    }
     input.recent.transitions = transitions.filter(t => Object.hasOwn(keep, t.claim)).slice(-L.transitions);
     input.recent.practice = practice.filter(p => input.canvas.blocks.some(b => b.id === p.block_id)).slice(-L.practice);
-    return JSON.stringify(input).length <= L.input_chars;
   };
   const rank = b => (b.id === heading || b.claim_ids.some(id => core.has(id)) ? 2 : b.claim_ids.length || b.id === newest ? 1 : 0);
-  const dropBlock = () => { const list = input.canvas.blocks; list.splice(list.reduce((low, b, i) => (rank(b) < rank(list[low]) ? i : low), 0), 1); };
-  const dropClaim = id => {
-    for (const gone of [id, ...orphans(Object.fromEntries(Object.entries(input.scope.claims).filter(([k]) => k !== id)))]) {
-      const { concept } = input.scope.claims[gone];
-      delete input.scope.claims[gone];
-      if (!Object.values(input.scope.claims).some(c => c.concept === concept)) delete input.scope.concepts[concept];
-    }
-  };
   const before = count();
-  while (!fits()) {
-    const ids = Object.keys(input.scope.claims), optional = ids.filter(id => !core.has(id));
-    if (input.canvas.blocks.length > 6) dropBlock();
-    else if (optional.length) dropClaim(optional.at(-1));
-    else if (input.canvas.blocks.length) dropBlock();
-    else if (ids.length) dropClaim(ids.at(-1));
-    else break;
-  }
-  const after = count();
   // Never a planner input with zero usable claims where the registry offered some, and never one over the cap.
-  if (!fits() || (before.claim_count && !after.claim_count)) return { problem: 'input_too_large' };
+  const problem = trimToFit(input, { rank, essential: core, leaving: (_id, rest) => orphans(rest), sync });
+  const after = count();
+  if (problem) return { problem };
   const kept = ids => (ids.length ? ids.every(id => Object.hasOwn(input.scope.claims, id)) : null);
   return { input, trim: {
     before, after, trimmed: { block_count: before.block_count - after.block_count, claim_count: before.claim_count - after.claim_count },
