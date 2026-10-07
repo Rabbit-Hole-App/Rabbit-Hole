@@ -319,16 +319,19 @@ rmSync(dir, { recursive: true, force: true });
 // A plain canvas (its dives record landed, no dive, no journey, no registered course), with optional blocks to select.
 // plan(context) answers the plan route; every request is recorded.
 // Task 11c-B: app (default the plain canvas), repository (the page's flag) and handoff (the handoff route's reply) as options.
+// Fix round 1: handoff may be a function of the request signal (a Stop test); events collects the window events (the bench);
+// logs collects console.info lines, so the [tutor] drop log stays out of the test output (asserted where it matters).
 async function plainTutor(plan, run, { blocks = [], openResearch = null, journey = null, app: appOver = null, repository = null, handoff = HANDOFF_OK } = {}) {
-  const storage = new Map(), calls = [];
+  const storage = new Map(), calls = [], events = [], logs = [], inserted = [];
   const globals = {
-    window: { dispatchEvent: () => true },
+    window: { dispatchEvent: event => { events.push(event); return true; } },
+    console: { ...console, info: (...args) => logs.push(args.join(' ')) },
     sessionStorage: { getItem: k => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, String(v)) },
     localStorage: { getItem: () => null },
     fetch: async (path, options) => {
       const body = JSON.parse(options.body);
       calls.push({ path, body });
-      const reply = path === '/api/learn/tutor/plan' ? { strategy: 'none', constraints_add: [], ...plan(body.context) } : path === '/api/learn/tutor/handoff' ? handoff : path === '/api/learn/artifact' ? { result: 'artifact', primitive: 'explanation', block: { type: 'explanation', title: 't' } } : { status: 'error', events: [] };
+      const reply = path === '/api/learn/tutor/plan' ? { strategy: 'none', constraints_add: [], ...plan(body.context) } : path === '/api/learn/tutor/handoff' ? (typeof handoff === 'function' ? await handoff(options.signal) : handoff) : path === '/api/learn/artifact' ? { result: 'artifact', primitive: 'explanation', block: { type: 'explanation', title: 't' } } : { status: 'error', events: [] };
       return new Response(JSON.stringify(reply), { status: 200, headers: { 'Content-Type': 'application/json' } });
     },
   };
@@ -338,12 +341,12 @@ async function plainTutor(plan, run, { blocks = [], openResearch = null, journey
     let tutor = null;
     const app = { name: 'canvas-0000aaaa', title: 'Gradient notes', org: 'o', email: 'e@x.com', ...appOver };
     const dive = { tree: { path: [{ app: app.name, board: 'main', title: app.title, kind: 'canvas' }], children: [], dive: null }, suggestionCard: null, navigator: null };
-    const canvasApi = { current: { blocks: () => blocks, block: id => blocks.find(b => b.id === id) || null, insertBlock: () => 'blk-new', reserve: () => null, release: () => {} } };
+    const canvasApi = { current: { blocks: () => blocks, block: id => blocks.find(b => b.id === id) || null, insertBlock: block => { inserted.push(block); return 'blk-new'; }, reserve: () => null, release: () => {} } };
     const Page = () => { tutor = bundled.useTutor({ app, board: 'main', access: { app: app.name }, canvasApi, canvasState: { card: null }, dive, journey, openResearch, ...(repository == null ? {} : { repository }) }); return null; };
     bundled.renderToStaticMarkup(bundled.createElement(Page));
     const out = await run(tutor);
     await new Promise(done => setTimeout(done, 0)); // runMaterials is not awaited by the turn
-    return { out, calls, tutor };
+    return { out, calls, tutor, events, logs, inserted, storage };
   } finally {
     for (const [name, descriptor] of Object.entries(saved)) { if (descriptor) Object.defineProperty(globalThis, name, descriptor); else delete globalThis[name]; }
   }
@@ -696,4 +699,24 @@ test('11c-B: on a repository canvas a typed or spoken question may hand off; the
   }
   const failed = await plainTutor(plan, t => t.ask({ raw: 'Who calls this?' }), { app: repo, handoff: { capability: 'repository_context', answer: null, telemetry: { ...HANDOFF_OK.telemetry, outcome: 'failed', failure: 'retrieval_error' } } });
   assert.equal(failed.out, `${lead}\n\n${HANDOFF_FAILED}`, 'a failure says the source context could not be retrieved');
+});
+
+// Fix round 1 (B-I1): a Stop or a Voice barge-in during the handoff ends the turn as a Stop during the planner does - the turn
+// rejects, the session is not saved, no canvas action, no material (no artifact call) and no card insert; nothing is requested
+// after the handoff abort. The bench event names the error and carries the stopped handoff record.
+test('fix round 1: Stop or barge-in mid-handoff ends the turn like a planner Stop - nothing saved, made or requested after it', async () => {
+  const repo = { name: REPO_APP, title: 'example/sorting' };
+  const plan = () => ({ actions: [say('Callers are the places in the code that use it.'), make('explain', 'how merge sort splits the list'), { type: 'handoff', capability: 'repository_context', request: 'which functions call merge_sort' }] });
+  for (const voice of [false, true]) {
+    const stop = new AbortController();
+    const hang = signal => { setTimeout(() => stop.abort(), 0); return new Promise((_, reject) => signal.addEventListener('abort', () => reject(signal.reason))); };
+    const turn = t => (voice ? t.voiceTurn({ raw: 'Who calls this?', turnId: 'v9', signal: stop.signal }) : t.ask({ raw: 'Who calls this?', signal: stop.signal })).then(() => null, e => e);
+    const { out, calls, events, inserted, storage } = await plainTutor(plan, turn, { app: repo, handoff: hang });
+    assert.equal(out?.name, 'AbortError', `${voice ? 'voice' : 'typed'}: the turn rejects as on a planner Stop`);
+    assert.deepEqual(calls.map(c => c.path), ['/api/learn/tutor/plan', '/api/learn/tutor/handoff'], 'no artifact or other request after the abort');
+    assert.deepEqual(inserted, [], 'no card insert');
+    assert.equal([...storage.values()].some(v => v.includes('Callers are the places')), false, 'the turn is not saved to the session');
+    const bench = events.find(e => e.type === 'small:tutor-bench')?.detail;
+    assert.deepEqual([bench?.error, bench?.handoff?.failure], ['AbortError', 'stopped']);
+  }
 });

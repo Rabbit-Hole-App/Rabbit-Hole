@@ -189,7 +189,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
       });
     } catch (error) {
       release();
-      bench({ error: error?.name || 'Error', trace: error?.trace ?? null, ms: { total_in_app: Math.round((performance.now() - started) * 10) / 10 } });
+      bench({ error: error?.name || 'Error', trace: error?.trace ?? null, handoff: error?.handoff ?? null, ms: { total_in_app: Math.round((performance.now() - started) * 10) / 10 } });
       throw error;
     }
     save(result.store);

@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { HANDOFF_FAILED, buildTurn, route, runTurn } from './learn-tutor.js';
 import { validateActions } from './learn-tutor-validate.js';
+import { decisionEvent } from './learn-tutor-trace.js';
 import { actionContract } from './learn-tutor-actions.js';
 import { canvasDomain } from './learn-journey-domain.js';
 import { NANOGPT } from './learn-tutor-claims.js';
@@ -150,7 +151,7 @@ test('failure honesty: every failed, refused or unreachable handoff says the sou
     ['model refusal', failedReply('refused', 'refused'), 'refused', 'refused'],
     ['over the cap (429)', () => { throw Object.assign(new Error('This lookup is paused for now; try again later.'), { status: 429, data: failedReply('limited', 'refused') }); }, 'refused', 'limited'],
     ['body over the limit (400)', () => { throw Object.assign(new Error('too big'), { status: 400, data: { error: 'too big', failure: 'too_large' } }); }, 'failed', 'too_large'],
-    ['browser timeout', () => { throw Object.assign(new Error('The operation was aborted due to timeout'), { name: 'TimeoutError' }); }, 'failed', 'timeout'],
+    ['browser timeout (a real timeout reason)', () => { throw AbortSignal.abort(new DOMException('The operation timed out.', 'TimeoutError')).reason; }, 'failed', 'timeout'],
     ['network error', () => { throw new TypeError('Failed to fetch'); }, 'failed', 'request_error'],
     ['ok without an answer', { ...OK, answer: '  ' }, 'failed', 'model_error'],
     ['a failure carrying stray text', { ...failedReply('model_error'), answer: 'merge_sort is probably called by main.' }, 'failed', 'model_error'],
@@ -232,4 +233,41 @@ test('anti-hardcoding: the handoff offer and its run never read the learner word
     assert.deepEqual(regexes, [], `${file}: a regex tests code-question words`);
     assert.equal(/\.(?:includes|startsWith|endsWith|indexOf|search|match)\(\s*['"`][^'"`]*\b(?:code|function|repositor\w*|calls?)\b/i.test(code), false, `${file}: a string test of code-question words`);
   }
+});
+
+// ---------- Fix round 1: Stop and barge-in (B-I1, B-I2) ----------
+
+// A Stop or a Voice barge-in aborts the turn signal (AbortError). During the handoff it ends the turn exactly as a Stop during
+// the planner does: runTurn rejects with that AbortError and the turn trace, so the page saves nothing, runs no canvas action or
+// material and emits no decision event. The handoff record rides on the error: failure stopped, ms until the stop.
+test('stop: an AbortError during the handoff rejects the turn like a planner Stop, with the handoff record failure stopped', async () => {
+  const saved = Object.getOwnPropertyDescriptor(globalThis, 'performance');
+  let clock = 0;
+  Object.defineProperty(globalThis, 'performance', { value: { now: () => clock }, configurable: true, writable: true });
+  try {
+    const stop = new AbortController();
+    const sent = [];
+    const post = async path => {
+      sent.push(path);
+      if (path === '/api/learn/tutor/plan') { clock += 500; return { strategy: 'none', constraints_add: [], actions: [SAY, { type: 'create_material', command: 'explain', request: 'x' }, HANDOFF] }; }
+      clock += 900; stop.abort(); throw stop.signal.reason;
+    };
+    const run = p => runTurn({ raw: 'Who calls this?', block: CODE_CARD, store: emptyStore(), post: p, repository: true, trace: true, materials: [{ command: 'explain', cards: ['explanation'], paid: false }], ...REPO });
+    const error = await run(post).then(() => null, e => e);
+    assert.equal(error?.name, 'AbortError', 'the turn rejects, as on a planner Stop');
+    assert.deepEqual(sent, ['/api/learn/tutor/plan', HANDOFF_PATH], 'no request after the handoff abort');
+    assert.deepEqual([error.handoff.outcome, error.handoff.failure, error.handoff.ms, error.handoff.model_id], ['failed', 'stopped', 900, null], 'handoff_ms is the time until the stop');
+    assert.ok(error.trace.stages.some(s => s.stage === 'handoff'), 'the turn trace travels with the error, as on a planner Stop');
+    // The planner-stop path it mirrors: the same rejection, the same trace on the error, and no decision event either way.
+    const plannerStop = new AbortController();
+    const planner = await run(async () => { plannerStop.abort(); throw plannerStop.signal.reason; }).then(() => null, e => e);
+    assert.deepEqual([planner.name, Array.isArray(planner.trace?.stages)], ['AbortError', true]);
+  } finally { if (saved) Object.defineProperty(globalThis, 'performance', saved); else delete globalThis.performance; }
+});
+
+test('stop: a stopped handoff never reads as a retrieval failure or a repository source in a decision event', async () => {
+  const r = await turnWith({ actions: [SAY, HANDOFF], grounding_status: 'grounded', source_types_used: ['selected_material', 'repository'] });
+  const stopped = { ...r.bench.handoff, outcome: 'failed', failure: 'stopped', model_id: null, usage: null };
+  const e = decisionEvent({ result: { ...r, bench: { ...r.bench, handoff: stopped } }, domain: REPO.domain });
+  assert.deepEqual([e.decision.grounding_status, e.decision.source_types_used], ['grounded', ['selected_material']], 'nothing was retrieved: no retrieval_failed, no repository');
 });

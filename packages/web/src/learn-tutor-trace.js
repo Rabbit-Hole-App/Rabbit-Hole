@@ -88,14 +88,15 @@ const REPAIRS = [[/^downgraded /, 'downgraded_navigation'], [/^removed /, 'citat
 // words. research_offered: the accepted plan offers Research; research_executed: nothing is researched in a Tutor turn (v1).
 // A hook set (no plan) records auto with nothing declared. handoff (Task 11c-B, owner nineteenth message): the turn's handoff
 // record - a failed or refused one forces grounding_status retrieval_failed and is never a repository source; a successful one
-// adds repository to source_types_used.
+// adds repository to source_types_used; a stopped one (fix round 1: the learner stopped, nothing was retrieved) forces nothing
+// and is never a repository source.
 const NO_READING = { inferred_intent: null, modality_override: null, clarification_requested: null, grounding_status: null, source_types_used: null };
 const intentOf = (slash, reading = NO_READING, offered = false, handoff = null) => {
   const explicit = MODE_SLASHES.includes(slash), retrieved = handoff?.outcome === 'ok', used = reading.source_types_used;
   return {
     intent_mode: slash ? 'explicit_slash' : 'auto', inferred_intent: explicit ? slash : reading.inferred_intent,
     explicit_modality_override: reading.modality_override, intent_status: explicit ? 'explicit' : reading.inferred_intent ? 'declared' : 'missing',
-    clarification_requested: reading.clarification_requested, grounding_status: handoff && !retrieved ? 'retrieval_failed' : reading.grounding_status,
+    clarification_requested: reading.clarification_requested, grounding_status: handoff && !retrieved && handoff.failure !== 'stopped' ? 'retrieval_failed' : reading.grounding_status,
     source_types_used: !handoff ? used : retrieved ? [...new Set([...(used || []), 'repository'])] : used?.filter(type => type !== 'repository') ?? null,
     research_offered: offered, research_executed: false,
   };

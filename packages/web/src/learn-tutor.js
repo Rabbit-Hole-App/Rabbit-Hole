@@ -510,7 +510,11 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   // the learner-facing result after the plan's own words; a failure keeps only those words and says the source context could
   // not be retrieved, never an answer of its own.
   const handoff = actions.find(action => action.type === HANDOFF_ACTION);
-  const handed = handoff ? await tracer.step('handoff', () => runHandoff(handoff, { post, access, block }), out => out.record.outcome) : null;
+  const handed = handoff ? await tracer.step('handoff', () => runHandoff(handoff, { post, access, block }), out => out.record.failure ?? out.record.outcome) : null;
+  // Fix round 1 (B-I1, B-I2): a Stop or Voice barge-in during the handoff ends the turn exactly as one during the planner does -
+  // the AbortError rejects the turn with its trace (the page then saves nothing, runs no canvas action or material and emits no
+  // decision event), and the stopped handoff record rides on the error.
+  if (handed?.record.failure === 'stopped') throw Object.assign(handed.error, { trace: tracer.trace, handoff: handed.record });
   const answered = now();
   // 4. The session record.
   const constraints = [...new Set([...current.constraints, ...(response.constraints_add || [])].filter(item => !(response.constraints_remove || []).includes(item)).concat(statedConstraints(raw)))];
@@ -591,15 +595,16 @@ function handoffGrounding(block) {
 // One handoff through the route: { answer (null unless ok), record } - record is the decision event's runtime.handoff: the
 // learner's wait on the turn clock, outcome ok | failed | refused, the route's failure category, served model and usage; never
 // the request or the answer. It never throws: a 429 (limited), an HTTP error, a network error (request_error) or the
-// browser's timeout is a failed or refused record, so the reply can say so.
+// browser's timeout (TimeoutError: timeout) is a failed or refused record, so the reply can say so; a Stop or barge-in
+// (AbortError) is failure stopped, and runTurn then rethrows its error (fix round 1).
 async function runHandoff(action, { post, access, block }) {
   const started = now(), startedAt = new Date().toISOString();
   let reply = null, error = null;
-  try { reply = await post(HANDOFF_ROUTE, { ...access, capability: action.capability, request: action.request, ...handoffGrounding(block) }); } catch (thrown) { error = thrown; }
+  try { reply = await post(HANDOFF_ROUTE, { ...access, capability: action.capability, request: action.request, ...handoffGrounding(block) }); } catch (thrown) { error = thrown ?? new Error('handoff failed'); }
   const telemetry = reply?.telemetry ?? error?.data?.telemetry ?? null;
   const answer = telemetry?.outcome === 'ok' && typeof reply?.answer === 'string' && reply.answer.trim() ? reply.answer.trim() : null;
-  const failure = answer ? null : telemetry?.failure ?? error?.data?.failure ?? (!error ? 'model_error' : /timeout|abort/i.test(error.name || '') ? 'timeout' : 'request_error');
-  return { answer, record: {
+  const failure = answer ? null : telemetry?.failure ?? error?.data?.failure ?? (!error ? 'model_error' : error.name === 'AbortError' ? 'stopped' : error.name === 'TimeoutError' ? 'timeout' : 'request_error');
+  return { answer, error, record: {
     started_at: startedAt, completed_at: new Date().toISOString(), ms: Math.round((now() - started) * 10) / 10,
     outcome: answer ? 'ok' : telemetry?.outcome === 'refused' ? 'refused' : 'failed', failure, model_id: telemetry?.served_model ?? null, usage: handoffUsage(telemetry),
   } };
