@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { nextStepsBasis, nextStepsInput, stoppingPoint } from './learn-next-steps.js';
+import { nextStepsBasis, nextStepsController, nextStepsInput, stoppingPoint } from './learn-next-steps.js';
 import { emptyStore, appendEvents } from './learn-tutor-evidence.js';
 import { journeyDomain } from './learn-journey-domain.js';
 import { NANOGPT, TUTOR_BOARD, cardModule } from './learn-tutor-claims.js';
@@ -487,4 +487,138 @@ test('nanoGPT as a registered course: mode canvas, the course subject as the goa
 test('no runtime branch on a course, topic, fixture id or card title in the module', () => {
   const source = readFileSync(new URL('./learn-next-steps.js', import.meta.url), 'utf8');
   assert.doesNotMatch(source, /nanogpt|attention|softmax|causal|aqueduct|tidal|tides|siphon|karpathy|c11|c12|c10|c21|depth-/i);
+});
+
+// nextStepsController (contract §1.2, §1.3, §2.3; owner section 10): the browser recompute policy, with fake timers.
+function clock() { const timers = []; return { setTimer: (fn, ms) => { timers.push({ fn, ms }); return timers.length; }, clearTimer: id => { if (timers[id - 1]) timers[id - 1].fn = null; }, fire: async () => { const t = timers.filter(x => x.fn).at(-1); const fn = t?.fn; if (t) t.fn = null; await fn?.(); await new Promise(r => setImmediate(r)); }, pending: () => timers.filter(x => x.fn).length, last: () => timers.at(-1)?.ms }; }
+const setFor = (n = 1) => ({ set_id: `ns_0000000${n}`, generated_at: 'g', options: [1, 2, 3].map(i => ({ id: `ns_0000000${n}.${i}`, hook: `Hook ${n}.${i} about rivers?`, selected_next_step: { v: 1, suggestion_id: `ns_0000000${n}.${i}`, learning_goal: `goal ${n}.${i}` } })) });
+const TRIM = { before: { block_count: 9, claim_count: 14 }, after: { block_count: 6, claim_count: 12 }, trimmed: { block_count: 3, claim_count: 2 }, current_section_claims_kept: true, repair_claims_kept: null };
+// The input builder has the nextStepsInput shape: { input, trim } or { problem }.
+const input = previous => ({ input: { previous }, trim: TRIM });
+function rig(replies, over = {}) { const c = clock(), bodies = [], sets = [], landed = []; const ctl = nextStepsController({ post: async body => { bodies.push(body); const r = replies.shift(); if (r instanceof Error) throw r; return r; }, onSet: (s, body, trim) => { sets.push(s.set_id); landed.push({ body, trim }); }, setTimer: c.setTimer, clearTimer: c.clearTimer, ...over }); return { c, ctl, bodies, sets, landed }; }
+
+// Owner test 13: a stale set is replaced after a meaningful interaction.
+test('debounce 1200 ms, loading, ready; a basis change marks it stale at once, then replaces it', async () => {
+  const { c, ctl, bodies, sets } = rig([setFor(1), setFor(2)]);
+  assert.deepEqual([ctl.view().status, ctl.view().reason], ['unavailable', 'off'], 'off until the first update');
+  ctl.update({ basis: 'a', stop: null, input });
+  assert.deepEqual([ctl.view().status, c.last()], ['loading', 1200]);
+  await c.fire();
+  assert.equal(ctl.view().status, 'ready');
+  ctl.update({ basis: 'b', stop: null, input });
+  assert.deepEqual([ctl.view().status, ctl.view().set_id, ctl.view().options.length], ['stale', 'ns_00000001', 3], 'the old options are kept until the new set lands');
+  assert.deepEqual(ctl.select('ns_00000001.1'), { ok: false, reason: 'stale' });
+  await c.fire();
+  assert.deepEqual([ctl.view().status, ctl.view().set_id, sets], ['ready', 'ns_00000002', ['ns_00000001', 'ns_00000002']]);
+  assert.deepEqual(bodies[1].previous.hooks, setFor(1).options.map(o => o.hook), 'previous hooks travel');
+});
+
+test('one in flight; an old reply is discarded; never twice for the same basis', async () => {
+  let release; const slow = new Promise(r => { release = r; });
+  const c = clock(), bodies = [];
+  const ctl = nextStepsController({ post: async b => { bodies.push(b); return bodies.length === 1 ? slow : setFor(2); }, setTimer: c.setTimer, clearTimer: c.clearTimer });
+  ctl.update({ basis: 'a', stop: null, input });
+  const first = c.fire();
+  ctl.update({ basis: 'b', stop: null, input });
+  assert.equal(bodies.length, 1, 'no second request while one flies');
+  release(setFor(1)); await first;
+  assert.notEqual(ctl.view().set_id, 'ns_00000001', 'the reply for a old basis is discarded');
+  await c.fire();
+  assert.deepEqual([ctl.view().status, ctl.view().set_id, bodies.length], ['ready', 'ns_00000002', 2]);
+  ctl.update({ basis: 'b', stop: null, input });
+  assert.equal(c.pending(), 0, 'the same basis is never requested again');
+});
+
+test('stop hides the set; a turn in progress defers recompute until it ends', async () => {
+  const { c, ctl, bodies } = rig([setFor(1)]);
+  ctl.update({ basis: 'a', stop: 'not_now', input });
+  assert.deepEqual([ctl.view().status, ctl.view().reason, c.pending()], ['unavailable', 'not_now', 0]);
+  ctl.update({ basis: 'a', stop: null, input });
+  await c.fire();
+  assert.equal(bodies.length, 1);
+});
+
+test('select: ok returns the opaque step and records the goal; unknown and busy refusals', async () => {
+  const { c, ctl } = rig([setFor(1)]);
+  ctl.update({ basis: 'a', stop: null, input }); await c.fire();
+  assert.deepEqual(ctl.select('nope'), { ok: false, reason: 'unknown' });
+  assert.deepEqual(ctl.select('ns_00000001.2', { busy: true }), { ok: false, reason: 'busy' });
+  const ok = ctl.select('ns_00000001.2');
+  assert.deepEqual(ok, { ok: true, selected_next_step: setFor(1).options[1].selected_next_step });
+  assert.deepEqual(ctl.previous().goals, ['goal 1.2']);
+});
+
+test('the click turn changes the basis: hidden while the Tutor answers, then its own set is stale and refused until replaced', async () => {
+  const { c, ctl, bodies } = rig([setFor(1), setFor(2)]);
+  ctl.update({ basis: 'a', stop: null, input }); await c.fire();
+  assert.equal(ctl.select('ns_00000001.3').ok, true);
+  ctl.update({ basis: 'a', stop: 'not_now', input });
+  ctl.update({ basis: 'b', stop: 'not_now', input });
+  assert.deepEqual([ctl.view().status, ctl.view().reason, c.pending()], ['unavailable', 'not_now', 0], 'changes during the turn wait');
+  ctl.update({ basis: 'b', stop: null, input });
+  assert.deepEqual([ctl.view().status, ctl.select('ns_00000001.1')], ['stale', { ok: false, reason: 'stale' }]);
+  await c.fire();
+  assert.deepEqual([ctl.view().status, ctl.view().set_id, bodies.length], ['ready', 'ns_00000002', 2]);
+  assert.deepEqual(bodies[1].previous.goals, ['goal 1.3'], 'the chosen goal travels');
+  assert.deepEqual(ctl.select('ns_00000001.1'), { ok: false, reason: 'unknown' }, 'an id from a replaced set');
+});
+
+// Ruling F3: the builder gets copies; neither the builder, the posted body nor previous() reaches the controller record.
+test('previous: the builder gets a copy, so mutating the body never changes the controller', async () => {
+  const { c, ctl, bodies } = rig([setFor(1), setFor(2)]);
+  ctl.update({ basis: 'a', stop: null, input }); await c.fire();
+  ctl.select('ns_00000001.1');
+  const hooks = setFor(1).options.map(o => o.hook);
+  bodies[0].previous.hooks.push('junk');
+  ctl.update({ basis: 'b', stop: null, input: previous => { previous.hooks.length = 0; previous.goals.push('junk'); return input(previous); } });
+  await c.fire();
+  bodies[1].previous.hooks.push('more junk');
+  ctl.previous().goals.push('junk');
+  assert.deepEqual(ctl.previous(), { hooks: [...hooks, ...setFor(2).options.map(o => o.hook)].slice(-6), goals: ['goal 1.1'] });
+});
+
+// Task 7 interface: { problem: 'input_too_large' } is failed with no request; trim travels beside the body to onSet.
+test('input_too_large: unavailable failed and nothing posted; trim counts reach onSet beside the body, never inside it', async () => {
+  const { c, ctl, bodies, landed } = rig([setFor(1)]);
+  ctl.update({ basis: 'a', stop: null, input: () => ({ problem: 'input_too_large' }) });
+  await c.fire();
+  assert.deepEqual([ctl.view().status, ctl.view().reason, ctl.view().options, bodies.length, c.pending()], ['unavailable', 'failed', [], 0, 0]);
+  ctl.update({ basis: 'b', stop: null, input });
+  await c.fire();
+  assert.deepEqual([ctl.view().status, bodies.length], ['ready', 1]);
+  assert.deepEqual(landed, [{ body: { previous: { hooks: [], goals: [] } }, trim: TRIM }]);
+  assert.equal('trim' in bodies[0], false);
+});
+
+// Owner: telemetry never fails or changes a recompute - errors are swallowed and counted like the trace sink errors.
+test('a throwing onSet or subscriber never breaks the controller; each error is counted', async () => {
+  const before = globalThis.__smallTutorTraceErrors || 0, heard = [];
+  const { c, ctl } = rig([setFor(1)], { onSet: () => { throw new Error('sink'); } });
+  ctl.subscribe(() => { throw new Error('ui'); });
+  ctl.subscribe(() => heard.push(ctl.view().status));
+  ctl.update({ basis: 'a', stop: null, input });
+  await c.fire();
+  assert.deepEqual([ctl.view().status, ctl.view().set_id, heard], ['ready', 'ns_00000001', ['loading', 'ready']]);
+  assert.equal(globalThis.__smallTutorTraceErrors - before, 3, 'two subscriber errors and one onSet error');
+});
+
+// Review Focus 5.
+test('limited then recovers: 429 is limited, a later basis change asks again; the tab cap is a ceiling', async () => {
+  const { c, ctl } = rig([Object.assign(new Error('limited'), { status: 429 }), setFor(2)]);
+  ctl.update({ basis: 'a', stop: null, input }); await c.fire();
+  assert.deepEqual([ctl.view().status, ctl.view().reason], ['unavailable', 'limited']);
+  ctl.update({ basis: 'b', stop: null, input }); await c.fire();
+  assert.equal(ctl.view().status, 'ready');
+  const capped = nextStepsController({ post: async () => setFor(3), cap: 1, setTimer: c.setTimer, clearTimer: c.clearTimer });
+  capped.update({ basis: 'x', stop: null, input }); await c.fire();
+  capped.update({ basis: 'y', stop: null, input });
+  assert.deepEqual([capped.view().status, capped.view().reason, c.pending()], ['unavailable', 'limited', 0]);
+});
+
+test('a planner failure shows nothing (failed); no timers after dispose', async () => {
+  const { c, ctl } = rig([Object.assign(new Error('502'), { status: 502 })]);
+  ctl.update({ basis: 'a', stop: null, input }); await c.fire();
+  assert.deepEqual([ctl.view().status, ctl.view().reason, ctl.view().options], ['unavailable', 'failed', []]);
+  ctl.dispose(); ctl.update({ basis: 'z', stop: null, input });
+  assert.equal(c.pending(), 0);
 });

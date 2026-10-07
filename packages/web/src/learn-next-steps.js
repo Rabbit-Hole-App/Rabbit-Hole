@@ -5,6 +5,7 @@ import { deriveClaimStates } from './learn-tutor-evidence.js';
 import { claimsOfConceptIn, holeConcept } from './learn-tutor-claims.js';
 import { resolveTarget } from './learn-target.js';
 import { sameCanvas } from './learn-tutor.js';
+import { safely } from './learn-tutor-trace.js';
 
 const SETUP = ['intake', 'diagnostic', 'path_review'];
 const claimIdsOf = section => (section?.expected_evidence || []).map(e => e?.claim).filter(id => typeof id === 'string');
@@ -172,4 +173,68 @@ export function stoppingPoint({ busy = false, journey = null, store = null, here
   if ((store?.open && sameCanvas(store.open.canvas, here)) || (store?.returned && sameCanvas(store.returned.parent, here))) return 'not_now';
   if (!blocks.length && !String(goal || '').trim()) return 'not_now';
   return null;
+}
+
+// The recompute policy (contract §2.3, owner section 10), pure and testable with fake timers like journeyController: a debounce
+// after the last basis change (an implementation default), one request in flight, a reply for an old basis discarded (then the
+// current basis is asked), never two requests for one basis, nothing while stopped (a Tutor turn waits until it ends), and a
+// per-tab safety ceiling, not a target: the server limits stay authoritative (a 429 is limited until the basis changes).
+// input(previous) has nextStepsInput's shape: { input, trim } posts input and hands trim to onSet beside it, never inside it;
+// { problem } is failed and posts nothing. Hooks are kept as opaque strings for previous, never read. A throwing onSet or
+// subscriber is swallowed and counted like a trace sink error.
+export function nextStepsController({ post, onSet = () => {}, setTimer = setTimeout, clearTimer = clearTimeout, debounce = L.debounce_ms, cap = L.tab_cap }) {
+  let basis = null, stop = 'off', build = null, set = null, failed = null, timer = null, flying = false, requests = 0, disposed = false;
+  const asked = new Set(), listeners = new Set(), previous = { hooks: [], goals: [] };
+  // Ruling F3: the builder and callers get copies, never the live record.
+  const copy = () => ({ hooks: [...previous.hooks], goals: [...previous.goals] });
+  const empty = { set_id: null, generated_at: null, options: [] };
+  const view = () => (stop ? { status: 'unavailable', reason: stop, ...empty }
+    : set && set.basis === basis ? { status: 'ready', reason: null, set_id: set.set_id, generated_at: set.generated_at, options: set.options }
+    : failed ? { status: 'unavailable', reason: failed, ...empty }
+    : set ? { status: 'stale', reason: null, set_id: set.set_id, generated_at: set.generated_at, options: set.options }
+    : { status: 'loading', reason: null, ...empty });
+  let shown = JSON.stringify(view());
+  const changed = () => { const now = JSON.stringify(view()); if (now !== shown) { shown = now; listeners.forEach(fn => safely(fn)); } };
+  const schedule = () => {
+    clearTimer(timer); timer = null;
+    if (disposed || stop || !basis || flying || asked.has(basis) || (set && set.basis === basis)) return;
+    if (requests >= cap) { failed = 'limited'; return; }
+    timer = setTimer(fire, debounce);
+  };
+  async function fire() {
+    timer = null;
+    if (disposed || stop || flying || asked.has(basis) || (set && set.basis === basis)) return;
+    const sent = basis; asked.add(sent);
+    try {
+      const { input, trim, problem } = build(copy());
+      if (problem) failed = 'failed';
+      else {
+        flying = true; requests += 1;
+        const got = await post(input);
+        if (!disposed && sent === basis) {
+          set = { ...got, basis: sent }; failed = null;
+          previous.hooks = [...previous.hooks, ...got.options.map(o => o.hook)].slice(-L.previous_hooks);
+          safely(() => onSet(got, input, trim));
+        }
+      }
+    } catch (error) { if (sent === basis) failed = error?.status === 429 ? 'limited' : 'failed'; }
+    finally { flying = false; }
+    if (!disposed) { changed(); schedule(); }
+  }
+  return {
+    update(next) { if (disposed) return; if (next.basis !== basis) failed = null; basis = next.basis; stop = next.stop ?? null; build = next.input; schedule(); changed(); },
+    view,
+    // An id from a replaced set is unknown; one from the stale set still shown is stale. Both refuse.
+    select(id, { busy = false } = {}) {
+      const option = set?.options.find(o => o.id === id);
+      if (!option) return { ok: false, reason: 'unknown' };
+      if (busy) return { ok: false, reason: 'busy' };
+      if (view().status !== 'ready') return { ok: false, reason: 'stale' };
+      previous.goals = [...previous.goals, option.selected_next_step.learning_goal].slice(-L.previous_goals);
+      return { ok: true, selected_next_step: option.selected_next_step };
+    },
+    previous: copy,
+    subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
+    dispose() { disposed = true; clearTimer(timer); timer = null; listeners.clear(); },
+  };
 }
