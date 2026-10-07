@@ -460,3 +460,11 @@ test('A-I1: a SUBSCRIPTION_ONLY worker refuses shared hooks to an anonymous view
   const open = await normal.shareProject({ state: STATE });
   assert.equal((await hooks(normal, open.token, null)).status, 200, 'a normal worker is unchanged');
 });
+test('A-I1 N1: a SUBSCRIPTION_ONLY worker with no owner email refuses an anonymous viewer, with no bridge call', async t => {
+  t.mock.method(console, 'log', () => {});
+  const f = world(t, { JOURNEY_MODEL_STUB: '', SUBSCRIPTION_ONLY: 'true', SUBSCRIPTION_BRIDGE_URL: 'https://bridge.test', SUBSCRIPTION_BRIDGE_TOKEN: 'bridge-token' });
+  const hits = bridge(t);
+  const { token } = await f.shareProject({ state: STATE });
+  assert.equal((await hooks(f, token, null)).status, 403);
+  assert.deepEqual([hits, usage(f)], [[], []]);
+});
