@@ -5,8 +5,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { bargesIn, echoesEnd, createVoiceSession, MIC_REQUIRED, STT_STOPPED, TUTOR_FAILED, TUTOR_TIMEOUT, VAD_SILENCE_MS } from './voice-session.js';
 import { createFakeStt } from './voice-stt.js';
-import { createFakeTts } from './voice-tts.js';
+import { createFakeTts, createFishTts } from './voice-tts.js';
 import { voiceEvent } from './voice-telemetry.js';
+import { HANDOFF_FAILED, runTurn } from './learn-tutor.js';
+import { canvasDomain } from './learn-journey-domain.js';
+import { emptyStore } from './learn-tutor-evidence.js';
 
 const MS = { to_evidence_ready: 3, to_planner_ready: 5, canvas_done: 6 };
 // A scripted Tutor: each reply is speech, an Error to throw, or a function of the call.
@@ -770,4 +773,85 @@ test('a hook click is refused while the Tutor thinks, and when Voice is off or h
   assert.equal(tutor.calls.length, 1);
   r.session.exit();
   assert.equal(r.session.say('', { nextStep: CLICK }), false, 'turned off');
+});
+
+// Task 14 C-M4 (contract 1.4): hook clicks held by a clip are newest-wins, and exit drops a queued click.
+test('a hold keeps only the newest hook click: two clicks in one hold run one turn, the second step', async () => {
+  const tutor = scriptedTutor('Here it is.');
+  const r = rig(tutor, { ttsMs: 5 });
+  await r.session.enter();
+  const release = r.session.hold();
+  const NEWER = { ...CLICK, suggestion_id: 'ns_0a0b0c0d.1', hook: 'Why does a narrow bay raise the tide?' };
+  assert.deepEqual([r.session.say('', { nextStep: CLICK }), r.session.say('', { nextStep: NEWER })], [true, true]);
+  release();
+  await until(r.session, 'speaking');
+  await until(r.session, 'listening');
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.deepEqual(tutor.calls.map(c => c.nextStep), [NEWER], 'one turn, the newest click');
+  r.session.exit();
+});
+
+test('exit drops a hook click queued in a hold: release and re-enter run nothing', async () => {
+  const tutor = scriptedTutor('Here it is.');
+  const r = rig(tutor, { ttsMs: 5 });
+  await r.session.enter();
+  const release = r.session.hold();
+  assert.equal(r.session.say('', { nextStep: CLICK }), true, 'queued');
+  r.session.exit();
+  release();
+  await r.session.enter();
+  await new Promise(resolve => setTimeout(resolve, 30));
+  assert.deepEqual([tutor.calls.length, r.session.state], [0, 'listening']);
+  r.session.exit();
+});
+
+// Owner addition (Task 14 fix pass): a handoff answer is spoken through the established plain-speech path - voice-tts.js
+// speakable, inside every tts.speak - so no fenced block, inline code, markdown, markup or URL is read aloud, while the caption
+// (the displayed answer) keeps them; a failed handoff speaks the plain failure line. The reply text comes from the real runTurn
+// handoff path; the words sent to Fish are what is read aloud.
+const LEAD = 'Here is where it is called.';
+const CODE_ANSWER = [
+  '`merge_sort` is called by **sort_file** in [sorter.py](https://github.com/example/sorting/blob/main/sorter.py).',
+  '```python\ndef sort_file(path):\n    return merge_sort(read(path))\n```',
+  '## Why it matters\n- Each <code>input file</code> is read once; see https://example.com/docs for more.',
+].join('\n\n');
+const handoffTutor = handoff => ({ voiceTurn: async args => {
+  const post = async path => (path === '/api/learn/tutor/plan'
+    ? { strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: LEAD }, { type: 'handoff', capability: 'repository_context', request: 'which functions call merge_sort' }] }
+    : structuredClone(handoff));
+  const r = await runTurn({ raw: args.raw, canvas: { app: 'repo-0000aaaa-sorting', board: 'main' }, access: { app: 'repo-0000aaaa-sorting' }, block: null, store: emptyStore(), post, domain: canvasDomain({ goal: 'example/sorting' }), repository: true, inputModality: 'voice', turnId: args.turnId });
+  return { speech: r.text, turnId: args.turnId, ms: MS };
+} });
+function fishRig(tutor) {
+  const sent = [];
+  let session;
+  const makeAudio = () => { const audio = { play: async () => { queueMicrotask(() => audio.onplaying?.()); setTimeout(() => audio.onended?.(), 1); }, pause: () => {} }; return audio; };
+  const tts = createFishTts({ post: async (path, body) => { sent.push(body.text); return new Response(new Uint8Array([1, 2]), { headers: { 'Content-Type': 'audio/mpeg' } }); }, makeAudio, MediaSource: null, onEvent: event => session.ttsEvent(event) });
+  const stt = createFakeStt({ onEvent: event => session.sttEvent(event) });
+  session = createVoiceSession({ stt, tts, tutor, telemetry: () => {} });
+  return { session, stt, sent };
+}
+const OK_HANDOFF = { capability: 'repository_context', answer: CODE_ANSWER, telemetry: { outcome: 'ok', failure: null, served_model: 'm', tool_errors: 0 } };
+
+test('a handoff answer with a fenced block, inline code, markdown, markup and URLs is spoken without them; the caption keeps them', async () => {
+  const r = fishRig(handoffTutor(OK_HANDOFF));
+  await r.session.enter();
+  await turn(r, 'who calls this');
+  const spoken = r.sent.join(' ');
+  assert.ok(spoken.startsWith(LEAD), spoken);
+  assert.match(spoken, /is called by/);
+  for (const raw of ['```', '`', 'def sort_file', 'return merge_sort', 'http', 'example.com', '**', '](', '##', '<code>', '</code>', '- Each']) assert.equal(spoken.includes(raw), false, `never read aloud: ${raw}`);
+  const shown = r.session.caption.current;
+  for (const kept of ['```python', 'def sort_file(path):', '`merge_sort`', '**sort_file**', 'https://example.com/docs', '<code>input file</code>']) assert.ok(shown.includes(kept), `the displayed answer keeps ${kept}`);
+  assert.equal(shown, `${LEAD}\n\n${CODE_ANSWER}`);
+  r.session.exit();
+});
+
+test('a failed handoff speaks the plain failure line', async () => {
+  const r = fishRig(handoffTutor({ capability: 'repository_context', answer: null, telemetry: { outcome: 'failed', failure: 'no_repository_context' } }));
+  await r.session.enter();
+  await turn(r, 'who calls this');
+  assert.deepEqual(r.sent, [`${LEAD} ${HANDOFF_FAILED}`]);
+  assert.equal(r.session.caption.current, `${LEAD}\n\n${HANDOFF_FAILED}`);
+  r.session.exit();
 });
