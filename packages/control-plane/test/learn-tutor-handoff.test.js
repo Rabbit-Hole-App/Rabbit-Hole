@@ -12,7 +12,7 @@ import { CANVAS_TARGET_HEADER, LEARN_RESEARCH_SYSTEM } from '../src/agents/learn
 import { REPOSITORY_SYSTEM, REPOSITORY_TOOLS } from '../src/repository-context.js';
 import { repositoryApp } from '../src/repositories.js';
 import { canvasApp } from '../src/canvases.js';
-import { costUsd } from '../src/learn-models.js';
+import { costUsd, promptVersion } from '../src/learn-models.js';
 
 const SHA = 'a'.repeat(40), OLD = 'b'.repeat(40);
 const SNAPSHOT = { repo: 'karpathy/nanoGPT', commit: SHA, version: 'graphify', skipped: [], files: { 'model.py': 'class CausalSelfAttention:\n    def forward(self, x):\n        return x' }, graph: { nodes: [{ id: 'attn', label: 'CausalSelfAttention', path: 'model.py', line: 1 }], edges: [] } };
@@ -76,9 +76,15 @@ test('success: the reader reads the canvas repository and the answer comes back 
   assert.deepEqual(body.telemetry, {
     started_at: new Date(1000).toISOString(), completed_at: new Date(1450).toISOString(), ms: 450, outcome: 'ok', failure: null,
     served_model: 'claude-opus-5-5', calls: 2, input_tokens: 2400, output_tokens: 160, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, cost_usd: +(2 * perCall).toFixed(6), tool_errors: 0,
+    prompt_version: body.telemetry.prompt_version,
   });
   assert.equal(model.calls.length, 2);
   const first = model.calls[0];
+  // Task 14 A-M4: prompt_version is the promptVersion of the reader system and tools actually sent, on every reply.
+  assert.equal(body.telemetry.prompt_version, await promptVersion(first.body.system, first.body.tools));
+  assert.match(body.telemetry.prompt_version, /^[0-9a-f]{12}$/);
+  const failed = await (await setup(t).post(ask(), { callModel: scripted([async () => { throw new Error('down'); }]).callModel })).json();
+  assert.deepEqual([failed.telemetry.outcome, failed.telemetry.prompt_version], ['failed', body.telemetry.prompt_version], 'a failure carries it too');
   assert.equal(first.model, null, 'Learn chat Auto: the existing path model, no picker');
   assert.ok(first.body.system.includes(REPOSITORY_SYSTEM), 'the repository instructions ride as on a Learn chat repository ask');
   for (const call of model.calls) {
@@ -247,8 +253,9 @@ test('usage cap: under the cap ok; over it 429 refused before the reader; the ro
   const body = await over.json();
   assert.deepEqual([body.answer, body.telemetry.outcome, body.telemetry.failure, body.telemetry.calls], [null, 'refused', 'limited', 0]);
   assert.deepEqual([model.calls.length, f.snapshotReads.length], [2, 3], 'the over-cap turn resolved the repository and made no model call');
-  assert.deepEqual(f.sqlite.prepare('SELECT category, viewer_email, share_key, board_id, owner_email FROM shared_ask_events').all().map(row => ({ ...row })),
-    [1, 2].map(() => ({ category: 'tutor_handoff', viewer_email: 'ana@test', share_key: '', board_id: REPO, owner_email: 'ana@test' })), 'a refusal writes nothing');
+  // Task 14 A-M3: repository 1, the handoff reads repository code.
+  assert.deepEqual(f.sqlite.prepare('SELECT category, viewer_email, share_key, board_id, owner_email, repository FROM shared_ask_events').all().map(row => ({ ...row })),
+    [1, 2].map(() => ({ category: 'tutor_handoff', viewer_email: 'ana@test', share_key: '', board_id: REPO, owner_email: 'ana@test', repository: 1 })), 'a refusal writes nothing');
   assert.deepEqual(f.statements.filter(sql => !/^SELECT /i.test(sql) && !/^INSERT INTO shared_ask_events /.test(sql)), []);
 });
 

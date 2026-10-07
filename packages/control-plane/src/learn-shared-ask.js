@@ -142,20 +142,23 @@ export const sharedAskLimits = env => limitsFrom(SHARED_ASK_LIMITS, env);
 // Billing (owner, 2026-10-04): Usage & Credits will meter shared_canvas_ask to viewer_email, the signed-in account that
 // asked - never to owner_email, which only says whose share it was: someone opening a share never costs its owner.
 // ponytail: rows are never pruned (the caps read one day); prune or roll up when Usage & Credits takes them over.
-// Every count reads only its own category (shared_canvas_ask, tutor_next_steps, shared_canvas_hooks), so one feature's
+// Every count reads only its own category (shared_canvas_ask, tutor_next_steps, shared_canvas_hooks, tutor_handoff), so one feature's
 // usage never spends another's budget. Every cap is required: a skipped bucket passes NO_CAP explicitly (an owned call
 // has no share bucket, shareKey ''; an anonymous shared one no viewer bucket, viewer ''), and a cap left out throws, so
 // a forgotten cap never means no limit. null when admitted, else the viewer's own { hour, day } counts.
 export const NO_CAP = 1e9;
+// The four buckets in cap order (viewerHour, viewerDay, shareHour, shareDay): who is counted, the window, the cap's parameter.
+const BUCKETS = [['viewer_email = ?2', 3600, 7], ['viewer_email = ?2', 86400, 8], ['share_key = ?3', 3600, 9], ['share_key = ?3', 86400, 10]];
 export async function admitUsage(db, { category, viewer, shareKey, boardId, owner, repository = 0, viewerHour, viewerDay, shareHour, shareDay }) {
-  if (![viewerHour, viewerDay, shareHour, shareDay].every(Number.isFinite)) throw new TypeError('admitUsage needs all four caps; pass NO_CAP to skip a bucket');
+  const caps = [viewerHour, viewerDay, shareHour, shareDay];
+  if (!caps.every(Number.isFinite)) throw new TypeError('admitUsage needs all four caps; pass NO_CAP to skip a bucket');
   const now = Math.floor(Date.now() / 1000);
+  // Task 14 A-M2: a count clause only for a capped bucket, so a NO_CAP bucket (which can never refuse) never scans the
+  // platform-wide rows under share_key '' or viewer_email ''. A capped bucket counts exactly as before.
+  const counts = BUCKETS.filter((_, i) => caps[i] < NO_CAP).map(([who, span, cap]) => `(SELECT COUNT(*) FROM shared_ask_events WHERE category = ?11 AND ${who} AND asked_at > ?1 - ${span}) < ?${cap}`);
   const admitted = await db.prepare(`INSERT INTO shared_ask_events (category, asked_at, viewer_email, share_key, board_id, owner_email, repository)
-    SELECT ?11, ?1, ?2, ?3, ?4, ?5, ?6
-    WHERE (SELECT COUNT(*) FROM shared_ask_events WHERE category = ?11 AND viewer_email = ?2 AND asked_at > ?1 - 3600) < ?7
-      AND (SELECT COUNT(*) FROM shared_ask_events WHERE category = ?11 AND viewer_email = ?2 AND asked_at > ?1 - 86400) < ?8
-      AND (SELECT COUNT(*) FROM shared_ask_events WHERE category = ?11 AND share_key = ?3 AND asked_at > ?1 - 3600) < ?9
-      AND (SELECT COUNT(*) FROM shared_ask_events WHERE category = ?11 AND share_key = ?3 AND asked_at > ?1 - 86400) < ?10`)
+    SELECT ?11, ?1, ?2, ?3, ?4, ?5, ?6${counts.length ? `
+    WHERE ${counts.join('\n      AND ')}` : ''}`)
     .bind(now, viewer, shareKey, boardId, owner, repository, viewerHour, viewerDay, shareHour, shareDay, category).run();
   if (admitted.meta.changes === 1) return null;
   return db.prepare('SELECT COUNT(*) AS day, COALESCE(SUM(asked_at > ?2 - 3600), 0) AS hour FROM shared_ask_events WHERE category = ?3 AND viewer_email = ?1 AND asked_at > ?2 - 86400').bind(viewer, now, category).first();

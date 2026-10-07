@@ -34,7 +34,9 @@ const start = (f, token, as, origin, step) => f.call('POST', `/api/learn/boards/
 const anaBoards = f => JSON.stringify(f.sqlite.prepare("SELECT * FROM learn_boards WHERE owner_email = 'ana@test' ORDER BY id").all());
 const usage = f => f.sqlite.prepare('SELECT category, viewer_email FROM shared_ask_events ORDER BY id').all().map(r => ({ ...r }));
 // The planner's real request path (no fixture switch), answered by the keyless planner behind fetch: every input the model reads.
+// The logged real path prints a learn_model line per call; silenced as in learn-avatar.test.js (Task 14 A-M5).
 function plannerInputs(t) {
+  t.mock.method(console, 'log', () => {});
   const original = globalThis.fetch, inputs = [];
   globalThis.fetch = async (url, options) => {
     assert.equal(new URL(url).host, 'api.anthropic.com', `unexpected fetch ${url}`);
@@ -186,6 +188,7 @@ test('a stale share_version answers 409 stale_hook; a mismatched origin or a mal
 
 test('shared hooks are capped under shared_canvas_hooks and never spend the shared-ask budget', async t => {
   const f = world(t, { SHARED_ASK_VIEWER_HOUR: '1' });
+  t.mock.method(console, 'log', () => {}); // the shared ask logs its learn_model line (Task 14 A-M5)
   scriptModel(t);
   const { token } = await f.shareProject({ state: STATE });
   const personal = state => hooks(f, token, 'ben', { origin: null, viewer_states: { [REG[0]]: state } });

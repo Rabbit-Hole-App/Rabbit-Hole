@@ -17,7 +17,7 @@ import { HANDOFF_REQUEST_MAX } from './agents/learn-tutor.js';
 import { CANVAS_TARGET_LIMIT, appendCanvasTarget } from './learn-ask-context.js';
 import { anthropic } from './ask.js';
 import { researchAnswer } from './learn-research.js';
-import { costUsd, loggedModel } from './learn-models.js';
+import { costUsd, loggedModel, promptVersion } from './learn-models.js';
 import { NO_CAP, admitUsage, boardRevision, limitsFrom } from './learn-shared-ask.js';
 import { repositorySnapshot } from './repositories.js';
 import { REPOSITORY_SYSTEM, REPOSITORY_TOOLS, repositoryTool } from './repository-context.js';
@@ -60,13 +60,16 @@ const NOT_INDEXED = 'This repository version is not indexed yet';
 // Fix round 1 (A-I2; owner nineteenth message): the reader writes the handoff answer, so the retrieval honesty rule is its own;
 // LEARN_RESEARCH_SYSTEM carried one, and arxiv: false leaves that system out. Learn chat's own system is unaffected.
 export const HANDOFF_READER_RULE = 'If a repository read fails or the source does not contain the answer, say so plainly; never answer from memory as if you had read the code.';
+// The reader's system text, the same on every model call (researchAnswer with arxiv: false adds nothing to it).
+const READER_SYSTEM = `${LEARN_SYSTEM}\n${REPOSITORY_SYSTEM}\n${HANDOFF_READER_RULE}`;
 
 // onToolError: called once per repository tool call that failed inside the reader loop (telemetry tool_errors).
 async function readRepository(env, access, { app, request, selection, card }, callModel, onToolError = () => {}) {
   if (!env.LEARN_DB) throw failure('no_repository_context'); // a worker without the Learn database has no repository to read
   // No repository, or a commit never indexed: no_repository_context. A thrown storage error (D1, R2, a stored snapshot gone)
   // is retrieval_error, so a transient failure never reads as a canvas without source.
-  // ponytail: a fork's inherited pin (board_repository_pins, keyed by its learn_boards row) is not read; owned Learn chat does not read it either.
+  // ponytail: a fork's inherited pin (board_repository_pins, keyed by its learn_boards row) is not read; owned Learn chat does not
+  // read it either. Read board_repository_pins here (and in owned Learn chat) when forks need the handoff.
   let revision, commit, snapshot;
   try {
     revision = await boardRevision(env.LEARN_DB, { org: access.org, app, owner_email: access.owner_email });
@@ -85,13 +88,14 @@ async function readRepository(env, access, { app, request, selection, card }, ca
   if (selection?.symbol && !selected) grounding.push(`Selected symbol: ${selection.symbol}`);
   const context = appendCanvasTarget(JSON.stringify({ repo: snapshot.repo, commit, selected, selectedCode }), card);
   const question = [request.trim(), ...grounding].join('\n\n');
-  const result = await researchAnswer(env, [{ role: 'user', content: `${context}\n\n---\n\n${question}` }], `${LEARN_SYSTEM}\n${REPOSITORY_SYSTEM}\n${HANDOFF_READER_RULE}`, null,
+  const result = await researchAnswer(env, [{ role: 'user', content: `${context}\n\n---\n\n${question}` }], READER_SYSTEM, null,
     { callModel, arxiv: false, tools: REPOSITORY_TOOLS, runTool: async (name, input) => { try { return repositoryTool(snapshot, name, input); } catch (error) { onToolError(); throw error; } } });
   return result.answer;
 }
 
 export const HANDOFF_CAPABILITIES = Object.freeze({
-  repository_context: Object.freeze({ selectionProblem: repositorySelectionProblem, run: readRepository }),
+  // system and tools: what the capability's model calls carry, for the reply's prompt_version (Task 14 A-M4).
+  repository_context: Object.freeze({ selectionProblem: repositorySelectionProblem, run: readRepository, system: READER_SYSTEM, tools: REPOSITORY_TOOLS }),
 });
 
 // Every model call the capability makes, summed: served model (the last), tokens, cost (null once an ok reply carries no
@@ -130,14 +134,18 @@ export async function handoff(env, access, body, { callModel = loggedModel('chat
   // The usage row (never the request, answer or any source) is admitted at the first model call. A limiter error there is a
   // transient D1 error like the resolution's, so it reads as retrieval_error, never as model_error.
   const limit = limitsFrom(HANDOFF_CAPS, env);
-  const admit = () => admitUsage(env.LEARN_DB, { category: 'tutor_handoff', viewer: access.email, shareKey: '', boardId: body.app, owner: access.email,
+  const admit = () => admitUsage(env.LEARN_DB, { category: 'tutor_handoff', viewer: access.email, shareKey: '', boardId: body.app, owner: access.email, repository: 1,
     viewerHour: limit.TUTOR_HANDOFF_HOUR, viewerDay: limit.TUTOR_HANDOFF_DAY, shareHour: NO_CAP, shareDay: NO_CAP }).catch(() => { throw failure('retrieval_error'); });
   const started = now(), deadline = { passed: false }, meter = metered(callModel, deadline, admit);
+  // Task 14 A-M4: prompt_version (contract 3.1) of the capability system and tools, hashed beside the work and awaited after it,
+  // as the planner hashes its own; a failed hash is null, never the handoff error.
+  const version = promptVersion(capability.system, capability.tools).catch(() => null);
+  let prompt_version = null;
   const reply = (category, answer, extra = {}, status = 200) => {
     const completed = now(), { stop_reason, ...usage } = meter.seen;
     return json({ ...extra, capability: body.capability, answer: category ? null : answer, telemetry: {
       started_at: new Date(started).toISOString(), completed_at: new Date(completed).toISOString(), ms: completed - started,
-      outcome: category === 'refused' || category === 'limited' ? 'refused' : category ? 'failed' : 'ok', failure: category, ...usage,
+      outcome: category === 'refused' || category === 'limited' ? 'refused' : category ? 'failed' : 'ok', failure: category, ...usage, prompt_version,
     } }, status);
   };
   let answer = null, category = null, timer;
@@ -149,5 +157,6 @@ export async function handoff(env, access, body, { callModel = loggedModel('chat
   } catch (error) {
     category = error?.category || (meter.seen.stop_reason === 'refusal' ? 'refused' : meter.seen.stop_reason === 'max_tokens' ? 'too_large' : 'model_error');
   } finally { clearTimeout(timer); }
+  prompt_version = await version;
   return category === 'limited' ? reply(category, null, { error: 'This lookup is paused for now; try again later.', limited: true }, 429) : reply(category, answer);
 }

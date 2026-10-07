@@ -111,6 +111,14 @@ test('planNextSteps: Sonnet first; a missing tool call, a validator failure or a
   assert.deepEqual(plain.telemetry.usage, { input_tokens: 2000, output_tokens: 400, cache_creation_input_tokens: null, cache_read_input_tokens: null });
 });
 
+// Task 14 D-M4: a failed prompt hash is an unknown prompt_version (null), never a failed hook recompute, as on the Tutor path.
+test('planNextSteps: a prompt hash that throws gives prompt_version null and still returns the hooks', async t => {
+  const good = fixtureFor('suggest_next_steps', INPUT());
+  t.mock.method(crypto.subtle, 'digest', async () => { throw new Error('digest unavailable'); });
+  const out = await planNextSteps({}, INPUT(), { callModel: scripted([() => reply(good)]).callModel });
+  assert.deepEqual([out.options.length, out.telemetry.prompt_version], [3, null]);
+});
+
 test('planNextSteps: a self-contradicting claim goes straight to Opus; an Opus failure throws PlannerInvalid', async () => {
   const input = INPUT({ ramp: 'uncertain' });
   input.scope.claims['kiln.ramp'] = { ...input.scope.claims['kiln.ramp'], settled_passes: 1, settled_negatives: 1 };
@@ -208,6 +216,29 @@ test('admitUsage: a cap left out fails loudly, never admits without a limit; NO_
   assert.equal(NO_CAP, 1e9);
 });
 
+// Task 14 A-M2: only a capped bucket builds a count clause, so a NO_CAP bucket never scans (an owned call never counts every
+// user's owned rows under share_key '', an anonymous shared call never every share's rows under viewer ''); a capped bucket
+// counts exactly as before (the cap tests around this one).
+test('admitUsage: a NO_CAP bucket adds no count clause and never scans; the capped buckets still refuse at their caps', async t => {
+  const { sqlite, LEARN_DB } = learnDb(t);
+  const seen = [], db = { prepare: sql => { seen.push(sql); return LEARN_DB.prepare(sql); } };
+  const now = Math.floor(Date.now() / 1000);
+  for (let i = 0; i < 3; i++) sqlite.prepare("INSERT INTO shared_ask_events (category, asked_at, viewer_email, share_key, board_id, owner_email, repository) VALUES ('tutor_next_steps', ?, ?, '', 'b', 'o@test', 0)").run(now, `other${i}@test`);
+  const owned = () => admitUsage(db, { category: 'tutor_next_steps', viewer: 'a@test', shareKey: '', boardId: 'b', owner: 'a@test', viewerHour: 2, viewerDay: 5, shareHour: NO_CAP, shareDay: NO_CAP });
+  assert.deepEqual([await owned(), await owned()], [null, null], 'other users rows under share_key empty are never counted');
+  assert.notEqual(await owned(), null, 'the viewer hour cap still refuses');
+  const insert = seen.find(sql => sql.startsWith('INSERT'));
+  assert.equal(/share_key = \?3/.test(insert), false, 'no share bucket clause');
+  assert.equal((insert.match(/viewer_email = \?2/g) || []).length, 2, 'both viewer clauses');
+  seen.length = 0;
+  const anonymous = () => admitUsage(db, { category: 'shared_canvas_hooks', viewer: '', shareKey: 'k', boardId: 'b', owner: 'o@test', viewerHour: NO_CAP, viewerDay: NO_CAP, shareHour: 1, shareDay: 5 });
+  assert.equal(await anonymous(), null);
+  assert.notEqual(await anonymous(), null, 'the share hour cap still refuses');
+  const shared = seen.find(sql => sql.startsWith('INSERT'));
+  assert.equal(/viewer_email = \?2/.test(shared), false, 'no viewer bucket clause');
+  assert.equal((shared.match(/share_key = \?3/g) || []).length, 2, 'both share clauses');
+});
+
 test('admitUsage: an anonymous shared planner call is capped per share key under its own category', async t => {
   const { sqlite, LEARN_DB } = learnDb(t);
   const now = Math.floor(Date.now() / 1000);
@@ -227,6 +258,21 @@ test('owned route: 400 on bad input or more than 12000 characters, 502 when the 
   assert.equal(failing.status, 502);
   const bare = await tutorRoute('/api/learn/tutor/next-steps', new Request('https://dev.test/x', { method: 'POST', body: JSON.stringify({ app: 'a', input: INPUT() }) }), {}, { authorize: async () => ({ org: 'o', email: 'e@x', app: 'a' }) });
   assert.equal(bare.status, 503);
+});
+
+// Task 14 A-M6: the owned hook route sits behind the tutorRoute origin and subscription-owner gates, so moving its dispatch
+// above them fails here: a cross-origin call and a non-owner on a SUBSCRIPTION_ONLY worker get 403 with no planner call.
+test('owned route: a cross-origin call and a non-owner on a SUBSCRIPTION_ONLY worker answer 403 with no planner call', async t => {
+  const { sqlite, LEARN_DB } = learnDb(t);
+  const calls = [], callModel = async () => { calls.push(1); return reply(fixtureFor('suggest_next_steps', INPUT())); };
+  const post = (env, headers = {}) => tutorRoute('/api/learn/tutor/next-steps', new Request('https://dev.test/api/learn/tutor/next-steps', { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify({ app: 'canvas-0a1b2c3d', input: INPUT() }) }),
+    { LEARN_DB, SMALL_ENV: 'test', ...env }, { authorize: async () => ({ org: 'team', email: 'maker@test', user_id: 'u-maker-1', app: 'canvas-0a1b2c3d' }), callModel, cache: { match: async () => undefined, put: async () => {} } });
+  assert.equal((await post({}, { origin: 'https://elsewhere.test' })).status, 403, 'cross-origin');
+  const owner = await post({ SUBSCRIPTION_ONLY: 'true', SUBSCRIPTION_OWNER_EMAIL: 'someone@test' });
+  assert.deepEqual([owner.status, (await owner.json()).error], [403, 'This personal dev subscription is available only to its owner.']);
+  assert.deepEqual([calls.length, sqlite.prepare('SELECT COUNT(*) AS n FROM shared_ask_events').get().n], [0, 0], 'no planner call, no usage row');
+  assert.equal((await post({}, { origin: 'https://dev.test' })).status, 200, 'the same request on its own origin is served');
+  assert.equal(calls.length, 1);
 });
 
 test('owned route: a raw body over 16000 characters is refused before parsing, even when input itself is small', async t => {

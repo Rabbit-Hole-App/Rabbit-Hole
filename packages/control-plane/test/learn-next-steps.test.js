@@ -354,3 +354,10 @@ test('with motion: refused after a show, explain, see, watch or animate verb; ph
   for (const hook of ['Could you show the cooling with motion instead?', 'Can we watch the block drop with motion?', 'Would it help to animate it with motion?']) assert.equal(hookProblem(hook, { topic }), 'format_word', hook);
   assert.equal(hookProblem('Can we watch the block drop with motion?', { topic: 'explaining physics with motion' }), null, 'a topic about it opens it');
 });
+
+// Task 14 A-M7 and D-M6 (parked item 4): shown and seen are format verbs too, and the all-caps product name MOTION is the format.
+test('with motion: shown and seen count as format verbs, and an all-caps MOTION is the product format', () => {
+  const topic = 'tides';
+  for (const hook of ['Could this idea be shown with motion instead?', 'What is seen with motion in a falling leaf?', 'Why would MOTION make this easier to see?']) assert.equal(hookProblem(hook, { topic }), 'format_word', hook);
+  assert.equal(hookProblem('How does drag grow with motion through water?', { topic }), null, 'physics motion still passes');
+});

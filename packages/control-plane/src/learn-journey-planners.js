@@ -121,6 +121,9 @@ export async function resolveWithModel(env, { text, tray }, { callModel = journe
 // passes and negatives, the adaptPath rule). Never JEV, never an evaluate route: callModel is the only dependency. An Opus
 // failure throws PlannerInvalid. -> { options (with reason_internal: the route strips it), telemetry }; telemetry.errors
 // are the first reply's validator rule names, never its text; cost_usd prices each call at its role's model.
+// ponytail: no deadline here (Task 14 A-M1): the Opus escalation (maxTokens 4000) starts however long Sonnet took, so the worst
+// case is the two calls back to back. The browser bounds its wait (LearnNextSteps.jsx, 60 s); add a start-time check that skips
+// the escalation after about 30 s and answers the 502 failed path if server time or cost on hung calls ever matters.
 export async function planNextSteps(env, input, { callModel = journeyCallModel(env) } = {}) {
   const started = Date.now(), usage = { input_tokens: null, output_tokens: null, cache_creation_input_tokens: null, cache_read_input_tokens: null };
   let calls = 0, served = null, cost = null;
@@ -133,7 +136,8 @@ export async function planNextSteps(env, input, { callModel = journeyCallModel(e
   const ask = role => callRole(env, role, input, callModel, { tool: NEXT_STEPS_TOOL, system: NEXT_STEPS_SYSTEM, failure: 'The next steps planner is unavailable', onReply: result => onReply(role, result) });
   const done = async (options, role, escalated, errors = []) => ({ options, telemetry: {
     tier: escalated ? 'escalation' : 'routine', escalated, calls, ms: Date.now() - started, planner_version: NEXT_STEPS_PLANNER_VERSION, model_role: role, model_id: served,
-    prompt_version: await promptVersion(NEXT_STEPS_SYSTEM, [NEXT_STEPS_TOOL]), usage, cost_usd: cost, reasons: options.filter(o => o.reason_internal).length, errors } });
+    // Task 14 D-M4: a failed hash is unknown (null), never the recompute's error, as on the Tutor path.
+    prompt_version: await promptVersion(NEXT_STEPS_SYSTEM, [NEXT_STEPS_TOOL]).catch(() => null), usage, cost_usd: cost, reasons: options.filter(o => o.reason_internal).length, errors } });
   const contradictory = Object.values(input.scope?.claims || {}).some(c => c?.state === 'uncertain' && c.settled_passes > 0 && c.settled_negatives > 0);
   let escalated = 'contradictory', errors = [];
   if (!contradictory) {
