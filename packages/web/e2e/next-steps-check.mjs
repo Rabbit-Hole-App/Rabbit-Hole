@@ -19,10 +19,11 @@
 import { chromium } from '@playwright/test';
 import * as esbuild from 'esbuild';
 import { createRequire } from 'node:module';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertKeyless, defaultAppVars } from './keyless-guard.mjs';
 import { nextStepsInput } from '../src/learn-next-steps.js';
 import { journeyDomain } from '../src/learn-journey-domain.js';
 import { emptyStore } from '../src/learn-tutor-evidence.js';
@@ -42,64 +43,11 @@ const BASE = arg('base', 'http://127.0.0.1:8868'), CP = arg('cp', 'http://127.0.
 for (const origin of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(origin)) throw Error('next-steps-check runs against the local stack only');
 if (!VARS) throw Error('--vars <the local stack .dev.vars> is required (e2e/journey-local-stack.md)');
 
-// ---- keyless only: every vars file the stack loads ----
-// wrangler dev reads .dev.vars (and .env) from the folder of each config it is started with, so the stack's control plane (--vars) and
-// its app worker (--app-vars; by default the app/ folder beside the control plane's) both bind what the workers can reach. Three
-// sources are checked, and any one of them refuses the run before a request is made:
-//  1. every vars file the stack loads, with a STRICT per-line allowlist (not a name reader): wrangler parses these with dotenv, which
-//     also takes `KEY: value`, `export KEY=...`, quoted multi-line values and bare CR line breaks, so every line, split on CRLF, CR,
-//     LF and the Unicode separators, must be blank, a # comment, or one of the five stack names with a value that holds no quote
-//     character (so no value can run over several lines). Anything else - including any denied key in any dotenv form - refuses.
-//  2. the `vars` of the wrangler config beside each vars file (and of its env blocks): no *_API_KEY, ELEVENLABS_ or SUBSCRIPTION_BRIDGE_
-//     name, and SUBSCRIPTION_ONLY only as "false".
-//  3. the harness's own process environment, which wrangler dev started from the same shell would pass on: no denied name in it.
-// A refusal reports the file and LINE NUMBERS only, never text from a vars file (a continuation line of a quoted value is part of a
-// secret); the only names it prints are denied names from a config's `vars` and from the environment, which are structured keys.
-const APP_VARS = arg('app-vars', join(dirname(dirname(VARS)), 'app', '.dev.vars'));
-const STACK_KEYS = ['SMALL_ENV', 'TEST_BYPASS_SECRET', 'MASTER_KEY', 'OAUTH_MOCK', 'JOURNEY_MODEL_STUB'];
-const MODEL_KEY = /_API_KEY|^ELEVENLABS_|^SUBSCRIPTION_/i; // *_API_KEY (model, voice, search, image), ELEVENLABS_*, SUBSCRIPTION_ONLY / SUBSCRIPTION_BRIDGE_*
-const CONFIG_KEY = /_API_KEY|^ELEVENLABS_|^SUBSCRIPTION_BRIDGE_/i; // SUBSCRIPTION_ONLY "false" and SUBSCRIPTION_OWNER_EMAIL are allowed in a config
-if (!existsSync(dirname(APP_VARS))) throw Error(`cannot find the app worker's vars folder ${dirname(APP_VARS)}: pass --app-vars <the app worker .dev.vars> (e2e/journey-local-stack.md)`);
-const loadedBy = dir => readdirSync(dir).filter(file => /^\.(dev\.vars|env)(\.|$)/.test(file)).map(file => join(dir, file));
-const LINE_BREAK = new RegExp(`\r\n?|\n|${String.fromCharCode(0x2028)}|${String.fromCharCode(0x2029)}`); // CRLF, CR, LF, and the Unicode separators
-const ALLOWED_LINE = new RegExp(`^\\s*(?:export\\s+)?(?:${STACK_KEYS.join('|')})\\s*[=:][^"'\`]*$`);
-const LEADING_NAME = /^\s*(?:export\s+)?([\w.-]+)\s*[=:]/;
-const refusals = [];
-// Both .dev.vars files must exist (review R2-M1): wrangler falls back to .env* files - and to the process environment where it is
-// told to include it - only when there is no .dev.vars, and that is exactly what a file check cannot vouch for.
-for (const file of new Set([VARS, APP_VARS])) if (!existsSync(file)) refusals.push(`${file}: missing; the stack needs both its control plane and its app worker .dev.vars (e2e/journey-local-stack.md)`);
-for (const file of new Set([VARS, APP_VARS,...loadedBy(dirname(VARS)), ...loadedBy(dirname(APP_VARS))].filter(existsSync))) {
-  const bad = [], denied = [];
-  readFileSync(file, 'utf8').split(LINE_BREAK).forEach((line, index) => {
-    if (!line.trim() || line.trim().startsWith('#') || ALLOWED_LINE.test(line)) return;
-    bad.push(index + 1);
-    if (MODEL_KEY.test(line.match(LEADING_NAME)?.[1] ?? '')) denied.push(index + 1);
-  });
-  if (bad.length) refusals.push(`${file}: line${bad.length > 1 ? 's' : ''} ${bad.slice(0, 20).join(', ')} ${bad.length > 1 ? 'are' : 'is'} not one of the stack's allowed lines${denied.length ? ` (line${denied.length > 1 ? 's' : ''} ${denied.slice(0, 20).join(', ')} bind${denied.length > 1 ? '' : 's'} a model, voice or subscription key)` : ''}`);
-}
-const jsonc = text => { // comments and trailing commas out, string-aware (the recipe's own reader)
-  let out = '', quoted = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (quoted) { out += c; if (c === '\\') out += text[++i]; else if (c === '"') quoted = false; continue; }
-    if (c === '"') { quoted = true; out += c; continue; }
-    if (c === '/' && text[i + 1] === '/') { while (i < text.length && text[i] !== '\n') i++; out += '\n'; continue; }
-    if (c === '/' && text[i + 1] === '*') { i += 2; while (i < text.length && !(text[i] === '*' && text[i + 1] === '/')) i++; i++; continue; }
-    out += c;
-  }
-  return out.replace(/,(\s*[}\]])/g, '$1');
-};
-for (const folder of new Set([dirname(VARS), dirname(APP_VARS)])) {
-  const file = ['wrangler.jsonc', 'wrangler.json'].map(name => join(folder, name)).find(existsSync);
-  if (!file) { refusals.push(`${folder}: no wrangler.jsonc or wrangler.json beside the vars file, so its vars cannot be checked`); continue; }
-  let config; try { config = JSON.parse(jsonc(readFileSync(file, 'utf8'))); } catch { refusals.push(`${file}: cannot be read as JSON, so its vars cannot be checked`); continue; }
-  const declared = [config.vars, ...Object.values(config.env || {}).map(env => env?.vars)].filter(Boolean).flatMap(vars => Object.entries(vars));
-  const bad = [...new Set(declared.filter(([name, value]) => CONFIG_KEY.test(name) || (/^SUBSCRIPTION_ONLY$/i.test(name) && value !== 'false')).map(([name]) => name))];
-  if (bad.length) refusals.push(`${file}: vars declare ${bad.join(', ')}, a model, voice or subscription name (SUBSCRIPTION_ONLY is allowed only as "false")`);
-}
-const inEnvironment = Object.keys(process.env).filter(name => MODEL_KEY.test(name));
-if (inEnvironment.length) refusals.push(`the environment of this run carries ${inEnvironment.join(', ')}: unset ${inEnvironment.length > 1 ? 'them' : 'it'} before running (a wrangler dev started from the same shell would bind ${inEnvironment.length > 1 ? 'them' : 'it'})`);
-if (refusals.length) throw Error(`next-steps-check runs only against the keyless stack (e2e/journey-local-stack.md); refused:\n  ${refusals.join('\n  ')}`);
+/// ---- keyless only: every vars file the stack loads (keyless-guard.mjs, shared with journey-check.mjs) ----
+// The run is refused before any request unless every line of every vars file the stack loads is one of the five stack names, the
+// configs' vars declare no model, voice or subscription name, and the environment carries none; see keyless-guard.mjs.
+const APP_VARS = arg('app-vars', defaultAppVars(VARS));
+assertKeyless({ who: 'next-steps-check', vars: VARS, appVars: APP_VARS });
 mkdirSync(OUT, { recursive: true });
 const secret = readFileSync(VARS, 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)?.[1].trim();
 if (!secret) throw Error(`no TEST_BYPASS_SECRET in ${VARS}`);

@@ -8,7 +8,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -1318,18 +1318,29 @@ const divePath = { current_section_id: 's2', sections: [
 const activeDive = (over = {}) => journeyOf({ state: 'active', active_section_id: 's2', registry: DIVE_REGISTRY, ...over });
 const stampedBlock = (journey_id, section_id, claims) => ({ id: 'b7', type: 'explanation', title: 'Odds', journey: { journey_id, section_id, step_id: 'b7', claims } });
 
-// Final review C-m5: the J1-J8 harness runs only against the keyless stack - a vars file binding a model or voice key
-// is refused before any request (the origins here answer nothing, so a request would fail differently).
-test('journey-check.mjs refuses a vars file with an _API_KEY= or ELEVENLABS_ line, before any request', () => {
+/// Final review C-m5, now the shared strict guard (e2e/keyless-guard.mjs, the same one next-steps-check.mjs uses): the J1-J8 harness runs
+// only against the keyless stack - a vars file of the control plane or of the app worker that binds a model, voice or subscription key,
+// in any dotenv form, is refused before any request (the origins here answer nothing, so a request would fail differently), and the
+// refusal reports the file and line, never the value.
+test('journey-check.mjs refuses a vars file with a model, voice or subscription key in any dotenv form, before any request', () => {
   const tmp = mkdtempSync(join(tmpdir(), 'journey-check-'));
+  const GOOD = 'SMALL_ENV=test\nTEST_BYPASS_SECRET=local\nMASTER_KEY=local\nOAUTH_MOCK=true\nJOURNEY_MODEL_STUB=fixtures\n';
   try {
-    for (const line of ['ANTHROPIC_API_KEY=not-a-key', 'ELEVENLABS_VOICE=not-a-voice']) {
-      const vars = join(tmp, '.dev.vars');
-      writeFileSync(vars, `SMALL_ENV=test\nTEST_BYPASS_SECRET=local\n${line}\n`);
-      const run = spawnSync(process.execPath, [fileURLToPath(new URL('../e2e/journey-check.mjs', import.meta.url)), '--base', 'http://127.0.0.1:9', '--cp', 'http://127.0.0.1:9', '--vars', vars, '--out', join(tmp, 'out')], { encoding: 'utf8' });
-      assert.notEqual(run.status, 0);
-      assert.match(run.stderr, /binds a model or voice key: journey-check runs only against the keyless stack/, line.split('=')[0]);
+    for (const folder of ['cp', 'app']) { mkdirSync(join(tmp, folder)); writeFileSync(join(tmp, folder, 'wrangler.jsonc'), '{ "name": "x", "vars": { "SMALL_ENV": "test" } }'); }
+    const run = () => spawnSync(process.execPath, [fileURLToPath(new URL('../e2e/journey-check.mjs', import.meta.url)), '--base', 'http://127.0.0.1:9', '--cp', 'http://127.0.0.1:9', '--vars', join(tmp, 'cp', '.dev.vars'), '--out', join(tmp, 'out')], { encoding: 'utf8' });
+    for (const folder of ['cp', 'app']) for (const line of ['ANTHROPIC_API_KEY=not-a-key', 'ANTHROPIC_API_KEY: not-a-key', 'export ELEVENLABS_VOICE=not-a-voice', 'SUBSCRIPTION_BRIDGE_TOKEN=not-a-token']) {
+      for (const other of ['cp', 'app']) writeFileSync(join(tmp, other, '.dev.vars'), other === folder ? `${GOOD}${line}\n` : GOOD);
+      const result = run();
+      assert.notEqual(result.status, 0, `${folder}: ${line.split(/[=:]/)[0]}`);
+      assert.match(result.stderr, /journey-check runs only against the keyless stack/, `${folder}: ${line.split(/[=:]/)[0]}`);
+      assert.match(result.stderr, new RegExp(`${folder}[\\\\/]\\.dev\\.vars: line 6 is not one of the stack's allowed lines \\(line 6 binds a model, voice or subscription key\\)`), `${folder}: ${line.split(/[=:]/)[0]}`);
+      assert.doesNotMatch(result.stderr, /not-a-key|not-a-voice|not-a-token/, 'a refusal never prints a value');
     }
+    // A missing .dev.vars is refused too (wrangler would fall back to .env files), and clean files pass the guard (the run then fails on the connection).
+    writeFileSync(join(tmp, 'cp', '.dev.vars'), GOOD); rmSync(join(tmp, 'app', '.dev.vars'), { force: true });
+    assert.match(run().stderr, /app[\\/]\.dev\.vars: missing/);
+    writeFileSync(join(tmp, 'app', '.dev.vars'), GOOD);
+    assert.doesNotMatch(run().stderr, /runs only against the keyless stack/);
   } finally { rmSync(tmp, { recursive: true, force: true }); }
 });
 

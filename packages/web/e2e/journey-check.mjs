@@ -9,24 +9,26 @@
 // /api/learn/ask. Since Task 11b (owner fourteenth message, fix B1: routing is never keyword-based) so is every typed turn on a
 // plain canvas, and a learning path starts only from the Tutor-offered Start a learning path chip (startViaTutor below) or from
 // Home's Agent Bar (J8); the old keyword start from the composer, and the Learn chat answering a plain canvas, are gone.
-//   node e2e/journey-check.mjs --base http://127.0.0.1:8868 --cp http://127.0.0.1:8869 --vars <stack .dev.vars> --out <dir>
-// --vars is the stack's own vars file; only its TEST_BYPASS_SECRET is read, never printed. Sessions are minted on the
+//   node e2e/journey-check.mjs --base http://127.0.0.1:8868 --cp http://127.0.0.1:8869 --vars <stack cp/.dev.vars> [--app-vars <stack app/.dev.vars>] --out <dir>
+// --vars is the control plane's vars file and --app-vars the app worker's (default: app/.dev.vars beside the control plane's folder).
+// The run drives a real browser, so it is refused before any request unless the stack is keyless by the strict guard shared with
+// next-steps-check.mjs (keyless-guard.mjs: every vars file line, the configs' vars, the environment). Only TEST_BYPASS_SECRET is read as a value, never printed. Sessions are minted on the
 // control plane's origin (the app's barrier refuses /test/session there). --prefix starts every file name written to
 // <out> (default none).
 // Each check prints PASS or FAIL with its reason; <out>/journey-results.json holds the table and <out>/journey-network.json
 // the API requests per check (method, path, status, body keys, the evaluate result status - never learner text).
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { assertKeyless, defaultAppVars } from './keyless-guard.mjs';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
 const BASE = arg('base', 'http://127.0.0.1:8868'), CP = arg('cp', 'http://127.0.0.1:8869'), OUT = arg('out', 'journey-shots'), VARS = arg('vars', process.env.JOURNEY_VARS), PREFIX = arg('prefix', '');
 for (const origin of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(origin)) throw Error('journey-check runs against the local stack only');
 if (!VARS) throw Error('--vars <the local stack .dev.vars> is required (e2e/journey-local-stack.md)');
+// Final review C-m5: keyless only, now by the shared strict guard (it replaced a regex on this one vars file).
+assertKeyless({ who: 'journey-check', vars: VARS, appVars: arg('app-vars', defaultAppVars(VARS)) });
 mkdirSync(OUT, { recursive: true });
-const vars = readFileSync(VARS, 'utf8');
-// Final review C-m5: keyless only. A vars file that binds a model or voice key is refused before any request.
-if (/_API_KEY=|ELEVENLABS_/.test(vars)) throw Error(`${VARS} binds a model or voice key: journey-check runs only against the keyless stack (e2e/journey-local-stack.md)`);
-const secret = vars.match(/^TEST_BYPASS_SECRET=(.*)$/m)?.[1].trim();
+const secret = readFileSync(VARS, 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)?.[1].trim();
 if (!secret) throw Error(`no TEST_BYPASS_SECRET in ${VARS}`);
 
 const REQUEST = 'I want to learn logistic regression';

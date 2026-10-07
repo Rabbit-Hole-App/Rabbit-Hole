@@ -18,7 +18,8 @@ STACK=alp1     # or: STACK=pns
 - **No keys.** The vars file holds only `SMALL_ENV=test`, `TEST_BYPASS_SECRET`, `MASTER_KEY` (both random, made for
   this stack), `OAUTH_MOCK=true` and `JOURNEY_MODEL_STUB=fixtures`. The journey planners then answer from
   `learn-journey-fixtures.js`, and every other model route has no key, so no paid call is possible.
-  `next-steps-check.mjs` enforces it and refuses to run before any request if: any line of a vars file the stack loads (both
+  `journey-check.mjs` and `next-steps-check.mjs` both enforce it, with one shared guard (`e2e/keyless-guard.mjs`), and refuse
+  to run before any request if: any line of a vars file the stack loads (both
   configs' `.dev.vars*` and any `.env*`) is not blank, a `#` comment, or one of those five names with a value that has no quote
   character (wrangler parses these with dotenv, which also takes `KEY: value`, quoted multi-line values and bare CR line breaks);
   a config's `vars` declare a `*_API_KEY`, `ELEVENLABS_*` or `SUBSCRIPTION_BRIDGE_*` name, or `SUBSCRIPTION_ONLY` other than
