@@ -65,7 +65,10 @@ const LINE_BREAK = new RegExp(`\r\n?|\n|${String.fromCharCode(0x2028)}|${String.
 const ALLOWED_LINE = new RegExp(`^\\s*(?:export\\s+)?(?:${STACK_KEYS.join('|')})\\s*[=:][^"'\`]*$`);
 const LEADING_NAME = /^\s*(?:export\s+)?([\w.-]+)\s*[=:]/;
 const refusals = [];
-for (const file of new Set([VARS, APP_VARS, ...loadedBy(dirname(VARS)), ...loadedBy(dirname(APP_VARS))].filter(existsSync))) {
+// Both .dev.vars files must exist (review R2-M1): wrangler falls back to .env* files - and to the process environment where it is
+// told to include it - only when there is no .dev.vars, and that is exactly what a file check cannot vouch for.
+for (const file of new Set([VARS, APP_VARS])) if (!existsSync(file)) refusals.push(`${file}: missing; the stack needs both its control plane and its app worker .dev.vars (e2e/journey-local-stack.md)`);
+for (const file of new Set([VARS, APP_VARS,...loadedBy(dirname(VARS)), ...loadedBy(dirname(APP_VARS))].filter(existsSync))) {
   const bad = [], denied = [];
   readFileSync(file, 'utf8').split(LINE_BREAK).forEach((line, index) => {
     if (!line.trim() || line.trim().startsWith('#') || ALLOWED_LINE.test(line)) return;

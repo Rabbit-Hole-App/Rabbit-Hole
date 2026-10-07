@@ -22,7 +22,9 @@ STACK=alp1     # or: STACK=pns
   configs' `.dev.vars*` and any `.env*`) is not blank, a `#` comment, or one of those five names with a value that has no quote
   character (wrangler parses these with dotenv, which also takes `KEY: value`, quoted multi-line values and bare CR line breaks);
   a config's `vars` declare a `*_API_KEY`, `ELEVENLABS_*` or `SUBSCRIPTION_BRIDGE_*` name, or `SUBSCRIPTION_ONLY` other than
-  `"false"`; or the shell running it carries such a name. A refusal prints the file and line numbers, never text from a vars file.
+  `"false"`; the shell running it carries such a name; or either `.dev.vars` (the control plane's, the app worker's) is missing
+  (wrangler then falls back to `.env*` files and, where told to, the process environment, which no file check can vouch for).
+  A refusal prints the file and line numbers, never text from a vars file.
 - `.dev.vars` is read from the directory of each config, so the configs live in their own folders under `<ws>`. Nothing
   reads `packages/*/.dev.vars` or any `.env`.
 - Never print a vars file. Check it by key name only: `grep -o '^[A-Z0-9_]*=' <file>`.
@@ -105,7 +107,9 @@ npx wrangler dev -c <ws>/$STACK-config/cp/wrangler.jsonc --local --persist-to <w
 ```
 
 Start each `wrangler dev` with a registry of its own, so stopping it never touches another stack's entries: set
-`WRANGLER_REGISTRY_PATH=<ws>/$STACK-registry-app` (then `-registry-cp` for the second) in the shell that starts it.
+`WRANGLER_REGISTRY_PATH=<ws>/$STACK-registry-app` (then `-registry-cp` for the second) in the shell that starts it. Start both
+exactly as above, with no `--var` and no `--env-file` flag on the command line: the harness can only read files, so a flag there
+would bind a value it cannot see.
 
 Check that no key reached the workers, by name and by behaviour (both answer "not configured" without a model call):
 the startup binding table lists no `*_API_KEY` or `ELEVENLABS_*`; with a session, `POST /api/learn/home-ask` answers 503
@@ -120,7 +124,9 @@ node e2e/journey-check.mjs --base http://127.0.0.1:8868 --cp http://127.0.0.1:88
 ```
 
 The page also answers `/api/learn/ask` (canned SSE), `/api/learn/home-ask` and the Tutor planner `/api/learn/tutor/plan`
-(a canned respond_text plan) itself and refuses artifact, voice, assess and image requests, so even a misconfigured stack
+(a canned respond_text plan, with a `suggest_journey` offer for the typed learning request that starts a path: since Task 11b a
+journey starts from the Tutor's Start a learning path chip or from Home, never from a keyword in the composer) itself and
+refuses artifact, voice, assess and image requests, so even a misconfigured stack
 makes no model call from the browser. `/api/learn/tutor/evaluate` reaches the stack: without a JEV key it answers status
 `error` with no call, and probe options are graded from the server-only key.
 
