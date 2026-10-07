@@ -14,6 +14,20 @@ export function canvasApp(row, user) {
   return { ...row, kind: 'canvas', hosting: 'canvas', email: user.email, orgName: user.orgName, visibility: 'private', members: [], published: !!row.publication_token,
     canView: true, canEdit: row.owner_email === user.email, url: `/apps/${row.name}`, inputs: {}, outputs: {} };
 }
+// The canvas's last meaningful change (docs/features/canvas-metadata.md): a rename, a description edit, a change to its
+// saved content - never a view, a selection, someone else's fork or Rabbit Hole, a copied link or a handle change. The
+// same text form as created_at (SQLite datetime, here with milliseconds), so the two order together.
+export const NOW = "strftime('%Y-%m-%d %H:%M:%f', 'now')";
+export const touchCanvas = (db, org, canvas) => db.prepare(`INSERT INTO canvas_metadata (org, canvas, updated_at) VALUES (?, ?, ${NOW}) ON CONFLICT (org, canvas) DO UPDATE SET updated_at = excluded.updated_at`).bind(org, canvas);
+// An optional description, written by its owner (never generated): plain text up to 500 characters; empty clears it.
+const DESCRIPTION = 500;
+function canvasDescription(value) {
+  if (value === null) return null;
+  if (typeof value !== 'string') throw Error('Write the description as text');
+  const text = value.trim();
+  if (text.length > DESCRIPTION) throw Error(`Use a description of up to ${DESCRIPTION} characters`);
+  return text || null;
+}
 function canvasTitle(value) {
   if (typeof value !== 'string' || value.trim().length > TITLE) throw Error(`Use a title of up to ${TITLE} characters`);
   return value.trim();
@@ -39,8 +53,10 @@ const CANVAS_ROW = `SELECT c.*, f.forked_from_title, CASE
     WHEN f.forked_from_share IS NOT NULL AND EXISTS (SELECT 1 FROM canvas_publications pp JOIN canvases pc ON pc.org = pp.org AND pc.name = pp.canvas AND pc.archived_at IS NULL WHERE pp.token = f.forked_from_share) THEN '/e/' || f.forked_from_share
   END AS forked_from_url, ${FORK_COUNT} AS fork_count,
   ${HANDLE_OF('c.owner_email')} AS owner_handle, ${NAME_OF('c.owner_email')} AS owner_name, ${HANDLE_OF('f.forked_from_owner_id')} AS forked_from_handle,
-  (SELECT p.token FROM canvas_publications p WHERE p.org = c.org AND p.canvas = c.name) AS publication_token
+  (SELECT p.token FROM canvas_publications p WHERE p.org = c.org AND p.canvas = c.name) AS publication_token,
+  m.description, COALESCE(m.updated_at, c.created_at) AS updated_at
   FROM canvases c LEFT JOIN canvas_forks f ON f.org = c.org AND f.canvas = c.name
+  LEFT JOIN canvas_metadata m ON m.org = c.org AND m.canvas = c.name
   LEFT JOIN canvases src ON src.org = f.forked_from_org AND src.name = f.forked_from_canvas_id`;
 async function ownedCanvas(env, user, name) {
   const row = await env.LEARN_DB.prepare(`${CANVAS_ROW} WHERE c.org=? AND c.name=?`).bind(user.org, name).first();
@@ -83,7 +99,7 @@ export async function freeTitle(db, org, owner, title) {
 // as top-level canvases in Home, Library or Search. They still open directly by their URL. A hole started
 // from someone's shared canvas (parent `share:...`) is a root of the viewer's own, so it is listed.
 export async function ownerCanvases(env, user, archived = false) {
-  const { results } = await env.LEARN_DB.prepare(`${CANVAS_ROW} WHERE c.org=? AND c.owner_email=? AND c.archived_at IS ${archived ? 'NOT ' : ''}NULL AND c.name NOT IN (SELECT child FROM canvas_dives WHERE org=? AND owner_email=? AND parent_app NOT LIKE 'share:%') ORDER BY c.created_at DESC, c.id DESC`).bind(user.org, user.email, user.org, user.email).all();
+  const { results } = await env.LEARN_DB.prepare(`${CANVAS_ROW} WHERE c.org=? AND c.owner_email=? AND c.archived_at IS ${archived ? 'NOT ' : ''}NULL AND c.name NOT IN (SELECT child FROM canvas_dives WHERE org=? AND owner_email=? AND parent_app NOT LIKE 'share:%') ORDER BY updated_at DESC, c.id DESC`).bind(user.org, user.email, user.org, user.email).all();
   return results.map(row => canvasApp(row, user));
 }
 
@@ -178,11 +194,19 @@ export async function canvasesFetch(req, env) {
       return json(await ownedCanvas(env, user, name));
     }
     if (req.method === 'GET') return json(app);
+    // Rename and Edit description; either one that changes something is the canvas's latest meaningful change.
     if (req.method === 'PATCH') {
-      const title = canvasTitle((await req.json()).title);
+      const body = await req.json();
+      const title = body.title === undefined ? app.title : canvasTitle(body.title);
       if (!title) throw Error('Title required');
-      await db.prepare('UPDATE canvases SET title=? WHERE id=?').bind(title, app.id).run();
-      return json({ ...app, title });
+      const description = body.description === undefined ? app.description ?? null : canvasDescription(body.description);
+      if (title === app.title && description === (app.description ?? null)) return json(app);
+      await db.batch([
+        db.prepare('UPDATE canvases SET title=? WHERE id=?').bind(title, app.id),
+        touchCanvas(db, user.org, name),
+        db.prepare('UPDATE canvas_metadata SET description=? WHERE org=? AND canvas=?').bind(description, user.org, name),
+      ]);
+      return json(await ownedCanvas(env, user, name));
     }
     if (req.method === 'DELETE') {
       // Undo only while untouched (section 8.4). One statement, so a thread started meanwhile keeps the canvas.

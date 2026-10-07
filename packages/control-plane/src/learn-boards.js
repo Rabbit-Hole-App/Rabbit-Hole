@@ -9,7 +9,7 @@ import { authorizedBoardApp } from './learn-board.js';
 import { repositoryIdentity } from './repositories.js';
 import { sha256Hex } from './learn-grade-jev.js';
 import { learnMedia } from './learn-storage.js';
-import { FORK_COUNT, HANDLE_OF, NAME_OF, freeTitle } from './canvases.js';
+import { FORK_COUNT, HANDLE_OF, NAME_OF, NOW, freeTitle, touchCanvas } from './canvases.js';
 import { askShared, boardRevision, boardSources, publicationKey, shareKey, sharePin, shareSource, sharedTitle } from './learn-shared-ask.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -100,6 +100,9 @@ async function saveOwn(env, owner, app, board, body) {
   }
   if (Number.isInteger(body.version) && body.version !== row.version) return json({ error: 'This board changed since you opened it.', version: row.version }, 409);
   await env.LEARN_DB.prepare('UPDATE learn_boards SET state_json = ?, version = version + 1, updated_by = ?, updated_at = ? WHERE id = ?').bind(state.text, owner.email, now, row.id).run();
+  // A change to a canvas's saved content is a meaningful change (canvas-metadata.md); a save of the same content, or a
+  // board's first server copy (a sync of what the browser already had: sharing, publishing), is not.
+  if (CANVAS.test(app) && state.text !== row.state_json) await touchCanvas(env.LEARN_DB, owner.org, app).run();
   return json({ version: row.version + 1, sharing: sharingOf(row) });
 }
 
@@ -302,6 +305,7 @@ async function fork(req, env, body, { duplicate = false } = {}) {
   try {
     await db.batch([
       db.prepare('INSERT INTO canvases(org,name,owner_email,title,project,device_id) VALUES(?,?,?,?,?,NULL)').bind(user.org, name, user.email, title, duplicate ? source.project ?? null : null),
+      ...(duplicate ? [db.prepare(`INSERT INTO canvas_metadata (org, canvas, description, updated_at) SELECT ?, ?, description, ${NOW} FROM canvas_metadata WHERE org = ? AND canvas = ? AND description IS NOT NULL`).bind(user.org, name, source.org, source.canvas)] : []),
       db.prepare('INSERT INTO learn_boards (id, org, owner_email, app, board, state_json, version, updated_by, updated_at, title, forked_from) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)')
         .bind(id, user.org, user.email, name, 'main', JSON.stringify(state), user.email, now, title, forkedFrom ? JSON.stringify(forkedFrom) : null),
       ...(duplicate ? [] : [db.prepare('INSERT INTO canvas_forks (org, canvas, owner_email, fork_key, forked_from_org, forked_from_canvas_id, root_org, root_canvas_id, forked_from_owner_id, forked_from_title, forked_from_share, forked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
@@ -467,12 +471,14 @@ async function openShared(req, env, token) {
 // never an email, an id, or anything of a canvas that is private or only shared by link.
 export const EXPLORE_LIMIT = 100;
 async function explore(env) {
-  const { results } = await env.LEARN_DB.prepare(`SELECT p.token, p.published_at, c.title, h.handle, ${NAME_OF('c.owner_email')} AS name, ${FORK_COUNT} AS fork_count
+  const { results } = await env.LEARN_DB.prepare(`SELECT p.token, p.published_at, c.title, h.handle, ${NAME_OF('c.owner_email')} AS name, ${FORK_COUNT} AS fork_count,
+    m.description, COALESCE(m.updated_at, c.created_at) AS updated_at
     FROM canvas_publications p JOIN canvases c ON c.org = p.org AND c.name = p.canvas AND c.archived_at IS NULL
+    LEFT JOIN canvas_metadata m ON m.org = c.org AND m.canvas = c.name
     JOIN user_handles h ON h.email = c.owner_email
     WHERE NOT EXISTS (SELECT 1 FROM canvas_dives d WHERE d.org = c.org AND d.child = c.name)
     ORDER BY p.published_at DESC, p.rowid DESC LIMIT ?`).bind(EXPLORE_LIMIT).all();
-  return json({ canvases: results.map(r => ({ title: r.title, creator: { handle: r.handle, name: r.name ?? null }, fork_count: r.fork_count, url: `/e/${r.token}`, published_at: r.published_at })) });
+  return json({ canvases: results.map(r => ({ title: r.title, description: r.description ?? null, creator: { handle: r.handle, name: r.name ?? null }, fork_count: r.fork_count, url: `/e/${r.token}`, published_at: r.published_at, updated_at: r.updated_at })) });
 }
 
 export async function learnBoardsRoute(path, req, env) {

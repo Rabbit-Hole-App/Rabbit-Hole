@@ -86,7 +86,7 @@ test('PUBLIC: in Explore with @handle and the canonical fork count; /e opens sig
   const a = await canvasOf(f, 'ana', 'Why ice floats');
   const token = tokenOf((await publish(f, 'ana', a.name)).body);
   const listed = await explore(f);
-  assert.deepEqual(listed.map(({ published_at, ...card }) => card), [{ title: 'Why ice floats', creator: { handle: 'ana', name: 'Ana Lima' }, fork_count: 0, url: `/e/${token}` }]);
+  assert.deepEqual(listed.map(({ published_at, updated_at, ...card }) => card), [{ title: 'Why ice floats', description: null, creator: { handle: 'ana', name: 'Ana Lima' }, fork_count: 0, url: `/e/${token}` }]);
   const seen = await open(f, token);
   assert.deepEqual([seen.status, seen.body.role, seen.body.published, seen.body.title, seen.body.creator, seen.body.fork_count], [200, 'view', true, 'Why ice floats', { handle: 'ana', name: 'Ana Lima' }, 0]);
   assert.deepEqual(seen.body.state.blocks, BOARD.blocks, 'the canvas as published');
