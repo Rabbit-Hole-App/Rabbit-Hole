@@ -12,7 +12,8 @@ import { validateActions } from './learn-tutor-validate.js';
 import { decisionEvent } from './learn-tutor-trace.js';
 import { actionContract } from './learn-tutor-actions.js';
 import { canvasDomain } from './learn-journey-domain.js';
-import { NANOGPT } from './learn-tutor-claims.js';
+import { NANOGPT, cardModule } from './learn-tutor-claims.js';
+import { cardBlock } from './nanogpt/board.js';
 import { emptyStore } from './learn-tutor-evidence.js';
 import { HANDOFF_CAPABILITY_NAMES } from '../../control-plane/src/agents/learn-tutor.js';
 import { HANDOFF_CAPABILITIES, HANDOFF_PATH } from '../../control-plane/src/learn-tutor-handoff.js';
@@ -270,4 +271,72 @@ test('stop: a stopped handoff never reads as a retrieval failure or a repository
   const stopped = { ...r.bench.handoff, outcome: 'failed', failure: 'stopped', model_id: null, usage: null };
   const e = decisionEvent({ result: { ...r, bench: { ...r.bench, handoff: stopped } }, domain: REPO.domain });
   assert.deepEqual([e.decision.grounding_status, e.decision.source_types_used], ['grounded', ['selected_material']], 'nothing was retrieved: no retrieval_failed, no repository');
+});
+
+// ---------- Fix round 1: trace, validity, cap, pending evaluation, card text ----------
+
+const EXPLAIN = { command: 'explain', cards: ['explanation'], paid: false };
+const offers = { materials: [EXPLAIN], research: true, journeyOffer: true };
+
+// B-I3: whenever a handoff ran, it is the chosen action, whatever else the plan holds.
+test('trace: chosen_action is the handoff whenever one ran, beside create_material, suggest_journey or suggest_research', async () => {
+  for (const other of [{ type: 'create_material', command: 'explain', request: 'how merge sort splits' }, { type: 'suggest_journey', request: 'sorting algorithms' }, { type: 'suggest_research', request: 'newer sorting results' }]) {
+    const r = await turnWith({ actions: [SAY, other, HANDOFF] }, offers);
+    assert.deepEqual(r.actions.map(a => a.type), ['respond_text', other.type, 'handoff'], other.type);
+    assert.deepEqual([r.trace.decision.chosen_action.action_type, r.trace.decision.chosen_action.capability], ['handoff', 'repository_context'], other.type);
+  }
+});
+
+// A-I1, B-I4: a handoff the turn offered and the plan proposed, but the validator dropped, is a failed handoff (invalid_action):
+// the failure line, retrieval_failed, never repository, and no route call.
+test('invalid_action: an offered handoff the validator drops says the source could not be retrieved and records retrieval_failed', async () => {
+  for (const bad of [{ capability: 'research' }, { capability: undefined }, { request: '   ' }, { request: 'x'.repeat(1001) }]) {
+    const r = await turnWith({ actions: [SAY, { ...HANDOFF, ...bad }], grounding_status: 'grounded', source_types_used: ['repository'] });
+    assert.deepEqual(r.sent.map(s => s.path), ['/api/learn/tutor/plan'], 'no route call');
+    assert.equal(r.text, `${SAY.text}\n\n${HANDOFF_FAILED}`, JSON.stringify(bad).slice(0, 40));
+    assert.deepEqual([r.trace.decision.grounding_status, r.trace.decision.source_types_used], ['retrieval_failed', []]);
+    assert.deepEqual([r.trace.runtime.handoff.outcome, r.trace.runtime.handoff.failure, r.trace.runtime.handoff.ms], ['failed', 'invalid_action', 0]);
+  }
+  const alone = await turnWith({ actions: [{ ...HANDOFF, request: '' }] });
+  assert.equal(alone.text, HANDOFF_FAILED, 'no words of its own: only the failure line');
+  const second = await turnWith({ actions: [HANDOFF, { ...HANDOFF, request: 'And the other one?' }] });
+  assert.deepEqual([second.trace.runtime.handoff.outcome, second.sent.filter(s => s.path === HANDOFF_PATH).length], ['ok', 1], 'a second handoff is dropped, the first runs: no failure');
+  const never = await turnWith({ actions: [SAY, { ...HANDOFF, capability: 'research' }] }, { repository: false });
+  assert.deepEqual([never.text, never.trace.runtime.handoff], [SAY.text, null], 'not offered: dropped, not a failure');
+});
+
+// A-I1, B-I4: the 3-action cap never drops the handoff; the last accepted non-text action makes room. With only text actions
+// accepted there is nothing to drop, so the handoff is invalid_action (the cleaner option was not available there).
+test('cap: the handoff is never the action the 3-action cap drops; with only text before it, invalid_action', async () => {
+  const r = await turnWith({ actions: [SAY, { type: 'create_material', command: 'explain', request: 'x' }, { type: 'suggest_research', request: 'y' }, HANDOFF] }, offers);
+  assert.deepEqual(r.actions.map(a => a.type), ['respond_text', 'create_material', 'handoff'], 'suggest_research, the last non-text action, makes room');
+  assert.deepEqual(r.decisions.filter(d => !d.accepted), [{ type: 'suggest_research', accepted: false, stage: 'route', reason: 'more than 3 actions: the handoff is kept' }]);
+  assert.equal(r.trace.runtime.handoff.outcome, 'ok');
+  const words = await turnWith({ actions: [SAY, { ...SAY, text: 'Second.' }, { ...SAY, text: 'Third.' }, HANDOFF] });
+  assert.deepEqual([words.actions.length, words.trace.runtime.handoff.failure, words.text.endsWith(HANDOFF_FAILED)], [3, 'invalid_action', true]);
+});
+
+// Minor (Part B M1): the handoff does not wait for an evaluation running beside the planner (it never depends on evidence).
+test('the handoff starts without waiting for a pending evaluation', async () => {
+  const order = [];
+  let release;
+  const post = async path => {
+    if (path === '/api/learn/tutor/evaluate') { order.push('evaluate start'); await new Promise(done => { release = done; setTimeout(done, 50); }); order.push('evaluate end'); return { status: 'settled', evaluator: 'jev', events: [] }; }
+    if (path === '/api/learn/tutor/plan') return { strategy: 'none', constraints_add: [], actions: [SAY, HANDOFF] };
+    order.push('handoff'); release?.(); return OK;
+  };
+  const r = await runTurn({ raw: 'Show me where this is implemented', block: cardBlock(cardModule('depth-attention-overview')), store: emptyStore(), post, canvas: REPO.canvas, access: REPO.access, domain: NANOGPT, repository: true });
+  assert.deepEqual([r.bench.critical_path.blocking, order], [false, ['evaluate start', 'handoff', 'evaluate end']]);
+  assert.ok(r.text.endsWith(ANSWER));
+});
+
+// Minor (Part B M2): a code or snippet card sends its own text (brief and code) as context.card, grounding and never intent.
+test('a snippet or code card sends its brief and code as context.card, within the route bound', async () => {
+  const snippet = { id: 'blk-snip', type: 'snippet', title: 'merge', brief: 'Merges two sorted lists.', code: 'def merge(a, b):\n    ...', output: '' };
+  const r = await turnWith({ actions: [HANDOFF] }, { block: snippet });
+  assert.deepEqual(r.posted.context, { card: { id: 'blk-snip', title: 'merge', text: 'merge\nMerges two sorted lists.\ndef merge(a, b):\n    ...' } });
+  assert.equal('selection' in r.posted, false, 'no code source: no selection');
+  const exercise = await turnWith({ actions: [HANDOFF] }, { block: { id: 'blk-ex', type: 'code', title: 'split', brief: 'Split the list.', code: 'x'.repeat(9000) } });
+  assert.equal(exercise.posted.context.card.text.length, CANVAS_TARGET_LIMIT);
+  assert.ok(exercise.posted.context.card.text.startsWith('split\nSplit the list.\nxxx'));
 });

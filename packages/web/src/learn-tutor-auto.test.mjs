@@ -696,6 +696,7 @@ test('11c-B: on a repository canvas a typed or spoken question may hand off; the
     const off = await plainTutor(plan, t => t.ask({ raw: 'What does this function do in the repository code?' }), options);
     assert.equal(planOf(off.calls).allowed_actions.includes('handoff'), false, name);
     assert.deepEqual([off.out, off.calls.map(c => c.path)], [lead, ['/api/learn/tutor/plan']], `${name}: the planned handoff is dropped, nothing is read`);
+    assert.ok(off.logs.some(line => /^\[tutor\] .*dropped handoff/.test(line)), `${name}: the drop is logged (captured, not printed)`);
   }
   const failed = await plainTutor(plan, t => t.ask({ raw: 'Who calls this?' }), { app: repo, handoff: { capability: 'repository_context', answer: null, telemetry: { ...HANDOFF_OK.telemetry, outcome: 'failed', failure: 'retrieval_error' } } });
   assert.equal(failed.out, `${lead}\n\n${HANDOFF_FAILED}`, 'a failure says the source context could not be retrieved');

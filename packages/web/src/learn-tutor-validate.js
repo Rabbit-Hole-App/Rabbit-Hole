@@ -222,7 +222,15 @@ export function validateActions(response, routed, turn, domain = NANOGPT) {
       const title = String(next.title || domain.concepts[concept]?.label || next.concept || '').slice(0, 80);
       next = { type: 'suggest_dive', concept, title, from: turn.target?.block_id ? { block_id: turn.target.block_id } : { anchor: { topic: title } } };
     }
-    if (actions.length === 3) { reject(action, 'route', 'more than 3 actions'); continue; }
+    if (actions.length === 3) {
+      // Fix round 1 (A-I1, B-I4): the cap never drops the handoff; the last accepted non-text action (the plan's lowest priority)
+      // makes room. With only words accepted there is nothing to drop, and runTurn records the dropped handoff as invalid_action.
+      const room = next.type === HANDOFF_ACTION ? actions.findLastIndex(other => !TEXT_ACTIONS.includes(other.type)) : -1;
+      if (room < 0) { reject(action, 'route', 'more than 3 actions'); continue; }
+      const [out] = actions.splice(room, 1);
+      decisions[decisions.findLastIndex(d => d.accepted && d.type === out.type)] = { type: out.type, accepted: false, stage: 'route', reason: 'more than 3 actions: the handoff is kept' };
+      log.push(`dropped ${out.type}: more than 3 actions, the handoff is kept`);
+    }
     actions.push(next);
     decisions.push({ type: next.type, accepted: true, stage: 'accepted', reason: next.mode === 'suggest' && action.mode === 'navigate' ? 'downgraded to a suggestion' : null });
   }

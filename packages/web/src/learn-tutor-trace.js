@@ -4,7 +4,7 @@
 // Stages: target_resolution, practice_evaluation, claim_selection, evaluate (with the worker's own
 // jev / larger timings), evidence_reconciliation, router, planner, action_validation; the UI adds
 // reply_ready and canvas_action_complete marks.
-import { MODE_SLASHES, TRACE_SCHEMA_VERSION, TUTOR_PLANNER_VERSION, goalWords, repeatsLearnerWords } from '../../control-plane/src/agents/learn-tutor.js';
+import { HANDOFF_ACTION, MODE_SLASHES, TRACE_SCHEMA_VERSION, TUTOR_PLANNER_VERSION, goalWords, repeatsLearnerWords } from '../../control-plane/src/agents/learn-tutor.js';
 import { STATES } from './learn-tutor-evidence.js';
 import { resolveTarget } from './learn-target.js';
 
@@ -164,7 +164,8 @@ export const decisionEvent = safe(({ result, domain, identity = {}, blocks = [],
       recent_modality_history: seen.slice(-8), next_step_options: optionsOf(options), shown_at: null,
       selected_next_step_id: turn.next_step?.suggestion_id ?? null, selected_at: turn.next_step ? selectedAt : null,
       route: routed ? { row: routed.row, strategy: response?.strategy ?? routed.strategy ?? null, intent } : null,
-      chosen_action: actions.find(a => a.action_type !== 'respond_text') ?? actions[0] ?? null, actions,
+      // Fix round 1 (B-I3): a handoff that ran is the chosen action, whatever else the plan holds.
+      chosen_action: actions.find(a => a.action_type === HANDOFF_ACTION) ?? actions.find(a => a.action_type !== 'respond_text') ?? actions[0] ?? null, actions,
       reason_codes, reason_source, rationale_summary: why.summary,
       expected_evidence: [...new Map(contracts.flatMap(c => c.expected_evidence || []).map(e => [`${e.claim_id}|${e.via}`, e])).values()],
       estimated_learning_seconds: seconds.length ? seconds.reduce((a, b) => a + b, 0) : null,

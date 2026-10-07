@@ -485,6 +485,13 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   let { actions, log, decisions, reading } = tracer.step('action_validation', () => enforce(response, routed, turn, domain),
     out => `${out.decisions.filter(decision => decision.accepted).length} accepted, ${out.decisions.filter(decision => !decision.accepted).length} rejected`);
   const enforced = now();
+  // 3b. The handoff (Task 11c-B): the accepted one starts now, through the route, without waiting for an evaluation running
+  // beside the planner (fix round 1: it never depends on evidence, and a routing miss never drops it). Its answer is the
+  // learner-facing result after the plan's own words; a failure keeps only those words and says the source context could not
+  // be retrieved, never an answer of its own.
+  const handoff = actions.find(action => action.type === HANDOFF_ACTION);
+  let answered = null;
+  const handing = handoff ? tracer.step('handoff', () => runHandoff(handoff, { post, access, block }).then(out => { answered = now(); return out; }), out => out.record.failure ?? out.record.outcome) : null;
   // Off the critical path: the evaluation lands now. Its evidence is stored like any other; a route it
   // would have changed is a critical-path miss (the reply was planned on the prior evidence).
   // Decision 1: evidence actions (EVIDENCE_ACTIONS) are released only now; after a miss they were chosen
@@ -506,16 +513,15 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
     }
   }
   const released = now();
-  // 3b. The handoff (Task 11c-B): the accepted one runs now, after the plan and its evidence, through the route. Its answer is
-  // the learner-facing result after the plan's own words; a failure keeps only those words and says the source context could
-  // not be retrieved, never an answer of its own.
-  const handoff = actions.find(action => action.type === HANDOFF_ACTION);
-  const handed = handoff ? await tracer.step('handoff', () => runHandoff(handoff, { post, access, block }), out => out.record.failure ?? out.record.outcome) : null;
+  // Fix round 1 (A-I1, B-I4): a handoff the turn offered and the plan proposed, but the validator dropped, is a failed handoff
+  // (invalid_action): the reply says the source context could not be retrieved and the trace records retrieval_failed.
+  const dropped = !handoff && routed.allowed.includes(HANDOFF_ACTION) && (Array.isArray(response.actions) ? response.actions : []).some(action => action?.type === HANDOFF_ACTION);
+  const handed = handing ? await handing : dropped ? invalidHandoff() : null;
+  if (dropped) answered = now();
   // Fix round 1 (B-I1, B-I2): a Stop or Voice barge-in during the handoff ends the turn exactly as one during the planner does -
   // the AbortError rejects the turn with its trace (the page then saves nothing, runs no canvas action or material and emits no
   // decision event), and the stopped handoff record rides on the error.
   if (handed?.record.failure === 'stopped') throw Object.assign(handed.error, { trace: tracer.trace, handoff: handed.record });
-  const answered = now();
   // 4. The session record.
   const constraints = [...new Set([...current.constraints, ...(response.constraints_add || [])].filter(item => !(response.constraints_remove || []).includes(item)).concat(statedConstraints(raw)))];
   const asked = actions.find(action => action.type === 'ask_question');
@@ -583,15 +589,21 @@ const HANDOFF_ROUTE = '/api/learn/tutor/handoff'; // learn-tutor-handoff.js HAND
 // structured data only: its first well-formed code source (card-sources.js) as the selection in the route's own form, and its
 // text as context.card, bounded as the route bounds a card (title 300, text 8000: CANVAS_TARGET_LIMIT). Never from the
 // learner's words; no block, no grounding.
+// A code or snippet card's own text rides too (fix round 1: brief and code, not only its title); the planner's cardText is unchanged.
 function handoffGrounding(block) {
   if (!block) return {};
   const code = validSources(block.sources).find(source => source.kind === 'code');
-  const text = (cardText(block) || '').slice(0, 8000);
+  const text = (block.type === 'animation' ? cardText(block) : [block.title, block.body, block.brief, block.code].filter(Boolean).join('\n')).slice(0, 8000);
   return {
     ...(code ? { selection: { repository: code.repo, revision: code.revision, file: code.path, line_range: { start: code.lines[0], end: code.lines[1] } } } : {}),
     ...(text.trim() ? { context: { card: { id: block.id, ...(block.title ? { title: String(block.title).slice(0, 300) } : {}), text } } } : {}),
   };
 }
+// The record of a handoff the validator dropped on a turn that offered it (fix round 1): no route call, no answer.
+const invalidHandoff = () => {
+  const at = new Date().toISOString();
+  return { answer: null, record: { started_at: at, completed_at: at, ms: 0, outcome: 'failed', failure: 'invalid_action', model_id: null, usage: null } };
+};
 // One handoff through the route: { answer (null unless ok), record } - record is the decision event's runtime.handoff: the
 // learner's wait on the turn clock, outcome ok | failed | refused, the route's failure category, served model and usage; never
 // the request or the answer. It never throws: a 429 (limited), an HTTP error, a network error (request_error) or the
