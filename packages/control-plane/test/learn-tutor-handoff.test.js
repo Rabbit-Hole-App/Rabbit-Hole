@@ -6,7 +6,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { learnDb } from './learn-grade-fixture.js';
 import { tutorRoute } from '../src/learn-tutor-routes.js';
-import { HANDOFF_BODY_CHARS, HANDOFF_CAPABILITIES } from '../src/learn-tutor-handoff.js';
+import { HANDOFF_BODY_CHARS, HANDOFF_CAPABILITIES, HANDOFF_CAPS } from '../src/learn-tutor-handoff.js';
+import { CANVAS_TARGET_HEADER } from '../src/agents/learn-chat.js';
 import { REPOSITORY_SYSTEM, REPOSITORY_TOOLS } from '../src/repository-context.js';
 import { repositoryApp } from '../src/repositories.js';
 import { canvasApp } from '../src/canvases.js';
@@ -190,10 +191,11 @@ test('no selection still works, and words in the request never create one', asyn
   const text = firstUserText(model.calls[0]);
   assert.match(text, /"selected":null,"selectedCode":null/);
   assert.equal(text.includes('Selected '), false);
+  assert.equal(text.includes(CANVAS_TARGET_HEADER), false, 'no card, no canvas target section');
   assert.deepEqual(f.snapshotReads, ['snap-now']);
 });
 
-test('read-only: success and every failure prepare only SELECT statements and write no storage', async t => {
+test('read-only: success and every failure write only their usage row, no repository, canvas, thread or storage write', async t => {
   const f = setup(t);
   const runs = [
     [ask(), [toolUse('search_code', { query: 'forward' }), answer('ok')]],
@@ -205,9 +207,10 @@ test('read-only: success and every failure prepare only SELECT statements and wr
   ];
   for (const [body, replies] of runs) await f.post(body, { callModel: scripted(replies).callModel });
   assert.ok(f.statements.length > 0);
-  assert.deepEqual(f.statements.filter(sql => !/^SELECT /i.test(sql)), [], 'no INSERT, UPDATE or DELETE on any table');
+  assert.deepEqual(f.statements.filter(sql => !/^SELECT /i.test(sql) && !/^INSERT INTO shared_ask_events /.test(sql)), [], 'the usage row is the only write');
   assert.deepEqual(f.storageWrites, []);
-  const counts = f.sqlite.prepare("SELECT (SELECT COUNT(*) FROM threads) + (SELECT COUNT(*) FROM messages) + (SELECT COUNT(*) FROM shared_ask_events) AS n").get();
+  assert.deepEqual(f.sqlite.prepare('SELECT DISTINCT category FROM shared_ask_events').all().map(row => row.category), ['tutor_handoff']);
+  const counts = f.sqlite.prepare('SELECT (SELECT COUNT(*) FROM threads) + (SELECT COUNT(*) FROM messages) + (SELECT COUNT(*) FROM repository_message_graphs) AS n').get();
   assert.equal(counts.n, 0);
 });
 
@@ -220,4 +223,45 @@ test('the same gates as the other Tutor routes: method, JSON, access, origin, su
   const owner = setup(t, { SUBSCRIPTION_ONLY: 'true', SUBSCRIPTION_OWNER_EMAIL: 'someone@test' });
   assert.equal((await owner.post(ask(), { callModel: model.callModel })).status, 403);
   assert.deepEqual([model.calls.length, f.snapshotReads, owner.snapshotReads], [0, [], []]);
+});
+
+test('usage cap: under the cap ok; over it 429 refused before the reader; the row is tutor_handoff and nothing else is written', async t => {
+  assert.deepEqual(HANDOFF_CAPS, { TUTOR_HANDOFF_HOUR: 30, TUTOR_HANDOFF_DAY: 150 });
+  const f = setup(t, { TUTOR_HANDOFF_HOUR: '2' }), model = scripted([answer('one'), answer('two'), answer(`${SECRET} three`)]);
+  for (const expected of ['one', 'two']) assert.equal((await (await f.post(ask(), { callModel: model.callModel })).json()).answer, expected);
+  const over = await f.post(ask(), { callModel: model.callModel });
+  assert.equal(over.status, 429);
+  const body = await over.json();
+  assert.deepEqual([body.answer, body.telemetry.outcome, body.telemetry.failure, body.telemetry.calls], [null, 'refused', 'limited', 0]);
+  assert.deepEqual([model.calls.length, f.snapshotReads.length], [2, 2], 'the over-cap turn never reached the reader');
+  assert.deepEqual(f.sqlite.prepare('SELECT category, viewer_email, share_key, board_id, owner_email FROM shared_ask_events').all().map(row => ({ ...row })),
+    [1, 2].map(() => ({ category: 'tutor_handoff', viewer_email: 'ana@test', share_key: '', board_id: REPO, owner_email: 'ana@test' })), 'a refusal writes nothing');
+  assert.deepEqual(f.statements.filter(sql => !/^SELECT /i.test(sql) && !/^INSERT INTO shared_ask_events /.test(sql)), []);
+});
+
+test('context.card rides as the canvas target section of the context; the question stays only the request', async t => {
+  const f = setup(t), model = scripted([answer('It projects x.')]);
+  const card = { id: 'b7', title: 'The forward pass', text: 'def forward(self, x):\n    return self.c_proj(x)' };
+  const body = await (await f.post(ask({ request: 'What does this function do?', context: { card } }), { callModel: model.callModel })).json();
+  assert.equal(body.telemetry.outcome, 'ok');
+  const [context, question] = firstUserText(model.calls[0]).split('\n\n---\n\n');
+  assert.equal(question, 'What does this function do?', 'card text is grounding, never the question');
+  assert.ok(context.endsWith(`${CANVAS_TARGET_HEADER}\n${JSON.stringify(card)}`), 'the Learn chat canvas target form (appendCanvasTarget)');
+});
+
+test('context shape: only { card: { id, title?, text } }, text at most 8000 characters', async t => {
+  const f = setup(t), model = scripted([]);
+  const card = { id: 'b7', title: 'T', text: 'x' };
+  for (const context of ['card', [], {}, { card: null }, { card, extra: 1 }, { card: { ...card, kind: 'code' } }, { card: { ...card, id: '' } }, { card: { ...card, text: '' } },
+    { card: { ...card, text: 'x'.repeat(8001) } }, { card: { ...card, title: 'x'.repeat(301) } }, { card: { ...card, title: 7 } }]) {
+    assert.equal((await f.post(ask({ context }), { callModel: model.callModel })).status, 400, `context ${JSON.stringify(context).slice(0, 60)}`);
+  }
+  assert.deepEqual([model.calls.length, f.snapshotReads], [0, []]);
+  assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS n FROM shared_ask_events').get().n, 0, 'a 400 spends no budget');
+});
+
+test('cost_usd stays null when the served model has no price entry; tokens are still recorded', async t => {
+  const f = setup(t), model = scripted([reply([{ type: 'text', text: 'It returns x.' }], 'end_turn', 'claude-opus-5')]);
+  const { telemetry } = await (await f.post(ask(), { callModel: model.callModel })).json();
+  assert.deepEqual([telemetry.served_model, telemetry.cost_usd, telemetry.input_tokens, telemetry.output_tokens], ['claude-opus-5', null, 1200, 80]);
 });
