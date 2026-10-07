@@ -53,6 +53,8 @@ const tally = names => { const out = {}; for (const name of names) out[name] = (
 const canvasSummary = (kinds, claimIds) => ({ blocks: kinds.length, kinds: tally(kinds), presented_claim_ids: [...new Set(claimIds)] });
 const cap = (text, max = 200) => (text == null ? null : String(text).slice(0, max));
 const USAGE = ['input_tokens', 'output_tokens', 'cache_creation_input_tokens', 'cache_read_input_tokens'];
+// A handoff route reply's usage (Task 11c-B, learn-tutor-handoff.js telemetry) in event terms; null when no telemetry came back.
+export const handoffUsage = t => (t ? { ...Object.fromEntries(USAGE.map(k => [k, t[k] ?? null])), cost_usd: t.cost_usd ?? null } : null);
 // Shared provenance: the share's one-way key, its board version and the origin card; never the token, sharer or their state.
 const sourceOf = s => (s?.share_key ? { share_key: s.share_key, share_version: s.share_version ?? null, origin_block_id: s.origin_block_id ?? null } : null);
 // Each option as its structured identity (owner tenth message): the hook id, its set, its position on screen (1-3, in order),
@@ -84,14 +86,17 @@ const REPAIRS = [[/^downgraded /, 'downgraded_navigation'], [/^removed /, 'citat
 // other slash is explicit_slash with the planner's reading; an Auto turn takes the planner's declared reading (the validator's
 // bounded copy, result.reading), and a missing, cut or unknown field is null with intent_status missing - never guessed from
 // words. research_offered: the accepted plan offers Research; research_executed: nothing is researched in a Tutor turn (v1).
-// A hook set (no plan) records auto with nothing declared.
+// A hook set (no plan) records auto with nothing declared. handoff (Task 11c-B, owner nineteenth message): the turn's handoff
+// record - a failed or refused one forces grounding_status retrieval_failed and is never a repository source; a successful one
+// adds repository to source_types_used.
 const NO_READING = { inferred_intent: null, modality_override: null, clarification_requested: null, grounding_status: null, source_types_used: null };
-const intentOf = (slash, reading = NO_READING, offered = false) => {
-  const explicit = MODE_SLASHES.includes(slash);
+const intentOf = (slash, reading = NO_READING, offered = false, handoff = null) => {
+  const explicit = MODE_SLASHES.includes(slash), retrieved = handoff?.outcome === 'ok', used = reading.source_types_used;
   return {
     intent_mode: slash ? 'explicit_slash' : 'auto', inferred_intent: explicit ? slash : reading.inferred_intent,
     explicit_modality_override: reading.modality_override, intent_status: explicit ? 'explicit' : reading.inferred_intent ? 'declared' : 'missing',
-    clarification_requested: reading.clarification_requested, grounding_status: reading.grounding_status, source_types_used: reading.source_types_used,
+    clarification_requested: reading.clarification_requested, grounding_status: handoff && !retrieved ? 'retrieval_failed' : reading.grounding_status,
+    source_types_used: !handoff ? used : retrieved ? [...new Set([...(used || []), 'repository'])] : used?.filter(type => type !== 'repository') ?? null,
     research_offered: offered, research_executed: false,
   };
 };
@@ -127,7 +132,7 @@ export const decisionEvent = safe(({ result, domain, identity = {}, blocks = [],
   const { turn, routed = null, response = {}, decisions = [], log = [], bench = {} } = result;
   const contracts = result.contracts ?? [], record = turn.canvas.dive?.record ?? null, telemetry = response?.telemetry ?? null, claims = bench.claims || [];
   const conceptsOf = ids => [...new Set(ids.map(id => domain?.claims?.[id]?.concept).filter(Boolean))];
-  const actions = contracts.map(({ action_type, command, modality, cost_tier, target_concept_ids, target_claim_ids }) => ({ action_type, command, modality, cost_tier, target_concept_ids, target_claim_ids }));
+  const actions = contracts.map(({ action_type, command, capability, modality, cost_tier, target_concept_ids, target_claim_ids }) => ({ action_type, command, capability, modality, cost_tier, target_concept_ids, target_claim_ids }));
   const planned = result.reason_codes ?? [], router = routerCodes(turn, routed), flags = [];
   let reason_codes = planned, reason_source = planned.length ? 'planner' : null;
   if (!planned.length && router.length) { reason_codes = router; reason_source = 'router'; }
@@ -162,15 +167,18 @@ export const decisionEvent = safe(({ result, domain, identity = {}, blocks = [],
       reason_codes, reason_source, rationale_summary: why.summary,
       expected_evidence: [...new Map(contracts.flatMap(c => c.expected_evidence || []).map(e => [`${e.claim_id}|${e.via}`, e])).values()],
       estimated_learning_seconds: seconds.length ? seconds.reduce((a, b) => a + b, 0) : null,
-      ...intentOf(turn.slash || turn.mode, result.reading ?? NO_READING, actions.some(a => a.action_type === 'suggest_research')),
+      ...intentOf(turn.slash || turn.mode, result.reading ?? NO_READING, actions.some(a => a.action_type === 'suggest_research'), bench.handoff ?? null),
     },
     runtime: {
-      timing: { total_ms: totalMs, planner_ms: bench.ms?.planner ?? null, first_text_ms: bench.ms?.to_first_safe_sentence ?? null },
+      // Task 11c-B: the handoff round trip and the learner's blocking wait (turn start to the answer they wait for) apart from
+      // the planner's time; runtime.handoff is bench.handoff (timing, outcome, failure, model, usage; never request or answer).
+      timing: { total_ms: totalMs, planner_ms: bench.ms?.planner ?? null, first_text_ms: bench.ms?.to_first_safe_sentence ?? null, handoff_ms: bench.ms?.handoff ?? null, blocking_wait_ms: bench.ms?.to_answer ?? null },
       model: { tier: telemetry?.tier ?? null, escalated: !!telemetry?.escalated, calls: telemetry ? (telemetry.escalated ? 2 : 1) : 0 },
       usage: usageOf(telemetry),
       validation: { ok: !dropped && !repairs.length, dropped_actions: dropped, repairs,
         fallback: telemetry?.escalated ? escalation(telemetry.escalated) : telemetry?.tail_lost ? 'tail_lost' : reason_source === 'router' ? 'router_reason' : null },
       planner_input: null,
+      handoff: bench.handoff ?? null,
     },
     flags,
   };
@@ -211,10 +219,10 @@ const hooks = (set, { input = null, summary = null, identity = {}, scope = 'owne
       ...intentOf(null),
     },
     runtime: {
-      timing: { total_ms: ran, planner_ms: ran, first_text_ms: null }, model: { tier: t.tier ?? null, escalated: !!t.escalated, calls: t.calls ?? 0 },
+      timing: { total_ms: ran, planner_ms: ran, first_text_ms: null, handoff_ms: null, blocking_wait_ms: null }, model: { tier: t.tier ?? null, escalated: !!t.escalated, calls: t.calls ?? 0 },
       usage: { ...Object.fromEntries(USAGE.map(k => [k, t.usage?.[k] ?? null])), cost_usd: t.cost_usd ?? null },
       validation: { ok: !(t.errors || []).length, dropped_actions: 0, repairs: [...(t.errors || [])], fallback: t.escalated ? escalation(t.escalated) : null },
-      planner_input: plannerInput(trim),
+      planner_input: plannerInput(trim), handoff: null,
     },
     flags: [...(t.cached ? ['cached'] : []), ...(discarded ? ['discarded'] : [])],
   };
@@ -227,8 +235,8 @@ export const shownEvent = safe((set, options = {}) => {
   const e = hooks(set, { ...options, discarded: false });
   return {
     ...e, event: 'next_steps_shown', decision: { ...e.decision, shown_at: new Date().toISOString() },
-    runtime: { timing: { total_ms: null, planner_ms: null, first_text_ms: null }, model: { tier: null, escalated: false, calls: 0 },
-      usage: { ...Object.fromEntries(USAGE.map(k => [k, 0])), cost_usd: 0 }, validation: { ok: true, dropped_actions: 0, repairs: [], fallback: null }, planner_input: null },
+    runtime: { timing: { total_ms: null, planner_ms: null, first_text_ms: null, handoff_ms: null, blocking_wait_ms: null }, model: { tier: null, escalated: false, calls: 0 },
+      usage: { ...Object.fromEntries(USAGE.map(k => [k, 0])), cost_usd: 0 }, validation: { ok: true, dropped_actions: 0, repairs: [], fallback: null }, planner_input: null, handoff: null },
     flags: [],
   };
 });

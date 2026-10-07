@@ -259,16 +259,16 @@ test('actionContract: action_type, modality, targets, expected evidence and a ro
   const ctx = { domain: journeyDomain({ journey: J, path: PATH, blocks }), materials: MATERIALS, claims: [IDS[1]] };
   const c = id => CLAIMS[id].concept;
   assert.deepEqual(actionContract({ type: 'ask_question', text: 'Say it back?', claim: IDS[0], purpose: 'explain_back' }, ctx),
-    { action_type: 'ask_question', command: null, modality: 'explain_back', cost_tier: 'none', target_concept_ids: [c(IDS[0])], target_claim_ids: [IDS[0]], expected_evidence: [{ claim_id: IDS[0], via: 'explain_back' }], estimated_learning_seconds: 120 });
+    { action_type: 'ask_question', command: null, capability: null, modality: 'explain_back', cost_tier: 'none', target_concept_ids: [c(IDS[0])], target_claim_ids: [IDS[0]], expected_evidence: [{ claim_id: IDS[0], via: 'explain_back' }], estimated_learning_seconds: 120 });
   assert.deepEqual(actionContract({ type: 'ask_question', text: 'What next?', claim: IDS[1], purpose: 'predict' }, ctx).expected_evidence, [{ claim_id: IDS[1], via: 'answer' }]);
   assert.deepEqual(actionContract({ type: 'show_authored_card', card: 'b7', mode: 'suggest' }, ctx),
-    { action_type: 'show_authored_card', command: null, modality: 'explanation', cost_tier: 'none', target_concept_ids: [c(IDS[0])], target_claim_ids: [IDS[0]], expected_evidence: [], estimated_learning_seconds: 90 });
+    { action_type: 'show_authored_card', command: null, capability: null, modality: 'explanation', cost_tier: 'none', target_concept_ids: [c(IDS[0])], target_claim_ids: [IDS[0]], expected_evidence: [], estimated_learning_seconds: 90 });
   assert.deepEqual(actionContract({ type: 'respond_text', text: 'One two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen.' }, ctx),
-    { action_type: 'respond_text', command: null, modality: 'text', cost_tier: 'none', target_concept_ids: [c(IDS[1])], target_claim_ids: [IDS[1]], expected_evidence: [], estimated_learning_seconds: 6 });
+    { action_type: 'respond_text', command: null, capability: null, modality: 'text', cost_tier: 'none', target_concept_ids: [c(IDS[1])], target_claim_ids: [IDS[1]], expected_evidence: [], estimated_learning_seconds: 6 });
   assert.deepEqual(actionContract({ type: 'create_material', command: 'animate', request: 'x' }, ctx),
-    { action_type: 'create_material', command: 'animate', modality: 'video', cost_tier: 'paid', target_concept_ids: [c(IDS[1])], target_claim_ids: [IDS[1]], expected_evidence: [], estimated_learning_seconds: 90 });
+    { action_type: 'create_material', command: 'animate', capability: null, modality: 'video', cost_tier: 'paid', target_concept_ids: [c(IDS[1])], target_claim_ids: [IDS[1]], expected_evidence: [], estimated_learning_seconds: 90 });
   assert.deepEqual(actionContract({ type: 'suggest_dive', concept: concepts[1], title: 'Turbines', from: { anchor: { topic: 'Turbines' } } }, ctx),
-    { action_type: 'suggest_dive', command: null, modality: 'rabbit_hole', cost_tier: 'none', target_concept_ids: [concepts[1]], target_claim_ids: [], expected_evidence: [], estimated_learning_seconds: null });
+    { action_type: 'suggest_dive', command: null, capability: null, modality: 'rabbit_hole', cost_tier: 'none', target_concept_ids: [concepts[1]], target_claim_ids: [], expected_evidence: [], estimated_learning_seconds: null });
   assert.equal(actionContract({ type: 'suggest_avatar_clip', moment: 'orientation', concept: concepts[0], max_duration_seconds: 12, offer: 'play' }, ctx).estimated_learning_seconds, 12);
 });
 
@@ -279,7 +279,7 @@ test('actionContract: command names the Learn command of a made card, null for e
   const made = command => actionContract({ type: 'create_material', command, request: 'x' }, ctx);
   assert.deepEqual(['animate', 'video', 'walkthrough', '3d'].map(command => [made(command).modality, made(command).command]), [['video', 'animate'], ['video', 'video'], ['scene', 'walkthrough'], ['scene', '3d']]);
   for (const action of [{ type: 'respond_text', text: 'x' }, { type: 'ask_question', text: 'x?', claim: IDS[1], purpose: 'predict' }, { type: 'suggest_dive', concept: null, title: 't', from: {} }, { type: 'return_from_dive' }]) assert.equal(actionContract(action, ctx).command, null, action.type);
-  assert.deepEqual(Object.keys(made('animate')), ['action_type', 'command', 'modality', 'cost_tier', 'target_concept_ids', 'target_claim_ids', 'expected_evidence', 'estimated_learning_seconds']);
+  assert.deepEqual(Object.keys(made('animate')), ['action_type', 'command', 'capability', 'modality', 'cost_tier', 'target_concept_ids', 'target_claim_ids', 'expected_evidence', 'estimated_learning_seconds']);
 });
 
 // Review fix 2: one rule for shown and made cards - the block type decides the expected evidence, never how the card arrived.

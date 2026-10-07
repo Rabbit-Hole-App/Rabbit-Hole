@@ -46,19 +46,24 @@ export const tutorStoreKey = (app, journeyId, record, canvas = null) => (journey
 // path is accepted, LP1); research - the Research this offer, only where the page wired openResearch and never in setup (fix
 // A1: the journey prompt's setup line allows words only); journeyOffer - suggest_journey, where journeys are supported here
 // (journey.start), never in setup and never inside a hole (fix B1); on a live journey too (fix round 2), where the click meets
-// LP1's own continue-or-start.
-export function turnOffers({ journey = null, record = null, opening = false, nextStep = null, openResearch = null }) {
+// LP1's own continue-or-start; repository (Task 11c-B) - the repository_context handoff, where the canvas reads a repository,
+// never in setup (the journey prompt's setup line allows words only).
+export function turnOffers({ journey = null, record = null, opening = false, nextStep = null, openResearch = null, repository = false }) {
   const setup = inJourneySetup(journey?.journey);
-  return { materials: setup || (opening && !nextStep) ? [] : materialCommands(), research: !!openResearch && !setup, journeyOffer: !!journey?.start && !setup && !record };
+  return { materials: setup || (opening && !nextStep) ? [] : materialCommands(), research: !!openResearch && !setup, journeyOffer: !!journey?.start && !setup && !record, repository: !!repository && !setup };
 }
+// Whether a canvas reads a repository (Task 11c-B), from its app data alone: a repository app, or a canvas in a project - the
+// two forms the handoff route resolves (learn-shared-ask.js boardRevision). Never the learner's words.
+export const canvasRepository = app => typeof app?.name === 'string' && (app.name.startsWith('repo-') || !!app.project);
 export const hookContext = (where, read, recordPending = false) => (recordPending || (where.record?.journey && read !== where.record.dive_id) ? null : tutorContext(where));
 // canvasVersion: the board revision when the page passes it (decision telemetry only).
 // Professor Next Steps (docs/features/professor-next-steps.md §1.3, §1.4): the returned object always carries askStep, snapshot,
 // lastTurn, busy and showing, also where the Tutor is not active, so useNextSteps can ask whether hooks belong here.
 // openResearch(request) (Task 11b, owner nineteenth message): the page's way into its existing Home/Library Research workflow.
 // Given, the Tutor may offer suggest_research (a Research this chip that calls it); absent, it never offers one. Nothing is
-// researched inside a Tutor turn.
-export function useTutor({ app, board, access, canvasApi, canvasState, dive, courseCanvas = false, journey = null, canvasVersion = null, openResearch = null }) {
+// researched inside a Tutor turn. repository (Task 11c-B): whether the turn may hand off to repository_context; the page may pass
+// false when the learner detached the repository source (LearnPage repoAttached), else it is the app's own (canvasRepository).
+export function useTutor({ app, board, access, canvasApi, canvasState, dive, courseCanvas = false, journey = null, canvasVersion = null, openResearch = null, repository = null }) {
   const record = dive.tree?.dive || null;
   const root = dive.tree?.path?.[0];
   // The parent journey of a hole whose record carries one (Task 14): { journey, path } once read, else null.
@@ -86,6 +91,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   const context = tutorContext({ ...where, journey }), capabilities = context?.capabilities;
   const active = capabilities?.tutor === true, hookTurns = active || capabilities?.hook_turns === true;
   const here = { app: app.name, board };
+  const reads = repository ?? canvasRepository(app);
   const journeyId = journey?.journey?.id ?? null;
   const key = tutorStoreKey(app, journeyId, record, context?.source === 'canvas' ? `${app.name}|${board || 'main'}` : null);
   const slashNext = useRef(null);
@@ -173,7 +179,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
         // The typed command is read in place of the composer's words only where it fixes the move (/deeper or /simplify on a
         // depth ladder); /ask, /teach (fix A3) and a ladderless /deeper or /simplify (fix B5) keep the composer's words.
         ...common, raw: nextStep ? '' : (slash && !MODE_SLASHES.includes(slash.name) && domain.ladder?.length ? slash.raw : raw), slash: slash?.name || null, opening, store: load(), onSpeakable,
-        nextStep, ...turnOffers({ journey: journeyRef.current, record, opening, nextStep, openResearch }),
+        nextStep, ...turnOffers({ journey: journeyRef.current, record, opening, nextStep, openResearch, repository: reads }),
         // Decision telemetry only while a sink is registered (contract §3.3); the planner request is the same either way.
         trace: tracing() && { identity: { canvas_version: canvasVersion }, blocks: canvas?.blocks?.() || [], next_step_options: shown.current, selected_at: selectedAt },
         // Only a domain whose cards are inserted (no showCard of its own: the authored-module one) holds a place. A journey's
@@ -224,7 +230,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     // After the canvas actions, so the result is final; a sink error is swallowed and counted (emitDecision).
     if (result.trace) emitDecision(result.trace);
     return { ...result, bench: { ...result.bench, ms: { ...result.bench.ms, canvas_done: done } } };
-  }, [access, record, here.app, here.board, key, parentJourney, courseCanvas, root, canvasVersion, liveTitle, openResearch]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [access, record, here.app, here.board, key, parentJourney, courseCanvas, root, canvasVersion, liveTitle, openResearch, reads]); // eslint-disable-line react-hooks/exhaustive-deps
   // Paid proposals from create_material, one at a time: each waits until the one before it is answered (PaidConfirm).
   const offer = next => (asking.current = asking.current.then(() => new Promise(done => put({ proposal: { ...next, done } }))));
   // Generate or Not now: the offer always clears and the next one shows, even when generate throws.

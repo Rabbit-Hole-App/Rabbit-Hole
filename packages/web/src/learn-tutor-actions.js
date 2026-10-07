@@ -1,7 +1,7 @@
 // The Tutor action contract (docs/features/professor-next-steps.md §3.1, §3.2; owner 2026-10-06): what each accepted
 // TutorAction is, in the product's own names. runTurn returns one contract per accepted action; the session's modality
 // history and the decision trace both read these fields and never recompute them. Pure; it imports no course module.
-import { REASON_CODES } from '../../control-plane/src/agents/learn-tutor.js';
+import { HANDOFF_ACTION, REASON_CODES } from '../../control-plane/src/agents/learn-tutor.js';
 import { insertsWithoutModel } from './learn-slash.js';
 
 // A card's modality is its block type; an Explain Back challenge is explain_back (describeBlock names it the same way).
@@ -10,7 +10,7 @@ export const blockModality = block => (!block ? null : block.type === 'challenge
 // The block a Learn command's card is inserted as, where that differs from its palette name (learn-slash.js CARD_OF):
 // the control plane's learn-primitives.js builders and runLearnCommand's own inserts (learn-slash.test.mjs checks each).
 const INSERTED = { explainBack: 'explain_back', plot: 'graph', walkthrough: 'scene', videoGenerate: 'video', mathAnimation: 'video' };
-const OF_TYPE = { respond_text: 'text', suggest_depth: 'depth', suggest_practice: 'practice', suggest_dive: 'rabbit_hole', open_dive: 'rabbit_hole', return_from_dive: 'rabbit_hole', suggest_avatar_clip: 'avatar' };
+const OF_TYPE = { respond_text: 'text', [HANDOFF_ACTION]: 'text', suggest_depth: 'depth', suggest_practice: 'practice', suggest_dive: 'rabbit_hole', open_dive: 'rabbit_hole', return_from_dive: 'rabbit_hole', suggest_avatar_clip: 'avatar' };
 
 // domain.cardType(card): the block modality of a card it can show. materials: the turn's available_materials; a made card
 // is its command's first card, the one runLearnCommand holds a place for (the server picks among the rest).
@@ -27,8 +27,9 @@ export function modalityOf(action, { domain = null, materials = [] } = {}) {
 // ponytail: rough generic seconds per modality, for pacing measurements only (text read at about 180 words a minute, a
 // shown or made card 90); null when the time depends on the learner following a suggestion. Tune from real sessions.
 const SECONDS = { question: 60, explain_back: 120, practice: 120, depth: 60, avatar: 30 };
+// A handoff's answer is text whose length is unknown when the plan is made: null.
 const secondsOf = (action, modality) => {
-  if (modality == null || modality === 'rabbit_hole') return null;
+  if (modality == null || modality === 'rabbit_hole' || action.type === HANDOFF_ACTION) return null;
   if (modality === 'text') return Math.max(5, Math.round(String(action.text || '').split(/\s+/).filter(Boolean).length / 3));
   return action.max_duration_seconds ?? SECONDS[modality] ?? 90;
 };
@@ -49,19 +50,20 @@ const CARD_ACTIONS = ['show_authored_card', 'focus_part', 'suggest_practice'];
 // itself (words, a question, a card shown or focused, any suggestion or offer) and for a made card whose command inserts
 // without the model (learn-slash.js insertsWithoutModel: the deterministic ones and /image's photo search; fix B3); model for
 // a made card whose command is free (one more model call); paid for one whose command can end in a paid proposal (the
-// registry's paid flag, learn-slash.js mayConfirmPaid) - it still spends only after Generate. Task 11c adds the handoff (model).
+// registry's paid flag, learn-slash.js mayConfirmPaid) - it still spends only after Generate. Task 11c-B: a handoff is model (one
+// capability call) and names its capability (null on every other action); it is a text answer to the turn's claims, like a reply.
 export function actionContract(action, { domain = null, materials = [], claims = [] } = {}) {
   const modality = modalityOf(action, { domain, materials });
-  const cost_tier = action.type !== 'create_material' || insertsWithoutModel(action.command) ? 'none' : materials.find(material => material.command === action.command)?.paid ? 'paid' : 'model';
+  const cost_tier = action.type === HANDOFF_ACTION ? 'model' : action.type !== 'create_material' || insertsWithoutModel(action.command) ? 'none' : materials.find(material => material.command === action.command)?.paid ? 'paid' : 'model';
   const card = action.type === 'suggest_depth' ? domain?.ladderStep?.(action.card, action.direction || 'deeper') ?? null : CARD_ACTIONS.includes(action.type) ? action.card : null;
   const target_claim_ids = action.claim && domain?.claims?.[action.claim] ? [action.claim]
     : card ? domain?.targetClaims?.({ block_id: card, card_id: card, part_id: action.part_id ?? null }) || []
-    : action.type === 'respond_text' || action.type === 'create_material' ? claims.slice(0, 3) : [];
+    : ['respond_text', 'create_material', HANDOFF_ACTION].includes(action.type) ? claims.slice(0, 3) : [];
   const concepts = [...target_claim_ids.map(id => domain?.claims?.[id]?.concept), ...[action.concept, action.to_concept].filter(id => id && domain?.concepts?.[id])].filter(Boolean);
   const via = action.type === 'ask_question' ? (modality === 'explain_back' ? 'explain_back' : 'answer') : action.type === 'suggest_practice' ? 'practice'
     : ['show_authored_card', 'focus_part', 'create_material'].includes(action.type) ? cardVia(modality) : null;
   return {
-    action_type: action.type, command: action.type === 'create_material' ? action.command ?? null : null, modality, cost_tier, target_concept_ids: [...new Set(concepts)], target_claim_ids,
+    action_type: action.type, command: action.type === 'create_material' ? action.command ?? null : null, capability: action.type === HANDOFF_ACTION ? action.capability ?? null : null, modality, cost_tier, target_concept_ids: [...new Set(concepts)], target_claim_ids,
     expected_evidence: via ? target_claim_ids.map(claim_id => ({ claim_id, via })) : [],
     estimated_learning_seconds: secondsOf(action, modality),
   };

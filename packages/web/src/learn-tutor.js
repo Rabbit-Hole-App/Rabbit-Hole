@@ -18,8 +18,9 @@ import { NANOGPT, cardModule, claimsOfConceptIn, holeConcept, partLabels } from 
 import { appendEvents, conceptState, deriveClaimStates, practiceEvents, reconcile } from './learn-tutor-evidence.js';
 import { selectClaims } from './learn-tutor-select.js';
 import { EVIDENCE_ACTIONS, EVIDENCE_ROWS, avatarMoments, speakable, statedConstraints, validateActions } from './learn-tutor-validate.js';
-import { AVATAR_ACTION, MODE_SLASHES } from '../../control-plane/src/agents/learn-tutor.js';
-import { decisionEvent, safely, turnTrace } from './learn-tutor-trace.js';
+import { AVATAR_ACTION, HANDOFF_ACTION, MODE_SLASHES } from '../../control-plane/src/agents/learn-tutor.js';
+import { decisionEvent, handoffUsage, safely, turnTrace } from './learn-tutor-trace.js';
+import { validSources } from './card-sources.js';
 import { actionContract, reasonCodes } from './learn-tutor-actions.js';
 
 // The slashes the Tutor accepts (LearnTutor slash()). /deeper and /simplify fix the move (row slash, no words read) only on a
@@ -101,9 +102,10 @@ const turnEvidence = (claims, states, domain) => withPrerequisites(claims, domai
 // run as create_material (learn-slash.js materialCommands) - on any turn since Task 11b (owner ninth message), typed, voice or
 // hook. research (Task 11b): the page can open its Research workflow, so the turn may offer suggest_research (research_offer).
 // journeyOffer (fix B1): a journey can start here (no journey yet or a live one, fix round 2; not in a hole, not in setup), so
-// the turn may offer suggest_journey (journey_offer).
+// the turn may offer suggest_journey (journey_offer). repository (Task 11c-B): the canvas reads a repository (structured page
+// state, LearnTutor.jsx canvasRepository), so the turn may hand off to repository_context (handoff_offer); words never set it.
 // canvas.liveTitle: a hole's live title (Task 10 fix round 3).
-export function buildTurn({ raw, slash = null, opening = false, canvas, block, store, states, inputModality = 'text', turnId = null, domain = NANOGPT, nextStep = null, materials = [], research = false, journeyOffer = false }) {
+export function buildTurn({ raw, slash = null, opening = false, canvas, block, store, states, inputModality = 'text', turnId = null, domain = NANOGPT, nextStep = null, materials = [], research = false, journeyOffer = false, repository = false }) {
   // A typed slash is a command, never an answer to the Tutor's open question (fix round 2), wherever it fixes the move or not.
   const typed = !!slash, mode = MODE_SLASHES.includes(slash) ? slash : null;
   slash = fixedSlash(slash, domain);
@@ -133,6 +135,7 @@ export function buildTurn({ raw, slash = null, opening = false, canvas, block, s
     ...(nextStep || materials.length ? { available_materials: materials } : {}),
     ...(research ? { research_offer: true } : {}),
     ...(journeyOffer ? { journey_offer: true } : {}),
+    ...(repository ? { handoff_offer: true } : {}),
   };
   const claims = turnClaims(turn, store, domain);
   turn.evidence = turnEvidence(claims, states, domain);
@@ -178,7 +181,7 @@ export function evaluationSpec(turn, claims, store, domain = NANOGPT) {
 // ponytail: runTurn never passes avatar yet; AV6 wires the knob, the ready-clip lookup (LearnAvatarClips
 // ?ready), the canvas's clips and the session's avatar_seen record.
 // domain: accepted for parity with the other stages; route reads nothing domain-specific (claims and states arrive scoped).
-// MATERIAL_FIXED (Task 11b): rows whose existing rule fixes the move, so they never make material - a return from a hole
+// MATERIAL_FIXED (Task 11b): rows whose existing rule fixes the move, so they never make material (nor hand off: Task 11c-B) - a return from a hole
 // re-asks its question, an explanation JEV could not settle gets one clarifying question, /deeper and /simplify navigate
 // authored cards. None of them is reachable on a hook click (no slash, no return, no evaluation), so hook turns are unchanged.
 const MATERIAL_FIXED = ['returned', 'uncertain_unsettled', 'slash'];
@@ -197,6 +200,9 @@ export function route({ turn, claims, states, evaluation, store, avatar = null, 
     if (turn.research_offer && !list.includes('suggest_research')) list = [...list, 'suggest_research'];
     // Fix B1: a learning path is an offer the learner starts (suggest_journey), on every row where a journey can start.
     if (turn.journey_offer && !list.includes('suggest_journey')) list = [...list, 'suggest_journey'];
+    // Task 11c-B: the repository_context handoff, where the canvas reads a repository (turn.handoff_offer, structural), on typed,
+    // voice and hook turns alike, except on a row whose rule fixes the move (MATERIAL_FIXED). Never from the learner's words.
+    if (turn.handoff_offer && !MATERIAL_FIXED.includes(row) && !list.includes(HANDOFF_ACTION)) list = [...list, HANDOFF_ACTION];
     const moments = avatar ? avatarMoments(row, turn) : [];
     if (moments.length) return { row, strategy, allowed: [...list, AVATAR_ACTION], claim, avatar: { moments, seen: store?.avatar_seen || [], ready: avatar.ready || new Set(), on_canvas: avatar.on_canvas || new Set() } };
     return { row, strategy, allowed: list, claim };
@@ -311,12 +317,14 @@ function relevantCards(target, concepts, domain) {
 // Professor Next Steps (§2.5, §2.6): recent_relevant_context.recent_modalities is the store's last 8 modalities, evidence
 // for the planner only (nothing here or in route() reads it); a turn whose route allows create_material (Task 11b: typed and
 // voice turns too) adds available_materials as the last key.
+// A selected block as text: an animation's description, else its title and body (the planner's target and the handoff's card).
+const cardText = block => (block?.type === 'animation' ? describeAnimation(block).text : block ? [block.title, block.body].filter(Boolean).join('\n') : null);
 export function plannerContext({ turn, routed, block, states, claims = [], store = null, domain = NANOGPT }) {
   const card = domain.cardModule(turn.target?.card);
   const labels = partLabels(card);
   const index = card && turn.target?.part_id ? partIndex(card, turn.target.part_id) : null;
   const sources = (block?.sources || card?.sources || []).slice(0, 3).map((source, i) => ({ source_index: i, path: source.path || source.url || null, lines: source.lines || null, note: String(source.note || '').slice(0, 400) }));
-  const described = block?.type === 'animation' ? describeAnimation(block).text : block ? [block.title, block.body].filter(Boolean).join('\n') : null;
+  const described = cardText(block);
   const ids = [...new Set([routed.claim, ...claims].filter(Boolean))].slice(0, 4);
   const concepts = new Set(ids.flatMap(id => [domain.claims[id].concept, ...domain.claims[id].prerequisites]));
   const record = turn.canvas.dive?.record;
@@ -377,7 +385,10 @@ export const enforce = validateActions;
 // `reason_codes`; the store keeps the contracted modalities of the last 8 actions (contract §2.6).
 // trace (contract §3.3): true, or { identity, blocks, next_step_options, selected_at }, adds `trace` - a TutorDecisionEvent built from the
 // finished result (learn-tutor-trace.js), or null when building failed; false (the default) leaves the result as it was.
-export async function runTurn({ raw, slash = null, opening = false, canvas, access, block, store, post, onSpeakable = null, inputModality = 'text', turnId = null, onTurn = null, domain = NANOGPT, plan = true, nextStep = null, materials = [], research = false, journeyOffer = false, trace = false }) {
+// repository (Task 11c-B): the canvas reads a repository, so the plan may hand off to repository_context; an accepted handoff
+// runs after the plan through the handoff route (runHandoff), its answer follows the plan's own words in `text`, a failure
+// says the source context could not be retrieved, and bench.handoff / bench.ms.handoff / bench.ms.to_answer time it.
+export async function runTurn({ raw, slash = null, opening = false, canvas, access, block, store, post, onSpeakable = null, inputModality = 'text', turnId = null, onTurn = null, domain = NANOGPT, plan = true, nextStep = null, materials = [], research = false, journeyOffer = false, repository = false, trace = false }) {
   if (nextStep) raw = '';
   const t = [now()];
   // The hook click's time for the event (selected_at): the page's click time when it passes one, else this turn's start.
@@ -400,7 +411,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   }
   t.push(now());
   let states = deriveClaimStates(current.events, domain.claims);
-  const built = tracer.step('claim_selection', () => buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id, domain, nextStep, materials, research, journeyOffer }),
+  const built = tracer.step('claim_selection', () => buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id, domain, nextStep, materials, research, journeyOffer, repository }),
     out => out.selection ? `${out.selection.selected.length}/${out.selection.available}${out.selection.fallback ? ' fallback' : ''}` : 'none');
   const { turn, selection } = built;
   onTurn?.(turn);
@@ -422,7 +433,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
     const reconciled = () => (!journeyTurn ? reconcile(current, evaluation, ref, domain.claims)
       : result.journey?.events ? adoptJourney(current, result, states, domain.claims) : { store: current, states, transitions: [], added: 0 });
     ({ store: current, states, transitions } = tracer.step('evidence_reconciliation', reconciled, out => `${out.added} observations, ${out.transitions.length} state changes`));
-    turn.evidence = buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id, domain, nextStep, materials, research, journeyOffer }).turn.evidence;
+    turn.evidence = buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id, domain, nextStep, materials, research, journeyOffer, repository }).turn.evidence;
   };
   if (raw.trim() && !turn.slash && !opening && claims.length) {
     const spec = evaluationSpec(turn, claims, current, domain);
@@ -495,11 +506,18 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
     }
   }
   const released = now();
+  // 3b. The handoff (Task 11c-B): the accepted one runs now, after the plan and its evidence, through the route. Its answer is
+  // the learner-facing result after the plan's own words; a failure keeps only those words and says the source context could
+  // not be retrieved, never an answer of its own.
+  const handoff = actions.find(action => action.type === HANDOFF_ACTION);
+  const handed = handoff ? await tracer.step('handoff', () => runHandoff(handoff, { post, access, block }), out => out.record.outcome) : null;
+  const answered = now();
   // 4. The session record.
   const constraints = [...new Set([...current.constraints, ...(response.constraints_add || [])].filter(item => !(response.constraints_remove || []).includes(item)).concat(statedConstraints(raw)))];
   const asked = actions.find(action => action.type === 'ask_question');
   const socratic = routed.row === 'misconception' ? { ...current.socratic, [routed.claim]: (current.socratic[routed.claim] || 0) + 1 } : current.socratic;
-  const text = actions.filter(action => action.type === 'respond_text' || action.type === 'ask_question').map(action => action.text.trim()).join('\n\n');
+  const words = actions.filter(action => action.type === 'respond_text' || action.type === 'ask_question').map(action => action.text.trim()).join('\n\n');
+  const text = handed ? [words, handed.answer ?? HANDOFF_FAILED].filter(Boolean).join('\n\n') : words;
   const dive = actions.find(action => action.type === 'suggest_dive');
   const contracts = actions.filter(action => action.type !== 'no_action').map(action => actionContract(action, { domain, materials, claims }));
   // A spoken question never becomes the hole's typed opening (openingQuestion): the dock would show it
@@ -533,6 +551,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
     accepted_actions: actions.map(action => action.type),
     rejected: log,
     rejections: decisions.filter(decision => !decision.accepted).map(({ type, stage, reason }) => ({ type, stage, reason })),
+    handoff: handed?.record ?? null,
     ms: {
       target: ms(t[0], t[1]), practice: ms(t[1], t[2]), evidence: evidence && ms(...evidence), planner: ms(planned, ready), enforce: ms(ready, enforced),
       to_evidence_ready: evidence && ms(t[0], evidence[1]), to_planner_ready: ms(t[0], ready),
@@ -540,11 +559,51 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
       // when the turn returns), evidence ready (above), and the first evidence-dependent action.
       to_first_safe_sentence: spoken ? tracer.trace.marks.first_sentence : text ? ms(t[0], end) : null,
       to_first_evidence_action: actions.some(action => EVIDENCE_ACTIONS.includes(action.type)) ? ms(t[0], released) : null,
+      // Task 11c-B, apart from the planner: the handoff round trip, and the learner's blocking wait - turn start to the answer
+      // they wait for (the handoff's, when one ran; else the first safe sentence).
+      handoff: handed ? handed.record.ms : null,
+      to_answer: handed ? ms(t[0], answered) : spoken ? tracer.trace.marks.first_sentence : text ? ms(t[0], end) : null,
     },
   };
   return traced({ store: current, turn, selection, evaluation, transitions, routed, response, actions, contracts, reason_codes: reasonCodes(response), reading, decisions, log, text, states: deriveClaimStates(current.events, domain.claims), bench, mark: tracer.mark });
 }
 const now = () => (globalThis.performance ?? Date).now();
+
+// ---------- The handoff (Task 11c-B) ----------
+
+// The reply when a handoff fails (owner thirteenth and nineteenth messages): never a code-grounded answer, never a claim that
+// code was read.
+export const HANDOFF_FAILED = 'The source context could not be retrieved, so I cannot answer this from the code right now.';
+const HANDOFF_ROUTE = '/api/learn/tutor/handoff'; // learn-tutor-handoff.js HANDOFF_PATH
+// What the route takes besides the action (owner sixteenth message: grounding, never intent), from the selected block's
+// structured data only: its first well-formed code source (card-sources.js) as the selection in the route's own form, and its
+// text as context.card, bounded as the route bounds a card (title 300, text 8000: CANVAS_TARGET_LIMIT). Never from the
+// learner's words; no block, no grounding.
+function handoffGrounding(block) {
+  if (!block) return {};
+  const code = validSources(block.sources).find(source => source.kind === 'code');
+  const text = (cardText(block) || '').slice(0, 8000);
+  return {
+    ...(code ? { selection: { repository: code.repo, revision: code.revision, file: code.path, line_range: { start: code.lines[0], end: code.lines[1] } } } : {}),
+    ...(text.trim() ? { context: { card: { id: block.id, ...(block.title ? { title: String(block.title).slice(0, 300) } : {}), text } } } : {}),
+  };
+}
+// One handoff through the route: { answer (null unless ok), record } - record is the decision event's runtime.handoff: the
+// learner's wait on the turn clock, outcome ok | failed | refused, the route's failure category, served model and usage; never
+// the request or the answer. It never throws: a 429 (limited), an HTTP error, a network error (request_error) or the
+// browser's timeout is a failed or refused record, so the reply can say so.
+async function runHandoff(action, { post, access, block }) {
+  const started = now(), startedAt = new Date().toISOString();
+  let reply = null, error = null;
+  try { reply = await post(HANDOFF_ROUTE, { ...access, capability: action.capability, request: action.request, ...handoffGrounding(block) }); } catch (thrown) { error = thrown; }
+  const telemetry = reply?.telemetry ?? error?.data?.telemetry ?? null;
+  const answer = telemetry?.outcome === 'ok' && typeof reply?.answer === 'string' && reply.answer.trim() ? reply.answer.trim() : null;
+  const failure = answer ? null : telemetry?.failure ?? error?.data?.failure ?? (!error ? 'model_error' : /timeout|abort/i.test(error.name || '') ? 'timeout' : 'request_error');
+  return { answer, record: {
+    started_at: startedAt, completed_at: new Date().toISOString(), ms: Math.round((now() - started) * 10) / 10,
+    outcome: answer ? 'ok' : telemetry?.outcome === 'refused' ? 'refused' : 'failed', failure, model_id: telemetry?.served_model ?? null, usage: handoffUsage(telemetry),
+  } };
+}
 
 // A journey's evidence (architecture §5): /evaluate reconciled this turn's observations into the journey with its
 // registry and returned the stored events and seq, which replace the store's - never a second, local reconcile.

@@ -26,6 +26,7 @@ import { insertsWithoutModel, materialCommands, runMaterials } from './learn-sla
 import { plannerTier } from '../../control-plane/src/learn-tutor-routes.js';
 import { commandsFor } from './agent/slash.js';
 import { CANVAS_SYSTEM, EXPLICIT_MODE, MODE_SLASHES, PLANNER_SYSTEM, plannerRequest, plannerSystem } from '../../control-plane/src/agents/learn-tutor.js';
+import { HANDOFF_FAILED } from './learn-tutor.js';
 
 const MATERIALS = materialCommands();
 const FREE = MATERIALS.find(m => m.command === 'explain'), PAID = MATERIALS.find(m => m.command === 'animate');
@@ -133,7 +134,7 @@ test('action contract: cost_tier none for in-turn actions and offers, model for 
   assert.equal(tier({ type: 'create_material', command: PAID.command, request: 'x' }), 'paid');
   for (const action of [{ type: 'respond_text', text: 'a b' }, { type: 'ask_question', text: 'q?', claim: ID, purpose: 'diagnose' }, { type: 'show_authored_card', card: NANOGPT.cards[0], mode: 'suggest' }, { type: 'focus_part', card: NANOGPT.cards[0], part_id: 'x' }, { type: 'suggest_depth', card: NANOGPT.cards[0] }, { type: 'suggest_dive', concept: null, title: 't' }, { type: 'suggest_research', request: 'x' }, { type: 'return_from_dive' }])
     assert.equal(tier(action), 'none', action.type);
-  assert.deepEqual(Object.keys(actionContract({ type: 'respond_text', text: 'a' }, ctx)), ['action_type', 'command', 'modality', 'cost_tier', 'target_concept_ids', 'target_claim_ids', 'expected_evidence', 'estimated_learning_seconds']);
+  assert.deepEqual(Object.keys(actionContract({ type: 'respond_text', text: 'a' }, ctx)), ['action_type', 'command', 'capability', 'modality', 'cost_tier', 'target_concept_ids', 'target_claim_ids', 'expected_evidence', 'estimated_learning_seconds']);
   assert.equal(actionContract({ type: 'suggest_research', request: 'x' }, ctx).modality, null, 'an offer to research is no learning material');
 });
 
@@ -147,10 +148,17 @@ function worker(plan) {
     sent.push({ path, body });
     if (path === '/api/learn/tutor/plan') return typeof plan === 'function' ? plan(body.context) : plan;
     if (path === '/api/learn/tutor/evaluate') return { status: 'error', evaluator: 'jev', events: [] };
+    if (path === '/api/learn/tutor/handoff') return HANDOFF_OK; // Task 11c-B: the 11c-A route, stubbed
     throw new Error(`unexpected ${path}`);
   };
   return { sent, post };
 }
+// Task 11c-B: a stubbed handoff route reply (learn-tutor-handoff.js shape) and a repository canvas with a selectable code card.
+const HANDOFF_ANSWER = 'From the source: sort_file calls it once per input file.';
+const HANDOFF_OK = { capability: 'repository_context', answer: HANDOFF_ANSWER, telemetry: { started_at: '2026-10-07T10:00:00.000Z', completed_at: '2026-10-07T10:00:01.000Z', ms: 1000, outcome: 'ok', failure: null, served_model: 'claude-opus-5', calls: 2, input_tokens: 2000, output_tokens: 100, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, cost_usd: null } };
+const REPO_APP = 'repo-0000aaaa-sorting';
+const SORT_CODE = { id: 'blk-sort', type: 'snippet', title: 'merge_sort', body: 'def merge_sort(xs): ...', sources: [{ kind: 'code', repo: 'example/sorting', revision: 'c'.repeat(40), path: 'sort.py', lines: [10, 24] }] };
+const repoCanvas = () => ({ canvas: { app: REPO_APP, board: 'main' }, access: { app: REPO_APP }, domain: tutorContext({ title: 'example/sorting' }).domain, repository: true });
 const plainCanvas = (goal = 'Notes') => ({ canvas: { app: 'canvas-0000aaaa', board: 'main' }, access: { app: 'canvas-0000aaaa' }, domain: tutorContext({ title: goal }).domain });
 const turnWith = async (plan, extra = {}) => { const w = worker(plan); const r = await runTurn({ raw: 'why?', block: null, store: emptyStore(), post: w.post, materials: MATERIALS, research: true, trace: true, ...plainCanvas(), ...extra }); return { ...r, sent: w.sent }; };
 const SAY = { type: 'respond_text', text: 'Here is the short answer.' };
@@ -214,6 +222,8 @@ const CONTEXTS = {
   card: { label: 'plain canvas, selected card', ...plainCanvas(), block: CARD },
   nano: { label: 'nanoGPT course canvas', ...NANO, block: null },
   nanoCard: { label: 'nanoGPT course canvas, selected card', ...NANO, block: NANO_CARD },
+  repo: { label: 'repository canvas', ...repoCanvas(), block: null },
+  repoCode: { label: 'repository canvas, selected source card', ...repoCanvas(), block: SORT_CODE },
 };
 const HISTORY = ['text', 'question', 'text'];
 
@@ -229,16 +239,17 @@ async function runCards(actions) {
 async function matrixRow([, prompt, where, plan, modality = 'text'], slash = null) {
   const at = CONTEXTS[where];
   const w = worker({ strategy: 'none', constraints_add: [], ...plan });
-  const r = await runTurn({ raw: prompt, slash, block: at.block, store: { ...emptyStore(), modalities: HISTORY }, post: w.post, materials: MATERIALS, research: true, journeyOffer: true, trace: true, inputModality: modality, canvas: at.canvas, access: at.access, domain: at.domain });
-  return { r, context: w.sent.find(s => s.path === '/api/learn/tutor/plan').body.context, at };
+  const r = await runTurn({ raw: prompt, slash, block: at.block, store: { ...emptyStore(), modalities: HISTORY }, post: w.post, materials: MATERIALS, research: true, journeyOffer: true, repository: !!at.repository, trace: true, inputModality: modality, canvas: at.canvas, access: at.access, domain: at.domain });
+  return { r, context: w.sent.find(s => s.path === '/api/learn/tutor/plan').body.context, at, handoffs: w.sent.filter(s => s.path === '/api/learn/tutor/handoff').map(s => s.body) };
 }
 async function checkRow(entry, i) {
   const [, prompt, , plan, modality = 'text'] = entry;
-  const { r, context, at } = await matrixRow(entry);
-  const d = r.trace.decision;
+  const { r, context, at, handoffs } = await matrixRow(entry);
+  const d = r.trace.decision, handed = plan.actions.find(a => a.type === 'handoff');
   // Intent: the stand-in's reading, never a guess from the words.
   assert.deepEqual([d.intent_mode, d.inferred_intent, d.intent_status, d.explicit_modality_override, d.clarification_requested], ['auto', plan.inferred_intent ?? null, plan.inferred_intent ? 'declared' : 'missing', plan.modality_override ?? null, plan.clarification_requested ?? null]);
-  assert.deepEqual([d.grounding_status, d.source_types_used], [plan.grounding_status ?? null, plan.source_types_used ?? null]);
+  // Task 11c-B: a successful handoff adds repository to the declared sources (Addendum 3).
+  assert.deepEqual([d.grounding_status, d.source_types_used], [plan.grounding_status ?? null, handed ? [...new Set([...(plan.source_types_used || []), 'repository'])] : plan.source_types_used ?? null]);
   // Pedagogy: the executed actions are the stand-in's plan, every action accepted; a respond-only plan makes nothing.
   assert.deepEqual(r.actions.map(a => a.type), plan.actions.map(a => a.type));
   assert.ok(r.decisions.every(x => x.accepted), JSON.stringify(r.decisions));
@@ -258,6 +269,13 @@ async function checkRow(entry, i) {
   assert.deepEqual(context.recent_relevant_context.recent_modalities, HISTORY);
   assert.ok(['create_material', 'suggest_research', 'suggest_journey'].every(type => context.allowed_actions.includes(type)), context.allowed_actions.join());
   assert.deepEqual(context.available_materials, MATERIALS);
+  // Task 11c-B: the router offers the handoff only on a repository canvas (structured state); a chosen one runs through the route
+  // with the selected card's source identity, and its answer follows the plan's own words.
+  assert.equal(context.allowed_actions.includes('handoff'), !!at.repository, 'handoff offered exactly where the canvas reads a repository');
+  assert.deepEqual(handoffs.map(b => [b.app, b.capability, b.request, b.selection?.file ?? null]), handed ? [[at.access.app, 'repository_context', handed.request, at.block?.sources?.[0]?.path ?? null]] : []);
+  assert.equal(r.text.endsWith(HANDOFF_ANSWER), !!handed);
+  assert.equal(r.trace.runtime.handoff?.outcome ?? null, handed ? 'ok' : null);
+  assert.equal(r.text.includes(HANDOFF_FAILED), false);
   if (at.block) assert.ok(JSON.stringify(context.target).includes(at.block.title ?? cardModule('depth-attention-overview').scene.title), 'the selected card grounds the turn');
   else assert.equal(context.target, null);
   // The same prompt as an explicit override: the same Tutor path, recorded as the command.
@@ -265,7 +283,7 @@ async function checkRow(entry, i) {
   assert.deepEqual([e.intent_mode, e.inferred_intent, e.intent_status, explicit.context.learner_intent.kind, explicit.context.learner_intent.slash], ['explicit_slash', name, 'explicit', context.learner_intent.kind, name]);
   const { slash: marker, ...words } = explicit.context.learner_intent;
   assert.deepEqual({ ...explicit.context, learner_intent: words }, context, 'fix A3: the slash marker is the only context difference');
-  assert.ok(plannerRequest(explicit.context, 2000).system.endsWith(`\n${EXPLICIT_MODE}`));
+  assert.ok(plannerRequest(explicit.context, 2000).system.includes(`\n${EXPLICIT_MODE}`)); // Task 11c-B: a handoff block may follow it
   assert.equal(plannerRequest(context, 2000).system.includes(EXPLICIT_MODE), false, 'an Auto turn gets no explicit block');
   return { context: at.label + (modality === 'voice' ? ' (Voice)' : ''), d };
 }
@@ -279,7 +297,7 @@ test('Auto matrix: intent is exactly what the stand-in declared, pedagogy exactl
   }
   if (process.env.TUTOR_AUTO_MATRIX) {
     const cell = s => String(s ?? 'null').replace(/\|/g, '\|');
-    const chosen = d => (d?.chosen_action ? `${d.chosen_action.action_type}${d.chosen_action.command ? ` /${d.chosen_action.command}` : ''} (${d.chosen_action.cost_tier})` : 'null');
+    const chosen = d => (d?.chosen_action ? `${d.chosen_action.action_type}${d.chosen_action.command ? ` /${d.chosen_action.command}` : ''}${d.chosen_action.capability ? ` ${d.chosen_action.capability}` : ''} (${d.chosen_action.cost_tier})` : 'null');
     const line = ({ entry: [group, prompt], context, d, pass }) => `| ${cell(group)} | ${cell(prompt)} | ${cell(context)} | ${cell(d?.inferred_intent)}${d?.explicit_modality_override ? ` (override ${d.explicit_modality_override})` : ''} | ${cell(chosen(d))} | ${cell(d?.chosen_action?.modality)} | ${cell(d?.reason_codes.join(', '))} | ${pass ? 'PASS' : 'FAIL'} |`;
     (await import('node:fs')).writeFileSync(process.env.TUTOR_AUTO_MATRIX, `${rows.map(line).join('\n')}\n`);
   }
@@ -292,7 +310,7 @@ test('Auto matrix: intent is exactly what the stand-in declared, pedagogy exactl
 const dir = mkdtempSync(join(tmpdir(), 'tutor-auto-'));
 const outfile = join(dir, 'tutor.cjs');
 await esbuild.build({
-  stdin: { contents: ["export { useTutor, turnOffers } from './LearnTutor.jsx';", "export { journeyStartsHere, startRequest } from './LearnJourney.jsx';", "export { createElement } from 'react';", "export { renderToStaticMarkup } from 'react-dom/server';"].join('\n'), resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
+  stdin: { contents: ["export { useTutor, turnOffers, canvasRepository } from './LearnTutor.jsx';", "export { journeyStartsHere, startRequest } from './LearnJourney.jsx';", "export { createElement } from 'react';", "export { renderToStaticMarkup } from 'react-dom/server';"].join('\n'), resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent',
 });
 const bundled = createRequire(import.meta.url)(outfile);
@@ -300,7 +318,8 @@ rmSync(dir, { recursive: true, force: true });
 
 // A plain canvas (its dives record landed, no dive, no journey, no registered course), with optional blocks to select.
 // plan(context) answers the plan route; every request is recorded.
-async function plainTutor(plan, run, { blocks = [], openResearch = null, journey = null } = {}) {
+// Task 11c-B: app (default the plain canvas), repository (the page's flag) and handoff (the handoff route's reply) as options.
+async function plainTutor(plan, run, { blocks = [], openResearch = null, journey = null, app: appOver = null, repository = null, handoff = HANDOFF_OK } = {}) {
   const storage = new Map(), calls = [];
   const globals = {
     window: { dispatchEvent: () => true },
@@ -309,7 +328,7 @@ async function plainTutor(plan, run, { blocks = [], openResearch = null, journey
     fetch: async (path, options) => {
       const body = JSON.parse(options.body);
       calls.push({ path, body });
-      const reply = path === '/api/learn/tutor/plan' ? { strategy: 'none', constraints_add: [], ...plan(body.context) } : path === '/api/learn/artifact' ? { result: 'artifact', primitive: 'explanation', block: { type: 'explanation', title: 't' } } : { status: 'error', events: [] };
+      const reply = path === '/api/learn/tutor/plan' ? { strategy: 'none', constraints_add: [], ...plan(body.context) } : path === '/api/learn/tutor/handoff' ? handoff : path === '/api/learn/artifact' ? { result: 'artifact', primitive: 'explanation', block: { type: 'explanation', title: 't' } } : { status: 'error', events: [] };
       return new Response(JSON.stringify(reply), { status: 200, headers: { 'Content-Type': 'application/json' } });
     },
   };
@@ -317,10 +336,10 @@ async function plainTutor(plan, run, { blocks = [], openResearch = null, journey
   for (const [name, value] of Object.entries(globals)) Object.defineProperty(globalThis, name, { value, configurable: true, writable: true });
   try {
     let tutor = null;
-    const app = { name: 'canvas-0000aaaa', title: 'Gradient notes', org: 'o', email: 'e@x.com' };
+    const app = { name: 'canvas-0000aaaa', title: 'Gradient notes', org: 'o', email: 'e@x.com', ...appOver };
     const dive = { tree: { path: [{ app: app.name, board: 'main', title: app.title, kind: 'canvas' }], children: [], dive: null }, suggestionCard: null, navigator: null };
     const canvasApi = { current: { blocks: () => blocks, block: id => blocks.find(b => b.id === id) || null, insertBlock: () => 'blk-new', reserve: () => null, release: () => {} } };
-    const Page = () => { tutor = bundled.useTutor({ app, board: 'main', access: { app: app.name }, canvasApi, canvasState: { card: null }, dive, journey, openResearch }); return null; };
+    const Page = () => { tutor = bundled.useTutor({ app, board: 'main', access: { app: app.name }, canvasApi, canvasState: { card: null }, dive, journey, openResearch, ...(repository == null ? {} : { repository }) }); return null; };
     bundled.renderToStaticMarkup(bundled.createElement(Page));
     const out = await run(tutor);
     await new Promise(done => setTimeout(done, 0)); // runMaterials is not awaited by the turn
@@ -642,4 +661,39 @@ test('fix round 2 item 4: the learning-path chip wraps only a bare topic, and a 
     const text = nodes(tutor.extras).filter(n => n.type === 'p').map(n => n.props.children).join(' ');
     assert.equal(/That request cannot start a learning path here/.test(text), notice, `handled ${handled}`);
   }
+});
+
+// ---------- Task 11c-B: the repository_context handoff through useTutor ----------
+
+// The offer is the canvas's structured repository state (canvasRepository: a repository app or a canvas in a project), or the
+// page's own flag (false once the learner detached the repository source); typed and Voice turns run the handoff the same way.
+test('11c-B: canvasRepository and turnOffers decide the handoff offer from app data and page state, never in journey setup', () => {
+  assert.deepEqual([{ name: 'repo-0000aaaa-sorting' }, { name: 'canvas-0000aaaa', project: 'repo-0000aaaa-sorting' }, { name: 'canvas-0000aaaa' }, { name: 'canvas-0000aaaa', project: null }, { name: 'ops-tool', kind: 'app' }, null].map(bundled.canvasRepository), [true, true, false, false, false, false]);
+  assert.equal(bundled.turnOffers({ repository: true }).repository, true);
+  assert.equal(bundled.turnOffers({}).repository, false);
+  assert.equal(bundled.turnOffers({ repository: true, journey: { journey: { state: 'intake' } } }).repository, false, 'setup allows words only');
+  assert.equal(bundled.turnOffers({ repository: true, journey: { journey: { state: 'active' } } }).repository, true);
+});
+
+test('11c-B: on a repository canvas a typed or spoken question may hand off; the answer is the dock reply and the speech; elsewhere it is never offered', async () => {
+  const lead = 'Callers are the places in the code that use the selected function.';
+  const plan = () => ({ actions: [say(lead), { type: 'handoff', capability: 'repository_context', request: 'which functions call the selected function' }] });
+  const repo = { name: REPO_APP, title: 'example/sorting' };
+  const typed = await plainTutor(plan, t => t.ask({ raw: 'Who calls this?', targetId: SORT_CODE.id }), { app: repo, blocks: [SORT_CODE] });
+  assert.equal(typed.out, `${lead}\n\n${HANDOFF_ANSWER}`);
+  assert.ok(planOf(typed.calls).allowed_actions.includes('handoff'));
+  const body = typed.calls.find(c => c.path === '/api/learn/tutor/handoff').body;
+  assert.deepEqual([body.app, body.capability, body.selection], [REPO_APP, 'repository_context', { repository: 'example/sorting', revision: 'c'.repeat(40), file: 'sort.py', line_range: { start: 10, end: 24 } }]);
+  assert.equal(typed.calls.some(c => c.path === '/api/learn/tutor/evaluate' || c.path === '/api/learn/journey'), false, 'never evidence');
+  const voice = await plainTutor(plan, t => t.voiceTurn({ raw: 'Who calls this?', targetId: SORT_CODE.id, turnId: 'v3' }), { app: repo, blocks: [SORT_CODE] });
+  assert.equal(voice.out.speech, `${lead}\n\n${HANDOFF_ANSWER}`, 'spoken through the existing voice reply');
+  const project = await plainTutor(plan, t => t.ask({ raw: 'Who calls this?' }), { app: { project: REPO_APP } });
+  assert.ok(planOf(project.calls).allowed_actions.includes('handoff'), 'a canvas in a project reads its repository');
+  for (const [name, options] of [['a plain canvas', {}], ['a detached repository source', { app: repo, repository: false }]]) {
+    const off = await plainTutor(plan, t => t.ask({ raw: 'What does this function do in the repository code?' }), options);
+    assert.equal(planOf(off.calls).allowed_actions.includes('handoff'), false, name);
+    assert.deepEqual([off.out, off.calls.map(c => c.path)], [lead, ['/api/learn/tutor/plan']], `${name}: the planned handoff is dropped, nothing is read`);
+  }
+  const failed = await plainTutor(plan, t => t.ask({ raw: 'Who calls this?' }), { app: repo, handoff: { capability: 'repository_context', answer: null, telemetry: { ...HANDOFF_OK.telemetry, outcome: 'failed', failure: 'retrieval_error' } } });
+  assert.equal(failed.out, `${lead}\n\n${HANDOFF_FAILED}`, 'a failure says the source context could not be retrieved');
 });

@@ -1,13 +1,15 @@
 // Task 11b Auto matrix (owner eighth message 2-4, ninth message, thirteenth message): every natural-language prompt the owner
 // listed, the canvas it is asked on, and a stand-in plan a real Tutor might plausibly return. The stand-in is no expected
-// answer: learn-tutor-auto.test.mjs checks only plumbing and obvious constraints on it. The repository rows of the thirteenth
-// message belong to Task 11c (its handoff action does not exist yet).
+// answer: learn-tutor-auto.test.mjs checks only plumbing and obvious constraints on it. Task 11c-B adds the repository rows of
+// the thirteenth message: on a repository canvas the router offers the handoff, and the stand-in chooses it (or not).
 // Row: [group, prompt, context key, stand-in plan (reading fields, actions, reason_codes), input modality (default text)].
 const say = text => ({ type: 'respond_text', text });
 const make = (command, request) => ({ type: 'create_material', command, request });
 const offerResearch = request => ({ type: 'suggest_research', request });
 // Fix B1: a broad learning request reaches the Auto Tutor, which may offer a learning path (the learner starts it).
 const offerJourney = request => ({ type: 'suggest_journey', request });
+// Task 11c-B: the repository_context handoff, offered only on a repository canvas (structured state, never words).
+const handoff = request => ({ type: 'handoff', capability: 'repository_context', request });
 const ANSWER = 'Here is the short answer, in two plain sentences.';
 const ask = (extra = {}) => ({ inferred_intent: 'ask', actions: [say(ANSWER)], reason_codes: ['respond_to_question'], ...extra });
 const teach = (actions, codes, extra = {}) => ({ inferred_intent: 'teach', actions, reason_codes: codes, ...extra });
@@ -57,6 +59,11 @@ export const MATRIX = [
   // THIRTEENTH MESSAGE rows that need no repository handoff.
   ['thirteenth message', 'What does a function mean in mathematics?', 'blank', ask(known)],
   ['thirteenth message', 'I still dont get attention. Show me another way.', 'nano', teach([say(ANSWER), make('walkthrough', 'one token reading the tokens before it')], ['vary_modality'])],
+  // Task 11c-B: repository_context. The stand-in hands off when the answer needs the source; the code runs it through the route.
+  ['thirteenth message', 'What does this function do?', 'repo', ask({ grounding_status: 'grounded', source_types_used: ['canvas'], actions: [handoff('what the function the learner is reading does, step by step')] })],
+  ['thirteenth message', 'Who calls this?', 'repoCode', ask({ ...local, actions: [say('Callers are the places in the code that use the selected function.'), handoff('which functions call the selected function, and where')] })],
+  // Offered but not needed: the supplied context suffices, so the stand-in just answers and nothing is handed off.
+  ['thirteenth message', 'What is a tensor?', 'repo', ask({ ...known, actions: [say('A tensor is an array of numbers with any number of axes.')] })],
   // VOICE: the same path, input_modality voice, create_material allowed.
   ['voice', 'Why does gradient descent overshoot?', 'blank', ask({ ...known, actions: [say('A step that is too large jumps past the lowest point.')] }), 'voice'],
   ['voice', 'Teach me this visually.', 'card', teach([say(ANSWER), make('diagram', 'the gradient shrinking through the layers')], ['advance_goal']), 'voice'],

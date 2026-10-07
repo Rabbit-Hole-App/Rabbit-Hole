@@ -12,7 +12,7 @@
 // nanoGPT by default. A journey's cards are its section blocks on the canvas, and it has no ladder.
 import { NANOGPT } from './learn-tutor-claims.js';
 import { partIndex } from './nanogpt/depth/board.js';
-import { ACTION_TYPES, AVATAR_ACTION, AVATAR_MOMENTS, GROUNDING_STATUSES, INTENTS, MODALITY_OVERRIDES, PERSONALIZABLE_MOMENTS, SOURCE_TYPES, VISUAL_VALUE_MAX, avatarSlotId, learningGoalProblem } from '../../control-plane/src/agents/learn-tutor.js';
+import { ACTION_TYPES, AVATAR_ACTION, AVATAR_MOMENTS, GROUNDING_STATUSES, HANDOFF_ACTION, HANDOFF_CAPABILITY_NAMES, INTENTS, MODALITY_OVERRIDES, PERSONALIZABLE_MOMENTS, SOURCE_TYPES, VISUAL_VALUE_MAX, avatarSlotId, learningGoalProblem } from '../../control-plane/src/agents/learn-tutor.js';
 const CARD_ACTIONS = ['show_authored_card', 'focus_part', 'suggest_depth', 'suggest_practice'];
 const TEXT_ACTIONS = ['respond_text', 'ask_question'];
 
@@ -123,9 +123,10 @@ function schema(action, extra = [], domain = NANOGPT) {
   if (action.type === 'create_material' && (typeof action.command !== 'string' || !plainRequest(action.request))) return 'create_material: command and a 1-1000 character request';
   if (action.type === 'suggest_research' && !plainRequest(action.request)) return 'suggest_research: a 1-1000 character request';
   if (action.type === 'suggest_journey' && !plainRequest(action.request)) return 'suggest_journey: a 1-1000 character request';
+  if (action.type === HANDOFF_ACTION && (!HANDOFF_CAPABILITY_NAMES.includes(action.capability) || !plainRequest(action.request))) return 'handoff: a known capability and a 1-1000 character request';
   return null;
 }
-// A create_material, suggest_research or suggest_journey request: plain words, 1-1000 characters, no backticks or arrows (maths is fine).
+// A create_material, suggest_research, suggest_journey or handoff request: plain words, 1-1000 characters, no backticks or arrows (maths is fine).
 const plainRequest = request => typeof request === 'string' && !!request.trim() && request.length <= 1000 && !/`|=>/.test(request);
 
 // Task 11b: the planner's reading fields (inferred_intent, modality_override, clarification_requested, grounding_status,
@@ -168,9 +169,10 @@ export function validateActions(response, routed, turn, domain = NANOGPT) {
   const actions = [];
   const reject = (action, stage, reason) => { decisions.push({ type: action?.type ?? null, accepted: false, stage, reason }); log.push(`dropped ${action?.type}: ${reason}`); };
   const reading = readingOf(response, log); // Task 11b: telemetry, never read by the checks below
-  const avatar = routed.allowed.includes(AVATAR_ACTION) ? [AVATAR_ACTION] : [];
+  // The avatar action and the handoff (Task 11c-B) are known types only on a turn whose route allows them.
+  const extra = [AVATAR_ACTION, HANDOFF_ACTION].filter(type => routed.allowed.includes(type));
   for (const action of Array.isArray(response.actions) ? response.actions : []) {
-    const bad = schema(action, avatar, domain);
+    const bad = schema(action, extra, domain);
     if (bad) { reject(action, 'schema', bad); continue; }
     if (action.type === 'no_action') continue;
     if (action.type === 'open_dive') { reject(action, 'consent', 'only the learner opens a hole (/dive, Ctrl+K, Go down)'); continue; }
@@ -188,6 +190,7 @@ export function validateActions(response, routed, turn, domain = NANOGPT) {
     if (action.type === 'create_material' && actions.some(other => other.type === 'create_material' && other.command === action.command)) { reject(action, 'route', `a second create_material for ${action.command}`); continue; }
     if (action.type === 'suggest_research' && actions.some(other => other.type === 'suggest_research')) { reject(action, 'route', 'a second suggest_research'); continue; }
     if (action.type === 'suggest_journey' && actions.some(other => other.type === 'suggest_journey')) { reject(action, 'route', 'a second suggest_journey'); continue; }
+    if (action.type === HANDOFF_ACTION && actions.some(other => other.type === HANDOFF_ACTION)) { reject(action, 'route', 'a second handoff'); continue; } // Task 11c-B: at most one per turn
     if (action.type === AVATAR_ACTION) { // Avatar Teacher §4.1: a suggestion of learning material, never more
       const navigated = navigate && response.actions.some(other => (other?.type === 'show_authored_card' || other?.type === 'focus_part') && other.mode === 'navigate');
       const trigger = avatarTrigger(action, routed, turn, actions, navigated, domain);
@@ -212,6 +215,7 @@ export function validateActions(response, routed, turn, domain = NANOGPT) {
     if (next.type === 'ask_question') next = { ...next, action_id: crypto.randomUUID(), claim: domain.claims[next.claim] ? next.claim : routed.claim };
     if (next.type === 'create_material') next = { type: 'create_material', command: next.command, request: next.request.trim() };
     if (next.type === 'suggest_research' || next.type === 'suggest_journey') next = { type: next.type, request: next.request.trim() };
+    if (next.type === HANDOFF_ACTION) next = { type: HANDOFF_ACTION, capability: next.capability, request: next.request.trim() };
     if (next.type === 'suggest_dive') {
       // Exactly one originating card (R-10): the target card, else a topic anchor made on Go down.
       const concept = domain.concepts[next.concept] ? next.concept : domain.conceptOf(next.title) || domain.conceptOf(next.concept) || null;
