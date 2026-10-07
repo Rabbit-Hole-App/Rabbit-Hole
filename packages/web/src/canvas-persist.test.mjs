@@ -1,8 +1,8 @@
-// canvasApi.persist()'s save (canvas-persist.js; architecture §6.5.5, LP1 Task 15): this browser's copy now, then a shared
+// canvasApi.persist()'s save (canvas-persist.js; architecture §6.5.5, LP1 Task 15): this browser's copy now, then the
 // board's server copy, awaited. Fake storage and a fake onSave: no browser, no network.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { lightBlocks, persistBoard, serial, sharingOf } from './canvas-persist.js';
+import { boardText, lightBlocks, persistBoard, serial, sharingOf } from './canvas-persist.js';
 
 const big = `data:image/png;base64,${'A'.repeat(120001)}`, small = 'data:image/png;base64,AAAA';
 const state = { strokes: [{ id: 's' }], shapes: [], items: [], links: [], blocks: [{ id: 'a', src: big }, { id: 'b', src: small }, { id: 'c' }], groups: [], areas: [] };
@@ -64,4 +64,18 @@ test('sharingOf: shared, private, or unknown while the board GET has not answere
   assert.equal(sharingOf({ shared: false }), 'private');
   assert.equal(sharingOf(null), 'unknown');
   assert.equal(sharingOf({ unavailable: 'HTTP 503' }), 'unknown');
+});
+
+// LearnPage asks whether the server already holds this browser's board (docs/features/canvas-persistence.md): a copy saved
+// without some key equals the canvas's full-shape write, so opening a board never saves it again; any real change differs.
+test('boardText: content keys in one order, a missing key read as empty; a real change differs', () => {
+  const anchor = { blocks: [{ id: 'a', type: 'explanation', title: 'Start' }] };
+  const written = { strokes: [], shapes: [], items: [], links: [], blocks: anchor.blocks, groups: [], areas: [], exchanges: [], sources: [] };
+  assert.equal(boardText(anchor), boardText(written), 'an anchor-only server copy and the canvas write are one board');
+  assert.equal(boardText({ ...written, exchanges: [] }), boardText({ exchanges: [], ...written }), 'key order does not matter');
+  assert.equal(boardText(null), boardText({}));
+  for (const key of ['strokes', 'shapes', 'items', 'links', 'blocks', 'groups', 'areas', 'exchanges', 'sources']) {
+    assert.notEqual(boardText({ ...written, [key]: [{ id: 'x' }] }), boardText(written), key);
+  }
+  assert.notEqual(boardText({ ...written, blocks: [{ ...anchor.blocks[0], title: 'Renamed' }] }), boardText(written), 'an edited card');
 });
