@@ -238,11 +238,12 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
   return {
     tree, pending, error, confirm, suggestion, diveFromTopic,
     run: args => dive(args, 'learner_slash'),
-    // Double-clicking a card or a group goes down its hole, making it first when it has none.
+    // Opening a card (double-click, Enter, its Open pill: card-open.js) or double-clicking a group goes down its hole,
+    // making it first when it has none; `via` records which.
     // The first click of the double-click selected the card, so its title is already known.
-    portals: { portals, enter, open: (id, title) => {
+    portals: { portals, enter, open: (id, title, via = 'learner_dblclick') => {
       const known = stateRef.current.card?.id === id ? stateRef.current.card : null;
-      const { notice } = dive('', 'learner_dblclick', title ? { id, title } : known || { id, title: canvasApi.current?.block?.(id)?.title || '' });
+      const { notice } = dive('', via, title ? { id, title } : known || { id, title: canvasApi.current?.block?.(id)?.title || '' });
       if (notice?.text) toast(notice.text);
     } },
     navigator: { tree: tree && { ...tree, children }, pending, error, climb, enter, rename, askDelete },

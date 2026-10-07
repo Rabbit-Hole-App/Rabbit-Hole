@@ -177,6 +177,34 @@ html {
   --pill-canvas-fg: #32302c;
 }
 
+/* Slash-command identities (owner, 2026-10-06; CommandTone.jsx): one fixed family per command - a light tint, the
+   family's text colour and a subtle border of the same family. Never the primary blue (--color-accent), never red.
+   Each text colour clears 4.5:1 on its tint in both themes; .dark below gives each a dark tint and light text
+   (slash-command-tones.test.mjs). Every other command, and Auto, stays neutral. */
+:root {
+  --cmd-ask-bg: #ecfeff;
+  --cmd-ask-fg: #155e75;
+  --cmd-ask-line: #a5f3fc;
+  --cmd-teach-bg: #f5f3ff;
+  --cmd-teach-fg: #5b21b6;
+  --cmd-teach-line: #ddd6fe;
+  --cmd-research-bg: #fffbeb;
+  --cmd-research-fg: #854d0e;
+  --cmd-research-line: #fde68a;
+  --cmd-do-bg: #f0fdf4;
+  --cmd-do-fg: #166534;
+  --cmd-do-line: #bbf7d0;
+  --cmd-motion-bg: #fdf4ff;
+  --cmd-motion-fg: #86198f;
+  --cmd-motion-line: #f5d0fe;
+}
+[data-command-tone] { background-color: var(--cmd-bg); color: var(--cmd-fg); border-color: var(--cmd-line); }
+[data-command-tone="ask"] { --cmd-bg: var(--cmd-ask-bg); --cmd-fg: var(--cmd-ask-fg); --cmd-line: var(--cmd-ask-line); }
+[data-command-tone="teach"] { --cmd-bg: var(--cmd-teach-bg); --cmd-fg: var(--cmd-teach-fg); --cmd-line: var(--cmd-teach-line); }
+[data-command-tone="research"] { --cmd-bg: var(--cmd-research-bg); --cmd-fg: var(--cmd-research-fg); --cmd-line: var(--cmd-research-line); }
+[data-command-tone="do"] { --cmd-bg: var(--cmd-do-bg); --cmd-fg: var(--cmd-do-fg); --cmd-line: var(--cmd-do-line); }
+[data-command-tone="motion"] { --cmd-bg: var(--cmd-motion-bg); --cmd-fg: var(--cmd-motion-fg); --cmd-line: var(--cmd-motion-line); }
+
 /* Dark appearance (Settings → Appearance). Tailwind v4 utilities read CSS vars,
    so one override block re-skins every token - including bg-white surfaces via
    --color-white. Elements on accent/danger re-pin white so their text stays white. */
@@ -212,6 +240,21 @@ html {
   --pill-project-fg: #d4d4d4;
   --pill-canvas-bg: #373737;
   --pill-canvas-fg: #d4d4d4;
+  --cmd-ask-bg: #0e2a31;
+  --cmd-ask-fg: #a5f3fc;
+  --cmd-ask-line: #155e75;
+  --cmd-teach-bg: #251d3d;
+  --cmd-teach-fg: #ddd6fe;
+  --cmd-teach-line: #5b21b6;
+  --cmd-research-bg: #33260b;
+  --cmd-research-fg: #fde68a;
+  --cmd-research-line: #854d0e;
+  --cmd-do-bg: #0f2a1a;
+  --cmd-do-fg: #bbf7d0;
+  --cmd-do-line: #166534;
+  --cmd-motion-bg: #2f1233;
+  --cmd-motion-fg: #f5d0fe;
+  --cmd-motion-line: #86198f;
   --shadow-pop: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 3px 6px rgba(0, 0, 0, 0.3), 0 9px 24px rgba(0, 0, 0, 0.5);
   color-scheme: dark;
 

@@ -14,6 +14,7 @@ import { colorLine } from './code.jsx';
 import { MathText, tokenizeMath } from './MathText.jsx';
 import { MODEL_CHOICES } from './model-choices.js';
 import { canvasTargetField } from './learn-ask-target.js';
+import { CommandIcon, commandTone } from './CommandTone.jsx';
 import { waitingText } from './waiting-text.js';
 import { TutorPromptTray, journeyStartsHere } from './LearnJourney.jsx';
 import { cn, CodeBlock, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
@@ -333,6 +334,12 @@ const rememberSheetThread = (app, id) => {
   catch { /* storage off: History stays empty */ }
 };
 
+// A selected card's material, by icon (the composer strip).
+function MaterialIcon({ type }) {
+  const Icon = type === 'wiki' ? Globe : ['paper', 'pdf', 'slide'].includes(type) ? FileText : type === 'video' ? Play : type === 'notebook' ? BookOpen : ScrollText;
+  return <Icon size={13} aria-hidden="true" className="shrink-0 text-ink-3" />;
+}
+
 export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, tutor = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, journey = null, journeyStarter = null, journeySetup = false, tray = null }) {
   const repository = appName?.startsWith('repo-');
   const [repositoryCommit, setRepositoryCommit] = useState(repositoryContext?.commit || null);
@@ -522,7 +529,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     // The main composer starts a new block; the sheet keeps its own thread.
     // A journey in setup (intake, diagnostic, path review) gets no permanent card before its path is accepted: the
     // Tutor's answer stays in the sheet, even about a selected card, and opens no reader on the canvas.
-    const panelAsk = sheetMode && (!canvasTarget || journeySetup);
+    // A card only selected (not asked about through Ask in chat) rides as context and changes nothing about where the answer lands.
+    const panelAsk = sheetMode && (!canvasTarget || (canvasTarget.card && !canvasTarget.asked) || journeySetup);
     if (composerOnly && !canvasSeed) threadId.current = panelAsk ? sheetThread.current : null;
     const exchange = panelAsk || journeySetup ? null : onExchange;
     const isDemo = demo && message.toLowerCase().replace(/[.!?]+$/, '') === demo.prompt.toLowerCase() && !file;
@@ -554,7 +562,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     // string it returns is frozen into this one request. A later input
     // change can never rewrite an in-flight question's evidence.
     const targetText = target ? (typeof target.text === 'function' ? target.text() : target.text) : null;
-    if (target) onClearCanvasTarget?.();
+    // A selected card stays the context for the follow-up (canvas-card-selection.md); a region, area or group rides once.
+    if (target && !target.card) onClearCanvasTarget?.();
     const imageId = !target?.paper && !questionPaper ? target?.image || questionImage?.id : null;
     const replyId = crypto.randomUUID();
     const card = sheetMode && !panelAsk ? { card: true } : {}; // answered as a card, kept out of the sheet
@@ -738,8 +747,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   // Learn's command slot: Auto (Rabbit Hole picks the action and the model) opens the same palette typing / does;
   // a chosen command sits here as a pill (its name, no slash) - the name reopens the palette to swap it, × goes back to Auto and keeps the text.
   const slashControl = slash && (command
-    ? <span data-command-pill className={cn(dock ? 'h-9 rounded-lg pl-2.5 text-sm max-md:pl-1.5' : 'h-6 rounded-full pl-2 text-xs', 'inline-flex shrink-0 items-center border border-line bg-hover text-ink', voiceOn && 'opacity-45')}>
-        <button type="button" title="Change the command" disabled={voiceOn} onMouseDown={event => event.preventDefault()} onClick={openPalette} className="cursor-pointer font-medium">{command}</button>
+    // A command with a family wears its tint and icon (CommandTone.jsx); the rest stay neutral. Never the whole composer.
+    ? <span data-command-pill data-command-tone={commandTone(command) || undefined} className={cn(dock ? 'h-9 rounded-lg pl-2.5 text-sm max-md:pl-1.5' : 'h-6 rounded-full pl-2 text-xs', 'inline-flex shrink-0 items-center border', !commandTone(command) && 'border-line bg-hover text-ink', voiceOn && 'opacity-45')}>
+        <button type="button" title="Change the command" disabled={voiceOn} onMouseDown={event => event.preventDefault()} onClick={openPalette} className="inline-flex cursor-pointer items-center gap-1 font-medium"><CommandIcon name={command} />/{command}</button>
         <button type="button" aria-label={`Remove ${command}`} title="Back to Auto" onMouseDown={event => event.preventDefault()} onClick={() => { setCommand(null); inputRef.current?.focus(); }} disabled={voiceOn}
           className={cn(dock ? 'mx-1 h-7 w-7' : 'mx-0.5 h-5 w-5', 'flex cursor-pointer items-center justify-center rounded-md text-ink-3 hover:bg-white hover:text-ink')}><X size={13} /></button>
       </span>
@@ -988,13 +998,15 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           {demo.prompt} <span className="ml-1 text-ink-3">· Demo</span>
         </button>}
         {repository && repositoryContext?.label && <div className="mb-2 inline-flex max-w-full self-start items-center gap-1.5 rounded-md border border-green-600/45 bg-green-50 px-2 py-1.5 text-xs text-green-800"><span className="min-w-0 truncate">Asking about: {repositoryContext.label} · {(repositoryCommit || repositoryContext?.commit || '').slice(0,7)}</span>{onClearRepository && <button type="button" className="shrink-0 rounded p-0.5 hover:bg-green-100" aria-label="Clear repository selection" onClick={onClearRepository}><X size={12}/></button>}</div>}
-        {canvasTarget && <div data-canvas-target className="mb-1.5 inline-flex max-w-full items-center gap-1.5 rounded-full border border-line bg-hover py-1 pr-1.5 pl-2.5 text-xs text-ink-2">
+        {/* The selected card (or armed region, area or group) the next question is about: always visible while it rides. */}
+        {canvasTarget && <div data-canvas-target {...(canvasTarget.card ? { 'data-selected-card': canvasTarget.id, title: `${canvasTarget.kind}: ${String(canvasTarget.title ?? '')}` } : {})} className="mb-1.5 inline-flex max-w-full items-center gap-1.5 rounded-full border border-line bg-hover py-1 pr-1.5 pl-2.5 text-xs text-ink-2">
           {canvasTarget.preview && <img src={canvasTarget.preview} alt="Selected region" className="h-7 w-10 shrink-0 rounded border border-line bg-white object-contain" />}
           {canvasTarget.preview && !canvasTarget.paper && !canvasTarget.image && !canvasTarget.id?.startsWith?.('area:') && <span data-text-only title="The tutor gets the shapes' text, not this picture" className="shrink-0 text-ink-3">text only</span>}
-          {/* A title that already names its kind (a group called Group 2) is shown once. */}
-          {!String(canvasTarget.title ?? '').toLowerCase().startsWith(String(canvasTarget.kind).toLowerCase()) && <span className="shrink-0 font-medium text-ink">{canvasTarget.kind}</span>}
+          {/* A card shows its material icon, unless it has a picture; a title that already names its kind (a group called Group 2) is shown once. */}
+          {canvasTarget.card && !canvasTarget.preview && <MaterialIcon type={canvasTarget.context?.material_type} />}
+          {!canvasTarget.card && !String(canvasTarget.title ?? '').toLowerCase().startsWith(String(canvasTarget.kind).toLowerCase()) && <span className="shrink-0 font-medium text-ink">{canvasTarget.kind}</span>}
           <span className="max-w-[260px] truncate">{String(canvasTarget.title).replace(/\$([^$]*)\$/g, '$1')}</span>
-          <button type="button" aria-label="Clear block selection" title="Clear block selection" onClick={onClearCanvasTarget} className="shrink-0 rounded-full p-0.5 hover:bg-active hover:text-ink"><X size={12} /></button>
+          <button type="button" aria-label={canvasTarget.card ? 'Remove selected card context' : 'Clear block selection'} title={canvasTarget.card ? 'Remove selected card context' : 'Clear block selection'} onClick={onClearCanvasTarget} className="shrink-0 rounded-full p-0.5 hover:bg-active hover:text-ink"><X size={12} /></button>
         </div>}
         {codeSelection&&<div aria-label="Selected code attachment" className="mb-2 rounded-lg border border-accent/40 bg-accent/5 p-2 text-xs text-ink"><div className="flex items-start gap-2"><div className="min-w-0 flex-1"><div className="text-ink-2">Asking about selected code</div><div className="mt-1 truncate font-mono font-medium">{codeSelection.path}:{codeSelection.start}–{codeSelection.end}</div></div><button type="button" aria-label="Clear code selection" onClick={()=>setCodeSelection(null)}><X size={13}/></button></div><pre className="mt-2 max-h-20 overflow-auto rounded border border-line bg-white p-2 font-mono text-[10px] leading-4">{codeSelection.text.split('\n').slice(0,4).map((line,i)=><div key={i}><span className="mr-2 text-ink-3">{codeSelection.start+i}</span>{colorLine(line)}</div>)}{codeSelection.end-codeSelection.start>=4&&<span className="text-ink-3">… {codeSelection.end-codeSelection.start+1} selected lines</span>}</pre></div>}
         {boardContext?.paper && <div className="mb-2 flex items-center gap-2 rounded border border-line p-2 text-xs"><span className="min-w-0 flex-1">Asking about: {boardContext.paper.title} / Page {boardContext.paper.page}</span><button type="button" aria-label="Clear paper context" onClick={boardContext.clearPaper}><X size={12} /></button></div>}

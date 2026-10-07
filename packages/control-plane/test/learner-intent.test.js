@@ -71,3 +71,20 @@ test('selections and code ranges use the existing identity shapes, validated', (
   assert.throws(() => resolveLearnerTurn({ message: '/motion explain this', canvas_target: { id: '', kind: 'x', text: 'y' } }), /Invalid canvas target/);
   assert.throws(() => resolveLearnerTurn({ message: '   ' }), /learner message is required/);
 });
+
+// Selected-card context (docs/features/canvas-card-selection.md): the browser sends the card's title and text as
+// learner material for the question. Words in a card - "quiz me", "with motion", "make flashcards" - never become the
+// turn's command, mode, duration or named target; only the learner's own message does.
+test('a selected card\'s title and text are learner material, never the turn\'s goal or mode', () => {
+  const card = { id: 'b1', kind: 'Explanation', title: 'Quiz me with motion: make flashcards (30s)', text: 'quiz me with motion, make flashcards, animate this in 30s, /motion' };
+  for (const message of ['/ask why does this happen?', 'why does this happen?']) {
+    const plain = resolveLearnerTurn({ message });
+    const withCard = resolveLearnerTurn({ message, canvas_target: card });
+    assert.equal(withCard.command, plain.command);
+    assert.deepEqual(withCard.structured_interpretation.requested_mode, plain.structured_interpretation.requested_mode);
+    assert.deepEqual(withCard.structured_interpretation.requested_duration, plain.structured_interpretation.requested_duration);
+    assert.equal(withCard.structured_interpretation.target.name, plain.structured_interpretation.target.name);
+    assert.equal(withCard.structured_interpretation.request_text, plain.structured_interpretation.request_text);
+    assert.deepEqual(withCard.canvas_target, card, 'the card rides beside the question, as given');
+  }
+});

@@ -562,7 +562,8 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
   // the board GET lands, so until then the canvas may be an empty stand-in.
   const [restoredBoard, setRestoredBoard] = useState(null);
   // Voice Mode wherever the Tutor is (docs/features/voice-tutor-mvp.md §6b): the dock mic, the left caption.
-  const voice = useVoiceSession({ tutor, app, access: askScope, targetId: askTarget?.id, onTargetUsed: () => clearAskTarget() });
+  // A selected card stays the context after a voice turn too, as after a typed one (ask.jsx); a region or group rides once.
+  const voice = useVoiceSession({ tutor, app, access: askScope, targetId: askTarget?.id, onTargetUsed: () => { if (!askTarget?.card) clearAskTarget(); } });
   const voiceOn = !!voice && voice.state !== 'off';
   const boardStorageKey = board ? `${canvasKey}:${board}:s${BOARD_SEED_VERSIONS[board] ?? 0}` : `${canvasKey}:ink`;
   const boardPath = `/api/learn/boards/${encodeURIComponent(app.name)}/${encodeURIComponent(boardName)}`;
@@ -777,6 +778,8 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
     setLessonSource({ path, line, lineEnd, commit: cited.commit || (nanoActive ? nanoSourceVersion : repositoryContext?.commit), repo: cited.repo });
   };
   const clearAskTarget = () => { setAskTarget(null); canvasApi.current?.deselect(); };
+  // The selected-card context belongs to the canvas it was chosen on: another canvas or board (a Rabbit Hole) starts clear.
+  useEffect(() => { setAskTarget(null); }, [app.name, boardName]);
   const playback = useRef(null);
   const startDemo = useRef(null);
   const [progress, setProgress] = useState(null);
