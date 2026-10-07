@@ -97,7 +97,7 @@ test('D2: a fast plan that escalates to Opus speaks nothing of its own; Opus re-
   assert.equal(events[1].telemetry.escalated, 'an action outside the allowed types');
 });
 
-test('D2: a valid fast plan releases its held sentence only after the whole plan passed', async t => {
+test('D2: a valid fast plan releases its held sentence only after its actions passed', async t => {
   const order = [];
   const fastPlan = { actions: [{ type: 'respond_text', text: 'Fast and fine. More.' }], strategy: 'none' };
   const turn = await planTurn({ TUTOR_PLANNER_FAST_MODEL: 'claude-haiku-4-5-20251001' }, { learner_intent: { kind: 'question' }, route: { row: 'not_yet_observed' }, allowed_actions: ['respond_text'] }, {
@@ -107,5 +107,118 @@ test('D2: a valid fast plan releases its held sentence only after the whole plan
   order.push('plan');
   assert.deepEqual(order, ['fast:called', 'sentence:Fast and fine.', 'plan']);
   assert.equal(turn.telemetry.tier, 'fast');
-  assert.ok(turn.telemetry.first_sentence_ms >= turn.telemetry.sentence_written_ms, 'released at the end of the fast plan, not when written');
+  assert.ok(turn.telemetry.first_sentence_ms >= turn.telemetry.sentence_written_ms, 'released once the fast plan passed its check, not when written');
+});
+
+// Professor Next Steps Task 4 fix round 1: reason_codes and reason are written last, after the actions. A fast plan's held
+// sentence is released once its actions are complete and pass the check (fastPlanProblem reads only the actions and an
+// explicit_request written before them), never later because of the reason fields.
+const HAIKU = 'claude-haiku-4-5-20251001', FAST = { TUTOR_PLANNER_FAST_MODEL: HAIKU };
+const ROUTINE = { learner_intent: { kind: 'question' }, route: { row: 'not_yet_observed' }, allowed_actions: ['respond_text'] };
+const REASON = 'The learner asked why, so a short worked answer on the card in view keeps the mechanism visible and sets up the next question about the mask, with no quiz they did not ask for.';
+const reasoned = { constraints_add: [], strategy: 'none', actions: [{ type: 'respond_text', text: 'Fast and fine. More.' }], reason: REASON, reason_codes: ['respond_to_question'] };
+// sse(), one event per read, so a test sees how much tool input had arrived when the sentence went out. fail: the stream
+// errors once that many input characters have arrived.
+function paced(input, model, { stop = 'tool_use', fail = null } = {}) {
+  const json = typeof input === 'string' ? input : JSON.stringify(input);
+  const events = [{ type: 'message_start', message: { model, usage: { input_tokens: 2500 } } }, { type: 'content_block_start', index: 1, content_block: { type: 'tool_use', name: 'tutor_response', id: 't1', input: {} } }];
+  for (let at = 0; at < json.length; at += 7) events.push({ type: 'content_block_delta', index: 1, delta: { type: 'input_json_delta', partial_json: json.slice(at, at + 7) } });
+  events.push({ type: 'message_delta', delta: { stop_reason: stop }, usage: { output_tokens: 90 } }, { type: 'message_stop' });
+  let next = 0, arrived = 0;
+  const body = new ReadableStream({ pull(controller) {
+    if (fail != null && arrived >= fail) return controller.error(new Error('connection reset'));
+    if (next === events.length) return controller.close();
+    const event = events[next++];
+    arrived += event.delta?.partial_json?.length || 0;
+    controller.enqueue(new TextEncoder().encode(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`));
+  } });
+  return { response: new Response(body, { headers: { 'Content-Type': 'text/event-stream' } }), arrived: () => arrived };
+}
+
+test('reason last (a): a valid fast plan releases its held sentence once its actions pass, before the reason fields stream', async () => {
+  const json = JSON.stringify(reasoned), stream = paced(json, HAIKU);
+  let at = null;
+  const turn = await planTurn(FAST, ROUTINE, { onSentence: () => { at = stream.arrived(); }, callModel: async () => stream.response });
+  assert.ok(at != null && at < json.indexOf(REASON) + 28, `released at ${at} of ${json.length} characters; the reason starts at ${json.indexOf(REASON)}`);
+  assert.equal(turn.reason, REASON);
+  assert.deepEqual(turn.reason_codes, ['respond_to_question']);
+  assert.deepEqual([turn.telemetry.tier, turn.telemetry.escalated, 'tail_lost' in turn.telemetry], ['fast', null, false]);
+  assert.ok(turn.telemetry.sentence_written_ms <= turn.telemetry.first_sentence_ms && turn.telemetry.first_sentence_ms <= turn.telemetry.ms, 'first_sentence_ms is the release time');
+});
+
+test('reason last (b): fast actions that fail the check release nothing and escalate, as before', async () => {
+  const bad = { ...reasoned, actions: [{ type: 'respond_text', text: 'Fast first. Then.' }, { type: 'open_dive', concept: 'softmax' }] };
+  const replies = [paced(bad, HAIKU).response, sse(plan)], spoken = [];
+  const turn = await planTurn(FAST, ROUTINE, { onSentence: sentence => spoken.push(sentence.text), callModel: async () => replies.shift() });
+  assert.deepEqual(spoken, ['Every layer uses the same mask.'], 'the held fast sentence is never sent');
+  assert.deepEqual([turn.telemetry.tier, turn.telemetry.escalated], ['opus', 'an action outside the allowed types']);
+});
+
+test('reason last (c): a fast stream cut or dropped after its released actions keeps the plan that spoke, reason fields null, flagged', async () => {
+  const json = JSON.stringify(reasoned);
+  for (const [name, reply] of [['truncated', () => paced(json.slice(0, json.indexOf(REASON) + 40), HAIKU, { stop: 'max_tokens' })], ['dropped', () => paced(json, HAIKU, { fail: json.indexOf(REASON) + 40 })]]) {
+    const spoken = [];
+    let calls = 0;
+    const turn = await planTurn(FAST, ROUTINE, { onSentence: sentence => spoken.push(sentence.text), callModel: async () => { calls++; return reply().response; } });
+    assert.deepEqual([calls, spoken], [1, ['Fast and fine.']], `${name}: spoken once, no re-plan`);
+    assert.deepEqual({ ...turn, telemetry: undefined }, { constraints_add: [], strategy: 'none', actions: reasoned.actions, reason: null, reason_codes: null, telemetry: undefined }, name);
+    assert.deepEqual([turn.telemetry.tier, turn.telemetry.escalated, turn.telemetry.tail_lost, turn.telemetry.outcome], ['fast', null, true, 'ok'], name);
+  }
+});
+
+test('reason last (d): the Opus tier is unchanged - its sentence goes out as written, a cut stream is still an invalid turn', async () => {
+  const opusContext = { ...ROUTINE, route: { row: 'misconception' } };
+  const json = JSON.stringify({ ...reasoned, actions: plan.actions }), stream = paced(json, 'claude-opus-5-5');
+  let at = null;
+  const turn = await planTurn(FAST, opusContext, { onSentence: () => { at = stream.arrived(); }, callModel: async () => stream.response });
+  assert.equal(turn.telemetry.tier, 'opus');
+  assert.ok(at < json.indexOf('It is built once') + 14, 'spoken as soon as it is written, inside the actions');
+  assert.deepEqual([turn.reason, turn.reason_codes, 'tail_lost' in turn.telemetry], [REASON, ['respond_to_question'], false]);
+  const cut = paced(json.slice(0, json.indexOf(REASON) + 40), 'claude-opus-5-5', { stop: 'max_tokens' });
+  await assert.rejects(planTurn(FAST, opusContext, { onSentence: () => {}, callModel: async () => cut.response }), /The tutor returned no turn/);
+});
+
+test('reason last (e): a fast plan without reason fields releases at its end, as before', async () => {
+  const spoken = [];
+  const turn = await planTurn(FAST, ROUTINE, { onSentence: sentence => spoken.push(sentence.text), callModel: async () => paced({ constraints_add: [], strategy: 'none', actions: reasoned.actions }, HAIKU).response });
+  assert.deepEqual(spoken, ['Fast and fine.']);
+  assert.equal(turn.telemetry.first_sentence_ms, turn.telemetry.ms, 'released when the plan ended');
+  assert.deepEqual(['reason' in turn, 'tail_lost' in turn.telemetry, turn.telemetry.escalated], [false, false, null]);
+});
+
+// Fix round 2: JSON.parse keeps the last of a repeated key. Once a sentence went out on the checked actions, the full plan
+// must not swap them (or explicit_request) for later ones: the spoken head wins, the remainder adds only its own fields.
+test('reason last (f): a key repeated after the release never replaces the spoken plan, never escalates', async () => {
+  const head = (extra = {}) => JSON.stringify({ constraints_add: [], ...extra, strategy: 'none', actions: [{ type: 'respond_text', text: 'Fast and fine. More.' }, { type: 'show_authored_card', card: 'c11-causal-mask' }] }).slice(0, -1);
+  const tail = `,"reason":${JSON.stringify(REASON)},"reason_codes":["respond_to_question"]`;
+  const cases = [
+    ['actions repeated', head(), `${tail},"actions":[{"type":"open_dive","concept":"softmax"}]}`, null],
+    ['explicit_request overwritten', head({ explicit_request: 'show me the mask' }), `${tail},"explicit_request":""}`, 'show me the mask'],
+  ];
+  for (const [name, start, rest, explicit] of cases) {
+    const spoken = [];
+    let calls = 0;
+    const context = explicit ? { ...ROUTINE, learner_intent: { kind: 'request', raw_user_message: 'show me the mask' } } : { ...ROUTINE, allowed_actions: ['respond_text', 'show_authored_card'] };
+    const turn = await planTurn(FAST, context, { onSentence: sentence => spoken.push(sentence.text), callModel: async () => { calls++; return paced(start + rest, HAIKU).response; } });
+    assert.deepEqual([calls, spoken, turn.telemetry.tier, turn.telemetry.escalated], [1, ['Fast and fine.'], 'fast', null], name);
+    assert.deepEqual(turn.actions, JSON.parse(`${start}}`).actions, `${name}: the spoken actions`);
+    assert.ok(turn.actions[0].text.startsWith(spoken[0]), `${name}: the sentence belongs to the returned plan`);
+    assert.equal(turn.explicit_request, explicit ?? undefined, name);
+    assert.deepEqual([turn.reason, turn.reason_codes, 'tail_lost' in turn.telemetry], [REASON, ['respond_to_question'], false], `${name}: the remainder adds its own fields`);
+  }
+});
+
+// Task 11b: the reading fields (inferred_intent, modality_override, clarification_requested, grounding_status,
+// source_types_used) are written after reason, so the fast tier still releases at actions-complete; a stream cut inside them
+// keeps the plan that spoke, with those fields simply missing (the trace records them as missing, never guessed).
+test('reason last (g): the reading fields after reason never delay the release; a cut inside them leaves them missing', async () => {
+  const read = { ...reasoned, inferred_intent: 'ask', modality_override: 'motion', clarification_requested: false, grounding_status: 'grounded', source_types_used: ['canvas'] };
+  const json = JSON.stringify(read), stream = paced(json, HAIKU);
+  let at = null;
+  const turn = await planTurn(FAST, ROUTINE, { onSentence: () => { at = stream.arrived(); }, callModel: async () => stream.response });
+  assert.ok(at != null && at < json.indexOf(REASON) + 28, `released at ${at}; the reason starts at ${json.indexOf(REASON)}`);
+  assert.deepEqual([turn.inferred_intent, turn.modality_override, turn.clarification_requested, turn.grounding_status, turn.source_types_used], ['ask', 'motion', false, 'grounded', ['canvas']]);
+  const cut = paced(json.slice(0, json.indexOf('"grounding_status"') + 10), HAIKU, { stop: 'max_tokens' });
+  const kept = await planTurn(FAST, ROUTINE, { onSentence: () => {}, callModel: async () => cut.response });
+  assert.deepEqual([kept.actions, kept.reason, 'inferred_intent' in kept, 'grounding_status' in kept, kept.telemetry.tail_lost], [reasoned.actions, null, false, false, true]);
 });

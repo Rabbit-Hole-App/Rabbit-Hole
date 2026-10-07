@@ -39,11 +39,15 @@ const NANOGPT_INPUTS = [
 ];
 const SNAPSHOT = JSON.parse(readFileSync(new URL('./__fixtures__/nanogpt-planner-context.json', import.meta.url), 'utf8'));
 
-test('nanoGPT: the planner context is byte-identical to the pre-TutorDomain snapshot on all six inputs', () => {
+// Professor Next Steps Task 4: every turn's context gains recent_relevant_context.recent_modalities (last key), empty here
+// (re-pinned with review: .superpowers/sdd/2026-10-06-professor-next-steps/task-4-repin-review.md, entry 8).
+const withHistory = s => ({ ...s, recent_relevant_context: { ...s.recent_relevant_context, recent_modalities: [] } });
+
+test('nanoGPT: the planner context is the pre-TutorDomain snapshot on all six inputs, plus the one documented field', () => {
   assert.equal(SNAPSHOT.length, NANOGPT_INPUTS.length);
   NANOGPT_INPUTS.forEach((input, i) => {
     // Compared as JSON text, so key order is pinned too (it is what the planner route receives).
-    assert.equal(JSON.stringify(contextOn(...input)), JSON.stringify(SNAPSHOT[i]), `input ${i}: ${input[1]}`);
+    assert.equal(JSON.stringify(contextOn(...input)), JSON.stringify(withHistory(SNAPSHOT[i])), `input ${i}: ${input[1]}`);
   });
 });
 

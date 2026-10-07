@@ -3,6 +3,7 @@
 // changed. Concepts are the cards' conceptId vocabulary; claims are Tutor ids, 2-3 per concept.
 import { NANOGPT_FIRST_BATCH, NANOGPT_LATER_BATCHES, cardBlock } from './nanogpt/board.js';
 import { DEPTH_LADDER } from './nanogpt/depth/board.js';
+import { blockModality } from './learn-tutor-actions.js';
 
 // The board the slice runs on (demo-scenes.js BOARDS) and the holes under it.
 export const TUTOR_BOARD = 'nanogpt-attention-tutor';
@@ -228,6 +229,8 @@ export const NANOGPT = {
   defaultClaims: turn => claimsOfConcept(holeConcept(turn.canvas.dive?.record)),
   conceptOf,
   cards: SLICE_CARDS, cardModule, catalogue, ladder: ATTENTION_LADDER, ladderStep,
+  // The modality of a card it shows (learn-tutor-actions.js): the block showCard inserts for it.
+  cardType: id => (cardModule(id) ? blockModality(cardBlock(cardModule(id))) : null),
   evidence: { mode: 'session' },
 };
 

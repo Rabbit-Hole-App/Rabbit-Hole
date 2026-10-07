@@ -4,6 +4,7 @@
 // A leaf module, so ask.js, learn-research.js and the browser-side test can
 // all import it without a cycle.
 import { sha256 } from './token.js';
+import { sha256Hex } from './learn-grade-jev.js'; // learn-grade-jev.js imports nothing, so this module stays a leaf
 
 export const MODEL = 'claude-opus-5';
 // Model picker allowlist - "Auto" resolves to the default.
@@ -55,6 +56,10 @@ export const LEARN_TASKS = Object.freeze({
   journey_section: Object.freeze({ provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 3000 }),
   // Path revisions and adaptations.
   journey_adapt: Object.freeze({ provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 4000 }),
+  // Professor Next Steps (docs/features/professor-next-steps.md §2.4): the hook planner, one tool (suggest_next_steps) on
+  // tool_choice auto; its escalation runs once on a missing tool call, a validator failure or an ambiguous reading.
+  tutor_next_steps: Object.freeze({ provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 1500 }),
+  tutor_next_steps_escalation: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', effort: null, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 4000 }),
   // Slash-command cards (/api/learn/artifact).
   artifact: Object.freeze({ provider: 'plan', model: ASK_MODELS.auto, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'any', maxTokens: 4000 }),
   // The whiteboard (/api/learn/board): one model for plan, draft and review.
@@ -89,6 +94,24 @@ export function loggedModel(task, callModel) {
     } catch { /* a log line is never worth a failed answer */ }
     return response;
   };
+}
+
+// USD per MTok [input, output, cache read] (claude-api skill, cached 2026-09-25; the numbers web/e2e/journey-corpus-run.mjs:100
+// and web/e2e/tutor-corpus-run.mjs:43 use). A 5-minute cache write is 1.25x input; Opus 5.5 fast mode doubles everything.
+// ponytail: the e2e runners keep their own copy; point them here when they are next edited.
+export const MODEL_PRICES = Object.freeze({ 'claude-opus-5-5': [4, 20, 0.2], 'claude-sonnet-5-5': [2, 10, 0.2], 'claude-haiku-4-5-20251001': [1, 5, 0.1] });
+export function costUsd({ model, input_tokens = 0, output_tokens = 0, cache_creation_input_tokens = 0, cache_read_input_tokens = 0, speed = null }) {
+  const p = MODEL_PRICES[model];
+  if (!p) return null;
+  const usd = ((input_tokens || 0) * p[0] + (output_tokens || 0) * p[1] + (cache_creation_input_tokens || 0) * p[0] * 1.25 + (cache_read_input_tokens || 0) * p[2]) / 1e6;
+  return +((speed === 'fast' ? 2 : 1) * usd).toFixed(6);
+}
+// The decision telemetry's prompt_version: the system text and the tool schemas actually sent (transport flags such as
+// cache_control or eager_input_streaming left out), so a prompt or tool change shows and a cache or stream setting does not.
+// System blocks join with a newline, as the uncached prompt joins the same texts (plannerRequest), so both hash alike.
+export async function promptVersion(system, tools) {
+  const text = Array.isArray(system) ? system.map(block => block.text).join('\n') : String(system ?? '');
+  return (await sha256Hex(JSON.stringify([text, (tools || []).map(({ name, description, input_schema }) => ({ name, description, input_schema }))]))).slice(0, 12);
 }
 
 // Request limits shared by more than one site.

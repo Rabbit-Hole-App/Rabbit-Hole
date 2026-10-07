@@ -62,12 +62,20 @@ export const CARD_OF = {
 // can only propose a generated clip, never an existing one.
 export const cardsFor = name => {
   const command = commandsFor('learn').find(entry => entry.name === name);
-  const inserts = !!command?.deterministic || name === 'image';
-  return (command?.family || []).filter(id => CARD_OF[id] && (isReady(id) || (inserts && PRIMITIVES[id]?.direct))).map(id => ({ primitive: id, card: CARD_OF[id] }));
+  return (command?.family || []).filter(id => CARD_OF[id] && (isReady(id) || (insertsWithoutModel(name) && PRIMITIVES[id]?.direct))).map(id => ({ primitive: id, card: CARD_OF[id] }));
 };
+// A command that inserts its card without the model: the deterministic ones, and /image's photo search (Task 11b fix B3: the
+// Tutor's cost_tier for such a create_material is none).
+export const insertsWithoutModel = name => !!commandsFor('learn').find(entry => entry.name === name)?.deterministic || name === 'image';
 
 // Whether running this command can end in a paid generation (it always asks first).
 export const mayConfirmPaid = name => learnRequest(name).paid.some(isReady);
+
+// Professor Next Steps (contract §2.5): the commands a Tutor hook turn may run as create_material - those that can put a
+// card on the canvas now (cardsFor) through the command path alone. Search, navigation and catalog actions need the learner.
+const MAKES_ALONE = command => !command.action || command.action === 'insert_notebook' || command.action === 'insert_whiteboard';
+export const materialCommands = () => commandsFor('learn').filter(command => available(command) && MAKES_ALONE(command) && cardsFor(command.name).length)
+  .map(command => ({ command: command.name, cards: cardsFor(command.name).map(entry => entry.card), paid: mayConfirmPaid(command.name) }));
 
 // Whether a word names a Learn command (the composer's command pill takes only these).
 export const isLearnCommand = name => commandsFor('learn').some(command => command.name === name);
@@ -152,4 +160,26 @@ export async function runLearnCommand(text, { app, target = null, location = nul
   if (result.result === 'clarification') return { notice: { tone: 'question', text: result.question }, keep: `/${name} ` };
   if (result.result === 'unsupported') return { notice: { tone: 'info', text: result.message } };
   return { notice: { tone: 'error', text: result.error || 'That could not be made. Try again.' } };
+}
+
+// A Tutor hook turn's create_material actions (contract §2.5), in the plan's order, each run by runLearnCommand exactly as
+// if typed: no second generator. A paid card answers with its Generate / Not now proposal; offer(proposal) shows it and
+// resolves once the learner has answered, and the next proposal waits for that, so proposals come one at a time while
+// free cards keep arriving. deps: runLearnCommand's { app, canvas, post, openSearch, target } (target: the turn's selected card, as
+// a typed command's; null on a hook click). onNotice(notice) gets each command's
+// notice as soon as it answers, never held behind a proposal. Resolves to each command's answer once every proposal is
+// answered; a command that throws answers an error notice and the next one still runs.
+// ponytail: one command at a time (each waits for its card); post them together with ordered inserts if latency matters.
+export async function runMaterials(actions, { offer, onNotice = () => {}, ...deps }) {
+  const results = [];
+  let asked = Promise.resolve();
+  for (const action of actions.filter(entry => entry.type === 'create_material')) {
+    const result = await runLearnCommand(`/${action.command} ${action.request}`, { target: null, ...deps })
+      .catch(() => ({ notice: { tone: 'error', text: `/${action.command} could not be made. Try again.` } }));
+    results.push(result);
+    if (result.notice) onNotice(result.notice);
+    if (result.proposal) asked = asked.then(() => offer(result.proposal));
+  }
+  await asked;
+  return results;
 }

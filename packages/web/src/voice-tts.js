@@ -5,7 +5,8 @@
 
 const SPEAK_CAP = 600;
 
-// What must not be read aloud: code, math, markdown syntax and URLs. Link text stays.
+// What must not be read aloud: code, math, markdown syntax, HTML tags and URLs. Link text and the words inside a tag stay.
+// Task 14 owner addition: a Tutor handoff answer (repository code, paths, markdown) goes through this same path.
 export function speakable(text) {
   const plain = String(text || '')
     .replace(/```[\s\S]*?(```|$)/g, ' ')
@@ -14,6 +15,7 @@ export function speakable(text) {
     .replace(/\$[^$\n]+\$/g, ' ')
     .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/(?:https?:\/\/|www\.)\S+/g, ' ')
+    .replace(/<\/?[A-Za-z][^<>\n]*>/g, ' ')
     .replace(/^\s*#{1,6}\s+/gm, '')
     .replace(/^\s*>\s?/gm, '')
     .replace(/^\s*(?:[-*+]|\d+[.)])\s+/gm, '')

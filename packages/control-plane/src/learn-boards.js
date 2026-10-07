@@ -12,6 +12,8 @@ import { learnMedia } from './learn-storage.js';
 import { FORK_COUNT, HANDLE_OF, NAME_OF, NOW, freeTitle, touchCanvas } from './canvases.js';
 import { NOT_TRASHED } from './library-trash.js';
 import { askShared, boardRevision, boardSources, publicationKey, shareKey, sharePin, shareSource, sharedTitle } from './learn-shared-ask.js';
+import { NEXT_STEPS_BODY_CHARS, sharedNextSteps, sharedStepIds, titleFingerprint } from './learn-next-steps-routes.js';
+import { selectedStepProblem } from './agents/learn-next-steps.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/;
@@ -213,6 +215,31 @@ async function askAboutShared(req, env, token) {
   return askShared(env, found.row, viewer, body, found.publication ? { source: await linkSource(env.LEARN_DB, found), key: await publicationKey(token) } : null);
 }
 
+// Professor Next Steps on a shared canvas (docs/features/professor-next-steps.md §1.5, §2.1): whoever may open the link,
+// signed in or not on a public one. The hooks are built from the shared board here (learn-next-steps-routes.js); nothing of
+// the board's, its owner's or any Tutor or journey row is written. A signed-in viewer may add their own claim states.
+async function nextStepsAboutShared(req, env, token) {
+  const found = await sharedAccess(req, env, token);
+  if (found instanceof Response) return found;
+  const raw = await req.text();
+  if (raw.length > NEXT_STEPS_BODY_CHARS) return json({ error: `the request body must be at most ${NEXT_STEPS_BODY_CHARS} characters` }, 400);
+  let body;
+  try { body = JSON.parse(raw); } catch { return json({ error: 'Invalid JSON' }, 400); }
+  const { row } = found, state = JSON.parse(row.state_json);
+  const origin = originOf(body?.origin, state);
+  if (origin.error) return json({ error: origin.error }, origin.status || 400);
+  const viewer = found.viewer || await repositoryIdentity(req, env);
+  return sharedNextSteps(env, { row, state, title: (await sharedBoard(env, found)).title, key: await shareKey(token), viewer: viewer instanceof Response ? null : viewer, origin, body });
+}
+// A shared board's name as its viewers see it (sharedTitle: a private repository's name withheld), with the canvas row and
+// the link's repository boundary it was read from: a share's pin, or a publication's own (linkSource, explore-publish.md).
+async function sharedBoard(env, found) {
+  const { row } = found;
+  const canvas = CANVAS.test(row.app) ? await env.LEARN_DB.prepare('SELECT title FROM canvases WHERE org = ? AND name = ?').bind(row.org, row.app).first() : null;
+  const pinned = await linkSource(env.LEARN_DB, found);
+  return { canvas, pinned, title: sharedTitle(row, canvas?.title, pinned) };
+}
+
 // Forking (docs/features/canvas-forking.md): the signed-in user gets their own
 // Canvas - a row in the canvases catalog, standalone (no project) - holding a
 // server copy of the board, its files and its notebook workspaces. Notebooks
@@ -384,20 +411,36 @@ async function startRabbitHole(req, env, token, body) {
   if (found instanceof Response) return found;
   const user = found.viewer || await repositoryIdentity(req, env);
   if (user instanceof Response) return user.status === 401 ? json({ error: 'Sign in to start your own Rabbit Hole from this canvas.', signIn: true }, 401) : user;
-  const { row } = found, db = env.LEARN_DB;
-  const origin = originOf(body?.origin, JSON.parse(row.state_json));
+  const { row } = found, db = env.LEARN_DB, state = JSON.parse(row.state_json);
+  const origin = originOf(body?.origin, state);
   if (origin.error) return json({ error: origin.error }, origin.status || 400);
   const parent = { app: `share:${await shareKey(token)}`, board: row.board };
   const originId = origin.root ? SHARED_ROOT : origin.id;
+  // The board's name, read once for the step check and the hole's provenance.
+  let named = null;
+  const board = () => (named ??= sharedBoard(env, found));
+  // A clicked hook (docs/features/professor-next-steps.md §1.4): checked against the board as it is now - its version and
+  // title fingerprint (a stale version or a rename is 409 stale_hook), then its ids and wording against the same trimmed
+  // input generation read, and its origin (a chat card reads as the root) - before anything is written for the viewer.
+  // Only the checked fields come back as next_step; its learning_goal starts a new hole's goal.
+  const picked = body?.selected_next_step;
+  if (picked != null) {
+    const { title } = await board();
+    const allowed = sharedStepIds(state, { origin, key: parent.app.slice('share:'.length), version: row.version, title });
+    const problem = selectedStepProblem(picked, { ...allowed, version: row.version, fingerprint: await titleFingerprint(title) });
+    if (problem) return json({ error: problem.error }, problem.status);
+  }
+  const step = picked == null ? null : { v: 1, set_id: picked.set_id, suggestion_id: picked.suggestion_id, basis: picked.basis, hook: picked.hook, learning_goal: picked.learning_goal,
+    concept_ids: [...picked.concept_ids], claim_ids: [...picked.claim_ids], scope: picked.scope,
+    source: { share_version: picked.source.share_version, origin_block_id: picked.source.origin_block_id, title_fingerprint: picked.source.title_fingerprint } };
+  const echo = step ? { next_step: step } : {};
   const existing = () => db.prepare('SELECT d.child, c.title FROM canvas_dives d JOIN canvases c ON c.org = d.org AND c.name = d.child WHERE d.org = ? AND d.owner_email = ? AND d.parent_app = ? AND d.parent_board = ? AND d.origin_block_id = ?')
     .bind(user.org, user.email, parent.app, parent.board, originId).first();
   const reply = (hole, status, extra = {}) => json({ name: hole.child, title: hole.title, url: `/apps/${hole.child}`, ...extra }, status);
   const earlier = await existing();
-  if (earlier) return reply(earlier, 200, { existing: true });
+  if (earlier) return reply(earlier, 200, { existing: true, ...echo });
   // What the hole came from: the fork's provenance fields, so "which shared canvas, card and version?" has one shape.
-  const canvas = CANVAS.test(row.app) ? await db.prepare('SELECT title FROM canvases WHERE org = ? AND name = ?').bind(row.org, row.app).first() : null;
-  const pinned = await linkSource(db, found);
-  const sharedName = sharedTitle(row, canvas?.title, pinned);
+  const { canvas, pinned, title: sharedName } = await board();
   const source = {
     resource_id: canvas ? row.app : (row.app.startsWith('repo-') && !pinned?.allowed ? null : row.app), board: row.board, board_id: row.id,
     title: sharedName, creator: null, share_url: linkPath(found, token), share_key: parent.app.slice('share:'.length),
@@ -411,7 +454,7 @@ async function startRabbitHole(req, env, token, body) {
     origin: { parent, origin_block_id: originId, origin_scene_id: origin.scene_id ?? null, origin_card_id: origin.card_id ?? null, origin_part_id: origin.part_id ?? null,
       origin_concept_ids: origin.concept_ids ?? [], selected_object: origin.selected_object ?? null, depth: origin.depth ?? null, level: 1 },
     return_point: { block_id: origin.root ? null : originId, part_id: origin.part_id ?? null, selected_object: origin.selected_object ?? null, inputs: null, input_revision: null, practice_open: false, pending_question: null, viewport: null },
-    source,
+    source, ...(step ? { learning_goal: step.learning_goal } : {}),
   };
   // The hole's first object: where it began, in words. Never a copy of the card.
   const anchor = { id: crypto.randomUUID(), type: 'explanation', dx: 0, dy: 0, title,
@@ -427,10 +470,10 @@ async function startRabbitHole(req, env, token, body) {
   } catch (error) {
     // A concurrent start from the same origin won the UNIQUE key: enter that one.
     const won = await existing();
-    if (won) return reply(won, 200, { existing: true });
+    if (won) return reply(won, 200, { existing: true, ...echo });
     return json({ error: `The Rabbit Hole could not be started: ${error.message}` }, 500);
   }
-  return reply({ child: name, title }, 201, { source });
+  return reply({ child: name, title }, 201, { source, ...echo });
 }
 
 // The owner of a board: someone with access to its app - or, for a canvas
@@ -531,6 +574,8 @@ export async function learnBoardsRoute(path, req, env) {
   if (holing) return req.method === 'POST' ? startRabbitHole(req, env, decodeURIComponent(holing[1]), await readBody(req)) : json({ error: 'Method not allowed' }, 405);
   const asking = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)\/ask$/);
   if (asking) return req.method === 'POST' ? askAboutShared(req, env, decodeURIComponent(asking[1])) : json({ error: 'Method not allowed' }, 405);
+  const hooking = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)\/next-steps$/);
+  if (hooking) return req.method === 'POST' ? nextStepsAboutShared(req, env, decodeURIComponent(hooking[1])) : json({ error: 'Method not allowed' }, 405);
   const shared = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)$/);
   if (shared) {
     const token = decodeURIComponent(shared[1]);

@@ -39,6 +39,7 @@ import { architectureLesson, sampleCourse } from './learn-preview.js';
 import { BOARDS, BOARD_SEED_VERSIONS } from './demo-scenes.js';
 import { DiveNavigator, DivePortals, holeApp, useDive, usePendingHole } from './Dive.jsx';
 import { useTutor } from './LearnTutor.jsx';
+import { registeredCourse } from './learn-tutor-domains.js';
 import { inJourneySetup, journeyDiveContext, useJourney } from './LearnJourney.jsx';
 import { pathEntries } from './learn-journey.js';
 import { useVoiceSession } from './LearnVoice.jsx';
@@ -71,7 +72,8 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
   const [courseView, setCourseView] = useState(false);
   // The canonical NanoGPT course is product content, so it ships wherever Rabbit Hole does (VITE_RABBIT_HOLE in
   // production, VITE_COACHING_DEV in dev/review), not only in the dev build; the dev tools stay behind their own gates.
-  const suppliedCourse = learnPreview && app.repo === 'karpathy/nanoGPT';
+  // Which app is that course is registry data (learn-tutor-domains.js, capabilities.suppliedCourse), never a name here.
+  const suppliedCourse = learnPreview && !!registeredCourse({ app })?.capabilities?.suppliedCourse;
   const nanoProgress = useNanoProgress(app, suppliedCourse);
   const canAuthor = canEditCourse(course.canAuthor, suppliedCourse);
   const [lessonSource, setLessonSource] = useState(null);
@@ -552,10 +554,11 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
   // on a pending hole, which has no canvas row yet.
   const journey = useJourney({ app, board: boardName, access: askScope, canvasApi, enabled: learnPreview && isCanvas && !hole });
   // Tutor v1 on the NanoGPT Attention slice and its holes (LearnTutor.jsx).
-  // The composer is the Tutor on the supplied NanoGPT course (owner, 2026-10-04), and in the Rabbit Holes under it. On a
+  // The composer is the Tutor on a registered course with a Tutor (learn-tutor-domains.js; the supplied NanoGPT course,
+  // owner 2026-10-04) when this is the app's own canvas, and in the Rabbit Holes under it. On a
   // canvas with a live journey it is Tutor v2 with the journey domain, for typed and voice turns and the follow-ups typed
   // in a canvas block (renderBlockComposer), with that block as the target (LP1 Task 12, D1, D6).
-  const tutor = useTutor({ app, board: boardName, access: askScope, canvasApi, canvasState, dive, on: suppliedCourse && !board, journey });
+  const tutor = useTutor({ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey });
   // The path rail's upcoming section whose purpose is open (a click on it never generates anything, §8).
   const [openEntry, setOpenEntry] = useState(null);
   // The board path whose saved board the canvas holds: the server's copy may replace this browser's (canvasEpoch) when

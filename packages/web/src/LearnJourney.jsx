@@ -29,7 +29,18 @@ export function routeJourneyTurn(raw, tray, resolveRules = interactionInterpreta
   return resolveRules(raw, tray) || { kind: tray ? 'needs_model' : 'unrelated_question' };
 }
 
-// The Learn composer starts a journey (§6.1) only on a canvas with no live journey (no journeyStarter) and no Tutor.
+// The text the journey start reads (learn-journey.js start runs journeyIntent): a start request as it is, a bare topic as
+// Teach me <topic>. Used for a typed topic tray answer and for the Tutor's Start a learning path chip (Task 11b fix round 2).
+export const startRequest = text => { const it = journeyIntent(text); return STARTS.has(it.kind) && it.topic ? text : `Teach me ${text}`; };
+
+// The Learn composer starts a journey (§6.1) from these word rules only on a canvas with no live journey (no journeyStarter) and
+// no Tutor. Task 11b fix B1 and fix round 2 (owner fourteenth message: routing is never keyword-based): where a Tutor is active
+// - every canvas since 11b but a registered entry that refuses it - no word rule takes a Tutor turn to start or switch a
+// journey (here, nor handleText's second-broad-intent check, which skips Tutor turns); the Auto Tutor may offer a learning path
+// instead (suggest_journey, a chip whose click calls the same journey start). Revert, all three steps: (1) here, let a
+// plain-canvas Tutor through - (!tutor || tutor.plain === true) - and give useTutor's active return plain: context?.source ===
+// 'canvas' again; (2) in LearnTutor.jsx turn(), call live.handleText(raw, { answerProbe }) without tutor: true; (3) optionally
+// drop journeyOffer from LearnTutor.jsx turnOffers.
 export const journeyStartsHere = (raw, { tutor = null, journeyStarter = null } = {}) => !tutor && !!journeyStarter && STARTS.has(journeyIntent(raw).kind);
 
 // Before the path is accepted the canvas gets no permanent card (controller ruling, LP1): a turn the Tutor answers on a
@@ -293,8 +304,7 @@ export function journeyController({ where, fetchJson: send, onChange = () => {},
     if (t?.id === 'clarification:topic') {
       // ponytail: the topic is joined to the setup-skip the learner typed so journeyIntent reads one fast start
       // ("Teach me SQL. Skip setup and start"); a topic field on `start` if the stored request must stay verbatim.
-      const it = journeyIntent(text), topic = STARTS.has(it.kind) && it.topic ? text : `Teach me ${text}`;
-      const out = await start(`${topic}. ${t.text}`);
+      const out = await start(`${startRequest(text)}. ${t.text}`);
       return { ...out, ok: !out.failed };
     }
     if (t?.mode === 'intent_intake' && t.free_text) return act({ action: 'intake_answer', slot: t.slot, text: text.slice(0, 300) });
@@ -361,14 +371,16 @@ export function journeyController({ where, fetchJson: send, onChange = () => {},
   // (its Answer the question and Continue answer the probe with the same words). While an action or a materialization
   // runs, a turn is refused (its words come back; a spoken one says nothing): a voice turn has no composer guard, and a
   // second post would answer the same step twice.
-  const handleText = async (raw, { answerProbe = null } = {}) => {
+  // tutor (Task 11b fix round 2): the turn is the Tutor's (LearnTutor.jsx), so no word rule turns it into continue-or-start; tray
+  // answers inside an open tray (rules 1-4, then the model's rule 5) stay the v1 interaction for the question the tray asked.
+  const handleText = async (raw, { answerProbe = null, tutor = false } = {}) => {
     if (s.busy) return { handled: true, failed: true };
     // Final review B-I2: a tray dismissed by a cancel the journey could not take (path review) is back for the next turn,
     // so the journey resumes after it (D6) and Start is never hidden for the session.
     set({ error: kept(), dismissed: null });
     if (answerProbe) s.answerProbe = answerProbe;
-    const t = open(), j = s.data.journey, it = journeyIntent(raw);
-    if (j && STARTS.has(it.kind) && it.topic) {
+    const t = open(), j = s.data.journey, it = tutor ? null : journeyIntent(raw);
+    if (j && it && STARTS.has(it.kind) && it.topic) {
       set({ local: liveJourneyTray(j, raw, t?.id === 'clarification:live' ? t.under : t) });
       return { handled: true };
     }
