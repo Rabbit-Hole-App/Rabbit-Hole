@@ -179,7 +179,9 @@ export function stoppingPoint({ busy = false, journey = null, store = null, here
 // after the last change (an implementation default), one request in flight, never two requests for one basis, nothing while
 // stopped (a Tutor turn waits until it ends), and a per-tab safety ceiling, not a target: the server limits stay authoritative.
 // Each basis keeps its one outcome ({ set } or { failed: 'failed' | 'limited' }), so returning to a basis shows its outcome
-// again: a reply that landed after its basis was left is shown, with onSet and its hooks, only when that basis returns.
+// again. Two roles: onSet(set, input, trim, { discarded }) records every set once as it lands, for any basis (discarded when
+// its basis moved on first), so the trace sees each recomputation; previous.hooks, the no-repeat memory, grows only when a set
+// is actually shown (ready for the current basis with no stop), which for a discarded set means when its basis returns.
 // input(previous) has nextStepsInput's shape: { input, trim } posts input and hands trim to onSet beside it, never inside it;
 // { problem } is failed and posts nothing. Hooks are kept as opaque strings for previous, never read. A throwing onSet or
 // subscriber is swallowed and counted like a trace sink error.
@@ -199,13 +201,12 @@ export function nextStepsController({ post, onSet = () => {}, setTimer = setTime
       : requests >= cap && flying !== basis ? unavailable('limited') : shown ? showing('stale', shown) : { status: 'loading', reason: null, ...empty };
   };
   let told = JSON.stringify(view());
-  // A set is shown the first time it is ready: then it becomes the stale fallback, its hooks join previous and onSet runs.
+  // A set is shown the first time it is ready: then it becomes the stale fallback and its hooks join previous.
   const sync = () => {
     const entry = outcomes.get(basis);
     if (!stop && entry?.set && !entry.shown) {
       entry.shown = true; shown = entry.set;
       previous.hooks = [...previous.hooks, ...entry.set.options.map(o => o.hook)].slice(-L.previous_hooks);
-      safely(() => onSet(entry.set, entry.input, entry.trim));
     }
     const text = JSON.stringify(view());
     if (text !== told) { told = text; listeners.forEach(fn => safely(fn)); }
@@ -219,19 +220,20 @@ export function nextStepsController({ post, onSet = () => {}, setTimer = setTime
     timer = null;
     if (disposed || stop || !basis || flying !== null || outcomes.has(basis)) return;
     const sent = basis;
-    let outcome;
+    let outcome, built = {};
     try {
-      const { input, trim, problem } = build(copy());
-      if (problem) outcome = { failed: 'failed' };
+      built = build(copy());
+      if (built.problem) outcome = { failed: 'failed' };
       else {
         flying = sent; requests += 1;
-        const got = await post(input);
-        outcome = Array.isArray(got?.options) && got.options.length === L.options ? { set: got, input, trim } : { failed: 'failed' };
+        const got = await post(built.input);
+        outcome = Array.isArray(got?.options) && got.options.length === L.options ? { set: got } : { failed: 'failed' };
       }
     } catch (error) { outcome = { failed: error?.status === 429 ? 'limited' : 'failed' }; }
     flying = null;
     if (disposed) return;
     outcomes.set(sent, outcome);
+    if (outcome.set) safely(() => onSet(outcome.set, built.input, built.trim, { discarded: sent !== basis }));
     // Settled requests never pass the cap, so only failed builds (no request) can; then the oldest other basis goes.
     // ponytail: a basis that old could be built again if it returned; keep failed builds apart if that ever matters.
     if (outcomes.size > cap) outcomes.delete([...outcomes.keys()].find(k => k !== basis));

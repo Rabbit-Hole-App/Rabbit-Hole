@@ -355,3 +355,11 @@ test('hooksEvent: the trim counts at runtime.planner_input, picked field by fiel
   assert.deepEqual(hooksEvent(SET, { input: INPUT, trim: { before: { block_count: 1, claim_count: 1 } } }).runtime.planner_input,
     { before: { block_count: 1, claim_count: 1 }, after: { block_count: null, claim_count: null }, trimmed: { block_count: null, claim_count: null }, current_section_claims_kept: null, repair_claims_kept: null });
 });
+
+// Fix round 1b (owner: all 3 hooks at every recomputation): a set whose basis moved on before it landed is still recorded, flagged.
+test('hooksEvent: a discarded set keeps the same keys, all three hooks, and the flag discarded after cached', () => {
+  const e = hooksEvent(SET, { input: INPUT, discarded: true });
+  assert.deepEqual([Object.keys(e), e.flags, e.decision.next_step_options.length], [KEYS, ['discarded'], 3]);
+  assert.deepEqual(hooksEvent({ ...SET, telemetry: { ...SET.telemetry, cached: true } }, { input: INPUT, discarded: true }).flags, ['cached', 'discarded']);
+  assert.deepEqual(hooksEvent(SET, { input: INPUT, discarded: false }).flags, []);
+});

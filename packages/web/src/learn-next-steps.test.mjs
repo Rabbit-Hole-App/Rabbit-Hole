@@ -495,7 +495,7 @@ const setFor = (n = 1) => ({ set_id: `ns_0000000${n}`, generated_at: 'g', option
 const TRIM = { before: { block_count: 9, claim_count: 14 }, after: { block_count: 6, claim_count: 12 }, trimmed: { block_count: 3, claim_count: 2 }, current_section_claims_kept: true, repair_claims_kept: null };
 // The input builder has the nextStepsInput shape: { input, trim } or { problem }.
 const input = previous => ({ input: { previous }, trim: TRIM });
-function rig(replies, over = {}) { const c = clock(), bodies = [], sets = [], landed = []; const ctl = nextStepsController({ post: async body => { bodies.push(body); const r = replies.shift(); if (r instanceof Error) throw r; return r; }, onSet: (s, body, trim) => { sets.push(s.set_id); landed.push({ body, trim }); }, setTimer: c.setTimer, clearTimer: c.clearTimer, ...over }); return { c, ctl, bodies, sets, landed }; }
+function rig(replies, over = {}) { const c = clock(), bodies = [], sets = [], landed = []; const ctl = nextStepsController({ post: async body => { bodies.push(body); const r = replies.shift(); if (r instanceof Error) throw r; return r; }, onSet: (s, body, trim, how) => { sets.push(s.set_id); landed.push({ body, trim, ...how }); }, setTimer: c.setTimer, clearTimer: c.clearTimer, ...over }); return { c, ctl, bodies, sets, landed }; }
 
 // Owner test 13: a stale set is replaced after a meaningful interaction.
 test('debounce 1200 ms, loading, ready; a basis change marks it stale at once, then replaces it', async () => {
@@ -586,7 +586,7 @@ test('input_too_large: unavailable failed and nothing posted; trim counts reach 
   ctl.update({ basis: 'b', stop: null, input });
   await c.fire();
   assert.deepEqual([ctl.view().status, bodies.length], ['ready', 1]);
-  assert.deepEqual(landed, [{ body: { previous: { hooks: [], goals: [] } }, trim: TRIM }]);
+  assert.deepEqual(landed, [{ body: { previous: { hooks: [], goals: [] } }, trim: TRIM, discarded: false }]);
   assert.equal('trim' in bodies[0], false);
   ctl.update({ basis: 'a', stop: null, input });
   assert.deepEqual([ctl.view().status, ctl.view().reason, c.pending(), bodies.length], ['unavailable', 'failed', 0, 1], 'back to the failed build: shown again, never rebuilt');
@@ -626,31 +626,46 @@ test('a planner failure shows nothing (failed); no timers after dispose', async 
 });
 
 // Fix round 1: one outcome per basis, so returning to a basis already asked shows its outcome and never sticks.
-test('P1: a reply discarded while its basis was left is shown, with onSet and its hooks, when that basis returns', async () => {
+// Fix round 1b: onSet fires once at landing for any basis (discarded when the basis moved on); hooks join previous only when shown.
+test('P1: a reply discarded while its basis was left fires onSet once, discarded, and is shown with its hooks when that basis returns', async () => {
   let release; const slow = new Promise(r => { release = r; });
-  const { c, ctl, bodies, sets } = rig([slow]);
+  const { c, ctl, bodies, sets, landed } = rig([slow]);
   ctl.update({ basis: 'a', stop: null, input });
   const first = c.fire();
   ctl.update({ basis: 'b', stop: null, input });
   release(setFor(1)); await first;
-  assert.deepEqual([ctl.view().status, sets, ctl.previous().hooks, c.pending()], ['loading', [], [], 1], 'stored, not shown');
+  assert.deepEqual([ctl.view().status, sets, landed.map(l => l.discarded), ctl.previous().hooks, c.pending()], ['loading', ['ns_00000001'], [true], [], 1], 'recorded at landing, stored, not shown');
   ctl.update({ basis: 'a', stop: null, input });
-  assert.deepEqual([ctl.view().status, ctl.view().set_id, sets, c.pending(), bodies.length], ['ready', 'ns_00000001', ['ns_00000001'], 0, 1]);
+  assert.deepEqual([ctl.view().status, ctl.view().set_id, sets, c.pending(), bodies.length], ['ready', 'ns_00000001', ['ns_00000001'], 0, 1], 'onSet never fires twice');
   assert.deepEqual(ctl.previous().hooks, setFor(1).options.map(o => o.hook));
 });
 
 test('P2: back to a ready basis while another flies, then forward again: each shows its own set, never stuck stale', async () => {
   let release; const slow = new Promise(r => { release = r; });
-  const { c, ctl, bodies, sets } = rig([setFor(1), slow]);
+  const { c, ctl, bodies, sets, landed } = rig([setFor(1), slow]);
+  const hooks = n => setFor(n).options.map(o => o.hook);
   ctl.update({ basis: 'a', stop: null, input }); await c.fire();
   ctl.update({ basis: 'b', stop: null, input });
   const second = c.fire();
   ctl.update({ basis: 'a', stop: null, input });
   assert.deepEqual([ctl.view().status, ctl.view().set_id, ctl.select('ns_00000001.1').ok], ['ready', 'ns_00000001', true]);
   release(setFor(2)); await second;
-  assert.deepEqual([ctl.view().set_id, sets, c.pending()], ['ns_00000001', ['ns_00000001'], 0]);
+  assert.deepEqual([ctl.view().set_id, sets, landed.map(l => l.discarded), ctl.previous().hooks, c.pending()], ['ns_00000001', ['ns_00000001', 'ns_00000002'], [false, true], hooks(1), 0], 'the discarded set never joins previous unshown');
   ctl.update({ basis: 'b', stop: null, input });
   assert.deepEqual([ctl.view().status, ctl.view().set_id, sets, c.pending(), bodies.length], ['ready', 'ns_00000002', ['ns_00000001', 'ns_00000002'], 0, 2]);
+  assert.deepEqual(ctl.previous().hooks, [...hooks(1), ...hooks(2)]);
+});
+
+test('a set landing during a stop fires onSet once, not discarded, and joins previous only when shown', async () => {
+  let release; const slow = new Promise(r => { release = r; });
+  const { c, ctl, sets, landed } = rig([slow]);
+  ctl.update({ basis: 'a', stop: null, input });
+  const first = c.fire();
+  ctl.update({ basis: 'a', stop: 'not_now', input });
+  release(setFor(1)); await first;
+  assert.deepEqual([ctl.view().status, sets, landed.map(l => l.discarded), ctl.previous().hooks], ['unavailable', ['ns_00000001'], [false], []]);
+  ctl.update({ basis: 'a', stop: null, input });
+  assert.deepEqual([ctl.view().status, sets, ctl.previous().hooks], ['ready', ['ns_00000001'], setFor(1).options.map(o => o.hook)]);
 });
 
 test('P3: a limited basis stays limited when it returns and is never asked again; the next change asks', async () => {
