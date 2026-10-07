@@ -82,13 +82,15 @@ async function readBody(req) {
 function stateText(state) {
   if (!state || typeof state !== 'object' || Array.isArray(state)) return { error: 'state must be a board object' };
   const text = JSON.stringify(state);
-  return text.length > MAX_STATE ? { error: 'This board is too large to share (over 1.9 MB). Remove large images or outputs and try again.', status: 413 } : { text };
+  // Every owned board is saved here (docs/features/canvas-persistence.md), so the refusal says where the board still is.
+  return text.length > MAX_STATE ? { error: 'This board is over 1.9 MB, so it was not saved to your account and stays only in this browser. Remove large images or outputs to save it.', status: 413 } : { text };
 }
 
 const ownerRow = (env, owner, app, board) => env.LEARN_DB.prepare('SELECT * FROM learn_boards WHERE org = ? AND owner_email = ? AND app = ? AND board = ?').bind(owner.org, owner.email, app, board).first();
 
-// Save the owner's board. A stale version (someone with the edit link saved
-// since) is refused with the newer version, never overwritten.
+// Save the owner's board: every owned board, shared or not, is canonical here (docs/features/canvas-persistence.md).
+// A stale version (another tab or device saved since; 0 when the browser saw no copy) is refused with the newer
+// version, never overwritten.
 async function saveOwn(env, owner, app, board, body) {
   const state = stateText(body?.state);
   if (state.error) return json({ error: state.error }, state.status || 400);
