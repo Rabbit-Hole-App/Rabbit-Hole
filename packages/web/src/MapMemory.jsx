@@ -1,14 +1,13 @@
 import { Layers } from 'lucide-react';
 import { Button, cn, Pill } from './ui.jsx';
-import { memoryFor, STARTERS, titleOfRecord, WHY } from './map-memory.js';
+import { STARTERS, titleOfRecord } from './map-memory.js';
 
-// The Map's work-memory UI (WP6 checkpoint 2): the Layers row, a code node's Why / Questions / Sessions, one
-// decision/question/session record, and the onboarding starters. Records exist only as labelled preview fixtures
+// The Map's work-memory UI (WP6 checkpoint 2): the Layers row, one decision/question/session record, and the onboarding
+// starters (a code node's decisions, questions and sessions show in its inspector, MapInspector.jsx). Records exist only as labelled preview fixtures
 // (map-memory-data.js); without them every section says what is not recorded. Nothing here has a text input:
 // questions go through the Mothership (AgentBar's small:bar-ask), which answers an exact fixture prompt locally.
 export const FIXTURE = 'Fixture · UI preview';
 export const askBar = (text) => window.dispatchEvent(new CustomEvent('small:bar-ask', { detail: { text } }));
-const HEAD = 'pt-4 pb-1 text-xs font-medium text-ink-2';
 const ROW = 'w-full cursor-pointer rounded-sm px-1.5 py-1 text-left text-sm hover:bg-hover';
 const CHIP = 'cursor-pointer rounded-md border border-line px-2 py-0.5 text-xs hover:bg-hover';
 const LAYERS = [['decisions', 'Decisions'], ['questions', 'Questions'], ['sessions', 'Sessions']];
@@ -25,25 +24,6 @@ export function LayersRow({ memory, layers, onToggle }) {
         className={cn('h-7 rounded-md border px-2', !n ? 'border-line text-ink-3' : layers.has(key) ? 'cursor-pointer border-accent bg-accent/10 text-ink' : 'cursor-pointer border-line text-ink-2 hover:bg-hover')}>{name}{n ? ` ${n}` : ''}</button>;
     })}
     {memory && <Pill>{FIXTURE}</Pill>}
-  </div>;
-}
-
-// A selected code node: Why (its decisions), prior Questions, relevant Sessions. Counts are not popularity.
-export function MemorySections({ node, memory, onPick }) {
-  const m = memory && memoryFor(memory, node.id), link = (r) => r.code.find((c) => c.id === node.id);
-  const section = (key, title, list, empty, row) => <section data-memory-section={key} data-count={list.length} aria-label={title}>
-    <h3 className={HEAD}>{title}{m ? ` (${list.length})` : ''}</h3>
-    {list.length ? <ul>{list.map((r) => <li key={r.id}>{row(r)}</li>)}</ul> : <p className="px-1.5 text-sm text-ink-3">{empty}</p>}
-  </section>;
-  return <div className="mt-2">
-    {m && <Pill className="mt-2">{FIXTURE}</Pill>}
-    {section('why', 'Why', m?.decisions || [], 'No recorded project decision explains this code yet.', (d) =>
-      <button type="button" className={ROW} onClick={() => onPick(d.id)}>{d.title} <span className="text-xs text-ink-3">{strength(link(d))}</span></button>)}
-    <Button size="sm" variant="secondary" className="mt-1.5" onClick={() => askBar(WHY)}>{WHY}</Button>
-    {section('questions', 'Questions', m?.questions || [], 'No questions recorded yet.', (q) =>
-      <button type="button" className={ROW} onClick={() => askBar(q.question)}>{q.question} {!q.resolved && <span className="text-xs text-ink-3">Not resolved</span>}</button>)}
-    {section('sessions', 'Sessions', m?.sessions || [], 'No sessions recorded yet.', (s) =>
-      <button type="button" className={ROW} onClick={() => onPick(s.id)}>{s.title} <span className="text-xs text-ink-3">{s.at}</span></button>)}
   </div>;
 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { Loader2, MessageSquare, Plus, SquareSlash, X } from 'lucide-react';
-import ChatComposer, { COMPOSER_ADD, COMPOSER_PILL, DOCK_PAD, DOCK_WIDTH } from '../ChatComposer.jsx';
+import { ChevronRight, Loader2, MessageSquare, Plus, SquareSlash, X } from 'lucide-react';
+import ChatComposer, { COMPOSER_ADD, COMPOSER_PILL, DOCK_PAD } from '../ChatComposer.jsx';
 import { api, navigate } from '../api.js';
 import { START_PATHS, slugOf } from '../start.js';
 import { PATH_ICONS } from '../start-icons.js';
@@ -18,7 +18,7 @@ import ResultSheet from './ResultSheet.jsx';
 import BarCommandsSheet from './BarCommandsSheet.jsx';
 import { placeOf } from './slash.js';
 import { route } from './router.js';
-import { chipsFor, endpointFor, scopeKey, scopeOf } from './scope.js';
+import { chipsFor, contextWithout, endpointFor, scopeKey, scopeOf } from './scope.js';
 import { getSurface, useSurface } from './surface.js';
 
 const nameOf = (scope) => labelOf(scope);
@@ -101,6 +101,9 @@ export default function AgentBar({ page }) {
     inputRef.current?.focus();
   };
   const [adding, setAdding] = useState(false); // the [+] Add menu
+  // The activity row (workspace-dock §14): background work the learner can keep typing through - this bar's own answer and
+  // what the page publishes (surface.activity, e.g. a repository being read). × hides a line until its text changes.
+  const [hiddenWork, setHiddenWork] = useState(() => new Set());
 
   // Pages pad their <main> by the bar's height (index.css); 0 while hidden.
   useEffect(() => {
@@ -410,11 +413,23 @@ export default function AgentBar({ page }) {
     switchTo(scopeOf(widen(surface, next)), false);
     setRemoved(next);
   };
+  // Below the resource, the page owns the context (RepositoryPage setContext): × steps up one level there, so the
+  // inspector's In context and these chips read one state (workspace-dock.md, the context contract).
+  const remove = (chip) => {
+    const setContext = surface.handlers?.setContext;
+    if (chip === 'resource' || !setContext) return widenTo(chip === 'resource' ? 'resource' : 'selected');
+    const next = contextWithout(target.selected, chip);
+    switchTo({ ...target, selected: next }, false);
+    setContext(next);
+  };
+  const work = [...(streaming ? [{ id: 'answer', label: `Answering in ${streaming}…` }] : []), ...(surface.activity || [])].filter((a) => !hiddenWork.has(`${a.id}:${a.label}`));
   return (
     <div ref={root} data-agent-bar onKeyDown={onKeyDown}
-      className={cn('fixed right-0 bottom-0 left-0 z-20 transition-[left] duration-200 md:left-[var(--sidebar-w,0px)]', DOCK_PAD, 'bg-linear-to-t from-white from-70% to-white/0')}>
+      className={cn('fixed right-0 bottom-0 left-0 z-20 border-t border-line bg-white transition-[left] duration-200 md:left-[var(--sidebar-w,0px)]', DOCK_PAD)}>
+      {/* The workspace dock (owner, 2026-10-06 §1-2, §11): chrome across the whole workspace, sidebar edge to window edge, under
+          the page and its inspector, which end at its top edge (index.css pads main by --agent-bar-h). No float, no gradient. */}
       {sheet && !panelHosts(surface, sheet) && <ResultSheet key={resultsKey(sheet)} scope={sheet} label={nameOf(sheet)} onClose={() => setSheet(null)} />}
-      <div ref={dock} className={cn('relative', DOCK_WIDTH)}>
+      <div ref={dock} className="relative w-full">
         {pickerOpen && (
           <div role="listbox" aria-label="Modes" className="absolute bottom-full left-0 z-10 mb-1 w-[26rem] max-w-full rounded-md bg-white p-1 shadow-pop">
             {/* Every command with an example, one click from the picker (owner, 2026-10-04), as on the canvas. */}
@@ -438,12 +453,13 @@ export default function AgentBar({ page }) {
           </div>
         )}
         {commandsOpen && <BarCommandsSheet modes={modesFor(target)} shortcuts={shortcutsFor(target, surface.catalog)} place={placeOf(target) === 'project' ? 'project' : 'home'} onClose={() => { setCommandsOpen(false); inputRef.current?.focus(); }} />}
-        {streaming && (
-          <div role="status" className="flex items-center gap-2 pb-1.5 text-xs text-ink-2">
-            <Loader2 size={13} className="shrink-0 animate-spin" />
-            <span className="min-w-0 flex-1 truncate">Answering in {streaming}…</span>
+        {work.map((a) => (
+          <div key={a.id} role="status" data-activity={a.id} className="flex h-6 items-center gap-2 text-xs text-ink-2">
+            <Loader2 size={13} className="shrink-0 animate-spin text-ink-3" />
+            <span className="min-w-0 truncate">{a.label}</span>
+            <button type="button" aria-label={`Hide ${a.label}`} title="Hide" onClick={() => setHiddenWork((h) => new Set(h).add(`${a.id}:${a.label}`))} className="shrink-0 cursor-pointer rounded-full p-0.5 text-ink-3 hover:bg-hover hover:text-ink"><X size={11} /></button>
           </div>
-        )}
+        ))}
         {offer && (
           <div role="status" className="flex flex-wrap items-center gap-2 pb-1.5 text-xs text-ink-2">
             {offer === 'resource' && <span>you're now viewing {nameOf(live)}</span>}
@@ -453,17 +469,21 @@ export default function AgentBar({ page }) {
             <Button size="sm" onClick={() => setKept(scopeKey(live))}>Keep {nameOf(target)}</Button>
           </div>
         )}
+        {/* Context reads repository › file › symbol (§3); each chip comes off alone, one level at a time. */}
         {chips.length > 0 && (
-          <div data-scope-chips className="flex flex-wrap gap-1.5 pb-1.5">
-            {chips.map((chip) => (
-              <span key={chip.key} data-scope-chip={chip.key} className="inline-flex h-6 max-w-full items-center gap-1 rounded-full bg-hover pr-1.5 pl-2.5 text-xs text-ink">
-                <span className="truncate">{chip.label}</span>
-                {own && <button type="button" aria-label={`Remove ${chip.label}`} onClick={() => widenTo(chip.key)} className="shrink-0 cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button>}
+          <div data-scope-chips className="flex flex-wrap items-center gap-1 pt-1 pb-1.5">
+            {chips.map((chip, i) => (
+              <span key={chip.key} className="contents">
+                {i > 0 && <ChevronRight size={12} aria-hidden="true" className="shrink-0 text-ink-3" />}
+                <span data-scope-chip={chip.key} title={chip.title} className="inline-flex h-6 max-w-full items-center gap-1 rounded-full bg-hover pr-1.5 pl-2.5 text-xs text-ink">
+                  <span className="truncate">{chip.label}</span>
+                  {own && <button type="button" aria-label={`Remove ${chip.label}`} onClick={() => remove(chip.key)} className="shrink-0 cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button>}
+                </span>
               </span>
             ))}
           </div>
         )}
-        <ChatComposer multiline dock value={draft} onStop={() => abort.current?.abort()}
+        <ChatComposer multiline dock flat value={draft} onStop={() => abort.current?.abort()}
           onChange={(value) => { setDrafts((d) => new Map(d).set(targetKey, value)); setHeld(target); setPicker(mode === 'auto' && modeQuery(value) !== null); }}
           onSubmit={(raw) => { if (pickerOpen) return pick(entries[hiIndex]); if (!shortcut) return submit(raw); setShortcut(null); return submit(`/${shortcut} ${raw}`.trim()); }} inputRef={inputRef} busy={!!streaming} maxLength={4000} placeholder={placeholderFor(target, surface)}
           leading={<>

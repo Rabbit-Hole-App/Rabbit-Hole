@@ -6,11 +6,12 @@ import { endpointFor } from './scope.js';
 const EVENTS = new Set(['chunk', 'progress', 'graph', 'proposal', 'papers', 'paper', 'wiki', 'video', 'outline', 'done', 'error']);
 
 // The body ask.jsx:466-485 builds for these scopes. A project question carries the selected
-// node and the commit it was selected on; the server 409s a mismatched thread (repositories.js:177).
+// node (or a whole file, by path) and the commit it was selected on; the server 409s a mismatched thread (repositories.js:177).
 export function askBody({ scope, message, threadId = null, model = 'auto' }) {
+  const s = scope.selected;
   return {
     scope: endpointFor(scope).scope,
-    ...(scope.kind === 'project' && scope.selected ? { repository_context: { commit: scope.selected.commit, nodeId: scope.selected.id, label: scope.selected.label } } : {}),
+    ...(scope.kind === 'project' && s ? { repository_context: { commit: s.commit, ...(s.kind === 'file' ? { path: s.path } : { nodeId: s.id }), label: s.label } } : {}),
     message,
     thread_id: threadId,
     ...(model !== 'auto' ? { model } : {}),

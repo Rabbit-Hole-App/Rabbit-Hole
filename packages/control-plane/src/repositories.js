@@ -211,10 +211,13 @@ async function repositoryAsk(req,env,user,app){
   let thread=body.thread_id?await db.prepare('SELECT * FROM threads WHERE id=? AND org=? AND user=? AND scope_ref=?').bind(body.thread_id,user.org,user.email,app.name).first():null;
   if(body.thread_id&&!thread)return json({error:'Chat not found'},404);
   const commit=thread?.commit_sha||body.repository_context?.commit||app.commit_sha;
-  if(thread&&(body.repository_context?.nodeId||body.repository_context?.range)&&body.repository_context?.commit!==commit)return json({error:'This chat uses an earlier commit. Start a new chat to ask about the selected code.'},409);
+  if(thread&&(body.repository_context?.nodeId||body.repository_context?.range||body.repository_context?.path)&&body.repository_context?.commit!==commit)return json({error:'This chat uses an earlier commit. Start a new chat to ask about the selected code.'},409);
   const snapshot=await repositorySnapshot(env,app,commit);
   const selected=body.repository_context?.nodeId?repositoryTool(snapshot,'get_relationships',{nodeId:body.repository_context.nodeId}):null;
   const selectedCode=body.repository_context?.range?repositoryTool(snapshot,'read_source',body.repository_context.range):null;
+  // A whole file in the composer's context (workspace-dock.md): its opening lines and length, never a line selection, so no
+  // 'Selected code' suffix is stored with the question; the model reads further with read_source.
+  const selectedFile=!selected&&!selectedCode&&typeof body.repository_context?.path==='string'?repositoryTool(snapshot,'read_source',{path:body.repository_context.path}):null;
   let graphView=null;
   // The video-moment tools ride here too: a repository canvas is the main
   // Learn surface, and the show_video bargain is the same on it - a window
@@ -249,7 +252,7 @@ async function repositoryAsk(req,env,user,app){
   const id=thread?.id||`repochat-${crypto.randomUUID()}`;
   if(!thread)await db.prepare('INSERT INTO threads(id,org,user,scope_ref,commit_sha,title) VALUES(?,?,?,?,?,?)').bind(id,user.org,user.email,app.name,commit,body.message.slice(0,120)).run();
   const history=await threadTurns(db,id,seed,question);
-  return askStream(env,appendCanvasTarget(appendOutline(JSON.stringify({repo:app.repo,commit,selected,selectedCode,lesson:body.lesson_snapshot||null,paper:null,...source,...(mentioned.length?{mentionedRepositories:mentioned}:{})})+notRead.map(line=>`\n\n${line}`).join(''),body.outline),canvasTarget),history,question,
+  return askStream(env,appendCanvasTarget(appendOutline(JSON.stringify({repo:app.repo,commit,selected,selectedCode,...(selectedFile?{selectedFile}:{}),lesson:body.lesson_snapshot||null,paper:null,...source,...(mentioned.length?{mentionedRepositories:mentioned}:{})})+notRead.map(line=>`\n\n${line}`).join(''),body.outline),canvasTarget),history,question,
     async answer=>{const message=await db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?) RETURNING id').bind(id,'assistant',answer).first();if(graphView)await db.prepare('INSERT INTO repository_message_graphs(message_id,graph_json) VALUES(?,?)').bind(message.id,JSON.stringify(graphView)).run();},{threadId:id,commit},extraBlocks,null,askModel(body.model),null,
     body.lesson_snapshot?LEARN_SNAPSHOT_SYSTEM:LEARN_SYSTEM,{papers,system:[REPOSITORY_SYSTEM,videos.system].filter(Boolean).join('\n'),tools:[...REPOSITORY_TOOLS,...videos.tools],runTool,getGraphView:()=>graphView,shownVideo:videos.shown,org:user.org});
 }

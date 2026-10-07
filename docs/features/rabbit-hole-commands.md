@@ -166,10 +166,15 @@ Learn keeps its own tutor conversation; it never gets the global Mothership or a
 | Frame, input, placeholder, focus, Send and Stop | `<ChatComposer dock multiline onStop={...}>`: about 66px desktop and 58px phone, `rounded-xl`, `border-line-strong`, `shadow-pop`, 36px Send that becomes Stop while busy |
 | `+` control (leading) | `COMPOSER_ADD` (36px square, `rounded-lg`, bordered; 32px wide on phones) |
 | Auto / mode control (leading, after `+`) | `COMPOSER_PILL` (36px high, `rounded-lg`, bordered, `text-sm`) |
-| Width | `DOCK_WIDTH`: centred, at most 780px |
+| Width | `DOCK_WIDTH`: centred, at most 780px (the Learn composer). The global dock spans the workspace instead (below) |
 | Footprint | `DOCK_PAD` on the strip under the composer, including the phone safe area |
 | Context | Pills such as "Asking about: CausalSelfAttention · 3adf61e" sit above the composer, like the Map scope chips; they never change its size |
 
 Phone order: canvas, then compact canvas controls (zoom, drawing), then the composer. Canvas controls sit
 above the composer's footprint or collapse; they never overlap it. The composer is never hidden to make room.
 Check: `wp6-composer-parity` in `packages/web/e2e/rabbit-hole-check.mjs` compares the two on the clone.
+
+Since 2026-10-06 the global composer is workspace chrome ([workspace-dock.md](workspace-dock.md)): it spans the
+workspace from the sidebar to the window edge and passes `flat`, a hairline shadow instead of `shadow-pop`. Height,
+radius, border, `+`, Auto and Send stay shared; the Learn composer keeps its float and width. `wp6-composer-parity`'s
+shadow comparison predates this and needs the same exception.

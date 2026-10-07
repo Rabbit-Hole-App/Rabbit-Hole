@@ -9,11 +9,23 @@ export function scopeOf(surface) {
 // Drafts are kept per org|kind:slug|selected. A rename or a new commit keeps the draft.
 export const scopeKey = (scope) => `${scope.org}|${scope.kind}:${scope.slug || ''}|${scope.selected?.id || ''}`;
 
+// A project's context reads repository › file › symbol (docs/features/workspace-dock.md). `selected` is a graph node
+// ({id, label, commit, path, line, kind}) or a whole file: kind 'file', id `file:<path>`, which no graph node stands for.
+const nameOf = (path) => path.split('/').pop();
+export const fileContext = (path, commit, line = 1) => ({ id: `file:${path}`, label: nameOf(path), kind: 'file', path, line, commit });
+// The file chip, when the selection is a symbol inside a file: a node named like its file is that file and shows once.
+const parentFile = (selected) => (selected && selected.kind !== 'file' && selected.path && nameOf(selected.path) !== selected.label ? selected.path : null);
+
 // Home, Library and Explore are places, not scope: they show no chip (T02 §6.2).
 export function chipsFor(scope) {
   if (scope.kind === 'workspace') return [];
-  return [{ key: 'resource', label: scope.title || scope.slug }, ...(scope.selected ? [{ key: 'selected', label: scope.selected.label }] : [])];
+  const s = scope.selected, file = parentFile(s);
+  return [{ key: 'resource', label: scope.title || scope.slug }, ...(file ? [{ key: 'file', label: nameOf(file), title: file }] : []), ...(s ? [{ key: 'selected', label: s.label }] : [])];
 }
+
+// × on a chip below the resource falls back one level and no further (owner, 2026-10-06 §3): a symbol to its file,
+// a file to the repository. Only the resource chip clears everything.
+export const contextWithout = (selected, key) => (key === 'selected' && parentFile(selected) ? fileContext(parentFile(selected), selected.commit) : null);
 
 // Workspace and app threads stay on /api/ask; projects and canvases use Learn's LEARN_DB threads (T02 §6.3).
 export function endpointFor(scope) {

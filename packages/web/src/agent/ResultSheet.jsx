@@ -38,7 +38,7 @@ function Results({ t }) {
 // The evidence hierarchy (WP6): recorded decision; recorded question/session; code/source; inferred; model explanation.
 const EVIDENCE = { decision: 'Recorded decision', question: 'Recorded question', session: 'Recorded session', code: 'Code evidence', inferred: 'Inferred relationship', model: 'Model explanation' };
 
-function Turn({ t, onFile = null }) {
+export function Turn({ t, onFile = null }) {
   if (t.kind === 'card') return <ConfirmCard card={t.card} onConfirm={t.confirm} onChange={t.change} onCancel={t.cancel} />;
   if (t.kind === 'results') return <Results t={t} />;
   if (t.kind === 'user') return <div className="flex justify-end"><div className="max-w-[85%] whitespace-pre-wrap rounded-lg bg-hover px-3 py-1.5 text-sm">{t.text}</div></div>;
@@ -104,6 +104,8 @@ export function ResultList({ scopeKey: key, onFile = null, tools = true }) {
   const turns = useTurns(key);
   const surface = useSurface();
   const live = scopeOf(surface);
+  // A page that can open a cited file (the Map's inspector) does so from the window over the bar too (workspace-dock.md).
+  const openFile = onFile || (resultsKey(live) === key && surface.handlers?.onFile) || null;
   const scope = turns[0]?.scope || (resultsKey(live) === key ? live : null);
   const path = scope && threadsPath(scope);
   const busy = turns.some((t) => t.kind === 'answer' && !t.done);
@@ -137,14 +139,14 @@ export function ResultList({ scopeKey: key, onFile = null, tools = true }) {
           <span className="min-w-0 flex-1 truncate">{t.title}</span>
           <span className="shrink-0 text-xs text-ink-3">{ago(t.created_at)}</span>
         </button>
-      )) : <p className="text-sm text-ink-3">No past chats.</p>) : turns.map((t) => <Turn key={t.id} t={t} onFile={onFile} />)}
+      )) : <p className="text-sm text-ink-3">No past chats.</p>) : turns.map((t) => <Turn key={t.id} t={t} onFile={openFile} />)}
     </div>
   );
 }
 
 // §6.5: grows upward from the bar with its content (a short answer is a compact card; a long one
 // scrolls inside 45vh, user 2026-09-28). Dragging sets a height; collapsing leaves the latest
-// result as one line in the bar.
+// result as one line in the bar. It centres over the workspace pane, never over an open inspector (--inspector-w, workspace-dock.md).
 export default function ResultSheet({ scope, label, onClose }) {
   const key = resultsKey(scope);
   const turns = useTurns(key);
@@ -154,7 +156,7 @@ export default function ResultSheet({ scope, label, onClose }) {
   const now = () => height ?? card.current.getBoundingClientRect().height;
   useEffect(() => { box.current.scrollTop = box.current.scrollHeight; }, [turns]);
   return (
-    <div data-result-sheet style={height ? { height } : undefined} className="absolute right-0 bottom-full left-0 px-4">
+    <div data-result-sheet style={height ? { height } : undefined} className="absolute right-[var(--inspector-w,0px)] bottom-full left-0 px-4">
       <div ref={card} className={cn('mx-auto flex max-w-[780px] flex-col rounded-t-xl border border-b-0 border-line bg-white shadow-pop', height ? 'h-full' : 'min-h-24 max-h-[45vh]')}>
         <div role="separator" aria-label="Resize results" aria-orientation="horizontal" tabIndex={0} title="Drag to resize"
           className="h-1.5 shrink-0 cursor-row-resize touch-none rounded-t-xl hover:bg-line-strong/70 focus-visible:bg-line"

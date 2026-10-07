@@ -9,7 +9,7 @@ import { exampleFor } from './agent/bar.js';
 import { SLASH } from './agent/slash.js';
 
 const read = name => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const page = read('RepositoryPage.jsx'), learn = read('LearnPage.jsx'), tutor = read('LearnTutor.jsx'), bar = read('agent/AgentBar.jsx'), md = read('ask.jsx');
+const page = read('RepositoryPage.jsx'), inspector = read('MapInspector.jsx'), learn = read('LearnPage.jsx'), tutor = read('LearnTutor.jsx'), bar = read('agent/AgentBar.jsx'), md = read('ask.jsx');
 
 test('a project is Map or Learn: no Overview, and the canvas has no Overview/Learn/Map pill', () => {
   assert.doesNotMatch(page, /Overview|value="overview"/);
@@ -37,22 +37,22 @@ test('the canvas has no Tutor or Practice button: the composer is the Tutor on t
   assert.match(learn, /const named = hole \|\| !reviewTools \? null : new URLSearchParams\(window\.location\.search\)\.get\('board'\);/);
 });
 
-test('the Map: details and layers behind icons, the side panel closed until used, tabs only when needed, outlined in use', () => {
+test('the Map: details and layers behind icons; the inspector closed until used, underline tabs only for a source, no outline (owner, 2026-10-06)', () => {
   assert.match(page, /data-repo-info aria-label="Repository details"/);
   assert.match(page, /<Menu open=\{infoOpen\}[\s\S]*?<SourceLink m=\{cardModel\(app\)\}\/>[\s\S]*?Refresh branch[\s\S]*?<\/Menu>/);
   assert.match(page, /data-map-layers-open aria-label="Layers"[\s\S]*?<Menu open=\{layersOpen\}[\s\S]*?className="[^"]*"><LayersRow /);
   assert.equal(page.match(/<LayersRow /g).length, 1, 'the layers row lives only in its menu');
   assert.match(page, /const \[panelOpen,setPanelOpen\]=useState\(false\)/);
   assert.match(page, /collapsed=\{!panelOpen\}/);
-  assert.match(page, /data-map-panel-close aria-label="Close the side panel"/);
+  assert.match(inspector, /data-map-panel-close aria-label="Close the inspector"/);
   assert.match(page, /\{!panelOpen&&<IconBtn data-map-panel-open aria-label="Open the side panel"/);
-  assert.match(page, /\{\(selected\|\|source\)&&<TabsList pill/);
-  assert.doesNotMatch(page, /disabled=\{!selected\}|disabled=\{!source\}/);
-  assert.match(page, /const inUse=panelOpen&&\(!!selected\|\|!!source\|\|busy\);/);
-  assert.match(page, /className=\{inUse\?'p-5 ring-2 ring-accent ring-inset':'p-5'\}/);
-  // What lands in the panel opens it: an answer, a node, a file, a cited source.
-  assert.match(page, /if\(pushed\)\{setView\('conversation'\);setPanelOpen\(true\);\}/);
-  assert.match(page, /<ResultList scopeKey=\{key\} tools=\{false\} onFile=\{\(path,line\)=>\{setSource\(\{path,line:line\|\|1\}\);[^}]*setPanelOpen\(true\);\}\}\/>/);
+  // Overview | Source as underline tabs, only when the object has a source; no pill tabs, no Selected or Conversation tab.
+  assert.match(inspector, /\{source && <TabsList className="-mx-4 mt-2 px-4"><TabsTrigger value="overview"[^>]*>Overview<\/TabsTrigger><TabsTrigger value="source"[^>]*>Source<\/TabsTrigger><\/TabsList>\}/);
+  assert.doesNotMatch(page + inspector, /TabsList pill className="mb-3|value="selected"|value="conversation"|ring-2 ring-accent/);
+  // A selection or a cited file opens it; answers land in the bar's own window, not here.
+  assert.match(page, /const inspect=\(object,show='overview'\)=>\{.*setPanelOpen\(true\);\};/);
+  assert.match(page, /function onFile\(filePath,line\)\{if\(snapshot\?\.files\.some\(f=>f\.path===filePath\)\)inspect\(fileObject\(snapshot\.graph,filePath,line\|\|1\),'source'\);\}/);
+  assert.doesNotMatch(page, /resultsHost|ResultList/);
 });
 
 test('an answer lists every cited file once, in order, including line lists written one per line', () => {
@@ -77,7 +77,7 @@ test('the main composer: the Auto picker opens a / commands sheet with an exampl
 });
 
 test('the Map node carried into Learn ("Asking about") has an x, as the Map chip does', () => {
-  assert.match(page, /<LearnPage app=\{app\} onGraph=\{showGraph\} onMap=\{\(\)=>go\('map'\)\} onClearRepository=\{asking\?\(\)=>setAsking\(null\):null\}/);
+  assert.match(page, /<LearnPage app=\{app\} onGraph=\{showGraph\} onMap=\{\(\)=>go\('map'\)\} onClearRepository=\{context\?\(\)=>setContext\(null\):null\}/);
   assert.match(learn, /: repositoryContext\} onClearRepository=\{onClearRepository\} conversation="learn"/);
   assert.match(md, /\{onClearRepository && <button type="button" className="shrink-0 rounded p-0\.5 hover:bg-green-100" aria-label="Clear repository selection"/);
 });
@@ -99,8 +99,8 @@ test('the Map side panel shows no "Answers from the bar below land here." hint (
   assert.doesNotMatch(page, /Answers from the bar below land here/);
 });
 
-test('no History or New chat anywhere: the Map panel, the Learn chat sheet and side panel each have one clear icon (owner, 2026-10-04)', () => {
-  assert.match(page, /data-map-panel-clear aria-label="Clear the conversation"[\s\S]*?onClick=\{\(\)=>resetThread\(key\)\} className="absolute top-3 right-11/);
+test('no History or New chat anywhere: the Learn chat sheet and side panel each have one clear icon; the Map inspector hosts no chat (owner, 2026-10-04, 2026-10-06)', () => {
+  assert.doesNotMatch(page + inspector, /data-map-panel-clear|resetThread/);
   assert.equal((md.match(/data-chat-clear aria-label="Clear the conversation"[^\n]*onClick=\{newChat\}/g) || []).length, 2);
   assert.doesNotMatch(md, /> New chat|>New chat/);
   assert.doesNotMatch(page, /New chat<\/|>New chat/);
