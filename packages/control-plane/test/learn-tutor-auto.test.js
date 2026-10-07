@@ -29,7 +29,7 @@ test('TUTOR_TOOL: the reading fields come last and stay optional; suggest_resear
 
 test('the shared lines: material meaning, simple-answer principle, grounding and no-retrieval rules, reading fields - in every Tutor prompt', () => {
   const lines = PLANNER_SYSTEM.split('\n');
-  assert.equal(lines.length, 21, 'five lines appended; lines 0-15 keep their indices');
+  assert.equal(lines.length, 22, 'five lines appended, then fix B1 line 21; lines 0-15 keep their indices');
   const [material, simple, grounding, retrieval, reading] = lines.slice(16);
   assert.match(material, /^create_material \{ command, request \}/);
   assert.match(material, /context\.available_materials/);
@@ -65,7 +65,8 @@ test('NEXT_STEP_SYSTEM keeps only the hook-specific line; the material meaning l
 test('CANVAS_SYSTEM describes typed and voice turns too: the learner\'s words, the selected card as target, nothing else of the canvas', () => {
   assert.match(CANVAS_SYSTEM, /answer what they typed or said, or take up the hook they chose/);
   assert.match(CANVAS_SYSTEM, /target \(the card the learner selected, when there is one: its title and text\)/);
-  assert.match(CANVAS_SYSTEM, /You see only the card the learner selected \(context\.target\), when there is one: other cards may exist on the canvas, but none are in context/);
+  // Fix B2: the newest other cards and the context documents are supplied too (learn-tutor-auto test fix B2).
+  assert.match(CANVAS_SYSTEM, /You see the card the learner selected \(context\.target\), the newest other cards in context\.canvas_context\.cards and the switched-on context documents\. Nothing else of the canvas is in context/);
   assert.doesNotMatch(CANVAS_SYSTEM, /You do not see the canvas/);
 });
 
@@ -109,4 +110,29 @@ test('fix A3: EXPLICIT_MODE follows the slash marker, whatever kind the words ga
     assert.equal(plannerRequest({ ...words, learner_intent: { kind, raw_user_message: 'why?', slash: name } }, 2000).system, `${PLANNER_SYSTEM}\n${EXPLICIT_MODE}`, `${name} ${kind}`);
   assert.equal(plannerRequest({ ...words, learner_intent: { kind: 'slash', raw_user_message: '/deeper', slash: 'deeper' } }, 2000).system, PLANNER_SYSTEM);
   assert.equal(plannerRequest(words, 2000).system, PLANNER_SYSTEM);
+});
+
+// ---------- Fix round 1, step 2 (task-11b-fix1.md B1, B2) ----------
+// B1: a learning path is offered by the Tutor (suggest_journey, a chip the learner clicks), never started by a word rule ahead
+// of it. The line is shared (nanoGPT and canvas prompts); the journey prompt leaves it out - a journey canvas never offers one.
+test('fix B1: suggest_journey is an action; its shared line offers a learning path only when allowed, never starting one', () => {
+  assert.ok(ACTION_TYPES.includes('suggest_journey'));
+  assert.equal(ACTION_TYPES.at(-1), 'no_action');
+  assert.ok(tutorTool(true).input_schema.properties.actions.items.properties.type.enum.includes('suggest_journey'));
+  const lines = PLANNER_SYSTEM.split('\n');
+  assert.equal(lines.length, 22, 'line 21 appended');
+  assert.match(lines[21], /^suggest_journey \{ request \} offers a Start a learning path chip/);
+  assert.match(lines[21], /when context\.allowed_actions lists it/);
+  assert.match(lines[21], /nothing starts until they do/);
+  assert.ok(CANVAS_SYSTEM.includes(lines[21]));
+  assert.equal(plannerSystem(false, 'journey').includes(lines[21]), false, 'never offered on a journey canvas');
+});
+
+// B2: the canvas prompt describes exactly what a plain-canvas turn supplies: the selected card as target, up to six of the
+// newest other cards in canvas_context.cards, and the canvas's switched-on context documents before the context.
+test('fix B2: CANVAS_SYSTEM describes canvas_context.cards and the context documents, and nothing more of the canvas', () => {
+  assert.match(CANVAS_SYSTEM, /cards \(when the canvas has other cards: up to six of the newest, each id, kind, title and the start of its text\)/);
+  assert.match(CANVAS_SYSTEM, /switched-on context documents/);
+  assert.match(CANVAS_SYSTEM, /Nothing else of the canvas is in context/);
+  assert.doesNotMatch(CANVAS_SYSTEM, /none are in context/);
 });

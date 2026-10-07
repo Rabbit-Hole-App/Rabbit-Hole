@@ -44,10 +44,11 @@ export const tutorStoreKey = (app, journeyId, record, canvas = null) => (journey
 // Learn commands create_material may run (owner ninth message) - on every turn except a hole's automatic opening (the learner
 // has not asked yet: fix B4; a carried hook is a next_step turn and keeps them) and a journey in setup (no card before the
 // path is accepted, LP1); research - the Research this offer, only where the page wired openResearch and never in setup (fix
-// A1: the journey prompt's setup line allows words only).
-export function turnOffers({ journey = null, opening = false, nextStep = null, openResearch = null }) {
+// A1: the journey prompt's setup line allows words only); journeyOffer - suggest_journey, only where a journey can start: no
+// journey yet (so never in setup), journeys supported here (journey.start), not inside a hole (fix B1).
+export function turnOffers({ journey = null, record = null, opening = false, nextStep = null, openResearch = null }) {
   const setup = inJourneySetup(journey?.journey);
-  return { materials: setup || (opening && !nextStep) ? [] : materialCommands(), research: !!openResearch && !setup };
+  return { materials: setup || (opening && !nextStep) ? [] : materialCommands(), research: !!openResearch && !setup, journeyOffer: !!journey?.start && !journey?.journey && !record };
 }
 export const hookContext = (where, read, recordPending = false) => (recordPending || (where.record?.journey && read !== where.record.dive_id) ? null : tutorContext(where));
 // canvasVersion: the board revision when the page passes it (decision telemetry only).
@@ -113,7 +114,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   // The Tutor's domain on this canvas, built per turn: a journey canvas's (§3.2) from the journey, its path and the canvas
   // blocks; a hole opened from a journey section (Task 14) the dive domain over the parent journey, session evidence; else
   // the registered course's; else the canvas domain (Task 10; typed and voice turns too since Task 11b).
-  const domainOf = canvas => tutorContext({ ...where, journey: journeyRef.current, blocks: canvas?.blocks?.() || [] })?.domain;
+  const domainOf = (canvas, selected = null) => tutorContext({ ...where, journey: journeyRef.current, blocks: canvas?.blocks?.() || [], selected })?.domain;
 
   // Back on a parent after a hole: its next turn carries returned_from (§6.4).
   useEffect(() => { if (active) save(arriveAt(load(), here)); }, [active, here.app, here.board]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -129,9 +130,9 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   // click's time, for the decision trace.
   const turn = useCallback(async ({ raw, targetId = null, opening = false, signal, inputModality = 'text', turnId = null, onSpeakable = null, skipJourney = false, onAnswer = null, nextStep = null, selectedAt = null }) => {
     const canvas = canvasApi.current;
-    const domain = domainOf(canvas);
-    if (!domain) return { text: '', handled: true, failed: true };
     const block = nextStep ? null : canvas?.block?.(targetId) || canvas?.block?.(stateRef.current.card?.id) || null;
+    const domain = domainOf(canvas, block?.id ?? null); // fix B2: the selected block is the target, not one of the canvas cards
+    if (!domain) return { text: '', handled: true, failed: true };
     const slash = nextStep ? null : slashNext.current;
     if (!nextStep) slashNext.current = null;
     // The per-turn benchmark record (e2e/tutor-bench.mjs listens); a failed turn reports its error name.
@@ -169,7 +170,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
         // The typed command is read in place of the composer's words only where it fixes the move (/deeper or /simplify on a
         // depth ladder); /ask, /teach (fix A3) and a ladderless /deeper or /simplify (fix B5) keep the composer's words.
         ...common, raw: nextStep ? '' : (slash && !MODE_SLASHES.includes(slash.name) && domain.ladder?.length ? slash.raw : raw), slash: slash?.name || null, opening, store: load(), onSpeakable,
-        nextStep, ...turnOffers({ journey: journeyRef.current, opening, nextStep, openResearch }),
+        nextStep, ...turnOffers({ journey: journeyRef.current, record, opening, nextStep, openResearch }),
         // Decision telemetry only while a sink is registered (contract §3.3); the planner request is the same either way.
         trace: tracing() && { identity: { canvas_version: canvasVersion }, blocks: canvas?.blocks?.() || [], next_step_options: shown.current, selected_at: selectedAt },
         // Only a domain whose cards are inserted (no showCard of its own: the authored-module one) holds a place. A journey's
@@ -189,6 +190,8 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
       suggestDive: detail => window.dispatchEvent(new CustomEvent('small:dive-suggest', { detail })),
       climb: () => dive.navigator.climb(dive.navigator.tree.path.length - 2),
       slot, domain, openResearch,
+      // Fix B1: the existing journey start, which reads a learning request (as LearnJourney.jsx asks it for a bare topic).
+      startJourney: request => journeyRef.current?.start?.(`Teach me ${request}`),
     }) });
     release();
     // create_material (contract §2.5): the existing Learn command path (runMaterials -> runLearnCommand), never a second
@@ -307,9 +310,6 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
       return { speech: result.text, turnId: result.turn.turn_id, ms: result.bench.ms };
     },
     opening,
-    // A plain canvas's Tutor (the canvas domain): a broad learning request may still start a journey there (LearnJourney.jsx
-    // journeyStartsHere), which a registered course's Tutor never allows.
-    plain: context?.source === 'canvas',
     // /deeper and /simplify go to the Tutor as the turn's slash (§5): its prompt is sent through
     // the composer as usual, and the Tutor reads the typed command in its place. slash(null): the composer refused that
     // prompt (busy), so no stale command waits for the next turn. Task 11b: /ask and /teach too, as explicit intent overrides

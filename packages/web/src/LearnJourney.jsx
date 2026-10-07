@@ -29,9 +29,11 @@ export function routeJourneyTurn(raw, tray, resolveRules = interactionInterpreta
   return resolveRules(raw, tray) || { kind: tray ? 'needs_model' : 'unrelated_question' };
 }
 
-// The Learn composer starts a journey (§6.1) only on a canvas with no live journey (no journeyStarter) and no course Tutor.
-// Task 11b: a plain canvas's Auto Tutor (tutor.plain) keeps journeys startable there; a registered course's Tutor never does.
-export const journeyStartsHere = (raw, { tutor = null, journeyStarter = null } = {}) => (!tutor || tutor.plain === true) && !!journeyStarter && STARTS.has(journeyIntent(raw).kind);
+// The Learn composer starts a journey (§6.1) from these word rules only on a canvas with no live journey (no journeyStarter) and
+// no Tutor. Task 11b fix B1 (owner fourteenth message: routing is never keyword-based): where a Tutor is active - every
+// canvas since 11b but a registered entry that refuses it - the rules never intercept; the Auto Tutor may offer a learning
+// path instead (suggest_journey, a chip whose click calls the same journey start). Revert: let tutor.plain through here.
+export const journeyStartsHere = (raw, { tutor = null, journeyStarter = null } = {}) => !tutor && !!journeyStarter && STARTS.has(journeyIntent(raw).kind);
 
 // Before the path is accepted the canvas gets no permanent card (controller ruling, LP1): a turn the Tutor answers on a
 // journey in setup (off_slice, words only) stays in the chat sheet (ask.jsx).

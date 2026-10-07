@@ -1142,14 +1142,15 @@ function tutorOn(h, { evaluate = { status: 'error', evaluator: 'jev', events: []
 const tutorRoutes = h => h.calls.filter(c => c.path.startsWith('/api/learn/tutor/'));
 
 // Task 11b (owner eleventh message 6-7): a blank canvas no longer keeps the Learn chat - natural typing there is Auto Tutor
-// input with the plain-canvas Tutor (plain), and a journey is never a prerequisite; the journey Tutor runs only on a journey.
+// input with the plain-canvas Tutor (source canvas), and a journey is never a prerequisite; the journey Tutor runs only on a journey.
 test('useTutor on a journey canvas: the journey Tutor is active there; a blank canvas gets the plain-canvas Auto Tutor', async () => {
   const h = harness(ok(journeyOf({ state: 'active', registry: SIGMOID }), null));
   await h.refresh();
-  assert.deepEqual([tutorOn(h).tutor.active, tutorOn(h).tutor.plain], [true, false]);
+  assert.equal(tutorOn(h).tutor.active, true);
   const blank = harness(none);
   await blank.refresh();
-  assert.deepEqual([tutorOn(blank).tutor.active, tutorOn(blank).tutor.plain], [true, true], 'a blank canvas: the Auto Tutor, not the journey one');
+  // Which Tutor answers (journey or plain canvas) is asserted through the resolver in learn-tutor-domains.test.mjs and A-K.
+  assert.equal(tutorOn(blank).tutor.active, true, 'a blank canvas: the plain-canvas Auto Tutor');
 });
 
 test('useTutor on a journey canvas: a free-text probe answer is runTurn({ plan: false }) - the evaluate body names the journey, board, probe and turn; no planner call - then the walker steps on', async () => {
@@ -1366,7 +1367,7 @@ test('Task 14 wiring: LearnPage hands the live journey to useDive, the dive reco
   // Task 11 fix round: the opening lives in learn-next-steps.js holeOpening, handed this hole's domain.
   assert.match(tutor, /holeOpening\(\{[^\n]*domain: \(\) => domainOf\(canvasApi\.current\) \}\)/);
   assert.match(read('learn-next-steps.js'), /enterHole\(load\(\), record, domain\(\)\)/);
-  assert.match(tutor, /const domainOf = canvas => tutorContext\(\{ \.\.\.where, journey: journeyRef\.current, blocks: canvas\?\.blocks\?\.\(\) \|\| \[\] \}\)\?\.domain;/);
+  assert.match(tutor, /const domainOf = \(canvas, selected = null\) => tutorContext\(\{ \.\.\.where, journey: journeyRef\.current, blocks: canvas\?\.blocks\?\.\(\) \|\| \[\], selected \}\)\?\.domain;/);
   assert.match(domains, /if \(parentJourney && record\?\.journey\) \{\n    return \{ domain: journeyDomain\(\{ journey: parentJourney\.journey, path: parentJourney\.path, blocks, dive: record\.journey \}\)/);
   // The parent's resolver and tray run only for a live journey on this board: the hole posts no journey action.
   assert.match(tutor, /if \(live && !slash && !opening && !skipJourney && !nextStep\)/);

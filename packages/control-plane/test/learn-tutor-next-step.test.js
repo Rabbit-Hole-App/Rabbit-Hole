@@ -32,7 +32,7 @@ test('TUTOR_TOOL: reason_codes after reason (written last), create_material with
 
 test('the shared lines: reason codes and reason last, generation only through create_material, modality history as evidence', () => {
   const lines = PLANNER_SYSTEM.split('\n');
-  assert.equal(lines.length, 21, 'line 15 appended, then Task 11b lines 16-20; lines 12-14 keep their indices');
+  assert.equal(lines.length, 22, 'line 15 appended, then Task 11b lines 16-20 and fix B1 line 21; lines 12-14 keep their indices');
   assert.match(lines[4], /never generate new artifacts unless context\.allowed_actions lists create_material\.$/);
   assert.match(lines[11], /Last, after the actions: reason_codes .* and reason /);
   assert.match(lines[11], /never vary_modality alone/);
@@ -104,10 +104,11 @@ test('CANVAS_SYSTEM: chosen by canvas_context, journey and nanoGPT requests unch
   assert.match(CANVAS_SYSTEM, /Never claim they know or lack something/);
   // Fix round 1 (owner eleventh message 5): it describes only what a turn supplies. Task 11b: typed and voice turns too, so the
   // card the learner selected is context.target (title and text); no other card is in context.
-  assert.match(CANVAS_SYSTEM, /other cards may exist on the canvas, but none are in context\. Never describe, invent or point at other cards, parts or sources/);
+  // Fix B2 (task-11b-repin-review.md part D): the newest other cards and the switched-on context documents are supplied too.
+  assert.match(CANVAS_SYSTEM, /You see the card the learner selected \(context\.target\), the newest other cards in context\.canvas_context\.cards and the switched-on context documents\. Nothing else of the canvas is in context: never describe, invent or point at other cards, parts or sources/);
   assert.match(CANVAS_SYSTEM, /learner_intent\.selected_next_step \(on a hook click: the hook they chose and its learning_goal\)/);
   assert.equal(/no authored cards here|Canvas content first|Also: target, relevant_authored_content/.test(CANVAS_SYSTEM), false);
   // Pinned 2026-10-06 (Task 10 fix round 2; was c4005ddb..., before that 6d8cc2ce..., task-10-repin-review.md entries 5-6).
   // Re-pinned by Task 11b (was c6cc8ff752ad8dae091eb8d81c7cd839ce76d73b94d56370732c4d2cc8131755; task-11b-repin-review.md part A, pin 6).
-  assert.equal(createHash('sha256').update(CANVAS_SYSTEM).digest('hex'), '9b074709a974c9cfe243cb2f6a96168a671eb1507bd5a067bc0eb9a8931c484f'); // fix round 1 (task-11b-repin-review.md part C): was 2c02686dd4bc05d1
+  assert.equal(createHash('sha256').update(CANVAS_SYSTEM).digest('hex'), '83ca2aab4d451244d85fccc9991b9c5792af1c54ae87a50720b5a669dc25b9c5') // fix round 1 (task-11b-repin-review.md parts C-D): was 9b074709a974c9cf; // fix round 1 (task-11b-repin-review.md part C): was 2c02686dd4bc05d1
 });

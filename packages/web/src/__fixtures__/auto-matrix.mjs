@@ -6,6 +6,8 @@
 const say = text => ({ type: 'respond_text', text });
 const make = (command, request) => ({ type: 'create_material', command, request });
 const offerResearch = request => ({ type: 'suggest_research', request });
+// Fix B1: a broad learning request reaches the Auto Tutor, which may offer a learning path (the learner starts it).
+const offerJourney = request => ({ type: 'suggest_journey', request });
 const ANSWER = 'Here is the short answer, in two plain sentences.';
 const ask = (extra = {}) => ({ inferred_intent: 'ask', actions: [say(ANSWER)], reason_codes: ['respond_to_question'], ...extra });
 const teach = (actions, codes, extra = {}) => ({ inferred_intent: 'teach', actions, reason_codes: codes, ...extra });
@@ -19,8 +21,8 @@ export const MATRIX = [
   ['ask-like', 'Why does this happen?', 'card', ask(local)],
   ['ask-like', 'What is the difference between precision and recall?', 'blank', ask(known)],
   // TEACH-LIKE: the Tutor decides explanation, activity, quiz.
-  ['teach-like', 'Teach me backpropagation from scratch.', 'blank', teach([say(ANSWER), make('explain', 'backpropagation from the chain rule up, one layer at a time')], ['advance_goal'], known)],
-  ['teach-like', 'I want to understand transformers.', 'blank', teach([say(ANSWER), make('diagram', 'one transformer block: attention, then the feed-forward layer')], ['advance_goal'])],
+  ['teach-like', 'Teach me backpropagation from scratch.', 'blank', teach([say(ANSWER), make('explain', 'backpropagation from the chain rule up, one layer at a time'), offerJourney('backpropagation')], ['advance_goal'], known)],
+  ['teach-like', 'I want to understand transformers.', 'blank', teach([say(ANSWER), offerJourney('transformers')], ['advance_goal'])],
   ['teach-like', 'Help me really understand this function.', 'code', teach([say(ANSWER), make('walkthrough', 'what each line of the selected function does')], ['deepen_mechanism'], local)],
   ['teach-like', 'I keep getting gradient descent wrong.', 'blank', teach([say(ANSWER), make('quiz', 'three quick checks on the direction and size of a gradient step')], ['check_understanding'])],
   // RESEARCH-LIKE: Research is offered, never run inside the turn.

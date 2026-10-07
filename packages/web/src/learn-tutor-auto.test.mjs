@@ -18,6 +18,7 @@ import { actionContract } from './learn-tutor-actions.js';
 import { decisionEvent, hooksEvent, shownEvent } from './learn-tutor-trace.js';
 import { canvasDomain } from './learn-journey-domain.js';
 import { tutorContext } from './learn-tutor-domains.js';
+import { nextStepsBasis } from './learn-next-steps.js';
 import { NANOGPT, cardModule } from './learn-tutor-claims.js';
 import { cardBlock } from './nanogpt/board.js';
 import { emptyStore, deriveClaimStates } from './learn-tutor-evidence.js';
@@ -228,7 +229,7 @@ async function runCards(actions) {
 async function matrixRow([, prompt, where, plan, modality = 'text'], slash = null) {
   const at = CONTEXTS[where];
   const w = worker({ strategy: 'none', constraints_add: [], ...plan });
-  const r = await runTurn({ raw: prompt, slash, block: at.block, store: { ...emptyStore(), modalities: HISTORY }, post: w.post, materials: MATERIALS, research: true, trace: true, inputModality: modality, canvas: at.canvas, access: at.access, domain: at.domain });
+  const r = await runTurn({ raw: prompt, slash, block: at.block, store: { ...emptyStore(), modalities: HISTORY }, post: w.post, materials: MATERIALS, research: true, journeyOffer: true, trace: true, inputModality: modality, canvas: at.canvas, access: at.access, domain: at.domain });
   return { r, context: w.sent.find(s => s.path === '/api/learn/tutor/plan').body.context, at };
 }
 async function checkRow(entry, i) {
@@ -255,7 +256,7 @@ async function checkRow(entry, i) {
   // Context: the learner's words, the selected card, the recent modalities and the offered materials reach the planner.
   assert.deepEqual([context.learner_intent.raw_user_message, context.learner_intent.input_modality], [prompt, modality === 'voice' ? 'voice' : undefined]);
   assert.deepEqual(context.recent_relevant_context.recent_modalities, HISTORY);
-  assert.ok(context.allowed_actions.includes('create_material') && context.allowed_actions.includes('suggest_research'), context.allowed_actions.join());
+  assert.ok(['create_material', 'suggest_research', 'suggest_journey'].every(type => context.allowed_actions.includes(type)), context.allowed_actions.join());
   assert.deepEqual(context.available_materials, MATERIALS);
   if (at.block) assert.ok(JSON.stringify(context.target).includes(at.block.title ?? cardModule('depth-attention-overview').scene.title), 'the selected card grounds the turn');
   else assert.equal(context.target, null);
@@ -299,7 +300,7 @@ rmSync(dir, { recursive: true, force: true });
 
 // A plain canvas (its dives record landed, no dive, no journey, no registered course), with optional blocks to select.
 // plan(context) answers the plan route; every request is recorded.
-async function plainTutor(plan, run, { blocks = [], openResearch = null } = {}) {
+async function plainTutor(plan, run, { blocks = [], openResearch = null, journey = null } = {}) {
   const storage = new Map(), calls = [];
   const globals = {
     window: { dispatchEvent: () => true },
@@ -319,7 +320,7 @@ async function plainTutor(plan, run, { blocks = [], openResearch = null } = {}) 
     const app = { name: 'canvas-0000aaaa', title: 'Gradient notes', org: 'o', email: 'e@x.com' };
     const dive = { tree: { path: [{ app: app.name, board: 'main', title: app.title, kind: 'canvas' }], children: [], dive: null }, suggestionCard: null, navigator: null };
     const canvasApi = { current: { blocks: () => blocks, block: id => blocks.find(b => b.id === id) || null, insertBlock: () => 'blk-new', reserve: () => null, release: () => {} } };
-    const Page = () => { tutor = bundled.useTutor({ app, board: 'main', access: { app: app.name }, canvasApi, canvasState: { card: null }, dive, journey: null, openResearch }); return null; };
+    const Page = () => { tutor = bundled.useTutor({ app, board: 'main', access: { app: app.name }, canvasApi, canvasState: { card: null }, dive, journey, openResearch }); return null; };
     bundled.renderToStaticMarkup(bundled.createElement(Page));
     const out = await run(tutor);
     await new Promise(done => setTimeout(done, 0)); // runMaterials is not awaited by the turn
@@ -406,13 +407,6 @@ test('suggest_research: offered only when the page wires openResearch; the chip 
   assert.deepEqual(executeActions([offerResearch('x')], { canvas: {} }), [], 'no callback: no chip');
 });
 
-test('a plain canvas still starts a learning journey from a broad request; a course Tutor canvas never does', async () => {
-  const { tutor } = await plainTutor(RESPOND, async t => t);
-  const starter = () => {};
-  assert.equal(bundled.journeyStartsHere('I want to learn logistic regression', { tutor, journeyStarter: starter }), true);
-  assert.equal(bundled.journeyStartsHere('Why does gradient descent overshoot?', { tutor, journeyStarter: starter }), false);
-  assert.equal(bundled.journeyStartsHere('I want to learn logistic regression', { tutor: { ask: () => {} }, journeyStarter: starter }), false);
-});
 
 // K: an explicit Motion request is the planner's declared override; the topic word motion is not. The product reads neither:
 // the same plan gives the same turn whatever the words, and only the declared field reaches explicit_modality_override.
@@ -440,8 +434,14 @@ test('J: no keyword router - intent and format words change nothing but the word
   const WORDS = /\b(motion|research|teach|quiz|flashcards?)\b/i;
   // learn-tutor-validate.js STATED_NO_QUIZ binds the explicit "don't quiz me" constraint (Tutor v1, locked): it removes
   // questions and never reads intent or modality, so it is the one allowed match.
-  const allowed = ['STATED_NO_QUIZ'];
-  for (const file of ['learn-tutor.js', 'learn-tutor-validate.js', 'learn-tutor-actions.js', 'learn-tutor-trace.js', 'learn-tutor-domains.js', 'learn-journey-domain.js', 'LearnTutor.jsx', '../../control-plane/src/learn-tutor-routes.js']) {
+  // Fix B1: the LP1 journey gate's files are in the grep too. Its word rules (learner-intent-journey.js BROAD, FOCUSED) are
+  // reached only where no Tutor is active - journeyStartsHere opens with !tutor, pinned here - which is none of the canvases
+  // the Tutor answers on, so they never route a Tutor turn; the Tutor offers a learning path instead (suggest_journey).
+  assert.match(readFileSync(new URL('LearnJourney.jsx', import.meta.url), 'utf8'), /export const journeyStartsHere = \(raw, \{ tutor = null, journeyStarter = null \} = \{\}\) => !tutor && /);
+  // CANCEL is LP1's open-tray rule (rules 1-4 of the interaction resolver: skip or cancel the tray's own step, like skip the
+  // quiz); it runs only on a live journey with a tray open and never sets intent, modality or a Tutor action.
+  const allowed = ['STATED_NO_QUIZ', 'const BROAD', 'const FOCUSED', 'const CANCEL'];
+  for (const file of ['LearnJourney.jsx', '../../control-plane/src/learner-intent-journey.js', 'learn-tutor.js', 'learn-tutor-validate.js', 'learn-tutor-actions.js', 'learn-tutor-trace.js', 'learn-tutor-domains.js', 'learn-journey-domain.js', 'LearnTutor.jsx', '../../control-plane/src/learn-tutor-routes.js']) {
     const code = readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`])\/\/.*$/gm, '$1');
     const regexes = code.split('\n').filter(line => /(^|[=(,:\s])\/(?![/*\s])(?:\\.|[^/\n])+\/[dgimsuyv]*/.test(line) && WORDS.test(line.match(/\/(?![/*\s])(?:\\.|[^/\n])+\/[dgimsuyv]*/)?.[0] || ''));
     assert.deepEqual(regexes.filter(line => !allowed.some(name => line.includes(name))), [], `${file}: a regex tests intent or format words`);
@@ -532,4 +532,77 @@ test('fix B4 and A1: no material on a hole opening, kept on a carried hook; noth
   assert.deepEqual([active.materials, active.research], [materialCommands(), true]);
   const opening = await plainTutor(RESPOND, t => t.ask({ raw: 'Take me into Gradients.', opening: true }));
   assert.deepEqual(['available_materials' in planOf(opening.calls), planOf(opening.calls).allowed_actions.includes('create_material')], [false, false]);
+});
+
+// ---------- Fix round 1, step 2 (task-11b-fix1.md B1, B2) ----------
+
+// B1 (owner fourteenth message: routing is never keyword-based): a learning path is a Tutor offer, suggest_journey { request },
+// allowed only where a journey can start - structural page state (turn.journey_offer), never words - and started only by the
+// learner's click, through the existing journey start.
+test('fix B1: suggest_journey is offered only where a journey can start, on every row; validated as an offer; the chip starts nothing on its own', () => {
+  for (const row of ROWS) {
+    const plain = routeAt(row);
+    assert.equal(plain.allowed.includes('suggest_journey'), false, row[0]);
+    assert.deepEqual(routeAt(row, { journey_offer: true }), { ...plain, allowed: [...plain.allowed, 'suggest_journey'] }, row[0]);
+  }
+  const turn = turnOf({ journey_offer: true }), routed = { row: 'off_slice', strategy: 'none', allowed: ['respond_text', 'suggest_journey'], claim: null };
+  const run = (actions, r = routed) => validateActions({ actions }, r, turn, canvasDomain({ goal: 'g' }));
+  assert.deepEqual(run([SAY, { type: 'suggest_journey', request: ' backpropagation ' }]).actions, [SAY, { type: 'suggest_journey', request: 'backpropagation' }]);
+  for (const request of ['', 'x'.repeat(1001), 'run `ls`', undefined]) assert.equal(run([{ type: 'suggest_journey', request }]).decisions[0].stage, 'schema', String(request));
+  assert.equal(run([{ type: 'suggest_journey', request: 'a' }, { type: 'suggest_journey', request: 'b' }]).decisions[1].reason, 'a second suggest_journey');
+  assert.equal(run([{ type: 'suggest_journey', request: 'a' }], { ...routed, allowed: ['respond_text'] }).decisions[0].stage, 'route');
+  const contract = actionContract({ type: 'suggest_journey', request: 'a' }, { domain: NANOGPT, materials: MATERIALS });
+  assert.deepEqual([contract.modality, contract.cost_tier], [null, 'none']);
+  const started = [];
+  const chips = executeActions([{ type: 'suggest_journey', request: 'backpropagation' }], { canvas: {}, startJourney: request => started.push(request) });
+  assert.deepEqual([chips.map(c => c.label), started], [['Start a learning path'], []], 'nothing starts on its own');
+  chips[0].run();
+  assert.deepEqual(started, ['backpropagation']);
+  assert.deepEqual(executeActions([{ type: 'suggest_journey', request: 'x' }], { canvas: {} }), [], 'no starter: no chip');
+});
+
+test('fix B1: turnOffers offers a learning path only where one can start - no journey yet, not in a hole, not in setup', () => {
+  const start = () => {};
+  assert.equal(bundled.turnOffers({ journey: { journey: null, start } }).journeyOffer, true);
+  assert.equal(bundled.turnOffers({ journey: { journey: { state: 'active' }, start } }).journeyOffer, false, 'a live journey');
+  assert.equal(bundled.turnOffers({ journey: { journey: { state: 'intake' }, start } }).journeyOffer, false, 'setup');
+  assert.equal(bundled.turnOffers({ journey: { journey: null, start }, record: { dive_id: 'canvas-0000hole' } }).journeyOffer, false, 'a hole');
+  assert.equal(bundled.turnOffers({ journey: { journey: null, start: null } }).journeyOffer, false, 'no journey support');
+  assert.equal(bundled.turnOffers({}).journeyOffer, false);
+});
+
+test('fix B1: on a Tutor canvas the LP1 word gate never intercepts; the Auto Tutor offers the path and the click runs the existing journey start', async () => {
+  const started = [];
+  const journey = { journey: null, busy: false, start: async text => { started.push(text); return { handled: true }; } };
+  const plan = () => ({ actions: [say('Here is the core idea in two sentences.'), { type: 'suggest_journey', request: 'backpropagation' }] });
+  const { calls, tutor } = await plainTutor(plan, t => t.ask({ raw: 'Teach me backpropagation from scratch.' }), { journey });
+  assert.equal(bundled.journeyStartsHere('Teach me backpropagation from scratch.', { tutor, journeyStarter: journey.start }), false, 'an active Tutor: the word gate never intercepts');
+  const context = planOf(calls);
+  assert.deepEqual([context.learner_intent.raw_user_message, context.allowed_actions.includes('suggest_journey')], ['Teach me backpropagation from scratch.', true]);
+  assert.deepEqual(started, [], 'nothing starts on its own');
+  const nodes = node => (!node || typeof node !== 'object' ? [] : Array.isArray(node) ? node.flatMap(nodes) : [node, ...nodes(node.props?.children)]);
+  const chip = nodes(tutor.extras).find(n => n.type === 'button' && n.props.children === 'Start a learning path');
+  chip.props.onClick();
+  assert.deepEqual(started, ['Teach me backpropagation'], 'the existing journey start, which reads a learning request');
+  // Voice behaves the same: the same Tutor turn offers it.
+  const voice = await plainTutor(plan, t => t.voiceTurn({ raw: 'Teach me backpropagation from scratch.', turnId: 'v2' }), { journey });
+  assert.ok(planOf(voice.calls).allowed_actions.includes('suggest_journey'));
+});
+
+// B2: plain-canvas grounding - the selected card is the target, and up to six of the newest other cards travel as
+// canvas_context.cards (id, kind, title, text), in canvas order, chat cards by their question only; never in the hook basis.
+test('fix B2: a plain canvas sends up to six of its newest other cards as canvas_context.cards; the selected one is the target', async () => {
+  const blocks = [...Array(8)].map((_, i) => ({ id: `b${i}`, type: 'explanation', title: `Card ${i}`, body: `Body ${i} `.repeat(40) }));
+  blocks.push({ id: 'chat1', question: 'Why does it overshoot?', answer: 'Because the step is too large.' });
+  const d = canvasDomain({ goal: 'g', blocks, selected: 'b7' });
+  assert.deepEqual(d.context.cards.map(c => c.id), ['b2', 'b3', 'b4', 'b5', 'b6', 'chat1']);
+  assert.deepEqual(d.context.cards[0], { id: 'b2', kind: 'explanation', title: 'Card 2', text: 'Body 2 '.repeat(40).slice(0, 200) });
+  assert.deepEqual(d.context.cards.at(-1), { id: 'chat1', kind: 'chat', title: 'Why does it overshoot?', text: null }, 'a chat card: its question, never its answer');
+  assert.deepEqual(canvasDomain({ goal: 'g', blocks: [{ id: 'x', type: 'graph', prompt: 'p'.repeat(100) }] }).context.cards, [{ id: 'x', kind: 'graph', title: 'p'.repeat(80), text: null }], 'title fallback, capped');
+  assert.deepEqual(canvasDomain({ goal: 'g' }).context, { goal: 'g', origin: null }, 'no other cards: no key');
+  assert.deepEqual(tutorContext({ title: 'g', blocks, selected: 'b7' }).domain.context.cards.map(c => c.id), ['b2', 'b3', 'b4', 'b5', 'b6', 'chat1']);
+  assert.equal(nextStepsBasis({ context: tutorContext({ title: 'g', blocks }), title: 'g' }), nextStepsBasis({ context: tutorContext({ title: 'g', blocks: [] }), title: 'g' }), 'not in the hook basis');
+  const OTHER = { id: 'blk-other', type: 'explanation', title: 'Learning rate', body: 'The step size.' };
+  const { calls } = await plainTutor(RESPOND, t => t.ask({ raw: 'This part confuses me.', targetId: CARD.id }), { blocks: [OTHER, CARD] });
+  assert.deepEqual([planOf(calls).target.description, planOf(calls).canvas_context.cards], [`${CARD.title}\n${CARD.body}`, [{ id: OTHER.id, kind: 'explanation', title: OTHER.title, text: OTHER.body }]]);
 });

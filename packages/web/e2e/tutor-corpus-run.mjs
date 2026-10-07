@@ -92,7 +92,8 @@ let ABORTED = null;
 const refused = message => /model HTTP 4(?!29)\d\d|model HTTP 429: [^)]*rate limit of 0 /.test(String(message || ''));
 const STREAM = LIVE ? CANDIDATES[CANDIDATE].stream : args.includes('--stream');
 // --auto-offers (Task 11b fix A6; stub runs only): every turn is offered what the page offers a real one (LearnTutor.jsx
-// turnOffers with openResearch wired) - the Learn material commands (none on a hole's opening) and the Research this offer.
+// turnOffers with openResearch wired) - the Learn material commands (none on a hole's opening), the Research this offer and,
+// outside a hole, the learning-path offer (fix B1).
 const OFFERS = args.includes('--auto-offers');
 if (OFFERS && LIVE) throw Error('--auto-offers is for stub runs only');
 const ENV = LIVE ? Object.fromEntries(readFileSync(new URL('../.dev.vars', import.meta.url), 'utf8').split(/\r?\n/)
@@ -282,7 +283,7 @@ async function runTrace(trace) {
     const before = store.events.length;
     const started = performance.now();
     let result;
-    try { result = await runTurn({ raw, slash: step.slash || null, opening: !!step.opening, canvas, access: { app: canvas.app }, block: inHole ? null : block, store, post, onSpeakable: STREAM ? () => {} : null, ...(OFFERS ? { materials: step.opening ? [] : materialCommands(), research: true } : {}) }); }
+    try { result = await runTurn({ raw, slash: step.slash || null, opening: !!step.opening, canvas, access: { app: canvas.app }, block: inHole ? null : block, store, post, onSpeakable: STREAM ? () => {} : null, ...(OFFERS ? { materials: step.opening ? [] : materialCommands(), research: true, journeyOffer: !inHole } : {}) }); }
     catch (error) {
       // A failed turn (the planner errored or returned no turn) ends its trace: later turns depend on it.
       rows.push({ stage: STAGE, mode: MODE, trace: trace.id, turn: index, category: step.category || trace.category, golden: !!trace.golden, error: String(error.message).slice(0, 200),

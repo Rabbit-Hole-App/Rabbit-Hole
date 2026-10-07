@@ -127,7 +127,7 @@ export function parseLarger(text, spec) {
 
 // The planner (§4): one forced tool call returning the TutorResponse. The client enforces the
 // router's allowed types and the navigation authority (§5); this schema only bounds the shape.
-export const ACTION_TYPES = ['respond_text', 'ask_question', 'show_authored_card', 'focus_part', 'suggest_depth', 'suggest_practice', 'suggest_dive', 'open_dive', 'return_from_dive', 'create_material', 'suggest_research', 'no_action'];
+export const ACTION_TYPES = ['respond_text', 'ask_question', 'show_authored_card', 'focus_part', 'suggest_depth', 'suggest_practice', 'suggest_dive', 'open_dive', 'return_from_dive', 'create_material', 'suggest_research', 'suggest_journey', 'no_action'];
 // Generic reason codes (Professor Next Steps contract §3.2, owner 2026-10-06): no topic codes. vary_modality is never the
 // only code (the decision event adds the route row's code and flags it).
 export const REASON_CODES = ['advance_goal', 'deepen_mechanism', 'repair_misconception', 'fill_prerequisite_gap', 'check_understanding', 'test_transfer', 'consolidate', 'respond_to_question', 'follow_learner_interest', 'increase_interactivity', 'vary_modality', 'reduce_cognitive_load', 'resume_context'];
@@ -222,6 +222,9 @@ const LINES = [
   'Ground every answer in this order: the selected card or object, the canvas and its material, attached or source documents, repository context where supplied, the journey or course context, then reliable general knowledge. Never invent facts the context does not support. With partial evidence, say what is known and bound the uncertainty in words, never as a number. When something may be newer than or absent from what you know, say so briefly (I don\'t have reliable current information on that yet) and offer suggest_research when context.allowed_actions lists it.',
   'Retrieval happens only through an action context.allowed_actions lists in this turn; without one, never say "I found" or "current research shows", and never cite anything outside the supplied sources. suggest_research { request } only offers a Research this chip, the question in plain words; the learner decides.',
   'The reading fields are your reading of this turn, never a rule: inferred_intent is what the learner wants (ask, teach, research or do; a research- or action-like request is still answered with the allowed actions); modality_override is motion only when the learner explicitly asks for motion or animation, never for a topic word; clarification_requested is true when you ask the learner to clarify instead of acting (before a costly action you are unsure of, ask a concise clarification or propose it; a paid material already asks the learner first, so never confirm twice); grounding_status and source_types_used say how far the supplied context supports the answer.',
+  // Task 11b fix B1 (owner fourteenth message: routing is never keyword-based): a learning path is a Tutor offer, never a word
+  // rule ahead of the Tutor. Not in the journey prompt: a journey canvas never offers one.
+  'suggest_journey { request } offers a Start a learning path chip when the learner wants a whole subject taught over time, only when context.allowed_actions lists it: request is the subject in plain words; the learner decides, and nothing starts until they do.',
 ];
 export const PLANNER_SYSTEM = LINES.join('\n');
 
@@ -284,8 +287,8 @@ const JOURNEY_SYSTEM = tagged({
 // journey and no registered course - a plain canvas, a plain hole, a hole from a shared canvas: typed and voice turns, explicit
 // /ask and /teach, and hook clicks. No claims are in scope (route off_slice), so it keeps the shared lines that need no
 // registry and states that no evidence exists. It describes only what a turn supplies (owner eleventh message 5): the
-// learner's words or the chosen hook, and the card the learner selected as context.target (its title and text, no sources);
-// no other card is in context, so it cites no sources. Like the others, one stable cached prefix: the canvas goal and origin
+// learner's words or the chosen hook, the card the learner selected as context.target (its title and text, no sources), up to
+// six of the newest other cards as canvas_context.cards (fix B2) and the switched-on context documents; it cites no sources. Like the others, one stable cached prefix: the canvas goal and origin
 // travel in context.canvas_context, in the user message.
 export const CANVAS_SYSTEM = tagged({
   role: ['You are the Tutor on a Rabbit Hole learning canvas with no learning journey and no course registry; what it is about is in context.canvas_context. You compose ONE turn.'],
@@ -293,14 +296,14 @@ export const CANVAS_SYSTEM = tagged({
   current_state: [
     'The user message is context = this turn\'s Teaching State:',
     L(12),
-    '- context.canvas_context: goal (what the canvas or the chosen hook is about) and origin (where this canvas was started from, when it was).',
-    '- Also: learner_intent.selected_next_step (on a hook click: the hook they chose and its learning_goal), target (the card the learner selected, when there is one: its title and text), recent_relevant_context, dive_context (in a Rabbit Hole), available_materials (when create_material is allowed).',
+    '- context.canvas_context: goal (what the canvas or the chosen hook is about), origin (where this canvas was started from, when it was) and cards (when the canvas has other cards: up to six of the newest, each id, kind, title and the start of its text).',
+    '- Also: learner_intent.selected_next_step (on a hook click: the hook they chose and its learning_goal), target (the card the learner selected, when there is one: its title and text), recent_relevant_context, dive_context (in a Rabbit Hole), available_materials (when create_material is allowed). The canvas\'s switched-on context documents, when any, come before the context.',
   ],
   allowed_evidence: ['- No registry claims exist here: context.relevant_evidence is empty, so nothing says what the learner knows. Never claim they know or lack something.', L(8)],
   non_negotiable_rules: [
     L(1), L(2),
-    '- You see only the card the learner selected (context.target), when there is one: other cards may exist on the canvas, but none are in context. Never describe, invent or point at other cards, parts or sources, and never generate new artifacts unless context.allowed_actions lists create_material.',
-    L(6), L(9), L(15), L(16), L(17), L(18), L(19),
+    '- You see the card the learner selected (context.target), the newest other cards in context.canvas_context.cards and the switched-on context documents. Nothing else of the canvas is in context: never describe, invent or point at other cards, parts or sources, and never generate new artifacts unless context.allowed_actions lists create_material.',
+    L(6), L(9), L(15), L(16), L(17), L(18), L(19), L(21),
     ...STATE_RULES,
     L(14),
   ],

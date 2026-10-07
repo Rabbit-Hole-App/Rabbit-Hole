@@ -122,9 +122,10 @@ function schema(action, extra = [], domain = NANOGPT) {
   if (action.type === 'suggest_dive' && !action.title && !action.concept) return 'suggest_dive: no topic';
   if (action.type === 'create_material' && (typeof action.command !== 'string' || !plainRequest(action.request))) return 'create_material: command and a 1-1000 character request';
   if (action.type === 'suggest_research' && !plainRequest(action.request)) return 'suggest_research: a 1-1000 character request';
+  if (action.type === 'suggest_journey' && !plainRequest(action.request)) return 'suggest_journey: a 1-1000 character request';
   return null;
 }
-// A create_material or suggest_research request: plain words, 1-1000 characters, no backticks or arrows (maths is fine).
+// A create_material, suggest_research or suggest_journey request: plain words, 1-1000 characters, no backticks or arrows (maths is fine).
 const plainRequest = request => typeof request === 'string' && !!request.trim() && request.length <= 1000 && !/`|=>/.test(request);
 
 // Task 11b: the planner's reading fields (inferred_intent, modality_override, clarification_requested, grounding_status,
@@ -186,6 +187,7 @@ export function validateActions(response, routed, turn, domain = NANOGPT) {
     if (action.type === 'create_material' && !(turn.available_materials || []).some(m => m.command === action.command)) { reject(action, 'resource', `no material command ${action.command}`); continue; }
     if (action.type === 'create_material' && actions.some(other => other.type === 'create_material' && other.command === action.command)) { reject(action, 'route', `a second create_material for ${action.command}`); continue; }
     if (action.type === 'suggest_research' && actions.some(other => other.type === 'suggest_research')) { reject(action, 'route', 'a second suggest_research'); continue; }
+    if (action.type === 'suggest_journey' && actions.some(other => other.type === 'suggest_journey')) { reject(action, 'route', 'a second suggest_journey'); continue; }
     if (action.type === AVATAR_ACTION) { // Avatar Teacher §4.1: a suggestion of learning material, never more
       const navigated = navigate && response.actions.some(other => (other?.type === 'show_authored_card' || other?.type === 'focus_part') && other.mode === 'navigate');
       const trigger = avatarTrigger(action, routed, turn, actions, navigated, domain);
@@ -209,7 +211,7 @@ export function validateActions(response, routed, turn, domain = NANOGPT) {
     }
     if (next.type === 'ask_question') next = { ...next, action_id: crypto.randomUUID(), claim: domain.claims[next.claim] ? next.claim : routed.claim };
     if (next.type === 'create_material') next = { type: 'create_material', command: next.command, request: next.request.trim() };
-    if (next.type === 'suggest_research') next = { type: 'suggest_research', request: next.request.trim() };
+    if (next.type === 'suggest_research' || next.type === 'suggest_journey') next = { type: next.type, request: next.request.trim() };
     if (next.type === 'suggest_dive') {
       // Exactly one originating card (R-10): the target card, else a topic anchor made on Go down.
       const concept = domain.concepts[next.concept] ? next.concept : domain.conceptOf(next.title) || domain.conceptOf(next.concept) || null;

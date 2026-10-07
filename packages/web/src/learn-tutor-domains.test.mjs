@@ -183,9 +183,14 @@ function hook({ app, board = 'main', courseCanvas = false, root = null, record =
   return tutor;
 }
 
-// Task 11b: every canvas with no course or journey Tutor now has the plain-canvas Auto Tutor (active, plain); which Tutor
+// Task 11b: every canvas with no course or journey Tutor now has the plain-canvas Auto Tutor (active, source canvas); which Tutor
 // answers is what these regressions compare: the course one exactly where it ran before, a refusing entry still none.
-const who = t => (!t.active ? 'none' : t.plain ? 'canvas' : 'course');
+const sourceOf = t => {
+  const saved = Object.getOwnPropertyDescriptor(globalThis, 'sessionStorage');
+  Object.defineProperty(globalThis, 'sessionStorage', { value: { getItem: () => null, setItem: () => {} }, configurable: true, writable: true });
+  try { return t.snapshot().context?.source ?? null; } finally { if (saved) Object.defineProperty(globalThis, 'sessionStorage', saved); else delete globalThis.sessionStorage; }
+};
+const who = t => (!t.active ? 'none' : sourceOf(t) === 'canvas' ? 'canvas' : 'course');
 test('regressions 1-3 through useTutor: nanoGPT canvases and holes get the course Tutor; a course added to the registry data does too; tutor:false gets none', async () => {
   const nano = { repo: REPO, kind: 'repository' };
   assert.equal(who(hook({ app: nano, courseCanvas: true })), 'course', 'the supplied course canvas');
@@ -392,7 +397,7 @@ test('wiring: useTutor and LearnPage decide the Tutor only through the resolver;
   assert.match(tutor, /holeOpening\(\{ storage: sessionStorage, load, record, title: liveTitle, hookTurns, settled, active, /);
   assert.match(tutor, /const common = \{ canvas: \{ \.\.\.here, \.\.\.\(record \? \{ dive: record, liveTitle \} : \{\}\) \},/);
   assert.match(tutor, /const context = tutorContext\(\{ \.\.\.where, journey \}\), capabilities = context\?\.capabilities;\n  const active = capabilities\?\.tutor === true, hookTurns = active \|\| capabilities\?\.hook_turns === true;/);
-  assert.match(tutor, /const domainOf = canvas => tutorContext\(\{ \.\.\.where, journey: journeyRef\.current, blocks: canvas\?\.blocks\?\.\(\) \|\| \[\] \}\)\?\.domain;/);
+  assert.match(tutor, /const domainOf = \(canvas, selected = null\) => tutorContext\(\{ \.\.\.where, journey: journeyRef\.current, blocks: canvas\?\.blocks\?\.\(\) \|\| \[\], selected \}\)\?\.domain;/);
   // Task 10 fix round 1: the parent read records the hole it settled for, snapshot() waits on it, and a rename rebuilds turn().
   assert.match(tutor, /diveJourney\(record, path => api\(path\)\)\.then\(found => \{ if \(current\) \{ setParentJourney\(found\); setParentRead\(record\.dive_id\); \} \}\);/);
   assert.match(tutor, /snapshot: \(\) => \(\{ context: hookContext\(\{ \.\.\.where, journey: journeyRef\.current, blocks: canvasApi\.current\?\.blocks\?\.\(\) \|\| \[\] \}, parentRead, recordPending\), store: load\(\), parent: parentJourney, record, liveTitle \}\),/);

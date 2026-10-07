@@ -33,13 +33,14 @@ export function registeredCourse({ app = null, board = null, root = null }, regi
 // prerequisite. goal the hole's learning_goal,
 // else the live canvas title (a hole's too, fix round 2), else a hole's creation-time title; origin the shared canvas a hole
 // came from. app: the course app, only on its own canvas
-// (LearnPage). blocks: the canvas blocks a journey domain is built over (per turn). title: the live canvas title.
-export function tutorContext({ app = null, board = null, root = null, journey = null, parentJourney = null, record = null, blocks = [], title = null }, registry = TUTOR_DOMAINS) {
+// (LearnPage). blocks: the canvas blocks a journey domain is built over (per turn), and since Task 11b fix B2 the canvas
+// domain's grounding cards; selected: the turn's selected block (the target, left out of those cards). title: the live canvas title.
+export function tutorContext({ app = null, board = null, root = null, journey = null, parentJourney = null, record = null, blocks = [], title = null, selected = null }, registry = TUTOR_DOMAINS) {
   if (journey?.journey) return { domain: journeyDomain({ journey: journey.journey, path: journey.path, blocks }), capabilities: { tutor: true, evidence: 'journey' }, source: 'journey' };
   if (parentJourney && record?.journey) {
     return { domain: journeyDomain({ journey: parentJourney.journey, path: parentJourney.path, blocks, dive: record.journey }), capabilities: { tutor: true, evidence: 'session' }, source: 'dive' };
   }
   const entry = registeredCourse({ app, board, root }, registry);
-  if (!entry) return { domain: canvasDomain({ goal: record ? record.learning_goal || title || record.title : title, origin: record?.source?.title }), capabilities: { tutor: true, hook_turns: true }, source: 'canvas' };
+  if (!entry) return { domain: canvasDomain({ goal: record ? record.learning_goal || title || record.title : title, origin: record?.source?.title, blocks, selected }), capabilities: { tutor: true, hook_turns: true }, source: 'canvas' };
   return entry.domain && (entry.capabilities?.tutor === true || entry.capabilities?.hook_turns === true) ? { domain: entry.domain, capabilities: entry.capabilities, source: 'registry' } : null;
 }
