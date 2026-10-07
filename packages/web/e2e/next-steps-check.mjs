@@ -1,19 +1,27 @@
 // Professor Next Steps acceptance N1-N7 (docs/features/professor-next-steps.md), then the Auto Tutor N8-N13 (Task 11b) and the
-// Tutor handoff route N14-N16 (Task 11c-A) and the Tutor-side handoff N17-N22 (Task 11c-B and its fix round 1), against the
+// Tutor handoff route N14-N16 (Task 11c-A) and the Tutor-side handoff N17-N22 (Task 11c-B and its fix rounds), against the
 // KEYLESS local stack only (e2e/journey-local-stack.md §6): no model key is bound and the hook planner answers from its fixtures
-// (JOURNEY_MODEL_STUB=fixtures). Node + HTTP for everything but N7, which uses the browser. The Tutor planner is never reached:
-// the turns of N2, N8-N13 and N17-N22 run in Node, their /api/learn/tutor/plan answered in process (as journey-check.mjs
-// answers it in the page), every other request they make goes to the stack. The handoff checks use only paths that call no
-// model: a successful handoff needs one, and the stack has none.
-//   node e2e/next-steps-check.mjs --base http://127.0.0.1:8868 --cp http://127.0.0.1:8869 --vars <stack .dev.vars> --out <dir>
-// --vars is the stack's own vars file; only its TEST_BYPASS_SECRET is read, never printed. Sessions are minted on the
-// control plane's origin (the app's barrier refuses /test/session there).
+// (JOURNEY_MODEL_STUB=fixtures). Node + HTTP for everything but N7, which uses the browser (the trace sink, and the dock: the
+// broad learning request typed into the real composer). The Tutor planner is never reached: the turns of N2, N8-N13 and N17-N22
+// run in Node, their /api/learn/tutor/plan answered in process (as journey-check.mjs answers it in the page), every other request
+// they make goes to the stack. The handoff checks use only paths that call no model: a successful handoff needs one, and the
+// stack has none.
+//   node e2e/next-steps-check.mjs --base http://127.0.0.1:8868 --cp http://127.0.0.1:8869 --vars <stack cp/.dev.vars> [--app-vars <stack app/.dev.vars>] [--out <dir>]
+// --vars is the control plane's vars file and --app-vars the app worker's (default: app/.dev.vars beside the control plane's folder).
+// Every vars file the stack loads is read by key NAME and the run is refused if one binds a model, voice or subscription key, or any
+// name outside the five the stack uses; only TEST_BYPASS_SECRET is read as a value, never printed. Sessions are minted on the
+// control plane's origin (the app's barrier refuses /test/session there). --out defaults to e2e/shots/next-steps (gitignored).
 // Each check prints PASS, FAIL or SKIP with its reason; <out>/next-steps-results.json holds the table and
 // <out>/next-steps-network.json the requests per check (method, path, status, request body keys - never learner text; a
 // share token in a path is replaced by <token>).
 // Each check is a named function in CHECKS; later checks are appended there.
 import { chromium } from '@playwright/test';
-import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import * as esbuild from 'esbuild';
+import { createRequire } from 'node:module';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { nextStepsInput } from '../src/learn-next-steps.js';
 import { journeyDomain } from '../src/learn-journey-domain.js';
 import { emptyStore } from '../src/learn-tutor-evidence.js';
@@ -28,15 +36,42 @@ import { resolveTarget } from '../src/learn-target.js';
 import { rabbitOrigin } from '../src/shared-rabbit-hole.js';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
-const BASE = arg('base', 'http://127.0.0.1:8868'), CP = arg('cp', 'http://127.0.0.1:8869'), OUT = arg('out', 'next-steps-shots'), VARS = arg('vars', process.env.JOURNEY_VARS);
+// --out defaults to e2e/shots/next-steps, which is gitignored (a run never leaves untracked files in the tree).
+const BASE = arg('base', 'http://127.0.0.1:8868'), CP = arg('cp', 'http://127.0.0.1:8869'), OUT = arg('out', fileURLToPath(new URL('./shots/next-steps', import.meta.url))), VARS = arg('vars', process.env.JOURNEY_VARS);
 for (const origin of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(origin)) throw Error('next-steps-check runs against the local stack only');
 if (!VARS) throw Error('--vars <the local stack .dev.vars> is required (e2e/journey-local-stack.md)');
+
+// ---- keyless only: every vars file the stack loads ----
+// wrangler dev reads .dev.vars (and .env) from the folder of each config it is started with, so the stack's control plane (--vars) and
+// its app worker (--app-vars; by default the app/ folder beside the control plane's) both bind what the workers can reach. All of
+// those files are read, key NAMES only: one that binds a model, voice or subscription-bridge key is refused before any request,
+// and so is any name outside the five this stack uses. A refusal names the key, never a value, and no file is ever printed.
+const APP_VARS = arg('app-vars', join(dirname(dirname(VARS)), 'app', '.dev.vars'));
+const STACK_KEYS = ['SMALL_ENV', 'TEST_BYPASS_SECRET', 'MASTER_KEY', 'OAUTH_MOCK', 'JOURNEY_MODEL_STUB'];
+const MODEL_KEY = /_API_KEY|^ELEVENLABS_|^SUBSCRIPTION_/; // *_API_KEY (model, voice, search, image), ELEVENLABS_*, SUBSCRIPTION_ONLY / SUBSCRIPTION_BRIDGE_*
+if (!existsSync(dirname(APP_VARS))) throw Error(`cannot find the app worker's vars folder ${dirname(APP_VARS)}: pass --app-vars <the app worker .dev.vars> (e2e/journey-local-stack.md)`);
+const loadedBy = dir => readdirSync(dir).filter(file => /^\.(dev\.vars|env)(\.|$)/.test(file)).map(file => join(dir, file));
+const keyNames = text => text.split(/\r?\n/).map(line => line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/)?.[1]).filter(Boolean);
+for (const file of new Set([VARS, APP_VARS, ...loadedBy(dirname(VARS)), ...loadedBy(dirname(APP_VARS))].filter(existsSync))) {
+  const names = keyNames(readFileSync(file, 'utf8')), model = names.filter(name => MODEL_KEY.test(name)), unknown = names.filter(name => !STACK_KEYS.includes(name));
+  if (model.length) throw Error(`${file} binds a model, voice or subscription key (${[...new Set(model)].join(', ')}): next-steps-check runs only against the keyless stack (e2e/journey-local-stack.md)`);
+  if (unknown.length) throw Error(`${file} binds ${[...new Set(unknown)].join(', ')}, which the keyless stack does not use (it binds only ${STACK_KEYS.join(', ')}; e2e/journey-local-stack.md)`);
+}
 mkdirSync(OUT, { recursive: true });
-const vars = readFileSync(VARS, 'utf8');
-// Keyless only: a vars file that binds a model or voice key is refused before any request.
-if (/_API_KEY=|ELEVENLABS_/.test(vars)) throw Error(`${VARS} binds a model or voice key: next-steps-check runs only against the keyless stack (e2e/journey-local-stack.md)`);
-const secret = vars.match(/^TEST_BYPASS_SECRET=(.*)$/m)?.[1].trim();
+const secret = readFileSync(VARS, 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)?.[1].trim();
 if (!secret) throw Error(`no TEST_BYPASS_SECRET in ${VARS}`);
+
+// ---- the page's own functions, not copies ----
+// LearnTutor.jsx and LearnJourney.jsx are JSX, so they are bundled the way learn-tutor-auto.test.mjs bundles them: what a turn may
+// offer (turnOffers), what makes a canvas a repository canvas (canvasRepository) and how a learning-path click is worded
+// (startRequest). A change to any of them is a change to these checks.
+const bundleDir = mkdtempSync(join(tmpdir(), 'next-steps-check-'));
+await esbuild.build({
+  stdin: { contents: "export { turnOffers, canvasRepository } from './LearnTutor.jsx'; export { startRequest } from './LearnJourney.jsx';", resolveDir: fileURLToPath(new URL('../src/', import.meta.url)), loader: 'jsx' },
+  bundle: true, outfile: join(bundleDir, 'page.cjs'), format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent',
+});
+const { turnOffers, canvasRepository, startRequest } = createRequire(import.meta.url)(join(bundleDir, 'page.cjs'));
+rmSync(bundleDir, { recursive: true, force: true });
 
 const REQUEST = 'I want to learn logistic regression';
 const CANNED = 'A canned answer from next-steps-check: no model was called.';
@@ -105,7 +140,8 @@ async function n1() {
   const first = await call(owner, 'POST', '/api/learn/tutor/next-steps', { app: name, input: built.input });
   const problem = first.status === 200 ? setProblem(first.body, 'owned') : `HTTP ${first.status} ${first.body?.error || ''}`;
   check('N1 hook set', !problem, `200, 3 owned hooks with ${first.body?.set_id}.1-3 ids (${saved.length} saved blocks, mode ${built.input.mode})`, problem);
-  check('N1 no reason_internal', !/reason_internal/.test(first.text), 'reason_internal is not in the reply text', 'the reply text carries reason_internal');
+  // The key name, and the stub's value (learn-journey-fixtures.js: "fixture <kind>") under any other key.
+  check('N1 no reason_internal', !/reason_internal|"fixture /.test(first.text), 'neither reason_internal nor its fixture value is in the reply text', 'the reply text carries reason_internal or its fixture value');
   const again = await call(owner, 'POST', '/api/learn/tutor/next-steps', { app: name, input: built.input });
   state.cacheWorks = again.body?.telemetry?.cached === true;
   check('N1 same basis, same set', again.status === 200 && !!first.body?.set_id && again.body?.set_id === first.body.set_id,
@@ -135,7 +171,9 @@ async function n2() {
   const foreign = [...claimIds.filter(id => !Object.hasOwn(registry.claims, id)), ...conceptIds.filter(id => !Object.hasOwn(registry.concepts, id))];
   check('N2 hooks carry registry ids only', !problem && claimIds.length > 0 && !foreign.length, `3 journey hooks naming ${new Set(claimIds).size} registry claim(s), nothing else`,
     problem || (foreign.length ? `ids outside the registry: ${foreign.join(', ')}` : 'no claim ids on a journey with a registry'));
-  // The click: one next_step turn; /plan answered here, anything else to the stack.
+  // The click: one next_step turn; /plan answered here, anything else to the stack. The learner's words ride beside the step (the
+  // composer is not empty, as when a step is clicked with something typed): runTurn's own `if (nextStep) raw = ''` is what keeps
+  // them from being evaluated, so with that guard gone this turn would POST /api/learn/tutor/evaluate and N2 would fail.
   const sent = [];
   const post = async (route, body) => {
     sent.push(route);
@@ -143,11 +181,11 @@ async function n2() {
     return ok(owner, 'POST', route, body);
   };
   const step = steps[0];
-  state.turn = await runTurn({ raw: '', canvas: { app: name, board: 'main' }, access: { app: name }, block: null, store: emptyStore(), post, domain, nextStep: step, materials: [], trace: true });
+  state.turn = await runTurn({ raw: REQUEST, canvas: { app: name, board: 'main' }, access: { app: name }, block: null, store: emptyStore(), post, domain, nextStep: step, materials: [], trace: true });
   state.journey = { id: journey.id, step };
   const evaluate = sent.filter(r => r === '/api/learn/tutor/evaluate').length, journeyPosts = sent.filter(r => r === '/api/learn/journey').length;
   check('N2 click posts no evidence', evaluate === 0 && journeyPosts === 0 && sent.includes('/api/learn/tutor/plan') && state.turn.text === CANNED,
-    `the next_step turn made 0 /evaluate and 0 /api/learn/journey POSTs (requests: ${sent.join(', ')})`, `${evaluate} evaluate, ${journeyPosts} journey POSTs; requests ${sent.join(', ')}; reply ${state.turn.text ? 'present' : 'missing'}`);
+    `the next_step turn, with the learner's words beside the step, made 0 /evaluate and 0 /api/learn/journey POSTs (requests: ${sent.join(', ')})`, `${evaluate} evaluate, ${journeyPosts} journey POSTs; requests ${sent.join(', ')}; reply ${state.turn.text ? 'present' : 'missing'}`);
   const after = (await journeyOf()).journey;
   check('N2 journey unchanged', after.evidence?.seq === journey.evidence?.seq && after.revision === journey.revision,
     `evidence.seq ${after.evidence?.seq} and revision ${after.revision} unchanged`, `seq ${journey.evidence?.seq} -> ${after.evidence?.seq}, revision ${journey.revision} -> ${after.revision}`);
@@ -172,7 +210,7 @@ async function n3() {
   const wrong = Object.entries(TRACE).filter(([part, list]) => !same(Object.keys(part === 'top' ? e : e[part] || {}), list)).map(([part]) => part);
   check('N3 event keys', !wrong.length && e.trace_schema_version === 1 && e.event === 'tutor_decision', 'tutor_decision v1 with exactly the contract keys at every level', `keys differ at ${wrong.join(', ') || 'none'}; version ${e.trace_schema_version}, event ${e.event}`);
   const text = JSON.stringify(e);
-  check('N3 no learner text', !text.includes(REQUEST) && !text.includes(CANNED) && !/reason_internal/.test(text), 'neither the request, the reply nor reason_internal is in the event', 'the event carries learner or reply text');
+  check('N3 no learner text', !text.includes(REQUEST) && !text.includes(CANNED) && !/reason_internal|"fixture /.test(text), 'neither the learner words the turn carried, the reply nor reason_internal (or its fixture value) is in the event', 'the event carries learner or reply text');
   check('N3 journey identity', e.identity?.journey_id === state.journey.id && e.decision?.selected_next_step_id === state.journey.step.suggestion_id,
     `identity.journey_id is ${state.journey.id}; selected_next_step_id is the clicked hook`, `journey_id ${e.identity?.journey_id}, selected ${e.decision?.selected_next_step_id}`);
 }
@@ -231,6 +269,9 @@ async function n5() {
   const a = await sessionFor(`pns-viewer-a-${run}@example.org`), b = await sessionFor(`pns-viewer-b-${run}@example.org`);
   const anonymous = await sharedHooks(null, course, { origin: null });
   if (noRoute(anonymous)) return skip('N5 personalized hooks', `${NO_ROUTE} (HTTP ${anonymous.status})`);
+  // With the edge cache off every set id is fresh, so A would differ from the anonymous set and B could never be served A's whatever
+  // the product does: the cache is what these checks are about, so without it they would only pass.
+  if (!state.cacheWorks) return skip('N5 personalized hooks', `the local Cache API is unavailable (N1's repeat was not a cache hit), so personal sets cannot be told from fresh ones here`);
   const states = { [REG_CLAIM]: 'uncertain' };
   const mine = await sharedHooks(a, course, { origin: null, viewer_states: states });
   const problem = mine.status === 200 ? setProblem(mine.body, 'shared') : `HTTP ${mine.status} ${mine.body?.error || ''}`;
@@ -238,8 +279,9 @@ async function n5() {
     `A's set ${mine.body?.set_id} differs from the anonymous ${anonymous.body?.set_id} and is not from the cache`, problem || `A ${mine.body?.set_id}, anonymous ${anonymous.body?.set_id} (HTTP ${anonymous.status}), cached ${mine.body?.telemetry?.cached}`);
   const plain = await sharedHooks(b, course, { origin: null }), same = await sharedHooks(b, course, { origin: null, viewer_states: states });
   const got = [plain.body?.set_id, same.body?.set_id];
-  check('N5 viewer B never gets A', plain.status === 200 && same.status === 200 && !!mine.body?.set_id && !got.includes(mine.body.set_id),
-    `B without and with the same states gets ${got.join(' and ')}, never A's ${mine.body?.set_id}`, `B HTTP ${plain.status}/${same.status}, sets ${got.join(', ')}, A ${mine.body?.set_id}`);
+  // B without states is served the anonymous (cached) set, and never a set made from what was stored for A.
+  check('N5 viewer B never gets A', plain.status === 200 && same.status === 200 && !!mine.body?.set_id && !got.includes(mine.body.set_id) && plain.body.set_id === anonymous.body?.set_id,
+    `B without states gets the anonymous ${plain.body?.set_id}; with the same states ${same.body?.set_id}; never A's ${mine.body?.set_id}`, `B HTTP ${plain.status}/${same.status}, sets ${got.join(', ')}, A ${mine.body?.set_id}, anonymous ${anonymous.body?.set_id}`);
 }
 
 // ---- N6: Start Rabbit Hole with a step; a board save makes it stale ----
@@ -265,32 +307,53 @@ async function n6() {
     "the owner's board GET is byte-identical after the 409, and its state is the one the check saved", "the owner's board changed beyond the check's own save");
 }
 
-// ---- N7: the browser trace sink is off by default ----
+// ---- N7: the browser. The trace sink is off by default; the dock sends no keyword journey start ----
+// This drives the real composer, which is allowed only because (1) the stack is KEYLESS - every vars file it loads was checked on
+// startup, so no model, voice or subscription key exists for any worker to use - and (2) every model route is answered or aborted
+// IN THE PAGE: the Tutor planner (/api/learn/tutor/plan) is fulfilled with a canned respond_text plan, and every other non-GET
+// /api/ request is aborted unless it is one of the stack's own keyless routes (canvases, boards, the journey route, dives, the
+// evaluator and the hook planner, which answer from their fixtures or without a call).
 // The keyless stack's own resource errors on every page load, with or without the flag, and nothing else: the dev worker
 // refuses /auth/session (the P0-B barrier) and BYOC is not configured. Any other console error fails N7.
 const STACK_NOISE = [['/auth/session', 403], ['/api/byoc/connection', 503]];
+const LOCAL_WRITES = /^\/api\/(canvases|learn\/(boards\/|journey$|dives|tutor\/(evaluate|next-steps)$))/;
+async function pageFor(browser, { traced = false } = {}) {
+  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  await context.addCookies([{ name: 'small_session', value: owner.session, url: BASE }]);
+  if (traced) await context.addInitScript(() => { window.__SMALL_TUTOR_TRACE__ = true; });
+  const aborted = [], seen = [], errors = [], ignored = [];
+  await context.route(/\/api\//, route => {
+    const method = route.request().method(), url = new URL(route.request().url());
+    if (method === 'GET' || method === 'HEAD' || LOCAL_WRITES.test(url.pathname)) return route.fallback();
+    aborted.push(`${method} ${url.pathname}`);
+    return route.abort();
+  });
+  await context.route('**/api/learn/tutor/plan', route => route.fulfill({ json: PLAN })); // registered last, so it wins over the catch-all
+  const page = await context.newPage();
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('console', message => {
+    if (message.type() !== 'error') return;
+    const url = message.location()?.url, at = url ? new URL(url).pathname : '', status = Number(message.text().match(/status of (\d{3})/)?.[1]);
+    if (STACK_NOISE.some(([path, code]) => path === at && code === status)) ignored.push(`${at} ${status}`); else errors.push(message.text());
+  });
+  page.on('request', request => {
+    const { pathname } = new URL(request.url());
+    if (pathname.startsWith('/api/')) seen.push({ method: request.method(), path: pathname, body: (() => { try { return request.postDataJSON(); } catch { return null; } })() });
+  });
+  page.on('response', response => {
+    const { pathname } = new URL(response.url());
+    if (pathname.startsWith('/api/')) log({ method: response.request().method(), path: pathname, status: response.status(), keys: keys((() => { try { return response.request().postDataJSON(); } catch { return null; } })()) });
+  });
+  return { context, page, errors, ignored, seen, aborted };
+}
+const posted = (seen, path) => seen.filter(entry => entry.method === 'POST' && entry.path === path);
+const composerOf = page => page.locator('[data-learn-dock] [data-chat-composer] :is(textarea, input:not([type="file"]))').first();
 async function n7() {
   if (!state.canvas) return record('N7 trace sink', 'FAIL', 'no canvas from N1');
   const browser = await chromium.launch();
   try {
     for (const traced of [false, true]) {
-      const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
-      await context.addCookies([{ name: 'small_session', value: owner.session, url: BASE }]);
-      if (traced) await context.addInitScript(() => { window.__SMALL_TUTOR_TRACE__ = true; });
-      // No model call leaves the page, even on a misconfigured stack.
-      await context.route('**/api/learn/tutor/plan', route => route.fulfill({ json: PLAN }));
-      await context.route(/\/api\/(learn\/(ask|home-ask|artifact|voice\/|assess|transcribe|image)|chat)$/, route => route.abort());
-      const page = await context.newPage(), errors = [], ignored = [];
-      page.on('pageerror', error => errors.push(error.message));
-      page.on('console', message => {
-        if (message.type() !== 'error') return;
-        const url = message.location()?.url, at = url ? new URL(url).pathname : '', status = Number(message.text().match(/status of (\d{3})/)?.[1]);
-        if (STACK_NOISE.some(([path, code]) => path === at && code === status)) ignored.push(`${at} ${status}`); else errors.push(message.text());
-      });
-      page.on('response', response => {
-        const { pathname } = new URL(response.url());
-        if (pathname.startsWith('/api/')) log({ method: response.request().method(), path: pathname, status: response.status(), keys: keys((() => { try { return response.request().postDataJSON(); } catch { return null; } })()) });
-      });
+      const { context, page, errors, ignored } = await pageFor(browser, { traced });
       await page.goto(`${BASE}/apps/${state.canvas.name}?tab=learn`);
       await page.locator('[data-tool-gutter]').waitFor({ timeout: 60000 });
       await page.waitForTimeout(1500);
@@ -301,26 +364,66 @@ async function n7() {
       await page.screenshot({ path: `${OUT}/${traced ? 'N7-trace-on' : 'N7-trace-off'}.png` });
       await context.close();
     }
+    // The dock: the broad learning request typed into the composer of a plain canvas and sent. The keyword journey start (LP1) must
+    // not run - routing is never keyword-based - so the Tutor planner gets the turn: one plan request, no /api/learn/journey POST,
+    // no journey on the canvas, no tray in the DOM.
+    const dock = await pageFor(browser);
+    await dock.page.goto(`${BASE}/apps/${state.canvas.name}?tab=learn`);
+    await composerOf(dock.page).waitFor({ timeout: 30000 });
+    await dock.page.waitForTimeout(1500);
+    const planned = dock.page.waitForResponse(response => response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/learn/tutor/plan', { timeout: 20000 });
+    await composerOf(dock.page).fill(BROAD);
+    await composerOf(dock.page).press('Enter');
+    await planned.catch(() => null);
+    const shown = await dock.page.getByText(CANNED).first().waitFor({ timeout: 10000 }).then(() => true, () => false);
+    await dock.page.waitForTimeout(1000);
+    const plans = posted(dock.seen, '/api/learn/tutor/plan'), trays = await dock.page.locator('[data-tutor-prompt-tray]').count(), asks = posted(dock.seen, '/api/learn/ask').length;
+    check('N7 dock: one plan request', plans.length === 1 && plans[0].body?.context?.learner_intent?.raw_user_message === BROAD && !asks && shown,
+      'typing the broad request in the composer sent exactly one /api/learn/tutor/plan request with the words, no Learn chat ask, and the Tutor reply showed',
+      `${plans.length} plan request(s); words ${plans[0]?.body?.context?.learner_intent?.raw_user_message === BROAD ? 'match' : 'differ'}; ${asks} ask; reply shown ${shown}`);
+    const starts = posted(dock.seen, '/api/learn/journey');
+    check('N7 dock: no journey start', !starts.length, 'the page made no POST to /api/learn/journey', `${starts.length} journey POST(s), actions ${starts.map(entry => entry.body?.action).join(',')}`);
+    const journeyNow = !!(await journeyAt(state.canvas.name)).journey;
+    check('N7 dock: no journey, no tray', !journeyNow && trays === 0, 'the canvas has no journey record and the DOM has no prompt tray', `journey on the canvas ${journeyNow}; ${trays} tray(s)`);
+    check('N7 dock: nothing else left the page', !dock.errors.length && !dock.aborted.length, `no console errors and no request aborted in the page${dock.ignored.length ? ` (keyless-stack resource errors left out: ${[...new Set(dock.ignored)].join(', ')})` : ''}`,
+      `${dock.errors.slice(0, 2).join(' | ')} aborted: ${dock.aborted.join(', ') || 'none'}`);
+    await dock.page.screenshot({ path: `${OUT}/N7-dock.png` });
+    await dock.context.close();
+    // Control: the observer does see a journey start when the product makes one. Home's Agent Bar starts a journey from the same
+    // kind of request (journey-check.mjs J8), and its POST /api/learn/journey is in the log.
+    const home = await pageFor(browser);
+    await home.page.goto(`${BASE}/apps`);
+    await home.page.waitForTimeout(3000);
+    const bar = home.page.locator('textarea').last();
+    await bar.fill(REQUEST);
+    await bar.press('Enter');
+    await home.page.waitForURL(url => /^\/apps\/canvas-[a-f0-9]{8}$/.test(url.pathname) && url.searchParams.get('tab') === 'learn', { timeout: 30000 }).catch(() => null);
+    await home.page.waitForTimeout(1500);
+    const homeStarts = posted(home.seen, '/api/learn/journey').filter(entry => entry.body?.action === 'start');
+    check('N7 dock control', homeStarts.length === 1, 'control: Home starts a journey from a request, and the same observer sees its one POST /api/learn/journey start', `${homeStarts.length} journey start POST(s) seen from Home (page at ${new URL(home.page.url()).pathname})`);
+    await home.context.close();
   } finally { await browser.close(); }
 }
 
 // ---- N8-N13: the Auto Tutor (Task 11b), no model ----
 // N2's pattern: runTurn in Node, /api/learn/tutor/plan answered in process by a canned plan, every other route to the stack.
-// The turn options are the page's own (LearnTutor.jsx turnOffers): the materials always, a Research offer only when the page can
-// open Research (research), a learning-path offer where the journey controller can start one (journeyOffer, true on a canvas).
-// The canvas is the owned plain canvas of N1 (two saved blocks, no journey, no registered course).
+// The turn options are the page's own: LearnTutor.jsx turnOffers itself (bundled above), given what useTutor gives it on a canvas -
+// the journey controller (journeys start here), openResearch only when a check supplies one, and the repository flag the page
+// computes from the app with canvasRepository. The canvas is the owned plain canvas of N1 (two saved blocks, no journey, no
+// registered course). What a canvas does with the words of a learning request (no keyword journey start) is a page rule: N7 types it.
 const say = text => ({ type: 'respond_text', text });
 const planOf = (...actions) => ({ ...PLAN, actions });
 const AUTO_RAW = 'Why does the dough need time to rise?', BROAD = 'Teach me backpropagation from scratch.';
-// LearnJourney.jsx startRequest (a JSX file, not importable in Node): a start request as it is, a bare topic as Teach me <topic>.
-const startRequest = text => { const it = journeyIntent(text); return STARTS.has(it.kind) && it.topic ? text : `Teach me ${text}`; };
+const LIVE_JOURNEYS = () => ({ journey: null, start: async () => ({ handled: true }) }); // the controller of a canvas where a journey can start
 // plan: the canned plan, or a function of the plan request body that returns or awaits one. signal: a real AbortSignal that every
 // request to the stack carries (as the page's post carries the turn's Stop signal). stops: the turn may reject (a Stop); the
 // rejection comes back as error, with the requests made so far in sent. Each entry of sent keeps the stack's reply.
 // answer: { [route]: body => reply promise } answers that route in process (a held request: the promise decides when, and
 // whether, it settles). onSend(route): called synchronously right after a request to the stack has been issued with the signal,
-// so an abort there always lands while that request is in flight.
-async function autoTurn(where, { raw, plan = PLAN, slash = null, research = false, journeyOffer = true, repository = false, block = null, signal = null, stops = false, answer = {}, onSend = null }) {
+// so an abort there always lands while that request is in flight. openResearch, journey and repository are useTutor's inputs to
+// turnOffers (repository null: the app's own canvasRepository, as useTutor; true: the page's flag forced on, for a canvas whose
+// repository the server cannot resolve).
+async function autoTurn(where, { raw, plan = PLAN, slash = null, openResearch = null, journey = LIVE_JOURNEYS(), repository = null, block = null, signal = null, stops = false, answer = {}, onSend = null }) {
   const sent = [];
   const post = async (route, body) => {
     const entry = { route, body, reply: null }; sent.push(entry);
@@ -337,8 +440,9 @@ async function autoTurn(where, { raw, plan = PLAN, slash = null, research = fals
     } catch (error) { if (error.name === 'AbortError') log({ method: 'POST', path: route, status: 'aborted', keys: keys(body) }); throw error; }
   };
   const { domain } = tutorContext({ app: where.name, board: 'main', title: where.title, blocks: where.blocks });
+  const offers = turnOffers({ journey, record: null, opening: false, nextStep: null, openResearch, repository: repository ?? canvasRepository(where) });
   let result = null, error = null;
-  try { result = await runTurn({ raw, slash, canvas: { app: where.name, board: 'main' }, access: { app: where.name }, block, store: emptyStore(), post, domain, materials: materialCommands(), research, journeyOffer, repository, trace: true }); }
+  try { result = await runTurn({ raw, slash, canvas: { app: where.name, board: 'main' }, access: { app: where.name }, block, store: emptyStore(), post, domain, ...offers, trace: true }); }
   catch (thrown) { if (!stops) throw thrown; error = thrown; }
   return { result, error, post, domain, sent, routes: sent.map(s => s.route), context: sent.find(s => s.route === '/api/learn/tutor/plan')?.body.context, decision: result?.trace?.decision };
 }
@@ -347,7 +451,7 @@ const noCanvas = id => { if (state.canvas) return false; record(id, 'FAIL', 'no 
 const ONLY_PLAN = routes => routes.length === 1 && routes[0] === '/api/learn/tutor/plan';
 const chipsOf = (actions, domain, extra = {}) => executeActions(actions, { canvas: {}, suggestDive: () => {}, climb: () => {}, domain, ...extra });
 
-// N8: a plain canvas typed turn goes to the Tutor plan request with the canvas's cards, and starts no journey.
+// N8: a plain canvas typed turn goes to the Tutor plan request with the canvas's cards.
 async function n8() {
   if (noCanvas('N8')) return;
   const c = state.canvas, { result, routes, context, decision } = await autoTurn(c, { raw: AUTO_RAW });
@@ -358,7 +462,6 @@ async function n8() {
     `canvas_context.cards holds the ${cards.length} saved blocks, in canvas order, with kind, title and text`, `cards ${JSON.stringify(cards.map(x => [x.id, x.kind]))}`);
   check('N8 auto reading', decision?.intent_mode === 'auto' && result.trace?.identity?.mode === 'canvas' && context?.allowed_actions?.includes('respond_text') && context.allowed_actions.includes('create_material'),
     'trace: intent_mode auto, mode canvas; the planner may reply or make material', `intent_mode ${decision?.intent_mode}, mode ${result.trace?.identity?.mode}, allowed ${context?.allowed_actions?.join(',')}`);
-  check('N8 no journey', !(await journeyAt(c.name)).journey, 'the canvas has no journey after the turn', 'a journey exists on the canvas');
 }
 
 // N9: a broad learning request (one LP1's word gate would have started a journey on) reaches the planner, which may offer a path.
@@ -368,7 +471,8 @@ async function n9() {
   const { routes, context } = await autoTurn(c, { raw: BROAD });
   check('N9 broad request reaches the planner', premise && ONLY_PLAN(routes) && context?.learner_intent?.raw_user_message === BROAD && context.allowed_actions?.includes('suggest_journey'),
     'a request LP1 reads as a journey start made one /api/learn/tutor/plan request, with suggest_journey allowed', `word rule reads a start ${premise}; requests ${routes.join(', ') || 'none'}; allowed ${context?.allowed_actions?.join(',')}`);
-  check('N9 no tray', !(await journeyAt(c.name)).journey, 'no journey (so no tray) exists on the canvas', 'a journey was started on the canvas');
+  // That nothing starts a journey or opens a tray is a page rule (journeyStartsHere, handleText): runTurn in Node never runs it, so
+  // it is not claimed here. N7 types this request into the real composer and checks the journey route, the record and the tray.
 }
 
 // N10: a suggest_journey plan yields a Start a learning path chip; nothing starts until the click, which posts the existing start.
@@ -390,12 +494,12 @@ async function n10() {
 async function n11() {
   if (noCanvas('N11')) return;
   const c = state.canvas, request = 'the latest approaches to long-context attention', plan = planOf(say(CANNED), { type: 'suggest_research', request });
-  const off = await autoTurn(c, { raw: AUTO_RAW, plan, research: false });
+  const off = await autoTurn(c, { raw: AUTO_RAW, plan, openResearch: null });
   check('N11 not allowed without openResearch', !off.context?.allowed_actions?.includes('suggest_research') && off.result.actions.every(a => a.type !== 'suggest_research') && off.decision?.research_offered === false
     && !chipsOf([{ type: 'suggest_research', request }], off.domain, { openResearch: null }).length,
     'with no openResearch suggest_research is not in allowed_actions, a plan offering it is cut, and it makes no chip', `allowed ${off.context?.allowed_actions?.join(',')}; actions ${off.result.actions.map(a => a.type).join(',')}; research_offered ${off.decision?.research_offered}`);
-  const opened = [], on = await autoTurn(c, { raw: AUTO_RAW, plan, research: true });
-  const chips = chipsOf(on.result.actions, on.domain, { openResearch: text => opened.push(text) });
+  const opened = [], openResearch = text => opened.push(text), on = await autoTurn(c, { raw: AUTO_RAW, plan, openResearch });
+  const chips = chipsOf(on.result.actions, on.domain, { openResearch });
   chips[0]?.run();
   check('N11 allowed with openResearch', on.context?.allowed_actions?.includes('suggest_research') && on.decision?.research_offered === true && on.decision.research_executed === false && ONLY_PLAN(on.routes)
     && chips.length === 1 && chips[0].label === 'Research this' && opened.length === 1 && opened[0] === request,
@@ -475,11 +579,10 @@ async function n16() {
 
 // ---- N17-N19: the Tutor-side handoff (Task 11c-B), no model ----
 // The offer is the page's: LearnTutor.jsx canvasRepository reads the app's data alone (a repo-* app, or a canvas in a project) and
-// useTutor hands it to runTurn as repository (a JSX file, mirrored here). A turn that runs the handoff posts to the real 11c-A
-// route on the stack. The stack is KEYLESS, so a SUCCESSFUL handoff (the route's model reading the repository, the answer after
+// useTutor hands it to turnOffers (both bundled from the page above, not copied). A turn that runs the handoff posts to the real
+// 11c-A route on the stack. The stack is KEYLESS, so a SUCCESSFUL handoff (the route's model reading the repository, the answer after
 // the plan's words, source_types_used repository, runtime.handoff outcome ok) cannot run here, and no check pretends it does:
 // only the offer, the failure path and the grounding of the route body are checked.
-const canvasRepository = app => typeof app?.name === 'string' && (app.name.startsWith('repo-') || !!app.project);
 const LEAD = 'Good question about this code.';
 const CODE_WORDS = 'What does the sort function in sort.py do? Where is it defined and who calls it in this repository?';
 const REPO_APP = `repo-pns${run}-sorting`; // a repository app by name only: its turns call no route but the plan
@@ -493,15 +596,15 @@ const bodyOf = (sent, route) => sent.find(s => s.route === route)?.body;
 async function n17() {
   if (noCanvas('N17')) return;
   const forms = [[{ name: 'canvas-x' }, false], [{ name: 'repo-x' }, true], [{ name: 'canvas-x', project: 'p' }, true]];
-  check('N17 page rule', forms.every(([app, want]) => canvasRepository(app) === want), 'canvasRepository: a canvas is not a repository canvas; a repo-* app and a canvas in a project are', 'the mirrored page rule gave an unexpected answer');
+  check('N17 page rule', forms.every(([app, want]) => canvasRepository(app) === want), 'the page\'s canvasRepository: a canvas is not a repository canvas; a repo-* app and a canvas in a project are', 'the page\'s canvasRepository gave an unexpected answer');
   const plain = state.canvas, repo = { name: REPO_APP, title: 'Sorting', blocks: [] }, problems = { plain: [], repository: [] };
   for (const [raw, words] of [[CODE_WORDS, 'code words'], [AUTO_RAW, 'no code words']]) {
     // A plain canvas: not offered, so not in the tool or the prompt, and a plan that carries one has it cut; the route is never called.
-    const none = await autoTurn(plain, { raw, repository: canvasRepository(plain), plan: handoffPlan(say(LEAD)) }), c = none.context;
+    const none = await autoTurn(plain, { raw, plan: handoffPlan(say(LEAD)) }), c = none.context;
     if (!c || c.allowed_actions.includes('handoff') || toolTypes(c).includes('handoff') || plannerReq(c).system.includes(HANDOFF_SYSTEM)
       || none.result.actions.some(a => a.type === 'handoff') || !ONLY_PLAN(none.routes) || none.result.trace?.runtime?.handoff !== null) problems.plain.push(`${words}: allowed ${c?.allowed_actions?.join(',')}; requests ${none.routes.join(',')}`);
     // A repository canvas: offered, in the tool and the prompt; a plan that does not choose it hands nothing off.
-    const some = await autoTurn(repo, { raw, repository: canvasRepository(repo), plan: PLAN }), d = some.context;
+    const some = await autoTurn(repo, { raw, plan: PLAN }), d = some.context;
     if (!d || !d.allowed_actions.includes('handoff') || !toolTypes(d).includes('handoff') || !plannerReq(d).system.includes(HANDOFF_SYSTEM) || !ONLY_PLAN(some.routes) || some.result.trace?.runtime?.handoff !== null) problems.repository.push(`${words}: allowed ${d?.allowed_actions?.join(',')}; requests ${some.routes.join(',')}`);
   }
   check('N17 plain canvas, code words', !problems.plain.length, 'a canvas with no repository context: handoff is not in allowed_actions, the derived tool or the prompt, with or without code words in the message; a plan carrying one is cut and no handoff request is made', problems.plain.join(' | '));
@@ -540,8 +643,9 @@ async function n18() {
   // Fix round 2 (R1-I1): blocking_wait_ms = max(answered, released) covers the handoff and any pending evaluation, so it is never
   // below first_text_ms. On a stubbed clock that is exact (11c-B's unit test); on a real clock first_text_ms is read at the end of
   // runTurn, a few hundred microseconds after the handoff settled, so the wait may trail it by less than a millisecond.
+  // Tolerance 5 ms (review M5): a GC pause between the two reads would break 1 ms. Tightens to exact once the product reads the clock once.
   const trail = Math.round((timing?.first_text_ms - timing?.blocking_wait_ms) * 10) / 10;
-  check('N18 timing', Object.keys(timing || {}).join() === 'total_ms,planner_ms,first_text_ms,handoff_ms,blocking_wait_ms' && numbers.every(Number.isFinite) && timing.blocking_wait_ms >= timing.handoff_ms && trail < 1,
+  check('N18 timing', Object.keys(timing || {}).join() === 'total_ms,planner_ms,first_text_ms,handoff_ms,blocking_wait_ms' && numbers.every(Number.isFinite) && timing.blocking_wait_ms >= timing.handoff_ms && trail < 5,
     `planner_ms ${numbers[0]}, handoff_ms ${numbers[1]} and blocking_wait_ms ${numbers[2]} are separate numbers (the wait includes the handoff, and trails first_text_ms ${numbers[3]} by ${trail} ms at most: the end-of-turn read)`, `timing ${JSON.stringify(timing)}`);
   const text = JSON.stringify(t);
   check('N18 no text in the trace', !!t && [CODE_WORDS, ASK, LEAD, HANDOFF_FAILED].every(s => !text.includes(s)), 'neither the learner words, the handoff request, the plan words nor the failure line is in the event', 'the event carries learner, request or reply text');
@@ -602,7 +706,7 @@ async function n20() {
     const rec = h.error?.handoff, ran = h.sent.map(s => s.route);
     check(`N20 stop in the handoff (${name})`, !h.result && h.error?.name === 'AbortError' && rec?.outcome === 'failed' && rec.failure === 'stopped' && rec.model_id === null && rec.usage === null && !!h.error.trace && h.error.trace.event === undefined
       && stageStatuses(h.error, 'handoff') === 'stopped' && stageStatuses(h.error, 'planner') === 'ok' && ran.join() === `/api/learn/tutor/plan,${HANDOFF}` && h.sent.length === settled,
-      'the turn rejected with AbortError and no result; the error carries the handoff record (failed, stopped) and the turn trace (handoff:stopped, not a decision event); only the plan and the handoff were requested (no artifact call) and nothing after the abort',
+      'the turn rejected with AbortError and no result (so the page, which saves and runs canvas actions and material only on a resolved turn, does none of them); the error carries the handoff record (failed, stopped) and the turn trace (handoff:stopped, not a decision event); only the plan and the handoff were requested, and nothing after the abort',
       `${h.result ? 'the turn resolved' : `rejected ${h.error?.name}`}; handoff ${JSON.stringify(rec && { outcome: rec.outcome, failure: rec.failure })}; handoff stage ${stageStatuses(h.error, 'handoff') || 'none'}, planner stage ${stageStatuses(h.error, 'planner') || 'none'}; requests ${ran.join(', ')}; after the abort ${h.sent.length - settled}`);
   }
   // Control: a Stop while the planner works ends the turn the same way, with planner:stopped and no handoff stage or request.
