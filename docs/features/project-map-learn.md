@@ -22,13 +22,11 @@ rabbit-hole-checklist.md (WP6).
 
 ## The Map's side panel
 
-- **Starts closed.** It has a close icon (`data-map-panel-close`); while it is closed, an icon by the title reopens
-  it (`data-map-panel-open`).
-- **Opens by itself** for what lands in it: a selected node or memory record, an opened file, a cited source, or an
-  answer from the bar.
-- **Tabs only when needed.** Selected | Conversation | Source show only when there is a node or a file to switch
-  to, and only the tabs that have content.
-- **Accent outline** (`ring-accent`, `data-in-use`) while the panel holds a node, a file or a streaming answer.
+Since 2026-10-06 it is the learning inspector: [inspector.md](inspector.md), with the composer contract in
+[workspace-dock.md](workspace-dock.md). It still starts closed (`data-map-panel-close`, `data-map-panel-open`) and opens
+for a selected node, file, record or cited source. Answers no longer land in it: they open in the bar's window, as
+everywhere else, and the inspector keeps the conversation about the selected object. The Selected | Conversation |
+Source pills and the accent outline are gone.
 
 ## The composers
 
@@ -36,7 +34,7 @@ rabbit-hole-checklist.md (WP6).
   commands sheet (`agent/BarCommandsSheet.jsx`) listing that place's commands, each with an example
   (`agent/bar.js` `exampleFor`), as the canvas composer opens its own sheet.
 - **The window over the main composer** is just a window: its label, a clear icon (`data-result-clear`: empties
-  the conversation and closes) and minimize. No History or New chat (the Map side panel keeps them). Closed or
+  the conversation and closes) and minimize. No History or New chat. Closed or
   minimized, a small chat icon beside + (`data-result-open`) reopens it. The + menu has no Attach item.
 - **Node pill.** A Map node carried into Learn shows as "Asking about: <node>" above the composer, with an x that
   clears it (`onClearRepository`), like the Map's chip.
@@ -46,7 +44,7 @@ rabbit-hole-checklist.md (WP6).
 Every file an answer cites (`file.py:12`, `file.py:3-9`, and line lists like `model.py:29, 78` or one number per
 line) is listed once in a **Sources** dropdown under the answer (`source-references.js` `citedSources`, `ask.jsx`
 `Md`). Each entry opens the file:
-- on the Map, in the side panel;
+- on the Map, in the inspector's Source view (the answer window offers it too);
 - on the canvas and in its chat, in the source reader.
 
 ## Checks

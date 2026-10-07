@@ -1458,13 +1458,14 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  await check('bar-dock: the floating dock is the default - a lifted composer over a soft fade, no frosted glass, no review switch', async () => {
+  await check('bar-dock: the workspace dock is chrome (owner, 2026-10-06, workspace-dock.md) - a hairline input shadow, an opaque strip with a top divider, no fade, no frosted glass, no review switch', async () => {
     const page = await open();
     await loaded(page, '/apps?dock=integrated');
     const composer = barOf(page).locator('[data-chat-composer]');
-    must((await composer.evaluate((n) => getComputedStyle(n).boxShadow)).split('rgba').length > 3, 'the composer is not lifted (popover shadow)');
+    must((await composer.evaluate((n) => getComputedStyle(n).boxShadow)).split('rgba').length === 2, 'the composer still floats (popover shadow)');
     must(await barOf(page).evaluate((n) => getComputedStyle(n).backdropFilter) === 'none', 'frosted glass on the strip');
-    must(/gradient/.test(await barOf(page).evaluate((n) => getComputedStyle(n).backgroundImage)), 'no fade behind the dock');
+    must(await barOf(page).evaluate((n) => getComputedStyle(n).backgroundImage) === 'none', 'a fade behind the dock');
+    must(await barOf(page).evaluate((n) => getComputedStyle(n).borderTopWidth) === '1px', 'no top divider on the dock');
     await page.context().close();
   });
 
@@ -1992,7 +1993,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  await check('wp6-composer-parity: the Learn composer is the Mothership shell - same height, radius, border, shadow, Send and + size; canvas controls never overlap it; no canvas slug or sample course title; on a phone it sits fully on screen', async () => {
+  await check('wp6-composer-parity: the Learn composer is the Mothership shell - same height, radius, border, Send and + size (the dock is flat at rest since 2026-10-06, so the resting shadow differs); canvas controls never overlap it; no canvas slug or sample course title; on a phone it sits fully on screen', async () => {
     // Measured in the same focus state on both sides: blurred, then focused (Learn autofocuses its composer).
     const shell = async (form, focused = false) => form.evaluate((n, focused) => {
       if (focused) n.querySelector('textarea, input:not([type="file"]):not([type="hidden"])')?.focus(); else document.activeElement?.blur(); // the text field, not Learn's hidden file input
@@ -2015,7 +2016,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
         await page.waitForTimeout(1000);
         const learn = await shell(form);
         const where = `${viewport.width}px`;
-        for (const k of ['radius', 'border', 'shadow', 'send', 'add']) must(learn[k] === bar[k], `${where}: Learn ${k} ${learn[k]} vs Mothership ${bar[k]}`);
+        for (const k of ['radius', 'border', 'send', 'add']) must(learn[k] === bar[k], `${where}: Learn ${k} ${learn[k]} vs Mothership ${bar[k]}`);
         const learnFocused = await shell(form, true);
         for (const k of ['border', 'shadow']) must(learnFocused[k] === barFocused[k], `${where}, focused: Learn ${k} ${learnFocused[k]} vs Mothership ${barFocused[k]}`);
         must(Math.abs(learn.h - bar.h) <= 2, `${where}: Learn height ${learn.h} vs Mothership ${bar.h}`);
