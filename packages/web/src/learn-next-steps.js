@@ -6,6 +6,7 @@ import { claimsOfConceptIn, holeConcept } from './learn-tutor-claims.js';
 import { resolveTarget } from './learn-target.js';
 import { sameCanvas } from './learn-tutor.js';
 import { safely } from './learn-tutor-trace.js';
+import { TUTOR_DOMAINS } from './learn-tutor-domains.js';
 
 const SETUP = ['intake', 'diagnostic', 'path_review'];
 const claimIdsOf = section => (section?.expected_evidence || []).map(e => e?.claim).filter(id => typeof id === 'string');
@@ -287,4 +288,31 @@ export function nextStepsController({ post, onSet = () => {}, onShown = () => {}
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     dispose() { disposed = true; clearTimer(timer); timer = null; listeners.clear(); },
   };
+}
+
+// Shared canvases (contract §1.4). A hook clicked on a shared canvas starts the viewer's own hole: carryStep keeps the
+// server-checked step for that hole (by its canvas name) and the hole's first Tutor turn takes it once (LearnTutor.jsx). A hook
+// clicked while signed out waits through sign-in: keepPendingStep keeps it for that share link, and takePendingStep gives it
+// back once, only for the same link and hook id. Read once, removed on read; blocked storage keeps nothing (the hole opens as usual).
+const CARRY = name => `small.next-step.carry:${name}`, PENDING = 'small.next-step.pending';
+const read = (storage, key) => { try { return JSON.parse(storage.getItem(key) || 'null'); } catch { return null; } };
+const take = (storage, key) => { const value = read(storage, key); try { storage.removeItem(key); } catch { /* blocked storage */ } return value; };
+const keep = (storage, key, value) => { try { storage.setItem(key, JSON.stringify(value)); } catch { /* blocked storage: the hole opens as usual */ } };
+export const carryStep = (storage, holeName, step) => keep(storage, CARRY(holeName), step);
+export const takeCarriedStep = (storage, holeName) => take(storage, CARRY(holeName));
+export const keepPendingStep = (storage, token, step) => keep(storage, PENDING, { token, suggestion_id: step.suggestion_id, step });
+export function takePendingStep(storage, token, suggestionId) {
+  const kept = read(storage, PENDING);
+  return kept?.token === token && kept.suggestion_id === suggestionId ? take(storage, PENDING)?.step ?? null : null;
+}
+
+// The signed-in viewer's own evidence (their tab's Tutor store), only on claims of public registered courses and only claims
+// with evidence, newest first, at most 12 (the scope cap). The server filters it again to the board's own scope.
+export function viewerStates(store, registry = TUTOR_DOMAINS) {
+  const out = {}, seen = [...new Set((store?.events || []).map(e => e?.claim).reverse())];
+  for (const entry of registry.filter(e => e.domain && e.capabilities?.suppliedCourse === true)) {
+    const states = deriveClaimStates(store.events, entry.domain.claims);
+    for (const id of seen) if (Object.keys(out).length < L.scope_claims && states[id] && states[id].state !== 'not_yet_observed') out[id] ??= states[id].state;
+  }
+  return out;
 }

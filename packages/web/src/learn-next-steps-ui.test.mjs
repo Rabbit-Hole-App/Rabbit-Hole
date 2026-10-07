@@ -17,7 +17,7 @@ import { TIDES } from './__fixtures__/journey-synthetic-domains.mjs';
 const read = name => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const dir = mkdtempSync(join(tmpdir(), 'next-steps-ui-')), outfile = join(dir, 'ui.cjs');
 await esbuild.build({
-  stdin: { contents: ["export { useTutor, hookContext } from './LearnTutor.jsx';", "export { useNextSteps, ownedSteps } from './LearnNextSteps.jsx';", "export { TUTOR_DOMAINS } from './learn-tutor-domains.js';",
+  stdin: { contents: ["export { useTutor, hookContext } from './LearnTutor.jsx';", "export { useNextSteps, ownedSteps, useSharedNextSteps, sharedSteps } from './LearnNextSteps.jsx';", "export { TUTOR_DOMAINS } from './learn-tutor-domains.js';",
     "export { materialCommands } from './learn-slash.js';", "export { addSink } from './learn-tutor-trace.js';", "export { createElement } from 'react';", "export { renderToStaticMarkup } from 'react-dom/server';"].join('\n'),
     resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent',
@@ -477,4 +477,81 @@ test('LearnTutor.jsx source pins: block null and no journey resolver on a click,
   assert.match(source, /setBusy\(true\)/);
   assert.match(source, /if \(result\.trace\) emitDecision\(result\.trace\);/);
   assert.match(source, /const askStep = \(\{ selected_next_step, signal, begin = null, inputModality = 'text', turnId = null, onSpeakable = null \}\) => answer\(/);
+});
+
+// ---- Shared canvases (Task 11): useSharedNextSteps and its logic (sharedSteps) through the real controller. ----
+test('useSharedNextSteps: off without a token; posts the origin; viewer_states only when signed in; a carried step opens a hole first', () => {
+  let steps = null;
+  const Page = () => { steps = B.useSharedNextSteps({ token: null, card: null, version: 1, signedIn: false }); return null; };
+  B.renderToStaticMarkup(B.createElement(Page));
+  assert.deepEqual(Object.keys(steps).sort(), ['generated_at', 'options', 'reason', 'select', 'set_id', 'status']);
+  assert.deepEqual([steps.status, steps.reason], ['unavailable', 'off']);
+  const source = read('LearnNextSteps.jsx');
+  assert.match(source, /\/api\/learn\/boards\/shared\/\$\{encodeURIComponent\(\w+\)\}\/next-steps/);
+  assert.match(source, /origin: card \? \{ block_id: card \} : null/);
+  assert.match(source, /viewer_states/);
+  assert.match(source, /useEffect\(\(\) => \{ shared\.update\(\{ basis, stop \}\); \}, \[basis, stop\]\);/, 'the update effect reads the trigger state alone');
+  const tutor = read('LearnTutor.jsx');
+  assert.match(tutor, /const carried = takeCarriedStep\(sessionStorage, record\.dive_id\);[\s\S]*?if \(!active\) return;[\s\S]*?openingQuestion\(/);
+});
+
+const sharedSet = n => ({ ...setFor(n), basis: 'k:1::root', telemetry: { ...setFor(n).telemetry, share_key: 'f00d'.repeat(16), cached: false,
+  summary: { evidence_summary: { understood: [], uncertain: [IDS[0]], misconception: [], prerequisite_gap: [], not_yet_observed: [] }, canvas_summary: { blocks: 2, kinds: { explanation: 2 }, presented_claim_ids: [IDS[0]] }, target_concept_ids: ['c'], target_claim_ids: [IDS[0]] } },
+  options: setFor(n).options.map(o => ({ ...o, selected_next_step: { ...o.selected_next_step, scope: 'shared', source: { share_version: 4, origin_block_id: 'k1' } } })) });
+function sharedRig({ props = {}, replies = [sharedSet(1)] } = {}) {
+  const c = clock(), bodies = [], live = { token: 'tok-abc', card: 'k1', version: 4, signedIn: false, ...props };
+  const shared = B.sharedSteps(() => live, { post: async body => { bodies.push(body); const r = await replies.shift(); if (r instanceof Error) throw r; return structuredClone(r); }, setTimer: c.setTimer, clearTimer: c.clearTimer });
+  return { c, live, shared, bodies, step: () => shared.update(shared.state()) };
+}
+
+test('sharedSteps: recomputes only on the selected card, the board version or sign-in; posts only the origin; select validates', async () => {
+  const off = sharedRig({ props: { token: null } });
+  off.step(); await off.c.fire();
+  assert.deepEqual([off.shared.view().status, off.shared.view().reason, off.bodies.length], ['unavailable', 'off', 0]);
+  const r = sharedRig({ replies: [sharedSet(1), sharedSet(2), sharedSet(3), sharedSet(4)] });
+  r.step(); await r.c.fire();
+  assert.deepEqual(r.bodies, [{ origin: { block_id: 'k1' } }]);
+  assert.deepEqual([r.shared.view().status, r.shared.view().set_id], ['ready', 'ns_00000001']);
+  assert.equal('telemetry' in r.shared.view(), false, 'telemetry never reaches the steps');
+  // Pan, zoom, hover and anything else that is not a trigger: the same state, no request.
+  const same = r.shared.state();
+  r.step(); await r.c.fire();
+  assert.deepEqual([r.shared.state(), r.bodies.length, r.c.pending()], [same, 1, 0]);
+  for (const [change, origin] of [[() => { r.live.card = null; }, null], [() => { r.live.version = 5; }, null], [() => { r.live.signedIn = true; }, null]]) {
+    change(); r.step();
+    assert.equal(r.shared.view().status, 'stale');
+    await r.c.fire();
+    assert.deepEqual(r.bodies.at(-1), { origin });
+  }
+  assert.equal(r.bodies.length, 4);
+  const picked = r.shared.select('ns_00000004.2');
+  assert.deepEqual([picked.ok, picked.selected_next_step.source], [true, { share_version: 4, origin_block_id: 'k1' }]);
+  assert.deepEqual(r.shared.select('ns_00000001.1'), { ok: false, reason: 'unknown' });
+});
+
+test('sharedSteps survives dispose; a 429 is limited', async () => {
+  const r = sharedRig({ replies: [Object.assign(new Error('paused'), { status: 429 }), sharedSet(2)] });
+  r.shared.dispose();
+  let told = 0;
+  r.shared.subscribe(() => { told += 1; });
+  r.step(); await r.c.fire();
+  assert.deepEqual([r.shared.view().status, r.shared.view().reason, told > 0], ['unavailable', 'limited', true]);
+});
+
+test('sharedSteps telemetry: next_steps_computed and next_steps_shown with scope and mode shared, the set source and the server summary; nothing of the sharer', async () => {
+  const events = [];
+  const remove = B.addSink(e => events.push(e));
+  try {
+    const r = sharedRig();
+    r.step(); await r.c.fire();
+    await ticks(() => events.length >= 2);
+    assert.deepEqual(events.map(e => e.event), ['next_steps_computed', 'next_steps_shown']);
+    for (const e of events) {
+      assert.deepEqual([e.identity.scope, e.identity.mode, e.identity.user_id, e.identity.canvas_id], ['shared', 'shared', null, null]);
+      assert.deepEqual(e.identity.source, { share_key: 'f00d'.repeat(16), share_version: 4, origin_block_id: 'k1' });
+      assert.deepEqual([e.decision.evidence_summary.uncertain, e.decision.target_claim_ids, e.decision.canvas_summary.blocks], [[IDS[0]], [IDS[0]], 2]);
+      assert.deepEqual(Object.keys(e.decision.next_step_options[0]).sort(), ['claim_ids', 'concept_ids', 'hook', 'learning_goal', 'position', 'set_id', 'suggestion_id']);
+      assert.equal(JSON.stringify(e).includes('tok-abc'), false, 'never the raw token');
+    }
+  } finally { remove(); }
 });

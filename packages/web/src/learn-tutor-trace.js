@@ -178,8 +178,9 @@ const plannerInput = t => (t ? { before: counted(t.before), after: counted(t.aft
 // an anonymous viewer, source the one-way share key); a cached reply keeps the producing call's versions with zero usage.
 // trim: nextStepsInput's counts beside that input (runtime.planner_input), null when none were given.
 // discarded: the set landed after its basis moved on (recorded anyway: every recomputation is traced), flagged discarded.
-const hooks = (set, { input = null, identity = {}, scope = 'owned', mode = 'canvas', trim = null, discarded = false } = {}) => {
-  const t = set?.telemetry || {}, s = inputSummary(input), ran = t.cached ? null : t.ms ?? null;
+// summary: inputSummary of an input the browser never held (a shared canvas's, built by the server: its reply telemetry).
+const hooks = (set, { input = null, summary = null, identity = {}, scope = 'owned', mode = 'canvas', trim = null, discarded = false } = {}) => {
+  const t = set?.telemetry || {}, s = summary ?? inputSummary(input), ran = t.cached ? null : t.ms ?? null;
   return {
     ...head('next_steps_computed', set?.set_id ?? null, {
       user_id: identity.user_id ?? null, session_id: identity.session_id ?? null, canvas_id: identity.canvas_id ?? null, board_id: identity.board_id ?? null, canvas_version: identity.canvas_version ?? null,

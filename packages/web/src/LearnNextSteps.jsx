@@ -2,8 +2,9 @@
 // card. select() only validates a click; the page sends it with tutor.askStep.
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { api } from './api.js';
-import { nextStepsBasis, nextStepsController, nextStepsInput, stoppingPoint } from './learn-next-steps.js';
+import { nextStepsBasis, nextStepsController, nextStepsInput, stoppingPoint, viewerStates } from './learn-next-steps.js';
 import { emitDecision, hooksEvent, shownEvent, tracing } from './learn-tutor-trace.js';
+import { loadStore, storeKey } from './learn-tutor-evidence.js';
 
 // ownedSteps is internal to this module, exported only for its node tests: not part of contract §1.3 (the contract is
 // useNextSteps). It is useNextSteps' logic outside React, so those tests run it through the real controller. read(): the
@@ -82,4 +83,71 @@ export function useNextSteps({ tutor, journey = null, canvasApi, canvasState, re
   useEffect(() => { steps.update({ basis, stop }); }, [basis, stop]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => steps.dispose, [steps]);
   return { ...useSyncExternalStore(steps.subscribe, steps.view, steps.view), select: steps.select };
+}
+
+// The signed-in viewer's own { org, email } (/api/me), only to find their own tab store; once per page.
+let viewerOnce = null;
+const me = () => (viewerOnce ??= fetch('/api/me', { credentials: 'same-origin' }).then(r => (r.ok ? r.json() : null)).catch(() => null));
+// The shared route (contract §1.5) by plain fetch, as SharedBoardPage calls its routes: a background call never sends an
+// anonymous viewer to sign in. viewer_states only for a signed-in viewer, from their own tab store, never anyone else's; the
+// server filters them again. A refusal throws with its status (429 is limited).
+const sharedPost = read => async body => {
+  const { token, signedIn } = read();
+  const who = signedIn ? await me() : null;
+  const states = who?.email ? viewerStates(loadStore(globalThis.sessionStorage, storeKey(who))) : {};
+  const response = await fetch(`/api/learn/boards/shared/${encodeURIComponent(token)}/next-steps`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, ...(Object.keys(states).length ? { viewer_states: states } : {}) }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw Object.assign(new Error(data.error || `HTTP ${response.status}`), { status: response.status });
+  return data;
+};
+
+// sharedSteps is internal to this module, exported only for its node tests (as ownedSteps): useSharedNextSteps' logic outside
+// React. read(): the hook's latest props. The board is the server's to read: a request names only the origin card or root
+// (and the viewer's own claim states). Triggers (contract §2.3, shared): the selected card or root, the board version and
+// the signed-in state, nothing else. Telemetry only while a sink is registered, each event from the set itself: the source
+// the server minted into its steps (share version, origin) with the one-way share key, and the server's input summary;
+// user_id is the harness sink's (the viewer's own session), never the sharer's. Nothing is persisted.
+export function sharedSteps(read, { post = sharedPost(read), ...timers } = {}) {
+  const listeners = new Set();
+  let ctl = null, view = null;
+  const ids = set => ({ scope: 'shared', mode: 'shared', summary: set.telemetry?.summary ?? null,
+    identity: { source: { share_key: set.telemetry?.share_key ?? null, ...set.options?.[0]?.selected_next_step?.source } } });
+  const controller = () => {
+    if (ctl) return ctl;
+    ctl = nextStepsController({
+      post,
+      onSet: (set, _input, _trim, { discarded }) => { if (tracing()) emitDecision(hooksEvent(set, { ...ids(set), discarded })); },
+      onShown: set => { if (tracing()) emitDecision(shownEvent(set, ids(set))); },
+      ...timers,
+    });
+    view = ctl.view();
+    ctl.subscribe(() => { view = ctl.view(); listeners.forEach(fn => fn()); });
+    return ctl;
+  };
+  controller();
+  return {
+    state() {
+      const { token, card, version, signedIn } = read();
+      return token ? { basis: JSON.stringify([token, card ?? null, version ?? null, !!signedIn]), stop: null } : { basis: null, stop: 'off' };
+    },
+    update: ({ basis, stop }) => controller().update({ basis, stop, input: () => { const { card } = read(); return { input: { origin: card ? { block_id: card } : null } }; } }),
+    view: () => view,
+    subscribe: fn => { listeners.add(fn); controller(); return () => listeners.delete(fn); },
+    select: id => controller().select(id),
+    dispose: () => { ctl?.dispose(); ctl = null; },
+  };
+}
+
+// Shared canvases (SharedBoardPage): token, the selected card id (null: the root), the shared board version and whether the
+// viewer is signed in. select() validates a click; the page sends the step with Start Rabbit Hole (contract §1.4).
+export function useSharedNextSteps({ token, card = null, version = null, signedIn = false }) {
+  const live = useRef(null);
+  live.current = { token, card, version, signedIn };
+  const [shared] = useState(() => sharedSteps(() => live.current));
+  const { basis, stop } = shared.state();
+  useEffect(() => { shared.update({ basis, stop }); }, [basis, stop]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => shared.dispose, [shared]);
+  return { ...useSyncExternalStore(shared.subscribe, shared.view, shared.view), select: shared.select };
 }

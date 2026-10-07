@@ -242,12 +242,13 @@ const SET = /^(ns_[0-9a-f]{8})\.([1-9])$/;
 export function selectedStepProblem(step, { concepts, claims, version, origin, topic = '' }) {
   const bad = error => ({ error, status: 400 });
   const suggestion = SET.exec(step?.suggestion_id);
-  if (!isObj(step) || step.v !== 1 || !suggestion || suggestion[1] !== step.set_id || +suggestion[2] > LIMITS.options) return bad('selected_next_step is malformed');
+  if (!isObj(step) || step.v !== 1 || !suggestion || suggestion[1] !== step.set_id || +suggestion[2] > LIMITS.options || typeof step.basis !== 'string' || step.basis.length > LIMITS.basis) return bad('selected_next_step is malformed');
+  if (step.scope !== 'shared' || !isObj(step.source)) return bad('selected_next_step scope');
+  // Before the board checks: a step from an earlier version is stale even where the board's ids or topic have moved on.
+  if (step.source.share_version !== version) return { error: 'stale_hook', status: 409 };
   if (hookProblem(step.hook, { topic }) || learningGoalProblem(step.learning_goal) || labelled(step.learning_goal)) return bad('selected_next_step wording');
   const ids = (list, allowed) => Array.isArray(list) && list.length <= LIMITS.ids && list.every(id => typeof id === 'string' && allowed.has(id));
   if (!ids(step.concept_ids, concepts) || !ids(step.claim_ids, claims)) return bad('selected_next_step ids');
-  if (step.scope !== 'shared' || !isObj(step.source)) return bad('selected_next_step scope');
-  if (step.source.share_version !== version) return { error: 'stale_hook', status: 409 };
   if (step.source.origin_block_id !== origin) return bad('selected_next_step origin');
   return null;
 }

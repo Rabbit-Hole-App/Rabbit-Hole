@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { nextStepsBasis, nextStepsController, nextStepsInput, stoppingPoint } from './learn-next-steps.js';
+import { carryStep, keepPendingStep, nextStepsBasis, nextStepsController, nextStepsInput, stoppingPoint, takeCarriedStep, takePendingStep, viewerStates } from './learn-next-steps.js';
 import { emptyStore, appendEvents } from './learn-tutor-evidence.js';
 import { journeyDomain } from './learn-journey-domain.js';
 import { NANOGPT, TUTOR_BOARD, cardModule } from './learn-tutor-claims.js';
@@ -880,4 +880,37 @@ test('stoppingPoint: a plain canvas with no lesson card gives no hooks, whatever
   assert.equal(stoppingPoint({ store, here, blocks: [{ id: 'k1', type: 'explanation', title: 'Starter' }], goal: 'Sourdough', plain: true }), null, 'a lesson card');
   assert.equal(stoppingPoint({ store, here, blocks: [], goal: 'Tidal power' }), null);
   assert.equal(stoppingPoint({ store, here, blocks: [], goal: '' }), 'not_now');
+});
+
+// ---- Shared canvases (Task 11): the pending and carried step, and the viewer's own claim states. ----
+const memory = () => { const m = new Map(); return { m, getItem: k => m.get(k) ?? null, setItem: (k, v) => m.set(k, String(v)), removeItem: k => m.delete(k) }; };
+// Privacy test 11 (with shared-rabbit-hole.test.mjs): the pending step survives sign-in and is consumed once, matched by share
+// and suggestion id; the carried step opens its hole once.
+test('pending and carried steps are read once', () => {
+  const s = memory(), step = { suggestion_id: 'ns_01010101.3', learning_goal: 'g' };
+  keepPendingStep(s, 'tok-1', step);
+  assert.equal(takePendingStep(s, 'tok-2', step.suggestion_id), null, 'another share never gets it');
+  assert.equal(takePendingStep(s, 'tok-1', 'ns_01010101.1'), null, 'another hook never gets it');
+  assert.deepEqual(takePendingStep(s, 'tok-1', step.suggestion_id), step);
+  assert.equal(takePendingStep(s, 'tok-1', step.suggestion_id), null);
+  carryStep(s, 'canvas-0000beef', step);
+  assert.equal(takeCarriedStep(s, 'canvas-0000dead'), null, 'another hole never gets it');
+  assert.deepEqual(takeCarriedStep(s, 'canvas-0000beef'), step);
+  assert.equal(takeCarriedStep(s, 'canvas-0000beef'), null);
+  assert.equal(s.m.size, 0, 'nothing is left behind');
+  const blocked = { getItem: () => { throw new Error('blocked'); }, setItem: () => { throw new Error('blocked'); }, removeItem: () => { throw new Error('blocked'); } };
+  carryStep(blocked, 'canvas-0000beef', step);
+  keepPendingStep(blocked, 'tok-1', step);
+  assert.deepEqual([takeCarriedStep(blocked, 'canvas-0000beef'), takePendingStep(blocked, 'tok-1', step.suggestion_id)], [null, null], 'blocked storage: the hole opens as usual');
+});
+test('viewerStates: the viewer own session evidence on public registry claims only', () => {
+  const claims = { 'k.one': { concept: 'k', statement: 's', ideas: ['i'], misconceptions: [{ id: 'm', check: 'c' }], prerequisites: [], drawn: 'd' }, 'k.two': { concept: 'k', statement: 's', ideas: ['i'], misconceptions: [], prerequisites: [], drawn: 'd' } };
+  const open = { id: 'pub', match: {}, domain: { claims, concepts: { k: { label: 'K', names: [], prerequisites: [] } } }, capabilities: { tutor: true, suppliedCourse: true } };
+  const closed = { ...open, id: 'priv', capabilities: { tutor: true } };
+  const wrong = { concept: 'k', claim: 'k.one', result: 'misconception', misconception_id: 'm', kind: null, settled: true, evaluator: 'jev', source: 'free_text' };
+  const store = appendEvents(emptyStore(), [wrong, { ...wrong }, { ...wrong, claim: 'nope' }]).store;
+  assert.deepEqual(viewerStates(store, [open]), { 'k.one': 'misconception' });
+  assert.deepEqual(viewerStates(store, [closed]), {}, 'only a public registered course');
+  assert.deepEqual(viewerStates(emptyStore(), [open]), {});
+  assert.deepEqual(Object.keys(viewerStates(store)).length <= 12, true, 'the default registry');
 });

@@ -17,6 +17,7 @@ import { loadStore, saveStore, storeKey } from './learn-tutor-evidence.js';
 import { diveJourney } from './learn-journey-domain.js';
 import { arriveAt, enterHole, executeActions, keepHere, learnerIntent, markOpened, openingQuestion, readPlanStream, runTurn, showableCards, wantsCard } from './learn-tutor.js';
 import { materialCommands, runMaterials } from './learn-slash.js';
+import { takeCarriedStep } from './learn-next-steps.js';
 import { emitDecision, newSessionId, tracing } from './learn-tutor-trace.js';
 import PaidConfirm from './PaidConfirm.jsx';
 
@@ -216,15 +217,20 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
 
   // A hole's opening turn (§6.4): once per hole, the pending question asked inside the hole. The
   // dock sends it like a typed message (ask.jsx), so it reads as the learner's question carried down
-  // and never lands on the empty hole's canvas.
+  // and never lands on the empty hole's canvas. A hook carried from a shared canvas (Professor Next Steps contract §1.4)
+  // opens the hole once instead, as a next_step turn the dock sends with askStep (no evaluate call); it is taken only where
+  // hook turns run (Ruling F4), so a hole whose Tutor is not resolved yet keeps it until it is.
   const [opening, setOpening] = useState(null);
   useEffect(() => {
-    if (!active || !record?.dive_id) return;
+    if (!hookTurns || !record?.dive_id) return;
+    const carried = takeCarriedStep(sessionStorage, record.dive_id);
+    if (carried) { save(markOpened(load(), record)); setOpening({ key: record.dive_id, next_step: carried }); return; }
+    if (!active) return;
     const store = enterHole(load(), record, domainOf(canvasApi.current));
     const question = openingQuestion(store, record, liveTitle);
     save(question ? markOpened(store, record) : store);
     if (question) setOpening({ key: record.dive_id, question });
-  }, [active, record?.dive_id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [active, hookTurns, record?.dive_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The typed path (ask) and a hook click (askStep) share one turn and one return contract: the reply text, or
   // { handled } for a turn the journey took. An empty reply is drawn as the spinner (ask.jsx), so a turn that only acts on

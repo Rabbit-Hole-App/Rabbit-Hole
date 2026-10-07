@@ -17,24 +17,29 @@ export function rabbitOrigin(state, cardId, describe = null) {
   return { block_id, scene_id, card_id, part_id, concept_ids, selected_object, depth, ...(title ? { title } : {}) };
 }
 
-// Signed out: the existing sign-in, back to this page with ?rabbit=<card id | root>, which finishes the start.
-export const resumeHref = (pathname, cardId) => `/login?next=${encodeURIComponent(`${pathname}?rabbit=${encodeURIComponent(cardId || ROOT)}`)}`;
+// Signed out: the existing sign-in, back to this page with ?rabbit=<card id | root>, which finishes the start. hookId: a
+// Professor Next Steps hook clicked while signed out (docs/features/professor-next-steps.md §1.4) rides along as &hook=<id>.
+export const resumeHref = (pathname, cardId, hookId = null) => `/login?next=${encodeURIComponent(`${pathname}?rabbit=${encodeURIComponent(cardId || ROOT)}${hookId ? `&hook=${encodeURIComponent(hookId)}` : ''}`)}`;
 // Read once and dropped from the address, so Back never starts a second time. undefined: nothing to resume;
-// null: the canvas root; else the card id.
-export function takeResume(location, history) {
-  const value = new URLSearchParams(location.search).get('rabbit');
+// null: the canvas root; else the card id. { hook: true }: { origin, hook } instead (hook null when none came back).
+export function takeResume(location, history, { hook = false } = {}) {
+  const params = new URLSearchParams(location.search), value = params.get('rabbit');
   if (value === null) return undefined;
   history.replaceState(null, '', location.pathname);
-  return value === ROOT ? null : value;
+  const origin = value === ROOT ? null : value;
+  return hook ? { origin, hook: params.get('hook') } : origin;
 }
 
-// POST the start. Resolves to { url } to open, { signIn } to sign in first, or throws the server's reason.
-export async function requestRabbitHole(token, origin, { fetchImpl = (...args) => fetch(...args), headers = {} } = {}) {
+// POST the start. Resolves to { url } to open, { signIn } to sign in first, or throws the server's reason. step: a clicked
+// hook's selected_next_step; the reply then adds the hole's name and the server-checked next_step (for carryStep), and a
+// stale hook resolves to { stale: true }, so the page starts again without it.
+export async function requestRabbitHole(token, origin, { fetchImpl = (...args) => fetch(...args), headers = {}, step = null } = {}) {
   const response = await fetchImpl(`/api/learn/boards/shared/${encodeURIComponent(token)}/rabbit-hole`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify({ origin }),
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify({ origin, ...(step ? { selected_next_step: step } : {}) }),
   });
   const data = await response.json().catch(() => ({}));
   if (response.status === 401 && data.signIn) return { signIn: true };
+  if (response.status === 409 && data.error === 'stale_hook') return { stale: true };
   if (!response.ok || !data.url) throw new Error(data.error || 'The Rabbit Hole could not be started.');
-  return { url: data.url, existing: !!data.existing };
+  return { url: data.url, existing: !!data.existing, ...(data.next_step ? { name: data.name, next_step: data.next_step } : {}) };
 }
