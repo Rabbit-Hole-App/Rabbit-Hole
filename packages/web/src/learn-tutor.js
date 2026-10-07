@@ -526,6 +526,17 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   // the AbortError rejects the turn with its trace (the page then saves nothing, runs no canvas action or material and emits no
   // decision event), and the stopped handoff record rides on the error.
   const handed = handing ? await handing.catch(error => { throw Object.assign(error, { trace: tracer.trace }); }) : dropped ? invalidHandoff() : null;
+  // Task 14 B-I2: a handoff that gave no answer (failed, refused or invalid_action; a Stop already rejected above) drops the
+  // material planned beside it, so a reply saying the source could not be retrieved never comes with a card made from the
+  // request alone. Recorded as the other drops are (stage 'handoff'); actions, contracts, the trace and runMaterials agree.
+  if (handed && !handed.answer) {
+    for (const action of actions.filter(entry => entry.type === 'create_material')) {
+      decisions.push({ type: action.type, accepted: false, stage: 'handoff', reason: 'the handoff returned no source' });
+      log.push(`dropped ${action.type}: the handoff returned no source`);
+    }
+    actions = actions.filter(entry => entry.type !== 'create_material');
+    if (!actions.length) actions = [{ type: 'no_action' }];
+  }
   // 4. The session record.
   const constraints = [...new Set([...current.constraints, ...(response.constraints_add || [])].filter(item => !(response.constraints_remove || []).includes(item)).concat(statedConstraints(raw)))];
   const asked = actions.find(action => action.type === 'ask_question');

@@ -414,3 +414,42 @@ test('round 3: a timed-out handoff reads handoff:timeout in the turn trace; othe
   assert.deepEqual(stage(await turnWith({ actions: [SAY, HANDOFF] }, { handoff: failedReply('model_error') })), [['ok', 'model_error']]);
   assert.deepEqual(stage(await turnWith({ actions: [SAY, HANDOFF] })), [['ok', 'ok']]);
 });
+
+// Task 14 final review B-I2 (probe P9): material planned beside a handoff that gives no answer - outcome failed or refused, any
+// failure category, or invalid_action - is dropped from the turn, so the reply that says the source could not be retrieved
+// never comes with material made from the request alone. Each drop is a decision (stage handoff) counted in
+// validation.dropped_actions, as other drops are; actions, contracts, the trace and runMaterials agree. An answered handoff
+// keeps its material.
+test('B-I2: a failed, refused or invalid handoff drops the create_material planned beside it, recorded as a decision; an answered one keeps it', async () => {
+  const { materialCommands, runMaterials } = await import('./learn-slash.js');
+  const WALK = { type: 'create_material', command: 'walkthrough', request: 'step through how sort_file calls merge_sort for each input file' };
+  const made = async actions => {
+    const bodies = [];
+    await runMaterials(actions, { app: REPO.access.app, openSearch: () => {}, offer: async () => {}, onNotice: () => {},
+      canvas: { insertBlock: () => 'b', insertNotebook: () => {}, reserve: () => 's', release: () => {} },
+      post: async (path, body) => { bodies.push(body); return { result: 'artifact', block: { type: 'scene' }, primitive: 'walkthrough' }; } });
+    return bodies;
+  };
+  const cases = [
+    ['failed', [SAY, WALK, HANDOFF], failedReply('no_repository_context')],
+    ['refused', [SAY, WALK, HANDOFF], failedReply('refused', 'refused')],
+    ['limited', [SAY, WALK, HANDOFF], () => { throw Object.assign(new Error('paused'), { status: 429, data: failedReply('limited', 'refused') }); }],
+    ['invalid_action', [SAY, WALK, { ...HANDOFF, request: ' ' }], OK],
+  ];
+  for (const [name, actions, handoff] of cases) {
+    const r = await turnWith({ actions, grounding_status: 'grounded' }, { handoff, block: null, materials: materialCommands() });
+    assert.ok(r.text.endsWith(HANDOFF_FAILED), name);
+    assert.equal(r.actions.some(a => a.type === 'create_material'), false, `${name}: the material is dropped`);
+    assert.equal(r.contracts.some(c => c.action_type === 'create_material'), false, `${name}: no contract`);
+    assert.deepEqual(r.decisions.filter(d => !d.accepted && d.stage === 'handoff'), [{ type: 'create_material', accepted: false, stage: 'handoff', reason: 'the handoff returned no source' }], name);
+    assert.ok(r.log.some(line => /dropped create_material: the handoff returned no source/.test(line)), `${name}: logged`);
+    assert.equal(r.trace.runtime.validation.dropped_actions, r.decisions.filter(d => !d.accepted).length, `${name}: counted`);
+    assert.ok(r.trace.runtime.validation.dropped_actions >= 1, name);
+    assert.equal(r.trace.decision.actions.some(a => a.action_type === 'create_material'), false, `${name}: the trace agrees`);
+    assert.deepEqual(await made(r.actions), [], `${name}: no artifact request`);
+  }
+  const answered = await turnWith({ actions: [SAY, WALK, HANDOFF] }, { block: null, materials: materialCommands() });
+  assert.deepEqual(answered.actions.map(a => a.command ?? a.type), ['respond_text', 'walkthrough', 'handoff'], 'an answer keeps the material');
+  assert.equal(answered.decisions.some(d => d.stage === 'handoff'), false);
+  assert.equal((await made(answered.actions)).length, 1);
+});
