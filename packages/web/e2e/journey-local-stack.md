@@ -120,8 +120,9 @@ Then check that `http://127.0.0.1:8828` still answers, if it was up.
 configs in `<ws>/pns-config/{app,cp}`, D1s in `<ws>/pns-local`. §1-§3 and §5 apply with those names in place of `alp1-*`.
 It covers N1-N7 (hooks, docs/features/professor-next-steps.md), N8-N13 (the Auto Tutor on a plain canvas: the plan request, a
 broad request, the learning-path chip, the Research gate, /ask and /teach, insert-only material) and N14-N16 (the Tutor
-handoff route, only the paths that call no model). A route missing from an older base reports SKIP, never PASS. The Tutor-side
-handoff checks wait for Task 11c-B.
+handoff route, only the paths that call no model) and N17-N19 (the Tutor-side handoff: the offer, the failure path through the
+real route, and no selection from the words). The stack is keyless, so a successful handoff is never checked. A route missing
+from an older base reports SKIP, never PASS.
 
 Give a second stack a private wrangler registry, so stopping it never touches another stack's entries: set
 `WRANGLER_REGISTRY_PATH` to a folder of its own in the shell that starts each `wrangler dev`.

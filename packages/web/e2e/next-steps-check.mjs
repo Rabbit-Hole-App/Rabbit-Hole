@@ -1,9 +1,10 @@
 // Professor Next Steps acceptance N1-N7 (docs/features/professor-next-steps.md), then the Auto Tutor N8-N13 (Task 11b) and the
-// Tutor handoff route N14-N16 (Task 11c-A), against the KEYLESS local stack only (e2e/journey-local-stack.md §6): no model key is
-// bound and the hook planner answers from its fixtures (JOURNEY_MODEL_STUB=fixtures). Node + HTTP for everything but N7, which
-// uses the browser. The Tutor planner is never reached: the turns of N2 and N8-N13 run in Node, their /api/learn/tutor/plan
-// answered in process (as journey-check.mjs answers it in the page), every other request they make goes to the stack. The
-// handoff checks use only paths that call no model.
+// Tutor handoff route N14-N16 (Task 11c-A) and the Tutor-side handoff N17-N19 (Task 11c-B), against the KEYLESS local stack only
+// (e2e/journey-local-stack.md §6): no model key is bound and the hook planner answers from its fixtures
+// (JOURNEY_MODEL_STUB=fixtures). Node + HTTP for everything but N7, which uses the browser. The Tutor planner is never reached:
+// the turns of N2 and N8-N13 and N17-N19 run in Node, their /api/learn/tutor/plan answered in process (as journey-check.mjs
+// answers it in the page), every other request they make goes to the stack. The handoff checks use only paths that call no
+// model: a successful handoff needs one, and the stack has none.
 //   node e2e/next-steps-check.mjs --base http://127.0.0.1:8868 --cp http://127.0.0.1:8869 --vars <stack .dev.vars> --out <dir>
 // --vars is the stack's own vars file; only its TEST_BYPASS_SECRET is read, never printed. Sessions are minted on the
 // control plane's origin (the app's barrier refuses /test/session there).
@@ -16,11 +17,11 @@ import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { nextStepsInput } from '../src/learn-next-steps.js';
 import { journeyDomain } from '../src/learn-journey-domain.js';
 import { emptyStore } from '../src/learn-tutor-evidence.js';
-import { executeActions, runTurn } from '../src/learn-tutor.js';
+import { HANDOFF_FAILED, executeActions, runTurn } from '../src/learn-tutor.js';
 import { tutorContext } from '../src/learn-tutor-domains.js';
 import { materialCommands, runMaterials } from '../src/learn-slash.js';
 import { STARTS, journeyIntent } from '../../control-plane/src/learner-intent-journey.js';
-import { MODE_SLASHES } from '../../control-plane/src/agents/learn-tutor.js';
+import { HANDOFF_SYSTEM, MODE_SLASHES, plannerRequest } from '../../control-plane/src/agents/learn-tutor.js';
 import { NANOGPT, cardModule } from '../src/learn-tutor-claims.js';
 import { cardBlock } from '../src/nanogpt/board.js';
 import { resolveTarget } from '../src/learn-target.js';
@@ -155,14 +156,14 @@ async function n2() {
 // ---- N3: the decision trace of N2's turn ----
 // Contract §3.1 (trace_schema_version 1), with the owner's additions the code and its unit test carry
 // (learn-tutor-trace.test.mjs): decision.evidence_transitions, decision.shown_at, decision.selected_at, runtime.planner_input;
-// and Task 11b's nine intent keys, last in decision (intent_mode .. research_executed).
+// Task 11b's nine intent keys, last in decision (intent_mode .. research_executed); and Task 11c-B's runtime.handoff (last in runtime).
 const TRACE = {
   top: ['trace_schema_version', 'event', 'decision_id', 'step_id', 'generated_at', 'identity', 'versions', 'decision', 'runtime', 'flags'],
   identity: ['user_id', 'session_id', 'canvas_id', 'board_id', 'canvas_version', 'journey_id', 'section_id', 'dive_id', 'source', 'scope', 'mode'],
   versions: ['planner_version', 'prompt_version', 'model_role', 'model_id'],
   decision: ['current_goal', 'current_section_id', 'target_concept_ids', 'target_claim_ids', 'evidence_summary', 'evidence_transitions', 'canvas_summary', 'recent_modality_history', 'next_step_options', 'shown_at', 'selected_next_step_id', 'selected_at', 'route', 'chosen_action', 'actions', 'reason_codes', 'reason_source', 'rationale_summary', 'expected_evidence', 'estimated_learning_seconds',
     'intent_mode', 'inferred_intent', 'explicit_modality_override', 'intent_status', 'clarification_requested', 'grounding_status', 'source_types_used', 'research_offered', 'research_executed'],
-  runtime: ['timing', 'model', 'usage', 'validation', 'planner_input'],
+  runtime: ['timing', 'model', 'usage', 'validation', 'planner_input', 'handoff'],
 };
 async function n3() {
   const e = state.turn?.trace;
@@ -313,7 +314,7 @@ const planOf = (...actions) => ({ ...PLAN, actions });
 const AUTO_RAW = 'Why does the dough need time to rise?', BROAD = 'Teach me backpropagation from scratch.';
 // LearnJourney.jsx startRequest (a JSX file, not importable in Node): a start request as it is, a bare topic as Teach me <topic>.
 const startRequest = text => { const it = journeyIntent(text); return STARTS.has(it.kind) && it.topic ? text : `Teach me ${text}`; };
-async function autoTurn(where, { raw, plan = PLAN, slash = null, research = false, journeyOffer = true }) {
+async function autoTurn(where, { raw, plan = PLAN, slash = null, research = false, journeyOffer = true, repository = false, block = null }) {
   const sent = [];
   const post = async (route, body) => {
     sent.push({ route, body });
@@ -321,7 +322,7 @@ async function autoTurn(where, { raw, plan = PLAN, slash = null, research = fals
     return ok(owner, 'POST', route, body);
   };
   const { domain } = tutorContext({ app: where.name, board: 'main', title: where.title, blocks: where.blocks });
-  const result = await runTurn({ raw, slash, canvas: { app: where.name, board: 'main' }, access: { app: where.name }, block: null, store: emptyStore(), post, domain, materials: materialCommands(), research, journeyOffer, trace: true });
+  const result = await runTurn({ raw, slash, canvas: { app: where.name, board: 'main' }, access: { app: where.name }, block, store: emptyStore(), post, domain, materials: materialCommands(), research, journeyOffer, repository, trace: true });
   return { result, post, domain, sent, routes: sent.map(s => s.route), context: sent.find(s => s.route === '/api/learn/tutor/plan')?.body.context, decision: result.trace?.decision };
 }
 const journeyAt = name => ok(owner, 'GET', `/api/learn/journey?app=${name}&board=main`);
@@ -455,13 +456,83 @@ async function n16() {
   check('N16 request over 1000 characters', long.status === 400 && !long.body?.telemetry, 'a request of 1001 characters answers 400', `HTTP ${long.status}`);
 }
 
+// ---- N17-N19: the Tutor-side handoff (Task 11c-B), no model ----
+// The offer is the page's: LearnTutor.jsx canvasRepository reads the app's data alone (a repo-* app, or a canvas in a project) and
+// useTutor hands it to runTurn as repository (a JSX file, mirrored here). A turn that runs the handoff posts to the real 11c-A
+// route on the stack. The stack is KEYLESS, so a SUCCESSFUL handoff (the route's model reading the repository, the answer after
+// the plan's words, source_types_used repository, runtime.handoff outcome ok) cannot run here, and no check pretends it does:
+// only the offer, the failure path and the grounding of the route body are checked.
+const canvasRepository = app => typeof app?.name === 'string' && (app.name.startsWith('repo-') || !!app.project);
+const LEAD = 'Good question about this code.';
+const CODE_WORDS = 'What does the sort function in sort.py do? Where is it defined and who calls it in this repository?';
+const REPO_APP = `repo-pns${run}-sorting`; // a repository app by name only: its turns call no route but the plan
+const ASK = 'What does the sort function do?';
+const handoffPlan = (...before) => ({ ...PLAN, grounding_status: 'grounded', source_types_used: ['canvas', 'repository'], actions: [...before, { type: 'handoff', capability: 'repository_context', request: ASK }] });
+const plannerReq = context => plannerRequest(context, 2000);
+const toolTypes = context => plannerReq(context).tools[0].input_schema.properties.actions.items.properties.type.enum;
+const bodyOf = (sent, route) => sent.find(s => s.route === route)?.body;
+
+// N17: the handoff is offered from the canvas's repository state, never from the words.
+async function n17() {
+  if (noCanvas('N17')) return;
+  const forms = [[{ name: 'canvas-x' }, false], [{ name: 'repo-x' }, true], [{ name: 'canvas-x', project: 'p' }, true]];
+  check('N17 page rule', forms.every(([app, want]) => canvasRepository(app) === want), 'canvasRepository: a canvas is not a repository canvas; a repo-* app and a canvas in a project are', 'the mirrored page rule gave an unexpected answer');
+  const plain = state.canvas, repo = { name: REPO_APP, title: 'Sorting', blocks: [] }, problems = { plain: [], repository: [] };
+  for (const [raw, words] of [[CODE_WORDS, 'code words'], [AUTO_RAW, 'no code words']]) {
+    // A plain canvas: not offered, so not in the tool or the prompt, and a plan that carries one has it cut; the route is never called.
+    const none = await autoTurn(plain, { raw, repository: canvasRepository(plain), plan: handoffPlan(say(LEAD)) }), c = none.context;
+    if (!c || c.allowed_actions.includes('handoff') || toolTypes(c).includes('handoff') || plannerReq(c).system.includes(HANDOFF_SYSTEM)
+      || none.result.actions.some(a => a.type === 'handoff') || !ONLY_PLAN(none.routes) || none.result.trace?.runtime?.handoff !== null) problems.plain.push(`${words}: allowed ${c?.allowed_actions?.join(',')}; requests ${none.routes.join(',')}`);
+    // A repository canvas: offered, in the tool and the prompt; a plan that does not choose it hands nothing off.
+    const some = await autoTurn(repo, { raw, repository: canvasRepository(repo), plan: PLAN }), d = some.context;
+    if (!d || !d.allowed_actions.includes('handoff') || !toolTypes(d).includes('handoff') || !plannerReq(d).system.includes(HANDOFF_SYSTEM) || !ONLY_PLAN(some.routes) || some.result.trace?.runtime?.handoff !== null) problems.repository.push(`${words}: allowed ${d?.allowed_actions?.join(',')}; requests ${some.routes.join(',')}`);
+  }
+  check('N17 plain canvas, code words', !problems.plain.length, 'a canvas with no repository context: handoff is not in allowed_actions, the derived tool or the prompt, with or without code words in the message; a plan carrying one is cut and no handoff request is made', problems.plain.join(' | '));
+  check('N17 repository canvas', !problems.repository.length, 'a repo-* canvas: handoff is in allowed_actions, the derived tool and the prompt, with or without code words; a plan that does not choose it makes no handoff request', problems.repository.join(' | '));
+}
+
+// N18: a handoff the stack cannot answer. The page offers it (repository: true) on the owned plain canvas, whose repository the
+// server cannot resolve; the REAL 11c-A route answers no_repository_context, and the turn says so honestly.
+async function n18() {
+  if (noCanvas('N18')) return;
+  const c = state.canvas, { result, routes, sent, decision } = await autoTurn(c, { raw: CODE_WORDS, repository: true, plan: handoffPlan(say(LEAD)) });
+  const body = bodyOf(sent, HANDOFF), t = result.trace, h = t?.runtime?.handoff, timing = t?.runtime?.timing;
+  check('N18 requests', routes.join() === `/api/learn/tutor/plan,${HANDOFF}` && Object.keys(body || {}).join() === 'app,capability,request' && body.capability === 'repository_context' && body.request === ASK,
+    'the turn made the plan request, then one handoff request with app, capability and the planner request only; no /evaluate', `requests ${routes.join(', ')}; handoff body keys ${Object.keys(body || {}).join(',')}`);
+  const only = (await autoTurn(c, { raw: CODE_WORDS, repository: true, plan: handoffPlan() })).result.text;
+  check('N18 honest reply', result.text === `${LEAD}\n\n${HANDOFF_FAILED}` && only === HANDOFF_FAILED,
+    'the reply is the plan words then the plain failure line (just the line when the plan has no words); no repository text', `reply ${result.text ? 'present' : 'missing'}, matches ${result.text === `${LEAD}\n\n${HANDOFF_FAILED}`}; handoff-only reply matches ${only === HANDOFF_FAILED}`);
+  const chosen = decision?.chosen_action, listed = decision?.actions?.map(a => `${a.action_type}/${a.capability}`).join();
+  check('N18 trace action', chosen?.action_type === 'handoff' && chosen.capability === 'repository_context' && listed === 'respond_text/null,handoff/repository_context',
+    'chosen_action and actions: action_type handoff with capability repository_context, after the respond_text lead-in', `chosen ${chosen?.action_type}/${chosen?.capability}; actions ${listed}`);
+  check('N18 runtime.handoff', Object.keys(h || {}).join() === 'started_at,completed_at,ms,outcome,failure,model_id,usage' && h.outcome === 'failed' && h.failure === 'no_repository_context' && h.model_id === null,
+    'runtime.handoff: outcome failed, failure no_repository_context, no model served', `runtime.handoff ${JSON.stringify(h && { keys: Object.keys(h), outcome: h.outcome, failure: h.failure, model_id: h.model_id })}`);
+  check('N18 grounding', decision?.grounding_status === 'retrieval_failed' && decision.source_types_used?.join() === 'canvas',
+    'grounding_status retrieval_failed, source_types_used canvas: the planner declared grounded and repository, and the failure overrode both', `grounding_status ${decision?.grounding_status}, source_types_used ${decision?.source_types_used?.join()}`);
+  const numbers = ['planner_ms', 'handoff_ms', 'blocking_wait_ms'].map(k => timing?.[k]);
+  check('N18 timing', Object.keys(timing || {}).join() === 'total_ms,planner_ms,first_text_ms,handoff_ms,blocking_wait_ms' && numbers.every(Number.isFinite) && timing.blocking_wait_ms >= timing.handoff_ms,
+    `planner_ms ${numbers[0]}, handoff_ms ${numbers[1]} and blocking_wait_ms ${numbers[2]} are separate numbers (the wait includes the handoff)`, `timing ${JSON.stringify(timing)}`);
+  const text = JSON.stringify(t);
+  check('N18 no text in the trace', !!t && [CODE_WORDS, ASK, LEAD, HANDOFF_FAILED].every(s => !text.includes(s)), 'neither the learner words, the handoff request, the plan words nor the failure line is in the event', 'the event carries learner, request or reply text');
+}
+
+// N19: a keyword never creates a selection. The route body's selection comes from the selected card's structured code source only.
+async function n19() {
+  if (noCanvas('N19')) return;
+  const c = state.canvas, WORDS = 'What does sort.py lines 30-40 in example/sorting do? Compare it with model.py:2-3 of nanogpt/nanogpt.';
+  const SHA = 'a'.repeat(40), source = { kind: 'code', repo: 'example/sorting', revision: SHA, path: 'bubble.py', lines: [5, 9] };
+  const bodyFor = async block => bodyOf((await autoTurn(c, { raw: WORDS, repository: true, block, plan: handoffPlan() })).sent, HANDOFF);
+  const bare = await bodyFor(null), plainCard = await bodyFor(c.blocks[0]);
+  const coded = await bodyFor({ id: 'code1', type: 'explanation', title: 'Bubble sort', body: 'It swaps neighbours.', sources: [source] });
+  check('N19 no card, no selection', !!bare && !('selection' in bare) && !('context' in bare), 'a message naming sort.py lines 30-40 and a repository, with no selected card, sends no selection and no context', `body keys ${Object.keys(bare || {}).join(',')}`);
+  check('N19 card without a code source', !!plainCard && !('selection' in plainCard) && plainCard.context?.card?.id === c.blocks[0].id, 'a selected card with no code source sends its text as context.card and still no selection', `body keys ${Object.keys(plainCard || {}).join(',')}`);
+  check('N19 selection from the source', JSON.stringify(coded?.selection) === JSON.stringify({ repository: 'example/sorting', revision: SHA, file: 'bubble.py', line_range: { start: 5, end: 9 } }),
+    'a card with a code source sends that source as the selection (bubble.py 5-9), not the file and lines the message names', `selection ${JSON.stringify(coded?.selection)}`);
+}
+
 // ---- run ----
 // The checks run in this order, one entry per group. A group's rows are the results whose id starts with its id.
-// TODO after Task 11c-B (the Tutor-side handoff; the checks are NOT written yet): a Tutor turn that hands off to
-// repository_context (the planner's handoff action runs through /api/learn/tutor/handoff, with source_types_used repository and
-// the handoff in the trace), and its failure replies (no_repository_context, timeout, refused, limited) reaching the learner
-// without a claim of a source. Until then only the route itself is checked here (N14-N16, no model).
-const CHECKS = [['N1', n1], ['N2', n2], ['N3', n3], ['N4', n4], ['N5', n5], ['N6', n6], ['N7', n7], ['N8', n8], ['N9', n9], ['N10', n10], ['N11', n11], ['N12', n12], ['N13', n13], ['N14', n14], ['N15', n15], ['N16', n16]];
+const CHECKS = [['N1', n1], ['N2', n2], ['N3', n3], ['N4', n4], ['N5', n5], ['N6', n6], ['N7', n7], ['N8', n8], ['N9', n9], ['N10', n10], ['N11', n11], ['N12', n12], ['N13', n13], ['N14', n14], ['N15', n15], ['N16', n16], ['N17', n17], ['N18', n18], ['N19', n19]];
 for (const [id, fn] of CHECKS) {
   label = id;
   try { await fn(); } catch (error) { record(id, 'FAIL', `stopped: ${error.message.split('\n')[0]}`); }
