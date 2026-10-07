@@ -247,7 +247,7 @@ test('no product module decides an offer or an action from the learner words', (
   // The signatures take the three offer parameters with literal defaults, and neither function reassigns them.
   for (const [name, body] of [['buildTurn', build], ['runTurn', functionOf('./learn-tutor.js', 'export async function runTurn\\(')]]) {
     assert.ok(/\bmaterials = \[\]/.test(body) && /\bresearch = false\b/.test(body) && /\bjourneyOffer = false\b/.test(body), `${name} defaults the offer parameters to literals`);
-    assert.deepEqual(reassigned(body, 'nextStep|materials|research|journeyOffer'), [], `${name} reassigns an offer parameter`);
+    assert.deepEqual(reassigned(body, 'nextStep|materials|research|journeyOffer'), [], `${name} reassigns or shadows an offer parameter`);
   }
   // runTurn hands the offers to buildTurn at exactly two calls, and every argument of both is on this list (no spread, no computed
   // value, no key: value besides the two renames).
@@ -281,16 +281,20 @@ test('no product module decides an offer or an action from the learner words', (
   assert.deepEqual(outside(at, new Set(['turnOffers', 'journey', 'journeyRef', 'current', 'record', 'opening', 'nextStep', 'openResearch'])), [], 'the turnOffers call reads more than the page state');
   // An offer field is never a key anywhere on the page outside turnOffers, nor named in the runTurn call or in common (shorthand).
   const rest = page.replace(offers, '').replace(at, ''), common = page.match(/const common = \{[^;]*\};/)[0];
-  assert.equal(/\b(?:journeyOffer|materials|research)\s*:/.test(rest), false, 'an offer field is a key outside turnOffers');
+  assert.equal(/(?<=[{,]\s*)(?:journeyOffer|materials|research)\s*:/.test(rest), false, 'an offer field is a key outside turnOffers');
   assert.deepEqual(idents(call.replace(at, '') + common).filter(id => ['journeyOffer', 'materials', 'research'].includes(id)), [], 'an offer field is named in the runTurn call or in common');
 
   // Anywhere else the offers, the actions or the handoff are named, the same line never reads the words. On the worker side raw is
   // the HTTP body, so only the turn's own field names the learner's message there.
   const FOUR = /suggest_journey|suggest_research|create_material|handoff|journey_offer|research_offer|available_materials|journeyOffer|openResearch|\bresearch\s*:|\bmaterials\s*:/i;
-  // Exempt: the two signatures, by exact name (their defaults are literals, asserted above), and the two buildTurn calls, whose
-  // arguments are on the allowlist above (the rest of their lines is scanned). Nothing else.
+  // Exempt: the two signatures, by exact name (their defaults are literals, asserted above), and learn-tutor.js's two buildTurn calls,
+  // whose arguments are on the allowlist above (the rest of their lines is scanned). Nothing else: no other file may call buildTurn.
   const SIGNATURE = /^export function buildTurn\(\{|^export async function runTurn\(\{/;
   const scanned = [['./learn-tutor.js', WORDS], ['./learn-tutor-validate.js', WORDS], ['./learn-tutor-actions.js', WORDS], ['./LearnTutor.jsx', WORDS],
     ...['agents/learn-tutor.js', 'learn-tutor-routes.js', 'learn-tutor-handoff.js'].map(file => [`../../control-plane/src/${file}`, /raw_user_message/])];
-  for (const [file, words] of scanned) for (const line of linesOf(withoutHandovers(strip(source(file))), FOUR).filter(line => !SIGNATURE.test(line))) assert.equal(words.test(line), false, `${file}: ${line.trim()}`);
+  for (const [file, words] of scanned) {
+    const code = strip(source(file));
+    if (file !== './learn-tutor.js') assert.equal(/(?<!function )\bbuildTurn\(/.test(code), false, `${file} calls buildTurn; only runTurn may hand it the offers`);
+    for (const line of linesOf(file === './learn-tutor.js' ? withoutHandovers(code) : code, FOUR).filter(line => !SIGNATURE.test(line))) assert.equal(words.test(line), false, `${file}: ${line.trim()}`);
+  }
 });
