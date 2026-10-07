@@ -116,9 +116,15 @@ Then check that `http://127.0.0.1:8828` still answers, if it was up.
 
 ## 6. Professor Next Steps
 
-`e2e/next-steps-check.mjs` (N1-N7, docs/features/professor-next-steps.md) runs on this recipe under its own names:
-`pns-local-app` and `pns-local-cp` on 8868 and 8869, configs in `<ws>/pns-config/{app,cp}`, D1s in `<ws>/pns-local`.
-§1-§3 and §5 apply with those names in place of `alp1-*`. While the shared hooks route is missing, N4-N6 report SKIP.
+`e2e/next-steps-check.mjs` runs on this recipe under its own names: `pns-local-app` and `pns-local-cp` on 8868 and 8869,
+configs in `<ws>/pns-config/{app,cp}`, D1s in `<ws>/pns-local`. §1-§3 and §5 apply with those names in place of `alp1-*`.
+It covers N1-N7 (hooks, docs/features/professor-next-steps.md), N8-N13 (the Auto Tutor on a plain canvas: the plan request, a
+broad request, the learning-path chip, the Research gate, /ask and /teach, insert-only material) and N14-N16 (the Tutor
+handoff route, only the paths that call no model). A route missing from an older base reports SKIP, never PASS. The Tutor-side
+handoff checks wait for Task 11c-B.
+
+Give a second stack a private wrangler registry, so stopping it never touches another stack's entries: set
+`WRANGLER_REGISTRY_PATH` to a folder of its own in the shell that starts each `wrangler dev`.
 
 ```bash
 cd packages/web

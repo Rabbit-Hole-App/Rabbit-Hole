@@ -1,21 +1,26 @@
-// Professor Next Steps acceptance N1-N7 (docs/features/professor-next-steps.md) against the KEYLESS local stack only
-// (e2e/journey-local-stack.md §6): no model key is bound and the hook planner answers from its fixtures
-// (JOURNEY_MODEL_STUB=fixtures). Node + HTTP for N1-N6; the browser only for N7. The Tutor planner is never reached: N2's
-// next_step turn runs in Node, its /api/learn/tutor/plan answered in process (as journey-check.mjs answers it in the page),
-// every other request it makes goes to the stack.
+// Professor Next Steps acceptance N1-N7 (docs/features/professor-next-steps.md), then the Auto Tutor N8-N13 (Task 11b) and the
+// Tutor handoff route N14-N16 (Task 11c-A), against the KEYLESS local stack only (e2e/journey-local-stack.md §6): no model key is
+// bound and the hook planner answers from its fixtures (JOURNEY_MODEL_STUB=fixtures). Node + HTTP for everything but N7, which
+// uses the browser. The Tutor planner is never reached: the turns of N2 and N8-N13 run in Node, their /api/learn/tutor/plan
+// answered in process (as journey-check.mjs answers it in the page), every other request they make goes to the stack. The
+// handoff checks use only paths that call no model.
 //   node e2e/next-steps-check.mjs --base http://127.0.0.1:8868 --cp http://127.0.0.1:8869 --vars <stack .dev.vars> --out <dir>
 // --vars is the stack's own vars file; only its TEST_BYPASS_SECRET is read, never printed. Sessions are minted on the
 // control plane's origin (the app's barrier refuses /test/session there).
 // Each check prints PASS, FAIL or SKIP with its reason; <out>/next-steps-results.json holds the table and
 // <out>/next-steps-network.json the requests per check (method, path, status, request body keys - never learner text; a
 // share token in a path is replaced by <token>).
-// Each check is a named function in CHECKS; later checks (Auto-Tutor, repository handoff) are appended there.
+// Each check is a named function in CHECKS; later checks are appended there.
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { nextStepsInput } from '../src/learn-next-steps.js';
 import { journeyDomain } from '../src/learn-journey-domain.js';
 import { emptyStore } from '../src/learn-tutor-evidence.js';
-import { runTurn } from '../src/learn-tutor.js';
+import { executeActions, runTurn } from '../src/learn-tutor.js';
+import { tutorContext } from '../src/learn-tutor-domains.js';
+import { materialCommands, runMaterials } from '../src/learn-slash.js';
+import { STARTS, journeyIntent } from '../../control-plane/src/learner-intent-journey.js';
+import { MODE_SLASHES } from '../../control-plane/src/agents/learn-tutor.js';
 import { NANOGPT, cardModule } from '../src/learn-tutor-claims.js';
 import { cardBlock } from '../src/nanogpt/board.js';
 import { resolveTarget } from '../src/learn-target.js';
@@ -93,7 +98,7 @@ async function n1() {
   ];
   await ok(owner, 'PUT', `/api/learn/boards/${name}/main`, { state: { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], blocks, exchanges: [] } });
   const saved = (await ok(owner, 'GET', `/api/learn/boards/${name}/main`)).state?.blocks || [];
-  state.canvas = { name, title };
+  state.canvas = { name, title, blocks: saved };
   const built = nextStepsInput({ context: null, store: emptyStore(), blocks: saved, title, basis: `n1-${run}` });
   if (!built.input) throw Error(`nextStepsInput: ${built.problem}`);
   const first = await call(owner, 'POST', '/api/learn/tutor/next-steps', { app: name, input: built.input });
@@ -149,12 +154,14 @@ async function n2() {
 
 // ---- N3: the decision trace of N2's turn ----
 // Contract §3.1 (trace_schema_version 1), with the owner's additions the code and its unit test carry
-// (learn-tutor-trace.test.mjs): decision.evidence_transitions, decision.shown_at, decision.selected_at, runtime.planner_input.
+// (learn-tutor-trace.test.mjs): decision.evidence_transitions, decision.shown_at, decision.selected_at, runtime.planner_input;
+// and Task 11b's nine intent keys, last in decision (intent_mode .. research_executed).
 const TRACE = {
   top: ['trace_schema_version', 'event', 'decision_id', 'step_id', 'generated_at', 'identity', 'versions', 'decision', 'runtime', 'flags'],
   identity: ['user_id', 'session_id', 'canvas_id', 'board_id', 'canvas_version', 'journey_id', 'section_id', 'dive_id', 'source', 'scope', 'mode'],
   versions: ['planner_version', 'prompt_version', 'model_role', 'model_id'],
-  decision: ['current_goal', 'current_section_id', 'target_concept_ids', 'target_claim_ids', 'evidence_summary', 'evidence_transitions', 'canvas_summary', 'recent_modality_history', 'next_step_options', 'shown_at', 'selected_next_step_id', 'selected_at', 'route', 'chosen_action', 'actions', 'reason_codes', 'reason_source', 'rationale_summary', 'expected_evidence', 'estimated_learning_seconds'],
+  decision: ['current_goal', 'current_section_id', 'target_concept_ids', 'target_claim_ids', 'evidence_summary', 'evidence_transitions', 'canvas_summary', 'recent_modality_history', 'next_step_options', 'shown_at', 'selected_next_step_id', 'selected_at', 'route', 'chosen_action', 'actions', 'reason_codes', 'reason_source', 'rationale_summary', 'expected_evidence', 'estimated_learning_seconds',
+    'intent_mode', 'inferred_intent', 'explicit_modality_override', 'intent_status', 'clarification_requested', 'grounding_status', 'source_types_used', 'research_offered', 'research_executed'],
   runtime: ['timing', 'model', 'usage', 'validation', 'planner_input'],
 };
 async function n3() {
@@ -296,9 +303,165 @@ async function n7() {
   } finally { await browser.close(); }
 }
 
+// ---- N8-N13: the Auto Tutor (Task 11b), no model ----
+// N2's pattern: runTurn in Node, /api/learn/tutor/plan answered in process by a canned plan, every other route to the stack.
+// The turn options are the page's own (LearnTutor.jsx turnOffers): the materials always, a Research offer only when the page can
+// open Research (research), a learning-path offer where the journey controller can start one (journeyOffer, true on a canvas).
+// The canvas is the owned plain canvas of N1 (two saved blocks, no journey, no registered course).
+const say = text => ({ type: 'respond_text', text });
+const planOf = (...actions) => ({ ...PLAN, actions });
+const AUTO_RAW = 'Why does the dough need time to rise?', BROAD = 'Teach me backpropagation from scratch.';
+// LearnJourney.jsx startRequest (a JSX file, not importable in Node): a start request as it is, a bare topic as Teach me <topic>.
+const startRequest = text => { const it = journeyIntent(text); return STARTS.has(it.kind) && it.topic ? text : `Teach me ${text}`; };
+async function autoTurn(where, { raw, plan = PLAN, slash = null, research = false, journeyOffer = true }) {
+  const sent = [];
+  const post = async (route, body) => {
+    sent.push({ route, body });
+    if (route === '/api/learn/tutor/plan') { log({ method: 'POST', path: route, status: 'in-process', keys: keys(body) }); return plan; }
+    return ok(owner, 'POST', route, body);
+  };
+  const { domain } = tutorContext({ app: where.name, board: 'main', title: where.title, blocks: where.blocks });
+  const result = await runTurn({ raw, slash, canvas: { app: where.name, board: 'main' }, access: { app: where.name }, block: null, store: emptyStore(), post, domain, materials: materialCommands(), research, journeyOffer, trace: true });
+  return { result, post, domain, sent, routes: sent.map(s => s.route), context: sent.find(s => s.route === '/api/learn/tutor/plan')?.body.context, decision: result.trace?.decision };
+}
+const journeyAt = name => ok(owner, 'GET', `/api/learn/journey?app=${name}&board=main`);
+const noCanvas = id => { if (state.canvas) return false; record(id, 'FAIL', 'no canvas from N1'); return true; };
+const ONLY_PLAN = routes => routes.length === 1 && routes[0] === '/api/learn/tutor/plan';
+const chipsOf = (actions, domain, extra = {}) => executeActions(actions, { canvas: {}, suggestDive: () => {}, climb: () => {}, domain, ...extra });
+
+// N8: a plain canvas typed turn goes to the Tutor plan request with the canvas's cards, and starts no journey.
+async function n8() {
+  if (noCanvas('N8')) return;
+  const c = state.canvas, { result, routes, context, decision } = await autoTurn(c, { raw: AUTO_RAW });
+  check('N8 plan request', ONLY_PLAN(routes) && context?.learner_intent?.raw_user_message === AUTO_RAW && !('journey_context' in context) && result.text === CANNED,
+    'a typed turn made exactly one request, to /api/learn/tutor/plan, with the words and no journey context (no /evaluate, no /api/learn/journey)', `requests ${routes.join(', ') || 'none'}; reply ${result.text ? 'present' : 'missing'}`);
+  const cards = context?.canvas_context?.cards || [];
+  check('N8 canvas cards', JSON.stringify(cards.map(x => x.id)) === JSON.stringify(c.blocks.map(b => b.id)) && cards.every(x => x.kind === 'explanation' && x.title && x.text),
+    `canvas_context.cards holds the ${cards.length} saved blocks, in canvas order, with kind, title and text`, `cards ${JSON.stringify(cards.map(x => [x.id, x.kind]))}`);
+  check('N8 auto reading', decision?.intent_mode === 'auto' && result.trace?.identity?.mode === 'canvas' && context?.allowed_actions?.includes('respond_text') && context.allowed_actions.includes('create_material'),
+    'trace: intent_mode auto, mode canvas; the planner may reply or make material', `intent_mode ${decision?.intent_mode}, mode ${result.trace?.identity?.mode}, allowed ${context?.allowed_actions?.join(',')}`);
+  check('N8 no journey', !(await journeyAt(c.name)).journey, 'the canvas has no journey after the turn', 'a journey exists on the canvas');
+}
+
+// N9: a broad learning request (one LP1's word gate would have started a journey on) reaches the planner, which may offer a path.
+async function n9() {
+  if (noCanvas('N9')) return;
+  const c = state.canvas, premise = STARTS.has(journeyIntent(BROAD).kind);
+  const { routes, context } = await autoTurn(c, { raw: BROAD });
+  check('N9 broad request reaches the planner', premise && ONLY_PLAN(routes) && context?.learner_intent?.raw_user_message === BROAD && context.allowed_actions?.includes('suggest_journey'),
+    'a request LP1 reads as a journey start made one /api/learn/tutor/plan request, with suggest_journey allowed', `word rule reads a start ${premise}; requests ${routes.join(', ') || 'none'}; allowed ${context?.allowed_actions?.join(',')}`);
+  check('N9 no tray', !(await journeyAt(c.name)).journey, 'no journey (so no tray) exists on the canvas', 'a journey was started on the canvas');
+}
+
+// N10: a suggest_journey plan yields a Start a learning path chip; nothing starts until the click, which posts the existing start.
+async function n10() {
+  const title = `Next steps chip ${run}`, { name } = await ok(owner, 'POST', '/api/canvases', { title });
+  const request = 'logistic regression', plan = planOf(say(CANNED), { type: 'suggest_journey', request });
+  const { result, post, domain, sent } = await autoTurn({ name, title, blocks: [] }, { raw: BROAD, plan });
+  const starts = () => sent.filter(s => s.route === '/api/learn/journey');
+  const chips = chipsOf(result.actions, domain, { startJourney: text => post('/api/learn/journey', { app: name, board: 'main', action: 'start', text: startRequest(text) }) });
+  check('N10 chip, nothing started', chips.length === 1 && chips[0].label === 'Start a learning path' && !starts().length && !(await journeyAt(name)).journey,
+    'the plan yields one Start a learning path chip, and before the click no journey POST was made and no journey exists', `chips ${chips.map(x => x.label).join(' | ') || 'none'}; journey POSTs ${starts().length}`);
+  await chips[0]?.run();
+  const view = await journeyAt(name);
+  check('N10 click posts the journey start', starts().length === 1 && starts()[0].body.action === 'start' && starts()[0].body.text === `Teach me ${request}` && !!view.journey?.state,
+    `the click posted one /api/learn/journey start (Teach me ${request}); the journey is now ${view.journey?.state}`, `journey POSTs ${starts().length}, body ${JSON.stringify(starts()[0]?.body && { action: starts()[0].body.action, text: starts()[0].body.text })}, journey ${view.journey?.state}`);
+}
+
+// N11: suggest_research is offered only where the page can open Research.
+async function n11() {
+  if (noCanvas('N11')) return;
+  const c = state.canvas, request = 'the latest approaches to long-context attention', plan = planOf(say(CANNED), { type: 'suggest_research', request });
+  const off = await autoTurn(c, { raw: AUTO_RAW, plan, research: false });
+  check('N11 not allowed without openResearch', !off.context?.allowed_actions?.includes('suggest_research') && off.result.actions.every(a => a.type !== 'suggest_research') && off.decision?.research_offered === false
+    && !chipsOf([{ type: 'suggest_research', request }], off.domain, { openResearch: null }).length,
+    'with no openResearch suggest_research is not in allowed_actions, a plan offering it is cut, and it makes no chip', `allowed ${off.context?.allowed_actions?.join(',')}; actions ${off.result.actions.map(a => a.type).join(',')}; research_offered ${off.decision?.research_offered}`);
+  const opened = [], on = await autoTurn(c, { raw: AUTO_RAW, plan, research: true });
+  const chips = chipsOf(on.result.actions, on.domain, { openResearch: text => opened.push(text) });
+  chips[0]?.run();
+  check('N11 allowed with openResearch', on.context?.allowed_actions?.includes('suggest_research') && on.decision?.research_offered === true && on.decision.research_executed === false && ONLY_PLAN(on.routes)
+    && chips.length === 1 && chips[0].label === 'Research this' && opened.length === 1 && opened[0] === request,
+    'control: with openResearch it is allowed, one Research this chip calls openResearch(request), and the turn itself researched nothing', `allowed ${on.context?.allowed_actions?.join(',')}; chips ${chips.map(x => x.label).join(' | ') || 'none'}; opened ${opened.length}; requests ${on.routes.join(', ')}`);
+}
+
+// N12: typed /ask and /teach take the same plan route as Auto; only the explicit marker differs.
+async function n12() {
+  if (noCanvas('N12')) return;
+  const c = state.canvas, auto = await autoTurn(c, { raw: AUTO_RAW });
+  check('N12 auto control', auto.decision?.intent_mode === 'auto' && !('slash' in (auto.context?.learner_intent || {})), 'an Auto turn has intent_mode auto and no slash marker', `intent_mode ${auto.decision?.intent_mode}`);
+  if (MODE_SLASHES.join() !== 'ask,teach') return record('N12 slash list', 'FAIL', `MODE_SLASHES is ${MODE_SLASHES.join()}, not ask,teach`);
+  for (const name of MODE_SLASHES) {
+    const { routes, context, decision } = await autoTurn(c, { raw: AUTO_RAW, slash: name });
+    check(`N12 /${name}`, ONLY_PLAN(routes) && context?.learner_intent?.slash === name && context.learner_intent.raw_user_message === AUTO_RAW && context.learner_intent.kind === auto.context?.learner_intent?.kind
+      && decision?.intent_mode === 'explicit_slash' && decision.inferred_intent === name && decision.intent_status === 'explicit',
+      `/${name} made the same one /api/learn/tutor/plan request with the composer's words and slash ${name}; trace intent_mode explicit_slash, intent_status explicit`,
+      `requests ${routes.join(', ') || 'none'}; slash ${context?.learner_intent?.slash}; intent_mode ${decision?.intent_mode}, inferred ${decision?.inferred_intent}, status ${decision?.intent_status}`);
+  }
+}
+
+// N13: create_material for a command that inserts without the model runs from the plan alone, cost_tier none in the trace.
+async function n13() {
+  if (noCanvas('N13')) return;
+  const c = state.canvas, create = command => planOf(say(CANNED), { type: 'create_material', command, request: 'how bread dough rises' });
+  for (const command of ['whiteboard', 'notebook']) {
+    const { result, decision } = await autoTurn(c, { raw: AUTO_RAW, plan: create(command) });
+    const made = decision?.actions?.find(a => a.action_type === 'create_material'), inserted = [], posted = [];
+    await runMaterials(result.actions, {
+      app: c.name, openSearch: () => {}, offer: async () => {},
+      canvas: { insertBlock: block => { inserted.push(block.type); return 'blk'; }, insertNotebook: () => inserted.push('notebook'), reserve: () => null, release: () => {} },
+      post: async route => { posted.push(route); throw Error('a model route was reached'); },
+    });
+    check(`N13 /${command}`, made?.command === command && made.cost_tier === 'none' && decision.chosen_action?.command === command && decision.chosen_action.cost_tier === 'none' && inserted.length === 1 && inserted[0] === command && !posted.length,
+      `/${command} ran from the plan: one ${command} inserted, no artifact request; trace cost_tier none (also chosen_action)`,
+      `cost_tier ${made?.cost_tier}, chosen ${decision?.chosen_action?.command}/${decision?.chosen_action?.cost_tier}; inserted ${inserted.join(',') || 'none'}; requests ${posted.join(',') || 'none'}`);
+  }
+  const model = (await autoTurn(c, { raw: AUTO_RAW, plan: create('explain') })).decision?.actions?.find(a => a.action_type === 'create_material');
+  check('N13 model command control', model?.cost_tier === 'model', 'control: /explain, which needs the model, is cost_tier model (it is not run)', `cost_tier ${model?.cost_tier}`);
+}
+
+// ---- N14-N16: the Tutor handoff route (Task 11c-A), only paths that call no model ----
+// POST /api/learn/tutor/handoff { app, capability: 'repository_context', request, selection? }. A plain canvas holds no repository,
+// so N14 stops before any retrieval, usage row or model call; N15 and N16 are refused at validation.
+const HANDOFF = '/api/learn/tutor/handoff', NO_HANDOFF = 'handoff route not in this base';
+const QUESTION = 'What does this function do?';
+async function n14() {
+  if (noCanvas('N14')) return;
+  const c = state.canvas, selection = { repository: 'karpathy/nanoGPT', revision: 'master', file: 'model.py', line_range: { start: 1, end: 3 } };
+  for (const [kind, extra] of [['no selection', {}], ['a selection naming a repository', { selection }]]) {
+    const r = await call(owner, 'POST', HANDOFF, { app: c.name, capability: 'repository_context', request: QUESTION, ...extra });
+    if (noRoute(r)) return skip('N14 no repository context', `${NO_HANDOFF} (HTTP ${r.status})`);
+    const t = r.body?.telemetry;
+    check(`N14 ${kind}`, r.status === 200 && r.body.capability === 'repository_context' && r.body.answer === null && t?.outcome === 'failed' && t.failure === 'no_repository_context' && t.calls === 0 && !t.input_tokens && !t.output_tokens,
+      `a plain canvas answers 200, failure no_repository_context, no answer, 0 model calls${extra.selection ? ' (the selection never picks the repository)' : ''}`, `HTTP ${r.status} ${r.body?.error || ''}; outcome ${t?.outcome}, failure ${t?.failure}, calls ${t?.calls}`);
+  }
+}
+async function n15() {
+  if (noCanvas('N15')) return;
+  const bad = [];
+  for (const capability of ['research', 'do', 'constructor', 'Repository_Context']) {
+    const r = await call(owner, 'POST', HANDOFF, { app: state.canvas.name, capability, request: QUESTION });
+    if (noRoute(r)) return skip('N15 unknown capability', `${NO_HANDOFF} (HTTP ${r.status})`);
+    if (r.status !== 400 || typeof r.body?.error !== 'string' || r.body.telemetry) bad.push(`${capability}: HTTP ${r.status}`);
+  }
+  check('N15 unknown capability', !bad.length, 'research, do, constructor and a case variant each answer 400 with an error and no telemetry', bad.join('; '));
+}
+async function n16() {
+  if (noCanvas('N16')) return;
+  // The raw body is bounded at 64000 characters before it is parsed.
+  const big = await call(owner, 'POST', HANDOFF, { app: state.canvas.name, capability: 'repository_context', request: 'x'.repeat(70000) });
+  if (noRoute(big)) return skip('N16 oversized body', `${NO_HANDOFF} (HTTP ${big.status})`);
+  check('N16 oversized body', big.status === 400 && big.body?.failure === 'too_large' && !big.body.telemetry, 'a 70000-character body answers 400, failure too_large, before any read', `HTTP ${big.status}, failure ${big.body?.failure}`);
+  const long = await call(owner, 'POST', HANDOFF, { app: state.canvas.name, capability: 'repository_context', request: 'x'.repeat(1001) });
+  check('N16 request over 1000 characters', long.status === 400 && !long.body?.telemetry, 'a request of 1001 characters answers 400', `HTTP ${long.status}`);
+}
+
 // ---- run ----
-// Append later checks here (Auto-Tutor after Task 11b, repository handoff after Task 11c).
-const CHECKS = [['N1', n1], ['N2', n2], ['N3', n3], ['N4', n4], ['N5', n5], ['N6', n6], ['N7', n7]];
+// The checks run in this order, one entry per group. A group's rows are the results whose id starts with its id.
+// TODO after Task 11c-B (the Tutor-side handoff; the checks are NOT written yet): a Tutor turn that hands off to
+// repository_context (the planner's handoff action runs through /api/learn/tutor/handoff, with source_types_used repository and
+// the handoff in the trace), and its failure replies (no_repository_context, timeout, refused, limited) reaching the learner
+// without a claim of a source. Until then only the route itself is checked here (N14-N16, no model).
+const CHECKS = [['N1', n1], ['N2', n2], ['N3', n3], ['N4', n4], ['N5', n5], ['N6', n6], ['N7', n7], ['N8', n8], ['N9', n9], ['N10', n10], ['N11', n11], ['N12', n12], ['N13', n13], ['N14', n14], ['N15', n15], ['N16', n16]];
 for (const [id, fn] of CHECKS) {
   label = id;
   try { await fn(); } catch (error) { record(id, 'FAIL', `stopped: ${error.message.split('\n')[0]}`); }
