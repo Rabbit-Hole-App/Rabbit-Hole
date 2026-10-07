@@ -687,11 +687,13 @@ test('an identical update keeps the debounce running and only refreshes the inpu
   assert.equal(bodies[0].fresh, true);
 });
 
-test('a malformed 2xx reply is failed, never ready', async () => {
-  for (const reply of [null, { ...setFor(1), options: setFor(1).options.slice(0, 2) }, { set_id: 'ns_00000001', generated_at: 'g' }]) {
-    const { c, ctl } = rig([reply]);
+test('a malformed 2xx reply is failed, never ready, with no onSet', async () => {
+  const replies = [null, { ...setFor(1), options: setFor(1).options.slice(0, 2) }, { set_id: 'ns_00000001', generated_at: 'g' },
+    { ...setFor(1), options: [null, null, null] }, { ...setFor(1), options: setFor(1).options.map(({ selected_next_step, ...o }) => o) }];
+  for (const reply of replies) {
+    const { c, ctl, sets } = rig([reply]);
     ctl.update({ basis: 'a', stop: null, input }); await c.fire();
-    assert.deepEqual([ctl.view().status, ctl.view().reason], ['unavailable', 'failed']);
+    assert.deepEqual([ctl.view().status, ctl.view().reason, sets], ['unavailable', 'failed', []]);
   }
 });
 
@@ -727,4 +729,39 @@ test('a reply after dispose does nothing: no onSet, no notify, no timer', async 
   ctl.dispose();
   release(setFor(1)); await first;
   assert.deepEqual([sets, heard, c.pending()], [[], [], 0]);
+});
+
+// Fix round 2: the stale fallback is the set last on screen; no eviction; views hand out copies.
+test('the stale fallback is the set last on screen: A, B, back to A, then C shows A stale', async () => {
+  const { c, ctl } = rig([setFor(1), setFor(2), setFor(3)]);
+  const hooks = n => setFor(n).options.map(o => o.hook);
+  ctl.update({ basis: 'a', stop: null, input }); await c.fire();
+  ctl.update({ basis: 'b', stop: null, input }); await c.fire();
+  ctl.update({ basis: 'a', stop: null, input });
+  ctl.update({ basis: 'c', stop: null, input });
+  assert.deepEqual([ctl.view().status, ctl.view().set_id, ctl.select('ns_00000001.1'), ctl.select('ns_00000002.1')], ['stale', 'ns_00000001', { ok: false, reason: 'stale' }, { ok: false, reason: 'unknown' }]);
+  assert.deepEqual(ctl.previous().hooks, [...hooks(1), ...hooks(2)], 'a second show of A adds nothing to previous');
+});
+
+test('a long run of failed builds never re-requests an earlier basis', async () => {
+  const { c, ctl, bodies } = rig([setFor(1), setFor(2)], { cap: 3 });
+  ctl.update({ basis: 'a', stop: null, input }); await c.fire();
+  for (let i = 0; i < 6; i++) { ctl.update({ basis: `f${i}`, stop: null, input: () => ({ problem: 'input_too_large' }) }); await c.fire(); }
+  ctl.update({ basis: 'a', stop: null, input });
+  assert.deepEqual([ctl.view().status, ctl.view().set_id, c.pending(), bodies.length], ['ready', 'ns_00000001', 0, 1]);
+  ctl.update({ basis: 'f0', stop: null, input });
+  assert.deepEqual([ctl.view().reason, c.pending(), bodies.length], ['failed', 0, 1]);
+});
+
+test('view hands out copies: mutating a view never reaches the stored set or what onSet received', async () => {
+  const got = [];
+  const { c, ctl } = rig([setFor(1), setFor(2)], { onSet: s => got.push(s) });
+  ctl.update({ basis: 'a', stop: null, input }); await c.fire();
+  const v = ctl.view();
+  v.options[0].hook = 'x'; v.options[1].selected_next_step.learning_goal = 'y'; v.options.pop();
+  assert.deepEqual([ctl.view().options, got[0].options], [setFor(1).options, setFor(1).options]);
+  ctl.update({ basis: 'b', stop: null, input });
+  const stale = ctl.view();
+  stale.options[2].selected_next_step.v = 9;
+  assert.deepEqual([ctl.view().status, ctl.view().options], ['stale', setFor(1).options]);
 });

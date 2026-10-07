@@ -193,7 +193,8 @@ export function nextStepsController({ post, onSet = () => {}, setTimer = setTime
   const copy = () => ({ hooks: [...previous.hooks], goals: [...previous.goals] });
   const empty = { set_id: null, generated_at: null, options: [] };
   const unavailable = reason => ({ status: 'unavailable', reason, ...empty });
-  const showing = (status, s) => ({ status, reason: null, set_id: s.set_id, generated_at: s.generated_at, options: s.options });
+  // Copies, so UI code never mutates the stored set or what onSet received.
+  const showing = (status, s) => ({ status, reason: null, set_id: s.set_id, generated_at: s.generated_at, options: structuredClone(s.options) });
   // The current basis first; else limited once the ceiling leaves it unasked; else the last shown set, stale; else loading.
   const view = () => {
     const entry = outcomes.get(basis);
@@ -201,12 +202,12 @@ export function nextStepsController({ post, onSet = () => {}, setTimer = setTime
       : requests >= cap && flying !== basis ? unavailable('limited') : shown ? showing('stale', shown) : { status: 'loading', reason: null, ...empty };
   };
   let told = JSON.stringify(view());
-  // A set is shown the first time it is ready: then it becomes the stale fallback and its hooks join previous.
+  // The set on screen (ready, no stop) is always the stale fallback; its hooks join previous only the first time it shows.
   const sync = () => {
     const entry = outcomes.get(basis);
-    if (!stop && entry?.set && !entry.shown) {
-      entry.shown = true; shown = entry.set;
-      previous.hooks = [...previous.hooks, ...entry.set.options.map(o => o.hook)].slice(-L.previous_hooks);
+    if (!stop && entry?.set) {
+      shown = entry.set;
+      if (!entry.shown) { entry.shown = true; previous.hooks = [...previous.hooks, ...entry.set.options.map(o => o.hook)].slice(-L.previous_hooks); }
     }
     const text = JSON.stringify(view());
     if (text !== told) { told = text; listeners.forEach(fn => safely(fn)); }
@@ -227,16 +228,16 @@ export function nextStepsController({ post, onSet = () => {}, setTimer = setTime
       else {
         flying = sent; requests += 1;
         const got = await post(built.input);
-        outcome = Array.isArray(got?.options) && got.options.length === L.options ? { set: got } : { failed: 'failed' };
+        const usable = o => typeof o?.id === 'string' && typeof o.hook === 'string' && !!o.selected_next_step && typeof o.selected_next_step === 'object';
+        outcome = Array.isArray(got?.options) && got.options.length === L.options && got.options.every(usable) ? { set: got } : { failed: 'failed' };
       }
     } catch (error) { outcome = { failed: error?.status === 429 ? 'limited' : 'failed' }; }
     flying = null;
     if (disposed) return;
+    // ponytail: never evicted (eviction would allow a second request for a basis), so the map grows with the distinct bases
+    // visited in the tab; entries are tiny ({ set } of 3 options or { failed }). Bound it by age if a tab ever lives that long.
     outcomes.set(sent, outcome);
     if (outcome.set) safely(() => onSet(outcome.set, built.input, built.trim, { discarded: sent !== basis }));
-    // Settled requests never pass the cap, so only failed builds (no request) can; then the oldest other basis goes.
-    // ponytail: a basis that old could be built again if it returned; keep failed builds apart if that ever matters.
-    if (outcomes.size > cap) outcomes.delete([...outcomes.keys()].find(k => k !== basis));
     sync();
     schedule(Math.max(0, changedAt + debounce - now()));
   }
