@@ -76,8 +76,9 @@ const TITLE = 'line-clamp-2 break-words text-left text-base font-semibold leadin
 // `onOpen`: what the card and its title open (null: not openable, as a canvas whose content is in another browser);
 // `href`: the title's link, so it opens in a new tab too. `mine`: the viewer owns it. `onMore`: the ⋮. `note`: this
 // browser's content state. `actions`: the surface's buttons, in their own row. `cta`: a small text link at the footer's end
-// (Home's Continue →). `onForkedFromOpen`: a review fixture's original.
-export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, mine = false, access = null, onMore, note, actions, cta, onForkedFromOpen }) {
+// (Home's Continue →). `onForkedFromOpen`: a review fixture's original. `creatorHref`: the creator's public profile
+// (/@handle), on public cards only (docs/features/creator-profile.md); private views keep the @handle as text.
+export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, mine = false, access = null, onMore, note, actions, cta, onForkedFromOpen, creatorHref }) {
   const learning = kind === 'repository' || kind === 'canvas';
   const repo = kind === 'repository' && m.sourceUrl;
   return (
@@ -89,7 +90,9 @@ export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, m
             : onOpen ? <button type="button" data-card-title onClick={stop(onOpen)} className={`${TITLE} cursor-pointer self-start text-accent hover:underline`}>{m.title}</button>
             : <span data-card-title className={`${TITLE} text-ink`}>{m.title}</span>}
           {/* the badge sits beside the @handle, outside data-creator: the attribution line reads exactly @handle */}
-          {m.creator && <span className="flex min-w-0 items-center gap-1"><Creator m={m} />{mine && <OwnerCheck owned />}</span>}
+          {m.creator && <span className="flex min-w-0 items-center gap-1">{creatorHref
+            ? <a data-creator-link href={creatorHref} title="Open the creator's profile" onClick={(e) => e.stopPropagation()} className="min-w-0 rounded-sm outline-none focus-visible:bg-accent/15 [&:hover_[data-creator]]:text-ink [&:hover_[data-creator]]:underline"><Creator m={m} /></a>
+            : <Creator m={m} />}{mine && <OwnerCheck owned />}</span>}
           <ForkedFrom m={m} onOpen={onForkedFromOpen} />
         </div>
         {(access || onMore) && (

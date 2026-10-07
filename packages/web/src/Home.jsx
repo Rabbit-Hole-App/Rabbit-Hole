@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react';
-import { ArrowDownToLine, ArrowRight, ArrowUpRight, Compass, GitFork, Link2 } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Compass, Search } from 'lucide-react';
 import { navigate } from './api.js';
 import { reviewTools } from './flags.js';
 import { openHref, readContinue, readRecent, recentCard, recentItems } from './home/continue.js';
-import LearningCard, { CARD_GRID, IN_THIS_BROWSER as HERE, ON_ANOTHER_DEVICE as AWAY, SortMenu, menuAt } from './home/LearningCard.jsx';
+import LearningCard, { CARD_GRID, IN_THIS_BROWSER as HERE, ON_ANOTHER_DEVICE as AWAY, SortMenu } from './home/LearningCard.jsx';
+import PublicCards, { CreatorChip } from './home/PublicCards.jsx';
 import { EXPLORE_SORTS } from './home/card-sort.js';
 import { cardModel } from './home/provenance.js';
 import { fixturesOn, useFixtures } from './home/review-fixtures.js';
 import { isMine } from './library-filter.js';
 import { loadProfile } from './session-display.js';
 import Shell from './Shell.jsx';
-import { Button, EmptyState, Menu, MenuItem, SkeletonRows, toast } from './ui.jsx';
+import { Button, EmptyState, Input, SkeletonRows, toast } from './ui.jsx';
 
 // Home (T02 §3, preview build only): Continue, Recent, Start - three blocks, no others.
 // Composition follows Gate B (Figma F1): Continue as a callout, Recent as a gallery of compact
@@ -130,56 +131,61 @@ export function ExplorePreview() {
 // @handle - display name first when set - description, the canonical direct-fork count, updated). The order is the
 // server's for the chosen sort (§17: Newest by default, Recently updated, Most forked); the page never reorders.
 // Others' cards offer Start Rabbit Hole (blue) and Fork (neutral) through the published page's own resume flows
-// (?rabbit=root, ?fork=1), signed out included; your own carry the Owned-by-you badge instead.
+// (?rabbit=root, ?fork=1), signed out included; your own carry the Owned-by-you badge instead (home/PublicCards.jsx).
+// Card-first (creator profile brief §8): a small "Creators to explore" row sits above the feed, never in it. Search
+// (§9) answers Creators and Explainers from the server: @handle, display name, title, description.
 function Explore() {
   const [order, setOrder] = useState('newest');
   const [cards, setCards] = useState(null);
+  const [creators, setCreators] = useState(null);
   const [me, setMe] = useState(null);
-  const [menu, setMenu] = useState(null); // { card, top | bottom, left }
+  const [typed, setTyped] = useState('');
+  const [term, setTerm] = useState('');
+  useEffect(() => { const t = setTimeout(() => setTerm(typed.trim()), 250); return () => clearTimeout(t); }, [typed]);
+  const q = term ? `q=${encodeURIComponent(term)}` : '';
   useEffect(() => { let live = true; loadProfile().then((p) => { if (live) setMe(p?.handle || null); }); return () => { live = false; }; }, []);
   useEffect(() => {
     let live = true;
-    fetch(`/api/learn/boards/published?sort=${order}`, { credentials: 'same-origin' }).then(r => (r.ok ? r.json() : { canvases: [] }))
+    fetch(`/api/learn/boards/published?sort=${order}${q && `&${q}`}`, { credentials: 'same-origin' }).then(r => (r.ok ? r.json() : { canvases: [] }))
       .then(data => { if (live) setCards(data.canvases || []); }).catch(() => { if (live) setCards([]); });
     return () => { live = false; };
-  }, [order]);
-  // /e/<token> is its own page (main.jsx Root), so it loads in full rather than through navigate().
-  const go = (url) => window.location.assign(url);
-  const copy = async (card) => {
-    setMenu(null);
-    try { await navigator.clipboard.writeText(`${window.location.origin}${card.url}`); toast('Link copied'); } catch { toast('Could not copy the link', { tone: 'error' }); }
-  };
+  }, [order, q]);
+  useEffect(() => {
+    let live = true;
+    fetch(`/api/learn/creators${q && `?${q}`}`, { credentials: 'same-origin' }).then(r => (r.ok ? r.json() : { creators: [] }))
+      .then(data => { if (live) setCreators(data.creators || []); }).catch(() => { if (live) setCreators([]); });
+    return () => { live = false; };
+  }, [q]);
+  const label = 'pb-2 text-xs text-ink-2';
   return (
     <main className="flex-1 overflow-y-auto">
       <div className="mx-auto max-w-[1150px] px-24 pb-12 pt-12 max-lg:px-8 max-md:px-4 max-md:pt-6">
         <h1 className="text-[40px] font-bold leading-[1.2] tracking-[-0.01em]">Explore</h1>
         <p className="pb-6 pt-1 text-sm text-ink-2">Discover rabbit holes, projects, and learning resources shared beyond your library.</p>
-        {cards?.length !== 0 && <div className="flex justify-end pb-4"><SortMenu options={EXPLORE_SORTS} value={order} onChange={setOrder} /></div>}
-        {cards === null && <SkeletonRows rows={3} />}
-        {cards?.length === 0 && <div data-explore-empty><EmptyState icon={Compass}>Nothing has been published yet. Canvases people publish to Explore will appear here.</EmptyState></div>}
-        {cards?.length > 0 && (
-          <ul data-explore-list className={CARD_GRID}>
-            {cards.map(card => {
-              const mine = !!me && card.creator?.handle === me;
-              const m = cardModel({ kind: 'canvas', name: card.url, title: card.title, description: card.description, fork_count: card.fork_count, updated_at: card.updated_at, owner_handle: card.creator?.handle, owner_name: card.creator?.name });
-              return (
-                <LearningCard key={card.url} kind="canvas" m={m} attrs={{ 'data-explore-card': '' }} href={card.url} onOpen={() => go(card.url)} mine={mine} access="public"
-                  onMore={(e) => setMenu({ card, ...menuAt(e.currentTarget, 192, 60) })}
-                  actions={mine ? null : (
-                    <>
-                      <Button size="sm" variant="primary" data-card-start-rabbit-hole onClick={stop(() => go(`${card.url}?rabbit=root`))}
-                        title="Start your own private Rabbit Hole from this canvas. This canvas stays as it is."><ArrowDownToLine size={13} strokeWidth={1.8} />Start Rabbit Hole</Button>
-                      <Button size="sm" variant="secondary" data-card-fork onClick={stop(() => go(`${card.url}?fork=1`))}
-                        title="Fork: make your own editable copy in your Library"><GitFork size={13} strokeWidth={1.8} />Fork</Button>
-                    </>
-                  )} />
-              );
-            })}
-          </ul>
+        <label className="relative mb-6 block">
+          <Search size={15} strokeWidth={1.75} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" />
+          <Input type="search" data-explore-search aria-label="Search creators and explainers" placeholder="Search creators and explainers" value={typed} onChange={(e) => setTyped(e.target.value)} className="h-9 w-full pl-9" />
+        </label>
+        {term ? (
+          <section data-search-creators aria-label="Creators" className="pb-8">
+            <h2 className={label}>Creators</h2>
+            {creators?.length ? <div className="flex flex-wrap gap-2">{creators.map(c => <CreatorChip key={c.handle} c={c} />)}</div>
+              : creators && <p className="text-sm text-ink-3">No creators match &ldquo;{term}&rdquo;.</p>}
+          </section>
+        ) : creators?.length > 0 && (
+          <section data-creator-row aria-label="Creators to explore" className="pb-8">
+            <h2 className={label}>Creators to explore</h2>
+            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">{creators.map(c => <CreatorChip key={c.handle} c={c} />)}</div>
+          </section>
         )}
-        <Menu portal open={!!menu} onClose={() => setMenu(null)} style={{ top: menu?.top, bottom: menu?.bottom, left: menu?.left }} className="w-48">
-          <MenuItem icon={Link2} data-menu-copy-link onClick={() => copy(menu.card)}>Copy link</MenuItem>
-        </Menu>
+        <div className="flex items-end justify-between gap-3 pb-4">
+          {term ? <h2 className={`${label} pb-0`}>Explainers</h2> : <span />}
+          {cards?.length !== 0 && <SortMenu options={EXPLORE_SORTS} value={order} onChange={setOrder} />}
+        </div>
+        {cards === null && <SkeletonRows rows={3} />}
+        {cards?.length === 0 && (term ? <p data-search-empty className="text-sm text-ink-3">No explainers match &ldquo;{term}&rdquo;.</p>
+          : <div data-explore-empty><EmptyState icon={Compass}>Nothing has been published yet. Canvases people publish to Explore will appear here.</EmptyState></div>)}
+        {cards?.length > 0 && <div data-explore-list><PublicCards cards={cards} me={me} attr="data-explore-card" /></div>}
       </div>
     </main>
   );

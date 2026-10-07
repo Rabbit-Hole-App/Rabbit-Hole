@@ -484,16 +484,28 @@ const EXPLORE_SORTS = {
   updated: 'updated_at DESC, p.published_at DESC',
   forks: 'fork_count DESC, p.published_at DESC',
 };
-async function explore(env, sort) {
-  if (!Object.hasOwn(EXPLORE_SORTS, sort)) return json({ error: 'Sort Explore by newest, updated or forks' }, 400);
-  const { results } = await env.LEARN_DB.prepare(`SELECT p.token, p.published_at, c.title, h.handle, ${NAME_OF('c.owner_email')} AS name, ${FORK_COUNT} AS fork_count,
-    m.description, COALESCE(m.updated_at, c.created_at) AS updated_at
-    FROM canvas_publications p JOIN canvases c ON c.org = p.org AND c.name = p.canvas AND c.archived_at IS NULL
+// The published set, one definition for Explore, the creator profile and search (creators.js): live, top-level canvases
+// not in Trash whose owner has a handle (`h`). Callers add `AND ...` conditions after it.
+export const PUBLISHED_CARDS = `SELECT p.token, p.published_at, c.title, h.handle, ${NAME_OF('c.owner_email')} AS name, ${FORK_COUNT} AS fork_count,
+    m.description, COALESCE(m.updated_at, c.created_at) AS updated_at`;
+export const PUBLISHED = `FROM canvas_publications p JOIN canvases c ON c.org = p.org AND c.name = p.canvas AND c.archived_at IS NULL
     LEFT JOIN canvas_metadata m ON m.org = c.org AND m.canvas = c.name
     JOIN user_handles h ON h.email = c.owner_email
-    WHERE NOT EXISTS (SELECT 1 FROM canvas_dives d WHERE d.org = c.org AND d.child = c.name) AND ${NOT_TRASHED('c.org', 'c.name')}
-    ORDER BY ${EXPLORE_SORTS[sort]}, p.rowid DESC LIMIT ?`).bind(EXPLORE_LIMIT).all();
-  return json({ canvases: results.map(r => ({ title: r.title, description: r.description ?? null, creator: { handle: r.handle, name: r.name ?? null }, fork_count: r.fork_count, url: `/e/${r.token}`, published_at: r.published_at, updated_at: r.updated_at })) });
+    WHERE NOT EXISTS (SELECT 1 FROM canvas_dives d WHERE d.org = c.org AND d.child = c.name) AND ${NOT_TRASHED('c.org', 'c.name')}`;
+export const exploreCard = r => ({ title: r.title, description: r.description ?? null, creator: { handle: r.handle, name: r.name ?? null }, fork_count: r.fork_count, url: `/e/${r.token}`, published_at: r.published_at, updated_at: r.updated_at });
+// Explore search (creator profile brief §9): `q` matches the title, the description, the creator's @handle or display
+// name - never an email. LIKE with its wildcards escaped, so a typed _ or % is a plain character.
+// ponytail: a '%term%' LIKE scans the published set on every search; fine at hundreds of publications, add an FTS5 index
+// (or a debounce-and-cache) when Explore holds thousands.
+export const likeOf = q => `%${q.replace(/[\\%_]/g, c => `\\${c}`)}%`;
+export const searchTerm = raw => String(raw || '').trim().replace(/^@/, '').slice(0, 60);
+async function explore(env, sort, q = '') {
+  if (!Object.hasOwn(EXPLORE_SORTS, sort)) return json({ error: 'Sort Explore by newest, updated or forks' }, 400);
+  const term = searchTerm(q);
+  const match = term ? `AND (c.title LIKE ?1 ESCAPE '\\' OR m.description LIKE ?1 ESCAPE '\\' OR h.handle LIKE ?1 ESCAPE '\\' OR ${NAME_OF('c.owner_email')} LIKE ?1 ESCAPE '\\')` : '';
+  const { results } = await env.LEARN_DB.prepare(`${PUBLISHED_CARDS} ${PUBLISHED} ${match}
+    ORDER BY ${EXPLORE_SORTS[sort]}, p.rowid DESC LIMIT ${EXPLORE_LIMIT}`).bind(...(term ? [likeOf(term)] : [])).all();
+  return json({ canvases: results.map(exploreCard) });
 }
 
 export async function learnBoardsRoute(path, req, env) {
@@ -527,7 +539,7 @@ export async function learnBoardsRoute(path, req, env) {
     return json({ error: 'Method not allowed' }, 405);
   }
   // Explore: the published canvases (docs/features/explore-publish.md).
-  if (path === '/api/learn/boards/published') return req.method === 'GET' ? explore(env, new URL(req.url).searchParams.get('sort') || 'newest') : json({ error: 'Method not allowed' }, 405);
+  if (path === '/api/learn/boards/published') { const p = new URL(req.url).searchParams; return req.method === 'GET' ? explore(env, p.get('sort') || 'newest', p.get('q')) : json({ error: 'Method not allowed' }, 405); }
   const own = path.match(/^\/api\/learn\/boards\/([a-z0-9-]{1,100})\/([^/]+)(\/share(?:\/repository)?|\/assets(?:\/([^/]+))?)?$/);
   if (!own) return null;
   const [, app, rawBoard, suffix, rawKey] = own;

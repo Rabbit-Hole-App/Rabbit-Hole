@@ -18,7 +18,7 @@ test('who sees the step: a signed-in profile without a handle; never the signed 
 test('the step sits in front of every Rabbit Hole page, in place, and resumes the same URL', () => {
   const main = read('./main.jsx'), gate = read('./HandleGate.jsx');
   assert.match(main, /return learnPreview \? <HandleGate>\{page\}<\/HandleGate> : page;/);
-  assert.match(main, /const page = sharedBoard \? <Suspense[^\n]*<SharedBoardPage token=\{sharedBoard\[1\]\} \/>[^\n]* : <AppRoot \/>;/, 'shared links and the app alike');
+  assert.match(main, /const page = sharedBoard \? <Suspense[^\n]*<SharedBoardPage token=\{sharedBoard\[1\]\} \/>[^\n]*\n\s+: creator \? <Suspense[^\n]*<CreatorProfilePage handle=\{creator\[1\]\} \/>[^\n]* : <AppRoot \/>;/, 'shared links, creator profiles and the app alike');
   // Claimed, it renders the page it was given: no navigation, no reload, nothing that drops ?fork=1 or ?rabbit=.
   assert.match(gate, /return state === 'needed' \? <ChooseHandle onDone=\{\(\) => setState\('ok'\)\} \/> : children;/);
   assert.doesNotMatch(gate, /location\.|navigate\(|history\./);
@@ -39,7 +39,9 @@ test('Settings > Profile can change the handle; the server is the authority', ()
 test('the shared header names the creator by @handle only when there is one', () => {
   const page = read('./SharedBoardPage.jsx');
   // A share says "Shared by", an Explore publication "Published by" (docs/features/explore-publish.md); both by @handle.
-  assert.ok(page.includes("{shared.creator && <span data-shared-creator className=\"truncate text-xs text-ink-3\">{shared.published ? 'Published by' : 'Shared by'} {creatorLabel(shared.creator)}</span>}"));
+  assert.ok(page.includes("{shared.creator && <span data-shared-creator className=\"truncate text-xs text-ink-3\">{shared.published ? 'Published by' : 'Shared by'} {shared.published"));
+  // A publication's @handle links to the public profile (docs/features/creator-profile.md); a share link's stays text.
+  assert.ok(page.includes("? <a data-creator-link href={`/@${shared.creator.handle}`} className=\"rounded-sm text-ink-2 hover:text-ink hover:underline\">{creatorLabel(shared.creator)}</a> : creatorLabel(shared.creator)}</span>}"));
   assert.doesNotMatch(page, /shared\.owner\b/, 'the owner email is gone from the page');
 });
 

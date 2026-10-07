@@ -1,9 +1,9 @@
 # Creator analytics: event contract and Analytics UI
 
-Owner briefs, 2026-10-06 (#62: analytics, creator profile, analytics UI, feedback loop). **This is a contract only.** Nothing
-here is built: no event is emitted, no route exists, no table is created. Storage is a separate proposal at the end and
-needs the owner's GO. Until then the Analytics UI shows its typed "not collected" state and never derives numbers from
-anything else.
+Owner briefs, 2026-10-06 (#62: analytics, creator profile, analytics UI, feedback loop). **The events, routes and storage
+are a contract only.** No event is emitted, no route exists, no table is created. Storage is a separate proposal at the end
+and needs the owner's GO. The Analytics UI is built (#70, "UI as built" below), and until storage it shows its typed "not
+collected" state and never derives numbers from anything else.
 
 ## Scope
 
@@ -218,7 +218,8 @@ unique learners.
 
 ## Analytics UI (read contract)
 
-Nothing here is built. The UI reuses the existing card menu, panels and the canvas page (CLAUDE.md: no separate pages).
+The read API is not built; the UI is, in its typed empty states ("UI as built" below). The UI reuses the existing card
+menu and panels (CLAUDE.md: no separate pages).
 
 ### Entry point
 
@@ -363,6 +364,31 @@ type CreatorAnalytics = {
 - Suppression is per metric, per range, per filter (concept, source, resource, segment, day).
 - A suppressed or not-collected metric has `value: null`.
 - Neither route ever returns a learner key, an id of a person, a hole name or any free text.
+
+### UI as built (#70, typed empty states)
+
+The UI exists. The data does not, so every view renders `not_collected` from constants in `web/src/creator-analytics.js`. The components are in `web/src/CreatorAnalytics.jsx`. The views call no route, and `e2e/analytics-ui-check.mjs` checks that no `/api/analytics` request is made.
+
+- **Entry points:**
+  - **Per explainer:** ⋮ → **Analytics** on your own public canvas in the Library, after Share / Manage link (`LibraryViews.jsx`; `data-menu-analytics`). It is never shown on a private or unlisted canvas or a project, nor on anyone else's card in Explore or a profile.
+  - **Creator:** **Analytics** on your own `/@handle` (creator-profile.md).
+  - Both open as a side panel (`SlidePanel`) beside the page, never mixed into it.
+- **Departure from the entry point proposed above:** the panel opens over the Library, not at `/apps/<canvas>?analytics=1` on the canvas page. The canvas page (`LearnPage.jsx`, `CanvasPage.jsx`) belongs to the persistence lane. The panel component can be mounted there later unchanged.
+- **Both views:**
+  - "Private · only you see this.";
+  - the 7 days / 30 days / All time control (it changes nothing while nothing is collected);
+  - the banner "Not collected yet. Rabbit Hole does not record what learners do on public explainers yet, so nothing here is counted or estimated."
+- **Per explainer (A):** every metric of the table above, under Audience, Concepts, Rabbit Holes and forks, Professor Next Steps and Outbound resources. Then come:
+  - **Insights (B):** "What your audience is telling you". Its empty state is "No insights yet", and it explains that insights come only from what learners do.
+  - **Create next explainer (C):** a disabled button, "Available once learners show what they want next".
+  - **Traffic sources (F):** the five categories.
+  - **Revision comparison (G):** Before / after, descriptive only.
+- **Creator (D, E):**
+  - **Totals:** unique learners, average active time and Rabbit Holes started; canonical forks; public explainers.
+  - Audience wants next, highest-friction concepts, the explainer comparison table, traffic sources and the recent trend.
+  - **Comparison:** one row per public explainer. Its learners, average active time and started-RH cells read "Not collected"; forks show the canonical count.
+- **Numbers shown:** only the public counters that already exist canonically, `FORK_COUNT` (labelled "· all time", since it is not range-filtered) and the public explainer count. Learner counts do not exist and are not shown.
+- **Suppressed state (H):** every view ends with "How to read this". It renders both typed states as they will appear: "Not collected yet", and "Not enough learners yet (fewer than 10)" for `insufficient_cohort`. Neither is ever shown as 0 or an estimate.
 
 ### UI checkpoint: required Figma panels
 

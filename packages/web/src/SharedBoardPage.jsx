@@ -88,8 +88,10 @@ export default function SharedBoardPage({ token }) {
         </a>
         <span className="text-sm font-semibold text-ink">{shared.title || (shared.board === 'main' ? shared.app : shared.board)}</span>
         <span className="flex items-center gap-1 rounded-full bg-hover px-2 py-0.5 text-xs text-ink-2"><Eye size={11} />View only</span>
-        {/* Who made it, by @handle (docs/features/user-handles.md); no handle, no line - never an email. */}
-        {shared.creator && <span data-shared-creator className="truncate text-xs text-ink-3">{shared.published ? 'Published by' : 'Shared by'} {creatorLabel(shared.creator)}</span>}
+        {/* Who made it, by @handle (docs/features/user-handles.md); no handle, no line - never an email. A publication's
+            creator links to their public profile (creator-profile.md); a share link's stays text, never a public link. */}
+        {shared.creator && <span data-shared-creator className="truncate text-xs text-ink-3">{shared.published ? 'Published by' : 'Shared by'} {shared.published
+          ? <a data-creator-link href={`/@${shared.creator.handle}`} className="rounded-sm text-ink-2 hover:text-ink hover:underline">{creatorLabel(shared.creator)}</a> : creatorLabel(shared.creator)}</span>}
         <span className="flex-1" />
         <StartRabbitHole token={token} state={shared.state} card={card} resume={rabbitRequested} />
         <ForkButton source={{ token }} auto={forkRequested} onForked={fork => { window.location.href = fork.url; }} count={shared.fork_count} />

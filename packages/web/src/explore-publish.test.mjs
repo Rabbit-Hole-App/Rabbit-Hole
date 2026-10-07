@@ -49,11 +49,14 @@ test('Publish pushes the board first, only for a top-level canvas, and a missing
 test('Explore lists the published canvases on the canonical card: title, the creator @handle, the fork count, and the /e link', () => {
   const home = read('./Home.jsx');
   const explore = home.slice(home.indexOf('function Explore()'));
-  assert.match(explore, /fetch\(`\/api\/learn\/boards\/published\?sort=\$\{order\}`/, 'the server sorts');
-  assert.match(explore, /<LearningCard key=\{card\.url\} kind="canvas" m=\{m\} attrs=\{\{ 'data-explore-card': '' \}\} href=\{card\.url\}/);
-  assert.match(explore, /owner_handle: card\.creator\?\.handle, owner_name: card\.creator\?\.name/, 'cardModel\'s @handle attribution, as on every card');
-  assert.match(explore, /fork_count: card\.fork_count/, 'the same Forks the Library cards show');
-  assert.doesNotMatch(explore, /email|ranking|\.sort\(/i, 'no email; the server\'s order, no client reordering');
+  assert.match(explore, /fetch\(`\/api\/learn\/boards\/published\?sort=\$\{order\}\$\{q && `&\$\{q\}`\}`/, 'the server sorts (and searches)');
+  assert.match(explore, /<PublicCards cards=\{cards\} me=\{me\} attr="data-explore-card" \/>/);
+  // The card list Explore and the creator profile share (docs/features/creator-profile.md).
+  const all = read('./home/PublicCards.jsx'), cards = all.slice(0, all.indexOf('export const CreatorAvatar'));
+  assert.match(cards, /<LearningCard key=\{card\.url\} kind="canvas" m=\{m\} attrs=\{\{ \[attr\]: '' \}\} href=\{card\.url\}/);
+  assert.match(cards, /owner_handle: card\.creator\?\.handle, owner_name: card\.creator\?\.name/, 'cardModel\'s @handle attribution, as on every card');
+  assert.match(cards, /fork_count: card\.fork_count/, 'the same Forks the Library cards show');
+  for (const text of [explore, cards]) assert.doesNotMatch(text, /email|ranking|\.sort\(/i, 'no email; the server\'s order, no client reordering');
   const card = read('./home/LearningCard.jsx');
   assert.match(card, /\{m\.forkCount !== null && <Forks m=\{\{ forks: forkLabel\(m\.forkCount\) \|\| '0 forks' \}\} \/>\}/);
 });

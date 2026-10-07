@@ -24,6 +24,7 @@ test('the preview serves Home at bare /apps and keeps filtered links on the Libr
   for (const s of ['?s=shared', '?f=Team']) assert.deepEqual(pageFor('/apps', s, true), { page: 'library' });
   assert.deepEqual(pageFor('/library', '?type=projects', true), { page: 'library' });
   assert.deepEqual(pageFor('/explore', '', true), { page: 'explore' });
+  assert.deepEqual(pageFor('/@ada_l', '', true), { page: 'explore' }, 'a creator profile lights Explore');
   assert.deepEqual(pageFor('/apps/canvas-1a2b3c4d', '', true), { page: 'app', slug: 'canvas-1a2b3c4d', runId: undefined });
 });
 

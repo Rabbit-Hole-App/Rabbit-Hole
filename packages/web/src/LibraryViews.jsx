@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlignLeft, AppWindow, Archive, ArrowRight, ArrowUpRight, BookOpen, Check, ChevronRight, CopyPlus, Eye, FolderGit2, GitFork, Link2, Trash2, ListFilter, Loader2, Network, PenLine, Pin, PinOff, Play, UserRound, X } from 'lucide-react';
+import { AlignLeft, AppWindow, Archive, ArrowRight, ArrowUpRight, BarChart3, BookOpen, Check, ChevronRight, CopyPlus, Eye, FolderGit2, GitFork, Link2, Trash2, ListFilter, Loader2, Network, PenLine, Pin, PinOff, Play, UserRound, X } from 'lucide-react';
 import { titleOf } from './agent/catalog.js';
 import { ago, api, navigate } from './api.js';
 import { onAnotherDevice, readRecent } from './home/continue.js';
@@ -13,6 +13,7 @@ import { LIBRARY_SORTS, readLibrarySort, saveLibrarySort, sortCards } from './ho
 import { chipHref, isMine, libraryHref, librarySections, ofType, SCOPES, SECTION_LIMIT, TYPES } from './library-filter.js';
 import { Button, ConfirmDialog, Input, KindIcon, Menu, MenuItem, Pill, toast } from './ui.jsx';
 import { ACCESS, PRIVATE_CONFIRM, confirmsPrivate, setAccess } from './canvas-visibility.js';
+import { ExplainerAnalytics } from './CreatorAnalytics.jsx';
 
 // The preview Library (T02 §4, user correction 2026-09-28): what you can return to, learn from
 // or build from. Projects and Canvases are cards; Apps are compact operational rows here and the
@@ -26,7 +27,7 @@ const open = (a) => guard(a, () => navigate(`/apps/${a.name}`))();
 export default function LibraryViews({ apps, type, data, onType, onArchive, onRun, runningOf, onForked }) {
   const [menu, setMenu] = useState(null); // { a, top | bottom, left }
   const [accessOpen, setAccessOpen] = useState(false); // the Visibility submenu, inside the same menu
-  const [dialog, setDialog] = useState(null); // { kind: rename | describe | private | trash, a, value?, to? }
+  const [dialog, setDialog] = useState(null); // { kind: rename | describe | private | trash | analytics, a, value?, to? }
   const ctx = { org: data?.org, email: data?.email, storage: localStorage, catalog: data?.apps || [], onForked };
   const more = (a) => stop((e) => { setAccessOpen(false); setMenu({ a, ...menuAt(e.currentTarget, 224) }); });
   const card = (a) => <LibraryCard key={a.name} a={a} ctx={ctx} onMore={more(a)} />;
@@ -107,6 +108,8 @@ export default function LibraryViews({ apps, type, data, onType, onArchive, onRu
             </button>
           ))}
           <MenuItem icon={Link2} onClick={() => pick((a) => navigate(`/apps/${a.name}?share=1`))}>Share / Manage link</MenuItem>
+          {/* Private analytics (creator-analytics-contract.md): the owner's public canvases only, never anyone else. */}
+          {menu.a.access === 'public' && <MenuItem icon={BarChart3} data-menu-analytics onClick={() => pick((a) => setDialog({ kind: 'analytics', a }))}>Analytics</MenuItem>}
           <div className="my-1 border-t border-line" />
           <MenuItem icon={Archive} onClick={() => pick(onArchive)}>Archive…</MenuItem>
           <MenuItem icon={Trash2} data-menu-trash onClick={() => pick((a) => setDialog({ kind: 'trash', a }))}>Move to Trash</MenuItem>
@@ -134,6 +137,7 @@ export default function LibraryViews({ apps, type, data, onType, onArchive, onRu
         <ConfirmDialog title={PRIVATE_CONFIRM.title} body={PRIVATE_CONFIRM.body} confirmLabel={PRIVATE_CONFIRM.action} confirmVariant="primary"
           onCancel={() => setDialog(null)} onConfirm={() => { const { a, to } = dialog; setDialog(null); changeAccess(a, to); }} />
       )}
+      {dialog?.kind === 'analytics' && <ExplainerAnalytics a={dialog.a} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'trash' && (
         <ConfirmDialog title={`Move this ${kindWord(dialog.a)} to Trash?`} confirmLabel="Move to Trash"
           body="It will disappear from your Library and public/shared access will stop. Existing forks will not be deleted. You can restore it from Trash."
