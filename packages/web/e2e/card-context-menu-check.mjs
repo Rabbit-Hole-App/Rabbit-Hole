@@ -25,8 +25,11 @@ const BLOCKS = [
   { id: 'm-a', type: 'explanation', dx: 0, dy: 0, title: 'Card A: tides', body: 'The moon pulls the near ocean more than the Earth.' },
   { id: 'm-b', type: 'explanation', dx: 0, dy: 0, title: 'Card B: bulges', body: 'Two bulges, one on each side of the Earth.' },
   { id: 'm-c', type: 'explanation', dx: 0, dy: 0, title: 'Card C: springs', body: 'Sun and moon in line make spring tides.' },
+  { id: 'm-q', type: 'quiz', dx: 0, dy: 0, question: 'How many tidal bulges does Earth have?', options: [{ key: 'A', text: 'Two', correct: true }, { key: 'B', text: 'One' }], why: 'One faces the moon, one is opposite.' },
 ];
-const STATE = { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks: BLOCKS };
+// A sticky note: the editable object the menu must leave alone.
+const ITEMS = [{ id: 'n-1', kind: 'sticky', x: 1060, y: 140, text: 'Tide note', color: 'yellow' }];
+const STATE = { strokes: [], shapes: [], items: ITEMS, links: [], groups: [], areas: [], exchanges: [], blocks: BLOCKS };
 const canvas = (await api(owner, '/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Tides ${run}` }) })).body;
 const catalog = (await api(owner, '/api/apps')).body;
 const SEEDS = { [`small.adaptive-canvas:${catalog.org}:${catalog.email}:${canvas.name}:ink`]: STATE };
@@ -175,6 +178,65 @@ await check('6 the menu leaves dragging alone: a card still drags by its strip',
   assert.equal(await menu().count(), 0);
 });
 
+await check('6b editing still works: a sticky note edits by double-click and keeps the typed text; its right-click menu has no Start Rabbit Hole', async () => {
+  const note = page.locator('[data-item-id="n-1"]');
+  await note.waitFor();
+  await note.click({ button: 'right', position: { x: 30, y: 30 } });
+  await menu().waitFor();
+  assert.equal(await startItem().count(), 0, 'Start Rabbit Hole is for learning cards only');
+  await page.keyboard.press('Escape'); await menu().waitFor({ state: 'detached' });
+  await note.dblclick({ position: { x: 30, y: 30 } });
+  const body = note.locator('[contenteditable="true"]');
+  await body.waitFor({ timeout: 5000 });
+  await page.keyboard.press('End'); await page.keyboard.type(' edited');
+  await page.mouse.click(5, 5); await page.waitForTimeout(400);
+  assert.match(await note.innerText(), /Tide note edited/);
+  assert.equal(await menu().count(), 0);
+});
+
+await check('6c interactive controls still work: a quiz option answers on click, with no menu and no Rabbit Hole', async () => {
+  const option = page.locator('[data-block-id="m-q"] [data-quiz-option="A"]').first();
+  await option.scrollIntoViewIfNeeded(); await option.click(); await page.waitForTimeout(300);
+  assert.match(await option.getAttribute('class'), /border-green-700/, 'the right answer shows as right');
+  assert.equal(await menu().count(), 0);
+  assert.ok(!url().search.includes('hole='));
+});
+
+await check('6d keyboard: the context-menu key on a focused card opens its menu inside the window, from that card; Escape closes it and focus stays on the card', async () => {
+  await page.evaluate(() => document.querySelector('[data-block-id="m-b"]').focus());
+  await page.keyboard.press('Shift+F10');
+  let via = 'Shift+F10';
+  if (!(await menu().waitFor({ timeout: 1500 }).then(() => true, () => false))) {
+    // A browser that does not turn the key into the event: send the event the key would send, at the card.
+    via = 'contextmenu event';
+    await page.evaluate(() => { const card = document.querySelector('[data-block-id="m-b"]'), r = card.getBoundingClientRect(); card.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.left + 12, clientY: r.top + 12 })); });
+    await menu().waitFor();
+  }
+  console.log('keyboard menu via', via);
+  assert.equal(await startItem().getAttribute('data-origin'), 'm-b');
+  assert.ok((await inside()).ok, JSON.stringify(await inside()));
+  // The menu sits at the card the keyboard opened it on, even when the surface has been scrolled under it.
+  const near = await page.evaluate(() => { const m = document.querySelector('[data-canvas-menu]').getBoundingClientRect(), c = document.querySelector('[data-block-id="m-b"]').getBoundingClientRect(); return m.left >= c.left - 2 && m.left <= c.right && m.top >= c.top - 2 && m.top <= c.bottom; });
+  assert.ok(near, 'the keyboard menu opens on its card');
+  await page.keyboard.press('Escape');
+  await menu().waitFor({ state: 'detached' });
+  assert.equal(await page.evaluate(() => document.activeElement?.closest('[data-block-id]')?.dataset.blockId || null), 'm-b', 'focus stays on the card');
+  assert.ok(!url().search.includes('hole='), 'the keyboard menu started nothing');
+});
+
+await check('6e the Library ⋮ menu still opens from the keyboard (Enter) with Rename, and Escape closes it', async () => {
+  await page.goto(`${BASE}/library?type=canvases`);
+  const card = page.locator('[data-library-card="canvas"]').filter({ has: page.locator('[data-card-title]', { hasText: new RegExp(`^Tides ${run}$`) }) });
+  await card.waitFor({ timeout: 60000 });
+  await card.hover();
+  const more = card.getByTitle('More');
+  await more.focus(); await page.keyboard.press('Enter');
+  await page.getByRole('button', { name: 'Rename', exact: true }).waitFor({ timeout: 5000 });
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Rename', exact: true }).waitFor({ state: 'detached', timeout: 5000 });
+  await open(ROOT);
+});
+
 // ---- a view-only board: the viewer's own private Rabbit Hole, from the right-clicked card ----
 const shared = (await api(owner, `/api/learn/boards/${canvas.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, state: STATE }) })).body;
 const token = shared.sharing.view;
@@ -204,5 +266,5 @@ await check('7 on a shared view-only board the menu starts the viewer\'s own Rab
 
 await check('no page errors, no model call', async () => { assert.deepEqual(errors, []); assert.deepEqual(asks, []); });
 await browser.close();
-console.log(`${results.length}/8 checks passed`);
-process.exit(results.length === 8 ? 0 : 1);
+console.log(`${results.length}/12 checks passed`);
+process.exit(results.length === 12 ? 0 : 1);

@@ -31,11 +31,15 @@ The menu opens at the cursor and is measured after it renders, before paint:
 
 It closes on choosing an item, a press anywhere outside it (on or off the canvas) and Escape.
 
+The surface clips its contents but can still be scrolled by focus or scroll-into-view, and its absolute children move with that scroll. The position is therefore turned back into the surface coordinates with the scroll offset. Before this, a menu on a scrolled surface drew away from the cursor, for the mouse and the keyboard alike.
+
+The keyboard keeps working: the context-menu key (or Shift+F10) on a focused card opens the same menu on that card, Escape closes it, and focus stays on the card.
+
 Card dragging, editing and controls are unchanged: the menu only adds a row and its placement.
 
 ## Tests
 
-`packages/web/e2e/card-context-menu-check.mjs` (8 checks, local stack, no model) covers:
+`packages/web/e2e/card-context-menu-check.mjs` (12 checks, local stack, no model) covers:
 - the exact label and origin with another card selected;
 - no hole from opening, Escape or an outside click;
 - the right, bottom and corner edges at 1440×900 and 820×560;

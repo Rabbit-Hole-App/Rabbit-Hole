@@ -1202,7 +1202,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const lim = { left: Math.max(s.left, 0) + pad, top: Math.max(s.top, 0) + pad, right: Math.min(s.right, window.innerWidth) - pad, bottom: Math.min(s.bottom, window.innerHeight) - pad };
     const w = box.offsetWidth, h = box.offsetHeight, cx = s.left + menuAt.x, cy = s.top + menuAt.y;
     const place = (at, size, lo, hi) => Math.max(lo, Math.min(at + size > hi ? at - size : at, hi - size));
-    setMenuPos({ x: place(cx, w, lim.left, lim.right) - s.left, y: Math.max(lim.top, place(cy, h, lim.top, lim.bottom)) - s.top, maxH: Math.max(lim.bottom - lim.top, 120) });
+    // The surface clips (overflow hidden) but can still be scrolled by focus or scroll-into-view; its absolute children
+    // move with that scroll, so the screen position is turned back into the surface's own coordinates with it.
+    setMenuPos({ x: place(cx, w, lim.left, lim.right) - s.left + area.scrollLeft, y: Math.max(lim.top, place(cy, h, lim.top, lim.bottom)) - s.top + area.scrollTop, maxH: Math.max(lim.bottom - lim.top, 120) });
   }, [menuAt]);
   // A press anywhere outside the menu closes it - on the canvas (its own handlers) and off it (the header, a rail).
   useEffect(() => {
