@@ -317,14 +317,20 @@ const startRequest = text => { const it = journeyIntent(text); return STARTS.has
 // plan: the canned plan, or a function of the plan request body that returns or awaits one. signal: a real AbortSignal that every
 // request to the stack carries (as the page's post carries the turn's Stop signal). stops: the turn may reject (a Stop); the
 // rejection comes back as error, with the requests made so far in sent. Each entry of sent keeps the stack's reply.
-async function autoTurn(where, { raw, plan = PLAN, slash = null, research = false, journeyOffer = true, repository = false, block = null, signal = null, stops = false }) {
+// answer: { [route]: body => reply promise } answers that route in process (a held request: the promise decides when, and
+// whether, it settles). onSend(route): called synchronously right after a request to the stack has been issued with the signal,
+// so an abort there always lands while that request is in flight.
+async function autoTurn(where, { raw, plan = PLAN, slash = null, research = false, journeyOffer = true, repository = false, block = null, signal = null, stops = false, answer = {}, onSend = null }) {
   const sent = [];
   const post = async (route, body) => {
     const entry = { route, body, reply: null }; sent.push(entry);
     if (route === '/api/learn/tutor/plan') { log({ method: 'POST', path: route, status: 'in-process', keys: keys(body) }); return typeof plan === 'function' ? plan(body) : plan; }
+    if (answer[route]) { log({ method: 'POST', path: route, status: 'in-process', keys: keys(body) }); return (entry.reply = await answer[route](body)); }
     if (!signal) return (entry.reply = await ok(owner, 'POST', route, body));
     try {
-      const r = await fetch(`${BASE}${route}`, { method: 'POST', headers: { cookie: `small_session=${owner.session}`, 'content-type': 'application/json' }, body: JSON.stringify(body), signal });
+      const sending = fetch(`${BASE}${route}`, { method: 'POST', headers: { cookie: `small_session=${owner.session}`, 'content-type': 'application/json' }, body: JSON.stringify(body), signal });
+      onSend?.(route);
+      const r = await sending;
       log({ method: 'POST', path: route, status: r.status, keys: keys(body) });
       if (!r.ok) throw Error(`POST ${route}: HTTP ${r.status}`);
       return (entry.reply = await r.json());
@@ -530,9 +536,13 @@ async function n18() {
   check('N18 chosen_action beside other actions', !misses.length, 'with a create_material or a suggest_journey in the same plan, chosen_action is still the handoff (and the other action is listed)', misses.join(' | '));
   check('N18 grounding', decision?.grounding_status === 'retrieval_failed' && decision.source_types_used?.join() === 'canvas',
     'grounding_status retrieval_failed, source_types_used canvas: the planner declared grounded and repository, and the failure overrode both', `grounding_status ${decision?.grounding_status}, source_types_used ${decision?.source_types_used?.join()}`);
-  const numbers = ['planner_ms', 'handoff_ms', 'blocking_wait_ms'].map(k => timing?.[k]);
-  check('N18 timing', Object.keys(timing || {}).join() === 'total_ms,planner_ms,first_text_ms,handoff_ms,blocking_wait_ms' && numbers.every(Number.isFinite) && timing.blocking_wait_ms >= timing.handoff_ms,
-    `planner_ms ${numbers[0]}, handoff_ms ${numbers[1]} and blocking_wait_ms ${numbers[2]} are separate numbers (the wait includes the handoff)`, `timing ${JSON.stringify(timing)}`);
+  const numbers = ['planner_ms', 'handoff_ms', 'blocking_wait_ms', 'first_text_ms'].map(k => timing?.[k]);
+  // Fix round 2 (R1-I1): blocking_wait_ms = max(answered, released) covers the handoff and any pending evaluation, so it is never
+  // below first_text_ms. On a stubbed clock that is exact (11c-B's unit test); on a real clock first_text_ms is read at the end of
+  // runTurn, a few hundred microseconds after the handoff settled, so the wait may trail it by less than a millisecond.
+  const trail = Math.round((timing?.first_text_ms - timing?.blocking_wait_ms) * 10) / 10;
+  check('N18 timing', Object.keys(timing || {}).join() === 'total_ms,planner_ms,first_text_ms,handoff_ms,blocking_wait_ms' && numbers.every(Number.isFinite) && timing.blocking_wait_ms >= timing.handoff_ms && trail < 1,
+    `planner_ms ${numbers[0]}, handoff_ms ${numbers[1]} and blocking_wait_ms ${numbers[2]} are separate numbers (the wait includes the handoff, and trails first_text_ms ${numbers[3]} by ${trail} ms at most: the end-of-turn read)`, `timing ${JSON.stringify(timing)}`);
   const text = JSON.stringify(t);
   check('N18 no text in the trace', !!t && [CODE_WORDS, ASK, LEAD, HANDOFF_FAILED].every(s => !text.includes(s)), 'neither the learner words, the handoff request, the plan words nor the failure line is in the event', 'the event carries learner, request or reply text');
 }
@@ -547,6 +557,13 @@ async function n19() {
   const coded = await bodyFor({ id: 'code1', type: 'explanation', title: 'Bubble sort', body: 'It swaps neighbours.', sources: [source] });
   check('N19 no card, no selection', !!bare && !('selection' in bare) && !('context' in bare), 'a message naming sort.py lines 30-40 and a repository, with no selected card, sends no selection and no context', `body keys ${Object.keys(bare || {}).join(',')}`);
   check('N19 card without a code source', !!plainCard && !('selection' in plainCard) && plainCard.context?.card?.id === c.blocks[0].id, 'a selected card with no code source sends its text as context.card and still no selection', `body keys ${Object.keys(plainCard || {}).join(',')}`);
+  // Fix round 2 (R1-M2): a code exercise card (the real shape of LearningBlocks.jsx) grounds with title, brief, setup and starter;
+  // never draft (the learner's own work), checks or hint.
+  const exercise = { id: 'ex1', type: 'code', dx: 0, dy: 0, title: 'Finish the encoder', brief: 'Complete encode so it turns a string into ids.', setup: "stoi = { 'h': 0, 'i': 1 }", starter: 'def encode(s):\n    ...',
+    checks: "assert encode('hi') == [0, 1]  # CHECKS-SENTINEL", hint: 'HINT-SENTINEL look each character up', draft: 'def encode(s): return MY-DRAFT-SENTINEL' };
+  const card = (await bodyFor(exercise))?.context?.card?.text || '';
+  check('N19 code exercise card', [exercise.title, exercise.brief, exercise.setup, exercise.starter].every(part => card.includes(part)) && !/DRAFT-SENTINEL|CHECKS-SENTINEL|HINT-SENTINEL/.test(card),
+    'a code exercise card sends its title, brief, setup and starter as context.card.text, and never the learner draft, the checks or the hint', `card text ${card ? 'present' : 'missing'}; has draft ${card.includes('DRAFT-SENTINEL')}, checks ${card.includes('CHECKS-SENTINEL')}, hint ${card.includes('HINT-SENTINEL')}`);
   check('N19 selection from the source', JSON.stringify(coded?.selection) === JSON.stringify({ repository: 'example/sorting', revision: SHA, file: 'bubble.py', line_range: { start: 5, end: 9 } }),
     'a card with a code source sends that source as the selection (bubble.py 5-9), not the file and lines the message names', `selection ${JSON.stringify(coded?.selection)}`);
 }
@@ -557,26 +574,56 @@ const SOON = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 // N20: a Stop during the handoff ends the turn as a Stop during the planner does: the turn rejects (so the page saves nothing, runs
 // no canvas action or material and emits no decision event), the stopped handoff record rides on the error, and nothing more is
-// requested. The abort is a real AbortController whose signal the request to the stack carries, fired 4 ms after the plan: the
-// route takes tens of milliseconds, so the abort lands in flight.
+// requested. Fix round 2 (R1-M3): the turn trace reads handoff:stopped (planner:stopped for a planner Stop), a timeout still timeout.
+// The abort never races the reply. Two variants: the handoff request is HELD in process (a promise that settles only on the
+// abort, as fetch rejects with the signal's reason) and the abort fires once the request has begun; or the request goes to the
+// REAL route with a real AbortController whose signal fetch carries, aborted synchronously after the request is issued.
+const stageStatuses = (error, stage) => error?.trace?.stages?.filter(s => s.stage === stage).map(s => s.status).join() ?? '';
+const held = signal => new Promise((_, reject) => signal.addEventListener('abort', () => reject(signal.reason), { once: true }));
 async function n20() {
   if (noCanvas('N20')) return;
-  const c = state.canvas, stop = new AbortController();
-  const plan = () => { setTimeout(() => stop.abort(), 4); return planWith({ capability: 'repository_context', request: ASK }, say(LEAD), { type: 'create_material', command: 'explain', request: 'how bread dough rises' }); };
-  const h = await autoTurn(c, { raw: CODE_WORDS, repository: true, plan, signal: stop.signal, stops: true });
-  const settled = h.sent.length;
-  await SOON(300);
-  const rec = h.error?.handoff, ran = h.sent.map(s => s.route);
-  check('N20 stop in the handoff', !h.result && h.error?.name === 'AbortError' && rec?.outcome === 'failed' && rec.failure === 'stopped' && rec.model_id === null && rec.usage === null && !!h.error.trace && h.error.trace.event === undefined
-    && ran.join() === `/api/learn/tutor/plan,${HANDOFF}` && h.sent.length === settled,
-    'the turn rejected with AbortError and no result; the error carries the handoff record (failed, stopped) and the turn trace, not a decision event; only the plan and the handoff were requested (no artifact call) and nothing after the abort',
-    `${h.result ? 'the turn resolved (the route answered before the abort)' : `rejected ${h.error?.name}`}; handoff ${JSON.stringify(rec && { outcome: rec.outcome, failure: rec.failure })}; requests ${ran.join(', ')}; after the abort ${h.sent.length - settled}`);
-  // Control: a Stop while the planner works ends the turn the same way (a real AbortController again), with no handoff.
-  const plannerStop = new AbortController();
-  const waiting = () => new Promise((_, reject) => { plannerStop.signal.addEventListener('abort', () => reject(plannerStop.signal.reason)); setTimeout(() => plannerStop.abort(), 4); });
-  const p = await autoTurn(c, { raw: CODE_WORDS, repository: true, plan: waiting, signal: plannerStop.signal, stops: true });
-  check('N20 planner Stop control', !p.result && p.error?.name === 'AbortError' && !!p.error.trace && p.error.trace.event === undefined && p.error.handoff === undefined && ONLY_PLAN(p.routes),
-    'control: a Stop during the planner rejects the same way (AbortError, a turn trace, no decision event) and makes no handoff request', `${p.result ? 'resolved' : `rejected ${p.error?.name}`}; requests ${p.routes.join(', ')}`);
+  const c = state.canvas, plan = planWith({ capability: 'repository_context', request: ASK }, say(LEAD), { type: 'create_material', command: 'explain', request: 'how bread dough rises' });
+  const variants = [
+    ['held in process', async () => {
+      const stop = new AbortController();
+      let began; const begun = new Promise(resolve => { began = resolve; });
+      const turn = autoTurn(c, { raw: CODE_WORDS, repository: true, plan, stops: true, answer: { [HANDOFF]: () => { began(); return held(stop.signal); } } });
+      await begun; stop.abort();
+      return turn;
+    }],
+    ['real route', async () => {
+      const stop = new AbortController();
+      return autoTurn(c, { raw: CODE_WORDS, repository: true, plan, stops: true, signal: stop.signal, onSend: route => { if (route === HANDOFF) stop.abort(); } });
+    }],
+  ];
+  for (const [name, start] of variants) {
+    const h = await start(), settled = h.sent.length;
+    await SOON(300);
+    const rec = h.error?.handoff, ran = h.sent.map(s => s.route);
+    check(`N20 stop in the handoff (${name})`, !h.result && h.error?.name === 'AbortError' && rec?.outcome === 'failed' && rec.failure === 'stopped' && rec.model_id === null && rec.usage === null && !!h.error.trace && h.error.trace.event === undefined
+      && stageStatuses(h.error, 'handoff') === 'stopped' && stageStatuses(h.error, 'planner') === 'ok' && ran.join() === `/api/learn/tutor/plan,${HANDOFF}` && h.sent.length === settled,
+      'the turn rejected with AbortError and no result; the error carries the handoff record (failed, stopped) and the turn trace (handoff:stopped, not a decision event); only the plan and the handoff were requested (no artifact call) and nothing after the abort',
+      `${h.result ? 'the turn resolved' : `rejected ${h.error?.name}`}; handoff ${JSON.stringify(rec && { outcome: rec.outcome, failure: rec.failure })}; handoff stage ${stageStatuses(h.error, 'handoff') || 'none'}, planner stage ${stageStatuses(h.error, 'planner') || 'none'}; requests ${ran.join(', ')}; after the abort ${h.sent.length - settled}`);
+  }
+  // Control: a Stop while the planner works ends the turn the same way, with planner:stopped and no handoff stage or request.
+  const stop = new AbortController();
+  let began; const begun = new Promise(resolve => { began = resolve; });
+  const planning = autoTurn(c, { raw: CODE_WORDS, repository: true, plan: () => { began(); return held(stop.signal); }, stops: true });
+  await begun; stop.abort();
+  const p = await planning;
+  check('N20 planner Stop control', !p.result && p.error?.name === 'AbortError' && !!p.error.trace && p.error.trace.event === undefined && p.error.handoff === undefined && stageStatuses(p.error, 'planner') === 'stopped' && !stageStatuses(p.error, 'handoff') && ONLY_PLAN(p.routes),
+    'control: a Stop during the planner rejects the same way (AbortError, a turn trace reading planner:stopped, no decision event) and makes no handoff request', `${p.result ? 'resolved' : `rejected ${p.error?.name}`}; planner stage ${stageStatuses(p.error, 'planner') || 'none'}; requests ${p.routes.join(', ')}`);
+  // A timeout is not a Stop: a real timed-out signal. In the planner it rejects the turn with a timeout stage; in the handoff the
+  // turn resolves with failure timeout and the failure line (runHandoff catches it).
+  // AbortSignal.timeout's own timer is unref'd, so a ref'd one keeps the process alive until it fires.
+  const lapse = ms => { setTimeout(() => {}, ms + 50); return AbortSignal.timeout(ms); };
+  const slowPlan = await autoTurn(c, { raw: CODE_WORDS, repository: true, plan: () => held(lapse(10)), stops: true });
+  check('N20 planner timeout stays timeout', !slowPlan.result && slowPlan.error?.name === 'TimeoutError' && stageStatuses(slowPlan.error, 'planner') === 'timeout',
+    'a planner that times out rejects with TimeoutError and the stage reads planner:timeout, not stopped', `${slowPlan.result ? 'resolved' : `rejected ${slowPlan.error?.name}`}; planner stage ${stageStatuses(slowPlan.error, 'planner') || 'none'}`);
+  const slowHandoff = await autoTurn(c, { raw: CODE_WORDS, repository: true, plan: planWith({ capability: 'repository_context', request: ASK }, say(LEAD)), stops: true, answer: { [HANDOFF]: () => held(lapse(10)) } });
+  const rec = slowHandoff.result?.trace?.runtime?.handoff, stage = slowHandoff.result?.bench?.trace?.stages?.find(s => s.stage === 'handoff');
+  check('N20 handoff timeout stays timeout', !slowHandoff.error && rec?.outcome === 'failed' && rec.failure === 'timeout' && slowHandoff.result.text === `${LEAD}\n\n${HANDOFF_FAILED}` && stage?.result === 'timeout',
+    'a handoff that times out resolves the turn: runtime.handoff failed/timeout, the failure line after the plan words, the handoff stage result timeout (not stopped)', `${slowHandoff.error ? `rejected ${slowHandoff.error.name}` : 'resolved'}; handoff ${JSON.stringify(rec && { outcome: rec.outcome, failure: rec.failure })}; stage ${stage?.status}/${stage?.result}`);
 }
 
 // N21: the canvas offers the handoff and the plan proposes one the validator drops: the turn records failure invalid_action, says the
