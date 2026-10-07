@@ -10,6 +10,7 @@ import { repositoryIdentity } from './repositories.js';
 import { sha256Hex } from './learn-grade-jev.js';
 import { learnMedia } from './learn-storage.js';
 import { FORK_COUNT, HANDLE_OF, NAME_OF, NOW, freeTitle, touchCanvas } from './canvases.js';
+import { NOT_TRASHED } from './library-trash.js';
 import { askShared, boardRevision, boardSources, publicationKey, shareKey, sharePin, shareSource, sharedTitle } from './learn-shared-ask.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -157,10 +158,11 @@ async function shareRepository(env, owner, app, board, body) {
 // (linkSource) and its own rate-limit key; the shared routes are otherwise one code path.
 async function sharedRow(env, token) {
   if (!TOKEN.test(token)) return null;
-  const row = await env.LEARN_DB.prepare('SELECT * FROM learn_boards WHERE shared = 1 AND view_token = ?').bind(token).first();
+  // A canvas or project in Trash suspends its links (docs/features/library-trash.md); Restore brings them back as they were.
+  const row = await env.LEARN_DB.prepare(`SELECT * FROM learn_boards b WHERE b.shared = 1 AND b.view_token = ? AND ${NOT_TRASHED('b.org', 'b.app')}`).bind(token).first();
   if (row) return { row, role: 'view' };
   const published = await env.LEARN_DB.prepare(`SELECT b.* FROM canvas_publications p JOIN canvases c ON c.org = p.org AND c.name = p.canvas AND c.archived_at IS NULL
-    JOIN learn_boards b ON b.org = c.org AND b.owner_email = c.owner_email AND b.app = c.name AND b.board = 'main' WHERE p.token = ?`).bind(token).first();
+    JOIN learn_boards b ON b.org = c.org AND b.owner_email = c.owner_email AND b.app = c.name AND b.board = 'main' WHERE p.token = ? AND ${NOT_TRASHED('c.org', 'c.name')}`).bind(token).first();
   return published ? { row: published, role: 'view', publication: true } : null;
 }
 // Where a link opens in the browser: /e/ for a publication, /b/ for a share.
@@ -244,9 +246,11 @@ async function forkSource(req, env, user, body, verb = 'fork') {
       revision: pinned && { id: pinned.id, commit: pinned.commit }, resource: canvas?.name || (row.app.startsWith('repo-') && !pinned?.allowed ? null : row.app) };
   }
   if (typeof source?.canvas !== 'string' || !CANVAS.test(source.canvas)) return json({ error: 'Choose a canvas or a share link to fork.' }, 400);
-  const canvas = await env.LEARN_DB.prepare('SELECT name, title, owner_email, project FROM canvases WHERE org = ? AND name = ?').bind(user.org, source.canvas).first();
+  const canvas = await env.LEARN_DB.prepare(`SELECT c.name, c.title, c.owner_email, c.project, NOT ${NOT_TRASHED('c.org', 'c.name')} AS trashed FROM canvases c WHERE c.org = ? AND c.name = ?`).bind(user.org, source.canvas).first();
   if (!canvas) return json({ error: 'Canvas not found in this workspace' }, 404);
   if (canvas.owner_email !== user.email) return json({ error: 'This canvas is private to its owner' }, 403);
+  // A canvas in Trash (library-trash.md) is copied by nothing - a stale card's Duplicate or Fork included - until restored.
+  if (canvas.trashed) return json({ error: 'Restore this canvas from Trash first.' }, 409);
   if (body.state !== undefined) {
     const checked = stateText(body.state);
     if (checked.error) return json({ error: checked.error }, checked.status || 400);
@@ -476,7 +480,7 @@ async function explore(env) {
     FROM canvas_publications p JOIN canvases c ON c.org = p.org AND c.name = p.canvas AND c.archived_at IS NULL
     LEFT JOIN canvas_metadata m ON m.org = c.org AND m.canvas = c.name
     JOIN user_handles h ON h.email = c.owner_email
-    WHERE NOT EXISTS (SELECT 1 FROM canvas_dives d WHERE d.org = c.org AND d.child = c.name)
+    WHERE NOT EXISTS (SELECT 1 FROM canvas_dives d WHERE d.org = c.org AND d.child = c.name) AND ${NOT_TRASHED('c.org', 'c.name')}
     ORDER BY p.published_at DESC, p.rowid DESC LIMIT ?`).bind(EXPLORE_LIMIT).all();
   return json({ canvases: results.map(r => ({ title: r.title, description: r.description ?? null, creator: { handle: r.handle, name: r.name ?? null }, fork_count: r.fork_count, url: `/e/${r.token}`, published_at: r.published_at, updated_at: r.updated_at })) });
 }

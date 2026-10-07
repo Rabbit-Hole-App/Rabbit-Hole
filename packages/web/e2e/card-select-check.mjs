@@ -163,6 +163,15 @@ await check('11 after the send the card stays selected; the follow-up asks about
 });
 await shot('C2-after-send-card-kept');
 
+// Natural typing is the way in (owner, 2026-10-06): no slash needed - the selected card rides a plain question too.
+await check('11b with a card selected, a plain typed question (no /) carries the card too', async () => {
+  const before = asks.length;
+  await slash('why is salt better than sugar at this?');
+  assert.equal(asks.length, before + 1, 'one ask, through the normal composer');
+  assert.equal(asks.at(-1).message, 'why is salt better than sugar at this?');
+  assert.equal(asks.at(-1).canvas_target?.id, 'k-exp');
+});
+
 await check('12 the card\'s own controls never open it: a double-click on a quiz answer', async () => {
   // The answers so far landed in the chat sheet (a selected card is context; it does not move the answer): fold it away.
   const collapse = page.getByRole('button', { name: 'Collapse chat' });
@@ -264,5 +273,5 @@ await check('no model route was called and no page error', async () => {
 });
 
 await browser.close();
-console.log(`${results.length}/17 checks passed`);
-process.exit(results.length === 17 ? 0 : 1);
+console.log(`${results.length}/18 checks passed`);
+process.exit(results.length === 18 ? 0 : 1);

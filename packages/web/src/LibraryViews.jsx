@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { AppWindow, Archive, ArrowRight, ArrowUpRight, BookOpen, Check, CopyPlus, FolderGit2, GitFork, ListFilter, Loader2, MoreHorizontal, Network, PenLine, Pin, PinOff, Play, UserRound, X } from 'lucide-react';
+import { AlignLeft, AppWindow, Archive, ArrowRight, ArrowUpRight, BookOpen, Check, ChevronRight, CopyPlus, Eye, FolderGit2, Link2, Trash2, GitFork, ListFilter, Loader2, MoreHorizontal, Network, PenLine, Pin, PinOff, Play, UserRound, X } from 'lucide-react';
 import { titleOf } from './agent/catalog.js';
-import { ago, navigate } from './api.js';
+import { ago, api, navigate } from './api.js';
 import { learnProgress, onAnotherDevice, readRecent } from './home/continue.js';
 import { canvasKeys, localBoard } from './home/canvas-local.js';
 import ForkButton from './ForkButton.jsx';
@@ -10,7 +10,8 @@ import { readPinned, togglePin } from './home/pinned.js';
 import { Creator, ForkedFrom, Forks, SourceLink } from './home/Provenance.jsx';
 import { cardModel } from './home/provenance.js';
 import { byRecent, chipHref, libraryHref, librarySections, ofType, SCOPES, TYPES } from './library-filter.js';
-import { Button, IconBtn, KindIcon, Menu, MenuItem, Pill, toast } from './ui.jsx';
+import { Button, ConfirmDialog, IconBtn, Input, KindIcon, Menu, MenuItem, Pill, toast } from './ui.jsx';
+import { ACCESS, PRIVATE_CONFIRM, confirmsPrivate, setAccess } from './canvas-visibility.js';
 
 // The preview Library (T02 §4, user correction 2026-09-28): what you can return to, learn from
 // or build from. Projects and Canvases are cards; Apps are compact operational rows here and the
@@ -25,8 +26,10 @@ const open = (a) => guard(a, () => navigate(`/apps/${a.name}`))();
 
 export default function LibraryViews({ apps, type, data, onType, onArchive, onRun, runningOf, onForked }) {
   const [menu, setMenu] = useState(null); // { a, top, left }
+  const [accessOpen, setAccessOpen] = useState(false); // the Visibility submenu, inside the same menu
+  const [dialog, setDialog] = useState(null); // { kind: rename | describe | private | trash, a, value?, to? }
   const ctx = { org: data?.org, email: data?.email, storage: localStorage, catalog: data?.apps || [], onForked };
-  const more = (a) => stop((e) => { const r = e.currentTarget.getBoundingClientRect(); setMenu({ a, top: r.bottom + 4, left: r.right - 176 }); });
+  const more = (a) => stop((e) => { const r = e.currentTarget.getBoundingClientRect(); setAccessOpen(false); setMenu({ a, top: r.bottom + 4, left: r.right - 224 }); });
   const card = (a) => (a.kind === 'repository' ? <ProjectCard key={a.name} a={a} ctx={ctx} onMore={more(a)} /> : <CanvasCard key={a.name} a={a} ctx={ctx} onMore={more(a)} />);
   const recent = readRecent(localStorage);
   const pick = (fn) => { const a = menu.a; setMenu(null); guard(a, () => fn(a))(); };
@@ -39,6 +42,18 @@ export default function LibraryViews({ apps, type, data, onType, onArchive, onRu
       ctx.onForked?.();
     } catch (error) { toast(error.message, { tone: 'error' }); }
   };
+  // The owned-card menu (docs/features/visibility-menu.md). Every change reloads the Library from the server.
+  const local = (a) => localBoard(ctx.storage, canvasKeys({ org: a.org || ctx.org, email: a.email || ctx.email, slug: a.name }));
+  const act = async (work, done) => {
+    try { await work(); if (done) toast(done); ctx.onForked?.(); } catch (error) { toast(error.message, { tone: 'error' }); }
+  };
+  const changeAccess = (a, to) => act(() => setAccess(api, a, to, local(a)), `${a.title} is now ${ACCESS.find((x) => x.id === to).label.toLowerCase()}`);
+  const chooseAccess = (to) => pick((a) => (confirmsPrivate(a.access, to) ? setDialog({ kind: 'private', a, to }) : changeAccess(a, to)));
+  const patch = (a, body, done) => act(() => api(`/api/apps/${a.name}`, { method: 'PATCH', body: JSON.stringify(body) }), done);
+  const moveToTrash = (a) => act(() => api(`/api/apps/${a.name}/trash`, { method: 'POST', body: '{}' }), `Moved "${titleOf(a)}" to Trash`);
+  const kindWord = (a) => (a.kind === 'repository' ? 'project' : 'canvas');
+  // A typed title is kept exactly (canvas-naming.md); a repeat only earns a quiet note.
+  const sameTitle = dialog?.kind === 'rename' && apps.some((x) => x.kind === 'canvas' && x.name !== dialog.a.name && x.title === dialog.value.trim());
   // The sidebar has no Apps tree in the preview, so projects and canvases are pinned from here.
   const pinnedNow = menu && ctx.email && readPinned(localStorage, ctx.org, ctx.email).includes(menu.a.name);
   return (
@@ -58,18 +73,67 @@ export default function LibraryViews({ apps, type, data, onType, onArchive, onRu
           ))}
         </div>
       )}
-      <Menu portal open={!!menu} onClose={() => setMenu(null)} style={{ top: menu?.top, left: menu?.left }} className="w-44">
-        {ctx.email && <MenuItem icon={pinnedNow ? PinOff : Pin} onClick={() => pick((a) => togglePin(localStorage, ctx.org, ctx.email, a.name))}>{pinnedNow ? 'Unpin' : 'Pin'}</MenuItem>}
+      <Menu portal open={!!menu} onClose={() => setMenu(null)} style={{ top: menu?.top, left: menu?.left }} className="w-56">
         {menu?.a.kind === 'repository' ? (
           <>
+            {ctx.email && <MenuItem icon={pinnedNow ? PinOff : Pin} onClick={() => pick((a) => togglePin(localStorage, ctx.org, ctx.email, a.name))}>{pinnedNow ? 'Unpin' : 'Pin'}</MenuItem>}
             <MenuItem icon={BookOpen} onClick={() => pick((a) => navigate(`/apps/${a.name}?tab=learn`))}>Learn</MenuItem>
             <MenuItem icon={Network} onClick={() => pick((a) => navigate(`/apps/${a.name}?tab=map`))}>Map</MenuItem>
+            {menu.a.canEdit && <><div className="my-1 border-t border-line" />
+              <MenuItem icon={Trash2} data-menu-trash onClick={() => pick((a) => setDialog({ kind: 'trash', a }))}>Move to Trash</MenuItem></>}
           </>
-        ) : <>
-          {menu?.a.canEdit && <MenuItem icon={CopyPlus} onClick={() => pick(duplicate)}>Duplicate</MenuItem>}
+        ) : menu?.a.canEdit ? <>
+          <MenuItem icon={PenLine} data-menu-rename onClick={() => pick((a) => setDialog({ kind: 'rename', a, value: a.title || '' }))}>Rename</MenuItem>
+          <MenuItem icon={AlignLeft} data-menu-describe onClick={() => pick((a) => setDialog({ kind: 'describe', a, value: a.description || '' }))}>Edit description</MenuItem>
+          <MenuItem icon={CopyPlus} onClick={() => pick(duplicate)}>Duplicate</MenuItem>
+          <div className="my-1 border-t border-line" />
+          {/* Plain buttons, not MenuItem: MenuItem truncates its children into one line, and these carry a chevron or a hint. */}
+          <button type="button" data-menu-visibility aria-expanded={accessOpen} onClick={() => setAccessOpen((on) => !on)}
+            className="flex h-7 w-full items-center gap-2 rounded-sm px-2 text-left text-sm text-ink hover:bg-hover">
+            <Eye size={16} strokeWidth={1.5} className="shrink-0 text-ink-2" />
+            <span className="min-w-0 flex-1">Visibility</span>
+            <ChevronRight size={14} strokeWidth={1.5} className={`shrink-0 text-ink-3 transition-transform ${accessOpen ? 'rotate-90' : ''}`} />
+          </button>
+          {accessOpen && ACCESS.map(({ id, label, hint }) => (
+            <button key={id} type="button" role="menuitemradio" aria-checked={menu.a.access === id} data-access={id} onClick={() => chooseAccess(id)}
+              className="flex w-full items-start gap-2 rounded-sm py-1 pr-2 pl-2 text-left text-sm text-ink hover:bg-hover">
+              <span className="flex h-5 w-4 shrink-0 items-center justify-center">{menu.a.access === id && <Check size={14} strokeWidth={2} />}</span>
+              <span className="flex min-w-0 flex-col"><span>{label}</span><span className="text-xs text-ink-3">{hint}</span></span>
+            </button>
+          ))}
+          <MenuItem icon={Link2} onClick={() => pick((a) => navigate(`/apps/${a.name}?share=1`))}>Share / Manage link</MenuItem>
+          <div className="my-1 border-t border-line" />
           <MenuItem icon={Archive} onClick={() => pick(onArchive)}>Archive…</MenuItem>
-        </>}
+          <MenuItem icon={Trash2} data-menu-trash onClick={() => pick((a) => setDialog({ kind: 'trash', a }))}>Move to Trash</MenuItem>
+        </> : null}
       </Menu>
+      {(dialog?.kind === 'rename' || dialog?.kind === 'describe') && (
+        <ConfirmDialog title={dialog.kind === 'rename' ? 'Rename' : 'Edit description'} confirmLabel="Save" confirmVariant="primary"
+          onCancel={() => setDialog(null)}
+          onConfirm={() => { const { a, value, kind } = dialog; setDialog(null); patch(a, kind === 'rename' ? { title: value } : { description: value }); }}
+          body={dialog.kind === 'rename' ? (
+            <span className="block">
+              <Input autoFocus aria-label="Title" maxLength={120} value={dialog.value} onChange={(e) => setDialog({ ...dialog, value: e.target.value })} />
+              {sameTitle && <span data-same-title className="mt-1.5 block text-xs text-ink-3">You already have another canvas with this name.</span>}
+            </span>
+          ) : (
+            <span className="block">
+              <textarea autoFocus aria-label="Description" maxLength={500} rows={4} value={dialog.value} onChange={(e) => setDialog({ ...dialog, value: e.target.value })}
+                placeholder="What this canvas is about, in a sentence or two."
+                className="w-full resize-none rounded-sm border border-transparent bg-code px-2 py-1.5 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-line-strong" />
+              <span className="mt-1 block text-right text-xs text-ink-3">{dialog.value.length}/500</span>
+            </span>
+          )} />
+      )}
+      {dialog?.kind === 'private' && (
+        <ConfirmDialog title={PRIVATE_CONFIRM.title} body={PRIVATE_CONFIRM.body} confirmLabel={PRIVATE_CONFIRM.action} confirmVariant="primary"
+          onCancel={() => setDialog(null)} onConfirm={() => { const { a, to } = dialog; setDialog(null); changeAccess(a, to); }} />
+      )}
+      {dialog?.kind === 'trash' && (
+        <ConfirmDialog title={`Move this ${kindWord(dialog.a)} to Trash?`} confirmLabel="Move to Trash"
+          body="It will disappear from your Library and public/shared access will stop. Existing forks will not be deleted. You can restore it from Trash."
+          onCancel={() => setDialog(null)} onConfirm={() => { const { a } = dialog; setDialog(null); moveToTrash(a); }} />
+      )}
     </>
   );
 }

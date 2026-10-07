@@ -1,5 +1,6 @@
 import { repositoryIdentity, repositoryThreads } from './repositories.js';
 import { divesFetch, pendingHoleApp } from './dives.js';
+import { NOT_TRASHED, trashStatements } from './library-trash.js';
 
 // Dev-only canvas records (T02 section 8). A row is identity and title only; the
 // canvas content stays in the learner's browser under small.adaptive-canvas:*.
@@ -11,7 +12,9 @@ const publicationToken = () => btoa(String.fromCharCode(...crypto.getRandomValue
 
 // Shape mirrors repositoryApp (repositories.js:33-36) so Learn and the catalog read it unchanged.
 export function canvasApp(row, user) {
+  // access: what the owner's Visibility menu shows - public (published to Explore), unlisted (a share link), private.
   return { ...row, kind: 'canvas', hosting: 'canvas', email: user.email, orgName: user.orgName, visibility: 'private', members: [], published: !!row.publication_token,
+    shared: !!row.shared, access: row.publication_token ? 'public' : row.shared ? 'unlisted' : 'private',
     canView: true, canEdit: row.owner_email === user.email, url: `/apps/${row.name}`, inputs: {}, outputs: {} };
 }
 // The canvas's last meaningful change (docs/features/canvas-metadata.md): a rename, a description edit, a change to its
@@ -54,7 +57,9 @@ const CANVAS_ROW = `SELECT c.*, f.forked_from_title, CASE
   END AS forked_from_url, ${FORK_COUNT} AS fork_count,
   ${HANDLE_OF('c.owner_email')} AS owner_handle, ${NAME_OF('c.owner_email')} AS owner_name, ${HANDLE_OF('f.forked_from_owner_id')} AS forked_from_handle,
   (SELECT p.token FROM canvas_publications p WHERE p.org = c.org AND p.canvas = c.name) AS publication_token,
-  m.description, COALESCE(m.updated_at, c.created_at) AS updated_at
+  m.description, COALESCE(m.updated_at, c.created_at) AS updated_at,
+  (SELECT b.shared FROM learn_boards b WHERE b.org = c.org AND b.owner_email = c.owner_email AND b.app = c.name AND b.board = 'main') AS shared,
+  (SELECT t.trashed_at FROM library_trash t WHERE t.org = c.org AND t.name = c.name) AS trashed_at
   FROM canvases c LEFT JOIN canvas_forks f ON f.org = c.org AND f.canvas = c.name
   LEFT JOIN canvas_metadata m ON m.org = c.org AND m.canvas = c.name
   LEFT JOIN canvases src ON src.org = f.forked_from_org AND src.name = f.forked_from_canvas_id`;
@@ -99,7 +104,7 @@ export async function freeTitle(db, org, owner, title) {
 // as top-level canvases in Home, Library or Search. They still open directly by their URL. A hole started
 // from someone's shared canvas (parent `share:...`) is a root of the viewer's own, so it is listed.
 export async function ownerCanvases(env, user, archived = false) {
-  const { results } = await env.LEARN_DB.prepare(`${CANVAS_ROW} WHERE c.org=? AND c.owner_email=? AND c.archived_at IS ${archived ? 'NOT ' : ''}NULL AND c.name NOT IN (SELECT child FROM canvas_dives WHERE org=? AND owner_email=? AND parent_app NOT LIKE 'share:%') ORDER BY updated_at DESC, c.id DESC`).bind(user.org, user.email, user.org, user.email).all();
+  const { results } = await env.LEARN_DB.prepare(`${CANVAS_ROW} WHERE c.org=? AND c.owner_email=? AND c.archived_at IS ${archived ? 'NOT ' : ''}NULL AND ${NOT_TRASHED('c.org', 'c.name')} AND c.name NOT IN (SELECT child FROM canvas_dives WHERE org=? AND owner_email=? AND parent_app NOT LIKE 'share:%') ORDER BY updated_at DESC, c.id DESC`).bind(user.org, user.email, user.org, user.email).all();
   return results.map(row => canvasApp(row, user));
 }
 
@@ -164,7 +169,7 @@ export async function canvasesFetch(req, env) {
       if (app instanceof Response) return app;
       return repositoryThreads(new Request(req, { method: action === 'delete' ? 'DELETE' : action === 'rename' ? 'PATCH' : req.method }), db, user, app, id);
     }
-    const match = path.match(/^\/api\/apps\/(canvas-[a-f0-9]{8})(?:\/(archive|restore|learn-course|publish|unpublish))?$/);
+    const match = path.match(/^\/api\/apps\/(canvas-[a-f0-9]{8})(?:\/(archive|restore|learn-course|publish|unpublish|trash|untrash))?$/);
     if (!match) return json({ error: 'Not found' }, 404);
     const [, name, action] = match;
     const app = await ownedCanvas(env, user, name); if (app instanceof Response) return app;
@@ -179,6 +184,7 @@ export async function canvasesFetch(req, env) {
           // Owner, 2026-10-06: only a live, top-level canvas with saved content, and only under the owner's public
           // @handle - Explore never shows an email. Publishing again keeps the same publication and token.
           if (app.archived_at) return json({ error: 'Restore this canvas before publishing it.' }, 409);
+          if (app.trashed_at) return json({ error: 'Restore this canvas from Trash before publishing it.' }, 409);
           if (await db.prepare('SELECT 1 FROM canvas_dives WHERE org = ? AND child = ?').bind(user.org, name).first()) return json({ error: 'A Rabbit Hole inside another canvas cannot be published on its own.' }, 409);
           if (!app.owner_handle) return json({ error: 'Choose your handle before publishing.', needsHandle: true }, 409);
           if (!await db.prepare("SELECT 1 FROM learn_boards WHERE org = ? AND owner_email = ? AND app = ? AND board = 'main'").bind(user.org, user.email, name).first()) {
@@ -186,6 +192,15 @@ export async function canvasesFetch(req, env) {
           }
           await db.prepare('INSERT OR IGNORE INTO canvas_publications (org, canvas, token) VALUES (?, ?, ?)').bind(user.org, name, publicationToken()).run();
         } else await db.prepare('DELETE FROM canvas_publications WHERE org = ? AND canvas = ?').bind(user.org, name).run();
+        return json(await ownedCanvas(env, user, name));
+      }
+      // Move to Trash / Restore (docs/features/library-trash.md): an owned top-level canvas only - a nested Rabbit Hole goes
+      // with its canvas. Its publication goes too; its share links are suspended, not lost. Neither bumps updated_at.
+      if (action === 'trash' || action === 'untrash') {
+        if (action === 'trash' && await db.prepare("SELECT 1 FROM canvas_dives WHERE org = ? AND child = ? AND parent_app NOT LIKE 'share:%'").bind(user.org, name).first()) {
+          return json({ error: 'A Rabbit Hole inside another canvas goes to Trash with its canvas.' }, 409);
+        }
+        await db.batch(trashStatements(db, user.org, name, action === 'trash'));
         return json(await ownedCanvas(env, user, name));
       }
       // Archived means out of Explore too (the safest reading): restoring never publishes it again by itself.

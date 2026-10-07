@@ -632,15 +632,20 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
   // Private (user, 2026-09-30): Rabbit Hole v1 is solo, so what you own is private - newest first, five, then View all.
   const mine = learnPreview && email ? apps.filter((a) => isMine(a, email)).sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || ''))) : [];
 
+  // Rabbit Hole's Trash is the Library's (docs/features/library-trash.md): your canvases and projects, restored as they
+  // were; nothing in it is deleted. Elsewhere it is the deployed apps' trash.
+  const loadTrash = () => (learnPreview
+    ? api('/api/library/trash').then(({ items }) => ({ email, library: true, trash: items.map((i) => ({ name: i.name, kind: i.kind, title: i.title, deleted_at: i.trashed_at, owner_email: email })) }))
+    : api('/api/trash'));
   const openTrash = () => {
     setTrashOpen(true);
-    api('/api/trash').then(setTrash).catch(() => setTrash({ trash: [], email }));
+    loadTrash().then(setTrash).catch(() => setTrash({ trash: [], email }));
   };
   const restore = async (name) => {
     try {
-      await api(`/api/apps/${name}/restore`, { method: 'POST' });
-      toast(`Restored ${name}`);
-      api('/api/trash').then(setTrash).catch(() => {});
+      await api(`/api/apps/${name}/${learnPreview ? 'untrash' : 'restore'}`, { method: 'POST', ...(learnPreview ? { body: '{}' } : {}) });
+      toast(`Restored ${trash?.trash.find((t) => t.name === name)?.title || name}`);
+      loadTrash().then(setTrash).catch(() => {});
       onReload();
     } catch (e) {
       toast(`✗ ${e.message}`);
@@ -1483,7 +1488,7 @@ function TrashDialog({ trash, onRestore, onClose }) {
           {(trash?.trash || []).map((t) => (
             <div key={t.name} className="group/tr flex h-9 items-center gap-2 rounded-sm px-2 text-sm hover:bg-hover">
               <KindIcon kind={t.kind} />
-              <span className="min-w-0 flex-1 truncate">{t.name}</span>
+              <span className="min-w-0 flex-1 truncate" title={t.title || t.name}>{t.title || t.name}</span>
               <span className="text-xs text-ink-3">{ago(t.deleted_at)}</span>
               {t.owner_email === trash.email && (
                 <Button variant="secondary" size="sm" className="opacity-0 group-hover/tr:opacity-100 focus-visible:opacity-100 max-md:opacity-100" onClick={() => onRestore(t.name)}>
@@ -1493,7 +1498,7 @@ function TrashDialog({ trash, onRestore, onClose }) {
             </div>
           ))}
         </div>
-        <div className="shrink-0 border-t border-line px-5 py-3 text-xs text-ink-3">Items in Trash are deleted forever after 30 days.</div>
+        <div className="shrink-0 border-t border-line px-5 py-3 text-xs text-ink-3">{trash?.library ? 'Items stay in Trash until you restore them. Nothing here is deleted.' : 'Items in Trash are deleted forever after 30 days.'}</div>
       </div>
     </div>,
     document.body,

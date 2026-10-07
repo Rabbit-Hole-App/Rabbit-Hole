@@ -568,7 +568,14 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
   const boardStorageKey = board ? `${canvasKey}:${board}:s${BOARD_SEED_VERSIONS[board] ?? 0}` : `${canvasKey}:ink`;
   const boardPath = `/api/learn/boards/${encodeURIComponent(app.name)}/${encodeURIComponent(boardName)}`;
   const [sharing, setSharing] = useState(null);
-  const [shareOpen, setShareOpen] = useState(false);
+  // ?share=1 (the Library's Share / Manage link) opens this canvas's Share panel once; the query is dropped at once.
+  const [shareOpen, setShareOpen] = useState(() => new URLSearchParams(window.location.search).get('share') === '1');
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('share') !== '1') return;
+    url.searchParams.delete('share');
+    window.history.replaceState(window.history.state, '', url.pathname + url.search);
+  }, []);
   const [shareBusy, setShareBusy] = useState(false);
   const [shareError, setShareError] = useState(null);
   const [canvasEpoch, setCanvasEpoch] = useState(0);
