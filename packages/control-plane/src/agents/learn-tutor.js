@@ -339,7 +339,20 @@ const AVATAR_TOOL = { ...TUTOR_TOOL, input_schema: { ...TUTOR_TOOL.input_schema,
   visual_value: { type: 'string', maxLength: VISUAL_VALUE_MAX },
   max_duration_seconds: { type: 'integer', minimum: 3, maximum: 30 },
 } } } } } };
-export const tutorTool = avatar => (avatar ? AVATAR_TOOL : TUTOR_TOOL);
+// Task 11c-B (owner thirteenth, fifteenth and sixteenth messages): the one handoff action, capability-generic -
+// handoff { capability, request }, the handoff route's body (learn-tutor-handoff.js) without what the browser adds from
+// structured state (app, selection, context). HANDOFF_CAPABILITY_NAMES is that route's dispatch table (a test keeps them
+// equal): a future capability adds a name there and here, never a new action. Like the avatar action, the tool carries it only
+// on a turn whose route allows it (plannerRequest), so every other request and the cached prefix stay byte-identical.
+export const HANDOFF_ACTION = 'handoff';
+export const HANDOFF_CAPABILITY_NAMES = ['repository_context'];
+const withHandoff = tool => {
+  const actions = tool.input_schema.properties.actions, items = actions.items.properties;
+  return { ...tool, input_schema: { ...tool.input_schema, properties: { ...tool.input_schema.properties, actions: { ...actions, items: { ...actions.items, properties: {
+    ...items, type: { type: 'string', enum: [...items.type.enum, HANDOFF_ACTION] }, capability: { type: 'string', enum: HANDOFF_CAPABILITY_NAMES },
+  } } } } } };
+};
+export const tutorTool = (avatar, handoff = false) => (handoff ? withHandoff(avatar ? AVATAR_TOOL : TUTOR_TOOL) : avatar ? AVATAR_TOOL : TUTOR_TOOL);
 // The three planner lines of §4.1: the value question and routing principle (§4.2), the field rules, the Voice sentence.
 const AVATAR_SYSTEM = [
   'suggest_avatar_clip offers a short teacher clip as extra learning material on the canvas; it never generates anything and is not a second conversation. First ask what SEEING a human teacher adds here beyond text or speech; if nothing, do not use it. Never for a routine factual question, never on every response, never just because you have something to say. Static structure is a card, a changing mechanism is an animation, human presence, framing, gesture or emphasis is a teacher clip.',
@@ -408,6 +421,15 @@ export const EXPLICIT_MODE = [
   '- ask: answer the question; build an extended teaching sequence only when the question cannot be answered properly without one.',
   '- teach: actively teach it; you still choose the pedagogy, the modality and whether material helps.',
 ].join('\n');
+// Task 11c-B (owner thirteenth, fifteenth and nineteenth messages): the handoff block, sent only on a turn whose route allows
+// the handoff (context.allowed_actions), like EXPLICIT_MODE, so the shared cached prefix never grows for it. Its last line
+// settles L(19)'s conditional: an allowed handoff is a retrieval action, yet the plan's own words still never claim retrieval.
+export const HANDOFF_SYSTEM = [
+  'handoff { capability, request } hands this turn to a capability that answers the learner after your turn. repository_context reads the canvas repository\'s source and answers from it; request is the question for it in plain words, with no backticks and no code (the selected card travels with it).',
+  'Hand off only when answering correctly needs the repository\'s source (what code does, where something is defined or called, how a value flows, why the code is written a certain way) and the supplied context does not already contain it; never because words like code, function or repository appear; when the supplied context suffices, respond normally.',
+  'At most one handoff per turn. It may follow a short respond_text lead-in that frames the question; the lead-in never guesses the answer.',
+  'An allowed handoff changes nothing for your own words: your own words never claim retrieval or inspection (never "I found", "I looked at the code" or "the source shows"); only the handoff answer reports what the source says. When retrieval fails, the learner is told the source context could not be retrieved.',
+].join('\n');
 
 // avatar (TUTOR_AVATAR, Avatar Teacher §4.1): adds suggest_avatar_clip and its policy lines; off by default.
 // A context with journey_context (a journey turn) gets the journey prompt, one with canvas_context (Task 10: a hook click on
@@ -415,19 +437,22 @@ export const EXPLICIT_MODE = [
 // A hook click (learner_intent.kind next_step) appends NEXT_STEP_SYSTEM to either prompt; cached, it is a second, uncached
 // system block after the cached one, so hook turns read the typed turns' cached prefix and never write their own. An explicit
 // /ask or /teach (the learner_intent.slash marker in MODE_SLASHES, beside the kind the words gave: fix A3) appends
-// EXPLICIT_MODE the same way.
+// EXPLICIT_MODE the same way. Task 11c-B: the extra blocks are an ordered list - NEXT_STEP_SYSTEM, EXPLICIT_MODE, then
+// HANDOFF_SYSTEM with the handoff tool when context.allowed_actions lists the handoff - so they coexist, and a request with one
+// block is byte-identical to the single-block request before.
 export const plannerRequest = (context, maxTokens, documents = [], { effort = null, stream = false, cache = false, speed = null, avatar = false } = {}) => {
   const text = `Compose this turn.\n\ncontext = ${JSON.stringify(context)}`;
-  const system = plannerSystem(avatar, context?.journey_context ? 'journey' : context?.canvas_context ? 'canvas' : 'nanogpt'), tool = tutorTool(avatar);
+  const handoff = !!context?.allowed_actions?.includes(HANDOFF_ACTION);
+  const system = plannerSystem(avatar, context?.journey_context ? 'journey' : context?.canvas_context ? 'canvas' : 'nanogpt'), tool = tutorTool(avatar, handoff);
   const intent = context?.learner_intent;
-  const extra = intent?.kind === 'next_step' ? NEXT_STEP_SYSTEM : MODE_SLASHES.includes(intent?.slash) ? EXPLICIT_MODE : null;
+  const extras = [intent?.kind === 'next_step' && NEXT_STEP_SYSTEM, MODE_SLASHES.includes(intent?.slash) && EXPLICIT_MODE, handoff && HANDOFF_SYSTEM].filter(Boolean);
   return {
     max_tokens: maxTokens,
     ...(speed ? { speed, betas: [FAST_MODE_BETA] } : {}),
     ...(effort ? { output_config: { effort } } : {}),
     ...(stream ? { stream: true } : {}),
-    system: cache ? [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }, ...(extra ? [{ type: 'text', text: extra }] : [])]
-      : extra ? `${system}\n${extra}` : system,
+    system: cache ? [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }, ...extras.map(extra => ({ type: 'text', text: extra }))]
+      : [system, ...extras].join('\n'),
     tools: [stream ? { ...tool, eager_input_streaming: true } : tool],
     // auto, not forced: claude-opus-5-5 refuses tool_choice tool/any (HTTP 400). A reply without the
     // tutor_response call stays invalid (planTurn), so free text is never a plan.
