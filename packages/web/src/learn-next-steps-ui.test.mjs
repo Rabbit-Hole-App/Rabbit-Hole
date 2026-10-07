@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
-import { journeyDomain } from './learn-journey-domain.js';
+import { canvasDomain, journeyDomain } from './learn-journey-domain.js';
 import { emptyStore } from './learn-tutor-evidence.js';
 import { TIDES } from './__fixtures__/journey-synthetic-domains.mjs';
 
@@ -293,6 +293,25 @@ test('ownedSteps: off where snapshot().context is null or there is no askStep; n
     r.step(); await r.c.fire();
     assert.deepEqual([r.steps.view().status, r.steps.view().reason, r.bodies.length, r.c.pending()], ['unavailable', 'off', 0, 0]);
   }
+});
+
+// Task 10 fix round 1 (owner eleventh message 3, 8): a plain canvas with no card asks nothing - its title alone never grounds
+// hooks - and once it has one, a rename (the goal its title grounds) re-asks.
+test('ownedSteps on a plain canvas: no card, no hooks and nothing posted; with a card it asks; a rename changes the basis', async () => {
+  const plain = title => ({ domain: canvasDomain({ goal: title }), capabilities: { tutor: false, hook_turns: true }, source: 'canvas' });
+  const r = stepsRig({ tutor: tutorStub({ context: plain('Sourdough') }), props: { title: 'Sourdough', canvasApi: { current: { blocks: () => [] } }, canvasState: { cards: [] } } });
+  assert.equal(r.steps.state().stop, 'not_now');
+  r.step(); await r.c.fire();
+  assert.deepEqual([r.steps.view().status, r.bodies.length], ['unavailable', 0]);
+  r.live.canvasApi = { current: { blocks: () => [{ id: 'k1', type: 'explanation', title: 'Starter culture' }] } };
+  r.live.canvasState = { cards: [['k1']] };
+  const { basis, stop } = r.steps.state();
+  assert.equal(stop, null);
+  r.step(); await r.c.fire();
+  assert.deepEqual([r.bodies.length, r.bodies[0].mode, r.bodies[0].goal], [1, 'canvas', 'Sourdough']);
+  r.tutor.context = plain('Sourdough, renamed');
+  r.live.title = 'Sourdough, renamed';
+  assert.notEqual(r.steps.state().basis, basis, 'the renamed title grounds the goal');
 });
 
 test('ownedSteps: the trigger state, the input from the live snapshot at send time, ready with exactly the contract keys, and select', async () => {

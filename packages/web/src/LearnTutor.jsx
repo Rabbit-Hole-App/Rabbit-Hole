@@ -33,6 +33,10 @@ const TURN_TIMEOUT_MS = 60000;
 // `<app>|<board>`) keeps its hook turns in its own store. Every other key is unchanged.
 export const tutorStoreKey = (app, journeyId, record, canvas = null) => (journeyId ? `${storeKey(app)}:journey:${journeyId}`
   : record?.journey ? `${storeKey(app)}:dive:${record.journey.journey_id}` : canvas ? `${storeKey(app)}:canvas:${canvas}` : storeKey(app));
+// The context hooks are built in (snapshot; Task 10 fix round 1, owner eleventh message 1): a hole whose record names a
+// journey has none until its parent journey read settles (read: the dive id it settled for), so no hook set stands on the
+// canvas domain the parent journey replaces; then tutorContext's - the dive domain, or the canvas domain after a refusal.
+export const hookContext = (where, read) => (where.record?.journey && read !== where.record.dive_id ? null : tutorContext(where));
 // canvasVersion: the board revision when the page passes it (decision telemetry only).
 // Professor Next Steps (docs/features/professor-next-steps.md §1.3, §1.4): the returned object always carries askStep, snapshot,
 // lastTurn, busy and showing, also where the Tutor is not active, so useNextSteps can ask whether hooks belong here.
@@ -42,12 +46,14 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   // The parent journey of a hole whose record carries one (Task 14): { journey, path } once read, else null.
   // ponytail: the hole Tutor is inactive until the parent journey GET returns (the first instant is the plain hole); hold
   // the composer on a pending state if learners type before it lands.
+  // parentRead: the dive id whose parent read has settled, found or refused (hookContext waits for it).
   const [parentJourney, setParentJourney] = useState(null);
+  const [parentRead, setParentRead] = useState(null);
   useEffect(() => {
     setParentJourney(null);
     if (!record?.journey) return;
     let current = true;
-    diveJourney(record, path => api(path)).then(found => { if (current) setParentJourney(found); });
+    diveJourney(record, path => api(path)).then(found => { if (current) { setParentJourney(found); setParentRead(record.dive_id); } });
     return () => { current = false; };
   }, [record?.dive_id]); // eslint-disable-line react-hooks/exhaustive-deps
   // Whether the Tutor runs here, and its domain, is the registry resolver's (learn-tutor-domains.js tutorContext): a live
@@ -60,16 +66,16 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   const here = { app: app.name, board };
   const journeyId = journey?.journey?.id ?? null;
   const key = tutorStoreKey(app, journeyId, record, context?.source === 'canvas' ? `${app.name}|${board || 'main'}` : null);
-  const [chips, setChips] = useState([]);
   const slashNext = useRef(null);
   // busy: a turn is in flight (a stopping point for the hooks); lastTurn: the last finished turn, a hook basis trigger;
-  // shown: the hooks on screen (useNextSteps), for the decision trace. desk: what Tutor-made material shows in extras - the
-  // paid card waiting for Generate / Not now, and the notices of material that could not be made. It is plain state read
-  // when extras is drawn (redraw re-renders), so a proposal or notice that lands after a render is never lost.
+  // shown: the hooks on screen (useNextSteps), for the decision trace. desk: what shows in extras - the turn's suggestion
+  // chips (Back up among them, Task 10 fix round 1), the paid card waiting for Generate / Not now, and the notices of
+  // material that could not be made. It is plain state read when extras is drawn (redraw re-renders), so anything that
+  // lands after a render is never lost.
   const [busy, setBusy] = useState(false);
   const [lastTurn, setLastTurn] = useState(null);
   const [, redraw] = useReducer(n => n + 1, 0);
-  const desk = useRef({ proposal: null, notices: [] }).current;
+  const desk = useRef({ chips: [], proposal: null, notices: [] }).current;
   const put = next => { Object.assign(desk, next); redraw(); };
   const seq = useRef(0), shown = useRef([]), flying = useRef(0), asking = useRef(Promise.resolve());
   const stateRef = useRef(canvasState); stateRef.current = canvasState;
@@ -156,12 +162,12 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     }
     save(result.store);
     if (result.log.length) console.info('[tutor]', result.routed.row, result.log.join('; '));
-    setChips(executeActions(result.actions, {
+    put({ chips: executeActions(result.actions, {
       canvas: canvasApi.current || {},
       suggestDive: detail => window.dispatchEvent(new CustomEvent('small:dive-suggest', { detail })),
       climb: () => dive.navigator.climb(dive.navigator.tree.path.length - 2),
       slot, domain,
-    }));
+    }) });
     release();
     // create_material (contract §2.5): the existing Learn command path (runMaterials -> runLearnCommand), never a second
     // generator, in the plan's order; a paid card waits for Generate / Not now (offer), one proposal at a time across turns.
@@ -186,7 +192,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     // After the canvas actions, so the result is final; a sink error is swallowed and counted (emitDecision).
     if (result.trace) emitDecision(result.trace);
     return { ...result, bench: { ...result.bench, ms: { ...result.bench.ms, canvas_done: done } } };
-  }, [access, record, here.app, here.board, key, parentJourney, courseCanvas, root, canvasVersion]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [access, record, here.app, here.board, key, parentJourney, courseCanvas, root, canvasVersion, app.title]); // eslint-disable-line react-hooks/exhaustive-deps
   // Paid proposals from create_material, one at a time: each waits until the one before it is answered (PaidConfirm).
   const offer = next => (asking.current = asking.current.then(() => new Promise(done => put({ proposal: { ...next, done } }))));
   // Generate or Not now: the offer always clears and the next one shows, even when generate throws.
@@ -195,7 +201,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     try { if (generate) proposal.generate(); } finally { put({ proposal: null }); proposal.done(); }
   };
   // A new turn starts clean: the chips and the notices of the turn before (a waiting paid card stays until answered).
-  const fresh = () => { setChips([]); if (desk.notices.length) put({ notices: [] }); };
+  const fresh = () => { if (desk.chips.length || desk.notices.length) put({ chips: [], notices: [] }); };
   // Any turn in flight is busy: a stopping point for the hooks (stoppingPoint), until the last one ends.
   const tracked = async args => {
     flying.current += 1;
@@ -232,7 +238,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   // hole's parent journey and record. showing(options): the hooks on screen, named in the next turn's decision trace.
   const steps = {
     askStep, lastTurn, busy,
-    snapshot: () => ({ context: tutorContext({ ...where, journey: journeyRef.current, blocks: canvasApi.current?.blocks?.() || [] }), store: load(), parent: parentJourney, record }),
+    snapshot: () => ({ context: hookContext({ ...where, journey: journeyRef.current, blocks: canvasApi.current?.blocks?.() || [] }, parentRead), store: load(), parent: parentJourney, record }),
     showing: options => { shown.current = options; },
   };
   // Read when drawn (extras is a getter): the desk as it is now.
@@ -243,8 +249,18 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     {desk.proposal && <PaidConfirm message={desk.proposal.message} onGenerate={() => decide(true)} onCancel={() => decide(false)} />}
   </>;
   const hasMade = () => !!desk.proposal || desk.notices.length > 0;
+  // The turn's suggestion chips (Back up the Rabbit Hole among them), read when drawn; a pressed chip runs and goes.
+  const chipRow = () => desk.chips.length > 0 && <div data-tutor-chips role="group" aria-label="Tutor suggestions" className="flex flex-wrap gap-2">
+    {desk.chips.map(chip => (
+      <button key={chip.label} type="button" onClick={() => { chip.run(); put({ chips: desk.chips.filter(other => other !== chip) }); }}
+        className="rounded-full border border-line bg-white px-3 py-1 text-xs font-medium text-ink shadow-sm hover:bg-hover">
+        {chip.label}
+      </button>
+    ))}
+  </div>;
   if (!hookTurns) return { active: false, ...steps };
-  if (!active) return { active: false, ...steps, opening, get extras() { return hasMade() ? made() : null; } };
+  // Hook-only (Ruling F4): a canvas-domain hole keeps the same Back up chip as any hole (owner eleventh message 4).
+  if (!active) return { active: false, ...steps, opening, get extras() { return desk.chips.length || hasMade() ? <>{chipRow()}{made()}</> : null; } };
   return {
     active: true,
     ...steps,
@@ -269,16 +285,9 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     // Shown under the Tutor's reply in the chat (ask.jsx): the dive suggestion, whose "Keep it on
     // this canvas" also gives the next turn here dive_choice inline, the suggestion chips, and Tutor-made material's notices
     // and Generate / Not now (read when drawn).
-    get extras() { return (dive.suggestionCard || chips.length || hasMade()) ? <>
+    get extras() { return (dive.suggestionCard || desk.chips.length || hasMade()) ? <>
       {dive.suggestionCard && cloneElement(dive.suggestionCard, { onKeep: () => { save(keepHere(load(), here)); dive.suggestionCard.props.onKeep(); } })}
-      {chips.length > 0 && <div data-tutor-chips role="group" aria-label="Tutor suggestions" className="flex flex-wrap gap-2">
-        {chips.map(chip => (
-          <button key={chip.label} type="button" onClick={() => { chip.run(); setChips(previous => previous.filter(other => other !== chip)); }}
-            className="rounded-full border border-line bg-white px-3 py-1 text-xs font-medium text-ink shadow-sm hover:bg-hover">
-            {chip.label}
-          </button>
-        ))}
-      </div>}
+      {chipRow()}
       {made()}
     </> : null; },
   };

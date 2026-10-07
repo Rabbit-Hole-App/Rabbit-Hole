@@ -160,7 +160,7 @@ const dir = mkdtempSync(join(tmpdir(), 'tutor-domains-'));
 const outfile = join(dir, 'tutor.cjs');
 await esbuild.build({
   stdin: {
-    contents: ["export { useTutor } from './LearnTutor.jsx';", "export { TUTOR_DOMAINS } from './learn-tutor-domains.js';", "export { createElement } from 'react';", "export { renderToStaticMarkup } from 'react-dom/server';"].join('\n'),
+    contents: ["export { useTutor, hookContext } from './LearnTutor.jsx';", "export { TUTOR_DOMAINS } from './learn-tutor-domains.js';", "export { createElement } from 'react';", "export { renderToStaticMarkup } from 'react-dom/server';"].join('\n'),
     resolveDir: here, loader: 'jsx',
   },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent',
@@ -168,9 +168,9 @@ await esbuild.build({
 const bundled = createRequire(import.meta.url)(outfile);
 rmSync(dir, { recursive: true, force: true });
 
-function hook({ app, board = 'main', courseCanvas = false, root = null, record = { dive_id: 'canvas-0000hole', origin: {} } }) {
+function hook({ app, board = 'main', courseCanvas = false, root = null, record = { dive_id: 'canvas-0000hole', origin: {} }, navigator = null }) {
   let tutor = null;
-  const dive = { tree: root ? { dive: record, path: [root, { title: 'hole' }] } : null, suggestionCard: null };
+  const dive = { tree: root ? { dive: record, path: [root, { title: 'hole' }] } : null, suggestionCard: null, navigator };
   const Page = () => {
     tutor = bundled.useTutor({ app: { name: 'app', org: 'o', email: 'e@x.com', ...app }, board, access: { app: 'app' }, canvasApi: { current: { blocks: () => [], block: () => null } }, canvasState: { card: null }, dive, courseCanvas, journey: null });
     return null;
@@ -266,12 +266,62 @@ test('F4 through useTutor: a plain canvas and a shared-canvas hole run hook clic
   }
 });
 
+// ---- Task 10 fix round 1 ----
+// Owner eleventh message 1: a hole that may inherit a parent journey has no hook context while that read is pending; once it
+// settles, the dive domain (found) or the canvas domain (refused). hookContext is what snapshot() returns.
+test('hookContext: pending gives null; a settled refusal gives canvas; a settled parent journey gives dive; a plain hole never waits', () => {
+  const J2 = { ...J, id: 'j2' };
+  const record = { dive_id: 'canvas-0000hole', title: 'Hole', journey: DIVE };
+  assert.equal(bundled.hookContext({ record, parentJourney: null }, null), null, 'pending');
+  assert.equal(bundled.hookContext({ record, parentJourney: null }, 'canvas-0000other'), null, 'settled for another hole is still pending here');
+  assert.equal(bundled.hookContext({ record, parentJourney: null, title: 'x' }, record.dive_id).source, 'canvas', 'settled refusal');
+  assert.equal(bundled.hookContext({ record, parentJourney: { journey: J2, path: null } }, record.dive_id).source, 'dive', 'settled parent journey');
+  assert.equal(bundled.hookContext({ record: { dive_id: 'canvas-0000hole', origin: {} }, parentJourney: null }, null).source, 'canvas', 'a record without a journey never waits');
+  // useTutor before the read lands (effects never run under renderToStaticMarkup): no hook context.
+  const t = hook({ app: { name: 'canvas-0000hole' }, root: { kind: 'canvas', title: 'Parent' }, record });
+  const saved = Object.getOwnPropertyDescriptor(globalThis, 'sessionStorage'), storage = new Map();
+  Object.defineProperty(globalThis, 'sessionStorage', { value: { getItem: k => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, String(v)) }, configurable: true, writable: true });
+  try { assert.equal(t.snapshot().context, null); } finally { if (saved) Object.defineProperty(globalThis, 'sessionStorage', saved); else delete globalThis.sessionStorage; }
+});
+
+// Owner eleventh message 4 and review item 3: a canvas-domain hole keeps the same Back up chip as any hole (hook-only extras
+// draw the chips), and pressing it climbs to the parent.
+test('a canvas-domain hole: a hook turn that returns from the dive shows Back up the Rabbit Hole in extras; pressing it climbs', async () => {
+  const STEP = { v: 1, set_id: 'ns_0e0e0e0e', suggestion_id: 'ns_0e0e0e0e.1', basis: 'b', hook: 'What did the parent canvas leave open?', learning_goal: 'Return to the parent topic', concept_ids: [], claim_ids: [], scope: 'owned' };
+  const climbs = [], navigator = { climb: i => climbs.push(i), tree: { path: [{ title: 'Bread science' }, { title: 'hole' }] } };
+  const storage = new Map();
+  const globals = {
+    window: { dispatchEvent: () => true },
+    sessionStorage: { getItem: k => storage.get(k) ?? null, setItem: (k, value) => storage.set(k, String(value)) },
+    localStorage: { getItem: () => null },
+    fetch: async () => new Response(JSON.stringify({ strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: 'Back to the bigger picture.' }, { type: 'return_from_dive' }] }), { status: 200, headers: { 'Content-Type': 'application/json' } }),
+  };
+  const saved = Object.fromEntries(Object.keys(globals).map(name => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));
+  for (const [name, value] of Object.entries(globals)) Object.defineProperty(globalThis, name, { value, configurable: true, writable: true });
+  let tutor;
+  try {
+    tutor = hook({ app: { name: 'canvas-0000cccc', title: 'Exploring from Bread science' }, root: { kind: 'shared', title: 'Bread science', app: 'share:0f0f', board: 'main' }, record: { dive_id: 'canvas-0000cccc', title: 'Exploring from Bread science', origin: { parent: { app: 'share:0f0f', board: 'main' } } }, navigator });
+    assert.equal(tutor.active, false);
+    assert.equal(await tutor.askStep({ selected_next_step: STEP }), 'Back to the bigger picture.');
+  } finally {
+    for (const [name, descriptor] of Object.entries(saved)) { if (descriptor) Object.defineProperty(globalThis, name, descriptor); else delete globalThis[name]; }
+  }
+  const nodes = node => (!node || typeof node !== 'object' ? [] : Array.isArray(node) ? node.flatMap(nodes) : [node, ...nodes(node.props?.children)]);
+  assert.match(bundled.renderToStaticMarkup(tutor.extras), /data-tutor-chips[\s\S]*Back up the Rabbit Hole/);
+  nodes(tutor.extras).find(n => n.type === 'button' && n.props.children === 'Back up the Rabbit Hole').props.onClick();
+  assert.deepEqual([climbs, tutor.extras], [[0], null], 'climbed to the parent; the chip is gone');
+});
+
 test('wiring: useTutor and LearnPage decide the Tutor only through the resolver; the registry holds the one nanoGPT entry', () => {
   const tutor = read('LearnTutor.jsx'), page = read('LearnPage.jsx'), registry = read('learn-tutor-domains.js');
   assert.match(tutor, /export function useTutor\(\{ app, board, access, canvasApi, canvasState, dive, courseCanvas = false, journey = null, canvasVersion = null \}\)/);
   assert.match(tutor, /const where = \{ app: courseCanvas \? app : null, board, root, parentJourney, record, title: app\.title \?\? null \};/);
   assert.match(tutor, /const context = tutorContext\(\{ \.\.\.where, journey \}\), capabilities = context\?\.capabilities;\n  const active = capabilities\?\.tutor === true, hookTurns = active \|\| capabilities\?\.hook_turns === true;/);
   assert.match(tutor, /const domainOf = canvas => tutorContext\(\{ \.\.\.where, journey: journeyRef\.current, blocks: canvas\?\.blocks\?\.\(\) \|\| \[\] \}\)\?\.domain;/);
+  // Task 10 fix round 1: the parent read records the hole it settled for, snapshot() waits on it, and a rename rebuilds turn().
+  assert.match(tutor, /diveJourney\(record, path => api\(path\)\)\.then\(found => \{ if \(current\) \{ setParentJourney\(found\); setParentRead\(record\.dive_id\); \} \}\);/);
+  assert.match(tutor, /snapshot: \(\) => \(\{ context: hookContext\(\{ \.\.\.where, journey: journeyRef\.current, blocks: canvasApi\.current\?\.blocks\?\.\(\) \|\| \[\] \}, parentRead\),/);
+  assert.match(tutor, /\}, \[access, record, here\.app, here\.board, key, parentJourney, courseCanvas, root, canvasVersion, app\.title\]\);/);
   assert.match(page, /const tutor = useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey \}\);/);
   assert.match(page, /const suppliedCourse = learnPreview && !!registeredCourse\(\{ app \}\)\?\.capabilities\?\.suppliedCourse;/);
   assert.equal(TUTOR_DOMAINS.filter(e => e.domain === NANOGPT).length, 1);

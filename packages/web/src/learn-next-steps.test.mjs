@@ -817,3 +817,36 @@ test('onShown fires once per set at its first show, with a copy; a discarded set
   broken.ctl.update({ basis: 'a', stop: null, input }); await broken.c.fire();
   assert.deepEqual([broken.ctl.view().status, globalThis.__smallTutorTraceErrors], ['ready', before + 1]);
 });
+
+// Task 10 fix round 1 (owner eleventh message 2, 3): the basis follows the effective Tutor context - its kind, the journey and
+// section it stands on, and the goal a title grounds - so any of them changing re-asks.
+test('basis: a context kind change, another parent journey or section, and a rename that grounds the goal each re-ask', () => {
+  const b = over => nextStepsBasis({ lastTurn: null, store: emptyStore(), journey: null, canvasState: { cards: [['k1']] }, graded: 0, record: null, ...over });
+  const record = { dive_id: 'canvas-0000hole', title: 'Falls up close', journey: { journey_id: 'lj_a', section_id: 's2', concept_ids: [], claim_ids: [IDS[2]] } };
+  const dive = (r = record, parent = { journey: J, path: PATH }) => ({ record: r, parent, context: tutorContext({ record: r, parentJourney: parent }) });
+  const refused = { record, parent: null, context: tutorContext({ record, title: 'Falls up close' }) };
+  assert.deepEqual([dive().context.source, refused.context.source], ['dive', 'canvas']);
+  assert.notEqual(b(dive()), b(refused), 'the parent journey arriving (or refusing) re-asks');
+  assert.equal(b(dive()), b(dive()), 'the same context, the same basis');
+  const other = { ...record, journey: { ...record.journey, journey_id: 'lj_b' } };
+  assert.notEqual(b(dive(other, { journey: { ...J, id: 'lj_b' }, path: PATH })), b(dive()), 'the same kind, another parent journey');
+  assert.notEqual(b(dive({ ...record, journey: { ...record.journey, section_id: 's3' } })), b(dive()), 'the same kind, another parent section');
+  assert.notEqual(b({ journey: journeyView }), b({ journey: { ...journeyView, journey: { ...J, id: 'lj_z' } } }), 'another live journey');
+  // A plain canvas: its title grounds the goal, so a rename re-asks; a registered course's goal is its subject, never the page title.
+  const plain = title => ({ context: tutorContext({ title }), title });
+  assert.notEqual(b(plain('Sourdough')), b(plain('Sourdough, renamed')));
+  assert.equal(b(plain('Sourdough')), b(plain('Sourdough')));
+  const course = title => ({ context: tutorContext({ board: TUTOR_BOARD }), title });
+  assert.equal(b(course('A')), b(course('B')));
+});
+
+// Owner eleventh message 8: hooks on a plain canvas only with trustworthy grounding - a card or a chat card on it; its title
+// alone is never enough, and no goal is invented because no journey exists.
+test('stoppingPoint: a plain canvas with no card or chat card gives no hooks; a course, journey or hole goal still grounds them', () => {
+  const here = { app: 'a', board: 'main' }, store = emptyStore();
+  assert.equal(stoppingPoint({ store, here, blocks: [], goal: 'Sourdough', plain: true }), 'not_now');
+  assert.equal(stoppingPoint({ store, here, blocks: [{ id: 'c1', question: 'Why does dough rise?', answer: 'Gas.' }], goal: '', plain: true }), null, 'a chat card');
+  assert.equal(stoppingPoint({ store, here, blocks: [{ id: 'k1', type: 'explanation', title: 'Starter' }], goal: 'Sourdough', plain: true }), null, 'a lesson card');
+  assert.equal(stoppingPoint({ store, here, blocks: [], goal: 'Tidal power' }), null);
+  assert.equal(stoppingPoint({ store, here, blocks: [], goal: '' }), 'not_now');
+});

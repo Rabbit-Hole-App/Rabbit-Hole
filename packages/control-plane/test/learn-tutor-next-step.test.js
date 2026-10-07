@@ -97,6 +97,10 @@ test('CANVAS_SYSTEM: chosen by canvas_context, journey and nanoGPT requests unch
   for (const i of [0, 4, 5, 7]) assert.equal(CANVAS_SYSTEM.includes(lines[i]), false, `line ${i} names cards or claims this canvas has not got`);
   assert.match(CANVAS_SYSTEM, /never generate new artifacts unless context\.allowed_actions lists create_material/);
   assert.match(CANVAS_SYSTEM, /Never claim they know or lack something/);
-  // Pinned 2026-10-06 (Professor Next Steps Task 10, first green run).
-  assert.equal(createHash('sha256').update(CANVAS_SYSTEM).digest('hex'), '6d8cc2ce8402a0efff066fa21117bc4d6bb60b23b995e82d4c9e71e0eb25aa98');
+  // Fix round 1 (owner eleventh message 5): it describes only what a hook turn supplies - the canvas cards are never in context.
+  assert.match(CANVAS_SYSTEM, /cards may exist on it, but none are in context\. Never describe, invent or point at cards, parts or sources/);
+  assert.match(CANVAS_SYSTEM, /learner_intent\.selected_next_step \(the hook they chose and its learning_goal\)/);
+  assert.equal(/no authored cards here|Canvas content first|Also: target, relevant_authored_content/.test(CANVAS_SYSTEM), false);
+  // Pinned 2026-10-06 (Task 10 fix round 1; was 6d8cc2ce..., task-10-repin-review.md entry 5).
+  assert.equal(createHash('sha256').update(CANVAS_SYSTEM).digest('hex'), 'c4005ddb55c36286c7f030d2a0bce47db62b0618fcad622fc34e0c35d36f870c');
 });

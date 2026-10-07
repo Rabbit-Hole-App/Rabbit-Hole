@@ -10,6 +10,18 @@ import { safely } from './learn-tutor-trace.js';
 const SETUP = ['intake', 'diagnostic', 'path_review'];
 const claimIdsOf = section => (section?.expected_evidence || []).map(e => e?.claim).filter(id => typeof id === 'string');
 
+// Ruling T7: structured sources only - the journey goal; a hole's hook goal, else its parent's goal (a journey's, or the
+// course subject) and its title; else the course subject or canvas title. The learner's words travel as recent.question.
+// Shared by the input and its basis (owner eleventh message 3): a rename that changes the goal changes the basis.
+function goalOf({ context = null, record = null, title = '' }) {
+  const domain = context?.domain ?? null;
+  const parentGoal = !record ? null : context?.source === 'dive' ? domain.context?.goal : context?.source === 'registry' ? domain.subject : null;
+  const goal = context?.source === 'journey' ? domain.context?.goal || title
+    : record ? record.learning_goal || (parentGoal ? `${cap(parentGoal, 120)} - ${cap(record.title, 80)}` : record.title)
+    : domain?.subject || title;
+  return { goal, parentGoal };
+}
+
 // context: tutorContext's (or a hook turn's) { domain, source }, null where none resolves; a plain canvas or hole has the
 // canvas domain (Task 10: empty scope, block titles as grounding). store: the canvas's Tutor session store. journey:
 // useJourney's view. record/parent: a hole's dive record and its parent journey (read only). previous: { hooks, goals } already shown and chosen. describe: LearningBlocks'
@@ -71,12 +83,7 @@ export function nextStepsInput({ context = null, store = null, journey = null, b
     for (const id of back) { excluded.delete(id); for (const g of gapsOf(scope.claims, id)) pinned.add(g); }
   }
 
-  // Ruling T7: structured sources only - the journey goal; a hole's hook goal, else its parent's goal (a journey's, or the
-  // course subject) and its title; else the course subject or canvas title. The learner's words travel as recent.question.
-  const parentGoal = !record ? null : context?.source === 'dive' ? domain.context?.goal : context?.source === 'registry' ? domain.subject : null;
-  const goal = mode === 'journey' ? domain.context?.goal || title
-    : record ? record.learning_goal || (parentGoal ? `${cap(parentGoal, 120)} - ${cap(record.title, 80)}` : record.title)
-    : domain?.subject || title;
+  const { goal, parentGoal } = goalOf({ context, record, title });
   const asked = ['question', 'request'].includes(lastTurn?.kind) && lastTurn.question ? cap(lastTurn.question, L.question) : null;
   // recent names only claims and cards still in the kept input (set by fits below, after every trim step).
   const transitions = (lastTurn?.transitions || []).map(({ claim, from, to }) => ({ claim, from, to }));
@@ -157,21 +164,26 @@ const fnv = text => {
 };
 // §2.3: a finished Tutor turn, an evidence event (the session store's or the journey's, so an option answer outside a turn
 // counts), a path version, section change or section materialized, a card added or removed (ids only, order ignored: never
-// moved, selected or zoomed), a practice attempt, a graded answer, entering or leaving a hole. Nothing else is read.
-export function nextStepsBasis({ lastTurn = null, store = null, journey = null, canvasState = null, graded = 0, record = null }) {
+// moved, selected or zoomed), a practice attempt, a graded answer, entering or leaving a hole. Task 10 fix round 1 (owner
+// eleventh message 2, 3): also the effective Tutor context (context, parent: the snapshot's) - its kind (journey, dive,
+// registry, canvas), the journey it stands on (a live one, or a hole's read parent), its section - and the goal the input
+// is grounded on (goalOf, so a rename that changes it re-asks). Nothing else is read.
+export function nextStepsBasis({ lastTurn = null, store = null, journey = null, canvasState = null, graded = 0, record = null, context = null, parent = null, title = '' }) {
   const j = journey?.journey;
   return `nb_${fnv(JSON.stringify([lastTurn?.turn_id ?? null, store?.seq ?? 0, j?.evidence?.seq ?? null, journey?.path?.version ?? null, j?.active_section_id ?? null,
-    j?.section_plan?.heading_block_id ?? null, (canvasState?.cards || []).map(entry => entry[0]).sort(), canvasState?.attempts ?? 0, graded, record?.dive_id ?? null, !!store?.returned]))}`;
+    j?.section_plan?.heading_block_id ?? null, (canvasState?.cards || []).map(entry => entry[0]).sort(), canvasState?.attempts ?? 0, graded, record?.dive_id ?? null, !!store?.returned,
+    context?.source ?? null, j?.id ?? parent?.journey?.id ?? null, context?.domain?.sectionId ?? null, goalOf({ context, record, title }).goal ?? null]))}`;
 }
 
 // Not a stopping point (contract §1.2): the Tutor answering, journey work (a pending action, a section being built) or
 // setup, an open tray, an open Tutor question or a pending return on this canvas, or nothing to suggest from. Voice Mode is
-// deliberately not an input: hooks stay visible and clickable while it is on.
-export function stoppingPoint({ busy = false, journey = null, store = null, here = null, blocks = [], goal = '' }) {
+// deliberately not an input: hooks stay visible and clickable while it is on. plain: a canvas-domain canvas that is not a
+// hole (owner eleventh message 8) - only a card or a chat card on it grounds hooks, never its title alone.
+export function stoppingPoint({ busy = false, journey = null, store = null, here = null, blocks = [], goal = '', plain = false }) {
   const j = journey?.journey;
   if (busy || journey?.busy || j?.pending || (j && SETUP.includes(j.state)) || journey?.trayProps) return 'not_now';
   if ((store?.open && sameCanvas(store.open.canvas, here)) || (store?.returned && sameCanvas(store.returned.parent, here))) return 'not_now';
-  if (!blocks.length && !String(goal || '').trim()) return 'not_now';
+  if (!blocks.length && (plain || !String(goal || '').trim())) return 'not_now';
   return null;
 }
 

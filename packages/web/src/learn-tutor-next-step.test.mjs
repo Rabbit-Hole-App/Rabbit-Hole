@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { emptyStore, deriveClaimStates, appendEvents } from './learn-tutor-evidence.js';
-import { learnerIntent, plannerContext, route, runTurn } from './learn-tutor.js';
+import { executeActions, learnerIntent, plannerContext, route, runTurn } from './learn-tutor.js';
 import { actionContract, modalityOf } from './learn-tutor-actions.js';
 import { validateActions } from './learn-tutor-validate.js';
 import { canvasDomain, journeyDomain } from './learn-journey-domain.js';
@@ -418,10 +418,16 @@ test('old hole records: no learning_goal, no source, a deleted shared source - t
   assert.deepEqual([context.source, context.capabilities, context.domain.context], ['canvas', { tutor: false, hook_turns: true }, { goal: 'Exploring from Somewhere', origin: null }]);
   const { input } = nextStepsInput({ context, store: emptyStore(), journey: null, blocks: [], record, parent: null, title: '', lastTurn: null, previous: { hooks: [], goals: [] }, basis: 'b' });
   assert.deepEqual([input.mode, input.goal, input.dive.title, input.dive.parent_states, input.scope.claims], ['dive', 'Exploring from Somewhere', 'Exploring from Somewhere', {}, {}]);
-  const w = worker({ strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: 'Start with the basics.' }] });
+  const w = worker({ strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: 'Start with the basics.' }, { type: 'return_from_dive' }] });
   const r = await runTurn({ raw: '', nextStep: { ...STEP, claim_ids: [] }, materials: [], canvas: { app: record.dive_id, board: 'main', dive: record }, access: { app: record.dive_id }, block: null, store: emptyStore(), post: w.post, domain: context.domain, trace: true });
   assert.equal(r.routed.row, 'off_slice');
-  assert.ok(r.routed.allowed.includes('return_from_dive'), 'a hole can still climb back');
+  assert.ok(r.routed.allowed.includes('return_from_dive'));
+  // The accepted return becomes the Back up chip, which climbs (the hook-only extras draw it: learn-tutor-domains.test.mjs).
+  let climbed = 0;
+  const chips = executeActions(r.actions, { canvas: {}, climb: () => climbed++, domain: context.domain });
+  assert.deepEqual(chips.map(c => c.label), ['Back up the Rabbit Hole']);
+  chips[0].run();
+  assert.equal(climbed, 1, 'a hole can still climb back');
   assert.equal(r.text, 'Start with the basics.');
   assert.deepEqual([w.sent[0].body.context.canvas_context, w.sent[0].body.context.dive_context.dive_id], [{ goal: 'Exploring from Somewhere', origin: null }, record.dive_id]);
   assert.equal(r.trace.identity.mode, 'dive');
