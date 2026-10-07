@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { learnDb } from './learn-grade-fixture.js';
 import { tutorRoute } from '../src/learn-tutor-routes.js';
 import { HANDOFF_BODY_CHARS, HANDOFF_CAPABILITIES, HANDOFF_CAPS } from '../src/learn-tutor-handoff.js';
-import { CANVAS_TARGET_HEADER } from '../src/agents/learn-chat.js';
+import { CANVAS_TARGET_HEADER, LEARN_RESEARCH_SYSTEM } from '../src/agents/learn-chat.js';
 import { REPOSITORY_SYSTEM, REPOSITORY_TOOLS } from '../src/repository-context.js';
 import { repositoryApp } from '../src/repositories.js';
 import { canvasApp } from '../src/canvases.js';
@@ -80,7 +80,11 @@ test('success: the reader reads the canvas repository and the answer comes back 
   const first = model.calls[0];
   assert.equal(first.model, null, 'Learn chat Auto: the existing path model, no picker');
   assert.ok(first.body.system.includes(REPOSITORY_SYSTEM), 'the repository instructions ride as on a Learn chat repository ask');
-  for (const tool of REPOSITORY_TOOLS) assert.ok(first.body.tools.some(sent => sent.name === tool.name), `${tool.name} offered`);
+  for (const call of model.calls) {
+    assert.deepEqual(call.body.tools.map(tool => tool.name), REPOSITORY_TOOLS.map(tool => tool.name), 'exactly the repository tools, no paper tools');
+    assert.equal(call.body.system.includes(LEARN_RESEARCH_SYSTEM), false, 'no research system text naming tools it was not given');
+    assert.equal(/arxiv|show_paper/i.test(call.body.system), false);
+  }
   assert.match(firstUserText(first), new RegExp(`"repo":"karpathy/nanoGPT","commit":"${SHA}"`));
   const toolResult = JSON.stringify(model.calls[1].body.messages.at(-1).content);
   assert.match(toolResult, /2: {5}def forward/, 'the real read-only tool read the indexed file');

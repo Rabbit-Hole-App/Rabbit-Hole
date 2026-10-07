@@ -4,7 +4,8 @@
 // request contract stays the same. One entry now, repository_context: the Learn chat repository ask's own reader
 // (repositories.js repositoryAsk) - repositorySnapshot at the commit, the selection in the forms that ask already takes
 // (commit, a nodeId through get_relationships, a range through read_source), the read-only REPOSITORY_TOOLS through
-// repositoryTool, and researchAnswer on LEARN_TASKS.chat (Auto) - on the canvas's repository, resolved as the shared ask
+// repositoryTool, and researchAnswer on LEARN_TASKS.chat (Auto) with arxiv: false, so exactly the repository tools and no
+// paper tool or research system text (research stays its own workflow) - on the canvas's repository, resolved as the shared ask
 // resolves it (boardRevision). context.card (the selected card) rides as that ask's canvas target section, grounding only.
 // The one write is the usage row (shared_ask_events, category tutor_handoff, coordinator ruling): no thread, message, moment,
 // canvas or evidence. Limits are that ask's own (the 64 KB body, the research step cap, the chat answer tokens) plus a per-user
@@ -71,7 +72,7 @@ async function readRepository(env, access, { app, request, selection, card }, ca
   const context = appendCanvasTarget(JSON.stringify({ repo: snapshot.repo, commit, selected, selectedCode }), card);
   const question = [request.trim(), ...grounding].join('\n\n');
   const result = await researchAnswer(env, [{ role: 'user', content: `${context}\n\n---\n\n${question}` }], `${LEARN_SYSTEM}\n${REPOSITORY_SYSTEM}`, null,
-    { callModel, tools: REPOSITORY_TOOLS, runTool: async (name, input) => repositoryTool(snapshot, name, input) });
+    { callModel, arxiv: false, tools: REPOSITORY_TOOLS, runTool: async (name, input) => repositoryTool(snapshot, name, input) });
   return result.answer;
 }
 

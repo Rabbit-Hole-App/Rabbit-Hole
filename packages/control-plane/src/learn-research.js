@@ -16,16 +16,18 @@ export async function modelFailure(response, label, suffix = '') {
 // search+read+read+show on one source family and still consult another.
 // onProgress(stage, card): card ('paper' | 'wiki' | 'video') once a show tool has validated, so the page
 // can hold that card's place on the canvas (docs/features/canvas-skeleton-cards.md).
+// arxiv: false (the Tutor repository_context handoff, learn-tutor-handoff.js) offers only the caller's tools and leaves out
+// LEARN_RESEARCH_SYSTEM, so no paper tool is sent, named or run; every other caller keeps the default.
 const SHOWN_CARD = { show_wikipedia: 'wiki', show_video: 'video' }; // learn-wiki.js, learn-youtube.js
 export async function researchAnswer(env, turns, system, model, {
-  callModel, onProgress = async () => {}, findPapers = searchArxiv, readPaper = readArxivPaper, initialPapers = [], tools = [], runTool,
+  callModel, onProgress = async () => {}, findPapers = searchArxiv, readPaper = readArxivPaper, initialPapers = [], tools = [], runTool, arxiv = true,
 }) {
   const messages = [...turns], papers = new Map(initialPapers.map(p => [p.id, p]));
   let shown = null; // a paper the agent asked to put in front of the learner
   for (let step = 0; step <= RESEARCH_STEPS; step++) {
     const response = await callModel(env, {
-      max_tokens: LEARN_TASKS.chat.maxTokens, system: `${system}\n${LEARN_RESEARCH_SYSTEM}`,
-      tools: [...tools, SEARCH_ARXIV_TOOL, READ_ARXIV_TOOL, ...(papers.size ? [SHOW_PAPER_TOOL] : [])],
+      max_tokens: LEARN_TASKS.chat.maxTokens, system: arxiv ? `${system}\n${LEARN_RESEARCH_SYSTEM}` : system,
+      tools: arxiv ? [...tools, SEARCH_ARXIV_TOOL, READ_ARXIV_TOOL, ...(papers.size ? [SHOW_PAPER_TOOL] : [])] : tools,
       tool_choice: step < RESEARCH_STEPS ? { type: 'auto', disable_parallel_tool_use: true } : { type: 'none' },
       messages,
     }, model, null);
@@ -51,16 +53,16 @@ export async function researchAnswer(env, turns, system, model, {
     const call = calls[0];
     let content, is_error = false;
     try {
-      if (call.name === SEARCH_ARXIV_TOOL.name) {
+      if (arxiv && call.name === SEARCH_ARXIV_TOOL.name) {
         await onProgress('Finding papers...');
         content = [{ type: 'text', text: JSON.stringify(await findPapers(call.input.query)) }];
-      } else if (call.name === READ_ARXIV_TOOL.name) {
+      } else if (arxiv && call.name === READ_ARXIV_TOOL.name) {
         await onProgress('Reading paper...');
         if (papers.size >= PAPERS_PER_ANSWER && !papers.has(call.input.id)) throw new Error('Use the papers already read');
         const paper = await readPaper(call.input.id);
         papers.set(paper.id, paper);
         content = [{ type: 'text', text: JSON.stringify(paper) }, paperDocument(paper)];
-      } else if (call.name === SHOW_PAPER_TOOL.name) {
+      } else if (arxiv && call.name === SHOW_PAPER_TOOL.name) {
         shown = validateShowPaper(call.input, [...papers.values()]);
         await onProgress(`Opening ${shown.title}...`, 'paper');
         content = [{ type: 'text', text: JSON.stringify({ opened: true, page: shown.page, note: PAPER_SHOWN_NOTE }) }];
