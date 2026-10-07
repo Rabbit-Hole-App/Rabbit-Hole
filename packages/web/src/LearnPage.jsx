@@ -46,7 +46,7 @@ import { TutorCaption } from './VoiceMode.jsx';
 import ForkButton from './ForkButton.jsx';
 import { ForkedFrom } from './home/Provenance.jsx';
 import { cardModel } from './home/provenance.js';
-import { hasLocalContent } from './home/canvas-local.js';
+import { hasLocalContent, unsavedKey } from './home/canvas-local.js';
 import { boardText, serial, sharingOf } from './canvas-persist.js';
 
 const LearnNotes = lazy(() => import('./LearnNotes.jsx'));
@@ -718,13 +718,15 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
     }
     boardUnsynced.current = false;
     boardRefused.current = null;
+    try { localStorage.removeItem(unsavedKey({ ink: boardStorageKey })); } catch { /* the cards read it as unsaved */ }
   };
   // A refused PUT keeps this browser's copy and says why (canvas-persistence.md). No status: offline, so it waits for the
   // reconnect. 409: another tab or device saved since, so pushing stops until reload. Anything else (over 1.9 MB): the
-  // server's own words, once, and the next edit tries again.
+  // server's own words, once, and the next edit tries again; Home and the Library keep calling it browser-only (step 8).
   const refused = error => {
     boardUnsynced.current = true;
     if (!error.status) return;
+    if (error.status === 413) try { localStorage.setItem(unsavedKey({ ink: boardStorageKey }), '1'); } catch { /* not kept */ }
     if (error.status === 409) {
       boardStopped.current = true;
       toast('This board changed in another tab or on another device. Reload to see those changes; your newer edits here are not saved.', { tone: 'error' });

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ArrowRight, ArrowUpRight, Compass, Search } from 'lucide-react';
 import { navigate } from './api.js';
 import { reviewTools } from './flags.js';
-import { openHref, readContinue, readRecent, recentCard, recentItems } from './home/continue.js';
+import { browserOnly, openHref, readContinue, readRecent, recentCard, recentItems } from './home/continue.js';
 import LearningCard, { CARD_GRID, IN_THIS_BROWSER as HERE, ON_ANOTHER_DEVICE as AWAY, SortMenu } from './home/LearningCard.jsx';
 import PublicCards, { CreatorChip } from './home/PublicCards.jsx';
 import { EXPLORE_SORTS } from './home/card-sort.js';
@@ -76,14 +76,14 @@ function HomeContent({ data, load }) {
 }
 
 // Continue (owner 2026-10-06 §13, §19): the canonical card - the card and its title open it, with a small Continue →
-// and no big blue button - and where this browser left off. Its heading keeps "on this device" until server
-// persistence makes it cross-device; the item is still small.recent's (continue.js), not learner activity.
+// and no big blue button - and where this browser left off. "Continue learning" (§19) since the cross-device proof
+// (canvas-persistence.md, step 8); the item is still small.recent's (continue.js), not learner activity.
 function Continue({ item, app, email }) {
   const go = () => navigate(openHref(item));
   const a = app || { kind: item.kind, name: item.slug, title: item.title };
   return (
     <section aria-label="Continue">
-      <h2 className={HEADING}>Continue — on this device</h2>
+      <h2 className={HEADING}>Continue learning</h2>
       <ul className={CARD_GRID}>
         <LearningCard kind={a.kind} schedule={a.schedule} m={cardModel(a)} attrs={{ 'data-continue-card': '' }} href={openHref(item)} onOpen={go}
           mine={isMine(a, email)} access={a.kind === 'canvas' ? a.access : null}
@@ -91,7 +91,7 @@ function Continue({ item, app, email }) {
             <>
               <span className="truncate">{item.lastExplored ? <>Last explored: <span className="text-ink-2">{item.lastExplored}</span></> : 'Pick up where you left off'}</span>
               {item.next && <span className="truncate">Next: <span className="text-ink-2">{item.next}</span></span>}
-              {item.canvas && HERE}
+              {item.canvas && browserOnly(a, email, localStorage) && HERE}
             </>
           )}
           cta={<button type="button" data-continue-link onClick={stop(go)} className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-sm text-[13px] font-medium text-accent hover:underline">Continue <ArrowRight size={13} className="nudge-arrow" /></button>} />
@@ -101,14 +101,14 @@ function Continue({ item, app, email }) {
 }
 
 // Recent: the same card for what was opened in this browser. A canvas says where its content is (continue.js
-// recentCard: no action means another browser holds it, and then it does not open from here). Jobs and servers keep
-// their own line and action.
+// recentCard: no action means another browser holds it, and then it does not open from here; a board on the server
+// says nothing). Jobs and servers keep their own line and action.
 function RecentCard({ app, card, email }) {
   const { action, meta } = card;
   const go = (to) => (app.fixture ? fixtureNote() : navigate(to));
   const learning = app.kind === 'canvas' || app.kind === 'repository';
   const note = app.fixture ? null
-    : app.kind === 'canvas' ? (action ? HERE : AWAY)
+    : app.kind === 'canvas' ? (!action ? AWAY : browserOnly(app, email, localStorage) ? HERE : null)
     : app.kind === 'repository' ? (app.status !== 'ready' ? `Map ${app.status}` : null)
     : meta.join(' · ');
   const link = 'inline-flex items-center gap-1 rounded-sm text-[13px] font-medium text-accent hover:underline';

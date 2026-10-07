@@ -46,13 +46,14 @@ export async function repositoryIdentity(req,env) {
 }
 export function repositoryApp(row,user) {
   return {...row,kind:'repository',hosting:'repository',email:user.email,orgName:user.orgName,visibility:'domain',members:[],canView:true,canEdit:row.owner_email===user.email,
-    repo_url:`https://github.com/${row.repo}`,repo_branch:row.branch,repo_commit:row.commit_sha,description:`Learn from ${row.repo}`,url:`/apps/${row.name}`,inputs:{},outputs:{}};
+    repo_url:`https://github.com/${row.repo}`,repo_branch:row.branch,repo_commit:row.commit_sha,description:`Learn from ${row.repo}`,url:`/apps/${row.name}`,inputs:{},outputs:{},board_saved:!!row.board_saved};
 }
 // The caller's own projects (usage-credits.md §14, privacy P0): a shared email domain is not a
 // shared Library. Nothing is shared explicitly yet, so owned is the whole personal Library.
 export async function ownerRepositories(env,user){
   // The owner's @handle and display name by reference (docs/features/user-handles.md), as on canvas cards; never an email.
-  const {results}=await env.LEARN_DB.prepare(`SELECT r.*,(SELECT handle FROM user_handles WHERE email=r.owner_email) AS owner_handle,(SELECT name FROM user_profiles WHERE email=r.owner_email) AS owner_name FROM repository_apps r WHERE r.org=? AND r.owner_email=? AND ${NOT_TRASHED('r.org','r.name')} ORDER BY r.created_at DESC`).bind(user.org,user.email).all();
+  // board_saved: its Learn main board (LearnPage boardPath /api/learn/boards/<repo>/main) is on the server (canvas-persistence.md, step 8).
+  const {results}=await env.LEARN_DB.prepare(`SELECT r.*,(SELECT handle FROM user_handles WHERE email=r.owner_email) AS owner_handle,(SELECT name FROM user_profiles WHERE email=r.owner_email) AS owner_name,EXISTS(SELECT 1 FROM learn_boards b WHERE b.org=r.org AND b.owner_email=r.owner_email AND b.app=r.name AND b.board='main') AS board_saved FROM repository_apps r WHERE r.org=? AND r.owner_email=? AND ${NOT_TRASHED('r.org','r.name')} ORDER BY r.created_at DESC`).bind(user.org,user.email).all();
   return results.map(row=>repositoryApp(row,user));
 }
 // D1 occasionally throws a transient internal error ("object to be reset");

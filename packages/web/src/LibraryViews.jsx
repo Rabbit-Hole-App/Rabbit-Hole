@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AlignLeft, AppWindow, Archive, ArrowRight, ArrowUpRight, BarChart3, BookOpen, Check, ChevronRight, CopyPlus, Eye, FolderGit2, GitFork, Link2, Trash2, ListFilter, Loader2, Network, PenLine, Pin, PinOff, Play, UserRound, X } from 'lucide-react';
 import { titleOf } from './agent/catalog.js';
 import { ago, api, navigate } from './api.js';
-import { onAnotherDevice, readRecent } from './home/continue.js';
+import { browserOnly, onAnotherDevice, readRecent } from './home/continue.js';
 import { canvasKeys, localBoard } from './home/canvas-local.js';
 import ForkButton from './ForkButton.jsx';
 import { postFork } from './canvas-fork.js';
@@ -195,7 +195,7 @@ export function ActiveFilters({ type, section, archived }) {
 }
 
 // The Library's card (docs/features/card-redesign.md): the canonical LearningCard with the owner's ⋮, and this browser's
-// truthful content state until server persistence makes it cross-device (owner §5: never hidden before then).
+// truthful content state only for a canvas whose board is not on the server (canvas-persistence.md, step 8).
 // The whole card and its title open it (no Open button, §13); its own canvases carry the blue Owned-by-you badge beside
 // the @handle. A canvas keeps Fork (docs/features/canvas-forking.md) as the neutral secondary action §13 names: your own
 // canvas forks from what this browser holds, else its server copy, and the new canvas joins this Library at once.
@@ -203,7 +203,7 @@ function LibraryCard({ a, ctx, onMore }) {
   const away = a.kind === 'canvas' && !a.fixture && onAnotherDevice(a, ctx.email, ctx.storage);
   // No 'Map ready' label (owner, 2026-10-04): only a Map still indexing or failed says so.
   const note = a.fixture ? null
-    : a.kind === 'canvas' ? (away ? ON_ANOTHER_DEVICE : IN_THIS_BROWSER)
+    : a.kind === 'canvas' ? (away ? ON_ANOTHER_DEVICE : browserOnly(a, ctx.email, ctx.storage) ? IN_THIS_BROWSER : null)
     : a.status !== 'ready' ? `Map ${a.status}` : null;
   const fork = a.kind !== 'canvas' ? null
     : a.fixture ? <Button size="sm" variant="secondary" onClick={stop(fixtureNote)}><GitFork size={13} strokeWidth={1.8} />Fork</Button>
