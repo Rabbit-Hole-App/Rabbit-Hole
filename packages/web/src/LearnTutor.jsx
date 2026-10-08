@@ -45,12 +45,13 @@ export const tutorStoreKey = (app, journeyId, record, canvas = null) => (journey
 // has not asked yet: fix B4; a carried hook is a next_step turn and keeps them) and a journey in setup (no card before the
 // path is accepted, LP1); research - the Research this offer, only where the page wired openResearch and never in setup (fix
 // A1: the journey prompt's setup line allows words only); journeyOffer - suggest_journey, where journeys are supported here
-// (journey.start), never in setup and never inside a hole (fix B1); on a live journey too (fix round 2), where the click meets
-// LP1's own continue-or-start; repository (Task 11c-B) - the repository_context handoff, where the canvas reads a repository,
-// never in setup (the journey prompt's setup line allows words only).
+// (journey.start), never inside a hole (fix B1); on a live journey too (fix round 2), and in setup too (owner 2026-10-07: the
+// chip is how a learner switches subject mid-setup), where the click meets LP1's own continue-or-start, the confirmation naming
+// both subjects; repository (Task 11c-B) - the repository_context handoff, where the canvas reads a repository, never in setup
+// (the journey prompt's setup line allows words only, and the learning-path offer).
 export function turnOffers({ journey = null, record = null, opening = false, nextStep = null, openResearch = null, repository = false }) {
   const setup = inJourneySetup(journey?.journey);
-  return { materials: setup || (opening && !nextStep) ? [] : materialCommands(), research: !!openResearch && !setup, journeyOffer: !!journey?.start && !setup && !record, repository: !!repository && !setup };
+  return { materials: setup || (opening && !nextStep) ? [] : materialCommands(), research: !!openResearch && !setup, journeyOffer: !!journey?.start && !record, repository: !!repository && !setup };
 }
 // Whether a canvas reads a repository (Task 11c-B), from its app data alone: a repository app, or a canvas in a project - the
 // two forms the handoff route resolves (learn-shared-ask.js boardRevision). Never the learner's words.
