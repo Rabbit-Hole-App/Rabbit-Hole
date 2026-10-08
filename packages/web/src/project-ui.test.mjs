@@ -31,7 +31,7 @@ test('a project is Files · Graph · Learn: no Overview, one restrained tab row,
   // links on to the Map (owner, 2026-10-08); a project's other canvases have no repository context, so theirs goes to the Map.
   assert.match(learnView, /onMap=\{\(\)=>go\('map'\)\}/);
   assert.match(learnView, /<CanvasLearn key=\{picked\.name\} app=\{picked\} project=\{app\} onMap=\{\(\)=>go\('map'\)\} switcher=\{switcher\}\/>/);
-  assert.match(learnView, /<LearnPage app=\{app\} files=\{snapshot&&reader\(\{query:'',stacked:true\}\)\}/);
+  assert.match(learnView, /<LearnPage app=\{app\} files=\{snapshot&&reader\(\{query:'',stacked:true,place:'panel'\}\)\}/);
   assert.match(learn, /\{onMap && <button type="button" data-learn-map title=\{files \? "Files: read this repository's code and ask about it" : "Map: this repository's code graph"\} aria-label=\{files \? 'Repository files' : 'Map'\}\n\s+onClick=\{files \? \(\) => \{ setPanelOpen\(true\); setPanelTab\('files'\); \} : onMap\}/);
   assert.match(learn, /<PanelHeader [^\n]*filesOn=\{!!files\}/);
   assert.match(learn, /\{files && <div role="tabpanel" aria-label="Repository files" data-learn-files className=\{`\$\{panelTab === 'files' \? 'flex' : 'hidden'\}[^\n]*\n[\s\S]{0,200}<button type="button" data-learn-open-map onClick=\{onMap\}[^\n]*>Open the Map →<\/button>[\s\S]{0,40}\{files\}/);

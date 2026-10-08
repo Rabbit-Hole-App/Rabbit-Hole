@@ -140,16 +140,56 @@ Unchanged: the Sources dropdown under an answer lists only the files the server'
   the canvas).
   On the project's Main canvas the icon opens the repository's **Files** in the right panel instead (owner, 2026-10-08):
   the Map's own reader (`CodeReader`, stacked for the narrow panel) under a Files tab, with **Open the Map →**
-  (`data-learn-open-map`) to go on to the Map. A click on a file or a symbol, or Ask or Learn on selected lines,
-  attaches it as on the Map: it becomes Learn's repository context ("Asking about: train.py:5–7"), Ask writes its
+  (`data-learn-open-map`) to go on to the Map. A click on a file or a symbol, or Ask in chat on selected lines,
+  attaches it as on the Map: it becomes Learn's repository context ("Asking about: train.py:5–7"), Ask in chat writes its
   question into the chat and sends nothing. A project's other canvases have no repository context, so their icon still
   goes to the Map.
+
+## Files in Learn (owner's clarification, 2026-10-08)
+
+**Selection toolbar.** In the right panel, a selection offers exactly two actions: **Ask in chat** and **Copy**.
+- `CodeReader` takes `place: 'panel'`; RepositoryPage's panel reader passes it.
+- The panel shows no Learn. The Map's own toolbar keeps **Ask** and **Learn**.
+
+**Ask in chat** works as Ask on the Map:
+- the lines become Learn's repository context;
+- the question is written into the chat ("What do lines 5–7 of train.py do?"), and nothing is sent.
+
+**Copy:**
+- It puts the selected lines on the clipboard.
+- The button itself reads **Copied** for a moment. There is no corner toast.
+- The copy is remembered in this tab with its file, so pasting it on the canvas keeps the file's name (below).
+- Ctrl+C in any source reader is remembered the same way.
+
+**The chat chip** keeps its first line, "Asking about: train.py:5–7 · 3adf61e", and adds:
+- a second line with the file's path and the lines, for example `train.py · lines 5–7`, or `Whole file` for a file;
+- for lines, the first three as a preview.
+
+The preview text is display only (`repositoryExcerpt`). The request carries the range, and the server reads its own copy at that commit. The chip's × removes it.
+
+**Send.** A question with a file or lines attached is answered by the repository reader on the Learn chat path:
+- `POST /api/learn/ask` → `repositoryAsk`, with `repository_context.range` (or `path`), as a Map ask is.
+- It does not go through a Tutor turn: the Tutor answers typed turns on every canvas, and its turn does not carry Learn's repository context.
+- A symbol context stays with the Tutor.
+- The chat bubble shows the passage line above the question.
+
+**Pasting code on the canvas.** Code pasted onto the canvas opens the file-drop **Add to canvas** dialog first ([canvas-file-drop.md](canvas-file-drop.md)), with the choices **Code card** and **Jupyter notebook**.
+- **Cancel or Escape** places nothing.
+- **Nothing runs or installs, and no model is asked.**
+- **When it counts as code:**
+  - Text copied from a repository file is always code. It keeps the file's name, path and language, and as a Code card it keeps its lines as a code source.
+  - Other text is code only when a conservative heuristic says so: two or more lines, with at least 60% of them reading as code (`canvas-paste.js` `looksLikeCode`, marked `ponytail:`). It is named `snippet.py`.
+  - Prose, lists and single lines paste as text, as before.
+  - Images and the canvas's own copied cards are unchanged.
 
 ## Tests
 
 - Web unit: `agent/scope.test.mjs` (range context, chips, ×), `agent/ask-stream.test.mjs` (range on the wire),
   `agent/router.test.mjs` (show … with a selection),
   `code-reader.test.mjs` (tree, search), `project-ui.test.mjs` (navigation, Layers, one selection).
+- Files in Learn:
+  - Web unit: `map-files.test.mjs` covers the panel's two actions, Copy's in-place feedback, the chip's path, lines and preview, the Send path, the paste heuristic, and the paste dialog's choices and cards.
+  - Browser: cases 10, 10b and 10c of `repo-browser-check.mjs` cover Ask in chat and the chip, Copy and the clipboard, the paste dialog with Cancel and Escape, a Code card, prose as text, and Send carrying the range.
 - Server: `control-plane/test/repositories.test.js`, the large-range case.
 - Browser: `packages/web/e2e/repo-browser-check.mjs` on the local stack, one numbered case per brief §16 item, with the
   shared nanoGPT stub and `/api/learn/ask` stubbed. `workspace-check.mjs` and the Map cases of `rabbit-hole-check.mjs`

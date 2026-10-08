@@ -12,6 +12,8 @@ export const CARD_LIMIT = 1_900_000;
 export const IMPORT_CHOICES = {
   ipynb: [['notebook', 'Notebook'], ['attachment', 'File attachment']],
   py: [['code', 'Code card'], ['notebook', 'Notebook'], ['attachment', 'File attachment']],
+  // Code pasted onto the canvas (docs/features/repository-browser.md "Files in Learn"): the same dialog, these two choices only.
+  paste: [['code', 'Code card'], ['notebook', 'Jupyter notebook']],
 };
 export const importKind = (name) => (/\.ipynb$/i.test(name || '') ? 'ipynb' : /\.py$/i.test(name || '') ? 'py' : null);
 const mb = (n) => `${(n / MB).toFixed(1)} MB`;
@@ -85,10 +87,25 @@ export function importBlock({ name: raw, kind, choice, text, assetKey, size }) {
   if (choice === 'code') block = { id: crypto.randomUUID(), type: 'snippet', dx: 0, dy: 0, title: name, code: text, output: '', source_asset: assetKey };
   else if (kind === 'ipynb') block = { ...newNotebookBlock(), active_path: name, files: [name], ipynb_path: name, ipynb: trimOutputs(safeOutputs(parseNotebook(text, name))), source_asset: assetKey };
   else {
-    const notebook = name.replace(/\.py$/i, '.ipynb');
+    const notebook = `${name.replace(/\.[^.]+$/, '')}.ipynb`; // train.py -> train.ipynb; a pasted utils.js keeps its own name beside it
     block = { ...newNotebookBlock(), active_path: notebook, files: [notebook, name], ipynb_path: notebook, ipynb: pyNotebook(text), seed_files: { [name]: text }, source_asset: assetKey };
   }
   const length = JSON.stringify(block).length;
   if (length > CARD_LIMIT) throw Error(`${name}: a ${choice === 'code' ? 'code' : 'notebook'} card keeps its content in the canvas, up to 1.90 MB, and this one needs ${(length / 1e6).toFixed(2)} MB. Add it as a File attachment (up to 25 MB) instead.`);
   return block;
+}
+
+// Pasted code (docs/features/repository-browser.md "Files in Learn"): the name the dialog shows and the card keeps - a Files copy's own file name, else
+// snippet.py - and the card for the confirmed choice, through importBlock. A Files copy keeps its path and language, and a
+// Code card its lines as a code source (card-sources.js), so the card says where it came from. Nothing runs or installs.
+export const pasteName = (copy) => (copy?.path ? copy.path.split('/').pop() : 'snippet.py');
+export function pasteBlock({ text, copy = null, choice, assetKey, language = null }) {
+  const block = importBlock({ name: pasteName(copy), kind: 'paste', choice, text, assetKey, size: text.length });
+  const lines = copy?.repo && Number.isInteger(copy.start) && Number.isInteger(copy.end) ? [copy.start, copy.end] : null;
+  return {
+    ...block,
+    ...(copy?.path ? { path: copy.path } : {}),
+    ...(language ? { language } : {}),
+    ...(choice === 'code' && lines ? { sources: [{ kind: 'code', repo: copy.repo, revision: copy.commit, path: copy.path, lines }] } : {}),
+  };
 }
