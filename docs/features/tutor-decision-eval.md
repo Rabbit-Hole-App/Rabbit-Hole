@@ -142,10 +142,11 @@ All files are in `tests/evals/tutor-session/`. Everything is generic and tested 
 | `creator.mjs` | Creator analytics with the 10-learner cohort rule at every level (§17). |
 | `fixtures/` | Topic fixtures (`logistic-regression`, `photosynthesis`), simulator-only profiles, `taxonomy.json` (the eval's labels over the product's modality names, its reason-code checks, relations, review thresholds) and `cost-roles.json` (product roles; the material roles still provisional). |
 | `tutor-session.test.mjs` | 35 tests on the scripted fake world (the generic harness, metrics, cost, materials, graph). |
-| `product.test.mjs` | 8 tests on the real product path: the end-to-end path, provider isolation, tracing on/off, the production validators, the stopping point, no copied logic, taxonomy names, mapping. |
+| `product.test.mjs` | 9 tests on the real product path: the end-to-end path, provider isolation, tracing on/off (seeded, and under the product's normal randomness), the production validators, the stopping point, no copied logic, taxonomy names, mapping. |
+| `budget.test.mjs` | 5 tests: complete-request worst cases, reservations, the ceiling's scope, the simulator and reviewer requests, every product request reserved. |
 | `creator.test.mjs` | 7 tests: suppression, the cohort at every cut, no double counting, no learner identity, the public profile, impressions from the product's events. |
 
-All 50 run in `make test-unit`.
+All 56 run in `make test-unit`. They are scripted: they establish the plumbing, routing, validation and evidence rules, never real-model teaching quality (every bundle carries `coverage`, §19).
 
 There is no topic or profile branch in the code, and a test enforces it:
 - No harness source names a topic id, a topic title word or a profile id.
@@ -534,11 +535,18 @@ The ledger never infers a remaining account balance. A provider balance API, if 
 - a remediation branch that never returns (`method: heuristic`: the target is a leaf off the main path; there is no explicit return signal yet);
 - side explorations dominating the session.
 
-## 15. Architecture review in Figma (pending)
+## 15. Architecture review in Figma
 
-The owner's 15-frame review section, "Tutor Evaluation + Telemetry — Architecture Review" in Figma file
-`ef9SfiemEsPQF2bd8B1os3`, is built only after the rebase onto the real Professor Next Steps + TutorDecisionTrace
-checkpoint and the reconciliation of A1–A12. It uses synthetic sample traces and no paid run.
+**Where.** The section "Tutor Evaluation + Telemetry — Architecture Review" is node `275:222` on page
+`WP4 · deployed review` of `ef9SfiemEsPQF2bd8B1os3`: 15 frames, built from synthetic traces, with no paid run.
+
+**First review (owner, 2026-10-07).** Reviewed at evaluator `adc3057f`. The owner asked for:
+- the validation rerun on Parallel's integrated candidate;
+- tracing equivalence under the product's normal randomness;
+- complete-request budget enforcement in place of chars/3.
+
+The commit after `adc3057f` answers the last two; frames 01, 08, 12 and 15 carry its status. The integrated rerun waits
+for Parallel's candidate SHA.
 
 ## 16. Isolation and the proofs (free tests)
 
@@ -566,12 +574,24 @@ checkpoint and the reconciliation of A1–A12. It uses synthetic sample traces a
   - Hook sets come through the controller and the owned route.
   - Each `tutor_decision`'s `prompt_version` equals the hash of the request the planner really sent.
   - Hooks start `HOOK_DEBOUNCE_MS` into the reading.
-- **Tracing on or off.**
-  - Randomness and the clock are seeded.
-  - The trace module draws its ids from its own stream; with one shared stream they would shift the product's ids.
-  - Three turns and a hook set give identical provider requests byte for byte, identical product results (actions,
-    contracts, text, reason codes, readings, states, transitions, route, store) and identical hook sets, ids included.
+- **Tracing on or off, under the product's normal randomness.** Nothing is patched: real crypto and the real clock.
+  - Opaque values the product mints or derives from its random source are renamed in order of first appearance across
+    the run's whole transcript: the journey id, the hook basis hashed from it, hook-set and suggestion ids, session and
+    decision ids, and any UUID. Wall-clock timestamps become `<time>`.
+  - After renaming, three turns and a hook set give identical provider requests, identical product results and identical
+    hook sets. The product results compared are actions, contracts, text, reason codes, readings, states, transitions,
+    route and store. The raw ids differ between the runs.
+  - A recurring value keeps one name, so references survive: the clicked suggestion id travels into later planner requests
+    under the same name in both runs.
+  - The comparison is not vacuous: different learner words give a different transcript.
   - With tracing off, no event is built.
+- **Tracing on or off, byte for byte (seeded).** Randomness and the clock are seeded, and the trace module draws its ids
+  from its own stream.
+  - Limitation: the split is found by inspecting the caller's file on the stack. The byte equality holds only under that
+    split, not under the product's single shared random source, where the trace's draws shift every later id.
+  - A refactor that mints trace ids in another module would change the split without any test failing.
+  - Date and crypto are patched globally for the run.
+  - The normalized comparison above is the one that holds under the product's own wiring.
 - **Production validators and escalations run,** as no eval copy could:
   - a planned action the route does not allow is dropped (`validation.dropped_actions`, `ok: false`);
   - a routine hook reply that opens with a command and has no ids escalates (`escalated:validator`, rule names
@@ -661,29 +681,52 @@ the integrated SHA.
 - **Models.**
   - Learner simulator: Sonnet 5.5, one call per decision.
   - Reviewer: Opus 5.5, one call per session.
-- **Transport.** The same `providerBoundary`, with the stub replaced by the real Anthropic and JEV transports. The
-  ledger's guard prices every request's worst case (its own `max_tokens`, input at chars/3) before it is sent.
-- **Ceiling.**
-  - Hard ceiling: $4.00 of Anthropic spend, with a $1.30 sub-ceiling per session so all three profiles get coverage.
-  - A session whose next worst case does not fit stops with `cost_ceiling` and keeps every event.
-  - JEV is logged apart, its cost unknown unless the provider reports one.
+- **Transport.** The same `providerBoundary`, with the stub replaced by the real Anthropic and JEV transports (not wired).
+- **Budget enforcement.** Built and tested offline in `budget.test.mjs`; chars/3 is gone.
+  - **Worst case of one request** (`requestWorstCase`):
+    - Input tokens are bounded by the complete serialized request's UTF-8 bytes plus 1000 tokens of API overhead.
+    - Output is bounded by the request's own `max_tokens` (thinking included).
+    - Input is priced at the cache-write rate when the request marks a cache breakpoint; fast mode doubles the price.
+    - A request is refused, since it has no bound, when it has no `max_tokens`, no priced model (a server-side default),
+      an image, or a non-text document.
+  - **The tokenizer assumption.** The bound assumes at least one byte per token. That is not a published guarantee, so
+    every settled line carries its `reserved_usd`, and a reported cost above it is a bound violation that stops the
+    session.
+  - **Reservations.** Every request is reserved at the boundary before it is sent.
+    - Requests in flight together, such as an evaluation beside the planner, count together.
+    - A retry or an escalation is another request and reserves again.
+    - The simulator and the reviewer send complete requests (`learnerRequest`, `reviewerRequest`) through the same ledger.
+    - A failure with no reported usage keeps its whole reservation as spend.
+    - A parent ledger holds the run's hard ceiling over each session's sub-ceiling.
+  - **Stopping.** A refusal or a violation stops the session even when the product turned it into a 502: the stop reason
+    is read from the ledger.
+  - **Scope.** The ceiling covers Anthropic only. JEV is outside it, and its cost is unknown unless the provider reports
+    one. The all-provider total therefore stays null, with a lower bound beside it; a JEV cost is never counted as $0.
+- **Ceiling.** Hard ceiling $4.00 of Anthropic spend, with a $1.30 sub-ceiling per session so all three profiles get
+  coverage. A session whose next reservation does not fit stops with `cost_ceiling` and keeps every event.
 - **Materials.** `create_material` stays `not_run` in this first run; material generation is a separate approval.
-- **Sizing.** From the request sizes recorded in a free 15-decision run, at the 2026-09-25 price table:
+- **Sizing.** `requestWorstCase` at the 2026-09-25 price table, applied to:
+  - the complete requests the product built in a free 15-decision run (the largest of each kind);
+  - the larger evaluator's largest possible request (6 claims, 4 gaps, a 4000-character message), built by the product's
+    `largerRung`;
+  - the simulator and reviewer requests at their largest.
 
 | Per session | Worst case | Expected |
 |---|---|---|
-| LP1 start: `journey_diagnostic`, `journey_path`, `journey_section` | $0.39 | $0.15 |
-| Tutor planner, 15 turns (worst: every fast plan escalates to Opus, 2000 output tokens) | $1.41 | $0.30 |
-| Larger evaluator (worst: every typed turn, 2400 output tokens) | $0.78 | $0.06 |
-| Hooks, up to 14 sets (worst: every set escalates, 1500 + 4000 output tokens) | $1.59 | $0.20 |
-| Learner simulator, 15 calls | $0.15 | $0.10 |
-| Reviewer, 1 call | $0.10 | $0.08 |
-| **Session** | **$4.42** | **about $0.90** |
+| LP1 start: `journey_diagnostic`, `journey_path`, `journey_section` | $0.50 | $0.15 |
+| Tutor planner, 15 turns (every fast plan escalating to Opus) | $2.70 | $0.30 |
+| Larger evaluator, every typed turn | $1.58 | $0.06 |
+| Hooks, 14 sets, every set escalating | $2.38 | $0.20 |
+| Learner simulator, 15 calls | $0.30 | $0.10 |
+| Reviewer, 1 call | $0.30 | $0.08 |
+| **Session** | **$7.77** | **about $0.90** |
 
-- **Expected total:** about $2.70 for three sessions. The worst case (about $13) is not reachable, because the guard
-  stops at $4.00.
+- **Expected total:** about $2.70 for three sessions. This is an estimate of real usage that only the paid run measures.
+- **The worst case is not reachable:** reservations stop every session at its sub-ceiling and the run at $4.00.
+- **Early stops:** near a ceiling, a request is refused whenever its worst case does not fit, so a session can stop with
+  real headroom left.
 - **Before any paid call:**
-  - wire the real transport in the boundary, with the guard;
+  - wire the real transport in the boundary (the reservations are already in it);
   - wire the simulator and reviewer calls (their prompts, schemas and strict parsers exist);
   - add a run command;
   - pass the free gates on Parallel's integrated SHA.
@@ -717,13 +760,20 @@ the integrated SHA.
 4. **The tray resolver.** LP1's tray resolver (`live.handleText`) is not run before typed turns. It matters only inside
    an open tray or setup, which the eval skips.
 5. **Streaming.** Turns are not streamed (no `onSpeakable`), so the fast-tier first-sentence release is not measured.
-6. **Not exercised:** Rabbit Holes and returns, shared canvases, Voice, the repository handoff, and the owned reply edge
-   cache (no `caches.default` in Node, as on `*.workers.dev`).
+6. **Not exercised:**
+   - Rabbit Holes and returns, shared canvases and Voice;
+   - the repository handoff;
+   - the larger evaluator's answer (the stub answers tool calls only);
+   - the owned reply edge cache (no `caches.default` in Node, as on `*.workers.dev`).
+
+   Every session bundle lists these under `coverage.not_exercised` (`product.mjs` `COVERAGE`), with
+   `teaching_quality: not established`: scripted answers never measure real-model teaching quality.
 7. **Stopped turns.** A stopped turn leaves no decision event (contract §4.7.2), so the eval cannot see Stop.
 8. **No production sink.** The decision trace has none: nothing from real learners exists, and persistence is a
    separate, owner-approved migration.
 9. **Creator-analytics events.** The production events of §17 are missing (publication opened, publication identity on
    holes and forks, active time). They are modelled as eval-only shapes.
-10. **The `learn-grade` gate line** in `run.sh` runs 0 tests on Windows (§16). Reported to Parallel.
+10. **The `learn-grade` gate line** in `run.sh` ran 0 tests on Windows (§16), and so did the motion line. Parallel confirmed
+    both and made them relative on `infra/provider-tripwire` `1f06597b`, which lands with #67.
 11. **The keyless hook fixture** repeats itself after a few sets, so free sessions see later hook sets fail validation as
     repeats. That is the product's validator doing its job on a stub, not a product finding.

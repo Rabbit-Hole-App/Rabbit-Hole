@@ -105,7 +105,12 @@ test('the provider boundary: only the Anthropic and JEV hosts are answered, ever
   } finally { globalThis.fetch = real; }
 });
 
-// Seeded randomness and clock for the on/off comparison: ids the product mints (journey, hook set, decision) and timestamps.
+// Seeded randomness and clock for the exact on/off comparison: ids the product mints (journey, hook set, decision) and
+// timestamps. LIMITATION: it routes random draws by caller - learn-tutor-trace.js gets its own stream, found by inspecting
+// the stack - so it proves byte equality only under that split, not under the product's one shared random source (where
+// the trace's id draws and the product's interleave and every later id differs). A refactor that mints trace ids in another
+// module would change the split silently; Date and crypto are patched globally for the run. The comparison under the
+// product's normal wiring is the normalized one below.
 function seeded(fn) {
   const RealDate = Date, { randomUUID, getRandomValues } = crypto;
   let n = 7, t = RealDate.UTC(2026, 9, 7, 12);
@@ -119,17 +124,17 @@ function seeded(fn) {
   globalThis.Date = class extends RealDate { constructor(...args) { super(...(args.length ? args : [t += 7])); } static now() { return t += 7; } };
   return fn().finally(() => { Object.assign(crypto, { randomUUID, getRandomValues }); globalThis.Date = RealDate; });
 }
-async function turns(trace) {
+async function turns(trace, words = ['What does the sigmoid do?', 'So it is a probability.']) {
   const boundary = providerBoundary(stubAnswers({ plan: context => ({ strategy: 'none', actions: [{ type: 'respond_text', text: `Row ${context.route?.row}: here is the idea.` }, ...(context.allowed_actions.includes('create_material') ? [{ type: 'create_material', command: context.available_materials[0].command, request: 'A short worked example.' }] : [])], reason_codes: ['advance_goal'], reason: 'Advance the section goal.' }) }));
-  const meter = { call: () => {} };
+  const meter = { reserve: () => null, call: () => {} };
   try {
     const world = await productWorld({ topic, ids: simulatedIds({ runId: 'onoff', topic, profile }), boundary, trace });
     try {
       await world.tutor.start(meter);
-      const one = await world.tutor.decide({ kind: 'typed', text: 'What does the sigmoid do?' }, meter);
+      const one = await world.tutor.decide({ kind: 'typed', text: words[0] }, meter);
       const hooks = await world.hooks({}, meter);
       const two = await world.tutor.decide({ kind: 'hook', option: hooks.options[0] }, meter);
-      const three = await world.tutor.decide({ kind: 'typed', text: 'So it is a probability.' }, meter);
+      const three = await world.tutor.decide({ kind: 'typed', text: words[1] }, meter);
       const product = [one, two, three].map(({ product: r }) => JSON.stringify({ actions: r.actions, contracts: r.contracts, text: r.text, reason_codes: r.reason_codes, reading: r.reading, states: r.states, transitions: r.transitions, route: r.routed, store: { ...r.store, session_id: null } }));
       return { requests: boundary.requests.map(entry => JSON.stringify(entry.body)), product, hooks: hooks.options, traces: [one, two, three].map(d => d.trace), hookTrace: hooks.trace, input: [one, two, three].map(d => d.tutor_input) };
     } finally { world.close(); }
@@ -148,6 +153,41 @@ test('tracing on or off: the same provider requests byte for byte and the same p
   // The hidden-profile check reads the learner-originated part of each planner request: the words, none on a click.
   assert.deepEqual(on.input.map(list => list.map(entry => entry.learner)), [['What does the sigmoid do?'], [''], ['So it is a probability.']]);
   assert.ok(on.input[2][0].turns.includes('What does the sigmoid do?'));
+});
+
+// The product's normal wiring: real crypto randomness and the real clock, nothing patched. Opaque values the product mints or
+// derives from its random source - journey ids (lj_<uuid>), hook-set and suggestion ids (ns_), the hook basis hashed from
+// them (nb_), Tutor session (ts_) and decision ids (td_), any UUID - are renamed in order of first appearance across the
+// run's whole transcript, so a value that recurs keeps one name: a reference from one request or result to another survives
+// the renaming, and a broken or misdirected reference does not. Wall-clock timestamps become <time>.
+const OPAQUE = /\b(?:lj_[0-9a-f-]{36}|ns_[0-9a-f]{8}|nb_[0-9a-f]{8}|ts_[0-9a-f]{16}|td_[0-9a-f]{16}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/g;
+const TIME = /\b\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?\b/g;
+function normalized(run) {
+  const names = new Map();
+  const rename = text => text.replace(OPAQUE, id => { if (!names.has(id)) names.set(id, `<id${names.size + 1}>`); return names.get(id); }).replace(TIME, '<time>');
+  return { requests: run.requests.map(rename), product: run.product.map(rename), hooks: rename(JSON.stringify(run.hooks)), names };
+}
+
+test('tracing on or off under the product\'s normal randomness: requests, references and behaviour equivalent after consistent id renaming', async () => {
+  const on = await turns(true), off = await turns(false);
+  assert.ok(on.traces.every(Boolean) && off.traces.every(trace => trace === null));
+  // Real randomness: the raw ids differ between the two runs, so only a renaming can compare them.
+  assert.notEqual(on.hooks[0].id, off.hooks[0].id);
+  const a = normalized(on), b = normalized(off);
+  // Renamed here: the journey id, the hook basis hashed from it and the hook-set id (the session id never reaches a request).
+  assert.deepEqual([...a.names.keys()].map(id => id.slice(0, 3)).sort(), ['lj_', 'nb_', 'ns_']);
+  assert.equal(a.names.size, b.names.size);
+  assert.equal(a.requests.length, b.requests.length);
+  a.requests.forEach((body, i) => assert.equal(body, b.requests[i], `provider request ${i + 1}`));
+  assert.deepEqual(a.product, b.product);
+  assert.equal(a.hooks, b.hooks);
+  // The renaming keeps references: the clicked suggestion id travels into later planner requests under one name in both runs.
+  const clicked = a.names.get(on.hooks[0].id.split('.')[0]);
+  assert.ok(clicked && a.requests.some(body => body.includes(`${clicked}.1`)), 'the click is referenced by a later request');
+  assert.equal(b.names.get(off.hooks[0].id.split('.')[0]), clicked);
+  // Not vacuous: different learner words give a different normalized transcript.
+  const other = normalized(await turns(false, ['Why is the output between zero and one?', 'So it is a probability.']));
+  assert.notDeepEqual(other.requests, b.requests);
 });
 
 test('the production validators and escalations run, as no eval copy could: a dropped action and an escalated hook set', async () => {

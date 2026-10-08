@@ -33,6 +33,16 @@ import { freshLearnDb } from './harness.mjs';
 // The product's recompute debounce (contract §2.3): a hook set is requested this long after the turn that changed its basis.
 export const HOOK_DEBOUNCE_MS = NEXT_STEPS_LIMITS.debounce_ms;
 
+// What a run on this adapter exercises, written into every session bundle (runSession coverage) so no report reads more
+// into it. With the stub transport no model answers: the plumbing, routing, validation and evidence rules are the product's,
+// teaching quality is not measured.
+export const COVERAGE = Object.freeze({
+  transport: 'stub',
+  teaching_quality: 'not established: the Tutor, hook and LP1 planners answer from scripts and the keyless product fixtures, never a model',
+  exercised: ['lp1_journey_start', 'typed_turn', 'jev_evaluation', 'planner_routing_and_validation', 'hook_click_turn', 'hook_controller_and_route', 'stopping_point', 'decision_trace', 'budget_reservation'],
+  not_exercised: ['material_generation', 'section_materialization', 'larger_evaluator_answer', 'lp1_tray_resolver', 'streamed_first_sentence', 'rabbit_holes', 'shared_canvas', 'voice', 'repository_handoff', 'owned_reply_edge_cache', 'stopped_turns'],
+});
+
 // ---------- The provider boundary ----------
 
 const ANTHROPIC = 'https://api.anthropic.com/v1/messages';
@@ -75,13 +85,15 @@ export function stubAnswers({ plan = () => ({ strategy: 'none', actions: [{ type
   };
 }
 
-// Installs the boundary on globalThis.fetch. Every Anthropic or JEV request is recorded (the request body, never a header) and
-// answered by `answers`; it is also handed to onCall as one cost line for the meter. Anything else throws OUTBOUND_BLOCKED and
+// Installs the boundary on globalThis.fetch. Every Anthropic or JEV request is first handed to onRequest, which reserves its
+// complete body against the budget (meter.reserve); a refusal rejects the request unsent and is listed in `refused`. Then it
+// is recorded (the request body, never a header), answered by `answers`, and handed to onCall as one cost line settling that
+// reservation. Anything else throws OUTBOUND_BLOCKED and
 // is recorded in `blocked`. The product's own model log lines (loggedModel's learn_model events: names, statuses and prompt
 // hashes, never content) are kept in `logs` instead of printed. restore() puts the previous fetch and console.log back.
 export function providerBoundary(answers = stubAnswers()) {
-  const previous = globalThis.fetch, print = console.log, requests = [], blocked = [], logs = [], errors = [];
-  const boundary = { requests, blocked, logs, errors, onCall: null, restore: () => { globalThis.fetch = previous; console.log = print; } };
+  const previous = globalThis.fetch, print = console.log, requests = [], blocked = [], logs = [], errors = [], refused = [];
+  const boundary = { requests, blocked, logs, errors, refused, onRequest: null, onCall: null, restore: () => { globalThis.fetch = previous; console.log = print; } };
   console.log = (...args) => {
     let line = null;
     try { line = args.length === 1 && typeof args[0] === 'string' ? JSON.parse(args[0]) : null; } catch { /* not a product log line */ }
@@ -95,6 +107,8 @@ export function providerBoundary(answers = stubAnswers()) {
       throw Object.assign(Error(`outbound request to ${url.origin} blocked by the evaluation provider boundary`), { code: 'OUTBOUND_BLOCKED' });
     }
     const body = JSON.parse(init.body);
+    let ticket = null;
+    if (boundary.onRequest) try { ticket = boundary.onRequest({ provider, body }); } catch (error) { refused.push({ provider, role: provider === 'anthropic' ? roleOf(body) : 'jev', code: error.code ?? null }); throw error; }
     requests.push({ provider, body });
     const started = performance.now();
     const response = provider === 'anthropic' ? await answers.anthropic(body) : await answers.jev(body);
@@ -104,7 +118,7 @@ export function providerBoundary(answers = stubAnswers()) {
     try { boundary.onCall?.({
       provider, transport: 'stub', model_id: provider === 'anthropic' ? reply?.model ?? body.model ?? 'unknown' : body.model ?? 'jev', model_role: provider === 'anthropic' ? roleOf(body) : 'jev',
       usage: reply?.usage ?? null, latency_ms: Math.round((performance.now() - started) * 10) / 10, outcome: response.ok ? 'ok' : 'failed', request_id: `stub-${requests.length}`,
-    }); } catch (error) { errors.push(error.message); }
+    }, ticket); } catch (error) { errors.push(error.message); }
     return response;
   };
   return boundary;
@@ -187,7 +201,10 @@ export async function productWorld({ topic, ids, boundary, board = 'main', trace
   const identity = () => ({ user_id: ids.user_id, session_id: store.session_id, canvas_id: app, board_id: board, canvas_version: null, journey_id: view?.journey?.id ?? null, section_id: view?.journey?.active_section_id ?? null, dive_id: null });
   const evidence = () => claimList(deriveClaimStates(store.events, context()?.domain?.claims || {}));
   const where = () => ({ journey_id: view?.journey?.id ?? null, section_id: view?.journey?.active_section_id ?? null, board_id: board });
-  const attribute = meter => { boundary.onCall = call => meter.call(call); };
+  const attribute = meter => {
+    boundary.onRequest = ({ provider, body }) => meter.reserve({ provider, body, role: provider === 'anthropic' ? roleOf(body) : 'jev' });
+    boundary.onCall = (call, ticket) => meter.call(call, ticket);
+  };
 
   // The production hook controller with a manual timer: the harness places the debounce on its own timeline.
   let due = null, landed = null;
@@ -201,6 +218,7 @@ export async function productWorld({ topic, ids, boundary, board = 'main', trace
 
   return {
     close: db.close,
+    coverage: COVERAGE,
     store: () => store,
     // The decision's materials are its create_material actions (contract §2.5: several per turn, distinct commands), in the
     // product's own names. ponytail: generation is not run - runMaterials and /api/learn/artifact are not wired yet - so

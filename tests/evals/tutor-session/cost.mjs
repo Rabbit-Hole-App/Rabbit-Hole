@@ -45,6 +45,32 @@ export function priceCall({ model_id, usage, provider_reported_cost_usd = null, 
   };
 }
 
+// The most one Anthropic request can cost, computed offline from the complete request (no token-counting call).
+// Input: a token encodes at least one byte of UTF-8 text, so the byte length of the whole serialized body - system, tools,
+// messages, schema, its JSON keys and syntax only adding to it - bounds the input tokens, plus REQUEST_OVERHEAD_TOKENS for
+// what the API adds around the body (the tool-use system prompt, message framing). That one-byte floor is an assumption
+// about the tokenizer, not a published guarantee: the ledger checks every reported usage against its reservation and stops
+// the run if a request ever costs more than its bound. Content that is not text (an image, a base64 document such as a PDF)
+// has no byte bound and is refused, as is a request with no max_tokens or a model with no price. Output: the request's own
+// max_tokens (thinking counts inside it). Input is priced at the dearer of the input and cache-write rates when the request
+// marks a cache breakpoint; fast mode multiplies. -> { usd, input_tokens_bound, output_tokens_bound, model_id }
+export const REQUEST_OVERHEAD_TOKENS = 1000;
+const unboundable = value => (Array.isArray(value) ? value.some(unboundable) : !!value && typeof value === 'object'
+  && (value.type === 'image' || (value.type === 'document' && value.source?.type !== 'text') || Object.values(value).some(unboundable)));
+export function requestWorstCase(body, { date = new Date().toISOString().slice(0, 10), pricing = PRICING } = {}) {
+  const refuse = why => { throw Object.assign(Error(`no worst case for this request: ${why}`), { code: 'UNBOUNDED_REQUEST' }); };
+  if (!Number.isInteger(body?.max_tokens) || body.max_tokens <= 0) refuse('it sets no max_tokens');
+  const price = pricingFor(date, pricing)?.models[body.model] ?? null;
+  if (!price) refuse(`no price for model ${body.model ?? '(none: a server-side default)'}`);
+  if (unboundable(body.messages) || unboundable(body.system)) refuse('it carries an image or a non-text document');
+  const multiplier = body.speed === 'fast' ? price.fast_multiplier ?? refuse('no fast-mode price') : 1;
+  const serialized = JSON.stringify(body);
+  const input = Buffer.byteLength(serialized, 'utf8') + REQUEST_OVERHEAD_TOKENS;
+  const rate = Math.max(price.input, serialized.includes('"cache_control"') ? price.cache_write : 0);
+  const usd = multiplier * (input * rate + body.max_tokens * price.output) / 1e6;
+  return { usd: Math.ceil(usd * 1e6) / 1e6, input_tokens_bound: input, output_tokens_bound: body.max_tokens, model_id: body.model };
+}
+
 // ---------- Metrics over folded calls ----------
 
 // Cost categories come from the role table (fixtures/cost-roles.provisional.json): the product's own task names.

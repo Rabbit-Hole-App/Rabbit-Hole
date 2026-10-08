@@ -374,15 +374,16 @@ test('the ledger refuses an unbounded Anthropic call and stops at the ceiling; J
   const ledger = createLedger(4);
   assert.throws(() => ledger.record({ provider: 'anthropic', model_id: 'claude-unknown', model_role: 'tutor', usage: { input_tokens: 1, output_tokens: 1 } }), /no price/);
   ledger.record({ provider: 'anthropic', model_id: 'claude-opus-5-5', model_role: 'tutor', usage: { input_tokens: 500000, output_tokens: 50000 } }); // $3.00
-  ledger.guard('learner_simulator', ledger.worstCase({ model_id: 'claude-sonnet-5-5', inputChars: 3000, maxOutputTokens: 1000 }));
-  // $3 spent + (600000 / 3 input tokens at $4 + 16000 output at $20) = $4.12 > $4.
-  assert.throws(() => ledger.guard('session_reviewer', ledger.worstCase({ model_id: 'claude-opus-5-5', inputChars: 600000, maxOutputTokens: 16000 })), err => err.code === 'COST_CEILING');
+  const learner = ledger.reserve({ body: { model: 'claude-sonnet-5-5', max_tokens: 1000, messages: [{ role: 'user', content: 'x'.repeat(3000) }] }, role: 'learner_simulator' });
+  // $3 spent + the learner's reservation + a 200 kB reviewer request (over 200000 input tokens at $4, 16000 output at $20) > $4.
+  assert.throws(() => ledger.reserve({ body: { model: 'claude-opus-5-5', max_tokens: 16000, messages: [{ role: 'user', content: 'x'.repeat(200000) }] }, role: 'session_reviewer' }), err => err.code === 'COST_CEILING');
+  ledger.settle(learner, { provider: 'anthropic', model_id: 'claude-sonnet-5-5', model_role: 'learner_simulator', usage: { input_tokens: 900, output_tokens: 100 } });
   assert.equal(ledger.summary().anthropic.by_role.tutor.usd, 3);
   ledger.record({ ...JEV, latency_ms: 180 });
   ledger.record({ ...JEV, latency_ms: 3000, outcome: 'timeout' });
   let jev = ledger.summary().external['typesafe:jev'];
   assert.deepEqual([jev.calls, jev.ok, jev.failed, jev.usd, jev.unknown_cost_calls, jev.cost_status], [2, 1, 1, null, 2, 'unknown']); // never a fake $0
-  assert.equal(ledger.spent(), 3); // JEV never counts against the Anthropic ceiling
+  assert.equal(ledger.spent(), round6(3 + (900 * 2 + 100 * 10) / 1e6)); // JEV never counts against the Anthropic ceiling
   ledger.record({ ...JEV, model_id: 'typesafe-ai/jev', provider_reported_cost_usd: 0.0000126 });
   jev = ledger.summary().external['typesafe:jev'];
   assert.deepEqual([jev.usd, jev.unknown_cost_calls, jev.cost_status, jev.lower_bound], [0.000013, 2, 'partial', true]);
@@ -642,12 +643,16 @@ test('the simulator reply schemas are strict and match what the parsers accept',
 
 test('a cost-ceiling stop keeps every event recorded before it', async () => {
   const { args } = world({ script: REPAIR, start: START });
-  const ledger = createLedger(0.01);
   const decide = args.tutor.decide;
-  args.tutor.decide = async (input, meter) => { meter.guard({ model_id: 'claude-opus-5-5', inputChars: 0, maxOutputTokens: 200 }); return decide(input, meter); };
-  const bundle = await runSession({ ...args, ledger });
-  // Decision 1's planner ($0.0202) and material ($0.013) already passed $0.01, so decision 2's worst case is refused
-  // before its planner call: one decision recorded, one listed as incomplete, every earlier cost line kept.
+  // The planner reserves its complete request (12 kB, 400 output tokens: about $0.06 at worst) before it is sent; the
+  // reservation is settled by its reported usage.
+  args.tutor.decide = async (input, meter) => {
+    const ticket = meter.reserve({ body: { model: 'claude-opus-5-5', max_tokens: 400, messages: [{ role: 'user', content: 'x'.repeat(12000) }] } });
+    return decide(input, { ...meter, call: (fields, own) => meter.call(fields, fields.model_role === 'tutor' ? ticket : own) });
+  };
+  const bundle = await runSession({ ...args, ledger: createLedger(0.08) });
+  // Decision 1's planner ($0.0202 settled) and material ($0.013) leave too little of $0.08 for decision 2's worst case, so it
+  // is refused before its planner call: one decision recorded, one listed as incomplete, every earlier cost line kept.
   assert.equal(bundle.simulator.stop_reason, 'cost_ceiling');
   assert.equal(bundle.session.decisions, 1);
   assert.equal(bundle.session.incomplete_decisions.length, 1);

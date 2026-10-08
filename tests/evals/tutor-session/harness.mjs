@@ -8,7 +8,7 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { EVAL_SCHEMA_VERSION, createEmitter, foldSession, round, stats, sum } from './events.mjs';
-import { money, priceCall } from './cost.mjs';
+import { money, priceCall, requestWorstCase } from './cost.mjs';
 import { graphMetrics, learningGraph } from './graph.mjs';
 
 const HERE = new URL('.', import.meta.url);
@@ -175,43 +175,90 @@ export function parseReview(text, view) {
 
 // ---------- Cost ledger with a hard ceiling ----------
 
-// Every provider call is priced by cost.mjs priceCall (provider-reported, else computed from usage with the versioned
-// price table, else unknown). guard() before a call with its worst case; record() after with the real usage. The
-// ceiling is the Anthropic spend only, and an Anthropic model without a price is refused (the ceiling could not bound
-// it). Other providers (JEV / Typesafe AI, avatar or video providers) are reported apart, unknown costs counted, never
-// summed as $0. The ledger never infers a remaining account balance.
-// ponytail: input tokens estimated as chars / 3 (an over-count for English); use count_tokens if the ceiling gets tight.
-export function createLedger(ceilingUsd, { date } = {}) {
-  const lines = [];
+// The ceiling covers Anthropic spend only (owner O2), the learner simulator and the reviewer included. Every Anthropic
+// request reserves its offline worst case (cost.mjs requestWorstCase: the complete request, priced at its own max_tokens)
+// BEFORE it is sent, and a reservation that would take settled spend plus every reservation still open past the ceiling is
+// refused - so requests in flight together (an evaluation beside the planner) count together, and a retry or an escalation,
+// being another request, reserves again. settle() replaces a reservation with the priced usage. A request that reports no
+// usage (a failure, a timeout) keeps its whole reservation as possible spend; one that costs more than its reservation
+// breaks the bound: it is recorded in `violations` and the session stops. A parent ledger (the run's hard ceiling) reserves
+// alongside a per-session one. Other providers (JEV / Typesafe AI, avatar or video) are outside the ceiling: their cost is
+// the provider's report or unknown, never $0, so the all-provider total stays null while any is unknown. The ledger never
+// infers a remaining account balance.
+export function createLedger(ceilingUsd, { date, parent = null } = {}) {
+  const lines = [], open = new Map(), violations = [];
+  let next = 0, refused = 0, peak = 0;
   const anthropic = () => lines.filter(line => line.provider === 'anthropic');
-  const spent = () => sum(anthropic().map(line => line.cost_usd || 0));
+  const settled = () => sum(anthropic().map(line => line.cost_usd ?? line.held_usd ?? 0));
+  const reserved = () => sum([...open.values()].map(ticket => ticket.usd));
+  const refuse = error => { refused++; throw error; };
   const groups = (list, keyOf) => Object.fromEntries(Object.entries(Object.groupBy(list, keyOf)).map(([key, group]) => [key, {
     ...money(group), ok: group.filter(line => line.outcome === 'ok').length, failed: group.filter(line => line.outcome !== 'ok').length,
     models: [...new Set(group.map(line => line.model_id))], versions: [...new Set(group.map(line => line.model_version).filter(Boolean))], latency_ms: stats(group.map(line => line.latency_ms)),
   }]));
+  const price = (fields, ticket) => {
+    const priced = { outcome: 'ok', ...fields, ...priceCall({ ...fields, date }) };
+    if (fields.provider !== 'anthropic') return priced;
+    if (priced.cost_usd == null) {
+      if (!ticket) throw Error(`no price for anthropic model ${fields.model_id}: refusing a call the ceiling cannot bound`);
+      priced.held_usd = ticket.usd; // no usage reported: the reservation stays as possible spend
+    } else if (ticket && priced.cost_usd > ticket.usd + 1e-9) {
+      priced.bound_violation = true;
+      violations.push({ model_role: fields.model_role ?? ticket.role, reserved_usd: ticket.usd, cost_usd: priced.cost_usd, input_tokens_bound: ticket.bound.input_tokens_bound, usage: priced.usage });
+    }
+    return priced;
+  };
   return {
-    lines,
-    spent,
-    worstCase({ model_id, inputChars = 0, maxOutputTokens = 0 }) {
-      const priced = priceCall({ model_id, usage: { input_tokens: Math.ceil(inputChars / 3), output_tokens: maxOutputTokens }, date });
-      if (priced.cost_usd == null) throw Error(`no price for ${model_id}: the ceiling cannot bound it`);
-      return priced.cost_usd;
+    lines, violations,
+    spent: settled,
+    reserved,
+    get refused() { return refused; },
+    // One request about to be sent: { provider, body, role }. Anthropic: its worst case is reserved, or COST_CEILING (or
+    // UNBOUNDED_REQUEST) is thrown and nothing may be sent. Another provider: a ticket with no reservation.
+    reserve({ provider = 'anthropic', body, role = 'call' }) {
+      if (provider !== 'anthropic') return { id: ++next, provider, role, usd: null };
+      let bound;
+      try { bound = requestWorstCase(body, { date }); } catch (error) { refuse(error); }
+      if (settled() + reserved() + bound.usd > ceilingUsd + 1e-12) refuse(Object.assign(Error(`cost ceiling: ${role} could cost up to $${bound.usd.toFixed(4)}, with $${settled().toFixed(4)} spent and $${reserved().toFixed(4)} reserved of $${ceilingUsd}`), { code: 'COST_CEILING' }));
+      let upstream = null;
+      if (parent) try { upstream = parent.reserve({ provider, body, role }); } catch (error) { refuse(error); }
+      const ticket = { id: ++next, provider, role, usd: bound.usd, bound, upstream };
+      open.set(ticket.id, ticket);
+      peak = Math.max(peak, open.size);
+      return ticket;
     },
-    guard(role, estimateUsd) {
-      if (spent() + estimateUsd > ceilingUsd) throw Object.assign(Error(`cost ceiling: ${role} could cost $${estimateUsd.toFixed(4)} with $${spent().toFixed(4)} of $${ceilingUsd} spent`), { code: 'COST_CEILING' });
-    },
-    record(fields) {
-      const priced = { outcome: 'ok', ...fields, ...priceCall({ ...fields, date }) };
-      if (fields.provider === 'anthropic' && priced.cost_status === 'unknown') throw Error(`no price for anthropic model ${fields.model_id}: refusing a call the ceiling cannot bound`);
+    // The request's reported usage replaces its reservation.
+    settle(ticket, fields) {
+      open.delete(ticket.id);
+      const priced = { ...price(fields, ticket), ...(ticket.usd != null ? { reserved_usd: ticket.usd } : {}) };
       lines.push(priced);
+      if (ticket.upstream) parent.settle(ticket.upstream, fields);
       return priced;
     },
-    summary: () => ({
-      anthropic: { total_usd: round(spent(), 6), ceiling_usd: ceilingUsd, calls: anthropic().length, by_role: groups(anthropic(), line => line.model_role), by_model: groups(anthropic(), line => line.model_id) },
-      external: groups(lines.filter(line => line.provider !== 'anthropic'), line => `${line.provider}:${line.model_role}`),
-    }),
+    // A line with no reservation (tests, and providers outside the ceiling).
+    record(fields) { const priced = price(fields, null); lines.push(priced); return priced; },
+    summary() {
+      const external = lines.filter(line => line.provider !== 'anthropic');
+      const unknown = external.filter(line => line.cost_usd == null).length, known = sum(external.map(line => line.cost_usd ?? 0));
+      return {
+        anthropic: {
+          total_usd: round(sum(anthropic().map(line => line.cost_usd ?? 0)), 6), held_usd: round(sum(anthropic().map(line => (line.cost_usd == null ? line.held_usd ?? 0 : 0))), 6),
+          open_reservations_usd: round(reserved(), 6), ceiling_usd: ceilingUsd, calls: anthropic().length, refused, bound_violations: violations.length, peak_open_reservations: peak,
+          by_role: groups(anthropic(), line => line.model_role), by_model: groups(anthropic(), line => line.model_id),
+        },
+        external: groups(external, line => `${line.provider}:${line.model_role}`),
+        // The ceiling covers Anthropic only; across all providers the total is unknown while any provider cost is.
+        all_providers: { usd: unknown ? null : round(settled() + known, 6), lower_bound_usd: round(settled() + known, 6), unknown_cost_calls: unknown, ceiling_scope: 'anthropic' },
+      };
+    },
   };
 }
+
+// The complete requests a paid run would send for the eval's own two calls, so they are bounded and reserved like any other.
+export const LEARNER_MODEL = 'claude-sonnet-5-5', REVIEWER_MODEL = 'claude-opus-5-5', LEARNER_MAX_TOKENS = 800, REVIEWER_MAX_TOKENS = 4000;
+const structured = (model, maxTokens, { system, user }, schema) => ({ model, max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }], output_config: { format: { type: 'json_schema', schema } } });
+export const learnerRequest = prompt => structured(LEARNER_MODEL, LEARNER_MAX_TOKENS, prompt, LEARNER_REPLY_SCHEMA);
+export const reviewerRequest = prompt => structured(REVIEWER_MODEL, REVIEWER_MAX_TOKENS, prompt, REVIEW_SCHEMA);
 
 // O1: one throwaway LEARN_DB per simulated session - the same in-memory node:sqlite database the LP1 tests build from
 // repository-schema.sql (control-plane test/learn-grade-fixture.js learnDb). Never shared, closed after the session.
@@ -225,10 +272,12 @@ export async function freshLearnDb() {
 // ---------- The session loop ----------
 
 // Injected (each one a product adapter - product.mjs is the real one - or a fake in tests). Each gets a `meter` for its
-// provider calls: meter.guard({ model_id, inputChars, maxOutputTokens }) before a call (the ceiling), meter.call({ provider,
-// model_id, model_role, usage, provider_reported_cost_usd, latency_ms, outcome, retry_number, escalation, fallback,
-// output_accepted, request_id, transport }) after it. The meter stamps the attribution (decision, hook set, material) and
-// writes the cost event. model_role is the product's task name (LEARN_TASKS) or a provider role.
+// provider calls: meter.reserve({ provider, body, role }) before a request (its complete body; the ledger reserves its worst
+// case or throws COST_CEILING), meter.call({ provider, model_id, model_role, usage, provider_reported_cost_usd, latency_ms,
+// outcome, retry_number, escalation, fallback, output_accepted, request_id, transport }, ticket) after it. The meter stamps
+// the attribution (decision, hook set, material) and writes the cost event. model_role is the product's task name
+// (LEARN_TASKS) or a provider role. A refusal or a broken bound stops the session even when the product swallowed the
+// error (a hook set that came back unavailable, a planner 502): the loop checks the ledger after each product call.
 //   tutor.start(meter) -> { evidence, context }                 starting evidence and canvas context (journey creation)
 //   tutor.decide(input, meter) -> { decision, trace, estimated_learning_seconds, available_modalities, planner,
 //     planner_version, material_summary, context, rabbit_hole, tutor_input, evaluated }
@@ -261,10 +310,10 @@ export async function freshLearnDb() {
 // (previous node -> the node the Tutor made from it). Offered hooks stay candidate options, never nodes.
 // Stops when the Tutor's estimated learning time reaches the budget, or at max_decisions (the safety cap). A thrown
 // error (cost ceiling, profile leak, adapter failure) ends the session with what was recorded so far.
-const CALL_EVENT_FIELDS = ['provider', 'transport', 'model_id', 'model_version', 'model_role', 'decision_id', 'hook_set_id', 'material_id', 'usage', 'provider_reported_cost_usd', 'computed_cost_usd', 'cost_usd', 'cost_status', 'pricing_version', 'pricing_effective_date', 'prompt_cache_saved_usd', 'latency_ms', 'retry_number', 'escalation', 'fallback', 'output_accepted', 'speed', 'request_id', 'error_code'];
+const CALL_EVENT_FIELDS = ['reserved_usd', 'held_usd', 'bound_violation', 'provider', 'transport', 'model_id', 'model_version', 'model_role', 'decision_id', 'hook_set_id', 'material_id', 'usage', 'provider_reported_cost_usd', 'computed_cost_usd', 'cost_usd', 'cost_status', 'pricing_version', 'pricing_effective_date', 'prompt_cache_saved_usd', 'latency_ms', 'retry_number', 'escalation', 'fallback', 'output_accepted', 'speed', 'request_id', 'error_code'];
 const MATERIAL_EVENT_FIELDS = ['material_type', 'modality', 'concept_ids', 'claim_ids', 'expected_evidence', 'estimated_learning_seconds', 'descriptors', 'structure', 'parent_material_id', 'material_group_id', 'fresh_generation_cost_usd', 'material_signature'];
 const LEARNER_INTERACTION = { answer: 'attempt', explanation: 'attempt', activity: 'attempt', question: 'ask_about_this', confusion: 'message', acknowledge: 'message' };
-export async function runSession({ topic, profile, profiles, hooks, hookStart = () => 'after_consumption', hookDelayMs = 0, learner, tutor, materialize = async () => null, ledger = null, taxonomy = loadTaxonomy(), runId = 'run', clock = () => performance.now(), debugText = true, budgetSeconds = topic.session_budget_seconds, maxDecisions = topic.max_decisions }) {
+export async function runSession({ topic, profile, profiles, hooks, hookStart = () => 'after_consumption', hookDelayMs = 0, learner, tutor, materialize = async () => null, ledger = null, coverage = null, taxonomy = loadTaxonomy(), runId = 'run', clock = () => performance.now(), debugText = true, budgetSeconds = topic.session_budget_seconds, maxDecisions = topic.max_decisions }) {
   const terms = profileTerms(profiles);
   const ids = simulatedIds({ runId, topic, profile });
   const context = {};
@@ -275,14 +324,19 @@ export async function runSession({ topic, profile, profiles, hooks, hookStart = 
   const timed = async fn => { const start = clock(); const result = await fn(); return [result, clock() - start]; };
   let calls = 0;
   const meter = (attribution, at = () => now) => ({
-    guard: ({ model_id, inputChars, maxOutputTokens, role = attribution.model_role ?? 'call' }) => ledger?.guard(role, ledger.worstCase({ model_id, inputChars, maxOutputTokens })),
-    call(fields) {
+    reserve: ({ provider = 'anthropic', body, role }) => (ledger ? ledger.reserve({ provider, body, role: role ?? attribution.model_role ?? 'call' }) : null),
+    call(fields, ticket = null) {
       const call = { ...attribution, ...fields };
-      const priced = ledger ? ledger.record(call) : { outcome: 'ok', ...call, ...priceCall(call) };
+      const priced = ledger ? (ticket ? ledger.settle(ticket, call) : ledger.record(call)) : { outcome: 'ok', ...call, ...priceCall(call) };
       emit(priced.outcome !== 'ok' ? 'model_call_failed' : 'model_call_completed', { call_id: `${ids.session_id}:c${++calls}`, ...Object.fromEntries(CALL_EVENT_FIELDS.filter(key => priced[key] != null).map(key => [key, priced[key]])) }, at());
       return priced;
     },
   });
+  // A refusal the product swallowed, or a request that cost more than its bound, ends the session at the next check.
+  const budget = () => {
+    if (ledger?.violations.length) throw Object.assign(Error('a request cost more than its reserved worst case'), { code: 'BOUND_VIOLATION' });
+    if (ledger?.refused) throw Object.assign(Error('a request was refused by the cost ceiling'), { code: 'COST_CEILING' });
+  };
   const history = [];
   let elapsed = 0, decisions = 0, stop = 'max_decisions', error = null, lastNode = null;
   let input = { kind: 'typed', text: topic.opening_message };
@@ -302,6 +356,7 @@ export async function runSession({ topic, profile, profiles, hooks, hookStart = 
     const hookSetId = `${ids.session_id}:h${decisions + 1}`;
     emit('next_steps_generation_started', { hook_set_id: hookSetId }, at);
     const [set, ms] = await timed(() => hooks({ decisions, history }, meter({ hook_set_id: hookSetId }, () => at)));
+    budget();
     const options = set?.options || [];
     emit('next_steps_ready', { hook_set_id: hookSetId, options, ...(set?.unavailable ? { unavailable: set.unavailable } : {}), ...(set?.trace ? { trace: set.trace } : {}) }, at + ms);
     if (options.length) emit('next_steps_shown', { hook_set_id: hookSetId, ...(set?.shown ? { trace: set.shown } : {}) }, at + ms);
@@ -310,6 +365,7 @@ export async function runSession({ topic, profile, profiles, hooks, hookStart = 
   try {
     emit('session_started', debug({ goal: topic.learner_goal }));
     const started = await tutor.start(meter({}));
+    budget();
     applyContext(started.context);
     emit('evidence_updated', { claims: started.evidence ?? [], cause: 'session_start' });
     assertNoProfileLeak(input.text, terms);
@@ -322,7 +378,8 @@ export async function runSession({ topic, profile, profiles, hooks, hookStart = 
       const startAt = now, trigger = input.kind === 'hook' ? 'hook' : decisions ? 'typed' : 'opening';
       let decided, decideMs;
       try { [decided, decideMs] = await timed(() => tutor.decide(sent, meter({ decision_id: decisionId }, () => startAt))); }
-      catch (thrown) { emit('tutor_decision_started', { decision_id: decisionId, trigger }, startAt); throw thrown; } // recorded as incomplete
+      catch (thrown) { emit('tutor_decision_started', { decision_id: decisionId, trigger }, startAt); budget(); throw thrown; } // recorded as incomplete
+      budget();
       assertNoProfileLeak(decided.tutor_input ?? '', terms);
       // A typed turn evaluates the words first. Evaluation the planner waited for ends before the plan starts (t4), so the
       // decision was made on it; one that ran beside the planner lands during the turn, after the decision began.
@@ -421,8 +478,10 @@ export async function runSession({ topic, profile, profiles, hooks, hookStart = 
       if (elapsed >= budgetSeconds) { stop = 'learning_budget'; break; }
     }
   } catch (thrown) {
-    stop = thrown.code === 'COST_CEILING' ? 'cost_ceiling' : thrown.code === 'PROFILE_LEAK' ? 'profile_leak' : 'error';
-    error = { code: thrown.code ?? null, message: thrown.message };
+    // The ledger knows when a refusal or a broken bound caused the failure, even when the product reported it as a 502.
+    const code = thrown.code === 'PROFILE_LEAK' ? thrown.code : ledger?.violations.length ? 'BOUND_VIOLATION' : ledger?.refused ? 'COST_CEILING' : thrown.code;
+    stop = code === 'BOUND_VIOLATION' ? 'cost_bound_violation' : code === 'COST_CEILING' ? 'cost_ceiling' : code === 'PROFILE_LEAK' ? 'profile_leak' : 'error';
+    error = { code: code ?? null, message: thrown.message };
   }
   emit('session_ended', { reason: stop, decisions, learning_seconds_estimated: elapsed });
   const folded = foldSession(events);
@@ -438,6 +497,8 @@ export async function runSession({ topic, profile, profiles, hooks, hookStart = 
     steps: folded.steps,
     learning_graph: { ...graph, metrics: graphMetrics(graph, { steps: folded.steps, taxonomy }) },
     ...(ledger ? { cost: ledger.summary() } : {}),
+    // What the adapter exercised and did not (product.mjs COVERAGE): carried so a report can never read more into a run.
+    ...(coverage ? { coverage } : {}),
   };
 }
 
