@@ -55,19 +55,26 @@ export function readTutorAnswers(body, spec) {
   return out;
 }
 
-// Probabilities -> { status, events } (§3). settled when every check is at or beyond a threshold,
-// uncertain when any falls between. Per idea its own event (E8: no `partial` in v1), carrying the
+// Probabilities -> { status, events } (§3). Per idea its own event (E8: no `partial` in v1), carrying the
 // idea index: stated -> pass, contradicted -> fail, untouched or unsure -> nothing (Decision 7: an
 // idea the learner did not address is never a fail, prompted or not). Passes come before negatives,
 // so a partly right answer never ends on a pass. Gap checks always count.
+// Settled per claim (Tutor eval run A, tutor-decision-eval.md 18.1): an event is settled when the checks it rests on are
+// confident - a claim's events on the attempt check and that claim's idea, contradiction and misconception checks, a gap's
+// on its own check - so one unsure check never unsettles another claim's evidence. The transfer check only names a pass's
+// kind: a confident yes is demonstrated_in_transfer, anything else demonstrated_here, and an unsure one stays explicit
+// (transfer_unsure), so it never unsettles taught-case evidence and never makes a claim understood. status: settled when
+// every check but transfer is confident, else uncertain.
 export function evaluationFrom(spec, answers, thresholds, evaluator) {
-  const yes = p => p >= thresholds.yes, no = p => p <= thresholds.no;
-  const status = Object.values(answers).every(p => yes(p) || no(p)) ? 'settled' : 'uncertain';
-  const settled = status === 'settled';
-  const event = (claim, extra) => ({ concept: claim.concept, claim: claim.id, settled, evaluator, source: 'free_text', ...extra });
+  const yes = p => p >= thresholds.yes, no = p => p <= thresholds.no, sure = key => yes(answers[key]) || no(answers[key]);
+  const transferKey = key => /^c\d+_transfer$/.test(key);
+  const status = Object.keys(answers).filter(key => !transferKey(key)).every(sure) ? 'settled' : 'uncertain';
+  const gate = sure(spec.answering ? 'non_attempt' : 'attempt');
+  const claimSettled = c => gate && Object.keys(answers).filter(key => key.startsWith(`c${c}_`) && !transferKey(key)).every(sure);
+  const event = (claim, settled, extra) => ({ concept: claim.concept, claim: claim.id, settled, evaluator, source: 'free_text', ...extra });
   const events = [];
   const attempted = spec.answering ? !yes(answers.non_attempt) : !no(answers.attempt);
-  if (spec.answering && yes(answers.non_attempt) && spec.claims[0]) events.push(event(spec.claims[0], { result: 'non_attempt', kind: null }));
+  if (spec.answering && yes(answers.non_attempt) && spec.claims[0]) events.push(event(spec.claims[0], true, { result: 'non_attempt', kind: null }));
   if (attempted) {
     const passes = [], negatives = [];
     spec.claims.forEach((claim, c) => {
@@ -76,13 +83,15 @@ export function evaluationFrom(spec, answers, thresholds, evaluator) {
       const engaged = (spec.answering && c === 0) || claim.ideas.some((_, i) => yes(answers[`c${c}_idea${i}`]) || yes(answers[`c${c}_contra${i}`]))
         || claim.misconceptions.some((_, m) => yes(answers[`c${c}_mis${m}`]));
       if (!engaged) return;
-      const kind = yes(answers[`c${c}_transfer`]) ? 'demonstrated_in_transfer' : 'demonstrated_here';
+      const settled = claimSettled(c), transfer = answers[`c${c}_transfer`];
+      const kind = yes(transfer) ? 'demonstrated_in_transfer' : 'demonstrated_here';
+      const unsure = typeof transfer === 'number' && !yes(transfer) && !no(transfer) ? { transfer_unsure: true } : {};
       claim.ideas.forEach((_, i) => {
-        if (yes(answers[`c${c}_idea${i}`])) passes.push(event(claim, { result: 'pass', kind, idea: i }));
-        else if (yes(answers[`c${c}_contra${i}`])) negatives.push(event(claim, { result: 'fail', kind: null, idea: i }));
+        if (yes(answers[`c${c}_idea${i}`])) passes.push(event(claim, settled, { result: 'pass', kind, idea: i, ...unsure }));
+        else if (yes(answers[`c${c}_contra${i}`])) negatives.push(event(claim, settled, { result: 'fail', kind: null, idea: i }));
       });
       claim.misconceptions.forEach((wrong, m) => {
-        if (yes(answers[`c${c}_mis${m}`])) negatives.push(event(claim, { result: 'misconception', misconception_id: wrong.id, kind: null }));
+        if (yes(answers[`c${c}_mis${m}`])) negatives.push(event(claim, settled, { result: 'misconception', misconception_id: wrong.id, kind: null }));
       });
     });
     events.push(...passes, ...negatives);
@@ -91,7 +100,7 @@ export function evaluationFrom(spec, answers, thresholds, evaluator) {
     if (!yes(answers[`g${g}`])) return;
     for (const id of gap.claims) {
       const claim = spec.claims.find(entry => entry.id === id);
-      if (claim) events.push(event(claim, { result: 'gap', prerequisite: gap.concept, kind: null }));
+      if (claim) events.push(event(claim, true, { result: 'gap', prerequisite: gap.concept, kind: null }));
     }
   });
   return { status, events };

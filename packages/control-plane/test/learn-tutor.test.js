@@ -9,6 +9,7 @@ import { tutorRoute, JEV_TIMEOUT_MS, fastPlanProblem, plannerTier, planTurn } fr
 import { tutorQuestions, evaluationFrom, TUTOR_TOOL, NEXT_STEP_SYSTEM, PLANNER_SYSTEM, plannerRequest } from '../src/agents/learn-tutor.js';
 import { protocolFingerprint, GRADER_PROTOCOL_FINGERPRINT, JevError } from '../src/learn-grade-jev.js';
 import { promptVersion } from '../src/learn-models.js';
+import { appendEvents, deriveClaimStates, emptyStore } from '../../web/src/learn-tutor-evidence.js';
 
 const SPEC = {
   answering: false,
@@ -80,6 +81,39 @@ test('evaluationFrom (D7): answering a tutor question while touching one idea fa
 test('evaluationFrom (D7): a misconception-only message keeps its misconception event and fails no idea', () => {
   const { events } = evaluationFrom(OWNER, ownerAnswers({ c0_idea0: 0, c0_mis0: 1 }), T, 'jev');
   assert.deepEqual(events.map(event => [event.result, event.misconception_id]), [['misconception', 'divides-raw-scores']]);
+});
+
+// Settled per claim (Tutor eval run A, tutor-decision-eval.md 18.1): an unsure transfer check never unsettles taught-case
+// evidence and stays explicit; only a confident transfer pass can make the claim understood; an unsure correctness check
+// still unsettles its own claim, and only its own.
+const REGISTRY = { 'softmax/x': { concept: 'softmax', statement: 's', ideas: OWNER.claims[0].ideas, misconceptions: OWNER.claims[0].misconceptions, prerequisites: [] } };
+const stateAfter = events => deriveClaimStates(appendEvents(emptyStore(), events).store.events, REGISTRY)['softmax/x'].state;
+test('evaluationFrom: a correct taught-case answer with an unsure transfer check is settled demonstrated_here, transfer_unsure, and never understood', () => {
+  const unsure = evaluationFrom(OWNER, ownerAnswers({ c0_idea1: 1, c0_transfer: 0.5 }), T, 'jev');
+  assert.equal(unsure.status, 'settled', 'transfer alone never unsettles the turn');
+  assert.deepEqual(unsure.events.map(e => [e.result, e.idea, e.kind, e.settled, e.transfer_unsure]), [['pass', 0, 'demonstrated_here', true, true], ['pass', 1, 'demonstrated_here', true, true]]);
+  assert.equal(stateAfter(unsure.events), 'uncertain', 'a taught-case pass is not understanding');
+  const sure = evaluationFrom(OWNER, ownerAnswers({ c0_idea1: 1, c0_transfer: 0.95 }), T, 'jev');
+  assert.deepEqual(sure.events.map(e => [e.kind, e.settled, 'transfer_unsure' in e]), [['demonstrated_in_transfer', true, false], ['demonstrated_in_transfer', true, false]]);
+  assert.equal(stateAfter(sure.events), 'understood', 'a confident transfer pass covering every idea still is');
+  assert.equal('transfer_unsure' in evaluationFrom(OWNER, ownerAnswers({ c0_transfer: 0.1 }), T, 'jev').events[0], false, 'a confident no is not unsure');
+});
+
+test('evaluationFrom: wrong answers stay settled failures; an unsure correctness check or attempt check still unsettles its claim', () => {
+  const wrong = evaluationFrom(OWNER, ownerAnswers({ c0_idea0: 0, c0_contra0: 1, c0_mis0: 1, c0_transfer: 0.5 }), T, 'jev');
+  assert.equal(wrong.status, 'settled');
+  assert.deepEqual(wrong.events.map(e => [e.result, e.settled]), [['fail', true], ['misconception', true]]);
+  for (const unsure of [{ c0_contra1: 0.5 }, { c0_idea1: 0.5 }, { c0_mis0: 0.5 }, { attempt: 0.5 }]) {
+    const out = evaluationFrom(OWNER, ownerAnswers({ ...unsure, c0_transfer: 0.5 }), T, 'jev');
+    assert.deepEqual([out.status, out.events.map(e => e.settled)], ['uncertain', [false]], JSON.stringify(unsure));
+  }
+});
+
+test('evaluationFrom: claims settle independently - an unsure check never unsettles another claim evidence', () => {
+  const two = { ...OWNER, claims: [OWNER.claims[0], { ...OWNER.claims[0], id: 'softmax/y', misconceptions: [] }] };
+  const out = evaluationFrom(two, { ...ownerAnswers(), c1_idea0: 1, c1_contra0: 0, c1_idea1: 0.5, c1_contra1: 0, c1_transfer: 0 }, T, 'jev');
+  assert.equal(out.status, 'uncertain');
+  assert.deepEqual(out.events.map(e => [e.claim, e.result, e.settled]), [['softmax/x', 'pass', true], ['softmax/y', 'pass', false]]);
 });
 
 test('evaluate: a settled JEV answer ends the ladder - one batched 800 ms request, no retry, no model call', async t => {
