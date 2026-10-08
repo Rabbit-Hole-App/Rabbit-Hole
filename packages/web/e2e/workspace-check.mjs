@@ -138,35 +138,27 @@ await overviewCheck('inspector §14: a small source preview, 8 lines from the ob
   const lines = await panel.locator('[data-inspector-preview] > div').allInnerTexts();
   assert.equal(lines.length, 8); assert.match(lines[0], /^1\s/);
 });
-await check('inspector §11 §12: two actions, Ask about this (secondary) and Learn this, the only primary button', async () => {
-  assert.deepEqual((await panel.locator('[data-inspector-actions] button').allInnerTexts()).map((t) => t.trim()), ['Ask about this', 'Learn this']);
+// Owner, 2026-10-08: no Ask about this or Learn this footer; one Learn this at the top right, beside the node's title. Asking
+// happens in the composer.
+await check('inspector §11 §12: one action, Learn this, in the header row beside the title - the only primary button; no Ask about this', async () => {
+  const header = panel.locator('[data-inspector-header]');
+  const learn = header.locator('[data-inspector-learn]');
+  assert.equal(await learn.innerText(), 'Learn this');
+  const t = await box(header.locator('[data-inspector-title]')), l = await box(learn);
+  near(l.top + l.height / 2, t.top + t.height / 2, 'Learn this sits in the title row', 4);
+  assert.ok(l.left >= t.right - 1, 'to the right of the title');
+  assert.ok(t.width >= 60, `the title keeps its room: ${t.width}px`);
+  assert.equal(await panel.locator('[data-inspector-actions]').count(), 0, 'no footer of actions');
+  assert.equal(await panel.getByRole('button', { name: 'Ask about this' }).count(), 0, 'no Ask about this');
   const primaries = await panel.locator('button').evaluateAll((all) => all.filter((b) => getComputedStyle(b).backgroundColor === 'rgb(35, 131, 226)').map((b) => b.textContent.trim()));
   assert.deepEqual(primaries, ['Learn this']);
-  // Ask writes a ready question and focuses the composer; nothing is sent (owner, 2026-10-08).
-  const sent = asks.length;
-  await panel.locator('[data-inspector-actions]').getByRole('button', { name: 'Ask about this' }).click();
-  await page.waitForTimeout(300);
-  assert.equal(await input.inputValue(), 'What does train.py do, and how is it used here?');
-  assert.equal(await input.evaluate((n) => n === document.activeElement), true);
-  assert.equal(asks.length, sent, 'nothing was sent');
-  if (OVERVIEW_TAB) {
-    await panel.locator('[data-inspector-section="why"]').getByRole('button', { name: 'Ask why →' }).click();
-    await page.waitForTimeout(300);
-    assert.equal(await input.inputValue(), 'Why does train.py matter in this codebase?', 'an untouched earlier question is replaced');
-  }
-  await input.fill('my own words');
-  await panel.locator('[data-inspector-actions]').getByRole('button', { name: 'Ask about this' }).click();
-  await page.waitForTimeout(300);
-  assert.equal(await input.inputValue(), 'my own words', 'the learner\'s own words are never overwritten');
-  assert.equal(asks.length, sent, 'still nothing sent');
-  await input.fill('');
 });
 // Owner, 2026-10-08: the object's conversation is its Chat tab - Overview | Source | Chat; Overview has no Conversation row.
-await check('inspector §9: Overview | Source | Chat; an empty Chat says so with an ask; Overview carries no Conversation row', async () => {
+await check('inspector §9: Overview | Source | Chat; an empty Chat says so and points to the composer; Overview carries no Conversation row', async () => {
   assert.deepEqual((await panel.getByRole('tab').allInnerTexts()).map((t) => t.trim()), [...OV, 'Source', 'Chat']);
   assert.equal(await panel.locator('[data-inspector-section="conversation"]').count(), 0);
   await panel.locator('[data-inspector-chat-tab]').click();
-  assert.match(await panel.locator('[data-inspector-chat]').innerText(), /No messages yet\. Ask about this →/);
+  assert.match(await panel.locator('[data-inspector-chat]').innerText(), /No messages yet\. Ask about it in the composer below\./);
   if (OVERVIEW_TAB) await panel.getByRole('tab', { name: 'Overview' }).click();
 });
 await shot('dock-A-desktop-inspector-composer');

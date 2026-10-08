@@ -237,3 +237,18 @@ test('a question about a selected object streams into its Chat, bound to the obj
   // The composer marks the object being asked about.
   assert.match(bar, /chip\.key === 'selected' \? 'bg-accent\/10 ring-1 ring-accent\/40' : 'bg-hover'/);
 });
+
+// Owner, 2026-10-08: "in the right side panel we have a "Ask abiyt this" and "Learn this" button. remove them. Learn this button
+// should be at the top right of the right side panel. next to the title of the node sleected".
+test('the inspector has one action, Learn this, in its header beside the title; no Ask about this or Learn this footer', () => {
+  assert.match(inspector, /<h2 data-inspector-title className="min-w-16 flex-1 truncate[^\n]*title=\{title\}>\{title\}<\/h2>\n(\s+\{\/\*[\s\S]*?\*\/\}\n)?\s+\{!record && <Button data-inspector-learn size="sm" variant="primary" onClick=\{onLearn\} className="shrink-0">Learn this<\/Button>\}/);
+  assert.doesNotMatch(inspector, /data-inspector-actions|<footer/);
+  // A narrow panel keeps the title: Open source shows only its icon there (a container query), and the title keeps 4rem.
+  assert.match(inspector, /<header data-inspector-header className=\{`@container /);
+  assert.match(inspector, /aria-label="Open source"[^\n]*<span className="@max-\[24rem\]:hidden">Open source<\/span><ArrowUpRight/);
+  assert.equal(inspector.match(/>Learn this</g).length, 1, 'one Learn this');
+  const chat = inspector.slice(inspector.indexOf('const chat = '), inspector.indexOf('// Overview hidden'));
+  assert.doesNotMatch(chat, /Ask about this/, 'the Chat tab asks through the composer');
+  // The same handler as before: it carries the node into Learn and sends nothing.
+  assert.match(page, /onLearn=\{\(\)=>learnThis\(inspected\)\}/);
+});
