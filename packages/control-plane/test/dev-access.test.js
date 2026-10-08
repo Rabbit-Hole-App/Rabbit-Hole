@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { SignJWT, createLocalJWKSet, exportJWK, generateKeyPair } from 'jose';
-import { accessSession, SESSION_COOKIE, SMOKE_EMAIL } from '../src/dev-access.js';
+import { accessSession, withAccess, SESSION_COOKIE, SMOKE_EMAIL } from '../src/dev-access.js';
 import { SESSION_COOKIE as AUTH_COOKIE } from '../src/auth.js';
 
 const TEAM = 'rabbit-hole.cloudflareaccess.com', AUD = 'aud-tag-1';
@@ -103,6 +103,30 @@ test('a valid assertion replayed to another host (a version preview URL) is refu
 test('an email claim naming the smoke user is not the smoke identity', async () => {
   const e = env({ ACCESS_ALLOWED_EMAILS: 'owner@example.com' }), out = await accessSession(request({ 'Cf-Access-Jwt-Assertion': await assertion({ email: SMOKE_EMAIL }) }), e, keys);
   assert.equal(out.refuse.status, 403); assert.equal(e.minted.length, 0);
+});
+
+test('a verified identity is sent from the app sign-in to the Library; everything else reaches the worker', async () => {
+  // The owner's first visit (2026-10-08) landed on / and pressed the app's Google sign-in, which the barrier refuses.
+  const served = [];
+  const app = async (req) => { served.push(`${req.method} ${new URL(req.url).pathname}`); return new Response('app', { status: req.method === 'POST' ? 403 : 200 }); };
+  const at = async (path, method = 'GET') => new Request(`https://rabbit-hole-web-dev-x.tryrabbithole.workers.dev${path}`, { method, headers: { 'Cf-Access-Jwt-Assertion': await assertion({ email: 'owner@example.com' }) } });
+  for (const [path, method] of [['/'], ['/sign-in'], ['/sign-up'], ['/login'], ['/auth'], ['/auth/google/start'], ['/', 'HEAD']]) {
+    const r = await withAccess(app, keys)(await at(path, method), env());
+    assert.equal(r.status, 302, `${method ?? 'GET'} ${path}`); assert.equal(r.headers.get('Location'), '/library');
+    assert.equal(r.headers.get('Cache-Control'), 'no-store');
+    assert.match(r.headers.get('Set-Cookie'), /^small_session=/, 'the minted session rides along');
+  }
+  assert.deepEqual(served, [], 'none of them reached the app');
+  for (const [path, method] of [['/library'], ['/api/apps'], ['/login', 'POST'], ['/logout', 'POST'], ['/signin-elsewhere']]) await withAccess(app, keys)(await at(path, method), env());
+  assert.deepEqual(served, ['GET /library', 'GET /api/apps', 'POST /login', 'POST /logout', 'GET /signin-elsewhere'], 'writes still reach the barrier');
+});
+
+test('without ACCESS_AUD, or without a verified identity, sign-in pages are not redirected', async () => {
+  const app = async () => new Response('landing', { status: 200 });
+  const plain = await withAccess(app, keys)(new Request('https://small-cp-dev.tryrabbithole.workers.dev/'), env({ ACCESS_AUD: undefined }));
+  assert.equal(plain.status, 200); assert.equal(await plain.text(), 'landing');
+  const anon = await withAccess(app, keys)(new Request('https://rabbit-hole-web-dev-x.tryrabbithole.workers.dev/sign-in'), env());
+  assert.equal(anon.status, 403, 'no assertion: refused, never redirected');
 });
 
 test('only the stable URL entrypoint imports the bridge: never dev-worker.js, never production app-worker.js', () => {

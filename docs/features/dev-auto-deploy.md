@@ -72,8 +72,9 @@ serving):
    - `prod-release.mjs prepare` reads this record and accepts only `gates: "pass"` with `smoke: "pass"`.
 6. **Smoke and rollback.**
    - The smoke waits until the URL serves this build, then checks:
-     - `/` and `/library` return 200;
-     - the barrier refuses `/login`, `/auth`, `/logout` and `/test/session`;
+     - `/library` returns 200;
+     - behind Access, `GET /` and `GET /auth/google/start` return a 302 to `/library` (the sign-in redirect below);
+     - the barrier refuses `POST /login`, `/logout` and `/test/session`;
      - a request without credentials is turned away;
      - signed-in `GET /api/apps` and `GET /api/profile` work.
    - A **fail** rolls back to the previous version (`wrangler rollback <version> -y`), with the message `rollback to main <sha>: …`.
@@ -136,10 +137,16 @@ app's dev identity:
 2. **Session.** If the browser has no session for that email, the worker mints one on `rabbit-hole-cp-dev` through the binding's
    `/test/session`, with `handle: null`, so the person keeps or chooses their own handle. It then sets the normal
    `small_session` cookie. The dev control plane's own `MASTER_KEY` signs it.
-3. **Downstream.** Every API and control-plane call then carries that session, and runs the normal account, workspace and
-   ownership checks. The browser's `/login`, `/auth`, `/logout` and `/test/session` stay refused. Production authentication
+3. **Sign-in pages go to the Library.** Behind Access the person is already signed in, and the app's own sign-in can
+   never complete on a preview, because the barrier refuses `/auth/*`.
+   - For a verified identity, `GET` and `HEAD` on `/`, `/sign-in`, `/sign-up`, `/login`, `/auth` and `/auth/*` answer 302 to `/library` (`signInRedirect`).
+   - Writes still reach the barrier, which refuses them.
+   - Owner report, 2026-10-08: the first visit landed on `/`, offered Google sign-in, and showed "Blocked on this preview".
+   - Without `ACCESS_AUD`, or without a verified identity, nothing is redirected.
+4. **Downstream.** Every API and control-plane call then carries that session, and runs the normal account, workspace and
+   ownership checks. The barrier still refuses the browser's `/login`, `/auth`, `/logout` and `/test/session`; a verified identity's GETs of the sign-in pages are redirected before reaching it (3). Production authentication
    (`app-worker.js`, `rabbit-hole-cp`) is unchanged.
-4. **The smoke identity.** The Access service token named by `ACCESS_SMOKE_CLIENT_ID` carries no email. It maps to the
+5. **The smoke identity.** The Access service token named by `ACCESS_SMOKE_CLIENT_ID` carries no email. It maps to the
    synthetic `dev-deploy-smoke@example.test` user and to nothing else.
 
 **Configuration** is Worker *secrets* on the clone only. They survive every `wrangler deploy`, and they never touch the

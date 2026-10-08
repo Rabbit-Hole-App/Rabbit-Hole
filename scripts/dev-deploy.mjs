@@ -170,9 +170,18 @@ async function smoke(entry) {
   let served = false;
   for (let i = 0; i < 24 && !served; i++) { served = (await (await get('/library')).text()).includes(entry); if (!served) await new Promise(r => setTimeout(r, 5000)); }
   results.push([served ? 'pass' : 'fail', `the clone serves this build (${entry})`]);
-  for (const p of ['/', '/library']) { const s = (await get(p)).status; results.push([s === 200 ? 'pass' : 'fail', `GET ${p} ${s}`]); }
+  const library = (await get('/library')).status;
+  results.push([library === 200 ? 'pass' : 'fail', `GET /library ${library}`]);
+  // Behind Access the verified identity is sent from the app's own sign-in pages to the Library (dev-access.js
+  // signInRedirect); without Access, / is Landing and the barrier refuses /auth.
+  const behindAccess = Boolean(token['CF-Access-Client-Id']);
+  for (const p of ['/', '/auth/google/start']) {
+    const r = await get(p), to = r.headers.get('location');
+    const ok = behindAccess ? r.status === 302 && to === '/library' : r.status === (p === '/' ? 200 : 403);
+    results.push([ok ? 'pass' : 'fail', `GET ${p} ${r.status}${to ? ` -> ${to}` : ''}`]);
+  }
   const barrier = [];
-  for (const [m, p] of [['POST', '/login'], ['GET', '/auth'], ['POST', '/logout'], ['POST', '/test/session']]) barrier.push((await get(p, { method: m })).status);
+  for (const [m, p] of [['POST', '/login'], ['POST', '/logout'], ['POST', '/test/session']]) barrier.push((await get(p, { method: m })).status);
   results.push([barrier.every(c => c === 403) ? 'pass' : 'fail', `dev barrier refuses sign-in routes ${barrier.join(',')}`]);
   // Access protection: without credentials Access (or, before it, the dev worker) turns the request away.
   const anon = await fetch(`${URL_BASE}/api/apps`, { redirect: 'manual', headers: UA });
