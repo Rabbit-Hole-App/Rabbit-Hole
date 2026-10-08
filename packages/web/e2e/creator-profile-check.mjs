@@ -111,6 +111,9 @@ await check('1 Explore: Explainers by default with no creator row; the Creators 
 });
 await shot(viewer, 'C-explore-creator-row');
 await check('2 the Explore card\'s @handle is a neutral link to /@handle; the title still opens /e', async () => {
+  // Check 1 ends on the Creators tab (kept in the URL); the cards are on Explainers, the default.
+  await viewer.goto(`${BASE}/explore`);
+  await viewer.locator('[data-explore-list]').waitFor({ timeout: 30000 });
   const c = ours(viewer, T.kv);
   const link = c.locator('[data-creator-link]');
   assert.equal(await link.getAttribute('href'), `/@${H.full}`);
