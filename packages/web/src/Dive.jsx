@@ -247,8 +247,8 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
       if (notice?.text) toast(notice.text);
     } },
     navigator: { tree: tree && { ...tree, children }, pending, error, climb, enter, rename, askDelete },
-    // An empty hole says what it is and what keeps it; gone with the first object.
-    emptyHint: pending && !canvasState.content && tree && <div data-dive-empty className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center px-6">
+    // An empty hole says what it is and what keeps it; gone with the first object, by the keep rule's own predicate.
+    emptyHint: pending && !meaningful(canvasState) && tree && <div data-dive-empty className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center px-6">
       <div className="max-w-sm text-center">
         <p className="text-sm font-medium text-ink-2">A new Rabbit Hole under {tree.path.at(-2)?.title}</p>
         <p className="mt-1 text-xs text-ink-3">Add a card, a drawing or a note and it is kept. Leave this Rabbit Hole with nothing in it and it disappears.</p>

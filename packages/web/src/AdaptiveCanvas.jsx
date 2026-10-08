@@ -28,6 +28,7 @@ import { DOCK_PAD, DOCK_WIDTH } from './ChatComposer.jsx';
 import { PerfContext, perfMark, usePaintedMarks } from './learn-perf.js';
 import LaserPointer from './LaserPointer.jsx';
 import { DivePortals } from './Dive.jsx';
+import { canvasObjects } from './dive.js';
 import { openTarget, opensFrom, selectedCardContext } from './card-open.js';
 import { columnEntries, fillSlot, freeArea, freeSlot, indexAfter, panInto, slotIndex, slotSize } from './canvas-slots.js';
 import { lightBlocks, persistBoard } from './canvas-persist.js';
@@ -2062,7 +2063,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const selectedCount = selection.length;
   const units = selectedCount > 1 ? arrangeUnits(selection).length : selectedCount;
   const grouped = selection.some(id => groupOf(id));
-  // The one selected lesson card, for /dive and Ctrl+K; and how many canvas objects exist (chat left out), for a hole's first object.
+  // The one selected lesson card, for /dive and Ctrl+K; and how many canvas objects exist (dive.js canvasObjects), for a hole's first object.
   const soleCard = selection.length === 1 ? blocks.find(block => block.id === selection[0]) : null;
   // A whole group selected is one origin too, so loose shapes dive only once they are grouped.
   const selectedGroup = !soleCard && selection.length > 1 && groups.find(group => {
@@ -2071,7 +2072,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   });
   const card = soleCard ? { id: soleCard.id, title: soleCard.title || describeBlock(soleCard)?.title || '' }
     : selectedGroup ? { id: selectedGroup.id, title: selectedGroup.label || `${selection.length} items` } : null;
-  const cardKey = JSON.stringify(card), content = strokes.length + shapes.length + items.length + blocks.length;
+  const cardKey = JSON.stringify(card), content = canvasObjects({ blocks, exchanges, strokes, shapes, items, areas });
   // Practice attempts committed on this canvas (every card's attemptLog): a Professor Next Steps basis trigger (contract §1.7).
   const attempts = blocks.reduce((sum, block) => sum + (block.attemptLog?.length || 0), 0);
   useEffect(() => { onState?.({ grid, lock, minimap, pages, presenting: presenting !== null, outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey), selected: selectedCount, units, grouped, canPaste, card: JSON.parse(cardKey), content, attempts }); }, [grid, lock, minimap, pages, presenting, outlineKey, cardsKey, selectedCount, units, grouped, canPaste, cardKey, content, attempts, onState]);
