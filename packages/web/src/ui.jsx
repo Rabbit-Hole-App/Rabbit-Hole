@@ -449,13 +449,15 @@ export function ShareInput({ value, onChange, onPick, people = [], teams = [], e
 // ─── ConfirmDialog - the one modal (Delete only, per notion.md §7): item name in
 // the body, red primary button. ───
 export function ConfirmDialog({ title, body, confirmLabel = 'Delete', confirmVariant = 'danger', onConfirm, onCancel, altLabel = null, onAlt }) {
+  // The second press of the double click that opened it lands on the backdrop: not a dismissal.
+  const opened = useRef(Date.now());
   useEffect(() => {
     const esc = (e) => e.key === 'Escape' && onCancel();
     window.addEventListener('keydown', esc);
     return () => window.removeEventListener('keydown', esc);
   }, []);
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/20 animate-[fade-in_100ms_ease-out]" onMouseDown={onCancel}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/20 animate-[fade-in_100ms_ease-out]" onMouseDown={() => Date.now() - opened.current > 400 && onCancel()}>
       <div role="dialog" aria-modal="true" aria-label={title} className="mt-[26vh] w-96 max-w-[90vw] rounded-2xl bg-white p-4 shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
         <div className="pb-1 text-sm font-semibold">{title}</div>
         <div className="pb-4 text-sm text-ink-2">{body}</div>

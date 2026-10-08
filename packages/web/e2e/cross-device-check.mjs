@@ -3,7 +3,8 @@
 // stack only - local D1, no model calls (/api/learn/ask is aborted as a guard; no composer is ever sent). Prints no secrets.
 // Usage: BASE=http://127.0.0.1:8848 SMALL_CP=http://127.0.0.1:8849 node e2e/cross-device-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
-import { mkdirSync, readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
 import assert from 'node:assert/strict';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8848';
@@ -25,6 +26,19 @@ const catalog = (await api(owner, '/api/apps')).body;
 const DEVICE_A = `device-a-${run}`, DEVICE_B = `device-b-${run}`;
 const keysOf = name => { const base = `small.adaptive-canvas:${catalog.org}:${catalog.email}:${name}`; return { ink: `${base}:ink`, chat: `${base}:chat` }; };
 const newCanvas = async title => (await api(owner, '/api/canvases', { method: 'POST', body: JSON.stringify({ title, device_id: DEVICE_A }) })).body;
+// A canvas is saved on the server at creation now (canvas-persistence.md, Saved at creation). Older canvases, made before
+// that, have no main board until a browser saves one; they still exist, so their paths stay checked. An older canvas is
+// made here the only way one exists: the canvas row with its creation-time empty board removed from the local stack's
+// Learn D1 (PERSIST, the stack's --persist-to; local only, like everything this check touches).
+const PERSIST = new URL(`${process.env.PERSIST || '../../../.small/fork-local'}/v3/d1/miniflare-D1DatabaseObject/`, import.meta.url);
+const learnDb = () => readdirSync(PERSIST).filter(f => f.endsWith('.sqlite') && f !== 'metadata.sqlite').map(f => new DatabaseSync(new URL(f, PERSIST)))
+  .find(db => db.prepare("SELECT 1 FROM sqlite_master WHERE name = 'learn_boards'").get() || (db.close(), false));
+const olderCanvas = async title => {
+  const canvas = await newCanvas(title);
+  const db = learnDb();
+  try { assert.equal(db.prepare("DELETE FROM learn_boards WHERE app = ? AND board = 'main' AND version = 0").run(canvas.name).changes, 1, 'the empty board from creation'); } finally { db.close(); }
+  return canvas;
+};
 
 // What browser A holds: cards, an image, a PDF, a notebook and a chat card (the shapes Learn writes; canvas-sharing-files).
 const NOTEBOOK_ID = crypto.randomUUID();
@@ -74,9 +88,9 @@ const draw = async (page, at = 0) => {
   await page.keyboard.press('Escape');
 };
 
-const C1 = await newCanvas(`Softmax ${run}`);
+const C1 = await olderCanvas(`Softmax ${run}`);
 
-await check('0 neither copy exists: another browser shows the truthful NOT_HERE state', async () => {
+await check('0 an older canvas, neither copy exists: another browser shows the truthful NOT_HERE state', async () => {
   await B.page.goto(`${BASE}/apps/${C1.name}`);
   await B.page.locator('[data-canvas-gate]').getByRole('heading', { name: "This canvas's content isn't available in this browser." }).waitFor({ timeout: 30000 });
   assert.equal((await boardOf(C1.name)).exists, false);
@@ -212,7 +226,7 @@ await check('4 an edit on A while offline lands on reconnect', async () => {
 });
 
 await check('5 a browser-only canvas from before this release migrates on its first open; updated_at does not move', async () => {
-  const C2 = await newCanvas(`Old notes ${run}`);
+  const C2 = await olderCanvas(`Old notes ${run}`);
   const created = (await api(owner, `/api/apps/${C2.name}`)).body.updated_at;
   const ink = { ...INK, blocks: INK.blocks.slice(0, 2) };
   await A.page.evaluate(([keys, ink, chat]) => { localStorage.setItem(keys.ink, JSON.stringify(ink)); localStorage.setItem(keys.chat, JSON.stringify(chat)); }, [keysOf(C2.name), ink, CHAT]);
@@ -237,7 +251,8 @@ await check('6 a board over 1.9 MB is refused visibly and its local copy is kept
   await open(A.page, C3.name, '[data-block-id="e1"]');
   await A.page.locator('[data-toast-error]').filter({ hasText: 'This board is over 1.9 MB, so it was not saved to your account and stays only in this browser.' }).waitFor({ timeout: 15000 });
   await shot(A.page, '04-A-over-cap-refused');
-  assert.equal((await boardOf(C3.name)).exists, false, 'not on the server');
+  const kept = await boardOf(C3.name);
+  assert.ok(kept.exists && kept.version === 0 && !kept.state.blocks.length, 'only the empty board from creation: the refused copy is not on the server');
   assert.equal((await local(A.page, keysOf(C3.name).ink)).blocks[0].notes.length, 1_950_000, 'kept in this browser');
   await draw(A.page);
   await A.page.waitForTimeout(3000);
@@ -301,7 +316,7 @@ await check('8 A\'s canvas on other profiles: Library and Home carry no browser 
 
 await check('9 a never-synced canvas keeps its truthful state: Content in this browser where it was made, On another device elsewhere, and it does not open there', async () => {
   // Made on A before this release and never opened since: its content is only in A's localStorage.
-  const C4 = await newCanvas(`Never synced ${run}`);
+  const C4 = await olderCanvas(`Never synced ${run}`);
   await A.page.evaluate(([keys, ink, chat, name]) => {
     localStorage.setItem(keys.ink, JSON.stringify(ink)); localStorage.setItem(keys.chat, JSON.stringify(chat));
     localStorage.setItem('small.recent', JSON.stringify([name, ...JSON.parse(localStorage.getItem('small.recent') || '[]')]));
@@ -339,8 +354,11 @@ await check('10 a board over 1.9 MB keeps Content in this browser where it was r
   await library(A.page);
   for (const title of [`Huge ${run}`, `Grew huge ${run}`]) assert.equal(await noteOf(A.page, '[data-library-card="canvas"]', title), 'Content in this browser', title);
   await shot(A.page, '12-A-library-over-cap');
+  // ponytail: Huge has its empty board from creation, so another browser cannot know this browser's copy was refused:
+  // it shows no note and opens the empty board (canvas-persistence.md, Saved at creation). A refusal flag on the server
+  // would let B say so; add it if refused-first-copy canvases turn up in practice.
   await library(B.page);
-  assert.ok(away(await noteOf(B.page, '[data-library-card="canvas"]', `Huge ${run}`)), 'never on the server');
+  assert.equal(await noteOf(B.page, '[data-library-card="canvas"]', `Huge ${run}`), '', 'its empty board from creation is on the server');
   // Back under the cap: the next save lands and the note goes.
   await A.page.evaluate(([keys, ink]) => localStorage.setItem(keys.ink, JSON.stringify(ink)), [keysOf(C5.name), { ...INK, blocks: INK.blocks.slice(0, 2) }]);
   await open(A.page, C5.name, '[data-block-id="e2"]');

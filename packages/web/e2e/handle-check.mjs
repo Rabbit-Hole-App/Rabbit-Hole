@@ -100,6 +100,11 @@ check('a deep link with ?fork=1 meets the step first, and nothing forks yet', be
 await shot(newbiePage, '07-deeplink-setup');
 await newbiePage.getByRole('textbox', { name: 'Handle' }).fill(H.newbie);
 await newbiePage.getByRole('button', { name: 'Continue' }).click();
+// The resumed fork asks first, as every Fork does (owner, 2026-10-08): "Fork this canvas", then Fork.
+const resumed = newbiePage.getByRole('dialog', { name: 'Fork this canvas' });
+await resumed.waitFor({ timeout: 30000 });
+check('claimed, the page reopens the Fork dialog it was asked for, and nothing forks before Fork', (await api(people.owner, '/api/canvases')).canvases.find(c => c.name === source.name)?.fork_count === 0);
+await resumed.getByRole('button', { name: 'Fork', exact: true }).click();
 await newbiePage.waitForURL(/\/apps\/canvas-[a-f0-9]{8}\?tab=learn$/, { timeout: 60000 });
 const forkName = new URL(newbiePage.url()).pathname.split('/').pop();
 check('claimed, the page resumes the fork it was asked for', (await api(people.newbie, '/api/canvases')).canvases.some(c => c.name === forkName && c.owner_email === EMAIL.newbie)

@@ -56,11 +56,13 @@ const section = () => page.locator('main > section').first();
 const fold = async (name, open = true) => { const d = panel.locator(`[data-inspector-section="${name}"]`); if ((await d.evaluate((n) => n.open)) !== open) await d.locator('summary').click(); };
 
 await openMap();
-await check('dock §1 §11: the composer spans the workspace from the sidebar edge to the window edge, never behind the sidebar', async () => {
+await check('dock §1 §11: the dock spans the workspace from the sidebar edge to the window edge, never behind the sidebar; its input is half of it, centred', async () => {
   const b = await box(bar), side = await box(page.locator('[data-shell-sidebar]')), form = await box(bar.locator('[data-chat-composer]'));
   near(b.left, side.right, 'dock starts at the sidebar edge');
   near(b.right, 1440, 'dock ends at the window edge');
-  assert.ok(form.left - b.left <= 24 && b.right - form.right <= 24, `input spans the dock, not a centred column: ${form.left - b.left} / ${b.right - form.right}`);
+  // The input is half the dock's width, centred, never under 28rem (owner, 2026-10-08; AgentBar.jsx).
+  const half = Math.max((b.right - b.left) / 2, 448), w = form.right - form.left;
+  assert.ok(Math.abs(w - half) <= 2 && Math.abs((form.left - b.left) - (b.right - form.right)) <= 2, `input is ${w}px at ${form.left - b.left} / ${b.right - form.right}, not half the dock (${half}px) centred`);
 });
 await check('dock §2 §19: the dock is chrome - a top divider, an opaque surface, no gradient, a hairline input shadow; Auto stays neutral (§5)', async () => {
   const s = await bar.evaluate((n) => { const c = getComputedStyle(n), f = getComputedStyle(n.querySelector('[data-chat-composer]')), auto = [...n.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Auto'); const a = getComputedStyle(auto); return { border: c.borderTopWidth, bg: c.backgroundColor, image: c.backgroundImage, shadow: f.boxShadow, autoColor: a.color, autoBg: a.backgroundColor }; });

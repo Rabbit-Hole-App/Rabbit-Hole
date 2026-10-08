@@ -65,15 +65,18 @@ const SEEDS = {
 
 const browser = await chromium.launch();
 const errors = [];
-const contextFor = async (who, { project = false } = {}) => {
+// A canvas is saved on the server at creation now (canvas-persistence.md, Saved at creation), so a browser note only
+// shows on an older canvas made before that: `legacy` names the rows this browser reads as board-less (board_saved off).
+const contextFor = async (who, { project = false, legacy = [] } = {}) => {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   if (who) await context.addCookies([{ name: 'small_session', value: who.session, url: BASE }]);
   if (who === owner) await context.addInitScript(seeds => { for (const [k, v] of Object.entries(seeds)) if (!localStorage.getItem(k)) localStorage.setItem(k, JSON.stringify(v)); }, SEEDS);
-  if (project) {
+  if (project || legacy.length) {
     await context.route(url => new URL(url).pathname === '/api/apps', async route => {
       const response = await route.fetch();
       const body = await response.json();
-      route.fulfill({ response, json: { ...body, apps: [...body.apps, PROJECT] } });
+      const apps = body.apps.map(a => legacy.includes(a.name) ? { ...a, board_saved: false } : a);
+      route.fulfill({ response, json: { ...body, apps: project ? [...apps, PROJECT] : apps } });
     });
   }
   const page = await context.newPage();
@@ -101,7 +104,7 @@ const openMenu = async card => {
 const titlesIn = async (page, sel, mine) => (await page.locator(`${sel} [data-card-title]`).allInnerTexts()).map(t => t.trim()).filter(t => mine.includes(t));
 
 // ---- Library ----
-const lib = await contextFor(owner, { project: true });
+const lib = await contextFor(owner, { project: true, legacy: [tides.name, away.name] });
 await lib.goto(`${BASE}/library`);
 await lib.locator('[data-library-card="project"]').first().waitFor({ timeout: 60000 });
 await lib.locator('[data-library-card="canvas"]').first().waitFor();
@@ -191,7 +194,7 @@ await check('7 the description clamps to three lines', async () => {
   assert.equal(m.clamp, '3');
   assert.ok(m.h <= 3 * m.line + 1 && m.full > m.h, JSON.stringify(m));
 });
-await check('8 the truthful browser states stay: Content in this browser, and On another device with the stored-only line', async () => {
+await check('8 the truthful browser states stay on older board-less canvases: Content in this browser, and On another device with the stored-only line', async () => {
   assert.equal((await titled(lib, '[data-library-card="canvas"]', T.tides).locator('[data-card-note]').innerText()).trim(), 'Content in this browser');
   const note = (await titled(lib, '[data-library-card="canvas"]', T.away).locator('[data-card-note]').innerText()).trim();
   assert.ok(note.startsWith('On another device') && note.includes('stored only in the browser that created it'), note);
@@ -265,7 +268,7 @@ await check('11 Enter on the selected card opens the canvas, and its first open 
 });
 
 // ---- Home ----
-const home = await contextFor(owner);
+const home = await contextFor(owner, { legacy: [away.name] });
 await home.goto(`${BASE}/apps`); // Home: bare /apps (routes.js pageFor)
 await check('12 Home Continue: the canonical card, "Continue learning", where it left off, no browser note once saved, a small Continue → and no big button', async () => {
   const section = home.getByRole('region', { name: 'Continue' });
