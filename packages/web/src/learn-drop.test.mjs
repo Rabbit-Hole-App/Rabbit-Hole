@@ -24,7 +24,7 @@ test('limits are per kind and the refusal names the file and the rule', () => {
 });
 
 test('unknown types and empty files are refused with a visible reason', () => {
-  assert.match(classifyDrop(file('text/html', 10, 'page.html')).error, /drop an image, GIF, video, or PDF/);
+  assert.match(classifyDrop(file('text/html', 10, 'page.html')).error, /drop an image, GIF, video, PDF, notebook \(\.ipynb\) or Python file \(\.py\)/);
   assert.match(classifyDrop(file('image/svg+xml', 10, 'icon.svg')).error, /drop an image/, 'svg is scriptable, not an image here');
   assert.match(classifyDrop(file('image/png', 0, 'empty.png')).error, /empty/);
   assert.match(classifyDrop({ type: 'text/plain', size: 5 }).error, /^That file:/);

@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Map as MapIcon, Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, BringToFront, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Minus, MousePointer2, Pencil, Plus, SendToBack, Slash, Spline, Square, Squircle, Star, StickyNote, Triangle, Type } from 'lucide-react';
+import { Map as MapIcon, Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, BringToFront, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Minus, MousePointer2, Pencil, Plus, SendToBack, Slash, Spline, Square, Squircle, Star, StickyNote, Triangle, Type, Download, Paperclip } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { IconBtn, toast } from './ui.jsx';
 import { boardAsk } from './board-ask.js';
@@ -466,6 +466,23 @@ function FileCard({ block, zoom, selected, connected, onSelect, onMove, onChange
     return () => { if (revoke) URL.revokeObjectURL(revoke); };
   }, [block.assetKey]);
   const clip = block.kind === 'clip';
+  // An imported file kept as it is (canvas-file-drop.md): its name and size, and Download. Never opened or run here.
+  if (block.kind === 'attachment') return (
+    <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
+      connected={connected} width={360} autoMax={200} saved={{ w: block.w }}
+      onSize={(id, w) => onChange({ ...block, w })}
+      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
+      <div data-file-attachment className="flex items-center gap-3 px-4 pb-3">
+        <Paperclip size={16} className="shrink-0 text-ink-2" />
+        <div data-drag-zone className="min-w-0 flex-1 cursor-grab active:cursor-grabbing">
+          <p className="truncate font-mono text-sm text-ink" title={block.label}>{block.label}</p>
+          <p className="text-xs text-ink-3">{missing ? 'This file is not in this browser or saved with the board yet.' : `File attachment${block.size ? ` · ${Math.max(1, Math.round(block.size / 1024))} KB` : ''}`}</p>
+        </div>
+        {url && <a href={url} download={block.label} onPointerDown={event => event.stopPropagation()}
+          className="flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-ink-2 hover:bg-hover hover:text-ink"><Download size={12} />Download</a>}
+      </div>
+    </CanvasNode>
+  );
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
       connected={connected} width={COLUMN} autoMax={620} saved={{ w: block.w }}
@@ -1545,6 +1562,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       insertNotebook: () => {
         snapshot();
         return insertAtView(newNotebookBlock());
+      },
+      // An imported .ipynb or .py, as the Add to canvas dialog made it (canvas-file-drop.md): at its drop point - the
+      // column slot at that height - or, uploaded, where the learner is looking.
+      insertImported: (block, at = null) => {
+        snapshot();
+        if (!at) return insertAtView(block);
+        const index = flowIndexAt(at.y);
+        setBlocks(previous => [...previous.slice(0, index), block, ...previous.slice(index)]);
+        return revealAfter(block.id);
       },
       // A validated block from a / command (learn-slash.js).
       // A chat answer the learner puts on the canvas from the dock's sheet: a
@@ -2960,8 +2986,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   };
   // The column slot nearest the middle of the screen: before the first card
   // whose middle is below the screen's middle.
-  const flowIndexAtView = () => {
-    const { y } = viewCenter();
+  const flowIndexAtView = () => flowIndexAt(viewCenter().y);
+  // The column slot at a height in the world (a drop point's), as flowIndexAtView finds the screen's middle.
+  const flowIndexAt = y => {
     const list = blocksRef.current;
     const at = list.findIndex(block => { const box = boundsRef.current[block.id]; return box && box.y + box.h / 2 > y; });
     return at < 0 ? list.length : at;
@@ -3199,7 +3226,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         }}
         onDragOver={event => { if (onDropFiles && event.dataTransfer.types.includes('Files')) { event.preventDefault(); setDropHover(true); } }}
         onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget)) setDropHover(false); }}
-        onDrop={event => { if (!onDropFiles) return; event.preventDefault(); setDropHover(false); onDropFiles([...event.dataTransfer.files]); }}
+        onDrop={event => { if (!onDropFiles) return; event.preventDefault(); setDropHover(false); onDropFiles([...event.dataTransfer.files], local(event)); }}
         style={grid ? { background: 'var(--color-white)', backgroundImage: 'radial-gradient(var(--color-line) 1px, transparent 1px)', backgroundSize: `${GRID * view.z}px ${GRID * view.z}px`, backgroundPosition: `${view.x}px ${view.y}px` } : undefined}
         className={`relative min-h-0 flex-1 touch-none overflow-hidden ${cursor} ${dropHover ? 'ring-2 ring-accent ring-inset' : ''}`}>
         <LaserPointer on={presenting !== null && laser} />

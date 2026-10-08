@@ -19,12 +19,14 @@ export async function loadAsset(key) {
   } catch { return null; }
 }
 
-// Every file a board's cards use: dropped and uploaded files, PDFs, and
-// generated illustrations.
+// Every file a board's cards use: dropped and uploaded files, PDFs, generated
+// illustrations, and the original of an imported .ipynb or .py (source_asset,
+// learn-file-import.js), so it is saved with the board whatever its card shows.
 export function assetKeysOf(state) {
   const keys = new Set();
   for (const block of state?.blocks || []) {
     if (block.assetKey) keys.add(block.assetKey);
+    if (block.source_asset) keys.add(block.source_asset);
     for (const variant of block.variants || []) if (variant.cacheKey) keys.add(variant.cacheKey);
   }
   return [...keys];

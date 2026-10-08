@@ -23,6 +23,8 @@ import ShortcutsSheet from './ShortcutsSheet.jsx';
 // Lazy: it draws real cards, so it brings the card components with it.
 const SlashCommandsSheet = lazy(() => import('./SlashCommandsSheet.jsx'));
 import FilesPanel from './FilesPanel.jsx';
+import FileImportDialog from './FileImportDialog.jsx';
+import { checkImport, importBlock, importKind } from './learn-file-import.js';
 import LearnWiki from './LearnWiki.jsx';
 import { withSource, toggleSource, isAttached } from './learn-sources.js';
 import LessonPlanPreview from './LessonPlanPreview.jsx';
@@ -426,8 +428,31 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
     if (paperCardSeen.current !== (paperContext?.id ?? null)) { paperCardSeen.current = null; return; }
     if (canvasState.cards && paperCardSeen.current) { paperCardSeen.current = null; setPaperContext(null); setPaperOpen(false); }
   }, [paperCardId, paperContext?.id, canvasState.cards]);
-  const takeDrop = async files => {
+  // A .ipynb or .py, dropped (at its drop point) or uploaded (where the learner is looking), waits for the Add to canvas
+  // dialog (docs/features/canvas-file-drop.md); several are asked about one at a time. Importing reads the file and keeps
+  // its bytes in this browser for the board's server copy - no code runs, nothing is installed, no model is asked.
+  const [imports, setImports] = useState([]); // [{ id, file, kind, at }]
+  const [importState, setImportState] = useState({ error: null, busy: false });
+  const nextImport = () => { setImportState({ error: null, busy: false }); setImports(queue => queue.slice(1)); };
+  const addImport = async choice => {
+    const { file, kind, at } = imports[0];
+    setImportState({ error: null, busy: true });
+    try {
+      const assetKey = `import:${crypto.randomUUID()}`;
+      const block = importBlock({ name: file.name, kind, choice, text: choice === 'attachment' ? '' : await file.text(), assetKey, size: file.size });
+      await cacheAsset(assetKey, file);
+      canvas()?.insertImported(block, at);
+      nextImport();
+    } catch (problem) { setImportState({ error: problem.message, busy: false }); }
+  };
+  const takeDrop = async (files, at = null) => {
+    const asked = [];
     for (const file of files) {
+      if (importKind(file.name)) {
+        const { kind, error } = checkImport(file);
+        if (error) toast(error, { tone: 'error' }); else asked.push({ id: crypto.randomUUID(), file, kind, at });
+        continue;
+      }
       const { kind, error } = classifyDrop(file);
       if (error) { toast(error); continue; }
       if (kind === 'pdf') { await takePdf(file); continue; }
@@ -448,6 +473,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
         registerSource({ id: `image:${blockId}`, kind: 'image', label: stored.title });
       }
     }
+    if (asked.length) setImports(queue => [...queue, ...asked]);
   };
   // The card context menu's type-specific rows land here: the canvas names
   // the action, this page owns the readers, sources, and contexts involved.
@@ -1594,8 +1620,10 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
       </div>
       </div>
     </ResizableSidePanel>
-    <input ref={filePicker} type="file" multiple accept=".png,.jpg,.jpeg,.webp,.gif,.mp4,.webm,.pdf" className="hidden"
+    <input ref={filePicker} type="file" multiple accept=".png,.jpg,.jpeg,.webp,.gif,.mp4,.webm,.pdf,.ipynb,.py" className="hidden"
       onChange={event => { takeDrop([...(event.target.files || [])]); event.target.value = ''; }} />
+    {imports[0] && <FileImportDialog key={imports[0].id} file={imports[0].file} kind={imports[0].kind} error={importState.error} busy={importState.busy}
+      onCancel={nextImport} onConfirm={addImport} />}
     {/* With sections on the canvas the rail mirrors the panel's table of
         contents - hover opens it, a click frames that section, and the panel
         stays closed. A canvas with no sections shows no rail (user, 2026-09-29).
