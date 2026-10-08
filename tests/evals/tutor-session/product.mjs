@@ -178,6 +178,14 @@ const pageFunctions = () => (page ??= (async () => {
 
 // The eval's claim list from the product's derived states (deriveClaimStates), without the evidence basis.
 export const claimList = states => Object.values(states || {}).map(({ basis, ...state }) => state);
+// The product's evaluation of a typed turn (the evaluate route's reply), without any text: its status, the rung that answered,
+// the escalation policy's decision with the checks it found unsure (question keys such as c0_transfer), and each evidence
+// event's shape. Run A showed every typed turn left unsettled; this says which check did it.
+export const evaluationOf = e => ({
+  status: e.status ?? null, evaluator: e.evaluator ?? null,
+  escalation: e.escalation ? { escalate: !!e.escalation.escalate, reason: e.escalation.reason ?? null, unsure_checks: [...(e.escalation.uncertain || [])] } : null,
+  events: (e.events || []).map(({ claim, idea = null, result, kind = null, settled }) => ({ claim, idea, result, kind, settled: !!settled })),
+});
 // HookSet option -> the eval's option (A1): the hook text verbatim, its screen position, and the structured identity the
 // creator analytics aggregate by (learning_goal plus ids, contract §5.2). The learner view keeps only id, position, text.
 export const optionOf = set => (option, i) => ({ id: option.id, position: i + 1, text: option.hook, set_id: set.set_id, learning_goal: option.selected_next_step?.learning_goal ?? null, concept_ids: option.selected_next_step?.concept_ids ?? [], claim_ids: option.selected_next_step?.claim_ids ?? [] });
@@ -303,7 +311,7 @@ export async function productWorld({ topic, ids, boundary, board = 'main', trace
           planner_version: event?.versions.planner_version ?? null,
           material_summary: result.text || null,
           context: where(),
-          evaluated: result.evaluation ? { evidence: claimList(result.states), ms: result.bench.ms?.evidence ?? null, blocking: !!result.bench.critical_path?.blocking } : null,
+          evaluated: result.evaluation ? { evidence: claimList(result.states), evaluation: evaluationOf(result.evaluation), ms: result.bench.ms?.evidence ?? null, blocking: !!result.bench.critical_path?.blocking } : null,
           // The learner-originated part of what the planner was sent (its words and the learner side of the recent turns), for
           // the hidden-profile check; the Tutor's own replies may use any word and are not scanned.
           tutor_input: planned.map(entry => { const c = plannerContextOf(entry.body); return { learner: c.learner_intent?.raw_user_message ?? null, turns: (c.recent_relevant_context?.turns || []).map(t => t?.learner ?? null) }; }),

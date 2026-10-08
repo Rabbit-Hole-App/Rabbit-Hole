@@ -320,7 +320,8 @@ export async function freshLearnDb() {
 //     planner_version, material_summary, context, rabbit_hole, tutor_input, evaluated }
 //     input: { kind: 'typed', text } (the learner's words; the opening first) or { kind: 'hook', option } (a hook click: no
 //     words, no evidence - contract §1.4). trace: the product's tutor_decision event, carried verbatim. evaluated:
-//     { evidence, ms, blocking } when the turn evaluated the learner's words first (the product's typed turn); blocking
+//     { evidence, evaluation, ms, blocking } when the turn evaluated the learner's words first (the product's typed turn;
+//     evaluation: its status, escalation and event shapes, no text, carried on the evidence_updated event); blocking
 //     means the planner waited for it (else it ran beside the planner). tutor_input: what the planner was sent.
 //   tutor.observe({ response }, meter) -> { evidence }   optional: an adapter whose evidence path is separate from its turns
 //     (the fake world) evaluates a typed reply here; the product evaluates it inside the next turn instead.
@@ -426,9 +427,10 @@ export async function runSession({ topic, profile, profiles, hooks, hookStart = 
       // A typed turn evaluates the words first. Evaluation the planner waited for ends before the plan starts (t4), so the
       // decision was made on it; one that ran beside the planner lands during the turn, after the decision began.
       const evaluated = decided.evaluated ?? null, evaluatedAt = startAt + (evaluated?.ms ?? 0);
-      if (evaluated?.blocking) emit('evidence_updated', { claims: evaluated.evidence, cause: 'learner_message' }, evaluatedAt);
+      const judged = evaluated?.evaluation ? { evaluation: evaluated.evaluation } : {};
+      if (evaluated?.blocking) emit('evidence_updated', { claims: evaluated.evidence, cause: 'learner_message', ...judged }, evaluatedAt);
       emit('tutor_decision_started', { decision_id: decisionId, trigger }, evaluated?.blocking ? evaluatedAt : startAt);
-      if (evaluated && !evaluated.blocking) emit('evidence_updated', { claims: evaluated.evidence, cause: 'learner_message' }, evaluatedAt);
+      if (evaluated && !evaluated.blocking) emit('evidence_updated', { claims: evaluated.evidence, cause: 'learner_message', ...judged }, evaluatedAt);
       now = startAt + decideMs;
       applyContext(decided.context, decided.rabbit_hole);
       emit('tutor_action_ready', { decision_id: decisionId, decision: decided.decision, estimated_learning_seconds: decided.estimated_learning_seconds ?? null, available_modalities: decided.available_modalities ?? null, planner: decided.planner ?? null, planner_version: decided.planner_version ?? null, ...(decided.trace ? { trace: decided.trace } : {}), ...debug({ material_summary: decided.material_summary ?? null }) });

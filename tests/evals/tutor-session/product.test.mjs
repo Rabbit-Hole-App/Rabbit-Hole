@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { validateEvent, stateMap } from './events.mjs';
 import { loadProfiles, loadTaxonomy, loadTopic, runSession, simulatedIds } from './harness.mjs';
-import { nextStepsReport } from './metrics.mjs';
+import { evidenceReport, nextStepsReport } from './metrics.mjs';
 import { HOOK_DEBOUNCE_MS, anthropicTransport, claimList, decisionOf, optionOf, plannerContextOf, productWorld, providerBoundary, realAnswers, roleOf, stubAnswers } from './product.mjs';
 import { JEV_URL } from '../../../packages/control-plane/src/learn-grade-jev.js';
 import { actionContract } from '../../../packages/web/src/learn-tutor-actions.js';
@@ -322,4 +322,23 @@ test("the paid transport, offline: the product's own Anthropic and JEV requests 
     await assert.rejects(transport({ model: 'claude-opus-5-5', max_tokens: 1, messages: [] }), { code: 'http_429' });
   } finally { boundary.restore(); }
   assert.equal(globalThis.fetch, before);
+});
+
+test("the evaluation of every typed turn is recorded without text: status, escalation with the unsure checks, event shapes; the evidence report counts them", async () => {
+  // JEV unsure about transfer only, sure about everything else (yes on attempt and ideas, no on the rest).
+  const jev = request => ({ answers: Object.fromEntries(Object.keys(request.questions || {}).map(key => [key, { type: 'noul', noul: /_transfer$/.test(key) ? 0.5 : /^attempt$|_idea\d+$/.test(key) ? 0.95 : 0.05 }])) });
+  const { bundle } = await realSession({ answers: stubAnswers({ jev }) });
+  const judged = bundle.events.filter(event => event.type === 'evidence_updated' && event.evaluation);
+  assert.ok(judged.length > 0);
+  for (const { evaluation } of judged) {
+    assert.deepEqual(Object.keys(evaluation), ['status', 'evaluator', 'escalation', 'events']);
+    assert.equal(evaluation.evaluator, 'jev');
+    assert.ok(evaluation.escalation.unsure_checks.some(key => key.endsWith('_transfer')));
+    for (const event of evaluation.events) assert.deepEqual(Object.keys(event), ['claim', 'idea', 'result', 'kind', 'settled']);
+  }
+  assert.ok(!JSON.stringify(judged.map(event => event.evaluation)).includes('probability')); // the learner's words never ride along
+  const report = evidenceReport([bundle]);
+  assert.equal(report.evaluations, judged.length);
+  assert.equal(report.unsure_checks.transfer, judged.length);
+  assert.equal(Object.values(report.route_rows).reduce((a, b) => a + b, 0), bundle.steps.length);
 });

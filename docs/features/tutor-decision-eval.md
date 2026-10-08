@@ -142,11 +142,11 @@ All files are in `tests/evals/tutor-session/`. Everything is generic and tested 
 | `creator.mjs` | Creator analytics with the 10-learner cohort rule at every level (§17). |
 | `fixtures/` | Topic fixtures (`logistic-regression`, `photosynthesis`), simulator-only profiles, `taxonomy.json` (the eval's labels over the product's modality names, its reason-code checks, relations, review thresholds) and `cost-roles.json` (product roles; the material roles still provisional). |
 | `tutor-session.test.mjs` | 35 tests on the scripted fake world (the generic harness, metrics, cost, materials, graph). |
-| `product.test.mjs` | 11 tests on the real product path: the end-to-end path, provider isolation, tracing on/off (seeded, and under the product's normal randomness), the production validators, the stopping point, no copied logic, taxonomy names, mapping, the Next Steps report (escalation reasons and validator rule names from the product's own hook traces), the paid transport offline (a fake fetch: Anthropic and JEV pass-through, other hosts refused, the eval's calls around the boundary). |
+| `product.test.mjs` | 12 tests on the real product path: the end-to-end path, provider isolation, tracing on/off (seeded, and under the product's normal randomness), the production validators, the stopping point, no copied logic, taxonomy names, mapping, the Next Steps report (escalation reasons and validator rule names from the product's own hook traces), the paid transport offline (a fake fetch: Anthropic and JEV pass-through, other hosts refused, the eval's calls around the boundary), every typed turn's evaluation recorded without text. |
 | `budget.test.mjs` | 8 tests: complete-request worst cases, reservations, the ceiling's scope, the simulator and reviewer requests, a mid-session refusal on an active journey, every product request reserved, the reviewer's holdback (a ceiling-stopped session still reviewed), a review that outgrows its holdback refused unsent. |
 | `creator.test.mjs` | 7 tests: suppression, the cohort at every cut, no double counting, no learner identity, the public profile, impressions from the product's events. |
 
-All 61 run in `make test-unit`. They are scripted: they establish the plumbing, routing, validation and evidence rules, never real-model teaching quality (every bundle carries `coverage`, §19).
+All 62 run in `make test-unit`. They are scripted: they establish the plumbing, routing, validation and evidence rules, never real-model teaching quality (every bundle carries `coverage`, §19).
 
 There is no topic or profile branch in the code, and a test enforces it:
 - No harness source names a topic id, a topic title word or a profile id.
@@ -398,7 +398,10 @@ boundary; every other host stays refused. Only `ANTHROPIC_API_KEY`, `TYPESAFE_AP
 read from the env file (names printed, values never), and the product picks its own JEV transport. Without a JEV key the
 product sends no JEV request and typed answers are never evaluated; `coverage` records which. `aggregate.json` carries `next_steps` (`nextStepsReport`): sets requested and shown, unavailable reasons,
 the escalation rate over sets that called a planner (a set whose escalation also failed has no trace but still counts),
-escalation reasons, the first reply's validator rule names, set latency and cost per planner role.
+escalation reasons, the first reply's validator rule names, set latency and cost per planner role. It also carries
+`evidence` (`evidenceReport`): every typed turn's evaluation as the product returned it, without text (`evaluationOf`, on
+the `evidence_updated` event): status, the rung, the escalation policy's reason, the kinds of check it was unsure about,
+event results and kinds settled or not, and the router row each decision took.
 
 ## 12. Cost / API usage
 
@@ -801,6 +804,16 @@ One session per profile on `logistic-regression`, real Anthropic (dev workspace)
   - The intermediate learner's repeated question (how a score becomes a probability) was deferred to a later section
     each time.
   - Reviewer scores: `progress_toward_goal` 1 and `pacing` 1 in both reviewed sessions.
+- **Cause (from the recorded router rows, then reproduced offline):** every typed answer after the first evaluation took
+  the router row `uncertain_unsettled` (novice decisions 4-13, intermediate 2-15), which allows `ask_question` only.
+  `evaluationFrom` settles a typed turn's events only when every JEV answer in the batch is confident; one unsure check
+  leaves them all unsettled, the escalation policy calls that `low_consequence` (no larger evaluator: none ran), and the
+  router's "one clarifying question" has no limit. A scripted JEV unsure on the transfer check alone (0.5, every other
+  check confident) keeps 6 of 6 turns on `uncertain_unsettled` with the claim `uncertain`; the same session with the
+  transfer check at 0.95 settles and reaches `understood` on the first answer. Run A did not record which check was
+  unsure; `evidence` records it from 2026-10-08 on. Proposed product fixes (Learning): settle per claim, escalate an
+  unsure transfer check on a `test_transfer` turn, cap the clarifying question, answer a question the learner repeats;
+  retry `journey_section` once on a validator failure, as Next Steps does.
 
 **B. Equivalent phrasings: quality, latency and cost** (contract §4.1.1 follow-up).
 - **Pairs:**

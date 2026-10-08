@@ -452,6 +452,24 @@ export function nextStepsReport(bundles) {
   };
 }
 
+// The evidence path on a run: how the product's evaluation of typed turns came out (status, the rung that answered, the
+// escalation policy's reason), the kinds of check it was unsure about (c0_transfer -> transfer, counted once per
+// evaluation), and the router row each decision took.
+const checkKind = key => key.match(/^c\d+_([a-z]+)/)?.[1] ?? (/^g\d+$/.test(key) ? 'gap' : key);
+export function evidenceReport(bundles) {
+  const evaluations = bundles.flatMap(bundle => bundle.events).filter(e => e.type === 'evidence_updated' && e.evaluation).map(e => e.evaluation);
+  const events = evaluations.flatMap(e => e.events);
+  return {
+    evaluations: evaluations.length,
+    status: tally(evaluations.map(e => e.status)),
+    evaluator: tally(evaluations.map(e => e.evaluator)),
+    escalation: tally(evaluations.map(e => e.escalation?.reason ?? 'none')),
+    unsure_checks: tally(evaluations.flatMap(e => [...new Set((e.escalation?.unsure_checks || []).map(checkKind))])),
+    events: { total: events.length, settled: events.filter(e => e.settled).length, by_result: tally(events.map(e => `${e.result}${e.kind ? `:${e.kind}` : ''}`)) },
+    route_rows: tally(bundles.flatMap(bundle => bundle.steps.map(step => step.tutor_decision?.route_row ?? 'none'))),
+  };
+}
+
 // ---------- The eval's aggregate.json ----------
 
 // bundles: the simulator's session files ({ simulator: { profile }, events, review? }). Profiles exist only in the

@@ -10,7 +10,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { foldSessions } from './events.mjs';
 import { createLedger, loadProfiles, loadRoles, loadTaxonomy, loadTopic, modelLearner, readSessions, runSession, simulatedIds, writeSession } from './harness.mjs';
-import { aggregate, aggregateEvents, nextStepsReport, stepsCsv, terminalTable } from './metrics.mjs';
+import { aggregate, aggregateEvents, evidenceReport, nextStepsReport, stepsCsv, terminalTable } from './metrics.mjs';
 import { HOOK_DEBOUNCE_MS, anthropicTransport, productWorld, providerBoundary, realAnswers } from './product.mjs';
 
 export const RUN_USD = 4, SESSION_USD = 1.3;
@@ -23,7 +23,7 @@ function aggregateDir(target) {
     sessions: Object.fromEntries(bundles.map(bundle => [bundle.simulator.profile, bundle.cost ?? null])),
     anthropic_total_usd: Math.round(bundles.reduce((n, bundle) => n + (bundle.cost?.anthropic?.total_usd || 0), 0) * 1e4) / 1e4,
   } : null;
-  const agg = { ...aggregate(bundles, taxonomy, { cost, roles }), next_steps: nextStepsReport(bundles) };
+  const agg = { ...aggregate(bundles, taxonomy, { cost, roles }), next_steps: nextStepsReport(bundles), evidence: evidenceReport(bundles) };
   writeFileSync(join(target, 'aggregate.json'), `${JSON.stringify(agg, null, 2)}\n`);
   writeFileSync(join(target, 'steps.csv'), stepsCsv(foldSessions(bundles.flatMap(bundle => bundle.events))));
   console.log(terminalTable(agg));
