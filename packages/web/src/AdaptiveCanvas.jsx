@@ -1,5 +1,5 @@
-import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Map as MapIcon, Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, BringToFront, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Minus, MousePointer2, Pencil, Plus, SendToBack, Slash, Spline, Square, Squircle, Star, StickyNote, Triangle, Type, Download, Paperclip, ArrowDownToLine, BookOpen, BoxSelect, CircleCheck, CircleHelp, Copy, CopyPlus, ExternalLink, Eye, Group, Play, Trash2, Ungroup, Unlink, ZoomIn } from 'lucide-react';
+import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Map as MapIcon, Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, BringToFront, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Minus, MousePointer2, Pencil, Plus, SendToBack, Slash, Spline, Square, Squircle, Star, StickyNote, Triangle, Type, Download, Paperclip, ArrowDownToLine, BookOpen, BoxSelect, CircleCheck, CircleHelp, Copy, CopyPlus, ExternalLink, Eye, Group, Play, Trash2, Ungroup, Unlink, ZoomIn, Sigma } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { IconBtn, MenuItem, toast } from './ui.jsx';
 import { boardAsk } from './board-ask.js';
@@ -14,7 +14,7 @@ import { pageRects, PAGE_W } from './learn-pages.js';
 import { outlineFrom, applyOutlineOps, moveSection } from './learn-outline-model.js';
 import { loadAsset } from './learn-board-assets.js';
 import { groupShot } from './learn-group-shot.js';
-import { cardQuestion, describeCanvasObject, GROUP_QUESTION, groupTargetText } from './learn-ask-target.js';
+import { cardQuestion, describeCanvasObject, EQUATION_QUESTION, GROUP_QUESTION, groupTargetText } from './learn-ask-target.js';
 import { askDraft } from './agent/scope.js';
 import LearnWiki from './LearnWiki.jsx';
 import SourcesDisclosure from './SourcesDisclosure.jsx';
@@ -36,6 +36,11 @@ import { looksLikeCode, pasteKind } from './canvas-paste.js';
 import { copiedCode } from './map-files.js';
 import CommentPins from './comments/CommentPins.jsx';
 import { anchorAt, objectLabel } from './comments/anchors.js';
+import { MathText } from './MathText.jsx';
+import { EQUATION_SIZE, newEquation, scaledSize, typingIn } from './canvas-equation.js';
+
+// MathLive arrives with the first equation edited, never with the canvas (docs/features/canvas-equations.md).
+const EquationEditor = lazy(() => import('./EquationEditor.jsx'));
 
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is
 // unbounded — a translate/scale camera pans and zooms it. Chat exchanges land
@@ -56,6 +61,7 @@ const DRAW_TOOLS = [
   ['highlighter', Highlighter, 'Highlighter'],
   ['eraser', Eraser, 'Eraser'],
   ['text', Type, 'Text'],
+  ['equation', Sigma, 'Equation'],
   ['sticky', StickyNote, 'Sticky note'],
 ];
 const SHAPE_TOOLS = [
@@ -826,6 +832,44 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, on
             const box = sticky ? null : event.currentTarget.parentElement.getBoundingClientRect();
             const start = sticky ? { x: item.w || 160, y: item.h || 160 } : { x: item.w || box.width / zoom, y: item.h || box.height / zoom };
             startDrag(event, start, (w, h) => onResize(item.id, Math.max(sticky ? 80 : 96, w), Math.max(sticky ? 80 : 28, h)), zoom);
+          }}>
+          <svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true"><path d="M10 4 4 10 M10 8 8 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" /></svg>
+        </button>
+      )}
+    </div>
+  );
+}
+
+// An equation (docs/features/canvas-equations.md): its LaTeX rendered by KaTeX, and while edited MathLive's field with
+// the palette above it (EquationEditor.jsx, loaded on the first edit). Double-click edits; a click away or Esc finishes.
+function EquationItem({ item, zoom, tool, selected, onSelect, onMove, onGesture, onDelete, onSnap, onPatch, onDone }) {
+  const [editing, setEditing] = useState(!!item.fresh);
+  const size = item.size || EQUATION_SIZE;
+  const still = item.latex ? <MathText expression={item.latex} display /> : <span className="text-[0.6em] text-ink-3 italic">Empty equation</span>;
+  const down = event => {
+    if (event.button !== 0) return;
+    if (tool === 'eraser') { event.preventDefault(); event.stopPropagation(); onDelete(item.id); return; }
+    if (tool !== 'select') return;
+    if (editing) { event.stopPropagation(); return; }
+    if (!selected) onSelect(item.id, event);
+    onGesture();
+    startDrag(event, { x: item.x, y: item.y }, (x, y) => onMove(item.id, x, y), zoom, onSnap?.(item.id));
+  };
+  return (
+    <div data-block data-item-id={item.id} data-equation={editing ? 'editing' : ''} style={{ left: item.x, top: item.y, fontSize: size, color: inkAware(item.color || COLORS[0]) }}
+      className={`absolute z-10 -mx-1 rounded border px-1 [&_[data-chat-math]]:my-0 [&_[data-chat-math]]:py-0 ${editing ? 'cursor-text border-line bg-white' : `cursor-grab border-transparent active:cursor-grabbing ${tool === 'select' ? 'hover:border-line' : ''}`} ${selected ? 'ring-2 ring-[#2383e2] ring-offset-1' : ''}`}
+      onPointerDown={down} onDoubleClick={() => { if (tool === 'select') setEditing(true); }}>
+      {editing
+        ? <Suspense fallback={still}><EquationEditor latex={item.latex || ''} zoom={zoom} onDone={latex => { setEditing(false); onDone(item.id, latex); }} /></Suspense>
+        : still}
+      {/* The corner scales the type, as a text box's corner reflows its text. */}
+      {selected && !editing && tool === 'select' && (
+        <button type="button" aria-label="Resize equation" title="Resize" className="absolute -right-0.5 -bottom-0.5 z-10 cursor-nwse-resize p-1 text-ink-3 hover:text-ink-2"
+          onPointerDown={event => {
+            if (event.button !== 0) return;
+            onGesture();
+            const from = event.currentTarget.parentElement.getBoundingClientRect().width / zoom;
+            startDrag(event, { x: from, y: 0 }, w => onPatch(item.id, { size: scaledSize(size, from, w) }), zoom);
           }}>
           <svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true"><path d="M10 4 4 10 M10 8 8 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" /></svg>
         </button>
@@ -2139,7 +2183,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // inside a card), in a dialog or the composer, with Ctrl, Alt or Meta held (Ctrl+C still copies), and while presenting.
       if ((event.key === 'c' || event.key === 'C') && !event.ctrlKey && !event.metaKey && !event.altKey && commentKeyRef.current && presentingRef.current === null) {
         const held = document.activeElement;
-        const busy = held && held !== document.body && (held.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT', 'IFRAME'].includes(held.tagName)
+        const busy = held && held !== document.body && (held.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT', 'IFRAME'].includes(held.tagName) || typingIn(held)
           || (!!held.closest?.('[data-block-id]') && !held.matches('[data-block-id]')) || !!held.closest?.('[data-chat-composer],[data-comments-panel],[role="dialog"],[role="menu"]'));
         if (!busy) {
           event.preventDefault();
@@ -2174,11 +2218,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         const offCanvasField = focused && (focused.tagName === 'INPUT' || focused.tagName === 'TEXTAREA') && !focused.closest('[data-item-id],[data-block-id],[data-shape-id]');
         connectionCleanup.current?.(); setConnecting(null); if (!offCanvasField) setSelected(null);
         setTool('select'); setMenuAt(null); setStyleOpen(null); releaseSketchRef.current();
-        if (focused?.isContentEditable && focused.closest('[data-item-id],[data-block-id],[data-shape-id],[data-connection]')) focused.blur();
+        // An equation being edited finishes the same way, from its field or its LaTeX source.
+        if ((focused?.isContentEditable || focused?.closest?.('[data-equation-editor]')) && focused.closest('[data-item-id],[data-block-id],[data-shape-id],[data-connection]')) focused.blur();
         return;
       }
       const active = document.activeElement;
-      const typing = active && (active.isContentEditable || active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
+      const typing = typingIn(active);
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z') {
         if (typing) return;
         event.preventDefault();
@@ -2229,7 +2274,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // becomes a text card (owner, 2026-10-08); the canvas's own copied cards paste while their marker is on the clipboard.
     const paste = event => {
       const active = document.activeElement;
-      if (active && (active.isContentEditable || active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+      if (typingIn(active)) return;
       const data = event.clipboardData;
       const images = [...(data?.files || [])].filter(file => file.type.startsWith('image/'));
       const text = data?.getData('text/plain') || '';
@@ -2806,10 +2851,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // target - and the corner handle takes it anywhere from there.
       store.setItems(previous => [...previous, { id: crypto.randomUUID(), kind: tool, x: point.x, y: point.y, text: '', color, opacity, ...(tool === 'text' ? { level, w: store.textWidth(point) } : {}), fresh: true }]);
       if (!lock) setTool('select');
+    } else if (tool === 'equation' && store.equations) {
+      // An equation opens for editing where it is placed (canvas-equations.md); an Explain Back sketch holds none.
+      event.preventDefault();
+      snapshot();
+      store.setItems(previous => [...previous, newEquation(store.local(event))]);
+      if (!lock) setTool('select');
     } else return false;
     return true;
   };
-  const canvasStore = { local, setStrokes, setShapes, setItems, setLive, setLiveShape, textWidth: () => 420 };
+  const canvasStore = { local, setStrokes, setShapes, setItems, setLive, setLiveShape, textWidth: () => 420, equations: true };
   // ---------- Explain Back sketch (docs/features/explain-back-sketch.md) ----------
   // A sketch's marks live on its block (block.sketch) in the card's own pixels, so they save, move, fork and undo
   // with the card and are never canvas objects.
@@ -3174,6 +3225,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (present.current.items.some(item => item.id === id && item.text !== text)) snapshot();
     setItems(previous => previous.map(item => item.id === id ? { ...item, text, fresh: false } : item));
   };
+  // An equation's edit ends with its source. A fresh one is still its placement's undo step; one left empty goes.
+  const finishEquation = (id, latex) => {
+    const before = present.current.items.find(item => item.id === id);
+    if (!before) return;
+    if (!latex) { if (before.fresh) setItems(previous => previous.filter(item => item.id !== id)); else deleteItem(id); return; }
+    if (!before.fresh && before.latex !== latex) snapshot();
+    setItems(previous => previous.map(item => item.id === id ? { ...item, latex, fresh: false } : item));
+  };
+  const patchItem = (id, patch) => setItems(previous => previous.map(item => item.id === id ? { ...item, ...patch } : item));
   const deleteItem = id => { snapshot(); setItems(previous => previous.filter(item => item.id !== id)); setShapes(previous => previous.filter(shape => shape.id !== id)); setLinks(previous => previous.filter(link => link.from !== id && link.to !== id)); setSelection(previous => previous.filter(other => other !== id)); };
   const [editingShape, setEditingShape] = useState(null);
   // The line (connector or drawn arrow) whose label is being written.
@@ -3282,7 +3342,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       onPointerDownCapture={event => {
         const active = document.activeElement;
         if (!active || active === document.body) return;
-        const editable = active.isContentEditable || active.tagName === 'INPUT' || active.tagName === 'TEXTAREA';
+        const editable = typingIn(active);
         // data-keep-focus marks controls that act ON the focused text - the
         // level pill - where a press must restyle, never blur. This runs in
         // the capture phase, so the pill's own stopPropagation cannot save it.
@@ -3509,6 +3569,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
                         if (exchange) { entries.push({ question: exchange.question, answer: exchange.answer }); continue; }
                         const item = itemsRef.current.find(entry => entry.id === member.id);
                         if (item?.text) entries.push({ text: item.text });
+                        else if (item?.latex) entries.push({ text: describeCanvasObject(item).text });
                       }
                       armedGroup.current = group.id;
                       onAskTargetRef.current?.({ id: group.id, kind: 'Group', title: group.label || `${members.length} items`, text: groupTargetText(entries) });
@@ -3532,7 +3593,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           );
         })}
         <div ref={itemsLayer} className={drawing || tool === 'hand' ? 'pointer-events-none' : ''}>
-          {items.map(item => <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onChange={changeItem} onMove={moveItemNode} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem}
+          {items.map(item => item.kind === 'equation'
+            ? <EquationItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onMove={moveItemNode} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem} onPatch={patchItem} onDone={finishEquation} />
+            : <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onChange={changeItem} onMove={moveItemNode} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem}
             onLevel={(id, value) => { snapshot(); setItems(previous => previous.map(entry => entry.id === id ? { ...entry, level: value } : entry)); }} />)}
           {/* A shape's ladder sits in this HTML layer, above the shape: the ink
               SVG is aria-hidden, and the ladder must stay reachable. */}
@@ -3585,6 +3648,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           }
           if (chat) {
             typed.push(<MenuRow key="ct" icon={Copy} onClick={act(() => navigator.clipboard?.writeText([chat.question, chat.answer].filter(Boolean).join('\n\n')))}>Copy text</MenuRow>);
+          }
+          // An equation asks as a selected card does (canvas-equations.md): its LaTeX rides as the context, a ready
+          // question waits in the composer, nothing is sent, and the answer lands where any question's does.
+          const equation = items.find(entry => entry.id === menuAt.id && entry.kind === 'equation' && entry.latex) || null;
+          if (equation) {
+            typed.push(<MenuRow key="ea" icon={MessageCircle} data-menu-ask-equation onClick={act(() => { if (armTarget(equation)) askDraft(EQUATION_QUESTION); })}>Ask in chat</MenuRow>);
+            typed.push(<MenuRow key="el" icon={Copy} onClick={act(() => navigator.clipboard?.writeText(equation.latex))}>Copy LaTeX</MenuRow>);
           }
           const described = block ? describeBlock(block) : null;
           // Start Rabbit Hole (owner, 2026-10-07): from the right-clicked card, even when other cards are selected,

@@ -61,6 +61,7 @@ import { ForkedFrom } from './home/Provenance.jsx';
 import { cardModel } from './home/provenance.js';
 import { hasLocalContent, unsavedKey } from './home/canvas-local.js';
 import { boardText, serial, sharingOf } from './canvas-persist.js';
+import { typingIn } from './canvas-equation.js';
 
 const LearnNotes = lazy(() => import('./LearnNotes.jsx'));
 // A review board named main gets a slug of its own (owner decision 3, 2026-10-07): review boards stay apart from the learner's
@@ -167,7 +168,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
     const key = event => {
       if (event.ctrlKey || event.metaKey || event.altKey || (event.key !== '/' && event.key !== '?')) return;
       const active = window.document.activeElement;
-      if (active && (active.isContentEditable || active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT')) return;
+      if (typingIn(active) || active?.tagName === 'SELECT') return;
       if (canvasStateRef.current.presenting) return;
       event.preventDefault();
       if (event.key === '/') { setShortcutsOpen(false); setSearchOpen(true); } else setShortcutsOpen(open => !open);
