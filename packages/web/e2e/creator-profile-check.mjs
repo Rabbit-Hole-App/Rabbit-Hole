@@ -127,7 +127,7 @@ await check('4 another creator\'s profile: no blue check anywhere, no Edit profi
   assert.equal(await viewer.locator('[data-owner-badge]').count(), 0);
   assert.equal(await viewer.locator('[data-own-profile], [data-edit-profile], [data-creator-analytics-open]').count(), 0);
   assert.equal(await card(viewer, '[data-profile-card]', T.kv).locator('[data-card-start-rabbit-hole]').count(), 1);
-  assert.equal(await card(viewer, '[data-profile-card]', T.kv).locator('[data-card-fork]').count(), 1);
+  assert.equal(await card(viewer, '[data-profile-card]', T.kv).locator('[data-fork-button]').count(), 1);
   assert.equal(await viewer.getByRole('button', { name: /follow|subscribe|like/i }).count(), 0, 'no social features');
   await noEmail(viewer, EMAIL.viewer);
 });
@@ -140,7 +140,9 @@ await check('5 sorting: Newest and Most forked, in the server\'s order', async (
   const want = (await api(who.viewer, `/api/learn/creators/${H.full}?sort=forks`)).body.explainers.map(c => c.title);
   assert.deepEqual(want, [T.kv, T.flash, T.prefill]);
   assert.deepEqual(await titles(viewer, '[data-profile-card]'), want);
-  assert.deepEqual((await viewer.locator('[data-profile-card] [data-fork-count]').allInnerTexts()).map(t => t.trim()), ['2 forks', '1 fork', '0 forks']);
+  // Others' cards carry the count inside Fork, GitHub style, 0 included; no second "N forks" beside it (owner, 2026-10-08).
+  assert.deepEqual((await viewer.locator('[data-profile-card] [data-fork-button] [data-fork-count-value]').allInnerTexts()).map(t => t.trim()), ['2', '1', '0']);
+  assert.equal(await viewer.locator('[data-profile-card] [data-fork-count]').count(), 0);
 });
 await shot(viewer, 'A-full-creator-most-forked');
 await check('6 a profile explainer opens its canonical /e route, whose header links back to /@handle', async () => {
@@ -201,7 +203,7 @@ await check('10 your own profile: the same page, plus "Your profile" with the bl
   assert.equal(await owner.locator('[data-edit-profile]').count(), 1);
   assert.equal(await owner.locator('[data-creator-analytics-open]').count(), 1);
   assert.equal(await owner.locator('[data-profile-card] [data-owned-badge]').count(), 3);
-  assert.equal(await owner.locator('[data-profile-card] [data-card-start-rabbit-hole], [data-profile-card] [data-card-fork]').count(), 0);
+  assert.equal(await owner.locator('[data-profile-card] [data-card-start-rabbit-hole], [data-profile-card] [data-fork-button]').count(), 0);
   assert.deepEqual(await titles(owner, '[data-profile-card]'), [T.prefill, T.flash, T.kv], 'the same content as everyone sees');
 });
 await shot(owner, 'F-own-profile');
@@ -220,12 +222,14 @@ await check('12 signed out, /@handle opens on its own, with the cards and no ema
   await noEmail(anon);
 });
 await shot(anon, 'A-full-creator-signed-out');
-await check('14 fork provenance: a fork made through the publication credits @handle as a link to /@handle', async () => {
+await check('14 fork provenance: a fork made through the publication credits @handle as a link to /@handle; your own @handle links too', async () => {
   await viewer.goto(`${BASE}/library?type=canvases`);
   const fork = viewer.locator('[data-library-card="canvas"]').filter({ has: viewer.locator(`[data-forked-from-creator][href="/@${H.full}"]`) });
   await fork.first().waitFor({ timeout: 60000 });
   assert.equal(await fork.count(), 2, 'both forks the viewer made through /e (KV Cache, Flash Attention)');
   assert.equal((await fork.first().locator('[data-forked-from-creator]').innerText()).trim(), `@${H.full}`);
+  // Every @handle links (owner, 2026-10-08): the viewer's own @handle on their own Library card opens their profile.
+  assert.equal(await fork.first().locator('[data-creator-link]').getAttribute('href'), `/@${H.viewer}`);
   await fork.first().locator('[data-forked-from-creator]').click();
   await viewer.waitForURL(`${BASE}/@${H.full}`);
   await noEmail(viewer, EMAIL.viewer);

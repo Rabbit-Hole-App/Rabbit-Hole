@@ -18,8 +18,9 @@ const AdaptiveCanvas = lazy(() => import('./AdaptiveCanvas.jsx'));
 // /b/<token>: a Learn board someone shared (docs/features/canvas-sharing.md).
 // Always view-only - pan and zoom. A public link needs no sign-in; any other
 // sends a signed-out visitor to sign in and back. Fork (top right) is how a
-// viewer gets their own editable copy (docs/features/canvas-forking.md):
-// signed out, it goes through sign-in and comes back here to finish (?fork=1).
+// viewer gets their own editable copy (docs/features/canvas-forking.md), after
+// its confirm-and-rename dialog; signed out, it goes through sign-in and comes
+// back here, where the dialog opens again (?fork=1).
 // The composer at the bottom asks about this canvas (docs/features/shared-canvas-ask.md).
 export default function SharedBoardPage({ token }) {
   const [shared, setShared] = useState(null);
@@ -91,13 +92,13 @@ export default function SharedBoardPage({ token }) {
         </a>
         <span className="text-sm font-semibold text-ink">{shared.title || (shared.board === 'main' ? shared.app : shared.board)}</span>
         <span className="flex items-center gap-1 rounded-full bg-hover px-2 py-0.5 text-xs text-ink-2"><Eye size={11} />View only</span>
-        {/* Who made it, by @handle (docs/features/user-handles.md); no handle, no line - never an email. A publication's
-            creator links to their public profile (creator-profile.md); a share link's stays text, never a public link. */}
-        {shared.creator && <span data-shared-creator className="truncate text-xs text-ink-3">{shared.published ? 'Published by' : 'Shared by'} {shared.published
+        {/* Who made it, by @handle (docs/features/user-handles.md); no handle, no line - never an email. The @handle
+            links to the creator's public profile on a publication and a share link alike (owner, 2026-10-08). */}
+        {shared.creator && <span data-shared-creator className="truncate text-xs text-ink-3">{shared.published ? 'Published by' : 'Shared by'} {shared.creator.handle
           ? <a data-creator-link href={`/@${shared.creator.handle}`} className="rounded-sm text-ink-2 hover:text-ink hover:underline">{creatorLabel(shared.creator)}</a> : creatorLabel(shared.creator)}</span>}
         <span className="flex-1" />
         <StartRabbitHole token={token} state={shared.state} card={card} resume={rabbitRequested} startRef={rabbitStart} />
-        <ForkButton source={{ token }} auto={forkRequested} onForked={fork => { window.location.href = fork.url; }} count={shared.fork_count} />
+        <ForkButton source={{ token }} title={shared.title} auto={forkRequested} onForked={fork => { window.location.href = fork.url; }} count={shared.fork_count} />
       </header>
       <div className="relative min-h-0 flex-1" aria-label="Lesson canvas">
         <Suspense fallback={null}>

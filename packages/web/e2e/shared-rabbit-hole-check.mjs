@@ -238,6 +238,7 @@ await check('13 the sharer\'s own data is never mutated', async () => {
 await openShared(bridges);
 await check('2 Fork is unchanged: a copy in the viewer\'s Library, counted on the source', async () => {
   await page.locator('[data-fork-button]').click();
+  await page.getByRole('dialog', { name: 'Fork this canvas' }).getByRole('button', { name: 'Fork', exact: true }).click(); // it asks first (owner, 2026-10-08)
   await page.waitForURL(/\/apps\/canvas-[a-f0-9]{8}\?tab=learn$/, { timeout: 30000 });
   assert.equal((await sharedView(bridges)).fork_count, 1);
   assert.notEqual(new URL(page.url()).pathname, `/apps/${cardHole}`, 'the fork is its own canvas, not the hole');

@@ -214,8 +214,8 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.goto(`${base}/explore`);
     await shH1(page, 'Explore').waitFor({ timeout: 20000 });
     must(await page.getByText('Discover rabbit holes, projects, and learning resources shared beyond your library.', { exact: true }).count() === 1, 'Explore has no purpose sentence');
-    // Nothing is shared publicly yet (owner, 2026-10-04): an honest empty state, no demo cards that open nothing.
-    must(await page.locator('[data-explore-empty]').count() === 1, 'Explore shows its empty state');
+    // Nothing is shared publicly yet: no demo cards that open nothing, and no empty-state message (owner, 2026-10-08).
+    must(await page.locator('[data-explore-empty]').count() === 0, 'Explore shows no empty-state message');
     must(await page.locator('[data-explore-card]').count() === 0, 'no demo cards on Explore');
     must(!writes.length, `mutating calls: ${writes.join(', ')}`);
     await page.context().close();
@@ -236,7 +236,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       must(await page.locator('table').count() === 0, 'Canvases still render a table');
       for (const ops of ['Watch', 'Deployed', 'Last run']) must(!(await row.innerText()).includes(ops), `${ops} shown on a canvas card`);
       must((await row.innerText()).includes('On another device'), 'canvas card lacks On another device');
-      must(await row.locator('svg.lucide-pen-line').count() === 1, 'canvas card lacks the canvas icon');
+      must(await row.locator('svg.lucide-shapes').count() === 1, 'canvas card lacks the canvas icon');
       await page.getByRole('button', { name: /^Filters/ }).click();
       for (const name of ['Shared with me', 'Workspace']) must(await page.getByRole('button', { name, exact: true }).count() === 0, `Filters offers ${name}`);
       await page.getByRole('button', { name: 'Mine', exact: true }).click();
@@ -247,7 +247,8 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       must(await page.getByRole('button', { name: 'Remove filter Shared with me' }).count() === 0, '?s=shared still reads Shared with me');
       await page.route(/[/]api[/]apps$/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ...data, apps: [] }) }));
       await page.goto(`${base}/library?type=canvases`); // an empty catalog, so an empty view
-      await page.getByText('Nothing here yet', { exact: true }).waitFor({ timeout: 20000 });
+      await shStart(page).waitFor({ timeout: 20000 }); // an empty view shows no message and no mark (owner, 2026-10-08)
+      must(await page.getByText('Nothing here yet', { exact: true }).count() === 0, 'the empty Library shows no "Nothing here yet"');
       await shStart(page).click();
       await page.getByRole('dialog', { name: 'Start a rabbit hole' }).waitFor({ timeout: 10000 });
     } finally {
@@ -281,7 +282,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       await page.getByRole('button', { name: 'Pin', exact: true }).click();
       const pinned = aside.getByRole('region', { name: 'Pinned' });
       await pinned.getByText('rabbit-hole-check pin').waitFor({ timeout: 10000 });
-      must(await pinned.locator('svg.lucide-pen-line').count() === 1, 'the pinned canvas lacks its icon');
+      must(await pinned.locator('svg.lucide-shapes').count() === 1, 'the pinned canvas lacks its icon');
       await page.reload();
       await pinned.getByText('rabbit-hole-check pin').waitFor({ timeout: 20000 });
       const row = pinned.locator('.group\\/r').filter({ hasText: 'rabbit-hole-check pin' });
@@ -464,7 +465,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       await page.reload();
       const row = page.locator('[data-library-card="canvas"]').filter({ hasText: 'rabbit-hole-check archive' });
       await row.getByTitle('More').click();
-      await page.getByRole('button', { name: 'Archive…' }).click();
+      await page.getByRole('button', { name: 'Archive', exact: true }).click();
       await page.getByRole('dialog', { name: 'Archive rabbit-hole-check archive?' }).getByRole('button', { name: 'Archive', exact: true }).click();
       await row.waitFor({ state: 'detached', timeout: 20000 });
       await filterBy(page, 'Archived canvas');

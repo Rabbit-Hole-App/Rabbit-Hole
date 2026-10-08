@@ -123,7 +123,8 @@ await check('2 no textual Canvas / Project / Standalone pill on any Library card
   assert.deepEqual(await typeWords(cards), []);
   assert.equal(await lib.locator('[data-library-card] [data-type-icon]').count(), await cards.count());
   assert.equal(await lib.locator('[data-library-card="project"] [data-type-icon="repository"] svg.lucide-folder-git-2').count(), 1);
-  assert.ok(await lib.locator('[data-library-card="canvas"] [data-type-icon="canvas"] svg.lucide-pen-line').count() >= 4);
+  // A canvas is drawn as shapes, not a pen (owner, 2026-10-08).
+  assert.ok(await lib.locator('[data-library-card="canvas"] [data-type-icon="canvas"] svg.lucide-shapes').count() >= 4);
 });
 await shot(lib, '01-library-all');
 await check('3 the GitHub URL is on the repository project only, blue, opening GitHub in a new tab', async () => {
@@ -135,16 +136,34 @@ await check('3 the GitHub URL is on the repository project only, blue, opening G
   assert.equal(await lib.locator('[data-library-card="canvas"] [data-source-link]').count(), 0);
   assert.equal(await lib.locator('[data-library-card="project"] [data-card-description]').count(), 0, 'the server placeholder is not a description');
 });
-await check('4 hierarchy and colour: blue title and owner badge; neutral @handle, description, visibility, forks, updated, ⋮ and Fork', async () => {
+await check('4 hierarchy and colour: blue title and owner badge; neutral @handle, description, visibility, forks, updated and ⋮; no Fork on your own card; a click selects, Open on hover', async () => {
   const card = titled(lib, '[data-library-card="canvas"]', T.tides);
   assert.equal(await rgb(card.locator('[data-card-title]'), 'color'), ACCENT);
   assert.equal((await card.locator('[data-creator]').innerText()).trim(), `@${H.owner}`);
   assert.equal(await card.locator('[data-owned-badge]').getAttribute('aria-label'), 'Owned by you');
   assert.equal(await rgb(card.locator('[data-owned-badge] path').first(), 'fill'), ACCENT);
-  for (const sel of ['[data-creator]', '[data-card-description]', '[data-card-visibility]', '[data-fork-count]', '[data-updated]', '[title="More"]', '[data-fork-button]']) assert.notEqual(await rgb(card.locator(sel), 'color'), ACCENT, sel);
+  for (const sel of ['[data-creator]', '[data-card-description]', '[data-card-visibility]', '[data-updated]', '[title="More"]']) assert.notEqual(await rgb(card.locator(sel), 'color'), ACCENT, sel);
+  assert.notEqual(await rgb(titled(lib, '[data-library-card="canvas"]', T.bridges).locator('[data-fork-count]'), 'color'), ACCENT, '[data-fork-count]');
   assert.equal((await card.locator('[data-card-visibility]').innerText()).trim(), 'Private');
   assert.equal((await titled(lib, '[data-library-card="canvas"]', T.bridges).locator('[data-card-visibility]').innerText()).trim(), 'Public');
-  assert.equal(await card.getByRole('button', { name: /^(Open|Continue)/ }).count(), 0, 'no Open button: the title opens');
+  // Owner, 2026-10-08: no Fork on your own cards (Duplicate is in the ⋮).
+  assert.equal(await lib.locator('[data-library-card] [data-fork-button], [data-library-card] [data-card-fork]').count(), 0, 'no Fork on any own card');
+  assert.equal(await card.getByRole('button', { name: /Fork/ }).count(), 0);
+  // A click on the card body selects it (accent edge), never opens it; Open shows on hover and on the selected card.
+  const open = card.locator('[data-card-open]');
+  await lib.mouse.move(5, 5);
+  assert.equal(await rgb(open, 'opacity'), '0', 'Open hides at rest');
+  await card.hover();
+  await lib.waitForTimeout(200);
+  assert.equal(await rgb(open, 'opacity'), '1', 'Open shows on hover');
+  const at = lib.url();
+  await card.locator('[data-card-description]').click();
+  await lib.waitForTimeout(400);
+  assert.equal(lib.url(), at, 'a click on the card does not open it');
+  assert.equal(await card.evaluate(n => n === document.activeElement), true, 'the clicked card is selected');
+  assert.equal(await rgb(card, 'border-top-color'), ACCENT);
+  await lib.mouse.move(5, 5);
+  assert.equal(await rgb(open, 'opacity'), '1', 'the selected card keeps Open');
 });
 await check('5 the owner badge sits on the owner\'s own cards only: every Library card, and the fork names its source owner without one', async () => {
   const cards = lib.locator('[data-library-card]');
@@ -153,11 +172,18 @@ await check('5 the owner badge sits on the owner\'s own cards only: every Librar
   assert.ok((await forkCard.locator('[data-forked-from]').innerText()).includes(`· @${H.other}`));
   assert.equal(await forkCard.locator('[data-forked-from] [data-owner-badge]').count(), 0);
 });
-await check('6 fork counts read N forks, 0 included, beside Updated <time>', async () => {
+await check('6 the read-only fork count shows only once forked (none at 0), beside Updated <time> in the footer, the card\'s last line', async () => {
   assert.equal((await titled(lib, '[data-library-card="canvas"]', T.bridges).locator('[data-fork-count]').innerText()).trim(), '1 fork');
-  assert.equal((await titled(lib, '[data-library-card="canvas"]', T.tides).locator('[data-fork-count]').innerText()).trim(), '0 forks');
+  assert.equal(await titled(lib, '[data-library-card="canvas"]', T.tides).locator('[data-fork-count]').count(), 0, 'no "0 forks" (owner, 2026-10-08)');
   for (const t of await lib.locator('[data-library-card="canvas"] [data-updated]').allInnerTexts()) assert.match(t.trim(), /^Updated (just now|\d+[mhd] ago|[A-Z][a-z]{2} \d+)$/);
   assert.equal(await lib.locator('[data-library-card="project"] [data-fork-count]').count(), 0, 'a project row carries no fork count');
+  // "why is the updated... in the middle of the cards??" (owner, 2026-10-08): one footer line at the bottom, the count and
+  // Updated side by side, as on a GitHub repository card.
+  const card = titled(lib, '[data-library-card="canvas"]', T.bridges);
+  const [c] = await boxes(card), [f] = await boxes(card.locator('[data-card-footer]'));
+  const [n] = await boxes(card.locator('[data-fork-count]')), [u] = await boxes(card.locator('[data-updated]'));
+  assert.ok(c.y + c.h - (f.y + f.h) <= 24, `the footer ends the card: card ${JSON.stringify(c)} footer ${JSON.stringify(f)}`);
+  assert.ok(Math.abs(n.y + n.h / 2 - (u.y + u.h / 2)) <= 2 && u.x > n.x && u.x - (n.x + n.w) <= 16, `count ${JSON.stringify(n)} beside Updated ${JSON.stringify(u)}`);
 });
 await check('7 the description clamps to three lines', async () => {
   const p = titled(lib, '[data-library-card="canvas"]', T.tides).locator('[data-card-description]');
@@ -215,9 +241,25 @@ await check('10 Library sort: Last updated by default, then Created, Name and Mo
   await titled(lib, '[data-library-card]', T.tides).waitFor({ timeout: 60000 });
   assert.equal(await lib.locator('[data-sort-control]').getAttribute('data-sort-control'), 'forks');
   assert.deepEqual(await titlesIn(lib, '[data-library-card]', ours), order('forks'));
+  // Sort sits beside Filters (owner, 2026-10-08), at its height.
+  const [s] = await boxes(lib.locator('[data-sort-control]')), [fl] = await boxes(lib.getByRole('button', { name: /^Filters/ }));
+  assert.ok(Math.abs(s.y - fl.y) <= 1 && s.h === fl.h && s.x > fl.x && s.x - (fl.x + fl.w) <= 12, `sort ${JSON.stringify(s)} filters ${JSON.stringify(fl)}`);
+  // Search by name sits just before Filters (owner, 2026-10-08) and narrows the cards by title.
+  const search = lib.locator('[data-library-search]');
+  const [sr] = await boxes(search);
+  assert.ok(sr.x + sr.w <= fl.x && fl.x - (sr.x + sr.w) <= 12 && Math.abs(sr.y + sr.h / 2 - (fl.y + fl.h / 2)) <= 2, `search ${JSON.stringify(sr)} filters ${JSON.stringify(fl)}`);
+  await search.fill(T.tides.toLowerCase());
+  await lib.waitForTimeout(300);
+  assert.deepEqual(await titlesIn(lib, '[data-library-card]', ours), [T.tides], 'case-insensitive, by title');
+  await search.fill('');
+  await lib.waitForTimeout(300);
+  assert.deepEqual(await titlesIn(lib, '[data-library-card]', ours), order('forks'), 'cleared: every card again');
 });
-await check('11 the title opens the canvas, and its first open saves its board to the server', async () => {
-  await titled(lib, '[data-library-card="canvas"]', T.tides).locator('[data-card-title]').click();
+await check('11 Enter on the selected card opens the canvas, and its first open saves its board to the server', async () => {
+  const card = titled(lib, '[data-library-card="canvas"]', T.tides);
+  await card.locator('[data-card-description]').click();
+  assert.equal(new URL(lib.url()).pathname, '/library', 'the click only selected it');
+  await lib.keyboard.press('Enter');
   await lib.waitForURL(new RegExp(`/apps/${tides.name}`), { timeout: 30000 });
   for (let i = 0; !(await api(owner, `/api/learn/boards/${tides.name}/main`)).version; i++) { assert.ok(i < 50, 'the board reached the server'); await lib.waitForTimeout(400); }
 });
@@ -246,7 +288,7 @@ await check('13 Home Recent: the same card; the away canvas keeps On another dev
   const card = titled(home, '[data-recent-card]', T.away);
   const note = (await card.locator('[data-card-note]').innerText()).trim();
   assert.ok(note.startsWith('On another device') && note.includes('stored only in the browser that created it'), note);
-  assert.equal(await card.locator('a[data-card-title], button[data-card-title]').count(), 0);
+  assert.equal(await card.locator('a[data-card-title], button[data-card-title], [data-card-open]').count(), 0);
   assert.equal(await titled(home, '[data-recent-card]', T.bridges).locator('[data-card-note]').count(), 0, 'published, so its board is on the server');
 });
 await shot(home, '11-home');
@@ -276,17 +318,38 @@ const ours = [T.bridges, T.orbits, T.prisms];
 const exploreOf = async page => { await page.goto(`${BASE}/explore`); await page.locator('[data-explore-card]').first().waitFor({ timeout: 60000 }); };
 const ex = await contextFor(owner);
 await exploreOf(ex);
-await check('15 Explore, as the owner: own card badged and without Start/Fork; others\' cards carry blue Start Rabbit Hole and neutral Fork, no badge', async () => {
-  const mine = titled(ex, '[data-explore-card]', T.bridges), theirs = titled(ex, '[data-explore-card]', T.orbits);
+await check('15 Explore, as the owner: own card badged, no Start/Fork, its read-only count; others\' cards: blue Start Rabbit Hole and one soft [Fork | N] whose dialog cancels in place', async () => {
+  const mine = titled(ex, '[data-explore-card]', T.bridges), theirs = titled(ex, '[data-explore-card]', T.orbits), prisms = titled(ex, '[data-explore-card]', T.prisms);
   assert.equal(await mine.locator('[data-owned-badge]').count(), 1);
-  assert.equal(await mine.locator('[data-card-start-rabbit-hole], [data-card-fork]').count(), 0);
+  assert.equal(await mine.locator('[data-card-start-rabbit-hole], [data-fork-button]').count(), 0);
+  assert.equal((await mine.locator('[data-fork-count]').innerText()).trim(), '1 fork', 'your own card: the read-only count, once forked');
   assert.equal(await theirs.locator('[data-owner-badge]').count(), 0);
   assert.equal((await theirs.locator('[data-creator]').innerText()).trim(), `@${H.other}`);
   assert.equal(await rgb(theirs.locator('[data-card-start-rabbit-hole]'), 'background-color'), ACCENT);
-  assert.equal(await rgb(theirs.locator('[data-card-fork]'), 'background-color'), 'rgb(255, 255, 255)');
+  // "make the fork button more visible on the cards" and "the fork button should itself have the counts like github"
+  // (owner, 2026-10-08): the soft accent fill, the count inside, 0 included, and no second count in the footer.
+  const forkBg = await rgb(theirs.locator('[data-fork-button]'), 'background-color');
+  assert.ok(forkBg !== 'rgb(255, 255, 255)' && forkBg !== ACCENT && forkBg !== 'rgba(0, 0, 0, 0)', `soft, below the primary: ${forkBg}`);
+  assert.equal((await theirs.locator('[data-fork-button] [data-fork-count-value]').innerText()).trim(), '1');
+  assert.equal(await theirs.locator('[data-fork-button]').getAttribute('aria-label'), 'Fork, 1 fork');
+  assert.equal((await prisms.locator('[data-fork-button] [data-fork-count-value]').innerText()).trim(), '0');
+  assert.equal(await ex.locator('[data-explore-card] [data-fork-button]').count(), await ex.locator('[data-explore-card] [data-card-start-rabbit-hole]').count(), 'one Fork per others\' card');
+  assert.equal(await theirs.locator('[data-fork-count]').count() + await prisms.locator('[data-fork-count]').count(), 0, 'no "N forks" beside the button');
   assert.equal((await theirs.locator('[data-card-visibility]').innerText()).trim(), 'Public');
-  assert.equal((await theirs.locator('[data-fork-count]').innerText()).trim(), '1 fork');
-  assert.equal((await titled(ex, '[data-explore-card]', T.prisms).locator('[data-fork-count]').innerText()).trim(), '0 forks');
+  // Fork asks first, in place: "Fork this canvas", prefilled; Cancel stays on Explore with nothing made.
+  const before = (await api(owner, '/api/canvases')).canvases.length;
+  await theirs.locator('[data-fork-button]').click();
+  const dialog = ex.getByRole('dialog', { name: 'Fork this canvas' });
+  await dialog.waitFor({ timeout: 10000 });
+  assert.equal(await dialog.getByRole('textbox', { name: 'Name' }).inputValue(), T.orbits);
+  await shot(ex, '08b-explore-fork-dialog');
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await dialog.waitFor({ state: 'detached' });
+  assert.equal(new URL(ex.url()).pathname, '/explore');
+  assert.equal((await api(owner, '/api/canvases')).canvases.length, before, 'Cancel forks nothing');
+  // The actions row sits above the footer: Updated is the card's last line, never mid-card.
+  const [start] = await boxes(theirs.locator('[data-card-start-rabbit-hole]')), [foot] = await boxes(theirs.locator('[data-card-footer]'));
+  assert.ok(foot.y > start.y + start.h - 1, `footer ${JSON.stringify(foot)} under the actions ${JSON.stringify(start)}`);
   assert.deepEqual(await typeWords(ex.locator('[data-explore-card]')), []);
   const all = await boxes(ex.locator('[data-explore-card]'));
   for (const b of all) assert.ok(b.w >= 420 && b.w <= 500 && b.h >= 210 && b.h <= 260, JSON.stringify(b));

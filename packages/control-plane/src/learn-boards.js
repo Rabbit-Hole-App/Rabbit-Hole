@@ -262,6 +262,7 @@ async function forkSource(req, env, user, body) {
   if (canvas.owner_email !== user.email) return json({ error: 'This canvas is private to its owner' }, 403);
   // A canvas in Trash (library-trash.md) is copied by nothing - a stale card's Duplicate or Fork included - until restored.
   if (canvas.trashed) return json({ error: 'Restore this canvas from Trash first.' }, 409);
+  // null is "this browser has no copy" (the Library's localBoard), as absent is: the server copy, never a 400.
   if (body.state != null) {
     const checked = stateText(body.state);
     if (checked.error) return json({ error: checked.error }, checked.status || 400);
@@ -304,8 +305,10 @@ async function fork(req, env, body, { duplicate = false } = {}) {
   if (earlier) return earlier;
   const source = await forkSource(req, env, user, body);
   if (source instanceof Response) return source;
-  // The source keeps its own title in the provenance; the copy steps to a free " (n)" in its owner's Library.
-  const sourceTitle = String(source.title).slice(0, 120), title = await freeTitle(db, user.org, user.email, sourceTitle);
+  // The source keeps its own title in the provenance; the copy steps to a free " (n)" in its owner's Library. A fork takes
+  // the name typed in its Fork dialog (owner, 2026-10-08); blank, or not a string, keeps the source's.
+  const typed = !duplicate && typeof body?.title === 'string' ? body.title.trim().slice(0, 120) : '';
+  const sourceTitle = String(source.title).slice(0, 120), title = await freeTitle(db, user.org, user.email, typed || sourceTitle);
   // Lineage: the parent is the source canvas; the root is the parent's root, or the parent itself.
   const up = source.canvas && await db.prepare('SELECT root_org, root_canvas_id FROM canvas_forks WHERE org = ? AND canvas = ?').bind(source.org, source.canvas).first();
   const root = up?.root_canvas_id ? [up.root_org, up.root_canvas_id] : source.canvas ? [source.org, source.canvas] : [null, null];
@@ -533,7 +536,7 @@ export async function learnBoardsRoute(path, req, env) {
     if (req.method === 'PUT') return json({ error: 'Shared links are view-only. Fork the board to edit your own copy.' }, 403);
     return json({ error: 'Method not allowed' }, 405);
   }
-  // One fork call for every surface (Library card, canvas top bar, shared board): { source, key, state? }.
+  // One fork call for every surface (the shared header, an Explore card): { source, key, state?, title? }.
   if (path === '/api/learn/boards/fork') return req.method === 'POST' ? fork(req, env, await readBody(req)) : json({ error: 'Method not allowed' }, 405);
   // Duplicate: your own canvas copied to a new private canvas of yours, never a fork (docs/features/canvas-naming.md).
   if (path === '/api/learn/boards/duplicate') return req.method === 'POST' ? fork(req, env, await readBody(req), { duplicate: true }) : json({ error: 'Method not allowed' }, 405);

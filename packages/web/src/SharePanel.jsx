@@ -81,7 +81,8 @@ function ExploreRow({ published, token, busy, onPublish }) {
 
 // onRepository(allow): the owner's switch for a private repository's code on this link (docs/features/shared-canvas-ask.md).
 // onPublish(publish): Publish to Explore / Remove from Explore - only for a top-level canvas.
-export default function SharePanel({ sharing, busy, error, onChange, onRepository, onPublish = null, onClose }) {
+// `place`: where it sits - under the canvas top bar's Share button, or the Library's popup (LibraryViews.jsx).
+export default function SharePanel({ sharing, busy, error, onChange, onRepository, onPublish = null, onClose, place = 'absolute top-full right-0 mt-2' }) {
   const panel = useRef(null);
   useEffect(() => {
     const away = event => { if (!panel.current?.contains(event.target) && !event.target.closest?.('[data-share-button]')) onClose(); };
@@ -94,7 +95,7 @@ export default function SharePanel({ sharing, busy, error, onChange, onRepositor
   const set = patch => onChange({ shared: current.shared, view: !!current.view, public_view: current.public_view, ...patch });
   return (
     <div ref={panel} role="dialog" aria-label="Share this board"
-      className="absolute top-full right-0 z-50 mt-2 w-96 rounded-xl border border-line bg-white p-3 shadow-lg">
+      className={`${place} z-50 w-96 rounded-xl border border-line bg-white p-3 shadow-lg`}>
       <div className="flex items-center gap-2">
         <div className="flex-1">
           <div className="flex items-center gap-1.5 text-sm font-semibold text-ink">

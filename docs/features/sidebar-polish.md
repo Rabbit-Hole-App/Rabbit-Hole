@@ -17,7 +17,6 @@ PINNED (only when something is pinned)
 RECENT
   [icon] Logistic regression
   [icon] Backpropagation thr…
-  View all  -> Library
 ────────────────────                       ────
 Trash                                      Trash
 Feedback                                   Feedback
@@ -31,7 +30,7 @@ Feedback                                   Feedback
 - The account row is 56px tall, with a 32px avatar, the name in semibold and a small chevron.
   - `aria-label` "Account menu"; it opens the existing menu (Settings, Log out).
   - A subtle ring and surface show while the menu is open.
-- The panel control sits at the right of the row: ‹ "Collapse sidebar". On the rail it is › "Expand sidebar", under the avatar.
+- The panel control sits at the right of the row: the panel icon (`PanelLeftClose`) "Collapse sidebar". On the rail it is `PanelLeftOpen` "Expand sidebar", under the avatar. It draws the panel, as the canvas's right panel toggle does, not a chevron (owner, 2026-10-08).
   - It is smaller and quieter than a nav row, so it reads as a panel control, not a destination.
 - Ctrl/⌘+\ still toggles.
 
@@ -56,11 +55,11 @@ Feedback                                   Feedback
 ## Recent
 
 - Recent is shown only when the sidebar is expanded (`sidebar-nav.js` `recentLaunch`).
-  - It holds up to five, in the order opened on this device (`small.recent`, the list Home's Recent reads).
+  - It holds the top two, in the order opened on this device (`small.recent`, the list Home's Recent reads) (owner, 2026-10-08; it was five).
   - A pinned item shows under Pinned only, so no canvas appears twice.
 - Each row shows the type icon and title on one line, truncated. The full title shows in a tooltip on hover or keyboard focus.
 - The ⋯ menu (Open, Pin/Unpin, Copy link) appears only on hover or focus. The row is a keyboard link, with Enter to open, and the ⋯ is its sibling.
-- "View all" opens the Library.
+- There is no "View all" (owner, 2026-10-08): Library, above it, is the full list.
 - The RECENT label is a quiet small-caps label. It still collapses the list, and its chevron shows on hover or focus while open.
 - The old Private list, which repeated Recent, is gone. Managing what you own is the Library's job.
 - Pinned stays, only when something is pinned, because it is where pins made from a Library card or the Agent Bar show.
@@ -93,7 +92,7 @@ Feedback                                   Feedback
 
 ## Tests
 
-- `src/sidebar-nav.test.mjs`: Recent is capped at five with no pinned items; the preference is remembered; blocked storage.
+- `src/sidebar-nav.test.mjs`: Recent is capped at two with no pinned items; the preference is remembered; blocked storage.
 - `src/home/pinned.test.mjs`: the 64px rail edge.
 - `e2e/sidebar-check.mjs`, 16 checks against the local stack:
   - widths;
@@ -102,7 +101,8 @@ Feedback                                   Feedback
   - truncation and the title tooltip;
   - the Home and Library active state;
   - the account menu;
-  - View all;
+  - no View all (Library opens the Library);
+  - the panel icon on Collapse and Expand;
   - the rail's targets, navigation-only content and remembered collapse;
   - every rail tooltip on hover with its delay;
   - keyboard focus, Esc;

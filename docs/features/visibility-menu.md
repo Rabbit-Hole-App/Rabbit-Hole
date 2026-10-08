@@ -10,9 +10,11 @@ Duplicate
 Visibility ›    Private · Unlisted · Public   (the current one checked)
 Share / Manage link
 ─────────────
-Archive…
+Archive
 Move to Trash
 ```
+
+"Archive", without an ellipsis (owner, 2026-10-08); its confirmation still asks first.
 
 A project's ⋮ keeps Pin, Learn and Map, and adds Move to Trash. Other people's cards never show this menu; their Fork / Start Rabbit Hole / Copy link actions come with the card redesign.
 
@@ -48,7 +50,16 @@ There are three states, read from the canvas row's `access`. Each is done throug
 
 ## Share / Manage link
 
-Opens the canvas with its Share panel open (`/apps/<canvas>?share=1`). The query is used once and dropped from the URL.
+Opens the canvas page's own Share panel (`SharePanel.jsx`) as a popup over the Library (owner, 2026-10-08: "should not
+open the canvas but have a pop up window for user there itself"). It is the same panel on the same routes - share
+on/off and the view link, public view, the private-repository switch, Publish to Explore - with this browser's copy of
+the canvas sent on a first share or publish, as Visibility sends it. Each change reloads the Library so the card's
+visibility follows; closing it (Escape, a click outside) leaves the Library as it was. No Fork in this menu: your own
+canvas is copied with Duplicate.
+
+`/apps/<canvas>?share=1` still opens the panel on the canvas page; nothing in the Library links to it now.
+`ponytail:` a Publish refused for a missing @handle shows the server's message in the popup; the canvas page asks for a
+handle in place.
 
 ## Move to Trash
 
@@ -61,7 +72,7 @@ Nothing is hard-deleted from the menu. Trash (the sidebar) lists your trashed ca
 
 ## Tests
 
-- `packages/web/src/visibility-menu.test.mjs` covers the transitions, the confirmation, the menu order and wiring, Trash, and `?share=1`.
+- `packages/web/src/visibility-menu.test.mjs` covers the transitions, the confirmation, the menu order and wiring, Trash, `?share=1` on the canvas page, and the Library's Share popup (the existing panel, its routes, no navigation).
 - `packages/web/e2e/visibility-check.mjs` (13 checks) covers:
   - the menu order and the checked state;
   - Private → Unlisted → Public → Unlisted;

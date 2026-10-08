@@ -59,14 +59,18 @@ test('/@handle: routed to anyone in Rabbit Hole, served by the dev worker, and t
   assert.doesNotMatch(code, /\.email\b|followers?\b|\bFollow\b|\blikes?\b|subscribe|verified|reputation/i, 'no email, no social features');
 });
 
-test('@handle links to the profile on public content only: Explore and profile cards, and a publication\'s header', () => {
+// Owner, 2026-10-08: "make sure i am always able to click on @handles to go to the creator and see their cards" - every
+// @handle links to /@handle (Library, Home, Explore and profile cards, fork provenance, a share's or publication's header).
+// The profile shows only what that creator published.
+test('every @handle links to its creator\'s profile: every card, fork provenance, and the shared header', () => {
   const card = read('./home/LearningCard.jsx');
   assert.match(card, /\? <a data-creator-link href=\{creatorHref\} title="Open the creator's profile" onClick=\{\(e\) => e\.stopPropagation\(\)\}/);
+  assert.match(card, /const creatorHref = given \|\| m\.creator\?\.url;/, 'Library and Home cards link through cardModel');
+  assert.match(read('./home/provenance.js'), /sourceOwner: false, url: `\/@\$\{a\.owner_handle\}` \}/);
   assert.match(read('./home/PublicCards.jsx'), /creatorHref=\{card\.creator\?\.handle \? `\/@\$\{card\.creator\.handle\}` : null\}/);
-  assert.doesNotMatch(read('./LibraryViews.jsx') + read('./Home.jsx').slice(0, read('./Home.jsx').indexOf('function Explore()')), /creatorHref/, 'private views keep the @handle as text');
-  assert.match(read('./home/Provenance.jsx'), /\{f\.creatorUrl\n\s+\? <a data-forked-from-creator href=\{f\.creatorUrl\}/, 'fork provenance: only a published original links');
+  assert.match(read('./home/Provenance.jsx'), /\{f\.creatorUrl\n\s+\? <a data-forked-from-creator href=\{f\.creatorUrl\}/);
   const shared = read('./SharedBoardPage.jsx');
-  assert.match(shared, /\{shared\.published\n\s+\? <a data-creator-link href=\{`\/@\$\{shared\.creator\.handle\}`\}/, 'a publication links; a share link stays text');
+  assert.match(shared, /\{shared\.creator\.handle\n\s+\? <a data-creator-link href=\{`\/@\$\{shared\.creator\.handle\}`\}/, 'a share link\'s header links too');
 });
 
 test('Explore search and the creator row ask the server; the card list is the shared one', () => {

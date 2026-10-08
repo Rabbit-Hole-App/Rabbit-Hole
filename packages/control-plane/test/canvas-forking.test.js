@@ -327,6 +327,28 @@ test('one action, one fork: a double click and a retry with the same key return 
   assert.equal((await f.call('POST', `/api/learn/boards/shared/${link}/fork`, { as: 'cara', body: { key: 'click-0001-abcd' } })).body.name, (await f.library('cara'))[0].name);
 });
 
+// The Fork dialog's name (owner, 2026-10-08): the copy takes the typed name, trimmed and capped at 120; blank or not a
+// string keeps the source's; a repeat steps to " (n)"; the provenance always keeps the SOURCE title; Duplicate ignores it.
+test('a fork takes the typed name; blank falls back; provenance keeps the source title; a repeat gets (2)', async t => {
+  const f = setup(t);
+  const a = await f.canvas('ana', 'Attention');
+  await f.save('ana', a.name, BOARD);
+  const link = (await f.share('ana', a.name)).view;
+  const named = await f.fork('ben', { token: link }, { title: '  My attention notes  ' });
+  assert.equal(named.status, 201);
+  assert.equal(named.body.title, 'My attention notes');
+  assert.equal((await f.fork('ben', { token: link }, { title: 'My attention notes' })).body.title, 'My attention notes (2)');
+  assert.equal((await f.fork('ben', { token: link }, { title: `  ${'x'.repeat(200)}  ` })).body.title, 'x'.repeat(120));
+  assert.equal((await f.fork('ben', { token: link }, { title: '   ' })).body.title, 'Attention');
+  assert.equal((await f.fork('ben', { token: link }, { title: 42 })).body.title, 'Attention (2)');
+  const copy = (await f.library('ben')).find(c => c.name === named.body.name);
+  assert.deepEqual([copy.title, copy.forked_from_title], ['My attention notes', 'Attention']);
+  assert.equal(f.sqlite.prepare('SELECT forked_from_title FROM canvas_forks WHERE canvas = ?').get(named.body.name).forked_from_title, 'Attention');
+  assert.equal(named.body.forked_from.title, 'Attention');
+  const dup = await f.call('POST', '/api/learn/boards/duplicate', { as: 'ana', body: { source: { canvas: a.name }, state: BOARD, title: 'Ignored' } });
+  assert.equal(dup.body.title, 'Attention (2)', 'Duplicate keeps its own naming rule');
+});
+
 test('forkState keeps the board content and settles chat cards', () => {
   assert.deepEqual(forkState({ blocks: [{ id: 'b' }], exchanges: [{ id: 'e', status: 'thinking' }], selection: ['b'], viewport: {}, shapes: 'not a list' }),
     { blocks: [{ id: 'b' }], exchanges: [{ id: 'e', status: 'done' }] });

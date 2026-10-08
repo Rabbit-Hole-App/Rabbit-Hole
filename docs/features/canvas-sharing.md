@@ -18,14 +18,14 @@ A learner shares a canvas board by link. Dev only, like the rest of Learn.
   email). Links look like `/b/<token>`.
 - Shared boards are always view-only: pan and zoom, no toolbar, no edits.
   There are no edit links; tokens from before are no longer accepted.
-- **Fork** (top right of a shared board) makes the viewer their own editable
-  copy: a Canvas in smart-home's `canvases` catalog (`canvas-<8 hex>`, owned by
+- **Fork** (top right of a shared board), after its "Fork this canvas" confirm-and-rename dialog, makes the viewer
+  their own editable copy: a Canvas in smart-home's `canvases` catalog (`canvas-<8 hex>`, owned by
   the forker, no project), opening in Learn at `/apps/canvas-<8 hex>?tab=learn`.
   The copy (board, files, notebook workspaces - notebooks get new ids) is made
   on the server under that canvas; the forker's Learn page loads it on first
   open, then it works like any canvas. A signed-out public viewer is sent to
-  sign in and comes back to finish (`?fork=1`). The original is untouched.
-  Fork is canvas-level everywhere (Library card, canvas top bar, this page):
+  sign in and comes back to the dialog (`?fork=1`). The original is untouched.
+  Fork is only on someone else's canvas (this page, their Explore cards), never your own (2026-10-08):
   see [canvas-forking.md](canvas-forking.md).
 - Provenance, lineage and fork counts are `canvas_forks` rows
   ([canvas-forking.md](canvas-forking.md)). The copy's `learn_boards` row

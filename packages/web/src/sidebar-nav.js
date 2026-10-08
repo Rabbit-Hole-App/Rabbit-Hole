@@ -1,8 +1,9 @@
 // The Rabbit Hole sidebar's small rules (docs/features/sidebar-polish.md).
 import { recentItems } from './home/continue.js';
 
-// Recent is a launcher, not a second list (owner, 2026-10-06): up to five, and a pinned item shows under Pinned only.
-export const recentLaunch = (recent, catalog, pins) => recentItems(recent.filter((slug) => !pins.includes(slug)), catalog);
+// Recent is a launcher, not a second list (owner, 2026-10-06): the top two (owner, 2026-10-08), no View all, and a pinned
+// item shows under Pinned only.
+export const recentLaunch = (recent, catalog, pins) => recentItems(recent.filter((slug) => !pins.includes(slug)), catalog).slice(0, 2);
 
 // Expanded or collapsed is this browser's UI preference (brief §14), never the account's or a canvas's.
 // Storage that throws (blocked site data) reads as the default and keeps nothing.

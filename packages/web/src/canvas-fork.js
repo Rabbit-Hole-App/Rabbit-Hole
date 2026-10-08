@@ -1,9 +1,10 @@
-// Fork (docs/features/canvas-forking.md): every surface - a Library card, the canvas top bar, a shared
-// board, a future Explore card - forks through this one call. Pure, so the retry rule is tested.
+// Fork (docs/features/canvas-forking.md): every surface - the shared header, another person's Explore card - forks
+// through this one call. Pure, so the retry rule is tested.
 import { wsHeaders } from './api.js';
 
 // POST /api/learn/boards/fork. `source` is { canvas } (your own) or { token } (a share link); `state` is
-// your browser's copy of your own canvas, where its content lives. Duplicate (docs/features/canvas-naming.md) is the
+// your browser's copy of your own canvas, where its content lives; `title` is the name typed in the Fork dialog (blank: the
+// source's, decided by the server). Duplicate (docs/features/canvas-naming.md) is the
 // same copy of your own canvas without the lineage: path /api/learn/boards/duplicate. A browser holding none of it
 // (localBoard's null) sends no state, never a null one: the server copy decides.
 export async function postFork({ state, ...body }, path = '/api/learn/boards/fork') {
@@ -18,10 +19,10 @@ export async function postFork({ state, ...body }, path = '/api/learn/boards/for
 // instead of a second one. Only a finished fork lets the next press make a new one.
 export function forkAction(send = postFork, newKey = () => crypto.randomUUID()) {
   let key = null, flight = null;
-  return ({ source, state = null }) => {
+  return ({ source, state = null, title = null }) => {
     if (flight) return flight;
     key ||= newKey();
-    flight = send({ source, key, ...(state ? { state } : {}) })
+    flight = send({ source, key, ...(state ? { state } : {}), ...(title ? { title } : {}) })
       .then(data => { key = null; return data; })
       .finally(() => { flight = null; });
     return flight;

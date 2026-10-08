@@ -40,6 +40,20 @@ function setup(t) {
   return { sqlite, env, call, create, duplicate, fork, share, titles };
 }
 
+// The Library sends localBoard(), null when this browser holds no copy (owner bug, 2026-10-08: "state must be a board object").
+test('Duplicate with no browser copy (state: null) copies the server copy, or says where the content is', async t => {
+  const f = setup(t);
+  const src = await f.create('ana', 'Attention Playground');
+  const none = await f.call('POST', '/api/learn/boards/duplicate', { as: 'ana', body: { source: { canvas: src.name }, state: null } });
+  assert.equal(none.status, 409);
+  assert.match(none.body.error, /nothing to copy here/);
+  await f.call('PUT', `/api/learn/boards/${src.name}/main`, { as: 'ana', body: { state: BOARD } });
+  const made = await f.call('POST', '/api/learn/boards/duplicate', { as: 'ana', body: { source: { canvas: src.name }, state: null } });
+  assert.equal(made.status, 201);
+  assert.deepEqual((await f.call('GET', `/api/learn/boards/${made.body.name}/main`, { as: 'ana' })).body.state.blocks, BOARD.blocks);
+  assert.equal((await f.call('POST', '/api/learn/boards/duplicate', { as: 'ana', body: { source: { canvas: src.name }, state: [] } })).status, 400, 'a non-board is still refused');
+});
+
 test('two different people may own canvases with exactly the same title', async t => {
   const f = setup(t);
   const a = await f.create('ana', 'Transformer Playground'), b = await f.create('ben', 'Transformer Playground');

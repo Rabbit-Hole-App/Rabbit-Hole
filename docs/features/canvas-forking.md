@@ -7,17 +7,25 @@ Fork used everywhere.
 
 ## Spec (owner)
 
-- Fork is canvas-level. It sits on the Library canvas card (`[Open] [Fork]`), on a shared canvas
-  (`/b/<token>`, top right) and in the canvas's own top bar (beside Share). No content card has a
-  fork control.
+- Fork is canvas-level, and only on someone else's canvas (owner decision, 2026-10-08: "i should not be
+  having a fork button/icon on my own canvas", "i cannot fork my own cards"). It sits on a shared or
+  published canvas (`/b/<token>`, `/e/<token>`, top right) and on other people's Explore and profile
+  cards. Your own canvas has no Fork anywhere - not its top bar, not its Library or Home card, not the
+  ⋮ menu; Duplicate in the Library's ⋮ copies it (canvas-naming.md). No content card has a fork control.
+- Fork asks first (owner, 2026-10-08): a press opens a small dialog, "Fork this canvas", with a Name field
+  prefilled with the source's title and the buttons Cancel and Fork (primary). Cancel or Escape forks
+  nothing; Fork (or Enter) forks with the name as typed, trimmed and capped at 120 characters; an empty
+  name falls back to the source's title. Signed out, Fork goes through sign-in and the dialog opens again
+  on return (`?fork=1`) - never a silent fork.
 - A fork is a new canvas owned by the signed-in user, in their Library at once, holding a copy of
   the source's persisted content. It can be renamed, edited, shared, forked again and can make its
   own Rabbit Holes. Nothing syncs between source and fork; deleting either never deletes the other.
 - Provenance: `forked_from_canvas_id` (immediate parent), `root_canvas_id` (first canvas of the
   lineage), `forked_from_owner_id`, `forked_from_title` (snapshot at fork time) and `forked_at`.
   For A → B → C, C stores parent B and root A.
-- Title (canvas-naming.md): the fork keeps the source's title, stepping to the next free ` (n)` only when the forker's
-  own Library already has it ("Transformer Playground (2)"); `forked_from_title` keeps the source's own title.
+- Title (canvas-naming.md): the fork takes the name typed in the dialog, else the source's title, stepping to the next
+  free ` (n)` only when the forker's own Library already has it ("Transformer Playground (2)"); `forked_from_title`
+  keeps the source's own title whatever the fork is named.
 - Attribution: a fork shows `Forked from "<source title>" ↗`, and keeps it after a rename. ↗ opens
   the source while this person may still open it; otherwise the attribution stays and says the
   original is unavailable, revealing nothing else about it.
@@ -27,18 +35,18 @@ Fork used everywhere.
     fork canvas still exists, so a deleted fork stops counting.
   - Only a successful fork moves it. A sign-in redirect, a refused or failed request, a replay of the
     same action (`fork_key`) and Start Rabbit Hole add nothing.
-  - Library and Home cards show the fork icon and "N forks", and show nothing at 0.
-  - The shared header has one GitHub-style control (owner, 2026-10-06): `[GitFork  Fork  N]`. It is the
-    same lucide `GitFork` icon the cards use, and the count shows even at 0. The accessible name is
-    "Fork, N forks", and there is no separate "N forks" label beside it.
+  - Your own cards (Library, Home, your own Explore or profile card) show at most one read-only "N forks"
+    in the footer, only once someone forked it (nothing at 0), never as a button (owner, 2026-10-08).
+  - Wherever Fork is offered - the shared header and other people's Explore and profile cards - it is one
+    GitHub-style control with the count inside (owners, 2026-10-06 and 2026-10-08): `[GitFork  Fork | N]`,
+    0 included. The accessible name is "Fork, N forks", and there is no separate "N forks" label beside
+    it. On a card it uses the soft accent fill, more visible than a white button and still below the
+    primary Start Rabbit Hole (owner, 2026-10-08: "make the fork button more visible on the cards").
   - The number comes from the server: `fork_count` on the shared board. After a fork, the button shows
     the fork reply's `source_fork_count` (also on a replay), never a local +1, so a failed fork leaves the
     number alone.
   - A link to a board that is not a canvas (a project's board) has no canvas to count. Its `fork_count`
     is null, and its Fork button shows no number.
-  - Explore: a fork count on Explore cards is blocked on a separate product decision about which shared
-    canvases are publicly discoverable. When Explore cards exist, they reuse this same count and the
-    cards' fork icon and count component (`Forks` in `home/Provenance.jsx`).
 - Permissions: the existing rules. Your own canvas, or a canvas whose share link you can open.
   Never a private canvas of someone else.
 - Never copied: another user's session, chat transcripts, voice transcripts, pending Rabbit Holes,
@@ -47,8 +55,9 @@ Fork used everywhere.
   link sends only `{ source: { token }, key }`, and the server copies the stored board, ignoring any
   `state`, `history` or chat in the request.
 - Repository revision (decision B there): a fork inherits the revision of the repository the source
-  was read at, never the current HEAD. Through a link, the share's pinned commit; your own canvas from
-  the Library or top bar, the commit its project is at now (or what it inherited, if it is a fork).
+  was read at, never the current HEAD. Through a link, the share's pinned commit; your own canvas (the
+  API still takes `{ canvas }`; no surface offers it since 2026-10-08), the commit its project is at
+  now (or what it inherited, if it is a fork).
   The fork's own share answers from that revision. A private repository's code never opens up through
   a fork: only the repository's owner can allow it, on their own share.
 - One user action makes one fork, whatever the retries or double clicks.
@@ -62,8 +71,7 @@ So "copy the persisted content" means:
 | Source | What is copied |
 |---|---|
 | A shared canvas, through its link | the server board (the owner's browser saves it 1.5 s after each change while shared) and its R2 files and notebook workspaces |
-| Your own canvas, from its top bar | this browser's saved board and chat cards, sent with the request (`state`) |
-| Your own canvas, from its Library card | this browser's saved board if it holds any content; otherwise the server board. A canvas never opened forks as empty, and one made before boards came with their rows gets its empty board first (owner, 2026-10-08; canvas-persistence.md, Saved at creation) |
+| Your own canvas (`{ canvas }`: API only since 2026-10-08; Duplicate is the UI copy) | this browser's saved board if sent (`state`; `null` means none); otherwise the server board; a canvas without one gets its empty board first and forks as empty (owner, 2026-10-08; canvas-persistence.md) |
 
 Browser-only parts of your own canvas: files it uses (images, PDFs, clips) are not uploaded by a
 fork; the fork reads them from this browser's asset cache by key, so they show here and not on
@@ -110,7 +118,7 @@ INDEX canvas_forks_parent (forked_from_org, forked_from_canvas_id)
 
 | Call | Who | Does |
 |---|---|---|
-| `POST /api/learn/boards/fork` `{ source: { canvas } \| { token }, key, state? }` | signed in; `canvas`: its owner; `token`: anyone the link admits | Makes the fork. `201 { name, title, url, files, forked_from }`; a replayed key `200 { name, title, url, replayed: true }`. 401 `{ signIn }` signed out, 403/404 private or missing, 404 dead link, 413 over 1.9 MB. A null `state` counts as none sent. |
+| `POST /api/learn/boards/fork` `{ source: { canvas } \| { token }, key, state?, title? }` | signed in; `canvas`: its owner; `token`: anyone the link admits | Makes the fork, named `title` (the dialog's name: trimmed, capped at 120; blank or not a string: the source's title). Duplicate ignores `title`. `201 { name, title, url, files, forked_from }`; a replayed key `200 { name, title, url, replayed: true }`. 401 `{ signIn }` signed out, 403/404 private or missing, 404 dead link, 409 nothing to fork, 413 over 1.9 MB. |
 | `POST /api/learn/boards/shared/:token/fork` | as above | The shared board's old path, same handler (`source.token` from the path). |
 | `GET /api/canvases`, `GET /api/apps/canvas-*` | owner | Every canvas now carries `forked_from_title`, `forked_from_url` (`/apps/<source>` for your own source, `/b/<token>` while the link you forked through is live and its canvas exists, else null) and `fork_count` (direct forks that still exist). |
 | `GET /api/learn/boards/shared/:token` | as the link | Adds `fork_count`, and a canvas's own title instead of its id. |
@@ -124,31 +132,37 @@ grades and share settings are never read. The fork starts private.
 
 - `src/canvas-fork.js`: `postFork` (the one call) and `forkAction` (one key per action: a press
   during a request joins it, a retry after a failure resends the key, only success clears it).
-- `src/ForkButton.jsx`: the one Fork control, button or top-bar icon; result on the button itself
-  (Forking… / Forked). A future Explore card renders `<ForkButton source={{ token }} … />` with no
-  new logic.
-- Library (`LibraryViews.jsx`): canvas cards show `[Open] [Fork]`, `Forked from "…" ↗` and the
-  count; Fork reloads the Library, so the new canvas appears without leaving it.
-- Canvas top bar (`LearnPage.jsx`): the Fork icon beside Share on a canvas (not a pending hole or a
-  review board) opens the new fork; the attribution sits beside the title.
-- Shared board (`SharedBoardPage.jsx`): Fork and the count; `?fork=1` after sign-in finishes the
-  fork once and is dropped from the address, so Back never forks again.
+- `src/ForkButton.jsx`: the one Fork control, `[Fork | N]`; a press opens the "Fork this canvas" dialog
+  (`ConfirmDialog` + `Input`, portaled so a hovered card's lift never traps it), and only its Fork forks;
+  result on the button itself (Forking… / Forked). `title` prefills the dialog; `resume` is the page a
+  signed-out fork comes back to.
+- Explore and profile cards (`home/PublicCards.jsx`): other people's cards render
+  `<ForkButton size="sm" variant="soft" source={{ token }} title=… resume={card.url} count=… />` and open
+  the new fork; your own card has none.
+- Library (`LibraryViews.jsx`) and the canvas top bar (`LearnPage.jsx`): no Fork (owner, 2026-10-08). A
+  fork's card and top bar keep `Forked from "…" ↗`.
+- Shared board (`SharedBoardPage.jsx`): Fork and the count; `?fork=1` after sign-in opens the dialog
+  once and is dropped from the address, so Back never asks again.
 - Learn now treats empty local keys as no copy when a newer server board exists, so a fork opened
   on a slow connection still loads its content (`hasLocalContent`).
 
 ## Verification
 
-- `packages/control-plane/test/canvas-forking.test.js` (12): own and shared forks, Library listing,
+- `packages/control-plane/test/canvas-forking.test.js` (14): own and shared forks, Library listing,
   clone equals the persisted board, no private or transient state, independence, lineage A → B → C,
   title snapshot, ↗ available/unavailable without leaks, direct counts, permissions, double click
-  and retry. `learn-boards.test.js` keeps the original shared-board fork test.
+  and retry, and the dialog's name (used; trimmed and capped; blank falls back; provenance keeps the
+  source title; a repeat gets (2); Duplicate ignores it). `learn-boards.test.js` keeps the original shared-board fork test.
 - `test/shared-canvas-v1.test.js`: "A chat" (a fork stores none of the viewer's chat, whatever the
   request carries), "B pin: a fork records the revision...", "C permission: a fork never opens up..." and
   "Lineage" (a fork of a fork: owned and editable by its forker, source title, parent, root and pinned revision).
 - `packages/web/src/canvas-fork.test.mjs`, `home/canvas-local.test.mjs`, `home/provenance.test.mjs`.
-- `packages/web/e2e/canvas-forking-check.mjs` (local stack only, 21 checks): top-bar double click,
-  rename, ↗, Library `[Open] [Fork]`, counts, a second person forking through a link, and the
-  unavailable state after sharing stops.
+- `packages/web/e2e/canvas-forking-check.mjs` (local stack only): no Fork on your own top bar or
+  Library card; through a link, the dialog (one per double click, prefilled), Cancel and Escape fork
+  nothing, a rename forks once under the typed name, a cleared name falls back to the source title,
+  ↗, counts in the header and the Library (none at 0), and the unavailable state after sharing stops.
+  `explore-check.mjs` covers the signed-out dialog, sign-in and the dialog again; `card-redesign-check.mjs`
+  the Explore card's `[Fork | N]` and its Cancel.
 
 ## Known limits
 

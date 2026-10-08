@@ -5,11 +5,11 @@ import { readSidebar, recentLaunch, saveSidebar } from './sidebar-nav.js';
 const store = (entries = {}) => { const m = new Map(Object.entries(entries)); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), m }; };
 const blocked = () => { throw new Error('SecurityError'); };
 
-test('Recent: five catalog items in recent order, never one that is pinned', () => {
+test('Recent: the top two catalog items in recent order, never one that is pinned', () => {
   const catalog = Array.from({ length: 8 }, (_, i) => ({ name: `canvas-${i}` }));
   const recent = ['gone', 'canvas-7', 'canvas-1', 'canvas-2', 'canvas-3', 'canvas-4', 'canvas-5', 'canvas-6'];
-  assert.deepEqual(recentLaunch(recent, catalog, []).map((a) => a.name), ['canvas-7', 'canvas-1', 'canvas-2', 'canvas-3', 'canvas-4']);
-  assert.deepEqual(recentLaunch(recent, catalog, ['canvas-1', 'canvas-3']).map((a) => a.name), ['canvas-7', 'canvas-2', 'canvas-4', 'canvas-5', 'canvas-6']);
+  assert.deepEqual(recentLaunch(recent, catalog, []).map((a) => a.name), ['canvas-7', 'canvas-1']);
+  assert.deepEqual(recentLaunch(recent, catalog, ['canvas-7', 'canvas-1']).map((a) => a.name), ['canvas-2', 'canvas-3']);
   assert.deepEqual(recentLaunch([], catalog, []), []);
 });
 

@@ -69,11 +69,31 @@ test('-> Private takes every outside access away, and asks first only when there
 test('the owned canvas menu, in the owner\'s order: Rename, Edit description, Duplicate | Visibility, Share / Manage link | Archive, Move to Trash', () => {
   const library = read('./LibraryViews.jsx');
   const menu = library.slice(library.indexOf(') : menu?.a.canEdit ? <>'), library.indexOf('</> : null}'));
-  const order = [...menu.matchAll(/>\s*(Rename|Edit description|Duplicate|Visibility|Share \/ Manage link|Archive…|Move to Trash)\s*</g)].map(m => m[1]);
-  assert.deepEqual(order, ['Rename', 'Edit description', 'Duplicate', 'Visibility', 'Share / Manage link', 'Archive…', 'Move to Trash']);
+  const order = [...menu.matchAll(/>\s*(Rename|Edit description|Duplicate|Visibility|Share \/ Manage link|Archive|Move to Trash)\s*</g)].map(m => m[1]);
+  assert.deepEqual(order, ['Rename', 'Edit description', 'Duplicate', 'Visibility', 'Share / Manage link', 'Archive', 'Move to Trash']);
   assert.match(menu, /role="menuitemradio" aria-checked=\{menu\.a\.access === id\}/, 'the current state is checked');
-  assert.match(menu, /navigate\(`\/apps\/\$\{a\.name\}\?share=1`\)/);
+  // Share / Manage link opens the canvas page's own Share panel as a popup over the Library (owner, 2026-10-08), never the canvas.
+  assert.match(menu, /data-menu-share onClick=\{\(\) => pick\(\(a\) => setDialog\(\{ kind: 'share', a, state: local\(a\) \}\)\)\}>Share \/ Manage link</);
+  assert.doesNotMatch(menu, /\?share=1|navigate\(/, 'no trip into the canvas');
   assert.doesNotMatch(menu, /Pin/, 'the owned canvas menu is the owner\'s list, nothing more');
+});
+
+test('the Library\'s Share popup is the canvas page\'s SharePanel on the same routes; closing it leaves the Library as it was', () => {
+  const library = read('./LibraryViews.jsx');
+  assert.match(library, /import SharePanel from '\.\/SharePanel\.jsx';/, 'the existing panel, not a new share UI');
+  assert.match(library, /\{dialog\?\.kind === 'share' && <ShareDialog a=\{dialog\.a\} state=\{dialog\.state\} onClose=\{\(\) => setDialog\(null\)\} onChanged=\{\(\) => ctx\.onForked\?\.\(\)\} \/>\}/);
+  const share = library.slice(library.indexOf('function ShareDialog('), library.indexOf('// Apps in All'));
+  assert.match(share, /<div data-share-dialog className="fixed inset-0 z-50 flex items-start justify-center bg-black\/20/, 'a modal popup over the Library');
+  assert.match(share, /<SharePanel place="relative mt-\[26vh\] max-w-\[90vw\]"/);
+  // The routes the canvas page uses (LearnPage.jsx changeSharing, changeRepositoryAccess, changePublication).
+  assert.match(share, /useEffect\(\(\) => \{ api\(base\)\.then\(\(board\) => setSharing\(board\.sharing\)/);
+  assert.match(share, /post\(`\$\{base\}\/share`, \{ \.\.\.next, \.\.\.\(state \? \{ state \} : \{\}\) \}\)/, 'a null copy is never sent');
+  assert.match(share, /post\(`\$\{base\}\/share\/repository`, \{ allow \}\)/);
+  assert.match(share, /post\(`\/api\/apps\/\$\{a\.name\}\/\$\{publish \? 'publish' : 'unpublish'\}`\)/);
+  assert.match(share, /setSharing\(\(await api\(base\)\)\.sharing\); onChanged\(\);/, 'the panel and the Library card follow each change');
+  assert.doesNotMatch(share, /navigate\(/);
+  // The canvas page keeps the panel under its Share button.
+  assert.match(read('./SharePanel.jsx'), /place = 'absolute top-full right-0 mt-2'/);
 });
 
 test('Move to Trash confirms with the owner\'s words; projects get it too; nothing is deleted from the menu', () => {

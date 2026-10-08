@@ -72,17 +72,19 @@ await check('1 expanded is 260-280px; the account row is the only top anchor: no
 });
 await shot(page, 'A-expanded');
 
-await check('2 expanded order: Search, Notifications, Home, Library, Explore, RECENT, View all, then Trash and Feedback; no Private list; five Recent rows, no title twice', async () => {
+// Recent shows the top two and no View all (owner, 2026-10-08).
+await check('2 expanded order: Search, Notifications, Home, Library, Explore, RECENT, then Trash and Feedback; no Private list; two Recent rows, no View all, no title twice', async () => {
   const ys = [];
   for (const name of NAV) ys.push((await box(btn(page, name))).y);
   const recent = aside(page).getByRole('region', { name: 'Recent' });
-  ys.push((await box(recent)).y, (await box(recent.getByRole('button', { name: 'View all' }))).y, (await box(btn(page, 'Trash'))).y, (await box(aside(page).locator('[data-feedback]'))).y);
+  ys.push((await box(recent)).y, (await box(btn(page, 'Trash'))).y, (await box(aside(page).locator('[data-feedback]'))).y);
+  assert.equal(await aside(page).getByRole('button', { name: 'View all' }).count(), 0, 'no View all');
   assert.deepEqual([...ys].sort((p, q) => p - q), ys, `order ${ys}`);
   assert.equal(await aside(page).getByRole('region', { name: 'Private' }).count(), 0);
   assert.ok(!/\bPrivate\b/i.test(await aside(page).innerText()), 'Private still listed');
   assert.match(await recent.locator('[aria-label="Collapse Recent"]').innerText(), /^RECENT$/);
   const rows = await aside(page).locator('[role="link"]').allInnerTexts();
-  assert.equal(await recent.locator('[role="link"]').count(), 5);
+  assert.equal(await recent.locator('[role="link"]').count(), 2);
   assert.equal(new Set(rows).size, rows.length, `a canvas twice: ${rows}`);
 });
 
@@ -123,8 +125,8 @@ await check('5 the account menu opens from the avatar: Settings and Log out, a s
 await shot(page, 'F-account-menu', { x: 0, y: 0, width: 720, height: 420 });
 await page.keyboard.press('Escape');
 
-await check('6 View all opens the Library, where Library is current with the same treatment', async () => {
-  await aside(page).getByRole('region', { name: 'Recent' }).getByRole('button', { name: 'View all' }).click();
+await check('6 Library (Recent has no View all) opens the Library, where Library is current with the same treatment', async () => {
+  await btn(page, 'Library').click();
   await page.waitForURL(/\/library$/);
   await page.waitForTimeout(600);
   const library = btn(page, 'Library');
@@ -134,9 +136,12 @@ await check('6 View all opens the Library, where Library is current with the sam
 });
 await shot(page, 'D-library-active', { x: 0, y: 0, width: 360, height: 420 });
 
-await check('7 Collapse sidebar makes a 60-68px rail of 40-44px targets, navigation only, remembered after a reload', async () => {
+await check('7 Collapse sidebar (the panel icon, not a chevron) makes a 60-68px rail of 40-44px targets, navigation only, remembered after a reload', async () => {
+  // The panel icon, as the canvas's right panel toggle draws it (owner, 2026-10-08).
+  assert.equal(await btn(page, 'Collapse sidebar').locator('svg.lucide-panel-left-close').count(), 1);
   await btn(page, 'Collapse sidebar').click();
   await mode(page, 'rail');
+  assert.equal(await btn(page, 'Expand sidebar').locator('svg.lucide-panel-left-open').count(), 1);
   const w = await width(page);
   assert.ok(w >= 60 && w <= 68, `rail width ${w}`);
   assert.equal(Math.round((await box(page.locator('[data-shell-sidebar]'))).width), Math.round(w));

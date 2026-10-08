@@ -429,7 +429,8 @@ export default function AgentBar({ page }) {
       {/* The workspace dock (owner, 2026-10-06 §1-2, §11): chrome across the whole workspace, sidebar edge to window edge, under
           the page and its inspector, which end at its top edge (index.css pads main by --agent-bar-h). No float, no gradient. */}
       {sheet && !panelHosts(surface, sheet) && <ResultSheet key={resultsKey(sheet)} scope={sheet} label={nameOf(sheet)} onClose={() => setSheet(null)} />}
-      <div ref={dock} className="relative w-full">
+      {/* The composer itself: half the dock's width, centered (owner, 2026-10-08), never under 28rem; full width on phones. */}
+      <div ref={dock} className="relative mx-auto w-full md:w-1/2 md:min-w-[min(100%,28rem)]">
         {pickerOpen && (
           <div role="listbox" aria-label="Modes" className="absolute bottom-full left-0 z-10 mb-1 w-[26rem] max-w-full rounded-md bg-white p-1 shadow-pop">
             {/* Every command with an example, one click from the picker (owner, 2026-10-04), as on the canvas. */}

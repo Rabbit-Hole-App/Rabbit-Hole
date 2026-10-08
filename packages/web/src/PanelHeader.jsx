@@ -82,7 +82,6 @@ export function CanvasFind({ cards, onFocus, inputRef, hidden }) {
         <button type="button" aria-label="Next match" title="Next match (Enter)" disabled={!matches.length} onClick={() => go(1)}
           className="flex h-8 w-7 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-40"><ChevronDown size={15} aria-hidden /></button>
       </div>
-      {!query.trim() && <p className="mt-3 text-sm text-ink-2">Finds words in this canvas's card titles and text.</p>}
       {query.trim() && !matches.length && <p className="mt-3 text-sm text-ink-2">No matches.</p>}
       <ol className="mt-2 min-h-0 flex-1 space-y-0.5 overflow-y-auto">
         {matches.map((match, index) => (

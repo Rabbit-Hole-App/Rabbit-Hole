@@ -55,10 +55,13 @@ test('Explore lists the published canvases on the canonical card: title, the cre
   const all = read('./home/PublicCards.jsx'), cards = all.slice(0, all.indexOf('export const CreatorAvatar'));
   assert.match(cards, /<LearningCard key=\{card\.url\} kind="canvas" m=\{m\} attrs=\{\{ \[attr\]: '' \}\} href=\{card\.url\}/);
   assert.match(cards, /owner_handle: card\.creator\?\.handle, owner_name: card\.creator\?\.name/, 'cardModel\'s @handle attribution, as on every card');
-  assert.match(cards, /fork_count: card\.fork_count/, 'the same Forks the Library cards show');
+  // The fork count (owner, 2026-10-08): inside the Fork button on others' cards, 0 included; the footer's Forks, as the
+  // Library shows it, on your own card only once someone forked it.
+  assert.match(cards, /fork_count: mine \? card\.fork_count : null/, 'the same Forks the Library cards show, on your own card');
+  assert.match(cards, /count=\{card\.fork_count\}/, 'others\' cards: the count inside Fork');
   for (const text of [explore, cards]) assert.doesNotMatch(text, /email|ranking|\.sort\(/i, 'no email; the server\'s order, no client reordering');
   const card = read('./home/LearningCard.jsx');
-  assert.match(card, /\{m\.forkCount !== null && <Forks m=\{\{ forks: forkLabel\(m\.forkCount\) \|\| '0 forks' \}\} \/>\}/);
+  assert.match(card, /<Forks m=\{m\} \/>/);
 });
 
 // Every owned board is on the server now (docs/features/canvas-persistence.md), so its files and notebook workspaces are
@@ -68,4 +71,12 @@ test('a published board keeps its files and notebook workspaces live too, not on
   assert.match(learn, /save: \(id, files\) => \(\(!board \|\| sharingOf\(sharingRef\.current\) === 'shared'\) && boardVersion\.current != null && !boardStopped\.current/);
   assert.match(learn, /\/\/ Runs after a board PUT, so the board has its server row\.\n\s+const syncAssets = async \(\) => \{\n\s+try \{/);
   assert.doesNotMatch(learn, /sharingRef\.current\?\.shared/, 'no gate that forgets a publication');
+});
+
+// Owner, 2026-10-08: "publish to explore in dark mode the text is black. it should be white". Dark mode turns --color-white
+// into the dark surface, so text-white needs the blue-surface reset; a hex blue matches no bg-accent class, so it is named.
+test('dark mode keeps white text white on the hex blue: Publish to Explore and the canvas question bubble', () => {
+  const css = readFileSync(new URL('./index.css', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  assert.match(css, /\.dark \[class\*='bg-accent'\],\n\.dark \[class\*='bg-\[#2383e2\]'\],\n\.dark \[class\*='bg-danger'\] \{\n\s+--color-white: #ffffff;/);
+  assert.match(readFileSync(new URL('./SharePanel.jsx', import.meta.url), 'utf8'), /data-publish disabled=\{busy\} onClick=\{\(\) => onPublish\(true\)\} className="[^"]*bg-\[#2383e2\][^"]*text-white/);
 });
