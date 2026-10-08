@@ -96,7 +96,7 @@ test('LearnPage: useNextSteps mounts only with Rabbit Hole on and a dock compose
   assert.match(page, /leftRail=\{voiceOn \? <TutorCaption caption=\{voice\.caption\} state=\{voice\.state\} extras=\{tutor\.extras\} \/> : null\}\n\s+hooks=\{steps \? <NextStepsCard steps=\{steps\} onPick=\{\(step, hook\) => \(step\.section \? journey\?\.nextSection\?\.\(\) : nextStepSend\.current\?\.\(step, hook\.hook\)\)\} \/> : null\}/);
   assert.match(canvas, /<div data-canvas-lower-right className="flex justify-end md:min-w-fit md:flex-1 md:basis-0 max-md:order-1">\n\s+\{hooks && <div data-hooks-slot className="w-\[clamp\(208px,calc\(50cqw-500px\),300px\)\] empty:hidden max-md:w-\[min\(100%,300px\)\]">\{hooks\}<\/div>\}/);
   assert.match(page, /tray=\{journey\.trayProps\} voice=\{voice\} nextStepRef=\{nextStepSend\}/);
-  assert.match(canvas, /<div data-left-stack className="absolute bottom-3 left-3 flex w-\[clamp\(208px,calc\(50cqw-500px\),300px\)\] flex-col items-start gap-2 /);
+  assert.match(canvas, /<div data-left-stack className="absolute bottom-\[calc\(var\(--chrome-left,0px\)\+0\.75rem\)\] left-3 flex w-\[clamp\(208px,calc\(50cqw-500px\),300px\)\] flex-col items-start gap-2 /);
 });
 
 test('LearnPage: canvasVersion, graded, /ask and /teach, the repository detach and the block follow-up Tutor (contract §1.7)', () => {
