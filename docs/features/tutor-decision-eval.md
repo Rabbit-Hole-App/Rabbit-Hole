@@ -815,6 +815,42 @@ One session per profile on `logistic-regression`, real Anthropic (dev workspace)
   unsure transfer check on a `test_transfer` turn, cap the clarifying question, answer a question the learner repeats;
   retry `journey_section` once on a validator failure, as Next Steps does.
 
+### 18.2 Confirmation run (prepared; runs once on r27)
+
+The single paid confirmation run the owner approved on 2026-10-08. It runs once, after Parallel confirms Learning's fixes are
+integrated in r27 and its required gate is green; there is no automatic rerun. It is a diagnostic confirmation, not proof
+of real-user learning outcomes or launch readiness.
+
+- **Comparable to run A:** the same `run.mjs paid` command, topic (`logistic-regression`), three profiles, limits ($1.30 per
+  session with the reviewer holdback, $4.00 for the run), simulator (Sonnet 5.5, effort low, 1500 `max_tokens`), reviewer
+  (Opus 5.5, default effort, 8000) and real JEV. Differences: Learning's fixes (the point of the run); every typed turn's
+  evaluation recorded (`evidence`, no behaviour change); `run.json` records the tested commit and tree, whether the
+  checkout was clean, the limits and every model setting (the product's `LEARN_TASKS` included).
+- **Run A baseline in the same measures** (`evidence.sessions`, `next_steps`): the longest run of consecutive
+  `uncertain_unsettled` decisions on one claim was 14 (intermediate) and 10 (novice); each session reached one section;
+  intermediate made 15 `ask_question` actions in 15 decisions; Next Steps showed 3 sets, all in the novice session, with
+  hooks of 10-12 words; the advanced setup failed.
+- **Criteria:**
+  - **Evidence:** correct taught-case answers get credit (settled `demonstrated_here` passes in `evidence.events`), and an
+    unsure transfer check stays explicit (in `unsure_checks`, the claim not `understood` on it).
+  - **Loop recovery:** at most two consecutive `uncertain_unsettled` decisions on the same claim, followed by a change of
+    teaching strategy that helps (the row and actions after each run, read with the transcript).
+  - **Progress:** intermediate and advanced advance when their demonstrated understanding supports it (the claims
+    understood when each section is entered); advancement alone is not a pass.
+  - **Novice support:** uncertainty may remain, but the learner gets help, not repeated equivalent questions (action mix,
+    flagged repetition, transcript).
+  - **Advanced setup:** the section plan completes.
+  - **Next Steps:** coverage per session, relevance and usefulness (read, with the reviewer's `hook_quality`), escalation,
+    validator failures, hook word counts, latency and cost.
+  - **Reviewer:** 3/5 is the provisional minimum for `pacing` and `progress_toward_goal`, backed by transcript evidence;
+    scores alone do not establish success.
+- **Not tested here: practice-card delivery.** The harness materializes no section content, so no card or practice
+  activity reaches the canvas, and the path where the Tutor hands an unsettled claim to a practice card (whose graded
+  answers become settled, deterministic evidence, including transfer) is untested end to end. The separate check: a browser
+  run on the local stack (Learning with Parallel's gate) that materializes a section with a transfer practice card, answers
+  it right and wrong, and asserts the claim settles (`demonstrated_in_transfer`), the path advances, and the Tutor stops
+  re-asking once the claim is settled.
+
 **B. Equivalent phrasings: quality, latency and cost** (contract §4.1.1 follow-up).
 - **Pairs:**
   - `Teach me X` vs `Explain X`;
