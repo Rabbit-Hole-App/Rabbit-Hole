@@ -3,8 +3,9 @@
 // stack only - local D1, no model calls (/api/learn/ask is aborted as a guard; no composer is ever sent). Prints no secrets.
 // Usage: BASE=http://127.0.0.1:8848 SMALL_CP=http://127.0.0.1:8849 node e2e/cross-device-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
-import { mkdirSync, readFileSync, readdirSync } from 'node:fs';
-import { DatabaseSync } from 'node:sqlite';
+import { mkdirSync, readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8848';
@@ -29,14 +30,15 @@ const newCanvas = async title => (await api(owner, '/api/canvases', { method: 'P
 // A canvas is saved on the server at creation now (canvas-persistence.md, Saved at creation). Older canvases, made before
 // that, have no main board until a browser saves one; they still exist, so their paths stay checked. An older canvas is
 // made here the only way one exists: the canvas row with its creation-time empty board removed from the local stack's
-// Learn D1 (PERSIST, the stack's --persist-to; local only, like everything this check touches).
-const PERSIST = new URL(`${process.env.PERSIST || '../../../.small/fork-local'}/v3/d1/miniflare-D1DatabaseObject/`, import.meta.url);
-const learnDb = () => readdirSync(PERSIST).filter(f => f.endsWith('.sqlite') && f !== 'metadata.sqlite').map(f => new DatabaseSync(new URL(f, PERSIST)))
-  .find(db => db.prepare("SELECT 1 FROM sqlite_master WHERE name = 'learn_boards'").get() || (db.close(), false));
+// Learn D1 through wrangler (PERSIST, the stack's --persist-to), as shared-canvas-ask-check seeds it. Never by opening the
+// sqlite file directly: a second writer under the running stack crashed it (int24, 2026-10-08).
+const ROOT = fileURLToPath(new URL('../../../', import.meta.url));
+const PERSIST = process.env.PERSIST || '.small/fork-local';
 const olderCanvas = async title => {
   const canvas = await newCanvas(title);
-  const db = learnDb();
-  try { assert.equal(db.prepare("DELETE FROM learn_boards WHERE app = ? AND board = 'main' AND version = 0").run(canvas.name).changes, 1, 'the empty board from creation'); } finally { db.close(); }
+  assert.match(canvas.name, /^canvas-[0-9a-f]{8}$/);
+  execFileSync(`npx wrangler d1 execute rabbit-hole-learn-dev --local --persist-to ${PERSIST} -c packages/web/wrangler.dev.jsonc --command "DELETE FROM learn_boards WHERE app = '${canvas.name}' AND board = 'main' AND version = 0"`, { cwd: ROOT, shell: true, stdio: 'ignore' });
+  assert.equal((await boardOf(canvas.name)).exists, false, 'the empty board from creation is gone');
   return canvas;
 };
 
