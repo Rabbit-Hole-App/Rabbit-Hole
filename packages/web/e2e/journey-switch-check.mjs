@@ -4,7 +4,7 @@
 // continue-or-start confirmation and keeps the canvas, (d) Continue keeps the setup, (e) a replacement start that fails keeps
 // the setup, (f) typing alone never replaces the journey, (g) a review board (?board=) is its own. The Tutor planner
 // (/api/learn/tutor/plan) and the Learn chat are answered here; the journey route runs on the stack (JOURNEY_MODEL_STUB=fixtures,
-// so rule 5 is the fixture resolver) except the one start (e) refuses. No model call: the stack's provider tripwire count must be 0.
+// so rule 5 is the fixture resolver) except the two replace starts (e) and D2 fail. No model call: the stack's provider tripwire count must be 0.
 // Usage: BASE=http://127.0.0.1:8898 SMALL_CP=http://127.0.0.1:8899 VARS=<stack cp/.dev.vars> node e2e/journey-switch-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
@@ -46,11 +46,14 @@ await context.route('**/api/learn/tutor/plan', route => {
 await context.route('**/api/learn/ask', route => route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream' }, body: SSE }));
 await context.route('**/api/learn/home-ask', route => route.fulfill({ json: { answer: CANNED, references: [], offer_rabbit_hole: false } }));
 await context.route(/\/api\/(learn\/(artifact|voice\/|assess|transcribe|image)|chat)/, route => route.abort());
-// (e): the next replace start fails as a database error would (HTTP 500), before it reaches the stack.
-let failNext = false;
-await context.route('**/api/learn/journey', route => {
+// (e): the next replace start fails as a database error would (HTTP 500), before it reaches the stack. D2: the next one
+// answers as the route answers a staged replacement whose planner failed (the fixtures cannot fail; the route's staging is
+// test/learn-journey-route.test.js D2): 502 with the board's journey as it is, still live.
+let failNext = false, planFailNext = false;
+await context.route('**/api/learn/journey', async route => {
   const body = route.request().method() === 'POST' ? route.request().postDataJSON() : null;
   if (failNext && body?.action === 'start' && body.replace) { failNext = false; return route.fulfill({ status: 500, json: { error: 'D1_ERROR' } }); }
+  if (planFailNext && body?.action === 'start' && body.replace) { planFailNext = false; return route.fulfill({ status: 502, json: { error: 'The planner failed. Try again.', ...(await journeyOf(body.board)) } }); }
   return route.continue();
 });
 const net = [], errors = [];
@@ -194,6 +197,54 @@ await check('c Start in the confirmation starts the new setup and keeps the canv
 });
 await shot('6-new-setup-canvas-kept');
 
+// D2 (owner 2026-10-07, option A): a skip-setup replacement that fails to plan keeps the old journey, setup or active, with
+// Try again; Try again (the real route: staged, planned, swapped) replaces it, and the canvas keeps everything.
+const sectionOf = id => page.evaluate(([key, jid]) => (JSON.parse(localStorage.getItem(key) || '{}').blocks || []).filter(b => b.journey?.journey_id === jid || b.journey_id === jid).length, [INK, id]);
+async function failedThenRetried(id, words, topic, old, tray) {
+  await offered(words, `${topic}, skip setup and just start`);
+  await chip().click();
+  const confirm = await trayIs('clarification');
+  assert.equal(confirm.label, `Continue ${old.request.topic} or start ${topic}?`, id);
+  planFailNext = true;
+  let from = net.length;
+  await page.locator('[data-tray-option="start_new"]').click();
+  const shown = await settled(() => !!document.querySelector('[data-tutor-prompt-tray] [data-tray-error]'));
+  assert.equal(posts('/api/learn/journey', from)[0].body.replace, old.id, id);
+  assert.ok(shown.error.startsWith(`Could not start ${topic}, so ${old.request.topic} stays as it was.`), id);
+  assert.deepEqual([shown.mode, shown.options], tray ? [tray.mode, tray.options] : [null, []], `${id}: the old tray, still answerable`);
+  const kept_ = (await journeyOf()).journey;
+  assert.deepEqual([kept_.id, kept_.state, kept_.revision], [old.id, old.state, old.revision], `${id}: the old journey, unchanged`);
+  await shot(`${id}-failed-plan-kept`);
+  from = net.length;
+  await page.locator('[data-tray-retry]').click();
+  await waitFor(async () => (await journeyOf()).journey?.request.topic === topic, `${id}: the replacement`);
+  const made = (await journeyOf()).journey;
+  await waitFor(async () => (await sectionOf(made.id)) >= 4 && !!(await journeyOf()).journey.section_plan?.heading_block_id, `${id}: section 1 drawn and recorded`, 30000);
+  const now = (await journeyOf()).journey;
+  assert.deepEqual(posts('/api/learn/journey', from).filter(e => e.body.action === 'start').map(e => e.body.replace), [old.id], `${id}: Try again is the same replace start`);
+  assert.deepEqual([now.state, now.section_plan?.section_id], ['active', 's1'], id);
+  assert.ok(await kept(), `${id}: the learner card is kept`);
+  return now;
+}
+
+let third = null, latest = null, oldBlocks = 0;
+await check('D2-setup a skip-setup replacement that fails to plan keeps the setup; Try again replaces it', async () => {
+  await page.locator('[data-tray-option="intuition"]').click();
+  const tray_ = await trayIs('intent_intake', 'How familiar are you with sql?');
+  third = await failedThenRetried('D2-setup', 'Can we do joins instead and skip setup?', 'joins', (await journeyOf()).journey, tray_);
+  oldBlocks = await sectionOf(third.id);
+});
+await shot('D2-setup-retried-replaced');
+
+await check('D2-active a skip-setup replacement of an active journey that fails to plan keeps it and its section; Try again replaces it', async () => {
+  assert.equal(await page.locator('[data-tutor-prompt-tray]').count(), 0, 'an active journey: no tray');
+  const from = net.length;
+  latest = await failedThenRetried('D2-active', 'Could we switch to indexes and skip setup?', 'indexes', (await journeyOf()).journey, null);
+  assert.equal(await sectionOf(third.id), oldBlocks, "the replaced journey's section stays on the canvas");
+  assert.ok(posts('/api/learn/tutor/plan', from).length >= 1);
+});
+await shot('D2-active-retried-replaced');
+
 await check('g a review board is its own: its Tutor, journey and session store never touch the main board', async () => {
   await page.close();
   page = await context.newPage(); // a fresh tab: sessionStorage starts empty
@@ -211,10 +262,10 @@ await check('g a review board is its own: its Tutor, journey and session store n
   assert.ok(writes.length >= 1 && writes.every(e => e.body.board === 'pnsreview'), 'every journey write names the review board');
   assert.ok(posts('/api/learn/tutor/plan', from).length >= 1);
   const review = (await journeyOf('pnsreview')).journey, main = (await journeyOf()).journey;
-  assert.deepEqual([review.request.topic, main.id, main.revision, main.request.topic], ['graphs', second.id, second.revision, 'sql'], 'the main board journey is untouched');
+  assert.deepEqual([review.request.topic, main.id, main.revision, main.request.topic], ['graphs', latest.id, latest.revision, 'indexes'], 'the main board journey is untouched');
   const keys = await page.evaluate(() => Object.keys(sessionStorage).filter(k => k.startsWith('small.tutor:')));
   assert.ok(keys.length >= 1, 'the review board Tutor stored its session');
-  assert.deepEqual(keys.filter(k => k.includes('|main') || k.includes(second.id) || k.includes(first.id)), [], `no store of the main board: ${keys.join(', ')}`);
+  assert.deepEqual(keys.filter(k => k.includes('|main') || [first, second, third, latest].some(j => k.includes(j.id))), [], `no store of the main board: ${keys.join(', ')}`);
   assert.equal(await page.locator(`[data-block-id="${KEPT.id}"]`).count(), 0, 'the review board canvas is not the main board canvas');
 });
 await shot('7-review-board-own-journey');
@@ -227,5 +278,5 @@ await check('no model call: the provider tripwire counts 0 on the app (with its 
 });
 await check('no page errors', async () => assert.deepEqual(errors, []));
 await browser.close();
-console.log(`${results.length}/10 checks passed`);
-process.exit(results.length === 10 ? 0 : 1);
+console.log(`${results.length}/12 checks passed`);
+process.exit(results.length === 12 ? 0 : 1);

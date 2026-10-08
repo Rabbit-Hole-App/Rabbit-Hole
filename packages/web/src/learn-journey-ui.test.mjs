@@ -1612,3 +1612,38 @@ test('owner 2026-10-07 (g): a review board keys every journey request, evaluate 
   // The integration adds the 1.7 props after journey (canvasVersion, repository, describe); the board keys stay these.
   assert.match(page, /useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey[,}]/);
 });
+
+// ---- Owner decision 2026-10-07, D2 (option A): a skip-setup replacement that fails to plan keeps the old journey ----
+// The route answers a planner failure on a replace with 502 and the OLD journey, still live (setup or active, progress
+// kept): the line names both subjects, the old tray stays, and Try again sends the same replace start, which then succeeds.
+test('owner 2026-10-07 D2: a skip-setup replacement whose planner fails keeps the old journey, setup or active; Try again replaces it', async () => {
+  const FAST = 'Teach me SQL, skip setup and just start';
+  const active = journeyOf({ state: 'active', registry: SIGMOID, active_section_id: 's1', evidence: { seq: 2, events: [settled('sigmoid/range', 1), settled('sigmoid/shape', 2)] } });
+  for (const [phase, old, tray] of [['setup', journeyOf({ registry: SIGMOID, intake: { slots: { goal: 'intuition' }, source: {} } }), familiarityTray], ['active', active, null]]) {
+    const fresh = journeyOf({ id: 'j2', revision: 3, state: 'active', request: { topic: 'sql' } });
+    const h = harness(ok(old, tray), [
+      { status: 409, d: { error: 'live_journey', journey: old, path: null, tray } },
+      { status: 502, d: { error: 'The planner failed. Try again.', journey: old, path: null, tray } },
+      ok(fresh, null),
+    ]);
+    await h.refresh();
+    await h.view().start(FAST);
+    assert.deepEqual([h.view().tray.id, h.view().tray.prompt], ['clarification:live', 'Continue logistic regression or start sql?'], phase);
+    assert.deepEqual(await h.view().answer('start_new'), { handled: true, failed: true, ok: false }, phase);
+    assert.deepEqual(h.calls[2].body, { app: APP, board: 'main', action: 'start', text: FAST, replace: 'j1' }, phase);
+    const shown = h.view().tray;
+    assert.deepEqual([h.view().journey, shown.error.message], [old, 'Could not start sql, so logistic regression stays as it was.'], `${phase}: the old journey, progress and all`);
+    assert.deepEqual([shown.id, shown.options], tray ? [tray.id, tray.options] : ['status', []], `${phase}: the old tray stays answerable`);
+    await h.view().answer('retry');
+    assert.deepEqual(h.calls[3].body, h.calls[2].body, `${phase}: Try again is the same replace start`);
+    assert.deepEqual([h.view().journey.id, h.view().tray, h.actions()], ['j2', null, ['start', 'start', 'start']], phase);
+  }
+});
+
+test('owner 2026-10-07 D2: skipping a question continues the same journey - a cancel, never a start or an archive', async () => {
+  const h = harness(ok(journeyOf({ registry: SIGMOID }), goalTray), [ok(journeyOf({ state: 'diagnostic', revision: 5, registry: SIGMOID, diagnostic: { probes } }), probeTray)]);
+  await h.refresh();
+  assert.deepEqual(await h.view().handleText('skip this'), { handled: true });
+  assert.deepEqual(h.actions(), ['cancel']);
+  assert.deepEqual([h.view().journey.id, h.view().journey.state, h.view().tray.id], ['j1', 'diagnostic', probeTray.id]);
+});

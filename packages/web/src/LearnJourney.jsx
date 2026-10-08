@@ -263,8 +263,9 @@ export function journeyController({ where, fetchJson: send, onChange = () => {},
   const proposalTray = p => (p ? { id: `generation_proposal:${p.step_id}`, mode: 'generation_proposal', prompt: p.message,
     options: [{ id: 'generate', label: 'Generate' }, { id: 'not_now', label: 'Not now' }], free_text: false, dismissible: true } : null);
 
-  // confirmed: continue-or-start's Start (its tray): the start names the journey it replaces, which the route archives in the
-  // insert's transaction, so a failed start keeps that journey and says so (owner 2026-10-07).
+  // confirmed: continue-or-start's Start (its tray): the start names the journey it replaces, which the route archives only in
+  // the batch that makes the new one live (a fast start once it is planned, D2), so a failed start, a planner failure (502
+  // with the old journey) included, keeps that journey and says so (owner 2026-10-07).
   const start = async (text, confirmed = null) => {
     set({ local: null, dismissed: null, error: null });
     const out = await run({ action: 'start', text, ...(confirmed?.replace ? { replace: confirmed.replace } : {}) }, null);
