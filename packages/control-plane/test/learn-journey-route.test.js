@@ -8,6 +8,7 @@ import { learnDb } from './learn-grade-fixture.js';
 import { journeyRoute } from '../src/learn-journey.js';
 import { fixtureFor, fixtureModel } from '../src/learn-journey-fixtures.js';
 import { JourneyConflict, appendJourneyEvidence, archiveJourney, loadJourney } from '../src/learn-journey-store.js';
+import { validatePath } from '../../web/src/learn-journey.js';
 
 // /api/me as the control plane answers it (§10.2): user_id is users.id, the journey key. anaAlt is another account behind
 // ana's email principal; anaCli is ana with a null id (a CLI token), anaLegacy with none (the legacy small-cp fallback).
@@ -696,4 +697,72 @@ test('owner 2026-10-07 D2: skipping a question continues the same journey - same
   assert.deepEqual([r.status, r.body.journey.id, r.body.journey.state, r.body.journey.diagnostic.skipped], [200, first.id, 'path_review', true]);
   assert.deepEqual(s.rows().map(row => [row.id, row.archived_at]), [[first.id, null]], 'one row, never archived, never replaced');
   assert.ok(r.body.journey.revision > first.revision);
+});
+
+
+// ---- Owner 2026-10-08 (r29): moving on to the next section ----
+// next_section: the next upcoming section becomes current and is planned as section 1 is; the section left is completed when
+// its plan's completion_evidence holds on the journey's evidence, else skipped - never completed silently - and keeps its
+// evidence and heading. The fixture's criterion is section 1's first claim on a new case (learn-journey-fixtures.js).
+const event = (claim, over) => ({ concept: claim.split('/')[0], claim, settled: true, evaluator: 'deterministic', source: 'probe', ref: { probe_id: 'p1' }, ...over });
+async function activeJourney(s, events = null) {
+  const r = await s.post('start', { text: 'Teach me logistic regression, skip setup and just start' });
+  assert.equal(r.status, 200);
+  const criterion = r.body.journey.section_plan.completion_evidence;
+  assert.deepEqual(criterion.map(c => c.minimum), ['demonstrated_in_transfer'], 'the fixture criterion');
+  if (events) s.sqlite.prepare('UPDATE learning_journeys SET evidence_json = ?').run(JSON.stringify({ seq: 1, events: events(criterion[0].claim).map((e, i) => ({ ...e, seq: i + 1 })) }));
+  assert.equal((await s.post('section_materialized', { journey_id: r.body.journey.id, section_id: 's1', heading_block_id: 'h-s1' })).status, 200);
+  return (await s.call('GET')).body;
+}
+
+test('r29 next_section: without the criterion met, section 1 is skipped (evidence and heading kept), section 2 current and planned in a new version', async t => {
+  const s = setup(t);
+  const before = await activeJourney(s);
+  const r = await s.post('next_section', { revision: before.journey.revision });
+  assert.equal(r.status, 200, r.text);
+  const [s1, s2] = r.body.path.sections;
+  assert.deepEqual([s1.status, s1.heading_block_id, s2.status, r.body.journey.active_section_id, r.body.path.version], ['skipped', 'h-s1', 'current', 's2', before.path.version + 1]);
+  assert.deepEqual([r.body.path.change.source, r.body.path.change.reason, r.body.path.change.sections_changed], ['learner_edit', 'section_skipped', ['s1']]);
+  assert.equal(r.body.journey.section_plan.section_id, 's2', 'section 2 is planned');
+  assert.deepEqual(r.body.journey.evidence, before.journey.evidence, 'evidence untouched');
+  assert.deepEqual(s.roles().slice(-1), ['journey_section']);
+  const stored = s.sqlite.prepare('SELECT path_json FROM learning_path_versions ORDER BY version').all().map(row => JSON.parse(row.path_json));
+  assert.equal(validatePath(stored.at(-1), stored.at(-2), r.body.journey.registry).ok, true, 'the new version passes the path invariants');
+});
+
+test('r29 next_section: a settled transfer pass meeting the criterion completes section 1; a wrong answer or a taught-case pass only skips it', async t => {
+  const cases = [
+    [claim => [event(claim, { result: 'pass', kind: 'demonstrated_in_transfer' })], 'completed', 'section_completed'],
+    [claim => [event(claim, { result: 'misconception', kind: null, misconception_id: 'm1' })], 'skipped', 'section_skipped'],
+    [claim => [event(claim, { result: 'pass', kind: 'demonstrated_here' })], 'skipped', 'section_skipped'],
+    [claim => [event(claim, { result: 'pass', kind: 'demonstrated_in_transfer', settled: false })], 'skipped', 'section_skipped'],
+  ];
+  for (const [events, status, reason] of cases) {
+    const s = setup(t);
+    const before = await activeJourney(s, events);
+    const r = await s.post('next_section', { revision: before.journey.revision });
+    assert.equal(r.status, 200, r.text);
+    assert.deepEqual([r.body.path.sections[0].status, r.body.path.change.reason, r.body.journey.active_section_id], [status, reason, 's2'], `${status} ${reason}`);
+    assert.deepEqual(r.body.journey.evidence, before.journey.evidence, 'evidence untouched');
+  }
+});
+
+test('r29 next_section: refused (409) outside an active journey, after the last section, on a stale revision or while a section is being planned', async t => {
+  const s = setup(t);
+  const setupJourney = await s.post('start', { text: LEARN });
+  assert.equal((await s.post('next_section', {})).status, 409, `in ${setupJourney.body.journey.state}`);
+  const t2 = setup(t);
+  const before = await activeJourney(t2);
+  assert.equal((await t2.post('next_section', { revision: before.journey.revision - 1 })).status, 409, 'stale revision');
+  let current = before;
+  for (let n = 1; n < before.path.sections.length; n++) {
+    const r = await t2.post('next_section', { revision: current.journey.revision });
+    assert.equal(r.status, 200, r.text);
+    current = (await t2.call('GET')).body;
+  }
+  const last = await t2.post('next_section', { revision: current.journey.revision });
+  assert.equal(last.status, 409, 'no section after the last one');
+  assert.match(last.body.error, /has no next section/);
+  t2.sqlite.prepare("UPDATE learning_journeys SET pending = 'section'").run();
+  assert.equal((await t2.post('next_section', {})).status, 409, 'a section being planned');
 });

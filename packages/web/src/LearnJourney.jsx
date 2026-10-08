@@ -282,6 +282,9 @@ export function journeyController({ where, fetchJson: send, onChange = () => {},
   const advance = probeId => act({ action: 'probe_advance', probe_id: probeId });
   const edit = text => act({ action: 'path_edit', text: String(text).slice(0, 300) });
   const accept = () => act({ action: 'accept' });
+  // Owner 2026-10-08 (r29): move on to the next section (the Tutor's next_section, the next-section hook); the reply's new
+  // current section is drawn as accept's is.
+  const nextSection = () => act({ action: 'next_section' });
   const retry = () => act({ action: 'retry' });
   // §6.3: the evaluate route stores the probe's evidence, then the walker reads it. An evaluate failure (an evaluator
   // error, a refusal) leaves no evidence, so the walker steps on with none (the conservative path) and nothing retries it.
@@ -408,7 +411,7 @@ export function journeyController({ where, fetchJson: send, onChange = () => {},
   const view = () => {
     const tray = shownTray(server(), s.local, s.busy, s.error || waitingLine());
     return { ...s.data, tray, trayProps: tray ? { tray, onOption: answer } : null, busy: !!s.busy,
-      start, handleText, answer, edit, cancel, clarify, resolve, advance, accept, retry, refresh, canvasReady };
+      start, handleText, answer, edit, cancel, clarify, resolve, advance, accept, nextSection, retry, refresh, canvasReady };
   };
   return { state: s, view, refresh, dispose: () => { s.dead = true; } };
 }

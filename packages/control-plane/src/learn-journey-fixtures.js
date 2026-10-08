@@ -89,7 +89,9 @@ function sectionFor(input) {
       step('explain', 'explanation', `The idea behind ${title}, on the first worked example.`),
       step('predict', 'prediction', 'Before we go on: what would you predict for a new case?'),
     ],
-    checks: [], completion_evidence: claims.map(claim => ({ claim, minimum: 'attempted' })),
+    // r29: one criterion an answer can meet on the keyless stack - the section's first claim on a new case (the diagnostic's
+    // transfer probe covers section 1's), so moving on is completed after a right answer and skipped after a wrong one.
+    checks: [], completion_evidence: claims.slice(0, 1).map(claim => ({ claim, minimum: 'demonstrated_in_transfer' })),
   };
 }
 

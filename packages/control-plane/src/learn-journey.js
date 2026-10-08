@@ -14,7 +14,7 @@ import { authorizedBoardApp } from './learn-board.js';
 import { MODEL_NOT_CONFIGURED } from './learn-models.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { journeyIntent } from './learner-intent-journey.js';
-import { TRAY_MODES, journeyStep, nextIntakeQuestion, nextProbe, slotsFromIntent, trayFor, validateRegistry } from '../../web/src/learn-journey.js';
+import { TRAY_MODES, journeyStep, nextIntakeQuestion, nextProbe, sectionCompletion, slotsFromIntent, trayFor, validateRegistry } from '../../web/src/learn-journey.js';
 import { deriveClaimStates } from '../../web/src/learn-tutor-evidence.js';
 import { JourneyConflict, activateStaged, appendPathVersion, archiveJourney, createJourney, dropStaged, loadJourney, loadJourneyById, loadPath, saveJourney, stagedScope, toClient } from './learn-journey-store.js';
 import { PlannerInvalid, adaptPath, journeyCallModel, planDiagnostic, planPath, planSection, resolveWithModel } from './learn-journey-planners.js';
@@ -241,6 +241,18 @@ async function act(env, scope, body, callModel, now) {
     const next = { ...current(path, step.journey.active_section_id), version: path.version + 1, change: { source: 'learner_edit', reason: 'accepted', evidence_refs: [], sections_changed: [] } };
     return run(env, (await appendPathVersion(env, step.journey, next, j.revision)).journey, step.effects, callModel);
   }
+  if (body.action === 'next_section') {
+    // Owner 2026-10-08 (r29): the section left is completed when its completion_evidence holds, else skipped - never completed
+    // silently - and keeps its evidence and its heading (the rail opens it again); the next section is current in a new version,
+    // then planned and drawn as section 1 is.
+    const path = await loadPath(env, j.id), step = journeyStep(j, { type: 'next_section', path });
+    if (step.error) return refuse(step);
+    const left = j.active_section_id, status = sectionCompletion(j).met ? 'completed' : 'skipped', heading = j.section_plan?.heading_block_id;
+    const sections = path.sections.map(s => (s.id === left ? { ...s, status, ...(heading ? { heading_block_id: heading } : {}) } : s));
+    const next = { ...current({ ...path, sections }, step.journey.active_section_id), version: path.version + 1,
+      change: { source: 'learner_edit', reason: status === 'completed' ? 'section_completed' : 'section_skipped', evidence_refs: [], sections_changed: [left] } };
+    return run(env, (await appendPathVersion(env, step.journey, next, j.revision)).journey, step.effects, callModel);
+  }
   let step;
   if (body.action === 'probe_advance') {
     const probe = j.diagnostic.probes.find(p => p.id === body.probe_id);
@@ -260,7 +272,7 @@ async function act(env, scope, body, callModel, now) {
   return run(env, await saveJourney(env, step.journey, j.revision), step.effects, callModel);
 }
 
-const ACTIONS = new Set(['start', 'resolve', 'accept', 'probe_advance', 'intake_answer', 'cancel', 'archive', ...Object.keys(EVENTS)]);
+const ACTIONS = new Set(['start', 'resolve', 'accept', 'next_section', 'probe_advance', 'intake_answer', 'cancel', 'archive', ...Object.keys(EVENTS)]);
 
 export async function journeyRoute(path, req, env, deps = {}) {
   if (path !== '/api/learn/journey') return null;

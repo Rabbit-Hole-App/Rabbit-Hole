@@ -89,6 +89,16 @@ const BLOCKS = [
 ];
 const HERE = { app: 'a', board: 'b' };
 const domainFor = (over = {}) => journeyDomain({ journey: { ...JOURNEY, ...over }, path: PATH, blocks: BLOCKS });
+// Owner 2026-10-08 (r29): a skipped section's cards stay the Tutor's, so the learner can revisit what they moved past; an
+// upcoming section's still are not.
+test('journey: after moving on, a skipped section keeps its cards in the Tutor domain; an upcoming one has none', () => {
+  const moved = { ...PATH, current_section_id: 's2', sections: PATH.sections.map(s => (s.id === 's1' ? { ...s, status: 'skipped', generation_state: 'not_generated' } : s.id === 's2' ? { ...s, status: 'current' } : s)) };
+  const domain = journeyDomain({ journey: { ...JOURNEY, active_section_id: 's2' }, path: moved, blocks: BLOCKS });
+  assert.deepEqual(domain.cards.sort(), ['b1', 'b2', 'b9']);
+  const upcoming = journeyDomain({ journey: { ...JOURNEY, active_section_id: 's2' }, path: { ...moved, sections: moved.sections.map(s => (s.id === 's1' ? { ...s, status: 'upcoming' } : s)) }, blocks: BLOCKS });
+  assert.deepEqual(upcoming.cards, ['b9']);
+});
+
 const ev = (seq, claim, result = 'pass') => ({ seq, concept: claim.split('/')[0], claim, result, kind: 'demonstrated_here', settled: true, evaluator: 'jev', source: 'free_text', ref: {} });
 
 test('journey: no target -> the current section expected_evidence claims; states over exactly the registry', () => {

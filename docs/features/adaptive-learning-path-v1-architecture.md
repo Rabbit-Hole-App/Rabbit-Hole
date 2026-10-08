@@ -395,6 +395,8 @@ any   ── planner failure ─▶ same state, error set, inputs kept, Retry (n
 A transition is legal only if `journeyStep(journey, event)` returns a next state. The server refuses anything
 else with 409.
 
+Built so far (owner 2026-10-08, r29): the move to the next section is the learner's, `next_section` (route action and `journeyStep` event; `LearnJourney.jsx` `nextSection`), from an explicit move-on request through the Tutor or the next-section hook. The next upcoming section becomes current in a new path version (`change.reason` `section_completed` or `section_skipped`) and is planned and drawn as section 1 is. The section left is `completed` only when its plan's `completion_evidence` holds on the journey's evidence (`sectionCompletion`: `attempted` any answer, `demonstrated_here` a settled pass, `demonstrated_in_transfer` a settled transfer pass), else `skipped`; never completed silently. It keeps its evidence and its `heading_block_id`, and its cards stay the Tutor's, so the rail and the Tutor can take the learner back. Nothing advances automatically; adaptation on the move, the last section completing the journey and rendered section checks (LP4) are not built.
+
 ---
 
 ## 7. Tutor Prompt Tray and interaction resolver

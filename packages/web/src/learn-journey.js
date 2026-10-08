@@ -234,6 +234,30 @@ export function nextProbe(diagnostic) {
   return pick === undefined ? null : probes[pick];
 }
 
+// ---- Moving on (owner 2026-10-08, r29) ----
+// The section after the current one that the learner can move to: the first upcoming one after it in the path, or null (the
+// last section, no path, or not active). path: the journey's current path version.
+export function nextSectionOf(journey, path) {
+  const sections = list(path?.sections), at = sections.findIndex((s) => s?.id === journey?.active_section_id);
+  if (journey?.state !== 'active' || at < 0) return null;
+  return sections.slice(at + 1).find((s) => s?.status === 'upcoming') ?? null;
+}
+// Whether the current section's completion_evidence (its plan's own criterion, §9.3) holds on the journey's evidence: attempted
+// is any answer on the claim, demonstrated_here a settled pass, demonstrated_in_transfer a settled transfer pass. Missing evidence
+// is never met; a plan with no criterion is not complete. -> { met, attempted, missing: [claim ids] }: attempted, every
+// criterion claim has at least one answer (the current checks were tried, so the next section may be offered).
+const MEETS = {
+  attempted: (e) => e.result !== 'non_attempt',
+  demonstrated_here: (e) => e.settled && e.result === 'pass',
+  demonstrated_in_transfer: (e) => e.settled && e.result === 'pass' && e.kind === 'demonstrated_in_transfer',
+};
+export function sectionCompletion(journey) {
+  const wanted = list(journey?.section_plan?.completion_evidence), events = list(journey?.evidence?.events);
+  const own = (claim) => events.filter((e) => e?.claim === claim);
+  const missing = wanted.filter((c) => !own(c?.claim).some(MEETS[c?.minimum] || (() => false))).map((c) => c?.claim);
+  return { met: wanted.length > 0 && !missing.length, attempted: wanted.length > 0 && wanted.every((c) => own(c?.claim).some(MEETS.attempted)), missing };
+}
+
 // ---- State machine (6.6): the server applies journeyStep and refuses (409) anything it returns an error for ----
 // Effects are the planner calls the caller runs next. A transition sets `pending` to the call it waits for; the event
 // that reports the result clears it. A planner failure keeps the state and every answer, records the failed call as
@@ -308,6 +332,14 @@ export function journeyStep(journey, event) {
       return j.state === 'path_review' ? accept(event.path, j.path_version) : no();
     case 'section_planned':
       return j.state === 'active' ? go({ pending: null }) : no();
+    case 'next_section': {
+      // Owner 2026-10-08 (r29): the learner moves on. The next upcoming section becomes current and is planned, as accept plans
+      // the first; the route records the section left as completed or skipped (sectionCompletion) in the same path version.
+      if (j.state !== 'active') return no();
+      if (event.path?.version !== j.path_version) return no(`needs path version ${j.path_version}, got ${event.path?.version}`);
+      const next = nextSectionOf(j, event.path);
+      return next ? wait('active', 'section', { active_section_id: next.id, section_plan: null }) : no('has no next section');
+    }
     case 'section_materialized': {
       if (j.state !== 'active') return no();
       if (event.section_id == null || event.section_id !== j.active_section_id) return no(`names ${event.section_id}, which is not the current section`);
