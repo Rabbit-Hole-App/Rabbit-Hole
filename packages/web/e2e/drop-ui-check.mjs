@@ -95,7 +95,7 @@ await drop('clip.mp4', 'video/mp4', [0, 0, 0, 24, 0x66, 0x74, 0x79, 0x70]);
 ok('a video clip lands as a native player card', (await canvas.locator('video[controls]').count()) === 1);
 
 await drop('page.html', 'text/html', [60, 104, 116, 109, 108, 62]);
-ok('an unknown type is refused with a visible reason', (await page.getByText('drop an image, GIF, video, or PDF').count()) >= 1);
+ok('an unknown type is refused with a visible reason', (await page.getByText('drop an image, GIF, video, PDF, notebook (.ipynb) or Python file (.py)').count()) >= 1);
 
 // image_context rides the next question
 await page.locator('textarea, input[placeholder^="Ask about"]').last().fill('what is in this diagram?');

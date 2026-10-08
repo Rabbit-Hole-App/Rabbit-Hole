@@ -24,7 +24,7 @@ const LIMIT_TEXT = {
 // visible one-line reason, already carrying the file's name.
 export function classifyDrop(file) {
   const kind = KIND_BY_TYPE[file.type] || (/\.pdf$/i.test(file.name || '') ? 'pdf' : null);
-  if (!kind) return { error: `${file.name || 'That file'}: drop an image, GIF, video, or PDF` };
+  if (!kind) return { error: `${file.name || 'That file'}: drop an image, GIF, video, PDF, notebook (.ipynb) or Python file (.py)` };
   if (!file.size) return { error: `${file.name || 'That file'}: the file is empty` };
   if (file.size > DROP_LIMITS[kind]) return { error: `${file.name || 'That file'}: ${LIMIT_TEXT[kind]}` };
   return { kind };
