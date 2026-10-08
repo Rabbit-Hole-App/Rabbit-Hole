@@ -98,7 +98,7 @@ export default function SharedBoardPage({ token }) {
       .catch(() => setProblem('This board could not be opened. Check your connection and try again.'));
   }, [token]);
   // Its Rabbit Holes Map, read-only (dive-v1.md "Shared map"): only the holes this viewer may open by their own link;
-  // a level or a red portal opens that link. No map when there is none to show, or the map cannot be read.
+  // a level or a hole portal opens that link. No map when there is none to show, or the map cannot be read.
   const [holes, setHoles] = useState(null);
   useEffect(() => {
     if (!shared) return;

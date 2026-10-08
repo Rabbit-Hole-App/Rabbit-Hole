@@ -595,3 +595,25 @@ test('a card draws no line of text in tertiary ink', () => {
   }
   assert.deepEqual(hits, [], 'informational card text is secondary ink (text-ink-2)');
 });
+
+// Rabbit Holes are green (owner r29): the two hole tokens flip in .dark; a kept hole's text clears 4.5:1 on the card and
+// a pending mark 3:1 (marks only, never text), in both themes; and every hole mark reads a token - no red hex is left on
+// a portal tab or outline, the overview's holes or the map's markers (its delete buttons and its error stay red).
+test('Rabbit Hole marks are the green hole tokens, readable in both themes', () => {
+  for (const [name, bar] of [['--color-hole', 4.5], ['--color-hole-pending', 3]]) {
+    assert.ok(declared(BLOCKS.light, name) && declared(BLOCKS.dark, name), `${name} is a theme token in index.css (light and .dark)`);
+    for (const theme of THEMES) {
+      const ratio = contrast(rgb(token(theme, name)), rgb(token(theme, '--color-white')));
+      assert.ok(ratio >= bar, `${theme} ${name} on the card: ${ratio.toFixed(2)}:1`);
+    }
+  }
+  for (const theme of THEMES) assert.notEqual(token(theme, '--color-hole'), token(theme, '--color-hole-pending'), `${theme}: pending is not kept`);
+  const red = /#(b42318|912018|e5484d|fef3f2)/i;
+  const reds = (file, only) => readFileSync(`${here}${file}`, 'utf8').split('\n')
+    .map((line, i) => (red.test(line) && only(line) ? `${file}:${i + 1}` : null)).filter(Boolean);
+  assert.deepEqual([
+    ...reds('CanvasMinimap.jsx', () => true),
+    ...reds('Dive.jsx', line => !/Trash2|role="alert"/.test(line)),
+    ...reds('AdaptiveCanvas.jsx', line => /portal/.test(line)),
+  ], [], 'hole marks use the hole tokens (text-hole, bg-hole, border-hole, outline-hole, fill-hole and their -pending forms)');
+});

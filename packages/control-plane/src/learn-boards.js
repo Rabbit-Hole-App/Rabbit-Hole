@@ -521,7 +521,7 @@ async function boardOwner(req, env, app) {
 // covers one board, never the holes under it or above it, so a level is shown only when this viewer could open that
 // level's own link right now: its board has a view link on, is not in Trash, and is public or the viewer is signed in.
 // Any other hole is left out whole - no title, no count, no portal. A level is a title and its /b/ link (and the origin
-// card of a child, for its red outline); never a canvas id or an email.
+// card of a child, for its hole outline); never a canvas id or an email.
 // ponytail: the path climbs canvas levels only; a project board or a hole started from someone else's share (share:)
 // ends it, as one with no open link does. Climb those when a shared project board needs its level named.
 async function sharedHoles(req, env, token) {

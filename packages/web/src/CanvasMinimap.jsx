@@ -34,7 +34,7 @@ export default function CanvasMinimap({ boxes, view, surface, onView, onFit }) {
         {layout.boxes.map((box, index) => (
           // Hairlines round to nothing at this scale, so every block keeps a
           // minimum mark - an empty minimap would be worse than a rough one.
-          <rect key={index} x={box.x} y={box.y} width={Math.max(2, box.w)} height={Math.max(2, box.h)} rx={1} {...(box.hole ? { 'data-minimap-hole': '', fill: '#b42318' } : { className: 'fill-ink-3/35' })} />
+          <rect key={index} x={box.x} y={box.y} width={Math.max(2, box.w)} height={Math.max(2, box.h)} rx={1} {...(box.hole ? { 'data-minimap-hole': '', className: 'fill-hole' } : { className: 'fill-ink-3/35' })} />
         ))}
         <rect x={layout.view.x} y={layout.view.y} width={Math.max(4, layout.view.w)} height={Math.max(4, layout.view.h)}
           rx={2} fill="none" stroke="#2383e2" strokeWidth={1.5} />

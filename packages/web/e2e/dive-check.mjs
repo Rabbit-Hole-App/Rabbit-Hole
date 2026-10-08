@@ -138,7 +138,7 @@ assert.equal(await nav().getByRole('button', { name: 'Up to the parent hole' }).
 assert.equal(await nav().locator('[data-dive-down]').count(), 0, 'no ↓ without children');
 assert.doesNotMatch(await nav().innerText(), /none yet/);
 const activeLabel = () => nav().locator('[aria-current="location"] [data-dive-level]').evaluate(node => { const style = getComputedStyle(node); return [style.backgroundColor, style.color]; });
-assert.deepEqual(await activeLabel(), ['rgb(180, 35, 24)', 'rgb(255, 255, 255)'], 'the current level is a red label with white text');
+assert.deepEqual(await activeLabel(), ['rgb(6, 118, 71)', 'rgb(255, 255, 255)'], 'the current level is a green label with white text');
 await select(card1);
 await shot('02-selected-card');
 
@@ -157,11 +157,11 @@ assert.doesNotMatch(askedText, /Canvas not found|App required/, `a pending hole'
 assert.equal((await get(`/api/canvases/dives?app=${root.name}&board=${BOARD}`)).children.length, 0, 'chat alone never persists the hole');
 await up();
 // Back on the parent (owner, 4b764cb0): an empty hole is discarded as soon as the learner leaves it, so it
-// never shows on the map or as a portal - no pending record, no local keys, no red portal, no level below.
+// never shows on the map or as a portal - no pending record, no local keys, no hole portal, no level below.
 const discarded = async (name, label) => {
   assert.equal(await page.evaluate(n => !!JSON.parse(sessionStorage.getItem('small.dive.pending') || '{}')[n], name), false, `${label}: no pending record`);
   assert.equal(await page.evaluate(n => Object.keys(localStorage).filter(key => key.includes(n)).length, name), 0, `${label}: no local keys`);
-  assert.equal(await page.locator(`[data-block-id="${card1}"]`).first().evaluate(node => node.className.includes('outline-[#e5484d]')), false, `${label}: no red portal on the card`);
+  assert.equal(await page.locator(`[data-block-id="${card1}"]`).first().evaluate(node => node.className.includes('outline-hole-pending')), false, `${label}: no hole portal on the card`);
   assert.equal(await page.locator('[data-dive-portal]').count(), 0, `${label}: no portal`);
   assert.equal(await nav().locator('[data-dive-down]').count(), 0, `${label}: nothing below the root on the map`);
 };
@@ -184,7 +184,7 @@ const addObject = async label => { await slash(`/whiteboard ${label}`); await wa
 const firstCard = async () => (await blocks())[0];
 const selectedRing = id => page.locator(`[data-block-id="${id}"]`).first().evaluate(node => node.className.includes('ring-2'));
 
-// ---- B + D: /dive <topic> from a selected card; the first object keeps it; the parent card gets the red outline ----
+// ---- B + D: /dive <topic> from a selected card; the first object keeps it; the parent card gets the green hole outline ----
 await select(card1);
 await slash('/dive softmax');
 await page.waitForFunction(() => location.search.includes('hole='));
@@ -204,7 +204,7 @@ await up();
 assert.equal(url().pathname + url().search, ROOT_URL);
 assert.equal(await page.locator(`[data-dive-portal="${softmax}"]`).count(), 1, 'the originating card is a portal');
 assert.equal(await selectedRing(card1), true, 'climbing back selects the originating card');
-await shot('06-parent-red-outline');
+await shot('06-parent-hole-outline');
 
 // ---- C: the portal enters the child; Ctrl+K on a card with a child enters it, never a duplicate ----
 await page.locator(`[data-dive-portal="${softmax}"]`).click();
@@ -230,7 +230,7 @@ await shot('07-anchor-pending-hole');
 await up(); // still empty: the anchor card stays on the parent; its empty hole is discarded (owner, 4b764cb0)
 const anchor = await anchorCard();
 assert.ok(anchor, 'the anchor card stays on the parent');
-assert.equal(await page.locator(`[data-block-id="${anchor}"]`).first().evaluate(node => node.className.includes('outline-[#e5484d]')), false, 'the discarded empty hole leaves no portal on its anchor');
+assert.equal(await page.locator(`[data-block-id="${anchor}"]`).first().evaluate(node => node.className.includes('outline-hole-pending')), false, 'the discarded empty hole leaves no portal on its anchor');
 await page.locator(`[data-block-id="${anchor}"]`).scrollIntoViewIfNeeded();
 await shot('07b-anchor-card-no-outline');
 await select(anchor);
@@ -239,7 +239,7 @@ await page.waitForFunction(() => location.search.includes('hole=')); await page.
 await addObject('Stability sketch');
 await up();
 assert.equal(await page.locator(`[data-block-id="${anchor}"] [data-dive-portal]`).count(), 1, 'a persisted child outlines its anchor');
-await shot('07c-anchor-red-outline');
+await shot('07c-anchor-hole-outline');
 const anchorChild = (await tree(root.name, BOARD)).children.find(child => child.origin_block_id === anchor);
 const anchorOrigin = (await tree(anchorChild.name)).dive.origin;
 assert.deepEqual([anchorOrigin.origin_block_id, anchorOrigin.origin_scene_id, anchorOrigin.origin_card_id, anchorOrigin.anchor_request], [anchor, null, null, 'explain numerical stability']);

@@ -68,7 +68,7 @@ canvas_dives(org, owner_email, child, parent_app, parent_board, origin_block_id,
 - **No card selected, bare `/dive`.** It uses the conversation's last question as the request. With
   none, it asks "What do you want to go deeper into?" and never makes an empty "Dive" card.
 - **The anchor lives on the parent.** It does not persist the child: an abandoned child leaves the
-  anchor with no outline, and the child's first object gives the anchor the red outline.
+  anchor with no outline, and the child's first object gives the anchor the green hole outline.
 - **Ctrl+K without a card**, and Ctrl+K outside Learn, is the global Search, unchanged
   (`Search.jsx`).
 - **Stabilization (2026-09-30):**
@@ -85,7 +85,7 @@ canvas_dives(org, owner_email, child, parent_app, parent_board, origin_block_id,
     Ctrl+K on a selected portal card enters too.
   - **Navigator:**
     - No ↑ at the root, and no ↓ when there is nothing below.
-    - The current level is a red square and a red label with white text.
+    - The current level is a green square and a green label with white text (dark text on the lighter dark-mode green).
   - **Anchor cards** show no "Explanation" kicker, and a body only when it adds to the title
     (`/dive softmax` is just "Softmax").
 - **Pending hole.**
@@ -101,13 +101,16 @@ canvas_dives(org, owner_email, child, parent_app, parent_board, origin_block_id,
   Before r29 the count left chat cards out, so a hole whose only object was a chat card added from the
   sheet kept its hint over the card and was discarded, card and all, on leaving; shapes, text and
   strokes always counted. The URL then moves in place without a remount.
-- **Portal.** The red outline and the "↓ title" tab on the originating card are derived from the
+- **Portal.** The green outline and the "↓ title" tab on the originating card are derived from the
   parent's `children`, through the `DivePortals` context read by `CanvasNode`. No card data changes.
+  Every hole mark (portal tab and outline, minimap holes, the map's level and markers) reads two theme
+  tokens in `index.css`, never a hex (owner r29, green not red): `--color-hole` for a kept hole and
+  `--color-hole-pending`, lighter and dashed, for one not kept yet; both flip in `.dark`.
 - **Navigator.**
   - It sits at the top of the tools' gutter and never covers content.
   - It reads top to bottom: the parent above, the deeper level below. Levels are joined by straight
     connectors with a ▾ head, and the arrows are square-capped (geometric, not rounded or chevrons).
-    The current level has a small red square, dashed while the hole is pending. Paths deeper than five levels fold their middle into "⋯ n".
+    The current level has a small green square, dashed while the hole is pending. Paths deeper than five levels fold their middle into "⋯ n".
   - ↑ goes to the parent. ↓ goes to the only child, or opens a compact picker when there are several.
   - Click a level to go there. Double-click a name to rename it (Enter saves, Esc cancels).
 - **Return point.** Climbing up restores the parent's viewport, selects the originating card, and puts
@@ -126,7 +129,7 @@ canvas_dives(org, owner_email, child, parent_app, parent_board, origin_block_id,
 
 ## Shared map (owner, 2026-10-08)
 
-A shared (`/b/<token>`) or published (`/e/<token>`) canvas shows its Rabbit Holes Map read-only: the navigator in the gutter, and the red outline and "↓ title" tab on each hole's origin card.
+A shared (`/b/<token>`) or published (`/e/<token>`) canvas shows its Rabbit Holes Map read-only: the navigator in the gutter, and the green outline and "↓ title" tab on each hole's origin card.
 
 **What a token covers.** A share link or publication covers exactly one board: its `learn_boards` row, its files and its notebooks. It never covers the holes below it or the canvas above it. Each hole is its own canvas with its own main board and its own Share settings; a hole cannot be published on its own.
 

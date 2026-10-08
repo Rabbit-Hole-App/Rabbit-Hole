@@ -35,6 +35,13 @@
      3.56:1 and 2.74:1 on the dark card. text-contrast.test.mjs. */
   --color-pass: #008236;
   --color-fail: #c10007;
+  /* Rabbit Holes are green (owner r29, "make it green. not red"): every hole mark - a card's portal tab and
+     outline, the overview's holes, the Rabbit Holes Map's level and markers - reads these two, never a hex.
+     --color-hole is a kept hole, and text in it or on it clears 4.5:1 on the card; --color-hole-pending is a
+     hole not kept yet, quieter, for marks only (3:1, never text), dashed or faint beside a kept one.
+     Flipped in .dark. text-contrast.test.mjs. */
+  --color-hole: #067647;
+  --color-hole-pending: #16a34a;
   --shadow-pop: 0 0 0 1px rgba(15, 15, 15, 0.05), 0 3px 6px rgba(15, 15, 15, 0.1), 0 9px 24px rgba(15, 15, 15, 0.2);
 }
 
@@ -335,6 +342,8 @@ html {
   --color-ink-3: #6f6f6f;
   --color-pass: #05df72; /* Tailwind green-400 */
   --color-fail: #ff6467; /* Tailwind red-400 */
+  --color-hole: #47cd89;
+  --color-hole-pending: #079455;
   --color-line: #2f2f2f;
   --color-line-strong: #4a4a4a;
   --color-hover: #2c2c2c;
