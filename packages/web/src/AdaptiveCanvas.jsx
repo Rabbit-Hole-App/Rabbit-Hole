@@ -31,6 +31,7 @@ import { openTarget, opensFrom, selectedCardContext } from './card-open.js';
 import { columnEntries, fillSlot, freeArea, freeSlot, indexAfter, panInto, slotIndex, slotSize } from './canvas-slots.js';
 import { lightBlocks, persistBoard } from './canvas-persist.js';
 import { waitingText } from './waiting-text.js';
+import { pasteKind } from './canvas-paste.js';
 
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is
 // unbounded — a translate/scale camera pans and zooms it. Chat exchanges land
@@ -1756,6 +1757,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     return true;
   };
   const pasteIdsRef = useRef(pasteIds);
+  // Pasted text lands as one text card at the view's centre, as Insert text does, already written.
+  const pasteTextRef = useRef(null);
+  pasteTextRef.current = text => {
+    snapshot();
+    const center = viewCenter();
+    setItems(previous => [...previous, { id: crypto.randomUUID(), kind: 'text', x: center.x - 210, y: center.y - 16, w: 420, text: text.trim(), color, opacity, level }]);
+  };
   const dropFilesRef = useRef(onDropFiles);
   dropFilesRef.current = onDropFiles;
   pasteIdsRef.current = pasteIds;
@@ -2138,20 +2146,19 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // Capture phase: several lesson blocks stop keydown on their own container
     // (an embedded graph, a chart, a 3D view), which otherwise kills copy,
     // paste, undo and delete for the whole canvas while one is focused.
-    // Ctrl+V: a copied image becomes an image card, like a dropped one;
-    // otherwise the canvas's own copied cards paste.
+    // Ctrl+V (canvas-paste.js): a copied image becomes an image card, like a dropped one; text copied anywhere else
+    // becomes a text card (owner, 2026-10-08); the canvas's own copied cards paste while their marker is on the clipboard.
     const paste = event => {
       const active = document.activeElement;
       if (active && (active.isContentEditable || active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
       const data = event.clipboardData;
       const images = [...(data?.files || [])].filter(file => file.type.startsWith('image/'));
+      const text = data?.getData('text/plain') || '';
       // ponytail: if writing the marker failed, an image copied before the cards still wins.
-      if (images.length && dropFilesRef.current && !markingCopy.current && data.getData('text/plain') !== CARDS_COPIED) {
-        event.preventDefault();
-        dropFilesRef.current(images);
-        return;
-      }
-      if (clipboard.current?.length && pasteIdsRef.current(clipboard.current)) event.preventDefault();
+      const kind = pasteKind({ images: dropFilesRef.current ? images.length : 0, text, marker: CARDS_COPIED, copying: markingCopy.current, cards: clipboard.current?.length || 0 });
+      if (kind === 'image') { event.preventDefault(); dropFilesRef.current(images); return; }
+      if (kind === 'cards' && pasteIdsRef.current(clipboard.current)) { event.preventDefault(); return; }
+      if (kind === 'text') { event.preventDefault(); pasteTextRef.current(text); }
     };
     window.addEventListener('keydown', key, true);
     window.addEventListener('paste', paste, true);
