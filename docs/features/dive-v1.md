@@ -113,6 +113,17 @@ canvas_dives(org, owner_email, child, parent_app, parent_board, origin_block_id,
     The current level has a small green square, dashed while the hole is pending. Paths deeper than five levels fold their middle into "⋯ n".
   - ↑ goes to the parent. ↓ goes to the only child, or opens a compact picker when there are several.
   - Click a level to go there. Double-click a name to rename it (Enter saves, Esc cancels).
+  - A six-dot grip on top moves the map (owner, 2026-10-08). Only the grip drags; levels, ↑/↓, rename and the picker work
+    the same wherever the map is.
+    - Drag it anywhere over the canvas frame (the canvas and its gutters). It is clamped so the whole map stays inside, and
+      a resized window re-clamps it. Off its gutter it floats over the canvas as a white card, so it can cover content
+      there: that is the learner's choice. At its default spot it still covers nothing.
+    - Arrow keys on the focused grip step it 16 px. Its accessible name is "Move Rabbit Holes Map".
+    - Double-click the grip to put the map back in its gutter.
+    - The spot is remembered per viewer on this device, one spot for every canvas, owned or shared
+      (localStorage `small.dive.mapSpot`). The map then stays put while the learner moves between holes.
+    - The nav keeps its slot in the gutter while the map inside it is translated, so the gutter layout and the contents
+      rail's ceiling do not change.
 - **Return point.** Climbing up restores the parent's viewport, selects the originating card, and puts
   back the pending question. Card inputs and practice state already persist in the parent's block
   data.

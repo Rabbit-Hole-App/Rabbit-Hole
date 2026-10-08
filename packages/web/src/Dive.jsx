@@ -3,13 +3,13 @@
 // points), DiveNavigator (the descending roots in the tools' gutter) and DiveSuggestion (the
 // agent's [Go down a Rabbit Hole] / [Keep it on this canvas], not wired to any model yet).
 // The rules themselves are pure, in dive.js.
-import { createContext, useCallback, useEffect, useRef, useState } from 'react';
-import { Trash2 } from 'lucide-react';
+import { createContext, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { GripHorizontal, Trash2 } from 'lucide-react';
 import { api, navigate } from './api.js';
 import { Button, ConfirmDialog, Tip, toast } from './ui.jsx';
 import { deviceId } from './home/canvas-local.js';
 import { resolveTarget } from './learn-target.js';
-import { anchorBlock, diveRecord, discardHole, dropPending, holeHref, keepPending, levelHref, meaningful, navigatorRows, newHoleName, pendingHole, pendingHoles, planDive, setReturn, takeReturn } from './dive.js';
+import { anchorBlock, clampSpot, diveRecord, discardHole, dropPending, holeHref, keepMapSpot, keepPending, levelHref, mapSpot, meaningful, navigatorRows, newHoleName, pendingHole, pendingHoles, planDive, setReturn, takeReturn } from './dive.js';
 
 // The green portal outline on an originating card, read by the canvas's card chrome.
 export const DivePortals = createContext(null);
@@ -284,11 +284,68 @@ function Name({ level, className, onOpen, onRename, active = false }) {
   </Tip>;
 }
 
+// The map's grip (owner, 2026-10-08: "make sure we can click and drag the rabbit holes map. put a handle at the top of it
+// like the 6 dots"). The nav keeps its slot in the gutter, so the gutter, the contents rail's ceiling and the placement
+// checks never move; the map inside it is translated from that slot to its spot in the canvas frame (the row of canvas
+// and gutters), clamped so all of it stays inside. Its default spot covers nothing; a dragged spot is the learner's choice.
+const frameOf = map => map?.closest('[data-dive-gutter],[data-tool-gutter]')?.parentElement || null;
+const STEPS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+function useMapGrip(shown) {
+  const ref = useRef(null);
+  const [spot, setSpot] = useState(() => mapSpot(localStorage));
+  // Applies a spot (null: the gutter) and returns where the map landed in the frame.
+  const place = useCallback(next => {
+    const map = ref.current, frame = frameOf(map);
+    if (!map) return null;
+    map.toggleAttribute('data-moved', !!(next && frame)); // first: moved, it is a wider card, clamped at that size
+    const at = next && frame ? clampSpot(next, { w: frame.clientWidth, h: frame.clientHeight }, { w: map.offsetWidth, h: map.offsetHeight }) : null;
+    const slot = map.parentElement.getBoundingClientRect(), f = frame?.getBoundingClientRect();
+    map.style.transform = at ? `translate(${f.left + at.x - slot.left}px, ${f.top + at.y - slot.top}px)` : '';
+    return at;
+  }, []);
+  const keep = next => { keepMapSpot(localStorage, next); setSpot(next); place(next); };
+  useLayoutEffect(() => {
+    place(spot);
+    const frame = frameOf(ref.current);
+    if (!spot || !frame) return undefined;
+    // A resized window or panel re-clamps the stored spot without overwriting it.
+    const observer = new ResizeObserver(() => place(spot));
+    observer.observe(frame); observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [spot, place, shown]); // shown: the map mounts once its tree has loaded
+  const from = (map, frame) => { const box = map.getBoundingClientRect(), f = frame.getBoundingClientRect(); return { x: box.left - f.left, y: box.top - f.top }; };
+  return { ref, grip: {
+    onPointerDown: event => {
+      const map = ref.current, frame = frameOf(map);
+      if (event.button !== 0 || !frame) return;
+      event.preventDefault();
+      const start = from(map, frame), press = { x: event.clientX, y: event.clientY };
+      let at = null;
+      const move = pointer => {
+        const dx = pointer.clientX - press.x, dy = pointer.clientY - press.y;
+        if (at || Math.hypot(dx, dy) >= 3) at = place({ x: start.x + dx, y: start.y + dy }); // a press or a double-click is not a drag
+      };
+      const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); if (at) keep(at); };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+    },
+    onDoubleClick: () => keep(null),
+    onKeyDown: event => {
+      const map = ref.current, frame = frameOf(map), [dx, dy] = STEPS[event.key] || [];
+      if (dx === undefined || !frame) return;
+      event.preventDefault();
+      const start = from(map, frame);
+      keep(place({ x: start.x + dx * 16, y: start.y + dy * 16 }));
+    },
+  } };
+}
+
 // The descending roots (R-1): path from the root, the current level marked, then its children.
 // ↑ climbs to the parent; ↓ goes down, through a compact picker when there are several.
 // Read-only on a shared canvas (SharedBoardPage, shared-holes.js): no askDelete, so no delete buttons; kind 'view' levels.
 export function DiveNavigator({ tree, pending, error, climb, enter, rename, askDelete }) {
   const [picking, setPicking] = useState(false);
+  const map = useMapGrip(!!tree);
   useEffect(() => {
     if (!picking) return undefined;
     const close = event => { if (!event.target.closest?.('[data-dive-picker],[data-dive-down]')) setPicking(false); };
@@ -300,7 +357,14 @@ export function DiveNavigator({ tree, pending, error, climb, enter, rename, askD
   const current = tree.path.at(-1), children = tree.children, up = tree.path.length > 1;
   const down = () => (children.length === 1 ? enter(children[0].name) : setPicking(open => !open));
   return (
-    <nav data-dive-navigator aria-label="Rabbit Hole levels" className="relative flex w-[76px] flex-col items-center text-center text-[11px] leading-[14px] select-none">
+    <nav data-dive-navigator aria-label="Rabbit Hole levels" className="w-[76px] text-[11px] leading-[14px] select-none">
+      {/* Moved off its gutter it floats over the canvas, so it takes the toolbar's white card to stay readable. */}
+      <div ref={map.ref} data-dive-map className="relative z-20 flex w-full flex-col items-center text-center data-[moved]:w-[92px] data-[moved]:rounded-xl data-[moved]:bg-white data-[moved]:px-2 data-[moved]:pb-1.5 data-[moved]:shadow-md data-[moved]:ring-1 data-[moved]:ring-line">
+      {/* The six dots, styled as the toolbar's handle: drag anywhere over the canvas, arrows step it, double-click puts it back. */}
+      <button type="button" data-dive-grip aria-label="Move Rabbit Holes Map" title="Drag to move · double-click to put it back" {...map.grip}
+        className="flex h-5 w-full cursor-grab touch-none items-center justify-center rounded-lg text-ink-3 hover:bg-hover hover:text-ink active:cursor-grabbing">
+        <GripHorizontal size={13} />
+      </button>
       <span data-dive-map-title className="mb-1 text-[10px] leading-tight font-medium whitespace-nowrap text-ink-3">Rabbit Holes Map</span>
       {up && <button type="button" aria-label="Up to the parent hole" title={`Up to ${tree.path.at(-2).title}`}
         onClick={() => climb(tree.path.length - 2)} className="flex h-6 w-6 items-center justify-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink">
@@ -343,6 +407,7 @@ export function DiveNavigator({ tree, pending, error, climb, enter, rename, askD
           </div>)}
         </div>
       )}
+      </div>
     </nav>
   );
 }
