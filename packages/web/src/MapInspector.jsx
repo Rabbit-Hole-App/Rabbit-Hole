@@ -8,7 +8,7 @@ import { getTurns, nodeTurnsKey, setTurns, subscribeTurns, threadIds } from './a
 import { Turn } from './agent/ResultSheet.jsx';
 import { memoryFor } from './map-memory.js';
 import { askBar, FIXTURE, MemoryEntity, Starters } from './MapMemory.jsx';
-import { relationshipGroups, symbolsIn, typeOf } from './inspector.js';
+import { OVERVIEW_TAB, relationshipGroups, symbolsIn, typeOf } from './inspector.js';
 import { rangeTitle } from './agent/scope.js';
 
 // The Map's learning inspector (owner, 2026-10-06, docs/features/inspector.md): a sticky object header, Overview | Source,
@@ -97,7 +97,7 @@ export default function MapInspector({ app, snapshot, memory, object, inContext,
       {file && <span className="truncate font-mono">{file}:{range && object.end > object.start ? `${object.start}–${object.end}` : object.line || 1}</span>}{file && <span aria-hidden="true">·</span>}<span className="shrink-0">{record ? 'Fixture record' : range ? `${object.end - object.start + 1} selected line${object.end > object.start ? 's' : ''}` : typeOf(object)}</span>
       {inContext && <span data-in-context title="The composer below asks about this" className="ml-auto inline-flex shrink-0 items-center gap-1 text-ink-2"><span className="h-1.5 w-1.5 rounded-full bg-accent" />In context</span>}
     </p>
-    {!record && <TabsList className="-mx-4 mt-2 px-4"><TabsTrigger value="overview" className={TAB}>Overview</TabsTrigger>{tabs && <TabsTrigger value="source" className={TAB}>Source</TabsTrigger>}<TabsTrigger value="chat" data-inspector-chat-tab className={TAB}>Chat{chatted > 0 && <span className="ml-1 tabular-nums text-ink-3">{chatted}</span>}</TabsTrigger></TabsList>}
+    {!record && <TabsList className="-mx-4 mt-2 px-4">{OVERVIEW_TAB && <TabsTrigger value="overview" className={TAB}>Overview</TabsTrigger>}{tabs && <TabsTrigger value="source" className={TAB}>Source</TabsTrigger>}<TabsTrigger value="chat" data-inspector-chat-tab className={TAB}>Chat{chatted > 0 && <span className="ml-1 tabular-nums text-ink-3">{chatted}</span>}</TabsTrigger></TabsList>}
   </header>;
   const overview = record ? <MemoryEntity node={object} memory={memory} graph={graph} onPick={onPick} onCode={onSelect} /> : <>
     {file && !codeInView && <Preview app={app.name} path={file} line={object.line || 1} commit={snapshot.commit} />}
@@ -118,9 +118,11 @@ export default function MapInspector({ app, snapshot, memory, object, inContext,
       {mine.questions.map((q) => <button key={q.id} type="button" className={ROW} onClick={() => askBar(q.question)}>{q.question}</button>)}
       {mine.sessions.map((s) => <button key={s.id} type="button" className={ROW} onClick={() => onPick(s.id)}>{s.title} <span className="text-xs text-ink-3">{s.at}</span></button>)}</div>}
   </div>;
-  return <Tabs value={record ? 'overview' : view === 'source' && !tabs ? 'overview' : view} onValueChange={onView} className="flex min-h-0 flex-1 flex-col">
+  // Overview hidden (OVERVIEW_TAB): a view the inspector cannot show falls back to Chat.
+  const shown = record ? 'overview' : view === 'source' && tabs ? 'source' : view === 'chat' || !OVERVIEW_TAB ? 'chat' : 'overview';
+  return <Tabs value={shown} onValueChange={onView} className="flex min-h-0 flex-1 flex-col">
     {header}
-    <TabsContent value="overview" className="min-h-0 flex-1 overflow-y-auto px-4 pt-3 pb-2">{overview}</TabsContent>
+    {(record || OVERVIEW_TAB) && <TabsContent value="overview" className="min-h-0 flex-1 overflow-y-auto px-4 pt-3 pb-2">{overview}</TabsContent>}
     {tabs && <TabsContent value="source" className="flex min-h-0 flex-1 flex-col px-4 pt-2"><RepositorySource appName={app.name} path={file} line={object.line || 1} lineEnd={object.end} commit={snapshot.commit} repo={app.repo} /></TabsContent>}
     {!record && <TabsContent value="chat" className="min-h-0 flex-1 overflow-y-auto px-4 pt-3 pb-2">{chat}</TabsContent>}
     {/* Two actions, one of them primary (inspector brief §11-12); the Tutor picks the pedagogy once the learner says what they want. */}

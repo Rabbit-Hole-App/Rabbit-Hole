@@ -35,6 +35,10 @@ Relationships                                        14 ›
 - **Overview | Source | Chat** (owner, 2026-10-08): restrained underline tabs. Source only for an object with a file whose
   code the main pane is not showing; an object without a file is Overview | Chat. Chat carries its message count when
   there is one ("Chat 3"). A fixture record has no tabs.
+- **Overview hidden for now** (owner, 2026-10-08: "lets hide it. so we have only chat"). `OVERVIEW_TAB` in
+  `src/inspector.js` is false. The inspector opens on Chat; Source | Chat shows when Source applies, Chat alone otherwise.
+  Purpose, Why it matters, Symbols, Relationships and the preview are not shown. A fixture record still shows its
+  entity. The e2e checks that drive the Overview skip while it is hidden. Setting the switch to true brings both back.
 
 ## Overview, in the brief's order
 
