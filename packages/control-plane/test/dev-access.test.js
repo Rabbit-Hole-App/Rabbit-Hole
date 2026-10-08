@@ -135,19 +135,3 @@ test('only the stable URL entrypoint imports the bridge: never dev-worker.js, ne
   assert.match(web('dev-access-worker.js'), /import worker from '\.\/dev-worker\.js';[\s\S]*fetch: withAccess\(/);
   assert.match(readFileSync(new URL('../../../scripts/dev-deploy.mjs', import.meta.url), 'utf8'), /'deploy', 'dev-access-worker\.js'/, 'the stable URL deploys the Access entrypoint');
 });
-
-test('the earlier preview host only redirects to the same path on ACCESS_HOST: nothing served, nothing minted', async () => {
-  // Owner, 2026-10-08: share links must not carry the worker name; old /b/ and /e/ links keep resolving.
-  const served = [], app = async () => { served.push(1); return new Response('app'); };
-  const e = env({ ACCESS_HOST: 'preview.example.com', ACCESS_REDIRECT_FROM: 'rabbit-hole-web-dev-x.tryrabbithole.workers.dev' });
-  for (const method of ['GET', 'HEAD', 'POST']) {
-    const r = await withAccess(app, keys)(new Request('https://rabbit-hole-web-dev-x.tryrabbithole.workers.dev/b/k1_abc?x=1', { method }), e);
-    assert.equal(r.status, 301, method); assert.equal(r.headers.get('Location'), 'https://preview.example.com/b/k1_abc?x=1');
-    assert.equal(r.headers.get('Set-Cookie'), null);
-  }
-  assert.deepEqual(served, []); assert.equal(e.minted.length, 0);
-  const version = await accessSession(request({}, 'c5b0a07d-rabbit-hole-web-dev-x.tryrabbithole.workers.dev'), e, keys);
-  assert.equal(version.refuse.status, 403, 'version preview hosts are still refused');
-  const unset = await accessSession(request({}), env({ ACCESS_HOST: 'preview.example.com' }), keys);
-  assert.equal(unset.refuse.status, 403, 'without ACCESS_REDIRECT_FROM another host is refused, never served');
-});

@@ -15,8 +15,11 @@ Production release is a separate, held job: [prod-release.md](prod-release.md) (
 
 ## What it does
 
-**Stable testing URL:** https://rabbit-hole-web-dev-small-parallel.tryrabbithole.workers.dev, served by the Worker
-`rabbit-hole-web-dev-small-parallel`. It is a dev clone ([parallel-dev-deploys.md](parallel-dev-deploys.md)) on the
+**Stable testing URL:** https://preview.digrabbithole.com, served by the Worker
+`rabbit-hole-web-dev-small-parallel`.
+- Since 2026-10-08 (owner: share links without the worker name) it is a Workers custom domain on the production zone `digrabbithole.com`. Each deploy keeps it with `--domain`. Production's apex `digrabbithole.com` → `rabbit-hole-app` is separate, and neither sets domain-wide cookies.
+- The Access app 58b92e83 protects only this host, with the same AUD and policies as before; the Worker's `ACCESS_HOST` secret names it.
+- The old host `rabbit-hole-web-dev-small-parallel.tryrabbithole.workers.dev` is retired (owner: "remove the old host"). It is outside Access, and the bridge refuses it with 403, so old links no longer open. The smoke checks that refusal. (`workers_dev` stays on in the shared `wrangler.dev.jsonc` that the other clones use.) It is a dev clone ([parallel-dev-deploys.md](parallel-dev-deploys.md)) on the
 rabbit-hole account. It has the dev bindings of `packages/web/wrangler.dev.jsonc` (dev D1, dev R2, `CONTROL_PLANE` =
 `rabbit-hole-cp-dev`) and the dev barrier ([dev-prod-write-barrier.md](dev-prod-write-barrier.md)).
 
