@@ -28,12 +28,18 @@ const creator = r => ({ handle: r.handle, name: r.name ?? null, avatar: avatarUr
 // /@handle: who, their public explainer count and canonical forks (Σ FORK_COUNT over those explainers only), and the
 // explainers on Explore's card. A handle with no live publication still resolves, with none (brief: the profile is
 // never deleted); an unknown handle is a 404. Learners are not shown: they are not collected (#62 storage awaits GO).
-async function profile(env, handle, sort) {
+// `q` (owner 2026-10-08: "search projects or canvas by name for that specific creator") narrows the explainers to those
+// whose title or public project (PUBLISHED's `r`: a repository confirmed public) contains it, any case, wildcards
+// escaped - on the server, since the list is capped at EXPLORE_LIMIT. The counters stay the creator's totals.
+async function profile(env, handle, sort, q) {
   if (!Object.hasOwn(SORTS, sort)) return json({ error: 'Sort a profile by newest or forks' }, 400);
   const who = await env.LEARN_DB.prepare(`SELECT ${IDENTITY} FROM user_handles h WHERE h.handle = ?`).bind(handle).first();
   if (!who) return json({ error: `No creator @${handle.toLowerCase()}` }, 404);
   const totals = await env.LEARN_DB.prepare(`SELECT count(*) AS n, COALESCE(sum(fork_count), 0) AS forks FROM (SELECT ${FORK_COUNT} AS fork_count ${PUBLISHED} AND h.handle = ?)`).bind(who.handle).first();
-  const { results } = await env.LEARN_DB.prepare(`${PUBLISHED_CARDS} ${PUBLISHED} AND h.handle = ? ORDER BY ${SORTS[sort]}, p.rowid DESC LIMIT ${EXPLORE_LIMIT}`).bind(who.handle).all();
+  const term = searchTerm(q);
+  const match = term ? `AND (c.title LIKE ? ESCAPE '\\' OR r.repo LIKE ? ESCAPE '\\')` : '';
+  const { results } = await env.LEARN_DB.prepare(`${PUBLISHED_CARDS} ${PUBLISHED} AND h.handle = ? ${match} ORDER BY ${SORTS[sort]}, p.rowid DESC LIMIT ${EXPLORE_LIMIT}`)
+    .bind(who.handle, ...(term ? [likeOf(term), likeOf(term)] : [])).all();
   return json({ handle: who.handle, name: who.name ?? null, avatar: avatarUrl(who), description: who.description ?? null, explainer_count: totals.n, fork_count: totals.forks, explainers: results.map(exploreCard) });
 }
 
@@ -74,5 +80,5 @@ export async function creatorsRoute(path, req, env) {
   if (path === '/api/learn/creators') return creators(env, url.searchParams.get('q'));
   const one = path.match(/^\/api\/learn\/creators\/([^/]+)(\/avatar)?$/);
   if (!one || !HANDLE.test(one[1])) return json({ error: 'No such creator' }, 404);
-  return one[2] ? avatar(env, one[1]) : profile(env, one[1], url.searchParams.get('sort') || 'newest');
+  return one[2] ? avatar(env, one[1]) : profile(env, one[1], url.searchParams.get('sort') || 'newest', url.searchParams.get('q'));
 }

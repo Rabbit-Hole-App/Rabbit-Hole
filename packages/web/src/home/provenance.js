@@ -17,6 +17,16 @@ export function forkLabel(n) {
 // fixture's creator is a name only.
 export const creatorLabel = c => (c?.handle ? `${c.name ? `${c.name} · ` : ''}@${c.handle}` : c?.name || null);
 
+// A profile search's projects (owner 2026-10-08: "search projects or canvas by name for that specific creator"): the
+// public project labels on the creator's returned cards that contain the term, any case, with how many of those cards
+// each has, in first-seen order. Only labels already on public cards, so never a private project.
+export function matchingProjects(cards, q) {
+  const term = String(q || '').trim().replace(/^@/, '').toLowerCase();
+  const found = new Map();
+  if (term) for (const c of cards) if (c.project?.toLowerCase().includes(term)) found.set(c.project, (found.get(c.project) || 0) + 1);
+  return [...found];
+}
+
 // A creator's profile link to copy (owner, 2026-10-08: "a copy profile url button"): the absolute /@handle - the handle
 // only, never an email or an internal id. No handle, no link.
 export const profileUrl = (origin, handle) => (handle ? `${origin}/@${handle}` : null);

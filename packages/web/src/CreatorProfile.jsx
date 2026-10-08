@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
-import { BarChart3, Compass, UserRound, UserPen } from 'lucide-react';
+import { BarChart3, Compass, FolderGit2, Search, UserRound, UserPen } from 'lucide-react';
 import { CreatorDashboard } from './CreatorAnalytics.jsx';
 import { PRODUCT } from './flags.js';
 import { SortMenu } from './home/LearningCard.jsx';
 import PublicCards, { CopyProfileLink, CreatorAvatar } from './home/PublicCards.jsx';
 import { OwnerCheck } from './home/Provenance.jsx';
-import { forkNumber } from './home/provenance.js';
+import { forkNumber, matchingProjects } from './home/provenance.js';
 import { loadProfile, useProfile } from './session-display.js';
 import Shell from './Shell.jsx';
-import { Button, EmptyState, SkeletonRows, Toasts } from './ui.jsx';
+import { Button, EmptyState, Input, SkeletonRows, Toasts } from './ui.jsx';
 
 // /@handle: a creator's public profile (owner 2026-10-06 #63, docs/features/creator-profile.md) - identity, public
 // explainers and the public-safe counters, for discovery and reputation; not a social network. Everyone sees the same
@@ -41,13 +41,18 @@ function Profile({ handle }) {
   const [sort, setSort] = useState('newest');
   const [p, setP] = useState(null); // null: loading; { missing }; the profile
   const [analytics, setAnalytics] = useState(false);
+  // Search this creator's projects and canvases (owner 2026-10-08), as Explore's field: the server filters (the list is
+  // capped), a pause after typing; Esc clears. The answer keeps the term it was asked for (p.q).
+  const [typed, setTyped] = useState('');
+  const [term, setTerm] = useState('');
+  useEffect(() => { const t = setTimeout(() => setTerm(typed.trim()), 250); return () => clearTimeout(t); }, [typed]);
   useEffect(() => {
     let live = true;
-    fetch(`/api/learn/creators/${encodeURIComponent(handle)}?sort=${sort}`, { credentials: 'same-origin' })
-      .then(async r => { const body = await r.json().catch(() => ({})); if (live) setP(r.ok ? body : { missing: true }); })
+    fetch(`/api/learn/creators/${encodeURIComponent(handle)}?sort=${sort}${term ? `&q=${encodeURIComponent(term)}` : ''}`, { credentials: 'same-origin' })
+      .then(async r => { const body = await r.json().catch(() => ({})); if (live) setP(r.ok ? { ...body, q: term } : { missing: true }); })
       .catch(() => { if (live) setP({ missing: true }); });
     return () => { live = false; };
-  }, [handle, sort]);
+  }, [handle, sort, term]);
   // The address carries the canonical handle (case-insensitive lookup, lowercase handle).
   useEffect(() => { if (p?.handle && p.handle !== handle) window.history.replaceState(null, '', `/@${p.handle}`); }, [p?.handle]);
   const own = !!me?.handle && me.handle === p?.handle;
@@ -94,14 +99,45 @@ function Profile({ handle }) {
             </div>
           )}
         </header>
-        <div className="flex items-end justify-between gap-3 pb-4">
-          <h2 className="text-xs text-ink-2">Public explainers</h2>
-          {p.explainers.length > 1 && <SortMenu options={SORTS} value={sort} onChange={setSort} />}
+        <div className="flex flex-wrap items-center gap-3 pb-4">
+          <h2 className="mr-auto text-xs text-ink-2">Public explainers</h2>
+          {/* Explore's search field, compact beside Sort; full width under them on a phone. Signed out too. */}
+          {p.explainer_count > 0 && (
+            <label className="relative block w-72 min-w-0 max-md:order-last max-md:w-full">
+              <Search size={15} strokeWidth={1.75} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" />
+              <Input type="search" data-profile-search aria-label="Search projects and canvases" placeholder="Search projects and canvases" value={typed}
+                onChange={(e) => setTyped(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); setTyped(''); setTerm(''); } }} className="h-9 w-full pl-9" />
+            </label>
+          )}
+          {p.explainer_count > 1 && <SortMenu options={SORTS} value={sort} onChange={setSort} />}
         </div>
+        {/* While searching: the projects named, then the canvases - each labelled, so which is which is plain. */}
+        {p.q && <ProjectMatches projects={matchingProjects(p.explainers, p.q)} />}
+        {p.q && p.explainers.length > 0 && <h3 className="pb-2 text-xs text-ink-2">Canvases</h3>}
         {p.explainers.length ? <PublicCards cards={p.explainers} me={me?.handle || null} attr="data-profile-card" />
+          : p.q ? <p data-profile-search-empty className="text-sm text-ink-3">No canvases or projects match &ldquo;{p.q}&rdquo;.</p>
           : <div data-profile-empty><EmptyState icon={Compass}>{own ? 'You have no public explainers yet. Publish a canvas to Explore from its Share panel.' : `@${p.handle} has no public explainers yet.`}</EmptyState></div>}
       </div>
       {own && analytics && <CreatorDashboard profile={p} onClose={() => setAnalytics(false)} />}
     </main>
+  );
+}
+
+// The public projects a profile search names, each as the card's project label is: Explore filtered to that project.
+function ProjectMatches({ projects }) {
+  if (!projects.length) return null;
+  return (
+    <section data-profile-projects aria-label="Projects" className="pb-6">
+      <h3 className="pb-2 text-xs text-ink-2">Projects</h3>
+      <div className="flex flex-wrap gap-2">
+        {projects.map(([label, n]) => (
+          <a key={label} data-profile-project={label} href={`/explore?project=${encodeURIComponent(label)}`} title="Explore published canvases from this project"
+            className="inline-flex h-7 min-w-0 max-w-full items-center gap-1.5 rounded-md border border-line bg-white px-2 text-xs text-ink hover:bg-hover">
+            <FolderGit2 size={12} strokeWidth={1.75} className="shrink-0" /><span className="truncate">{label}</span>
+            <span className="shrink-0 text-ink-3">· {forkNumber(n)} canvas{n === 1 ? '' : 'es'}</span>
+          </a>
+        ))}
+      </div>
+    </section>
   );
 }
