@@ -14,7 +14,7 @@ import { pageRects, PAGE_W } from './learn-pages.js';
 import { outlineFrom, applyOutlineOps, moveSection } from './learn-outline-model.js';
 import { loadAsset } from './learn-board-assets.js';
 import { groupShot } from './learn-group-shot.js';
-import { cardQuestion, GROUP_QUESTION, groupTargetText } from './learn-ask-target.js';
+import { cardQuestion, describeCanvasObject, GROUP_QUESTION, groupTargetText } from './learn-ask-target.js';
 import { askDraft } from './agent/scope.js';
 import LearnWiki from './LearnWiki.jsx';
 import SourcesDisclosure from './SourcesDisclosure.jsx';
@@ -1502,6 +1502,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       deselect: () => setSelected(null),
       // /dive: the return point reads and restores these (docs/features/dive-v1.md).
       getView: () => view, setView, select: id => setSelection([id]), block: id => blocksRef.current.find(block => block.id === id) || null,
+      // A selected card the Tutor would read no words from (learn-tutor.js cardText reads a title and a body): a chat card, a
+      // note, a reader, file or slide card, a quiz - as its title and, as body, its description, with its sources. A lesson
+      // card with a title or body is block()'s.
+      objectCard: id => {
+        const object = objectById(id), described = object && describeObject(object);
+        if (!described || (object.type && (object.title || object.body))) return null;
+        return { id, title: described.title, body: described.text, ...(object.sources ? { sources: object.sources } : {}) };
+      },
       // Tutor v1 (docs/features/tutor-v1-implementation-map.md §4): read the cards, and change one
       // card through a pure reducer (pager, practice), undoable like any other edit.
       blocks: () => blocksRef.current,
@@ -2122,8 +2130,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           return;
         }
       }
-      // A view-only board's one tool besides the hand is Comment: Esc puts the hand back.
-      if (readOnlyRef.current) { if (event.key === 'Escape') setTool('hand'); return; }
+      // A view-only board's one tool besides the hand is Comment: Esc puts the hand back, and lets go of the selected card
+      // (and its pill above the shared composer, owner 2026-10-08) unless it is pressed in the composer, as below.
+      if (readOnlyRef.current) {
+        if (event.key === 'Escape') {
+          setTool('hand');
+          const focused = document.activeElement;
+          if (!(focused && (focused.tagName === 'INPUT' || focused.tagName === 'TEXTAREA'))) setSelected(null);
+        }
+        return;
+      }
       // Presenting owns the keyboard: a walk, not an editing surface.
       if (presentingRef.current !== null) {
         if (event.key === 'Escape') { event.preventDefault(); stopPresentingRef.current(); return; }
@@ -2216,9 +2232,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // is then - a learner who changes an input after arming still sends the
   // state they can see, and a deleted block says so instead of silently
   // becoming a question about something else.
+  // The selected object by id - a lesson card, a chat card or a note - and what it is (describeBlock, else
+  // learn-ask-target.js describeCanvasObject for the chat, note, reader and file cards).
+  const objectById = id => blocksRef.current.find(entry => entry.id === id) || exchangesRef.current.find(entry => entry.id === id) || itemsRef.current.find(entry => entry.id === id) || null;
+  const describeObject = object => describeBlock(object) || describeCanvasObject(object);
   const liveAskText = (id, armed) => () => {
-    const current = present.current.blocks.find(entry => entry.id === id);
-    const described = current && describeBlock(current);
+    const current = objectById(id);
+    const described = current && describeObject(current);
     return described?.text ?? `${armed.text}${String.fromCharCode(10)}[Warning: this block was deleted from the canvas after the question was attached; the state above is the last one the learner saw.]`;
   };
   // Continue convo on an answer linked from a card: that card rides the first follow-up.
@@ -2234,11 +2254,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // A card only selected rides as context and its answer lands where any question's does (ask.jsx panelAsk).
   const askedId = useRef(null);
   const armTarget = block => {
-    const described = describeBlock(block);
+    const described = describeObject(block);
     if (!described) return false;
     armedId.current = block.id;
     // card: a selected card's context (the strip above the composer), kept after a send; context: its identities.
-    const card = { card: true, asked: askedId.current === block.id, context: selectedCardContext(block, described.title) };
+    const card = { card: true, asked: askedId.current === block.id, context: { ...selectedCardContext(block, described.title), material_type: block.type || described.material } };
     // A slide sends the slide itself: its page of the uploaded PDF, read by the model as the
     // reader's pages are (paper_context). The thumbnail only shows on the chip.
     if (block.type === 'slide') {
@@ -2261,22 +2281,23 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Ask in chat and the menu's Ask about this: the card becomes the target and a ready question waits in the composer.
   const askBlock = block => {
     askedId.current = block.id;
-    if (armTarget(block)) askDraft(cardQuestion(describeBlock(block)?.title));
+    if (armTarget(block)) askDraft(cardQuestion(describeObject(block)?.title));
   };
   // Selecting a card is choosing what the next question is about (docs/features/canvas-card-selection.md): the one
   // selected card sets the composer's context strip - the same target Ask in chat arms, never a second chip - and a
   // selection that moves off it (blank canvas, Esc, another object) takes the strip with it. A region, area or group
   // target is left alone: it was armed on purpose and has its own way out.
+  // Any kind of card (owner, 2026-10-08): a lesson card, a chat card, a note, a reader or file card; on a view-only
+  // board too, where the shared composer takes the pill (SharedBoardPage.jsx). A shape or a divider has none.
   const selectionArmed = useRef(null);
   useEffect(() => {
-    if (readOnly) return;
     if (askedId.current !== selected) askedId.current = null;
-    const block = selected ? blocksRef.current.find(entry => entry.id === selected) : null;
-    if (block && armTarget(block)) { selectionArmed.current = block.id; return; }
+    const object = selected ? objectById(selected) : null;
+    if (object && armTarget(object)) { selectionArmed.current = object.id; return; }
     const was = selectionArmed.current;
     selectionArmed.current = null;
     if (was && askTargetId === was && armedId.current === was) { armedId.current = null; onAskTargetRef.current?.(null); }
-  }, [selected, readOnly]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selected]); // eslint-disable-line react-hooks/exhaustive-deps
   // Open (card-open.js): the card's reader, else its Rabbit Hole - entered, or made first.
   const opensFor = id => openTarget(blocksRef.current.find(entry => entry.id === id), { portal: divePortals?.portals?.[id], dive: !!divePortals?.open, readers: !!onCardActionRef.current });
   const openCard = (id, via) => {
@@ -2305,7 +2326,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   }, [blocks, items, shapes, exchanges, askTargetId]);
   useEffect(() => {
     if (!askTargetId || askTargetId !== armedId.current) { lastArmed.current = null; return; }
-    const current = blocks.find(entry => entry.id === askTargetId);
+    const current = blocks.find(entry => entry.id === askTargetId) || exchanges.find(entry => entry.id === askTargetId) || items.find(entry => entry.id === askTargetId);
     // Untouched blocks keep their identity through every setBlocks map, so a
     // same-reference armed block means nothing about IT changed - re-arming
     // then would re-render the composer once per frame of an unrelated drag.
@@ -2322,7 +2343,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       id: askTargetId, kind: 'Removed block', title: 'This block was deleted from the canvas',
       text: 'The lesson card this question was attached to was deleted from the canvas before the question was sent.',
     });
-  }, [blocks, askTargetId]);
+  }, [blocks, exchanges, items, askTargetId]);
   // A red region drawn on a paper page arms the composer with its thumbnail
   // and the page context, so the answer node links back to that paper block.
   const askRegion = (block, selection) => {
@@ -2892,8 +2913,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // of selection is offered there: no pills, no handles, no keys.
     if (tool === 'hand' && readOnly) {
       const at = local(event);
-      // ponytail: lesson cards only (what onState reports as the card); a chat card on a shared board is not an origin yet.
-      const hit = Object.entries(boundsRef.current).find(([id, box]) => blocksRef.current.some(block => block.id === id) && at.x >= box.x && at.x <= box.x + box.w && at.y >= box.y && at.y <= box.y + box.h)?.[0] || null;
+      // A lesson card, a chat card or a note: each gets the pill above the shared composer (owner, 2026-10-08). Only a
+      // lesson card is a Rabbit Hole origin (onState's card); a chat card or note on a shared board is not one yet.
+      const card = Object.entries(boundsRef.current).find(([id, box]) => (blocksRef.current.some(block => block.id === id) || exchangesRef.current.some(exchange => exchange.id === id)) && at.x >= box.x && at.x <= box.x + box.w && at.y >= box.y && at.y <= box.y + box.h)?.[0];
+      const note = !card && [...document.querySelectorAll('[data-item-id]')].find(element => { const r = element.getBoundingClientRect(); return event.clientX >= r.left && event.clientX <= r.right && event.clientY >= r.top && event.clientY <= r.bottom; })?.dataset.itemId;
+      const hit = card || note || null;
       let moved = false;
       const apply = (x, y) => { moved = true; setView(v => ({ ...v, x, y })); };
       apply.done = () => { if (!moved) setSelection(hit ? [hit] : []); };

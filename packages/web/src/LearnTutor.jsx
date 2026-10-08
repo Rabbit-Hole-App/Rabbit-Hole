@@ -141,7 +141,8 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     // Task 14 C-M1: the hooks on screen as the turn is sent, read before any await (the journey resolver's), so a busy re-render
     // that clears them meanwhile never empties the trace.
     const onScreen = shown.current;
-    const block = nextStep ? null : canvas?.block?.(targetId) || canvas?.block?.(stateRef.current.card?.id) || null;
+    // A chat card, note, reader or file card selected (owner, 2026-10-08: any card has the pill) rides as its words (objectCard).
+    const block = nextStep ? null : canvas?.objectCard?.(targetId) || canvas?.block?.(targetId) || canvas?.block?.(stateRef.current.card?.id) || null;
     const domain = domainOf(canvas, block?.id ?? null); // fix B2: the selected block is the target, not one of the canvas cards
     if (!domain) return { text: '', handled: true, failed: true };
     const slash = nextStep ? null : slashNext.current;

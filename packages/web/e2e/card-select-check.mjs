@@ -254,7 +254,7 @@ await check('E touch: a tap selects and the selected card offers a small Open', 
 });
 
 // ---- 15: a shared, view-only canvas: selection works, nothing about the source changes ----
-await check('15 on a shared view-only canvas a click selects a card, no strip, and the source is untouched', async () => {
+await check('15 on a shared view-only canvas a click selects a card and shows its strip above the shared composer; the source is untouched', async () => {
   const shared = (await api(owner, `/api/learn/boards/${A.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, public_view: true, state: state(BLOCKS) }) })).body;
   const before = JSON.stringify((await api(owner, `/api/learn/boards/${A.name}/main`)).body?.state);
   const guest = await contextFor(viewer);
@@ -268,7 +268,8 @@ await check('15 on a shared view-only canvas a click selects a card, no strip, a
   await page.waitForTimeout(300);
   assert.equal(await page.locator('[data-view-selection="k-exp"]').count(), 1, 'the view selection ring');
   assert.equal(await page.locator('[data-start-rabbit-hole]').getAttribute('data-origin'), 'k-exp', 'Start Rabbit Hole begins at the selected card');
-  assert.equal(await strip().count(), 0, 'the shared ask is about the canvas: no card strip');
+  // Owner, 2026-10-08: the selected card's pill above the composer on a shared canvas too (selected-pill-check.mjs).
+  assert.equal(await page.locator('[data-shared-ask] [data-selected-card]').getAttribute('data-selected-card'), 'k-exp', 'the card strip above the shared composer');
   const after = JSON.stringify((await api(owner, `/api/learn/boards/${A.name}/main`)).body?.state);
   assert.equal(after, before, 'the source board is unchanged');
   await guest.context.close();

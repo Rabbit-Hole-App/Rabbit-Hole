@@ -38,16 +38,19 @@ test('the shared page puts Learn\'s composer shell in the canvas composer slot, 
   // readOnly may be followed by onState (the selected card a Rabbit Hole starts from, shared-canvas-rabbit-hole.md) and
   // onStartRabbitHole (the card right-click menu starts it from the card it was opened on), then the read-only Rabbit
   // Holes Map (gutterTop, dive-v1.md "Shared map").
-  assert.match(page, /<AdaptiveCanvas [^\n]*readOnly( onState=\{onCanvasState\})?( onStartRabbitHole=\{startFromCard\})?(\n\s+gutterTop=\{holes \? <DiveNavigator [^\n]*\/> : null\})?(\n\s+leftRail=\{<SharedNextSteps [^\n]*\/>\})?\n\s+composer=\{<SharedAsk token=\{token\} viewer=\{shared\.viewer\} context=\{shared\.context\} draft=\{askDraft\} \/>\} \/>/);
+  assert.match(page, /<AdaptiveCanvas [^\n]*readOnly( onState=\{onCanvasState\})?( onStartRabbitHole=\{startFromCard\})?(\n\s+gutterTop=\{holes \? <DiveNavigator [^\n]*\/> : null\})?(\n\s+leftRail=\{<SharedNextSteps [^\n]*\/>\})?\n\s+onAskTarget=\{setTarget\} askTargetId=\{target\?\.id \?\? null\}\n\s+composer=\{<SharedAsk token=\{token\} viewer=\{shared\.viewer\} context=\{shared\.context\} draft=\{askDraft\} target=\{target\} onClearTarget=\{\(\) => \{ setTarget\(null\); canvasApi\.current\?\.deselect\(\); \}\} \/>\} \/>/);
   assert.match(page, /import ChatComposer from '\.\/ChatComposer\.jsx';/);
   assert.match(composer, /<ChatComposer dock value=\{input\} onChange=\{setInput\} onSubmit=\{send\}/);
   assert.match(composer, /data-context-pill="repository"[^\n]*\n[^\n]*\{repository\.repo\} · \{repository\.commit\.slice\(0, 7\)\}/);
   assert.match(composer, /data-context-pill=\{source\.kind\}/);
-  assert.doesNotMatch(composer, /<button[^>]*aria-label="Remove/, 'the pills are read-only');
+  const pills = composer.slice(composer.indexOf('data-shared-context'), composer.indexOf('data-canvas-target'));
+  assert.doesNotMatch(pills, /<button[^>]*aria-label="Remove/, 'the context pills are read-only');
+  // The one selected card's pill (owner, 2026-10-08) has its x: it clears the selection with the pill.
+  assert.match(composer, /\{target && <div data-canvas-target data-selected-card=\{target\.id\}[^\n]*\n\s+<MaterialIcon type=\{target\.context\?\.material_type\} \/>[\s\S]{0,200}aria-label="Remove selected card context"[^\n]*onClick=\{onClearTarget\}/);
   // Answers render with Md and no onFile: no owner-only file viewer from a shared page.
   assert.match(composer, /\{\/\* ponytail: no onFile[^\n]*\*\/\}\n\s+<Md text=\{turn\.content\} \/>/);
   // The answer window is the viewer's, kept in this tab - never posted anywhere but the ask route.
-  assert.match(composer, /streamAsk\(\{ path: askPath\(token\), body: \{ message, history \}/);
+  assert.match(composer, /streamAsk\(\{ path: askPath\(token\), body: \{ message, history, \.\.\.\(target \? \{ selected: target\.id \} : \{\}\) \}/);
   assert.doesNotMatch(composer, /\/api\/learn\/ask|\/api\/ask\b|\/api\/learn\/boards\/\$\{/);
 });
 
@@ -99,5 +102,6 @@ test('F: the shared composer is a plain Q&A box - no +, attachments, model picke
   const call = composer.match(/<ChatComposer dock [^\n]*\n[^\n]*\/>/)[0];
   for (const prop of ['leading=', 'trailing=', 'onKeyDown=', 'ready=', 'voice=', 'multiline']) assert.ok(!call.includes(prop), prop);
   assert.doesNotMatch(composer, /SlashCommands|CommandsSheet|ModelPicker|Paperclip|\bPlus\b|type="file"|attachment/i);
-  assert.match(composer, /body: \{ message, history \}/, 'only the question and history are sent');
+  // The question, the history and the selected card's id: the server words the card from the board, never from the request.
+  assert.match(composer, /body: \{ message, history, \.\.\.\(target \? \{ selected: target\.id \} : \{\}\) \}/);
 });

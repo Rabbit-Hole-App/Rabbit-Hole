@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { openTarget, opensFrom, selectedCardContext } from './card-open.js';
-import { canvasTargetField } from './learn-ask-target.js';
+import { canvasTargetField, describeCanvasObject } from './learn-ask-target.js';
 
 const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const everything = { dive: true, readers: true };
@@ -64,9 +64,14 @@ test('the temporary /ask contract: the request carries only { id, kind, title, t
 test('selecting one card arms the composer strip; moving off it clears the strip, never a region or group target', () => {
   const canvas = read('./AdaptiveCanvas.jsx');
   const effect = canvas.slice(canvas.indexOf('const selectionArmed = useRef(null);'), canvas.indexOf('// Open (card-open.js): the card\'s reader'));
-  assert.match(effect, /if \(block && armTarget\(block\)\) \{ selectionArmed\.current = block\.id; return; \}/);
+  // Any kind of card (owner, 2026-10-08): a lesson card, chat card, note, reader or file card, on a view-only board too.
+  assert.match(effect, /const object = selected \? objectById\(selected\) : null;\n\s+if \(object && armTarget\(object\)\) \{ selectionArmed\.current = object\.id; return; \}/);
+  assert.match(effect, /\}, \[selected\]\);/);
+  assert.doesNotMatch(effect, /readOnly/, 'a view-only board arms the shared composer too');
+  assert.match(canvas, /const objectById = id => blocksRef\.current\.find\(entry => entry\.id === id\) \|\| exchangesRef\.current\.find\(entry => entry\.id === id\) \|\| itemsRef\.current\.find\(entry => entry\.id === id\) \|\| null;/);
+  assert.match(canvas, /const describeObject = object => describeBlock\(object\) \|\| describeCanvasObject\(object\);/);
   assert.match(effect, /if \(was && askTargetId === was && armedId\.current === was\) \{ armedId\.current = null; onAskTargetRef\.current\?\.\(null\); \}/);
-  assert.match(canvas, /const card = \{ card: true, asked: askedId\.current === block\.id, context: selectedCardContext\(block, described\.title\) \};/, 'Ask in chat arms the same target: one context, one chip');
+  assert.match(canvas, /const card = \{ card: true, asked: askedId\.current === block\.id, context: \{ \.\.\.selectedCardContext\(block, described\.title\), material_type: block\.type \|\| described\.material \} \};/, 'Ask in chat arms the same target: one context, one chip');
   // Where the answer lands is unchanged: Ask in chat answers as a linked card; a card only selected answers where any question does.
   assert.match(read('./ask.jsx'), /const panelAsk = sheetMode && \(!canvasTarget \|\| \(canvasTarget\.card && !canvasTarget\.asked\) \|\| journeySetup\);/);
 });
@@ -91,4 +96,22 @@ test('keys: Space selects the focused card, Enter opens it or the selected card,
   // Selection is UI state only: nothing about it is saved or put in the URL.
   const effect = canvas.slice(canvas.indexOf('const selectionArmed = useRef(null);'), canvas.indexOf('const cardOpen = {'));
   assert.doesNotMatch(effect, /localStorage|sessionStorage|history\.|location\./);
+});
+
+// Owner, 2026-10-08: "when we click on a card meaning it is selected we should have a pill above the chat composer". The
+// kinds describeBlock leaves out get a pill too; what rides is canvasTargetField's id, kind, title and text.
+test('every kind of card has a pill: chat cards, notes, Wikipedia, PDF, file and section cards; a divider or a shape none', () => {
+  const chat = describeCanvasObject({ id: 'q1', question: 'Why exp?', answer: 'Positive weights.', replies: [{ question: 'And the max?', answer: 'Subtract it.' }] });
+  assert.deepEqual([chat.kind, chat.title, chat.material], ['Chat', 'Why exp?', 'chat']);
+  assert.equal(chat.text, 'A chat on the canvas:\nQ: Why exp?\nA: Positive weights.\n\nQ: And the max?\nA: Subtract it.');
+  assert.deepEqual(describeCanvasObject({ id: 'n1', kind: 'sticky', text: 'remember the mask\nsecond line' }), { kind: 'Sticky note', title: 'remember the mask', text: 'Sticky note on the canvas: remember the mask\nsecond line', material: 'note' });
+  assert.equal(describeCanvasObject({ id: 't1', kind: 'text', text: '' }).title, 'Empty text');
+  assert.deepEqual(describeCanvasObject({ id: 'w1', type: 'wiki', title: 'Softmax function', section: 2 }), { kind: 'Wikipedia', title: 'Softmax function', text: 'Wikipedia article on the canvas: Softmax function (section 2)', material: 'wiki' });
+  assert.equal(describeCanvasObject({ id: 'p1', type: 'pdf', label: 'lecture.pdf', assetKey: 'pdf:abc' }).title, 'lecture.pdf');
+  // An uploaded image rides as image_context (ask.jsx imageId), as Show the tutor this image does.
+  assert.equal(describeCanvasObject({ id: 'f1', type: 'file', kind: 'image', label: 'diagram.png', mediaId: 'm-1' }).image, 'm-1');
+  assert.equal(describeCanvasObject({ id: 'f2', type: 'file', kind: 'csv', label: 'runs.csv' }).kind, 'File');
+  assert.equal(describeCanvasObject({ id: 'h1', type: 'heading', text: 'Attention' }).title, 'Attention');
+  for (const none of [{ id: 'd1', type: 'divider' }, { id: 's1', kind: 'rect' }, { id: 'e1', type: 'explanation' }]) assert.equal(describeCanvasObject(none), null, JSON.stringify(none));
+  assert.deepEqual(canvasTargetField({ id: 'q1', ...chat }), { id: 'q1', kind: 'Chat', title: 'Why exp?', text: chat.text });
 });

@@ -108,6 +108,14 @@ const openStart = async (page, path, at = '/apps') => {
 };
 const barOf = (page) => page.locator('[data-agent-bar]');
 const barInput = (page) => barOf(page).locator('[data-chat-composer] :is(input, textarea)');
+// A Home question is answered in place by POST /api/learn/home-ask (home-ask.md), a model call: stubbed here with a
+// scripted answer, so a check that sends one on Home calls no model. Returns the bodies it received.
+const HOME_ANSWER = 'Scripted Home answer (no model).';
+const stubHomeAsk = async (page) => {
+  const seen = [];
+  await page.route('**/api/learn/home-ask', (route) => { seen.push(JSON.parse(route.request().postData() || '{}')); return route.fulfill({ json: { answer: HOME_ANSWER, references: [] } }); });
+  return seen;
+};
 
 // T12: the browser must run the bundle just built. A new version serves 15-20 s after
 // wrangler returns, so poll for a minute before calling it stale.
@@ -1176,7 +1184,6 @@ await check('build: the browser runs the dist-dev entry script', async () => {
 {
   // ── agent-ui (T02 §6): the Agent Bar frame. Nothing here reaches /api/ask: a workspace
   // or app ask would write live chat history. Project asks are the 'bar-page:' checks. ──
-  const { askLiveOnPreview } = await import('../src/flags.js');
   const barOpen = async (path = '/apps', viewport) => {
     const page = await open(viewport);
     await page.goto(`${base}${path}`);
@@ -1285,14 +1292,17 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  if (!askLiveOnPreview) await check('bar: a workspace ask is off on this preview: the reason shows, the draft stays, nothing reaches /api/ask', async () => {
+  // A Home question is answered in place from the user's own library (home-ask.md, since 2026-10-03), never by the old
+  // apps agent: its route is stubbed here (stubHomeAsk), so no model is called.
+  await check('bar: a Home question is answered in place by /api/learn/home-ask (stubbed, no model); nothing reaches /api/ask', async () => {
     const page = await barOpen('/library');
     let asks = 0;
     page.on('request', (r) => { if (new URL(r.url()).pathname === '/api/ask') asks++; });
+    const home = await stubHomeAsk(page);
     await barInput(page).fill('what does this workspace run?');
     await barInput(page).press('Enter');
-    await page.locator('[data-result-sheet]').getByText('Asking about the workspace or apps is off on this preview: it would write to live chat history.').waitFor({ timeout: 10000 });
-    must(await barInput(page).inputValue() === 'what does this workspace run?', 'the draft was cleared');
+    await page.locator('[data-result-sheet]').getByText(HOME_ANSWER).waitFor({ timeout: 10000 });
+    must(home.length === 1 && home[0].message === 'what does this workspace run?', `home-ask: ${JSON.stringify(home)}`);
     must(asks === 0, `${asks} requests to /api/ask`);
     await page.context().close();
   });
@@ -1359,9 +1369,11 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.keyboard.type('second line');
     const value = await input.inputValue();
     must(value === 'first line\nsecond line', `value was ${JSON.stringify(value)}`);
+    const home = await stubHomeAsk(page);
     await page.keyboard.press('Enter');
-    // On Home the preview refuses workspace asks (G1), which proves the send happened.
-    await page.getByText('Asking about the workspace or apps is off on this preview', { exact: false }).first().waitFor({ timeout: 10000 });
+    // On Home the question is answered in place (stubbed home-ask): the whole two-line message was sent.
+    await page.getByText(HOME_ANSWER).first().waitFor({ timeout: 10000 });
+    must(home[0]?.message === 'first line\nsecond line', `sent ${JSON.stringify(home[0]?.message)}`);
     await page.context().close();
   });
 }
@@ -1407,14 +1419,18 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  // Solo v1: sharing with a person is no command, so it is never a card; on /library it is a workspace ask, which is off.
-  if (!askLiveOnPreview) await check('bar-cmd: share <app> with <email> is no command in solo v1 - no card, no /api/ask call, only the workspace-ask reason', async () => {
+  // Solo v1: sharing with a person is no command, so it is never a card; on /library it is a Home question, answered in
+  // place (home-ask, stubbed here: no model).
+  await check('bar-cmd: share <app> with <email> is no command in solo v1 - no card, no /api/ask call, a Home question answered in place', async () => {
     const page = await barOpen();
     let calls = 0;
     page.on('request', (r) => { if (r.method() !== 'GET' && /^[/]api[/]ask([/]|$)/.test(new URL(r.url()).pathname)) calls++; });
-    await barInput(page).fill(`share ${plain?.name || 'counter'} with bar-check@example.com as view`);
+    const home = await stubHomeAsk(page);
+    const text = `share ${plain?.name || 'counter'} with bar-check@example.com as view`;
+    await barInput(page).fill(text);
     await barInput(page).press('Enter');
-    await page.locator('[data-result-sheet]').getByText('Asking about the workspace or apps is off on this preview', { exact: false }).first().waitFor({ timeout: 10000 });
+    await page.locator('[data-result-sheet]').getByText(HOME_ANSWER).first().waitFor({ timeout: 10000 });
+    must(home.length === 1 && home[0].message === text, `home-ask: ${JSON.stringify(home)}`);
     must(await page.locator('[data-confirm-card]').count() === 0, 'share still becomes a card');
     must(calls === 0, `${calls} /api/ask calls`);
     await page.context().close();

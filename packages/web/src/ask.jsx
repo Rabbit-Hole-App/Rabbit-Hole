@@ -337,7 +337,7 @@ const rememberSheetThread = (app, id) => {
 };
 
 // A selected card's material, by icon (the composer strip).
-function MaterialIcon({ type }) {
+export function MaterialIcon({ type }) {
   const Icon = type === 'wiki' ? Globe : ['paper', 'pdf', 'slide'].includes(type) ? FileText : type === 'video' ? Play : type === 'notebook' ? BookOpen : ScrollText;
   return <Icon size={13} aria-hidden="true" className="shrink-0 text-ink-3" />;
 }
