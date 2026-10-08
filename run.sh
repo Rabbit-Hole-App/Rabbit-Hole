@@ -103,8 +103,9 @@ function test:unit {
     (cd "$THIS_DIR/packages/control-plane" && npm test)
     node --test "$THIS_DIR/viz-benchmarks/check-synthetic-fixtures.test.mjs"
     node --test "$THIS_DIR/viz-benchmarks/critic-packet-isolation.test.mjs"
-    node --test "$THIS_DIR/tests/evals/learn-grade/*.test.mjs"
-    node --test "$THIS_DIR/packages/learn-render/motion/*.test.mjs" "$THIS_DIR/packages/learn-render/motion/service/*.test.mjs"
+    # Relative glob: node --test does not expand an absolute /c/... glob under Git Bash and would run 0 tests, exiting 0.
+    (cd "$THIS_DIR" && node --test "tests/evals/learn-grade/*.test.mjs")
+    (cd "$THIS_DIR" && node --test "packages/learn-render/motion/*.test.mjs" "packages/learn-render/motion/service/*.test.mjs")
 }
 
 # full integration tests: real deploy to Fly through the published CLI (~30s)
