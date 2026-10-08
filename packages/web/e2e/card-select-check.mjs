@@ -46,7 +46,15 @@ const contextFor = async (who, options = {}) => {
     await route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream' }, body: `event: chunk\ndata: ${JSON.stringify({ text: 'Salt lowers the freezing point.' })}\n\nevent: done\ndata: {}\n\n` });
   });
   await context.route('**/api/learn/wiki?**', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ title: 'Freezing-point depression', url: 'https://en.wikipedia.org/wiki/Freezing-point_depression', licence: { title: 'CC BY-SA 4.0', url: 'https://creativecommons.org/licenses/by-sa/4.0/' }, html: '<p>Freezing-point depression is the drop in the temperature at which a substance freezes, caused when a smaller amount of another substance is added.</p>' }) }));
-  await context.route(/\/api\/learn\/(tutor|artifact|home-ask|journeys?)\b/, route => { if (route.request().method() === 'GET') return route.continue(); stray.push(route.request().url()); return route.abort(); });
+  // A canvas turn goes through the Tutor planner first (#46, Tutor v2): /ask is a Tutor turn with slash 'ask', its
+  // words in learner_intent and the selected card as target. It is recorded like an ask and answered here, no model.
+  await context.route('**/api/learn/tutor/plan', async route => {
+    const ctx = JSON.parse(route.request().postData() || '{}').context || {};
+    asks.push({ message: ctx.learner_intent?.raw_user_message, slash: ctx.learner_intent?.slash, canvas_target: ctx.target || undefined, via: 'tutor' });
+    await route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', actions: [{ type: 'respond_text', text: 'Salt lowers the freezing point.' }] } });
+  });
+  // Next Steps' hook on canvas open is an expected request (professor-next-steps.md), answered by the stack's fixtures.
+  await context.route(/\/api\/learn\/(tutor|artifact|home-ask|journeys?)\b/, route => { const path = new URL(route.request().url()).pathname; if (route.request().method() === 'GET' || path === '/api/learn/tutor/next-steps' || path === '/api/learn/tutor/plan') return route.fallback(); stray.push(route.request().url()); return route.abort(); });
   const page = await context.newPage();
   page.on('pageerror', error => errors.push(error.message));
   return { context, page };
@@ -139,7 +147,9 @@ await check('10 /ask with nothing selected asks about the canvas: no card target
   assert.equal(ask.canvas_target, undefined);
 });
 
-await check('9 /ask with a card selected carries that card: its id, kind and title, its text as material', async () => {
+// Through the Tutor (#46) the selected card rides as the turn's target: its title and text (learn-tutor.js target).
+const aboutCard = target => /^Why salt melts ice/.test(target?.description || '') && /lowers its freezing point/.test(target.description);
+await check('9 /ask with a card selected carries that card: its title, and its text as material', async () => {
   await press('k-exp');
   await composer().click();
   await composer().fill('/ask why does this happen?');
@@ -148,17 +158,15 @@ await check('9 /ask with a card selected carries that card: its id, kind and tit
   await page.waitForTimeout(900);
   const ask = asks.at(-1);
   assert.equal(ask?.message, 'why does this happen?');
-  assert.equal(ask.canvas_target?.id, 'k-exp');
-  assert.equal(ask.canvas_target.title, 'Why salt melts ice');
-  assert.match(ask.canvas_target.text, /lowers its freezing point/);
-  assert.deepEqual(Object.keys(ask.canvas_target).sort(), ['id', 'kind', 'text', 'title'], 'the temporary contract, nothing more');
+  assert.equal(ask.slash, 'ask');
+  assert.ok(aboutCard(ask.canvas_target), JSON.stringify(ask.canvas_target));
 });
 
 await check('11 after the send the card stays selected; the follow-up asks about it again', async () => {
   assert.ok(await isSelected('k-exp'));
   assert.equal(await strip().getAttribute('data-selected-card'), 'k-exp');
   await slash('/ask show another example');
-  assert.equal(asks.at(-1)?.canvas_target?.id, 'k-exp');
+  assert.ok(aboutCard(asks.at(-1)?.canvas_target), JSON.stringify(asks.at(-1)?.canvas_target));
   assert.ok(await isSelected('k-exp'));
 });
 await shot('C2-after-send-card-kept');
@@ -169,7 +177,7 @@ await check('11b with a card selected, a plain typed question (no /) carries the
   await slash('why is salt better than sugar at this?');
   assert.equal(asks.length, before + 1, 'one ask, through the normal composer');
   assert.equal(asks.at(-1).message, 'why is salt better than sugar at this?');
-  assert.equal(asks.at(-1).canvas_target?.id, 'k-exp');
+  assert.ok(aboutCard(asks.at(-1).canvas_target), JSON.stringify(asks.at(-1).canvas_target));
 });
 
 await check('12 the card\'s own controls never open it: a double-click on a quiz answer', async () => {
