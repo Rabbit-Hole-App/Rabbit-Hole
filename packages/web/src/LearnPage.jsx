@@ -77,7 +77,7 @@ export default function LearnPage(props) {
 }
 
 // `switcher`: a project's canvas switcher (RepositoryPage, docs/features/project-canvases.md), beside the title.
-function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository = null, onGraph = null, onMap = null, hole = null, switcher = null }) {
+function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository = null, onGraph = null, onMap = null, files = null, hole = null, switcher = null }) {
   const isRepository = app.kind === 'repository';
   // A canvas (smart-home's catalog) holds only what was put on it: never the
   // sample course, its lesson header, outline or progress.
@@ -1462,8 +1462,11 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
           {searchOpen && <SearchBar app={app.name} initialSource={searchSeed?.source} initialQuery={searchSeed?.query} onClose={() => { setSearchOpen(false); setSearchSeed(null); }}
             onPick={pickResult} />}
           <div className="flex items-center gap-0.5">
-            {/* A project's way to its code Map (owner, 2026-10-04): one icon, no Overview/Learn/Map pill on the canvas. */}
-            {onMap && <button type="button" data-learn-map title="Map: this repository's code graph" aria-label="Map" onClick={onMap}
+            {/* A project's way to its code (owner, 2026-10-04): one icon, no Overview/Learn/Map pill on the canvas. Where the
+                canvas has the repository's files (the Main canvas), it opens them in the right panel, which links on to the
+                Map (owner, 2026-10-08); elsewhere it goes to the Map. */}
+            {onMap && <button type="button" data-learn-map title={files ? "Files: read this repository's code and ask about it" : "Map: this repository's code graph"} aria-label={files ? 'Repository files' : 'Map'}
+              onClick={files ? () => { setPanelOpen(true); setPanelTab('files'); } : onMap}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><Network size={15} strokeWidth={1.8} /></button>}
             {/* One search bar for YouTube, arXiv and Wikipedia, beside Present. */}
             <button type="button" title="Search YouTube, arXiv and Wikipedia (/)" aria-label="Search YouTube, arXiv and Wikipedia"
@@ -1541,10 +1544,18 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
       </div>
     </section>
     <ResizableSidePanel aria-label="Learn agent chat" resizeLabel="Resize Learn panel" defaultWidth={480} collapsed={!panelOpen} onClickCapture={openPaperReference} className="px-5 pt-3 pb-4">
-      <PanelHeader tab={panelTab} commentsOn={comments.active} commentsUnread={comments.unread} pinned={panelPinned} onPin={pinPanel} onClose={() => setPanelOpen(false)}
+      <PanelHeader tab={panelTab} commentsOn={comments.active} commentsUnread={comments.unread} filesOn={!!files} pinned={panelPinned} onPin={pinPanel} onClose={() => setPanelOpen(false)}
         onTab={(tab, clicked) => { setPanelTab(tab); if (clicked && tab === 'find') requestAnimationFrame(() => findInput.current?.focus()); }} />
       <CanvasFind hidden={panelTab !== 'find'} inputRef={findInput} cards={() => [...(canvasApi.current?.blocks?.() || []), ...exchanges]} onFocus={id => canvasApi.current?.focusBlock(id)} />
       {comments.active && <CommentsPanel hidden={panelTab !== 'comments'} {...comments.panelProps} />}
+      {/* The repository's Files (RepositoryPage's reader): click a file, select lines, Ask - the question waits in the chat. */}
+      {files && <div role="tabpanel" aria-label="Repository files" data-learn-files className={`${panelTab === 'files' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col gap-2`}>
+        <div className="flex shrink-0 items-center justify-between gap-2">
+          <h2 className="text-base font-semibold text-ink">Files</h2>
+          <button type="button" data-learn-open-map onClick={onMap} className="text-xs text-ink-2 hover:text-ink hover:underline">Open the Map →</button>
+        </div>
+        {files}
+      </div>}
       {/* The Table of contents tab: the outline, and under it any open reader, as before the header. */}
       <div role="tabpanel" aria-label="Table of contents" className={`${panelTab === 'toc' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}>
       {/* The table of contents IS the lesson's structure, not a view onto another

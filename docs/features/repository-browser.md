@@ -138,6 +138,12 @@ Unchanged: the Sources dropdown under an answer lists only the files the server'
 - `ponytail:` the search is a substring match capped at 50 files and 50 symbols; rank it when a repository outgrows that.
 - Learn (the canvas) has no Files · Graph · Learn row: its Map icon returns to the browser (owner, 2026-10-04: no pill on
   the canvas).
+  On the project's Main canvas the icon opens the repository's **Files** in the right panel instead (owner, 2026-10-08):
+  the Map's own reader (`CodeReader`, stacked for the narrow panel) under a Files tab, with **Open the Map →**
+  (`data-learn-open-map`) to go on to the Map. A click on a file or a symbol, or Ask or Learn on selected lines,
+  attaches it as on the Map: it becomes Learn's repository context ("Asking about: train.py:5–7"), Ask writes its
+  question into the chat and sends nothing. A project's other canvases have no repository context, so their icon still
+  goes to the Map.
 
 ## Tests
 

@@ -13,7 +13,9 @@ row ([repository-browser.md](repository-browser.md)); "the Map" below means thos
   - A repository with no snapshot yet shows its Map even for `?tab=learn`, and rewrites its URL to `?tab=map`.
   - A standalone canvas (no project) still opens straight onto its canvas.
 - **Learn (the canvas)** has no Overview/Learn/Map pill and no repeated repository name.
-  - The canvas strip's Map icon (`data-learn-map`) goes back to Files or Graph, whichever was open.
+  - The canvas strip's Map icon (`data-learn-map`) goes back to Files or Graph, whichever was open. On the Main canvas it
+    first opens the repository's Files in the right panel, whose **Open the Map →** goes on (owner, 2026-10-08;
+    repository-browser.md).
   - The canvas switcher (`data-canvas-switcher`) sits beside the title on every project canvas: Main canvas, the
     project's other canvases and New canvas (project-canvases.md).
   - There is no Tutor or Practice button; the composer is the Tutor (production-tutor-entry.md).
