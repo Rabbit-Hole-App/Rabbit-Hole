@@ -352,11 +352,11 @@ Stored as `canvas_comment_settings.public_mode`: `off` | `open` | `closed`. No r
 |---|---|
 | Right-click a card, artifact or drawn shape | Start Rabbit Hole (first, unchanged), **Add comment** (hint `C`), then today's rows unchanged. The pin goes where the right-click was, on that object |
 | Right-click a group's outline or its name chip (owner, 2026-10-08) | **Add comment** on the group: the pin follows the group. A right-click on a member comments on that member |
-| Right-click the empty canvas | **Add comment here** first, then today's rows (selection rows disabled as today) |
-| View-only page with comment rights | Card: Start Rabbit Hole, Add comment. Empty canvas: Add comment here |
-| Toolbar | A Comment tool in the left rail, tooltip "Comment  C" |
-| Keyboard | With a selection (owner, 2026-10-08), `C` comments on it near its top left: a card, a shape or text, a whole group, or the first of several selected objects. With nothing selected, `C` arms the tool. Shift+F10 or the menu key opens the menu. Esc cancels |
-| Touch | The rail tool, then tap; a long-press opens the menu where the browser fires `contextmenu` |
+| Right-click the empty canvas | No comment row (owner, 2026-10-08: comments go on a selected card, shape or group); today's rows as before |
+| View-only page with comment rights | Card: Start Rabbit Hole, Add comment; a shape or group: Add comment. Empty canvas: no menu |
+| Toolbar | No Comment tool (owner, 2026-10-08), on owned and view-only boards |
+| Keyboard | With a selection (owner, 2026-10-08), `C` comments on it: a card, a shape or text, a whole group, or the first of several selected objects. With nothing selected, `C` does nothing. Shift+F10 or the menu key opens the menu. Esc cancels |
+| Touch | Select the object, then a long-press opens the menu where the browser fires `contextmenu` |
 
 **`C` guards (Q14).** `C` does nothing:
 - while typing in an input, textarea, `contenteditable` or the composer;
@@ -369,6 +369,13 @@ Choosing Add comment shows a ghost pin and opens Comments on a draft with its "V
 Send; Esc or × removes the ghost.
 
 ### Pins
+
+**Placement (owner, 2026-10-08):** an object's pins sit in a fixed slot just left of where its Ask in chat pill sits, above
+its top right and on the pill's row - with the extra pills a few cards add beside it reserved (a whiteboard's or paper's Ask
+selection; a chat card's Explain in canvas and Continue convo) - whether the object is selected or not, so a pin never
+covers a pill. Several threads line up leftwards, oldest nearest the pill. A shape or text keeps the slot Ask in chat would
+take. The stored offset is not used for them (render only, no migration). A pin on a bare canvas point - from before this
+change - stays where it was placed; no new ones are made.
 
 A speech-bubble pin at a constant screen size showing its thread's live message count (owner, 2026-10-08): the starter
 plus replies, deleted ones excluded, `99+` above 99; accessible name "N comments". Only the new-comment draft shows a +.

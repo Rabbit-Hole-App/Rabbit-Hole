@@ -13,13 +13,27 @@ import { pinCount, pinPoint } from './anchors.js';
 // the line by the picked pin: a delete to confirm ({ replies }) or a note ({ note }).
 const SIZE = 30;
 export const PIN_DEFAULT = '#f59e0b'; // the canvas palette's orange
-export default function CommentPins({ pins, view, board, onPin, picked = null, onPick = null, ask = null, onConfirm, onCancel }) {
+// slotOf(object id): that object's pin slot in world units ({ right, top, height }), or null when it is gone. An object's
+// pins line up leftwards from `right`, centred on the row, at the pins' constant screen size, so they never cover its pills
+// at any zoom; the stored offset is not used. A pin on a bare canvas point stays where it was placed.
+const GAP = 4;
+export default function CommentPins({ pins, view, board, slotOf = null, onPin, picked = null, onPick = null, ask = null, onConfirm, onCancel }) {
+  const taken = {};
   return (
     <div data-comment-pins aria-label="Comments on this canvas" className="pointer-events-none absolute inset-0 z-30 overflow-hidden">
       {pins.map(pin => {
-        const at = pinPoint(pin.anchor, board);
-        if (!at) return null;
-        const left = at.x * view.z + view.x, top = at.y * view.z + view.y - SIZE;
+        let left, top;
+        if (pin.anchor?.kind === 'object' && slotOf) {
+          const slot = slotOf(pin.anchor.object_id);
+          if (!slot) return null;
+          const index = taken[pin.anchor.object_id] = (taken[pin.anchor.object_id] ?? -1) + 1;
+          left = slot.right * view.z + view.x - (index + 1) * (SIZE + GAP);
+          top = (slot.top + slot.height / 2) * view.z + view.y - SIZE / 2;
+        } else {
+          const at = pinPoint(pin.anchor, board);
+          if (!at) return null;
+          left = at.x * view.z + view.x; top = at.y * view.z + view.y - SIZE;
+        }
         const color = (!pin.ghost && pin.color) || PIN_DEFAULT;
         const ring = picked === pin.id ? 'ring-2 ring-[#2383e2] ring-offset-2' : pin.selected ? 'ring-2 ring-ink ring-offset-1' : pin.unread ? 'ring-2 ring-accent' : '';
         return (

@@ -37,7 +37,8 @@ export function useCanvasComments({ base, enabled = true, canAdd = true, openPan
   }, [client]);
   // View → Show comments hides every pin (and the draft's ghost) until it is turned back on.
   const pins = useMemo(() => (active && showPins ? [
-    ...threads.map(thread => ({ id: thread.id, anchor: thread.anchor, author: thread.author, unread: thread.unread, selected: thread.id === selected, label: displayName(thread.author),
+    // Oldest first, so an object's slot keeps its order as threads get busy.
+    ...[...threads].sort((a, b) => (a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0)).map(thread => ({ id: thread.id, anchor: thread.anchor, author: thread.author, unread: thread.unread, selected: thread.id === selected, label: displayName(thread.author),
       color: thread.color || null, can: thread.can || {}, comments: thread.comments ?? 1 })),
     ...(draft ? [{ id: 'draft', anchor: draft, ghost: true }] : []),
   ] : null), [active, showPins, threads, selected, draft]);
