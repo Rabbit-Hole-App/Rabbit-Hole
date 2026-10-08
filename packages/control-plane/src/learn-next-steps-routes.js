@@ -22,6 +22,12 @@ const NO_USAGE = { input_tokens: 0, output_tokens: 0, cache_creation_input_token
 // Best effort, as learn-captions.js: a cache failure never costs the reply.
 export async function nextStepsReply(cache, key) { try { const hit = await cache?.match(key); return hit ? await hit.json() : null; } catch { return null; } }
 export async function keepReply(cache, key, value) { try { await cache?.put(key, new Response(JSON.stringify(value), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600' } })); } catch { /* best effort */ } }
+// Owner 2026-10-08 (learn-migrations/0012): each planned set's telemetry is kept for the planner evaluation (escalation
+// reasons and rule names, latency, models, usage, cost), never the hooks or the input. Best effort, as keepReply.
+// ponytail: rows are never pruned, as shared_ask_events; prune or roll up when an evaluation reads them.
+export async function keepTelemetry(db, { scope, userId, board, telemetry }) {
+  try { await db.prepare('INSERT INTO next_steps_telemetry (created_at, scope, user_id, board, telemetry_json) VALUES (?, ?, ?, ?, ?)').bind(new Date().toISOString(), scope, userId || null, String(board), JSON.stringify(telemetry)).run(); } catch { /* best effort */ }
+}
 
 // A HookSet plus the planner telemetry (TutorDecisionEvent input, never shown); reason_internal never leaves (mintSet
 // keeps only the hook and its step). A cache hit was paid for once, so it reports no usage (ruling F13).
@@ -39,6 +45,7 @@ export async function ownedNextSteps(env, access, body, { callModel, cache = glo
   try { planned = await planNextSteps(env, body.input, callModel ? { callModel } : {}); } catch (error) { return json({ error: error.message }, 502); }
   const set = { ...mintSet(planned.options, body.input), telemetry: { ...planned.telemetry, cached: false } };
   await keepReply(cache, key, set);
+  await keepTelemetry(env.LEARN_DB, { scope: 'owned', userId: access.user_id, board: body.app, telemetry: set.telemetry });
   return json(set);
 }
 
@@ -136,5 +143,6 @@ export async function sharedNextSteps(env, { row, state, title, key, viewer, ori
   // The reply telemetry (Ruling F11) carries the trim counts beside the set (owner sixth message 4), never in the model input.
   const set = { ...mintSet(planned.options, input, { source: { share_version: row.version, origin_block_id: contentOrigin(state, origin), title_fingerprint: fingerprint } }), telemetry: { ...planned.telemetry, cached: false, share_key: key, summary: inputSummary(input), trim: contentTrim } };
   if (!personal) await keepReply(cache, cacheKey, set);
+  await keepTelemetry(env.LEARN_DB, { scope: 'shared', userId: viewer?.userId, board: key, telemetry: set.telemetry });
   return json(set);
 }

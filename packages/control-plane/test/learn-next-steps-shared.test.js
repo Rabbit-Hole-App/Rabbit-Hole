@@ -139,6 +139,22 @@ test('two signed-in viewers never share personalized HookSets; each is admitted 
   assert.deepEqual(usage(f), [{ category: 'shared_canvas_hooks', viewer_email: 'ben@test' }, { category: 'shared_canvas_hooks', viewer_email: '' }, { category: 'shared_canvas_hooks', viewer_email: 'cara@test' }]);
 });
 
+// Owner 2026-10-08 (learn-migrations/0012): a planned shared set keeps its telemetry under the one-way share key, with the
+// signed-in viewer's users.id (null when anonymous), never the sharer's; a cache hit keeps none.
+test('a planned shared set keeps its telemetry: the one-way share key and the viewer users.id or null; never the token, a hook or the sharer', async t => {
+  const f = world(t);
+  const { token } = await f.shareProject({ state: STATE });
+  const anonymous = await hooks(f, token, null);
+  await hooks(f, token, null);
+  const ben = await hooks(f, token, 'ben', { origin: null, viewer_states: { [REG[0]]: 'uncertain' } });
+  const rows = f.sqlite.prepare('SELECT scope, user_id, board, telemetry_json FROM next_steps_telemetry ORDER BY id').all().map(r => ({ ...r }));
+  const key = await shareKey(token);
+  assert.deepEqual(rows.map(({ telemetry_json, ...r }) => r), [{ scope: 'shared', user_id: null, board: key }, { scope: 'shared', user_id: 'u-ben-9a2b', board: key }], 'the cache hit keeps no row');
+  assert.deepEqual(rows.map(r => JSON.parse(r.telemetry_json)), [anonymous.body.telemetry, ben.body.telemetry]);
+  const text = JSON.stringify(rows);
+  assert.equal([token, 'ana@test', 'u-ana-5d1e', 'ben@test', ...anonymous.body.options.map(o => o.hook)].some(s => text.includes(s)), false);
+});
+
 test('hook to private Rabbit Hole never writes the source board: the step creates the hole with its goal, a second start resumes it, origin kept, no fork (privacy 6-10)', async t => {
   const f = world(t);
   const { token } = await f.shareProject({ state: STATE });

@@ -2,6 +2,8 @@
 // node:sqlite LEARN_DB (learn-grade-fixture.js); the model is a scripted callModel; caches.default is a Map stand-in.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
 import { learnDb } from './learn-grade-fixture.js';
 import { tutorRoute } from '../src/learn-tutor-routes.js';
 import { planNextSteps, planSection } from '../src/learn-journey-planners.js';
@@ -190,6 +192,40 @@ test('owned route: a reply from the dedup cache reports zero usage and cost, fla
   assert.equal(hit.set_id, fresh.set_id);
   assert.deepEqual([hit.telemetry.cached, hit.telemetry.calls, hit.telemetry.cost_usd], [true, 0, 0]);
   assert.deepEqual(hit.telemetry.usage, { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 });
+});
+
+// Owner 2026-10-08 (learn-migrations/0012): each planned set keeps one telemetry row, the reply's own telemetry; a cache hit,
+// a refusal and a planner failure keep none, and a failed write never costs the reply.
+test('owned route: a planned set keeps its telemetry (users.id, the app, never a hook or an email); hits, 429s and 502s keep none', async t => {
+  const w = world(t, { TUTOR_NEXT_STEPS_HOUR: '2' }), good = fixtureFor('suggest_next_steps', INPUT());
+  const rows = () => w.sqlite.prepare('SELECT scope, user_id, board, telemetry_json FROM next_steps_telemetry ORDER BY id').all().map(r => ({ ...r }));
+  const escalated = scripted([() => reply({ options: good.options.slice(0, 2) }), () => reply(good)]);
+  const set = await (await w.post({ app: 'canvas-0a1b2c3d', input: { ...INPUT(), basis: 'a' } }, undefined, { callModel: escalated.callModel })).json();
+  assert.deepEqual(rows().map(({ telemetry_json, ...r }) => r), [{ scope: 'owned', user_id: 'u-maker-1', board: 'canvas-0a1b2c3d' }]);
+  const kept = JSON.parse(rows()[0].telemetry_json);
+  assert.deepEqual(kept, set.telemetry, 'the reply telemetry as-is');
+  assert.deepEqual([kept.escalated, kept.errors, kept.calls, kept.model_role], ['validator', ['shape'], 2, 'tutor_next_steps_escalation']);
+  assert.equal(set.options.some(o => rows()[0].telemetry_json.includes(o.hook)), false, 'no hook');
+  assert.equal(rows()[0].telemetry_json.includes('maker@test'), false, 'no email');
+  await w.post({ app: 'canvas-0a1b2c3d', input: { ...INPUT(), basis: 'a' } });
+  const bad = { ...good, options: good.options.map((o, i) => (i ? o : { ...o, reason_internal: '' })) };
+  assert.equal((await w.post({ app: 'canvas-0a1b2c3d', input: { ...INPUT(), basis: 'b' } }, undefined, { callModel: scripted([() => reply(bad), () => reply(bad)]).callModel })).status, 502);
+  assert.equal((await w.post({ app: 'canvas-0a1b2c3d', input: { ...INPUT(), basis: 'c' } })).status, 429);
+  assert.equal(rows().length, 1, 'a cache hit, a 502 and a 429 keep no row');
+  w.sqlite.exec('DROP TABLE next_steps_telemetry');
+  w.sqlite.exec('DELETE FROM shared_ask_events');
+  assert.equal((await w.post({ app: 'canvas-0a1b2c3d', input: { ...INPUT(), basis: 'd' } })).status, 200, 'a failed telemetry write never costs the reply');
+});
+
+test('0012 is additive, re-runnable and exactly what repository-schema.sql applies; it backfills nothing', t => {
+  const migration = readFileSync(new URL('../learn-migrations/0012-next-steps-telemetry.sql', import.meta.url), 'utf8');
+  const schema = readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8');
+  const sqlite = new DatabaseSync(':memory:'); t.after(() => sqlite.close());
+  sqlite.exec(migration); sqlite.exec(migration);
+  assert.equal(sqlite.prepare('SELECT count(*) AS n FROM next_steps_telemetry').get().n, 0);
+  assert.ok(schema.replace(/\r/g, '').includes(migration.replace(/\r/g, '').trim()));
+  assert.doesNotMatch(migration, /^\s*(DROP|ALTER|DELETE|UPDATE|INSERT)\b/im);
+  assert.deepEqual(sqlite.prepare('PRAGMA table_info(next_steps_telemetry)').all().map(c => c.name), ['id', 'created_at', 'scope', 'user_id', 'board', 'telemetry_json']);
 });
 
 test('owned route: the hourly cap answers 429 limited and writes nothing more', async t => {
