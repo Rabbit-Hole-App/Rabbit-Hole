@@ -127,3 +127,13 @@ test('entry points: the Comment tool in the rail, C with its guards, the shortcu
   assert.match(page, /\{comments\.active && <button type="button" data-comments-header/);
   assert.match(header, /\{id === 'comments' && commentsOn && commentsUnread > 0 && <span data-unread-dot/);
 });
+
+test('Library: comment news on your canvases\' cards and a Shared with you section; Home is left to its own lane', () => {
+  const library = read('../LibraryViews.jsx');
+  assert.match(library, /const unread = useCommentUnread\(\);/);
+  assert.match(library, /newComments\(ctx\.unread\?\.\[a\.name\]\)/);
+  assert.match(library, /\{!type && <SharedWithYou unread=\{unread\.shared\} \/>\}/);
+  const unread = read('./unread.js');
+  assert.match(unread, /setInterval\(load, 60_000\)/, 'every 60 s');
+  assert.match(unread, /if \(document\.visibilityState !== 'visible'\) return;/, 'paused while hidden');
+});
