@@ -158,7 +158,9 @@ await browser.close();
 // Untouched canvases delete (no threads); the seeded project row stays in local D1 with the session's throwaway account.
 for (const c of [made, seeded.name]) await api(`/api/apps/${c}`, { method: 'DELETE' });
 check('no page errors', errors.length === 0, errors.join(' | '));
-check('no model route was reached from the browser', !aborted.some(entry => /\/ask$|\/api\/learn\/(ask|selection|tutor|artifact|assess)/.test(entry)), aborted.join(', '));
+// A blank canvas posts its own Next Steps hook request at rest (owner, 2026-10-08; professor-next-steps.md 1.2): expected, and
+// aborted here like every other write, so it is not counted as the learner reaching a model.
+check('no model route was reached from the browser', !aborted.some(entry => !entry.endsWith(' /api/learn/tutor/next-steps') && /\/ask$|\/api\/learn\/(ask|selection|tutor|artifact|assess)/.test(entry)), aborted.join(', '));
 const failed = results.filter(ok => !ok).length;
 console.log(`${results.length - failed}/${results.length} checks passed`);
 process.exit(failed ? 1 : 0);
