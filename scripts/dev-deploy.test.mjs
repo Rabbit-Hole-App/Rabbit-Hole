@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { gateVerdict, deployedSha, decide, learnTables } from './dev-deploy.mjs';
+import { gateVerdict, deployedSha, decide, learnTables, servedRecord, entryScript } from './dev-deploy.mjs';
 
 const TREE = '192b10f38626e3db2abe1528f68719154b6e802a';
 // Shape of a real integration gate record (int16r, main 42f5a4f0), trimmed.
@@ -28,6 +28,7 @@ INT16R-DONE
 test('a finished gate with every stage at exit 0 and no provider traffic passes for its own tree', () => {
   assert.equal(gateVerdict(PASSED, TREE), null);
   assert.equal(gateVerdict(PASSED.replace(/\n/g, '\r\n'), TREE), null, 'CRLF records too');
+  assert.equal(gateVerdict(`fatal: Needed a single revision\n${PASSED}`, TREE), null, 'stderr before the tree line');
 });
 
 test('a gate record for another tree, unfinished, failed or with provider traffic never deploys', () => {
@@ -69,4 +70,21 @@ test('the Learn tables the smoke expects are exactly what the learn migrations c
   const made = new Set(db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(r => r.name));
   assert.deepEqual(wanted.filter(t => !made.has(t)), [], 'every expected table exists once the migrations ran');
   assert.ok(['user_handles', 'canvas_publications', 'library_trash'].every(t => wanted.includes(t)));
+});
+
+test('a secret change is not a code deploy: the served sha comes from the last upload, rollback from the current version', () => {
+  const upload = (message, version) => ({ annotations: { 'workers/triggered_by': 'upload', 'workers/message': message }, versions: [{ version_id: version }] });
+  const secret = version => ({ annotations: { 'workers/triggered_by': 'secret' }, versions: [{ version_id: version }] });
+  // The real history of 2026-10-08: the gated deploy, then the Access secrets.
+  assert.deepEqual(servedRecord([upload('main 42f5a4f0 (gated tree 192b10f3)', 'c5b0a07d'), secret('0d4b3a6c')]), { message: 'main 42f5a4f0 (gated tree 192b10f3)', version: '0d4b3a6c', unrecorded: false });
+  assert.equal(servedRecord([upload('main 42f5a4f0', 'a'), upload(undefined, 'b')]).unrecorded, true, 'a hand upload with no message stops the pipeline');
+  assert.equal(servedRecord([secret('a')]).unrecorded, false, 'secrets alone are not an unrecorded upload');
+  assert.deepEqual(servedRecord([]), {});
+});
+
+test('the smoke waits for the built entry script, in the form the dev build emits it', () => {
+  // dist-dev/index.html of main e03a7a53 (2026-10-08): the first automated run looked for /assets/ and smoked "undefined".
+  assert.equal(entryScript('<head><script type="module" crossorigin src="/static/app-BHJe2RiW.js"></script>'), '/static/app-BHJe2RiW.js');
+  assert.equal(entryScript('<script src="/static/legacy.js"></script>'), null, 'only the module entry');
+  assert.equal(entryScript('<html></html>'), null);
 });

@@ -28,7 +28,8 @@ const UA = { 'User-Agent': 'rabbit-hole-dev-deploy' };
 // provider-tripwire count is 0, and the run ends with a -DONE line.
 export function gateVerdict(text, tree) {
   const lines = text.split(/\r?\n/).filter(l => l.trim());
-  if (!lines.length || !new RegExp(`\\bindex ${tree}\\b`).test(lines[0])) return `the gate record is not for tree ${tree.slice(0, 8)}`;
+  const head = lines.find(l => l.startsWith('tree HEAD ')); // stderr noise may come before it
+  if (!head || !new RegExp(`\\bindex ${tree}\\b`).test(head)) return `the gate record is not for tree ${tree.slice(0, 8)}`;
   if (!/-DONE$/.test(lines.at(-1))) return 'the gate record has no -DONE line (gate unfinished)';
   const last = new Map();
   for (const l of lines) { const m = l.match(/^([^:]+?) exit (\d+)\b/); if (m) last.set(m[1], Number(m[2])); }
@@ -51,6 +52,9 @@ export const learnTables = repo => {
     .flatMap(f => [...readFileSync(join(dir, f), 'utf8').replace(/--[^\n]*/g, '').matchAll(/CREATE TABLE IF NOT EXISTS (\w+)/gi)].map(m => m[1]));
 };
 
+// The built page's module entry (Vite emits it as /static/app-<hash>.js): the served page names it once the new build is live.
+export const entryScript = html => html.match(/<script[^>]*type="module"[^>]*src="([^"]+\.js)"/)?.[1] ?? null;
+
 // deploy | noop | refuse
 export function decide({ candidate, deployed, deployedIsAncestor }) {
   if (deployed && candidate.startsWith(deployed)) return { action: 'noop', why: `${deployed.slice(0, 8)} is already deployed` };
@@ -67,11 +71,17 @@ const wrangler = (args, extra = {}) => execFileSync('npx', ['wrangler', ...args]
 const say = line => console.log(line);
 const stop = line => { console.error(`✗ ${line}`); process.exit(1); };
 
-function latestDeployment() {
-  const list = JSON.parse(wrangler(['deployments', 'list', '--name', WORKER, '--json']));
-  const d = list.at(-1);
-  return d ? { message: d.annotations?.['workers/message'], version: d.versions?.[0]?.version_id } : {};
+// What the clone serves, from its deployment history (oldest first): the version to roll back to is the current one;
+// the sha is the last code upload's message. A secret change (an Access setting) deploys the same code under no
+// message, so it is skipped; a code upload without a "main <sha>" message is unrecorded and stops the pipeline.
+export function servedRecord(list) {
+  const current = list.at(-1);
+  if (!current) return {};
+  const upload = [...list].reverse().find(d => d.annotations?.['workers/triggered_by'] !== 'secret');
+  const message = upload?.annotations?.['workers/message'];
+  return { message, version: current.versions?.[0]?.version_id, unrecorded: !!upload && !deployedSha(message) };
 }
+const latestDeployment = () => servedRecord(JSON.parse(wrangler(['deployments', 'list', '--name', WORKER, '--json'])));
 
 function buildHash(dir) {
   const files = (function walk(d) { return readdirSync(d, { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)]); })(dir).sort();
@@ -134,7 +144,7 @@ async function main() {
   try { mkdirSync(lock); } catch { stop(`another deploy holds ${lock} (remove it only if no deploy is running)`); }
   try {
     const before = latestDeployment();
-    const check = d => { const deployed = deployedSha(d.message); return decide({ candidate: sha, deployed: deployed && git('rev-parse', deployed), deployedIsAncestor: deployed ? isAncestor(deployed, sha) : true }); };
+    const check = d => { if (d.unrecorded) stop(`the clone serves an unrecorded upload (${d.message ?? 'no message'}); redeploy a gated commit by hand`); const deployed = deployedSha(d.message); return decide({ candidate: sha, deployed: deployed && git('rev-parse', deployed), deployedIsAncestor: deployed ? isAncestor(deployed, sha) : true }); };
     let plan = check(before);
     say(`${plan.action === 'deploy' ? '✓' : '!'} ${plan.action}: ${plan.why}`);
     if (plan.action !== 'deploy') { process.exitCode = plan.action === 'noop' ? 0 : 1; return; }
@@ -144,7 +154,8 @@ async function main() {
     // The documented dev build (docs/features/rabbit-hole-dev.md): flags set before the build or Learn silently vanishes.
     execFileSync('npx', ['vite', 'build', '--outDir', 'dist-dev'], { cwd: web, shell: true, stdio: ['ignore', 'ignore', 'inherit'], env: { ...process.env, VITE_COACHING_DEV: 'true', VITE_BYOC_DEV: 'true', VITE_NOTEBOOK_ORIGIN: 'https://small-learn-canvas-notebook-dev.tryrabbithole.workers.dev', VITE_TLDRAW_LICENSE_KEY: tldraw } });
     const build = buildHash(join(web, 'dist-dev'));
-    const entry = readFileSync(join(web, 'dist-dev/index.html'), 'utf8').match(/src="(\/assets\/[^"]+\.js)"/)?.[1];
+    const entry = entryScript(readFileSync(join(web, 'dist-dev/index.html'), 'utf8'));
+    if (!entry) stop('dist-dev/index.html has no module entry script; nothing deployed');
     say(`✓ built dist-dev ${build}`);
 
     plan = check(latestDeployment()); // again: another machine may have deployed during the build
@@ -169,4 +180,4 @@ async function main() {
   } finally { rmSync(lock, { recursive: true, force: true }); }
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) await main();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main();
