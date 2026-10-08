@@ -67,7 +67,8 @@ const shot = async (name, clip = null) => {
 const card = id => page.locator(`[data-block-id="${id}"]`);
 const panel = () => page.locator('[data-comments-panel]');
 // A row's name without its shortcut hint ("Add comment", hint "C").
-const menuItems = () => page.locator('[data-canvas-menu] [role="menuitem"]').evaluateAll(nodes => nodes.map(node => [...node.childNodes].filter(child => !child.dataset?.menuHint).map(child => child.textContent).join('').trim()));
+const rowNames = nodes => nodes.map(node => [...node.childNodes].filter(child => !child.dataset?.menuHint).map(child => child.textContent).join('').trim());
+const menuItems = () => page.locator('[data-canvas-menu] [role="menuitem"]').evaluateAll(rowNames);
 const menuHint = () => page.locator('[data-canvas-menu] [data-menu-add-comment] [data-menu-hint]').textContent();
 const composer = () => panel().locator('[data-comment-composer] textarea');
 const pins = () => page.locator('[data-comment-pin]');
@@ -222,7 +223,7 @@ await check('11 /e signed in as anyone: Add comment on a card posts a Public thr
   await tab.locator('[data-comments-button]').waitFor();
   const box = await tab.locator('[data-block-id="k-exp"]').boundingBox();
   await tab.mouse.click(box.x + 80, box.y + 40, { button: 'right' });
-  const items = await tab.locator('[data-canvas-menu] [role="menuitem"]').evaluateAll(nodes => nodes.map(node => node.textContent.trim()));
+  const items = await tab.locator('[data-canvas-menu] [role="menuitem"]').evaluateAll(rowNames);
   assert.deepEqual(items, ['Start Rabbit Hole', 'Add comment']);
   await tab.locator('[data-menu-add-comment]').click();
   const side = tab.locator('[data-shared-comments]');
@@ -246,7 +247,7 @@ await check('12 /e signed out: the public thread reads, and posting is a sign-in
   assert.match(await side.innerText(), /Does pepper do the same thing\?/);
   const box = await tab.locator('[data-block-id="k-exp"]').boundingBox();
   await tab.mouse.click(box.x + 80, box.y + 40, { button: 'right' });
-  const items = await tab.locator('[data-canvas-menu] [role="menuitem"]').evaluateAll(nodes => nodes.map(node => node.textContent.trim()));
+  const items = await tab.locator('[data-canvas-menu] [role="menuitem"]').evaluateAll(rowNames);
   assert.deepEqual(items, ['Start Rabbit Hole']);
   await tab.keyboard.press('Escape');
   await tab.screenshot({ path: `${SHOTS}/12-public-signed-out.png` }); console.log('shot 12-public-signed-out');
@@ -294,14 +295,16 @@ const shape = id => page.locator(`[data-shape-id="${id}"]`);
 const centre = async locator => { const box = await locator.boundingBox(); return { x: box.x + box.width / 2, y: box.y + box.height / 2 }; };
 const dragBy = async (from, dx, dy) => { await page.mouse.move(from.x, from.y); await page.mouse.down(); await page.mouse.move(from.x + dx, from.y + dy, { steps: 10 }); await page.mouse.up(); await page.waitForTimeout(400); };
 const send = async text => { await composer().fill(text); await composer().press('Enter'); await panel().locator('[data-comment-thread-view]').waitFor(); };
+// Zoom to fit (Shift+1) - from the canvas, not the composer the page focuses on open.
+const fit = async () => { await page.evaluate(() => document.activeElement?.blur?.()); await page.keyboard.press('Shift+Digit1'); await page.waitForTimeout(800); };
 const lastPin = async () => { await page.waitForTimeout(400); return pins().last().boundingBox(); };
 
 await check('15 right-click a drawn shape: Add comment (hint C) puts the pin on the shape, and the pin follows the shape', async () => {
   await page.goto(`${BASE}/apps/${shapesCanvas.name}`);
   await shape('s-box').waitFor({ timeout: 60000 });
   await page.waitForTimeout(1200);
-  await page.keyboard.press('Shift+Digit1');
-  await page.waitForTimeout(800);
+  await fit();
+  await shot('15a-shapes-canvas');
   const at = await centre(shape('s-box'));
   await page.mouse.click(at.x, at.y + 30, { button: 'right' });
   assert.ok((await menuItems()).includes('Add comment'), (await menuItems()).join(' | '));
@@ -330,11 +333,16 @@ await check('16 right-click a group (its outline, or its name chip): Add comment
   assert.ok((await menuItems()).includes('Add comment'), `the chip: ${(await menuItems()).join(' | ')}`);
   await page.locator('[data-menu-add-comment]').click();
   assert.match(await panel().innerText(), /on Ice setup/);
+  const known = await pins().evaluateAll(nodes => nodes.map(node => node.dataset.commentPin));
   await send('Label both beakers.');
   assert.equal(await pins().count(), 2);
-  const before = await lastPin();
-  await dragBy(gap, 120, 60);
-  const after = await lastPin();
+  const id = (await pins().evaluateAll(nodes => nodes.map(node => node.dataset.commentPin))).find(pin => !known.includes(pin));
+  const groupPin = async () => { await page.waitForTimeout(400); return page.locator(`[data-comment-pin="${id}"]`).boundingBox(); };
+  await shot('16a-group-comment');
+  const before = await groupPin();
+  const [a, b] = [await shape('g-a').boundingBox(), await shape('g-b').boundingBox()];
+  await dragBy({ x: (a.x + a.width + b.x) / 2, y: a.y + a.height / 2 }, 120, 60);
+  const after = await groupPin();
   assert.ok(Math.abs(after.x - before.x - 120) < 4 && Math.abs(after.y - before.y - 60) < 4, `the pin followed the group: ${JSON.stringify([before, after])}`);
   await page.reload();
   await shape('s-box').waitFor({ timeout: 60000 });
@@ -355,8 +363,7 @@ await check('17 C with a selection: a card, a shape and a group each get a draft
     assert.equal(await composer().inputValue(), 'cc', 'C types in the composer');
     await panel().getByRole('button', { name: 'Cancel' }).click();
   };
-  await page.keyboard.press('Shift+Digit1');
-  await page.waitForTimeout(800);
+  await fit();
   await draftFor(page.locator('[data-block-id="s-card"]'), { x: 0, y: 0 }, /on Brine/);
   await draftFor(shape('s-box'), { x: 0, y: 30 }, /on Ice(?! setup)/);
   await draftFor(shape('g-a'), { x: 0, y: 0 }, /on Ice setup/);

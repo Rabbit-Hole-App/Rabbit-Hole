@@ -3480,7 +3480,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
                   let last = local(event);
                   startDrag(event, last, (x, y) => { shift(x - last.x, y - last.y, targets); last = { x, y }; }, view.z);
                 }} />
-              <div data-group-chip={group.id} style={{ left: left - pad, top: top - pad - 28 }} className="absolute z-20 flex items-center gap-1">
+              <div style={{ left: left - pad, top: top - pad - 28 }} className="absolute z-20 flex items-center gap-1">
                 <GroupChip group={group} editOn={chipEdit === group.id}
                   onSelect={() => setSelection(membersOf(group.id))}
                   onLabel={label => { setChipEdit(null); setGroups(previous => previous.map(entry => entry.id === group.id ? { ...entry, label } : entry)); }} />
