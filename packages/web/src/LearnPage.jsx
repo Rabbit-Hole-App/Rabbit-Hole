@@ -63,7 +63,8 @@ export default function LearnPage(props) {
   return hole ? <LearnSurface key={hole.name} app={holeApp(props.app, hole)} hole={hole} /> : <LearnSurface {...props} />;
 }
 
-function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository = null, onGraph = null, onMap = null, hole = null }) {
+// `switcher`: a project's canvas switcher (RepositoryPage, docs/features/project-canvases.md), beside the title.
+function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository = null, onGraph = null, onMap = null, hole = null, switcher = null }) {
   const isRepository = app.kind === 'repository';
   // A canvas (smart-home's catalog) holds only what was put on it: never the
   // sample course, its lesson header, outline or progress.
@@ -1383,6 +1384,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
               });
             }}
             className="h-8 min-w-16 max-w-96 shrink cursor-text truncate rounded-lg border border-transparent bg-transparent px-2 text-sm font-semibold text-ink outline-none [field-sizing:content] placeholder:text-ink-2 hover:border-line focus:border-line" />
+          {switcher}
           {/* A fork names its source (docs/features/canvas-forking.md): the title it had when forked, kept through renames. */}
           {isCanvas && <ForkedFrom m={cardModel(app)} className="max-w-80 items-center pr-1 [&_.line-clamp-3]:line-clamp-2" />}
           <CanvasMenubar menus={canvasMenus} />

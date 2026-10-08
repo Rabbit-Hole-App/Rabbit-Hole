@@ -124,6 +124,8 @@ export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, m
         <div data-card-footer className={`flex min-w-0 items-center gap-3 text-xs text-ink-3 ${actions ? 'pt-3' : 'mt-auto pt-4'}`}>
           {/* m.forks is null at 0, so no "0 forks"; a project row carries no fork count, so it shows none */}
           <Forks m={m} />
+          {/* a project's canvases, Main canvas included (docs/features/project-canvases.md) */}
+          {m.canvases && <span data-canvas-count className="inline-flex shrink-0 items-center gap-1"><Shapes size={12} strokeWidth={1.5} />{m.canvases}</span>}
           {m.updated && <span data-updated className="shrink-0">Updated {ago(m.updated)}</span>}
           <span className="flex-1" />
           {cta || (onOpen && (

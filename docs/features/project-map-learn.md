@@ -14,7 +14,8 @@ row ([repository-browser.md](repository-browser.md)); "the Map" below means thos
   - A standalone canvas (no project) still opens straight onto its canvas.
 - **Learn (the canvas)** has no Overview/Learn/Map pill and no repeated repository name.
   - The canvas strip's Map icon (`data-learn-map`) goes back to Files or Graph, whichever was open.
-  - The canvas picker stays when the project has more than one canvas.
+  - The canvas switcher (`data-canvas-switcher`) sits beside the title on every project canvas: Main canvas, the
+    project's other canvases and New canvas (project-canvases.md).
   - There is no Tutor or Practice button; the composer is the Tutor (production-tutor-entry.md).
 - **Files and Graph** sit under one restrained tab row, Files · Graph · Learn (`data-project-tabs`), with one search field;
   the old Map | Learn pill and Files | Graph buttons are gone (repository-browser.md).

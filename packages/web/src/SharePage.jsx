@@ -617,7 +617,7 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
   // Refreshing straight into Learn showed the app-page row skeleton for a
   // beat; wait on a canvas-shaped placeholder instead.
   if (learnPreview && (tab === 'learn' || /^canvas-[a-f0-9]{8}$/.test(slug)) && !app && !error) return <LearnLoading />;
-  if (learnPreview && app?.kind === 'repository' && !error) return <Suspense fallback={null}><RepositoryPage key={app.name} app={app} catalog={catalog?.apps} /></Suspense>;
+  if (learnPreview && app?.kind === 'repository' && !error) return <Suspense fallback={null}><RepositoryPage key={app.name} app={app} catalog={catalog?.apps} onCatalog={reloadShell} /></Suspense>;
   // D7: only a canvas asks through LEARN_DB (dev-worker.js canvasAskSeam). A job or server's Learn asks
   // would reach apiAsk on the live D1, so the preview never mounts Learn for them, and the dev worker
   // refuses them (canvases.js refuseLiveLearnAsk).

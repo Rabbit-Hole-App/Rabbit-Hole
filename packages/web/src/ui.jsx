@@ -448,7 +448,7 @@ export function ShareInput({ value, onChange, onPick, people = [], teams = [], e
 
 // ─── ConfirmDialog - the one modal (Delete only, per notion.md §7): item name in
 // the body, red primary button. ───
-export function ConfirmDialog({ title, body, confirmLabel = 'Delete', confirmVariant = 'danger', onConfirm, onCancel, altLabel = null, onAlt }) {
+export function ConfirmDialog({ title, body, confirmLabel = 'Delete', confirmVariant = 'danger', onConfirm, onCancel, altLabel = null, onAlt, confirmDisabled = false }) {
   // The second press of the double click that opened it lands on the backdrop: not a dismissal.
   const opened = useRef(Date.now());
   useEffect(() => {
@@ -464,7 +464,7 @@ export function ConfirmDialog({ title, body, confirmLabel = 'Delete', confirmVar
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={onCancel}>Cancel</Button>
           {altLabel && <Button variant="secondary" onClick={onAlt}>{altLabel}</Button>}
-          <Button variant={confirmVariant} onClick={onConfirm}>{confirmLabel}</Button>
+          <Button variant={confirmVariant} disabled={confirmDisabled} onClick={onConfirm}>{confirmLabel}</Button>
         </div>
       </div>
     </div>

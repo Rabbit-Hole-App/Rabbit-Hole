@@ -55,8 +55,14 @@ test('a standalone canvas has no provenance, no check and no fork count; real ro
   assert.equal(plain.creator.sourceOwner, false);
   assert.equal(plain.forks, null);
   const real = cardModel({ kind: 'repository', name: 'repo-1', repo: 'karpathy/nanoGPT' });
-  assert.deepEqual(real, { title: 'nanoGPT', creator: null, source: 'github.com/karpathy/nanoGPT', sourceUrl: 'https://github.com/karpathy/nanoGPT', description: null, forkedFrom: null, forks: null, forkCount: null, updated: null });
+  assert.deepEqual(real, { title: 'nanoGPT', creator: null, source: 'github.com/karpathy/nanoGPT', sourceUrl: 'https://github.com/karpathy/nanoGPT', description: null, forkedFrom: null, forks: null, forkCount: null, canvases: null, updated: null });
   assert.equal(plain.sourceUrl, null);
+});
+
+test('a project card counts its canvases, Main canvas included; a canvas card never does', () => {
+  const project = (canvas_count) => cardModel({ kind: 'repository', name: 'repo-1', repo: 'karpathy/nanoGPT', canvas_count }).canvases;
+  assert.deepEqual([1, 2, 12].map(project), ['1 canvas', '2 canvases', '12 canvases']);
+  assert.equal(cardModel({ kind: 'canvas', name: 'canvas-00000014', title: 'x', canvas_count: 3 }).canvases, null);
 });
 
 test('review fixtures are off unless the preview asks for them; ?fixtures=1 and ?fixtures=0 persist the choice', () => {
