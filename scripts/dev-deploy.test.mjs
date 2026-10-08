@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { gateVerdict, rerunVerdict, deployedSha, decide, learnTables, servedSha, notReusable, entryScript, parseUpload, TEST_ONLY, UNIT_TEST, buildRecipe, CONFIRMATIONS } from './dev-deploy.mjs';
+import { gateVerdict, rerunVerdict, deployedSha, decide, learnTables, servedSha, notReusable, entryScript, parseUpload, TEST_ONLY, UNIT_TEST, buildRecipe, CONFIRMATIONS, BRANCHES } from './dev-deploy.mjs';
+import { watchStep } from './dev-deploy-watch.mjs';
 
 const TREE = '192b10f38626e3db2abe1528f68719154b6e802a';
 // Shape of a real integration gate record (int16r, main 42f5a4f0), trimmed.
@@ -192,4 +193,14 @@ test('the smoke waits for several consecutive serves of the new build, not one',
   assert.ok(CONFIRMATIONS >= 3);
   assert.match(src, /served = streak >= CONFIRMATIONS/);
   assert.match(src, /\? streak \+ 1 : 0/, 'a miss resets the streak');
+});
+
+test('the dev-branch trigger deploys a new dev head only with its gate record, once; main never deploys from a push', () => {
+  assert.equal(watchStep({ head: 'b', last: 'a', gate: true }), 'deploy');
+  assert.equal(watchStep({ head: 'b', last: 'a', gate: false }), 'wait', 'no gate record for the exact tree, no deploy');
+  assert.equal(watchStep({ head: 'b', last: 'b', gate: true }), 'idle', 'each head is tried once');
+  assert.deepEqual(BRANCHES, ['origin/main', 'rabbit-hole/dev']);
+  const watch = readFileSync(new URL('./dev-deploy-watch.mjs', import.meta.url), 'utf8');
+  assert.match(watch, /'--branch', 'rabbit-hole\/dev'/);
+  assert.doesNotMatch(watch, /rabbit-hole\/main|'main'/, 'the trigger watches dev only');
 });
