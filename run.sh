@@ -105,6 +105,7 @@ function test:unit {
     node --test "$THIS_DIR/viz-benchmarks/critic-packet-isolation.test.mjs"
     # Relative glob: node --test does not expand an absolute /c/... glob under Git Bash and would run 0 tests, exiting 0.
     (cd "$THIS_DIR" && node --test "tests/evals/learn-grade/*.test.mjs")
+    (cd "$THIS_DIR" && node --test "tests/evals/tutor-session/*.test.mjs")
     (cd "$THIS_DIR" && node --test "packages/learn-render/motion/*.test.mjs" "packages/learn-render/motion/service/*.test.mjs")
     # Every script test: dev-deploy and prod-release.
     (cd "$THIS_DIR" && node --test "scripts/*.test.mjs")
