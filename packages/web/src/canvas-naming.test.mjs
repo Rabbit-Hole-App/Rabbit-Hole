@@ -18,7 +18,7 @@ test('Duplicate posts the same copy call as Fork to its own route, and fork stay
 });
 
 test('the Library ⋮ offers Duplicate on your own canvases only, with this browser\'s content, and reloads the list', () => {
-  const library = read('./LibraryViews.jsx');
+  const library = read('./home/CardMenu.jsx'); // the card menu the Library and Home share (owner, 2026-10-08)
   // Inside the owned-canvas menu only (visibility-menu.md): `menu?.a.canEdit ? <> ... </> : null`.
   const owned = library.slice(library.indexOf(') : menu?.a.canEdit ? <>'), library.indexOf('</> : null}'));
   assert.match(owned, /<MenuItem icon=\{CopyPlus\} onClick=\{\(\) => pick\(duplicate\)\}>Duplicate<\/MenuItem>/);

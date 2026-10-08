@@ -1475,7 +1475,10 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await options.first().waitFor({ timeout: 5000 });
     // The four modes, then the shortcuts this place can use (WP5): /run only with a job in the catalog.
     const expected = ['/ask', '/teach', '/research', '/do', '/find', '/open', '/new', '/connect', ...(apps.some((a) => a.kind === 'job') ? ['/run'] : [])]; // solo v1: no /share
-    must(JSON.stringify(await options.locator('span:first-child').allTextContents()) === JSON.stringify(expected), `picker: ${await options.locator('span:first-child').allTextContents()}`);
+    must(JSON.stringify(await options.locator('[data-picker-name]').allTextContents()) === JSON.stringify(expected), `picker: ${await options.locator('[data-picker-name]').allTextContents()}`);
+    // Every command in its own colour (owner, 2026-10-08): a toned mark per offered row, no two alike.
+    const tones = await options.locator('[data-command-tone]').evaluateAll((all) => all.map((n) => getComputedStyle(n).color));
+    must(tones.length >= expected.length - 2 && new Set(tones).size === tones.length, `picker tones: ${tones}`);
     must(await bar.getByRole('listbox').getByRole('separator').count() === 1, 'no divider between modes and shortcuts');
     const research = bar.getByRole('option', { name: /research/ });
     must(await research.getAttribute('aria-disabled') === 'true', 'research is not dimmed');

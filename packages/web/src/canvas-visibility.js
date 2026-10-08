@@ -35,3 +35,12 @@ export async function setAccess(call, canvas, to, state = null) {
   }
   return steps;
 }
+
+// Copy link (owner, 2026-10-08): the link that matches what the card is. Public: its Explore page /e/<token>. Unlisted: its
+// share link /b/<view token> (`view`, read from the board when copying). Private, a project, or an unlisted board whose view
+// link is off: its own page /apps/<name>, which opens only for its owner. `copied` is the button's own confirmation.
+export function copyLinkFor(card, { origin, view = null }) {
+  if (card.kind === 'canvas' && card.access === 'public' && card.publication_token) return { url: `${origin}/e/${card.publication_token}`, copied: 'Public link copied' };
+  if (card.kind === 'canvas' && card.access === 'unlisted' && view) return { url: `${origin}/b/${view}`, copied: 'Share link copied' };
+  return { url: `${origin}/apps/${card.name}`, copied: 'Private link copied, opens only for you' };
+}

@@ -9,7 +9,15 @@ Owner rule, 2026-10-06. This is UI only: Tutor routing and Learning behaviour do
 | `/research` | amber / gold (Home/Library and project surfaces; not a Canvas command) | Telescope |
 | `/do` | green (Home/Library and project surfaces; not a Canvas command) | Play |
 | `/motion` | magenta | Clapperboard |
-| Auto, every other command | neutral | none |
+| every other command (owner, 2026-10-08) | its own hue | none |
+| Auto | neutral | none |
+
+**Every command has a colour** (owner, 2026-10-08):
+- Each of the registry's commands (`agent/slash.js` `SLASH`, which Learn's picker reads too) has its own `--cmd-<name>-*`
+  tokens. The 27 beyond the five are spread round the hue wheel, clear of red (15-345°) and the primary blue
+  (198-226°), in two lightness tiers. No two commands share a text or tint colour, in either theme.
+- `CommandTone.jsx` `COMMAND_TONES` is the registry's names; only the five modes carry an icon.
+- The Agent Bar's / picker rows and its pill wear the same mark as the canvas's.
 
 ## Treatment
 
@@ -23,7 +31,8 @@ Owner rule, 2026-10-06. This is UI only: Tutor routing and Learning behaviour do
 The same command looks the same everywhere:
 - the composer pill, with icon and `/ask`;
 - the / picker rows;
-- the Slash commands sheet's list and its preview title.
+- the Slash commands sheet's list and its preview title;
+- the Agent Bar's / picker rows and its command pill.
 
 There is no separate command echo: a sent `/ask` shows the learner's words.
 
@@ -33,7 +42,7 @@ There is no separate command echo: a sent `/ask` shows the learner's words.
 
 ## Tests
 
-`packages/web/src/slash-command-tones.test.mjs` checks:
+`packages/web/src/slash-command-tones.test.mjs` checks every command in the registry, plus:
 - contrast in both themes;
 - each family's hue, which is never red and never the accent;
 - the same mark in the picker, the pill and the sheet;

@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setup, SHA } from './shared-canvas-fixture.js';
 import { shareKey } from '../src/learn-shared-ask.js';
-import { SHARED_ROOT } from '../src/learn-boards.js';
+import { SHARED_BLANK, SHARED_ROOT } from '../src/learn-boards.js';
 
 const start = (call, token, as, origin = null) => call('POST', `/api/learn/boards/shared/${token}/rabbit-hole`, { as, body: { origin } });
 // Everything of the sharer's that a start could touch, to compare before and after.
@@ -144,4 +144,39 @@ test('the hole is private to its viewer: their Library lists it, their map leads
   assert.equal((await call('GET', `/api/canvases/dives?app=${made.name}&board=main`, { as: 'ana' })).status, 404);
   assert.notEqual((await call('GET', `/api/learn/boards/${made.name}/main`, { as: 'ana' })).status, 200);
   assert.ok(!((await call('GET', '/api/canvases', { as: 'ana' })).body.canvases || []).some(entry => entry.name === made.name));
+});
+
+// Owner, 2026-10-08: Start Rabbit Hole asks "From this canvas" or "Blank". Blank is a new empty private canvas of the
+// viewer's, titled after the source and linked to it like a hole, with nothing copied.
+test('blank start: an empty private canvas titled "<source> notes", linked to the share, nothing copied; again opens it', async t => {
+  const { sqlite, call, shareProject } = setup(t);
+  const { token } = await shareProject();
+  const before = sharerRows(sqlite);
+  const blank = (as, body) => call('POST', `/api/learn/boards/shared/${token}/rabbit-hole`, { as, body });
+  const made = await blank('ben', { origin: null, blank: true });
+  assert.equal(made.status, 201, made.text);
+  assert.equal(made.body.title, 'nanoGPT attention notes');
+  const row = sqlite.prepare('SELECT org, owner_email, title, project FROM canvases WHERE name = ?').get(made.body.name);
+  assert.deepEqual({ ...row }, { org: 'ben-ws', owner_email: 'ben@test', title: 'nanoGPT attention notes', project: null });
+  const link = linkOf(sqlite, made.body.name);
+  assert.deepEqual([link.parent_app, link.origin_block_id], [`share:${await shareKey(token)}`, SHARED_BLANK], 'linked to the source');
+  const record = JSON.parse(link.dive_json);
+  assert.equal(record.created_by, 'shared_blank');
+  assert.equal(record.source.title, 'nanoGPT attention');
+  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM learn_boards WHERE app = ?').get(made.body.name).n, 0, 'no board: nothing copied, not even an anchor');
+  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM canvas_forks').get().n, 0, 'not a fork');
+  assert.equal(sharerRows(sqlite), before, 'the sharer\'s rows are unchanged');
+  // Blank and From this canvas are separate: the root hole is its own canvas; Blank again opens the same notes.
+  const root = await start(call, token, 'ben');
+  assert.equal(root.status, 201);
+  assert.notEqual(root.body.name, made.body.name);
+  const again = await blank('ben', { origin: null, blank: true });
+  assert.deepEqual([again.status, again.body.name, again.body.existing], [200, made.body.name, true]);
+  // A blank start names no card and carries no step; a card cannot pose as the blank origin.
+  assert.equal((await blank('ben', { origin: { block_id: 'x' }, blank: true })).status, 400);
+  assert.equal((await blank('ben', { origin: null, blank: 'yes' })).status, 400);
+  assert.equal((await start(call, token, 'ben', { block_id: SHARED_BLANK })).status, 400);
+  // Signed out: sign in first, as for a hole.
+  const anon = await blank(null, { origin: null, blank: true });
+  assert.equal(anon.status, 401);
 });

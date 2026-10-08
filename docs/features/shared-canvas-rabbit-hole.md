@@ -12,6 +12,30 @@ They do different things:
 - **Start Rabbit Hole** gives the viewer a new private Rabbit Hole of their own, started from the shared canvas. It is
   not a fork. It never copies the canvas and never changes it.
 
+## The choice: From this canvas, or Blank (owner, 2026-10-08)
+
+Every Start Rabbit Hole on someone else's canvas asks first, in one small popup (`RabbitHoleChoice.jsx`): the shared
+header, another person's Explore and creator-profile cards, and the card right-click menu. A Professor Next Steps hook
+starts its step directly.
+
+```
+Start a Rabbit Hole
+From this canvas: your own private Rabbit Hole, starting from "<card or canvas>". This canvas stays as it is.
+Blank: a new empty canvas of yours, "<title> notes", linked back to this one. Nothing is copied.
+                                           [ Cancel ] [ Blank ] [ From this canvas ]
+```
+
+- **From this canvas** is the behaviour below, unchanged.
+- **Blank** makes a new empty private canvas of the viewer's, titled `<source title> notes`, linked to the source like any
+  hole (the Dive record and the share parent; `origin_block_id` `:blank`, `created_by` `shared_blank`).
+  - It has no board and no anchor card: nothing is copied.
+  - One per viewer and shared canvas, as a hole is per origin: Blank again opens it.
+  - It is a separate canvas from the root hole.
+  - The call is the same route with `{ origin: null, blank: true }`.
+- **Cancel or Escape** does nothing.
+- **Signed out,** the choice survives sign-in as the origin does: `?rabbit=blank`, beside `?rabbit=root` and
+  `?rabbit=<card>`. An Explore card's choice opens the published page with it.
+
 ## Behaviour
 
 - **A card is selected:** the hole starts from that card. A click that does not pan selects a lesson card on the

@@ -4,7 +4,8 @@ import { setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
 import ForkButton from './ForkButton.jsx';
 import { Button, toast } from './ui.jsx';
 import { wsHeaders } from './api.js';
-import { rabbitOrigin, requestRabbitHole, resumeHref, takeResume } from './shared-rabbit-hole.js';
+import { BLANK, rabbitOrigin, requestRabbitHole, resumeHref, takeResume } from './shared-rabbit-hole.js';
+import RabbitHoleChoice from './RabbitHoleChoice.jsx';
 import { carryStep, keepPendingStep, takePendingStep } from './learn-next-steps.js';
 import { useSharedNextSteps } from './LearnNextSteps.jsx';
 import { describeBlock } from './LearningBlocks.jsx';
@@ -46,8 +47,9 @@ export default function SharedBoardPage({ token }) {
   const [card, setCard] = useState(null);
   const onCanvasState = useCallback(state => setCard(state.card || null), []);
   // The card right-click menu starts the same flow from the card it was opened on (owner, 2026-10-07).
-  const rabbitStart = useRef(null);
-  const startFromCard = useCallback(cardId => rabbitStart.current?.(cardId), []);
+  const rabbitStart = useRef(null), rabbitAsk = useRef(null);
+  // The card menu asks From this canvas or Blank too (owner, 2026-10-08); a Next Steps hook starts its step directly.
+  const startFromCard = useCallback(cardId => rabbitAsk.current?.(cardId), []);
 
   // The board's files and notebook workspaces come through the same link;
   // notebooks open as the board's latest copy, in a workspace of their own.
@@ -100,7 +102,7 @@ export default function SharedBoardPage({ token }) {
         {shared.creator && <span data-shared-creator className="truncate text-xs text-ink-3">{shared.published ? 'Published by' : 'Shared by'} {shared.creator.handle
           ? <a data-creator-link href={`/@${shared.creator.handle}`} className="rounded-sm text-ink-2 hover:text-ink hover:underline">{creatorLabel(shared.creator)}</a> : creatorLabel(shared.creator)}</span>}
         <span className="flex-1" />
-        <StartRabbitHole token={token} state={shared.state} card={card} resume={rabbitRequested} startRef={rabbitStart} />
+        <StartRabbitHole token={token} state={shared.state} card={card} title={shared.title || shared.board} resume={rabbitRequested} startRef={rabbitStart} askRef={rabbitAsk} />
         <ForkButton source={{ token }} title={shared.title} auto={forkRequested} onForked={fork => { window.location.href = fork.url; }} count={shared.fork_count} />
       </header>
       <div className="relative min-h-0 flex-1" aria-label="Lesson canvas">
@@ -120,15 +122,16 @@ export default function SharedBoardPage({ token }) {
 // A Professor Next Steps hook (contract §1.4) starts the same hole, carrying the clicked step: the server checks it and echoes
 // it, and the new hole's first Tutor turn opens on it once (carryStep, by the hole's name). A stale step (the board changed or
 // was renamed) starts the hole without it. Signed out, the step waits through sign-in for this link and hook (keepPendingStep).
-function StartRabbitHole({ token, state, card, resume, startRef }) {
+function StartRabbitHole({ token, state, card, title, resume, startRef, askRef }) {
   const [busy, setBusy] = useState(false);
+  const [asking, setAsking] = useState(null); // { card } while the choice is open
   const flight = useRef(false);
   const run = async (cardId, step = null, hookId = null) => {
     if (flight.current) return; // a double click is one start
     flight.current = true; setBusy(true);
     try {
       // The card names the hole as every canvas surface describes it (describeBlock), kind first: "Quiz: ...".
-      const origin = rabbitOrigin(state, cardId, describeBlock);
+      const origin = cardId === BLANK ? BLANK : rabbitOrigin(state, cardId, describeBlock);
       let made = await requestRabbitHole(token, origin, { headers: wsHeaders(), step });
       if (made.stale) made = await requestRabbitHole(token, origin, { headers: wsHeaders() });
       if (made.signIn) {
@@ -145,14 +148,29 @@ function StartRabbitHole({ token, state, card, resume, startRef }) {
   };
   // Back from sign-in: the kept step only for this link and the hook id that came back; none (or a stale reply) starts plain.
   useEffect(() => { if (resume !== undefined) run(resume.origin, resume.hook ? takePendingStep(sessionStorage, token, resume.hook) : null, resume.hook); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  if (startRef) startRef.current = run; // the card menu's way in: the same run, the same one-start guard
+  if (startRef) startRef.current = run; // a Next Steps hook's way in: the same run, the same one-start guard
+  // A click asks first: From this canvas (the selected card, else the canvas) or Blank (RabbitHoleChoice). Back from sign-in
+  // the choice was already made, so `resume` starts straight away.
+  const ask = (cardId) => { if (!flight.current) setAsking({ card: cardId ? describedCard(state, cardId) : null }); };
+  if (askRef) askRef.current = ask;
   return (
-    <Button type="button" variant="primary" data-start-rabbit-hole data-origin={card?.id || 'root'} aria-busy={busy} onClick={() => run(card?.id || null)}
-      title={card ? `Start your own private Rabbit Hole from "${card.title}". This canvas stays as it is.` : 'Start your own private Rabbit Hole from this canvas. This canvas stays as it is.'}>
-      {busy ? <Loader2 size={13} className="animate-spin" /> : <ArrowDownToLine size={13} strokeWidth={1.8} />}Start Rabbit Hole
-    </Button>
+    <>
+      <Button type="button" variant="primary" data-start-rabbit-hole data-origin={card?.id || 'root'} aria-busy={busy} onClick={() => ask(card?.id || null)}
+        title={card ? `Start your own private Rabbit Hole from "${card.title}", or a blank canvas. This canvas stays as it is.` : 'Start your own private Rabbit Hole from this canvas, or a blank canvas. This canvas stays as it is.'}>
+        {busy ? <Loader2 size={13} className="animate-spin" /> : <ArrowDownToLine size={13} strokeWidth={1.8} />}Start Rabbit Hole
+      </Button>
+      {asking && <RabbitHoleChoice title={title} card={asking.card} onCancel={() => setAsking(null)} onPick={(origin) => { setAsking(null); run(origin); }} />}
+    </>
   );
 }
+
+// The card the choice names: its id and title as every canvas surface describes it.
+const describedCard = (state, cardId) => {
+  const entry = [...(state?.blocks || []), ...(state?.exchanges || [])].find(item => item?.id === cardId);
+  let named = null;
+  try { named = entry && describeBlock(entry); } catch { /* a card describeBlock does not know */ }
+  return { id: cardId, title: named?.title || entry?.title || entry?.question || 'this card' };
+};
 
 // Professor Next Steps on a shared canvas (contract §1.3, §1.7): the hooks for the selected card (null: the canvas itself), in
 // the canvas's lower-left stack. A click starts the viewer's own private hole from that card through Start Rabbit Hole's run.

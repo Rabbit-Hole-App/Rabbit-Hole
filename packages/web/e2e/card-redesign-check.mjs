@@ -209,6 +209,24 @@ await check('9 the owned ⋮ is the visibility menu as built, on the new card; i
   await openMenu(card);
   await lib.locator('[data-menu-visibility]').click();
   assert.equal(await lib.locator('[data-access="private"]').getAttribute('aria-checked'), 'true');
+  // Copy link (owner, 2026-10-08): the link that matches what the card is, said on the row itself, then the menu closes.
+  await lib.keyboard.press('Escape');
+  await lib.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: BASE });
+  const copyFrom = async (title) => {
+    await openMenu(titled(lib, '[data-library-card="canvas"]', title));
+    await lib.locator('[data-menu-copy-link]').click();
+    await lib.locator('[data-menu-copy-link]', { hasText: /copied/ }).waitFor({ timeout: 5000 });
+    const said = (await lib.locator('[data-menu-copy-link]').innerText()).trim(), copied = await lib.evaluate(() => navigator.clipboard.readText());
+    await lib.locator('[data-menu-copy-link]').waitFor({ state: 'detached', timeout: 5000 });
+    return [said, copied];
+  };
+  assert.deepEqual(await copyFrom(T.tides), ['Private link copied, opens only for you', `${BASE}/apps/${tides.name}`]);
+  const [said, copied] = await copyFrom(T.bridges);
+  assert.equal(said, 'Public link copied');
+  assert.match(copied, new RegExp(`^${BASE}/e/[A-Za-z0-9_-]{20,64}$`));
+  assert.equal(await lib.locator('[data-toast], [role="status"]').filter({ hasText: /copied/i }).count(), 0, 'no corner toast');
+  await openMenu(card);
+  await lib.locator('[data-menu-visibility]').click();
 });
 await shot(lib, '03-menu-visibility');
 await lib.keyboard.press('Escape');
@@ -293,6 +311,13 @@ await check('13 Home Recent: the same card; the away canvas keeps On another dev
   assert.ok(note.startsWith('On another device') && note.includes('stored only in the browser that created it'), note);
   assert.equal(await card.locator('a[data-card-title], button[data-card-title], [data-card-open]').count(), 0);
   assert.equal(await titled(home, '[data-recent-card]', T.bridges).locator('[data-card-note]').count(), 0, 'published, so its board is on the server');
+  // Recent cards carry the Library's own ⋮ (owner, 2026-10-08), opened in place.
+  const recent = titled(home, '[data-recent-card]', T.bridges);
+  await recent.getByTitle('More').click();
+  for (const row of ['[data-menu-rename]', '[data-menu-visibility]', '[data-menu-share]', '[data-menu-copy-link]', '[data-menu-trash]']) await home.locator(row).waitFor({ timeout: 5000 });
+  assert.ok(await home.locator('[data-menu-trash]').evaluate(n => n.getBoundingClientRect().bottom <= window.innerHeight), 'the menu is inside the window');
+  await home.keyboard.press('Escape');
+  await home.locator('[data-menu-rename]').waitFor({ state: 'detached' });
 });
 await shot(home, '11-home');
 await check('14 the Continue title opens where it left off', async () => {

@@ -399,6 +399,10 @@ async function fork(req, env, body, { duplicate = false } = {}) {
 // The hole starts with one small anchor card saying where it began; nothing of the shared board is copied.
 // One hole per viewer, share and origin (the canvas_dives UNIQUE key): starting again enters it.
 export const SHARED_ROOT = ':root';
+// Blank (owner, 2026-10-08): the same start's other choice - a new empty private canvas of the viewer's, titled after the
+// source, linked to it like any hole (the Dive record and the share parent), with nothing copied and no anchor card. One
+// per viewer and share, as a hole is per origin: starting Blank again opens it.
+export const SHARED_BLANK = ':blank';
 const ORIGIN_ID = 200, ORIGIN_TEXT = 200, ORIGIN_CONCEPTS = 32;
 const plain = (value, max) => String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
 // A card's name, whatever kind it is: a lesson block's own title or question, or a chat card's question.
@@ -410,7 +414,7 @@ function originOf(origin, state) {
   if (origin == null) return { root: true };
   if (typeof origin !== 'object' || Array.isArray(origin)) return { error: 'origin must be an object or null' };
   const id = origin.block_id;
-  if (typeof id !== 'string' || !id || id.length > ORIGIN_ID || id === SHARED_ROOT) return { error: 'origin.block_id must name a card' };
+  if (typeof id !== 'string' || !id || id.length > ORIGIN_ID || id === SHARED_ROOT || id === SHARED_BLANK) return { error: 'origin.block_id must name a card' };
   const entry = [...(state.blocks || []), ...(state.exchanges || [])].find(item => item?.id === id);
   if (!entry) return { error: 'That card is not on this shared canvas.', status: 404 };
   const fields = { scene_id: optionalId(origin.scene_id), card_id: optionalId(origin.card_id), part_id: optionalId(origin.part_id), selected_object: optionalId(origin.selected_object) };
@@ -429,10 +433,13 @@ async function startRabbitHole(req, env, token, body) {
   const user = found.viewer || await repositoryIdentity(req, env);
   if (user instanceof Response) return user.status === 401 ? json({ error: 'Sign in to start your own Rabbit Hole from this canvas.', signIn: true }, 401) : user;
   const { row } = found, db = env.LEARN_DB, state = JSON.parse(row.state_json);
+  const blank = body?.blank === true;
+  if (body?.blank !== undefined && typeof body.blank !== 'boolean') return json({ error: 'blank must be true or false' }, 400);
+  if (blank && (body?.origin != null || body?.selected_next_step != null)) return json({ error: 'A blank canvas starts from the shared canvas itself.' }, 400);
   const origin = originOf(body?.origin, state);
   if (origin.error) return json({ error: origin.error }, origin.status || 400);
   const parent = { app: `share:${await shareKey(token)}`, board: row.board };
-  const originId = origin.root ? SHARED_ROOT : origin.id;
+  const originId = blank ? SHARED_BLANK : origin.root ? SHARED_ROOT : origin.id;
   // The board's name, read once for the step check and the hole's provenance.
   let named = null;
   const board = () => (named ??= sharedBoard(env, found));
@@ -464,10 +471,10 @@ async function startRabbitHole(req, env, token, body) {
     version: row.version, updated_at: row.updated_at, commit: pinned?.allowed ? pinned.commit : null,
   };
   const from = origin.root ? null : origin.title || cardName(origin.entry);
-  const title = plain(origin.root ? `Exploring from ${sharedName}` : from, 120);
+  const title = plain(blank ? `${sharedName} notes` : origin.root ? `Exploring from ${sharedName}` : from, 120);
   const name = `canvas-${crypto.randomUUID().replace(/-/g, '').slice(0, 8)}`;
   const record = {
-    dive_id: name, concept: title, title, created_by: 'shared_start',
+    dive_id: name, concept: title, title, created_by: blank ? 'shared_blank' : 'shared_start',
     origin: { parent, origin_block_id: originId, origin_scene_id: origin.scene_id ?? null, origin_card_id: origin.card_id ?? null, origin_part_id: origin.part_id ?? null,
       origin_concept_ids: origin.concept_ids ?? [], selected_object: origin.selected_object ?? null, depth: origin.depth ?? null, level: 1 },
     return_point: { block_id: origin.root ? null : originId, part_id: origin.part_id ?? null, selected_object: origin.selected_object ?? null, inputs: null, input_revision: null, practice_open: false, pending_question: null, viewport: null },
@@ -481,8 +488,9 @@ async function startRabbitHole(req, env, token, body) {
     await db.batch([
       db.prepare('INSERT INTO canvases(org,name,owner_email,title,project,device_id) VALUES(?,?,?,?,NULL,NULL)').bind(user.org, name, user.email, title),
       db.prepare('INSERT INTO canvas_dives(org,owner_email,child,parent_app,parent_board,origin_block_id,dive_json) VALUES(?,?,?,?,?,?,?)').bind(user.org, user.email, name, parent.app, parent.board, originId, JSON.stringify(record)),
-      db.prepare('INSERT INTO learn_boards (id, org, owner_email, app, board, state_json, version, updated_by, updated_at, title) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?)')
-        .bind(crypto.randomUUID(), user.org, user.email, name, 'main', JSON.stringify({ blocks: [anchor] }), user.email, now, title),
+      // Blank has no board yet: an empty canvas, whose first save is the viewer's own.
+      ...(blank ? [] : [db.prepare('INSERT INTO learn_boards (id, org, owner_email, app, board, state_json, version, updated_by, updated_at, title) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?)')
+        .bind(crypto.randomUUID(), user.org, user.email, name, 'main', JSON.stringify({ blocks: [anchor] }), user.email, now, title)]),
     ]);
   } catch (error) {
     // A concurrent start from the same origin won the UNIQUE key: enter that one.

@@ -35,7 +35,7 @@ test('analytics: the typed states read as words, never 0 or an estimate', () => 
 });
 
 test('analytics: ⋮ → Analytics is in the owner\'s canvas menu only, for a public canvas only; the views fetch nothing', () => {
-  const library = read('./LibraryViews.jsx');
+  const library = read('./home/CardMenu.jsx'); // the card menu the Library and Home share (owner, 2026-10-08)
   const owned = library.slice(library.indexOf(') : menu?.a.canEdit ? <>'), library.indexOf('</> : null}'));
   assert.match(owned, /\{menu\.a\.access === 'public' && <MenuItem icon=\{BarChart3\} data-menu-analytics/);
   assert.equal(library.split('data-menu-analytics').length, 2, 'nowhere else');
