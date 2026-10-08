@@ -62,6 +62,17 @@ export function takeReturn(storage, { app, board }) {
   return point;
 }
 
+// The Rabbit Holes Map's dragged spot: its top-left in the canvas frame, one per viewer on this device for every canvas,
+// owned or shared, so the map stays where the learner put it while they move between holes. null is the gutter.
+const MAP_SPOT = 'small.dive.mapSpot';
+export const mapSpot = storage => { const spot = read(storage, MAP_SPOT); return Number.isFinite(spot?.x) && Number.isFinite(spot?.y) ? { x: spot.x, y: spot.y } : null; };
+export const keepMapSpot = (storage, spot) => write(storage, MAP_SPOT, spot);
+// Kept fully inside the frame; a frame smaller than the map pins it to the top-left corner.
+export const clampSpot = ({ x, y }, frame, map) => ({
+  x: Math.round(Math.min(Math.max(0, x), Math.max(0, frame.w - map.w))),
+  y: Math.round(Math.min(Math.max(0, y), Math.max(0, frame.h - map.h))),
+});
+
 // A topic anchor's display title from the learner's own words: "explain softmax" -> "Softmax".
 // The raw request is kept on the card beside it.
 const LEAD = /^(?:please\s+)?(?:explain|describe|define|what(?:'s| is| are)|how (?:does|do|is|are)|why (?:does|do|is|are)|tell me about|teach me(?: about)?|go deeper (?:into|on)|dive into|learn about|understand|show me|about)\s+/i;

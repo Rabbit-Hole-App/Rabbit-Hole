@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { anchorBlock, anchorTitle, canvasObjects, diveRecord, diveTopic, discardHole, dropPending, holeHref, keepPending, levelHref, meaningful, navigatorRows, newHoleName, pendingHole, pendingHoles, planDive, setReturn, takeReturn } from './dive.js';
+import { anchorBlock, anchorTitle, canvasObjects, clampSpot, diveRecord, diveTopic, discardHole, dropPending, holeHref, keepMapSpot, keepPending, levelHref, mapSpot, meaningful, navigatorRows, newHoleName, pendingHole, pendingHoles, planDive, setReturn, takeReturn } from './dive.js';
 
 const memory = () => { const map = new Map(); return { getItem: k => (map.has(k) ? map.get(k) : null), setItem: (k, v) => map.set(k, String(v)), removeItem: k => map.delete(k), key: i => [...map.keys()][i], get length() { return map.size; }, map }; };
 const local = () => { const store = memory(); return new Proxy(store, { ownKeys: () => [...store.map.keys()], getOwnPropertyDescriptor: () => ({ enumerable: true, configurable: true }) }); };
@@ -98,6 +98,32 @@ test('the return point is taken once, only by the level it belongs to', () => {
   assert.equal(takeReturn(session, { app: parent.app, board: 'main' }), null);
   assert.equal(takeReturn(session, parent).block_id, card.id);
   assert.equal(takeReturn(session, parent), null);
+});
+
+// The Holes Map's grip (owner, 2026-10-08): dragged anywhere over the canvas, kept fully inside it, remembered, reset.
+test('the Holes Map spot is clamped inside the canvas frame, remembered on this device, and reset to the gutter', async () => {
+  const frame = { w: 1000, h: 600 }, map = { w: 76, h: 120 };
+  assert.deepEqual(clampSpot({ x: 300.4, y: 200.6 }, frame, map), { x: 300, y: 201 });
+  assert.deepEqual(clampSpot({ x: -50, y: -9 }, frame, map), { x: 0, y: 0 });
+  assert.deepEqual(clampSpot({ x: 990, y: 590 }, frame, map), { x: 924, y: 480 }); // the whole map stays inside
+  assert.deepEqual(clampSpot({ x: 40, y: 40 }, { w: 50, h: 100 }, map), { x: 0, y: 0 }); // a frame smaller than the map
+  const local = memory();
+  assert.equal(mapSpot(local), null, 'no spot: the gutter');
+  keepMapSpot(local, { x: 300, y: 201 });
+  assert.deepEqual(mapSpot(local), { x: 300, y: 201 });
+  keepMapSpot(local, null); // double-click on the grip
+  assert.equal(mapSpot(local), null);
+  assert.equal(local.getItem('small.dive.mapSpot'), null, 'reset leaves no key');
+  local.setItem('small.dive.mapSpot', '{"x":"left"}');
+  assert.equal(mapSpot(local), null, 'a damaged spot is the gutter');
+  const blocked = { getItem() { throw Error('blocked'); }, setItem() { throw Error('blocked'); }, removeItem() { throw Error('blocked'); } };
+  assert.equal(mapSpot(blocked), null);
+  assert.doesNotThrow(() => keepMapSpot(blocked, { x: 1, y: 1 }), 'blocked storage: the spot lasts this page only');
+  // Only the grip drags, and it is a named, keyboard-reachable control.
+  const src = (await import('node:fs')).readFileSync(new URL('./Dive.jsx', import.meta.url), 'utf8');
+  assert.match(src, /<button type="button" data-dive-grip aria-label="Move Rabbit Holes Map"[^>]*\{\.\.\.map\.grip\}/);
+  assert.match(src, /onDoubleClick: \(\) => keep\(null\)/);
+  assert.equal((src.match(/\{\.\.\.map\.grip\}/g) || []).length, 1, 'one drag handle');
 });
 
 // The origin contract: block, runtime scene, authored card, part and concepts are five identities.

@@ -77,6 +77,16 @@ const gutterCheckBites = async () => {
   await page.evaluate(() => { document.querySelector('[data-dive-navigator]').style.transform = ''; });
 };
 const up = async () => { await nav().getByRole('button', { name: 'Up to the parent hole' }).click(); await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1500); };
+// The map's grip (owner, 2026-10-08): the map moves inside its gutter slot, which stays put (inGutter keeps measuring the slot).
+const mapAt = async () => { const box = await page.locator('[data-dive-map]').boundingBox(); return { x: box.x, y: box.y, right: box.x + box.width, bottom: box.y + box.height }; };
+const frameAt = () => page.evaluate(() => { const r = document.querySelector('[data-dive-navigator]').closest('[data-dive-gutter],[data-tool-gutter]').parentElement.getBoundingClientRect(); return { x: r.x, y: r.y, right: r.right, bottom: r.bottom }; });
+const near = (a, b, label) => assert.ok(Math.abs(a.x - b.x) <= 1 && Math.abs(a.y - b.y) <= 1, `${label}: map at ${a.x},${a.y}, want ${b.x},${b.y}`);
+const dragMap = async (dx, dy) => {
+  const grip = await page.locator('[data-dive-grip]').boundingBox(), x = grip.x + grip.width / 2, y = grip.y + grip.height / 2;
+  await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + dx, y + dy, { steps: 12 }); await page.mouse.up();
+  await page.waitForTimeout(200);
+  return mapAt();
+};
 
 // ---- root, and a selected card before diving ----
 await open(ROOT_URL);
@@ -84,6 +94,33 @@ await shot('01-root-navigator');
 await inGutter('root');
 await gutterCheckBites();
 await inGutter('root, restored');
+// ---- the Rabbit Holes Map's grip: drag anywhere over the canvas, clamped inside it, remembered, double-click resets ----
+const home = await mapAt();
+near(await dragMap(-520, 260), { x: home.x - 520, y: home.y + 260 }, 'the grip drags the map over the canvas');
+assert.equal(await page.locator('[data-dive-map][data-moved]').count(), 1, 'a moved map is marked (its white card)');
+await inGutter('map dragged, its slot unchanged');
+await shot('holes-map-01-dragged');
+const grip0 = await page.locator('[data-dive-grip]').boundingBox(); // then to the window's lower-left corner, past the canvas
+const clamped = await dragMap(2 - (grip0.x + grip0.width / 2), 998 - (grip0.y + grip0.height / 2)), frame = await frameAt();
+assert.ok(clamped.x >= frame.x - 0.5 && clamped.bottom <= frame.bottom + 0.5 && clamped.y >= frame.y && clamped.right <= frame.right, `clamped fully inside the canvas frame: ${JSON.stringify({ clamped, frame })}`);
+near(clamped, { x: frame.x, y: frame.bottom - (clamped.bottom - clamped.y) }, 'pinned to the lower-left corner');
+await shot('holes-map-02-clamped');
+assert.equal(await page.locator('[data-dive-grip]').evaluate(node => node.tagName === 'BUTTON' && node.tabIndex === 0 && node.getAttribute('aria-label')), 'Move Rabbit Holes Map', 'a focusable, named grip');
+await page.locator('[data-dive-grip]').focus();
+await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowUp'); await page.keyboard.press('ArrowUp');
+const stepped = await mapAt();
+near(stepped, { x: clamped.x + 16, y: clamped.y - 32 }, 'arrow keys step the map 16 px');
+await open(ROOT_URL);
+near(await mapAt(), stepped, 'a reload keeps the spot');
+await shot('holes-map-03-after-reload');
+await page.locator('[data-dive-grip]').dblclick();
+near(await mapAt(), home, 'double-click puts it back in the gutter');
+assert.equal(await page.evaluate(() => localStorage.getItem('small.dive.mapSpot')), null, 'and forgets the spot');
+assert.equal(await page.locator('[data-dive-map][data-moved]').count(), 0);
+await open(ROOT_URL);
+near(await mapAt(), home, 'still in the gutter after a reload');
+await inGutter('map reset');
+console.log('holes map grip ok');
 const [card1, card2] = (await blocks()).slice(0, 2);
 // The composer: Auto (not a model picker) opens the palette; a chosen command is a removable pill.
 const dock = page.locator('[data-learn-dock]');
@@ -200,10 +237,21 @@ assert.ok(softmaxOrigin.origin_card_id && softmaxOrigin.origin_card_id !== card1
 assert.ok(softmaxOrigin.origin_concept_ids.length > 0, 'concepts resolved, not defaulted to []');
 let rootTree = await tree(root.name, BOARD);
 assert.deepEqual(rootTree.children.map(child => [child.name, child.title, child.origin_block_id]), [[softmax, 'Softmax', card1]]);
-await up();
+// The map dragged inside the hole: its levels still work from the new spot, and the spot is the same on every canvas.
+const holeSpot = await dragMap(-420, 240);
+await shot('holes-map-04-dragged-in-hole');
+await nav().locator('[data-dive-level]').first().click(); // the root, from the moved map
+await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1500);
 assert.equal(url().pathname + url().search, ROOT_URL);
 assert.equal(await page.locator(`[data-dive-portal="${softmax}"]`).count(), 1, 'the originating card is a portal');
 assert.equal(await selectedRing(card1), true, 'climbing back selects the originating card');
+near(await mapAt(), holeSpot, 'the parent shows the map where the learner put it');
+await shot('holes-map-05-parent-same-spot');
+await nav().locator('[data-dive-down]').click(); // down again, from the moved map
+await page.waitForFunction(name => location.pathname.endsWith(name), softmax); await page.waitForTimeout(1200);
+await up();
+await page.locator('[data-dive-grip]').dblclick();
+near(await mapAt(), home, 'reset before the card flows');
 await shot('06-parent-hole-outline');
 
 // ---- C: the portal enters the child; Ctrl+K on a card with a child enters it, never a duplicate ----
