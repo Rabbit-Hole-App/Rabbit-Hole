@@ -82,6 +82,20 @@ test('selected code uses stored source, survives chat history and rejects mismat
   for(const range of [{path:'../secret',start:1,end:2},{path:'model.py',start:0,end:3},{path:'model.py',start:1,end:122}])assert.equal((await f.send('ask',{message:'Explain',repository_context:{commit:sha,range}})).status,400);
 });
 
+// repository-browser.md §6: a large selection keeps its whole range as its identity; only the first 120 lines ride along.
+test('a large selected range keeps its identity: the stored question names every line, the prompt carries a bounded snippet',async t=>{
+  const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});let prompt;
+  f.assets.set('snapshot',{...snapshot,files:{...snapshot.files,'big.py':Array.from({length:400},(_,i)=>`line_${i+1} = ${i+1}`).join('\n')}});
+  globalThis.fetch=async(_,options)=>{prompt=JSON.parse(options.body);return Response.json({content:[{type:'text',text:'It numbers lines.'}],stop_reason:'end_turn'});};
+  const response=await f.send('ask',{message:'What happens here?',repository_context:{commit:sha,range:{path:'big.py',start:10,end:300}}});
+  assert.equal(response.status,200);await response.text();
+  const sent=JSON.stringify(prompt.messages);
+  assert.match(sent,/line_10 = 10/);assert.match(sent,/line_129 = 129/);assert.doesNotMatch(sent,/line_130 = 130/);
+  assert.match(sent,/selected lines 10-300 \(291 lines\)\. Only lines 10-129 are included/);
+  assert.match(f.sqlite.prepare("SELECT content FROM messages WHERE role='user'").get().content,/Selected code: big\.py:10-300 \(commit a{40}\)$/);
+  for(const range of [{path:'big.py',start:10,end:401},{path:'big.py',start:10,end:9},{path:'big.py',start:10,end:'300'}])assert.equal((await f.send('ask',{message:'Explain',repository_context:{commit:sha,range}})).status,400);
+});
+
 // workspace-dock.md: a whole file in the composer's context reaches the model as selectedFile, read from the stored
 // snapshot, and the stored question carries no line-selection suffix.
 test('a whole-file context is read from stored source and stored as the plain question',async t=>{

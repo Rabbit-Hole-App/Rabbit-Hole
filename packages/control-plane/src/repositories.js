@@ -200,6 +200,14 @@ export async function repositoryThreads(req,db,user,app,id){
   if(req.method==='PATCH'){const {title}=await req.json();if(typeof title!=='string'||!title.trim()||title.length>120)throw Error('Invalid chat title');await db.prepare('UPDATE threads SET title=? WHERE id=?').bind(title,id).run();return json({ok:true});}
   const {results}=await db.prepare('SELECT m.role,m.content,g.graph_json FROM messages m LEFT JOIN repository_message_graphs g ON g.message_id=m.id WHERE m.thread_id=? ORDER BY m.id').bind(id).all();return json({id,messages:results.map(({graph_json,...m})=>({...m,...(graph_json?{graph:JSON.parse(graph_json)}:{})})),commit:thread.commit_sha});
 }
+// A selected line range, read from stored source. A large one keeps its identity (repository-browser.md, owner brief §10):
+// the stored question names every selected line, and only the first 120 ride along, with a note; the model reads the rest
+// with read_source. A range past the file's end is refused, never clamped into a different selection.
+function selectedRange(snapshot,{path,start,end}){
+  const code=repositoryTool(snapshot,'read_source',{path,start,end:Number.isInteger(end)?Math.min(end,start+119):end});
+  if(end>code.totalLines)throw Error('Choose a valid range of lines in this file');
+  return end>code.end?{...code,selectedEnd:end,note:`The learner selected lines ${start}-${end} (${end-start+1} lines). Only lines ${start}-${code.end} are included here; read the rest with read_source.`}:code;
+}
 async function repositoryAsk(req,env,user,app){
   const {body,file}=await readAskRequest(req);
   if(file&&JSON.stringify(body).length>64000)return json({error:'Request exceeds 64 KB'},413);
@@ -214,7 +222,7 @@ async function repositoryAsk(req,env,user,app){
   if(thread&&(body.repository_context?.nodeId||body.repository_context?.range||body.repository_context?.path)&&body.repository_context?.commit!==commit)return json({error:'This chat uses an earlier commit. Start a new chat to ask about the selected code.'},409);
   const snapshot=await repositorySnapshot(env,app,commit);
   const selected=body.repository_context?.nodeId?repositoryTool(snapshot,'get_relationships',{nodeId:body.repository_context.nodeId}):null;
-  const selectedCode=body.repository_context?.range?repositoryTool(snapshot,'read_source',body.repository_context.range):null;
+  const selectedCode=body.repository_context?.range?selectedRange(snapshot,body.repository_context.range):null;
   // A whole file in the composer's context (workspace-dock.md): its opening lines and length, never a line selection, so no
   // 'Selected code' suffix is stored with the question; the model reads further with read_source.
   const selectedFile=!selected&&!selectedCode&&typeof body.repository_context?.path==='string'?repositoryTool(snapshot,'read_source',{path:body.repository_context.path}):null;
@@ -232,7 +240,7 @@ async function repositoryAsk(req,env,user,app){
     }
     return result;
   };
-  const question=selectedCode?`${body.message}\n\nSelected code: ${selectedCode.path}:${selectedCode.start}-${selectedCode.end} (commit ${commit})`:body.message;
+  const question=selectedCode?`${body.message}\n\nSelected code: ${selectedCode.path}:${selectedCode.start}-${selectedCode.selectedEnd||selectedCode.end} (commit ${commit})`:body.message;
   const extraBlocks=[],papers=[];
   // A file from the composer's +: an image or PDF as a block, anything else as text.
   if(file)extraBlocks.push(...(await attachmentBlocks(file)).blocks);

@@ -13,6 +13,11 @@ export const scopeKey = (scope) => `${scope.org}|${scope.kind}:${scope.slug || '
 // ({id, label, commit, path, line, kind}) or a whole file: kind 'file', id `file:<path>`, which no graph node stands for.
 const nameOf = (path) => path.split('/').pop();
 export const fileContext = (path, commit, line = 1) => ({ id: `file:${path}`, label: nameOf(path), kind: 'file', path, line, commit });
+// A line range from the code reader (repository-browser.md): kind 'range', its own id, and the whole range the learner
+// selected, however long. The chip reads `lines a–b` under its file; the snippet is the server's to bound.
+const span = (start, end) => (end > start ? `${start}–${end}` : `${start}`);
+export const rangeContext = (path, start, end, commit) => ({ id: `range:${path}:${start}-${end}`, label: `${end > start ? 'lines' : 'line'} ${span(start, end)}`, kind: 'range', path, line: start, start, end, commit });
+export const rangeTitle = (s) => `${nameOf(s.path)}:${span(s.start, s.end)}`;
 // The file chip, when the selection is a symbol inside a file: a node named like its file is that file and shows once.
 const parentFile = (selected) => (selected && selected.kind !== 'file' && selected.path && nameOf(selected.path) !== selected.label ? selected.path : null);
 
@@ -26,6 +31,10 @@ export function chipsFor(scope) {
 // × on a chip below the resource falls back one level and no further (owner, 2026-10-06 §3): a symbol to its file,
 // a file to the repository. Only the resource chip clears everything.
 export const contextWithout = (selected, key) => (key === 'selected' && parentFile(selected) ? fileContext(parentFile(selected), selected.commit) : null);
+
+// What a project question carries (control-plane repositories.js repositoryAsk): identity, never source text. A symbol by
+// node id, a whole file by path, a line range as {path, start, end} (the shape Learn's chat already sends, ask.jsx).
+export const wireContext = (s) => ({ commit: s.commit, ...(s.kind === 'range' ? { range: { path: s.path, start: s.start, end: s.end } } : s.kind === 'file' ? { path: s.path } : { nodeId: s.id }), label: s.kind === 'range' ? rangeTitle(s) : s.label });
 
 // Workspace and app threads stay on /api/ask; projects and canvases use Learn's LEARN_DB threads (T02 §6.3).
 export function endpointFor(scope) {

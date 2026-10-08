@@ -1,17 +1,17 @@
 import { wsHeaders } from '../api.js';
-import { endpointFor } from './scope.js';
+import { endpointFor, wireContext } from './scope.js';
 
 // What /api/ask and /api/learn/ask send (control-plane ask.js:362-454; ask.jsx:530-545 handles
 // the same set, 'paper' at :534).
 const EVENTS = new Set(['chunk', 'progress', 'graph', 'proposal', 'papers', 'paper', 'wiki', 'video', 'outline', 'done', 'error']);
 
 // The body ask.jsx:466-485 builds for these scopes. A project question carries the selected
-// node (or a whole file, by path) and the commit it was selected on; the server 409s a mismatched thread (repositories.js:177).
+// node (or a whole file by path, or a line range) and the commit it was selected on; the server 409s a mismatched thread (repositories.js:177).
 export function askBody({ scope, message, threadId = null, model = 'auto' }) {
   const s = scope.selected;
   return {
     scope: endpointFor(scope).scope,
-    ...(scope.kind === 'project' && s ? { repository_context: { commit: s.commit, ...(s.kind === 'file' ? { path: s.path } : { nodeId: s.id }), label: s.label } } : {}),
+    ...(scope.kind === 'project' && s ? { repository_context: wireContext(s) } : {}),
     message,
     thread_id: threadId,
     ...(model !== 'auto' ? { model } : {}),
