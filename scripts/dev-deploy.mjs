@@ -33,14 +33,17 @@ function readGate(text, tree) {
   if (!/-DONE$/.test(lines.at(-1))) return { error: 'the gate record has no -DONE line (gate unfinished)' };
   const last = new Map();
   for (const l of lines) { const m = l.match(/^([^:]+?) exit (\d+)\b/); if (m) last.set(m[1], Number(m[2])); }
-  const hits = lines.flatMap(l => [...l.matchAll(/(?:tripwire hits|model key bindings in app log): (\S+)/g)].map(m => m[1]));
-  if (hits.some(h => h !== '0')) return { error: `provider tripwire or model key count not 0: ${hits.join(',')}` };
-  return { last, failed: [...last].filter(([, code]) => code !== 0).map(([stage]) => stage) };
+  // Every count, with the stage it belongs to where the line names one ("<stage> provider-tripwire hits: N").
+  const counts = lines.flatMap(l => [...l.matchAll(/(?:tripwire hits|model key bindings in app log): (\S+)/g)].map(m => ({ value: m[1], stage: l.match(/^(\S+) provider-tripwire hits:/)?.[1] ?? null })));
+  return { last, counts, failed: [...last].filter(([, code]) => code !== 0).map(([stage]) => stage) };
 }
+const badCounts = (counts, redone = () => false) => counts.filter(c => c.value !== '0' && !redone(c.stage)).map(c => `${c.stage ?? 'app'}:${c.value}`);
 
 export function gateVerdict(text, tree) {
   const g = readGate(text, tree);
   if (g.error) return g.error;
+  const bad = badCounts(g.counts);
+  if (bad.length) return `provider tripwire or model key count not 0: ${bad.join(', ')}`;
   if (g.last.get('make test-unit') !== 0) return 'make test-unit did not exit 0';
   if (g.failed.length) return `failed stages: ${g.failed.join(', ')}`;
   return null;
@@ -56,6 +59,13 @@ export function rerunVerdict(gText, gTree, rText, rTree, { unitChanged = false }
   if (r.error) return `rerun: ${r.error}`;
   if (!r.last.size) return 'rerun: the record ran no stage';
   if (r.failed.length) return `rerun: failed stages: ${r.failed.join(', ')}`;
+  const rBad = badCounts(r.counts);
+  if (rBad.length) return `rerun: provider tripwire or model key count not 0: ${rBad.join(', ')}`;
+  // A failed stage's own tripwire count in G (unreadable after a crashed stack, say) is replaced only by a readable 0
+  // for that same stage in R, which reran it; every other count in G must already be 0. Never relaxed beyond that.
+  const remeasured = stage => stage && g.failed.includes(stage) && r.last.get(stage) === 0 && r.counts.some(c => c.stage === stage && c.value === '0');
+  const gBad = badCounts(g.counts, remeasured);
+  if (gBad.length) return `gate: provider tripwire or model key count not 0: ${gBad.join(', ')}`;
   const uncovered = g.failed.filter(stage => r.last.get(stage) !== 0);
   if (uncovered.length) return `gate failed ${uncovered.join(', ')} and the rerun did not pass it`;
   if (unitChanged && r.last.get('make test-unit') !== 0) return 'unit tests changed after the gate, so the rerun must run make test-unit';
