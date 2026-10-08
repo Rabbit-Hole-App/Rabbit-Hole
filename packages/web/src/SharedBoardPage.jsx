@@ -5,11 +5,13 @@ import ForkButton from './ForkButton.jsx';
 import { Button, toast } from './ui.jsx';
 import { wsHeaders } from './api.js';
 import { rabbitOrigin, requestRabbitHole, resumeHref, takeResume } from './shared-rabbit-hole.js';
+import { carryStep, keepPendingStep, takePendingStep } from './learn-next-steps.js';
+import { useSharedNextSteps } from './LearnNextSteps.jsx';
 import { describeBlock } from './LearningBlocks.jsx';
 import { PRODUCT } from './flags.js';
 import { creatorLabel } from './home/provenance.js';
 import ChatComposer from './ChatComposer.jsx';
-import { Md } from './ask.jsx';
+import { Md, NextStepsCard } from './ask.jsx';
 import { streamAsk } from './agent/ask-stream.js';
 import { askHistory, askPath, loadChat, saveChat, signInForAsk, takeDraft } from './shared-ask.js';
 
@@ -36,8 +38,9 @@ export default function SharedBoardPage({ token }) {
     window.history.replaceState(null, '', window.location.pathname);
     return takeDraft(token);
   });
-  // Back from signing in to start a Rabbit Hole (?rabbit=<card | root>): it finishes from the same origin.
-  const [rabbitRequested] = useState(() => takeResume(window.location, window.history));
+  // Back from signing in to start a Rabbit Hole (?rabbit=<card | root>): it finishes from the same origin, with the hook clicked
+  // signed out (&hook=<id>, Professor Next Steps contract §1.4) when one came back: { origin, hook }.
+  const [rabbitRequested] = useState(() => takeResume(window.location, window.history, { hook: true }));
   // The selected card (a click on a view-only board selects it): where Start Rabbit Hole begins.
   const [card, setCard] = useState(null);
   const onCanvasState = useCallback(state => setCard(state.card || null), []);
@@ -102,6 +105,7 @@ export default function SharedBoardPage({ token }) {
       <div className="relative min-h-0 flex-1" aria-label="Lesson canvas">
         <Suspense fallback={null}>
           <AdaptiveCanvas exchanges={exchanges} onMove={() => {}} appName={shared.app} boardState={board} readOnly onState={onCanvasState} onStartRabbitHole={startFromCard}
+            leftRail={<SharedNextSteps token={token} card={card?.id || null} version={shared.version} signedIn={!!shared.viewer} startRef={rabbitStart} />}
             composer={<SharedAsk token={token} viewer={shared.viewer} context={shared.context} draft={askDraft} />} />
         </Suspense>
       </div>
@@ -112,22 +116,34 @@ export default function SharedBoardPage({ token }) {
 // Start Rabbit Hole (docs/features/shared-canvas-rabbit-hole.md): the viewer's own private Rabbit Hole from this
 // canvas - from the selected card, else from the canvas itself. Never a fork and never a change to this board; Fork
 // stays beside it. Signed out, it goes through the existing sign-in and finishes on return (`resume`).
+// A Professor Next Steps hook (contract §1.4) starts the same hole, carrying the clicked step: the server checks it and echoes
+// it, and the new hole's first Tutor turn opens on it once (carryStep, by the hole's name). A stale step (the board changed or
+// was renamed) starts the hole without it. Signed out, the step waits through sign-in for this link and hook (keepPendingStep).
 function StartRabbitHole({ token, state, card, resume, startRef }) {
   const [busy, setBusy] = useState(false);
   const flight = useRef(false);
-  const run = async cardId => {
+  const run = async (cardId, step = null, hookId = null) => {
     if (flight.current) return; // a double click is one start
     flight.current = true; setBusy(true);
     try {
       // The card names the hole as every canvas surface describes it (describeBlock), kind first: "Quiz: ...".
-      const made = await requestRabbitHole(token, rabbitOrigin(state, cardId, describeBlock), { headers: wsHeaders() });
-      window.location.href = made.signIn ? resumeHref(window.location.pathname, cardId) : made.url;
+      const origin = rabbitOrigin(state, cardId, describeBlock);
+      let made = await requestRabbitHole(token, origin, { headers: wsHeaders(), step });
+      if (made.stale) made = await requestRabbitHole(token, origin, { headers: wsHeaders() });
+      if (made.signIn) {
+        if (step) keepPendingStep(sessionStorage, token, step);
+        window.location.href = resumeHref(window.location.pathname, cardId, step ? hookId : null);
+        return;
+      }
+      if (made.next_step) carryStep(sessionStorage, made.name, made.next_step);
+      window.location.href = made.url;
     } catch (error) {
       toast(error.message, { tone: 'error' });
       flight.current = false; setBusy(false);
     }
   };
-  useEffect(() => { if (resume !== undefined) run(resume); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Back from sign-in: the kept step only for this link and the hook id that came back; none (or a stale reply) starts plain.
+  useEffect(() => { if (resume !== undefined) run(resume.origin, resume.hook ? takePendingStep(sessionStorage, token, resume.hook) : null, resume.hook); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   if (startRef) startRef.current = run; // the card menu's way in: the same run, the same one-start guard
   return (
     <Button type="button" variant="primary" data-start-rabbit-hole data-origin={card?.id || 'root'} aria-busy={busy} onClick={() => run(card?.id || null)}
@@ -135,6 +151,13 @@ function StartRabbitHole({ token, state, card, resume, startRef }) {
       {busy ? <Loader2 size={13} className="animate-spin" /> : <ArrowDownToLine size={13} strokeWidth={1.8} />}Start Rabbit Hole
     </Button>
   );
+}
+
+// Professor Next Steps on a shared canvas (contract §1.3, §1.7): the hooks for the selected card (null: the canvas itself), in
+// the canvas's lower-left stack. A click starts the viewer's own private hole from that card through Start Rabbit Hole's run.
+function SharedNextSteps({ token, card, version, signedIn, startRef }) {
+  const steps = useSharedNextSteps({ token, card, version, signedIn });
+  return <NextStepsCard steps={steps} onPick={(step, hook) => startRef.current?.(card, step, hook.id)} />;
 }
 
 const SOURCE_ICON = { video: Play, wiki: BookOpen, paper: FileText };

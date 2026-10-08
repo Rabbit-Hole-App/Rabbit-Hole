@@ -1963,7 +1963,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const card = soleCard ? { id: soleCard.id, title: soleCard.title || describeBlock(soleCard)?.title || '' }
     : selectedGroup ? { id: selectedGroup.id, title: selectedGroup.label || `${selection.length} items` } : null;
   const cardKey = JSON.stringify(card), content = strokes.length + shapes.length + items.length + blocks.length;
-  useEffect(() => { onState?.({ grid, lock, minimap, pages, presenting: presenting !== null, outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey), selected: selectedCount, units, grouped, canPaste, card: JSON.parse(cardKey), content }); }, [grid, lock, minimap, pages, presenting, outlineKey, cardsKey, selectedCount, units, grouped, canPaste, cardKey, content, onState]);
+  // Practice attempts committed on this canvas (every card's attemptLog): a Professor Next Steps basis trigger (contract §1.7).
+  const attempts = blocks.reduce((sum, block) => sum + (block.attemptLog?.length || 0), 0);
+  useEffect(() => { onState?.({ grid, lock, minimap, pages, presenting: presenting !== null, outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey), selected: selectedCount, units, grouped, canPaste, card: JSON.parse(cardKey), content, attempts }); }, [grid, lock, minimap, pages, presenting, outlineKey, cardsKey, selectedCount, units, grouped, canPaste, cardKey, content, attempts, onState]);
   useEffect(() => () => connectionCleanup.current?.(), []);
   // Deleting is a command as well as a key, so it lives outside the key handler.
   const deleteSelection = () => {
@@ -3160,9 +3162,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       {/* Voice Mode's Tutor caption (VoiceMode.jsx): a zero-width anchor after the tools gutter (which docks
           order-first), so the small caption window floats at the surface's lower left, above the zoom pill, as the
           owner asked (2026-10-01). On a phone it is an in-flow strip. Never while presenting. It sits over the canvas
-          but outside the surface's drop target, so a file dropped on it is ignored rather than opened by the browser. */}
+          but outside the surface's drop target, so a file dropped on it is ignored rather than opened by the browser.
+          The rail is one stack there (owner, 2026-10-06): the Professor Next Steps card above the caption, which is
+          held in the stack's flow instead of its own corner. The stack stays left of the centred dock (780 px) and the
+          answer sheet above it, down to 208 px wide. */}
       {leftRail && presenting === null && <div data-voice-rail className="relative z-20 w-0 shrink-0 @max-[640px]:w-full"
-        onDragOver={event => event.preventDefault()} onDrop={event => event.preventDefault()}>{leftRail}</div>}
+        onDragOver={event => event.preventDefault()} onDrop={event => event.preventDefault()}>
+        <div data-left-stack className="absolute bottom-3 left-3 flex w-[clamp(208px,calc(50cqw-500px),300px)] flex-col items-start gap-2 [&>[data-tutor-caption]]:relative [&>[data-tutor-caption]]:inset-auto @max-[640px]:static @max-[640px]:w-full">{leftRail}</div>
+      </div>}
       <div ref={surface} data-canvas-surface onPointerDownCapture={tool === 'askArea' ? startArea : undefined} data-presenting={presenting !== null ? '' : undefined} onPointerDown={down} onPointerMove={trackGap} onPointerLeave={() => { if (!gapAdding) setHoverGap(null); }}
         onContextMenu={event => {
           event.preventDefault();

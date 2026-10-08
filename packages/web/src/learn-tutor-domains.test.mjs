@@ -391,7 +391,7 @@ test('the live title: canvas_context.goal and dive_context.title follow the dive
 test('wiring: useTutor and LearnPage decide the Tutor only through the resolver; the registry holds the one nanoGPT entry', () => {
   const tutor = read('LearnTutor.jsx'), page = read('LearnPage.jsx'), registry = read('learn-tutor-domains.js');
   // Task 11c-B: repository (the page's handoff flag, else the app's own: canvasRepository).
-  assert.match(tutor, /export function useTutor\(\{ app, board, access, canvasApi, canvasState, dive, courseCanvas = false, journey = null, canvasVersion = null, openResearch = null, repository = null \}\)/);
+  assert.match(tutor, /export function useTutor\(\{ app, board, access, canvasApi, canvasState, dive, courseCanvas = false, journey = null, canvasVersion = null, openResearch = null, repository = null, describe = null \}\)/);
   assert.match(tutor, /const where = \{ app: courseCanvas \? app : null, board, root, parentJourney, record, title: liveTitle \};/);
   assert.match(tutor, /const liveTitle = dive\.tree\?\.path\?\.at\(-1\)\?\.title \?\? app\.title \?\? null;/);
   // Merge of Tasks 10 and 11: the opening lives in holeOpening (learn-next-steps.js), handed the live title.
@@ -404,7 +404,7 @@ test('wiring: useTutor and LearnPage decide the Tutor only through the resolver;
   assert.match(tutor, /snapshot: \(\) => \(\{ context: hookContext\(\{ \.\.\.where, journey: journeyRef\.current, blocks: canvasApi\.current\?\.blocks\?\.\(\) \|\| \[\] \}, parentRead, recordPending\), store: load\(\), parent: parentJourney, record, liveTitle \}\),/);
   assert.match(tutor, /const recordPending = \/\^canvas-\[a-f0-9\]\{8\}\$\/\.test\(app\.name\) && !dive\.tree;/);
   assert.match(tutor, /\}, \[access, record, here\.app, here\.board, key, parentJourney, courseCanvas, root, canvasVersion, liveTitle, openResearch, reads\]\);/); // Task 11c-B: reads
-  assert.match(page, /const tutor = useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey \}\);/);
+  assert.match(page, /const tutor = useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey, canvasVersion, repository: repoAttached && canvasRepository\(app\), describe: describeBlock \}\);/);
   assert.match(page, /const suppliedCourse = learnPreview && !!registeredCourse\(\{ app \}\)\?\.capabilities\?\.suppliedCourse;/);
   assert.equal(TUTOR_DOMAINS.filter(e => e.domain === NANOGPT).length, 1);
   assert.equal(registry.match(/'karpathy\/nanoGPT'/g).length, 1);

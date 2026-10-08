@@ -53,8 +53,8 @@ test('product availability is not the review copy: /ask is valid everywhere, /re
   assert.match(reviewOff('ask', 'workspace', { askLive: false }).reason, /live chat history/);
   assert.equal(reviewOff('ask', 'workspace', { askLive: true }), null);
   assert.equal(reviewOff('ask', 'project', { askLive: false }), null); // project asks use LEARN_DB
-  for (const kind of ['workspace', 'project', 'app']) assert.deepEqual(reviewOff('research', kind), { reason: 'Research here would call the live model, so it is off on this preview.', short: 'Off on this preview' });
-  assert.equal(reviewOff('research', 'canvas'), null);
+  // A canvas offers no /research either (Professor Next Steps contract §1.7): no kind turns it on.
+  for (const kind of ['workspace', 'project', 'app', 'canvas']) assert.deepEqual(reviewOff('research', kind), { reason: 'Research here would call the live model, so it is off on this preview.', short: 'Off on this preview' }, kind);
   assert.equal(reviewOff('find', 'workspace'), null);
 });
 

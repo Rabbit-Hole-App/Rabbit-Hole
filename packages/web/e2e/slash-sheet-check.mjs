@@ -7,13 +7,25 @@ import { DEV_CP } from './dev-cp.mjs';
 // working; paid Generate is off; chat-only commands show an example exchange.
 // No model calls, nothing generated.
 // usage: node e2e/slash-sheet-check.mjs [screenshot dir]
-const BASE = 'https://small-cp-dev-small-parallel.tryrabbithole.workers.dev';
+// A local stack instead: BASE=http://127.0.0.1:<app> SMALL_CP=http://127.0.0.1:<cp> node e2e/slash-sheet-check.mjs [dir] - a fresh
+// canvas, a session minted with packages/control-plane/.dev.vars, and the finished-media checks skipped (a fresh local stack has
+// no rendered Manim, Blender or FAL samples), as is /graph's card (a keyless build has no Desmos key).
+const LOCAL = process.env.BASE || null;
+if (LOCAL && !/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(LOCAL)) throw Error('BASE must be a local stack');
+const BASE = LOCAL || 'https://small-cp-dev-small-parallel.tryrabbithole.workers.dev';
 const SHOTS = process.argv[2] || 'e2e/shots';
 mkdirSync(SHOTS, { recursive: true });
-const env = Object.fromEntries(readFileSync('C:/Users/cyudhist/Desktop/workspace/small-deploy/.env', 'utf8').split(/\r?\n/).map(l => l.match(/^([A-Z_]+)=(.*)$/)).filter(Boolean).map(([, k, v]) => [k, v.replace(/^"|"$/g, '').trim()]));
-const session = (await (await fetch(`${DEV_CP}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'slash-sheet' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret: env.RABBIT_HOLE_DEV_TEST_BYPASS }) })).json()).session;
+let session;
+if (LOCAL) {
+  const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
+  session = (await (await fetch(`${process.env.SMALL_CP}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: `slash-sheet-${Date.now().toString(36)}@example.com`, secret }) })).json()).session;
+} else {
+  const env = Object.fromEntries(readFileSync('C:/Users/cyudhist/Desktop/workspace/small-deploy/.env', 'utf8').split(/\r?\n/).map(l => l.match(/^([A-Z_]+)=(.*)$/)).filter(Boolean).map(([, k, v]) => [k, v.replace(/^"|"$/g, '').trim()]));
+  session = (await (await fetch(`${DEV_CP}/test/session`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'slash-sheet' }, body: JSON.stringify({ email: 'yudhisteer.chin@gmail.com', secret: env.RABBIT_HOLE_DEV_TEST_BYPASS }) })).json()).session;
+}
 let failed = 0;
 const ok = (name, condition, extra = '') => { if (!condition) failed += 1; console.log(`${condition ? 'PASS' : 'FAIL'}  ${name}${extra ? `  (${extra})` : ''}`); };
+const skip = (name, why = 'no rendered sample') => console.log(`SKIP  ${name}  (local stack: ${why})`);
 const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
 await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
@@ -22,7 +34,8 @@ const errors = [];
 page.on('pageerror', error => errors.push(error.message.slice(0, 160)));
 const paid = [];
 page.on('request', request => { if (request.method() === 'POST' && /\/api\/learn\/(image|video|scene|tts|artifact)/.test(request.url())) paid.push(request.url()); });
-await page.goto(`${BASE}/apps/repo-06745f10-nanogpt?tab=learn&board=sheet-${Date.now().toString(36)}`);
+const canvasName = LOCAL && (await (await fetch(`${BASE}/api/canvases`, { method: 'POST', headers: { 'Content-Type': 'application/json', cookie: `small_session=${session}` }, body: JSON.stringify({ title: 'Slash sheet check' }) })).json()).name;
+await page.goto(LOCAL ? `${BASE}/apps/${canvasName}` : `${BASE}/apps/repo-06745f10-nanogpt?tab=learn&board=sheet-${Date.now().toString(36)}`);
 await page.getByRole('menubar', { name: 'Canvas menu' }).waitFor({ timeout: 60000 });
 await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: 'View' }).click();
 await page.getByRole('menuitem', { name: 'Slash commands' }).click();
@@ -31,6 +44,8 @@ await sheet.waitFor();
 // The card a command makes: [data-slash-card] and a readiness hint per card type.
 const expect = { graph: '.dcg-container, canvas', quiz: 'button', diagram: '.react-flow__node', animate: 'video[data-lesson-video]', explain: 'p', notebook: 'iframe', walkthrough: 'svg, button', code: 'pre, code' };
 for (const [command, ready] of Object.entries(expect)) {
+  if (LOCAL && command === 'animate') { skip('/animate shows its real card'); continue; }
+  if (LOCAL && command === 'graph') { skip('/graph shows its real card', 'no Desmos key in a keyless build'); continue; }
   await sheet.locator(`[data-slash-help="${command}"]`).click();
   const card = sheet.locator('[data-slash-card]');
   await card.waitFor({ timeout: 15000 });
@@ -48,6 +63,8 @@ await sheet.locator('[data-slash-help="quiz"]').click();
 await sheet.locator('[data-slash-card="quiz"]').getByRole('button').first().click();
 ok('the quiz card works: choosing an option answers it', await sheet.locator('[data-slash-card="quiz"]').innerText().then(text => /differentiate|σ|sigma/i.test(text)));
 // Generated media shows a finished result: the Manim clip rendered on the clone plays; no Generate card.
+if (LOCAL) ['/animate shows the finished Manim clip', '/3d shows the finished Blender scene', '/video shows the finished FAL clip'].forEach(skip);
+else {
 await sheet.locator('[data-slash-help="animate"]').click();
 const clip = sheet.locator('[data-slash-card] video[data-lesson-video]');
 const plays = await clip.waitFor({ timeout: 20000 }).then(() => clip.evaluate(node => new Promise(done => { if (node.readyState >= 1) return done(node.duration); node.addEventListener('loadedmetadata', () => done(node.duration), { once: true }); setTimeout(() => done(0), 15000); }))).catch(() => 0);
@@ -59,10 +76,14 @@ ok('/3d shows the finished Blender scene in the 3D viewer', await sheet.locator(
 await sheet.screenshot({ path: `${SHOTS}/sheet-3d.png` });
 await sheet.locator('[data-slash-help="video"]').click();
 ok('/video shows the finished FAL clip', await sheet.locator('[data-slash-card="videoGenerate"] video[data-lesson-video]').waitFor({ timeout: 20000 }).then(() => true).catch(() => false));
+}
 await sheet.locator('[data-slash-help="compare"]').click();
 ok('/compare explains the tutor picks one, and shows a real comparison', await sheet.getByText('The tutor picks one:').count() === 1 && await sheet.locator('[data-slash-card="table"]').getByText('Sigmoid vs tanh').count() === 1);
 await sheet.screenshot({ path: `${SHOTS}/sheet-compare.png` });
-for (const command of ['deeper', 'simplify', 'example', 'research', 'ask', 'teach', 'do', 'source']) {
+// /research and /do are Home, Library and Project workflows, never Canvas commands (Professor Next Steps contract §1.7).
+ok('the sheet offers no /research or /do', await sheet.locator('[data-slash-help="research"], [data-slash-help="do"]').count() === 0);
+await sheet.screenshot({ path: `${SHOTS}/sheet-commands.png` });
+for (const command of ['deeper', 'simplify', 'example', 'ask', 'teach', 'source']) {
   await sheet.locator(`[data-slash-help="${command}"]`).click();
   const chat = sheet.locator(`[data-slash-chat="${command}"]`);
   ok(`/${command} shows an example exchange and adds no card`, await sheet.locator('[data-slash-card]').count() === 0 && await chat.locator('.katex, p').count() > 0 && (await chat.innerText()).includes(`/${command}`));

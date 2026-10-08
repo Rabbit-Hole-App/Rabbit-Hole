@@ -37,7 +37,7 @@ test('the conversation is kept per link and per viewer, and only answered pairs 
 test('the shared page puts Learn\'s composer shell in the canvas composer slot, with read-only context pills', () => {
   // readOnly may be followed by onState (the selected card a Rabbit Hole starts from, shared-canvas-rabbit-hole.md) and
   // onStartRabbitHole (the card right-click menu starts it from the card it was opened on).
-  assert.match(page, /<AdaptiveCanvas [^\n]*readOnly( onState=\{onCanvasState\})?( onStartRabbitHole=\{startFromCard\})?\n\s+composer=\{<SharedAsk token=\{token\} viewer=\{shared\.viewer\} context=\{shared\.context\} draft=\{askDraft\} \/>\} \/>/);
+  assert.match(page, /<AdaptiveCanvas [^\n]*readOnly( onState=\{onCanvasState\})?( onStartRabbitHole=\{startFromCard\})?(\n\s+leftRail=\{<SharedNextSteps [^\n]*\/>\})?\n\s+composer=\{<SharedAsk token=\{token\} viewer=\{shared\.viewer\} context=\{shared\.context\} draft=\{askDraft\} \/>\} \/>/);
   assert.match(page, /import ChatComposer from '\.\/ChatComposer\.jsx';/);
   assert.match(composer, /<ChatComposer dock value=\{input\} onChange=\{setInput\} onSubmit=\{send\}/);
   assert.match(composer, /data-context-pill="repository"[^\n]*\n[^\n]*\{repository\.repo\} · \{repository\.commit\.slice\(0, 7\)\}/);

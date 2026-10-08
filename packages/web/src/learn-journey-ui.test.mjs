@@ -207,7 +207,7 @@ test('LearnPage.jsx: useJourney off the nanoGPT course, its props on the dock co
   assert.match(page, /const journey = useJourney\(\{ app, board: boardName, access: askScope, canvasApi, enabled: learnPreview && isCanvas && !hole \}\)/);
   assert.match(page, /journey=\{journey\} journeyStarter=\{journey\.journey \? null : journey\.start\} journeySetup=\{inJourneySetup\(journey\.journey\)\} tray=\{journey\.trayProps\}/);
   // LP1 Task 12: the journey reaches useTutor, so the dock's tutor prop is the Tutor on a journey canvas (D1).
-  assert.match(page, /const journey = useJourney\([^\n]*\n[\s\S]*?const tutor = useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey \}\);/);
+  assert.match(page, /const journey = useJourney\([^\n]*\n[\s\S]*?const tutor = useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey, canvasVersion, repository: repoAttached && canvasRepository\(app\), describe: describeBlock \}\);/);
   assert.match(page, /tutor=\{tutor\.active \? tutor : null\} journey=\{journey\}/);
 });
 
@@ -1297,7 +1297,7 @@ test('ask.jsx and LearnPage.jsx: the sheet opens only for a Tutor reply; slash p
   // A block's composer gets the Tutor only on a canvas with a live journey, or in a hole opened from a journey section once
   // its Tutor is active (LP1 Task 14 review round 1, D1); nanoGPT, blank canvases and other holes keep /api/learn/ask. It
   // asks about the block it sits in.
-  assert.match(page, /renderBlockComposer=\{[^\n]*?canvasSeed=\{\{ question: exchange\.question, answer: exchange\.answer, target \}\} onExchange=\{onExchange\} tutor=\{journey\.journey \|\| \(tutor\.active && dive\.tree\?\.dive\?\.journey\) \? tutor : null\}/);
+  assert.match(page, /renderBlockComposer=\{[^\n]*?canvasSeed=\{\{ question: exchange\.question, answer: exchange\.answer, target \}\} onExchange=\{onExchange\} tutor=\{tutor\.active \? tutor : null\}/);
   assert.match(ask, /targetId: \(target \|\| canvasSeed\?\.target\)\?\.id \|\| null/);
   // Final review C-I1: a hole's opening turn is sent once, from the dock - never again from each block's composer
   // (Continue convo), which gets the same Tutor in a journey hole.

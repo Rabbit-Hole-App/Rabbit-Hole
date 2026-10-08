@@ -117,7 +117,9 @@ test('VOICE-08: a small lower-left window shows only the reply being spoken now,
   assert.ok(mode.includes('if (!open) return <aside aria-label="Tutor caption" data-tutor-caption className={`${place} rounded-lg border border-line bg-white shadow-pop`}>{toggle}</aside>;'));
   // The anchor is a zero-width slot right before the surface; the tools gutter docks order-first, left of it.
   assert.ok(canvas.includes('gutterTop = null, leftRail = null, onStartRabbitHole = null }) {'));
-  assert.match(canvas, /\{leftRail && presenting === null && <div data-voice-rail className="relative z-20 w-0 shrink-0 @max-\[640px\]:w-full"\n\s+onDragOver=\{event => event\.preventDefault\(\)\} onDrop=\{event => event\.preventDefault\(\)\}>\{leftRail\}<\/div>\}\n\s+<div ref=\{surface\} data-canvas-surface/);
+  // Professor Next Steps: the rail is one stack at that corner; the caption is held in its flow (relative, no corner offsets),
+  // under the hook card, and on a phone the stack is the in-flow strip.
+  assert.match(canvas, /\{leftRail && presenting === null && <div data-voice-rail className="relative z-20 w-0 shrink-0 @max-\[640px\]:w-full"\n\s+onDragOver=\{event => event\.preventDefault\(\)\} onDrop=\{event => event\.preventDefault\(\)\}>\n\s+<div data-left-stack className="absolute bottom-3 left-3 flex w-\[clamp\(208px,calc\(50cqw-500px\),300px\)\] flex-col items-start gap-2 \[&>\[data-tutor-caption\]\]:relative \[&>\[data-tutor-caption\]\]:inset-auto @max-\[640px\]:static @max-\[640px\]:w-full">\{leftRail\}<\/div>\n\s+<\/div>\}\n\s+<div ref=\{surface\} data-canvas-surface/);
   assert.match(canvas, /data-tool-gutter[\s\S]*?toolSide === 'left' \? `order-first /);
   // While voice is on, tutor.extras live in the caption, not the chat sheet.
   assert.ok(ask.includes('{tutor?.extras && !voiceOn && <div data-tutor-extras'));
