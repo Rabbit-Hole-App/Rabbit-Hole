@@ -42,8 +42,10 @@ test('TUTOR_AVATAR off: the planner prefix and request keep their pinned hashes 
   // re-pinned with review (.superpowers/sdd/2026-10-06-professor-next-steps/task-4-repin-review.md, entries 1-2). Before Task 11b
   // (f6919b51): 57a2a9cea4fc27c69585db49dbbba4d05cd72e98654caf6c191efd4300dc2347 / 068ee7b7fd7b4b4e408f21a155ec1de0da27d14745dc5067e1e21782c8ab2442;
   // re-pinned with review (.superpowers/sdd/2026-10-06-professor-next-steps/task-11b-repin-review.md, part A pins 1-2).
-  assert.equal(sha(JSON.stringify([TUTOR_TOOL, PLANNER_SYSTEM])), '953589b8d0f2169f069c8e809d1fbfe3bf1575dbdaa4f8442fd50ae750e2b9c0') // Task 11c-B part E (T12-F1, topic-free LINES[6], task-11c-repin-review.md): was ebdcd10b0e48226b; // fix round 1 (task-11b-repin-review.md parts C-D): was 54577c573a0ba3e0; // fix round 1 (task-11b-repin-review.md part C): was e6953b414277d7c5
-  assert.equal(sha(JSON.stringify(plannerRequest(context, 2000, [], { cache: true, stream: true }))), 'aca5103dc1e548bb79993a4ebb7a596b618e3b5a6914224caaa5e384022ccda8') // Task 11c-B part E (T12-F1, topic-free LINES[6], task-11c-repin-review.md): was fd640e6f0cb25a55; // fix round 1 (task-11b-repin-review.md parts C-D): was 4779aa239047a943; // fix round 1 (task-11b-repin-review.md part C): was 32b97373eda31270
+  // r29 re-pin (owner 2026-10-08, shared LINES[22] claim coverage): was 953589b8d0f2169f069c8e809d1fbfe3bf1575dbdaa4f8442fd50ae750e2b9c0
+  assert.equal(sha(JSON.stringify([TUTOR_TOOL, PLANNER_SYSTEM])), 'e652127edfa18805a89718ca367aacdf0990d9ee71a08a9dda768fb62251470f') // Task 11c-B part E (T12-F1, topic-free LINES[6], task-11c-repin-review.md): was ebdcd10b0e48226b; // fix round 1 (task-11b-repin-review.md parts C-D): was 54577c573a0ba3e0; // fix round 1 (task-11b-repin-review.md part C): was e6953b414277d7c5
+  // r29 re-pin (owner 2026-10-08, shared LINES[22] claim coverage): was aca5103dc1e548bb79993a4ebb7a596b618e3b5a6914224caaa5e384022ccda8
+  assert.equal(sha(JSON.stringify(plannerRequest(context, 2000, [], { cache: true, stream: true }))), '459e7d7ee77a3ec55087eacfc9f2fce4ca02e9df37028174097dc259e59c970d') // Task 11c-B part E (T12-F1, topic-free LINES[6], task-11c-repin-review.md): was fd640e6f0cb25a55; // fix round 1 (task-11b-repin-review.md parts C-D): was 4779aa239047a943; // fix round 1 (task-11b-repin-review.md part C): was 32b97373eda31270
   assert.deepEqual(plannerRequest(context, 2000, [], { avatar: false }), plannerRequest(context, 2000));
   assert.ok(!ACTION_TYPES.includes(AVATAR_ACTION));
 });

@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { cardBlock } from './nanogpt/board.js';
-import { cardModule } from './learn-tutor-claims.js';
+import { NANOGPT, cardModule } from './learn-tutor-claims.js';
 import { appendEvents, emptyStore, deriveClaimStates } from './learn-tutor-evidence.js';
 import { buildTurn, evaluationSpec, executeActions, plannerContext, route, runTurn } from './learn-tutor.js';
 import { validateActions } from './learn-tutor-validate.js';
@@ -43,11 +43,20 @@ const SNAPSHOT = JSON.parse(readFileSync(new URL('./__fixtures__/nanogpt-planner
 // (re-pinned with review: .superpowers/sdd/2026-10-06-professor-next-steps/task-4-repin-review.md, entry 8).
 const withHistory = s => ({ ...s, recent_relevant_context: { ...s.recent_relevant_context, recent_modalities: [] } });
 
-test('nanoGPT: the planner context is the pre-TutorDomain snapshot on all six inputs, plus the one documented field', () => {
+// r29 (owner 2026-10-08, Tutor eval run A2): each relevant_evidence claim gains coverage (last key: settled_ideas, missing_ideas,
+// transfer_needed), compared apart from the snapshot so the rest stays pinned byte for byte.
+const withoutCoverage = c => ({ ...c, relevant_evidence: { ...c.relevant_evidence, claims: c.relevant_evidence.claims.map(({ coverage, ...claim }) => claim) } });
+test('nanoGPT: the planner context is the pre-TutorDomain snapshot on all six inputs, plus the two documented fields', () => {
   assert.equal(SNAPSHOT.length, NANOGPT_INPUTS.length);
   NANOGPT_INPUTS.forEach((input, i) => {
     // Compared as JSON text, so key order is pinned too (it is what the planner route receives).
-    assert.equal(JSON.stringify(contextOn(...input)), JSON.stringify(withHistory(SNAPSHOT[i])), `input ${i}: ${input[1]}`);
+    const context = contextOn(...input);
+    assert.equal(JSON.stringify(withoutCoverage(context)), JSON.stringify(withHistory(SNAPSHOT[i])), `input ${i}: ${input[1]}`);
+    for (const claim of context.relevant_evidence.claims) {
+      assert.deepEqual(Object.keys(claim).at(-1), 'coverage');
+      assert.deepEqual(Object.keys(claim.coverage), ['settled_ideas', 'missing_ideas', 'transfer_needed']);
+      assert.equal(claim.coverage.settled_ideas.length + claim.coverage.missing_ideas.length, NANOGPT.claims[claim.claim].ideas.length, claim.claim);
+    }
   });
 });
 

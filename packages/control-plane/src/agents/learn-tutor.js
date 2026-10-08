@@ -59,18 +59,21 @@ export function readTutorAnswers(body, spec) {
 // idea index: stated -> pass, contradicted -> fail, untouched or unsure -> nothing (Decision 7: an
 // idea the learner did not address is never a fail, prompted or not). Passes come before negatives,
 // so a partly right answer never ends on a pass. Gap checks always count.
-// Settled per claim (Tutor eval run A, tutor-decision-eval.md 18.1): an event is settled when the checks it rests on are
-// confident - a claim's events on the attempt check and that claim's idea, contradiction and misconception checks, a gap's
-// on its own check - so one unsure check never unsettles another claim's evidence. The transfer check only names a pass's
-// kind: a confident yes is demonstrated_in_transfer, anything else demonstrated_here, and an unsure one stays explicit
-// (transfer_unsure), so it never unsettles taught-case evidence and never makes a claim understood. status: settled when
-// every check but transfer is confident, else uncertain.
+// Settled per idea (Tutor eval runs A and A2, tutor-decision-eval.md 18.1, 18.3; owner 2026-10-08): an event is settled when
+// the checks it rests on are confident, so an unsure check on another idea or another claim never unsettles it. A pass or
+// fail on idea i rests on the attempt check and idea i's own two checks (stated, contradicted); a pass also on its claim's
+// misconception checks (a wrong model asserted beside it). A misconception rests on the attempt check and its own check; a
+// gap on its own check. An idea the answer did not engage, or whose checks JEV could not settle, gets no event: it stays
+// not observed. The transfer check only names a pass's kind: a confident yes is demonstrated_in_transfer, anything else
+// demonstrated_here, and an unsure one stays explicit (transfer_unsure), so it never makes a claim understood. status:
+// settled when every check but transfer is confident, else uncertain.
 export function evaluationFrom(spec, answers, thresholds, evaluator) {
   const yes = p => p >= thresholds.yes, no = p => p <= thresholds.no, sure = key => yes(answers[key]) || no(answers[key]);
   const transferKey = key => /^c\d+_transfer$/.test(key);
   const status = Object.keys(answers).filter(key => !transferKey(key)).every(sure) ? 'settled' : 'uncertain';
   const gate = sure(spec.answering ? 'non_attempt' : 'attempt');
-  const claimSettled = c => gate && Object.keys(answers).filter(key => key.startsWith(`c${c}_`) && !transferKey(key)).every(sure);
+  const ideaSettled = (c, i) => gate && sure(`c${c}_idea${i}`) && sure(`c${c}_contra${i}`);
+  const misSettled = c => Object.keys(answers).filter(key => key.startsWith(`c${c}_mis`)).every(sure);
   const event = (claim, settled, extra) => ({ concept: claim.concept, claim: claim.id, settled, evaluator, source: 'free_text', ...extra });
   const events = [];
   const attempted = spec.answering ? !yes(answers.non_attempt) : !no(answers.attempt);
@@ -83,15 +86,15 @@ export function evaluationFrom(spec, answers, thresholds, evaluator) {
       const engaged = (spec.answering && c === 0) || claim.ideas.some((_, i) => yes(answers[`c${c}_idea${i}`]) || yes(answers[`c${c}_contra${i}`]))
         || claim.misconceptions.some((_, m) => yes(answers[`c${c}_mis${m}`]));
       if (!engaged) return;
-      const settled = claimSettled(c), transfer = answers[`c${c}_transfer`];
+      const transfer = answers[`c${c}_transfer`];
       const kind = yes(transfer) ? 'demonstrated_in_transfer' : 'demonstrated_here';
       const unsure = typeof transfer === 'number' && !yes(transfer) && !no(transfer) ? { transfer_unsure: true } : {};
       claim.ideas.forEach((_, i) => {
-        if (yes(answers[`c${c}_idea${i}`])) passes.push(event(claim, settled, { result: 'pass', kind, idea: i, ...unsure }));
-        else if (yes(answers[`c${c}_contra${i}`])) negatives.push(event(claim, settled, { result: 'fail', kind: null, idea: i }));
+        if (yes(answers[`c${c}_idea${i}`])) passes.push(event(claim, ideaSettled(c, i) && misSettled(c), { result: 'pass', kind, idea: i, ...unsure }));
+        else if (yes(answers[`c${c}_contra${i}`])) negatives.push(event(claim, ideaSettled(c, i), { result: 'fail', kind: null, idea: i }));
       });
       claim.misconceptions.forEach((wrong, m) => {
-        if (yes(answers[`c${c}_mis${m}`])) negatives.push(event(claim, settled, { result: 'misconception', misconception_id: wrong.id, kind: null }));
+        if (yes(answers[`c${c}_mis${m}`])) negatives.push(event(claim, gate, { result: 'misconception', misconception_id: wrong.id, kind: null }));
       });
     });
     events.push(...passes, ...negatives);
@@ -237,6 +240,8 @@ const LINES = [
   // the journey prompt's setup line names it; never in a hole).
   'suggest_journey { request } offers a Start a learning path chip when the learner wants a whole subject taught over time, only when context.allowed_actions lists it: request is the subject in plain words; the learner decides, and nothing starts until they do.',
 ];
+// Owner 2026-10-08 (r29, Tutor eval run A2): appended as 22, so every earlier index holds. The coverage of each claim this turn.
+LINES.push('context.relevant_evidence.claims[].coverage: settled_ideas, missing_ideas, transfer_needed. Check or teach a missing idea, or ask for a new case when transfer_needed; never re-check a settled idea. Missing evidence is never a pass.');
 export const PLANNER_SYSTEM = LINES.join('\n');
 
 // The journey prompts (LP1 Task 16, owner 2026-10-05): six separate prompts, the five journey planners
@@ -275,7 +280,7 @@ const JOURNEY_SYSTEM = tagged({
   non_negotiable_rules: [
     L(1), L(2),
     '- Canvas content first: point at the target card, its parts and pinned sources, or show a card from context.relevant_authored_content.cards (cards of the current and completed sections, already on the canvas) by its card id. Never invent cards, parts or sources, and never generate new artifacts unless context.allowed_actions lists create_material.',
-    L(5), L(6), L(7), L(9), L(15), L(16), L(17), L(18), L(19), L(21),
+    L(5), L(6), L(7), L(9), L(15), L(16), L(17), L(18), L(19), L(21), L(22),
     '- Teach inside context.journey_context.section: its purpose, its target concepts and the evidence it expects. When the learner asks about something a section in context.journey_context.upcoming covers, name that section and say it comes later instead of teaching it early.',
     // Owner 2026-10-07: a learner may switch subject mid-setup through the chip, so setup allows that one offer beside the words.
     '- Phase setup has no section: answer briefly, respond_text only (plus suggest_journey when allowed), no cards. An unrelated question gets a short, direct answer; the journey resumes next turn.',

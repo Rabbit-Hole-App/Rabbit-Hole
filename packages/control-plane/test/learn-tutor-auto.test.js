@@ -29,7 +29,7 @@ test('TUTOR_TOOL: the reading fields come last and stay optional; suggest_resear
 
 test('the shared lines: material meaning, simple-answer principle, grounding and no-retrieval rules, reading fields - in every Tutor prompt', () => {
   const lines = PLANNER_SYSTEM.split('\n');
-  assert.equal(lines.length, 22, 'five lines appended, then fix B1 line 21; lines 0-15 keep their indices');
+  assert.equal(lines.length, 23, 'five lines appended, then fix B1 line 21 and the r29 coverage line 22; lines 0-15 keep their indices');
   const [material, simple, grounding, retrieval, reading] = lines.slice(16);
   assert.match(material, /^create_material \{ command, request \}/);
   assert.match(material, /context\.available_materials/);
@@ -120,7 +120,9 @@ test('fix B1: suggest_journey is an action; its shared line offers a learning pa
   assert.equal(ACTION_TYPES.at(-1), 'no_action');
   assert.ok(tutorTool(true).input_schema.properties.actions.items.properties.type.enum.includes('suggest_journey'));
   const lines = PLANNER_SYSTEM.split('\n');
-  assert.equal(lines.length, 22, 'line 21 appended');
+  assert.equal(lines.length, 23, 'line 21 appended, then the r29 coverage line 22');
+  assert.match(lines[22], /^context\.relevant_evidence\.claims\[\]\.coverage: settled_ideas, missing_ideas, transfer_needed\./);
+  assert.match(lines[22], /never re-check a settled idea\. Missing evidence is never a pass\.$/);
   assert.match(lines[21], /^suggest_journey \{ request \} offers a Start a learning path chip/);
   assert.match(lines[21], /when context\.allowed_actions lists it/);
   assert.match(lines[21], /nothing starts until they do/);
