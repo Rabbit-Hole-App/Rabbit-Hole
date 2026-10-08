@@ -86,9 +86,11 @@ test('names: display name, else @handle, else the neutral label; times are short
   assert.deepEqual(['2026-10-07T11:59:40Z', '2026-10-07T11:55:00Z', '2026-10-07T09:00:00Z'].map(iso => when(iso, now)), ['now', '5m', '3h']);
 });
 
-test('seams: the canvas menu offers Add comment (card) and Add comment here (canvas); the panel and pins are wired on the owner page', () => {
+test('seams: the canvas menu offers Add comment on an object only (owner, 2026-10-08); the panel and pins are wired on the owner page', () => {
   const canvas = read('../AdaptiveCanvas.jsx'), page = read('../LearnPage.jsx'), panel = read('./CommentsPanel.jsx');
-  assert.match(canvas, /\{addComment && !commentOn && <MenuRow icon=\{MessageCircle\} data-menu-add-comment[^\n]*>Add comment here<\/MenuRow>\}\r?\n[^\n]*\n\s+\{startHole && /, 'empty canvas: first');
+  assert.doesNotMatch(canvas, /Add comment here/, 'no comment on the bare canvas');
+  assert.match(canvas, /<CommentPins pins=\{commentPins\} view=\{view\} board=\{commentBoard\} slotOf=\{commentSlot\} /, 'object pins sit in their slot');
+  assert.match(canvas, /return \{ right: right - pillRow\(id\), top: top - 40, height: 30 \};/, 'the slot ends where the pill row starts, on its row');
   assert.match(canvas, /Start Rabbit Hole<\/MenuRow>\}\r?\n\s+\{addComment && commentOn && <MenuRow icon=\{MessageCircle\} [^\n]*hint="C"[^\n]*>Add comment<\/MenuRow>\}/, 'a card: right after Start Rabbit Hole');
   assert.match(canvas, /\{commentPins && presenting === null && <CommentPins /, 'no pins while presenting');
   assert.match(page, /<AdaptiveCanvas key=\{canvasEpoch\} \{\.\.\.comments\.canvasProps\} /);
@@ -106,7 +108,7 @@ test('increment 2 seams: Share carries the comment settings; the published page 
   assert.match(settings, /disabled=\{busy \|\| !enabled\}/, 'the public setting is disabled while comments are off');
   assert.match(shared, /useCanvasComments\(\{ base: commentsInfo && commentsBase, canAdd: !!commentsInfo\?\.can\.post,/, 'posting only for those the server lets post');
   assert.match(shared, /const commentsBase = memberBoard \? memberBase\(memberBoard\) : shared\?\.published \? publicBase\(token\) : null;/, 'a share link (/b) never asks the public family; owners and members get theirs');
-  assert.match(canvas, /if \(readOnlyRef\.current && !onAddComment && \(!onStartRabbitHole/);
+  assert.match(canvas, /if \(readOnlyRef\.current && !\(onAddComment && \(id \|\| group\)\) && \(!onStartRabbitHole/);
 });
 
 test('/i keeps the token out of the address: fragment to session storage, then the address is plain /i', async () => {
@@ -144,17 +146,17 @@ test('mentions travel as the server maps them: UTF-16 pos and len of @handle, on
 
 test('entry points: the Comment tool in the rail, C with its guards, the shortcut row, the header button and the tab dot', () => {
   const canvas = read('../AdaptiveCanvas.jsx'), sheet = read('../ShortcutsSheet.jsx'), page = read('../LearnPage.jsx'), header = read('../PanelHeader.jsx');
-  assert.match(canvas, /\{onAddComment && <ToolButton value="comment" Icon=\{MessageCircle\} label="Comment {2}C"/, 'tooltip "Comment  C"');
-  assert.match(canvas, /onPointerDownCapture=\{tool === 'askArea' \? startArea : tool === 'comment' \? placeComment : undefined\}/);
+  assert.doesNotMatch(canvas, /value="comment"|placeComment|tool === 'comment'/, 'no Comment tool (owner, 2026-10-08)');
+  assert.match(canvas, /&& commentKeyRef\.current\(focusedCard \? \[focusedCard\] : selectedRef\.current\)\) \{/, 'C acts only when the selection takes the comment');
   const key = canvas.slice(canvas.indexOf('const busy = held && held !== document.body'), canvas.indexOf("if (readOnlyRef.current) {\n        if (event.key === 'Escape')"));
-  assert.match(key, /if \(\(event\.key === 'c' \|\| event\.key === 'C'\)[^\n]*&& !busy\) \{/, 'C uses the busy test');
+  assert.match(key, /if \(\(event\.key === 'c' \|\| event\.key === 'C'\)[^\n]*&& !busy\n/, 'C uses the busy test');
   assert.match(key, /if \(pinKeyRef\.current && \['Enter', 'Delete', 'Backspace', 'Escape'\]\.includes\(event\.key\) && !event\.ctrlKey && !event\.metaKey && !event\.altKey && !busy\) \{/, 'a picked pin\'s keys: the same guards');
   assert.match(key, /!event\.ctrlKey && !event\.metaKey && !event\.altKey/, 'Ctrl+C still copies');
   assert.match(key, /presentingRef\.current === null/, 'never while presenting');
   assert.match(key, /isContentEditable \|\| \['INPUT', 'TEXTAREA', 'SELECT', 'IFRAME'\]\.includes/, 'never while typing');
   assert.match(key, /held\.closest\?\.\('\[data-block-id\]'\) && !held\.matches\('\[data-block-id\]'\)/, 'never inside a card\'s own editor or widget');
   assert.ok(canvas.indexOf("if ((event.key === 'c' || event.key === 'C')") < canvas.indexOf("if (readOnlyRef.current) {\n        if (event.key === 'Escape')"), 'C works on view-only boards too');
-  assert.match(sheet, /\['Comment on the selection \(a card, a shape or a group\), or place a comment', \['C'\]\]/);
+  assert.match(sheet, /\['Comment on the selection \(a card, a shape or a group\)', \['C'\]\]/);
   assert.match(page, /\{comments\.active && <button type="button" data-comments-header/);
   assert.match(header, /\{id === 'comments' && commentsOn && commentsUnread > 0 && <span data-unread-dot/);
 });

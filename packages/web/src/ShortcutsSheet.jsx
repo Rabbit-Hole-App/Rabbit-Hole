@@ -11,7 +11,7 @@ const GROUPS = [
     ['Back to the pointer', ['Esc']],
     ['Select an area', ['Ctrl', 'drag']],
     ['Card actions', ['Right-click']],
-    ['Comment on the selection (a card, a shape or a group), or place a comment', ['C']],
+    ['Comment on the selection (a card, a shape or a group)', ['C']],
   ]],
   ['Edit', [
     ['Undo', ['Ctrl', 'Z']],

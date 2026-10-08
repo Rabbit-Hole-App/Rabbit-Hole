@@ -76,6 +76,14 @@ const menuItems = () => page.locator('[data-canvas-menu] [role="menuitem"]').eva
 const menuHint = () => page.locator('[data-canvas-menu] [data-menu-add-comment] [data-menu-hint]').textContent();
 const composer = () => panel().locator('[data-comment-composer] textarea');
 const pins = () => page.locator('[data-comment-pin]');
+// The pin slot (owner, 2026-10-08): an object's pin sits just left of its Ask in chat pill, on the pill's row, never over it.
+const askPill = () => page.locator('button:visible', { hasText: 'Ask in chat' });
+const beside = async (pinBox, pill) => {
+  const box = await pill.boundingBox();
+  assert.ok(pinBox.x + pinBox.width <= box.x + 1, `left of Ask in chat: ${JSON.stringify([pinBox, box])}`);
+  assert.ok(box.x - (pinBox.x + pinBox.width) < 24, `right next to it: ${JSON.stringify([pinBox, box])}`);
+  assert.ok(Math.abs(pinBox.y + pinBox.height / 2 - (box.y + box.height / 2)) < 6, `on its row: ${JSON.stringify([pinBox, box])}`);
+};
 
 await page.goto(`${BASE}/apps/${canvas.name}`);
 await card('k-exp').waitFor({ timeout: 60000 });
@@ -112,9 +120,15 @@ await check('3 Send posts the thread: the author\'s name and avatar, and a pin o
   await page.waitForTimeout(500);
   assert.equal(await page.locator('[data-comment-pin="draft"]').count(), 0, 'the ghost is gone');
   assert.equal(await pins().count(), 1, 'one pin');
-  const pin = await pins().first().boundingBox(), body = await card('k-exp').boundingBox();
-  assert.ok(pin.x + 2 >= body.x && pin.x <= body.x + body.width && pin.y + pin.height >= body.y - 2 && pin.y <= body.y + body.height, 'the pin sits on the card');
+  const pin = await pins().first().boundingBox();
+  await beside(pin, askPill());
   await shot('03-thread-posted');
+  // The slot does not move when the card is let go, and the pill's place stays clear.
+  const body = await card('k-exp').boundingBox();
+  await page.mouse.click(body.x - 200, body.y + 300);
+  await page.waitForTimeout(400);
+  assert.equal(await askPill().count(), 0, 'deselected');
+  assert.deepEqual(await pins().first().boundingBox(), pin, 'the same slot, selected or not');
 });
 
 await check('4 a reply lands in the thread, oldest first', async () => {
@@ -127,17 +141,31 @@ await check('4 a reply lands in the thread, oldest first', async () => {
   await shot('04-reply');
 });
 
-await check('5 right-click the empty canvas: Add comment here is first, and makes a canvas comment', async () => {
+await check('5 the bare canvas takes no new comment (no menu row, C does nothing, no Comment tool); a stored canvas-point pin stays where it was placed', async () => {
+  assert.equal(await page.getByRole('button', { name: /^Comment\s+C$/ }).count(), 0, 'no Comment tool in the toolbar');
   const body = await card('k-exp').boundingBox();
+  await page.mouse.click(body.x - 160, body.y + 120);
   await page.mouse.click(body.x - 160, body.y + 120, { button: 'right' });
   const items = await menuItems();
-  assert.equal(items[0], 'Add comment here', items.join(' | '));
-  await page.locator('[data-menu-add-comment]').click();
-  assert.match(await panel().innerText(), /on the canvas/);
-  await composer().fill('Add a diagram of the ice surface here.');
-  await composer().press('Enter');
-  await panel().locator('[data-comment-thread-view]').waitFor();
-  await page.waitForFunction(() => document.querySelectorAll('[data-comment-pin]').length === 2);
+  assert.equal(items.some(item => /comment/i.test(item)), false, items.join(' | '));
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => document.activeElement?.blur?.());
+  await page.keyboard.press('c');
+  await page.waitForTimeout(400);
+  assert.equal(await page.locator('[data-comment-pin="draft"]').count(), 0, 'C with nothing selected does nothing');
+  // A point comment made before this change (stored by the API): it renders at its point and stays there.
+  const made = await api(`/api/learn/c/${boardId}/threads`, { method: 'POST', body: JSON.stringify({ id: crypto.randomUUID(), anchor: { kind: 'point', x: -120, y: 160 }, body: 'Add a diagram of the ice surface here.', mentions: [] }), headers: { origin: BASE } });
+  assert.equal(made.status, 201);
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await page.waitForFunction(() => document.querySelectorAll('[data-comment-pin]').length === 2, null, { timeout: 15000 });
+  const point = page.locator(`[data-comment-pin="${made.body.thread.id}"]`);
+  // Relative to the card (selecting it may pan the camera): the point pin keeps its place on the canvas.
+  const offset = async () => { const [p, c] = [await point.boundingBox(), await card('k-exp').boundingBox()]; return [Math.round(p.x - c.x), Math.round(p.y - c.y)]; };
+  const before = await offset();
+  await card('k-exp').click();
+  await page.waitForTimeout(600);
+  assert.deepEqual(await offset(), before, 'a canvas-point pin stays put');
+  await shot('05-point-pin');
 });
 
 await check('6 a member replies: the owner\'s list shows the reply count and an unread dot', async () => {
@@ -319,7 +347,7 @@ await check('15 right-click a drawn shape: Add comment (hint C) puts the pin on 
   await send('Is this the ice or the brine?');
   assert.equal(await pins().count(), 1);
   const before = await lastPin(), body = await shape('s-box').boundingBox();
-  assert.ok(before.x + 2 >= body.x && before.x <= body.x + body.width && before.y + before.height >= body.y - 2 && before.y <= body.y + body.height, 'the pin sits on the shape');
+  assert.ok(before.y + before.height <= body.y && before.x + before.width <= body.x + body.width, `the shape's slot: above it, left of its top right: ${JSON.stringify([before, body])}`);
   await dragBy(await centre(shape('s-box')), 150, 40);
   const after = await lastPin();
   assert.ok(Math.abs(after.x - before.x - 150) < 4 && Math.abs(after.y - before.y - 40) < 4, `the pin followed the shape: ${JSON.stringify([before, after])}`);
@@ -344,6 +372,7 @@ await check('16 right-click a group (its outline, or its name chip): Add comment
   const groupPin = async () => { await page.waitForTimeout(400); return page.locator(`[data-comment-pin="${id}"]`).boundingBox(); };
   await shot('16a-group-comment');
   const before = await groupPin();
+  await beside(before, askPill());
   const [a, b] = [await shape('g-a').boundingBox(), await shape('g-b').boundingBox()];
   await dragBy({ x: (a.x + a.width + b.x) / 2, y: a.y + a.height / 2 }, 120, 60);
   const after = await groupPin();

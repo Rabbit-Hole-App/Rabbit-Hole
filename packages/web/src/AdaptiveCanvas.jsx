@@ -2226,15 +2226,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           return;
         }
       }
-      // C (docs/features/canvas-comments.md, Q14): comment on the one selected or focused card, else arm the Comment tool,
-      // on any board where you may comment. It stands down while typing, inside an embedded editor or widget (focus
+      // C (docs/features/canvas-comments.md, Q14; owner 2026-10-08): comment on the selected or focused object, on any board
+      // where you may comment; with nothing selected it does nothing. It stands down while typing, inside an embedded editor or widget (focus
       // inside a card), in a dialog or the composer, with Ctrl, Alt or Meta held (Ctrl+C still copies), and while presenting.
       const held = document.activeElement;
       const busy = held && held !== document.body && (held.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT', 'IFRAME'].includes(held.tagName) || typingIn(held)
         || (!!held.closest?.('[data-block-id]') && !held.matches('[data-block-id]')) || !!held.closest?.('[data-chat-composer],[data-comments-panel],[role="dialog"],[role="menu"]'));
-      if ((event.key === 'c' || event.key === 'C') && !event.ctrlKey && !event.metaKey && !event.altKey && commentKeyRef.current && presentingRef.current === null && !busy) {
+      if ((event.key === 'c' || event.key === 'C') && !event.ctrlKey && !event.metaKey && !event.altKey && commentKeyRef.current && presentingRef.current === null && !busy
+        && commentKeyRef.current(focusedCard ? [focusedCard] : selectedRef.current)) {
         event.preventDefault();
-        if (!commentKeyRef.current.selection(focusedCard ? [focusedCard] : selectedRef.current)) commentKeyRef.current.arm();
         return;
       }
       // A picked comment pin: Enter opens its thread, Del or Backspace deletes it, Esc lets go - with C's guards, so typing
@@ -2244,7 +2244,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         pinKeyRef.current(event.key);
         return;
       }
-      // A view-only board's one tool besides the hand is Comment: Esc puts the hand back, and lets go of the selected card
+      // A view-only board: Esc puts the hand back, and lets go of the selected card
       // (and its pill above the shared composer, owner 2026-10-08) unless it is pressed in the composer, as below.
       if (readOnlyRef.current) {
         if (event.key === 'Escape') {
@@ -2610,32 +2610,37 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const label = group ? group.label || `${groupMembers[id].length} items` : objectLabel(entry);
     onAddComment?.(anchorAt(world, (group || entry) && { id, kind, label }, commentBoard));
   };
-  // The Comment tool: one press places the draft's pin where it lands, then the tool goes back.
-  const placeComment = event => {
-    if (event.button !== 0) return;
-    event.preventDefault(); event.stopPropagation();
-    const at = local(event);
-    const hit = event.target.closest?.('[data-block-id],[data-item-id],[data-shape-id],[data-group-box],[data-group-chip]');
-    const id = hit?.dataset.blockId || hit?.dataset.itemId || hit?.dataset.shapeId || hit?.dataset.groupBox || hit?.dataset.groupChip
-      || Object.entries(boundsRef.current).find(([, box]) => at.x >= box.x && at.x <= box.x + box.w && at.y >= box.y && at.y <= box.y + box.h)?.[0] || null;
-    setTool(readOnlyRef.current ? 'hand' : 'select');
-    commentAt(at, id);
-  };
-  // C (Q14): the selection gets the comment near its top left - a card, a shape or text, a whole group, or the first of
-  // several selected objects; with nothing selected, C arms the Comment tool.
-  commentKeyRef.current = onAddComment ? {
-    selection: ids => {
-      const gid = groupOf(ids[0]);
-      const whole = !!gid && membersOf(gid).every(id => ids.includes(id));
-      const boxes = boxesOf(whole ? membersOf(gid) : ids.slice(0, 1));
-      if (!boxes.length) return false;
-      const x = Math.min(...boxes.map(box => box.x)), y = Math.min(...boxes.map(box => box.y));
-      const w = Math.max(...boxes.map(box => box.x + box.w)) - x, h = Math.max(...boxes.map(box => box.y + box.h)) - y;
-      commentAt({ x: x + Math.min(24, w / 2), y: y + Math.min(24, h / 2) }, whole ? gid : ids[0]);
-      return true;
-    },
-    arm: () => setTool('comment'),
+  // C (Q14): the selection gets the comment - a card, a shape or text, a whole group, or the first of several selected
+  // objects. Nothing selected: false, and C does nothing (owner, 2026-10-08).
+  commentKeyRef.current = onAddComment ? ids => {
+    const gid = groupOf(ids[0]);
+    const whole = !!gid && membersOf(gid).every(id => ids.includes(id));
+    const boxes = boxesOf(whole ? membersOf(gid) : ids.slice(0, 1));
+    if (!boxes.length) return false;
+    const x = Math.min(...boxes.map(box => box.x)), y = Math.min(...boxes.map(box => box.y));
+    const w = Math.max(...boxes.map(box => box.x + box.w)) - x, h = Math.max(...boxes.map(box => box.y + box.h)) - y;
+    commentAt({ x: x + Math.min(24, w / 2), y: y + Math.min(24, h / 2) }, whole ? gid : ids[0]);
+    return true;
   } : null;
+  // The pin slot (owner, 2026-10-08): an object's thread pins sit in a row ending just left of its pill row - Ask in chat,
+  // and the pills a few cards add beside it - above its top right, whether it is selected or not, so a pin never covers a
+  // pill. In world units: where the reserved row starts (`right`), its top and height. A shape or text keeps the slot
+  // Ask in chat would take. PILL: the pills' rendered widths, with a little room.
+  const PILL = { ask: 112, select: 124, explain: 144, more: 138, gap: 6 };
+  const pillRow = id => {
+    const block = blocks.find(entry => entry.id === id);
+    if (block) return PILL.ask + (block.type === 'whiteboard' || block.type === 'paper' ? PILL.gap + PILL.select : 0);
+    if (exchanges.some(entry => entry.id === id)) return PILL.explain + PILL.gap + PILL.more;
+    return PILL.ask;
+  };
+  const commentSlot = id => {
+    const members = groupMembers[id];
+    const boxes = boxesOf(members || [id]);
+    if (!boxes.length) return null;
+    const pad = members ? 12 : 0; // a group's outline sits 12 outside its members, and its pill row above that
+    const top = Math.min(...boxes.map(box => box.y)) - pad, right = Math.max(...boxes.map(box => box.x + box.w)) + pad;
+    return { right: right - pillRow(id), top: top - 40, height: 30 };
+  };
   const pickedPin = pinPick ? commentPins?.find(pin => pin.id === pinPick && !pin.ghost) || null : null;
   const dropPin = () => { setPinPick(null); setPinAsk(null); };
   useEffect(() => { if (selection.length || (pinPick && !pickedPin)) dropPin(); }, [selection, pinPick, pickedPin]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -3350,7 +3355,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const inking = tool === 'pen' || tool === 'highlighter';
   const drawing = inking || shapeTool;
   // Ask about selection: the crosshair wins over every card's own cursor, slides included.
-  const cursor = tool === 'askArea' || tool === 'comment' ? 'cursor-crosshair [&_*]:!cursor-crosshair' : tool === 'hand' ? 'cursor-grab' : inking || tool === 'eraser' || shapeTool ? 'cursor-crosshair' : tool === 'select' ? '' : 'cursor-copy';
+  const cursor = tool === 'askArea' ? 'cursor-crosshair [&_*]:!cursor-crosshair' : tool === 'hand' ? 'cursor-grab' : inking || tool === 'eraser' || shapeTool ? 'cursor-crosshair' : tool === 'select' ? '' : 'cursor-copy';
   // The rail answers to the blank canvas right of the column, where its buttons
   // live; over the cards themselves it would only be in the way. Held by index
   // rather than by value so the line keeps following the cards as they move.
@@ -3439,7 +3444,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         onDragOver={event => event.preventDefault()} onDrop={event => event.preventDefault()}>
         <div data-left-stack className="absolute bottom-[calc(var(--chrome-left,0px)+0.75rem)] left-3 flex w-[clamp(208px,calc(50cqw-500px),300px)] flex-col items-start gap-2 [&>[data-tutor-caption]]:relative [&>[data-tutor-caption]]:inset-auto @max-[640px]:static @max-[640px]:w-full">{leftRail}</div>
       </div>}
-      <div ref={surface} data-canvas-surface onPointerDownCapture={tool === 'askArea' ? startArea : tool === 'comment' ? placeComment : undefined} data-presenting={presenting !== null ? '' : undefined} onPointerDown={down} onPointerMove={trackGap} onPointerLeave={() => { if (!gapAdding) setHoverGap(null); }}
+      <div ref={surface} data-canvas-surface onPointerDownCapture={tool === 'askArea' ? startArea : undefined} data-presenting={presenting !== null ? '' : undefined} onPointerDown={down} onPointerMove={trackGap} onPointerLeave={() => { if (!gapAdding) setHoverGap(null); }}
         onContextMenu={event => {
           event.preventDefault();
           if (event.ctrlKey || marqueeRef.current || presenting !== null) return;
@@ -3450,10 +3455,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             const at = local(event);
             id = Object.entries(boundsRef.current).find(([key, box]) => blocksRef.current.some(block => block.id === key) && at.x >= box.x && at.x <= box.x + box.w && at.y >= box.y && at.y <= box.y + box.h)?.[0] || null;
           }
-          if (readOnlyRef.current && !onAddComment && (!onStartRabbitHole || !blocksRef.current.some(block => block.id === id))) { setMenuAt(null); return; } // view-only: a card's menu, a commenter's Add comment, or none
-          if (id && !selectedRef.current.includes(id)) select(id);
           const groupHit = !id && event.target.closest('[data-group-box],[data-group-chip]');
           const group = groupHit ? groupHit.dataset.groupBox || groupHit.dataset.groupChip : null;
+          // view-only: a card's Start Rabbit Hole, a commenter's Add comment on an object or group, or no menu
+          if (readOnlyRef.current && !(onAddComment && (id || group)) && (!onStartRabbitHole || !blocksRef.current.some(block => block.id === id))) { setMenuAt(null); return; }
+          if (id && !selectedRef.current.includes(id)) select(id);
           if (group) setSelection(membersOf(group));
           const root = surface.current.getBoundingClientRect();
           setMenuAt({ x: event.clientX - root.left, y: event.clientY - root.top, id, group });
@@ -3679,7 +3685,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         </div>
         </div>
         {/* Comment pins (docs/features/canvas-comments.md): over the camera at a constant size; never while presenting. */}
-        {commentPins && presenting === null && <CommentPins pins={commentPins} view={view} board={commentBoard} onPin={onCommentPin} picked={pinPick} onPick={pickPin} ask={pinAsk} onConfirm={() => deletePin(pinPick)} onCancel={() => setPinAsk(null)} />}
+        {commentPins && presenting === null && <CommentPins pins={commentPins} view={view} board={commentBoard} slotOf={commentSlot} onPin={onCommentPin} picked={pinPick} onPick={pickPin} ask={pinAsk} onConfirm={() => deletePin(pinPick)} onCancel={() => setPinAsk(null)} />}
         {menuAt && presenting === null && (() => {
           const grouped = selection.map(id => [...blocks, ...items, ...shapes, ...exchanges].find(entry => entry.id === id)?.groupId).filter(Boolean);
           const act = action => () => { action(); setMenuAt(null); };
@@ -3745,7 +3751,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             <div ref={menuBox} role="menu" aria-label="Canvas actions" data-canvas-menu style={{ left: menuPos?.x ?? menuAt.x, top: menuPos?.y ?? menuAt.y, maxHeight: menuPos?.maxH, visibility: menuPos ? undefined : 'hidden' }}
               className="absolute z-40 w-60 overflow-y-auto rounded-md border border-line bg-white p-1 shadow-pop"
               onPointerDown={event => event.stopPropagation()} onContextMenu={event => { event.preventDefault(); event.stopPropagation(); }}>
-              {addComment && !commentOn && <MenuRow icon={MessageCircle} data-menu-add-comment onClick={act(addComment)}>Add comment here</MenuRow>}
               {/* Start Rabbit Hole's own mark, as on the shared page's header and the Explore card. */}
               {startHole && <MenuRow icon={ArrowDownToLine} data-menu-start-rabbit-hole data-origin={block.id} onClick={act(startHole)}>Start Rabbit Hole</MenuRow>}
               {addComment && commentOn && <MenuRow icon={MessageCircle} data-menu-add-comment aria-keyshortcuts="C" hint="C" onClick={act(addComment)}>Add comment</MenuRow>}
@@ -3831,7 +3836,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           {drawTarget && <div data-sketch-badge title="These tools draw in the Explain Back sketch. Press the canvas or Esc to draw on the canvas again."
             className="col-span-2 rounded-md bg-[#2383e2]/10 py-0.5 text-center text-[10px] font-semibold tracking-wide text-[#2383e2] uppercase @max-[640px]:col-span-1 @max-[640px]:px-1.5">Sketch</div>}
           {NAV_TOOLS.map(([value, Icon, label]) => <ToolButton key={value} value={value} Icon={Icon} label={label} active={tool === value} onPick={() => setTool(value)} />)}
-          {onAddComment && <ToolButton value="comment" Icon={MessageCircle} label="Comment  C" active={tool === 'comment'} onPick={() => setTool('comment')} />}
           <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line @max-[640px]:col-span-1 @max-[640px]:mx-0.5 @max-[640px]:my-1.5 @max-[640px]:h-auto @max-[640px]:w-px" />
           {DRAW_TOOLS.map(([value, Icon, label]) => <ToolButton key={value} value={value} Icon={Icon} label={label} active={tool === value} onPick={() => setTool(value)} />)}
           <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line @max-[640px]:col-span-1 @max-[640px]:mx-0.5 @max-[640px]:my-1.5 @max-[640px]:h-auto @max-[640px]:w-px" />
