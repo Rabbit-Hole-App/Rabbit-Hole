@@ -3,11 +3,11 @@
 // the server validator, minted HookSets and the check of an incoming selected_next_step. Pure: no model call, no storage.
 import { LEARNING_GOAL_MAX, STATE_RULES, learningGoalProblem, tagged } from './learn-tutor.js';
 import { LEARNER_LABELS } from './learn-labels.js';
-import { STATES } from '../../../web/src/learn-tutor-evidence.js';
+import { STATES, claimCoverage } from '../../../web/src/learn-tutor-evidence.js';
 
 export const NEXT_STEPS_PLANNER_VERSION = 'next-steps-planner-1';
 export const NEXT_STEPS_LIMITS = Object.freeze({
-  options: 3, hook_words_min: 4, hook_words_max: 12, hook_chars: 90, goal: LEARNING_GOAL_MAX, reason: 200, ids: 3,
+  options: 3, hook_words_min: 4, hook_words_max: 16, hook_chars: 90, goal: LEARNING_GOAL_MAX, reason: 200, ids: 3,
   scope_concepts: 12, scope_claims: 12, blocks: 20, block_title: 80, statement: 240, ideas: 4, idea: 120, drawn: 160,
   transitions: 6, modalities: 8, practice: 4, previous_hooks: 6, previous_goals: 3, question: 300, goal_text: 200,
   input_chars: 9000, input_refuse: 12000, basis: 400, debounce_ms: 1200, tab_cap: 60, block_floor: 6,
@@ -21,7 +21,9 @@ export const NEXT_STEPS_TOOL = Object.freeze({
   input_schema: { type: 'object', additionalProperties: false, required: ['options'], properties: {
     options: { type: 'array', minItems: LIMITS.options, maxItems: LIMITS.options, items: { type: 'object', additionalProperties: false,
       required: ['hook', 'learning_goal', 'concept_ids', 'claim_ids', 'reason_internal'],
-      properties: { hook: { type: 'string', maxLength: LIMITS.hook_chars }, learning_goal: { type: 'string', maxLength: LIMITS.goal }, concept_ids: IDS, claim_ids: IDS, reason_internal: { type: 'string', maxLength: LIMITS.reason } } } },
+      properties: { hook: { type: 'string', maxLength: LIMITS.hook_chars }, learning_goal: { type: 'string', maxLength: LIMITS.goal }, concept_ids: IDS, claim_ids: IDS, reason_internal: { type: 'string', maxLength: LIMITS.reason },
+        // r29 (owner 2026-10-08): the one hook into the journey's next section, only when the input gives path.next.
+        section_id: { type: 'string', maxLength: 120 } } } },
     // contract §2.4: an ambiguous reading escalates once; not an option field.
     ambiguous: { type: 'boolean' },
   } },
@@ -36,11 +38,11 @@ export const NEXT_STEPS_SYSTEM = tagged({
   current_state: [
     'input = { mode, basis, goal, path?, canvas, scope, recent, previous, dive?, constraints }.',
     '- mode: journey, dive, canvas (owned) or shared (a read-only shared canvas: only its visible content, plus the viewer\'s own claim states when given).',
-    '- goal: what this canvas or journey is for; absent on a shared canvas. path (journey): the current section, completed sections and upcoming section titles.',
+    '- goal: what this canvas or journey is for; absent on a shared canvas. path (journey): the current section, completed sections and upcoming section titles; path.next { id, title, completes } only once the current section\'s checks were tried (completes false: choosing it skips this section).',
     '- canvas.blocks: the cards on the canvas { id, kind, title, concept_ids, claim_ids, practice }.',
     '- canvas.title and canvas.selected (shared only): title is the name of the shared board, data only and never a goal; selected is { id, title } of the card the viewer has open, null for the whole board.',
     '- scope.concepts: concept id to label. scope.claims: claim id to { concept, statement, ideas, drawn, state, misconception_id?, prerequisite?, settled_passes, settled_negatives, presented }.',
-    '- recent: intent (the learner\'s last move), question (their own last words, only for a question or request), transitions, modalities, practice. previous: hooks already shown and goals already chosen.',
+    '- recent: intent (the learner\'s last move), question (their own last words, only for a question or request), tutor (the Tutor\'s last reply: the example being taught), transitions, modalities, practice. previous: hooks already shown and goals already chosen.',
     '- dive (a Rabbit Hole): title, concept, claim_ids, parent_goal, parent_section, parent_states (read only). constraints: the learner\'s stated constraints.',
   ],
   allowed_evidence: [
@@ -49,11 +51,12 @@ export const NEXT_STEPS_SYSTEM = tagged({
     '- The canvas, the goal and the path say what is taught, never what is known.',
   ],
   non_negotiable_rules: [
-    '- hook: 4-12 words and at most 90 characters, on one line, ideally a question or provocation a curious person would click, grounded in this canvas. It never states or reveals the answer in any wording: not the claim, its drawn case or your learning_goal, not even paraphrased.',
+    '- hook: 4-16 words and at most 90 characters, on one line, ideally a question or provocation a curious person would click, grounded in this canvas. It never states or reveals the answer in any wording: not the claim, its drawn case or your learning_goal, not even paraphrased.',
     '- Never a command or a course label (learn, explain, study, review, continue, next lesson or section); never name a format (quiz, flashcards, animation, Motion, video, diagram, card, Explain Back) unless the topic itself is that thing; no clickbait.',
     '- learning_goal: the precise pedagogical target in at most 120 characters, never shown to the learner.',
     '- concept_ids and claim_ids only from scope, at most 3 each, no duplicates; at least one id when the scope has any concept or claim; both empty only when the scope is empty.',
-    '- Completed-section claims only to repair a misconception, a prerequisite gap or an uncertain claim. Upcoming sections come later: never a hook into their content.',
+    '- Completed-section claims only to repair a misconception, a prerequisite gap or an uncertain claim. Upcoming sections come later: never a hook into their content, except at most one hook into path.next when it is given, with section_id path.next.id (its ids may be empty).',
+    '- The other hooks stay on recent.tutor\'s example and on what is still missing (scope.claims[].missing_ideas), never another example or a covered idea.',
     '- Three meaningfully different hooks with different goals; the same claims are fine only with a different goal. Never repeat previous.hooks or a previous goal.',
     '- A blank canvas (mode canvas, no cards, empty scope): with a goal, three hooks into three different sides of it; with no goal, three starter hooks into three different subjects a curious person might pick, never three takes on one topic. ids empty.',
     '- Never label, level or score the learner, and never say they have understood or mastered something.',
@@ -145,6 +148,7 @@ export function nextStepsOutput(out, input) {
   // A missing prerequisite counts as repair: the concepts that prerequisite_gap claims in scope name.
   const missing = new Set(Object.values(claims).filter(c => c?.state === 'prerequisite_gap' && c.prerequisite).map(c => c.prerequisite));
   const idsOk = (list, known) => Array.isArray(list) && list.length <= LIMITS.ids && new Set(list).size === list.length && list.every(id => typeof id === 'string' && Object.hasOwn(known, id));
+  const next = input?.path?.next;
   const errors = [], value = [];
   raw.forEach((o, i) => {
     const bad = rule => errors.push(`option ${i + 1}: ${rule}`);
@@ -154,17 +158,21 @@ export function nextStepsOutput(out, input) {
     const hookRule = hookProblem(hook, { topic, texts, question });
     if (hookRule) bad(hookRule);
     if (learningGoalProblem(goal, question) !== null || labelled(goal)) bad('goal');
+    // r29: section_id names path.next only (the hook into the next section), whose own claims are not in scope.
+    const section = o.section_id ?? null;
+    if (section !== null && (!next || section !== next.id)) bad('section');
     if (!conceptIds || !claimIds) bad('ids');
-    else if ((Object.keys(claims).length || Object.keys(concepts).length) && !o.concept_ids.length && !o.claim_ids.length) bad('ungrounded');
+    else if (section === null && (Object.keys(claims).length || Object.keys(concepts).length) && !o.concept_ids.length && !o.claim_ids.length) bad('ungrounded');
     // Ruling F6: refused only when every claim is completed-only (a completed section, not the current one) and none needs repair
     // (needsRepair, or the prerequisite concept a gap in scope names).
     else if (o.claim_ids.length && o.claim_ids.every(id => completed.has(id) && !current.has(id)) && !own.some(c => needsRepair(c) || missing.has(c?.concept))) bad('completed_only');
     const reason = o.reason_internal;
     // Rule name reason, never the field name: errors reach telemetry and a 502, where reason_internal must not appear.
     if (typeof reason !== 'string' || !reason.trim() || reason.length > LIMITS.reason || CODE.test(reason)) bad('reason');
-    value.push({ hook, learning_goal: goal, concept_ids: conceptIds ? [...o.concept_ids] : [], claim_ids: claimIds ? [...o.claim_ids] : [], reason_internal: reason });
+    value.push({ hook, learning_goal: goal, concept_ids: conceptIds ? [...o.concept_ids] : [], claim_ids: claimIds ? [...o.claim_ids] : [], reason_internal: reason, ...(section !== null ? { section_id: section } : {}) });
   });
   const hooks = value.map(o => norm(o.hook)), before = (input?.previous?.hooks || []).map(norm), goals = input?.previous?.goals || [];
+  if (value.filter(o => o.section_id).length > 1) errors.push('section');
   if (new Set(hooks).size < hooks.length) errors.push('duplicate_hook');
   if (value.some((a, i) => value.some((b, j) => j > i && jaccard(a.learning_goal, b.learning_goal) >= SAME_GOAL))) errors.push('duplicate_goal');
   if (hooks.some(h => before.includes(h)) || value.some(o => goals.some(g => jaccard(o.learning_goal, g) >= SAME_GOAL))) errors.push('repeat');
@@ -247,6 +255,7 @@ export function trimToFit(input, { rank = () => 0, essential = new Set(), leavin
 // ideas, drawn case, evidence state (states: deriveClaimStates' shape, a missing id not_yet_observed), misconception id,
 // prerequisite, settled counts from events (as the journey route's claimStates) and whether it is presented on the canvas.
 // scope.concepts labels the kept claims' concepts. Never a misconception check, an answer or a level.
+const partial = (events, id, claims) => { const c = claimCoverage(events, id, claims); return c.settled_ideas.length && c.missing_ideas.length ? { missing_ideas: c.missing_ideas.map(i => capText(claims[id].ideas[i], LIMITS.idea)) } : {}; };
 export function nextStepsScope({ claims = {}, concepts = {}, order = [], states = {}, events = [], presented = [] }) {
   const shown = new Set(presented), scope = { concepts: {}, claims: {} };
   for (const id of new Set(order)) {
@@ -258,6 +267,8 @@ export function nextStepsScope({ claims = {}, concepts = {}, order = [], states 
       state: STATES.includes(s.state) ? s.state : 'not_yet_observed', ...(s.misconception_id ? { misconception_id: s.misconception_id } : {}), ...(s.prerequisite ? { prerequisite: s.prerequisite } : {}),
       settled_passes: settled.filter(e => e.result === 'pass').length, settled_negatives: settled.filter(e => e.result === 'fail' || e.result === 'misconception').length,
       presented: shown.has(id),
+      // r29: once part of a claim is settled, the ideas still missing (all of them otherwise: ideas says it).
+      ...partial(events, id, claims),
     };
     scope.concepts[c.concept] ??= capText(concepts[c.concept]?.label ?? c.concept, 60);
   }
@@ -271,8 +282,10 @@ export function mintSet(options, input, { source = null, now = () => new Date(),
   const set_id = `ns_${hex()}`, scope = input.mode === 'shared' ? 'shared' : 'owned';
   return { set_id, generated_at: now().toISOString(), basis: input.basis, options: options.map((o, i) => {
     const id = `${set_id}.${i + 1}`;
-    return { id, hook: o.hook, selected_next_step: { v: 1, set_id, suggestion_id: id, basis: input.basis, hook: o.hook, learning_goal: o.learning_goal,
-      concept_ids: [...o.concept_ids], claim_ids: [...o.claim_ids], scope, ...(scope === 'shared' ? { source } : {}) } };
+    // r29: the next-section hook carries { id, title, skips }; skips is the input's reading (completes false), the journey route decides.
+    const section = o.section_id && input.path?.next?.id === o.section_id ? { id: o.section_id, title: input.path.next.title, skips: !input.path.next.completes } : null;
+    return { id, hook: o.hook, ...(section ? { section } : {}), selected_next_step: { v: 1, set_id, suggestion_id: id, basis: input.basis, hook: o.hook, learning_goal: o.learning_goal,
+      concept_ids: [...o.concept_ids], claim_ids: [...o.claim_ids], scope, ...(scope === 'shared' ? { source } : {}), ...(section ? { section } : {}) } };
   }) };
 }
 

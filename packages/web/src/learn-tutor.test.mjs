@@ -51,6 +51,7 @@ const turnOn = (block, raw, store, plan, evaluate, extra = {}) => {
   return runTurn({ raw, canvas: PARENT, access: { app: PARENT.app }, block, store, post, ...extra }).then(result => ({ ...result, sent }));
 };
 const say = text => ({ type: 'respond_text', text });
+const NANOGPT_IDEAS = CLAIMS['attention/looks-back-never-ahead'].ideas;
 // A fake canvas holding blocks, with the commands the Tutor uses.
 function fakeCanvas(blocks) {
   const calls = [];
@@ -125,33 +126,40 @@ test('GT-01 Overview restated: demonstrated_here only -> uncertain; a depth chip
   assert.deepEqual(canvas.calls, [], 'nothing navigates by itself');
 });
 
-// Tutor eval run A (tutor-decision-eval.md 18.1): answers JEV cannot settle kept one claim on uncertain_unsettled, which allows
-// only ask_question, for 15 turns. At most two such turns in a row on a claim; the third is the uncertain row without a question,
-// so a question the planner still proposes is dropped and its explanation stands. Evidence is untouched: never understood.
-test('repeated-question limit: two uncertain_unsettled turns on a claim, then the uncertain row with no question; nothing settles or advances', async () => {
+// Tutor eval runs A and A2 (tutor-decision-eval.md 18.1, 18.3; owner 2026-10-08, r29): the novice was asked the same unresolved
+// probe 6 times, an explanation in between resetting the r27 count. Now at most QUESTION_LIMIT (2) questions on a claim until
+// its evidence progresses (a newly settled idea, a transfer pass or a new state): an explanation turn is no progress. The
+// limited turn is the uncertain row without a question, told which idea is missing; nothing settles, completes or advances.
+test('repeated-question limit (novice replay): two questions, then teaching only until new evidence; the explanation never resets it', async () => {
   const overview = block('depth-attention-overview'), C = 'attention/looks-back-never-ahead';
-  const unsure = jev({ [C]: { ideas: [1, 0.5], transfer: 0 } });
+  const sameAnswer = jev({ [C]: { ideas: [1, 0.5], transfer: 0.5 } }), newIdea = jev({ [C]: { ideas: [0, 1], transfer: 0.5 } });
   const contexts = [];
   const plan = context => { contexts.push(context); return { strategy: 'feynman', move: 'clarify', reason: '', actions: [
-    { type: 'ask_question', text: 'Which earlier character does it look at most?', claim: C, purpose: 'diagnose' }, say('Worked example: reading the 4th character, it weighs the 1st to 3rd and never the 5th.')] }; };
+    { type: 'ask_question', text: 'Compute it: can that be a probability?', claim: C, purpose: 'diagnose' }, say('Worked example: reading the 4th character, it weighs the 1st to 3rd and never the 5th.')] }; };
   let store = emptyStore();
-  const rows = [], asked = [];
-  for (const words of ['It looks back at earlier ones, mostly one place.', 'It mostly looks at one earlier place.', 'Back, mostly at one place, I think.', 'It looks back.']) {
-    const result = await turnOn(overview, words, store, plan, unsure);
+  const turns = [];
+  const turn = async (words, evaluate) => {
+    const result = await turnOn(overview, words, store, plan, evaluate);
     store = result.store;
-    rows.push(result.routed.row);
-    asked.push(result.actions.some(action => action.type === 'ask_question'));
-    assert.equal(result.states[C].state, 'uncertain', 'the limit never manufactures understanding');
-    assert.equal(result.store.events.every(event => !event.settled), true, 'unsure answers stay unsettled');
-  }
-  assert.deepEqual(rows, ['uncertain_unsettled', 'uncertain_unsettled', 'uncertain', 'uncertain_unsettled'], 'at most two in a row, and the limit resets');
-  assert.deepEqual(asked, [true, true, false, true]);
-  assert.equal(contexts[2].allowed_actions.includes('ask_question'), false, 'the planner is told no question on the third turn');
-  assert.ok(['respond_text', 'suggest_practice', 'show_authored_card'].every(type => contexts[2].allowed_actions.includes(type)), 'explain, practice or a card instead');
-  const third = await turnOn(overview, 'Still one place.', { ...emptyStore(), unsettled: { [C]: 2 } }, plan, unsure);
+    turns.push({ row: result.routed.row, asked: result.actions.some(action => action.type === 'ask_question'), probes: store.probes[C] ?? 0, state: result.states[C].state });
+    return result;
+  };
+  await turn('It looks back at earlier ones, mostly one place.', sameAnswer);
+  await turn('It looks back at the earlier characters.', sameAnswer);
+  await turn('Back at the earlier characters, I think.', sameAnswer);
+  await turn('It looks back.', sameAnswer);
+  assert.deepEqual(turns.map(t => [t.row, t.asked, t.probes]), [['uncertain_unsettled', true, 1], ['uncertain_unsettled', true, 2], ['uncertain', false, 2], ['uncertain', false, 2]],
+    'two questions; then the explanation turns teach, and an explanation never resets the count');
+  assert.equal(contexts[2].allowed_actions.includes('ask_question'), false, 'the planner is told no question');
+  assert.deepEqual(contexts[2].relevant_evidence.claims[0].coverage, { settled_ideas: [NANOGPT_IDEAS[0]], missing_ideas: [NANOGPT_IDEAS[1]], transfer_needed: true }, 'targeted: the missing idea and the new case');
+  assert.ok(turns.every(t => t.state === 'uncertain'), 'the limit never manufactures understanding');
+  const stuck = store;
+  const fresh = await turn('And it never looks at characters that come later.', newIdea);
+  assert.deepEqual([turns.at(-1).row, turns.at(-1).asked, turns.at(-1).probes], ['uncertain', true, 1], 'new settled evidence on idea 1 starts the count over: a question is allowed again');
+  assert.deepEqual(fresh.store.events.filter(e => e.claim === C && e.settled).map(e => e.idea).sort(), [0, 0, 0, 0, 1], 'only stated ideas settle; idea 1 settles once stated');
+  const third = await turnOn(overview, 'Still one place.', stuck, plan, sameAnswer);
   assert.deepEqual(third.actions.map(action => action.type), ['respond_text'], 'a question proposed anyway is dropped; the worked example stands');
-  assert.equal(third.actions.some(action => /^(show_authored_card|suggest_depth)$/.test(action.type) && action.mode === 'navigate'), false, 'nothing advances by itself');
-  const other = await turnOn(overview, 'It looks back.', { ...emptyStore(), unsettled: { 'some/other-claim': 2 } }, plan, unsure);
+  const other = await turnOn(overview, 'It looks back.', { ...stuck, probes: { 'some/other-claim': 2 } }, plan, sameAnswer);
   assert.equal(other.routed.row, 'uncertain_unsettled', 'the limit is per claim');
 });
 

@@ -66,7 +66,7 @@ test('evaluationFrom (D7): "Softmax turns the scores into probabilities." -> a p
 test('evaluationFrom (D7): contradicting idea 1 -> pass idea 0 and fail idea 1', () => {
   assert.deepEqual(results(evaluationFrom(OWNER, ownerAnswers({ c0_contra1: 1 }), T, 'jev').events), [['pass', 0], ['fail', 1]]);
   assert.deepEqual(results(evaluationFrom(OWNER, ownerAnswers({ c0_idea0: 0, c0_contra1: 1 }), T, 'jev').events), [['fail', 1]], 'a confident contradiction alone engages the claim');
-  assert.deepEqual(evaluationFrom(OWNER, ownerAnswers({ c0_contra1: 0.5 }), T, 'jev').events.map(event => [event.result, event.settled]), [['pass', false]], 'an unsure contradiction is no fail');
+  assert.deepEqual(evaluationFrom(OWNER, ownerAnswers({ c0_contra1: 0.5 }), T, 'jev').events.map(event => [event.result, event.idea, event.settled]), [['pass', 0, true]], 'an unsure contradiction on idea 1 is no fail, and idea 0 still settles (per idea)');
 });
 
 test('evaluationFrom (D7): answering a tutor question while touching one idea fails nothing; an empty answer is still a non-attempt', () => {
@@ -99,19 +99,36 @@ test('evaluationFrom: a correct taught-case answer with an unsure transfer check
   assert.equal('transfer_unsure' in evaluationFrom(OWNER, ownerAnswers({ c0_transfer: 0.1 }), T, 'jev').events[0], false, 'a confident no is not unsure');
 });
 
-test('evaluationFrom: wrong answers stay settled failures; an unsure correctness check or attempt check still unsettles its claim', () => {
+test('evaluationFrom: wrong answers stay settled failures; an unsure check on the same idea, a misconception check or the attempt check still unsettles the pass', () => {
   const wrong = evaluationFrom(OWNER, ownerAnswers({ c0_idea0: 0, c0_contra0: 1, c0_mis0: 1, c0_transfer: 0.5 }), T, 'jev');
   assert.equal(wrong.status, 'settled');
   assert.deepEqual(wrong.events.map(e => [e.result, e.settled]), [['fail', true], ['misconception', true]]);
-  for (const unsure of [{ c0_contra1: 0.5 }, { c0_idea1: 0.5 }, { c0_mis0: 0.5 }, { attempt: 0.5 }]) {
+  for (const unsure of [{ c0_contra0: 0.5 }, { c0_mis0: 0.5 }, { attempt: 0.5 }]) {
     const out = evaluationFrom(OWNER, ownerAnswers({ ...unsure, c0_transfer: 0.5 }), T, 'jev');
-    assert.deepEqual([out.status, out.events.map(e => e.settled)], ['uncertain', [false]], JSON.stringify(unsure));
+    assert.deepEqual([out.status, out.events.map(e => [e.idea, e.settled])], ['uncertain', [[0, false]]], JSON.stringify(unsure));
   }
+  const unsureIdea = evaluationFrom(OWNER, ownerAnswers({ c0_idea0: 0.5, c0_contra0: 1, c0_transfer: 0.5 }), T, 'jev');
+  assert.deepEqual(unsureIdea.events.map(e => [e.result, e.idea, e.settled]), [['fail', 0, false]], 'a fail whose stated check is unsure stays unsettled');
+});
+
+// Run A2 (tutor-decision-eval.md 18.3; owner 2026-10-08): JEV unsure on one idea of the claim left the passes on the others
+// unsettled in 15 of 25 evaluations. Per idea, the stated ideas settle; the unsure one stays not observed; never understood
+// without every idea and a settled transfer pass.
+test('evaluationFrom (run A2): ideas 0 and 2 stated, idea 1 unsure - 0 and 2 settle, idea 1 stays not observed, the claim is not understood', () => {
+  const three = { ...OWNER, claims: [{ ...OWNER.claims[0], ideas: ['a weighted sum of inputs', 'a bias shifts it', 'a larger weight counts more'] }] };
+  const answers = { attempt: 1, c0_idea0: 1, c0_contra0: 0, c0_idea1: 0.5, c0_contra1: 0, c0_idea2: 1, c0_contra2: 0, c0_mis0: 0, c0_transfer: 0.95 };
+  const out = evaluationFrom(three, answers, T, 'jev');
+  assert.deepEqual(out.events.map(e => [e.result, e.idea, e.kind, e.settled]), [['pass', 0, 'demonstrated_in_transfer', true], ['pass', 2, 'demonstrated_in_transfer', true]]);
+  const registry = { 'softmax/x': { ...REGISTRY['softmax/x'], ideas: three.claims[0].ideas } };
+  const stored = appendEvents(emptyStore(), out.events).store.events;
+  assert.equal(deriveClaimStates(stored, registry)['softmax/x'].state, 'uncertain', 'idea 1 missing: never understood');
+  const later = evaluationFrom(three, { ...answers, c0_idea0: 0, c0_idea1: 1, c0_idea2: 0 }, T, 'jev').events;
+  assert.equal(deriveClaimStates(appendEvents({ ...emptyStore(), seq: stored.length, events: stored }, later).store.events, registry)['softmax/x'].state, 'understood', 'every idea settled with a transfer pass');
 });
 
 test('evaluationFrom: claims settle independently - an unsure check never unsettles another claim evidence', () => {
   const two = { ...OWNER, claims: [OWNER.claims[0], { ...OWNER.claims[0], id: 'softmax/y', misconceptions: [] }] };
-  const out = evaluationFrom(two, { ...ownerAnswers(), c1_idea0: 1, c1_contra0: 0, c1_idea1: 0.5, c1_contra1: 0, c1_transfer: 0 }, T, 'jev');
+  const out = evaluationFrom(two, { ...ownerAnswers(), c1_idea0: 1, c1_contra0: 0.5, c1_idea1: 0, c1_contra1: 0, c1_transfer: 0 }, T, 'jev');
   assert.equal(out.status, 'uncertain');
   assert.deepEqual(out.events.map(e => [e.claim, e.result, e.settled]), [['softmax/x', 'pass', true], ['softmax/y', 'pass', false]]);
 });
@@ -137,7 +154,7 @@ test('evaluate: a settled JEV answer ends the ladder - one batched 800 ms reques
   assert.deepEqual(larger, { called: false, ms: null, outcome: null, reason: null, requested_model: null, served_model: null, input_tokens: null, output_tokens: null, error: null });
 });
 
-test('evaluate: JEV uncertain on a low-consequence check -> no larger evaluator; its events stay unsettled (v2 Stage C)', async t => {
+test('evaluate: JEV uncertain on a low-consequence check -> no larger evaluator; that idea stays unobserved, the others settle (v2 Stage C, per idea)', async t => {
   const calls = recordFetch(t, {});
   const w = world(t);
   const ask = async () => ({ body: answersOf({ ...settledAnswers, c0_idea1: 0.55 }) });
@@ -145,7 +162,7 @@ test('evaluate: JEV uncertain on a low-consequence check -> no larger evaluator;
   assert.equal(result.evaluator, 'jev');
   assert.equal(result.status, 'uncertain');
   assert.deepEqual(result.escalation, { escalate: false, reason: 'low_consequence', uncertain: ['c0_idea1'] });
-  assert.ok(result.events.every(event => event.settled === false));
+  assert.ok(result.events.length && result.events.every(event => event.idea !== 1 && event.settled === true), JSON.stringify(result.events));
   assert.equal(calls.length, 0);
 });
 

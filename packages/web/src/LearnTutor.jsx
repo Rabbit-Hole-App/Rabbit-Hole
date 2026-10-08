@@ -19,6 +19,7 @@ import { SLASHES, arriveAt, cardContext, executeActions, keepHere, learnerIntent
 import { materialCommands, runMaterials } from './learn-slash.js';
 import { holeOpening } from './learn-next-steps.js';
 import { inJourneySetup, startRequest } from './LearnJourney.jsx';
+import { nextSectionOf } from './learn-journey.js';
 import { MODE_SLASHES } from '../../control-plane/src/agents/learn-tutor.js';
 import { emitDecision, newSessionId, tracing } from './learn-tutor-trace.js';
 import PaidConfirm from './PaidConfirm.jsx';
@@ -49,9 +50,12 @@ export const tutorStoreKey = (app, journeyId, record, canvas = null) => (journey
 // chip is how a learner switches subject mid-setup), where the click meets LP1's own continue-or-start, the confirmation naming
 // both subjects; repository (Task 11c-B) - the repository_context handoff, where the canvas reads a repository, never in setup
 // (the journey prompt's setup line allows words only, and the learning-path offer).
+// nextSectionOffer (r29, owner 2026-10-08): next_section, on a live journey whose path has a next section (nextSectionOf), not in
+// a hole and not while the journey works, where the controller can move on (journey.nextSection).
 export function turnOffers({ journey = null, record = null, opening = false, nextStep = null, openResearch = null, repository = false }) {
   const setup = inJourneySetup(journey?.journey);
-  return { materials: setup || (opening && !nextStep) ? [] : materialCommands(), research: !!openResearch && !setup, journeyOffer: !!journey?.start && !record, repository: !!repository && !setup };
+  const nextSectionOffer = !!journey?.nextSection && !record && !journey.busy && !journey.journey?.pending && !!nextSectionOf(journey.journey, journey.path);
+  return { materials: setup || (opening && !nextStep) ? [] : materialCommands(), research: !!openResearch && !setup, journeyOffer: !!journey?.start && !record, nextSectionOffer, repository: !!repository && !setup };
 }
 // Whether a canvas reads a repository (Task 11c-B), from its app data alone: a repository app, or a canvas in a project - the
 // two forms the handoff route resolves (learn-shared-ask.js boardRevision). Never the learner's words.
@@ -207,6 +211,8 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
       suggestDive: detail => window.dispatchEvent(new CustomEvent('small:dive-suggest', { detail })),
       climb: () => dive.navigator.climb(dive.navigator.tree.path.length - 2),
       slot, domain, openResearch,
+      // r29: the learner asked to move on: the journey's next section opens (completed or skipped by the server's rule).
+      nextSection: () => journeyRef.current?.nextSection?.(),
       // Fix B1: the existing journey start, through LP1's start-wrapping rule (fix round 2); a start the server refuses here (not
       // a learning request, or no journeys on this canvas) says so rather than doing nothing.
       startJourney: async request => {

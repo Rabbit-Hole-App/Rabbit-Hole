@@ -703,6 +703,26 @@ test('controller: accept materializes the current section once and posts section
   assert.equal('materialized' in h.view(), false);
 });
 
+// Owner 2026-10-08 (r29): nextSection posts next_section with the journey's revision and draws the new current section as
+// accept does; a refusal (409, e.g. the last section) draws nothing.
+test('controller: nextSection posts next_section and draws the next section once; a refusal draws nothing', async () => {
+  const canvas = fakeCanvas();
+  const s2Plan = { section_id: 's2', path_version: 3, teaching_sequence: ['frame', 'explain'].map(textStep) };
+  const movedPath = { ...activePath, version: 3, current_section_id: 's2', sections: activePath.sections.map(s => ({ ...s, status: s.id === 's1' ? 'skipped' : 'current' })) };
+  const moved = over => ok(activeJourney({ revision: 9, active_section_id: 's2', path_version: 3, section_plan: s2Plan, ...over }), null, movedPath);
+  const h = scripted(() => canvas, [recorded('b1'), moved(), ok(activeJourney({ revision: 10, active_section_id: 's2', path_version: 3, section_plan: { ...s2Plan, heading_block_id: 'b5' } }), null, movedPath),
+    { status: 409, d: { error: 'next_section has no next section', journey: activeJourney({ revision: 10, active_section_id: 's2', path_version: 3, section_plan: { ...s2Plan, heading_block_id: 'b5' } }), path: movedPath, tray: null } }]);
+  await h.ctl.refresh();
+  h.view().canvasReady();
+  const drawn = canvas.inserts().length;
+  await h.view().nextSection();
+  assert.deepEqual(h.steps().slice(-2), ['next_section', 'section_materialized']);
+  assert.equal(h.calls.at(-2).body.revision, 7, 'with the journey revision');
+  assert.deepEqual(canvas.inserts().slice(drawn).map(c => c[1].type), ['heading', 'explanation', 'explanation'], 'section 2 drawn once');
+  await h.view().nextSection();
+  assert.equal(canvas.inserts().length, drawn + 3, 'a refusal draws nothing');
+});
+
 test('controller: a load with no recorded heading waits for the ready canvas, re-reads, then draws the section once', async () => {
   const canvas = fakeCanvas();
   let up = null;

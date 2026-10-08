@@ -52,8 +52,8 @@ test('the hook card: a stale set stays with its buttons disabled; loading, unava
 test('the hook card click: select() first, then the step once, never the hook as text (contract §1.4, §1.6)', () => {
   // One flight: a refused select() (stale, unknown, busy) hands nothing on; a second click while one runs is ignored.
   assert.match(ask, /const pick = async hook => \{\n\s+if \(working\) return;\n\s+const r = steps\.select\(hook\.id\);\n\s+if \(!r\.ok\) return;\n\s+setWorking\(hook\.id\);\n\s+try \{ await onPick\(r\.selected_next_step, hook\); \} finally \{ setWorking\(null\); \}/);
-  // A rendered hook is only ever the Hook's own text.
-  assert.match(ask, /<span className="min-w-0">\{hook\.hook\}<\/span>/);
+  // A rendered hook is only ever the Hook's own text, plus (r29) the next-section hook's fixed note.
+  assert.match(ask, /<span className="min-w-0">\{hook\.hook\}\{hook\.section && <span data-next-section-note className="block text-xs text-ink-3">\{sectionNote\(hook\.section\)\}<\/span>\}<\/span>/);
 });
 
 test('ask.jsx sendStep: Voice on is say with the step, else one askStep turn drawn as a selection chip in the sheet; no typed text, no canvas card', () => {
@@ -77,7 +77,7 @@ test('LearnPage: useNextSteps mounts only with Rabbit Hole on and a dock compose
   assert.match(page, /<NextStepsHost on=\{nextStepsHere\} tutor=\{tutor\} journey=\{journey\} canvasApi=\{canvasApi\} canvasState=\{canvasState\} record=\{dive\.tree\?\.dive \|\| null\} access=\{askScope\} title=\{app\.title \|\| ''\} graded=\{graded\} canvasVersion=\{canvasVersion\} board=\{boardName\} describe=\{describeBlock\}>\{steps => <AdaptiveCanvas key=\{canvasEpoch\}/);
   assert.match(page, /function NextStepsHost\(\{ on, children, \.\.\.props \}\) \{\n\s+return on \? <NextStepsMounted \{\.\.\.props\}>\{children\}<\/NextStepsMounted> : children\(null\);\n\}\nfunction NextStepsMounted\(\{ children, \.\.\.props \}\) \{\n\s+return children\(useNextSteps\(props\)\);/);
   // The card and Voice Mode's caption share the canvas's lower-left stack (tutor.extras stay drawn there while Voice is on).
-  assert.match(page, /leftRail=\{voiceOn \|\| steps \? <>\n\s+<NextStepsCard steps=\{steps\} onPick=\{\(step, hook\) => nextStepSend\.current\?\.\(step, hook\.hook\)\} \/>\n\s+\{voiceOn && <TutorCaption caption=\{voice\.caption\} state=\{voice\.state\} extras=\{tutor\.extras\} \/>\}/);
+  assert.match(page, /leftRail=\{voiceOn \|\| steps \? <>\n\s+<NextStepsCard steps=\{steps\} onPick=\{\(step, hook\) => \(step\.section \? journey\?\.nextSection\?\.\(\) : nextStepSend\.current\?\.\(step, hook\.hook\)\)\} \/>\n\s+\{voiceOn && <TutorCaption caption=\{voice\.caption\} state=\{voice\.state\} extras=\{tutor\.extras\} \/>\}/);
   assert.match(page, /tray=\{journey\.trayProps\} voice=\{voice\} nextStepRef=\{nextStepSend\}/);
   assert.match(canvas, /<div data-left-stack className="absolute bottom-3 left-3 flex w-\[clamp\(208px,calc\(50cqw-500px\),300px\)\] flex-col items-start gap-2 /);
 });
@@ -171,4 +171,16 @@ test('a review board named main slugs to review-main, so it never shares the rea
   assert.match(page, /const boardPath = `\/api\/learn\/boards\/\$\{encodeURIComponent\(app\.name\)\}\/\$\{encodeURIComponent\(boardName\)\}`;/);
   assert.match(page, /const journey = useJourney\(\{ app, board: boardName,/);
   assert.match(page, /const tutor = useTutor\(\{ app, board: boardName,/);
+});
+
+// Owner 2026-10-08 (r29): the next-section hook carries data-next-section and a fixed note saying where it goes, and that it skips
+// this section when its evidence is not met; the other hooks are unchanged. The page moves on through the journey for it.
+test('r29 the hook card: the next-section hook says Next section, and skips this section when its evidence is not met', () => {
+  const withSection = skips => { const s = set('ready'); s.options[2] = { ...s.options[2], section: { id: 's2', title: 'From a score to probability', skips } }; return card(s); };
+  const skipping = withSection(true), completing = withSection(false);
+  assert.match(skipping, /<button [^>]*data-next-step="ns_0a0b0c0d\.3" data-next-section="s2" aria-label="Where would yeast surprise an expert baker\? \(Next section - skips this section\)"/);
+  assert.match(skipping, /<span data-next-section-note="true" class="block text-xs text-ink-3">Next section - skips this section<\/span>/);
+  assert.match(completing, /<span data-next-section-note="true" class="block text-xs text-ink-3">Next section<\/span>/);
+  assert.equal((skipping.match(/data-next-section=/g) || []).length, 1, 'only that hook');
+  assert.doesNotMatch(card(set('ready')), /data-next-section/, 'no section, no note');
 });

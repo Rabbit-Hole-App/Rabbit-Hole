@@ -32,7 +32,7 @@ test('TUTOR_TOOL: reason_codes after reason (written last), create_material with
 
 test('the shared lines: reason codes and reason last, generation only through create_material, modality history as evidence', () => {
   const lines = PLANNER_SYSTEM.split('\n');
-  assert.equal(lines.length, 22, 'line 15 appended, then Task 11b lines 16-20 and fix B1 line 21; lines 12-14 keep their indices');
+  assert.equal(lines.length, 23, 'line 15 appended, then Task 11b lines 16-20, fix B1 line 21 and the r29 coverage line 22; lines 12-14 keep their indices');
   assert.match(lines[4], /never generate new artifacts unless context\.allowed_actions lists create_material\.$/);
   assert.match(lines[11], /Last, after the actions: reason_codes .* and reason /);
   assert.match(lines[11], /never vary_modality alone/);

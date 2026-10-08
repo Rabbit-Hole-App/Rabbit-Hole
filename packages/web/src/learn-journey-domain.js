@@ -24,7 +24,8 @@ export function journeyDomain({ journey, path, blocks = [], dive = null }) {
   const sections = path?.sections || [];
   const setup = !dive && SETUP.includes(journey.state);
   const section = setup ? null : sections.find(s => s.id === (dive?.section_id ?? journey.active_section_id ?? path?.current_section_id)) || null;
-  const shown = new Set([section?.id, ...sections.filter(s => s.status === 'completed').map(s => s.id)].filter(Boolean));
+  // r29: a skipped section's cards stay too, so the learner can revisit what they moved past.
+  const shown = new Set([section?.id, ...sections.filter(s => s.status === 'completed' || s.status === 'skipped').map(s => s.id)].filter(Boolean));
   // This journey's blocks only (LP1 Task 15 review round 3): section ids repeat across journeys, and an archived journey's
   // stamped blocks stay on the board after Start new.
   const byId = new Map((dive ? blocks : blocks.filter(block => shown.has(block.journey?.section_id) && block.journey.journey_id === journey.id)).map(block => [block.id, block]));

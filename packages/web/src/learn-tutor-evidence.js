@@ -17,7 +17,7 @@ export const emptyStore = () => ({
   turns: [],          // { learner, next_step? (a clicked hook's suggestion_id), tutor }, newest last
   actions: [],        // { type, strategy, claim }, newest last
   socratic: {},       // claim -> Socratic turns spent on its misconception
-  unsettled: {},      // claim -> consecutive uncertain_unsettled turns (learn-tutor.js UNSETTLED_LIMIT)
+  probes: {},         // claim -> Tutor questions on it since its evidence last progressed (learn-tutor.js QUESTION_LIMIT)
   suggested: null,    // the last suggest_dive: { concept, title, block_id, question, claim, canvas }
   keep: null,         // "Keep it on this canvas": { concept, canvas }, read by the next turn there
   dive: null,         // the hole this tab was last in: { dive_id, parent, concept, claim }
@@ -76,17 +76,28 @@ export function practiceEvents(store, block, target, canvas, domain = NANOGPT) {
 const WORST = ['misconception', 'prerequisite_gap', 'uncertain', 'not_yet_observed'];
 const negative = event => event.result === 'fail' || event.result === 'misconception';
 
+// What a claim's settled evidence covers (Decision 7), the one rule understood and the Tutor planner read: settled_ideas, the
+// idea indexes with a settled pass (all of them after a settled claim-level pass, idea null: practice); missing_ideas, the rest;
+// transfer, a settled transfer pass with no later settled fail or misconception. Missing evidence is never a pass.
+export function claimCoverage(events, id, claims = CLAIMS) {
+  const settled = events.filter(event => event.claim === id && event.settled).sort((a, b) => a.seq - b.seq);
+  const passes = settled.filter(event => event.result === 'pass');
+  const ideas = (claims[id]?.ideas || []).map((_, i) => i);
+  const settled_ideas = passes.some(event => event.idea == null) ? ideas : ideas.filter(i => passes.some(event => event.idea === i));
+  const last = passes.filter(event => event.kind === 'demonstrated_in_transfer').at(-1);
+  const transfer = !!last && !settled.some(event => event.seq > last.seq && negative(event));
+  return { settled_ideas, missing_ideas: ideas.filter(i => !settled_ideas.includes(i)), transfer, transfer_seq: last?.seq ?? null };
+}
+
 function claimState(events, id, conceptOf, claims = CLAIMS) {
   const own = events.filter(event => event.claim === id).sort((a, b) => a.seq - b.seq);
   if (!own.length) return { concept: claims[id].concept, claim: id, state: 'not_yet_observed', basis: [] };
   const settled = own.filter(event => event.settled);
   const base = { concept: claims[id].concept, claim: id };
   // understood: a settled transfer pass with no later settled fail or misconception, and coverage
-  // (Decision 7): every idea has a settled pass, or a settled claim-level pass (no `idea`: practice).
-  const transfer = settled.filter(event => event.result === 'pass' && event.kind === 'demonstrated_in_transfer').at(-1);
-  const passes = settled.filter(event => event.result === 'pass');
-  const covered = passes.some(event => event.idea == null) || claims[id].ideas.every((_, i) => passes.some(event => event.idea === i));
-  if (transfer && covered && !settled.some(event => event.seq > transfer.seq && negative(event))) return { ...base, state: 'understood', basis: [transfer.seq] };
+  // (Decision 7): every idea has a settled pass, or a settled claim-level pass (no `idea`: practice). claimCoverage.
+  const coverage = claimCoverage(own, id, claims);
+  if (coverage.transfer && !coverage.missing_ideas.length) return { ...base, state: 'understood', basis: [coverage.transfer_seq] };
   // misconception: at least 2 settled events naming the same misconception, no later transfer pass.
   const named = {};
   for (const event of settled) if (event.misconception_id && negative(event)) (named[event.misconception_id] ||= []).push(event.seq);

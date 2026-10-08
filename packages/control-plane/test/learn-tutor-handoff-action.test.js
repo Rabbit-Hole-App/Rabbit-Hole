@@ -5,6 +5,7 @@
 // request stays byte-identical (a handoff-allowed turn caches under its own tool schema). Pure; no model call.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { NEXT_SECTION_ACTION, NEXT_SECTION_SYSTEM } from '../src/agents/learn-tutor.js';
 import { ACTION_TYPES, CANVAS_SYSTEM, EXPLICIT_MODE, HANDOFF_ACTION, HANDOFF_CAPABILITY_NAMES, HANDOFF_REQUEST_MAX, HANDOFF_SYSTEM, handoffProblem, NEXT_STEP_SYSTEM, PLANNER_SYSTEM, TUTOR_TOOL, plannerRequest, plannerSystem, tutorTool } from '../src/agents/learn-tutor.js';
 import { HANDOFF_CAPABILITIES } from '../src/learn-tutor-handoff.js';
 import { fastPlanProblem } from '../src/learn-tutor-routes.js';
@@ -95,4 +96,23 @@ test('handoffProblem: one shared rule - a known capability and a non-blank reque
   assert.equal(handoffProblem({ type: 'handoff', capability: 'repository_context', request: 'x'.repeat(1000) }), null);
   for (const bad of [{ capability: 'research', request: 'q' }, { capability: 'Repository_Context', request: 'q' }, { request: 'q' }, { capability: 'repository_context', request: '' }, { capability: 'repository_context', request: '  ' }, { capability: 'repository_context', request: 7 }, { capability: 'repository_context', request: 'x'.repeat(1001) }, null])
     assert.equal(typeof handoffProblem(bad && { type: 'handoff', ...bad }), 'string', JSON.stringify(bad)?.slice(0, 40));
+});
+
+// Owner 2026-10-08 (r29): next_section, like the handoff, is a type and a block only on a turn whose route allows it; every other
+// request stays byte-identical (the prompt pins hold), and the block tells moving on from continuing.
+test('r29 next_section: the move-on type and NEXT_SECTION_SYSTEM only on a turn that allows it; continuing is never moving on', () => {
+  const journey = { ...PLAIN, journey_context: {} }, offered = { ...journey, allowed_actions: [...(PLAIN.allowed_actions || []), NEXT_SECTION_ACTION] };
+  assert.equal(ACTION_TYPES.includes(NEXT_SECTION_ACTION), false, 'never in the base tool');
+  assert.equal(plannerRequest(journey, 2000).system, plannerSystem(false, 'journey'));
+  assert.deepEqual(plannerRequest(journey, 2000).tools, [TUTOR_TOOL]);
+  assert.equal(plannerRequest(offered, 2000).system, `${plannerSystem(false, 'journey')}\n${NEXT_SECTION_SYSTEM}`);
+  assert.deepEqual(plannerRequest(offered, 2000).tools, [tutorTool(false, false, true)]);
+  assert.ok(itemsOf(plannerRequest(offered, 2000)).type.enum.includes(NEXT_SECTION_ACTION));
+  const both = plannerRequest({ ...offered, allowed_actions: [...offered.allowed_actions, HANDOFF_ACTION] }, 2000, [], { cache: true });
+  assert.deepEqual(both.system.slice(1).map(block => block.text), [HANDOFF_SYSTEM, NEXT_SECTION_SYSTEM], 'the blocks keep their order');
+  assert.ok(['handoff', NEXT_SECTION_ACTION].every(type => itemsOf(both).type.enum.includes(type)));
+  assert.match(NEXT_SECTION_SYSTEM, /only when the learner's own words in this message explicitly ask to move on/);
+  assert.match(NEXT_SECTION_SYSTEM, /continue, keep going, explain more or stay on this section is never next_section/);
+  assert.match(NEXT_SECTION_SYSTEM, /completed only when its evidence is met, else as skipped/);
+  for (const text of [PLANNER_SYSTEM, plannerSystem(false, 'journey'), CANVAS_SYSTEM]) assert.equal(/next_section/.test(text), false, 'the shared cached prefix does not grow');
 });

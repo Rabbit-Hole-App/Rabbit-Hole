@@ -15,10 +15,10 @@ import { checkStatus, enterPractice, isPracticing } from './scene-activity.js';
 import { applyInputToBlock } from './scene-evaluate.js';
 import { coerceInputs, validateInputDeclarations } from './scene-inputs.js';
 import { NANOGPT, cardModule, claimsOfConceptIn, holeConcept, partLabels } from './learn-tutor-claims.js';
-import { appendEvents, conceptState, deriveClaimStates, practiceEvents, reconcile } from './learn-tutor-evidence.js';
+import { appendEvents, claimCoverage, conceptState, deriveClaimStates, practiceEvents, reconcile } from './learn-tutor-evidence.js';
 import { selectClaims } from './learn-tutor-select.js';
 import { EVIDENCE_ACTIONS, EVIDENCE_ROWS, avatarMoments, speakable, statedConstraints, validateActions } from './learn-tutor-validate.js';
-import { AVATAR_ACTION, HANDOFF_ACTION, MODE_SLASHES } from '../../control-plane/src/agents/learn-tutor.js';
+import { AVATAR_ACTION, HANDOFF_ACTION, MODE_SLASHES, NEXT_SECTION_ACTION } from '../../control-plane/src/agents/learn-tutor.js';
 import { decisionEvent, handoffUsage, safely, turnTrace } from './learn-tutor-trace.js';
 import { validSources } from './card-sources.js';
 import { actionContract, reasonCodes } from './learn-tutor-actions.js';
@@ -105,7 +105,7 @@ const turnEvidence = (claims, states, domain) => withPrerequisites(claims, domai
 // the turn may offer suggest_journey (journey_offer). repository (Task 11c-B): the canvas reads a repository (structured page
 // state, LearnTutor.jsx canvasRepository), so the turn may hand off to repository_context (handoff_offer); words never set it.
 // canvas.liveTitle: a hole's live title (Task 10 fix round 3).
-export function buildTurn({ raw, slash = null, opening = false, canvas, block, store, states, inputModality = 'text', turnId = null, domain = NANOGPT, nextStep = null, materials = [], research = false, journeyOffer = false, repository = false }) {
+export function buildTurn({ raw, slash = null, opening = false, canvas, block, store, states, inputModality = 'text', turnId = null, domain = NANOGPT, nextStep = null, materials = [], research = false, journeyOffer = false, nextSectionOffer = false, repository = false }) {
   // A typed slash is a command, never an answer to the Tutor's open question (fix round 2), wherever it fixes the move or not.
   const typed = !!slash, mode = MODE_SLASHES.includes(slash) ? slash : null;
   slash = fixedSlash(slash, domain);
@@ -135,6 +135,7 @@ export function buildTurn({ raw, slash = null, opening = false, canvas, block, s
     ...(nextStep || materials.length ? { available_materials: materials } : {}),
     ...(research ? { research_offer: true } : {}),
     ...(journeyOffer ? { journey_offer: true } : {}),
+    ...(nextSectionOffer ? { next_section_offer: true } : {}),
     ...(repository ? { handoff_offer: true } : {}),
   };
   const claims = turnClaims(turn, store, domain);
@@ -186,7 +187,13 @@ export function evaluationSpec(turn, claims, store, domain = NANOGPT) {
 // authored cards. None of them is reachable on a hook click (no slash, no return, no evaluation), so hook turns are unchanged.
 const MATERIAL_FIXED = ['returned', 'uncertain_unsettled', 'slash'];
 const UNCERTAIN_MOVES = ['respond_text', 'focus_part', 'show_authored_card', 'suggest_depth', 'suggest_practice', 'ask_question'];
-export const UNSETTLED_LIMIT = 2; // consecutive uncertain_unsettled turns on one claim (store.unsettled)
+export const QUESTION_LIMIT = 2; // Tutor questions on one claim since its evidence last progressed (store.probes)
+// A claim's evidence progressed between two event lists: a new state (transitions), a newly settled idea or a new transfer pass
+// (claimCoverage). Its question count starts over; every other count is kept, so an explanation turn never resets one.
+function progressedProbes(probes = {}, before, after, transitions, claims) {
+  const covered = (events, id) => { const c = claimCoverage(events, id, claims); return `${c.settled_ideas.join(',')}|${c.transfer}`; };
+  return Object.fromEntries(Object.entries(probes || {}).filter(([id]) => claims[id] && !transitions.some(change => change.claim === id) && covered(before, id) === covered(after, id)));
+}
 export function route({ turn, claims, states, evaluation, store, avatar = null, domain = NANOGPT }) {
   const noQuiz = turn.constraints.includes('no_quiz') || turn.constraints.includes('just_answer');
   const inHole = !!turn.canvas.dive;
@@ -202,6 +209,8 @@ export function route({ turn, claims, states, evaluation, store, avatar = null, 
     if (turn.research_offer && !list.includes('suggest_research')) list = [...list, 'suggest_research'];
     // Fix B1: a learning path is an offer the learner starts (suggest_journey), on every row where a journey can start.
     if (turn.journey_offer && !list.includes('suggest_journey')) list = [...list, 'suggest_journey'];
+    // r29 (owner 2026-10-08): on a live journey with a next section (structural), every row may move on when the learner asks.
+    if (turn.next_section_offer && !list.includes(NEXT_SECTION_ACTION)) list = [...list, NEXT_SECTION_ACTION];
     // Task 11c-B: the repository_context handoff, where the canvas reads a repository (turn.handoff_offer, structural), on typed,
     // voice and hook turns alike, except on a row whose rule fixes the move (MATERIAL_FIXED). Never from the learner's words.
     if (turn.handoff_offer && !MATERIAL_FIXED.includes(row) && !list.includes(HANDOFF_ACTION)) list = [...list, HANDOFF_ACTION];
@@ -228,15 +237,17 @@ export function route({ turn, claims, states, evaluation, store, avatar = null, 
   // An explanation whose content JEV could not settle and the policy did not escalate (Stage C):
   // one clarifying question, never a fail.
   const unclear = evaluation?.status === 'uncertain' && (evaluation.escalation?.uncertain || []).some(key => /^c\d+_(idea|mis|contra)/.test(key));
-  // Tutor eval run A (tutor-decision-eval.md 18.1): at most UNSETTLED_LIMIT clarifying questions in a row on one claim. The
-  // next unsettled turn is the uncertain row without ask_question, so the plan explains, works an example, shows a card or
-  // offers practice instead of asking again. Evidence is untouched: the claim stays uncertain and nothing completes or advances.
+  // Tutor eval runs A and A2 (tutor-decision-eval.md 18.1, 18.3; owner 2026-10-08): at most QUESTION_LIMIT Tutor questions on
+  // an uncertain claim until its evidence progresses (store.probes: a newly settled idea, a transfer pass or a new state; an
+  // explanation turn is no progress). Then the uncertain row without ask_question, so the plan explains, works an example,
+  // shows a card or offers practice instead of returning to the same probe. Evidence is untouched: nothing completes or advances.
+  const probed = claim => (store?.probes?.[claim] || 0) >= QUESTION_LIMIT;
+  const teach = UNCERTAIN_MOVES.filter(type => type !== 'ask_question');
   if ((unsure || unclear) && evaluation?.status === 'uncertain') {
     const claim = unsure || claims[0];
-    if ((store?.unsettled?.[claim] || 0) < UNSETTLED_LIMIT) return finish('uncertain_unsettled', 'feynman', ['ask_question'], claim);
-    return finish('uncertain', 'feynman', UNCERTAIN_MOVES.filter(type => type !== 'ask_question'), claim);
+    return probed(claim) ? finish('uncertain', 'feynman', teach, claim) : finish('uncertain_unsettled', 'feynman', ['ask_question'], claim);
   }
-  if (unsure) return finish('uncertain', 'feynman', UNCERTAIN_MOVES, unsure);
+  if (unsure) return finish('uncertain', 'feynman', probed(unsure) ? teach : UNCERTAIN_MOVES, unsure);
   const unseen = pick(state => state.state === 'not_yet_observed');
   if (unseen) return finish('not_yet_observed', 'feynman', ['respond_text', 'ask_question', 'show_authored_card', 'suggest_depth'], unseen);
   return finish('understood', 'none', ['respond_text', 'suggest_depth', 'ask_question'], claims[0]);
@@ -337,7 +348,10 @@ export function plannerContext({ turn, routed, block, states, claims = [], store
   const ids = [...new Set([routed.claim, ...claims].filter(Boolean))].slice(0, 4);
   const concepts = new Set(ids.flatMap(id => [domain.claims[id].concept, ...domain.claims[id].prerequisites]));
   const record = turn.canvas.dive?.record;
-  const evidence = id => { const { concept, claim, state, misconception_id, prerequisite } = states[id]; return { claim, concept, statement: domain.claims[id].statement, state, ...(misconception_id ? { misconception_id } : {}), ...(prerequisite ? { prerequisite } : {}), misconceptions: domain.claims[id].misconceptions.map(wrong => wrong.id) }; };
+  // coverage (owner 2026-10-08, r29): what the settled answers already show, by idea, and whether a new case is still needed
+  // (claimCoverage, the rule understood reads), so a turn checks or teaches what is missing instead of an idea already shown.
+  const coverage = id => { const c = claimCoverage(store?.events || [], id, domain.claims), ideas = domain.claims[id].ideas || []; return { settled_ideas: c.settled_ideas.map(i => ideas[i]), missing_ideas: c.missing_ideas.map(i => ideas[i]), transfer_needed: !c.transfer }; };
+  const evidence = id => { const { concept, claim, state, misconception_id, prerequisite } = states[id]; return { claim, concept, statement: domain.claims[id].statement, state, ...(misconception_id ? { misconception_id } : {}), ...(prerequisite ? { prerequisite } : {}), misconceptions: domain.claims[id].misconceptions.map(wrong => wrong.id), coverage: coverage(id) }; };
   return {
     learner_intent: learnerIntent(turn),
     target: card ? {
@@ -397,7 +411,7 @@ export const enforce = validateActions;
 // repository (Task 11c-B): the canvas reads a repository, so the plan may hand off to repository_context; an accepted handoff
 // runs after the plan through the handoff route (runHandoff), its answer follows the plan's own words in `text`, a failure
 // says the source context could not be retrieved, and bench.handoff / bench.ms.handoff / bench.ms.to_answer time it.
-export async function runTurn({ raw, slash = null, opening = false, canvas, access, block, store, post, onSpeakable = null, inputModality = 'text', turnId = null, onTurn = null, domain = NANOGPT, plan = true, nextStep = null, materials = [], research = false, journeyOffer = false, repository = false, trace = false }) {
+export async function runTurn({ raw, slash = null, opening = false, canvas, access, block, store, post, onSpeakable = null, inputModality = 'text', turnId = null, onTurn = null, domain = NANOGPT, plan = true, nextStep = null, materials = [], research = false, journeyOffer = false, nextSectionOffer = false, repository = false, trace = false }) {
   if (nextStep) raw = '';
   const t = [now()];
   // The hook click's time for the event (selected_at): the page's click time when it passes one, else this turn's start.
@@ -420,7 +434,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   }
   t.push(now());
   let states = deriveClaimStates(current.events, domain.claims);
-  const built = tracer.step('claim_selection', () => buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id, domain, nextStep, materials, research, journeyOffer, repository }),
+  const built = tracer.step('claim_selection', () => buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id, domain, nextStep, materials, research, journeyOffer, nextSectionOffer, repository }),
     out => out.selection ? `${out.selection.selected.length}/${out.selection.available}${out.selection.fallback ? ' fallback' : ''}` : 'none');
   const { turn, selection } = built;
   onTurn?.(turn);
@@ -442,7 +456,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
     const reconciled = () => (!journeyTurn ? reconcile(current, evaluation, ref, domain.claims)
       : result.journey?.events ? adoptJourney(current, result, states, domain.claims) : { store: current, states, transitions: [], added: 0 });
     ({ store: current, states, transitions } = tracer.step('evidence_reconciliation', reconciled, out => `${out.added} observations, ${out.transitions.length} state changes`));
-    turn.evidence = buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id, domain, nextStep, materials, research, journeyOffer, repository }).turn.evidence;
+    turn.evidence = buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id, domain, nextStep, materials, research, journeyOffer, nextSectionOffer, repository }).turn.evidence;
   };
   if (raw.trim() && !turn.slash && !opening && claims.length) {
     const spec = evaluationSpec(turn, claims, current, domain);
@@ -471,7 +485,8 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
     // The probe this turn answered is closed, so the next free-text turn is not read as answering it again.
     return traced({ store: turn.answering ? { ...current, open: null } : current, turn, evaluation, transitions, states, actions: [], text: '', bench });
   }
-  // 3. Router, planner, enforcement.
+  // 3. Router, planner, enforcement. Evidence that progressed this turn lifts QUESTION_LIMIT before routing.
+  current = { ...current, probes: progressedProbes(current.probes, store.events, current.events, transitions, domain.claims) };
   const routed = tracer.step('router', () => route({ turn, claims, states, evaluation, store: current }), out => out.row);
   const context = plannerContext({ turn, routed, block, states, claims, store: current, domain });
   const planned = now();
@@ -550,8 +565,11 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   const constraints = [...new Set([...current.constraints, ...(response.constraints_add || [])].filter(item => !(response.constraints_remove || []).includes(item)).concat(statedConstraints(raw)))];
   const asked = actions.find(action => action.type === 'ask_question');
   const socratic = routed.row === 'misconception' ? { ...current.socratic, [routed.claim]: (current.socratic[routed.claim] || 0) + 1 } : current.socratic;
-  // The current run of uncertain_unsettled turns, on one claim; any other row ends it (route's UNSETTLED_LIMIT).
-  const unsettled = routed.row === 'uncertain_unsettled' ? { [routed.claim]: (current.unsettled?.[routed.claim] || 0) + 1 } : {};
+  // QUESTION_LIMIT: progress this turn starts a claim over (again here, for an evaluation that landed after routing); a question
+  // this turn counts on its claim. An explanation turn changes nothing, so it never resets the count.
+  const probes = progressedProbes(current.probes, store.events, current.events, transitions, domain.claims);
+  const probedClaim = asked && (asked.claim || routed.claim);
+  if (probedClaim) probes[probedClaim] = (probes[probedClaim] || 0) + 1;
   const words = actions.filter(action => action.type === 'respond_text' || action.type === 'ask_question').map(action => action.text.trim()).join('\n\n');
   const text = handed ? [words, handed.answer ?? HANDOFF_FAILED].filter(Boolean).join('\n\n') : words;
   const dive = actions.find(action => action.type === 'suggest_dive');
@@ -559,7 +577,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   // A spoken question never becomes the hole's typed opening (openingQuestion): the dock would show it
   // as a user bubble, and Voice Mode never shows the learner's words.
   current = {
-    ...current, constraints, socratic, unsettled,
+    ...current, constraints, socratic, probes,
     open: asked ? { action_id: asked.action_id, claim: asked.claim, text: asked.text, canvas: here } : turn.answering ? null : current.open,
     keep: turn.dive_choice ? null : current.keep,
     returned: turn.returned_from ? null : current.returned,
@@ -768,7 +786,7 @@ const titleOf = (cardId, domain) => domain.cardModule(cardId)?.scene.title || ca
 // becomes a Start a learning path chip that calls it with the request, and nothing starts until the learner clicks.
 // domain: whose cards these are (NANOGPT by default); a domain's own showCard (a journey's reveals its block, never
 // inserts) replaces the authored-module one.
-export function executeActions(actions, { canvas, suggestDive, climb, slot = null, domain = NANOGPT, openResearch = null, startJourney = null }) {
+export function executeActions(actions, { canvas, suggestDive, climb, slot = null, domain = NANOGPT, openResearch = null, startJourney = null, nextSection = null }) {
   const chips = [];
   let held = slot;
   const take = () => { const id = held; held = null; return id; };
@@ -792,6 +810,8 @@ export function executeActions(actions, { canvas, suggestDive, climb, slot = nul
     else if (action.type === 'return_from_dive') chips.push({ label: 'Back up the Rabbit Hole', run: () => climb?.() });
     else if (action.type === 'suggest_research' && openResearch) chips.push({ label: 'Research this', run: () => openResearch(action.request) });
     else if (action.type === 'suggest_journey' && startJourney) chips.push({ label: 'Start a learning path', run: () => startJourney(action.request) });
+    // r29: the learner asked to move on, so the next section opens now (the journey's next_section), never as a chip.
+    else if (action.type === NEXT_SECTION_ACTION && nextSection) nextSection();
   }
   return chips;
 }

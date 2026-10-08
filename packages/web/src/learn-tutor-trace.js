@@ -4,7 +4,7 @@
 // Stages: target_resolution, practice_evaluation, claim_selection, evaluate (with the worker's own
 // jev / larger timings), evidence_reconciliation, router, planner, action_validation, handoff (Task 11c-B, when the
 // turn hands off); the UI adds reply_ready and canvas_action_complete marks.
-import { HANDOFF_ACTION, MODE_SLASHES, TRACE_SCHEMA_VERSION, TUTOR_PLANNER_VERSION, goalWords, repeatsLearnerWords } from '../../control-plane/src/agents/learn-tutor.js';
+import { HANDOFF_ACTION, MODE_SLASHES, NEXT_SECTION_ACTION, TRACE_SCHEMA_VERSION, TUTOR_PLANNER_VERSION, goalWords, repeatsLearnerWords } from '../../control-plane/src/agents/learn-tutor.js';
 import { STATES } from './learn-tutor-evidence.js';
 import { resolveTarget } from './learn-target.js';
 
@@ -129,7 +129,7 @@ const escalation = reason => `escalated:${ESCALATIONS.includes(reason) ? reason 
 // Task 14 D-M3 (owner messages 3 and 14): the conditional actions whose offer the router decides per turn, in this order;
 // decision.offered_actions names those this turn's route allowed (routed.allowed), so the evaluator can compute missed-handoff
 // and missed-offer rates from events. Structural only: action types, never text.
-const OFFERS = [HANDOFF_ACTION, 'suggest_journey', 'suggest_research', 'create_material'];
+const OFFERS = [HANDOFF_ACTION, 'suggest_journey', 'suggest_research', 'create_material', NEXT_SECTION_ACTION]; // r29: next_section appended
 // A tutor_decision from runTurn's finished result. The actions are the turn's production contracts (result.contracts,
 // learn-tutor-actions.js), never recomputed; a turn without contracts (plan: false) gives [] and null.
 // identity: { user_id, canvas_version } from the caller; blocks: the canvas blocks; options: the hooks shown with the turn;

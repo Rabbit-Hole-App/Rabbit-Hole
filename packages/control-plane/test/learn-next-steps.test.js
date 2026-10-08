@@ -29,7 +29,8 @@ test('the tool is exactly the owner schema: suggest_next_steps, 3 options of the
   assert.equal(NEXT_STEPS_TOOL.name, 'suggest_next_steps');
   const options = NEXT_STEPS_TOOL.input_schema.properties.options;
   assert.deepEqual([options.minItems, options.maxItems], [3, 3]);
-  assert.deepEqual(Object.keys(options.items.properties), ['hook', 'learning_goal', 'concept_ids', 'claim_ids', 'reason_internal']);
+  // r29 (owner 2026-10-08): plus the optional section_id of the one next-section hook, never required.
+  assert.deepEqual(Object.keys(options.items.properties), ['hook', 'learning_goal', 'concept_ids', 'claim_ids', 'reason_internal', 'section_id']);
   assert.deepEqual(options.items.required, ['hook', 'learning_goal', 'concept_ids', 'claim_ids', 'reason_internal']);
   assert.equal(options.items.additionalProperties, false);
   assert.equal(JSON.stringify(NEXT_STEPS_TOOL).match(/modality|command|action|"id"/)?.[0] ?? null, null, 'the hook planner never chooses a modality');
@@ -48,12 +49,21 @@ test('a valid reply passes and keeps only the five fields', () => {
   assert.deepEqual(Object.keys(out.value[0]), ['hook', 'learning_goal', 'concept_ids', 'claim_ids', 'reason_internal']);
 });
 
+// Owner 2026-10-08 (r29): the hook length is 4-16 words within 90 characters; the boundary both ways.
+test('hook length boundary: 4 and 16 words within 90 characters pass; 3 and 17 words are hook_words', () => {
+  const swap = hook => ({ options: THREE.map((o, j) => (j ? o : { ...o, hook })) });
+  for (const hook of ['Why do jars crack?', 'Why do so many of the old jars in a cold shed crack at the top?']) assert.equal(nextStepsOutput(swap(hook), INPUT).ok, true, hook);
+  for (const hook of ['Why jars crack?', 'Why do so many of the old jars in a cold shed crack right at the top?']) assert.deepEqual(nextStepsOutput(swap(hook), INPUT).errors, ['option 1: hook_words'], hook);
+});
+
 test('one failing case per rule; errors name the rule, never the hook text', () => {
   const swap = (i, over) => ({ options: THREE.map((o, j) => (j === i ? { ...o, ...over } : o)) });
   const cases = [
     [{ options: THREE.slice(0, 2) }, 'shape'],
     [swap(0, { hook: 'Why cool slowly?' }), 'hook_words'],
-    [swap(0, { hook: 'Why does a vase that cools quickly in a cold draughty workshop crack apart?' }), 'hook_words'],
+    // Owner 2026-10-08 (r29): up to 16 words, the 90-character cap kept (run A2: 9 of 27 refused hooks had 13-16 words).
+    [swap(0, { hook: 'Why do so many of the old jars in a cold shed crack right at the top?' }), 'hook_words'],
+    [swap(0, { hook: 'Why do extraordinarily delicate porcelain vases crack spontaneously during uncontrolled overnight cooling in unheated workshops?' }), 'hook_chars'],
     [swap(0, { hook: 'What happens when\na vase cools too fast?' }), 'hook_line'],
     [swap(0, { hook: 'What does `cool()` do to a vase?' }), 'hook_code'],
     [swap(0, { hook: 'Explain why a vase cracks when cooled' }), 'command'],
@@ -239,7 +249,7 @@ const block = (text, tag) => text.slice(text.indexOf(`<${tag}>`) + tag.length + 
 
 test('NEXT_STEPS_SYSTEM: the owner hook rules, the semantic no-reveal rule, no modality choice, its own contract', () => {
   const rules = block(NEXT_STEPS_SYSTEM, 'non_negotiable_rules'), role = block(NEXT_STEPS_SYSTEM, 'role');
-  assert.match(rules, /4-12 words/);
+  assert.match(rules, /4-16 words/);
   assert.match(rules, /never states or reveals the answer in any wording/, 'semantic, not only lexical');
   assert.match(role, /never (?:teach|choose)[^.]*(?:material|modality)/i);
   for (const tag of ['[command]', '[modality]', '[answer reveal]', '[mastery]', '[clickbait]']) assert.ok(block(NEXT_STEPS_SYSTEM, 'examples').includes(`Bad output ${tag}`), tag);
@@ -253,7 +263,7 @@ test('NEXT_STEPS_SYSTEM: the owner hook rules, the semantic no-reveal rule, no m
 // Task 2 fix round 1: limits only the tool schema carries, the grounding rule as the validator reads it, no arrows, a lock on the examples.
 test('NEXT_STEPS_SYSTEM states the hook and id limits and the grounding rule the validator enforces', () => {
   const rules = block(NEXT_STEPS_SYSTEM, 'non_negotiable_rules');
-  assert.match(rules, /hook: 4-12 words and at most 90 characters, on one line/);
+  assert.match(rules, /hook: 4-16 words and at most 90 characters, on one line/);
   assert.match(rules, /at most 3 each, no duplicates/);
   assert.match(rules, /at least one id when the scope has any concept or claim; both empty only when the scope is empty/);
   assert.equal(rules.includes('when scope has claims'), false, 'the old claims-only wording');
@@ -360,4 +370,43 @@ test('with motion: shown and seen count as format verbs, and an all-caps MOTION 
   const topic = 'tides';
   for (const hook of ['Could this idea be shown with motion instead?', 'What is seen with motion in a falling leaf?', 'Why would MOTION make this easier to see?']) assert.equal(hookProblem(hook, { topic }), 'format_word', hook);
   assert.equal(hookProblem('How does drag grow with motion through water?', { topic }), null, 'physics motion still passes');
+});
+
+// Owner 2026-10-08 (r29): at most one hook into the journey's next section, only when the input gives path.next, naming it; its
+// ids may be empty; mintSet carries { id, title, skips }. The scope says what is still missing once part of a claim is shown, and
+// the prompt keeps the other hooks on the Tutor's example and the missing ideas. The keyless planner makes one.
+test('r29 the next-section hook: section_id only for path.next, at most one, ids may be empty; mintSet carries its section', () => {
+  const withNext = { ...INPUT, mode: 'journey', path: { current: null, completed: [], upcoming: ['From a score to probability'], next: { id: 's2', title: 'From a score to probability', completes: false } } };
+  const section = option({ hook: 'How does a score turn into a chance?', learning_goal: 'Open the step from scores to probabilities', concept_ids: [], claim_ids: [], section_id: 's2' });
+  const three = [THREE[0], THREE[1], section];
+  const ok = nextStepsOutput({ options: three }, withNext);
+  assert.equal(ok.ok, true, JSON.stringify(ok.errors));
+  assert.equal(ok.value[2].section_id, 's2');
+  assert.deepEqual(nextStepsOutput({ options: three }, INPUT).errors, ['option 3: section'], 'no path.next: no section hook');
+  assert.deepEqual(nextStepsOutput({ options: [THREE[0], THREE[1], { ...section, section_id: 's9' }] }, withNext).errors, ['option 3: section'], 'another section');
+  assert.ok(nextStepsOutput({ options: [THREE[0], { ...section, hook: 'Where does a chance come from in a score?', learning_goal: 'Trace probabilities back to scores' }, section] }, withNext).errors.includes('section'), 'at most one');
+  assert.ok(nextStepsOutput({ options: [THREE[0], THREE[1], { ...section, section_id: undefined }] }, withNext).errors.includes('option 3: ungrounded'), 'without the section, ids are needed');
+  const minted = mintSet(ok.value, withNext, { hex: () => '0a0b0c0d' });
+  assert.deepEqual(minted.options[2].section, { id: 's2', title: 'From a score to probability', skips: true });
+  assert.deepEqual(minted.options[2].selected_next_step.section, { id: 's2', title: 'From a score to probability', skips: true });
+  assert.equal('section' in minted.options[0], false);
+  assert.equal(mintSet(ok.value, { ...withNext, path: { ...withNext.path, next: { ...withNext.path.next, completes: true } } }).options[2].section.skips, false);
+});
+
+test('r29 the scope names the missing ideas once part of a claim is shown; the prompt keeps hooks on the example and what is missing', () => {
+  const claims = { 'k/c': { concept: 'k', statement: 's', ideas: ['first idea', 'second idea', 'third idea'], drawn: 'd', misconceptions: [], prerequisites: [] } };
+  const scope = events => nextStepsScope({ claims, concepts: { k: { label: 'K' } }, order: ['k/c'], states: {}, events }).claims['k/c'];
+  assert.equal('missing_ideas' in scope([]), false, 'nothing shown: ideas says it all');
+  assert.deepEqual(scope([{ seq: 1, claim: 'k/c', result: 'pass', idea: 1, settled: true }]).missing_ideas, ['first idea', 'third idea']);
+  assert.equal('missing_ideas' in scope([0, 1, 2].map(i => ({ seq: i + 1, claim: 'k/c', result: 'pass', idea: i, settled: true }))), false, 'all shown');
+  for (const line of ['path.next { id, title, completes }', 'except at most one hook into path.next when it is given, with section_id path.next.id', "stay on recent.tutor's example and on what is still missing (scope.claims[].missing_ideas)"]) assert.ok(NEXT_STEPS_SYSTEM.includes(line), line);
+});
+
+test('r29 the keyless planner leads its third hook into path.next, and the set passes the validator', async () => {
+  const { fixtureFor } = await import('../src/learn-journey-fixtures.js');
+  const input = { ...INPUT, mode: 'journey', path: { current: null, completed: [], upcoming: [], next: { id: 's2', title: 'From a linear score to probability', completes: false } }, previous: { hooks: [], goals: [] } };
+  const out = fixtureFor('suggest_next_steps', input);
+  assert.equal(out.options[2].section_id, 's2');
+  const checked = nextStepsOutput(out, input);
+  assert.equal(checked.ok, true, JSON.stringify(checked.errors));
 });

@@ -12,7 +12,7 @@
 // nanoGPT by default. A journey's cards are its section blocks on the canvas, and it has no ladder.
 import { NANOGPT } from './learn-tutor-claims.js';
 import { partIndex } from './nanogpt/depth/board.js';
-import { ACTION_TYPES, AVATAR_ACTION, AVATAR_MOMENTS, GROUNDING_STATUSES, HANDOFF_ACTION, INTENTS, MODALITY_OVERRIDES, PERSONALIZABLE_MOMENTS, SOURCE_TYPES, VISUAL_VALUE_MAX, avatarSlotId, handoffProblem, learningGoalProblem } from '../../control-plane/src/agents/learn-tutor.js';
+import { ACTION_TYPES, AVATAR_ACTION, AVATAR_MOMENTS, GROUNDING_STATUSES, HANDOFF_ACTION, NEXT_SECTION_ACTION, INTENTS, MODALITY_OVERRIDES, PERSONALIZABLE_MOMENTS, SOURCE_TYPES, VISUAL_VALUE_MAX, avatarSlotId, handoffProblem, learningGoalProblem } from '../../control-plane/src/agents/learn-tutor.js';
 const CARD_ACTIONS = ['show_authored_card', 'focus_part', 'suggest_depth', 'suggest_practice'];
 const TEXT_ACTIONS = ['respond_text', 'ask_question'];
 
@@ -169,8 +169,8 @@ export function validateActions(response, routed, turn, domain = NANOGPT) {
   const actions = [];
   const reject = (action, stage, reason) => { decisions.push({ type: action?.type ?? null, accepted: false, stage, reason }); log.push(`dropped ${action?.type}: ${reason}`); };
   const reading = readingOf(response, log); // Task 11b: telemetry, never read by the checks below
-  // The avatar action and the handoff (Task 11c-B) are known types only on a turn whose route allows them.
-  const extra = [AVATAR_ACTION, HANDOFF_ACTION].filter(type => routed.allowed.includes(type));
+  // The avatar action, the handoff (Task 11c-B) and next_section (r29) are known types only on a turn whose route allows them.
+  const extra = [AVATAR_ACTION, HANDOFF_ACTION, NEXT_SECTION_ACTION].filter(type => routed.allowed.includes(type));
   for (const action of Array.isArray(response.actions) ? response.actions : []) {
     const bad = schema(action, extra, domain);
     if (bad) { reject(action, 'schema', bad); continue; }
@@ -191,6 +191,9 @@ export function validateActions(response, routed, turn, domain = NANOGPT) {
     if (action.type === 'suggest_research' && actions.some(other => other.type === 'suggest_research')) { reject(action, 'route', 'a second suggest_research'); continue; }
     if (action.type === 'suggest_journey' && actions.some(other => other.type === 'suggest_journey')) { reject(action, 'route', 'a second suggest_journey'); continue; }
     if (action.type === HANDOFF_ACTION && actions.some(other => other.type === HANDOFF_ACTION)) { reject(action, 'route', 'a second handoff'); continue; } // Task 11c-B: at most one per turn
+    // r29 (owner 2026-10-08): moving on is the learner's own explicit request, quoted from this message; once per turn.
+    if (action.type === NEXT_SECTION_ACTION && !explicit) { reject(action, 'consent', 'next_section without the learner explicitly asking to move on'); continue; }
+    if (action.type === NEXT_SECTION_ACTION && actions.some(other => other.type === NEXT_SECTION_ACTION)) { reject(action, 'route', 'a second next_section'); continue; }
     if (action.type === AVATAR_ACTION) { // Avatar Teacher §4.1: a suggestion of learning material, never more
       const navigated = navigate && response.actions.some(other => (other?.type === 'show_authored_card' || other?.type === 'focus_part') && other.mode === 'navigate');
       const trigger = avatarTrigger(action, routed, turn, actions, navigated, domain);
@@ -216,6 +219,7 @@ export function validateActions(response, routed, turn, domain = NANOGPT) {
     if (next.type === 'create_material') next = { type: 'create_material', command: next.command, request: next.request.trim() };
     if (next.type === 'suggest_research' || next.type === 'suggest_journey') next = { type: next.type, request: next.request.trim() };
     if (next.type === HANDOFF_ACTION) next = { type: HANDOFF_ACTION, capability: next.capability, request: next.request.trim() };
+    if (next.type === NEXT_SECTION_ACTION) next = { type: NEXT_SECTION_ACTION };
     if (next.type === 'suggest_dive') {
       // Exactly one originating card (R-10): the target card, else a topic anchor made on Go down.
       const concept = domain.concepts[next.concept] ? next.concept : domain.conceptOf(next.title) || domain.conceptOf(next.concept) || null;
