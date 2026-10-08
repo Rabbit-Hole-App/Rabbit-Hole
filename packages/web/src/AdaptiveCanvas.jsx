@@ -1205,7 +1205,7 @@ const CARDS_COPIED = 'rabbit-hole:copied-cards';
 // menu's MenuItem, its icon at 16px beside the label. A new row passes only its icon.
 const MenuRow = props => <MenuItem type="button" role="menuitem" {...props} />;
 
-export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, gutterTop = null, leftRail = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPasteCode = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPasteCode = null }) {
   // A view-only board pans and zooms with the hand and edits nothing.
   const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
   const readOnlyRef = useRef(readOnly);
@@ -3300,9 +3300,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           order-first), so the small caption window floats at the surface's lower left, above the zoom pill, as the
           owner asked (2026-10-01). On a phone it is an in-flow strip. Never while presenting. It sits over the canvas
           but outside the surface's drop target, so a file dropped on it is ignored rather than opened by the browser.
-          The rail is one stack there (owner, 2026-10-06): the Professor Next Steps card above the caption, which is
-          held in the stack's flow instead of its own corner. The stack stays left of the centred dock (780 px) and the
-          answer sheet above it, down to 208 px wide. */}
+          The rail is one stack there (owner, 2026-10-06), held in the stack's flow instead of its own corner; the
+          Professor Next Steps card left it for the lower right, beside the composer (owner, 2026-10-08: `hooks` below).
+          The stack stays left of the centred dock (780 px) and the answer sheet above it, down to 208 px wide. */}
       {leftRail && presenting === null && <div data-voice-rail className="relative z-20 w-0 shrink-0 @max-[640px]:w-full"
         onDragOver={event => event.preventDefault()} onDrop={event => event.preventDefault()}>
         <div data-left-stack className="absolute bottom-3 left-3 flex w-[clamp(208px,calc(50cqw-500px),300px)] flex-col items-start gap-2 [&>[data-tutor-caption]]:relative [&>[data-tutor-caption]]:inset-auto @max-[640px]:static @max-[640px]:w-full">{leftRail}</div>
@@ -3766,16 +3766,23 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           </div>
         </div>
       )}
-      {/* The zoom pill, the composer and the minimap share one lower edge (on a
-          phone the overview lives in the tools' strip instead). The composer is the primary surface, so
-          no control may cover it: the pill sits in its own flex column beside
-          it (the two side columns grow equally, keeping the composer centred
-          while there is room), and on a phone the pill takes its own compact
-          row above a full-width composer. */}
+      {/* The bottom strip (owner, 2026-10-08: "move the minimap to the left bottom above the zoom buttons. so that they are
+          all in one together" and "move the 3 hooks options window to the bottom right aligned with the lower of the chat
+          composer"): lower left, the minimap above the zoom row, one group on one left edge; the composer in the middle;
+          lower right, the Next Steps hooks, their bottom level with the composer's. All in flow: the strip grows to hold
+          them, so no chrome ever covers the canvas, and the side columns grow equally, keeping the composer centred while
+          there is room. On a phone the zoom row, then the hooks at the right, then a full-width composer, one per row (the
+          overview lives in the tools' strip there). */}
       {presenting === null && <div data-canvas-bottom className={`relative flex min-h-11 shrink-0 flex-col gap-2 md:flex-row md:items-end md:gap-3 ${DOCK_PAD}`}>
         <div className="flex items-end gap-2 md:min-w-fit md:flex-1 md:basis-0">
         {/* The page's own lower-left control (Learn: the feedback button). */}
         {bottomLeft}
+        <div data-zoom-stack className="flex flex-col items-start gap-2">
+        {minimap && <div data-canvas-minimap className="hidden md:block @max-[640px]:hidden">
+          <CanvasMinimap boxes={minimapBoxes} view={view} onFit={zoomFit}
+            surface={{ w: surface.current?.clientWidth || 0, h: surface.current?.clientHeight || 0 }}
+            onView={next => setView(v => ({ ...v, x: next.x, y: next.y }))} />
+        </div>}
         <div data-zoom aria-label="Zoom controls" className="z-20 flex items-center rounded-lg border border-line bg-white shadow-sm @max-[1024px]:static @max-[1024px]:mb-2 @max-[1024px]:w-fit">
           <IconBtn title="Scroll up" onClick={() => scrollBy(-1)}><ChevronUp size={14} /></IconBtn>
           <IconBtn title="Scroll down" onClick={() => scrollBy(1)}><ChevronDown size={14} /></IconBtn>
@@ -3785,14 +3792,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           <IconBtn title="Zoom in" onClick={() => zoomCenter(1.25)}><Plus size={14} /></IconBtn>
         </div>
         </div>
+        </div>
         {/* The shared composer shell's footprint: DOCK_WIDTH in a DOCK_PAD strip (ChatComposer.jsx). */}
-        {composer && <div data-canvas-composer className={`${DOCK_WIDTH} min-w-0 md:mx-0 md:shrink`}>{composer}</div>}
-        {/* Balances the pill's column so the composer stays centred. */}
-        {/* Lower right, level with the composer (Parallel caca1c2b), but in flow: the strip grows to hold it, so it never covers the canvas. */}
-        <div data-canvas-minimap className="hidden md:flex md:flex-1 md:basis-0 md:justify-end @max-[640px]:hidden" style={minimap ? { minWidth: 184 } : undefined}>
-          {minimap && <CanvasMinimap boxes={minimapBoxes} view={view} onFit={zoomFit}
-            surface={{ w: surface.current?.clientWidth || 0, h: surface.current?.clientHeight || 0 }}
-            onView={next => setView(v => ({ ...v, x: next.x, y: next.y }))} />}
+        {composer && <div data-canvas-composer className={`${DOCK_WIDTH} min-w-0 md:mx-0 md:shrink max-md:order-2`}>{composer}</div>}
+        {/* Lower right: the hooks, bottom-aligned with the composer and right of it, the width the left stack gave them. It
+            also balances the left column, so the composer stays centred. On a phone, above the composer at the right. */}
+        <div data-canvas-lower-right className="flex justify-end md:min-w-fit md:flex-1 md:basis-0 max-md:order-1">
+          {hooks && <div data-hooks-slot className="w-[clamp(208px,calc(50cqw-500px),300px)] empty:hidden max-md:w-[min(100%,300px)]">{hooks}</div>}
         </div>
       </div>}
     </div>

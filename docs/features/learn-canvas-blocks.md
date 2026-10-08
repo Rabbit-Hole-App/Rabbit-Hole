@@ -90,11 +90,19 @@ Approved 2026-09-24 as regression invariants for the canvas shell (`AdaptiveCanv
     the grip still docks it right).
   - **Top right:** the Rabbit Hole navigator in its own gutter (`[data-dive-gutter]`), or at the
     top of the tools gutter when the tools dock right.
-  - **Lower right:** the minimap in the bottom strip beside the composer (`[data-canvas-minimap]`),
-    in flow, so the strip grows to hold it.
+  - **Lower left** (owner, 2026-10-08): the minimap directly above the zoom row, one group on one left
+    edge in the bottom strip's left column (`[data-zoom-stack]` holding `[data-canvas-minimap]` then
+    `[data-zoom]`), in flow, so the strip grows to hold it. Hidden below `md` and on canvases under
+    640px, where the overview stays the tools row's toggle.
+  - **Lower right** (owner, 2026-10-08): the Professor Next Steps hook card (`[data-hooks-slot]` in
+    `[data-canvas-lower-right]`), right of the composer with its bottom on the composer's bottom, in
+    flow, never over the canvas or the composer; same width rule as before. Below `md` it sits above
+    the composer, at the right, `min(100%, 300px)` wide. Owned and shared canvases place it the same
+    way. Voice Mode's caption keeps the lower-left stack on the canvas.
   - **Bottom:** the composer.
   - **Pinned by:** `src/canvas-shell.test.mjs`. Rendered at root, child and grandchild by
-    `e2e/canvas-shell-check.mjs` (local stack).
+    `e2e/canvas-shell-check.mjs` (local stack); the bottom strip at 1440, 1024 and 390 wide, owned
+    and shared, by `e2e/canvas-chrome-check.mjs` (local keyless stack).
 - No card- or scene-specific padding or layout for any utility; cards do not know the utilities
   exist.
 - On a canvas narrower than 640px the tools become one row under the canvas (toolbar scrolling in
