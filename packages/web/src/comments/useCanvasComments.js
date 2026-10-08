@@ -34,8 +34,8 @@ export function useCanvasComments({ base, enabled = true, canAdd = true, openPan
       onDraftDone: id => { setDraft(null); if (id) setSelected(id); },
       threadLink: link ? id => `${window.location.origin}${link}?thread=${id}` : null,
       // ponytail: liveness reads the rendered canvas; a virtualized canvas would need the board model instead.
-      objectLive: anchor => anchor?.kind !== 'object' || !!document.querySelector(['block', 'item', 'shape'].map(kind => `[data-${kind}-id="${CSS.escape(anchor.object_id)}"]`).join(',')),
-      onFocusAnchor: anchor => { if (anchor?.kind === 'object') canvasApi.current?.focusBlock?.(anchor.object_id); },
+      objectLive: anchor => anchor?.kind !== 'object' || !!document.querySelector(['block-id', 'item-id', 'shape-id', 'group-box'].map(attr => `[data-${attr}="${CSS.escape(anchor.object_id)}"]`).join(',')),
+      onFocusAnchor: anchor => { if (anchor?.kind === 'object') canvasApi.current?.focusObject?.(anchor.object_id); },
     } : null,
   };
 }

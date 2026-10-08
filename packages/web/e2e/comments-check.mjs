@@ -1,4 +1,4 @@
-// Canvas comments, first increment (docs/features/canvas-comments.md): on an owned canvas, Add comment from a card's
+// Canvas comments (docs/features/canvas-comments.md): on an owned canvas, Add comment from a card's
 // right-click menu and Add comment here on the empty canvas open the Comments view with a ghost pin; Send posts the
 // thread, a pin follows the card, a reply lands, a member's reply arrives with an unread dot, Resolve hides the thread
 // and its pin, and none of it touches the board's version. Against the LOCAL stack only: local D1 and a fresh browser
@@ -66,7 +66,9 @@ const shot = async (name, clip = null) => {
 };
 const card = id => page.locator(`[data-block-id="${id}"]`);
 const panel = () => page.locator('[data-comments-panel]');
-const menuItems = () => page.locator('[data-canvas-menu] [role="menuitem"]').evaluateAll(nodes => nodes.map(node => node.textContent.trim()));
+// A row's name without its shortcut hint ("Add comment", hint "C").
+const menuItems = () => page.locator('[data-canvas-menu] [role="menuitem"]').evaluateAll(nodes => nodes.map(node => [...node.childNodes].filter(child => !child.dataset?.menuHint).map(child => child.textContent).join('').trim()));
+const menuHint = () => page.locator('[data-canvas-menu] [data-menu-add-comment] [data-menu-hint]').textContent();
 const composer = () => panel().locator('[data-comment-composer] textarea');
 const pins = () => page.locator('[data-comment-pin]');
 
@@ -81,6 +83,7 @@ await check('1 right-click a card: Start Rabbit Hole stays first, Add comment fo
   const at = items.indexOf('Add comment');
   assert.ok(at >= 0, `Add comment in ${items.join(' | ')}`);
   if (items.includes('Start Rabbit Hole')) assert.equal(items.indexOf('Start Rabbit Hole'), at - 1, 'right after Start Rabbit Hole');
+  assert.equal(await menuHint(), 'C', 'the row shows its shortcut');
   await shot('01-card-menu', page.locator('[data-canvas-menu]'));
 });
 
@@ -274,7 +277,93 @@ await check('14 Closed: the published page keeps the thread readable and says co
   await other.close();
 });
 
-await check('15 no model call, no stray write, no page error', async () => {
+// Owner, 2026-10-08: comments on drawn shapes and groups, and C on any selection - on a second canvas of its own.
+const style = { color: '#37352f', width: 2, dash: 'solid', fill: null, opacity: 1, round: false };
+const shapesCanvas = (await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Comments shapes ${run}` }) })).body;
+assert.equal((await api(`/api/learn/boards/${shapesCanvas.name}/main`, { method: 'PUT', body: JSON.stringify({ state: {
+  strokes: [], links: [], items: [], exchanges: [], areas: [],
+  blocks: [{ id: 's-card', type: 'explanation', dx: 0, dy: 0, title: 'Brine', body: 'Salt water freezes at a lower temperature.' }],
+  shapes: [
+    { id: 's-box', kind: 'rect', x1: -560, y1: 40, x2: -360, y2: 160, ...style, text: 'Ice' },
+    { id: 'g-a', kind: 'ellipse', x1: -560, y1: 320, x2: -440, y2: 420, ...style, groupId: 'g-ice' },
+    { id: 'g-b', kind: 'rect', x1: -380, y1: 320, x2: -260, y2: 420, ...style, groupId: 'g-ice' },
+  ],
+  groups: [{ id: 'g-ice', label: 'Ice setup' }],
+} }) })).status, 200, 'the shapes canvas is saved');
+const shape = id => page.locator(`[data-shape-id="${id}"]`);
+const centre = async locator => { const box = await locator.boundingBox(); return { x: box.x + box.width / 2, y: box.y + box.height / 2 }; };
+const dragBy = async (from, dx, dy) => { await page.mouse.move(from.x, from.y); await page.mouse.down(); await page.mouse.move(from.x + dx, from.y + dy, { steps: 10 }); await page.mouse.up(); await page.waitForTimeout(400); };
+const send = async text => { await composer().fill(text); await composer().press('Enter'); await panel().locator('[data-comment-thread-view]').waitFor(); };
+const lastPin = async () => { await page.waitForTimeout(400); return pins().last().boundingBox(); };
+
+await check('15 right-click a drawn shape: Add comment (hint C) puts the pin on the shape, and the pin follows the shape', async () => {
+  await page.goto(`${BASE}/apps/${shapesCanvas.name}`);
+  await shape('s-box').waitFor({ timeout: 60000 });
+  await page.waitForTimeout(1200);
+  await page.keyboard.press('Shift+Digit1');
+  await page.waitForTimeout(800);
+  const at = await centre(shape('s-box'));
+  await page.mouse.click(at.x, at.y + 30, { button: 'right' });
+  assert.ok((await menuItems()).includes('Add comment'), (await menuItems()).join(' | '));
+  assert.equal(await menuHint(), 'C');
+  await shot('15-shape-menu', page.locator('[data-canvas-menu]'));
+  await page.locator('[data-menu-add-comment]').click();
+  assert.match(await panel().innerText(), /on Ice/);
+  await send('Is this the ice or the brine?');
+  assert.equal(await pins().count(), 1);
+  const before = await lastPin(), body = await shape('s-box').boundingBox();
+  assert.ok(before.x + 2 >= body.x && before.x <= body.x + body.width && before.y + before.height >= body.y - 2 && before.y <= body.y + body.height, 'the pin sits on the shape');
+  await dragBy(await centre(shape('s-box')), 150, 40);
+  const after = await lastPin();
+  assert.ok(Math.abs(after.x - before.x - 150) < 4 && Math.abs(after.y - before.y - 40) < 4, `the pin followed the shape: ${JSON.stringify([before, after])}`);
+  await shot('15b-shape-pin-moved');
+});
+
+await check('16 right-click a group (its outline, or its name chip): Add comment on the group, and the pin follows the group', async () => {
+  const left = await shape('g-a').boundingBox(), right = await shape('g-b').boundingBox();
+  const gap = { x: (left.x + left.width + right.x) / 2, y: left.y + left.height / 2 };
+  await page.mouse.click(gap.x, gap.y, { button: 'right' });
+  assert.ok((await menuItems()).includes('Add comment'), `the outline: ${(await menuItems()).join(' | ')}`);
+  await page.keyboard.press('Escape');
+  const chip = await centre(page.locator('[data-group-chip="g-ice"]'));
+  await page.mouse.click(chip.x, chip.y, { button: 'right' });
+  assert.ok((await menuItems()).includes('Add comment'), `the chip: ${(await menuItems()).join(' | ')}`);
+  await page.locator('[data-menu-add-comment]').click();
+  assert.match(await panel().innerText(), /on Ice setup/);
+  await send('Label both beakers.');
+  assert.equal(await pins().count(), 2);
+  const before = await lastPin();
+  await dragBy(gap, 120, 60);
+  const after = await lastPin();
+  assert.ok(Math.abs(after.x - before.x - 120) < 4 && Math.abs(after.y - before.y - 60) < 4, `the pin followed the group: ${JSON.stringify([before, after])}`);
+  await page.reload();
+  await shape('s-box').waitFor({ timeout: 60000 });
+  await page.waitForFunction(() => document.querySelectorAll('[data-comment-pin]').length === 2, null, { timeout: 15000 });
+  await shot('16-group-pin-after-reload');
+});
+
+await check('17 C with a selection: a card, a shape and a group each get a draft anchored to them; C typed in the composer stays text', async () => {
+  const draftFor = async (locator, offset, label) => {
+    await page.evaluate(() => document.activeElement?.blur?.());
+    const at = await centre(locator);
+    await page.mouse.click(at.x + offset.x, at.y + offset.y);
+    await page.keyboard.press('c');
+    await panel().locator('[data-comment-draft]').waitFor();
+    assert.match(await panel().innerText(), label);
+    assert.equal(await page.locator('[data-comment-pin="draft"]').count(), 1, 'a ghost pin');
+    await composer().pressSequentially('cc');
+    assert.equal(await composer().inputValue(), 'cc', 'C types in the composer');
+    await panel().getByRole('button', { name: 'Cancel' }).click();
+  };
+  await page.keyboard.press('Shift+Digit1');
+  await page.waitForTimeout(800);
+  await draftFor(page.locator('[data-block-id="s-card"]'), { x: 0, y: 0 }, /on Brine/);
+  await draftFor(shape('s-box'), { x: 0, y: 30 }, /on Ice(?! setup)/);
+  await draftFor(shape('g-a'), { x: 0, y: 0 }, /on Ice setup/);
+  await shot('17-c-on-group');
+});
+
+await check('18 no model call, no stray write, no page error', async () => {
   assert.deepEqual([asks, stray, errors], [[], [], []]);
 });
 

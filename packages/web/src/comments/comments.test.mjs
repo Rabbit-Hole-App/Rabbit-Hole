@@ -22,6 +22,20 @@ test('a card-relative anchor follows its object; a point stays put; a deleted ob
   assert.deepEqual([anchorText(anchor, true), anchorText(anchor, false), anchorText({ kind: 'point' }, true)], ['on Why scale?', 'Card deleted · Why scale?', 'on the canvas']);
 });
 
+test('a group anchor follows its members together; a shape anchor its box; each says what it is on', () => {
+  const board = { bounds: { b1: { x: 100, y: 50, w: 300, h: 200 } }, items: [], shapes: [{ id: 's1', x1: 90, y1: 40, x2: 10, y2: 80 }], groups: { g1: ['b1', 's1'] } };
+  assert.deepEqual(objectOrigin('g1', board), { x: 10, y: 40 }, "the group's top left is its members' top left");
+  const onGroup = anchorAt({ x: 30, y: 60 }, { id: 'g1', kind: 'group', label: '' }, board);
+  assert.deepEqual(onGroup, { kind: 'object', object_id: 'g1', object_kind: 'group', dx: 20, dy: 20, label: '' });
+  const moved = { ...board, bounds: { b1: { x: 300, y: 250 } }, shapes: [{ id: 's1', x1: 290, y1: 240, x2: 210, y2: 280 }] };
+  assert.deepEqual(pinPoint(onGroup, moved), { x: 230, y: 260 }, 'the group moved; the pin went with it');
+  assert.equal(pinPoint(onGroup, { ...board, groups: {} }), null, 'ungrouped: detached');
+  const onShape = anchorAt({ x: 50, y: 60 }, { id: 's1', kind: 'shape', label: '' }, board);
+  assert.deepEqual(pinPoint(onShape, moved), { x: 250, y: 260 }, 'the shape moved; the pin went with it');
+  assert.deepEqual([anchorText(onShape, true), anchorText(onShape, false), anchorText(onGroup, true), anchorText({ ...onGroup, label: 'Setup' }, false)],
+    ['on a shape', 'Shape deleted', 'on a group', 'Group removed · Setup']);
+});
+
 test('a retry reuses the draft id; an id_conflict resends once with a fresh id; any other failure surfaces', async () => {
   const seen = [];
   const draft = { id: 'draft-id', body: 'hi' };
@@ -59,8 +73,8 @@ test('names: display name, else @handle, else the neutral label; times are short
 
 test('seams: the canvas menu offers Add comment (card) and Add comment here (canvas); the panel and pins are wired on the owner page', () => {
   const canvas = read('../AdaptiveCanvas.jsx'), page = read('../LearnPage.jsx'), panel = read('./CommentsPanel.jsx');
-  assert.match(canvas, /\{addComment && !menuAt\.id && <button [^\n]*data-menu-add-comment[^\n]*>Add comment here<\/button>\}\n\s+\{startHole && /, 'empty canvas: first');
-  assert.match(canvas, /Start Rabbit Hole<\/button>\}\n\s+\{addComment && menuAt\.id && <button [^\n]*>Add comment<\/button>\}/, 'a card: right after Start Rabbit Hole');
+  assert.match(canvas, /\{addComment && !commentOn && <button [^\n]*data-menu-add-comment[^\n]*>Add comment here<\/button>\}\n\s+\{startHole && /, 'empty canvas: first');
+  assert.match(canvas, /Start Rabbit Hole<\/button>\}\n\s+\{addComment && commentOn && <button [^\n]*>Add comment<span [^\n]*>C<\/span><\/button>\}/, 'a card: right after Start Rabbit Hole');
   assert.match(canvas, /\{commentPins && presenting === null && <CommentPins /, 'no pins while presenting');
   assert.match(page, /<AdaptiveCanvas key=\{canvasEpoch\} \{\.\.\.comments\.canvasProps\} /);
   assert.match(page, /\{comments\.active && <CommentsPanel hidden=\{panelTab !== 'comments'\} \{\.\.\.comments\.panelProps\} \/>\}/);
@@ -123,7 +137,7 @@ test('entry points: the Comment tool in the rail, C with its guards, the shortcu
   assert.match(key, /isContentEditable \|\| \['INPUT', 'TEXTAREA', 'SELECT', 'IFRAME'\]\.includes/, 'never while typing');
   assert.match(key, /held\.closest\?\.\('\[data-block-id\]'\) && !held\.matches\('\[data-block-id\]'\)/, 'never inside a card\'s own editor or widget');
   assert.ok(canvas.indexOf("if ((event.key === 'c' || event.key === 'C')") < canvas.indexOf("if (readOnlyRef.current) {\n        if (event.key === 'Escape')"), 'C works on view-only boards too');
-  assert.match(sheet, /\['Comment on the selected card, or place a comment', \['C'\]\]/);
+  assert.match(sheet, /\['Comment on the selection \(a card, a shape or a group\), or place a comment', \['C'\]\]/);
   assert.match(page, /\{comments\.active && <button type="button" data-comments-header/);
   assert.match(header, /\{id === 'comments' && commentsOn && commentsUnread > 0 && <span data-unread-dot/);
 });

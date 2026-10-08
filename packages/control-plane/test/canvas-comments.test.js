@@ -69,6 +69,7 @@ test('can(): the section 3 tables, including Allow comments off and blocks', () 
 
 test('anchors: a card-relative object or a canvas point, nothing else', () => {
   assert.deepEqual(anchorOf(ON_CARD), ON_CARD);
+  for (const kind of ['shape', 'group']) assert.deepEqual(anchorOf({ ...ON_CARD, object_kind: kind }), { ...ON_CARD, object_kind: kind }, 'a shape or a group, as a card');
   assert.deepEqual(anchorOf({ kind: 'point', x: 10.04, y: -3 }), { kind: 'point', x: 10, y: -3 });
   for (const bad of [null, {}, { kind: 'point', x: 'a', y: 1 }, { kind: 'object', object_id: 'b1', object_kind: 'html', dx: 0, dy: 0 }, { kind: 'point', x: Infinity, y: 0 }]) assert.equal(anchorOf(bad), null);
   assert.equal(anchorOf({ ...ON_CARD, label: 'x'.repeat(300) }).label.length, 120);

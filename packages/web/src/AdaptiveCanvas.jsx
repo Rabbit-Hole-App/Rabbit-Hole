@@ -1645,6 +1645,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         setSelection([id]);
         cameraRef.current = { id, frame: true };
       },
+      // A comment's "on ..." link (docs/features/canvas-comments.md section 8): a card as focusBlock does; a shape or a
+      // group selected and zoomed to.
+      focusObject: id => {
+        if (boundsRef.current[id]) { setSelection([id]); cameraRef.current = { id, frame: true }; return; }
+        const ids = membersOf(id).length ? membersOf(id) : [id];
+        setSelection(ids);
+        const boxes = boxesOf(ids);
+        if (boxes.length) frame(boxes, 64, 1.2);
+      },
       // The Tutor's show (docs/features/canvas-skeleton-cards.md): select the card and glide it into the visible
       // area at the learner's zoom - never a fit - once it is laid out.
       // slotId: the slot this show answers; once the learner has moved the camera since it was reserved, the card is
@@ -2130,8 +2139,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           || (!!held.closest?.('[data-block-id]') && !held.matches('[data-block-id]')) || !!held.closest?.('[data-chat-composer],[data-comments-panel],[role="dialog"],[role="menu"]'));
         if (!busy) {
           event.preventDefault();
-          const target = focusedCard || (selectedRef.current.length === 1 ? selectedRef.current[0] : null);
-          if (!target || !commentKeyRef.current.card(target)) commentKeyRef.current.arm();
+          if (!commentKeyRef.current.selection(focusedCard ? [focusedCard] : selectedRef.current)) commentKeyRef.current.arm();
           return;
         }
       }
@@ -2483,27 +2491,43 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const box = surface.current.getBoundingClientRect();
     return { x: (event.clientX - box.left - view.x) / view.z, y: (event.clientY - box.top - view.y) / view.z };
   };
-  // Add comment (docs/features/canvas-comments.md section 5): an anchor at a world point, on the object there (card-relative,
-  // so it follows the card) or on the canvas. The menu, the Comment tool and C all come here; the page's panel saves.
+  // Add comment (docs/features/canvas-comments.md section 5): an anchor at a world point, on the object there (relative
+  // to it, so it follows the card, shape or group) or on the canvas. The menu, the Comment tool and C all come here; the
+  // page's panel saves.
+  const groupMembers = {};
+  for (const entry of [...blocks, ...items, ...shapes, ...exchanges]) if (entry.groupId) (groupMembers[entry.groupId] ||= []).push(entry.id);
+  const commentBoard = { bounds, items, shapes, groups: groupMembers };
   const commentAt = (world, id) => {
-    const entry = id ? [...exchanges, ...blocks, ...items, ...shapes].find(candidate => candidate.id === id) : null;
-    const kind = !entry ? null : exchanges.includes(entry) ? 'exchange' : blocks.includes(entry) ? 'block' : items.includes(entry) ? 'item' : 'shape';
-    onAddComment?.(anchorAt(world, entry && { id: entry.id, kind, label: objectLabel(entry) }, { bounds, items, shapes }));
+    const group = id && groupMembers[id] ? groups.find(candidate => candidate.id === id) || { id } : null;
+    const entry = id && !group ? [...exchanges, ...blocks, ...items, ...shapes].find(candidate => candidate.id === id) : null;
+    const kind = group ? 'group' : !entry ? null : exchanges.includes(entry) ? 'exchange' : blocks.includes(entry) ? 'block' : items.includes(entry) ? 'item' : 'shape';
+    const label = group ? group.label || `${groupMembers[id].length} items` : objectLabel(entry);
+    onAddComment?.(anchorAt(world, (group || entry) && { id, kind, label }, commentBoard));
   };
   // The Comment tool: one press places the draft's pin where it lands, then the tool goes back.
   const placeComment = event => {
     if (event.button !== 0) return;
     event.preventDefault(); event.stopPropagation();
     const at = local(event);
-    const hit = event.target.closest?.('[data-block-id],[data-item-id],[data-shape-id]');
-    const id = hit?.dataset.blockId || hit?.dataset.itemId || hit?.dataset.shapeId
+    const hit = event.target.closest?.('[data-block-id],[data-item-id],[data-shape-id],[data-group-box],[data-group-chip]');
+    const id = hit?.dataset.blockId || hit?.dataset.itemId || hit?.dataset.shapeId || hit?.dataset.groupBox || hit?.dataset.groupChip
       || Object.entries(boundsRef.current).find(([, box]) => at.x >= box.x && at.x <= box.x + box.w && at.y >= box.y && at.y <= box.y + box.h)?.[0] || null;
     setTool(readOnlyRef.current ? 'hand' : 'select');
     commentAt(at, id);
   };
-  // C (Q14): the one selected or focused card gets the comment, at its top left; otherwise C arms the Comment tool.
+  // C (Q14): the selection gets the comment near its top left - a card, a shape or text, a whole group, or the first of
+  // several selected objects; with nothing selected, C arms the Comment tool.
   commentKeyRef.current = onAddComment ? {
-    card: id => { const box = boundsRef.current[id]; if (!box) return false; commentAt({ x: box.x + 24, y: box.y + 24 }, id); return true; },
+    selection: ids => {
+      const gid = groupOf(ids[0]);
+      const whole = !!gid && membersOf(gid).every(id => ids.includes(id));
+      const boxes = boxesOf(whole ? membersOf(gid) : ids.slice(0, 1));
+      if (!boxes.length) return false;
+      const x = Math.min(...boxes.map(box => box.x)), y = Math.min(...boxes.map(box => box.y));
+      const w = Math.max(...boxes.map(box => box.x + box.w)) - x, h = Math.max(...boxes.map(box => box.y + box.h)) - y;
+      commentAt({ x: x + Math.min(24, w / 2), y: y + Math.min(24, h / 2) }, whole ? gid : ids[0]);
+      return true;
+    },
     arm: () => setTool('comment'),
   } : null;
   const portPosition = (id, side) => {
@@ -3292,10 +3316,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           }
           if (readOnlyRef.current && !onAddComment && (!onStartRabbitHole || !blocksRef.current.some(block => block.id === id))) { setMenuAt(null); return; } // view-only: a card's menu, a commenter's Add comment, or none
           if (id && !selectedRef.current.includes(id)) select(id);
-          const groupHit = !id && event.target.closest('[data-group-box]');
-          if (groupHit) setSelection(membersOf(groupHit.dataset.groupBox));
+          const groupHit = !id && event.target.closest('[data-group-box],[data-group-chip]');
+          const group = groupHit ? groupHit.dataset.groupBox || groupHit.dataset.groupChip : null;
+          if (group) setSelection(membersOf(group));
           const root = surface.current.getBoundingClientRect();
-          setMenuAt({ x: event.clientX - root.left, y: event.clientY - root.top, id });
+          setMenuAt({ x: event.clientX - root.left, y: event.clientY - root.top, id, group });
         }}
         onDragOver={event => { if (onDropFiles && event.dataTransfer.types.includes('Files')) { event.preventDefault(); setDropHover(true); } }}
         onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget)) setDropHover(false); }}
@@ -3455,7 +3480,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
                   let last = local(event);
                   startDrag(event, last, (x, y) => { shift(x - last.x, y - last.y, targets); last = { x, y }; }, view.z);
                 }} />
-              <div style={{ left: left - pad, top: top - pad - 28 }} className="absolute z-20 flex items-center gap-1">
+              <div data-group-chip={group.id} style={{ left: left - pad, top: top - pad - 28 }} className="absolute z-20 flex items-center gap-1">
                 <GroupChip group={group} editOn={chipEdit === group.id}
                   onSelect={() => setSelection(membersOf(group.id))}
                   onLabel={label => { setChipEdit(null); setGroups(previous => previous.map(entry => entry.id === group.id ? { ...entry, label } : entry)); }} />
@@ -3515,7 +3540,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         </div>
         </div>
         {/* Comment pins (docs/features/canvas-comments.md): over the camera at a constant size; never while presenting. */}
-        {commentPins && presenting === null && <CommentPins pins={commentPins} view={view} board={{ bounds, items, shapes }} onPin={onCommentPin} />}
+        {commentPins && presenting === null && <CommentPins pins={commentPins} view={view} board={commentBoard} onPin={onCommentPin} />}
         {menuAt && presenting === null && (() => {
           const grouped = selection.map(id => [...blocks, ...items, ...shapes, ...exchanges].find(entry => entry.id === id)?.groupId).filter(Boolean);
           const row = 'flex w-full items-center rounded px-2 py-1.5 text-left text-sm text-ink hover:bg-hover disabled:cursor-default disabled:text-ink-3 disabled:hover:bg-transparent';
@@ -3568,15 +3593,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             : divePortals?.open && !readOnly ? () => (portal ? divePortals.enter(portal.name) : divePortals.open(block.id, undefined, 'learner_menu'))
             : readOnly && onStartRabbitHole ? () => onStartRabbitHole(block.id) : null;
           // Add comment (docs/features/canvas-comments.md section 5): the pin goes where the right-click was, on the object
-          // under it (card-relative, so it follows the card) or on the canvas. Only the page's panel saves anything.
-          const addComment = onAddComment && (() => commentAt({ x: (menuAt.x - view.x) / view.z, y: (menuAt.y - view.y) / view.z }, menuAt.id));
+          // or group under it (relative to it, so it follows) or on the canvas. Only the page's panel saves anything.
+          const commentOn = menuAt.id || menuAt.group;
+          const addComment = onAddComment && (() => commentAt({ x: (menuAt.x - view.x) / view.z, y: (menuAt.y - view.y) / view.z }, commentOn));
           return (
             <div ref={menuBox} role="menu" aria-label="Canvas actions" data-canvas-menu style={{ left: menuPos?.x ?? menuAt.x, top: menuPos?.y ?? menuAt.y, maxHeight: menuPos?.maxH, visibility: menuPos ? undefined : 'hidden' }}
               className="absolute z-40 w-52 overflow-y-auto rounded-md border border-line bg-white p-1 shadow-pop"
               onPointerDown={event => event.stopPropagation()} onContextMenu={event => { event.preventDefault(); event.stopPropagation(); }}>
-              {addComment && !menuAt.id && <button type="button" role="menuitem" data-menu-add-comment onClick={act(addComment)} className={row}>Add comment here</button>}
+              {addComment && !commentOn && <button type="button" role="menuitem" data-menu-add-comment onClick={act(addComment)} className={row}>Add comment here</button>}
               {startHole && <button type="button" role="menuitem" data-menu-start-rabbit-hole data-origin={block.id} onClick={act(startHole)} className={row}>Start Rabbit Hole</button>}
-              {addComment && menuAt.id && <button type="button" role="menuitem" data-menu-add-comment onClick={act(addComment)} className={row}>Add comment</button>}
+              {addComment && commentOn && <button type="button" role="menuitem" data-menu-add-comment aria-keyshortcuts="C" onClick={act(addComment)} className={row}>Add comment<span data-menu-hint aria-hidden="true" className="ml-auto pl-3 text-xs text-ink-3">C</span></button>}
               {/* A view-only board edits nothing: Start Rabbit Hole is its only card action here. */}
               {!readOnly && <>
               {described && <button type="button" role="menuitem" onClick={act(() => askBlock(block))} className={row}>Ask about this</button>}
