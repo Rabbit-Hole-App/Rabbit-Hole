@@ -236,9 +236,6 @@ function AppContent({ data, load }) {
 
           {!data && <SkeletonRows rows={4} />}
           {data?.error && <div className="text-ink-2">✗ {data.error}</div>}
-          {data && !data.error && learnPreview && !archived && (type === 'apps' ? sectionApps : withFixtures).length === 0 && (
-            <EmptyState icon={Mark}>Nothing here yet</EmptyState>
-          )}
           {data && !data.error && !learnPreview && apps.length === 0 && (
             <EmptyState icon={Mark}>
               {isPrivateByoc ? 'No apps yet. Use the private CLI to sign into this installation and deploy a CPU job. '

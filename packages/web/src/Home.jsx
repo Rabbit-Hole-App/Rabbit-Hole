@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, ArrowUpRight, Compass, Search } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Search } from 'lucide-react';
 import { navigate } from './api.js';
 import { reviewTools } from './flags.js';
 import { browserOnly, openHref, readContinue, readRecent, recentCard, recentItems } from './home/continue.js';
@@ -11,7 +11,7 @@ import { fixturesOn, useFixtures } from './home/review-fixtures.js';
 import { isMine } from './library-filter.js';
 import { loadProfile } from './session-display.js';
 import Shell from './Shell.jsx';
-import { Button, EmptyState, Input, SkeletonRows, toast } from './ui.jsx';
+import { Button, Input, SkeletonRows, toast } from './ui.jsx';
 
 // Home (T02 §3, preview build only): Continue, Recent, Start - three blocks, no others.
 // Composition follows Gate B (Figma F1): Continue as a callout, Recent as a gallery of compact
@@ -51,7 +51,7 @@ function HomeContent({ data, load }) {
         {ready && !apps.length && (
           <section>
             {startButton}
-            <p className="pt-3 text-sm text-ink-2">Start from a repository, sources, a question, or a blank canvas.</p>
+            <p className="pt-3 text-sm text-ink-2">Start from a repository or a blank canvas.</p>
           </section>
         )}
         {fixtures && <div role="note" className="rounded-md bg-code px-3 py-2 text-xs text-ink-2">Review fixtures are on: made-up cards, mixed in for design review. They open nothing and are stored nowhere. <a className="text-accent hover:underline" href="?fixtures=0">Turn off</a></div>}
@@ -66,7 +66,7 @@ function HomeContent({ data, load }) {
             )}
             <section>
               {startButton}
-              {!cont && !items.length && <p className="pt-3 text-sm text-ink-2">Start from a repository, sources, a question, or a blank canvas.</p>}
+              {!cont && !items.length && <p className="pt-3 text-sm text-ink-2">Start from a repository or a blank canvas.</p>}
             </section>
           </>
         )}
@@ -183,8 +183,7 @@ function Explore() {
           {cards?.length !== 0 && <SortMenu options={EXPLORE_SORTS} value={order} onChange={setOrder} />}
         </div>
         {cards === null && <SkeletonRows rows={3} />}
-        {cards?.length === 0 && (term ? <p data-search-empty className="text-sm text-ink-3">No explainers match &ldquo;{term}&rdquo;.</p>
-          : <div data-explore-empty><EmptyState icon={Compass}>Nothing has been published yet. Canvases people publish to Explore will appear here.</EmptyState></div>)}
+        {cards?.length === 0 && term && <p data-search-empty className="text-sm text-ink-3">No explainers match &ldquo;{term}&rdquo;.</p>}
         {cards?.length > 0 && <div data-explore-list><PublicCards cards={cards} me={me} attr="data-explore-card" /></div>}
       </div>
     </main>

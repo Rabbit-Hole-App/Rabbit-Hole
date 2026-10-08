@@ -214,8 +214,8 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.goto(`${base}/explore`);
     await shH1(page, 'Explore').waitFor({ timeout: 20000 });
     must(await page.getByText('Discover rabbit holes, projects, and learning resources shared beyond your library.', { exact: true }).count() === 1, 'Explore has no purpose sentence');
-    // Nothing is shared publicly yet (owner, 2026-10-04): an honest empty state, no demo cards that open nothing.
-    must(await page.locator('[data-explore-empty]').count() === 1, 'Explore shows its empty state');
+    // Nothing is shared publicly yet: no demo cards that open nothing, and no empty-state message (owner, 2026-10-08).
+    must(await page.locator('[data-explore-empty]').count() === 0, 'Explore shows no empty-state message');
     must(await page.locator('[data-explore-card]').count() === 0, 'no demo cards on Explore');
     must(!writes.length, `mutating calls: ${writes.join(', ')}`);
     await page.context().close();
@@ -247,7 +247,8 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       must(await page.getByRole('button', { name: 'Remove filter Shared with me' }).count() === 0, '?s=shared still reads Shared with me');
       await page.route(/[/]api[/]apps$/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ...data, apps: [] }) }));
       await page.goto(`${base}/library?type=canvases`); // an empty catalog, so an empty view
-      await page.getByText('Nothing here yet', { exact: true }).waitFor({ timeout: 20000 });
+      await shStart(page).waitFor({ timeout: 20000 }); // an empty view shows no message and no mark (owner, 2026-10-08)
+      must(await page.getByText('Nothing here yet', { exact: true }).count() === 0, 'the empty Library shows no "Nothing here yet"');
       await shStart(page).click();
       await page.getByRole('dialog', { name: 'Start a rabbit hole' }).waitFor({ timeout: 10000 });
     } finally {

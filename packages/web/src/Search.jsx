@@ -3,7 +3,7 @@ import { Search } from 'lucide-react';
 import { api, navigate } from './api.js';
 import { loadApps } from './app-data.js';
 import { aiFindAllowed, learnPreview } from './flags.js';
-import { AppIcon, cn, KindIcon } from './ui.jsx';
+import { cn, KindIcon } from './ui.jsx';
 
 // Plain text out of a BlockNote JSON string - no parse, just the "text" values.
 const runbookText = (rb) => [...rb.matchAll(/"text":"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1]).join(' ');
@@ -96,7 +96,6 @@ export default function SearchModal() {
       <div className="absolute inset-0 bg-black/20" onClick={close} />
       <div className="relative mx-auto mt-[20vh] w-[640px] max-w-[90vw] rounded-2xl bg-white text-ink shadow-pop">
         <div className="flex h-12 items-center gap-2.5 border-b border-line px-4">
-          <AppIcon size={16} className="shrink-0" />
           <input
             autoFocus
             value={q}
@@ -128,7 +127,7 @@ export default function SearchModal() {
           {ai?.apps?.length === 0 && (
             <div className="px-3 py-2 text-sm text-ink-2">{ai.note || 'Nothing here does that yet.'}</div>
           )}
-          {results.length === 0 && ai === null && <div className="flex h-9 items-center px-3 text-sm text-ink-3">No results</div>}
+          {q.trim() && results.length === 0 && ai === null && <div className="flex h-9 items-center px-3 text-sm text-ink-3">No results</div>}
           {appHits.length > 0 && <div className="px-3 pt-1.5 pb-0.5 text-xs text-ink-3">Apps</div>}
           {appHits.map((a, i) => row(a, i))}
           {bookHits.length > 0 && <div className="px-3 pt-1.5 pb-0.5 text-xs text-ink-3">Runbooks</div>}

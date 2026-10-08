@@ -120,7 +120,7 @@ export default function StartDialog({ ctx, initial, onClose }) {
           <h2 id="start-title" className="text-sm font-semibold">Start a rabbit hole</h2>
           <IconBtn aria-label="Close" onClick={close} disabled={busy}><X size={14} /></IconBtn>
         </div>
-        <p className="pb-3 text-xs text-ink-2">Start from a repository, sources, a question, or a blank canvas.</p>
+        <p className="pb-3 text-xs text-ink-2">Start from a repository or a blank canvas.</p>
         <Tabs value={path} onValueChange={(p) => { setPath(p); setError(''); }}>
           <TabsList pill className="max-w-full overflow-x-auto">
             {START_PATHS.map(([id, label]) => { const Icon = PATH_ICONS[id]; return <TabsTrigger key={id} pill value={id} className="gap-1.5"><Icon size={14} strokeWidth={1.75} aria-hidden="true" />{label}</TabsTrigger>; })}
