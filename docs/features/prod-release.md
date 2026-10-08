@@ -92,4 +92,4 @@ The record is one JSON object per line, appended by `scripts/dev-deploy.mjs` aft
 | `rabbit-hole-cp` (01eae494, 2026-10-03) | `DB` rabbit-hole-prod (ecb90fe5), `LEARN_DB` rabbit-hole-learn-prod (f28417c4), the prod R2 buckets. It has no workers.dev. Its secrets match the required list and it has no test secret. |
 | `rabbit-hole-app` (25f95ea9, 2026-10-04) | The same production D1 and R2, `CONTROL_PLANE` to `rabbit-hole-cp`, no workers.dev. Its secrets match the required list. |
 | `rabbit-hole-prod` / `rabbit-hole-dev` | Migrations 0001-0027 are applied on both (30 rows each). |
-| `rabbit-hole-learn-prod` / `rabbit-hole-learn-dev` | Learn migrations 0001-0003 only. **0004-0010 are missing on both.** Releasing main needs them first. |
+| `rabbit-hole-learn-prod` / `rabbit-hole-learn-dev` | Learn migrations 0001-0012 on both (2026-10-08). Production got 0004-0012 on the owner's in-session GO; see [dev-auto-deploy.md](dev-auto-deploy.md#production-learn-schema-0004-0012-applied-2026-10-08). |
