@@ -27,9 +27,10 @@ export async function setAccess(call, canvas, to, state = null) {
   if (to === 'unlisted' && !canvas.shared) { await post(`${base}/share`, { shared: true, view: true, ...(state ? { state } : {}) }); steps.push('share'); }
   if (to === 'private' && canvas.shared) { await post(`${base}/share`, { shared: false }); steps.push('unshare'); }
   if (to === 'public') {
-    // Publishing needs the board on the server; its first copy is this browser's (never a meaningful change).
+    // Publishing needs the board on the server; its first copy is this browser's (never a meaningful change). Version 0 is a
+    // canvas's empty board, made with its row: nothing saved on it yet either.
     const board = await call(base);
-    if (board.exists === false && state) { await call(base, { method: 'PUT', body: JSON.stringify({ state }) }); steps.push('save'); }
+    if (!board.version && state) { await call(base, { method: 'PUT', body: JSON.stringify({ state }) }); steps.push('save'); }
     await post(`/api/apps/${canvas.name}/publish`); steps.push('publish');
   }
   return steps;

@@ -9,7 +9,7 @@ import { authorizedBoardApp } from './learn-board.js';
 import { repositoryIdentity } from './repositories.js';
 import { sha256Hex } from './learn-grade-jev.js';
 import { learnMedia } from './learn-storage.js';
-import { FORK_COUNT, HANDLE_OF, NAME_OF, NOW, freeTitle, touchCanvas } from './canvases.js';
+import { FORK_COUNT, HANDLE_OF, NAME_OF, NOW, emptyBoard, freeTitle, touchCanvas } from './canvases.js';
 import { NOT_TRASHED } from './library-trash.js';
 import { askShared, boardRevision, boardSources, publicationKey, shareKey, sharePin, shareSource, sharedTitle } from './learn-shared-ask.js';
 
@@ -79,8 +79,10 @@ async function readBody(req) {
   try { return await req.json(); } catch { return null; }
 }
 
+// Every caller treats a missing or null state as none sent, so this refusal is only ever a malformed request (owner,
+// 2026-10-08: the raw "state must be a board object" reached a person once).
 function stateText(state) {
-  if (!state || typeof state !== 'object' || Array.isArray(state)) return { error: 'state must be a board object' };
+  if (!state || typeof state !== 'object' || Array.isArray(state)) return { error: "This canvas's content could not be read, so nothing was saved. Reload the page and try again." };
   const text = JSON.stringify(state);
   // Every owned board is saved here (docs/features/canvas-persistence.md), so the refusal says where the board still is.
   return text.length > MAX_STATE ? { error: 'This board is over 1.9 MB, so it was not saved to your account and stays only in this browser. Remove large images or outputs to save it.', status: 413 } : { text };
@@ -104,18 +106,25 @@ async function saveOwn(env, owner, app, board, body) {
   if (Number.isInteger(body.version) && body.version !== row.version) return json({ error: 'This board changed since you opened it.', version: row.version }, 409);
   await env.LEARN_DB.prepare('UPDATE learn_boards SET state_json = ?, version = version + 1, updated_by = ?, updated_at = ? WHERE id = ?').bind(state.text, owner.email, now, row.id).run();
   // A change to a canvas's saved content is a meaningful change (canvas-metadata.md); a save of the same content, or a
-  // board's first server copy (a sync of what the browser already had: sharing, publishing), is not.
-  if (CANVAS.test(app) && state.text !== row.state_json) await touchCanvas(env.LEARN_DB, owner.org, app).run();
+  // board's first server copy (a sync of what the browser already had: sharing, publishing; over a canvas's empty
+  // version 0 board too), is not.
+  if (CANVAS.test(app) && row.version && state.text !== row.state_json) await touchCanvas(env.LEARN_DB, owner.org, app).run();
   return json({ version: row.version + 1, sharing: sharingOf(row) });
 }
 
 // Turn sharing and each link on or off. A link switched back on gets a new
 // token, so an old copy of it stays dead.
+// Nothing saved on it yet (no row, or a canvas's empty version 0): this browser's copy goes first when it sent one;
+// otherwise it is shared empty, a canvas made before boards came with their rows getting its board now (2026-10-08).
 async function share(env, owner, app, board, body) {
   let row = await ownerRow(env, owner, app, board);
-  if (!row) {
+  if (!row?.version && body?.state != null) {
     const saved = await saveOwn(env, owner, app, board, body);
     if (!saved.ok) return saved;
+    row = await ownerRow(env, owner, app, board);
+  }
+  if (!row) {
+    await emptyBoard(env.LEARN_DB, owner.org, owner.email, app, board).run();
     row = await ownerRow(env, owner, app, board);
   }
   const shared = !!body?.shared;
@@ -233,8 +242,8 @@ export function forkState(state) {
 
 // What a fork copies from. A share link: whoever may open it (existing rules).
 // A canvas by name: its owner only - and their browser holds its content, so
-// the request carries it (`state`); without it, the board's server copy.
-async function forkSource(req, env, user, body, verb = 'fork') {
+// the request carries it (`state`); without it (or null), the board's server copy.
+async function forkSource(req, env, user, body) {
   const source = body?.source;
   if (typeof source?.token === 'string') {
     const found = await sharedAccess(req, env, source.token);
@@ -253,13 +262,18 @@ async function forkSource(req, env, user, body, verb = 'fork') {
   if (canvas.owner_email !== user.email) return json({ error: 'This canvas is private to its owner' }, 403);
   // A canvas in Trash (library-trash.md) is copied by nothing - a stale card's Duplicate or Fork included - until restored.
   if (canvas.trashed) return json({ error: 'Restore this canvas from Trash first.' }, 409);
-  if (body.state !== undefined) {
+  if (body.state != null) {
     const checked = stateText(body.state);
     if (checked.error) return json({ error: checked.error }, checked.status || 400);
   }
-  const row = await ownerRow(env, user, canvas.name, 'main');
-  const state = body.state ?? (row ? JSON.parse(row.state_json) : null);
-  if (!state) return json({ error: `There is nothing to ${verb} here: this canvas's content isn't in this browser or saved on the server. Open it where it was made and ${verb} it there.` }, 409);
+  // Neither copy (a canvas made before boards came with their rows, never opened): it gets its empty board now and
+  // copies as empty (owner, 2026-10-08).
+  let row = await ownerRow(env, user, canvas.name, 'main');
+  if (!row && body.state == null) {
+    await emptyBoard(env.LEARN_DB, user.org, user.email, canvas.name).run();
+    row = await ownerRow(env, user, canvas.name, 'main');
+  }
+  const state = body.state ?? JSON.parse(row.state_json);
   // Your own canvas reads its project at the current commit, or what it inherited as a fork: the fork keeps that.
   const revision = await boardRevision(env.LEARN_DB, { id: row?.id, org: user.org, app: canvas.name, owner_email: user.email });
   return { row, state, org: user.org, canvas: canvas.name, owner: user.email, title: canvas.title, project: canvas.project, share: null, revision, resource: canvas.name };
@@ -288,7 +302,7 @@ async function fork(req, env, body, { duplicate = false } = {}) {
   };
   const earlier = !duplicate && await replay();
   if (earlier) return earlier;
-  const source = await forkSource(req, env, user, body, duplicate ? 'copy' : 'fork');
+  const source = await forkSource(req, env, user, body);
   if (source instanceof Response) return source;
   // The source keeps its own title in the provenance; the copy steps to a free " (n)" in its owner's Library.
   const sourceTitle = String(source.title).slice(0, 120), title = await freeTitle(db, user.org, user.email, sourceTitle);

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { forkAction } from './canvas-fork.js';
+import { forkAction, postFork } from './canvas-fork.js';
 
 // One user action, one fork (docs/features/canvas-forking.md): the client half of the idempotency key.
 const recorder = (replies) => {
@@ -34,6 +34,22 @@ test('the request carries the source and, only when given, this browser\'s copy'
   await fork({ source: { token: 't' } });
   await fork({ source: { canvas: 'canvas-0a1b2c3d' }, state: { blocks: [] } });
   assert.deepEqual(r.sent, [{ source: { token: 't' }, key: 'key-1-abcdefgh' }, { source: { canvas: 'canvas-0a1b2c3d' }, key: 'key-2-abcdefgh', state: { blocks: [] } }]);
+});
+
+// Owner, 2026-10-08: the Library's Duplicate posted localBoard's null for a canvas this browser holds none of, and the
+// server answered "state must be a board object". postFork, the one call every Duplicate and Fork goes through, never
+// sends a null state: the server copy decides.
+test('postFork never sends a null state; a real copy still travels', async t => {
+  const fetched = [], realFetch = globalThis.fetch, realStorage = globalThis.localStorage;
+  globalThis.fetch = async (path, init) => { fetched.push([path, JSON.parse(init.body)]); return Response.json({ name: 'canvas-00000001' }, { status: 201 }); };
+  globalThis.localStorage = { getItem: () => null };
+  t.after(() => { globalThis.fetch = realFetch; globalThis.localStorage = realStorage; });
+  await postFork({ source: { canvas: 'canvas-0a1b2c3d' }, state: null }, '/api/learn/boards/duplicate');
+  await postFork({ source: { canvas: 'canvas-0a1b2c3d' }, state: { blocks: [] } });
+  assert.deepEqual(fetched, [
+    ['/api/learn/boards/duplicate', { source: { canvas: 'canvas-0a1b2c3d' } }],
+    ['/api/learn/boards/fork', { source: { canvas: 'canvas-0a1b2c3d' }, state: { blocks: [] } }],
+  ]);
 });
 
 test('the shared canvas page shows the product top left: the aperture mark and the name, linking home (owner, 2026-10-04)', async () => {

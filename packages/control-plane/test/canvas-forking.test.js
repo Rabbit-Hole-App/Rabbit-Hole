@@ -81,17 +81,20 @@ test('forking your own canvas copies this browser\'s board into a new canvas of 
   assert.deepEqual([copy.owner_email, copy.org, copy.project, copy.title, copy.forked_from_title, copy.forked_from_url], ['ana@test', 'ana-ws', null, 'Attention (2)', 'Attention', `/apps/${a.name}`]);
   assert.equal(listed.find(c => c.name === a.name).fork_count, 1);
   assert.deepEqual((await f.board('ana', made.body.name)).state, BOARD, 'the clone is the persisted board');
-  // The source never had a server copy; forking does not make one.
-  assert.equal((await f.board('ana', a.name)).exists, false);
+  // The source keeps the empty board it was made with (version 0); forking this browser's copy does not write it.
+  const source = await f.board('ana', a.name);
+  assert.deepEqual([source.version, source.state.blocks], [0, []]);
 });
 
-test('your own canvas without this browser\'s copy forks its server copy, or is refused with nothing made', async t => {
+test('your own canvas without this browser\'s copy forks its server copy: a canvas never opened forks as empty', async t => {
   const f = setup(t);
   const a = await f.canvas('ana', 'Attention');
-  const refused = await f.fork('ana', { canvas: a.name });
-  assert.equal(refused.status, 409);
-  assert.match(refused.body.error, /nothing to fork/);
-  assert.equal((await f.library('ana')).length, 1, 'no fork row on a refusal');
+  // No state, or an older page's null: the empty board it was made with (owner, 2026-10-08), never a refusal.
+  for (const extra of [{}, { state: null }]) {
+    const empty = await f.fork('ana', { canvas: a.name }, extra);
+    assert.equal(empty.status, 201, JSON.stringify(empty.body));
+    assert.deepEqual(Object.values((await f.board('ana', empty.body.name)).state).flat(), [], 'an empty copy');
+  }
   await f.save('ana', a.name, BOARD);
   const made = await f.fork('ana', { canvas: a.name });
   assert.equal(made.status, 201);

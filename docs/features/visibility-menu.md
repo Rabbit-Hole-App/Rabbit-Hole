@@ -28,8 +28,8 @@ There are three states, read from the canvas row's `access`. Each is done throug
 
 | From → To | Steps |
 |---|---|
-| Private → Unlisted | Share on, with this browser's copy when the server has none |
-| Private / Unlisted → Public | Saves the board's first server copy if there is none (a sync: no `updated_at` bump), then publishes. Unlisted keeps its link. |
+| Private → Unlisted | Share on, with this browser's copy when the server has nothing saved yet; a canvas this browser holds none of sends no state and is shared empty (owner, 2026-10-08) |
+| Private / Unlisted → Public | Saves the board's first server copy if nothing is saved yet - no board, or a new canvas's empty version 0 board (a sync: no `updated_at` bump) - then publishes. Unlisted keeps its link. |
 | Public → Unlisted | Unpublish (`/e` dies, Explore drops it); the share link is kept, or made if there is none |
 | Any → Private | Unpublish and share off. Forks are untouched. |
 

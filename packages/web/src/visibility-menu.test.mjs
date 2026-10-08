@@ -6,10 +6,10 @@ import { readFileSync } from 'node:fs';
 import { ACCESS, PRIVATE_CONFIRM, confirmsPrivate, setAccess } from './canvas-visibility.js';
 
 const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-// A stand-in api(): records each call, answers a board GET with whether a server copy exists.
-const recorder = (exists = true) => {
+// A stand-in api(): records each call, answers a board GET as the server does - its version, or exists: false.
+const recorder = (board = { version: 1 }) => {
   const calls = [];
-  const call = async (path, init = {}) => { calls.push(`${init.method || 'GET'} ${path}${init.body && init.body !== '{}' ? ` ${init.body}` : ''}`); return init.method ? {} : { exists }; };
+  const call = async (path, init = {}) => { calls.push(`${init.method || 'GET'} ${path}${init.body && init.body !== '{}' ? ` ${init.body}` : ''}`); return init.method ? {} : board; };
   return { calls, call };
 };
 const canvas = (access, shared = access === 'unlisted') => ({ name: 'canvas-0000000a', access, shared });
@@ -24,10 +24,24 @@ test('Private -> Unlisted turns the share link on (with this browser\'s copy); -
   const unlisted = recorder();
   assert.deepEqual(await setAccess(unlisted.call, canvas('private'), 'unlisted', STATE), ['share']);
   assert.deepEqual(unlisted.calls, [`POST /api/learn/boards/canvas-0000000a/main/share {"shared":true,"view":true,"state":${JSON.stringify(STATE)}}`]);
-  const pub = recorder(true);
+  const pub = recorder();
   assert.deepEqual(await setAccess(pub.call, canvas('private'), 'public', STATE), ['publish'], 'a server copy already exists: publish only');
-  const fresh = recorder(false);
+  const fresh = recorder({ exists: false });
   assert.deepEqual(await setAccess(fresh.call, canvas('private'), 'public', STATE), ['save', 'publish'], 'no server copy: its first copy, then publish');
+  // A canvas's empty board, made with its row at version 0 (owner, 2026-10-08): nothing saved on it yet either.
+  const blank = recorder({ version: 0 });
+  assert.deepEqual(await setAccess(blank.call, canvas('private'), 'public', STATE), ['save', 'publish'], 'an empty version 0 board: this browser\'s copy first');
+});
+
+// Owner, 2026-10-08: a canvas this browser holds none of (local null) never sends a null or missing-object state; the
+// server's empty board answers instead ("state must be a board object" reached a person once).
+test('a canvas with no copy in this browser goes Unlisted or Public without sending any state', async () => {
+  const unlisted = recorder({ version: 0 });
+  assert.deepEqual(await setAccess(unlisted.call, canvas('private'), 'unlisted', null), ['share']);
+  assert.deepEqual(unlisted.calls, ['POST /api/learn/boards/canvas-0000000a/main/share {"shared":true,"view":true}']);
+  const pub = recorder({ exists: false });
+  assert.deepEqual(await setAccess(pub.call, canvas('private'), 'public', null), ['publish'], 'no PUT of a null board');
+  assert.deepEqual(pub.calls, ['GET /api/learn/boards/canvas-0000000a/main', 'POST /api/apps/canvas-0000000a/publish']);
 });
 
 test('Public -> Unlisted unpublishes and keeps (or makes) the link; Unlisted -> Public keeps the link', async () => {

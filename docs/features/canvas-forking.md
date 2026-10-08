@@ -63,7 +63,7 @@ So "copy the persisted content" means:
 |---|---|
 | A shared canvas, through its link | the server board (the owner's browser saves it 1.5 s after each change while shared) and its R2 files and notebook workspaces |
 | Your own canvas, from its top bar | this browser's saved board and chat cards, sent with the request (`state`) |
-| Your own canvas, from its Library card | this browser's saved board if it holds any content; otherwise the server board if one exists; otherwise a 409 *"There is nothing to fork here…"* and no canvas is made |
+| Your own canvas, from its Library card | this browser's saved board if it holds any content; otherwise the server board. A canvas never opened forks as empty, and one made before boards came with their rows gets its empty board first (owner, 2026-10-08; canvas-persistence.md, Saved at creation) |
 
 Browser-only parts of your own canvas: files it uses (images, PDFs, clips) are not uploaded by a
 fork; the fork reads them from this browser's asset cache by key, so they show here and not on
@@ -110,7 +110,7 @@ INDEX canvas_forks_parent (forked_from_org, forked_from_canvas_id)
 
 | Call | Who | Does |
 |---|---|---|
-| `POST /api/learn/boards/fork` `{ source: { canvas } \| { token }, key, state? }` | signed in; `canvas`: its owner; `token`: anyone the link admits | Makes the fork. `201 { name, title, url, files, forked_from }`; a replayed key `200 { name, title, url, replayed: true }`. 401 `{ signIn }` signed out, 403/404 private or missing, 404 dead link, 409 nothing to fork, 413 over 1.9 MB. |
+| `POST /api/learn/boards/fork` `{ source: { canvas } \| { token }, key, state? }` | signed in; `canvas`: its owner; `token`: anyone the link admits | Makes the fork. `201 { name, title, url, files, forked_from }`; a replayed key `200 { name, title, url, replayed: true }`. 401 `{ signIn }` signed out, 403/404 private or missing, 404 dead link, 413 over 1.9 MB. A null `state` counts as none sent. |
 | `POST /api/learn/boards/shared/:token/fork` | as above | The shared board's old path, same handler (`source.token` from the path). |
 | `GET /api/canvases`, `GET /api/apps/canvas-*` | owner | Every canvas now carries `forked_from_title`, `forked_from_url` (`/apps/<source>` for your own source, `/b/<token>` while the link you forked through is live and its canvas exists, else null) and `fork_count` (direct forks that still exist). |
 | `GET /api/learn/boards/shared/:token` | as the link | Adds `fork_count`, and a canvas's own title instead of its id. |

@@ -50,13 +50,11 @@ test('PRIVATE and UNLISTED: a new canvas, a share link, even a signed-out public
   assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM canvas_publications').get().n, 0);
 });
 
-test('Publish to Explore: the owner only, a live top-level canvas with saved content, and only under a @handle', async t => {
+test('Publish to Explore: the owner only, a live top-level canvas, and only under a @handle', async t => {
   const f = setup(t);
-  const empty = await canvasOf(f, 'ana', 'Not saved yet', null);
   const a = await canvasOf(f, 'ana', 'Why ice floats');
   assert.deepEqual([(await publish(f, 'ana', a.name)).status, (await publish(f, 'ana', a.name)).body.needsHandle], [409, true], 'no handle: refused, and the client is told to ask for one');
   handle(f, 'ana@test', 'ana');
-  assert.match((await publish(f, 'ana', empty.name)).body.error, /nothing to publish yet/);
   assert.equal((await publish(f, 'ben', a.name)).status, 404, 'another workspace');
   f.sqlite.exec(`INSERT INTO canvases(org,name,owner_email,title) VALUES('ana-ws','canvas-0000cafe','colleague@test','Theirs')`);
   assert.equal((await publish(f, 'ana', 'canvas-0000cafe')).status, 403, 'a colleague\'s canvas');

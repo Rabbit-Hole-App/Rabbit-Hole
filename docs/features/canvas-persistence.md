@@ -1,6 +1,6 @@
 # Canvas persistence: the server is the source of truth
 
-Status: proposal for #60, 2026-10-06 (owner rules "Persistence option C" and "Overnight execution rule"). Steps 1-7 built on `feature/canvas-persistence` (see "Built" below); the cross-device proof passes, `e2e/cross-device-check.mjs` 10/10. Step 8 (the warnings retired, below) is built on `feature/persistence-warnings`, on top of the #54 card redesign; the check is now 13/13.
+Status: proposal for #60, 2026-10-06 (owner rules "Persistence option C" and "Overnight execution rule"). Steps 1-7 built on `feature/canvas-persistence` (see "Built" below); the cross-device proof passes, `e2e/cross-device-check.mjs` 10/10. Step 8 (the warnings retired, below) is built on `feature/persistence-warnings`, on top of the #54 card redesign; the check is now 13/13. Since 2026-10-08 (owner hands-on testing) every new canvas and project is saved at creation; see "Saved at creation" below.
 
 The canvas becomes canonical on the server. The browser keeps only transient state plus a cache and a recovery copy. There is no second canvas model: the existing `learn_boards` row (`state_json`, `version`, `updated_by`, `updated_at`), its R2 board assets and its notebook workspace assets become canonical for every owned board. Today they are canonical only while a board is shared, published or forked.
 
@@ -148,7 +148,7 @@ Built after step 7 passed, on top of the #54 card redesign (owner §5 D, §19). 
   - a board over 1.9 MB, where it was refused, whether or not an older copy is on the server.
 - **Limits:**
   - Another browser cannot know about a refused over-cap copy, because the server keeps no record of a refusal. There the card shows no note and opens the last saved copy. The refusing browser said so when it happened.
-  - An empty canvas has no board row until its first content, so another browser still shows "On another device" and NOT_HERE for it, as before.
+  - An empty canvas had no board row until its first content, so another browser showed "On another device" and NOT_HERE for it. Since 2026-10-08 a new canvas has its board from creation (below); this holds only for a canvas made before then and never opened since.
   - A project's Learn says "Content in this browser" only on Home's Continue, and only while its main board is not on the server (`browserOnly` covers projects). A project is never "On another device".
   - A file over 25 MB keeps its own notice and stays in its browser; the card does not say so.
 - **Tests:**
@@ -156,6 +156,36 @@ Built after step 7 passed, on top of the #54 card redesign (owner §5 D, §19). 
   - `web/src/home/continue.test.mjs`: `browserOnly`, `onAnotherDevice` and `recentCard` with a saved board and with the unsaved marker.
   - `e2e/cross-device-check.mjs` 13/13. Check 8: on a fresh profile and on B, A's canvases show no warning in the Library or Home, and they open. Check 9: a never-synced canvas keeps "Content in this browser" on A and "On another device" on B, where it shows NOT_HERE. Check 10: a refused first copy and a board grown past the cap keep "Content in this browser" until a save lands.
   - `e2e/card-redesign-check.mjs` 20/20: "Continue learning", and no note on a published canvas or on a canvas once opened. Check 14b: a project on Home's Continue says "Content in this browser" until its row has `board_saved`.
+
+## Saved at creation (owner, 2026-10-08)
+
+Owner hands-on testing on the dev preview found that a canvas made from the Library's Start dialog had no board on the server until it was opened once. Four symptoms followed:
+- Visibility > Public refused it: "There is nothing to publish yet: open this canvas so it saves, then publish."
+- Visibility > Unlisted and Duplicate showed the raw "state must be a board object". The Library sent no state (`setAccess` → `share` → `saveOwn`) or a null one (Duplicate's `localBoard` → `forkSource`).
+- Its card said "Content in this browser" (`board_saved` false).
+- Fork and Duplicate refused: "There is nothing to fork/copy here".
+
+What changed:
+- **Creation.** `POST /api/canvases` and `POST /api/repositories` write the main board in the same batch as the row (`emptyBoard`, canvases.js). The board is empty, in the shape an untouched canvas page saves (`EMPTY_BOARD`: the content keys plus `exchanges` and `sources`, all empty). There is no canvas or project without its board.
+- **Version 0.** The empty board is stored at version 0, the version a browser that saw no server copy already bases its first PUT on. Three things follow:
+  - The canvas page needs no change. Its first open finds version 0, which is not newer than its own base, so nothing is replaced, no "latest saved version" toast shows, and nothing remounts.
+  - The page's first content save is still version 1, and still a sync with no `updated_at` bump (`saveOwn` bumps only from version 1 on).
+  - A browser that held content before the board existed pushes it as version 1, never a 409. Pages loaded before the deploy behave the same way.
+- **Old canvases.** A canvas made before this, still without a board, gets its empty board on demand. Publish, Unlisted share and Duplicate/Fork of your own canvas do this instead of refusing, and an empty canvas publishes and copies as empty. When the browser sends its copy, a share of a board with nothing saved yet (no row, or version 0) saves that copy first, as before. Opening a board (GET) writes nothing.
+- **Undo.** Undo of a new canvas (`DELETE /api/apps/<canvas>`, untouched only) removes its empty board with the row.
+- **Client.** `postFork` never sends a null `state`, and `setAccess` saves this browser's copy before publishing whenever the server holds nothing yet (`!board.version`).
+- **Server messages.** The server reads a null `state` as none sent. `stateText` now answers only a malformed request, with "This canvas's content could not be read, so nothing was saved. Reload the page and try again."
+- **Unchanged:**
+  - the 1.9 MB refusal;
+  - the "Content in this browser" wording and rule (`browserOnly`): the owner is deciding these. It is simply no longer shown for a new canvas;
+  - Rabbit Holes (`dives.js`), which are kept at their first object and saved by the page at once.
+- **Tests:**
+  - `control-plane/test/canvas-persistence.test.js`: the board is made in the creation batch (a failed board write makes no canvas) at version 0 with the empty shape, and the first save is version 1 with no bump. Publish, Unlisted (no state or null) and Duplicate of a fresh canvas succeed and are empty. A board-less older canvas gets its board on demand, and its browser's content then saves as version 1. Undo removes the board. A malformed state gets the new message.
+  - Also updated: `canvas-forking.test.js`, `canvas-publications.test.js` and `repositories.test.js` (a project has its board).
+  - `web/src/canvas-fork.test.mjs` (`postFork` drops a null state) and `web/src/visibility-menu.test.mjs` (no state sent for a canvas this browser does not hold; version 0 saves this browser's copy first).
+- **Browser checks this changes (not rerun here):**
+  - `e2e/cross-device-check.mjs` checks 0, 5, 6, 9 and 10 assume a new canvas has no board (`exists: false`, NOT_HERE, "Content in this browser"). They now need a board-less canvas, made the old way, to keep testing those paths.
+  - `e2e/card-redesign-check.mjs` check 14b (a project's `board_saved`).
 
 ### Continue ordering (audit only, not changed)
 

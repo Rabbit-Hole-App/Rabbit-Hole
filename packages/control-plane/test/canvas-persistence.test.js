@@ -66,11 +66,14 @@ test('a private board is saved: its first copy is version 1 and moves no updated
   assert.equal((await f.call('GET', f.board(c.name), { as: 'ana' })).body.version, 2, 'nothing written');
 });
 
-test('a canvas row says whether its main board is on the server: not before the first save, after an over-cap refusal or for another board', async t => {
+test('a canvas row says whether its main board is on the server: a new canvas from creation; a canvas made before that not before its first save, after an over-cap refusal or for another board', async t => {
   const f = setup(t);
+  const fresh = await f.create('ana', 'Fresh notes');
+  assert.equal(fresh.board_saved, true, 'a new canvas is made with its board (owner, 2026-10-08)');
   const c = await f.create('ana', 'Saved notes'), big = await f.create('ana', 'Huge notes');
-  const listed = async () => Object.fromEntries((await f.call('GET', '/api/canvases', { as: 'ana' })).body.canvases.map(row => [row.name, row.board_saved]));
-  assert.equal(c.board_saved, false, 'a new canvas');
+  // Made before boards came with their rows: no board.
+  for (const name of [c.name, big.name]) f.sqlite.prepare("DELETE FROM learn_boards WHERE app = ?").run(name);
+  const listed = async () => Object.fromEntries((await f.call('GET', '/api/canvases', { as: 'ana' })).body.canvases.filter(row => row.name !== fresh.name).map(row => [row.name, row.board_saved]));
   assert.deepEqual(await listed(), { [c.name]: false, [big.name]: false });
   await f.call('PUT', f.board(c.name), { as: 'ana', body: { state: BOARD, version: 0 } });
   assert.equal((await f.call('PUT', f.board(big.name), { as: 'ana', body: { state: { blocks: [{ id: 'x', body: 'x'.repeat(2_000_000) }] }, version: 0 } })).status, 413);
@@ -117,4 +120,79 @@ test('nobody but the owner reads a private board, no link reaches it, and Trash 
   await f.call('POST', `${f.board(c.name)}/share`, { as: 'ana', body: { shared: false } });
   assert.equal((await f.call('GET', `/api/learn/boards/shared/${token}`, { as: 'ben' })).status, 404);
   assert.deepEqual((await f.call('GET', f.board(c.name), { as: 'ana' })).body.state, BOARD, 'the owner keeps the board');
+});
+
+// Saved at creation (owner, 2026-10-08): a canvas made from the Library had no board until it was opened once, so
+// Visibility, Duplicate and Fork refused it ("nothing to publish yet", "state must be a board object", "nothing to copy").
+const EMPTY = { strokes: [], shapes: [], items: [], links: [], blocks: [], groups: [], areas: [], exchanges: [], sources: [] };
+const handle = f => f.sqlite.exec("INSERT INTO user_profiles (email) VALUES ('ana@test'); INSERT INTO user_handles (email, handle) VALUES ('ana@test', 'ana')");
+const isEmpty = state => Object.values(state).flat().length === 0;
+
+test('a canvas is made with its empty main board in one batch: version 0, the shape an untouched canvas saves, never one without the other', async t => {
+  const f = setup(t);
+  const c = await f.create('ana', 'New notes');
+  const created = await f.updatedAt(c.name);
+  const board = (await f.call('GET', f.board(c.name), { as: 'ana' })).body;
+  assert.deepEqual([board.version, board.state], [0, EMPTY]);
+  // The canvas page's first save is still version 1 and a sync, as before: based on 0, no updated_at bump.
+  await later();
+  const first = await f.call('PUT', f.board(c.name), { as: 'ana', body: { state: BOARD, version: 0 } });
+  assert.deepEqual([first.status, first.body.version], [200, 1]);
+  assert.equal(await f.updatedAt(c.name), created);
+  // When the board cannot be written, the canvas is not made either.
+  f.sqlite.exec("CREATE TRIGGER no_board BEFORE INSERT ON learn_boards BEGIN SELECT RAISE(ABORT, 'board write failed'); END");
+  const before = f.sqlite.prepare('SELECT count(*) AS n FROM canvases').get().n;
+  assert.equal((await f.call('POST', '/api/canvases', { as: 'ana', body: { title: 'Half made' } })).status, 400);
+  assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM canvases').get().n, before, 'no canvas without its board');
+  f.sqlite.exec('DROP TRIGGER no_board');
+  // Undo of an untouched canvas (create_canvas) takes its board with it.
+  const undone = await f.create('ana', 'Undo me');
+  assert.equal((await f.call('DELETE', `/api/apps/${undone.name}`, { as: 'ana' })).status, 200);
+  assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM learn_boards WHERE app = ?').get(undone.name).n, 0);
+});
+
+test('a canvas never opened publishes, goes unlisted and duplicates as empty; a malformed state gets a useful message', async t => {
+  const f = setup(t);
+  handle(f);
+  const pub = await f.create('ana', 'Publish me'), link = await f.create('ana', 'Link me'), copy = await f.create('ana', 'Copy me');
+  const published = await f.call('POST', `/api/apps/${pub.name}/publish`, { as: 'ana' });
+  assert.deepEqual([published.status, published.body.published], [200, true], published.text);
+  assert.ok(isEmpty((await f.call('GET', `/api/learn/boards/shared/${published.body.publication_token}`)).body.state), 'Explore opens it empty');
+  // The Library's Unlisted for a canvas this browser holds none of: no state, or an older page's null.
+  for (const body of [{ shared: true, view: true }, { shared: true, view: true, state: null }]) {
+    const shared = await f.call('POST', `${f.board(link.name)}/share`, { as: 'ana', body });
+    assert.equal(shared.status, 200, shared.text);
+    assert.match(shared.body.sharing.view, /^[A-Za-z0-9_-]{20,64}$/);
+  }
+  for (const body of [{ source: { canvas: copy.name } }, { source: { canvas: copy.name }, state: null }]) {
+    const made = await f.call('POST', '/api/learn/boards/duplicate', { as: 'ana', body });
+    assert.equal(made.status, 201, made.text);
+    assert.ok(isEmpty((await f.call('GET', f.board(made.body.name), { as: 'ana' })).body.state));
+  }
+  // This browser's copy, when it has one, is what a share of a board with nothing saved on it yet shares.
+  const withCopy = await f.create('ana', 'Shared with content');
+  assert.equal((await f.call('POST', `${f.board(withCopy.name)}/share`, { as: 'ana', body: { shared: true, view: true, state: BOARD } })).status, 200);
+  assert.deepEqual((await f.call('GET', f.board(withCopy.name), { as: 'ana' })).body.state, BOARD);
+  // Only a malformed request still meets stateText, and never with its old raw words.
+  const bad = await f.call('PUT', f.board(copy.name), { as: 'ana', body: { state: 'not a board' } });
+  assert.equal(bad.status, 400);
+  assert.match(bad.body.error, /could not be read, so nothing was saved\. Reload the page/);
+});
+
+test('a canvas made before boards came with their rows gets its empty board on demand: publish, unlisted share and duplicate never refuse', async t => {
+  const f = setup(t);
+  handle(f);
+  const pub = await f.create('ana', 'Old A'), link = await f.create('ana', 'Old B'), copy = await f.create('ana', 'Old C');
+  f.sqlite.prepare('DELETE FROM learn_boards').run();
+  assert.equal((await f.call('GET', f.board(pub.name), { as: 'ana' })).body.exists, false, 'opening one still reads none: a GET writes nothing');
+  assert.equal((await f.call('POST', `/api/apps/${pub.name}/publish`, { as: 'ana' })).body.published, true);
+  assert.equal((await f.call('POST', `${f.board(link.name)}/share`, { as: 'ana', body: { shared: true, view: true } })).status, 200);
+  assert.equal((await f.call('POST', '/api/learn/boards/duplicate', { as: 'ana', body: { source: { canvas: copy.name }, state: null } })).status, 201);
+  for (const c of [pub, link, copy]) {
+    const board = (await f.call('GET', f.board(c.name), { as: 'ana' })).body;
+    assert.deepEqual([board.version, isEmpty(board.state)], [0, true], c.title);
+  }
+  // Content still only in the browser that made it goes up on that browser's next open as version 1, never a 409.
+  const pushed = await f.call('PUT', f.board(copy.name), { as: 'ana', body: { state: BOARD, version: 0 } });
+  assert.deepEqual([pushed.status, pushed.body.version], [200, 1]);
 });

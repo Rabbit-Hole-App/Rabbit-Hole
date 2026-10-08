@@ -225,6 +225,7 @@ test('T02 section 16 pin: connect_repository writes only LEARN_DB rows and learn
   assert.equal(response.status,202);
   const row=f.sqlite.prepare('SELECT * FROM repository_apps WHERE name=?').get((await response.json()).name);
   assert.equal(row.org,'team');assert.equal(row.owner_email,'owner@test');assert.ok(row.created_at); // 16.1, 16.5: a LEARN_DB row, found by org, owner_email, created_at
+  assert.equal(f.sqlite.prepare("SELECT version FROM learn_boards WHERE org=? AND owner_email=? AND app=? AND board='main'").get(row.org,row.owner_email,row.name)?.version,0); // made with its empty Learn main board (canvas-persistence.md, 2026-10-08)
   await f.actor.alarm();await f.actor.alarm();
   const key=`learn-repositories-dev/${row.id}/${newer}/graphify-0.9.63.json`;
   assert.deepEqual([...f.assets.keys()].filter(k=>k!=='snapshot'),[key]); // 16.2, 16.3: prefix plus LEARN_DB id plus commit
