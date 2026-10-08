@@ -43,19 +43,22 @@ test('the families are the owner\'s: cyan, violet, amber, green, magenta - never
 });
 
 test('the same command looks the same everywhere: the / picker, the composer pill, the Slash commands sheet', async () => {
-  const { COMMAND_ICONS, commandTone } = await import('./CommandTone.jsx').catch(() => ({}));
+  const { commandTone } = await import('./CommandTone.jsx').catch(() => ({}));
   // CommandTone.jsx is JSX; the map is read from its source when node cannot load it.
   const source = read('./CommandTone.jsx');
-  assert.match(source, /export const COMMAND_ICONS = \{ ask: CircleHelp, teach: Sparkles, research: Telescope, do: Play, motion: Clapperboard \};/);
+  // No command carries an icon (owner, 2026-10-08): the mark is its coloured /name, nothing else.
+  assert.doesNotMatch(source, /COMMAND_ICONS|CommandIcon|lucide-react|<Icon/);
+  assert.match(source, /return <span data-command-tone=\{name\} className=\{`inline-flex shrink-0 items-center rounded-md border px-1\.5 font-medium \$\{className\}`\}>\/\{name\}<\/span>;/);
   assert.match(source, /export const COMMAND_TONES = SLASH\.map\(\(command\) => command\.name\);/, 'every command in the registry is toned');
-  if (commandTone) { assert.equal(commandTone('ask'), 'ask'); assert.equal(commandTone('quiz'), 'quiz'); assert.equal(commandTone('auto'), null); assert.equal(Object.keys(COMMAND_ICONS).length, 5); }
+  if (commandTone) { assert.equal(commandTone('ask'), 'ask'); assert.equal(commandTone('quiz'), 'quiz'); assert.equal(commandTone('auto'), null); }
   assert.match(read('./LearnSlash.jsx'), /<CommandMark name=\{item\.name\} className="text-ink" \/>/);
   // Both Slash commands sheets list commands through CommandList.jsx (the canvas's and the Agent Bar's).
   assert.match(read('./CommandList.jsx'), /<CommandMark name=\{item\.name\} \/>/);
   for (const sheet of ['./SlashCommandsSheet.jsx', './agent/BarCommandsSheet.jsx']) assert.match(read(sheet), /<CommandList sections=\{sections\} current=\{name\}/, sheet);
   const ask = read('./ask.jsx');
   assert.match(ask, /data-command-pill data-command-tone=\{commandTone\(command\) \|\| undefined\}/);
-  assert.match(ask, /<CommandIcon name=\{command\} \/>\/\{command\}<\/button>/, 'the literal /command stays beside the icon');
+  assert.match(ask, /font-medium">\/\{command\}<\/button>/, 'the pill is the literal /command, no icon');
+  for (const code of [ask, read('./agent/AgentBar.jsx')]) assert.doesNotMatch(code, /CommandIcon/);
   // Auto stays the quiet neutral pill; the selected-card strip stays neutral too.
   assert.match(ask, /className=\{cn\(dock \? COMPOSER_PILL : [^}]+\}>Auto<\/button>/);
   assert.match(ask, /data-canvas-target \{\.\.\.\(canvasTarget\.card[^\n]+className="mb-1\.5 inline-flex max-w-full items-center gap-1\.5 rounded-full border border-line bg-hover/);

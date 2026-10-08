@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { ChevronRight, Loader2, MessageSquare, Plus, SquareSlash, X } from 'lucide-react';
 import ChatComposer, { COMPOSER_ADD, COMPOSER_PILL, DOCK_PAD } from '../ChatComposer.jsx';
-import { CommandIcon, CommandMark, commandTone } from '../CommandTone.jsx';
+import { CommandMark, commandTone } from '../CommandTone.jsx';
 import { api, navigate } from '../api.js';
 import { START_PATHS, slugOf } from '../start.js';
 import { PATH_ICONS } from '../start-icons.js';
@@ -533,7 +533,7 @@ export default function AgentBar({ page }) {
             ? <span data-command-pill data-command-tone={commandTone(shortcut) || undefined} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg border bg-hover pr-1.5 pl-2.5 text-sm text-ink">/{shortcut}<button type="button" aria-label="Remove the command" onClick={() => { setShortcut(null); inputRef.current?.focus(); }} className="cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button></span>
             : mode === 'auto'
             ? <button type="button" aria-haspopup="listbox" aria-expanded={pickerOpen} onMouseDown={(e) => { e.preventDefault(); setPicker(!picker); }} className={COMPOSER_PILL}>Auto</button>
-            : <span data-command-pill data-command-tone={commandTone(mode) || undefined} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg border bg-hover pr-1.5 pl-2.5 text-sm text-ink"><CommandIcon name={mode} />/{mode}<button type="button" aria-label="Back to Auto" onClick={() => setMode('auto')} className="cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button></span>}
+            : <span data-command-pill data-command-tone={commandTone(mode) || undefined} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg border bg-hover pr-1.5 pl-2.5 text-sm text-ink">/{mode}<button type="button" aria-label="Back to Auto" onClick={() => setMode('auto')} className="cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button></span>}
           </>} />
       </div>
     </div>

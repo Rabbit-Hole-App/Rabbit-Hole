@@ -16,7 +16,7 @@ import { contextPassage } from './map-files.js';
 import { MathText, tokenizeMath } from './MathText.jsx';
 import { MODEL_CHOICES } from './model-choices.js';
 import { canvasTargetField } from './learn-ask-target.js';
-import { CommandIcon, commandTone } from './CommandTone.jsx';
+import { commandTone } from './CommandTone.jsx';
 import { waitingText } from './waiting-text.js';
 import { TutorPromptTray, journeyStartsHere } from './LearnJourney.jsx';
 import { composerKey } from './composer-keys.js';
@@ -847,9 +847,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   // Learn's command slot: Auto (Rabbit Hole picks the action and the model) opens the same palette typing / does;
   // a chosen command sits here as a pill (its name, no slash) - the name reopens the palette to swap it, × goes back to Auto and keeps the text.
   const slashControl = slash && (command
-    // A command with a family wears its tint and icon (CommandTone.jsx); the rest stay neutral. Never the whole composer.
+    // A command with a family wears its tint (CommandTone.jsx); the rest stay neutral. Never the whole composer.
     ? <span data-command-pill data-command-tone={commandTone(command) || undefined} className={cn(dock ? 'h-9 rounded-lg pl-2.5 text-sm max-md:pl-1.5' : 'h-6 rounded-full pl-2 text-xs', 'inline-flex shrink-0 items-center border', !commandTone(command) && 'border-line bg-hover text-ink', voiceOn && 'opacity-45')}>
-        <button type="button" title="Change the command" disabled={voiceOn} onMouseDown={event => event.preventDefault()} onClick={openPalette} className="inline-flex cursor-pointer items-center gap-1 font-medium"><CommandIcon name={command} />/{command}</button>
+        <button type="button" title="Change the command" disabled={voiceOn} onMouseDown={event => event.preventDefault()} onClick={openPalette} className="inline-flex cursor-pointer items-center gap-1 font-medium">/{command}</button>
         <button type="button" aria-label={`Remove ${command}`} title="Back to Auto" onMouseDown={event => event.preventDefault()} onClick={() => { setCommand(null); inputRef.current?.focus(); }} disabled={voiceOn}
           className={cn(dock ? 'mx-1 h-7 w-7' : 'mx-0.5 h-5 w-5', 'flex cursor-pointer items-center justify-center rounded-md text-ink-3 hover:bg-white hover:text-ink')}><X size={13} /></button>
       </span>
