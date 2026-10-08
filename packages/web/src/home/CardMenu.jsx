@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlignLeft, Archive, BarChart3, BookOpen, Check, ChevronRight, CopyPlus, Eye, Link, Link2, Network, PenLine, Pin, PinOff, Trash2 } from 'lucide-react';
+import { AlignLeft, Archive, BarChart3, BookOpen, Check, ChevronRight, CopyPlus, Eye, ImageUp, Link, Link2, Network, PenLine, Pin, PinOff, RotateCcw, Trash2 } from 'lucide-react';
 import { titleOf } from '../agent/catalog.js';
 import { api, navigate } from '../api.js';
 import { canvasKeys, localBoard } from './canvas-local.js';
@@ -10,6 +10,7 @@ import { menuAt } from './LearningCard.jsx';
 import { ConfirmDialog, Input, Menu, MenuItem, toast } from '../ui.jsx';
 import { ACCESS, PRIVATE_CONFIRM, confirmsPrivate, copyLinkFor, setAccess } from '../canvas-visibility.js';
 import { ExplainerAnalytics } from '../CreatorAnalytics.jsx';
+import { bumpThumbnail, coverBlob, coverProblem, ownThumbnail } from '../card-thumbnail.js';
 
 // Review fixtures (home/review-fixtures.js) have no page and are never sent to an API.
 const fixtureNote = () => toast('Review fixture: there is nothing behind this card.');
@@ -26,7 +27,7 @@ export function useCardMenu({ org, email, apps = [], onArchive = null, onChanged
   const [dialog, setDialog] = useState(null); // { kind: rename | describe | private | trash | analytics | share | archive, a, value?, to?, state? }
   const [copied, setCopied] = useState(null); // the Copy link row's own confirmation
   const ctx = { org, email, storage: localStorage, catalog: apps, onForked: onChanged };
-  const onMore = (a) => (hasCardMenu(a) ? (e) => { e.stopPropagation(); setAccessOpen(false); setCopied(null); setMenu({ a, ...menuAt(e.currentTarget, 224) }); } : null);
+  const onMore = (a) => (hasCardMenu(a) ? (e) => { e.stopPropagation(); setAccessOpen(false); setCopied(null); setMenu({ a, ...menuAt(e.currentTarget, 224) }); readCover(a); } : null);
   const pick = (fn) => { const a = menu.a; setMenu(null); guard(a, () => fn(a))(); };
   // Duplicate (docs/features/canvas-naming.md): a private copy of your own canvas, titled "Title (2)", "(3)"... by the
   // server; never a fork, and the only copy of your own canvas (no Fork on it, owner 2026-10-08). This browser's copy of
@@ -48,6 +49,32 @@ export function useCardMenu({ org, email, apps = [], onArchive = null, onChanged
   const patch = (a, body, done) => act(() => api(`/api/apps/${a.name}`, { method: 'PATCH', body: JSON.stringify(body) }), done);
   const moveToTrash = (a) => act(() => api(`/api/apps/${a.name}/trash`, { method: 'POST', body: '{}' }), `Moved "${titleOf(a)}" to Trash`);
   const archive = (a) => (onArchive ? onArchive(a) : setDialog({ kind: 'archive', a }));
+  // The card's picture (card-thumbnails.md), the owner's only: Change thumbnail takes a PNG, JPEG or WebP, cropped to the
+  // card's 2:1 and redrawn at 800 x 400 here; Use canvas snapshot (only while a picture of theirs is up) goes back to the
+  // automatic one. The card itself shows the change - no toast unless it fails.
+  const [cover, setCover] = useState(null); // { name, source: custom | snapshot | null } of the open menu's card
+  const coverInput = useRef(null), coverFor = useRef(null);
+  const readCover = (a) => {
+    setCover(null);
+    if (!a.canEdit || a.fixture) return;
+    fetch(ownThumbnail(a.name), { method: 'HEAD', credentials: 'same-origin' }).then((r) => setCover({ name: a.name, source: r.headers.get('x-thumbnail-source') }), () => {});
+  };
+  const coverDone = (a) => { bumpThumbnail(a.name); ctx.onForked?.(); };
+  const chooseCover = (a) => { coverFor.current = a; coverInput.current.value = ''; coverInput.current.click(); };
+  const uploadCover = async (file) => {
+    const a = coverFor.current, problem = coverProblem(file);
+    if (problem) return toast(problem, { tone: 'error' });
+    try {
+      const blob = await coverBlob(file);
+      await api(`/api/learn/boards/${a.name}/main/thumbnail/custom`, { method: 'PUT', body: blob, headers: { 'Content-Type': blob.type } });
+      coverDone(a);
+    } catch (error) { toast(error.message || 'That image could not be read.', { tone: 'error' }); }
+  };
+  const revertCover = (a) => act(async () => { await api(`/api/learn/boards/${a.name}/main/thumbnail/custom`, { method: 'DELETE' }); bumpThumbnail(a.name); });
+  const coverRows = menu?.a.canEdit && <>
+    <MenuItem icon={ImageUp} data-menu-thumbnail onClick={() => pick(chooseCover)}>Change thumbnail</MenuItem>
+    {cover?.name === menu.a.name && cover.source === 'custom' && <MenuItem icon={RotateCcw} data-menu-thumbnail-revert onClick={() => pick(revertCover)}>Use canvas snapshot</MenuItem>}
+  </>;
   // Copy link (owner, 2026-10-08): the link that matches what the card is (canvas-visibility.js copyLinkFor); an unlisted
   // canvas's share link is read from its board. The row says what was copied, then the menu closes - no corner toast.
   const closing = useRef(null);
@@ -73,6 +100,7 @@ export function useCardMenu({ org, email, apps = [], onArchive = null, onChanged
   const pinnedNow = menu && ctx.email && readPinned(localStorage, ctx.org, ctx.email).includes(menu.a.name);
   const copyRow = <MenuItem icon={copied ? Check : Link} data-menu-copy-link onClick={copyLink}>{copied || 'Copy link'}</MenuItem>;
   const element = <>
+    <input ref={coverInput} type="file" accept="image/png,image/jpeg,image/webp" hidden data-thumbnail-input onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadCover(file); }} />
     <Menu portal open={!!menu} onClose={() => setMenu(null)} style={{ top: menu?.top, bottom: menu?.bottom, left: menu?.left }} className="w-56">
       {menu?.a.kind === 'repository' ? (
         <>
@@ -80,12 +108,14 @@ export function useCardMenu({ org, email, apps = [], onArchive = null, onChanged
           <MenuItem icon={BookOpen} onClick={() => pick((a) => navigate(`/apps/${a.name}?tab=learn`))}>Learn</MenuItem>
           <MenuItem icon={Network} onClick={() => pick((a) => navigate(`/apps/${a.name}?tab=map`))}>Map</MenuItem>
           {menu.a.canEdit && copyRow}
+          {coverRows}
           {menu.a.canEdit && <><div className="my-1 border-t border-line" />
             <MenuItem icon={Trash2} data-menu-trash onClick={() => pick((a) => setDialog({ kind: 'trash', a }))}>Move to Trash</MenuItem></>}
         </>
       ) : menu?.a.canEdit ? <>
         <MenuItem icon={PenLine} data-menu-rename onClick={() => pick((a) => setDialog({ kind: 'rename', a, value: a.title || '' }))}>Rename</MenuItem>
         <MenuItem icon={AlignLeft} data-menu-describe onClick={() => pick((a) => setDialog({ kind: 'describe', a, value: a.description || '' }))}>Edit description</MenuItem>
+        {coverRows}
         <MenuItem icon={CopyPlus} onClick={() => pick(duplicate)}>Duplicate</MenuItem>
         <div className="my-1 border-t border-line" />
         {/* Plain buttons, not MenuItem: MenuItem truncates its children into one line, and these carry a chevron or a hint. */}

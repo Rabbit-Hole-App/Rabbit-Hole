@@ -101,7 +101,8 @@ test('Move to Trash confirms with the owner\'s words; projects get it too; nothi
   assert.match(library, /title=\{`Move this \$\{kindWord\(dialog\.a\)\} to Trash\?`\} confirmLabel="Move to Trash"/);
   assert.match(library, /body="It will disappear from your Library and public\/shared access will stop\. Existing forks will not be deleted\. You can restore it from Trash\."/);
   assert.match(library, /api\(`\/api\/apps\/\$\{a\.name\}\/trash`, \{ method: 'POST', body: '\{\}' \}\)/);
-  assert.doesNotMatch(library, /method: 'DELETE'/);
+  // The one DELETE is a custom card picture's (Use canvas snapshot, card-thumbnails.md), never the canvas or project.
+  assert.deepEqual(library.match(/api\([^\n]*method: 'DELETE'/g), ["api(`/api/learn/boards/${a.name}/main/thumbnail/custom`, { method: 'DELETE'"]);
   const project = library.slice(library.indexOf("{menu?.a.kind === 'repository' ? ("), library.indexOf(') : menu?.a.canEdit ? <>'));
   assert.match(project, /Move to Trash/);
 });

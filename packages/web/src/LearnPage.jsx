@@ -60,6 +60,7 @@ import { TutorCaption } from './VoiceMode.jsx';
 import { ForkedFrom } from './home/Provenance.jsx';
 import { cardModel } from './home/provenance.js';
 import { hasLocalContent, unsavedKey } from './home/canvas-local.js';
+import { bumpThumbnail, thumbnailScheduler } from './card-thumbnail.js';
 import { boardText, serial, sharingOf } from './canvas-persist.js';
 import { typingIn } from './canvas-equation.js';
 
@@ -828,6 +829,19 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   // board is restored and the canvas has reported (onCanvasState runs after it published canvasApi), never an empty
   // canvas before the restore, which would get a second heading. canvasReady acts once per board.
   useEffect(() => { if (restoredBoard === boardPath) journey.canvasReady?.(); }, [restoredBoard, boardPath, canvasState, journey.canvasReady]);
+  // Card thumbnails (card-thumbnails.md): the main board's picture for its cards, drawn after its saves pause, never by AI.
+  // A board with none yet (made before thumbnails, a fork) gets one shortly after it opens.
+  const thumbs = useRef(null);
+  useEffect(() => {
+    if (board || boardName !== 'main') return undefined;
+    const name = app.name;
+    const scheduler = thumbs.current = thumbnailScheduler({
+      capture: () => canvasApi.current?.thumbnail?.() ?? null,
+      upload: async blob => { await api(`${boardPath}/thumbnail`, { method: 'PUT', body: blob, headers: { 'Content-Type': blob.type } }); bumpThumbnail(name); },
+    });
+    fetch(`${boardPath}/thumbnail`, { method: 'HEAD', credentials: 'same-origin' }).then(r => { if (r.status === 204) scheduler.saved('none yet'); }, () => {});
+    return () => { scheduler.stop(); if (thumbs.current === scheduler) thumbs.current = null; };
+  }, [boardPath]); // eslint-disable-line react-hooks/exhaustive-deps
   const pushTimer = useRef(null);
   // One PUT of this browser's board, run inside pushQueue: based on the version the server last answered, or 0 when it
   // had none (so a row made meanwhile elsewhere is a 409, never overwritten); none at all when the server already holds
@@ -839,6 +853,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
       boardVersion.current = saved.version; setCanvasVersion(saved.version);
       if (saved.board_id) setCommentBoard(saved.board_id);
       boardSynced.current = text;
+      thumbs.current?.saved(text);
       try { localStorage.setItem(versionKey, String(saved.version)); } catch { /* the next open re-checks */ }
       if (first) requestWorkspaceExports();
     }

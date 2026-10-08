@@ -39,6 +39,7 @@ import CommentPins, { PIN_DEFAULT } from './comments/CommentPins.jsx';
 import { anchorAt, objectLabel } from './comments/anchors.js';
 import { MathText } from './MathText.jsx';
 import { EQUATION_SIZE, newEquation, scaledSize, typingIn } from './canvas-equation.js';
+import { drawThumbnail, thumbnailRegion } from './card-thumbnail.js';
 
 // MathLive arrives with the first equation edited, never with the canvas (docs/features/canvas-equations.md).
 const EquationEditor = lazy(() => import('./EquationEditor.jsx'));
@@ -1083,9 +1084,9 @@ function ShapeView({ shape, tool, zoom, selected, editing = false, labelEditing 
           </div>
         </foreignObject>
       )}
-      {selected && !linear && <rect x={x - 5} y={y - 5} width={w + 10} height={h + 10} fill="none" stroke="#2383e2" strokeWidth="1" strokeDasharray="4 3" />}
+      {selected && !linear && <rect data-thumbnail-hide x={x - 5} y={y - 5} width={w + 10} height={h + 10} fill="none" stroke="#2383e2" strokeWidth="1" strokeDasharray="4 3" />}
       {selected && tool === 'select' && handles.map(([hx, hy, patch], index) => (
-        <circle key={index} cx={hx} cy={hy} r={5 / zoom} fill="white" stroke="#2383e2" strokeWidth={1.5 / zoom}
+        <circle key={index} data-thumbnail-hide cx={hx} cy={hy} r={5 / zoom} fill="white" stroke="#2383e2" strokeWidth={1.5 / zoom}
           style={{ pointerEvents: 'all', cursor: linear ? 'move' : 'nwse-resize' }}
           onPointerDown={event => { if (event.button !== 0) return; onGesture(); startDrag(event, { x: hx, y: hy }, (px, py) => onResize(shape.id, patch({ x: px, y: py })), zoom); }} />
       ))}
@@ -1472,6 +1473,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     return () => observer.disconnect();
   }, [presenting, !!gutterTop]);
   const itemsLayer = useRef(null);
+  const worldRef = useRef(null); // the camera layer, which the card thumbnail draws
   const [level, setLevel] = useState('body');
   // The route the next shape connector takes; the style panel's Line row sets it.
   const [connectorRoute, setConnectorRoute] = useState('elbow');
@@ -1797,6 +1799,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // the inserts saves them, from any canvasApi of this canvas. The debounced save above is unchanged.
       persist: () => (alive.current ? persistBoard({ state: boardRef.current, storageKey, storage: () => localStorage, onSave: onSaveRef.current }) : Promise.resolve({ ok: false })),
       toggleLock: () => setLock(previous => !previous),
+      // The card thumbnail (card-thumbnails.md): this canvas's content drawn at 800 x 400, or null when it is empty.
+      thumbnail: () => (alive.current && worldRef.current ? drawThumbnail(worldRef.current, thumbnailRegion(contentBoxes()), getComputedStyle(document.body).backgroundColor) : Promise.resolve(null)),
     };
     if (apiRef) apiRef.current = commandsRef.current;
   });
@@ -3470,7 +3474,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         style={grid ? { background: 'var(--color-white)', backgroundImage: 'radial-gradient(var(--color-line) 1px, transparent 1px)', backgroundSize: `${GRID * view.z}px ${GRID * view.z}px`, backgroundPosition: `${view.x}px ${view.y}px` } : undefined}
         className={`relative min-h-0 flex-1 touch-none overflow-hidden ${cursor} ${dropHover ? 'ring-2 ring-accent ring-inset' : ''}`}>
         <LaserPointer on={presenting !== null && laser} />
-        <div style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, transformOrigin: '0 0' }} className={`absolute top-0 left-0 ${glide ? 'transition-transform duration-200 ease-out motion-reduce:transition-none' : ''}`}>
+        <div ref={worldRef} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, transformOrigin: '0 0' }} className={`absolute top-0 left-0 ${glide ? 'transition-transform duration-200 ease-out motion-reduce:transition-none' : ''}`}>
         {/* Page guides sit inside the camera, so they pin to the content: the
             boundary keeps its width in cards, not in screen pixels. */}
         {pages && (
