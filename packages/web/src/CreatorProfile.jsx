@@ -51,6 +51,8 @@ function Profile({ handle }) {
   // The address carries the canonical handle (case-insensitive lookup, lowercase handle).
   useEffect(() => { if (p?.handle && p.handle !== handle) window.history.replaceState(null, '', `/@${p.handle}`); }, [p?.handle]);
   const own = !!me?.handle && me.handle === p?.handle;
+  // Your own description follows Settings at once (useProfile re-reads on save); everyone else's is the profile's.
+  const description = own ? me.description : p?.description;
   // Your own handle changed in Settings while you are here: the profile follows it.
   const [was, setWas] = useState(null);
   useEffect(() => {
@@ -71,13 +73,16 @@ function Profile({ handle }) {
       <div data-creator-profile={p.handle} className={wrap}>
         <header className="flex flex-wrap items-start gap-5 pb-8">
           <CreatorAvatar c={p} className="h-20 w-20 text-3xl!" />
-          <div className="flex min-w-0 flex-1 flex-col gap-1 pt-1">
+          {/* basis-60: on a phone your own Edit profile and Analytics wrap below, never squeezing the name and description. */}
+          <div className="flex min-w-0 flex-1 basis-60 flex-col gap-1 pt-1">
             <h1 data-profile-name className="break-words text-[32px] font-bold leading-[1.15] tracking-[-0.01em] text-ink">{p.name || `@${p.handle}`}</h1>
             {/* The blue owner check only on your own profile, meaning "this is yours" - never verification (owner rule). */}
             <div className="flex flex-wrap items-center gap-2 text-sm text-ink-2">
               {p.name && <span data-profile-handle>@{p.handle}</span>}
               {own && <span data-own-profile className="inline-flex items-center gap-1 text-xs text-ink-2"><OwnerCheck owned />Your profile</span>}
             </div>
+            {/* The profile description (Settings > Profile): plain text, rendered as text - never HTML or a link. */}
+            {description && <p data-profile-description className="max-w-[60ch] break-words pt-1 text-sm text-ink">{description}</p>}
             <p data-profile-stats className="pt-2 text-sm text-ink-2">{plural(p.explainer_count, 'public explainer')} · {plural(p.fork_count, 'fork')}</p>
           </div>
           {own && (

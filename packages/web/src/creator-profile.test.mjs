@@ -89,3 +89,31 @@ test('Explore: Explainers and Creators tabs; each tab asks the server for its ow
   assert.doesNotMatch(explore, /Creators to explore|data-creator-row/, 'the creators row left the Explainers feed');
   assert.match(read('./home/PublicCards.jsx'), /export const CreatorAvatar = \(\{ c, className \}\) => <Avatar email=\{c\.name \|\| c\.handle\} src=\{c\.avatar\}/, 'the initials come from the name or @handle');
 });
+
+// Owner, 2026-10-08: "The creators card should be square shape. They should list the number of Projects and Canvas and
+// maybe it should also display their description. in profile add a discription".
+test('creator cards: square at every width, picture, name, @handle, the description as text (3 lines), N projects · M canvases', () => {
+  const cards = read('./home/PublicCards.jsx');
+  const chip = cards.slice(cards.indexOf('function CreatorChip'), cards.indexOf('export function CreatorCards'));
+  assert.match(chip, /<div data-creator-card=\{c\.handle\} className="[^"]*\baspect-square\b[^"]*\boverflow-hidden\b/, '1:1, clipped so content never stretches it');
+  assert.match(chip, /<a data-creator-chip=\{c\.handle\} href=\{c\.url\}/, 'the card opens /@handle');
+  assert.match(chip, /\{c\.description && <span data-creator-description className="line-clamp-3 [^"]*">\{c\.description\}<\/span>\}/, 'text, three lines at most, no empty line');
+  assert.match(chip, /\{count\(c\.project_count, 'project', 'projects'\)\} · \{count\(c\.explainer_count, 'canvas', 'canvases'\)\}/);
+  assert.match(chip, /pr-8/, 'room for one small icon button at the top right');
+  assert.match(cards, /<div data-creator-cards className="grid grid-cols-2 gap-3 sm:grid-cols-\[repeat\(auto-fill,minmax\(200px,1fr\)\)\]">/, 'two on a phone, ~200px squares above');
+  assert.match(cards, /kind === 'creators' \? <CreatorCards creators=\{picks\} \/>/, 'Recommended creators: the same cards');
+  assert.match(read('./Home.jsx'), /\{creators\?\.length > 0 && <CreatorCards creators=\{creators\} \/>\}/, 'the Creators tab: the same cards');
+});
+
+test('the profile description: edited in Settings > Profile (160 characters, as the server caps it), shown under the name on /@handle as text', async () => {
+  const settings = read('./Sidebar.jsx');
+  assert.match(settings, /<HandleRow profile=\{profile\} \/>\n\s+<DescriptionRow profile=\{profile\} \/>/, 'beside name and handle');
+  const { DESCRIPTION_MAX } = await import('../../control-plane/src/profile.js');
+  assert.match(settings, new RegExp(`const DESCRIPTION_MAX = ${DESCRIPTION_MAX};`), 'the field\'s cap is the server\'s');
+  assert.match(settings, /await saveProfile\(\{ description: value \}\)/);
+  const profile = read('./CreatorProfile.jsx');
+  assert.match(profile, /const description = own \? me\.description : p\?\.description;/, 'your own follows Settings at once');
+  assert.match(profile, /<\/div>\n\s+\{\/\*[^\n]*\*\/\}\n\s+\{description && <p data-profile-description className="[^"]+">\{description\}<\/p>\}\n\s+<p data-profile-stats/, 'under the name and @handle, above the counters');
+  // Escaped by React as a text child: no HTML injection, and no linkifying of the description anywhere it shows.
+  for (const file of ['./CreatorProfile.jsx', './home/PublicCards.jsx', './Sidebar.jsx']) assert.doesNotMatch(read(file), /dangerouslySetInnerHTML/, file);
+});

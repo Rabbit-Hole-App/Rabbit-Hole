@@ -26,7 +26,7 @@ export function useSessionDisplay() {
   return display;
 }
 
-// The person's own Profile (GET /api/profile, served by the app's origin): { name, avatar, handle } or null.
+// The person's own Profile (GET /api/profile, served by the app's origin): { name, avatar, handle, description } or null.
 let profile = null;
 // HandleGate (docs/features/user-handles.md): a signed-in profile without a public handle chooses one first.
 export const gateFor = profile => (profile && !profile.handle ? 'needed' : 'ok');

@@ -162,6 +162,29 @@ const share = await api(who.viewer, `/api/learn/boards/shared/${shareToken}`);
 check('removed: /e no longer opens, Explore drops it, the share link still opens', !(await explore(who.viewer)).some(c => c.title === TITLE) && share.status === 200);
 await shot(viewer.page, '08-unpublished-link');
 
+// ---- the creator card (owner, 2026-10-08): square, the profile description as text, "N projects · M canvases" counting
+// published canvases only (a private one never counts; the other creator has no public project) ----
+const ABOUT = `Explains <b>trusses</b> & loads ${run}`;
+check('a profile description saves through Settings\' route', (await api(who.other, '/api/profile', { method: 'PUT', body: JSON.stringify({ description: ABOUT }) })).body.description === ABOUT);
+await api(who.other, '/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Private sketch (explore ${run})` }) });
+const people = await contextFor(who.viewer);
+await people.page.goto(`${BASE}/explore?tab=creators`);
+const creatorCard = people.page.locator(`[data-explore-creators] [data-creator-card="${H.other}"]`);
+await creatorCard.waitFor({ timeout: 30000 });
+const square = async () => { const b = await creatorCard.boundingBox(); return Math.abs(b.width - b.height) <= 1; };
+const about = creatorCard.locator('[data-creator-description]');
+const counts = (await creatorCard.locator('[data-creator-counts]').innerText()).trim();
+check('a creator card is square, shows the description as text (never HTML) and N projects · M canvases of published canvases only',
+  await square() && (await about.innerText()).trim() === ABOUT && await about.locator('*').count() === 0 && counts === '0 projects · 1 canvas', counts);
+await shot(people.page, '09-creator-card', creatorCard);
+await people.page.setViewportSize({ width: 390, height: 844 });
+await people.page.waitForTimeout(400);
+const tops = await people.page.locator('[data-explore-creators] [data-creator-card]').evaluateAll(cards => cards.slice(0, 2).map(c => Math.round(c.getBoundingClientRect().top)));
+check('on a phone the creator cards stay square, two to a row, with no sideways scroll', await square() && tops.length === 2 && tops[0] === tops[1]
+  && await people.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), JSON.stringify(tops));
+await shot(people.page, '10-creator-cards-phone');
+await people.context.close();
+
 check('no page errors', errors.length === 0, errors.join(' | '));
 await browser.close();
 const failed = results.filter(ok => !ok).length;

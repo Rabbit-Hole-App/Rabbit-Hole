@@ -5,7 +5,7 @@ import ForkButton from '../ForkButton.jsx';
 import RabbitHoleChoice from '../RabbitHoleChoice.jsx';
 import { startHref } from '../shared-rabbit-hole.js';
 import LearningCard, { CARD_GRID, menuAt } from './LearningCard.jsx';
-import { cardModel } from './provenance.js';
+import { cardModel, forkNumber } from './provenance.js';
 import { findQuery, readFind, scheduleFind } from './explore-find.js';
 import { Avatar, Button, Menu, MenuItem, toast } from '../ui.jsx';
 
@@ -84,7 +84,7 @@ export function Recommended({ found, me, kind }) {
       <h2 className="pb-2 text-xs text-ink-2">Recommended</h2>
       {found === 'loading' ? <p data-recommended-loading className="text-sm text-ink-3">Finding the best matches…</p>
         : !picks.length ? <p data-recommended-note className="text-sm text-ink-3">{found.note || (kind === 'creators' ? 'No creator fits that yet.' : 'Nothing published fits that yet.')}</p>
-        : kind === 'creators' ? <div className="flex flex-wrap gap-2">{picks.map(c => <CreatorChip key={c.handle} c={c} />)}</div>
+        : kind === 'creators' ? <CreatorCards creators={picks} />
         : <PublicCards cards={picks} me={me} attr="data-recommended-card" />}
     </section>
   );
@@ -109,17 +109,34 @@ export function ProjectFilter({ project, empty }) {
 // treatment every avatar uses - from the display name, else the @handle.
 export const CreatorAvatar = ({ c, className }) => <Avatar email={c.name || c.handle} src={c.avatar} className={className} />;
 
-// One creator in Explore's "Creators to explore" row and in creator search: picture, name, @handle and their public
-// explainer count, opening /@handle. No follower, verification or reputation signal (owner: no social features).
-export function CreatorChip({ c }) {
-  const n = c.explainer_count;
+// One creator in Explore's Creators tab, its Recommended creators and creator search (owner, 2026-10-08: "The creators
+// card should be square shape. They should list the number of Projects and Canvas and maybe it should also display their
+// description"): a square card - picture, name, @handle, their profile description (three lines at most, as text) and
+// "N projects · M canvases", counting only what any viewer can see (creators.js COUNTS) - opening /@handle. No follower,
+// verification or reputation signal (owner: no social features).
+const count = (n, one, many) => `${forkNumber(n)} ${n === 1 ? one : many}`;
+function CreatorChip({ c }) {
   return (
-    <a data-creator-chip={c.handle} href={c.url} className="flex min-w-0 shrink-0 items-center gap-2.5 rounded-lg border border-line bg-white py-2 pl-2.5 pr-3.5 hover:bg-hover">
-      <CreatorAvatar c={c} className="h-8 w-8 text-xs!" />
-      <span className="flex min-w-0 flex-col leading-tight">
-        <span className="truncate text-sm font-medium text-ink">{c.name || `@${c.handle}`}</span>
-        <span className="truncate text-xs text-ink-2">{c.name ? `@${c.handle} · ` : ''}{n} explainer{n === 1 ? '' : 's'}</span>
-      </span>
-    </a>
+    // overflow-hidden keeps it square (an aspect-ratio box otherwise grows to fit its content); select-card draws focus on
+    // the card's edge, where the clip cannot hide it.
+    <div data-creator-card={c.handle} className="lift-card select-card relative aspect-square min-w-0 overflow-hidden rounded-lg border border-line bg-white">
+      <a data-creator-chip={c.handle} href={c.url} className="flex h-full min-w-0 flex-col gap-3 rounded-lg p-3 outline-none sm:p-4">
+        {/* pr-8: the top right stays free for one small icon button beside the link, outside it (Copy profile link). */}
+        <span className="flex min-w-0 items-center gap-2 pr-8 sm:gap-2.5">
+          <CreatorAvatar c={c} className="h-8 w-8 text-xs! sm:h-10 sm:w-10 sm:text-sm!" />
+          <span className="flex min-w-0 flex-col leading-tight">
+            <span className="truncate text-sm font-medium text-ink">{c.name || `@${c.handle}`}</span>
+            {c.name && <span className="truncate text-xs text-ink-2">@{c.handle}</span>}
+          </span>
+        </span>
+        {c.description && <span data-creator-description className="line-clamp-3 break-words text-xs leading-4 text-ink-2 sm:text-sm sm:leading-5">{c.description}</span>}
+        <span data-creator-counts className="mt-auto truncate text-xs text-ink-3">{count(c.project_count, 'project', 'projects')} · {count(c.explainer_count, 'canvas', 'canvases')}</span>
+      </a>
+    </div>
   );
+}
+
+// The creator cards, in the server's order: two columns on a phone, then as many ~200px squares as fit.
+export function CreatorCards({ creators }) {
+  return <div data-creator-cards className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))]">{creators.map(c => <CreatorChip key={c.handle} c={c} />)}</div>;
 }

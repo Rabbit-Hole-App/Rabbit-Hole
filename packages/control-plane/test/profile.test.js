@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
-import { profileFetch, profileRoute, validateProfile, NAME_MAX } from '../src/profile.js';
+import { profileFetch, profileRoute, validateProfile, DESCRIPTION_MAX, NAME_MAX } from '../src/profile.js';
 import { normalizeHandle, RESERVED_HANDLES } from '../src/handle.js';
 
 // Settings > Profile: a person's own name and PNG picture in LEARN_DB user_profiles, readable and
@@ -26,12 +26,12 @@ function fixture(t) {
 test('a profile starts empty, saves a name and a PNG picture, and belongs to its owner only', async t => {
   const { send } = fixture(t);
   assert.equal(profileRoute(new URL('https://dev.test/api/profile')), true);
-  assert.deepEqual((await send('GET')).body, { name: null, avatar: null, handle: null });
-  assert.deepEqual((await send('PUT', { name: '  Ada   Lovelace ' })).body, { name: 'Ada Lovelace', avatar: null, handle: null });
-  assert.deepEqual((await send('PUT', { avatar: PNG })).body, { name: 'Ada Lovelace', avatar: PNG, handle: null }, 'a picture keeps the name');
-  assert.deepEqual((await send('GET')).body, { name: 'Ada Lovelace', avatar: PNG, handle: null });
-  assert.deepEqual((await send('GET', null, { 'x-email': 'someone@else.test' })).body, { name: null, avatar: null, handle: null }, 'another account sees its own row');
-  assert.deepEqual((await send('PUT', { name: '', avatar: null })).body, { name: null, avatar: null, handle: null }, 'both can be cleared');
+  assert.deepEqual((await send('GET')).body, { name: null, avatar: null, handle: null, description: null });
+  assert.deepEqual((await send('PUT', { name: '  Ada   Lovelace ' })).body, { name: 'Ada Lovelace', avatar: null, handle: null, description: null });
+  assert.deepEqual((await send('PUT', { avatar: PNG })).body, { name: 'Ada Lovelace', avatar: PNG, handle: null, description: null }, 'a picture keeps the name');
+  assert.deepEqual((await send('GET')).body, { name: 'Ada Lovelace', avatar: PNG, handle: null, description: null });
+  assert.deepEqual((await send('GET', null, { 'x-email': 'someone@else.test' })).body, { name: null, avatar: null, handle: null, description: null }, 'another account sees its own row');
+  assert.deepEqual((await send('PUT', { name: '', avatar: null })).body, { name: null, avatar: null, handle: null, description: null }, 'both can be cleared');
 });
 
 test('only text names up to the limit and PNG pictures are accepted, from this origin', async t => {
@@ -43,6 +43,44 @@ test('only text names up to the limit and PNG pictures are accepted, from this o
   assert.equal((await send('PUT', { name: 'Ada' }, { origin: 'https://evil.test' })).status, 403);
   assert.equal((await send('DELETE')).status, 405);
   assert.deepEqual(validateProfile({ name: null }), { value: { name: null } });
+});
+
+// The profile description (docs/features/creator-profile.md, owner 2026-10-08, learn migration 0013).
+test('a description is plain text on one line, at most 160 characters, kept as typed (markup included), and cleared by deleting its row', async t => {
+  const { send, sqlite } = fixture(t);
+  const rows = () => sqlite.prepare('SELECT email, description FROM user_profile_descriptions').all().map(r => `${r.email}=${r.description}`);
+  const saved = await send('PUT', { description: '  Teaches\nGPU\tkernels  ' });
+  assert.deepEqual([saved.status, saved.body], [200, { name: null, avatar: null, handle: null, description: 'Teaches GPU kernels' }], 'line breaks and tabs are single spaces');
+  assert.equal((await send('GET')).body.description, 'Teaches GPU kernels');
+  assert.equal((await send('PUT', { name: 'Ada' })).body.description, 'Teaches GPU kernels', 'a name change keeps it');
+  // Markup is text: stored and answered exactly as typed, for the page to render as text (never HTML or a link).
+  const markup = '<b>hi</b> <a href="javascript:alert(1)">x</a> https://evil.test';
+  assert.equal((await send('PUT', { description: markup })).body.description, markup);
+  assert.equal((await send('PUT', { description: 'x'.repeat(DESCRIPTION_MAX) })).status, 200);
+  assert.equal((await send('PUT', { description: 'x'.repeat(DESCRIPTION_MAX + 1) })).status, 400);
+  assert.equal((await send('PUT', { description: 42 })).status, 400);
+  assert.equal(validateProfile({ description: 'a\u0000b\u007fc' }).value.description, 'a b c', 'control characters are spaces');
+  assert.deepEqual(rows(), [`owner@test=${'x'.repeat(DESCRIPTION_MAX)}`], 'one row per person; a refused write changed nothing');
+  assert.equal((await send('PUT', { description: '   ' })).body.description, null);
+  assert.deepEqual(rows(), [], 'an empty description deletes the row');
+  assert.equal((await send('GET', null, { 'x-email': 'someone@else.test' })).body.description, null, 'only its owner writes it');
+  // The database holds the cap too, and a description needs a profile row.
+  assert.throws(() => sqlite.prepare("INSERT INTO user_profile_descriptions (email, description) VALUES ('owner@test', ?)").run('x'.repeat(161)), /CHECK/);
+  assert.throws(() => sqlite.prepare("INSERT INTO user_profile_descriptions (email, description) VALUES ('nobody@test', 'hi')").run(), /FOREIGN KEY/);
+});
+
+test('0013 is additive, re-runnable and exactly what repository-schema.sql applies; it gives nobody a description', t => {
+  const m13 = readFileSync(new URL('../learn-migrations/0013-user-profile-descriptions.sql', import.meta.url), 'utf8');
+  const sqlite = new DatabaseSync(':memory:'); t.after(() => sqlite.close());
+  sqlite.exec(migration);
+  sqlite.prepare("INSERT INTO user_profiles (email, name) VALUES ('old@test', 'Old User')").run();
+  sqlite.exec(m13); sqlite.exec(m13);
+  assert.deepEqual(sqlite.prepare('SELECT * FROM user_profile_descriptions').all(), [], 'an existing user has no description until they write one');
+  assert.deepEqual(sqlite.prepare('SELECT email, name FROM user_profiles').all().map(r => ({ ...r })), [{ email: 'old@test', name: 'Old User' }], 'user_profiles untouched');
+  assert.ok(schema.replace(/\r/g, '').includes(m13.replace(/\r/g, '').trim()));
+  assert.doesNotMatch(m13, /^\s*(DROP|ALTER|DELETE|UPDATE|INSERT)\b/im, 'no statement but CREATE ... IF NOT EXISTS');
+  assert.deepEqual(sqlite.prepare('PRAGMA table_info(user_profile_descriptions)').all().map(c => c.name), ['email', 'description']);
+  assert.deepEqual(sqlite.prepare('PRAGMA foreign_key_list(user_profile_descriptions)').all().map(k => [k.table, k.from, k.to, k.on_delete]), [['user_profiles', 'email', 'email', 'CASCADE']]);
 });
 
 // Public handles (docs/features/user-handles.md, migration 0008).
@@ -81,8 +119,8 @@ test('claiming a handle: no row means none; a claim is stored lowercase and read
   const { send, sqlite } = fixture(t);
   assert.equal((await send('GET')).body.handle, null);
   const claimed = await send('PUT', { handle: '@Ada_Lovelace', name: 'Ada Lovelace' });
-  assert.deepEqual([claimed.status, claimed.body], [200, { name: 'Ada Lovelace', avatar: null, handle: 'ada_lovelace' }]);
-  assert.deepEqual((await send('GET')).body, { name: 'Ada Lovelace', avatar: null, handle: 'ada_lovelace' }, 'one profile, two tables');
+  assert.deepEqual([claimed.status, claimed.body], [200, { name: 'Ada Lovelace', avatar: null, handle: 'ada_lovelace', description: null }]);
+  assert.deepEqual((await send('GET')).body, { name: 'Ada Lovelace', avatar: null, handle: 'ada_lovelace', description: null }, 'one profile, two tables');
   assert.equal((await send('PUT', { handle: 'ADA_LOVELACE' })).status, 200, 'your own handle again is fine');
   // A change is one statement: the old handle is free at once for someone else.
   assert.equal((await send('PUT', { handle: 'countess' })).body.handle, 'countess');
@@ -100,7 +138,7 @@ test('a taken handle, in any case, is a clean 409 that changes nothing; two simu
     const lost = await send('PUT', { handle: typed, name: 'Not Applied' }, { 'x-email': 'second@test' });
     assert.deepEqual([lost.status, lost.body.taken, lost.body.error], [409, true, '@yudhisteer is taken. Choose another.'], typed);
   }
-  assert.deepEqual((await send('GET', null, { 'x-email': 'second@test' })).body, { name: null, avatar: null, handle: null }, 'the losing request changed nothing');
+  assert.deepEqual((await send('GET', null, { 'x-email': 'second@test' })).body, { name: null, avatar: null, handle: null, description: null }, 'the losing request changed nothing');
   const race = await Promise.all(['a@test', 'b@test', 'c@test'].map(email => send('PUT', { handle: 'mlbuilder' }, { 'x-email': email })));
   assert.deepEqual(race.map(r => r.status).sort(), [200, 409, 409]);
   assert.equal(sqlite.prepare("SELECT count(*) AS n FROM user_handles WHERE handle = 'mlbuilder'").get().n, 1);

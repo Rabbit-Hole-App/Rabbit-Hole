@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setup, BOARD } from './shared-canvas-fixture.js';
-import { creatorsRoute } from '../src/creators.js';
+import { creatorsByHandle, creatorsRoute } from '../src/creators.js';
 
 const EMAILS = ['ana@test', 'ben@test', 'cara@test'];
 const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
@@ -149,4 +149,34 @@ test('the creator routes are read-only and public', async t => {
   }
   assert.equal(await creatorsRoute('/api/learn/boards/published', new Request('https://app.test/api/learn/boards/published'), f.env), null, 'not its route');
   assert.equal((await get(f, '/api/learn/creators/ana')).status, 200, 'signed out');
+});
+
+// The creator card (owner 2026-10-08: square, "the number of Projects and Canvas", the description): counts of what any
+// viewer can see - published canvases, and the public projects those cards name (PUBLISHED's `r`) - and the description
+// by reference. Never a private, unlisted or unpublished canvas, a private repository or a project with nothing published.
+test('creator cards count only public things: published canvases and the public projects their cards name; the description by reference', async t => {
+  const f = setup(t); // repo-0a1b2c3d-nanogpt (karpathy/nanoGPT) is public
+  handle(f, 'ana@test', 'ana', 'Ana Lima'); handle(f, 'cara@test', 'cara');
+  const NANO = 'repo-0a1b2c3d-nanogpt', SECRET = 'repo-0c0c0c0c-secret', QUIET = 'repo-0e0e0e0e-quiet';
+  f.sqlite.exec(`INSERT INTO repository_apps(org,name,owner_email,repo,branch,status) VALUES('ana-ws','${SECRET}','ana@test','acme/secret','main','ready'), ('ana-ws','${QUIET}','ana@test','acme/quiet','main','ready');
+    INSERT INTO repository_visibility(app_id, visibility) SELECT id, 'public' FROM repository_apps WHERE name = '${QUIET}';`); // acme/secret: no row, private
+  const inProject = async (title, project) => (await f.call('POST', '/api/canvases', { as: 'ana', body: { title, project } })).body;
+  for (const c of [await inProject('Attention', NANO), await inProject('Softmax', NANO), await canvasOf(f, 'ana', 'Standalone', null), await inProject('Secret lab', SECRET)]) await publish(f, 'ana', c);
+  await inProject('SECRET private in a public project', QUIET); // a public repository with nothing published is no project here
+  await canvasOf(f, 'ana', 'SECRET private');
+  await f.shareProject({ publicView: true }); // an unlisted view link on nanoGPT: never a canvas here
+  await publish(f, 'cara', await canvasOf(f, 'cara', 'Bridges'));
+  const MARKUP = '<b>Teaches</b> GPUs <a href="https://evil.test">x</a>';
+  f.sqlite.prepare('INSERT INTO user_profile_descriptions (email, description) VALUES (?, ?)').run('ana@test', MARKUP);
+  const cards = Object.fromEntries((await get(f, '/api/learn/creators')).body.creators.map(c => [c.handle, c]));
+  assert.deepEqual(Object.keys(cards.ana).sort(), ['avatar', 'description', 'explainer_count', 'handle', 'name', 'project_count', 'url'], 'the card\'s shape');
+  assert.deepEqual([cards.ana.project_count, cards.ana.explainer_count, cards.ana.description], [1, 4, MARKUP], 'nanoGPT once; 4 published canvases; the text as written, for the page to render as text');
+  assert.deepEqual([cards.cara.project_count, cards.cara.explainer_count, cards.cara.description], [0, 1, null], 'no description, no line');
+  const ana = (await get(f, '/api/learn/creators/ana')).body;
+  assert.deepEqual([ana.description, ana.explainer_count], [MARKUP, 4], '/@handle shows the description under the name');
+  assert.deepEqual(await creatorsByHandle(f.env, ['ana']), [cards.ana], 'Explore\'s AI find picks the same card');
+  // A project made private stops counting, as its label leaves the cards.
+  f.sqlite.prepare('DELETE FROM repository_visibility WHERE app_id = 7').run();
+  assert.deepEqual((await get(f, '/api/learn/creators?q=ana')).body.creators.map(c => [c.handle, c.project_count, c.explainer_count]), [['ana', 0, 4]]);
+  for (const as of [undefined, 'ana', 'cara']) assert.ok(!JSON.stringify((await get(f, '/api/learn/creators', as)).body).includes('SECRET'), `as ${as}`);
 });
