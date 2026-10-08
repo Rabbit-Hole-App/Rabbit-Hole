@@ -180,7 +180,7 @@ export function segmentsOf(body, mentions = []) {
 }
 
 // Section 8: a card-relative anchor (it follows the object without a write) or a canvas point, in world units.
-const OBJECT_KINDS = ['block', 'exchange', 'item', 'shape'];
+const OBJECT_KINDS = ['block', 'exchange', 'item', 'shape', 'group'];
 const finite = n => typeof n === 'number' && Number.isFinite(n) && Math.abs(n) < 1e7;
 const round = n => Math.round(n * 10) / 10;
 export function anchorOf(a) {

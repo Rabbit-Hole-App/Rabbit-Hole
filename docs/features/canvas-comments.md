@@ -350,11 +350,12 @@ Stored as `canvas_comment_settings.public_mode`: `off` | `open` | `closed`. No r
 
 | Entry | Result |
 |---|---|
-| Right-click a card or artifact | Start Rabbit Hole (first, unchanged), **Add comment**, then today's rows unchanged. The pin goes where the right-click was, on that object |
+| Right-click a card, artifact or drawn shape | Start Rabbit Hole (first, unchanged), **Add comment** (hint `C`), then today's rows unchanged. The pin goes where the right-click was, on that object |
+| Right-click a group's outline or its name chip (owner, 2026-10-08) | **Add comment** on the group: the pin follows the group. A right-click on a member comments on that member |
 | Right-click the empty canvas | **Add comment here** first, then today's rows (selection rows disabled as today) |
 | View-only page with comment rights | Card: Start Rabbit Hole, Add comment. Empty canvas: Add comment here |
 | Toolbar | A Comment tool in the left rail, tooltip "Comment  C" |
-| Keyboard | `C` arms the tool; with one card selected or focused, `C` comments on it. Shift+F10 or the menu key opens the menu. Esc cancels |
+| Keyboard | With a selection (owner, 2026-10-08), `C` comments on it near its top left: a card, a shape or text, a whole group, or the first of several selected objects. With nothing selected, `C` arms the tool. Shift+F10 or the menu key opens the menu. Esc cancels |
 | Touch | The rail tool, then tap; a long-press opens the menu where the browser fires `contextmenu` |
 
 **`C` guards (Q14).** `C` does nothing:
@@ -771,9 +772,10 @@ There is no notifications table: unread is a query over threads, mentions and re
 
 ## 8. Anchors: artifact-linked and empty-canvas comments
 
-- **Shapes:** `{kind: 'object', object_id, object_kind: 'block'|'exchange'|'item'|'shape', dx, dy, label}` or
+- **Shapes:** `{kind: 'object', object_id, object_kind: 'block'|'exchange'|'item'|'shape'|'group', dx, dy, label}` or
   `{kind: 'point', x, y}` in world units. `label` (120 characters) is the object's title when the thread starts.
 - **Moves:** the pin resolves at render time from the live board plus `dx, dy`, so it follows every move without a write.
+  A group's origin is its members' top left, so its pin follows the group; ungrouping detaches it ("Group removed").
 - **Delete (Q13):** a thread whose object is gone is detached: "Card deleted · [label]", no pin, still readable, repliable
   and resolvable. Undo or a restored board brings the same id and the pin back.
 - **Stale page:** the server checks a new thread's `object_id` against the current `state_json`; an object deleted meanwhile

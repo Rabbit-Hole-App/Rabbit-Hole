@@ -696,7 +696,8 @@ export function fmtBytes(n) {
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
 
-export function MenuItem({ icon: Icon, className, children, ...props }) {
+// hint: a keyboard shortcut shown at the right of the row (visual only; the button carries aria-keyshortcuts).
+export function MenuItem({ icon: Icon, hint, className, children, ...props }) {
   return (
     <button
       className={cn('group flex h-7 w-full items-center gap-2 rounded-sm px-2 text-left text-sm text-ink hover:bg-hover disabled:cursor-default disabled:text-ink-3 disabled:hover:bg-transparent', className)}
@@ -704,6 +705,7 @@ export function MenuItem({ icon: Icon, className, children, ...props }) {
     >
       {Icon && <Icon size={16} strokeWidth={1.5} aria-hidden="true" className="shrink-0 text-ink-2 group-disabled:text-ink-3" />}
       <span className="min-w-0 flex-1 truncate">{children}</span>
+      {hint && <span data-menu-hint aria-hidden="true" className="shrink-0 pl-3 text-xs text-ink-3">{hint}</span>}
     </button>
   );
 }
