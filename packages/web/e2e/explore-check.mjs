@@ -90,6 +90,20 @@ await shot(viewer.page, '04-explore');
 await card.click();
 await viewer.page.waitForTimeout(500);
 check('a click on the Explore card selects it and stays on Explore', new URL(viewer.page.url()).pathname === '/explore');
+// An Explore card's Start Rabbit Hole asks there (owner, 2026-10-08): Cancel stays on Explore with nothing started.
+const exploreStarts = [];
+viewer.page.on('request', r => { if (r.method() === 'POST' && r.url().includes('/rabbit-hole')) exploreStarts.push(r.url()); });
+const cardStart = card.locator('[data-card-start-rabbit-hole]');
+if (await cardStart.count()) {
+  await cardStart.click();
+  const choice = viewer.page.getByRole('dialog', { name: 'Start a Rabbit Hole' });
+  await choice.waitFor({ timeout: 10000 });
+  check('an Explore card asks From this canvas or Blank, naming "<title> notes"', (await choice.innerText()).includes(`"${TITLE} notes"`)
+    && await choice.getByRole('button', { name: 'Blank', exact: true }).count() === 1 && await choice.getByRole('button', { name: 'From this canvas', exact: true }).count() === 1);
+  await choice.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await viewer.page.waitForTimeout(400);
+  check('Cancel starts nothing and stays on Explore', exploreStarts.length === 0 && new URL(viewer.page.url()).pathname === '/explore');
+}
 await card.locator('[data-card-title]').click();
 await viewer.page.waitForURL(new RegExp(`/e/${token}$`), { timeout: 30000 });
 await viewer.page.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 60000 });
@@ -130,7 +144,9 @@ check('Fork signed out -> sign in -> the fork is made from the same publication,
 await anon.context.clearCookies();
 await anon.page.goto(`${BASE}/e/${token}`);
 await anon.page.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 60000 });
-const wrongHole = await signInThen('[data-start-rabbit-hole]', `/e/${token}?rabbit=root`);
+// Start Rabbit Hole asks From this canvas or Blank first (owner, 2026-10-08); the choice rides the sign-in.
+const fromThisCanvas = async () => { const choice = anon.page.getByRole('dialog', { name: 'Start a Rabbit Hole' }); await choice.waitFor({ timeout: 30000 }); await choice.getByRole('button', { name: 'From this canvas', exact: true }).click(); };
+const wrongHole = await signInThen('[data-start-rabbit-hole]', `/e/${token}?rabbit=root`, fromThisCanvas);
 await anon.page.waitForURL(/\/apps\/canvas-[a-f0-9]{8}$/, { timeout: 60000 });
 const tree = (await api(who.late, `/api/canvases/dives?app=${new URL(anon.page.url()).pathname.split('/').pop()}&board=main`)).body;
 check('Start Rabbit Hole signed out -> sign in -> a private hole from the same publication', wrongHole === null && tree.path?.[0]?.href === `/e/${token}`, wrongHole || JSON.stringify(tree.path?.[0] || {}));

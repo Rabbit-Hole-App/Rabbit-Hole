@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { ChevronRight, Loader2, MessageSquare, Plus, SquareSlash, X } from 'lucide-react';
 import ChatComposer, { COMPOSER_ADD, COMPOSER_PILL, DOCK_PAD } from '../ChatComposer.jsx';
+import { CommandIcon, CommandMark, commandTone } from '../CommandTone.jsx';
 import { api, navigate } from '../api.js';
 import { START_PATHS, slugOf } from '../start.js';
 import { PATH_ICONS } from '../start-icons.js';
@@ -464,7 +465,8 @@ export default function AgentBar({ page }) {
                 {entry.shortcut && !entries[i - 1]?.shortcut && i > 0 && <div role="separator" className="my-1 border-t border-line" />}
                 <div role="option" aria-selected={i === hiIndex} aria-disabled={!can.ok} onMouseDown={(e) => { e.preventDefault(); pick(entry); }}
                   className={cn('flex items-center gap-3 rounded-sm px-2 py-1.5 text-sm', can.ok ? 'cursor-pointer' : 'cursor-default', i === hiIndex && 'bg-hover')}>
-                  <span className={cn('w-20 shrink-0 font-medium', !can.ok && 'text-ink-3')}>/{m}</span>
+                  {/* Each command's own colour, as on the canvas (slash-command-tones.md); a mode not offered here stays grey. */}
+                  <span data-picker-name className="w-24 shrink-0">{can.ok ? <CommandMark name={m} /> : <span className="font-medium text-ink-3">/{m}</span>}</span>
                   <span title={can.ok ? undefined : can.reason} className={cn('min-w-0 flex-1 truncate', can.ok ? 'text-ink-2' : 'text-ink-3')}>{can.ok ? desc : can.short || can.reason}</span>
                 </div>
                 </div>
@@ -524,10 +526,10 @@ export default function AgentBar({ page }) {
             {!sheet && line && !panelHosts(surface, line.scope) && <button type="button" data-result-open aria-label="Open the conversation" title={lineOf(line)}
               onMouseDown={(e) => e.preventDefault()} onClick={() => setSheet(line.scope)} className={COMPOSER_ADD}><MessageSquare size={16} /></button>}
             {shortcut
-            ? <span data-command-pill className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg bg-hover pr-1.5 pl-2.5 text-sm text-ink">{shortcut}<button type="button" aria-label="Remove the command" onClick={() => { setShortcut(null); inputRef.current?.focus(); }} className="cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button></span>
+            ? <span data-command-pill data-command-tone={commandTone(shortcut) || undefined} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg border bg-hover pr-1.5 pl-2.5 text-sm text-ink">/{shortcut}<button type="button" aria-label="Remove the command" onClick={() => { setShortcut(null); inputRef.current?.focus(); }} className="cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button></span>
             : mode === 'auto'
             ? <button type="button" aria-haspopup="listbox" aria-expanded={pickerOpen} onMouseDown={(e) => { e.preventDefault(); setPicker(!picker); }} className={COMPOSER_PILL}>Auto</button>
-            : <span data-command-pill className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg bg-hover pr-1.5 pl-2.5 text-sm text-ink">{mode}<button type="button" aria-label="Back to Auto" onClick={() => setMode('auto')} className="cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button></span>}
+            : <span data-command-pill data-command-tone={commandTone(mode) || undefined} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg border bg-hover pr-1.5 pl-2.5 text-sm text-ink"><CommandIcon name={mode} />/{mode}<button type="button" aria-label="Back to Auto" onClick={() => setMode('auto')} className="cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button></span>}
           </>} />
       </div>
     </div>

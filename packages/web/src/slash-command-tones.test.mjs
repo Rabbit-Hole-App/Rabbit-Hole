@@ -47,7 +47,8 @@ test('the same command looks the same everywhere: the / picker, the composer pil
   // CommandTone.jsx is JSX; the map is read from its source when node cannot load it.
   const source = read('./CommandTone.jsx');
   assert.match(source, /export const COMMAND_ICONS = \{ ask: CircleHelp, teach: Sparkles, research: Telescope, do: Play, motion: Clapperboard \};/);
-  if (commandTone) { assert.equal(commandTone('ask'), 'ask'); assert.equal(commandTone('quiz'), null); assert.equal(Object.keys(COMMAND_ICONS).length, 5); }
+  assert.match(source, /export const COMMAND_TONES = SLASH\.map\(\(command\) => command\.name\);/, 'every command in the registry is toned');
+  if (commandTone) { assert.equal(commandTone('ask'), 'ask'); assert.equal(commandTone('quiz'), 'quiz'); assert.equal(commandTone('auto'), null); assert.equal(Object.keys(COMMAND_ICONS).length, 5); }
   assert.match(read('./LearnSlash.jsx'), /<CommandMark name=\{item\.name\} className="text-ink" \/>/);
   assert.match(read('./SlashCommandsSheet.jsx'), /<CommandMark name=\{item\.name\} \/>/);
   const ask = read('./ask.jsx');
@@ -57,4 +58,32 @@ test('the same command looks the same everywhere: the / picker, the composer pil
   assert.match(ask, /className=\{cn\(dock \? COMPOSER_PILL : [^}]+\}>Auto<\/button>/);
   assert.match(ask, /data-canvas-target \{\.\.\.\(canvasTarget\.card[^\n]+className="mb-1\.5 inline-flex max-w-full items-center gap-1\.5 rounded-full border border-line bg-hover/);
   assert.match(css, /\[data-command-tone\] \{ background-color: var\(--cmd-bg\); color: var\(--cmd-fg\); border-color: var\(--cmd-line\); \}/);
+});
+
+// Owner, 2026-10-08: every /command its own colour - one token set per command in the registry, readable in both
+// themes, never red, never the primary blue, and never two commands alike.
+test('every command in the registry has its own colour in both themes; no two share one', async () => {
+  const { SLASH } = await import('./agent/slash.js');
+  const names = SLASH.map((command) => command.name);
+  assert.ok(names.length >= 30, `${names.length} commands`);
+  const accent = token('light', '--color-accent');
+  for (const theme of ['light', 'dark']) {
+    const seen = new Map();
+    for (const name of names) {
+      const bg = token(theme, `--cmd-${name}-bg`), fg = token(theme, `--cmd-${name}-fg`), line = token(theme, `--cmd-${name}-line`);
+      assert.ok(bg && fg && line, `${theme} /${name} tokens`);
+      assert.ok(contrast(fg, bg) >= 4.5, `${theme} /${name}: ${contrast(fg, bg).toFixed(2)}:1`);
+      const h = hue(fg);
+      assert.ok(h > 15 && h < 345, `${theme} /${name} is not red (${h?.toFixed(0)})`);
+      assert.notEqual(fg, accent, `${theme} /${name} is not the primary blue`);
+      for (const value of [fg, bg]) { assert.ok(!seen.has(value), `${theme} /${name} shares ${value} with /${seen.get(value)}`); seen.set(value, name); }
+    }
+  }
+  for (const name of names) assert.ok(css.includes(`[data-command-tone="${name}"] { --cmd-bg: var(--cmd-${name}-bg); --cmd-fg: var(--cmd-${name}-fg); --cmd-line: var(--cmd-${name}-line); }`), `/${name} rule`);
+  // The bar's picker rows and pills wear the same mark as the canvas's.
+  const bar = read('./agent/AgentBar.jsx');
+  assert.match(bar, /\{can\.ok \? <CommandMark name=\{m\} \/> : <span className="font-medium text-ink-3">\/\{m\}<\/span>\}/);
+  assert.match(bar, /data-command-pill data-command-tone=\{commandTone\(mode\) \|\| undefined\}/);
+  assert.match(bar, /data-command-pill data-command-tone=\{commandTone\(shortcut\) \|\| undefined\}/);
+  assert.match(bar, /className=\{COMPOSER_PILL\}>Auto<\/button>/, 'Auto stays neutral');
 });

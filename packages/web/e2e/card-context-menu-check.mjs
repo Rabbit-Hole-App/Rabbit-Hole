@@ -272,6 +272,11 @@ await check('7 on a shared view-only board the menu starts the viewer\'s own Rab
   assert.deepEqual((await menu().locator('[role="menuitem"]').allInnerTexts()).map(text => text.trim()), ['Start Rabbit Hole']);
   await shot('04-shared-view-only-menu');
   await startItem().click();
+  // It asks first, as the header does (owner, 2026-10-08), naming the right-clicked card; nothing starts until a choice.
+  const choice = page.getByRole('dialog', { name: 'Start a Rabbit Hole' });
+  await choice.waitFor({ timeout: 10000 });
+  assert.equal(sent.length, 0, 'the menu only asked');
+  await choice.getByRole('button', { name: 'From this canvas', exact: true }).click();
   await page.waitForFunction(() => /^\/apps\/canvas-[a-f0-9]{8}/.test(location.pathname), null, { timeout: 30000 });
   assert.equal(sent.length, 1, 'one start');
   assert.equal(sent[0].origin?.block_id, 'm-b', JSON.stringify(sent[0]));

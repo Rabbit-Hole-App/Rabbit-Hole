@@ -88,7 +88,8 @@ test('no Fork on your own canvas or cards; others\' cards carry one Fork with it
   for (const file of ['./LearnPage.jsx', './LibraryViews.jsx', './Home.jsx', './home/LearningCard.jsx']) {
     assert.doesNotMatch(code(file), /ForkButton|GitFork|data-card-fork|>Fork</, `${file} offers no Fork`);
   }
-  assert.match(code('./LibraryViews.jsx'), /<MenuItem icon=\{CopyPlus\} onClick=\{\(\) => pick\(duplicate\)\}>Duplicate<\/MenuItem>/, 'Duplicate copies your own');
+  assert.match(code('./home/CardMenu.jsx'), /<MenuItem icon=\{CopyPlus\} onClick=\{\(\) => pick\(duplicate\)\}>Duplicate<\/MenuItem>/, 'Duplicate copies your own');
+  assert.doesNotMatch(code('./home/CardMenu.jsx'), /ForkButton|GitFork|data-card-fork|>Fork</, 'the card menu offers no Fork');
   const cards = code('./home/PublicCards.jsx');
   assert.match(cards, /actions=\{mine \? null : \(/, 'your own Explore card has no Fork');
   assert.match(cards, /<ForkButton size="sm" variant="soft" source=\{\{ token: card\.url\.split\('\/'\)\.pop\(\) \}\} title=\{card\.title\} resume=\{card\.url\} count=\{card\.fork_count\} onForked=\{\(fork\) => go\(fork\.url\)\} \/>/);

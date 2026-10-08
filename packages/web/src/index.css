@@ -180,7 +180,7 @@ html {
 /* Slash-command identities (owner, 2026-10-06; CommandTone.jsx): one fixed family per command - a light tint, the
    family's text colour and a subtle border of the same family. Never the primary blue (--color-accent), never red.
    Each text colour clears 4.5:1 on its tint in both themes; .dark below gives each a dark tint and light text
-   (slash-command-tones.test.mjs). Every other command, and Auto, stays neutral. */
+   (slash-command-tones.test.mjs). Every command has its own (owner, 2026-10-08); only Auto stays neutral. */
 :root {
   --cmd-ask-bg: #ecfeff;
   --cmd-ask-fg: #155e75;
@@ -197,6 +197,88 @@ html {
   --cmd-motion-bg: #fdf4ff;
   --cmd-motion-fg: #86198f;
   --cmd-motion-line: #f5d0fe;
+  /* Every other command (owner, 2026-10-08): its own hue, spread round the wheel clear of red and the primary blue. */
+  --cmd-find-bg: #fdf2ec;
+  --cmd-find-fg: #703310;
+  --cmd-find-line: #f1c9b1;
+  --cmd-open-bg: #fdf5ec;
+  --cmd-open-fg: #764b1e;
+  --cmd-open-line: #f1d2b1;
+  --cmd-new-bg: #fdfbec;
+  --cmd-new-fg: #706010;
+  --cmd-new-line: #f1e7b1;
+  --cmd-connect-bg: #fdfdec;
+  --cmd-connect-fg: #76751e;
+  --cmd-connect-line: #f1f0b1;
+  --cmd-run-bg: #fbfdec;
+  --cmd-run-fg: #637010;
+  --cmd-run-line: #e9f1b1;
+  --cmd-deeper-bg: #f9fdec;
+  --cmd-deeper-fg: #5d761e;
+  --cmd-deeper-line: #dff1b1;
+  --cmd-dive-bg: #f6fdec;
+  --cmd-dive-fg: #457010;
+  --cmd-dive-line: #d4f1b1;
+  --cmd-simplify-bg: #f3fdec;
+  --cmd-simplify-fg: #41761e;
+  --cmd-simplify-line: #cbf1b1;
+  --cmd-example-bg: #f0fdec;
+  --cmd-example-fg: #287010;
+  --cmd-example-line: #c1f1b1;
+  --cmd-practice-bg: #eefdec;
+  --cmd-practice-fg: #26761e;
+  --cmd-practice-line: #b7f1b1;
+  --cmd-quiz-bg: #ecfded;
+  --cmd-quiz-fg: #107016;
+  --cmd-quiz-line: #b1f1b5;
+  --cmd-compare-bg: #ecfdf0;
+  --cmd-compare-fg: #1e7631;
+  --cmd-compare-line: #b1f1bf;
+  --cmd-source-bg: #ecfdf5;
+  --cmd-source-fg: #107041;
+  --cmd-source-line: #b1f1d2;
+  --cmd-explain-bg: #ecfdf8;
+  --cmd-explain-fg: #1e765a;
+  --cmd-explain-line: #b1f1dd;
+  --cmd-flashcards-bg: #ecfdfb;
+  --cmd-flashcards-fg: #107060;
+  --cmd-flashcards-line: #b1f1e7;
+  --cmd-code-bg: #ecfdfd;
+  --cmd-code-fg: #1e7675;
+  --cmd-code-line: #b1f1f0;
+  --cmd-graph-bg: #ecfbfd;
+  --cmd-graph-fg: #106370;
+  --cmd-graph-line: #b1e9f1;
+  --cmd-diagram-bg: #eceefd;
+  --cmd-diagram-fg: #1e2576;
+  --cmd-diagram-line: #b1b6f1;
+  --cmd-walkthrough-bg: #edecfd;
+  --cmd-walkthrough-fg: #161070;
+  --cmd-walkthrough-line: #b5b1f1;
+  --cmd-animate-bg: #f0ecfd;
+  --cmd-animate-fg: #311e76;
+  --cmd-animate-line: #bfb1f1;
+  --cmd-whiteboard-bg: #f5ecfd;
+  --cmd-whiteboard-fg: #411070;
+  --cmd-whiteboard-line: #d2b1f1;
+  --cmd-paper-bg: #f8ecfd;
+  --cmd-paper-fg: #5a1e76;
+  --cmd-paper-line: #ddb1f1;
+  --cmd-image-bg: #fbecfd;
+  --cmd-image-fg: #601070;
+  --cmd-image-line: #e7b1f1;
+  --cmd-video-bg: #fdecfb;
+  --cmd-video-fg: #761e6a;
+  --cmd-video-line: #f1b1e9;
+  --cmd-3d-bg: #fdecf9;
+  --cmd-3d-fg: #701054;
+  --cmd-3d-line: #f1b1df;
+  --cmd-notebook-bg: #fdecf6;
+  --cmd-notebook-fg: #761e4e;
+  --cmd-notebook-line: #f1b1d4;
+  --cmd-more-bg: #fdecf3;
+  --cmd-more-fg: #701036;
+  --cmd-more-line: #f1b1cb;
 }
 [data-command-tone] { background-color: var(--cmd-bg); color: var(--cmd-fg); border-color: var(--cmd-line); }
 [data-command-tone="ask"] { --cmd-bg: var(--cmd-ask-bg); --cmd-fg: var(--cmd-ask-fg); --cmd-line: var(--cmd-ask-line); }
@@ -204,6 +286,33 @@ html {
 [data-command-tone="research"] { --cmd-bg: var(--cmd-research-bg); --cmd-fg: var(--cmd-research-fg); --cmd-line: var(--cmd-research-line); }
 [data-command-tone="do"] { --cmd-bg: var(--cmd-do-bg); --cmd-fg: var(--cmd-do-fg); --cmd-line: var(--cmd-do-line); }
 [data-command-tone="motion"] { --cmd-bg: var(--cmd-motion-bg); --cmd-fg: var(--cmd-motion-fg); --cmd-line: var(--cmd-motion-line); }
+[data-command-tone="find"] { --cmd-bg: var(--cmd-find-bg); --cmd-fg: var(--cmd-find-fg); --cmd-line: var(--cmd-find-line); }
+[data-command-tone="open"] { --cmd-bg: var(--cmd-open-bg); --cmd-fg: var(--cmd-open-fg); --cmd-line: var(--cmd-open-line); }
+[data-command-tone="new"] { --cmd-bg: var(--cmd-new-bg); --cmd-fg: var(--cmd-new-fg); --cmd-line: var(--cmd-new-line); }
+[data-command-tone="connect"] { --cmd-bg: var(--cmd-connect-bg); --cmd-fg: var(--cmd-connect-fg); --cmd-line: var(--cmd-connect-line); }
+[data-command-tone="run"] { --cmd-bg: var(--cmd-run-bg); --cmd-fg: var(--cmd-run-fg); --cmd-line: var(--cmd-run-line); }
+[data-command-tone="deeper"] { --cmd-bg: var(--cmd-deeper-bg); --cmd-fg: var(--cmd-deeper-fg); --cmd-line: var(--cmd-deeper-line); }
+[data-command-tone="dive"] { --cmd-bg: var(--cmd-dive-bg); --cmd-fg: var(--cmd-dive-fg); --cmd-line: var(--cmd-dive-line); }
+[data-command-tone="simplify"] { --cmd-bg: var(--cmd-simplify-bg); --cmd-fg: var(--cmd-simplify-fg); --cmd-line: var(--cmd-simplify-line); }
+[data-command-tone="example"] { --cmd-bg: var(--cmd-example-bg); --cmd-fg: var(--cmd-example-fg); --cmd-line: var(--cmd-example-line); }
+[data-command-tone="practice"] { --cmd-bg: var(--cmd-practice-bg); --cmd-fg: var(--cmd-practice-fg); --cmd-line: var(--cmd-practice-line); }
+[data-command-tone="quiz"] { --cmd-bg: var(--cmd-quiz-bg); --cmd-fg: var(--cmd-quiz-fg); --cmd-line: var(--cmd-quiz-line); }
+[data-command-tone="compare"] { --cmd-bg: var(--cmd-compare-bg); --cmd-fg: var(--cmd-compare-fg); --cmd-line: var(--cmd-compare-line); }
+[data-command-tone="source"] { --cmd-bg: var(--cmd-source-bg); --cmd-fg: var(--cmd-source-fg); --cmd-line: var(--cmd-source-line); }
+[data-command-tone="explain"] { --cmd-bg: var(--cmd-explain-bg); --cmd-fg: var(--cmd-explain-fg); --cmd-line: var(--cmd-explain-line); }
+[data-command-tone="flashcards"] { --cmd-bg: var(--cmd-flashcards-bg); --cmd-fg: var(--cmd-flashcards-fg); --cmd-line: var(--cmd-flashcards-line); }
+[data-command-tone="code"] { --cmd-bg: var(--cmd-code-bg); --cmd-fg: var(--cmd-code-fg); --cmd-line: var(--cmd-code-line); }
+[data-command-tone="graph"] { --cmd-bg: var(--cmd-graph-bg); --cmd-fg: var(--cmd-graph-fg); --cmd-line: var(--cmd-graph-line); }
+[data-command-tone="diagram"] { --cmd-bg: var(--cmd-diagram-bg); --cmd-fg: var(--cmd-diagram-fg); --cmd-line: var(--cmd-diagram-line); }
+[data-command-tone="walkthrough"] { --cmd-bg: var(--cmd-walkthrough-bg); --cmd-fg: var(--cmd-walkthrough-fg); --cmd-line: var(--cmd-walkthrough-line); }
+[data-command-tone="animate"] { --cmd-bg: var(--cmd-animate-bg); --cmd-fg: var(--cmd-animate-fg); --cmd-line: var(--cmd-animate-line); }
+[data-command-tone="whiteboard"] { --cmd-bg: var(--cmd-whiteboard-bg); --cmd-fg: var(--cmd-whiteboard-fg); --cmd-line: var(--cmd-whiteboard-line); }
+[data-command-tone="paper"] { --cmd-bg: var(--cmd-paper-bg); --cmd-fg: var(--cmd-paper-fg); --cmd-line: var(--cmd-paper-line); }
+[data-command-tone="image"] { --cmd-bg: var(--cmd-image-bg); --cmd-fg: var(--cmd-image-fg); --cmd-line: var(--cmd-image-line); }
+[data-command-tone="video"] { --cmd-bg: var(--cmd-video-bg); --cmd-fg: var(--cmd-video-fg); --cmd-line: var(--cmd-video-line); }
+[data-command-tone="3d"] { --cmd-bg: var(--cmd-3d-bg); --cmd-fg: var(--cmd-3d-fg); --cmd-line: var(--cmd-3d-line); }
+[data-command-tone="notebook"] { --cmd-bg: var(--cmd-notebook-bg); --cmd-fg: var(--cmd-notebook-fg); --cmd-line: var(--cmd-notebook-line); }
+[data-command-tone="more"] { --cmd-bg: var(--cmd-more-bg); --cmd-fg: var(--cmd-more-fg); --cmd-line: var(--cmd-more-line); }
 
 /* Dark appearance (Settings → Appearance). Tailwind v4 utilities read CSS vars,
    so one override block re-skins every token - including bg-white surfaces via
@@ -255,6 +364,87 @@ html {
   --cmd-motion-bg: #2f1233;
   --cmd-motion-fg: #f5d0fe;
   --cmd-motion-line: #86198f;
+  --cmd-find-bg: #341f14;
+  --cmd-find-fg: #f9cdb4;
+  --cmd-find-line: #824826;
+  --cmd-open-bg: #342414;
+  --cmd-open-fg: #f7cda1;
+  --cmd-open-line: #825626;
+  --cmd-new-bg: #342e14;
+  --cmd-new-fg: #f9edb4;
+  --cmd-new-line: #827326;
+  --cmd-connect-bg: #343314;
+  --cmd-connect-fg: #f7f6a1;
+  --cmd-connect-line: #828126;
+  --cmd-run-bg: #2f3414;
+  --cmd-run-fg: #f0f9b4;
+  --cmd-run-line: #768226;
+  --cmd-deeper-bg: #2b3414;
+  --cmd-deeper-fg: #dff7a1;
+  --cmd-deeper-line: #688226;
+  --cmd-dive-bg: #253414;
+  --cmd-dive-fg: #daf9b4;
+  --cmd-dive-line: #598226;
+  --cmd-simplify-bg: #203414;
+  --cmd-simplify-fg: #c3f7a1;
+  --cmd-simplify-line: #4b8226;
+  --cmd-example-bg: #1c3414;
+  --cmd-example-fg: #c5f9b4;
+  --cmd-example-line: #3d8226;
+  --cmd-practice-bg: #173414;
+  --cmd-practice-fg: #a9f7a1;
+  --cmd-practice-line: #2f8226;
+  --cmd-quiz-bg: #143416;
+  --cmd-quiz-fg: #b4f9b8;
+  --cmd-quiz-line: #26822c;
+  --cmd-compare-bg: #14341b;
+  --cmd-compare-fg: #a1f7b3;
+  --cmd-compare-line: #26823a;
+  --cmd-source-bg: #143424;
+  --cmd-source-fg: #b4f9d7;
+  --cmd-source-line: #268256;
+  --cmd-explain-bg: #14342a;
+  --cmd-explain-fg: #a1f7dc;
+  --cmd-explain-line: #268265;
+  --cmd-flashcards-bg: #14342e;
+  --cmd-flashcards-fg: #b4f9ed;
+  --cmd-flashcards-line: #268273;
+  --cmd-code-bg: #143433;
+  --cmd-code-fg: #a1f7f6;
+  --cmd-code-line: #268281;
+  --cmd-graph-bg: #142f34;
+  --cmd-graph-fg: #b4f0f9;
+  --cmd-graph-line: #267682;
+  --cmd-diagram-bg: #141634;
+  --cmd-diagram-fg: #a1a8f7;
+  --cmd-diagram-line: #262e82;
+  --cmd-walkthrough-bg: #161434;
+  --cmd-walkthrough-fg: #b8b4f9;
+  --cmd-walkthrough-line: #2c2682;
+  --cmd-animate-bg: #1b1434;
+  --cmd-animate-fg: #b3a1f7;
+  --cmd-animate-line: #3a2682;
+  --cmd-whiteboard-bg: #241434;
+  --cmd-whiteboard-fg: #d7b4f9;
+  --cmd-whiteboard-line: #562682;
+  --cmd-paper-bg: #2a1434;
+  --cmd-paper-fg: #dca1f7;
+  --cmd-paper-line: #652682;
+  --cmd-image-bg: #2e1434;
+  --cmd-image-fg: #edb4f9;
+  --cmd-image-line: #732682;
+  --cmd-video-bg: #34142f;
+  --cmd-video-fg: #f7a1ec;
+  --cmd-video-line: #822676;
+  --cmd-3d-bg: #34142b;
+  --cmd-3d-fg: #f9b4e5;
+  --cmd-3d-line: #822668;
+  --cmd-notebook-bg: #341425;
+  --cmd-notebook-fg: #f7a1d0;
+  --cmd-notebook-line: #822659;
+  --cmd-more-bg: #341420;
+  --cmd-more-fg: #f9b4cf;
+  --cmd-more-line: #82264b;
   --shadow-pop: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 3px 6px rgba(0, 0, 0, 0.3), 0 9px 24px rgba(0, 0, 0, 0.5);
   color-scheme: dark;
 

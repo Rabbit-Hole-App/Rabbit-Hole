@@ -9,10 +9,25 @@ Duplicate
 ─────────────
 Visibility ›    Private · Unlisted · Public   (the current one checked)
 Share / Manage link
+Copy link
 ─────────────
 Archive
 Move to Trash
 ```
+
+**One menu** (owner, 2026-10-08): `home/CardMenu.jsx` `useCardMenu`, the same ⋮ on the Library's cards and on Home's
+Recent cards. It opens in place and stays inside the window (`menuAt`).
+- A card shows a ⋮ only where the menu has items (`hasCardMenu`): your own canvas, or a project.
+- On Home the menu asks its own Archive confirm, in the Library's words.
+
+**Copy link** (owner, 2026-10-08) copies the link that matches what the card is (`canvas-visibility.js` `copyLinkFor`):
+- **Public:** `/e/<token>`.
+- **Unlisted:** its share link `/b/<view token>`, read from the board as it copies.
+- **Private, or a project:** `/apps/<name>`, which opens only for you.
+
+The row itself says which link it copied ("Public link copied", "Share link copied", "Private link copied, opens only for
+you"), then the menu closes, with no corner toast. A project's ⋮ has Copy link too. Others' cards keep their own Copy link
+(`PublicCards`).
 
 "Archive", without an ellipsis (owner, 2026-10-08); its confirmation still asks first.
 

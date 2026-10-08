@@ -30,6 +30,9 @@ Owner changes, 2026-10-08:
 - **The Library title row** ("put sort and filter next to each other", "put a search near filter and sort"): Search by
   name, Filters, Sort, then Start a rabbit hole, in one row (`App.jsx`). Search narrows the cards by title (a project's
   repository too), case-insensitive; Sort keeps its per-viewer memory.
+- **⋮ on Home's Recent cards** (owner, 2026-10-08): the Library's own card menu (`home/CardMenu.jsx`), with Copy link
+  (visibility-menu.md). It shows only where the Library shows one: your own canvases and projects.
+- **Start Rabbit Hole on others' cards asks From this canvas or Blank** (shared-canvas-rabbit-hole.md).
 - **A canvas is `Shapes`, not a pen** ("choose another symbol for Canvas instead of that pen"), on the card tile, the
   kind icon (Search, sidebar rows) and the Library's Filters.
 

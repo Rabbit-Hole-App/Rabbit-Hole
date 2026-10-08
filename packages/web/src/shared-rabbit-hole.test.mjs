@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { rabbitOrigin, requestRabbitHole, resumeHref, takeResume } from './shared-rabbit-hole.js';
+import { BLANK, rabbitOrigin, requestRabbitHole, resumeHref, startHref, takeResume } from './shared-rabbit-hole.js';
 
 test('the origin is the selected card\'s identities, or null for the canvas itself', () => {
   assert.equal(rabbitOrigin({ blocks: [] }, null), null);
@@ -81,4 +81,33 @@ test('the implementation special-cases no board, lesson, topic, card type or sha
   for (const [name, code] of [['server route', route], ['client', client], ['button', button]]) {
     assert.doesNotMatch(code, /nano ?gpt|karpathy|attention|softmax|token id|deep-dive|board=|\b(quiz|challenge|flashcards|scene|video|wiki|paper|notebook)\b'|['"](quiz|challenge|flashcards|video|wiki|paper)['"]/i, name);
   }
+});
+
+// Owner, 2026-10-08: Start Rabbit Hole on someone else's canvas asks From this canvas or Blank; the choice survives sign-in.
+test('Blank rides the same start: its body names no card or step, and ?rabbit=blank survives sign-in', async () => {
+  const sent = [];
+  const fetchImpl = async (path, init) => { sent.push([path, JSON.parse(init.body)]); return new Response(JSON.stringify({ url: '/apps/canvas-0000000b', name: 'canvas-0000000b' }), { status: 201 }); };
+  assert.deepEqual(await requestRabbitHole('tok', BLANK, { fetchImpl, step: { set_id: 'x' } }), { url: '/apps/canvas-0000000b', existing: false });
+  assert.deepEqual(sent[0], ['/api/learn/boards/shared/tok/rabbit-hole', { origin: null, blank: true }], 'no card, no step');
+  assert.equal(resumeHref('/b/tok', BLANK), `/login?next=${encodeURIComponent('/b/tok?rabbit=blank')}`);
+  assert.equal(resumeHref('/b/tok', null), `/login?next=${encodeURIComponent('/b/tok?rabbit=root')}`, 'From this canvas is unchanged');
+  const replaced = [];
+  const history = { replaceState: (...args) => replaced.push(args) };
+  assert.equal(takeResume({ search: '?rabbit=blank', pathname: '/e/tok' }, history), BLANK);
+  assert.equal(takeResume({ search: '?rabbit=root', pathname: '/e/tok' }, history), null);
+  assert.deepEqual([startHref('/e/tok', BLANK), startHref('/e/tok', null)], ['/e/tok?rabbit=blank', '/e/tok?rabbit=root']);
+});
+
+test('every Start Rabbit Hole on someone else\'s canvas opens the choice first: the header, Explore cards, the card menu', () => {
+  const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const page = read('./SharedBoardPage.jsx'), cards = read('./home/PublicCards.jsx'), choice = read('./RabbitHoleChoice.jsx');
+  assert.match(choice, /<ConfirmDialog title="Start a Rabbit Hole" confirmLabel="From this canvas" confirmVariant="primary" altLabel="Blank"\n\s+onConfirm=\{\(\) => onPick\(card\?\.id \|\| null\)\} onAlt=\{\(\) => onPick\(BLANK\)\} onCancel=\{onCancel\}/);
+  assert.match(choice, /"\{title\} notes", linked back to this one\. Nothing is copied\./);
+  assert.match(page, /onClick=\{\(\) => ask\(card\?\.id \|\| null\)\}/, 'the header asks');
+  assert.match(page, /const startFromCard = useCallback\(cardId => rabbitAsk\.current\?\.\(cardId\), \[\]\);/, 'the card menu asks');
+  assert.match(page, /onPick=\{\(origin\) => \{ setAsking\(null\); run\(origin\); \}\}/);
+  assert.match(page, /useEffect\(\(\) => \{ if \(resume !== undefined\) run\(resume\.origin/, 'back from sign-in, the choice already made starts');
+  assert.match(page, /onPick=\{\(step, hook\) => startRef\.current\?\.\(card, step, hook\.id\)\}/, 'a Next Steps hook starts its own step, no popup');
+  assert.match(cards, /data-card-start-rabbit-hole onClick=\{stop\(\(\) => setStarting\(card\)\)\}/);
+  assert.match(cards, /onPick=\{\(origin\) => \{ setStarting\(null\); go\(startHref\(starting\.url, origin\)\); \}\}/);
 });

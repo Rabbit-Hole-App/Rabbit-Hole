@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { ArrowDownToLine, FolderGit2, Link2, X } from 'lucide-react';
 import { navigate } from '../api.js';
 import ForkButton from '../ForkButton.jsx';
+import RabbitHoleChoice from '../RabbitHoleChoice.jsx';
+import { startHref } from '../shared-rabbit-hole.js';
 import LearningCard, { CARD_GRID, menuAt } from './LearningCard.jsx';
 import { cardModel } from './provenance.js';
 import { findQuery, readFind, scheduleFind } from './explore-find.js';
@@ -9,8 +11,8 @@ import { Avatar, Button, Menu, MenuItem, toast } from '../ui.jsx';
 
 // Public explainers on the canonical card (docs/features/card-redesign.md), the same for Explore and the creator profile
 // (docs/features/creator-profile.md; owner: reuse the SAME card, never a creator-specific one). The card and its title
-// open /e/<token>; the @handle opens /@handle. Others' cards offer Start Rabbit Hole (blue), through the published page's
-// resume flow (?rabbit=root), and [Fork | N] (neutral), whose dialog opens here and, signed out, resumes on the page
+// open /e/<token>; the @handle opens /@handle. Others' cards offer Start Rabbit Hole (blue), which asks From this canvas or
+// Blank here and starts on the published page (?rabbit=root or ?rabbit=blank, through sign-in too), and [Fork | N] (neutral), whose dialog opens here and, signed out, resumes on the page
 // (?fork=1); the count lives in that button alone. Your own carry the Owned-by-you badge instead, and the footer's read-only
 // N forks once someone forked it (owner, 2026-10-08). The order is the server's: this list never reorders.
 const stop = (fn) => (e) => { e.stopPropagation(); fn(e); };
@@ -19,6 +21,7 @@ const go = (url) => window.location.assign(url);
 
 export default function PublicCards({ cards, me, attr }) {
   const [menu, setMenu] = useState(null); // { card, top | bottom, left }
+  const [starting, setStarting] = useState(null); // the card whose Start Rabbit Hole is asking
   const copy = async (card) => {
     setMenu(null);
     try { await navigator.clipboard.writeText(`${window.location.origin}${card.url}`); toast('Link copied'); } catch { toast('Could not copy the link', { tone: 'error' }); }
@@ -37,8 +40,8 @@ export default function PublicCards({ cards, me, attr }) {
               onMore={(e) => setMenu({ card, ...menuAt(e.currentTarget, 192, 60) })}
               actions={mine ? null : (
                 <>
-                  <Button size="sm" variant="primary" data-card-start-rabbit-hole onClick={stop(() => go(`${card.url}?rabbit=root`))}
-                    title="Start your own private Rabbit Hole from this canvas. This canvas stays as it is."><ArrowDownToLine size={13} strokeWidth={1.8} />Start Rabbit Hole</Button>
+                  <Button size="sm" variant="primary" data-card-start-rabbit-hole onClick={stop(() => setStarting(card))}
+                    title="Start your own private Rabbit Hole from this canvas, or a blank canvas. This canvas stays as it is."><ArrowDownToLine size={13} strokeWidth={1.8} />Start Rabbit Hole</Button>
                   {/* The soft accent fill: more visible on the card than a white button, still below the primary (owner, 2026-10-08). */}
                   <ForkButton size="sm" variant="soft" source={{ token: card.url.split('/').pop() }} title={card.title} resume={card.url} count={card.fork_count} onForked={(fork) => go(fork.url)} />
                 </>
@@ -46,6 +49,7 @@ export default function PublicCards({ cards, me, attr }) {
           );
         })}
       </ul>
+      {starting && <RabbitHoleChoice title={starting.title} onCancel={() => setStarting(null)} onPick={(origin) => { setStarting(null); go(startHref(starting.url, origin)); }} />}
       <Menu portal open={!!menu} onClose={() => setMenu(null)} style={{ top: menu?.top, bottom: menu?.bottom, left: menu?.left }} className="w-48">
         <MenuItem icon={Link2} data-menu-copy-link onClick={() => copy(menu.card)}>Copy link</MenuItem>
       </Menu>
