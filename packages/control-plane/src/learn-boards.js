@@ -44,7 +44,7 @@ async function putAsset(req, env, row, key) {
   return json({ key, size: bytes.byteLength });
 }
 
-async function getAsset(env, row, key) {
+export async function getAsset(env, row, key) {
   if (!learnMedia(env) || !ASSET_KEY.test(key)) return json({ error: 'No such file on this board' }, 404);
   const object = await learnMedia(env).get(await assetObject(row, key));
   if (!object) return json({ error: 'No such file on this board' }, 404);
@@ -101,9 +101,10 @@ async function saveOwn(env, owner, app, board, body) {
   const row = await ownerRow(env, owner, app, board);
   const now = new Date().toISOString();
   if (!row) {
+    const id = crypto.randomUUID();
     await env.LEARN_DB.prepare('INSERT INTO learn_boards (id, org, owner_email, app, board, state_json, version, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)')
-      .bind(crypto.randomUUID(), owner.org, owner.email, app, board, state.text, owner.email, now).run();
-    return json({ version: 1, sharing: sharingOf(null) });
+      .bind(id, owner.org, owner.email, app, board, state.text, owner.email, now).run();
+    return json({ version: 1, board_id: id, sharing: sharingOf(null) });
   }
   if (Number.isInteger(body.version) && body.version !== row.version) return json({ error: 'This board changed since you opened it.', version: row.version }, 409);
   await env.LEARN_DB.prepare('UPDATE learn_boards SET state_json = ?, version = version + 1, updated_by = ?, updated_at = ? WHERE id = ?').bind(state.text, owner.email, now, row.id).run();
@@ -111,7 +112,7 @@ async function saveOwn(env, owner, app, board, body) {
   // board's first server copy (a sync of what the browser already had: sharing, publishing; over a canvas's empty
   // version 0 board too), is not.
   if (CANVAS.test(app) && row.version && state.text !== row.state_json) await touchCanvas(env.LEARN_DB, owner.org, app).run();
-  return json({ version: row.version + 1, sharing: sharingOf(row) });
+  return json({ version: row.version + 1, board_id: row.id, sharing: sharingOf(row) });
 }
 
 // Turn sharing and each link on or off. A link switched back on gets a new
@@ -527,7 +528,13 @@ async function openShared(req, env, token) {
   // no creator. Never the owner's email: a link may be opened by anyone it reaches.
   const made = await env.LEARN_DB.prepare(`SELECT h.handle, ${NAME_OF('h.email')} AS name FROM user_handles h WHERE h.email = ?`).bind(row.owner_email).first();
   const creator = made ? { handle: made.handle, name: made.name ?? null } : null;
+  // Comments on a share link (docs/features/canvas-comments.md section 5): the owner and active members get the members
+  // panel, keyed by the board id; any other link viewer gets today's page, and nothing about members.
+  const signedIn = viewer instanceof Response ? null : viewer;
+  const member = canvas && row.board === 'main' && !found.publication && signedIn && (signedIn.email === row.owner_email
+    || (signedIn.userId && await env.LEARN_DB.prepare("SELECT 1 FROM canvas_members WHERE org = ? AND canvas = ? AND member_user_id = ? AND status = 'active'").bind(row.org, row.app, signedIn.userId).first()));
   return json({ role, published: !!found.publication, app: hidden ? null : row.app, board: row.board, title: sharedTitle(row, canvas?.title, source), creator, fork_count: canvas ? canvas.fork_count : null, version: row.version, updated_at: row.updated_at,
+    ...(member ? { member_board_id: row.id } : {}),
     viewer: viewer instanceof Response ? null : viewer.email, context: { repository: source?.allowed ? { repo: source.repo, commit: source.commit } : null, sources: boardSources(state) }, state });
 }
 
@@ -638,7 +645,8 @@ export async function learnBoardsRoute(path, req, env) {
   }
   if (req.method === 'GET') {
     const row = await ownerRow(env, owner, app, board);
-    return row ? json({ version: row.version, updated_by: row.updated_by, updated_at: row.updated_at, title: row.title || null, forked_from: row.forked_from ? JSON.parse(row.forked_from) : null, sharing: await ownerSharing(env, row), state: JSON.parse(row.state_json) }) : json({ exists: false, sharing: sharingOf(null) });
+    // board_id: the owner's own key for the canvas's comments (docs/features/canvas-comments.md); never shown to a viewer.
+    return row ? json({ version: row.version, board_id: row.id, updated_by: row.updated_by, updated_at: row.updated_at, title: row.title || null, forked_from: row.forked_from ? JSON.parse(row.forked_from) : null, sharing: await ownerSharing(env, row), state: JSON.parse(row.state_json) }) : json({ exists: false, sharing: sharingOf(null) });
   }
   if (req.method === 'PUT') return saveOwn(env, owner, app, board, await readBody(req));
   return json({ error: 'Method not allowed' }, 405);

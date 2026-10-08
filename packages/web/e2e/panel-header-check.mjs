@@ -84,7 +84,7 @@ await check('1 the header is five icon buttons in the owner\'s order, no visible
   await openPanel();
   const header = page.locator('[data-panel-header]');
   const names = await header.locator('button').evaluateAll(nodes => nodes.map(node => [node.getAttribute('aria-label'), node.getAttribute('title')]));
-  assert.deepEqual(names, [['Find text on canvas', 'Find text on canvas'], ['Table of contents', 'Table of contents'], ['Comments', 'Comments (coming later)'], ['Keep sidebar open', 'Keep sidebar open'], ['Close sidebar', 'Close sidebar']]);
+  assert.deepEqual(names, [['Find text on canvas', 'Find text on canvas'], ['Table of contents', 'Table of contents'], ['Comments', 'Comments'], ['Keep sidebar open', 'Keep sidebar open'], ['Close sidebar', 'Close sidebar']]);
   assert.equal((await header.innerText()).trim(), '', 'icons only');
   assert.equal(await header.locator('button svg').count(), 5);
   assert.equal(await page.locator('[data-panel-header] [role="tablist"] [role="tab"]').count(), 3, 'the three tabs share one group');
@@ -103,16 +103,17 @@ await check('2 Table of contents is the default tab: violet with a white icon, i
 await shot('01-header-toc-active', panel());
 await shot('01b-page-toc-active');
 
-await check('3 Comments is a placeholder: aria-disabled, its tooltip says coming later, a click selects nothing', async () => {
+// Comments is live on a saved canvas (docs/features/canvas-comments.md); comments-check.mjs covers the view itself.
+await check('3 Comments selects on a saved canvas and shows the Comments view; the Table of contents comes back', async () => {
   const comments = tab('Comments');
-  assert.equal(await comments.getAttribute('aria-disabled'), 'true');
-  assert.equal(await comments.getAttribute('title'), 'Comments (coming later)');
-  await comments.hover();
-  await comments.click({ force: true }); // a real press: Playwright itself refuses an aria-disabled target
-  await page.waitForTimeout(200);
+  assert.equal(await comments.getAttribute('aria-disabled'), null);
+  await comments.click();
+  await page.locator('[data-comments-panel]').waitFor();
+  assert.deepEqual(await selected(), ['comments']);
+  await tab('Table of contents').click();
   assert.deepEqual(await selected(), ['toc']);
 });
-await shot('02-comments-placeholder-hover', page.locator('[data-panel-header]'));
+await shot('02-comments-tab', page.locator('[data-panel-header]'));
 
 await check('4 one tab at a time: Find replaces the outline and takes the typing focus', async () => {
   await tab('Find text on canvas').click();
@@ -123,13 +124,15 @@ await check('4 one tab at a time: Find replaces the outline and takes the typing
   assert.equal(await findInput().evaluate(node => node === document.activeElement), true);
 });
 
-await check('5 arrow keys move between the enabled tabs and skip Comments', async () => {
+await check('5 arrow keys move between the enabled tabs, Comments included on a saved canvas, and wrap', async () => {
   await tab('Find text on canvas').focus();
   await page.keyboard.press('ArrowRight');
   assert.deepEqual(await selected(), ['toc']);
   await page.keyboard.press('ArrowRight');
-  assert.deepEqual(await selected(), ['find'], 'wraps past the disabled Comments');
-  await page.keyboard.press('ArrowLeft');
+  assert.deepEqual(await selected(), ['comments']);
+  await page.keyboard.press('ArrowRight');
+  assert.deepEqual(await selected(), ['find'], 'wraps');
+  await page.keyboard.press('ArrowRight');
   assert.deepEqual(await selected(), ['toc']);
   assert.equal(await tab('Table of contents').evaluate(node => node === document.activeElement), true);
   await page.keyboard.press('ArrowLeft');

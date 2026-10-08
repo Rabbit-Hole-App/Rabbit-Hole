@@ -100,10 +100,19 @@ const SHARED_BOARD = /^\/[be]\/([A-Za-z0-9_-]{20,64})$/;
 // /@<handle>: a creator's public profile, open to anyone (docs/features/creator-profile.md); Rabbit Hole only.
 const CREATOR = /^\/@([A-Za-z0-9_]{1,40})$/;
 
+// /c/<board id>: a canvas shared with you as a member; /i: an invitation (docs/features/canvas-comments.md). Rabbit Hole only.
+const MemberBoardPage = learnPreview ? lazy(() => import('./comments/MemberBoardPage.jsx')) : null;
+const InvitePage = learnPreview ? lazy(() => import('./comments/InvitePage.jsx')) : null;
+const MEMBER_BOARD = /^\/c\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+
 function Root() {
   const sharedBoard = window.location.pathname.match(SHARED_BOARD);
   const creator = CreatorProfilePage && window.location.pathname.match(CREATOR);
+  const memberBoard = MemberBoardPage && window.location.pathname.match(MEMBER_BOARD);
+  const invitation = InvitePage && window.location.pathname === '/i';
   const page = sharedBoard ? <Suspense fallback={null}><SharedBoardPage token={sharedBoard[1]} /><Toasts /></Suspense>
+    : memberBoard ? <Suspense fallback={null}><MemberBoardPage boardId={memberBoard[1]} /><Toasts /></Suspense>
+    : invitation ? <Suspense fallback={null}><InvitePage /></Suspense>
     : creator ? <Suspense fallback={null}><CreatorProfilePage handle={creator[1]} /></Suspense> : <AppRoot />;
   // Rabbit Hole: a signed-in person without a public @handle chooses one first, in place (HandleGate,
   // docs/features/user-handles.md), and then this same URL carries on.

@@ -14,6 +14,8 @@ import { chipHref, isMine, libraryHref, librarySections, ofType, SCOPES, SECTION
 import { Button, ConfirmDialog, Input, KindIcon, Menu, MenuItem, Pill, toast } from './ui.jsx';
 import { ACCESS, PRIVATE_CONFIRM, confirmsPrivate, setAccess } from './canvas-visibility.js';
 import { ExplainerAnalytics } from './CreatorAnalytics.jsx';
+import SharedWithYou from './comments/SharedWithYou.jsx';
+import { newComments, useCommentUnread } from './comments/unread.js';
 
 // The preview Library (T02 §4, user correction 2026-09-28): what you can return to, learn from
 // or build from. Projects and Canvases are cards; Apps are compact operational rows here and the
@@ -29,7 +31,9 @@ export default function LibraryViews({ apps, type, data, sort, onType, onArchive
   const [menu, setMenu] = useState(null); // { a, top | bottom, left }
   const [accessOpen, setAccessOpen] = useState(false); // the Visibility submenu, inside the same menu
   const [dialog, setDialog] = useState(null); // { kind: rename | describe | private | trash | analytics | share, a, value?, to?, state? }
-  const ctx = { org: data?.org, email: data?.email, storage: localStorage, catalog: data?.apps || [], onForked };
+  // Comment news (docs/features/canvas-comments.md): a line on your canvases' cards, and the canvases shared with you.
+  const unread = useCommentUnread();
+  const ctx = { org: data?.org, email: data?.email, storage: localStorage, catalog: data?.apps || [], onForked, unread: unread.owned };
   const more = (a) => stop((e) => { setAccessOpen(false); setMenu({ a, ...menuAt(e.currentTarget, 224) }); });
   const card = (a) => <LibraryCard key={a.name} a={a} ctx={ctx} onMore={more(a)} />;
   const recent = readRecent(localStorage);
@@ -76,6 +80,7 @@ export default function LibraryViews({ apps, type, data, sort, onType, onArchive
           ))}
         </div>
       )}
+      {!type && <SharedWithYou unread={unread.shared} />}
       <Menu portal open={!!menu} onClose={() => setMenu(null)} style={{ top: menu?.top, bottom: menu?.bottom, left: menu?.left }} className="w-56">
         {menu?.a.kind === 'repository' ? (
           <>
@@ -199,9 +204,11 @@ export function ActiveFilters({ type, section, archived }) {
 function LibraryCard({ a, ctx, onMore }) {
   const away = a.kind === 'canvas' && !a.fixture && onAnotherDevice(a, ctx.email, ctx.storage);
   // No 'Map ready' label (owner, 2026-10-04): only a Map still indexing or failed says so.
-  const note = a.fixture ? null
+  const state = a.fixture ? null
     : a.kind === 'canvas' ? (away ? ON_ANOTHER_DEVICE : browserOnly(a, ctx.email, ctx.storage) ? IN_THIS_BROWSER : null)
     : a.status !== 'ready' ? `Map ${a.status}` : null;
+  const news = a.kind === 'canvas' && !a.fixture ? newComments(ctx.unread?.[a.name]) : null;
+  const note = state || news ? <>{state}{news && <span data-comment-news className="font-medium text-accent">{news}</span>}</> : null;
   return (
     <LearningCard kind={a.kind} m={cardModel(a)} attrs={{ 'data-library-card': a.kind === 'repository' ? 'project' : 'canvas' }}
       href={a.fixture ? null : `/apps/${a.name}`} onOpen={() => open(a)} mine={!a.fixture && isMine(a, ctx.email)}

@@ -10,6 +10,7 @@ import { learnPreview } from './flags.js';
 import { onAnotherDevice } from './home/continue.js';
 import { chipHref, isMine, libraryQuery, ofType } from './library-filter.js';
 import LibraryViews, { ActiveFilters, LibraryFilters } from './LibraryViews.jsx';
+import SharedWithYou from './comments/SharedWithYou.jsx';
 import { SortMenu } from './home/LearningCard.jsx';
 import { LIBRARY_SORTS, readLibrarySort, saveLibrarySort } from './home/card-sort.js';
 import { fixturesOn, useFixtures } from './home/review-fixtures.js';
@@ -262,6 +263,8 @@ function AppContent({ data, load }) {
             <LibraryViews apps={found} type={type} data={data} sort={cardSort} runningOf={runningId} onRun={startRun} onArchive={setConfirmArchive} onForked={load}
               onType={(k) => navigate(chipHref(window.location.search, 'type', k))} />
           )}
+          {/* Someone only invited to others' canvases still has a Library: Shared with you (docs/features/canvas-comments.md). */}
+          {learnPreview && !archived && !type && data && !data.error && withFixtures.length === 0 && <SharedWithYou />}
           {!archived && (learnPreview ? type === 'apps' && sectionApps.length > 0 : apps.length > 0) && (
             <>
               <div className="flex h-8 items-center justify-end gap-1">

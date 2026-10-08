@@ -33,6 +33,8 @@ import { columnEntries, fillSlot, freeArea, freeSlot, indexAfter, panInto, slotI
 import { lightBlocks, persistBoard } from './canvas-persist.js';
 import { waitingText } from './waiting-text.js';
 import { pasteKind } from './canvas-paste.js';
+import CommentPins from './comments/CommentPins.jsx';
+import { anchorAt, objectLabel } from './comments/anchors.js';
 
 // The adaptive lesson canvas: a plain React surface (no tldraw). The world is
 // unbounded — a translate/scale camera pans and zooms it. Chat exchanges land
@@ -1198,10 +1200,12 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
 
 const CARDS_COPIED = 'rabbit-hole:copied-cards';
 
-export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, gutterTop = null, leftRail = null, onStartRabbitHole = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, gutterTop = null, leftRail = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null }) {
   // A view-only board pans and zooms with the hand and edits nothing.
   const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
   const readOnlyRef = useRef(readOnly);
+  // The C key's way in to Add comment (set each render where comments are on; null elsewhere).
+  const commentKeyRef = useRef(null);
   // OS drag-and-drop of files onto the surface; the page owns what each kind
   // becomes, the canvas only announces the hover and hands the files over.
   const [dropHover, setDropHover] = useState(false);
@@ -2104,7 +2108,22 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           return;
         }
       }
-      if (readOnlyRef.current) return;
+      // C (docs/features/canvas-comments.md, Q14): comment on the one selected or focused card, else arm the Comment tool,
+      // on any board where you may comment. It stands down while typing, inside an embedded editor or widget (focus
+      // inside a card), in a dialog or the composer, with Ctrl, Alt or Meta held (Ctrl+C still copies), and while presenting.
+      if ((event.key === 'c' || event.key === 'C') && !event.ctrlKey && !event.metaKey && !event.altKey && commentKeyRef.current && presentingRef.current === null) {
+        const held = document.activeElement;
+        const busy = held && held !== document.body && (held.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT', 'IFRAME'].includes(held.tagName)
+          || (!!held.closest?.('[data-block-id]') && !held.matches('[data-block-id]')) || !!held.closest?.('[data-chat-composer],[data-comments-panel],[role="dialog"],[role="menu"]'));
+        if (!busy) {
+          event.preventDefault();
+          const target = focusedCard || (selectedRef.current.length === 1 ? selectedRef.current[0] : null);
+          if (!target || !commentKeyRef.current.card(target)) commentKeyRef.current.arm();
+          return;
+        }
+      }
+      // A view-only board's one tool besides the hand is Comment: Esc puts the hand back.
+      if (readOnlyRef.current) { if (event.key === 'Escape') setTool('hand'); return; }
       // Presenting owns the keyboard: a walk, not an editing surface.
       if (presentingRef.current !== null) {
         if (event.key === 'Escape') { event.preventDefault(); stopPresentingRef.current(); return; }
@@ -2436,6 +2455,29 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const box = surface.current.getBoundingClientRect();
     return { x: (event.clientX - box.left - view.x) / view.z, y: (event.clientY - box.top - view.y) / view.z };
   };
+  // Add comment (docs/features/canvas-comments.md section 5): an anchor at a world point, on the object there (card-relative,
+  // so it follows the card) or on the canvas. The menu, the Comment tool and C all come here; the page's panel saves.
+  const commentAt = (world, id) => {
+    const entry = id ? [...exchanges, ...blocks, ...items, ...shapes].find(candidate => candidate.id === id) : null;
+    const kind = !entry ? null : exchanges.includes(entry) ? 'exchange' : blocks.includes(entry) ? 'block' : items.includes(entry) ? 'item' : 'shape';
+    onAddComment?.(anchorAt(world, entry && { id: entry.id, kind, label: objectLabel(entry) }, { bounds, items, shapes }));
+  };
+  // The Comment tool: one press places the draft's pin where it lands, then the tool goes back.
+  const placeComment = event => {
+    if (event.button !== 0) return;
+    event.preventDefault(); event.stopPropagation();
+    const at = local(event);
+    const hit = event.target.closest?.('[data-block-id],[data-item-id],[data-shape-id]');
+    const id = hit?.dataset.blockId || hit?.dataset.itemId || hit?.dataset.shapeId
+      || Object.entries(boundsRef.current).find(([, box]) => at.x >= box.x && at.x <= box.x + box.w && at.y >= box.y && at.y <= box.y + box.h)?.[0] || null;
+    setTool(readOnlyRef.current ? 'hand' : 'select');
+    commentAt(at, id);
+  };
+  // C (Q14): the one selected or focused card gets the comment, at its top left; otherwise C arms the Comment tool.
+  commentKeyRef.current = onAddComment ? {
+    card: id => { const box = boundsRef.current[id]; if (!box) return false; commentAt({ x: box.x + 24, y: box.y + 24 }, id); return true; },
+    arm: () => setTool('comment'),
+  } : null;
   const portPosition = (id, side) => {
     const shape = shapesRef.current.find(entry => entry.id === id);
     if (shape) return sidePoint(shapeBox(shape), side);
@@ -3117,7 +3159,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const inking = tool === 'pen' || tool === 'highlighter';
   const drawing = inking || shapeTool;
   // Ask about selection: the crosshair wins over every card's own cursor, slides included.
-  const cursor = tool === 'askArea' ? 'cursor-crosshair [&_*]:!cursor-crosshair' : tool === 'hand' ? 'cursor-grab' : inking || tool === 'eraser' || shapeTool ? 'cursor-crosshair' : tool === 'select' ? '' : 'cursor-copy';
+  const cursor = tool === 'askArea' || tool === 'comment' ? 'cursor-crosshair [&_*]:!cursor-crosshair' : tool === 'hand' ? 'cursor-grab' : inking || tool === 'eraser' || shapeTool ? 'cursor-crosshair' : tool === 'select' ? '' : 'cursor-copy';
   // The rail answers to the blank canvas right of the column, where its buttons
   // live; over the cards themselves it would only be in the way. Held by index
   // rather than by value so the line keeps following the cards as they move.
@@ -3206,7 +3248,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         onDragOver={event => event.preventDefault()} onDrop={event => event.preventDefault()}>
         <div data-left-stack className="absolute bottom-3 left-3 flex w-[clamp(208px,calc(50cqw-500px),300px)] flex-col items-start gap-2 [&>[data-tutor-caption]]:relative [&>[data-tutor-caption]]:inset-auto @max-[640px]:static @max-[640px]:w-full">{leftRail}</div>
       </div>}
-      <div ref={surface} data-canvas-surface onPointerDownCapture={tool === 'askArea' ? startArea : undefined} data-presenting={presenting !== null ? '' : undefined} onPointerDown={down} onPointerMove={trackGap} onPointerLeave={() => { if (!gapAdding) setHoverGap(null); }}
+      <div ref={surface} data-canvas-surface onPointerDownCapture={tool === 'askArea' ? startArea : tool === 'comment' ? placeComment : undefined} data-presenting={presenting !== null ? '' : undefined} onPointerDown={down} onPointerMove={trackGap} onPointerLeave={() => { if (!gapAdding) setHoverGap(null); }}
         onContextMenu={event => {
           event.preventDefault();
           if (event.ctrlKey || marqueeRef.current || presenting !== null) return;
@@ -3217,7 +3259,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             const at = local(event);
             id = Object.entries(boundsRef.current).find(([key, box]) => blocksRef.current.some(block => block.id === key) && at.x >= box.x && at.x <= box.x + box.w && at.y >= box.y && at.y <= box.y + box.h)?.[0] || null;
           }
-          if (readOnlyRef.current && (!onStartRabbitHole || !blocksRef.current.some(block => block.id === id))) { setMenuAt(null); return; } // view-only: a card's menu, or none
+          if (readOnlyRef.current && !onAddComment && (!onStartRabbitHole || !blocksRef.current.some(block => block.id === id))) { setMenuAt(null); return; } // view-only: a card's menu, a commenter's Add comment, or none
           if (id && !selectedRef.current.includes(id)) select(id);
           const groupHit = !id && event.target.closest('[data-group-box]');
           if (groupHit) setSelection(membersOf(groupHit.dataset.groupBox));
@@ -3441,6 +3483,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           ))}
         </div>
         </div>
+        {/* Comment pins (docs/features/canvas-comments.md): over the camera at a constant size; never while presenting. */}
+        {commentPins && presenting === null && <CommentPins pins={commentPins} view={view} board={{ bounds, items, shapes }} onPin={onCommentPin} />}
         {menuAt && presenting === null && (() => {
           const grouped = selection.map(id => [...blocks, ...items, ...shapes, ...exchanges].find(entry => entry.id === id)?.groupId).filter(Boolean);
           const row = 'flex w-full items-center rounded px-2 py-1.5 text-left text-sm text-ink hover:bg-hover disabled:cursor-default disabled:text-ink-3 disabled:hover:bg-transparent';
@@ -3492,11 +3536,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           const startHole = !block ? null
             : divePortals?.open && !readOnly ? () => (portal ? divePortals.enter(portal.name) : divePortals.open(block.id, undefined, 'learner_menu'))
             : readOnly && onStartRabbitHole ? () => onStartRabbitHole(block.id) : null;
+          // Add comment (docs/features/canvas-comments.md section 5): the pin goes where the right-click was, on the object
+          // under it (card-relative, so it follows the card) or on the canvas. Only the page's panel saves anything.
+          const addComment = onAddComment && (() => commentAt({ x: (menuAt.x - view.x) / view.z, y: (menuAt.y - view.y) / view.z }, menuAt.id));
           return (
             <div ref={menuBox} role="menu" aria-label="Canvas actions" data-canvas-menu style={{ left: menuPos?.x ?? menuAt.x, top: menuPos?.y ?? menuAt.y, maxHeight: menuPos?.maxH, visibility: menuPos ? undefined : 'hidden' }}
               className="absolute z-40 w-52 overflow-y-auto rounded-md border border-line bg-white p-1 shadow-pop"
               onPointerDown={event => event.stopPropagation()} onContextMenu={event => { event.preventDefault(); event.stopPropagation(); }}>
+              {addComment && !menuAt.id && <button type="button" role="menuitem" data-menu-add-comment onClick={act(addComment)} className={row}>Add comment here</button>}
               {startHole && <button type="button" role="menuitem" data-menu-start-rabbit-hole data-origin={block.id} onClick={act(startHole)} className={row}>Start Rabbit Hole</button>}
+              {addComment && menuAt.id && <button type="button" role="menuitem" data-menu-add-comment onClick={act(addComment)} className={row}>Add comment</button>}
               {/* A view-only board edits nothing: Start Rabbit Hole is its only card action here. */}
               {!readOnly && <>
               {described && <button type="button" role="menuitem" onClick={act(() => askBlock(block))} className={row}>Ask about this</button>}
@@ -3579,6 +3628,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           {drawTarget && <div data-sketch-badge title="These tools draw in the Explain Back sketch. Press the canvas or Esc to draw on the canvas again."
             className="col-span-2 rounded-md bg-[#2383e2]/10 py-0.5 text-center text-[10px] font-semibold tracking-wide text-[#2383e2] uppercase @max-[640px]:col-span-1 @max-[640px]:px-1.5">Sketch</div>}
           {NAV_TOOLS.map(([value, Icon, label]) => <ToolButton key={value} value={value} Icon={Icon} label={label} active={tool === value} onPick={() => setTool(value)} />)}
+          {onAddComment && <ToolButton value="comment" Icon={MessageCircle} label="Comment  C" active={tool === 'comment'} onPick={() => setTool('comment')} />}
           <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line @max-[640px]:col-span-1 @max-[640px]:mx-0.5 @max-[640px]:my-1.5 @max-[640px]:h-auto @max-[640px]:w-px" />
           {DRAW_TOOLS.map(([value, Icon, label]) => <ToolButton key={value} value={value} Icon={Icon} label={label} active={tool === value} onPick={() => setTool(value)} />)}
           <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line @max-[640px]:col-span-1 @max-[640px]:mx-0.5 @max-[640px]:my-1.5 @max-[640px]:h-auto @max-[640px]:w-px" />

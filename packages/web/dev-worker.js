@@ -32,6 +32,7 @@ import { journeyRoute } from '../control-plane/src/learn-journey.js';
 import { homeAskFetch } from '../control-plane/src/learn-home-ask.js';
 import { voiceRoute } from '../control-plane/src/learn-voice-routes.js';
 import { learnBoardsRoute } from '../control-plane/src/learn-boards.js';
+import { canvasCommentsRoute } from '../control-plane/src/canvas-comments.js';
 import { creatorsRoute } from '../control-plane/src/creators.js';
 import { artifactFetch } from '../control-plane/src/learn-artifact.js';
 import { paidRefusal } from '../control-plane/src/learn-paid.js';
@@ -223,6 +224,8 @@ export default {
     if (path === '/api/learn/home-ask') return homeAskFetch(req, env);
     // Jev side-by-side grading (docs/features/jev-grading.md).
     if (path.startsWith('/api/learn/grade')) { const graded = await learnGradeRoute(path, req, env); if (graded) return graded; }
+    // Canvas comments (docs/features/canvas-comments.md): the member family and a publication's public family.
+    if (path.startsWith('/api/learn/c/') || path === '/api/learn/comments/unread' || /^\/api\/learn\/boards\/shared\/[^/]+\/comments(\/|$)/.test(path)) { const comments = await canvasCommentsRoute(path, req, env); if (comments) return comments; }
     // Saved and shared canvas boards (docs/features/canvas-sharing.md). Before
     // the exact /api/learn/board route, which generates explanations.
     if (path.startsWith('/api/learn/boards/')) { const boards = await learnBoardsRoute(path, req, env); if (boards) return boards; }
@@ -238,6 +241,11 @@ export default {
     if (path === '/api/learn/board') return boardFetch(req, env);
     if (path === '/aws') return Response.redirect(new URL('/apps', req.url), 302);
     if (path.startsWith('/api/byoc/')) return byocFetch(req, env, { apiCode, signerCode, permissionsCode, grantsCode });
+    // /c/<board id> (a member's canvas) and /i (an invitation, its token only ever in the fragment): never cached, and
+    // never a Referer (docs/features/canvas-comments.md C2).
+    if (path === '/i' || /^\/c\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(path)) {
+      return new Response(SHELL, { headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } });
+    }
     // /b/<token> is a shared board, /e/<token> a canvas published to Explore (docs/features/explore-publish.md): served to
     // anyone, the page decides what they may see. /@<handle> is a creator's public profile (docs/features/creator-profile.md).
     if (path === '/apps' || path === '/dash' || path === '/chat' || path === '/members' || path === '/library' || path === '/explore' || path.startsWith('/apps/') || /^\/[be]\/[A-Za-z0-9_-]{20,64}$/.test(path) || /^\/@[A-Za-z0-9_]{1,40}$/.test(path)) {
