@@ -14,7 +14,8 @@ const ROW = 'flex w-full cursor-pointer items-center gap-1.5 rounded-sm py-1 pr-
 const HEAD = 'px-2 pt-2 pb-1 text-[11px] font-medium text-ink-3';
 const indent = (depth) => ({ paddingLeft: `${8 + depth * 14}px` });
 
-export default function CodeReader({ app, snapshot, open, context, query, onFile, onSymbol, onRange }) {
+// stacked: the tree above the reader, for Learn's narrow right panel; otherwise side by side, stacked only on a phone.
+export default function CodeReader({ app, snapshot, open, context, query, onFile, onSymbol, onRange, stacked = false }) {
   // A selected range waiting for Ask or Learn. Only this reader sees it; another file or Esc drops it.
   const [pending, setPending] = useState(null);
   useEffect(() => setPending(null), [open]);
@@ -39,15 +40,15 @@ export default function CodeReader({ app, snapshot, open, context, query, onFile
     </details>
     : <Fragment key={n.path}>{fileRow(n.path, n.name, depth)}{n.path === open && symbols.map((s) => symbolRow(s, depth + 1, ':'))}</Fragment>));
   const crumb = open && [app.repo, ...open.split('/'), here && here.kind !== 'file' ? here.label : null].filter(Boolean).join(' › ');
-  return <div className="flex min-h-0 flex-1 overflow-hidden rounded-lg border border-line max-md:flex-col">
-    <nav aria-label="Files" data-file-tree className="w-56 shrink-0 overflow-y-auto border-r border-line py-1 max-xl:w-44 max-md:max-h-40 max-md:w-full max-md:border-r-0 max-md:border-b">
+  return <div className={`flex min-h-0 flex-1 overflow-hidden rounded-lg border border-line ${stacked ? 'flex-col' : 'max-md:flex-col'}`}>
+    <nav aria-label="Files" data-file-tree className={`shrink-0 overflow-y-auto py-1 ${stacked ? 'max-h-48 border-b border-line' : 'w-56 border-r border-line max-xl:w-44 max-md:max-h-40 max-md:w-full max-md:border-r-0 max-md:border-b'}`}>
       {query.trim()
         ? <>{found.files.length > 0 && <><p className={HEAD}>Files</p>{found.files.map((p) => fileRow(p, p, 0))}</>}
           {found.symbols.length > 0 && <><p className={HEAD}>Symbols</p>{found.symbols.map((n) => symbolRow(n, 0, `${n.path.split('/').pop()}:`))}</>}
           {!found.files.length && !found.symbols.length && <p className="px-2 py-2 text-xs text-ink-3">No file or symbol matches “{query.trim()}”.</p>}</>
         : branch(tree, 0)}
     </nav>
-    <div className="flex min-w-0 flex-1 flex-col px-3 pt-2" onPointerDown={(e) => { if (!e.target.closest('[data-range-actions]')) setPending(null); }}>
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col px-3 pt-2" onPointerDown={(e) => { if (!e.target.closest('[data-range-actions]')) setPending(null); }}>
       {open
         ? <SourceSelectionContext.Provider value={{ value: pending, set: setPending }}>
           <RepositorySource appName={app.name} path={open} commit={snapshot.commit} repo={app.repo} title={crumb}

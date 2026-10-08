@@ -76,9 +76,6 @@ export default function RepositoryPage({ app: initial, catalog = [], onCatalog =
   </TabsList></Tabs>;
   // The project's canvases in Learn's header (docs/features/project-canvases.md): Main canvas, its canvases, New canvas.
   const switcher=<CanvasSwitcher project={app.name} entries={projectCanvases(app.name,catalog,picked?.name)} onCatalog={onCatalog}/>;
-  if(tab==='learn')return <div className="flex min-h-0 min-w-0 flex-1 flex-col max-md:pt-(--shell-top-h)">{/* LearnPage brings its own <main>, which loses index.css's [data-shell-sidebar] ~ main phone padding */}
-    {picked?<CanvasLearn key={picked.name} app={picked} project={app} onMap={()=>go('map')} switcher={switcher}/>:<LearnPage app={app} onGraph={showGraph} onMap={()=>go('map')} onClearRepository={context?()=>setContext(null):null} repositoryContext={context?wireContext(context):{commit:app.commit_sha}} onBack={()=>{setMode('graph');navigate(`/apps/${app.name}?tab=code`);}} switcher={switcher}/>}
-  </div>;
   // A fixture record is only looked at: the bar keeps asking about code, so no fixture id ever reaches the model.
   // Inspector history is local (inspector brief §15): Back returns the inspector to the previous object, never the URL or the context.
   const inspect=(object,show='overview')=>{setTrail(t=>inspected&&inspected.id!==object.id?[...t,inspected].slice(-10):t);setInspected(object);setView(show);setPanelOpen(true);};
@@ -106,6 +103,15 @@ export default function RepositoryPage({ app: initial, catalog = [], onCatalog =
     if(!object)return;
     if(inspected?.id===object.id){setView('chat');setPanelOpen(true);}else inspect(object,'chat');
   };
+  // The Files reader, on the Map and in the Main canvas's right panel (owner, 2026-10-08: the canvas's Map icon "opens the
+  // Files in the right side panel"). One selection either way: a file, a symbol or a range attaches as on the Map, so the
+  // range reaches Learn's chat as its repository context. A project's other canvases have no repository context: their icon
+  // still goes to the Map.
+  const reader=extra=><CodeReader app={app} snapshot={snapshot} open={opened} context={context} query={query} onFile={p=>attach(fileObject(snapshot.graph,p))} onSymbol={n=>attach(objectOf(snapshot.graph,n))}
+    onRange={(kind,range)=>{attach(range);if(kind==='learn')learnThis(range);else askAbout(range);}} {...extra}/>;
+  if(tab==='learn')return <div className="flex min-h-0 min-w-0 flex-1 flex-col max-md:pt-(--shell-top-h)">{/* LearnPage brings its own <main>, which loses index.css's [data-shell-sidebar] ~ main phone padding */}
+    {picked?<CanvasLearn key={picked.name} app={picked} project={app} onMap={()=>go('map')} switcher={switcher}/>:<LearnPage app={app} files={snapshot&&reader({query:'',stacked:true})} onGraph={showGraph} onMap={()=>go('map')} onClearRepository={context?()=>setContext(null):null} repositoryContext={context?wireContext(context):{commit:app.commit_sha}} onBack={()=>{setMode('graph');navigate(`/apps/${app.name}?tab=code`);}} switcher={switcher}/>}
+  </div>;
   return <main className="relative flex min-w-0 flex-1 overflow-hidden max-lg:flex-col">
     <section className="min-w-0 flex-1 overflow-auto"><ExpandedPageFrame wide>
       <div className="flex items-center gap-1"><h1 className="min-w-0 truncate text-2xl font-semibold">{app.repo}</h1>
@@ -130,8 +136,7 @@ export default function RepositoryPage({ app: initial, catalog = [], onCatalog =
             nodes and controls (canvas chrome never covers content), so a node under it could not be picked while it was open. */}
         <div className="flex h-[540px] min-h-0 gap-3 max-lg:min-h-80 max-md:flex-col">{mode==='graph'?<><RepositoryGraph graph={shown} selected={lit} onSelect={choose} query={query} answerView={graphView}/>
           {layersOpen&&<aside id="map-layers" aria-label="Layers" className="w-60 shrink-0 self-start rounded-lg border border-line bg-white p-2 max-md:w-full"><LayersRow memory={memory} layers={layers} onToggle={toggleLayer}/></aside>}</>
-          :<CodeReader app={app} snapshot={snapshot} open={opened} context={context} query={query} onFile={p=>attach(fileObject(snapshot.graph,p))} onSymbol={n=>attach(objectOf(snapshot.graph,n))}
-            onRange={(kind,range)=>{attach(range);if(kind==='learn')learnThis(range);else askAbout(range);}}/>}</div>
+          :reader()}</div>
         <p className="mt-3 text-xs text-ink-2">{snapshot.files.length} files · {snapshot.graph.nodes.length} nodes · {snapshot.graph.edges.length} relationships</p>
         {!!snapshot.skipped.length&&<details className="mt-2 text-xs text-ink-2"><summary className="cursor-pointer">{snapshot.skipped.length} excluded files</summary><div className="max-h-40 overflow-auto">{snapshot.skipped.map(f=><p key={f.path}>{f.path}: {f.reason}</p>)}</div></details>}
       </>}

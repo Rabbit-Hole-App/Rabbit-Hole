@@ -98,8 +98,9 @@ for (const [index, [email, app]] of PEOPLE.entries()) {
   await settle(page);
   await mic(page).waitFor({ timeout: 15000 });
 
-  // The Map is one click away, and Learn one click back.
+  // The Map is two clicks away (the icon opens Files in the panel, which links on to the Map; owner, 2026-10-08), Learn one back.
   await page.locator('[data-learn-map]').click();
+  await page.locator('[data-learn-open-map]').click();
   await page.waitForURL(url => url.searchParams.get('tab') === 'map');
   await page.locator('[data-project-tabs] [role="tab"]', { hasText: 'Learn' }).click();
   await settle(page);

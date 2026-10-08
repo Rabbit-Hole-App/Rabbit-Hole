@@ -38,6 +38,12 @@ This is a new, local find. The header's Search button (YouTube, arXiv and Wikipe
 - **Unpinned:** a press on the canvas surface (`[data-canvas-surface]`) closes the panel. Work inside the panel, such as typing a find or picking a row, never closes it.
 - **Storage:** the choice is kept in this browser (`localStorage` `small.learn-panel:pinned`). Reading and writing it are guarded, so blocked storage keeps the default.
 
+## Repository files (a project's Main canvas)
+
+A fourth tab, after Comments, only where the canvas has the repository's files (`filesOn`): lucide `FolderTree`,
+"Repository files". The canvas's Map icon opens the panel on it (owner, 2026-10-08). It holds the Map's file reader and
+Open the Map → (repository-browser.md). Anywhere else there is no Files tab, not even a disabled one.
+
 ## Close sidebar
 
 X closes the panel, the same as the top bar's Show/Hide button, and changes no canvas content. Present still closes the panel too.

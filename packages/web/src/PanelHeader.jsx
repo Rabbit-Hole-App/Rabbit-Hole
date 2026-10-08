@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BookOpen, ChevronDown, ChevronUp, MessageCircle, Pin, Search, X } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronUp, FolderTree, MessageCircle, Pin, Search, X } from 'lucide-react';
 import { findMatches } from './canvas-find.js';
 
 // The canvas's right panel header (owner, 2026-10-07; docs/features/panel-header.md): three icon tabs grouped
@@ -11,13 +11,16 @@ export const PANEL_TABS = [
   { id: 'find', label: 'Find text on canvas', Icon: Search },
   { id: 'toc', label: 'Table of contents', Icon: BookOpen },
   { id: 'comments', label: 'Comments', Icon: MessageCircle },
+  // A project's Main canvas only (filesOn): the repository's Files, opened by the canvas's Map icon (owner, 2026-10-08).
+  { id: 'files', label: 'Repository files', Icon: FolderTree },
 ];
 const OFF_TITLE = 'Comments are on saved canvases';
 
 // commentsUnread: threads with news for you; the Comments tab carries a dot while there are any.
-export default function PanelHeader({ tab, onTab, pinned, onPin, onClose, commentsOn = false, commentsUnread = 0 }) {
+export default function PanelHeader({ tab, onTab, pinned, onPin, onClose, commentsOn = false, commentsUnread = 0, filesOn = false }) {
   const off = id => id === 'comments' && !commentsOn;
-  const ENABLED = PANEL_TABS.filter(entry => !off(entry.id)).map(entry => entry.id);
+  const TABS = PANEL_TABS.filter(entry => entry.id !== 'files' || filesOn);
+  const ENABLED = TABS.filter(entry => !off(entry.id)).map(entry => entry.id);
   // Arrow keys move between the enabled tabs and select as they go (the WAI-ARIA tabs pattern).
   const arrow = event => {
     if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
@@ -29,7 +32,7 @@ export default function PanelHeader({ tab, onTab, pinned, onPin, onClose, commen
   return (
     <div data-panel-header className="-mx-5 mb-3 flex shrink-0 items-center justify-between gap-2 border-b border-line px-5 pb-2.5">
       <div role="tablist" aria-label="Panel views" onKeyDown={arrow} className="flex items-center gap-0.5 rounded-lg border border-line bg-hover p-0.5">
-        {PANEL_TABS.map(({ id, label, Icon }) => { const disabled = off(id), title = disabled ? OFF_TITLE : label; return (
+        {TABS.map(({ id, label, Icon }) => { const disabled = off(id), title = disabled ? OFF_TITLE : label; return (
           <button key={id} type="button" role="tab" data-panel-tab={id} aria-label={label} title={title}
             aria-selected={tab === id} aria-disabled={disabled || undefined} tabIndex={tab === id ? 0 : -1}
             onClick={disabled ? undefined : () => onTab(id, true)}

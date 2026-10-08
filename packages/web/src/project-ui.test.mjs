@@ -22,13 +22,18 @@ test('a project is Files · Graph · Learn: no Overview, one restrained tab row,
   assert.match(page, /<Tabs value=\{tab==='learn'\?'learn':mode\} onValueChange=\{v=>v==='learn'\?go\('learn'\):setMode\(v\)\}>/);
   // The Learn view renders no tabs: its canvas switcher sits in Learn's own header, on the Main canvas and on every
   // project canvas alike (docs/features/project-canvases.md).
-  const learnView = page.slice(page.indexOf("if(tab==='learn')return"), page.indexOf('// A fixture record is only looked at'));
+  const learnView = page.slice(page.indexOf("if(tab==='learn')return"), page.indexOf('  return <main'));
   assert.doesNotMatch(learnView, /\{tabs\}|<select/);
   assert.equal(learnView.match(/switcher=\{switcher\}/g).length, 2);
   assert.match(learn, /\[field-sizing:content\][^\n]*\/>\s*\{switcher\}/);
-  // The canvas reaches the Map by one icon.
+  // The canvas reaches the code by one icon. On the Main canvas it opens the repository's Files in the right panel, which
+  // links on to the Map (owner, 2026-10-08); a project's other canvases have no repository context, so theirs goes to the Map.
   assert.match(learnView, /onMap=\{\(\)=>go\('map'\)\}/);
-  assert.match(learn, /\{onMap && <button type="button" data-learn-map title="Map: this repository's code graph" aria-label="Map" onClick=\{onMap\}/);
+  assert.match(learnView, /<CanvasLearn key=\{picked\.name\} app=\{picked\} project=\{app\} onMap=\{\(\)=>go\('map'\)\} switcher=\{switcher\}\/>/);
+  assert.match(learnView, /<LearnPage app=\{app\} files=\{snapshot&&reader\(\{query:'',stacked:true\}\)\}/);
+  assert.match(learn, /\{onMap && <button type="button" data-learn-map title=\{files \? "Files: read this repository's code and ask about it" : "Map: this repository's code graph"\} aria-label=\{files \? 'Repository files' : 'Map'\}\n\s+onClick=\{files \? \(\) => \{ setPanelOpen\(true\); setPanelTab\('files'\); \} : onMap\}/);
+  assert.match(learn, /<PanelHeader [^\n]*filesOn=\{!!files\}/);
+  assert.match(learn, /\{files && <div role="tabpanel" aria-label="Repository files" data-learn-files className=\{`\$\{panelTab === 'files' \? 'flex' : 'hidden'\}[^\n]*\n[\s\S]{0,200}<button type="button" data-learn-open-map onClick=\{onMap\}[^\n]*>Open the Map →<\/button>[\s\S]{0,40}\{files\}/);
   // A repository with no snapshot shows its Map.
   assert.match(page, /tab=asked==='learn'&&!app\.commit_sha\?'map':asked/);
 });
@@ -95,7 +100,7 @@ test('the main composer: the Auto picker opens a / commands sheet with an exampl
 });
 
 test('the Map node carried into Learn ("Asking about") has an x, as the Map chip does', () => {
-  assert.match(page, /<LearnPage app=\{app\} onGraph=\{showGraph\} onMap=\{\(\)=>go\('map'\)\} onClearRepository=\{context\?\(\)=>setContext\(null\):null\}/);
+  assert.match(page, /<LearnPage app=\{app\} files=\{[^}]*\}\)\} onGraph=\{showGraph\} onMap=\{\(\)=>go\('map'\)\} onClearRepository=\{context\?\(\)=>setContext\(null\):null\}/);
   assert.match(learn, /: repositoryContext\} onClearRepository=\{onClearRepository\} conversation="learn"/);
   assert.match(md, /\{onClearRepository && <button type="button" className="shrink-0 rounded p-0\.5 hover:bg-green-100" aria-label="Clear repository selection"/);
 });
@@ -138,7 +143,9 @@ test('one selection: Files, Graph, the inspector and Learn read the same context
   assert.match(page, /<RepositoryGraph graph=\{shown\} selected=\{lit\}/);
   assert.match(page, /const lit=inspected\?\.record\?\{id:inspected\.id\}:context&&\(context\.nodeId\|\|context\.path\)\?\{id:context\.nodeId\|\|fileObject\(snapshot\.graph,context\.path\)\.nodeId\}:null;/);
   assert.match(page, /<CodeReader app=\{app\} snapshot=\{snapshot\} open=\{opened\} context=\{context\}[^>]*onFile=\{p=>attach\(fileObject\(snapshot\.graph,p\)\)\} onSymbol=\{n=>attach\(objectOf\(snapshot\.graph,n\)\)\}/);
-  assert.match(page, /onRange=\{\(kind,range\)=>\{attach\(range\);if\(kind==='learn'\)learnThis\(range\);else askAbout\(range\);\}\}/);
+  assert.match(page, /onRange=\{\(kind,range\)=>\{attach\(range\);if\(kind==='learn'\)learnThis\(range\);else askAbout\(range\);\}\} \{\.\.\.extra\}\/>;/);
+  assert.equal(page.match(/<CodeReader /g).length, 1, 'one reader: the Map shows reader(), the Main canvas panel reader({stacked})');
+  assert.match(page, /:reader\(\)\}<\/div>/);
   assert.match(page, /repositoryContext=\{context\?wireContext\(context\):\{commit:app\.commit_sha\}\}/);
   assert.match(page, /onLearn=\{\(\)=>learnThis\(inspected\)\}/);
   // Selecting text only offers [Ask] [Learn]; the context changes on a click, never on a selection.

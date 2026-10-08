@@ -1863,7 +1863,10 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.waitForURL(/[?]tab=learn$/);
     await page.locator('[data-chat-composer]').first().waitFor({ timeout: 30000 });
     must(await page.locator('[data-project-tabs]').count() === 0 && await composers(page) === 1 && await barOf(page).count() === 0, 'Learn shows project tabs, or has two composers');
+    // On the Main canvas the Map icon opens the repository's Files in the panel, which links on to the Map (owner, 2026-10-08).
     await page.locator('[data-learn-map]').click();
+    await page.locator('[data-learn-files] [data-file-tree]').waitFor({ timeout: 10000 });
+    await page.locator('[data-learn-open-map]').click();
     await page.waitForURL(/[?]tab=map$/);
     await page.context().close();
     const phone = await open({ width: 390, height: 844 });
@@ -1956,6 +1959,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     must(await page.locator('[data-learn-context]').count() === 0, 'a second context label beside Learn');
     must(await page.locator('[data-project-tabs]').count() === 0 && await composers(page) === 1 && await barOf(page).count() === 0, 'not the project Learn frame');
     await page.locator('[data-learn-map]').click();
+    await page.locator('[data-learn-open-map]').click(); // the icon opens Files in the panel; it links on to the Map (owner, 2026-10-08)
     await page.waitForURL(/[?]tab=map$/);
     await barOf(page).locator('[data-scope-chip="selected"]', { hasText: 'CausalSelfAttention' }).waitFor({ timeout: 10000 });
     await barInput(page).fill('/teach this');

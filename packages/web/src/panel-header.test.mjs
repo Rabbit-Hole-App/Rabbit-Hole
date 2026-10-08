@@ -40,10 +40,18 @@ test('Comments selects only on a saved top-level canvas; elsewhere it is aria-di
   assert.match(header, /const off = id => id === 'comments' && !commentsOn;/);
   assert.match(header, /aria-disabled=\{disabled \|\| undefined\}/);
   assert.match(header, /onClick=\{disabled \? undefined : \(\) => onTab\(id, true\)\}/);
-  assert.match(header, /const ENABLED = PANEL_TABS\.filter\(entry => !off\(entry\.id\)\)/);
+  assert.match(header, /const ENABLED = TABS\.filter\(entry => !off\(entry\.id\)\)/);
   assert.match(header, /ENABLED\[\(ENABLED\.indexOf\(tab\) \+ \(event\.key === 'ArrowRight' \? 1 : ENABLED\.length - 1\)\) % ENABLED\.length\]/);
   assert.match(page, /<PanelHeader tab=\{panelTab\} commentsOn=\{comments\.active\}/, 'the page decides where Comments is live');
   assert.match(page, /if \(!comments\.active && panelTab === 'comments'\) setPanelTab\('toc'\);/, 'and never leaves it selected where it is not');
+});
+
+// Owner, 2026-10-08: the Main canvas's Map icon opens the repository's Files in the panel; elsewhere there is no Files tab.
+test('a Files tab only where the canvas has repository files, after Comments', () => {
+  assert.match(header, /\{ id: 'files', label: 'Repository files', Icon: FolderTree \},\n\];/);
+  assert.match(header, /const TABS = PANEL_TABS\.filter\(entry => entry\.id !== 'files' \|\| filesOn\);/);
+  assert.match(header, /\{TABS\.map\(\(\{ id, label, Icon \}\) =>/);
+  assert.match(page, /filesOn=\{!!files\}/);
 });
 
 test('pinned by default, and the choice lasts in this browser; storage that throws keeps the default', () => {

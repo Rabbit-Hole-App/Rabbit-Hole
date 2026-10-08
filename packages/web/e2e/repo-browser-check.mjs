@@ -281,11 +281,40 @@ await check('6 Learn attaches the exact range and carries it into Learn, sending
   await page.waitForTimeout(800);
   assert.equal(asks.length, n, 'Learn sent no question');
   assert.equal(await page.evaluate(() => sessionStorage.getItem('small.learn.request')), null, 'no Learn request (learnHandoff is off)');
+  // The Map icon opens the repository's Files in Learn's right panel (owner, 2026-10-08): the same reader, the range still lit.
   await page.locator('[data-learn-map]').click();
+  const learnFiles = page.locator('[data-learn-files]');
+  await learnFiles.locator('[data-file-tree]').waitFor({ timeout: 10000 });
+  assert.deepEqual(await lit(), [177, 178, 179], 'the panel reader shows model.py with the range lit');
+  await shot('L-learn-files-panel');
+  await learnFiles.locator('[data-learn-open-map]').click();
   await page.waitForURL(/[?]tab=map$/);
   await reader.waitFor();
   assert.deepEqual(await chips(), ['karpathy/nanoGPT', 'model.py', 'lines 177–179']);
   assert.equal(await tab('Files').getAttribute('aria-selected'), 'true', 'back to the view it left');
+});
+
+await check('10 the Main canvas\'s Map icon opens Files in the right panel: a file opens, selected lines Ask into Learn\'s chat as its context, nothing is sent', async () => {
+  const n = asks.length, sent = learnRequests.length;
+  await tab('Learn').click();
+  await page.waitForURL(/[?]tab=learn$/);
+  await page.locator('[data-chat-composer]').first().waitFor({ timeout: 30000 });
+  await page.locator('[data-learn-map]').click();
+  const learnFiles = page.locator('[data-learn-files]');
+  await learnFiles.locator('[data-file-tree]').waitFor({ timeout: 10000 });
+  assert.equal(await page.locator('[data-panel-tab="files"]').getAttribute('aria-selected'), 'true', 'the panel opens on its Files tab');
+  await learnFiles.locator('[data-file-row="train.py"]').click();
+  await learnFiles.getByRole('region', { name: 'Repository source' }).locator('[data-source-line="5"]').waitFor({ timeout: 10000 });
+  await drag(5, 7);
+  await actions.getByRole('button', { name: 'Ask', exact: true }).click();
+  await page.getByText(/^Asking about: train\.py:5–7/).first().waitFor({ timeout: 10000 });
+  assert.equal(await page.locator('[data-learn-dock] textarea').first().inputValue(), 'What do lines 5–7 of train.py do?');
+  await page.waitForTimeout(500);
+  assert.equal(asks.length, n, 'Ask wrote the question and sent nothing'); assert.equal(learnRequests.length, sent);
+  await shot('L-learn-files-ask');
+  await page.locator('[data-learn-dock] textarea').first().fill('');
+  await learnFiles.locator('[data-learn-open-map]').click();
+  await page.waitForURL(/[?]tab=map$/);
 });
 
 await check('9 another repository or canvas never inherits the context: a canvas shows no repository context, another project starts at its root', async () => {
