@@ -191,7 +191,8 @@ test('ask.jsx: on a journey canvas the Tutor is the one path; the composer calls
   assert.ok(journeyAt < ask.indexOf("setMsgs((m) => [...m, { role: 'user'"), 'before any chat bubble, card or /api/learn/ask');
   // The Tutor draws the turn's bubbles and exchange itself (begin), only for a turn it answers: a turn the journey takes
   // has neither, and a failed one gives the words back. Ask the Tutor (skipJourney) goes straight to the planner.
-  assert.match(ask, /if \(!tutor \|\| isDemo\) begin\(\);/);
+  // A question about attached repository lines or a file (codeTurn) goes to the repository's reader instead (repository-browser.md).
+  assert.match(ask, /if \(!tutor \|\| codeTurn \|\| isDemo\) begin\(\);/);
   assert.match(ask, /await tutor\.ask\(\{ raw: raw\.trim\(\), targetId: \(target \|\| canvasSeed\?\.target\)\?\.id \|\| null, opening, signal: flight\.signal, skipJourney, begin \}\)/);
   assert.match(ask, /if \(reply\?\.handled\) \{ if \(reply\.failed\) setInput\(current => current \|\| raw\); return; \}/);
   assert.match(ask, /await journeyStarter\(/);

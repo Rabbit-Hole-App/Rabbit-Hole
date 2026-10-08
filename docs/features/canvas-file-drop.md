@@ -27,6 +27,10 @@ How should it be added?
 
 `learn-file-import.js` makes the card; `FileImportDialog.jsx` is the dialog; `LearnPage` `takeDrop` routes the files.
 
+**Pasted code** (owner, 2026-10-08; repository-browser.md "Files in Learn") opens the same dialog, with **Code card** and **Jupyter notebook** only (`IMPORT_CHOICES.paste`, `pasteBlock`).
+- The name is a repository file's own name when the text was copied from it, else `snippet.py`.
+- The card goes where the learner is looking.
+
 ## Saved outputs
 
 A notebook card renders its saved outputs in the notebook runtime. On import, an output keeps only `text/plain`,

@@ -106,11 +106,12 @@ export default function RepositoryPage({ app: initial, catalog = [], onCatalog =
   // The Files reader, on the Map and in the Main canvas's right panel (owner, 2026-10-08: the canvas's Map icon "opens the
   // Files in the right side panel"). One selection either way: a file, a symbol or a range attaches as on the Map, so the
   // range reaches Learn's chat as its repository context. A project's other canvases have no repository context: their icon
-  // still goes to the Map.
+  // still goes to the Map. In the panel a selection offers Ask in chat and Copy (place 'panel'), and the chat's chip previews
+  // the selected lines (repositoryExcerpt: the range's text, never sent; the server reads its own copy).
   const reader=extra=><CodeReader app={app} snapshot={snapshot} open={opened} context={context} query={query} onFile={p=>attach(fileObject(snapshot.graph,p))} onSymbol={n=>attach(objectOf(snapshot.graph,n))}
     onRange={(kind,range)=>{attach(range);if(kind==='learn')learnThis(range);else askAbout(range);}} {...extra}/>;
   if(tab==='learn')return <div className="flex min-h-0 min-w-0 flex-1 flex-col max-md:pt-(--shell-top-h)">{/* LearnPage brings its own <main>, which loses index.css's [data-shell-sidebar] ~ main phone padding */}
-    {picked?<CanvasLearn key={picked.name} app={picked} project={app} onMap={()=>go('map')} switcher={switcher}/>:<LearnPage app={app} files={snapshot&&reader({query:'',stacked:true})} onGraph={showGraph} onMap={()=>go('map')} onClearRepository={context?()=>setContext(null):null} repositoryContext={context?wireContext(context):{commit:app.commit_sha}} onBack={()=>{setMode('graph');navigate(`/apps/${app.name}?tab=code`);}} switcher={switcher}/>}
+    {picked?<CanvasLearn key={picked.name} app={picked} project={app} onMap={()=>go('map')} switcher={switcher}/>:<LearnPage app={app} files={snapshot&&reader({query:'',stacked:true,place:'panel'})} onGraph={showGraph} onMap={()=>go('map')} onClearRepository={context?()=>setContext(null):null} repositoryContext={context?wireContext(context):{commit:app.commit_sha}} repositoryExcerpt={context?.kind==='range'?context.text:null} onBack={()=>{setMode('graph');navigate(`/apps/${app.name}?tab=code`);}} switcher={switcher}/>}
   </div>;
   return <main className="relative flex min-w-0 flex-1 overflow-hidden max-lg:flex-col">
     <section className="min-w-0 flex-1 overflow-auto"><ExpandedPageFrame wide>

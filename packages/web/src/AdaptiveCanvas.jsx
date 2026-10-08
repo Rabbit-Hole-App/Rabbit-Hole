@@ -32,7 +32,8 @@ import { openTarget, opensFrom, selectedCardContext } from './card-open.js';
 import { columnEntries, fillSlot, freeArea, freeSlot, indexAfter, panInto, slotIndex, slotSize } from './canvas-slots.js';
 import { lightBlocks, persistBoard } from './canvas-persist.js';
 import { waitingText } from './waiting-text.js';
-import { pasteKind } from './canvas-paste.js';
+import { looksLikeCode, pasteKind } from './canvas-paste.js';
+import { copiedCode } from './map-files.js';
 import CommentPins from './comments/CommentPins.jsx';
 import { anchorAt, objectLabel } from './comments/anchors.js';
 
@@ -1200,7 +1201,7 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
 
 const CARDS_COPIED = 'rabbit-hole:copied-cards';
 
-export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, gutterTop = null, leftRail = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, gutterTop = null, leftRail = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPasteCode = null }) {
   // A view-only board pans and zooms with the hand and edits nothing.
   const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
   const readOnlyRef = useRef(readOnly);
@@ -1797,6 +1798,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   };
   const dropFilesRef = useRef(onDropFiles);
   dropFilesRef.current = onDropFiles;
+  // Pasted code asks Code card or Jupyter notebook first (LearnPage, docs/features/repository-browser.md "Files in Learn"); without the page's
+  // handler it stays a text paste.
+  const pasteCodeRef = useRef(onPasteCode);
+  pasteCodeRef.current = onPasteCode;
   pasteIdsRef.current = pasteIds;
   const shapesRef = useRef([]);
   const onAddRef = useRef(null);
@@ -2201,9 +2206,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       const images = [...(data?.files || [])].filter(file => file.type.startsWith('image/'));
       const text = data?.getData('text/plain') || '';
       // ponytail: if writing the marker failed, an image copied before the cards still wins.
-      const kind = pasteKind({ images: dropFilesRef.current ? images.length : 0, text, marker: CARDS_COPIED, copying: markingCopy.current, cards: clipboard.current?.length || 0 });
+      const code = !!pasteCodeRef.current && (!!copiedCode(() => sessionStorage, text) || looksLikeCode(text));
+      const kind = pasteKind({ images: dropFilesRef.current ? images.length : 0, text, marker: CARDS_COPIED, copying: markingCopy.current, cards: clipboard.current?.length || 0, code });
       if (kind === 'image') { event.preventDefault(); dropFilesRef.current(images); return; }
       if (kind === 'cards' && pasteIdsRef.current(clipboard.current)) { event.preventDefault(); return; }
+      if (kind === 'code') { event.preventDefault(); pasteCodeRef.current(text); return; }
       if (kind === 'text') { event.preventDefault(); pasteTextRef.current(text); }
     };
     window.addEventListener('keydown', key, true);
