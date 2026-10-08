@@ -236,24 +236,25 @@ test('no product module decides an offer or an action from the learner words', (
   // buildTurn: the turn's four offer fields read only what the page offered (its parameters), and those are never reassigned.
   // repository (Task 11c-B) is the structural handoff flag: the page's canvasRepository state (checked below), never the words.
   const build = functionOf('./learn-tutor.js', 'export function buildTurn\\(');
-  const buildLines = linesOf(build, /available_materials|research_offer|journey_offer|handoff_offer/);
+  const buildLines = linesOf(build, /available_materials|research_offer|journey_offer|next_section_offer|handoff_offer/);
   assert.ok(buildLines.length >= 4, 'buildTurn sets all four offer fields');
-  const BUILD_OK = new Set(['nextStep', 'materials', 'research', 'journeyOffer', 'repository', 'length', 'available_materials', 'research_offer', 'journey_offer', 'handoff_offer', 'true']);
+  // r29 (owner 2026-10-08): nextSectionOffer / next_section_offer, the structural move-on flag (a live journey with a next section).
+  const BUILD_OK = new Set(['nextStep', 'materials', 'research', 'journeyOffer', 'nextSectionOffer', 'repository', 'length', 'available_materials', 'research_offer', 'journey_offer', 'next_section_offer', 'handoff_offer', 'true']);
   for (const line of buildLines) assert.deepEqual(outside(line, BUILD_OK), [], `an offer line in buildTurn reads more than the page offered: ${line.trim()}`);
   // The signatures take the four offer parameters with literal defaults, and neither function reassigns them.
   for (const [name, body] of [['buildTurn', build], ['runTurn', functionOf('./learn-tutor.js', 'export async function runTurn\\(')]]) {
-    assert.ok(/\bmaterials = \[\]/.test(body) && /\bresearch = false\b/.test(body) && /\bjourneyOffer = false\b/.test(body) && /\brepository = false\b/.test(body), `${name} defaults the offer parameters to literals`);
-    assert.deepEqual(reassigned(body, 'nextStep|materials|research|journeyOffer|repository'), [], `${name} reassigns or shadows an offer parameter`);
+    assert.ok(/\bmaterials = \[\]/.test(body) && /\bresearch = false\b/.test(body) && /\bjourneyOffer = false\b/.test(body) && /\bnextSectionOffer = false\b/.test(body) && /\brepository = false\b/.test(body), `${name} defaults the offer parameters to literals`);
+    assert.deepEqual(reassigned(body, 'nextStep|materials|research|journeyOffer|nextSectionOffer|repository'), [], `${name} reassigns or shadows an offer parameter`);
   }
   // runTurn hands the offers to buildTurn at exactly two calls, and every argument of both is on this list (no spread, no computed
   // value, no key: value besides the two renames).
-  const HANDOVER_OK = new Set(['raw', 'slash', 'opening', 'canvas', 'block', 'store: current', 'states', 'inputModality', 'turnId: id', 'domain', 'nextStep', 'materials', 'research', 'journeyOffer', 'repository']);
+  const HANDOVER_OK = new Set(['raw', 'slash', 'opening', 'canvas', 'block', 'store: current', 'states', 'inputModality', 'turnId: id', 'domain', 'nextStep', 'materials', 'research', 'journeyOffer', 'nextSectionOffer', 'repository']);
   const calls = handovers(strip(source('./learn-tutor.js')));
   assert.equal(calls.length, 2, 'buildTurn is called twice in the Tutor, both from runTurn');
   for (const { text } of calls) {
     const given = entries(text).map(entry => entry.replace(/\s+/g, ' '));
     for (const entry of given) assert.ok(HANDOVER_OK.has(entry), `runTurn hands buildTurn an argument that is not on the allowlist: ${entry}`);
-    for (const name of ['nextStep', 'materials', 'research', 'journeyOffer', 'repository']) assert.ok(given.includes(name), `runTurn hands buildTurn ${name} unchanged`);
+    for (const name of ['nextStep', 'materials', 'research', 'journeyOffer', 'nextSectionOffer', 'repository']) assert.ok(given.includes(name), `runTurn hands buildTurn ${name} unchanged`);
   }
 
   // route(): every line that names an offer action or flag, or assigns the allowed list, reads only the row, the list and the turn's
@@ -261,8 +262,8 @@ test('no product module decides an offer or an action from the learner words', (
   // Never the words, the constraints (statedConstraints feeds them) or the learner intent.
   const route = functionOf('./learn-tutor.js', 'export function route\\(');
   assert.equal(WORDS.test(route), false, 'route() reads the learner words');
-  const OFFER_OK = new Set(['if', 'turn', 'available_materials', 'length', 'MATERIAL_FIXED', 'includes', 'row', 'list', 'research_offer', 'journey_offer', 'handoff_offer', 'HANDOFF_ACTION']);
-  const offerLines = linesOf(route, /create_material|suggest_research|suggest_journey|available_materials|research_offer|journey_offer|handoff/i);
+  const OFFER_OK = new Set(['if', 'turn', 'available_materials', 'length', 'MATERIAL_FIXED', 'includes', 'row', 'list', 'research_offer', 'journey_offer', 'next_section_offer', 'NEXT_SECTION_ACTION', 'handoff_offer', 'HANDOFF_ACTION']);
+  const offerLines = linesOf(route, /create_material|suggest_research|suggest_journey|available_materials|research_offer|journey_offer|next_section|handoff/i);
   assert.ok(offerLines.length >= 4, 'route() adds all four offers');
   for (const line of offerLines) assert.deepEqual(outside(line, OFFER_OK), [], `an offer line in route() reads more than the row and the turn's offer fields: ${line.trim()}`);
   // The list is otherwise built from the strategy row alone; noQuiz only removes ask_question there.
@@ -273,7 +274,9 @@ test('no product module decides an offer or an action from the learner words', (
   // Unscanned boundary (R8): LearnPage.jsx, Parallel's file, is where useTutor's repository and openResearch props are passed in. It
   // is neither scanned nor edited here, so this scan holds from those props onward; what the page hands them is Parallel's to review.
   const page = strip(source('./LearnTutor.jsx')), offers = functionOf('./LearnTutor.jsx', 'export function turnOffers\\(');
-  const PAGE_OK = new Set(['export', 'function', 'turnOffers', 'journey', 'null', 'record', 'opening', 'false', 'nextStep', 'openResearch', 'const', 'setup', 'inJourneySetup', 'materials', 'materialCommands', 'research', 'journeyOffer', 'repository', 'start', 'return']);
+  // r29: nextSectionOffer reads the journey view only: its controller, busy, the journey's pending and its path (nextSectionOf).
+  const PAGE_OK = new Set(['export', 'function', 'turnOffers', 'journey', 'null', 'record', 'opening', 'false', 'nextStep', 'openResearch', 'const', 'setup', 'inJourneySetup', 'materials', 'materialCommands', 'research', 'journeyOffer', 'repository', 'start', 'return',
+    'nextSectionOffer', 'nextSection', 'busy', 'pending', 'nextSectionOf', 'path']);
   assert.deepEqual(outside(offers, PAGE_OK), [], 'turnOffers reads more than the page state');
   // The handoff flag's source: reads (the page's repository prop, else canvasRepository(app)) and canvasRepository read the app's data only.
   const reads = page.match(/const reads = [^\n]*;/)[0], repositoryOf = page.match(/export const canvasRepository = [^\n]*/)[0];
@@ -284,8 +287,8 @@ test('no product module decides an offer or an action from the learner words', (
   assert.deepEqual(outside(at, new Set(['turnOffers', 'journey', 'journeyRef', 'current', 'record', 'opening', 'nextStep', 'openResearch', 'repository', 'reads'])), [], 'the turnOffers call reads more than the page state');
   // An offer field is never a key anywhere on the page outside turnOffers, nor named in the runTurn call or in common (shorthand).
   const rest = page.replace(offers, '').replace(at, ''), common = page.match(/const common = \{[^;]*\};/)[0];
-  assert.equal(/(?<=[{,]\s*)(?:journeyOffer|materials|research|repository)\s*:/.test(rest), false, 'an offer field is a key outside turnOffers');
-  assert.deepEqual(idents(call.replace(at, '') + common).filter(id => ['journeyOffer', 'materials', 'research', 'repository'].includes(id)), [], 'an offer field is named in the runTurn call or in common');
+  assert.equal(/(?<=[{,]\s*)(?:journeyOffer|nextSectionOffer|materials|research|repository)\s*:/.test(rest), false, 'an offer field is a key outside turnOffers');
+  assert.deepEqual(idents(call.replace(at, '') + common).filter(id => ['journeyOffer', 'nextSectionOffer', 'materials', 'research', 'repository'].includes(id)), [], 'an offer field is named in the runTurn call or in common');
 
   // Anywhere else the offers, the actions or the handoff are named, the same line never reads the words. On the worker side raw is
   // the HTTP body, so only the turn's own field names the learner's message there.

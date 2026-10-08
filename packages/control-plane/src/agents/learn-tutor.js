@@ -363,6 +363,10 @@ const AVATAR_TOOL = { ...TUTOR_TOOL, input_schema: { ...TUTOR_TOOL.input_schema,
 // on a turn whose route allows it (plannerRequest), so every other request stays byte-identical; a handoff-allowed turn caches
 // under its own tool schema (the tool renders before the cached system block), a separate cache entry.
 export const HANDOFF_ACTION = 'handoff';
+// Owner 2026-10-08 (r29): the learner's explicit request to move on to the next journey section. Like the handoff, its type and
+// its block are sent only on a turn whose route allows it (a live journey with a next section), so every other request stays
+// byte-identical.
+export const NEXT_SECTION_ACTION = 'next_section';
 export const HANDOFF_CAPABILITY_NAMES = ['repository_context'];
 // The one rule for a valid handoff (fix round 1, A-I1 and B-I4), shared by the browser validator and fastPlanProblem: a known
 // capability and a non-blank request of at most 1000 characters (the route's bound). The request is a question for the source
@@ -377,7 +381,11 @@ const withHandoff = tool => {
     ...items, type: { type: 'string', enum: [...items.type.enum, HANDOFF_ACTION] }, capability: { type: 'string', enum: HANDOFF_CAPABILITY_NAMES },
   } } } } } };
 };
-export const tutorTool = (avatar, handoff = false) => (handoff ? withHandoff(avatar ? AVATAR_TOOL : TUTOR_TOOL) : avatar ? AVATAR_TOOL : TUTOR_TOOL);
+const withNextSection = tool => { const items = tool.input_schema.properties.actions.items; return { ...tool, input_schema: { ...tool.input_schema, properties: { ...tool.input_schema.properties, actions: { ...tool.input_schema.properties.actions, items: { ...items, properties: { ...items.properties, type: { ...items.properties.type, enum: [...items.properties.type.enum, NEXT_SECTION_ACTION] } } } } } } }; };
+export const tutorTool = (avatar, handoff = false, nextSection = false) => {
+  const tool = handoff ? withHandoff(avatar ? AVATAR_TOOL : TUTOR_TOOL) : avatar ? AVATAR_TOOL : TUTOR_TOOL;
+  return nextSection ? withNextSection(tool) : tool;
+};
 // The three planner lines of §4.1: the value question and routing principle (§4.2), the field rules, the Voice sentence.
 const AVATAR_SYSTEM = [
   'suggest_avatar_clip offers a short teacher clip as extra learning material on the canvas; it never generates anything and is not a second conversation. First ask what SEEING a human teacher adds here beyond text or speech; if nothing, do not use it. Never for a routine factual question, never on every response, never just because you have something to say. Static structure is a card, a changing mechanism is an animation, human presence, framing, gesture or emphasis is a teacher clip.',
@@ -456,6 +464,13 @@ export const HANDOFF_SYSTEM = [
   'An allowed handoff changes nothing for your own words: your own words never claim retrieval or inspection (never "I found", "I looked at the code" or "the source shows"); only the handoff answer reports what the source says. When retrieval fails, the learner is told the source context could not be retrieved.',
 ].join('\n');
 
+// Owner 2026-10-08 (r29): the move-on block, sent with the next_section type only when context.allowed_actions lists it.
+export const NEXT_SECTION_SYSTEM = [
+  'next_section moves the learner on to the next section of the path (the first of context.journey_context.upcoming). The current section is recorded as completed only when its evidence is met, else as skipped; nothing is lost, and the learner can come back to it.',
+  'Use it only when the learner\'s own words in this message explicitly ask to move on: to the next section, or to a topic a later section covers ("can we move on to the sigmoid?"), even beside an answer. Set explicit_request to their exact words and add a short respond_text naming the section that opens.',
+  'A request to continue, keep going, explain more or stay on this section is never next_section, and neither is a question about a later topic: say it comes later.',
+].join('\n');
+
 // avatar (TUTOR_AVATAR, Avatar Teacher §4.1): adds suggest_avatar_clip and its policy lines; off by default.
 // A context with journey_context (a journey turn) gets the journey prompt, one with canvas_context (Task 10: a hook click on
 // a plain canvas or hole) the canvas prompt, both cached the same way; the tool is the same. The context key alone chooses.
@@ -468,10 +483,10 @@ export const HANDOFF_SYSTEM = [
 // block is byte-identical to the single-block request before.
 export const plannerRequest = (context, maxTokens, documents = [], { effort = null, stream = false, cache = false, speed = null, avatar = false } = {}) => {
   const text = `Compose this turn.\n\ncontext = ${JSON.stringify(context)}`;
-  const handoff = !!context?.allowed_actions?.includes(HANDOFF_ACTION);
-  const system = plannerSystem(avatar, context?.journey_context ? 'journey' : context?.canvas_context ? 'canvas' : 'nanogpt'), tool = tutorTool(avatar, handoff);
+  const handoff = !!context?.allowed_actions?.includes(HANDOFF_ACTION), nextSection = !!context?.allowed_actions?.includes(NEXT_SECTION_ACTION);
+  const system = plannerSystem(avatar, context?.journey_context ? 'journey' : context?.canvas_context ? 'canvas' : 'nanogpt'), tool = tutorTool(avatar, handoff, nextSection);
   const intent = context?.learner_intent;
-  const extras = [intent?.kind === 'next_step' && NEXT_STEP_SYSTEM, MODE_SLASHES.includes(intent?.slash) && EXPLICIT_MODE, handoff && HANDOFF_SYSTEM].filter(Boolean);
+  const extras = [intent?.kind === 'next_step' && NEXT_STEP_SYSTEM, MODE_SLASHES.includes(intent?.slash) && EXPLICIT_MODE, handoff && HANDOFF_SYSTEM, nextSection && NEXT_SECTION_SYSTEM].filter(Boolean);
   return {
     max_tokens: maxTokens,
     ...(speed ? { speed, betas: [FAST_MODE_BETA] } : {}),

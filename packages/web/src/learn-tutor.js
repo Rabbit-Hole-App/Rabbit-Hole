@@ -18,7 +18,7 @@ import { NANOGPT, cardModule, claimsOfConceptIn, holeConcept, partLabels } from 
 import { appendEvents, claimCoverage, conceptState, deriveClaimStates, practiceEvents, reconcile } from './learn-tutor-evidence.js';
 import { selectClaims } from './learn-tutor-select.js';
 import { EVIDENCE_ACTIONS, EVIDENCE_ROWS, avatarMoments, speakable, statedConstraints, validateActions } from './learn-tutor-validate.js';
-import { AVATAR_ACTION, HANDOFF_ACTION, MODE_SLASHES } from '../../control-plane/src/agents/learn-tutor.js';
+import { AVATAR_ACTION, HANDOFF_ACTION, MODE_SLASHES, NEXT_SECTION_ACTION } from '../../control-plane/src/agents/learn-tutor.js';
 import { decisionEvent, handoffUsage, safely, turnTrace } from './learn-tutor-trace.js';
 import { validSources } from './card-sources.js';
 import { actionContract, reasonCodes } from './learn-tutor-actions.js';
@@ -105,7 +105,7 @@ const turnEvidence = (claims, states, domain) => withPrerequisites(claims, domai
 // the turn may offer suggest_journey (journey_offer). repository (Task 11c-B): the canvas reads a repository (structured page
 // state, LearnTutor.jsx canvasRepository), so the turn may hand off to repository_context (handoff_offer); words never set it.
 // canvas.liveTitle: a hole's live title (Task 10 fix round 3).
-export function buildTurn({ raw, slash = null, opening = false, canvas, block, store, states, inputModality = 'text', turnId = null, domain = NANOGPT, nextStep = null, materials = [], research = false, journeyOffer = false, repository = false }) {
+export function buildTurn({ raw, slash = null, opening = false, canvas, block, store, states, inputModality = 'text', turnId = null, domain = NANOGPT, nextStep = null, materials = [], research = false, journeyOffer = false, nextSectionOffer = false, repository = false }) {
   // A typed slash is a command, never an answer to the Tutor's open question (fix round 2), wherever it fixes the move or not.
   const typed = !!slash, mode = MODE_SLASHES.includes(slash) ? slash : null;
   slash = fixedSlash(slash, domain);
@@ -135,6 +135,7 @@ export function buildTurn({ raw, slash = null, opening = false, canvas, block, s
     ...(nextStep || materials.length ? { available_materials: materials } : {}),
     ...(research ? { research_offer: true } : {}),
     ...(journeyOffer ? { journey_offer: true } : {}),
+    ...(nextSectionOffer ? { next_section_offer: true } : {}),
     ...(repository ? { handoff_offer: true } : {}),
   };
   const claims = turnClaims(turn, store, domain);
@@ -208,6 +209,8 @@ export function route({ turn, claims, states, evaluation, store, avatar = null, 
     if (turn.research_offer && !list.includes('suggest_research')) list = [...list, 'suggest_research'];
     // Fix B1: a learning path is an offer the learner starts (suggest_journey), on every row where a journey can start.
     if (turn.journey_offer && !list.includes('suggest_journey')) list = [...list, 'suggest_journey'];
+    // r29 (owner 2026-10-08): on a live journey with a next section (structural), every row may move on when the learner asks.
+    if (turn.next_section_offer && !list.includes(NEXT_SECTION_ACTION)) list = [...list, NEXT_SECTION_ACTION];
     // Task 11c-B: the repository_context handoff, where the canvas reads a repository (turn.handoff_offer, structural), on typed,
     // voice and hook turns alike, except on a row whose rule fixes the move (MATERIAL_FIXED). Never from the learner's words.
     if (turn.handoff_offer && !MATERIAL_FIXED.includes(row) && !list.includes(HANDOFF_ACTION)) list = [...list, HANDOFF_ACTION];
@@ -408,7 +411,7 @@ export const enforce = validateActions;
 // repository (Task 11c-B): the canvas reads a repository, so the plan may hand off to repository_context; an accepted handoff
 // runs after the plan through the handoff route (runHandoff), its answer follows the plan's own words in `text`, a failure
 // says the source context could not be retrieved, and bench.handoff / bench.ms.handoff / bench.ms.to_answer time it.
-export async function runTurn({ raw, slash = null, opening = false, canvas, access, block, store, post, onSpeakable = null, inputModality = 'text', turnId = null, onTurn = null, domain = NANOGPT, plan = true, nextStep = null, materials = [], research = false, journeyOffer = false, repository = false, trace = false }) {
+export async function runTurn({ raw, slash = null, opening = false, canvas, access, block, store, post, onSpeakable = null, inputModality = 'text', turnId = null, onTurn = null, domain = NANOGPT, plan = true, nextStep = null, materials = [], research = false, journeyOffer = false, nextSectionOffer = false, repository = false, trace = false }) {
   if (nextStep) raw = '';
   const t = [now()];
   // The hook click's time for the event (selected_at): the page's click time when it passes one, else this turn's start.
@@ -431,7 +434,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   }
   t.push(now());
   let states = deriveClaimStates(current.events, domain.claims);
-  const built = tracer.step('claim_selection', () => buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id, domain, nextStep, materials, research, journeyOffer, repository }),
+  const built = tracer.step('claim_selection', () => buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id, domain, nextStep, materials, research, journeyOffer, nextSectionOffer, repository }),
     out => out.selection ? `${out.selection.selected.length}/${out.selection.available}${out.selection.fallback ? ' fallback' : ''}` : 'none');
   const { turn, selection } = built;
   onTurn?.(turn);
@@ -453,7 +456,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
     const reconciled = () => (!journeyTurn ? reconcile(current, evaluation, ref, domain.claims)
       : result.journey?.events ? adoptJourney(current, result, states, domain.claims) : { store: current, states, transitions: [], added: 0 });
     ({ store: current, states, transitions } = tracer.step('evidence_reconciliation', reconciled, out => `${out.added} observations, ${out.transitions.length} state changes`));
-    turn.evidence = buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id, domain, nextStep, materials, research, journeyOffer, repository }).turn.evidence;
+    turn.evidence = buildTurn({ raw, slash, opening, canvas, block, store: current, states, inputModality, turnId: id, domain, nextStep, materials, research, journeyOffer, nextSectionOffer, repository }).turn.evidence;
   };
   if (raw.trim() && !turn.slash && !opening && claims.length) {
     const spec = evaluationSpec(turn, claims, current, domain);
@@ -783,7 +786,7 @@ const titleOf = (cardId, domain) => domain.cardModule(cardId)?.scene.title || ca
 // becomes a Start a learning path chip that calls it with the request, and nothing starts until the learner clicks.
 // domain: whose cards these are (NANOGPT by default); a domain's own showCard (a journey's reveals its block, never
 // inserts) replaces the authored-module one.
-export function executeActions(actions, { canvas, suggestDive, climb, slot = null, domain = NANOGPT, openResearch = null, startJourney = null }) {
+export function executeActions(actions, { canvas, suggestDive, climb, slot = null, domain = NANOGPT, openResearch = null, startJourney = null, nextSection = null }) {
   const chips = [];
   let held = slot;
   const take = () => { const id = held; held = null; return id; };
@@ -807,6 +810,8 @@ export function executeActions(actions, { canvas, suggestDive, climb, slot = nul
     else if (action.type === 'return_from_dive') chips.push({ label: 'Back up the Rabbit Hole', run: () => climb?.() });
     else if (action.type === 'suggest_research' && openResearch) chips.push({ label: 'Research this', run: () => openResearch(action.request) });
     else if (action.type === 'suggest_journey' && startJourney) chips.push({ label: 'Start a learning path', run: () => startJourney(action.request) });
+    // r29: the learner asked to move on, so the next section opens now (the journey's next_section), never as a chip.
+    else if (action.type === NEXT_SECTION_ACTION && nextSection) nextSection();
   }
   return chips;
 }

@@ -763,3 +763,38 @@ test('fix round 2: a Stop after the plan or the handoff resolved still stops the
     assert.equal(events.find(e => e.type === 'small:tutor-bench')?.detail.error, 'AbortError');
   }
 });
+
+// Owner 2026-10-08 (r29): an explicit move-on request opens the next journey section. The router offers next_section on every row
+// of a live journey with a next section (structural); the validator keeps it only with the learner's own quoted words, once; the
+// executor moves on at once (no chip); the page offers it only where the journey can move. Phrasings from the run A2 advanced
+// learner (tutor-decision-eval.md 18.3), one bundled with an answer; a continue-explaining turn with no quote is dropped.
+test('r29 next_section: offered on every row of a live journey, kept only with the learner\'s quoted words, run at once, offered only where the journey can move', () => {
+  for (const row of ROWS) {
+    const offered = routeAt(row, { next_section_offer: true });
+    assert.ok(offered.allowed.includes('next_section'), row[0]);
+    assert.equal(routeAt(row).allowed.includes('next_section'), false, `${row[0]}: no offer, no action`);
+  }
+  const routed = routeAt(ROWS.find(r => r[0] === 'uncertain'), { next_section_offer: true });
+  const say = { type: 'respond_text', text: 'Section 2 opens now.' };
+  const asked = (raw, explicit) => validateActions({ constraints_add: [], strategy: 'none', ...(explicit ? { explicit_request: explicit } : {}), actions: [say, { type: 'next_section' }] }, routed, turnOf({ raw_user_message: raw }));
+  for (const [raw, quote] of [['Can we move on to the next section?', 'move on to the next section'], ['B scores higher by 0.4. Can we move on to the sigmoid now?', 'Can we move on to the sigmoid now?'], ["I'm ready for the next section", "ready for the next section"]]) {
+    assert.deepEqual(asked(raw, quote).actions.map(a => a.type), ['respond_text', 'next_section'], raw);
+  }
+  const kept = asked('Can you keep explaining this part?', null);
+  assert.deepEqual(kept.actions.map(a => a.type), ['respond_text'], 'no quoted request: never moved on');
+  assert.equal(kept.decisions.find(d => d.type === 'next_section').stage, 'consent');
+  assert.deepEqual(asked('Can we move on?', 'something they never said').actions.map(a => a.type), ['respond_text'], 'a quote not in the message is no request');
+  const twice = validateActions({ constraints_add: [], strategy: 'none', explicit_request: 'move on', actions: [{ type: 'next_section' }, { type: 'next_section' }] }, routed, turnOf({ raw_user_message: 'move on' }));
+  assert.deepEqual(twice.actions.map(a => a.type), ['next_section'], 'once per turn');
+  assert.deepEqual(validateActions({ constraints_add: [], strategy: 'none', explicit_request: 'move on', actions: [say, { type: 'next_section' }] }, routeAt(ROWS[0]), turnOf({ raw_user_message: 'move on' })).actions.map(a => a.type), ['respond_text'], 'not offered: unknown');
+  let moved = 0;
+  const chips = executeActions([say, { type: 'next_section' }], { canvas: {}, suggestDive: () => {}, nextSection: () => { moved += 1; } });
+  assert.deepEqual([moved, chips.length], [1, 0], 'moves on at once, never a chip');
+  const path = { version: 2, sections: [{ id: 's1', status: 'current' }, { id: 's2', status: 'upcoming' }] };
+  const live = (over = {}, p = path) => ({ journey: { state: 'active', active_section_id: 's1', pending: null, ...over }, path: p, busy: false, nextSection: () => {}, start: () => {} });
+  assert.equal(bundled.turnOffers({ journey: live() }).nextSectionOffer, true);
+  for (const [why, journey, record] of [['setup', live({ state: 'path_review' })], ['the last section', live({ active_section_id: 's2' }, { ...path, sections: [{ id: 's1', status: 'completed' }, { id: 's2', status: 'current' }] })],
+    ['a section being planned', live({ pending: 'section' })], ['busy', { ...live(), busy: true }], ['in a hole', live(), { dive_id: 'd' }], ['no journey', null]]) {
+    assert.equal(bundled.turnOffers({ journey, record }).nextSectionOffer, false, why);
+  }
+});
