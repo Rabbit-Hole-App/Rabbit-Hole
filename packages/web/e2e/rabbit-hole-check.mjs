@@ -174,7 +174,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  await check('sh-home: one primary Start opens the Start dialog; Continue and Recent read this browser', async () => {
+  await check('sh-home: one primary Start, top right, opens the Start dialog; Continue and Recent read this browser', async () => {
     const page = await open();
     await page.goto(`${base}/apps`);
     await shStart(page).waitFor({ timeout: 20000 });
@@ -199,6 +199,10 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       const box = await card.boundingBox(), border = await card.evaluate((n) => getComputedStyle(n).borderTopWidth);
       must(box && box.width < 400 && box.height < 160, `Recent card is ${box?.width}x${box?.height}, not a compact card`);
       must(border === '1px', `Recent card border ${border}`);
+      // Start is the page's top-right header action, above Continue and Recent (owner, 2026-10-08).
+      const sb = await shStart(page).boundingBox(), cb = await cont.boundingBox();
+      must(sb.y + sb.height <= cb.y, `Start (bottom ${sb.y + sb.height}) is not above Continue (${cb.y})`);
+      must(sb.x + sb.width >= cb.x + cb.width - 2, `Start ends at ${sb.x + sb.width}, not the right edge ${cb.x + cb.width}`);
       await shStart(page).click(); // strict locator: exactly one primary Start on Home (T02 §3.3)
       await page.getByRole('dialog', { name: 'Start a rabbit hole' }).waitFor({ timeout: 10000 });
     } finally {
