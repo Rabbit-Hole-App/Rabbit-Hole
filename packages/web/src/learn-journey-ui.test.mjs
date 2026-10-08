@@ -1640,6 +1640,26 @@ test('owner 2026-10-07 D2: a skip-setup replacement whose planner fails keeps th
   }
 });
 
+// Learning review of D2: the old journey's tray can carry its own planner-failure error. The replacement's failure line and
+// its Try again (the same replace start) still show, never the old journey's retry in its place.
+test('owner 2026-10-07 D2: a replacement that fails over an old journey showing its own planner failure still offers Try again for the replacement', async () => {
+  const FAST = 'Teach me SQL, skip setup and just start';
+  const old = journeyOf({ registry: SIGMOID, error: { op: 'path', message: 'The planner failed.' } }), tray = trayFor(old, null);
+  const fresh = journeyOf({ id: 'j2', revision: 3, state: 'active', request: { topic: 'sql' } });
+  const h = harness(ok(old, tray), [
+    { status: 409, d: { error: 'live_journey', journey: old, path: null, tray } },
+    { status: 502, d: { error: 'The planner failed. Try again.', journey: old, path: null, tray } },
+    ok(fresh, null),
+  ]);
+  await h.refresh();
+  await h.view().start(FAST);
+  assert.deepEqual(await h.view().answer('start_new'), { handled: true, failed: true, ok: false });
+  assert.deepEqual([h.view().journey, h.view().tray.error.message], [old, 'Could not start sql, so logistic regression stays as it was.']);
+  await h.view().answer('retry');
+  assert.deepEqual(h.calls[3].body, { app: APP, board: 'main', action: 'start', text: FAST, replace: 'j1' }, 'Try again is the replacement, not the old journey retry');
+  assert.deepEqual([h.view().journey.id, h.actions()], ['j2', ['start', 'start', 'start']]);
+});
+
 test('owner 2026-10-07 D2: skipping a question continues the same journey - a cancel, never a start or an archive', async () => {
   const h = harness(ok(journeyOf({ registry: SIGMOID }), goalTray), [ok(journeyOf({ state: 'diagnostic', revision: 5, registry: SIGMOID, diagnostic: { probes } }), probeTray)]);
   await h.refresh();
