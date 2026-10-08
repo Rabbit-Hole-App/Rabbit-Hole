@@ -82,11 +82,13 @@ export const primitive = (id) => (PAID.includes(id) ? { id, paid: true, needsCon
 // Live mutations are blocked on the review copy (T02 §16). Here, not in commands.js, so preview-only UI can
 // import it without pulling commands.js's top-level code into the live bundle.
 export const D7_REASON = 'Blocked on this preview: it would change live apps.';
-export const ASK_OFF = 'Asking about the workspace or apps is off on this preview: it would write to live chat history.';
+export const ASK_OFF = 'Asking about an app is off on this preview: it would write to live chat history.';
 const RESEARCH_OFF = 'Research here would call the live model, so it is off on this preview.';
 const TEACH_OFF = 'Learn on an app would ask through live chat history, so it is off on this preview.';
 export function reviewOff(name, kind, { askLive = false } = {}) {
-  if (name === 'ask' && !askLive && (kind === 'workspace' || kind === 'app')) return { reason: ASK_OFF, short: 'Off on this preview' };
+  // A Home question goes to /api/learn/home-ask (LEARN_DB), never the old apps agent's chat history, so /ask is on there
+  // as a typed question is (r28 audit); only an app's ask would still write that history.
+  if (name === 'ask' && !askLive && kind === 'app') return { reason: ASK_OFF, short: 'Off on this preview' };
   // Research reaches the live model, and a canvas never offers it (a Home, Library and Project workflow, owner 2026-10-06).
   if (name === 'research') return { reason: RESEARCH_OFF, short: 'Off on this preview' };
   // The preview mounts Learn only for canvases (SharePage, D7), so /teach on an app would land nowhere.

@@ -23,7 +23,7 @@ test('a project is Files · Graph · Learn: no Overview, one restrained tab row,
   assert.match(page, /<Tabs value=\{tab==='learn'\?'learn':mode\} onValueChange=\{v=>v==='learn'\?go\('learn'\):setMode\(v\)\}>/);
   // The Learn view renders no tabs: its canvas switcher sits in Learn's own header, on the Main canvas and on every
   // project canvas alike (docs/features/project-canvases.md).
-  const learnView = page.slice(page.indexOf("if(tab==='learn')return"), page.indexOf('  return <main'));
+  const learnView = page.slice(page.indexOf("if(tab==='learn')return"), page.indexOf('  return <CodeRefs.Provider value={codeRefs}><main'));
   assert.doesNotMatch(learnView, /\{tabs\}|<select/);
   assert.equal(learnView.match(/switcher=\{switcher\}/g).length, 2);
   assert.match(learn, /\[field-sizing:content\][^\n]*\/>\s*\{switcher\}/);
@@ -31,7 +31,7 @@ test('a project is Files · Graph · Learn: no Overview, one restrained tab row,
   // links on to the Map (owner, 2026-10-08); a project's other canvases have no repository context, so theirs goes to the Map.
   assert.match(learnView, /onMap=\{\(\)=>go\('map'\)\}/);
   assert.match(learnView, /<CanvasLearn key=\{picked\.name\} app=\{picked\} project=\{app\} onMap=\{\(\)=>go\('map'\)\} switcher=\{switcher\}\/>/);
-  assert.match(learnView, /<LearnPage app=\{app\} files=\{snapshot&&reader\(\{query:'',stacked:true\}\)\}/);
+  assert.match(learnView, /<LearnPage app=\{app\} files=\{snapshot&&reader\(\{query:'',stacked:true,place:'panel'\}\)\}/);
   assert.match(learn, /\{onMap && <button type="button" data-learn-map title=\{files \? "Files: read this repository's code and ask about it" : "Map: this repository's code graph"\} aria-label=\{files \? 'Repository files' : 'Map'\}\n\s+onClick=\{files \? \(\) => \{ setPanelOpen\(true\); setPanelTab\('files'\); \} : onMap\}/);
   assert.match(learn, /<PanelHeader [^\n]*filesOn=\{!!files\}/);
   assert.match(learn, /\{files && <div role="tabpanel" aria-label="Repository files" data-learn-files className=\{`\$\{panelTab === 'files' \? 'flex' : 'hidden'\}[^\n]*\n[\s\S]{0,200}<button type="button" data-learn-open-map onClick=\{onMap\}[^\n]*>Open the Map →<\/button>[\s\S]{0,40}\{files\}/);
@@ -88,7 +88,8 @@ test('an answer lists every cited file once, in order, including line lists writ
     'model.py:29-29', 'model.py:78-78', 'model.py:94-94', 'model.py:31-31']);
   assert.deepEqual(citedSources('No files here, just 3 numbers: 1, 2.'), []);
   // Md shows them in a Sources dropdown wherever opening a file is wired.
-  assert.match(md, /const cited = onFile \? citedSources\(text\) : \[\];/);
+  // Inside a repository context only a file of its snapshot is listed (repository-browser.md "Code references").
+  assert.match(md, /const cited = onFile \? citedSources\(text\)\.filter\(c => linkable\(c, has\)\) : \[\];/);
   assert.match(md, /<details key="cited" data-cited-sources[^>]*><summary[^>]*>Sources \(\{cited\.length\}\)<\/summary>/);
 });
 
@@ -146,7 +147,8 @@ test('one selection: Files, Graph, the inspector and Learn read the same context
   assert.match(page, /<RepositoryGraph graph=\{shown\} selected=\{lit\}/);
   assert.match(page, /const lit=inspected\?\.record\?\{id:inspected\.id\}:context&&\(context\.nodeId\|\|context\.path\)\?\{id:context\.nodeId\|\|fileObject\(snapshot\.graph,context\.path\)\.nodeId\}:null;/);
   assert.match(page, /<CodeReader app=\{app\} snapshot=\{snapshot\} open=\{opened\} context=\{context\}[^>]*onFile=\{p=>attach\(fileObject\(snapshot\.graph,p\)\)\} onSymbol=\{n=>attach\(objectOf\(snapshot\.graph,n\)\)\}/);
-  assert.match(page, /onRange=\{\(kind,range\)=>\{attach\(range\);if\(kind==='learn'\)learnThis\(range\);else askAbout\(range\);\}\} \{\.\.\.extra\}\/>;/);
+  // In Learn's panel, Ask in chat also puts the lines on the canvas as a selected Code card (repository-browser.md "Files in Learn").
+  assert.match(page, /onRange=\{\(kind,range\)=>\{attach\(range\);if\(kind==='learn'\)learnThis\(range\);else\{askAbout\(range\);if\(extra\?\.place==='panel'\)codeCard\(range\);\}\}\} \{\.\.\.extra\}\/>;/);
   assert.equal(page.match(/<CodeReader /g).length, 1, 'one reader: the Map shows reader(), the Main canvas panel reader({stacked})');
   assert.match(page, /:reader\(\)\}<\/div>/);
   assert.match(page, /repositoryContext=\{context\?wireContext\(context\):\{commit:app\.commit_sha\}\}/);

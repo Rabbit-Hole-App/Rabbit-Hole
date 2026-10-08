@@ -6,7 +6,6 @@ import { DatabaseSync } from 'node:sqlite';
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { gateVerdict, rerunVerdict, deployedSha, decide, learnTables, servedSha, notReusable, entryScript, parseUpload, TEST_ONLY, UNIT_TEST, buildRecipe, CONFIRMATIONS, BRANCHES } from './dev-deploy.mjs';
-import { watchStep } from './dev-deploy-watch.mjs';
 
 const TREE = '192b10f38626e3db2abe1528f68719154b6e802a';
 // Shape of a real integration gate record (int16r, main 42f5a4f0), trimmed.
@@ -195,12 +194,16 @@ test('the smoke waits for several consecutive serves of the new build, not one',
   assert.match(src, /\? streak \+ 1 : 0/, 'a miss resets the streak');
 });
 
-test('the dev-branch trigger deploys a new dev head only with its gate record, once; main never deploys from a push', () => {
-  assert.equal(watchStep({ head: 'b', last: 'a', gate: true }), 'deploy');
-  assert.equal(watchStep({ head: 'b', last: 'a', gate: false }), 'wait', 'no gate record for the exact tree, no deploy');
-  assert.equal(watchStep({ head: 'b', last: 'b', gate: true }), 'idle', 'each head is tried once');
+test('the dev workflow: a push to dev only, its gate note required, secrets only in the dev-preview environment, pinned actions', () => {
   assert.deepEqual(BRANCHES, ['origin/main', 'rabbit-hole/dev']);
-  const watch = readFileSync(new URL('./dev-deploy-watch.mjs', import.meta.url), 'utf8');
-  assert.match(watch, /'--branch', 'rabbit-hole\/dev'/);
-  assert.doesNotMatch(watch, /rabbit-hole\/main|'main'/, 'the trigger watches dev only');
+  const wf = readFileSync(new URL('../.github/workflows/deploy-dev.yml', import.meta.url), 'utf8').replace(/\r\n/g, '\n'); // CRLF checkouts
+  assert.match(wf, /on:\n  push:\n    branches: \[dev\]\n/, 'push to dev is the only trigger');
+  assert.doesNotMatch(wf, /pull_request|workflow_run|issue_comment/, 'nothing a fork can start');
+  assert.match(wf, /environment: dev-preview\n/);
+  assert.match(wf, /if: github\.repository == 'Rabbit-Hole-App\/Rabbit-Hole'/);
+  assert.match(wf, /notes --ref=gates show "\$GITHUB_SHA"/);
+  assert.match(wf, /test -s "\$RUNNER_TEMP\/gate\.log" \|\| \{[^}]*exit 1; \}/, 'no gate note, no deploy');
+  assert.match(wf, /dev-deploy\.mjs --sha "\$GITHUB_SHA" --gate "\$RUNNER_TEMP\/gate\.log" --branch rabbit-hole\/dev\n/);
+  assert.doesNotMatch(wf, /--reuse|prod-release|wrangler deploy/, 'full gates only, dev only, through dev-deploy');
+  for (const uses of wf.match(/uses: \S+/g)) assert.match(uses, /@[0-9a-f]{40}$/, `${uses} is pinned to a commit`);
 });

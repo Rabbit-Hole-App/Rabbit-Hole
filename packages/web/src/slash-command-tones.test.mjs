@@ -50,7 +50,9 @@ test('the same command looks the same everywhere: the / picker, the composer pil
   assert.match(source, /export const COMMAND_TONES = SLASH\.map\(\(command\) => command\.name\);/, 'every command in the registry is toned');
   if (commandTone) { assert.equal(commandTone('ask'), 'ask'); assert.equal(commandTone('quiz'), 'quiz'); assert.equal(commandTone('auto'), null); assert.equal(Object.keys(COMMAND_ICONS).length, 5); }
   assert.match(read('./LearnSlash.jsx'), /<CommandMark name=\{item\.name\} className="text-ink" \/>/);
-  assert.match(read('./SlashCommandsSheet.jsx'), /<CommandMark name=\{item\.name\} \/>/);
+  // Both Slash commands sheets list commands through CommandList.jsx (the canvas's and the Agent Bar's).
+  assert.match(read('./CommandList.jsx'), /<CommandMark name=\{item\.name\} \/>/);
+  for (const sheet of ['./SlashCommandsSheet.jsx', './agent/BarCommandsSheet.jsx']) assert.match(read(sheet), /<CommandList sections=\{sections\} current=\{name\}/, sheet);
   const ask = read('./ask.jsx');
   assert.match(ask, /data-command-pill data-command-tone=\{commandTone\(command\) \|\| undefined\}/);
   assert.match(ask, /<CommandIcon name=\{command\} \/>\/\{command\}<\/button>/, 'the literal /command stays beside the icon');

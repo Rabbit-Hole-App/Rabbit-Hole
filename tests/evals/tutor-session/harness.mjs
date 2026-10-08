@@ -571,4 +571,5 @@ export function writeSession(dir, bundle) {
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, sessionFile(bundle)), `${JSON.stringify(bundle, null, 2)}\n`);
 }
-export const readSessions = dir => readdirSync(dir).filter(name => name.endsWith('.json') && name !== 'aggregate.json').sort().map(name => readJson(join(dir, name)));
+// The session bundles only: aggregate.json and the paid run's run.json manifest share the directory.
+export const readSessions = dir => readdirSync(dir).filter(name => name.endsWith('.json') && !['aggregate.json', 'run.json'].includes(name)).sort().map(name => readJson(join(dir, name)));

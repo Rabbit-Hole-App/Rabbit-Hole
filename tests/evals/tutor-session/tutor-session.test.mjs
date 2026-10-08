@@ -706,6 +706,7 @@ test('a second topic runs through the same harness with no code change', async (
 test('session files round-trip; aggregate.json has every section; table and CSV render', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'tutor-session-'));
   for (const profile of profiles) writeSession(dir, await session({ profile, ledger: createLedger(4) }));
+  writeFileSync(join(dir, 'run.json'), '{"run_id":"manifest, not a session"}');
   const bundles = readSessions(dir);
   assert.deepEqual(bundles.map(bundle => bundle.simulator.profile).sort(), ['advanced', 'intermediate', 'novice']);
   const agg = aggregate(bundles, taxonomy, { roles, cost: { total_usd: 0 } });

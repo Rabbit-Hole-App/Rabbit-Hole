@@ -37,8 +37,10 @@ Source pills and the accent outline are gone.
 ## The composers
 
 - **Main composer** (Home, Library, Map): the Auto picker has a `/` icon (`data-bar-slash-help`). It opens a Slash
-  commands sheet (`agent/BarCommandsSheet.jsx`) listing that place's commands, each with an example
-  (`agent/bar.js` `exampleFor`), as the canvas composer opens its own sheet.
+  commands sheet (`agent/BarCommandsSheet.jsx`) listing that place's commands, as the canvas composer opens its
+  own sheet. It shares the canvas sheet's searchable list (`CommandList.jsx`); a chosen command shows its demo:
+  its example as typed (`agent/bar.js` `exampleFor`) and what that example does there (`resultFor`). These
+  commands answer, find, open or start something, so the demo is the exchange, not a card (r28).
 - **The window over the main composer** is just a window: its label, a clear icon (`data-result-clear`: empties
   the conversation and closes) and minimize. No History or New chat. Closed or
   minimized, a small chat icon beside + (`data-result-open`) reopens it. The + menu has no Attach item.

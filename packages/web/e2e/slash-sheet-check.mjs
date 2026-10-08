@@ -2,7 +2,7 @@ import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync } from 'node:fs';
 import { DEV_CP } from './dev-cp.mjs';
 
-// View > Slash commands on the parallel clone: the search is focused on open and
+// View > Slash commands on the parallel clone, then the Agent Bar's sheet on the Library: the search is focused on open and
 // filters by name and description; choosing a command shows the real card it
 // makes (the canvas's own card component) at its canvas size and working; paid
 // media shows a committed finished clip or a labelled picture, never Generate;
@@ -121,6 +121,33 @@ ok('a command with several cards switches between them', await sheet.locator('[d
 await search.focus();
 await page.keyboard.press('Escape');
 ok('Esc with an empty search closes the sheet', await sheet.waitFor({ state: 'detached', timeout: 5000 }).then(() => true).catch(() => false));
+// The Agent Bar's Slash commands (r28): the same search and a demo for every command it offers - its example as typed
+// and what that example does. Library, so nothing here asks a model (no Send).
+await page.goto(`${BASE}/library`);
+const barInput = page.locator('[data-agent-bar] textarea');
+await barInput.waitFor({ timeout: 60000 });
+await barInput.fill('/');
+await page.locator('[data-bar-slash-help]').click();
+const barSheet = page.getByRole('dialog', { name: 'Slash commands' });
+await barSheet.waitFor();
+const barRows = barSheet.locator('[data-bar-command]');
+const offered = await barRows.evaluateAll(nodes => nodes.map(node => node.dataset.barCommand));
+ok('the bar sheet offers what its picker does: no /research, no dimmed rows', !offered.includes('research') && ['ask', 'teach', 'do', 'find', 'open', 'new', 'connect'].every(name => offered.includes(name)), offered.join(' '));
+ok('the bar sheet search is focused when it opens', await barSheet.locator('[data-slash-search]').evaluate(node => node === document.activeElement));
+const blank = [];
+for (const command of offered) {
+  await barSheet.locator(`[data-bar-command="${command}"]`).click();
+  const demo = barSheet.locator(`[data-bar-demo="${command}"]`);
+  const text = await demo.waitFor({ timeout: 5000 }).then(() => demo.innerText()).catch(() => '');
+  if (!text.includes(`/${command} `) || text.length < 80) blank.push(command);
+}
+ok('every bar command shows its example and what it does', blank.length === 0, blank.join(' '));
+await barSheet.screenshot({ path: `${SHOTS}/bar-sheet.png` });
+await barSheet.locator('[data-slash-search]').fill('/conn');
+ok('the bar sheet filters like the canvas sheet', await barRows.count() === 1 && await barRows.first().getAttribute('data-bar-command') === 'connect');
+await page.keyboard.press('Escape');
+await page.keyboard.press('Escape');
+ok('Esc clears the search, then closes the bar sheet', await barSheet.waitFor({ state: 'detached', timeout: 5000 }).then(() => true).catch(() => false));
 ok('no page errors and no paid request', errors.length === 0 && paid.length === 0, `${errors.join(' | ')} ${paid.join(' ')}`);
 await browser.close();
 process.exit(failed ? 1 : 0);

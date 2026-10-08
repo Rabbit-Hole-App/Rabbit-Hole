@@ -24,6 +24,7 @@ const canvas = await api('/api/canvases', { method: 'POST', body: JSON.stringify
 const REPO2 = 'repo-3adf61e2-nanogpt';
 const asks = [], learnRequests = [];
 const ANSWER = 'Stubbed answer: no model was called.';
+let cite = null;
 
 const browser = await chromium.launch();
 let page;
@@ -31,6 +32,7 @@ const crash = async (error) => { console.error(error); await page?.screenshot({ 
 process.once('uncaughtException', crash);
 process.once('unhandledRejection', crash);
 const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: BASE }); // case 10b reads what Copy put there
 await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
 await routeRepository(context);
 const real = await api('/api/apps');
@@ -42,7 +44,9 @@ await context.route(`**/api/{apps,repositories}/${REPO2}{,/snapshot,/file}`, (ro
 });
 await context.route('**/api/learn/ask', (route) => {
   asks.push(JSON.parse(route.request().postData()));
-  return route.fulfill({ status: 200, contentType: 'text/event-stream', body: `event: chunk\ndata: ${JSON.stringify({ text: `${ANSWER} #${asks.length}` })}\n\nevent: done\ndata: {}\n\n` });
+  // cite: one stubbed answer's own words after the usual line (case 10d: code references), then it clears.
+  const text = `${ANSWER} #${asks.length}${cite ? `\n\n${cite}` : ''}`; cite = null;
+  return route.fulfill({ status: 200, contentType: 'text/event-stream', body: `event: chunk\ndata: ${JSON.stringify({ text })}\n\nevent: done\ndata: {}\n\n` });
 });
 page = await context.newPage();
 const errors = [];
@@ -298,7 +302,7 @@ await check('6 Learn attaches the exact range and carries it into Learn, sending
 
 // Learn's composer is an input (LearnPage, Dive.jsx), a textarea in other docks: match either.
 const COMPOSER = '[data-learn-dock] textarea, [data-learn-dock] [data-chat-composer] input:not([type="file"])';
-await check('10 the Main canvas\'s Map icon opens Files in the right panel: a file opens, selected lines Ask into Learn\'s chat as its context, nothing is sent', async () => {
+await check('10 the Main canvas\'s Map icon opens Files in the right panel: a file opens, Ask in chat puts the lines on the canvas as a selected Code card and writes the question, with the range as context; nothing is sent', async () => {
   const n = asks.length, sent = learnRequests.length;
   await tab('Learn').click();
   await page.waitForURL(/[?]tab=learn$/);
@@ -310,14 +314,129 @@ await check('10 the Main canvas\'s Map icon opens Files in the right panel: a fi
   await learnFiles.locator('[data-file-row="train.py"]').click();
   await learnFiles.getByRole('region', { name: 'Repository source' }).locator('[data-source-line="5"]').waitFor({ timeout: 10000 });
   await drag(5, 7);
-  await actions.getByRole('button', { name: 'Ask', exact: true }).click();
+  // The panel's selection offers exactly Ask in chat and Copy (owner, 2026-10-08); the Map's own keeps Ask and Learn (case 6).
+  assert.deepEqual((await actions.getByRole('button').allInnerTexts()).map((t) => t.trim()), ['Ask in chat', 'Copy']);
+  await actions.getByRole('button', { name: 'Ask in chat', exact: true }).click();
   await page.getByText(/^Asking about: train\.py:5–7/).first().waitFor({ timeout: 10000 });
   assert.equal(await page.locator(COMPOSER).first().inputValue(), 'What do lines 5–7 of train.py do?');
+  // The chip names the file, the lines and a preview of them, and can be removed.
+  const chip = page.locator('[data-learn-dock] [data-repository-context]');
+  assert.equal((await chip.locator('[data-context-path]').innerText()).trim(), 'train.py · lines 5–7');
+  assert.ok((await chip.locator('[data-context-excerpt]').innerText()).includes(content['train.py'].split('\n')[4].trim()), 'the preview shows line 5');
+  assert.equal(await chip.getByRole('button', { name: 'Clear repository selection' }).count(), 1);
+  // The lines are on the canvas as a Code card (owner, 2026-10-08: "put the highlighted code as code card"), holding exactly
+  // them, selected: the selected-card pill names it, beside the repository chip.
+  const lines = content['train.py'].split('\n').slice(4, 7);
+  const codeCards = page.getByLabel('Lesson canvas').locator('[data-block-id]').filter({ hasText: lines[0].trim() }).filter({ hasText: 'train.py' });
+  await codeCards.first().waitFor({ timeout: 10000 });
+  assert.equal(await codeCards.count(), 1, 'one Code card');
+  for (const text of lines.filter((l) => l.trim())) assert.ok((await codeCards.first().innerText()).includes(text.trim()), `the card holds ${text.trim()}`);
+  const cardId = await codeCards.first().getAttribute('data-block-id');
+  await page.locator(`[data-learn-dock] [data-selected-card="${cardId}"]`).waitFor({ timeout: 5000 });
+  // Ask in chat on the same lines again reselects that card: no second card.
+  await drag(5, 7);
+  await actions.getByRole('button', { name: 'Ask in chat', exact: true }).click();
+  await page.waitForTimeout(600);
+  assert.equal(await codeCards.count(), 1, 'the same lines make no second card');
+  await page.locator(`[data-learn-dock] [data-selected-card="${cardId}"]`).waitFor({ timeout: 5000 });
   await page.waitForTimeout(500);
   assert.equal(asks.length, n, 'Ask wrote the question and sent nothing'); assert.equal(learnRequests.length, sent);
   await shot('L-learn-files-ask');
-  await page.locator(COMPOSER).first().fill('');
+});
+
+await check('10b Copy in the panel says Copied on the button; pasting it on the canvas asks Code card or Jupyter notebook first, and Cancel places nothing; prose pastes as text', async () => {
+  const n = asks.length, sent = learnRequests.length, canvasFrame = page.getByLabel('Lesson canvas');
+  await drag(5, 7);
+  await actions.getByRole('button', { name: 'Copy', exact: true }).click();
+  await actions.getByRole('button', { name: 'Copied', exact: true }).waitFor({ timeout: 5000 }); // in place, not a corner toast
+  const copied = await page.evaluate(() => navigator.clipboard.readText());
+  assert.equal(copied, content['train.py'].split('\n').slice(4, 7).join('\n'));
+  const paste = (text) => page.evaluate((t) => { document.activeElement?.blur(); const data = new DataTransfer(); data.setData('text/plain', t); window.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true })); }, text);
+  const dialog = page.locator('[data-file-import-dialog]');
+  await paste(copied);
+  await dialog.waitFor({ timeout: 5000 });
+  assert.equal((await dialog.locator('[data-import-file]').innerText()).trim(), 'train.py', 'text copied from a file keeps its name');
+  assert.deepEqual((await dialog.locator('[data-import-choice]').allInnerTexts()).map((t) => t.trim()), ['Code card', 'Jupyter notebook']);
+  await shot('L-paste-code-dialog');
+  const before = await canvasFrame.locator('[data-block-id]').count(); // case 10's Code card is already there
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await dialog.waitFor({ state: 'detached', timeout: 5000 });
+  assert.equal(await canvasFrame.locator('[data-block-id]').count(), before, 'Cancel placed nothing');
+  await paste(copied);
+  await dialog.waitFor({ timeout: 5000 });
+  await page.keyboard.press('Escape');
+  await dialog.waitFor({ state: 'detached', timeout: 5000 });
+  await paste(copied);
+  await dialog.locator('[data-import-choice="code"]').click();
+  await dialog.getByRole('button', { name: 'Add to canvas', exact: true }).click();
+  await page.waitForFunction((n) => document.querySelectorAll('[aria-label="Lesson canvas"] [data-block-id]').length === n + 1, before, { timeout: 10000 });
+  // Code from elsewhere (the conservative heuristic) asks too, named snippet.py; a notebook is offered and nothing runs.
+  await paste('def attention(q, k, v):\n    w = q @ k.T\n    return w @ v');
+  await dialog.waitFor({ timeout: 5000 });
+  assert.equal((await dialog.locator('[data-import-file]').innerText()).trim(), 'snippet.py');
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  // Plain prose is a text paste, as before: no dialog.
+  await paste(`Attention weighs every token ${run}.`);
+  await page.waitForTimeout(600);
+  assert.equal(await dialog.count(), 0, 'prose asks nothing');
+  await canvasFrame.getByText(`Attention weighs every token ${run}.`).first().waitFor({ timeout: 5000 });
+  assert.equal(asks.length, n, 'copying and pasting asked nothing'); assert.equal(learnRequests.length, sent);
+});
+
+await check('10c Send carries the Code card and the line range on the Learn chat path, and the answer stays tied to them', async () => {
+  const n = asks.length, tutorTurns = learnRequests.filter((p) => p.startsWith('/api/learn/tutor')).length;
+  const field = page.locator(COMPOSER).first();
+  // Ask in chat once more: its Code card is selected again and the question waits, unsent.
+  await drag(5, 7);
+  await actions.getByRole('button', { name: 'Ask in chat', exact: true }).click();
+  const pill = page.locator('[data-learn-dock] [data-selected-card]');
+  await pill.waitFor({ timeout: 5000 });
+  const cardId = await pill.getAttribute('data-selected-card');
+  assert.equal(asks.length, n, 'nothing sent before Send');
+  await field.fill('What do lines 5–7 of train.py do?');
+  await field.press('Enter');
+  await page.getByText(`${ANSWER} #${n + 1}`).first().waitFor({ timeout: 10000 });
+  assert.equal(asks.length, n + 1, 'one stubbed ask');
+  assert.deepEqual(asks.at(-1).repository_context?.range, { path: 'train.py', start: 5, end: 7 });
+  assert.equal(asks.at(-1).repository_context?.commit, COMMIT);
+  assert.equal(asks.at(-1).canvas_target?.id, cardId, 'the Code card rides as the selected card');
+  assert.ok(String(asks.at(-1).canvas_target?.text || '').includes(content['train.py'].split('\n')[4].trim()), 'with its lines');
+  assert.equal(learnRequests.filter((p) => p.startsWith('/api/learn/tutor')).length, tutorTurns, 'not a Tutor turn');
+  await page.locator('[data-chat-sheet] blockquote', { hasText: 'train.py · lines 5–7' }).first().waitFor({ timeout: 5000 }); // the question's own passage line
+  await shot('L-learn-files-send');
+  const learnFiles = page.locator('[data-learn-files]');
   await learnFiles.locator('[data-learn-open-map]').click();
+  await page.waitForURL(/[?]tab=map$/);
+});
+
+await check('10d a code reference in an answer opens the Files panel at that range, selected; a path the repository does not have stays text; nothing is asked', async () => {
+  await tab('Learn').click();
+  await page.waitForURL(/[?]tab=learn$/);
+  const field = page.locator(COMPOSER).first();
+  await field.waitFor({ timeout: 30000 });
+  // The range from case 10 is still the context, so the question takes the stubbed Learn chat route.
+  const n = asks.length;
+  cite = 'The causal mask is applied in model.py:177-179, and nanogpt/missing.py:1-2 does not exist.';
+  await field.fill('Where is the causal mask applied?');
+  await field.press('Enter');
+  await page.getByText(`${ANSWER} #${n + 1}`).first().waitFor({ timeout: 10000 });
+  const link = page.getByRole('button', { name: 'Open model.py lines 177–179', exact: true }).first();
+  await link.waitFor({ timeout: 5000 });
+  assert.equal(await page.locator('[data-code-ref^="nanogpt/missing.py"]').count(), 0, 'an unknown path is no link');
+  assert.ok(await page.getByText(/nanogpt\/missing\.py:1-2 does not exist/).count() > 0, 'it stays as text');
+  // Closed panel: the click opens it on Files, model.py, lines 177-179 selected (the toolbar Ask in chat and Copy act on).
+  if (await page.locator('[data-panel-close]').isVisible()) await page.locator('[data-panel-close]').click();
+  await link.click();
+  await page.locator('[data-learn-files]').waitFor({ timeout: 10000 });
+  assert.equal(await page.locator('[data-panel-tab="files"]').getAttribute('aria-selected'), 'true');
+  await page.locator('[data-learn-files] [data-file-row="model.py"][aria-current="true"]').waitFor({ timeout: 10000 });
+  await page.waitForFunction(() => [...document.querySelectorAll('[data-learn-files] [data-highlighted]')].map((n) => n.dataset.sourceLine).join() === '177,178,179', null, { timeout: 10000 });
+  assert.deepEqual((await page.locator('[data-learn-files] [data-range-actions]').getByRole('button').allInnerTexts()).map((t) => t.trim()), ['Ask in chat', 'Copy']);
+  assert.ok(await page.locator('[data-learn-files] [data-source-line="177"]').isVisible(), 'scrolled into view');
+  await page.waitForTimeout(400);
+  assert.equal(asks.length, n + 1, 'the click asked nothing');
+  await shot('L-code-ref-open');
+  await page.locator('[data-learn-files] [data-learn-open-map]').click();
   await page.waitForURL(/[?]tab=map$/);
 });
 

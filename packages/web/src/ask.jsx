@@ -3,14 +3,16 @@ import { VoiceField, VoiceToggle } from './VoiceMode.jsx';
 import ContextDocs from './ContextDocs.jsx';
 import { useContextDocs } from './context-docs.js';
 import RepositorySource, { SourceSelectionContext } from './RepositorySource.jsx';
-import { FILE_TOKEN, INLINE_PARTS, citedSources, sourceReference, singleSourcePath } from './source-references.js';
+import { FILE_TOKEN, INLINE_PARTS, citedSources, linkable, referenceLabel, sourceReference, singleSourcePath } from './source-references.js';
 // ─── Ask (phase 1 - read only): the chat panel behind the Agent tab, the run
 // peek's ask box, and ⌘K's Ask tab. POST /api/ask streams SSE; org-scope
 // ambiguity comes back as { choose } and renders candidate pills. ───
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
+import { CodeRefs } from './code-refs.js';
 import { ArrowUp, AtSign, BookOpen, CornerDownRight, Eraser, Check, Copy, Crown, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Network, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap } from 'lucide-react';
 import { ago, api, navigate, wsHeaders } from './api.js';
 import { colorLine } from './code.jsx';
+import { contextPassage } from './map-files.js';
 import { MathText, tokenizeMath } from './MathText.jsx';
 import { MODEL_CHOICES } from './model-choices.js';
 import { canvasTargetField } from './learn-ask-target.js';
@@ -45,31 +47,37 @@ function EvidencePill({ icon: Icon = FileText, children, ...props }) {
   return <Tag {...props} className={cn('inline-flex max-w-full items-center gap-1.5 rounded-sm border border-line px-2 py-1 text-left text-xs text-ink-2 no-underline', (props.href || props.onClick) && 'cursor-pointer hover:bg-hover hover:text-ink')}><Icon size={12} strokeWidth={1.5} className="shrink-0" /><span className="break-words min-w-0">{children}</span></Tag>;
 }
 
+// Code references on a repository context (code-refs.js; repository-browser.md "Code references"): inside it a path:start-end
+// in an answer is a link only when the snapshot has that file, and a click opens it in that page's reader with the range
+// selected - Learn's Files panel on the Main canvas, the Map's Files view on the Map. No model is asked. Elsewhere `onFile` decides.
+export { CodeRefs };
+
 // Tiny safe markdown: **bold**, `code`, "- " bullets. Built as elements - no HTML injection.
-function inline(s, math = [], onFile, sourcePath) {
+// has: the snapshot test inside a repository context (CodeRefs), else null - every reference with an onFile is a link.
+function inline(s, math = [], onFile, sourcePath, has = null) {
   return s.split(INLINE_PARTS).map((part, i) => {
     const link = part.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/);
     if (link) return <EvidencePill key={i} href={link[2]} target="_blank" rel="noreferrer">{inline(link[1], math)}</EvidencePill>;
     const token = part.match(/^\uE000(\d+)\uE001$/);
     if (token && math[Number(token[1])]) return <MathText key={i} {...math[Number(token[1])]} />;
     const reference=onFile&&sourceReference(part,sourcePath);
-    if(reference)return <EvidencePill key={i} type="button" title={`Open ${reference.path}:${reference.start}-${reference.end}`} onClick={()=>onFile(reference.path,reference.start,reference.end)}>{part.replace(/^`(.*)`$/,'$1')}</EvidencePill>;
+    if(linkable(reference,has))return <EvidencePill key={i} type="button" data-code-ref={`${reference.path}:${reference.start}-${reference.end}`} aria-label={referenceLabel(reference)} title={referenceLabel(reference)} onClick={()=>onFile(reference.path,reference.start,reference.end)}>{part.replace(/^`(.*)`$/,'$1')}</EvidencePill>;
     if (part.startsWith('`') && part.endsWith('`')) {
       return <code key={i} className="rounded-xs bg-code px-1 font-mono text-[0.9em]">{part.slice(1, -1)}</code>;
     }
-    if (part.startsWith('**') && part.endsWith('**')) return <strong key={i}>{inline(part.slice(2, -2), math, onFile, sourcePath)}</strong>;
+    if (part.startsWith('**') && part.endsWith('**')) return <strong key={i}>{inline(part.slice(2, -2), math, onFile, sourcePath, has)}</strong>;
     return part;
   });
 }
 
 // A source token like "job.py:15" or "small.toml" - clickable when onFile is wired.
 
-function SourcesLine({ text, onFile, onRun, onDecision }) {
+function SourcesLine({ text, onFile, onRun, onDecision, has = null }) {
   const parts = text.slice(9).split(/[,;]/).map(part => part.trim().replace(/^\x60(.*)\x60$/, '$1')).filter(Boolean);
   return (
     <div aria-label="Answer evidence" className="flex flex-col items-start gap-2 pt-2">
       {parts.map((part, i) => {
-        const file = part.replace(/[–—]/g, '-').match(FILE_TOKEN);
+        const found = part.replace(/[–—]/g, '-').match(FILE_TOKEN), file = found && (!has || has(found[1])) ? found : null;
         const run = part.match(/^(?:run\s+)?(r-[\w-]+)$/i);
         const decision = part.match(/^decision:([a-f0-9-]{36})$/);
         const open = file && onFile ? () => onFile(file[1], file[2] ? Number(file[2]) : null, file[3] ? Number(file[3]) : null)
@@ -77,13 +85,17 @@ function SourcesLine({ text, onFile, onRun, onDecision }) {
           : decision && onDecision ? () => onDecision(decision[1]) : null;
         const label = run ? 'Run · ' + run[1] : decision ? 'Approved decision' : part;
         const Icon = run ? Play : decision ? Shield : FileText;
-        return <EvidencePill key={i} icon={Icon} {...(open ? { type: 'button', onClick: open, title: 'Open ' + label } : {})}>{label}</EvidencePill>;
+        const name = file && file[2] ? referenceLabel({ path: file[1], start: Number(file[2]), end: Number(file[3] || file[2]) }) : 'Open ' + label;
+        return <EvidencePill key={i} icon={Icon} {...(open ? { type: 'button', onClick: open, title: name, 'aria-label': name } : {})}>{label}</EvidencePill>;
       })}
     </div>
   );
 }
 
-export function Md({ text, onRun, onFile, sourcePath = singleSourcePath(text) }) {
+export function Md({ text, onRun, onFile: given, sourcePath = singleSourcePath(text) }) {
+  const refs = useContext(CodeRefs);
+  // Where the caller links files at all (an onFile), a repository context's own reader takes the click and its snapshot decides.
+  const onFile = given && refs ? refs.open : given, has = given && refs ? refs.has : null;
   const { source, math } = tokenizeMath(text.replace(/^Papers read:\s*/gm, ''));
   const lines = source.split('\n');
   const out = [];
@@ -92,7 +104,7 @@ export function Md({ text, onRun, onFile, sourcePath = singleSourcePath(text) })
   let table = null; // collecting consecutive | … | rows
   const flushTable = key => {
     const [head, ...rows] = table;
-    out.push(<div key={key} className="my-2 overflow-x-auto"><table className="min-w-full border-collapse text-xs"><thead><tr>{head.map((c, j) => <th key={j} className="border border-line px-2 py-1 text-left font-semibold">{inline(c, math, onFile, sourcePath)}</th>)}</tr></thead><tbody>{rows.map((r, ri) => <tr key={ri}>{r.map((c, j) => <td key={j} className="border border-line px-2 py-1 align-top">{inline(c, math, onFile, sourcePath)}</td>)}</tr>)}</tbody></table></div>);
+    out.push(<div key={key} className="my-2 overflow-x-auto"><table className="min-w-full border-collapse text-xs"><thead><tr>{head.map((c, j) => <th key={j} className="border border-line px-2 py-1 text-left font-semibold">{inline(c, math, onFile, sourcePath, has)}</th>)}</tr></thead><tbody>{rows.map((r, ri) => <tr key={ri}>{r.map((c, j) => <td key={j} className="border border-line px-2 py-1 align-top">{inline(c, math, onFile, sourcePath, has)}</td>)}</tr>)}</tbody></table></div>);
     table = null;
   };
   lines.forEach((l, i) => {
@@ -117,7 +129,7 @@ export function Md({ text, onRun, onFile, sourcePath = singleSourcePath(text) })
     if (table) flushTable(`t${i}`);
     if (/^\s*[-*] /.test(l)) {
       bullets = bullets || [];
-      bullets.push(<li key={i}>{inline(l.replace(/^\s*[-*] /, ''), math, onFile, sourcePath)}</li>);
+      bullets.push(<li key={i}>{inline(l.replace(/^\s*[-*] /, ''), math, onFile, sourcePath, has)}</li>);
       return;
     }
     if (bullets) {
@@ -134,20 +146,20 @@ export function Md({ text, onRun, onFile, sourcePath = singleSourcePath(text) })
       const Heading = heading ? `h${heading[1].length}` : 'h3';
       // A long answer reads as one wall without a break before each section.
       const rule = out.length ? 'mt-4 border-t border-line pt-3' : 'mt-1';
-      out.push(<Heading key={i} className={`${rule} mb-1 font-semibold text-ink`}>{inline(heading ? heading[2] : boldTitle[1], math, onFile, sourcePath)}</Heading>);
+      out.push(<Heading key={i} className={`${rule} mb-1 font-semibold text-ink`}>{inline(heading ? heading[2] : boldTitle[1], math, onFile, sourcePath, has)}</Heading>);
     } else if (l.startsWith('Sources: ')) {
-      out.push(<SourcesLine key={i} text={l} onRun={onRun} onFile={onFile} />);
+      out.push(<SourcesLine key={i} text={l} onRun={onRun} onFile={onFile} has={has} />);
     } else if (l.trim()) {
-      out.push(<p key={i} className="my-1">{inline(l, math, onFile, sourcePath)}</p>);
+      out.push(<p key={i} className="my-1">{inline(l, math, onFile, sourcePath, has)}</p>);
     }
   });
   if (fence) out.push(<CodeBlock key="f-end" className="my-1.5 text-xs">{fence.map((fl, j) => <div key={j}>{colorLine(fl)}</div>)}</CodeBlock>);
   if (table) flushTable('t-end');
   if (bullets) out.push(<ul key="ul-end" className="my-1 list-disc pl-5">{bullets}</ul>);
   // Every file the answer cites, in one Sources dropdown, each opening its file (owner, 2026-10-04).
-  const cited = onFile ? citedSources(text) : [];
+  const cited = onFile ? citedSources(text).filter(c => linkable(c, has)) : [];
   if (cited.length) out.push(<details key="cited" data-cited-sources className="mt-2 text-xs"><summary className="cursor-pointer text-ink-2 hover:text-ink">Sources ({cited.length})</summary>
-    <div className="mt-1.5 flex flex-wrap gap-1">{cited.map(c => <EvidencePill key={`${c.path}:${c.start}-${c.end}`} type="button" data-cited-source title={`Open ${c.path}:${c.start}${c.end > c.start ? `-${c.end}` : ''}`} onClick={() => onFile(c.path, c.start, c.end)}>{c.path}:{c.start}{c.end > c.start ? `-${c.end}` : ''}</EvidencePill>)}</div></details>);
+    <div className="mt-1.5 flex flex-wrap gap-1">{cited.map(c => <EvidencePill key={`${c.path}:${c.start}-${c.end}`} type="button" data-cited-source aria-label={referenceLabel(c)} title={referenceLabel(c)} onClick={() => onFile(c.path, c.start, c.end)}>{c.path}:{c.start}{c.end > c.start ? `-${c.end}` : ''}</EvidencePill>)}</div></details>);
   return <div className="min-w-0 text-sm leading-normal">{out}</div>;
 }
 
@@ -370,7 +382,7 @@ export function NextStepsCard({ steps, onPick }) {
   );
 }
 
-export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, tutor = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, journey = null, journeyStarter = null, journeySetup = false, tray = null, nextStepRef = null }) {
+export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…', compact = false, composerOnly = false, autoFocus = false, onSent = null, onHasChat = null, headerExtra = null, headerTitle = null, conversation = 'agent', chatConfig = null, demo = null, boardContext = null, contentPanel = null, onCloseContentPanel = null, repositoryContext = null, repositoryExcerpt = null, onClearRepository = null, onGraph = null, onExchange = null, canvasSeed = null, canvasTarget = null, onClearCanvasTarget = null, slash = null, tutor = null, dock = false, sheet = false, onAddToCanvas = null, voice = null, journey = null, journeyStarter = null, journeySetup = false, tray = null, nextStepRef = null }) {
   const repository = appName?.startsWith('repo-');
   const [repositoryCommit, setRepositoryCommit] = useState(repositoryContext?.commit || null);
   const [codeSelection, setCodeSelection] = useState(null);
@@ -607,15 +619,20 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     const card = sheetMode && !panelAsk ? { card: true } : {}; // answered as a card, kept out of the sheet
     // The turn's chat bubbles and canvas exchange, drawn once, and the sheet opened for them. The Tutor draws them itself
     // (begin), only for a turn it answers: a turn its journey resolver takes (LearnTutor.jsx) has neither.
+    // A question about a file or lines of the repository (Learn's Files panel or the Map: "Asking about: train.py:5–7") is
+    // answered by the repository's own reader on the Learn chat path (repositoryAsk reads that range or file), not the Tutor
+    // turn, which does not carry it (repository-browser.md "Files in Learn"). A symbol context stays with the Tutor.
+    const codeTurn = repository && !!(repositoryContext?.range || repositoryContext?.path);
+    const codePassage = codeTurn ? contextPassage(repositoryContext) : null;
     let begun = false;
     const begin = () => {
       if (begun) return;
       begun = true;
       if (panelAsk) { setSheetOpen(true); setSheetHistory(false); }
-      setMsgs((m) => [...m, { role: 'user', content: attached ? `${message} 📎 ${attached.name}` : message, ...card, ...(canvasImage ? { canvasImage } : {}), ...(sourceRange ? { passage: `${sourceRange.path}:${sourceRange.start}-${sourceRange.end}` } : {}) }, { role: 'assistant', content: '', id: replyId, demo: !!isDemo, ...card }]);
+      setMsgs((m) => [...m, { role: 'user', content: attached ? `${message} 📎 ${attached.name}` : message, ...card, ...(canvasImage ? { canvasImage } : {}), ...(sourceRange ? { passage: `${sourceRange.path}:${sourceRange.start}-${sourceRange.end}` } : codePassage ? { passage: `${codePassage.path} · ${codePassage.lines}` } : {}) }, { role: 'assistant', content: '', id: replyId, demo: !!isDemo, ...card }]);
       if (!isDemo) exchange?.({ id: replyId, question: message, ...(target ? { linkFrom: target.id } : {}) });
     };
-    if (!tutor || isDemo) begin();
+    if (!tutor || codeTurn || isDemo) begin();
     const append = (t) => setMsgs((m) => {
       const next = m.slice();
       next[next.length - 1] = { ...next[next.length - 1], content: next[next.length - 1].content + t };
@@ -636,7 +653,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       // Tutor v1 (LearnTutor.jsx): on the NanoGPT Attention slice the Tutor answers instead of the
       // Learn chat - the learner's own words, and the card they armed or selected. On a journey canvas a turn the
       // journey takes comes back handled, with nothing drawn; a failed one gives the words back.
-      if (tutor) {
+      if (tutor && !codeTurn) {
         // A block's follow-up composer (canvasSeed, a journey canvas) asks about that block.
         const reply = await tutor.ask({ raw: raw.trim(), targetId: (target || canvasSeed?.target)?.id || null, opening, signal: flight.signal, skipJourney, begin }).catch(e => { if (e.name === 'AbortError') return 'Stopped.'; if (e.name === 'TimeoutError') throw new Error('The Tutor took too long to answer. Try again.'); throw e; });
         if (reply?.handled) { if (reply.failed) setInput(current => current || raw); return; }
@@ -1085,7 +1102,13 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         {!contentPanel && demo && <button type="button" disabled={busy || demo.disabled} onClick={() => send(demo.prompt)} className="mb-2 self-start rounded-full border border-line px-3 py-1.5 text-xs text-ink-2 hover:bg-hover disabled:opacity-50">
           {demo.prompt} <span className="ml-1 text-ink-3">· Demo</span>
         </button>}
-        {repository && repositoryContext?.label && <div className="mb-2 inline-flex max-w-full self-start items-center gap-1.5 rounded-md border border-green-600/45 bg-green-50 px-2 py-1.5 text-xs text-green-800"><span className="min-w-0 truncate">Asking about: {repositoryContext.label} · {(repositoryCommit || repositoryContext?.commit || '').slice(0,7)}</span>{onClearRepository && <button type="button" className="shrink-0 rounded p-0.5 hover:bg-green-100" aria-label="Clear repository selection" onClick={onClearRepository}><X size={12}/></button>}</div>}
+        {/* Learn's repository context. A file or lines also show the file's path, the lines (or Whole file) and, for lines, the
+            first few as a preview (repositoryExcerpt, display only; repository-browser.md "Files in Learn"). */}
+        {repository && repositoryContext?.label && (() => { const passage = contextPassage(repositoryContext, repositoryExcerpt); return <div data-repository-context className="mb-2 flex max-w-full self-start flex-col rounded-md border border-green-600/45 bg-green-50 px-2 py-1.5 text-xs text-green-800">
+          <div className="flex min-w-0 items-center gap-1.5"><span className="min-w-0 truncate">Asking about: {repositoryContext.label} · {(repositoryCommit || repositoryContext?.commit || '').slice(0,7)}</span>{onClearRepository && <button type="button" className="shrink-0 rounded p-0.5 hover:bg-green-100" aria-label="Clear repository selection" onClick={onClearRepository}><X size={12}/></button>}</div>
+          {passage && <div data-context-path className="mt-0.5 truncate font-mono text-[11px] text-green-900/80" title={passage.path}>{passage.path} · {passage.lines}</div>}
+          {passage?.excerpt.length > 0 && <pre data-context-excerpt className="mt-1 max-w-full overflow-hidden rounded border border-green-600/25 bg-white px-1.5 py-1 font-mono text-[10px] leading-4 text-ink">{passage.excerpt.map(line => <div key={line.n} className="truncate"><span className="mr-2 text-ink-3">{line.n}</span>{colorLine(line.text)}</div>)}{passage.more && <div className="text-ink-3">…</div>}</pre>}
+        </div>; })()}
         {/* The selected card (or armed region, area or group) the next question is about: always visible while it rides. */}
         {canvasTarget && <div data-canvas-target {...(canvasTarget.card ? { 'data-selected-card': canvasTarget.id, title: `${canvasTarget.kind}: ${String(canvasTarget.title ?? '')}` } : {})} className="mb-1.5 inline-flex max-w-full items-center gap-1.5 rounded-full border border-line bg-hover py-1 pr-1.5 pl-2.5 text-xs text-ink-2">
           {canvasTarget.preview && <img src={canvasTarget.preview} alt="Selected region" className="h-7 w-10 shrink-0 rounded border border-line bg-white object-contain" />}

@@ -1,0 +1,53 @@
+# A push to dev deploys the stable preview (docs/features/dev-auto-deploy.md, owner 2026-10-08).
+# Only a commit whose gate record is attached as a git note (refs/notes/gates, pushed before dev) deploys;
+# scripts/dev-deploy.mjs checks it, deploys forward only, smoke-tests and rolls back on failure.
+name: deploy dev preview
+on:
+  push:
+    branches: [dev]
+permissions:
+  contents: write # only to push the deploy record note (refs/notes/dev-deploys)
+concurrency:
+  group: dev-preview
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: github.repository == 'Rabbit-Hole-App/Rabbit-Hole'
+    runs-on: ubuntu-latest
+    environment: dev-preview
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - name: Gate record
+        run: |
+          for i in $(seq 1 20); do
+            git fetch -q origin '+refs/notes/gates:refs/notes/gates' 2>/dev/null \
+              && git notes --ref=gates show "$GITHUB_SHA" > "$RUNNER_TEMP/gate.log" 2>/dev/null && break
+            sleep 30
+          done
+          test -s "$RUNNER_TEMP/gate.log" || { echo "no gate record note for $GITHUB_SHA: nothing deployed"; exit 1; }
+      - name: Deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: c08d3dbdc53a3afd3cb09a536ac42318
+          ACCESS_SMOKE_CLIENT_ID: ${{ secrets.ACCESS_SMOKE_CLIENT_ID }}
+          ACCESS_SMOKE_CLIENT_SECRET: ${{ secrets.ACCESS_SMOKE_CLIENT_SECRET }}
+          VITE_TLDRAW_LICENSE_KEY: ${{ secrets.VITE_TLDRAW_LICENSE_KEY }}
+        run: |
+          git remote add rabbit-hole "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          node scripts/dev-deploy.mjs --sha "$GITHUB_SHA" --gate "$RUNNER_TEMP/gate.log" --branch rabbit-hole/dev
+      - name: Deploy record
+        if: always()
+        run: |
+          record="$(git rev-parse --git-common-dir)/rabbit-hole-dev-deploys.jsonl"
+          line="$(tail -n 1 "$record" 2>/dev/null || true)"
+          case "$line" in *"\"sha\":\"$GITHUB_SHA\""*) ;; *) echo "no deploy recorded for $GITHUB_SHA"; exit 0 ;; esac
+          git fetch -q origin '+refs/notes/dev-deploys:refs/notes/dev-deploys' 2>/dev/null || true
+          git -c user.name=rabbit-hole-ci -c user.email=rabbit-hole-ci@users.noreply.github.com notes --ref=dev-deploys add -f -m "$line" "$GITHUB_SHA"
+          git push -q origin refs/notes/dev-deploys
+          echo "$line"

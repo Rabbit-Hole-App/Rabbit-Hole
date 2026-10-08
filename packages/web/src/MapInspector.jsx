@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useContext, useEffect, useState, useSyncExternalStore } from 'react';
 import { ArrowLeft, ArrowUpRight, Box, Braces, ChevronRight, FileCode, Package, PanelRightClose, TextQuote } from 'lucide-react';
 import { api } from './api.js';
 import { Button, IconBtn, Pill, Tabs, TabsContent, TabsList, TabsTrigger } from './ui.jsx';
@@ -6,6 +6,7 @@ import RepositorySource from './RepositorySource.jsx';
 import { repositoryUrl } from './card-sources.js';
 import { getTurns, nodeTurnsKey, setTurns, subscribeTurns, threadIds } from './agent/bar.js';
 import { Turn } from './agent/ResultSheet.jsx';
+import { CodeRefs } from './code-refs.js';
 import { memoryFor } from './map-memory.js';
 import { askBar, FIXTURE, MemoryEntity, Starters } from './MapMemory.jsx';
 import { OVERVIEW_TAB, relationshipGroups, symbolsIn, typeOf } from './inspector.js';
@@ -56,6 +57,7 @@ function Preview({ app, path, line, commit }) {
 // here (AgentBar.jsx, bound to the object at Send) and Send opens this tab; the saved conversation is read from the server
 // (repositories.js, the object's own thread at this commit) when the object is first shown, so it survives a reload.
 export default function MapInspector({ app, snapshot, memory, object, inContext, view, onView, onSelect, onPick, onBack, backLabel, onClose, onAsk, onWhy, onLearn, conversationKey, codeInView = false }) {
+  const refs = useContext(CodeRefs);
   const chatKey = object && !object.record ? nodeTurnsKey(conversationKey, object.id) : null;
   const turns = useSyncExternalStore(subscribeTurns, () => (chatKey ? getTurns(chatKey) : NONE));
   useEffect(() => {
@@ -112,7 +114,8 @@ export default function MapInspector({ app, snapshot, memory, object, inContext,
     </div>)}</Fold>}
   </>;
   const chat = <div data-inspector-chat className="flex flex-col gap-2">
-    {turns.map((t) => <Turn key={t.id} t={t} />)}
+    {/* A path:lines in an answer opens the Map's reader with that range selected (repository-browser.md "Code references"). */}
+    {turns.map((t) => <Turn key={t.id} t={t} onFile={refs?.open || null} />)}
     {!turns.length && <Empty text="No messages yet." action="Ask about this" onAction={onAsk} />}
     {!!(mine?.questions.length || mine?.sessions.length) && <div className="pt-2"><Pill className="mb-1">{FIXTURE}</Pill>
       {mine.questions.map((q) => <button key={q.id} type="button" className={ROW} onClick={() => askBar(q.question)}>{q.question}</button>)}

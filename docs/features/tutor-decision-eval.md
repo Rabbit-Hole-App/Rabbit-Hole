@@ -851,6 +851,32 @@ of real-user learning outcomes or launch readiness.
   it right and wrong, and asserts the claim settles (`demonstrated_in_transfer`), the path advances, and the Tutor stops
   re-asking once the claim is settled.
 
+### 18.3 Confirmation run results (2026-10-08, r27 01a7a508)
+
+The full report is in Figma: https://www.figma.com/design/nLAIEGoObdPUPegoytFO2j/?node-id=16-3 ("Rabbit Hole — Reviews",
+page "Tutor confirmation run r27 · 2026-10-08").
+
+- **Tested:** main / r27 `01a7a508`, tree `a05d6759`, clean checkout, 18:09-18:23Z. The configuration matched run A.
+  Novice and advanced stopped at the $1.30 session limit after 12 decisions.
+- **Met:**
+  - at most 2 `uncertain_unsettled` turns in a row on one claim (run A: 10 and 14);
+  - the advanced setup completed;
+  - Next Steps reached every session (19 sets requested, 14 shown).
+- **Not met:**
+  - no claim reached *understood* and no session left section 1;
+  - reviewer pacing 1/2/1 and progress 1/2/1, against the provisional minimum of 3;
+  - repeated deferral of the learner's forward questions, a readiness failure (fix 4 was excluded).
+- **New cause:** JEV was unsure on the same claim's idea checks in 15 of 25 evaluations, which leaves that claim's clear
+  passes unsettled, and *understood* needs every idea covered (novice: ideas 0 and 2 settled in transfer, idea 1 never).
+  The planner is not told which idea is missing.
+- **Next Steps:** escalation rate 0.58; routine rule failures `hook_words` 5 and `goal` 2; 9 of 27 rejected routine hooks
+  had 13-16 words; 5 sets failed in escalation too; p50 latency 3.9 s routine and 14.3 s escalated; $0.41 in all. The hooks
+  used a different example than the Tutor and offered no way forward.
+- **Costs:** Anthropic $2.2439 metered. JEV: 26 calls, cost unavailable.
+- **Untested:** practice-card delivery (§18.2 names the separate check).
+- **Aggregation fix:** after the run, `readSessions` read `run.json` as a session. It now skips it; aggregation only, nothing
+  rerun.
+
 **B. Equivalent phrasings: quality, latency and cost** (contract §4.1.1 follow-up).
 - **Pairs:**
   - `Teach me X` vs `Explain X`;

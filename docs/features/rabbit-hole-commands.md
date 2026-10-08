@@ -98,12 +98,22 @@ in every place; `/research` and `/do` on Home, Library and projects only - never
 canvas (owner, 2026-10-06), where natural typing with a selected card is the way in. The review copy adds safety limits of its
 own through `reviewOff(name, kind)`, never through the product list:
 
-- `/ask` on the workspace or an app would write live chat history, so it is off
-  while `askLiveOnPreview` is false.
-- `/research` outside a canvas would call the live model, so it is off here.
+- `/ask` on an app would write live chat history, so it is off while
+  `askLiveOnPreview` is false. On Home it is on: a Home question goes to
+  `/api/learn/home-ask` (LEARN_DB), as a typed question already did (r28 audit).
+- `/research` outside a canvas would call the live model, so it is off here. It
+  is also unwired in the bar (`AgentBar.jsx`).
 
-The picker shows such a command dimmed with "Off on this preview" and the full
-reason as its tooltip.
+A command refused in a scope is not offered there (r28 audit, owner 2026-10-08:
+"if we need to remove any"): `modesFor` lists only the modes the scope can
+run, so the bar never offers `/research`, and an app page offers only `/do`.
+Typed by name, a refused command still says why. The registry entry, `reviewOff`
+and the router rule stay, so turning a limit off brings the command back.
+
+Every command offered by a picker has a demo in that picker's Slash commands
+sheet, and every other registry command is named with its reason in
+`slash-sheet.test.mjs` (`NOT_OFFERED`: `/research`, and `/more`, which opens the
+full list and is never a row).
 
 ## The semantic request
 

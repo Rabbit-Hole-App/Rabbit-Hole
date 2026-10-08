@@ -94,7 +94,8 @@ test('importing touches no network: no fetch, no ask, no media upload', () => {
   // The page's import step: read, validate, cache the bytes in this browser, place the card. No upload, no ask.
   const page = read('./LearnPage.jsx'), add = page.slice(page.indexOf('const addImport = async'), page.indexOf('const takeDrop = async'));
   assert.doesNotMatch(add, /fetch\(|api\(|\/ask|learnAction|\/api\/learn\/media/);
-  assert.match(add, /const block = importBlock\(\{ name: file\.name, kind, choice, text: choice === 'attachment' \? '' : await file\.text\(\), assetKey, size: file\.size \}\);\n\s+await cacheAsset\(assetKey, file\);\n\s+canvas\(\)\?\.insertImported\(block, at\);/);
+  // A pasted code block (kind 'paste', repository-browser.md "Files in Learn") takes the same steps through pasteBlock.
+  assert.match(add, /const block = kind === 'paste' \? pasteBlock\(\{ text: await file\.text\(\), copy, choice, assetKey, language: languageOf\(copy\?\.path\) \}\)\n\s+: importBlock\(\{ name: file\.name, kind, choice, text: choice === 'attachment' \? '' : await file\.text\(\), assetKey, size: file\.size \}\);\n\s+await cacheAsset\(assetKey, file\);\n\s+canvas\(\)\?\.insertImported\(block, at\);/);
 });
 
 test('every drop and every upload of a .ipynb or .py opens the one Add to canvas dialog, at the drop point', () => {

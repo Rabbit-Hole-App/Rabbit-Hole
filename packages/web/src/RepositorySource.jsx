@@ -3,13 +3,14 @@ import { ArrowUpRight, X } from 'lucide-react';
 import { api } from './api.js';
 import { colorLine } from './code.jsx';
 import { repositoryUrl } from './card-sources.js';
+import { rememberCodeCopy } from './map-files.js';
 
 export const SourceSelectionContext = createContext(null);
 
 // `repo` ("owner/name"), when the caller knows it, adds a link to the same file
 // at the same revision on its host. The Files view's reader (repository-browser.md) passes `title`, its breadcrumb in place
 // of the path, and `actions`, a compact bar drawn under the selected range's last line.
-export default function RepositorySource({ appName, path, line = 1, lineEnd, commit, repo, onClose, title, actions }) {
+export default function RepositorySource({ appName, path, line = 1, lineEnd, commit, repo, onClose, title, actions, pick = null }) {
   const [data,setData]=useState(null),[error,setError]=useState('');const selected=useRef(null);
   const selection=useContext(SourceSelectionContext), root=useRef(null), anchor=useRef(null);
   const current=selection?.value;
@@ -31,7 +32,17 @@ export default function RepositorySource({ appName, path, line = 1, lineEnd, com
     return()=>{active=false;};
   },[appName,path,commit]);
   useEffect(()=>{selected.current?.scrollIntoView({block:'center'});},[data,line]);
-  return <section ref={root} onPointerUp={selectText} onKeyUp={selectText} className="flex min-h-0 flex-1 flex-col" aria-label="Repository source">
+  // A code reference opened here (CodeReader pick; repository-browser.md "Code references"): its range becomes the selection,
+  // as a drag makes one, and scrolls into view. A range past the file's end keeps to the file; one past it selects nothing.
+  useEffect(()=>{
+    if(!pick||!data||data.path!==path)return;
+    const last=data.content.split('\n').length;if(pick.start>last)return;
+    select(pick.start,Math.min(pick.end,last));
+    requestAnimationFrame(()=>root.current?.querySelector(`[data-source-line="${pick.start}"]`)?.scrollIntoView({block:'center'}));
+  },[pick?.at,data]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Text copied from source (Ctrl+C) is code from this file: a paste onto the canvas keeps its name (repository-browser.md "Files in Learn").
+  const markCopy=()=>{const text=window.getSelection()?.toString();if(text?.trim())rememberCodeCopy(()=>sessionStorage,{text,path});};
+  return <section ref={root} onPointerUp={selectText} onKeyUp={selectText} onCopy={markCopy} className="flex min-h-0 flex-1 flex-col" aria-label="Repository source">
     <div className="flex shrink-0 items-center gap-2 border-b border-line pb-2 text-xs"><span data-source-title className="min-w-0 flex-1 truncate font-mono" title={title||path}>{title||<>{path}{line ? `:${line}${lineEnd > line ? `-${lineEnd}` : ''}` : ''}</>}</span>{data && <span data-source-commit={data.commit} className="text-ink-3">{data.commit.slice(0,7)}</span>}{repo && commit && <a data-source-open-repository href={repositoryUrl({repo,commit,path,line,lineEnd})} target="_blank" rel="noreferrer" className="flex items-center gap-0.5 text-ink-2 hover:text-ink">Open in repository<ArrowUpRight size={12}/></a>}{onClose && <button aria-label="Close source" onClick={onClose}><X size={14}/></button>}</div>
     {/* Only the cited revision: the server reads exactly this commit, so a missing one is reported, never replaced by current code. */}
     {error && <p role="alert" className="py-3 text-sm text-danger">{commit ? `Not available at ${commit.slice(0,7)}: ` : ''}{error}</p>}{!data&&!error&&<p className="py-3 text-sm text-ink-2">Reading source…</p>}

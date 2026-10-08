@@ -310,24 +310,36 @@ const plainTutor = (title, blocks) => {
   B.renderToStaticMarkup(B.createElement(Page));
   return t;
 };
-test('ownedSteps on a plain canvas: no lesson card, no hooks and nothing posted; with one it asks; a rename re-asks with the new goal', () => withSession(async () => {
+// Owner 2026-10-08 (reversing the eleventh message 8): a blank plain canvas gets hooks at rest, grounded in its title; a card
+// or a rename re-asks. An uninformative title (Untitled, an auto name) is no goal: three distinct starter hooks (the planner).
+test('ownedSteps on a plain canvas: a blank canvas asks at rest with its title as the goal; a card and a rename re-ask', () => withSession(async () => {
   const card = [{ id: 'k1', type: 'explanation', title: 'Starter culture' }];
-  const r = stepsRig({ tutor: plainTutor('Sourdough', []), replies: [setFor(1), setFor(2)], props: { title: 'Sourdough', canvasApi: { current: { blocks: () => [] } }, canvasState: { cards: [] }, access: { app: 'canvas-0000abcd' } } });
-  assert.equal(r.steps.state().stop, 'not_now');
+  const r = stepsRig({ tutor: plainTutor('Sourdough', []), replies: [setFor(1), setFor(2), setFor(3)], props: { title: 'Sourdough', canvasApi: { current: { blocks: () => [] } }, canvasState: { cards: [] }, access: { app: 'canvas-0000abcd' } } });
+  assert.equal(r.steps.state().stop, null, 'nothing waits on a first question');
   r.step(); await r.c.fire();
-  assert.deepEqual([r.steps.view().status, r.bodies.length], ['unavailable', 0]);
+  assert.deepEqual([r.bodies.length, r.bodies[0].mode, r.bodies[0].goal, r.bodies[0].canvas.blocks, Object.keys(r.bodies[0].scope.claims)], [1, 'canvas', 'Sourdough', [], []]);
   r.live.canvasApi = { current: { blocks: () => card } };
   r.live.canvasState = { cards: [['k1']] };
   r.live.tutor = plainTutor('Sourdough', card);
   const { basis, stop } = r.steps.state();
   assert.equal(stop, null);
   r.step(); await r.c.fire();
-  assert.deepEqual([r.bodies.length, r.bodies[0].mode, r.bodies[0].goal], [1, 'canvas', 'Sourdough']);
+  assert.deepEqual([r.bodies.length, r.bodies[1].mode, r.bodies[1].goal, r.bodies[1].canvas.blocks.length], [2, 'canvas', 'Sourdough', 1], 'a card re-asks');
   // The rename: the dives path reloads with the server title; app.title stays 'Created as' and the page title prop stays stale.
   r.live.tutor = plainTutor('Sourdough, renamed', card);
   assert.notEqual(r.steps.state().basis, basis, 'the renamed title grounds the goal');
   r.step(); await r.c.fire();
-  assert.deepEqual([r.bodies.length, r.bodies[1].goal], [2, 'Sourdough, renamed']);
+  assert.deepEqual([r.bodies.length, r.bodies[2].goal], [3, 'Sourdough, renamed']);
+}));
+
+test('ownedSteps on a blank canvas with an uninformative title: asked at rest with no goal, so the planner suggests distinct starters', () => withSession(async () => {
+  for (const title of ['Untitled canvas', 'untitled', '', 'canvas-0000abcd']) {
+    const r = stepsRig({ tutor: plainTutor(title, []), replies: [setFor(1)], props: { title, canvasApi: { current: { blocks: () => [] } }, canvasState: { cards: [] }, access: { app: 'canvas-0000abcd' } } });
+    assert.equal(r.steps.state().stop, null, JSON.stringify(title));
+    r.step(); await r.c.fire();
+    assert.deepEqual([r.bodies.length, r.bodies[0].mode, r.bodies[0].goal, r.bodies[0].canvas.blocks], [1, 'canvas', '', []], JSON.stringify(title));
+    assert.equal(r.steps.view().status, 'ready');
+  }
 }));
 
 // Fix round 4 (owner eleventh message 3): a hole's dive title is in its hook input, so renaming a hole with a learning_goal

@@ -2,7 +2,7 @@
 //   node scripts/dev-deploy.mjs --sha <main commit> --gate <gate record> [--branch rabbit-hole/dev]
 // Deploys that exact commit to the dev clone only when the gate record passed for its exact tree, the commit is on
 // origin/main (or the --branch given) and it descends from what the clone serves now (an older run never overwrites a
-// newer deployment). Pushes to Rabbit-Hole-App dev deploy through scripts/dev-deploy-watch.mjs.
+// newer deployment). Pushes to Rabbit-Hole-App dev deploy through .github/workflows/deploy-dev.yml.
 // The Worker's deployment message ("main <sha> build <hash>") is the deploy record; a failed smoke rolls back to the
 // previous version. Each deploy appends one JSON line to <git common dir>/rabbit-hole-dev-deploys.jsonl, the green dev
 // record prod-release.mjs prepare reads. Never runs a migration, never deploys production, never prints a secret.
@@ -258,7 +258,7 @@ async function main() {
   const arg = k => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1] : undefined; };
   if (process.env.CLOUDFLARE_ACCOUNT_ID !== ACCOUNT) stop('CLOUDFLARE_ACCOUNT_ID must be the rabbit-hole account');
   const sha = git('rev-parse', `${arg('sha') ?? stop('--sha <main commit> is required')}^{commit}`);
-  // The branch the commit must be on: origin/main by hand, rabbit-hole/dev from the dev-branch trigger (dev-deploy-watch.mjs).
+  // The branch the commit must be on: origin/main by hand, rabbit-hole/dev from the dev workflow (.github/workflows/deploy-dev.yml).
   const branch = arg('branch') ?? 'origin/main';
   if (!BRANCHES.includes(branch)) stop(`--branch must be one of ${BRANCHES.join(', ')}`);
   git('fetch', '-q', ...branch.split('/'));

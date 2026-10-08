@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { History, Loader2, Minus, Network, Plus, Eraser } from 'lucide-react';
 import { ago, api, navigate } from '../api.js';
 import { Md } from '../ask.jsx';
+import { CodeRefs } from '../code-refs.js';
 import { Button, cn, IconBtn, Pill } from '../ui.jsx';
 import { getTurns, labelOf, resetThread, resultsKey, resultsView, setTurns, subscribeTurns, threadIds, threadsPath } from './bar.js';
 import ConfirmCard from './ConfirmCard.jsx';
@@ -106,6 +107,9 @@ export function ResultList({ scopeKey: key, onFile = null, tools = true }) {
   const live = scopeOf(surface);
   // A page that can open a cited file (the Map's inspector) does so from the window over the bar too (workspace-dock.md).
   const openFile = onFile || (resultsKey(live) === key && surface.handlers?.onFile) || null;
+  // The page's code references (RepositoryPage codeRefs, repository-browser.md "Code references"): a path:lines opens its reader
+  // with the range selected, and only a file of its snapshot is a link.
+  const refs = (resultsKey(live) === key && surface.handlers?.codeRefs) || null;
   const scope = turns[0]?.scope || (resultsKey(live) === key ? live : null);
   const path = scope && threadsPath(scope);
   const busy = turns.some((t) => t.kind === 'answer' && !t.done);
@@ -139,7 +143,7 @@ export function ResultList({ scopeKey: key, onFile = null, tools = true }) {
           <span className="min-w-0 flex-1 truncate">{t.title}</span>
           <span className="shrink-0 text-xs text-ink-3">{ago(t.created_at)}</span>
         </button>
-      )) : <p className="text-sm text-ink-3">No past chats.</p>) : turns.map((t) => <Turn key={t.id} t={t} onFile={openFile} />)}
+      )) : <p className="text-sm text-ink-3">No past chats.</p>) : <CodeRefs.Provider value={refs}>{turns.map((t) => <Turn key={t.id} t={t} onFile={openFile} />)}</CodeRefs.Provider>}
     </div>
   );
 }
