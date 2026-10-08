@@ -9,7 +9,7 @@
 // ACCESS_SMOKE_CLIENT_ID / ACCESS_SMOKE_CLIENT_SECRET (dev-access.js maps it to a synthetic dev user).
 // Needs CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID (rabbit-hole) and RABBIT_HOLE_DEV_TEST_BYPASS + VITE_TLDRAW_LICENSE_KEY
 // in the environment (or TLDRAW_LICENSE_KEY / RABBIT_HOLE_DEV_TEST_BYPASS in the repo-root .env, read by key).
-import { execFileSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { appendFileSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -93,7 +93,10 @@ const web = join(root, 'packages/web');
 const git = (...a) => execFileSync('git', a, { cwd: root, encoding: 'utf8' }).trim();
 const isAncestor = (a, b) => { try { execFileSync('git', ['merge-base', '--is-ancestor', a, b], { cwd: root }); return true; } catch { return false; } };
 const fromEnvFile = key => { try { return readFileSync(join(root, '.env'), 'utf8').match(new RegExp(`^${key}=(.*)$`, 'm'))?.[1]?.trim().replace(/^"|"$/g, ''); } catch { return undefined; } };
-const wrangler = (args, extra = {}) => execFileSync('npx', ['wrangler', ...args], { cwd: web, encoding: 'utf8', shell: true, env: { ...process.env, CI: 'true', ...extra }, stdio: ['ignore', 'pipe', 'pipe'] });
+// The lockfile's own tools from the workspace root node_modules (npm ci below), run by node with no shell: never
+// whatever version npx would fetch.
+const tool = (pkg, file) => join(root, 'node_modules', pkg, file);
+const wrangler = (args, extra = {}) => execFileSync(process.execPath, [tool('wrangler', 'bin/wrangler.js'), ...args], { cwd: web, encoding: 'utf8', env: { ...process.env, CI: 'true', ...extra }, stdio: ['ignore', 'pipe', 'pipe'] });
 const say = line => console.log(line);
 // Throws, so the lock's finally still runs; the entry point prints it and exits 1.
 class Stop extends Error {}
@@ -218,8 +221,13 @@ async function main() {
 
     const tldraw = process.env.VITE_TLDRAW_LICENSE_KEY || fromEnvFile('TLDRAW_LICENSE_KEY');
     if (!tldraw) stop('VITE_TLDRAW_LICENSE_KEY (or TLDRAW_LICENSE_KEY in the repo-root .env) is missing');
+    // Everything the Worker bundles comes from this commit: the dependencies exactly as its lockfile pins them, and both
+    // page builds. dist-dev is what the dev worker serves; dist/index.html is bundled too, through the control plane's
+    // own shell import (control-plane/src/index.js), so a leftover dist from another commit must never ship.
+    execSync('npm ci --no-audit --no-fund', { cwd: root, stdio: ['ignore', 'ignore', 'inherit'] });
     // The documented dev build (docs/features/rabbit-hole-dev.md): flags set before the build or Learn silently vanishes.
-    execFileSync('npx', ['vite', 'build', '--outDir', 'dist-dev'], { cwd: web, shell: true, stdio: ['ignore', 'ignore', 'inherit'], env: { ...process.env, VITE_COACHING_DEV: 'true', VITE_BYOC_DEV: 'true', VITE_NOTEBOOK_ORIGIN: 'https://small-learn-canvas-notebook-dev.tryrabbithole.workers.dev', VITE_TLDRAW_LICENSE_KEY: tldraw } });
+    const buildEnv = { ...process.env, VITE_COACHING_DEV: 'true', VITE_BYOC_DEV: 'true', VITE_NOTEBOOK_ORIGIN: 'https://small-learn-canvas-notebook-dev.tryrabbithole.workers.dev', VITE_TLDRAW_LICENSE_KEY: tldraw };
+    for (const outDir of ['dist', 'dist-dev']) execFileSync(process.execPath, [tool('vite', 'bin/vite.js'), 'build', '--outDir', outDir], { cwd: web, stdio: ['ignore', 'ignore', 'inherit'], env: buildEnv });
     const build = buildHash(join(web, 'dist-dev'));
     const entry = entryScript(readFileSync(join(web, 'dist-dev/index.html'), 'utf8'));
     if (!entry) stop('dist-dev/index.html has no module entry script; nothing deployed');
@@ -229,7 +237,7 @@ async function main() {
     plan = check(await serving()); // again: another machine may have deployed during the build
     if (plan.action !== 'deploy') { say(`! ${plan.action}: ${plan.why}`); process.exitCode = plan.action === 'noop' ? 0 : 1; return; }
     // The Access entrypoint (dev-access-worker.js): the dev worker with the Access sign-in bridge in front.
-    const out = wrangler(['deploy', 'dev-access-worker.js', '--config', 'wrangler.dev.jsonc', '--name', WORKER, '--message', `"main ${sha} build ${build}"`]);
+    const out = wrangler(['deploy', 'dev-access-worker.js', '--config', 'wrangler.dev.jsonc', '--name', WORKER, '--message', `main ${sha} build ${build}`]);
     const version = out.match(/Current Version ID: (\S+)/)?.[1];
     say(`✓ deployed ${sha.slice(0, 8)} build ${build} as version ${version} to ${URL_BASE}`);
 
@@ -241,7 +249,7 @@ async function main() {
     appendFileSync(record, `${JSON.stringify({ sha, ...gates, build, smoke: smokeVerdict, worker: WORKER, version, at: new Date().toISOString() })}\n`);
     if (smokeVerdict === 'fail') {
       if (before.version) {
-        wrangler(['rollback', before.version, '--name', WORKER, '-y', '-m', `"rollback to main ${before.sha}: smoke failed for ${sha.slice(0, 8)}"`]);
+        wrangler(['rollback', before.version, '--name', WORKER, '-y', '-m', `rollback to main ${before.sha}: smoke failed for ${sha.slice(0, 8)}`]);
         say(`✗ smoke failed: rolled back to version ${before.version} (main ${before.sha.slice(0, 8)})`);
       } else say('✗ smoke failed and there is no earlier version to roll back to');
       process.exitCode = 1;

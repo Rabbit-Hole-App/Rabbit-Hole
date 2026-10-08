@@ -46,8 +46,13 @@ serving):
    - The candidate must descend from that sha. The same sha is a no-op; an older or diverged one is refused.
    - The check runs twice, before the build and again just before the deploy.
    - A lock file stops two local runs from overlapping.
-4. **Build and deploy.**
-   - The build is the documented dev build: `VITE_COACHING_DEV`, `VITE_BYOC_DEV` and the notebook origin set before the build.
+4. **Build and deploy.** Everything the Worker bundles comes from this commit:
+   - `npm ci` at the repo root installs the dependencies exactly as the lockfile pins them.
+   - Vite and Wrangler run from that `node_modules` with no shell. `npx` would fetch an unpinned Wrangler.
+   - The pages are built twice:
+     - `dist` is the control plane's own shell, bundled through `control-plane/src/index.js`;
+     - `dist-dev` is the documented dev build, with `VITE_COACHING_DEV`, `VITE_BYOC_DEV` and the notebook origin set before the build.
+   - A leftover `dist` from another commit never ships. The 2026-10-08 run from a fresh checkout failed to bundle without one.
    - The deploy is `wrangler deploy dev-access-worker.js --config wrangler.dev.jsonc --name rabbit-hole-web-dev-small-parallel`, with the message `main <sha> build <hash>`.
    - The entrypoint is the dev worker with the Access bridge in front; see [Access](#access).
 5. **Record.**
