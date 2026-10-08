@@ -33,6 +33,7 @@ import { nanoLesson, nanoSourceVersion } from './nanogpt-lesson.js';
 import RepositorySource from './RepositorySource.jsx';
 import ResizableSidePanel from './ResizableSidePanel.jsx';
 import PanelHeader, { CanvasFind } from './PanelHeader.jsx';
+import { MessageCircle } from 'lucide-react';
 import CommentsPanel from './comments/CommentsPanel.jsx';
 import { useCanvasComments } from './comments/useCanvasComments.js';
 import { memberBase } from './comments/comments-api.js';
@@ -1472,6 +1473,9 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
                 comments={comments.active ? <><PeopleWithAccess base={memberBase(commentBoard)} /><CommentSettings base={memberBase(commentBoard)} published={!!sharing?.published} /></> : null} />}
               {choosingHandle && <div className="fixed inset-0 z-[70] overflow-y-auto bg-white"><ChooseHandle onDone={() => { setChoosingHandle(false); changePublication(true); }} /></div>}
             </span>
+            {/* Comments (docs/features/canvas-comments.md): opens the Comments view; a dot when a thread has news for you. */}
+            {comments.active && <button type="button" data-comments-header title="Comments" aria-label={comments.unread ? `Comments, ${comments.unread} unread` : 'Comments'} onClick={openComments}
+              className="relative flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><MessageCircle size={15} strokeWidth={1.8} />{comments.unread > 0 && <span data-unread-dot className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-accent ring-2 ring-white" />}</button>}
             <button type="button" title={panelOpen ? 'Hide the right panel' : 'Show the right panel'}
               aria-label={panelOpen ? 'Hide the right panel' : 'Show the right panel'} aria-pressed={panelOpen}
               onClick={() => setPanelOpen(previous => !previous)}
@@ -1528,7 +1532,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
       </div>
     </section>
     <ResizableSidePanel aria-label="Learn agent chat" resizeLabel="Resize Learn panel" defaultWidth={480} collapsed={!panelOpen} onClickCapture={openPaperReference} className="px-5 pt-3 pb-4">
-      <PanelHeader tab={panelTab} commentsOn={comments.active} pinned={panelPinned} onPin={pinPanel} onClose={() => setPanelOpen(false)}
+      <PanelHeader tab={panelTab} commentsOn={comments.active} commentsUnread={comments.unread} pinned={panelPinned} onPin={pinPanel} onClose={() => setPanelOpen(false)}
         onTab={(tab, clicked) => { setPanelTab(tab); if (clicked && tab === 'find') requestAnimationFrame(() => findInput.current?.focus()); }} />
       <CanvasFind hidden={panelTab !== 'find'} inputRef={findInput} cards={() => [...(canvasApi.current?.blocks?.() || []), ...exchanges]} onFocus={id => canvasApi.current?.focusBlock(id)} />
       {comments.active && <CommentsPanel hidden={panelTab !== 'comments'} {...comments.panelProps} />}

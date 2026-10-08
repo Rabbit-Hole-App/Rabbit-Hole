@@ -14,7 +14,8 @@ export const PANEL_TABS = [
 ];
 const OFF_TITLE = 'Comments are on saved canvases';
 
-export default function PanelHeader({ tab, onTab, pinned, onPin, onClose, commentsOn = false }) {
+// commentsUnread: threads with news for you; the Comments tab carries a dot while there are any.
+export default function PanelHeader({ tab, onTab, pinned, onPin, onClose, commentsOn = false, commentsUnread = 0 }) {
   const off = id => id === 'comments' && !commentsOn;
   const ENABLED = PANEL_TABS.filter(entry => !off(entry.id)).map(entry => entry.id);
   // Arrow keys move between the enabled tabs and select as they go (the WAI-ARIA tabs pattern).
@@ -32,7 +33,8 @@ export default function PanelHeader({ tab, onTab, pinned, onPin, onClose, commen
           <button key={id} type="button" role="tab" data-panel-tab={id} aria-label={label} title={title}
             aria-selected={tab === id} aria-disabled={disabled || undefined} tabIndex={tab === id ? 0 : -1}
             onClick={disabled ? undefined : () => onTab(id, true)}
-            className={`flex h-7 w-8 items-center justify-center rounded-md ${tab === id ? 'bg-[#5b21b6] text-white shadow-sm' : disabled ? 'cursor-default text-ink-3 opacity-60' : 'text-ink-2 hover:bg-white hover:text-ink'}`}>
+            className={`relative flex h-7 w-8 items-center justify-center rounded-md ${tab === id ? 'bg-[#5b21b6] text-white shadow-sm' : disabled ? 'cursor-default text-ink-3 opacity-60' : 'text-ink-2 hover:bg-white hover:text-ink'}`}>
+            {id === 'comments' && commentsOn && commentsUnread > 0 && <span data-unread-dot aria-hidden className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-accent ring-1 ring-white" />}
             <Icon size={15} strokeWidth={1.8} aria-hidden />
           </button>
         ); })}

@@ -271,3 +271,23 @@ test('the code email names an account with neither name nor handle by its provid
   await f.call('POST', '/api/learn/invites/code', { as: 'cara', body: { token: f.tokenOf(f.mail[0]) } });
   assert.match(f.mail.at(-1).text, /signed in to Rabbit Hole as a Google user asked/);
 });
+
+test('a kept hash is never claimable again: not after joining, not after Remove, not after a re-invite of the same address', async t => {
+  const f = setup(t);
+  await invite(f, ['bob@lab.org']);
+  const old = f.tokenOf(f.mail[0]);
+  await f.call('POST', '/api/learn/invites/code', { as: 'ben', body: { token: old } });
+  await f.call('POST', '/api/learn/invites/accept', { as: 'ben', body: { token: old, code: f.codeOf(f.mail.at(-1)) } });
+  const sent = f.mail.length;
+  for (const as of ['cara', 'ana']) assert.equal((await f.call('POST', '/api/learn/invites/code', { as, body: { token: old } })).body.code, 'invite_invalid', `${as} with the used link`);
+  const member = (await f.call('GET', `${f.base}/members`, { as: 'ana' })).body.members[0];
+  assert.equal((await f.call('POST', `${f.base}/members/${member.id}/resend`, { as: 'ana' })).body.code, 'already_joined', 'an active row is never rotated');
+  await f.call('DELETE', `${f.base}/members/${member.id}`, { as: 'ana' });
+  for (const action of ['preview', 'code', 'accept']) assert.equal((await f.call('POST', `/api/learn/invites/${action}`, { as: 'ben', body: { token: old, code: '123456' } })).body.code, 'invite_invalid', `${action} after Remove`);
+  await invite(f, ['bob@lab.org']);
+  const fresh = f.tokenOf(f.mail.at(-1));
+  assert.notEqual(fresh, old);
+  assert.equal((await f.call('POST', '/api/learn/invites/code', { as: 'ben', body: { token: old } })).body.code, 'invite_invalid', 'the old link stays dead after a re-invite');
+  assert.equal((await f.call('POST', '/api/learn/invites/code', { as: 'ben', body: { token: fresh } })).status, 200);
+  assert.equal(f.mail.length, sent + 2, 'only the re-invite and its code were sent');
+});

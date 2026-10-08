@@ -17,6 +17,7 @@ export function useCanvasComments({ base, enabled = true, canAdd = true, openPan
   ] : null), [active, threads, selected, draft]);
   return {
     active,
+    unread: active ? threads.filter(thread => thread.unread).length : 0,
     openPin, addComment,
     canvasProps: active ? { onAddComment: canAdd ? addComment : null, commentPins: pins, onCommentPin: openPin } : {},
     panelProps: active ? {
