@@ -1609,5 +1609,6 @@ test('owner 2026-10-07 (g): a review board keys every journey request, evaluate 
   assert.match(page, /const named = hole \|\| !reviewTools \? null : new URLSearchParams\(window\.location\.search\)\.get\('board'\);/);
   assert.match(page, /const boardName = board \|\| 'main';/);
   assert.match(page, /useJourney\(\{ app, board: boardName,/);
-  assert.match(page, /useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey \}\)/);
+  // The integration adds the 1.7 props after journey (canvasVersion, repository, describe); the board keys stay these.
+  assert.match(page, /useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey[,}]/);
 });
