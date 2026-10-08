@@ -50,7 +50,8 @@ const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
 await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
 // Nothing reaches a model: Learn asks are canned, generation is refused, and the Tutor's planner answers here. A plan carries a
-// suggest_journey for a registered learning request, and a next_section for a registered move-on (r29's action).
+// suggest_journey for a registered learning request, and a next_section for a registered move-on (r29's action), with the
+// learner's words quoted in the plan's explicit_request (the validator drops a next_section without that consent).
 const offers = new Map(), moves = new Set(), plans = [];
 const CANNED = 'A canned answer: no model was called.';
 await context.route('**/api/learn/ask', route => route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream' }, body: `data: ${JSON.stringify({ text: CANNED })}\n\ndata: [DONE]\n\n` }));
@@ -61,10 +62,10 @@ await context.route('**/api/learn/tutor/plan', route => {
   plans.push(body?.context ?? null);
   const words = body?.context?.learner_intent?.raw_user_message;
   const subject = !body?.context?.journey_context && offers.get(words);
-  return route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', actions: [
+  return route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', ...(moves.has(words) ? { explicit_request: words } : {}), actions: [
     { type: 'respond_text', text: CANNED },
     ...(subject ? [{ type: 'suggest_journey', request: subject }] : []),
-    ...(moves.has(words) ? [{ type: 'next_section', explicit_request: words }] : []),
+    ...(moves.has(words) ? [{ type: 'next_section' }] : []),
   ] } });
 });
 const page = await context.newPage();
@@ -193,7 +194,14 @@ for (const [label, mcq] of [['right', 'a'], ['wrong', 'b']]) {
   }
   await shot(`D-${label}-section-1`);
 
-  // N [r29]: the learner asks to move on; the page calls next_section (the planner's action), and the route completes or skips.
+  // N [r29]: the next-section hook says before the move whether it would skip: "Next section" when section 1's completion
+  // evidence is met, "Next section - skips this section" when not. Then the learner asks to move on; the page calls
+  // next_section (the planner's action), and the route completes or skips.
+  const hook = page.locator('[data-next-step][data-next-section="s2"]').first();
+  const shown = await hook.waitFor({ timeout: 60000 }).then(() => true, () => false);
+  const note = shown ? ((await hook.locator('[data-next-section-note]').first().textContent().catch(() => '')) || '').trim() : '';
+  check(`[r29] N-${label} the next-section hook ${label === 'right' ? 'offers the next section' : 'says it skips this section'}`,
+    shown && (label === 'right' ? note === 'Next section' : /skips this section/i.test(note)), shown ? `note "${note}"` : 'no next-section hook');
   moves.add(MOVE_ON);
   const before = await journeyOf(name), kept = JSON.stringify(before.journey.evidence?.events ?? []);
   await send(MOVE_ON);
@@ -206,6 +214,10 @@ for (const [label, mcq] of [['right', 'a'], ['wrong', 'b']]) {
   check(`[r29] N-${label} section 2 becomes current`, after.journey?.active_section_id === 's2' && s2?.status === 'current' && await rail('s2', 'current'), `active ${after.journey?.active_section_id}, s2 ${s2?.status}`);
   check(`[r29] N-${label} the rail shows section 1 ${expected}`, await rail('s1', expected));
   check(`[r29] N-${label} the evidence is kept`, JSON.stringify(after.journey?.evidence?.events ?? []) === kept, `${(after.journey?.evidence?.events ?? []).length} event(s)`);
+  const was = before.path?.sections?.find(s => s.id === 's1');
+  check(`[r29] N-${label} a new path version records why, and section 1 keeps its heading`,
+    after.path?.version === (before.path?.version ?? 0) + 1 && after.path?.change?.reason === (label === 'right' ? 'section_completed' : 'section_skipped') && !!was?.heading_block_id && s1?.heading_block_id === was.heading_block_id,
+    `version ${before.path?.version} -> ${after.path?.version}, reason ${after.path?.change?.reason}, heading ${was?.heading_block_id ? (s1?.heading_block_id === was.heading_block_id ? 'kept' : 'changed') : 'none before'}`);
   if (label === 'wrong') check('[r29] N-wrong a skipped section never makes its claim understood', deriveClaimStates(after.journey?.evidence?.events ?? [], after.journey?.registry?.claims || {})[claim]?.state !== 'understood');
   moves.delete(MOVE_ON);
   await shot(`N-${label}-after-move-on`);
