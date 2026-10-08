@@ -295,7 +295,7 @@ test("the Next Steps report reads the product's own hook traces: escalations and
   assert.deepEqual([plain.validator_rules, plain.escalations['escalated:validator'], plain.set_ms.routine.n + plain.set_ms.escalated.n], [{}, undefined, plain.sets_shown]);
 });
 
-test("the paid transport, offline: the product's own Anthropic request passes through unchanged and is metered as anthropic, JEV is refused, the eval's own calls carry the key and bypass the boundary", async () => {
+test("the paid transport, offline: the product's own Anthropic and JEV requests pass through unchanged and are metered, other hosts are refused, the eval's own calls carry the key and bypass the boundary", async () => {
   const sent = [];
   const send = async (input, init) => {
     const body = JSON.parse(init.body);
@@ -311,11 +311,14 @@ test("the paid transport, offline: the product's own Anthropic request passes th
     await fetch('https://api.anthropic.com/v1/messages', init);
     assert.deepEqual(sent[0], { url: 'https://api.anthropic.com/v1/messages', headers: init.headers, body: JSON.parse(init.body) });
     assert.deepEqual([lines[0].transport, lines[0].request_id, lines[0].usage.input_tokens], ['anthropic', 'msg_1', 10]);
-    await assert.rejects(fetch(JEV_URL, { method: 'POST', body: '{}' }), { code: 'OUTBOUND_BLOCKED' });
+    await fetch(JEV_URL, { method: 'POST', headers: { authorization: 'Bearer jev' }, body: '{"model":"typesafe-ai/jev"}' });
+    assert.deepEqual([sent[1].url, lines[1].provider, lines[1].model_role], [JEV_URL, 'typesafe', 'jev']);
+    await assert.rejects(fetch('https://example.com/x', { method: 'POST', body: '{}' }), { code: 'OUTBOUND_BLOCKED' });
+    sent.splice(1, 1);
     const transport = anthropicTransport({ key: 'eval-key', send });
     assert.equal(transport.kind, 'anthropic');
     assert.equal((await transport({ model: 'claude-opus-5-5', max_tokens: 5, messages: [] })).id, 'msg_2');
-    assert.deepEqual([sent[1].url, sent[1].headers['x-api-key'], sent[1].headers['anthropic-version'], boundary.requests.length], ['https://api.anthropic.com/v1/messages', 'eval-key', '2023-06-01', 1]);
+    assert.deepEqual([sent[1].url, sent[1].headers['x-api-key'], sent[1].headers['anthropic-version'], boundary.requests.length], ['https://api.anthropic.com/v1/messages', 'eval-key', '2023-06-01', 2]);
     await assert.rejects(transport({ model: 'claude-opus-5-5', max_tokens: 1, messages: [] }), { code: 'http_429' });
   } finally { boundary.restore(); }
   assert.equal(globalThis.fetch, before);

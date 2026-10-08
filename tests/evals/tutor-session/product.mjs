@@ -6,8 +6,8 @@
 // the eval's event fields (field names only; every value is the product's).
 // The one thing replaced is the provider boundary. providerBoundary() swaps globalThis.fetch: the Anthropic Messages API and
 // the JEV hosts are answered from a script, and every other host is refused. A missing key alone would not stop a request;
-// this does. The paid run (owner approval 2026-10-08: Anthropic only, the dev workspace) swaps the script for realAnswers:
-// the product's own Anthropic requests go to the real Messages API, still reserved and metered here, and JEV is refused.
+// this does. The paid run (owner approval 2026-10-08: the dev Anthropic workspace, JEV where needed) swaps the script for
+// realAnswers: the product's own Anthropic and JEV requests go to the real providers, still reserved and metered here.
 import { createHash } from 'node:crypto';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -37,19 +37,20 @@ export const HOOK_DEBOUNCE_MS = NEXT_STEPS_LIMITS.debounce_ms;
 
 // What a run on this adapter exercises, written into every session bundle (runSession coverage) so no report reads more
 // into it. With the stub transport no model answers: the plumbing, routing, validation and evidence rules are the product's,
-// teaching quality is not measured. The paid run's (PAID_COVERAGE) has the real models answer but no JEV: typed answers are
-// never evaluated, so evidence never moves.
+// teaching quality is not measured. The paid run's (paidCoverage) has the real models answer; without a JEV key typed answers
+// are never evaluated, so evidence never moves.
 export const COVERAGE = Object.freeze({
   transport: 'stub',
   teaching_quality: 'not established: the Tutor, hook and LP1 planners answer from scripts and the keyless product fixtures, never a model',
   exercised: ['lp1_journey_start', 'typed_turn', 'jev_evaluation', 'planner_routing_and_validation', 'hook_click_turn', 'hook_controller_and_route', 'stopping_point', 'decision_trace', 'budget_reservation'],
   not_exercised: ['material_generation', 'section_materialization', 'larger_evaluator_answer', 'lp1_tray_resolver', 'streamed_first_sentence', 'rabbit_holes', 'shared_canvas', 'voice', 'repository_handoff', 'owned_reply_edge_cache', 'stopped_turns'],
 });
-export const PAID_COVERAGE = Object.freeze({
+// jev: whether the paid world has a JEV key. With one, the larger evaluator may answer too (when JEV is uncertain).
+export const paidCoverage = jev => Object.freeze({
   transport: 'anthropic',
-  teaching_quality: 'one simulated learner per profile on the real Tutor, hook and LP1 planners; no JEV key (Anthropic-only approval), so typed answers are never evaluated and evidence never moves; review scores are one model reading, not a learning outcome',
-  exercised: COVERAGE.exercised.filter(name => name !== 'jev_evaluation'),
-  not_exercised: ['jev_evaluation', ...COVERAGE.not_exercised],
+  teaching_quality: `one simulated learner per profile on the real Tutor, hook and LP1 planners${jev ? ' and the real JEV' : '; no JEV key, so typed answers are never evaluated and evidence never moves'}; review scores are one model reading, not a learning outcome`,
+  exercised: jev ? [...COVERAGE.exercised, 'larger_evaluator_answer'] : COVERAGE.exercised.filter(name => name !== 'jev_evaluation'),
+  not_exercised: jev ? COVERAGE.not_exercised.filter(name => name !== 'larger_evaluator_answer') : ['jev_evaluation', ...COVERAGE.not_exercised],
 });
 
 // ---------- The provider boundary ----------
@@ -101,9 +102,10 @@ export function stubAnswers({ usage = 'stub', plan = () => ({ strategy: 'none', 
   };
 }
 
-// The paid run's answers: the product's own Anthropic request (its URL, headers and body, exactly as it built them) sent with
-// the fetch the boundary replaced. No jev: the boundary refuses JEV hosts like any other (OUTBOUND_BLOCKED).
-export const realAnswers = send => ({ kind: 'anthropic', anthropic: (body, { input, init }) => send(input, init) });
+// The paid run's answers: the product's own Anthropic or JEV request (its URL, headers and body, exactly as it built them)
+// sent with the fetch the boundary replaced. JEV is outside the Anthropic ceiling: its cost is the provider's report or unknown.
+const passThrough = send => (body, { input, init }) => send(input, init);
+export const realAnswers = send => ({ kind: 'anthropic', anthropic: passThrough(send), jev: passThrough(send) });
 
 // The eval's own paid calls (the learner simulator, the reviewer) as evalCall's transport: one Messages API request each,
 // sent with boundary.realFetch so they are never counted as product requests. A non-2xx answer throws (the reservation stays
@@ -145,7 +147,7 @@ export function providerBoundary(answers = stubAnswers()) {
     if (boundary.onRequest) try { ticket = boundary.onRequest({ provider, body }); } catch (error) { refused.push({ provider, role: provider === 'anthropic' ? roleOf(body) : 'jev', code: error.code ?? null }); throw error; }
     requests.push({ provider, body });
     const started = performance.now();
-    const response = provider === 'anthropic' ? await answers.anthropic(body, { input, init }) : await answers.jev(body);
+    const response = provider === 'anthropic' ? await answers.anthropic(body, { input, init }) : await answers.jev(body, { input, init });
     const reply = await response.clone().json().catch(() => null);
     // The meter never fails a product call (as the product's own telemetry never fails a turn): a meter error is kept in
     // `errors`, and the run checks it.
@@ -208,7 +210,7 @@ export function availableModalities(result, domain, materials) {
 // owner (deps.authorize, as the route tests inject it); the product's limiter keys a viewer by email, so access carries a
 // synthetic .invalid address that never reaches an event. trace: false runs the product with telemetry off (runTurn gets no
 // trace and no hook event is built), for the tracing-on/off proof. keys: the worker's provider keys; the paid run passes the
-// Anthropic key alone, so the product sends no JEV request ("no key" is its own evaluate answer).
+// real ones from its env file (without a JEV key the product sends no JEV request: "no key" is its own evaluate answer).
 export async function productWorld({ topic, ids, boundary, board = 'main', trace = true, keys = { ANTHROPIC_API_KEY: 'eval-stub-not-a-key', TYPESAFE_API_KEY: 'eval-stub-not-a-key' } }) {
   const db = await freshLearnDb();
   const app = ids.canvas_id;
@@ -253,7 +255,7 @@ export async function productWorld({ topic, ids, boundary, board = 'main', trace
 
   return {
     close: db.close,
-    coverage: boundary.transport === 'stub' ? COVERAGE : PAID_COVERAGE,
+    coverage: boundary.transport === 'stub' ? COVERAGE : paidCoverage(!!(keys.TYPESAFE_API_KEY || keys.VERCEL_TYPESAFE_API_KEY)),
     store: () => store,
     // The decision's materials are its create_material actions (contract §2.5: several per turn, distinct commands), in the
     // product's own names. ponytail: generation is not run - runMaterials and /api/learn/artifact are not wired yet - so
