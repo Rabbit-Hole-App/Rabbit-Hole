@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { gateVerdict, rerunVerdict, deployedSha, decide, learnTables, servedSha, notReusable, entryScript, parseUpload, TEST_ONLY, UNIT_TEST, buildRecipe } from './dev-deploy.mjs';
+import { gateVerdict, rerunVerdict, deployedSha, decide, learnTables, servedSha, notReusable, entryScript, parseUpload, TEST_ONLY, UNIT_TEST, buildRecipe, CONFIRMATIONS } from './dev-deploy.mjs';
 
 const TREE = '192b10f38626e3db2abe1528f68719154b6e802a';
 // Shape of a real integration gate record (int16r, main 42f5a4f0), trimmed.
@@ -184,4 +184,12 @@ test('a failed stage\'s unreadable tripwire count in the gate is replaced only b
   assert.match(rerunVerdict(gate.replace('journey provider-tripwire hits: 0', 'journey provider-tripwire hits: unreadable'), TREE, rerun, RTREE), /gate: .*journey:unreadable/, 'a stage that passed keeps its own count');
   assert.match(rerunVerdict(gate.replace('model key bindings in app log: 0', 'model key bindings in app log: 1'), TREE, rerun, RTREE), /gate: .*app:1/, 'app-wide counts are never replaced');
   assert.match(rerunVerdict(gate, TREE, rerun.replace('hits: 0', 'hits: 1'), RTREE), /rerun: provider tripwire .*cross-device:1/);
+});
+
+test('the smoke waits for several consecutive serves of the new build, not one', () => {
+  // 2026-10-08: twice, one /library hit showed the new entry while / still came from the old version.
+  const src = readFileSync(new URL('./dev-deploy.mjs', import.meta.url), 'utf8');
+  assert.ok(CONFIRMATIONS >= 3);
+  assert.match(src, /served = streak >= CONFIRMATIONS/);
+  assert.match(src, /\? streak \+ 1 : 0/, 'a miss resets the streak');
 });
