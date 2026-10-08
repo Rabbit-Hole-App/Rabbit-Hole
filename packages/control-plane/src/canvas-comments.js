@@ -118,15 +118,66 @@ async function readJson(req) {
   try { return JSON.parse(raw); } catch { return null; }
 }
 
-// The body as typed: 1-5,000 characters, not only spaces. Mentions travel beside it (section 10); none is accepted
-// yet, so every mention stays plain text and notifies nobody.
-// ponytail: mentions are stored as plain text until S5 resolves them against the audience's suggestion set.
+// The body as typed: 1-5,000 characters, not only spaces. Mentions travel beside it (section 10).
 function bodyOf(value) {
   if (typeof value !== 'string' || !value.trim()) return { error: refuse('Write a comment first.', 'empty', 400) };
   if (value.length > BODY_MAX) return { error: refuse(`Comments are at most ${BODY_MAX.toLocaleString('en-US')} characters.`, 'too_long', 413) };
   return { body: value };
 }
 const mentionsOf = value => (Array.isArray(value) ? value.slice(0, 50).filter(m => Number.isInteger(m?.pos) && Number.isInteger(m?.len) && typeof m?.handle === 'string').map(({ pos, len, handle }) => ({ pos, len, handle })) : []);
+
+// Who can be mentioned (section 5, Mentions), by audience, never by thread: members threads - the owner and active members;
+// public threads - the owner and public participants (accounts that posted publicly here), never a blocked account.
+// A map of principal -> users.id ('' for an owner who has never posted or invited, so only the principal is known).
+async function audienceSet(env, ctx, audience) {
+  const db = env.LEARN_DB, { org, canvas, owner_email: owner } = ctx.board;
+  const ownerId = ctx.actor.owner ? ctx.actor.uid : (await db.prepare('SELECT invited_by AS id FROM canvas_members WHERE org = ? AND canvas = ? LIMIT 1').bind(org, canvas).first())?.id
+    || (await db.prepare('SELECT m.author_id AS id FROM canvas_comments m JOIN canvas_comment_threads t ON t.id = m.thread_id WHERE t.org = ? AND t.canvas = ? AND m.author_email = ? LIMIT 1').bind(org, canvas, owner).first())?.id || '';
+  const people = new Map([[owner, ownerId]]);
+  const { results } = audience === 'members'
+    ? await db.prepare("SELECT member_email AS email, member_user_id AS id FROM canvas_members WHERE org = ? AND canvas = ? AND status = 'active'").bind(org, canvas).all()
+    : await db.prepare(`SELECT DISTINCT m.author_email AS email, m.author_id AS id FROM canvas_comments m JOIN canvas_comment_threads t ON t.id = m.thread_id
+        WHERE t.org = ?1 AND t.canvas = ?2 AND t.audience = 'public' AND m.author_id NOT IN (SELECT k.user_id FROM canvas_comment_blocks k WHERE k.org = ?1 AND k.canvas = ?2)`).bind(org, canvas).all();
+  for (const row of results) if (!people.has(row.email)) people.set(row.email, row.id);
+  return people;
+}
+// The mentions a post may keep: `@handle` exactly at its range (any case), naming an account in the audience's set.
+// Anything else stays plain text and notifies nobody; the post still succeeds.
+async function acceptMentions(env, ctx, audience, body, mentions) {
+  if (!mentions.length) return [];
+  const set = await audienceSet(env, ctx, audience), kept = [], used = new Set();
+  for (const { pos, len, handle } of mentions) {
+    if (pos < 0 || len < 2 || pos + len > body.length || used.has(pos) || body.slice(pos, pos + len).toLowerCase() !== `@${handle}`.toLowerCase()) continue;
+    const row = await env.LEARN_DB.prepare('SELECT email, handle FROM user_handles WHERE handle = ?').bind(handle).first();
+    if (!row || !set.has(row.email)) continue;
+    used.add(pos);
+    kept.push({ pos, len, handle: row.handle, user_id: set.get(row.email), user_email: row.email });
+  }
+  return kept;
+}
+const mentionRows = (db, commentId, kept) => kept.map(m => db.prepare('INSERT INTO canvas_comment_mentions (comment_id, pos, len, user_id, user_email) VALUES (?, ?, ?, ?, ?)').bind(commentId, m.pos, m.len, m.user_id, m.user_email));
+
+// Segments (section 10): the text with each kept mention as a reference, so a renamed handle shows its new value; a
+// mentioned account that no longer has a handle reads as its text.
+async function mentionsFor(env, ids) {
+  if (!ids.length) return new Map();
+  const { results } = await env.LEARN_DB.prepare(`SELECT mm.comment_id, mm.pos, mm.len, ${PERSON('mm.user_email', 'p_')} FROM canvas_comment_mentions mm WHERE mm.comment_id IN (${ids.map(() => '?').join(', ')}) ORDER BY mm.pos`).bind(...ids).all();
+  const by = new Map();
+  for (const row of results) by.set(row.comment_id, [...(by.get(row.comment_id) || []), row]);
+  return by;
+}
+export function segmentsOf(body, mentions = []) {
+  const out = [];
+  let at = 0;
+  for (const m of mentions) {
+    if (m.pos < at || !m.p_handle) continue;
+    if (m.pos > at) out.push({ text: body.slice(at, m.pos) });
+    out.push({ mention: { name: m.p_name ?? null, handle: m.p_handle } });
+    at = m.pos + m.len;
+  }
+  if (at < body.length) out.push({ text: body.slice(at) });
+  return out;
+}
 
 // Section 8: a card-relative anchor (it follows the object without a write) or a canvas point, in world units.
 const OBJECT_KINDS = ['block', 'exchange', 'item', 'shape'];
@@ -163,11 +214,11 @@ function threadShape(ctx, row) {
   };
 }
 const MESSAGE_COLUMNS = `m.id, m.author_id, m.body, m.created_at, m.edited_at, m.deleted_at, m.deleted_by, ${PERSON('m.author_email', 'a_')}`;
-function messageShape(ctx, audience, row) {
+function messageShape(ctx, audience, row, mentions = []) {
   const mine = !!ctx.actor.uid && row.author_id === ctx.actor.uid;
   const deleted = row.deleted_at ? (row.deleted_by === row.author_id ? 'author' : 'owner') : null;
   return {
-    id: row.id, author: person(row, 'a_'), segments: deleted ? [] : [{ text: row.body }], created_at: row.created_at, edited: !!row.edited_at && !deleted, deleted, mine,
+    id: row.id, author: person(row, 'a_'), segments: deleted ? [] : segmentsOf(row.body, mentions), created_at: row.created_at, edited: !!row.edited_at && !deleted, deleted, mine,
     can: { edit: !deleted && mine && allowed(ctx, 'edit_own', audience), delete: !deleted && ((mine && allowed(ctx, 'delete_own', audience)) || allowed(ctx, 'delete_any', audience)) },
   };
 }
@@ -182,10 +233,32 @@ async function threadIn(env, ctx, id) {
 const missingThread = () => refuse("This thread isn't available.", 'thread_gone', 404);
 
 // Unread (section 5): someone else posted after my last read. The member family tracks it for the owner and members;
-// the public family for participants - people who posted in the thread.
+// the public family for participants - people who posted in the thread or were mentioned in it.
 const unreadSql = participantsOnly => `(?1 IS NOT NULL AND EXISTS (SELECT 1 FROM canvas_comments x WHERE x.thread_id = t.id AND x.author_id != ?1 AND x.deleted_at IS NULL
     AND x.created_at > COALESCE((SELECT r.read_at FROM canvas_comment_reads r WHERE r.thread_id = t.id AND r.user_id = ?1), ''))
-    ${participantsOnly ? 'AND EXISTS (SELECT 1 FROM canvas_comments y WHERE y.thread_id = t.id AND y.author_id = ?1)' : ''})`;
+    ${participantsOnly ? `AND (EXISTS (SELECT 1 FROM canvas_comments y WHERE y.thread_id = t.id AND y.author_id = ?1)
+      OR EXISTS (SELECT 1 FROM canvas_comment_mentions mm JOIN canvas_comments z ON z.id = mm.comment_id WHERE z.thread_id = t.id AND mm.user_id = ?1))` : ''})`;
+
+// Mention suggestions (section 10, people): up to 8 of the audience's set whose handle or name starts with q, never an
+// email, never yourself, never someone without a handle (who cannot be mentioned). A new thread asks by audience; a reply
+// by thread, and the audience is the thread's.
+async function suggest(env, ctx, params) {
+  let audience = ctx.family === 'public' ? 'public' : params.get('audience') === 'public' ? 'public' : 'members';
+  if (params.get('thread')) {
+    const thread = await threadIn(env, ctx, params.get('thread'));
+    if (!thread) return missingThread();
+    audience = thread.audience;
+  }
+  if (!allowed(ctx, 'post', audience)) return json({ people: [] });
+  const set = [...(await audienceSet(env, ctx, audience)).keys()].filter(email => email !== ctx.actor.email);
+  if (!set.length) return json({ people: [] });
+  const q = (params.get('q') || '').trim().toLowerCase().replace(/^@/, '').slice(0, 40);
+  const like = `${q.replace(/[\\%_]/g, char => `\\${char}`)}%`;
+  const { results } = await env.LEARN_DB.prepare(`SELECT ${PERSON('h.email', 'a_')} FROM user_handles h WHERE h.email IN (${set.map(() => '?').join(', ')})
+      AND (lower(h.handle) LIKE ? ESCAPE '\\' OR lower(COALESCE(${NAME_OF('h.email')}, '')) LIKE ? ESCAPE '\\') ORDER BY h.handle LIMIT 8`)
+    .bind(...set, like, like).all();
+  return json({ people: results.map(row => person(row, 'a_')) });
+}
 
 async function listThreads(env, ctx, params) {
   const status = ['open', 'resolved', 'all'].includes(params.get('status')) ? params.get('status') : 'open';
@@ -219,7 +292,8 @@ async function readThread(env, ctx, id, params) {
       ${before ? 'AND (m.created_at < ?2 OR (m.created_at = ?2 AND m.id < ?3))' : ''} ORDER BY m.created_at DESC, m.id DESC LIMIT ${MESSAGES + 1}`)
     .bind(thread.id, ...(before ? [before[1], before[2]] : [])).all();
   const page = results.slice(0, MESSAGES).reverse();
-  return json({ thread: threadShape(ctx, thread), messages: page.map(row => messageShape(ctx, thread.audience, row)),
+  const mentions = await mentionsFor(env, page.map(row => row.id));
+  return json({ thread: threadShape(ctx, thread), messages: page.map(row => messageShape(ctx, thread.audience, row, mentions.get(row.id))),
     before: results.length > MESSAGES ? `${page[0].created_at}|${page[0].id}` : null });
 }
 
@@ -243,12 +317,14 @@ async function startThread(req, env, ctx) {
   if (over) return over;
   const now = new Date().toISOString();
   const db = env.LEARN_DB;
+  const kept = await acceptMentions(env, ctx, audience, body, mentions), first = crypto.randomUUID();
   try {
     await db.batch([
       db.prepare('INSERT INTO canvas_comment_threads (id, board_id, org, canvas, audience, anchor_json, created_by, created_by_email, create_hash, created_at, last_activity_at, message_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)')
         .bind(input.id, ctx.board.id, ctx.board.org, ctx.board.canvas, audience, JSON.stringify(anchor), ctx.actor.uid, ctx.actor.email, hash, now, now),
       db.prepare('INSERT INTO canvas_comments (id, thread_id, author_id, author_email, body, create_hash, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
-        .bind(crypto.randomUUID(), input.id, ctx.actor.uid, ctx.actor.email, body, hash, now),
+        .bind(first, input.id, ctx.actor.uid, ctx.actor.email, body, hash, now),
+      ...mentionRows(db, first, kept),
     ]);
   } catch (failure) {
     // Two copies of one post raced: the loser reads the winner's row, or the id belongs to someone else.
@@ -261,7 +337,8 @@ async function startThread(req, env, ctx) {
 async function threadReply(env, ctx, id, status) {
   const thread = await env.LEARN_DB.prepare(`SELECT ${THREAD_COLUMNS} FROM canvas_comment_threads t WHERE t.id = ?`).bind(id).first();
   const first = await env.LEARN_DB.prepare(`SELECT ${MESSAGE_COLUMNS} FROM canvas_comments m WHERE m.thread_id = ? ORDER BY m.created_at, m.id LIMIT 1`).bind(id).first();
-  return json({ thread: threadShape(ctx, thread), comment: messageShape(ctx, thread.audience, first), accepted_mentions: [] }, status);
+  const mentions = (await mentionsFor(env, [first.id])).get(first.id) || [];
+  return json({ thread: threadShape(ctx, thread), comment: messageShape(ctx, thread.audience, first, mentions), accepted_mentions: mentions.map(m => ({ pos: m.pos, len: m.len, handle: m.p_handle })) }, status);
 }
 // An id that exists already: the same author retrying the same post to the same target gets it back; anything else
 // is a conflict with no content, so someone else's id never returns their comment.
@@ -289,7 +366,8 @@ async function reply(req, env, ctx, threadId) {
   if (!allowed(ctx, 'post', thread.audience)) return postRefusal(ctx, thread.audience);
   const { body, error } = bodyOf(input.body);
   if (error) return error;
-  const hash = await hashOf([ctx.actor.uid, thread.id, body, mentionsOf(input.mentions)]);
+  const mentions = mentionsOf(input.mentions);
+  const hash = await hashOf([ctx.actor.uid, thread.id, body, mentions]);
   const replay = await sameCreate(env, 'canvas_comments', input.id, hash);
   if (replay) return replay === 'conflict' ? idConflict() : commentReply(env, ctx, thread, input.id, 200);
   // ponytail: check-then-insert, so concurrent replies can pass the thread cap by a few; a conditional insert if that matters.
@@ -298,11 +376,13 @@ async function reply(req, env, ctx, threadId) {
   if (over) return over;
   const now = new Date().toISOString();
   const db = env.LEARN_DB;
+  const kept = await acceptMentions(env, ctx, thread.audience, body, mentions);
   try {
     await db.batch([
       db.prepare('INSERT INTO canvas_comments (id, thread_id, author_id, author_email, body, create_hash, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
         .bind(input.id, thread.id, ctx.actor.uid, ctx.actor.email, body, hash, now),
       db.prepare('UPDATE canvas_comment_threads SET message_count = message_count + 1, last_activity_at = ? WHERE id = ?').bind(now, thread.id),
+      ...mentionRows(db, input.id, kept),
     ]);
   } catch (failure) {
     const raced = await sameCreate(env, 'canvas_comments', input.id, hash);
@@ -314,7 +394,8 @@ async function reply(req, env, ctx, threadId) {
 async function commentReply(env, ctx, thread, id, status) {
   const row = await env.LEARN_DB.prepare(`SELECT ${MESSAGE_COLUMNS} FROM canvas_comments m WHERE m.id = ? AND m.thread_id = ?`).bind(id, thread.id).first();
   if (!row) return idConflict();
-  return json({ comment: messageShape(ctx, thread.audience, row), accepted_mentions: [] }, status);
+  const mentions = (await mentionsFor(env, [id])).get(id) || [];
+  return json({ comment: messageShape(ctx, thread.audience, row, mentions), accepted_mentions: mentions.map(m => ({ pos: m.pos, len: m.len, handle: m.p_handle })) }, status);
 }
 
 // A comment of a thread this actor may read on this board; else 404.
@@ -336,7 +417,14 @@ async function editComment(req, env, ctx, id) {
   if (input?.tooLarge) return refuse('That comment is too long.', 'too_long', 413);
   const { body, error } = bodyOf(input?.body);
   if (error) return error;
-  await env.LEARN_DB.prepare('UPDATE canvas_comments SET body = ?, edited_at = ? WHERE id = ?').bind(body, new Date().toISOString(), id).run();
+  // An edit sends the whole new body and its full mentions; the stored ones are replaced.
+  const kept = await acceptMentions(env, ctx, found.thread.audience, body, mentionsOf(input.mentions));
+  const db = env.LEARN_DB;
+  await db.batch([
+    db.prepare('UPDATE canvas_comments SET body = ?, edited_at = ? WHERE id = ?').bind(body, new Date().toISOString(), id),
+    db.prepare('DELETE FROM canvas_comment_mentions WHERE comment_id = ?').bind(id),
+    ...mentionRows(db, id, kept),
+  ]);
   return commentReply(env, ctx, found.thread, id, 200);
 }
 
@@ -476,6 +564,7 @@ export async function canvasCommentsRoute(path, req, env) {
     return part[2] === 'read' ? markRead(env, ctx, part[1]) : resolve(env, ctx, part[1], part[2] === 'reopen');
   }
   if ((part = rest.match(/^\/comments\/([^/]+)$/))) return method === 'PATCH' ? editComment(req, env, ctx, part[1]) : method === 'DELETE' ? deleteComment(env, ctx, part[1]) : not();
+  if (rest === '/people') return method === 'GET' ? suggest(env, ctx, url.searchParams) : not();
   if (family === 'member' && rest === '/comment-settings') return method === 'PUT' ? saveSettings(req, env, ctx) : not();
   if (family === 'member' && rest === '/blocks') return method === 'GET' ? listBlocks(env, ctx) : method === 'POST' ? addBlock(req, env, ctx) : not();
   if (family === 'member' && (part = rest.match(/^\/blocks\/([^/]+)$/))) return method === 'DELETE' ? removeBlock(env, ctx, part[1]) : not();

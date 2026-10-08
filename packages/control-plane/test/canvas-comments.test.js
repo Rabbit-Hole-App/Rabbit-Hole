@@ -276,3 +276,41 @@ test('mutations check Origin', async t => {
   const cross = await comments(f, 'POST', `${base}/threads`, { as: 'ana', body: { id: crypto.randomUUID(), anchor: ON_CARD, body: 'x' }, headers: { origin: 'https://evil.test' } });
   assert.equal(cross.status, 403);
 });
+
+test('mentions: kept only inside the audience\'s set and at their exact range; rendered by reference; never an email', async t => {
+  const f = setup(t);
+  const { base } = await canvas(f);
+  const at = (body, handle) => ({ pos: body.indexOf(`@${handle}`), len: handle.length + 1, handle });
+  const body = 'Thanks @Ana, and @cara - see option B';
+  const made = await start(f, base, 'ben', body, { mentions: [at(body, 'Ana'), at(body, 'cara'), { pos: 0, len: 4, handle: 'ana' }] });
+  assert.deepEqual(made.body.accepted_mentions, [{ pos: 7, len: 4, handle: 'ana' }], 'cara is not a member; a range that is not @handle is dropped');
+  assert.deepEqual(made.body.comment.segments, [{ text: 'Thanks ' }, { mention: { name: 'Ana Lima', handle: 'ana' } }, { text: ', and @cara - see option B' }]);
+  f.sqlite.prepare("UPDATE user_handles SET handle = 'ana_l' WHERE email = 'ana@test'").run();
+  const reread = await comments(f, 'GET', `${base}/threads/${made.body.thread.id}`, { as: 'ana' });
+  assert.deepEqual(reread.body.messages[0].segments[1], { mention: { name: 'Ana Lima', handle: 'ana_l' } }, 'a renamed handle shows its new value');
+  // People: by audience before a thread exists, by thread for replies; never yourself.
+  const people = await comments(f, 'GET', `${base}/people?audience=members&q=an`, { as: 'ben' });
+  assert.deepEqual(people.body.people, [{ name: 'Ana Lima', handle: 'ana_l' }]);
+  assert.deepEqual((await comments(f, 'GET', `${base}/people?thread=${made.body.thread.id}&q=`, { as: 'ana' })).body.people, [{ name: 'Ben Ode', handle: 'ben' }]);
+  // An edit replaces the mentions.
+  const cid = made.body.comment.id;
+  const edited = await comments(f, 'PATCH', `${base}/comments/${cid}`, { as: 'ben', body: { body: 'No mention now', mentions: [] } });
+  assert.deepEqual([edited.body.comment.segments, edited.body.accepted_mentions], [[{ text: 'No mention now' }], []]);
+  assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM canvas_comment_mentions').get().n, 0);
+});
+
+test('public mentions: the owner and public participants only; a mention makes a participant whose thread can go unread', async t => {
+  const f = setup(t);
+  const { name, base } = await canvas(f);
+  const token = (await f.call('POST', `/api/apps/${name}/publish`, { as: 'ana' })).body.publication_token;
+  await comments(f, 'PUT', `${base}/comment-settings`, { as: 'ana', body: { public_mode: 'open' } });
+  const pub = `/api/learn/boards/shared/${token}/comments`;
+  const caraPost = await comments(f, 'POST', `${pub}/threads`, { as: 'cara', body: { id: crypto.randomUUID(), anchor: ON_CARD, body: 'first public' } });
+  const text = '@cara and @ben, look';
+  const owner = await comments(f, 'POST', `${pub}/threads`, { as: 'ana', body: { id: crypto.randomUUID(), anchor: ON_CARD, body: text, mentions: [{ pos: 0, len: 5, handle: 'cara' }, { pos: 10, len: 4, handle: 'ben' }] } });
+  assert.deepEqual(owner.body.accepted_mentions.map(m => m.handle), ['cara'], 'ben is a member but has not posted publicly');
+  assert.deepEqual((await comments(f, 'GET', `${pub}/people?q=`, { as: 'ana' })).body.people.map(p => p.handle), ['cara']);
+  const caraList = (await comments(f, 'GET', `${pub}/threads`, { as: 'cara' })).body.threads;
+  assert.equal(caraList.find(x => x.id === owner.body.thread.id).unread, true, 'mentioned: a participant');
+  assert.equal(caraList.find(x => x.id === caraPost.body.thread.id).unread, false);
+});

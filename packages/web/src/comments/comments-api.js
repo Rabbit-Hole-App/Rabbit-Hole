@@ -15,12 +15,17 @@ export const commentsApi = base => ({
   thread: id => api(`${base}/threads/${id}`),
   start: body => send(`${base}/threads`, body),
   reply: (threadId, body) => send(`${base}/threads/${threadId}/comments`, body),
-  edit: (id, body) => send(`${base}/comments/${id}`, { body, mentions: [] }, 'PATCH'),
+  edit: (id, body) => send(`${base}/comments/${id}`, { body, mentions: mentionsIn(body) }, 'PATCH'),
+  people: (q, scope) => api(`${base}/people?q=${encodeURIComponent(q)}&${scope.thread ? `thread=${scope.thread}` : `audience=${scope.audience}`}`),
   remove: id => api(`${base}/comments/${id}`, { method: 'DELETE' }),
   resolve: (id, reopen) => send(`${base}/threads/${id}/${reopen ? 'reopen' : 'resolve'}`),
   read: id => send(`${base}/threads/${id}/read`),
   block: commentId => send(`${base}/blocks`, { comment_id: commentId, remove_comments: false }),
 });
+
+// Every @handle typed in a body, as the server's mapping wants it (UTF-16 pos and len of '@handle'). The server keeps only
+// those in the audience's set; the rest stay plain text.
+export const mentionsIn = body => [...body.matchAll(/(^|\s)@([A-Za-z0-9_]{1,40})/g)].map(m => ({ pos: m.index + m[1].length, len: m[2].length + 1, handle: m[2] }));
 
 // A post carries a client-made id, so a retry of one that landed returns it instead of posting twice. An id_conflict is
 // a client bug, never a user state: the draft is resent once with a fresh id.

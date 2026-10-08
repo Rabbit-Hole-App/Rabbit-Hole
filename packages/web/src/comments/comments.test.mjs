@@ -102,3 +102,13 @@ test('increment 3 seams: /i and /c routes, served no-referrer and no-store; the 
   assert.doesNotMatch(invite, /localStorage|document\.cookie|\?token=|console\./, 'the token stays in this tab');
   assert.match(invite, /sessionStorage\.removeItem\(KEY\)/);
 });
+
+test('mentions travel as the server maps them: UTF-16 pos and len of @handle, only at a word start', async () => {
+  const { mentionsIn } = await import('./comments-api.js');
+  assert.deepEqual(mentionsIn('Thanks @chen, can you check option B?'), [{ pos: 7, len: 5, handle: 'chen' }]);
+  assert.deepEqual(mentionsIn('@ana and mail@lab.org and @b_2'), [{ pos: 0, len: 4, handle: 'ana' }, { pos: 26, len: 4, handle: 'b_2' }], 'an email is not a mention');
+  assert.deepEqual(mentionsIn('é @x'), [{ pos: 2, len: 2, handle: 'x' }]);
+  const panel = read('./CommentsPanel.jsx');
+  assert.match(panel, /mentions: mentionsIn\(draft\.body\)/);
+  assert.match(panel, /segment\.mention \? <span key=\{index\} data-mention/);
+});

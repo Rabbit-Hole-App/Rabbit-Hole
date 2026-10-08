@@ -3,7 +3,7 @@ import { ChevronLeft, Globe, MoreHorizontal, Users } from 'lucide-react';
 import ChatComposer from '../ChatComposer.jsx';
 import { Button } from '../ui.jsx';
 import { anchorText } from './anchors.js';
-import { BODY_MAX, COUNTER_FROM, commentsApi, displayName, failureText, freshDraft, loadDraft, saveDraft, sendDraft, when } from './comments-api.js';
+import { BODY_MAX, COUNTER_FROM, commentsApi, displayName, failureText, freshDraft, loadDraft, mentionsIn, saveDraft, sendDraft, when } from './comments-api.js';
 
 // The right panel's Comments view (docs/features/canvas-comments.md section 5): the thread list, one thread, or a
 // new-thread draft from Add comment. `base` picks the route family; the panel is the same on both. Every message shows
@@ -136,8 +136,8 @@ function NewThread({ client, about, anchor, live, onCancel, onPosted }) {
           </div>
         )}
       </div>
-      <CommentComposer storeKey={`${client.base}:new:${JSON.stringify(anchor)}`} autoFocus placeholder="Add a comment" blocked={blockedLine(about, canPost)}
-        onSend={draft => sendDraft(id => client.start({ id, anchor, audience, body: draft.body, mentions: [] }), draft).then(made => onPosted(made.thread))} />
+      <CommentComposer people={q => client.people(q, { audience })} storeKey={`${client.base}:new:${JSON.stringify(anchor)}`} autoFocus placeholder="Add a comment" blocked={blockedLine(about, canPost)}
+        onSend={draft => sendDraft(id => client.start({ id, anchor, audience, body: draft.body, mentions: mentionsIn(draft.body) }), draft).then(made => onPosted(made.thread))} />
     </div>
   );
 }
@@ -172,8 +172,8 @@ function ThreadView({ client, about, id, objectLive, onFocusAnchor, onBack, onCh
         {messages.map(message => <Message key={message.id} message={message} audience={thread.audience} owner={about.role === 'owner'} client={client} act={act} />)}
       </ol>
       <p className="mb-1 text-[11px] text-ink-3">Replying in {thread.audience === 'public' ? 'Public' : 'Members only'}</p>
-      <CommentComposer storeKey={`${id}`} placeholder="Reply" blocked={blockedLine(about, thread.can.reply)}
-        onSend={draft => sendDraft(cid => client.reply(thread.id, { id: cid, body: draft.body, mentions: [] }), draft).then(() => { load(); onChange(); })} />
+      <CommentComposer people={q => client.people(q, { thread: thread.id })} storeKey={`${id}`} placeholder="Reply" blocked={blockedLine(about, thread.can.reply)}
+        onSend={draft => sendDraft(cid => client.reply(thread.id, { id: cid, body: draft.body, mentions: mentionsIn(draft.body) }), draft).then(() => { load(); onChange(); })} />
     </div>
   );
 }
@@ -188,7 +188,7 @@ function Message({ message, audience, owner, client, act }) {
   const [confirm, setConfirm] = useState(false);
   const canBlock = owner && audience === 'public' && !message.mine && !message.deleted;
   const rows = [
-    message.can.edit && ['Edit', () => setEditing(message.segments.map(s => s.text).join(''))],
+    message.can.edit && ['Edit', () => setEditing(message.segments.map(s => s.text ?? `@${s.mention.handle}`).join(''))],
     message.can.delete && [confirm ? 'Confirm delete' : message.mine ? 'Delete' : 'Remove comment', () => (confirm ? act(() => client.remove(message.id)) : setConfirm(true)), true],
     canBlock && [`Block ${message.author.handle ? `@${message.author.handle}` : displayName(message.author)}`, () => act(() => client.block(message.id))],
   ].filter(Boolean);
@@ -224,18 +224,68 @@ function Message({ message, audience, owner, client, act }) {
                 <Button size="sm" variant="primary" disabled={!editing.trim() || editing.length > BODY_MAX} onClick={() => act(() => client.edit(message.id, editing)).then(() => setEditing(null))}>Save</Button>
               </div>
             </div>
-          ) : <p className="text-sm break-words whitespace-pre-wrap text-ink">{message.segments.map((segment, index) => <span key={index}>{segment.text}</span>)}</p>}
+          ) : <p className="text-sm break-words whitespace-pre-wrap text-ink">{message.segments.map((segment, index) => (segment.mention ? <span key={index} data-mention title={segment.mention.name || undefined} className="rounded bg-accent/10 px-0.5 font-medium text-accent">@{segment.mention.handle}</span> : <span key={index}>{segment.text}</span>))}</p>}
       </div>
     </li>
   );
 }
 
+// @ suggestions (section 5, Mentions): the audience's people whose handle or name starts with what follows @, avatar,
+// name and @handle, never an email. Enter, Tab or a click inserts @handle; Escape closes. A typed handle outside the set
+// stays plain text: the server decides.
+function useMentionMenu(people, input, body, setBody) {
+  const [query, setQuery] = useState(null);
+  const [found, setFound] = useState([]);
+  const [active, setActive] = useState(0);
+  const update = () => requestAnimationFrame(() => {
+    const field = input.current;
+    if (!field) return;
+    const before = field.value.slice(0, field.selectionStart);
+    const typed = before.match(/(^|\s)@([A-Za-z0-9_]{0,40})$/);
+    setQuery(typed ? { at: before.length - typed[2].length - 1, text: typed[2] } : null);
+  });
+  useEffect(() => {
+    if (!query || !people) { setFound([]); return undefined; }
+    let live = true;
+    const timer = setTimeout(() => people(query.text).then(answer => { if (live) { setFound(answer.people || []); setActive(0); } }, () => {}), 150);
+    return () => { live = false; clearTimeout(timer); };
+  }, [query?.at, query?.text]); // eslint-disable-line react-hooks/exhaustive-deps
+  const choose = who => {
+    const caret = query.at + who.handle.length + 2;
+    setBody(`${body.slice(0, query.at)}@${who.handle} ${body.slice(query.at + 1 + query.text.length)}`);
+    setQuery(null); setFound([]);
+    requestAnimationFrame(() => { input.current?.focus(); input.current?.setSelectionRange(caret, caret); });
+  };
+  const open = !!query && found.length > 0;
+  const onKeyDown = event => {
+    if (!open) return;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); setActive(index => (index + (event.key === 'ArrowDown' ? 1 : found.length - 1)) % found.length); }
+    else if (event.key === 'Enter' || event.key === 'Tab') { event.preventDefault(); choose(found[active]); }
+    else if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setQuery(null); }
+  };
+  const menu = open && (
+    <ul role="listbox" aria-label="Mention someone" data-mention-menu className="absolute right-0 bottom-full left-0 z-20 mb-1 max-h-60 overflow-y-auto rounded-lg border border-line bg-white p-1 shadow-pop">
+      {found.map((who, index) => (
+        <li key={who.handle} role="option" aria-selected={index === active}>
+          <button type="button" onMouseDown={event => event.preventDefault()} onClick={() => choose(who)}
+            className={`flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm ${index === active ? 'bg-hover' : 'hover:bg-hover'}`}>
+            <CommentAvatar author={who} size="h-5 w-5" /><span className="truncate text-ink">{who.name || `@${who.handle}`}</span>{who.name && <span className="truncate text-xs text-ink-3">@{who.handle}</span>}
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+  return { menu, onKeyDown, update };
+}
+
 // The existing ChatComposer (Enter sends, Shift+Enter is a new line). A failed or offline post stays here as a draft
 // with Discard and Retry; while it has failed, Retry is the one send control (section 5).
-function CommentComposer({ storeKey, placeholder, blocked, onSend, autoFocus = false }) {
+function CommentComposer({ storeKey, placeholder, blocked, onSend, people, autoFocus = false }) {
   const [draft, setDraft] = useState(() => loadDraft(storage, storeKey) || freshDraft());
   const [busy, setBusy] = useState(false);
   const key = useRef(storeKey);
+  const input = useRef(null);
+  const mention = useMentionMenu(people, input, draft.body, body => setDraft(current => ({ ...current, body })));
   useEffect(() => { if (key.current !== storeKey) { key.current = storeKey; setDraft(loadDraft(storage, storeKey) || freshDraft()); } }, [storeKey]);
   useEffect(() => { saveDraft(storage, storeKey, draft); }, [storeKey, draft]);
   if (blocked === SIGN_IN) return <a data-comment-sign-in href={`/login?next=${encodeURIComponent(window.location.pathname)}`} className="block rounded-md bg-hover px-2 py-1.5 text-xs text-ink hover:underline">Sign in to comment</a>;
@@ -246,9 +296,10 @@ function CommentComposer({ storeKey, placeholder, blocked, onSend, autoFocus = f
   };
   const over = draft.body.length > BODY_MAX;
   return (
-    <div data-comment-composer>
-      <ChatComposer multiline autoFocus={autoFocus} value={draft.body} placeholder={placeholder} busy={busy} disabled={!!draft.failed || over}
-        onChange={body => setDraft(current => ({ ...current, body }))} onSubmit={send} />
+    <div data-comment-composer className="relative">
+      {mention.menu}
+      <ChatComposer multiline autoFocus={autoFocus} inputRef={input} value={draft.body} placeholder={placeholder} busy={busy} disabled={!!draft.failed || over}
+        onKeyDown={mention.onKeyDown} onChange={body => { setDraft(current => ({ ...current, body })); mention.update(); }} onSubmit={send} />
       {draft.body.length >= COUNTER_FROM && <p className={`mt-0.5 text-right text-[11px] tabular-nums ${over ? 'text-red-700' : 'text-ink-3'}`}>{draft.body.length.toLocaleString('en-US')} / {BODY_MAX.toLocaleString('en-US')}</p>}
       {draft.failed && (
         <div role="alert" data-comment-failed className="mt-1 flex items-center gap-2 text-xs text-red-700">
