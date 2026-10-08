@@ -857,6 +857,45 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
+  // Owner, 2026-10-08: "start a rabbit hole with a repository should allow us to choose which branch".
+  await check('start: the connect card has a Branch select - the default preselected, a pick rebuilds the card, More branches loads the next page', async () => {
+    const page = await open();
+    const writes = [], pages = [];
+    page.on('request', (r) => { if (r.method() !== 'GET') writes.push(`${r.method()} ${new URL(r.url()).pathname}`); });
+    // Canned lookups (page 1, then page 2): never GitHub, and Confirm is never clicked, so no project is created.
+    await page.route('**/api/repositories/branches**', (route) => {
+      const n = Number(new URL(route.request().url()).searchParams.get('page') || 1);
+      pages.push(n);
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(n === 1
+        ? { repo: 'rabbit-hole-e2e/demo', defaultBranch: 'main', defaultBranchKnown: true, branches: ['dev', 'main'], hasMore: true, page: 1 }
+        : { repo: 'rabbit-hole-e2e/demo', defaultBranch: 'main', defaultBranchKnown: true, branches: ['feature/x'], hasMore: false, page: 2 }) });
+    });
+    await openStart(page, 'repository');
+    const dialog = startDialog(page);
+    await dialog.getByPlaceholder(URL_FIELD).fill('https://github.com/rabbit-hole-e2e/demo');
+    await dialog.getByRole('button', { name: 'Check repository' }).click();
+    const card = dialog.locator('[data-confirm-card]'), select = dialog.locator('[data-branch-select]');
+    await card.waitFor({ timeout: 10000 });
+    must((await select.innerText()).trim() === 'main', `the default is not preselected: ${await select.innerText()}`);
+    must((await card.innerText()).includes('branch main'), 'the card does not name main');
+    await select.click();
+    await page.getByRole('button', { name: 'dev', exact: true }).click();
+    await page.waitForTimeout(300);
+    must((await select.innerText()).trim() === 'dev' && (await card.innerText()).includes('branch dev'), `the pick did not rebuild the card: ${await card.innerText()}`);
+    must(await card.getByRole('button', { name: 'Confirm' }).isEnabled(), 'Confirm is not offered for the picked branch');
+    await select.click();
+    await page.getByRole('button', { name: 'More branches…', exact: true }).click();
+    await page.waitForTimeout(600);
+    must(pages.join() === '1,2', `pages fetched: ${pages}`);
+    await select.click();
+    must(await page.getByRole('button', { name: 'feature/x', exact: true }).count() === 1 && await page.getByRole('button', { name: 'More branches…', exact: true }).count() === 0, 'page 2 is not listed, or More branches stayed');
+    await page.getByRole('button', { name: 'feature/x', exact: true }).click();
+    await page.waitForTimeout(300);
+    must((await card.innerText()).includes('branch feature/x'), 'the page-2 branch did not rebuild the card');
+    must(!writes.some((w) => w.endsWith('/api/repositories')), `a repository create was sent: ${writes}`);
+    await page.context().close();
+  });
+
   await check('start: the dialog opens on the path it was asked for', async () => {
     const page = await open();
     await openStart(page, 'question');

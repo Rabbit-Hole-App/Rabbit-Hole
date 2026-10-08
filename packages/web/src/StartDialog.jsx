@@ -1,20 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Loader2, X } from 'lucide-react';
-import { executeCommand, prepareCommand } from './agent/commands.js';
+import { executeCommand, moreBranches, prepareCommand, withBranch } from './agent/commands.js';
 import ConfirmCard from './agent/ConfirmCard.jsx';
 import { learnAction } from './agent/learn-hook.js';
 import { learnHandoff } from './flags.js';
 import { connectionsFor } from './connections.js';
 import { PATH_ICONS } from './start-icons.js';
 import { canSubmit, START_PATHS, pathOr, repositoryDecision, slugOf, teachPrompt, titleFromQuestion, UNTITLED } from './start.js';
-import { Button, cn, IconBtn, Input, Pill, Tabs, TabsContent, TabsList, TabsTrigger, toast } from './ui.jsx';
+import { Button, cn, IconBtn, Input, Pill, Select, Tabs, TabsContent, TabsList, TabsTrigger, toast } from './ui.jsx';
 
 const PLANNED = connectionsFor().filter((c) => c.availability === 'planned');
 // ponytail: every connection source is planned (connections.js), so Sources offers PDF upload only.
 // Flip when a provider can supply sources and canSubmit (start.js) accepts it.
 const connectionSources = false;
 const LOCAL = 'Only you can see this canvas. Its content stays in this browser.';
+const MORE = 'More branches…'; // the Branch select's last option while GitHub has more than this page
 
 // T02 §5: one portaled dialog with four paths, hosted once by StartHost (main.jsx) on
 // 'small:start'. Radix mounts only the active tab, so Enter submits the one form on screen.
@@ -28,7 +29,7 @@ export default function StartDialog({ ctx, initial, onClose }) {
   const [path, setPath] = useState(() => pathOr(initial));
   useEffect(() => { setPath(pathOr(initial)); }, [initial]);
   const [f, setF] = useState({ url: '', sources: '', method: 'upload', question: '', depth: null, blank: '' });
-  const [card, setCard] = useState(null); // connect_repository: { prepared, createdAt, phase, error }
+  const [card, setCard] = useState(null); // connect_repository: { prepared, createdAt, phase, error, page }
   const [choose, setChoose] = useState(null); // the router's open-or-connect options for another branch
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -76,6 +77,16 @@ export default function StartDialog({ ctx, initial, onClose }) {
     if (decision.type === 'choose') { setChoose(decision.options); return; }
     await decide(decision);
   });
+  // Branch (owner, 2026-10-08): GitHub's default, or the /tree/<branch> a link named, preselected; another pick rebuilds the
+  // card for that branch (commands.js withBranch), or offers Open when that branch is already connected.
+  const branches = card && [...new Set([card.prepared.args.branch, ...(card.prepared.args.branches || [])])];
+  const pickBranch = (value) => {
+    if (value !== MORE) { setCard((c) => ({ ...c, prepared: withBranch(c.prepared, value, ctx), createdAt: Date.now(), phase: null, error: null })); return; }
+    run(async () => {
+      const page = (card.page || 1) + 1, meta = await moreBranches(card.prepared.args.url, page);
+      setCard((c) => ({ ...c, page, prepared: { ...c.prepared, args: { ...c.prepared.args, branches: [...c.prepared.args.branches, ...(meta.branches || [])], hasMore: !!meta.hasMore } } }));
+    })();
+  };
   const onConfirm = run(async () => {
     setCard((c) => ({ ...c, phase: 'executing', error: null }));
     try {
@@ -131,7 +142,7 @@ export default function StartDialog({ ctx, initial, onClose }) {
                 <Input autoFocus inputMode="url" placeholder="https://github.com/owner/repository" className="mt-1" {...field('url')} />
               </label>
               <p className="mt-3 text-xs text-ink-2">Only you can see it. Connected repositories can't be deleted yet. Public GitHub only; private repositories aren't supported yet.</p>
-              {/* No branch select: a /tree/<branch> link picks one, and a repository GitHub names no default for stops with its branches (commands.js noDefaultBranch). */}
+              {/* The Branch select is on the card below; a repository GitHub names no default for stops with its branches (commands.js noDefaultBranch). */}
               {!card && !choose && foot('Check repository', !canSubmit('repository', f))}
             </form>
             {choose && (
@@ -146,12 +157,26 @@ export default function StartDialog({ ctx, initial, onClose }) {
             {/* Outside the form: the card's buttons are plain <button>s and would submit it (ui.jsx:23-41). */}
             {card && (
               <div className="pt-3">
-                <ConfirmCard
-                  card={{ model: card.prepared.card, blocked: card.prepared.policy.blocked, reason: card.prepared.policy.reason, createdAt: card.createdAt, phase: card.phase, error: card.error }}
-                  onConfirm={onConfirm}
-                  onChange={() => setCard(null)}
-                  onCancel={() => setCard(null)}
-                />
+                {branches && card.phase !== 'executing' && (
+                  <div className="flex items-center gap-3 pb-3 text-sm"><span aria-hidden="true">Branch</span>
+                    <span className="min-w-0 flex-1">
+                      <Select aria-label="Branch" data-branch-select value={card.prepared.args.branch} options={card.prepared.args.hasMore ? [...branches, MORE] : branches} onChange={pickBranch} />
+                    </span>
+                  </div>
+                )}
+                {card.prepared.open ? (
+                  <div data-branch-connected className="rounded-md border border-line p-3 text-sm">
+                    <p className="pb-2">{card.prepared.args.repo} at {card.prepared.args.branch} is already connected: {card.prepared.open.title}{card.prepared.open.branch ? ` (${card.prepared.open.branch})` : ''}.</p>
+                    <Button size="sm" variant="primary" disabled={busy} onClick={run(() => decide({ name: 'open_resource', args: { slug: card.prepared.open.slug, kind: card.prepared.open.kind, title: card.prepared.open.title } }))}>Open</Button>
+                  </div>
+                ) : (
+                  <ConfirmCard
+                    card={{ model: card.prepared.card, blocked: card.prepared.policy.blocked, reason: card.prepared.policy.reason, createdAt: card.createdAt, phase: card.phase, error: card.error }}
+                    onConfirm={onConfirm}
+                    onChange={() => setCard(null)}
+                    onCancel={() => setCard(null)}
+                  />
+                )}
                 {foot(null)}
               </div>
             )}
