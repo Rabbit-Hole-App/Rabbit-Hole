@@ -114,6 +114,22 @@ The run refuses unless all of these hold:
 
 The record says `gates: "reused"` and `app_gate_sha`, so it is never mistaken for a fresh gate.
 
+**Rerun of affected checks** (owner, 2026-10-08: "reuse valid unchanged results and rerun affected checks"):
+
+```bash
+node scripts/dev-deploy.mjs --sha <main> --reuse <G> --gate <G's record> --rerun <R> <R's record>
+```
+
+- G holds the full gate. R is a later commit that reran only what changed.
+- G must be an ancestor of R, and R an ancestor of the candidate.
+- Between G and R, only tests may change: `packages/web/e2e/**`, `tests/**`, `packages/*/test/**` and `*.test.*`.
+- Between R and the candidate, the policy A list applies.
+- R's record must end `-DONE`, with every stage at exit 0 and every count at 0.
+- Every stage that failed in G must pass in R. If unit tests changed, R must run `make test-unit`.
+- When G was never deployed, so no build is recorded, the build recipe in `dev-deploy.mjs` must be unchanged from G. That recipe is the install, the build env, both builds and the entry, and it makes the build G's by construction.
+- The record adds `rerun_sha`.
+- First use: int24 on `af22a1f8`, where only cross-device failed, a check bug. int24b then reran cross-device on `b7e17af8`.
+
 **Not automated, on purpose.**
 - **No remote migration.** Migrations are always a separate owner approval.
 - **Gate trigger.** The gate runs on the integration machine (local stacks, the provider tripwire, a memory guard), so the deploy is the last step of that procedure, not a CI job.

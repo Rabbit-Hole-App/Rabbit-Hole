@@ -26,18 +26,40 @@ const UA = { 'User-Agent': 'rabbit-hole-dev-deploy' };
 // The gate record is the integration gate's output: line 1 names the gated index tree, every stage prints
 // "<stage> exit <code>" (a crashed stage reruns once and prints again: the last line per stage counts), every
 // provider-tripwire count is 0, and the run ends with a -DONE line.
-export function gateVerdict(text, tree) {
+function readGate(text, tree) {
   const lines = text.split(/\r?\n/).filter(l => l.trim());
   const head = lines.find(l => l.startsWith('tree HEAD ')); // stderr noise may come before it
-  if (!head || !new RegExp(`\\bindex ${tree}\\b`).test(head)) return `the gate record is not for tree ${tree.slice(0, 8)}`;
-  if (!/-DONE$/.test(lines.at(-1))) return 'the gate record has no -DONE line (gate unfinished)';
+  if (!head || !new RegExp(`\\bindex ${tree}\\b`).test(head)) return { error: `the gate record is not for tree ${tree.slice(0, 8)}` };
+  if (!/-DONE$/.test(lines.at(-1))) return { error: 'the gate record has no -DONE line (gate unfinished)' };
   const last = new Map();
   for (const l of lines) { const m = l.match(/^([^:]+?) exit (\d+)\b/); if (m) last.set(m[1], Number(m[2])); }
-  if (last.get('make test-unit') !== 0) return 'make test-unit did not exit 0';
-  const failed = [...last].filter(([, code]) => code !== 0).map(([stage]) => stage);
-  if (failed.length) return `failed stages: ${failed.join(', ')}`;
   const hits = lines.flatMap(l => [...l.matchAll(/(?:tripwire hits|model key bindings in app log): (\S+)/g)].map(m => m[1]));
-  if (hits.some(h => h !== '0')) return `provider tripwire or model key count not 0: ${hits.join(',')}`;
+  if (hits.some(h => h !== '0')) return { error: `provider tripwire or model key count not 0: ${hits.join(',')}` };
+  return { last, failed: [...last].filter(([, code]) => code !== 0).map(([stage]) => stage) };
+}
+
+export function gateVerdict(text, tree) {
+  const g = readGate(text, tree);
+  if (g.error) return g.error;
+  if (g.last.get('make test-unit') !== 0) return 'make test-unit did not exit 0';
+  if (g.failed.length) return `failed stages: ${g.failed.join(', ')}`;
+  return null;
+}
+
+// A full gate on G plus a later rerun on R of what changed after it (owner, 2026-10-08: "reuse valid unchanged results
+// and rerun affected checks"). R's record must finish clean, every stage G failed must pass in R, and G must hold the
+// unit run unless R ran it; tripwire and model-key counts are 0 in both.
+export function rerunVerdict(gText, gTree, rText, rTree, { unitChanged = false } = {}) {
+  const g = readGate(gText, gTree);
+  if (g.error) return `gate: ${g.error}`;
+  const r = readGate(rText, rTree);
+  if (r.error) return `rerun: ${r.error}`;
+  if (!r.last.size) return 'rerun: the record ran no stage';
+  if (r.failed.length) return `rerun: failed stages: ${r.failed.join(', ')}`;
+  const uncovered = g.failed.filter(stage => r.last.get(stage) !== 0);
+  if (uncovered.length) return `gate failed ${uncovered.join(', ')} and the rerun did not pass it`;
+  if (unitChanged && r.last.get('make test-unit') !== 0) return 'unit tests changed after the gate, so the rerun must run make test-unit';
+  if (g.last.get('make test-unit') !== 0 && r.last.get('make test-unit') !== 0) return 'make test-unit did not exit 0';
   return null;
 }
 
@@ -78,6 +100,11 @@ export function servedSha(deployments, versions) {
 // and schema need a gate of their own. Markdown under packages/ is not here: lesson Markdown ships in the bundle.
 const REUSABLE = [/^docs\//, /^[^/]+\.md$/, /^scripts\/(dev-deploy|prod-release)(\.test)?\.mjs$/];
 export const notReusable = changed => changed.filter(p => !REUSABLE.some(r => r.test(p)));
+// Test-only paths: never in the page build or the Worker bundle. Allowed before a --rerun that checks them again.
+export const TEST_ONLY = [/^packages\/web\/e2e\//, /^tests\//, /^packages\/[^/]+\/test\//, /\.test\.m?js$/];
+export const UNIT_TEST = /^packages\/[^/]+\/test\/|\.test\.m?js$|^tests\//;
+// The lines of dev-deploy.mjs that decide what is built and uploaded: the install, the build env, the builds, the entry.
+export const buildRecipe = src => src.split(/\r?\n/).map(l => l.trim()).filter(l => /npm ci|VITE_[A-Z_]+:|outDir|vite\/bin|vite\.js|'dev-access-worker\.js'/.test(l) && !l.startsWith('//') && !l.includes('buildRecipe')).join('\n');
 
 // deploy | noop | refuse
 export function decide({ candidate, deployed, deployedIsAncestor, hasDeployments }) {
@@ -220,26 +247,51 @@ async function main() {
   if (git('diff', '--name-only', 'HEAD') || git('ls-files', '--others', '--exclude-standard', 'packages/web/src', 'packages/web/public', 'packages/web/index.html')) stop('this checkout has local changes under the build');
   const record = join(git('rev-parse', '--path-format=absolute', '--git-common-dir'), 'rabbit-hole-dev-deploys.jsonl');
 
-  // The gate record is the candidate's own, or (policy A, --reuse) that of the gated main commit it builds on.
+  // The gate record is the candidate's own, or (policy A, --reuse) that of the gated main commit it builds on, optionally
+  // with --rerun <R> <record>: the affected checks rerun on a later commit R.
   const reuse = arg('reuse') && git('rev-parse', `${arg('reuse')}^{commit}`);
+  const ri = process.argv.indexOf('--rerun');
+  const rerun = ri > 0 ? { sha: git('rev-parse', `${process.argv[ri + 1] ?? stop('--rerun <sha> <record>')}^{commit}`), file: process.argv[ri + 2] ?? stop('--rerun <sha> <record>') } : null;
+  if (rerun && !reuse) stop('--rerun goes with --reuse <gated sha>');
   const gated = reuse || sha, tree = git('rev-parse', `${gated}^{tree}`);
-  const verdict = gateVerdict(readFileSync(arg('gate') ?? stop('--gate <gate record> is required'), 'utf8'), tree);
-  if (verdict) stop(`gate: ${verdict} - the last passing deployment stays`);
-  say(`✓ gate passed for ${gated.slice(0, 8)} (tree ${tree.slice(0, 8)})`);
+  const gateText = readFileSync(arg('gate') ?? stop('--gate <gate record> is required'), 'utf8');
   let gatedId = null;
+  if (!rerun) {
+    const verdict = gateVerdict(gateText, tree);
+    if (verdict) stop(`gate: ${verdict} - the last passing deployment stays`);
+    say(`✓ gate passed for ${gated.slice(0, 8)} (tree ${tree.slice(0, 8)})`);
+  }
   if (reuse) {
     if (reuse === sha) stop('--reuse names the candidate itself; deploy it without --reuse');
     if (!isAncestor(reuse, sha)) stop(`the gated ${reuse.slice(0, 8)} is not an ancestor of ${sha.slice(0, 8)}`);
-    const changed = git('diff', '--name-only', reuse, sha).split('\n').filter(Boolean);
-    const outside = notReusable(changed);
-    if (outside.length) stop(`policy A: ${outside.join(', ')} changed since the gated ${reuse.slice(0, 8)}; this commit needs its own full gate`);
+    const diff = (a, b) => git('diff', '--name-only', a, b).split('\n').filter(Boolean);
+    let changed;
+    if (rerun) {
+      if (!isAncestor(reuse, rerun.sha) || !isAncestor(rerun.sha, sha)) stop(`the rerun ${rerun.sha.slice(0, 8)} must lie between the gated ${reuse.slice(0, 8)} and ${sha.slice(0, 8)}`);
+      const tested = diff(reuse, rerun.sha), after = diff(rerun.sha, sha);
+      const notTest = tested.filter(p => notReusable([p]).length && !TEST_ONLY.some(r => r.test(p)));
+      if (notTest.length) stop(`policy A: ${notTest.join(', ')} changed between the gated ${reuse.slice(0, 8)} and the rerun; only tests may, so a full gate is needed`);
+      const outsideAfter = notReusable(after);
+      if (outsideAfter.length) stop(`policy A: ${outsideAfter.join(', ')} changed after the rerun ${rerun.sha.slice(0, 8)}; this commit needs its own gate`);
+      const verdict = rerunVerdict(gateText, tree, readFileSync(rerun.file, 'utf8'), git('rev-parse', `${rerun.sha}^{tree}`), { unitChanged: tested.some(p => UNIT_TEST.test(p)) });
+      if (verdict) stop(`${verdict} - the last passing deployment stays`);
+      say(`✓ gate of ${reuse.slice(0, 8)} plus the rerun on ${rerun.sha.slice(0, 8)} (changed in between: ${tested.join(', ') || 'nothing'})`);
+      changed = [...new Set([...tested, ...after])];
+    } else {
+      changed = diff(reuse, sha);
+      const outside = notReusable(changed);
+      if (outside.length) stop(`policy A: ${outside.join(', ')} changed since the gated ${reuse.slice(0, 8)}; this commit needs its own full gate`);
+    }
     // The focused checks, on this exact tree: failed-gate rejection, exact sha, stale runs, environment targeting.
     try { execFileSync(process.execPath, ['--test', 'scripts/dev-deploy.test.mjs', 'scripts/prod-release.test.mjs'], { cwd: root, stdio: ['ignore', 'ignore', 'inherit'] }); }
     catch { stop('policy A: the focused deploy and release tests failed'); }
     // The page build, and the Worker bundle where the gated deploy recorded one, must be byte-identical to the gated
     // ones: proof that no build input changed.
     gatedId = await recordedIdentity(reuse, record);
-    if (!gatedId) stop(`policy A: no recorded dev build for the gated ${reuse.slice(0, 8)} to compare this build with`);
+    // A gated commit that was never deployed has no recorded build: then the build recipe itself must be unchanged
+    // (no app input changed, by the path rules above), so the build is the gated one by construction.
+    if (!gatedId && buildRecipe(git('show', `${reuse}:scripts/dev-deploy.mjs`)) !== buildRecipe(readFileSync(fileURLToPath(import.meta.url), 'utf8')))
+      stop(`policy A: the gated ${reuse.slice(0, 8)} has no recorded dev build and the build recipe changed since; a full gate is needed`);
     say(`✓ policy A: reusing the app gate of ${reuse.slice(0, 8)}; changed since: ${changed.join(', ')}; focused tests passed`);
   }
 
@@ -283,7 +335,7 @@ async function main() {
     for (const [state, line] of results) say(`${state === 'pass' ? '✓' : state === 'blocked' ? '!' : '✗'} ${state === 'blocked' ? 'blocked: ' : ''}${line}`);
     const smokeVerdict = results.some(([state]) => state === 'fail') ? 'fail' : results.some(([state]) => state === 'blocked') ? 'blocked' : 'pass';
     // Reused gate evidence is recorded apart from a fresh gate: prod-release prepare accepts only gates "pass".
-    const gates = reuse ? { gates: 'reused', app_gate_sha: reuse } : { gates: 'pass' };
+    const gates = reuse ? { gates: 'reused', app_gate_sha: reuse, ...(rerun ? { rerun_sha: rerun.sha } : {}) } : { gates: 'pass' };
     appendFileSync(record, `${JSON.stringify({ sha, ...gates, build, bundle, smoke: smokeVerdict, worker: WORKER, version, at: new Date().toISOString() })}\n`);
     if (smokeVerdict === 'fail') {
       if (before.version) {
