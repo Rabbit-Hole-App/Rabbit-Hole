@@ -1,13 +1,15 @@
 import { Layers } from 'lucide-react';
 import { Button, cn, Pill } from './ui.jsx';
 import { STARTERS, titleOfRecord } from './map-memory.js';
+import { askDraft as askBar } from './agent/scope.js';
 
 // The Map's work-memory UI (WP6 checkpoint 2): the Layers row, one decision/question/session record, and the onboarding
 // starters (a code node's decisions, questions and sessions show in its inspector, MapInspector.jsx). Records exist only as labelled preview fixtures
 // (map-memory-data.js); without them every section says what is not recorded. Nothing here has a text input:
-// questions go through the Mothership (AgentBar's small:bar-ask), which answers an exact fixture prompt locally.
+// a starter or a prior question is written into the Mothership's composer, never sent (owner, 2026-10-08); on Send the bar
+// answers an exact fixture prompt locally.
 export const FIXTURE = 'Fixture · UI preview';
-export const askBar = (text) => window.dispatchEvent(new CustomEvent('small:bar-ask', { detail: { text } }));
+export { askBar };
 const ROW = 'w-full cursor-pointer rounded-sm px-1.5 py-1 text-left text-sm hover:bg-hover';
 const CHIP = 'cursor-pointer rounded-md border border-line px-2 py-0.5 text-xs hover:bg-hover';
 const LAYERS = [['decisions', 'Decisions'], ['questions', 'Questions'], ['sessions', 'Sessions']];

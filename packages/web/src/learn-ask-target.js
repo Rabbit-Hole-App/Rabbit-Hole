@@ -13,6 +13,11 @@ export function canvasTargetField(target) {
   };
 }
 
+// The question a canvas Ask writes into the composer (owner, 2026-10-08): ready to send, never sent. A card or slide by
+// its title, a group as a whole; the card or group itself rides as canvas_target.
+export const cardQuestion = (title) => (title ? `Can you explain "${title}"?` : 'Can you explain this card?');
+export const GROUP_QUESTION = 'Can you explain how these cards fit together?';
+
 // A group Ask (K5): members in order, a chat answer cut at 600 characters, and the members with
 // no text description named, each cut or omission marked so the tutor knows what it lacks.
 export const GROUP_ANSWER_CHARS = 600;

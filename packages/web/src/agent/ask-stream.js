@@ -7,11 +7,13 @@ const EVENTS = new Set(['chunk', 'progress', 'graph', 'proposal', 'papers', 'pap
 
 // The body ask.jsx:466-485 builds for these scopes. A project question carries the selected
 // node (or a whole file by path, or a line range) and the commit it was selected on; the server 409s a mismatched thread (repositories.js:177).
+// With a selection it is that object's conversation (`node`, its id): the server keeps it in the object's own thread
+// (repositories.js nodeScope), so the answer stays with it whatever is selected while it streams (owner, 2026-10-08).
 export function askBody({ scope, message, threadId = null, model = 'auto' }) {
   const s = scope.selected;
   return {
     scope: endpointFor(scope).scope,
-    ...(scope.kind === 'project' && s ? { repository_context: wireContext(s) } : {}),
+    ...(scope.kind === 'project' && s ? { repository_context: wireContext(s), node: s.id } : {}),
     message,
     thread_id: threadId,
     ...(model !== 'auto' ? { model } : {}),

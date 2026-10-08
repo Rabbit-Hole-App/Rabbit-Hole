@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { chipsFor, contextWithout, endpointFor, fileContext, rangeContext, rangeTitle, scopeKey, scopeOf } from './scope.js';
+import { askDraft, askQuestion, chipsFor, contextWithout, crumbsShown, endpointFor, fileContext, rangeContext, rangeTitle, scopeKey, scopeOf, whyQuestion } from './scope.js';
 
 const SELECTED = { id: 'model_causalselfattention', label: 'CausalSelfAttention', commit: '3f2a1c9' };
 const NANOGPT = { org: 'gmail-com', resource: { kind: 'project', slug: 'repo-1a2b3c4d-nanogpt', title: 'karpathy/nanoGPT' }, selected: SELECTED };
@@ -64,4 +64,34 @@ test('a line range reads repo › file › lines a–b, keeps the whole range, a
   assert.deepEqual([rangeContext('data/prepare.py', 7, 7, 'c').label, rangeTitle(rangeContext('data/prepare.py', 7, 7, 'c'))], ['line 7', 'prepare.py:7']);
   const large = rangeContext('train.py', 1, 337, '3f2a1c9'); // never shortened: the server bounds the snippet, not the identity
   assert.deepEqual([large.start, large.end, large.label], [1, 337, 'lines 1–337']);
+});
+
+// Owner, 2026-10-08: "if we are not in a particular project, the breadcrumbs disappear".
+test('the breadcrumb (chips) shows only on that project\'s own page', () => {
+  const project = scopeOf(NANOGPT), other = { ...project, slug: 'repo-9f9f9f9f-other' };
+  const home = scopeOf({ org: 'gmail-com', resource: null }), app = scopeOf({ org: 'gmail-com', resource: { kind: 'app', slug: 's3-log', title: 's3-log' } });
+  assert.equal(crumbsShown(project, project), true);
+  assert.equal(crumbsShown(project, { ...project, selected: null }), true, 'the same project, another selection');
+  assert.equal(crumbsShown(project, home), false, 'a draft held from the project, now on Home or the Library');
+  assert.equal(crumbsShown(project, other), false);
+  assert.equal(crumbsShown(app, app), false, 'an app is not a project');
+  assert.equal(crumbsShown(home, home), false);
+});
+
+// Owner, 2026-10-08: Ask actions write a ready question; the learner presses Send.
+test('Ask questions are plain and name the object; Why asks why it matters; a range names its lines', () => {
+  const symbol = { id: 'n1', label: 'base64_decode()', kind: 'function', path: 'src/itsdangerous/encoding.py', line: 30, commit: 'abc' };
+  assert.equal(askQuestion(symbol), 'What does base64_decode() do, and how is it used here?');
+  assert.equal(whyQuestion(symbol), 'Why does base64_decode() matter in this codebase?');
+  assert.equal(askQuestion(fileContext('src/itsdangerous/encoding.py', 'abc')), 'What does encoding.py do, and how is it used here?');
+  assert.equal(askQuestion(rangeContext('src/itsdangerous/encoding.py', 12, 20, 'abc')), 'What do lines 12–20 of encoding.py do?');
+  assert.equal(askQuestion(rangeContext('src/itsdangerous/encoding.py', 12, 12, 'abc')), 'What does line 12 of encoding.py do?');
+  assert.equal(whyQuestion(rangeContext('src/itsdangerous/encoding.py', 12, 20, 'abc')), 'Why do lines 12–20 of encoding.py matter in this codebase?');
+});
+
+test('askDraft only asks the composer to write and focus: one small:ask-focus event carrying the text', () => {
+  const seen = [], real = globalThis.window;
+  globalThis.window = { dispatchEvent: (e) => seen.push([e.type, e.detail]) };
+  try { askDraft('What does x do?'); } finally { globalThis.window = real; }
+  assert.deepEqual(seen, [['small:ask-focus', { text: 'What does x do?' }]]);
 });

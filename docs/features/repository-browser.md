@@ -62,7 +62,9 @@ Layers
 ## One selection
 
 There is one canonical selection: the composer context (`surface.selected`), owned by `RepositoryPage` as `context`.
-Files, Graph, the inspector and the dock chips all read and write it.
+Files, Graph, the inspector and the dock chips all read and write it. A click on the graph's white space clears it, with
+the inspector's object (owner, 2026-10-08). The reader's [Ask] writes "What do lines a–b of <file> do?" into the composer
+and never sends; in Files the inspector does not repeat the code the reader shows (inspector.md).
 
 | Selected from | Context | Chips | On the wire (`repository_context`) |
 |---|---|---|---|

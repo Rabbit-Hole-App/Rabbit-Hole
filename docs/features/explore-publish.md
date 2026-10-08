@@ -60,6 +60,10 @@ Owner rules, 2026-10-06. Sharing and publishing are different actions.
 - `GET /api/learn/boards/published` is public and readable signed out.
 - It lists published, live, top-level canvases whose owner has a handle, newest first (`published_at DESC`, then publication order). There is no ranking, engagement weighting or personalization. The limit is 100.
 - Each card is `{ title, creator: { handle, name }, fork_count, url: /e/<token>, published_at }`. The Explore page renders the title, `@handle` and the cards' fork component, and a card opens `/e/<token>`.
+- The page has two tabs (owner, 2026-10-08): **Explainers**, the default, with these cards and the Sort control, and
+  **Creators**, the profiles (creator-profile.md). The search field applies to the active tab only ("Search explainers",
+  "Search creators"), and the tab is in the URL: `/explore`, `/explore?tab=creators`, so a reload keeps it
+  (`home/card-sort.js` `exploreTab`). Each tab fetches only its own list.
 
 ## Owner controls
 

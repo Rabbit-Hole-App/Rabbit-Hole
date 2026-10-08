@@ -471,3 +471,42 @@ test('C visibility: an anonymous import or refresh confirms public; a refused re
   reply=()=>new Response('down',{status:503});
   assert.equal((await f.send('refresh',{})).status,503);assert.equal(visibility(1),'public','an outage changes nothing');
 });
+
+// A node's conversation (owner, 2026-10-08; docs/features/inspector.md, Chat): its own thread per learner, project, object
+// and commit, in the existing threads/messages tables (scope_ref `<app>#<object id>`), behind the same owner checks.
+test('a node conversation is its own saved thread: written and read back, hidden from the project list, private to its owner',async t=>{
+  const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});
+  globalThis.fetch=async()=>Response.json({content:[{type:'text',text:'Model holds forward.'}],stop_reason:'end_turn'});
+  const ask=(message,node,extra={})=>f.send('ask',{message,node,repository_context:{commit:sha,nodeId:node},...extra});
+  await (await ask('What does Model do?','model')).text();
+  await (await ask('And why?','model')).text(); // no thread id: the server finds the node's thread
+  const rows=f.sqlite.prepare('SELECT id,scope_ref,commit_sha FROM threads').all();
+  assert.deepEqual(rows.map(r=>[r.scope_ref,r.commit_sha]),[['repo-example#model',sha]],'one thread for the node');
+  const saved=await(await f.send(`threads?node=model&commit=${sha}`)).json();
+  assert.deepEqual(saved.messages.map(m=>[m.role,m.content]),[['user','What does Model do?'],['assistant','Model holds forward.'],['user','And why?'],['assistant','Model holds forward.']]);
+  assert.equal(saved.id,rows[0].id);
+  assert.deepEqual((await(await f.send(`threads?node=forward&commit=${sha}`)).json()).messages,[],'another node has none');
+  assert.deepEqual((await(await f.send('threads')).json()).threads,[],'the project listing never shows a node thread');
+  assert.equal((await f.send(`threads/${rows[0].id}`)).status,404,'nor opens one by id');
+  // Another learner, another workspace: not found, nothing read.
+  assert.equal((await f.send(`threads?node=model&commit=${sha}`,null,{'x-email':'viewer@test'})).status,404);
+  assert.equal((await f.send(`threads?node=model&commit=${sha}`,null,{'x-small-workspace':'other'})).status,404);
+  assert.equal((await ask('Peek','model',{},)).status,200);
+  assert.equal((await f.send('ask',{message:'Peek',node:'model',repository_context:{commit:sha,nodeId:'model'}},{'x-email':'viewer@test'})).status,404);
+  // A node thread's id is not the project chat's, and a bad node is refused.
+  assert.equal((await f.send('ask',{message:'x',thread_id:rows[0].id})).status,404);
+  for(const node of['',`a${String.fromCharCode(10)}b`,'x'.repeat(401),42])assert.equal((await f.send('ask',{message:'x',node,repository_context:{commit:sha,nodeId:'model'}})).status,400,JSON.stringify(node));
+});
+
+test('an answer stays with the node it was asked about, whatever is asked about another node while it streams',async t=>{
+  const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});
+  let release;const gate=new Promise(r=>{release=r;});
+  globalThis.fetch=async(_,options)=>{const slow=/about Model/.test(options.body);if(slow)await gate;return Response.json({content:[{type:'text',text:slow?'The Model answer.':'The forward answer.'}],stop_reason:'end_turn'});};
+  const first=f.send('ask',{message:'about Model',node:'model',repository_context:{commit:sha,nodeId:'model'}});
+  await new Promise(r=>setTimeout(r,20));
+  await (await f.send('ask',{message:'about forward',node:'forward',repository_context:{commit:sha,nodeId:'forward'}})).text();
+  release();await (await first).text();
+  const read=async node=>(await(await f.send(`threads?node=${node}&commit=${sha}`)).json()).messages.map(m=>m.content);
+  assert.deepEqual(await read('model'),['about Model','The Model answer.']);
+  assert.deepEqual(await read('forward'),['about forward','The forward answer.']);
+});

@@ -472,8 +472,16 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   // any other chat reads deployed apps (never canvases); never the chat's own app.
   const atHits = atMatch && appNames ? appNames.filter((a) => a.name.includes(atMatch[1]) && a.name !== appName && (repository ? a.name.startsWith('repo-') : !a.name.startsWith('repo-') && !a.name.startsWith('canvas-'))) : [];
 
+  // An Ask action (agent/scope.js askDraft) writes its question here and focuses; it never sends (owner, 2026-10-08).
+  // The learner's own words stay; only an untouched earlier question is replaced.
+  const typed = useRef(''), prefilled = useRef(null);
+  typed.current = input;
   useEffect(() => {
-    const focus = () => inputRef.current?.focus();
+    const focus = (e) => {
+      const text = e.detail?.text;
+      if (text && (!typed.current.trim() || typed.current === prefilled.current)) { prefilled.current = text; setInput(text); }
+      inputRef.current?.focus();
+    };
     if (canvasSeed) return;
     window.addEventListener('small:ask-focus', focus);
     return () => window.removeEventListener('small:ask-focus', focus);

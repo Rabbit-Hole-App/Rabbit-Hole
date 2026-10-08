@@ -87,10 +87,16 @@ const card = (page, sel, title) => page.locator(sel).filter({ has: page.locator(
 const ours = (page, title) => card(page, '[data-explore-card]', title).filter({ has: page.locator(`[data-creator-link][href="/@${H.full}"]`) });
 
 const viewer = await contextFor(who.viewer);
-await check('1 Explore: "Creators to explore" above the card feed - picture or initials, name, @handle, public explainer count; never an email', async () => {
+// Owner, 2026-10-08: Explore has two tabs - Explainers (default) and Creators - and the creators row left the feed.
+await check('1 Explore: Explainers by default with no creator row; the Creators tab lists profiles - picture or initials, name, @handle, public explainer count; never an email; the tab is in the URL', async () => {
   await viewer.goto(`${BASE}/explore`);
-  await viewer.locator('[data-creator-row]').waitFor({ timeout: 60000 });
-  await viewer.locator('[data-explore-card]').first().waitFor();
+  await viewer.locator('[data-explore-card]').first().waitFor({ timeout: 60000 });
+  assert.equal(await viewer.locator('[data-explore-tabs] [role="tab"][data-state="active"]').innerText(), 'Explainers');
+  assert.equal(await viewer.locator('[data-creator-chip]').count(), 0, 'no creators in the Explainers feed');
+  await viewer.locator('[data-explore-tabs]').getByRole('tab', { name: 'Creators' }).click();
+  await viewer.locator('[data-explore-creators] [data-creator-chip]').first().waitFor({ timeout: 30000 });
+  assert.equal(new URL(viewer.url()).search, '?tab=creators');
+  assert.equal(await viewer.locator('[data-explore-card], [data-sort-control]').count(), 0, 'no cards and no Sort on Creators');
   const full = viewer.locator(`[data-creator-chip="${H.full}"]`), min = viewer.locator(`[data-creator-chip="${H.min}"]`);
   assert.equal(await full.getAttribute('href'), `/@${H.full}`);
   assert.match(await full.innerText(), new RegExp(`Mayank\\s+@${H.full} · 3 explainers`));
@@ -98,8 +104,9 @@ await check('1 Explore: "Creators to explore" above the card feed - picture or i
   assert.match(await min.innerText(), new RegExp(`@${H.min}\\s+1 explainer$`));
   assert.equal(await min.locator('img').count(), 0, 'initials');
   assert.equal(await viewer.locator(`[data-creator-chip="${H.viewer}"]`).count(), 0, 'no publication, no creator chip');
-  const row = await viewer.locator('[data-creator-row]').boundingBox(), feed = await viewer.locator('[data-explore-card]').first().boundingBox();
-  assert.ok(row.y + row.height <= feed.y && row.height < 120, 'a small row above the card-first feed');
+  await viewer.reload();
+  await viewer.locator('[data-explore-creators] [data-creator-chip]').first().waitFor({ timeout: 30000 });
+  assert.equal(await viewer.locator('[data-explore-tabs] [role="tab"][data-state="active"]').innerText(), 'Creators', 'a reload keeps the tab');
   await noEmail(viewer, EMAIL.viewer);
 });
 await shot(viewer, 'C-explore-creator-row');
@@ -173,23 +180,35 @@ await check('8 handles are case-insensitive and the address takes the canonical 
   assert.match(await viewer.locator('[data-profile-missing]').innerText(), new RegExp(`No creator @nobody_${run}`));
   assert.equal((await api(null, `/api/learn/creators/nobody_${run}`)).status, 404);
 });
-await check('9 Explore search: Creators and Explainers - exact @handle first; by name and title; never by email', async () => {
+await check('9 Explore search applies to the active tab only: Explainers by @handle and title, Creators by @handle first; never by email', async () => {
   await viewer.goto(`${BASE}/explore`);
+  await viewer.locator('[data-explore-card]').first().waitFor({ timeout: 60000 });
+  assert.equal(await viewer.locator('[data-explore-search]').getAttribute('placeholder'), 'Search explainers');
   await viewer.locator('[data-explore-search]').fill(`@${H.full}`);
-  await viewer.locator('[data-search-creators] [data-creator-chip]').first().waitFor({ timeout: 10000 });
-  await viewer.waitForTimeout(600);
-  assert.equal(await viewer.locator('[data-search-creators] [data-creator-chip]').first().getAttribute('data-creator-chip'), H.full);
+  await viewer.waitForTimeout(900);
   assert.deepEqual(new Set(await titles(viewer, '[data-explore-card]')), new Set([T.kv, T.flash, T.prefill]));
-  assert.equal(await viewer.locator('[data-creator-row]').count(), 0, 'the discovery row gives way to results');
-  await shot(viewer, 'D-search-creators-explainers');
+  assert.equal(await viewer.locator('[data-creator-chip]').count(), 0, 'Explainers search shows no creators');
   await viewer.locator('[data-explore-search]').fill('flash attention');
   await viewer.waitForTimeout(900);
   const found = await titles(viewer, '[data-explore-card]');
   assert.ok(found.length >= 1 && found.every(t => t === T.flash), 'by title, any case');
+  await viewer.locator('[data-explore-tabs]').getByRole('tab', { name: 'Creators' }).click();
+  assert.equal(await viewer.locator('[data-explore-search]').getAttribute('placeholder'), 'Search creators');
+  await viewer.locator('[data-explore-search]').fill(`@${H.full}`);
+  await viewer.locator('[data-explore-creators] [data-creator-chip]').first().waitFor({ timeout: 10000 });
+  await viewer.waitForTimeout(600);
+  assert.equal(await viewer.locator('[data-explore-creators] [data-creator-chip]').first().getAttribute('data-creator-chip'), H.full);
+  assert.equal(await viewer.locator('[data-explore-card]').count(), 0, 'Creators search shows no explainers');
+  await shot(viewer, 'D-search-creators-explainers');
   for (const email of [EMAIL.full, EMAIL.min.split('@')[0]]) {
     await viewer.locator('[data-explore-search]').fill(email);
     await viewer.waitForTimeout(900);
-    assert.equal(await viewer.locator('[data-search-creators] [data-creator-chip]').count(), 0, email);
+    assert.equal(await viewer.locator('[data-explore-creators] [data-creator-chip]').count(), 0, email);
+  }
+  await viewer.locator('[data-explore-tabs]').getByRole('tab', { name: 'Explainers' }).click();
+  for (const email of [EMAIL.full, EMAIL.min.split('@')[0]]) {
+    await viewer.locator('[data-explore-search]').fill(email);
+    await viewer.waitForTimeout(900);
     assert.equal(await viewer.locator('[data-explore-card]').count(), 0, email);
   }
   await noEmail(viewer, EMAIL.viewer);

@@ -80,6 +80,10 @@ const viewer = await contextFor(who.viewer);
 await viewer.page.goto(`${BASE}/explore`);
 await viewer.page.locator('[data-explore-card]').first().waitFor({ timeout: 60000 });
 const card = viewer.page.locator('[data-explore-card]').filter({ hasText: TITLE });
+// Owner, 2026-10-08: two tabs, Explainers (the default, with Sort) and Creators; the search is the active tab's.
+check('Explore opens on the Explainers tab, with Sort, searching explainers only', (await viewer.page.locator('[data-explore-tabs] [role="tab"][data-state="active"]').innerText()) === 'Explainers'
+  && await viewer.page.locator('[data-sort-control]').count() === 1 && (await viewer.page.locator('[data-explore-search]').getAttribute('placeholder')) === 'Search explainers'
+  && await viewer.page.locator('[data-creator-chip]').count() === 0);
 check('the Explore card shows the creator\'s @handle and the fork count, no email', (await card.locator('[data-creator]').innerText()).trim() === `@${H.owner}` && await noEmail(viewer.page, EMAIL.viewer));
 await shot(viewer.page, '04-explore');
 // A click on the card body only selects it (owner, 2026-10-08); its title opens it.

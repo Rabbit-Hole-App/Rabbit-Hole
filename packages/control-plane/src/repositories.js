@@ -196,7 +196,24 @@ export async function repositoriesFetch(req,env,ctx){
     return json({error:'Not found'},404);
   }catch(error){return json({error:error.message},error.status||400);}
 }
+// A node's conversation (owner, 2026-10-08; docs/features/inspector.md, Chat): one thread per learner, project, selected
+// object and commit, in the same threads/messages tables as the project chat - no migration. Its scope_ref is
+// `<app>#<object id>` (a graph node id, file:<path> or range:<path>:<a>-<b>), so the project's own listing (scope_ref = app)
+// never shows it, and every read and write carries the same org, user and project-owner checks.
+const NODE_KEY=/^[^\x00-\x1f]{1,400}$/;
+export const nodeScope=(app,node)=>typeof node==='string'&&NODE_KEY.test(node)?`${app.name}#${node}`:null;
+const nodeThread=(db,user,scopeRef,commit)=>db.prepare('SELECT * FROM threads WHERE org=? AND user=? AND scope_ref=? AND commit_sha=? ORDER BY created_at DESC, rowid DESC LIMIT 1').bind(user.org,user.email,scopeRef,commit).first();
 export async function repositoryThreads(req,db,user,app,id){
+  // ?node=<object id>&commit=<sha>: that object's saved conversation at that commit, or none.
+  const query=new URL(req.url).searchParams;
+  if(!id&&query.has('node')){
+    const scopeRef=nodeScope(app,query.get('node')),commit=query.get('commit')||app.commit_sha;
+    if(!scopeRef)return json({error:'Choose a node'},400);
+    const thread=await nodeThread(db,user,scopeRef,commit);
+    if(!thread)return json({id:null,messages:[],commit});
+    const {results}=await db.prepare('SELECT role,content FROM messages WHERE thread_id=? ORDER BY id').bind(thread.id).all();
+    return json({id:thread.id,messages:results,commit:thread.commit_sha});
+  }
   if(!id){const {results}=await db.prepare('SELECT id,title,created_at,commit_sha FROM threads WHERE org=? AND user=? AND scope_ref=? ORDER BY created_at DESC LIMIT 20').bind(user.org,user.email,app.name).all();return json({threads:results});}
   const thread=await db.prepare('SELECT * FROM threads WHERE id=? AND org=? AND user=? AND scope_ref=?').bind(id,user.org,user.email,app.name).first();if(!thread)return json({error:'Chat not found'},404);
   if(req.method==='DELETE'){await db.batch([db.prepare('DELETE FROM messages WHERE thread_id=?').bind(id),db.prepare('DELETE FROM threads WHERE id=?').bind(id)]);return json({ok:true});}
@@ -219,7 +236,12 @@ async function repositoryAsk(req,env,user,app){
   if(body.lesson_snapshot)validateLessonSnapshot(body.lesson_snapshot);
   const videoContext=validateLearnContext(body,'learn'),canvasTarget=validateCanvasTarget(body.canvas_target,'learn');
   const db=env.LEARN_DB;
-  let thread=body.thread_id?await db.prepare('SELECT * FROM threads WHERE id=? AND org=? AND user=? AND scope_ref=?').bind(body.thread_id,user.org,user.email,app.name).first():null;
+  // A node question (body.node) joins that node's own thread at the context's commit, found on the server, so the
+  // conversation stays with the node whatever the learner selects while it streams; anything else is the project's chat.
+  if(body.node!==undefined&&!nodeScope(app,body.node))return json({error:'Choose a node'},400);
+  const scopeRef=body.node!==undefined?nodeScope(app,body.node):app.name;
+  let thread=body.thread_id?await db.prepare('SELECT * FROM threads WHERE id=? AND org=? AND user=? AND scope_ref=?').bind(body.thread_id,user.org,user.email,scopeRef).first()
+    :body.node!==undefined?await nodeThread(db,user,scopeRef,body.repository_context?.commit||app.commit_sha):null;
   if(body.thread_id&&!thread)return json({error:'Chat not found'},404);
   const commit=thread?.commit_sha||body.repository_context?.commit||app.commit_sha;
   if(thread&&(body.repository_context?.nodeId||body.repository_context?.range||body.repository_context?.path)&&body.repository_context?.commit!==commit)return json({error:'This chat uses an earlier commit. Start a new chat to ask about the selected code.'},409);
@@ -261,7 +283,7 @@ async function repositoryAsk(req,env,user,app){
   try{source=await readLearnSource(env,body,app,{extraBlocks,papers,foundVideos:videos.found,videoContext,wikiTool:false},{readArxivPaper,uploadedPaperAsDocument,uploadedMediaAsImage,readWikipedia});}
   catch(error){return json({error:error.message},502);}
   const id=thread?.id||`repochat-${crypto.randomUUID()}`;
-  if(!thread)await db.prepare('INSERT INTO threads(id,org,user,scope_ref,commit_sha,title) VALUES(?,?,?,?,?,?)').bind(id,user.org,user.email,app.name,commit,body.message.slice(0,120)).run();
+  if(!thread)await db.prepare('INSERT INTO threads(id,org,user,scope_ref,commit_sha,title) VALUES(?,?,?,?,?,?)').bind(id,user.org,user.email,scopeRef,commit,body.message.slice(0,120)).run();
   const history=await threadTurns(db,id,seed,question);
   return askStream(env,appendCanvasTarget(appendOutline(JSON.stringify({repo:app.repo,commit,selected,selectedCode,...(selectedFile?{selectedFile}:{}),lesson:body.lesson_snapshot||null,paper:null,...source,...(mentioned.length?{mentionedRepositories:mentioned}:{})})+notRead.map(line=>`\n\n${line}`).join(''),body.outline),canvasTarget),history,question,
     async answer=>{const message=await db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?) RETURNING id').bind(id,'assistant',answer).first();if(graphView)await db.prepare('INSERT INTO repository_message_graphs(message_id,graph_json) VALUES(?,?)').bind(message.id,JSON.stringify(graphView)).run();},{threadId:id,commit},extraBlocks,null,askModel(body.model),null,

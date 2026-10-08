@@ -14,7 +14,8 @@ import { pageRects, PAGE_W } from './learn-pages.js';
 import { outlineFrom, applyOutlineOps, moveSection } from './learn-outline-model.js';
 import { loadAsset } from './learn-board-assets.js';
 import { groupShot } from './learn-group-shot.js';
-import { groupTargetText } from './learn-ask-target.js';
+import { cardQuestion, GROUP_QUESTION, groupTargetText } from './learn-ask-target.js';
+import { askDraft } from './agent/scope.js';
 import LearnWiki from './LearnWiki.jsx';
 import SourcesDisclosure from './SourcesDisclosure.jsx';
 import { momentGeometry, seekTo, clock, embedUrl } from './learn-video-moment.js';
@@ -2212,9 +2213,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     onAskTargetRef.current?.({ id: block.id, ...described, ...card, get text() { return live(); } });
     return true;
   };
+  // Ask in chat and the menu's Ask about this: the card becomes the target and a ready question waits in the composer.
   const askBlock = block => {
     askedId.current = block.id;
-    if (armTarget(block)) window.dispatchEvent(new Event('small:ask-focus'));
+    if (armTarget(block)) askDraft(cardQuestion(describeBlock(block)?.title));
   };
   // Selecting a card is choosing what the next question is about (docs/features/canvas-card-selection.md): the one
   // selected card sets the composer's context strip - the same target Ask in chat arms, never a second chip - and a
@@ -3381,6 +3383,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
                       }
                       armedGroup.current = group.id;
                       onAskTargetRef.current?.({ id: group.id, kind: 'Group', title: group.label || `${members.length} items`, text: groupTargetText(entries) });
+                      askDraft(GROUP_QUESTION);
                       // The visuals ride too: a rendered snapshot of the
                       // outline area becomes this question's image context.
                       const memberIds = new Set(members.map(member => member.id));

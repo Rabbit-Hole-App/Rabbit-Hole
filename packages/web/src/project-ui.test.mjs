@@ -62,7 +62,8 @@ test('the Map: details and layers behind icons; the inspector closed until used,
   assert.match(inspector, /data-map-panel-close aria-label="Close the inspector"/);
   assert.match(page, /\{!panelOpen&&<IconBtn data-map-panel-open aria-label="Open the side panel"/);
   // Overview | Source as underline tabs, only when the object has a source; no pill tabs, no Selected or Conversation tab.
-  assert.match(inspector, /\{source && <TabsList className="-mx-4 mt-2 px-4"><TabsTrigger value="overview"[^>]*>Overview<\/TabsTrigger><TabsTrigger value="source"[^>]*>Source<\/TabsTrigger><\/TabsList>\}/);
+  // Overview | Source | Chat (owner, 2026-10-08), the same restrained underline; Source only for code the main pane is not showing.
+  assert.match(inspector, /\{!record && <TabsList className="-mx-4 mt-2 px-4"><TabsTrigger value="overview" className=\{TAB\}>Overview<\/TabsTrigger>\{tabs && <TabsTrigger value="source" className=\{TAB\}>Source<\/TabsTrigger>\}<TabsTrigger value="chat" data-inspector-chat-tab className=\{TAB\}>Chat\{chatted > 0 && <span className="ml-1 tabular-nums text-ink-3">\{chatted\}<\/span>\}<\/TabsTrigger><\/TabsList>\}/);
   assert.doesNotMatch(page + inspector, /TabsList pill className="mb-3|value="selected"|value="conversation"|ring-2 ring-accent/);
   // A selection or a cited file opens it; answers land in the bar's own window, not here.
   assert.match(page, /const inspect=\(object,show='overview'\)=>\{.*setPanelOpen\(true\);\};/);
@@ -135,10 +136,88 @@ test('one selection: Files, Graph, the inspector and Learn read the same context
   assert.match(page, /<RepositoryGraph graph=\{shown\} selected=\{lit\}/);
   assert.match(page, /const lit=inspected\?\.record\?\{id:inspected\.id\}:context&&\(context\.nodeId\|\|context\.path\)\?\{id:context\.nodeId\|\|fileObject\(snapshot\.graph,context\.path\)\.nodeId\}:null;/);
   assert.match(page, /<CodeReader app=\{app\} snapshot=\{snapshot\} open=\{opened\} context=\{context\}[^>]*onFile=\{p=>attach\(fileObject\(snapshot\.graph,p\)\)\} onSymbol=\{n=>attach\(objectOf\(snapshot\.graph,n\)\)\}/);
-  assert.match(page, /onRange=\{\(kind,range\)=>\{attach\(range\);if\(kind==='learn'\)learnThis\(range\);else window\.dispatchEvent\(new CustomEvent\('small:ask-focus'\)\);\}\}/);
+  assert.match(page, /onRange=\{\(kind,range\)=>\{attach\(range\);if\(kind==='learn'\)learnThis\(range\);else askAbout\(range\);\}\}/);
   assert.match(page, /repositoryContext=\{context\?wireContext\(context\):\{commit:app\.commit_sha\}\}/);
   assert.match(page, /onLearn=\{\(\)=>learnThis\(inspected\)\}/);
   // Selecting text only offers [Ask] [Learn]; the context changes on a click, never on a selection.
   assert.match(reader, /<SourceSelectionContext\.Provider value=\{\{ value: pending, set: setPending \}\}>/);
   assert.doesNotMatch(reader, /setContext|small:ask-focus|learnAction/);
+});
+
+// Owner, 2026-10-08, from the stable preview (pallets/itsdangerous).
+test('a click on the graph\'s white space deselects: no node lit, the inspector empty, the context cleared', () => {
+  assert.match(page, /const deselect=\(\)=>\{setInspected\(null\);setTrail\(\[\]\);setContext\(null\);\};/);
+  assert.match(page, /const choose=node=>\{if\(!node\)return deselect\(\);/);
+  // RepositoryGraph reports a press on empty space as onSelect(null) (an unmoved press with no node).
+  assert.match(read('RepositoryGraph.jsx'), /onPointerUp=\{e=>\{const active=drag\.current;release\(e\);if\(active&&!active\.moved\)onSelect\(active\.node\?scene\.positions\.get\(active\.node\.id\):null\);\}\}/);
+});
+
+test('Files: the inspector does not repeat the code the reader shows - no preview, no Source tab; the graph keeps both', () => {
+  assert.match(page, /codeInView=\{mode==='files'&&!!inspected\?\.path&&opened===inspected\.path\}/);
+  const inspector = read('MapInspector.jsx');
+  assert.match(inspector, /const file = object\.path, source = !record && !!file, tabs = source && !codeInView;/);
+  assert.match(inspector, /\{file && !codeInView && <Preview /);
+  assert.match(inspector, /\{tabs && <TabsContent value="source"/);
+  assert.match(inspector, /<Tabs value=\{record \? 'overview' : view === 'source' && !tabs \? 'overview' : view\}/);
+  assert.match(inspector, /const href = source && repositoryUrl\(/, 'Open source on GitHub stays: it is a link, not the code');
+});
+
+test('every inspector Ask writes a ready question and pins its object; nothing sends', () => {
+  assert.match(page, /const askAbout=\(object,question=askQuestion\)=>\{if\(!object\|\|object\.record\)return;setContext\(ground\(object\)\);setTimeout\(\(\)=>askDraft\(question\(object\)\),0\);\};/);
+  assert.match(page, /const askWhy=object=>askAbout\(object,whyQuestion\);/);
+  assert.match(page, /onAsk=\{\(\)=>askAbout\(inspected\)\} onWhy=\{\(\)=>askWhy\(inspected\)\}/);
+  assert.doesNotMatch(page + read('MapMemory.jsx') + read('MapInspector.jsx'), /small:bar-ask/, 'no page action sends through the bar');
+  assert.match(read('MapMemory.jsx'), /import \{ askDraft as askBar \} from '\.\/agent\/scope\.js';/, 'starters and prior questions write, never send');
+});
+
+test('the composers write an Ask action\'s question and focus; the learner\'s own words stay; nothing is sent', () => {
+  // The Mothership: the page's scope, an untouched earlier question replaced, a typed draft carried to the new context.
+  assert.match(bar, /const mine = draft\.trim\(\) && draft !== prefilled\.current;/);
+  assert.match(bar, /if \(text && !mine\) \{\n\s+setDrafts\(\(d\) => \{ const next = new Map\(d\); if \(draft\) next\.delete\(targetKey\); return next\.set\(scopeKey\(live\), text\); \}\);/);
+  assert.match(bar, /\} else if \(text && targetKey !== scopeKey\(live\)\) switchTo\(live, false\);/);
+  assert.match(bar, /askFocus\.current = \(text\) => \{\n\s+if \(hidden\) return;/, 'a hidden bar (a canvas) leaves it to the canvas composer');
+  assert.doesNotMatch(bar, /small:bar-ask|submitRef/, 'no event sends from the bar');
+  // The breadcrumb row: only on the project's own page.
+  assert.match(bar, /const chips = crumbsShown\(target, live\) \? chipsFor\(target\) : \[\];/);
+  // The canvas composer (ask.jsx AskPanel).
+  assert.match(md, /if \(text && \(!typed\.current\.trim\(\) \|\| typed\.current === prefilled\.current\)\) \{ prefilled\.current = text; setInput\(text\); \}/);
+  // Canvas Ask in chat (card, slide, the menu's Ask about this) and a group's Ask in chat.
+  const canvas = read('AdaptiveCanvas.jsx');
+  assert.match(canvas, /if \(armTarget\(block\)\) askDraft\(cardQuestion\(describeBlock\(block\)\?\.title\)\);/);
+  assert.match(canvas, /text: groupTargetText\(entries\) \}\);\n\s+askDraft\(GROUP_QUESTION\);/);
+  assert.doesNotMatch(canvas, /new Event\('small:ask-focus'\)/);
+});
+
+// Owner decision 3 (2026-10-08): Purpose and Why it matters stay on demand. Opening or selecting an object reads files and
+// the snapshot only; no ask route is called until the learner presses Send (Learn this runs only from its own button).
+test('opening or selecting a node makes no AI request: the select path reads files and the snapshot only', () => {
+  const calls = (code) => [...code.matchAll(/api\(`([^`]*)`/g)].map((m) => m[1]);
+  // The inspector reads a file's lines and the object's saved conversation (a GET of stored messages), never an ask route.
+  assert.deepEqual(calls(inspector), ['/api/repositories/${app}/file', '/api/repositories/${app.name}/threads?node=${encodeURIComponent(object.id)}&commit=${snapshot.commit}']);
+  assert.deepEqual(calls(read('RepositorySource.jsx')), ['/api/repositories/${appName}/file']);
+  assert.deepEqual(calls(page), ['${root}/snapshot', '${root}/refresh']);
+  for (const code of [page, inspector, read('RepositoryGraph.jsx'), read('CodeReader.jsx'), read('inspector.js')]) assert.doesNotMatch(code, /fetch\(|streamAsk|\/ask\b|learn\/ask/);
+  assert.equal(page.match(/learnAction\(/g).length, 1, 'only Learn this, from its button');
+  assert.match(page, /const learnThis=object=>\{setContext\(ground\(object\)\);learnAction\(/);
+  assert.match(page, /const attach=object=>\{inspect\(object\);setContext\(ground\(object\)\);if\(object\.path\)setOpened\(object\.path\);\};/, 'a pick only inspects and grounds');
+});
+
+// Owner, 2026-10-08: the inspector is the object's conversation surface - Overview | Source | Chat.
+test('a question about a selected object streams into its Chat, bound to the object at Send; errors and status go to the window', () => {
+  // The key is taken from the scope frozen at Send, before any await, and every update of that answer uses it.
+  assert.match(bar, /const node = nodeKey\(scope\), key = node \|\| resultsKey\(scope\);/);
+  assert.match(bar, /if \(page\.resource\?\.slug === scope\.slug && page\.handlers\?\.onNodeAsk\) return page\.handlers\.onNodeAsk\(scope\.selected\);/);
+  assert.match(bar, /text: `The answer about \$\{scope\.selected\.label\} is in its Chat on \$\{nameOf\(scope\)\}\.`/, 'sent from elsewhere: the window says where, never shows it');
+  assert.match(bar, /add\(scope, \{ kind: 'user', text \}, key\);\n\s+const id = add\(scope, \{ kind: 'answer', text: '' \}, key\);\n\s+clearDraft\(from, raw\);\n\s+land\(\);/);
+  assert.match(bar, /if \(node\) \{ add\(scope, \{ kind: 'note', text: `✗ \$\{failed\}`, error: true \}\); showResults\(scope\); \}/, 'a failure is said in the window too');
+  assert.match(bar, /updateTurn\(key, id, \(t\) => applyEvent\(t, type, data\)\);/);
+  // Send opens that object's Chat tab, found again by its id when another object is shown.
+  assert.match(page, /onNodeAsk:s=>nodeAsk\.current\?\.\(s\)/);
+  assert.match(page, /if\(inspected\?\.id===object\.id\)\{setView\('chat'\);setPanelOpen\(true\);\}else inspect\(object,'chat'\);/);
+  // The Chat tab reads the object's own key and its saved conversation; Overview no longer carries a Conversation row.
+  assert.match(inspector, /const chatKey = object && !object\.record \? nodeTurnsKey\(conversationKey, object\.id\) : null;/);
+  assert.match(inspector, /\{!record && <TabsContent value="chat" className="min-h-0 flex-1 overflow-y-auto px-4 pt-3 pb-2">\{chat\}<\/TabsContent>\}/);
+  assert.doesNotMatch(inspector, /data-inspector-section="conversation"|name="conversation"/);
+  // The composer marks the object being asked about.
+  assert.match(bar, /chip\.key === 'selected' \? 'bg-accent\/10 ring-1 ring-accent\/40' : 'bg-hover'/);
 });

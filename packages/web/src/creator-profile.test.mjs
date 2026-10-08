@@ -73,12 +73,19 @@ test('every @handle links to its creator\'s profile: every card, fork provenance
   assert.match(shared, /\{shared\.creator\.handle\n\s+\? <a data-creator-link href=\{`\/@\$\{shared\.creator\.handle\}`\}/, 'a share link\'s header links too');
 });
 
-test('Explore search and the creator row ask the server; the card list is the shared one', () => {
+// Owner, 2026-10-08: Explore is two tabs, Explainers (default, with Sort) and Creators; the search applies to the active tab
+// only, and the tab is in the URL so a reload keeps it.
+test('Explore: Explainers and Creators tabs; each tab asks the server for its own search; the card list is the shared one', async () => {
   const home = read('./Home.jsx');
   const explore = home.slice(home.indexOf('function Explore()'));
-  assert.match(explore, /fetch\(`\/api\/learn\/creators\$\{q && `\?\$\{q\}`\}`/);
-  assert.match(explore, /aria-label="Creators to explore"/);
-  assert.match(explore, /<h2 className=\{label\}>Creators<\/h2>/);
-  assert.match(explore, /\{term \? <h2 className=\{`\$\{label\} pb-0`\}>Explainers<\/h2> : <span \/>\}/);
+  const { exploreTab, EXPLORE_TABS } = await import('./home/card-sort.js');
+  assert.deepEqual(EXPLORE_TABS, [['explainers', 'Explainers'], ['creators', 'Creators']]);
+  assert.deepEqual(['', '?tab=creators', '?tab=bogus', '?tab=explainers'].map(exploreTab), ['explainers', 'creators', 'explainers', 'explainers']);
+  assert.match(explore, /window\.history\.replaceState\(window\.history\.state, '', next === 'creators' \? '\/explore\?tab=creators' : '\/explore'\);/);
+  assert.match(explore, /if \(tab !== 'explainers'\) return;\n\s+let live = true;\n\s+fetch\(`\/api\/learn\/boards\/published/);
+  assert.match(explore, /if \(tab !== 'creators'\) return;\n\s+let live = true;\n\s+fetch\(`\/api\/learn\/creators\$\{q && `\?\$\{q\}`\}`/);
+  assert.match(explore, /const searchLabel = tab === 'creators' \? 'Search creators' : 'Search explainers';/);
+  assert.match(explore, /\{tab === 'explainers' && cards\?\.length !== 0 && <SortMenu /, 'Sort stays on Explainers');
+  assert.doesNotMatch(explore, /Creators to explore|data-creator-row/, 'the creators row left the Explainers feed');
   assert.match(read('./home/PublicCards.jsx'), /export const CreatorAvatar = \(\{ c, className \}\) => <Avatar email=\{c\.name \|\| c\.handle\} src=\{c\.avatar\}/, 'the initials come from the name or @handle');
 });

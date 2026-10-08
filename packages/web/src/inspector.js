@@ -52,4 +52,3 @@ export function relationshipGroups(graph, id) {
 
 // Conversation about this object: the turns asked while it was the composer's context (agent/bar.js keeps each turn's
 // scope). The server stores no selection with a message (audit G1), so this is this browser session only.
-export const turnsAbout = (turns, id) => turns.filter((t) => (t.kind === 'user' || t.kind === 'answer') && t.scope?.selected?.id === id);

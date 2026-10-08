@@ -1897,7 +1897,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
   // Since the dock (inspector.md, workspace-dock.md, project-map-learn.md): a project opens on the Map (no Overview); the side
   // panel is the Inspector, closed until something is selected; answers open in the bar's window, which sits over the
   // workspace beside an open inspector, and the inspector keeps the conversation about its object.
-  if (ready) await check('wp6-map: a project opens on the Map; its side panel is the Inspector, closed until a selection, with no input; a Map ask opens in the answer window, never the inspector; a node opens the inspector on Overview | Source with path:line, in context; its ask opens in the window beside the inspector, which counts it in Conversation; one composer', async () => {
+  if (ready) await check('wp6-map: a project opens on the Map; its side panel is the Inspector, closed until a selection, with no input; a Map ask opens in the answer window, never the inspector; a node opens the inspector on Overview | Source | Chat with path:line, in context; its ask streams into the node\'s Chat tab, which Send opens and counts, and only its error reaches the window (owner, 2026-10-08); one composer', async () => {
     const page = await open(), writes = writes6(page);
     let asks = 0;
     await page.route('**/api/learn/ask', (r) => { asks++; return r.abort(); }); // no model call, no LEARN_DB thread
@@ -1916,15 +1916,20 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await pickNode(page);
     await panel.locator('[data-inspector-header]').getByText(/^model\.py:\d+$/).waitFor({ timeout: 10000 });
     const tabs = (await panel.getByRole('tab').allInnerTexts()).map((t) => t.trim()).join(' | ');
-    must(tabs === 'Overview | Source' && await isSelected(panel.getByRole('tab', { name: 'Overview', exact: true })), `a node opens ${tabs}, not Overview | Source on Overview`);
+    must(tabs === 'Overview | Source | Chat' && await isSelected(panel.getByRole('tab', { name: 'Overview', exact: true })), `a node opens ${tabs}, not Overview | Source | Chat on Overview`);
     must(await panel.locator('[data-in-context]').count() === 1, 'the node is not in context');
     must(await barInput(page).getAttribute('placeholder') === 'Ask about CausalSelfAttention…', 'the bar is not scoped to the node');
     await barInput(page).fill('Why does this exist?');
     await barInput(page).press('Enter');
-    await sheet.getByText('Why does this exist?').waitFor({ timeout: 10000 });
+    const chatTab = panel.locator('[data-inspector-chat-tab]');
+    await panel.locator('[data-inspector-chat]').getByText('Why does this exist?').waitFor({ timeout: 10000 });
+    must(await isSelected(chatTab), 'Send did not open the Chat tab');
+    await chatTab.getByText('2').waitFor({ timeout: 10000 }); // Chat 2: the question and its (aborted) answer
+    // The aborted ask's error is the window's; the question itself never is.
+    await sheet.getByText("Couldn't reach the server.", { exact: false }).first().waitFor({ timeout: 10000 });
+    must(await sheet.getByText('Why does this exist?').count() === 0, 'the node question landed in the window');
     const win = await page.locator('[data-result-sheet] > div').boundingBox(), side = await panel.boundingBox();
-    must(win.x + win.width <= side.x + 1, `the answer window covers the inspector: ${win.x + win.width} > ${side.x}`);
-    await panel.locator('[data-inspector-section="conversation"] summary').getByText('2 messages').waitFor({ timeout: 10000 });
+    must(win.x + win.width <= side.x + 1, `the window covers the inspector: ${win.x + win.width} > ${side.x}`);
     await page.waitForTimeout(1000);
     must(asks === 2 && !writes.length, `${asks} asks; writes: ${writes.join(', ')}`);
     await page.context().close();
@@ -2256,7 +2261,6 @@ await check('build: the browser runs the dist-dev entry script', async () => {
   // The inspector (inspector.md §3, Data gaps): Why it matters says "No explanation yet" with an ask, and lists the code's
   // fixture decisions on review builds; empty sections are omitted; fixture questions and sessions sit in Conversation.
   const insp = (page) => page.locator('[data-map-panel]');
-  const openFold = async (fold) => { if (!(await fold.evaluate((n) => n.open))) await fold.locator('summary').click(); };
   if (ready) await check('wp6-kg-selected: a selected code node opens the inspector; without fixtures Why it matters says No explanation yet with an ask, and nothing says Fixture; on nanoGPT fixtures CausalSelfAttention lists 2 decisions under Why it matters and 2 questions and 1 session under Conversation, labelled Fixture', async () => {
     const page = await open();
     await noAsks(page);
@@ -2270,11 +2274,11 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await noAsks(fx);
     await mapAt(fx, true);
     await pickNode(fx);
-    const why = insp(fx).locator('[data-inspector-section="why"]'), convo = insp(fx).locator('[data-inspector-section="conversation"]');
+    const why = insp(fx).locator('[data-inspector-section="why"]'), convo = insp(fx).locator('[data-inspector-chat]');
     await why.getByText(FX).waitFor({ timeout: 10000 });
     must(await why.locator('button').count() === 2, `${await why.locator('button').count()} decisions under Why it matters, not 2`);
-    await openFold(convo);
-    const rows = (await convo.locator('button').allInnerTexts()).map((t) => t.trim());
+    await insp(fx).locator('[data-inspector-chat-tab]').click(); // the node's conversation is its Chat tab (owner, 2026-10-08)
+    const rows = (await convo.locator('button').allInnerTexts()).map((t) => t.trim()).filter((t) => !t.startsWith('Ask about this'));
     must(rows.length === 3 && rows.filter((t) => t.endsWith('?')).length === 2 && rows.filter((t) => t.startsWith('Attention internals walkthrough')).length === 1, `Conversation should list 2 questions and 1 session: ${rows.join(' | ')}`);
     must(await convo.getByText(FX).isVisible(), 'the fixture questions and sessions are not labelled');
     await fx.context().close();
@@ -2300,7 +2304,8 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await fx.context().close();
   });
 
-  if (ready) await check('wp6-kg-starters: the empty inspector offers 5 starter prompts; one click asks it through the Mothership (one held request) and the question opens in the answer window; no text input appears in the inspector', async () => {
+  // Owner, 2026-10-08: an Ask writes its question into the composer and focuses it; only Send asks.
+  if (ready) await check('wp6-kg-starters: the empty inspector offers 5 starter prompts; one click writes it into the Mothership\'s composer and sends nothing; no text input appears in the inspector', async () => {
     const page = await open();
     const asks = held(page);
     await mapAt(page);
@@ -2308,21 +2313,22 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     const starters = page.locator('[data-map-starters] button');
     must(await starters.count() === 5, `${await starters.count()} starter prompts, not 5`);
     await starters.filter({ hasText: 'Give me an architecture tour' }).click();
-    await page.locator('[data-result-sheet]').getByText('Give me an architecture tour').first().waitFor({ timeout: 10000 });
     await page.waitForTimeout(800);
-    must(asks.length === 1 && asks[0].message === 'Give me an architecture tour', `asks: ${JSON.stringify(asks)}`);
+    must(await barInput(page).inputValue() === 'Give me an architecture tour', `the composer holds: ${await barInput(page).inputValue()}`);
+    must(asks.length === 0, `a starter sent: ${JSON.stringify(asks)}`);
     must(await page.locator('[data-map-panel] textarea, [data-map-panel] input[type="text"]').count() === 0, 'the panel grew a text input');
     await page.context().close();
   });
 
-  if (ready) await check('wp6-kg-why: Ask why in the inspector sends Why does this exist? to the model without fixtures (one held request); with nanoGPT fixtures the same question answers in the answer window with no request, labelled Fixture, evidence in hierarchy order; a prior question in the inspector answers from its record; a private session of another user never shows', async () => {
+  if (ready) await check('wp6-kg-why: Ask why in the inspector writes "Why does <node> matter in this codebase?" into the composer and sends nothing; with nanoGPT fixtures a typed Why does this exist? answers in the answer window with no request, labelled Fixture, evidence in hierarchy order; a prior question in the inspector is written into the composer; a private session of another user never shows', async () => {
     const page = await open();
     const asks = held(page);
     await mapAt(page);
     await pickNode(page);
     await insp(page).locator('[data-inspector-section="why"]').getByRole('button', { name: 'Ask why →' }).click();
     await page.waitForTimeout(1200);
-    must(asks.length === 1 && asks[0].message === 'Why does this exist?', `asks without fixtures: ${JSON.stringify(asks)}`);
+    must(/^Why does .+ matter in this codebase\?$/.test(await barInput(page).inputValue()), `the composer holds: ${await barInput(page).inputValue()}`);
+    must(asks.length === 0, `Ask why sent: ${JSON.stringify(asks)}`);
     await page.context().close();
     if (!nano) return;
     const fx = await open();
@@ -2332,16 +2338,15 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     // With fixture decisions, Why it matters lists them instead of an ask, so the learner asks in the bar, the only input.
     await barInput(fx).fill('Why does this exist?');
     await barInput(fx).press('Enter');
-    const answer = fx.locator('[data-result-sheet]');
+    const answer = insp(fx).locator('[data-inspector-chat]'); // a node's answer is its Chat's, never the window's (owner, 2026-10-08)
     await answer.getByText('2 recorded decisions explain why CausalSelfAttention looks like this.').waitFor({ timeout: 10000 });
     must(await answer.getByText(FX).first().isVisible(), 'the fixture answer is not labelled');
     const kinds = await answer.locator('[data-evidence] [data-evidence-kind]').evaluateAll((l) => l.map((n) => n.dataset.evidenceKind));
     const RANK = ['decision', 'question', 'session', 'code', 'inferred', 'model'];
     must(kinds.length && kinds[0] === 'decision' && kinds.every((k, i) => !i || RANK.indexOf(kinds[i - 1]) <= RANK.indexOf(k)), `evidence out of order: ${kinds}`);
-    const convo = insp(fx).locator('[data-inspector-section="conversation"]');
-    await openFold(convo);
-    await convo.getByRole('button', { name: /square root of the head size/ }).click();
-    await answer.getByText('It keeps the scores near unit variance').first().waitFor({ timeout: 10000 });
+    await answer.getByRole('button', { name: /square root of the head size/ }).click();
+    await fx.waitForTimeout(400);
+    must(/square root of the head size/.test(await barInput(fx).inputValue()), 'the prior question is not in the composer');
     await openLayers(fx);
     for (const name of ['Decisions', 'Questions', 'Sessions']) if (!(await layer(fx, name).isChecked())) await layer(fx, name).click();
     await fx.waitForTimeout(800);

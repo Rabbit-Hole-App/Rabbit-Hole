@@ -23,11 +23,13 @@ is unchanged. The live (small) build has no Agent Bar.
   Nothing scrolls under it: cards, files, graph nodes and inspector content all stay above.
 - The dock is chrome, not a floating box: one top divider (`border-line`), a white surface, no gradient. The input keeps
   its rounded frame and a hairline shadow (`ChatComposer` `flat`); the Learn composer keeps its popover float.
-- The input spans the dock (no 780px centred column). It never resizes on its own: it follows whatever width the
-  inspector leaves.
+- The dock spans the workspace; the input is half the dock's width, centred, and never under 28rem (owner, 2026-10-08;
+  full width on a phone). It never resizes on its own: it follows whatever width the inspector leaves.
 - The input starts one line high and grows upward to five lines (`max-h-33`), then scrolls inside. The dock grows with it
   and the workspace above shrinks, so it never covers content.
-- The answer window (`ResultSheet`) still opens over the dock, as everywhere. While the Map's inspector is open it centres
+- The answer window (`ResultSheet`) still opens over the dock, as everywhere, for answers with no object selected and for
+  clarifying questions, errors and status. An answer about a selected object streams into that object's Chat tab in the
+  inspector instead (owner, 2026-10-08; inspector.md, Chat). While the Map's inspector is open the window centres
   over the workspace pane, never over the inspector: the inspector publishes its on-screen width as `--inspector-w`
   (`ResizableSidePanel` `edgeVar`).
 
@@ -47,6 +49,32 @@ The chips above the input are what Auto will ask about. A project reads **reposi
   visit, as before).
 - A graph node named after its own file is that file and shows once.
 - Home, Library and Explore are places, not context: they show no chip.
+- The chips are the project's breadcrumb, shown only on that project's own page (owner, 2026-10-08: "if we are not in a
+  particular project, the breadcrumbs disappear"; `scope.js` `crumbsShown`). An app page shows none, and neither does any
+  page after you leave the project with a draft held: the offer row ("Keep karpathy/nanoGPT") still names its scope.
+- The selected object's chip stands out (owner, 2026-10-08): an accent ring and the inspector's In context dot.
+- A click on the graph's white space deselects (owner, 2026-10-08): the node, the inspector's object and the context, so
+  the chips fall back to the repository. It replaces the rule that only an explicit × clears the context.
+
+## Ask actions write the question
+
+Every Ask action writes a ready question into the composer and focuses it; only Send asks (owner, 2026-10-08: "it should
+already write a question in the chat so that the user only needs to press send"). `scope.js` `askDraft(text)` sends
+`small:ask-focus` with the text; the Mothership (`AgentBar.jsx`) and the canvas composer (`ask.jsx` `AskPanel`) write it.
+
+- The question lands in the page's scope with the object pinned as context (the caller sets it first and waits one task).
+- The learner's own words are never overwritten: a typed draft stays and moves to the new context (`carry`). Only an
+  untouched question an earlier Ask wrote is replaced.
+- A hidden bar (a canvas) leaves it to the canvas composer.
+- Questions: "What does base64_decode() do, and how is it used here?", "Why does base64_decode() matter in this
+  codebase?", "What do lines 12–20 of encoding.py do?" (`askQuestion`, `whyQuestion`); on a canvas, 'Can you explain
+  "Softmax"?' and "Can you explain how these cards fit together?" (`learn-ask-target.js`).
+- Where: the inspector's Ask about this (Purpose, Conversation, the footer) and Ask why; the Files reader's Ask on a range;
+  the Map's starter prompts and the review fixtures' prior questions and Ask this again; on a canvas, Ask in chat on a
+  card or slide, the card menu's Ask about this, and a group's Ask in chat.
+- Left alone: Ask selection and the area tool (they mark what to ask about; the question is the learner's), the result
+  sheet's Ask instead and Learn's "Ask the Tutor" clarification (both send the learner's own typed words), and the
+  shared canvas's composer (view-only cards offer no Ask).
 - Auto stays the neutral default pill. A slash command is optional; the normal flow is select, then type.
 
 ## The context contract
