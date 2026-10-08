@@ -898,8 +898,18 @@ page "Tutor confirmation run r27 · 2026-10-08").
 - **Reporting.** `evidence.sessions` reports `sections_completed` (the section's completion evidence was met) apart from
   `sections_skipped` (the learner moved on before it was). A skip never counts toward understanding: claim states come from
   evidence only.
-- **Open question for Learning:** whether the page re-reads the journey after a typed turn. Until it does, the section hook
-  can appear only after a reload, in the page and here alike.
+- **Evidence after a typed turn (fixed by Learning, 2da06677).** The page did not re-read the journey after a typed turn,
+  so the section hook appeared only after a reload. Now the page adopts the evaluate reply's journey evidence (events, seq,
+  revision) when the seq is newer and the journey is unchanged, and the eval does the same at the same point.
+- **The section hook may repeat (Learning, 0040893a).** With the hook offered, every later set failed on `repeat`, because
+  one repeated hook fails the whole set. The one `path.next` hook is now exempt; content hooks still never repeat.
+- **Keyless fixture limit (not a product rule).** The fixture's hooks come from a small pool and never repeat, so a long
+  session runs out: later sets fail on `shape` and escalate. That was true on r28 too: 12 of 14 sets in the low-usage
+  session.
+- **Cost on r29.** Journey requests are larger once evidence is adopted (the hook input's `path.next`, the `next_section`
+  offer): at stub token counts, Next Steps calls cost about a third more, and the Tutor's turns a little more. A low-usage
+  session that completed 15 decisions under $1.30 on r28 completes 14 on r29, and is still reviewed inside its limits
+  (`budget.test.mjs` records the measurement).
 
 **B. Equivalent phrasings: quality, latency and cost** (contract §4.1.1 follow-up).
 - **Pairs:**

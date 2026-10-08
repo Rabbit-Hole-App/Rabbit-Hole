@@ -188,12 +188,12 @@ export const evaluationOf = e => ({
 });
 // HookSet option -> the eval's option (A1): the hook text verbatim, its screen position, and the structured identity the
 // creator analytics aggregate by (learning_goal plus ids, contract §5.2). The learner view keeps only id, position, text.
-// r29: a hook into the journey's next section (option.section: { id, title, skips }) shows its note beside the hook, as the
-// card does ([data-next-section-note]), so the learner sees whether moving on completes this section or skips it.
+// r29: a hook into the journey's next section (option.section: { id, title, skips }) carries the note the card shows beside it
+// ([data-next-section-note]), so the learner sees whether moving on completes this section or skips it; the hook text stays verbatim.
 const sectionNote = section => (section.skips ? 'Next section - skips this section' : 'Next section');
 export const optionOf = set => (option, i) => ({
-  id: option.id, position: i + 1, text: option.section ? `${option.hook} (${sectionNote(option.section)})` : option.hook, set_id: set.set_id,
-  ...(option.section ? { section: { id: option.section.id, skips: !!option.section.skips } } : {}),
+  id: option.id, position: i + 1, text: option.hook, set_id: set.set_id,
+  ...(option.section ? { section: { id: option.section.id, skips: !!option.section.skips }, note: sectionNote(option.section) } : {}),
   learning_goal: option.selected_next_step?.learning_goal ?? null, concept_ids: option.selected_next_step?.concept_ids ?? [], claim_ids: option.selected_next_step?.claim_ids ?? [],
 });
 // A tutor_decision event -> the eval's decision fields (A2). The product has no separate card type: a shown or made card's
@@ -318,6 +318,7 @@ export async function productWorld({ topic, ids, boundary, board = 'main', trace
         if (input.option && !nextStep) throw Error(`the hook ${input.option.id} could not be selected`);
         const offers = turnOffers({ journey: view, record: null, opening: false, nextStep, openResearch: null, repository: false });
         const turnId = `eval-${ids.session_id}-${++turns}`;
+        const journeyAtStart = view?.journey?.id ?? null;
         const sentBefore = boundary.requests.length;
         const onScreen = shown;
         const result = await runTurn({
@@ -325,6 +326,13 @@ export async function productWorld({ topic, ids, boundary, board = 'main', trace
           trace: trace && { identity: { user_id: ids.user_id, canvas_version: null }, blocks: blocks(), next_step_options: onScreen, selected_at: null },
         });
         store = result.store;
+        // The page adopts the evaluate reply's journey evidence right after the turn (LearnTutor.jsx -> adoptEvidence, fix
+        // 2da06677): its events, seq and revision, when the seq is newer and the journey is the one the turn started on. The
+        // Next Steps basis reads the seq, so the hooks recompute (path.next, completes), and next_section posts this revision.
+        const adopted = result.evaluation?.journey;
+        if (adopted && journeyAtStart && view.journey?.id === journeyAtStart && adopted.seq > (view.journey.evidence?.seq ?? -1)) {
+          view = { ...view, journey: { ...view.journey, evidence: { ...view.journey.evidence, events: adopted.events, seq: adopted.seq }, revision: adopted.revision } };
+        }
         // r29: an accepted next_section (the learner explicitly asked to move on) opens the next section after the turn, as
         // executeActions does; the turn itself never reads the result.
         const sectionMove = (result.actions || []).some(action => action.type === NEXT_SECTION_ACTION) ? await moveOn('tutor') : null;

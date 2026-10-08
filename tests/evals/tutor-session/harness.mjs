@@ -68,7 +68,7 @@ export function assertNoProfileLeak(payload, terms) {
 // clicked a hook) - never reason codes, rationale, expected evidence, evidence state, hidden learning goals or answers.
 export const learnerView = ({ material = null, options = [] }, history) => ({
   material,
-  options: options.map(({ id, position, text }) => ({ id, position, text })),
+  options: options.map(({ id, position, text, note }) => ({ id, position, text, ...(note ? { note } : {}) })),
   history: history.map(({ material: shown, learner }) => ({ material: shown, learner })),
 });
 
