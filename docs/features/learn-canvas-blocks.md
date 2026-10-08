@@ -91,7 +91,9 @@ Approved 2026-09-24 as regression invariants for the canvas shell (`AdaptiveCanv
   but never hides content the learner cannot reach. Zoom to fit, zoom to selection, a section's
   frame, focusing an asked card, a new card's reveal and a dev-inserted block all stop above the
   chrome over their span (`chromeTop`, a bottom inset), so nothing lands or is framed under it;
-  panning still brings anything out from under it. The tools' gutter pads its side's floating
+  panning still brings anything out from under it. Content taller than that room even at the fit's
+  20% zoom floor (the depth ladder; eight cards above a phone's hooks and composer) is framed from
+  the top and runs on under the chrome. The tools' gutter pads its side's floating
   column (`--chrome-left` / `--chrome-right`), and the Voice caption sits above the left one.
 - The desktop shell was restored on 2026-09-30 after integration lost Parallel's layout
   (`caca1c2b`):

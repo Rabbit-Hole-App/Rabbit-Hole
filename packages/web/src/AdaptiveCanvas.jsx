@@ -2039,10 +2039,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // The floating bottom strip's controls over a span of the surface (surface px; owner, 2026-10-08: "in the canvas above
   // the chat composer you are cutting the canvas too much"): the top of the highest one there, else the surface's
   // height. Fit, focus and a new card's reveal stop above it; panning still brings anything out from under it.
+  // A control without a box of its own (the composer's display: contents root) counts by its children.
+  const boxesIn = node => { const rect = node.getBoundingClientRect(); return rect.width || rect.height ? [rect] : [...node.children].flatMap(boxesIn); };
   const chromeTop = (x0, x1) => {
     const at = surface.current.getBoundingClientRect();
-    return Math.min(at.height, ...[...(shell.current?.querySelectorAll('[data-canvas-bottom] > * > *') || [])]
-      .map(node => node.getBoundingClientRect())
+    return Math.min(at.height, ...[...(shell.current?.querySelectorAll('[data-canvas-bottom] > * > *') || [])].flatMap(boxesIn)
       .filter(rect => rect.width && rect.height && rect.left - at.left < x1 && rect.right - at.left > x0)
       .map(rect => rect.top - at.top));
   };

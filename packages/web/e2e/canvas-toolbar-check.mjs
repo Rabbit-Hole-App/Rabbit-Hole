@@ -184,9 +184,15 @@ async function probeEdge(page, card, title, label, side = 'right') {
   await page.waitForTimeout(500);
   {
     const fit = await geometry(page);
-    const under = await page.evaluate(chrome => [...document.querySelectorAll('[data-canvas-surface] [data-block-id]')].map(el => el.getBoundingClientRect())
-      .filter(r => r.width && chrome.some(c => c && r.right > c.x && c.right > r.x && r.bottom > c.y && c.bottom > r.y)).length, [fit.composer, fit.stack]);
-    if (under) fail(`desktop: after zoom to fit, ${under} card(s) under the composer or the minimap and zoom`);
+    const under = await page.evaluate(chrome => [...document.querySelectorAll('[data-canvas-surface] [data-block-id]')].map(el => [el.getAttribute('data-block-id'), el.getBoundingClientRect()])
+      .filter(([, r]) => r.width && chrome.some(c => c && r.right > c.x && c.right > r.x && r.bottom > c.y && c.bottom > r.y)).map(([id, r]) => `${id} ${Math.round(r.x)},${Math.round(r.y)} ${Math.round(r.width)}x${Math.round(r.height)}`), [fit.composer, fit.stack]);
+    const scale = await page.evaluate(() => Number(/scale\(([\d.]+)\)/.exec(document.querySelector('[data-canvas-surface] div[style*="scale("]')?.style.transform || '')?.[1] || 1));
+    console.log(`desktop: zoom to fit at ${Math.round(scale * 100)}%, composer ${JSON.stringify(round(fit.composer))}, stack ${JSON.stringify(round(fit.stack))}`);
+    // The fit's zoom floor is 20% (frame in AdaptiveCanvas.jsx): a board taller than the room above the chrome even there
+    // (the depth ladder) starts at the room's top and pans out from under the chrome.
+    const first = await page.evaluate(() => Math.min(...[...document.querySelectorAll('[data-canvas-surface] [data-block-id]')].map(el => el.getBoundingClientRect().top)));
+    if (scale > 0.2001 && under.length) fail(`desktop: after zoom to fit, card(s) under the composer or the minimap and zoom: ${under.join('; ')}`);
+    if (scale <= 0.2001 && first > fit.surface.y + 49) fail(`desktop: at the 20% floor the fit does not start at the top (${Math.round(first)})`);
   }
   results.desktop = { card: widest.block.title, cardWidth: Math.round(widest.width), zoom: g.zoom, right, left: opened, penArmed: armed === 'true' };
   console.log(`desktop: "${widest.block.title}" (${Math.round(widest.width)}px) pushed past both edges; tools left, navigator right, minimap lower left above the zoom row, all outside the canvas (right ${right.onCard}/${right.probes}, left ${opened.onCard}/${opened.probes} edge probes on the card); gutter wheel moved ${results.gutterWheel?.moved}px; pen arms; zoom ${g.zoom}`);

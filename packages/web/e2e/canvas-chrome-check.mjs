@@ -75,9 +75,9 @@ const layout = async (page, where, { phone = false, shared = false } = {}) => {
   // Its controls take the pointer: the composer's field, the zoom row, a hook.
   const hit = (x, y) => page.evaluate(([px, py]) => {
     const el = document.elementFromPoint(px, py);
-    return { surface: !!el?.closest('[data-canvas-surface]'), field: !!el?.closest('[data-canvas-composer] input, [data-canvas-composer] textarea'), zoom: !!el?.closest('[title="Reset zoom"]'), hook: !!el?.closest('[data-hooks-slot] [data-next-step]') };
+    return { surface: !!el?.closest('[data-canvas-surface]'), field: !!el?.closest('[data-canvas-composer] input[placeholder], [data-canvas-composer] textarea[placeholder]'), zoom: !!el?.closest('[title="Reset zoom"]'), hook: !!el?.closest('[data-hooks-slot] [data-next-step]') };
   }, [x, y]);
-  const field = await box(page, '[data-canvas-composer] input, [data-canvas-composer] textarea');
+  const field = await box(page, '[data-canvas-composer] input[placeholder], [data-canvas-composer] textarea[placeholder]');
   const reset = await box(page, '[title="Reset zoom"]');
   const hook = await box(page, '[data-hooks-slot] [data-next-step]');
   assert.ok((await hit(field.x + field.w / 2, field.y + field.h / 2)).field, `${where}: the composer's field is not on top`);
@@ -101,20 +101,25 @@ const layout = async (page, where, { phone = false, shared = false } = {}) => {
   }
   // The Voice and Tutor caption's stack never holds the hooks now.
   assert.equal(await page.locator('[data-left-stack] [data-next-steps]').count(), 0, `${where}: hooks in the left stack`);
-  // Zoom to fit (the minimap's Back to content; Shift+1 on a phone, where the minimap is the tools' strip's) frames every
-  // card clear of the floating chrome.
-  if (minimap) await page.getByRole('button', { name: 'Back to content' }).first().click();
-  else {
-    await page.mouse.click(gapX, zoom.y + zoom.h / 2); // the empty strip: the canvas takes focus from the composer
-    await page.keyboard.press('Shift+Digit1');
-  }
-  await page.waitForTimeout(500);
-  const chrome = [['composer', composer], ['hooks', hooks], ['minimap and zoom', stack]];
-  const cards = await page.evaluate(() => [...document.querySelectorAll('[data-canvas-surface] [data-block-id]')].map(el => { const r = el.getBoundingClientRect(); return { id: el.dataset.blockId, x: r.x, y: r.y, w: r.width, h: r.height, right: r.right, bottom: r.bottom }; }));
+  // Zoom to fit (the minimap's Back to content; on a phone the tools' strip opens the overview, which has the same button)
+  // frames every card clear of the floating chrome.
+  if (!minimap) await page.getByRole('button', { name: 'Show overview' }).click();
+  await page.getByRole('button', { name: 'Back to content' }).first().click();
+  await page.waitForTimeout(1500);
+  // Measured again after the fit: on a phone the open overview moved the canvas down.
+  const fitted = await box(page, '[data-canvas-surface]');
+  const chrome = [['composer', await box(page, '[data-canvas-composer]')], ['hooks', await box(page, '[data-hooks-slot] section[data-next-steps]')], ['minimap and zoom', await box(page, '[data-zoom-stack]')]];
+  const cards = await page.evaluate(() => [...document.querySelectorAll('[data-canvas-surface] [data-block-id]')].map(el => { const r = el.getBoundingClientRect(); return { id: el.getAttribute('data-block-id'), x: r.x, y: r.y, w: r.width, h: r.height, right: r.right, bottom: r.bottom }; }));
   assert.ok(cards.length >= 8, `${where}: ${cards.length} cards`);
-  for (const card of cards) for (const [name, b] of chrome) assert.ok(disjoint(card, b), `${where}: after zoom to fit, card ${card.id} ${JSON.stringify(round(card))} is under the ${name} ${JSON.stringify(round(b))}`);
-  for (const card of cards) assert.ok(card.y >= surface.y - 1 && card.bottom <= surface.bottom + 1, `${where}: after zoom to fit, card ${card.id} is off the canvas`);
+  // The fit's zoom floor is 20% (frame in AdaptiveCanvas.jsx): content taller than the room above the chrome even there
+  // (8 cards above a phone's hooks and composer) starts at the room's top and pans out from under the chrome.
+  const scale = await page.evaluate(() => Number(/scale\(([\d.]+)\)/.exec(document.querySelector('[data-canvas-surface] div[style*="scale("]')?.style.transform || '')?.[1] || 1));
+  if (scale > 0.2001) for (const card of cards) for (const [name, b] of chrome) assert.ok(disjoint(card, b), `${where}: after zoom to fit, card ${card.id} ${JSON.stringify(round(card))} is under the ${name} ${JSON.stringify(round(b))}`);
+  else assert.ok(Math.min(...cards.map(card => card.y)) <= fitted.y + 49, `${where}: at the 20% floor the fit does not start at the top`);
+  fits.push(`${where} ${Math.round(scale * 100)}%`);
+  for (const card of cards) assert.ok(card.y >= fitted.y - 1 && (scale <= 0.2001 || card.bottom <= fitted.bottom + 1), `${where}: after zoom to fit, card ${card.id} is off the canvas`);
 };
+const fits = [];
 const ready = page => page.locator('[data-hooks-slot] section[data-next-steps="ready"]').waitFor({ timeout: 60000 });
 // A board's load notice is a passing toast; the screenshots wait it out so they show the chrome itself.
 const settle = page => page.getByText('You are seeing the latest saved version of this board.').waitFor({ state: 'detached', timeout: 10000 }).catch(() => {});
@@ -186,5 +191,6 @@ await check('no page errors, nothing sent, the provider tripwire at 0', async ()
   assert.deepEqual(tripwire, [0, 0]);
 });
 await browser.close();
+console.log(`zoom to fit: ${fits.join(', ')}`);
 console.log(`${results.length}/7 checks passed`);
 process.exit(results.length === 7 ? 0 : 1);

@@ -53,7 +53,9 @@ test('the bottom strip floats: the canvas runs to the bottom, the strip lets the
 });
 
 test('fit, focus and a new card stop above the floating chrome over their span (a bottom inset); panning still reaches it', () => {
-  assert.match(canvas, /const chromeTop = \(x0, x1\) => \{[\s\S]*?querySelectorAll\('\[data-canvas-bottom\] > \* > \*'\)[\s\S]*?rect\.left - at\.left < x1 && rect\.right - at\.left > x0[\s\S]*?\.map\(rect => rect\.top - at\.top\)\);\n  \};/);
+  assert.match(canvas, /const chromeTop = \(x0, x1\) => \{[\s\S]*?querySelectorAll\('\[data-canvas-bottom\] > \* > \*'\) \|\| \[\]\)\]\.flatMap\(boxesIn\)[\s\S]*?rect\.left - at\.left < x1 && rect\.right - at\.left > x0[\s\S]*?\.map\(rect => rect\.top - at\.top\)\);\n  \};/);
+  // The composer's root is display: contents: it counts by its children.
+  assert.match(canvas, /const boxesIn = node => \{ const rect = node\.getBoundingClientRect\(\); return rect\.width \|\| rect\.height \? \[rect\] : \[\.\.\.node\.children\]\.flatMap\(boxesIn\); \};/);
   // frame (zoom to fit, zoom to selection, presenting, a section): fit to the height above the chrome.
   assert.match(canvas, /const h = Math\.min\(element\.clientHeight, chromeTop\(across\(z\) \+ left \* z, across\(z\) \+ right \* z\)\);\n\s+z = fit\(h\);/);
   assert.match(canvas, /y: \(height \+ pad \* 2 < h \? \(h - height\) \/ 2 : pad\) - top \* z,/);
