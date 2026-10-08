@@ -75,7 +75,7 @@ function HomeContent({ data, load }) {
   );
 }
 
-// Continue (owner 2026-10-06 §13, §19): the canonical card - the card and its title open it, with a small Continue →
+// Continue (owner 2026-10-06 §13, §19): the canonical card - its title and a small Continue → open it (never the body)
 // and no big blue button - and where this browser left off. "Continue learning" (§19) since the cross-device proof
 // (canvas-persistence.md, step 8); the item is still small.recent's (continue.js), not learner activity.
 function Continue({ item, app, email }) {
@@ -130,8 +130,8 @@ export function ExplorePreview() {
 // Explore (docs/features/explore-publish.md): only canvases their owners published, on the canonical card (title,
 // @handle - display name first when set - description, the canonical direct-fork count, updated). The order is the
 // server's for the chosen sort (§17: Newest by default, Recently updated, Most forked); the page never reorders.
-// Others' cards offer Start Rabbit Hole (blue) and Fork (neutral) through the published page's own resume flows
-// (?rabbit=root, ?fork=1), signed out included; your own carry the Owned-by-you badge instead (home/PublicCards.jsx).
+// Others' cards offer Start Rabbit Hole (blue) and [Fork | N] (neutral, its confirm-and-rename dialog in place), signed
+// out resuming on the published page (?rabbit=root, ?fork=1); your own carry the Owned-by-you badge instead (PublicCards.jsx).
 // Card-first (creator profile brief §8): a small "Creators to explore" row sits above the feed, never in it. Search
 // (§9) answers Creators and Explainers from the server: @handle, display name, title, description.
 function Explore() {

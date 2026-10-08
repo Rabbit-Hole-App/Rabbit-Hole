@@ -45,56 +45,12 @@ const ownerPage = await pageFor(owner, { fn: ([key, seed, chat]) => { if (localS
 await ownerPage.goto(`${BASE}/apps/${source.name}`);
 await ownerPage.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 60000 });
 await ownerPage.waitForTimeout(1200);
-const forkButton = ownerPage.locator('[data-fork-button]');
-check('the canvas top bar has one Fork button beside Share', await forkButton.count() === 1 && await ownerPage.locator('[data-share-button]').count() === 1);
+// No Fork on your own canvas (owner, 2026-10-08): Duplicate in the Library's ⋮ copies it.
+check('your own canvas top bar has Share and no Fork', await ownerPage.locator('[data-fork-button]').count() === 0 && await ownerPage.locator('[data-share-button]').count() === 1);
 check('no content card carries a fork control', await ownerPage.locator('[data-block-id] [data-fork-button], [data-shape-id] [data-fork-button]').count() === 0);
 await shot(ownerPage, '01-source-top-bar');
 
-// ---- Fork from the top bar, double-clicked: one fork, opened next ----
-await forkButton.dblclick();
-await ownerPage.waitForURL(/\/apps\/canvas-[a-f0-9]{8}\?tab=learn$/, { timeout: 20000 });
-const forkName = new URL(ownerPage.url()).pathname.split('/').pop();
-await ownerPage.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 30000 });
-await ownerPage.locator('[data-forked-from]').waitFor({ timeout: 10000 });
-check('the fork opens with the source\'s persisted content', forkName !== source.name && await ownerPage.locator('[data-shape-id="seed-rect"]').count() === 1);
-check('the fork names its source in the top bar', (await ownerPage.locator('[data-forked-from]').innerText()).includes(`Forked from “${TITLE}”`));
-let mine = await canvases(owner);
-check('a double click made exactly one fork, listed in the Library', mine.length === 2 && mine.some(c => c.name === forkName));
-check('the source counts one direct fork', mine.find(c => c.name === source.name)?.fork_count === 1);
-await shot(ownerPage, '02-fork-opened');
-
-// ---- the fork is the owner's own: rename it; the attribution stays; ↗ opens the original ----
-const titleInput = ownerPage.getByRole('textbox', { name: 'Canvas title' });
-await titleInput.click(); await titleInput.fill('My attention notes'); await titleInput.press('Enter');
-await ownerPage.waitForTimeout(1500);
-await ownerPage.reload(); await ownerPage.locator('[data-forked-from]').waitFor({ timeout: 30000 });
-check('after a rename the fork still reads Forked from the source title', (await ownerPage.locator('[data-forked-from]').innerText()).includes(`“${TITLE}”`)
-  && (await api(owner, `/api/apps/${forkName}`)).title === 'My attention notes');
-// Edit the fork: its shape goes; the source keeps it.
-await ownerPage.evaluate(([key]) => { const ink = JSON.parse(localStorage.getItem(`${key}:ink`)); ink.shapes = []; localStorage.setItem(`${key}:ink`, JSON.stringify(ink)); }, [`small.adaptive-canvas:${catalog.org}:${catalog.email}:${forkName}`]);
-await ownerPage.locator('[data-forked-from-link]').click();
-await ownerPage.waitForURL(new RegExp(`/apps/${source.name}$`), { timeout: 20000 });
-await ownerPage.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 30000 });
-check('↗ opens the original, untouched by the fork\'s edits', await ownerPage.locator('[data-shape-id="seed-rect"]').count() === 1);
-
-// ---- Library: the title opens and Fork stays on canvas cards, attribution and direct counts; a fork lands at once ----
-// (card redesign, docs/features/card-redesign.md: the card and its title open it, so there is no Open button)
-await ownerPage.goto(`${BASE}/library?type=canvases`);
-await ownerPage.locator('[data-library-card="canvas"]').first().waitFor({ timeout: 30000 });
-const card = title => ownerPage.locator('[data-library-card="canvas"]').filter({ has: ownerPage.locator('[data-card-title]', { hasText: title }) });
-check('Library canvas cards: the title opens, and Fork', await card('My attention notes').getByRole('button', { name: 'Fork' }).count() === 1
-  && (await card(TITLE).locator('[data-card-title]').getAttribute('href')) === `/apps/${source.name}`);
-check('the fork\'s card shows Forked from the source', (await card('My attention notes').locator('[data-forked-from]').innerText()).includes(`“${TITLE}”`));
-check('the source card shows 1 fork', (await card(TITLE).locator('[data-fork-count]').innerText()).trim() === '1 fork');
-await shot(ownerPage, '03-library-cards');
-await card('My attention notes').getByRole('button', { name: 'Fork' }).click();
-await ownerPage.locator('[data-library-card="canvas"]').nth(2).waitFor({ timeout: 15000 });
-mine = await canvases(owner);
-check('Fork on a Library card adds the new canvas to the Library without leaving it', mine.length === 3 && new URL(ownerPage.url()).pathname === '/library');
-check('direct counts: the source 1, the fork 1', mine.find(c => c.name === source.name)?.fork_count === 1 && mine.find(c => c.name === forkName)?.fork_count === 1);
-await shot(ownerPage, '04-library-after-fork');
-
-// ---- a shared canvas: another person forks it through the link ----
+// ---- a shared canvas: another person forks it through the link, after the confirm-and-rename dialog ----
 const shared = await api(owner, `/api/learn/boards/${source.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, state: { ...SEED, exchanges: CHAT } }) });
 const viewerPage = await pageFor(viewer);
 await viewerPage.goto(`${BASE}/b/${shared.sharing.view}`);
@@ -103,41 +59,97 @@ await viewerPage.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 60000
 const headerCount = async page => ({ value: (await page.locator('header [data-fork-button] [data-fork-count-value]').innerText()).trim(), label: await page.locator('header [data-fork-button]').getAttribute('aria-label') });
 const ownerCount = async () => (await canvases(owner)).find(c => c.name === source.name)?.fork_count;
 let seen = await headerCount(viewerPage);
-check('the shared board shows its title and one Fork control carrying its direct fork count', await viewerPage.getByText(TITLE).count() >= 1 && await viewerPage.locator('[data-fork-button]').count() === 1
-  && seen.value === '1' && seen.label === 'Fork, 1 fork' && await viewerPage.locator('header [data-fork-count]').count() === 0, JSON.stringify(seen));
-check('the header count is the owner\'s Library card count', Number(seen.value) === await ownerCount());
-await shot(viewerPage, '05-shared-board');
+check('the shared board shows its title and one Fork control carrying its direct fork count, 0', await viewerPage.getByText(TITLE).count() >= 1 && await viewerPage.locator('[data-fork-button]').count() === 1
+  && seen.value === '0' && seen.label === 'Fork, 0 forks' && await viewerPage.locator('header [data-fork-count]').count() === 0, JSON.stringify(seen));
+await shot(viewerPage, '02-shared-board');
+// Fork opens "Fork this canvas" (owner, 2026-10-08): the name prefilled with the source title, Cancel and Fork.
+const dialog = page => page.getByRole('dialog', { name: 'Fork this canvas' });
+const nameField = page => dialog(page).getByRole('textbox', { name: 'Name' });
+await viewerPage.locator('[data-fork-button]').dblclick();
+await dialog(viewerPage).waitFor({ timeout: 10000 });
+check('a press (even a double click) opens one dialog, prefilled with the source title, and forks nothing yet', await dialog(viewerPage).count() === 1
+  && await nameField(viewerPage).inputValue() === TITLE && (await canvases(viewer)).length === 0);
+check('the dialog offers Cancel and a primary Fork', await dialog(viewerPage).getByRole('button', { name: 'Cancel', exact: true }).count() === 1 && await dialog(viewerPage).getByRole('button', { name: 'Fork', exact: true }).count() === 1);
+await shot(viewerPage, '03-fork-dialog');
+await dialog(viewerPage).getByRole('button', { name: 'Cancel', exact: true }).click();
+await viewerPage.waitForTimeout(800);
+check('Cancel forks nothing and stays on the link', await dialog(viewerPage).count() === 0 && (await canvases(viewer)).length === 0 && new URL(viewerPage.url()).pathname === `/b/${shared.sharing.view}` && await ownerCount() === 0);
 await viewerPage.locator('[data-fork-button]').click();
+await dialog(viewerPage).waitFor({ timeout: 10000 });
+await viewerPage.keyboard.press('Escape');
+await viewerPage.waitForTimeout(800);
+check('Escape forks nothing either', await dialog(viewerPage).count() === 0 && (await canvases(viewer)).length === 0);
+// Rename in the dialog, then Fork (double-clicked: one fork): the copy takes the typed name; the provenance keeps the source title.
+await viewerPage.locator('[data-fork-button]').click();
+await nameField(viewerPage).fill('My attention notes');
+await dialog(viewerPage).getByRole('button', { name: 'Fork', exact: true }).dblclick();
 await viewerPage.waitForURL(/\/apps\/canvas-[a-f0-9]{8}\?tab=learn$/, { timeout: 20000 });
 const viewerFork = new URL(viewerPage.url()).pathname.split('/').pop();
 await viewerPage.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 30000 });
-await viewerPage.locator('[data-forked-from-link]').waitFor({ timeout: 10000 });
+await viewerPage.locator('[data-forked-from]').waitFor({ timeout: 10000 });
+let theirs = await canvases(viewer);
+check('one confirmed fork, named as typed, in the viewer\'s Library, owned by them', theirs.length === 1 && theirs[0].name === viewerFork && theirs[0].title === 'My attention notes' && theirs[0].owner_email === VIEWER);
+check('the fork names its source title in the top bar', (await viewerPage.locator('[data-forked-from]').innerText()).includes(`Forked from “${TITLE}”`));
 check('the viewer\'s fork holds the shared content and links back through the link', (await viewerPage.locator('[data-forked-from-link]').getAttribute('href')) === `/b/${shared.sharing.view}`);
-check('the viewer\'s fork is in the viewer\'s Library, owned by them', (await canvases(viewer)).some(c => c.name === viewerFork && c.owner_email === VIEWER));
-check('the source now counts two direct forks', (await canvases(owner)).find(c => c.name === source.name)?.fork_count === 2);
-await shot(viewerPage, '06-viewer-fork');
+check('the fork\'s own top bar has no Fork: it is the viewer\'s canvas now', await viewerPage.locator('[data-fork-button]').count() === 0);
+check('the source counts one direct fork', await ownerCount() === 1);
+await shot(viewerPage, '04-fork-opened');
+// Fork and source are independent (control-plane canvas-forking.test.js); here the link back opens the original.
+await viewerPage.reload(); await viewerPage.locator('[data-forked-from]').waitFor({ timeout: 30000 });
+check('after a reload the fork still reads Forked from the source title', (await viewerPage.locator('[data-forked-from]').innerText()).includes(`“${TITLE}”`));
+await viewerPage.locator('[data-forked-from-link]').click();
+await viewerPage.waitForURL(new RegExp(`/b/${shared.sharing.view}$`), { timeout: 20000 });
+await viewerPage.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 30000 });
+check('↗ opens the original, untouched by the fork\'s edits', await viewerPage.locator('[data-shape-id="seed-rect"]').count() === 1);
 
-// ---- after the fork: a reload of the link reads the canonical count, and so does the owner's Library card; an
-// unrelated shared canvas with no forks reads 0 in its header and shows no count on its card ----
-const zero = await api(owner, '/api/canvases', { method: 'POST', body: JSON.stringify({ title: 'Bridge loads (fork check)' }) });
-const zeroShare = await api(owner, `/api/learn/boards/${zero.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, state: { ...SEED, shapes: [{ ...SEED.shapes[0], id: 'zero-rect', text: 'Truss' }] } }) });
+// ---- Libraries: no Fork on your own cards; the read-only count only once someone forked it ----
+await ownerPage.goto(`${BASE}/library?type=canvases`);
+await ownerPage.locator('[data-library-card="canvas"]').first().waitFor({ timeout: 30000 });
+const card = (page, title) => page.locator('[data-library-card="canvas"]').filter({ has: page.locator('[data-card-title]', { hasText: title }) });
+check('the owner\'s Library card: the title opens, no Fork, and 1 fork', (await card(ownerPage, TITLE).locator('[data-card-title]').getAttribute('href')) === `/apps/${source.name}`
+  && await card(ownerPage, TITLE).locator('[data-fork-button]').count() === 0 && await card(ownerPage, TITLE).getByRole('button', { name: /Fork/ }).count() === 0
+  && (await card(ownerPage, TITLE).locator('[data-fork-count]').innerText()).trim() === '1 fork');
+await shot(ownerPage, '05-owner-library-card');
+await viewerPage.goto(`${BASE}/library?type=canvases`);
+await card(viewerPage, 'My attention notes').waitFor({ timeout: 30000 });
+check('the viewer\'s fork card: Forked from the source, no Fork, no "0 forks"', (await card(viewerPage, 'My attention notes').locator('[data-forked-from]').innerText()).includes(`“${TITLE}”`)
+  && await card(viewerPage, 'My attention notes').locator('[data-fork-button]').count() === 0 && await card(viewerPage, 'My attention notes').locator('[data-fork-count]').count() === 0);
+await shot(viewerPage, '06-viewer-library-card');
+
+// ---- a second fork with the name cleared falls back to the source title; the header and Library count 2 ----
 const linkPage = await pageFor(viewer);
 await linkPage.goto(`${BASE}/b/${shared.sharing.view}`);
 await linkPage.locator('header [data-fork-button] [data-fork-count-value]').waitFor({ timeout: 60000 });
 seen = await headerCount(linkPage);
-check('a reload of the link reads the canonical count, 2', seen.value === '2' && seen.label === 'Fork, 2 forks' && await ownerCount() === 2, JSON.stringify(seen));
-await shot(linkPage, '06b-shared-header-2-forks');
+check('a reload of the link reads the canonical count, 1', seen.value === '1' && seen.label === 'Fork, 1 fork' && await ownerCount() === 1, JSON.stringify(seen));
+await linkPage.locator('[data-fork-button]').click();
+await nameField(linkPage).fill('   ');
+await nameField(linkPage).press('Enter');
+await linkPage.waitForURL(/\/apps\/canvas-[a-f0-9]{8}\?tab=learn$/, { timeout: 20000 });
+theirs = await canvases(viewer);
+check('a blank name falls back to the source title (Enter confirms)', theirs.length === 2 && theirs.some(c => c.title === TITLE && c.forked_from_title === TITLE));
+check('the source now counts two direct forks', await ownerCount() === 2);
+await linkPage.goto(`${BASE}/b/${shared.sharing.view}`);
+await linkPage.locator('header [data-fork-button] [data-fork-count-value]').waitFor({ timeout: 60000 });
+seen = await headerCount(linkPage);
+check('a reload of the link reads the canonical count, 2', seen.value === '2' && seen.label === 'Fork, 2 forks', JSON.stringify(seen));
+await shot(linkPage, '07-shared-header-2-forks');
+
+// ---- an unrelated shared canvas with no forks reads Fork 0 in its header and no count on its card ----
+const zero = await api(owner, '/api/canvases', { method: 'POST', body: JSON.stringify({ title: 'Bridge loads (fork check)' }) });
+const zeroShare = await api(owner, `/api/learn/boards/${zero.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, state: { ...SEED, shapes: [{ ...SEED.shapes[0], id: 'zero-rect', text: 'Truss' }] } }) });
 await linkPage.goto(`${BASE}/b/${zeroShare.sharing.view}`);
 await linkPage.locator('[data-shape-id="zero-rect"]').waitFor({ timeout: 60000 });
 seen = await headerCount(linkPage);
 check('an unrelated shared canvas with no forks shows Fork 0', seen.value === '0' && seen.label === 'Fork, 0 forks' && (await canvases(owner)).find(c => c.name === zero.name)?.fork_count === 0, JSON.stringify(seen));
-await shot(linkPage, '06c-shared-header-0-forks');
+await shot(linkPage, '07b-shared-header-0-forks');
 await ownerPage.goto(`${BASE}/library?type=canvases`);
-await card('Bridge loads (fork check)').waitFor({ timeout: 30000 });
-// The card redesign shows 0 as "0 forks" (owner 2026-10-06 §12).
-check('the owner\'s Library cards read the same counts: 2 forks, and 0 forks', (await card(TITLE).locator('[data-fork-count]').innerText()).trim() === '2 forks'
-  && (await card('Bridge loads (fork check)').locator('[data-fork-count]').innerText()).trim() === '0 forks');
-await shot(ownerPage, '06d-library-cards-counts');
+await card(ownerPage, 'Bridge loads (fork check)').waitFor({ timeout: 30000 });
+// 0 shows nothing on your own card (owner, 2026-10-08): the read-only count appears once someone forked it.
+check('the owner\'s Library cards read the same counts: 2 forks, and none at 0', (await card(ownerPage, TITLE).locator('[data-fork-count]').innerText()).trim() === '2 forks'
+  && await card(ownerPage, 'Bridge loads (fork check)').locator('[data-fork-count]').count() === 0);
+await shot(ownerPage, '07c-library-cards-counts');
+await viewerPage.goto(`${BASE}/apps/${viewerFork}?tab=learn`);
 
 // ---- the owner stops sharing: the viewer's fork keeps its attribution and says the original is unavailable ----
 await api(owner, `/api/learn/boards/${source.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: false }) });

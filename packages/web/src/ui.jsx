@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import * as TabsPrimitive from '@radix-ui/react-tabs';
 import { clsx as cn } from 'clsx';
-import { Check, ChevronDown, ChevronRight, Clock, Copy as CopyIcon, File as FileIcon, Globe, Maximize2, Minimize2, Network, PenLine, Play, TriangleAlert, Upload, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Clock, Copy as CopyIcon, File as FileIcon, Globe, Maximize2, Minimize2, Network, Play, Shapes, TriangleAlert, Upload, X } from 'lucide-react';
 import { learnPreview } from './flags.js';
 import { personLabel } from './session-display.js';
 
@@ -15,9 +15,9 @@ export const RADIUS = { control: 'rounded-lg', popover: 'rounded-md', modal: 'ro
 // Sizes: buttons/inputs/table rows 32px, small 28px, sidebar rows 28px, pills 20px.
 // Radius (index.css --radius 6px): rounded-md is 4px (rows, pills, chips), rounded-lg 6px (cards, popovers); rounded-sm is 2px. Shadow only on popovers.
 
-// Kind icon per app: Globe server, Play job, Clock scheduled job, Network project, PenLine canvas. 16px, stroke 1.5.
+// Kind icon per app: Globe server, Play job, Clock scheduled job, Network project, Shapes canvas (owner, 2026-10-08: not a pen). 16px, stroke 1.5.
 export const KindIcon = ({ kind, schedule, size = 16 }) => {
-  const I = kind === 'canvas' ? PenLine : kind === 'repository' ? Network : kind === 'job' ? (schedule ? Clock : Play) : Globe;
+  const I = kind === 'canvas' ? Shapes : kind === 'repository' ? Network : kind === 'job' ? (schedule ? Clock : Play) : Globe;
   return <I size={size} strokeWidth={1.5} className="shrink-0 text-ink-2" />;
 };
 

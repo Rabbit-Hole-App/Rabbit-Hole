@@ -1,14 +1,16 @@
 import { useState } from 'react';
-import { ArrowDownToLine, GitFork, Link2 } from 'lucide-react';
+import { ArrowDownToLine, Link2 } from 'lucide-react';
+import ForkButton from '../ForkButton.jsx';
 import LearningCard, { CARD_GRID, menuAt } from './LearningCard.jsx';
 import { cardModel } from './provenance.js';
 import { Avatar, Button, Menu, MenuItem, toast } from '../ui.jsx';
 
 // Public explainers on the canonical card (docs/features/card-redesign.md), the same for Explore and the creator profile
 // (docs/features/creator-profile.md; owner: reuse the SAME card, never a creator-specific one). The card and its title
-// open /e/<token>; the @handle opens /@handle. Others' cards offer Start Rabbit Hole (blue) and Fork (neutral) through
-// the published page's own resume flows (?rabbit=root, ?fork=1), signed out included; your own carry the Owned-by-you
-// badge instead. The order is the server's: this list never reorders.
+// open /e/<token>; the @handle opens /@handle. Others' cards offer Start Rabbit Hole (blue), through the published page's
+// resume flow (?rabbit=root), and [Fork | N] (neutral), whose dialog opens here and, signed out, resumes on the page
+// (?fork=1); the count lives in that button alone. Your own carry the Owned-by-you badge instead, and the footer's read-only
+// N forks once someone forked it (owner, 2026-10-08). The order is the server's: this list never reorders.
 const stop = (fn) => (e) => { e.stopPropagation(); fn(e); };
 // /e/<token> and /@handle are their own pages (main.jsx Root), so they load in full rather than through navigate().
 const go = (url) => window.location.assign(url);
@@ -24,7 +26,7 @@ export default function PublicCards({ cards, me, attr }) {
       <ul data-public-cards className={CARD_GRID}>
         {cards.map(card => {
           const mine = !!me && card.creator?.handle === me;
-          const m = cardModel({ kind: 'canvas', name: card.url, title: card.title, description: card.description, fork_count: card.fork_count, updated_at: card.updated_at, owner_handle: card.creator?.handle, owner_name: card.creator?.name });
+          const m = cardModel({ kind: 'canvas', name: card.url, title: card.title, description: card.description, fork_count: mine ? card.fork_count : null, updated_at: card.updated_at, owner_handle: card.creator?.handle, owner_name: card.creator?.name });
           return (
             <LearningCard key={card.url} kind="canvas" m={m} attrs={{ [attr]: '' }} href={card.url} onOpen={() => go(card.url)} mine={mine} access="public"
               creatorHref={card.creator?.handle ? `/@${card.creator.handle}` : null}
@@ -33,8 +35,8 @@ export default function PublicCards({ cards, me, attr }) {
                 <>
                   <Button size="sm" variant="primary" data-card-start-rabbit-hole onClick={stop(() => go(`${card.url}?rabbit=root`))}
                     title="Start your own private Rabbit Hole from this canvas. This canvas stays as it is."><ArrowDownToLine size={13} strokeWidth={1.8} />Start Rabbit Hole</Button>
-                  <Button size="sm" variant="secondary" data-card-fork onClick={stop(() => go(`${card.url}?fork=1`))}
-                    title="Fork: make your own editable copy in your Library"><GitFork size={13} strokeWidth={1.8} />Fork</Button>
+                  {/* The soft accent fill: more visible on the card than a white button, still below the primary (owner, 2026-10-08). */}
+                  <ForkButton size="sm" variant="soft" source={{ token: card.url.split('/').pop() }} title={card.title} resume={card.url} count={card.fork_count} onForked={(fork) => go(fork.url)} />
                 </>
               )} />
           );

@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Search } from 'lucide-react';
 import { api, navigate } from './api.js';
+import { kindLabel, titleOf } from './agent/catalog.js';
 import { loadApps } from './app-data.js';
 import { aiFindAllowed, learnPreview } from './flags.js';
 import { cn, KindIcon } from './ui.jsx';
 
 // Plain text out of a BlockNote JSON string - no parse, just the "text" values.
 const runbookText = (rb) => [...rb.matchAll(/"text":"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1]).join(' ');
+
+// Rabbit Hole names a row by its title and type, never its slug or workspace (owner, 2026-10-08: no "canvas-5325210d",
+// no "gmail-com / Apps"); the classic app keeps name and org.
+const label = (a) => (learnPreview ? titleOf(a) : a.name);
 
 // ⌘K search modal. Self-contained: opens on Ctrl/⌘K or a 'small:search' event.
 export default function SearchModal() {
@@ -62,7 +67,7 @@ export default function SearchModal() {
   const needle = q.trim().toLowerCase();
   const recent = JSON.parse(localStorage.getItem('small.recent') || '[]');
   const rank = (a) => { const i = recent.indexOf(a.name); return i === -1 ? recent.length : i; };
-  const appHits = apps.filter((a) => a.name.toLowerCase().includes(needle)).slice().sort((a, b) => rank(a) - rank(b));
+  const appHits = apps.filter((a) => [a.name, label(a) || ''].some((t) => t.toLowerCase().includes(needle))).slice().sort((a, b) => rank(a) - rank(b));
   const bookHits = needle ? apps.filter((a) => a.runbook && runbookText(a.runbook).toLowerCase().includes(needle)) : [];
   const results = [...appHits, ...bookHits]; // flat list for arrow keys
   const hiIdx = Math.min(hi, results.length - 1);
@@ -86,8 +91,8 @@ export default function SearchModal() {
       className={cn('flex h-9 w-full items-center gap-2.5 rounded-sm px-3 text-left text-sm hover:bg-hover', i === hiIdx && 'bg-hover')}
     >
       <KindIcon kind={a.kind} schedule={a.schedule} />
-      <span className="truncate">{a.name}</span>
-      <span className="ml-auto shrink-0 text-xs text-ink-3">{org} / Apps</span>
+      <span className="truncate">{label(a)}</span>
+      <span className="ml-auto shrink-0 text-xs text-ink-3">{learnPreview ? kindLabel(a.kind) : `${org} / Apps`}</span>
     </button>
   );
 
@@ -117,7 +122,7 @@ export default function SearchModal() {
                   className="flex h-9 w-full items-center gap-2.5 rounded-sm px-3 text-left text-sm hover:bg-hover"
                 >
                   <KindIcon kind={a.kind} schedule={a.schedule} />
-                  <span className="truncate">{a.name}</span>
+                  <span className="truncate">{label(a)}</span>
                   {a.description && <span className="min-w-0 flex-1 truncate text-xs text-ink-3">{a.description.split('\n')[0]}</span>}
                 </button>
               ))}
@@ -128,7 +133,7 @@ export default function SearchModal() {
             <div className="px-3 py-2 text-sm text-ink-2">{ai.note || 'Nothing here does that yet.'}</div>
           )}
           {q.trim() && results.length === 0 && ai === null && <div className="flex h-9 items-center px-3 text-sm text-ink-3">No results</div>}
-          {appHits.length > 0 && <div className="px-3 pt-1.5 pb-0.5 text-xs text-ink-3">Apps</div>}
+          {appHits.length > 0 && <div className="px-3 pt-1.5 pb-0.5 text-xs text-ink-3">{learnPreview ? 'Library' : 'Apps'}</div>}
           {appHits.map((a, i) => row(a, i))}
           {bookHits.length > 0 && <div className="px-3 pt-1.5 pb-0.5 text-xs text-ink-3">Runbooks</div>}
           {bookHits.map((a, i) => row(a, appHits.length + i))}

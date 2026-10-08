@@ -236,7 +236,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       must(await page.locator('table').count() === 0, 'Canvases still render a table');
       for (const ops of ['Watch', 'Deployed', 'Last run']) must(!(await row.innerText()).includes(ops), `${ops} shown on a canvas card`);
       must((await row.innerText()).includes('On another device'), 'canvas card lacks On another device');
-      must(await row.locator('svg.lucide-pen-line').count() === 1, 'canvas card lacks the canvas icon');
+      must(await row.locator('svg.lucide-shapes').count() === 1, 'canvas card lacks the canvas icon');
       await page.getByRole('button', { name: /^Filters/ }).click();
       for (const name of ['Shared with me', 'Workspace']) must(await page.getByRole('button', { name, exact: true }).count() === 0, `Filters offers ${name}`);
       await page.getByRole('button', { name: 'Mine', exact: true }).click();
@@ -282,7 +282,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       await page.getByRole('button', { name: 'Pin', exact: true }).click();
       const pinned = aside.getByRole('region', { name: 'Pinned' });
       await pinned.getByText('rabbit-hole-check pin').waitFor({ timeout: 10000 });
-      must(await pinned.locator('svg.lucide-pen-line').count() === 1, 'the pinned canvas lacks its icon');
+      must(await pinned.locator('svg.lucide-shapes').count() === 1, 'the pinned canvas lacks its icon');
       await page.reload();
       await pinned.getByText('rabbit-hole-check pin').waitFor({ timeout: 20000 });
       const row = pinned.locator('.group\\/r').filter({ hasText: 'rabbit-hole-check pin' });
@@ -465,7 +465,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       await page.reload();
       const row = page.locator('[data-library-card="canvas"]').filter({ hasText: 'rabbit-hole-check archive' });
       await row.getByTitle('More').click();
-      await page.getByRole('button', { name: 'Archive…' }).click();
+      await page.getByRole('button', { name: 'Archive', exact: true }).click();
       await page.getByRole('dialog', { name: 'Archive rabbit-hole-check archive?' }).getByRole('button', { name: 'Archive', exact: true }).click();
       await row.waitFor({ state: 'detached', timeout: 20000 });
       await filterBy(page, 'Archived canvas');

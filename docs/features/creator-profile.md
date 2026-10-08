@@ -44,16 +44,18 @@ Public explainers                                        Sort: Newest | Most for
 
 ## Links to the profile
 
-`@handle` links to `/@handle` on public content only. Private views keep it as text.
+Every `@handle` links to `/@handle` (owner, 2026-10-08: "make sure i am always able to click on @handles to go to the
+creator and see their cards"; it replaces "public content only"). The profile shows only what that creator published,
+so a link from a private view reveals nothing the handle did not already name. Handles are unique (user-handles.md).
 
 | Where | Link |
 |---|---|
 | Explore card | the @handle (neutral; blue stays the title's), via `LearningCard creatorHref` |
 | Creator profile card | the same |
 | `/e/<token>` header | "Published by Name · @handle" |
-| `/b/<token>` share-link header | text only: a share link is not public content |
-| Fork provenance ("Forked from … · @alice", Library cards and the canvas top bar) | the original creator's @handle, only while the fork credits a live publication (`forked_from_url` is `/e/…`); a share-link, own or unavailable original keeps it as text (`provenance.js` `creatorUrl`) |
-| Library and Home cards | text only (private views) |
+| `/b/<token>` share-link header | "Shared by Name · @handle" |
+| Fork provenance ("Forked from … · @alice", Library cards and the canvas top bar) | the original creator's @handle, whatever the original's state (`provenance.js` `creatorUrl`) |
+| Library and Home cards | the @handle, through `cardModel`'s `creator.url` (yours opens your own profile) |
 
 ## Explore: creator discovery and search
 

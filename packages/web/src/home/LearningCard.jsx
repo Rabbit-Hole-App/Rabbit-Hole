@@ -1,10 +1,9 @@
 import { useState } from 'react';
-import { ArrowDownUp, ArrowUpRight, Check, FolderGit2, Globe, HardDrive, Link2, Lock, MonitorSmartphone, MoreHorizontal, PenLine } from 'lucide-react';
+import { ArrowDownUp, ArrowRight, ArrowUpRight, Check, FolderGit2, Globe, HardDrive, Link2, Lock, MonitorSmartphone, MoreHorizontal, Shapes } from 'lucide-react';
 import { ago } from '../api.js';
 import { ACCESS } from '../canvas-visibility.js';
 import { Button, IconBtn, KindIcon, Menu, MenuItem } from '../ui.jsx';
 import { Creator, ForkedFrom, Forks, OwnerCheck } from './Provenance.jsx';
-import { forkLabel } from './provenance.js';
 
 // The one learning card (card redesign, owner 2026-10-06 §11-14, docs/features/card-redesign.md). Library, Home and
 // Explore render it - and the creator profile will - through props, never a per-surface variant:
@@ -14,8 +13,11 @@ import { forkLabel } from './provenance.js';
 //   github.com/owner/repo ↗          (a project only)
 //   Description, clamped to three lines
 //   this browser's content state     (only a canvas or project whose board is not on the server)
-//   [fork] N forks                                 Updated 2h ago
-//   actions                          (Start Rabbit Hole and Fork on others' cards, Continue → on Home)
+//   actions                          (Start Rabbit Hole and [Fork | N] on others' cards)
+//   [fork] N forks · Updated 2h ago                  Open →   (one footer line; Continue → on Home instead of Open)
+// A click on the card selects it, never opens it (owner, 2026-10-08): the title link, the Open button and Enter on the
+// selected card open it, Open showing on hover or selection (always on touch). N forks is read-only and only when someone
+// forked it; Fork itself lives in actions.
 // Blue is navigation and the primary action only (§13): the title, the repository link, the owner badge, Start Rabbit
 // Hole. Everything else - description, times, forks, visibility, ⋮, secondary buttons - stays neutral.
 
@@ -27,7 +29,7 @@ export const CARD_GRID = 'grid grid-cols-[repeat(auto-fill,minmax(min(100%,380px
 // word and never a colour by topic. The tints stay off the primary blue, which belongs to navigation.
 const TYPES = {
   repository: { label: 'Project', Icon: FolderGit2, tone: 'bg-[#f1ebfa] text-[#6b3fb0] dark:bg-[#2e2440] dark:text-[#c2a6f0]' },
-  canvas: { label: 'Canvas', Icon: PenLine, tone: 'bg-[#e6f4ea] text-[#22744a] dark:bg-[#1d3226] dark:text-[#86d2a3]' },
+  canvas: { label: 'Canvas', Icon: Shapes, tone: 'bg-[#e6f4ea] text-[#22744a] dark:bg-[#1d3226] dark:text-[#86d2a3]' },
 };
 export function TypeIcon({ kind, schedule }) {
   const t = TYPES[kind];
@@ -74,16 +76,18 @@ const plain = (e) => e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey &
 const TITLE = 'line-clamp-2 break-words text-left text-base font-semibold leading-snug';
 
 // `attrs`: the surface's data attributes (data-library-card, data-recent-card, data-continue-card, data-explore-card).
-// `onOpen`: what the card and its title open (null: not openable, as a canvas whose content is in another browser);
+// `onOpen`: what the title and Open open (null: not openable, as a canvas whose content is in another browser);
 // `href`: the title's link, so it opens in a new tab too. `mine`: the viewer owns it. `onMore`: the ⋮. `note`: this
 // browser's content state. `actions`: the surface's buttons, in their own row. `cta`: a small text link at the footer's end
 // (Home's Continue →). `onForkedFromOpen`: a review fixture's original. `creatorHref`: the creator's public profile
-// (/@handle), on public cards only (docs/features/creator-profile.md); private views keep the @handle as text.
-export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, mine = false, access = null, onMore, note, actions, cta, onForkedFromOpen, creatorHref }) {
+// (/@handle; docs/features/creator-profile.md), else the card's own @handle's (cardModel), on every surface.
+export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, mine = false, access = null, onMore, note, actions, cta, onForkedFromOpen, creatorHref: given }) {
   const learning = kind === 'repository' || kind === 'canvas';
+  const creatorHref = given || m.creator?.url; // every surface's @handle opens the profile (owner, 2026-10-08)
   const repo = kind === 'repository' && m.sourceUrl;
   return (
-    <li {...attrs} onClick={onOpen || undefined} className={`group flex min-h-[220px] min-w-0 flex-col rounded-lg border border-line bg-white p-5 ${onOpen ? 'lift-card cursor-pointer' : ''}`}>
+    <li {...attrs} tabIndex={onOpen ? 0 : undefined} onKeyDown={onOpen ? (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) onOpen(); } : undefined}
+      className={`group select-card flex min-h-[220px] min-w-0 flex-col rounded-lg border border-line bg-white p-5 ${onOpen ? 'lift-card' : ''}`}>
       <div className="flex min-w-0 items-start gap-3">
         <TypeIcon kind={kind} schedule={schedule} />
         <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -115,27 +119,31 @@ export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, m
         </div>
       )}
       {note && <div data-card-note className="flex min-w-0 flex-col gap-0.5 pt-3 text-xs text-ink-3">{note}</div>}
+      {actions && <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">{actions}</div>}
       {learning && (
-        <div className="mt-auto flex min-w-0 items-center gap-3 pt-4 text-xs text-ink-3">
-          {/* 0 forks reads "0 forks" here (§12); a project row carries no fork count, so it shows none */}
-          {m.forkCount !== null && <Forks m={{ forks: forkLabel(m.forkCount) || '0 forks' }} />}
-          <span className="flex-1" />
+        <div data-card-footer className={`flex min-w-0 items-center gap-3 text-xs text-ink-3 ${actions ? 'pt-3' : 'mt-auto pt-4'}`}>
+          {/* m.forks is null at 0, so no "0 forks"; a project row carries no fork count, so it shows none */}
+          <Forks m={m} />
           {m.updated && <span data-updated className="shrink-0">Updated {ago(m.updated)}</span>}
-          {cta}
+          <span className="flex-1" />
+          {cta || (onOpen && (
+            <Button size="sm" variant="secondary" data-card-open onClick={stop(onOpen)}
+              className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100">Open <ArrowRight size={13} className="nudge-arrow" /></Button>
+          ))}
         </div>
       )}
-      {actions && <div className={`flex flex-wrap items-center gap-2 pt-3 ${learning ? '' : 'mt-auto'}`}>{actions}</div>}
     </li>
   );
 }
 
-// The sort control (§17-18): one neutral button and a menu with the current choice checked, the Filters pattern.
-export function SortMenu({ options, value, onChange }) {
+// The sort control (§17-18): one neutral button and a menu with the current choice checked, the Filters pattern. `size`:
+// the Library's sits beside Filters at its height (md); Explore's stays sm.
+export function SortMenu({ options, value, onChange, size = 'sm' }) {
   const [open, setOpen] = useState(false);
   const current = options.find((o) => o.id === value) || options[0];
   return (
     <div className="relative">
-      <Button variant="secondary" size="sm" data-sort-control={current.id} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}><ArrowDownUp size={13} /> Sort: {current.label}</Button>
+      <Button variant="secondary" size={size} data-sort-control={current.id} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}><ArrowDownUp size={13} /> Sort: {current.label}</Button>
       <Menu open={open} onClose={() => setOpen(false)} className="top-9 right-0 w-52">
         <div className="px-2 pb-1 pt-2 text-xs text-ink-3">Sort by</div>
         {options.map((o) => (

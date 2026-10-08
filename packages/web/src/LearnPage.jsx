@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, House, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Play, Redo2, RotateCcw, Search, Share2, Trash2, NotebookPen, Undo2, ZoomIn, ZoomOut, GripVertical, Plus, Network } from 'lucide-react';
 import { SPEEDS, getSpeed, setSpeed } from './learn-audio.js';
-import { api, goBack, navigate, wsHeaders } from './api.js';
+import { api, goBack, wsHeaders } from './api.js';
 import { canEditCourse, learnPreview, reviewTools } from './flags.js';
 import { AskPanel } from './ask.jsx';
 import { Button, IconBtn, ConfirmDialog, toast } from './ui.jsx';
@@ -45,7 +45,6 @@ import { inJourneySetup, journeyDiveContext, useJourney } from './LearnJourney.j
 import { pathEntries } from './learn-journey.js';
 import { useVoiceSession } from './LearnVoice.jsx';
 import { TutorCaption } from './VoiceMode.jsx';
-import ForkButton from './ForkButton.jsx';
 import { ForkedFrom } from './home/Provenance.jsx';
 import { cardModel } from './home/provenance.js';
 import { hasLocalContent, unsavedKey } from './home/canvas-local.js';
@@ -1402,8 +1401,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
             <button type="button" title="Present" aria-label="Present"
               onClick={() => { if (canvasApi.current?.present()) setPanelOpen(false); }}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><Play size={15} strokeWidth={1.8} /></button>
-            {/* Fork this canvas: your browser's copy of it becomes a new canvas of yours, opened next. */}
-            {isCanvas && !hole && !board && <ForkButton iconOnly source={{ canvas: app.name }} snapshot={boardSnapshot} onForked={fork => navigate(fork.url)} />}
+            {/* No Fork on your own canvas (owner, 2026-10-08): Duplicate in the Library's ⋮ copies it. */}
             <span className="relative">
               <button type="button" data-share-button title={sharing?.unavailable || (sharing?.shared ? 'Shared - manage links' : 'Share this board')} aria-label="Share" aria-expanded={shareOpen}
                 disabled={!!sharing?.unavailable} onClick={() => setShareOpen(open => !open)}

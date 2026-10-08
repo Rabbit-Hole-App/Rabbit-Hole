@@ -28,12 +28,14 @@ test('a retry after a failure sends the same key, so a fork made before the repl
   assert.deepEqual(r.sent.map(body => body.key), ['key-1-abcdefgh', 'key-1-abcdefgh']);
 });
 
-test('the request carries the source and, only when given, this browser\'s copy', async () => {
-  const r = recorder([{}, {}]);
+test('the request carries the source and, only when given, this browser\'s copy and the typed name', async () => {
+  const r = recorder([{}, {}, {}]);
   const fork = forkAction(r.send, r.newKey);
   await fork({ source: { token: 't' } });
   await fork({ source: { canvas: 'canvas-0a1b2c3d' }, state: { blocks: [] } });
-  assert.deepEqual(r.sent, [{ source: { token: 't' }, key: 'key-1-abcdefgh' }, { source: { canvas: 'canvas-0a1b2c3d' }, key: 'key-2-abcdefgh', state: { blocks: [] } }]);
+  await fork({ source: { token: 't' }, title: 'My notes' });
+  assert.deepEqual(r.sent, [{ source: { token: 't' }, key: 'key-1-abcdefgh' }, { source: { canvas: 'canvas-0a1b2c3d' }, key: 'key-2-abcdefgh', state: { blocks: [] } },
+    { source: { token: 't' }, key: 'key-3-abcdefgh', title: 'My notes' }]);
 });
 
 test('the shared canvas page shows the product top left: the aperture mark and the name, linking home (owner, 2026-10-04)', async () => {
@@ -57,13 +59,41 @@ test('the shared header shows one Fork control carrying the canonical count, zer
   assert.doesNotMatch(button, /\+ ?1\b|\+\+|setCounted\([^)]*\+/, 'never an optimistic count');
   assert.match(button, /\{counts && <span data-fork-count-value[^>]*>\{forkNumber\(n\)\}<\/span>\}/);
   assert.match(button, /aria-label=\{counts \? `\$\{label\}, \$\{forkLabel\(n\) \|\| '0 forks'\}` : undefined\}/);
-  // The canvas top bar's icon-only Fork and the Library cards' Fork are unchanged: no count prop there.
-  assert.doesNotMatch(read('./LearnPage.jsx'), /<ForkButton[^>]*count=/);
 });
 
-test('the canvas top bar opens the new fork with navigate, which LearnPage imports (lost once in a rebase onto goBack)', async () => {
+// Owner, 2026-10-08: "i should not be having a fork button/icon on my own canvas", "i cannot fork my own cards", "there is
+// duplication of 'fork' on the cards", "the fork button should itself have the counts like github". Your own canvas (its top
+// bar, its Library and Home cards) has no Fork action; Duplicate in the Library's ⋮ copies it. Others' Explore cards carry
+// one Fork with the count inside it; the footer's read-only "N forks" is your own card's, and only once someone forked it.
+test('no Fork on your own canvas or cards; others\' cards carry one Fork with its count inside', async () => {
   const { readFileSync } = await import('node:fs');
-  const learn = readFileSync(new URL('./LearnPage.jsx', import.meta.url), 'utf8');
-  assert.match(learn, /onForked=\{fork => navigate\(fork\.url\)\}/);
-  assert.match(learn, /^import \{[^}]*\bnavigate\b[^}]*\} from '\.\/api\.js';/m);
+  const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const code = file => read(file).replace(/\/\/[^\n]*|\{\/\*[\s\S]*?\*\/\}/g, ''); // what renders, not the comments
+  for (const file of ['./LearnPage.jsx', './LibraryViews.jsx', './Home.jsx', './home/LearningCard.jsx']) {
+    assert.doesNotMatch(code(file), /ForkButton|GitFork|data-card-fork|>Fork</, `${file} offers no Fork`);
+  }
+  assert.match(code('./LibraryViews.jsx'), /<MenuItem icon=\{CopyPlus\} onClick=\{\(\) => pick\(duplicate\)\}>Duplicate<\/MenuItem>/, 'Duplicate copies your own');
+  const cards = code('./home/PublicCards.jsx');
+  assert.match(cards, /actions=\{mine \? null : \(/, 'your own Explore card has no Fork');
+  assert.match(cards, /<ForkButton size="sm" variant="soft" source=\{\{ token: card\.url\.split\('\/'\)\.pop\(\) \}\} title=\{card\.title\} resume=\{card\.url\} count=\{card\.fork_count\} onForked=\{\(fork\) => go\(fork\.url\)\} \/>/);
+  assert.match(cards, /fork_count: mine \? card\.fork_count : null/, 'no second count beside the button on others\' cards');
+  assert.match(code('./home/LearningCard.jsx'), /<Forks m=\{m\} \/>/);
+  assert.match(read('./home/Provenance.jsx'), /export function Forks\(\{ m \}\) \{\n\s+if \(!m\.forks\) return null;/, 'nothing at 0 (forkLabel(0) is null)');
+});
+
+// Owner, 2026-10-08: "make sure we have a small window to confirm or cancel and allows user to rename if needed".
+test('Fork opens "Fork this canvas": Cancel or Escape forks nothing, Fork sends the typed name, sign-in reopens it', async () => {
+  const { readFileSync } = await import('node:fs');
+  const button = readFileSync(new URL('./ForkButton.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  assert.match(button, /onClick=\{event => \{ event\.stopPropagation\(\); ask\(\); \}\}/, 'a press only opens the dialog');
+  assert.match(button, /const ask = \(\) => \{ if \(!busy\.current\) setNaming\(title \|\| ''\); \};/, 'prefilled with the source title');
+  assert.match(button, /<ConfirmDialog title="Fork this canvas" confirmLabel="Fork" confirmVariant="primary" onCancel=\{\(\) => setNaming\(null\)\} onConfirm=\{run\}/);
+  assert.match(button, /<Input autoFocus aria-label="Name" maxLength=\{120\} value=\{naming\}/);
+  assert.match(button, /await fork\.current\(\{ source, title: name\.trim\(\) \}\)/, 'the typed name; blank is the server\'s fallback');
+  assert.equal(button.match(/fork\.current\(/g).length, 1, 'run, from the dialog, is the only fork');
+  assert.match(button, /useEffect\(\(\) => \{ if \(auto\) ask\(\); \}, \[auto\]\)/, 'back from sign-in: the dialog again, never a silent fork');
+  assert.match(button, /\$\{resume \|\| window\.location\.pathname\}\?fork=1/);
+  assert.match(button, /createPortal\(/, 'above a hovered card\'s lift transform');
+  assert.match(read('./SharedBoardPage.jsx'), /<ForkButton source=\{\{ token \}\} title=\{shared\.title\} auto=\{forkRequested\}/, 'the header prefills the title it shows');
+  function read(file) { return readFileSync(new URL(file, import.meta.url), 'utf8'); }
 });

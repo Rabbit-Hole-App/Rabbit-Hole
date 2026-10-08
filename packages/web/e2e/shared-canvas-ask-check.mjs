@@ -168,8 +168,9 @@ const after = await ownerBoard(), threadsAfter = await ownerThreads();
 check('the owner\'s board version and content are unchanged', after.version === before.version && JSON.stringify(after.state) === JSON.stringify(before.state), `${before.version} -> ${after.version}`);
 check('the owner\'s threads are unchanged', JSON.stringify(threadsAfter) === JSON.stringify(threadsBefore) && threadsAfter.length === 0);
 
-// ---- Fork still works ----
+// ---- Fork still works (after its confirm dialog, owner 2026-10-08) ----
 await page.locator('[data-fork-button]').click();
+await page.getByRole('dialog', { name: 'Fork this canvas' }).getByRole('button', { name: 'Fork', exact: true }).click();
 await page.waitForURL(/\/apps\/canvas-[a-f0-9]{8}\?tab=learn$/, { timeout: 20000 });
 const forkName = new URL(page.url()).pathname.split('/').pop();
 check('Fork makes the viewer\'s own canvas', (await api(viewer, '/api/canvases')).canvases.some(c => c.name === forkName && c.owner_email === VIEWER));

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowDownToLine, Clock, GitFork, Info, Lock, PenLine, Sparkles, Users } from 'lucide-react';
+import { ArrowDownToLine, Clock, GitFork, Info, Lock, Shapes, Sparkles, Users } from 'lucide-react';
 import { Button, SlidePanel, Tabs, TabsList, TabsTrigger } from './ui.jsx';
 import { CREATOR_TOTALS, EXPLAINER_SECTIONS, INSUFFICIENT, NOT_COLLECTED, RANGES, THRESHOLD, TRAFFIC_SOURCES, creatorAnalytics, explainerAnalytics, metricText } from './creator-analytics.js';
 
@@ -110,7 +110,7 @@ export function CreatorDashboard({ profile, onClose }) {
       <Section title="Explainer comparison" note="One range for every row. A hidden cell is never 0." data-analytics-comparison>
         {view.explainers.length ? (
           <table className="w-full table-fixed">
-            <thead className="border-b border-line"><tr>{head(PenLine, 'Explainer')}{head(Users, 'Learners', true)}{head(Clock, 'Avg active', true)}{head(ArrowDownToLine, 'Started RH', true)}{head(GitFork, 'Forks', true)}</tr></thead>
+            <thead className="border-b border-line"><tr>{head(Shapes, 'Explainer')}{head(Users, 'Learners', true)}{head(Clock, 'Avg active', true)}{head(ArrowDownToLine, 'Started RH', true)}{head(GitFork, 'Forks', true)}</tr></thead>
             <tbody>
               {view.explainers.map(e => (
                 <tr key={e.url} className="border-b border-line last:border-b-0">

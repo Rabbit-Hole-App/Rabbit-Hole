@@ -16,10 +16,12 @@ test('creator attribution is @handle, the display name first when set, and never
   assert.equal(cardModel({ kind: 'canvas', name: 'canvas-0000000f', title: 'Before a handle', owner_email: 'ada@test', owner_handle: null }).creator, null, 'no handle, no creator: never the email');
   const fork = cardModel({ kind: 'canvas', name: 'canvas-00000010', title: 'Transformers', owner_email: 'bob@test', owner_handle: 'bob', forked_from_title: 'Transformers', forked_from_url: null, forked_from_handle: 'alice' });
   assert.deepEqual([fork.creator.name, fork.forkedFrom.creator], ['@bob', '@alice'], 'the fork is the forker\'s; its provenance credits the original owner');
-  // The original creator links to /@handle only while the original is published (docs/features/creator-profile.md).
-  assert.equal(fork.forkedFrom.creatorUrl, null, 'an unavailable original keeps the @handle as text');
+  // Every @handle links to its profile (owner, 2026-10-08), the original's creator included, whatever the original's state.
+  assert.equal(fork.forkedFrom.creatorUrl, '/@alice', 'an unavailable original still credits a clickable @handle');
+  assert.equal(fork.creator.url, '/@bob');
   const via = url => cardModel({ kind: 'canvas', name: 'canvas-00000011', forked_from_title: 'T', forked_from_url: url, forked_from_handle: 'alice' }).forkedFrom.creatorUrl;
-  assert.deepEqual([via('/b/tok'), via('/apps/canvas-00000012'), via('/e/tok')], [null, null, '/@alice'], 'a share link or your own canvas is not public');
+  assert.deepEqual([via('/b/tok'), via('/apps/canvas-00000012'), via('/e/tok')], ['/@alice', '/@alice', '/@alice']);
+  assert.equal(cardModel({ kind: 'canvas', name: 'canvas-00000013', forked_from_title: 'T', forked_from_creator: { name: 'Fixture' } }).forkedFrom.creatorUrl, null, 'no handle, no link');
 });
 
 test('fork counts read naturally: none is omitted, one is singular, large ones are compact', () => {

@@ -10,6 +10,8 @@ import { learnPreview } from './flags.js';
 import { onAnotherDevice } from './home/continue.js';
 import { chipHref, isMine, libraryQuery, ofType } from './library-filter.js';
 import LibraryViews, { ActiveFilters, LibraryFilters } from './LibraryViews.jsx';
+import { SortMenu } from './home/LearningCard.jsx';
+import { LIBRARY_SORTS, readLibrarySort, saveLibrarySort } from './home/card-sort.js';
 import { fixturesOn, useFixtures } from './home/review-fixtures.js';
 import { Avatar, Button, Chk, cn, ConfirmDialog, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, PillButton, SkeletonRows, SubMenu, Tip, toast, useHeaderDrag, ValuePicker } from './ui.jsx';
 
@@ -66,6 +68,13 @@ function AppContent({ data, load }) {
   const [rowMenu, setRowMenu] = useState(null); // { name, top, left }: a canvas row's ⋯ menu, portaled out of the scrolling table
   const [confirmArchive, setConfirmArchive] = useState(null); // the canvas row awaiting confirmation
   const [archivedList, setArchivedList] = useState(null); // null loading | rows | { error }
+  // Library sort (owner 2026-10-06 §18), beside Filters (owner, 2026-10-08): this viewer's, kept in this browser; read until
+  // chosen, since the viewer is known only once data loads.
+  const [chosenSort, setChosenSort] = useState(null);
+  const cardSort = chosenSort ?? readLibrarySort(localStorage, data?.org, data?.email);
+  const chooseSort = (id) => { setChosenSort(id); saveLibrarySort(localStorage, data?.org, data?.email, id); };
+  // Search by name beside Filters and Sort (owner, 2026-10-08): the cards whose title or repository holds the text.
+  const [find, setFind] = useState('');
 
   // RUN opens the peek on its Run tab (the [inputs] form); the form's own Run
   // button starts the run and flips the peek to Logs.
@@ -143,6 +152,8 @@ function AppContent({ data, load }) {
   const fixtures = reviewTools && fixturesOn(localStorage, window.location.search, reviewTools);
   const fx = useFixtures(fixtures);
   const withFixtures = fx && !section && !folder ? [...sectionApps, ...ofType(fx.FIXTURES.map((a) => ({ ...a, org })), type)] : sectionApps;
+  const needle = find.trim().toLowerCase();
+  const found = needle ? withFixtures.filter((a) => [a.title, titleOf(a)].some((t) => t?.toLowerCase().includes(needle))) : withFixtures;
   // T02 §4, §8.4: archived canvases come from LEARN_DB (GET /api/canvases?archived=1), never /api/apps.
   useEffect(() => {
     if (!archived) return;
@@ -213,7 +224,7 @@ function AppContent({ data, load }) {
             <button onClick={() => navigate('/apps')} className="rounded-sm px-1 py-0.5 hover:bg-hover hover:text-ink">{data?.orgName || wsName(org)}</button>
             <span className="px-1">/</span> <span className="text-ink">{title}</span>
           </div>}
-          <div className="flex items-center justify-between pb-5"><h1 className="text-[40px] leading-[1.2] font-bold tracking-[-0.01em]">{title}</h1>{learnPreview && <div className="flex shrink-0 items-center gap-2"><LibraryFilters type={type} section={section} archived={archived} /><Button variant="primary" onClick={startRabbitHole}>Start a rabbit hole</Button></div>}</div>
+          <div className="flex items-center justify-between pb-5"><h1 className="text-[40px] leading-[1.2] font-bold tracking-[-0.01em]">{title}</h1>{learnPreview && <div className="flex shrink-0 items-center gap-2">{!archived && type !== 'apps' && <div className="w-48 max-md:w-32"><Input type="search" data-library-search aria-label="Search by name" placeholder="Search by name" value={find} onChange={(e) => setFind(e.target.value)} /></div>}<LibraryFilters type={type} section={section} archived={archived} />{!archived && type !== 'apps' && <SortMenu size="md" options={LIBRARY_SORTS} value={cardSort} onChange={chooseSort} />}<Button variant="primary" onClick={startRabbitHole}>Start a rabbit hole</Button></div>}</div>
           {learnPreview && <ActiveFilters type={type} section={section} archived={archived} />}
           {/* The preview sidebar has no Apps section, so an AWS catalog error shows here instead. */}
           {learnPreview && data?.awsError && <p role="alert" className="pb-4 text-xs text-danger">{data.awsError}</p>}
@@ -248,7 +259,7 @@ function AppContent({ data, load }) {
 
           {/* Projects and Canvases are cards, All is sections; only the Apps view is the table. */}
           {learnPreview && !archived && type !== 'apps' && withFixtures.length > 0 && (
-            <LibraryViews apps={withFixtures} type={type} data={data} runningOf={runningId} onRun={startRun} onArchive={setConfirmArchive} onForked={load}
+            <LibraryViews apps={found} type={type} data={data} sort={cardSort} runningOf={runningId} onRun={startRun} onArchive={setConfirmArchive} onForked={load}
               onType={(k) => navigate(chipHref(window.location.search, 'type', k))} />
           )}
           {!archived && (learnPreview ? type === 'apps' && sectionApps.length > 0 : apps.length > 0) && (
@@ -582,7 +593,7 @@ function AppContent({ data, load }) {
         />
       )}
       <Menu portal open={!!rowMenu} onClose={() => setRowMenu(null)} style={{ top: rowMenu?.top, left: rowMenu?.left }} className="w-44">
-        <MenuItem icon={Archive} onClick={() => { setConfirmArchive(apps.find((x) => x.name === rowMenu.name)); setRowMenu(null); }}>Archive…</MenuItem>
+        <MenuItem icon={Archive} onClick={() => { setConfirmArchive(apps.find((x) => x.name === rowMenu.name)); setRowMenu(null); }}>Archive</MenuItem>
       </Menu>
       {confirmArchive && (
         <ConfirmDialog title={`Archive ${titleOf(confirmArchive)}?`} body="It leaves the Library. Its content stays in this browser, and Restore brings it back." confirmLabel="Archive" confirmVariant="primary" onConfirm={archive} onCancel={() => setConfirmArchive(null)} />

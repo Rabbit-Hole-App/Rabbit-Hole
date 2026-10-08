@@ -70,10 +70,12 @@ await owner.waitForTimeout(1500);
 await stranger.goto(viewLink);
 await stranger.locator('[data-shape-id="shared-rect"]').waitFor({ timeout: 60000 }).catch(() => {});
 check('a public view link opens without signing in', await stranger.locator('[data-shape-id="shared-rect"]').count() === 1 && new URL(stranger.url()).pathname.startsWith('/b/'));
-// a signed-out public viewer's Fork goes through sign-in and comes back to finish
+// a signed-out public viewer's Fork goes through sign-in and comes back to finish; Fork asks first (owner, 2026-10-08)
+const forkDialog = page => page.getByRole('dialog', { name: 'Fork this canvas' });
 await stranger.goto(viewLink);
 await stranger.getByRole('button', { name: 'Fork' }).waitFor({ timeout: 30000 });
 await stranger.getByRole('button', { name: 'Fork' }).click();
+await forkDialog(stranger).getByRole('button', { name: 'Fork', exact: true }).click();
 await stranger.waitForURL(url => url.pathname === '/login', { timeout: 15000 }).catch(() => {});
 const next = new URL(stranger.url()).searchParams.get('next') || '';
 check('a signed-out Fork asks you to sign in, then comes back to fork', new URL(stranger.url()).pathname === '/login' && next.endsWith('?fork=1'), next);
@@ -81,6 +83,7 @@ check('a signed-out Fork asks you to sign in, then comes back to fork', new URL(
 // the signed-in friend forks: their own canvas, a copy of the board
 await friend.goto(viewLink);
 await friend.getByRole('button', { name: 'Fork' }).click();
+await forkDialog(friend).getByRole('button', { name: 'Fork', exact: true }).click();
 await friend.waitForURL(url => /^\/apps\/canvas-[a-f0-9]{8}$/.test(url.pathname), { timeout: 30000 }).catch(() => {});
 const canvasName = new URL(friend.url()).pathname.split('/').pop();
 const copy = await friend.evaluate(async name => { const r = await fetch(`/api/learn/boards/${name}/main`); return { status: r.status, body: await r.json() }; }, canvasName);

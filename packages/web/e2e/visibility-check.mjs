@@ -46,8 +46,8 @@ await library();
 await check('1 the owned canvas ⋮ is the owner\'s menu, in order', async () => {
   await menuOf(TITLE);
   const labels = await page.locator('[role="menu"] button, .shadow-pop button').allInnerTexts();
-  const order = labels.map(l => l.trim()).filter(l => ['Rename', 'Edit description', 'Duplicate', 'Visibility', 'Share / Manage link', 'Archive…', 'Move to Trash'].includes(l));
-  assert.deepEqual(order, ['Rename', 'Edit description', 'Duplicate', 'Visibility', 'Share / Manage link', 'Archive…', 'Move to Trash']);
+  const order = labels.map(l => l.trim()).filter(l => ['Rename', 'Edit description', 'Duplicate', 'Visibility', 'Share / Manage link', 'Archive', 'Move to Trash'].includes(l));
+  assert.deepEqual(order, ['Rename', 'Edit description', 'Duplicate', 'Visibility', 'Share / Manage link', 'Archive', 'Move to Trash']);
 });
 await check('2 Visibility opens Private / Unlisted / Public with the current one checked', async () => {
   await page.locator('[data-menu-visibility]').click();
@@ -122,13 +122,21 @@ await check('9 Edit description: up to 500 characters, saved on the canvas', asy
   await page.waitForTimeout(1000);
   assert.equal((await row()).description, 'How light bends at a boundary, hands on.');
 });
-await check('10 Share / Manage link opens the canvas with its Share panel', async () => {
+// Owner, 2026-10-08: Share / Manage link opens the canvas page's own Share panel as a popup over the Library, never the canvas.
+await check('10 Share / Manage link opens the Share panel as a popup over the Library; closing it leaves the Library as it was', async () => {
+  const at = page.url();
   await menuOf(TITLE);
   await button('Share / Manage link').click();
-  await page.getByRole('dialog', { name: 'Share this board' }).waitFor({ timeout: 60000 });
-  assert.doesNotMatch(page.url(), /share=1/, 'the request is used once and dropped');
+  const panel = page.locator('[data-share-dialog]').getByRole('dialog', { name: 'Share this board' });
+  await panel.waitFor({ timeout: 60000 });
+  assert.equal(page.url(), at, 'still the Library');
+  assert.equal(await page.locator('[data-library-card]').filter({ hasText: TITLE }).count(), 1, 'the Library is under the popup');
+  await panel.getByRole('switch', { name: 'Share this board' }).waitFor();
+  await shot('05-share-panel');
+  await page.keyboard.press('Escape');
+  await page.locator('[data-share-dialog]').waitFor({ state: 'detached' });
+  assert.equal(page.url(), at, 'closing it stays on the Library');
 });
-await shot('05-share-panel');
 
 await check('11 Move to Trash confirms with the owner\'s words; the canvas leaves the Library; Restore brings it back unpublished', async () => {
   await library();

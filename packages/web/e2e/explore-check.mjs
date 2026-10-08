@@ -79,7 +79,11 @@ await viewer.page.locator('[data-explore-card]').first().waitFor({ timeout: 6000
 const card = viewer.page.locator('[data-explore-card]').filter({ hasText: TITLE });
 check('the Explore card shows the creator\'s @handle and the fork count, no email', (await card.locator('[data-creator]').innerText()).trim() === `@${H.owner}` && await noEmail(viewer.page, EMAIL.viewer));
 await shot(viewer.page, '04-explore');
+// A click on the card body only selects it (owner, 2026-10-08); its title opens it.
 await card.click();
+await viewer.page.waitForTimeout(500);
+check('a click on the Explore card selects it and stays on Explore', new URL(viewer.page.url()).pathname === '/explore');
+await card.locator('[data-card-title]').click();
 await viewer.page.waitForURL(new RegExp(`/e/${token}$`), { timeout: 30000 });
 await viewer.page.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 60000 });
 const header = viewer.page.locator('header');
@@ -94,8 +98,12 @@ await anon.page.goto(`${BASE}/e/${token}`);
 await anon.page.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 60000 });
 check('signed out, /e opens the published canvas, read-only, with no email', await anon.page.locator('[data-shared-creator]').count() === 1 && await noEmail(anon.page));
 await shot(anon.page, '06-signed-out');
-const signInThen = async (button, expectNext) => {
+// Fork asks first (owner, 2026-10-08): "Fork this canvas" before the sign-in, and again on the way back - never a silent fork.
+const forkDialog = () => anon.page.getByRole('dialog', { name: 'Fork this canvas' });
+const confirmFork = async () => { await forkDialog().waitFor({ timeout: 30000 }); await forkDialog().getByRole('button', { name: 'Fork', exact: true }).click(); };
+const signInThen = async (button, expectNext, confirm = null) => {
   await anon.page.locator(button).click();
+  if (confirm) await confirm();
   await anon.page.waitForURL(/\/(login|sign-in)\?next=/, { timeout: 20000 });
   const next = new URL(anon.page.url()).searchParams.get('next');
   // The dev worker refuses /login (the P0-B barrier): the session the sign-in would end with, then `next`.
@@ -103,7 +111,11 @@ const signInThen = async (button, expectNext) => {
   await anon.page.goto(`${BASE}${next}`);
   return next === expectNext ? null : next;
 };
-const wrongFork = await signInThen('[data-fork-button]', `/e/${token}?fork=1`);
+const wrongFork = await signInThen('[data-fork-button]', `/e/${token}?fork=1`, confirmFork);
+await forkDialog().waitFor({ timeout: 60000 });
+check('back from sign-in, the Fork dialog opens again with the title, and nothing is forked yet', await forkDialog().getByRole('textbox', { name: 'Name' }).inputValue() === TITLE
+  && (await api(who.late, '/api/canvases')).body.canvases.length === 0);
+await confirmFork();
 await anon.page.waitForURL(/\/apps\/canvas-[a-f0-9]{8}\?tab=learn$/, { timeout: 60000 });
 const forkName = new URL(anon.page.url()).pathname.split('/').pop();
 const fork = (await api(who.late, `/api/apps/${forkName}`)).body;

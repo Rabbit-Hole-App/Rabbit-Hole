@@ -26,7 +26,8 @@ Owner rules, 2026-10-06. Titles are labels, never identities.
 - **What it makes:** a new private canvas of yours, independent of the source.
   - It is not a fork: no `canvas_forks` row, so no provenance and no change to anyone's fork count.
   - It keeps the source's project.
-  - It runs the same copy as a fork of your own canvas (fork() with `duplicate`): this browser's content (`state`), or else the server copy. Notebook ids are renamed, and the server copy's files are copied.
+  - It runs the same copy as a fork of your own canvas (fork() with `duplicate`): this browser's content (`state`), or else the server copy. `state: null` (the Library's `localBoard` when this browser holds no copy) means the server copy too, never a 400 (owner bug, 2026-10-08: "even duplicate gives state must be a board object"). Notebook ids are renamed, and the server copy's files are copied.
+  - It is the only copy of your own canvas in the UI: your own canvas has no Fork (canvas-forking.md, 2026-10-08).
 - **Refused:** a share link (400; links fork), another workspace's canvas (404), signed out (401).
 - **Transitional:** while canvas content lives in the browser (canvas-storage-audit), the copy's content travels with the request, exactly as Fork's does. When server persistence owns content, Duplicate copies the server's canonical state instead.
 - `ponytail:` there is no replay key. A double press in the menu is one action (the menu closes), but a request retried after a lost reply makes a second copy. Add a key, as Fork has, if that is ever seen.

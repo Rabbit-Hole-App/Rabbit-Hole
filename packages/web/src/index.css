@@ -309,7 +309,10 @@ html {
   --viz-identity-2: #f7eb9c;
   --viz-identity-3: #9966ff;
 }
+/* White text stays white on a blue or red surface; the hex blue too (Publish to Explore, the canvas question bubble -
+   black on blue in dark mode, owner 2026-10-08). */
 .dark [class*='bg-accent'],
+.dark [class*='bg-[#2383e2]'],
 .dark [class*='bg-danger'] {
   --color-white: #ffffff;
 }
@@ -463,6 +466,15 @@ tr.cursor-pointer:active > td {
 }
 .dark .lift-card:hover {
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+/* A click on a card selects it, never opens it (owner, 2026-10-08): the card takes focus, so one card is selected at a
+   time and a click elsewhere clears it. After .lift-card:hover, so a hovered selected card keeps its accent edge. */
+.select-card {
+  outline: none;
+}
+.select-card:focus-within {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px var(--color-accent);
 }
 .nudge-arrow {
   transition: transform 150ms ease;

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, BadgeCheck, Bell, Braces, Check, CircleUser, Compass, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, ChevronsLeft, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, House, LayoutGrid, LayoutPanelLeft, Library, Link, LogOut, Mail, MoreHorizontal, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, Bell, Braces, Check, CircleUser, Compass, ChevronDown, ChevronUp, ChevronRight, ChevronsLeft, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, House, LayoutGrid, LayoutPanelLeft, Library, Link, LogOut, Mail, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
 import { ago, api, getTheme, navigate, sectionOf, setTheme, setWs, wsName, workspaceLabel } from './api.js';
 import AwsConnection from './AwsConnection.jsx';
 import ByocDevBadge from './ByocDevBadge.jsx';
@@ -975,7 +975,8 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
             {!rail && <ByocDevBadge />}
             <button type="button" aria-label={rail ? 'Expand sidebar' : 'Collapse sidebar'} onClick={rail ? onExpand : onCollapse} {...tipFor(rail ? 'Expand sidebar' : 'Collapse sidebar')}
               className="grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded-md text-ink-3 hover:bg-hover hover:text-ink">
-              {rail ? <ChevronRight size={16} strokeWidth={1.75} /> : <ChevronLeft size={16} strokeWidth={1.75} />}
+              {/* The panel icon, as the canvas's right panel toggle draws it (owner, 2026-10-08), not a chevron. */}
+              {rail ? <PanelLeftOpen size={16} strokeWidth={1.75} /> : <PanelLeftClose size={16} strokeWidth={1.75} />}
             </button>
           </div>
         ) : (
@@ -1179,10 +1180,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
           {!rail && recentOpened.length > 0 && (
             <section aria-label="Recent" className={SECTION}>
               <SectionHead label="Recent" open={!secClosed.recent} onToggle={() => toggleSec('recent')} />
-              {!secClosed.recent && <>
-                {recentOpened.map((a) => appRow(a))}
-                <button type="button" onClick={() => navigate('/library')} className="flex h-8 w-full shrink-0 cursor-pointer items-center rounded-lg px-3.5 text-left text-xs text-ink-2 hover:bg-hover hover:text-ink">View all</button>
-              </>}
+              {!secClosed.recent && recentOpened.map((a) => appRow(a))}
             </section>
           )}
           <div className="sticky bottom-0 z-30 mt-auto flex shrink-0 flex-col gap-0.5 border-t border-line bg-side pt-2">
