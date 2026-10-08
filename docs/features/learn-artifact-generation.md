@@ -134,8 +134,11 @@ composer.
   ignoring a leading `/`. Enter selects the first match, and "No commands
   match" shows when nothing does. Esc clears a typed search first, then closes
   the sheet.
+- The list and its search are `CommandList.jsx`, shared with the Agent Bar's
+  sheet (project-map-learn.md).
 - Every command in the sheet shows a demo (`slash-sheet.js`, pinned by
-  `slash-sheet.test.mjs`):
+  `slash-sheet.test.mjs`, which also pins that every registry command is offered
+  with a demo or excluded by name):
   - a command that makes cards shows the real card at its canvas size, with a
     tab for each card it can make;
   - `/source` shows the sheet's `/explain` card with its Sources & evidence
@@ -149,6 +152,10 @@ composer.
   provider. It shows committed files:
   - `/animate` plays `public/landing/softmax-overview-v1.mp4` in the real Maths
     animation card;
+  - `/motion` (development builds only, `VITE_MOTION_DEV`) plays the same
+    clip, which is the landing page's /motion explainer, as a finished
+    `/motion 25s explain softmax` (25 s, "Motion explainer"; no renderer or
+    sources claimed);
   - `/video` and `/3d` have no committed finished file, so they show a labelled
     picture of the finished card (`public/lesson-assets/slash-video-prism.svg`,
     `slash-3d-frustum.svg`).

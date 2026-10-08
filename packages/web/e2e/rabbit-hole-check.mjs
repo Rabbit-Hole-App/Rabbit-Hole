@@ -1468,24 +1468,21 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  await check('bar-cmd: "/" opens the four modes then the shortcuts, unavailable ones dimmed with their reason, Esc closes only the picker; /teach pill; Backspace returns to Auto', async () => {
+  await check('bar-cmd: "/" opens the modes this place can run then the shortcuts, none dimmed and no /research, Esc closes only the picker; /teach pill; Backspace returns to Auto', async () => {
     const page = await barOpen();
     const bar = barOf(page);
     await barInput(page).fill('/');
     const options = bar.getByRole('option');
     await options.first().waitFor({ timeout: 5000 });
-    // The four modes, then the shortcuts this place can use (WP5): /run only with a job in the catalog.
-    const expected = ['/ask', '/teach', '/research', '/do', '/find', '/open', '/new', '/connect', ...(apps.some((a) => a.kind === 'job') ? ['/run'] : [])]; // solo v1: no /share
+    // The modes this place can run, then its shortcuts (WP5): /run only with a job in the catalog. A mode refused here is not
+    // offered (r28 audit): /research is refused everywhere and unwired, so it is never a row. Solo v1: no /share.
+    const expected = ['/ask', '/teach', '/do', '/find', '/open', '/new', '/connect', ...(apps.some((a) => a.kind === 'job') ? ['/run'] : [])];
     must(JSON.stringify(await options.locator('[data-picker-name]').allTextContents()) === JSON.stringify(expected), `picker: ${await options.locator('[data-picker-name]').allTextContents()}`);
     // Every command in its own colour (owner, 2026-10-08): a toned mark per offered row, no two alike.
     const tones = await options.locator('[data-command-tone]').evaluateAll((all) => all.map((n) => getComputedStyle(n).color));
-    must(tones.length >= expected.length - 2 && new Set(tones).size === tones.length, `picker tones: ${tones}`);
+    must(tones.length === expected.length && new Set(tones).size === tones.length, `picker tones: ${tones}`);
     must(await bar.getByRole('listbox').getByRole('separator').count() === 1, 'no divider between modes and shortcuts');
-    const research = bar.getByRole('option', { name: /research/ });
-    must(await research.getAttribute('aria-disabled') === 'true', 'research is not dimmed');
-    await research.getByText('Off on this preview', { exact: true }).waitFor(); // a review-copy limit; the product offers research everywhere
-    must(await research.getByTitle('Research here would call the live model, so it is off on this preview.').count() === 1, 'the full reason is not the tooltip');
-    if (!askLiveOnPreview) await bar.getByRole('option', { name: /^\/ask/ }).getByText('Off on this preview', { exact: true }).waitFor();
+    must(await bar.locator('[role="option"][aria-disabled="true"]').count() === 0, 'a dimmed row is offered');
     await barInput(page).press('Escape');
     must(await options.count() === 0, 'the picker is still open');
     must(await barInput(page).inputValue() === '/', 'Esc changed the draft');
@@ -1725,7 +1722,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
   // DELETE never 405s); nothing clicks Run, Open, Refresh branch, Duplicate, Trash, Share or Request access. ──
   const { NOT_HERE, NOT_HERE_WHY, canvasKeys } = await import('../src/home/canvas-local.js'); // pure, like flags.js
   const D7 = 'Blocked on this preview: it would change live apps.'; // agent/commands.js D7_REASON (commands.js pulls api.js, so not imported)
-  const ASK_OFF = 'Asking about the workspace or apps is off on this preview: it would write to live chat history.'; // agent/slash.js ASK_OFF
+  const ASK_OFF = 'Asking about an app is off on this preview: it would write to live chat history.'; // agent/slash.js ASK_OFF
   const ready = apps.find((a) => a.kind === 'repository' && a.status === 'ready' && a.commit_sha && /^karpathy\/nanogpt$/i.test(a.repo || ''))
     || apps.find((a) => a.kind === 'repository' && a.status === 'ready' && a.commit_sha);
   const job = apps.find((a) => a.kind === 'job' && a.hosting !== 'aws' && a.lastRun) || apps.find((a) => a.kind === 'job' && a.hosting !== 'aws');

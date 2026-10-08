@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Search, X } from 'lucide-react';
-import { EXAMPLES, cardsFor, mayConfirmPaid, parseSlash, pickerSections } from './learn-slash.js';
+import { X } from 'lucide-react';
+import { EXAMPLES, mayConfirmPaid, parseSlash, pickerSections } from './learn-slash.js';
 import { learnRequest } from './agent/slash.js';
 import { BLOCK_TYPES, LearningBlockBody } from './LearningBlocks.jsx';
 import NotebookBody from './NotebookCard.jsx';
@@ -8,12 +8,12 @@ import { newNotebookBlock } from './learn-notebook.js';
 import { Md } from './ask.jsx';
 import { CommandMark } from './CommandTone.jsx';
 import SourcesDisclosure from './SourcesDisclosure.jsx';
-import { Input } from './ui.jsx';
-import { CHAT_EXAMPLES, ILLUSTRATIONS, SAMPLES, SOURCE_NOTE, demoOf, filterSections } from './slash-sheet.js';
+import CommandList from './CommandList.jsx';
+import { CHAT_EXAMPLES, ILLUSTRATIONS, SAMPLES, SOURCE_NOTE, demoOf, sheetCards } from './slash-sheet.js';
 
 // Every Learn / command, opened from View > Slash commands. Left: a search over the
-// picker's own sections (learn-slash.js), so the sheet and the picker never
-// disagree. Right: the command's demo (slash-sheet.js) - the real card it puts on
+// picker's own sections (learn-slash.js, CommandList.jsx), so the sheet and the
+// picker never disagree. Right: the command's demo (slash-sheet.js) - the real card it puts on
 // the canvas, drawn by the canvas's own card components; the card /source opens;
 // or, for a chat command, an example exchange. Only the selected card renders.
 // The card works as on the canvas, except that Generate for paid media is
@@ -22,24 +22,16 @@ import { CHAT_EXAMPLES, ILLUSTRATIONS, SAMPLES, SOURCE_NOTE, demoOf, filterSecti
 // (/practice explain it back -> Explain back); otherwise the first.
 const exampleCard = name => {
   const narrowed = learnRequest(name, { args: parseSlash(EXAMPLES[name] || '')?.args || '' }).allowedPrimitives;
-  return narrowed?.length === 1 ? Math.max(0, cardsFor(name).findIndex(entry => entry.primitive === narrowed[0])) : 0;
+  return narrowed?.length === 1 ? Math.max(0, sheetCards(name).findIndex(entry => entry.primitive === narrowed[0])) : 0;
 };
 
 export default function SlashCommandsSheet({ appName, onClose }) {
-  const [query, setQuery] = useState('');
-  // Esc clears a typed search first, then closes.
-  useEffect(() => {
-    const key = event => { if (event.key === 'Escape') { if (query) setQuery(''); else onClose(); } };
-    window.addEventListener('keydown', key);
-    return () => window.removeEventListener('keydown', key);
-  }, [onClose, query]);
   const sections = pickerSections('/');
-  const shown = filterSections(sections, query);
   const [name, setName] = useState('graph');
   const [cardIndex, setCardIndex] = useState(0);
   const choose = next => { setName(next); setCardIndex(exampleCard(next)); };
   const demo = demoOf(name);
-  const cards = demo === 'cards' ? cardsFor(name) : [];
+  const cards = demo === 'cards' ? sheetCards(name) : [];
   const card = cards[Math.min(cardIndex, cards.length - 1)];
   const command = sections.flatMap(section => section.items).find(item => item.name === name);
   return (
@@ -53,31 +45,7 @@ export default function SlashCommandsSheet({ appName, onClose }) {
         </div>
         <p className="mb-3 text-xs text-ink-2">Type <kbd className="rounded border border-line bg-hover px-1.5 py-0.5 font-sans text-[11px]">/</kbd> in the Learn composer, pick a command, then add what you want after it. Search or choose one here to see what it does.</p>
         <div className="flex min-h-0 flex-1 gap-4 max-md:flex-col">
-          <div className="flex w-60 shrink-0 flex-col max-md:w-full">
-            <label className="relative mb-2 block shrink-0">
-              <Search size={14} aria-hidden="true" className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-ink-3" />
-              {/* Enter takes the first match; a leading / is ignored (filterSections). */}
-              <Input type="search" autoFocus data-slash-search aria-label="Search commands" placeholder="Search commands" value={query}
-                onChange={event => setQuery(event.target.value)}
-                onKeyDown={event => { if (event.key === 'Enter' && shown.length) { event.preventDefault(); choose(shown[0].items[0].name); } }}
-                className="pl-8" />
-            </label>
-            <nav aria-label="Commands" className="min-h-0 flex-1 overflow-y-auto pr-1 max-md:max-h-48">
-              {shown.length ? shown.map(section => (
-                <section key={section.title} aria-label={section.title} className="mb-3">
-                  <h3 className="mb-1 px-2 text-[11px] font-semibold tracking-wider text-ink-3 uppercase">{section.title}</h3>
-                  {section.items.map(item => (
-                    <button key={item.name} type="button" data-slash-help={item.name} aria-current={item.name === name}
-                      onClick={() => choose(item.name)}
-                      className={`flex w-full items-baseline gap-2 rounded-lg px-2 py-1 text-left text-sm ${item.name === name ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}>
-                      <CommandMark name={item.name} />
-                      <span className="truncate text-xs text-ink-3">{item.desc}</span>
-                    </button>
-                  ))}
-                </section>
-              )) : <p data-slash-none className="px-2 py-1 text-xs text-ink-3">No commands match</p>}
-            </nav>
-          </div>
+          <CommandList sections={sections} current={name} onChoose={choose} onClose={onClose} row="data-slash-help" className="w-60 max-md:max-h-56 max-md:w-full" />
           <section aria-label={`/${name} preview`} className="flex min-h-0 min-w-0 flex-1 flex-col rounded-xl border border-line bg-hover/40 p-4">
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <CommandMark name={name} className="text-base font-semibold text-ink" />
@@ -139,7 +107,8 @@ function CardPreview({ type, command, appName }) {
       <div aria-hidden className={`flex h-6 shrink-0 items-center justify-center rounded-t-xl ${ghost ? 'opacity-0 group-hover:opacity-100' : ''}`}><span className="h-1 w-12 rounded-full bg-line" /></div>
       {type === 'notebook'
         ? <NotebookBody block={block} onSelect={() => {}} onDocument={() => {}} onManifest={() => {}} />
-        : ILLUSTRATIONS[type]
+        // A sample with a finished clip of its own (/motion's) plays it; otherwise the picture.
+        : ILLUSTRATIONS[type] && !block.src
           ? <Illustration block={block} {...ILLUSTRATIONS[type]} />
           : <LearningBlockBody block={block} onChange={setBlock} onChangeQuiet={setBlock} appName={appName} selected />}
       {block.sources && <SourcesDisclosure sources={block.sources} />}

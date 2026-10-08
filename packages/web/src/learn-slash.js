@@ -19,10 +19,11 @@ const row = command => ({ name: command.name, desc: descFor(command, 'learn') })
 // "More learning tools" section with every other available command - /more is
 // a way to reach tools, not a tool, so it is never a row. A typed prefix (or
 // a typed /more) searches every available Learn command.
-export function pickerSections(text, { catalog = false } = {}) {
+// motionDev: as commandsFor (a development build offers /motion); tests pass it to see that build's list.
+export function pickerSections(text, { catalog = false, motionDev } = {}) {
   const typed = text.match(/^\/([\w-]*)$/)?.[1];
   if (typed === undefined) return null;
-  const learn = commandsFor('learn').filter(available);
+  const learn = commandsFor('learn', { motionDev }).filter(available);
   if (catalog || typed) {
     const items = learn.filter(command => command.name.startsWith(typed.toLowerCase())).map(row);
     return items.length ? [{ title: catalog && !typed ? 'All learning tools' : null, items }] : [];
@@ -47,6 +48,8 @@ export const EXAMPLES = {
   notebook: '/notebook', walkthrough: '/walkthrough a token through the model', whiteboard: '/whiteboard the sigmoid', paper: '/paper 1706.03762',
   image: '/image a sigmoid curve', video: '/video light through a prism', '3d': '/3d a camera frustum', source: '/source',
   ask: '/ask what does wte do?', teach: '/teach causal masking',
+  // Development builds only (VITE_MOTION_DEV): the committed clip it shows is 25 s.
+  motion: '/motion 25s explain softmax',
 };
 // The canvas card each primitive becomes: its + palette sample in
 // LearningBlocks' BLOCK_TYPES (the notebook is its own card).
@@ -68,8 +71,8 @@ export const cardsFor = name => {
 // Tutor's cost_tier for such a create_material is none).
 export const insertsWithoutModel = name => !!commandsFor('learn').find(entry => entry.name === name)?.deterministic || name === 'image';
 
-// Whether running this command can end in a paid generation (it always asks first).
-export const mayConfirmPaid = name => learnRequest(name).paid.some(isReady);
+// Whether running this command can end in a paid generation (it always asks first). /motion's action is a paid proposal.
+export const mayConfirmPaid = name => name === 'motion' || learnRequest(name).paid.some(isReady);
 
 // Professor Next Steps (contract §2.5): the commands a Tutor hook turn may run as create_material - those that can put a
 // card on the canvas now (cardsFor) through the command path alone. Search, navigation and catalog actions need the learner.

@@ -25,12 +25,18 @@ export const CHAT_EXAMPLES = {
 // /source acts on a card rather than making one: the sheet opens the Sources & evidence of its own /explain card.
 export const SOURCE_NOTE = 'Opens the Sources & evidence of the card you select. It adds no card of its own.';
 
+// The cards the sheet shows for a command: what it makes (learn-slash.js cardsFor). /motion (development builds only)
+// makes a video card through its own action, so it names that card here.
+const SHEET_CARDS = { motion: [{ primitive: 'motion', card: 'videoGenerate' }] };
+export const sheetCards = name => SHEET_CARDS[name] || cardsFor(name);
+
 // What the right pane shows: the cards a command makes, the card /source opens, or an example exchange.
-export const demoOf = name => (cardsFor(name).length ? 'cards' : name === 'source' ? 'sources' : CHAT_EXAMPLES[name] ? 'chat' : null);
+export const demoOf = name => (sheetCards(name).length ? 'cards' : name === 'source' ? 'sources' : CHAT_EXAMPLES[name] ? 'chat' : null);
 
 const XS = [-4, -3, -2, -1, 0, 1, 2, 3, 4];
 const round = value => Math.round(value * 1000) / 1000;
-// The committed finished clip /animate shows (packages/web/public/landing): softmax sharing out the whole by score.
+// The committed finished clip /animate and /motion show (packages/web/public/landing): softmax sharing out the whole by
+// score, 25 s, the landing page's /motion explainer.
 const CLIP = '/landing/softmax-overview-v1.mp4';
 
 // The sheet's own sample for a command's card, laid over the card's + palette sample (BLOCK_TYPES): /compare's
@@ -69,6 +75,12 @@ export const SAMPLES = {
     mathAnimation: { title: 'Softmax shares the whole by score', caption: 'Every score gets a share of 1: the highest the biggest share, the lowest still some.',
       status: 'ready', src: CLIP, variants: [{ src: CLIP }], variant: 0 },
   },
+  // A finished /motion request: the brief's title and duration arrive with the video (learn-video-label.js); no renderer
+  // or sources are claimed for this clip.
+  motion: {
+    videoGenerate: { title: 'Softmax shares the whole by score', caption: '', status: 'ready', src: CLIP, variants: [{ src: CLIP }], variant: 0,
+      operation: { op: 'motion_request', request: '/motion 25s explain softmax', location: { concept: 'softmax' } }, motion: { duration_seconds: 25, source_refs: [] } },
+  },
   source: {
     explanation: { sources: [
       code('model.py', 127, 127, 'The token table: "wte = nn.Embedding(config.vocab_size, config.n_embd)" - one learned row per token id.'),
@@ -85,12 +97,4 @@ export const ILLUSTRATIONS = {
     note: 'Illustration. On the canvas, Generate (paid) makes the real clip.' },
   scene: { kicker: '3D model', src: '/lesson-assets/slash-3d-frustum.svg', alt: 'A camera frustum with a cube inside it and a ray from the camera to the cube',
     note: 'Illustration. On the canvas, Generate (paid) builds the real scene for the 3D viewer.' },
-};
-
-// The sheet's search: commands whose name or description contains what is typed. A leading / is ignored.
-export const filterSections = (sections, query) => {
-  const typed = query.trim().replace(/^\//, '').toLowerCase();
-  if (!typed) return sections;
-  return sections.map(section => ({ ...section, items: section.items.filter(item => `${item.name} ${item.desc}`.toLowerCase().includes(typed)) }))
-    .filter(section => section.items.length);
 };
