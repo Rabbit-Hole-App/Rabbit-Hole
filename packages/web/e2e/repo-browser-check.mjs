@@ -353,7 +353,8 @@ await check('10b Copy in the panel says Copied on the button; pasting it on the 
   await actions.getByRole('button', { name: 'Copy', exact: true }).click();
   await actions.getByRole('button', { name: 'Copied', exact: true }).waitFor({ timeout: 5000 }); // in place, not a corner toast
   const copied = await page.evaluate(() => navigator.clipboard.readText());
-  assert.equal(copied, content['train.py'].split('\n').slice(4, 7).join('\n'));
+  // The OS clipboard may hand back CRLF (Windows); the paste below keeps it, as a real paste would, and map-files.js same() must still match.
+  assert.equal(copied.replace(/\r\n/g, '\n'), content['train.py'].split('\n').slice(4, 7).join('\n'));
   const paste = (text) => page.evaluate((t) => { document.activeElement?.blur(); const data = new DataTransfer(); data.setData('text/plain', t); window.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true })); }, text);
   const dialog = page.locator('[data-file-import-dialog]');
   await paste(copied);
