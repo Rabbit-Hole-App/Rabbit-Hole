@@ -104,12 +104,15 @@ await check('1 Explore: Explainers by default with no creator row; the Creators 
   const full = viewer.locator(`[data-creator-chip="${H.full}"]`), min = viewer.locator(`[data-creator-chip="${H.min}"]`);
   assert.equal(await full.getAttribute('href'), `/@${H.full}`);
   // Owner, 2026-10-08: a square card - name, @handle, the description, and "N projects · M canvases" of public things only
-  // (the private, unlisted and archived canvases never count; neither creator has a public project).
-  assert.match(await full.innerText(), new RegExp(`^Mayank\\s+@${H.full}\\s`));
-  assert.equal((await full.locator('[data-creator-description]').innerText()).trim(), DESC);
-  assert.equal((await full.locator('[data-creator-counts]').innerText()).trim(), '0 projects · 3 canvases');
+  // (the private, unlisted and archived canvases never count; neither creator has a public project). The meta lines are
+  // read by their own elements: the card's text also holds the avatar's initial when there is no picture.
+  const meta = async card => Promise.all(['name', 'handle', 'description', 'counts'].map(async k => {
+    const el = card.locator(`[data-creator-${k}]`);
+    return (await el.count()) ? (await el.innerText()).trim() : null;
+  }));
+  assert.deepEqual(await meta(full), ['Mayank', `@${H.full}`, DESC, '0 projects · 3 canvases']);
   assert.equal(await full.locator('img').count(), 1, 'the uploaded picture');
-  assert.match(await min.innerText(), new RegExp(`^@${H.min}\\s+0 projects · 1 canvas$`), 'no description, no empty line');
+  assert.deepEqual(await meta(min), [`@${H.min}`, null, null, '0 projects · 1 canvas'], 'the @handle once, as the name; no description, no empty line');
   assert.equal(await min.locator('img').count(), 0, 'initials');
   for (const h of [H.full, H.min]) {
     const box = await viewer.locator(`[data-creator-card="${h}"]`).boundingBox();
