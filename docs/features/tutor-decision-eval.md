@@ -142,11 +142,11 @@ All files are in `tests/evals/tutor-session/`. Everything is generic and tested 
 | `creator.mjs` | Creator analytics with the 10-learner cohort rule at every level (§17). |
 | `fixtures/` | Topic fixtures (`logistic-regression`, `photosynthesis`), simulator-only profiles, `taxonomy.json` (the eval's labels over the product's modality names, its reason-code checks, relations, review thresholds) and `cost-roles.json` (product roles; the material roles still provisional). |
 | `tutor-session.test.mjs` | 35 tests on the scripted fake world (the generic harness, metrics, cost, materials, graph). |
-| `product.test.mjs` | 9 tests on the real product path: the end-to-end path, provider isolation, tracing on/off (seeded, and under the product's normal randomness), the production validators, the stopping point, no copied logic, taxonomy names, mapping. |
+| `product.test.mjs` | 12 tests on the real product path: the end-to-end path, provider isolation, tracing on/off (seeded, and under the product's normal randomness), the production validators, the stopping point, no copied logic, taxonomy names, mapping, the Next Steps report (escalation reasons and validator rule names from the product's own hook traces), the paid transport offline (a fake fetch: Anthropic and JEV pass-through, other hosts refused, the eval's calls around the boundary), every typed turn's evaluation recorded without text. |
 | `budget.test.mjs` | 8 tests: complete-request worst cases, reservations, the ceiling's scope, the simulator and reviewer requests, a mid-session refusal on an active journey, every product request reserved, the reviewer's holdback (a ceiling-stopped session still reviewed), a review that outgrows its holdback refused unsent. |
 | `creator.test.mjs` | 7 tests: suppression, the cohort at every cut, no double counting, no learner identity, the public profile, impressions from the product's events. |
 
-All 59 run in `make test-unit`. They are scripted: they establish the plumbing, routing, validation and evidence rules, never real-model teaching quality (every bundle carries `coverage`, §19).
+All 62 run in `make test-unit`. They are scripted: they establish the plumbing, routing, validation and evidence rules, never real-model teaching quality (every bundle carries `coverage`, §19).
 
 There is no topic or profile branch in the code, and a test enforces it:
 - No harness source names a topic id, a topic title word or a profile id.
@@ -308,15 +308,17 @@ without a schema change.
 
 ## 7. The simulated learner and the reviewer
 
-**Learner simulator** (`claude-sonnet-5-5`; wired as `modelLearner` through `evalCall`, scripted transport only):
+**Learner simulator** (`claude-sonnet-5-5`, effort `low`, `max_tokens` 1500 so its default thinking leaves room for the
+JSON; `modelLearner` through `evalCall`: scripted in the free suite, `anthropicTransport` on the paid run):
 - **Sees:** its hidden profile, the topic goal, the material summary, the hook texts and its own past exchange.
 - **Never sees:** reasons, rationale, expected evidence, evidence state, hidden goals or answers.
 - **Reply format:** `LEARNER_REPLY_SCHEMA` is used as `output_config.format`: one move, an offered option id (a click) or
-  null with typed words.
+  null with typed words. Nullable fields use `anyOf` with `null`, a documented structured-output form.
 - **Reply checks:** `parseLearnerReply` re-checks every reply. It refuses an option that wasn't offered and any profile label.
 
-**Session reviewer** (`claude-opus-5-5`, one call per session; wired as runSession's `reviewer` through `evalCall`,
-scripted transport only; its budget is held from the session's start, §18):
+**Session reviewer** (`claude-opus-5-5`, one call per session, default effort, `max_tokens` 8000 for thinking plus the
+JSON; runSession's `reviewer` through `evalCall`: scripted in the free suite, `anthropicTransport` on the paid run; its
+budget is held from the session's start, §18):
 - **Sees:** the folded trace, without the profile and without hidden reasoning (`reviewerView`).
 - **Reply format:** `REVIEW_SCHEMA`.
 - **Reply checks:** `parseReview` requires ten scores from 1 to 5, findings that cite recorded steps, and a judgement for each flagged sequence.
@@ -387,9 +389,19 @@ See §12. The ceiling applies to Anthropic spend only, with the learner simulato
 node --test "tests/evals/tutor-session/*.test.mjs"      # free, from the repository root; part of make test-unit
 node tests/evals/tutor-session/run.mjs aggregate <dir>  # session files -> aggregate.json, steps.csv, table
 node tests/evals/tutor-session/run.mjs events <jsonl>   # any event stream -> grouped metrics
+node tests/evals/tutor-session/run.mjs paid <dir> <env file> <topic>   # PAID (owner-approved run A, §18), then aggregate
 ```
 
-No paid simulation is wired: `product.mjs` installs only the stub provider boundary (§16).
+The free suite installs only the stub provider boundary (§16). `paid` swaps it for `realAnswers`: the product's own
+Anthropic and JEV requests go to the real providers unchanged, still reserved (Anthropic) and metered (both) at the
+boundary; every other host stays refused. Only `ANTHROPIC_API_KEY`, `TYPESAFE_API_KEY` and `VERCEL_TYPESAFE_API_KEY` are
+read from the env file (names printed, values never), and the product picks its own JEV transport. Without a JEV key the
+product sends no JEV request and typed answers are never evaluated; `coverage` records which. `aggregate.json` carries `next_steps` (`nextStepsReport`): sets requested and shown, unavailable reasons,
+the escalation rate over sets that called a planner (a set whose escalation also failed has no trace but still counts),
+escalation reasons, the first reply's validator rule names, set latency and cost per planner role. It also carries
+`evidence` (`evidenceReport`): every typed turn's evaluation as the product returned it, without text (`evaluationOf`, on
+the `evidence_updated` event): status, the rung, the escalation policy's reason, the kinds of check it was unsure about,
+event results and kinds settled or not, and the router row each decision took.
 
 ## 12. Cost / API usage
 
@@ -673,7 +685,7 @@ stream, so the owner's rules can be proven before any store exists.
 added by this lane. The Explore publication table is on main, not in this baseline, so the identity is re-checked on
 the integrated SHA.
 
-## 18. Proposed real-model runs (not run; for review)
+## 18. Real-model runs
 
 **A. Three-profile session evaluation (logistic regression).**
 - **Profiles.** One session per profile: novice, intermediate, advanced. The labels stay in the simulator.
@@ -682,7 +694,8 @@ the integrated SHA.
 - **Models.**
   - Learner simulator: Sonnet 5.5, one call per decision.
   - Reviewer: Opus 5.5, one call per session.
-- **Transport.** The same `providerBoundary`, with the stub replaced by the real Anthropic and JEV transports (not wired).
+- **Transport.** The same `providerBoundary` with `realAnswers` (the real Anthropic API and, owner 2026-10-08 "JEV where
+  needed", the real JEV), and `anthropicTransport` for the simulator and the reviewer.
 - **Budget enforcement: a conservative reservation guard, not a guaranteed hard billing ceiling.** Built and tested
   offline in `budget.test.mjs`; chars/3 is gone. It refuses any request whose worst case does not fit, and it never sends
   a refused request. It cannot cap what Anthropic bills, for these reasons:
@@ -725,12 +738,12 @@ the integrated SHA.
     reservation, so every session request is refused before the review could stop fitting. At the end it is given
     back and the real review request reserved in the same tick. A review whose request outgrows the holdback reserves
     again and is recorded as `refused`, unsent, when that does not fit. A limit below the holdback stops the session
-    before it sends anything. For 15 decisions the holdback is $0.48 of the $1.30.
-  - **At full worst-case usage** (every request costing its whole bound): without the holdback the session stopped
-    after 4 of 15 decisions at $1.26 and the review no longer fitted. With it, the session stops with `cost_ceiling`
-    after 1 decision and is reviewed: $0.82 in all, the review $0.11.
+    before it sends anything. For 15 decisions the holdback is $0.56 of the $1.30 (reviewer `max_tokens` 8000).
+  - **At full worst-case usage** (every request costing its whole bound): without the holdback the session stops
+    after 3 of 15 decisions at $1.18 and the review no longer fits. With it, the session stops with `cost_ceiling`
+    after 1 decision and is reviewed: $0.91 in all, the review $0.19.
   - **At low usage** (the stub's token counts): all 15 decisions complete and are reviewed, $0.60 in all (the review
-    reserved $0.33 and cost $0.06).
+    reserved $0.41 and cost $0.06).
   - **So the evaluation may stop before all planned decisions finish.** How far it gets depends on real usage, which
     only the paid run shows; the holdback trades decisions for a guaranteed review.
 - **Materials.** `create_material` stays `not_run` in this first run; material generation is a separate approval.
@@ -746,21 +759,61 @@ the integrated SHA.
 | Tutor planner, 15 turns (every fast plan escalating to Opus) | $2.70 | $0.30 |
 | Larger evaluator, every typed turn | $1.58 | $0.06 |
 | Hooks, 14 sets, every set escalating | $2.38 | $0.20 |
-| Learner simulator, 15 calls | $0.30 | $0.10 |
-| Reviewer, 1 call | $0.30 | $0.08 |
-| **Session** | **$7.77** | **about $0.90** |
+| Learner simulator, 15 calls (1500 `max_tokens`) | $0.41 | $0.10 |
+| Reviewer, 1 call (8000 `max_tokens`) | $0.38 | $0.08 |
+| **Session** | **$7.95** | **about $0.90** |
 
 - **Expected total:** about $2.70 for three sessions. This is an estimate of real usage that only the paid run measures.
 - **The worst case is not reachable through the guard:** reservations stop every session at its limit and the run at
   $4.00, within the guard's limits stated above.
 - **Early stops:** near a ceiling, a request is refused whenever its worst case does not fit, so a session can stop with
   real headroom left.
-- **Before any paid call:**
-  - **done:** the simulator and reviewer calls are wired (`modelLearner`, runSession's `reviewer`, both through
-    `evalCall`), with the reviewer's worst case held from each session's start; free gates passed on Parallel's
-    integrated candidates;
-  - **left for the paid-run approval:** the real transport (in the boundary and for `evalCall`, where the reservations
-    already are) and a run command. They are not built, so nothing here can make a paid call.
+- **Readiness (all built):** the simulator and reviewer calls (`modelLearner`, runSession's `reviewer`, through
+  `evalCall`), the reviewer's worst case held from each session's start, the real transport (`realAnswers`,
+  `anthropicTransport`) and `run.mjs paid`. Owner approval 2026-10-08 ("Tutor's paid real-model evaluation run", the dev
+  Anthropic workspace, $10/month). Results: §18.1.
+
+### 18.1 Run A results (2026-10-08, evaluator 6fd6b3c0 on main 5484e38d)
+
+One session per profile on `logistic-regression`, real Anthropic (dev workspace) and real JEV, 15:43-15:52Z.
+
+- **Spend:** $1.61 Anthropic metered (78 calls, 0 refused, 0 bound violations, 0 outbound blocked) of the $4.00 run
+  limit. JEV: 29 calls, all ok, p50 about 140 ms, cost unknown (not reported by the provider). An earlier Anthropic-only
+  attempt (fc332fc7) was stopped after about 5 minutes when JEV was approved; its bundle was not written, so its spend is
+  unmetered, at most $0.74 (the session limit minus the unspent reviewer holdback).
+- **Sessions:**
+
+| Profile | Stop | Decisions | Anthropic | Review |
+|---|---|---|---|---|
+| novice | max_decisions | 15 | $0.77 | ok |
+| intermediate | max_decisions | 15 | $0.75 | ok |
+| advanced | error at the LP1 accept: `journey_section` returned an invalid plan (check c2: key needs correct, misconception mapping), 502 | 0 | $0.09 | skipped |
+
+- **Professor Next Steps** (`aggregate.json` `next_steps`; only the novice session reached a stopping point):
+  - 4 sets requested, 3 shown, 1 failed (its escalation was refused by the validator too: reason and rules unknown,
+    no trace).
+  - Escalation rate 0.75 (3 of 4 sets called Opus). Reasons: `escalated:validator` 2, plus the failed set.
+  - Failing validator rules of the routine reply: `hook_words` 2.
+  - Latency per set: routine 3.8 s, escalated 13.1-14.3 s. Per call: Sonnet p50 3.7 s, Opus p50 10.2 s.
+  - Cost: $0.094 in all, about $0.023 per set (routine $0.032 for 4 calls, escalation $0.061 for 3).
+- **Tutor planner:** $0.33 (novice) and $0.40 (intermediate) for 15 turns each; p50 8.6 s and 10.2 s per turn.
+- **What the sessions showed** (reviewer findings and the traces, one simulated learner each, not a learning outcome):
+  - The learners answered correctly turn after turn, yet the targeted claim stayed `uncertain`, and the Tutor kept asking
+    near-identical weighted-sum questions (intermediate: 15 of 15 decisions `ask_question`, one modality).
+  - A waiting Tutor question is not a stopping point, so the intermediate session never offered Next Steps.
+  - The intermediate learner's repeated question (how a score becomes a probability) was deferred to a later section
+    each time.
+  - Reviewer scores: `progress_toward_goal` 1 and `pacing` 1 in both reviewed sessions.
+- **Cause (from the recorded router rows, then reproduced offline):** every typed answer after the first evaluation took
+  the router row `uncertain_unsettled` (novice decisions 4-13, intermediate 2-15), which allows `ask_question` only.
+  `evaluationFrom` settles a typed turn's events only when every JEV answer in the batch is confident; one unsure check
+  leaves them all unsettled, the escalation policy calls that `low_consequence` (no larger evaluator: none ran), and the
+  router's "one clarifying question" has no limit. A scripted JEV unsure on the transfer check alone (0.5, every other
+  check confident) keeps 6 of 6 turns on `uncertain_unsettled` with the claim `uncertain`; the same session with the
+  transfer check at 0.95 settles and reaches `understood` on the first answer. Run A did not record which check was
+  unsure; `evidence` records it from 2026-10-08 on. Proposed product fixes (Learning): settle per claim, escalate an
+  unsure transfer check on a `test_transfer` turn, cap the clarifying question, answer a question the learner repeats;
+  retry `journey_section` once on a validator failure, as Next Steps does.
 
 **B. Equivalent phrasings: quality, latency and cost** (contract §4.1.1 follow-up).
 - **Pairs:**

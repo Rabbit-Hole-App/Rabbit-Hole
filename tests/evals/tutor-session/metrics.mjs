@@ -425,6 +425,51 @@ export function varietyWithPurpose(metrics, review) {
   return { diversity, fit: round(fit), repetition_justified_rate: round(justified), flagged_sequences: flagged, score: fit == null ? null : round(fit * (diversity + (1 - diversity) * justified)) };
 }
 
+// Professor Next Steps on a run, from the product's own next_steps_computed traces and the ledger's cost lines: how often the
+// hook planner escalated and why, the first reply's validator rule names, latency and cost per planner role. The rate counts
+// the sets that called a planner (a cached set calls none) by their calls, so a set whose escalation failed too (unavailable,
+// no trace) still counts as escalated; only its reason and rule names are unknown.
+export function nextStepsReport(bundles) {
+  const events = bundles.flatMap(bundle => bundle.events);
+  const sets = events.filter(e => e.type === 'next_steps_ready'), traced = sets.map(e => e.trace).filter(Boolean);
+  const escalated = traced.filter(t => t.runtime.model.escalated), routine = traced.filter(t => !t.runtime.model.escalated);
+  const calls = events.filter(e => ['model_call_completed', 'model_call_failed'].includes(e.type) && e.hook_set_id);
+  const byRole = Object.fromEntries(Object.entries(Object.groupBy(calls, c => c.model_role)).map(([role, list]) => [role, {
+    calls: list.length, failed: list.filter(c => c.type === 'model_call_failed').length, cost_usd: round(sum(list.map(c => c.cost_usd ?? c.held_usd ?? 0)), 6), latency_ms: stats(list.map(c => c.latency_ms)),
+  }]));
+  const ms = list => stats(list.map(t => t.runtime.timing.total_ms));
+  const planned = new Set(calls.map(c => c.hook_set_id)), escalatedSets = new Set(calls.filter(c => c.model_role === 'tutor_next_steps_escalation').map(c => c.hook_set_id));
+  return {
+    sets_requested: events.filter(e => e.type === 'next_steps_generation_started').length,
+    sets_shown: sets.filter(e => e.options.length).length,
+    unavailable: tally(sets.filter(e => e.unavailable).map(e => e.unavailable)),
+    escalation_rate: planned.size ? round(escalatedSets.size / planned.size, 4) : null,
+    escalations: tally(escalated.map(t => t.runtime.validation.fallback)),
+    validator_rules: tally(traced.flatMap(t => t.runtime.validation.repairs)),
+    set_ms: { all: ms(traced), routine: ms(routine), escalated: ms(escalated) },
+    by_role: byRole,
+    cost_usd: round(sum(Object.values(byRole).map(r => r.cost_usd)), 6),
+  };
+}
+
+// The evidence path on a run: how the product's evaluation of typed turns came out (status, the rung that answered, the
+// escalation policy's reason), the kinds of check it was unsure about (c0_transfer -> transfer, counted once per
+// evaluation), and the router row each decision took.
+const checkKind = key => key.match(/^c\d+_([a-z]+)/)?.[1] ?? (/^g\d+$/.test(key) ? 'gap' : key);
+export function evidenceReport(bundles) {
+  const evaluations = bundles.flatMap(bundle => bundle.events).filter(e => e.type === 'evidence_updated' && e.evaluation).map(e => e.evaluation);
+  const events = evaluations.flatMap(e => e.events);
+  return {
+    evaluations: evaluations.length,
+    status: tally(evaluations.map(e => e.status)),
+    evaluator: tally(evaluations.map(e => e.evaluator)),
+    escalation: tally(evaluations.map(e => e.escalation?.reason ?? 'none')),
+    unsure_checks: tally(evaluations.flatMap(e => [...new Set((e.escalation?.unsure_checks || []).map(checkKind))])),
+    events: { total: events.length, settled: events.filter(e => e.settled).length, by_result: tally(events.map(e => `${e.result}${e.kind ? `:${e.kind}` : ''}`)) },
+    route_rows: tally(bundles.flatMap(bundle => bundle.steps.map(step => step.tutor_decision?.route_row ?? 'none'))),
+  };
+}
+
 // ---------- The eval's aggregate.json ----------
 
 // bundles: the simulator's session files ({ simulator: { profile }, events, review? }). Profiles exist only in the

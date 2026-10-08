@@ -6,7 +6,9 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { validateEvent, stateMap } from './events.mjs';
 import { loadProfiles, loadTaxonomy, loadTopic, runSession, simulatedIds } from './harness.mjs';
-import { HOOK_DEBOUNCE_MS, claimList, decisionOf, optionOf, plannerContextOf, productWorld, providerBoundary, roleOf, stubAnswers } from './product.mjs';
+import { evidenceReport, nextStepsReport } from './metrics.mjs';
+import { HOOK_DEBOUNCE_MS, anthropicTransport, claimList, decisionOf, optionOf, plannerContextOf, productWorld, providerBoundary, realAnswers, roleOf, stubAnswers } from './product.mjs';
+import { JEV_URL } from '../../../packages/control-plane/src/learn-grade-jev.js';
 import { actionContract } from '../../../packages/web/src/learn-tutor-actions.js';
 import { ACTION_TYPES, PLANNER_SYSTEM, REASON_CODES, TRACE_SCHEMA_VERSION, TUTOR_PLANNER_VERSION } from '../../../packages/control-plane/src/agents/learn-tutor.js';
 import { NEXT_STEPS_SYSTEM } from '../../../packages/control-plane/src/agents/learn-next-steps.js';
@@ -266,4 +268,77 @@ test('mapping helpers rename product fields only (A1, A2, A6): HookSet options, 
   assert.equal(roleOf({ tools: [{ name: 'suggest_next_steps' }], model: LEARN_TASKS.tutor_next_steps_escalation.model }), 'tutor_next_steps_escalation');
   assert.equal(roleOf({ tools: [{ name: 'something_else' }], model: 'm' }), 'unknown');
   assert.deepEqual(plannerContextOf({ messages: [{ content: 'Compose this turn.\n\ncontext = {"a":1}' }] }), { a: 1 });
+});
+
+test("the Next Steps report reads the product's own hook traces: escalations and why, the first reply's validator rule names, latency and cost per planner role", async () => {
+  // The routine planner repeats its first hook in every option (the validator's duplicate_hook); the escalation answers well-formed.
+  const hooks = (input, body) => {
+    const out = fixtureFor('suggest_next_steps', input);
+    return body.model === LEARN_TASKS.tutor_next_steps.model ? { ...out, options: out.options.map(option => ({ ...option, hook: out.options[0].hook })) } : out;
+  };
+  const { bundle } = await realSession({ answers: stubAnswers({ hooks }) });
+  assert.equal(bundle.simulator.stop_reason, 'max_decisions', bundle.simulator.error?.message);
+  const report = nextStepsReport([bundle]), validator = report.escalations['escalated:validator'];
+  assert.ok(validator > 0);
+  // Every set that called the planner escalated: on the validator (the routine reply's rule names kept), straight to Opus on a
+  // contradictory claim (no routine call), or failing on Opus too (unavailable, no trace: its reason unknown, still counted).
+  assert.equal(report.escalation_rate, 1);
+  assert.deepEqual(Object.keys(report.escalations).filter(reason => !['escalated:validator', 'escalated:contradictory'].includes(reason)), []);
+  assert.deepEqual(report.validator_rules, { duplicate_hook: validator });
+  assert.deepEqual([report.set_ms.escalated.n, report.set_ms.routine.n], [report.sets_shown, 0]);
+  assert.equal(report.sets_shown + (report.unavailable.failed ?? 0), report.sets_requested);
+  assert.equal(report.by_role.tutor_next_steps_escalation.calls, report.sets_requested);
+  assert.equal(report.by_role.tutor_next_steps.calls, report.sets_requested - (report.escalations['escalated:contradictory'] ?? 0));
+  assert.ok(report.cost_usd > 0);
+  // The product's own fixture is well-formed: no rule fails, so nothing escalates on the validator.
+  const plain = nextStepsReport([(await realSession()).bundle]);
+  assert.deepEqual([plain.validator_rules, plain.escalations['escalated:validator'], plain.set_ms.routine.n + plain.set_ms.escalated.n], [{}, undefined, plain.sets_shown]);
+});
+
+test("the paid transport, offline: the product's own Anthropic and JEV requests pass through unchanged and are metered, other hosts are refused, the eval's own calls carry the key and bypass the boundary", async () => {
+  const sent = [];
+  const send = async (input, init) => {
+    const body = JSON.parse(init.body);
+    sent.push({ url: String(input), headers: init.headers, body });
+    return body.max_tokens === 1 ? Response.json({ type: 'error', error: { message: 'rate limited' } }, { status: 429 }) : Response.json({ id: `msg_${sent.length}`, model: body.model, content: [{ type: 'text', text: '{}' }], usage: { input_tokens: 10, output_tokens: 5 } });
+  };
+  const before = globalThis.fetch, boundary = providerBoundary(realAnswers(send));
+  try {
+    assert.equal(boundary.realFetch, before);
+    const lines = [];
+    boundary.onCall = call => lines.push(call);
+    const init = { method: 'POST', headers: { 'x-api-key': 'product-key', 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model: 'claude-sonnet-5-5', max_tokens: 10, messages: [{ role: 'user', content: 'hi' }] }) };
+    await fetch('https://api.anthropic.com/v1/messages', init);
+    assert.deepEqual(sent[0], { url: 'https://api.anthropic.com/v1/messages', headers: init.headers, body: JSON.parse(init.body) });
+    assert.deepEqual([lines[0].transport, lines[0].request_id, lines[0].usage.input_tokens], ['anthropic', 'msg_1', 10]);
+    await fetch(JEV_URL, { method: 'POST', headers: { authorization: 'Bearer jev' }, body: '{"model":"typesafe-ai/jev"}' });
+    assert.deepEqual([sent[1].url, lines[1].provider, lines[1].model_role], [JEV_URL, 'typesafe', 'jev']);
+    await assert.rejects(fetch('https://example.com/x', { method: 'POST', body: '{}' }), { code: 'OUTBOUND_BLOCKED' });
+    sent.splice(1, 1);
+    const transport = anthropicTransport({ key: 'eval-key', send });
+    assert.equal(transport.kind, 'anthropic');
+    assert.equal((await transport({ model: 'claude-opus-5-5', max_tokens: 5, messages: [] })).id, 'msg_2');
+    assert.deepEqual([sent[1].url, sent[1].headers['x-api-key'], sent[1].headers['anthropic-version'], boundary.requests.length], ['https://api.anthropic.com/v1/messages', 'eval-key', '2023-06-01', 2]);
+    await assert.rejects(transport({ model: 'claude-opus-5-5', max_tokens: 1, messages: [] }), { code: 'http_429' });
+  } finally { boundary.restore(); }
+  assert.equal(globalThis.fetch, before);
+});
+
+test("the evaluation of every typed turn is recorded without text: status, escalation with the unsure checks, event shapes; the evidence report counts them", async () => {
+  // JEV unsure about transfer only, sure about everything else (yes on attempt and ideas, no on the rest).
+  const jev = request => ({ answers: Object.fromEntries(Object.keys(request.questions || {}).map(key => [key, { type: 'noul', noul: /_transfer$/.test(key) ? 0.5 : /^attempt$|_idea\d+$/.test(key) ? 0.95 : 0.05 }])) });
+  const { bundle } = await realSession({ answers: stubAnswers({ jev }) });
+  const judged = bundle.events.filter(event => event.type === 'evidence_updated' && event.evaluation);
+  assert.ok(judged.length > 0);
+  for (const { evaluation } of judged) {
+    assert.deepEqual(Object.keys(evaluation), ['status', 'evaluator', 'escalation', 'events']);
+    assert.equal(evaluation.evaluator, 'jev');
+    assert.ok(evaluation.escalation.unsure_checks.some(key => key.endsWith('_transfer')));
+    for (const event of evaluation.events) assert.deepEqual(Object.keys(event), ['claim', 'idea', 'result', 'kind', 'settled']);
+  }
+  assert.ok(!JSON.stringify(judged.map(event => event.evaluation)).includes('probability')); // the learner's words never ride along
+  const report = evidenceReport([bundle]);
+  assert.equal(report.evaluations, judged.length);
+  assert.equal(report.unsure_checks.transfer, judged.length);
+  assert.equal(Object.values(report.route_rows).reduce((a, b) => a + b, 0), bundle.steps.length);
 });
