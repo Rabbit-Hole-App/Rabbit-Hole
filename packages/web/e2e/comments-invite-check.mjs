@@ -36,7 +36,8 @@ const errors = [], stray = [];
 const contextFor = async session => {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
   if (session) await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
-  await context.route(/\/api\/learn\/(ask|tutor|artifact|home-ask|journeys?)\b/, route => { if (route.request().method() === 'GET') return route.continue(); stray.push(route.request().url()); return route.abort(); });
+  // Next Steps' hook on canvas open is an expected request (professor-next-steps.md); it is aborted like every other write here, so no model is asked.
+  await context.route(/\/api\/learn\/(ask|tutor|artifact|home-ask|journeys?)\b/, route => { if (route.request().method() === 'GET') return route.continue(); if (!route.request().url().endsWith('/api/learn/tutor/next-steps')) stray.push(route.request().url()); return route.abort(); });
   return context;
 };
 const ownerContext = await contextFor(owner.session), guestContext = await contextFor(guest.session);
