@@ -1,0 +1,42 @@
+# A push to main releases production (owner 2026-10-08, B1), only when scripts/prod-release.mjs allows it:
+# the exact commit has a green dev deployment (fresh full gate and smoke pass, from refs/notes/dev-deploys),
+# the production preflight finds no missing or forbidden secret and no pending migration, and HOLD is lifted.
+# It never applies a migration. While HOLD is true the release step stops before any remote call.
+name: release production
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: production
+  cancel-in-progress: false
+jobs:
+  release:
+    if: github.repository == 'Rabbit-Hole-App/Rabbit-Hole'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - name: Green dev deployment of this commit
+        run: |
+          git fetch -q origin '+refs/notes/dev-deploys:refs/notes/dev-deploys' 2>/dev/null || true
+          git notes --ref=dev-deploys show "$GITHUB_SHA" > "$RUNNER_TEMP/dev-deploys.jsonl" 2>/dev/null \
+            || { echo "$GITHUB_SHA was never deployed on dev: not released"; exit 1; }
+      - run: npm ci --no-audit --no-fund
+      - name: Release
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: c08d3dbdc53a3afd3cb09a536ac42318
+          VITE_TLDRAW_LICENSE_KEY: ${{ secrets.VITE_TLDRAW_LICENSE_KEY }}
+        run: |
+          node scripts/prod-release.mjs prepare --sha "$GITHUB_SHA" --dev-record "$RUNNER_TEMP/dev-deploys.jsonl"
+          build="$(node -p "require('$(git rev-parse --path-format=absolute --git-common-dir)/rabbit-hole-prod-release/$GITHUB_SHA/prepared.json').build")"
+          # The owner's policy (B1): a push to main that passes every check above is the approval.
+          node scripts/prod-release.mjs release --sha "$GITHUB_SHA" --build "$build" --approve "RELEASE $GITHUB_SHA $build"

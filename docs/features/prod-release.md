@@ -13,7 +13,16 @@ Resources, secrets and the build flags are in [rabbit-hole-production.md](rabbit
 
 `release` checks `HOLD` first and exits with code 2 before any remote call, whatever its arguments are.
 - Lifting the hold is a reviewed code change to that one line, plus its pinning test in `scripts/prod-release.test.mjs`. It is never an environment variable or a flag.
-- Lifting the hold does not approve a release. Each release still needs the owner's in-session GO for that sha and build.
+- Lifting the hold does not approve a release by hand: that still needs the owner's in-session GO for that sha and build. From 2026-10-08, a push to Rabbit-Hole-App `main` that passes every check is also an approval (below).
+
+## Release on a push to main (owner, 2026-10-08)
+
+The owner chose B1 in Home's session: Rabbit-Hole-App/Rabbit-Hole `main` is the production trigger, and a push that passes every check is the approval. `.github/workflows/deploy-prod.yml` runs the same job:
+
+- **Trigger:** a push to `main`, and nothing else. It runs only in Rabbit-Hole-App/Rabbit-Hole, one release at a time, in the `production` environment. That environment admits only `main` and holds `CLOUDFLARE_API_TOKEN` and `VITE_TLDRAW_LICENSE_KEY`.
+- **Green dev deployment:** the exact commit needs its dev deploy record in `refs/notes/dev-deploys`, written by the dev workflow, with gates `pass` and smoke `pass`. Without it nothing is released.
+- **Then** `prepare --dev-record <that note>` builds it, and `release --approve "RELEASE <sha> <build>"` uses the prepared build. Every rule below still applies: HOLD first, the exact prepared build, the read-only preflight of secrets and of main and learn migrations. It never applies a migration.
+- **While `HOLD = true`** the release step exits 2 before any remote call, so a push to `main` releases nothing. Lifting HOLD is still its own reviewed change and needs the owner's GO.
 
 ## Steps
 
