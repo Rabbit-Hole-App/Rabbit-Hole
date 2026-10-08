@@ -6,7 +6,7 @@
 - The pipeline is built.
 - Access is configured. Home verified it read-only on 2026-10-07: it admits the owner's email and the smoke service token, and production is untouched.
 - The first automated run, for main `e03a7a53`, rolled itself back. Its smoke looked for `/assets/` instead of `/static/`. That is fixed.
-- The clone serves `42f5a4f0` until the next run.
+- Main `1b7a2116` is deployed (version 54d4e7a7, build `5acc0f6ba69c`, gate reused from `e03a7a53`). Its smoke is **blocked** only by the dev Learn schema.
 - **Signed-in flows** are blocked on the dev Learn schema request, which is prepared and not approved: [Dev Learn schema](#dev-learn-schema-0004-0010-prepared-not-approved).
 
 Production release is a separate, held job: [prod-release.md](prod-release.md) (Home).
@@ -53,6 +53,8 @@ serving):
      - `dist` is the control plane's own shell, bundled through `control-plane/src/index.js`;
      - `dist-dev` is the documented dev build, with `VITE_COACHING_DEV`, `VITE_BYOC_DEV` and the notebook origin set before the build.
    - A leftover `dist` from another commit never ships. The 2026-10-08 run from a fresh checkout failed to bundle without one.
+   - The Worker uploads `dist/index.html` as a module, because the control plane's shell import pulls it in. The run refuses unless it is byte-identical to `dist-dev/index.html`, so the `dist-dev` build hash identifies everything uploaded.
+   - "No local changes" compares content (`git diff HEAD`). `npm ci` rewrites the line endings of `packages/cli/bin/small.js`, which `git status` would report.
    - The deploy is `wrangler deploy dev-access-worker.js --config wrangler.dev.jsonc --name rabbit-hole-web-dev-small-parallel`, with the message `main <sha> build <hash>`.
    - The entrypoint is the dev worker with the Access bridge in front; see [Access](#access).
 5. **Record.**

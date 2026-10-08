@@ -123,4 +123,6 @@ test('the deploy uses only this commit: lockfile install, both page builds, pinn
   assert.match(src, /for \(const outDir of \['dist', 'dist-dev'\]\)/);
   assert.ok(!/execFileSync\('npx'/.test(src) && !/shell: true/.test(src), 'no npx, no shell');
   assert.ok(!/`"(main|rollback)/.test(src), 'messages are plain arguments, not shell-quoted');
+  assert.match(src, /readFileSync\(join\(web, 'dist\/index\.html'\)\)\.equals\(readFileSync\(join\(web, 'dist-dev\/index\.html'\)\)\)/, 'the packaged shell is covered by the build identity');
+  assert.match(src, /git\('diff', '--name-only', 'HEAD'\)/, 'clean means clean content: npm ci line-ending rewrites do not block the next run');
 });
