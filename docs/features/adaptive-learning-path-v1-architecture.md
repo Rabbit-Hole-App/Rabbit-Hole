@@ -155,7 +155,7 @@ These are surgical: every function gains an optional `domain = NANOGPT` paramete
 | `learn-tutor.js` | `buildTurn`, `turnClaims`, `evaluationSpec`, `route`, `plannerContext`, `runTurn` and `executeActions` take `domain`. `runTurn({ …, domain, plan = true })`: `plan: false` stops after evidence reconciliation (diagnostic turns, §6.3). `off_slice` keeps its name: no claim in the domain's scope. |
 | `agents/learn-tutor.js` | `plannerSystem(kind)`. `plannerSystem('nanogpt') === PLANNER_SYSTEM`, byte-identical, pinned by a snapshot test. `plannerSystem('journey')` is the same lines with the subject line and the authored-content line made generic (point at the section's cards on the canvas, never invent cards), plus three journey lines: teach inside `context.journey_context.section`; name an upcoming section instead of teaching it early; never mention a level or a score. `TUTOR_TOOL` and `ACTION_TYPES` are unchanged in LP1. |
 | `learn-tutor-routes.js` | `/plan`: `context.journey_context` present → `plannerSystem('journey')`, otherwise unchanged. `/evaluate`: a body with `journey_id` takes the journey evidence path (§5). Tiering, caching and streaming are unchanged. The journey prompt is its own stable cached prefix, the same for every journey, because the topic sits in the user message. |
-| `LearnTutor.jsx` | `useTutor({ …, domain, journey })`. `active` additionally covers a board with a live journey. The interaction resolver runs at the top of `turn()`, the one entry shared by typed and voice turns (§7). The store hydrates its events from the journey on load. |
+| `LearnTutor.jsx` | `useTutor({ …, domain, journey })`. `active` additionally covers a board with a live journey. The interaction resolver runs at the top of `turn()`, the one entry shared by typed and voice turns (§7). The store hydrates its events from the journey on load. Since Professor Next Steps Task 0 (2026-10-06), `active` and the domain come from `learn-tutor-domains.js` `tutorContext` over the `TUTOR_DOMAINS` registry data (nanoGPT is one entry); no course is named in the hook. |
 
 ### 3.2 Journey domain behaviour
 
@@ -292,6 +292,11 @@ of `learning_journey | focused_skill | quick_overview | fast_start | direct_ques
 It runs on the Home teach path and on the Learn composer of a canvas that has no live journey and no nanoGPT
 Tutor. A broad intent on a board that already has a live journey opens a `clarification` tray: "Continue <topic>
 or start <new topic>?".
+
+Superseded on canvases (Professor Next Steps Task 11b): every canvas now has the Auto Tutor, so this word gate no
+longer runs from a canvas composer and a second broad intent is a Tutor turn, not continue-or-start. The Tutor may
+offer a learning path instead (`suggest_journey`, a Start a learning path chip); the current statement is
+[professor-next-steps.md](professor-next-steps.md) §4.5. Home's teach path keeps the gate.
 
 ### 6.2 Intake (deterministic bank, no model call)
 

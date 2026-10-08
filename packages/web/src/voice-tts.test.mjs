@@ -16,6 +16,9 @@ test('speakable drops code, math, URLs and markdown syntax but keeps link text',
   assert.equal(speakable(''), '');
   assert.equal(speakable(null), '');
   assert.equal(speakable('```\nonly code\n```'), '');
+  // Task 14 owner addition: HTML tags are markup too; the words inside stay, and a spoken comparison is not a tag.
+  assert.equal(speakable('Each <code>input file</code> is read once<br/>.'), 'Each input file is read once .');
+  assert.equal(speakable('When a < b and b > c, a is smallest.'), 'When a < b and b > c, a is smallest.');
 });
 
 test('speakable caps about 600 characters at a sentence boundary, else at a word', () => {

@@ -541,3 +541,159 @@ test('planner states: two settled named misconceptions reach the path planner as
   const { states } = calls.find(c => c.role === 'journey_path').input;
   assert.deepEqual(states[claim], { state: 'misconception', settled_passes: 0, settled_negatives: 2 });
 });
+
+// ---- Owner decisions 2026-10-07 (docs/features/professor-next-steps.md §4.5): switching subject during setup ----
+// The Start a learning path chip calls the journey start. During setup (intake, diagnostic, path review) the board already
+// holds a live journey, so the start is 409 live_journey, which opens LP1's continue-or-start (the confirmation naming both
+// subjects). Its Start sends one start with replace: the setup is archived in the insert's transaction.
+test('owner 2026-10-07 (c): a start in intake, diagnostic or path review is 409 live_journey; a replace start archives the setup and starts the new subject', async t => {
+  const { post, rows, throughIntake, throughDiagnostic } = setup(t);
+  const first = (await post('start', { text: LEARN })).body.journey;
+  const states = [];
+  const refused = async () => {
+    const r = await post('start', { text: 'Teach me SQL' });
+    assert.deepEqual([r.status, r.body.error, r.body.journey.id], [409, 'live_journey', first.id]);
+    states.push(r.body.journey.state);
+  };
+  await refused();
+  const diagnostic = await throughIntake();
+  await refused();
+  await throughDiagnostic(diagnostic);
+  await refused();
+  assert.deepEqual(states, ['intake', 'diagnostic', 'path_review']);
+  assert.equal(rows().length, 1, 'no refused start wrote a row');
+  const r = await post('start', { text: 'Teach me SQL', replace: first.id });
+  assert.equal(r.status, 200);
+  assert.deepEqual([r.body.journey.state, r.body.journey.request.topic, r.body.tray.slot], ['intake', 'sql', 'goal']);
+  assert.notEqual(r.body.journey.id, first.id);
+  assert.deepEqual(rows().map(row => [row.id === first.id, row.archived_at != null]), [[true, true], [false, false]]);
+});
+
+test('owner 2026-10-07 (e): a replace start that fails keeps the current setup live', async t => {
+  const { env, post, rows } = setup(t);
+  const first = (await post('start', { text: LEARN })).body.journey;
+  const live = () => rows().filter(row => row.archived_at == null).map(row => row.id);
+  // Refused before any write: not a learning request, no topic, a malformed replace.
+  for (const [body, error] of [[{ text: 'What is SQL?', replace: first.id }, 'not_a_learning_journey'], [{ text: 'Skip setup and start', replace: first.id }, 'topic_required'], [{ text: 'Teach me SQL', replace: 7 }, 'replace must be a journey id']]) {
+    const r = await post('start', body);
+    assert.deepEqual([r.status, r.body.error], [400, error]);
+    assert.deepEqual(live(), [first.id], error);
+  }
+  // A database failure on the insert rolls the archive back: one transaction (the fixture's D1 batch, BEGIN/ROLLBACK).
+  const batch = env.LEARN_DB.batch;
+  env.LEARN_DB.batch = statements => batch(statements.map((s, i) => (i === 1 ? { runNow: () => { throw new Error('D1_ERROR: insert failed'); } } : s)));
+  await assert.rejects(post('start', { text: 'Teach me SQL', replace: first.id }), /insert failed/);
+  env.LEARN_DB.batch = batch;
+  assert.deepEqual(live(), [first.id]);
+  assert.deepEqual(rows().map(row => [row.id, row.archived_at, row.revision]), [[first.id, null, first.revision]], 'the setup is untouched');
+  // A replace naming no live journey of this board (an id another tab archived, or a made-up one) archives nothing; the live
+  // journey answers 409, so the browser asks again naming it.
+  const r = await post('start', { text: 'Teach me SQL', replace: 'lj_not-this-one' });
+  assert.deepEqual([r.status, r.body.error, r.body.journey.id], [409, 'live_journey', first.id]);
+  assert.deepEqual(live(), [first.id]);
+});
+
+// Decision 3 (owner 2026-10-07): the Auto Tutor stays on dev/review boards, isolated from the learner's own board. A review
+// board is its own board name (LearnPage ?board=), and every journey row, read and write is keyed by (owner, app, board).
+test('owner 2026-10-07 (g): a review board journey is its own; start, replace and answers there never touch the main board journey', async t => {
+  const { call, post, rows } = setup(t);
+  const review = (action, extra = {}) => call('POST', { body: { app: APP, board: 'pnsreview', action, ...extra } });
+  const main = (await post('start', { text: LEARN })).body.journey;
+  let r = await review('start', { text: 'Teach me SQL' });
+  assert.equal(r.status, 200, 'no live_journey across boards');
+  const other = r.body.journey;
+  assert.notEqual(other.id, main.id);
+  // A replace on the review board naming the main board journey archives nothing there: the scope includes the board.
+  r = await review('start', { text: 'Teach me graphs', replace: main.id });
+  assert.deepEqual([r.status, r.body.error, r.body.journey.id], [409, 'live_journey', other.id]);
+  r = await review('intake_answer', { slot: 'goal', option_id: 'intuition' });
+  assert.equal(r.status, 200);
+  assert.equal((await call('GET', { query: `app=${APP}&board=pnsreview` })).body.journey.id, other.id);
+  const mainNow = (await call('GET')).body.journey;
+  assert.deepEqual([mainNow.id, mainNow.revision, mainNow.intake.slots.goal ?? null], [main.id, main.revision, null], 'the main board journey is untouched');
+  assert.deepEqual(rows().map(row => [row.board, row.archived_at]), [['main', null], ['pnsreview', null]]);
+});
+
+// ---- Owner decision 2026-10-07, D2 (owner option A): a fast-start replacement keeps the old journey live until it is planned ----
+// The replacement is made and planned under the board's staged name, off the board, and swapped in one batch only once its
+// path and first section are planned. A planner failure keeps the old journey, setup or active, with its progress; Retry is
+// the same start and leaves exactly one live journey and no staged row.
+const FAST = 'Teach me SQL, skip setup and just start';
+async function oldJourney(s, phase) {
+  await s.post('start', { text: LEARN });
+  if (phase === 'setup') return (await s.post('intake_answer', { slot: 'goal', option_id: 'intuition' })).body.journey;
+  const review = await s.throughDiagnostic(await s.throughIntake());
+  return (await s.post('accept', { revision: review.body.journey.revision })).body.journey;
+}
+const live = s => s.rows().filter(row => row.archived_at == null);
+const staged = s => s.rows().filter(row => row.board.startsWith('staged:'));
+const orphans = s => s.sqlite.prepare('SELECT COUNT(*) AS n FROM learning_path_versions WHERE journey_id NOT IN (SELECT id FROM learning_journeys)').get().n;
+
+test('owner 2026-10-07 D2: a fast-start replace whose path or section planner fails keeps the old journey live, setup or active, with its progress; Retry swaps it in', async t => {
+  for (const phase of ['setup', 'active']) for (const failing of ['journey_path', 'journey_section']) {
+    const s = setup(t), at = `${phase}/${failing}`;
+    const old = await oldJourney(s, phase), before = s.rows().find(row => row.id === old.id);
+    const versions = s.sqlite.prepare('SELECT COUNT(*) AS n FROM learning_path_versions').get().n;
+    if (phase === 'active') assert.ok(before.state === 'active' && JSON.parse(before.evidence_json).events.length >= 2 && before.section_plan_json, `${at}: progress to keep`);
+    s.fail.add(failing);
+    let r = await s.post('start', { text: FAST, replace: old.id });
+    assert.deepEqual([r.status, r.body.journey.id, r.body.journey.state, typeof r.body.error], [502, old.id, before.state, 'string'], at);
+    assert.deepEqual(s.rows().find(row => row.id === old.id), before, `${at}: the old row, its progress and revision, untouched`);
+    assert.deepEqual([live(s).map(row => row.id), staged(s).length, orphans(s)], [[old.id], 0, 0], `${at}: no staged row or path version left`);
+    assert.equal(s.sqlite.prepare('SELECT COUNT(*) AS n FROM learning_path_versions').get().n, versions, at);
+    // Retry: the same start. One live journey, the new one, active with section 1 planned; the old one archived; no staged row.
+    s.fail.clear();
+    r = await s.post('start', { text: FAST, replace: old.id });
+    assert.equal(r.status, 200, at);
+    assert.deepEqual([r.body.journey.state, r.body.journey.request.topic, r.body.journey.section_plan.section_id, r.body.journey.scope.board], ['active', 'sql', 's1', BOARD], at);
+    assert.deepEqual([live(s).map(row => row.id), staged(s).length, orphans(s)], [[r.body.journey.id], 0, 0], at);
+    assert.notEqual(s.rows().find(row => row.id === old.id).archived_at, null, `${at}: archived only by the swap`);
+    assert.deepEqual((await s.call('GET')).body.journey.id, r.body.journey.id, at);
+  }
+});
+
+test('owner 2026-10-07 D2: a staged row a cancelled worker left is dropped by the next replace; a plain start never stages', async t => {
+  const s = setup(t), old = await oldJourney(s, 'setup');
+  // A leftover staged row (the worker died mid-plan): live under the staged name, invisible on the board.
+  s.sqlite.prepare("UPDATE learning_journeys SET board = 'staged:main' WHERE id = ?").run((await createJourneyRow(s)).id);
+  assert.equal(staged(s).length, 1);
+  assert.equal((await s.call('GET')).body.journey.id, old.id, 'the board reads its live journey, never a staged one');
+  const r = await s.post('start', { text: FAST, replace: old.id });
+  assert.equal(r.status, 200);
+  assert.deepEqual([live(s).map(row => row.id), staged(s).length, orphans(s)], [[r.body.journey.id], 0, 0]);
+  // A replace that plans nothing (no skip-setup) is the one-batch swap: no staged row is ever made.
+  const plain = await s.post('start', { text: 'Teach me graphs', replace: r.body.journey.id });
+  assert.deepEqual([plain.status, plain.body.journey.state, staged(s).length, live(s).length], [200, 'intake', 0, 1]);
+});
+// A second live journey row for the same scope cannot exist, so the leftover is made on another board first.
+async function createJourneyRow(s) {
+  return (await s.call('POST', { body: { app: APP, board: 'scratch', action: 'start', text: 'Teach me trees' } })).body.journey;
+}
+
+test('owner 2026-10-07 D2: planned, but another journey went live meanwhile - 409 with that journey, nothing swapped, no staged row', async t => {
+  const s = setup(t), old = await oldJourney(s, 'setup');
+  const columns = s.sqlite.prepare('PRAGMA table_info(learning_journeys)').all().map(c => c.name);
+  // Another tab, while the path is planned: it replaces the old journey with its own.
+  s.replies.journey_path = input => {
+    s.sqlite.prepare("UPDATE learning_journeys SET archived_at = 'then' WHERE id = ?").run(old.id);
+    s.sqlite.prepare(`INSERT INTO learning_journeys (${columns.join(', ')}) SELECT ${columns.map(c => (c === 'id' ? "'lj_other'" : c === 'archived_at' ? 'NULL' : c)).join(', ')} FROM learning_journeys WHERE id = ?`).run(old.id);
+    delete s.replies.journey_path;
+    return fixtureFor('journey_path', input);
+  };
+  const r = await s.post('start', { text: FAST, replace: old.id });
+  assert.deepEqual([r.status, r.body.error, r.body.journey.id], [409, 'live_journey', 'lj_other']);
+  assert.deepEqual([live(s).map(row => row.id), staged(s).length, orphans(s)], [['lj_other'], 0, 0]);
+});
+
+// Skipping a question continues the same journey: cancel is the step's skip (intake_skip, diagnostic_skip), never a restart.
+test('owner 2026-10-07 D2: skipping a question continues the same journey - same id, same request, nothing archived or restarted', async t => {
+  const s = setup(t);
+  const first = (await s.post('start', { text: LEARN })).body.journey;
+  await s.post('intake_answer', { slot: 'goal', option_id: 'build' });
+  let r = await s.post('cancel'); // the intake skip
+  assert.deepEqual([r.status, r.body.journey.id, r.body.journey.state, r.body.journey.intake.slots.goal, r.body.journey.request.raw_user_message], [200, first.id, 'diagnostic', 'build', LEARN]);
+  r = await s.post('cancel'); // the diagnostic skip
+  assert.deepEqual([r.status, r.body.journey.id, r.body.journey.state, r.body.journey.diagnostic.skipped], [200, first.id, 'path_review', true]);
+  assert.deepEqual(s.rows().map(row => [row.id, row.archived_at]), [[first.id, null]], 'one row, never archived, never replaced');
+  assert.ok(r.body.journey.revision > first.revision);
+});

@@ -263,6 +263,16 @@ test('D limits: a viewer over their limit gets a 429 that says so, with no model
   assert.equal((await f.ask(token, 'ben', { message: 'q4' })).status, 200, 'an hour later');
 });
 
+test('hook usage never spends the shared-ask budget: admitAsk counts shared_canvas_ask rows only', async t => {
+  const f = setup(t, { vars: { SHARED_ASK_VIEWER_HOUR: '1' } });
+  scriptModel(t);
+  const { token } = await f.shareProject();
+  const now = Math.floor(Date.now() / 1000);
+  for (let i = 0; i < 5; i++) f.sqlite.prepare("INSERT INTO shared_ask_events (category, asked_at, viewer_email, share_key, board_id, owner_email, repository) VALUES ('tutor_next_steps', ?, 'ben@test', '', 'canvas-x', 'ben@test', 0)").run(now);
+  assert.equal((await f.ask(token, 'ben', { message: 'Why scale by sqrt(d)?' })).status, 200);
+  assert.equal((await f.ask(token, 'ben', { message: 'And the max trick?' })).status, 429, 'its own cap still holds');
+});
+
 test('D limits: a viewer\'s daily limit, across every shared canvas', async t => {
   const f = setup(t, { vars: { SHARED_ASK_VIEWER_DAY: '1' } }); scriptModel(t);
   const first = await f.shareProject(), second = await f.shareProject();

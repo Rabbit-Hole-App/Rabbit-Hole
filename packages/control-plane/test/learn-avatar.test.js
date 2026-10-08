@@ -35,11 +35,15 @@ const sha = text => createHash('sha256').update(text).digest('hex');
 
 // ---------- Tutor action off switch (§4.1) ----------
 
-test('TUTOR_AVATAR off: the planner prefix and request are byte-identical to main 74d20468', () => {
+test('TUTOR_AVATAR off: the planner prefix and request keep their pinned hashes (main 74d20468, re-pinned by Professor Next Steps Task 4)', () => {
   const context = { learner_intent: { kind: 'question', raw_user_message: 'why softmax?' }, route: { row: 'understood' }, allowed_actions: ['respond_text'] };
-  // Hashes taken from main before this change: the cached prefix and a streamed, cached request.
-  assert.equal(sha(JSON.stringify([TUTOR_TOOL, PLANNER_SYSTEM])), '6b3ba28db7f6d5c54e97bac07c27d607db78a77095dcc5ee95209231f783ee75');
-  assert.equal(sha(JSON.stringify(plannerRequest(context, 2000, [], { cache: true, stream: true }))), '516c06007f1bd4fd4dc95e8c8778d8171f3e4a3f59a6657ca834ddb643bd3b96');
+  // Hashes of the cached prefix and a streamed, cached request. Before Professor Next Steps Task 4 (main 74d20468):
+  // 6b3ba28db7f6d5c54e97bac07c27d607db78a77095dcc5ee95209231f783ee75 / 516c06007f1bd4fd4dc95e8c8778d8171f3e4a3f59a6657ca834ddb643bd3b96;
+  // re-pinned with review (.superpowers/sdd/2026-10-06-professor-next-steps/task-4-repin-review.md, entries 1-2). Before Task 11b
+  // (f6919b51): 57a2a9cea4fc27c69585db49dbbba4d05cd72e98654caf6c191efd4300dc2347 / 068ee7b7fd7b4b4e408f21a155ec1de0da27d14745dc5067e1e21782c8ab2442;
+  // re-pinned with review (.superpowers/sdd/2026-10-06-professor-next-steps/task-11b-repin-review.md, part A pins 1-2).
+  assert.equal(sha(JSON.stringify([TUTOR_TOOL, PLANNER_SYSTEM])), '953589b8d0f2169f069c8e809d1fbfe3bf1575dbdaa4f8442fd50ae750e2b9c0') // Task 11c-B part E (T12-F1, topic-free LINES[6], task-11c-repin-review.md): was ebdcd10b0e48226b; // fix round 1 (task-11b-repin-review.md parts C-D): was 54577c573a0ba3e0; // fix round 1 (task-11b-repin-review.md part C): was e6953b414277d7c5
+  assert.equal(sha(JSON.stringify(plannerRequest(context, 2000, [], { cache: true, stream: true }))), 'aca5103dc1e548bb79993a4ebb7a596b618e3b5a6914224caaa5e384022ccda8') // Task 11c-B part E (T12-F1, topic-free LINES[6], task-11c-repin-review.md): was fd640e6f0cb25a55; // fix round 1 (task-11b-repin-review.md parts C-D): was 4779aa239047a943; // fix round 1 (task-11b-repin-review.md part C): was 32b97373eda31270
   assert.deepEqual(plannerRequest(context, 2000, [], { avatar: false }), plannerRequest(context, 2000));
   assert.ok(!ACTION_TYPES.includes(AVATAR_ACTION));
 });

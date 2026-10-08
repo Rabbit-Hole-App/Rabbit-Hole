@@ -16,7 +16,7 @@ import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { journeyIntent } from './learner-intent-journey.js';
 import { TRAY_MODES, journeyStep, nextIntakeQuestion, nextProbe, slotsFromIntent, trayFor, validateRegistry } from '../../web/src/learn-journey.js';
 import { deriveClaimStates } from '../../web/src/learn-tutor-evidence.js';
-import { JourneyConflict, appendPathVersion, archiveJourney, createJourney, loadJourney, loadJourneyById, loadPath, saveJourney, toClient } from './learn-journey-store.js';
+import { JourneyConflict, activateStaged, appendPathVersion, archiveJourney, createJourney, dropStaged, loadJourney, loadJourneyById, loadPath, saveJourney, stagedScope, toClient } from './learn-journey-store.js';
 import { PlannerInvalid, adaptPath, journeyCallModel, planDiagnostic, planPath, planSection, resolveWithModel } from './learn-journey-planners.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -162,8 +162,8 @@ async function reply(env, j, status = 200, extra = {}) {
   return json({ ...extra, journey: j && toClient(j), path, tray }, status);
 }
 
-// Runs the effect chain from a saved journey. A planner failure is saved as planner_failed and answered 502.
-async function run(env, j, effects, callModel) {
+// Runs the effect chain from a saved journey. A planner failure is saved as planner_failed: { journey, error }.
+async function chain(env, j, effects, callModel) {
   while (effects.length) {
     let next;
     try { next = await EFFECTS[effects[0]](env, j, callModel); }
@@ -171,11 +171,16 @@ async function run(env, j, effects, callModel) {
       if (error instanceof JourneyConflict) throw error;
       const message = plannerMessage(error, j.id, j.pending);
       const failed = must(journeyStep(j, { type: 'planner_failed', message }));
-      return reply(env, await saveJourney(env, failed.journey, j.revision), 502, { error: message });
+      return { journey: await saveJourney(env, failed.journey, j.revision), error: message };
     }
     ({ journey: j, effects } = next);
   }
-  return reply(env, j);
+  return { journey: j };
+}
+// The chain answered: a planner failure 502, with the failed journey and its retry tray.
+async function run(env, j, effects, callModel) {
+  const out = await chain(env, j, effects, callModel);
+  return out.error ? reply(env, out.journey, 502, { error: out.error }) : reply(env, out.journey);
 }
 
 async function live(env, scope, now) {
@@ -191,14 +196,30 @@ async function start(env, scope, body, callModel) {
   const intent = journeyIntent(text);
   if (!STARTS.has(intent.kind)) return json({ error: 'not_a_learning_journey' }, 400);
   if (!intent.topic) return json({ error: 'topic_required', tray: ASK_TOPIC }, 400);
+  // replace: the journey continue-or-start confirmed replacing. A start that plans nothing swaps in one batch (createJourney
+  // archives it in the insert's transaction). A fast start that replaces the live journey, in setup or active (owner
+  // 2026-10-07, D2), is staged: made and planned off the board, then swapped in one batch, so a planner failure keeps the
+  // old journey live with its progress and answers 502 with it; its Retry is the same start, and no staged row survives.
+  if (body.replace != null && (typeof body.replace !== 'string' || !body.replace || body.replace.length > 64)) return json({ error: 'replace must be a journey id' }, 400);
   const request = { raw_user_message: text, topic: intent.topic, intent, channel: body.channel === 'voice' ? 'voice' : 'text' };
+  const staged = intent.kind === 'fast_start' && body.replace != null && (await loadJourney(env, scope))?.id === body.replace ? stagedScope(scope) : null;
+  if (staged) await dropStaged(env, scope);
   let j;
-  try { j = await createJourney(env, scope, { request, grounding: { kind: 'topic' }, intake: slotsFromIntent(intent) }); }
+  try { j = await createJourney(env, staged || scope, { request, grounding: { kind: 'topic' }, intake: slotsFromIntent(intent) }, staged ? null : body.replace ?? null); }
   catch (error) { if (error instanceof JourneyConflict) return reply(env, await loadJourney(env, scope), 409, { error: 'live_journey' }); throw error; }
   if (intent.kind !== 'fast_start') return reply(env, j);
   // A fast start skips the intake at once: defaults, then the path draft, auto-accept and section 1's plan.
   const { journey, effects } = await stepped(env, j, { type: 'intake_skip' }, j.revision);
-  return run(env, journey, effects, callModel);
+  if (!staged) return run(env, journey, effects, callModel);
+  let out = null, active = null;
+  try {
+    out = await chain(env, journey, effects, callModel);
+    if (!out.error) active = await activateStaged(env, out.journey, body.replace, scope);
+  } finally { if (!active) await dropStaged(env, scope); }
+  if (active) return reply(env, active);
+  // A planner failure answers 502 with the old journey, still live; planned, but another journey went live on the board
+  // meanwhile (another tab), 409 live_journey with that one, so the learner is asked again. Neither changed the board.
+  return reply(env, await loadJourney(env, scope), out.error ? 502 : 409, { error: out.error || 'live_journey' });
 }
 
 async function act(env, scope, body, callModel, now) {

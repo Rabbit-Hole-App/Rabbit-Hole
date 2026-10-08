@@ -68,6 +68,8 @@ const profile = async (device, who = owner) => {
     window.__toasts = []; window.addEventListener('small:toast', event => window.__toasts.push(event.detail?.message ?? event.detail)); // a 3 s toast, caught when it fires
   }, device);
   await context.route('**/api/learn/ask**', route => route.abort()); // no model call can leave this check
+  // A hole's opening question is a Tutor turn (#46): answered here; the planner's real wiring is covered on the journey stack.
+  await context.route('**/api/learn/tutor/plan', route => route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', actions: [{ type: 'respond_text', text: 'What would you like to explore first?' }] } }));
   const page = await context.newPage();
   page.on('pageerror', error => errors.push(`${device}: ${error.message}`));
   return { context, page };

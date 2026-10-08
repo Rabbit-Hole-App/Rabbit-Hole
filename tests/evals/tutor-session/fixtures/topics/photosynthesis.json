@@ -1,0 +1,14 @@
+{
+  "id": "photosynthesis",
+  "title": "Photosynthesis",
+  "learner_goal": "Understand how a plant turns light, water and carbon dioxide into sugar, and where each step happens.",
+  "opening_message": "Can you teach me how photosynthesis works?",
+  "session_budget_seconds": 1200,
+  "max_decisions": 15,
+  "simulator_misconceptions": [
+    "plants get their mass from the soil",
+    "the oxygen released comes from the carbon dioxide",
+    "plants photosynthesize instead of respiring, never both",
+    "the light-independent reactions only happen at night"
+  ]
+}

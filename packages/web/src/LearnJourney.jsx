@@ -29,7 +29,18 @@ export function routeJourneyTurn(raw, tray, resolveRules = interactionInterpreta
   return resolveRules(raw, tray) || { kind: tray ? 'needs_model' : 'unrelated_question' };
 }
 
-// The Learn composer starts a journey (§6.1) only on a canvas with no live journey (no journeyStarter) and no Tutor.
+// The text the journey start reads (learn-journey.js start runs journeyIntent): a start request as it is, a bare topic as
+// Teach me <topic>. Used for a typed topic tray answer and for the Tutor's Start a learning path chip (Task 11b fix round 2).
+export const startRequest = text => { const it = journeyIntent(text); return STARTS.has(it.kind) && it.topic ? text : `Teach me ${text}`; };
+
+// The Learn composer starts a journey (§6.1) from these word rules only on a canvas with no live journey (no journeyStarter) and
+// no Tutor. Task 11b fix B1 and fix round 2 (owner fourteenth message: routing is never keyword-based): where a Tutor is active
+// - every canvas since 11b but a registered entry that refuses it - no word rule takes a Tutor turn to start or switch a
+// journey (here, nor handleText's second-broad-intent check, which skips Tutor turns); the Auto Tutor may offer a learning path
+// instead (suggest_journey, a chip whose click calls the same journey start). Revert, all three steps: (1) here, let a
+// plain-canvas Tutor through - (!tutor || tutor.plain === true) - and give useTutor's active return plain: context?.source ===
+// 'canvas' again; (2) in LearnTutor.jsx turn(), call live.handleText(raw, { answerProbe }) without tutor: true; (3) optionally
+// drop journeyOffer from LearnTutor.jsx turnOffers.
 export const journeyStartsHere = (raw, { tutor = null, journeyStarter = null } = {}) => !tutor && !!journeyStarter && STARTS.has(journeyIntent(raw).kind);
 
 // Before the path is accepted the canvas gets no permanent card (controller ruling, LP1): a turn the Tutor answers on a
@@ -81,11 +92,14 @@ export const resolveBody = (text, tray) => ({ action: 'resolve', text: String(te
 
 // §6.1: a broad intent on a board that already has a live journey asks first; the server never holds two (409). `under`
 // is the tray it covers: Continue answers a free-text one with the same words, so an answer that reads like an intent
-// ("I want to understand the intuition" on the goal question) is not lost.
+// ("I want to understand the intuition" on the goal question) is not lost. It is also the confirmation a Start a learning
+// path chip meets on a live journey or one in setup (owner 2026-10-07): it names both subjects, and `replace` is the journey
+// Start replaces.
 export function liveJourneyTray(journey, text, under = null) {
   const topic = journey?.request?.topic || 'this path', next = journeyIntent(text).topic || 'a new path';
   return { id: 'clarification:live', mode: 'clarification', prompt: `Continue ${topic} or start ${next}?`,
-    options: [{ id: 'continue', label: `Continue ${topic}` }, { id: 'start_new', label: `Start ${next}` }], free_text: false, dismissible: true, text, under };
+    options: [{ id: 'continue', label: `Continue ${topic}` }, { id: 'start_new', label: `Start ${next}` }], free_text: false, dismissible: true, text, under,
+    replace: journey?.id ?? null, failed: `Could not start ${next}, so ${topic} stays as it was.` };
 }
 
 // §7.1. Free text always comes from the composer below, so the tray never holds an input.
@@ -159,9 +173,9 @@ export function journeyController({ where, fetchJson: send, onChange = () => {},
   };
   // ok is a 200. A failure gets the tray's error line, whose retry re-sends the same action, unless the reply already
   // shows where the journey is: a 409, a replay after a re-read, or a planner failure's own error tray.
-  const settle = (out, again) => {
+  const settle = (out, again, message = null) => {
     const ok = out.status === 200;
-    if (!ok && out.status !== 409 && !out.reread && !out.d?.tray?.error) set({ error: { message: out.status ? 'That did not go through.' : 'Rabbit Hole could not be reached.', again } });
+    if (!ok && out.status !== 409 && !out.reread && !out.d?.tray?.error) set({ error: { message: message || (out.status ? 'That did not go through.' : 'Rabbit Hole could not be reached.'), again } });
     return { ...out, ok };
   };
   const act = async (body, again = () => act(body)) => {
@@ -249,15 +263,18 @@ export function journeyController({ where, fetchJson: send, onChange = () => {},
   const proposalTray = p => (p ? { id: `generation_proposal:${p.step_id}`, mode: 'generation_proposal', prompt: p.message,
     options: [{ id: 'generate', label: 'Generate' }, { id: 'not_now', label: 'Not now' }], free_text: false, dismissible: true } : null);
 
-  const start = async text => {
+  // confirmed: continue-or-start's Start (its tray): the start names the journey it replaces, which the route archives only in
+  // the batch that makes the new one live (a fast start once it is planned, D2), so a failed start, a planner failure (502
+  // with the old journey) included, keeps that journey and says so (owner 2026-10-07).
+  const start = async (text, confirmed = null) => {
     set({ local: null, dismissed: null, error: null });
-    const out = await run({ action: 'start', text }, null);
+    const out = await run({ action: 'start', text, ...(confirmed?.replace ? { replace: confirmed.replace } : {}) }, null);
     if (out.status === 409) await materialize({ load: true });
     const why = out.d?.error;
     if (NOT_HERE.has(why)) return { handled: false };
     if (why === 'live_journey') set({ local: liveJourneyTray(out.d.journey, text) });
     else if (why === 'topic_required') set({ local: { ...out.d.tray, text } });
-    else if (!settle(out, () => start(text)).ok) return { handled: true, failed: true };
+    else if (!settle(out, () => start(text, confirmed), confirmed?.failed).ok) return { handled: true, failed: true };
     else await materialize(); // a fast start is accepted and planned at once
     return { handled: true };
   };
@@ -293,8 +310,7 @@ export function journeyController({ where, fetchJson: send, onChange = () => {},
     if (t?.id === 'clarification:topic') {
       // ponytail: the topic is joined to the setup-skip the learner typed so journeyIntent reads one fast start
       // ("Teach me SQL. Skip setup and start"); a topic field on `start` if the stored request must stay verbatim.
-      const it = journeyIntent(text), topic = STARTS.has(it.kind) && it.topic ? text : `Teach me ${text}`;
-      const out = await start(`${topic}. ${t.text}`);
+      const out = await start(`${startRequest(text)}. ${t.text}`);
       return { ...out, ok: !out.failed };
     }
     if (t?.mode === 'intent_intake' && t.free_text) return act({ action: 'intake_answer', slot: t.slot, text: text.slice(0, 300) });
@@ -311,11 +327,9 @@ export function journeyController({ where, fetchJson: send, onChange = () => {},
     const local = s.local;
     if (local?.id === 'clarification:live') {
       if (optionId === 'continue') { set({ local: null }); return local.under?.free_text ? answerText(local.text, local.under) : { ok: true }; }
-      // Start the new topic: the live journey is archived first, so the board still holds one. no_journey or archived:
-      // another tab archived it already.
-      const out = await act({ action: 'archive' }, () => answer('start_new'));
-      if (!out.ok && out.d?.error !== 'no_journey' && out.d?.error !== 'archived') return out;
-      const started = await start(local.text);
+      // Start the new topic in one start that replaces the live journey (owner 2026-10-07: a start that fails keeps the
+      // current journey, setup included). Another tab that archived it already leaves nothing to replace.
+      const started = await start(local.text, local);
       return { ...started, ok: !started.failed };
     }
     if (local?.id === 'clarification:turn') {
@@ -361,14 +375,16 @@ export function journeyController({ where, fetchJson: send, onChange = () => {},
   // (its Answer the question and Continue answer the probe with the same words). While an action or a materialization
   // runs, a turn is refused (its words come back; a spoken one says nothing): a voice turn has no composer guard, and a
   // second post would answer the same step twice.
-  const handleText = async (raw, { answerProbe = null } = {}) => {
+  // tutor (Task 11b fix round 2): the turn is the Tutor's (LearnTutor.jsx), so no word rule turns it into continue-or-start; tray
+  // answers inside an open tray (rules 1-4, then the model's rule 5) stay the v1 interaction for the question the tray asked.
+  const handleText = async (raw, { answerProbe = null, tutor = false } = {}) => {
     if (s.busy) return { handled: true, failed: true };
     // Final review B-I2: a tray dismissed by a cancel the journey could not take (path review) is back for the next turn,
     // so the journey resumes after it (D6) and Start is never hidden for the session.
     set({ error: kept(), dismissed: null });
     if (answerProbe) s.answerProbe = answerProbe;
-    const t = open(), j = s.data.journey, it = journeyIntent(raw);
-    if (j && STARTS.has(it.kind) && it.topic) {
+    const t = open(), j = s.data.journey, it = tutor ? null : journeyIntent(raw);
+    if (j && it && STARTS.has(it.kind) && it.topic) {
       set({ local: liveJourneyTray(j, raw, t?.id === 'clarification:live' ? t.under : t) });
       return { handled: true };
     }

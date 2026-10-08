@@ -1,0 +1,6 @@
+{
+  "note": "Evaluation default for estimated reading time. An assumption, never learner truth or production behaviour: real dwell / engagement measurements supersede it wherever they exist. Change it by adding a new estimate_version, never by editing a published one.",
+  "words_per_minute": 230,
+  "estimate_version": "reading-v1",
+  "source": "evaluation_default"
+}

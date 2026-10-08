@@ -1,0 +1,15 @@
+{
+  "note": "Versioned USD-per-MTok prices for computed_cost_usd. Never edit a published version: add a new one with a later effective_date, so historical costs keep the price they were computed with. A model absent from a version has no computed cost (cost_status unknown). Thinking tokens are billed as output tokens by Anthropic and are already inside output_tokens.",
+  "versions": [
+    {
+      "pricing_version": "anthropic-first-party-2026-09-25",
+      "effective_date": "2026-09-25",
+      "source": "claude-api skill model table (cached 2026-09-25): first-party Claude API rates; cache write = 5-minute TTL at 1.25x input; fast mode 2x on Opus 5.5",
+      "models": {
+        "claude-opus-5-5": { "provider": "anthropic", "input": 4, "output": 20, "cache_read": 0.2, "cache_write": 5, "fast_multiplier": 2 },
+        "claude-sonnet-5-5": { "provider": "anthropic", "input": 2, "output": 10, "cache_read": 0.2, "cache_write": 2.5 },
+        "claude-haiku-4-5-20251001": { "provider": "anthropic", "input": 1, "output": 5, "cache_read": 0.1, "cache_write": 1.25 }
+      }
+    }
+  ]
+}

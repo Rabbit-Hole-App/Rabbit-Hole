@@ -101,13 +101,16 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now 
   }
 
   // opening: a Rabbit Hole's opening turn (say()), not words the learner spoke - no STT marks, same Tutor turn.
-  async function commit(text, { opening = false } = {}) {
-    const turn = current = { turnId: crypto.randomUUID(), controller: new AbortController(), marks: opening ? {} : { ...heard } };
+  // nextStep: a Professor Next Steps hook clicked while Voice is on (say('', { nextStep, selectedAt })) - the same Tutor turn
+  // with the step and no words, no STT marks, spoken like any reply.
+  async function commit(text, { opening = false, nextStep = null, selectedAt = null } = {}) {
+    const quiet = opening || !!nextStep;
+    const turn = current = { turnId: crypto.randomUUID(), controller: new AbortController(), marks: quiet ? {} : { ...heard } };
     const m = turn.marks, turnId = turn.turnId;
     heard = {};
     stt.pause();
     m.commit = now();
-    if (!opening) {
+    if (!quiet) {
       m.speech_end = m.commit - VAD_SILENCE_MS;
       emit('speech_end', { turn_id: turnId, at: m.speech_end, estimated: true });
       emit('stt_commit', { turn_id: turnId, at: m.commit });
@@ -128,7 +131,7 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now 
     };
     let reply;
     try {
-      reply = await tutor.voiceTurn({ raw: text, turnId, signal: turn.controller.signal, onSpeakable, ...(opening ? { opening: true } : {}) });
+      reply = await tutor.voiceTurn({ raw: text, turnId, signal: turn.controller.signal, onSpeakable, ...(opening ? { opening: true } : {}), ...(nextStep ? { nextStep, ...(selectedAt ? { selectedAt } : {}) } : {}) });
     } catch (error) {
       if (current !== turn) return; // exited: nothing to show
       // The plan failed after its first sentence began: that sentence never validated as a reply, so it stops.
@@ -280,17 +283,23 @@ export function createVoiceSession({ stt, tts, tutor, telemetry = () => {}, now 
         Promise.resolve(stt.resume()).catch(() => sttFailed('resume'));
         set('listening');
         emit('voice_listening_resumed', { after: 'hold' });
+        // A hook click that waited for the clip (or arrived while Voice was starting) runs now, once.
+        if (pendingSay?.options.nextStep) { const { text, options } = pendingSay; pendingSay = null; commit(text, options); }
       };
     },
     get starting() { return starting; },
-    // A Tutor turn Voice Mode runs without the learner speaking - a Rabbit Hole's opening (ask.jsx): spoken and
-    // captioned like any voice reply, never a chat bubble. Waits for listening if Voice Mode is still starting;
-    // false when Voice Mode is off or busy, so the caller can fall back to the typed path.
+    // A Tutor turn Voice Mode runs without the learner speaking - a Rabbit Hole's opening, or a hook click with no words
+    // (options.nextStep) (ask.jsx): spoken and captioned like any voice reply, never a chat bubble. Waits for listening if
+    // Voice Mode is still starting; false when Voice Mode is off or busy (never a second turn while one runs), so the caller
+    // can fall back to the typed path. A hook click is never sent down the typed path while Voice is on: speaking, it takes
+    // the floor like a barge-in; held by a clip, it waits for the hold to end (the newest click); false only off or thinking.
     say(text, options = {}) {
       const words = String(text || '').trim();
-      if (!words) return false;
+      if (!words && !options.nextStep) return false;
       if (state === 'listening' && !current) { commit(words, options); return true; }
       if (starting) { pendingSay = { text: words, options }; return true; }
+      if (options.nextStep && state === 'speaking' && current) { interrupt(); commit(words, options); return true; }
+      if (options.nextStep && state === 'held') { pendingSay = { text: words, options }; return true; }
       return false;
     },
     subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },

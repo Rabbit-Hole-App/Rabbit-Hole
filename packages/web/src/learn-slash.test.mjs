@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { pickerSections, parseSlash, runLearnCommand } from './learn-slash.js';
+import { cardsFor, materialCommands, pickerSections, parseSlash, runLearnCommand, runMaterials } from './learn-slash.js';
+import { PRIMITIVES } from '../../control-plane/src/learn-primitives.js';
+import { blockModality, modalityOf } from './learn-tutor-actions.js';
+import { newNotebookBlock } from './learn-notebook.js';
 
 // A canvas and network stand-in that records what a command did.
 const harness = reply => {
@@ -205,4 +208,75 @@ test('/motion: development builds only; the proposal makes no request, Generate 
   const long = await runLearnCommand(`/motion ${'x'.repeat(600)}`, { app: 'demo', canvas, post, openSearch: () => {}, location: { concept: 'y'.repeat(300) }, motionDev: true });
   long.proposal.generate();
   assert.deepEqual([did.at(-1).operation.request.length, did.at(-1).operation.location.concept.length], [500, 100], 'bounded to what LearnVideos accepts');
+});
+
+// ---------- Professor Next Steps (contract §2.5): the commands a hook turn may run, and running them ----------
+
+test('materialCommands: the Learn commands that can make a card now, from the registry, never search or navigation', () => {
+  const list = materialCommands();
+  assert.ok(list.length > 0);
+  for (const m of list) { assert.deepEqual(m.cards, cardsFor(m.command).map(c => c.card)); assert.equal(typeof m.paid, 'boolean'); }
+  for (const name of ['paper', 'dive', 'source', 'more']) assert.equal(list.some(m => m.command === name), false, name);
+});
+
+// Any spec: every field reads as an empty value, so a primitive's own builder returns its block without a model.
+const ANY = new Proxy(() => ANY, { get: (_, key) => (key === Symbol.toPrimitive ? () => '' : key === 'length' ? 0 : ANY) });
+test('every card a material command can make: its modality is the block type runLearnCommand really inserts', async () => {
+  for (const m of materialCommands()) for (const { primitive, card } of cardsFor(m.command)) {
+    const inserted = [];
+    const canvas = { insertNotebook: () => inserted.push(newNotebookBlock()), insertBlock: block => { inserted.push(block); return 'id'; }, reserve: () => 'slot', release: () => {} };
+    const post = async () => ({ result: m.paid ? 'paid_proposal' : 'artifact', primitive, message: 'Uses paid generation.', block: PRIMITIVES[primitive].block(ANY) });
+    (await runLearnCommand(`/${m.command} the topic`, { app: 'demo', canvas, post, openSearch: () => {} })).proposal?.generate();
+    assert.equal(inserted.length, 1, `${m.command} ${card}`);
+    assert.equal(modalityOf({ type: 'create_material', command: m.command }, { materials: [{ ...m, cards: [card] }] }), blockModality(inserted[0]), `${m.command} ${card}`);
+  }
+});
+
+const ticks = async (done, n = 50) => { for (let i = 0; i < n && !done(); i++) await new Promise(resolve => setImmediate(resolve)); };
+test('runMaterials: several create_material actions run in order through runLearnCommand; paid proposals are offered one at a time', async () => {
+  const posts = [], inserted = [], offered = [];
+  const replies = {
+    animate: { result: 'paid_proposal', primitive: 'maths_animation', message: 'first', block: { type: 'video', mode: 'generate', title: 'a' } },
+    flashcards: { result: 'artifact', primitive: 'flashcards', block: { type: 'flashcards', cards: [] } },
+    video: { result: 'paid_proposal', primitive: 'video_generate', message: 'second', block: { type: 'video', mode: 'generate', title: 'v' } },
+  };
+  const canvas = { insertBlock: block => { inserted.push(block.title ?? block.type); return 'id'; }, reserve: () => 'slot', release: () => {} };
+  const post = async (path, body) => { posts.push([path, body.command, body.args]); return replies[body.command]; };
+  const answers = [];
+  const offer = proposal => new Promise(resolve => { offered.push(proposal.message); answers.push(() => { proposal.generate(); resolve(); }); });
+  const actions = [{ type: 'respond_text', text: 'Three things.' }, ...['animate', 'flashcards', 'video'].map(command => ({ type: 'create_material', command, request: `about ${command}` }))];
+  const done = runMaterials(actions, { app: 'demo', canvas, post, openSearch: () => {}, offer });
+  await ticks(() => posts.length === 3 && inserted.length === 1);
+  assert.deepEqual(posts, ['animate', 'flashcards', 'video'].map(command => ['/api/learn/artifact', command, `about ${command}`]), 'the plan order, the existing artifact route');
+  assert.deepEqual([inserted, offered], [['flashcards'], ['first']], 'a free card never waits for a paid answer; one proposal at a time');
+  answers[0]();
+  await ticks(() => offered.length === 2);
+  assert.deepEqual([inserted, offered], [['flashcards', 'a'], ['first', 'second']]);
+  answers[1]();
+  const results = await done;
+  assert.deepEqual(inserted, ['flashcards', 'a', 'v']);
+  assert.equal(results.length, 3);
+});
+
+test('runMaterials: a failed command is reported and the next one still runs; no material, nothing runs', async () => {
+  const posts = [];
+  const post = async (path, body) => { posts.push(body.command); if (body.command === 'quiz') throw new Error('offline'); return { result: 'artifact', primitive: 'flashcards', block: { type: 'flashcards', cards: [] } }; };
+  const canvas = { insertBlock: () => 'id', reserve: () => 'slot', release: () => {} };
+  const results = await runMaterials([{ type: 'create_material', command: 'quiz', request: 'q' }, { type: 'create_material', command: 'flashcards', request: 'f' }], { app: 'demo', canvas, post, openSearch: () => {}, offer: async () => {} });
+  assert.deepEqual(posts, ['quiz', 'flashcards']);
+  assert.deepEqual(results.map(r => r.notice?.tone), ['error', 'done']);
+  assert.deepEqual(await runMaterials([{ type: 'respond_text', text: 'x' }], { app: 'demo', canvas, post, openSearch: () => {}, offer: async () => {} }), []);
+  assert.equal(posts.length, 2);
+});
+
+// Task 9 review fix 4: a notice is handed over as soon as its command answers, never held behind a paid proposal.
+test('runMaterials: each notice reaches onNotice as its command answers, before an unanswered proposal ahead of it is decided', async () => {
+  const notices = [];
+  const replies = { animate: { result: 'paid_proposal', primitive: 'maths_animation', message: 'paid', block: { type: 'video', mode: 'generate', title: 'a' } }, quiz: { result: 'unsupported', message: 'Not here yet.' } };
+  const canvas = { insertBlock: () => 'id', reserve: () => 'slot', release: () => {} };
+  const post = async (path, body) => replies[body.command];
+  const actions = ['animate', 'quiz'].map(command => ({ type: 'create_material', command, request: 'r' }));
+  runMaterials(actions, { app: 'demo', canvas, post, openSearch: () => {}, offer: () => new Promise(() => {}), onNotice: notice => notices.push(notice) });
+  await ticks(() => notices.length === 1);
+  assert.deepEqual(notices, [{ tone: 'info', text: 'Not here yet.' }], 'the unsupported notice, while the paid proposal still waits');
 });

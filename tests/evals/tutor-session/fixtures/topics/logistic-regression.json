@@ -1,0 +1,15 @@
+{
+  "id": "logistic-regression",
+  "title": "Logistic regression",
+  "learner_goal": "Understand how logistic regression turns inputs into a probability, how it decides a class, and how it is trained.",
+  "opening_message": "I want to learn logistic regression.",
+  "session_budget_seconds": 1200,
+  "max_decisions": 15,
+  "simulator_misconceptions": [
+    "the model outputs a class label directly rather than a probability",
+    "the sigmoid output is the same kind of number a linear regression predicts",
+    "it is trained by minimizing squared error, like linear regression",
+    "a coefficient is the change in probability per unit of its input",
+    "the decision threshold must always be 0.5"
+  ]
+}

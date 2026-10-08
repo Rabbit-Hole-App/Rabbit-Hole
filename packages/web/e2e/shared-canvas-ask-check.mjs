@@ -65,16 +65,26 @@ check('the ask route refuses an empty question before any model', (await ask(vie
 
 // ---- browsers: every write that is not this check's is aborted; the ask route is scripted, never the worker ----
 const browser = await chromium.launch();
-const errors = [], aborted = [], asked = [];
+const errors = [], aborted = [], asked = [], hookRequests = [], hookRepeats = [];
 const ANSWER = 'The 1/sqrt(d) scale keeps the dot products from growing with the head size, so softmax stays out of saturation.\nSources: model.py:62-64';
 const WRITES = [/^\/api\/learn\/boards\/fork$/, /^\/api\/canvases$/, /\/share\/repository$/];
 let limitNext = false; // the next ask answers 429, as the server's rate limit does
 const contextFor = async (who = null) => {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   if (who) await context.addCookies([{ name: 'small_session', value: who.session, url: BASE }]);
+  // §2.3 holds within one page load; a navigation or reload is a fresh page that may ask for its basis again.
+  let load = 0;
+  const seen = [];
   await context.route('**/*', route => {
     const request = route.request(), path = new URL(request.url()).pathname;
     if (['GET', 'HEAD'].includes(request.method()) || WRITES.some(pattern => pattern.test(path))) return route.continue();
+    // Professor Next Steps (#46) asks for hooks when a canvas opens: the real route runs, its planner answered at the gate
+    // stack's provider boundary by the journey fixture (e2e/provider-tripwire.js); never the same request twice (§2.3).
+    if (request.method() === 'POST' && /^\/api\/learn\/(?:tutor|boards\/shared\/[^/]+)\/next-steps$/.test(path)) {
+      const key = `load ${load}: ${path} ${request.postData() || ''}`;
+      hookRequests.push(key); if (seen.includes(key)) hookRepeats.push(key); seen.push(key);
+      return route.continue();
+    }
     aborted.push(`${request.method()} ${path}`);
     return route.abort();
   });
@@ -87,6 +97,7 @@ const contextFor = async (who = null) => {
     return route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body: frame('progress', { stage: 'read source...' }) + frame('chunk', { text: asked.length === 1 ? ANSWER : 'Yes: the same scale applies to every head.' }) + frame('done', { ok: true }) });
   });
   const page = await context.newPage();
+  page.on('domcontentloaded', () => { load++; }); // full document loads only, never an in-app route change
   page.on('pageerror', error => errors.push(error.message));
   return page;
 };
@@ -215,6 +226,7 @@ check('the viewer then sees the repository pill', (await labPage.locator('[data-
 await browser.close();
 check('no page errors', errors.length === 0, errors.join(' | '));
 check('no model route was reached from the browser', !aborted.some(entry => /\/ask$|\/api\/learn\/(ask|selection|tutor|artifact|board$|assess)/.test(entry)), aborted.join(', '));
+check('Next Steps asked for hooks without repeating a request on any page (§2.3)', hookRequests.length > 0 && hookRepeats.length === 0, `${hookRequests.length} requests, repeated: ${hookRepeats.join(' | ')}`);
 const failed = results.filter(ok => !ok).length;
 console.log(`${results.length - failed}/${results.length} checks passed`);
 process.exit(failed ? 1 : 0);

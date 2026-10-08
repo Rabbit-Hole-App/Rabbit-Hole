@@ -45,20 +45,62 @@ function fromRow(r) {
 }
 
 // A new journey starts in intake. DO NOTHING covers the live index: no row back means this scope already has one.
-export async function createJourney(env, scope, { request, grounding, intake }) {
-  const now = new Date().toISOString();
+// replace (continue-or-start, owner 2026-10-07): the id of the live journey the learner chose to replace. It is archived in
+// the same batch (one transaction) as the insert, so a start that fails leaves it live; an id that is not this scope's live
+// journey archives nothing, and the insert then meets whatever journey is live (live_journey).
+export async function createJourney(env, scope, { request, grounding, intake }, replace = null) {
+  const now = new Date().toISOString(), id = `lj_${crypto.randomUUID()}`;
   const cols = columns({
     request, grounding, intake, state: 'intake', constraints: [], pending_edits: [],
     registry: { concepts: {}, claims: {} }, diagnostic: { probes: [], asked: [], skipped: false }, evidence: { seq: 0, events: [] },
     path_version: 0,
   });
   const keys = ['id', 'org', 'owner_user_id', 'app', 'board', ...Object.keys(cols), 'revision', 'created_at', 'updated_at'];
-  const row = await env.LEARN_DB
+  const insert = env.LEARN_DB
     .prepare(`INSERT INTO learning_journeys (${keys.join(', ')}) VALUES (${keys.map(() => '?').join(', ')}) ON CONFLICT DO NOTHING RETURNING *`)
-    .bind(`lj_${crypto.randomUUID()}`, scope.org, scope.owner_user_id, scope.app, scope.board, ...Object.values(cols), 0, now, now)
-    .first();
+    .bind(id, scope.org, scope.owner_user_id, scope.app, scope.board, ...Object.values(cols), 0, now, now);
+  let row;
+  if (!replace) row = await insert.first();
+  else {
+    const [, made] = await env.LEARN_DB.batch([
+      env.LEARN_DB.prepare('UPDATE learning_journeys SET archived_at = ?, updated_at = ?, revision = revision + 1 WHERE id = ? AND org = ? AND owner_user_id = ? AND app = ? AND board = ? AND archived_at IS NULL')
+        .bind(now, now, replace, scope.org, scope.owner_user_id, scope.app, scope.board),
+      insert,
+    ]);
+    row = made.meta.changes ? await env.LEARN_DB.prepare('SELECT * FROM learning_journeys WHERE id = ?').bind(id).first() : null;
+  }
   if (!row) throw new JourneyConflict('live_journey');
   return fromRow(row);
+}
+
+// Owner 2026-10-07 (D2): a fast start that replaces the live journey is planned before the swap. Its row is made under the
+// board's staged name, which no request can name (the route's BOARD refuses ':'), so it sits outside the board's live index
+// and the old journey stays the board's live one, its progress untouched, while the planners run. Every write keys on the
+// row id (OWNED), so the effect chain runs on a staged row unchanged.
+export const stagedScope = scope => ({ ...scope, board: `staged:${scope.board}` });
+
+// The board's staged rows and their path versions: a failed plan's, or one a cancelled worker left, so a Retry never meets
+// a leftover.
+export async function dropStaged(env, scope) {
+  const where = 'org = ? AND owner_user_id = ? AND app = ? AND board = ?', at = [scope.org, scope.owner_user_id, scope.app, stagedScope(scope).board];
+  await env.LEARN_DB.batch([
+    env.LEARN_DB.prepare(`DELETE FROM learning_path_versions WHERE journey_id IN (SELECT id FROM learning_journeys WHERE ${where})`).bind(...at),
+    env.LEARN_DB.prepare(`DELETE FROM learning_journeys WHERE ${where}`).bind(...at),
+  ]);
+}
+
+// The swap, one batch: the replaced journey archived, then the planned staged row moved onto the board while no journey is
+// live there. null: another journey went live on the board meanwhile (another tab), so nothing changed.
+export async function activateStaged(env, staged, replace, scope) {
+  const now = new Date().toISOString(), board = [scope.org, scope.owner_user_id, scope.app, scope.board];
+  const [, moved] = await env.LEARN_DB.batch([
+    env.LEARN_DB.prepare('UPDATE learning_journeys SET archived_at = ?, updated_at = ?, revision = revision + 1 WHERE id = ? AND org = ? AND owner_user_id = ? AND app = ? AND board = ? AND archived_at IS NULL')
+      .bind(now, now, replace, ...board),
+    env.LEARN_DB.prepare(`UPDATE learning_journeys SET board = ?, updated_at = ? WHERE ${OWNED} AND archived_at IS NULL AND NOT EXISTS (SELECT 1 FROM learning_journeys WHERE org = ? AND owner_user_id = ? AND app = ? AND board = ? AND archived_at IS NULL)`)
+      .bind(scope.board, now, ...owned(staged), ...board),
+  ]);
+  if (!moved.meta.changes) return null;
+  return fromRow(await env.LEARN_DB.prepare('SELECT * FROM learning_journeys WHERE id = ?').bind(staged.id).first());
 }
 
 export async function loadJourney(env, scope) {

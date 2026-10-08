@@ -5,9 +5,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { learnDb } from './learn-grade-fixture.js';
 import { liveDb, liveRuns, readOnlyControlPlane } from './live-storage-spy.js';
-import { tutorRoute, JEV_TIMEOUT_MS, fastPlanProblem, plannerTier } from '../src/learn-tutor-routes.js';
-import { tutorQuestions, evaluationFrom, TUTOR_TOOL } from '../src/agents/learn-tutor.js';
+import { tutorRoute, JEV_TIMEOUT_MS, fastPlanProblem, plannerTier, planTurn } from '../src/learn-tutor-routes.js';
+import { tutorQuestions, evaluationFrom, TUTOR_TOOL, NEXT_STEP_SYSTEM, PLANNER_SYSTEM, plannerRequest } from '../src/agents/learn-tutor.js';
 import { protocolFingerprint, GRADER_PROTOCOL_FINGERPRINT, JevError } from '../src/learn-grade-jev.js';
+import { promptVersion } from '../src/learn-models.js';
 
 const SPEC = {
   answering: false,
@@ -181,7 +182,12 @@ test('plan: one forced tutor_response call on Opus 5.5 (no fallback); its input 
   const response = await w.post('/api/learn/tutor/plan', { app: 'canvas-0a1b2c3d', context: { turn: { raw_user_message: 'hi' } } });
   const { telemetry, ...body } = await response.json();
   assert.deepEqual(body, turn);
-  assert.deepEqual({ ...telemetry, ms: typeof telemetry.ms }, { ms: 'number', requested_model: 'claude-opus-5-5', effort: null, served_model: 'claude-opus-5-5', input_tokens: 3100, output_tokens: 120, stop_reason: 'tool_use', outcome: 'ok' });
+  // Before Professor Next Steps Task 6: { ms: 'number', requested_model: 'claude-opus-5-5', effort: null, served_model: 'claude-opus-5-5',
+  // input_tokens: 3100, output_tokens: 120, stop_reason: 'tool_use', outcome: 'ok' }. Task 6 (TutorDecisionEvent versions) adds
+  // prompt_version (the system and tool sent) and cost_usd (Opus 5.5, 3100 in and 120 out: $0.0148).
+  assert.match(telemetry.prompt_version, /^[0-9a-f]{12}$/);
+  assert.equal(telemetry.prompt_version, await promptVersion(calls[0].body.system, calls[0].body.tools));
+  assert.deepEqual({ ...telemetry, ms: typeof telemetry.ms }, { ms: 'number', requested_model: 'claude-opus-5-5', effort: null, served_model: 'claude-opus-5-5', input_tokens: 3100, output_tokens: 120, stop_reason: 'tool_use', outcome: 'ok', prompt_version: telemetry.prompt_version, cost_usd: 0.0148 });
   assert.equal(calls[0].body.model, 'claude-opus-5-5');
   assert.equal('fallbacks' in calls[0].body, false, 'no silent fallback');
   assert.deepEqual(calls[0].body.tool_choice, { type: 'auto' });
@@ -223,7 +229,64 @@ test('plan: no usable tutor_response is a 502 with telemetry outcome invalid; a 
   assert.equal(response.status, 502);
   const { error, telemetry } = await response.json();
   assert.match(error, /no turn/);
-  assert.deepEqual({ ...telemetry, ms: typeof telemetry.ms }, { ms: 'number', requested_model: 'claude-opus-5-5', effort: null, served_model: 'claude-opus-5', input_tokens: 3000, output_tokens: 9, stop_reason: 'max_tokens', outcome: 'invalid' });
+  // Before Task 6: { ms: 'number', requested_model: 'claude-opus-5-5', effort: null, served_model: 'claude-opus-5', input_tokens: 3000,
+  // output_tokens: 9, stop_reason: 'max_tokens', outcome: 'invalid' }. Task 6 adds prompt_version and cost_usd, priced at the
+  // requested claude-opus-5-5 (3000 in, 9 out: $0.01218); a failed call's telemetry carries both too.
+  assert.match(telemetry.prompt_version, /^[0-9a-f]{12}$/);
+  assert.deepEqual({ ...telemetry, ms: typeof telemetry.ms }, { ms: 'number', requested_model: 'claude-opus-5-5', effort: null, served_model: 'claude-opus-5', input_tokens: 3000, output_tokens: 9, stop_reason: 'max_tokens', outcome: 'invalid', prompt_version: telemetry.prompt_version, cost_usd: 0.01218 });
+});
+
+// TutorDecisionEvent versions (contract §3.1, Ruling T6): prompt_version hashes every system block and the tool actually sent.
+test('plan: prompt_version - a hook turn counts its uncached NEXT_STEP_SYSTEM block; cache and stream settings never change it', async t => {
+  const turn = { strategy: 'none', actions: [{ type: 'respond_text', text: 'Hi.' }] };
+  const calls = recordFetch(t, { model: 'claude-opus-5-5', usage: { input_tokens: 10, output_tokens: 2 }, content: [{ type: 'tool_use', name: 'tutor_response', input: turn }], stop_reason: 'tool_use' });
+  const version = async (env, context) => (await (await world(t, { TUTOR_PLANNER_FAST_MODEL: 'off', ...env }).post('/api/learn/tutor/plan', { app: 'canvas-0a1b2c3d', context })).json()).telemetry.prompt_version;
+  const typed = { learner_intent: { kind: 'question' } }, hook = { learner_intent: { kind: 'next_step' } };
+  const cachedTyped = await version({}, typed), cachedHook = await version({}, hook), plainHook = await version({ TUTOR_PLANNER_CACHE: 'off' }, hook);
+  assert.deepEqual(calls[1].body.system.map(block => block.text), [PLANNER_SYSTEM, NEXT_STEP_SYSTEM], 'the hook turn sent two system blocks');
+  assert.equal(cachedHook, await promptVersion(calls[1].body.system, calls[1].body.tools));
+  assert.notEqual(cachedHook, cachedTyped);
+  assert.equal(plainHook, cachedHook, 'one string or two blocks of the same text: the same version');
+  const streamed = plannerRequest(hook, 100, [], { stream: true, cache: true });
+  assert.equal(await promptVersion(streamed.system, streamed.tools), cachedHook);
+});
+
+// Review fix 5: the hash runs beside the model call, never in front of it (fast tier included). The digest is held until
+// the model is called; hashing first would wait for the gate's timeout and log it before the call.
+test('plan: the prompt_version hash never sits in front of the model call, on the fast tier and on Opus', async t => {
+  const subtle = globalThis.crypto.subtle, digest = subtle.digest.bind(subtle);
+  t.after(() => { delete subtle.digest; });
+  const turn = { strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: 'Hi.' }] };
+  for (const [env, context] of [[{}, { route: { row: 'off_slice' }, learner_intent: { kind: 'question' }, allowed_actions: ['respond_text'] }], [{ TUTOR_PLANNER_FAST_MODEL: 'off' }, { learner_intent: { kind: 'explanation' } }]]) {
+    const events = [];
+    let open;
+    const gate = new Promise(resolve => { const timer = setTimeout(() => { events.push('gate timeout'); resolve(); }, 100); open = () => { clearTimeout(timer); resolve(); }; });
+    subtle.digest = async (...args) => { events.push('hash'); await gate; events.push('hashed'); return digest(...args); };
+    const callModel = async (_env, _request, model) => { events.push('call'); open(); return Response.json({ model, usage: { input_tokens: 10, output_tokens: 2 }, content: [{ type: 'tool_use', name: 'tutor_response', input: turn }], stop_reason: 'tool_use' }); };
+    const plan = await planTurn({ ANTHROPIC_API_KEY: 'k', ...env }, context, { callModel });
+    assert.deepEqual(events, ['hash', 'call', 'hashed'], JSON.stringify(env));
+    assert.deepEqual([plan.telemetry.tier ?? 'opus-only', /^[0-9a-f]{12}$/.test(plan.telemetry.prompt_version)], [env.TUTOR_PLANNER_FAST_MODEL ? 'opus-only' : 'fast', true]);
+  }
+  delete subtle.digest;
+  const failed = await planTurn({ ANTHROPIC_API_KEY: 'k', TUTOR_PLANNER_FAST_MODEL: 'off' }, { learner_intent: { kind: 'explanation' } }, { callModel: async () => { throw new Error('network down'); } }).catch(error => error);
+  assert.deepEqual([failed.message, failed.telemetry.outcome, /^[0-9a-f]{12}$/.test(failed.telemetry.prompt_version)], ['network down', 'error', true], 'a failed call still names its prompt');
+});
+
+// Review fix round 2: a failing hash is telemetry only - prompt_version null, never an unhandled rejection or the turn's error.
+test('plan: a rejecting prompt_version hash leaves the plan and the model error intact', async t => {
+  const subtle = globalThis.crypto.subtle, unhandled = [], onUnhandled = reason => unhandled.push(reason);
+  process.on('unhandledRejection', onUnhandled);
+  t.after(() => { delete subtle.digest; process.off('unhandledRejection', onUnhandled); });
+  subtle.digest = async () => { throw new Error('digest down'); };
+  const turn = { strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: 'Hi.' }] };
+  const callModel = async (_env, _request, model) => { await new Promise(resolve => setTimeout(resolve, 20)); return Response.json({ model, usage: { input_tokens: 10, output_tokens: 2 }, content: [{ type: 'tool_use', name: 'tutor_response', input: turn }], stop_reason: 'tool_use' }); };
+  const plan = await planTurn({ ANTHROPIC_API_KEY: 'k', TUTOR_PLANNER_FAST_MODEL: 'off' }, { learner_intent: { kind: 'explanation' } }, { callModel }).catch(error => error);
+  assert.deepEqual([plan.actions, plan.telemetry?.outcome, plan.telemetry?.prompt_version], [turn.actions, 'ok', null], plan.message);
+  const down = async () => { await new Promise(resolve => setTimeout(resolve, 20)); throw new Error('network down'); };
+  const failed = await planTurn({ ANTHROPIC_API_KEY: 'k', TUTOR_PLANNER_FAST_MODEL: 'off' }, { learner_intent: { kind: 'explanation' } }, { callModel: down }).catch(error => error);
+  assert.deepEqual([failed.message, failed.telemetry?.outcome, failed.telemetry?.prompt_version], ['network down', 'error', null], 'the model error stands');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(unhandled, []);
 });
 
 test('the routes refuse bad input and apps the learner cannot reach', async t => {

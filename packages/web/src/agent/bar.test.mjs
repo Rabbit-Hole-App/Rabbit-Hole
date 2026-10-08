@@ -154,7 +154,7 @@ test('modes a scope cannot serve carry their reason: T02 §6.4, and live chat hi
   for (const kind of ['workspace', 'app']) assert.deepEqual(modeAvailability('ask', kind, true), { ok: true }, kind);
   const RESEARCH_OFF = { ok: false, reason: 'Research here would call the live model, so it is off on this preview.', short: 'Off on this preview' };
   for (const kind of ['workspace', 'app', 'project']) assert.deepEqual(modeAvailability('research', kind), RESEARCH_OFF, kind); // a review-copy limit, not the product
-  assert.deepEqual(modeAvailability('research', 'canvas'), { ok: true });
+  assert.deepEqual(modeAvailability('research', 'canvas'), RESEARCH_OFF); // never a Canvas command (Professor Next Steps contract §1.7)
   assert.deepEqual(modeAvailability('teach', 'workspace'), { ok: true, reason: 'creates a canvas first' });
   assert.deepEqual(modeAvailability('teach', 'project'), { ok: true });
   assert.deepEqual(modeAvailability('do', 'app'), { ok: true });

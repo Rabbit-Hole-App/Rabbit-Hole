@@ -36,10 +36,17 @@ const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
 await context.addCookies([{ name: 'small_session', value: owner.session, url: BASE }]);
 await context.addInitScript(([key, value]) => { if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value)); }, [inkKey, STATE]);
-const asks = [], stray = [], errors = [];
+const asks = [], stray = [], errors = [], hookBases = [];
 await context.route('**/api/learn/ask', route => { asks.push(route.request().url()); return route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream' }, body: 'event: done\ndata: {}\n\n' }); });
-await context.route(/\/api\/learn\/(tutor|artifact|home-ask|journeys?)\b/, route => { if (route.request().method() === 'GET') return route.continue(); stray.push(route.request().url()); return route.abort(); });
+await context.route(/\/api\/learn\/(tutor(?!\/next-steps)|artifact|home-ask|journeys?)\b/, route => { if (route.request().method() === 'GET') return route.continue(); stray.push(route.request().url()); return route.abort(); });
+// Professor Next Steps (#46): opening the canvas asks for hooks. The request goes to the real route, whose planner the gate
+// stack answers at the provider boundary with the journey fixture (e2e/provider-tripwire.js); its basis is recorded so the
+// check holds it to the eligibility rules (docs/features/professor-next-steps.md §2.3).
+// Counted per page load: check 12's reload is a fresh page, which may ask for its basis again (the server cache answers it).
+let load = 0;
+await context.route(/\/api\/learn\/tutor\/next-steps$/, route => { hookBases.push({ load, basis: JSON.parse(route.request().postData() || '{}')?.input?.basis ?? null }); return route.continue(); });
 const page = await context.newPage();
+page.on('domcontentloaded', () => { load++; }); // full document loads only, never an in-app route change
 page.on('pageerror', error => errors.push(error.message));
 const results = [];
 const check = async (label, fn) => { await fn(); results.push(label); console.log(`ok ${label}`); };
@@ -70,7 +77,8 @@ const pressCanvas = async () => {
 
 await page.goto(`${BASE}/apps/${canvas.name}`);
 await card('k-exp').waitFor({ timeout: 60000 });
-await page.waitForTimeout(1000);
+await page.waitForTimeout(2500); // past the 1200 ms hook debounce
+const hooksAtOpen = hookBases.length;
 
 await check('1 the header is five icon buttons in the owner\'s order, no visible text', async () => {
   await openPanel();
@@ -241,6 +249,16 @@ await check('no model route was called and no page error', async () => {
   assert.deepEqual(errors, []);
 });
 
+await check('the canvas asked for hooks once on open, and nothing the panel did asked again (§2.3: never on selection, camera or panel)', async () => {
+  const perLoad = Object.groupBy(hookBases, request => request.load);
+  console.log(`hook requests: ${hookBases.length} (${hooksAtOpen} on open) by page load: ${JSON.stringify(Object.fromEntries(Object.entries(perLoad).map(([n, list]) => [n, list.map(r => r.basis)])))}`);
+  assert.equal(hooksAtOpen, 1, 'one hook request for the opened canvas');
+  assert.equal(perLoad[hookBases[0].load].length, 1, 'find, tabs, pin and close are not recompute triggers');
+  for (const list of Object.values(perLoad)) assert.equal(new Set(list.map(r => r.basis)).size, list.length, 'never the same basis twice in one page');
+  assert.ok(Object.values(perLoad).every(list => list.length === 1), 'one request per page load (check 12 reloads once)');
+  assert.ok(hookBases.every(({ basis }) => /^nb_[0-9a-f]{8}$/.test(basis)), 'an owned basis');
+});
+
 await browser.close();
-console.log(`${results.length}/15 checks passed`);
-process.exit(results.length === 15 ? 0 : 1);
+console.log(`${results.length}/16 checks passed`);
+process.exit(results.length === 16 ? 0 : 1);

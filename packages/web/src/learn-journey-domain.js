@@ -15,6 +15,7 @@
 // evidence is the hole's session store ({ mode: 'session' }): evaluations use the client-built spec from the parent
 // registry, and the parent's path and evidence are never written (reconciliation on return is LP5).
 import { JOURNEY_LIMITS } from './learn-journey.js';
+import { blockModality } from './learn-tutor-actions.js';
 const SETUP = ['intake', 'diagnostic', 'path_review'];
 const cap = (text, max) => String(text ?? '').slice(0, max);
 
@@ -37,6 +38,7 @@ export function journeyDomain({ journey, path, blocks = [], dive = null }) {
   const slots = journey.intake?.slots || {};
   return {
     kind: 'journey', subject: journey.request?.topic,
+    sectionId: section?.id ?? null, // decision telemetry only (learn-tutor-trace.js); never in the planner context
     concepts, claims,
     practice: () => null,
     // The target block (by block id; a journey card id is a block id too): the claims stamped at materialization, and only
@@ -51,6 +53,8 @@ export function journeyDomain({ journey, path, blocks = [], dive = null }) {
       return Object.keys(concepts).sort((a, b) => b.length - a.length).find(id => (concepts[id].names || []).some(name => words.includes(String(name).toLowerCase()))) || null;
     },
     cards, cardModule,
+    // The modality of a card it shows (learn-tutor-actions.js): its block's type, an Explain Back challenge explain_back.
+    cardType: id => blockModality(byId.get(id)),
     catalogue: () => cards.map(id => {
       const card = cardModule(id);
       return { card: id, title: card.scene.title, depth: null, learning_question: card.evidence.learningQuestion, practice: !!card.activity };
@@ -79,6 +83,27 @@ export function journeyDomain({ journey, path, blocks = [], dive = null }) {
       constraints: { depth: slots.depth ?? null, minutes: slots.minutes ?? null, coding: slots.coding ?? null, math: slots.math ?? null },
     },
     evidence: dive ? { mode: 'session' } : { mode: 'journey', journey_id: journey.id },
+  };
+}
+
+// A canvas with no journey and no registered course (Professor Next Steps Task 10; Task 11b): typed, voice and hook turns run
+// the Tutor here, with no claims in scope (route off_slice: words, plus create_material when materials are offered), and
+// nothing it says is evidence. goal: the canvas title, or a hole's learning_goal or title; origin: the shared canvas a hole was started from.
+// context travels as context.canvas_context (contextKey), which picks the canvas planner prompt. Pure.
+// cards (Task 11b fix B2): the grounding a plain canvas has - up to six of its newest blocks other than the selected one (the
+// turn's target), in canvas order, as nextStepsInput shows blocks: a chat card by its question only, never its answer.
+// ponytail: text is the block's body, text or caption; a type that keeps its words elsewhere sends its title alone.
+export function canvasDomain({ goal = null, origin = null, blocks = [], selected = null } = {}) {
+  const cards = blocks.filter(block => block.id !== selected).slice(-6).map(block => {
+    const chat = !block.type, words = chat ? null : block.body ?? block.text ?? block.caption ?? null;
+    return { id: block.id, kind: chat ? 'chat' : cap(block.type, 40), title: cap(chat ? block.question : block.title ?? block.question ?? block.prompt ?? block.text, 80), text: words == null ? null : cap(words, 200) };
+  });
+  return {
+    kind: 'canvas', subject: goal, concepts: {}, claims: {}, practice: () => null,
+    targetClaims: () => [], defaultClaims: () => [], conceptOf: () => null,
+    cards: [], cardModule: () => null, cardType: () => null, catalogue: () => [], ladder: [], ladderStep: () => null, showCard: () => false,
+    context: { goal: goal == null ? null : cap(goal, 200), origin: origin == null ? null : cap(origin, 200), ...(cards.length ? { cards } : {}) }, contextKey: 'canvas_context',
+    sectionId: null, evidence: { mode: 'session' },
   };
 }
 

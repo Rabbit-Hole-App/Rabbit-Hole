@@ -42,6 +42,9 @@ const contextFor = async (who, viewport = { width: 1440, height: 900 }) => {
   await context.addCookies([{ name: 'small_session', value: who.session, url: BASE }]);
   await context.addInitScript(seeds => { for (const [key, value] of Object.entries(seeds)) if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value)); }, SEEDS);
   await context.route('**/api/learn/ask', route => { asks.push(route.request().url()); return route.abort(); });
+  // Start Rabbit Hole opens a hole whose opening question is a Tutor turn (#46): answered here, as shared-rabbit-hole-check
+  // does; the planner's real wiring is covered on the journey stack.
+  await context.route('**/api/learn/tutor/plan', route => route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', actions: [{ type: 'respond_text', text: 'What would you like to explore first?' }] } }));
   const page = await context.newPage();
   page.on('pageerror', error => errors.push(error.message));
   return { context, page };
@@ -149,6 +152,9 @@ await check('5 a kept hole: the card is its portal, and right-click Start Rabbit
   await rightClick('m-b');
   await startItem().click();
   await page.waitForFunction(() => location.search.includes('hole='), null, { timeout: 15000 });
+  // #46: entering a hole opens with a Tutor turn; the learner types once its question shows (a command typed while that
+  // turn is still in flight is lost - recorded as a #46 review finding, not this check's subject).
+  await page.getByText('What would you like to explore first?').first().waitFor({ timeout: 20000 });
   const composer = page.locator('[data-learn-dock] textarea, [data-learn-dock] input:not([type="file"])').first();
   await composer.click(); await composer.fill('/whiteboard Bulge sketch'); await page.waitForTimeout(150); await composer.press('Enter');
   await page.waitForFunction(() => /^\/apps\/canvas-[a-f0-9]{8}$/.test(location.pathname) && !location.search.includes('hole='), null, { timeout: 20000 });

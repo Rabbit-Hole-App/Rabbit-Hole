@@ -44,6 +44,31 @@ test('the call: one POST to the share\'s own route; sign-in, the hole to open, o
   await assert.rejects(requestRabbitHole('t', { block_id: 'x' }, { fetchImpl: reply(404, { error: 'That card is not on this shared canvas.' }) }), /not on this shared canvas/);
 });
 
+// Privacy test 11 (Ruling F1, contract §1.4): a hook clicked while signed out survives the sign-in round trip by its id, and
+// the start sends the step and gets back the server-checked one; a stale one comes back as { stale: true } to start without it.
+test('a hook survives sign-in: the hook resume key, read only when asked; the step travels and comes back checked', async () => {
+  assert.equal(resumeHref('/b/abc', 'k1', 'ns_01020304.2'), `/login?next=${encodeURIComponent('/b/abc?rabbit=k1&hook=ns_01020304.2')}`);
+  assert.equal(resumeHref('/b/abc', null, null), `/login?next=${encodeURIComponent('/b/abc?rabbit=root')}`, 'no hook: as before');
+  const replaced = [];
+  const history = { replaceState: (_s, _t, url) => replaced.push(url) };
+  const back = { search: `?rabbit=k1&hook=${encodeURIComponent('ns_01020304.2')}`, pathname: '/b/abc' };
+  assert.deepEqual(takeResume(back, history, { hook: true }), { origin: 'k1', hook: 'ns_01020304.2' });
+  assert.equal(takeResume(back, history), 'k1', 'the default return is unchanged');
+  assert.deepEqual(takeResume({ search: '?rabbit=root', pathname: '/b/abc' }, history, { hook: true }), { origin: null, hook: null });
+  assert.equal(takeResume({ search: '', pathname: '/b/abc' }, history, { hook: true }), undefined);
+  assert.deepEqual(replaced, ['/b/abc', '/b/abc', '/b/abc'], 'the hook leaves the address with the origin');
+  const sent = [];
+  const reply = (status, body) => async (url, init) => { sent.push(JSON.parse(init.body)); return Response.json(body, { status }); };
+  const step = { v: 1, set_id: 'ns_01020304', suggestion_id: 'ns_01020304.2', learning_goal: 'g', scope: 'shared' };
+  assert.deepEqual(await requestRabbitHole('t', null, { step, fetchImpl: reply(201, { url: '/apps/canvas-0000abcd', name: 'canvas-0000abcd', next_step: step }) }),
+    { url: '/apps/canvas-0000abcd', existing: false, name: 'canvas-0000abcd', next_step: step });
+  assert.deepEqual(sent.at(-1), { origin: null, selected_next_step: step });
+  assert.deepEqual(await requestRabbitHole('t', { block_id: 'k1' }, { step, fetchImpl: reply(409, { error: 'stale_hook' }) }), { stale: true });
+  await assert.rejects(requestRabbitHole('t', null, { step, fetchImpl: reply(409, { error: 'Turn the view link on first.' }) }), /view link/, 'any other refusal still throws');
+  await requestRabbitHole('t', null, { fetchImpl: reply(201, { url: '/apps/canvas-0000abcd' }) });
+  assert.deepEqual(sent.at(-1), { origin: null }, 'no step: the body is as before');
+});
+
 // Anti-hardcoding: the start is generic Shared Canvas behaviour. Its code names no lesson, topic, card type, board
 // or fixture, on either side.
 test('the implementation special-cases no board, lesson, topic, card type or share', () => {

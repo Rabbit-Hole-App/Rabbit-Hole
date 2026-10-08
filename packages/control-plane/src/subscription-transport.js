@@ -2,8 +2,13 @@
 
 // The personal bridge serves only its owner's authenticated dev requests
 // (docs/features/coaching.md); null when the mode is off or this is the owner.
+// Fails closed: an unset owner, or an access with no email (an anonymous viewer), never matches. A bare equality once let
+// an anonymous viewer through on a worker with no owner configured (undefined === undefined, 2026-10-07). With the mode off
+// nothing is refused here, so public links and every normal worker are unchanged.
 export function subscriptionOwnerRefusal(env, access) {
-  if (env.SUBSCRIPTION_ONLY !== 'true' || access.email === env.SUBSCRIPTION_OWNER_EMAIL) return null;
+  if (env.SUBSCRIPTION_ONLY !== 'true') return null;
+  const owner = env.SUBSCRIPTION_OWNER_EMAIL, email = access?.email;
+  if (typeof owner === 'string' && owner !== '' && email === owner) return null;
   return Response.json({ error: 'This personal dev subscription is available only to its owner.' }, { status: 403 });
 }
 // Course authoring's model actions are not connected to the bridge yet.

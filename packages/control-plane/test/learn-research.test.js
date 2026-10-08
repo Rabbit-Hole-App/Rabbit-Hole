@@ -128,3 +128,25 @@ test('the ask stream forwards a progress card and leaves other progress events a
   const source = readFileSync(new URL('../src/ask.js', import.meta.url), 'utf8');
   assert.match(source, /onProgress: \(stage, card\) => send\('progress', card \? \{ stage, card \} : \{ stage \}\)/);
 });
+
+// Task 11c-A ruling 3: arxiv: false (the Tutor repository_context handoff) offers only the caller's tools and no research
+// system text; every other caller keeps the default, which is pinned here beside the shared-canvas and prompt tests.
+test('the default keeps the paper tools and the research system text for every existing caller', async () => {
+  let sent;
+  await researchAnswer({}, [], 'Tutor', null, { tools: [{ name: 'read_source' }], runTool: async () => ({}), callModel: async (_, body) => { sent = body; return text('ok'); } });
+  assert.deepEqual(sent.tools.map(t => t.name), ['read_source', 'search_arxiv', 'read_arxiv_paper']);
+  assert.ok(sent.system.includes('search_arxiv'), 'LEARN_RESEARCH_SYSTEM rides by default');
+});
+test('arxiv: false sends only the caller tools and Tutor system text, and never runs a paper tool the model names anyway', async () => {
+  const sent = [], ran = [];
+  const result = await researchAnswer({}, [], 'Tutor', null, {
+    arxiv: false, tools: [{ name: 'read_source' }], runTool: async () => ({ ok: true }),
+    callModel: async (_, body) => { sent.push(body); return sent.length === 1 ? tool('search_arxiv', { query: 'topic' }) : text('From the source only.'); },
+    findPapers: async () => { ran.push('search'); return []; }, readPaper: async () => { ran.push('read'); return paper; },
+  });
+  assert.equal(result.answer, 'From the source only.');
+  for (const body of sent) { assert.deepEqual(body.tools.map(t => t.name), ['read_source']); assert.equal(body.system, 'Tutor'); }
+  assert.deepEqual(ran, [], 'no paper tool ran');
+  const refused = sent[1].messages.at(-1).content[0];
+  assert.deepEqual([refused.is_error, refused.content[0].text], [true, 'Unknown Learn tool'], 'an unoffered paper tool is refused as unknown');
+});
