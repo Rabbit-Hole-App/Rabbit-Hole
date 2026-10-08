@@ -1,5 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowDownToLine, BookOpen, Eye, FileText, FolderGit2, Loader2, Lock, Minus, Play } from 'lucide-react';
+import { ArrowDownToLine, BookOpen, Eye, FileText, FolderGit2, Loader2, Lock, MessageCircle, Minus, Play, X } from 'lucide-react';
 import { setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
 import ForkButton from './ForkButton.jsx';
 import { Button, toast } from './ui.jsx';
@@ -14,6 +14,9 @@ import ChatComposer from './ChatComposer.jsx';
 import { Md, NextStepsCard } from './ask.jsx';
 import { streamAsk } from './agent/ask-stream.js';
 import { askHistory, askPath, loadChat, saveChat, signInForAsk, takeDraft } from './shared-ask.js';
+import CommentsPanel from './comments/CommentsPanel.jsx';
+import { useCanvasComments } from './comments/useCanvasComments.js';
+import { publicBase } from './comments/comments-api.js';
 
 const AdaptiveCanvas = lazy(() => import('./AdaptiveCanvas.jsx'));
 
@@ -48,6 +51,20 @@ export default function SharedBoardPage({ token }) {
   // The card right-click menu starts the same flow from the card it was opened on (owner, 2026-10-07).
   const rabbitStart = useRef(null);
   const startFromCard = useCallback(cardId => rabbitStart.current?.(cardId), []);
+  // Comments on a published canvas (docs/features/canvas-comments.md): the public family, while the owner's public
+  // setting is Open or Closed (else it answers 404 and the page shows none). Signed out reads; posting needs an account.
+  const [commentsInfo, setCommentsInfo] = useState(null);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const canvasApi = useRef(null);
+  const openComments = useCallback(() => setCommentsOpen(true), []);
+  const published = !!shared?.published;
+  useEffect(() => {
+    if (!published) return undefined;
+    let live = true;
+    fetch(publicBase(token), { headers: { 'Content-Type': 'application/json' } }).then(response => (response.ok ? response.json() : null)).then(info => { if (live) setCommentsInfo(info); }, () => {});
+    return () => { live = false; };
+  }, [token, published]);
+  const comments = useCanvasComments({ base: commentsInfo && publicBase(token), canAdd: !!commentsInfo?.can.post, openPanel: openComments, canvasApi });
 
   // The board's files and notebook workspaces come through the same link;
   // notebooks open as the board's latest copy, in a workspace of their own.
@@ -100,15 +117,27 @@ export default function SharedBoardPage({ token }) {
         {shared.creator && <span data-shared-creator className="truncate text-xs text-ink-3">{shared.published ? 'Published by' : 'Shared by'} {shared.creator.handle
           ? <a data-creator-link href={`/@${shared.creator.handle}`} className="rounded-sm text-ink-2 hover:text-ink hover:underline">{creatorLabel(shared.creator)}</a> : creatorLabel(shared.creator)}</span>}
         <span className="flex-1" />
+        {comments.active && <Button type="button" variant="secondary" data-comments-button aria-pressed={commentsOpen} onClick={() => setCommentsOpen(open => !open)}><MessageCircle size={13} strokeWidth={1.8} />Comments</Button>}
         <StartRabbitHole token={token} state={shared.state} card={card} resume={rabbitRequested} startRef={rabbitStart} />
         <ForkButton source={{ token }} title={shared.title} auto={forkRequested} onForked={fork => { window.location.href = fork.url; }} count={shared.fork_count} />
       </header>
-      <div className="relative min-h-0 flex-1" aria-label="Lesson canvas">
+      <div className="flex min-h-0 flex-1">
+      <div className="relative min-h-0 min-w-0 flex-1" aria-label="Lesson canvas">
         <Suspense fallback={null}>
-          <AdaptiveCanvas exchanges={exchanges} onMove={() => {}} appName={shared.app} boardState={board} readOnly onState={onCanvasState} onStartRabbitHole={startFromCard}
+          <AdaptiveCanvas {...comments.canvasProps} apiRef={canvasApi} exchanges={exchanges} onMove={() => {}} appName={shared.app} boardState={board} readOnly onState={onCanvasState} onStartRabbitHole={startFromCard}
             leftRail={<SharedNextSteps token={token} card={card?.id || null} version={shared.version} signedIn={!!shared.viewer} startRef={rabbitStart} />}
             composer={<SharedAsk token={token} viewer={shared.viewer} context={shared.context} draft={askDraft} />} />
         </Suspense>
+      </div>
+      {comments.active && commentsOpen && (
+        <aside aria-label="Comments" data-shared-comments className="flex w-[400px] shrink-0 flex-col border-l border-line px-5 pt-3 pb-4 max-md:w-full">
+          <div className="-mx-5 mb-3 flex items-center justify-between border-b border-line px-5 pb-2.5">
+            <h2 className="text-sm font-semibold text-ink">Comments</h2>
+            <button type="button" aria-label="Close comments" onClick={() => setCommentsOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><X size={15} aria-hidden /></button>
+          </div>
+          <CommentsPanel {...comments.panelProps} />
+        </aside>
+      )}
       </div>
     </main>
   );

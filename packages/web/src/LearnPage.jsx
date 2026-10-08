@@ -35,6 +35,8 @@ import ResizableSidePanel from './ResizableSidePanel.jsx';
 import PanelHeader, { CanvasFind } from './PanelHeader.jsx';
 import CommentsPanel from './comments/CommentsPanel.jsx';
 import { useCanvasComments } from './comments/useCanvasComments.js';
+import { memberBase } from './comments/comments-api.js';
+import CommentSettings from './comments/CommentSettings.jsx';
 import { readPanelPin, savePanelPin } from './canvas-find.js';
 import LearnPaper from './LearnPaper.jsx';
 import { cacheAsset, cachedAsset } from './learn-asset-cache.js';
@@ -627,7 +629,7 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
   // Comments (docs/features/canvas-comments.md): keyed by the main board's id, which the owner's board reads return.
   const [commentBoard, setCommentBoard] = useState(null);
   const openComments = useCallback(() => { setPanelOpen(true); setPanelTab('comments'); }, []);
-  const comments = useCanvasComments({ boardId: commentBoard, enabled: isCanvas && !hole && boardName === 'main', openPanel: openComments, canvasApi });
+  const comments = useCanvasComments({ base: commentBoard && memberBase(commentBoard), enabled: isCanvas && !hole && boardName === 'main', openPanel: openComments, canvasApi });
   useEffect(() => { if (!comments.active && panelTab === 'comments') setPanelTab('toc'); }, [comments.active, panelTab]);
   // ?share=1 (the Library's Share / Manage link) opens this canvas's Share panel once; the query is dropped at once.
   const [shareOpen, setShareOpen] = useState(() => new URLSearchParams(window.location.search).get('share') === '1');
@@ -1465,7 +1467,8 @@ function LearnSurface({ app, onBack, repositoryContext = null, onClearRepository
                 disabled={!!sharing?.unavailable} onClick={() => setShareOpen(open => !open)}
                 className={`flex h-8 w-8 items-center justify-center rounded-lg disabled:opacity-40 ${sharing?.shared ? 'text-[#2383e2]' : 'text-ink-2'} ${shareOpen ? 'bg-hover' : 'hover:bg-hover hover:text-ink'}`}>
                 <Share2 size={15} strokeWidth={1.8} /></button>
-              {shareOpen && <SharePanel sharing={sharing} busy={shareBusy} error={shareError} onChange={changeSharing} onRepository={changeRepositoryAccess} onPublish={isCanvas && !hole && !board ? changePublication : null} onClose={() => setShareOpen(false)} />}
+              {shareOpen && <SharePanel sharing={sharing} busy={shareBusy} error={shareError} onChange={changeSharing} onRepository={changeRepositoryAccess} onPublish={isCanvas && !hole && !board ? changePublication : null} onClose={() => setShareOpen(false)}
+                comments={comments.active ? <CommentSettings base={memberBase(commentBoard)} published={!!sharing?.published} /> : null} />}
               {choosingHandle && <div className="fixed inset-0 z-[70] overflow-y-auto bg-white"><ChooseHandle onDone={() => { setChoosingHandle(false); changePublication(true); }} /></div>}
             </span>
             <button type="button" title={panelOpen ? 'Hide the right panel' : 'Show the right panel'}

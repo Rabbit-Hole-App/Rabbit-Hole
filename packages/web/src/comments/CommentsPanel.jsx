@@ -103,10 +103,11 @@ function ThreadList({ list, about, status, setStatus, audience, setAudience, obj
   );
 }
 
-// Who may post here, else the one line saying why not (section 11).
+// Who may post here, else the one line saying why not (section 11). Signed out, it is the way in, back to this page.
+const SIGN_IN = 'Sign in to comment.';
 function blockedLine(about, can) {
   if (can) return null;
-  if (!about.signed_in) return 'Sign in to comment.';
+  if (!about.signed_in) return SIGN_IN;
   if (!about.comments_enabled && about.role !== 'owner') return 'Comments are turned off for this canvas.';
   if (about.can.blocked) return "You can't comment publicly on this canvas. You can still read its public comments.";
   if (about.public_mode === 'closed') return 'Comments are closed. Existing comments stay visible.';
@@ -237,6 +238,7 @@ function CommentComposer({ storeKey, placeholder, blocked, onSend, autoFocus = f
   const key = useRef(storeKey);
   useEffect(() => { if (key.current !== storeKey) { key.current = storeKey; setDraft(loadDraft(storage, storeKey) || freshDraft()); } }, [storeKey]);
   useEffect(() => { saveDraft(storage, storeKey, draft); }, [storeKey, draft]);
+  if (blocked === SIGN_IN) return <a data-comment-sign-in href={`/login?next=${encodeURIComponent(window.location.pathname)}`} className="block rounded-md bg-hover px-2 py-1.5 text-xs text-ink hover:underline">Sign in to comment</a>;
   if (blocked) return <p data-comment-blocked className="rounded-md bg-hover px-2 py-1.5 text-xs text-ink-2">{blocked}</p>;
   const send = async () => {
     setBusy(true);

@@ -176,7 +176,105 @@ await check('8 comments never touch the board: same version; a reload keeps thre
   await shot('08-after-reload');
 });
 
-await check('9 no model call, no stray write, no page error', async () => {
+// Increment 2: the owner's Share settings and the published page (/e).
+const visitor = { session: await sessionFor(`comments-visitor-${run}@example.com`, `visitor_${run}`) };
+let token;
+const share = () => page.locator('[role="dialog"][aria-label="Share this board"]');
+await check('10 Share: Allow comments (on by default); published, Public comments Off / Open / Closed, disabled while comments are off', async () => {
+  token = (await api(`/api/apps/${canvas.name}/publish`, { method: 'POST', body: '{}' })).body.publication_token;
+  assert.ok(token, 'published');
+  await page.reload();
+  await card('k-exp').waitFor({ timeout: 60000 });
+  await page.locator('[data-share-button]').click();
+  await share().locator('[data-comment-settings]').waitFor();
+  const allow = share().getByRole('switch', { name: 'Allow comments' });
+  assert.equal(await allow.getAttribute('aria-checked'), 'true');
+  assert.equal(await share().getByRole('radio', { name: 'Off' }).getAttribute('aria-checked'), 'true', 'public comments start Off');
+  await share().getByRole('radio', { name: 'Open' }).click();
+  await share().getByText('Anyone signed in to Rabbit Hole can comment.').waitFor();
+  await allow.click();
+  await share().getByText('Only you can comment. Existing comments stay visible.').waitFor();
+  assert.equal(await share().getByRole('radio', { name: 'Closed' }).isDisabled(), true, 'the public setting is disabled while comments are off');
+  await shot('10-share-comments-off', share());
+  await allow.click();
+  await share().getByText('Anyone signed in to Rabbit Hole can comment.').waitFor();
+  await shot('10b-share-comments-open', share());
+  await page.keyboard.press('Escape');
+});
+
+const other = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
+await other.route(/\/api\/learn\/(ask|tutor|artifact|home-ask|journeys?)\b/, route => { if (route.request().method() === 'GET') return route.continue(); stray.push(route.request().url()); return route.abort(); });
+const visit = async session => {
+  await other.clearCookies();
+  if (session) await other.addCookies([{ name: 'small_session', value: session, url: BASE }]);
+  const tab = await other.newPage();
+  tab.on('pageerror', error => errors.push(error.message));
+  await tab.goto(`${BASE}/e/${token}`);
+  await tab.locator('[data-block-id="k-exp"]').waitFor({ timeout: 60000 });
+  await tab.waitForTimeout(1200);
+  return tab;
+};
+
+await check('11 /e signed in as anyone: Add comment on a card posts a Public thread with a pin', async () => {
+  const tab = await visit(visitor.session);
+  await tab.locator('[data-comments-button]').waitFor();
+  const box = await tab.locator('[data-block-id="k-exp"]').boundingBox();
+  await tab.mouse.click(box.x + 80, box.y + 40, { button: 'right' });
+  const items = await tab.locator('[data-canvas-menu] [role="menuitem"]').evaluateAll(nodes => nodes.map(node => node.textContent.trim()));
+  assert.deepEqual(items, ['Start Rabbit Hole', 'Add comment']);
+  await tab.locator('[data-menu-add-comment]').click();
+  const side = tab.locator('[data-shared-comments]');
+  await side.locator('[data-comment-draft]').waitFor();
+  assert.match(await side.innerText(), /Visible to[\s\S]*Public/);
+  await side.locator('[data-comment-composer] textarea').fill('Does pepper do the same thing?');
+  await side.locator('[data-comment-composer] textarea').press('Enter');
+  await side.locator('[data-comment-thread-view]').waitFor();
+  assert.match(await side.innerText(), new RegExp(`Public[\\s\\S]*@visitor_${run}[\\s\\S]*pepper`));
+  await tab.waitForFunction(() => document.querySelectorAll('[data-comment-pin]').length === 1);
+  await tab.screenshot({ path: `${SHOTS}/11-public-posted.png` }); console.log('shot 11-public-posted');
+  await tab.close();
+});
+
+await check('12 /e signed out: the public thread reads, and posting is a sign-in link; no Add comment in the menu', async () => {
+  const tab = await visit(null);
+  await tab.locator('[data-comments-button]').click();
+  const side = tab.locator('[data-shared-comments]');
+  await side.locator('[data-comment-thread]').first().click();
+  await side.locator('[data-comment-sign-in]').waitFor();
+  assert.match(await side.innerText(), /Does pepper do the same thing\?/);
+  const box = await tab.locator('[data-block-id="k-exp"]').boundingBox();
+  await tab.mouse.click(box.x + 80, box.y + 40, { button: 'right' });
+  const items = await tab.locator('[data-canvas-menu] [role="menuitem"]').evaluateAll(nodes => nodes.map(node => node.textContent.trim()));
+  assert.deepEqual(items, ['Start Rabbit Hole']);
+  await tab.keyboard.press('Escape');
+  await tab.screenshot({ path: `${SHOTS}/12-public-signed-out.png` }); console.log('shot 12-public-signed-out');
+  await tab.close();
+});
+
+await check('13 the owner sees the public thread on their canvas, labelled Public, with the audience filter', async () => {
+  await page.reload();
+  await card('k-exp').waitFor({ timeout: 60000 });
+  await page.getByRole('tab', { name: 'Comments', exact: true }).click();
+  await panel().locator('[data-comment-thread]', { hasText: 'pepper' }).waitFor();
+  assert.equal(await panel().getByRole('group', { name: 'Audience' }).count(), 1);
+  assert.match(await panel().locator('[data-comment-thread]', { hasText: 'pepper' }).innerText(), /Public/);
+  await shot('13-owner-sees-public');
+});
+
+await check('14 Closed: the published page keeps the thread readable and says comments are closed', async () => {
+  const base = `/api/learn/c/${boardId}`;
+  assert.equal((await api(`${base}/comment-settings`, { method: 'PUT', body: JSON.stringify({ public_mode: 'closed' }) })).body.public_mode, 'closed');
+  const tab = await visit(visitor.session);
+  await tab.locator('[data-comments-button]').click();
+  const side = tab.locator('[data-shared-comments]');
+  await side.locator('[data-comment-thread]').first().click();
+  await side.getByText('Comments are closed. Existing comments stay visible.').waitFor();
+  await tab.screenshot({ path: `${SHOTS}/14-public-closed.png` }); console.log('shot 14-public-closed');
+  await tab.close();
+  await other.close();
+});
+
+await check('15 no model call, no stray write, no page error', async () => {
   assert.deepEqual([asks, stray, errors], [[], [], []]);
 });
 

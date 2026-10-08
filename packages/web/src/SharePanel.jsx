@@ -4,7 +4,7 @@ import { Check, CircleAlert, Compass, Copy, Eye, FolderLock, Globe } from 'lucid
 // The Share popover for a Learn board (docs/features/canvas-sharing.md): one
 // switch shares or stops sharing; the view link can be public (no sign-in).
 // Shared boards are view-only - editing someone else's board means forking.
-function Switch({ on, label, disabled = false, onChange }) {
+export function Switch({ on, label, disabled = false, onChange }) {
   return (
     <button type="button" role="switch" aria-checked={on} aria-label={label} disabled={disabled} onClick={() => onChange(!on)}
       className={`relative h-5 w-9 shrink-0 rounded-full transition-colors disabled:opacity-40 ${on ? 'bg-[#2383e2]' : 'bg-line-strong'}`}>
@@ -82,7 +82,8 @@ function ExploreRow({ published, token, busy, onPublish }) {
 // onRepository(allow): the owner's switch for a private repository's code on this link (docs/features/shared-canvas-ask.md).
 // onPublish(publish): Publish to Explore / Remove from Explore - only for a top-level canvas.
 // `place`: where it sits - under the canvas top bar's Share button, or the Library's popup (LibraryViews.jsx).
-export default function SharePanel({ sharing, busy, error, onChange, onRepository, onPublish = null, onClose, place = 'absolute top-full right-0 mt-2' }) {
+// comments: the canvas's comment settings (docs/features/canvas-comments.md section 4), rendered by the page that owns them.
+export default function SharePanel({ sharing, busy, error, onChange, onRepository, onPublish = null, onClose, place = 'absolute top-full right-0 mt-2', comments = null }) {
   const panel = useRef(null);
   useEffect(() => {
     const away = event => { if (!panel.current?.contains(event.target) && !event.target.closest?.('[data-share-button]')) onClose(); };
@@ -143,6 +144,7 @@ export default function SharePanel({ sharing, busy, error, onChange, onRepositor
         </div>
       )}
       {onPublish && <ExploreRow published={!!current.published} token={current.publication} busy={busy} onPublish={onPublish} />}
+      {comments}
       {error && <p role="alert" className="mt-2 text-xs text-red-700">{error}</p>}
     </div>
   );

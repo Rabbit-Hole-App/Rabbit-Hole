@@ -68,3 +68,14 @@ test('seams: the canvas menu offers Add comment (card) and Add comment here (can
   assert.doesNotMatch(panel + read('./comments-api.js'), /\.email\b|user_id|author_id/, 'the browser never handles an email or an account id');
   assert.doesNotMatch(panel, /dangerouslySetInnerHTML/, 'text renders as React text');
 });
+
+test('increment 2 seams: Share carries the comment settings; the published page reads the public family; view-only menus open for commenters', () => {
+  const share = read('../SharePanel.jsx'), page = read('../LearnPage.jsx'), shared = read('../SharedBoardPage.jsx'), canvas = read('../AdaptiveCanvas.jsx'), settings = read('./CommentSettings.jsx');
+  assert.match(share, /\{onPublish && <ExploreRow [^\n]*\/>\}\n\s+\{comments\}/, 'one slot, under Publish to Explore');
+  assert.match(page, /comments=\{comments\.active \? <CommentSettings base=\{memberBase\(commentBoard\)\} published=\{!!sharing\?\.published\} \/> : null\}/);
+  assert.match(settings, /<Switch on=\{enabled\} label="Allow comments"/, 'labelled exactly Allow comments');
+  assert.match(settings, /disabled=\{busy \|\| !enabled\}/, 'the public setting is disabled while comments are off');
+  assert.match(shared, /useCanvasComments\(\{ base: commentsInfo && publicBase\(token\), canAdd: !!commentsInfo\?\.can\.post,/, 'posting only for those the server lets post');
+  assert.match(shared, /if \(!published\) return undefined;/, 'a share link (/b) never asks the public family');
+  assert.match(canvas, /if \(readOnlyRef\.current && !onAddComment && \(!onStartRabbitHole/);
+});

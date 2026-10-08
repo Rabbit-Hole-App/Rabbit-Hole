@@ -3219,7 +3219,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             const at = local(event);
             id = Object.entries(boundsRef.current).find(([key, box]) => blocksRef.current.some(block => block.id === key) && at.x >= box.x && at.x <= box.x + box.w && at.y >= box.y && at.y <= box.y + box.h)?.[0] || null;
           }
-          if (readOnlyRef.current && (!onStartRabbitHole || !blocksRef.current.some(block => block.id === id))) { setMenuAt(null); return; } // view-only: a card's menu, or none
+          if (readOnlyRef.current && !onAddComment && (!onStartRabbitHole || !blocksRef.current.some(block => block.id === id))) { setMenuAt(null); return; } // view-only: a card's menu, a commenter's Add comment, or none
           if (id && !selectedRef.current.includes(id)) select(id);
           const groupHit = !id && event.target.closest('[data-group-box]');
           if (groupHit) setSelection(membersOf(groupHit.dataset.groupBox));
