@@ -180,3 +180,32 @@ test('creator cards count only public things: published canvases and the public 
   assert.deepEqual((await get(f, '/api/learn/creators?q=ana')).body.creators.map(c => [c.handle, c.project_count, c.explainer_count]), [['ana', 0, 4]]);
   for (const as of [undefined, 'ana', 'cara']) assert.ok(!JSON.stringify((await get(f, '/api/learn/creators', as)).body).includes('SECRET'), `as ${as}`);
 });
+
+// Owner, 2026-10-08: "in creators profile put a search bar so they can search projects or canvas by name for that specific
+// creator". ?q= narrows /@handle's explainers on the server (the list is capped) to a title or a public project's name.
+test('profile search: by canvas title or public project name, any case, this creator only; never private, unlisted or a private repository', async t => {
+  const f = setup(t); // repo-0a1b2c3d-nanogpt (karpathy/nanoGPT) is public
+  handle(f, 'ana@test', 'ana'); handle(f, 'cara@test', 'cara');
+  const NANO = 'repo-0a1b2c3d-nanogpt', SECRET = 'repo-0c0c0c0c-secret';
+  f.sqlite.exec(`INSERT INTO repository_apps(org,name,owner_email,repo,branch,status) VALUES('ana-ws','${SECRET}','ana@test','acme/hidden','main','ready')`); // no visibility row: private
+  const inProject = async (title, project) => (await f.call('POST', '/api/canvases', { as: 'ana', body: { title, project } })).body;
+  for (const c of [await inProject('Attention', NANO), await inProject('Softmax', NANO), await canvasOf(f, 'ana', 'Flash Tiles', null), await inProject('Lab notes', SECRET)]) await publish(f, 'ana', c);
+  await canvasOf(f, 'ana', 'SECRET private');
+  await f.shareProject({ publicView: true }); // "nanoGPT attention": an unlisted view link in nanoGPT
+  await publish(f, 'cara', await canvasOf(f, 'cara', 'Attention bridges'));
+  const search = async (q, sort = 'newest') => {
+    const r = await get(f, `/api/learn/creators/ana?sort=${sort}&q=${encodeURIComponent(q)}`);
+    assert.equal(r.status, 200, q);
+    return r.body;
+  };
+  assert.deepEqual(titles((await search('ATTEN')).explainers), ['Attention'], 'by title, any case, anywhere in it; never cara\'s or the unlisted one');
+  assert.deepEqual(titles((await search('nanogpt')).explainers), ['Softmax', 'Attention'], 'by a public project: its published canvases, in the sort');
+  assert.deepEqual((await search('nanogpt')).explainers.map(c => c.project), ['karpathy/nanoGPT', 'karpathy/nanoGPT'], 'the label the page names the project by');
+  assert.deepEqual(titles((await search('tiles')).explainers), ['Flash Tiles'], 'a standalone canvas');
+  for (const q of ['acme', 'hidden', 'SECRET', 'nanoGPT attention', '%', '_', 'ana@test']) assert.deepEqual((await search(q)).explainers, [], `never: ${q}`);
+  assert.deepEqual(titles((await search('lab')).explainers), ['Lab notes'], 'a published canvas shows by its title; its private repository never names it');
+  const counted = await search('softmax');
+  assert.deepEqual([counted.explainer_count, counted.fork_count, counted.handle], [4, 0, 'ana'], 'the counters stay the creator\'s totals');
+  assert.deepEqual(titles((await search('', 'forks')).explainers).length, 4, 'an empty search is the whole list');
+  for (const q of ['', 'atten', 'zzz']) assert.ok(!JSON.stringify(await search(q)).includes('SECRET'), q);
+});

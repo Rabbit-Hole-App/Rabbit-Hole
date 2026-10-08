@@ -16,7 +16,7 @@ Owner briefs, 2026-10-06 (#63: the creator profile, and the rule that any user b
           The profile description, as text              (only when they wrote one)
           N public explainers · M forks
 
-Public explainers                                        Sort: Newest | Most forked
+Public explainers                    [Search projects and canvases]  Sort: Newest | Most forked
 [the canonical card] [the canonical card]
 ```
 
@@ -30,6 +30,11 @@ Public explainers                                        Sort: Newest | Most for
 - **Counters:** the public explainer count and the aggregate canonical forks: Σ `FORK_COUNT` over the public explainers only, so forks of private canvases never count. Learners are not shown. They are not collected (creator-analytics-contract.md), and the brief rules out estimates.
 - **Explainers:** exactly the creator's part of Explore's published set. That is live, top-level canvases that are published, not archived and not in Trash. Never private, unlisted, private forks, nested Rabbit Holes, archived or unpublished drafts. They show on Explore's own card list (`home/PublicCards.jsx`, the canonical `LearningCard`; there is no creator-specific card), with the same actions: Start Rabbit Hole and Fork on others' cards, the Owned-by-you badge on your own, and Copy link.
 - **Sorting:** Newest (the default, `published_at`) and Most forked (`FORK_COUNT`). Each ends on the publication's own order and is sorted on the server. There is no "Most learned": no learner metric exists.
+- **Search** (owner, 2026-10-08: "in creators profile put a search bar so they can search projects or canvas by name for that specific creator"): one field beside Sort (full width under it on a phone), Explore's own field markup, for every viewer, signed out included, whenever the creator has a public explainer.
+  - **What it matches:** this creator's published canvases by title, and their public projects by name (the repository a card names), case-insensitive and anywhere in the name. It runs on the server (`GET /api/learn/creators/<handle>?q=`, after a 250 ms pause in typing), because the list is capped at `EXPLORE_LIMIT` (100). The query is the creator's part of `PUBLISHED` plus `c.title LIKE` or `r.repo LIKE`, with wildcards escaped, so a private, unlisted, archived, nested or trashed canvas, or a private or unknown repository, is never found. The counters stay the creator's totals.
+  - **Results, labelled:** **Projects** - each matching project as a chip with its canvas count (`provenance.js` `matchingProjects`, from the cards returned), opening Explore filtered to it, as a card's project label does - then **Canvases**, the matching canvases (by title, or because their project matched) on the same cards, in the chosen sort.
+  - **Nothing matches:** "No canvases or projects match "term"." **Esc** clears the field and the full list returns.
+  - Not matched: a project's branch (a search for `main` finds nothing by branch) and the description.
 
 ## The blue check
 
@@ -97,7 +102,7 @@ Owner, 2026-10-08: "Cretors card and in Creator profile should have a copy profi
 
 | Route | Answers |
 |---|---|
-| `GET /api/learn/creators/<handle>?sort=newest\|forks` | `{ handle, name, avatar, description, explainer_count, fork_count, explainers: [Explore card] }`; 404 for an unknown or malformed handle; 400 for another sort |
+| `GET /api/learn/creators/<handle>?sort=newest\|forks[&q=]` | `{ handle, name, avatar, description, explainer_count, fork_count, explainers: [Explore card] }`; `q` narrows the explainers to a title or public project name containing it (the counters stay the totals); 404 for an unknown or malformed handle; 400 for another sort |
 | `GET /api/learn/creators/<handle>/avatar` | the PNG bytes, or 404 |
 | `GET /api/learn/creators[?q=]` | `{ creators: [{ handle, name, avatar, description, explainer_count, project_count, url }] }`, at most 8; Explore's AI find answers the same card (`creatorsByHandle`) |
 | `GET /api/learn/boards/published?sort=&q=` | Explore's listing, filtered by `q` |
@@ -138,6 +143,7 @@ CREATE TABLE IF NOT EXISTS user_profile_descriptions (
   - case-insensitive lookup, 404s and a changed handle;
   - only public publications;
   - the Σ `FORK_COUNT` aggregate and the two sorts;
+  - the profile search (`?q=`): by title or public project, any case, this creator only; never private, unlisted, a private repository or an email; wildcards escaped; the counters unchanged;
   - search by handle, name, title and description, never by email, with wildcards escaped;
   - discovery order;
   - the avatar route;
@@ -145,8 +151,8 @@ CREATE TABLE IF NOT EXISTS user_profile_descriptions (
 
   Every JSON answer is checked for emails.
 - **Server, the description:** `test/profile.test.js` covers `PUT /api/profile`'s description (one line, the 160 cap in code and in the database, markup kept as text, an empty one deletes the row, owner only) and 0013 (additive, applied twice, mirrored in `repository-schema.sql`, the foreign key).
-- **Web unit:** `src/creator-profile.test.mjs` covers the route, the owner-only parts, the public-only links, the analytics typed states, the square creator card (description, counts, the grid on the Creators tab and Recommended), the description in Settings and on `/@handle` (the cap matches the server's; no `dangerouslySetInnerHTML`), and Copy profile link (`profileUrl`, the card and profile wiring, the compact icon swap that never widens, no toast, no navigation). `src/explore-publish.test.mjs` follows the card list into `home/PublicCards.jsx`, and `src/routes.test.mjs` checks that a profile lights Explore.
-- **Browser:** `e2e/creator-profile-check.mjs` (16 checks, local stack only) covers:
+- **Web unit:** `src/creator-profile.test.mjs` covers the route, the owner-only parts, the public-only links, the analytics typed states, the square creator card (description, counts, the grid on the Creators tab and Recommended), the description in Settings and on `/@handle` (the cap matches the server's; no `dangerouslySetInnerHTML`), Copy profile link (`profileUrl`, the card and profile wiring, the compact icon swap that never widens, no toast, no navigation), and the profile search (`matchingProjects`, the field for every viewer, the server filter, Esc, the empty line). `src/explore-publish.test.mjs` follows the card list into `home/PublicCards.jsx`, and `src/routes.test.mjs` checks that a profile lights Explore.
+- **Browser:** `e2e/creator-profile-check.mjs` (17 checks, local stack only) covers:
   - the Explore tabs (Explainers default, Creators, the tab in the URL); the creator cards are square, with the description and "0 projects · 3 canvases" (private, unlisted and archived never count);
   - Copy profile link on a creator card (the check icon and the live text, the button no wider), on the profile and signed out (the button's own words): the clipboard holds origin + `/@handle`, it reverts, nothing navigates (`e2e/explore-check.mjs` checks the card too);
   - the description under the name on `/@handle`, none for the minimal creator;
@@ -155,6 +161,7 @@ CREATE TABLE IF NOT EXISTS user_profile_descriptions (
   - Explore → @handle → profile → explainer → `/e` → back;
   - another creator with no check;
   - the sorts;
+  - the profile search: typing filters, the empty line (never private, unlisted or archived), Esc clears; the field signed out too;
   - the minimal creator;
   - case and 404;
   - search, never by email;

@@ -142,3 +142,27 @@ test('Copy profile link: the absolute /@handle only, on every creator card and o
   assert.match(profile, /\{p\.name && <span data-profile-handle>@\{p\.handle\}<\/span>\}\n[\s\S]{0,400}<CopyProfileLink handle=\{p\.handle\} \/>/);
   assert.doesNotMatch(profile, /\{own && <CopyProfileLink|\{me && <CopyProfileLink/);
 });
+
+// Owner, 2026-10-08: "in creators profile put a search bar so they can search projects or canvas by name for that specific creator".
+test('profile search: the projects a search names come from the public cards it returned, any case, counted', async () => {
+  const { matchingProjects } = await import('./home/provenance.js');
+  const cards = [{ title: 'Attention', project: 'karpathy/nanoGPT' }, { title: 'Softmax', project: 'karpathy/nanoGPT' }, { title: 'Flash', project: null }, { title: 'IK', project: 'acme/robots@dev' }];
+  assert.deepEqual(matchingProjects(cards, 'NANO'), [['karpathy/nanoGPT', 2]]);
+  assert.deepEqual(matchingProjects(cards, ' @robots '), [['acme/robots@dev', 1]], 'trimmed, a leading @ dropped as the server does');
+  assert.deepEqual(matchingProjects(cards, 'flash'), [], 'a canvas title is no project');
+  assert.deepEqual(matchingProjects(cards, ''), [], 'no term, no projects');
+  assert.deepEqual(matchingProjects([], 'nano'), []);
+});
+
+test('profile search: one field above the list for every viewer, filtered on the server, Esc clears, a plain empty line', () => {
+  const profile = read('./CreatorProfile.jsx');
+  assert.match(profile, /fetch\(`\/api\/learn\/creators\/\$\{encodeURIComponent\(handle\)\}\?sort=\$\{sort\}\$\{term \? `&q=\$\{encodeURIComponent\(term\)\}` : ''\}`/, 'the server filters: the list is capped');
+  assert.match(profile, /\{p\.explainer_count > 0 && \(\n\s+<label className="relative block w-72 min-w-0 max-md:order-last max-md:w-full">/, 'shown whenever the creator has something public - signed out too, no own or me condition');
+  assert.match(profile, /<Input type="search" data-profile-search aria-label="Search projects and canvases" placeholder="Search projects and canvases"/);
+  assert.match(profile, /onKeyDown=\{\(e\) => \{ if \(e\.key === 'Escape'\) \{ e\.preventDefault\(\); setTyped\(''\); setTerm\(''\); \} \}\}/, 'Esc clears');
+  assert.match(profile, /<Search size=\{15\} strokeWidth=\{1\.75\} className="pointer-events-none absolute left-3 top-1\/2 -translate-y-1\/2 text-ink-3" \/>/, 'Explore\'s field');
+  assert.match(read('./Home.jsx'), /<Search size=\{15\} strokeWidth=\{1\.75\} className="pointer-events-none absolute left-3 top-1\/2 -translate-y-1\/2 text-ink-3" \/>\n\s+<Input type="search" data-explore-search [^\n]*className="h-9 w-full pl-9" \/>/, 'the same look as Explore');
+  assert.match(profile, /\{p\.q && <ProjectMatches projects=\{matchingProjects\(p\.explainers, p\.q\)\} \/>\}\n\s+\{p\.q && p\.explainers\.length > 0 && <h3 className="pb-2 text-xs text-ink-2">Canvases<\/h3>\}/, 'projects, then canvases, each labelled');
+  assert.match(profile, /: p\.q \? <p data-profile-search-empty className="text-sm text-ink-3">No canvases or projects match &ldquo;\{p\.q\}&rdquo;\.<\/p>/);
+  assert.match(profile, /<PublicCards cards=\{p\.explainers\} me=\{me\?\.handle \|\| null\} attr="data-profile-card" \/>/, 'results on the same cards');
+});

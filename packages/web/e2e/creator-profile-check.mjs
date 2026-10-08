@@ -198,6 +198,31 @@ await check('5 sorting: Newest and Most forked, in the server\'s order', async (
   assert.equal(await viewer.locator('[data-profile-card] [data-fork-count]').count(), 0);
 });
 await shot(viewer, 'A-full-creator-most-forked');
+// Owner, 2026-10-08: "in creators profile put a search bar so they can search projects or canvas by name for that specific creator".
+await check('5b the profile search filters as you type (any case, anywhere in the name), says when nothing matches, never finds private, unlisted or archived, and Esc clears', async () => {
+  const field = viewer.locator('[data-profile-search]');
+  assert.equal(await field.getAttribute('placeholder'), 'Search projects and canvases');
+  await field.fill('ATTENTION');
+  await viewer.waitForTimeout(1000);
+  assert.deepEqual(await titles(viewer, '[data-profile-card]'), [T.flash], 'Flash Attention only');
+  assert.equal(await viewer.locator('[data-creator-profile] h3').filter({ hasText: /^Canvases$/ }).count(), 1, 'labelled Canvases');
+  await field.fill('cache');
+  await viewer.waitForTimeout(1000);
+  assert.deepEqual(await titles(viewer, '[data-profile-card]'), [T.kv]);
+  await shot(viewer, 'A2-profile-search');
+  for (const q of [`nothing-${run}`, 'SECRET']) {
+    await field.fill(q);
+    await viewer.waitForTimeout(1000);
+    assert.equal(await viewer.locator('[data-profile-card]').count(), 0, q);
+    assert.match((await viewer.locator('[data-profile-search-empty]').innerText()).trim(), /^No canvases or projects match/, q);
+  }
+  await shot(viewer, 'A3-profile-search-empty');
+  await field.press('Escape');
+  await viewer.waitForTimeout(1000);
+  assert.equal(await field.inputValue(), '', 'Esc clears the field');
+  assert.equal(await viewer.locator('[data-profile-card]').count(), 3, 'and the list is whole again');
+  assert.equal(await viewer.locator('[data-profile-search-empty]').count(), 0);
+});
 await check('6 a profile explainer opens its canonical /e route, whose header links back to /@handle', async () => {
   await card(viewer, '[data-profile-card]', T.flash).locator('[data-card-title]').click();
   await viewer.waitForURL(`${BASE}/e/${tokens.flash}`);
@@ -304,6 +329,8 @@ await check('12 signed out, /@handle opens on its own, with the cards and no ema
   assert.equal(await anon.locator('[data-shared-brand]').count(), 1);
   assert.equal(await anon.locator('[data-owner-badge], [data-edit-profile]').count(), 0);
   assert.equal(await anon.locator('[data-profile-card] [data-card-start-rabbit-hole]').count(), 3, 'Start Rabbit Hole signs in, then resumes');
+  // Signed out: the same search field.
+  assert.equal(await anon.locator('[data-profile-search]').count(), 1);
   // Signed out, Copy profile link works the same.
   await copied(anon, anon.locator('[data-creator-profile] header [data-copy-profile]'), H.full);
   await noEmail(anon);
@@ -333,5 +360,5 @@ await check('13 a changed handle moves the profile and every attribution at once
 });
 await check('no page errors', async () => assert.deepEqual(errors, []));
 await browser.close();
-console.log(`${results.length}/16 checks passed`);
-process.exit(results.length === 16 ? 0 : 1);
+console.log(`${results.length}/17 checks passed`);
+process.exit(results.length === 17 ? 0 : 1);
