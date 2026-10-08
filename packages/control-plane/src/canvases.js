@@ -23,6 +23,13 @@ export function canvasApp(row, user) {
 // same text form as created_at (SQLite datetime, here with milliseconds), so the two order together.
 export const NOW = "strftime('%Y-%m-%d %H:%M:%f', 'now')";
 export const touchCanvas = (db, org, canvas) => db.prepare(`INSERT INTO canvas_metadata (org, canvas, updated_at) VALUES (?, ?, ${NOW}) ON CONFLICT (org, canvas) DO UPDATE SET updated_at = excluded.updated_at`).bind(org, canvas);
+// A canvas's (or project's) main board is made with its row (canvas-persistence.md, owner 2026-10-08), so publish, share,
+// Duplicate and Fork never meet one with nothing on the server. Empty, in the shape an untouched canvas page saves, at
+// version 0: the version a browser that saw no server copy bases its first PUT on, so that PUT is still the board's
+// version 1 and a sync, as before. OR IGNORE: a canvas made before this gets one on demand and never loses one it has.
+export const EMPTY_BOARD = JSON.stringify({ strokes: [], shapes: [], items: [], links: [], blocks: [], groups: [], areas: [], exchanges: [], sources: [] });
+export const emptyBoard = (db, org, owner, app, board = 'main') => db.prepare('INSERT OR IGNORE INTO learn_boards (id, org, owner_email, app, board, state_json, version, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)')
+  .bind(crypto.randomUUID(), org, owner, app, board, EMPTY_BOARD, owner, new Date().toISOString());
 // An optional description, written by its owner (never generated): plain text up to 500 characters; empty clears it.
 const DESCRIPTION = 500;
 function canvasDescription(value) {
@@ -154,9 +161,13 @@ export async function canvasesFetch(req, env) {
       if (device !== null && !(typeof device === 'string' && /^[A-Za-z0-9-]{8,64}$/.test(device))) throw Error('Invalid device id');
       if (project !== null && !(typeof project === 'string' && await db.prepare('SELECT 1 FROM repository_apps WHERE org=? AND name=? AND owner_email=?').bind(user.org, project, user.email).first())) return json({ error: 'Project not found in this workspace' }, 404);
       // ponytail: no per-owner canvas cap (repositories cap 25 per workspace); add one if dev rows grow unbounded.
-      const row = await db.prepare('INSERT INTO canvases(org,name,owner_email,title,project,device_id) VALUES(?,?,?,?,?,?) RETURNING *')
-        .bind(user.org, `canvas-${crypto.randomUUID().slice(0, 8)}`, user.email, title, project, device).first();
-      return json(canvasApp(row, user), 201);
+      // One batch: a canvas is its row and its empty main board together, or nothing.
+      const name = `canvas-${crypto.randomUUID().slice(0, 8)}`;
+      await db.batch([
+        db.prepare('INSERT INTO canvases(org,name,owner_email,title,project,device_id) VALUES(?,?,?,?,?,?)').bind(user.org, name, user.email, title, project, device),
+        emptyBoard(db, user.org, user.email, name),
+      ]);
+      return json(await ownedCanvas(env, user, name), 201);
     }
     // Learn's chat keeps its /api/ask/threads calls (ask.jsx:388,401,601,622); canvas history lives in LEARN_DB.
     const thread = path.match(/^\/api\/ask\/threads(?:\/(canvaschat-[a-f0-9-]+)(?:\/(delete|rename))?)?$/);
@@ -183,16 +194,14 @@ export async function canvasesFetch(req, env) {
       // only writer of canvas_publications. Unpublishing removes discoverability only: share links stay as they are.
       if (action === 'publish' || action === 'unpublish') {
         if (action === 'publish') {
-          // Owner, 2026-10-06: only a live, top-level canvas with saved content, and only under the owner's public
-          // @handle - Explore never shows an email. Publishing again keeps the same publication and token.
+          // Owner, 2026-10-06: only a live, top-level canvas, and only under the owner's public @handle - Explore never
+          // shows an email. Publishing again keeps the same publication and token. A canvas never opened publishes empty,
+          // and one made before boards came with their rows gets its empty board now (owner, 2026-10-08).
           if (app.archived_at) return json({ error: 'Restore this canvas before publishing it.' }, 409);
           if (app.trashed_at) return json({ error: 'Restore this canvas from Trash before publishing it.' }, 409);
           if (await db.prepare('SELECT 1 FROM canvas_dives WHERE org = ? AND child = ?').bind(user.org, name).first()) return json({ error: 'A Rabbit Hole inside another canvas cannot be published on its own.' }, 409);
           if (!app.owner_handle) return json({ error: 'Choose your handle before publishing.', needsHandle: true }, 409);
-          if (!await db.prepare("SELECT 1 FROM learn_boards WHERE org = ? AND owner_email = ? AND app = ? AND board = 'main'").bind(user.org, user.email, name).first()) {
-            return json({ error: 'There is nothing to publish yet: open this canvas so it saves, then publish.' }, 409);
-          }
-          await db.prepare('INSERT OR IGNORE INTO canvas_publications (org, canvas, token) VALUES (?, ?, ?)').bind(user.org, name, publicationToken()).run();
+          await db.batch([emptyBoard(db, user.org, user.email, name), db.prepare('INSERT OR IGNORE INTO canvas_publications (org, canvas, token) VALUES (?, ?, ?)').bind(user.org, name, publicationToken())]);
         } else await db.prepare('DELETE FROM canvas_publications WHERE org = ? AND canvas = ?').bind(user.org, name).run();
         return json(await ownedCanvas(env, user, name));
       }
@@ -228,7 +237,12 @@ export async function canvasesFetch(req, env) {
     if (req.method === 'DELETE') {
       // Undo only while untouched (section 8.4). One statement, so a thread started meanwhile keeps the canvas.
       const { meta } = await db.prepare('DELETE FROM canvases WHERE id=? AND NOT EXISTS (SELECT 1 FROM threads WHERE org=? AND scope_ref=?)').bind(app.id, user.org, name).run();
-      if (meta.changes) await db.prepare('DELETE FROM canvas_publications WHERE org = ? AND canvas = ?').bind(user.org, name).run();
+      if (meta.changes) {
+        await db.batch([
+          db.prepare('DELETE FROM canvas_publications WHERE org = ? AND canvas = ?').bind(user.org, name),
+          db.prepare("DELETE FROM learn_boards WHERE org = ? AND owner_email = ? AND app = ? AND board = 'main'").bind(user.org, user.email, name),
+        ]);
+      }
       return meta.changes ? json({ ok: true }) : json({ error: 'This canvas has been used. Archive it instead.' }, 405);
     }
     return json({ error: 'Method not allowed' }, 405);

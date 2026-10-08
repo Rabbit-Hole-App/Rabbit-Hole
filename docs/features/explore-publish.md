@@ -13,7 +13,7 @@ Owner rules, 2026-10-06. Sharing and publishing are different actions.
 - **Link access is not discoverability.** `public_view` means signed-out viewing through a link and is never read as Explore visibility. `apps.visibility`, which governs deployed-app teams, is not used either.
 - **No backfill:** every share that existed before this feature stays unlisted.
 - **Only the owner publishes, explicitly.** A share link, `public_view`, opening, forking or Start Rabbit Hole never publishes. A fork of a published canvas starts private.
-- **What can be published:** the owner's own live, top-level canvas, with its board saved, under the owner's `@handle`.
+- **What can be published:** the owner's own live, top-level canvas, under the owner's `@handle`. Every canvas has its board from creation, so one never opened publishes empty; a canvas made before that gets its empty board when published, never the old "open this canvas so it saves" refusal (owner, 2026-10-08; canvas-persistence.md, Saved at creation).
   - A nested Rabbit Hole cannot be published on its own.
   - An archived canvas is restored first. Archiving removes the publication, and restoring never republishes.
   - With no handle, the server answers `409 needsHandle`. The Share panel then asks the person to choose one (docs/features/user-handles.md), and the same Publish carries on.

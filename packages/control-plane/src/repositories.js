@@ -14,6 +14,7 @@ import { readWikipedia } from './learn-wiki.js';
 import { subscriptionOwnerRefusal, subscriptionCourseRefusal } from './subscription-transport.js';
 import { videoMomentTools } from './learn-youtube.js';
 import { devIdentity } from './dev-forwarding.js';
+import { emptyBoard } from './canvases.js';
 
 const json=(body,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store'}});
 export function parseRepository(value) {
@@ -150,7 +151,9 @@ export async function repositoriesFetch(req,env,ctx){
       // Confirm public visibility and branch before creating a project.
       const head=await repositoryMetadata(env,repo,{branch:body.branch});
       const count=await db.prepare('SELECT COUNT(*) AS n FROM repository_apps WHERE org=? AND owner_email=?').bind(user.org,user.email).first();if(count.n>=25)throw Error('You have reached the 25 repository preview limit');
-      const row=await db.prepare('INSERT INTO repository_apps(org,name,owner_email,repo,branch) VALUES(?,?,?,?,?) RETURNING *').bind(user.org,name,user.email,repo,body.branch).first();
+      // With its Learn main board (canvases.js emptyBoard), in one batch: a project is never without one.
+      await db.batch([db.prepare('INSERT INTO repository_apps(org,name,owner_email,repo,branch) VALUES(?,?,?,?,?)').bind(user.org,name,user.email,repo,body.branch),emptyBoard(db,user.org,user.email,name)]);
+      const row=await db.prepare('SELECT * FROM repository_apps WHERE org=? AND name=?').bind(user.org,name).first();
       try{await enqueue(env,row,repo,body.branch,head);}catch(error){await db.prepare("UPDATE repository_apps SET status='failed',error=? WHERE id=?").bind(error.message,row.id).run();}
       return json({name},202);
     }
