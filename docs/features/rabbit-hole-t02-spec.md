@@ -180,6 +180,9 @@ One **primary** button, **`[Start a rabbit hole]`**, opens the Start dialog
 (§5), where the four paths live: Repository, Sources, Question, Blank canvas.
 The four paths are **not** four equally prominent permanent buttons on Home.
 
+It sits **top right** of Home, the page's one header action, above Continue and
+Recent, as in the Library header (owner, 2026-10-08).
+
 The Agent Bar is the natural-language route into the same commands. The dialog
 and the bar call the same registry entries; no backend logic is duplicated.
 
@@ -188,7 +191,7 @@ and the bar call the same registry entries; no backend logic is duplicated.
 | State | Shows |
 |---|---|
 | Loading | Skeleton rows in the three blocks. The bar is usable at once. |
-| First visit (empty catalog) | `[Start a rabbit hole]` first, with one line: "Start from a repository, sources, a question, or a blank canvas." Nothing else. |
+| First visit (empty catalog) | `[Start a rabbit hole]` top right, with one line on the left: "Start from a repository or a blank canvas." Nothing else. |
 | Catalog error | The Shell error (`{error}`) plus Retry. The bar stays usable for Settings. |
 
 ## 4. Library (`/library`, `/apps?s=…`, `/apps?f=…`)

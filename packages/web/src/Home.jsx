@@ -48,11 +48,12 @@ function HomeContent({ data, load }) {
         {data?.error && (
           <div className="flex items-center gap-3 text-sm text-ink-2">✗ {data.error} <Button variant="secondary" size="sm" onClick={load}>Retry</Button></div>
         )}
-        {ready && !apps.length && (
-          <section>
+        {/* Start sits top right, the page's one header action (owner, 2026-10-08), as in the Library. */}
+        {ready && (
+          <div className="flex items-center justify-between gap-4">
+            {!cont && !items.length ? <p className="text-sm text-ink-2">Start from a repository or a blank canvas.</p> : <span />}
             {startButton}
-            <p className="pt-3 text-sm text-ink-2">Start from a repository or a blank canvas.</p>
-          </section>
+          </div>
         )}
         {fixtures && <div role="note" className="rounded-md bg-code px-3 py-2 text-xs text-ink-2">Review fixtures are on: made-up cards, mixed in for design review. They open nothing and are stored nowhere. <a className="text-accent hover:underline" href="?fixtures=0">Turn off</a></div>}
         {ready && apps.length > 0 && (
@@ -64,10 +65,6 @@ function HomeContent({ data, load }) {
                 <ul className={CARD_GRID}>{items.map((a) => <RecentCard key={`${a.org}/${a.name}`} app={a} card={recentCard(a, cardCtx)} email={data.email} />)}</ul>
               </section>
             )}
-            <section>
-              {startButton}
-              {!cont && !items.length && <p className="pt-3 text-sm text-ink-2">Start from a repository or a blank canvas.</p>}
-            </section>
           </>
         )}
       </div>
