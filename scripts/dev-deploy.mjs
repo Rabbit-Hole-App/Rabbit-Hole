@@ -20,7 +20,11 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 export const WORKER = 'rabbit-hole-web-dev-small-parallel';
 export const CONFIRMATIONS = 5; // consecutive serves of the new build before the smoke
 export const BRANCHES = ['origin/main', 'rabbit-hole/dev']; // the only branches whose commits deploy here
-export const URL_BASE = `https://${WORKER}.tryrabbithole.workers.dev`;
+// The stable preview's host (owner 2026-10-08: links without the worker name), a custom domain every deploy keeps
+// (--domain). The earlier workers.dev host is retired (owner: "remove the old host"): outside Access, the bridge refuses it.
+export const HOST = 'preview.digrabbithole.com';
+export const URL_BASE = `https://${HOST}`;
+export const OLD_URL = `https://${WORKER}.tryrabbithole.workers.dev`;
 const ACCOUNT = 'c08d3dbdc53a3afd3cb09a536ac42318';
 const LEARN_DEV_DB = '028f800f-ce8e-4461-adb2-827f417492eb';
 const CP = 'https://rabbit-hole-cp-dev.tryrabbithole.workers.dev';
@@ -233,6 +237,9 @@ async function smoke(entry) {
   const anon = await fetch(`${URL_BASE}/api/apps`, { redirect: 'manual', headers: UA });
   const away = anon.status === 401 || anon.status === 403 || (anon.status === 302 && /cloudflareaccess\.com/.test(anon.headers.get('location') || ''));
   results.push([away ? 'pass' : 'fail', `/api/apps without credentials ${anon.status}`]);
+  // The retired workers.dev host serves nothing, even with the smoke credentials.
+  const old = await fetch(`${OLD_URL}/library`, { redirect: 'manual', headers: { ...UA, ...token } });
+  results.push([old.status === 403 ? 'pass' : 'fail', `old host refused ${old.status}`]);
   // Signed-in flows need the Learn schema; a table the repository's learn-migrations create but the dev database lacks
   // is a migration blocker (reported, never applied here), not a regression.
   const wanted = learnTables(root);
@@ -349,7 +356,7 @@ async function main() {
     plan = check(await serving()); // again: another machine may have deployed during the build
     if (plan.action !== 'deploy') { say(`! ${plan.action}: ${plan.why}`); process.exitCode = plan.action === 'noop' ? 0 : 1; return; }
     // The Access entrypoint (dev-access-worker.js): the dev worker with the Access sign-in bridge in front.
-    const out = wrangler(['deploy', 'dev-access-worker.js', '--config', 'wrangler.dev.jsonc', '--name', WORKER, '--message', `main ${sha} build ${build} bundle ${bundle}`]);
+    const out = wrangler(['deploy', 'dev-access-worker.js', '--config', 'wrangler.dev.jsonc', '--name', WORKER, '--domain', HOST, '--message', `main ${sha} build ${build} bundle ${bundle}`]);
     const version = out.match(/Current Version ID: (\S+)/)?.[1];
     say(`✓ deployed ${sha.slice(0, 8)} pages ${build} bundle ${bundle} as version ${version} to ${URL_BASE}`);
 

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { gateVerdict, rerunVerdict, deployedSha, decide, learnTables, servedSha, notReusable, entryScript, parseUpload, TEST_ONLY, UNIT_TEST, buildRecipe, CONFIRMATIONS, BRANCHES } from './dev-deploy.mjs';
+import { gateVerdict, rerunVerdict, deployedSha, decide, learnTables, servedSha, notReusable, entryScript, parseUpload, TEST_ONLY, UNIT_TEST, buildRecipe, CONFIRMATIONS, BRANCHES, HOST, URL_BASE, OLD_URL, WORKER } from './dev-deploy.mjs';
 
 const TREE = '192b10f38626e3db2abe1528f68719154b6e802a';
 // Shape of a real integration gate record (int16r, main 42f5a4f0), trimmed.
@@ -206,4 +206,15 @@ test('the dev workflow: a push to dev only, its gate note required, secrets only
   assert.match(wf, /dev-deploy\.mjs --sha "\$GITHUB_SHA" --gate "\$RUNNER_TEMP\/gate\.log" --branch rabbit-hole\/dev\n/);
   assert.doesNotMatch(wf, /--reuse|prod-release|wrangler deploy/, 'full gates only, dev only, through dev-deploy');
   for (const uses of wf.match(/uses: \S+/g)) assert.match(uses, /@[0-9a-f]{40}$/, `${uses} is pinned to a commit`);
+});
+
+test('the preview lives on its own host, every deploy keeps that custom domain, and the smoke checks the old host serves nothing', () => {
+  // Owner, 2026-10-08: share links must not carry the worker name; the old host is removed, not redirected.
+  assert.equal(HOST, 'preview.digrabbithole.com');
+  assert.equal(URL_BASE, `https://${HOST}`);
+  assert.equal(OLD_URL, `https://${WORKER}.tryrabbithole.workers.dev`);
+  const src = readFileSync(new URL('./dev-deploy.mjs', import.meta.url), 'utf8');
+  assert.match(src, /'deploy', 'dev-access-worker\.js', '--config', 'wrangler\.dev\.jsonc', '--name', WORKER, '--domain', HOST, '--message'/);
+  assert.match(src, /fetch\(`\$\{OLD_URL\}\/library`, \{ redirect: 'manual', headers: \{ \.\.\.UA, \.\.\.token \} \}\)/, 'probed with the smoke credentials');
+  assert.match(src, /old\.status === 403 \? 'pass' : 'fail'/);
 });
