@@ -51,7 +51,7 @@ const providerCalls = async () => {
   return (await response.json()).hits;
 };
 const providerBefore = (await providerCalls()).length;
-const plans = [];
+const plans = [], hooks = [];
 const browser = await chromium.launch();
 const errors = [];
 const contextFor = async who => {
@@ -59,6 +59,10 @@ const contextFor = async who => {
   if (who) await context.addCookies([{ name: 'small_session', value: who.session, url: BASE }]);
   // A new hole's opening question is a Tutor turn; its plan is answered here, as next-steps-check and journey-check do.
   await context.route('**/api/learn/tutor/plan', route => { plans.push(route.request().url()); return route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', actions: [{ type: 'respond_text', text: 'What would you like to explore first?' }] } }); });
+  // Professor Next Steps (#46) asks its hook planner when a canvas opens; on a stack without the fixture model that planner
+  // would call the provider, so the hook request is answered here too, with the server's own unavailable reply
+  // (learn-next-steps-routes.js), what these pages got before the tripwire. next-steps-check owns the hooks themselves.
+  await context.route(/\/api\/learn\/(?:tutor|boards\/shared\/[^/]+)\/next-steps$/, route => { hooks.push(route.request().url()); return route.fulfill({ status: 502, json: { error: 'The next steps planner is unavailable' } }); });
   const page = await context.newPage();
   page.on('pageerror', error => errors.push(error.message));
   return { context, page };
@@ -246,7 +250,7 @@ await check('2 Fork is unchanged: a copy in the viewer\'s Library, counted on th
 
 await check('no request reached a model provider: the provider tripwire counted none during this check', async () => {
   const during = (await providerCalls()).slice(providerBefore);
-  console.log(`tutor plans answered in the browser: ${plans.length}; provider requests: ${during.length}`);
+  console.log(`tutor plans answered in the browser: ${plans.length}; next-steps hook requests answered: ${hooks.length}; provider requests: ${during.length}`);
   assert.deepEqual(during, []);
 });
 await check('no page errors', async () => assert.deepEqual(errors, []));
