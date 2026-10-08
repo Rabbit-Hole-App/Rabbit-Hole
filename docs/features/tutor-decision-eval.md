@@ -143,10 +143,10 @@ All files are in `tests/evals/tutor-session/`. Everything is generic and tested 
 | `fixtures/` | Topic fixtures (`logistic-regression`, `photosynthesis`), simulator-only profiles, `taxonomy.json` (the eval's labels over the product's modality names, its reason-code checks, relations, review thresholds) and `cost-roles.json` (product roles; the material roles still provisional). |
 | `tutor-session.test.mjs` | 35 tests on the scripted fake world (the generic harness, metrics, cost, materials, graph). |
 | `product.test.mjs` | 9 tests on the real product path: the end-to-end path, provider isolation, tracing on/off (seeded, and under the product's normal randomness), the production validators, the stopping point, no copied logic, taxonomy names, mapping. |
-| `budget.test.mjs` | 6 tests: complete-request worst cases, reservations, the ceiling's scope, the simulator and reviewer requests, a mid-session refusal on an active journey, every product request reserved. |
+| `budget.test.mjs` | 8 tests: complete-request worst cases, reservations, the ceiling's scope, the simulator and reviewer requests, a mid-session refusal on an active journey, every product request reserved, the reviewer's holdback (a ceiling-stopped session still reviewed), a review that outgrows its holdback refused unsent. |
 | `creator.test.mjs` | 7 tests: suppression, the cohort at every cut, no double counting, no learner identity, the public profile, impressions from the product's events. |
 
-All 57 run in `make test-unit`. They are scripted: they establish the plumbing, routing, validation and evidence rules, never real-model teaching quality (every bundle carries `coverage`, §19).
+All 59 run in `make test-unit`. They are scripted: they establish the plumbing, routing, validation and evidence rules, never real-model teaching quality (every bundle carries `coverage`, §19).
 
 There is no topic or profile branch in the code, and a test enforces it:
 - No harness source names a topic id, a topic title word or a profile id.
@@ -308,14 +308,15 @@ without a schema change.
 
 ## 7. The simulated learner and the reviewer
 
-**Learner simulator** (`claude-sonnet-5-5`; not called yet):
+**Learner simulator** (`claude-sonnet-5-5`; wired as `modelLearner` through `evalCall`, scripted transport only):
 - **Sees:** its hidden profile, the topic goal, the material summary, the hook texts and its own past exchange.
 - **Never sees:** reasons, rationale, expected evidence, evidence state, hidden goals or answers.
 - **Reply format:** `LEARNER_REPLY_SCHEMA` is used as `output_config.format`: one move, an offered option id (a click) or
   null with typed words.
 - **Reply checks:** `parseLearnerReply` re-checks every reply. It refuses an option that wasn't offered and any profile label.
 
-**Session reviewer** (`claude-opus-5-5`, one call per session; not called yet):
+**Session reviewer** (`claude-opus-5-5`, one call per session; wired as runSession's `reviewer` through `evalCall`,
+scripted transport only; its budget is held from the session's start, §18):
 - **Sees:** the folded trace, without the profile and without hidden reasoning (`reviewerView`).
 - **Reply format:** `REVIEW_SCHEMA`.
 - **Reply checks:** `parseReview` requires ten scores from 1 to 5, findings that cite recorded steps, and a judgement for each flagged sequence.
@@ -718,14 +719,20 @@ the integrated SHA.
   reserved, including the simulator's:
   - **Startup:** permitted. The LP1 start's three requests settle at most $0.47 even at their full worst case, well
     inside $1.30.
-  - **At full worst-case usage** (every request costing its whole bound): the session stops with `cost_ceiling` after
-    4 of 15 decisions, at $1.26. The reviewer's call (about $0.16 at worst for that session) then no longer fits, so a
-    stopped session could not be reviewed.
-  - **At low usage** (the stub's token counts): all 15 decisions complete at $0.54, and the reviewer fits.
+  - **The reviewer's holdback (built, owner 2026-10-07).** Before the session's first request, runSession reserves the
+    reviewer's worst case for a trace of every step the session may record (`reviewHoldback`: 6000 request bytes per
+    step, plus one step's worth; a real 15-step stub trace measured about 4.2 kB per step). The holdback is an open
+    reservation, so every session request is refused before the review could stop fitting. At the end it is given
+    back and the real review request reserved in the same tick. A review whose request outgrows the holdback reserves
+    again and is recorded as `refused`, unsent, when that does not fit. A limit below the holdback stops the session
+    before it sends anything. For 15 decisions the holdback is $0.48 of the $1.30.
+  - **At full worst-case usage** (every request costing its whole bound): without the holdback the session stopped
+    after 4 of 15 decisions at $1.26 and the review no longer fitted. With it, the session stops with `cost_ceiling`
+    after 1 decision and is reviewed: $0.82 in all, the review $0.11.
+  - **At low usage** (the stub's token counts): all 15 decisions complete and are reviewed, $0.60 in all (the review
+    reserved $0.33 and cost $0.06).
   - **So the evaluation may stop before all planned decisions finish.** How far it gets depends on real usage, which
-    only the paid run shows.
-  - **Required before a paid run (owner, 2026-10-07):** the reviewer's worst case is reserved at the start of each
-    session, inside the existing session and run limits, so a session that stops early can still be reviewed.
+    only the paid run shows; the holdback trades decisions for a guaranteed review.
 - **Materials.** `create_material` stays `not_run` in this first run; material generation is a separate approval.
 - **Sizing.** `requestWorstCase` at the 2026-09-25 price table, applied to:
   - the complete requests the product built in a free 15-decision run (the largest of each kind);
@@ -749,11 +756,11 @@ the integrated SHA.
 - **Early stops:** near a ceiling, a request is refused whenever its worst case does not fit, so a session can stop with
   real headroom left.
 - **Before any paid call:**
-  - wire the real transport in the boundary (the reservations are already in it);
-  - wire the simulator and reviewer calls (their prompts, schemas and strict parsers exist), with the reviewer's worst
-    case reserved at each session's start;
-  - add a run command;
-  - pass the free gates on Parallel's integrated SHA.
+  - **done:** the simulator and reviewer calls are wired (`modelLearner`, runSession's `reviewer`, both through
+    `evalCall`), with the reviewer's worst case held from each session's start; free gates passed on Parallel's
+    integrated candidates;
+  - **left for the paid-run approval:** the real transport (in the boundary and for `evalCall`, where the reservations
+    already are) and a run command. They are not built, so nothing here can make a paid call.
 
 **B. Equivalent phrasings: quality, latency and cost** (contract §4.1.1 follow-up).
 - **Pairs:**
