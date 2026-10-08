@@ -3,10 +3,9 @@
 // thread, a pin follows the card, a reply lands, a member's reply arrives with an unread dot, Resolve hides the thread
 // and its pin, and none of it touches the board's version. Against the LOCAL stack only: local D1 and a fresh browser
 // profile. No model is called: model routes are answered or refused here. Prints no secrets.
-// Usage: BASE=http://127.0.0.1:8858 SMALL_CP=http://127.0.0.1:8859 MEMBER_SQL=<cmd> node e2e/comments-check.mjs [shotsDir]
+// Usage: BASE=http://127.0.0.1:8862 SMALL_CP=http://127.0.0.1:8863 node e2e/comments-check.mjs [shotsDir] (app on app-worker.js, SMALL_ENV=test)
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8858';
@@ -18,7 +17,7 @@ const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta
 const run = Date.now().toString(36);
 const sessionFor = async (email, handle) => (await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, secret, handle }) })).json()).session;
 const as = session => async (path, init = {}) => {
-  const r = await fetch(`${BASE}${path}`, { ...init, headers: { cookie: `small_session=${session}`, 'content-type': 'application/json' } });
+  const r = await fetch(`${BASE}${path}`, { ...init, headers: { cookie: `small_session=${session}`, 'content-type': 'application/json', ...(init.headers || {}) } });
   const text = await r.text();
   return { status: r.status, body: text ? JSON.parse(text) : null };
 };
@@ -39,14 +38,14 @@ const boardId = saved.body.board_id;
 const boardVersion = async () => (await api(`/api/learn/boards/${canvas.name}/main`)).body.version;
 const versionBefore = await boardVersion();
 
-// The member: invitations are their own stage, so the membership row is written to the local D1 directly (MEMBER_SQL
-// runs one statement against the local Learn database; see the stack's run.sh).
-const memberMe = await (await fetch(`${CP}/api/me`, { headers: { cookie: `small_session=${member.session}` } })).json();
-const ownerOrg = (await api('/api/apps')).body.org;
-if (process.env.MEMBER_SQL) {
-  const sql = `INSERT INTO canvas_members (id, org, canvas, invited_email, member_user_id, member_email, status, email_status, invited_by, invited_at, expires_at) VALUES ('m-${run}', '${ownerOrg}', '${canvas.name}', '${memberMe.email}', '${memberMe.user_id}', '${memberMe.email}', 'active', 'sent', 'e2e', 0, 0)`;
-  execFileSync('bash', ['-c', `${process.env.MEMBER_SQL} "$1"`, '--', sql], { stdio: 'ignore' });
-}
+// The member joins through the real invitation flow (comments-invite-check.mjs drives its screens): the app runs the
+// production entry, and SMALL_ENV=test echoes the link and the code instead of mailing them.
+const post = (call, path, body) => call(path, { method: 'POST', body: JSON.stringify(body), headers: { origin: BASE } });
+const invited = await post(api, `/api/learn/c/${boardId}/members`, { emails: [`comments-member-${run}@example.com`] });
+const inviteToken = invited.body?.invited?.[0]?.test_invite_url?.split('#')[1];
+assert.ok(inviteToken, `the invitation echo (needs SMALL_ENV=test and app-worker.js): ${JSON.stringify(invited.body)}`);
+const code = (await post(memberApi, '/api/learn/invites/code', { token: inviteToken })).body.test_code;
+assert.deepEqual((await post(memberApi, '/api/learn/invites/accept', { token: inviteToken, code })).body, { joined: true, url: `/c/${boardId}` });
 
 const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
@@ -133,7 +132,6 @@ await check('5 right-click the empty canvas: Add comment here is first, and make
 });
 
 await check('6 a member replies: the owner\'s list shows the reply count and an unread dot', async () => {
-  assert.ok(process.env.MEMBER_SQL, 'MEMBER_SQL makes the member');
   const base = `/api/learn/c/${boardId}`;
   const list = (await memberApi(`${base}/threads`)).body.threads;
   const first = list.find(thread => thread.preview.startsWith('Is the freezing point'));
@@ -251,10 +249,11 @@ await check('12 /e signed out: the public thread reads, and posting is a sign-in
   await tab.close();
 });
 
-await check('13 the owner sees the public thread on their canvas, labelled Public, with the audience filter', async () => {
+await check('13 the owner sees the public thread on their canvas (header Comments button), labelled Public, with the audience filter', async () => {
   await page.reload();
   await card('k-exp').waitFor({ timeout: 60000 });
-  await page.getByRole('tab', { name: 'Comments', exact: true }).click();
+  await page.locator('[data-comments-header]').click();
+  assert.equal(await page.locator('[role="tab"][aria-selected="true"]').getAttribute('data-panel-tab'), 'comments');
   await panel().locator('[data-comment-thread]', { hasText: 'pepper' }).waitFor();
   assert.equal(await panel().getByRole('group', { name: 'Audience' }).count(), 1);
   assert.match(await panel().locator('[data-comment-thread]', { hasText: 'pepper' }).innerText(), /Public/);
