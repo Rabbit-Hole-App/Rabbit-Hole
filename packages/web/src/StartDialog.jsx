@@ -173,7 +173,6 @@ export default function StartDialog({ ctx, initial, onClose }) {
                   <ConfirmCard
                     card={{ model: card.prepared.card, blocked: card.prepared.policy.blocked, reason: card.prepared.policy.reason, createdAt: card.createdAt, phase: card.phase, error: card.error }}
                     onConfirm={onConfirm}
-                    onChange={() => setCard(null)}
                     onCancel={() => setCard(null)}
                   />
                 )}

@@ -5,8 +5,9 @@ import { cardView } from './bar.js';
 
 // T02 §7.3: the card always names the exact workspace, target, operation,
 // parameters and effect. Nothing runs until Confirm; a D7-blocked card can't be
-// confirmed. The Start dialog's connect_repository renders the same card.
-export default function ConfirmCard({ card, onConfirm, onChange, onCancel }) {
+// confirmed. The Start dialog's connect_repository renders the same card, with no Change (owner, 2026-10-08): its Cancel
+// already goes back to the repository field, URL kept. Change shows only where a caller gives onChange (the Agent Bar).
+export default function ConfirmCard({ card, onConfirm, onChange = null, onCancel }) {
   const { model } = card;
   const { state, note } = cardView(card, Date.now());
   const params = Object.entries(model.params || {}).map(([k, v]) => `${k} ${typeof v === 'string' ? v : JSON.stringify(v)}`).join(' · ');
@@ -29,7 +30,7 @@ export default function ConfirmCard({ card, onConfirm, onChange, onCancel }) {
       {['pending', 'failed', 'blocked'].includes(state) && (
         <div className="flex gap-2 pt-2">
           <Button size="sm" variant="primary" disabled={state === 'blocked' || !onConfirm} onClick={onConfirm}>Confirm</Button>
-          <Button size="sm" onClick={onChange}>Change</Button>
+          {onChange && <Button size="sm" onClick={onChange}>Change</Button>}
           <Button size="sm" onClick={onCancel}>Cancel</Button>
         </div>
       )}

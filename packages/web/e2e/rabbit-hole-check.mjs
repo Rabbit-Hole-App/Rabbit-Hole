@@ -847,7 +847,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  await check('start: a GitHub URL shows the connect card with workspace, target and branch; Change keeps the URL', async () => {
+  await check('start: a GitHub URL shows the connect card with workspace, target and branch, Confirm and Cancel but no Change; Cancel keeps the URL', async () => {
     const page = await open();
     const writes = [];
     page.on('request', (r) => { if (r.method() !== 'GET') writes.push(`${r.method()} ${new URL(r.url()).pathname}`); });
@@ -863,9 +863,12 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     const text = await card.innerText();
     for (const fact of [wsLabel, 'rabbit-hole-e2e/demo', 'main']) must(text.includes(fact), `card lacks ${fact}: ${text}`);
     must(await card.getByRole('button', { name: 'Confirm' }).isEnabled(), 'connect_repository is Blocked, but T02 §16 allows it on the review copy');
-    await card.getByRole('button', { name: 'Change' }).click();
+    // Owner, 2026-10-08: "Remove Change button"; Cancel goes back to the field with the URL kept, to fix or re-check it.
+    must(await card.getByRole('button', { name: 'Change' }).count() === 0, 'the connect card still offers Change');
+    await card.getByRole('button', { name: 'Cancel' }).click();
     await card.waitFor({ state: 'detached', timeout: 3000 });
-    must(await url.inputValue() === 'https://github.com/rabbit-hole-e2e/demo', 'Change lost the URL');
+    must(await url.inputValue() === 'https://github.com/rabbit-hole-e2e/demo', 'Cancel lost the URL');
+    must(await url.isEditable() && await dialog.getByRole('button', { name: 'Check repository' }).count() === 1, 'the field is not back for another repository');
     must(!writes.some((w) => w.endsWith('/api/repositories')), `a repository create was sent: ${writes}`);
     await page.context().close();
   });
@@ -1512,16 +1515,19 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
   // ── WP5 batch 1: the composer chrome and the Home/Library shortcuts ──
-  await check('bar-wp5: + Add lists the four Start paths and a disabled Attach; Question opens Start on Question', async () => {
+  // Owner, 2026-10-08 ("when in Home/library/Explore, the main chat composer has a + icon. hide it"): no + there; the page's own
+  // Start a rabbit hole and /new still open Start. The + and its Start paths on a project's Map: workspace-check dock §13.
+  await check('bar-wp5: Home, Library and Explore show no + in the composer; /new still opens Start there', async () => {
     const page = await barOpen();
-    await barOf(page).getByRole('button', { name: 'Add' }).click();
-    for (const name of ['Repository', 'Sources', 'Question', 'Blank canvas']) await barOf(page).getByRole('button', { name, exact: true }).waitFor({ timeout: 5000 });
-    must(await barOf(page).getByRole('button', { name: 'Attach a file' }).isDisabled(), 'Attach is enabled on the preview');
-    await barOf(page).getByText("Attachments aren't available on this preview.").waitFor();
-    await barOf(page).getByRole('button', { name: 'Question', exact: true }).click();
-    const dialog = startDialog(page);
-    await dialog.waitFor({ timeout: 10000 });
-    must(await dialog.getByRole('tab', { name: 'Question', exact: true }).getAttribute('data-state') === 'active', 'Start did not open on Question');
+    for (const path of ['/apps', '/library', '/explore']) {
+      await loaded(page, path);
+      await barOf(page).waitFor({ timeout: 20000 });
+      await barOf(page).locator('[data-chat-composer]').waitFor({ timeout: 20000 });
+      must(await barOf(page).getByRole('button', { name: 'Add', exact: true }).count() === 0, `${path}: the composer shows a +`);
+    }
+    await barInput(page).fill('/new canvas');
+    await barInput(page).press('Enter');
+    await startDialog(page).waitFor({ timeout: 10000 });
     await page.context().close();
   });
 
@@ -2138,7 +2144,9 @@ await check('build: the browser runs the dist-dev entry script', async () => {
         await page.waitForTimeout(1000);
         const learn = await shell(form);
         const where = `${viewport.width}px`;
-        for (const k of ['radius', 'border', 'send', 'add']) must(learn[k] === bar[k], `${where}: Learn ${k} ${learn[k]} vs Mothership ${bar[k]}`);
+        // Home's composer has no + (owner, 2026-10-08), so only Learn's is measured; the Map's keeps the same COMPOSER_ADD.
+        for (const k of ['radius', 'border', 'send']) must(learn[k] === bar[k], `${where}: Learn ${k} ${learn[k]} vs Mothership ${bar[k]}`);
+        must(bar.add === null && learn.add > 0, `${where}: Home + ${bar.add}, Learn + ${learn.add}`);
         const learnFocused = await shell(form, true);
         for (const k of ['border', 'shadow']) must(learnFocused[k] === barFocused[k], `${where}, focused: Learn ${k} ${learnFocused[k]} vs Mothership ${barFocused[k]}`);
         must(Math.abs(learn.h - bar.h) <= 2, `${where}: Learn height ${learn.h} vs Mothership ${bar.h}`);

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { ChevronRight, Loader2, MessageSquare, Plus, SquareSlash, X } from 'lucide-react';
 import ChatComposer, { COMPOSER_ADD, COMPOSER_PILL, DOCK_PAD } from '../ChatComposer.jsx';
-import { CommandIcon, CommandMark, commandTone } from '../CommandTone.jsx';
+import { CommandMark, commandTone } from '../CommandTone.jsx';
 import { api, navigate } from '../api.js';
 import { START_PATHS, slugOf } from '../start.js';
 import { PATH_ICONS } from '../start-icons.js';
@@ -40,6 +40,9 @@ const chooseLabel = (slug) => {
 export default function AgentBar({ page }) {
   const surface = useSurface();
   const hidden = surface.barHidden;
+  // Home, Library and Explore (a creator profile is Explore) have no [+] (owner, 2026-10-08: "hide it"): each page's own
+  // Start a rabbit hole (Home, Library) opens the same Start paths, and /new works in this composer everywhere.
+  const plus = !['home', 'library', 'explore'].includes(surface.place);
   const root = useRef(null), inputRef = useRef(null), abort = useRef(null);
 
   // §6.2-6.3: × widens the page's scope for this visit. Drafts are kept per
@@ -511,25 +514,26 @@ export default function AgentBar({ page }) {
           onChange={(value) => { setDrafts((d) => new Map(d).set(targetKey, value)); setHeld(target); setPicker(mode === 'auto' && modeQuery(value) !== null); }}
           onSubmit={(raw) => { if (pickerOpen) return pick(entries[hiIndex]); if (!shortcut) return submit(raw); setShortcut(null); return submit(`/${shortcut} ${raw}`.trim()); }} inputRef={inputRef} busy={!!streaming} maxLength={4000} placeholder={placeholderFor(target, surface)}
           leading={<>
-            {/* [+] Add (T02 §6.2, revised 2026-09-28): the Start paths through open_start. ponytail: no Attach entry (owner,
-                2026-10-04: no dead "not available" item) - workspace asks are off (G1) and canvas asks refuse files
-                (canvases.js refuseCanvasAsk); add it back when an ask takes a file (streamAsk already does). */}
-            <div className="relative shrink-0">
+            {/* [+] Add (T02 §6.2, revised 2026-09-28): the Start paths through open_start, on a project's Map and an app's page;
+                none on Home, Library or Explore (plus, above). ponytail: no Attach entry (owner, 2026-10-04: no dead "not
+                available" item) - workspace asks are off (G1) and canvas asks refuse files (canvases.js refuseCanvasAsk); add it
+                back when an ask takes a file (streamAsk already does). */}
+            {plus && <div className="relative shrink-0">
               <button type="button" aria-label="Add" aria-haspopup="menu" aria-expanded={adding} onMouseDown={(e) => e.stopPropagation()} onClick={() => setAdding(!adding)}
                 className={COMPOSER_ADD}><Plus size={16} /></button>
               <Menu open={adding} onClose={() => setAdding(false)} className="bottom-full left-0 mb-2 w-64">
                 <div className="px-2 pb-1 pt-1 text-xs text-ink-3">Start from</div>
                 {START_PATHS.map(([path, label]) => <MenuItem key={path} icon={PATH_ICONS[path]} onClick={() => { setAdding(false); runCommand('open_start', { path }, '', target, true); }}>{label}</MenuItem>)}
               </Menu>
-            </div>
-            {/* A closed or minimized conversation window reopens from this icon beside + (owner, 2026-10-04). */}
+            </div>}
+            {/* A closed or minimized conversation window reopens from this icon, the composer's first control (owner, 2026-10-04). */}
             {!sheet && line && !panelHosts(surface, line.scope) && <button type="button" data-result-open aria-label="Open the conversation" title={lineOf(line)}
               onMouseDown={(e) => e.preventDefault()} onClick={() => setSheet(line.scope)} className={COMPOSER_ADD}><MessageSquare size={16} /></button>}
             {shortcut
             ? <span data-command-pill data-command-tone={commandTone(shortcut) || undefined} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg border bg-hover pr-1.5 pl-2.5 text-sm text-ink">/{shortcut}<button type="button" aria-label="Remove the command" onClick={() => { setShortcut(null); inputRef.current?.focus(); }} className="cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button></span>
             : mode === 'auto'
             ? <button type="button" aria-haspopup="listbox" aria-expanded={pickerOpen} onMouseDown={(e) => { e.preventDefault(); setPicker(!picker); }} className={COMPOSER_PILL}>Auto</button>
-            : <span data-command-pill data-command-tone={commandTone(mode) || undefined} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg border bg-hover pr-1.5 pl-2.5 text-sm text-ink"><CommandIcon name={mode} />/{mode}<button type="button" aria-label="Back to Auto" onClick={() => setMode('auto')} className="cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button></span>}
+            : <span data-command-pill data-command-tone={commandTone(mode) || undefined} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg border bg-hover pr-1.5 pl-2.5 text-sm text-ink">/{mode}<button type="button" aria-label="Back to Auto" onClick={() => setMode('auto')} className="cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button></span>}
           </>} />
       </div>
     </div>
