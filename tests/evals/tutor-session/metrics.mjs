@@ -426,9 +426,14 @@ export function varietyWithPurpose(metrics, review) {
 }
 
 // Professor Next Steps on a run, from the product's own next_steps_computed traces and the ledger's cost lines: how often the
-// hook planner escalated and why, the first reply's validator rule names, latency and cost per planner role. The rate counts
+// hook planner escalated and why, the first reply's validator rule names, latency and cost per planner role, and (stored)
+// the product's own stored rows: failed sets with the escalation's rule names, and the rejected hooks' word counts. The rate counts
 // the sets that called a planner (a cached set calls none) by their calls, so a set whose escalation failed too (unavailable,
 // no trace) still counts as escalated; only its reason and rule names are unknown.
+const storedRows = rows => ({
+  rows: rows.length, failed: rows.filter(row => row.failed).length,
+  escalation_errors: tally(rows.flatMap(row => row.escalation_errors || [])), rejected_words: tally(rows.flatMap(row => row.rejected_words || []).filter(n => n != null)),
+});
 export function nextStepsReport(bundles) {
   const events = bundles.flatMap(bundle => bundle.events);
   const sets = events.filter(e => e.type === 'next_steps_ready'), traced = sets.map(e => e.trace).filter(Boolean);
@@ -452,6 +457,7 @@ export function nextStepsReport(bundles) {
     validator_rules: tally(traced.flatMap(t => t.runtime.validation.repairs)),
     set_ms: { all: ms(traced), routine: ms(routine), escalated: ms(escalated) },
     hook_words: { ...stats(words), by_count: tally(words) },
+    stored: storedRows(bundles.flatMap(bundle => bundle.next_steps_rows || [])),
     by_role: byRole,
     cost_usd: round(sum(Object.values(byRole).map(r => r.cost_usd)), 6),
   };

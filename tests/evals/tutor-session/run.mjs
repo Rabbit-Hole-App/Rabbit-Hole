@@ -67,6 +67,7 @@ async function paidRun(dir, envFile, topicId) {
           topic, profile, profiles, tutor: world.tutor, hooks: world.hooks, hookStart: world.hookStart, hookDelayMs: HOOK_DEBOUNCE_MS, materialize: world.materialize,
           learner: modelLearner({ topic, profile, profiles, transport }), reviewer: transport, ledger: createLedger(SESSION_USD, { parent: run }), coverage: world.coverage, runId,
         });
+        bundle.next_steps_rows = await world.plannerRows();
         writeSession(dir, bundle);
         const { anthropic } = bundle.cost;
         console.log(`${profile.id}: ${bundle.simulator.stop_reason}${bundle.simulator.error ? ` (${bundle.simulator.error.message})` : ''}, ${bundle.events.at(-1).decisions} decisions, $${anthropic.total_usd} spent + $${anthropic.held_usd} held, review ${bundle.review?.status ?? 'none'}`);

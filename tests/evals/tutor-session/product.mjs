@@ -263,6 +263,12 @@ export async function productWorld({ topic, ids, boundary, board = 'main', trace
 
   return {
     close: db.close,
+    // The product's stored planner telemetry (learn-migrations 0012: one row per planned hook set, a failed escalation's too,
+    // with its own rule names and the rejected hooks' word counts; never a hook or the input), read from this session's
+    // LEARN_DB before it closes. [] on a schema without the table.
+    plannerRows: async () => {
+      try { return (await db.LEARN_DB.prepare('SELECT telemetry_json FROM next_steps_telemetry ORDER BY id').all()).results.map(row => JSON.parse(row.telemetry_json)); } catch { return []; }
+    },
     coverage: boundary.transport === 'stub' ? COVERAGE : paidCoverage(!!(keys.TYPESAFE_API_KEY || keys.VERCEL_TYPESAFE_API_KEY)),
     store: () => store,
     // The decision's materials are its create_material actions (contract §2.5: several per turn, distinct commands), in the
