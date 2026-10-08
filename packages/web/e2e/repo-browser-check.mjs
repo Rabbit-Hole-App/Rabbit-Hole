@@ -358,7 +358,7 @@ await check('10b Copy in the panel says Copied on the button; pasting it on the 
   const paste = (text) => page.evaluate((t) => { document.activeElement?.blur(); const data = new DataTransfer(); data.setData('text/plain', t); window.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true })); }, text);
   const dialog = page.locator('[data-file-import-dialog]');
   await paste(copied);
-  await dialog.waitFor({ timeout: 5000 });
+  await dialog.locator('[data-import-file]').waitFor({ timeout: 5000 }); // the wrapper has no box of its own: the dialog inside is fixed
   assert.equal((await dialog.locator('[data-import-file]').innerText()).trim(), 'train.py', 'text copied from a file keeps its name');
   assert.deepEqual((await dialog.locator('[data-import-choice]').allInnerTexts()).map((t) => t.trim()), ['Code card', 'Jupyter notebook']);
   await shot('L-paste-code-dialog');
@@ -367,7 +367,7 @@ await check('10b Copy in the panel says Copied on the button; pasting it on the 
   await dialog.waitFor({ state: 'detached', timeout: 5000 });
   assert.equal(await canvasFrame.locator('[data-block-id]').count(), before, 'Cancel placed nothing');
   await paste(copied);
-  await dialog.waitFor({ timeout: 5000 });
+  await dialog.locator('[data-import-file]').waitFor({ timeout: 5000 }); // the wrapper has no box of its own: the dialog inside is fixed
   await page.keyboard.press('Escape');
   await dialog.waitFor({ state: 'detached', timeout: 5000 });
   await paste(copied);
@@ -376,7 +376,7 @@ await check('10b Copy in the panel says Copied on the button; pasting it on the 
   await page.waitForFunction((n) => document.querySelectorAll('[aria-label="Lesson canvas"] [data-block-id]').length === n + 1, before, { timeout: 10000 });
   // Code from elsewhere (the conservative heuristic) asks too, named snippet.py; a notebook is offered and nothing runs.
   await paste('def attention(q, k, v):\n    w = q @ k.T\n    return w @ v');
-  await dialog.waitFor({ timeout: 5000 });
+  await dialog.locator('[data-import-file]').waitFor({ timeout: 5000 }); // the wrapper has no box of its own: the dialog inside is fixed
   assert.equal((await dialog.locator('[data-import-file]').innerText()).trim(), 'snippet.py');
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   // Plain prose is a text paste, as before: no dialog.
