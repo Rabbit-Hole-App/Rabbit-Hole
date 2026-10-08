@@ -43,6 +43,15 @@ async function creators(env, q) {
   return json({ creators: results.map(creator) });
 }
 
+// Creator chips for these handles, in their order (Explore's AI find, explore-find.js): only people with a live publication,
+// on the same chip as discovery and search.
+export async function creatorsByHandle(env, handles) {
+  if (!handles.length) return [];
+  const { results } = await env.LEARN_DB.prepare(`SELECT ${IDENTITY}, count(*) AS explainers ${PUBLISHED} AND h.handle IN (${handles.map(() => '?').join(', ')}) GROUP BY h.handle`).bind(...handles).all();
+  const found = new Map(results.map(r => [r.handle.toLowerCase(), creator(r)]));
+  return handles.map(handle => found.get(handle.toLowerCase())).filter(Boolean);
+}
+
 // The picture itself: a PNG data URL as profile.js validated it, sent as bytes.
 async function avatar(env, handle) {
   const row = await env.LEARN_DB.prepare('SELECT up.avatar FROM user_handles h JOIN user_profiles up ON up.email = h.email WHERE h.handle = ?').bind(handle).first();

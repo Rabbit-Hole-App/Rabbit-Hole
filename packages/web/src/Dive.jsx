@@ -286,6 +286,7 @@ function Name({ level, className, onOpen, onRename, active = false }) {
 
 // The descending roots (R-1): path from the root, the current level marked, then its children.
 // ↑ climbs to the parent; ↓ goes down, through a compact picker when there are several.
+// Read-only on a shared canvas (SharedBoardPage, shared-holes.js): no askDelete, so no delete buttons; kind 'view' levels.
 export function DiveNavigator({ tree, pending, error, climb, enter, rename, askDelete }) {
   const [picking, setPicking] = useState(false);
   useEffect(() => {
@@ -314,7 +315,7 @@ export function DiveNavigator({ tree, pending, error, climb, enter, rename, askD
           <span aria-hidden="true" title={pending ? 'Empty: kept once you add something' : undefined}
             className="mb-1 h-2 w-2 bg-[#b42318]" />
           <Name level={current} active className={`font-semibold ${pending ? 'italic' : ''}`} onOpen={() => {}} onRename={rename} />
-          {index > 0 && <button type="button" aria-label={`Delete ${current.title}`} title={pending ? 'Leave this empty hole' : 'Delete this hole'} onClick={() => askDelete(current)}
+          {index > 0 && askDelete && <button type="button" aria-label={`Delete ${current.title}`} title={pending ? 'Leave this empty hole' : 'Delete this hole'} onClick={() => askDelete(current)}
             className="absolute -right-1 bottom-0 hidden h-5 w-5 items-center justify-center rounded-sm text-ink-3 group-hover:flex hover:bg-hover hover:text-[#b42318] focus:flex"><Trash2 size={11} /></button>}
         </div>}
       </div>)}
@@ -337,8 +338,8 @@ export function DiveNavigator({ tree, pending, error, climb, enter, rename, askD
             <button type="button" role="menuitem" onClick={() => { setPicking(false); enter(child.name); }} className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-sm text-ink">
               <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 ${child.pending ? 'border border-dashed border-[#b42318]' : 'bg-[#b42318]/70'}`} /><span title={child.title} className={`truncate ${child.pending ? 'italic' : ''}`}>{child.title}</span>
             </button>
-            <button type="button" aria-label={`Delete ${child.title}`} title={child.pending ? 'Leave this empty hole' : 'Delete this hole'} onClick={() => { setPicking(false); askDelete({ ...child, app: child.name, kind: 'canvas' }); }}
-              className="mr-1 hidden h-6 w-6 items-center justify-center rounded text-ink-3 group-hover:flex hover:text-[#b42318]"><Trash2 size={12} /></button>
+            {askDelete && <button type="button" aria-label={`Delete ${child.title}`} title={child.pending ? 'Leave this empty hole' : 'Delete this hole'} onClick={() => { setPicking(false); askDelete({ ...child, app: child.name, kind: 'canvas' }); }}
+              className="mr-1 hidden h-6 w-6 items-center justify-center rounded text-ink-3 group-hover:flex hover:text-[#b42318]"><Trash2 size={12} /></button>}
           </div>)}
         </div>
       )}

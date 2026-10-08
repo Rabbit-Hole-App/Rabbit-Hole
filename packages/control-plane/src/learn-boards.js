@@ -509,6 +509,35 @@ async function boardOwner(req, env, app) {
   return { org: user.org, email: user.email };
 }
 
+// The Rabbit Holes Map on a shared or published canvas (owner, 2026-10-08; dive-v1.md "Shared map"), read-only. A link
+// covers one board, never the holes under it or above it, so a level is shown only when this viewer could open that
+// level's own link right now: its board has a view link on, is not in Trash, and is public or the viewer is signed in.
+// Any other hole is left out whole - no title, no count, no portal. A level is a title and its /b/ link (and the origin
+// card of a child, for its red outline); never a canvas id or an email.
+// ponytail: the path climbs canvas levels only; a project board or a hole started from someone else's share (share:)
+// ends it, as one with no open link does. Climb those when a shared project board needs its level named.
+async function sharedHoles(req, env, token) {
+  const found = await sharedAccess(req, env, token);
+  if (found instanceof Response) return found;
+  const db = env.LEARN_DB, { row } = found;
+  const viewer = found.viewer || await repositoryIdentity(req, env);
+  const anyone = viewer instanceof Response ? 0 : 1;
+  const OPEN = `b.shared = 1 AND b.view_token IS NOT NULL AND ${NOT_TRASHED('b.org', 'b.app')} AND (b.public_view = 1 OR ?)`;
+  const canvasTitle = CANVAS.test(row.app) ? (await db.prepare('SELECT title FROM canvases WHERE org = ? AND name = ?').bind(row.org, row.app).first())?.title : null;
+  const path = [{ title: sharedTitle(row, canvasTitle, row.app.startsWith('repo-') ? await linkSource(db, found) : null), href: linkPath(found, token) }];
+  for (let level = row; level.board === 'main' && CANVAS.test(level.app) && path.length < 50;) {
+    const up = await db.prepare(`SELECT b.*, c.title AS canvas_title FROM canvas_dives d JOIN learn_boards b ON b.org = d.org AND b.owner_email = d.owner_email AND b.app = d.parent_app AND b.board = d.parent_board
+      JOIN canvases c ON c.org = b.org AND c.name = b.app WHERE d.org = ? AND d.owner_email = ? AND d.child = ? AND ${OPEN}`).bind(level.org, level.owner_email, level.app, anyone).first();
+    if (!up) break;
+    path.unshift({ title: up.canvas_title, href: `/b/${up.view_token}` });
+    level = up;
+  }
+  const { results } = await db.prepare(`SELECT c.title, b.view_token, d.origin_block_id FROM canvas_dives d JOIN canvases c ON c.org = d.org AND c.name = d.child
+    JOIN learn_boards b ON b.org = d.org AND b.owner_email = d.owner_email AND b.app = d.child AND b.board = 'main'
+    WHERE d.org = ? AND d.owner_email = ? AND d.parent_app = ? AND d.parent_board = ? AND ${OPEN} ORDER BY d.created_at, d.child`).bind(row.org, row.owner_email, row.app, row.board, anyone).all();
+  return json({ path, children: results.map(r => ({ title: r.title, href: `/b/${r.view_token}`, origin_block_id: r.origin_block_id })) });
+}
+
 async function openShared(req, env, token) {
   const found = await sharedAccess(req, env, token);
   if (found instanceof Response) return found;
@@ -615,6 +644,9 @@ export async function learnBoardsRoute(path, req, env) {
   if (asking) return req.method === 'POST' ? askAboutShared(req, env, decodeURIComponent(asking[1])) : json({ error: 'Method not allowed' }, 405);
   const hooking = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)\/next-steps$/);
   if (hooking) return req.method === 'POST' ? nextStepsAboutShared(req, env, decodeURIComponent(hooking[1])) : json({ error: 'Method not allowed' }, 405);
+  // The read-only Rabbit Holes Map of a shared canvas: only holes this viewer could open by their own link.
+  const holes = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)\/holes$/);
+  if (holes) return req.method === 'GET' ? sharedHoles(req, env, decodeURIComponent(holes[1])) : json({ error: 'Method not allowed' }, 405);
   const shared = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)$/);
   if (shared) {
     const token = decodeURIComponent(shared[1]);
@@ -622,6 +654,8 @@ export async function learnBoardsRoute(path, req, env) {
     if (req.method === 'PUT') return json({ error: 'Shared links are view-only. Fork the board to edit your own copy.' }, 403);
     return json({ error: 'Method not allowed' }, 405);
   }
+  // Explore's AI find (explore-find.js): a sentence-length search ranked by the small model over the published set only.
+  if (path === '/api/learn/boards/published/find') return (await import('./explore-find.js')).exploreFindFetch(req, env);
   // Explore: the published canvases (docs/features/explore-publish.md).
   if (path === '/api/learn/boards/published') { const p = new URL(req.url).searchParams; return req.method === 'GET' ? explore(env, p.get('sort') || 'newest', p.get('q'), p.get('project')) : json({ error: 'Method not allowed' }, 405); }
   const own = path.match(/^\/api\/learn\/boards\/([a-z0-9-]{1,100})\/([^/]+)(\/share(?:\/repository)?|\/assets(?:\/([^/]+))?)?$/);

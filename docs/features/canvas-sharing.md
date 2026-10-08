@@ -45,6 +45,9 @@ A learner shares a canvas board by link. Dev only, like the rest of Learn.
   its files change. A shared link opens it fresh, in a workspace of its own
   (`<notebook_id>-shared`), so imports and `open()` work for recipients. The owner's own board only fills an
   empty workspace from it (another browser), never overwrites local files.
+- **A link covers one board.** It covers that board's files and notebooks, never the Rabbit Holes nested under it or the canvas above it.
+  - A shared board's Rabbit Holes Map lists a hole only when the viewer could open that hole's own link.
+  - That means the hole is shared, not in Trash, and public or the viewer signed in. The rule is in [dive-v1.md](dive-v1.md), "Shared map".
 - Later: sharing with members, emails or groups from the Members tab.
 
 ## Storage
@@ -70,6 +73,7 @@ are served as downloads with `nosniff` and a sandbox CSP, never as pages.
 | `POST /api/learn/boards/shared/:token/ask` | signed in (any link they can open, public too) | ask about the shared canvas; streams the answer, writes nothing of the owner's (one usage event), rate limited ([shared-canvas-ask.md](shared-canvas-ask.md)) |
 | `GET/PUT /api/learn/boards/:app/:board/assets/:key`, `GET .../assets` | owner | board files, list |
 | `GET /api/learn/boards/shared/:token/assets/:key` | as the link | board files through a link |
+| `GET /api/learn/boards/shared/:token/holes` | as the link | the read-only Rabbit Holes Map: only the levels this viewer could open by their own link ([dive-v1.md](dive-v1.md), "Shared map") |
 | `POST /api/learn/boards/shared/:token/fork` | signed in (any link they can open) | make the viewer's Canvas copy; returns `{ name, url, files, forked_from }`. Same handler as `POST /api/learn/boards/fork` ([canvas-forking.md](canvas-forking.md)) |
 
 Owner routes for a `canvas-*` board check the `canvases` row: its owner only.

@@ -4,7 +4,7 @@ import { navigate } from './api.js';
 import { reviewTools } from './flags.js';
 import { browserOnly, openHref, readContinue, readRecent, recentCard, recentItems } from './home/continue.js';
 import LearningCard, { CARD_GRID, IN_THIS_BROWSER as HERE, ON_ANOTHER_DEVICE as AWAY, SortMenu } from './home/LearningCard.jsx';
-import PublicCards, { CreatorChip, ProjectFilter } from './home/PublicCards.jsx';
+import PublicCards, { CreatorChip, ProjectFilter, Recommended, useExploreFind } from './home/PublicCards.jsx';
 import { EXPLORE_SORTS, EXPLORE_TABS, exploreTab } from './home/card-sort.js';
 import { cardModel } from './home/provenance.js';
 import { fixturesOn, useFixtures } from './home/review-fixtures.js';
@@ -148,6 +148,9 @@ function Explore() {
   };
   // ?project=owner/repo: a card's project label opened Explore on that project's published canvases (PublicCards ProjectFilter).
   const project = new URLSearchParams(window.location.search).get('project');
+  // A sentence-length search also gets AI picks, Recommended above the tab's keyword results (explore-publish.md "AI find");
+  // not while a project filter narrows the list.
+  const found = useExploreFind(term, !!me);
   useEffect(() => { let live = true; loadProfile().then((p) => { if (live) setMe(p?.handle || null); }); return () => { live = false; }; }, []);
   useEffect(() => {
     if (tab !== 'explainers') return;
@@ -181,11 +184,13 @@ function Explore() {
         </div>
         {tab === 'creators' ? (
           <section data-explore-creators aria-label="Creators">
+            <Recommended found={found} me={me} kind="creators" />
             {creators === null && <SkeletonRows rows={2} />}
             {creators?.length > 0 && <div className="flex flex-wrap gap-2">{creators.map(c => <CreatorChip key={c.handle} c={c} />)}</div>}
             {creators?.length === 0 && term && <p data-search-empty className="text-sm text-ink-3">No creators match &ldquo;{term}&rdquo;.</p>}
           </section>
         ) : <>
+          <Recommended found={project ? null : found} me={me} kind="canvases" />
           {project && <ProjectFilter project={project} empty={cards?.length === 0 && !term} />}
           {cards === null && <SkeletonRows rows={3} />}
           {cards?.length === 0 && term && <p data-search-empty className="text-sm text-ink-3">No explainers match &ldquo;{term}&rdquo;.</p>}

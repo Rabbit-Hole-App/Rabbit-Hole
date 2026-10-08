@@ -75,6 +75,36 @@ Owner rules, 2026-10-06. Sharing and publishing are different actions.
 - **The label is a link** to `/explore?project=<label>`. Explore shows a "From owner/repo" chip whose × drops only that filter, and says so when the project has no published canvas.
 - **Import finding:** repository import accepts public GitHub repositories only (`parseRepository`, an anonymous `git ls-remote`; learn-repositories.md). A repository can still turn private, vanish, or predate `repository_visibility`, so the label follows the confirmed-public row and not the import.
 
+## AI find (owner, 2026-10-08)
+
+Typing in Explore's search stays the instant keyword search. A sentence-length query also asks a small model to pick and rank the published canvases and creators that fit.
+
+**Threshold:** four or more words, the same rule Search.jsx uses for `/api/apps/find` (`home/explore-find.js` `findQuery`).
+
+**Where it shows:** a "Recommended" section above the active tab's keyword results.
+- The Explainers tab shows the picked canvases on the same card; the Creators tab shows the picked creators on the same chip. One find serves both tabs.
+- When nothing fits, it shows one line: the model's own sentence, else "Nothing published fits that yet."
+- It is hidden while a `?project=` filter narrows the list.
+- Signed-out viewers get keyword search only.
+
+**Route:** `POST /api/learn/boards/published/find { q }` (`explore-find.js`) returns `{ canvases: [Explore cards], creators: [chips], note, cached }`.
+
+**What the model sees:** the published set only, through the same `PUBLISHED` query as Explore, newest 100.
+- Each canvas is an opaque `c1..cN` with its title, description, creator `@handle` and project label; each creator is a handle and name.
+- Never a private, unlisted, archived, nested or trashed canvas, an email, a canvas id or a token.
+- Picks outside the catalog are dropped.
+
+**Cost guards:**
+- **Model:** the small model, `LEARN_TASKS.explore_find` (Haiku 4.5, 400 tokens, one JSON reply, no tools).
+- **Debounce:** one find per pause in typing, 700 ms after Explore's own 250 ms keyword debounce.
+- **Signed in only:** a signed-out call is a 401.
+- **Cache:** one answer per normalised query (case, spacing, quotes and closing punctuation ignored), for 10 minutes, shared by everyone.
+  - It holds publication tokens and handles only, re-checked against the live published set on every serve, so an unpublished canvas drops out at once.
+  - ponytail: the cache lives in each worker isolate (a Map capped at 200 entries). Move it to KV or the Cache API if hit rates across isolates matter.
+- **Per-user cap:** `admitUsage` with category `explore_find`, 30 an hour and 100 a day. Worker vars `EXPLORE_FIND_HOUR` and `EXPLORE_FIND_DAY` override them.
+  - Only model calls count; a cache hit is free. Over the cap the answer is a 429 with one line, and keyword search still works.
+- **No key:** a 503 with "AI answers aren't configured on this preview." (`MODEL_NOT_CONFIGURED`), no outbound request and nothing counted. The keyword results are unaffected.
+
 ## Owner controls
 
 The canvas Share panel has a separate "Publish to Explore" section, outside the share switch:
@@ -87,4 +117,8 @@ The canvas Share panel has a separate "Publish to Explore" section, outside the 
 - Server, project labels and the filter: `packages/control-plane/test/project-canvases.test.js` (one card and one count per canvas, private repositories never named, unlisted and private canvases excluded, branches, Trash).
 - Web: `packages/web/src/explore-publish.test.mjs` (the card order: title, creator, project label; nothing adds counts up by project).
 - Browser, project label and filter: `packages/web/e2e/project-canvases-check.mjs` (local stack, not run yet).
+- AI find:
+  - Server: `packages/control-plane/test/explore-find.test.js` covers published-only input, the cache with its re-check and expiry, the per-user cap, the no-key path with zero outbound requests, and the refusals.
+  - Web: `packages/web/src/home/explore-find.test.mjs` covers the threshold, the debounce and the wiring.
+  - Browser: `packages/web/e2e/explore-holes-check.mjs` part B, with the find route stubbed (local stack, not run yet).
 - Browser: `packages/web/e2e/explore-check.mjs` covers private, unlisted and public from the Share panel, the Explore card, Explore to the canvas, signed-out `/e`, Fork and Start Rabbit Hole signing in and resuming, and Remove from Explore.

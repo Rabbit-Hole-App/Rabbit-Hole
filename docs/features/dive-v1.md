@@ -12,7 +12,7 @@ Socrates/Feynman routing, the Tutor planner, evidence evaluation, generated expl
   - one parent per hole
   - one child per originating card
   - no depth limit
-  - no DAG, no cross-links, no sharing
+  - no DAG, no cross-links; a share covers one board, and a hole shows on a shared map only through its own link ("Shared map" below)
 - The parent of a hole is a board: `{app, board}`. The app is a canvas (`canvas-*`) or a repository
   project (`repo-*`), and a named board (`?board=`) is its own level.
 
@@ -118,6 +118,34 @@ canvas_dives(org, owner_email, child, parent_app, parent_board, origin_block_id,
   - The Tutor will raise it with
     `window.dispatchEvent(new CustomEvent('small:dive-suggest', { detail: { blockId, topic } }))`.
   - No model is wired to it.
+
+## Shared map (owner, 2026-10-08)
+
+A shared (`/b/<token>`) or published (`/e/<token>`) canvas shows its Rabbit Holes Map read-only: the navigator in the gutter, and the red outline and "↓ title" tab on each hole's origin card.
+
+**What a token covers.** A share link or publication covers exactly one board: its `learn_boards` row, its files and its notebooks. It never covers the holes below it or the canvas above it. Each hole is its own canvas with its own main board and its own Share settings; a hole cannot be published on its own.
+
+**The rule.** A level appears on a shared map only when the viewer could open that level's own link right now:
+- its main board has a view link on (`shared = 1` with a `view_token`);
+- it is not in Trash;
+- the link is public, or the viewer is signed in.
+
+Everything else is left out whole: a private hole's title, its existence, its count and its origin card never reach the page.
+
+**Behaviour.**
+- A level is a title and its `/b/<token>` link; the current level is the link being viewed, at `/e/` for a publication. Never a canvas id or an email.
+- **Path:** it climbs to ancestors while each one passes the rule, and stops at the first that does not.
+- **Holes below:** the current board's direct children that pass the rule.
+- A click on a level, ↑, ↓, the picker or a portal opens that level's link.
+- There is no rename, no delete, and no new hole from the map.
+- With nothing above or below, there is no map, as on a canvas without holes.
+
+**API:** `GET /api/learn/boards/shared/<token>/holes`, under the same access as opening the link (`sharedAccess`). It returns `{ path: [{ title, href }], children: [{ title, href, origin_block_id }] }`.
+- ponytail: the path climbs canvas levels only. A project board, or a hole started from someone else's share (`share:`), ends it.
+
+**Code:** `learn-boards.js` `sharedHoles`; `shared-holes.js` `sharedTree`; `SharedBoardPage.jsx` (`DivePortals` and a read-only `DiveNavigator`, which shows no delete without `askDelete`).
+
+**Checks:** `packages/control-plane/test/shared-hole-map.test.js`, `packages/web/src/shared-holes.test.mjs`, and `packages/web/e2e/explore-holes-check.mjs` part A (local stack, not run yet).
 
 ## Run it locally (no remote resources)
 
