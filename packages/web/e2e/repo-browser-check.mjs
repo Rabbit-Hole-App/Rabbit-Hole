@@ -295,6 +295,8 @@ await check('6 Learn attaches the exact range and carries it into Learn, sending
   assert.equal(await tab('Files').getAttribute('aria-selected'), 'true', 'back to the view it left');
 });
 
+// Learn's composer is an input (LearnPage, Dive.jsx), a textarea in other docks: match either.
+const COMPOSER = '[data-learn-dock] textarea, [data-learn-dock] [data-chat-composer] input:not([type="file"])';
 await check('10 the Main canvas\'s Map icon opens Files in the right panel: a file opens, selected lines Ask into Learn\'s chat as its context, nothing is sent', async () => {
   const n = asks.length, sent = learnRequests.length;
   await tab('Learn').click();
@@ -309,11 +311,11 @@ await check('10 the Main canvas\'s Map icon opens Files in the right panel: a fi
   await drag(5, 7);
   await actions.getByRole('button', { name: 'Ask', exact: true }).click();
   await page.getByText(/^Asking about: train\.py:5–7/).first().waitFor({ timeout: 10000 });
-  assert.equal(await page.locator('[data-learn-dock] textarea').first().inputValue(), 'What do lines 5–7 of train.py do?');
+  assert.equal(await page.locator(COMPOSER).first().inputValue(), 'What do lines 5–7 of train.py do?');
   await page.waitForTimeout(500);
   assert.equal(asks.length, n, 'Ask wrote the question and sent nothing'); assert.equal(learnRequests.length, sent);
   await shot('L-learn-files-ask');
-  await page.locator('[data-learn-dock] textarea').first().fill('');
+  await page.locator(COMPOSER).first().fill('');
   await learnFiles.locator('[data-learn-open-map]').click();
   await page.waitForURL(/[?]tab=map$/);
 });
