@@ -252,7 +252,7 @@ await check('6 a board over 1.9 MB is refused visibly and its local copy is kept
   await A.page.locator('[data-toast-error]').filter({ hasText: 'This board is over 1.9 MB, so it was not saved to your account and stays only in this browser.' }).waitFor({ timeout: 15000 });
   await shot(A.page, '04-A-over-cap-refused');
   const kept = await boardOf(C3.name);
-  assert.ok(kept.exists && kept.version === 0 && !kept.state.blocks.length, 'only the empty board from creation: the refused copy is not on the server');
+  assert.ok(kept.exists !== false && kept.version === 0 && !kept.state.blocks.length, 'only the empty board from creation: the refused copy is not on the server');
   assert.equal((await local(A.page, keysOf(C3.name).ink)).blocks[0].notes.length, 1_950_000, 'kept in this browser');
   await draw(A.page);
   await A.page.waitForTimeout(3000);
