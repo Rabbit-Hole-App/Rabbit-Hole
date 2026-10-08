@@ -172,3 +172,16 @@ test('the build recipe is the install, the build env, both builds and the entry;
   assert.notEqual(buildRecipe(src.replace("VITE_BYOC_DEV: 'true'", "VITE_BYOC_DEV: 'false'")), buildRecipe(src), 'a build env change is a recipe change');
   assert.equal(buildRecipe(src + '\n// npm ci comment\n'), buildRecipe(src));
 });
+
+test('a failed stage\'s unreadable tripwire count in the gate is replaced only by a readable 0 for that stage in the rerun', () => {
+  // int24 (2026-10-08): cross-device crashed its stack, so its count read "unreadable"; int24b reran it with 0 hits.
+  const RTREE = '4499528a' + '0'.repeat(32);
+  const gate = PASSED.replace('card-context-menu exit 0  12/12 checks passed', 'cross-device provider-tripwire hits: unreadable\ncross-device exit 1');
+  const rerun = `tree HEAD b7e17af8 MERGE_HEAD  index ${RTREE}\ncross-device provider-tripwire hits: 0\ncross-device exit 0  13/13 checks passed\nINT24B-DONE\n`;
+  assert.equal(rerunVerdict(gate, TREE, rerun, RTREE), null);
+  assert.match(gateVerdict(gate, TREE), /not 0: cross-device:unreadable/, 'never enough on its own');
+  assert.match(rerunVerdict(gate, TREE, rerun.replace('cross-device provider-tripwire hits: 0\n', ''), RTREE), /gate: provider tripwire .*cross-device:unreadable/, 'the rerun must measure that stage again');
+  assert.match(rerunVerdict(gate.replace('journey provider-tripwire hits: 0', 'journey provider-tripwire hits: unreadable'), TREE, rerun, RTREE), /gate: .*journey:unreadable/, 'a stage that passed keeps its own count');
+  assert.match(rerunVerdict(gate.replace('model key bindings in app log: 0', 'model key bindings in app log: 1'), TREE, rerun, RTREE), /gate: .*app:1/, 'app-wide counts are never replaced');
+  assert.match(rerunVerdict(gate, TREE, rerun.replace('hits: 0', 'hits: 1'), RTREE), /rerun: provider tripwire .*cross-device:1/);
+});

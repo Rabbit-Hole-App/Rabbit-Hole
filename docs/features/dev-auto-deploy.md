@@ -126,6 +126,9 @@ node scripts/dev-deploy.mjs --sha <main> --reuse <G> --gate <G's record> --rerun
 - Between R and the candidate, the policy A list applies.
 - R's record must end `-DONE`, with every stage at exit 0 and every count at 0.
 - Every stage that failed in G must pass in R. If unit tests changed, R must run `make test-unit`.
+- Every count is tied to the stage that printed it.
+  - A failed stage's own count in G, such as "unreadable" after its stack crashed, is replaced only by a readable 0 for that same stage in R.
+  - Counts for stages that passed in G, and app-wide model-key counts, are never replaced.
 - When G was never deployed, so no build is recorded, the build recipe in `dev-deploy.mjs` must be unchanged from G. That recipe is the install, the build env, both builds and the entry, and it makes the build G's by construction.
 - The record adds `rerun_sha`.
 - First use: int24 on `af22a1f8`, where only cross-device failed, a check bug. int24b then reran cross-device on `b7e17af8`.
