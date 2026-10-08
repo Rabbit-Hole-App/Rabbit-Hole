@@ -115,3 +115,12 @@ test('the smoke waits for the built entry script, in the form the dev build emit
   assert.equal(entryScript('<script src="/static/legacy.js"></script>'), null, 'only the module entry');
   assert.equal(entryScript('<html></html>'), null);
 });
+
+test('the deploy uses only this commit: lockfile install, both page builds, pinned tools, no shell', () => {
+  // A deploy from a fresh checkout (2026-10-08) failed to bundle: no dist/index.html, no jose, and npx fetched an unpinned wrangler.
+  const src = readFileSync(new URL('./dev-deploy.mjs', import.meta.url), 'utf8');
+  assert.match(src, /execSync\('npm ci --no-audit --no-fund', \{ cwd: root/);
+  assert.match(src, /for \(const outDir of \['dist', 'dist-dev'\]\)/);
+  assert.ok(!/execFileSync\('npx'/.test(src) && !/shell: true/.test(src), 'no npx, no shell');
+  assert.ok(!/`"(main|rollback)/.test(src), 'messages are plain arguments, not shell-quoted');
+});
