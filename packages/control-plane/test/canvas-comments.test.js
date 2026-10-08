@@ -328,3 +328,16 @@ test('unread counts for the Library: my canvases by name, canvases shared with m
   assert.deepEqual(await counts('cara'), { owned: {}, shared: {} });
   assert.equal((await comments(f, 'GET', '/api/learn/comments/unread')).status, 401);
 });
+
+test('a share link tells only the owner and active members their board id; other link viewers and publications get nothing about members', async t => {
+  const f = setup(t);
+  const { name, boardId } = await canvas(f);
+  const token = (await f.call('POST', `/api/learn/boards/${name}/main/share`, { as: 'ana', body: { shared: true, view: true, public_view: true, state: BOARD } })).body.sharing.view;
+  const open = as => f.call('GET', `/api/learn/boards/shared/${token}`, { as });
+  assert.equal((await open('ana')).body.member_board_id, boardId);
+  assert.equal((await open('ben')).body.member_board_id, boardId);
+  assert.equal('member_board_id' in (await open('cara')).body, false);
+  assert.equal('member_board_id' in (await open()).body, false);
+  const published = (await f.call('POST', `/api/apps/${name}/publish`, { as: 'ana' })).body.publication_token;
+  assert.equal('member_board_id' in (await f.call('GET', `/api/learn/boards/shared/${published}`, { as: 'ben' })).body, false, 'a publication stays public');
+});

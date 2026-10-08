@@ -528,7 +528,13 @@ async function openShared(req, env, token) {
   // no creator. Never the owner's email: a link may be opened by anyone it reaches.
   const made = await env.LEARN_DB.prepare(`SELECT h.handle, ${NAME_OF('h.email')} AS name FROM user_handles h WHERE h.email = ?`).bind(row.owner_email).first();
   const creator = made ? { handle: made.handle, name: made.name ?? null } : null;
+  // Comments on a share link (docs/features/canvas-comments.md section 5): the owner and active members get the members
+  // panel, keyed by the board id; any other link viewer gets today's page, and nothing about members.
+  const signedIn = viewer instanceof Response ? null : viewer;
+  const member = canvas && row.board === 'main' && !found.publication && signedIn && (signedIn.email === row.owner_email
+    || (signedIn.userId && await env.LEARN_DB.prepare("SELECT 1 FROM canvas_members WHERE org = ? AND canvas = ? AND member_user_id = ? AND status = 'active'").bind(row.org, row.app, signedIn.userId).first()));
   return json({ role, published: !!found.publication, app: hidden ? null : row.app, board: row.board, title: sharedTitle(row, canvas?.title, source), creator, fork_count: canvas ? canvas.fork_count : null, version: row.version, updated_at: row.updated_at,
+    ...(member ? { member_board_id: row.id } : {}),
     viewer: viewer instanceof Response ? null : viewer.email, context: { repository: source?.allowed ? { repo: source.repo, commit: source.commit } : null, sources: boardSources(state) }, state });
 }
 

@@ -75,8 +75,8 @@ test('increment 2 seams: Share carries the comment settings; the published page 
   assert.match(page, /comments=\{comments\.active \? <><PeopleWithAccess base=\{memberBase\(commentBoard\)\} \/><CommentSettings base=\{memberBase\(commentBoard\)\} published=\{!!sharing\?\.published\} \/><\/> : null\}/);
   assert.match(settings, /<Switch on=\{enabled\} label="Allow comments"/, 'labelled exactly Allow comments');
   assert.match(settings, /disabled=\{busy \|\| !enabled\}/, 'the public setting is disabled while comments are off');
-  assert.match(shared, /useCanvasComments\(\{ base: commentsInfo && publicBase\(token\), canAdd: !!commentsInfo\?\.can\.post,/, 'posting only for those the server lets post');
-  assert.match(shared, /if \(!published\) return undefined;/, 'a share link (/b) never asks the public family');
+  assert.match(shared, /useCanvasComments\(\{ base: commentsInfo && commentsBase, canAdd: !!commentsInfo\?\.can\.post,/, 'posting only for those the server lets post');
+  assert.match(shared, /const commentsBase = memberBoard \? memberBase\(memberBoard\) : shared\?\.published \? publicBase\(token\) : null;/, 'a share link (/b) never asks the public family; owners and members get theirs');
   assert.match(canvas, /if \(readOnlyRef\.current && !onAddComment && \(!onStartRabbitHole/);
 });
 
@@ -143,7 +143,7 @@ test('links, pages and moderation: ?thread= opens a thread, Copy link, Load more
   assert.match(hook, /new URLSearchParams\(window\.location\.search\)\.get\('thread'\)/);
   assert.match(hook, /threadLink: link \? id => `\$\{window\.location\.origin\}\$\{link\}\?thread=\$\{id\}` : null/);
   assert.match(page, /link: commentBoard && `\/c\/\$\{commentBoard\}`/, 'members\' links go to /c');
-  assert.match(shared, /link: `\/e\/\$\{token\}`/, 'public links go to /e');
+  assert.match(shared, /link: memberBoard \? `\/c\/\$\{memberBoard\}` : `\/e\/\$\{token\}`/, 'public links go to /e, members\' to /c');
   assert.match(member, /window\.location\.replace\(`\/apps\/\$\{read\.body\.canvas\}\$\{window\.location\.search\}`\)/, 'the owner keeps ?thread= on the way home');
   assert.match(page, /label: 'Show comments', icon: MessageCircle, checked: comments\.showPins, onSelect: comments\.togglePins/);
   assert.match(panel, /data-more-threads/);

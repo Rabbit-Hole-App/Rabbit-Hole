@@ -16,7 +16,7 @@ import { streamAsk } from './agent/ask-stream.js';
 import { askHistory, askPath, loadChat, saveChat, signInForAsk, takeDraft } from './shared-ask.js';
 import CommentsPanel from './comments/CommentsPanel.jsx';
 import { useCanvasComments } from './comments/useCanvasComments.js';
-import { publicBase } from './comments/comments-api.js';
+import { memberBase, publicBase } from './comments/comments-api.js';
 
 const AdaptiveCanvas = lazy(() => import('./AdaptiveCanvas.jsx'));
 
@@ -51,20 +51,22 @@ export default function SharedBoardPage({ token }) {
   // The card right-click menu starts the same flow from the card it was opened on (owner, 2026-10-07).
   const rabbitStart = useRef(null);
   const startFromCard = useCallback(cardId => rabbitStart.current?.(cardId), []);
-  // Comments on a published canvas (docs/features/canvas-comments.md): the public family, while the owner's public
-  // setting is Open or Closed (else it answers 404 and the page shows none). Signed out reads; posting needs an account.
+  // Comments (docs/features/canvas-comments.md): a published canvas has the public family, while the owner's public
+  // setting is Open or Closed (else it answers 404 and the page shows none); signed out reads, posting needs an account.
+  // On a share link the owner and members (member_board_id) get the members panel; other link viewers see no comments.
   const [commentsInfo, setCommentsInfo] = useState(null);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const canvasApi = useRef(null);
   const openComments = useCallback(() => setCommentsOpen(true), []);
-  const published = !!shared?.published;
+  const memberBoard = shared?.member_board_id || null;
+  const commentsBase = memberBoard ? memberBase(memberBoard) : shared?.published ? publicBase(token) : null;
   useEffect(() => {
-    if (!published) return undefined;
+    if (!commentsBase) return undefined;
     let live = true;
-    fetch(publicBase(token), { headers: { 'Content-Type': 'application/json' } }).then(response => (response.ok ? response.json() : null)).then(info => { if (live) setCommentsInfo(info); }, () => {});
+    fetch(commentsBase, { headers: { 'Content-Type': 'application/json' } }).then(response => (response.ok ? response.json() : null)).then(info => { if (live) setCommentsInfo(info); }, () => {});
     return () => { live = false; };
-  }, [token, published]);
-  const comments = useCanvasComments({ base: commentsInfo && publicBase(token), canAdd: !!commentsInfo?.can.post, openPanel: openComments, canvasApi, link: `/e/${token}` });
+  }, [commentsBase]);
+  const comments = useCanvasComments({ base: commentsInfo && commentsBase, canAdd: !!commentsInfo?.can.post, openPanel: openComments, canvasApi, link: memberBoard ? `/c/${memberBoard}` : `/e/${token}` });
 
   // The board's files and notebook workspaces come through the same link;
   // notebooks open as the board's latest copy, in a workspace of their own.
