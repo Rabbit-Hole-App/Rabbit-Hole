@@ -6,7 +6,8 @@
 // the eval's event fields (field names only; every value is the product's).
 // The one thing replaced is the provider boundary. providerBoundary() swaps globalThis.fetch: the Anthropic Messages API and
 // the JEV hosts are answered from a script, and every other host is refused. A missing key alone would not stop a request;
-// this does. No paid transport is wired: a paid run waits for the owner's review.
+// this does. The paid run (owner approval 2026-10-08: Anthropic only, the dev workspace) swaps the script for realAnswers:
+// the product's own Anthropic requests go to the real Messages API, still reserved and metered here, and JEV is refused.
 import { createHash } from 'node:crypto';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -36,12 +37,19 @@ export const HOOK_DEBOUNCE_MS = NEXT_STEPS_LIMITS.debounce_ms;
 
 // What a run on this adapter exercises, written into every session bundle (runSession coverage) so no report reads more
 // into it. With the stub transport no model answers: the plumbing, routing, validation and evidence rules are the product's,
-// teaching quality is not measured.
+// teaching quality is not measured. The paid run's (PAID_COVERAGE) has the real models answer but no JEV: typed answers are
+// never evaluated, so evidence never moves.
 export const COVERAGE = Object.freeze({
   transport: 'stub',
   teaching_quality: 'not established: the Tutor, hook and LP1 planners answer from scripts and the keyless product fixtures, never a model',
   exercised: ['lp1_journey_start', 'typed_turn', 'jev_evaluation', 'planner_routing_and_validation', 'hook_click_turn', 'hook_controller_and_route', 'stopping_point', 'decision_trace', 'budget_reservation'],
   not_exercised: ['material_generation', 'section_materialization', 'larger_evaluator_answer', 'lp1_tray_resolver', 'streamed_first_sentence', 'rabbit_holes', 'shared_canvas', 'voice', 'repository_handoff', 'owned_reply_edge_cache', 'stopped_turns'],
+});
+export const PAID_COVERAGE = Object.freeze({
+  transport: 'anthropic',
+  teaching_quality: 'one simulated learner per profile on the real Tutor, hook and LP1 planners; no JEV key (Anthropic-only approval), so typed answers are never evaluated and evidence never moves; review scores are one model reading, not a learning outcome',
+  exercised: COVERAGE.exercised.filter(name => name !== 'jev_evaluation'),
+  not_exercised: ['jev_evaluation', ...COVERAGE.not_exercised],
 });
 
 // ---------- The provider boundary ----------
@@ -93,15 +101,33 @@ export function stubAnswers({ usage = 'stub', plan = () => ({ strategy: 'none', 
   };
 }
 
+// The paid run's answers: the product's own Anthropic request (its URL, headers and body, exactly as it built them) sent with
+// the fetch the boundary replaced. No jev: the boundary refuses JEV hosts like any other (OUTBOUND_BLOCKED).
+export const realAnswers = send => ({ kind: 'anthropic', anthropic: (body, { input, init }) => send(input, init) });
+
+// The eval's own paid calls (the learner simulator, the reviewer) as evalCall's transport: one Messages API request each,
+// sent with boundary.realFetch so they are never counted as product requests. A non-2xx answer throws (the reservation stays
+// held); a reply cut off by max_tokens or a refusal fails its strict parser instead.
+export function anthropicTransport({ key, send }) {
+  const transport = async request => {
+    const response = await send(ANTHROPIC, { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' }, body: JSON.stringify(request), signal: AbortSignal.timeout(180_000) });
+    const reply = await response.json().catch(() => null);
+    if (!response.ok) throw Object.assign(Error(`Messages API ${response.status}: ${reply?.error?.message ?? 'no error body'}`), { code: `http_${response.status}` });
+    return reply;
+  };
+  return Object.assign(transport, { kind: 'anthropic' });
+}
+
 // Installs the boundary on globalThis.fetch. Every Anthropic or JEV request is first handed to onRequest, which reserves its
 // complete body against the budget (meter.reserve); a refusal rejects the request unsent and is listed in `refused`. Then it
 // is recorded (the request body, never a header), answered by `answers`, and handed to onCall as one cost line settling that
-// reservation. Anything else throws OUTBOUND_BLOCKED and
-// is recorded in `blocked`. The product's own model log lines (loggedModel's learn_model events: names, statuses and prompt
+// reservation (labelled with answers.kind, 'stub' for a script). Anything else throws OUTBOUND_BLOCKED and
+// is recorded in `blocked`. realFetch is the fetch it replaced, for the eval's own paid calls. The product's own model log lines (loggedModel's learn_model events: names, statuses and prompt
 // hashes, never content) are kept in `logs` instead of printed. restore() puts the previous fetch and console.log back.
 export function providerBoundary(answers = stubAnswers()) {
   const previous = globalThis.fetch, print = console.log, requests = [], blocked = [], logs = [], errors = [], refused = [];
-  const boundary = { requests, blocked, logs, errors, refused, onRequest: null, onCall: null, restore: () => { globalThis.fetch = previous; console.log = print; } };
+  const transport = answers.kind ?? 'stub';
+  const boundary = { transport, realFetch: previous, requests, blocked, logs, errors, refused, onRequest: null, onCall: null, restore: () => { globalThis.fetch = previous; console.log = print; } };
   console.log = (...args) => {
     let line = null;
     try { line = args.length === 1 && typeof args[0] === 'string' ? JSON.parse(args[0]) : null; } catch { /* not a product log line */ }
@@ -109,7 +135,7 @@ export function providerBoundary(answers = stubAnswers()) {
   };
   globalThis.fetch = async (input, init = {}) => {
     const url = new URL(typeof input === 'string' || input instanceof URL ? input : input.url);
-    const provider = url.href === ANTHROPIC ? 'anthropic' : JEV_ORIGINS.has(url.origin) ? 'typesafe' : null;
+    const provider = url.href === ANTHROPIC ? 'anthropic' : JEV_ORIGINS.has(url.origin) && answers.jev ? 'typesafe' : null;
     if (!provider) {
       blocked.push(url.origin);
       throw Object.assign(Error(`outbound request to ${url.origin} blocked by the evaluation provider boundary`), { code: 'OUTBOUND_BLOCKED' });
@@ -119,13 +145,13 @@ export function providerBoundary(answers = stubAnswers()) {
     if (boundary.onRequest) try { ticket = boundary.onRequest({ provider, body }); } catch (error) { refused.push({ provider, role: provider === 'anthropic' ? roleOf(body) : 'jev', code: error.code ?? null }); throw error; }
     requests.push({ provider, body });
     const started = performance.now();
-    const response = provider === 'anthropic' ? await answers.anthropic(body) : await answers.jev(body);
+    const response = provider === 'anthropic' ? await answers.anthropic(body, { input, init }) : await answers.jev(body);
     const reply = await response.clone().json().catch(() => null);
     // The meter never fails a product call (as the product's own telemetry never fails a turn): a meter error is kept in
     // `errors`, and the run checks it.
     try { boundary.onCall?.({
-      provider, transport: 'stub', model_id: provider === 'anthropic' ? reply?.model ?? body.model ?? 'unknown' : body.model ?? 'jev', model_role: provider === 'anthropic' ? roleOf(body) : 'jev',
-      usage: reply?.usage ?? null, latency_ms: Math.round((performance.now() - started) * 10) / 10, outcome: response.ok ? 'ok' : 'failed', request_id: `stub-${requests.length}`,
+      provider, transport, model_id: provider === 'anthropic' ? reply?.model ?? body.model ?? 'unknown' : body.model ?? 'jev', model_role: provider === 'anthropic' ? roleOf(body) : 'jev',
+      usage: reply?.usage ?? null, latency_ms: Math.round((performance.now() - started) * 10) / 10, outcome: response.ok ? 'ok' : 'failed', request_id: transport === 'stub' ? `stub-${requests.length}` : reply?.id ?? null,
     }, ticket); } catch (error) { errors.push(error.message); }
     return response;
   };
@@ -181,11 +207,12 @@ export function availableModalities(result, domain, materials) {
 // A fresh LP1 world per session (O1): its own LEARN_DB, user, canvas and Tutor store. The worker sees an authorized canvas
 // owner (deps.authorize, as the route tests inject it); the product's limiter keys a viewer by email, so access carries a
 // synthetic .invalid address that never reaches an event. trace: false runs the product with telemetry off (runTurn gets no
-// trace and no hook event is built), for the tracing-on/off proof.
-export async function productWorld({ topic, ids, boundary, board = 'main', trace = true }) {
+// trace and no hook event is built), for the tracing-on/off proof. keys: the worker's provider keys; the paid run passes the
+// Anthropic key alone, so the product sends no JEV request ("no key" is its own evaluate answer).
+export async function productWorld({ topic, ids, boundary, board = 'main', trace = true, keys = { ANTHROPIC_API_KEY: 'eval-stub-not-a-key', TYPESAFE_API_KEY: 'eval-stub-not-a-key' } }) {
   const db = await freshLearnDb();
   const app = ids.canvas_id;
-  const env = { LEARN_DB: db.LEARN_DB, ANTHROPIC_API_KEY: 'eval-stub-not-a-key', TYPESAFE_API_KEY: 'eval-stub-not-a-key' };
+  const env = { LEARN_DB: db.LEARN_DB, ...keys };
   const access = { org: 'eval-org', user_id: ids.user_id, email: `${ids.user_id}@eval.invalid`, app, kind: 'canvas' };
   const request = (route, path, body) => route(path, new Request(`https://eval.invalid${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), env, { authorize: async () => access });
   // The browser's post: a non-2xx answer throws with its status, as the page's api() does.
@@ -226,7 +253,7 @@ export async function productWorld({ topic, ids, boundary, board = 'main', trace
 
   return {
     close: db.close,
-    coverage: COVERAGE,
+    coverage: boundary.transport === 'stub' ? COVERAGE : PAID_COVERAGE,
     store: () => store,
     // The decision's materials are its create_material actions (contract §2.5: several per turn, distinct commands), in the
     // product's own names. ponytail: generation is not run - runMaterials and /api/learn/artifact are not wired yet - so

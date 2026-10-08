@@ -89,14 +89,14 @@ export const REVIEW_DIMENSIONS = ['pedagogical_coherence', 'responsiveness_to_ev
 export const RESPONSE_KINDS = ['answer', 'explanation', 'question', 'activity', 'confusion', 'acknowledge'];
 
 // Structured-output schemas (output_config.format = { type: 'json_schema', schema }) for the two simulator calls; the
-// strict parsers below re-check every reply anyway.
+// strict parsers below re-check every reply anyway. Nullable fields use anyOf, a documented structured-output form.
 export const LEARNER_REPLY_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['selected_option_id', 'response'],
   properties: {
-    selected_option_id: { type: ['string', 'null'] },
+    selected_option_id: { anyOf: [{ type: 'string' }, { type: 'null' }] },
     response: {
       type: 'object', additionalProperties: false, required: ['kind', 'text', 'choice_id'],
-      properties: { kind: { type: 'string', enum: RESPONSE_KINDS }, text: { type: 'string' }, choice_id: { type: ['string', 'null'] } },
+      properties: { kind: { type: 'string', enum: RESPONSE_KINDS }, text: { type: 'string' }, choice_id: { anyOf: [{ type: 'string' }, { type: 'null' }] } },
     },
   },
 };
@@ -261,16 +261,18 @@ export function createLedger(ceilingUsd, { date, parent = null } = {}) {
   };
 }
 
-// The complete requests a paid run would send for the eval's own two calls, so they are bounded and reserved like any other.
-export const LEARNER_MODEL = 'claude-sonnet-5-5', REVIEWER_MODEL = 'claude-opus-5-5', LEARNER_MAX_TOKENS = 800, REVIEWER_MAX_TOKENS = 4000;
-const structured = (model, maxTokens, { system, user }, schema) => ({ model, max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }], output_config: { format: { type: 'json_schema', schema } } });
-export const learnerRequest = prompt => structured(LEARNER_MODEL, LEARNER_MAX_TOKENS, prompt, LEARNER_REPLY_SCHEMA);
+// The complete requests the paid run sends for the eval's own two calls, so they are bounded and reserved like any other.
+// Both models think by default and thinking counts against max_tokens, so each leaves room for it before the JSON: the
+// simulator at effort low (a short in-character move), the reviewer at the model's default effort.
+export const LEARNER_MODEL = 'claude-sonnet-5-5', REVIEWER_MODEL = 'claude-opus-5-5', LEARNER_MAX_TOKENS = 1500, REVIEWER_MAX_TOKENS = 8000;
+const structured = (model, maxTokens, { system, user }, schema, effort = null) => ({ model, max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }], output_config: { ...(effort ? { effort } : {}), format: { type: 'json_schema', schema } } });
+export const learnerRequest = prompt => structured(LEARNER_MODEL, LEARNER_MAX_TOKENS, prompt, LEARNER_REPLY_SCHEMA, 'low');
 export const reviewerRequest = prompt => structured(REVIEWER_MODEL, REVIEWER_MAX_TOKENS, prompt, REVIEW_SCHEMA);
 
 // The eval's own model calls (the learner simulator, the reviewer): one complete request, reserved before it is sent (or
 // under a ticket the caller already holds), sent through `transport`, and settled with the usage it reports.
 // transport(request) -> a Messages API reply ({ id, model, usage, content }); transport.kind labels its cost lines. Free runs
-// pass a scripted transport; no paid transport is wired (a paid run waits for the owner's approval).
+// pass a scripted transport; the paid run passes product.mjs anthropicTransport.
 export async function evalCall({ request, role, meter, transport, ticket = meter.reserve({ body: request, role }) }) {
   const started = performance.now();
   const settle = fields => meter.call({ provider: 'anthropic', transport: transport.kind ?? 'unknown', model_id: request.model, model_role: role, latency_ms: round(performance.now() - started, 1), ...fields }, ticket);
