@@ -874,6 +874,14 @@ page "Tutor confirmation run r27 · 2026-10-08").
   used a different example than the Tutor and offered no way forward.
 - **Costs:** Anthropic $2.2439 metered. JEV: 26 calls, cost unavailable.
 - **Untested:** practice-card delivery (§18.2 names the separate check).
+- **Correction (after a code survey of r28):** at r27 the product had no section advancement at all. The learning-path
+  route had no advance or complete action, the active section was set only when the path was accepted, and section
+  completion was planned for LP2. So no session could leave section 1 whatever the evidence, and the progress criterion
+  could not be met at r27. "No claim reached *understood*" stands. Practice on a learning-path canvas also produced no
+  evidence (`journeyDomain.practice` returned null). r29 adds a learner-started `next_section` (completed when the
+  section's completion evidence is met, skipped otherwise). The next evaluation reports evidence-based advancement and
+  learner-requested skipping separately, and a skip never satisfies the understanding criterion. Practice cards inside
+  learning-path sections are LP4, untested; `e2e/practice-card-check.mjs` covers the rest.
 - **Aggregation fix:** after the run, `readSessions` read `run.json` as a session. It now skips it; aggregation only, nothing
   rerun.
 
