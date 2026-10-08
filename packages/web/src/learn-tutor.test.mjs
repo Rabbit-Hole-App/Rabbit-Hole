@@ -125,6 +125,48 @@ test('GT-01 Overview restated: demonstrated_here only -> uncertain; a depth chip
   assert.deepEqual(canvas.calls, [], 'nothing navigates by itself');
 });
 
+// Tutor eval run A (tutor-decision-eval.md 18.1): answers JEV cannot settle kept one claim on uncertain_unsettled, which allows
+// only ask_question, for 15 turns. At most two such turns in a row on a claim; the third is the uncertain row without a question,
+// so a question the planner still proposes is dropped and its explanation stands. Evidence is untouched: never understood.
+test('repeated-question limit: two uncertain_unsettled turns on a claim, then the uncertain row with no question; nothing settles or advances', async () => {
+  const overview = block('depth-attention-overview'), C = 'attention/looks-back-never-ahead';
+  const unsure = jev({ [C]: { ideas: [1, 0.5], transfer: 0 } });
+  const contexts = [];
+  const plan = context => { contexts.push(context); return { strategy: 'feynman', move: 'clarify', reason: '', actions: [
+    { type: 'ask_question', text: 'Which earlier character does it look at most?', claim: C, purpose: 'diagnose' }, say('Worked example: reading the 4th character, it weighs the 1st to 3rd and never the 5th.')] }; };
+  let store = emptyStore();
+  const rows = [], asked = [];
+  for (const words of ['It looks back at earlier ones, mostly one place.', 'It mostly looks at one earlier place.', 'Back, mostly at one place, I think.', 'It looks back.']) {
+    const result = await turnOn(overview, words, store, plan, unsure);
+    store = result.store;
+    rows.push(result.routed.row);
+    asked.push(result.actions.some(action => action.type === 'ask_question'));
+    assert.equal(result.states[C].state, 'uncertain', 'the limit never manufactures understanding');
+    assert.equal(result.store.events.every(event => !event.settled), true, 'unsure answers stay unsettled');
+  }
+  assert.deepEqual(rows, ['uncertain_unsettled', 'uncertain_unsettled', 'uncertain', 'uncertain_unsettled'], 'at most two in a row, and the limit resets');
+  assert.deepEqual(asked, [true, true, false, true]);
+  assert.equal(contexts[2].allowed_actions.includes('ask_question'), false, 'the planner is told no question on the third turn');
+  assert.ok(['respond_text', 'suggest_practice', 'show_authored_card'].every(type => contexts[2].allowed_actions.includes(type)), 'explain, practice or a card instead');
+  const third = await turnOn(overview, 'Still one place.', { ...emptyStore(), unsettled: { [C]: 2 } }, plan, unsure);
+  assert.deepEqual(third.actions.map(action => action.type), ['respond_text'], 'a question proposed anyway is dropped; the worked example stands');
+  assert.equal(third.actions.some(action => /^(show_authored_card|suggest_depth)$/.test(action.type) && action.mode === 'navigate'), false, 'nothing advances by itself');
+  const other = await turnOn(overview, 'It looks back.', { ...emptyStore(), unsettled: { 'some/other-claim': 2 } }, plan, unsure);
+  assert.equal(other.routed.row, 'uncertain_unsettled', 'the limit is per claim');
+});
+
+// Tutor eval run A: a correct answer on the taught case with an unsure transfer check left the whole turn unsettled, so every
+// next turn was uncertain_unsettled. Settled per claim, it is a settled taught-case pass (transfer_unsure kept): the uncertain
+// row, with its other moves; still never understood, and a confident transfer pass still is the only way there.
+test('run A: a correct taught-case answer with an unsure transfer check settles demonstrated_here and routes uncertain, not uncertain_unsettled', async () => {
+  const overview = block('depth-attention-overview'), C = 'attention/looks-back-never-ahead';
+  const result = await turnOn(overview, 'When it reads a character it looks back at earlier ones, mostly at one place, and never ahead.', emptyStore(),
+    { strategy: 'feynman', move: 'x', reason: '', actions: [say('Right.')] }, jev({ [C]: { ideas: [1, 1], transfer: 0.5 } }));
+  assert.ok(result.store.events.length && result.store.events.every(event => event.settled && event.kind === 'demonstrated_here' && event.transfer_unsure === true));
+  assert.equal(result.routed.row, 'uncertain');
+  assert.equal(result.states[C].state, 'uncertain');
+});
+
 test('GT-02 one practice fail -> a failed record naming its wrong model, uncertain, never misconception', async () => {
   const c11 = practise(block('c11-causal-mask'), ['target']);
   const result = await turnOn(c11, 'I picked 0 to 100.', emptyStore(), { strategy: 'feynman', move: 'hint', reason: '', actions: [say('Look at row 5 of the table.')] }, jev({ attempt: 0 }));

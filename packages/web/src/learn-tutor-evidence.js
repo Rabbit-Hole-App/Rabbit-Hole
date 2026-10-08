@@ -17,6 +17,7 @@ export const emptyStore = () => ({
   turns: [],          // { learner, next_step? (a clicked hook's suggestion_id), tutor }, newest last
   actions: [],        // { type, strategy, claim }, newest last
   socratic: {},       // claim -> Socratic turns spent on its misconception
+  unsettled: {},      // claim -> consecutive uncertain_unsettled turns (learn-tutor.js UNSETTLED_LIMIT)
   suggested: null,    // the last suggest_dive: { concept, title, block_id, question, claim, canvas }
   keep: null,         // "Keep it on this canvas": { concept, canvas }, read by the next turn there
   dive: null,         // the hole this tab was last in: { dive_id, parent, concept, claim }
