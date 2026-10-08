@@ -1,22 +1,32 @@
 import { chromium } from '@playwright/test';
 
-// Dropping and uploading .ipynb and .py onto the canvas (owner, 2026-10-08; docs/features/canvas-file-drop.md), against a
-// stubbed worker on the local Vite server, as drop-ui-check.mjs does. Every drop opens "Add to canvas" with the file name
-// and its choices; Cancel and Escape add nothing; each choice places its card; an invalid notebook says so and keeps the
-// dialog; nothing asks a model or uploads to /api/learn/media; a notebook card never runs on its own.
-// Usage: the web dev server on http://localhost:5189 (npm run dev), then node e2e/canvas-file-drop-check.mjs
+// Dropping and uploading .ipynb and .py onto the canvas (owner, 2026-10-08; docs/features/canvas-file-drop.md), against the
+// LOCAL stack only: a real session on a fresh canvas. Every drop opens "Add to canvas" with the file name and its choices;
+// Cancel and Escape add nothing; each choice places its card; an invalid notebook says so and keeps the dialog; nothing
+// asks a model or uploads to /api/learn/media; a notebook card never runs on its own. Prints no secrets.
+// Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/canvas-file-drop-check.mjs
+import { readFileSync } from 'node:fs';
 
-const app = { name: 'nanogpt', org: 'example-team', orgName: 'Example team', kind: 'repository', repo: 'karpathy/nanoGPT', description: '', owner_email: 'b@e.test', deployed_at: '2026-09-08T09:16:00Z', created_at: '2026-09-07T16:20:00Z', visibility: 'domain', members: [], teams: [], observations: [], canEdit: true, email: 'b@e.test', schedule: null, commit_sha: 'abc123' };
-const replies = { '/api/apps': { org: app.org, orgName: app.orgName, email: app.email, apps: [app], folders: [] }, '/api/apps/nanogpt': app, '/api/apps/nanogpt/learn-course': { course: null, canAuthor: true }, '/api/repositories/nanogpt': { ...app, status: 'ready' }, '/api/repositories/nanogpt/snapshot': { commit: 'abc123', graph: { nodes: [], edges: [] }, files: [], skipped: [] }, '/api/workspaces': { active: app.org, email: app.email, workspaces: [{ slug: app.org, name: app.orgName, role: 'owner', kind: 'custom' }] } };
+const BASE = process.env.BASE || 'http://127.0.0.1:8878';
+const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
+for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('canvas-file-drop-check runs against the local stack only');
+const run = Date.now().toString(36).slice(-6);
+const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
+const session = (await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `drop-${run}@example.com`, secret, handle: `drop_${run}` }) })).json()).session;
+const made = await (await fetch(`${BASE}/api/canvases`, { method: 'POST', headers: { cookie: `small_session=${session}`, 'content-type': 'application/json' }, body: JSON.stringify({ title: `File drop ${run}` }) })).json();
 
 const browser = await chromium.launch();
-const page = await (await browser.newContext({ viewport: { width: 1500, height: 950 } })).newPage();
+const context = await browser.newContext({ viewport: { width: 1500, height: 950 } });
+await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
+const page = await context.newPage();
 const asks = [], media = [];
+// Only what the check watches is answered here; everything else is the local stack's.
 await page.route('**/api/**', async route => {
   const request = route.request(), url = new URL(request.url());
   if (url.pathname === '/api/learn/media') { media.push(url.pathname); return route.fulfill({ status: 500, json: {} }); }
-  if (request.method() === 'POST' && /ask|selection|learn-course|journey/.test(url.pathname)) { asks.push(url.pathname); return route.fulfill({ status: 500, json: {} }); }
-  return route.fulfill({ json: replies[url.pathname] || {} });
+  // Next Steps' hook on canvas open is an expected request (professor-next-steps.md), answered by the stack's fixtures.
+  if (request.method() === 'POST' && url.pathname !== '/api/learn/tutor/next-steps' && /ask|selection|learn-course|journey|tutor/.test(url.pathname)) { asks.push(url.pathname); return route.fulfill({ status: 500, json: {} }); }
+  return route.continue();
 });
 // The notebook site is another origin: a blank page that only records what the card sends it (init is expected; run-all never).
 await page.route(/canvas-notebook/, route => route.fulfill({ contentType: 'text/html', body: '<script>window.seen = []; addEventListener("message", e => seen.push(e.data && e.data.type))</script>' }));
@@ -29,8 +39,8 @@ const surface = canvas.locator('div.touch-none').first();
 const dialog = page.getByRole('dialog', { name: 'Add to canvas' });
 const choice = id => dialog.locator(`[data-import-choice="${id}"]`);
 
-await page.goto('http://localhost:5189/apps/nanogpt?tab=learn');
-await page.waitForSelector('[aria-label="Lesson canvas"]', { timeout: 30000 });
+await page.goto(`${BASE}/apps/${made.name}`);
+await page.waitForSelector('[aria-label="Lesson canvas"]', { timeout: 60000 });
 await page.waitForTimeout(3000);
 
 // A real drop event at a point on the canvas, carrying one file.
