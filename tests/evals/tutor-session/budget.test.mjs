@@ -4,7 +4,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { REQUEST_OVERHEAD_TOKENS, requestWorstCase } from './cost.mjs';
-import { LEARNER_MAX_TOKENS, REVIEWER_MAX_TOKENS, createLedger, learnerPrompt, learnerRequest, learnerView, loadProfiles, loadTopic, profileTerms, reviewerPrompt, reviewerRequest, reviewerView, runSession, simulatedIds } from './harness.mjs';
+import { LEARNER_MAX_TOKENS, REVIEWER_MAX_TOKENS, REVIEW_DIMENSIONS, createLedger, learnerPrompt, learnerRequest, learnerView, loadProfiles, loadTaxonomy, loadTopic, modelLearner, profileTerms, reviewHoldback, reviewerPrompt, reviewerRequest, reviewerView, runSession, simulatedIds } from './harness.mjs';
+import { aggregate } from './metrics.mjs';
 import { COVERAGE, HOOK_DEBOUNCE_MS, productWorld, providerBoundary, stubAnswers } from './product.mjs';
 
 const topic = loadTopic('logistic-regression'), profiles = loadProfiles(), profile = profiles[0];
@@ -182,4 +183,61 @@ test('every product request is reserved before it is sent: escalations and retri
   assert.equal(refusedRun.boundary.requests.filter(entry => entry.provider === 'anthropic').length, 1); // only the diagnostic was sent
   assert.deepEqual([refusedRun.bundle.session.decisions, refusedRun.bundle.events.at(-1).reason], [0, 'cost_ceiling']);
   assert.ok(tight.spent() <= diagnostic.reserved_usd + 0.01);
+});
+
+// The eval's own two calls through a scripted transport (evalCall): `answer` reads the view the request carries; usage is
+// the request's full worst case ('worst') or a token count of what was sent and answered.
+const scripted = (usage, answer) => Object.assign(async request => {
+  const text = JSON.stringify(answer(JSON.parse(request.messages[0].content)));
+  const counted = usage === 'worst' ? { input_tokens: requestWorstCase(request).input_tokens_bound, output_tokens: request.max_tokens } : { input_tokens: Math.ceil(JSON.stringify(request).length / 4), output_tokens: Math.ceil(text.length / 4) };
+  return { id: 'msg_scripted', model: request.model, usage: counted, content: [{ type: 'text', text }] };
+}, { kind: 'stub' });
+const typedOrClick = () => { let n = 0; return view => (view.options.length && n++ % 2 ? { selected_option_id: view.options[0].id, response: { kind: 'acknowledge', text: '', choice_id: null } } : { selected_option_id: null, response: { kind: 'answer', text: 'It turns the weighted sum into a probability.', choice_id: null } }); };
+const reviewOf = view => ({ scores: Object.fromEntries(REVIEW_DIMENSIONS.map(key => [key, 3])), findings: [{ steps: [view.steps[0].step], text: 'A scripted finding.' }], flagged_sequences: view.flagged_sequences.map(entry => ({ id: entry.id, justified: false, note: 'scripted' })) });
+
+async function reviewed(usage, { session = 1.3, reviewer = true } = {}) {
+  const boundary = providerBoundary(stubAnswers({ usage }));
+  try {
+    const world = await productWorld({ topic, ids: simulatedIds({ runId: 'review', topic, profile }), boundary });
+    const run = createLedger(4), ledger = createLedger(session, { parent: run });
+    try {
+      const bundle = await runSession({ topic, profile, profiles, tutor: world.tutor, hooks: world.hooks, hookStart: world.hookStart, hookDelayMs: HOOK_DEBOUNCE_MS, materialize: world.materialize, learner: modelLearner({ topic, profile, profiles, transport: scripted(usage, typedOrClick()) }), reviewer: reviewer ? scripted(usage, reviewOf) : null, ledger, runId: 'review', maxDecisions: 15, budgetSeconds: 1e9 });
+      return { bundle, boundary, run, ledger };
+    } finally { world.close(); }
+  } finally { boundary.restore(); }
+}
+
+test('the reviewer\'s worst case is held from the session\'s start: a session stopped by the ceiling is still reviewed inside its limits', async () => {
+  const holdback = requestWorstCase(reviewHoldback({ topic, maxDecisions: 15 })).usd;
+  // Every request at its full worst case: without the holdback the session spends its limit on decisions and no review fits.
+  const bare = await reviewed('worst', { reviewer: false });
+  const held = await reviewed('worst');
+  assert.equal(held.bundle.simulator.stop_reason, 'cost_ceiling');
+  assert.ok(held.bundle.session.decisions >= 1 && held.bundle.session.decisions < bare.bundle.session.decisions);
+  // The review ran on the trace recorded so far, under the holdback, and everything stayed inside the session and run limits.
+  const line = held.ledger.lines.find(entry => entry.model_role === 'session_reviewer');
+  assert.deepEqual([held.bundle.review.status, held.bundle.review.holdback_usd, line.transport], ['ok', holdback, 'stub']);
+  assert.ok(line.reserved_usd <= holdback && line.cost_usd <= line.reserved_usd);
+  assert.ok(held.ledger.spent() <= 1.3 && held.run.spent() <= 4);
+  assert.deepEqual([held.ledger.reserved(), held.run.reserved(), held.ledger.violations.length, held.boundary.errors.length], [0, 0, 0, 0]);
+  // The simulator's moves are reserved calls too, re-checked by the strict parser.
+  assert.equal(held.ledger.lines.filter(entry => entry.model_role === 'learner_simulator').length, held.bundle.session.decisions);
+  // At low usage every planned decision completes and the review still fits.
+  const low = await reviewed('stub');
+  assert.deepEqual([low.bundle.session.decisions, low.bundle.simulator.stop_reason, low.bundle.review.status], [15, 'max_decisions', 'ok']);
+  assert.equal(aggregate([low.bundle], loadTaxonomy()).review_scores.mean.pacing, 3);
+  // A limit below the holdback: the session never starts, so nothing is sent and there is nothing to review.
+  const none = await reviewed('stub', { session: holdback / 2 });
+  assert.deepEqual([none.bundle.session.decisions, none.bundle.simulator.stop_reason, none.bundle.review.status, none.boundary.requests.length], [0, 'cost_ceiling', 'skipped', 0]);
+});
+
+test('a review that outgrows its holdback reserves again, and is recorded as refused, unsent, when that does not fit', async () => {
+  // A scripted Tutor that sends nothing, so the holdback alone fills the limit; a 1-byte-per-step holdback is too small.
+  const tutor = { start: async () => ({ evidence: [], context: {} }), decide: async () => ({ decision: { action_type: 'respond_text', modality: 'explanation', reason_codes: ['respond_to_question'] }, estimated_learning_seconds: 30, material_summary: 'A reply.' }) };
+  const small = requestWorstCase(reviewHoldback({ topic, maxDecisions: 3, stepBytes: 1 })).usd;
+  const ledger = createLedger(small + 1e-6);
+  const bundle = await runSession({ topic, profile, profiles, tutor, hooks: async () => ({ options: [] }), learner: { reply: async () => ({ selected_option_id: null, response: { kind: 'answer', text: 'Yes.' } }) }, reviewer: scripted('stub', reviewOf), reviewStepBytes: 1, ledger, runId: 'small', maxDecisions: 3, budgetSeconds: 1e9 });
+  assert.deepEqual([bundle.session.decisions, bundle.simulator.stop_reason, bundle.review.status, bundle.review.error.code], [3, 'max_decisions', 'refused', 'COST_CEILING']);
+  assert.deepEqual([ledger.lines.length, ledger.reserved()], [0, 0]); // never sent, nothing left reserved
+  assert.equal(aggregate([bundle], loadTaxonomy()).review_scores.mean, null); // an unscored review is not averaged
 });

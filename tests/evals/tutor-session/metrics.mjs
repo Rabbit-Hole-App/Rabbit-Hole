@@ -434,7 +434,7 @@ const omit = (object, ...keys) => Object.fromEntries(Object.entries(object).filt
 export function aggregate(bundles, taxonomy, { cost = null, roles = {} } = {}) {
   const rows = bundles.map(bundle => {
     const [session] = foldSessions(bundle.events);
-    return { profile: bundle.simulator.profile, topic: bundle.simulator.topic, session, metrics: groupMetrics([wholeSession(session)], taxonomy, roles), review: bundle.review ?? null };
+    return { profile: bundle.simulator.profile, topic: bundle.simulator.topic, session, metrics: groupMetrics([wholeSession(session)], taxonomy, roles), review: bundle.review?.scores ? bundle.review : null };
   });
   const global = groupMetrics(rows.map(row => wholeSession(row.session)), taxonomy, roles);
   const graphSummary = graph => ({

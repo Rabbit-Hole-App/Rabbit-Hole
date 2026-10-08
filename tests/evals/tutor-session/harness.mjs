@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { EVAL_SCHEMA_VERSION, createEmitter, foldSession, round, stats, sum } from './events.mjs';
 import { money, priceCall, requestWorstCase } from './cost.mjs';
 import { graphMetrics, learningGraph } from './graph.mjs';
+import { groupMetrics } from './metrics.mjs';
 
 const HERE = new URL('.', import.meta.url);
 export const HARNESS_VERSION = 'tutor-session-eval-1';
@@ -228,6 +229,11 @@ export function createLedger(ceilingUsd, { date, parent = null } = {}) {
       peak = Math.max(peak, open.size);
       return ticket;
     },
+    // A reservation given back unsent (the reviewer's holdback, swapped for its real request): no spend, no line.
+    release(ticket) {
+      open.delete(ticket.id);
+      if (ticket.upstream) parent.release(ticket.upstream);
+    },
     // The request's reported usage replaces its reservation.
     settle(ticket, fields) {
       open.delete(ticket.id);
@@ -260,6 +266,34 @@ export const LEARNER_MODEL = 'claude-sonnet-5-5', REVIEWER_MODEL = 'claude-opus-
 const structured = (model, maxTokens, { system, user }, schema) => ({ model, max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }], output_config: { format: { type: 'json_schema', schema } } });
 export const learnerRequest = prompt => structured(LEARNER_MODEL, LEARNER_MAX_TOKENS, prompt, LEARNER_REPLY_SCHEMA);
 export const reviewerRequest = prompt => structured(REVIEWER_MODEL, REVIEWER_MAX_TOKENS, prompt, REVIEW_SCHEMA);
+
+// The eval's own model calls (the learner simulator, the reviewer): one complete request, reserved before it is sent (or
+// under a ticket the caller already holds), sent through `transport`, and settled with the usage it reports.
+// transport(request) -> a Messages API reply ({ id, model, usage, content }); transport.kind labels its cost lines. Free runs
+// pass a scripted transport; no paid transport is wired (a paid run waits for the owner's approval).
+export async function evalCall({ request, role, meter, transport, ticket = meter.reserve({ body: request, role }) }) {
+  const started = performance.now();
+  const settle = fields => meter.call({ provider: 'anthropic', transport: transport.kind ?? 'unknown', model_id: request.model, model_role: role, latency_ms: round(performance.now() - started, 1), ...fields }, ticket);
+  let reply;
+  try { reply = await transport(request); } catch (error) { settle({ outcome: 'failed', error_code: error.code ?? 'transport_error' }); throw error; }
+  settle({ model_id: reply.model ?? request.model, usage: reply.usage ?? null, request_id: reply.id ?? null, outcome: 'ok' });
+  return (reply.content || []).filter(block => block.type === 'text').map(block => block.text).join('');
+}
+
+// The learner simulator as runSession's `learner`: one reserved call per move, its reply re-checked by parseLearnerReply.
+export function modelLearner({ topic, profile, profiles, transport }) {
+  const terms = profileTerms(profiles);
+  return { reply: async ({ view }, meter) => parseLearnerReply(await evalCall({ request: learnerRequest(learnerPrompt({ topic, profile, view, terms })), role: 'learner_simulator', meter, transport }), view, terms) };
+}
+
+// The reviewer's budget is held from the session's start (owner, 2026-10-07), so a session that stops early, on the cost
+// ceiling included, can still be reviewed inside the same session and run limits. The holdback is the worst case of a
+// reviewer request carrying REVIEW_STEP_BYTES per step for every step the session may record, plus one step's worth for
+// the topic, the goal and the flagged sequences. A real 15-step trace measured about 4.2 kB of request per step on the stub
+// path; the allowance leaves room for real-model text. A review whose request outgrows the holdback reserves again and is
+// recorded as refused when that does not fit; it is never sent over the limit.
+export const REVIEW_STEP_BYTES = 6000;
+export const reviewHoldback = ({ topic, maxDecisions, stepBytes = REVIEW_STEP_BYTES }) => reviewerRequest({ system: reviewerPrompt(reviewerView({ topic, steps: [] })).system, user: 'x'.repeat(stepBytes * (maxDecisions + 1)) });
 
 // O1: one throwaway LEARN_DB per simulated session - the same in-memory node:sqlite database the LP1 tests build from
 // repository-schema.sql (control-plane test/learn-grade-fixture.js learnDb). Never shared, closed after the session.
@@ -311,10 +345,14 @@ export async function freshLearnDb() {
 // (previous node -> the node the Tutor made from it). Offered hooks stay candidate options, never nodes.
 // Stops when the Tutor's estimated learning time reaches the budget, or at max_decisions (the safety cap). A thrown
 // error (cost ceiling, profile leak, adapter failure) ends the session with what was recorded so far.
+// reviewer: a transport for the one session review (evalCall), or null for none. With a ledger, its holdback
+// (reviewHoldback) is reserved before anything else and swapped for the real request at the end, so every request of the
+// session is refused before the review could stop fitting. A session with no decision, a profile leak or a broken bound is
+// not reviewed.
 const CALL_EVENT_FIELDS = ['reserved_usd', 'held_usd', 'bound_violation', 'provider', 'transport', 'model_id', 'model_version', 'model_role', 'decision_id', 'hook_set_id', 'material_id', 'usage', 'provider_reported_cost_usd', 'computed_cost_usd', 'cost_usd', 'cost_status', 'pricing_version', 'pricing_effective_date', 'prompt_cache_saved_usd', 'latency_ms', 'retry_number', 'escalation', 'fallback', 'output_accepted', 'speed', 'request_id', 'error_code'];
 const MATERIAL_EVENT_FIELDS = ['material_type', 'modality', 'concept_ids', 'claim_ids', 'expected_evidence', 'estimated_learning_seconds', 'descriptors', 'structure', 'parent_material_id', 'material_group_id', 'fresh_generation_cost_usd', 'material_signature'];
 const LEARNER_INTERACTION = { answer: 'attempt', explanation: 'attempt', activity: 'attempt', question: 'ask_about_this', confusion: 'message', acknowledge: 'message' };
-export async function runSession({ topic, profile, profiles, hooks, hookStart = () => 'after_consumption', hookDelayMs = 0, learner, tutor, materialize = async () => null, ledger = null, coverage = null, taxonomy = loadTaxonomy(), runId = 'run', clock = () => performance.now(), debugText = true, budgetSeconds = topic.session_budget_seconds, maxDecisions = topic.max_decisions }) {
+export async function runSession({ topic, profile, profiles, hooks, hookStart = () => 'after_consumption', hookDelayMs = 0, learner, tutor, materialize = async () => null, reviewer = null, reviewStepBytes = REVIEW_STEP_BYTES, ledger = null, coverage = null, taxonomy = loadTaxonomy(), runId = 'run', clock = () => performance.now(), debugText = true, budgetSeconds = topic.session_budget_seconds, maxDecisions = topic.max_decisions }) {
   const terms = profileTerms(profiles);
   const ids = simulatedIds({ runId, topic, profile });
   const context = {};
@@ -340,7 +378,7 @@ export async function runSession({ topic, profile, profiles, hooks, hookStart = 
   };
   const history = [];
   let elapsed = 0, decisions = 0, stop = 'max_decisions', error = null, lastNode = null;
-  let input = { kind: 'typed', text: topic.opening_message };
+  let input = { kind: 'typed', text: topic.opening_message }, holdback = null;
   const applyContext = (next = {}, hole = null) => {
     const changed = Object.entries(next).filter(([key, value]) => context[key] !== value);
     if (!changed.length) return;
@@ -365,6 +403,7 @@ export async function runSession({ topic, profile, profiles, hooks, hookStart = 
   };
   try {
     emit('session_started', debug({ goal: topic.learner_goal }));
+    if (reviewer && ledger) holdback = ledger.reserve({ body: reviewHoldback({ topic, maxDecisions, stepBytes: reviewStepBytes }), role: 'session_reviewer' });
     const started = await tutor.start(meter({}));
     budget();
     applyContext(started.context);
@@ -484,6 +523,23 @@ export async function runSession({ topic, profile, profiles, hooks, hookStart = 
     stop = code === 'BOUND_VIOLATION' ? 'cost_bound_violation' : code === 'COST_CEILING' ? 'cost_ceiling' : code === 'PROFILE_LEAK' ? 'profile_leak' : 'error';
     error = { code: code ?? null, message: thrown.message };
   }
+  // The review: the holdback is given back and the real request reserved in the same tick, so nothing can take the room.
+  let review = null;
+  if (holdback) ledger.release(holdback);
+  if (reviewer) {
+    const skip = !decisions ? 'no_decisions' : ['profile_leak', 'cost_bound_violation'].includes(stop) ? stop : null;
+    if (skip) review = { status: 'skipped', reason: skip };
+    else {
+      const steps = foldSession(events).steps;
+      const view = reviewerView({ topic, steps, flagged: groupMetrics([steps], taxonomy).repetition.flagged_sequences });
+      try {
+        review = { status: 'ok', ...parseReview(await evalCall({ request: reviewerRequest(reviewerPrompt(view)), role: 'session_reviewer', meter: meter({}), transport: reviewer }), view) };
+      } catch (thrown) {
+        review = { status: thrown.code === 'COST_CEILING' ? 'refused' : 'failed', error: { code: thrown.code ?? null, message: thrown.message } };
+      }
+    }
+    if (holdback) review.holdback_usd = holdback.usd;
+  }
   emit('session_ended', { reason: stop, decisions, learning_seconds_estimated: elapsed });
   const folded = foldSession(events);
   const graph = learningGraph(events);
@@ -497,6 +553,7 @@ export async function runSession({ topic, profile, profiles, hooks, hookStart = 
     // Derived from events for reading convenience; aggregate.json recomputes everything from `events`.
     steps: folded.steps,
     learning_graph: { ...graph, metrics: graphMetrics(graph, { steps: folded.steps, taxonomy }) },
+    ...(review ? { review } : {}),
     ...(ledger ? { cost: ledger.summary() } : {}),
     // What the adapter exercised and did not (product.mjs COVERAGE): carried so a report can never read more into a run.
     ...(coverage ? { coverage } : {}),
