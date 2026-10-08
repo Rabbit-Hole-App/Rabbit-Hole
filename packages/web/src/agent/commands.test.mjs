@@ -4,7 +4,7 @@ import { openedNotice } from '../connections.js';
 import { learnPreview } from '../flags.js';
 import { canvasKeys } from '../home/canvas-local.js';
 import { readPinned } from '../home/pinned.js';
-import { AI_READS_REASON, COMMANDS, D7_REASON, ctxOf, executeCommand, noDefaultBranch, policy, prepareCommand } from './commands.js';
+import { AI_READS_REASON, COMMANDS, D7_REASON, ctxOf, executeCommand, moreBranches, noDefaultBranch, policy, prepareCommand, withBranch } from './commands.js';
 
 // Just enough browser for api.js, navigate() and setTheme(): fetch, history, storage, theme.
 const memory = () => { const items = new Map(); return { getItem: (key) => (items.has(key) ? items.get(key) : null), setItem: (key, value) => items.set(key, String(value)), removeItem: (key) => items.delete(key) }; };
@@ -84,13 +84,50 @@ test('prepare resolves the default branch before the card, so the card shows the
   const prepared = await prepareCommand('connect_repository', { url: 'https://github.com/karpathy/minGPT', repo: 'karpathy/minGPT' }, CTX);
   assert.equal(calls.at(-1).path, '/api/repositories/branches?url=https%3A%2F%2Fgithub.com%2Fkarpathy%2FminGPT');
   assert.deepEqual(prepared, {
-    args: { url: 'https://github.com/karpathy/minGPT', repo: 'karpathy/minGPT', branch: 'master', defaulted: true },
+    args: { url: 'https://github.com/karpathy/minGPT', repo: 'karpathy/minGPT', branch: 'master', defaulted: true, branches: ['master'], hasMore: false },
     card: {
       workspace: 'Personal', title: 'Connect karpathy/minGPT', target: 'karpathy/minGPT · public GitHub · https://github.com/karpathy/minGPT',
       operation: 'connect_repository', params: { branch: 'master' }, effect: "Only you can see it. Connected repositories can't be deleted yet.", // owner-only (Privacy P0), never a domain audience
     },
     policy: { risk: 'confirm', blocked: false },
   });
+});
+
+// The Start dialog's Branch select (owner, 2026-10-08: "start a rabbit hole with a repository should allow us to choose which branch").
+test('a picked branch is the user\'s choice: the card names it, run posts it, and run checks that branch, not any', async () => {
+  reply = () => ({ body: { repo: 'karpathy/minGPT', defaultBranch: 'master', defaultBranchKnown: true, branches: ['dev', 'master'], hasMore: true, page: 1 } });
+  const prepared = await prepareCommand('connect_repository', { url: 'https://github.com/karpathy/minGPT', repo: 'karpathy/minGPT' }, CTX);
+  assert.deepEqual([prepared.args.branch, prepared.args.branches, prepared.args.hasMore], ['master', ['dev', 'master'], true], 'the default preselected, the page listed');
+  const before = calls.length;
+  const picked = withBranch(prepared, 'dev', CTX);
+  assert.equal(calls.length, before, 'a pick fetches nothing');
+  assert.deepEqual([picked.args.branch, picked.args.defaulted, picked.args.newBranch, picked.open], ['dev', false, undefined, null]);
+  assert.deepEqual(picked.card.params, { branch: 'dev' });
+  assert.deepEqual(picked.policy, prepared.policy);
+  reply = (path) => (path === '/api/apps' ? { body: { apps: CATALOG } } : { status: 202, body: { name: 'repo-9a8b7c6d-mingpt' } });
+  await executeCommand('connect_repository', picked.args, CTX);
+  assert.deepEqual(calls.at(-1), { path: '/api/repositories', method: 'POST', body: { url: 'https://github.com/karpathy/minGPT', branch: 'dev' } });
+  // Connected meanwhile on another branch: run's fresh catalog check offers the open-or-connect choice, never a silent duplicate.
+  reply = (path) => (path === '/api/apps' ? { body: { apps: [...CATALOG, { name: 'repo-1111aaaa-mingpt', kind: 'repository', repo: 'karpathy/minGPT', branch: 'master' }] } } : { status: 500, body: {} });
+  assert.ok((await executeCommand('connect_repository', picked.args, CTX)).choose);
+});
+
+test('a picked branch already connected offers Open, never a duplicate; another branch of a connected repository is a separate project', () => {
+  const ctx = { ...CTX, catalog: [{ name: 'repo-2222bbbb-nanogpt', kind: 'repository', repo: 'karpathy/nanoGPT', branch: 'master' }] };
+  const prepared = { args: { url: 'https://github.com/karpathy/nanoGPT', repo: 'karpathy/nanoGPT', branch: 'dev', newBranch: true, branches: ['dev', 'master'], hasMore: false }, card: {}, policy: { risk: 'confirm', blocked: false } };
+  const master = withBranch(prepared, 'master', ctx);
+  assert.equal(master.card, null);
+  assert.deepEqual(master.open, { slug: 'repo-2222bbbb-nanogpt', kind: 'repository', title: 'karpathy/nanoGPT', branch: 'master' });
+  const dev = withBranch(master, 'dev', ctx);
+  assert.equal(dev.open, null);
+  assert.equal(dev.args.newBranch, true);
+  assert.match(dev.card.effect, /^karpathy\/nanoGPT is already connected on master; this connects dev as a separate project\./);
+});
+
+test('More branches fetches the next page of the same listing', async () => {
+  reply = () => ({ body: { repo: 'o/r', branches: ['b101'], hasMore: false, page: 2 } });
+  assert.deepEqual((await moreBranches('https://github.com/o/r', 2)).branches, ['b101']);
+  assert.equal(calls.at(-1).path, '/api/repositories/branches?url=https%3A%2F%2Fgithub.com%2Fo%2Fr&page=2');
 });
 
 test('a repository that is not public says so before any card', async () => {
@@ -291,7 +328,7 @@ test('an explicit different branch of a connected repository is never a silent d
   reply = (path) => (path.startsWith('/api/repositories/branches') ? { body: { repo: 'karpathy/nanoGPT', defaultBranch: 'master', defaultBranchKnown: true, branches: ['dev', 'master'], hasMore: false, page: 1 } }
     : path === '/api/apps' ? { body: { apps: ctx.catalog } } : { status: 202, body: { name: 'repo-2b3c4d5e-nanogpt' } });
   const prepared = await prepareCommand('connect_repository', { ...nano, branch: 'dev', newBranch: true }, ctx);
-  assert.deepEqual(prepared.args, { ...nano, branch: 'dev', newBranch: true });
+  assert.deepEqual(prepared.args, { ...nano, branch: 'dev', newBranch: true, branches: ['dev', 'master'], hasMore: false });
   assert.equal(prepared.card.effect, "karpathy/nanoGPT is already connected on master; this connects dev as a separate project. Only you can see it. Connected repositories can't be deleted yet.");
   await executeCommand('connect_repository', prepared.args, ctx);
   assert.deepEqual(calls.at(-1), { path: '/api/repositories', method: 'POST', body: { url: 'https://github.com/karpathy/nanoGPT', branch: 'dev' } });

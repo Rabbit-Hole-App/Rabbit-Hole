@@ -246,7 +246,7 @@ flight, which prevents duplicates.
 
 | Path | Fields | Result | Status |
 |---|---|---|---|
-| Repository | GitHub URL. Branch: the default is preselected; a select appears only when there is no default. | `connect_repository` (Confirm class, §7) → Project Overview | Dev, public only. A private URL returns "Private repositories aren't supported yet". |
+| Repository | GitHub URL. Branch: a select on the connect card (owner, 2026-10-08), GitHub's default preselected, or the `/tree/<branch>` a link named; "More branches…" loads the next 100. A branch already connected offers Open instead of a duplicate. A repository GitHub names no default for still stops with its branches (`noDefaultBranch`). | `connect_repository` (Confirm class, §7) → Project Overview | Dev, public only. A private URL returns "Private repositories aren't supported yet". |
 | Sources | Canvas title. Method: **Upload** (PDF) or **From a connection** (tiles: Google Slides, Drive, Notion, all *Planned*, not clickable). | `create_canvas` → Canvas | Upload happens in the canvas's existing Sources menu. Until the Learn hook exists the dialog says "Use Upload in the canvas menu". |
 | Question | Question text, optional depth `Overview · Guided · Deep dive` | `create_canvas` (title from the question) → Canvas → Learn hook `teach` | Until the hook exists: "Opened your canvas. Your question wasn't transferred; it's kept in the Agent Bar." |
 | Blank | Title (optional, default "Untitled canvas") | `create_canvas` → Canvas | Dev |

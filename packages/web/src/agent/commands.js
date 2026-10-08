@@ -235,16 +235,18 @@ export const COMMANDS = {
       // An explicit /tree/<branch> link is the user's choice. It may go on into a folder and branch names
       // may hold '/', so the longest real branch it starts with wins; otherwise it is used as given and
       // the import validates it (repository_jobs.py 'Branch not found').
+      // branches and hasMore (page 1): the Start dialog's Branch select (owner, 2026-10-08); run() never reads them.
+      const listing = { branches: meta.branches || [], hasMore: !!meta.hasMore };
       if (branch) {
         const parts = branch.split('/');
         const known = parts.map((_, i) => parts.slice(0, parts.length - i).join('/')).find((name) => meta.branches?.includes(name));
-        return { url, repo, branch: known || branch, ...(newBranch ? { newBranch } : {}) };
+        return { url, repo, branch: known || branch, ...(newBranch ? { newBranch } : {}), ...listing };
       }
       // Gate C G2: never assume a branch. Before the worker is redeployed the field is absent,
       // which keeps today's behaviour; once deployed, a repository GitHub names no default for stops here.
       if (meta.defaultBranchKnown === false) throw Error(noDefaultBranch(repo, meta.branches));
       // defaulted: GitHub's default, not the user's choice, so a stale page never treats it as one.
-      return { url, repo, branch: meta.defaultBranch, defaulted: true };
+      return { url, repo, branch: meta.defaultBranch, defaulted: true, ...listing };
     },
     preview: (args, ctx) => card(ctx, {
       title: `Connect ${args.repo}`,
@@ -285,6 +287,20 @@ export const COMMANDS = {
       ? "Sharing projects and canvases isn't available yet." : null),
   },
 };
+
+// The Start dialog's Branch select (owner, 2026-10-08: "start a rabbit hole with a repository should allow us to choose which
+// branch"). A picked branch is the user's choice (defaulted: false), so run() checks that branch, not any. One already
+// connected comes back as `open` - its project, never a duplicate; another branch of a connected repository connects as a
+// separate project (newBranch), as branchChoice's Connect does. Nothing is fetched: the card is rebuilt from the same args.
+export function withBranch(prepared, branch, ctx) {
+  const same = repositoriesOf(ctx.catalog, prepared.args.repo);
+  const row = same.length ? onBranch(same, branch) : null;
+  const args = { ...prepared.args, branch, defaulted: false, ...(same.length ? { newBranch: true } : {}) };
+  return { ...prepared, args, card: row ? null : COMMANDS.connect_repository.preview(args, ctx),
+    open: row ? { slug: row.name, kind: row.kind, title: titleOf(row), branch: row.branch || null } : null };
+}
+// The next page of branch names for the select (100 a page, /api/repositories/branches?page=).
+export const moreBranches = (url, page) => api(`/api/repositories/branches?url=${encodeURIComponent(url)}&page=${page}`);
 
 // D7 (T02 §7.5) is checked first and is absolute on every dev build.
 export function policy(name, ctx) {
