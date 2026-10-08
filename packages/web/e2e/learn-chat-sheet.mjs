@@ -87,6 +87,9 @@ await sheet.getByRole('button', { name: 'Collapse chat' }).click();
 check('Collapse hides the sheet', !(await sheet.isVisible()));
 await page.locator('[data-block-id="seed-1"]').click({ position: { x: 30, y: 12 } });
 await page.locator('[data-block-id="seed-1"]').getByRole('button', { name: 'Ask in chat' }).click();
+await page.waitForTimeout(200);
+// Owner, 2026-10-08: Ask in chat writes a ready question about the card; only Send asks.
+check('Ask in chat writes a ready question about the card and sends nothing', /^Can you explain ".+"\?$/.test(await composer.inputValue()) && asks.length === 2, await composer.inputValue());
 await say('explain this card');
 await page.locator('[data-chat-block]').filter({ hasText: 'Answer 3.' }).waitFor({ timeout: 15000 });
 await page.waitForTimeout(800);

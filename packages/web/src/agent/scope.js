@@ -28,6 +28,20 @@ export function chipsFor(scope) {
   return [{ key: 'resource', label: scope.title || scope.slug }, ...(file ? [{ key: 'file', label: nameOf(file), title: file }] : []), ...(s ? [{ key: 'selected', label: s.label }] : [])];
 }
 
+// The chips are a project's breadcrumb (owner, 2026-10-08: "if we are not in a particular project, the breadcrumbs
+// disappear"): shown only on that project's own page. Elsewhere - Home, Library, Explore, an app, or a draft held from a
+// project after leaving it - there is no breadcrumb row; the offer row still names a held draft's scope.
+export const crumbsShown = (target, live) => target.kind === 'project' && live.kind === 'project' && live.slug === target.slug;
+
+// Ask actions write a ready question into the composer and focus it; they never send (owner, 2026-10-08: "it should
+// already write a question in the chat so that the user only needs to press send"). A composer that already holds the
+// learner's own words keeps them (AgentBar.jsx, ask.jsx). `text` is the question; the context is set by the caller.
+export const askDraft = (text) => window.dispatchEvent(new CustomEvent('small:ask-focus', { detail: { text } }));
+const linesOf = (s) => `${s.end > s.start ? `lines ${s.start}–${s.end}` : `line ${s.start}`} of ${nameOf(s.path)}`;
+const verb = (s) => (s.kind === 'range' && s.end > s.start ? 'do' : 'does');
+export const askQuestion = (s) => (s.kind === 'range' ? `What ${verb(s)} ${linesOf(s)} do?` : `What does ${s.label} do, and how is it used here?`);
+export const whyQuestion = (s) => `Why ${verb(s)} ${s.kind === 'range' ? linesOf(s) : s.label} matter in this codebase?`;
+
 // × on a chip below the resource falls back one level and no further (owner, 2026-10-06 §3): a symbol to its file,
 // a file to the repository. Only the resource chip clears everything.
 export const contextWithout = (selected, key) => (key === 'selected' && parentFile(selected) ? fileContext(parentFile(selected), selected.commit) : null);

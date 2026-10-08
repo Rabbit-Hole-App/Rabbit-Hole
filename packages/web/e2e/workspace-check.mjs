@@ -56,11 +56,12 @@ const section = () => page.locator('main > section').first();
 const fold = async (name, open = true) => { const d = panel.locator(`[data-inspector-section="${name}"]`); if ((await d.evaluate((n) => n.open)) !== open) await d.locator('summary').click(); };
 
 await openMap();
-await check('dock §1 §11: the composer spans the workspace from the sidebar edge to the window edge, never behind the sidebar', async () => {
+await check('dock §1 §11: the dock spans the workspace from the sidebar edge to the window edge, never behind the sidebar; its input is half as wide, centred (owner, 2026-10-08)', async () => {
   const b = await box(bar), side = await box(page.locator('[data-shell-sidebar]')), form = await box(bar.locator('[data-chat-composer]'));
   near(b.left, side.right, 'dock starts at the sidebar edge');
   near(b.right, 1440, 'dock ends at the window edge');
-  assert.ok(form.left - b.left <= 24 && b.right - form.right <= 24, `input spans the dock, not a centred column: ${form.left - b.left} / ${b.right - form.right}`);
+  near(form.left - b.left, b.right - form.right, 'the input is centred', 2);
+  assert.ok(form.width >= b.width * 0.4 && form.width <= b.width * 0.55, `the input is about half the dock: ${form.width} of ${b.width}`);
 });
 await check('dock §2 §19: the dock is chrome - a top divider, an opaque surface, no gradient, a hairline input shadow; Auto stays neutral (§5)', async () => {
   const s = await bar.evaluate((n) => { const c = getComputedStyle(n), f = getComputedStyle(n.querySelector('[data-chat-composer]')), auto = [...n.querySelectorAll('button')].find((x) => x.textContent.trim() === 'Auto'); const a = getComputedStyle(auto); return { border: c.borderTopWidth, bg: c.backgroundColor, image: c.backgroundImage, shadow: f.boxShadow, autoColor: a.color, autoBg: a.backgroundColor }; });
@@ -76,6 +77,14 @@ await check('dock §4, inspector §4: a graph node selects too - a node named li
   assert.ok(await panel.locator('[data-in-context]').isVisible());
   await page.locator('[data-graph-node="model_gpt"]').focus(); await page.keyboard.press('Enter');
   assert.equal(await title(), 'GPT'); assert.deepEqual(await chips(), ['karpathy/nanoGPT', 'model.py', 'GPT']);
+  // A click on the graph's white space deselects (owner, 2026-10-08): no node lit, the inspector empty, the context back to the repository.
+  const graph = page.getByRole('img', { name: 'Repository dependency graph' }), g = await box(graph);
+  await graph.click({ position: { x: 12, y: g.height - 12 } });
+  await panel.getByText('Select a file or a symbol to see what it is and how it connects.').waitFor({ timeout: 3000 });
+  assert.equal(await page.locator('[data-graph-node][data-selected]').count(), 0);
+  assert.deepEqual(await chips(), ['karpathy/nanoGPT']);
+  await page.locator('[data-graph-node="model_gpt"]').focus(); await page.keyboard.press('Enter');
+  assert.deepEqual(await chips(), ['karpathy/nanoGPT', 'model.py', 'GPT']);
   await bar.getByRole('button', { name: 'Remove karpathy/nanoGPT' }).click(); // only the repository's x clears it all
   assert.deepEqual(await chips(), []);
   await openMap();
@@ -97,6 +106,13 @@ await check('dock §1 §6 §15: main and inspector end exactly at the dock\'s to
   assert.equal(st.left, '1px'); assert.equal(st.shadow, 'none'); assert.equal(st.inner, 'none');
 });
 await check('inspector §1 §2: a sticky object header - icon, title, breadcrumb, path:line, Open source, close - and Overview | Source underline tabs only', async () => {
+  // Files shows train.py in the reader, so the inspector does not repeat its code (owner, 2026-10-08): no preview, no Source tab.
+  assert.equal(await panel.getByRole('tab').count(), 0); assert.equal(await panel.locator('[data-inspector-preview]').count(), 0);
+  assert.ok(await panel.locator('[data-inspector-open-source]').isVisible(), 'Open source on GitHub stays: a link, not the code');
+  // The graph does not show the code: the same file picked there keeps the preview and both tabs.
+  await page.locator('[data-project-tabs]').getByRole('tab', { name: 'Graph', exact: true }).click();
+  await page.locator('[data-graph-node="train"]').focus(); await page.keyboard.press('Enter');
+  await panel.locator('[data-inspector-preview]').waitFor({ timeout: 10000 });
   const header = panel.locator('[data-inspector-header]');
   assert.equal(await header.locator('[data-inspector-crumb]').innerText(), 'karpathy/nanoGPT › train.py');
   assert.match(await header.innerText(), /train\.py:1\s*·\s*Python file/);
@@ -119,6 +135,22 @@ await check('inspector §11 §12: two actions, Ask about this (secondary) and Le
   assert.deepEqual((await panel.locator('[data-inspector-actions] button').allInnerTexts()).map((t) => t.trim()), ['Ask about this', 'Learn this']);
   const primaries = await panel.locator('button').evaluateAll((all) => all.filter((b) => getComputedStyle(b).backgroundColor === 'rgb(35, 131, 226)').map((b) => b.textContent.trim()));
   assert.deepEqual(primaries, ['Learn this']);
+  // Ask writes a ready question and focuses the composer; nothing is sent (owner, 2026-10-08).
+  const sent = asks.length;
+  await panel.locator('[data-inspector-actions]').getByRole('button', { name: 'Ask about this' }).click();
+  await page.waitForTimeout(300);
+  assert.equal(await input.inputValue(), 'What does train.py do, and how is it used here?');
+  assert.equal(await input.evaluate((n) => n === document.activeElement), true);
+  assert.equal(asks.length, sent, 'nothing was sent');
+  await panel.locator('[data-inspector-section="why"]').getByRole('button', { name: 'Ask why →' }).click();
+  await page.waitForTimeout(300);
+  assert.equal(await input.inputValue(), 'Why does train.py matter in this codebase?', 'an untouched earlier question is replaced');
+  await input.fill('my own words');
+  await panel.locator('[data-inspector-actions]').getByRole('button', { name: 'Ask about this' }).click();
+  await page.waitForTimeout(300);
+  assert.equal(await input.inputValue(), 'my own words', 'the learner\'s own words are never overwritten');
+  assert.equal(asks.length, sent, 'still nothing sent');
+  await input.fill('');
 });
 await check('inspector §9: an empty conversation is one row, Ask about train.py →', async () => {
   assert.match(await panel.locator('[data-inspector-section="conversation"]').innerText(), /Conversation\s*Ask about train\.py →/);
@@ -162,6 +194,7 @@ await check('dock §10 §18, §11: closing the inspector keeps the context; the 
 await shot('dock-E-context-survives-collapse');
 
 await page.locator('[data-map-panel-open]').click();
+await files();
 await fileRow('model.py').click();
 await page.waitForTimeout(300);
 await check('inspector §4 §8: a code file lists its symbols and its canonical relationships in the graph\'s own words', async () => {
@@ -232,7 +265,9 @@ await check('inspector §4: an external dependency is its own object - no file, 
 });
 await shot('insp-H2-external');
 await check('inspector §16: Source shows the file at the pinned commit with a link to it; Open source stays in the header', async () => {
-  await fileRow('model.py').click();
+  // Source is for code the main pane is not showing: model.py picked in the graph (in Files the reader already shows it).
+  await page.locator('[data-project-tabs]').getByRole('tab', { name: 'Graph', exact: true }).click();
+  await page.locator('[data-graph-node="model"]').focus(); await page.keyboard.press('Enter');
   await panel.getByRole('tab', { name: 'Source' }).click();
   const reader = panel.getByRole('region', { name: 'Repository source' });
   await reader.locator('[data-source-line="1"]').waitFor();
@@ -257,6 +292,21 @@ await check('dock §9: the divider resizes 320-520, the width is remembered, dou
   assert.equal((await box(panel)).width, 320, 'remembered after reload');
   await sep.dblclick(); await page.waitForTimeout(400);
   assert.equal((await box(panel)).width, 380);
+});
+
+// Owner, 2026-10-08: "if we are not in a particular project, the breadcrumbs disappear".
+await check('the breadcrumb row shows only inside the project: a draft held into the Library shows no chips; the offer still names its scope', async () => {
+  await files(); await fileRow('train.py').click();
+  assert.deepEqual(await chips(), ['karpathy/nanoGPT', 'train.py']);
+  await input.fill('a question I am still writing');
+  await page.locator('[data-shell-sidebar]').getByRole('button', { name: 'Library', exact: true }).click();
+  await page.waitForURL(/\/library/);
+  await page.waitForTimeout(400);
+  assert.equal(await bar.locator('[data-scope-chip], [data-scope-chips]').count(), 0, 'no breadcrumb row off the project');
+  assert.equal(await input.inputValue(), 'a question I am still writing', 'the draft is kept');
+  assert.equal(await bar.getByRole('button', { name: /^Keep / }).count(), 1, 'the offer row names the held scope');
+  await input.fill('');
+  await openMap();
 });
 
 await files();

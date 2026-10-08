@@ -2296,7 +2296,8 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await fx.context().close();
   });
 
-  if (ready) await check('wp6-kg-starters: the empty inspector offers 5 starter prompts; one click asks it through the Mothership (one held request) and the question opens in the answer window; no text input appears in the inspector', async () => {
+  // Owner, 2026-10-08: an Ask writes its question into the composer and focuses it; only Send asks.
+  if (ready) await check('wp6-kg-starters: the empty inspector offers 5 starter prompts; one click writes it into the Mothership\'s composer and sends nothing; no text input appears in the inspector', async () => {
     const page = await open();
     const asks = held(page);
     await mapAt(page);
@@ -2304,21 +2305,22 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     const starters = page.locator('[data-map-starters] button');
     must(await starters.count() === 5, `${await starters.count()} starter prompts, not 5`);
     await starters.filter({ hasText: 'Give me an architecture tour' }).click();
-    await page.locator('[data-result-sheet]').getByText('Give me an architecture tour').first().waitFor({ timeout: 10000 });
     await page.waitForTimeout(800);
-    must(asks.length === 1 && asks[0].message === 'Give me an architecture tour', `asks: ${JSON.stringify(asks)}`);
+    must(await barInput(page).inputValue() === 'Give me an architecture tour', `the composer holds: ${await barInput(page).inputValue()}`);
+    must(asks.length === 0, `a starter sent: ${JSON.stringify(asks)}`);
     must(await page.locator('[data-map-panel] textarea, [data-map-panel] input[type="text"]').count() === 0, 'the panel grew a text input');
     await page.context().close();
   });
 
-  if (ready) await check('wp6-kg-why: Ask why in the inspector sends Why does this exist? to the model without fixtures (one held request); with nanoGPT fixtures the same question answers in the answer window with no request, labelled Fixture, evidence in hierarchy order; a prior question in the inspector answers from its record; a private session of another user never shows', async () => {
+  if (ready) await check('wp6-kg-why: Ask why in the inspector writes "Why does <node> matter in this codebase?" into the composer and sends nothing; with nanoGPT fixtures a typed Why does this exist? answers in the answer window with no request, labelled Fixture, evidence in hierarchy order; a prior question in the inspector is written into the composer; a private session of another user never shows', async () => {
     const page = await open();
     const asks = held(page);
     await mapAt(page);
     await pickNode(page);
     await insp(page).locator('[data-inspector-section="why"]').getByRole('button', { name: 'Ask why →' }).click();
     await page.waitForTimeout(1200);
-    must(asks.length === 1 && asks[0].message === 'Why does this exist?', `asks without fixtures: ${JSON.stringify(asks)}`);
+    must(/^Why does .+ matter in this codebase\?$/.test(await barInput(page).inputValue()), `the composer holds: ${await barInput(page).inputValue()}`);
+    must(asks.length === 0, `Ask why sent: ${JSON.stringify(asks)}`);
     await page.context().close();
     if (!nano) return;
     const fx = await open();
@@ -2337,7 +2339,8 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     const convo = insp(fx).locator('[data-inspector-section="conversation"]');
     await openFold(convo);
     await convo.getByRole('button', { name: /square root of the head size/ }).click();
-    await answer.getByText('It keeps the scores near unit variance').first().waitFor({ timeout: 10000 });
+    await fx.waitForTimeout(400);
+    must(/square root of the head size/.test(await barInput(fx).inputValue()), 'the prior question is not in the composer');
     await openLayers(fx);
     for (const name of ['Decisions', 'Questions', 'Sessions']) if (!(await layer(fx, name).isChecked())) await layer(fx, name).click();
     await fx.waitForTimeout(800);

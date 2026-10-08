@@ -18,7 +18,7 @@ import ResultSheet from './ResultSheet.jsx';
 import BarCommandsSheet from './BarCommandsSheet.jsx';
 import { placeOf } from './slash.js';
 import { route } from './router.js';
-import { chipsFor, contextWithout, endpointFor, scopeKey, scopeOf } from './scope.js';
+import { chipsFor, contextWithout, crumbsShown, endpointFor, scopeKey, scopeOf } from './scope.js';
 import { getSurface, useSurface } from './surface.js';
 
 const nameOf = (scope) => labelOf(scope);
@@ -113,19 +113,26 @@ export default function AgentBar({ page }) {
     observer.observe(root.current);
     return () => observer.disconnect();
   }, [hidden]);
-  // Ctrl/Cmd+J (Shell.jsx:45-49). While hidden the ref is empty, so it does nothing.
+  // Ctrl/Cmd+J (Shell.jsx:45-49) focuses; an Ask action (scope.js askDraft) also writes its question, never sends it
+  // (owner, 2026-10-08). The question lands in the page's scope, which the caller has just published. The learner's own
+  // words are kept and move to the new context (carry); only an untouched earlier question is replaced. Hidden (a canvas,
+  // whose own composer takes it): nothing.
+  const prefilled = useRef(null);
+  const askFocus = useRef(null);
+  askFocus.current = (text) => {
+    if (hidden) return;
+    const mine = draft.trim() && draft !== prefilled.current;
+    if (text && !mine) {
+      setDrafts((d) => { const next = new Map(d); if (draft) next.delete(targetKey); return next.set(scopeKey(live), text); });
+      setHeld(live);
+      prefilled.current = text;
+    } else if (text && targetKey !== scopeKey(live)) switchTo(live, false);
+    inputRef.current?.focus();
+  };
   useEffect(() => {
-    const focus = () => inputRef.current?.focus();
+    const focus = (e) => askFocus.current(e.detail?.text);
     window.addEventListener('small:ask-focus', focus);
     return () => window.removeEventListener('small:ask-focus', focus);
-  }, []);
-  // A page's own prompt buttons (the Map's starters, prior questions, Why does this exist?) ask through the bar,
-  // so the bar stays the only input: small:bar-ask { text } sends it as a question in the bar's current scope.
-  const submitRef = useRef(null);
-  useEffect(() => {
-    const send = (e) => { if (e.detail?.text) submitRef.current?.(e.detail.text, 'ask'); };
-    window.addEventListener('small:bar-ask', send);
-    return () => window.removeEventListener('small:bar-ask', send);
   }, []);
   // Switching workspace reloads the page (Sidebar.jsx:883), which drops every draft.
   useEffect(() => {
@@ -135,7 +142,6 @@ export default function AgentBar({ page }) {
     return () => window.removeEventListener('beforeunload', warn);
   }, [waiting]);
 
-  submitRef.current = (raw, pill) => submit(raw, pill, raw, live); // the page's own scope, never a held draft's
   // Map and the app Graph tab may show results in their Context panel (§6.5).
   const showResults = (scope) => {
     const page = getSurface();
@@ -406,7 +412,7 @@ export default function AgentBar({ page }) {
   };
 
   if (hidden) return null;
-  const chips = chipsFor(target);
+  const chips = crumbsShown(target, live) ? chipsFor(target) : [];
   const own = scopeKey(target) === scopeKey(live); // × only while the draft is not held elsewhere
   const widenTo = (chip) => {
     const next = chip === 'resource' ? ['resource'] : [...removed, chip];

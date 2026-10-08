@@ -184,6 +184,10 @@ await check('5 Ask attaches the exact range and focuses the composer: karpathy/n
   assert.deepEqual(await chips(), ['karpathy/nanoGPT', 'model.py', 'lines 177–179']);
   assert.equal(await page.evaluate(() => document.activeElement?.closest('[data-agent-bar]') !== null && document.activeElement.tagName), 'TEXTAREA');
   assert.equal(await input.getAttribute('placeholder'), 'Ask about lines 177–179…');
+  // Ask writes a ready question; the learner presses Send (owner, 2026-10-08).
+  await page.waitForTimeout(200);
+  assert.equal(await input.inputValue(), 'What do lines 177–179 of model.py do?');
+  assert.equal(asks.length, before.asks, 'nothing was sent');
   assert.equal(await actions.count(), 0);
   assert.deepEqual(await lit(), [177, 178, 179], 'the attached range stays highlighted');
   assert.equal(await title(), 'model.py:177–179');
@@ -196,7 +200,9 @@ await check('I §13: the inspector shows the selected range - title, breadcrumb,
   assert.ok(await panel.locator('[data-in-context]').isVisible());
   assert.deepEqual((await panel.locator('[data-inspector-actions] button').allInnerTexts()).map((t) => t.trim()), ['Ask about this', 'Learn this']);
   assert.equal(await panel.locator('[data-inspector-section="relationships"]').count(), 0, 'a range shows no relationships, never its file\'s');
-  assert.match((await panel.locator('[data-inspector-preview] > div').allInnerTexts())[0], /^177\s+tok_emb/);
+  // The reader already shows model.py, so the inspector does not repeat the code: no preview, no Source tab (owner, 2026-10-08).
+  assert.equal(await panel.locator('[data-inspector-preview]').count(), 0);
+  assert.equal(await panel.getByRole('tab').count(), 0);
 });
 await shot('I-inspector-selected-range');
 

@@ -45,7 +45,10 @@ function Preview({ app, path, line, commit }) {
   return <pre data-inspector-preview className="mb-3 overflow-hidden rounded-md bg-code px-3 py-2 font-mono text-[11.5px] leading-5 text-ink-2">{lines.map((text, i) => <div key={i} className="flex gap-3 whitespace-pre"><span className="w-6 shrink-0 text-right text-ink-3 select-none">{line + i}</span><span className="overflow-hidden text-ellipsis whitespace-pre">{text || ' '}</span></div>)}</pre>;
 }
 
-export default function MapInspector({ app, snapshot, memory, object, inContext, view, onView, onSelect, onPick, onBack, backLabel, onClose, onAsk, onWhy, onLearn, conversationKey }) {
+// `codeInView`: the main pane (the Files reader) is showing this object's file, so the inspector does not repeat its code -
+// no preview and no Source tab (owner, 2026-10-08: "we see the code file in the main window but we also see it in the right
+// window"). A node picked in the graph, or a file the reader is not showing, keeps both.
+export default function MapInspector({ app, snapshot, memory, object, inContext, view, onView, onSelect, onPick, onBack, backLabel, onClose, onAsk, onWhy, onLearn, conversationKey, codeInView = false }) {
   const turns = useSyncExternalStore(subscribeTurns, () => getTurns(conversationKey));
   const close = <IconBtn data-map-panel-close aria-label="Close the inspector" title="Close the inspector" onClick={onClose}><PanelRightClose size={16} /></IconBtn>;
   if (!object) return <>
@@ -53,7 +56,7 @@ export default function MapInspector({ app, snapshot, memory, object, inContext,
     <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4"><p className="pb-4 text-sm text-ink-3">Select a file or a symbol to see what it is and how it connects.</p><Starters /></div>
   </>;
   const record = object.record, graph = snapshot.graph, Icon = ICONS[object.kind] || Box;
-  const file = object.path, source = !record && !!file;
+  const file = object.path, source = !record && !!file, tabs = source && !codeInView;
   // A line range from the code reader (repository-browser.md): titled model.py:115–122, its whole range in the link and the
   // Source tab; it has no graph node, so no relationships are shown for it, never its file's.
   const range = object.kind === 'range', title = range ? rangeTitle(object) : object.label;
@@ -62,7 +65,7 @@ export default function MapInspector({ app, snapshot, memory, object, inContext,
   const groups = record ? [] : relationshipGroups(graph, object.nodeId), linked = groups.reduce((n, g) => n + g.items.length, 0);
   const symbols = object.kind === 'file' ? symbolsIn(graph, file) : [];
   const about = turnsAbout(turns, object.id), mine = memory && object.nodeId ? memoryFor(memory, object.nodeId) : null;
-  const header = <header data-inspector-header className={`shrink-0 px-4 pt-3 ${source ? '' : 'border-b border-line pb-3'}`}>
+  const header = <header data-inspector-header className={`shrink-0 px-4 pt-3 ${tabs ? '' : 'border-b border-line pb-3'}`}>
     <div className="flex items-center gap-1.5">
       {onBack && <IconBtn data-inspector-back aria-label="Back" title={`Back to ${backLabel}`} onClick={onBack} className="-ml-1.5"><ArrowLeft size={15} /></IconBtn>}
       <Icon size={16} strokeWidth={1.75} className="shrink-0 text-ink-2" aria-hidden="true" />
@@ -75,10 +78,10 @@ export default function MapInspector({ app, snapshot, memory, object, inContext,
       {file && <span className="truncate font-mono">{file}:{range && object.end > object.start ? `${object.start}–${object.end}` : object.line || 1}</span>}{file && <span aria-hidden="true">·</span>}<span className="shrink-0">{record ? 'Fixture record' : range ? `${object.end - object.start + 1} selected line${object.end > object.start ? 's' : ''}` : typeOf(object)}</span>
       {inContext && <span data-in-context title="The composer below asks about this" className="ml-auto inline-flex shrink-0 items-center gap-1 text-ink-2"><span className="h-1.5 w-1.5 rounded-full bg-accent" />In context</span>}
     </p>
-    {source && <TabsList className="-mx-4 mt-2 px-4"><TabsTrigger value="overview" className={TAB}>Overview</TabsTrigger><TabsTrigger value="source" className={TAB}>Source</TabsTrigger></TabsList>}
+    {tabs && <TabsList className="-mx-4 mt-2 px-4"><TabsTrigger value="overview" className={TAB}>Overview</TabsTrigger><TabsTrigger value="source" className={TAB}>Source</TabsTrigger></TabsList>}
   </header>;
   const overview = record ? <MemoryEntity node={object} memory={memory} graph={graph} onPick={onPick} onCode={onSelect} /> : <>
-    {file && <Preview app={app.name} path={file} line={object.line || 1} commit={snapshot.commit} />}
+    {file && !codeInView && <Preview app={app.name} path={file} line={object.line || 1} commit={snapshot.commit} />}
     <section data-inspector-section="purpose" className="pb-3"><h3 className={`${HEAD} pb-1`}>Purpose</h3><Empty text="No summary yet." action="Ask about this" onAction={onAsk} /></section>
     <section data-inspector-section="why" className="pb-3"><h3 className={`${HEAD} pb-1`}>Why it matters</h3>
       {mine?.decisions.length ? <><Pill className="mb-1">{FIXTURE}</Pill>{mine.decisions.map((d) => <button key={d.id} type="button" className={ROW} onClick={() => onPick(d.id)}>{d.title}</button>)}</> : <Empty text="No explanation yet." action="Ask why" onAction={onWhy} />}
@@ -97,10 +100,10 @@ export default function MapInspector({ app, snapshot, memory, object, inContext,
       </Fold>
       : <section data-inspector-section="conversation" className="flex items-center gap-2 border-t border-line py-2"><h3 className={HEAD}>Conversation</h3><button type="button" onClick={onAsk} className={`ml-auto text-sm ${LINK}`}>Ask about {object.label} →</button></section>}
   </>;
-  return <Tabs value={source ? view : 'overview'} onValueChange={onView} className="flex min-h-0 flex-1 flex-col">
+  return <Tabs value={tabs ? view : 'overview'} onValueChange={onView} className="flex min-h-0 flex-1 flex-col">
     {header}
     <TabsContent value="overview" className="min-h-0 flex-1 overflow-y-auto px-4 pt-3 pb-2">{overview}</TabsContent>
-    {source && <TabsContent value="source" className="flex min-h-0 flex-1 flex-col px-4 pt-2"><RepositorySource appName={app.name} path={file} line={object.line || 1} lineEnd={object.end} commit={snapshot.commit} repo={app.repo} /></TabsContent>}
+    {tabs && <TabsContent value="source" className="flex min-h-0 flex-1 flex-col px-4 pt-2"><RepositorySource appName={app.name} path={file} line={object.line || 1} lineEnd={object.end} commit={snapshot.commit} repo={app.repo} /></TabsContent>}
     {/* Two actions, one of them primary (inspector brief §11-12); the Tutor picks the pedagogy once the learner says what they want. */}
     {!record && <footer data-inspector-actions className="flex shrink-0 gap-2 border-t border-line px-4 py-3">
       <Button size="sm" variant="secondary" onClick={onAsk}>Ask about this</Button>

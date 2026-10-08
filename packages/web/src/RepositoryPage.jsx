@@ -14,13 +14,13 @@ import { SourceLink } from './home/Provenance.jsx';
 import { resultsKey } from './agent/bar.js';
 import { reviewTools } from './flags.js';
 import { fixturesOn, useMapMemory } from './home/review-fixtures.js';
-import { fixtureAnswer, layerGraph, MEMORY_KINDS, titleOfRecord, visibleMemory, WHY } from './map-memory.js';
-import { askBar, LayersRow } from './MapMemory.jsx';
+import { fixtureAnswer, layerGraph, MEMORY_KINDS, titleOfRecord, visibleMemory } from './map-memory.js';
+import { LayersRow } from './MapMemory.jsx';
 import MapInspector from './MapInspector.jsx';
 import { contextOf, fileObject, objectOf } from './inspector.js';
 import { learnAction } from './agent/learn-hook.js';
 import { getSurface, patchSurface } from './agent/surface.js';
-import { wireContext } from './agent/scope.js';
+import { askDraft, askQuestion, whyQuestion, wireContext } from './agent/scope.js';
 
 export default function RepositoryPage({ app: initial, catalog = [] }) {
   const [app,setApp]=useState(initial),[snapshot,setSnapshot]=useState(null),[error,setError]=useState(''),[mode,setMode]=useState('graph'),[query,setQuery]=useState('');
@@ -80,18 +80,22 @@ export default function RepositoryPage({ app: initial, catalog = [] }) {
   // Inspector history is local (inspector brief §15): Back returns the inspector to the previous object, never the URL or the context.
   const inspect=(object,show='overview')=>{setTrail(t=>inspected&&inspected.id!==object.id?[...t,inspected].slice(-10):t);setInspected(object);setView(show);setPanelOpen(true);};
   const pick=id=>{const r=memory&&[...memory.decisions,...memory.questions,...memory.sessions].find(x=>x.id===id);if(r)inspect({id:r.id,label:titleOfRecord(r),kind:MEMORY_KINDS.find(k=>memory[`${k}s`].includes(r)),record:r});};
-  // Selecting is inspecting and grounding at once (workspace-dock §4). A blank-graph click changes neither (§3: only an explicit x clears context).
+  // Selecting is inspecting and grounding at once (workspace-dock §4). A click on the graph's white space deselects both:
+  // the node, the inspector's object and the context (owner, 2026-10-08: "if we click on a node, and we click in the white
+  // space, it gets deselected"); the inspector stays open on its empty state.
   // A line range (the code reader's Ask or Learn) is already a context: repo › file › lines a–b, pinned to this snapshot.
   const ground=object=>object.kind==='range'?object:contextOf(object,snapshot.commit);
   const attach=object=>{inspect(object);setContext(ground(object));if(object.path)setOpened(object.path);};
-  const choose=node=>{if(!node)return;if(MEMORY_KINDS.includes(node.kind))return pick(node.id);attach(objectOf(snapshot.graph,node));};
-  const askAbout=object=>{if(!object||object.record)return;setContext(ground(object));window.dispatchEvent(new CustomEvent('small:ask-focus'));};
+  const deselect=()=>{setInspected(null);setTrail([]);setContext(null);};
+  const choose=node=>{if(!node)return deselect();if(MEMORY_KINDS.includes(node.kind))return pick(node.id);attach(objectOf(snapshot.graph,node));};
+  // Ask writes a ready question about the object into the composer and pins the object as its context; the learner presses
+  // Send (owner, 2026-10-08). The question waits one task, so it lands in the scope with the new context.
+  const askAbout=(object,question=askQuestion)=>{if(!object||object.record)return;setContext(ground(object));setTimeout(()=>askDraft(question(object)),0);};
   // Learn this carries the context into Learn and sends nothing (learn-hook.js); the Tutor picks the pedagogy, never a card type here.
   const learnThis=object=>{setContext(ground(object));learnAction('teach',{app:app.name,prompt:`Teach me ${wireContext(ground(object)).label}`},{}).then(r=>{if(r.status!=='fallback'&&r.message)toast(r.message);});};
   // Graph and Files are two views of one selection: the graph lights the context's node, or its file's (a range has no node).
   const lit=inspected?.record?{id:inspected.id}:context&&(context.nodeId||context.path)?{id:context.nodeId||fileObject(snapshot.graph,context.path).nodeId}:null;
-  // The bar sends in the scope it last rendered, so the question waits one task for the new context to be published.
-  const askWhy=object=>{askAbout(object);setTimeout(()=>askBar(WHY),0);};
+  const askWhy=object=>askAbout(object,whyQuestion);
   return <main className="relative flex min-w-0 flex-1 overflow-hidden max-lg:flex-col">
     <section className="min-w-0 flex-1 overflow-auto"><ExpandedPageFrame wide>
       <div className="flex items-center gap-1"><h1 className="min-w-0 truncate text-2xl font-semibold">{app.repo}</h1>
@@ -117,7 +121,7 @@ export default function RepositoryPage({ app: initial, catalog = [] }) {
         <div className="flex h-[540px] min-h-0 gap-3 max-lg:min-h-80 max-md:flex-col">{mode==='graph'?<><RepositoryGraph graph={shown} selected={lit} onSelect={choose} query={query} answerView={graphView}/>
           {layersOpen&&<aside id="map-layers" aria-label="Layers" className="w-60 shrink-0 self-start rounded-lg border border-line bg-white p-2 max-md:w-full"><LayersRow memory={memory} layers={layers} onToggle={toggleLayer}/></aside>}</>
           :<CodeReader app={app} snapshot={snapshot} open={opened} context={context} query={query} onFile={p=>attach(fileObject(snapshot.graph,p))} onSymbol={n=>attach(objectOf(snapshot.graph,n))}
-            onRange={(kind,range)=>{attach(range);if(kind==='learn')learnThis(range);else window.dispatchEvent(new CustomEvent('small:ask-focus'));}}/>}</div>
+            onRange={(kind,range)=>{attach(range);if(kind==='learn')learnThis(range);else askAbout(range);}}/>}</div>
         <p className="mt-3 text-xs text-ink-2">{snapshot.files.length} files · {snapshot.graph.nodes.length} nodes · {snapshot.graph.edges.length} relationships</p>
         {!!snapshot.skipped.length&&<details className="mt-2 text-xs text-ink-2"><summary className="cursor-pointer">{snapshot.skipped.length} excluded files</summary><div className="max-h-40 overflow-auto">{snapshot.skipped.map(f=><p key={f.path}>{f.path}: {f.reason}</p>)}</div></details>}
       </>}
@@ -125,7 +129,9 @@ export default function RepositoryPage({ app: initial, catalog = [] }) {
     {/* The inspector: full height above the dock, resizable 320-520 and remembered, collapsible; below lg a right drawer
         over the workspace, full width on a phone (workspace-dock §9, §10, §16). No outline: one left divider. */}
     {tab==='map'&&<ResizableSidePanel data-map-panel overlay storageKey="small.inspectorW" edgeVar="--inspector-w" aria-label="Inspector" resizeLabel="Resize the inspector" defaultWidth={380} maxWidth={520} collapsed={!panelOpen}>
+      {/* codeInView: the Files reader already shows this object's file, so the inspector does not repeat its code. */}
       {snapshot&&<MapInspector app={app} snapshot={snapshot} memory={memory} object={inspected} inContext={!!inspected&&context?.id===inspected.id} view={view} onView={setView}
+        codeInView={mode==='files'&&!!inspected?.path&&opened===inspected.path}
         onSelect={choose} onPick={pick} onBack={trail.length?()=>{setInspected(trail[trail.length-1]);setTrail(t=>t.slice(0,-1));setView('overview');}:null} backLabel={trail[trail.length-1]?.label}
         onClose={()=>setPanelOpen(false)} onAsk={()=>askAbout(inspected)} onWhy={()=>askWhy(inspected)} conversationKey={key}
         onLearn={()=>learnThis(inspected)}/>}

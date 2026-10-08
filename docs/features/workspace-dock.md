@@ -47,6 +47,31 @@ The chips above the input are what Auto will ask about. A project reads **reposi
   visit, as before).
 - A graph node named after its own file is that file and shows once.
 - Home, Library and Explore are places, not context: they show no chip.
+- The chips are the project's breadcrumb, shown only on that project's own page (owner, 2026-10-08: "if we are not in a
+  particular project, the breadcrumbs disappear"; `scope.js` `crumbsShown`). An app page shows none, and neither does any
+  page after you leave the project with a draft held: the offer row ("Keep karpathy/nanoGPT") still names its scope.
+- A click on the graph's white space deselects (owner, 2026-10-08): the node, the inspector's object and the context, so
+  the chips fall back to the repository. It replaces the rule that only an explicit × clears the context.
+
+## Ask actions write the question
+
+Every Ask action writes a ready question into the composer and focuses it; only Send asks (owner, 2026-10-08: "it should
+already write a question in the chat so that the user only needs to press send"). `scope.js` `askDraft(text)` sends
+`small:ask-focus` with the text; the Mothership (`AgentBar.jsx`) and the canvas composer (`ask.jsx` `AskPanel`) write it.
+
+- The question lands in the page's scope with the object pinned as context (the caller sets it first and waits one task).
+- The learner's own words are never overwritten: a typed draft stays and moves to the new context (`carry`). Only an
+  untouched question an earlier Ask wrote is replaced.
+- A hidden bar (a canvas) leaves it to the canvas composer.
+- Questions: "What does base64_decode() do, and how is it used here?", "Why does base64_decode() matter in this
+  codebase?", "What do lines 12–20 of encoding.py do?" (`askQuestion`, `whyQuestion`); on a canvas, 'Can you explain
+  "Softmax"?' and "Can you explain how these cards fit together?" (`learn-ask-target.js`).
+- Where: the inspector's Ask about this (Purpose, Conversation, the footer) and Ask why; the Files reader's Ask on a range;
+  the Map's starter prompts and the review fixtures' prior questions and Ask this again; on a canvas, Ask in chat on a
+  card or slide, the card menu's Ask about this, and a group's Ask in chat.
+- Left alone: Ask selection and the area tool (they mark what to ask about; the question is the learner's), the result
+  sheet's Ask instead and Learn's "Ask the Tutor" clarification (both send the learner's own typed words), and the
+  shared canvas's composer (view-only cards offer no Ask).
 - Auto stays the neutral default pill. A slash command is optional; the normal flow is select, then type.
 
 ## The context contract

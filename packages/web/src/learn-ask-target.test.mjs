@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { canvasTargetField, groupTargetText, describeYouTube, CANVAS_TARGET_MAX } from './learn-ask-target.js';
+import { canvasTargetField, cardQuestion, groupTargetText, describeYouTube, CANVAS_TARGET_MAX, GROUP_QUESTION } from './learn-ask-target.js';
 
 // ask.jsx, AdaptiveCanvas.jsx, LearningBlocks.jsx and LearnPage.jsx cannot run under node, so the
 // wiring is pinned by source text and the pure helpers are run for real (C5, owner decision 2).
@@ -70,4 +70,11 @@ test('a canvas composer disables + attachments with the server refusal and shows
 test('@mentions never offer canvases and stop at three chips', () => {
   assert.match(ask, /\(repository \? a\.name\.startsWith\('repo-'\) : !a\.name\.startsWith\('repo-'\) && !a\.name\.startsWith\('canvas-'\)\)/);
   assert.match(ask, /const atMatch = privateChat \|\| mentions\.length >= MENTION_CHIPS \? null :/);
+});
+
+// Owner, 2026-10-08: a canvas Ask writes a ready question into the composer; the learner presses Send.
+test('a canvas Ask writes a plain question about the card, or the group as a whole', () => {
+  assert.equal(cardQuestion('Softmax'), 'Can you explain "Softmax"?');
+  assert.equal(cardQuestion(''), 'Can you explain this card?');
+  assert.equal(GROUP_QUESTION, 'Can you explain how these cards fit together?');
 });

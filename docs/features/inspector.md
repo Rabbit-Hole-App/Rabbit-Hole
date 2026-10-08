@@ -58,8 +58,16 @@ Empty sections are omitted; there is no "No questions recorded yet", "No session
 
 - Clicking a related object or a symbol selects it in place: the inspector and the composer context follow, the URL and
   browser history do not. Back returns the inspector to the previous object (up to ten), and never changes the context.
-- **Ask about this** puts the object in context and focuses the composer; **Ask why →** does the same and sends "Why does
-  this exist?". **Learn this** puts it in context and runs `/teach` (`learnAction`), as before.
+- **Ask about this** puts the object in context and writes "What does <object> do, and how is it used here?" into the
+  composer; **Ask why →** writes "Why does <object> matter in this codebase?". Neither sends: the learner presses Send
+  (owner, 2026-10-08; workspace-dock.md, Ask actions). **Learn this** puts it in context and runs `/teach`
+  (`learnAction`), as before.
+- Purpose and Why it matters stay on demand (owner decision 3, 2026-10-08): opening the inspector or selecting a node
+  makes no model request; only a Send does.
+- When the Files reader is showing the object's own file (Files view, the same path open), the inspector does not repeat
+  its code: no preview and no Source tab (owner, 2026-10-08). A node picked in the graph keeps both. Open source on
+  GitHub stays, as a link.
+- A click on the graph's white space deselects: the inspector shows its empty state.
 - A fold stays open as the learner walks from object to object.
 - A file cited in an answer opens here, on Source, at its line, without changing the context.
 - Source is the existing reader (`RepositorySource`): path, commit, numbered lines, Open in repository.
