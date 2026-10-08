@@ -153,8 +153,8 @@ function CreatorChip({ c }) {
         <span className="flex min-w-0 items-center gap-2 pr-8 sm:gap-2.5">
           <CreatorAvatar c={c} className="h-8 w-8 text-xs! sm:h-10 sm:w-10 sm:text-sm!" />
           <span className="flex min-w-0 flex-col leading-tight">
-            <span className="truncate text-sm font-medium text-ink">{c.name || `@${c.handle}`}</span>
-            {c.name && <span className="truncate text-xs text-ink-2">@{c.handle}</span>}
+            <span data-creator-name className="truncate text-sm font-medium text-ink">{c.name || `@${c.handle}`}</span>
+            {c.name && <span data-creator-handle className="truncate text-xs text-ink-2">@{c.handle}</span>}
           </span>
         </span>
         {c.description && <span data-creator-description className="line-clamp-3 break-words text-xs leading-4 text-ink-2 sm:text-sm sm:leading-5">{c.description}</span>}
