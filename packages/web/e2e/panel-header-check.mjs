@@ -42,8 +42,11 @@ await context.route(/\/api\/learn\/(tutor(?!\/next-steps)|artifact|home-ask|jour
 // Professor Next Steps (#46): opening the canvas asks for hooks. The request goes to the real route, whose planner the gate
 // stack answers at the provider boundary with the journey fixture (e2e/provider-tripwire.js); its basis is recorded so the
 // check holds it to the eligibility rules (docs/features/professor-next-steps.md §2.3).
-await context.route(/\/api\/learn\/tutor\/next-steps$/, route => { hookBases.push(JSON.parse(route.request().postData() || '{}')?.input?.basis ?? null); return route.continue(); });
+// Counted per page load: check 12's reload is a fresh page, which may ask for its basis again (the server cache answers it).
+let load = 0;
+await context.route(/\/api\/learn\/tutor\/next-steps$/, route => { hookBases.push({ load, basis: JSON.parse(route.request().postData() || '{}')?.input?.basis ?? null }); return route.continue(); });
 const page = await context.newPage();
+page.on('domcontentloaded', () => { load++; }); // full document loads only, never an in-app route change
 page.on('pageerror', error => errors.push(error.message));
 const results = [];
 const check = async (label, fn) => { await fn(); results.push(label); console.log(`ok ${label}`); };
@@ -247,10 +250,13 @@ await check('no model route was called and no page error', async () => {
 });
 
 await check('the canvas asked for hooks once on open, and nothing the panel did asked again (§2.3: never on selection, camera or panel)', async () => {
-  console.log(`hook requests: ${hookBases.length} (${hooksAtOpen} on open)`);
+  const perLoad = Object.groupBy(hookBases, request => request.load);
+  console.log(`hook requests: ${hookBases.length} (${hooksAtOpen} on open) by page load: ${JSON.stringify(Object.fromEntries(Object.entries(perLoad).map(([n, list]) => [n, list.map(r => r.basis)])))}`);
   assert.equal(hooksAtOpen, 1, 'one hook request for the opened canvas');
-  assert.equal(hookBases.length, hooksAtOpen, 'find, tabs, pin and close are not recompute triggers');
-  assert.ok(hookBases.every(basis => /^nb_[0-9a-f]{8}$/.test(basis)), 'an owned basis');
+  assert.equal(perLoad[hookBases[0].load].length, 1, 'find, tabs, pin and close are not recompute triggers');
+  for (const list of Object.values(perLoad)) assert.equal(new Set(list.map(r => r.basis)).size, list.length, 'never the same basis twice in one page');
+  assert.ok(Object.values(perLoad).every(list => list.length === 1), 'one request per page load (check 12 reloads once)');
+  assert.ok(hookBases.every(({ basis }) => /^nb_[0-9a-f]{8}$/.test(basis)), 'an owned basis');
 });
 
 await browser.close();
