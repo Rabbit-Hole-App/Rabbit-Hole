@@ -50,7 +50,8 @@ const page = await context.newPage();
 page.on('pageerror', error => errors.push(error.message));
 const shot = async name => { if (!SHOTS) return; await page.waitForTimeout(400); await page.screenshot({ path: `${SHOTS}/${name}.png` }); };
 const switcher = page.locator('[data-canvas-switcher]');
-const options = async () => { await switcher.click(); await page.locator('[data-canvas-option]').first().waitFor(); return page.locator('[data-canvas-option]').evaluateAll(els => els.map(el => [el.innerText.trim(), el.getAttribute('aria-checked')])); };
+// Opening the switcher reloads the catalog (RepositoryPage CanvasSwitcher), so the list is read once that reload has landed.
+const options = async () => { const fresh = page.waitForResponse(r => new URL(r.url()).pathname === '/api/apps', { timeout: 15000 }).catch(() => null); await switcher.click(); await fresh; await page.waitForTimeout(300); await page.locator('[data-canvas-option]').first().waitFor(); return page.locator('[data-canvas-option]').evaluateAll(els => els.map(el => [el.innerText.trim(), el.getAttribute('aria-checked')])); };
 const title = () => page.getByLabel('Canvas title').inputValue();
 
 await page.goto(`${BASE}/apps/${REPO}?tab=learn`);
