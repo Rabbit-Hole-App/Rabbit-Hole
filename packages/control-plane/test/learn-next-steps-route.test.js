@@ -239,7 +239,9 @@ test('0012 is additive, re-runnable and exactly what repository-schema.sql appli
 // Owner 2026-10-08: a blank canvas asks the planner too - its informative title as the goal, or no goal for three distinct
 // starter hooks - with ids empty, through the same route, cache and limits.
 test('blank canvas: the prompt asks for title-grounded or distinct starter hooks; a blank input with or without a goal is planned with ids empty', async t => {
-  assert.ok(NEXT_STEPS_SYSTEM.includes('with no goal, three starter hooks into three different subjects a curious person might pick, never three takes on one topic'));
+  // Owner note 2026-10-08: the untitled starters stay inside AI, ML and LLMs, three different directions.
+  assert.ok(NEXT_STEPS_SYSTEM.includes('with no goal, three starter hooks inside AI, machine learning and large language models, each a different direction'));
+  assert.ok(NEXT_STEPS_SYSTEM.includes('never three takes on one topic and never outside AI'));
   const blank = goal => ({ ...INPUT(), mode: 'canvas', basis: `blank:${goal}`, goal, path: undefined, canvas: { blocks: [] }, scope: { concepts: {}, claims: {} }, recent: { intent: null, transitions: [], modalities: [], practice: [] } });
   const w = world(t);
   for (const goal of ['', 'Tide pools']) {
@@ -359,4 +361,19 @@ test('owned route: the rule name reason_internal reaches no client, in an escala
   assert.equal(failed.status, 502);
   assert.match(text, /option 1: reason/);
   assert.equal(text.includes('reason_internal'), false);
+});
+
+// Owner note 2026-10-08: on an untitled blank canvas the planner request itself carries the AI/ML/LLM starter scope (the system
+// prompt the model reads), and its example stays inside AI; a titled blank canvas keeps its title as the goal.
+test('blank canvas, no goal: the planner request carries the AI, ML and LLM starter rule and an in-domain example', async () => {
+  const sent = [];
+  const callModel = async (env, body) => { sent.push(body); return reply(fixtureFor('suggest_next_steps', blank())); };
+  const blank = (goal = '') => ({ ...INPUT(), mode: 'canvas', basis: `blank:${goal}`, goal, path: undefined, canvas: { blocks: [] }, scope: { concepts: {}, claims: {} }, recent: { intent: null, transitions: [], modalities: [], practice: [] } });
+  await planNextSteps({}, blank(), { callModel });
+  const system = typeof sent[0].system === 'string' ? sent[0].system : sent[0].system.map(block => block.text).join('\n');
+  assert.match(system, /with no goal, three starter hooks inside AI, machine learning and large language models, each a different direction \(one on LLMs and how they generate text, one on how models learn from data, one on neural networks or another AI area\), never three takes on one topic and never outside AI/);
+  assert.match(system, /\[blank canvas\] no goal, no cards, empty scope, so three AI directions:/);
+  assert.match(sent[0].messages[0].content, /"goal":""/, 'the untitled canvas sends no goal');
+  await planNextSteps({}, blank('Tide pools'), { callModel });
+  assert.match(sent[1].messages[0].content, /"goal":"Tide pools"/, 'a titled blank canvas keeps its title as the goal');
 });
