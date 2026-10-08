@@ -159,9 +159,8 @@ packages/control-plane/.dev.vars
 packages/control-plane/.wrangler/
 packages/web/.wrangler/
 packages/control-plane/secrets.json
-# impeccable design hook: shared config is tracked, local state and cache are not
-.impeccable/config.local.json
-.impeccable/hook.cache.json
+# impeccable design hook: local only, never in the repository (owner, 2026-10-08)
+.impeccable/
 examples/*/.dockerignore
 __pycache__/
 *.pyc
