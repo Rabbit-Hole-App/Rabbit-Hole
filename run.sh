@@ -106,6 +106,7 @@ function test:unit {
     # Relative glob: node --test does not expand an absolute /c/... glob under Git Bash and would run 0 tests, exiting 0.
     (cd "$THIS_DIR" && node --test "tests/evals/learn-grade/*.test.mjs")
     (cd "$THIS_DIR" && node --test "packages/learn-render/motion/*.test.mjs" "packages/learn-render/motion/service/*.test.mjs")
+    (cd "$THIS_DIR" && node --test scripts/prod-release.test.mjs)
 }
 
 # full integration tests: real deploy to Fly through the published CLI (~30s)
