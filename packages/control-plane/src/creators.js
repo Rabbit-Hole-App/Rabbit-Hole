@@ -1,8 +1,9 @@
 // Public creator profiles (docs/features/creator-profile.md, owner 2026-10-06 #63): /@handle, Explore's creator row and
 // creator search. Public data, readable signed out. Identity is read by reference - user_handles.handle, user_profiles.name
-// and avatar - and never copied; the explainers are the creator's part of the published set Explore lists
-// (learn-boards.js PUBLISHED). Never an email, an id, or anything of a private, unlisted, archived, nested or trashed
-// canvas. Anyone becomes a creator by publishing (owner rule): there is no creator record, only these reads.
+// and avatar, user_profile_descriptions.description - and never copied; the explainers are the creator's part of the
+// published set Explore lists (learn-boards.js PUBLISHED). Never an email, an id, or anything of a private, unlisted,
+// archived, nested or trashed canvas. Anyone becomes a creator by publishing (owner rule): there is no creator record,
+// only these reads.
 import { FORK_COUNT, NAME_OF } from './canvases.js';
 import { EXPLORE_LIMIT, PUBLISHED, PUBLISHED_CARDS, exploreCard, likeOf, searchTerm } from './learn-boards.js';
 
@@ -16,8 +17,13 @@ const DISCOVER = 8;
 // `v` changes when the profile does, so a new picture shows at once.
 const avatarUrl = r => (r.has_avatar ? `/api/learn/creators/${r.handle}/avatar?v=${encodeURIComponent(r.since || '')}` : null);
 const IDENTITY = `h.handle, ${NAME_OF('h.email')} AS name, (SELECT up.avatar IS NOT NULL FROM user_profiles up WHERE up.email = h.email) AS has_avatar,
-  (SELECT up.updated_at FROM user_profiles up WHERE up.email = h.email) AS since`;
-const creator = r => ({ handle: r.handle, name: r.name ?? null, avatar: avatarUrl(r), explainer_count: r.explainers, url: `/@${r.handle}` });
+  (SELECT up.updated_at FROM user_profiles up WHERE up.email = h.email) AS since,
+  (SELECT d.description FROM user_profile_descriptions d WHERE d.email = h.email) AS description`;
+// A creator card's counts (owner 2026-10-08: "the number of Projects and Canvas") are of what any viewer can see: their
+// published canvases (the explainers) and the projects those cards name - PUBLISHED's `r`, a repository confirmed public
+// and not in Trash. Never a private, unlisted or trashed canvas or project.
+const COUNTS = 'count(*) AS explainers, count(DISTINCT r.id) AS projects';
+const creator = r => ({ handle: r.handle, name: r.name ?? null, avatar: avatarUrl(r), description: r.description ?? null, explainer_count: r.explainers, project_count: r.projects, url: `/@${r.handle}` });
 
 // /@handle: who, their public explainer count and canonical forks (Σ FORK_COUNT over those explainers only), and the
 // explainers on Explore's card. A handle with no live publication still resolves, with none (brief: the profile is
@@ -28,7 +34,7 @@ async function profile(env, handle, sort) {
   if (!who) return json({ error: `No creator @${handle.toLowerCase()}` }, 404);
   const totals = await env.LEARN_DB.prepare(`SELECT count(*) AS n, COALESCE(sum(fork_count), 0) AS forks FROM (SELECT ${FORK_COUNT} AS fork_count ${PUBLISHED} AND h.handle = ?)`).bind(who.handle).first();
   const { results } = await env.LEARN_DB.prepare(`${PUBLISHED_CARDS} ${PUBLISHED} AND h.handle = ? ORDER BY ${SORTS[sort]}, p.rowid DESC LIMIT ${EXPLORE_LIMIT}`).bind(who.handle).all();
-  return json({ handle: who.handle, name: who.name ?? null, avatar: avatarUrl(who), explainer_count: totals.n, fork_count: totals.forks, explainers: results.map(exploreCard) });
+  return json({ handle: who.handle, name: who.name ?? null, avatar: avatarUrl(who), description: who.description ?? null, explainer_count: totals.n, fork_count: totals.forks, explainers: results.map(exploreCard) });
 }
 
 // Explore's "Creators to explore" (no q) and creator search (q): only people with at least one live publication, so a
@@ -38,7 +44,7 @@ async function creators(env, q) {
   const term = searchTerm(q);
   const where = term ? `AND (h.handle LIKE ?1 ESCAPE '\\' OR ${NAME_OF('h.email')} LIKE ?1 ESCAPE '\\')` : '';
   const exact = term ? `h.handle = ?2 DESC, h.handle LIKE ?3 ESCAPE '\\' DESC,` : '';
-  const { results } = await env.LEARN_DB.prepare(`SELECT ${IDENTITY}, count(*) AS explainers, max(p.published_at) AS latest ${PUBLISHED} ${where}
+  const { results } = await env.LEARN_DB.prepare(`SELECT ${IDENTITY}, ${COUNTS}, max(p.published_at) AS latest ${PUBLISHED} ${where}
     GROUP BY h.handle ORDER BY ${exact} latest DESC, max(p.rowid) DESC LIMIT ${DISCOVER}`).bind(...(term ? [likeOf(term), term.toLowerCase(), `${likeOf(term).slice(1)}`] : [])).all();
   return json({ creators: results.map(creator) });
 }
@@ -47,7 +53,7 @@ async function creators(env, q) {
 // on the same chip as discovery and search.
 export async function creatorsByHandle(env, handles) {
   if (!handles.length) return [];
-  const { results } = await env.LEARN_DB.prepare(`SELECT ${IDENTITY}, count(*) AS explainers ${PUBLISHED} AND h.handle IN (${handles.map(() => '?').join(', ')}) GROUP BY h.handle`).bind(...handles).all();
+  const { results } = await env.LEARN_DB.prepare(`SELECT ${IDENTITY}, ${COUNTS} ${PUBLISHED} AND h.handle IN (${handles.map(() => '?').join(', ')}) GROUP BY h.handle`).bind(...handles).all();
   const found = new Map(results.map(r => [r.handle.toLowerCase(), creator(r)]));
   return handles.map(handle => found.get(handle.toLowerCase())).filter(Boolean);
 }

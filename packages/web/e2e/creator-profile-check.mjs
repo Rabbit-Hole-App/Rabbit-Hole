@@ -54,7 +54,9 @@ const AVATAR = await scratch.evaluate(() => {
   return c.toDataURL('image/png');
 });
 await scratch.context().close();
-assert.equal((await api(who.full, '/api/profile', { method: 'PUT', body: JSON.stringify({ name: 'Mayank', avatar: AVATAR }) })).status, 200);
+// The profile description (owner, 2026-10-08: "in profile add a discription"), through the same route Settings uses.
+const DESC = 'Explains LLM inference one memory trip at a time: KV caches, attention kernels and the prefill/decode split.';
+assert.equal((await api(who.full, '/api/profile', { method: 'PUT', body: JSON.stringify({ name: 'Mayank', avatar: AVATAR, description: DESC }) })).status, 200);
 
 // ---- rows: the full creator's three public explainers (one forked twice) and three that must never show; the minimal
 // creator's one; the viewer's own private canvas ----
@@ -101,10 +103,18 @@ await check('1 Explore: Explainers by default with no creator row; the Creators 
   assert.equal(await viewer.locator('[data-explore-card], [data-sort-control]').count(), 0, 'no cards and no Sort on Creators');
   const full = viewer.locator(`[data-creator-chip="${H.full}"]`), min = viewer.locator(`[data-creator-chip="${H.min}"]`);
   assert.equal(await full.getAttribute('href'), `/@${H.full}`);
-  assert.match(await full.innerText(), new RegExp(`Mayank\\s+@${H.full} · 3 explainers`));
+  // Owner, 2026-10-08: a square card - name, @handle, the description, and "N projects · M canvases" of public things only
+  // (the private, unlisted and archived canvases never count; neither creator has a public project).
+  assert.match(await full.innerText(), new RegExp(`^Mayank\\s+@${H.full}\\s`));
+  assert.equal((await full.locator('[data-creator-description]').innerText()).trim(), DESC);
+  assert.equal((await full.locator('[data-creator-counts]').innerText()).trim(), '0 projects · 3 canvases');
   assert.equal(await full.locator('img').count(), 1, 'the uploaded picture');
-  assert.match(await min.innerText(), new RegExp(`@${H.min}\\s+1 explainer$`));
+  assert.match(await min.innerText(), new RegExp(`^@${H.min}\\s+0 projects · 1 canvas$`), 'no description, no empty line');
   assert.equal(await min.locator('img').count(), 0, 'initials');
+  for (const h of [H.full, H.min]) {
+    const box = await viewer.locator(`[data-creator-card="${h}"]`).boundingBox();
+    assert.ok(Math.abs(box.width - box.height) <= 1, `square: ${box.width}x${box.height}`);
+  }
   assert.equal(await viewer.locator(`[data-creator-chip="${H.viewer}"]`).count(), 0, 'no publication, no creator chip');
   await viewer.reload();
   await viewer.locator('[data-explore-creators] [data-creator-chip]').first().waitFor({ timeout: 30000 });
@@ -113,19 +123,28 @@ await check('1 Explore: Explainers by default with no creator row; the Creators 
 });
 await shot(viewer, 'C-explore-creator-row');
 // Owner, 2026-10-08: "Cretors card and in Creator profile should have a copy profile url button".
-const copied = async (page, button, handle) => {
+// The profile's full button says it on itself; the creator card's compact one stays icon-sized (it never spreads over the
+// name): its link icon becomes a check, and the words go to its sr-only live region and tooltip.
+const copied = async (page, button, handle, compact = false) => {
   const url = page.url();
+  const width = (await button.boundingBox()).width;
   await button.click();
   await page.waitForTimeout(300);
-  assert.equal((await button.innerText()).trim(), 'Profile link copied', 'the button says it, in place');
+  if (compact) {
+    assert.deepEqual([await button.locator('svg.lucide-check').count(), await button.locator('svg.lucide-link-2').count()], [1, 0], 'the link icon swaps to a check');
+    assert.equal((await button.locator('[data-copy-status][aria-live="polite"]').textContent()).trim(), 'Profile link copied', 'announced, not shown');
+    assert.equal(await button.getAttribute('title'), 'Profile link copied', 'and in the tooltip');
+    assert.equal((await button.boundingBox()).width, width, 'no wider than the icon');
+  } else assert.equal((await button.innerText()).trim(), 'Profile link copied', 'the button says it, in place');
   assert.equal(await page.evaluate(() => navigator.clipboard.readText()), `${BASE}/@${handle}`, 'origin + /@handle, nothing else');
   assert.equal(page.url(), url, 'the click opens nothing');
   await page.waitForTimeout(1800);
   assert.equal(await button.getAttribute('aria-label'), 'Copy profile link', 'then it reverts');
+  if (compact) assert.equal(await button.locator('svg.lucide-link-2').count(), 1, 'the link icon is back');
 };
-await check('1b a creator card copies its profile link: origin + /@handle on the clipboard, Profile link copied on the button, no navigation', async () => {
-  await copied(viewer, viewer.locator(`[data-creator-card="${H.full}"] [data-copy-profile]`), H.full);
-  await copied(viewer, viewer.locator(`[data-creator-card="${H.min}"] [data-copy-profile]`), H.min);
+await check('1b a creator card copies its profile link: origin + /@handle on the clipboard, a check icon and the live text, no navigation', async () => {
+  await copied(viewer, viewer.locator(`[data-creator-card="${H.full}"] [data-copy-profile]`), H.full, true);
+  await copied(viewer, viewer.locator(`[data-creator-card="${H.min}"] [data-copy-profile]`), H.min, true);
   await noEmail(viewer, EMAIL.viewer);
 });
 await check('2 the Explore card\'s @handle is a neutral link to /@handle; the title still opens /e', async () => {
@@ -149,7 +168,8 @@ await check('3 Explore → @handle → the creator profile: name, @handle, expla
   assert.deepEqual(await titles(viewer, '[data-profile-card]'), [T.prefill, T.flash, T.kv], 'Newest first');
   assert.ok(!(await viewer.content()).includes('SECRET'), 'never private, unlisted or archived');
   assert.equal(await viewer.locator('[data-creator-profile] img').first().getAttribute('src').then(s => s.startsWith(`/api/learn/creators/${H.full}/avatar`)), true);
-  assert.equal(await viewer.locator('[data-bio], [data-category]').count(), 0, 'no bio or category storage yet: no empty rows');
+  assert.equal((await viewer.locator('[data-profile-description]').innerText()).trim(), DESC, 'the description under the name');
+  assert.equal(await viewer.locator('[data-category]').count(), 0, 'no category storage: no empty row');
   // Copy profile link beside the name and handle.
   const button = viewer.locator('[data-creator-profile] header [data-copy-profile]');
   assert.equal((await button.innerText()).trim(), 'Copy profile link');
@@ -188,8 +208,9 @@ await check('6 a profile explainer opens its canonical /e route, whose header li
   await by.locator('[data-creator-link]').click();
   await viewer.waitForURL(`${BASE}/@${H.full}`);
 });
-await check('7 the minimal creator: initials, @handle as the name, their card; no empty bio or category rows', async () => {
+await check('7 the minimal creator: initials, @handle as the name, their card; no empty description or category rows', async () => {
   await profileOf(viewer, H.min);
+  assert.equal(await viewer.locator('[data-profile-description], [data-category]').count(), 0);
   assert.equal((await viewer.locator('[data-profile-name]').innerText()).trim(), `@${H.min}`);
   assert.equal(await viewer.locator('[data-profile-handle]').count(), 0, '@handle once, as the name');
   assert.equal(await viewer.locator('[data-creator-profile] header img').count(), 0, 'initials');
@@ -252,10 +273,29 @@ await check('10 your own profile: the same page, plus "Your profile" with the bl
   assert.deepEqual(await titles(owner, '[data-profile-card]'), [T.prefill, T.flash, T.kv], 'the same content as everyone sees');
 });
 await shot(owner, 'F-own-profile');
-await check('11 Edit profile opens Settings on Profile', async () => {
+// Edit -> shown: a description saved in Settings shows under the name at once and on the creator card, as text.
+const EDITED = `Tiles attention <b>so it never</b> leaves fast memory & <a href="https://example.com">links</a> stay text ${run}`;
+await check('11 Edit profile opens Settings on Profile; a description saved there shows at once under the name, and on the creator card, as text', async () => {
   await owner.locator('[data-edit-profile]').click();
   await owner.getByRole('textbox', { name: 'Handle' }).waitFor({ timeout: 10000 });
+  const field = owner.getByRole('textbox', { name: 'Description' });
+  assert.equal(await field.inputValue(), DESC, 'beside name and handle, the saved description');
+  assert.equal(await field.getAttribute('maxlength'), '160');
+  await field.fill(EDITED);
+  await owner.locator('form').filter({ has: field }).getByRole('button', { name: 'Save' }).click();
+  await owner.waitForTimeout(800);
   await owner.keyboard.press('Escape');
+  const shown = owner.locator('[data-creator-profile] [data-profile-description]');
+  assert.equal((await shown.innerText()).trim(), EDITED, 'at once, without a reload');
+  assert.equal(await shown.locator('*').count(), 0, 'markup is text, never HTML or a link');
+  await owner.goto(`${BASE}/explore?tab=creators`);
+  const onCard = owner.locator(`[data-creator-card="${H.full}"] [data-creator-description]`);
+  await onCard.waitFor({ timeout: 30000 });
+  assert.equal((await onCard.innerText()).trim(), EDITED);
+  assert.equal(await onCard.locator('*').count(), 0);
+  await shot(owner, 'G-creator-card-edited', owner.locator(`[data-creator-card="${H.full}"]`));
+  // Back to the seeded description for the checks after this one.
+  assert.equal((await api(who.full, '/api/profile', { method: 'PUT', body: JSON.stringify({ description: DESC }) })).body.description, DESC);
 });
 const anon = await contextFor(null);
 await check('12 signed out, /@handle opens on its own, with the cards and no email', async () => {
@@ -293,5 +333,5 @@ await check('13 a changed handle moves the profile and every attribution at once
 });
 await check('no page errors', async () => assert.deepEqual(errors, []));
 await browser.close();
-console.log(`${results.length}/15 checks passed`);
-process.exit(results.length === 15 ? 0 : 1);
+console.log(`${results.length}/16 checks passed`);
+process.exit(results.length === 16 ? 0 : 1);

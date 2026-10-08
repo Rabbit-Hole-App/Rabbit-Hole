@@ -1582,6 +1582,7 @@ function ProfilePane({ session, shown, profile, Heading }) {
         </form>
       </SettingsRow>
       <HandleRow profile={profile} />
+      <DescriptionRow profile={profile} />
       <SettingsRow title="Email" desc="Where sign-in links go"><span className="text-sm text-ink-2">{shown.email || 'Not shared'}</span></SettingsRow>
       <SettingsRow title="Signed in with"><span className="text-sm text-ink-2">{{ google: 'Google', github: 'GitHub', email: 'Email link' }[session?.provider] || 'Unknown'}</span></SettingsRow>
     </>
@@ -1610,6 +1611,35 @@ function HandleRow({ profile }) {
           <Button type="submit" size="sm" variant="secondary" disabled={busy || draft === null || value === (profile?.handle ?? '')}>Save</Button>
         </div>
         {error && <p data-handle-error role="alert" className="text-xs text-red-700">{error}</p>}
+      </form>
+    </SettingsRow>
+  );
+}
+
+// Settings > Profile > Description (docs/features/creator-profile.md, owner 2026-10-08: "in profile add a discription"):
+// a short line shown under your name on /@handle and on your creator card. Plain text: the server keeps it on one line,
+// at most profile.js DESCRIPTION_MAX characters, and an empty one clears it; it is shown as text, never HTML or a link.
+const DESCRIPTION_MAX = 160;
+function DescriptionRow({ profile }) {
+  const [draft, setDraft] = useState(null); // null until edited: shows the saved description
+  const [busy, setBusy] = useState(false);
+  const value = draft ?? profile?.description ?? '';
+  const save = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    try { const saved = await saveProfile({ description: value }); toast(saved.description ? 'Description saved' : 'Description removed'); setDraft(null); } catch (e) { toast(`✗ ${e.message}`); }
+    setBusy(false);
+  };
+  return (
+    <SettingsRow title="Description" desc="Shown on your profile and your creator card">
+      <form className="flex flex-col items-end gap-1" onSubmit={save}>
+        <textarea data-profile-description-input value={value} maxLength={DESCRIPTION_MAX} rows={3} placeholder="What you explore and explain" aria-label="Description"
+          onChange={(e) => setDraft(e.target.value)}
+          className="min-h-[72px] w-72 resize-none rounded-sm [field-sizing:content] border border-transparent bg-code px-2 py-1.5 text-sm outline-none transition-[border-color,box-shadow] duration-100 placeholder:text-ink-3 focus:border-line-strong focus:bg-white focus:shadow-[0_0_0_2px_rgba(35,131,226,0.2)]" />
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-ink-3">{value.length}/{DESCRIPTION_MAX}</span>
+          <Button type="submit" size="sm" variant="secondary" disabled={busy || draft === null || value === (profile?.description ?? '')}>Save</Button>
+        </div>
       </form>
     </SettingsRow>
   );

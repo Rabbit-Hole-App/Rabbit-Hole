@@ -4,7 +4,7 @@ import { navigate } from './api.js';
 import { reviewTools } from './flags.js';
 import { browserOnly, openHref, readContinue, readRecent, recentCard, recentItems } from './home/continue.js';
 import LearningCard, { CARD_GRID, IN_THIS_BROWSER as HERE, ON_ANOTHER_DEVICE as AWAY, SortMenu } from './home/LearningCard.jsx';
-import PublicCards, { CreatorChip, ProjectFilter, Recommended, useExploreFind } from './home/PublicCards.jsx';
+import PublicCards, { CreatorCards, ProjectFilter, Recommended, useExploreFind } from './home/PublicCards.jsx';
 import { useCardMenu } from './home/CardMenu.jsx';
 import { EXPLORE_SORTS, EXPLORE_TABS, exploreTab } from './home/card-sort.js';
 import { cardModel } from './home/provenance.js';
@@ -190,7 +190,7 @@ function Explore() {
           <section data-explore-creators aria-label="Creators">
             <Recommended found={found} me={me} kind="creators" />
             {creators === null && <SkeletonRows rows={2} />}
-            {creators?.length > 0 && <div className="flex flex-wrap gap-2">{creators.map(c => <CreatorChip key={c.handle} c={c} />)}</div>}
+            {creators?.length > 0 && <CreatorCards creators={creators} />}
             {creators?.length === 0 && term && <p data-search-empty className="text-sm text-ink-3">No creators match &ldquo;{term}&rdquo;.</p>}
           </section>
         ) : <>
