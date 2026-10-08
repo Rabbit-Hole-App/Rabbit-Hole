@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { COVER_LIMIT, THUMBNAIL, bumpThumbnail, cardThumbnail, coverProblem, ownThumbnail, publishedThumbnail, thumbnailRegion, thumbnailScheduler } from './card-thumbnail.js';
+import { CHROME, COVER_LIMIT, THUMBNAIL, UNSELECTED, bumpThumbnail, cardThumbnail, coverProblem, ownThumbnail, publishedThumbnail, thumbnailRegion, thumbnailScheduler } from './card-thumbnail.js';
 
 const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
@@ -106,4 +106,26 @@ test('the card: the picture on the right from md, on top on a phone; one per row
   assert.match(menu, /const coverRows = menu\?\.a\.canEdit && /);
   assert.match(menu, /accept="image\/png,image\/jpeg,image\/webp"/);
   assert.match(menu, /cover\.source === 'custom' && <MenuItem icon=\{RotateCcw\} data-menu-thumbnail-revert/);
+});
+
+// Parallel, 2026-10-08: "the picture must never show canvas chrome", and always in the light theme.
+test('the picture leaves out every piece of chrome by the canvas\'s own attributes, undoes selection, and draws light', () => {
+  const canvas = read('./AdaptiveCanvas.jsx') + read('./comments/CommentPins.jsx');
+  const wanted = ['[data-thumbnail-hide]', '[data-card-open]', '[data-port]', '[data-node-tool]', '[data-group-ask]', '[data-sketch-chrome]', '[data-label-handle]', '[data-comment-pins]', '[role="toolbar"]', 'iframe', 'video'];
+  for (const selector of wanted) assert.ok(CHROME.split(',').includes(selector), selector);
+  for (const attr of CHROME.match(/data-[a-z-]+/g)) assert.ok(canvas.includes(attr), `${attr} is a real attribute of the canvas`);
+  // The selected card's pill rows (Ask in chat, Explain, Continue), the text ladder and the resize handles had none.
+  assert.equal(canvas.match(/<div data-thumbnail-hide className="absolute -top-10 right-0 z-30/g).length, 3);
+  assert.match(canvas, /aria-label="Text level" data-keep-focus data-thumbnail-hide/);
+  assert.equal(canvas.match(/<button type="button" data-thumbnail-hide aria-label=/g).length, 2);
+  assert.equal(canvas.match(/<(rect|circle) (key=\{index\} )?data-thumbnail-hide/g).length, 2, 'a shape\'s outline and handles');
+  // A selected card, note, text or sketch loses its ring; a group its accent outline.
+  assert.match(UNSELECTED, /\[data-block-id\], \[data-item-id\], \[data-item-id\] \*, \[data-sketch\] \{ --tw-ring-shadow: 0 0 #0000 !important; --tw-ring-offset-shadow: 0 0 #0000 !important; \}/);
+  assert.match(UNSELECTED, /\[data-group-box\] \{ border-color: var\(--color-line-strong\) !important; background-color: transparent !important; \}/);
+  // Light whatever the owner's theme: a frame with the page's stylesheets and the page's classes minus .dark (api.js).
+  const draw = read('./card-thumbnail.js');
+  assert.match(read('./api.js'), /document\.documentElement\.classList\.toggle\('dark', dark\)/);
+  assert.ok(draw.includes("doc.documentElement.className = document.documentElement.className.replace(/\\bdark\\b/g, '')"), 'the frame drops .dark');
+  assert.match(draw, /for \(const el of copy\.querySelectorAll\(CHROME\)\) el\.remove\(\);\n {2}const frame = await lightFrame\(\);/, 'stripped before the copy is attached, so a copied iframe never loads');
+  assert.doesNotMatch(read('./AdaptiveCanvas.jsx'), /drawThumbnail\([^)]*backgroundColor/, 'never the page\'s own (dark) background');
 });

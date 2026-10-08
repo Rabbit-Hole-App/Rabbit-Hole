@@ -309,7 +309,7 @@ function ChatCard({ exchange, zoom, selected, connected, boardId, onSelect, onMo
       {/* Selecting the node offers Continue convo above it, which opens the
           in-block composer at the bottom. */}
       {selected && exchange.status === 'done' && (
-        <div className="absolute -top-10 right-0 z-30 flex items-center gap-1.5">
+        <div data-thumbnail-hide className="absolute -top-10 right-0 z-30 flex items-center gap-1.5">
           {boardId && exchange.answer && (
             <button type="button" data-explain-canvas disabled={!!drawing} title="Draw this answer on the board it came from"
               onPointerDown={e => e.stopPropagation()} onClick={explainOnBoard}
@@ -397,7 +397,7 @@ function SlideCard({ block, zoom, selected, connected, onSelect, onMove, onLayou
       connected={connected} width={SLIDE_W} autoMax={null}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
       {selected && (
-        <div className="absolute -top-10 right-0 z-30">
+        <div data-thumbnail-hide className="absolute -top-10 right-0 z-30">
           <button type="button" title="Ask the tutor about this slide" onPointerDown={e => e.stopPropagation()} onClick={() => onAsk(block)}
             className="flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium whitespace-nowrap text-ink shadow-md hover:bg-hover">
             <MessageCircle size={13} />Ask in chat
@@ -706,7 +706,7 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
       extraHeight={sourcesHeight + practiceHeight + controlsHeight} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
       {selected && (
-        <div className="absolute -top-10 right-0 z-30 flex items-center gap-1.5">
+        <div data-thumbnail-hide className="absolute -top-10 right-0 z-30 flex items-center gap-1.5">
           {block.type === 'whiteboard' && (
             <button type="button" title={block.marked ? 'Clear the marked region (or press Esc)' : 'Drag a rectangle over the part you want to ask about'}
               onPointerDown={e => e.stopPropagation()}
@@ -744,7 +744,7 @@ function LessonBlockCard({ block, zoom, selected, connected, onSelect, onMove, o
 // pointerdown is swallowed so choosing a level never blurs or deselects.
 function LevelPill({ level, onLevel, className = '', style = null }) {
   return (
-    <div role="group" aria-label="Text level" data-keep-focus style={{ fontSize: 12, fontWeight: 400, ...style }}
+    <div role="group" aria-label="Text level" data-keep-focus data-thumbnail-hide style={{ fontSize: 12, fontWeight: 400, ...style }}
       className={`flex w-max items-center gap-0.5 rounded-lg border border-line bg-white p-0.5 shadow-md ${className}`}
       onPointerDown={event => { event.preventDefault(); event.stopPropagation(); }}>
       {TEXT_LEVELS.map(entry => (
@@ -825,7 +825,7 @@ function CanvasItem({ item, zoom, tool, selected, onSelect, onChange, onMove, on
           type does not - wrapping is what changes, never the font size. The
           glyph is the card nodes' diagonal-lines corner, not a square. */}
       {(sticky || item.kind === 'text') && selected && tool === 'select' && (
-        <button type="button" aria-label={sticky ? 'Resize note' : 'Resize text box'} title="Resize"
+        <button type="button" data-thumbnail-hide aria-label={sticky ? 'Resize note' : 'Resize text box'} title="Resize"
           style={sticky ? { color: stickyTone(item.color).placeholder } : undefined}
           className={`absolute -right-0.5 -bottom-0.5 z-10 cursor-nwse-resize p-1 ${sticky ? '' : 'text-ink-3 hover:text-ink-2'}`}
           onPointerDown={event => {
@@ -866,7 +866,7 @@ function EquationItem({ item, zoom, tool, selected, onSelect, onMove, onGesture,
         : still}
       {/* The corner scales the type, as a text box's corner reflows its text. */}
       {selected && !editing && tool === 'select' && (
-        <button type="button" aria-label="Resize equation" title="Resize" className="absolute -right-0.5 -bottom-0.5 z-10 cursor-nwse-resize p-1 text-ink-3 hover:text-ink-2"
+        <button type="button" data-thumbnail-hide aria-label="Resize equation" title="Resize" className="absolute -right-0.5 -bottom-0.5 z-10 cursor-nwse-resize p-1 text-ink-3 hover:text-ink-2"
           onPointerDown={event => {
             if (event.button !== 0) return;
             onGesture();
@@ -1799,8 +1799,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // the inserts saves them, from any canvasApi of this canvas. The debounced save above is unchanged.
       persist: () => (alive.current ? persistBoard({ state: boardRef.current, storageKey, storage: () => localStorage, onSave: onSaveRef.current }) : Promise.resolve({ ok: false })),
       toggleLock: () => setLock(previous => !previous),
-      // The card thumbnail (card-thumbnails.md): this canvas's content drawn at 800 x 400, or null when it is empty.
-      thumbnail: () => (alive.current && worldRef.current ? drawThumbnail(worldRef.current, thumbnailRegion(contentBoxes()), getComputedStyle(document.body).backgroundColor) : Promise.resolve(null)),
+      // The card thumbnail (card-thumbnails.md): this canvas's content drawn at 800 x 400 in the light theme without its
+      // chrome (card-thumbnail.js CHROME, data-thumbnail-hide here), or null when it is empty.
+      thumbnail: () => (alive.current && worldRef.current ? drawThumbnail(worldRef.current, thumbnailRegion(contentBoxes())) : Promise.resolve(null)),
     };
     if (apiRef) apiRef.current = commandsRef.current;
   });

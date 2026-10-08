@@ -46,12 +46,23 @@ actions                                                 └───────
   - Wide content is centred.
   - A tall column keeps its top, widened by at most half again, so it still reads.
   - The region is never smaller than 400 canvas px wide, so the zoom is at most 2x.
-- **How it is drawn:** with `html-to-image`, which is already the canvas's area-ask and sketch capture. The camera layer is restyled onto the region and drawn at 800 × 400, then saved as WebP (PNG where WebP encoding is missing). The check's three-card canvas came to about 11 KB.
-  - Iframes and videos are left out, because their pixels are cross-origin.
-  - Toolbars, hover-only connection ports and card tools, and a selected shape's outline and handles are left out.
+- **How it is drawn:** with `html-to-image`, which is already the canvas's area-ask and sketch capture. A copy of the camera layer is restyled onto the region and drawn at 800 × 400, then saved as WebP (PNG where WebP encoding is missing). The check's three-card canvas came to about 11 KB.
   - The app font is skipped: the system font reads the same at this size.
+  - A `<canvas>` inside a card has its pixels copied over by hand, because a copy of one starts blank.
+- **No chrome** (Parallel, 2026-10-08: "the picture must never show canvas chrome"). `CHROME` in `card-thumbnail.js` lists what is removed from the copy, by the canvas's own data attributes:
+  - the Open pill and the Ask in chat / Explain / Continue pill rows;
+  - ports, card and item tools, and a shape's outline, handles and label handle;
+  - the text-level ladder, the group Ask and the sketch hint;
+  - toolbars and comment pins;
+  - iframes, videos and audio, whose pixels are cross-origin.
+
+  Elements that had no data attribute got `data-thumbnail-hide`: the three pill rows, the ladder and two resize handles.
+  - The chrome is removed from the copy rather than through html-to-image's `filter`. The filter never reaches inside an `<svg>`, where a shape's handles are, and a copied iframe or video would start loading once attached.
+  - Selection drawn on the content itself is undone by `UNSELECTED`: the ring of a selected card, note, text or sketch, and a group's accent outline.
+  - A group chip being edited draws as its label: the copy has no focus or caret.
+  - Hover-only controls never show, because nothing in the copy is hovered.
+- **Always the light theme:** the copy is drawn inside a hidden same-origin frame (1440 × 900, off screen) that holds the page's own stylesheets and the page's `<html>` classes minus `.dark`. `api.js` toggles only that class. A picture made in dark mode is the same light picture, and no page query ever meets the copy.
 - **Where:** `PUT /api/learn/boards/<app>/main/thumbnail`, the bytes as the body. No model call is made anywhere.
-- **Theme:** the page background is used, so a canvas saved in dark mode gets a dark picture.
 
 `ponytail:` a change made in the last 4 s before leaving the canvas waits for its next save there, because drawing needs the canvas on screen. Flush on leave if stale cards are reported.
 
@@ -65,6 +76,7 @@ The ⋮ on your own canvas and project cards (`home/CardMenu.jsx`) has two entri
   - Any other file is refused in one line, for example "Choose a PNG, JPEG or WebP image."
 - **Use canvas snapshot:** shown only while a picture of yours is up (the menu reads `X-Thumbnail-Source` with one `HEAD`). It sends `DELETE …/thumbnail/custom`, and the card shows the latest snapshot.
 - The card itself shows the change, through a new address in the page (`bumpThumbnail`). No toast appears unless something fails.
+- **The ⋮ stays open** after the click that opened it. A portaled menu (`ui.jsx` Menu) used to close on any scroll. A scroll caused by the opening click itself (a taller card near the fold) closed it in the same click. Now a menu given its `anchor` (the card's ⋮) closes only when a scroll moves that anchor (`menu-scroll.js`). A menu with no anchor closes on any scroll, as before.
 
 ## Serving and privacy
 
@@ -111,11 +123,14 @@ Each is one small WebP per canvas, plus a custom one only when the owner chose o
   - the region rules;
   - the scheduler: pause, gap, unchanged content, empty canvas, retry after a failed upload;
   - the upload checks and the addresses;
-  - the card layout pins: one per row, fixed height, 2:1 on the right from `md`, on top on a phone, the placeholder, the owner-only menu.
-- **Browser:** `packages/web/e2e/card-thumbnails-check.mjs` runs on the local stack only, started through the provider tripwire. It has 13 checks:
+  - the card layout pins: one per row, fixed height, 2:1 on the right from `md`, on top on a phone, the placeholder, the owner-only menu;
+  - no chrome and the light theme: every `CHROME` attribute is a real attribute of the canvas, the marked rows, `UNSELECTED`, and the frame dropping `.dark`.
+- **Menu:** `packages/web/src/menu-scroll.test.mjs` checks that a scroll that leaves the anchor in place keeps the menu open, one that moves it closes it, a removed anchor closes it, and the card menus pass their ⋮.
+- **Browser:** `packages/web/e2e/card-thumbnails-check.mjs` runs on the local stack only, started through the provider tripwire. It has 14 checks:
   - a save draws an 800 × 400 WebP with the content in it;
   - a board on the server gets one on open, and an empty canvas gets none;
   - there is no second snapshot without a change;
+  - a picture drawn from a dark-themed page with a card selected is light and has no ring, pill or port;
   - the picture is on the right at 2:1 and 38%;
   - one card per row, every card one size, the placeholder, no failed loads;
   - Change thumbnail refuses a GIF and replaces with a PNG cropped to 2:1;

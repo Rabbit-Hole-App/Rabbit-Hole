@@ -154,7 +154,7 @@ test('Home Recent cards open the Library card menu; only what the Library shows 
   assert.match(home, /note=\{note\} onMore=\{onMore\}/);
   assert.match(library, /const cardMenu = useCardMenu\(\{ org: data\?\.org, email: data\?\.email, apps: data\?\.apps \|\| \[\], onArchive, onChanged: onForked \}\);/);
   assert.match(menu, /export const hasCardMenu = \(a\) => a\.kind === 'repository' \|\| \(a\.kind === 'canvas' && !!a\.canEdit\);/);
-  assert.match(menu, /setMenu\(\{ a, \.\.\.menuAt\(e\.currentTarget, 224\) \}\)/, 'opened in place, kept inside the window');
+  assert.match(menu, /setMenu\(\{ a, anchor: e\.currentTarget, \.\.\.menuAt\(e\.currentTarget, 224\) \}\)/, 'opened in place, kept inside the window');
   // Without the Library's App.jsx confirm, Archive asks in the menu itself, in the same words.
   assert.match(menu, /const archive = \(a\) => \(onArchive \? onArchive\(a\) : setDialog\(\{ kind: 'archive', a \}\)\);/);
   assert.match(menu, /body="It leaves the Library\. Its content stays in this browser, and Restore brings it back\." confirmLabel="Archive"/);

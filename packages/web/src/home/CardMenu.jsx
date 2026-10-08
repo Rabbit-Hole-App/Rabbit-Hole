@@ -27,7 +27,7 @@ export function useCardMenu({ org, email, apps = [], onArchive = null, onChanged
   const [dialog, setDialog] = useState(null); // { kind: rename | describe | private | trash | analytics | share | archive, a, value?, to?, state? }
   const [copied, setCopied] = useState(null); // the Copy link row's own confirmation
   const ctx = { org, email, storage: localStorage, catalog: apps, onForked: onChanged };
-  const onMore = (a) => (hasCardMenu(a) ? (e) => { e.stopPropagation(); setAccessOpen(false); setCopied(null); setMenu({ a, ...menuAt(e.currentTarget, 224) }); readCover(a); } : null);
+  const onMore = (a) => (hasCardMenu(a) ? (e) => { e.stopPropagation(); setAccessOpen(false); setCopied(null); setMenu({ a, anchor: e.currentTarget, ...menuAt(e.currentTarget, 224) }); readCover(a); } : null);
   const pick = (fn) => { const a = menu.a; setMenu(null); guard(a, () => fn(a))(); };
   // Duplicate (docs/features/canvas-naming.md): a private copy of your own canvas, titled "Title (2)", "(3)"... by the
   // server; never a fork, and the only copy of your own canvas (no Fork on it, owner 2026-10-08). This browser's copy of
@@ -101,7 +101,7 @@ export function useCardMenu({ org, email, apps = [], onArchive = null, onChanged
   const copyRow = <MenuItem icon={copied ? Check : Link} data-menu-copy-link onClick={copyLink}>{copied || 'Copy link'}</MenuItem>;
   const element = <>
     <input ref={coverInput} type="file" accept="image/png,image/jpeg,image/webp" hidden data-thumbnail-input onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadCover(file); }} />
-    <Menu portal open={!!menu} onClose={() => setMenu(null)} style={{ top: menu?.top, bottom: menu?.bottom, left: menu?.left }} className="w-56">
+    <Menu portal anchor={menu?.anchor} open={!!menu} onClose={() => setMenu(null)} style={{ top: menu?.top, bottom: menu?.bottom, left: menu?.left }} className="w-56">
       {menu?.a.kind === 'repository' ? (
         <>
           {ctx.email && <MenuItem icon={pinnedNow ? PinOff : Pin} onClick={() => pick((a) => togglePin(localStorage, ctx.org, ctx.email, a.name))}>{pinnedNow ? 'Unpin' : 'Pin'}</MenuItem>}

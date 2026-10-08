@@ -35,27 +35,59 @@ export function thumbnailRegion(boxes, { aspect = 2, margin = 24, minWidth = 400
   return { x: left + (w - width) / 2, y, w: width, h: height };
 }
 
-// The canvas's content drawn into 800 x 400, from its own DOM (html-to-image, already the canvas's area and sketch
-// capture): the camera layer restyled onto the region; iframes and videos (cross-origin pixels), toolbars, the hover-only
-// connection ports and card tools, and a selected shape's outline and handles left out; the app font skipped (the system
-// font reads the same at this size, and embedding it is the slow part). html-to-image copies an <svg> whole, past its filter
-// and without the stylesheet that hides its ports, so those are hidden inline for the copy and shown again after.
-const CHROME = '[data-port],[data-node-tool],[data-thumbnail-hide],[role="toolbar"]';
-export async function drawThumbnail(node, region, background = '#ffffff') {
+// What a picture never shows (Parallel, 2026-10-08: "the picture must never show canvas chrome"): everything a selection,
+// a hover or an edit adds - the Open pill and the Ask in chat / Explain / Continue pill rows, ports, card and item tools,
+// a shape's outline, handles and label handle, the text-level ladder, the group Ask, the sketch hint, toolbars, comment
+// pins - by the canvas's own data attributes, with data-thumbnail-hide where an element had none; and iframes, videos
+// and audio (cross-origin pixels, and a copy of one would start loading).
+export const CHROME = ['[data-thumbnail-hide]', '[data-card-open]', '[data-port]', '[data-node-tool]', '[data-group-ask]', '[data-sketch-chrome]',
+  '[data-label-handle]', '[data-comment-pins]', '[data-view-selection]', '[role="toolbar"]', 'iframe', 'video', 'audio'].join(',');
+// Selection drawn on the content itself: a selected card's, note's or text's ring, an active sketch's, a group's accent
+// outline. Undone for the picture by the same attributes (Tailwind's ring is these two variables).
+export const UNSELECTED = `[data-block-id], [data-item-id], [data-item-id] *, [data-sketch] { --tw-ring-shadow: 0 0 #0000 !important; --tw-ring-offset-shadow: 0 0 #0000 !important; }
+[data-sketch] { border-color: var(--color-line) !important; }
+[data-group-box] { border-color: var(--color-line-strong) !important; background-color: transparent !important; }`;
+
+// A hidden same-origin frame holding the app's own stylesheets without .dark (api.js toggles only that class), so a
+// picture is always in the light theme whatever the owner's (Parallel: a light Home never shows a dark picture), and at
+// a desktop width, so nothing hover-only shows. Its nodes are not the page's, so no page query ever meets the copy.
+async function lightFrame() {
+  const frame = document.createElement('iframe');
+  frame.setAttribute('aria-hidden', 'true');
+  frame.tabIndex = -1;
+  frame.style.cssText = 'position:fixed;left:-20000px;top:0;width:1440px;height:900px;border:0;pointer-events:none';
+  document.body.appendChild(frame);
+  const doc = frame.contentDocument;
+  doc.documentElement.className = document.documentElement.className.replace(/\bdark\b/g, '').trim();
+  const sheets = [...document.querySelectorAll('link[rel="stylesheet"], style')].map(el => doc.head.appendChild(doc.importNode(el, true)));
+  doc.head.appendChild(Object.assign(doc.createElement('style'), { textContent: UNSELECTED }));
+  await Promise.all(sheets.filter(el => el.tagName === 'LINK' && !el.sheet).map(el => new Promise(resolve => { el.onload = el.onerror = resolve; })));
+  return frame;
+}
+
+// The canvas's content drawn into 800 x 400 from a copy of its DOM (html-to-image, already the canvas's area and sketch
+// capture): the camera layer, without CHROME, restyled onto the region in the light frame; the app font skipped (the
+// system font reads the same at this size, and embedding it is the slow part). The chrome is removed from the copy
+// rather than by html-to-image's filter, which never reaches inside an <svg> (a shape's handles).
+export async function drawThumbnail(node, region) {
   if (!node || !region) return null;
   const { width, height } = THUMBNAIL, scale = width / region.w;
-  const { toCanvas } = await import('html-to-image');
-  const skip = el => el.nodeType === 1 && (el.tagName === 'IFRAME' || el.tagName === 'VIDEO' || el.matches?.(CHROME));
-  const hidden = [...node.querySelectorAll(`svg :is(${CHROME})`)].filter(el => !el.style.display);
-  for (const el of hidden) el.style.display = 'none';
+  const copy = node.cloneNode(true);
+  // A <canvas> copies blank: its pixels come over by hand.
+  const live = node.querySelectorAll('canvas');
+  copy.querySelectorAll('canvas').forEach((c, i) => { try { c.getContext('2d').drawImage(live[i], 0, 0); } catch { /* left blank */ } });
+  for (const el of copy.querySelectorAll(CHROME)) el.remove();
+  const frame = await lightFrame();
   try {
-    const canvas = await toCanvas(node, {
-      width, height, pixelRatio: 1, cacheBust: false, skipFonts: true, backgroundColor: background, filter: el => !skip(el),
+    frame.contentDocument.body.appendChild(copy);
+    const { toCanvas } = await import('html-to-image');
+    const canvas = await toCanvas(copy, {
+      width, height, pixelRatio: 1, cacheBust: false, skipFonts: true, backgroundColor: frame.contentWindow.getComputedStyle(frame.contentDocument.body).backgroundColor,
       style: { transform: `translate(${-region.x * scale}px, ${-region.y * scale}px) scale(${scale})`, transformOrigin: '0 0', transition: 'none' },
     });
     return await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', 0.85));
   } finally {
-    for (const el of hidden) el.style.removeProperty('display');
+    frame.remove();
   }
 }
 

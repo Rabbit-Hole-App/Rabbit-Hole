@@ -38,7 +38,7 @@ export default function PublicCards({ cards, me, attr }) {
           return (
             <LearningCard key={card.url} kind="canvas" m={m} attrs={{ [attr]: '' }} href={card.url} onOpen={() => go(card.url)} mine={mine} access="public" thumbnail={publishedThumbnail(card.url)}
               creatorHref={card.creator?.handle ? `/@${card.creator.handle}` : null}
-              onMore={(e) => setMenu({ card, ...menuAt(e.currentTarget, 192, 60) })}
+              onMore={(e) => setMenu({ card, anchor: e.currentTarget, ...menuAt(e.currentTarget, 192, 60) })}
               actions={mine ? null : (
                 <>
                   <Button size="sm" variant="primary" data-card-start-rabbit-hole onClick={stop(() => setStarting(card))}
@@ -51,7 +51,7 @@ export default function PublicCards({ cards, me, attr }) {
         })}
       </ul>
       {starting && <RabbitHoleChoice title={starting.title} onCancel={() => setStarting(null)} onPick={(origin) => { setStarting(null); go(startHref(starting.url, origin)); }} />}
-      <Menu portal open={!!menu} onClose={() => setMenu(null)} style={{ top: menu?.top, bottom: menu?.bottom, left: menu?.left }} className="w-48">
+      <Menu portal anchor={menu?.anchor} open={!!menu} onClose={() => setMenu(null)} style={{ top: menu?.top, bottom: menu?.bottom, left: menu?.left }} className="w-48">
         <MenuItem icon={Link2} data-menu-copy-link onClick={() => copy(menu.card)}>Copy link</MenuItem>
       </Menu>
     </>

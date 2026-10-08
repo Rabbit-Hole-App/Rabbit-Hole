@@ -37,6 +37,8 @@ const CANVASES = [
   { title: 'Gradient descent, step by step', where: 'server', description: 'Follow the slope downhill: the learning rate sets the stride.',
     state: state({ blocks: blocks(['The idea', 'Move the weights a small step against the gradient of the loss.'], ['Learning rate', 'Too large overshoots the minimum; too small crawls.']) }) },
   { title: 'Untitled notes', where: 'none', state: null },
+  { title: 'Photosynthesis in one page', where: 'server', description: 'Light in, sugar out.',
+    state: state({ blocks: blocks(['Light reactions', 'Chlorophyll turns light into chemical energy and splits water.'], ['The Calvin cycle', 'That energy fixes carbon dioxide into sugar.']) }) },
 ];
 const made = [];
 for (const c of CANVASES) {
@@ -45,7 +47,7 @@ for (const c of CANVASES) {
   if (c.where === 'server') await call(owner, `/api/learn/boards/${row.name}/main`, { method: 'PUT', body: JSON.stringify({ state: c.state, version: 0 }) });
   made.push({ ...c, name: row.name });
 }
-const [bread, refraction, gradient, empty] = made;
+const [bread, refraction, gradient, empty, photo] = made;
 const catalog = (await call(owner, '/api/apps')).body;
 const SEEDS = { [`small.adaptive-canvas:${catalog.org}:${catalog.email}:${bread.name}:ink`]: bread.state };
 const own = name => `/api/learn/boards/${name}/main/thumbnail`;
@@ -77,9 +79,13 @@ const pixels = (page, url) => page.evaluate(async url => {
   const canvas = new OffscreenCanvas(bitmap.width, bitmap.height), g = canvas.getContext('2d');
   g.drawImage(bitmap, 0, 0);
   const data = g.getImageData(0, 0, bitmap.width, bitmap.height).data;
-  let ink = 0, n = 0;
-  for (let i = 0; i < data.length; i += 4 * 7, n += 1) if (data[i] < 215 || data[i + 1] < 215 || data[i + 2] < 215) ink += 1;
-  return { width: bitmap.width, height: bitmap.height, type: blob.type, size: blob.size, ink: ink / n, corner: [...g.getImageData(12, 12, 1, 1).data].slice(0, 3) };
+  // blue: the selection accent (#2383e2) and anything like it.
+  let ink = 0, blue = 0, n = 0;
+  for (let i = 0; i < data.length; i += 4 * 7, n += 1) {
+    if (data[i] < 215 || data[i + 1] < 215 || data[i + 2] < 215) ink += 1;
+    if (data[i + 2] > 150 && data[i] < 140 && data[i + 2] - data[i + 1] > 40) blue += 1;
+  }
+  return { width: bitmap.width, height: bitmap.height, type: blob.type, size: blob.size, ink: ink / n, blue, corner: [...g.getImageData(12, 12, 1, 1).data].slice(0, 3) };
 }, url);
 
 // The picture itself, as a PNG beside the screenshots (WebP does not open everywhere).
@@ -138,8 +144,33 @@ await check('3 not on every keystroke: a canvas left open sends no second snapsh
   const puts = requests.filter(u => u.endsWith(own(gradient.name))).length - before;
   assert.equal(puts, 1, 'one HEAD (it has one already), no PUT');
 });
+await check('4 drawn from a dark-themed page with a card selected, the picture is light and shows no ring, pill or port', async () => {
+  const night = await contextFor(owner, { width: 1440, height: 900 });
+  await night.context.addInitScript(() => localStorage.setItem('small.theme', 'dark'));
+  const head = night.page.waitForRequest(r => r.url().endsWith(own(photo.name)) && r.method() === 'HEAD', { timeout: 60000 });
+  const put = night.page.waitForResponse(r => r.url().endsWith(own(photo.name)) && r.request().method() === 'PUT', { timeout: 45000 });
+  await night.page.goto(`${BASE}/apps/${photo.name}?tab=learn`);
+  const card = night.page.locator('[data-block-id="b0"]');
+  await card.waitFor({ timeout: 60000 });
+  await card.click({ position: { x: 60, y: 50 } });
+  const asked = Date.now();
+  await head;
+  assert.equal(await night.page.evaluate(() => document.documentElement.classList.contains('dark')), true, 'the page is dark');
+  assert.equal(await night.page.locator('[data-block-id="b0"][aria-current="true"]').count(), 1, 'the card is selected');
+  assert.ok(await night.page.locator('[data-thumbnail-hide]').count() >= 1, 'its pill row shows on the page');
+  await shot(night.page, SHOTS, '01b-dark-selected-page');
+  assert.equal((await put).status(), 200);
+  assert.ok(Date.now() - asked > 2500, 'the snapshot was drawn after the selection (4 s after the open)');
+  assert.equal(await night.page.locator('[data-block-id="b0"][aria-current="true"]').count(), 1, 'and the card is still selected');
+  await keep(night.page, own(photo.name), 'snapshot-dark-selected');
+  const p = await pixels(night.page, own(photo.name));
+  assert.ok(p.corner.every(v => v > 235), `light, not the page's dark (corner ${p.corner})`);
+  assert.ok(p.ink > 0.01, `the cards are in it (ink ${p.ink.toFixed(3)})`);
+  assert.equal(p.blue, 0, 'no selection ring, port or other accent chrome');
+  await night.context.close();
+});
 
-// 4-6: the Library card: the picture on the right, 2:1, every card the same height; the ⋮ replaces and reverts it.
+// 5-8: the Library card: the picture on the right, 2:1, every card the same height; the ⋮ replaces and reverts it.
 const libraryCard = title => page.locator('[data-library-card="canvas"]').filter({ has: page.locator('[data-card-title]', { hasText: new RegExp(`^${title}$`) }) });
 const library = async () => { await page.goto(`${BASE}/library?type=canvases`); await page.locator('[data-library-card]').first().waitFor({ timeout: 60000 }); await page.waitForTimeout(1200); };
 const layout = async (card) => {
@@ -147,7 +178,7 @@ const layout = async (card) => {
   return { c, t, title };
 };
 await library();
-await check('4 the Library card shows its picture on the right, 2:1, about 38% of the card; text on the left', async () => {
+await check('5 the Library card shows its picture on the right, 2:1, about 38% of the card; text on the left', async () => {
   const card = libraryCard(bread.title);
   await card.locator('[data-card-thumbnail="image"]').waitFor({ timeout: 15000 });
   const { c, t, title } = await layout(card);
@@ -158,10 +189,10 @@ await check('4 the Library card shows its picture on the right, 2:1, about 38% o
   assert.ok(t.width >= 340, `big enough to make out (${t.width}px)`);
   assert.equal(await card.locator('[data-card-thumbnail] img').evaluate(img => img.naturalWidth), 800);
 });
-await check('5 one card per row and every card the same size; an empty canvas shows the quiet placeholder, no grey box, no error', async () => {
+await check('6 one card per row and every card the same size; an empty canvas shows the quiet placeholder, no grey box, no error', async () => {
   const cards = page.locator('[data-library-card="canvas"]');
   const boxes = await cards.evaluateAll(els => els.map(el => el.getBoundingClientRect()).map(r => ({ x: r.x, w: r.width, h: r.height })));
-  assert.equal(boxes.length, 4);
+  assert.equal(boxes.length, 5);
   assert.ok(boxes.every(b => Math.abs(b.h - boxes[0].h) < 1 && Math.abs(b.x - boxes[0].x) < 1 && Math.abs(b.w - boxes[0].w) < 1), JSON.stringify(boxes));
   const placeholder = libraryCard(empty.title).locator('[data-card-thumbnail]');
   assert.equal(await placeholder.getAttribute('data-card-thumbnail'), 'placeholder');
@@ -178,20 +209,14 @@ const cover = await page.evaluate(() => {
   g.fillStyle = '#ffffff'; g.font = 'bold 110px sans-serif'; g.textAlign = 'center'; g.fillText('Downhill', 600, 470);
   return canvas.toDataURL('image/png').split(',')[1];
 });
-// A portaled menu closes on any scroll (ui.jsx Menu), and a click on a card near the fold can land while the list still
-// settles after a scroll: the card is centred first, and the ⋮ pressed again if its menu closed under it.
+// One plain click, wherever the card sits: the menu no longer closes on the scroll its own click causes (menu-scroll.js).
 const menu = async (title) => {
   const card = libraryCard(title);
-  await card.evaluate(el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
-  await page.waitForTimeout(500);
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    await card.getByTitle('More').click();
-    if (await page.locator('[data-menu-thumbnail]').waitFor({ timeout: 2500 }).then(() => true, () => false)) break;
-  }
-  await page.locator('[data-menu-thumbnail]').waitFor({ timeout: 1000 }).catch(async error => { await shot(page, SHOTS, 'menu-failed'); throw error; });
+  await card.hover(); await card.getByTitle('More').click();
+  await page.locator('[data-menu-thumbnail]').waitFor({ timeout: 5000 }).catch(async error => { await shot(page, SHOTS, 'menu-failed'); throw error; });
   await page.waitForTimeout(400);
 };
-await check('6 Change thumbnail: a GIF is refused in one line; a PNG is cropped to 2:1 and replaces the snapshot on the card', async () => {
+await check('7 Change thumbnail: a GIF is refused in one line; a PNG is cropped to 2:1 and replaces the snapshot on the card', async () => {
   await menu(gradient.title);
   assert.equal(await page.locator('[data-menu-thumbnail-revert]').count(), 0, 'no picture of yours yet: no Use canvas snapshot');
   await shot(page, SHOTS, '03-menu-change-thumbnail');
@@ -214,7 +239,7 @@ await check('6 Change thumbnail: a GIF is refused in one line; a PNG is cropped 
   assert.ok(p.corner[0] > 180 && p.corner[1] < 90, `the picture, not the snapshot (corner ${p.corner})`);
 });
 await shot(page, SHOTS, '04-library-custom');
-await check('7 Use canvas snapshot goes back to the automatic picture', async () => {
+await check('8 Use canvas snapshot goes back to the automatic picture', async () => {
   await menu(gradient.title);
   const del = page.waitForResponse(r => r.url().endsWith(`${own(gradient.name)}/custom`) && r.request().method() === 'DELETE');
   await page.locator('[data-menu-thumbnail-revert]').click();
@@ -231,9 +256,9 @@ await check('7 Use canvas snapshot goes back to the automatic picture', async ()
   assert.equal((await put).status(), 200);
 });
 
-// 8-9: privacy. Another signed-in person, and nobody signed in, never get a private or unlisted canvas's picture.
+// 9-10: privacy. Another signed-in person, and nobody signed in, never get a private or unlisted canvas's picture.
 let tokens = {};
-await check('8 a signed-in other person cannot fetch a private or unlisted canvas\'s picture (404), nor write one', async () => {
+await check('9 a signed-in other person cannot fetch a private or unlisted canvas\'s picture (404), nor write one', async () => {
   for (const who of [viewer, null]) assert.ok([401, 403, 404].includes((await call(who, own(bread.name))).status), who ? 'viewer' : 'signed out');
   assert.equal((await call(viewer, own(bread.name))).status, 404);
   assert.equal((await call(viewer, own(bread.name), { method: 'PUT', body: 'x' })).status, 404);
@@ -241,14 +266,14 @@ await check('8 a signed-in other person cannot fetch a private or unlisted canva
   assert.equal((await call(viewer, `/api/learn/boards/published/${view}/thumbnail`)).status, 404, 'an unlisted link is not Explore');
   assert.equal((await call(viewer, `/api/learn/boards/shared/${view}`)).status, 200, 'while the link itself opens');
 });
-await check('9 a published canvas\'s picture shows on Explore, to anyone; unpublished, it is gone', async () => {
+await check('10 a published canvas\'s picture shows on Explore, to anyone; unpublished, it is gone', async () => {
   for (const c of [bread, gradient, refraction]) tokens[c.name] = (await call(owner, `/api/apps/${c.name}/publish`, { method: 'POST' })).body.publication_token;
   assert.ok(Object.values(tokens).every(Boolean));
   assert.equal((await call(null, `/api/learn/boards/published/${tokens[bread.name]}/thumbnail`)).status, 200, 'signed out too');
   assert.equal((await call(viewer, `/api/learn/boards/published/${tokens[gradient.name]}/thumbnail`)).source, 'custom', 'the owner\'s picture wins there too');
 });
 const other = await contextFor(viewer, { width: 1440, height: 900 });
-await check('10 Explore: the other person sees the published pictures on the right of each card, by token, never a name or an email', async () => {
+await check('11 Explore: the other person sees the published pictures on the right of each card, by token, never a name or an email', async () => {
   await other.page.goto(`${BASE}/explore`);
   await other.page.locator('[data-explore-card]').first().waitFor({ timeout: 60000 });
   // This run's cards: an earlier run on the same local D1 published the same titles under its own @handle.
@@ -264,14 +289,14 @@ await check('10 Explore: the other person sees the published pictures on the rig
   assert.ok(heights.every(h => h === heights[0]), `one size with actions too: ${heights}`);
 });
 await shot(other.page, SHOTS, '05-explore-viewer');
-await check('11 removed from Explore: the picture is gone for others at once; still the owner\'s', async () => {
+await check('12 removed from Explore: the picture is gone for others at once; still the owner\'s', async () => {
   await call(owner, `/api/apps/${refraction.name}/unpublish`, { method: 'POST' });
   assert.equal((await call(viewer, `/api/learn/boards/published/${tokens[refraction.name]}/thumbnail`)).status, 404);
   assert.equal((await call(owner, own(refraction.name))).status, 200);
 });
 
-// 12: a phone: the picture above the text, full width, the same 2:1; every card one size.
-await check('12 a phone: the picture above the text at full width, 2:1, every card one size', async () => {
+// 13: a phone: the picture above the text, full width, the same 2:1; every card one size.
+await check('13 a phone: the picture above the text at full width, 2:1, every card one size', async () => {
   await page.setViewportSize({ width: 390, height: 844 });
   await library();
   const { c, t, title } = await layout(libraryCard(bread.title));
@@ -295,7 +320,7 @@ for (const [label, viewport] of [['1440', { width: 1440, height: 900 }], ['1024'
 }
 
 const tripwire = await Promise.all([BASE, CP].map(async origin => { const r = await fetch(`${origin}/__provider-tripwire`).catch(() => null); return r?.ok ? (await r.json()).hits.length : 'off'; }));
-await check('13 no page errors, no failed picture loads, the provider tripwire at 0 (the snapshot asks no model)', async () => {
+await check('14 no page errors, no failed picture loads, the provider tripwire at 0 (the snapshot asks no model)', async () => {
   assert.deepEqual(errors, []);
   assert.deepEqual(failedLoads, []);
   // The canvas page's own model routes (the Next Steps hook planner on open) were refused in the page, never sent.
@@ -303,6 +328,6 @@ await check('13 no page errors, no failed picture loads, the provider tripwire a
   assert.deepEqual(tripwire, [0, 0]);
 });
 await browser.close();
-const total = 13;
+const total = 14;
 console.log(results.length === total ? 'PASS' : 'FAIL', `${results.length}/${total} checks passed`);
 process.exit(results.length === total ? 0 : 1);
