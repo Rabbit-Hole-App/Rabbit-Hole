@@ -89,3 +89,22 @@ test('Explore: Explainers and Creators tabs; each tab asks the server for its ow
   assert.doesNotMatch(explore, /Creators to explore|data-creator-row/, 'the creators row left the Explainers feed');
   assert.match(read('./home/PublicCards.jsx'), /export const CreatorAvatar = \(\{ c, className \}\) => <Avatar email=\{c\.name \|\| c\.handle\} src=\{c\.avatar\}/, 'the initials come from the name or @handle');
 });
+
+// Owner, 2026-10-08: "Cretors card and in Creator profile should have a copy profile url button".
+test('Copy profile link: the absolute /@handle only, on every creator card and on the profile beside the name; in place, no navigation', async () => {
+  const { profileUrl } = await import('./home/provenance.js');
+  assert.equal(profileUrl('https://digrabbithole.com', 'ada_l'), 'https://digrabbithole.com/@ada_l');
+  assert.equal(profileUrl('http://127.0.0.1:8848', null), null, 'no handle, no link - never an email or an id');
+  const cards = read('./home/PublicCards.jsx'), profile = read('./CreatorProfile.jsx');
+  // The button copies profileUrl(origin, handle), says so on itself, reverts, and stops the click from reaching the card.
+  assert.match(cards, /event\.preventDefault\(\); event\.stopPropagation\(\);\n\s+try \{ await navigator\.clipboard\.writeText\(profileUrl\(window\.location\.origin, handle\)\); setCopied\('Profile link copied'\); \}/);
+  assert.match(cards, /timer\.current = setTimeout\(\(\) => setCopied\(null\), 1600\);/);
+  const button = cards.slice(cards.indexOf('export function CopyProfileLink'), cards.indexOf('export function CreatorChip'));
+  assert.doesNotMatch(button, /toast\(/, 'no corner toast');
+  // On the creator card, beside the profile link and outside it, so copying never opens the profile.
+  const chip = cards.slice(cards.indexOf('export function CreatorChip'));
+  assert.match(chip, /<\/a>\n\s+<CopyProfileLink handle=\{c\.handle\} compact \/>\n\s+<\/div>/);
+  // On the profile, in the name and handle row, for every viewer (no own or signed-in condition).
+  assert.match(profile, /\{p\.name && <span data-profile-handle>@\{p\.handle\}<\/span>\}\n[\s\S]{0,400}<CopyProfileLink handle=\{p\.handle\} \/>/);
+  assert.doesNotMatch(profile, /\{own && <CopyProfileLink|\{me && <CopyProfileLink/);
+});
