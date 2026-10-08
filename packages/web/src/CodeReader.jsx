@@ -19,7 +19,8 @@ const indent = (depth) => ({ paddingLeft: `${8 + depth * 14}px` });
 // place 'panel' (Learn's Files panel; repository-browser.md "Files in Learn", owner 2026-10-08): a selection offers exactly
 // [Ask in chat] [Copy] - no Learn. Copy puts the lines on the clipboard, marked as code from this file for a paste onto the
 // canvas, and says Copied on the button itself. The Map's own toolbar ('map') keeps [Ask] [Learn].
-export default function CodeReader({ app, snapshot, open, context, query, onFile, onSymbol, onRange, stacked = false, place = 'map' }) {
+// pick: a code reference opened here ({ path, start, end, at }, RepositoryPage): its range becomes this reader's selection.
+export default function CodeReader({ app, snapshot, open, context, query, onFile, onSymbol, onRange, stacked = false, place = 'map', pick = null }) {
   const panel = place === 'panel';
   // A selected range waiting for Ask or Learn. Only this reader sees it; another file or Esc drops it.
   const [pending, setPending] = useState(null);
@@ -63,7 +64,7 @@ export default function CodeReader({ app, snapshot, open, context, query, onFile
     <div className="flex min-h-0 min-w-0 flex-1 flex-col px-3 pt-2" onPointerDown={(e) => { if (!e.target.closest('[data-range-actions]')) setPending(null); }}>
       {open
         ? <SourceSelectionContext.Provider value={{ value: pending, set: setPending }}>
-          <RepositorySource appName={app.name} path={open} commit={snapshot.commit} repo={app.repo} title={crumb}
+          <RepositorySource appName={app.name} path={open} commit={snapshot.commit} repo={app.repo} title={crumb} pick={pick?.path === open ? pick : null}
             line={here && here.kind !== 'file' ? here.line : null} lineEnd={here?.end}
             actions={(r) => <div data-range-actions role="toolbar" aria-label={`Selected ${rangeTitle(r)}`} onPointerDown={(e) => e.preventDefault()}
               className="absolute top-full left-12 z-10 mt-1 flex items-center gap-0.5 rounded-md bg-white p-1 font-sans whitespace-nowrap shadow-pop select-none">

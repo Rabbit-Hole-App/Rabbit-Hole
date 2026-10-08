@@ -5,6 +5,7 @@ import { Button, ConfirmDialog, ExpandedPageFrame, IconBtn, Input, Menu, MenuIte
 import { deviceId } from './home/canvas-local.js';
 import { canvasHref, newCanvasTitle, projectCanvases } from './project-canvases.js';
 import LearnPage from './LearnPage.jsx';
+import { CodeRefs } from './code-refs.js';
 import { CanvasLearn } from './CanvasPage.jsx';
 import RepositoryGraph from './RepositoryGraph.jsx';
 import CodeReader from './CodeReader.jsx';
@@ -54,6 +55,17 @@ export default function RepositoryPage({ app: initial, catalog = [], onCatalog =
   const canvases=catalog.filter(c=>c.kind==='canvas'&&c.project===app.name),picked=tab==='learn'&&canvases.find(c=>c.name===new URLSearchParams(window.location.search).get('canvas')); // LibraryViews.jsx's filter. ponytail: an unknown ?canvas= falls back to the Main canvas
   const root=`/api/repositories/${app.name}`;
   function onFile(filePath,line){if(snapshot?.files.some(f=>f.path===filePath))inspect(fileObject(snapshot.graph,filePath,line||1),'source');}
+  // A code reference in an answer (path:15-64; repository-browser.md "Code references", owner 2026-10-08): only a file of this
+  // snapshot is a link (ask.jsx CodeRefs), and a click opens it in this page's reader with the range selected, as a drag selects
+  // it, so Ask in chat and Copy work on it - the Main canvas's Files panel (LearnPage small:open-files), else the Map's Files
+  // view (a project canvas goes to the Map). Nothing is asked.
+  const [jump,setJump]=useState(null),openRef=useRef(null);
+  openRef.current=(path,start,end)=>{
+    if(!snapshot?.files.some(f=>f.path===path))return;
+    setOpened(path);setJump({path,start,end,at:Date.now()});
+    if(tab==='learn'&&!picked)window.dispatchEvent(new CustomEvent('small:open-files'));else{setMode('files');if(tab==='learn')go('map');}
+  };
+  const codeRefs=useMemo(()=>{if(!snapshot)return null;const paths=new Set(snapshot.files.map(f=>f.path));return {has:p=>paths.has(p),open:(...a)=>openRef.current(...a)};},[snapshot]);
   useEffect(()=>{
     let active=true,timer;
     const load=async()=>{try{const next=await api(root);if(!active)return;setApp(next);if(['queued','indexing'].includes(next.status))timer=setTimeout(load,2500);}catch(e){if(active)setError(e.message);}};
@@ -67,7 +79,7 @@ export default function RepositoryPage({ app: initial, catalog = [], onCatalog =
   // Map answer must not navigate the reader out of Learn.
   const path=window.location.pathname+window.location.search;
   const reading=['queued','indexing'].includes(app.status)&&!!app.commit_sha;
-  useEffect(()=>{if(tab!=='learn')patchSurface({resource:{kind:'project',slug:app.name,title:titleOf(app),status:app.status},selected:tab==='map'?context:null,activity:reading?[{id:'repository',label:app.status==='queued'?'Waiting to read the repository…':'Reading repository…'}]:[],handlers:{onGraph,answerLocally,setContext,onFile,onNodeAsk:s=>nodeAsk.current?.(s)}});},[path,app.name,app.repo,app.status,context,snapshot?.commit,memory]);
+  useEffect(()=>{if(tab!=='learn')patchSurface({resource:{kind:'project',slug:app.name,title:titleOf(app),status:app.status},selected:tab==='map'?context:null,activity:reading?[{id:'repository',label:app.status==='queued'?'Waiting to read the repository…':'Reading repository…'}]:[],handlers:{onGraph,answerLocally,setContext,onFile,codeRefs,onNodeAsk:s=>nodeAsk.current?.(s)}});},[path,app.name,app.repo,app.status,context,snapshot?.commit,memory]);
   const key=resultsKey({org:getSurface().org,kind:'project',slug:app.name}); // the bar's results key for this project, selection excluded
   // One navigation, Files · Graph · Learn (owner brief §1): views, as restrained underline tabs; blue stays for primary actions.
   // Files and Graph are two views of the page; Learn is the project's canvas (?tab=learn).
@@ -108,12 +120,12 @@ export default function RepositoryPage({ app: initial, catalog = [], onCatalog =
   // range reaches Learn's chat as its repository context. A project's other canvases have no repository context: their icon
   // still goes to the Map. In the panel a selection offers Ask in chat and Copy (place 'panel'), and the chat's chip previews
   // the selected lines (repositoryExcerpt: the range's text, never sent; the server reads its own copy).
-  const reader=extra=><CodeReader app={app} snapshot={snapshot} open={opened} context={context} query={query} onFile={p=>attach(fileObject(snapshot.graph,p))} onSymbol={n=>attach(objectOf(snapshot.graph,n))}
+  const reader=extra=><CodeReader app={app} snapshot={snapshot} open={opened} context={context} query={query} pick={jump} onFile={p=>attach(fileObject(snapshot.graph,p))} onSymbol={n=>attach(objectOf(snapshot.graph,n))}
     onRange={(kind,range)=>{attach(range);if(kind==='learn')learnThis(range);else askAbout(range);}} {...extra}/>;
-  if(tab==='learn')return <div className="flex min-h-0 min-w-0 flex-1 flex-col max-md:pt-(--shell-top-h)">{/* LearnPage brings its own <main>, which loses index.css's [data-shell-sidebar] ~ main phone padding */}
+  if(tab==='learn')return <CodeRefs.Provider value={codeRefs}><div className="flex min-h-0 min-w-0 flex-1 flex-col max-md:pt-(--shell-top-h)">{/* LearnPage brings its own <main>, which loses index.css's [data-shell-sidebar] ~ main phone padding */}
     {picked?<CanvasLearn key={picked.name} app={picked} project={app} onMap={()=>go('map')} switcher={switcher}/>:<LearnPage app={app} files={snapshot&&reader({query:'',stacked:true,place:'panel'})} onGraph={showGraph} onMap={()=>go('map')} onClearRepository={context?()=>setContext(null):null} repositoryContext={context?wireContext(context):{commit:app.commit_sha}} repositoryExcerpt={context?.kind==='range'?context.text:null} onBack={()=>{setMode('graph');navigate(`/apps/${app.name}?tab=code`);}} switcher={switcher}/>}
-  </div>;
-  return <main className="relative flex min-w-0 flex-1 overflow-hidden max-lg:flex-col">
+  </div></CodeRefs.Provider>;
+  return <CodeRefs.Provider value={codeRefs}><main className="relative flex min-w-0 flex-1 overflow-hidden max-lg:flex-col">
     <section className="min-w-0 flex-1 overflow-auto"><ExpandedPageFrame wide>
       <div className="flex items-center gap-1"><h1 className="min-w-0 truncate text-2xl font-semibold">{app.repo}</h1>
         {/* Repository details live behind one icon (owner, 2026-10-04): source, branch, commit, status, refresh. */}
@@ -155,7 +167,7 @@ export default function RepositoryPage({ app: initial, catalog = [], onCatalog =
           out of this statically imported page. ponytail: while learnHandoff is off (flags.js) it only opens this project's Learn and
           the context travels as repositoryContext; the fallback line is for a typed prompt, so a click shows none. */}
     </ResizableSidePanel>}
-  </main>;
+  </main></CodeRefs.Provider>;
 }
 
 // The canvas switcher (docs/features/project-canvases.md). The title field beside it names the open canvas, so the trigger

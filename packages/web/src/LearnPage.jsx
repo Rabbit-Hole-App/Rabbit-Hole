@@ -129,6 +129,14 @@ function LearnSurface({ app, onBack, repositoryContext = null, repositoryExcerpt
   // The panel header (docs/features/panel-header.md): Table of contents is the default tab; pinned (the default)
   // keeps the panel open while the learner works on the canvas.
   const [panelTab, setPanelTab] = useState('toc');
+  // A code reference clicked in an answer (RepositoryPage small:open-files; repository-browser.md "Code references"): the
+  // Files tab opens on it, the panel too when it was closed.
+  useEffect(() => {
+    if (!files) return undefined;
+    const show = () => { setPanelOpen(true); setPanelTab('files'); };
+    window.addEventListener('small:open-files', show);
+    return () => window.removeEventListener('small:open-files', show);
+  }, [!!files]); // eslint-disable-line react-hooks/exhaustive-deps
   const [panelPinned, setPanelPinned] = useState(() => readPanelPin(() => localStorage));
   const pinPanel = value => { setPanelPinned(value); savePanelPin(() => localStorage, value); };
   const findInput = useRef(null);
