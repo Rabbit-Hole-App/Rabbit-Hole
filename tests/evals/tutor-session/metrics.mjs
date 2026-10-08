@@ -483,12 +483,16 @@ function unsettledRuns(steps) {
   });
 }
 const understood = claims => (claims || []).filter(c => c.state === 'understood').map(c => c.claim);
+// r29: section moves, reported apart - completed (the section's completion evidence was met) and skipped (the learner asked
+// to move on before it was). A skip never counts toward understanding: claim states come from evidence only.
+const sectionMoves = bundle => bundle.events.filter(e => e.type === 'section_changed').map(e => ({ decision_id: e.decision_id, from: e.from_section_id, to: e.to_section_id, status: e.status, reason: e.reason ?? null, trigger: e.trigger }));
 export function sessionProgress(bundle) {
-  const steps = bundle.steps, sections = [];
+  const steps = bundle.steps, sections = [], moves = sectionMoves(bundle);
   for (const step of steps) if (step.section_id && sections.at(-1)?.section_id !== step.section_id) sections.push({ section_id: step.section_id, from_step: step.step, understood_on_entry: understood(step.evidence_before) });
   const runs = unsettledRuns(steps);
   return {
     decisions: steps.length, stop: bundle.simulator.stop_reason, sections,
+    section_moves: moves, sections_completed: moves.filter(m => m.status === 'completed').length, sections_skipped: moves.filter(m => m.status === 'skipped').length,
     final_states: tally((steps.at(-1)?.evidence_after || []).map(c => c.state)),
     actions: tally(steps.flatMap(step => (step.tutor_decision?.actions || []).map(action => action.action_type))),
     unsettled_runs: runs, max_unsettled_run: Math.max(0, ...runs.map(entry => entry.length)),

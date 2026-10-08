@@ -222,9 +222,13 @@ test('the reviewer\'s worst case is held from the session\'s start: a session st
   assert.deepEqual([held.ledger.reserved(), held.run.reserved(), held.ledger.violations.length, held.boundary.errors.length], [0, 0, 0, 0]);
   // The simulator's moves are reserved calls too, re-checked by the strict parser.
   assert.equal(held.ledger.lines.filter(entry => entry.model_role === 'learner_simulator').length, held.bundle.session.decisions);
-  // At low usage every planned decision completes and the review still fits.
+  // At low usage the session runs until the limit, and the review still fits inside it. Measured: 15 of 15 decisions on r28;
+  // 14 on r29, whose journey requests are larger once the evaluate reply's evidence is adopted (the hook input's path.next,
+  // the next_section offer): about $0.09 more per session at these token counts, so decision 15 no longer fits under $1.30
+  // beside the reviewer's holdback.
   const low = await reviewed('stub');
-  assert.deepEqual([low.bundle.session.decisions, low.bundle.simulator.stop_reason, low.bundle.review.status], [15, 'max_decisions', 'ok']);
+  assert.deepEqual([low.bundle.session.decisions, low.bundle.simulator.stop_reason, low.bundle.review.status], [14, 'cost_ceiling', 'ok']);
+  assert.ok(low.ledger.spent() <= 1.3 && low.ledger.reserved() === 0);
   assert.equal(aggregate([low.bundle], loadTaxonomy()).review_scores.mean.pacing, 3);
   // A limit below the holdback: the session never starts, so nothing is sent and there is nothing to review.
   const none = await reviewed('stub', { session: holdback / 2 });

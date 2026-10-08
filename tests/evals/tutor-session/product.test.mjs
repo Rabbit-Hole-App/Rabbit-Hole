@@ -292,13 +292,15 @@ test("the Next Steps report reads the product's own hook traces: escalations and
   assert.equal(report.by_role.tutor_next_steps.calls, report.sets_requested - (report.escalations['escalated:contradictory'] ?? 0));
   assert.ok(report.cost_usd > 0);
   // The product's stored rows (learn-migrations 0012), when the schema has them: one per planned set, failed ones included,
-  // never a hook; each validator escalation keeps the rejected reply's word counts.
+  // never a hook; a row keeps the rejected reply's word counts exactly when its routine reply failed the validator.
   const stored = readFileSync(new URL('../../../packages/control-plane/repository-schema.sql', import.meta.url), 'utf8').includes('next_steps_telemetry');
   assert.equal(report.stored.rows, stored ? report.sets_requested : 0);
   if (stored) {
     assert.equal(report.stored.failed, report.unavailable.failed ?? 0);
-    assert.equal(Object.values(report.stored.rejected_words).reduce((a, b) => a + b, 0), 3 * validator);
-    for (const row of bundle.next_steps_rows) assert.ok(!('hook' in row) && !('options' in row) && !('input' in row));
+    for (const row of bundle.next_steps_rows) {
+      assert.ok(!('hook' in row) && !('options' in row) && !('input' in row));
+      assert.equal(Array.isArray(row.rejected_words) && row.rejected_words.length > 0, row.escalated === 'validator');
+    }
   }
   const shown = bundle.events.filter(event => event.type === 'next_steps_ready').flatMap(event => event.options);
   assert.deepEqual([report.hook_words.n, report.hook_words.max], [shown.length, Math.max(...shown.map(option => option.text.trim().split(/\s+/).length))]);
@@ -360,4 +362,54 @@ test("the evaluation of every typed turn is recorded without text: status, escal
   assert.equal(session.max_unsettled_run, Math.max(0, ...session.unsettled_runs.map(run => run.length)));
   assert.deepEqual(session.sections.map(entry => entry.section_id), [...new Set(bundle.steps.map(step => step.section_id))]);
   assert.equal(Object.values(session.actions).reduce((a, b) => a + b, 0), bundle.steps.flatMap(step => step.tutor_decision.actions).length);
+});
+
+test("r29: an explicit move-on is an accepted next_section; the route completes the section when its evidence is met and skips it otherwise, and the move is reported apart from evidence", async () => {
+  const MOVE_ON = 'Can we move on to the next section?';
+  // The Tutor answers and, when the learner asked in those words, plans next_section with their words quoted (the consent).
+  const plan = context => (context.learner_intent?.raw_user_message === MOVE_ON
+    ? { strategy: 'none', explicit_request: MOVE_ON, actions: [{ type: 'respond_text', text: 'Moving on.' }, { type: 'next_section' }], reason_codes: ['follow_learner_interest'], reason: 'The learner asked to move on.' }
+    : { strategy: 'none', actions: [{ type: 'respond_text', text: 'A stub reply: no model was called.' }], reason_codes: ['respond_to_question'], reason: 'A stub plan.' });
+  const moveOnSecond = () => { let n = 0; return { reply: async () => ({ selected_option_id: null, response: { kind: n === 0 ? 'question' : 'answer', text: n++ === 0 ? MOVE_ON : 'Okay.' } }) }; };
+  // JEV sure of every idea and of transfer: the section's completion evidence is met. JEV sure of none: it is not.
+  const sure = request => ({ answers: Object.fromEntries(Object.keys(request.questions || {}).map(key => [key, { type: 'noul', noul: /^attempt$|_idea\d+$|_transfer$/.test(key) ? 0.95 : 0.05 }])) });
+  const none = request => ({ answers: Object.fromEntries(Object.keys(request.questions || {}).map(key => [key, { type: 'noul', noul: key === 'attempt' ? 0.95 : 0.05 }])) });
+  for (const [jev, status] of [[sure, 'completed'], [none, 'skipped']]) {
+    const { bundle } = await realSession({ answers: stubAnswers({ plan, jev }), learner: moveOnSecond(), maxDecisions: 3 });
+    assert.equal(bundle.simulator.stop_reason, 'max_decisions', bundle.simulator.error?.message);
+    const changed = bundle.events.filter(event => event.type === 'section_changed');
+    assert.equal(changed.length, 1, status);
+    assert.deepEqual([changed[0].from_section_id, changed[0].status, changed[0].reason, changed[0].trigger], ['s1', status, `section_${status}`, 'tutor']);
+    // The next decision runs on the new section, and the move is reported apart from the evidence.
+    assert.ok(changed[0].to_section_id && changed[0].to_section_id !== 's1');
+    assert.equal(bundle.steps.at(-1).section_id, changed[0].to_section_id);
+    const progress = evidenceReport([bundle]).sessions[profile.id];
+    assert.deepEqual([progress.sections_completed, progress.sections_skipped], status === 'completed' ? [1, 0] : [0, 1]);
+    // Skipping never makes a claim understood.
+    if (status === 'skipped') assert.ok(!(bundle.steps.at(-1).evidence_after || []).some(claim => claim.state === 'understood'));
+  }
+});
+
+test('r29: a click on the next-section hook moves on with no Tutor turn; the learner then types on the new section', async () => {
+  // JEV sure of every idea and of transfer, so section 1's criterion has an answer and the fixture offers the section hook.
+  const jev = request => ({ answers: Object.fromEntries(Object.keys(request.questions || {}).map(key => [key, { type: 'noul', noul: /^attempt$|_idea\d+$|_transfer$/.test(key) ? 0.95 : 0.05 }])) });
+  // Pick the section hook whenever one is offered (the opening's evidence already answers section 1's criterion), else type.
+  let offered = null;
+  const learner = { reply: async ({ view }) => {
+    const hook = offered ? null : view.options.find(option => option.note);
+    if (hook) { offered = hook.note; return { selected_option_id: hook.id, response: { kind: 'acknowledge', text: '' } }; }
+    return { selected_option_id: null, response: { kind: 'answer', text: 'It squashes the score into a probability.' } };
+  } };
+  const { bundle } = await realSession({ answers: stubAnswers({ jev }), learner, maxDecisions: 4 });
+  assert.equal(bundle.simulator.stop_reason, 'max_decisions', bundle.simulator.error?.message);
+  assert.ok(offered, 'a next-section hook was offered');
+  const changed = bundle.events.filter(event => event.type === 'section_changed');
+  assert.equal(changed.length, 1);
+  assert.deepEqual([changed[0].from_section_id, changed[0].trigger], ['s1', 'hook']);
+  assert.ok(['completed', 'skipped'].includes(changed[0].status));
+  // The hook's note (the card's) said what the move would do, and the learner's next move was typed on the new section.
+  assert.equal(offered, changed[0].status === 'skipped' ? 'Next section - skips this section' : 'Next section');
+  const after = bundle.events.filter(event => event.type === 'learner_message' && event.seq > changed[0].seq);
+  assert.ok(after.length >= 1 && after[0].input === 'typed');
+  assert.equal(bundle.steps.at(-1).section_id, changed[0].to_section_id);
 });

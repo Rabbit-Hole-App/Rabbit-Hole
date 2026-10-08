@@ -68,7 +68,7 @@ export function assertNoProfileLeak(payload, terms) {
 // clicked a hook) - never reason codes, rationale, expected evidence, evidence state, hidden learning goals or answers.
 export const learnerView = ({ material = null, options = [] }, history) => ({
   material,
-  options: options.map(({ id, position, text }) => ({ id, position, text })),
+  options: options.map(({ id, position, text, note }) => ({ id, position, text, ...(note ? { note } : {}) })),
   history: history.map(({ material: shown, learner }) => ({ material: shown, learner })),
 });
 
@@ -381,6 +381,11 @@ export async function runSession({ topic, profile, profiles, hooks, hookStart = 
   };
   const history = [];
   let elapsed = 0, decisions = 0, stop = 'max_decisions', error = null, lastNode = null;
+  // r29: a move to the next section, from an accepted next_section or the next-section hook; a refused move records no change.
+  const emitSection = (decisionId, move) => {
+    if (move.status == null) return;
+    emit('section_changed', { decision_id: decisionId, from_section_id: move.from, to_section_id: move.to, status: move.status, reason: move.reason ?? null, trigger: move.trigger });
+  };
   let input = { kind: 'typed', text: topic.opening_message }, holdback = null;
   const applyContext = (next = {}, hole = null) => {
     const changed = Object.entries(next).filter(([key, value]) => context[key] !== value);
@@ -433,6 +438,7 @@ export async function runSession({ topic, profile, profiles, hooks, hookStart = 
       if (evaluated && !evaluated.blocking) emit('evidence_updated', { claims: evaluated.evidence, cause: 'learner_message', ...judged }, evaluatedAt);
       now = startAt + decideMs;
       applyContext(decided.context, decided.rabbit_hole);
+      if (decided.section_move) emitSection(decisionId, decided.section_move);
       emit('tutor_action_ready', { decision_id: decisionId, decision: decided.decision, estimated_learning_seconds: decided.estimated_learning_seconds ?? null, available_modalities: decided.available_modalities ?? null, planner: decided.planner ?? null, planner_version: decided.planner_version ?? null, ...(decided.trace ? { trace: decided.trace } : {}), ...debug({ material_summary: decided.material_summary ?? null }) });
       decisions++;
       elapsed += decided.estimated_learning_seconds || 0;
@@ -493,7 +499,23 @@ export async function runSession({ topic, profile, profiles, hooks, hookStart = 
       const picked = selected_option_id != null ? options.find(option => option.id === selected_option_id) : null;
       if (selected_option_id != null && !picked) throw Error(`the learner chose ${selected_option_id}, not an offered option`);
       if (generated) for (const item of made) emit('material_visibility', { material_id: item.material_id, visible: false, timing_source: 'estimated' }, done);
-      if (picked) {
+      if (picked?.section && tutor.moveOn) {
+        // r29: the next-section hook moves on with no Tutor turn; the learner then reads the new section (its title: the
+        // section's content is not materialized here) and makes the next move, typed, as no hook is shown yet.
+        emit('next_step_selected', { hook_set_id: set.hookSetId, option_id: picked.id, position: picked.position }, moveAt);
+        now = Math.max(now, moveAt);
+        history.push({ material: decided.material_summary ?? null, learner: null });
+        const move = await tutor.moveOn(meter({ decision_id: decisionId }, () => now));
+        budget();
+        emitSection(decisionId, move);
+        applyContext(move.context);
+        const material = move.title ? `Next section: ${move.title}` : null;
+        const next = await learner.reply({ view: learnerView({ material, options: [] }, history) }, meter({ decision_id: decisionId }));
+        assertNoProfileLeak(next.response.text, terms);
+        emit('learner_message', { decision_id: decisionId, kind: next.response.kind, input: 'typed', chars: next.response.text.length, ...debug({ text: next.response.text }) }, now);
+        history.push({ material, learner: next.response.text });
+        input = { kind: 'typed', text: next.response.text };
+      } else if (picked) {
         emit('next_step_selected', { hook_set_id: set.hookSetId, option_id: picked.id, position: picked.position }, moveAt);
         now = Math.max(now, moveAt);
         history.push({ material: decided.material_summary ?? null, learner: null });

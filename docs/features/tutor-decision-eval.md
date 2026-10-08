@@ -874,8 +874,42 @@ page "Tutor confirmation run r27 · 2026-10-08").
   used a different example than the Tutor and offered no way forward.
 - **Costs:** Anthropic $2.2439 metered. JEV: 26 calls, cost unavailable.
 - **Untested:** practice-card delivery (§18.2 names the separate check).
+- **Correction (after a code survey of r28):** at r27 the product had no section advancement at all. The learning-path
+  route had no advance or complete action, the active section was set only when the path was accepted, and section
+  completion was planned for LP2. So no session could leave section 1 whatever the evidence, and the progress criterion
+  could not be met at r27. "No claim reached *understood*" stands. Practice on a learning-path canvas also produced no
+  evidence (`journeyDomain.practice` returned null). r29 adds a learner-started `next_section` (completed when the
+  section's completion evidence is met, skipped otherwise). The next evaluation reports evidence-based advancement and
+  learner-requested skipping separately, and a skip never satisfies the understanding criterion. Practice cards inside
+  learning-path sections are LP4, untested; `e2e/practice-card-check.mjs` covers the rest.
 - **Aggregation fix:** after the run, `readSessions` read `run.json` as a session. It now skips it; aggregation only, nothing
   rerun.
+
+### 18.4 r29 wiring: moving to the next section (for the next confirmation run)
+
+- **Typed move-on.** An accepted `next_section` action, which the validator keeps only when `explicit_request` quotes the
+  learner's words, makes the route call the page makes after the turn (`executeActions`). That call is the journey
+  route's `next_section` at the journey's revision, replayed once at the re-read revision on a stale-revision 409.
+- **Next-section hook.** A click moves on with no Tutor turn (LearnPage `onPick`: `step.section`). The learner then reads
+  the new section (its title: section content is not materialized here) and types the next move. The hook's text carries
+  its note, as the card shows it: "Next section", or "Next section - skips this section".
+- **Recording.** Each move is a `section_changed` event: from and to section, `completed` or `skipped` from the route's
+  reply (`path.sections[left].status`, `change.reason`), and the trigger (`tutor` or `hook`).
+- **Reporting.** `evidence.sessions` reports `sections_completed` (the section's completion evidence was met) apart from
+  `sections_skipped` (the learner moved on before it was). A skip never counts toward understanding: claim states come from
+  evidence only.
+- **Evidence after a typed turn (fixed by Learning, 2da06677).** The page did not re-read the journey after a typed turn,
+  so the section hook appeared only after a reload. Now the page adopts the evaluate reply's journey evidence (events, seq,
+  revision) when the seq is newer and the journey is unchanged, and the eval does the same at the same point.
+- **The section hook may repeat (Learning, 0040893a).** With the hook offered, every later set failed on `repeat`, because
+  one repeated hook fails the whole set. The one `path.next` hook is now exempt; content hooks still never repeat.
+- **Keyless fixture limit (not a product rule).** The fixture's hooks come from a small pool and never repeat, so a long
+  session runs out: later sets fail on `shape` and escalate. That was true on r28 too: 12 of 14 sets in the low-usage
+  session.
+- **Cost on r29.** Journey requests are larger once evidence is adopted (the hook input's `path.next`, the `next_section`
+  offer): at stub token counts, Next Steps calls cost about a third more, and the Tutor's turns a little more. A low-usage
+  session that completed 15 decisions under $1.30 on r28 completes 14 on r29, and is still reviewed inside its limits
+  (`budget.test.mjs` records the measurement).
 
 **B. Equivalent phrasings: quality, latency and cost** (contract §4.1.1 follow-up).
 - **Pairs:**

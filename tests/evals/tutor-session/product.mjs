@@ -28,7 +28,7 @@ import { JEV_TRANSPORTS } from '../../../packages/control-plane/src/learn-grade-
 import { LEARN_TASKS } from '../../../packages/control-plane/src/learn-models.js';
 import { JOURNEY_TOOLS } from '../../../packages/control-plane/src/agents/learn-journey.js';
 import { NEXT_STEPS_LIMITS, NEXT_STEPS_TOOL } from '../../../packages/control-plane/src/agents/learn-next-steps.js';
-import { TUTOR_TOOL } from '../../../packages/control-plane/src/agents/learn-tutor.js';
+import { NEXT_SECTION_ACTION, TUTOR_TOOL } from '../../../packages/control-plane/src/agents/learn-tutor.js';
 import { freshLearnDb } from './harness.mjs';
 import { requestWorstCase } from './cost.mjs';
 
@@ -188,7 +188,14 @@ export const evaluationOf = e => ({
 });
 // HookSet option -> the eval's option (A1): the hook text verbatim, its screen position, and the structured identity the
 // creator analytics aggregate by (learning_goal plus ids, contract §5.2). The learner view keeps only id, position, text.
-export const optionOf = set => (option, i) => ({ id: option.id, position: i + 1, text: option.hook, set_id: set.set_id, learning_goal: option.selected_next_step?.learning_goal ?? null, concept_ids: option.selected_next_step?.concept_ids ?? [], claim_ids: option.selected_next_step?.claim_ids ?? [] });
+// r29: a hook into the journey's next section (option.section: { id, title, skips }) carries the note the card shows beside it
+// ([data-next-section-note]), so the learner sees whether moving on completes this section or skips it; the hook text stays verbatim.
+const sectionNote = section => (section.skips ? 'Next section - skips this section' : 'Next section');
+export const optionOf = set => (option, i) => ({
+  id: option.id, position: i + 1, text: option.hook, set_id: set.set_id,
+  ...(option.section ? { section: { id: option.section.id, skips: !!option.section.skips }, note: sectionNote(option.section) } : {}),
+  learning_goal: option.selected_next_step?.learning_goal ?? null, concept_ids: option.selected_next_step?.concept_ids ?? [], claim_ids: option.selected_next_step?.claim_ids ?? [],
+});
 // A tutor_decision event -> the eval's decision fields (A2). The product has no separate card type: a shown or made card's
 // modality is its block type (contract §3.2), so card_type is that modality on a card action and null otherwise.
 const CARD_ACTIONS = ['show_authored_card', 'focus_part', 'create_material'];
@@ -260,6 +267,22 @@ export async function productWorld({ topic, ids, boundary, board = 'main', trace
     setTimer: fire => { due = fire; return 1; }, clearTimer: () => { due = null; }, now: () => clock,
   });
   const snapshot = () => ({ context: context(), store, journey: view, blocks: blocks(), title: topic.title, lastTurn });
+  // r29: move on to the next section, as the page's journey controller does (LearnJourney.jsx nextSection -> act): the journey
+  // route's next_section at the journey's revision, once more at the re-read revision on a stale one. The route completes the
+  // section when its completion evidence is met and skips it otherwise; the reply's path says which. Section 2 is planned
+  // there (a journey_section request, metered), never materialized here (section_materialization is not exercised).
+  const moveOn = async trigger => {
+    const from = view.journey.active_section_id;
+    const send = revision => request(journeyRoute, '/api/learn/journey', { app, board, action: 'next_section', revision });
+    let response = await send(view.journey.revision), data = await response.json().catch(() => null);
+    if (response.status === 409 && data?.journey?.revision != null && data.journey.revision !== view.journey.revision) {
+      response = await send(data.journey.revision); data = await response.json().catch(() => null);
+    }
+    if (!response.ok) return { from, to: from, status: null, reason: null, refused: String(data?.error ?? response.status), trigger };
+    view = { ...view, journey: data.journey, path: data.path };
+    const left = (data.path?.sections || []).find(s => s.id === from), to = data.journey?.active_section_id ?? null;
+    return { from, to, status: left?.status ?? null, reason: data.path?.change?.reason ?? null, trigger, title: (data.path?.sections || []).find(s => s.id === to)?.title ?? null };
+  };
 
   return {
     close: db.close,
@@ -283,7 +306,8 @@ export async function productWorld({ topic, ids, boundary, board = 'main', trace
         let reply = await journeyPost({ action: 'start', text: topic.opening_message });
         for (let step = 0; step < 6 && reply.journey?.state !== 'active'; step++) reply = await journeyPost({ action: reply.journey?.state === 'path_review' ? 'accept' : 'cancel', revision: reply.journey?.revision });
         if (reply.journey?.state !== 'active') throw Error(`the journey did not become active (${reply.journey?.state ?? 'none'})`);
-        view = { journey: reply.journey, path: reply.path, start: () => ({ handled: false }) };
+        // nextSection: the page's journey controller can move on (turnOffers' nextSectionOffer); moveOn below is that move.
+        view = { journey: reply.journey, path: reply.path, start: () => ({ handled: false }), nextSection: () => {} };
         return { evidence: evidence(), context: where() };
       },
       // One real Tutor turn: typed words (evaluated first by the real evidence path) or a hook click (no words, no evidence).
@@ -294,6 +318,7 @@ export async function productWorld({ topic, ids, boundary, board = 'main', trace
         if (input.option && !nextStep) throw Error(`the hook ${input.option.id} could not be selected`);
         const offers = turnOffers({ journey: view, record: null, opening: false, nextStep, openResearch: null, repository: false });
         const turnId = `eval-${ids.session_id}-${++turns}`;
+        const journeyAtStart = view?.journey?.id ?? null;
         const sentBefore = boundary.requests.length;
         const onScreen = shown;
         const result = await runTurn({
@@ -301,6 +326,16 @@ export async function productWorld({ topic, ids, boundary, board = 'main', trace
           trace: trace && { identity: { user_id: ids.user_id, canvas_version: null }, blocks: blocks(), next_step_options: onScreen, selected_at: null },
         });
         store = result.store;
+        // The page adopts the evaluate reply's journey evidence right after the turn (LearnTutor.jsx -> adoptEvidence, fix
+        // 2da06677): its events, seq and revision, when the seq is newer and the journey is the one the turn started on. The
+        // Next Steps basis reads the seq, so the hooks recompute (path.next, completes), and next_section posts this revision.
+        const adopted = result.evaluation?.journey;
+        if (adopted && journeyAtStart && view.journey?.id === journeyAtStart && adopted.seq > (view.journey.evidence?.seq ?? -1)) {
+          view = { ...view, journey: { ...view.journey, evidence: { ...view.journey.evidence, events: adopted.events, seq: adopted.seq }, revision: adopted.revision } };
+        }
+        // r29: an accepted next_section (the learner explicitly asked to move on) opens the next section after the turn, as
+        // executeActions does; the turn itself never reads the result.
+        const sectionMove = (result.actions || []).some(action => action.type === NEXT_SECTION_ACTION) ? await moveOn('tutor') : null;
         // The page's lastTurn (LearnTutor.jsx setLastTurn): what the next hook input reads of this turn.
         const kind = learnerIntent(result.turn).kind;
         lastTurn = { seq: turns, turn_id: result.turn.turn_id, kind, ...(['question', 'request'].includes(kind) ? { question: result.turn.raw_user_message.slice(0, 300) } : {}), transitions: result.transitions.map(({ claim, from, to }) => ({ claim, from, to })) };
@@ -321,8 +356,11 @@ export async function productWorld({ topic, ids, boundary, board = 'main', trace
           // The learner-originated part of what the planner was sent (its words and the learner side of the recent turns), for
           // the hidden-profile check; the Tutor's own replies may use any word and are not scanned.
           tutor_input: planned.map(entry => { const c = plannerContextOf(entry.body); return { learner: c.learner_intent?.raw_user_message ?? null, turns: (c.recent_relevant_context?.turns || []).map(t => t?.learner ?? null) }; }),
+          ...(sectionMove ? { section_move: sectionMove } : {}),
         };
       },
+      // r29: a click on the next-section hook moves on with no Tutor turn (LearnPage.jsx onPick: step.section -> nextSection).
+      async moveOn(meter) { attribute(meter); const move = await moveOn('hook'); return { ...move, context: where() }; },
     },
     // The product's stopping point after a turn (contract §1.2): with one, hooks are requested after the debounce while the
     // learner reads; without one (a Tutor question waiting, setup, nothing to ground on) there are none.
