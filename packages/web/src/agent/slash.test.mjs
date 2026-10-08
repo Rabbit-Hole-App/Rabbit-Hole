@@ -50,8 +50,9 @@ test('product availability is not the review copy: /ask is valid everywhere, /re
   assert.deepEqual(SLASH.find((c) => c.name === 'ask').places, ['home', 'project', 'learn']);
   // /research and /do are Home, Library and Project workflows, not Canvas commands (owner, 2026-10-06).
   for (const name of ['research', 'do']) assert.deepEqual(SLASH.find((c) => c.name === name).places, ['home', 'project']);
-  assert.match(reviewOff('ask', 'workspace', { askLive: false }).reason, /live chat history/);
-  assert.equal(reviewOff('ask', 'workspace', { askLive: true }), null);
+  assert.match(reviewOff('ask', 'app', { askLive: false }).reason, /live chat history/);
+  assert.equal(reviewOff('ask', 'app', { askLive: true }), null);
+  assert.equal(reviewOff('ask', 'workspace', { askLive: false }), null); // Home asks use LEARN_DB (learn-home-ask.js)
   assert.equal(reviewOff('ask', 'project', { askLive: false }), null); // project asks use LEARN_DB
   // A canvas offers no /research either (Professor Next Steps contract §1.7): no kind turns it on.
   for (const kind of ['workspace', 'project', 'app', 'canvas']) assert.deepEqual(reviewOff('research', kind), { reason: 'Research here would call the live model, so it is off on this preview.', short: 'Off on this preview' }, kind);

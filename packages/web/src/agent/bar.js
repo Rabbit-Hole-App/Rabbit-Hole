@@ -121,7 +121,11 @@ export const resultsView = (results) => (!results.length ? 'empty' : results.len
 
 // §6.2: the four modes, then the place's shortcuts - one list for every input (agent/slash.js).
 export const MODES = SLASH.filter((c) => c.group === 'mode').map((c) => [c.name, descFor(c, 'home')]);
-export const modesFor = (scope) => SLASH.filter((c) => c.group === 'mode').map((c) => [c.name, descFor(c, placeOf(scope) === 'project' ? 'project' : 'home')]);
+// Only the modes this scope can run (r28 audit, owner 2026-10-08: "if we need to remove any"): a mode refused here is
+// not offered, rather than shown dimmed. /research is never offered (refused everywhere, and unwired in AgentBar.jsx);
+// /ask and /teach leave an app page. Typed by name, a refused mode still says why (AgentBar.jsx submit).
+export const modesFor = (scope) => SLASH.filter((c) => c.group === 'mode' && modeAvailability(c.name, scope.kind).ok)
+  .map((c) => [c.name, descFor(c, placeOf(scope) === 'project' ? 'project' : 'home')]);
 
 // '/' at position 0 opens the picker and '/te' filters it; null means no picker.
 export const modeQuery = (text) => text.match(/^\/([a-z]*)$/)?.[1] ?? null;
@@ -133,10 +137,10 @@ export function shortcutsFor(scope, catalog = []) {
   return commandsFor(place, { catalog }).filter((c) => c.group === 'shortcut').map((c) => [c.name, descFor(c, place)]);
 }
 
-// §6.4: which modes a scope can serve; the reason shows dimmed in the picker, and
-// ask() refuses with it. Workspace and app asks go to /api/ask, which writes live
+// §6.4: which modes a scope can serve; one it cannot is not offered (modesFor), and
+// submit() refuses it with this reason. App asks go to /api/ask, which writes live
 // chat history (control-plane index.js:1194-1201), so the preview keeps them off
-// until the user turns askLiveOnPreview on (flags.js). Project and canvas asks use LEARN_DB.
+// until the user turns askLiveOnPreview on (flags.js). Home, project and canvas asks use LEARN_DB.
 // The product offers every mode everywhere (agent/slash.js); this preview's own safety limits come from reviewOff.
 export function modeAvailability(mode, kind, askLive = askLiveOnPreview) {
   const off = reviewOff(mode, kind, { askLive });
@@ -192,16 +196,40 @@ export function threadsPath(scope, id) {
   return scope.kind === 'app' ? `/api/ask/threads?scope=app&ref=${encodeURIComponent(scope.slug)}` : '/api/ask/threads?scope=org';
 }
 
-// An example for each command the bar offers, shown in its / commands sheet (BarCommandsSheet.jsx).
+// An example for each command the bar offers, shown in its / commands sheet (BarCommandsSheet.jsx), and what that
+// example does (router.js, commands.js): the sheet's demo. Each example runs as typed. /research is kept for when it is
+// wired; the bar does not offer it.
 const EXAMPLES = {
   ask: { home: '/ask which projects did I open this week?', project: '/ask what does the GPT class do?' },
   teach: { home: '/teach attention', project: '/teach causal masking' },
   research: { home: '/research attention mechanisms', project: '/research layer normalization' },
-  do: { home: '/do open my last canvas', project: '/do open the Learn canvas' },
+  // /do new canvas called …: router.js rule 8 (create_canvas); a project's canvas joins the project.
+  do: { home: '/do open my last canvas', project: '/do new canvas called Attention' },
   find: '/find nanoGPT',
   open: '/open my last project',
-  new: '/new canvas called Attention',
+  // /new takes a Start path (router.js NEW_PATH); 'canvas called Attention' is not one and opened Repository.
+  new: '/new canvas',
   connect: '/connect karpathy/minGPT',
-  run: '/run my training job',
+  run: '/run nightly-report',
 };
 export const exampleFor = (name, place) => { const e = EXAMPLES[name]; return typeof e === 'string' ? e : e?.[place] || e?.home || `/${name}`; };
+const RESULTS = {
+  ask: {
+    home: 'Answers in the window over the bar, from your own projects, canvases and Rabbit Holes. It creates nothing.',
+    project: 'Answers about this project\'s code in the window over the bar. With a file or symbol selected, the answer goes to its Chat in the inspector.',
+  },
+  teach: {
+    home: 'Makes a canvas for attention and opens Learn on it, where the Tutor starts teaching.',
+    project: 'Opens this project\'s Learn canvas with causal masking as what to learn. The Tutor teaches there.',
+  },
+  do: {
+    home: 'Opens the canvas you opened most recently in this browser. Words that name no action are answered as a question.',
+    project: 'Makes a canvas called Attention in this project. Undo takes it back while it is untouched.',
+  },
+  find: 'Lists what in your library matches nanoGPT. Pick one to open it.',
+  open: 'Opens the project you opened most recently in this browser.',
+  new: 'Opens Start a Rabbit Hole on Blank canvas. Nothing is made until you start.',
+  connect: 'Shows a card for karpathy/minGPT and its branch. Confirm connects it as a project; one already connected opens instead.',
+  run: 'Finds your job named nightly-report and shows its card. Confirm starts a run now.',
+};
+export const resultFor = (name, place) => { const r = RESULTS[name]; return typeof r === 'string' ? r : r?.[place] || r?.home || ''; };

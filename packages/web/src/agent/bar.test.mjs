@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  aboutScope, applyEvent, cardView, shortcutsFor, carry, EXPIRY_MS, follow, getLatest, getTurns, labelOf, learnOutcome, lineOf, MODES, modeAvailability, modeQuery,
+  aboutScope, applyEvent, cardView, shortcutsFor, carry, EXPIRY_MS, follow, getLatest, getTurns, labelOf, learnOutcome, lineOf, MODES, modeAvailability, modeQuery, modesFor,
   offerFor, panelHosts, placeholderFor, pushTurn, rejectBody, resetThread, resultsKey, resultsView, subscribeTurns, threadIds, threadsPath, updateTurn, widen,
 } from './bar.js';
 import { scopeKey } from './scope.js';
@@ -10,7 +10,7 @@ const home = { org: 'gmail-com', kind: 'workspace', slug: null, title: null, sel
 const nano = { org: 'gmail-com', kind: 'project', slug: 'repo-1a2b', title: 'karpathy/nanoGPT', selected: null };
 const attn = { ...nano, selected: { id: 'n7', label: 'CausalSelfAttention', commit: '3f2a1c9' } };
 const counter = { org: 'gmail-com', kind: 'app', slug: 'counter', title: 'counter', selected: null };
-const OFF = 'Asking about the workspace or apps is off on this preview: it would write to live chat history.';
+const OFF = 'Asking about an app is off on this preview: it would write to live chat history.';
 
 test('results and threads are per resource (org|kind:slug); drafts stay per selection', () => {
   assert.equal(resultsKey(nano), 'gmail-com|project:repo-1a2b');
@@ -149,8 +149,9 @@ test('"/" at position 0 opens the picker with exactly four modes', () => {
 test('modes a scope cannot serve carry their reason: T02 §6.4, and live chat history stays off on the preview', () => {
   assert.deepEqual(modeAvailability('auto', 'workspace'), { ok: true });
   // The third argument is flags.js askLiveOnPreview; passed here so this test holds whichever way the user decides.
-  for (const kind of ['workspace', 'app']) assert.deepEqual(modeAvailability('ask', kind, false), { ok: false, reason: OFF, short: 'Off on this preview' }, kind);
-  for (const kind of ['project', 'canvas']) assert.deepEqual(modeAvailability('ask', kind, false), { ok: true }, kind); // LEARN_DB
+  assert.deepEqual(modeAvailability('ask', 'app', false), { ok: false, reason: OFF, short: 'Off on this preview' });
+  // A Home question goes to /api/learn/home-ask (LEARN_DB), as a typed question already did (r28 audit).
+  for (const kind of ['workspace', 'project', 'canvas']) assert.deepEqual(modeAvailability('ask', kind, false), { ok: true }, kind); // LEARN_DB
   for (const kind of ['workspace', 'app']) assert.deepEqual(modeAvailability('ask', kind, true), { ok: true }, kind);
   const RESEARCH_OFF = { ok: false, reason: 'Research here would call the live model, so it is off on this preview.', short: 'Off on this preview' };
   for (const kind of ['workspace', 'app', 'project']) assert.deepEqual(modeAvailability('research', kind), RESEARCH_OFF, kind); // a review-copy limit, not the product
@@ -215,6 +216,15 @@ test('a question about a connected repository asks in that project scope, keepin
   assert.equal(resultsKey(other), 'gmail-com|project:repo-9z'); // the project page's own results key
   assert.equal(aboutScope(attn, { slug: nano.slug, kind: 'repository', title: nano.title }), attn);
   assert.equal(aboutScope(home, about).kind, 'project');
+});
+
+// r28 audit (owner, 2026-10-08: "if we need to remove any"): a mode this scope refuses is not offered, never shown dimmed.
+// /research is refused everywhere and unwired (AgentBar.jsx), so the bar never offers it; an app page offers only /do.
+test('the picker offers only the modes a scope can run: no /research anywhere; /ask on Home; an app page keeps /do', () => {
+  const names = (list) => list.map(([name]) => name);
+  assert.deepEqual(names(modesFor(home)), ['ask', 'teach', 'do']);
+  assert.deepEqual(names(modesFor(nano)), ['ask', 'teach', 'do']);
+  assert.deepEqual(names(modesFor({ kind: 'app', slug: 's3-log' })), ['do']);
 });
 
 test('the picker lists the shortcuts a place can use: /new stays off a project, /run needs a job', () => {
