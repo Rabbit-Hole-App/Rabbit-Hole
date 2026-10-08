@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowDownToLine, FolderGit2, Link2, X } from 'lucide-react';
 import { navigate } from '../api.js';
 import ForkButton from '../ForkButton.jsx';
 import LearningCard, { CARD_GRID, menuAt } from './LearningCard.jsx';
 import { cardModel } from './provenance.js';
+import { findQuery, readFind, scheduleFind } from './explore-find.js';
 import { Avatar, Button, Menu, MenuItem, toast } from '../ui.jsx';
 
 // Public explainers on the canonical card (docs/features/card-redesign.md), the same for Explore and the creator profile
@@ -49,6 +50,39 @@ export default function PublicCards({ cards, me, attr }) {
         <MenuItem icon={Link2} data-menu-copy-link onClick={() => copy(menu.card)}>Copy link</MenuItem>
       </Menu>
     </>
+  );
+}
+
+// Explore's AI find (explore-find.js; explore-publish.md "AI find"): for a signed-in viewer's sentence-length search, the
+// published canvases and creators the small model picked, once per pause in typing. null: nothing to show; 'loading'.
+export function useExploreFind(term, signedIn) {
+  const [found, setFound] = useState(null);
+  useEffect(() => {
+    const q = signedIn ? findQuery(term) : null;
+    if (!q) { setFound(null); return undefined; }
+    let live = true;
+    setFound('loading');
+    const cancel = scheduleFind(q, query => fetch('/api/learn/boards/published/find', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ q: query }) })
+      .then(readFind).then(result => { if (live) setFound(result); }, () => { if (live) setFound(null); }));
+    return () => { live = false; cancel(); };
+  }, [term, signedIn]);
+  return found;
+}
+
+// "Recommended", above the active tab's keyword results: the picked canvases on the Explainers tab, the picked creators
+// on the Creators tab (`kind`), on the same card and chip; else one line - nothing fits, or recommendations are not
+// available (not configured, over the cap). One find serves both tabs.
+export function Recommended({ found, me, kind }) {
+  if (!found) return null;
+  const picks = found === 'loading' ? [] : found[kind];
+  return (
+    <section data-explore-recommended={kind} aria-label="Recommended" className="pb-8">
+      <h2 className="pb-2 text-xs text-ink-2">Recommended</h2>
+      {found === 'loading' ? <p data-recommended-loading className="text-sm text-ink-3">Finding the best matches…</p>
+        : !picks.length ? <p data-recommended-note className="text-sm text-ink-3">{found.note || (kind === 'creators' ? 'No creator fits that yet.' : 'Nothing published fits that yet.')}</p>
+        : kind === 'creators' ? <div className="flex flex-wrap gap-2">{picks.map(c => <CreatorChip key={c.handle} c={c} />)}</div>
+        : <PublicCards cards={picks} me={me} attr="data-recommended-card" />}
+    </section>
   );
 }
 

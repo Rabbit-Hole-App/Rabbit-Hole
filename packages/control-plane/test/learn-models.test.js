@@ -178,7 +178,7 @@ test('the journey roles: exactly five LEARN_TASKS entries, one tool each, no fal
   });
   assert.ok(Object.values(journey).every(Object.isFrozen));
   // Appended after the Avatar roles, which stay; the hook planner roles follow the journey block.
-  assert.deepEqual(Object.keys(LEARN_TASKS).slice(Object.keys(LEARN_TASKS).indexOf('home_ask'), -2), ['home_ask', 'avatar_director', 'avatar_script_reviewer', ...Object.keys(journey), 'tutor_next_steps', 'tutor_next_steps_escalation']);
+  assert.deepEqual(Object.keys(LEARN_TASKS).slice(Object.keys(LEARN_TASKS).indexOf('home_ask'), -2), ['home_ask', 'avatar_director', 'avatar_script_reviewer', ...Object.keys(journey), 'tutor_next_steps', 'tutor_next_steps_escalation', 'explore_find']);
 });
 
 // Professor Next Steps (docs/features/professor-next-steps.md §2.4): Sonnet low first, Opus once as the escalation; the

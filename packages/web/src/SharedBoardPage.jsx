@@ -14,6 +14,8 @@ import ChatComposer from './ChatComposer.jsx';
 import { Md, NextStepsCard } from './ask.jsx';
 import { streamAsk } from './agent/ask-stream.js';
 import { askHistory, askPath, loadChat, saveChat, signInForAsk, takeDraft } from './shared-ask.js';
+import { DiveNavigator, DivePortals } from './Dive.jsx';
+import { sharedTree } from './shared-holes.js';
 
 const AdaptiveCanvas = lazy(() => import('./AdaptiveCanvas.jsx'));
 
@@ -72,6 +74,15 @@ export default function SharedBoardPage({ token }) {
       })
       .catch(() => setProblem('This board could not be opened. Check your connection and try again.'));
   }, [token]);
+  // Its Rabbit Holes Map, read-only (dive-v1.md "Shared map"): only the holes this viewer may open by their own link;
+  // a level or a red portal opens that link. No map when there is none to show, or the map cannot be read.
+  const [holes, setHoles] = useState(null);
+  useEffect(() => {
+    if (!shared) return;
+    fetch(`/api/learn/boards/shared/${encodeURIComponent(token)}/holes`).then(response => (response.ok ? response.json() : null))
+      .then(map => setHoles(sharedTree(map)), () => setHoles(null));
+  }, [token, !!shared]); // eslint-disable-line react-hooks/exhaustive-deps
+  const goTo = href => window.location.assign(href);
 
   if (problem) {
     return (
@@ -104,11 +115,12 @@ export default function SharedBoardPage({ token }) {
         <ForkButton source={{ token }} title={shared.title} auto={forkRequested} onForked={fork => { window.location.href = fork.url; }} count={shared.fork_count} />
       </header>
       <div className="relative min-h-0 flex-1" aria-label="Lesson canvas">
-        <Suspense fallback={null}>
+        <Suspense fallback={null}><DivePortals.Provider value={holes ? { portals: holes.portals, enter: goTo } : null}>
           <AdaptiveCanvas exchanges={exchanges} onMove={() => {}} appName={shared.app} boardState={board} readOnly onState={onCanvasState} onStartRabbitHole={startFromCard}
+            gutterTop={holes ? <DiveNavigator tree={holes.tree} climb={index => goTo(holes.tree.path[index].href)} enter={goTo} /> : null}
             leftRail={<SharedNextSteps token={token} card={card?.id || null} version={shared.version} signedIn={!!shared.viewer} startRef={rabbitStart} />}
             composer={<SharedAsk token={token} viewer={shared.viewer} context={shared.context} draft={askDraft} />} />
-        </Suspense>
+        </DivePortals.Provider></Suspense>
       </div>
     </main>
   );
