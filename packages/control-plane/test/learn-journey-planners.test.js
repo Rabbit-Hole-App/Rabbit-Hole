@@ -204,6 +204,19 @@ test('planSection rejects a step whose make.command is not one of the slash comm
   assert.equal(out.path_version, 1);
 });
 
+// Run A (tutor-decision-eval.md 18.1): a real section plan stopped LP1 at one check key. The misconception map is optional
+// (KEY_RULE): an entry the check's claims cannot hold is dropped, never the plan; a key with no option as correct still fails.
+test('planSection drops a check key misconception entry its claims cannot hold; a correct that is not an option is still PlannerInvalid', async () => {
+  const check = key => ({ ...PLAN, checks: [{ id: 'c2', kind: 'mcq', purpose: 'transfer', transfer: true, claims: ['logistic-regression-core/mechanism'], prompt: 'Which output can a sigmoid give?',
+    options: [{ id: 'a', label: '0.7' }, { id: 'b', label: '1.4' }, { id: 'c', label: '-2' }], key, trigger: 'before_transition' }] });
+  const mapped = { b: 'mechanism-confusion', c: 'prediction-confusion', a: 'mechanism-confusion', z: 'mechanism-confusion', d: 'made-up' };
+  const out = await planSection(env, SECTION_INPUT, { callModel: scripted(check({ correct: 'a', misconceptions: mapped })).callModel });
+  assert.deepEqual(out.checks[0].key, { correct: 'a', misconceptions: { b: 'mechanism-confusion' } }, 'another claim, the correct option, an unknown option and an invented id are dropped');
+  for (const key of [{ correct: 'z', misconceptions: {} }, { misconceptions: { b: 'mechanism-confusion' } }, { correct: 'a', misconceptions: [] }, null]) {
+    await assert.rejects(planSection(env, SECTION_INPUT, { callModel: scripted(check(key)).callModel }), PlannerInvalid, JSON.stringify(key));
+  }
+});
+
 test('resolveWithModel: an unknown kind or a reply with no tool call is clarification_needed', async () => {
   for (const reply of [{ kind: 'banana' }, null, { kind: 'tray_answer', option_id: 'zzz' }]) {
     assert.deepEqual(await resolveWithModel(env, { text: 'hmm, maybe', tray: TRAY }, { callModel: scripted(reply).callModel }), { kind: 'clarification_needed' });

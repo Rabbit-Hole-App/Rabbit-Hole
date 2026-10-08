@@ -28,6 +28,8 @@ export async function keepReply(cache, key, value) { try { await cache?.put(key,
 export async function keepTelemetry(db, { scope, userId, board, telemetry }) {
   try { await db.prepare('INSERT INTO next_steps_telemetry (created_at, scope, user_id, board, telemetry_json) VALUES (?, ?, ?, ?, ?)').bind(new Date().toISOString(), scope, userId || null, String(board), JSON.stringify(telemetry)).run(); } catch { /* best effort */ }
 }
+// A planner failure answers 502 with its message; a failed escalation's telemetry (failed: true) is kept like a planned set's.
+const failed = async (env, error, row) => { if (error.telemetry) await keepTelemetry(env.LEARN_DB, { ...row, telemetry: { ...error.telemetry, cached: false } }); return json({ error: error.message }, 502); };
 
 // A HookSet plus the planner telemetry (TutorDecisionEvent input, never shown); reason_internal never leaves (mintSet
 // keeps only the hook and its step). A cache hit was paid for once, so it reports no usage (ruling F13).
@@ -42,7 +44,7 @@ export async function ownedNextSteps(env, access, body, { callModel, cache = glo
   const refused = await admitUsage(env.LEARN_DB, { category: 'tutor_next_steps', viewer: access.email, shareKey: '', boardId: body.app, owner: access.email, viewerHour: limit.TUTOR_NEXT_STEPS_HOUR, viewerDay: limit.TUTOR_NEXT_STEPS_DAY, shareHour: NO_CAP, shareDay: NO_CAP });
   if (refused) return json({ error: 'Next steps are paused for now; try again later.', limited: true }, 429);
   let planned;
-  try { planned = await planNextSteps(env, body.input, callModel ? { callModel } : {}); } catch (error) { return json({ error: error.message }, 502); }
+  try { planned = await planNextSteps(env, body.input, callModel ? { callModel } : {}); } catch (error) { return failed(env, error, { scope: 'owned', userId: access.user_id, board: body.app }); }
   const set = { ...mintSet(planned.options, body.input), telemetry: { ...planned.telemetry, cached: false } };
   await keepReply(cache, key, set);
   await keepTelemetry(env.LEARN_DB, { scope: 'owned', userId: access.user_id, board: body.app, telemetry: set.telemetry });
@@ -139,7 +141,7 @@ export async function sharedNextSteps(env, { row, state, title, key, viewer, ori
     viewerHour: personal ? limit.SHARED_ASK_VIEWER_HOUR : NO_CAP, viewerDay: personal ? limit.SHARED_ASK_VIEWER_DAY : NO_CAP, shareHour: limit.SHARED_ASK_SHARE_HOUR, shareDay: limit.SHARED_ASK_SHARE_DAY });
   if (refused) return json({ error: 'Next steps are paused for now; try again later.', limited: true }, 429);
   let planned;
-  try { planned = await planNextSteps(env, input, callModel ? { callModel } : {}); } catch (error) { return json({ error: error.message }, 502); }
+  try { planned = await planNextSteps(env, input, callModel ? { callModel } : {}); } catch (error) { return failed(env, error, { scope: 'shared', userId: viewer?.userId, board: key }); }
   // The reply telemetry (Ruling F11) carries the trim counts beside the set (owner sixth message 4), never in the model input.
   const set = { ...mintSet(planned.options, input, { source: { share_version: row.version, origin_block_id: contentOrigin(state, origin), title_fingerprint: fingerprint } }), telemetry: { ...planned.telemetry, cached: false, share_key: key, summary: inputSummary(input), trim: contentTrim } };
   if (!personal) await keepReply(cache, cacheKey, set);

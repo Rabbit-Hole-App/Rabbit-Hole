@@ -100,6 +100,7 @@ test('planNextSteps: Sonnet first; a missing tool call, a validator failure or a
     assert.deepEqual(s.calls.map(c => c.model), [LEARN_TASKS.tutor_next_steps.model, LEARN_TASKS.tutor_next_steps_escalation.model], why);
     assert.deepEqual(s.calls.map(c => c.role), ['tutor_next_steps', 'tutor_next_steps_escalation']);
     assert.deepEqual([out.telemetry.tier, out.telemetry.escalated, out.telemetry.calls, out.telemetry.model_role, out.telemetry.errors], ['escalation', why, 2, 'tutor_next_steps_escalation', errors]);
+    assert.deepEqual(out.telemetry.rejected_words, why === 'validator' ? good.options.slice(0, 2).map(o => o.hook.trim().split(/\s+/).length) : null, 'word counts of a refused reply only');
   }
   const ok = scripted([() => reply(good)]);
   const plain = await planNextSteps({}, INPUT(), { callModel: ok.callModel });
@@ -194,9 +195,10 @@ test('owned route: a reply from the dedup cache reports zero usage and cost, fla
   assert.deepEqual(hit.telemetry.usage, { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 });
 });
 
-// Owner 2026-10-08 (learn-migrations/0012): each planned set keeps one telemetry row, the reply's own telemetry; a cache hit,
-// a refusal and a planner failure keep none, and a failed write never costs the reply.
-test('owned route: a planned set keeps its telemetry (users.id, the app, never a hook or an email); hits, 429s and 502s keep none', async t => {
+// Owner 2026-10-08 (learn-migrations/0012): each planned set keeps one telemetry row, the reply's own telemetry; a set whose
+// escalation fails too keeps its telemetry with failed: true (Tutor eval run A); a cache hit and a refusal keep none; a failed
+// write never costs the reply.
+test('owned route: a planned or failed set keeps its telemetry (users.id, the app, never a hook or an email); hits and 429s keep none', async t => {
   const w = world(t, { TUTOR_NEXT_STEPS_HOUR: '2' }), good = fixtureFor('suggest_next_steps', INPUT());
   const rows = () => w.sqlite.prepare('SELECT scope, user_id, board, telemetry_json FROM next_steps_telemetry ORDER BY id').all().map(r => ({ ...r }));
   const escalated = scripted([() => reply({ options: good.options.slice(0, 2) }), () => reply(good)]);
@@ -205,13 +207,19 @@ test('owned route: a planned set keeps its telemetry (users.id, the app, never a
   const kept = JSON.parse(rows()[0].telemetry_json);
   assert.deepEqual(kept, set.telemetry, 'the reply telemetry as-is');
   assert.deepEqual([kept.escalated, kept.errors, kept.calls, kept.model_role], ['validator', ['shape'], 2, 'tutor_next_steps_escalation']);
+  assert.deepEqual(kept.rejected_words, good.options.slice(0, 2).map(o => o.hook.trim().split(/\s+/).length), 'the refused routine hooks as word counts');
   assert.equal(set.options.some(o => rows()[0].telemetry_json.includes(o.hook)), false, 'no hook');
   assert.equal(rows()[0].telemetry_json.includes('maker@test'), false, 'no email');
   await w.post({ app: 'canvas-0a1b2c3d', input: { ...INPUT(), basis: 'a' } });
   const bad = { ...good, options: good.options.map((o, i) => (i ? o : { ...o, reason_internal: '' })) };
-  assert.equal((await w.post({ app: 'canvas-0a1b2c3d', input: { ...INPUT(), basis: 'b' } }, undefined, { callModel: scripted([() => reply(bad), () => reply(bad)]).callModel })).status, 502);
+  const failed = await w.post({ app: 'canvas-0a1b2c3d', input: { ...INPUT(), basis: 'b' } }, undefined, { callModel: scripted([() => reply(bad), () => reply(bad)]).callModel });
+  assert.equal(failed.status, 502);
+  assert.equal('telemetry' in await failed.json(), false, 'the 502 body is unchanged');
   assert.equal((await w.post({ app: 'canvas-0a1b2c3d', input: { ...INPUT(), basis: 'c' } })).status, 429);
-  assert.equal(rows().length, 1, 'a cache hit, a 502 and a 429 keep no row');
+  assert.equal(rows().length, 2, 'a cache hit and a 429 keep no row');
+  const lost = JSON.parse(rows()[1].telemetry_json);
+  assert.deepEqual([rows()[1].scope, rows()[1].user_id, lost.failed, lost.escalated, lost.errors, lost.escalation_errors, lost.calls, lost.cached], ['owned', 'u-maker-1', true, 'validator', ['reason'], ['reason'], 2, false]);
+  assert.equal(bad.options.some(o => rows()[1].telemetry_json.includes(o.hook)), false, 'no hook from a failed set either');
   w.sqlite.exec('DROP TABLE next_steps_telemetry');
   w.sqlite.exec('DELETE FROM shared_ask_events');
   assert.equal((await w.post({ app: 'canvas-0a1b2c3d', input: { ...INPUT(), basis: 'd' } })).status, 200, 'a failed telemetry write never costs the reply');

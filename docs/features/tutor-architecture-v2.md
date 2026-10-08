@@ -316,10 +316,13 @@ failed explanations; untouched ideas never receive fail evidence.
 |---|---|
 | error / timeout | no larger evaluator; nothing stored from the failed evaluation; the Tutor answers safely |
 | settled | no larger evaluator |
-| uncertain, low consequence (an idea, transfer or attempt check) | keep JEV's events unsettled; one clarifying question (router row `uncertain_unsettled`) |
+| uncertain, low consequence (an idea or attempt check) | keep the events that rest on it unsettled; a clarifying question (router row `uncertain_unsettled`), at most 2 in a row on one claim |
+| uncertain transfer check only | no larger evaluator; the answer's passes settle as `demonstrated_here` with `transfer_unsure: true`, so the claim stays `uncertain`, never `understood` (router row `uncertain`) |
 | uncertain gap check | larger evaluator (it decides a Rabbit Hole suggestion) |
 | uncertain named misconception whose id already has one settled event on the claim | larger evaluator (a second one starts Socrates) |
 | confident pass beside an uncertain or confident misconception on one claim, or the reverse | larger evaluator (contradiction) |
+
+Settled per claim (Tutor eval run A, `tutor-decision-eval.md` 18.1; owner 2026-10-08): an event is settled when the checks it rests on are confident: a claim's events on the attempt check and that claim's idea, contradiction and misconception checks, a gap event on its own check. One claim's unsure check never unsettles another claim's evidence, and the transfer check only names a pass's kind (`evaluationFrom`). The evaluation's `status` is `settled` when every check but transfer is confident. The repeated-question limit (`route`, `UNSETTLED_LIMIT` 2, `store.unsettled`): after two `uncertain_unsettled` turns in a row on one claim, the next such turn is the `uncertain` row without `ask_question` (explain, a worked example, an authored card, practice or material); any other row ends the run. It changes no evidence, completes no section and advances nothing.
 
 The browser sends `prior_misconceptions` per claim; the worker stores nothing. The escalation reason
 is in the route telemetry (`larger.reason`). This supersedes GT-08's "JEV uncertain -> larger

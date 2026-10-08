@@ -294,13 +294,13 @@ function probe(p, registry, seen, at, errors) {
     return base;
   }
   if (badOptions(p.options, 2)) errors.push(`${at}: options must be 2-${LIMIT.options_max} of { id, label } with unique ids`);
-  const ids = options(p.options).map(o => o.id), wrong = p.key?.misconceptions ?? {};
+  const ids = options(p.options).map(o => o.id), raw = p.key?.misconceptions ?? {};
   const known = list(p.claims).flatMap(c => (has(registry?.claims, c) ? list(registry.claims[c]?.misconceptions).map(m => m?.id) : []));
-  if (!isObj(p.key) || !ids.includes(p.key.correct) || !isObj(wrong)
-    || Object.entries(wrong).some(([o, m]) => o === p.key.correct || !ids.includes(o) || !known.includes(m))) {
-    errors.push(`${at}: key needs correct (an option id) and misconceptions mapping wrong option ids to misconception ids of its claims`);
-  }
-  return { ...base, options: options(p.options), key: { correct: p.key?.correct, misconceptions: { ...wrong } } };
+  if (!isObj(p.key) || !ids.includes(p.key.correct) || !isObj(raw)) errors.push(`${at}: key needs correct (an option id) and a misconceptions object`);
+  // The misconception map is optional (KEY_RULE): an entry its claims cannot hold (the correct option, an unknown option, another
+  // claim's misconception or an invented id) is dropped, never the whole plan (tutor-decision-eval.md 18.1: one stopped LP1).
+  const wrong = isObj(raw) ? Object.fromEntries(Object.entries(raw).filter(([o, m]) => o !== p.key?.correct && ids.includes(o) && known.includes(m))) : {};
+  return { ...base, options: options(p.options), key: { correct: p.key?.correct, misconceptions: wrong } };
 }
 
 // planDiagnostic: { registry, probes (2-4), background? }.

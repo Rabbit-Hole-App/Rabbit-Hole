@@ -13,7 +13,7 @@ import { anthropic } from './ask.js';
 import { modelFailure } from './learn-research.js';
 import { LEARN_TASKS, costUsd, loggedModel, promptVersion } from './learn-models.js';
 import { JOURNEY_SYSTEMS, JOURNEY_TOOLS, diagnosticOutput, pathOutput, resolverOutput, sectionOutput } from './agents/learn-journey.js';
-import { NEXT_STEPS_PLANNER_VERSION, NEXT_STEPS_SYSTEM, NEXT_STEPS_TOOL, nextStepsOutput } from './agents/learn-next-steps.js';
+import { NEXT_STEPS_PLANNER_VERSION, NEXT_STEPS_SYSTEM, NEXT_STEPS_TOOL, nextStepsOutput, words } from './agents/learn-next-steps.js';
 import { fixtureModel } from './learn-journey-fixtures.js';
 import { normalizeToolInput } from './tool-input.js';
 
@@ -134,10 +134,13 @@ export async function planNextSteps(env, input, { callModel = journeyCallModel(e
     cost = c == null ? cost : +((cost || 0) + c).toFixed(6);
   };
   const ask = role => callRole(env, role, input, callModel, { tool: NEXT_STEPS_TOOL, system: NEXT_STEPS_SYSTEM, failure: 'The next steps planner is unavailable', onReply: result => onReply(role, result) });
+  // rejected_words: the word count of each hook in a routine reply the validator refused (numbers only, never a hook; Tutor eval
+  // run A saw hook_words without knowing over or under), else null.
+  let rejected = null;
   const done = async (options, role, escalated, errors = []) => ({ options, telemetry: {
     tier: escalated ? 'escalation' : 'routine', escalated, calls, ms: Date.now() - started, planner_version: NEXT_STEPS_PLANNER_VERSION, model_role: role, model_id: served,
     // Task 14 D-M4: a failed hash is unknown (null), never the recompute's error, as on the Tutor path.
-    prompt_version: await promptVersion(NEXT_STEPS_SYSTEM, [NEXT_STEPS_TOOL]).catch(() => null), usage, cost_usd: cost, reasons: options.filter(o => o.reason_internal).length, errors } });
+    prompt_version: await promptVersion(NEXT_STEPS_SYSTEM, [NEXT_STEPS_TOOL]).catch(() => null), usage, cost_usd: cost, reasons: options.filter(o => o.reason_internal).length, errors, rejected_words: rejected } });
   const contradictory = Object.values(input.scope?.claims || {}).some(c => c?.state === 'uncertain' && c.settled_passes > 0 && c.settled_negatives > 0);
   let escalated = 'contradictory', errors = [];
   if (!contradictory) {
@@ -146,7 +149,17 @@ export async function planNextSteps(env, input, { callModel = journeyCallModel(e
     if (checked?.ok && out.ambiguous !== true) return done(checked.value, 'tutor_next_steps', null);
     escalated = !out ? 'no_tool' : checked.ok ? 'ambiguous' : 'validator';
     errors = [...new Set((checked?.errors || []).map(e => e.replace(/^option \d+: /, '')))];
+    if (escalated === 'validator' && Array.isArray(out.options)) rejected = out.options.map(o => (typeof o?.hook === 'string' ? words(o.hook).length : null));
   }
-  const out = await ask('tutor_next_steps_escalation');
-  return done(valid('tutor_next_steps_escalation', nextStepsOutput(out, input)), 'tutor_next_steps_escalation', escalated, errors);
+  let last = null;
+  try {
+    const out = await ask('tutor_next_steps_escalation');
+    last = nextStepsOutput(out, input);
+    return done(valid('tutor_next_steps_escalation', last), 'tutor_next_steps_escalation', escalated, errors);
+  } catch (error) {
+    // A set whose escalation fails too: the telemetry rides on the error for the stored row (learn-next-steps-routes.js), never
+    // the 502 body; escalation_errors are the escalation's own rule names ([] with no tool call or a transport failure).
+    error.telemetry = { ...(await done([], 'tutor_next_steps_escalation', escalated, errors)).telemetry, failed: true, escalation_errors: [...new Set((last?.errors || []).map(e => e.replace(/^option \d+: /, '')))] };
+    throw error;
+  }
 }

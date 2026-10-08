@@ -103,7 +103,7 @@ const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
 export const needsRepair = c => c?.state === 'misconception' || c?.state === 'prerequisite_gap' || (c?.state === 'uncertain' && c.settled_negatives > 0);
 const labelled = text => LEARNER_LABELS.some(re => re.test(text)) || MASTERY.test(text);
 const copies = (text, source) => learningGoalProblem(String(text).slice(0, LEARNING_GOAL_MAX), source) === 'learner words';
-const words = text => String(text).trim().split(/\s+/).filter(Boolean);
+export const words = text => String(text).trim().split(/\s+/).filter(Boolean);
 const norm = text => String(text).toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '').replace(/\s+/g, ' ').trim();
 const content = text => new Set(norm(text).split(' ').filter(w => w.length >= 4));
 const jaccard = (a, b) => { const x = content(a), y = content(b); const inter = [...x].filter(w => y.has(w)).length; return inter / (new Set([...x, ...y]).size || 1); };

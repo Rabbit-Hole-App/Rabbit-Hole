@@ -185,6 +185,8 @@ export function evaluationSpec(turn, claims, store, domain = NANOGPT) {
 // re-asks its question, an explanation JEV could not settle gets one clarifying question, /deeper and /simplify navigate
 // authored cards. None of them is reachable on a hook click (no slash, no return, no evaluation), so hook turns are unchanged.
 const MATERIAL_FIXED = ['returned', 'uncertain_unsettled', 'slash'];
+const UNCERTAIN_MOVES = ['respond_text', 'focus_part', 'show_authored_card', 'suggest_depth', 'suggest_practice', 'ask_question'];
+export const UNSETTLED_LIMIT = 2; // consecutive uncertain_unsettled turns on one claim (store.unsettled)
 export function route({ turn, claims, states, evaluation, store, avatar = null, domain = NANOGPT }) {
   const noQuiz = turn.constraints.includes('no_quiz') || turn.constraints.includes('just_answer');
   const inHole = !!turn.canvas.dive;
@@ -226,8 +228,15 @@ export function route({ turn, claims, states, evaluation, store, avatar = null, 
   // An explanation whose content JEV could not settle and the policy did not escalate (Stage C):
   // one clarifying question, never a fail.
   const unclear = evaluation?.status === 'uncertain' && (evaluation.escalation?.uncertain || []).some(key => /^c\d+_(idea|mis|contra)/.test(key));
-  if ((unsure || unclear) && evaluation?.status === 'uncertain') return finish('uncertain_unsettled', 'feynman', ['ask_question'], unsure || claims[0]);
-  if (unsure) return finish('uncertain', 'feynman', ['respond_text', 'focus_part', 'show_authored_card', 'suggest_depth', 'suggest_practice', 'ask_question'], unsure);
+  // Tutor eval run A (tutor-decision-eval.md 18.1): at most UNSETTLED_LIMIT clarifying questions in a row on one claim. The
+  // next unsettled turn is the uncertain row without ask_question, so the plan explains, works an example, shows a card or
+  // offers practice instead of asking again. Evidence is untouched: the claim stays uncertain and nothing completes or advances.
+  if ((unsure || unclear) && evaluation?.status === 'uncertain') {
+    const claim = unsure || claims[0];
+    if ((store?.unsettled?.[claim] || 0) < UNSETTLED_LIMIT) return finish('uncertain_unsettled', 'feynman', ['ask_question'], claim);
+    return finish('uncertain', 'feynman', UNCERTAIN_MOVES.filter(type => type !== 'ask_question'), claim);
+  }
+  if (unsure) return finish('uncertain', 'feynman', UNCERTAIN_MOVES, unsure);
   const unseen = pick(state => state.state === 'not_yet_observed');
   if (unseen) return finish('not_yet_observed', 'feynman', ['respond_text', 'ask_question', 'show_authored_card', 'suggest_depth'], unseen);
   return finish('understood', 'none', ['respond_text', 'suggest_depth', 'ask_question'], claims[0]);
@@ -541,6 +550,8 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   const constraints = [...new Set([...current.constraints, ...(response.constraints_add || [])].filter(item => !(response.constraints_remove || []).includes(item)).concat(statedConstraints(raw)))];
   const asked = actions.find(action => action.type === 'ask_question');
   const socratic = routed.row === 'misconception' ? { ...current.socratic, [routed.claim]: (current.socratic[routed.claim] || 0) + 1 } : current.socratic;
+  // The current run of uncertain_unsettled turns, on one claim; any other row ends it (route's UNSETTLED_LIMIT).
+  const unsettled = routed.row === 'uncertain_unsettled' ? { [routed.claim]: (current.unsettled?.[routed.claim] || 0) + 1 } : {};
   const words = actions.filter(action => action.type === 'respond_text' || action.type === 'ask_question').map(action => action.text.trim()).join('\n\n');
   const text = handed ? [words, handed.answer ?? HANDOFF_FAILED].filter(Boolean).join('\n\n') : words;
   const dive = actions.find(action => action.type === 'suggest_dive');
@@ -548,7 +559,7 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   // A spoken question never becomes the hole's typed opening (openingQuestion): the dock would show it
   // as a user bubble, and Voice Mode never shows the learner's words.
   current = {
-    ...current, constraints, socratic,
+    ...current, constraints, socratic, unsettled,
     open: asked ? { action_id: asked.action_id, claim: asked.claim, text: asked.text, canvas: here } : turn.answering ? null : current.open,
     keep: turn.dive_choice ? null : current.keep,
     returned: turn.returned_from ? null : current.returned,
