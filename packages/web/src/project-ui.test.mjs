@@ -23,7 +23,7 @@ test('a project is Files · Graph · Learn: no Overview, one restrained tab row,
   assert.match(page, /<Tabs value=\{tab==='learn'\?'learn':mode\} onValueChange=\{v=>v==='learn'\?go\('learn'\):setMode\(v\)\}>/);
   // The Learn view renders no tabs: its canvas switcher sits in Learn's own header, on the Main canvas and on every
   // project canvas alike (docs/features/project-canvases.md).
-  const learnView = page.slice(page.indexOf("if(tab==='learn')return"), page.indexOf('  return <main'));
+  const learnView = page.slice(page.indexOf("if(tab==='learn')return"), page.indexOf('  return <CodeRefs.Provider value={codeRefs}><main'));
   assert.doesNotMatch(learnView, /\{tabs\}|<select/);
   assert.equal(learnView.match(/switcher=\{switcher\}/g).length, 2);
   assert.match(learn, /\[field-sizing:content\][^\n]*\/>\s*\{switcher\}/);
@@ -88,7 +88,8 @@ test('an answer lists every cited file once, in order, including line lists writ
     'model.py:29-29', 'model.py:78-78', 'model.py:94-94', 'model.py:31-31']);
   assert.deepEqual(citedSources('No files here, just 3 numbers: 1, 2.'), []);
   // Md shows them in a Sources dropdown wherever opening a file is wired.
-  assert.match(md, /const cited = onFile \? citedSources\(text\) : \[\];/);
+  // Inside a repository context only a file of its snapshot is listed (repository-browser.md "Code references").
+  assert.match(md, /const cited = onFile \? citedSources\(text\)\.filter\(c => linkable\(c, has\)\) : \[\];/);
   assert.match(md, /<details key="cited" data-cited-sources[^>]*><summary[^>]*>Sources \(\{cited\.length\}\)<\/summary>/);
 });
 

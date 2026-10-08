@@ -192,6 +192,31 @@ The preview text is display only (`repositoryExcerpt`). The request carries the 
   - Prose, lists and single lines paste as text, as before.
   - Images and the canvas's own copied cards are unchanged.
 
+## Code references (owner, 2026-10-08)
+
+Owner: "make sure we are able to click on these and see the code file and highlight the part", about answers that cite
+`src/itsdangerous/signer.py:15-64`.
+
+**Where it works:** on a repository context, a code reference in an answer is a link. It works in prose, a list, inline code, a `Sources:` line and the Sources list, and in every view below:
+- the canvas chat sheet and chat cards on a project's canvases;
+- Learn's side panel;
+- the Map's node conversations;
+- the window over the bar on the Map;
+- card captions that cite code.
+
+**Forms:** `a/b.py:15-64`, `a/b.py:15–64`, `a/b.py:L15-L64`, `a/b.py#L15-L64` and `a/b.py:15` (`source-references.js`).
+
+**No dead links.** Only a file of that repository's snapshot is a link. Any other path stays plain text (`linkable`).
+
+**How it is wired.** RepositoryPage provides `{ has, open }` through `CodeRefs` (`code-refs.js`), and `Md` uses it wherever its caller links files. Outside a repository context, `onFile` decides as before.
+
+**A click opens the code; it asks nothing:**
+- **On the Main canvas:** the right panel opens, even if it was closed, on its Files tab (`small:open-files`). The file is open there and the range is selected as a drag selects it. That selection is scrolled into view and shows its **Ask in chat** and **Copy** toolbar.
+- **On a project's other canvases:** they have no Files panel, so the click opens the Map's Files view.
+- **On the Map:** the Map's Files view opens on it.
+
+**Accessible:** each link is a real button named for what it opens, for example "Open signer.py lines 15–64" or "Open model.py line 9" (`referenceLabel`).
+
 ## Tests
 
 - Web unit: `agent/scope.test.mjs` (range context, chips, ×), `agent/ask-stream.test.mjs` (range on the wire),
@@ -205,6 +230,9 @@ The preview text is display only (`repositoryExcerpt`). The request carries the 
     - Copy and the clipboard;
     - the paste dialog with Cancel and Escape, a Code card, and prose as text;
     - Send carrying both the card and the range, and nothing sent before Send.
+- Code references:
+  - Web unit: `code-refs.test.mjs` covers every form, the snapshot guard, the link's name, and where a click goes, asking nothing.
+  - Browser: case 10d of `repo-browser-check.mjs`. A stubbed answer cites `model.py:177-179` and an unknown path. The click opens the closed panel on Files at `model.py`, with lines 177–179 selected and in view, and the unknown path stays text.
 - Server: `control-plane/test/repositories.test.js`, the large-range case.
 - Browser: `packages/web/e2e/repo-browser-check.mjs` on the local stack, one numbered case per brief §16 item, with the
   shared nanoGPT stub and `/api/learn/ask` stubbed. `workspace-check.mjs` and the Map cases of `rabbit-hole-check.mjs`

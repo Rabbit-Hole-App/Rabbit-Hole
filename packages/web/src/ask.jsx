@@ -3,11 +3,12 @@ import { VoiceField, VoiceToggle } from './VoiceMode.jsx';
 import ContextDocs from './ContextDocs.jsx';
 import { useContextDocs } from './context-docs.js';
 import RepositorySource, { SourceSelectionContext } from './RepositorySource.jsx';
-import { FILE_TOKEN, INLINE_PARTS, citedSources, sourceReference, singleSourcePath } from './source-references.js';
+import { FILE_TOKEN, INLINE_PARTS, citedSources, linkable, referenceLabel, sourceReference, singleSourcePath } from './source-references.js';
 // ─── Ask (phase 1 - read only): the chat panel behind the Agent tab, the run
 // peek's ask box, and ⌘K's Ask tab. POST /api/ask streams SSE; org-scope
 // ambiguity comes back as { choose } and renders candidate pills. ───
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
+import { CodeRefs } from './code-refs.js';
 import { ArrowUp, AtSign, BookOpen, CornerDownRight, Eraser, Check, Copy, Crown, Feather, FileText, Files, Globe, History, Loader2, MoreHorizontal, Minus, Network, Package, Paperclip, Pencil, Play, Plus, ScrollText, Shield, SlidersHorizontal, Trash2, X, Zap } from 'lucide-react';
 import { ago, api, navigate, wsHeaders } from './api.js';
 import { colorLine } from './code.jsx';
@@ -46,31 +47,37 @@ function EvidencePill({ icon: Icon = FileText, children, ...props }) {
   return <Tag {...props} className={cn('inline-flex max-w-full items-center gap-1.5 rounded-sm border border-line px-2 py-1 text-left text-xs text-ink-2 no-underline', (props.href || props.onClick) && 'cursor-pointer hover:bg-hover hover:text-ink')}><Icon size={12} strokeWidth={1.5} className="shrink-0" /><span className="break-words min-w-0">{children}</span></Tag>;
 }
 
+// Code references on a repository context (code-refs.js; repository-browser.md "Code references"): inside it a path:start-end
+// in an answer is a link only when the snapshot has that file, and a click opens it in that page's reader with the range
+// selected - Learn's Files panel on the Main canvas, the Map's Files view on the Map. No model is asked. Elsewhere `onFile` decides.
+export { CodeRefs };
+
 // Tiny safe markdown: **bold**, `code`, "- " bullets. Built as elements - no HTML injection.
-function inline(s, math = [], onFile, sourcePath) {
+// has: the snapshot test inside a repository context (CodeRefs), else null - every reference with an onFile is a link.
+function inline(s, math = [], onFile, sourcePath, has = null) {
   return s.split(INLINE_PARTS).map((part, i) => {
     const link = part.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/);
     if (link) return <EvidencePill key={i} href={link[2]} target="_blank" rel="noreferrer">{inline(link[1], math)}</EvidencePill>;
     const token = part.match(/^\uE000(\d+)\uE001$/);
     if (token && math[Number(token[1])]) return <MathText key={i} {...math[Number(token[1])]} />;
     const reference=onFile&&sourceReference(part,sourcePath);
-    if(reference)return <EvidencePill key={i} type="button" title={`Open ${reference.path}:${reference.start}-${reference.end}`} onClick={()=>onFile(reference.path,reference.start,reference.end)}>{part.replace(/^`(.*)`$/,'$1')}</EvidencePill>;
+    if(linkable(reference,has))return <EvidencePill key={i} type="button" data-code-ref={`${reference.path}:${reference.start}-${reference.end}`} aria-label={referenceLabel(reference)} title={referenceLabel(reference)} onClick={()=>onFile(reference.path,reference.start,reference.end)}>{part.replace(/^`(.*)`$/,'$1')}</EvidencePill>;
     if (part.startsWith('`') && part.endsWith('`')) {
       return <code key={i} className="rounded-xs bg-code px-1 font-mono text-[0.9em]">{part.slice(1, -1)}</code>;
     }
-    if (part.startsWith('**') && part.endsWith('**')) return <strong key={i}>{inline(part.slice(2, -2), math, onFile, sourcePath)}</strong>;
+    if (part.startsWith('**') && part.endsWith('**')) return <strong key={i}>{inline(part.slice(2, -2), math, onFile, sourcePath, has)}</strong>;
     return part;
   });
 }
 
 // A source token like "job.py:15" or "small.toml" - clickable when onFile is wired.
 
-function SourcesLine({ text, onFile, onRun, onDecision }) {
+function SourcesLine({ text, onFile, onRun, onDecision, has = null }) {
   const parts = text.slice(9).split(/[,;]/).map(part => part.trim().replace(/^\x60(.*)\x60$/, '$1')).filter(Boolean);
   return (
     <div aria-label="Answer evidence" className="flex flex-col items-start gap-2 pt-2">
       {parts.map((part, i) => {
-        const file = part.replace(/[–—]/g, '-').match(FILE_TOKEN);
+        const found = part.replace(/[–—]/g, '-').match(FILE_TOKEN), file = found && (!has || has(found[1])) ? found : null;
         const run = part.match(/^(?:run\s+)?(r-[\w-]+)$/i);
         const decision = part.match(/^decision:([a-f0-9-]{36})$/);
         const open = file && onFile ? () => onFile(file[1], file[2] ? Number(file[2]) : null, file[3] ? Number(file[3]) : null)
@@ -78,13 +85,17 @@ function SourcesLine({ text, onFile, onRun, onDecision }) {
           : decision && onDecision ? () => onDecision(decision[1]) : null;
         const label = run ? 'Run · ' + run[1] : decision ? 'Approved decision' : part;
         const Icon = run ? Play : decision ? Shield : FileText;
-        return <EvidencePill key={i} icon={Icon} {...(open ? { type: 'button', onClick: open, title: 'Open ' + label } : {})}>{label}</EvidencePill>;
+        const name = file && file[2] ? referenceLabel({ path: file[1], start: Number(file[2]), end: Number(file[3] || file[2]) }) : 'Open ' + label;
+        return <EvidencePill key={i} icon={Icon} {...(open ? { type: 'button', onClick: open, title: name, 'aria-label': name } : {})}>{label}</EvidencePill>;
       })}
     </div>
   );
 }
 
-export function Md({ text, onRun, onFile, sourcePath = singleSourcePath(text) }) {
+export function Md({ text, onRun, onFile: given, sourcePath = singleSourcePath(text) }) {
+  const refs = useContext(CodeRefs);
+  // Where the caller links files at all (an onFile), a repository context's own reader takes the click and its snapshot decides.
+  const onFile = given && refs ? refs.open : given, has = given && refs ? refs.has : null;
   const { source, math } = tokenizeMath(text.replace(/^Papers read:\s*/gm, ''));
   const lines = source.split('\n');
   const out = [];
@@ -93,7 +104,7 @@ export function Md({ text, onRun, onFile, sourcePath = singleSourcePath(text) })
   let table = null; // collecting consecutive | … | rows
   const flushTable = key => {
     const [head, ...rows] = table;
-    out.push(<div key={key} className="my-2 overflow-x-auto"><table className="min-w-full border-collapse text-xs"><thead><tr>{head.map((c, j) => <th key={j} className="border border-line px-2 py-1 text-left font-semibold">{inline(c, math, onFile, sourcePath)}</th>)}</tr></thead><tbody>{rows.map((r, ri) => <tr key={ri}>{r.map((c, j) => <td key={j} className="border border-line px-2 py-1 align-top">{inline(c, math, onFile, sourcePath)}</td>)}</tr>)}</tbody></table></div>);
+    out.push(<div key={key} className="my-2 overflow-x-auto"><table className="min-w-full border-collapse text-xs"><thead><tr>{head.map((c, j) => <th key={j} className="border border-line px-2 py-1 text-left font-semibold">{inline(c, math, onFile, sourcePath, has)}</th>)}</tr></thead><tbody>{rows.map((r, ri) => <tr key={ri}>{r.map((c, j) => <td key={j} className="border border-line px-2 py-1 align-top">{inline(c, math, onFile, sourcePath, has)}</td>)}</tr>)}</tbody></table></div>);
     table = null;
   };
   lines.forEach((l, i) => {
@@ -118,7 +129,7 @@ export function Md({ text, onRun, onFile, sourcePath = singleSourcePath(text) })
     if (table) flushTable(`t${i}`);
     if (/^\s*[-*] /.test(l)) {
       bullets = bullets || [];
-      bullets.push(<li key={i}>{inline(l.replace(/^\s*[-*] /, ''), math, onFile, sourcePath)}</li>);
+      bullets.push(<li key={i}>{inline(l.replace(/^\s*[-*] /, ''), math, onFile, sourcePath, has)}</li>);
       return;
     }
     if (bullets) {
@@ -135,20 +146,20 @@ export function Md({ text, onRun, onFile, sourcePath = singleSourcePath(text) })
       const Heading = heading ? `h${heading[1].length}` : 'h3';
       // A long answer reads as one wall without a break before each section.
       const rule = out.length ? 'mt-4 border-t border-line pt-3' : 'mt-1';
-      out.push(<Heading key={i} className={`${rule} mb-1 font-semibold text-ink`}>{inline(heading ? heading[2] : boldTitle[1], math, onFile, sourcePath)}</Heading>);
+      out.push(<Heading key={i} className={`${rule} mb-1 font-semibold text-ink`}>{inline(heading ? heading[2] : boldTitle[1], math, onFile, sourcePath, has)}</Heading>);
     } else if (l.startsWith('Sources: ')) {
-      out.push(<SourcesLine key={i} text={l} onRun={onRun} onFile={onFile} />);
+      out.push(<SourcesLine key={i} text={l} onRun={onRun} onFile={onFile} has={has} />);
     } else if (l.trim()) {
-      out.push(<p key={i} className="my-1">{inline(l, math, onFile, sourcePath)}</p>);
+      out.push(<p key={i} className="my-1">{inline(l, math, onFile, sourcePath, has)}</p>);
     }
   });
   if (fence) out.push(<CodeBlock key="f-end" className="my-1.5 text-xs">{fence.map((fl, j) => <div key={j}>{colorLine(fl)}</div>)}</CodeBlock>);
   if (table) flushTable('t-end');
   if (bullets) out.push(<ul key="ul-end" className="my-1 list-disc pl-5">{bullets}</ul>);
   // Every file the answer cites, in one Sources dropdown, each opening its file (owner, 2026-10-04).
-  const cited = onFile ? citedSources(text) : [];
+  const cited = onFile ? citedSources(text).filter(c => linkable(c, has)) : [];
   if (cited.length) out.push(<details key="cited" data-cited-sources className="mt-2 text-xs"><summary className="cursor-pointer text-ink-2 hover:text-ink">Sources ({cited.length})</summary>
-    <div className="mt-1.5 flex flex-wrap gap-1">{cited.map(c => <EvidencePill key={`${c.path}:${c.start}-${c.end}`} type="button" data-cited-source title={`Open ${c.path}:${c.start}${c.end > c.start ? `-${c.end}` : ''}`} onClick={() => onFile(c.path, c.start, c.end)}>{c.path}:{c.start}{c.end > c.start ? `-${c.end}` : ''}</EvidencePill>)}</div></details>);
+    <div className="mt-1.5 flex flex-wrap gap-1">{cited.map(c => <EvidencePill key={`${c.path}:${c.start}-${c.end}`} type="button" data-cited-source aria-label={referenceLabel(c)} title={referenceLabel(c)} onClick={() => onFile(c.path, c.start, c.end)}>{c.path}:{c.start}{c.end > c.start ? `-${c.end}` : ''}</EvidencePill>)}</div></details>);
   return <div className="min-w-0 text-sm leading-normal">{out}</div>;
 }
 

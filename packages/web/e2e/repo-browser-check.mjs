@@ -24,6 +24,7 @@ const canvas = await api('/api/canvases', { method: 'POST', body: JSON.stringify
 const REPO2 = 'repo-3adf61e2-nanogpt';
 const asks = [], learnRequests = [];
 const ANSWER = 'Stubbed answer: no model was called.';
+let cite = null;
 
 const browser = await chromium.launch();
 let page;
@@ -43,7 +44,9 @@ await context.route(`**/api/{apps,repositories}/${REPO2}{,/snapshot,/file}`, (ro
 });
 await context.route('**/api/learn/ask', (route) => {
   asks.push(JSON.parse(route.request().postData()));
-  return route.fulfill({ status: 200, contentType: 'text/event-stream', body: `event: chunk\ndata: ${JSON.stringify({ text: `${ANSWER} #${asks.length}` })}\n\nevent: done\ndata: {}\n\n` });
+  // cite: one stubbed answer's own words after the usual line (case 10d: code references), then it clears.
+  const text = `${ANSWER} #${asks.length}${cite ? `\n\n${cite}` : ''}`; cite = null;
+  return route.fulfill({ status: 200, contentType: 'text/event-stream', body: `event: chunk\ndata: ${JSON.stringify({ text })}\n\nevent: done\ndata: {}\n\n` });
 });
 page = await context.newPage();
 const errors = [];
@@ -403,6 +406,37 @@ await check('10c Send carries the Code card and the line range on the Learn chat
   await shot('L-learn-files-send');
   const learnFiles = page.locator('[data-learn-files]');
   await learnFiles.locator('[data-learn-open-map]').click();
+  await page.waitForURL(/[?]tab=map$/);
+});
+
+await check('10d a code reference in an answer opens the Files panel at that range, selected; a path the repository does not have stays text; nothing is asked', async () => {
+  await tab('Learn').click();
+  await page.waitForURL(/[?]tab=learn$/);
+  const field = page.locator(COMPOSER).first();
+  await field.waitFor({ timeout: 30000 });
+  // The range from case 10 is still the context, so the question takes the stubbed Learn chat route.
+  const n = asks.length;
+  cite = 'The causal mask is applied in model.py:177-179, and nanogpt/missing.py:1-2 does not exist.';
+  await field.fill('Where is the causal mask applied?');
+  await field.press('Enter');
+  await page.getByText(`${ANSWER} #${n + 1}`).first().waitFor({ timeout: 10000 });
+  const link = page.getByRole('button', { name: 'Open model.py lines 177–179', exact: true }).first();
+  await link.waitFor({ timeout: 5000 });
+  assert.equal(await page.locator('[data-code-ref^="nanogpt/missing.py"]').count(), 0, 'an unknown path is no link');
+  assert.ok(await page.getByText(/nanogpt\/missing\.py:1-2 does not exist/).count() > 0, 'it stays as text');
+  // Closed panel: the click opens it on Files, model.py, lines 177-179 selected (the toolbar Ask in chat and Copy act on).
+  if (await page.locator('[data-panel-close]').isVisible()) await page.locator('[data-panel-close]').click();
+  await link.click();
+  await page.locator('[data-learn-files]').waitFor({ timeout: 10000 });
+  assert.equal(await page.locator('[data-panel-tab="files"]').getAttribute('aria-selected'), 'true');
+  await page.locator('[data-learn-files] [data-file-row="model.py"][aria-current="true"]').waitFor({ timeout: 10000 });
+  await page.waitForFunction(() => [...document.querySelectorAll('[data-learn-files] [data-highlighted]')].map((n) => n.dataset.sourceLine).join() === '177,178,179', null, { timeout: 10000 });
+  assert.deepEqual((await page.locator('[data-learn-files] [data-range-actions]').getByRole('button').allInnerTexts()).map((t) => t.trim()), ['Ask in chat', 'Copy']);
+  assert.ok(await page.locator('[data-learn-files] [data-source-line="177"]').isVisible(), 'scrolled into view');
+  await page.waitForTimeout(400);
+  assert.equal(asks.length, n + 1, 'the click asked nothing');
+  await shot('L-code-ref-open');
+  await page.locator('[data-learn-files] [data-learn-open-map]').click();
   await page.waitForURL(/[?]tab=map$/);
 });
 
