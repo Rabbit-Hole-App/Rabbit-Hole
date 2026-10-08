@@ -536,7 +536,23 @@ function about(ctx) {
   });
 }
 
+// Library and Home lines (section 5): how many threads have news for me, on my own canvases (by name) and on canvases
+// shared with me (by board id). Owner threads count members and public threads alike.
+async function unreadCounts(req, env) {
+  const viewer = await viewerOf(req, env);
+  if (!viewer?.userId) return refuse('Sign in first.', 'sign_in', 401, { signIn: true });
+  const db = env.LEARN_DB;
+  const owned = await db.prepare(`SELECT c.name AS key, count(*) AS n FROM canvases c JOIN learn_boards b ON b.org = c.org AND b.owner_email = c.owner_email AND b.app = c.name AND b.board = 'main'
+      JOIN canvas_comment_threads t ON t.board_id = b.id WHERE c.org = ?2 AND c.owner_email = ?3 AND t.resolved_at IS NULL AND ${unreadSql(false)} GROUP BY c.name`).bind(viewer.userId, viewer.org, viewer.email).all();
+  const shared = await db.prepare(`SELECT b.id AS key, count(*) AS n FROM canvas_members m JOIN canvases c ON c.org = m.org AND c.name = m.canvas
+      JOIN learn_boards b ON b.org = c.org AND b.owner_email = c.owner_email AND b.app = c.name AND b.board = 'main' JOIN canvas_comment_threads t ON t.board_id = b.id
+      WHERE m.member_user_id = ?1 AND m.status = 'active' AND t.resolved_at IS NULL AND ${unreadSql(false)} AND ${NOT_TRASHED('c.org', 'c.name')} GROUP BY b.id`).bind(viewer.userId).all();
+  const map = rows => Object.fromEntries(rows.results.map(row => [row.key, row.n]));
+  return json({ owned: map(owned), shared: map(shared) });
+}
+
 export async function canvasCommentsRoute(path, req, env) {
+  if (path === '/api/learn/comments/unread') return !env.LEARN_DB ? json({ error: 'Comments need the Learn database on this worker.' }, 503) : req.method === 'GET' ? unreadCounts(req, env) : json({ error: 'Method not allowed' }, 405);
   if (path === '/api/learn/c/shared-with-me') return !env.LEARN_DB ? json({ error: 'Comments need the Learn database on this worker.' }, 503) : req.method === 'GET' ? sharedWithMe(req, env) : json({ error: 'Method not allowed' }, 405);
   let match = path.match(/^\/api\/learn\/c\/([^/]+)(\/.*)?$/), family = 'member';
   if (!match) { match = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)\/comments(\/.*)?$/); family = 'public'; }

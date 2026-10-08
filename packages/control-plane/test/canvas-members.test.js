@@ -102,8 +102,14 @@ test('accept: preview, a fresh code to the invited address, a wrong try, then jo
   assert.equal((await f.call('POST', '/api/learn/invites/accept', { as: 'cara', body: { token, code: digits } })).body.code, 'code_needed', 'another account has no code to try');
   const joined = await f.call('POST', '/api/learn/invites/accept', { as: 'ben', body: { token, code: digits } });
   assert.deepEqual(joined.body, { joined: true, url: `/c/${BOARD_ID}` });
-  assert.deepEqual({ ...f.sqlite.prepare('SELECT status, member_user_id, token_hash FROM canvas_members').get() }, { status: 'active', member_user_id: 'u-ben-9a2b', token_hash: null }, 'bound to users.id; the link is spent');
+  assert.deepEqual({ ...f.sqlite.prepare('SELECT status, member_user_id FROM canvas_members').get() }, { status: 'active', member_user_id: 'u-ben-9a2b' }, 'bound to users.id');
+  // The link is spent for everyone else; the same account repeating gets the same answer (a lost 200, a second tab).
   assert.equal((await f.call('POST', '/api/learn/invites/preview', { body: { token } })).body.code, 'invite_invalid');
+  assert.equal((await f.call('POST', '/api/learn/invites/preview', { as: 'cara', body: { token } })).body.code, 'invite_invalid');
+  assert.equal((await f.call('POST', '/api/learn/invites/code', { as: 'cara', body: { token } })).body.code, 'invite_invalid');
+  assert.deepEqual((await f.call('POST', '/api/learn/invites/accept', { as: 'ben', body: { token, code: digits } })).body, { joined: true, url: `/c/${BOARD_ID}` }, 'a sequential replay');
+  const again = await f.call('POST', '/api/learn/invites/preview', { as: 'ben', body: { token } });
+  assert.deepEqual([again.body.already_member, again.body.url], [true, `/c/${BOARD_ID}`]);
   const members = (await f.call('GET', `${f.base}/members`, { as: 'ana' })).body.members;
   assert.deepEqual(members.map(m => [m.status, m.person]), [['active', { name: 'Bob Kim', handle: 'bob' }]]);
   // The membership is the comments permission: ben now reads and posts on the member family.
@@ -235,4 +241,33 @@ test('a member reads the board, its files and Shared with you; anyone else and a
   await f.call('DELETE', `${f.base}/members/${member.id}`, { as: 'ana' });
   assert.equal((await f.call('GET', `${f.base}/board`, { as: 'ben' })).status, 404);
   assert.deepEqual((await f.call('GET', '/api/learn/c/shared-with-me', { as: 'ben' })).body.canvases, []);
+});
+
+test('recipient-wide caps across owners refuse with the same `limited` an owner cap does; a lost race consumes nothing', async t => {
+  const f = setup(t);
+  f.sqlite.exec(`INSERT INTO canvases (org, name, owner_email, title) VALUES ('cara-ws', 'canvas-0000000b', 'cara@test', 'Cara canvas');
+    INSERT INTO learn_boards (id, org, owner_email, app, board, state_json, updated_at) VALUES ('7a2d9b3f-4c5e-4f60-9b1c-2d3e4f5a6b7c', 'cara-ws', 'cara@test', 'canvas-0000000b', 'main', '{}', '2026-10-07')`);
+  const cara = emails => f.call('POST', '/api/learn/c/7a2d9b3f-4c5e-4f60-9b1c-2d3e4f5a6b7c/members', { as: 'cara', body: { emails } });
+  for (let i = 0; i < 3; i++) {
+    const made = await invite(f, ['bob@lab.org']);
+    await f.call('DELETE', `${f.base}/members/${made.body.invited[0].id}`, { as: 'ana' });
+  }
+  const ownerCap = (await invite(f, ['bob@lab.org'])).body.skipped[0];
+  for (let i = 0; i < 2; i++) {
+    const made = await cara(['bob@lab.org']);
+    assert.equal(made.body.invited.length, 1, `cara ${i + 1}`);
+    await f.call('DELETE', `/api/learn/c/7a2d9b3f-4c5e-4f60-9b1c-2d3e4f5a6b7c/members/${made.body.invited[0].id}`, { as: 'cara' });
+  }
+  const recipientCap = (await cara(['bob@lab.org'])).body.skipped[0];
+  assert.deepEqual(Object.keys(recipientCap), Object.keys(ownerCap));
+  assert.deepEqual([recipientCap.reason, ownerCap.reason], ['limited', 'limited'], 'nobody can tell whose cap it was');
+  const sends = f.sqlite.prepare('SELECT count(*) AS n FROM canvas_invite_sends').get().n;
+  assert.equal(sends, 5, 'refusals consumed nothing');
+});
+
+test('the code email names an account with neither name nor handle by its provider label', async t => {
+  const f = setup(t);
+  await invite(f, ['cara@lab.org']);
+  await f.call('POST', '/api/learn/invites/code', { as: 'cara', body: { token: f.tokenOf(f.mail[0]) } });
+  assert.match(f.mail.at(-1).text, /signed in to Rabbit Hole as a Google user asked/);
 });

@@ -314,3 +314,17 @@ test('public mentions: the owner and public participants only; a mention makes a
   assert.equal(caraList.find(x => x.id === owner.body.thread.id).unread, true, 'mentioned: a participant');
   assert.equal(caraList.find(x => x.id === caraPost.body.thread.id).unread, false);
 });
+
+test('unread counts for the Library: my canvases by name, canvases shared with me by board id; open threads only', async t => {
+  const f = setup(t);
+  const { name, boardId, base } = await canvas(f);
+  const one = await start(f, base, 'ben', 'news for ana');
+  await start(f, base, 'ana', 'ana wrote this');
+  const counts = async as => (await comments(f, 'GET', '/api/learn/comments/unread', { as })).body;
+  assert.deepEqual(await counts('ana'), { owned: { [name]: 1 }, shared: {} });
+  assert.deepEqual(await counts('ben'), { owned: {}, shared: { [boardId]: 1 } });
+  await comments(f, 'POST', `${base}/threads/${one.body.thread.id}/read`, { as: 'ana' });
+  assert.deepEqual((await counts('ana')).owned, {});
+  assert.deepEqual(await counts('cara'), { owned: {}, shared: {} });
+  assert.equal((await comments(f, 'GET', '/api/learn/comments/unread')).status, 401);
+});

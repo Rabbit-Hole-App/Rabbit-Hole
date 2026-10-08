@@ -561,8 +561,10 @@ real email send is authorized.
   ```sql
   UPDATE canvas_invite_codes SET attempts = attempts + 1
    WHERE invitation_id = ?inv AND user_id = ?uid AND ended_at IS NULL AND expires_at > ?now AND attempts < 5
+     AND (SELECT failed_attempts FROM canvas_members WHERE id = ?inv) < 20
    RETURNING id, code_hmac, attempts;
   ```
+  The lock is read inside the claim (Home's H7 code review, 2026-10-07), so concurrent wrong guesses cannot pass 20.
   If no row comes back, one diagnostic SELECT picks the answer:
   - no code row for this account: 409 `code_needed`;
   - the newest code expired: 410 `code_expired`;
@@ -573,11 +575,15 @@ real email send is authorized.
 - **c. Right code: one D1 batch (one transaction):**
   ```sql
   UPDATE canvas_members
-     SET status = 'active', member_user_id = ?uid, member_email = ?principal, token_hash = NULL, accepted_at = ?now
+     SET status = 'active', member_user_id = ?uid, member_email = ?principal, accepted_at = ?now
    WHERE id = ?inv AND status = 'pending' AND token_hash = ?hash AND expires_at > ?now AND failed_attempts < 20
      AND EXISTS (SELECT 1 FROM canvas_invite_codes WHERE id = ?code AND ended_at IS NULL);
   UPDATE canvas_invite_codes SET ended_at = ?now WHERE invitation_id = ?inv AND ended_at IS NULL;
   ```
+  - Activation keeps `token_hash` (Home's review): status, not the hash, ends the link for everyone else, and the same
+    account repeating an accept or opening the link again (a lost 200, a second tab) is found by the hash beside
+    `status = 'active' AND member_user_id = ?uid` and gets the same 200 (preview: `already_member`). Remove and Cancel still
+    set it to NULL.
   - The first statement changed 1 row: 200 `{joined, url}`.
   - It changed 0 rows: re-read the row.
     - Active with `member_user_id = ?uid` (a double submit or a second tab): the same 200, which is idempotent.

@@ -83,6 +83,8 @@ async function reserve(db, windows, row, at) {
     .bind(row.id, row.cap_key, row.kind, row.owner_user_id ?? null, row.invitation_id, row.user_id ?? null, at, ...windows.flatMap(w => [...w.args, at - w.window])).run();
   return result.meta?.changes ? null : violated(db, windows, at);
 }
+// A request refused after its reservation (it lost a race) gives the unit back: a refused request consumes nothing.
+const release = (db, id) => db.prepare('DELETE FROM canvas_invite_sends WHERE id = ?').bind(id).run();
 const delivered = (db, id, ok) => db.prepare('UPDATE canvas_invite_sends SET delivered = ? WHERE id = ?').bind(ok ? 1 : 0, id).run();
 
 // C6: fixed plain-text templates. Interpolated: the title (quoted, control characters stripped, at most 120), the inviter's
@@ -100,7 +102,7 @@ export function inviteEmail({ inviter, title, link, enabled }) {
 export function codeEmail({ code, inviter, account, title }) {
   return {
     subject: 'Your Rabbit Hole invitation code',
-    text: `Your code: ${code}\n\nSomeone signed in to Rabbit Hole as ${nameOf(account, 'a Rabbit Hole user')} asked to accept ${nameOf(inviter, 'a Rabbit Hole user')}'s invitation to '${clean(title)}'. The code expires in 10 minutes. If this wasn't you, ignore this email.\n\nReplies to this email aren't read.\n`,
+    text: `Your code: ${code}\n\nSomeone signed in to Rabbit Hole as ${nameOf(account, `a ${account?.provider_label || 'Rabbit Hole'} user`)} asked to accept ${nameOf(inviter, 'a Rabbit Hole user')}'s invitation to '${clean(title)}'. The code expires in 10 minutes. If this wasn't you, ignore this email.\n\nReplies to this email aren't read.\n`,
   };
 }
 
@@ -119,6 +121,7 @@ const BOARD = `SELECT b.id AS board_id, b.org, b.app AS canvas, c.owner_email, c
   WHERE b.board = 'main' AND c.name NOT IN (SELECT d.child FROM canvas_dives d WHERE d.org = c.org AND d.parent_app NOT LIKE 'share:%')`;
 
 async function readBody(req) {
+  if (Number(req.headers.get('content-length') || 0) > 16 * 1024) return null;
   const raw = await req.text();
   if (raw.length > 16 * 1024) return null;
   try { return JSON.parse(raw); } catch { return null; }
@@ -136,8 +139,8 @@ async function listMembers(db, board) {
     locked: row.failed_attempts >= INVITE_LOCK })), comments_enabled: !!board.comments_enabled });
 }
 
-async function sendInvite(env, sendEmail, board, row, token) {
-  const link = `${env.PUBLIC_ORIGIN || env.BASE_URL || ''}/i#${token}`;
+async function sendInvite(env, sendEmail, board, row, token, origin) {
+  const link = `${env.PUBLIC_ORIGIN || origin}/i#${token}`;
   const mail = inviteEmail({ inviter: await personOf(env.LEARN_DB, board.owner_email), title: board.title, link, enabled: !!board.comments_enabled });
   const sent = await sendEmail(env, row.invited_email, mail.subject, mail.text);
   // A test instance (echoesLogin) echoes instead of mailing (H4); nothing else ever sees the link.
@@ -166,10 +169,18 @@ async function invite(req, env, sendEmail, session, board) {
     if (refused) { skipped.push({ email, reason: 'limited', retry_after: refused.retry_after }); continue; }
     const token = newInviteToken();
     // Created as 'failed', then sent, then 'sent': a Worker that dies between shows "Email wasn't sent · Resend", which is true.
-    await db.prepare(`INSERT INTO canvas_members (id, org, canvas, invited_email, status, token_hash, email_status, invited_by, invited_at, expires_at)
-      VALUES (?, ?, ?, ?, 'pending', ?, 'failed', ?, ?, ?)`).bind(id, board.org, board.canvas, email, await sha256(token), session.uid, at, at + INVITE_TTL).run();
+    try {
+      await db.prepare(`INSERT INTO canvas_members (id, org, canvas, invited_email, status, token_hash, email_status, invited_by, invited_at, expires_at)
+        VALUES (?, ?, ?, ?, 'pending', ?, 'failed', ?, ?, ?)`).bind(id, board.org, board.canvas, email, await sha256(token), session.uid, at, at + INVITE_TTL).run();
+    } catch (failure) {
+      if (!/UNIQUE/i.test(String(failure?.message))) throw failure;
+      // A concurrent invitation to the same address won: this one sends nothing and consumes nothing.
+      await release(db, sendId);
+      skipped.push({ email, reason: 'already_invited' });
+      continue;
+    }
     const row = { invited_email: email };
-    const { sent, echo } = await sendInvite(env, sendEmail, board, row, token);
+    const { sent, echo } = await sendInvite(env, sendEmail, board, row, token, new URL(req.url).origin);
     await delivered(db, sendId, sent);
     if (sent) await db.prepare("UPDATE canvas_members SET email_status = 'sent', email_sent_at = ? WHERE id = ?").bind(at, id).run();
     invited.push({ id, email_status: sent ? 'sent' : 'failed', ...echo });
@@ -177,7 +188,7 @@ async function invite(req, env, sendEmail, session, board) {
   return json({ invited, skipped });
 }
 
-async function resend(env, sendEmail, session, board, id) {
+async function resend(req, env, sendEmail, session, board, id) {
   const db = env.LEARN_DB, at = now();
   const row = await db.prepare('SELECT id, invited_email, status FROM canvas_members WHERE id = ? AND org = ? AND canvas = ?').bind(id, board.org, board.canvas).first();
   if (!row || !['pending', 'active'].includes(row.status)) return refuse('No such invitation on this canvas.', 'not_found', 404);
@@ -192,8 +203,8 @@ async function resend(env, sendEmail, session, board, id) {
     db.prepare("UPDATE canvas_members SET token_hash = ?, expires_at = ?, failed_attempts = 0, email_status = 'failed' WHERE id = ? AND status = 'pending'").bind(await sha256(token), at + INVITE_TTL, id),
     db.prepare('UPDATE canvas_invite_codes SET ended_at = ? WHERE invitation_id = ? AND ended_at IS NULL').bind(at, id),
   ]);
-  if (!rotated.meta?.changes) return refuse('They already joined.', 'already_joined', 409);
-  const { sent, echo } = await sendInvite(env, sendEmail, board, row, token);
+  if (!rotated.meta?.changes) { await release(db, sendId); return refuse('They already joined.', 'already_joined', 409); }
+  const { sent, echo } = await sendInvite(env, sendEmail, board, row, token, new URL(req.url).origin);
   await delivered(db, sendId, sent);
   if (sent) await db.prepare("UPDATE canvas_members SET email_status = 'sent', email_sent_at = ? WHERE id = ?").bind(at, id).run();
   return json({ email_status: sent ? 'sent' : 'failed', ...echo });
@@ -220,6 +231,12 @@ async function invitationOf(db, token) {
     JOIN (${BOARD}) i ON i.org = m.org AND i.canvas = m.canvas WHERE m.token_hash = ? AND m.status = 'pending' AND m.expires_at > ?`).bind(hash, now()).first();
   return row && !row.trashed ? row : null;
 }
+// The same account opening a link it already used (a lost 200, a second tab): its membership, found by the kept hash.
+async function joinedBefore(db, token, session) {
+  if (!session?.uid || !TOKEN.test(token || '')) return null;
+  return db.prepare(`SELECT m.id, m.invited_email, m.failed_attempts, m.token_hash, i.* FROM canvas_members m JOIN (${BOARD}) i ON i.org = m.org AND i.canvas = m.canvas
+    WHERE m.token_hash = ? AND m.status = 'active' AND m.member_user_id = ?`).bind(await sha256(token), session.uid).first();
+}
 const alreadyMember = (db, inv, uid) => db.prepare("SELECT 1 FROM canvas_members WHERE org = ? AND canvas = ? AND member_user_id = ? AND status = 'active'").bind(inv.org, inv.canvas, uid).first();
 async function accountOf(env, session) {
   return { ...(await personOf(env.LEARN_DB, session.email)), provider_label: PROVIDERS[session.prov] || 'email' };
@@ -227,9 +244,9 @@ async function accountOf(env, session) {
 
 async function preview(req, env, body) {
   const db = env.LEARN_DB;
-  const inv = await invitationOf(db, body?.token);
-  if (!inv) return invalid();
   const session = await sessionOf(req, env);
+  const inv = await invitationOf(db, body?.token) || await joinedBefore(db, body?.token, session);
+  if (!inv) return invalid();
   const signedIn = !!session?.uid;
   const already = signedIn && !!(await alreadyMember(db, inv, session.uid)), ownerSelf = signedIn && session.email === inv.owner_email;
   return json({
@@ -267,17 +284,20 @@ async function sendCode(req, env, sendEmail, body) {
     db.prepare('UPDATE canvas_invite_codes SET ended_at = ? WHERE invitation_id = ? AND user_id = ? AND ended_at IS NULL').bind(at, inv.id, session.uid),
     db.prepare('INSERT INTO canvas_invite_codes (id, invitation_id, user_id, code_hmac, sent_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)').bind(codeId, inv.id, session.uid, await codeHmac(env, codeId, session.uid, code), at, at + CODE_TTL),
   ]);
-  const mail = codeEmail({ code, inviter: await personOf(db, inv.owner_email), account: await personOf(db, session.email), title: inv.title });
+  const mail = codeEmail({ code, inviter: await personOf(db, inv.owner_email), account: await accountOf(env, session), title: inv.title });
   const sent = (await sendEmail(env, inv.invited_email, mail.subject, mail.text)) || echoesLogin(env);
   await delivered(db, sendId, sent);
   if (!sent) {
     await db.prepare('UPDATE canvas_invite_codes SET ended_at = ? WHERE id = ?').bind(at, codeId).run();
-    return refuse("We couldn't send the code.", 'email_unavailable', 503, { retry_after: 60 });
+    const capped = await violated(db, codeWindows(capKey(inv.invited_email), inv.id, session.uid), at);
+    return refuse("We couldn't send the code.", 'email_unavailable', 503, { retry_after: Math.max(60, capped.names.size ? capped.retry_after : 0) });
   }
   return json({ sent: true, masked_email: maskEmail(inv.invited_email), expires_in: CODE_TTL, retry_after: 60, ...(echoesLogin(env) ? { test_code: code } : {}) });
 }
 
 async function accept(req, env, body) {
+  const replay = await joinedBefore(env.LEARN_DB, body?.token, await sessionOf(req, env));
+  if (replay) return json({ joined: true, url: `/c/${replay.board_id}` });
   const gated = await gate(req, env, body);
   if (gated instanceof Response) return gated;
   const { session, inv } = gated;
@@ -286,8 +306,10 @@ async function accept(req, env, body) {
   if (!CODE.test(body?.code || '')) return refuse('Enter the 6-digit code.', 'code_wrong', 422, { tries_left: CODE_TRIES });
   // a. Claim an attempt on this account's open code; nothing comes back when there is none to try.
   const claimed = await db.prepare(`UPDATE canvas_invite_codes SET attempts = attempts + 1
-    WHERE invitation_id = ? AND user_id = ? AND ended_at IS NULL AND expires_at > ? AND attempts < ? RETURNING id, code_hmac, attempts`).bind(inv.id, session.uid, at, CODE_TRIES).first();
+    WHERE invitation_id = ? AND user_id = ? AND ended_at IS NULL AND expires_at > ? AND attempts < ? AND (SELECT failed_attempts FROM canvas_members WHERE id = ?) < ?
+    RETURNING id, code_hmac, attempts`).bind(inv.id, session.uid, at, CODE_TRIES, inv.id, INVITE_LOCK).first();
   if (!claimed) {
+    if ((await db.prepare('SELECT failed_attempts FROM canvas_members WHERE id = ?').bind(inv.id).first())?.failed_attempts >= INVITE_LOCK) return refuse('Too many wrong codes for this invitation. Ask the owner to resend it.', 'too_many_tries', 429);
     const last = await db.prepare('SELECT expires_at, attempts, ended_at FROM canvas_invite_codes WHERE invitation_id = ? AND user_id = ? ORDER BY sent_at DESC LIMIT 1').bind(inv.id, session.uid).first();
     if (!last || (last.ended_at && last.attempts < CODE_TRIES)) return refuse('Send a code first.', 'code_needed', 409);
     if (last.attempts >= CODE_TRIES) return refuse('Too many tries. Send a new code.', 'too_many_tries', 429);
@@ -306,7 +328,7 @@ async function accept(req, env, body) {
   let activated;
   try {
     [activated] = await db.batch([
-      db.prepare(`UPDATE canvas_members SET status = 'active', member_user_id = ?, member_email = ?, token_hash = NULL, accepted_at = ?
+      db.prepare(`UPDATE canvas_members SET status = 'active', member_user_id = ?, member_email = ?, accepted_at = ?
         WHERE id = ? AND status = 'pending' AND token_hash = ? AND expires_at > ? AND failed_attempts < ? AND EXISTS (SELECT 1 FROM canvas_invite_codes WHERE id = ? AND ended_at IS NULL)`)
         .bind(session.uid, session.email, at, inv.id, inv.token_hash, at, INVITE_LOCK, claimed.id),
       db.prepare('UPDATE canvas_invite_codes SET ended_at = ? WHERE invitation_id = ? AND ended_at IS NULL').bind(at, inv.id),
@@ -360,6 +382,6 @@ export async function canvasMembersRoute(req, env, path, { sendEmail }) {
   if (!board || board.owner_email !== session.email) return refuse("This canvas isn't available to you.", 'not_found', 404);
   const [, , id, resending] = owned;
   if (!id) return req.method === 'GET' ? listMembers(env.LEARN_DB, board) : req.method === 'POST' ? invite(req, env, sendEmail, session, board) : json({ error: 'Method not allowed' }, 405);
-  if (resending) return req.method === 'POST' ? resend(env, sendEmail, session, board, id) : json({ error: 'Method not allowed' }, 405);
+  if (resending) return req.method === 'POST' ? resend(req, env, sendEmail, session, board, id) : json({ error: 'Method not allowed' }, 405);
   return req.method === 'DELETE' ? removeMember(env, board, id) : json({ error: 'Method not allowed' }, 405);
 }
