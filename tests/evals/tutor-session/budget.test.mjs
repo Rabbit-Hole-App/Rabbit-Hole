@@ -50,7 +50,7 @@ test('reservations: requests in flight count together, usage settles them, a mis
   const line = ok.settle(small, { provider: 'anthropic', model_id: 'claude-opus-5-5', model_role: 'tutor', usage: { input_tokens: 50000, output_tokens: 10 } });
   assert.equal(line.bound_violation, true);
   assert.equal(ok.violations.length, 1);
-  // The run's hard ceiling (a parent ledger) refuses what a session's own sub-ceiling would still allow.
+  // The run's limit (a parent ledger) refuses what a session's own limit would still allow.
   const run = createLedger(0.7), session = createLedger(1.3, { parent: run });
   session.reserve({ body: big });
   assert.throws(() => session.reserve({ body: big }), { code: 'COST_CEILING' });
@@ -96,6 +96,50 @@ test('the learner simulator and the reviewer send complete, bounded requests thr
       assert.equal(bundle.cost.anthropic.by_role.learner_simulator.calls, 2);
     } finally { world.close(); }
   } finally { boundary.restore(); }
+});
+
+// Mid-session: a valid, active LP1 journey first (its start is outside the budget under test), then a session on a run
+// ledger that earlier sessions have nearly exhausted. Every request settles at its full worst case (usage 'worst'), so the
+// order and size of the reservations decide exactly which request is the first that cannot fit.
+async function midSession(ledger) {
+  const boundary = providerBoundary(stubAnswers({ usage: 'worst' }));
+  try {
+    const world = await productWorld({ topic, ids: simulatedIds({ runId: 'mid', topic, profile }), boundary });
+    try {
+      const started = await world.tutor.start({ reserve: () => null, call: () => {} });
+      const sentAtStart = boundary.requests.filter(entry => entry.provider === 'anthropic').length;
+      let typed = 0;
+      const learner = { reply: async ({ view }) => (view.options.length && typed ? { selected_option_id: view.options[0].id, response: { kind: 'acknowledge', text: '' } } : { selected_option_id: null, response: { kind: 'answer', text: `Answer ${++typed}.` } }) };
+      const bundle = await runSession({ topic, profile, profiles, tutor: { ...world.tutor, start: async () => started }, hooks: world.hooks, hookStart: world.hookStart, hookDelayMs: HOOK_DEBOUNCE_MS, materialize: world.materialize, learner, ledger, runId: 'mid', maxDecisions: 4 });
+      return { bundle, boundary, started, sentAtStart };
+    } finally { world.close(); }
+  } finally { boundary.restore(); }
+}
+
+test('mid-session: with an active journey and a nearly exhausted ledger, a later request is refused before transport and the session stops with cost_ceiling', async () => {
+  // A dry run in an identical world gives the session's requests in order, with their reservations and settled costs.
+  const dry = createLedger(100);
+  await midSession(dry);
+  const lines = dry.lines.filter(line => line.provider === 'anthropic');
+  const k = lines.findIndex(line => line.model_role === 'tutor' && line.decision_id?.endsWith(':d2')); // decision 2's planner
+  assert.ok(k > 0, 'decision 1 sent requests before decision 2\'s planner');
+  const before = i => lines.slice(0, i).reduce((sum, line) => sum + line.cost_usd, 0);
+  const need = i => before(i) + lines[i].reserved_usd; // settled spend plus this request's reservation, when it is reserved
+  const room = Math.max(...lines.slice(0, k).map((_, i) => need(i)));
+  assert.ok(room < need(k), 'everything before decision 2\'s planner fits a room that it does not');
+  // The run's $4.00 limit, nearly exhausted by earlier sessions; this session's own limit is $1.30.
+  const run = createLedger(4);
+  run.record({ provider: 'anthropic', model_id: 'claude-opus-5-5', model_role: 'earlier_sessions', provider_reported_cost_usd: Math.floor((4 - room) * 1e6) / 1e6 });
+  const session = createLedger(1.3, { parent: run });
+  const { bundle, boundary, started, sentAtStart } = await midSession(session);
+  // The journey was valid and active before any budgeted request.
+  assert.ok(started.context.journey_id && started.evidence.length > 0);
+  // Decision 1 completed; decision 2's planner request was refused at the boundary and never reached the transport.
+  assert.equal(bundle.session.decisions, 1);
+  assert.deepEqual(boundary.refused, [{ provider: 'anthropic', role: 'tutor', code: 'COST_CEILING' }]);
+  assert.equal(boundary.requests.filter(entry => entry.provider === 'anthropic').length - sentAtStart, k);
+  assert.deepEqual([bundle.simulator.stop_reason, bundle.events.at(-1).reason, bundle.session.incomplete_decisions.length], ['cost_ceiling', 'cost_ceiling', 1]);
+  assert.ok(run.spent() <= 4 && session.spent() <= room + 1e-9);
 });
 
 // A real-path session with a ledger: every request the product sends goes through the boundary's reservation first.

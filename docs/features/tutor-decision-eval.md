@@ -78,7 +78,7 @@ The simulator profiles stay hidden in the learner simulator. The three sessions 
 
 ### O2. JEV cost
 
-The $4.00 hard ceiling covers Anthropic model spend only. JEV goes to `ledger.recordExternal` and is reported apart
+The $4.00 ceiling covers Anthropic model spend only; it is enforced as a conservative reservation guard, not a guaranteed billing cap (§18). JEV goes to `ledger.recordExternal` and is reported apart
 from it. Each call records:
 - calls, latency and ok/failed;
 - provider, model and version;
@@ -143,10 +143,10 @@ All files are in `tests/evals/tutor-session/`. Everything is generic and tested 
 | `fixtures/` | Topic fixtures (`logistic-regression`, `photosynthesis`), simulator-only profiles, `taxonomy.json` (the eval's labels over the product's modality names, its reason-code checks, relations, review thresholds) and `cost-roles.json` (product roles; the material roles still provisional). |
 | `tutor-session.test.mjs` | 35 tests on the scripted fake world (the generic harness, metrics, cost, materials, graph). |
 | `product.test.mjs` | 9 tests on the real product path: the end-to-end path, provider isolation, tracing on/off (seeded, and under the product's normal randomness), the production validators, the stopping point, no copied logic, taxonomy names, mapping. |
-| `budget.test.mjs` | 5 tests: complete-request worst cases, reservations, the ceiling's scope, the simulator and reviewer requests, every product request reserved. |
+| `budget.test.mjs` | 6 tests: complete-request worst cases, reservations, the ceiling's scope, the simulator and reviewer requests, a mid-session refusal on an active journey, every product request reserved. |
 | `creator.test.mjs` | 7 tests: suppression, the cohort at every cut, no double counting, no learner identity, the public profile, impressions from the product's events. |
 
-All 56 run in `make test-unit`. They are scripted: they establish the plumbing, routing, validation and evidence rules, never real-model teaching quality (every bundle carries `coverage`, §19).
+All 57 run in `make test-unit`. They are scripted: they establish the plumbing, routing, validation and evidence rules, never real-model teaching quality (every bundle carries `coverage`, §19).
 
 There is no topic or profile branch in the code, and a test enforces it:
 - No harness source names a topic id, a topic title word or a profile id.
@@ -682,7 +682,14 @@ the integrated SHA.
   - Learner simulator: Sonnet 5.5, one call per decision.
   - Reviewer: Opus 5.5, one call per session.
 - **Transport.** The same `providerBoundary`, with the stub replaced by the real Anthropic and JEV transports (not wired).
-- **Budget enforcement.** Built and tested offline in `budget.test.mjs`; chars/3 is gone.
+- **Budget enforcement: a conservative reservation guard, not a guaranteed hard billing ceiling.** Built and tested
+  offline in `budget.test.mjs`; chars/3 is gone. It refuses any request whose worst case does not fit, and it never sends
+  a refused request. It cannot cap what Anthropic bills, for these reasons:
+  - the token bound rests on an unpublished tokenizer assumption (below);
+  - a request already sent cannot be recalled, so the overshoot of the request that breaks a bound, and of any request
+    in flight beside it, is spent before the session stops;
+  - a request whose answer is lost is counted at its reservation, but what the provider billed is not known;
+  - prices come from the versioned table, not from the bill.
   - **Worst case of one request** (`requestWorstCase`):
     - Input tokens are bounded by the complete serialized request's UTF-8 bytes plus 1000 tokens of API overhead.
     - Output is bounded by the request's own `max_tokens` (thinking included).
@@ -697,13 +704,28 @@ the integrated SHA.
     - A retry or an escalation is another request and reserves again.
     - The simulator and the reviewer send complete requests (`learnerRequest`, `reviewerRequest`) through the same ledger.
     - A failure with no reported usage keeps its whole reservation as spend.
-    - A parent ledger holds the run's hard ceiling over each session's sub-ceiling.
+    - A parent ledger holds the run's limit over each session's own limit.
   - **Stopping.** A refusal or a violation stops the session even when the product turned it into a 502: the stop reason
     is read from the ledger.
   - **Scope.** The ceiling covers Anthropic only. JEV is outside it, and its cost is unknown unless the provider reports
     one. The all-provider total therefore stays null, with a lower bound beside it; a JEV cost is never counted as $0.
-- **Ceiling.** Hard ceiling $4.00 of Anthropic spend, with a $1.30 sub-ceiling per session so all three profiles get
+- **Ceiling.** Reservation limits of $4.00 of Anthropic spend for the run and $1.30 per session, so all three profiles get
   coverage. A session whose next reservation does not fit stops with `cost_ceiling` and keeps every event.
+  - **Proved on the real path:** with an active journey and a run ledger that earlier sessions nearly exhausted, decision
+    1 completes. Decision 2's planner request is then refused before it reaches the transport, and the session stops with
+    `cost_ceiling`.
+- **Does the budget permit the run?** Measured on the real path in a free 15-decision session, with every request
+  reserved, including the simulator's:
+  - **Startup:** permitted. The LP1 start's three requests settle at most $0.47 even at their full worst case, well
+    inside $1.30.
+  - **At full worst-case usage** (every request costing its whole bound): the session stops with `cost_ceiling` after
+    4 of 15 decisions, at $1.26. The reviewer's call (about $0.16 at worst for that session) then no longer fits, so a
+    stopped session could not be reviewed.
+  - **At low usage** (the stub's token counts): all 15 decisions complete at $0.54, and the reviewer fits.
+  - **So the evaluation may stop before all planned decisions finish.** How far it gets depends on real usage, which
+    only the paid run shows.
+  - **Proposed, not built:** hold back the reviewer's worst case from each session's limit at its start, so a session
+    that stops early can still be reviewed.
 - **Materials.** `create_material` stays `not_run` in this first run; material generation is a separate approval.
 - **Sizing.** `requestWorstCase` at the 2026-09-25 price table, applied to:
   - the complete requests the product built in a free 15-decision run (the largest of each kind);
@@ -722,7 +744,8 @@ the integrated SHA.
 | **Session** | **$7.77** | **about $0.90** |
 
 - **Expected total:** about $2.70 for three sessions. This is an estimate of real usage that only the paid run measures.
-- **The worst case is not reachable:** reservations stop every session at its sub-ceiling and the run at $4.00.
+- **The worst case is not reachable through the guard:** reservations stop every session at its limit and the run at
+  $4.00, within the guard's limits stated above.
 - **Early stops:** near a ceiling, a request is refused whenever its worst case does not fit, so a session can stop with
   real headroom left.
 - **Before any paid call:**

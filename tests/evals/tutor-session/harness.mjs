@@ -173,7 +173,7 @@ export function parseReview(text, view) {
   return { scores, findings, flagged_sequences: judged };
 }
 
-// ---------- Cost ledger with a hard ceiling ----------
+// ---------- Cost ledger: a conservative reservation guard ----------
 
 // The ceiling covers Anthropic spend only (owner O2), the learner simulator and the reviewer included. Every Anthropic
 // request reserves its offline worst case (cost.mjs requestWorstCase: the complete request, priced at its own max_tokens)
@@ -181,10 +181,11 @@ export function parseReview(text, view) {
 // refused - so requests in flight together (an evaluation beside the planner) count together, and a retry or an escalation,
 // being another request, reserves again. settle() replaces a reservation with the priced usage. A request that reports no
 // usage (a failure, a timeout) keeps its whole reservation as possible spend; one that costs more than its reservation
-// breaks the bound: it is recorded in `violations` and the session stops. A parent ledger (the run's hard ceiling) reserves
+// breaks the bound: it is recorded in `violations` and the session stops. A parent ledger (the run's limit) reserves
 // alongside a per-session one. Other providers (JEV / Typesafe AI, avatar or video) are outside the ceiling: their cost is
 // the provider's report or unknown, never $0, so the all-provider total stays null while any is unknown. The ledger never
-// infers a remaining account balance.
+// infers a remaining account balance. It guards what is sent; it is not a billing cap: a request already sent cannot be
+// recalled, and the token bound rests on a tokenizer assumption (docs/features/tutor-decision-eval.md §18).
 export function createLedger(ceilingUsd, { date, parent = null } = {}) {
   const lines = [], open = new Map(), violations = [];
   let next = 0, refused = 0, peak = 0;

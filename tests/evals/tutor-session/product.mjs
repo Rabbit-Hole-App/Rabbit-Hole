@@ -29,6 +29,7 @@ import { JOURNEY_TOOLS } from '../../../packages/control-plane/src/agents/learn-
 import { NEXT_STEPS_LIMITS, NEXT_STEPS_TOOL } from '../../../packages/control-plane/src/agents/learn-next-steps.js';
 import { TUTOR_TOOL } from '../../../packages/control-plane/src/agents/learn-tutor.js';
 import { freshLearnDb } from './harness.mjs';
+import { requestWorstCase } from './cost.mjs';
 
 // The product's recompute debounce (contract §2.3): a hook set is requested this long after the turn that changed its basis.
 export const HOOK_DEBOUNCE_MS = NEXT_STEPS_LIMITS.debounce_ms;
@@ -57,10 +58,16 @@ export function roleOf(body) {
   return matching.length === 1 ? matching[0] : 'unknown';
 }
 const tokens = value => Math.ceil(JSON.stringify(value ?? '').length / 4);
-const message = (body, name, input) => Response.json({
+// Stub usage: a token count of what was sent and answered; 'worst' reports each request's full worst case (requestWorstCase:
+// every input token it could carry, and its whole max_tokens), so settled spend climbs as fast as the reservations do.
+const USAGE = {
+  stub: (body, input) => ({ input_tokens: tokens(body), output_tokens: tokens(input) }),
+  worst: body => ({ input_tokens: requestWorstCase(body).input_tokens_bound, output_tokens: body.max_tokens }),
+};
+const message = (body, name, input, usage) => Response.json({
   id: `msg_stub_${createHash('sha256').update(JSON.stringify(input)).digest('hex').slice(0, 12)}`, type: 'message', role: 'assistant', model: body.model,
   stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 'toolu_stub', name, input }],
-  usage: { input_tokens: tokens(body), output_tokens: tokens(input), cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
+  usage: { ...USAGE[usage](body, input), cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
 });
 // The planner context as the product sent it (plannerRequest: `context = <json>` in the user message).
 export const plannerContextOf = body => {
@@ -70,16 +77,17 @@ export const plannerContextOf = body => {
 };
 // Scripted answers. plan(context, body): the Tutor's tool input for that planner context (a test scripts it). hooks(input,
 // body): the hook planner's; it and the LP1 planners default to the product's own keyless fixtures (fixtureFor, the
-// JOURNEY_MODEL_STUB=fixtures replies), so their validators see well-formed input. jev(request): JEV's reply body. Usage is a
-// stub token count, labelled transport 'stub' on every cost line, so stub spend can never be read as real spend.
-export function stubAnswers({ plan = () => ({ strategy: 'none', actions: [{ type: 'respond_text', text: 'A stub reply: no model was called.' }], reason_codes: ['respond_to_question'], reason: 'A stub plan.' }), hooks = input => fixtureFor('suggest_next_steps', input), jev = request => ({ answers: Object.fromEntries(Object.keys(request.questions || {}).map(key => [key, { type: 'noul', noul: 0.95 }])) }) } = {}) {
+// JOURNEY_MODEL_STUB=fixtures replies), so their validators see well-formed input. jev(request): JEV's reply body. usage:
+// 'stub' (default) or 'worst' (USAGE above); either way it is labelled transport 'stub' on every cost line, so stub spend
+// can never be read as real spend.
+export function stubAnswers({ usage = 'stub', plan = () => ({ strategy: 'none', actions: [{ type: 'respond_text', text: 'A stub reply: no model was called.' }], reason_codes: ['respond_to_question'], reason: 'A stub plan.' }), hooks = input => fixtureFor('suggest_next_steps', input), jev = request => ({ answers: Object.fromEntries(Object.keys(request.questions || {}).map(key => [key, { type: 'noul', noul: 0.95 }])) }) } = {}) {
   return {
     anthropic: body => {
       const name = body?.tools?.[0]?.name;
-      if (name === TUTOR_TOOL.name) return message(body, name, plan(plannerContextOf(body), body));
+      if (name === TUTOR_TOOL.name) return message(body, name, plan(plannerContextOf(body), body), usage);
       if (!name) return Response.json({ type: 'error', error: { type: 'invalid_request_error', message: 'the stub answers tool calls only' } }, { status: 400 });
       const text = body.messages[0].content, input = JSON.parse(text.slice(text.indexOf('input = ') + 'input = '.length));
-      return message(body, name, name === NEXT_STEPS_TOOL.name ? hooks(input, body) : fixtureFor(roleOf(body), input));
+      return message(body, name, name === NEXT_STEPS_TOOL.name ? hooks(input, body) : fixtureFor(roleOf(body), input), usage);
     },
     jev: request => Response.json(jev(request)),
   };
