@@ -42,7 +42,8 @@ export async function accessIdentity(req, env, keys) {
   } catch { return null; }
 }
 
-// -> { req } to serve (with the person's session cookie), plus setCookie when a session was minted; or { refuse }.
+// -> { req } to serve (with the person's session cookie) and, once Access verified an allowed identity, its email, plus
+// setCookie when a session was minted; or { refuse }.
 export async function accessSession(req, env, keys) {
   if (!env.ACCESS_AUD) return { req };
   // Half a configuration never falls through to a session.
@@ -52,7 +53,7 @@ export async function accessSession(req, env, keys) {
   const email = await accessIdentity(req, env, keys);
   const allowed = String(env.ACCESS_ALLOWED_EMAILS || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
   if (!email || (email !== SMOKE_EMAIL && !allowed.includes(email))) return refuse('This preview is private: sign in through Cloudflare Access with an allowed account.');
-  if (sessionEmail(cookieValue(req, SESSION_COOKIE) || '') === email) return { req };
+  if (sessionEmail(cookieValue(req, SESSION_COOKIE) || '') === email) return { req, email };
   const minted = await env.CONTROL_PLANE.fetch(new Request(new URL('/test/session', req.url), {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     // handle: null - the person keeps (or chooses) their own handle; /test/session would otherwise invent one.
@@ -63,14 +64,21 @@ export async function accessSession(req, env, keys) {
   const headers = new Headers(req.headers);
   const others = (req.headers.get('Cookie') || '').split(/;\s*/).filter(c => c && !c.startsWith(`${SESSION_COOKIE}=`));
   headers.set('Cookie', [...others, `${SESSION_COOKIE}=${session}`].join('; '));
-  return { req: new Request(req, { headers }), setCookie: `${SESSION_COOKIE}=${session}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${SESSION_TTL}` };
+  return { req: new Request(req, { headers }), email, setCookie: `${SESSION_COOKIE}=${session}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${SESSION_TTL}` };
 }
 
+// The app's own sign-in pages and routes. Behind Access the person is already signed in, and the app's sign-in can
+// never complete on a preview (the barrier refuses /auth/*), so these go to the Library instead.
+const SIGN_IN = p => p === '/' || p === '/sign-in' || p === '/sign-up' || p === '/login' || p === '/auth' || p.startsWith('/auth/');
+export const signInRedirect = req => (req.method === 'GET' || req.method === 'HEAD') && SIGN_IN(new URL(req.url).pathname);
+
 // A worker's fetch with the Access bridge in front (dev-access-worker.js); unchanged when ACCESS_AUD is not set.
-export const withAccess = fetch => async (req, env, ctx) => {
-  const access = await accessSession(req, env);
+export const withAccess = (fetch, keys) => async (req, env, ctx) => {
+  const access = await accessSession(req, env, keys);
   if (access.refuse) return access.refuse;
-  const response = await fetch(access.req, env, ctx);
+  const response = access.email && signInRedirect(req)
+    ? new Response(null, { status: 302, headers: { Location: '/library', 'Cache-Control': 'no-store' } })
+    : await fetch(access.req, env, ctx);
   if (!access.setCookie) return response;
   const out = new Response(response.body, response);
   out.headers.append('Set-Cookie', access.setCookie);
