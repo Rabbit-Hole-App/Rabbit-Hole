@@ -361,3 +361,29 @@ test("the evaluation of every typed turn is recorded without text: status, escal
   assert.deepEqual(session.sections.map(entry => entry.section_id), [...new Set(bundle.steps.map(step => step.section_id))]);
   assert.equal(Object.values(session.actions).reduce((a, b) => a + b, 0), bundle.steps.flatMap(step => step.tutor_decision.actions).length);
 });
+
+test("r29: an explicit move-on is an accepted next_section; the route completes the section when its evidence is met and skips it otherwise, and the move is reported apart from evidence", async () => {
+  const MOVE_ON = 'Can we move on to the next section?';
+  // The Tutor answers and, when the learner asked in those words, plans next_section with their words quoted (the consent).
+  const plan = context => (context.learner_intent?.raw_user_message === MOVE_ON
+    ? { strategy: 'none', explicit_request: MOVE_ON, actions: [{ type: 'respond_text', text: 'Moving on.' }, { type: 'next_section' }], reason_codes: ['follow_learner_interest'], reason: 'The learner asked to move on.' }
+    : { strategy: 'none', actions: [{ type: 'respond_text', text: 'A stub reply: no model was called.' }], reason_codes: ['respond_to_question'], reason: 'A stub plan.' });
+  const moveOnSecond = () => { let n = 0; return { reply: async () => ({ selected_option_id: null, response: { kind: n === 0 ? 'question' : 'answer', text: n++ === 0 ? MOVE_ON : 'Okay.' } }) }; };
+  // JEV sure of every idea and of transfer: the section's completion evidence is met. JEV sure of none: it is not.
+  const sure = request => ({ answers: Object.fromEntries(Object.keys(request.questions || {}).map(key => [key, { type: 'noul', noul: /^attempt$|_idea\d+$|_transfer$/.test(key) ? 0.95 : 0.05 }])) });
+  const none = request => ({ answers: Object.fromEntries(Object.keys(request.questions || {}).map(key => [key, { type: 'noul', noul: key === 'attempt' ? 0.95 : 0.05 }])) });
+  for (const [jev, status] of [[sure, 'completed'], [none, 'skipped']]) {
+    const { bundle } = await realSession({ answers: stubAnswers({ plan, jev }), learner: moveOnSecond(), maxDecisions: 3 });
+    assert.equal(bundle.simulator.stop_reason, 'max_decisions', bundle.simulator.error?.message);
+    const changed = bundle.events.filter(event => event.type === 'section_changed');
+    assert.equal(changed.length, 1, status);
+    assert.deepEqual([changed[0].from_section_id, changed[0].status, changed[0].reason, changed[0].trigger], ['s1', status, `section_${status}`, 'tutor']);
+    // The next decision runs on the new section, and the move is reported apart from the evidence.
+    assert.ok(changed[0].to_section_id && changed[0].to_section_id !== 's1');
+    assert.equal(bundle.steps.at(-1).section_id, changed[0].to_section_id);
+    const progress = evidenceReport([bundle]).sessions[profile.id];
+    assert.deepEqual([progress.sections_completed, progress.sections_skipped], status === 'completed' ? [1, 0] : [0, 1]);
+    // Skipping never makes a claim understood.
+    if (status === 'skipped') assert.ok(!(bundle.steps.at(-1).evidence_after || []).some(claim => claim.state === 'understood'));
+  }
+});

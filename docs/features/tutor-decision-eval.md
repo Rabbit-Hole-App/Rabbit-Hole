@@ -885,6 +885,22 @@ page "Tutor confirmation run r27 · 2026-10-08").
 - **Aggregation fix:** after the run, `readSessions` read `run.json` as a session. It now skips it; aggregation only, nothing
   rerun.
 
+### 18.4 r29 wiring: moving to the next section (for the next confirmation run)
+
+- **Typed move-on.** An accepted `next_section` action, which the validator keeps only when `explicit_request` quotes the
+  learner's words, makes the route call the page makes after the turn (`executeActions`). That call is the journey
+  route's `next_section` at the journey's revision, replayed once at the re-read revision on a stale-revision 409.
+- **Next-section hook.** A click moves on with no Tutor turn (LearnPage `onPick`: `step.section`). The learner then reads
+  the new section (its title: section content is not materialized here) and types the next move. The hook's text carries
+  its note, as the card shows it: "Next section", or "Next section - skips this section".
+- **Recording.** Each move is a `section_changed` event: from and to section, `completed` or `skipped` from the route's
+  reply (`path.sections[left].status`, `change.reason`), and the trigger (`tutor` or `hook`).
+- **Reporting.** `evidence.sessions` reports `sections_completed` (the section's completion evidence was met) apart from
+  `sections_skipped` (the learner moved on before it was). A skip never counts toward understanding: claim states come from
+  evidence only.
+- **Open question for Learning:** whether the page re-reads the journey after a typed turn. Until it does, the section hook
+  can appear only after a reload, in the page and here alike.
+
 **B. Equivalent phrasings: quality, latency and cost** (contract §4.1.1 follow-up).
 - **Pairs:**
   - `Teach me X` vs `Explain X`;

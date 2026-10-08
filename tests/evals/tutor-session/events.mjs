@@ -75,6 +75,9 @@ export const EVENT_TYPES = {
   model_call_completed: ['call_id', 'provider', 'model_id', 'model_role', 'cost_status'],
   model_call_failed: ['call_id', 'provider', 'model_id', 'model_role', 'cost_status'],
   evidence_updated: ['claims'],
+  // r29: the journey moved to its next section (the route's next_section): status is the left section's, completed when its
+  // completion evidence was met, skipped otherwise; trigger 'tutor' (an accepted next_section) or 'hook' (the next-section hook).
+  section_changed: ['from_section_id', 'to_section_id', 'status', 'trigger'],
   // The learning graph (graph.mjs): explicit nodes and edges, never inferred from canvas positions.
   material_node_created: ['node_id', 'material_id'],
   material_link_created: ['edge_id', 'from_node_id', 'to_node_id', 'relation_type', 'created_by'],
