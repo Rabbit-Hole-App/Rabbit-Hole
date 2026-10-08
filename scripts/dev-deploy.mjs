@@ -120,19 +120,40 @@ async function serving() {
   return { sha: servedSha(deployments, versions), version: deployments[0]?.versions[0], any: deployments.length > 0 };
 }
 
-// The dev build a commit was deployed with: its line in the dev record, else its version's upload message.
-async function recordedBuild(sha, recordPath) {
+// "main <sha> build <pages hash>[ bundle <Worker hash>]", the upload message -> its parts.
+export function parseUpload(message) {
+  const m = message?.match(/^main ([0-9a-f]{40}) build ([0-9a-f]+)(?: bundle ([0-9a-f]+))?$/);
+  return m ? { sha: m[1], build: m[2], bundle: m[3] ?? null } : null;
+}
+
+// What a commit was deployed with - the page build and (from 2026-10-08) the Worker bundle: its line in the dev record,
+// else its version's upload message.
+async function recordedIdentity(sha, recordPath) {
   let text = '';
   try { text = readFileSync(recordPath, 'utf8'); } catch {}
   const line = text.split('\n').filter(Boolean).map(l => { try { return JSON.parse(l); } catch { return null; } }).findLast(r => r?.sha === sha && r.build);
-  if (line) return line.build;
+  if (line) return { build: line.build, bundle: line.bundle ?? null };
   for (const v of (await script('/versions')).items ?? []) {
-    const m = v.annotations?.['workers/message']?.match(/^main ([0-9a-f]{40}) build ([0-9a-f]+)$/);
-    if (m?.[1] === sha) return m[2];
+    const u = parseUpload(v.annotations?.['workers/message']);
+    if (u?.sha === sha) return u;
   }
   return null;
 }
 
+// The packaged Worker's identity, separate from the pages: wrangler's own bundle of the entrypoint (the code and every
+// module it uploads, dist/index.html among them), without source maps. Deterministic: two bundles of 4393d912 hashed
+// the same on 2026-10-08, and the bundle holds no absolute local path.
+function bundleHash() {
+  const out = join(tmpdir(), `${WORKER}.bundle`);
+  rmSync(out, { recursive: true, force: true });
+  wrangler(['deploy', 'dev-access-worker.js', '--config', 'wrangler.dev.jsonc', '--name', WORKER, '--dry-run', '--outdir', out]);
+  const h = createHash('sha256');
+  for (const f of readdirSync(out).filter(f => !f.endsWith('.map') && f !== 'README.md').sort()) h.update(f).update('\0').update(readFileSync(join(out, f)));
+  rmSync(out, { recursive: true, force: true });
+  return h.digest('hex').slice(0, 12);
+}
+
+// The pages' identity: every file of dist-dev.
 function buildHash(dir) {
   const files = (function walk(d) { return readdirSync(d, { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)]); })(dir).sort();
   const h = createHash('sha256');
@@ -196,7 +217,7 @@ async function main() {
   const verdict = gateVerdict(readFileSync(arg('gate') ?? stop('--gate <gate record> is required'), 'utf8'), tree);
   if (verdict) stop(`gate: ${verdict} - the last passing deployment stays`);
   say(`✓ gate passed for ${gated.slice(0, 8)} (tree ${tree.slice(0, 8)})`);
-  let gatedBuild = null;
+  let gatedId = null;
   if (reuse) {
     if (reuse === sha) stop('--reuse names the candidate itself; deploy it without --reuse');
     if (!isAncestor(reuse, sha)) stop(`the gated ${reuse.slice(0, 8)} is not an ancestor of ${sha.slice(0, 8)}`);
@@ -206,9 +227,10 @@ async function main() {
     // The focused checks, on this exact tree: failed-gate rejection, exact sha, stale runs, environment targeting.
     try { execFileSync(process.execPath, ['--test', 'scripts/dev-deploy.test.mjs', 'scripts/prod-release.test.mjs'], { cwd: root, stdio: ['ignore', 'ignore', 'inherit'] }); }
     catch { stop('policy A: the focused deploy and release tests failed'); }
-    // The dev build must be byte-identical to the gated one: proof that no build input changed.
-    gatedBuild = await recordedBuild(reuse, record);
-    if (!gatedBuild) stop(`policy A: no recorded dev build for the gated ${reuse.slice(0, 8)} to compare this build with`);
+    // The page build, and the Worker bundle where the gated deploy recorded one, must be byte-identical to the gated
+    // ones: proof that no build input changed.
+    gatedId = await recordedIdentity(reuse, record);
+    if (!gatedId) stop(`policy A: no recorded dev build for the gated ${reuse.slice(0, 8)} to compare this build with`);
     say(`✓ policy A: reusing the app gate of ${reuse.slice(0, 8)}; changed since: ${changed.join(', ')}; focused tests passed`);
   }
 
@@ -233,25 +255,27 @@ async function main() {
     const build = buildHash(join(web, 'dist-dev'));
     const entry = entryScript(readFileSync(join(web, 'dist-dev/index.html'), 'utf8'));
     if (!entry) stop('dist-dev/index.html has no module entry script; nothing deployed');
-    // The Worker also packages dist/index.html (the control plane's shell import). Built with the same env from the same
-    // commit it is identical to dist-dev/index.html, so the dist-dev hash is the identity of everything uploaded.
-    if (!readFileSync(join(web, 'dist/index.html')).equals(readFileSync(join(web, 'dist-dev/index.html')))) stop('dist/index.html differs from dist-dev/index.html, so the build hash would not cover the packaged shell; nothing deployed');
-    if (gatedBuild && build !== gatedBuild) stop(`policy A: this build ${build} differs from the gated build ${gatedBuild}, so a build input changed; a full gate is needed`);
-    say(`✓ built dist-dev ${build}${gatedBuild ? ' (identical to the gated build)' : ''}`);
+    // The Worker also uploads dist/index.html (the control plane's shell import); built with the same env from the same
+    // commit it equals dist-dev/index.html. The Worker bundle hash below covers it either way.
+    if (!readFileSync(join(web, 'dist/index.html')).equals(readFileSync(join(web, 'dist-dev/index.html')))) stop('dist/index.html differs from dist-dev/index.html; nothing deployed');
+    if (gatedId && build !== gatedId.build) stop(`policy A: the page build ${build} differs from the gated ${gatedId.build}, so a build input changed; a full gate is needed`);
+    const bundle = bundleHash();
+    if (gatedId?.bundle && bundle !== gatedId.bundle) stop(`policy A: the Worker bundle ${bundle} differs from the gated ${gatedId.bundle}; a full gate is needed`);
+    say(`✓ built pages ${build}${gatedId ? ' (identical to the gated build)' : ''}, Worker bundle ${bundle}${gatedId?.bundle ? ' (identical to the gated bundle)' : gatedId ? ' (the gated deploy recorded no bundle)' : ''}`);
 
     plan = check(await serving()); // again: another machine may have deployed during the build
     if (plan.action !== 'deploy') { say(`! ${plan.action}: ${plan.why}`); process.exitCode = plan.action === 'noop' ? 0 : 1; return; }
     // The Access entrypoint (dev-access-worker.js): the dev worker with the Access sign-in bridge in front.
-    const out = wrangler(['deploy', 'dev-access-worker.js', '--config', 'wrangler.dev.jsonc', '--name', WORKER, '--message', `main ${sha} build ${build}`]);
+    const out = wrangler(['deploy', 'dev-access-worker.js', '--config', 'wrangler.dev.jsonc', '--name', WORKER, '--message', `main ${sha} build ${build} bundle ${bundle}`]);
     const version = out.match(/Current Version ID: (\S+)/)?.[1];
-    say(`✓ deployed ${sha.slice(0, 8)} build ${build} as version ${version} to ${URL_BASE}`);
+    say(`✓ deployed ${sha.slice(0, 8)} pages ${build} bundle ${bundle} as version ${version} to ${URL_BASE}`);
 
     const results = await smoke(entry);
     for (const [state, line] of results) say(`${state === 'pass' ? '✓' : state === 'blocked' ? '!' : '✗'} ${state === 'blocked' ? 'blocked: ' : ''}${line}`);
     const smokeVerdict = results.some(([state]) => state === 'fail') ? 'fail' : results.some(([state]) => state === 'blocked') ? 'blocked' : 'pass';
     // Reused gate evidence is recorded apart from a fresh gate: prod-release prepare accepts only gates "pass".
     const gates = reuse ? { gates: 'reused', app_gate_sha: reuse } : { gates: 'pass' };
-    appendFileSync(record, `${JSON.stringify({ sha, ...gates, build, smoke: smokeVerdict, worker: WORKER, version, at: new Date().toISOString() })}\n`);
+    appendFileSync(record, `${JSON.stringify({ sha, ...gates, build, bundle, smoke: smokeVerdict, worker: WORKER, version, at: new Date().toISOString() })}\n`);
     if (smokeVerdict === 'fail') {
       if (before.version) {
         wrangler(['rollback', before.version, '--name', WORKER, '-y', '-m', `rollback to main ${before.sha}: smoke failed for ${sha.slice(0, 8)}`]);
