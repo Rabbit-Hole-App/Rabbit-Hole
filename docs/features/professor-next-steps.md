@@ -54,7 +54,7 @@ HookSet {
 
 Hook {
   id                  "<set_id>.<1|2|3>"   stable within its set (= suggestion_id)
-  hook                string               button text: 4-12 words, at most 90 characters; render verbatim
+  hook                string               button text: 4-16 words, at most 90 characters; render verbatim
   selected_next_step  SelectedNextStep     opaque to the UI: send it back unchanged, never read or render it
 }
 
@@ -266,7 +266,7 @@ Shared input is built on the server from the shared board's visible content only
 
 ### 2.2 Validation (server; a failure escalates, never loosens)
 
-- Exactly 3 options; each hook 4-12 words, at most 90 characters, one line, no code.
+- Exactly 3 options; each hook 4-16 words, at most 90 characters, one line, no code (16 since owner 2026-10-08, r29: run A2 refused 9 of 27 routine hooks at 13-16 words, none under 4).
 - Never a command or course label (learn, explain, study, continue, next lesson ...), never a format name (quiz, flashcards, animation, Motion, video, diagram, card, Explain Back ...) unless the canvas topic is that thing, no clickbait. Motion is caught as the product name (capitalised, or all caps MOTION), as motion graphic, clip or video, and as `with motion` within three words after a show, shown, explain, see, seen, watch, animate, illustrate, demonstrate or visualise verb (shown, seen and MOTION since Task 14); plain lowercase motion as physics vocabulary passes.
 - Answer reveal: a deterministic first gate rejects a hook containing 5 consecutive words of its claims' statements, ideas or drawn case, or of its own `learning_goal`. It catches copying only; the hook planner's prompt carries the semantic rule (never state the answer). No topic-specific answer lists.
 - No level, mastery or ability wording in a hook or goal.

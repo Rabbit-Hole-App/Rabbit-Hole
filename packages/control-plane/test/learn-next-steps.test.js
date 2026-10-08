@@ -48,12 +48,21 @@ test('a valid reply passes and keeps only the five fields', () => {
   assert.deepEqual(Object.keys(out.value[0]), ['hook', 'learning_goal', 'concept_ids', 'claim_ids', 'reason_internal']);
 });
 
+// Owner 2026-10-08 (r29): the hook length is 4-16 words within 90 characters; the boundary both ways.
+test('hook length boundary: 4 and 16 words within 90 characters pass; 3 and 17 words are hook_words', () => {
+  const swap = hook => ({ options: THREE.map((o, j) => (j ? o : { ...o, hook })) });
+  for (const hook of ['Why do jars crack?', 'Why do so many of the old jars in a cold shed crack at the top?']) assert.equal(nextStepsOutput(swap(hook), INPUT).ok, true, hook);
+  for (const hook of ['Why jars crack?', 'Why do so many of the old jars in a cold shed crack right at the top?']) assert.deepEqual(nextStepsOutput(swap(hook), INPUT).errors, ['option 1: hook_words'], hook);
+});
+
 test('one failing case per rule; errors name the rule, never the hook text', () => {
   const swap = (i, over) => ({ options: THREE.map((o, j) => (j === i ? { ...o, ...over } : o)) });
   const cases = [
     [{ options: THREE.slice(0, 2) }, 'shape'],
     [swap(0, { hook: 'Why cool slowly?' }), 'hook_words'],
-    [swap(0, { hook: 'Why does a vase that cools quickly in a cold draughty workshop crack apart?' }), 'hook_words'],
+    // Owner 2026-10-08 (r29): up to 16 words, the 90-character cap kept (run A2: 9 of 27 refused hooks had 13-16 words).
+    [swap(0, { hook: 'Why do so many of the old jars in a cold shed crack right at the top?' }), 'hook_words'],
+    [swap(0, { hook: 'Why do extraordinarily delicate porcelain vases crack spontaneously during uncontrolled overnight cooling in unheated workshops?' }), 'hook_chars'],
     [swap(0, { hook: 'What happens when\na vase cools too fast?' }), 'hook_line'],
     [swap(0, { hook: 'What does `cool()` do to a vase?' }), 'hook_code'],
     [swap(0, { hook: 'Explain why a vase cracks when cooled' }), 'command'],
@@ -239,7 +248,7 @@ const block = (text, tag) => text.slice(text.indexOf(`<${tag}>`) + tag.length + 
 
 test('NEXT_STEPS_SYSTEM: the owner hook rules, the semantic no-reveal rule, no modality choice, its own contract', () => {
   const rules = block(NEXT_STEPS_SYSTEM, 'non_negotiable_rules'), role = block(NEXT_STEPS_SYSTEM, 'role');
-  assert.match(rules, /4-12 words/);
+  assert.match(rules, /4-16 words/);
   assert.match(rules, /never states or reveals the answer in any wording/, 'semantic, not only lexical');
   assert.match(role, /never (?:teach|choose)[^.]*(?:material|modality)/i);
   for (const tag of ['[command]', '[modality]', '[answer reveal]', '[mastery]', '[clickbait]']) assert.ok(block(NEXT_STEPS_SYSTEM, 'examples').includes(`Bad output ${tag}`), tag);
@@ -253,7 +262,7 @@ test('NEXT_STEPS_SYSTEM: the owner hook rules, the semantic no-reveal rule, no m
 // Task 2 fix round 1: limits only the tool schema carries, the grounding rule as the validator reads it, no arrows, a lock on the examples.
 test('NEXT_STEPS_SYSTEM states the hook and id limits and the grounding rule the validator enforces', () => {
   const rules = block(NEXT_STEPS_SYSTEM, 'non_negotiable_rules');
-  assert.match(rules, /hook: 4-12 words and at most 90 characters, on one line/);
+  assert.match(rules, /hook: 4-16 words and at most 90 characters, on one line/);
   assert.match(rules, /at most 3 each, no duplicates/);
   assert.match(rules, /at least one id when the scope has any concept or claim; both empty only when the scope is empty/);
   assert.equal(rules.includes('when scope has claims'), false, 'the old claims-only wording');

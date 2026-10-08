@@ -7,7 +7,7 @@ import { STATES } from '../../../web/src/learn-tutor-evidence.js';
 
 export const NEXT_STEPS_PLANNER_VERSION = 'next-steps-planner-1';
 export const NEXT_STEPS_LIMITS = Object.freeze({
-  options: 3, hook_words_min: 4, hook_words_max: 12, hook_chars: 90, goal: LEARNING_GOAL_MAX, reason: 200, ids: 3,
+  options: 3, hook_words_min: 4, hook_words_max: 16, hook_chars: 90, goal: LEARNING_GOAL_MAX, reason: 200, ids: 3,
   scope_concepts: 12, scope_claims: 12, blocks: 20, block_title: 80, statement: 240, ideas: 4, idea: 120, drawn: 160,
   transitions: 6, modalities: 8, practice: 4, previous_hooks: 6, previous_goals: 3, question: 300, goal_text: 200,
   input_chars: 9000, input_refuse: 12000, basis: 400, debounce_ms: 1200, tab_cap: 60, block_floor: 6,
@@ -49,7 +49,7 @@ export const NEXT_STEPS_SYSTEM = tagged({
     '- The canvas, the goal and the path say what is taught, never what is known.',
   ],
   non_negotiable_rules: [
-    '- hook: 4-12 words and at most 90 characters, on one line, ideally a question or provocation a curious person would click, grounded in this canvas. It never states or reveals the answer in any wording: not the claim, its drawn case or your learning_goal, not even paraphrased.',
+    '- hook: 4-16 words and at most 90 characters, on one line, ideally a question or provocation a curious person would click, grounded in this canvas. It never states or reveals the answer in any wording: not the claim, its drawn case or your learning_goal, not even paraphrased.',
     '- Never a command or a course label (learn, explain, study, review, continue, next lesson or section); never name a format (quiz, flashcards, animation, Motion, video, diagram, card, Explain Back) unless the topic itself is that thing; no clickbait.',
     '- learning_goal: the precise pedagogical target in at most 120 characters, never shown to the learner.',
     '- concept_ids and claim_ids only from scope, at most 3 each, no duplicates; at least one id when the scope has any concept or claim; both empty only when the scope is empty.',
