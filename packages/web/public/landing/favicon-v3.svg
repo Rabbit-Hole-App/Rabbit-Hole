@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" fill="none">
-  <!-- favicon-v1's aperture, centred and 1.2x larger so it fills the tile at tab size (owner, 2026-10-08: "the icon
-       in the chrome browser seems to be small"); the rings' art box was 175x153 at (128.6, 106.4), now 210x183 at the centre. -->
-  <rect width="240" height="240" rx="38" fill="#000"/>
+  <!-- favicon-v2 on a rounder tile (owner, 2026-10-08: "the logo in the chrome tab should have rounded corners"):
+       rx 60 of 240, a quarter of the side, so the corners still read as rounded at 16 px. The rings are v2's. -->
+  <rect width="240" height="240" rx="60" fill="#000"/>
   <g stroke="#fff" stroke-width="7" transform="translate(120 120) scale(1.2) translate(-128.6 -106.4) rotate(-28 120 120)">
     <ellipse cx="134" cy="112" rx="88" ry="68"/>
     <ellipse cx="127" cy="117" rx="73" ry="56"/>
