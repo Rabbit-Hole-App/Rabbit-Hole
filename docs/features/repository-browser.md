@@ -155,6 +155,16 @@ Unchanged: the Sources dropdown under an answer lists only the files the server'
 - the lines become Learn's repository context;
 - the question is written into the chat ("What do lines 5–7 of train.py do?"), and nothing is sent.
 
+It also puts the lines on the canvas (owner, 2026-10-08: "Clicking ask should write the question in the chat, put the highlighted code as code card"):
+- **The card:** a **Code card** holding exactly those lines.
+  - It is the paste dialog's Code card (`pasteBlock`), titled with the file's name.
+  - Its file, lines and language are kept as its code source.
+- **Where:** in the flow where the learner is looking (`insertImported` with no drop point), never on top of another card.
+- **Selected:** the card becomes the question's selected card, with the pill above the composer, through the canvas's own selection arming. The repository range stays the context too.
+- **Send** carries both: `canvas_target` (the card and its lines) and `repository_context.range`. The server still reads the source at that commit.
+- **The same lines again:** the same repository, commit, file, start and end reselect their card. No second card is made.
+- **No model is asked until Send.** This is wired as `small:code-card`: RepositoryPage dispatches it and LearnPage places the card. The Map page's own Ask places no card.
+
 **Copy:**
 - It puts the selected lines on the clipboard.
 - The button itself reads **Copied** for a moment. There is no corner toast.
@@ -188,8 +198,13 @@ The preview text is display only (`repositoryExcerpt`). The request carries the 
   `agent/router.test.mjs` (show … with a selection),
   `code-reader.test.mjs` (tree, search), `project-ui.test.mjs` (navigation, Layers, one selection).
 - Files in Learn:
-  - Web unit: `map-files.test.mjs` covers the panel's two actions, Copy's in-place feedback, the chip's path, lines and preview, the Send path, the paste heuristic, and the paste dialog's choices and cards.
-  - Browser: cases 10, 10b and 10c of `repo-browser-check.mjs` cover Ask in chat and the chip, Copy and the clipboard, the paste dialog with Cancel and Escape, a Code card, prose as text, and Send carrying the range.
+  - Web unit: `map-files.test.mjs` covers the panel's two actions, Copy's in-place feedback, the chip's path, lines and preview, the Send path, the paste heuristic, the paste dialog's choices and cards, and Ask in chat's Code card (placed, selected, one per range, nothing asked).
+  - Browser: cases 10, 10b and 10c of `repo-browser-check.mjs` cover:
+    - Ask in chat and the chip;
+    - the Code card it places, holding the lines, selected in the pill, and not doubled by a second Ask;
+    - Copy and the clipboard;
+    - the paste dialog with Cancel and Escape, a Code card, and prose as text;
+    - Send carrying both the card and the range, and nothing sent before Send.
 - Server: `control-plane/test/repositories.test.js`, the large-range case.
 - Browser: `packages/web/e2e/repo-browser-check.mjs` on the local stack, one numbered case per brief §16 item, with the
   shared nanoGPT stub and `/api/learn/ask` stubbed. `workspace-check.mjs` and the Map cases of `rabbit-hole-check.mjs`
