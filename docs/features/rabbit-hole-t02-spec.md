@@ -514,7 +514,8 @@ operation, the parameters, and the effect. Its states:
 | No longer allowed | The permission recheck failed at approve time |
 | **Blocked on this preview** | D7 (§7.5) |
 
-`[Change]` puts the command text back in the bar.
+`[Change]` puts the command text back in the bar. The Start dialog's connect card has no Change (owner, 2026-10-08): its
+`[Cancel]` already returns to the repository field with the URL kept (`ConfirmCard` shows Change only with an `onChange`).
 
 **Who may act on a proposal.** Confirm needs edit rights on the target app,
 rechecked at approve time. Cancel is an action too: only the person who asked,

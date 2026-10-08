@@ -847,7 +847,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  await check('start: a GitHub URL shows the connect card with workspace, target and branch; Change keeps the URL', async () => {
+  await check('start: a GitHub URL shows the connect card with workspace, target and branch, Confirm and Cancel but no Change; Cancel keeps the URL', async () => {
     const page = await open();
     const writes = [];
     page.on('request', (r) => { if (r.method() !== 'GET') writes.push(`${r.method()} ${new URL(r.url()).pathname}`); });
@@ -863,9 +863,12 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     const text = await card.innerText();
     for (const fact of [wsLabel, 'rabbit-hole-e2e/demo', 'main']) must(text.includes(fact), `card lacks ${fact}: ${text}`);
     must(await card.getByRole('button', { name: 'Confirm' }).isEnabled(), 'connect_repository is Blocked, but T02 §16 allows it on the review copy');
-    await card.getByRole('button', { name: 'Change' }).click();
+    // Owner, 2026-10-08: "Remove Change button"; Cancel goes back to the field with the URL kept, to fix or re-check it.
+    must(await card.getByRole('button', { name: 'Change' }).count() === 0, 'the connect card still offers Change');
+    await card.getByRole('button', { name: 'Cancel' }).click();
     await card.waitFor({ state: 'detached', timeout: 3000 });
-    must(await url.inputValue() === 'https://github.com/rabbit-hole-e2e/demo', 'Change lost the URL');
+    must(await url.inputValue() === 'https://github.com/rabbit-hole-e2e/demo', 'Cancel lost the URL');
+    must(await url.isEditable() && await dialog.getByRole('button', { name: 'Check repository' }).count() === 1, 'the field is not back for another repository');
     must(!writes.some((w) => w.endsWith('/api/repositories')), `a repository create was sent: ${writes}`);
     await page.context().close();
   });
